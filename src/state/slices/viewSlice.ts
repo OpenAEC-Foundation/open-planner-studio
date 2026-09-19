@@ -9,8 +9,10 @@ import {
 } from '@/engine/view/visibleRows';
 import type {
   ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
-  SplitViewState, Layout,
+  SplitViewState, Layout, LayoutSession,
 } from './types';
+import { endLayoutSession, isFilterOnlyLayout, isLayoutSessionLive, startLayoutSession } from '@/engine/view/layoutPresets';
+import { currentLayoutParts } from '../layoutView';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
   captureViewLayoutHistoryState,
@@ -89,10 +91,51 @@ export interface ViewSlice {
    *  huidige view en herberekent viewRows. Onbekende refs zijn stille tolerantie (§8.4) — die zit al
    *  in de evaluatie/render, niet hier. */
   applyLayout: (layout: Layout) => void;
+  /** Layoutknop (issue #144): aan = toepassen; nogmaals = uit, terug naar het beeld van vóór de klik. */
+  toggleLayout: (layout: Layout) => void;
+  /** Relatielijnen in de Gantt tonen of verbergen (schermtegenhanger van de rapportoptie). */
+  setShowRelations: (show: boolean) => void;
 }
 
 
-export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
+export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
+  /** Schrijf de gedragen delen van `parts` naar het scherm als ÉÉN undo-stap, met de nieuwe sessie. */
+  const writeLayoutParts = (parts: Layout, session: LayoutSession | undefined, label: string): void => {
+    const beforeState = get();
+    const documentId = beforeState.activeDocumentId;
+    const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
+    const viewBefore = captureViewLayoutHistoryState(beforeState.view);
+    const gridBefore = {
+      columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: beforeState.taskGridSurfaces[surface].scrollX,
+    };
+    set((s) => {
+      if (parts.group !== undefined) s.view.group = parts.group;
+      if (parts.sort !== undefined) s.view.sort = parts.sort;
+      if (parts.filter !== undefined) s.view.filter = parts.filter;
+      if (parts.showRelations !== undefined) s.view.showRelations = parts.showRelations;
+      s.view.layoutSession = session;
+    });
+    if (parts.columns !== undefined) get().applyTaskGridLayoutColumns(parts.columns);
+    if (parts.timeScale !== undefined) get().setTimeScale(parts.timeScale);
+    get().recomputeViewRows();
+    const afterState = get();
+    const viewAfter = captureViewLayoutHistoryState(afterState.view);
+    const gridAfter = {
+      columns: afterState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: afterState.taskGridSurfaces[surface].scrollX,
+    };
+    const deltas: SessionHistoryDelta[] = [];
+    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
+      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
+    }
+    if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
+      deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
+    }
+    if (deltas.length > 0) afterState.recordSessionHistoryEvent(label, deltas);
+  };
+
+  return {
   view: createDefaultView(),
   viewRows: [],
 
@@ -236,36 +279,34 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   },
 
   applyLayout: (layout) => {
-    const beforeState = get();
-    const documentId = beforeState.activeDocumentId;
-    const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
-    const viewBefore = captureViewLayoutHistoryState(beforeState.view);
-    const gridBefore = {
-      columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
-      scrollX: beforeState.taskGridSurfaces[surface].scrollX,
-    };
-    // Issue #144: een layout zet alleen de delen die hij draagt; de rest van het beeld blijft staan.
-    set((s) => {
-      if (layout.group !== undefined) s.view.group = layout.group;
-      if (layout.sort !== undefined) s.view.sort = layout.sort;
-      if (layout.filter !== undefined) s.view.filter = layout.filter;
-    });
-    if (layout.columns !== undefined) get().applyTaskGridLayoutColumns(layout.columns);
-    if (layout.timeScale !== undefined) get().setTimeScale(layout.timeScale);
-    get().recomputeViewRows();
-    const afterState = get();
-    const viewAfter = captureViewLayoutHistoryState(afterState.view);
-    const gridAfter = {
-      columns: afterState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
-      scrollX: afterState.taskGridSurfaces[surface].scrollX,
-    };
-    const deltas: SessionHistoryDelta[] = [];
-    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
-      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
-    }
-    if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
-      deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
-    }
-    if (deltas.length > 0) afterState.recordSessionHistoryEvent(`Layout ${layout.name} toepassen`, deltas);
+    // Issue #144: een layout zet alleen de delen die hij draagt. Loopt er al een levende sessie
+    // (wissel van layout A naar B), dan blijft het herstelpunt dat van vóór A.
+    const state = get();
+    const current = currentLayoutParts(state);
+    const live = isLayoutSessionLive(state.view.layoutSession, current) ? state.view.layoutSession : undefined;
+    // Een layout die alleen een filter draagt (de opvolger van het opgeslagen filter) is geen
+    // layoutknop: hij neemt de sessie niet over, zodat bv. het resourcediagram gewoon aan blijft.
+    const session = isFilterOnlyLayout(layout) ? live : startLayoutSession(live, current, layout);
+    writeLayoutParts(layout, session, `Layout ${layout.name} toepassen`);
   },
-});
+
+  toggleLayout: (layout) => {
+    const state = get();
+    const current = currentLayoutParts(state);
+    const session = state.view.layoutSession;
+    if (!isLayoutSessionLive(session, current) || session.layout.id !== layout.id) {
+      get().applyLayout(layout);
+      return;
+    }
+    // Uitzetten: alleen de door layouts gezette delen gaan terug naar het beeld van vóór de klik.
+    const target = endLayoutSession(session, current);
+    const restore: Layout = { id: layout.id, name: layout.name };
+    for (const part of session.touched) (restore as unknown as Record<string, unknown>)[part] = target[part];
+    writeLayoutParts(restore, undefined, `Layout ${layout.name} uitzetten`);
+  },
+
+  setShowRelations: (show) => {
+    set((s) => { s.view.showRelations = show; });
+  },
+};
+};

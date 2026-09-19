@@ -202,7 +202,8 @@
     "screenColors_auto": "按任务 — 自动",
     "screenColors_category": "按类别",
     "screenColorsMissingField": "此项目中不存在该字段。暂时使用任务类型。",
-    "screenColorsHint": "在关键路径模式之外，红色边框标示关键路径。"
+    "screenColorsHint": "在关键路径模式之外，红色边框标示关键路径。",
+    "addLayout": "新建布局"
   },
   "ifc": {
     "title": "IFC 编辑器",

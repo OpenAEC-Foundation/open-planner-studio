@@ -202,7 +202,8 @@
     "screenColors_auto": "タスクごと — 自動",
     "screenColors_category": "カテゴリ別",
     "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。一時的にタスクタイプを使用します。",
-    "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。"
+    "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。",
+    "addLayout": "新規レイアウト"
   },
   "ifc": {
     "title": "IFC エディタ",

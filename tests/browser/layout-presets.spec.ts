@@ -1,5 +1,5 @@
-// Layouts als weergavepresets (issue #144, gfayat): één klik van de WBS-boom naar het resourcediagram
-// en één klik terug, zonder dat zoom of filter meeverhuizen. De pure kern en de migratie worden
+// Layoutknoppen (issue #144, gfayat): één klik zet het resourcediagram aan, nogmaals klikken brengt
+// het beeld van vóór de klik terug, zonder dat zoom of filter meeverhuizen. De pure kern en de migratie worden
 // headless bewaakt (tests/planning/check-layout-presets.ts); hier de echte gebruikersflow.
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -25,14 +25,17 @@ async function seedWithResources(page: import('@playwright/test').Page): Promise
 
 const viewState = (page: import('@playwright/test').Page) => page.evaluate(() => {
   const v = window.__OPS__!.store.getState().view;
-  return { group: v.group, sort: v.sort, filter: v.filter, zoom: v.zoom };
+  return { group: v.group, sort: v.sort, filter: v.filter, zoom: v.zoom, showRelations: v.showRelations ?? true };
 });
 
-test('layoutlijst: één klik naar het resourcediagram en één klik terug, zoom en filter blijven staan', async ({ page, ops: _ops }) => {
+const RESOURCE_DIAGRAM = '[data-ops-layout-button="builtin:resource-diagram"] button';
+
+test('layoutknop: één klik zet het resourcediagram aan, nogmaals klikken brengt het beeld van vóór de klik terug', async ({ page, ops: _ops }) => {
   await seedWithResources(page);
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.setZoom(17);
+    s.setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
     s.setFilter({ kind: 'group', op: 'AND', children: [
       { kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'Gevel' },
     ] });
@@ -40,35 +43,46 @@ test('layoutlijst: één klik naar het resourcediagram en één klik terug, zoom
   const before = await viewState(page);
 
   await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
-  const select = page.locator('[data-ops-layout-select]');
-  // Verse staat = de WBS-boom, en dat ZEGT de lijst ook: de waarde is afgeleid van het scherm.
-  await expect(select).toHaveValue('builtin:gantt-wbs');
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-lint-gantt-wbs.png` });
+  const button = page.locator(RESOURCE_DIAGRAM);
+  await expect(button).not.toHaveClass(/active/);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-knoppenrij-uit.png` });
 
-  await select.selectOption('builtin:resource-diagram');
-  const grouped = await viewState(page);
-  expect(grouped.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
-  expect(grouped.zoom).toBe(before.zoom);
-  expect(grouped.filter).toEqual(before.filter);
+  await button.click();
+  const on = await viewState(page);
+  expect(on.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
+  expect(on.showRelations).toBe(false);
+  // Zoom en filter zijn geen deel van deze layout en blijven dus staan.
+  expect(on.zoom).toBe(before.zoom);
+  expect(on.filter).toEqual(before.filter);
   // Banden per resource: Ploeg A en Kraan (Gevel is weggefilterd, dus geen band "(geen)").
   await expect(page.locator('[data-grid-group-cell]')).toHaveCount(2);
-  await expect(select).toHaveValue('builtin:resource-diagram');
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-resourcediagram.png` });
+  await expect(button).toHaveClass(/active/);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-resourcediagram-aan.png` });
 
-  await select.selectOption('builtin:gantt-wbs');
-  const back = await viewState(page);
-  expect(back.group).toEqual([]);
-  expect(back.zoom).toBe(before.zoom);
-  expect(back.filter).toEqual(before.filter);
-  await expect(page.locator('[data-grid-group-cell]')).toHaveCount(0);
+  // Handmatig zoomen tijdens het resourcediagram: geen layoutdeel, dus uitzetten laat het staan.
+  await page.evaluate(() => window.__OPS__!.store.getState().setZoom(23));
+  await expect(button).toHaveClass(/active/);
 
-  // Toepassen is een undo-stap: Ctrl+Z brengt het resourcediagram terug, en de lijst volgt het scherm.
+  await button.click();
+  const off = await viewState(page);
+  expect(off.group).toEqual([]);
+  expect(off.sort).toEqual(before.sort);
+  expect(off.showRelations).toBe(true);
+  expect(off.zoom).toBe(23);
+  expect(off.filter).toEqual(before.filter);
+  await expect(button).not.toHaveClass(/active/);
+
+  // Elke klik is één undo-stap, en de knop volgt het scherm in plaats van de laatste klik.
   await page.keyboard.press('ControlOrMeta+z');
-  expect((await viewState(page)).group).toEqual(grouped.group);
-  await expect(select).toHaveValue('builtin:resource-diagram');
+  expect((await viewState(page)).group).toEqual(on.group);
+  await expect(button).toHaveClass(/active/);
+
+  // Een gedragen deel met de hand wijzigen = de layout staat niet meer op het scherm.
+  await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
+  await expect(button).not.toHaveClass(/active/);
 });
 
-test('layoutlijst: een opgeslagen filter van vóór #144 verschijnt als layout en raakt alleen het filter', async ({ page, ops: _ops }) => {
+test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterknop en raakt alleen het filter', async ({ page, ops: _ops }) => {
   // De oude sleutel zetten en herladen: de migratie draait bij de eerste `loadLayouts()`.
   await page.evaluate(() => {
     localStorage.setItem('ops-savedFilters', JSON.stringify([{
@@ -90,18 +104,16 @@ test('layoutlijst: een opgeslagen filter van vóór #144 verschijnt als layout e
   await seedWithResources(page);
 
   await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
-  const select = page.locator('[data-ops-layout-select]');
-  await select.selectOption('builtin:resource-diagram');
-  await expect(select.locator('optgroup').last().locator('option')).toHaveText(['Zonder gevel']);
-  if (SHOTS) {
-    await select.focus();
-    await page.screenshot({ path: `${SHOTS}/03-lijst-met-filterlayout.png` });
-  }
+  await page.locator(RESOURCE_DIAGRAM).click();
+  // Een layout die alleen een filter draagt is geen layoutknop maar een regel onder de filterknop.
+  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(1);
+  await page.getByRole('button', { name: /^Filter/ }).click();
+  await page.getByRole('button', { name: 'Zonder gevel' }).click();
 
-  await select.selectOption('zonder-gevel');
   const after = await viewState(page);
   expect(after.filter).not.toBeNull();
   // De filter-layout draagt geen groepering: het resourcediagram blijft staan.
   expect(after.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
+  await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
   expect(await page.evaluate(() => localStorage.getItem('ops-savedFilters'))).toContain('zonder-gevel');
 });

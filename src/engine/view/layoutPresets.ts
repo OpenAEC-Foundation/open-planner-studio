@@ -4,19 +4,9 @@
 // Ontwerp: docs/superpowers/specs/2026-09-19-layouts-als-weergavepresets-design.md
 
 import { LAYOUT_PARTS } from '@/types/view';
-import type {
-  FilterNode, GroupLevel, Layout, LayoutPart, SavedFilter, SortLevel, TimeScale,
-} from '@/types/view';
-import type { TaskGridColumnPreference } from '@/types/taskGrid';
+import type { Layout, LayoutPart, LayoutSession, LayoutViewParts, SavedFilter } from '@/types/view';
 
-/** Het deel van het scherm waar een layout over gaat — precies de vijf layoutdelen. */
-export interface LayoutViewParts {
-  columns: readonly TaskGridColumnPreference[];
-  filter: FilterNode | null;
-  group: GroupLevel[];
-  sort: SortLevel[];
-  timeScale: TimeScale;
-}
+export type { LayoutViewParts } from '@/types/view';
 
 /** Id-prefix van de meegeleverde layouts; `generateId('layout')` kan die nooit opleveren. */
 export const BUILTIN_LAYOUT_PREFIX = 'builtin:';
@@ -44,7 +34,38 @@ export function applyLayoutParts(current: LayoutViewParts, layout: Layout): Layo
     group: layout.group !== undefined ? layout.group : current.group,
     sort: layout.sort !== undefined ? layout.sort : current.sort,
     timeScale: layout.timeScale !== undefined ? layout.timeScale : current.timeScale,
+    showRelations: layout.showRelations !== undefined ? layout.showRelations : current.showRelations,
   };
+}
+
+/** Staat de layout van deze sessie nog echt op het scherm? Zo niet, dan is het herstelpunt verlopen. */
+export function isLayoutSessionLive(
+  session: LayoutSession | undefined, current: LayoutViewParts,
+): session is LayoutSession {
+  return !!session && layoutMatchesView(session.layout, current);
+}
+
+/**
+ * De sessie ná het aanzetten van `layout`. Loopt er al een levende sessie (wissel van layout A naar
+ * B), dan blijft het herstelpunt dat van vóór A; anders is het huidige beeld het nieuwe herstelpunt.
+ */
+export function startLayoutSession(
+  live: LayoutSession | undefined, current: LayoutViewParts, layout: Layout,
+): LayoutSession {
+  const touched = new Set<LayoutPart>(live?.touched ?? []);
+  for (const part of layoutParts(layout)) touched.add(part);
+  return {
+    layout,
+    restore: live?.restore ?? structuredClone(current) as LayoutViewParts,
+    touched: LAYOUT_PARTS.filter(part => touched.has(part)),
+  };
+}
+
+/** Het beeld ná uitzetten: alleen de door layouts gezette delen gaan terug naar het herstelpunt. */
+export function endLayoutSession(session: LayoutSession, current: LayoutViewParts): LayoutViewParts {
+  const out = { ...current } as Record<LayoutPart, unknown>;
+  for (const part of session.touched) out[part] = session.restore[part];
+  return out as unknown as LayoutViewParts;
 }
 
 /** Komen ALLE gedragen delen overeen met het scherm? Een layout zonder delen matcht nooit. */

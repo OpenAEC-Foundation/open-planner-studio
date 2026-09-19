@@ -202,7 +202,8 @@
     "screenColors_auto": "Per task — automatic",
     "screenColors_category": "By category",
     "screenColorsMissingField": "This field does not exist in this project. Task type is used temporarily.",
-    "screenColorsHint": "Outside Critical path, a red outline marks the critical path."
+    "screenColorsHint": "Outside Critical path, a red outline marks the critical path.",
+    "addLayout": "New layout"
   },
   "ifc": {
     "title": "IFC Editor",

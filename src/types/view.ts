@@ -102,11 +102,39 @@ export interface Layout {
   /** Aanwezig + `null` = "wis het filter"; afwezig = filter ongemoeid. */
   filter?: FilterNode | null;
   timeScale?: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
+  /** Relatielijnen in de Gantt tonen. Het resourcediagram zet ze uit: een taak kan daar onder
+   *  meerdere banden staan, waardoor de pijlen kriskras door het beeld lopen. */
+  showRelations?: boolean;
+  /** Sleutel uit de vaste icoonset van de layoutknoppen (`layoutIcons.tsx`); geen layoutDEEL. */
+  icon?: string;
 }
 
-/** De vijf delen die een layout kan dragen, in vaste UI-volgorde. */
-export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale'] as const;
+/** De delen die een layout kan dragen, in vaste UI-volgorde. */
+export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale', 'showRelations'] as const;
 export type LayoutPart = typeof LAYOUT_PARTS[number];
+
+/** Het deel van het scherm waar een layout over gaat — precies de layoutdelen, volledig ingevuld. */
+export interface LayoutViewParts {
+  columns: TaskGridColumnPreference[];
+  filter: FilterNode | null;
+  group: GroupLevel[];
+  sort: SortLevel[];
+  timeScale: TimeScale;
+  showRelations: boolean;
+}
+
+/**
+ * Een layoutknop is een SCHAKELAAR (eigenaarsbesluit 2026-09-19): aanzetten past de layout toe,
+ * nogmaals klikken zet hem uit en brengt het beeld terug naar hoe het was vóór de eerste layoutklik.
+ * `restore` is dat beeld; `touched` de delen die sindsdien door een layout zijn gezet — alleen die
+ * worden teruggezet, zodat bijvoorbeeld een handmatige zoom tijdens het resourcediagram blijft staan.
+ */
+export interface LayoutSession {
+  /** De aangezette layout zoals hij werd toegepast; de store kent de layoutlijst zelf niet. */
+  layout: Layout;
+  restore: LayoutViewParts;
+  touched: LayoutPart[];
+}
 
 /** Split view binnen één document (§10) — undefined = uit. */
 export interface SplitViewState {
@@ -135,6 +163,10 @@ export interface ViewState {
   collapsedGroupKeys: string[];
   /** Split view binnen dit document; undefined = uit. */
   splitView?: SplitViewState;
+  /** Relatielijnen in de Gantt tonen (issue #144); undefined = aan. */
+  showRelations?: boolean;
+  /** De layoutknop die nu aanstaat, met het beeld om naar terug te keren; undefined = geen. */
+  layoutSession?: LayoutSession;
   /** Open-fit-signaal (issue #16): na het laden van een document zet fileSlice dit op `true`; de
    *  GanttCanvas voert dan de fit-to-project uit (het kent de viewport-breedte, de store niet) en
    *  wist het meteen weer. Transient — bewust GEEN undo/redo (view zit niet in de snapshot). */

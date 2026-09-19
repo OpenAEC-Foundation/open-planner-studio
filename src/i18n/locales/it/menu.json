@@ -202,7 +202,8 @@
     "screenColors_auto": "Per attività — automatico",
     "screenColors_category": "Per categoria",
     "screenColorsMissingField": "Questo campo non esiste nel progetto. Viene usato temporaneamente il tipo di attività.",
-    "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico."
+    "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico.",
+    "addLayout": "Nuovo layout"
   },
   "ifc": {
     "title": "Editor IFC",

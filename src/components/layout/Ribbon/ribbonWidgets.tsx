@@ -7,12 +7,12 @@ import {
   History, Download, Puzzle,
   LayoutTemplate, UserPlus, Flag, GitCompareArrows, CalendarClock, X,
   Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Palette,
-  Map as MapIcon, AlertTriangle, Save, RefreshCw, Settings2,
+  Map as MapIcon, AlertTriangle, Plus,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId,
+  saveShowMiniMap, loadLayouts,
 } from '@/utils/settingsStore';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { ExportFormat } from '@/state/appStore';
@@ -32,13 +32,10 @@ import {
   effectiveBarColorControl,
 } from '@/components/viewControls/barColorFieldOptions';
 import { buildImportLabels } from '@/i18n/importLabels';
-import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
-import {
-  isBuiltinLayoutId, isFilterOnlyLayout, layoutMatchesView, layoutParts, pickLayoutParts,
-  type LayoutViewParts,
-} from '@/engine/view/layoutPresets';
-import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
+import { layoutIcon } from '@/components/viewControls/layoutIcons';
+import { activeLayoutId } from '@/state/layoutView';
+import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
   RibbonInlineSelect,
@@ -944,152 +941,52 @@ export function SortPopoverButton() {
 }
 
 /**
- * Layout-groep (fase 2.7, §8/§13): actieve-layout-dropdown (kies + toepassen) + Opslaan als…/
- * Bijwerken/Beheren…. Opslag app-globaal via `settingsStore` (§8.2); `ops-lastLayoutId` alleen als
- * dropdown-voorselectie (BIJ opstart/documentwissel NIET automatisch toegepast, §8.3).
+ * Layout-groep (issue #144): elke layout is een eigen lintknop met icoon en naam — één klik zet hem
+ * aan, nogmaals klikken zet hem uit en brengt het beeld van vóór de klik terug (`toggleLayout`). De
+ * plusknop opent het layoutbeheer. Layouts die alleen een filter dragen staan onder de filterknop.
+ * Opslag app-globaal via `settingsStore`; meegeleverde layouts komen uit code (`builtinLayouts`).
  */
 export function LayoutGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
-  const compact = useRibbonDensity() !== 'full';
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
-  const applyLayout = useAppStore(s => s.applyLayout);
-  const view = useAppStore(s => s.view);
-  const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
-  const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
+  const toggleLayout = useAppStore(s => s.toggleLayout);
+  const activeId = useAppStore(activeLayoutId);
 
   const [layouts, setLayouts] = useState<Layout[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('');
+  const reload = useCallback(() => { void loadLayouts().then(setLayouts); }, []);
+  useEffect(() => { reload(); }, [reload]);
 
-  const reload = useCallback(() => {
-    void loadLayouts().then(setLayouts);
-  }, []);
-
+  // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de knoppenrij verversen.
+  const prevOpenRef = useRef(showLayoutsDialog);
   useEffect(() => {
-    reload();
-    void loadLastLayoutId().then(id => { if (id) setSelectedId(id); });
-  }, [reload]);
+    if (prevOpenRef.current && !showLayoutsDialog) reload();
+    prevOpenRef.current = showLayoutsDialog;
+  }, [showLayoutsDialog, reload]);
 
-  // Ná het sluiten van de layouts- of filterdialoog (mogelijke CRUD) de lijst verversen.
-  const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
-  const dialogOpen = showLayoutsDialog || showFilterDialog;
-  const prevOpenRef = useRef(dialogOpen);
-  useEffect(() => {
-    if (prevOpenRef.current && !dialogOpen) reload();
-    prevOpenRef.current = dialogOpen;
-  }, [dialogOpen, reload]);
-
-  // Issue #144: meegeleverde layouts staan in code (vertaalde naam, niet bewerkbaar), eigen
-  // layouts in de opslag; layouts die alleen een filter dragen krijgen een eigen blok.
-  const builtins = useMemo(() => builtinLayouts(tCommon), [tCommon]);
-  const ownLayouts = layouts.filter(l => !isFilterOnlyLayout(l));
-  const filterLayouts = layouts.filter(isFilterOnlyLayout);
-  const allLayouts = useMemo(() => [...builtins, ...layouts], [builtins, layouts]);
-
-  // De getoonde waarde is AFGELEID: de laatst gekozen layout zolang het scherm er nog mee
-  // overeenkomt, anders de eerste meegeleverde die klopt, anders "(aangepast)"/"(geen)". Zo licht
-  // "Resourcediagram" alleen op als het scherm dat ook echt toont.
-  const currentParts: LayoutViewParts = useMemo(() => ({
-    columns, filter: view.filter ?? null, group: view.group ?? [], sort: view.sort ?? [],
-    timeScale: scaleFromZoom(view.zoom),
-  }), [columns, view.filter, view.group, view.sort, view.zoom]);
-  const picked = allLayouts.find(l => l.id === selectedId);
-  const shownLayout = picked && layoutMatchesView(picked, currentParts)
-    ? picked
-    : builtins.find(l => layoutMatchesView(l, currentParts));
-  const shownId = shownLayout?.id ?? '';
-  const activeLayout = shownLayout && !isBuiltinLayoutId(shownLayout.id) ? shownLayout : undefined;
-
-  const pick = (id: string) => {
-    const layout = allLayouts.find(l => l.id === id);
-    if (!layout) return;
-    setSelectedId(id);
-    applyLayout(layout);
-    void saveLastLayoutId(id);
-  };
-
-  const update = () => {
-    if (!activeLayout) return;
-    // Bijwerken ververst alleen de delen die de layout al draagt (issue #144).
-    const next = layouts.map(l => (l.id === activeLayout.id
-      ? pickLayoutParts(snapshotLayout(view, columns, l.name, l.id), layoutParts(l))
-      : l));
-    setLayouts(next);
-    void saveLayouts(next);
-  };
+  const buttons = useMemo(
+    () => [...builtinLayouts(tCommon), ...layouts.filter(l => !isFilterOnlyLayout(l))],
+    [tCommon, layouts],
+  );
 
   return (
-    // minWidth 150 → 210 (issue #29): bij 150 kregen de drie knoppen elk maar ~46px — te weinig
-    // voor "Opslaan als…"/"Beheren…" (NL) en zeker voor langere talen (bv. FR "Enregistrer sous…"),
-    // wat de labels rauw liet afknippen i.p.v. netjes met "…" (zie de ellipsis-fix in Ribbon.css
-    // hierboven, die als vangnet blijft voor talen die ook bij 210px nog niet passen).
-    // In compacte dichtheid vervalt die ondergrens: alles staat dan op één platte rij (A2-fix,
-    // issue #38 punt 4) i.p.v. een 2-regelige kolom die boven de 40px-strip uitstak.
-    <div style={{
-      display: 'flex',
-      flexDirection: compact ? 'row' : 'column',
-      alignItems: compact ? 'center' : 'stretch',
-      gap: 4, padding: '2px 4px', minWidth: compact ? 0 : 210,
-    }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-        <span className="ribbon-info" style={{ fontWeight: 600, flex: '0 0 auto' }}>{tCommon('view.layout.activeLayout')}</span>
-        <select
-          value={shownId}
-          onChange={e => pick(e.target.value)}
-          className="input !text-[11px] !px-1.5 !py-1"
-          style={compact ? { width: 120 } : { flex: '1 1 auto', minWidth: 0 }}
-          data-ops-layout-select="true"
-        >
-          {shownId === '' && <option value="">{tCommon('view.layout.custom')}</option>}
-          <optgroup label={tCommon('view.layout.groupBuiltin')}>
-            {builtins.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </optgroup>
-          {ownLayouts.length > 0 && (
-            <optgroup label={tCommon('view.layout.groupOwn')}>
-              {ownLayouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </optgroup>
-          )}
-          {filterLayouts.length > 0 && (
-            <optgroup label={tCommon('view.layout.groupFilters')}>
-              {filterLayouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </optgroup>
-          )}
-        </select>
-      </label>
-      <div style={{ display: 'flex', gap: 2 }}>
-        {/* Iconen zijn hier niet decoratief: in de icoon-dichtheid verbergt de CSS élk
-            `.ribbon-btn-label`, dus een knop zonder icoon bleef als leeg stompje van ~14px over.
-            Met een icoon houdt elke knop betekenis, en de tooltip draagt het label. */}
-        <button
-          className="ribbon-btn small"
-          style={{ minWidth: 0, flex: '0 0 auto' }}
-          onClick={() => setUI({ showLayoutsDialog: true })}
-          title={tMenu('ribbon.saveLayoutAs')}
-        >
-          <span className="ribbon-btn-icon"><Save size={14} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.saveLayoutAs')}</span>
-        </button>
-        <button
-          className="ribbon-btn small"
-          style={{ minWidth: 0, flex: '0 0 auto' }}
-          onClick={update}
-          disabled={!activeLayout}
-          title={tMenu('ribbon.updateLayout')}
-        >
-          <span className="ribbon-btn-icon"><RefreshCw size={14} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.updateLayout')}</span>
-        </button>
-        <button
-          className="ribbon-btn small"
-          style={{ minWidth: 0, flex: '0 0 auto' }}
-          onClick={() => setUI({ showLayoutsDialog: true })}
-          title={tMenu('ribbon.manageLayouts')}
-        >
-          <span className="ribbon-btn-icon"><Settings2 size={14} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.manageLayouts')}</span>
-        </button>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: 2 }} data-ops-layout-buttons="true">
+      {buttons.map(layout => (
+        <span key={layout.id} data-ops-layout-button={layout.id} style={{ display: 'contents' }}>
+          <RibbonButton
+            icon={layoutIcon(layout.icon)}
+            label={layout.name}
+            active={activeId === layout.id}
+            onClick={() => toggleLayout(layout)}
+          />
+        </span>
+      ))}
+      <RibbonButton
+        icon={<Plus size={20} />}
+        label={tMenu('ribbon.addLayout')}
+        onClick={() => setUI({ showLayoutsDialog: true })}
+      />
     </div>
   );
 }

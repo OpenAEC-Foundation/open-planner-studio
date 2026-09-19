@@ -266,7 +266,9 @@ function baseLayout(v: unknown): Record<string, unknown> | null {
     (l.sort === undefined || Array.isArray(l.sort)) &&
     (l.filter === undefined || l.filter === null || typeof l.filter === 'object') &&
     (l.timeScale === undefined || typeof l.timeScale === 'string') &&
-    (l.columns === undefined || Array.isArray(l.columns))
+    (l.columns === undefined || Array.isArray(l.columns)) &&
+    (l.showRelations === undefined || typeof l.showRelations === 'boolean') &&
+    (l.icon === undefined || typeof l.icon === 'string')
   ) ? l : null;
 }
 
@@ -299,6 +301,8 @@ function normalizeLayout(v: unknown): Layout | null {
   if (l.sort !== undefined) out.sort = l.sort as Layout['sort'];
   if (l.filter !== undefined) out.filter = l.filter as Layout['filter'];
   if (l.timeScale !== undefined) out.timeScale = l.timeScale as Layout['timeScale'];
+  if (l.showRelations !== undefined) out.showRelations = l.showRelations as boolean;
+  if (l.icon !== undefined) out.icon = l.icon as string;
   return out;
 }
 
