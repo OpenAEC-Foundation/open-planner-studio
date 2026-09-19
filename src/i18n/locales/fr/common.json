@@ -619,7 +619,11 @@
       "conflictDays": "{{count}} jour(s)",
       "reason": {
         "calendarMismatch": "La ressource ne travaille pas tous les jours nécessaires à cette tâche — le décalage ne résout pas ce problème.",
-        "insufficientCapacity": "Capacité libre insuffisante dans la marge pour résoudre ce conflit."
+        "insufficientCapacity": "Capacité libre insuffisante dans la marge pour résoudre ce conflit.",
+        "ceilingTooTight": "Le plafond de décalage laisse trop peu de marge : aucune fenêtre libre dans ce nombre de jours ouvrables.",
+        "ceilingUnreachable": "Donner du décalage n'aide pas ici — une échéance ou une contrainte maintient cette tâche en place.",
+        "noWindowInHorizon": "Aucune fenêtre libre n'a été trouvée dans la période explorée ; au-delà, c'est inconnu.",
+        "residualFull": "L'engagement propre avait de la marge, mais la capacité résiduelle de la bibliothèque est épuisée — d'autres projets l'occupent."
       }
     },
     "curve": {

@@ -619,7 +619,11 @@
       "conflictDays": "{{count}} giorno/i",
       "reason": {
         "calendarMismatch": "La risorsa non lavora in tutti i giorni richiesti da questa attività — lo spostamento non risolve il problema.",
-        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto."
+        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto.",
+        "ceilingTooTight": "Il tetto di slittamento lascia troppo poco spazio: entro quel numero di giorni lavorativi non c'è una finestra libera.",
+        "ceilingUnreachable": "Concedere slittamento qui non aiuta — una scadenza o un vincolo tiene questa attività al suo posto.",
+        "noWindowInHorizon": "Nel periodo esplorato non è stata trovata alcuna finestra libera; oltre non si sa.",
+        "residualFull": "L'impegno proprio aveva spazio, ma la capacità residua della libreria è esaurita — altri progetti la occupano."
       }
     },
     "curve": {

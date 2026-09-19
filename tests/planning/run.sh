@@ -614,11 +614,18 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GLECHECK="$DIR/.gantt-label-ellipsis.mjs"
   if bundle_check "$DIR/check-gantt-label-ellipsis.ts" "$GLECHECK"; then node "$GLECHECK" || STATUS=1; fi
 
-  # U2: labelkleur op de balk. Eén balkpalet voor licht én donker laat geen vaste witte tekst toe;
-  # `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding. Pint zwart op de zes
-  # balktinten en wit op de voortgangsvulling en de 25%-zwart-overlay.
+  # Labelkleur op de balk. Een vaste witte tekst kan niet zodra de balkkleur uit projectdata komt
+  # (de kleurmodi); `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding.
+  # Pint wit op de vijf balktinten, de voortgangsvulling en de 25%-zwart-overlay, zwart op de
+  # spelinggroenen — de uitkomst, niet de formule.
   BLCCHECK="$DIR/.bar-label-color.mjs"
   if bundle_check "$DIR/check-bar-label-color.ts" "$BLCCHECK"; then node "$BLCCHECK" || STATUS=1; fi
+
+  # Thema-balktinten: de tekenlaag leest de balkkleuren via een thema-var met BRAND als fallback.
+  # Licht/donker zetten die vars niet (dus BRAND), hoog contrast wel. Deze poort leest globals.css
+  # en bewaakt de fallback, het contrast op de eigen kaart en balk-vs-voortgang-onderscheid.
+  TBCCHECK="$DIR/.theme-bar-contrast.mjs"
+  if bundle_check "$DIR/check-theme-bar-contrast.ts" "$TBCCHECK"; then node "$TBCCHECK" || STATUS=1; fi
 
   # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
   # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
@@ -693,6 +700,25 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # gestarte taak, en met behoud van bestaande importsplits.
   LEVELERSPLITMODECHECK="$DIR/.leveler-splitmode.mjs"
   if bundle_check "$DIR/check-leveler-splitmode.ts" "$LEVELERSPLITMODECHECK"; then node "$LEVELERSPLITMODECHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 2: `applyLeveling` schrijft scope-behoudend en schrijft ook `splitGaps`;
+  # `clearLeveling` wist ook de leveling-gaten (met een no-op-guard die gaten meetelt); de
+  # motor-baseline is idempotent in de onderbreek-modus (geen accumulatie bij een tweede run).
+  APPLYLEVELINGSCOPECHECK="$DIR/.apply-leveling-scope.mjs"
+  if bundle_check "$DIR/check-apply-leveling-scope.ts" "$APPLYLEVELINGSCOPECHECK"; then node "$APPLYLEVELINGSCOPECHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 4: de monotone mutatieteller op de store-runtime (beweegt óók binnen een
+  # coalesce-reeks, waar undoStack.length en het interne undo-volgnummer tekortschieten) plus de
+  # referentie-gebaseerde voorstel-vingerafdruk (`documentFingerprint`).
+  MUTATIONSEQCHECK="$DIR/.mutation-seq.mjs"
+  if bundle_check "$DIR/check-mutation-seq.ts" "$MUTATIONSEQCHECK"; then node "$MUTATIONSEQCHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 5: de headless scratch-instantie (`runInScratchDocument`) — round-trip via het
+  # documentcontract, echte acties met echte undo-semantiek, de context-bewuste host-event-emitter
+  # die in de scratch-context zwijgt, meldingen die opbubbelen i.p.v. verdwijnen, en geen sporen in
+  # de app-globale store.
+  SCRATCHDOCCHECK="$DIR/.scratch-document.mjs"
+  if bundle_check "$DIR/check-scratch-document.ts" "$SCRATCHDOCCHECK"; then node "$SCRATCHDOCCHECK" || STATUS=1; fi
 
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.

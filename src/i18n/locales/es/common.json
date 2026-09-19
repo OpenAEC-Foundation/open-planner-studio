@@ -619,7 +619,11 @@
       "conflictDays": "{{count}} día(s)",
       "reason": {
         "calendarMismatch": "El recurso no trabaja todos los días que necesita esta tarea — desplazarla no resuelve esto.",
-        "insufficientCapacity": "No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto."
+        "insufficientCapacity": "No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto.",
+        "ceilingTooTight": "El techo de holgura deja muy poco margen: no hay ninguna ventana libre dentro de esos días laborables.",
+        "ceilingUnreachable": "Dar más margen no ayuda aquí — una fecha límite o una restricción mantiene esta tarea en su sitio.",
+        "noWindowInHorizon": "No se encontró ninguna ventana libre dentro del período explorado; más allá se desconoce.",
+        "residualFull": "El propio uso tenía margen, pero la capacidad residual de la biblioteca está agotada — otros proyectos la ocupan."
       }
     },
     "curve": {

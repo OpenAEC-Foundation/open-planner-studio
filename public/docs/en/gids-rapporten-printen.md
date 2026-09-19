@@ -60,6 +60,12 @@ A full, formatted printout of the Gantt bars — this is the only report type wi
   wide as the longest name in the report (indentation included), so nothing is cut off; the
   timeline gets correspondingly narrower. Only an extremely long name is still truncated, so that a
   single name can never claim the whole page.
+- The remaining table columns — *WBS*, *Duration*, *Start*, *End*, *Compl.* and, in the resource
+  diagram, *Units/d* and *Curve* — need no setting: each one becomes exactly as wide as its header
+  and its widest cell in this report. A long translated header therefore gets the room it needs
+  instead of running into the next column, and short content (one-level WBS codes, single-digit
+  durations) hands the leftover millimetres to the timeline. Only an exceptionally wide value stops
+  at the column maximum; that cell then ends in an ellipsis.
 - **Bar colors** — one choice shared by the on-screen Gantt and the report. *Critical path* gives
   the familiar red/orange/blue; *Per task — automatic* gives every task a stable palette color;
   *By category* lets you select a field from the same list as **Group**. For example, choose
@@ -289,6 +295,11 @@ optionally the activities themselves under their element.
 There is no separate print button with a system dialog: printing goes through the PDF. Export the
 report, open the PDF and print it — that way paper shows exactly what the preview shows, with the
 same page breaks (never through a row).
+
+Column headers always appear in full in the PDF: if a translated header does not fit the width the
+column was designed for, the column grows instead of truncating the header — just like the table on
+screen. Cell content that is too long (a long task name, a row of resources) does end in an
+ellipsis; that is the intended division of space.
 
 Every report type has an **Export PDF** button. For the Gantt report it saves the current preview
 as an actual PDF file (filename ending in `-planning.pdf`) — one page sized to the physical

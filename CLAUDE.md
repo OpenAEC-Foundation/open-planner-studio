@@ -183,6 +183,18 @@ uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableRep
 UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePeriodFor(ctx, period)`
 — nooit een eigen weken-getal erbij bouwen.
 
+**Kolombreedtes zijn gemeten, niet vast.** De datakolommen van de Gantt-/resourcediagram-tabel (WBS,
+Duur, Start, Einde, Volt., Eenh./d) worden — net als de naam- en de curvekolom — door `ReportPanel`
+op de echte koppen én cellen van dít rapport gemeten (`measureTableColumnWidths`) en via
+`PrintOptions.columnWidths` doorgegeven; zonder meting gelden de oude vaste breedtes uit `COL`, dus
+elk pad zonder canvas blijft byte-identiek. Meten hoort in het paneel en niet in de printlaag:
+`measurePrintReport` (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen
+dan de raster- en vector-render. De celteksten komen daarbij uit één bron (`taskTableCellTexts`) die
+de render óók gebruikt — anders meet je "Duur" en teken je iets anders. Bij de tabelrapporten doet
+`fitColumnsToHeaders` (`pdfTable.ts`) hetzelfde voor de PDF, maar **alleen verbreden**: een kolom die
+haar eigen vertaalde kop niet kwijt kan groeit mee, versmallen niet — `mode: 'fit-width'` schaalt een
+smallere tabel juist gróter, en celinhoud hoort in een vrije-tekstkolom wél af te kappen.
+
 ### State: één Zustand + Immer store, samengesteld uit slices
 
 `src/state/appStore.ts` is een compositie-root: `create<AppState>()(immer(...))` combineert de slice-creators uit `src/state/slices/` plus de gridtransactieslice. Elke slice is getypeerd als `AppSlice<XSlice>` (zie `slices/types.ts`) tegen de **volledige** `AppState`, zodat cross-slice acties (runCPM, undo/redo, newProject, file-I/O) gewoon de hele Immer-draft muteren. Nieuwe state/acties horen in de passende slice; `slices/types.ts` bevat daarnaast gedeelde type/enum-definities (`ViewState`, `UIState`, …). Domain-types staan in `src/types/`. De renderer leest alleen uit de store.

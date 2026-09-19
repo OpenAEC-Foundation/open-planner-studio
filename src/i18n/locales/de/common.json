@@ -610,7 +610,11 @@
       "conflictDays": "{{count}} Tag(e)",
       "reason": {
         "calendarMismatch": "Die Ressource arbeitet nicht an allen Tagen, die diese Aufgabe benötigt — Verschieben löst dies nicht.",
-        "insufficientCapacity": "Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen."
+        "insufficientCapacity": "Nicht genug freie Kapazität innerhalb des Puffers, um diesen Konflikt zu lösen.",
+        "ceilingTooTight": "Die Verschiebungsgrenze lässt zu wenig Raum: Innerhalb dieser Anzahl Arbeitstage ist kein freies Fenster.",
+        "ceilingUnreachable": "Mehr Verschiebung hilft hier nicht — ein Termin oder eine Randbedingung hält diesen Vorgang an seinem Platz.",
+        "noWindowInHorizon": "Innerhalb des durchsuchten Zeitraums wurde kein freies Fenster gefunden; weiter draußen ist es unbekannt.",
+        "residualFull": "Der eigene Einsatz hatte Raum, aber die Restkapazität der Bibliothek ist aufgebraucht — andere Projekte belegen sie."
       }
     },
     "curve": {

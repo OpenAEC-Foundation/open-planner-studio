@@ -79,23 +79,53 @@ const BAR_LABEL_PAD_LEFT = 4;
 // verdwenen — de automatisch genummerde WBS-kolom zegt al waar een rij staat, en op papier is
 // elke millimeter voor de tijdlijn.
 //
-// De vaste breedtes zijn gemeten met het gevendorde Inter (waarden 8 px, koppen 9 px vet, cel-
-// padding 4 px per zijde), niet geschat: een datum `31-12-2026` meet 43,5 px (⇒ 51,5 met padding),
-// een WBS-code `1.10.12.3` 31,5 px, `1000d` 23 px en `100%` 21 px. Start/Einde op 55 en WBS op 50
-// houden daarmee ≥ 7 % marge. Duur en Volt. blijven 45 om de langste vertaalde koppen (pl
-// "Czas trwania" 57 px — die liep al over — en de "Fertigst." 37 px) niet verder te knijpen.
+// `w` is de TERUGVAL-breedte (wat de kolom was toen ze nog vast was, en wat ze blijft zolang er
+// geen meting is); `max` de bovengrens waarboven de kolom niet mag groeien. De getallen zijn
+// gemeten met het gevendorde Inter (waarden 8 px, koppen 9 px vet, celpadding 4 px per zijde),
+// niet geschat: een datum `31-12-2026` meet 43,5 px (⇒ 51,5 met padding), een WBS-code
+// `1.10.12.3` 31,5 px, `1000d` 23 px en `100%` 21 px.
+//
+// Die vaste breedtes hielden echter niet ALLE inhoud: de Poolse duur-kop "Czas trwania" meet
+// 57,3 px in een kolom van 45 (en liep dus over de Start-kolom heen — `Draw2D` kent geen clip),
+// de Arabische/Perzische "Eenh./d"-kop 44,8 px in 45, en een WBS-code van vijf niveaus
+// (`10.11.12.13.14`) 48,8 px terwijl er 42 beschikbaar was. Daarom meet het rapportpaneel deze
+// zes kolommen nu op de inhoud die dít rapport toont ({@link measureTableColumnWidths}) —
+// dezelfde route als de naam- en de curvekolom al liepen — en is `w` alleen nog de terugval.
+// `max` = tweemaal de terugval: genoeg voor elke vertaalde kop en een diepe WBS-code, en nog
+// steeds een harde grens zodat één absurde waarde de tijdlijn niet opeet (daar kapt `fitText` af).
 // De naamkolom staat hier bewust NIET: die breedte is instelbaar (zie `PrintOptions.taskNameColumnWidth`).
 const COL = {
-  wbs:       { w: 50 },
-  duration:  { w: 45 },
-  start:     { w: 55 },
-  end:       { w: 55 },
-  complete:  { w: 45 },
+  wbs:       { w: 50, max: 100 },
+  duration:  { w: 45, max: 90 },
+  start:     { w: 55, max: 110 },
+  end:       { w: 55, max: 110 },
+  complete:  { w: 45, max: 90 },
   // Toewijzingskolommen van het resourcediagram (manuvarkey punt 1): eenheden per dag en de
   // verdeelcurve van de resource van de band op die taak. Alleen bij `assignmentColumns`.
-  units:     { w: 45 },
+  units:     { w: 45, max: 90 },
   curve:     { w: 98 },
 };
+
+/** De zes datakolommen die zich (net als naam en curve) aan hun eigen inhoud aanpassen. */
+export type AutoColumnKey = 'wbs' | 'duration' | 'start' | 'end' | 'complete' | 'units';
+
+/**
+ * Gemeten, ONGESCHAALDE breedtes per kolom (zie {@link measureTableColumnWidths}). Een ontbrekende
+ * of onbruikbare sleutel valt terug op `COL[key].w` — precies de vaste breedte van vóór deze
+ * meting, zodat elk pad zonder canvas (tests, headless render) byte-identiek blijft.
+ */
+export type TableColumnWidths = Partial<Record<AutoColumnKey, number>>;
+
+/**
+ * Vloer voor een meegeschaalde kolom. Een kop als het Chinese "工期" vraagt maar ~27 px; smaller
+ * dan dit leest een kolom als een dubbele scheidingslijn in plaats van als kolom.
+ */
+export const AUTO_COLUMN_MIN_WIDTH = 30;
+
+function resolveAutoColumnWidth(key: AutoColumnKey, raw: number | undefined): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return COL[key].w;
+  return Math.min(COL[key].max, Math.max(AUTO_COLUMN_MIN_WIDTH, raw));
+}
 
 /**
  * De curvekolom is niet vast maar zo breed als de langste curvenaam die het rapport écht toont
@@ -173,28 +203,57 @@ function resolveNameColumnWidth(raw: number | undefined): number {
  * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
  * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
  */
-function tableWidthFor(showCompletion: boolean, nameW: number, assignmentColumns = false, curveW = COL.curve.w): number {
-  return COL.wbs.w + nameW + COL.duration.w + COL.start.w + COL.end.w + (showCompletion ? COL.complete.w : 0)
-    + (assignmentColumns ? COL.units.w + curveW : 0);
+function tableWidthFor(showCompletion: boolean, w: ResolvedColumnWidths, assignmentColumns = false): number {
+  return w.wbs + w.name + w.duration + w.start + w.end + (showCompletion ? w.complete : 0)
+    + (assignmentColumns ? w.units + w.curve : 0);
+}
+
+/** Alle kolombreedtes van één render, ongeschaald en al geklemd. */
+interface ResolvedColumnWidths extends Record<AutoColumnKey, number> {
+  name: number;
+  curve: number;
+}
+
+/**
+ * Zet de drie breedte-bronnen van een render om in één record: de instelbare naamkolom, de gemeten
+ * curvekolom en de zes gemeten datakolommen. Eén plek waar de terugval en het klemmen gebeuren,
+ * zodat `tableWidthFor` en `getColPositions` gegarandeerd met dezelfde getallen rekenen — anders
+ * schuift de tabelbreedte los van de kolomposities en scheurt de tabel.
+ */
+function resolveColumnWidths(
+  taskNameColumnWidth: number | undefined,
+  curveColumnWidth: number | undefined,
+  columnWidths: TableColumnWidths | undefined,
+): ResolvedColumnWidths {
+  return {
+    wbs: resolveAutoColumnWidth('wbs', columnWidths?.wbs),
+    name: resolveNameColumnWidth(taskNameColumnWidth),
+    units: resolveAutoColumnWidth('units', columnWidths?.units),
+    curve: resolveCurveColumnWidth(curveColumnWidth),
+    duration: resolveAutoColumnWidth('duration', columnWidths?.duration),
+    start: resolveAutoColumnWidth('start', columnWidths?.start),
+    end: resolveAutoColumnWidth('end', columnWidths?.end),
+    complete: resolveAutoColumnWidth('complete', columnWidths?.complete),
+  };
 }
 
 // Kolomposities van links naar rechts. `k` is de rapport-lettergrootteschaal (zie
 // {@link ReportMetrics}); álle kolommaten schalen mee, want een grotere letter heeft een bredere
 // kolom nodig. Bij k = 1 is dit rekenkundig exact de ongeschaalde uitkomst. `complete` is
 // `undefined` wanneer de kolom verborgen is; alle tekenpaden lezen dat als "niet tekenen".
-function getColPositions(k: number, showCompletion: boolean, nameW: number, assignmentColumns = false, curveW = COL.curve.w) {
+function getColPositions(k: number, showCompletion: boolean, widths: ResolvedColumnWidths, assignmentColumns = false) {
   let x = 0;
   const next = (w: number) => { const col = { x, w: w * k }; x += w * k; return col; };
   return {
-    wbs: next(COL.wbs.w),
-    name: next(nameW),
+    wbs: next(widths.wbs),
+    name: next(widths.name),
     // Direct achter de naam: ze horen bij "wie staat hierop en hoe", niet bij de datums.
-    units: assignmentColumns ? next(COL.units.w) : undefined,
-    curve: assignmentColumns ? next(curveW) : undefined,
-    duration: next(COL.duration.w),
-    start: next(COL.start.w),
-    end: next(COL.end.w),
-    complete: showCompletion ? next(COL.complete.w) : undefined,
+    units: assignmentColumns ? next(widths.units) : undefined,
+    curve: assignmentColumns ? next(widths.curve) : undefined,
+    duration: next(widths.duration),
+    start: next(widths.start),
+    end: next(widths.end),
+    complete: showCompletion ? next(widths.complete) : undefined,
   };
 }
 
@@ -205,8 +264,43 @@ export function nameCellFont(bold: boolean): string {
 
 /** De letter van de curvekolom, ongeschaald: de kop (9 px vet) of een cel (8 px) — voor de meting in het paneel. */
 export function curveCellFont(header: boolean): string {
+  return tableTextFont(header);
+}
+
+/**
+ * De letter van een datacel of kolomkop in de taaktabel, ONGESCHAALD: de kop (9 px vet) of een cel
+ * (8 px). Meten en tekenen gebruiken deze ene functie, zodat het paneel gegarandeerd op dezelfde
+ * letter meet als waarop de render tekent.
+ */
+export function tableTextFont(header: boolean): string {
   return header ? `bold 9px ${FONT_FAMILY}` : `8px ${FONT_FAMILY}`;
 }
+
+/** De vertaalde kolomkoppen van de taaktabel (het paneel levert ze; print heeft geen `t()`). */
+export interface TableHeaderLabels {
+  wbs: string; taskName: string; start: string; end: string; duration: string; completion: string;
+  /** Koppen van de toewijzingskolommen (resourcediagram); ontbreken ⇒ Nederlandse terugval. */
+  unitsPerDay?: string; curve?: string;
+}
+
+/**
+ * Terugval-koppen wanneer de aanroeper er geen meegeeft. Bewust één constante: de meting in het
+ * paneel en de render moeten op exact dezelfde tekst uitkomen, anders meet je "Duur" en teken je
+ * "Duration".
+ */
+const DEFAULT_TABLE_HEADERS: Required<TableHeaderLabels> = {
+  wbs: 'WBS', taskName: 'Taaknaam', start: 'Start', end: 'Einde', duration: 'Duur',
+  completion: 'Volt.', unitsPerDay: 'Eenh./d', curve: 'Curve',
+};
+
+function headerLabel(labels: Partial<TableHeaderLabels> | undefined, key: keyof TableHeaderLabels): string {
+  return labels?.[key] ?? DEFAULT_TABLE_HEADERS[key];
+}
+
+/** De kolomkop die bij elke meegeschaalde datakolom hoort. */
+const AUTO_COLUMN_HEADER: Record<AutoColumnKey, keyof TableHeaderLabels> = {
+  wbs: 'wbs', duration: 'duration', start: 'start', end: 'end', complete: 'completion', units: 'unitsPerDay',
+};
 
 /** Eén rij van de taaktabel: een taak met diepte, of een groepsband (#54 volg-weergave). */
 export interface PrintRow {
@@ -277,6 +371,80 @@ export function measureTaskNameColumnWidth(
   return resolveNameColumnWidth(needed);
 }
 
+/**
+ * De tekst van elke datacel van één tabelrij. Dit is de ENIGE plek waar die teksten gemaakt worden:
+ * {@link drawTaskTable} tekent ze en {@link measureTableColumnWidths} meet ze. Stonden ze twee keer,
+ * dan meet het paneel vroeg of laat iets anders dan de render tekent en kapt een kolom af die net
+ * gemeten was als "past precies". Een groepsband heeft geen taak — die krijgt overal lege tekst,
+ * precies zoals de render hem tekent (een band groepeert, hij heeft geen duur of datums).
+ */
+interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
+  curve: string;
+}
+
+type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'>;
+
+function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
+  const task = row.kind === 'task' ? row.task : undefined;
+  const startStr = task?.time.earlyStart || task?.time.scheduleStart;
+  const endStr = task?.time.earlyFinish || task?.time.scheduleFinish;
+  const assignment = row.assignment;
+  return {
+    wbs: task?.wbsCode || '',
+    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale) : '',
+    start: startStr ? formatDutchDate(parseDate(startStr), options.dateNotation) : '',
+    end: endStr ? formatDutchDate(parseDate(endStr), options.dateNotation) : '',
+    complete: task ? formatCompletion(task.time.completion) : '',
+    units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
+    curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
+  };
+}
+
+/** Wat {@link measureTableColumnWidths} van het rapport moet weten om de cellen te kunnen opmaken. */
+export interface TableColumnMeasureInput extends CellTextOptions {
+  /** Staat de Volt.-kolom in de tabel? Zo niet, dan wordt ze niet gemeten (en niet getekend). */
+  showCompletion: boolean;
+  /** Staan de toewijzingskolommen van het resourcediagram erbij? Alleen dan telt Eenh./d mee. */
+  assignmentColumns?: boolean;
+  /** De vertaalde koppen; ontbreken ⇒ dezelfde Nederlandse terugval als de render tekent. */
+  tableHeaders?: Partial<TableHeaderLabels>;
+}
+
+/**
+ * De ongeschaalde breedte per datakolom waarbij niets afgekapt wordt: per kolom het breedste van de
+ * KOP (9 px vet) en alle CELLEN (8 px) die dit rapport toont, plus celmarge aan beide zijden.
+ * Geklemd op [{@link AUTO_COLUMN_MIN_WIDTH}, `COL[key].max`].
+ *
+ * `measure` meet op het geladen Inter-font — de aanroeper (het rapportpaneel) levert dat vanuit een
+ * canvas, om dezelfde reden als bij {@link measureTaskNameColumnWidth}: `measurePrintReport`
+ * (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster- en
+ * vector-render. Kolommen die niet in de tabel staan worden weggelaten in plaats van gemeten.
+ */
+export function measureTableColumnWidths(
+  printRows: PrintRow[],
+  input: TableColumnMeasureInput,
+  measure: (text: string, font: string) => number,
+): TableColumnWidths {
+  const keys: AutoColumnKey[] = ['wbs', 'duration', 'start', 'end'];
+  if (input.showCompletion) keys.push('complete');
+  if (input.assignmentColumns) keys.push('units');
+
+  const headerFont = tableTextFont(true);
+  const cellFont = tableTextFont(false);
+  const needed = new Map<AutoColumnKey, number>();
+  for (const key of keys) needed.set(key, measure(headerLabel(input.tableHeaders, AUTO_COLUMN_HEADER[key]), headerFont));
+  for (const row of printRows) {
+    const cells = taskTableCellTexts(row, input);
+    for (const key of keys) needed.set(key, Math.max(needed.get(key)!, measure(cells[key], cellFont)));
+  }
+
+  const widths: TableColumnWidths = {};
+  // +1: afronding van gemeten subpixel-breedtes mag nooit nét een ellipsis uitlokken (zelfde marge
+  // als de naam- en de curvekolom).
+  for (const key of keys) widths[key] = resolveAutoColumnWidth(key, Math.ceil(needed.get(key)! + 2 * CELL_PAD + 1));
+  return widths;
+}
+
 type ColPositions = ReturnType<typeof getColPositions>;
 
 /**
@@ -344,11 +512,11 @@ function makeMetrics(
   taskNameColumnWidth: number | undefined,
   assignmentColumns = false,
   curveColumnWidth?: number,
+  columnWidths?: TableColumnWidths,
 ): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
-  const nameW = resolveNameColumnWidth(taskNameColumnWidth);
-  const curveW = resolveCurveColumnWidth(curveColumnWidth);
+  const widths = resolveColumnWidths(taskNameColumnWidth, curveColumnWidth, columnWidths);
   const projectHeaderHeight = PROJECT_HEADER_HEIGHT * k;
   const timelineHeaderHeight = TIMELINE_HEADER_HEIGHT * k;
   return {
@@ -361,9 +529,9 @@ function makeMetrics(
     // Bewust de SOM van de twee geschaalde hoogtes, niet `(PROJECT + TIMELINE) * k`: alleen zo valt
     // de kopstrook-grens gegarandeerd tot op de bit samen met waar de tijdschaal-kop eindigt.
     totalHeaderHeight: projectHeaderHeight + timelineHeaderHeight,
-    tableWidth: tableWidthFor(showCompletion, nameW, assignmentColumns, curveW) * k,
+    tableWidth: tableWidthFor(showCompletion, widths, assignmentColumns) * k,
     footerHeight: FOOTER_HEIGHT * k,
-    cols: getColPositions(k, showCompletion, nameW, assignmentColumns, curveW),
+    cols: getColPositions(k, showCompletion, widths, assignmentColumns),
   };
 }
 
@@ -402,11 +570,7 @@ export interface PrintOptions {
        *  bindend-informatie beschikbaar is (zie {@link PrintOptions.drivingSequenceIds}). */
       relationStyle: string;
     };
-    tableHeaders: {
-      wbs: string; taskName: string; start: string; end: string; duration: string; completion: string;
-      /** Koppen van de toewijzingskolommen (resourcediagram); ontbreken ⇒ Nederlandse terugval. */
-      unitsPerDay?: string; curve?: string;
-    };
+    tableHeaders: TableHeaderLabels;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
     /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
@@ -470,6 +634,13 @@ export interface PrintOptions {
    * toont ({@link measureCurveColumnWidth}); ontbreekt hij, dan het maximum (`COL.curve.w`).
    */
   curveColumnWidth?: number;
+  /**
+   * Ongeschaalde breedtes van de zes datakolommen (WBS, Duur, Start, Einde, Volt., Eenh./d),
+   * gemeten door het paneel op de koppen én de cellen die dít rapport toont
+   * ({@link measureTableColumnWidths}). Elke ontbrekende sleutel valt terug op de vaste breedte
+   * van vóór die meting, dus een render zonder canvas (tests, headless) blijft byte-identiek.
+   */
+  columnWidths?: TableColumnWidths;
   /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
   numberLocale?: string;
   /**
@@ -771,12 +942,12 @@ export function renderReport(
     options.orientation,
   );
   let assignmentColumns = !!options.assignmentColumns;
-  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth);
+  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth, options.columnWidths);
   let assignmentColumnsDropped = false;
   if (assignmentColumns && m.tableWidth > printableWidth - minChartWidthPx(printableWidth)) {
     assignmentColumns = false;
     assignmentColumnsDropped = true;
-    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false);
+    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false, undefined, options.columnWidths);
   }
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
@@ -2014,19 +2185,31 @@ function drawTimelineHeader(
   const headerY = top + h / 2;
 
   const th = options.labels?.tableHeaders;
-  d2d.fillText(th?.wbs ?? 'WBS', cols.wbs.x + cols.wbs.w / 2, headerY);
+  // Een kop wordt nooit over de KOLOMGRENS heen getekend (`Draw2D` kent geen clip, dus een te lange
+  // kop belandde letterlijk in de buurkolom). Normaal is dit een no-op: het paneel meet de kolom
+  // juist op deze kop ({@link measureTableColumnWidths}), inclusief celmarge. Zónder meting (tests,
+  // headless) of bij een kop die zelfs boven `COL[key].max` uitkomt, kapt hij hier af.
+  //
+  // Bewust de VOLLE kolombreedte als budget en niet de breedte minus celmarge: die marge is voor een
+  // kop de tolerantie. Een kop die net breder is dan de marge toelaat (de Arabische "Eenh./d" meet
+  // 44,8 px in een kolom van 45) hoort voluit te staan, niet met een beletselteken — hij blijft
+  // binnen zijn kolom en raakt de scheidingslijn niet. Datacellen houden hun marge wél: daar staan
+  // rechts uitgelijnde getallen die anders tegen de lijn aan plakken.
+  const headerText = (key: keyof TableHeaderLabels, col: { w: number }, pad = 0) =>
+    fitText(d2d, headerLabel(th, key), col.w - pad);
+  d2d.fillText(headerText('wbs', cols.wbs), cols.wbs.x + cols.wbs.w / 2, headerY);
 
   d2d.textAlign = 'left';
-  d2d.fillText(th?.taskName ?? 'Taaknaam', cols.name.x + m.s(4), headerY);
-  if (cols.curve) d2d.fillText(th?.curve ?? 'Curve', cols.curve.x + m.s(4), headerY);
+  d2d.fillText(headerText('taskName', cols.name, m.s(4)), cols.name.x + m.s(4), headerY);
+  if (cols.curve) d2d.fillText(headerText('curve', cols.curve, m.s(4)), cols.curve.x + m.s(4), headerY);
 
   d2d.textAlign = 'center';
-  if (cols.units) d2d.fillText(th?.unitsPerDay ?? 'Eenh./d', cols.units.x + cols.units.w / 2, headerY);
-  d2d.fillText(th?.duration ?? 'Duur', cols.duration.x + cols.duration.w / 2, headerY);
-  d2d.fillText(th?.start ?? 'Start', cols.start.x + cols.start.w / 2, headerY);
-  d2d.fillText(th?.end ?? 'Einde', cols.end.x + cols.end.w / 2, headerY);
+  if (cols.units) d2d.fillText(headerText('unitsPerDay', cols.units), cols.units.x + cols.units.w / 2, headerY);
+  d2d.fillText(headerText('duration', cols.duration), cols.duration.x + cols.duration.w / 2, headerY);
+  d2d.fillText(headerText('start', cols.start), cols.start.x + cols.start.w / 2, headerY);
+  d2d.fillText(headerText('end', cols.end), cols.end.x + cols.end.w / 2, headerY);
   if (cols.complete) {
-    d2d.fillText(th?.completion ?? 'Volt.', cols.complete.x + cols.complete.w / 2, headerY);
+    d2d.fillText(headerText('completion', cols.complete), cols.complete.x + cols.complete.w / 2, headerY);
   }
 
   // Column separator lines in header
@@ -2110,6 +2293,10 @@ function drawTaskTable(
     }
 
     const task = row.task!;
+    const cells = taskTableCellTexts(row, options);
+    // Elke datacel krijgt de kolombreedte minus de marge aan beide zijden; wat daar niet in past
+    // wordt afgekapt in plaats van over de buurkolom te lopen (de naam- en curvecel deden dat al).
+    const cellText = (text: string, col: { w: number }) => fitText(d2d, text, col.w - 2 * cellPad);
     const depth = row.depth;
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
@@ -2121,7 +2308,7 @@ function drawTaskTable(
     d2d.font = m.font(8);
     d2d.textAlign = 'left';
     d2d.textBaseline = 'middle';
-    d2d.fillText(task.wbsCode || '', cols.wbs.x + cellPad, textY);
+    d2d.fillText(cellText(cells.wbs, cols.wbs), cols.wbs.x + cellPad, textY);
 
     // Name with indentation — afkorten met ellipsis i.p.v. hard clippen (klacht 4a)
     d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
@@ -2137,10 +2324,9 @@ function drawTaskTable(
       d2d.fillStyle = PRINT_COLORS.textSecondary;
       d2d.font = m.font(8);
       d2d.textAlign = 'right';
-      d2d.fillText(formatReportNumber(row.assignment.unitsPerDay, options.numberLocale), cols.units.x + cols.units.w - cellPad, textY);
+      d2d.fillText(cellText(cells.units, cols.units), cols.units.x + cols.units.w - cellPad, textY);
       d2d.textAlign = 'left';
-      const curveText = row.assignment.curve === null ? '—' : (options.curveLabels?.[row.assignment.curve] ?? row.assignment.curve);
-      d2d.fillText(fitText(d2d, curveText, cols.curve.w - 2 * cellPad), cols.curve.x + cellPad, textY);
+      d2d.fillText(cellText(cells.curve, cols.curve), cols.curve.x + cellPad, textY);
     }
 
     // Duration
@@ -2148,25 +2334,17 @@ function drawTaskTable(
     d2d.font = m.font(8);
     d2d.textAlign = 'right';
     d2d.textBaseline = 'middle';
-    d2d.fillText(formatDuration(task.time.scheduleDuration, options.numberLocale), cols.duration.x + cols.duration.w - cellPad, textY);
+    d2d.fillText(cellText(cells.duration, cols.duration), cols.duration.x + cols.duration.w - cellPad, textY);
 
     // Start date
-    const startStr = task.time.earlyStart || task.time.scheduleStart;
-    if (startStr) {
-      const sd = parseDate(startStr);
-      d2d.fillText(formatDutchDate(sd, options.dateNotation), cols.start.x + cols.start.w - cellPad, textY);
-    }
+    d2d.fillText(cellText(cells.start, cols.start), cols.start.x + cols.start.w - cellPad, textY);
 
     // End date
-    const endStr = task.time.earlyFinish || task.time.scheduleFinish;
-    if (endStr) {
-      const ed = parseDate(endStr);
-      d2d.fillText(formatDutchDate(ed, options.dateNotation), cols.end.x + cols.end.w - cellPad, textY);
-    }
+    d2d.fillText(cellText(cells.end, cols.end), cols.end.x + cols.end.w - cellPad, textY);
 
     // Completion — de kolom bestaat alleen als `showCompletion` aanstaat (issue #93).
     if (cols.complete) {
-      d2d.fillText(formatCompletion(task.time.completion), cols.complete.x + cols.complete.w - cellPad, textY);
+      d2d.fillText(cellText(cells.complete, cols.complete), cols.complete.x + cols.complete.w - cellPad, textY);
     }
 
     d2d.textAlign = 'left';

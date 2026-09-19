@@ -619,7 +619,11 @@
       "conflictDays": "{{count}} dia(s)",
       "reason": {
         "calendarMismatch": "O recurso não trabalha em todos os dias que esta tarefa necessita — deslocar não resolve isto.",
-        "insufficientCapacity": "Não há capacidade livre suficiente dentro da folga para resolver este conflito."
+        "insufficientCapacity": "Não há capacidade livre suficiente dentro da folga para resolver este conflito.",
+        "ceilingTooTight": "O teto de atraso deixa pouco espaço: dentro desse número de dias úteis não há janela livre.",
+        "ceilingUnreachable": "Dar mais atraso não ajuda aqui — um prazo ou uma restrição mantém esta tarefa no lugar.",
+        "noWindowInHorizon": "Não foi encontrada nenhuma janela livre dentro do período pesquisado; mais além é desconhecido.",
+        "residualFull": "O envolvimento próprio tinha espaço, mas a capacidade residual da biblioteca está esgotada — outros projetos ocupam-na."
       }
     },
     "curve": {
