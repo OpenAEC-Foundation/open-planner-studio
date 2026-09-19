@@ -1474,7 +1474,7 @@ export function ReportPanel() {
               </div>
             )}
             {barColorControl.missingField && (
-              <p className="text-[10px] text-text-muted pl-[88px]" role="status">
+              <p className="ops-text-10 text-text-muted pl-[88px]" role="status">
                 {t('barColorMissingField')}
               </p>
             )}
@@ -1496,7 +1496,7 @@ export function ReportPanel() {
               />
             </div>
             {statusLine !== 'none' && !statusDate && (
-              <p className="text-[11px] text-amber-600 mt-0.5">{t('statusLineHint')}</p>
+              <p className="ops-text-11 text-amber-600 mt-0.5">{t('statusLineHint')}</p>
             )}
 
             {/* Volg weergave (issue #54 punt 2): export = wat het scherm toont (filter, groepering,

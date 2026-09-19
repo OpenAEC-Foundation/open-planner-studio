@@ -79,7 +79,7 @@ export function ShortcutsDialog() {
             if (categoryRows.length === 0) return null;
             return (
               <div key={category}>
-                <div className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                <div className="px-1 pb-1 ops-text-10 font-semibold uppercase tracking-wider text-text-secondary">
                   {t(`shortcuts.category.${category}`)}
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -94,7 +94,7 @@ export function ShortcutsDialog() {
                           patroon als de dynamische `tMenu(... as 'ribbon.calendarDialog.days.1')`-
                           cast in CalendarForm.tsx/WorkTimeEditor.tsx. */}
                       <span className="flex-1 truncate">{t(row.labelKey as 'close')}</span>
-                      <span className="flex-shrink-0 font-mono text-[11px] text-text-secondary whitespace-nowrap">
+                      <span className="flex-shrink-0 font-mono ops-text-11 text-text-secondary whitespace-nowrap">
                         {formatComboGroup(row.combos, isMac, orJoiner)}
                       </span>
                     </div>

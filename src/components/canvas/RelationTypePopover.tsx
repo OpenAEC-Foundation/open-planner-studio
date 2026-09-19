@@ -72,7 +72,7 @@ export function RelationTypePopover({
       className="fixed z-[var(--z-contextmenu)] bg-surface border border-border rounded-[8px] shadow-[var(--shadow-pop)] p-2.5 flex flex-col gap-2 min-w-[200px]"
       style={{ left: adjustedX, top: adjustedY }}
     >
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+      <span className="ops-text-10 font-semibold uppercase tracking-wide text-text-secondary">
         {t('properties.relationPopoverTitle')}
       </span>
       <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export function RelationTypePopover({
           autoFocus
           value={sequence.type}
           onChange={e => setDraft(current => ({ ...current, type: e.target.value as SequenceType }))}
-          className="input !text-[11px] !px-1.5 !py-1"
+          className="input ops-text-11 !px-1.5 !py-1"
         >
           {SEQUENCE_TYPE_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -97,7 +97,7 @@ export function RelationTypePopover({
         <SequenceLagInput
           seq={sequence}
           title={t('properties.lag')}
-          className="input !text-[11px] !px-1.5 !py-1 !w-16 text-right"
+          className="input ops-text-11 !px-1.5 !py-1 !w-16 text-right"
           onCommit={patch => setDraft(current => ({ ...current, ...patch }))}
           onDraftChange={patch => setDraft(current => ({ ...current, ...patch }))}
         />

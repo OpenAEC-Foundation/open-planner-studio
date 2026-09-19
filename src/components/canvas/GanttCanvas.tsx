@@ -675,7 +675,7 @@ export function GanttCanvas({
             />
             {scheduleStale && (
               <div
-                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
+                className="absolute top-1 right-2 ops-text-10 px-1.5 py-0.5 rounded pointer-events-none"
                 style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
               >
                 ⚠ {tCommon('resource.histogram.staleHint')}

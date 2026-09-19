@@ -46,7 +46,7 @@ export function TaskHammockFields({ task, onChange }: {
         {t('properties.hammock')}
       </label>
       {task.isHammock && (
-        <div className="flex flex-col gap-1 pl-5 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
+        <div className="flex flex-col gap-1 pl-5 ops-text-10" style={{ color: 'var(--theme-text-muted)' }}>
           <div>
             <span className="text-text-secondary">{t('properties.startDriver')}: </span>
             {startDrivers.length > 0

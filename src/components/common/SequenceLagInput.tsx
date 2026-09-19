@@ -59,7 +59,7 @@ export function SequenceLagInput({ seq, title, className, onCommit, onDraftChang
       onBlur={commit}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       onClick={e => e.stopPropagation()}
-      className={className ?? 'input !text-[10px] !px-1 !py-0.5 w-14 text-right'}
+      className={className ?? 'input ops-text-10 !px-1 !py-0.5 w-14 text-right'}
       style={invalid ? { borderColor: 'var(--error)', boxShadow: '0 0 0 1px var(--error)' } : undefined}
     />
   );

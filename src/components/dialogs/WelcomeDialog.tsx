@@ -87,7 +87,7 @@ export function WelcomeDialog() {
               <p>{t('welcome.introBody')}</p>
 
               <div className="flex flex-col gap-3">
-                <h3 className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+                <h3 className="ops-text-10 font-semibold uppercase tracking-wider text-text-secondary">
                   {t('welcome.settingsSectionTitle')}
                 </h3>
 

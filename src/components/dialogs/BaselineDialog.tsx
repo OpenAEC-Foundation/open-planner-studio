@@ -119,7 +119,7 @@ export function BaselineDialog() {
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <span className="ui-card-header !text-xs">{t('baseline.dialog.saveNew')}</span>
             {scheduleStale && (
-              <div className="text-[11px]" style={{ color: 'var(--theme-warning-text)' }}>
+              <div className="ops-text-11" style={{ color: 'var(--theme-warning-text)' }}>
                 ⚠ {t('baseline.dialog.staleHint')}
               </div>
             )}

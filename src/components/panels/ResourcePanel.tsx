@@ -93,12 +93,12 @@ function usePendingResourceDraft({
   }, [pendingNewResource, openDraft, requestFocus, setUI]);
 }
 
-const cellInput = 'input !text-[11px] !px-1.5 !py-1 w-full';
+const cellInput = 'input ops-text-11 !px-1.5 !py-1 w-full';
 // Geërfd/read-only-velden (issue #19, punt D1 — user-feedback): platte tekst, GEEN uitgegrijsd
 // invoerveld. Zelfde padding/tekstgrootte als `cellInput` (kolommen blijven uitgelijnd met de
 // bewerkbare rijen), maar zonder de `.input`-rand/achtergrond en in de secundaire tekstkleur — zodat
 // "dit reageert niet op een klik" al zichtbaar is vóórdat de gebruiker het probeert.
-const cellStatic = 'block !text-[11px] !px-1.5 !py-1 w-full truncate text-text-secondary';
+const cellStatic = 'block ops-text-11 !px-1.5 !py-1 w-full truncate text-text-secondary';
 
 /**
  * Resource-beheerpaneel (fase 2.5, §6.2; herzien issue #19 — bibliotheek = bron, project = inzet).
@@ -890,7 +890,7 @@ function ResourceRow({
                 <button
                   type="button"
                   onClick={onRequestRemove}
-                  className="btn btn--sm btn--secondary shrink-0 !py-0.5 !px-1.5 !text-[10px]"
+                  className="btn btn--sm btn--secondary shrink-0 !py-0.5 !px-1.5 ops-text-10"
                   title={t('companyLibrary.removeFromProject')}
                   data-ops-resource-remove-orphan
                 >
@@ -937,7 +937,7 @@ function ResourceRow({
               className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
             >
               {stepsOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              {stepCount > 0 && <span className="text-[9px] ml-0.5">{stepCount}</span>}
+              {stepCount > 0 && <span className="ops-text-9 ml-0.5">{stepCount}</span>}
             </button>
           </div>
         </td>
@@ -1050,7 +1050,7 @@ function ResourceRow({
             {isPool && onAssignToProject && !confirmingDelete && (
               <button
                 onClick={onAssignToProject}
-                className="btn btn--sm btn--secondary !py-0.5 !px-1.5 !text-[10px]"
+                className="btn btn--sm btn--secondary !py-0.5 !px-1.5 ops-text-10"
               >
                 {t('companyLibrary.assignFromCompany')}
               </button>
@@ -1065,7 +1065,7 @@ function ResourceRow({
               <button
                 onClick={onPromoteToLibrary}
                 title={t('resource.promoteToLibrary')}
-                className="btn btn--sm btn--secondary !py-0.5 !px-1.5 !text-[10px]"
+                className="btn btn--sm btn--secondary !py-0.5 !px-1.5 ops-text-10"
                 data-ops-resource-promote
               >
                 {t('resource.promoteToLibrary')}
@@ -1119,7 +1119,7 @@ function ResourceRow({
       </tr>
       {confirmingDelete && (
         <tr style={{ background: 'var(--theme-surface-alt)' }} data-ops-pool-delete-confirm={isPool ? true : undefined}>
-          <td colSpan={colCount} className="px-3 py-1.5 text-[11px]" style={{ color: 'var(--error)' }}>
+          <td colSpan={colCount} className="px-3 py-1.5 ops-text-11" style={{ color: 'var(--error)' }}>
             {confirmMessage}
           </td>
         </tr>
@@ -1336,27 +1336,27 @@ function AvailabilityStepsEditor({ steps, onChange }: {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+      <span className="ops-text-10 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
         {t('resource.availabilityStepsEditor.title')}
       </span>
       {steps.length === 0 && (
-        <span className="text-[10px] text-text-secondary">{t('resource.availabilityStepsEditor.empty')}</span>
+        <span className="ops-text-10 text-text-secondary">{t('resource.availabilityStepsEditor.empty')}</span>
       )}
       {steps.map((s, i) => (
         <div key={i} className="flex items-center gap-2">
-          <label className="text-[10px] text-text-secondary">{t('resource.availabilityStepsEditor.from')}</label>
+          <label className="ops-text-10 text-text-secondary">{t('resource.availabilityStepsEditor.from')}</label>
           <DateTextInput
             value={s.from}
             onCommit={v => update(i, { from: v })}
-            className="input !text-[11px] !px-1.5 !py-1"
+            className="input ops-text-11 !px-1.5 !py-1"
             ariaLabel={t('resource.availabilityStepsEditor.from')}
           />
-          <label className="text-[10px] text-text-secondary">{t('resource.availabilityStepsEditor.maxUnits')}</label>
+          <label className="ops-text-10 text-text-secondary">{t('resource.availabilityStepsEditor.maxUnits')}</label>
           <UnitsInput
             value={s.maxUnits}
             ariaLabel={t('resource.availabilityStepsEditor.maxUnits')}
             onCommit={n => update(i, { maxUnits: n })}
-            className="input !text-[11px] !px-1.5 !py-1 !w-20 text-right"
+            className="input ops-text-11 !px-1.5 !py-1 !w-20 text-right"
           />
           <button onClick={() => remove(i)} className="p-0.5 rounded hover:bg-surface-hover" style={{ color: 'var(--error)' }}>
             <Trash2 size={12} />

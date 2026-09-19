@@ -14,12 +14,12 @@
   display: flex;
   padding: 0 8px;
   gap: 2px;
-  height: 28px;
+  height: calc(28px * var(--ui-font-scale, 1));
   align-items: flex-end;
 }
 
 .ribbon-tab {
-  padding: 6px 16px;
+  padding: calc(6px * var(--ui-font-scale, 1)) calc(16px * var(--ui-font-scale, 1));
   font-size: calc(12px * var(--ui-font-scale, 1));
   background: transparent;
   border: 1px solid transparent;
@@ -483,7 +483,7 @@
   background: var(--theme-file-tab-bg);
   color: var(--theme-accent-on);
   font-weight: 700;
-  padding: 6px 18px;
+  padding: calc(6px * var(--ui-font-scale, 1)) calc(18px * var(--ui-font-scale, 1));
 }
 .ribbon-tab--file:hover,
 .ribbon-tab--file.active {

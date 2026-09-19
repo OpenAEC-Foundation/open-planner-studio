@@ -72,14 +72,14 @@ function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: numbe
           )}
           {entry.argsJson && (
             <div style={{ marginBottom: 4 }}>
-              <div style={{ color: 'var(--dashboard-text-dim)', fontSize: 10 }}>{t('aiActivity.args')}</div>
-              <pre style={preStyle}>{entry.argsJson}</pre>
+              <div className="ops-text-10" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.args')}</div>
+              <pre className="ops-text-10" style={preStyle}>{entry.argsJson}</pre>
             </div>
           )}
           {entry.resultJson && (
             <div>
-              <div style={{ color: 'var(--dashboard-text-dim)', fontSize: 10 }}>{t('aiActivity.result')}</div>
-              <pre style={preStyle}>{entry.resultJson}</pre>
+              <div className="ops-text-10" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.result')}</div>
+              <pre className="ops-text-10" style={preStyle}>{entry.resultJson}</pre>
             </div>
           )}
           {entry.substeps?.map((sub, i) => <ActivityRow key={i} entry={sub} depth={depth + 1} />)}
@@ -97,7 +97,6 @@ const preStyle: React.CSSProperties = {
   background: 'var(--dashboard-surface)',
   borderRadius: 'var(--radius-sm)',
   fontFamily: 'var(--font-code)',
-  fontSize: 10,
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
 };
@@ -128,13 +127,12 @@ export function AIActivityPanel() {
 
   return (
     <div
-      className="flex-shrink-0 flex flex-col border-t border-border"
+      className="flex-shrink-0 flex flex-col border-t border-border ops-text-11"
       style={{
         height: 220,
         background: 'var(--dashboard-bg)',
         color: 'var(--dashboard-text)',
         fontFamily: 'var(--font-code)',
-        fontSize: 11,
       }}
     >
       {/* Toolbar */}
@@ -142,7 +140,7 @@ export function AIActivityPanel() {
         className="flex items-center gap-1 px-2 h-6 border-b"
         style={{ borderColor: 'var(--dashboard-border-light)', background: 'var(--dashboard-surface)' }}
       >
-        <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--dashboard-text-dim)' }}>
+        <span className="ops-text-10" style={{ textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--dashboard-text-dim)' }}>
           {t('aiActivity.title')}
         </span>
         <div className="flex-1" />

@@ -36,6 +36,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
         <button
           id={id}
           onClick={() => setOpen(o => !o)}
+          className="ops-text-11"
           style={{
             width: '100%',
             padding: '4px 8px',
@@ -43,7 +44,6 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
             border: '1px solid var(--theme-control-border)',
             borderRadius: 'var(--radius-sm)',
             color: 'var(--theme-text)',
-            fontSize: 'calc(11px * var(--ui-font-scale, 1))',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -52,7 +52,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
           }}
         >
           <span>{current?.label ?? value}</span>
-          <span style={{ fontSize: 'calc(8px * var(--ui-font-scale, 1))', opacity: 0.6 }}>▼</span>
+          <span className="ops-text-8" style={{ opacity: 0.6 }}>▼</span>
         </button>
       }
     >
@@ -60,6 +60,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
         <button
           key={o.value}
           onClick={() => { onChange(o.value); setOpen(false); }}
+          className="ops-text-11"
           style={{
             display: 'block',
             width: '100%',
@@ -68,7 +69,6 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
             color: 'var(--theme-text)',
             border: 'none',
             textAlign: 'left',
-            fontSize: 'calc(11px * var(--ui-font-scale, 1))',
             cursor: 'pointer',
           }}
           onMouseEnter={e => { if (o.value !== value) (e.target as HTMLElement).style.background = 'var(--theme-hover)'; }}
@@ -97,7 +97,7 @@ export function RibbonInlineSelect<T extends string>({ value, options, onChange,
       value={value}
       aria-label={ariaLabel}
       onChange={event => onChange(event.currentTarget.value as T)}
-      className="input !text-[11px] !px-1.5 !py-1 w-full"
+      className="input ops-text-11 !px-1.5 !py-1 w-full"
     >
       {options.map(option => (
         <option key={option.value} value={option.value}>{option.label}</option>

@@ -707,11 +707,11 @@ export function CalendarForm({
                 dataAttribute="break-duration" />
             </div>
           </div>
-          <p className="col-span-2 text-[11px] text-text-secondary">
+          <p className="col-span-2 ops-text-11 text-text-secondary">
             {tCommon('calendar.simpleBreak.hint')}
           </p>
           {(scalarBreakError || Object.keys(scalarTimeIssues).length > 0) && (
-            <p className="col-span-2 text-[11px] text-red-600" role="alert" data-ops-simple-break-error>
+            <p className="col-span-2 ops-text-11 text-red-600" role="alert" data-ops-simple-break-error>
               {scalarTimeIssues.workStart === 'invalidWorkStart'
                 ? tCommon('calendar.simpleBreak.invalidWorkStart')
                 : scalarTimeIssues.workEnd === 'invalidWorkEnd'
@@ -783,7 +783,7 @@ export function CalendarForm({
 
           {savingPreset && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-text-secondary italic" data-ops-preset-saveas-hint>
+              <span className="ops-text-10 text-text-secondary italic" data-ops-preset-saveas-hint>
                 {tCommon('calendar.worktime.saveAsPresetHint')}
               </span>
               <div className="flex items-center gap-2">
@@ -815,7 +815,7 @@ export function CalendarForm({
             {tCommon('calendar.generate.button')}
           </button>
           {needsRegen && (
-            <div className="flex items-center gap-2 text-[11px] text-text-secondary">
+            <div className="flex items-center gap-2 ops-text-11 text-text-secondary">
               <span>
                 {tCommon('calendar.regen.hint', {
                   from: draft.generation!.generatedFromYear,

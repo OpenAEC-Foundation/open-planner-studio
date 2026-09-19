@@ -93,7 +93,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
         </>
       )}
       {actualError && (
-        <div className="text-[11px]" style={{ color: 'var(--error)' }}>
+        <div className="ops-text-11" style={{ color: 'var(--error)' }}>
           {tCommon('progress.actualsAfterStatusDate')}
         </div>
       )}

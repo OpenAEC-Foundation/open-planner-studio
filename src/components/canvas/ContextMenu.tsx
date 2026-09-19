@@ -295,7 +295,7 @@ function MenuItem({
       disabled={disabled}
     >
       {checked !== undefined && (
-        <span className="inline-block w-3 text-[10px]">{checked ? '✓' : ''}</span>
+        <span className="inline-block w-3 ops-text-10">{checked ? '✓' : ''}</span>
       )}
       {label}
     </button>

@@ -77,10 +77,10 @@ export function TaskNotesFields({ task, onChange }: {
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
       <span className="ui-card-header !text-xs">{t('properties.notes.title')}</span>
       {notes.length === 0 && (
-        <span className="text-[10px] text-text-secondary">{t('properties.notes.empty')}</span>
+        <span className="ops-text-10 text-text-secondary">{t('properties.notes.empty')}</span>
       )}
       {notes.map((note, i) => (
-        <div key={note.id} className="flex items-start gap-1.5 text-[10px]" data-ops-note-row>
+        <div key={note.id} className="flex items-start gap-1.5 ops-text-10" data-ops-note-row>
           <input
             type="checkbox"
             checked={note.done}
@@ -94,7 +94,7 @@ export function TaskNotesFields({ task, onChange }: {
             value={note.text}
             onChange={v => updateNote(note.id, { text: v })}
             placeholder={t('properties.notes.placeholder')}
-            className={`input !text-[10px] !px-1.5 !py-1 flex-1 ${note.done ? 'line-through opacity-60' : ''}`}
+            className={`input ops-text-10 !px-1.5 !py-1 flex-1 ${note.done ? 'line-through opacity-60' : ''}`}
             data-ops-note-text
           />
           <button
@@ -110,7 +110,7 @@ export function TaskNotesFields({ task, onChange }: {
       ))}
       <button
         onClick={addNote}
-        className="flex items-center gap-1 text-[10px] self-start"
+        className="flex items-center gap-1 ops-text-10 self-start"
         style={{ color: 'var(--theme-accent)' }}
         data-ops-note-add
       >

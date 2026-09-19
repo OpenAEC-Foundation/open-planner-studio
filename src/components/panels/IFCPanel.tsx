@@ -99,7 +99,7 @@ export function IFCPanel() {
         >
           {t('ifc.copy')}
         </button>
-        <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{lineCount} {t('ifc.lines')}</span>
+        <span className="ops-text-10" style={{ color: 'var(--theme-text-muted)' }}>{lineCount} {t('ifc.lines')}</span>
       </div>
 
       {/* Editor */}
@@ -108,7 +108,7 @@ export function IFCPanel() {
           value={content}
           onChange={e => { setContent(e.target.value); setDirty(true); }}
           spellCheck={false}
-          className="absolute inset-0 w-full h-full bg-surface text-text-primary font-mono text-[11px] leading-5 p-3 resize-none outline-none border-none"
+          className="absolute inset-0 w-full h-full bg-surface text-text-primary font-mono ops-text-11 leading-5 p-3 resize-none outline-none border-none"
           style={{ tabSize: 2 }}
         />
       </div>

@@ -47,12 +47,14 @@ export interface PopoverProps {
   align?: 'left' | 'right';
   /** Per-site paneel-overrides (zIndex, minWidth, padding, flex-layout, marginTop, …). */
   panelStyle?: CSSProperties;
+  /** Klasse op het paneel — voor de gedeelde `ops-text-*`-schaalklassen i.p.v. `fontSize` in `panelStyle`. */
+  panelClassName?: string;
   /** Extra stijl op de `position: relative`-container (bijv. `minWidth`). */
   containerStyle?: CSSProperties;
 }
 
 export function Popover({
-  open, onClose, trigger, children, align = 'left', panelStyle, containerStyle,
+  open, onClose, trigger, children, align = 'left', panelStyle, panelClassName, containerStyle,
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -77,7 +79,7 @@ export function Popover({
     <div ref={ref} style={{ position: 'relative', ...containerStyle }}>
       {trigger}
       {open && panelPos && createPortal(
-        <div ref={panelRef} style={{ ...BASE_PANEL_STYLE, ...panelPos, ...panelStyle }}>
+        <div ref={panelRef} className={panelClassName} style={{ ...BASE_PANEL_STYLE, ...panelPos, ...panelStyle }}>
           {children}
         </div>,
         document.body,

@@ -230,13 +230,13 @@ export function TaskDurationField({ task, calendar, onChange }: {
         )}
       </div>
       {hourEditBlocked && (
-        <div className="text-[10px] text-text-secondary" data-ops-duration-hour-planning-blocked>
+        <div className="ops-text-10 text-text-secondary" data-ops-duration-hour-planning-blocked>
           {t('duration.enableHourPlanningFirst')}{' '}
           <button type="button" className="underline" onClick={enableHours}>{t('duration.enableHourPlanning')}</button>
         </div>
       )}
       {message && (
-        <div className="text-[10px] text-text-secondary" role="status" data-ops-duration-message>
+        <div className="ops-text-10 text-text-secondary" role="status" data-ops-duration-message>
           {message}
           {proposal && (
             <span className="ml-1.5 inline-flex gap-1">

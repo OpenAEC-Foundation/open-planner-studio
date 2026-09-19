@@ -143,7 +143,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
         return (
           <div
             key={seq.id}
-            className="dependency-row text-[10px]"
+            className="dependency-row ops-text-10"
           >
             {!interactive ? (
               <span className="dependency-wbs-cell min-w-0 truncate">{other?.name || '?'}</span>
@@ -178,7 +178,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
             <select
               value={seq.type}
               onChange={e => updateSequence(seq.id, { type: e.target.value as SequenceType })}
-              className="dependency-type-field input !w-full !text-[10px] !px-1 !py-0.5"
+              className="dependency-type-field input !w-full ops-text-10 !px-1 !py-0.5"
             >
               {SEQUENCE_TYPE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -187,7 +187,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
             <SequenceLagInput
               seq={seq}
               title={t('properties.lag')}
-              className="dependency-lag-field input !w-full !text-[10px] !px-1 !py-0.5 text-right"
+              className="dependency-lag-field input !w-full ops-text-10 !px-1 !py-0.5 text-right"
               onCommit={patch => updateSequence(seq.id, patch)}
             />
             <button
@@ -211,7 +211,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               onChange={e => setDraft(current => (current
                 ? { ...current, direction: e.target.value as DraftDirection }
                 : current))}
-              className="input !w-auto !text-[10px] !px-1 !py-0.5"
+              className="input !w-auto ops-text-10 !px-1 !py-0.5"
             >
               <option value="predecessor">{t('relations.predecessor')}</option>
               <option value="successor">{t('relations.successor')}</option>
@@ -249,7 +249,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                     else commitDraft();
                   }
                 }}
-                className="input !w-full !text-[10px] !px-1 !py-0.5"
+                className="input !w-full ops-text-10 !px-1 !py-0.5"
               />
               {!draft.otherTaskId && options.length > 0 && (
                 <ul className="dependency-draft-options" role="listbox">
@@ -281,7 +281,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               <X size={10} />
             </button>
           </div>
-          <div className="dependency-row text-[10px]">
+          <div className="dependency-row ops-text-10">
             <span className="dependency-wbs-cell min-w-0 truncate">
               {draftOther ? (draftOther.wbsCode || draftOther.name) : t('properties.addRelationPick')}
             </span>
@@ -293,7 +293,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               onChange={e => setDraft(current => (current
                 ? { ...current, type: e.target.value as SequenceType }
                 : current))}
-              className="dependency-type-field input !w-full !text-[10px] !px-1 !py-0.5"
+              className="dependency-type-field input !w-full ops-text-10 !px-1 !py-0.5"
             >
               {SEQUENCE_TYPE_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -302,7 +302,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
             <SequenceLagInput
               seq={draftSequence}
               title={t('properties.lag')}
-              className="dependency-lag-field input !w-full !text-[10px] !px-1 !py-0.5 text-right"
+              className="dependency-lag-field input !w-full ops-text-10 !px-1 !py-0.5 text-right"
               onCommit={patch => setDraft(current => (current ? { ...current, lag: patch } : current))}
               onDraftChange={patch => setDraft(current => (current ? { ...current, lag: patch } : current))}
             />

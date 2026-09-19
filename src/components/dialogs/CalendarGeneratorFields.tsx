@@ -128,7 +128,7 @@ export function CalendarGeneratorFields({
             })}
           </div>
           {value.bouwvak !== 'geen' && (
-            <span className="text-[11px] italic text-text-secondary">
+            <span className="ops-text-11 italic text-text-secondary">
               {tCommon('calendar.generate.bouwvakHint')}
             </span>
           )}
@@ -157,7 +157,7 @@ export function CalendarGeneratorFields({
         {expanded && preview.holidays.length > 0 && (
           <div className="max-h-32 overflow-y-auto flex flex-col gap-0.5 pl-5">
             {preview.holidays.map((h, i) => (
-              <div key={i} className="flex justify-between gap-2 text-[11px] text-text-secondary">
+              <div key={i} className="flex justify-between gap-2 ops-text-11 text-text-secondary">
                 <span className="truncate">{h.name}</span>
                 <span className="shrink-0">{h.startDate}{h.endDate !== h.startDate ? ` – ${h.endDate}` : ''}</span>
               </div>

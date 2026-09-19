@@ -255,7 +255,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                   {recent.map((r) => <option key={r.id} value={r.path}>{r.name}</option>)}
                 </select>
               </label>
-              <p className="text-[10px] text-text-muted flex items-center gap-1"><FileDown size={11} />{t('externalLinks.readOnlyNote')}</p>
+              <p className="ops-text-10 text-text-muted flex items-center gap-1"><FileDown size={11} />{t('externalLinks.readOnlyNote')}</p>
               {loading && <span className="text-text-muted">{t('externalLinks.loadingTasks')}</span>}
               {source && (
                 <label className="flex flex-col gap-1">
@@ -270,7 +270,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
 
           {manual && (
             <>
-              <p className="text-[10px] text-text-muted">{t('externalLinks.manualHint')}</p>
+              <p className="ops-text-10 text-text-muted">{t('externalLinks.manualHint')}</p>
               <label className="flex flex-col gap-1">
                 <span className="text-text-muted">{t('externalLinks.projectId')}</span>
                 <input className="input" value={manualProjectId} onChange={(e) => setManualProjectId(e.target.value)} />
@@ -296,7 +296,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                   onChange={(e) => updateManualAnchor(e.currentTarget.value)}
                 />
                 {sideChanged && !manualAnchorTouched && (
-                  <span className="text-[10px]" style={{ color: 'var(--warning, #d97706)' }}>
+                  <span className="ops-text-10" style={{ color: 'var(--warning, #d97706)' }}>
                     {t('externalLinks.chooseNewAnchorAfterSideChange')}
                   </span>
                 )}
@@ -326,7 +326,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
           </label>
 
           {anchorPreview && !manual && (
-            <div className="text-[11px] text-text-dim">{t('externalLinks.anchorDate')}: <b>{anchorPreview}</b></div>
+            <div className="ops-text-11 text-text-dim">{t('externalLinks.anchorDate')}: <b>{anchorPreview}</b></div>
           )}
         </div>
 

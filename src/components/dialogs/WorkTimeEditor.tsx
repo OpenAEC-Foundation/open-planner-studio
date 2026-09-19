@@ -76,7 +76,7 @@ export function WorkTimeEditor({
               <span className="w-8 font-medium text-text-secondary">
                 {tMenu(`ribbon.calendarDialog.days.${wd}` as 'ribbon.calendarDialog.days.1')}
               </span>
-              <span className="text-[10px] text-text-secondary tabular-nums">
+              <span className="ops-text-10 text-text-secondary tabular-nums">
                 {(dayMinutes(wd) / 60).toFixed(2)}h
               </span>
               <div className="flex-1" />
@@ -92,7 +92,7 @@ export function WorkTimeEditor({
               )}
             </div>
             {list.length === 0 ? (
-              <span className="text-[10px] text-text-secondary italic pl-8">{tCommon('calendar.worktime.noBands')}</span>
+              <span className="ops-text-10 text-text-secondary italic pl-8">{tCommon('calendar.worktime.noBands')}</span>
             ) : (
               list.map((b, idx) => {
                 const nextDay = b.end >= 1440; // 1440 = 24:00 (middernacht volgende dag) ⇒ wrap
@@ -110,7 +110,7 @@ export function WorkTimeEditor({
                         const m = clockToMinutes(e.currentTarget.value);
                         if (m != null) updateBand(wd, idx, { end: nextDay ? m + 1440 : m });
                       }} />
-                    <label className="flex items-center gap-1 text-[10px] text-text-secondary">
+                    <label className="flex items-center gap-1 ops-text-10 text-text-secondary">
                       <input type="checkbox" checked={nextDay} className="accent-accent"
                         onChange={(e) => {
                           const checked = e.currentTarget.checked;
@@ -130,11 +130,11 @@ export function WorkTimeEditor({
         );
       })}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[11px] font-medium text-text-secondary">{tCommon('calendar.worktime.derivedHpd')}</span>
-        <span className="text-[11px] font-semibold text-accent tabular-nums" data-ops-derived-hpd>{derivedHpd}h</span>
+        <span className="ops-text-11 font-medium text-text-secondary">{tCommon('calendar.worktime.derivedHpd')}</span>
+        <span className="ops-text-11 font-semibold text-accent tabular-nums" data-ops-derived-hpd>{derivedHpd}h</span>
       </div>
       {hasBreak && (
-        <span className="text-[10px] text-text-secondary italic" data-ops-break-hint>
+        <span className="ops-text-10 text-text-secondary italic" data-ops-break-hint>
           {tCommon('calendar.worktime.breakHint')}
         </span>
       )}
