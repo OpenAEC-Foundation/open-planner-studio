@@ -396,3 +396,13 @@ Headless, in de bestaande suites:
    neutraal. Persistentie blijft een mogelijke latere uitbreiding, geen v1-werk — kiest de
    eigenaar daar ooit voor, dan verandert de betekenis van de pin van "deze verdeelsessie"
    naar "dit project ligt vast", en dat is een apart besluit.
+8. ~~Is "Onderbrekingen toestaan" een volwaardig alternatief voor uitlopen, of een terugval?~~ —
+   **Terugval (optie A), besloten eigenaar 2026-09-19.** De motor blijft zoals hij is: opknippen
+   gebeurt alleen wanneer een aaneengesloten plaatsing niet binnen het uitloop-plafond past
+   (`ResourceLeveler.findSlot`); zonder plafond is de schakelaar dus een no-op. Een motor die
+   opknippen laat concurreren met uitlopen (optie B) blijft een mogelijke latere uitbreiding.
+   **Bindende eis aan de UI:** bij de schakelaar staat in gewone taal (a) dat hij alleen effect
+   heeft samen met een maximale uitloop, en (b) WAAR en HOE je die maximale uitloop instelt — met
+   een verwijzing naar de bediening in dezelfde dialoog, niet naar een gids. Het prijskaartje mag
+   "bespaart 0 werkdagen" tonen; het mag geen effect beloven dat niet optreedt. De gids
+   (`gids-verdelen-restcapaciteit.md`, nl+en) legt hetzelfde uit.
