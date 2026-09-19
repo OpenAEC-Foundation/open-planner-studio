@@ -36,7 +36,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
         <button
           id={id}
           onClick={() => setOpen(o => !o)}
-          className="ops-text-11"
+          className="!text-body"
           style={{
             width: '100%',
             padding: '4px 8px',
@@ -52,7 +52,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
           }}
         >
           <span>{current?.label ?? value}</span>
-          <span className="ops-text-8" style={{ opacity: 0.6 }}>▼</span>
+          <span className="!text-caption" style={{ opacity: 0.6 }}>▼</span>
         </button>
       }
     >
@@ -60,7 +60,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
         <button
           key={o.value}
           onClick={() => { onChange(o.value); setOpen(false); }}
-          className="ops-text-11"
+          className="!text-body"
           style={{
             display: 'block',
             width: '100%',
@@ -97,7 +97,7 @@ export function RibbonInlineSelect<T extends string>({ value, options, onChange,
       value={value}
       aria-label={ariaLabel}
       onChange={event => onChange(event.currentTarget.value as T)}
-      className="input ops-text-11 !px-1.5 !py-1 w-full"
+      className="input !text-body !px-1.5 !py-1 w-full"
     >
       {options.map(option => (
         <option key={option.value} value={option.value}>{option.label}</option>

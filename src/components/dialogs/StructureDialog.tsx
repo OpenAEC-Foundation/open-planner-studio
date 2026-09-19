@@ -5,7 +5,7 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import { Dialog } from '@/components/common/Dialog';
 import type { CustomFieldType } from '@/types/structure';
 
-const inputCls = 'input !text-xs !px-2 !py-1 w-full';
+const inputCls = 'input !text-small !leading-4 !px-2 !py-1 w-full';
 const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'integer', 'cost', 'date', 'boolean'];
 
 /**
@@ -41,7 +41,7 @@ export function StructureDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('structure.title')}
           </span>
           <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -49,10 +49,10 @@ export function StructureDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 text-small leading-4">
           {/* Activity-code-types */}
           <div className="flex flex-col gap-2">
-            <span className="ui-card-header !text-xs">{t('structure.activityCodes')}</span>
+            <span className="ui-card-header !text-small !leading-4">{t('structure.activityCodes')}</span>
             <p className="text-text-secondary">{t('structure.activityCodesHint')}</p>
             {activityCodeTypes.map(type => (
               <div key={type.id} className="border border-border rounded-[8px] p-2 flex flex-col gap-1.5">
@@ -73,7 +73,7 @@ export function StructureDialog() {
                 {type.values.map(v => (
                   <div key={v.id} className="flex items-center gap-1.5 pl-2">
                     <input
-                      className="input !text-xs !px-2 !py-1 !w-24"
+                      className="input !text-small !leading-4 !px-2 !py-1 !w-24"
                       value={v.code}
                       placeholder={t('structure.valueCode')}
                       onChange={e => updateActivityCodeValue(type.id, v.id, { code: e.target.value })}
@@ -101,7 +101,7 @@ export function StructureDialog() {
                 ))}
                 <button
                   onClick={() => addActivityCodeValue(type.id, { code: `${t('structure.newValuePrefix')}${type.values.length + 1}` })}
-                  className="btn btn--sm self-start flex items-center gap-1 ops-text-11"
+                  className="btn btn--sm self-start flex items-center gap-1 !text-body"
                 >
                   <Plus size={11} />
                   {t('structure.addValue')}
@@ -135,7 +135,7 @@ export function StructureDialog() {
 
           {/* Custom fields */}
           <div className="flex flex-col gap-2">
-            <span className="ui-card-header !text-xs">{t('structure.customFields')}</span>
+            <span className="ui-card-header !text-small !leading-4">{t('structure.customFields')}</span>
             <p className="text-text-secondary">{t('structure.customFieldsHint')}</p>
             {customFieldDefs.map(def => (
               <div key={def.id} className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export function StructureDialog() {
                 }}
               />
               <select
-                className="input !text-xs !px-2 !py-1 !w-32"
+                className="input !text-small !leading-4 !px-2 !py-1 !w-32"
                 value={newFieldType}
                 onChange={e => setNewFieldType(e.target.value as CustomFieldType)}
               >

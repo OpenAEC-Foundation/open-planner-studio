@@ -97,7 +97,7 @@ export function MoveProjectDialog() {
       panelProps={{ 'data-ops-move-project-dialog': true }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('moveProject.title')}
         </span>
         <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('cancel')}>
@@ -105,10 +105,10 @@ export function MoveProjectDialog() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         {/* R9 — zonder geldige huidige startdatum valt er niets te berekenen. */}
         {!hasCurrentStart ? (
-          <div className="ops-text-11" style={{ color: 'var(--error)' }}>
+          <div className="!text-body" style={{ color: 'var(--error)' }}>
             {t('moveProject.invalidCurrentStart')}
           </div>
         ) : (
@@ -124,18 +124,18 @@ export function MoveProjectDialog() {
                 type="date"
                 value={newStart}
                 onChange={e => changeStart(e.target.value)}
-                className="input !text-xs !px-2 !py-1 !w-[160px]"
+                className="input !text-small !leading-4 !px-2 !py-1 !w-[160px]"
               />
             </label>
 
             {!validNewStart ? (
-              <div className="ops-text-11" style={{ color: 'var(--error)' }}>{t('moveProject.invalidDate')}</div>
+              <div className="!text-body" style={{ color: 'var(--error)' }}>{t('moveProject.invalidDate')}</div>
             ) : isZero ? (
-              <div className="ops-text-11" style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.deltaZero')}</div>
+              <div className="!text-body" style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.deltaZero')}</div>
             ) : null}
 
             {isPast && (
-              <div className="ops-text-11" style={{ color: 'var(--warning)' }}>
+              <div className="!text-body" style={{ color: 'var(--warning)' }}>
                 {t('moveProject.warnPast')}
               </div>
             )}
@@ -151,7 +151,7 @@ export function MoveProjectDialog() {
                 />
                 <span className="flex flex-col gap-0.5">
                   <span>{t('moveProject.shiftBaselines')}</span>
-                  <span className="ops-text-10" style={{ color: 'var(--theme-text-dim)' }}>
+                  <span className="!text-small" style={{ color: 'var(--theme-text-dim)' }}>
                     {t('moveProject.shiftBaselinesHint')}
                   </span>
                 </span>
@@ -170,12 +170,12 @@ export function MoveProjectDialog() {
 
             {preview && (
               <div className="flex flex-col gap-2 border-t border-border pt-3">
-                <span className="ops-text-10 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+                <span className="!text-small uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
                   {t('moveProject.previewTitle')}
                 </span>
 
                 {preview.error ? (
-                  <div className="ops-text-11" style={{ color: 'var(--error)' }}>
+                  <div className="!text-body" style={{ color: 'var(--error)' }}>
                     {t('moveProject.calcError', { error: preview.error })}
                   </div>
                 ) : (
@@ -197,7 +197,7 @@ export function MoveProjectDialog() {
                         {/* HET hart van de preview: hier wordt zichtbaar dat de kalender niet meeschuift. */}
                         {calendarIntervened ? (
                           <div
-                            className="flex items-start gap-2 rounded-[8px] p-2 ops-text-11"
+                            className="flex items-start gap-2 rounded-[8px] p-2 !text-body"
                             style={{ color: 'var(--error)', background: 'color-mix(in srgb, var(--error) 12%, transparent)' }}
                           >
                             <AlertTriangle size={14} className="shrink-0 mt-px" />
@@ -219,7 +219,7 @@ export function MoveProjectDialog() {
 
                         <div>{t('moveProject.affectedTasks', { count: preview.impact.taskCount })}</div>
                         {detailItems.length > 0 && (
-                          <div className="ops-text-11" style={{ color: 'var(--theme-text-dim)' }}>
+                          <div className="!text-body" style={{ color: 'var(--theme-text-dim)' }}>
                             {t('moveProject.affectedDetail', { items: detailItems.join(' · ') })}
                           </div>
                         )}
@@ -230,7 +230,7 @@ export function MoveProjectDialog() {
                     {(preview.impact.actualCount > 0 || preview.impact.hardPinCount > 0 ||
                       preview.impact.externalLinkCount > 0 || preview.holidayGapCalendars.length > 0 ||
                       preview.impact.dateCustomFieldCount > 0) && (
-                      <ul className="flex flex-col gap-1 ops-text-11" style={{ color: 'var(--theme-text-dim)' }}>
+                      <ul className="flex flex-col gap-1 !text-body" style={{ color: 'var(--theme-text-dim)' }}>
                         {preview.impact.actualCount > 0 && (
                           <li>{t('moveProject.warnActuals', { count: preview.impact.actualCount })}</li>
                         )}

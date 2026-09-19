@@ -483,7 +483,7 @@ export function DateTextInput({
       {showError && (
         <span
           role="alert"
-          className="ops-text-10"
+          className="!text-small"
           style={{
             position: 'absolute', left: 0, top: '100%', marginTop: 2, zIndex: 30,
             lineHeight: 1.2, color: 'var(--error)', whiteSpace: 'nowrap',

@@ -27,6 +27,7 @@ npm run verify:store-boundaries # los: AST-poort — core-runtimefactories en st
 npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
+npm run verify:text-roles # los: tekstgroottes alleen via de zes tekstrollen — geen kale px/rem, text-[Npx] of Tailwind-standaardmaat
 npm run verify:audit      # los: npm audit --audit-level=high — bewust NIET in `verify` (zie hieronder)
 npm run gen:examples      # Voorbeeldprojecten (public/examples) opnieuw genereren
 npm run publish:wiki      # GitHub-wiki genereren uit repo-bronnen (dry-run; `-- --push` publiceert)
@@ -246,6 +247,10 @@ Tabbladen (`RibbonTab`): `file`, `start`, `planning`, `resources`, `beeld`, `ins
 Backstage-secties (`BackstageSection`): `recent`, `examples`, `export`, `import`, `print`, `project-info`, `settings`, `extensions`, `library`, `help` — waarvan `help` een compleet documentatiesubsysteem is (zie *In-app documentatie & wiki* hieronder).
 
 The active tab is in `ui.activeRibbonTab`. De rechterrail bevat conditioneel `TaskPropertiesPanel` en de compacte `ResourcePanelCompact` (samen de stapel met sleepgrens), daaronder het `WarningsPanel` (issue #53: alle waarschuwingen uit `cpmResult`/`resourceLoadResult` via de pure `collectScheduleWarnings`, klik navigeert via `revealScheduleWarning`; `ui.showWarningsPanel`, sessie); `DebugTerminal` en `AIActivityPanel` kunnen daaronder verschijnen. De volledige Tabel-, Resource-, IFC- en Rapportweergaven zijn werkruimtes en geen rechterpanelen. De rail gebruikt `ui.rightPanelCollapsed` / `ui.rightPanelWidth`. Global dialogs (`UpdateDialog`, `JustUpdatedDialog`, `FeedbackDialog` + `ScreenshotAnnotator`, `ProjectInfoDialog`, `LibraryLinkDialog`, `CloseDocumentDialog`) mount from `App.tsx` behind `ui.show*` flags. De gedeelde `Dialog` heeft een focus-trap (Tab/Shift+Tab blijven in de modal); dialogen die elkaar zouden overlappen worden geweerd via een gedeelde guard (`hasBlockingDialogOpen`). Gebruikerzichtbare meldingen lopen sinds K8a via **één** kanaal, gevoed vanuit de store — geen losse `alert()`/ad-hoc toasts erbij bouwen.
+
+### Tekstgroottes: zes rollen, één bron
+
+De interface kent precies zes tekstgroottes, gedefinieerd in het `@theme static`-blok van `src/styles/globals.css`: `caption` 9 · `small` 10 · `body` 11 · `large` 12 · `heading` 14 · `title` 20 (px × `--ui-font-scale`, dus elke rol volgt de instelling `ui.uiFontScale` vanzelf). In klassen schrijf je `text-body` (met `!` waar een `.input`/`.btn`-regel overstemd moet worden), in losse CSS `font-size: var(--text-body)`. `--text-*: initial` heeft Tailwinds eigen schaal verwijderd: `text-xs`/`text-sm`/… bestaan niet meer en zouden stil níéts doen. Een rol is alleen een grootte — regelhoogte zet je zelf met `leading-*` (de omgezette `text-xs`/`text-sm`-plekken dragen daarom `leading-4`/`leading-5`). De `13px` op `html` is geen rol maar de rem-basis waar Tailwinds spacing aan hangt; `body` erft `large`. Relatieve maten (`em`, `%`) mogen, want die erven van een rol. `npm run verify:text-roles` (onderdeel van `verify`) keurt elke absolute maat in `src/` af; Canvas-/PDF-/printtekst (`src/engine/`, `src/services/`) en SVG-`fontSize={n}` vallen erbuiten, en een bewuste uitzondering krijgt op de regel zelf `text-roles: <reden>`. Een zevende rol toevoegen is een ontwerpbesluit, geen gemak: de poort kent de lijst en faalt op een onbekende `var(--text-…)`.
 
 ### i18n
 

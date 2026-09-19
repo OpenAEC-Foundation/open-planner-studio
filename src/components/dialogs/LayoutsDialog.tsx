@@ -92,7 +92,7 @@ export function LayoutsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('view.layout.manageTitle')}
           </span>
           <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -100,7 +100,7 @@ export function LayoutsDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {loaded && layouts.length === 0 ? (
             <span className="text-text-secondary">{t('view.layout.noLayouts')}</span>
           ) : (
@@ -120,7 +120,7 @@ export function LayoutsDialog() {
                       <input
                         value={l.name}
                         onChange={e => rename(l.id, e.target.value)}
-                        className="input !text-xs !px-2 !py-1 w-full"
+                        className="input !text-small !leading-4 !px-2 !py-1 w-full"
                         aria-label={t('view.layout.name')}
                       />
                     </td>
@@ -146,13 +146,13 @@ export function LayoutsDialog() {
           )}
 
           <div className="flex flex-col gap-2 border-t border-border pt-3">
-            <span className="ui-card-header !text-xs">{t('view.layout.saveTitle')}</span>
+            <span className="ui-card-header !text-small !leading-4">{t('view.layout.saveTitle')}</span>
             <div className="flex items-center gap-2">
               <input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder={t('view.layout.name')}
-                className="input !text-xs !px-2.5 !py-1.5 flex-1"
+                className="input !text-small !leading-4 !px-2.5 !py-1.5 flex-1"
                 aria-label={t('view.layout.name')}
               />
               <button onClick={saveNew} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">

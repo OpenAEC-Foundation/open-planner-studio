@@ -109,7 +109,7 @@ export function AiConnectionGroup() {
         disabled={portLocked}
         title={portLocked ? t('ai.portLockedHint') : undefined}
         onChange={e => onPortChange(e.target.value)}
-        className="ops-text-11"
+        className="!text-body"
         style={{ ...fieldStyle, width: 80, opacity: portLocked ? 0.6 : 1 }}
       />
     </label>
@@ -122,7 +122,7 @@ export function AiConnectionGroup() {
         type={showToken ? 'text' : 'password'}
         value={token}
         readOnly
-        className="ops-text-11"
+        className="!text-body"
         style={{ ...fieldStyle, flex: 1, minWidth: 120, fontFamily: 'monospace' }}
       />
       <button
@@ -183,7 +183,7 @@ export function AiConnectionGroup() {
           open={popoverOpen}
           onClose={() => setPopoverOpen(false)}
           align="right"
-          panelClassName="ops-text-11"
+          panelClassName="!text-body"
           panelStyle={{
             marginTop: 2, zIndex: 9999,
             padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260,
@@ -218,7 +218,7 @@ export function AiConnectionGroup() {
   }
 
   return (
-    <div className="ops-text-11" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+    <div className="!text-body" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 240 }}>
         {portControl}
         {tokenControl}

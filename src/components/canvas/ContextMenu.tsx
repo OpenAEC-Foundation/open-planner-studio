@@ -68,7 +68,7 @@ const PRIORITY_HIGH = 900;
 // Browserreview, observatie 6: de kolomkop-contextmenu (DataGridHeader.tsx) had zijn EIGEN, losse
 // maatvoering (globals.css .task-grid-header-context-menu) — `font: inherit` op de knoppen, in een
 // createPortal(..., document.body), erft daardoor `html/body`'s `calc(13px * --ui-font-scale)`
-// (issue #25.4) i.p.v. de `text-xs` (0.75rem) van dít menu. Op elke schaal is dat zichtbaar te groot
+// (issue #25.4) i.p.v. de `text-small leading-4` (0.75rem) van dít menu. Op elke schaal is dat zichtbaar te groot
 // t.o.v. het taakmenu — bij een verhoogde --ui-font-scale precies zo groot als de gebruiker meldde
 // ("wat je bij 150% zou zien"). Eén bron voor beide menu's i.p.v. twee losse maatvoeringen die
 // opnieuw uit elkaar kunnen groeien: exporteer de klassen hier, laat DataGridHeader ze hergebruiken
@@ -81,7 +81,7 @@ export const CONTEXT_MENU_CONTAINER_CLASS =
 // de uitkomst afhangen van Tailwinds GEGENEREERDE bronvolgorde, niet van de volgorde in de
 // className-string — elke aanroeper kiest daarom zijn eigen kleur bovenop deze basis.
 export const CONTEXT_MENU_ITEM_CLASS =
-  'w-full text-left px-3 py-1.5 text-xs hover:bg-surface-hover transition-colors flex items-center gap-1.5';
+  'w-full text-left px-3 py-1.5 text-small leading-4 hover:bg-surface-hover transition-colors flex items-center gap-1.5';
 
 export function ContextMenu({
   x, y, task, barHit, group, traceActive, isTreeMode, calendars, canPaste, onClose,
@@ -295,7 +295,7 @@ function MenuItem({
       disabled={disabled}
     >
       {checked !== undefined && (
-        <span className="inline-block w-3 ops-text-10">{checked ? '✓' : ''}</span>
+        <span className="inline-block w-3 !text-small">{checked ? '✓' : ''}</span>
       )}
       {label}
     </button>
@@ -316,7 +316,7 @@ function SubMenuTrigger({
 }) {
   return (
     <div className="relative" onMouseEnter={onEnter}>
-      <div className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-xs text-text-primary hover:bg-surface-hover transition-colors cursor-default select-none">
+      <div className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-small leading-4 text-text-primary hover:bg-surface-hover transition-colors cursor-default select-none">
         <span>{label}</span>
         <span className="text-text-secondary">{flip ? '◂' : '▸'}</span>
       </div>

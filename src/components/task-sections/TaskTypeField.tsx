@@ -96,7 +96,7 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
       <div data-ops-task-type>
         <Select
           aria-label={t('properties.type')}
-          className="!text-xs !px-2.5 !py-1.5"
+          className="!text-small !leading-4 !px-2.5 !py-1.5"
           value={selected}
           options={options}
           onChange={value => {
@@ -119,8 +119,8 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[360px] p-4 flex flex-col gap-3"
       panelProps={{ 'data-ops-new-task-type-dialog': true }}
     >
-      <h2 className="text-sm font-bold">{t('taskType.newTitle')}</h2>
-      <Field label={t('taskType.name')}><input autoFocus value={name} onChange={e => setName(e.target.value)} className="input !text-xs !px-2.5 !py-1.5" /></Field>
+      <h2 className="text-body leading-5 font-bold">{t('taskType.newTitle')}</h2>
+      <Field label={t('taskType.name')}><input autoFocus value={name} onChange={e => setName(e.target.value)} className="input !text-small !leading-4 !px-2.5 !py-1.5" /></Field>
       <div className="flex justify-end gap-2"><button className="btn btn--sm btn--secondary" onClick={() => setDialog(null)}>{tCommon('cancel')}</button><button className="btn btn--sm btn--primary" onClick={create} disabled={!name.trim()}>{tCommon('create')}</button></div>
     </Dialog>}
 
@@ -130,13 +130,13 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[80vh] overflow-auto p-4 flex flex-col gap-3"
       panelProps={{ 'data-ops-task-type-manager': true }}
     >
-      <h2 className="text-sm font-bold">{t('taskType.manageTitle')}</h2>
-      <div className="flex flex-col gap-1"><span className="ops-text-10 uppercase text-text-secondary">{t('taskType.builtinGroup')}</span>{TASK_TYPES.filter(x => x !== 'USERDEFINED').map(type => <div key={type} className="text-xs opacity-60">{t(`taskType.${type}`)} · {t('taskType.fixed')}</div>)}</div>
-      <div className="flex flex-col gap-2"><span className="ops-text-10 uppercase text-text-secondary">{t('taskType.personalGroup')}</span>
-        {personal.length === 0 && <span className="text-xs text-text-secondary">{t('taskType.empty')}</span>}
-        {personal.map(type => editingId === type.id ? <div className="flex gap-2" key={type.id}><input autoFocus value={name} onChange={e => setName(e.target.value)} className="input !text-xs flex-1" /><button className="btn btn--sm btn--primary" onClick={() => rename(type.id)}>{tCommon('save')}</button></div> : <div className="flex items-center gap-2 text-xs" key={type.id}><span className="flex-1">{type.name}</span><button className="p-1 rounded-[6px] hover:bg-surface-hover text-text-secondary" onClick={() => { setEditingId(type.id); setName(type.name); }} aria-label={t('taskType.rename')} title={t('taskType.rename')}><Pencil size={12} /></button><button className="p-1 rounded-[6px] hover:bg-surface-hover text-text-secondary hover:text-red-500" onClick={() => deleteType(type.id)} aria-label={t('taskType.remove')} title={t('taskType.remove')}><Trash2 size={12} /></button></div>)}
+      <h2 className="text-body leading-5 font-bold">{t('taskType.manageTitle')}</h2>
+      <div className="flex flex-col gap-1"><span className="!text-small uppercase text-text-secondary">{t('taskType.builtinGroup')}</span>{TASK_TYPES.filter(x => x !== 'USERDEFINED').map(type => <div key={type} className="text-small leading-4 opacity-60">{t(`taskType.${type}`)} · {t('taskType.fixed')}</div>)}</div>
+      <div className="flex flex-col gap-2"><span className="!text-small uppercase text-text-secondary">{t('taskType.personalGroup')}</span>
+        {personal.length === 0 && <span className="text-small leading-4 text-text-secondary">{t('taskType.empty')}</span>}
+        {personal.map(type => editingId === type.id ? <div className="flex gap-2" key={type.id}><input autoFocus value={name} onChange={e => setName(e.target.value)} className="input !text-small !leading-4 flex-1" /><button className="btn btn--sm btn--primary" onClick={() => rename(type.id)}>{tCommon('save')}</button></div> : <div className="flex items-center gap-2 text-small leading-4" key={type.id}><span className="flex-1">{type.name}</span><button className="p-1 rounded-[6px] hover:bg-surface-hover text-text-secondary" onClick={() => { setEditingId(type.id); setName(type.name); }} aria-label={t('taskType.rename')} title={t('taskType.rename')}><Pencil size={12} /></button><button className="p-1 rounded-[6px] hover:bg-surface-hover text-text-secondary hover:text-red-500" onClick={() => deleteType(type.id)} aria-label={t('taskType.remove')} title={t('taskType.remove')}><Trash2 size={12} /></button></div>)}
       </div>
-      {projectOnly.length > 0 && <div className="flex flex-col gap-2"><span className="ops-text-10 uppercase text-text-secondary">{t('taskType.projectGroup')}</span>{projectOnly.map(type => <div className="flex items-center gap-2 text-xs" key={type.id}><span className="flex-1">{type.name}</span><button className="btn btn--sm btn--secondary" onClick={() => addPersonalTaskType(type.name, type.id)}>{t('taskType.addToMine')}</button></div>)}</div>}
+      {projectOnly.length > 0 && <div className="flex flex-col gap-2"><span className="!text-small uppercase text-text-secondary">{t('taskType.projectGroup')}</span>{projectOnly.map(type => <div className="flex items-center gap-2 text-small leading-4" key={type.id}><span className="flex-1">{type.name}</span><button className="btn btn--sm btn--secondary" onClick={() => addPersonalTaskType(type.name, type.id)}>{t('taskType.addToMine')}</button></div>)}</div>}
       <div className="flex justify-end"><button className="btn btn--sm btn--primary" onClick={() => setDialog(null)}>{tCommon('close')}</button></div>
     </Dialog>}
   </>;

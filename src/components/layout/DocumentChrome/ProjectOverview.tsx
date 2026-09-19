@@ -37,17 +37,17 @@ export function ProjectOverview() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span className="ops-text-16" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: '#fff' }}>
+            <span className="!text-heading" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: '#fff' }}>
               {t('documents.overviewTitle')}
             </span>
-            <span className="ops-text-11" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            <span className="!text-body" style={{ color: 'rgba(255,255,255,0.55)' }}>
               {t('documents.openBadge', { count: cards.length })} · {t('documents.switchHint')}
             </span>
           </div>
           <button
             onClick={() => { chooseNewOrOpenProject(); closeOverview(); }}
             title={t('documents.newOrOpenTitle')}
-            className="ops-text-12"
+            className="!text-large"
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: 'var(--theme-accent)', color: 'var(--theme-accent-on)',
@@ -78,11 +78,11 @@ export function ProjectOverview() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10, paddingLeft: 6 }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="ops-text-14" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: 'var(--theme-text)' }}>
+                    <span className="!text-heading" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: 'var(--theme-text)' }}>
                       {card.title}
                     </span>
                     {card.isActive && (
-                      <span className="ops-text-9" style={{
+                      <span className="!text-caption" style={{
                         fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
                         color: 'var(--theme-accent-on)', background: 'var(--theme-accent)',
                         borderRadius: 9999, padding: '2px 7px',
@@ -93,7 +93,7 @@ export function ProjectOverview() {
                     )}
                   </div>
                   {card.fileName && (
-                    <div className="ops-text-10" style={{ color: 'var(--theme-text-muted)', marginTop: 3, fontFamily: "var(--font-code)" }}>
+                    <div className="!text-small" style={{ color: 'var(--theme-text-muted)', marginTop: 3, fontFamily: "var(--font-code)" }}>
                       {card.fileName}
                     </div>
                   )}
@@ -126,7 +126,7 @@ export function ProjectOverview() {
                 ))}
               </div>
 
-              <div className="ops-text-11" style={{ display: 'flex', gap: 14, marginTop: 11, paddingLeft: 6, color: 'var(--theme-text-dim)' }}>
+              <div className="!text-body" style={{ display: 'flex', gap: 14, marginTop: 11, paddingLeft: 6, color: 'var(--theme-text-dim)' }}>
                 <span><b style={{ color: 'var(--theme-text)', fontWeight: 600 }}>{card.taskCount}</b> {t('documents.tasksWord')}</span>
                 <span><b style={{ color: 'var(--theme-critical-text)', fontWeight: 600 }}>{card.criticalCount}</b> {t('documents.criticalWord')}</span>
                 {card.endDate && <span style={{ marginLeft: 'auto', color: 'var(--theme-text-muted)' }}>{card.endDate}</span>}

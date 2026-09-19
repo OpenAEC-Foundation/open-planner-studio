@@ -23,7 +23,7 @@ export function DependencyModeNotice() {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-2 text-xs border-b border-border"
+      className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
       style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
       data-ops-dependency-mode
     >

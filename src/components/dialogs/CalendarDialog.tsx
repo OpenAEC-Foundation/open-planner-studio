@@ -157,7 +157,7 @@ export function CalendarDialog() {
       panelProps={{ 'data-ops-calendar-dialog': true, onKeyDown: commitOnInputEnter }}
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {tCommon('calendar.library.title')}
           </span>
           <button onClick={cancel} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -177,7 +177,7 @@ export function CalendarDialog() {
                     key={cal.id}
                     onClick={() => setSelectedId(cal.id)}
                     className={
-                      'w-full text-left px-3 py-2 text-xs flex items-center gap-1.5 ' +
+                      'w-full text-left px-3 py-2 text-small leading-4 flex items-center gap-1.5 ' +
                       (isSelected ? 'bg-accent/10 text-text-primary' : 'text-text-secondary hover:bg-surface-hover')
                     }
                     data-ops-calendar-row={cal.id}
@@ -212,7 +212,7 @@ export function CalendarDialog() {
               <>
                 <div className="flex items-center justify-between px-4 pt-3">
                   {localProjectId === selected.id ? (
-                    <span className="ops-text-11 font-medium text-accent flex items-center gap-1">
+                    <span className="!text-body font-medium text-accent flex items-center gap-1">
                       <Star size={11} fill="currentColor" />
                       {tCommon('calendar.library.project')}
                     </span>
@@ -231,7 +231,7 @@ export function CalendarDialog() {
                 />
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-xs text-text-secondary">
+              <div className="flex-1 flex items-center justify-center text-small leading-4 text-text-secondary">
                 {tMenu('ribbon.calendarDialog.noHolidays')}
               </div>
             )}

@@ -143,7 +143,7 @@ export function PoolImportDialog() {
       panelProps={{ 'data-ops-pool-import-dialog': true }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('companyLibrary.importTitle')}
         </span>
         <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -151,7 +151,7 @@ export function PoolImportDialog() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         <button onClick={() => { void pick(); }} className="btn btn--sm btn--secondary self-start">
           {t('companyLibrary.chooseFile')}
         </button>
@@ -205,7 +205,7 @@ export function PoolImportDialog() {
                       value={companyId}
                       onChange={e => setCompanyId(e.target.value)}
                       disabled={action !== 'replace'}
-                      className="input !text-xs !px-2.5 !py-1.5"
+                      className="input !text-small !leading-4 !px-2.5 !py-1.5"
                     >
                       {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>

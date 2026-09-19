@@ -1268,7 +1268,7 @@ export function ReportPanel() {
         style={{ width: settingsWidth, borderRight: '1px solid var(--theme-border)' }}
       >
         <span
-          className="text-xs font-bold uppercase"
+          className="text-small leading-4 font-bold uppercase"
           style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', color: 'var(--theme-text-muted)' }}
         >
           {t('title')}
@@ -1291,8 +1291,8 @@ export function ReportPanel() {
 
         {/* Project summary */}
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
-          <h3 className="ui-card-header !text-xs mb-2">{t('summary')}</h3>
-          <div className="grid grid-cols-2 gap-1 text-xs" data-ops-report-summary-block>
+          <h3 className="ui-card-header !text-small !leading-4 mb-2">{t('summary')}</h3>
+          <div className="grid grid-cols-2 gap-1 text-small leading-4" data-ops-report-summary-block>
             {tableSpec ? (
               tableSpec.summary.map((item, i) => (
                 <span key={i} className="contents">
@@ -1363,8 +1363,8 @@ export function ReportPanel() {
         {/* Report options — gedeeld door de Gantt-afdruk en het resourcediagram (issue #113). */}
         {isGanttLike && (
         <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
-          <h3 className="ui-card-header !text-xs mb-2">{t('settings')}</h3>
-          <div className="flex flex-col gap-2 text-xs">
+          <h3 className="ui-card-header !text-small !leading-4 mb-2">{t('settings')}</h3>
+          <div className="flex flex-col gap-2 text-small leading-4">
             {/* Company name */}
             <div className="flex items-center gap-2 min-w-0">
               <label className="text-text-secondary w-20 flex-shrink-0">{t('company', { defaultValue: 'Bedrijf:' })}</label>
@@ -1373,14 +1373,14 @@ export function ReportPanel() {
                 value={companyName}
                 onChange={e => setCompanyName(e.target.value)}
                 placeholder={t('companyPlaceholder', { defaultValue: 'Bedrijfsnaam' })}
-                className="input flex-1 min-w-0 !text-xs !px-2 !py-1"
+                className="input flex-1 min-w-0 !text-small !leading-4 !px-2 !py-1"
               />
             </div>
 
             {/* Author (read-only from project) */}
             <div className="flex items-center gap-2 min-w-0">
               <label className="text-text-secondary w-20 flex-shrink-0">{t('author', { defaultValue: 'Auteur:' })}</label>
-              <span className="flex-1 min-w-0 truncate px-2 py-1 text-xs text-text-secondary">{project.author || '-'}</span>
+              <span className="flex-1 min-w-0 truncate px-2 py-1 text-small leading-4 text-text-secondary">{project.author || '-'}</span>
             </div>
 
             <div className="flex items-center gap-2 min-w-0">
@@ -1474,7 +1474,7 @@ export function ReportPanel() {
               </div>
             )}
             {barColorControl.missingField && (
-              <p className="ops-text-10 text-text-muted pl-[88px]" role="status">
+              <p className="!text-small text-text-muted pl-[88px]" role="status">
                 {t('barColorMissingField')}
               </p>
             )}
@@ -1496,7 +1496,7 @@ export function ReportPanel() {
               />
             </div>
             {statusLine !== 'none' && !statusDate && (
-              <p className="ops-text-11 text-amber-600 mt-0.5">{t('statusLineHint')}</p>
+              <p className="!text-body text-amber-600 mt-0.5">{t('statusLineHint')}</p>
             )}
 
             {/* Volg weergave (issue #54 punt 2): export = wat het scherm toont (filter, groepering,
@@ -1700,13 +1700,13 @@ export function ReportPanel() {
         <div className="flex flex-col gap-2">
           <button
             onClick={handleExportPDF}
-            className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-xs font-medium"
+            className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-small leading-4 font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >
             {t('exportPDF', { defaultValue: 'Exporteer PDF' })}
           </button>
           {exportError && (
-            <div className="text-xs" style={{ color: 'var(--error)' }} role="alert">
+            <div className="text-small leading-4" style={{ color: 'var(--error)' }} role="alert">
               {exportError}
             </div>
           )}
@@ -1718,7 +1718,7 @@ export function ReportPanel() {
         {isGanttLike ? (
           <div className="flex h-full min-h-0 flex-col">
             <div
-              className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-xs"
+              className="z-10 flex shrink-0 items-center gap-2 px-4 py-2 text-small leading-4"
               style={{ background: 'var(--theme-bg)' }}
               data-preview-zoom-control
             >
@@ -1767,7 +1767,7 @@ export function ReportPanel() {
                   );
                 })}
                 <div
-                  className="flex h-8 shrink-0 items-center justify-center text-center text-xs text-text-secondary"
+                  className="flex h-8 shrink-0 items-center justify-center text-center text-small leading-4 text-text-secondary"
                   data-preview-cache-status
                 >
                   {/* `count` (geen eigen `n`) zodat i18next echt pluraliseert: de sleutel bestaat nu
@@ -1791,7 +1791,7 @@ export function ReportPanel() {
               className="bg-surface p-4"
               style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
             >
-              <h3 className="ui-card-header !text-xs mb-3">{t('milestoneReport.title')}</h3>
+              <h3 className="ui-card-header !text-small !leading-4 mb-3">{t('milestoneReport.title')}</h3>
               <MilestoneReport />
             </div>
           </div>
@@ -1802,7 +1802,7 @@ export function ReportPanel() {
               className="bg-surface p-4"
               style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100 }}
             >
-              <h3 className="ui-card-header !text-xs mb-3">{t('variance.title')}</h3>
+              <h3 className="ui-card-header !text-small !leading-4 mb-3">{t('variance.title')}</h3>
               <VarianceReport />
             </div>
           </div>

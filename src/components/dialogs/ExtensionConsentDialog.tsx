@@ -47,16 +47,16 @@ export function ExtensionConsentDialog() {
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <ShieldAlert size={16} className="text-critical" />
-        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('extConsent.title')}
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
         {/* Wie en wat */}
         <div className="bg-surface-hover rounded-[8px] p-3 flex flex-col gap-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-sm font-semibold">{pending.name}</span>
+            <span className="text-body leading-5 font-semibold">{pending.name}</span>
             <span className="text-text-secondary">v{pending.version}</span>
           </div>
           <div className="text-text-secondary">{pending.description}</div>

@@ -47,7 +47,7 @@ export interface PopoverProps {
   align?: 'left' | 'right';
   /** Per-site paneel-overrides (zIndex, minWidth, padding, flex-layout, marginTop, …). */
   panelStyle?: CSSProperties;
-  /** Klasse op het paneel — voor de gedeelde `ops-text-*`-schaalklassen i.p.v. `fontSize` in `panelStyle`. */
+  /** Klasse op het paneel — voor de tekstrolklassen (`text-body` e.d.) i.p.v. `fontSize` in `panelStyle`. */
   panelClassName?: string;
   /** Extra stijl op de `position: relative`-container (bijv. `minWidth`). */
   containerStyle?: CSSProperties;

@@ -60,7 +60,7 @@ export function BaselineDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('baseline.dialog.title')}
           </span>
           <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -68,7 +68,7 @@ export function BaselineDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Lijst van baselines */}
           {baselines.length === 0 ? (
             <span className="text-text-secondary">{t('baseline.dialog.noBaselines')}</span>
@@ -99,7 +99,7 @@ export function BaselineDialog() {
                       <input
                         value={b.name}
                         onChange={e => renameBaseline(b.id, e.target.value)}
-                        className="input !text-xs !px-2 !py-1 w-full"
+                        className="input !text-small !leading-4 !px-2 !py-1 w-full"
                         aria-label={t('baseline.dialog.name')}
                       />
                     </td>
@@ -117,9 +117,9 @@ export function BaselineDialog() {
 
           {/* Nieuwe baseline opslaan */}
           <div className="flex flex-col gap-2 border-t border-border pt-3">
-            <span className="ui-card-header !text-xs">{t('baseline.dialog.saveNew')}</span>
+            <span className="ui-card-header !text-small !leading-4">{t('baseline.dialog.saveNew')}</span>
             {scheduleStale && (
-              <div className="ops-text-11" style={{ color: 'var(--theme-warning-text)' }}>
+              <div className="!text-body" style={{ color: 'var(--theme-warning-text)' }}>
                 ⚠ {t('baseline.dialog.staleHint')}
               </div>
             )}
@@ -127,7 +127,7 @@ export function BaselineDialog() {
               <input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                className="input !text-xs !px-2.5 !py-1.5 flex-1"
+                className="input !text-small !leading-4 !px-2.5 !py-1.5 flex-1"
                 aria-label={t('baseline.dialog.name')}
               />
               <button onClick={save} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">

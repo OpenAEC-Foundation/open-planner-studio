@@ -56,9 +56,9 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-xs">{t('properties.assignments.title')}</span>
+      <span className="ui-card-header !text-small !leading-4">{t('properties.assignments.title')}</span>
       {assignmentsDisabled ? (
-        <span className="ops-text-10 text-text-secondary italic">
+        <span className="!text-small text-text-secondary italic">
           {task.isMilestone
             ? t('properties.assignments.disabledMilestone')
             : t('properties.assignments.disabledSummary')}
@@ -66,7 +66,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
       ) : (
         <>
           {taskAssignments.length === 0 && (
-            <span className="ops-text-10 text-text-secondary">{t('properties.assignments.empty')}</span>
+            <span className="!text-small text-text-secondary">{t('properties.assignments.empty')}</span>
           )}
           {taskAssignments.map(a => {
             const res = resources.find(r => r.id === a.resourceId);
@@ -76,14 +76,14 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             const importedCurve = curveState === 'imported';
             const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : curveState;
             return (
-              <div key={a.id} className="flex items-center gap-1 ops-text-10" data-ops-assignment-row={a.id}>
+              <div key={a.id} className="flex items-center gap-1 !text-small" data-ops-assignment-row={a.id}>
                 <span className="flex-1 truncate" title={res?.name}>{res?.name || '?'}</span>
                 <UnitsInput
                   value={a.unitsPerDay}
                   title={t('properties.assignments.unitsPerDay')}
                   ariaLabel={t('properties.assignments.unitsPerDay')}
                   onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
-                  className="input ops-text-10 !px-1 !py-0.5 !w-14 text-right"
+                  className="input !text-small !px-1 !py-0.5 !w-14 text-right"
                 />
                 <select
                   value={curveValue}
@@ -94,7 +94,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                     if (e.target.value === CONTOURED || e.target.value === IMPORTED_CURVE) return;
                     updateAssignment(a.id, { curve: e.target.value as ResourceCurve });
                   }}
-                  className="input ops-text-10 !px-1 !py-0.5 !w-24 disabled:opacity-60"
+                  className="input !text-small !px-1 !py-0.5 !w-24 disabled:opacity-60"
                   data-ops-assignment-curve
                 >
                   {contoured && <option value={CONTOURED}>{t('properties.assignments.contoured')}</option>}
@@ -120,7 +120,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                     title={t('properties.assignments.moveTo')}
                     aria-label={t('properties.assignments.moveTo')}
                     onChange={e => { if (e.target.value) moveAssignment(a.id, e.target.value); }}
-                    className="input ops-text-10 !px-1 !py-0.5 !w-24"
+                    className="input !text-small !px-1 !py-0.5 !w-24"
                     data-ops-assignment-move
                   >
                     <option value="">{t('properties.assignments.moveTo')}</option>
@@ -141,7 +141,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             <select
               value=""
               onChange={e => { if (e.target.value) assignResource(taskId, e.target.value, 1); }}
-              className="input !text-xs !px-2.5 !py-1.5"
+              className="input !text-small !leading-4 !px-2.5 !py-1.5"
             >
               <option value="">{t('properties.assignments.add')}</option>
               {availableResources.map(r => (
@@ -149,7 +149,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
               ))}
             </select>
           ) : (
-            <span className="ops-text-10 text-text-secondary">
+            <span className="!text-small text-text-secondary">
               {resources.length === 0
                 ? t('properties.assignments.noResources')
                 : t('properties.assignments.allAssigned')}

@@ -57,7 +57,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
       {task.isMilestone ? (
         <Field label={t('properties.progress.actualDate')}>
           <DateTextInput
-            className="input !text-xs !px-2.5 !py-1.5"
+            className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
             onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
@@ -68,7 +68,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
           <div className="grid grid-cols-2 gap-2">
             <Field label={t('properties.progress.actualStart')}>
               <DateTextInput
-                className="input !text-xs !px-2.5 !py-1.5"
+                className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
                 onCommit={v => { setActualError(!onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` })); }}
@@ -76,7 +76,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
               <DateTextInput
-                className="input !text-xs !px-2.5 !py-1.5"
+                className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
                 onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
@@ -87,13 +87,13 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             <input
               value={task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion))}
               disabled
-              className="input !text-xs !px-2.5 !py-1.5 opacity-60"
+              className="input !text-small !leading-4 !px-2.5 !py-1.5 opacity-60"
             />
           </Field>
         </>
       )}
       {actualError && (
-        <div className="ops-text-11" style={{ color: 'var(--error)' }}>
+        <div className="!text-body" style={{ color: 'var(--error)' }}>
           {tCommon('progress.actualsAfterStatusDate')}
         </div>
       )}
