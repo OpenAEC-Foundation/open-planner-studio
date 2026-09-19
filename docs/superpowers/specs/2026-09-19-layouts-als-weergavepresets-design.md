@@ -1,133 +1,118 @@
-# Layouts als weergavepresets — ontwerp (issue #144)
+# Layoutknoppen — ontwerp (issue #144)
 
-Status: **concept, wacht op eigenaarsakkoord.** Nog niets gebouwd.
+Status: **gebouwd op `t3code/22f69e75`, wacht op eigenaarsreview.** Deel B (werkdagen in de bandkop)
+is bewust NIET gebouwd — zie onderaan.
 
 ## Aanleiding
 
 gfayat (#113, #144) wil het resourcediagram dat hij als afdrukrapport kreeg ook op het scherm, met
-één klik, voor vergaderingen in presentatiemodus. Nu maakt hij daarvoor een opgeslagen filter per
-resource. manu varkey stelde een keuzelijst *Gantt Chart / Resource Diagram* voor; gfayat stemde in.
+één klik, voor vergaderingen in presentatiemodus. Hij maakte daarvoor een opgeslagen filter per
+resource. Zijn schets was een knop naast Histogram; manu varkey stelde een keuzelijst voor.
 
-Het scherm kán dit al: `view.group = [{ field: { src: 'resource' } }]` geeft dezelfde banden. Het zit
-alleen vier klikken diep achter een icoon zonder label. Het gat is vindbaarheid, niet functie.
+Het scherm kón dit al (`view.group = [{ field: { src: 'resource' } }]`), maar vier klikken diep achter
+een icoon zonder label. Het gat was vindbaarheid, niet functie.
 
-Eigenaarsbesluit 2026-09-19: niet oplossen met een losse knop, maar breed. De bestaande
-**Layout**-functie wordt hét presetmechanisme; het resourcediagram is een meegeleverde layout; de
-losse opgeslagen filters (`SavedFilter`, commit `ae100ee0`) gaan erin op.
+## Eigenaarsbesluiten (2026-09-19)
 
-## Wat er nu staat
+1. Niet oplossen met één losse knop maar breed: de **Layout**-functie wordt hét presetmechanisme.
+2. De oude vorm (een `<select>` plus Opslaan als/Bijwerken/Beheren) verdwijnt. **Elke layout is een
+   eigen lintknop met icoon en naam**, plus een plusknop.
+3. Een layoutknop is een **schakelaar**: nogmaals klikken zet hem uit en brengt het beeld terug naar
+   hoe het was vóór de klik.
+4. **Relatielijnen tonen** wordt een schermoptie en een layoutdeel; het resourcediagram zet ze uit,
+   zoals het afdrukrapport (een taak kan onder meerdere banden staan).
+5. Een layout legt alleen de **aangevinkte** delen vast, met duidelijke info-tooltips.
+6. Het Weergave-blok (Kolommen/Filter/Groeperen/Sorteren) gaat weg; de dialoog krijgt **Toepassen
+   zonder opslaan**. Het oude blok blijft als instelling in een gemarkeerd blok **Legacy-functies**.
+7. De losse opgeslagen filters (`SavedFilter`, issue #85) gaan op in de layouts.
 
-| onderdeel | waar | gedrag |
-|---|---|---|
-| `Layout` | `src/types/view.ts`, opslag `settingsStore.loadLayouts/saveLayouts` | altijd ALLE vijf delen: kolommen, groepering, sortering, filter, tijdschaal |
-| toepassen | `viewSlice.applyLayout` | zet alle vijf, één sessie-undo-event op basis van een diff |
-| lint | `LayoutGroupContent` (`ribbonWidgets.tsx`) | `<select>` zonder label, "(geen)" doet niets, Opslaan als / Bijwerken / Beheren |
-| `SavedFilter` | `src/types/view.ts`, `ops-`-sleutel via `loadSavedFilters` | alleen het filter; bewust los gehouden "zodat wisselen nooit kolommen, groepering, sortering of tijdschaal raakt" |
-| filter-UI | `SavedFilterDropdown` (lint, groep Weergave) + beheer in `FilterDialog.tsx` | kiezen = `setFilter` |
-
-Die laatste motivatie is de kern van het ontwerp: samenvoegen mag dat gedrag niet kosten.
-
-## Het model: een layout legt alleen vast wat hij draagt
+## Het model
 
 ```ts
 export interface Layout {
-  id: string;
-  name: string;
+  id: string; name: string; icon?: string;
   columns?: TaskGridColumnPreference[];
-  group?: GroupLevel[];
-  sort?: SortLevel[];
-  filter?: FilterNode | null;   // aanwezig + null = "wis het filter"
+  group?: GroupLevel[]; sort?: SortLevel[];
+  filter?: FilterNode | null;        // aanwezig + null = "wis het filter"
   timeScale?: TimeScale;
+  showRelations?: boolean;
 }
 ```
 
-Een **ontbrekende sleutel betekent: laat dat deel van het beeld met rust.** Bestaande opgeslagen
-layouts dragen alle vijf en gedragen zich dus exact als vandaag. Een opgeslagen filter is een layout
-met alleen `filter`. Het resourcediagram is een layout met alleen `group` en `sort`.
+Een **ontbrekende sleutel betekent: laat dat deel van het beeld met rust.** Layouts van vóór #144
+dragen vijf delen en gedragen zich ongewijzigd. Pure kern in `src/engine/view/layoutPresets.ts`:
+`layoutParts`, `applyLayoutParts`, `layoutMatchesView`, `pickLayoutParts`, `migrateSavedFilters` en
+het schakelmodel hieronder.
 
-Pure kern in `src/engine/view/layoutPresets.ts` (geen store, headless getest):
+### Schakelmodel (`LayoutSession` in `ViewState`, per document, sessie)
 
-- `layoutParts(layout)` — welke delen draagt hij.
-- `applyLayoutParts(view, columns, layout)` — het nieuwe beeld; ongedragen delen ongewijzigd.
-- `layoutMatchesView(layout, view, columns)` — komen álle gedragen delen overeen met het scherm.
-- `migrateSavedFilters(layouts, savedFilters)` — zie *Migratie*.
+`{ layouts: Layout[]; restore: LayoutViewParts }` — de aanstaande layouts en het beeld van vóór de
+eerste nog levende layoutklik.
 
-`viewSlice.applyLayout` roept `applyLayoutParts` aan. De bestaande undo-registratie werkt op een
-diff van vóór/na en hoeft niet te veranderen: een gedeeltelijke layout geeft vanzelf een kleinere delta.
+- **Aan** (`switchLayoutOn`): knoppen die geen deel delen blijven aan (resourcediagram + filterknop);
+  een knop die wél een deel deelt gaat uit en zijn overige delen keren terug naar `restore`.
+- **Uit** (`switchLayoutOff`): alleen de delen van díé layout gaan terug naar `restore`. Een
+  handmatige wijziging aan een niet-gedragen deel (bv. zoom) blijft dus staan.
+- **Aan = het scherm klopt.** `liveSessionLayouts` filtert op `layoutMatchesView`: wijzigt de
+  gebruiker met de hand een gedragen deel, dan staat de knop uit. De knop volgt het scherm, niet de
+  laatste klik — ook na Ctrl+Z, want `layoutSession` en `showRelations` zitten in de undo-subset
+  (`captureViewLayoutHistoryState`). Elke klik is één sessie-undo-event.
+- `applyViewSettings` ("toepassen zonder opslaan") schrijft delen zonder een knop aan te zetten.
 
-## Meegeleverde layouts
+De store kent de layoutlijst niet; daarom bewaart de sessie de toegepaste layouts zelf.
+`src/state/layoutView.ts` (bladmodule) levert `currentLayoutParts` en `activeLayoutIds`.
 
-Gedefinieerd in code (`src/components/viewControls/builtinLayouts.ts`), **niet** in de opslag: de naam
-komt uit een vertaalsleutel en schakelt dus mee met de taal; ze kunnen niet bewerkt, overschreven of
-verwijderd worden, wel gedupliceerd naar een eigen layout. Id-prefix `builtin:`.
+## Meegeleverde layout
 
-| id | draagt | inhoud |
-|---|---|---|
-| `builtin:gantt-wbs` | groepering, sortering | beide leeg → de WBS-boom |
-| `builtin:resource-diagram` | groepering, sortering | groeperen op resource; binnen de band op start, zoals het rapport |
-
-Bewust géén kolommen, filter of tijdschaal: wie midden in een vergadering wisselt houdt zijn zoom,
-zijn kolommen en zijn filter. Heen en terug is elk één klik. De lijst is de plek voor latere
-weergaven (kritiek pad, mijlpalen) — manu's punt 2 en 3.
-
-## Migratie van opgeslagen filters
-
-Eenmalig bij het laden van de layouts: elke `SavedFilter` wordt `{ id, name, filter }` als layout,
-idempotent op id, daarna een vlag `ops-savedFiltersMigrated`. De oude sleutel wordt **niet gewist**:
-wie terugvalt naar een oudere versie houdt zijn filters. Bekende keerzijde: een oudere versie
-verwerpt gedeeltelijke layouts in haar validator en toont ze niet — geen dataverlies, wel onzichtbaar.
+`src/components/viewControls/builtinLayouts.ts`, in code en niet in de opslag (vertaalde naam, niet
+bewerkbaar, wel te dupliceren), id-prefix `builtin:`. Eén stuks: **Resourcediagram** — groeperen op
+resource, binnen de band op start, relatielijnen uit. Geen kolommen/filter/tijdschaal, zodat zoom,
+kolommen en filter in een vergadering blijven staan. Een aparte "Gantt (WBS)" is niet nodig: uitzetten
+keert terug. Latere weergaven (kritiek pad, mijlpalen) zijn een extra regel in die lijst.
 
 ## UI
 
-1. **Lint, groep Layout.** De keuzelijst krijgt een zichtbaar label. Inhoud in drie blokken
-   (`<optgroup>`): *Meegeleverd*, *Eigen layouts*, *Filters* (layouts die alleen een filter dragen).
-   De getoonde waarde is afgeleid: de laatst gekozen layout zolang `layoutMatchesView` klopt, anders
-   "(aangepast)". Daarmee licht "Resourcediagram" alleen op als het scherm dat ook echt toont.
-2. **Lint, groep Weergave.** De filterknop houdt zijn uitklaplijst, maar die wordt nu gevoed uit de
-   layouts die alleen een filter dragen (was: de losse `savedFilters`-opslag). Kiezen loopt via
-   `applyLayout` en is daarmee voortaan ook een undo-stap. Eén opslag, twee ingangen — bijgesteld
-   tijdens etappe 2: de snelle filterlijst weghalen zou voor bestaande gebruikers een stap terug zijn.
-3. **Opslaan als… (`LayoutsDialog`).** Vinkjes *Wat legt deze layout vast*: kolommen, filter,
-   groepering, sortering, tijdschaal — standaard alle vijf aan (huidig gedrag). De beheerlijst toont
-   per layout welke delen hij draagt; meegeleverde layouts staan erbij als alleen-lezen met
-   *Dupliceren*. **Bijwerken** ververst alleen de delen die de layout al draagt.
-4. **`FilterDialog`.** Het eigen opslaan/laden/verwijderen verdwijnt. Ervoor in de plaats: *Opslaan
-   als layout…* (maakt een layout met alleen het filter) en een laadlijst van layouts die een filter
-   dragen — laden neemt alleen het filterdeel over in de editor.
-5. Mededelingen in de dialogen staan in een gekleurd blok, niet als los bijschrift.
+- **Lintgroep Layout** (`LayoutGroupContent`): knop per layout (`layoutIcons.tsx`, vaste set van 13
+  iconen; een layout bewaart alleen de sleutel), plusknop. Rechtsklik: Bewerken… / Dupliceren /
+  Verwijderen (bevestiging via `ConfirmDialog`); meegeleverd: alleen Dupliceren.
+- **Layoutdialoog** (`LayoutsDialog.tsx`, `ui.layoutDialogTargetId`): naam, icoon, zes delen met
+  vinkje + info-tooltip; onder een aangevinkt deel de editor zelf — `GroupEditor` (filterboom, nu
+  geëxporteerd uit `FilterDialog.tsx`), `LevelListEditor` (groeperen/sorteren, gedeeld met de
+  klassieke popovers), tijdschaal-select, relatielijnen-vinkje. Kolommen: neemt de tabel over.
+  Knoppen: Annuleren / Toepassen zonder opslaan / Opslaan. Opslaan past niet toe.
+- **Relatielijnen**: kleine lintknop in Basislijnen & voortgang, in een eigen derde stapel (de twee
+  bestaande zitten vol; `check-ribbon-overlays.ts` is daarop bijgewerkt en bewaakt nu max. drie per
+  stapel). `GanttCanvas` geeft de renderer bij `showRelations === false` geen relaties; de
+  pad-tracering blijft op alle relaties rekenen.
+- **Legacy**: `ui.showClassicViewControls` (persisted, default uit) → `RibbonGroupSpec.useVisible` op
+  de Weergave-groep; instelling in `SettingsPanelContent`, tab Geavanceerd, blok *Legacy-functies*.
 
-## Deel B — werkdagen in de bandkop (besluit open)
+## Migratie van opgeslagen filters
 
-gfayat vraagt het totaal aantal werkdagen per resource. De bandkop toont nu naam + aantal taken.
-Drie definities (voorbeeld: taak A ma–vr, taak B wo–di daarna met 2 man): bezette werkdagen 7, som
-van de duren 10, mandagen 15. Voorstel: **bezette werkdagen**, uit `ResourceLoad.taskWorkDayIsos`
-(dezelfde dagenlijst als het histogram), alleen op resourcebanden. De vraag staat uit bij gfayat op
-het issue; de eigenaar beslist. Dit deel raakt de layouts niet en kan als laatste etappe.
-
-## Raakvlakken
-
-- `settingsStore.ts`: validator voor layouts accepteert gedeeltelijke layouts; migratie-aanroep.
-- Alle lezers van `Layout.columns`/`.group`/… — de compiler wijst ze aan zodra de velden optioneel zijn.
-- i18n: nieuwe sleutels in alle 14 locales (`common:view.layout.*`), vervallen sleutels opruimen.
-- Gidsen nl + en: `ref-filters.md` (opslaan loopt nu via layouts), de layoutgids, en een alinea
-  "Resourcediagram op het scherm" met verwijzing vanuit `gids-rapporten-printen.md`.
-- Geen IFC-impact: layouts zijn app-globale voorkeuren, `view.group/sort/filter` reizen al mee.
+Eenmalig in `loadLayouts()`: elke `SavedFilter` wordt `{ id, name, filter }`, idempotent op id, met
+vlag `ops-savedFiltersMigrated` (een daarna verwijderde filterknop komt niet terug). De oude sleutel
+blijft staan als downgrade-vangnet. Bekende keerzijde: een oudere appversie verwerpt gedeeltelijke
+layouts in haar validator — geen dataverlies, wel onzichtbaar. De klassieke filterknop en
+`FilterDialog` lezen/schrijven nu filter-layouts.
 
 ## Tests
 
-- `tests/planning/check-layout-presets.ts` (nieuw): gedeeltelijk toepassen laat ongedragen delen
-  byte-gelijk; `filter: null` wist, ontbrekend filter niet; match-afleiding; migratie idempotent en
-  de oude sleutel blijft staan; meegeleverde ids botsen nooit met gegenereerde ids.
-- `check-saved-filters.ts` wordt de migratiecheck.
-- Browser (`tests/browser/layout-presets.spec.ts`): één klik naar resourcediagram en één klik terug
-  met behoud van zoom, kolommen en filter; filter-layout raakt de groepering niet; een
-  vooraf gezette oude `savedFilters`-sleutel verschijnt als layout; Ctrl+Z draait het toepassen terug.
+- `tests/planning/check-layout-presets.ts`: delen toepassen, match, schakelmodel (samen aan,
+  vervangen, uit, handmatige wijziging), migratie, validator.
+- `tests/browser/layout-presets.spec.ts`: resourcediagram aan/uit met behoud van zoom en filter en
+  undo; gemigreerde filterknop samen aan met het resourcediagram; legacy-instelling; de dialoog
+  (delen in de dialoog instellen, opslaan past niet toe, toepassen zonder opslaan, rechtsklikmenu).
+- Bijgewerkt: `check-ribbon-overlays.ts`, `settings-tabs.spec.ts`, `check-task-grid-preferences.ts`.
 
-## Etappes (één PR — de etappes delen `ribbonWidgets.tsx`, `view.ts` en de locales)
+## Docs
 
-1. Pure kern, type, validator, migratie + headless checks.
-2. `applyLayout`, meegeleverde layouts, lintkeuzelijst met label en afgeleide waarde;
-   `SavedFilterDropdown` weg. **Schermafbeelding naar de eigenaar.**
-3. `LayoutsDialog` met delen, `FilterDialog`-integratie. **Schermafbeelding naar de eigenaar.**
-4. Deel B, na het besluit.
-5. Gidsen, 14 locales, browsertests, `npm run verify`.
+`ref-layouts.md` (nl + en) herschreven; `ref-filters`, `ref-kolommen`, `ref-instellingen` bijgewerkt.
+De twaalf overige vertalingen van `ref-layouts.md` beschreven de verdwenen keuzelijst en zijn
+verwijderd (de viewer valt terug op EN) — `verify:docs` eist gelijke kopstructuur, en een stale
+vertaling van een verdwenen UI is erger dan een Engelse terugval. Ze volgen met de maandelijkse ronde.
+
+## Niet gebouwd: werkdagen in de bandkop
+
+gfayat vraagt het totaal aantal werkdagen per resource. Drie definities geven drie getallen (bezette
+werkdagen / som van de duren / mandagen). Eigenaarsbesluit: **niet gokken**; de vraag staat uit bij
+gfayat op #144 en dit deel wacht op zijn antwoord.
