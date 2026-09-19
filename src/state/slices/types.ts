@@ -341,7 +341,8 @@ export interface UIState {
   // --- Fase 2.7 golf 3: dialogen (§5.5/§6/§13.1/§8) ---
   showColumnsDialog: boolean;                // session — kolommen-dialoog open
   showFilterDialog: boolean;                 // session — filter-editor open
-  showLayoutsDialog: boolean;                // session — layouts-beheer/opslaan-als-dialoog open
+  showLayoutsDialog: boolean;                // session — layoutdialoog open (nieuw of bewerken, issue #144)
+  layoutDialogTargetId: string | null;       // session — de layout die bewerkt wordt; null = nieuwe layout
   autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
   constructionMode: boolean;                 // persisted — bouwmodus (AAN=bouwgericht, default); UIT=bouw-agnostisch
 

@@ -203,7 +203,8 @@
     "screenColors_category": "حسب الفئة",
     "screenColorsMissingField": "هذا الحقل غير موجود في هذا المشروع. يُستخدم نوع المهمة مؤقتًا.",
     "screenColorsHint": "خارج وضع المسار الحرج، يشير الإطار الأحمر إلى المسار الحرج.",
-    "addLayout": "تخطيط جديد"
+    "addLayout": "تخطيط جديد",
+    "toggleRelations": "خطوط العلاقات"
   },
   "ifc": {
     "title": "محرر IFC",

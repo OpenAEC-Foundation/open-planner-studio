@@ -203,7 +203,8 @@
     "screenColors_category": "범주별",
     "screenColorsMissingField": "이 필드는 이 프로젝트에 없습니다. 작업 유형을 임시로 사용합니다.",
     "screenColorsHint": "임계 경로 모드 외에는 빨간 테두리가 임계 경로를 표시합니다.",
-    "addLayout": "새 레이아웃"
+    "addLayout": "새 레이아웃",
+    "toggleRelations": "관계선"
   },
   "ifc": {
     "title": "IFC 편집기",

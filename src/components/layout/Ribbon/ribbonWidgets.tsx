@@ -12,7 +12,7 @@ import {
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, loadLayouts,
+  saveShowMiniMap, loadLayouts, saveLayouts,
 } from '@/utils/settingsStore';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { ExportFormat } from '@/state/appStore';
@@ -35,7 +35,9 @@ import { buildImportLabels } from '@/i18n/importLabels';
 import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
 import { layoutIcon } from '@/components/viewControls/layoutIcons';
 import { activeLayoutId } from '@/state/layoutView';
-import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
+import { isBuiltinLayoutId, isFilterOnlyLayout } from '@/engine/view/layoutPresets';
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
   RibbonInlineSelect,
@@ -970,23 +972,75 @@ export function LayoutGroupContent() {
     [tCommon, layouts],
   );
 
+  // Rechtsklik op een layoutknop: bewerken / dupliceren / verwijderen. Meegeleverde layouts zijn
+  // alleen te dupliceren. Verwijderen vraagt eerst een bevestiging (geen native dialoog).
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Layout | null>(null);
+  const persist = (next: Layout[]) => { setLayouts(next); void saveLayouts(next); };
+  const duplicate = (layout: Layout) => {
+    const { id: _id, ...rest } = layout;
+    persist([...layouts, { ...structuredClone(rest), id: generateId('layout'), name: tCommon('view.layout.copyName', { name: layout.name }) }]);
+    setMenuId(null);
+  };
+
   return (
     <div style={{ display: 'flex', alignItems: 'stretch', gap: 2 }} data-ops-layout-buttons="true">
-      {buttons.map(layout => (
-        <span key={layout.id} data-ops-layout-button={layout.id} style={{ display: 'contents' }}>
-          <RibbonButton
-            icon={layoutIcon(layout.icon)}
-            label={layout.name}
-            active={activeId === layout.id}
-            onClick={() => toggleLayout(layout)}
-          />
-        </span>
-      ))}
+      {buttons.map(layout => {
+        const builtin = isBuiltinLayoutId(layout.id);
+        return (
+          <Popover
+            key={layout.id}
+            open={menuId === layout.id}
+            onClose={() => setMenuId(null)}
+            panelStyle={{ marginTop: 2, zIndex: 9999, minWidth: 170, padding: 4, display: 'flex', flexDirection: 'column', gap: 2 }}
+            trigger={
+              <span
+                data-ops-layout-button={layout.id}
+                style={{ display: 'flex', height: '100%' }}
+                onContextMenu={e => { e.preventDefault(); setMenuId(layout.id); }}
+              >
+                <RibbonButton
+                  icon={layoutIcon(layout.icon)}
+                  label={layout.name}
+                  active={activeId === layout.id}
+                  onClick={() => toggleLayout(layout)}
+                />
+              </span>
+            }
+          >
+            {builtin ? (
+              <span className="ribbon-info" style={{ padding: '4px 6px', maxWidth: 220, whiteSpace: 'normal' }}>
+                {tCommon('view.layout.builtinReadonly')}
+              </span>
+            ) : (
+              <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setMenuId(null); setUI({ showLayoutsDialog: true, layoutDialogTargetId: layout.id }); }}>
+                <span className="ribbon-btn-label">{tCommon('view.layout.edit')}</span>
+              </button>
+            )}
+            <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => duplicate(layout)}>
+              <span className="ribbon-btn-label">{tCommon('view.layout.duplicate')}</span>
+            </button>
+            {!builtin && (
+              <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--error)' }} onClick={() => { setMenuId(null); setPendingDelete(layout); }}>
+                <span className="ribbon-btn-label">{tCommon('view.layout.delete')}</span>
+              </button>
+            )}
+          </Popover>
+        );
+      })}
       <RibbonButton
         icon={<Plus size={20} />}
         label={tMenu('ribbon.addLayout')}
-        onClick={() => setUI({ showLayoutsDialog: true })}
+        onClick={() => setUI({ showLayoutsDialog: true, layoutDialogTargetId: null })}
       />
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`${tCommon('view.layout.delete')}: ${pendingDelete.name}?`}
+          danger
+          onConfirm={() => { persist(layouts.filter(l => l.id !== pendingDelete.id)); setPendingDelete(null); }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }

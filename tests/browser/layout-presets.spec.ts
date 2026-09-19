@@ -117,3 +117,63 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
   expect(await page.evaluate(() => localStorage.getItem('ops-savedFilters'))).toContain('zonder-gevel');
 });
+
+test('layoutdialoog: plus maakt een eigen knop met icoon die alleen de aangevinkte delen vastlegt; rechtsklik bewerkt, dupliceert en verwijdert', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    localStorage.removeItem('ops-taskGridLayouts');
+  });
+  await seedWithResources(page);
+  // Het beeld dat de layout moet vastleggen: gesorteerd op naam, relatielijnen uit.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
+    s.setShowRelations(false);
+    s.setZoom(17);
+  });
+
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await page.getByRole('button', { name: /^(New layout|Nieuwe layout)$/ }).click();
+  const dialog = page.locator('[data-ops-layout-dialog]');
+  await dialog.getByRole('textbox').fill('Op naam');
+  await dialog.locator('[data-ops-layout-icon="star"]').click();
+  // Alleen sortering en relatielijnen vastleggen; de rest uitvinken.
+  for (const part of ['columns', 'filter', 'group', 'timeScale']) {
+    await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
+  }
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/03-layoutdialoog.png` });
+  await page.locator('[data-ops-layout-save]').click();
+  await expect(dialog).toHaveCount(0);
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
+  expect(stored).toHaveLength(1);
+  expect(Object.keys(stored[0]).sort()).toEqual(['icon', 'id', 'name', 'showRelations', 'sort']);
+
+  // De knop staat meteen AAN: het scherm komt overeen met wat hij vastlegt… maar er loopt geen sessie,
+  // dus hij is pas een schakelaar na een klik. Zet het beeld terug en schakel.
+  const own = page.locator('[data-ops-layout-button]').filter({ hasText: 'Op naam' }).locator('button');
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setSort([]);
+    s.setShowRelations(true);
+  });
+  await own.click();
+  let v = await viewState(page);
+  expect(v.sort).toHaveLength(1);
+  expect(v.showRelations).toBe(false);
+  expect(v.zoom).toBe(17);
+  await expect(own).toHaveClass(/active/);
+  await own.click();
+  v = await viewState(page);
+  expect(v.sort).toEqual([]);
+  expect(v.showRelations).toBe(true);
+
+  // Rechtsklik → dupliceren, daarna het origineel verwijderen.
+  await own.click({ button: 'right' });
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/04-rechtsklikmenu.png` });
+  await page.getByRole('button', { name: /^(Duplicate|Dupliceren)$/ }).click();
+  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(3);
+  await own.first().click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).click();
+  await page.getByRole('button', { name: /^(Delete|Verwijderen|OK|Confirm|Bevestigen)$/ }).last().click();
+  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+});

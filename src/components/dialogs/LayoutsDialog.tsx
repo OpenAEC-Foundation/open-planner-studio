@@ -1,183 +1,191 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Trash2, Check } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
-import { loadLayouts, saveLayouts, saveLastLayoutId } from '@/utils/settingsStore';
-import type { Layout } from '@/state/slices/types';
+import { LAYOUT_ICON_KEYS, layoutIcon } from '@/components/viewControls/layoutIcons';
+import { layoutParts, pickLayoutParts } from '@/engine/view/layoutPresets';
+import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { LAYOUT_PARTS, type Layout, type LayoutPart } from '@/types/view';
 import { Dialog } from '@/components/common/Dialog';
-import { ConfirmDialog } from './ConfirmDialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 
+/** Label- en tooltipsleutel per layoutdeel; de vijf bestaande delen hergebruiken hun eigen titel. */
+const PART_KEYS: Record<LayoutPart, { label: string; info: string }> = {
+  columns: { label: 'common:view.columns.title', info: 'common:view.layout.infoColumns' },
+  filter: { label: 'common:view.filter.title', info: 'common:view.layout.infoFilter' },
+  group: { label: 'common:view.group.title', info: 'common:view.layout.infoGroup' },
+  sort: { label: 'common:view.sort.title', info: 'common:view.layout.infoSort' },
+  timeScale: { label: 'menu:ribbon.timeScale', info: 'common:view.layout.infoTimeScale' },
+  showRelations: { label: 'common:view.layout.partRelations', info: 'common:view.layout.infoRelations' },
+};
+
 /**
- * Layouts-dialoog (fase 2.7, §8): combineert "Opslaan als…" en "Beheren…" in één lijst-dialoog
- * (patroon van `BaselineDialog`) — lijst met inline-hernoemen, toepassen en verwijderen, plus een
- * "opslaan als nieuwe layout"-sectie onderaan. Opslag app-globaal via `settingsStore` (§8.2), buiten
- * de 3-plekken-regel (dit is view-state, geen instelling).
+ * Layoutdialoog (issue #144): maakt een nieuwe layoutknop of bewerkt een bestaande
+ * (`ui.layoutDialogTargetId`). Een layout legt alleen de AANGEVINKTE delen vast en neemt daarvoor
+ * over wat er nu op het scherm staat; bij bewerken blijven de opgeslagen waarden staan tenzij de
+ * gebruiker ze bewust door de huidige weergave laat vervangen. Opslag app-globaal via `settingsStore`.
  */
 export function LayoutsDialog() {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['common', 'menu']);
   const setUI = useAppStore(s => s.setUI);
+  const targetId = useAppStore(s => s.ui.layoutDialogTargetId);
   const view = useAppStore(s => s.view);
   const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
   const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
-  const applyLayout = useAppStore(s => s.applyLayout);
 
-  const close = () => setUI({ showLayoutsDialog: false });
+  const close = () => setUI({ showLayoutsDialog: false, layoutDialogTargetId: null });
 
-  const [layouts, setLayoutsState] = useState<Layout[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [newName, setNewName] = useState('');
-  // Fase 2.10 (item 5): lokale bevestigings-state i.p.v. `window.confirm()` — geen globale
-  // singleton (architect-besluit 4). `onConfirm` draagt de vervolg-logica die voorheen NA de
-  // synchrone `window.confirm()`-return-waarde stond.
-  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; confirmLabel?: string; danger?: boolean; onConfirm: () => void } | null>(null);
+  const [layouts, setLayouts] = useState<Layout[] | null>(null);
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState<string>('layout');
+  const [parts, setParts] = useState<LayoutPart[]>([...LAYOUT_PARTS]);
+  const [useCurrentView, setUseCurrentView] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void loadLayouts().then(l => { if (!cancelled) { setLayoutsState(l); setLoaded(true); } });
+    void loadLayouts().then(all => {
+      if (cancelled) return;
+      setLayouts(all);
+      const target = all.find(l => l.id === targetId);
+      if (!target) return;
+      setName(target.name);
+      setIcon(target.icon ?? 'layout');
+      setParts(layoutParts(target));
+    });
     return () => { cancelled = true; };
-  }, []);
+  }, [targetId]);
 
-  const persist = (next: Layout[]) => {
-    setLayoutsState(next);
-    void saveLayouts(next);
+  const target = useMemo(() => layouts?.find(l => l.id === targetId), [layouts, targetId]);
+  const editing = target !== undefined;
+
+  const togglePart = (part: LayoutPart) => {
+    setParts(current => (current.includes(part) ? current.filter(p => p !== part) : [...current, part]));
   };
 
-  const saveNew = () => {
-    const name = newName.trim() || t('view.layout.name');
-    const layout = snapshotLayout(view, columns, name);
-    persist([...layouts, layout]);
-    void saveLastLayoutId(layout.id);
-    setNewName('');
-  };
-
-  const rename = (id: string, name: string) => {
-    persist(layouts.map(l => (l.id === id ? { ...l, name } : l)));
-  };
-
-  const remove = (id: string) => {
-    setPendingConfirm({
-      message: t('view.layout.delete') + '?',
-      danger: true,
-      onConfirm: () => {
-        persist(layouts.filter(l => l.id !== id));
-        setPendingConfirm(null);
-      },
-    });
-  };
-
-  const update = (id: string) => {
-    const current = layouts.find(l => l.id === id);
-    if (!current) return;
-    persist(layouts.map(l => (l.id === id ? snapshotLayout(view, columns, l.name, l.id) : l)));
-  };
-
-  const apply = (layout: Layout) => {
-    setPendingConfirm({
-      message: t('view.layout.applyConfirm', { name: layout.name }),
-      confirmLabel: t('view.layout.apply'),
-      onConfirm: () => {
-        applyLayout(layout);
-        void saveLastLayoutId(layout.id);
-        setPendingConfirm(null);
-      },
-    });
+  const save = () => {
+    if (!layouts || parts.length === 0) return;
+    const finalName = name.trim() || t('common:view.layout.name');
+    const fromScreen = snapshotLayout(view, columns, finalName, target?.id);
+    // Bewerken: een aangevinkt deel houdt zijn opgeslagen waarde, tenzij het nieuw is aangevinkt of
+    // de gebruiker de waarden bewust door de huidige weergave laat vervangen.
+    const source: Layout = { ...fromScreen };
+    if (target && !useCurrentView) {
+      for (const part of layoutParts(target)) (source as unknown as Record<string, unknown>)[part] = target[part];
+    }
+    const layout: Layout = { ...pickLayoutParts(source, parts), icon };
+    const next = target ? layouts.map(l => (l.id === target.id ? layout : l)) : [...layouts, layout];
+    void saveLayouts(next).then(close);
   };
 
   return (
     <Dialog
       onBackdropClick={close}
       onCancel={close}
-      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
+      panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('view.layout.manageTitle')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
+        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          {t(editing ? 'common:view.layout.editTitle' : 'common:view.layout.newTitle')}
+        </span>
+        <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('common:close')}>
+          <X size={16} />
+        </button>
+      </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
-          {loaded && layouts.length === 0 ? (
-            <span className="text-text-secondary">{t('view.layout.noLayouts')}</span>
-          ) : (
-            <table className="w-full border-collapse">
-              <thead>
-                <tr style={{ color: 'var(--theme-text-dim)' }}>
-                  <th className="text-left px-2 py-1 font-semibold border-b border-border">{t('view.layout.name')}</th>
-                  <th className="border-b border-border w-16" />
-                  <th className="border-b border-border w-16" />
-                  <th className="border-b border-border w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {layouts.map(l => (
-                  <tr key={l.id} className="border-b border-border-light">
-                    <td className="px-2 py-1">
-                      <input
-                        value={l.name}
-                        onChange={e => rename(l.id, e.target.value)}
-                        className="input !text-xs !px-2 !py-1 w-full"
-                        aria-label={t('view.layout.name')}
-                      />
-                    </td>
-                    <td className="px-2 py-1 text-center">
-                      <button onClick={() => apply(l)} className="btn btn--sm btn--secondary" title={t('view.layout.apply')}>
-                        <Check size={12} />
-                      </button>
-                    </td>
-                    <td className="px-2 py-1 text-center">
-                      <button onClick={() => update(l.id)} className="btn btn--sm btn--secondary" title={t('view.layout.update')}>
-                        {t('view.layout.update')}
-                      </button>
-                    </td>
-                    <td className="px-2 py-1 text-center">
-                      <button onClick={() => remove(l.id)} style={{ color: 'var(--error)' }} title={t('view.layout.delete')}>
-                        <Trash2 size={12} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs" data-ops-layout-dialog="true">
+        <label className="flex flex-col gap-1">
+          <span className="ui-card-header !text-xs">{t('common:view.layout.name')}</span>
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="input !text-xs !px-2.5 !py-1.5"
+            autoFocus
+          />
+        </label>
 
-          <div className="flex flex-col gap-2 border-t border-border pt-3">
-            <span className="ui-card-header !text-xs">{t('view.layout.saveTitle')}</span>
-            <div className="flex items-center gap-2">
-              <input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder={t('view.layout.name')}
-                className="input !text-xs !px-2.5 !py-1.5 flex-1"
-                aria-label={t('view.layout.name')}
-              />
-              <button onClick={saveNew} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]">
-                {t('save')}
+        <div className="flex flex-col gap-1">
+          <span className="ui-card-header !text-xs">{t('common:view.layout.icon')}</span>
+          <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t('common:view.layout.icon')}>
+            {LAYOUT_ICON_KEYS.map(key => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={icon === key}
+                aria-label={key}
+                data-ops-layout-icon={key}
+                onClick={() => setIcon(key)}
+                className={`ribbon-btn small${icon === key ? ' active' : ''}`}
+                style={{ minWidth: 0, padding: 6 }}
+              >
+                {layoutIcon(key, 18)}
               </button>
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
-          <button onClick={close} className="btn btn--sm btn--secondary">
-            {t('close')}
-          </button>
+        <div className="flex flex-col gap-2">
+          <span className="ui-card-header !text-xs">{t('common:view.layout.partsTitle')}</span>
+          <div
+            className="rounded-[8px] px-3 py-2"
+            style={{ background: 'color-mix(in srgb, var(--theme-accent, #d97706) 14%, transparent)', border: '1px solid color-mix(in srgb, var(--theme-accent, #d97706) 45%, transparent)' }}
+          >
+            {t('common:view.layout.partsHint')}
+          </div>
+          <div className="flex flex-col">
+            {LAYOUT_PARTS.map(part => (
+              <label key={part} className="flex items-center gap-2 py-1 border-b border-border-light">
+                <input
+                  type="checkbox"
+                  checked={parts.includes(part)}
+                  onChange={() => togglePart(part)}
+                  data-ops-layout-part={part}
+                />
+                <span className="flex-1">{t(PART_KEYS[part].label as 'common:view.layout.partRelations')}</span>
+                <span
+                  title={t(PART_KEYS[part].info as 'common:view.layout.infoRelations')}
+                  aria-label={t(PART_KEYS[part].info as 'common:view.layout.infoRelations')}
+                  style={{ color: 'var(--theme-text-dim)', display: 'inline-flex', cursor: 'help' }}
+                >
+                  <Info size={14} />
+                </span>
+              </label>
+            ))}
+          </div>
+          {parts.length === 0 && (
+            <div className="rounded-[8px] px-3 py-2" style={{ background: 'color-mix(in srgb, var(--error) 14%, transparent)', border: '1px solid var(--error)' }}>
+              {t('common:view.layout.needOnePart')}
+            </div>
+          )}
         </div>
 
-      {/* Bevestiging stapelt bóven deze dialoog (eigen fixed overlay op z-[60]). */}
-      {pendingConfirm && (
-        <ConfirmDialog
-          message={pendingConfirm.message}
-          confirmLabel={pendingConfirm.confirmLabel}
-          danger={pendingConfirm.danger}
-          onConfirm={pendingConfirm.onConfirm}
-          onCancel={() => setPendingConfirm(null)}
-        />
-      )}
+        {editing && (
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={useCurrentView} onChange={e => setUseCurrentView(e.target.checked)} data-ops-layout-use-current="true" />
+            <span className="flex-1">{t('common:view.layout.useCurrentView')}</span>
+            <span
+              title={t('common:view.layout.infoUseCurrentView')}
+              aria-label={t('common:view.layout.infoUseCurrentView')}
+              style={{ color: 'var(--theme-text-dim)', display: 'inline-flex', cursor: 'help' }}
+            >
+              <Info size={14} />
+            </span>
+          </label>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
+        <button onClick={close} className="btn btn--sm btn--secondary">{t('common:cancel')}</button>
+        <button
+          onClick={save}
+          disabled={!layouts || parts.length === 0}
+          className="btn btn--sm btn--primary shadow-[var(--shadow-glow)]"
+          data-ops-layout-save="true"
+        >
+          {t('common:save')}
+        </button>
+      </div>
     </Dialog>
   );
 }

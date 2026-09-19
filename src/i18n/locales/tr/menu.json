@@ -203,7 +203,8 @@
     "screenColors_category": "Kategoriye göre",
     "screenColorsMissingField": "Bu alan bu projede yok. Geçici olarak görev türü kullanılıyor.",
     "screenColorsHint": "Kritik yol modu dışında kırmızı çerçeve kritik yolu işaret eder.",
-    "addLayout": "Yeni düzen"
+    "addLayout": "Yeni düzen",
+    "toggleRelations": "İlişki çizgileri"
   },
   "ifc": {
     "title": "IFC Düzenleyici",
