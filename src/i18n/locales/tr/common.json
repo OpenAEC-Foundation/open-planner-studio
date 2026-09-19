@@ -610,7 +610,11 @@
       "conflictDays": "{{count}} gün",
       "reason": {
         "calendarMismatch": "Kaynak bu görevin ihtiyaç duyduğu tüm günlerde çalışmıyor — kaydırma bunu çözmez.",
-        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok."
+        "insufficientCapacity": "Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok.",
+        "ceilingTooTight": "Kaydırma tavanı çok az yer bırakıyor: bu kadar iş günü içinde boş pencere yok.",
+        "ceilingUnreachable": "Burada kaydırma vermek yardımcı olmuyor — bir teslim tarihi veya kısıt bu görevi yerinde tutuyor.",
+        "noWindowInHorizon": "Taranan dönem içinde boş pencere bulunamadı; ötesinde bilinmiyor.",
+        "residualFull": "Kendi kullanımın yer vardı, ama kitaplığın kalan kapasitesi tükendi — başka projeler onu kullanıyor."
       }
     },
     "curve": {

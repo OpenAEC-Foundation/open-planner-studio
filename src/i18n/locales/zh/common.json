@@ -601,7 +601,11 @@
       "conflictDays": "{{count}} 天",
       "reason": {
         "calendarMismatch": "该资源并非在此任务所需的所有天数中都工作 — 移动无法解决此问题。",
-        "insufficientCapacity": "浮动范围内的空闲产能不足，无法解决此冲突。"
+        "insufficientCapacity": "浮动范围内的空闲产能不足，无法解决此冲突。",
+        "ceilingTooTight": "延误上限空间太小：在该工作日数内没有空闲窗口。",
+        "ceilingUnreachable": "给予延误在此无济于事——截止日期或约束条件使该任务保持原位。",
+        "noWindowInHorizon": "在搜索的时间段内未找到空闲窗口；再往后则未知。",
+        "residualFull": "自身投入本有空间，但资源库的剩余产能已用尽——被其他项目占用。"
       }
     },
     "curve": {

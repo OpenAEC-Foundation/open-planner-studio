@@ -601,7 +601,11 @@
       "conflictDays": "{{count}}일",
       "reason": {
         "calendarMismatch": "이 자원은 이 작업이 필요로 하는 모든 날짜에 근무하지 않습니다 — 이동으로는 해결할 수 없습니다.",
-        "insufficientCapacity": "여유 내 가용 용량이 부족하여 이 충돌을 해결할 수 없습니다."
+        "insufficientCapacity": "여유 내 가용 용량이 부족하여 이 충돌을 해결할 수 없습니다.",
+        "ceilingTooTight": "연장 상한이 여유를 너무 적게 남깁니다. 그 근무일 수 내에 빈 창이 없습니다.",
+        "ceilingUnreachable": "여기서는 연장을 주어도 도움이 되지 않습니다 — 마감일이나 제약 조건이 이 작업을 제자리에 고정하고 있습니다.",
+        "noWindowInHorizon": "검색한 기간 내에 빈 창을 찾지 못했습니다. 그 이후는 알 수 없습니다.",
+        "residualFull": "자체 투입에는 여유가 있었지만, 라이브러리의 잔여 용량이 소진되었습니다 — 다른 프로젝트가 이를 점유하고 있습니다."
       }
     },
     "curve": {
