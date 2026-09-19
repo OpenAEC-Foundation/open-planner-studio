@@ -62,7 +62,8 @@ function stripComments(text, isCss) {
       const stop = end < 0 ? n : end + 2;
       out += text.slice(i, stop).replace(/[^\n]/g, ' ');
       i = stop;
-    } else if (!isCss && c === '/' && next === '/') {
+    } else if (!isCss && c === '/' && next === '/' && text[i - 1] !== ':') {
+      // `://` is een URL in JSX-tekst, geen commentaar — anders at hij de rest van de regel op.
       const end = text.indexOf('\n', i);
       const stop = end < 0 ? n : end;
       out += ' '.repeat(stop - i);
@@ -127,6 +128,24 @@ const LINE_RULES = [
     },
   },
   {
+    name: 'fontSize samengesteld met een eenheid (n + \'px\') — gebruik className text-<rol>',
+    css: false, code: true,
+    test: line => /\bfontSize\s*[:=][^,;}]*\+\s*['"`](?:px|rem|pt)\b/.test(line),
+  },
+  {
+    name: 'font-size via setProperty/cssText/inline font-shorthand — gebruik className text-<rol>',
+    css: false, code: true,
+    test: line =>
+      /setProperty\(\s*['"`]font(?:-size)?['"`]/.test(line)
+      || (/\bcssText\b/.test(line) && /font(?:-size)?\s*:/.test(line))
+      || (() => { const m = /\bfont\s*:\s*(['"`])((?:(?!\1).)*)\1/.exec(line); return m !== null && ABSOLUTE_UNIT.test(m[2]); })(),
+  },
+  {
+    name: 'Tailwind text-[length:…] — een maat buiten de rollen om, gebruik text-<rol>',
+    css: false, code: true,
+    test: line => /\btext-\[length:/.test(line),
+  },
+  {
     name: 'fontSize als kaal getal in een style-object — gebruik className text-<rol>',
     // `fontSize: 12` in een style-object is 12px. SVG-attributen (`fontSize={9}`, viewBox-eenheden) en
     // getypeerde velden (`fontSize: number`) vallen hier bewust buiten.
@@ -156,8 +175,9 @@ for (const file of walk(srcDir)) {
   const rawLines = rawText.split(/\r?\n/);
   const text = stripComments(rawText, isCss);
   const lines = text.split(/\r?\n/);
-  // De markering staat in commentaar, dus zoeken in de RAUWE regel — en alleen op de regel zelf.
-  const escaped = i => ESCAPE.test(rawLines[i] ?? '');
+  // De markering telt alleen IN COMMENTAAR: wel in de rauwe regel, niet in de gestripte (waar
+  // strings blijven staan) — een string `"text-roles: …"` mag geen overtreding maskeren.
+  const escaped = i => ESCAPE.test(rawLines[i] ?? '') && !ESCAPE.test(lines[i] ?? '');
   const report = (i, name) => {
     if (escaped(i)) return;
     violations.push(`${relative(root, file)}:${i + 1}  ${name}\n      ${(rawLines[i] ?? '').trim().slice(0, 140)}`);
@@ -200,7 +220,7 @@ if (!/--text-\*\s*:\s*initial/.test(globals)) {
 const roleSet = new Set(ROLES);
 for (const file of walk(srcDir)) {
   readFileSync(file, 'utf8').split(/\r?\n/).forEach((raw, i) => {
-    for (const m of raw.matchAll(/var\(--text-([a-z]+)\)/g)) {
+    for (const m of raw.matchAll(/var\(--text-([a-z0-9-]+)\)/g)) {
       if (!roleSet.has(m[1])) violations.push(`${relative(root, file)}:${i + 1}  onbekende tekstrol var(--text-${m[1]})`);
     }
   });

@@ -9,12 +9,17 @@ import type { Page } from '@playwright/test';
 const ROLE_PX = [9, 10, 11, 12, 14, 20];
 
 interface Offender { px: number; where: string }
+interface Audit { inspected: number; offenders: Offender[] }
+
+// Nul overtreders is óók wat een leeg (niet-gerenderd) scherm oplevert; eis daarom dat er echt gemeten is.
+const MIN_INSPECTED = 15;
 
 /** Computed font-size van alles wat zelf tekst draagt, teruggerekend naar schaal 1. */
-async function offenders(page: Page): Promise<Offender[]> {
+async function audit(page: Page): Promise<Audit> {
   return page.evaluate((roles) => {
     const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-font-scale')) || 1;
     const out: Offender[] = [];
+    let inspected = 0;
     for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
       if (el.closest('svg')) continue; // SVG-tekst rekent in viewBox-eenheden
       if (el.closest('.help-inline-code')) continue; // bewust relatief (0.85em) t.o.v. de omringende rol
@@ -22,15 +27,24 @@ async function offenders(page: Page): Promise<Offender[]> {
       const isControl = el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA';
       if (!ownText && !isControl) continue;
       if (el.getClientRects().length === 0) continue;
+      inspected++;
       const px = Math.round((parseFloat(getComputedStyle(el).fontSize) / scale) * 100) / 100;
       if (!roles.includes(px)) out.push({ px, where: `${el.tagName}.${String(el.className).slice(0, 60)}` });
     }
-    return out;
+    return { inspected, offenders: out };
   }, ROLE_PX);
 }
 
 async function fontSizeOf(page: Page, selector: string): Promise<number> {
   return page.locator(selector).first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+}
+
+/** Wacht tot het oppervlak gerenderd is (genoeg tekst gemeten) én er geen overtreder meer is. */
+async function expectOnRoles(page: Page, message: string): Promise<void> {
+  await expect.poll(async () => {
+    const result = await audit(page);
+    return result.inspected >= MIN_INSPECTED ? result.offenders : `te weinig gemeten: ${result.inspected}`;
+  }, { message }).toEqual([]);
 }
 
 const setUI = (page: Page, patch: Record<string, unknown>) =>
@@ -49,16 +63,16 @@ test('elke zichtbare tekst staat op een rolmaat, op 100% en op 125%', async ({ p
 
     for (const tab of ['start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'report']) {
       await setUI(page, { activeRibbonTab: tab });
-      await expect.poll(() => offenders(page), { message: `schaal ${scale}, tabblad ${tab}` }).toEqual([]);
+      await expectOnRoles(page, `schaal ${scale}, tabblad ${tab}`);
     }
     for (const section of ['recent', 'settings', 'library', 'help']) {
       await setUI(page, { activeRibbonTab: 'file', backstageSection: section });
-      await expect.poll(() => offenders(page), { message: `schaal ${scale}, backstage ${section}` }).toEqual([]);
+      await expectOnRoles(page, `schaal ${scale}, backstage ${section}`);
     }
     await setUI(page, { activeRibbonTab: 'start' });
     for (const flag of ['showLevelingDialog', 'showCalendarDialog', 'showShortcutsDialog']) {
       await setUI(page, { [flag]: true });
-      await expect.poll(() => offenders(page), { message: `schaal ${scale}, ${flag}` }).toEqual([]);
+      await expectOnRoles(page, `schaal ${scale}, ${flag}`);
       await setUI(page, { [flag]: false });
     }
   }
