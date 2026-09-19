@@ -355,7 +355,7 @@ export function DataGridHeader({
     ? createPortal(
       // Browserreview, observatie 6: was `className="task-grid-header-context-menu"` (globals.css)
       // met eigen, losse maatvoering — `font: inherit` in een createPortal naar `document.body` erft
-      // daardoor html/body's volle `calc(13px * --ui-font-scale)` i.p.v. de compacte `text-small leading-4` van
+      // daardoor de `body`-rol `--text-large` i.p.v. de compacte `text-small leading-4` van
       // het taakmenu (ContextMenu.tsx). Nu dezelfde getokeniseerde klassen als dat menu
       // (CONTEXT_MENU_CONTAINER_CLASS/CONTEXT_MENU_ITEM_CLASS, geëxporteerd vanuit ContextMenu.tsx)
       // — één bron voor de maatvoering, zodat ze niet opnieuw uit elkaar kunnen groeien. De

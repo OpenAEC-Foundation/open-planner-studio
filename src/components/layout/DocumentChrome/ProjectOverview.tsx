@@ -37,7 +37,7 @@ export function ProjectOverview() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span className="!text-heading" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: '#fff' }}>
+            <span className="!text-title" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: '#fff' }}>
               {t('documents.overviewTitle')}
             </span>
             <span className="!text-body" style={{ color: 'rgba(255,255,255,0.55)' }}>

@@ -917,7 +917,7 @@
 /* Browserreview, observatie 6 (tweede plek met dezelfde afwijking): dit paneel portaalt naar
  * document.body (RelationCellEditor.tsx) zonder eigen `font-size` — zonder deze regel erven al zijn
  * kinderen (chips, tokens, invoervelden — geen van allen zet zelf een font-size) html/body's volle
- * `calc(13px * --ui-font-scale)` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
+ * `body`-rol `--text-large` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
  * (dezelfde soort portal-popup) had dit al goed; hier hetzelfde patroon toegepast. */
 .task-grid-relation-editor {
   position: fixed;
@@ -1731,7 +1731,6 @@ body {
 
 .gantt-tooltip .tooltip-title {
   font-weight: 600;
-  font-size: var(--text-large);
   margin-bottom: 4px;
   color: var(--theme-text);
 }

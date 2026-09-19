@@ -34,52 +34,104 @@ const OUT_OF_SCOPE = ['engine', 'services'].map(d => join(srcDir, d) + sep);
 const ESCAPE = /text-roles:\s*\S/;
 
 // Absolute lengte-eenheden; `em`/`%` zijn relatief en dus toegestaan. `rem` telt als absoluut: het
-// schaalt wel mee, maar is een maat buiten de rollen om.
-const ABSOLUTE_UNIT = /\d(?:px|rem|pt|pc|cm|mm|in|q)\b/i;
+// schaalt wel mee, maar is een maat buiten de rollen om. De `}` vangt een template-literal
+// (`${n}px`), waar geen cijfer vóór de eenheid staat.
+const ABSOLUTE_UNIT = /(?:\d|\})\s*(?:px|rem|pt|pc|cm|mm|in|q)\b/i;
 
-/** @type {{ name: string, test: (line: string, isCss: boolean) => boolean }[]} */
-const RULES = [
+// CSS werkt met een WITTE lijst: alleen een rol, een relatieve maat of een overervingswoord. Een
+// zwarte lijst ("geen px") liet `var(--eigen-maat)`, `clamp()` en alles wat nog bedacht wordt door.
+const CSS_FONT_SIZE_OK = new RegExp(
+  '^(?:var\\(--text-(?:' + ROLES.join('|') + ')\\)|[\\d.]+(?:em|%)|inherit|initial|unset|revert|smaller|larger)(?:\\s*!important)?$',
+);
+
+/**
+ * Haalt commentaar weg met een scanner die strings respecteert, en behoudt elke newline zodat
+ * regelnummers kloppen. Regel-voor-regel strippen kan dit niet: één `/*` binnen een CSS-string
+ * (`content: "/*"`) zette de rest van het bestand uit, en `//` in een URL at de regel op.
+ * @param {string} text @param {boolean} isCss
+ */
+function stripComments(text, isCss) {
+  let out = '';
+  let i = 0;
+  const n = text.length;
+  while (i < n) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (c === '/' && next === '*') {
+      const end = text.indexOf('*/', i + 2);
+      const stop = end < 0 ? n : end + 2;
+      out += text.slice(i, stop).replace(/[^\n]/g, ' ');
+      i = stop;
+    } else if (!isCss && c === '/' && next === '/') {
+      const end = text.indexOf('\n', i);
+      const stop = end < 0 ? n : end;
+      out += ' '.repeat(stop - i);
+      i = stop;
+    } else if (c === '"' || c === "'" || (!isCss && c === '`')) {
+      // Stringinhoud blijft staan: klassen en inline-maten ZITTEN in strings. Een gewone string
+      // eindigt uiterlijk op de regel (een apostrof in JSX-tekst mag niet de rest opslokken).
+      let j = i + 1;
+      while (j < n && text[j] !== c) {
+        if (text[j] === '\\') j++;
+        else if (text[j] === '\n' && c !== '`') break;
+        j++;
+      }
+      out += text.slice(i, Math.min(j + 1, n));
+      i = Math.min(j + 1, n);
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
+}
+
+/** Regels die op de regel zelf per regex worden gekeurd (na het strippen van commentaar). */
+/** @type {{ name: string, css: boolean, code: boolean, test: (line: string) => boolean }[]} */
+const LINE_RULES = [
   {
-    name: 'absolute font-size in CSS — gebruik var(--text-<rol>)',
-    test: (line, isCss) => {
-      if (!isCss) return false;
-      const m = /(?:^|[;{\s])font-size\s*:\s*([^;}]+)/i.exec(line);
-      return m !== null && ABSOLUTE_UNIT.test(m[1]);
+    name: 'font-shorthand in CSS — zet font-size apart via var(--text-<rol>)',
+    css: true, code: false,
+    // `font: inherit` (form controls) erft de rol van de ouder en is dus juist goed.
+    test: line => {
+      const m = /(?:^|[;{\s])font\s*:\s*([^;}]*)/i.exec(line);
+      return m !== null && !/^(?:inherit|initial|unset|revert)(?:\s*!important)?$/.test(m[1].trim());
     },
   },
   {
-    name: 'font-shorthand met absolute maat in CSS — zet font-size apart via var(--text-<rol>)',
-    test: (line, isCss) => {
-      if (!isCss) return false;
-      const m = /(?:^|[;{\s])font\s*:\s*([^;}]+)/i.exec(line);
-      return m !== null && ABSOLUTE_UNIT.test(m[1]);
-    },
+    name: '@apply met een tekstmaat die geen rol is',
+    css: true, code: false,
+    test: line => /@apply\b/.test(line) && /(?:^|[\s:!])text-(?:xs|sm|base|lg|[2-9]?xl|\[[^\]]*\])(?![\w-])/.test(line),
   },
   {
     name: 'Tailwind arbitrary text-[…] met absolute maat — gebruik text-<rol>',
-    test: line => /\btext-\[[^\]]*\d(?:px|rem|pt)[^\]]*\]/.test(line),
+    css: false, code: true,
+    test: line => /\btext-\[[^\]]*(?:\d|\})(?:px|rem|pt)[^\]]*\]/.test(line),
   },
   {
     name: 'Tailwind-standaardmaat (text-xs/sm/base/lg/…) — bestaat niet meer, gebruik text-<rol>',
-    test: (line, isCss) => !isCss && /(?:^|[\s"'`:!])text-(?:xs|sm|base|lg|[2-9]?xl)(?![\w-])/.test(line),
+    css: false, code: true,
+    test: line => /(?:^|[\s"'`:!])text-(?:xs|sm|base|lg|[2-9]?xl)(?![\w-])/.test(line),
   },
   {
     name: 'ops-text-N — vervangen door text-<rol>',
+    css: true, code: true,
     test: line => /\bops-text-\d/.test(line),
   },
   {
-    name: 'inline fontSize met absolute maat — gebruik className text-<rol>',
-    test: (line, isCss) => {
-      if (isCss) return false;
-      const m = /\bfontSize\s*:\s*(['"`])([^'"`]*)\1/.exec(line);
+    name: 'fontSize met absolute maat (style-object of el.style.fontSize) — gebruik className text-<rol>',
+    css: false, code: true,
+    test: line => {
+      const m = /\bfontSize\s*[:=]\s*(['"`])((?:(?!\1).)*)\1/.exec(line);
       return m !== null && ABSOLUTE_UNIT.test(m[2]);
     },
   },
   {
-    name: 'inline fontSize als kaal getal in een style-object — gebruik className text-<rol>',
-    // `fontSize: 12` in een style-object is 12px. SVG-attributen (`fontSize={9}`) en
-    // objectvelden met een type (`fontSize: number`) vallen hier bewust buiten.
-    test: (line, isCss) => !isCss && /\bfontSize\s*:\s*\d+(?:\.\d+)?\s*[,}]/.test(line),
+    name: 'fontSize als kaal getal in een style-object — gebruik className text-<rol>',
+    // `fontSize: 12` in een style-object is 12px. SVG-attributen (`fontSize={9}`, viewBox-eenheden) en
+    // getypeerde velden (`fontSize: number`) vallen hier bewust buiten.
+    css: false, code: true,
+    test: line => /\bfontSize\s*:\s*\d+(?:\.\d+)?\s*[,}]/.test(line),
   },
 ];
 
@@ -94,31 +146,43 @@ function walk(dir, out = []) {
 }
 
 const violations = [];
+let filesChecked = 0;
+let declarationsChecked = 0;
 for (const file of walk(srcDir)) {
   if (OUT_OF_SCOPE.some(prefix => file.startsWith(prefix))) continue;
+  filesChecked++;
   const isCss = file.endsWith('.css');
-  let inBlockComment = false;
-  readFileSync(file, 'utf8').split(/\r?\n/).forEach((raw, i) => {
-    // Commentaar telt niet mee: daar mág uitgelegd worden wat vroeger fout ging.
-    let line = raw;
-    if (inBlockComment) {
-      const end = line.indexOf('*/');
-      if (end < 0) return;
-      line = line.slice(end + 2);
-      inBlockComment = false;
+  const rawText = readFileSync(file, 'utf8');
+  const rawLines = rawText.split(/\r?\n/);
+  const text = stripComments(rawText, isCss);
+  const lines = text.split(/\r?\n/);
+  // De markering staat in commentaar, dus zoeken in de RAUWE regel — en alleen op de regel zelf.
+  const escaped = i => ESCAPE.test(rawLines[i] ?? '');
+  const report = (i, name) => {
+    if (escaped(i)) return;
+    violations.push(`${relative(root, file)}:${i + 1}  ${name}\n      ${(rawLines[i] ?? '').trim().slice(0, 140)}`);
+  };
+
+  if (isCss) {
+    // Declaraties over het hele bestand, zodat `font-size:` met de waarde op de vólgende regel meetelt.
+    for (const m of text.matchAll(/(?<![\w-])font-size\s*:\s*([^;}]*)/gi)) {
+      declarationsChecked++;
+      const value = m[1].trim().replace(/\s+/g, ' ');
+      if (CSS_FONT_SIZE_OK.test(value)) continue;
+      const lineNo = text.slice(0, m.index).split('\n').length - 1;
+      report(lineNo, `font-size: ${value} — alleen var(--text-<rol>), em/% of inherit`);
     }
-    const escaped = ESCAPE.test(raw);
-    line = line.replace(/\/\*.*?\*\//g, '');
-    const open = line.indexOf('/*');
-    if (open >= 0) { line = line.slice(0, open); inBlockComment = true; }
-    if (!isCss) line = line.replace(/(^|[^:])\/\/.*$/, '$1');
-    if (escaped || line.trim() === '') return;
-    for (const rule of RULES) {
-      if (rule.test(line, isCss)) {
-        violations.push(`${relative(root, file)}:${i + 1}  ${rule.name}\n      ${raw.trim().slice(0, 140)}`);
-      }
+  }
+  lines.forEach((line, i) => {
+    if (line.trim() === '') return;
+    for (const rule of LINE_RULES) {
+      if ((isCss ? rule.css : rule.code) && rule.test(line)) report(i, rule.name);
     }
   });
+}
+// Een poort die niets gekeurd heeft mag niet groen melden.
+if (filesChecked < 50 || declarationsChecked < 50) {
+  violations.push(`poort keurde verdacht weinig: ${filesChecked} bestanden, ${declarationsChecked} font-size-declaraties`);
 }
 
 // De rollen zelf moeten bestaan — anders keurt deze poort alles goed wat naar een lege variabele wijst.
@@ -148,4 +212,4 @@ if (violations.length > 0) {
   console.error(`\nRollen: ${ROLES.map(r => `text-${r}`).join(', ')} — zie het @theme-blok in src/styles/globals.css.`);
   process.exit(1);
 }
-console.log(`verify:text-roles — schoon (${ROLES.length} rollen, geen losse tekstmaten in src/).`);
+console.log(`verify:text-roles — schoon (${ROLES.length} rollen; ${filesChecked} bestanden, ${declarationsChecked} font-size-declaraties gekeurd).`);

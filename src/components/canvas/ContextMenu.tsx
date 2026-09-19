@@ -67,8 +67,8 @@ const PRIORITY_HIGH = 900;
 
 // Browserreview, observatie 6: de kolomkop-contextmenu (DataGridHeader.tsx) had zijn EIGEN, losse
 // maatvoering (globals.css .task-grid-header-context-menu) — `font: inherit` op de knoppen, in een
-// createPortal(..., document.body), erft daardoor `html/body`'s `calc(13px * --ui-font-scale)`
-// (issue #25.4) i.p.v. de `text-small leading-4` (0.75rem) van dít menu. Op elke schaal is dat zichtbaar te groot
+// createPortal(..., document.body), erft daardoor de `body`-rol `--text-large` (12px × --ui-font-scale)
+// (issue #25.4) i.p.v. de `text-small leading-4` (10px) van dít menu. Op elke schaal is dat zichtbaar te groot
 // t.o.v. het taakmenu — bij een verhoogde --ui-font-scale precies zo groot als de gebruiker meldde
 // ("wat je bij 150% zou zien"). Eén bron voor beide menu's i.p.v. twee losse maatvoeringen die
 // opnieuw uit elkaar kunnen groeien: exporteer de klassen hier, laat DataGridHeader ze hergebruiken

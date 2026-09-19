@@ -100,7 +100,7 @@
   border-radius: var(--radius-sm); color: var(--theme-text); font-size: var(--text-body);
 }
 .library-promote-panel li:hover { background: var(--theme-hover); }
-.library-promote-linked { color: var(--theme-text-muted); font-style: italic; font-size: var(--text-body); }
+.library-promote-linked { color: var(--theme-text-muted); font-style: italic; font-size: var(--text-caption); }
 .library-promote-item { color: var(--theme-accent); background: transparent; border: none; cursor: pointer; padding: 2px; border-radius: var(--radius-sm); }
 .library-promote-item:hover { background: var(--theme-hover); }
 
