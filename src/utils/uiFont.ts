@@ -43,7 +43,7 @@ function resolveSystemFontStack(): string {
     return '-apple-system, BlinkMacSystemFont, sans-serif';
   }
   // WebKitGTK haalt hiermee het systeemlettertype uit de GTK-desktopinstellingen.
-  return '-webkit-system-font';
+  return 'system-ui, -webkit-system-font, sans-serif';
 }
 
 /**
