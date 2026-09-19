@@ -4,8 +4,8 @@
 // Draait via run.sh. Exit 0 = alles groen.
 
 import {
-  applyLayoutParts, endLayoutSession, isBuiltinLayoutId, isFilterOnlyLayout, isLayoutSessionLive,
-  layoutMatchesView, layoutParts, migrateSavedFilters, pickLayoutParts, startLayoutSession,
+  applyLayoutParts, isBuiltinLayoutId, isFilterOnlyLayout, layoutMatchesView, layoutParts,
+  liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
   type LayoutViewParts,
 } from '@/engine/view/layoutPresets';
 import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
@@ -77,23 +77,42 @@ ok(layoutParts(picked).join(',') === 'filter,timeScale' && picked.id === 'l4' &&
 
 ok(isBuiltinLayoutId('builtin:gantt-wbs') && !isBuiltinLayoutId(generateId('layout')), 'meegeleverde ids botsen nooit met gegenereerde ids');
 
-// --- Schakelaar: aan, wisselen, uit ---
-const sessionA = startLayoutSession(undefined, current, resourceDiagram);
-ok(sessionA.restore !== current && JSON.stringify(sessionA.restore) === JSON.stringify(current), 'het herstelpunt is een KOPIE van het beeld vóór de klik');
-ok(isLayoutSessionLive(sessionA, applied), 'de sessie leeft zolang de layout op het scherm staat');
-ok(!isLayoutSessionLive(sessionA, { ...applied, group: [] }), 'een handmatig gewijzigd gedragen deel laat de sessie verlopen');
+// --- Schakelaar: aan, samen aan, vervangen, uit ---
+/** Het scherm ná een schakelactie: de te schrijven delen over het huidige beeld gelegd. */
+const screenAfter = (screen: LayoutViewParts, write: Layout): LayoutViewParts => applyLayoutParts(screen, write);
+
+const onA = switchLayoutOn(undefined, current, resourceDiagram);
+const screenA = screenAfter(current, onA.write);
+ok(onA.session!.restore !== current && JSON.stringify(onA.session!.restore) === JSON.stringify(current), 'het herstelpunt is een KOPIE van het beeld vóór de klik');
+ok(liveSessionLayouts(onA.session, screenA).map(l => l.id).join() === resourceDiagram.id, 'de knop staat aan zolang de layout op het scherm staat');
+ok(liveSessionLayouts(onA.session, { ...screenA, group: [] }).length === 0, 'een handmatig gewijzigd gedragen deel zet de knop uit');
+
 // Tijdens het resourcediagram zoomt de gebruiker zelf: dat deel is niet door een layout gezet.
-const zoomed: LayoutViewParts = { ...applied, timeScale: 'day' };
-const off = endLayoutSession(sessionA, zoomed);
-ok(JSON.stringify(off.group) === '[]' && off.sort.length === 1 && off.showRelations === true, 'uitzetten herstelt de door de layout gezette delen');
-ok(off.timeScale === 'day', 'uitzetten laat een handmatige wijziging aan een ongedragen deel staan');
-// Wissel A → B: het herstelpunt blijft dat van vóór A, en B's delen tellen mee.
-const monthOnly: Layout = { id: 'l-b', name: 'Maand', timeScale: 'month' };
-const sessionB = startLayoutSession(sessionA, applyLayoutParts(applied, monthOnly), monthOnly);
-ok(sessionB.restore === sessionA.restore, 'wisselen houdt het herstelpunt van vóór de eerste layout');
-ok(sessionB.touched.join(',') === 'group,sort,timeScale,showRelations', 'touched is de vereniging, in vaste volgorde');
-const offB = endLayoutSession(sessionB, applyLayoutParts(applied, monthOnly));
-ok(offB.timeScale === 'week' && offB.group.length === 0, 'uitzetten na een wissel herstelt álle sindsdien gezette delen');
+const zoomed: LayoutViewParts = { ...screenA, timeScale: 'day' };
+const offA = switchLayoutOff(onA.session!, zoomed, resourceDiagram.id);
+const screenOffA = screenAfter(zoomed, offA.write);
+ok(offA.session === undefined, 'de laatste knop uit = geen sessie meer');
+ok(JSON.stringify(screenOffA.group) === '[]' && screenOffA.sort.length === 1 && screenOffA.showRelations === true, 'uitzetten herstelt de delen van de layout');
+ok(screenOffA.timeScale === 'day', 'uitzetten laat een handmatige wijziging aan een ongedragen deel staan');
+
+// Een filterknop draagt een ANDER deel: hij gaat erbij aan, het resourcediagram blijft aan.
+const noFilter: Layout = { id: 'f-geen', name: 'Geen filter', filter: null };
+const onF = switchLayoutOn(onA.session, screenA, noFilter);
+const screenAF = screenAfter(screenA, onF.write);
+ok(liveSessionLayouts(onF.session, screenAF).map(l => l.id).join() === `${resourceDiagram.id},f-geen`, 'knoppen met verschillende delen staan samen aan');
+ok(onF.session!.restore === onA.session!.restore, 'het herstelpunt blijft dat van vóór de eerste knop');
+const offF = switchLayoutOff(onF.session!, screenAF, 'f-geen');
+const screenAagain = screenAfter(screenAF, offF.write);
+ok(screenAagain.filter === onA.session!.restore.filter && JSON.stringify(screenAagain.group) === JSON.stringify(resourceDiagram.group), 'de filterknop uit herstelt alleen het filter; het resourcediagram blijft staan');
+ok(liveSessionLayouts(offF.session, screenAagain).map(l => l.id).join() === resourceDiagram.id, 'de andere knop blijft aan');
+
+// Een knop die een deel DEELT vervangt de andere; diens overige delen gaan terug naar het herstelpunt.
+const byName: Layout = { id: 'l-naam', name: 'Op naam', sort: [{ field: { src: 'builtin', key: 'name' }, dir: 'asc' }] };
+const onN = switchLayoutOn(onF.session, screenAF, byName);
+const screenN = screenAfter(screenAF, onN.write);
+ok(liveSessionLayouts(onN.session, screenN).map(l => l.id).join() === 'f-geen,l-naam', 'de overlappende knop gaat uit, de niet-overlappende blijft aan');
+ok(JSON.stringify(screenN.group) === '[]' && screenN.showRelations === true, 'de overige delen van de vervangen knop keren terug naar het herstelpunt');
+ok(screenN.sort[0]?.field.src === 'builtin' && screenN.filter === null, 'het gedeelde deel komt van de nieuwe knop, de filterknop blijft gelden');
 
 // --- Migratie (puur) ---
 const saved: SavedFilter[] = [

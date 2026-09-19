@@ -11,7 +11,7 @@ import type {
   ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
   SplitViewState, Layout, LayoutSession,
 } from './types';
-import { endLayoutSession, isFilterOnlyLayout, isLayoutSessionLive, startLayoutSession } from '@/engine/view/layoutPresets';
+import { liveSessionLayouts, switchLayoutOff, switchLayoutOn } from '@/engine/view/layoutPresets';
 import { currentLayoutParts } from '../layoutView';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
@@ -91,6 +91,8 @@ export interface ViewSlice {
    *  huidige view en herberekent viewRows. Onbekende refs zijn stille tolerantie (§8.4) — die zit al
    *  in de evaluatie/render, niet hier. */
   applyLayout: (layout: Layout) => void;
+  /** Weergave-instellingen toepassen zonder layoutknop (de layoutdialoog, "zonder opslaan"). */
+  applyViewSettings: (parts: Layout, label: string) => void;
   /** Layoutknop (issue #144): aan = toepassen; nogmaals = uit, terug naar het beeld van vóór de klik. */
   toggleLayout: (layout: Layout) => void;
   /** Relatielijnen in de Gantt tonen of verbergen (schermtegenhanger van de rapportoptie). */
@@ -279,30 +281,30 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   },
 
   applyLayout: (layout) => {
-    // Issue #144: een layout zet alleen de delen die hij draagt. Loopt er al een levende sessie
-    // (wissel van layout A naar B), dan blijft het herstelpunt dat van vóór A.
+    // Issue #144: een layout zet alleen de delen die hij draagt; zie `switchLayoutOn` voor wat er
+    // met de al aanstaande layoutknoppen gebeurt.
     const state = get();
-    const current = currentLayoutParts(state);
-    const live = isLayoutSessionLive(state.view.layoutSession, current) ? state.view.layoutSession : undefined;
-    // Een layout die alleen een filter draagt (de opvolger van het opgeslagen filter) is geen
-    // layoutknop: hij neemt de sessie niet over, zodat bv. het resourcediagram gewoon aan blijft.
-    const session = isFilterOnlyLayout(layout) ? live : startLayoutSession(live, current, layout);
-    writeLayoutParts(layout, session, `Layout ${layout.name} toepassen`);
+    const { session, write } = switchLayoutOn(state.view.layoutSession, currentLayoutParts(state), layout);
+    writeLayoutParts(write, session, `Layout ${layout.name} toepassen`);
+  },
+
+  applyViewSettings: (parts, label) => {
+    // "Toepassen zonder opslaan": het beeld verandert, maar er gaat geen layoutknop aan en er komt
+    // dus ook geen herstelpunt. Een aanstaande knop valt vanzelf af zodra hij niet meer klopt.
+    writeLayoutParts(parts, get().view.layoutSession, label);
   },
 
   toggleLayout: (layout) => {
     const state = get();
     const current = currentLayoutParts(state);
     const session = state.view.layoutSession;
-    if (!isLayoutSessionLive(session, current) || session.layout.id !== layout.id) {
+    if (!session || !liveSessionLayouts(session, current).some(l => l.id === layout.id)) {
       get().applyLayout(layout);
       return;
     }
-    // Uitzetten: alleen de door layouts gezette delen gaan terug naar het beeld van vóór de klik.
-    const target = endLayoutSession(session, current);
-    const restore: Layout = { id: layout.id, name: layout.name };
-    for (const part of session.touched) (restore as unknown as Record<string, unknown>)[part] = target[part];
-    writeLayoutParts(restore, undefined, `Layout ${layout.name} uitzetten`);
+    // Uitzetten: alleen de delen van DEZE layout gaan terug naar het beeld van vóór de klik.
+    const off = switchLayoutOff(session, current, layout.id);
+    writeLayoutParts(off.write, off.session, `Layout ${layout.name} uitzetten`);
   },
 
   setShowRelations: (show) => {

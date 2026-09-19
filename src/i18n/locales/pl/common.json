@@ -226,7 +226,11 @@
     "aiMode": "Włącz tryb AI",
     "aiModeHint": "Pokazuje kartę AI z mostkiem MCP, dzięki czemu asystenci AI mogą pracować z Twoim harmonogramem za pomocą Model Context Protocol. Wyłączenie zatrzymuje mostek.",
     "aiAutostart": "Automatycznie uruchamiaj most",
-    "aiAutostartHint": "Uruchamia most MCP od razu po starcie aplikacji, dzięki czemu klient AI może się połączyć bez otwierania karty AI. Tylko w aplikacji desktopowej."
+    "aiAutostartHint": "Uruchamia most MCP od razu po starcie aplikacji, dzięki czemu klient AI może się połączyć bez otwierania karty AI. Tylko w aplikacji desktopowej.",
+    "legacySection": "Funkcje starszego typu",
+    "legacyNotice": "Starsze funkcje, które zostały zastąpione. Pozostają dostępne dla przyzwyczajonych do nich osób, ale nie otrzymują nowych możliwości.",
+    "classicViewControls": "Pokaż klasyczne przyciski widoku",
+    "classicViewControlsHint": "Przywraca osobne przyciski Kolumny, Filtr, Grupuj i Sortuj na karcie Widok. Ich funkcja znajduje się teraz w przyciskach układu i w oknie układów."
   },
   "ai": {
     "start": "Uruchom mostek",
@@ -830,7 +834,7 @@
       "editTitle": "Edytuj układ",
       "icon": "Ikona",
       "partsTitle": "Co zapisuje ten układ?",
-      "partsHint": "Po kliknięciu przycisku układu zmieniają się tylko zaznaczone elementy; reszta widoku pozostaje bez zmian. Układ przejmuje to, co jest teraz na ekranie.",
+      "partsHint": "Po kliknięciu przycisku układu zmieniają się tylko zaznaczone elementy; reszta widoku pozostaje bez zmian.",
       "partRelations": "Linie relacji",
       "infoColumns": "Widoczne kolumny tabeli zadań, ich kolejność i szerokość.",
       "infoFilter": "Filtr aktywny w tej chwili. Jeśli żaden filtr nie jest aktywny, ten układ czyści filtr.",
@@ -838,13 +842,17 @@
       "infoSort": "Kolejność sortowania zadań w drzewie lub w grupie.",
       "infoTimeScale": "Skala czasu wykresu Gantta (dzień, tydzień, miesiąc…). Niezaznaczone: powiększenie pozostaje bez zmian.",
       "infoRelations": "Czy linie relacji między zadaniami są widoczne. W widoku pogrupowanym zwykle lepiej je ukryć.",
-      "useCurrentView": "Zastąp wartości bieżącym widokiem",
-      "infoUseCurrentView": "Wyłączone: układ zachowuje zapisane wartości, a zmieniasz tylko nazwę, ikonę i zaznaczenia. Włączone: zaznaczone elementy przejmują to, co jest teraz na ekranie.",
+      "useCurrentView": "Przejmij bieżący widok",
+      "infoUseCurrentView": "Wypełnia wszystkie elementy poniżej tym, co jest teraz na ekranie.",
       "edit": "Edytuj…",
       "duplicate": "Duplikuj",
       "copyName": "{{name}} (kopia)",
       "needOnePart": "Zaznacz co najmniej jeden element.",
-      "builtinReadonly": "Układ wbudowany: nie można go zmienić. Zduplikuj go, aby utworzyć własną wersję."
+      "builtinReadonly": "Układ wbudowany: nie można go zmienić. Zduplikuj go, aby utworzyć własną wersję.",
+      "applyOnly": "Zastosuj bez zapisywania",
+      "infoApplyOnly": "Stosuje zaznaczone elementy na ekranie bez tworzenia przycisku układu. Przydatne do szybkiego, tymczasowego filtra.",
+      "columnsNote": "Przejmuje kolumny w takiej postaci, w jakiej są teraz w tabeli. Kolumny wybiera się plusem w nagłówku tabeli.",
+      "relationsShow": "Pokaż linie relacji"
     },
     "presentation": {
       "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."

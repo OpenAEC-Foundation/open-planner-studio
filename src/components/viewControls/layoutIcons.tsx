@@ -1,5 +1,5 @@
 import {
-  CalendarRange, Flag, GanttChartSquare, HardHat, LayoutTemplate, ListTree, Milestone, Route,
+  CalendarRange, Filter, Flag, GanttChartSquare, HardHat, LayoutTemplate, ListTree, Milestone, Route,
   Star, Truck, Users, Wrench,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -13,6 +13,7 @@ const LAYOUT_ICONS = {
   layout: LayoutTemplate,
   gantt: GanttChartSquare,
   tree: ListTree,
+  filter: Filter,
   users: Users,
   crew: HardHat,
   equipment: Truck,

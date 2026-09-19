@@ -42,6 +42,8 @@ const SECTION_HEADINGS: RegExp[][] = [
     /^(Statistics|Statistieken)$/,
     /^(Tour|Rondleiding)$/,
     /^(Version|Versie)$/,
+    // Issue #144: vervangen functies staan in een eigen, als zodanig gemarkeerd blok onderaan.
+    /^(Legacy features|Legacy-functies)$/,
   ],
 ];
 

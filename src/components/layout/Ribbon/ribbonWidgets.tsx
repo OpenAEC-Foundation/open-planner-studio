@@ -21,7 +21,7 @@ import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsHandles } from '@/services/fileAccess';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
-import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type TimeScale } from '@/state/slices/types';
+import { RibbonTab, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -34,7 +34,8 @@ import {
 import { buildImportLabels } from '@/i18n/importLabels';
 import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
 import { layoutIcon } from '@/components/viewControls/layoutIcons';
-import { activeLayoutId } from '@/state/layoutView';
+import { LevelListEditor } from '@/components/viewControls/LevelListEditor';
+import { activeLayoutIds } from '@/state/layoutView';
 import { isBuiltinLayoutId, isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { generateId } from '@/utils/id';
@@ -794,15 +795,6 @@ export function GroupPopoverButton() {
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
 
-  const setLevel = (i: number, changes: Partial<GroupLevel>) => {
-    setGroup(group.map((g, gi) => (gi === i ? { ...g, ...changes } : g)));
-  };
-  const addLevel = () => {
-    if (group.length >= 2 || fields.length === 0) return;
-    setGroup([...group, { field: fields[0], dir: 'asc' }]);
-  };
-  const removeLevel = (i: number) => setGroup(group.filter((_, gi) => gi !== i));
-
   return (
     <Popover
       open={open}
@@ -824,40 +816,14 @@ export function GroupPopoverButton() {
       }
     >
       <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.group.title')}</span>
-      {group.length === 0 && (
-        <span className="ribbon-info">{tCommon('view.group.noLevels')}</span>
-      )}
-      {group.map((lvl, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <select
-            value={encodeFieldRef(lvl.field)}
-            onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-            className="input !text-[11px] !px-1.5 !py-1 flex-1"
-            aria-label={tCommon('view.filter.field')}
-          >
-            {options.map(({ field: f, label }) => (
-              <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
-            ))}
-          </select>
-          <select
-            value={lvl.dir}
-            onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-            className="input !text-[11px] !px-1.5 !py-1 !w-32"
-            aria-label={tCommon('view.group.direction')}
-          >
-            <option value="asc">{tCommon('view.sort.ascending')}</option>
-            <option value="desc">{tCommon('view.sort.descending')}</option>
-          </select>
-          <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
-            <X size={13} />
-          </button>
-        </div>
-      ))}
-      {group.length < 2 && (
-        <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
-          {tCommon('view.group.addLevel')}
-        </button>
-      )}
+      <LevelListEditor
+        levels={group}
+        onChange={setGroup}
+        options={options}
+        maxLevels={2}
+        emptyLabel={tCommon('view.group.noLevels')}
+        addLabel={tCommon('view.group.addLevel')}
+      />
     </Popover>
   );
 }
@@ -875,15 +841,6 @@ export function SortPopoverButton() {
   const fields = fullFieldList(ctx);
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
-
-  const setLevel = (i: number, changes: Partial<SortLevel>) => {
-    setSort(sort.map((lvl, li) => (li === i ? { ...lvl, ...changes } : lvl)));
-  };
-  const addLevel = () => {
-    if (fields.length === 0) return;
-    setSort([...sort, { field: fields[0], dir: 'asc' }]);
-  };
-  const removeLevel = (i: number) => setSort(sort.filter((_, li) => li !== i));
 
   return (
     <Popover
@@ -906,38 +863,13 @@ export function SortPopoverButton() {
       }
     >
       <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.sort.title')}</span>
-      {sort.length === 0 && (
-        <span className="ribbon-info">{tCommon('view.sort.noLevels')}</span>
-      )}
-      {sort.map((lvl, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <select
-            value={encodeFieldRef(lvl.field)}
-            onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-            className="input !text-[11px] !px-1.5 !py-1 flex-1"
-            aria-label={tCommon('view.filter.field')}
-          >
-            {options.map(({ field: f, label }) => (
-              <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
-            ))}
-          </select>
-          <select
-            value={lvl.dir}
-            onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-            className="input !text-[11px] !px-1.5 !py-1 !w-32"
-            aria-label={tCommon('view.group.direction')}
-          >
-            <option value="asc">{tCommon('view.sort.ascending')}</option>
-            <option value="desc">{tCommon('view.sort.descending')}</option>
-          </select>
-          <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
-            <X size={13} />
-          </button>
-        </div>
-      ))}
-      <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
-        {tCommon('view.sort.addLevel')}
-      </button>
+      <LevelListEditor
+        levels={sort}
+        onChange={setSort}
+        options={options}
+        emptyLabel={tCommon('view.sort.noLevels')}
+        addLabel={tCommon('view.sort.addLevel')}
+      />
     </Popover>
   );
 }
@@ -945,7 +877,8 @@ export function SortPopoverButton() {
 /**
  * Layout-groep (issue #144): elke layout is een eigen lintknop met icoon en naam — één klik zet hem
  * aan, nogmaals klikken zet hem uit en brengt het beeld van vóór de klik terug (`toggleLayout`). De
- * plusknop opent het layoutbeheer. Layouts die alleen een filter dragen staan onder de filterknop.
+ * plusknop opent de layoutdialoog. Knoppen die verschillende delen dragen kunnen samen aanstaan
+ * (resourcediagram + een filterknop); een opgeslagen filter van vóór #144 is zo'n filterknop.
  * Opslag app-globaal via `settingsStore`; meegeleverde layouts komen uit code (`builtinLayouts`).
  */
 export function LayoutGroupContent() {
@@ -954,7 +887,10 @@ export function LayoutGroupContent() {
   const setUI = useAppStore(s => s.setUI);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const toggleLayout = useAppStore(s => s.toggleLayout);
-  const activeId = useAppStore(activeLayoutId);
+  // Als tekst geselecteerd: een selector die telkens een nieuwe array teruggeeft zou elke render
+  // als wijziging tellen.
+  const activeKey = useAppStore(s => activeLayoutIds(s).join('\n'));
+  const activeIds = useMemo(() => new Set(activeKey ? activeKey.split('\n') : []), [activeKey]);
 
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const reload = useCallback(() => { void loadLayouts().then(setLayouts); }, []);
@@ -968,7 +904,7 @@ export function LayoutGroupContent() {
   }, [showLayoutsDialog, reload]);
 
   const buttons = useMemo(
-    () => [...builtinLayouts(tCommon), ...layouts.filter(l => !isFilterOnlyLayout(l))],
+    () => [...builtinLayouts(tCommon), ...layouts],
     [tCommon, layouts],
   );
 
@@ -1000,9 +936,9 @@ export function LayoutGroupContent() {
                 onContextMenu={e => { e.preventDefault(); setMenuId(layout.id); }}
               >
                 <RibbonButton
-                  icon={layoutIcon(layout.icon)}
+                  icon={layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined))}
                   label={layout.name}
-                  active={activeId === layout.id}
+                  active={activeIds.has(layout.id)}
                   onClick={() => toggleLayout(layout)}
                 />
               </span>

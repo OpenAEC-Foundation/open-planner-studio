@@ -212,7 +212,11 @@
     "aiMode": "AI-modus inschakelen",
     "aiModeHint": "Toont het AI-tabblad met de MCP-bridge, zodat AI-assistenten via het Model Context Protocol met je planning kunnen werken. Uitzetten stopt de bridge.",
     "aiAutostart": "Bridge automatisch starten",
-    "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app."
+    "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app.",
+    "legacySection": "Legacy-functies",
+    "legacyNotice": "Oudere functies die zijn vervangen. Ze blijven beschikbaar voor wie eraan gewend is, maar krijgen geen nieuwe mogelijkheden.",
+    "classicViewControls": "Klassieke weergaveknoppen tonen",
+    "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Hun functie zit nu in de layoutknoppen en de layoutdialoog."
   },
   "ai": {
     "start": "Bridge starten",
@@ -806,7 +810,7 @@
       "editTitle": "Layout bewerken",
       "icon": "Icoon",
       "partsTitle": "Wat legt deze layout vast?",
-      "partsHint": "Alleen aangevinkte onderdelen veranderen als je op de layoutknop klikt; de rest van het beeld blijft staan. De layout neemt over wat er nu op het scherm staat.",
+      "partsHint": "Alleen aangevinkte onderdelen veranderen als je op de layoutknop klikt; de rest van het beeld blijft staan.",
       "partRelations": "Relatielijnen",
       "infoColumns": "De zichtbare kolommen van de taaktabel, hun volgorde en hun breedte.",
       "infoFilter": "Het filter dat nu actief is. Staat er geen filter aan, dan wist deze layout het filter.",
@@ -814,13 +818,17 @@
       "infoSort": "De sorteervolgorde van de taken binnen de boom of binnen een groep.",
       "infoTimeScale": "De tijdschaal van de Gantt (dag, week, maand…). Niet aangevinkt: je zoom blijft zoals hij staat.",
       "infoRelations": "Of de relatielijnen tussen taken zichtbaar zijn. In een gegroepeerde weergave staan ze meestal beter uit.",
-      "useCurrentView": "Waarden vervangen door de huidige weergave",
-      "infoUseCurrentView": "Uit: de layout houdt zijn opgeslagen waarden en je wijzigt alleen naam, icoon en vinkjes. Aan: aangevinkte onderdelen nemen over wat er nu op het scherm staat.",
+      "useCurrentView": "Huidige weergave overnemen",
+      "infoUseCurrentView": "Vult alle onderdelen hieronder met wat er nu op het scherm staat.",
       "edit": "Bewerken…",
       "duplicate": "Dupliceren",
       "copyName": "{{name}} (kopie)",
       "needOnePart": "Vink minstens één onderdeel aan.",
-      "builtinReadonly": "Meegeleverde layout: niet te wijzigen. Dupliceer hem om een eigen versie te maken."
+      "builtinReadonly": "Meegeleverde layout: niet te wijzigen. Dupliceer hem om een eigen versie te maken.",
+      "applyOnly": "Toepassen zonder opslaan",
+      "infoApplyOnly": "Zet de aangevinkte onderdelen op het scherm zonder er een layoutknop van te maken. Handig voor een snel, tijdelijk filter.",
+      "columnsNote": "Neemt de kolommen over zoals ze nu in de tabel staan. Kolommen kies je met het plusje in de tabelkop.",
+      "relationsShow": "Relatielijnen tonen"
     },
     "presentation": {
       "hint": "Druk op Esc of F11 om volledig scherm te verlaten."

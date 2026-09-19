@@ -219,7 +219,11 @@
     "aiMode": "Ativar modo IA",
     "aiModeHint": "Mostra o separador de IA com a ponte MCP, para que assistentes de IA possam trabalhar no seu planeamento através do Model Context Protocol. Desativar interrompe a ponte.",
     "aiAutostart": "Iniciar a ponte automaticamente",
-    "aiAutostartHint": "Ativa a ponte MCP assim que a aplicação arranca, para que um cliente de IA se possa ligar sem abrires primeiro o separador IA. Apenas na aplicação de ambiente de trabalho."
+    "aiAutostartHint": "Ativa a ponte MCP assim que a aplicação arranca, para que um cliente de IA se possa ligar sem abrires primeiro o separador IA. Apenas na aplicação de ambiente de trabalho.",
+    "legacySection": "Funcionalidades legadas",
+    "legacyNotice": "Funcionalidades antigas que foram substituídas. Continuam disponíveis para quem está habituado, mas não recebem novidades.",
+    "classicViewControls": "Mostrar os botões de vista clássicos",
+    "classicViewControlsHint": "Repõe os botões separados Colunas, Filtro, Agrupar e Ordenar no separador Vista. A sua função está agora nos botões de layout e na caixa de diálogo de layouts."
   },
   "ai": {
     "start": "Iniciar ponte",
@@ -818,7 +822,7 @@
       "editTitle": "Editar layout",
       "icon": "Ícone",
       "partsTitle": "O que este layout guarda?",
-      "partsHint": "Só as partes marcadas mudam quando clica no botão do layout; o resto da vista fica como está. O layout assume o que está agora no ecrã.",
+      "partsHint": "Só as partes marcadas mudam quando clica no botão do layout; o resto da vista fica como está.",
       "partRelations": "Linhas de relação",
       "infoColumns": "As colunas visíveis da tabela de tarefas, a sua ordem e a sua largura.",
       "infoFilter": "O filtro ativo agora. Se não houver filtro ativo, este layout limpa o filtro.",
@@ -826,13 +830,17 @@
       "infoSort": "A ordenação das tarefas na árvore ou dentro de um grupo.",
       "infoTimeScale": "A escala de tempo do Gantt (dia, semana, mês…). Desmarcado: o zoom fica como está.",
       "infoRelations": "Se as linhas de relação entre tarefas são visíveis. Numa vista agrupada costuma ser melhor ocultá-las.",
-      "useCurrentView": "Substituir os valores pela vista atual",
-      "infoUseCurrentView": "Desligado: o layout mantém os valores guardados e só altera nome, ícone e marcações. Ligado: as partes marcadas assumem o que está agora no ecrã.",
+      "useCurrentView": "Assumir a vista atual",
+      "infoUseCurrentView": "Preenche todas as partes abaixo com o que está agora no ecrã.",
       "edit": "Editar…",
       "duplicate": "Duplicar",
       "copyName": "{{name}} (cópia)",
       "needOnePart": "Marque pelo menos uma parte.",
-      "builtinReadonly": "Layout incluído: não pode ser alterado. Duplique-o para criar a sua versão."
+      "builtinReadonly": "Layout incluído: não pode ser alterado. Duplique-o para criar a sua versão.",
+      "applyOnly": "Aplicar sem guardar",
+      "infoApplyOnly": "Coloca as partes marcadas no ecrã sem criar um botão de layout. Útil para um filtro rápido e temporário.",
+      "columnsNote": "Assume as colunas tal como estão agora na tabela. As colunas escolhem-se com o mais no cabeçalho da tabela.",
+      "relationsShow": "Mostrar linhas de relação"
     },
     "presentation": {
       "hint": "Prima Esc ou F11 para sair do ecrã inteiro."

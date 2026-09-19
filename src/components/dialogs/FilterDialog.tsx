@@ -14,11 +14,11 @@ import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 
-type GroupNode = Extract<FilterNode, { kind: 'group' }>;
+export type GroupNode = Extract<FilterNode, { kind: 'group' }>;
 type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
 
 const defaultRule = (): RuleNode => ({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: '' });
-const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
+export const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
 
 function encodeField(f: FieldRef): string {
   return JSON.stringify(f);
@@ -191,7 +191,8 @@ function RuleEditor({
   );
 }
 
-function GroupEditor({
+/** De filterboom-editor; controlled, ook gebruikt door de layoutdialoog (issue #144). */
+export function GroupEditor({
   node, depth, ctx, fields, onChange, onRemove,
 }: {
   node: GroupNode;

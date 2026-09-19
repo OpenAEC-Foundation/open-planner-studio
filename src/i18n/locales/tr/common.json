@@ -212,7 +212,11 @@
     "aiMode": "Yapay zeka modunu etkinleştir",
     "aiModeHint": "MCP köprüsüne sahip Yapay Zeka sekmesini gösterir; böylece yapay zeka asistanları Model Context Protocol üzerinden planınızla çalışabilir. Kapatmak köprüyü durdurur.",
     "aiAutostart": "Köprüyü otomatik başlat",
-    "aiAutostartHint": "MCP köprüsünü uygulama açılır açılmaz devreye alır; böylece bir yapay zekâ istemcisi, siz önce AI sekmesini açmadan bağlanabilir. Yalnızca masaüstü uygulamasında."
+    "aiAutostartHint": "MCP köprüsünü uygulama açılır açılmaz devreye alır; böylece bir yapay zekâ istemcisi, siz önce AI sekmesini açmadan bağlanabilir. Yalnızca masaüstü uygulamasında.",
+    "legacySection": "Eski özellikler",
+    "legacyNotice": "Yerine yenisi gelen eski özellikler. Alışkın olanlar için kullanılabilir kalır, ancak yeni olanak almaz.",
+    "classicViewControls": "Klasik görünüm düğmelerini göster",
+    "classicViewControlsHint": "Ayrı Sütunlar, Filtre, Grupla ve Sırala düğmelerini Görünüm sekmesine geri getirir. İşlevleri artık düzen düğmelerinde ve düzen iletişim kutusundadır."
   },
   "ai": {
     "start": "Köprüyü başlat",
@@ -806,7 +810,7 @@
       "editTitle": "Düzeni düzenle",
       "icon": "Simge",
       "partsTitle": "Bu düzen neyi kaydeder?",
-      "partsHint": "Düzen düğmesine tıkladığınızda yalnızca işaretli bölümler değişir; görünümün geri kalanı olduğu gibi kalır. Düzen, şu anda ekranda olanı alır.",
+      "partsHint": "Düzen düğmesine tıkladığınızda yalnızca işaretli bölümler değişir; görünümün geri kalanı olduğu gibi kalır.",
       "partRelations": "İlişki çizgileri",
       "infoColumns": "Görev tablosunun görünen sütunları, sıraları ve genişlikleri.",
       "infoFilter": "Şu anda etkin olan filtre. Etkin filtre yoksa bu düzen filtreyi temizler.",
@@ -814,13 +818,17 @@
       "infoSort": "Görevlerin ağaç içinde veya bir grup içinde sıralanma düzeni.",
       "infoTimeScale": "Gantt zaman ölçeği (gün, hafta, ay…). İşaretli değilse yakınlaştırmanız olduğu gibi kalır.",
       "infoRelations": "Görevler arasındaki ilişki çizgilerinin görünüp görünmeyeceği. Gruplanmış görünümde genellikle kapalı olmaları daha iyidir.",
-      "useCurrentView": "Değerleri geçerli görünümle değiştir",
-      "infoUseCurrentView": "Kapalı: düzen kayıtlı değerlerini korur, yalnızca adı, simgeyi ve işaretleri değiştirirsiniz. Açık: işaretli bölümler şu anda ekranda olanı alır.",
+      "useCurrentView": "Geçerli görünümü al",
+      "infoUseCurrentView": "Aşağıdaki tüm bölümleri şu anda ekranda olanla doldurur.",
       "edit": "Düzenle…",
       "duplicate": "Çoğalt",
       "copyName": "{{name}} (kopya)",
       "needOnePart": "En az bir bölüm işaretleyin.",
-      "builtinReadonly": "Hazır düzen: değiştirilemez. Kendi sürümünüzü oluşturmak için çoğaltın."
+      "builtinReadonly": "Hazır düzen: değiştirilemez. Kendi sürümünüzü oluşturmak için çoğaltın.",
+      "applyOnly": "Kaydetmeden uygula",
+      "infoApplyOnly": "İşaretli bölümleri düzen düğmesi oluşturmadan ekrana uygular. Hızlı, geçici bir filtre için kullanışlıdır.",
+      "columnsNote": "Sütunları tabloda şu anda olduğu gibi alır. Sütunları tablo başlığındaki artı ile seçersiniz.",
+      "relationsShow": "İlişki çizgilerini göster"
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

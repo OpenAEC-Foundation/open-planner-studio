@@ -104,68 +104,101 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await seedWithResources(page);
 
   await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
-  await page.locator(RESOURCE_DIAGRAM).click();
-  // Een layout die alleen een filter draagt is geen layoutknop maar een regel onder de filterknop.
-  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(1);
-  await page.getByRole('button', { name: /^Filter/ }).click();
-  await page.getByRole('button', { name: 'Zonder gevel' }).click();
+  // Het klassieke Weergave-blok (Kolommen/Filter/Groeperen/Sorteren) is een legacy-functie: standaard weg.
+  await expect(page.getByRole('button', { name: /^(Sort|Sorteren)/ })).toHaveCount(0);
+  const filterButton = page.locator('[data-ops-layout-button="zonder-gevel"] button');
+  await expect(filterButton).toHaveText(/Zonder gevel/);
 
-  const after = await viewState(page);
-  expect(after.filter).not.toBeNull();
-  // De filter-layout draagt geen groepering: het resourcediagram blijft staan.
-  expect(after.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
+  await page.locator(RESOURCE_DIAGRAM).click();
+  await filterButton.click();
+  let v = await viewState(page);
+  expect(v.filter).not.toBeNull();
+  // Verschillende delen: beide knoppen staan samen aan, het resourcediagram blijft staan.
+  expect(v.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
+  await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
+  await expect(filterButton).toHaveClass(/active/);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/05-twee-knoppen-aan.png` });
+
+  // De filterknop uit: alleen het filter gaat terug, het resourcediagram blijft aan.
+  await filterButton.click();
+  v = await viewState(page);
+  expect(v.filter).toBeNull();
+  expect(v.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
   await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
   expect(await page.evaluate(() => localStorage.getItem('ops-savedFilters'))).toContain('zonder-gevel');
 });
 
-test('layoutdialoog: plus maakt een eigen knop met icoon die alleen de aangevinkte delen vastlegt; rechtsklik bewerkt, dupliceert en verwijdert', async ({ page, ops: _ops }) => {
-  await page.evaluate(() => {
-    localStorage.removeItem('ops-taskGridLayouts');
-  });
+test('legacy-instelling: de klassieke weergaveknoppen komen terug via Instellingen → Legacy-functies', async ({ page, ops: _ops }) => {
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await expect(page.getByRole('button', { name: /^(Sort|Sorteren)/ })).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
+  const legacy = page.locator('[data-ops-legacy-settings]');
+  // Het blok staat onderaan de laatste instellingentab (Toepassing/Geavanceerd).
+  await page.locator('.settings-tab').last().click();
+  await legacy.scrollIntoViewIfNeeded();
+  await expect(legacy).toBeVisible();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/06-legacy-instelling.png` });
+  await legacy.getByRole('checkbox').check();
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: false }));
+  await expect(page.getByRole('button', { name: /^(Sort|Sorteren)/ })).toHaveCount(1);
+  expect(await page.evaluate(() => localStorage.getItem('ops-showClassicViewControls'))).toBe('true');
+});
+
+test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog in, en toepassen zonder opslaan maakt geen knop', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => { localStorage.removeItem('ops-taskGridLayouts'); });
   await seedWithResources(page);
-  // Het beeld dat de layout moet vastleggen: gesorteerd op naam, relatielijnen uit.
-  await page.evaluate(() => {
-    const s = window.__OPS__!.store.getState();
-    s.setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
-    s.setShowRelations(false);
-    s.setZoom(17);
-  });
+  await page.evaluate(() => window.__OPS__!.store.getState().setZoom(17));
 
   await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
-  await page.getByRole('button', { name: /^(New layout|Nieuwe layout)$/ }).click();
+  const plus = page.getByRole('button', { name: /^(New layout|Nieuwe layout)$/ });
+  await plus.click();
   const dialog = page.locator('[data-ops-layout-dialog]');
-  await dialog.getByRole('textbox').fill('Op naam');
+  await dialog.locator('[data-ops-layout-name]').fill('Per resource, zonder lijnen');
   await dialog.locator('[data-ops-layout-icon="star"]').click();
-  // Alleen sortering en relatielijnen vastleggen; de rest uitvinken.
-  for (const part of ['columns', 'filter', 'group', 'timeScale']) {
+  // Alleen groepering en relatielijnen vastleggen; de rest uitvinken.
+  for (const part of ['columns', 'filter', 'sort', 'timeScale']) {
     await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
   }
+  // De groepering stel je HIER in — het scherm erachter is nog de WBS-boom.
+  const groupRow = dialog.locator('[data-ops-layout-part-row="group"]');
+  await groupRow.getByRole('button').click();
+  await groupRow.locator('select').first().selectOption(JSON.stringify({ src: 'resource' }));
+  await dialog.locator('[data-ops-layout-relations]').uncheck();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/03-layoutdialoog.png` });
+  expect((await viewState(page)).group).toEqual([]);
   await page.locator('[data-ops-layout-save]').click();
   await expect(dialog).toHaveCount(0);
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
   expect(stored).toHaveLength(1);
-  expect(Object.keys(stored[0]).sort()).toEqual(['icon', 'id', 'name', 'showRelations', 'sort']);
+  expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'showRelations']);
+  // Opslaan past NIET toe: het scherm verandert pas bij een klik op de knop.
+  expect((await viewState(page)).group).toEqual([]);
 
-  // De knop staat meteen AAN: het scherm komt overeen met wat hij vastlegt… maar er loopt geen sessie,
-  // dus hij is pas een schakelaar na een klik. Zet het beeld terug en schakel.
-  const own = page.locator('[data-ops-layout-button]').filter({ hasText: 'Op naam' }).locator('button');
-  await page.evaluate(() => {
-    const s = window.__OPS__!.store.getState();
-    s.setSort([]);
-    s.setShowRelations(true);
-  });
+  const own = page.locator('[data-ops-layout-button]').filter({ hasText: 'Per resource' }).locator('button');
   await own.click();
   let v = await viewState(page);
-  expect(v.sort).toHaveLength(1);
+  expect(v.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
   expect(v.showRelations).toBe(false);
   expect(v.zoom).toBe(17);
   await expect(own).toHaveClass(/active/);
+  // Dezelfde delen als het meegeleverde resourcediagram ⇒ die knop staat NIET mee aan (andere sortering).
   await own.click();
   v = await viewState(page);
-  expect(v.sort).toEqual([]);
+  expect(v.group).toEqual([]);
   expect(v.showRelations).toBe(true);
+
+  // Toepassen zonder opslaan: het beeld verandert, er komt geen knop bij en er gaat geen knop aan.
+  await plus.click();
+  for (const part of ['columns', 'filter', 'group', 'sort', 'timeScale']) {
+    await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
+  }
+  await dialog.locator('[data-ops-layout-relations]').uncheck();
+  await page.locator('[data-ops-layout-apply-only]').click();
+  await expect(dialog).toHaveCount(0);
+  expect((await viewState(page)).showRelations).toBe(false);
+  await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
+  await expect(page.locator('[data-ops-layout-button] button.active')).toHaveCount(0);
 
   // Rechtsklik → dupliceren, daarna het origineel verwijderen.
   await own.click({ button: 'right' });

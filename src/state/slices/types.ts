@@ -342,6 +342,7 @@ export interface UIState {
   showColumnsDialog: boolean;                // session — kolommen-dialoog open
   showFilterDialog: boolean;                 // session — filter-editor open
   showLayoutsDialog: boolean;                // session — layoutdialoog open (nieuw of bewerken, issue #144)
+  showClassicViewControls: boolean;          // persisted — LEGACY: losse Kolommen/Filter/Groeperen/Sorteren-knoppen op Beeld (issue #144), default uit
   layoutDialogTargetId: string | null;       // session — de layout die bewerkt wordt; null = nieuwe layout
   autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
   constructionMode: boolean;                 // persisted — bouwmodus (AAN=bouwgericht, default); UIT=bouw-agnostisch

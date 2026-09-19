@@ -125,15 +125,14 @@ export interface LayoutViewParts {
 
 /**
  * Een layoutknop is een SCHAKELAAR (eigenaarsbesluit 2026-09-19): aanzetten past de layout toe,
- * nogmaals klikken zet hem uit en brengt het beeld terug naar hoe het was vóór de eerste layoutklik.
- * `restore` is dat beeld; `touched` de delen die sindsdien door een layout zijn gezet — alleen die
- * worden teruggezet, zodat bijvoorbeeld een handmatige zoom tijdens het resourcediagram blijft staan.
+ * nogmaals klikken zet hem uit en brengt zijn delen terug naar `restore` — het beeld van vóór de
+ * eerste layoutklik. Knoppen die VERSCHILLENDE delen dragen kunnen tegelijk aanstaan (resourcediagram
+ * + een filterknop); een knop die een deel van een andere draagt vervangt die andere.
  */
 export interface LayoutSession {
-  /** De aangezette layout zoals hij werd toegepast; de store kent de layoutlijst zelf niet. */
-  layout: Layout;
+  /** De aangezette layouts zoals ze werden toegepast; de store kent de layoutlijst zelf niet. */
+  layouts: Layout[];
   restore: LayoutViewParts;
-  touched: LayoutPart[];
 }
 
 /** Split view binnen één document (§10) — undefined = uit. */

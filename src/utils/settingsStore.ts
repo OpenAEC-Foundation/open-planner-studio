@@ -391,6 +391,12 @@ export async function saveSavedFilters(filters: SavedFilter[]): Promise<void> {
 // Automatisch berekenen (fase 2.7 vervolg): app-instelling, dus WEL onder de 3-plekken-regel
 // (tandwiel, Instellingen-ribbontab, File-backstage delen allemaal SettingsPanelContent). Default
 // UIT — huidig handmatige (F5) gedrag blijft ongewijzigd tenzij de gebruiker 'm expliciet aanzet.
+// Legacy-functie (issue #144): de losse weergaveknoppen op Beeld zijn vervangen door de layoutknoppen
+// en de layoutdialoog; wie eraan gewend is zet ze hiermee terug. Default uit.
+export async function saveShowClassicViewControls(value: boolean): Promise<void> {
+  await setSetting('showClassicViewControls', value);
+}
+
 export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
 }

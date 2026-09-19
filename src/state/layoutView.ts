@@ -1,6 +1,6 @@
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
-import { isLayoutSessionLive } from '@/engine/view/layoutPresets';
+import { liveSessionLayouts } from '@/engine/view/layoutPresets';
 import type { LayoutViewParts, ViewState } from '@/types/view';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
 import type { RibbonTab } from './slices/types';
@@ -25,8 +25,7 @@ export function currentLayoutParts(state: LayoutViewInputs): LayoutViewParts {
   };
 }
 
-/** Id van de layoutknop die nu aanstaat, of null. Verlopen zodra het scherm er niet meer mee klopt. */
-export function activeLayoutId(state: LayoutViewInputs): string | null {
-  const session = state.view.layoutSession;
-  return isLayoutSessionLive(session, currentLayoutParts(state)) ? session.layout.id : null;
+/** Ids van de layoutknoppen die nu aanstaan. Een knop valt af zodra het scherm er niet meer mee klopt. */
+export function activeLayoutIds(state: LayoutViewInputs): string[] {
+  return liveSessionLayouts(state.view.layoutSession, currentLayoutParts(state)).map(layout => layout.id);
 }
