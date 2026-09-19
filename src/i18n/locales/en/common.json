@@ -610,7 +610,11 @@
       "conflictDays": "{{count}} day(s)",
       "reason": {
         "calendarMismatch": "The resource does not work on all days this task needs — shifting cannot resolve this.",
-        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict."
+        "insufficientCapacity": "Not enough free capacity within the slack to resolve this conflict.",
+        "ceilingTooTight": "The extension ceiling leaves too little room: no free window within that many workdays.",
+        "ceilingUnreachable": "Giving extension does not help here — a deadline or constraint keeps this task in place.",
+        "noWindowInHorizon": "No free window was found within the searched period; beyond that it is unknown.",
+        "residualFull": "The own workload had room, but the library's residual capacity is used up — other projects occupy it."
       }
     },
     "curve": {

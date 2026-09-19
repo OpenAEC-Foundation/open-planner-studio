@@ -610,7 +610,11 @@
       "conflictDays": "{{count}} dag(en)",
       "reason": {
         "calendarMismatch": "De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.",
-        "insufficientCapacity": "Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen."
+        "insufficientCapacity": "Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen.",
+        "ceilingTooTight": "Het uitloop-plafond laat te weinig ruimte: binnen dat aantal werkdagen is geen vrij venster.",
+        "ceilingUnreachable": "Uitloop geven helpt hier niet — een deadline of constraint houdt deze taak op zijn plek.",
+        "noWindowInHorizon": "Binnen de doorzochte periode is geen vrij venster gevonden; verderop is het onbekend.",
+        "residualFull": "De eigen inzet had ruimte, maar de restcapaciteit van de bibliotheek is op — andere projecten bezetten hem."
       }
     },
     "curve": {

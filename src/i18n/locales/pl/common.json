@@ -628,7 +628,11 @@
       "conflictDays": "{{count}} dzień/dni",
       "reason": {
         "calendarMismatch": "Zasób nie pracuje we wszystkie dni potrzebne temu zadaniu — przesunięcie tego nie rozwiąże.",
-        "insufficientCapacity": "Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt."
+        "insufficientCapacity": "Za mało wolnej zdolności w ramach zapasu, aby rozwiązać ten konflikt.",
+        "ceilingTooTight": "Pułap wydłużenia zostawia zbyt mało miejsca: w tej liczbie dni roboczych nie ma wolnego okna.",
+        "ceilingUnreachable": "Danie wydłużenia tu nie pomaga — termin lub ograniczenie trzyma to zadanie na miejscu.",
+        "noWindowInHorizon": "W przeszukanym okresie nie znaleziono wolnego okna; dalej jest to nieznane.",
+        "residualFull": "Własne zaangażowanie miało miejsce, ale rezydualna zdolność biblioteki jest wyczerpana — zajmują ją inne projekty."
       }
     },
     "curve": {
