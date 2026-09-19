@@ -18,7 +18,7 @@ export function PresentationHint() {
   return (
     <div
       aria-hidden={!visible}
-      className="ops-text-12"
+      className="!text-large"
       style={{
         position: 'fixed',
         bottom: 18,

@@ -62,7 +62,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
     >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('recovery.dialogTitle')}
           </span>
           <button
@@ -75,7 +75,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           <p className="text-text-secondary leading-relaxed">{t('recovery.explanation')}</p>
 
           <ul className="flex flex-col gap-2">
@@ -86,7 +86,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
               >
                 <FileText size={15} className="text-accent mt-0.5 shrink-0" />
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <span className="text-text-primary font-semibold ops-text-13 truncate">
+                  <span className="text-text-primary font-semibold !text-large truncate">
                     {entry.name || t('project.untitled')}
                   </span>
                   {entry.filePath && (

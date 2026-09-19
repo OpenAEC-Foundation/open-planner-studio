@@ -16,7 +16,7 @@
      `.ops-select__value` (white-space: nowrap) over, en die duwt de kolom uit z'n voegen. */
   min-width: 0;
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   padding: var(--sp-3) var(--sp-4);
   border: 1.5px solid var(--theme-control-border);
   border-radius: var(--radius-md);
@@ -46,7 +46,7 @@
   height: 2.25rem;
   padding-block: 0;
   padding-inline: var(--sp-1);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
 }
 
 .ops-select__value {
@@ -82,7 +82,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
 }
 
 .ops-select__option {

@@ -8,7 +8,7 @@
   background: var(--theme-surface);
   color: var(--theme-text);
   font-family: var(--font-body);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   outline: none;
 }
 
@@ -57,7 +57,7 @@
   background: var(--theme-surface-alt);
   color: var(--theme-text-muted);
   font-family: var(--font-heading);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -504,7 +504,7 @@
   color: var(--error);
   background: var(--theme-surface);
   box-shadow: var(--shadow-pop);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
 }
 
 .task-grid-group-cell {
@@ -537,7 +537,7 @@
   flex: none;
   color: var(--theme-text-muted);
   font-family: var(--font-code);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
 }
 
 /* Browserreview, observatie 7 (grijpzone-kant): was `inset-inline-end: -4px; width: 8px` — een
@@ -673,7 +673,7 @@
   align-items: center;
   padding-inline: 10px 40px;
   color: var(--theme-text-muted);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   pointer-events: none;
 }
 
@@ -688,20 +688,20 @@
   border-radius: 6px;
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
 }
 
 .task-grid-column-chooser-title {
   padding: 3px 5px 7px;
   font-family: var(--font-heading);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 700;
 }
 
 .task-grid-column-chooser-section-label {
   padding: 7px 5px 3px;
   color: var(--theme-text-muted);
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -786,7 +786,7 @@
   margin-inline-start: auto;
   color: var(--theme-text-muted);
   font-family: var(--font-code);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
 }
 
 .task-grid-column-chooser-category svg[data-expanded="true"] {
@@ -917,7 +917,7 @@
 /* Browserreview, observatie 6 (tweede plek met dezelfde afwijking): dit paneel portaalt naar
  * document.body (RelationCellEditor.tsx) zonder eigen `font-size` — zonder deze regel erven al zijn
  * kinderen (chips, tokens, invoervelden — geen van allen zet zelf een font-size) html/body's volle
- * `calc(13px * --ui-font-scale)` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
+ * `body`-rol `--text-large` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
  * (dezelfde soort portal-popup) had dit al goed; hier hetzelfde patroon toegepast. */
 .task-grid-relation-editor {
   position: fixed;
@@ -933,7 +933,7 @@
   border: 1px solid var(--theme-accent);
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
 }
 
 .task-grid-relation-editor-anchor {
@@ -1136,7 +1136,7 @@ button.task-grid-relation-reference {
   background: var(--theme-surface-elevated);
   border: 1px solid var(--error);
   box-shadow: var(--shadow-pop);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   white-space: normal;
 }
 
@@ -1242,6 +1242,24 @@ button.task-grid-relation-reference {
 /* ============================================================================
    Theme CSS Variables
    ============================================================================ */
+
+/* Tekstrollen — de ENIGE bron voor tekstgroottes in de interface. `--text-*: initial` haalt
+   Tailwinds eigen schaal (text-xs/sm/base/…) weg, zodat alleen `text-caption` … `text-title`
+   bestaan; in losse CSS: `font-size: var(--text-body)`. Elke rol schaalt mee met
+   `--ui-font-scale` (uiFontScale-instelling). Bewust ZONDER `--line-height`-partner: een rol is
+   alleen een grootte, regelhoogte zet de aanroeper (`leading-*`). `static`: een rol die alleen
+   via `var(--text-…)` in een los CSS-bestand wordt gebruikt mag niet worden weggesnoeid. Een kale
+   px/rem-font-size, `text-[Npx]` of een Tailwind-standaardmaat keurt `npm run verify:text-roles`
+   af. */
+@theme static {
+  --text-*: initial;
+  --text-caption: calc(9px * var(--ui-font-scale, 1));
+  --text-small: calc(10px * var(--ui-font-scale, 1));
+  --text-body: calc(11px * var(--ui-font-scale, 1));
+  --text-large: calc(12px * var(--ui-font-scale, 1));
+  --text-heading: calc(14px * var(--ui-font-scale, 1));
+  --text-title: calc(20px * var(--ui-font-scale, 1));
+}
 
 @theme {
   --color-surface: var(--theme-surface);
@@ -1563,40 +1581,28 @@ button.task-grid-relation-reference {
 }
 
 /* Interface-lettertype-schaal (issue #25.4). --ui-font-scale wordt door App.tsx gezet vanuit de
-   uiFontScale-instelling (default 1). Tailwind-`text-*`-klassen zijn rem-gebaseerd en volgen deze
-   html-font-size vanzelf; de losse px-font-sizes in de chrome-css volgen NIET automatisch en
-   schalen daarom expliciet mee via `calc(<n>px * var(--ui-font-scale, 1))` (zie de 10 chrome-CSS-
-   bestanden). De fallback `1` houdt de pre-hydratie-weergave en headless tests zonder App-effect
-   op de huidige 13px, zodat er geen verkeerde-grootte-flikkering ontstaat. */
+   uiFontScale-instelling (default 1). Tekstgroottes lopen via de tekstrollen (`--text-caption` …
+   `--text-title`, zie het `@theme static`-blok hierboven), die elk zelf met de schaal meerekenen.
+   De font-size hieronder is GEEN tekstrol maar de rem-basis: Tailwinds spacing (`p-2`, `gap-1`, …)
+   is rem-gebaseerd en groeit zo met de tekst mee. De fallback `1` houdt de pre-hydratie-weergave
+   en headless tests zonder App-effect op 13px, zodat er geen verkeerde-grootte-flikkering ontstaat. */
 html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
   font-family: var(--font-body);
-  font-size: calc(13px * var(--ui-font-scale, 1));
   background: var(--theme-bg);
   color: var(--theme-text);
 }
 
-/* Shared scaled text-size utilities — one source of truth for `calc(Npx * var(--ui-font-scale, 1))`
-   instead of repeating that expression at every call site. Two prior patterns both needed this:
-   `text-[Npx]` (Tailwind arbitrary value) compiles to a LITERAL px font-size — unlike `text-xs`/
-   `text-sm` (rem-based, follows html's scaled font-size above), it does not react to
-   `--ui-font-scale` at all — and inline `style={{ fontSize: 'calc(Npx * var(--ui-font-scale, 1))' }}`
-   duplicated the same expression per element. These sizes are the ones actually used across the app
-   (properties panel, resource dock, dialogs, ribbon inputs/popovers, status bar, chrome, …);
-   `!important` matches the behaviour of the `!text-[Npx]` call sites this also replaces (mostly
-   overriding `.input`'s own font-size) and is harmless on the plain call sites, since nothing else
-   sets font-size there. */
-.ops-text-8  { font-size: calc(8px  * var(--ui-font-scale, 1)) !important; }
-.ops-text-9  { font-size: calc(9px  * var(--ui-font-scale, 1)) !important; }
-.ops-text-10 { font-size: calc(10px * var(--ui-font-scale, 1)) !important; }
-.ops-text-11 { font-size: calc(11px * var(--ui-font-scale, 1)) !important; }
-.ops-text-12 { font-size: calc(12px * var(--ui-font-scale, 1)) !important; }
-.ops-text-13 { font-size: calc(13px * var(--ui-font-scale, 1)) !important; }
-.ops-text-14 { font-size: calc(14px * var(--ui-font-scale, 1)) !important; }
-.ops-text-15 { font-size: calc(15px * var(--ui-font-scale, 1)) !important; }
-.ops-text-16 { font-size: calc(16px * var(--ui-font-scale, 1)) !important; }
+/* De rem-basis staat ALLEEN op html; tekst die zelf geen rol kiest erft vanaf body de rol `large`,
+   zodat ook ongestileerde tekst binnen de rollen valt. */
+html {
+  font-size: calc(13px * var(--ui-font-scale, 1)); /* text-roles: rem-basis */
+}
+body {
+  font-size: var(--text-large);
+}
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
@@ -1713,7 +1719,7 @@ html, body, #root {
   border-radius: var(--radius-md);
   padding: var(--sp-2) var(--sp-3);
   font-family: var(--font-body);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   line-height: 1.5;
   color: var(--theme-text);
   box-shadow: var(--shadow-lg);
@@ -1725,7 +1731,6 @@ html, body, #root {
 
 .gantt-tooltip .tooltip-title {
   font-weight: 600;
-  font-size: calc(13px * var(--ui-font-scale, 1));
   margin-bottom: 4px;
   color: var(--theme-text);
 }
@@ -1857,7 +1862,7 @@ html, body, #root {
   align-self: flex-start;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   color: var(--theme-text-muted);
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
@@ -1918,7 +1923,7 @@ html, body, #root {
   width: 100%;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   text-align: start;
   color: var(--theme-text);
   cursor: pointer;
@@ -1956,7 +1961,7 @@ html, body, #root {
   padding: var(--sp-3) var(--sp-6);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   line-height: 1.4;
   box-shadow: var(--shadow-lg);
   max-width: 500px;
@@ -1972,14 +1977,14 @@ html, body, #root {
 }
 
 .ops-toast-count {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   opacity: 0.8;
   margin-inline-start: var(--sp-2);
   font-variant-numeric: tabular-nums;
 }
 
 .ops-toast-detail {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   opacity: 0.85;
   margin-top: var(--sp-1);
   word-break: break-word;
@@ -2002,7 +2007,7 @@ html, body, #root {
 .ops-toast-readmore {
   display: block;
   margin-top: var(--sp-1);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
 }
 
 @keyframes toast-in {
@@ -2053,7 +2058,7 @@ html, body, #root {
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-6);
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   font-weight: 600;
   border-radius: var(--radius-md);
   border: none;
@@ -2065,8 +2070,8 @@ html, body, #root {
   outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
-.btn--sm  { padding: var(--sp-2) var(--sp-4); font-size: 0.75rem; }
-.btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: 1rem; }
+.btn--sm  { padding: var(--sp-2) var(--sp-4); font-size: var(--text-small); }
+.btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: var(--text-large); }
 
 .btn--primary {
   background: var(--theme-accent);
@@ -2124,7 +2129,7 @@ html, body, #root {
 /* Inputs (DESIGN-SYSTEM.md §3.2) */
 .input {
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   padding: var(--sp-3) var(--sp-4);
   border: 1.5px solid var(--theme-control-border);
   border-radius: var(--radius-md);
@@ -2149,13 +2154,13 @@ html, body, #root {
 }
 .input-label {
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   font-weight: 500;
   margin-bottom: var(--sp-2);
   color: var(--theme-text);
 }
 .input-hint {
-  font-size: 0.75rem;
+  font-size: var(--text-small);
   /* was --scaffold-gray #A1A1AA (~2.5:1 op licht, onleesbaar); text-muted is
      AA in elk thema (light 5.3:1, HC 7:1, dark gelijk aan oude scaffold-gray). */
   color: var(--theme-text-muted);
@@ -2171,7 +2176,7 @@ html, body, #root {
   border-radius: var(--radius-md);
   border-left: 4px solid;
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 .alert--info    { background: #EFF6FF; border-left-color: var(--info);    color: #1E40AF; }
@@ -2183,7 +2188,7 @@ html, body, #root {
 .badge {
   display: inline-block;
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: var(--text-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2203,7 +2208,7 @@ html, body, #root {
   align-items: center;
   gap: var(--sp-1);
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
   font-weight: 500;
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-full);
@@ -2255,7 +2260,7 @@ html, body, #root {
 /* Kaart-koptekst (Space Grotesk small-caps), bv. paneel-headers. */
 .ui-card-header {
   font-family: var(--font-heading);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;

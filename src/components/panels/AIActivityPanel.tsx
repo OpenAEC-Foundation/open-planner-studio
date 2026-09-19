@@ -72,14 +72,14 @@ function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: numbe
           )}
           {entry.argsJson && (
             <div style={{ marginBottom: 4 }}>
-              <div className="ops-text-10" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.args')}</div>
-              <pre className="ops-text-10" style={preStyle}>{entry.argsJson}</pre>
+              <div className="!text-small" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.args')}</div>
+              <pre className="!text-small" style={preStyle}>{entry.argsJson}</pre>
             </div>
           )}
           {entry.resultJson && (
             <div>
-              <div className="ops-text-10" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.result')}</div>
-              <pre className="ops-text-10" style={preStyle}>{entry.resultJson}</pre>
+              <div className="!text-small" style={{ color: 'var(--dashboard-text-dim)' }}>{t('aiActivity.result')}</div>
+              <pre className="!text-small" style={preStyle}>{entry.resultJson}</pre>
             </div>
           )}
           {entry.substeps?.map((sub, i) => <ActivityRow key={i} entry={sub} depth={depth + 1} />)}
@@ -127,7 +127,7 @@ export function AIActivityPanel() {
 
   return (
     <div
-      className="flex-shrink-0 flex flex-col border-t border-border ops-text-11"
+      className="flex-shrink-0 flex flex-col border-t border-border !text-body"
       style={{
         height: 220,
         background: 'var(--dashboard-bg)',
@@ -140,7 +140,7 @@ export function AIActivityPanel() {
         className="flex items-center gap-1 px-2 h-6 border-b"
         style={{ borderColor: 'var(--dashboard-border-light)', background: 'var(--dashboard-surface)' }}
       >
-        <span className="ops-text-10" style={{ textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--dashboard-text-dim)' }}>
+        <span className="!text-small" style={{ textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--dashboard-text-dim)' }}>
           {t('aiActivity.title')}
         </span>
         <div className="flex-1" />

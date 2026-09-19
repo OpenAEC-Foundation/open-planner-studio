@@ -45,7 +45,7 @@ export function TaskPropertiesPanel() {
 
   if (!activeTaskId) {
     return (
-      <div className="p-3 text-xs text-text-secondary">
+      <div className="p-3 text-small leading-4 text-text-secondary">
         {t('properties.selectPrompt')}
       </div>
     );
@@ -75,9 +75,9 @@ export function TaskPropertiesPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 text-xs overflow-y-auto">
+    <div className="flex flex-col gap-3 p-3 text-small leading-4 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <span className="ui-card-header !text-xs">{t('properties.task')}</span>
+        <span className="ui-card-header !text-small !leading-4">{t('properties.task')}</span>
         <button
           onClick={() => deleteTask(task.id)}
           className="p-1 rounded"

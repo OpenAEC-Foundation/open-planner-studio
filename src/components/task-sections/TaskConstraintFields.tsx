@@ -42,7 +42,7 @@ export function TaskConstraintFields({ task, onChange }: {
             // Bij een niet-MSO/MFO-primair vervalt de harde pin (hard alleen zinvol op MSO/MFO).
             else onChange({ constraint: { type, date: task.constraint?.date ?? task.time.scheduleStart, hard: (type === 'MSO' || type === 'MFO') ? task.constraint?.hard : undefined } });
           }}
-          className="input !text-xs !px-2.5 !py-1.5"
+          className="input !text-small !leading-4 !px-2.5 !py-1.5"
         >
           {(['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] as ConstraintType[]).map(ct => (
             <option key={ct} value={ct}>{t(`constraintType.${ct}`)}</option>
@@ -52,7 +52,7 @@ export function TaskConstraintFields({ task, onChange }: {
       {task.constraint && task.constraint.type !== 'ALAP' && (
         <Field label={t('properties.constraintDate')}>
           <DateTextInput
-            className="input !text-xs !px-2.5 !py-1.5"
+            className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.constraintDate')}
             value={task.constraint.date ?? ''}
             onCommit={v => onChange({ constraint: { ...task.constraint!, date: v } })}
@@ -83,7 +83,7 @@ export function TaskConstraintFields({ task, onChange }: {
           </label>
           {pinHint && (
             <div
-              className="flex items-start gap-2 ops-text-10 px-2 py-1.5 rounded"
+              className="flex items-start gap-2 !text-small px-2 py-1.5 rounded"
               style={{ background: 'var(--theme-surface-alt)', color: 'var(--theme-text-muted)' }}
               data-ops-pin-hint
             >
@@ -108,7 +108,7 @@ export function TaskConstraintFields({ task, onChange }: {
                 if (!type) onChange({ constraint2: undefined });
                 else onChange({ constraint2: { type: type as ConstraintType, date: task.constraint2?.date ?? task.time.scheduleStart } });
               }}
-              className={`input !text-xs !px-2.5 !py-1.5 ${!pairValidation.ok ? '!border-[var(--error)]' : ''}`}
+              className={`input !text-small !leading-4 !px-2.5 !py-1.5 ${!pairValidation.ok ? '!border-[var(--error)]' : ''}`}
               title={!pairValidation.ok ? pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ') : undefined}
               data-ops-constraint2-type
             >
@@ -121,7 +121,7 @@ export function TaskConstraintFields({ task, onChange }: {
           {task.constraint2 && (
             <Field label={t('properties.constraint2Date')}>
               <DateTextInput
-                className="input !text-xs !px-2.5 !py-1.5"
+                className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.constraint2Date')}
                 value={task.constraint2.date ?? ''}
                 onCommit={v => onChange({ constraint2: { ...task.constraint2!, date: v } })}
@@ -129,7 +129,7 @@ export function TaskConstraintFields({ task, onChange }: {
             </Field>
           )}
           {!pairValidation.ok && (
-            <div className="ops-text-10" style={{ color: 'var(--error)' }} data-ops-constraint2-error>
+            <div className="!text-small" style={{ color: 'var(--error)' }} data-ops-constraint2-error>
               {pairValidation.issues.map(i => t(`properties.constraintPair.${i}`)).join(' · ')}
             </div>
           )}

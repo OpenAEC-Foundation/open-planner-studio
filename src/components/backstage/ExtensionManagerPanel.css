@@ -24,7 +24,7 @@
   border: 1px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   color: var(--theme-text-dim);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
@@ -50,7 +50,7 @@
   border: 1px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   color: var(--theme-text);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
@@ -64,7 +64,7 @@
   border: 1px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   color: var(--theme-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -115,21 +115,21 @@
   flex-wrap: wrap;
 }
 
-.ext-card-name { font-weight: 600; color: var(--theme-text); font-size: calc(13px * var(--ui-font-scale, 1)); }
-.ext-card-version { font-size: calc(11px * var(--ui-font-scale, 1)); color: var(--theme-text-dim); }
-.ext-card-category { font-size: calc(10px * var(--ui-font-scale, 1)); font-weight: 600; text-transform: uppercase; }
+.ext-card-name { font-weight: 600; color: var(--theme-text); font-size: var(--text-large); }
+.ext-card-version { font-size: var(--text-body); color: var(--theme-text-dim); }
+.ext-card-category { font-size: var(--text-small); font-weight: 600; text-transform: uppercase; }
 
 .ext-card-desc {
   margin: 4px 0;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   color: var(--theme-text-dim);
 }
 
-.ext-card-author { font-size: calc(11px * var(--ui-font-scale, 1)); color: var(--theme-text-muted); }
+.ext-card-author { font-size: var(--text-body); color: var(--theme-text-muted); }
 
 .ext-card-error-msg {
   margin: 4px 0 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: #dc2626;
 }
 
@@ -181,7 +181,7 @@
   border: 1px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   color: var(--theme-text-dim);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
@@ -194,14 +194,14 @@
 }
 
 .ext-installed-badge {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   font-weight: 600;
   color: var(--theme-accent);
   text-transform: uppercase;
 }
 
 .ext-quarantine-badge {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   font-weight: 700;
   color: #d97706;
   text-transform: uppercase;
@@ -213,14 +213,14 @@
   border-radius: var(--radius-md);
   background: color-mix(in srgb, #d97706 10%, transparent);
   color: var(--theme-text);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
 }
 
 .ext-empty {
   padding: 32px;
   text-align: center;
   color: var(--theme-text-dim);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
 }
 
-.ext-empty-hint { font-size: calc(11px * var(--ui-font-scale, 1)); color: var(--theme-text-muted); }
+.ext-empty-hint { font-size: var(--text-body); color: var(--theme-text-muted); }

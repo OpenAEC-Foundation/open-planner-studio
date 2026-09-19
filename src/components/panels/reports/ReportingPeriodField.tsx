@@ -108,7 +108,7 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
             setDraft(next);
             if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
           }}
-          className="input flex-1 min-w-0 !text-xs !px-2 !py-1"
+          className="input flex-1 min-w-0 !text-small !leading-4 !px-2 !py-1"
           style={{ minWidth: '8.5rem', ...(invalid ? { borderColor: 'var(--error)' } : {}) }}
           data-ops-report-option={`${dataKey}.${which}`}
         />
@@ -136,7 +136,7 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
         {dateInput('to')}
       </div>
       {invalid && (
-        <div id={`${id}-invalid`} className="ops-text-11" style={{ color: 'var(--error)' }} role="alert">
+        <div id={`${id}-invalid`} className="!text-body" style={{ color: 'var(--error)' }} role="alert">
           {t(incomplete ? 'tableReports.options.periodIncomplete' : 'tableReports.options.periodInvalid')}
         </div>
       )}

@@ -73,7 +73,7 @@ export function WelcomeDialog() {
       panelProps={{ 'data-ops-welcome-dialog': true }}
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('welcome.title')}
           </span>
           <button onClick={markSeenAndClose} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('close')}>
@@ -81,18 +81,18 @@ export function WelcomeDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-sm">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-body leading-5">
           {step === 1 ? (
             <>
               <p>{t('welcome.introBody')}</p>
 
               <div className="flex flex-col gap-3">
-                <h3 className="ops-text-10 font-semibold uppercase tracking-wider text-text-secondary">
+                <h3 className="!text-small font-semibold uppercase tracking-wider text-text-secondary">
                   {t('welcome.settingsSectionTitle')}
                 </h3>
 
                 <div>
-                  <label className="block mb-1 text-xs text-text-secondary">{t('settings.language')}</label>
+                  <label className="block mb-1 text-small leading-4 text-text-secondary">{t('settings.language')}</label>
                   <Select
                     aria-label={t('settings.language')}
                     value={i18n.language}
@@ -107,7 +107,7 @@ export function WelcomeDialog() {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-xs text-text-secondary">{t('settings.theme')}</label>
+                  <label className="block mb-1 text-small leading-4 text-text-secondary">{t('settings.theme')}</label>
                   <Select
                     aria-label={t('settings.theme')}
                     value={followSystem ? resolvedTheme : currentTheme}
@@ -134,7 +134,7 @@ export function WelcomeDialog() {
                   />
                   <span>{t('settings.autoCalcCPM')}</span>
                 </label>
-                <p className="text-xs text-text-secondary">{t('settings.autoCalcCPMHint')}</p>
+                <p className="text-small leading-4 text-text-secondary">{t('settings.autoCalcCPMHint')}</p>
               </div>
             </>
           ) : (

@@ -64,13 +64,13 @@ export function CloseDocumentDialog() {
           boxShadow: 'var(--shadow-pop)', padding: 20,
         }}
       >
-        <h3 className="ops-text-15" style={{
+        <h3 className="!text-heading" style={{
           margin: '0 0 8px', fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 700, color: 'var(--theme-text)',
         }}>
           {t('documents.closeTitle')}
         </h3>
-        <p className="ops-text-13" style={{ margin: '0 0 18px', lineHeight: 1.5, color: 'var(--theme-text-dim)' }}>
+        <p className="!text-large" style={{ margin: '0 0 18px', lineHeight: 1.5, color: 'var(--theme-text-dim)' }}>
           {t('documents.closeBody', { name })}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

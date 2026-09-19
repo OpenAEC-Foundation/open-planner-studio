@@ -4,11 +4,11 @@ import type { TableReportSpec, ReportSection } from './tableReportSpec';
 /**
  * DOM-weergave van een gesectioneerd tabelrapport. Tekent exact wat `makeSectionedRenderReport`
  * in de PDF zet — zelfde kolomspec, zelfde kleuren, zelfde lege-staat-teksten — in de huisstijl
- * van het mijlpalen-/variance-rapport (`text-xs`-tabel met thema-randen).
+ * van het mijlpalen-/variance-rapport (`text-small leading-4`-tabel met thema-randen).
  */
 function SectionTable({ s }: { s: ReportSection }) {
   return (
-    <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }} data-ops-report-section={s.key}>
+    <table className="w-full text-small leading-4" style={{ borderCollapse: 'collapse' }} data-ops-report-section={s.key}>
       <thead>
         <tr style={{ borderBottom: '2px solid var(--theme-border)' }}>
           {s.columns.map(c => (
@@ -61,13 +61,13 @@ export const TableReportView = forwardRef<HTMLDivElement, { spec: TableReportSpe
       style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1200 }}
       data-ops-table-report={spec.fileSuffix}
     >
-      <h3 className="ui-card-header !text-xs mb-1">{spec.title}</h3>
-      {spec.subtitle && <div className="text-xs mb-2" style={{ color: 'var(--theme-text-muted)' }}>{spec.subtitle}</div>}
+      <h3 className="ui-card-header !text-small !leading-4 mb-1">{spec.title}</h3>
+      {spec.subtitle && <div className="text-small leading-4 mb-2" style={{ color: 'var(--theme-text-muted)' }}>{spec.subtitle}</div>}
       {spec.notes.map((n, i) => (
-        <div key={i} className="text-xs mb-2" style={{ color: '#D97706' }} role="note">{n}</div>
+        <div key={i} className="text-small leading-4 mb-2" style={{ color: '#D97706' }} role="note">{n}</div>
       ))}
       {spec.summary.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mb-3" style={{ maxWidth: 640 }} data-ops-report-summary>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-small leading-4 mb-3" style={{ maxWidth: 640 }} data-ops-report-summary>
           {spec.summary.map((item, i) => (
             <div key={i} className="flex justify-between gap-3">
               <span style={{ color: 'var(--theme-text-muted)' }}>{item.label}</span>
@@ -78,7 +78,7 @@ export const TableReportView = forwardRef<HTMLDivElement, { spec: TableReportSpe
       )}
       {spec.sections.map(s => (
         <div key={s.key} className="mb-4">
-          {s.heading && <h4 className="text-xs font-semibold mb-1" style={{ color: 'var(--theme-text)' }}>{s.heading}</h4>}
+          {s.heading && <h4 className="text-small leading-4 font-semibold mb-1" style={{ color: 'var(--theme-text)' }}>{s.heading}</h4>}
           <div style={{ overflowX: 'auto' }}>
             <SectionTable s={s} />
           </div>

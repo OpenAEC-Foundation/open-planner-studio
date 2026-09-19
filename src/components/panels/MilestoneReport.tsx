@@ -64,7 +64,7 @@ export function MilestoneReport() {
   const dd = useDisplayDate();
 
   return (
-    <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+    <table className="w-full text-small leading-4" style={{ borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '2px solid var(--theme-border)' }}>
           {(['wbs', 'name', 'kind', 'date', 'guardDate', 'float', 'mandatory', 'status'] as const).map(h => (

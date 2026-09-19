@@ -39,7 +39,7 @@ export function ProjectInfoDialog() {
       panelProps={{ 'data-ops-project-dialog': isNew ? 'new' : 'info' }}
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {isNew ? tMenu('newProject.title') : tMenu('projectInfo.title')}
           </span>
           <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">

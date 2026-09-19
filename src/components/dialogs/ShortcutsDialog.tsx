@@ -64,7 +64,7 @@ export function ShortcutsDialog() {
       panelProps={{ 'data-ops-shortcuts-dialog': true }}
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
             <Keyboard size={16} />
             {t('shortcuts.title')}
           </span>
@@ -73,13 +73,13 @@ export function ShortcutsDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4 text-small leading-4">
           {CATEGORY_ORDER.map(category => {
             const categoryRows = rows[category];
             if (categoryRows.length === 0) return null;
             return (
               <div key={category}>
-                <div className="px-1 pb-1 ops-text-10 font-semibold uppercase tracking-wider text-text-secondary">
+                <div className="px-1 pb-1 !text-small font-semibold uppercase tracking-wider text-text-secondary">
                   {t(`shortcuts.category.${category}`)}
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -94,7 +94,7 @@ export function ShortcutsDialog() {
                           patroon als de dynamische `tMenu(... as 'ribbon.calendarDialog.days.1')`-
                           cast in CalendarForm.tsx/WorkTimeEditor.tsx. */}
                       <span className="flex-1 truncate">{t(row.labelKey as 'close')}</span>
-                      <span className="flex-shrink-0 font-mono ops-text-11 text-text-secondary whitespace-nowrap">
+                      <span className="flex-shrink-0 font-mono !text-body text-text-secondary whitespace-nowrap">
                         {formatComboGroup(row.combos, isMac, orJoiner)}
                       </span>
                     </div>
