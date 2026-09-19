@@ -226,7 +226,7 @@
   function capsFromArr(a){ var c={}; DOCS.forEach(function(d,i){ c[d.id]=a[i]|0; }); return c; }
   function capsArr(c){ return DOCS.map(function(d){ return c[d.id]|0; }); }
 
-  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function plural(n,one,other){ return n===1?one:other; }
   function signed(n){ return (n>=0?'+':'')+n; }
   function dagen(n){ return signed(n)+' '+plural(n,'dag','dagen'); }
