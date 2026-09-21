@@ -123,6 +123,21 @@ test('get_project_overview: elke taak aanwezig; relatiegraaf compleet; verkorte 
   assertEq(aRow.id, a, 'elke overview-rij draagt het stabiele Task.id (H6)');
 });
 
+test('get_project_overview: rijen in boomvolgorde met depth en parentId (issue #159, vervolg)', () => {
+  cleanProject();
+  const r = S().addTask({ name: 'R', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 5) });
+  const s1 = S().addTask({ name: 'S1', isMilestone: false, parentId: r, time: createDefaultTaskTime('2026-06-01', 3) });
+  const a = S().addTask({ name: 'a', isMilestone: false, parentId: s1, time: createDefaultTaskTime('2026-06-01', 2) });
+  S().runCPM();
+  const data = callOk('planner_get_project_overview');
+  const rows = data.tasks as any[];
+  assertEq(rows.map((x) => x.name), ['R', 'S1', 'a'], 'rijen diepte-eerst');
+  assertEq(rows.map((x) => x.depth), [1, 2, 3], 'depth per rij (1 = hoofdniveau)');
+  assertEq(rows.map((x) => x.parentId ?? null), [null, r, s1], 'parentId is het stabiele Task.id');
+  assertEq(rows[2].parent, S().tasks.find((t) => t.id === s1)!.wbsCode, '`parent` blijft de WBS-code (bestaande clients)');
+  assertEq(rows[2].id, a, 'id blijft vooraan');
+});
+
 // =================================================================================================
 // 3) planner_list_tasks — paginering (total/has_more/next_offset over 2 pagina's)
 // =================================================================================================

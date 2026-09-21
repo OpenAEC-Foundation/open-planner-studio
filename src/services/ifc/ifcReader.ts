@@ -120,8 +120,12 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
   );
-  const sequences = extractSequences(entities, entityMap, taskStepIdMap);
+  const sequences = extractSequences(entities, entityMap, taskStepIdMap, calendar.hoursPerDay);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
+  // Een taak mét kinderen is nooit een mijlpaal (issue #159, vervolg): een vreemde IFC met
+  // `IsMilestone=.T.` op een genest IFCTASK gaf anders een samenvatting-mijlpaal met duur 0 — de
+  // conditie die de grid-/MCP-schrijfroutes in-app al uitsluiten.
+  for (const t of tasks) if (t.childIds.length > 0 && t.isMilestone) t.isMilestone = false;
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
@@ -510,7 +514,7 @@ function parseDateFromIFC(s: string): string {
   return clean.substring(0, 10);
 }
 
-function parseDurationDays(s: string): number {
+function parseDurationDays(s: string, hoursPerDay = 8): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
   // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Negatief kan op twee manieren voorkomen:
@@ -523,7 +527,9 @@ function parseDurationDays(s: string): number {
   const hourMatch = clean.match(/(-?\d+)H/);
   if (hourMatch) {
     const h = parseInt(hourMatch[1]);
-    return applySign(h < 0 ? -Math.ceil(-h / 8) : Math.ceil(h / 8));
+    // Kale `PT{n}H` (andermans bestand) ⇒ werkdagen van de meegegeven kalender, niet van een vaste 8
+    // (issue #159, vervolg — de MSPDI-lezer had dezelfde `/8` al in fase 2.8b vervangen).
+    return applySign(h < 0 ? -Math.ceil(-h / hoursPerDay) : Math.ceil(h / hoursPerDay));
   }
   return 0;
 }
@@ -700,7 +706,15 @@ function applyHourModeIFC(
   //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
   for (const t of tasks) {
     const effCal = effCalOf(t);
-    if (!effCal.workTime) continue;
+    if (!effCal.workTime) {
+      // Dag-kalender, uur-taak (kale `PT{n}H` uit andermans bestand): de compatibiliteitsafgeleide
+      // `scheduleDuration` kwam uit `parseDurationDays`' vaste `/8`. Zelfde afleiding als de
+      // uurkalender-tak hieronder, met de hpd van de EFFECTIEVE kalender (issue #159, vervolg).
+      if (t.time.durationUnit === 'hours' && t.time.durationMinutes != null && effCal.hoursPerDay > 0) {
+        t.time.scheduleDuration = t.time.durationMinutes / (effCal.hoursPerDay * 60);
+      }
+      continue;
+    }
     const e = taskTimeEntities.get(t.id);
     if (!e) continue;
     const hpd = effCal.hoursPerDay;
@@ -983,6 +997,7 @@ function extractSequences(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
+  hoursPerDay: number,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -1040,7 +1055,7 @@ function extractSequences(
             lagDays = 0;
           } else {
             lagMinutes = undefined;
-            lagDays = parseDurationDays(durMatch[1]);
+            lagDays = parseDurationDays(durMatch[1], hoursPerDay);
           }
         } else if (lagValue.startsWith("'")) {
           // Ongetypte duur-string (soepel lezen van andermans bestanden) — zelfde volgorde als hierboven.
@@ -1051,11 +1066,11 @@ function extractSequences(
             lagDays = 0;
           } else {
             lagMinutes = undefined;
-            lagDays = parseDurationDays(lagValue);
+            lagDays = parseDurationDays(lagValue, hoursPerDay);
           }
         } else {
           // Legacy-lay-out: de duur staat in arg 5.
-          lagDays = parseDurationDays(lagEntity.args[4] || '');
+          lagDays = parseDurationDays(lagEntity.args[4] || '', hoursPerDay);
         }
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }

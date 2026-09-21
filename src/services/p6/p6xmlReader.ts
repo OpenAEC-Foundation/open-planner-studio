@@ -8,6 +8,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { flattenOrder } from '@/utils/wbs';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
@@ -478,7 +479,8 @@ export function readP6XML(content: string): ImportResult {
     const actualFinish = actualFinishRaw ? (isHour ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
     // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
-    const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), hoursPerDay) : undefined;
+    // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
+    const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), effHpd) : undefined;
 
     // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid; dag ⇒ `Math.round(uren/hpd)` (bestaand).
     const durationMinutes = isHour ? Math.round(plannedDuration * 60) : undefined;
@@ -575,8 +577,10 @@ export function readP6XML(content: string): ImportResult {
     }
   }
 
-  // Combine tasks: WBS (summary) + leaf activities
-  const tasks = [...wbsTasks, ...leafTasks];
+  // Combine tasks: WBS (summary) + leaf activities — in BOOMVOLGORDE (issue #159, vervolg). De
+  // ruwe "samenvattingen eerst, dan bladen"-volgorde was precies de store-volgorde waar de MSPDI-
+  // export op stukliep; de andere lezers leveren documentvolgorde (= diepte-eerst), deze nu ook.
+  const tasks = [...flattenOrder([...wbsTasks, ...leafTasks])];
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);

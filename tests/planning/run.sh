@@ -304,6 +304,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Issue #159, vervolg (PR-2): dezelfde bugklasse in de andere adapters — P6 restduur op de
+  # taakkalender, P6-lezer in boomvolgorde + SequenceNumber, IFC-lezer PT{n}H zonder vaste /8, en
+  # IsMilestone nooit op een taak met kinderen.
+  AHCHECK="$DIR/.adapters-hierarchy-rest.mjs"
+  if bundle_check "$DIR/check-adapters-hierarchy-rest.ts" "$AHCHECK"; then node "$AHCHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
