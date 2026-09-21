@@ -108,6 +108,53 @@ export function splitAt(pieces: readonly SplitPiece[], workOffsetMinutes: number
   return { ok: false, reason: 'position-out-of-range' };
 }
 
+/**
+ * Datum → positie op de WERK-as van de taak (etappe 2, het splitsgebaar). De Gantt kent alleen een
+ * gesnapte datum onder de muis; `splitAt` wil een werkminuten-offset zonder de pauzes. Deze functie
+ * is de brug: eerst de as-afstand vanaf de taakstart (de H1-as, waar een pauze wél meetelt), dan die
+ * afstand door de stukken lopen en alleen het WERK optellen.
+ *
+ * De as-afstand is HALF-OPEN — de dag waarop je klikt hoort bij het stuk dát je afsplitst, niet bij
+ * het stuk ervoor: woensdag na een maandagstart geeft 2 werkdagen (ma+di), niet 3. `workDaysBetween`
+ * is inclusief, dus de einddag wordt er weer afgetrokken wanneer die zelf een werkdag is — dezelfde
+ * half-open telling die `addWorkingDaysSigned` (en daarmee `splitWalk`) hanteert.
+ *
+ * `inGap: true` = de datum valt in een bestaande pauze; het gebaar hoort daar niet te starten (een
+ * split op een pauzegrens weigert `splitAt` toch al met `position-on-gap`). Voorbij het taakeinde
+ * klemt de uitkomst op het werktotaal — `splitAt` weigert dat verderop netjes met een bereikreden.
+ */
+export function workOffsetAtDate(
+  pieces: readonly SplitPiece[],
+  taskStart: Date,
+  at: Date,
+  eng: CalendarEngine,
+  hourMode: boolean,
+): { workMinutes: number; inGap: boolean } {
+  const total = totalWork(pieces);
+  if (Number.isNaN(taskStart.getTime()) || Number.isNaN(at.getTime())) return { workMinutes: 0, inGap: false };
+  let axis: number;
+  if (hourMode) {
+    axis = at.getTime() <= taskStart.getTime() ? 0 : eng.workMinutesBetween(taskStart, at);
+  } else {
+    const from = parseDate(formatDate(taskStart));
+    const to = parseDate(formatDate(at));
+    const days = to.getTime() <= from.getTime() ? 0
+      : Math.max(0, eng.workDaysBetween(from, to) - (eng.isWorkDay(to) ? 1 : 0));
+    axis = days * Math.max(1, eng.hoursPerDay * 60);
+  }
+  let work = 0;
+  let rest = axis;
+  for (const p of pieces) {
+    if (rest < p.minutes - EPS) {
+      if (p.kind === 'gap') return { workMinutes: work, inGap: true };
+      return { workMinutes: work + rest, inGap: false };
+    }
+    rest -= p.minutes;
+    if (p.kind === 'work') work += p.minutes;
+  }
+  return { workMinutes: Math.min(total, work), inGap: false };
+}
+
 export function removeGap(pieces: readonly SplitPiece[], gapIndex: number): SplitEditResult {
   const i = arrayIndexOf(pieces, 'gap', gapIndex);
   if (i < 0) return { ok: false, reason: 'index-out-of-range' };

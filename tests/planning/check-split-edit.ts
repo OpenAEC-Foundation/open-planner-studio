@@ -6,7 +6,11 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
   adoptLevelingGaps, canSplitTask, clipUserGapsToWork, completedWorkMinutes, fromSplitPieces,
   isWellFormedSplit, removeAllGaps, setGapLength, setWorkLength, splitAt, toSplitPieces,
+  workOffsetAtDate,
 } from '@/engine/scheduler/splitEdit';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import type { WorkCalendar } from '@/types/calendar';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -122,6 +126,46 @@ eq('T4 voltooid uit completion', completedWorkMinutes(mk({ days: 10, completion:
 eq('T4 klip: gat voorbij nieuw werk vervalt', clipUserGapsToWork([{ afterMinutes: 480, gapMinutes: 480, source: 'user' }, { afterMinutes: 2400, gapMinutes: 480, source: 'user' }], 960),
   [{ afterMinutes: 480, gapMinutes: 480, source: 'user' }]);
 eq('T4 klip raakt importgat niet', clipUserGapsToWork(BEYOND, 960), BEYOND);
+
+// ── T5: datum → positie op de werk-as (etappe 2, het splitsgebaar) ───────────
+// Dag-kalender ma–vr 8u zonder `workTime` — zelfde vorm als `check-split-walk.ts`s `DAY_CAL`
+// (dwingt het `addWorkingDaysSigned`/`workDaysBetween`-pad af).
+const T5_DAY_CAL: WorkCalendar = {
+  id: 'cal-day-split-edit', name: 'dag', description: '', workDays: [1, 2, 3, 4, 5],
+  workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+};
+const t5Eng = new CalendarEngine(T5_DAY_CAL);
+const T5_HOUR_CAL: WorkCalendar = {
+  ...T5_DAY_CAL, id: 'cal-hour-split-edit', name: 'uur',
+  workTime: { byWeekday: {
+    1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }], 3: [{ start: 480, end: 960 }],
+    4: [{ start: 480, end: 960 }], 5: [{ start: 480, end: 960 }], 6: [], 7: [],
+  } },
+};
+const t5HourEng = new CalendarEngine(T5_HOUR_CAL);
+
+const t5Start = parseDate('2026-06-01');            // maandag
+const t5Ten = toSplitPieces(undefined, 4800)!;      // 10 werkdagen, geen gaten
+const offs = (at: string, pieces = t5Ten) => workOffsetAtDate(pieces, t5Start, parseDate(at), t5Eng, false);
+
+eq('T5 start zelf ⇒ 0', offs('2026-06-01'), { workMinutes: 0, inGap: false });
+eq('T5 woensdag ⇒ twee werkdagen', offs('2026-06-03'), { workMinutes: 960, inGap: false });
+eq('T5 zaterdag telt het weekend niet mee', offs('2026-06-06'), { workMinutes: 2400, inGap: false });
+eq('T5 vóór de taakstart ⇒ 0', offs('2026-05-28'), { workMinutes: 0, inGap: false });
+
+// Met een pauze van 5 werkdagen in het midden: [2400 werk][2400 pauze][2400 werk].
+const t5Split = splitAt(t5Ten, 2400, 2400, 480);
+ok('T5 fixture splitst', t5Split.ok);
+const t5Pieces = t5Split.ok ? t5Split.pieces : t5Ten;
+eq('T5 eerste pauzedag ⇒ inGap', offs('2026-06-08', t5Pieces), { workMinutes: 2400, inGap: true });
+eq('T5 midden in de pauze ⇒ inGap', offs('2026-06-10', t5Pieces), { workMinutes: 2400, inGap: true });
+eq('T5 eerste werkdag ná de pauze', offs('2026-06-15', t5Pieces), { workMinutes: 2400, inGap: false });
+eq('T5 tweede werkdag ná de pauze', offs('2026-06-16', t5Pieces), { workMinutes: 2880, inGap: false });
+eq('T5 voorbij het taakeinde klemt op het werktotaal', offs('2026-08-01', t5Pieces), { workMinutes: 4800, inGap: false });
+
+// Uur-modus: de as is de werkminutenafstand, niet het aantal dagen.
+eq('T5 uur-modus middaginstant', workOffsetAtDate(toSplitPieces(undefined, 2400)!, parseInstant('2026-06-01T08:00'),
+  parseInstant('2026-06-01T12:00'), t5HourEng, true), { workMinutes: 240, inGap: false });
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  split-edit: alle checks groen (${checks})`); process.exit(0); }
