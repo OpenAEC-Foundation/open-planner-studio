@@ -549,5 +549,11 @@
     "edit": "Edit external relationship…",
     "refreshSource": "Refresh source",
     "deleteRelation": "Delete relationship"
+  },
+  "split": {
+    "gapDays_one": "{{count}} workday break",
+    "gapDays_other": "{{count}} workdays break",
+    "gapHours_one": "{{count}} hour break",
+    "gapHours_other": "{{count}} hours break"
   }
 }

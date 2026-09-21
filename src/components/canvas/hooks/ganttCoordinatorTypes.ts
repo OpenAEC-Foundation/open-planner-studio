@@ -26,6 +26,8 @@ import type { DragState } from './useBarDrag';
 import type { PanState } from './usePan';
 import type { BoxSelectCandidate, BoxSelectState } from './useBoxSelect';
 import type { DependencyDragState } from './useDependencyDraw';
+import type { SplitGestureState } from './useSplitGesture';
+import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 
 /** DOM-eigendom van de viewportlaag; renderer- en pointerlagen lenen exact deze refs. */
 export interface GanttViewportRefs {
@@ -155,13 +157,15 @@ export interface GanttRelationPopoverState {
   y: number;
 }
 
-/** De vier tijdlijngebaren blijven eigenaar van hun eigen state en windowlisteners. */
+/** De vijf tijdlijngebaren blijven eigenaar van hun eigen state en windowlisteners. */
 export interface GanttGestureOverlays {
   barDrag: DragState | null;
   pan: PanState | null;
   boxSelectCandidate: BoxSelectCandidate | null;
   boxSelect: BoxSelectState | null;
   dependency: DependencyDragState | null;
+  /** Issue #146: de geleidelijn van de splits-modus — ook bij hover, dus zonder lopend gebaar. */
+  split: SplitGestureState | null;
 }
 
 /**
@@ -183,6 +187,8 @@ export interface GanttPointerCoordinatorInput {
   selectedTaskIds: string[];
   headerHeight: number;
   dependencyMode: boolean;
+  /** Issue #146: splits-modus (`ui.showSplitMode`). Sluit `dependencyMode` uit — `setUI` bewaakt dat. */
+  splitMode: boolean;
   scrollMode: ScrollMode;
   enableQuarterHourZoom: boolean;
   enableHourPlanning: boolean;
@@ -191,6 +197,10 @@ export interface GanttPointerCoordinatorInput {
   selectTasks: (ids: string[], additive: boolean) => void;
   deselectAll: () => void;
   updateTask: (id: string, updates: Partial<Task>, options?: { coalesceKey?: string }) => void;
+  /** Issue #146: de ENE schrijfweg voor gebruikerssplits (`taskSlice.setTaskSplits`). */
+  setTaskSplits: (taskId: string, pieces: SplitPiece[] | null, options?: { coalesceKey?: string }) => unknown;
+  /** Esc midden in een splitsgebaar draait de lopende coalesce-stap terug. */
+  undo: () => void;
   setScroll: (x: number, y: number) => void;
   openTask: (id: string) => void;
   clearHistogramTooltip: () => void;

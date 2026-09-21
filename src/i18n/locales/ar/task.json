@@ -533,5 +533,19 @@
     "edit": "تحرير العلاقة الخارجية…",
     "refreshSource": "تحديث المصدر",
     "deleteRelation": "حذف العلاقة"
+  },
+  "split": {
+    "gapDays_zero": "بدون توقف",
+    "gapDays_one": "توقف يوم عمل واحد",
+    "gapDays_two": "توقف يومَي عمل",
+    "gapDays_few": "توقف {{count}} أيام عمل",
+    "gapDays_many": "توقف {{count}} يوم عمل",
+    "gapDays_other": "توقف {{count}} من أيام العمل",
+    "gapHours_zero": "بدون توقف",
+    "gapHours_one": "توقف ساعة واحدة",
+    "gapHours_two": "توقف ساعتين",
+    "gapHours_few": "توقف {{count}} ساعات",
+    "gapHours_many": "توقف {{count}} ساعة",
+    "gapHours_other": "توقف {{count}} من الساعات"
   }
 }

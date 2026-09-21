@@ -549,5 +549,11 @@
     "edit": "Externe relatie bewerken…",
     "refreshSource": "Bron vernieuwen",
     "deleteRelation": "Relatie verwijderen"
+  },
+  "split": {
+    "gapDays_one": "{{count}} werkdag pauze",
+    "gapDays_other": "{{count}} werkdagen pauze",
+    "gapHours_one": "{{count}} uur pauze",
+    "gapHours_other": "{{count}} uur pauze"
   }
 }

@@ -444,5 +444,9 @@
     "edit": "외부 관계 편집…",
     "refreshSource": "소스 새로 고침",
     "deleteRelation": "관계 삭제"
+  },
+  "split": {
+    "gapDays_other": "{{count}} 근무일 중단",
+    "gapHours_other": "{{count}}시간 중단"
   }
 }

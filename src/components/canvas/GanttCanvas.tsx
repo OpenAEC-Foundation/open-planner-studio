@@ -111,6 +111,11 @@ export function GanttCanvas({
   // een balk hetzelfde dependency-tekenen als shift+slepen. Dit is de ENIGE lezer die gedrag
   // stuurt; vóór deze fix werd de vlag alleen geschreven (dode modus, knop deed niets zichtbaars).
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
+  // Issue #146: de splits-modus werkt precies zo — staat hij aan, dan knipt een mousedown op een
+  // balk de taak op de aangeklikte dag. Wederzijds uitsluitend met de relatiemodus (zie `setUI`).
+  const splitMode = useAppStore(s => s.ui.showSplitMode);
+  const setTaskSplits = useAppStore(s => s.setTaskSplits);
+  const undo = useAppStore(s => s.undo);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
   // Fase 2.10 golf 2 (contextmenu's): golf-1-helpers + bestaande taak-acties die het contextmenu
@@ -413,6 +418,7 @@ export function GanttCanvas({
     selectedTaskIds,
     headerHeight,
     dependencyMode,
+    splitMode,
     scrollMode,
     enableQuarterHourZoom,
     enableHourPlanning,
@@ -421,6 +427,8 @@ export function GanttCanvas({
     selectTasks,
     deselectAll,
     updateTask,
+    setTaskSplits,
+    undo,
     setScroll,
     openTask,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
@@ -647,6 +655,7 @@ export function GanttCanvas({
 
   const { contextMenu, relationPopover, tooltip } = pointer;
   const boxSelectState = pointer.overlays.boxSelect;
+  const splitOverlay = pointer.overlays.split;
 
   const histogramPortal = histogramHost
     ? createPortal(showHistogram ? (
@@ -806,6 +815,28 @@ export function GanttCanvas({
             </div>
           );
         })()}
+
+        {/* Splits-modus (issue #146): het LABEL bij de geleidelijn staat bewust in de DOM en niet op
+            het canvas — zo volgt het de zes tekstrollen en de tekengrootte-instelling vanzelf. De
+            lijn zelf tekent `useSplitGesture` op de overlaylaag. Zolang er niet gesleept is toont
+            het de gesnapte datum; tijdens het gebaar de lengte van de pauze. */}
+        {splitOverlay && (
+          <div
+            data-testid="split-mode-label"
+            className="absolute text-small leading-4 px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap"
+            style={{
+              left: Math.max(splitOverlay.anchorX, splitOverlay.currentX) + 6,
+              top: splitOverlay.top - 18,
+              background: 'var(--theme-accent)',
+              color: 'var(--theme-accent-contrast, #fff)',
+              zIndex: 3,
+            }}
+          >
+            {splitOverlay.gapUnits > 0
+              ? tTask(splitOverlay.hourMode ? 'split.gapHours' : 'split.gapDays', { count: splitOverlay.gapUnits })
+              : splitOverlay.atIso}
+          </div>
+        )}
 
         {/* Tooltip — issue #58: HoverTooltip houdt de doos binnen het venster. Issue #65: de
             content zit sinds de extractie in TaskTooltipContent, gedeeld met de WBS-sprongknop

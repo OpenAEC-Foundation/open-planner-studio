@@ -461,5 +461,11 @@
     "edit": "Externe Beziehung bearbeiten…",
     "refreshSource": "Quelle aktualisieren",
     "deleteRelation": "Beziehung löschen"
+  },
+  "split": {
+    "gapDays_one": "{{count}} Arbeitstag Unterbrechung",
+    "gapDays_other": "{{count}} Arbeitstage Unterbrechung",
+    "gapHours_one": "{{count}} Stunde Unterbrechung",
+    "gapHours_other": "{{count}} Stunden Unterbrechung"
   }
 }

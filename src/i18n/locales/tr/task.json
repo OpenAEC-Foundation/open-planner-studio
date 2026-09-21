@@ -448,5 +448,11 @@
     "edit": "Dış ilişkiyi düzenle…",
     "refreshSource": "Kaynağı yenile",
     "deleteRelation": "İlişkiyi sil"
+  },
+  "split": {
+    "gapDays_one": "{{count}} iş günü kesinti",
+    "gapDays_other": "{{count}} iş günü kesinti",
+    "gapHours_one": "{{count}} saat kesinti",
+    "gapHours_other": "{{count}} saat kesinti"
   }
 }

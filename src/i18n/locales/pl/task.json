@@ -456,5 +456,15 @@
     "edit": "Edytuj relację zewnętrzną…",
     "refreshSource": "Odśwież źródło",
     "deleteRelation": "Usuń relację"
+  },
+  "split": {
+    "gapDays_one": "{{count}} dzień roboczy przerwy",
+    "gapDays_few": "{{count}} dni robocze przerwy",
+    "gapDays_many": "{{count}} dni roboczych przerwy",
+    "gapDays_other": "{{count}} dnia roboczego przerwy",
+    "gapHours_one": "{{count}} godzina przerwy",
+    "gapHours_few": "{{count}} godziny przerwy",
+    "gapHours_many": "{{count}} godzin przerwy",
+    "gapHours_other": "{{count}} godziny przerwy"
   }
 }

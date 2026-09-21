@@ -448,5 +448,11 @@
     "edit": "ویرایش رابطه خارجی…",
     "refreshSource": "به‌روزرسانی منبع",
     "deleteRelation": "حذف رابطه"
+  },
+  "split": {
+    "gapDays_one": "{{count}} روز کاری وقفه",
+    "gapDays_other": "{{count}} روز کاری وقفه",
+    "gapHours_one": "{{count}} ساعت وقفه",
+    "gapHours_other": "{{count}} ساعت وقفه"
   }
 }

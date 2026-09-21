@@ -444,5 +444,9 @@
     "edit": "编辑外部关系…",
     "refreshSource": "刷新源",
     "deleteRelation": "删除关系"
+  },
+  "split": {
+    "gapDays_other": "中断 {{count}} 个工作日",
+    "gapHours_other": "中断 {{count}} 小时"
   }
 }

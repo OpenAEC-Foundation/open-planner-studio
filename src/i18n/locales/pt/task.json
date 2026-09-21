@@ -452,5 +452,13 @@
     "edit": "Editar relação externa…",
     "refreshSource": "Atualizar origem",
     "deleteRelation": "Eliminar relação"
+  },
+  "split": {
+    "gapDays_one": "{{count}} dia útil de pausa",
+    "gapDays_many": "{{count}} dias úteis de pausa",
+    "gapDays_other": "{{count}} dias úteis de pausa",
+    "gapHours_one": "{{count}} hora de pausa",
+    "gapHours_many": "{{count}} horas de pausa",
+    "gapHours_other": "{{count}} horas de pausa"
   }
 }

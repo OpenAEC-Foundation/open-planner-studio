@@ -5,6 +5,10 @@ import { useBarDrag } from './useBarDrag';
 import { usePan } from './usePan';
 import { useBoxSelect } from './useBoxSelect';
 import { useDependencyDraw } from './useDependencyDraw';
+import { useSplitGesture } from './useSplitGesture';
+import { canSplitTask } from '@/engine/scheduler/splitEdit';
+import { isSummaryTask } from '@/engine/scheduler/relationRules';
+import type { Task } from '@/types/task';
 import type {
   GanttContextMenuState,
   GanttPointerCoordinatorInput,
@@ -30,6 +34,7 @@ export function useGanttPointerCoordinator(
     selectedTaskIds,
     headerHeight,
     dependencyMode,
+    splitMode,
     scrollMode,
     enableQuarterHourZoom,
     enableHourPlanning,
@@ -38,6 +43,8 @@ export function useGanttPointerCoordinator(
     selectTasks,
     deselectAll,
     updateTask,
+    setTaskSplits,
+    undo,
     setScroll,
     openTask,
     clearHistogramTooltip,
@@ -97,6 +104,33 @@ export function useGanttPointerCoordinator(
     axis: viewport.sharedAxis,
     canvasRef,
   });
+  // Issue #146: het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
+  // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-
+  // effectlaag is die van het gebaar dat werkelijk aan kan staan.
+  const splitGesture = useSplitGesture({
+    canvasRef,
+    containerRef,
+    overlayCanvasRef: host.dependencyCanvasRef,
+    rendererRef,
+    axis: viewport.sharedAxis,
+    calendar,
+    effectiveCalById: effectiveCalendarByTaskId,
+    zoom: view.zoom,
+    enableQuarterHourZoom,
+    enableHourPlanning,
+    getTask,
+    setTaskSplits,
+    undo,
+  });
+
+  /** `null` = splitsbaar. De uren-per-dag komen uit dezelfde effectieve taakkalender die de
+   *  renderer en `setTaskSplits` gebruiken, zodat de cursor niet iets anders belooft dan de store
+   *  toestaat. */
+  const splitRefusalFor = useCallback((task: Task) => {
+    const hoursPerDay = (effectiveCalendarByTaskId.get(task.id) ?? calendar).hoursPerDay;
+    return canSplitTask(task, hoursPerDay, isSummaryTask(task));
+  }, [effectiveCalendarByTaskId, calendar]);
+
   const onRelationDrawn = useCallback((sourceTaskId: string, targetTaskId: string, x: number, y: number) => {
     setRelationPopover({ sourceTaskId, targetTaskId, x, y });
   }, []);
@@ -183,7 +217,8 @@ export function useGanttPointerCoordinator(
   /*
    * De karakteriseringsmatrix bewaakt deze ene volgorde:
    * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 header stopt; 4 relatie wint
-   * van balkdrag; 5 Ctrl/Cmd-balk blijft selectie; 6 balkbody/rand sleept; 7 drag-achtergrond pant;
+   * van balkdrag; 4b splits-modus kaapt de balk (issue #146) en valt nooit door naar de balkdrag;
+   * 5 Ctrl/Cmd-balk blijft selectie; 6 balkbody/rand sleept; 7 drag-achtergrond pant;
    * 8 iedere overige achtergrondroute start kaderselectie.
    */
   const onMouseDown = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
@@ -193,7 +228,7 @@ export function useGanttPointerCoordinator(
     // 1–2. Middelklik pant alleen wanneer geen enkel ander gebaar actief is.
     if (event.button === 1) {
       event.preventDefault();
-      if (barDrag.active || dependencyDraw.active || boxSelect.active || pan.active) return;
+      if (barDrag.active || dependencyDraw.active || splitGesture.active || boxSelect.active || pan.active) return;
       beginPan(event, 1);
       return;
     }
@@ -226,6 +261,21 @@ export function useGanttPointerCoordinator(
     }
 
     const hit = renderer.getTaskBarBounds(x, y);
+
+    // 4b. Splits-modus kaapt de balk vóór elk sleepgebaar (issue #146). Is de taak niet splitsbaar
+    // (mijlpaal, verzameltaak, te kort, …) of valt de klik in een bestaande pauze, dan gebeurt er
+    // niets: de verbodscursor heeft dat al gezegd. Nooit doorvallen naar de balksleep — in deze
+    // modus mag een klik op een balk geen datum verzetten.
+    if (splitMode && hit) {
+      if (splitRefusalFor(hit.task) === null) {
+        event.preventDefault();
+        if (splitGesture.startSplitGesture({ taskId: hit.task.id, startClientX: event.clientX })) {
+          selectTask(hit.task.id, false);
+        }
+      }
+      return;
+    }
+
     if (hit) {
       // 5. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
       if (event.ctrlKey || event.metaKey) {
@@ -257,10 +307,10 @@ export function useGanttPointerCoordinator(
     // 8. Iedere overige achtergrondroute start boxselectie.
     event.preventDefault();
     boxSelect.startBoxSelect({ startClientX: event.clientX, startClientY: event.clientY });
-  }, [barDrag, dependencyDraw, boxSelect, pan.active, beginPan, canvasRef, rendererRef, headerHeight, dependencyMode, selectTask, scrollMode]);
+  }, [barDrag, dependencyDraw, splitGesture, boxSelect, pan.active, beginPan, canvasRef, rendererRef, headerHeight, dependencyMode, splitMode, splitRefusalFor, selectTask, scrollMode]);
 
   const onMouseMove = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (barDrag.active || dependencyDraw.active || pan.active || boxSelect.active || contextMenu) {
+    if (barDrag.active || dependencyDraw.active || splitGesture.active || pan.active || boxSelect.active || contextMenu) {
       setTooltip(null);
       return;
     }
@@ -276,6 +326,17 @@ export function useGanttPointerCoordinator(
       return;
     }
     const hit = renderer.getTaskBarBounds(x, y);
+    // In de splits-modus staat de gewone taak-tooltip uit: de geleidelijn met datum IS de
+    // terugkoppeling, en twee zwevende doosjes boven elkaar leest niemand.
+    if (splitMode) {
+      setTooltip(null);
+      if (!hit) { splitGesture.clearHover(); setHoverCursor('default'); return; }
+      const splittable = splitRefusalFor(hit.task) === null;
+      setHoverCursor(splittable ? 'col-resize' : 'not-allowed');
+      if (splittable) splitGesture.updateHover(event.clientX, event.clientY);
+      else splitGesture.clearHover();
+      return;
+    }
     if (hit) {
       if (event.shiftKey || dependencyMode) setHoverCursor('crosshair');
       else if (hit.edge === 'left' || hit.edge === 'right') setHoverCursor('ew-resize');
@@ -294,16 +355,21 @@ export function useGanttPointerCoordinator(
       return;
     }
     setHoverCursor('default');
-  }, [barDrag.active, dependencyDraw.active, pan.active, boxSelect.active, contextMenu, canvasRef, rendererRef, headerHeight, dependencyMode, scrollMode]);
+  }, [barDrag.active, dependencyDraw.active, splitGesture, pan.active, boxSelect.active, contextMenu, canvasRef, rendererRef, headerHeight, dependencyMode, splitMode, splitRefusalFor, scrollMode]);
 
-  const onMouseLeave = useCallback(() => setTooltip(null), []);
+  const onMouseLeave = useCallback(() => {
+    setTooltip(null);
+    splitGesture.clearHover();
+  }, [splitGesture]);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
 
   const cursor = pan.panState
       ? 'grabbing'
+      : splitGesture.active
+        ? 'col-resize'
       : barDrag.dragState
-        ? (barDrag.dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
+          ? (barDrag.dragState.edge === 'body' ? 'grabbing' : 'ew-resize')
         : dependencyDraw.active
           ? 'crosshair'
           : boxSelect.boxSelectState
@@ -326,6 +392,7 @@ export function useGanttPointerCoordinator(
       boxSelectCandidate: boxSelect.boxSelectCandidate,
       boxSelect: boxSelect.boxSelectState,
       dependency: dependencyDraw.depDragState,
+      split: splitGesture.gestureState,
     },
     contextMenu,
     relationPopover,

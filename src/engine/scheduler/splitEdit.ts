@@ -109,6 +109,24 @@ export function splitAt(pieces: readonly SplitPiece[], workOffsetMinutes: number
 }
 
 /**
+ * Half-open werkafstand tussen twee momenten, op de H1-as (waar een pauze gewoon werktijd
+ * VERBRUIKT — deze functie kent de stukken niet). Half-open = de einddag telt zelf niet mee, zodat
+ * "van maandag tot woensdag" twee werkdagen is: dezelfde telling als `addWorkingDaysSigned`, en
+ * daarmee als `splitWalk`. `workDaysBetween` is inclusief, dus de einddag gaat er weer af wanneer
+ * die zelf een werkdag is. Gebruikt door `workOffsetAtDate` én door het splitsgebaar, dat hiermee
+ * de LENGTE van de gesleepte pauze meet — die twee mogen nooit uit elkaar lopen.
+ */
+export function workAxisMinutesBetween(from: Date, to: Date, eng: CalendarEngine, hourMode: boolean): number {
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
+  if (hourMode) return to.getTime() <= from.getTime() ? 0 : eng.workMinutesBetween(from, to);
+  const a = parseDate(formatDate(from));
+  const b = parseDate(formatDate(to));
+  if (b.getTime() <= a.getTime()) return 0;
+  const days = Math.max(0, eng.workDaysBetween(a, b) - (eng.isWorkDay(b) ? 1 : 0));
+  return days * Math.max(1, eng.hoursPerDay * 60);
+}
+
+/**
  * Datum → positie op de WERK-as van de taak (etappe 2, het splitsgebaar). De Gantt kent alleen een
  * gesnapte datum onder de muis; `splitAt` wil een werkminuten-offset zonder de pauzes. Deze functie
  * is de brug: eerst de as-afstand vanaf de taakstart (de H1-as, waar een pauze wél meetelt), dan die
@@ -132,16 +150,7 @@ export function workOffsetAtDate(
 ): { workMinutes: number; inGap: boolean } {
   const total = totalWork(pieces);
   if (Number.isNaN(taskStart.getTime()) || Number.isNaN(at.getTime())) return { workMinutes: 0, inGap: false };
-  let axis: number;
-  if (hourMode) {
-    axis = at.getTime() <= taskStart.getTime() ? 0 : eng.workMinutesBetween(taskStart, at);
-  } else {
-    const from = parseDate(formatDate(taskStart));
-    const to = parseDate(formatDate(at));
-    const days = to.getTime() <= from.getTime() ? 0
-      : Math.max(0, eng.workDaysBetween(from, to) - (eng.isWorkDay(to) ? 1 : 0));
-    axis = days * Math.max(1, eng.hoursPerDay * 60);
-  }
+  const axis = workAxisMinutesBetween(taskStart, at, eng, hourMode);
   let work = 0;
   let rest = axis;
   for (const p of pieces) {
