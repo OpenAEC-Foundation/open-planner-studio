@@ -9,6 +9,7 @@ import {
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
+import { useDisplayDate } from '@/hooks/displayDate';
 import { useTranslation } from 'react-i18next';
 import type { HistogramSeries, HistogramPickerItem } from '@/engine/renderer/HistogramRenderer';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
@@ -89,6 +90,7 @@ export function GanttCanvas({
   const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const { t: tMenu } = useTranslation('menu');
+  const displayDateFormat = useDisplayDate();
   const { labels: taskTypeLabels } = useTaskTypeLabels();
 
   const tasks = useAppStore(s => s.tasks);
@@ -834,7 +836,7 @@ export function GanttCanvas({
           >
             {splitOverlay.gapUnits > 0
               ? tTask(splitOverlay.hourMode ? 'split.gapHours' : 'split.gapDays', { count: splitOverlay.gapUnits })
-              : splitOverlay.atIso}
+              : (splitOverlay.hourMode ? displayDateFormat.dateTime(splitOverlay.atIso) : displayDateFormat.date(splitOverlay.atIso))}
           </div>
         )}
 
