@@ -7,7 +7,12 @@
 // model niet dragen zonder data te vernietigen; `toSplitPieces` geeft dan `null` en de aanroeper
 // behandelt de taak als alleen-lezen. Er wordt NOOIT stil genormaliseerd.
 import type { Task, TaskSplitGap } from '@/types/task';
-import { durationMinutesOf, taskDurationUnit, type DurationCalendar } from './duration';
+import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
+import {
+  durationMinutesOf, splitTotalSpanDays, splitTotalSpanMinutes, taskDurationUnit,
+  type DurationCalendar,
+} from './duration';
+import type { CalendarEngine } from './CalendarEngine';
 
 export type SplitPiece =
   | { kind: 'work'; minutes: number }
@@ -166,6 +171,36 @@ export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
     : task.time.remainingTime !== undefined ? task.time.remainingTime * hoursPerDay * 60 : undefined;
   if (remaining !== undefined && Number.isFinite(remaining)) return Math.min(total, Math.max(0, total - remaining));
   return Math.min(total, Math.max(0, (task.time.completion || 0) * total));
+}
+
+/**
+ * De VOORLOPIGE `scheduleFinish` na een splitbewerking: taakstart ⊕ de volledige spanne (werk én
+ * pauzes), gerekend met dezelfde `splitTotalSpan*`-wandeling als de solver. Spec §2 stap 7 — de
+ * balk moet meteen meegroeien; de échte datums komen bij de eerstvolgende `runCPM`, net als bij
+ * elke andere duurwijziging.
+ *
+ * De SCHRIJFWIJZE volgt die van de bestaande `scheduleStart`: een dag-taak op een dag-kalender
+ * blijft `YYYY-MM-DD`, een taak die in instants is opgeslagen blijft dat. Voor een dag-taak op een
+ * kalender MÉT banden zet de solver de finish op het LAATSTE band-eind van de laatste werkdag
+ * (`addDurationChecked`s `dayLastBandEnd`); dat wordt hier gespiegeld via `effectiveBandsOn`, zodat
+ * de voorlopige waarde niet een halve dag van de echte afwijkt.
+ */
+export function splitScheduleFinish(task: Task, eng: CalendarEngine): string {
+  const startStr = task.time.scheduleStart;
+  const hasTime = startStr.includes('T');
+  const start = hasTime ? parseInstant(startStr) : parseDate(startStr);
+  if (Number.isNaN(start.getTime())) return task.time.scheduleFinish; // corrupte invoer: niets verzinnen
+  if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
+    const minutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
+    return formatInstant(eng.addWorkMinutes(start, minutes), 'hour');
+  }
+  const totalDays = splitTotalSpanDays(task, eng);
+  const lastDay = eng.addWorkDays(hasTime ? parseDate(formatDate(start)) : start, totalDays);
+  if (!hasTime) return formatDate(lastDay);
+  const bands = eng.effectiveBandsOn(lastDay);
+  const finish = new Date(lastDay.getTime());
+  if (bands.length > 0) finish.setUTCMinutes(bands[bands.length - 1].end);
+  return formatInstant(finish, 'hour');
 }
 
 /** Na een duurkrimp buiten `setTaskSplits` om: gebruikersgaten die op of voorbij het nieuwe
