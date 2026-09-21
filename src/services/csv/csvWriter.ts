@@ -4,6 +4,7 @@ import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import type { CustomTaskType } from '@/types/taskType';
+import { flattenOrder, outlineDepths } from '@/utils/wbs';
 
 const DELIMITER = ';';
 const BOM = '\uFEFF';
@@ -95,7 +96,11 @@ export function writeCSV(
     // constructie (mapColumnIndex negeert onbekende koppen), niet iets om later "voor de
     // volledigheid" alsnog te laten adopteren.
     'OPS Task ID',
-    'WBS', 'Name', 'Duration (days)', 'Start', 'Finish',
+    // Issue #159: 'Outline Level' (1 = hoofdniveau) uit de echte ouderketen, in MS-Project-termen.
+    // Een WBS-code is vrije tekst (IFC-`Identification`) en zegt niets over de nesting; met deze
+    // kolom kan MS Project's CSV-import (veld "Outline Level") én `readCSV` de boom exact herbouwen.
+    // Rijvolgorde is daarom diepte-eerst (`flattenOrder`), zoals het taakraster hem toont.
+    'WBS', 'Outline Level', 'Name', 'Duration (days)', 'Start', 'Finish',
     'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
     // Actuals (fase 2.6, §9.3): achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
     // een taak zonder actuals levert lege cellen. Geen baselines/statusdatum in CSV (bewust).
@@ -106,13 +111,15 @@ export function writeCSV(
   const rows: string[] = [];
   rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
 
-  for (const task of tasks) {
+  const depthById = outlineDepths(tasks);
+  for (const task of flattenOrder(tasks)) {
     const predecessors = predMap.get(task.id)?.join(', ') || '';
     const completion = formatCompletionPercent(task.time.completion);
 
     const row = [
       escapeCSV(task.id),
       escapeCSV(task.wbsCode),
+      String(depthById.get(task.id) ?? 1),
       escapeCSV(task.name),
       task.time.scheduleDuration.toString(),
       task.time.earlyStart || task.time.scheduleStart,

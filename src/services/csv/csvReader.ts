@@ -4,13 +4,15 @@ import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildOutlineHierarchy, rebuildWbsHierarchy } from '@/services/importNormalize';
 import { csvDateOrToday } from '@/services/importDates';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
 
 interface ParsedRow {
   wbs: string;
+  /** Issue #159: 'Outline Level'-kolom (1 = hoofdniveau); undefined als de kolom ontbreekt. */
+  outlineLevel?: number;
   name: string;
   duration: number;
   start: string;
@@ -145,6 +147,7 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
   const map: Record<string, number> = {};
   const aliases: Record<string, string[]> = {
     wbs: ['wbs', 'wbs code', 'wbscode', 'outline'],
+    outlineLevel: ['outline level', 'outlinelevel', 'niveau'],
     name: ['name', 'task name', 'activity', 'taak', 'naam'],
     duration: ['duration', 'duration (days)', 'duur', 'days'],
     start: ['start', 'start date', 'begin', 'startdatum'],
@@ -202,8 +205,10 @@ export function readCSV(content: string): ImportResult {
     const actualStartRaw = get('actualStart').trim();
     const actualFinishRaw = get('actualFinish').trim();
 
+    const outlineLevelRaw = get('outlineLevel').trim();
     rows.push({
       wbs: get('wbs'),
+      ...(outlineLevelRaw ? { outlineLevel: parseInt(outlineLevelRaw, 10) } : {}),
       name: get('name', 'Task'),
       duration: parseFloat(get('duration', '5')) || 5,
       start: parseDate(get('start')),
@@ -306,8 +311,10 @@ export function readCSV(content: string): ImportResult {
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6). CSV kent geen statusdatum.
   normalizeImportedProgress(tasks, undefined);
 
-  // Parent-child-hiërarchie uit gepunte WBS-codes (gedeeld met MSPDI, F5-f).
-  rebuildWbsHierarchy(tasks);
+  // Parent-child-hiërarchie (issue #159): primair uit de 'Outline Level'-kolom + rijvolgorde (zoals
+  // MS Project's CSV-import); zonder die kolom (of met een gat erin) uit gepunte WBS-codes (gedeeld
+  // met MSPDI, F5-f).
+  if (!rebuildOutlineHierarchy(tasks, rows.map(r => r.outlineLevel))) rebuildWbsHierarchy(tasks);
 
   // Parse predecessors into sequences
   const sequences: Sequence[] = [];

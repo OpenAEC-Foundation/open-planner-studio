@@ -15,6 +15,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
 import { contourPeriodsToDayItems, minutesToMspdiValue } from '@/services/contourIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
+import { flattenOrder, outlineDepths } from '@/utils/wbs';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -135,11 +136,6 @@ function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFo
   return { linkLag: lagToTenthsOfMinutes(seq.lagDays, hoursPerDay), lagFormat: 7 };
 }
 
-function getOutlineLevel(wbs: string): number {
-  if (!wbs) return 1;
-  return wbs.split('.').length;
-}
-
 /** Schrijft één `<Calendar>`-blok (WeekDays + Exceptions) — hergebruikt voor de
  *  projectkalender (UID 1, `IsBaseCalendar`) én voor resource-kalenders (fase 2.5, §8.2). */
 function writeCalendarBlock(
@@ -255,6 +251,16 @@ export function writeMSPDI(
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
+
+  // Issue #159: MS Project reconstrueert de hiërarchie uit `<OutlineLevel>` + DOCUMENTVOLGORDE — het
+  // `<WBS>`-veld is daarbij alleen tekst. Beide moeten dus uit de echte boom komen: diepte-eerst
+  // geordend (ouders vóór hun kinderen, exact zoals het taakraster flattent) en het niveau uit de
+  // ouderketen. Voorheen kwam het niveau uit `wbsCode.split('.').length` en de volgorde uit de store:
+  // een IFC-import draagt de vrije `IfcTask.Identification` als code (hernummeren gebeurt niet bij
+  // laden) en kan "samenvattingen eerst, dan bladen" geordend zijn — dan belandden alle bladen onder
+  // de laatste samenvatting, of werd de boom vlak. De UID-toekenning hieronder volgt deze volgorde.
+  tasks = [...flattenOrder(tasks)];
+  const depthById = outlineDepths(tasks);
 
   // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in MSPDI niet uitdrukbaar buiten de
   // master/subproject-context ⇒ weggelaten (ghost-weergave blijft in-app). Één warn.
@@ -451,16 +457,23 @@ export function writeMSPDI(
     const task = tasks[i];
     const uid = i + 1;
     const isSummary = task.childIds.length > 0;
-    const isMilestone = task.isMilestone || task.time.scheduleDuration === 0;
+    // Issue #159: een samenvattingstaak is nooit een mijlpaal, ook niet met duur 0 (een bestand van
+    // vóór #145, of een IFC met `$`-duur op de samenvatting). MS Project rekent haar duur uit de
+    // kinderen; `Milestone=1` maakte er anders een ruit van zonder duur.
+    const isMilestone = !isSummary && (task.isMilestone || task.time.scheduleDuration === 0);
 
-    // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ het
-    // bestaande `PT{dagen×hpd}H0M0S`-pad (byte-identiek).
+    // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒
+    // `PT{dagen×hpd}H0M0S`. De hpd is die van de EFFECTIEVE (taak-)kalender, niet de projectkalender
+    // (issue #159): een OPS-dagduur is N werkdagen van de kalender waarin de taak rekent, en MS Project
+    // plant de uren op diezelfde taakkalender. `readMSPDI` deelt bij het teruglezen ook door `effHpd`
+    // — met de projectkalender kwam een 7-daagse taak op een 24/7-kalender (8u-project) als `PT56H`
+    // terug als 2,33 dagen, en plande MS Project haar op 56 klokuren in plaats van 7 etmalen.
     const effCal = effCalByTask.get(task.id);
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
     const isHourTask = taskDurationUnitForIo(task) === 'hours';
     const durationTag = isHourTask
       ? minutesToIsoDuration(taskMinutesForWrite(task, effHpd))
-      : durationToISO8601(task.time.scheduleDuration, calendar.hoursPerDay);
+      : durationToISO8601(task.time.scheduleDuration, effHpd);
     const durationFormat = isHourTask
       ? (task.time.durationType === 'ELAPSEDTIME' ? 6 : 5)
       : (task.time.durationType === 'ELAPSEDTIME' ? 8 : 7);
@@ -474,7 +487,7 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
     lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
-    lines.push(`${indent(3)}<OutlineLevel>${getOutlineLevel(task.wbsCode)}</OutlineLevel>`);
+    lines.push(`${indent(3)}<OutlineLevel>${depthById.get(task.id) ?? 1}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
     // T14b-vervolg (spec-review-bevinding): `completion` ongeguard vermenigvuldigen gaf `NaN` in de
@@ -492,7 +505,7 @@ export function writeMSPDI(
     if (isHourTask && task.time.remainingMinutes != null) {
       lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(task.time.remainingMinutes)}</RemainingDuration>`);
     } else if (task.time.remainingTime != null) {
-      lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
+      lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, effHpd)}</RemainingDuration>`);
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);

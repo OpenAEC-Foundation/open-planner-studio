@@ -121,3 +121,20 @@ export function applyWbsNumbering(tasks: Task[]): void {
     if (code !== undefined && code !== view[i].wbsCode) tasks[i].wbsCode = code;
   }
 }
+
+/**
+ * Diepte per taak in de WBS-boom (1 = hoofdniveau), afgeleid van de ECHTE ouderketen en niet van
+ * de `wbsCode`-tekst. Dat onderscheid is de kern van issue #159: een IFC-import neemt de code uit
+ * `IfcTask.Identification` over (vrije tekst, bv. `T107` of `1.0`), en `wbsAutoNumber` draait niet
+ * bij het laden — een `wbsCode.split('.').length` zegt daar niets over de nesting. Loopt in
+ * {@link flattenOrder}: ouders komen vóór hun kinderen, dus één pass volstaat; een wees telt als
+ * hoofdniveau, precies zoals `flattenOrder` hem ook als wortel achteraan zet.
+ */
+export function outlineDepths(tasks: readonly Task[]): Map<string, number> {
+  const depth = new Map<string, number>();
+  for (const t of flattenOrder(tasks)) {
+    const parentDepth = t.parentId ? depth.get(t.parentId) : undefined;
+    depth.set(t.id, parentDepth !== undefined ? parentDepth + 1 : 1);
+  }
+  return depth;
+}

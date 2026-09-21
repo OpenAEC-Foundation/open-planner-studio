@@ -42,7 +42,9 @@ geen van de drie externe formaten is een volledige spiegel van IFC.
 
 ### CSV
 
-De CSV-export bevat **alleen de takentabel**: WBS-code, naam, duur (dagen), start, einde,
+De CSV-export bevat **alleen de takentabel**: WBS-code, outline-niveau (1 = hoofdniveau, zodat een
+spreadsheet of de CSV-import van MS Project de nesting kan herbouwen — de WBS-code zelf is vrije
+tekst), naam, duur (dagen), start, einde,
 voorgangers (als tekstcode, bijvoorbeeld `2.1FS+3d`), taaktype, status, voltooiing (%), werkelijke
 start/einde, kritiek (ja/nee), totale speling en omschrijving. Er gaan bewust **geen resources,
 toewijzingen, kalenders of baselines** mee — CSV is puur een taken-tabel voor wie de planning in

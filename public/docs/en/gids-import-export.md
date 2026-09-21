@@ -42,7 +42,9 @@ the three external formats is a full mirror of IFC.
 
 ### CSV
 
-The CSV export contains **only the task table**: WBS code, name, duration (days), start, finish,
+The CSV export contains **only the task table**: WBS code, outline level (1 = top level, so a
+spreadsheet or MS Project's CSV import can rebuild the nesting — the WBS code itself is free text),
+name, duration (days), start, finish,
 predecessors (as a text code, e.g. `2.1FS+3d`), task type, status, completion (%), actual
 start/finish, critical (yes/no), total float and description. **Resources, assignments, calendars
 and baselines are deliberately left out** — CSV is purely a task table for anyone who wants to view

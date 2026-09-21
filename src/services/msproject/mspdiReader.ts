@@ -7,7 +7,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, parseDate, isoDayOfWeek } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildOutlineHierarchy, rebuildWbsHierarchy } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
@@ -371,6 +371,8 @@ export function readMSPDI(content: string): ImportResult {
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
+  // Issue #159: `<OutlineLevel>` per taak, parallel aan `tasks` (undefined = element ontbreekt).
+  const outlineLevels: (number | undefined)[] = [];
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
   // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
@@ -563,6 +565,7 @@ export function readMSPDI(content: string): ImportResult {
       ...(deadline ? { deadline } : {}),
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     });
+    outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
     taskHourById.set(id, isHour);
 
     // Parse predecessor links within task element
@@ -585,8 +588,11 @@ export function readMSPDI(content: string): ImportResult {
     }
   }
 
-  // Parent-child-hiërarchie uit gepunte WBS-codes (gedeeld met CSV, F5-f).
-  rebuildWbsHierarchy(tasks);
+  // Parent-child-hiërarchie (issue #159): primair uit `<OutlineLevel>` + documentvolgorde — dat is
+  // wat MS Project zelf bedoelt, en het enige dat klopt zodra `<WBS>` vrije tekst of een eigen
+  // masker is. Ontbreekt het niveau op één of meer taken (legacy/vreemd bestand), dan de gepunte
+  // WBS-afleiding (gedeeld met CSV, F5-f).
+  if (!rebuildOutlineHierarchy(tasks, outlineLevels)) rebuildWbsHierarchy(tasks);
 
   // Resolve sequences. LagFormat (subset van MSPDI DurationFormat): 19/20 = (elapsed) procent
   // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd

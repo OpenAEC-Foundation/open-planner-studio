@@ -78,3 +78,34 @@ export function rebuildWbsHierarchy(tasks: Task[]): void {
     }
   }
 }
+
+/**
+ * Herbouw de parent-child-hiërarchie uit OUTLINE-NIVEAUS in documentvolgorde (issue #159) — de
+ * MS-Project-semantiek: een taak hangt onder de dichtstbijzijnde VOORAFGAANDE taak met een lager
+ * niveau. Dat is wat MS Project zelf doet met `<OutlineLevel>` en wat een "Outline Level"-kolom in
+ * een CSV betekent; de gepunte-WBS-afleiding (`rebuildWbsHierarchy`) is daar alleen een benadering
+ * van die stukloopt zodra de WBS-code vrije tekst is (`T107`, `A-1`) of een eigen masker draagt.
+ *
+ * `levels[i]` hoort bij `tasks[i]`. Geeft `false` terug (en raakt niets aan) zodra één niveau
+ * ontbreekt of geen positief geheel getal is — de aanroeper valt dan terug op de WBS-afleiding.
+ * Een sprong van meer dan één niveau (1 → 3) is tolerant: de stack levert dan gewoon de laatste
+ * ondiepere taak als ouder, zoals MS Project dat ook oplost.
+ */
+export function rebuildOutlineHierarchy(tasks: Task[], levels: readonly (number | undefined)[]): boolean {
+  if (levels.length !== tasks.length) return false;
+  if (!levels.every(l => l !== undefined && Number.isInteger(l) && l >= 1)) return false;
+
+  const stack: { task: Task; level: number }[] = [];
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
+    const level = levels[i]!;
+    while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop();
+    const parent = stack[stack.length - 1]?.task;
+    if (parent) {
+      task.parentId = parent.id;
+      if (!parent.childIds.includes(task.id)) parent.childIds.push(task.id);
+    }
+    stack.push({ task, level });
+  }
+  return true;
+}
