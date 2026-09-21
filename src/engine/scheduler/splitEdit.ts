@@ -63,3 +63,72 @@ export function fromSplitPieces(pieces: readonly SplitPiece[], original?: readon
   }
   return { gaps, totalWorkMinutes: work };
 }
+
+export type SplitEditRefusal = 'position-out-of-range' | 'position-on-gap' | 'before-completed-work' | 'work-too-short' | 'index-out-of-range';
+export type SplitEditResult = { ok: true; pieces: SplitPiece[] } | { ok: false; reason: SplitEditRefusal };
+
+const snap = (minutes: number, unit: number): number => (unit > 0 ? Math.round(minutes / unit) * unit : minutes);
+const totalWork = (pieces: readonly SplitPiece[]): number => pieces.reduce((s, p) => (p.kind === 'work' ? s + p.minutes : s), 0);
+
+/** Werk- en pauze-indexen tellen los van elkaar (werkstuk 0,1,2… / pauze 0,1,2…). */
+function arrayIndexOf(pieces: readonly SplitPiece[], kind: SplitPiece['kind'], n: number): number {
+  let seen = -1;
+  for (let i = 0; i < pieces.length; i++) if (pieces[i].kind === kind && ++seen === n) return i;
+  return -1;
+}
+
+/** Splits op `workOffsetMinutes` (WERK-as, zonder pauzes). `minOffsetMinutes` = reeds voltooid werk. */
+export function splitAt(pieces: readonly SplitPiece[], workOffsetMinutes: number, gapMinutes: number, unitMinutes: number, minOffsetMinutes = 0): SplitEditResult {
+  const at = snap(workOffsetMinutes, unitMinutes);
+  if (!(at > EPS) || !(at < totalWork(pieces) - EPS)) return { ok: false, reason: 'position-out-of-range' };
+  if (at < minOffsetMinutes - EPS) return { ok: false, reason: 'before-completed-work' };
+  const gap = Math.max(unitMinutes, snap(gapMinutes, unitMinutes));
+  let before = 0;
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i];
+    if (p.kind !== 'work') continue;
+    const left = at - before;
+    const right = p.minutes - left;
+    if (left > EPS && right > EPS) {
+      if (left < unitMinutes - EPS || right < unitMinutes - EPS) return { ok: false, reason: 'work-too-short' };
+      return { ok: true, pieces: [...pieces.slice(0, i), { kind: 'work', minutes: left },
+        { kind: 'gap', minutes: gap, source: 'user' }, { kind: 'work', minutes: right }, ...pieces.slice(i + 1)] };
+    }
+    // De positie valt precies op de rand van dit werkstuk: dat is een BESTAANDE pauze (of de
+    // taakrand, die de bereikcontrole hierboven al ving) — nooit stil naar een buur verschuiven.
+    if (Math.abs(left) <= EPS || Math.abs(right) <= EPS) return { ok: false, reason: 'position-on-gap' };
+    before += p.minutes;
+  }
+  return { ok: false, reason: 'position-out-of-range' };
+}
+
+export function removeGap(pieces: readonly SplitPiece[], gapIndex: number): SplitEditResult {
+  const i = arrayIndexOf(pieces, 'gap', gapIndex);
+  if (i < 0) return { ok: false, reason: 'index-out-of-range' };
+  const merged: SplitPiece = { kind: 'work', minutes: pieces[i - 1].minutes + pieces[i + 1].minutes };
+  return { ok: true, pieces: [...pieces.slice(0, i - 1), merged, ...pieces.slice(i + 2)] };
+}
+
+export function setGapLength(pieces: readonly SplitPiece[], gapIndex: number, minutes: number, unitMinutes: number): SplitEditResult {
+  const i = arrayIndexOf(pieces, 'gap', gapIndex);
+  if (i < 0) return { ok: false, reason: 'index-out-of-range' };
+  const next = snap(minutes, unitMinutes);
+  if (!(next > EPS)) return removeGap(pieces, gapIndex);
+  return { ok: true, pieces: pieces.map((p, k) => (k === i ? { kind: 'gap', minutes: next, source: 'user' } : p)) };
+}
+
+export function setWorkLength(pieces: readonly SplitPiece[], workIndex: number, minutes: number, unitMinutes: number): SplitEditResult {
+  const i = arrayIndexOf(pieces, 'work', workIndex);
+  if (i < 0) return { ok: false, reason: 'index-out-of-range' };
+  const next = Math.max(unitMinutes, snap(minutes, unitMinutes));
+  return { ok: true, pieces: pieces.map((p, k) => (k === i ? { kind: 'work', minutes: next } : p)) };
+}
+
+export function removeAllGaps(pieces: readonly SplitPiece[]): SplitPiece[] {
+  return [{ kind: 'work', minutes: totalWork(pieces) }];
+}
+
+/** Adoptieregel (spec §2): na een gebruikersbewerking zijn nivelleergaten van de gebruiker. */
+export function adoptLevelingGaps(pieces: readonly SplitPiece[]): SplitPiece[] {
+  return pieces.map(p => (p.kind === 'gap' && p.source === 'leveling' ? { ...p, source: 'user' as const } : p));
+}
