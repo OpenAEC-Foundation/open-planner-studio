@@ -55,7 +55,6 @@ export function BaselineDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
     >

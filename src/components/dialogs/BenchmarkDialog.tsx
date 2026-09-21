@@ -99,7 +99,6 @@ export function BenchmarkDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-benchmark-dialog': true }}

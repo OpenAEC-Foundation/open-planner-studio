@@ -355,7 +355,6 @@ export function FilterDialog() {
   return (
     // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
     <Dialog
-      onBackdropClick={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">

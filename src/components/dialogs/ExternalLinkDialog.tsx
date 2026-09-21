@@ -219,7 +219,6 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
 
   return (
     <Dialog
-      onBackdropClick={onClose}
       onCancel={onClose}
       onConfirm={submit}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[88vh] flex flex-col overflow-hidden"

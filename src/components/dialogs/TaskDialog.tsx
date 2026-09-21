@@ -219,7 +219,6 @@ export function TaskDialog() {
     // ná de `showTaskDialog`-gate hierboven, dus de toetsen zijn alleen actief bij een open dialoog.
     // Let op: overlaytint is hier bg-black/50 (historisch iets lichter dan de andere dialogs).
     <Dialog
-      onBackdropClick={handleClose}
       onCancel={handleClose}
       onConfirm={handleSave}
       overlayClassName="bg-black/50 z-50"
