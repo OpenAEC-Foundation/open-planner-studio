@@ -45,14 +45,14 @@ function RibbonButtonView({ spec }: { spec: RibbonButtonSpec }) {
   if (spec.kind === 'small') {
     return (
       <RibbonSmallButton
-        icon={icon} label={label}
+        icon={icon} label={label} itemId={spec.id}
         onClick={b.onClick} active={b.active} disabled={b.disabled} danger={spec.danger} title={b.title}
       />
     );
   }
   return (
     <RibbonButton
-      icon={icon} label={label}
+      icon={icon} label={label} itemId={spec.id}
       onClick={b.onClick} active={b.active} disabled={b.disabled} primary={spec.primary} danger={spec.danger}
       title={b.title}
     />
