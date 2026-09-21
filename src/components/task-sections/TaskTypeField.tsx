@@ -114,7 +114,7 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
     </Field>
 
     {dialog === 'new' && <Dialog
-      onBackdropClick={() => setDialog(null)} onCancel={() => setDialog(null)} onConfirm={create}
+      onCancel={() => setDialog(null)} onConfirm={create}
       overlayClassName="bg-black/60 z-[60]" stopBackdropPropagation
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[360px] p-4 flex flex-col gap-3"
       panelProps={{ 'data-ops-new-task-type-dialog': true }}
@@ -125,7 +125,7 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true }:
     </Dialog>}
 
     {dialog === 'manage' && <Dialog
-      onBackdropClick={() => setDialog(null)} onCancel={() => setDialog(null)}
+      onCancel={() => setDialog(null)}
       overlayClassName="bg-black/60 z-[60]" stopBackdropPropagation
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[80vh] overflow-auto p-4 flex flex-col gap-3"
       panelProps={{ 'data-ops-task-type-manager': true }}

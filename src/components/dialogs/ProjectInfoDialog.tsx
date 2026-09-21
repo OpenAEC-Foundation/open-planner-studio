@@ -14,7 +14,7 @@ import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/c
  * Wordt conditioneel gemount (één van beide vlaggen), dus de content-state initialiseert vers.
  *
  * De velden + commit-logica leven in `ProjectInfoPanelContent`; deze wrapper levert alleen de
- * Dialog-chrome (header/Esc/backdrop/Enter/footer-knoppen) en roept `submit()` aan via een `ref`,
+ * Dialog-chrome (header/Esc/Enter/footer-knoppen; bewust géén backdrop-close — issue #158) en roept `submit()` aan via een `ref`,
  * omdat `Dialog`'s `onConfirm` (Enter-afhandeling) op het buitenste element zit, vóór het gedeelde
  * component gemount wordt.
  */
@@ -31,8 +31,9 @@ export function ProjectInfoDialog() {
   return (
     // Esc sluit (LAYOUTS.md §3.3), Enter = primaire actie (Aanmaken/Toepassen), met de standaard
     // textarea/dropdown/IME-uitzonderingen (o.a. de omschrijving-textarea en de land/template-Selects).
+    // Een klik naast het paneel sluit NIET (issue #158): een gebruiker die per ongeluk buiten de
+    // wizard klikte verloor alles wat hij al had ingetypt. Alleen Annuleren/X/Esc sluiten.
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       onConfirm={submit}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[90vh] flex flex-col overflow-hidden"

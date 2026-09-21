@@ -445,6 +445,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-cell-editor.ts" "$TGCELLEDITORCHECK"; then node "$TGCELLEDITORCHECK" || STATUS=1; fi
   TGEDITORSCHECK="$DIR/.task-grid-editors.mjs"
   if bundle_check "$DIR/check-task-grid-editors.ts" "$TGEDITORSCHECK"; then node "$TGEDITORSCHECK" || STATUS=1; fi
+  # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
+  # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
+  # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.
+  DLGBDCHECK="$DIR/.dialog-backdrop.mjs"
+  if bundle_check "$DIR/check-dialog-backdrop.ts" "$DLGBDCHECK"; then node "$DLGBDCHECK" || STATUS=1; fi
   TGASSIGNMENTSCHECK="$DIR/.task-grid-assignments.mjs"
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"

@@ -150,7 +150,6 @@ export function CalendarDialog() {
     // Esc = Annuleren (LAYOUTS.md §3.3), Enter = Toepassen (primaire actie), met de standaard
     // textarea/dropdown/IME-uitzonderingen.
     <Dialog
-      onBackdropClick={cancel}
       onCancel={cancel}
       onConfirm={confirm}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
