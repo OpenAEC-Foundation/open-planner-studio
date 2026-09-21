@@ -798,7 +798,9 @@
       "secondary": "セカンダリ"
     },
     "dependencyModeHint": "リンクモード: ガントチャートでバーから別のバーへドラッグすると関係を作成します。Esc で終了します。",
-    "dependencyModeStop": "終了"
+    "dependencyModeStop": "終了",
+    "splitModeHint": "中断が始まる日のバーをクリックし、右へドラッグして長さを決めます。Esc で終了します。",
+    "splitModeStop": "終了"
   },
   "dateInput": {
     "placeholder": "日-月-年",

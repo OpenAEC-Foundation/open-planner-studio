@@ -798,7 +798,9 @@
       "secondary": "次要"
     },
     "dependencyModeHint": "链接模式：在甘特图中从一个条形拖到另一个条形即可创建关系。按 Esc 退出。",
-    "dependencyModeStop": "退出"
+    "dependencyModeStop": "退出",
+    "splitModeHint": "在甘特条上点击中断开始的那一天，然后向右拖动设定长度。按 Esc 退出。",
+    "splitModeStop": "退出"
   },
   "dateInput": {
     "placeholder": "日-月-年",

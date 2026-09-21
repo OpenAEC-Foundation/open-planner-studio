@@ -810,7 +810,9 @@
       "secondary": "فرعی"
     },
     "dependencyModeHint": "حالت پیوند: در نمودار گانت از یک میله به میله دیگر بکشید تا رابطه ساخته شود. برای توقف Esc را بزنید.",
-    "dependencyModeStop": "توقف"
+    "dependencyModeStop": "توقف",
+    "splitModeHint": "روی میله در روزی که وقفه آغاز می‌شود کلیک کنید و برای تعیین طول آن به راست بکشید. برای توقف Esc را بزنید.",
+    "splitModeStop": "توقف"
   },
   "dateInput": {
     "placeholder": "روز-ماه-سال",

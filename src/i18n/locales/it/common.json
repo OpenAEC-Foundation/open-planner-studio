@@ -822,7 +822,9 @@
       "secondary": "Secondaria"
     },
     "dependencyModeHint": "Modalità collegamento: trascina da una barra all'altra nel Gantt per creare una relazione. Esc per uscire.",
-    "dependencyModeStop": "Esci"
+    "dependencyModeStop": "Esci",
+    "splitModeHint": "Fai clic su una barra nel giorno in cui inizia l'interruzione e trascina verso destra per la durata. Esc per uscire.",
+    "splitModeStop": "Esci"
   },
   "dateInput": {
     "placeholder": "gg-mm-aaaa",

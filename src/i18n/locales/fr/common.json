@@ -822,7 +822,9 @@
       "secondary": "Secondaire"
     },
     "dependencyModeHint": "Mode lien : faites glisser d'une barre à l'autre dans le Gantt pour créer une relation. Échap pour arrêter.",
-    "dependencyModeStop": "Arrêter"
+    "dependencyModeStop": "Arrêter",
+    "splitModeHint": "Cliquez sur une barre au jour où l’interruption commence et faites glisser vers la droite pour en définir la longueur. Échap pour arrêter.",
+    "splitModeStop": "Arrêter"
   },
   "dateInput": {
     "placeholder": "jj-mm-aaaa",

@@ -810,7 +810,9 @@
       "secondary": "Secundair"
     },
     "dependencyModeHint": "Relatiemodus: sleep in de Gantt van de ene balk naar de andere om een relatie te leggen. Esc stopt.",
-    "dependencyModeStop": "Stoppen"
+    "dependencyModeStop": "Stoppen",
+    "splitModeHint": "Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.",
+    "splitModeStop": "Stoppen"
   },
   "dateInput": {
     "placeholder": "dd-mm-jjjj",

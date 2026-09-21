@@ -810,7 +810,9 @@
       "secondary": "İkincil"
     },
     "dependencyModeHint": "Bağlantı modu: Gantt'ta bir çubuktan diğerine sürükleyerek ilişki oluşturun. Durdurmak için Esc.",
-    "dependencyModeStop": "Durdur"
+    "dependencyModeStop": "Durdur",
+    "splitModeHint": "Kesintinin başladığı günde çubuğa tıklayın ve uzunluğu için sağa sürükleyin. Durdurmak için Esc.",
+    "splitModeStop": "Durdur"
   },
   "dateInput": {
     "placeholder": "gg-aa-yyyy",

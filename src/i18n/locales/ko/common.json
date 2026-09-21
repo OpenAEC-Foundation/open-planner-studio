@@ -798,7 +798,9 @@
       "secondary": "보조"
     },
     "dependencyModeHint": "링크 모드: 간트 차트에서 막대에서 다른 막대로 끌어 관계를 만듭니다. Esc를 누르면 종료됩니다.",
-    "dependencyModeStop": "종료"
+    "dependencyModeStop": "종료",
+    "splitModeHint": "중단이 시작되는 날에서 막대를 클릭한 다음 오른쪽으로 끌어 길이를 정합니다. Esc를 누르면 종료됩니다.",
+    "splitModeStop": "종료"
   },
   "dateInput": {
     "placeholder": "일-월-년",

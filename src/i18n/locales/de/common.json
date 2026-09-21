@@ -810,7 +810,9 @@
       "secondary": "Sekundär"
     },
     "dependencyModeHint": "Verknüpfungsmodus: Im Gantt von einem Balken zum anderen ziehen, um eine Beziehung zu erstellen. Esc beendet.",
-    "dependencyModeStop": "Beenden"
+    "dependencyModeStop": "Beenden",
+    "splitModeHint": "Klicken Sie auf einen Balken an dem Tag, an dem die Unterbrechung beginnt, und ziehen Sie nach rechts für die Länge. Esc beendet.",
+    "splitModeStop": "Beenden"
   },
   "dateInput": {
     "placeholder": "TT-MM-JJJJ",

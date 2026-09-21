@@ -834,7 +834,9 @@
       "secondary": "Dodatkowy"
     },
     "dependencyModeHint": "Tryb połączeń: przeciągnij od jednego paska do drugiego na wykresie Gantta, aby utworzyć relację. Esc kończy.",
-    "dependencyModeStop": "Zakończ"
+    "dependencyModeStop": "Zakończ",
+    "splitModeHint": "Kliknij pasek w dniu, w którym zaczyna się przerwa, i przeciągnij w prawo, aby ustawić długość. Esc kończy.",
+    "splitModeStop": "Zakończ"
   },
   "dateInput": {
     "placeholder": "dd-mm-rrrr",

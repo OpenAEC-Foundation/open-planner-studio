@@ -810,7 +810,9 @@
       "secondary": "Secondary"
     },
     "dependencyModeHint": "Link mode: drag from one bar to another in the Gantt to create a relation. Press Esc to stop.",
-    "dependencyModeStop": "Stop"
+    "dependencyModeStop": "Stop",
+    "splitModeHint": "Click a bar on the day the break starts and drag right for its length. Press Esc to stop.",
+    "splitModeStop": "Stop"
   },
   "dateInput": {
     "placeholder": "dd-mm-yyyy",

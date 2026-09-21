@@ -11,7 +11,7 @@ import {
   ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette, MoveHorizontal,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
-  FileDown, FileUp,
+  FileDown, FileUp, Scissors,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
@@ -134,6 +134,25 @@ const relationDropdownItem: RibbonComponentSpec = {
   kind: 'component', id: 'relation', Component: RelationDropdown,
 };
 
+/**
+ * Splits-knop (issue #146, etappe 2) — naast de relatie-tekenknop, want het is dezelfde soort
+ * schakelaar: een MODUS die de sleep vanaf een balk kaapt. Eén gedeelde definitie voor start,
+ * planning en tabel; de uitleg van het gebaar staat uitsluitend in `SplitModeNotice`.
+ */
+const splitTaskButton: RibbonButtonSpec = {
+  kind: 'button', id: 'splitTask', icon: <Scissors size={20} />, labelKey: 'menu:ribbon.splitTask',
+  use: () => {
+    const { t } = useTranslation('menu');
+    const splitMode = useAppStore(s => s.ui.showSplitMode);
+    const setUI = useAppStore(s => s.setUI);
+    return {
+      active: splitMode,
+      title: t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
+      onClick: () => setUI({ showSplitMode: !splitMode }),
+    };
+  },
+};
+
 /** Kalender-knop (planning + instellingen). */
 const calendarButton: RibbonButtonSpec = {
   kind: 'button', id: 'calendar', icon: <Calendar size={20} />, labelKey: 'menu:ribbon.calendar',
@@ -166,6 +185,7 @@ const tasksGroup: RibbonGroupSpec = {
     addTaskButton,
     { kind: 'component', id: 'milestone', Component: MilestoneDropdown },
     relationDropdownItem,
+    splitTaskButton,
   ],
 };
 
@@ -399,7 +419,7 @@ const planningTab: RibbonTabConfig = [
   { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton, warningsPanelButton] },
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
-    items: [relationDropdownItem],
+    items: [relationDropdownItem, splitTaskButton],
   },
   traceGroup,
   {

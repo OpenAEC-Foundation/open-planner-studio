@@ -858,7 +858,9 @@
       "secondary": "ثانوي"
     },
     "dependencyModeHint": "وضع الربط: اسحب من شريط إلى آخر في مخطط جانت لإنشاء علاقة. اضغط Esc للإيقاف.",
-    "dependencyModeStop": "إيقاف"
+    "dependencyModeStop": "إيقاف",
+    "splitModeHint": "انقر على الشريط في اليوم الذي يبدأ فيه التوقف واسحب إلى اليمين لتحديد طوله. اضغط Esc للإيقاف.",
+    "splitModeStop": "إيقاف"
   },
   "dateInput": {
     "placeholder": "يوم-شهر-سنة",

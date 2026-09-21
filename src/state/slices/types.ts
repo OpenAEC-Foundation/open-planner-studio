@@ -242,6 +242,12 @@ export interface UIState {
    *  NB: het vroegere `dependencySourceId` is bewust weg — dat veld werd alleen geschreven en
    *  nergens gelezen (dezelfde bevinding als de dode modus zelf). */
   showDependencyMode: boolean;
+  /** Splits-modus (issue #146, etappe 2): dezelfde vorm als de relatiemodus hierboven. Staat hij
+   *  aan, dan begint een sleep vanaf een balk een ONDERBREKING: klikken op de dag waar de pauze
+   *  begint, naar rechts slepen voor de lengte. Gelezen door `GanttCanvas` (mousedown-hittest +
+   *  cursor) en door `SplitModeNotice`; Escape en de lint-knop zetten hem uit. De twee modi sluiten
+   *  elkaar uit — `setUI` dwingt dat af, want beide kapen dezelfde sleep vanaf een balk. */
+  showSplitMode: boolean;
   showProjectSettings: boolean;
   showProjectInfoDialog: boolean;
   leftPanelWidth: number;
