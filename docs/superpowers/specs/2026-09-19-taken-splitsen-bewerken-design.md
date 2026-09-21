@@ -36,7 +36,7 @@ besluiten hieronder zijn daarop genomen; de secties verderop zijn ermee in lijn 
 | 4 | Het `.mpp`-corpus staat niet in de repo; een test daarop is geen poort. | Round-trip-batterij op gecommitte fixtures; corpus hooguit als extra. |
 | 5 | MSPDI/P6-writers schrijven een split zonder contour niet (alleen `console.warn`). | Verlies via de bestaande export-guard/K8a-melding zichtbaar maken; native schrijven van een contourloze split is een benoemde vervolgstap (TODO). |
 | 6/7 | `updateTask` wist nivelleergaten en `rescaleSplitGaps` schaalt fractioneel; er is geen herkomst voor gebruikersgaten en `ifcPsets.ts` gooit onbekende `source` weg. | Nieuwe `source: 'user'` (type, IFC-lezer, taakgrid). `setTaskSplits` is een EIGEN smalle mutatie, niet via `updateTask`. Adoptieregel: zie §2. `rescaleSplitGaps` snapt `'user'`-gaten op de eenheid. |
-| 8 | De nivelleerder legt scatter-gaten blind over bestaande gaten. | De nivelleerder knipt een taak met niet-`'leveling'`-gaten niet op (alleen als geheel uitstellen). |
+| 8 | De nivelleerder legt scatter-gaten blind over bestaande gaten. | De nivelleerder knipt een taak met een `'user'`-gat niet op (alleen als geheel uitstellen). **Ingeperkt bij de bouw (2026-09-21):** `check-leveler-splitmode.ts` geval 4 legt vast dat een IMPORTsplit wél overstapeld mag worden; dat bestaande gedrag blijft en is een bekende beperking. |
 | 9/10 | "coalesceKey" én "commit bij loslaten" spreken elkaar tegen; met een stale planning eet een pauze het werk op binnen de oude balkextent. | Per-mousemove-commit met `coalesceKey`, zoals `useBarDrag`. `setTaskSplits` schrijft ook de eigen `scheduleFinish` (start ⊕ `splitTotalSpan`), zodat de balk meteen meegroeit; opvolgers wachten op F5/auto-calc, zoals bij elke duurwijziging. |
 | 11 | `verify:docs` telt de `planner_*`-tools tegen CLAUDE.md (nu 40). | CLAUDE.md naar 41 in dezelfde commit als de tool. |
 | 12 | `verify-gantt-boundaries.mjs` kent het nieuwe gebaar niet. | `startSplitGesture` in `gestureStarts`; het gebaar start via `useGanttPointerCoordinator`. |
@@ -131,7 +131,7 @@ fractioneel). Volgorde binnen één `set`:
 Latere duurwijzigingen via `updateTask`: `rescaleSplitGaps` snapt `'user'`-gaten op de eenheid
 (dag-modus: hele werkdagen), zodat een gebruikersgat niet naar een andere dag of naar 0 rondt.
 
-**Nivelleerder:** `ResourceLeveler` knipt een taak met minstens één niet-`'leveling'`-gat niet op
+**Nivelleerder:** `ResourceLeveler` knipt een taak met minstens één `'user'`-gat niet op
 (alleen uitstellen als geheel) — de scatter-as kent bestaande gaten niet.
 - Core-runtime: dezelfde logica beschikbaar voor `createMcpTransactions` zonder `useAppStore`-import
   (`verify:store-boundaries`).
