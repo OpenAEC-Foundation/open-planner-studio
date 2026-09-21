@@ -304,6 +304,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Issue #159: MSPDI-/CSV-export van de WBS-hiërarchie (OutlineLevel + documentvolgorde uit de echte
+  # ouderketen i.p.v. uit de wbsCode-tekst), samenvatting nooit als mijlpaal, dagduur in uren van de
+  # TAAK-kalender (symmetrisch met de lezer), en de lezers die de boom uit het niveau herbouwen.
+  MHCHECK="$DIR/.mspdi-hierarchy-export.mjs"
+  if bundle_check "$DIR/check-mspdi-hierarchy-export.ts" "$MHCHECK"; then node "$MHCHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"

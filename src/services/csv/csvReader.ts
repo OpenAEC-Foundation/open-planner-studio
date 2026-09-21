@@ -4,13 +4,15 @@ import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
 import { csvDateOrToday } from '@/services/importDates';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
 
 interface ParsedRow {
   wbs: string;
+  /** Issue #159: 'Outline Level'-kolom (1 = hoofdniveau); undefined als de kolom ontbreekt. */
+  outlineLevel?: number;
   name: string;
   duration: number;
   start: string;
@@ -105,7 +107,9 @@ function parsePredecessorString(predStr: string): {
     // Pattern: WBS_CODE + TYPE + optional LAG (MS Project-notatie)
     // e.g. "1.1FS+2d" (werkdagen), "1.3SS-1d", "1.2FF+3ed" (kalenderdagen/elapsed),
     //      "1.5SS+50%" (procent van voorgangerduur), "1.6FS-25e%" (elapsed-procent), "1.4"
-    const match = trimmed.match(/^([\d.]+)\s*(FS|FF|SS|SF)?\s*([+-]\d+(?:\.\d+)?(?:ed|e%|d|%)?)?$/i);
+    // Critreview #159: de code is VRIJE TEKST (`T107`, `A-01` uit een IFC-/P6-import), niet `[\d.]+` —
+    // lazy `.+?` laat het type-achtervoegsel en de lag het einde bepalen.
+    const match = trimmed.match(/^(.+?)\s*(FS|FF|SS|SF)?\s*([+-]\d+(?:\.\d+)?(?:ed|e%|d|%)?)?$/i);
     if (match) {
       const wbs = match[1];
       const typeStr = (match[2] || 'FS').toUpperCase();
@@ -145,6 +149,7 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
   const map: Record<string, number> = {};
   const aliases: Record<string, string[]> = {
     wbs: ['wbs', 'wbs code', 'wbscode', 'outline'],
+    outlineLevel: ['outline level', 'outlinelevel', 'overzichtsniveau'],
     name: ['name', 'task name', 'activity', 'taak', 'naam'],
     duration: ['duration', 'duration (days)', 'duur', 'days'],
     start: ['start', 'start date', 'begin', 'startdatum'],
@@ -202,10 +207,14 @@ export function readCSV(content: string): ImportResult {
     const actualStartRaw = get('actualStart').trim();
     const actualFinishRaw = get('actualFinish').trim();
 
+    const outlineLevelRaw = get('outlineLevel').trim();
     rows.push({
       wbs: get('wbs'),
+      ...(outlineLevelRaw ? { outlineLevel: parseInt(outlineLevelRaw, 10) } : {}),
       name: get('name', 'Task'),
-      duration: parseFloat(get('duration', '5')) || 5,
+      // `|| 5` maakte van duur 0 (een mijlpaal) stil 5 dagen (critreview #159): alleen een ONLEESBARE
+      // waarde valt terug op de default.
+      duration: Number.isFinite(parseFloat(get('duration', '5'))) ? parseFloat(get('duration', '5')) : 5,
       start: parseDate(get('start')),
       finish: parseDate(get('finish')),
       predecessors: get('predecessors'),
@@ -242,8 +251,10 @@ export function readCSV(content: string): ImportResult {
     return type;
   };
 
+  const duplicateWbs = new Set<string>();
   for (const row of rows) {
     const id = generateId('task');
+    if (wbsToId.has(row.wbs)) duplicateWbs.add(row.wbs);
     wbsToId.set(row.wbs, id);
 
     const rawType = row.taskType.trim();
@@ -306,18 +317,29 @@ export function readCSV(content: string): ImportResult {
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6). CSV kent geen statusdatum.
   normalizeImportedProgress(tasks, undefined);
 
-  // Parent-child-hiërarchie uit gepunte WBS-codes (gedeeld met MSPDI, F5-f).
-  rebuildWbsHierarchy(tasks);
+  // Parent-child-hiërarchie (issue #159): 'Outline Level'-kolom + rijvolgorde, met de gepunte WBS als
+  // scheidsrechter én terugval — beslisregel bij `rebuildImportedHierarchy` (gedeeld met MSPDI).
+  rebuildImportedHierarchy(tasks, rows.map(r => r.outlineLevel));
+  // Critreview #159: een taak mét kinderen is nooit een mijlpaal — de duur-0-gok hierboven kende de
+  // boom nog niet (spiegel van de writer-guard in `mspdiWriter.ts`).
+  for (const task of tasks) if (task.childIds.length > 0) task.isMilestone = false;
 
-  // Parse predecessors into sequences
+  // Parse predecessors into sequences. `tasks[i]` ↔ `rows[i]` is per constructie 1-op-1 (één push
+  // per rij hierboven), dus op index — niet `rows.find` op WBS-code, die bij dubbele of lege codes
+  // stil de verkeerde rij pakte (critreview #159).
   const sequences: Sequence[] = [];
-  for (const task of tasks) {
-    const row = rows.find(r => r.wbs === task.wbsCode);
+  let unresolvedPredecessors = 0;
+  let ambiguousPredecessors = 0;
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i];
+    const row = rows[i];
     if (!row || !row.predecessors) continue;
 
     const preds = parsePredecessorString(row.predecessors);
     for (const pred of preds) {
       const predId = wbsToId.get(pred.wbs);
+      if (predId && duplicateWbs.has(pred.wbs)) ambiguousPredecessors++;
+      if (!predId) unresolvedPredecessors++;
       if (predId) {
         const seq: Sequence = {
           id: generateId('seq'),
@@ -331,6 +353,14 @@ export function readCSV(content: string): ImportResult {
         sequences.push(seq);
       }
     }
+  }
+  // Weggelaten-/onzeker-met-warn (zelfde patroon als de exporters): een voorganger die op geen enkele
+  // WBS-code past is weg; een die op een DUBBELE code past is aan de laatste rij met die code gehangen.
+  if (unresolvedPredecessors > 0) {
+    console.warn(`CSV-import: ${unresolvedPredecessors} voorganger(s) verwijzen naar een WBS-code die in het bestand niet voorkomt — relatie(s) overgeslagen.`);
+  }
+  if (ambiguousPredecessors > 0) {
+    console.warn(`CSV-import: ${ambiguousPredecessors} voorganger(s) verwijzen naar een WBS-code die meer dan één keer voorkomt — gekoppeld aan de laatste rij met die code.`);
   }
 
   // Build project

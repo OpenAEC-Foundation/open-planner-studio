@@ -78,3 +78,104 @@ export function rebuildWbsHierarchy(tasks: Task[]): void {
     }
   }
 }
+
+/**
+ * Ouder per taak uit OUTLINE-NIVEAUS in documentvolgorde (issue #159) — de MS-Project-semantiek:
+ * een taak hangt onder de dichtstbijzijnde VOORAFGAANDE taak met een lager niveau. `levels[i]` hoort
+ * bij `tasks[i]`. Geeft `undefined` zodra één niveau ontbreekt of geen geheel getal ≥ 0 is; een
+ * 0-gebaseerde reeks (sommige exporteurs tellen vanaf 0) wordt genormaliseerd naar 1-gebaseerd.
+ * Een sprong van meer dan één niveau (1 → 3) is tolerant, zoals MS Project dat ook oplost.
+ * PUUR: raakt de taken niet aan.
+ */
+function outlineParents(tasks: readonly Task[], levels: readonly (number | undefined)[]): Map<string, string | null> | undefined {
+  if (levels.length !== tasks.length || tasks.length === 0) return undefined;
+  if (!levels.every(l => l !== undefined && Number.isInteger(l) && l >= 0)) return undefined;
+  const shift = Math.min(...(levels as number[])) === 0 ? 1 : 0;
+  const parents = new Map<string, string | null>();
+  const stack: { id: string; level: number }[] = [];
+  for (let i = 0; i < tasks.length; i++) {
+    const level = levels[i]! + shift;
+    while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop();
+    parents.set(tasks[i].id, stack[stack.length - 1]?.id ?? null);
+    stack.push({ id: tasks[i].id, level });
+  }
+  return parents;
+}
+
+/**
+ * Ouder per taak uit GEPUNTE WBS-codes (`1.2.3` hangt onder `1.2`), plus of die afleiding een
+ * VOLLEDIGE boom oplevert: alle codes uniek, minstens één gepunte code, en elke gepunte code vindt
+ * haar ouder. Alleen een volledige boom is bewijskrachtig genoeg om een outline-afleiding te
+ * overstemmen (zie `rebuildImportedHierarchy`). PUUR.
+ */
+function wbsParents(tasks: readonly Task[]): { parents: Map<string, string | null>; complete: boolean } {
+  const wbsToId = new Map<string, string>();
+  let unique = true;
+  for (const t of tasks) {
+    if (wbsToId.has(t.wbsCode)) unique = false;
+    wbsToId.set(t.wbsCode, t.id);
+  }
+  const parents = new Map<string, string | null>();
+  let dotted = 0;
+  let resolved = 0;
+  for (const t of tasks) {
+    let parent: string | null = null;
+    if (t.wbsCode && t.wbsCode.includes('.')) {
+      dotted++;
+      const parts = t.wbsCode.split('.');
+      parts.pop();
+      const p = wbsToId.get(parts.join('.'));
+      if (p && p !== t.id) { parent = p; resolved++; }
+    }
+    parents.set(t.id, parent);
+  }
+  return { parents, complete: unique && dotted > 0 && resolved === dotted };
+}
+
+function applyParents(tasks: Task[], parents: Map<string, string | null>): void {
+  const byId = new Map(tasks.map(t => [t.id, t]));
+  for (const t of tasks) {
+    const p = parents.get(t.id) ?? null;
+    if (!p) continue;
+    const parent = byId.get(p);
+    if (!parent) continue;
+    t.parentId = p;
+    if (!parent.childIds.includes(t.id)) parent.childIds.push(t.id);
+  }
+}
+
+/** Welke bron de boom leverde — voor tests en meldingen. */
+export type ImportedHierarchySource = 'outline' | 'wbs';
+
+/**
+ * Herbouw de parent-child-hiërarchie van een geïmporteerde takenlijst (issue #159 + critreview).
+ * Twee bronnen: de outline-niveaus (`<OutlineLevel>` in MSPDI, de 'Outline Level'-kolom in CSV) en de
+ * gepunte WBS-codes. Beslisregel:
+ *
+ *  1. Leveren de gepunte codes een VOLLEDIGE boom (`wbsParents.complete`) die de outline-afleiding
+ *     ergens tegenspreekt, dan wint de WBS. Dat is het geval van onze eigen exports van vóór #159:
+ *     die schreven `<OutlineLevel>` uit `wbsCode.split('.').length` in store-volgorde ("samenvattingen
+ *     eerst, dan bladen") — het niveau staat er, maar de VOLGORDE klopt niet, dus de outline-stack
+ *     hangt de bladen onder de laatste samenvatting terwijl de codes de boom exact beschrijven. Die
+ *     bestanden hebben gebruikers liggen; ze moeten blijven lezen zoals ze altijd lazen.
+ *  2. Anders wint de outline zodra hij bruikbaar is: dat is wat MS Project zelf bedoelt, en het enige
+ *     dat klopt zodra de WBS vrije tekst (`T107`, `A-1`) of een eigen masker is.
+ *  3. Zonder bruikbare outline: de gepunte-WBS-afleiding zoals altijd (ook een gedeeltelijke).
+ *
+ * Een bestand van MS Project zelf (outline-nummer = standaard-WBS) of een export van ná #159 (boom-
+ * volgorde) valt in 1 en 2 op hetzelfde uit; de regel doet alleen iets bij een echte tegenspraak.
+ * Muteert `parentId`/`childIds` in-place; geeft de gebruikte bron terug.
+ */
+export function rebuildImportedHierarchy(tasks: Task[], levels: readonly (number | undefined)[]): ImportedHierarchySource {
+  const outline = outlineParents(tasks, levels);
+  const wbs = wbsParents(tasks);
+  const outlineUsable = outline !== undefined;
+  const conflict = outlineUsable && wbs.complete
+    && tasks.some(t => (outline.get(t.id) ?? null) !== (wbs.parents.get(t.id) ?? null));
+  if (outlineUsable && !conflict) {
+    applyParents(tasks, outline);
+    return 'outline';
+  }
+  rebuildWbsHierarchy(tasks);
+  return 'wbs';
+}
