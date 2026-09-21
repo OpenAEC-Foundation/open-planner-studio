@@ -4,7 +4,7 @@ import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import type { CustomTaskType } from '@/types/taskType';
-import { flattenOrder, outlineDepths } from '@/utils/wbs';
+import { flattenOrder, taskDepths } from '@/utils/wbs';
 
 const DELIMITER = ';';
 const BOM = '\uFEFF';
@@ -77,6 +77,16 @@ export function writeCSV(
     taskByIdMap.set(t.id, t);
   }
 
+  // Critreview #159: de voorgangerkolom verwijst op WBS-code; met dubbele codes kan de lezer een
+  // relatie niet meer eenduidig terugvinden. Weggelaten-met-warn (zelfde patroon als de andere
+  // exporters) — de kolom zelf blijft leesbaar voor spreadsheetgebruikers.
+  const codeCount = new Map<string, number>();
+  for (const t of tasks) codeCount.set(t.wbsCode, (codeCount.get(t.wbsCode) ?? 0) + 1);
+  const duplicateCodes = [...codeCount].filter(([, n]) => n > 1).length;
+  if (duplicateCodes > 0) {
+    console.warn(`CSV-export: ${duplicateCodes} WBS-code(s) komen meer dan één keer voor — de Predecessors-kolom verwijst op WBS-code en is voor die taken bij terugimport niet eenduidig.`);
+  }
+
   for (const seq of sequences) {
     const predTask = taskByIdMap.get(seq.predecessorId);
     if (!predTask) continue;
@@ -111,7 +121,7 @@ export function writeCSV(
   const rows: string[] = [];
   rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
 
-  const depthById = outlineDepths(tasks);
+  const depthById = taskDepths(tasks);
   for (const task of flattenOrder(tasks)) {
     const predecessors = predMap.get(task.id)?.join(', ') || '';
     const completion = formatCompletionPercent(task.time.completion);

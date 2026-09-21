@@ -16,14 +16,22 @@
 //  4. CSV kende geen niveau-kolom: 'Outline Level' erbij (na WBS), rijen diepte-eerst, en `readCSV`
 //     herbouwt de boom daaruit (WBS-terugval blijft).
 //
+// Critreview op de eerste versie (verwerkt, secties 6–9): (i) de outline-afleiding mocht niet blind
+// winnen van onze eigen exports van vóór #159 (OutlineLevel uit de WBS-punten, store-volgorde) —
+// `rebuildImportedHierarchy` laat een volledige gepunte-WBS-boom dan winnen; (ii) `<Work>` en de
+// baseline-duur moesten mee op de taakkalender; (iii) de CSV-lezer at relaties met vrije codes stil op
+// (`[\d.]+`-regex), maakte van elke mijlpaal 5 dagen (`|| 5`) en zocht rijen op WBS-tekst; (iv) de
+// 24/7-dagkalender werd als `24:00:00` geschreven.
+//
 // Draait via run.sh. Exit 0 = alles groen.
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { readCSV } from '@/services/csv/csvReader';
-import { flattenOrder, outlineDepths } from '@/utils/wbs';
-import { rebuildOutlineHierarchy } from '@/services/importNormalize';
+import { flattenOrder, taskDepths } from '@/utils/wbs';
+import { rebuildImportedHierarchy } from '@/services/importNormalize';
 import type { Task } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import { installDOMParser } from './xmldom-shim';
@@ -87,6 +95,21 @@ const treeTasks = (): Task[] => [
   mk('M', 'Sleuteloverdracht', 'D-02', 0, 'S4', [], { isMilestone: true }),
 ];
 const WANT_ORDER = ['R', 'S1', 'a', 'b', 'S2', 'c', 'd', 'S3', 'e', 'S4', 'f', 'M'];
+// Relaties in de fixture (critreview: de eerste versie gaf `[]` mee en zag dus niet dat de CSV-lezer
+// relaties met vrije codes opat). Vier typen, met en zonder lag.
+const treeSequences = (): Sequence[] => [
+  { id: 'q1', predecessorId: 'a', successorId: 'b', type: 'FINISH_START', lagDays: 0 },
+  { id: 'q2', predecessorId: 'b', successorId: 'c', type: 'FINISH_START', lagDays: 2 },
+  { id: 'q3', predecessorId: 'c', successorId: 'd', type: 'START_START', lagDays: -1 },
+  { id: 'q4', predecessorId: 'd', successorId: 'e', type: 'FINISH_FINISH', lagDays: 0 },
+  { id: 'q5', predecessorId: 'e', successorId: 'f', type: 'FINISH_START', lagDays: 0 },
+  { id: 'q6', predecessorId: 'f', successorId: 'M', type: 'FINISH_START', lagDays: 0 },
+];
+/** Relaties als `pred>succ:type:lag` op NAAM, gesorteerd — vergelijkbaar los van id's. */
+function seqShape(tasks: readonly Task[], seqs: readonly Sequence[]): string[] {
+  const name = (id: string) => tasks.find(t => t.id === id)?.name ?? '?';
+  return seqs.map(q => `${name(q.predecessorId)}>${name(q.successorId)}:${q.type}:${q.lagDays}`).sort();
+}
 const WANT_DEPTH: Record<string, number> = { R: 1, S1: 2, a: 3, b: 3, S2: 2, c: 3, d: 3, S3: 2, e: 3, S4: 2, f: 3, M: 3 };
 
 /** Ouder-naam per taak-naam + gesorteerde kind-namen — structuurvergelijking los van id's én van
@@ -124,9 +147,9 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
 {
   const tasks = treeTasks();
   eq('1a flattenOrder levert de diepte-eerst-volgorde', flattenOrder(tasks).map(t => t.id), WANT_ORDER);
-  eq('1b outlineDepths uit de ouderketen, niet uit de wbsCode', Object.fromEntries(outlineDepths(tasks)), WANT_DEPTH);
+  eq('1b taskDepths uit de ouderketen, niet uit de wbsCode', Object.fromEntries(taskDepths(tasks)), WANT_DEPTH);
 
-  const xml = writeMSPDI(project, H8, tasks, [], [], []);
+  const xml = writeMSPDI(project, H8, tasks, treeSequences(), [], []);
   const blocks = taskBlocks(xml);
   const nameToId = new Map(tasks.map(t => [t.name, t.id]));
   eq('1c <Task>-blokken staan diepte-eerst (ouders vóór kinderen)', blocks.map(b => nameToId.get(b.name)), WANT_ORDER);
@@ -139,6 +162,7 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
   const back = readMSPDI(xml);
   eq('1h readMSPDI herbouwt de boom uit <OutlineLevel> (geen gepunte WBS nodig)', shape(back.tasks), shape(tasks));
   eq('1i teruggelezen taakvolgorde = diepte-eerst', back.tasks.map(t => t.name), WANT_ORDER.map(id => tasks.find(t => t.id === id)!.name));
+  eq('1j relaties overleven de MSPDI-round-trip met vrije codes', seqShape(back.tasks, back.sequences), seqShape(tasks, treeSequences()));
 }
 
 // ── 2. Samenvatting is nooit een mijlpaal ───────────────────────────────────────────────────
@@ -176,7 +200,7 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
 // ── 4. CSV: Outline Level-kolom, diepte-eerst, en terug ─────────────────────────────────────
 {
   const tasks = treeTasks();
-  const csv = writeCSV(project, H8, tasks, [], [], []);
+  const csv = writeCSV(project, H8, tasks, treeSequences(), [], []);
   const lines = csv.replace(/^﻿/, '').split('\r\n').filter(Boolean);
   const header = lines[0].split(';');
   eq('4a kolom "Outline Level" direct na WBS', header.slice(1, 4), ['WBS', 'Outline Level', 'Name']);
@@ -185,6 +209,9 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
   eq('4c niveau per rij uit de ouderketen', rows.map(r => Number(r[2])), WANT_ORDER.map(id => WANT_DEPTH[id]));
   const back = readCSV(csv);
   eq('4d readCSV herbouwt de boom uit de niveau-kolom (vrije WBS-codes)', shape(back.tasks), shape(tasks));
+  eq('4d2 relaties overleven de CSV-round-trip met vrije codes (was: alle weg)', seqShape(back.tasks, back.sequences), seqShape(tasks, treeSequences()));
+  const backM = back.tasks.find(t => t.name === 'Sleuteloverdracht')!;
+  eq('4d3 mijlpaal (duur 0) blijft duur 0 (was: `|| 5` → 5 dagen)', [backM.time.scheduleDuration, backM.isMilestone], [0, true]);
 
   // Zonder de kolom (CSV van een andere tool / oudere export): gepunte WBS blijft de terugval.
   const dotted = treeTasks().map(t => ({ ...t, wbsCode: { R: '1', S1: '1.1', a: '1.1.1', b: '1.1.2', S2: '1.2', c: '1.2.1', d: '1.2.2', S3: '1.3', e: '1.3.1', S4: '1.4', f: '1.4.1', M: '1.4.2' }[t.id]! }));
@@ -210,14 +237,109 @@ function taskBlocks(xml: string): { name: string; outlineLevel: number; summary:
   const conflicting = xml.replace(/<WBS>([^<]*)<\/WBS>/g, '<WBS>9.9.9.9</WBS>');
   eq('5c OutlineLevel wint van een onzinnige gepunte WBS', shape(readMSPDI(conflicting).tasks), shape(tasks));
 
-  // De helper zelf: een gat in de niveaus ⇒ false en niets aangeraakt.
+  // De helper zelf: een gat in de niveaus ⇒ WBS-terugval, en zonder gepunte codes blijft alles plat.
   const flat = [mk('x', 'x', 'x', 1, null, []), mk('y', 'y', 'y', 1, null, [])];
-  eq('5d rebuildOutlineHierarchy weigert een ontbrekend niveau', rebuildOutlineHierarchy(flat, [1, undefined]), false);
-  eq('5e …en laat de taken ongemoeid', flat.map(t => t.parentId), [null, null]);
+  eq('5d rebuildImportedHierarchy valt terug op WBS bij een ontbrekend niveau', rebuildImportedHierarchy(flat, [1, undefined]), 'wbs');
+  eq('5e …en laat vrije codes plat', flat.map(t => t.parentId), [null, null]);
   // Sprong van meer dan één niveau (1 → 3): tolerant, de laatste ondiepere taak wordt ouder.
   const jump = [mk('x', 'x', 'x', 1, null, []), mk('y', 'y', 'y', 1, null, [])];
-  eq('5f niveausprong 1 → 3 is tolerant', rebuildOutlineHierarchy(jump, [1, 3]), true);
+  eq('5f niveausprong 1 → 3 is tolerant', rebuildImportedHierarchy(jump, [1, 3]), 'outline');
   eq('5g …met de ondiepere taak als ouder', [jump[1].parentId, jump[0].childIds], ['x', ['y']]);
+  // 0-gebaseerde niveaus (sommige exporteurs) worden genormaliseerd i.p.v. de hele modus uit te zetten.
+  const zero = [mk('x', 'x', 'x', 1, null, []), mk('y', 'y', 'y', 1, null, [])];
+  eq('5h 0-gebaseerde niveaus zijn bruikbaar', rebuildImportedHierarchy(zero, [0, 1]), 'outline');
+  eq('5i …met dezelfde boom', zero[1].parentId, 'x');
+}
+
+// ── 6. Legacy-export van vóór #159: OutlineLevel uit de WBS-punten, store-volgorde ──────────
+// Precies het bestand dat de melder van #159 nu heeft liggen: elke taak HEEFT een <OutlineLevel>
+// (uit `wbsCode.split('.').length`), maar de <Task>-volgorde is "samenvattingen eerst, dan bladen".
+// De outline-stack zou de bladen onder de laatste samenvatting hangen; de gepunte WBS beschrijft de
+// boom exact en moet winnen (critreview-bevinding 1).
+{
+  const legacyTask = (uid: number, name: string, wbs: string, summary: boolean) => `    <Task>
+      <UID>${uid}</UID><ID>${uid}</ID><Name>${name}</Name>
+      <Duration>PT40H0M0S</Duration><DurationFormat>7</DurationFormat>
+      <Start>2026-09-07T08:00:00</Start><Finish>2026-09-11T17:00:00</Finish>
+      <WBS>${wbs}</WBS><OutlineLevel>${wbs.split('.').length}</OutlineLevel>
+      <Summary>${summary ? 1 : 0}</Summary><Milestone>0</Milestone><PercentComplete>0</PercentComplete>
+    </Task>`;
+  const legacyXml = `<?xml version="1.0" encoding="UTF-8"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+  <Name>Legacy</Name><StartDate>2026-09-07T08:00:00</StartDate><MinutesPerDay>480</MinutesPerDay>
+  <Calendars><Calendar><UID>1</UID><Name>Standaard</Name><IsBaseCalendar>1</IsBaseCalendar><WeekDays></WeekDays></Calendar></Calendars>
+  <Tasks>
+    <Task><UID>0</UID><ID>0</ID><Name>Legacy</Name><OutlineLevel>0</OutlineLevel><Summary>1</Summary></Task>
+${[
+    legacyTask(1, 'R', '1', true), legacyTask(2, 'S1', '1.1', true), legacyTask(3, 'S2', '1.2', true),
+    legacyTask(4, 'a', '1.1.1', false), legacyTask(5, 'b', '1.1.2', false), legacyTask(6, 'c', '1.2.1', false),
+  ].join('\n')}
+  </Tasks>
+</Project>`;
+  const back = readMSPDI(legacyXml);
+  const parentOf = (n: string) => { const t = back.tasks.find(x => x.name === n)!; return t.parentId ? back.tasks.find(x => x.id === t.parentId)!.name : null; };
+  eq('6a legacy-export: a en b hangen onder S1 (WBS wint van de outline-stack)', ['R', 'S1', 'S2', 'a', 'b', 'c'].map(parentOf), [null, 'R', 'R', 'S1', 'S1', 'S2']);
+
+  // Zelfde bestand, maar nu met VRIJE codes: geen volledige WBS-boom ⇒ de outline wint (en die is
+  // hier in boomvolgorde geschreven, dus correct).
+  const freeXml = legacyXml
+    .replace(/<WBS>[^<]*<\/WBS><OutlineLevel>\d+<\/OutlineLevel>/g, (m) => m.replace(/<WBS>[^<]*<\/WBS>/, '<WBS>X</WBS>'));
+  assert(!freeXml.includes('<WBS>1.1</WBS>'), '6b opzet: geen gepunte codes meer');
+  const back2 = readMSPDI(freeXml);
+  eq('6c vrije codes + volledige outline ⇒ outline-boom', back2.tasks.map(t => t.parentId ? back2.tasks.find(x => x.id === t.parentId)!.name : null), [null, 'R', 'R', 'S2', 'S2', 'S2']);
+}
+
+// ── 7. Duration / Work / Baseline van één taak op dezelfde kalender ─────────────────────────
+{
+  const tasks = [
+    mk('p', 'Op projectkalender', '1', 5, null, []),
+    mk('q', 'Op 24/7-kalender', '2', 7, null, [], { calendarId: 'cal-247' }),
+  ];
+  const resources = [{ id: 'r1', name: 'Ploeg', type: 'LABOR' as const, capacity: 1, costRate: 0, unit: '' }] as unknown as import('@/types/resource').Resource[];
+  const assignments = [{ id: 'as1', taskId: 'q', resourceId: 'r1', unitsPerDay: 1 }] as unknown as import('@/types/resource').ResourceAssignment[];
+  const baseline = { id: 'bl', name: 'Nulmeting', createdAt: '2026-09-07T00:00:00Z', projectEnd: '2026-09-14', projectDuration: 7,
+    tasks: [{ taskId: 'q', start: '2026-09-07', finish: '2026-09-13', duration: 7, isMilestone: false }] } as unknown as import('@/types/baseline').Baseline;
+  const xml = writeMSPDI(project, H8, tasks, [], resources, assignments, [H24], [baseline], 'bl');
+  const get = (blk: string, tag: string) => (blk.match(new RegExp(`<${tag}>([^<]*)</${tag}>`)) ?? [])[1] ?? '';
+  const qBlock = (xml.match(/<Task>[\s\S]*?<\/Task>/g) ?? []).find(b => b.includes('<Name>Op 24/7-kalender</Name>'))!;
+  const baselineBlock = qBlock.match(/<Baseline>[\s\S]*?<\/Baseline>/)![0];
+  const asgnBlock = xml.match(/<Assignment>[\s\S]*?<\/Assignment>/)![0];
+  eq('7a Duration op taakkalender', get(qBlock, 'Duration'), 'PT168H0M0S');
+  eq('7b Baseline-Duration op dezelfde kalender (was PT56H)', get(baselineBlock, 'Duration'), 'PT168H0M0S');
+  eq('7c Work op dezelfde kalender (was PT56H ⇒ 33% eenheden)', get(asgnBlock, 'Work'), 'PT168H0M0S');
+  const back = readMSPDI(xml);
+  eq('7d baseline-duur leest terug als 7 dagen (was 21)', back.baselines?.[0]?.tasks.find(b => b.taskId === back.tasks[1].id)?.duration, 7);
+  // 24/7-dagkalender: eindtijd als geldige kloktijd (middernacht), niet `24:00:00`.
+  assert(!xml.includes('24:00:00'), '7e geen `24:00:00` in het kalenderblok');
+  const cal247 = xml.match(/<Calendar>[\s\S]*?<Name>24\/7<\/Name>[\s\S]*?<\/Calendar>/)![0];
+  assert(cal247.includes('<FromTime>00:00:00</FromTime>') && cal247.includes('<ToTime>00:00:00</ToTime>'), '7f 24/7-band 00:00–00:00');
+  const backCal = back.resourceCalendars?.find(c => c.name === '24/7');
+  eq('7g de teruggelezen 24/7-kalender rekent 24 u/dag', backCal?.hoursPerDay, 24);
+}
+
+// ── 8. CSV: samenvatting met duur 0 is geen mijlpaal; dubbele codes waarschuwen ────────────
+{
+  const tasks = treeTasks();
+  tasks.find(t => t.id === 'S3')!.time.scheduleDuration = 0;
+  const back = readCSV(writeCSV(project, H8, tasks, treeSequences(), [], []));
+  const s3 = back.tasks.find(t => t.name === 'Gevel')!;
+  eq('8a samenvatting met duur 0 via CSV: geen mijlpaal, wel kinderen', [s3.isMilestone, s3.childIds.length], [false, 1]);
+
+  const warns: string[] = [];
+  const orig = console.warn;
+  console.warn = (m: unknown) => { warns.push(String(m)); };
+  try {
+    const dup = treeTasks().map(t => ({ ...t, wbsCode: t.id === 'a' || t.id === 'c' ? 'DUP' : t.wbsCode }));
+    const csv = writeCSV(project, H8, dup, treeSequences(), [], []);
+    assert(warns.some(w => w.includes('CSV-export: 1 WBS-code(s) komen meer dan één keer voor')), `8b writer waarschuwt bij dubbele codes, kreeg [${warns.join(' | ')}]`);
+    warns.length = 0;
+    const back2 = readCSV(csv);
+    assert(warns.some(w => w.startsWith('CSV-import:') && w.includes('meer dan één keer')), `8c lezer waarschuwt bij een voorganger op een dubbele code, kreeg [${warns.join(' | ')}]`);
+    eq('8d …maar de boom en de overige relaties blijven intact', shape(back2.tasks), shape(dup));
+    eq('8e …en het aantal relaties is compleet (niets stil weg)', back2.sequences.length, treeSequences().length);
+  } finally {
+    console.warn = orig;
+  }
 }
 
 if (fails === 0) {

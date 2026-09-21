@@ -15,7 +15,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
 import { contourPeriodsToDayItems, minutesToMspdiValue } from '@/services/contourIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
-import { flattenOrder, outlineDepths } from '@/utils/wbs';
+import { flattenOrder, taskDepths } from '@/utils/wbs';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -179,7 +179,9 @@ function writeCalendarBlock(
       lines.push(`${indent(5)}<WorkingTimes>`);
       lines.push(`${indent(6)}<WorkingTime>`);
       lines.push(`${indent(7)}<FromTime>${String(cal.workStartHour).padStart(2, '0')}:00:00</FromTime>`);
-      lines.push(`${indent(7)}<ToTime>${String(cal.workEndHour).padStart(2, '0')}:00:00</ToTime>`);
+      // Via `minutesToClock`: een 24/7-dagkalender (`workEndHour` 24) wordt `00:00:00` — een geldige
+      // kloktijd (middernacht), zoals MS Project's eigen "24 Hours"-kalender — en niet `24:00:00`.
+      lines.push(`${indent(7)}<ToTime>${minutesToClock(cal.workEndHour * 60)}</ToTime>`);
       lines.push(`${indent(6)}</WorkingTime>`);
       lines.push(`${indent(5)}</WorkingTimes>`);
     }
@@ -260,7 +262,7 @@ export function writeMSPDI(
   // laden) en kan "samenvattingen eerst, dan bladen" geordend zijn — dan belandden alle bladen onder
   // de laatste samenvatting, of werd de boom vlak. De UID-toekenning hieronder volgt deze volgorde.
   tasks = [...flattenOrder(tasks)];
-  const depthById = outlineDepths(tasks);
+  const depthById = taskDepths(tasks);
 
   // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in MSPDI niet uitdrukbaar buiten de
   // master/subproject-context ⇒ weggelaten (ghost-weergave blijft in-app). Één warn.
@@ -554,7 +556,9 @@ export function writeMSPDI(
       lines.push(`${indent(4)}<Number>0</Number>`);
       lines.push(`${indent(4)}<Start>${formatMSPDateTime(bt.start)}</Start>`);
       lines.push(`${indent(4)}<Finish>${formatMSPDateTime(bt.finish)}</Finish>`);
-      lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, calendar.hoursPerDay)}</Duration>`);
+      // Critreview #159: dezelfde `effHpd` als <Duration> — anders staat naast een taakduur van 168 u een
+      // baseline van 56 u en verzint MS Project 112 u afwijking.
+      lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, effHpd)}</Duration>`);
       lines.push(`${indent(3)}</Baseline>`);
     }
 
@@ -645,6 +649,9 @@ export function writeMSPDI(
       if (taskUid === undefined || resUid === undefined) continue;
       const task = tasks.find(t => t.id === a.taskId);
       const workDays = (task?.time.scheduleDuration ?? 0) * a.unitsPerDay;
+      // Critreview #159: werk in uren van de TAAK-kalender, consistent met <Duration> — anders leest MS
+      // Project Duration 168 u / Work 56 u / Units 100% en herrekent de eenheden naar 33%.
+      const workHpd = task ? (effCalByTask.get(task.id)?.hoursPerDay ?? calendar.hoursPerDay) : calendar.hoursPerDay;
       // Contour-engine (2026-09): de contour van déze toewijzing (gekoppeld via `resourceId`).
       const taskContour = task ? contourOf(task, a) : undefined;
       const dayItems = task && taskContour && (task.time.earlyStart || task.time.scheduleStart)
@@ -662,7 +669,7 @@ export function writeMSPDI(
       lines.push(`${indent(3)}<Units>${a.unitsPerDay}</Units>`);
       // Werk: bij een contour de SOM van de dagverdeling (de echte werkinhoud), anders duur × units.
       const contourWorkMinutes = dayItems.reduce((n, d) => n + d.workMinutes, 0);
-      lines.push(`${indent(3)}<Work>${dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
+      lines.push(`${indent(3)}<Work>${dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, workHpd)}</Work>`);
       // WorkContour 8 = Contoured zodra er een echte verdeling meegaat (MPXJ `WorkContour.CONTOURED`).
       const contour = dayItems.length > 0 ? MSPDI_WORKCONTOUR_CONTOURED : CURVE_TO_WORKCONTOUR[a.curve ?? 'UNIFORM'];
       if (contour !== 0) {

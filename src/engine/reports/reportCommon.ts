@@ -218,30 +218,6 @@ export function isNearCritical(t: Task, thresholdDays: number): boolean {
   return thresholdDays > 0 && tf > 0 && tf <= thresholdDays;
 }
 
-/** Diepte in de WBS-boom: 1 = hoofdniveau. Cyclusvast (zoals `flattenOrder`): een corrupte
- *  `parentId`-kring wordt als hoofdniveau behandeld in plaats van de stack op te blazen. */
-export function taskDepths(tasks: readonly Task[]): Map<string, number> {
-  const byId = new Map(tasks.map(t => [t.id, t]));
-  const depth = new Map<string, number>();
-  for (const t of tasks) {
-    if (depth.has(t.id)) continue;
-    // Loop de ouderketen op tot een bekende diepte, een wortel of een kring.
-    const chain: Task[] = [];
-    const onChain = new Set<string>();
-    let cur: Task | undefined = t;
-    let base = 0;
-    while (cur) {
-      const known = depth.get(cur.id);
-      if (known !== undefined) { base = known; break; }
-      if (onChain.has(cur.id)) { base = 0; break; } // kring: de rest telt vanaf hoofdniveau
-      chain.push(cur);
-      onChain.add(cur.id);
-      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-    }
-    for (let i = chain.length - 1; i >= 0; i--) {
-      base += 1;
-      depth.set(chain[i].id, base);
-    }
-  }
-  return depth;
-}
+/** Diepte in de WBS-boom: 1 = hoofdniveau. Eén implementatie (`utils/wbs.ts`, cyclusvast via
+ *  `flattenOrder`); hier opnieuw geëxporteerd zodat de rapportlaag zijn bestaande import houdt. */
+export { taskDepths } from '@/utils/wbs';

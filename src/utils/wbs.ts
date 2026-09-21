@@ -128,9 +128,11 @@ export function applyWbsNumbering(tasks: Task[]): void {
  * `IfcTask.Identification` over (vrije tekst, bv. `T107` of `1.0`), en `wbsAutoNumber` draait niet
  * bij het laden — een `wbsCode.split('.').length` zegt daar niets over de nesting. Loopt in
  * {@link flattenOrder}: ouders komen vóór hun kinderen, dus één pass volstaat; een wees telt als
- * hoofdniveau, precies zoals `flattenOrder` hem ook als wortel achteraan zet.
+ * hoofdniveau, precies zoals `flattenOrder` hem ook als wortel achteraan zet. Dit is DE dieptefunctie:
+ * `engine/reports/reportCommon.ts` exporteert hem opnieuw voor de rapportlaag (critreview #159 —
+ * geen tweede kopie).
  */
-export function outlineDepths(tasks: readonly Task[]): Map<string, number> {
+export function taskDepths(tasks: readonly Task[]): Map<string, number> {
   const depth = new Map<string, number>();
   for (const t of flattenOrder(tasks)) {
     const parentDepth = t.parentId ? depth.get(t.parentId) : undefined;
