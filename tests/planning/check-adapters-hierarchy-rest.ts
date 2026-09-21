@@ -7,10 +7,9 @@
 //  2. P6-lezer leverde "samenvattingen eerst, dan bladen" (b) — precies de store-volgorde waar de
 //     MSPDI-export in #159 op stukliep. Nu boomvolgorde; de writer schrijft `SequenceNumber` (P6 sorteert
 //     WBS-broers daarop) en WBS/activiteiten diepte-eerst.
-//  3. IFC-lezer: `parseDurationDays` deelde een kale `PT{n}H` hard door 8 (d). Nu de effectieve
-//     kalender-hpd (taakduur via de post-pass, lag via de projectkalender).
-//  4. IFC-lezer: `IsMilestone=.T.` op een IFCTASK mét IFCRELNESTS-kinderen gaf een samenvatting-
-//     mijlpaal (c). Nu nooit voor een taak met kinderen.
+//  3. IFC-lezer: `parseDurationDays` deelde een kale `PT{n}H` hard door 8 (d). Nu de projectkalender-
+//     hpd voor duur/speling/actuals (en de effectieve taakkalender voor de duur via de post-pass).
+//  4. IFC-lezer normaliseert `isMilestone` BEWUST NIET (critreview PR #162) — zie sectie 4.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -122,19 +121,51 @@ const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find
   eq('3d …als uur-taak met 3000 minuten (bestaande identiteitsregel PT… = uren)', [t.time.durationUnit, t.time.durationMinutes], ['hours', 3000]);
 }
 
-// ── 4. IFC: IsMilestone op een taak met kinderen ──────────────────────────────────────────
+// ── 4. IFC: het native formaat normaliseert NIET (critreview PR #162) ─────────────────────
+// De app staat een mijlpaal met kinderen toe (indent, updateTask); de writer schrijft de vlag rauw.
+// Een lezer-reset maakte schrijven≠lezen — de vlag verdween stil bij opslaan/openen en crashherstel.
 {
   const tasks = treeTasks();
-  tasks.find(t => t.id === 'S2')!.isMilestone = true; // vreemde tool: samenvatting als mijlpaal gevlagd
+  tasks.find(t => t.id === 'S2')!.isMilestone = true;
   const ifc = writeIFC({ project, calendar: H8, tasks, sequences: [], resources: [], assignments: [], resourceCalendars: [] });
   const back = readIFC(ifc);
   const s2 = back.tasks.find(t => t.name === 'Ruwbouw')!;
-  eq('4a samenvatting met IsMilestone=.T. leest terug als géén mijlpaal, mét kinderen', [s2.isMilestone, s2.childIds.length], [false, 1]);
-  eq('4b de boom zelf is intact', WANT_ORDER_NAMES.map(n => parentName(back.tasks, n)), [null, 'Project', 'Voorbereiding', 'Voorbereiding', 'Project', 'Ruwbouw']);
+  eq('4a IFC-round-trip bewaart isMilestone óók op een taak met kinderen', [s2.isMilestone, s2.childIds.length], [true, 1]);
+  eq('4b de boom is intact', WANT_ORDER_NAMES.map(n => parentName(back.tasks, n)), [null, 'Project', 'Voorbereiding', 'Voorbereiding', 'Project', 'Ruwbouw']);
+}
+
+// ── 5. IFC: speling en actuals met dezelfde kalender-hpd als de duur ──────────────────────
+// Critreview PR #162: `parseDurationDays` hield via de helpers een default 8 voor freeFloat/
+// totalFloat/actualDuration terwijl de duur al op de kalender stond — inconsistent binnen één record.
+{
+  const tasks = [mk('t', 'Grondwerk', '1', 5, null, [], { time: { ...mk('x', 'x', 'x', 5, null, []).time, totalFloat: 3, freeFloat: 2 } })];
+  const ifc = writeIFC({ project: { ...project, calendarId: 'cal-h10' }, calendar: H10, tasks, sequences: [], resources: [], assignments: [], resourceCalendars: [] });
+  assert(ifc.includes("'P0Y0M3D'") && ifc.includes("'P0Y0M2D'"), '5a opzet: speling als P0Y0M3D / P0Y0M2D');
+  const foreign = ifc.replace("'P0Y0M3D'", "'PT30H'").replace("'P0Y0M2D'", "'PT20H'");
+  const t = readIFC(foreign).tasks[0];
+  eq('5b totalFloat PT30H op 10 u/dag = 3 (was ceil(30/8) = 4)', t.time.totalFloat, 3);
+  eq('5c freeFloat PT20H op 10 u/dag = 2 (was 3)', t.time.freeFloat, 2);
+}
+
+// ── 6. P6: SequenceNumber wordt ook GELEZEN (broer/zus-volgorde) ──────────────────────────
+{
+  const tasks = treeTasks();
+  const xml = writeP6XML(project, H8, tasks, [], [], []);
+  // Draai de documentvolgorde van de twee samenvattingen om, maar laat SequenceNumber staan —
+  // zoals een echt P6-bestand er kan uitzien.
+  const wbsBlocks = xml.match(/<WBS>[\s\S]*?<\/WBS>/g)!;
+  const voorb = wbsBlocks.find(b => b.includes('<Name>Voorbereiding</Name>'))!;
+  const ruw = wbsBlocks.find(b => b.includes('<Name>Ruwbouw</Name>'))!;
+  const swapped = xml.replace(voorb, '\u0000').replace(ruw, voorb).replace('\u0000', ruw);
+  assert(swapped.indexOf('<Name>Ruwbouw</Name>') < swapped.indexOf('<Name>Voorbereiding</Name>'), '6a opzet: Ruwbouw staat nu vóór Voorbereiding in het bestand');
+  const back = readP6XML(swapped);
+  eq('6b lezer herstelt de broervolgorde uit SequenceNumber', back.tasks.map(t => t.name), WANT_ORDER_NAMES);
+  const noSeq = swapped.replace(/\s*<SequenceNumber>\d+<\/SequenceNumber>/g, '');
+  eq('6c zonder SequenceNumber geldt de documentvolgorde', readP6XML(noSeq).tasks.map(t => t.name), ['Project', 'Ruwbouw', 'Fundering', 'Voorbereiding', 'Bouwplaats', 'Vergunningen']);
 }
 
 if (fails === 0) {
-  console.log(`check-adapters-hierarchy-rest: alles groen (${checks} checks)`);
+  console.log(`OK  check-adapters-hierarchy-rest: alles groen (${checks} checks)`);
   process.exit(0);
 } else {
   console.log(`check-adapters-hierarchy-rest: ${fails}/${checks} checks gefaald`);

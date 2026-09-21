@@ -118,14 +118,15 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
-    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
   const sequences = extractSequences(entities, entityMap, taskStepIdMap, calendar.hoursPerDay);
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
-  // Een taak mét kinderen is nooit een mijlpaal (issue #159, vervolg): een vreemde IFC met
-  // `IsMilestone=.T.` op een genest IFCTASK gaf anders een samenvatting-mijlpaal met duur 0 — de
-  // conditie die de grid-/MCP-schrijfroutes in-app al uitsluiten.
-  for (const t of tasks) if (t.childIds.length > 0 && t.isMilestone) t.isMilestone = false;
+  // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen (critreview PR #162): de app
+  // zelf laat een mijlpaal kinderen krijgen (`indentTasks`, `updateTask`, de checkbox) en de writer
+  // schrijft die vlag rauw — een lezer-reset maakte schrijven≠lezen en liet de vlag stil verdwijnen
+  // bij opslaan/openen én crashherstel. De (c)-guard "samenvatting is nooit mijlpaal" hoort bij de
+  // EXPORTgrenzen (MSPDI-writer, PR #161), niet in het native formaat.
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
@@ -514,7 +515,7 @@ function parseDateFromIFC(s: string): string {
   return clean.substring(0, 10);
 }
 
-function parseDurationDays(s: string, hoursPerDay = 8): number {
+function parseDurationDays(s: string, hoursPerDay: number): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
   // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Negatief kan op twee manieren voorkomen:
@@ -824,6 +825,7 @@ function extractTasks(
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
   persistedIds: Map<string, string> = new Map(),
+  hoursPerDay = 8,
 ): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>; recordedFields: Record<string, RecordedFieldKey[]> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
@@ -859,7 +861,7 @@ function extractTasks(
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
     const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
-    const time = ttEntity ? parseTaskTime(ttEntity) : createDefaultTaskTime(formatDate(new Date()), 5);
+    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(formatDate(new Date()), 5);
     if (ttEntity) taskTimeEntities.set(id, ttEntity);
     recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 
@@ -956,19 +958,20 @@ function extractTaskTypeMeta(
 function optDate(s: string | undefined): string | undefined {
   return s && s !== '$' ? parseDateFromIFC(s) : undefined;
 }
-function optDuration(s: string | undefined): number | undefined {
-  return s && s !== '$' ? parseDurationDays(s) : undefined;
-}
-
 /** STEP-parse-helpers die aan de IFCTASKTIME-read-descriptors (./ifcTaskSlots) worden doorgegeven —
  *  ze wonen hier (STEP-specifieke `$`/quote-semantiek) en worden geïnjecteerd zodat de slot-registry
- *  cyclusvrij blijft. `parseDate`/`parseDur` reproduceren de vroegere `... (e.args[N] || '')`-vorm. */
-const TASKTIME_READ_HELPERS: TaskTimeReadHelpers = {
-  parseDate: (arg) => parseDateFromIFC(arg || ''),
-  parseDur: (arg) => parseDurationDays(arg || ''),
-  optDate,
-  optDur: optDuration,
-};
+ *  cyclusvrij blijft. `parseDate`/`parseDur` reproduceren de vroegere `... (e.args[N] || '')`-vorm.
+ *  Fabriek per kalender-hpd (critreview PR #162): een kale `PT{n}H` in duur, speling of actuals
+ *  wordt met de PROJECTkalender naar dagen vertaald — niet met een vaste 8; de effectieve
+ *  taakkalender kent de lezer op dit punt nog niet, `applyHourModeIFC` corrigeert de duur later. */
+function taskTimeReadHelpers(hoursPerDay: number): TaskTimeReadHelpers {
+  return {
+    parseDate: (arg) => parseDateFromIFC(arg || ''),
+    parseDur: (arg) => parseDurationDays(arg || '', hoursPerDay),
+    optDate,
+    optDur: (s) => (s && s !== '$' ? parseDurationDays(s, hoursPerDay) : undefined),
+  };
+}
 
 /**
  * IFCTASKTIME → TaskTime via de gedeelde slot-registry (./ifcTaskSlots.IFC_TASKTIME_SLOTS): per slot
@@ -978,10 +981,11 @@ const TASKTIME_READ_HELPERS: TaskTimeReadHelpers = {
  * OPS_ProjectSettings, §15.3) laten hun veld ongemoeid ⇒ `$`/afwezige actuals blijven undefined en
  * legacy-bestanden laden ongewijzigd. Veld-voor-veld resultaat-identiek aan de vroegere object-literal.
  */
-function parseTaskTime(e: StepEntity): TaskTime {
+function parseTaskTime(e: StepEntity, hoursPerDay: number): TaskTime {
   const time = {} as TaskTime;
+  const helpers = taskTimeReadHelpers(hoursPerDay);
   for (let i = 0; i < IFC_TASKTIME_SLOTS.length; i++) {
-    IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], TASKTIME_READ_HELPERS);
+    IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], helpers);
   }
   const rawDuration = stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || '');
   const hasTimeComponent = /^-?P[^T]*T/i.test(rawDuration);

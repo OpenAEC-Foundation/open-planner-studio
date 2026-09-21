@@ -319,8 +319,12 @@ function getProjectOverview(s: AppState) {
   // P6-/IFC-import "samenvattingen eerst", en `parent` (een WBS-code) is bij vrije of dubbele codes
   // niet eenduidig — `parentId` en `depth` zijn dat wel. `parent` blijft staan voor bestaande clients.
   const ordered = flattenOrder(tasks);
+  // Diepte uit de ouderketen; `flattenOrder` levert ouders vóór hun kinderen, dus één pass volstaat.
   const depthById = new Map<string, number>();
-  for (const t of ordered) depthById.set(t.id, (t.parentId ? depthById.get(t.parentId) : undefined) !== undefined ? depthById.get(t.parentId!)! + 1 : 1);
+  for (const t of ordered) {
+    const parentDepth = t.parentId ? depthById.get(t.parentId) : undefined;
+    depthById.set(t.id, parentDepth === undefined ? 1 : parentDepth + 1);
+  }
   const rows = ordered.map((t) => {
     const rels = (outByPred.get(t.id) ?? []).map((seq) => relShort(taskById, seq));
     const row: Record<string, unknown> = {
@@ -335,8 +339,9 @@ function getProjectOverview(s: AppState) {
       start: t.time.earlyStart,
       end: t.time.earlyFinish,
     };
-    row.depth = depthById.get(t.id) ?? 1;
+    // `depth`/`parent`/`parentId` alleen op geneste rijen — een wortel is impliciet diepte 1 (compact).
     if (t.parentId) {
+      row.depth = depthById.get(t.id) ?? 1;
       row.parent = taskById.get(t.parentId)?.wbsCode ?? t.parentId;
       row.parentId = t.parentId;
     }
@@ -986,7 +991,7 @@ export const readTools: McpToolDef[] = [
     description:
       'Complete WBS-boom, compact: per taak `id` (het stabiele Task.id — precies wat elke mutatietool ' +
       'nodig heeft), wbs, naam, dur(werkdagen), start/end (vroege datums), ' +
-      'prog(0-100), crit, ms(mijlpaal), depth(1 = hoofdniveau), parent(wbs), parentId (stabiel; ' +
+      'prog(0-100), crit, ms(mijlpaal), en op geneste rijen depth(2+; wortel = 1), parent(wbs), parentId (stabiel; ' +
       'gebruik dit en niet `parent` om de boom te reconstrueren — WBS-codes kunnen vrije tekst of ' +
       'dubbel zijn) en uitgaande relaties in verkorte notatie ' +
       '"→2.3 FS+2d #seq-7", waarbij het deel achter `#` het SEQUENCE-ID is (voer dat rechtstreeks aan ' +

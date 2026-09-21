@@ -334,6 +334,26 @@ export function readP6XML(content: string): ImportResult {
     });
   }
 
+  // Broer/zus-volgorde uit `SequenceNumber` (issue #159, vervolg — critreview PR #162: de writer
+  // schrijft hem, dus de lezer hoort hem ook te honoreren). Stabiele sortering; zonder het element
+  // blijft de documentvolgorde gelden. `flattenOrder` leest de kindvolgorde uit de array-volgorde.
+  const seqNrByObjId = new Map<number, number>();
+  for (const wbsEl of wbsElements) {
+    const objId = getElementInt(wbsEl, 'ObjectId', -1);
+    const raw = getElementText(wbsEl, 'SequenceNumber');
+    if (objId >= 0 && raw) { const n = toInt(raw, NaN); if (Number.isFinite(n)) seqNrByObjId.set(objId, n); }
+  }
+  if (seqNrByObjId.size > 0) {
+    const idToObjId = new Map<string, number>([...wbsObjIdToId].map(([o, id]) => [id, o]));
+    const indexOf = new Map(wbsTasks.map((t, i) => [t.id, i]));
+    wbsTasks.sort((a, b) => {
+      const sa = seqNrByObjId.get(idToObjId.get(a.id)!);
+      const sb = seqNrByObjId.get(idToObjId.get(b.id)!);
+      if (sa !== undefined && sb !== undefined && sa !== sb) return sa - sb;
+      return indexOf.get(a.id)! - indexOf.get(b.id)!;
+    });
+  }
+
   // Resolve WBS parent-child
   for (const wbsEl of wbsElements) {
     const objId = getElementInt(wbsEl, 'ObjectId', -1);
