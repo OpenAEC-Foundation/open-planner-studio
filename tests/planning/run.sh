@@ -304,9 +304,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Issue #159: MSPDI-/CSV-export van de WBS-hiërarchie (OutlineLevel + documentvolgorde uit de echte
+  # ouderketen i.p.v. uit de wbsCode-tekst), samenvatting nooit als mijlpaal, dagduur in uren van de
+  # TAAK-kalender (symmetrisch met de lezer), en de lezers die de boom uit het niveau herbouwen.
+  MHCHECK="$DIR/.mspdi-hierarchy-export.mjs"
+  if bundle_check "$DIR/check-mspdi-hierarchy-export.ts" "$MHCHECK"; then node "$MHCHECK" || STATUS=1; fi
   # Issue #159, vervolg (PR-2): dezelfde bugklasse in de andere adapters — P6 restduur op de
-  # taakkalender, P6-lezer in boomvolgorde + SequenceNumber, IFC-lezer PT{n}H zonder vaste /8, en
-  # IsMilestone nooit op een taak met kinderen.
+  # taakkalender, P6-lezer in boomvolgorde + SequenceNumber (schrijven én lezen), IFC-lezer PT{n}H
+  # met kalender-hpd i.p.v. vaste /8 (duur, speling, actuals); het native IFC normaliseert
+  # isMilestone bewust NIET.
   AHCHECK="$DIR/.adapters-hierarchy-rest.mjs"
   if bundle_check "$DIR/check-adapters-hierarchy-rest.ts" "$AHCHECK"; then node "$AHCHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
