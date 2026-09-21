@@ -646,6 +646,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SPLITWALKCHECK="$DIR/.split-walk.mjs"
   if bundle_check "$DIR/check-split-walk.ts" "$SPLITWALKCHECK"; then node "$SPLITWALKCHECK" || STATUS=1; fi
 
+  SPLITEDITCHECK="$DIR/.check-split-edit.mjs"
+  if bundle_check "$DIR/check-split-edit.ts" "$SPLITEDITCHECK"; then node "$SPLITEDITCHECK" || STATUS=1; fi
+
   # B1c-W0.1: `computeResourceLoad`/`computeHistogramReport` volgen nu de ECHTE werkdagen van een
   # taak — splitGaps-pauzedagen overgeslagen, mapping op de TAAKkalender i.p.v. onvoorwaardelijk de
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
