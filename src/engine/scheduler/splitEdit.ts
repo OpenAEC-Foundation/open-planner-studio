@@ -6,7 +6,8 @@
 // NIET-WÉLGEVORMDE lijsten (overlap, gat voorbij het werktotaal, ongesorteerd, niet-eindig) kan dit
 // model niet dragen zonder data te vernietigen; `toSplitPieces` geeft dan `null` en de aanroeper
 // behandelt de taak als alleen-lezen. Er wordt NOOIT stil genormaliseerd.
-import type { TaskSplitGap } from '@/types/task';
+import type { Task, TaskSplitGap } from '@/types/task';
+import { durationMinutesOf, taskDurationUnit, type DurationCalendar } from './duration';
 
 export type SplitPiece =
   | { kind: 'work'; minutes: number }
@@ -131,4 +132,54 @@ export function removeAllGaps(pieces: readonly SplitPiece[]): SplitPiece[] {
 /** Adoptieregel (spec §2): na een gebruikersbewerking zijn nivelleergaten van de gebruiker. */
 export function adoptLevelingGaps(pieces: readonly SplitPiece[]): SplitPiece[] {
   return pieces.map(p => (p.kind === 'gap' && p.source === 'leveling' ? { ...p, source: 'user' as const } : p));
+}
+
+export type SplitRefusal = 'milestone' | 'summary' | 'hammock' | 'elapsed' | 'manual' | 'too-short' | 'not-editable';
+
+/** `DurationCalendar` is structureel (`isHourMode`/`hoursPerDay`) — geen cast, gewoon het contract
+ *  invullen. `durationMinutesOf` leest alleen `hoursPerDay`, maar `isHourMode` eerlijk afleiden
+ *  kost niets en houdt het object bruikbaar als hier ooit een span-helper bijkomt. */
+const durCal = (task: Task, hoursPerDay: number): DurationCalendar =>
+  ({ isHourMode: taskDurationUnit(task) === 'hours', hoursPerDay });
+
+export function splitUnitMinutes(task: Task, hoursPerDay: number, hourSnapMinutes = 60): number {
+  return taskDurationUnit(task) === 'hours' ? hourSnapMinutes : hoursPerDay * 60;
+}
+
+/** `null` = splitsbaar; anders de reden (UI: verbodscursor/gekleurd blok, MCP: weigertekst). */
+export function canSplitTask(task: Task, hoursPerDay: number, isSummary: boolean): SplitRefusal | null {
+  if (task.isMilestone) return 'milestone';
+  if (isSummary) return 'summary';
+  if (task.isHammock) return 'hammock';
+  if (task.time.durationType === 'ELAPSEDTIME') return 'elapsed';
+  if (task.manuallyScheduled) return 'manual';
+  const work = durationMinutesOf(task, durCal(task, hoursPerDay));
+  if (!isWellFormedSplit(task.splitGaps, work)) return 'not-editable';
+  if (work < 2 * splitUnitMinutes(task, hoursPerDay) - EPS) return 'too-short';
+  return null;
+}
+
+/** Ergonomiegrens (geen rekeneis): werk dat al verricht is, op de werk-as. */
+export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
+  const total = durationMinutesOf(task, durCal(task, hoursPerDay));
+  const remaining = taskDurationUnit(task) === 'hours' ? task.time.remainingMinutes
+    : task.time.remainingTime !== undefined ? task.time.remainingTime * hoursPerDay * 60 : undefined;
+  if (remaining !== undefined && Number.isFinite(remaining)) return Math.min(total, Math.max(0, total - remaining));
+  return Math.min(total, Math.max(0, (task.time.completion || 0) * total));
+}
+
+/** Na een duurkrimp buiten `setTaskSplits` om: gebruikersgaten die op of voorbij het nieuwe
+ *  werktotaal liggen vervallen (anders wordt de lijst niet-wélgevormd en dus alleen-lezen).
+ *  Importgaten (geen `source`) en nivelleergaten blijven van hun eigen levenscyclus. */
+export function clipUserGapsToWork(gaps: readonly TaskSplitGap[] | undefined, totalWorkMinutes: number): TaskSplitGap[] | undefined {
+  if (!gaps || gaps.length === 0) return gaps ? [...gaps] : gaps;
+  let axis = 0; let work = 0;
+  const kept: TaskSplitGap[] = [];
+  for (const g of gaps) {
+    work += Math.max(0, g.afterMinutes - axis);
+    axis = Math.max(axis, g.afterMinutes + g.gapMinutes);
+    if (g.source === 'user' && !(work < totalWorkMinutes - EPS)) continue;
+    kept.push({ ...g });
+  }
+  return kept;
 }

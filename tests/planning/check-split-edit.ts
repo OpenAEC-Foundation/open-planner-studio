@@ -1,10 +1,11 @@
 // check-split-edit.ts — het pure bewerkmodel voor gebruikerssplits (issue #146, spec
 // 2026-09-19-taken-splitsen-bewerken-design.md). Fixtures zijn GECOMMIT: het .mpp-corpus staat
 // niet in de repo en is dus geen poort.
-import type { TaskSplitGap } from '@/types/task';
+import type { Task, TaskSplitGap, TaskTime } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
-  adoptLevelingGaps, fromSplitPieces, isWellFormedSplit, removeAllGaps, setGapLength, setWorkLength,
-  splitAt, toSplitPieces,
+  adoptLevelingGaps, canSplitTask, clipUserGapsToWork, completedWorkMinutes, fromSplitPieces,
+  isWellFormedSplit, removeAllGaps, setGapLength, setWorkLength, splitAt, toSplitPieces,
 } from '@/engine/scheduler/splitEdit';
 
 let checks = 0;
@@ -85,6 +86,42 @@ ok('T3 onaangeraakt gat houdt (geen) source', (() => { const r = setGapLength(su
 // Adoptie: na een gebruikersbewerking zijn nivelleergaten van de gebruiker.
 const lev = toSplitPieces([{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' }, { afterMinutes: 1440, gapMinutes: 480 }], 1440)!;
 eq('T3 adoptLevelingGaps', adoptLevelingGaps(lev).filter(p => p.kind === 'gap').map(p => (p as { source?: string }).source), ['user', undefined]);
+
+// ── T4: splitsbaarheid, voltooid werk en de gat-klip ─────────────────────────
+/** Minimale, volledige `Task` — zelfde vorm als `mkTask` in `check-advanced-cpm.ts`. */
+function mk(o: {
+  days: number; isMilestone?: boolean; isHammock?: boolean; manuallyScheduled?: boolean;
+  durationType?: TaskTime['durationType']; splitGaps?: TaskSplitGap[];
+  remainingTime?: number; completion?: number;
+}): Task {
+  return {
+    id: 't', name: 't', description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: o.isMilestone ?? false, priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: {
+      ...createDefaultTaskTime('2026-06-01', o.days),
+      ...(o.durationType ? { durationType: o.durationType } : {}),
+      ...(o.remainingTime !== undefined ? { remainingTime: o.remainingTime } : {}),
+      ...(o.completion !== undefined ? { completion: o.completion } : {}),
+    },
+    ...(o.isHammock ? { isHammock: true } : {}),
+    ...(o.manuallyScheduled ? { manuallyScheduled: true } : {}),
+    ...(o.splitGaps ? { splitGaps: o.splitGaps } : {}),
+  };
+}
+
+eq('T4 gewone taak', canSplitTask(mk({ days: 10 }), 8, false), null);
+eq('T4 mijlpaal', canSplitTask(mk({ days: 0, isMilestone: true }), 8, false), 'milestone');
+eq('T4 verzameltaak', canSplitTask(mk({ days: 10 }), 8, true), 'summary');
+eq('T4 hammock', canSplitTask(mk({ days: 10, isHammock: true }), 8, false), 'hammock');
+eq('T4 elapsed', canSplitTask(mk({ days: 10, durationType: 'ELAPSEDTIME' }), 8, false), 'elapsed');
+eq('T4 handmatig', canSplitTask(mk({ days: 10, manuallyScheduled: true }), 8, false), 'manual');
+eq('T4 te kort', canSplitTask(mk({ days: 1 }), 8, false), 'too-short');
+eq('T4 niet-bewerkbare importsplit', canSplitTask(mk({ days: 2, splitGaps: BEYOND }), 8, false), 'not-editable');
+eq('T4 voltooid uit remainingTime', completedWorkMinutes(mk({ days: 10, remainingTime: 4 }), 8), 2880);
+eq('T4 voltooid uit completion', completedWorkMinutes(mk({ days: 10, completion: 0.5 }), 8), 2400);
+eq('T4 klip: gat voorbij nieuw werk vervalt', clipUserGapsToWork([{ afterMinutes: 480, gapMinutes: 480, source: 'user' }, { afterMinutes: 2400, gapMinutes: 480, source: 'user' }], 960),
+  [{ afterMinutes: 480, gapMinutes: 480, source: 'user' }]);
+eq('T4 klip raakt importgat niet', clipUserGapsToWork(BEYOND, 960), BEYOND);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  split-edit: alle checks groen (${checks})`); process.exit(0); }
