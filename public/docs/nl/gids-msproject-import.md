@@ -82,6 +82,9 @@ niet-werkdagen (kalender-necking). Print- en pdf-voorbeeld tonen dezelfde onderb
 segment-bewust: het restwerk telt door na elk gat, ook bij een taak die al gedeeltelijk is
 uitgevoerd.
 
+Zulke onderbrekingen kun je daarna meestal ook zelf bewerken, en je kunt er nieuwe maken — in de Gantt, in
+het eigenschappenpaneel of via de AI-assistent. Zie [Taken splitsen](docs://gids-taken-splitsen).
+
 ### Handmatig geplande taken
 
 Een taak die in MS Project op **Handmatig gepland** stond, houdt in Open Planner Studio haar eigen
