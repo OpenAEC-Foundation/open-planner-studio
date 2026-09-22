@@ -75,6 +75,25 @@ afwijkingen hebben met XER".)
 - `recorded-all-formats`: no-go van de review (8 punten) wordt door een fix-agent verwerkt op
   `claude/recorded-all-formats-v2`, gerebased op de PR-branch.
 
+### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
+
+1. **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
+   `rehab-2.xer` (V3114490 e.a.) die bij P6 TF 0 hebben terwijl hun opvolgers maanden speling geven en
+   drie van de zes FF > TF. Uit de relaties in het bestand volgt dat niet; kandidaten (relaties die de
+   splitter weggooide; een constraint die bij een import verloren ging) zijn niet aantoonbaar. Volgens
+   de goal prompt (regel 4) is dit escaleren, niet pinnen. Besluit nodig: dit bestand (deels) uit het
+   orakel halen in het manifest, of accepteren dat het nuldoel hier niet uit P6-regels te halen is.
+   Zie `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` B01.
+2. **Synthetische bestanden S1–S10 — 1.814 cellen** (MER-1, groupdocs, ProjectLens, gimmer/nPlan
+   GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
+   geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
+   B01 is dat 62 % van het restant; zonder besluit is 0 op het volledige corpus niet te halen.
+3. **Projecteinde (brok 1):** de fix landt (P6-conform voor de klasse zonder enig einde), maar Oracle
+   beschrijft `CalculateFloatBasedOnFinishDate` als een multi-project-optie ("each activity's float is
+   calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
+   registreert negatieve float zonder `plan_end_date`. Vervolgvraag in plan XER §9; `project.endDate =
+   start` + `<MustFinishByDate>` in de P6-XML-export is een vervolgpunt.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
@@ -90,7 +109,7 @@ afwijkingen hebben met XER".)
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`, gepusht) | klaar: lezer zet de optie gerapporteerd uit zonder bruikbaar einde; P6-casussen 77→156/160; X12 15.056→15.056 (0 corpuscellen in deze klasse, 0 slechter); bredere variant (uit bij elke lege plan_end_date) = 100 slechter/6 beter op OZB-Start ⇒ niet geland, open vraag plan §9; review loopt |
-| X12-restant-classificatie (meting) | — (rapport `/tmp/x12-restant-classificatie.md`, daarna in plan XER §9 opnemen) | meet-agent loopt; levert de brokken 2..n met signatuur, hypothese, verwacht effect |
+| X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.
