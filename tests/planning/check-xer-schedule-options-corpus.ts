@@ -184,6 +184,7 @@ interface BlastRadiusBaseline {
     derivedRows: number;
     derivedFallbacks: number;
     derivedFloatDialectFallbacks: number;
+    derivedNoProjectEndFallbacks: number;
     derivedRetainedLogic: number;
     derivedProgressOverride: number;
     derivedFinishFloat: number;
@@ -931,6 +932,9 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       derivedFallbacks: derivedRows.reduce((sum, result) => sum + result.fallbacks.length, 0),
       derivedFloatDialectFallbacks: derivedRows.reduce((sum, result) => sum
         + result.fallbacks.filter(item => item.field === 'sched_float_type').length, 0),
+      // X12-brok 1: `Y` zonder PROJECT.plan_end_date en zonder één TASK.target_end_date ⇒ terugval N.
+      derivedNoProjectEndFallbacks: derivedRows.reduce((sum, result) => sum
+        + result.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float').length, 0),
       derivedRetainedLogic: derivedRows.filter(result => result.progressMode === 'RETAINED_LOGIC').length,
       derivedProgressOverride: derivedRows.filter(result => result.progressMode === 'PROGRESS_OVERRIDE').length,
       derivedFinishFloat: derivedRows.filter(result => result.schedulingOptions.totalFloatMode === 'finish').length,
@@ -1024,8 +1028,11 @@ if (!root) {
     progressOverride: 1,
     unknownFloatDialect: 8,
     derivedRows: 49,
-    derivedFallbacks: 8,
+    // X12-brok 1: +16 terugvallen `sched_use_project_end_date_for_float` Y ⇒ N (geen enkel einde in de
+    // bron: de dertien cases-import.xer-projecten en drie taakloze OZB-projecten) — samen 8 + 16.
+    derivedFallbacks: 24,
     derivedFloatDialectFallbacks: 8,
+    derivedNoProjectEndFallbacks: 16,
     derivedRetainedLogic: 48,
     derivedProgressOverride: 1,
     derivedFinishFloat: 49,

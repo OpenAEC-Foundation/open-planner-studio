@@ -803,14 +803,15 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
   blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
   enige bewaking — per as, niet per cel.
-- [ ] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
-  zonder `plan_end_date`** (her-review 7a, 2026-09-07; `xerReader.ts` `taskDerivedProjectEnd =
-  finishes[last] ?? projectStart`). Op de echte P6-export van de dertien casussen
-  (`cases-import.xer`: geen enkele `target_end_date`, geen `plan_end_date`) verankert de hele late
-  zijde daardoor op de start: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in
-  sectie 7 van `check-p6-verified-cases-engine.ts`. Fix-kandidaat: zonder bruikbaar einde
-  (`plan_end_date` leeg én geen taakeinde) de optie gerapporteerd uitzetten — met blastradius-
-  meting op het corpus (39 van 50 SCHEDOPTIONS-rijen dragen `Y`), niet als zijklus.
+- [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
+  zonder `plan_end_date`** (her-review 7a, 2026-09-07). Opgelost in X12-brok 1 (2026-09-23,
+  branch `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen
+  enkele `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit
+  (`hasUsableProjectEnd`, terugvalmelding, bron-`Y` blijft in `retainedSource`). `cases-import.xer`
+  zoals gelezen 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`). Blastradius
+  op het corpus: 16 van de 39 `Y`-rijen (13× cases-import, 3 taakloze OZB-projecten); X12 15.056
+  ongewijzigd, 0 cellen slechter. De 20 `Y`-rijen mét taakeinden houden het taak-afgeleide einde —
+  zie plan XER §9 voor de open vraag daarover.
 - [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
   etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
   die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
