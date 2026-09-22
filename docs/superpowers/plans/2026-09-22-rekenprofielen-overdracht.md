@@ -72,10 +72,10 @@ op het moment van schrijven).*
 | PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #161 gemerged (`c2284cf6`), review-fixes `bd0fb55b`; main t/m #166 gemerged (`0a29147c`, lokaal in `/tmp/ops-pr109-main2`, gerichte poorten groen; volledige suites + X12 lopen; daarna pushen) |
 | rekenprofielen (etappe) | `claude/rekenprofielen` (bovenop de PR-branch) | spec v3.1 `0979cc18`; overdracht (dit bestand) |
 | baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | klaar: `5e2084fd`, `56602e59` (gepusht); critreview loopt; `verify:i18n` rood tot de integratie (alleen nl/en) |
-| baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | klaar: `d12aeb14`, `770ee823`; X12 15.056, mpp 216; critreview loopt |
+| baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | `d12aeb14`, `770ee823`; critreview = no-go (3 must-fixes: A15–A20 uit zonder p6Source in de tijdelijke laag, A19-docblok, CRLF CalendarEngine); fixronde loopt |
 | cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | klaar: `ae947fc1`, `abfaef46`, `1d0cfda3`; critreview loopt |
 | uitvoeringsplan | `claude/rekenprofielen` | architect-agent schrijft `2026-09-22-plan-rekenprofielen.md` |
-| recorded-all-formats | `claude/recorded-all-formats` (+ `-v2` in aanbouw) | ded4d8c3 = no-go (8 punten); fix-agent bezig |
+| recorded-all-formats | `claude/recorded-all-formats-v2` (gepusht) | 8 reviewpunten gefixt (t/m `b63c55f1`), gerebased op de PR-branch t/m 16785c73; her-check loopt; daarna: nog main t/m #166 erin, volledige suites, dan aparte PR ná #109 |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.
