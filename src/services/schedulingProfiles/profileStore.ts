@@ -27,8 +27,15 @@ export const MAX_STORED_PROFILES_LENGTH = 256 * 1024;
 
 export type ProfileStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
+/** De app-opslag, of `undefined`. Al het LEZEN van de `localStorage`-global kan gooien (SecurityError
+ *  bij uitgeschakelde of afgeschermde opslag); daarom binnen een try — de aanroepers evalueren dit als
+ *  default-parameter, dus buiten hun eigen try. */
 function defaultStorage(): ProfileStorage | undefined {
-  return typeof localStorage === 'undefined' ? undefined : localStorage;
+  try {
+    return typeof localStorage === 'undefined' ? undefined : localStorage;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Het ingebouwde profiel (basis zonder afwijkingen; weergavenaam via `displayNameKey`). */
