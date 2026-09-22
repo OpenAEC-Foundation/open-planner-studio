@@ -815,8 +815,7 @@
       "applyOnly": "保存せずに適用",
       "infoApplyOnly": "レイアウトボタンを作らずに、チェックした項目を画面に適用します。一時的なフィルターに便利です。",
       "columnsNote": "表に現在表示されている列を取り込みます。列は表ヘッダーのプラスで選択します。",
-      "relationsShow": "関係線を表示",
-      "relationsHide": "関係線を非表示"
+      "relationsShow": "関係線を表示"
     },
     "presentation": {
       "hint": "Esc または F11 を押して全画面表示を終了します。"

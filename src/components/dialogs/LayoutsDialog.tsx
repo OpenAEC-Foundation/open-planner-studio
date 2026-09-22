@@ -66,7 +66,7 @@ export function LayoutsDialog() {
       if (!target) return;
       setName(target.name);
       setIcon(target.icon ?? 'layout');
-      setParts(layoutParts(target));
+      setParts([...new Set([...layoutParts(target), 'showRelations' as LayoutPart])]);
       setDraft(current => ({ ...current, ...structuredClone(target) }));
     });
     return () => { cancelled = true; };
@@ -145,20 +145,7 @@ export function LayoutsDialog() {
           </select>
         );
       case 'showRelations':
-        // Geen tweede vinkje onder het vinkje "vastleggen": een keuze tonen/verbergen.
-        return (
-          <select
-            value={draft.showRelations ?? true ? 'show' : 'hide'}
-            onChange={e => setDraft(d => ({ ...d, showRelations: e.target.value === 'show' }))}
-            className="input !text-[11px] !px-1.5 !py-1"
-            style={{ alignSelf: 'flex-start' }}
-            data-ops-layout-relations="true"
-            aria-label={t('common:view.layout.partRelations')}
-          >
-            <option value="show">{t('common:view.layout.relationsShow')}</option>
-            <option value="hide">{t('common:view.layout.relationsHide')}</option>
-          </select>
-        );
+        return null;
     }
   };
 
@@ -233,17 +220,32 @@ export function LayoutsDialog() {
           <div className="flex flex-col">
             {LAYOUT_PARTS.map(part => (
               <div key={part} className="flex flex-col gap-2 py-2 border-b border-border-light" data-ops-layout-part-row={part}>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={parts.includes(part)}
-                    onChange={() => togglePart(part)}
-                    data-ops-layout-part={part}
-                  />
-                  <span className="flex-1 font-semibold">{t(PART_KEYS[part].label as 'common:view.layout.partRelations')}</span>
-                  {info(PART_KEYS[part].info)}
-                </label>
-                {parts.includes(part) && (
+                {part === 'showRelations' ? (
+                  // Eén vinkje, en dat is meteen de waarde (eigenaarsbesluit): een layout uit deze
+                  // dialoog legt de relatielijnen altijd vast.
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={draft.showRelations ?? true}
+                      onChange={e => setDraft(d => ({ ...d, showRelations: e.target.checked }))}
+                      data-ops-layout-relations="true"
+                    />
+                    <span className="flex-1 font-semibold">{t('common:view.layout.relationsShow')}</span>
+                    {info(PART_KEYS[part].info)}
+                  </label>
+                ) : (
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={parts.includes(part)}
+                      onChange={() => togglePart(part)}
+                      data-ops-layout-part={part}
+                    />
+                    <span className="flex-1 font-semibold">{t(PART_KEYS[part].label as 'common:view.layout.partRelations')}</span>
+                    {info(PART_KEYS[part].info)}
+                  </label>
+                )}
+                {part !== 'showRelations' && parts.includes(part) && (
                   <div className="flex flex-col gap-1.5" style={{ paddingInlineStart: 24 }}>{partEditor(part)}</div>
                 )}
               </div>

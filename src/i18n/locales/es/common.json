@@ -839,8 +839,7 @@
       "applyOnly": "Aplicar sin guardar",
       "infoApplyOnly": "Pone en pantalla las partes marcadas sin crear un botón de diseño. Útil para un filtro rápido y temporal.",
       "columnsNote": "Toma las columnas tal como están ahora en la tabla. Las columnas se eligen con el signo más del encabezado de la tabla.",
-      "relationsShow": "Mostrar líneas de relación",
-      "relationsHide": "Ocultar líneas de relación"
+      "relationsShow": "Mostrar líneas de relación"
     },
     "presentation": {
       "hint": "Pulse Esc o F11 para salir de pantalla completa."

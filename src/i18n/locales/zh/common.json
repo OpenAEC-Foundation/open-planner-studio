@@ -815,8 +815,7 @@
       "applyOnly": "应用但不保存",
       "infoApplyOnly": "将勾选的部分应用到屏幕，但不创建布局按钮。适合快速的临时筛选。",
       "columnsNote": "采用表格中当前的列。通过表头的加号选择列。",
-      "relationsShow": "显示关系线",
-      "relationsHide": "隐藏关系线"
+      "relationsShow": "显示关系线"
     },
     "presentation": {
       "hint": "按 Esc 或 F11 退出全屏模式。"

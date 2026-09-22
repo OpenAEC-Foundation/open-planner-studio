@@ -839,8 +839,7 @@
       "applyOnly": "Appliquer sans enregistrer",
       "infoApplyOnly": "Applique les éléments cochés à l’écran sans créer de bouton de layout. Pratique pour un filtre rapide et temporaire.",
       "columnsNote": "Reprend les colonnes telles qu’elles sont actuellement dans le tableau. Les colonnes se choisissent avec le plus dans l’en-tête du tableau.",
-      "relationsShow": "Afficher les lignes de liaison",
-      "relationsHide": "Masquer les lignes de liaison"
+      "relationsShow": "Afficher les lignes de liaison"
     },
     "presentation": {
       "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."

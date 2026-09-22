@@ -839,8 +839,7 @@
       "applyOnly": "Aplicar sem guardar",
       "infoApplyOnly": "Coloca as partes marcadas no ecrã sem criar um botão de layout. Útil para um filtro rápido e temporário.",
       "columnsNote": "Assume as colunas tal como estão agora na tabela. As colunas escolhem-se com o mais no cabeçalho da tabela.",
-      "relationsShow": "Mostrar linhas de relação",
-      "relationsHide": "Ocultar linhas de relação"
+      "relationsShow": "Mostrar linhas de relação"
     },
     "presentation": {
       "hint": "Prima Esc ou F11 para sair do ecrã inteiro."

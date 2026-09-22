@@ -827,8 +827,7 @@
       "applyOnly": "Kaydetmeden uygula",
       "infoApplyOnly": "İşaretli bölümleri düzen düğmesi oluşturmadan ekrana uygular. Hızlı, geçici bir filtre için kullanışlıdır.",
       "columnsNote": "Sütunları tabloda şu anda olduğu gibi alır. Sütunları tablo başlığındaki artı ile seçersiniz.",
-      "relationsShow": "İlişki çizgilerini göster",
-      "relationsHide": "İlişki çizgilerini gizle"
+      "relationsShow": "İlişki çizgilerini göster"
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

@@ -827,8 +827,7 @@
       "applyOnly": "Apply without saving",
       "infoApplyOnly": "Puts the ticked parts on screen without making a layout button. Useful for a quick, temporary filter.",
       "columnsNote": "Takes over the columns as they are in the table now. You choose columns with the plus in the table header.",
-      "relationsShow": "Show relationship lines",
-      "relationsHide": "Hide relationship lines"
+      "relationsShow": "Show relationship lines"
     },
     "presentation": {
       "hint": "Press Esc or F11 to exit full screen."

@@ -851,8 +851,7 @@
       "applyOnly": "Zastosuj bez zapisywania",
       "infoApplyOnly": "Stosuje zaznaczone elementy na ekranie bez tworzenia przycisku układu. Przydatne do szybkiego, tymczasowego filtra.",
       "columnsNote": "Przejmuje kolumny w takiej postaci, w jakiej są teraz w tabeli. Kolumny wybiera się plusem w nagłówku tabeli.",
-      "relationsShow": "Pokaż linie relacji",
-      "relationsHide": "Ukryj linie relacji"
+      "relationsShow": "Pokaż linie relacji"
     },
     "presentation": {
       "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."
