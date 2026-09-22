@@ -51,6 +51,80 @@ aangeroepen:
 `activity_code` en de `*_p6`-kolommen komen mee; kloktijden en actual-suffixen blijven onvertaald.
 De `*_engine`-kolommen en PASS-oordelen zijn uitdrukkelijk geen brondata voor deze generator.
 
+## Regel A: landingsmeting per rekenprofiel (corpusgebonden, niet in `verify`)
+
+`npm run measure:profiles` → `measure-profiles.mjs` (oordeelsfuncties in `measure-profiles-status.mjs`,
+corpusloos getoetst in `tests/dev-server/measure-profiles.test.mjs`). De landingspoort voor elke
+motorwijziging (rekenprofielen-spec §2 besluit 5, §5): draait elk onderdeel als eigen
+`bash tests/planning/run.sh <check>` en print per profiel exitcode, tellingen en cel-delta.
+Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
+`OPS_MPP_FIDELITY_REPORT` mee. `--only=p6|msp|vangrails` draait één onderdeel.
+
+| onderdeel | check | oordeel |
+|---|---|---|
+| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 onmeetbaar=0 verbeterd>0`: exit 0, maar commit alleen mét herpin v2 + cellen, zie hieronder). Een cel die niet meer meetbaar is (blinder orakel) telt nooit als verbeterd maar als `onmeetbaar` en is rood; meetbaarheid en dekking per entry/as worden daarnaast apart tegen v2 vergeleken (`X12 meetbaarheid/dekking wijkt af van v2`, altijd rood). `--strict` maakt een rode nuldoelregel rood |
+| MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort. Nul gescande bestanden is `ROOD (niet gemeten)` |
+| vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek en in de pas met de v2-tellingen |
+| `--full` (optioneel) | de volledige `run.sh`, zonder `OPS_XER_CORPUS` | standaard uit: draait al in `npm run verify`, en machinebreed hoort er maar één zware run tegelijk te lopen |
+
+Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
+uitvoer).
+
+**Herpinnen na een VERBETERD-uitslag** — vier stappen, in deze volgorde, alles in één commit:
+
+```bash
+export OPS_XER_CORPUS=/pad/naar/testdata-crawl
+# 1. de v2-tellingen
+OPS_XER_V2_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
+# 2. de cellen
+OPS_XER_CELLS_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
+# 3. de EXPECTED-pins van de corpusloze CI-vangrail (productStrict-tellers + payload-hashes)
+OPS_XER_GATE_PINS=write bash tests/planning/run.sh check-xer-corpusless-fidelity-gate.ts
+#    ...en werk de HERPIN-toelichting boven `productStrict` in dat bestand met de hand bij
+# 4. de vangrails moeten nu groen zijn
+bash tests/planning/run.sh check-xer-corpusless-fidelity-gate.ts check-fidelity-cells-gate.ts
+# 5. xer-product-fidelity-baseline-v2.json, xer-product-fidelity-cells.json en
+#    check-xer-corpusless-fidelity-gate.ts samen committen
+```
+
+Stap 1 en 2 eindigen zolang het nuldoel niet gehaald is met exit 1 op precies de drie
+nuldoelregels; dat is verwacht. Kijk naar de regel `OK  X12 v2-baseline herpind` resp. `OK  X12
+cel-baseline herpind`. Beide schrijven atomair (tijdelijk bestand + rename) en alleen als de meting
+verder schoon is: naast de drie nuldoelregels geen enkele rode regel — geen nieuwe, verslechterde
+of onmeetbaar geworden cel, geen gewijzigde drivingPath-orakelhash, geen meetbaarheids-,
+dekkings- of `schemaFingerprint`-afwijking t.o.v. v2 (een orakel dat verschuift is geen
+verbetering). Anders weigeren ze en blijft het bestand onaangeroerd. De v2-stap gaat vóór de
+cellen omdat `check-fidelity-cells-gate.ts` eist dat de cellen per entry/as/emmer optellen tot de
+v2-tellingen. Stap 3 schrijft uitsluitend de uit v2 afgeleide pinnen (`OPS_XER_GATE_PINS=print`
+toont ze zonder te schrijven); zonder die stap staat `npm run verify` na een verbetering rood.
+
+**Corpusgroei** (een entry erbij of eraf, dus een gewijzigd `xer-corpus-manifest.json`): de
+dekkingscheck en de cel-poort staan dan rood op het gewijzigde entry-set, en `=1` weigert. Gebruik
+`OPS_XER_V2_WRITE=corpus` en daarna `OPS_XER_CELLS_WRITE=corpus`, gevolgd door stap 3–5 hierboven
+met `OPS_XER_GATE_PINS=corpus` in plaats van `=write`.
+`=corpus` staat alleen de entry-set-/manifestregels toe en alleen als het manifest werkelijk
+verschilt van dat van de gepinde baseline; elke nieuwe, verslechterde of onmeetbaar geworden cel en
+elke afwijking op een bestaande entry blijft blokkeren. De corpusloze vangrail pint het manifest en
+de orakelselectie zelf ook (`EXPECTED.manifestRawSha256` e.a.); die pinnen bijwerken is bij
+corpusgroei een bewuste reviewstap en valt buiten `OPS_XER_GATE_PINS`.
+
+Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
+dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een
+v2-baseline bij hetzelfde corpusmanifest bestaat — `init` is alleen voor een echt nieuw corpus. Een
+weggegooid cellenbestand zet je terug uit versiebeheer.
+
+**Verboden omwegen.** Alle drie de schrijfmodi (`OPS_XER_V2_WRITE`, `OPS_XER_CELLS_WRITE`,
+`OPS_XER_GATE_PINS`) schrijven alleen omlaag; `OPS_XER_GATE_PINS=write` weigert zodra een
+afwijkingenteller stijgt of de dekking wijzigt, en bij een gewijzigd manifest alleen via `=corpus`.
+Maak een baseline daarom nooit langs ze heen:
+
+- geen omleiding `OPS_XER_FIDELITY_REPORT=baseline … > tests/planning/xer-product-fidelity-baseline-v2.json`.
+  De rapportmodus print een kopregel `RAPPORT — niet als baseline gebruiken` vóór de JSON (een
+  omgeleid bestand is dus ongeldig en de strikte v2-lezer weigert het) en weigert rechtstreeks naar
+  het baselinebestand te schrijven;
+- geen cellenbestand weggooien om het met `init` opnieuw te maken;
+- `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen.
+
 ## Release en publicatie
 
 | script | aangeroepen door | doet |

@@ -361,6 +361,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Regel A (rekenprofielen-spec §5): corpusloos mutatiebewijs van de cel-poortlogica plus de
+  # geldigheid van de gecommitte xer-product-fidelity-cells.json en haar pas (per entry/as/emmer)
+  # met xer-product-fidelity-baseline-v2.json. De corpusgebonden cel-poort zelf draait in
+  # check-xer-product-fidelity-x12.ts. Leest alleen JSON en pure logica: tijdzone-onafhankelijk.
+  FIDCELLSGATE="$DIR/.fidelity-cells-gate.mjs"
+  if bundle_check "$DIR/check-fidelity-cells-gate.ts" "$FIDCELLSGATE"; then
+    node "$FIDCELLSGATE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

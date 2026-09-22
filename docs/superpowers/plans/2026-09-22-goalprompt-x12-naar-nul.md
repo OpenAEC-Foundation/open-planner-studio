@@ -60,3 +60,11 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
 - Een P6-tak achter een formaat- of herkomstcheck stoppen.
 - Het OPS-profiel veranderen (inhoud is een eigenaarsbesluit ná nul).
 - MSPDI/P6-XML van profiel wisselen (eigen, gemeten taak).
+- Een baseline langs de schrijfmodi heen maken. Verboden zijn: de omleiding
+  `OPS_XER_FIDELITY_REPORT=baseline … > xer-product-fidelity-baseline-v2.json` (de rapportmodus is
+  alleen rapport: hij begint met een kopregel en weigert rechtstreeks naar het baselinebestand te
+  schrijven), het cellenbestand weggooien om het met `OPS_XER_CELLS_WRITE=init` opnieuw te maken
+  (`init` weigert zolang er een v2-baseline bij hetzelfde manifest bestaat), en `EXPECTED` in
+  `check-xer-corpusless-fidelity-gate.ts` met de hand ophogen. Herpinnen gaat uitsluitend via
+  `OPS_XER_V2_WRITE=1`, `OPS_XER_CELLS_WRITE=1` en `OPS_XER_GATE_PINS=write`, die alle drie alleen
+  omlaag schrijven (recept in `scripts/README.md`).
