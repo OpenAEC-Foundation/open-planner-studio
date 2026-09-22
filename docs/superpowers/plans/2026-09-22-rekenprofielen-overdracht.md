@@ -79,7 +79,7 @@ afwijkingen hebben met XER".)
 
 | wat | branch | stand |
 |---|---|---|
-| PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #161 gemerged (`c2284cf6`), review-fixes `bd0fb55b`; main t/m #166 gemerged (`0a29147c`, lokaal in `/tmp/ops-pr109-main2`, gerichte poorten groen; volledige suites + X12 lopen; daarna pushen) |
+| PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #166 gemerged en gepusht (`0a29147c`): planning/library/browser 164/mcp/dev-server groen, X12 15.056; draft blijft tot X12 nul is |
 | rekenprofielen (etappe) | `claude/rekenprofielen` (bovenop de PR-branch) | spec v3.1 `0979cc18`; overdracht (dit bestand) |
 | baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | klaar: `5e2084fd`, `56602e59` (gepusht); critreview loopt; `verify:i18n` rood tot de integratie (alleen nl/en) |
 | baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | GO na fixronde (`893e9955`); **gemerged** in `claude/rekenprofielen` (`e3545ed7`). Integratiepunt: tabeltest op `resolveLegacyP6SourceConventions` (zes gepoorte vlaggen zonder bron ⇒ false) corpusloos toevoegen; tijdelijke laag `legacyP6Source.ts` verwijderen zodra de lezers het profiel zetten |
