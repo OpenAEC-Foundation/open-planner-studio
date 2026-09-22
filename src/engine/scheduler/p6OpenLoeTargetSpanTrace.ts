@@ -2,10 +2,11 @@ import type { SchedulingOptions } from '@/types/project';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
+import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 
 export type OpenXerLoeTargetSpanReason =
   | 'eligible'
-  | 'notXerSource'
+  | 'conventionOff'
   | 'missingProjectProvenance'
   | 'missingTaskProvenance'
   | 'wrongActivityType'
@@ -57,7 +58,28 @@ export function explainOpenXerLoeTargetSpanEligibility(
   targetWindowWorkMinutes: number,
   targetWindowToleranceMinutes: number,
 ): OpenXerLoeTargetSpanDecision {
-  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  // TIJDELIJK (rekenprofielen baan B): vertaling voor directe aanroepers; de solver gebruikt
+  // de `Resolved`-variant met al vertaalde opties.
+  return explainOpenXerLoeTargetSpanEligibilityResolved(
+    task, resolveLegacyP6SourceConventions(schedulingOptions), incoming, outgoing,
+    relationalEarlyStart, targetWindowWorkMinutes, targetWindowToleranceMinutes,
+  );
+}
+
+/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`); leest alleen vlaggen. */
+export function explainOpenXerLoeTargetSpanEligibilityResolved(
+  task: Task,
+  schedulingOptions: SchedulingOptions | undefined,
+  incoming: readonly Sequence[],
+  outgoing: readonly Sequence[],
+  relationalEarlyStart: Date,
+  targetWindowWorkMinutes: number,
+  targetWindowToleranceMinutes: number,
+): OpenXerLoeTargetSpanDecision {
+  // Conventie B5 `p6OpenLoeTargetSpan` — exact op de plek van de vroegere bron-check.
+  if (schedulingOptions?.p6OpenLoeTargetSpan !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
   if (task.p6ProjectId === undefined || task.p6ProjectId === '') {
     return { eligible: false, reason: 'missingProjectProvenance' };
   }

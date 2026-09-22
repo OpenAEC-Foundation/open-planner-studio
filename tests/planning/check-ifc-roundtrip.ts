@@ -395,6 +395,13 @@ const SCHED_OPTS = {
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob
   unstartedIgnoresStatusDate: true, // B1 (dossier (c)4-herdiagnose): idem, rondt mee als deel van het JSON-blob
+  // Rekenprofielen baan B: de vijf groep-B-conventies, bewust gemengd — een expliciete `false`
+  // moet net zo goed terugkomen als `true`, want hij wint van de tijdelijke bronvertaling.
+  p6RelationFinishBoundary: true,
+  p6BackwardLagFinishBoundary: false,
+  p6CompletedDataDateWindow: true,
+  p6CompletedLoeActualFinish: false,
+  p6OpenLoeTargetSpan: true,
 } satisfies Required<SchedulingOptions>;
 const project = {
   id: 'proj-1', name: 'Nieuwbouw Testtoren', description: 'Beschrijving X', // description: (a) gap

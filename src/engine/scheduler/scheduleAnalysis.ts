@@ -7,10 +7,10 @@ import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
-import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindowResolved } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainDisplayActualLateEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
 } from './p6CompletedRouteTrace';
 
 /**
@@ -217,7 +217,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // die twee P6-betekenissen dus apart: TF komt verderop uit de verankerde LS/LF; FF uit dezelfde
     // project-eindruimte die vóór de late-ankerfix al werd gerapporteerd. Expliciete PROJECT-end-
     // float heeft hieronder zijn eigen, smallere nulregel en valt niet in deze variant.
-    if (so?.p6Source === 'XER' && so.p6FinishMilestoneBoundaryWindow === true
+    if (so?.p6FinishMilestoneBoundaryWindow === true
       && so.useProjectEndDateForFloat !== true && succs.length === 0
       && tasksWithPredecessor.has(taskId)
       && taskObj.milestoneKind === 'FINISH' && isZeroDurationMilestone(taskObj)) {
@@ -242,7 +242,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
     const completed = !!dataDate && tt.completion >= 1;
-    const completedWindowDecision = explainP6CompletedDataDateWindow(taskObj, dataDate, so);
+    const completedWindowDecision = explainP6CompletedDataDateWindowResolved(taskObj, dataDate, so);
     const completedDisplayWindow = completedWindowDecision.eligible
       ? (() => {
         const progressCal = progressCalendarFor(taskObj);
@@ -266,13 +266,13 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     //
     // Review-bevinding 4 (poortdivergentie): deze poort MOET letterlijk dezelfde functie zijn als
     // die in `CPMSolver.backwardPass`. Stond hier alleen `completedWindowDecision.eligible &&
-    // p6Source === 'XER' && vlag`, dan viel een `TK_Complete` ZONDER `act_end_date` ertussen: wel
+    // XER-bron && vlag`, dan viel een `TK_Complete` ZONDER `act_end_date` ertussen: wel
     // window-eligible (de CP_Drtn-route eist geen actualFinish), maar NIET
     // `backwardActualPin`-eligible, dus de solver liet zijn late zijde ongemoeid terwijl deze
     // weergavelaag `pinLateToActualWindow` toch uitschakelde en de float tegen het venster ging
     // meten. Gemeten gevolg vóór deze fix (fixture `check-xer-completed-late-gate-parity.ts`):
     // ls/lf/tf van zo'n taak veranderden terwijl de solvertak niets deed.
-    const useCompletedRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+    const useCompletedRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
       taskObj, dataDate, so,
     ).eligible;
     const floatEarlyEs = useCompletedRemainingWindow ? completedDisplayWindow!.es : early.es;

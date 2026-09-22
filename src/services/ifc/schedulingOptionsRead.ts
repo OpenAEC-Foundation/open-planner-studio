@@ -26,6 +26,8 @@ const BOOLEAN_KEYS = [
   'p6FinishMilestoneBoundaryWindow', 'p6PreserveActualInstants', 'p6UseRemainingStartForProgress',
   'p6PreserveZeroDurationConstraintInstants', 'useProjectEndDateForFloat', 'resumeFromActualElapsed',
   'unstartedIgnoresStatusDate', 'p6CompletedLateFromRemainingWindow',
+  'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
+  'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
 ] as const satisfies ReadonlyArray<keyof SchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
