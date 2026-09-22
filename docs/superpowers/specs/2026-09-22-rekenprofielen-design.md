@@ -1,7 +1,7 @@
 # Rekenprofielen — één solver, benoemde conventies, profielen per project
 
-*Ontwerp, 2026-09-22, **versie 3** (na twee critreview-rondes: v1 no-go op veertien punten, v2 no-go op
-negen tekstpunten; beide verwerkt — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
+*Ontwerp, 2026-09-22, **versie 3.1** (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
+negen tekstpunten, v3 go onder drie voorwaarden; alle verwerkt — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
 vóór het X12-vervolg. Bijlage A is de inventaris van de motor op de kop van
 `claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
 
@@ -18,7 +18,7 @@ Dit ontwerp haalt die keuze uit de motor. Het onderscheidt twee dingen die v1 op
 
 - **Pakketconventies** — regels die bij een *school* horen en niet per bestand verschillen: "een
   finishmijlpaal is een grensvenster", "actuals zijn exacte broninstants", "restwerk hervat op
-  actualStart + verstreken duur". Dat zijn er veertien (bijlage A, groep A-conventies + B). Zij vormen
+  actualStart + verstreken duur". Dat zijn er vijftien (bijlage A, groep A-conventies + B). Zij vormen
   het **rekenprofiel**.
 - **Reken-opties van het project** — instellingen die P6 en MS Project *per project* opslaan en die de
   lezer uit het bestand haalt: lagkalender, kritiekdefinitie en -drempel, floatformule, open einden,
@@ -48,7 +48,7 @@ vervangen).
 
 ## 3. Datamodel
 
-### 3.1 De veertien conventies en het register
+### 3.1 De vijftien conventies en het register
 
 `SchedulingOptions` (`src/types/project.ts`) blijft het opgeloste type dat de solver leest — geen
 hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelverzamelingen benoemd:
@@ -125,7 +125,8 @@ interface SchedulingProfile {
   `DOCUMENT_FIELDS` (snapshot-rol `data`), dus geen eigen contract-entry. Undo, documentwissel,
   crashherstel en opslaan volgen vanzelf.
 - `resolveConventions(profile)` = basiswaarden + overrides. `effectiveSchedulingOptions(project)` =
-  `{ ...resolveConventions(project.schedulingProfile), ...project.schedulingOptions }`; de sanitizer
+  `{ ...project.schedulingOptions, ...resolveConventions(project.schedulingProfile) }` — de conventies
+  als laatste, zodat een achtergebleven conventiesleutel in een oude payload nooit wint; de sanitizer
   stript conventiesleutels uit `schedulingOptions` (runtime) en het type sluit ze uit (compile-time).
 - Eén helper `solveInputFor(project, tasks, sequences, calendar, calendars)` levert de volledige
   solver-invoer (`EffectiveSchedulingOptions`, `progressMode`, `dataDate`, `projectStartDate`,
@@ -139,18 +140,24 @@ interface SchedulingProfile {
   project draagt zijn eigen kopie; een sjabloon wijzigen werkt **niet** door naar open documenten. De
   UI biedt "bijwerken vanuit sjabloon" en "sjabloon bijwerken vanuit dit project". Matching op `id`,
   nooit op naam.
+- **Overrides bij een wissel.** Een profielwissel vervangt `baseId` en `id`, maar bewaart de overrides
+  die uit het bestand kwamen (A19 uit `rem_target_link_flag`): zo geeft P6 → MS Project → P6 weer
+  exact het resultaat van vlak na het openen. Een ingebouwd id mét overrides verschijnt in de
+  keuzelijst als "P6 (aangepast)" en is géén kopie: pas een handmatige wijziging van een conventie
+  maakt "Kopie van P6".
 
 ### 3.3 IFC-round-trip
 
 Eén JSON-veld, pset `OPS_SchedulingProfile` op de `IfcWorkSchedule` (exact het patroon van
-`OPS_SchedulingOptions`/`OPS_Baselines`): `{ id, baseId, conventions: <alle 14 opgelost>, name? }`
+`OPS_SchedulingOptions`/`OPS_Baselines`): `{ id, baseId, conventions: <alle 15 opgelost>, name? }`
 — `name` alleen voor eigen profielen (ingebouwde namen zijn vertaald en horen niet in een bestand).
 De pset wordt **alleen geschreven als het profiel ≠ `ops` zonder overrides** ⇒ bestaande bestanden
 blijven byte-identiek. `OPS_SchedulingOptions` blijft precies zoals nu en draagt de optie-sleutels
-plus — voor neerwaartse compatibiliteit met uitgebrachte versies die alleen dát pset lezen — de vier
-conventies die daar vandaag al zonder `p6Source` werken (A12, A13, A22, A23) met hun opgeloste
-waarde. De nieuwe lezer geeft `OPS_SchedulingProfile` voorrang; een oude versie rekent een nieuw
-`.mpp`-project dus nog steeds met A22/A23. Leesvolgorde: eerst `legacyOptionsToProfile` over de
+plus — voor neerwaartse compatibiliteit met uitgebrachte versies, die van de conventies alleen
+`resumeFromActualElapsed`/`unstartedIgnoresStatusDate` kennen — A22 en A23, uitsluitend wanneer ze
+`true` zijn (een OPS-project zonder opties krijgt dus geen pset: byte-identiek). De nieuwe lezer geeft
+`OPS_SchedulingProfile` voorrang; een oude versie rekent een nieuw `.mpp`-project dus nog steeds met
+A22/A23. Leesvolgorde: eerst `legacyOptionsToProfile` over de
 blob, dán conventiesleutels strippen uit `schedulingOptions`.
 
 Lezen: `sanitizeSchedulingProfile` (whitelist: `baseId` uit de drie, `id`/`name` strings met
@@ -234,22 +241,22 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 - **Kiezen en bewerken**: het bestaande `CalcOptionsSection` wordt het blok *Rekenprofiel en
   reken-opties* in Projectinfo (wizard: alleen de keuzelijst, die dan `defaultOptionsFor` toepast;
   dialoog én Backstage → Projectinfo: het volledige blok): bovenaan de keuzelijst
-  (P6 / MS Project / OPS / eigen sjablonen), daaronder de veertien conventies (aan/uit, met uitleg) en
+  (P6 / MS Project / OPS / eigen sjablonen), daaronder de vijftien conventies (aan/uit, met uitleg) en
   de bestaande projectopties. `thresholdHours` wordt niet meer weggegooid bij een bewerking. Een
   conventie wijzigen op een ingebouwd profiel maakt automatisch een eigen profiel "Kopie van P6" op
   het project (hernoembaar; "opslaan als sjabloon" zet hem in de app-lijst). Géén paneel in
   `SettingsPanelContent`: dit is projectdata, geen app-instelling.
 - **Wisselen** = in één producer `finishMutation(state, { stale: true })` (niet `markScheduleStale`,
-  dat doet niets in "datums zoals opgeslagen"), gevolgd door `runCPM()`; daarna één melding "N taken
+  dat doet niets in "datums zoals opgeslagen"), gevolgd door `runCPM()` — zoals Projectinfo vandaag na *Toepassen* altijd doorrekent, ook met
+  *Automatisch berekenen* uit; dat blijft zo voor het hele blok; daarna één melding "N taken
   verschoven" (verschil vóór/ná, zelfde telling als de #63-strook — achteraf, geen kloon-solve vooraf,
-  geen dialoog). Staat *Automatisch berekenen* uit, dan blijft het bij `stale` en de gewone
-  herbereken-knop. De gids waarschuwt bij een handmatige wissel naar P6 voor A16 (geplande start
+  geen dialoog). De gids waarschuwt bij een handmatige wissel naar P6 voor A16 (geplande start
   wordt een vloer zodra hij meer dan een dag later ligt dan het netwerk).
 - **Docs**: gids `gids-rekenprofielen.md` (nl+en, manifest) met de conventietabel in mensentaal en de
   "geen orakel"-waarschuwing; `gids-xer-import`/`gids-msproject-import`/`gids-import-export` verwijzen
   ernaar; CLAUDE.md-sectie *Rekenprofielen*; `docs/recepten/conventie.md`; `docs/ifc-round-trip.md`
   noemt `OPS_SchedulingProfile`.
-- i18n: `conventions.<id>.label/.help` (14×2), `profiles.builtIn.*`,
+- i18n: `conventions.<id>.label/.help` (15×2), `profiles.builtIn.*`,
   `notifications.schedulingProfileApplied`, actielabel — alle 14 locales (`verify:i18n`).
 
 ## 7. Afnemers
@@ -276,7 +283,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 
 ## 8. Tests
 
-- `check-conventions-registry.ts`: 14 conventies, drie ingebouwde waarden, `legacyValue`, unieke ids,
+- `check-conventions-registry.ts`: 15 conventies, drie ingebouwde waarden, `legacyValue`, unieke ids,
   i18n-sleutels; resolve/diff-identiteit; `'auto'` ≡ afwezig; `XER_SCHEDULING_DEFAULTS` ≡ p6.
 - `check-scheduling-profile-roundtrip.ts`: IFC-round-trip voor drie ingebouwde + één eigen profiel; de
   vijf migratierijen; vijandige pset (onbekende baseId, onzin-conventies, 10 MB name) valt terug zonder
@@ -335,6 +342,10 @@ gespiegeld in `OPS_SchedulingOptions`; N6 opties bij wissel onaangeraakt, knop v
 wizard-keuzelijst, `'auto'` alleen weergave; N7 telling achteraf + `runCPM`; N8 `solveInputFor`-reparatie
 als benoemde gedragswijziging; N9 traces (§4 leidend), leesvolgorde, export-guard-criterium,
 planverwijzing, één melding per bestand; bucket-volgorde; datagate-telling gepind.
+
+**Ronde 3 (v3 → v3.1, go onder voorwaarden):** V1 alleen A22/A23 gespiegeld en alleen als `true`;
+V2 overrides uit het bestand blijven bij een wissel bewaard, "P6 (aangepast)" in de keuzelijst; V3
+tellingen naar 15; plus: conventies als laatste gespreid, `runCPM` na Toepassen zoals vandaag.
 
 ## Bijlage A — conventietabel (inventaris van de motor, 2026-09-22)
 
