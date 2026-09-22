@@ -1,0 +1,94 @@
+// Pure oordeelsfuncties van `measure-profiles.mjs`, los zodat `tests/dev-server/measure-profiles.test.mjs`
+// ze zonder corpus kan toetsen. Geen I/O.
+
+/** De drie X12-nuldoelregels die by design rood staan zolang het nuldoel niet gehaald is. */
+export const KNOWN_GOAL_PREFIXES = [
+  'XX X12 nuldoel is baseline-onafhankelijk: ieder bestand haalt de zesassige poort: ',
+  'XX X12 nuldoel is baseline-onafhankelijk: alle zes assen zijn nul: ',
+  'XX X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul: ',
+];
+/** De v2-tellingenbaseline wijkt af van de meting — bij een zuivere verbetering: herpinnen. */
+export const V2_EQUALITY_PREFIX = 'XX X12 productbaseline is de verse volledige productmeting: ';
+export const CELL_OK_PREFIX = 'OK  X12 cel-baseline (regel A):';
+
+/** Env-sleutels die een kindproces in schrijf- of rapportmodus zouden zetten. */
+export const CHILD_ENV_STRIP = ['OPS_XER_CELLS_WRITE', 'OPS_XER_FIDELITY_REPORT', 'OPS_MPP_FIDELITY_REPORT'];
+
+export function childEnv(env, { dropXerCorpus = false } = {}) {
+  const out = { ...env };
+  for (const key of CHILD_ENV_STRIP) delete out[key];
+  if (dropXerCorpus) delete out.OPS_XER_CORPUS;
+  return out;
+}
+
+/** Alle faalregels: XX (ook ingesprongen, zie CLAUDE.md) plus stacktraces/esbuild-fouten. */
+export function failureLines(lines) {
+  return lines.filter((line) => /^\s*XX\s/.test(line) || /^\s*XX$/.test(line)
+    || /^\s+at \S.*:\d+:\d+\)?$/.test(line) || /^✘ \[ERROR\]/.test(line));
+}
+
+/** `CELDELTA p6 nieuw=… verslechterd=… verbeterd=…` → getallen; ontbreekt de regel ⇒ undefined. */
+export function parseCellDelta(lines, profile = 'p6') {
+  const line = lines.find((candidate) => candidate.startsWith(`CELLDELTA ${profile} `));
+  if (!line) return undefined;
+  const value = (name) => {
+    const match = line.match(new RegExp(`(?:^| )${name}=(\\d+)(?: |$)`));
+    return match ? Number(match[1]) : undefined;
+  };
+  const delta = {
+    line: line.slice(`CELLDELTA ${profile} `.length),
+    nieuw: value('nieuw'), verslechterd: value('verslechterd'), verbeterd: value('verbeterd'),
+  };
+  return [delta.nieuw, delta.verslechterd, delta.verbeterd].some((number) => number === undefined) ? undefined : delta;
+}
+
+/**
+ * Oordeel over de X12-run mét corpus. Rood is de standaard; alleen deze combinaties zijn niet rood:
+ *  - exit 0 met groene cel-poort                                         ⇒ GROEN;
+ *  - uitsluitend (een deel van) de drie nuldoelregels rood, cel-poort groen, geen nieuwe of
+ *    verslechterde cel                                                    ⇒ NULDOEL (regel A gehouden);
+ *  - daarnaast alleen de v2-gelijkheidsregel rood, cel-delta nieuw=0 verslechterd=0 verbeterd>0
+ *                                                                          ⇒ VERBETERD — herpin v2 + cellen.
+ * `strict` maakt elke nog rode nuldoelregel rood.
+ */
+export function classifyP6({ exit, lines, strict = false }) {
+  const failures = failureLines(lines);
+  const cellOk = lines.some((line) => line.startsWith(CELL_OK_PREFIX));
+  const delta = parseCellDelta(lines);
+  const goal = failures.filter((line) => KNOWN_GOAL_PREFIXES.some((prefix) => line.startsWith(prefix)));
+  const v2 = failures.filter((line) => line.startsWith(V2_EQUALITY_PREFIX));
+  const other = failures.filter((line) => !goal.includes(line) && !v2.includes(line));
+  const red = (reason) => ({ status: `ROOD (${reason})`, pass: false, failures });
+  if (!cellOk || !delta) return red('cel-poort niet groen of cel-delta ontbreekt');
+  if (other.length > 0) return red(`${other.length} faalregel(s)`);
+  if (delta.nieuw !== 0 || delta.verslechterd !== 0) return red('nieuwe of verslechterde cel');
+  if (exit === 0) return failures.length === 0 ? { status: 'GROEN', pass: true, failures } : red('exit 0 met faalregels');
+  if (goal.length > 0 && strict) return red('nuldoel, --strict');
+  if (v2.length > 0) {
+    return delta.verbeterd > 0
+      ? { status: 'VERBETERD — herpin v2 + cellen', pass: true, failures }
+      : red('v2-telling wijkt af zonder verbeterde cel');
+  }
+  if (goal.length > 0) return { status: 'NULDOEL (regel A gehouden)', pass: true, failures };
+  return red(`exit ${exit} zonder herkende faalregel`);
+}
+
+/** Aantal gescande `.mpp`-bestanden uit de `. [corpus|crawl] N bestand(en) gescand`-regels. */
+export function mppScannedFiles(lines) {
+  let total = 0;
+  for (const line of lines) {
+    const match = line.match(/^\s+\. \[(?:corpus|crawl)\] (\d+) bestand\(en\) gescand$/);
+    if (match) total += Number(match[1]);
+  }
+  return total;
+}
+
+/** MS Project-oordeel: fail-closed — nul gescande bestanden is "niet gemeten", dus rood. */
+export function classifyMsp({ exit, lines }) {
+  const failures = failureLines(lines);
+  const scanned = mppScannedFiles(lines);
+  const ok = lines.some((line) => line.startsWith('OK  mpp-fidelity: alle checks groen'));
+  if (scanned === 0) return { status: 'ROOD (niet gemeten)', pass: false, failures, scanned };
+  if (exit === 0 && ok) return { status: 'GROEN', pass: true, failures, scanned };
+  return { status: `ROOD (${failures.length} faalregel(s))`, pass: false, failures, scanned };
+}

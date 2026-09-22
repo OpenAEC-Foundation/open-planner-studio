@@ -53,21 +53,40 @@ De `*_engine`-kolommen en PASS-oordelen zijn uitdrukkelijk geen brondata voor de
 
 ## Regel A: landingsmeting per rekenprofiel (corpusgebonden, niet in `verify`)
 
-`npm run measure:profiles` → `measure-profiles.mjs`. De landingspoort voor elke motorwijziging
-(rekenprofielen-spec §2 besluit 5, §5): draait elk onderdeel als eigen `bash tests/planning/run.sh
-<check>` en print per profiel exitcode, tellingen en cel-delta.
+`npm run measure:profiles` → `measure-profiles.mjs` (oordeelsfuncties in `measure-profiles-status.mjs`,
+corpusloos getoetst in `tests/dev-server/measure-profiles.test.mjs`). De landingspoort voor elke
+motorwijziging (rekenprofielen-spec §2 besluit 5, §5): draait elk onderdeel als eigen
+`bash tests/planning/run.sh <check>` en print per profiel exitcode, tellingen en cel-delta.
+Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
+`OPS_MPP_FIDELITY_REPORT` mee. `--only=p6|msp|vangrails` draait één onderdeel.
 
 | onderdeel | check | oordeel |
 |---|---|---|
-| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` (exact → inexact of een verslechterde emmer is rood) plus de drie nuldoelregels. Zijn die drie de énige rode regels en is de cel-poort groen, dan status NULDOEL = regel A gehouden; `--strict` maakt ook dat exit 1 |
-| MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort |
+| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 verbeterd>0` — herpinnen, zie hieronder). `--strict` maakt een rode nuldoelregel rood |
+| MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort. Nul gescande bestanden is `ROOD (niet gemeten)` |
 | vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek en in de pas met de v2-tellingen |
 | `--full` (optioneel) | de volledige `run.sh`, zonder `OPS_XER_CORPUS` | standaard uit: draait al in `npm run verify`, en machinebreed hoort er maar één zware run tegelijk te lopen |
 
 Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
-uitvoer). Een verbeterde cel is groen en wordt als "te herpinnen" gemeld; herpinnen gaat met
-`OPS_XER_CELLS_WRITE=1 OPS_XER_CORPUS=… bash tests/planning/run.sh check-xer-product-fidelity-x12.ts`
-en wordt geweigerd zodra er één rode cel is.
+uitvoer).
+
+**Herpinnen na een VERBETERD-uitslag** — twee stappen, in deze volgorde, daarna beide bestanden in
+één commit:
+
+```bash
+export OPS_XER_CORPUS=/pad/naar/testdata-crawl
+bash tests/planning/run.sh check-xer-product-fidelity-x12.ts   # bundelt .xer-product-fidelity-x12.mjs
+# 1. de v2-tellingen (de check schrijft die niet zelf; baselinemodus print alleen het bestand)
+OPS_XER_FIDELITY_REPORT=baseline node tests/planning/.xer-product-fidelity-x12.mjs \
+  > tests/planning/xer-product-fidelity-baseline-v2.json
+# 2. de cellen (geweigerd zodra er één nieuwe of verslechterde cel is)
+OPS_XER_CELLS_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
+# 3. beide committen: xer-product-fidelity-baseline-v2.json en xer-product-fidelity-cells.json
+```
+
+De v2-stap gaat eerst omdat `check-fidelity-cells-gate.ts` eist dat de cellen per entry/as/emmer
+optellen tot de v2-tellingen. Een ontbrekend cellenbestand maak je alleen bewust aan met
+`OPS_XER_CELLS_WRITE=init`; `=1` weigert dan met uitleg, en `init` weigert over een bestaand bestand.
 
 ## Release en publicatie
 
