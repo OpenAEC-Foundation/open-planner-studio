@@ -235,10 +235,27 @@ export interface SchedulingOptions {
    *    meting verandert het MSP-profiel niet.
    *  - OPS: uit (relatie-vrije-speling in de kalender van de opvolger, `scheduleAnalysis`). */
   p6FreeFloatOnOwnCalendar?: boolean;
+  /** C3 — RETAINED LOGIC, late kant: van een positieve WORKTIME-lag uit een VOLTOOIDE voorganger
+   *  (op de statusdatum-restvensterroute, `p6CompletedLateFromRemainingWindow`) telt achterwaarts alleen
+   *  het deel dat na zijn werkelijke einde op de statusdatum nog niet verstreken is:
+   *  `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender (`CPMSolver`).
+   *
+   *  - P6: aan. Zelfde bron als C1 ("Using the data date": voortgang ligt vóór de statusdatum, er wordt
+   *    vanaf de statusdatum gepland) — het verstreken deel van de lag is historie. Gemeten: rehab-2,
+   *    gelagde FS-relaties uit voltooide voorgangers (classificatie brok B03): volledig verstreken lag
+   *    (V3122120 → V3122070, FS+168 h, einde 04-15) ⇒ P6 trekt niets af; niet verstreken
+   *    (V3238110, einde 05-26 17:00, FS+120 h) ⇒ de volle lag; deels verstreken (V3120120, FS+168 h):
+   *    de afstand LF → opvolger-LS is gelijk aan die van P6 (die cel zelf wacht op brok B01, de LS van
+   *    de opvolger). Samen 351 cellen (ls 122, lf 122, tf 107), 0 slechter; de rest van brok B03 hangt
+   *    aan B01 of aan actieve taken met restduur 0 (buiten deze conventie).
+   *    Alleen de B3-restvensterroute; een voltooide taak op de generieke actual-pin houdt de volle lag.
+   *  - MS Project: uit. MS Project kent geen late-kant-statusdatumvenster voor voltooide taken (zie C1).
+   *  - OPS: uit (de volle lag, het gedrag van vóór deze conventie). */
+  p6CompletedRemainingLag?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de zeventien PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de achttien PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -260,7 +277,8 @@ export type ConventionKey =
   | 'p6CompletedLoeActualFinish'
   | 'p6OpenLoeTargetSpan'
   | 'p6CompletedPredecessorAtDataDate'
-  | 'p6FreeFloatOnOwnCalendar';
+  | 'p6FreeFloatOnOwnCalendar'
+  | 'p6CompletedRemainingLag';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

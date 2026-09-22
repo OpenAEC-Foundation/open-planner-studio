@@ -1227,6 +1227,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Serbest bolluk kendi takviminde",
       "help": "Açık bir görevin gecikmesiz bitiş-başlangıç ilişkisindeki serbest bolluğu, ardılın değil görevin kendi takviminde hesaplanır."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Tamamlanmış öncülün geçmiş gecikmesi sayılmaz",
+      "help": "Geç tarihler tarafında, tamamlanmış bir öncülden sonraki gecikmenin yalnızca durum tarihinde henüz geçmemiş kısmı sayılır."
     }
   },
   "profiles": {

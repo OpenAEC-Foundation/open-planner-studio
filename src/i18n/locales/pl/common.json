@@ -1297,6 +1297,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Zapas swobodny we własnym kalendarzu",
       "help": "Zapas swobodny otwartego zadania w relacji koniec-początek bez opóźnienia liczy się w kalendarzu samego zadania, a nie następnika."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Upłynięte opóźnienie zakończonego poprzednika nie jest liczone",
+      "help": "Po stronie terminów najpóźniejszych liczy się tylko ta część opóźnienia po zakończonym poprzedniku, która w dacie stanu jeszcze nie upłynęła."
     }
   },
   "profiles": {

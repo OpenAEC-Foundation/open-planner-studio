@@ -1262,6 +1262,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Marge libre dans le calendrier de la tâche",
       "help": "La marge libre d'une tâche ouverte sur une liaison fin-début sans décalage se compte dans le calendrier de la tâche elle-même, et non dans celui du successeur."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
+      "help": "Côté dates au plus tard, seule la partie du décalage après un prédécesseur achevé qui n’est pas encore écoulée à la date d’état compte."
     }
   },
   "profiles": {

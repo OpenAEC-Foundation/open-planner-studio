@@ -1227,6 +1227,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Vrije speling in de eigen kalender",
       "help": "De vrije speling van een open taak over een eind-start-relatie zonder lag telt in de kalender van de taak zelf, niet in die van de opvolger."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Verstreken lag van een voltooide voorganger telt niet",
+      "help": "Aan de late kant telt van de lag na een voltooide voorganger alleen het deel dat op de statusdatum nog niet verstreken is."
     }
   },
   "profiles": {

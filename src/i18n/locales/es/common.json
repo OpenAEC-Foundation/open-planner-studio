@@ -1262,6 +1262,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Holgura libre en el calendario propio",
       "help": "La holgura libre de una tarea abierta en una relación fin-inicio sin demora se cuenta en el calendario de la propia tarea, no en el del sucesor."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "La demora transcurrida de un predecesor completado no cuenta",
+      "help": "En el lado tardío solo cuenta la parte de la demora tras un predecesor completado que aún no ha transcurrido en la fecha de estado."
     }
   },
   "profiles": {

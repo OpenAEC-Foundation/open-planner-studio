@@ -1227,6 +1227,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Free float in the task's own calendar",
       "help": "The free float of an open task over a finish-to-start relationship without lag counts in the task's own calendar, not in the successor's."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Elapsed lag of a completed predecessor does not count",
+      "help": "On the late side, only the part of the lag after a completed predecessor that has not yet elapsed at the data date counts."
     }
   },
   "profiles": {

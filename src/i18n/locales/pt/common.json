@@ -1262,6 +1262,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Folga livre no calendário da própria tarefa",
       "help": "A folga livre de uma tarefa em aberto numa relação término-início sem atraso é contada no calendário da própria tarefa, não no da sucessora."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "O atraso decorrido de uma predecessora concluída não conta",
+      "help": "No lado das datas mais tardias, conta apenas a parte do atraso após uma predecessora concluída que ainda não decorreu na data de estado."
     }
   },
   "profiles": {

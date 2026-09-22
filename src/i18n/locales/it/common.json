@@ -1262,6 +1262,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Margine libero nel calendario dell'attività",
       "help": "Il margine libero di un'attività aperta su un legame fine-inizio senza ritardo si calcola nel calendario dell'attività stessa, non in quello del successore."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Il ritardo trascorso di un predecessore completato non conta",
+      "help": "Sul lato delle date al più tardi conta solo la parte del ritardo dopo un predecessore completato non ancora trascorsa alla data di stato."
     }
   },
   "profiles": {

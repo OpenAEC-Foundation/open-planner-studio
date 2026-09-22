@@ -1227,6 +1227,10 @@
     "p6FreeFloatOnOwnCalendar": {
       "label": "Freier Puffer im eigenen Kalender",
       "help": "Der freie Puffer eines offenen Vorgangs über eine Ende-Anfang-Beziehung ohne Zeitabstand zählt im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",
+      "help": "Auf der späten Seite zählt vom Zeitabstand nach einem abgeschlossenen Vorgänger nur der Teil, der am Statusdatum noch nicht verstrichen ist."
     }
   },
   "profiles": {

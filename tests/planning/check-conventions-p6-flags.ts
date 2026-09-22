@@ -417,11 +417,12 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
   eq('bronscan: p6Source komt nergens onder src/engine/ voor', hits.sort(), []);
 }
 
-// ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar` ──
+// ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
+// C3 `p6CompletedRemainingLag` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
-const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar'] as const satisfies readonly ConventionKey[];
+const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag'] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
 function calendarDataOn(workDays: readonly number[], bands: ReadonlyArray<readonly [string, string]>): string {
@@ -442,6 +443,9 @@ interface GroupCFixture {
   pick: (axes: Axes) => Partial<Axes>;
   on: Partial<Axes>;
   off: Partial<Axes>;
+  /** Uitkomst onder de ingebouwde OPS/MS Project-profielen, als die niet `off` is (C3 rekent op de
+   *  B3-route; zonder B3 staat de voltooide taak op haar generieke actual-pin, met eigen duur). */
+  builtInOff?: Partial<Axes>;
 }
 const groupC: GroupCFixture[] = [];
 
@@ -504,6 +508,44 @@ groupC.push({
   off: { ef: '2026-01-08T17:00', ff: 0 },
 });
 
+// C3: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 17:00, rem_target_link_flag=Y (de B3-route).
+// Voltooide C (ma 5 jan) —FS+45 u (5 werkdagen)→ open S (1 dag). Een losse open X van 20 werkdagen
+// bepaalt het projecteinde (wo 11 feb 17:00), dus S.LS = wo 11 feb 08:00. Tussen het werkelijke einde
+// van C (ma 5 jan 17:00) en de statusdatum liggen 7 werkdagen (63 u) > 45 u: de lag is verstreken.
+// P6: C.LS = S.LS = wo 11 feb 08:00, C.LF = de werkgrens daarvóór, di 10 feb 17:00. Generiek (volle
+// lag): 5 werkdagen eerder, LS wo 4 feb 08:00 en LF di 3 feb 17:00.
+groupC.push({
+  flag: 'p6CompletedRemainingLag',
+  label: 'C3 verstreken lag uit een voltooide voorganger',
+  input: importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tC3-fixture\tC1\t2026-01-14 17:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float',
+    '%R\tP1\tN',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tC\tP1\tC1\tDONE\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t9\t0\t2026-01-05 08:00\t2026-01-05 17:00\t2026-01-05 08:00\t2026-01-05 17:00',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-15 08:00\t2026-01-15 17:00\t\t',
+    '%R\tX\tP1\tC1\tLONG\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t180\t180\t2026-01-15 08:00\t2026-02-11 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tC\tP1\tP1\tPR_FS\t45',
+    '%E',
+  ]),
+  taskId: 'C',
+  pick: axes => ({ ls: axes.ls, lf: axes.lf }),
+  on: { ls: '2026-02-11T08:00', lf: '2026-02-10T17:00' },
+  off: { ls: '2026-02-04T08:00', lf: '2026-02-03T17:00' },
+  // Generiek: LF = S.LS − 45 u = di 3 feb 17:00, LS = LF − de eigen 9 u = di 3 feb 08:00.
+  builtInOff: { ls: '2026-02-03T08:00', lf: '2026-02-03T17:00' },
+});
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;
@@ -521,7 +563,7 @@ for (const fixture of groupC) {
   for (const baseId of ['ops', 'msproject'] as const) {
     const plain = structuredClone(input);
     plain.project.schedulingProfile = { baseId, id: baseId, name: '', overrides: {} };
-    eq(`${label}: 4. ingebouwd profiel ${baseId} ⇒ UIT`, pick(solveAxes(plain, taskId)), fixture.off);
+    eq(`${label}: 4. ingebouwd profiel ${baseId} ⇒ UIT`, pick(solveAxes(plain, taskId)), fixture.builtInOff ?? fixture.off);
   }
 }
 
@@ -530,4 +572,4 @@ if (diffs.length > 0) {
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 2 groep-C-conventies, aan/uit + bron- en basisinertheid)`);
+console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 3 groep-C-conventies, aan/uit + bron- en basisinertheid)`);

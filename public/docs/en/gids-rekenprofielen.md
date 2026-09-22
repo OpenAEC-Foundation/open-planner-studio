@@ -8,12 +8,12 @@ Open Planner Studio schedules with one engine, but Primavera P6 and Microsoft Pr
 - Which profile an opened file gets, and why you see a notification about it.
 - How to switch profiles and what then happens to your schedule.
 - How to make a custom profile and keep it as a template.
-- What the seventeen conventions do.
+- What the eighteen conventions do.
 - When a combination has no reference package.
 
 ## What a calculation profile is
 
-A profile is a set of seventeen **conventions**: rules that belong to a scheduling package, such as "an unstarted task does not move to the status date by itself". In addition, every project has **calculation options** that differ per file, such as the lag calendar, the critical definition and the float calculation. Those options belong to the project; the profile only supplies their defaults for a new project.
+A profile is a set of eighteen **conventions**: rules that belong to a scheduling package, such as "an unstarted task does not move to the status date by itself". In addition, every project has **calculation options** that differ per file, such as the lag calendar, the critical definition and the float calculation. Those options belong to the project; the profile only supplies their defaults for a new project.
 
 The three built-in profiles:
 
@@ -50,9 +50,9 @@ Turn a convention on or off in the section. If the profile is built in, Open Pla
 
 With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**.
 
-## The seventeen conventions
+## The eighteen conventions
 
-Under Open Planner Studio all seventeen are off.
+Under Open Planner Studio all eighteen are off.
 
 - **Keep actual dates in the backward pass** (Primavera P6) — a started or completed task keeps its recorded dates on the late side too.
 - **Free float never negative** (Primavera P6) — with an unachievable late constraint, total float stays negative but free float becomes zero.
@@ -71,6 +71,7 @@ Under Open Planner Studio all seventeen are off.
 - **Unstarted LOE uses the target window** (Primavera P6) — only for tasks with P6 provenance.
 - **Completed predecessor does not hold past the data date** (Primavera P6) — if a completed task's actual finish lies after the data date, its successors may still start at the data date. The completed task's own dates do not change.
 - **Free float in the task's own calendar** (Primavera P6) — the free float of an open task over a finish-to-start relationship without lag counts in the task's own calendar. If the successor is already complete while the task is still open, that float is zero.
+- **Elapsed lag of a completed predecessor does not count** (Primavera P6) — on the late side, only the part of the lag after a completed task that has not yet elapsed at the data date counts.
 
 ## Combinations without a reference package
 
@@ -78,7 +79,7 @@ Some of the P6 conventions only act on tasks with P6 provenance, that is, from a
 
 ## Saving and exchanging
 
-The profile is saved in the IFC file, with all seventeen values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
+The profile is saved in the IFC file, with all eighteen values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
 
 When you export to CSV, MS Project XML or P6 XML, the profile does not come along; those files open as Open Planner Studio again. For a project from a `.xer` file, the export reports that loss.
 

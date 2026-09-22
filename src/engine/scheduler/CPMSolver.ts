@@ -489,6 +489,27 @@ export class CPMSolver {
     return { es: window.es, ef: cap };
   }
 
+  /**
+   * Conventie C3 `p6CompletedRemainingLag` (docblok + bron bij de sleutel in `types/project.ts`): aan
+   * de late kant van een voltooide voorganger telt alleen het deel van een positieve WORKTIME-lag dat
+   * na zijn werkelijke einde op de statusdatum nog niet verstreken is:
+   * `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender. Conventie uit, geen
+   * statusdatum, dagmodus, ELAPSEDTIME- of niet-positieve lag, of geen werkelijk einde ⇒ `seq` zelf.
+   */
+  private completedRemainingLagSeq(seq: Sequence, task: Task, lagEng: CalendarEngine): Sequence {
+    if (this.options.schedulingOptions?.p6CompletedRemainingLag !== true) return seq;
+    if (this.dataDate === null || !lagEng.isHourMode || seq.lagUnit === 'ELAPSEDTIME') return seq;
+    if (!task.time.actualFinish || task.time.completion < 1) return seq;
+    const lagMinutes = this.resolveLagMinutes(seq, task, lagEng);
+    if (!(lagMinutes > 0)) return seq;
+    const actualFinish = this.parseIn(lagEng, task.time.actualFinish);
+    if (Number.isNaN(actualFinish.getTime()) || actualFinish >= this.dataDate) return seq;
+    const elapsed = lagEng.workMinutesBetween(actualFinish, this.dataDate);
+    const remaining = Math.max(0, lagMinutes - elapsed);
+    if (remaining === lagMinutes) return seq;
+    return { ...seq, lagMinutes: remaining, lagDays: remaining / (lagEng.hoursPerDay * 60), lagPercent: undefined };
+  }
+
   private recordBackwardFloatTrace(
     taskId: string,
     update: Partial<CpmTaskBackwardFloatTrace>,
@@ -3167,7 +3188,7 @@ export class CPMSolver {
                 };
             const effectiveSeq = succUsesRemainingWindow
               ? { ...seq, lagDays: 0, lagMinutes: 0, lagPercent: undefined }
-              : percentResolvedSeq;
+              : this.completedRemainingLagSeq(percentResolvedSeq, task, lagEng);
             const delayShiftedSuccResult = {
               ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
               lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
