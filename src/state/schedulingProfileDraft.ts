@@ -107,11 +107,19 @@ export function editConvention(
   return { ...p, overrides };
 }
 
-/** Alleen een eigen profiel is hernoembaar; een lege naam wordt genegeerd. */
+/** Alleen een eigen profiel is hernoembaar. Het bewerkmodel neemt de naam zoals getypt (zonder
+ *  voorloopwitruimte, hooguit `MAX_PROFILE_NAME_LENGTH`): een spatie achteraan moet tijdens het typen
+ *  kunnen blijven staan, en het veld moet te wissen zijn. Leeg is "nog niet geldig"
+ *  (`hasValidProfileName`); opslaan als sjabloon en toepassen weigeren dat, en toepassen trimt. */
 export function renameProfile(current: SchedulingProfile | undefined, name: string): SchedulingProfile | undefined {
   if (!current || isBuiltInProfileId(current.id)) return current;
-  const clean = clampName(name);
-  return clean ? { ...current, name: clean } : current;
+  const start = name.search(/\S/);
+  return { ...current, name: start < 0 ? '' : name.slice(start, start + MAX_PROFILE_NAME_LENGTH) };
+}
+
+/** Een ingebouwd (of afwezig) profiel heeft altijd een naam; een eigen profiel alleen met tekens. */
+export function hasValidProfileName(profile: SchedulingProfile | undefined): boolean {
+  return !profile || isBuiltInProfileId(profile.id) || profile.name.trim().length > 0;
 }
 
 export type ProfileLabel =

@@ -11,7 +11,7 @@ import { generateId } from '@/utils/id';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import {
-  choiceOf, editConvention, profileLabel, renameProfile, selectProfile, templateRelation, totalFloatModeFromUi,
+  choiceOf, editConvention, hasValidProfileName, profileLabel, renameProfile, selectProfile, templateRelation, totalFloatModeFromUi,
   totalFloatModeToUi, withCriticalMode, withCriticalThreshold, withDefaultOptions,
   type ProfileChoice, type SchedulingSettingsDraft, type TotalFloatModeUi,
 } from '@/state/schedulingProfileDraft';
@@ -49,11 +49,14 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 export function SchedulingProfileSection({ mode, value, onChange }: SchedulingProfileSectionProps) {
   const { t } = useTranslation('common');
   const { t: tMenu } = useTranslation('menu');
+  const { t: tTask } = useTranslation('task');
   // Eigen sjablonen: app-globaal, buiten de store (profileStore). Lezen bij mount; na opslaan of
   // verwijderen opnieuw lezen, zodat de lijst gelijk is aan wat er gepersisteerd staat.
   const [templates, setTemplates] = useState(() => loadCustomProfiles());
   const saveTemplate = (p: SchedulingProfile) => {
-    if (upsertCustomProfile(p)) setTemplates(loadCustomProfiles());
+    // Een sjabloon zonder naam is niet te kiezen; de knop staat dan uit, dit is de vangrail.
+    if (!hasValidProfileName(p)) return;
+    if (upsertCustomProfile({ ...p, name: p.name.trim() })) setTemplates(loadCustomProfiles());
   };
   const deleteTemplate = (id: string) => {
     deleteCustomProfile(id);
@@ -129,6 +132,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   const fp = so.floatPaths;
   const copyTarget = () => ({ id: generateId('prof'), name: t('profiles.copyOf', { name: currentName }) });
   const templateName = templates.find(tp => tp.id === profile?.id)?.name ?? '';
+  const nameValid = hasValidProfileName(profile);
 
   return (
     <div className="flex flex-col gap-3" data-ops-scheduling-profile-section>
@@ -146,8 +150,15 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
             value={label.name}
             onChange={e => onChange({ ...value, profile: renameProfile(profile, e.target.value) })}
             className={inputCls}
+            aria-invalid={!nameValid}
             data-ops-scheduling-profile-name
           />
+          {!nameValid && (
+            // Leeg mag tijdens het bewerken; opslaan als sjabloon en Toepassen weigeren het.
+            <div className="alert alert--warning" data-ops-scheduling-profile-name-required>
+              {tTask('taskGrid.validation.required')}
+            </div>
+          )}
         </div>
       )}
 
@@ -160,13 +171,13 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
       {label.kind === 'custom' && profile && (
         <div className="flex flex-wrap gap-2">
           {relation === 'none' && (
-            <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} data-ops-scheduling-save-template>
+            <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} disabled={!nameValid} data-ops-scheduling-save-template>
               {t('schedulingProfile.saveAsTemplate')}
             </button>
           )}
           {relation === 'deviates' && (
             <>
-              <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} data-ops-scheduling-update-template>
+              <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} disabled={!nameValid} data-ops-scheduling-update-template>
                 {t('schedulingProfile.updateTemplate')}
               </button>
               <button type="button" className={btnCls} onClick={() => onChoose(`template:${profile.id}`)} data-ops-scheduling-apply-template>

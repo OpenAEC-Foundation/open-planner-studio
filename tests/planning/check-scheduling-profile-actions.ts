@@ -66,6 +66,16 @@ const n0 = count();
 const r2 = S().applySchedulingSettings({ profile: S().project.schedulingProfile, options: { totalFloatMode: 'start' } });
 eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], [true, 0, n0]);
 
+// Eindreview I4 (e): toepassen weigert een eigen profiel zonder naam en trimt een geldige naam.
+{
+  const beforeNameless = [applied(), JSON.stringify(S().project.schedulingProfile)];
+  const nameless = S().applySchedulingSettings({ profile: { ...mine, id: 'prof-leeg', name: '   ' }, options: undefined });
+  eq('16 lege naam ⇒ geweigerd, niets veranderd', [nameless.changed, applied(), JSON.stringify(S().project.schedulingProfile)],
+    [false, ...beforeNameless]);
+  S().applySchedulingSettings({ profile: { ...mine, id: 'prof-trim', name: '  Mijn profiel  ', overrides: {} }, options: undefined });
+  eq('16a geldige naam wordt getrimd opgeslagen', S().project.schedulingProfile?.name, 'Mijn profiel');
+}
+
 // Critreview D2 punt 3: de wizard geeft het profiel mee aan createNewProject. Het nieuwe project
 // begint zonder historie, dus Ctrl+Z mag niet terugvallen naar OPS.
 {
