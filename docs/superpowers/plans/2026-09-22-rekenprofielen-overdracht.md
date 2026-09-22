@@ -6,6 +6,16 @@ onderaan bijgewerkt. Spec: `docs/superpowers/specs/2026-09-22-rekenprofielen-des
 critreviewer). Plan: `docs/superpowers/plans/2026-09-22-plan-rekenprofielen.md` (architect-agent, in de maak
 op het moment van schrijven).*
 
+## 0. Eindtoestand van deze sessie/dit programma
+
+**Nul afwijkingen met XER**: X12 (`check-xer-product-fidelity-x12.ts` mét corpus) op **0** zesassige
+afwijkingen, sameday 0, cel-baseline leeg, `GOAL_ZERO_DEVIATIONS_XER` aan — per cel, onder regel A, zonder
+pinnen. Het rekenprofielensysteem is daarvoor de voorwaarde (regel A is pas meetbaar mét profielen),
+geen eindpunt. Zodra de etappe rekenprofielen geïntegreerd is, begint het "naar nul"-werk direct met de
+goal prompt `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`, autonoom, zonder op de
+eigenaar te wachten. (Eigenaar, 2026-09-22 avond: "de endstate van deze hele sessie is dat we nul
+afwijkingen hebben met XER".)
+
 ## 1. Besluiten van de eigenaar, 2026-09-22 — letterlijk
 
 ### 1a. Over PR #109 / X12 (ochtend, per vraag uit de PR-tekst)
@@ -91,7 +101,9 @@ tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en
 4. Integratie (§10 spec stap 6): tijdelijke `legacyP6Source`-laag weg, testmigratie 106 treffers,
    `OPS_SchedulingOptions` alleen opties + A22/A23, `npm run verify` (één tegelijk machinebreed!),
    critreview op de hele diff, gebruikstest in de browser.
-5. Daarna pas X12 "naar nul" onder regel A met de goal prompt.
+5. Daarna X12 "naar nul" onder regel A met de goal prompt (`2026-09-22-goalprompt-x12-naar-nul.md`,
+   al geschreven): per brok restant een uitvoerder-opus-midden-agent in eigen worktree, `measure:profiles`
+   vóór elke commit, critreview per landing; herhalen tot X12 exit 0. Dit is de eindtoestand (§0).
 
 ## 4. Vaste regels (uit het geheugen van de eigenaar, hier herhaald)
 
