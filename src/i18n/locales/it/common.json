@@ -109,9 +109,9 @@
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "schedulingProfileApplied": "Questo progetto calcola come {{profile}}. Modificalo da File → Info progetto → Profilo di calcolo e opzioni.",
-    "schedulingProfileShifted_many": "Il nuovo profilo di calcolo ha spostato {{count}} attività.",
-    "schedulingProfileShifted_one": "Il nuovo profilo di calcolo ha spostato {{count}} attività.",
-    "schedulingProfileShifted_other": "Il nuovo profilo di calcolo ha spostato {{count}} attività.",
+    "schedulingProfileShifted_many": "Dopo l’applicazione sono state spostate {{count}} attività.",
+    "schedulingProfileShifted_one": "Dopo l’applicazione è stata spostata {{count}} attività.",
+    "schedulingProfileShifted_other": "Dopo l’applicazione sono state spostate {{count}} attività.",
     "actions": {
       "openProjectInfo": "Apri profilo di calcolo"
     }

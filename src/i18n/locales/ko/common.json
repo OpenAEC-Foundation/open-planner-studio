@@ -67,7 +67,7 @@
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다.",
     "schedulingProfileApplied": "이 프로젝트는 {{profile}}(으)로 계산됩니다. 파일 → 프로젝트 정보 → 계산 프로필 및 옵션에서 변경하세요.",
-    "schedulingProfileShifted_other": "새 계산 프로필이 작업 {{count}}개를 이동했습니다.",
+    "schedulingProfileShifted_other": "적용 후 작업 {{count}}개가 이동했습니다.",
     "actions": {
       "openProjectInfo": "계산 프로필 열기"
     }

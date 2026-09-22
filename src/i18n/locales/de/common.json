@@ -88,8 +88,8 @@
     "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
     "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
     "schedulingProfileApplied": "Dieses Projekt rechnet als {{profile}}. Ändern über Datei → Projektinfo → Berechnungsprofil und Berechnungsoptionen.",
-    "schedulingProfileShifted_one": "Das neue Berechnungsprofil hat {{count}} Vorgang verschoben.",
-    "schedulingProfileShifted_other": "Das neue Berechnungsprofil hat {{count}} Vorgänge verschoben.",
+    "schedulingProfileShifted_one": "Nach dem Anwenden wurde {{count}} Vorgang verschoben.",
+    "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
     "actions": {
       "openProjectInfo": "Berechnungsprofil öffnen"
     }

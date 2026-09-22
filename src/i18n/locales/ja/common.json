@@ -67,7 +67,7 @@
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
     "schedulingProfileApplied": "このプロジェクトは {{profile}} として計算されます。ファイル → プロジェクト情報 → 計算プロファイルとオプション で変更できます。",
-    "schedulingProfileShifted_other": "新しい計算プロファイルにより {{count}} 件のタスクが移動しました。",
+    "schedulingProfileShifted_other": "適用後に {{count}} 件のタスクが移動しました。",
     "actions": {
       "openProjectInfo": "計算プロファイルを開く"
     }

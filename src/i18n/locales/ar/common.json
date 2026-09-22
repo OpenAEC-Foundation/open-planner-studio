@@ -172,12 +172,12 @@
     "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة.",
     "schedulingProfileApplied": "يُحسب هذا المشروع وفق {{profile}}. غيّر ذلك عبر ملف ← معلومات المشروع ← ملف الحساب وخيارات الحساب.",
-    "schedulingProfileShifted_few": "نقل ملف الحساب الجديد {{count}} مهام.",
-    "schedulingProfileShifted_many": "نقل ملف الحساب الجديد {{count}} مهمة.",
-    "schedulingProfileShifted_one": "نقل ملف الحساب الجديد مهمة واحدة.",
-    "schedulingProfileShifted_two": "نقل ملف الحساب الجديد مهمتين.",
-    "schedulingProfileShifted_zero": "لم ينقل ملف الحساب الجديد أي مهمة.",
-    "schedulingProfileShifted_other": "نقل ملف الحساب الجديد {{count}} من المهام.",
+    "schedulingProfileShifted_few": "بعد التطبيق انتقلت {{count}} مهام.",
+    "schedulingProfileShifted_many": "بعد التطبيق انتقلت {{count}} مهمة.",
+    "schedulingProfileShifted_one": "بعد التطبيق انتقلت مهمة واحدة.",
+    "schedulingProfileShifted_two": "بعد التطبيق انتقلت مهمتان.",
+    "schedulingProfileShifted_zero": "بعد التطبيق لم تنتقل أي مهمة.",
+    "schedulingProfileShifted_other": "بعد التطبيق انتقلت {{count}} من المهام.",
     "actions": {
       "openProjectInfo": "فتح ملف الحساب"
     }

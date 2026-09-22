@@ -130,10 +130,10 @@
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "schedulingProfileApplied": "Ten projekt liczy się jako {{profile}}. Zmień to w Plik → Info o projekcie → Profil obliczeń i opcje.",
-    "schedulingProfileShifted_few": "Nowy profil obliczeń przesunął {{count}} zadania.",
-    "schedulingProfileShifted_many": "Nowy profil obliczeń przesunął {{count}} zadań.",
-    "schedulingProfileShifted_one": "Nowy profil obliczeń przesunął {{count}} zadanie.",
-    "schedulingProfileShifted_other": "Nowy profil obliczeń przesunął {{count}} zadania.",
+    "schedulingProfileShifted_few": "Po zastosowaniu przesunięto {{count}} zadania.",
+    "schedulingProfileShifted_many": "Po zastosowaniu przesunięto {{count}} zadań.",
+    "schedulingProfileShifted_one": "Po zastosowaniu przesunięto {{count}} zadanie.",
+    "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
     "actions": {
       "openProjectInfo": "Otwórz profil obliczeń"
     }

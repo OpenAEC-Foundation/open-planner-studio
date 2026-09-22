@@ -88,8 +88,8 @@
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
     "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
     "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project info → Calculation profile and options.",
-    "schedulingProfileShifted_one": "The new calculation profile moved {{count}} task.",
-    "schedulingProfileShifted_other": "The new calculation profile moved {{count}} tasks.",
+    "schedulingProfileShifted_one": "After applying, {{count}} task moved.",
+    "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
       "openProjectInfo": "Open calculation profile"
     }

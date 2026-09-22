@@ -54,7 +54,7 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
     await expect.poll(() => profileOf(page)).toEqual({ id: 'msproject', baseId: 'msproject', name: '' });
     await expect.poll(() => earlyStart(page)).toBe('2026-01-05');
-    await expect(page.locator('.ops-toast').filter({ hasText: /verschoof 1 taak|moved 1 task/ })).toHaveCount(1);
+    await expect(page.locator('.ops-toast').filter({ hasText: /is 1 taak verschoven|1 task moved/ })).toHaveCount(1);
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
 
     // Een conventie wijzigen op een ingebouwd profiel maakt "Kopie van Microsoft Project".

@@ -109,9 +109,9 @@
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
     "schedulingProfileApplied": "Ce projet calcule comme {{profile}}. Modifiable via Fichier → Info projet → Profil de calcul et options.",
-    "schedulingProfileShifted_many": "Le nouveau profil de calcul a déplacé {{count}} tâches.",
-    "schedulingProfileShifted_one": "Le nouveau profil de calcul a déplacé {{count}} tâche.",
-    "schedulingProfileShifted_other": "Le nouveau profil de calcul a déplacé {{count}} tâches.",
+    "schedulingProfileShifted_many": "Après application, {{count}} tâches ont été déplacées.",
+    "schedulingProfileShifted_one": "Après application, {{count}} tâche a été déplacée.",
+    "schedulingProfileShifted_other": "Après application, {{count}} tâches ont été déplacées.",
     "actions": {
       "openProjectInfo": "Ouvrir le profil de calcul"
     }

@@ -88,8 +88,8 @@
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
     "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
     "schedulingProfileApplied": "Bu proje {{profile}} olarak hesaplanıyor. Dosya → Proje bilgisi → Hesaplama profili ve seçenekleri üzerinden değiştirin.",
-    "schedulingProfileShifted_one": "Yeni hesaplama profili {{count}} görevi kaydırdı.",
-    "schedulingProfileShifted_other": "Yeni hesaplama profili {{count}} görevi kaydırdı.",
+    "schedulingProfileShifted_one": "Uygulamadan sonra {{count}} görev kaydı.",
+    "schedulingProfileShifted_other": "Uygulamadan sonra {{count}} görev kaydı.",
     "actions": {
       "openProjectInfo": "Hesaplama profilini aç"
     }

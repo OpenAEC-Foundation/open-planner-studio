@@ -118,6 +118,25 @@ eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], 
     [true, n17 + 2, 'Ik', 'msproject']);
 }
 
+// Eindreview (GO, punt 1): startdatum + profiel SAMEN wijzigen gaat door het gecombineerde pad van
+// applyProjectInfo; ook daar klemt een wortel-anker vóór de nieuwe startdatum mee, met de klemmelding.
+{
+  const y = createAppStoreContext();
+  const Y = () => y.store.getState();
+  Y().newProject();
+  Y().setProject({ startDate: '2026-05-04' });
+  const root = Y().addTask({ name: 'Wortel', time: createDefaultTaskTime('2026-05-04', 3) });
+  Y().runCPM();
+  const yApplied = Y().historyEvents.filter(event => event.state === 'applied').length;
+  Y().applyProjectInfo({ startDate: '2026-05-11' }, { profile: builtInProfile('msproject'), options: undefined });
+  eq('19 startdatum + profiel: het wortel-anker schuift mee naar de nieuwe start',
+    Y().tasks.find(t => t.id === root)?.time.scheduleStart?.slice(0, 10), '2026-05-11');
+  eq('19a …met de klemmelding', Y().ui.notifications.some(n => n.messageKey === 'notifications.projectStartAnchorsClamped'
+    && n.params?.count === 1), true);
+  eq('19b …in één undo-stap met profiel en startdatum', [Y().historyEvents.filter(event => event.state === 'applied').length,
+    Y().project.startDate, Y().project.schedulingProfile?.id], [yApplied + 1, '2026-05-11', 'msproject']);
+}
+
 // Critreview D2 punt 3: de wizard geeft het profiel mee aan createNewProject. Het nieuwe project
 // begint zonder historie, dus Ctrl+Z mag niet terugvallen naar OPS.
 {
