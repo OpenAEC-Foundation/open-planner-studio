@@ -7,10 +7,10 @@ import { parseDate, formatInstant, type DateMode } from '@/utils/dateUtils';
 import { traceFrom } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isZeroDurationMilestone } from './duration';
-import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindowResolved } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainDisplayActualLateEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
 } from './p6CompletedRouteTrace';
 
 /**
@@ -242,7 +242,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
     const completed = !!dataDate && tt.completion >= 1;
-    const completedWindowDecision = explainP6CompletedDataDateWindow(taskObj, dataDate, so);
+    const completedWindowDecision = explainP6CompletedDataDateWindowResolved(taskObj, dataDate, so);
     const completedDisplayWindow = completedWindowDecision.eligible
       ? (() => {
         const progressCal = progressCalendarFor(taskObj);
@@ -272,7 +272,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // weergavelaag `pinLateToActualWindow` toch uitschakelde en de float tegen het venster ging
     // meten. Gemeten gevolg vóór deze fix (fixture `check-xer-completed-late-gate-parity.ts`):
     // ls/lf/tf van zo'n taak veranderden terwijl de solvertak niets deed.
-    const useCompletedRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+    const useCompletedRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
       taskObj, dataDate, so,
     ).eligible;
     const floatEarlyEs = useCompletedRemainingWindow ? completedDisplayWindow!.es : early.es;

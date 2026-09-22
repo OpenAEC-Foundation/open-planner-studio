@@ -8,24 +8,52 @@
 //
 // Wat deze check bewijst, per conventie, op een kleine synthetische XER-fixture waarvan de
 // P6-uitkomst vooraf uit de regel zelf volgt (niet uit de implementatie afgelezen):
-//   1. XER-import zoals gelezen (vertaling aan)               ⇒ de P6-uitkomst (AAN);
-//   2. dezelfde import met ALLEEN deze vlag expliciet `false` ⇒ de generieke uitkomst (UIT) —
+//   1. XER-import zoals gelezen (vertaling aan)                   ⇒ de P6-uitkomst (AAN);
+//   2. dezelfde import met ALLEEN deze vlag expliciet `false`     ⇒ de generieke uitkomst (UIT) —
 //      de negatieve arm: een expliciete `false` wint van de vertaling;
-//   3. bronmarkering weg, ALLEEN deze vlag `true`             ⇒ AAN — de vlag, niet de bron, schakelt;
-//   4. bronmarkering weg, vlag afwezig                        ⇒ UIT.
-// En daarna, over alle vijf fixtures: met de vertaling uitgeschakeld (testhaak
-// `legacyP6SourceTranslation: false`) is een project MÉT bronmarkering zesassig identiek aan
-// hetzelfde project ZONDER — de motor leest de bronmarkering dus nergens meer zelf.
+//   3. bron weg, testhaak uit, ALLEEN deze vlag `true`            ⇒ AAN — de vlag schakelt, niet de bron;
+//   4. bron weg, vertaling aan, vlag afwezig                      ⇒ UIT;
+//   5. bron blijft, testhaak uit, vlag expliciet `true`           ⇒ AAN;
+//   6. bron blijft, testhaak uit, vlag afwezig                    ⇒ UIT — de bron alleen doet niets.
+// (Arm 3 draait met de testhaak uit omdat de vertaling zonder bron A15–A20 uitzet, zoals vóór
+// baan B; B3/B4 hebben A18/A19 nodig. Zie de sectie "vertaling zonder bron" hieronder.)
+// Daarna, over alle vijf fixtures: met de testhaak uit is een project MÉT bronmarkering zesassig
+// identiek aan hetzelfde project ZONDER. Verder: de guardvolgorde van de redencodes, en een
+// bronscan dat `p6Source` onder `src/engine/` alleen nog in de tijdelijke vertaling staat.
 //
-// Mutatiebewijs: elke aan/uit-paar hieronder verschilt, dus een motor die de vlag negeert (altijd
-// aan of altijd uit) maakt minstens één van arm 1–4 rood.
+// MUTATIEBEWIJS (2026-09-22, 26 mutanten, elk afzonderlijk toegepast op src/engine ⇒ deze check
+// exit 1; tussen haakjes de eerste rode regel):
+//   B1 altijd strippen / nooit strippen        ⇒ rood (B1 arm 1 / arm 2)
+//   B2 `if (false` / `if (true`                ⇒ rood (B2 arm 1 / arm 2)
+//   B3 guard altijd open / altijd dicht        ⇒ rood (B3 arm 2 / arm 1)
+//   B4 guard altijd open / altijd dicht        ⇒ rood (B4 arm 2 / arm 1)
+//   B5 beide poorten open                      ⇒ rood (B5 arm 2)
+//   B5 guard dicht / alleen solverpoort dicht  ⇒ rood (B5 arm 1)
+//   `p6Source === 'XER'` terug naast B1…B5 (elk apart) ⇒ rood (o.a. arm 2)
+//   A17-poort `so?.p6Source === 'XER' &&` terug in scheduleAnalysis ⇒ rood (bronscan)
+//   vertaling negeert een expliciete false    ⇒ rood (arm 2 van B1–B5)
+//   vertaling negeert de testhaak             ⇒ rood (o.a. arm 6)
+//   vertaling zet A15–A20 zonder bron niet uit ⇒ rood ("vertaling zonder bron")
+//   guardvolgorde: B3 vóór dataDate / B3 ná A19 / B4 vóór de dataDate-checks / B4 ná A19 /
+//     in A21 B3 ná de vlag / B5 ná de taakchecks ⇒ rood (de bijbehorende "guardvolgorde"-regel)
 import { solveProject } from '@/engine/scheduler/solveProject';
 import {
   LEGACY_P6_SOURCE_CONVENTION_KEYS,
   type LegacyP6SourceConventionKey,
 } from '@/engine/scheduler/conventions/legacyP6Source';
+import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
+import {
+  explainCompletedXerLoeActualFinishEligibility,
+  explainP6CompletedLateRemainingWindowEligibility,
+} from '@/engine/scheduler/p6CompletedRouteTrace';
+import { explainOpenXerLoeTargetSpanEligibility } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
+import type { SchedulingOptions } from '@/types/project';
+import { parseInstant } from '@/utils/dateUtils';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -290,11 +318,15 @@ for (const fixture of fixtures) {
     pick(solveAxes(input, taskId)), fixture.on);
   eq(`${label}: 2. XER met ${flag}: false ⇒ UIT (expliciet wint van de vertaling)`,
     pick(solveAxes(withOptions(input, options => { options[flag] = false; }), taskId)), fixture.off);
-  eq(`${label}: 3. zonder bron, alleen ${flag}: true ⇒ AAN (de vlag schakelt, niet de bron)`,
-    pick(solveAxes(withOptions(input, options => { delete options.p6Source; options[flag] = true; }), taskId)),
+  eq(`${label}: 3. zonder bron, testhaak uit, alleen ${flag}: true ⇒ AAN (de vlag schakelt, niet de bron)`,
+    pick(solveAxes(withOptions(input, options => { delete options.p6Source; options[flag] = true; }), taskId, false)),
     fixture.on);
   eq(`${label}: 4. zonder bron, vlag afwezig ⇒ UIT`,
     pick(solveAxes(withOptions(input, options => { delete options.p6Source; }), taskId)), fixture.off);
+  eq(`${label}: 5. met bron, testhaak uit, ${flag}: true ⇒ AAN`,
+    pick(solveAxes(withOptions(input, options => { options[flag] = true; }), taskId, false)), fixture.on);
+  eq(`${label}: 6. met bron, testhaak uit, vlag afwezig ⇒ UIT (de bron alleen doet niets)`,
+    pick(solveAxes(input, taskId, false)), fixture.off);
 }
 
 // ── De motor leest de bronmarkering zelf niet meer ─────────────────────────────────────────────
@@ -312,6 +344,88 @@ for (const fixture of fixtures) {
   eq(`${fixture.label}: zonder vertaling = alle groep-B-vlaggen expliciet uit`, withSource, allOff);
   eq(`${fixture.label}: zonder vertaling ⇒ UIT op de geclaimde assen`,
     fixture.pick(withSource[fixture.taskId]!), fixture.off);
+}
+
+// ── Vertaling zonder bron: A15–A20 uit, zoals vóór baan B ───────────────────────────────────────
+// B3 en B4 hebben A19 (`p6UseRemainingStartForProgress`) en B4 ook A18 nodig. Zonder bron en mét
+// de (default) vertaling zet `legacyP6Source.ts` die uit, dus zelfs een expliciete B-vlag `true`
+// geeft dan UIT. Dat is precies het oude gedrag: zonder bron waren A15–A20 inert.
+for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow' || f.flag === 'p6CompletedLoeActualFinish')) {
+  eq(`${fixture.label}: zonder bron, vertaling aan, ${fixture.flag}: true ⇒ UIT (A19 zonder bron uit)`,
+    fixture.pick(solveAxes(withOptions(fixture.input, options => {
+      delete options.p6Source;
+      options[fixture.flag] = true;
+    }), fixture.taskId)), fixture.off);
+}
+
+// ── Guardvolgorde van de redencodes ─────────────────────────────────────────────────────────────
+// De conventie-check staat exact op de plek van de vroegere bron-check: ná de statusdatum-checks,
+// vóór elke andere vlag- of taakcheck. Wie de volgorde verschuift, verandert stil de gerapporteerde
+// reden (en daarmee de diagnose-traces).
+{
+  const b3 = fixtures.find(f => f.flag === 'p6CompletedDataDateWindow')!.input;
+  const b4 = fixtures.find(f => f.flag === 'p6CompletedLoeActualFinish')!.input;
+  const done = b3.tasks.find(task => task.id === 'C')!;
+  const loe = b4.tasks.find(task => task.id === 'L')!;
+  const b3Date = parseInstant(b3.project.statusDate!);
+  const b4Date = parseInstant(b4.project.statusDate!);
+  const so = (input: ImportResult, patch: Partial<SchedulingOptions>): SchedulingOptions =>
+    ({ ...input.project.schedulingOptions, ...patch });
+  const loeIn = b4.sequences.filter(sequence => sequence.successorId === loe.id);
+  const loeOut = b4.sequences.filter(sequence => sequence.predecessorId === loe.id);
+
+  eq('guardvolgorde B3: statusdatum ontbreekt én conventie uit ⇒ missingDataDate',
+    explainP6CompletedDataDateWindow(done, null, so(b3, { p6CompletedDataDateWindow: false })).reason, 'missingDataDate');
+  eq('guardvolgorde B3: conventie uit én A19 uit ⇒ conventionOff',
+    explainP6CompletedDataDateWindow(done, b3Date, so(b3, { p6CompletedDataDateWindow: false, p6UseRemainingStartForProgress: false })).reason,
+    'conventionOff');
+  eq('guardvolgorde B3: conventie aan, A19 uit ⇒ remainingStartOff',
+    explainP6CompletedDataDateWindow(done, b3Date, so(b3, { p6UseRemainingStartForProgress: false })).reason, 'remainingStartOff');
+
+  eq('guardvolgorde B4: statusdatum ontbreekt én conventie uit ⇒ missingDataDate',
+    explainCompletedXerLoeActualFinishEligibility(loe, null, so(b4, { p6CompletedLoeActualFinish: false }), loeIn, loeOut).reason,
+    'missingDataDate');
+  eq('guardvolgorde B4: ongeldige statusdatum én conventie uit ⇒ invalidDataDate',
+    explainCompletedXerLoeActualFinishEligibility(loe, new Date(Number.NaN), so(b4, { p6CompletedLoeActualFinish: false }), loeIn, loeOut).reason,
+    'invalidDataDate');
+  eq('guardvolgorde B4: conventie uit én A19 uit ⇒ conventionOff',
+    explainCompletedXerLoeActualFinishEligibility(loe, b4Date, so(b4, { p6CompletedLoeActualFinish: false, p6UseRemainingStartForProgress: false }), loeIn, loeOut).reason,
+    'conventionOff');
+
+  eq('guardvolgorde A21: A21-vlag uit én B3 uit ⇒ conventionOff (B3 vóór de vlag)',
+    explainP6CompletedLateRemainingWindowEligibility(done, b3Date, so(b3, { p6CompletedLateFromRemainingWindow: false, p6CompletedDataDateWindow: false })).reason,
+    'conventionOff');
+  eq('guardvolgorde A21: A21-vlag uit, B3 aan ⇒ flagOff',
+    explainP6CompletedLateRemainingWindowEligibility(done, b3Date, so(b3, { p6CompletedLateFromRemainingWindow: false })).reason,
+    'flagOff');
+  eq('guardvolgorde A21: statusdatum ontbreekt én B3 uit ⇒ missingDataDate (actual-pin eerst)',
+    explainP6CompletedLateRemainingWindowEligibility(done, null, so(b3, { p6CompletedDataDateWindow: false })).reason,
+    'missingDataDate');
+
+  const openLoeArgs = [[], [], b3Date, 0, 0] as const;
+  eq('guardvolgorde B5: conventie uit op een niet-LOE ⇒ conventionOff (vóór de taakchecks)',
+    explainOpenXerLoeTargetSpanEligibility(done, so(b3, { p6OpenLoeTargetSpan: false }), ...openLoeArgs).reason, 'conventionOff');
+  eq('guardvolgorde B5: conventie aan op een niet-LOE ⇒ wrongActivityType',
+    explainOpenXerLoeTargetSpanEligibility(done, so(b3, { p6OpenLoeTargetSpan: true }), ...openLoeArgs).reason, 'wrongActivityType');
+}
+
+// ── Bronscan: `p6Source` onder src/engine/ alleen in de tijdelijke vertaling ────────────────────
+{
+  const here = fileURLToPath(new URL('.', import.meta.url));
+  const engineRoot = join(here, '..', '..', 'src', 'engine');
+  const hits: string[] = [];
+  const walk = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.(ts|tsx)$/.test(name) && readFileSync(full, 'utf8').includes('p6Source')) {
+        hits.push(relative(engineRoot, full).split('\\').join('/'));
+      }
+    }
+  };
+  walk(engineRoot);
+  eq('bronscan: p6Source komt onder src/engine/ alleen in conventions/legacyP6Source.ts voor',
+    hits.sort(), ['scheduler/conventions/legacyP6Source.ts']);
 }
 
 if (diffs.length > 0) {

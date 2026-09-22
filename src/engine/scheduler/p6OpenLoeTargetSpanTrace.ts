@@ -58,9 +58,26 @@ export function explainOpenXerLoeTargetSpanEligibility(
   targetWindowWorkMinutes: number,
   targetWindowToleranceMinutes: number,
 ): OpenXerLoeTargetSpanDecision {
-  // Conventie B5 `p6OpenLoeTargetSpan` (TIJDELIJK via de idempotente bronvertaling voor directe
-  // aanroepers) — exact op de plek van de vroegere bron-check.
-  if (resolveLegacyP6SourceConventions(schedulingOptions)?.p6OpenLoeTargetSpan !== true) {
+  // TIJDELIJK (rekenprofielen baan B): vertaling voor directe aanroepers; de solver gebruikt
+  // de `Resolved`-variant met al vertaalde opties.
+  return explainOpenXerLoeTargetSpanEligibilityResolved(
+    task, resolveLegacyP6SourceConventions(schedulingOptions), incoming, outgoing,
+    relationalEarlyStart, targetWindowWorkMinutes, targetWindowToleranceMinutes,
+  );
+}
+
+/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`); leest alleen vlaggen. */
+export function explainOpenXerLoeTargetSpanEligibilityResolved(
+  task: Task,
+  schedulingOptions: SchedulingOptions | undefined,
+  incoming: readonly Sequence[],
+  outgoing: readonly Sequence[],
+  relationalEarlyStart: Date,
+  targetWindowWorkMinutes: number,
+  targetWindowToleranceMinutes: number,
+): OpenXerLoeTargetSpanDecision {
+  // Conventie B5 `p6OpenLoeTargetSpan` — exact op de plek van de vroegere bron-check.
+  if (schedulingOptions?.p6OpenLoeTargetSpan !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }
   if (task.p6ProjectId === undefined || task.p6ProjectId === '') {

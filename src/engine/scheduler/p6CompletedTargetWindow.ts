@@ -76,12 +76,21 @@ function mayUseSuspendResumeCompletedWindow(
 export function explainP6CompletedDataDateWindow(
   task: Task,
   dataDate: Date | null,
-  rawSchedulingOptions: SchedulingOptions | undefined,
+  schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
   // TIJDELIJK (rekenprofielen baan B): directe aanroepers geven soms nog alleen de oude
-  // bronmarkering mee; de vertaling is idempotent, dus voor de solver (die al vertaalde opties
-  // doorgeeft) verandert ze niets.
-  const schedulingOptions = resolveLegacyP6SourceConventions(rawSchedulingOptions);
+  // bronmarkering mee. De solverpaden gebruiken de `Resolved`-variant met al vertaalde opties.
+  return explainP6CompletedDataDateWindowResolved(
+    task, dataDate, resolveLegacyP6SourceConventions(schedulingOptions),
+  );
+}
+
+/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
+export function explainP6CompletedDataDateWindowResolved(
+  task: Task,
+  dataDate: Date | null,
+  schedulingOptions: SchedulingOptions | undefined,
+): P6CompletedWindowDecision {
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
   // Conventie B3 `p6CompletedDataDateWindow` — staat exact op de plek van de vroegere bron-check.
   if (schedulingOptions?.p6CompletedDataDateWindow !== true) {

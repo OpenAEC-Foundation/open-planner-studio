@@ -3,7 +3,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
 import {
-  explainP6CompletedDataDateWindow,
+  explainP6CompletedDataDateWindowResolved,
   type P6CompletedWindowReason,
 } from '@/engine/scheduler/p6CompletedTargetWindow';
 import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
@@ -77,12 +77,25 @@ export interface CpmDisplayActualLateDecision {
 export function explainCompletedXerLoeActualFinishEligibility(
   task: Task,
   dataDate: Date | null,
-  rawSchedulingOptions: SchedulingOptions | undefined,
+  schedulingOptions: SchedulingOptions | undefined,
   incoming: readonly Sequence[],
   outgoing: readonly Sequence[],
 ): CompletedXerLoeActualFinishDecision {
-  // TIJDELIJK (rekenprofielen baan B): idempotente vertaling voor directe aanroepers.
-  const schedulingOptions = resolveLegacyP6SourceConventions(rawSchedulingOptions);
+  // TIJDELIJK (rekenprofielen baan B): vertaling voor directe aanroepers; de solver gebruikt
+  // de `Resolved`-variant met al vertaalde opties.
+  return explainCompletedXerLoeActualFinishEligibilityResolved(
+    task, dataDate, resolveLegacyP6SourceConventions(schedulingOptions), incoming, outgoing,
+  );
+}
+
+/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`); leest alleen vlaggen. */
+export function explainCompletedXerLoeActualFinishEligibilityResolved(
+  task: Task,
+  dataDate: Date | null,
+  schedulingOptions: SchedulingOptions | undefined,
+  incoming: readonly Sequence[],
+  outgoing: readonly Sequence[],
+): CompletedXerLoeActualFinishDecision {
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
   if (!Number.isFinite(dataDate.getTime())) return { eligible: false, reason: 'invalidDataDate' };
   // Conventie B4 `p6CompletedLoeActualFinish` — exact op de plek van de vroegere bron-check.
@@ -211,10 +224,21 @@ export interface P6CompletedLateRemainingWindowDecision {
 export function explainP6CompletedLateRemainingWindowEligibility(
   task: Task,
   dataDate: Date | null,
-  rawSchedulingOptions: SchedulingOptions | undefined,
+  schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedLateRemainingWindowDecision {
-  // TIJDELIJK (rekenprofielen baan B): idempotente vertaling voor directe aanroepers.
-  const schedulingOptions = resolveLegacyP6SourceConventions(rawSchedulingOptions);
+  // TIJDELIJK (rekenprofielen baan B): vertaling voor directe aanroepers; de solverpaden
+  // gebruiken de `Resolved`-variant met al vertaalde opties.
+  return explainP6CompletedLateRemainingWindowEligibilityResolved(
+    task, dataDate, resolveLegacyP6SourceConventions(schedulingOptions),
+  );
+}
+
+/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
+export function explainP6CompletedLateRemainingWindowEligibilityResolved(
+  task: Task,
+  dataDate: Date | null,
+  schedulingOptions: SchedulingOptions | undefined,
+): P6CompletedLateRemainingWindowDecision {
   const pin = explainBackwardActualPinEligibility(task, dataDate, schedulingOptions);
   if (!pin.eligible) return { eligible: false, reason: pin.reason };
   // Op de plek van de vroegere bron-check: deze regel meet tegen het statusdatumvenster van
@@ -226,7 +250,7 @@ export function explainP6CompletedLateRemainingWindowEligibility(
   if (schedulingOptions.p6CompletedLateFromRemainingWindow !== true) {
     return { eligible: false, reason: 'flagOff' };
   }
-  const window = explainP6CompletedDataDateWindow(task, dataDate, schedulingOptions);
+  const window = explainP6CompletedDataDateWindowResolved(task, dataDate, schedulingOptions);
   if (!window.eligible) return { eligible: false, reason: window.reason };
   return { eligible: true, reason: 'eligible' };
 }

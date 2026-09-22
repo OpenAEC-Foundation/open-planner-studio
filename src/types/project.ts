@@ -13,7 +13,9 @@ export interface SchedulingOptions {
    *  de motor (`src/engine/`) haar NIET meer voor rekengedrag: elke P6-conventie is een eigen vlag
    *  hieronder. Enige uitzondering, TIJDELIJK: `engine/scheduler/conventions/legacyP6Source.ts`
    *  vertaalt `'XER'` naar de vijf groep-B-conventies (`p6RelationFinishBoundary` t/m
-   *  `p6OpenLoeTargetSpan`) zolang die niet expliciet gezet zijn, tot de XER-lezer ze zelf zet. */
+   *  `p6OpenLoeTargetSpan`) zolang die niet expliciet gezet zijn, en zet zonder `'XER'` de
+   *  vlaggen A15–A20 uit (vóór baan B waren die zonder bron inert) — tot de XER-lezer en de
+   *  IFC-migratie de conventies zelf zetten. */
   p6Source?: 'XER';
   /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' ⇒ byte-identiek
    *  met de oude vaste voorgangerskalender. LET OP (XER-etappe X5, eindreview bevinding 5): tot
@@ -73,9 +75,9 @@ export interface SchedulingOptions {
    *  activiteit beschrijft de start van het resterende werk (`max(statusdatum, relatiegrens)`).
    *  Alleen het XER-importpad zet deze bronvlag; andere formaten blijven hun bestaande zichtbare
    *  actual-startvenster gebruiken.
-   *  A19 — conventie (spec v3), per bestand als override door de XER-lezer (`rem_target_link_flag`);
-   *  sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
-   *  P6 aan / MS Project uit / OPS uit. */
+   *  A19 — conventie (spec v3); sinds rekenprofielen baan B is de vlag zelf de conventie, zonder
+   *  bronpoort. P6 uit (standaard; de XER-lezer zet hem per bestand als override uit
+   *  `rem_target_link_flag`) / MS Project uit / OPS uit. */
   p6UseRemainingStartForProgress?: boolean;
   /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
    *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit.

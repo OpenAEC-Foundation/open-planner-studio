@@ -14,7 +14,10 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import type { WorkCalendar } from '@/types/calendar';
 import { usesP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
-import { LEGACY_P6_SOURCE_CONVENTION_KEYS } from '@/engine/scheduler/conventions/legacyP6Source';
+import {
+  LEGACY_P6_SOURCE_CONVENTION_KEYS,
+  LEGACY_P6_SOURCE_GATED_FLAGS,
+} from '@/engine/scheduler/conventions/legacyP6Source';
 import type { SchedulingOptions } from '@/types/project';
 import { buildXerTargetBaseline, type XerCorpusFile, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
@@ -40,13 +43,13 @@ const REPORT_MODES = new Set(['baseline', 'detail', 'summary', 'counterfactuals'
 const diffs: string[] = [];
 
 // Rekenprofielen baan B: de motor leest de XER-bronmarkering niet meer; elke P6-conventie is een
-// eigen vlag. "Geen P6-bron" betekent daarom in de mutanten hieronder: bronmarkering weg ÉN elke
-// P6-gepoorte conventievlag expliciet uit (A15–A21 uit bijlage A, die vroeger achter de bron
-// stonden, plus de vijf groep-B-conventies). Zomaar de bron weghalen zou A15–A21 juist aan laten.
+// eigen vlag. De "zonder bron"-armen hieronder houden hun oude betekenis (bron weg, vlaggen
+// blijven staan ⇒ generiek gedrag) dankzij de TIJDELIJKE vertaling in
+// `conventions/legacyP6Source.ts`, die A15–A20 zonder bron uitzet (spec §3.4 rij 4). Daarnaast
+// een arm met ALLE P6-gepoorte vlaggen expliciet uit (A15–A21 + de vijf groep-B-conventies): die
+// beschrijft de toestand na de integratie, wanneer de bronmarkering verdwijnt.
 const P6_GATED_CONVENTION_FLAGS = [
-  'p6ZeroDurationUsesPlannedBoundary', 'p6UseTaskPlannedStartFloor', 'p6FinishMilestoneBoundaryWindow',
-  'p6PreserveActualInstants', 'p6UseRemainingStartForProgress', 'p6PreserveZeroDurationConstraintInstants',
-  'p6CompletedLateFromRemainingWindow', ...LEGACY_P6_SOURCE_CONVENTION_KEYS,
+  ...LEGACY_P6_SOURCE_GATED_FLAGS, 'p6CompletedLateFromRemainingWindow', ...LEGACY_P6_SOURCE_CONVENTION_KEYS,
 ] as const satisfies readonly (keyof SchedulingOptions)[];
 function withoutP6Conventions(input: ImportResult): void {
   const options = input.project.schedulingOptions ?? {};
@@ -1079,16 +1082,14 @@ async function productBaseline(
   if (isMultiDocumentImport(noSource) || isMultiDocumentImport(explicitOff)) {
     throw new Error('X12 finishmijlpaal-provenancefixture moet enkelproject zijn');
   }
-  // Baan B: `noSource` = alle P6-conventies uit; `explicitOff` = bron weg en alleen deze vlag uit
-  // (de overige A-vlaggen blijven aan). Gelijk ⇒ deze ene vlag is de enige schakelaar voor A200.
-  withoutP6Conventions(noSource);
+  delete noSource.project.schedulingOptions?.p6Source;
   delete explicitOff.project.schedulingOptions?.p6Source;
   if (explicitOff.project.schedulingOptions) {
     explicitOff.project.schedulingOptions.p6FinishMilestoneBoundaryWindow = false;
   }
   const noSourceTask = solveImported(noSource).tasks.find(candidate => candidate.taskCode === 'A200');
   const explicitOffTask = solveImported(explicitOff).tasks.find(candidate => candidate.taskCode === 'A200');
-  eq('X12 p6FinishMilestoneBoundaryWindow uit is gelijk aan alle P6-conventies uit', {
+  eq('X12 p6FinishMilestoneBoundaryWindow is inert zonder XER-projectprovenance', {
     noSource: [noSourceTask?.lateStart, noSourceTask?.lateFinish, noSourceTask?.totalFloatMinutes],
     explicitOff: [explicitOffTask?.lateStart, explicitOffTask?.lateFinish, explicitOffTask?.totalFloatMinutes],
     differsFromProven: noSourceTask?.lateFinish !== task?.lateFinish,
@@ -1097,11 +1098,21 @@ async function productBaseline(
     explicitOff: [explicitOffTask?.lateStart, explicitOffTask?.lateFinish, explicitOffTask?.totalFloatMinutes],
     differsFromProven: true,
   });
+  // Baan B, extra arm: alle P6-gepoorte conventies expliciet uit geeft hetzelfde als A17 alleen uit.
+  const allOff = readXER(bytes);
+  if (isMultiDocumentImport(allOff)) throw new Error('X12 finishmijlpaal-provenancefixture moet enkelproject zijn');
+  withoutP6Conventions(allOff);
+  const allOffTask = solveImported(allOff).tasks.find(candidate => candidate.taskCode === 'A200');
+  eq('X12 alle P6-conventies uit is voor A200 gelijk aan alleen p6FinishMilestoneBoundaryWindow uit',
+    [allOffTask?.lateStart, allOffTask?.lateFinish, allOffTask?.totalFloatMinutes],
+    [explicitOffTask?.lateStart, explicitOffTask?.lateFinish, explicitOffTask?.totalFloatMinutes]);
 }
 
 // Ook taakvloer en exact constraint-instant zijn uitsluitend P6-XER-projecties. Een gewone
 // solver/IFC-payload die alleen gelijknamige booleans bevat, maar geen bronstempel, moet exact het
-// expliciet-uitgeschakelde gedrag houden.
+// expliciet-uitgeschakelde gedrag houden. Sinds rekenprofielen baan B leest de motor die
+// bronstempel niet meer; dit gedrag komt nu uit de TIJDELIJKE vertaling
+// `conventions/legacyP6Source.ts` (A15–A20 zonder bron uit) en verandert bij de integratie.
 {
   const calendarData = fiveDayCalendarData('08:00', '16:00');
   const bytes = new TextEncoder().encode([
@@ -1128,9 +1139,7 @@ async function productBaseline(
   const explicitOff = readXER(bytes);
   if (isMultiDocumentImport(proven) || isMultiDocumentImport(noSource)
     || isMultiDocumentImport(explicitOff)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
-  // Baan B: `noSource` = alle P6-conventies uit; `explicitOff` = bron weg en alleen deze twee
-  // vlaggen uit. Gelijk ⇒ A16 en A20 zijn samen de enige schakelaars voor deze drie assen.
-  withoutP6Conventions(noSource);
+  delete noSource.project.schedulingOptions?.p6Source;
   delete explicitOff.project.schedulingOptions?.p6Source;
   if (explicitOff.project.schedulingOptions) {
     explicitOff.project.schedulingOptions.p6UseTaskPlannedStartFloor = false;
@@ -1145,7 +1154,7 @@ async function productBaseline(
   const provenResult = resultOf(proven);
   const noSourceResult = resultOf(noSource);
   const offResult = resultOf(explicitOff);
-  eq('X12 taakvloer en nulduurconstraint uit is gelijk aan alle P6-conventies uit', {
+  eq('X12 taakvloer en nulduurconstraint vereisen XER-projectprovenance', {
     proven: provenResult,
     noSource: noSourceResult,
     explicitOff: offResult,
@@ -1154,6 +1163,33 @@ async function productBaseline(
     noSource: offResult,
     explicitOff: offResult,
   });
+  // Baan B, extra armen. (a) Alle P6-gepoorte conventies expliciet uit = de twee vlaggen uit.
+  const allOffFloor = readXER(bytes);
+  if (isMultiDocumentImport(allOffFloor)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
+  withoutP6Conventions(allOffFloor);
+  eq('X12 taakvloer: alle P6-conventies uit = taakvloer en nulduurconstraint uit',
+    resultOf(allOffFloor), offResult);
+  // (b) Reviewerproef: bron weg, vlaggen blijven staan, via writeIFC + readIFC. De A16-vloer mag
+  // dan niet werken: FLOOR begint op de netwerkbasis (vr 2 jan 08:00), niet op ma 5 jan.
+  const ifcNoSource = readXER(bytes);
+  if (isMultiDocumentImport(ifcNoSource)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
+  delete ifcNoSource.project.schedulingOptions?.p6Source;
+  const ifcNoSourceRead = readIFC(writeIFC({
+    ...ifcNoSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
+  }));
+  const ifcFloorSolve = solveProject({
+    tasks: ifcNoSourceRead.tasks, sequences: ifcNoSourceRead.sequences, calendar: ifcNoSourceRead.calendar,
+    calendars: ifcNoSourceRead.resourceCalendars ?? [], dataDate: ifcNoSourceRead.project.statusDate,
+    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: ifcNoSourceRead.project.schedulingOptions,
+    projectStartDate: ifcNoSourceRead.project.startDate, projectEndDate: ifcNoSourceRead.project.endDate,
+  });
+  if (ifcFloorSolve.error) throw new Error(ifcFloorSolve.error);
+  const ifcFloor = ifcNoSourceRead.tasks.find(task => task.wbsCode === 'FLOOR');
+  eq('X12 taakvloer: IFC zonder bron met A16-vlag aan houdt de netwerkbasis', {
+    floorFlag: ifcNoSourceRead.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
+    source: ifcNoSourceRead.project.schedulingOptions?.p6Source,
+    floorStart: canonicalProductMinute(ifcFloor?.time.earlyStart),
+  }, { floorFlag: true, source: undefined, floorStart: '2026-01-02T08:00' });
   const hostileExt = readXER(bytes);
   if (isMultiDocumentImport(hostileExt)) throw new Error('X12 extensiesolvefixture moet enkelproject zijn');
   const hostilePredecessor = hostileExt.tasks.find(task => task.wbsCode === 'PRED');
@@ -1431,19 +1467,17 @@ async function productBaseline(
     successorFinish: '2026-01-06T17:00',
   });
 
-  // De relatievlag kan in een generieke payload nog aanwezig zijn, maar mag zonder de centrale
-  // XER-bronstempel geen enkel forward- of backward-pad bereiken. Vergelijk met dezelfde XER
+  // De relatievlag kan in een generieke payload nog aanwezig zijn, maar mag zonder conventie B1
+  // (`p6RelationFinishBoundary`) geen enkel forward- of backward-pad bereiken; de `CPMSolver`-
+  // constructor stript haar dan. Zonder bronstempel staat B1 uit omdat de TIJDELIJKE vertaling
+  // (`conventions/legacyP6Source.ts`) haar alleen mét bron aanzet. Vergelijk met dezelfde XER
   // input waarin uitsluitend de vlag zelf is weggehaald: alle zes taakassen moeten identiek zijn.
   const genericPayload = readXER(bytes);
   const explicitNoBoundary = readXER(bytes);
   if (isMultiDocumentImport(genericPayload) || isMultiDocumentImport(explicitNoBoundary)) {
     throw new Error('X12 relatie-firewallfixture moet enkelproject zijn');
   }
-  // Baan B: "generiek" = alle P6-conventies uit, aan beide kanten; de enige verschil is de
-  // rauwe relatievlag. Tweede arm: alléén conventie B1 uit, alle andere P6-conventies aan —
-  // bewijst dat B1 zelf (en niet een andere vlag) de relatievlag onschadelijk maakt.
-  withoutP6Conventions(genericPayload);
-  withoutP6Conventions(explicitNoBoundary);
+  delete genericPayload.project.schedulingOptions?.p6Source;
   delete explicitNoBoundary.sequences[0]?.p6StartAtPredecessorFinishBoundary;
   const relationAxes = (input: ImportResult) => solveImported(input).tasks.map(task => [
     task.taskCode, task.earlyStart, task.earlyFinish, task.lateStart, task.lateFinish,
@@ -1451,17 +1485,27 @@ async function productBaseline(
   ]);
   eq('X12 generieke payload met rauwe P6-relatievlag is solver-identiek aan geen vlag',
     relationAxes(genericPayload), relationAxes(explicitNoBoundary));
+  // Baan B, extra armen. (a) Alle P6-conventies uit aan beide kanten; alleen de rauwe
+  // relatievlag verschilt. (b) Alleen B1 uit, alle andere P6-conventies aan: B1 zelf maakt de
+  // relatievlag onschadelijk.
+  const allOffPayload = readXER(bytes);
+  const allOffNoFlag = readXER(bytes);
   const b1Off = readXER(bytes);
   const b1OffNoFlag = readXER(bytes);
-  if (isMultiDocumentImport(b1Off) || isMultiDocumentImport(b1OffNoFlag)) {
+  if ([allOffPayload, allOffNoFlag, b1Off, b1OffNoFlag].some(isMultiDocumentImport)) {
     throw new Error('X12 relatie-firewallfixture moet enkelproject zijn');
   }
-  for (const input of [b1Off, b1OffNoFlag]) {
+  withoutP6Conventions(allOffPayload as ImportResult);
+  withoutP6Conventions(allOffNoFlag as ImportResult);
+  delete (allOffNoFlag as ImportResult).sequences[0]?.p6StartAtPredecessorFinishBoundary;
+  eq('X12 alle P6-conventies uit: rauwe P6-relatievlag is solver-identiek aan geen vlag',
+    relationAxes(allOffPayload as ImportResult), relationAxes(allOffNoFlag as ImportResult));
+  for (const input of [b1Off, b1OffNoFlag] as ImportResult[]) {
     input.project.schedulingOptions = { ...input.project.schedulingOptions, p6RelationFinishBoundary: false };
   }
-  delete b1OffNoFlag.sequences[0]?.p6StartAtPredecessorFinishBoundary;
+  delete (b1OffNoFlag as ImportResult).sequences[0]?.p6StartAtPredecessorFinishBoundary;
   eq('X12 conventie B1 uit maakt de rauwe P6-relatievlag solver-identiek aan geen vlag',
-    relationAxes(b1Off), relationAxes(b1OffNoFlag));
+    relationAxes(b1Off as ImportResult), relationAxes(b1OffNoFlag as ImportResult));
 
   // De vlag is niet alleen opgeslagen metadata: na XER → IFC → inlezen moet hij nog steeds de
   // exacte 17:00-boundary dragen. Dit maakt de IFC-ronde een datumpariteitscheck, geen velddump.
@@ -1692,10 +1736,9 @@ async function productBaseline(
   if (isMultiDocumentImport(ordinaryIfcSource) || isMultiDocumentImport(ordinaryDirect)) {
     throw new Error('X12 gewone-IFC-provenancefixture moet enkelproject zijn');
   }
-  // Baan B: "gewone IFC" = alle P6-conventies uit (en de kalenderbronmarkering weg), aan beide kanten.
-  withoutP6Conventions(ordinaryIfcSource);
+  delete ordinaryIfcSource.project.schedulingOptions?.p6Source;
   delete ordinaryIfcSource.calendar.p6Source;
-  withoutP6Conventions(ordinaryDirect);
+  delete ordinaryDirect.project.schedulingOptions?.p6Source;
   delete ordinaryDirect.calendar.p6Source;
   // Zonder XER-archief blijft dit bewust een gewone IFC en dus een synchrone read-probe.
   const ordinaryIfc = readIFC(writeIFC({
@@ -1710,6 +1753,17 @@ async function productBaseline(
     calendarSource: undefined,
     axes: sixAxes(ordinaryDirect),
   });
+  // Baan B, extra arm: dezelfde gewone IFC met ALLE P6-conventies expliciet uit is zesassig
+  // gelijk aan de gewone IFC hierboven (bron weg, vlaggen nog aan).
+  const allOffIfcSource = readXER(projectionBytes);
+  if (isMultiDocumentImport(allOffIfcSource)) throw new Error('X12 gewone-IFC-provenancefixture moet enkelproject zijn');
+  withoutP6Conventions(allOffIfcSource);
+  delete allOffIfcSource.calendar.p6Source;
+  const allOffIfc = readIFC(writeIFC({
+    ...allOffIfcSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
+  }));
+  eq('X12 gewone IFC met alle P6-conventies uit = gewone IFC zonder bronstempels',
+    sixAxes(allOffIfc), sixAxes(ordinaryIfc));
 
   const unprovenImport = readXER(projectionBytes);
   if (isMultiDocumentImport(unprovenImport)) throw new Error('X12 provenance-tegenvoorbeeld moet enkelproject zijn');

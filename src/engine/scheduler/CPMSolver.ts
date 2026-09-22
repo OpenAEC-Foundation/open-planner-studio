@@ -16,17 +16,17 @@ import {
 import { computeScheduleResults } from './scheduleAnalysis';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  explainP6CompletedDataDateWindow,
+  explainP6CompletedDataDateWindowResolved,
   type P6CompletedWindowDecision,
 } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
-  explainCompletedXerLoeActualFinishEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainCompletedXerLoeActualFinishEligibilityResolved,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
   type CpmBackwardActualPinDecision,
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
-import { explainOpenXerLoeTargetSpanEligibility } from './p6OpenLoeTargetSpanTrace';
+import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
 import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
@@ -475,7 +475,7 @@ export class CPMSolver {
   }
 
   private p6CompletedDataDateWindowDecision(task: Task): P6CompletedWindowDecision {
-    return explainP6CompletedDataDateWindow(task, this.dataDate, this.options.schedulingOptions);
+    return explainP6CompletedDataDateWindowResolved(task, this.dataDate, this.options.schedulingOptions);
   }
 
   private recordBackwardFloatTrace(
@@ -1451,7 +1451,7 @@ export class CPMSolver {
       // Gebruik hier bewust de rauwe XER-datadatum, vóór kalendersnap. De smalle guard vergelijkt
       // haar met het opgeslagen actual-finish-instant; een naar de volgende werkband gesnapte datum
       // zou een actualFinish ná P6's datadatum ten onrechte toelaten.
-      const completedXerLoeActualFinish = explainCompletedXerLoeActualFinishEligibility(
+      const completedXerLoeActualFinish = explainCompletedXerLoeActualFinishEligibilityResolved(
         task,
         this.options.dataDate ? parseInstant(this.options.dataDate) : null,
         this.options.schedulingOptions,
@@ -1471,7 +1471,7 @@ export class CPMSolver {
               parseInstant(task.time.scheduleFinish),
             )
           : Number.NaN;
-        const openXerLoeTargetSpan = explainOpenXerLoeTargetSpanEligibility(
+        const openXerLoeTargetSpan = explainOpenXerLoeTargetSpanEligibilityResolved(
           task,
           this.options.schedulingOptions,
           preds,
@@ -3086,7 +3086,7 @@ export class CPMSolver {
         // vallen (bv. `TK_Complete` zonder `act_end_date`: wel completedWindow-eligible, niet
         // backwardActualPin-eligible — de weergave mag dan niet stilzwijgend meebewegen terwijl
         // deze tak overgeslagen wordt).
-        if (explainP6CompletedLateRemainingWindowEligibility(
+        if (explainP6CompletedLateRemainingWindowEligibilityResolved(
           task, this.dataDate, this.options.schedulingOptions,
         ).eligible) {
           // Diagnose laag 1, klasse (i) (rehab-2, 2.036 voltooide taken, 99,9% dekking): een
@@ -3119,7 +3119,7 @@ export class CPMSolver {
             // (bron-onafhankelijke) completedWindow-poort komen maar zelf NIET door
             // `backwardActualPin`, en heeft dan géén door deze tak berekende ls/lf om op terug te
             // rekenen — dat zou anders precies de poortdivergentie uit de review reproduceren.
-            const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+            const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
               succTask, this.dataDate, this.options.schedulingOptions,
             ).eligible;
             // Een voltooide opvolger die zelf niet door de gedeelde poort kwam (CP_Phys, de
@@ -3318,7 +3318,7 @@ export class CPMSolver {
           && succTask.time.completion >= 1;
         // Zelfde gedeelde poort als hierboven (review-bevinding 4): alleen een opvolger die er zelf
         // door komt draagt een zinvolle late kant om op terug te rekenen.
-        const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibility(
+        const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
           succTask, this.dataDate, this.options.schedulingOptions,
         ).eligible;
         if (succCompletedHistoric && !succUsesRemainingWindow) continue;
