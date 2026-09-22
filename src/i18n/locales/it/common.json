@@ -285,7 +285,10 @@
     "aiMode": "Abilita modalità IA",
     "aiModeHint": "Mostra la scheda IA con il bridge MCP, così gli assistenti IA possono lavorare sulla tua pianificazione tramite il Model Context Protocol. Disattivandola si interrompe il bridge.",
     "aiAutostart": "Avvia il bridge automaticamente",
-    "aiAutostartHint": "Attiva il bridge MCP all'avvio dell'applicazione, così un client IA può collegarsi senza che tu apra prima la scheda IA. Solo nell'app desktop."
+    "aiAutostartHint": "Attiva il bridge MCP all'avvio dell'applicazione, così un client IA può collegarsi senza che tu apra prima la scheda IA. Solo nell'app desktop.",
+    "legacySection": "Funzioni legacy",
+    "classicViewControls": "Mostra i pulsanti di vista classici",
+    "classicViewControlsHint": "Riporta i pulsanti separati Colonne, Filtro, Raggruppa e Ordina nella scheda Vista. La loro funzione ora si trova nei pulsanti di layout e nella finestra dei layout."
   },
   "ai": {
     "start": "Avvia bridge",
@@ -878,7 +881,31 @@
       "missingRefs": "Alcuni campi non esistono in questo documento e verranno ignorati.",
       "noLayouts": "Ancora nessun layout salvato.",
       "activeLayout": "Layout",
-      "none": "(nessuno)"
+      "none": "(nessuno)",
+      "builtinResourceDiagram": "Diagramma delle risorse",
+      "newTitle": "Nuovo layout",
+      "editTitle": "Modifica layout",
+      "icon": "Icona",
+      "partsTitle": "Che cosa memorizza questo layout?",
+      "partsHint": "Solo le parti selezionate cambiano quando fai clic sul pulsante del layout; il resto della vista rimane com’è.",
+      "partRelations": "Linee di relazione",
+      "infoColumns": "Le colonne visibili della tabella delle attività, il loro ordine e la loro larghezza.",
+      "infoFilter": "Il filtro attivo ora. Se nessun filtro è attivo, questo layout cancella il filtro.",
+      "infoGroup": "Il raggruppamento delle attività, ad esempio per risorsa. Senza raggruppamento il layout mostra l’albero WBS.",
+      "infoSort": "L’ordinamento delle attività nell’albero o all’interno di un gruppo.",
+      "infoTimeScale": "La scala temporale del Gantt (giorno, settimana, mese…). Non selezionato: lo zoom resta com’è.",
+      "infoRelations": "Se le linee di relazione tra le attività sono visibili. In una vista raggruppata di solito è meglio nasconderle.",
+      "useCurrentView": "Riprendi la vista corrente",
+      "infoUseCurrentView": "Compila tutte le parti qui sotto con ciò che è ora sullo schermo.",
+      "edit": "Modifica…",
+      "duplicate": "Duplica",
+      "copyName": "{{name}} (copia)",
+      "needOnePart": "Seleziona almeno una parte.",
+      "builtinReadonly": "Layout incluso: non modificabile. Duplicalo per crearne una tua versione.",
+      "applyOnly": "Applica senza salvare",
+      "infoApplyOnly": "Applica allo schermo le parti selezionate senza creare un pulsante di layout. Utile per un filtro rapido e temporaneo.",
+      "columnsNote": "Riprende le colonne così come sono ora nella tabella. Le colonne si scelgono con il più nell’intestazione della tabella.",
+      "relationsShow": "Mostra le linee di relazione"
     },
     "presentation": {
       "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."

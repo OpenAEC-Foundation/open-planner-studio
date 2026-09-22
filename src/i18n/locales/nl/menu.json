@@ -202,7 +202,9 @@
     "screenColors_auto": "Per taak — automatisch",
     "screenColors_category": "Op categorie",
     "screenColorsMissingField": "Dit veld bestaat niet in dit project. Taaktype wordt tijdelijk gebruikt.",
-    "screenColorsHint": "Buiten Kritiek pad markeert een rode rand het kritieke pad."
+    "screenColorsHint": "Buiten Kritiek pad markeert een rode rand het kritieke pad.",
+    "addLayout": "Nieuwe layout",
+    "toggleRelations": "Relatielijnen"
   },
   "ifc": {
     "title": "IFC-editor",

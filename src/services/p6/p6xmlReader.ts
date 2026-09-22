@@ -9,6 +9,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { flattenOrder } from '@/utils/wbs';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
@@ -362,6 +363,26 @@ export function readP6XML(content: string): ImportResult {
     });
   }
 
+  // Broer/zus-volgorde uit `SequenceNumber` (issue #159, vervolg — critreview PR #162: de writer
+  // schrijft hem, dus de lezer hoort hem ook te honoreren). Stabiele sortering; zonder het element
+  // blijft de documentvolgorde gelden. `flattenOrder` leest de kindvolgorde uit de array-volgorde.
+  const seqNrByObjId = new Map<number, number>();
+  for (const wbsEl of wbsElements) {
+    const objId = getElementInt(wbsEl, 'ObjectId', -1);
+    const raw = getElementText(wbsEl, 'SequenceNumber');
+    if (objId >= 0 && raw) { const n = toInt(raw, NaN); if (Number.isFinite(n)) seqNrByObjId.set(objId, n); }
+  }
+  if (seqNrByObjId.size > 0) {
+    const idToObjId = new Map<string, number>([...wbsObjIdToId].map(([o, id]) => [id, o]));
+    const indexOf = new Map(wbsTasks.map((t, i) => [t.id, i]));
+    wbsTasks.sort((a, b) => {
+      const sa = seqNrByObjId.get(idToObjId.get(a.id)!);
+      const sb = seqNrByObjId.get(idToObjId.get(b.id)!);
+      if (sa !== undefined && sb !== undefined && sa !== sb) return sa - sb;
+      return indexOf.get(a.id)! - indexOf.get(b.id)!;
+    });
+  }
+
   // Resolve WBS parent-child
   for (const wbsEl of wbsElements) {
     const objId = getElementInt(wbsEl, 'ObjectId', -1);
@@ -538,7 +559,8 @@ export function readP6XML(content: string): ImportResult {
     const actualFinish = actualFinishRaw ? (isHour ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
     // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
-    const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), hoursPerDay) : undefined;
+    // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
+    const remainingTime = !isHour && remainingRaw ? p6HoursToDays(parseFloat(remainingRaw), effHpd) : undefined;
 
     // Duur: uur ⇒ minuten (`uren × 60`) als bron van waarheid; dag ⇒ `Math.round(uren/hpd)` (bestaand).
     const durationMinutes = isHour ? Math.round(plannedDuration * 60) : undefined;
@@ -636,8 +658,10 @@ export function readP6XML(content: string): ImportResult {
     }
   }
 
-  // Combine tasks: WBS (summary) + leaf activities
-  const tasks = [...wbsTasks, ...leafTasks];
+  // Combine tasks: WBS (summary) + leaf activities — in BOOMVOLGORDE (issue #159, vervolg). De
+  // ruwe "samenvattingen eerst, dan bladen"-volgorde was precies de store-volgorde waar de MSPDI-
+  // export op stukliep; de andere lezers leveren documentvolgorde (= diepte-eerst), deze nu ook.
+  const tasks = [...flattenOrder([...wbsTasks, ...leafTasks])];
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);

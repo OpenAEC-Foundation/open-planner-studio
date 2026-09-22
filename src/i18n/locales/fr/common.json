@@ -285,7 +285,10 @@
     "aiMode": "Activer le mode IA",
     "aiModeHint": "Affiche l'onglet IA avec le pont MCP, permettant aux assistants IA de travailler sur votre planning via le Model Context Protocol. Le désactiver arrête le pont.",
     "aiAutostart": "Démarrer la passerelle automatiquement",
-    "aiAutostartHint": "Active la passerelle MCP dès le démarrage de l'application, afin qu'un client IA puisse se connecter sans que vous ouvriez d'abord l'onglet IA. Application de bureau uniquement."
+    "aiAutostartHint": "Active la passerelle MCP dès le démarrage de l'application, afin qu'un client IA puisse se connecter sans que vous ouvriez d'abord l'onglet IA. Application de bureau uniquement.",
+    "legacySection": "Fonctions héritées",
+    "classicViewControls": "Afficher les boutons d’affichage classiques",
+    "classicViewControlsHint": "Remet les boutons séparés Colonnes, Filtre, Grouper et Trier dans l’onglet Affichage. Leur fonction se trouve désormais dans les boutons de layout et la boîte de dialogue des layouts."
   },
   "ai": {
     "start": "Démarrer le pont",
@@ -878,7 +881,31 @@
       "missingRefs": "Certains champs n'existent pas dans ce document et seront ignorés.",
       "noLayouts": "Aucun layout enregistré pour l'instant.",
       "activeLayout": "Layout",
-      "none": "(aucun)"
+      "none": "(aucun)",
+      "builtinResourceDiagram": "Diagramme des ressources",
+      "newTitle": "Nouveau layout",
+      "editTitle": "Modifier le layout",
+      "icon": "Icône",
+      "partsTitle": "Que mémorise ce layout ?",
+      "partsHint": "Seuls les éléments cochés changent quand vous cliquez sur le bouton du layout ; le reste de la vue ne bouge pas.",
+      "partRelations": "Lignes de liaison",
+      "infoColumns": "Les colonnes visibles du tableau des tâches, leur ordre et leur largeur.",
+      "infoFilter": "Le filtre actif en ce moment. Si aucun filtre n’est actif, ce layout efface le filtre.",
+      "infoGroup": "Le regroupement des tâches, par exemple par ressource. Sans regroupement, le layout affiche l’arborescence WBS.",
+      "infoSort": "L’ordre de tri des tâches dans l’arborescence ou dans un groupe.",
+      "infoTimeScale": "L’échelle de temps du Gantt (jour, semaine, mois…). Non coché : votre zoom reste tel quel.",
+      "infoRelations": "Affiche ou non les lignes de liaison entre les tâches. Dans une vue groupée, il vaut généralement mieux les masquer.",
+      "useCurrentView": "Reprendre la vue actuelle",
+      "infoUseCurrentView": "Remplit tous les éléments ci-dessous avec ce qui est actuellement à l’écran.",
+      "edit": "Modifier…",
+      "duplicate": "Dupliquer",
+      "copyName": "{{name}} (copie)",
+      "needOnePart": "Cochez au moins un élément.",
+      "builtinReadonly": "Layout fourni : non modifiable. Dupliquez-le pour créer votre propre version.",
+      "applyOnly": "Appliquer sans enregistrer",
+      "infoApplyOnly": "Applique les éléments cochés à l’écran sans créer de bouton de layout. Pratique pour un filtre rapide et temporaire.",
+      "columnsNote": "Reprend les colonnes telles qu’elles sont actuellement dans le tableau. Les colonnes se choisissent avec le plus dans l’en-tête du tableau.",
+      "relationsShow": "Afficher les lignes de liaison"
     },
     "presentation": {
       "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."

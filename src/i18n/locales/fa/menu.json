@@ -202,7 +202,9 @@
     "screenColors_auto": "به ازای هر کار — خودکار",
     "screenColors_category": "بر اساس دسته",
     "screenColorsMissingField": "این فیلد در این پروژه وجود ندارد. نوع کار موقتاً استفاده می‌شود.",
-    "screenColorsHint": "خارج از حالت مسیر بحرانی، حاشیه قرمز مسیر بحرانی را نشان می‌دهد."
+    "screenColorsHint": "خارج از حالت مسیر بحرانی، حاشیه قرمز مسیر بحرانی را نشان می‌دهد.",
+    "addLayout": "چیدمان جدید",
+    "toggleRelations": "خطوط رابطه"
   },
   "ifc": {
     "title": "ویرایشگر IFC",

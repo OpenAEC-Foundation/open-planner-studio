@@ -4,7 +4,7 @@ import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
 import { UITheme, ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
@@ -64,6 +64,7 @@ export function SettingsPanelContent() {
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
+  const showClassicViewControls = useAppStore(s => s.ui.showClassicViewControls);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
@@ -586,6 +587,23 @@ export function SettingsPanelContent() {
               >
                 {t('updates.justUpdated.whatsNewButton')}
               </button>
+            </div>
+            {/* Legacy-functies (issue #144): vervangen functies, duidelijk als zodanig gemarkeerd. */}
+            <div className="settings-section" data-ops-legacy-settings="true">
+              <h3>{t('settings.legacySection')}</h3>
+              <label className="settings-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={showClassicViewControls}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setUI({ showClassicViewControls: checked });
+                    void saveShowClassicViewControls(checked);
+                  }}
+                />
+                <span>{t('settings.classicViewControls')}</span>
+              </label>
+              <p className="scrollzoom-hint">{t('settings.classicViewControlsHint')}</p>
             </div>
           </div>
         )}

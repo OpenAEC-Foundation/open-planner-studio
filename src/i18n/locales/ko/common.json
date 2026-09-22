@@ -239,7 +239,10 @@
     "aiMode": "AI 모드 사용",
     "aiModeHint": "MCP 브리지가 포함된 AI 탭을 표시하여 AI 어시스턴트가 Model Context Protocol을 통해 일정에서 작업할 수 있게 합니다. 끄면 브리지가 중지됩니다.",
     "aiAutostart": "브리지 자동 시작",
-    "aiAutostartHint": "앱이 시작될 때 MCP 브리지를 바로 활성화하여, AI 탭을 먼저 열지 않아도 AI 클라이언트가 연결할 수 있습니다. 데스크톱 앱에서만 사용할 수 있습니다."
+    "aiAutostartHint": "앱이 시작될 때 MCP 브리지를 바로 활성화하여, AI 탭을 먼저 열지 않아도 AI 클라이언트가 연결할 수 있습니다. 데스크톱 앱에서만 사용할 수 있습니다.",
+    "legacySection": "레거시 기능",
+    "classicViewControls": "기존 보기 버튼 표시",
+    "classicViewControlsHint": "열, 필터, 그룹화, 정렬 개별 버튼을 보기 탭에 다시 표시합니다. 해당 기능은 이제 레이아웃 버튼과 레이아웃 대화 상자에 있습니다."
   },
   "ai": {
     "start": "브리지 시작",
@@ -822,7 +825,31 @@
       "missingRefs": "일부 필드가 이 문서에 없으며 건너뜁니다.",
       "noLayouts": "아직 저장된 레이아웃이 없습니다.",
       "activeLayout": "레이아웃",
-      "none": "(없음)"
+      "none": "(없음)",
+      "builtinResourceDiagram": "자원 다이어그램",
+      "newTitle": "새 레이아웃",
+      "editTitle": "레이아웃 편집",
+      "icon": "아이콘",
+      "partsTitle": "이 레이아웃은 무엇을 저장합니까?",
+      "partsHint": "레이아웃 버튼을 클릭하면 선택한 항목만 바뀌고 나머지 보기는 그대로 유지됩니다.",
+      "partRelations": "관계선",
+      "infoColumns": "작업 표에 표시되는 열과 그 순서 및 너비.",
+      "infoFilter": "현재 활성화된 필터. 활성 필터가 없으면 이 레이아웃은 필터를 지웁니다.",
+      "infoGroup": "작업 그룹화(예: 자원별). 그룹화가 없으면 레이아웃은 WBS 트리를 표시합니다.",
+      "infoSort": "트리 내 또는 그룹 내 작업의 정렬 순서.",
+      "infoTimeScale": "간트의 시간 눈금(일, 주, 월…). 선택하지 않으면 확대/축소가 그대로 유지됩니다.",
+      "infoRelations": "작업 간 관계선을 표시할지 여부. 그룹화된 보기에서는 보통 끄는 편이 좋습니다.",
+      "useCurrentView": "현재 보기 가져오기",
+      "infoUseCurrentView": "아래의 모든 항목을 현재 화면에 있는 내용으로 채웁니다.",
+      "edit": "편집…",
+      "duplicate": "복제",
+      "copyName": "{{name}} (사본)",
+      "needOnePart": "하나 이상의 항목을 선택하세요.",
+      "builtinReadonly": "기본 제공 레이아웃: 변경할 수 없습니다. 복제하여 나만의 버전을 만드세요.",
+      "applyOnly": "저장하지 않고 적용",
+      "infoApplyOnly": "레이아웃 버튼을 만들지 않고 선택한 항목을 화면에 적용합니다. 빠른 임시 필터에 유용합니다.",
+      "columnsNote": "표에 현재 있는 열을 그대로 가져옵니다. 열은 표 머리글의 더하기로 선택합니다.",
+      "relationsShow": "관계선 표시"
     },
     "presentation": {
       "hint": "Esc 또는 F11 키를 눌러 전체 화면을 종료하세요."
