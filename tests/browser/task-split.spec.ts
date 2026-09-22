@@ -258,3 +258,100 @@ test('Pauze: geen grijphand en geen pan — een klik selecteert alleen de taak',
   expect(after.selectedTaskIds).toEqual([taskId]);
   expect(await splitGapsOf(page, taskId)).toEqual([{ afterMinutes: 2400, gapMinutes: 1440, source: 'user' }]);
 });
+
+// ── Etappe 4: de sectie "Onderbrekingen" in het eigenschappenpaneel ──────────────────────────────
+
+/** Paneel open, taak geselecteerd, datumnotatie vast (de van–tot-datums lopen via `useDisplayDate`). */
+async function openPanelFor(page: Page, taskId: string): Promise<void> {
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false, dateNotation: 'dmy' });
+    s.selectTask(id);
+  }, taskId);
+}
+
+/** Ctrl+Z buiten een invoerveld: in een input is het de eigen tekst-undo van de browser. */
+async function undoFromOutsideInput(page: Page): Promise<void> {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Control+z');
+}
+
+test('Paneel: na en pauze exact invoeren, verwijderen, en elke stap is één undo-stap', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page);
+  // 5 werkdagen | 3 werkdagen pauze | 5 werkdagen ⇒ stuk 2 loopt do 11-06 – wo 17-06.
+  await seedSplit(page, taskId, [5, 3, 5]);
+  await openPanelFor(page, taskId);
+
+  const row = page.locator('[data-ops-split-row="0"]');
+  const after = row.locator('[data-ops-split-after]');
+  const pause = row.locator('[data-ops-split-pause]');
+  await expect(after).toHaveValue('5');
+  await expect(pause).toHaveValue('3');
+  await expect(row.locator('[data-ops-split-dates]')).toHaveText('11-06-2026 – 17-06-2026');
+  const start = await state(page);
+
+  // Een geweigerde invoer ("na 0": geen werk vóór de pauze) zet het veld terug en muteert niets.
+  await after.fill('0');
+  await after.press('Enter');
+  await expect(after).toHaveValue('5');
+  expect((await state(page)).undoDepth).toBe(start.undoDepth);
+
+  await pause.fill('5');
+  await pause.press('Enter');
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 2400, source: 'user' },
+  ]);
+  expect((await state(page)).undoDepth).toBe(start.undoDepth + 1);
+
+  await after.fill('4');
+  await after.press('Enter');
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 1920, gapMinutes: 2400, source: 'user' },
+  ]);
+  expect(await durationOf(page, taskId)).toBe(9);
+  expect((await state(page)).undoDepth).toBe(start.undoDepth + 2);
+
+  await row.locator('[data-ops-split-remove]').click();
+  await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
+  await expect(page.locator('[data-ops-split-row]')).toHaveCount(0);
+  expect((await state(page)).undoDepth).toBe(start.undoDepth + 3);
+
+  // Ctrl+Z loopt de drie stappen één voor één terug.
+  await undoFromOutsideInput(page);
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 1920, gapMinutes: 2400, source: 'user' },
+  ]);
+  await undoFromOutsideInput(page);
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 2400, source: 'user' },
+  ]);
+  expect(await durationOf(page, taskId)).toBe(10);
+  await undoFromOutsideInput(page);
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 1440, source: 'user' },
+  ]);
+  await expect(pause).toHaveValue('3');
+});
+
+test('Paneel: Onderbreking toevoegen splitst halverwege met één werkdag pauze', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page);
+  await openPanelFor(page, taskId);
+  await expect(page.locator('[data-ops-split-row]')).toHaveCount(0);
+
+  await page.locator('[data-ops-split-add]').click();
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 480, source: 'user' },
+  ]);
+  await expect(page.locator('[data-ops-split-row="0"] [data-ops-split-after]')).toHaveValue('5');
+  await expect(page.locator('[data-ops-split-row="0"] [data-ops-split-pause]')).toHaveValue('1');
+
+  await undoFromOutsideInput(page);
+  await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
+});
+
+test('Paneel: een mijlpaal krijgt geen sectie Onderbrekingen', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page, { milestone: true });
+  await openPanelFor(page, taskId);
+  await expect(page.locator('[data-ops-dependency-add]')).toBeVisible();
+  await expect(page.locator('[data-ops-split-add]')).toHaveCount(0);
+});
