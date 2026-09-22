@@ -178,5 +178,50 @@ withFixture({ [ENGINE]: CLEAN, [PIN]: JSON.stringify({ p6ProjectId: 1 }), [ALLOW
   ok('16 corrupte allowlist ⇒ rood', r.status !== 0 && `${r.stdout}${r.stderr}`.includes('allowlist.json — geen geldige JSON'), `${r.stdout}${r.stderr}`.trim());
 });
 
+// ── Critreview D deel 1, punt 4: de gaten dichten ──────────────────────────────────────────────────
+// 17–19. Datagate-lezingen buiten property-access tellen ook; gepind op 0 ⇒ elk rood op zijn eigen naam.
+for (const [label, source, gate] of [
+  ['17 destructuring telt als datagate', 'export const f = (t: { p6ProjectId?: string }) => { const { p6ProjectId } = t; return p6ProjectId; };', 'p6ProjectId'],
+  ['17a hernoemde destructuring telt', 'export const f = (t: { p6ProjectId?: string }) => { const { p6ProjectId: pid } = t; return pid; };', 'p6ProjectId'],
+  ["18 'naam' in x telt als datagate", "export const f = (t: object) => 'p6ActivityType' in t;", 'p6ActivityType'],
+  ['19 B1-relatievlag staat op de datagate-lijst', 'export const f = (s: { p6StartAtPredecessorFinishBoundary?: boolean }) => s.p6StartAtPredecessorFinishBoundary;', 'p6StartAtPredecessorFinishBoundary'],
+  ['19a levelingDelayElapsed staat op de datagate-lijst', 'export const f = (t: { levelingDelayElapsed?: boolean }) => t.levelingDelayElapsed;', 'levelingDelayElapsed'],
+] as const) {
+  withFixture({ [ENGINE]: source, [PIN]: JSON.stringify({ [gate]: 0 }) }, dir => {
+    const r = run(dir);
+    const out = `${r.stdout}${r.stderr}`;
+    ok(`${label} ⇒ rood boven pin 0`, r.status !== 0 && out.includes(`datagate '${gate}'`), out.trim());
+  });
+}
+
+// 20–22. XER-bronsignalen, het bronarchief en niet-letterlijke dynamische imports zijn verboden.
+for (const [label, source, needle] of [
+  ['20 xerSourceProjectId', 'export const f = (p: { xerSourceProjectId?: string }) => p.xerSourceProjectId;', 'xerSourceProjectId'],
+  ['20a xerSourceArchive via destructuring', 'export const f = (p: { xerSourceArchive?: string }) => { const { xerSourceArchive } = p; return xerSourceArchive; };', 'xerSourceArchive'],
+  ["20b xerImportMetadata via 'in'", "export const f = (p: object) => 'xerImportMetadata' in p;", 'xerImportMetadata'],
+  ["20c p6Source via 'in'", "export const f = (o: object) => 'p6Source' in o;", 'p6Source'],
+  ['21 import van services/xerSourceArchive', "import '@/services/xerSourceArchive';", 'src/services/xerSourceArchive'],
+  ['22 niet-letterlijke dynamische import', "export const load = (n: string) => import('@/services/' + n);", 'niet-letterlijke'],
+  ['22a template-import met substitutie', 'export const load = (n: string) => import(`@/services/${n}`);', 'niet-letterlijke'],
+  ['22b require met variabele', 'declare const require: (s: string) => unknown;\nexport const load = (n: string) => require(n);', 'niet-letterlijke'],
+] as const) {
+  withFixture({ [ENGINE]: source, [PIN]: '{}' }, dir => {
+    const r = run(dir);
+    const out = `${r.stdout}${r.stderr}`;
+    ok(`${label} ⇒ rood`, r.status !== 0 && out.includes(needle), out.trim());
+  });
+}
+
+// 23. De motorhelper buiten src/engine/ wordt meegescand.
+withFixture({ 'src/utils/p6SuspendResume.ts': LEAK, [PIN]: '{}' }, dir => {
+  const r = run(dir);
+  const out = `${r.stdout}${r.stderr}`;
+  ok('23 p6Source in src/utils/p6SuspendResume.ts ⇒ rood', r.status !== 0 && out.includes('src/utils/p6SuspendResume.ts'), out.trim());
+});
+withFixture({ 'src/utils/andere.ts': LEAK, [PIN]: '{}' }, dir => {
+  const r = run(dir);
+  ok('23a een gewone utils-module valt buiten de poort', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+
 if (diffs.length === 0) console.log(`OK: conventiegrens — ${checks} checks groen`);
 else { console.log(`XX conventiegrens — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }

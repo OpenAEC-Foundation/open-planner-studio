@@ -35,9 +35,11 @@ poort te pakken. Zie de kop van `CLAUDE.md` en `tests/dev-server/` voor het gehe
 
 `verify-conventions.mjs` (`npm run verify:conventions`, ook aangeroepen door
 `tests/planning/check-conventions-boundary.ts`) — AST-poort van de rekenprofielen: de motor
-(`src/engine/`) leest geen bronformaat (`p6Source`/`importFormat`/`readFormat`, geen lezer- of
-`formatRegistry`-imports); herkomst-datagates gepind in `verify-conventions.datagates.json`, alleen
-omlaag. `verify-conventions.allowlist.json` is een tijdelijke vrijstelling (alleen namen, alleen
+(`src/engine/` plus de motorhelper `src/utils/p6SuspendResume.ts`) leest geen bronformaat
+(`p6Source`/`importFormat`/`readFormat`/`xerSourceProjectId`/`xerSourceArchive`/`xerImportMetadata`, ook
+via string-index, `in` of destructuring; geen lezer-, `formatRegistry`- of `xerSourceArchive`-imports en
+geen niet-letterlijke dynamische imports); herkomst-datagates (ook via destructuring en `in`) gepind in
+`verify-conventions.datagates.json`, alleen omlaag. `verify-conventions.allowlist.json` is een tijdelijke vrijstelling (alleen namen, alleen
 bestaande bestanden onder `src/engine/`, reden met de markering voor overgangscode). Staat nog níét in
 `npm run verify`: de pin en de opname volgen op de rekenprofielen-etappe zodra de overgangsvertaling
 `legacyP6Source.ts` weg is.

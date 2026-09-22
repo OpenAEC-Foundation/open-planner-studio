@@ -2,11 +2,17 @@
 // Mechanische poort voor de rekenprofielen (spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md
 // §4; plan 2026-09-22 taak D10): de rekenmotor (src/engine/**) stuurt uitsluitend op conventies, nooit
 // op het bronformaat.
-//  1. Verboden: elke identifier `p6Source`, `importFormat`, `readFormat` (ook als string-index), en
-//     imports (statisch, re-export of dynamisch) uit src/services/{xer,mpp,msproject,p6,csv} of
-//     src/services/formatRegistry.
-//  2. Herkomst-datagates (bijlage A: p6ProjectId e.d.) zijn toegestaan maar geteld; de telling per veld
-//     staat gepind in scripts/verify-conventions.datagates.json en mag alleen omlaag.
+//  1. Verboden: elke identifier `p6Source`, `importFormat`, `readFormat` en de XER-bronsignalen
+//     `xerSourceProjectId`/`xerSourceArchive`/`xerImportMetadata` (ook als string-index, als `'…' in x`
+//     en in destructuring); imports (statisch, re-export, dynamisch of `require`) uit
+//     src/services/{xer,mpp,msproject,p6,csv}, src/services/formatRegistry of src/services/xerSourceArchive;
+//     en elke dynamische import/require met een NIET-letterlijke specifier (onscanbaar ⇒ rood).
+//  2. Herkomst-datagates (bijlage A: p6ProjectId e.d.) zijn toegestaan maar geteld — als property-,
+//     string-index-, destructuring- en `in`-lezing; de telling per veld staat gepind in
+//     scripts/verify-conventions.datagates.json en mag alleen omlaag.
+//  Gescand: src/engine/** plus de motorhelpers buiten die map (`ENGINE_HELPERS`, nu
+//  src/utils/p6SuspendResume.ts: de solver roept hem aan; verhuizen zou acht importeurs raken, waarvan
+//  vier in de bestandskaart van baan C — bij de integratie opnieuw bekijken).
 //  3. Tijdelijke allowlist (scripts/verify-conventions.allowlist.json, `{ pad: reden }`): een vermeld
 //     bestand onder src/engine/ is vrijgesteld van regel 1-namen (NIET van de import-regel). Elke reden
 //     moet `TIJDELIJK` bevatten en het bestand moet bestaan — een verouderde regel is rood, zodat de
@@ -30,13 +36,19 @@ const writeBaseline = args.includes('--write-baseline');
 const baselinePath = join(root, 'scripts', 'verify-conventions.datagates.json');
 const allowlistPath = join(root, 'scripts', 'verify-conventions.allowlist.json');
 
-const FORBIDDEN_NAMES = new Set(['p6Source', 'importFormat', 'readFormat']);
+const FORBIDDEN_NAMES = new Set([
+  'p6Source', 'importFormat', 'readFormat', 'xerSourceProjectId', 'xerSourceArchive', 'xerImportMetadata',
+]);
 const FORBIDDEN_SERVICE_DIRS = new Set(['xer', 'mpp', 'msproject', 'p6', 'csv']);
+const FORBIDDEN_SERVICE_FILES = new Set(['formatRegistry', 'xerSourceArchive']);
 const DATAGATES = [
   'p6ProjectId', 'p6TaskId', 'p6ActivityType', 'p6ExplicitTargetWindow', 'p6CompletePctType', 'p6DurationType',
-  'p6SuspendResume', 'p6ExpectedFinish', 'manuallyScheduled', 'levelingDelayMinutes', 'timephasedStartAnchor',
-  'timephasedFinishFloor', 'timephasedDurationWalks', 'resume', 'mspTaskType',
+  'p6SuspendResume', 'p6ExpectedFinish', 'manuallyScheduled', 'levelingDelayMinutes', 'levelingDelayElapsed',
+  'timephasedStartAnchor', 'timephasedFinishFloor', 'timephasedDurationWalks', 'resume', 'mspTaskType',
+  'p6StartAtPredecessorFinishBoundary',
 ];
+/** Motorcode buiten src/engine/ die de solver direct aanroept; wordt meegescand als hij bestaat. */
+const ENGINE_HELPERS = ['src/utils/p6SuspendResume.ts'];
 
 const slash = (value) => value.split(sep).join('/');
 const own = (file) => slash(relative(root, file));
@@ -67,7 +79,7 @@ function forbiddenModule(file, specifier) {
   const [first, ...rest] = rel.split('/');
   const name = first.replace(/\.(?:ts|tsx|mts|js|mjs)$/, '');
   if (FORBIDDEN_SERVICE_DIRS.has(name) && rest.length > 0) return `src/services/${name}`;
-  if (name === 'formatRegistry') return 'src/services/formatRegistry';
+  if (FORBIDDEN_SERVICE_FILES.has(name)) return `src/services/${name}`;
   return null;
 }
 
@@ -85,7 +97,7 @@ if (existsSync(allowlistPath)) {
   if (parsed !== null && !isRecord(parsed)) violations.push(`${own(allowlistPath)} — moet een object { pad: reden } zijn`);
   if (isRecord(parsed)) {
     for (const [path, reason] of Object.entries(parsed)) {
-      if (!path.startsWith('src/engine/')) {
+      if (!path.startsWith('src/engine/') && !ENGINE_HELPERS.includes(path)) {
         violations.push(`allowlist-regel '${path}' ligt buiten src/engine/ — daar geldt deze poort niet`);
       } else if (typeof reason !== 'string' || !reason.includes('TIJDELIJK')) {
         violations.push(`allowlist-regel '${path}' mist een reden met de markering TIJDELIJK`);
@@ -99,7 +111,10 @@ if (existsSync(allowlistPath)) {
 }
 
 const counts = Object.fromEntries(DATAGATES.map((gate) => [gate, 0]));
-const files = sourceFiles(resolve(root, 'src', 'engine'));
+const files = [
+  ...sourceFiles(resolve(root, 'src', 'engine')),
+  ...ENGINE_HELPERS.map((path) => join(root, path)).filter((path) => existsSync(path)),
+];
 const allowedHits = [];
 for (const file of files) {
   const source = readFileSync(file, 'utf8');
@@ -118,18 +133,37 @@ for (const file of files) {
       const hit = forbiddenModule(file, node.moduleSpecifier.text);
       if (hit) report(node, `import uit ${hit} (lezer/formaat) in de motor`);
     }
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
-        && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) {
-      const hit = forbiddenModule(file, node.arguments[0].text);
-      if (hit) report(node, `dynamische import uit ${hit} in de motor`);
+    const isDynamicLoad = ts.isCallExpression(node)
+      && (node.expression.kind === ts.SyntaxKind.ImportKeyword
+        || (ts.isIdentifier(node.expression) && node.expression.text === 'require'));
+    if (isDynamicLoad) {
+      const arg = node.arguments[0];
+      if (arg && ts.isStringLiteralLike(arg)) {
+        const hit = forbiddenModule(file, arg.text);
+        if (hit) report(node, `dynamische import uit ${hit} in de motor`);
+      } else {
+        report(node, 'dynamische import met een niet-letterlijke specifier in de motor (niet te controleren)');
+      }
     }
     if (ts.isIdentifier(node) && FORBIDDEN_NAMES.has(node.text)) {
       reportName(node, `'${node.text}' in de motor (regel B: een per-profiel-verschil is een conventie in het register)`);
     }
-    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
-      const name = node.argumentExpression.text;
-      if (FORBIDDEN_NAMES.has(name)) reportName(node, `'${name}' via string-index in de motor`);
+    // Een lezing via een letterlijke sleutel: x['naam'], 'naam' in x, of { 'naam': y } = x.
+    const literalKey = (name, how) => {
+      if (FORBIDDEN_NAMES.has(name)) reportName(node, `'${name}' ${how} in de motor`);
       if (Object.hasOwn(counts, name)) counts[name]++;
+    };
+    if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+      literalKey(node.argumentExpression.text, 'via string-index');
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.InKeyword
+        && ts.isStringLiteralLike(node.left)) {
+      literalKey(node.left.text, "via 'in'");
+    }
+    if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {
+      const key = node.propertyName ?? node.name;
+      if (ts.isStringLiteralLike(key)) literalKey(key.text, 'via destructuring');
+      else if (ts.isIdentifier(key) && Object.hasOwn(counts, key.text)) counts[key.text]++;
     }
     if (ts.isPropertyAccessExpression(node) && Object.hasOwn(counts, node.name.text)) counts[node.name.text]++;
     ts.forEachChild(node, visit);
