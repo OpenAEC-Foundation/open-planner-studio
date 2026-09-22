@@ -88,7 +88,8 @@ afwijkingen hebben met XER".)
    GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
    geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
    B01 is dat 62 % van het restant; zonder besluit is 0 op het volledige corpus niet te halen.
-3. **Projecteinde (brok 1):** de fix landt (P6-conform voor de klasse zonder enig einde), maar Oracle
+3. **Grootte-ratchet?** De cel-ratchet ziet alleen exact/sameday/diff/missing; een cel die binnen `diff` verder van P6 af komt te liggen is onzichtbaar (brok 2: 761 zulke cellen, verklaard door B01). Besluit nodig: een extra ratchet op de afwijkingsgrootte per cel (strenger, vangt compensatie-effecten) of accepteren dat het nuldoel dat vanzelf afdwingt.
+4. **Projecteinde (brok 1):** de fix landt (P6-conform voor de klasse zonder enig einde), maar Oracle
    beschrijft `CalculateFloatBasedOnFinishDate` als een multi-project-optie ("each activity's float is
    calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
    registreert negatieve float zonder `plan_end_date`. Vervolgvraag in plan XER §9; `project.endDate =
@@ -109,7 +110,8 @@ afwijkingen hebben met XER".)
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
-| X12 naar nul — brok 2: B02+B06+B03 (C1–C3) | `claude/x12-brok2-7b4` (`7c37b212`, `d6db800c`, gepusht; basis 1fe5dfc8) | **X12 15.056 → 12.973** (−2.083, 0 slechter): drie conventies groep C (P6 aan / MSP uit / OPS uit), herpin gedaan, mpp 216; critreview loopt; merge geeft 3 conflicten (SchedulingProfileSection, ifcPsets, schedulingProfileMigration) — oplossen ná go |
+| X12 naar nul — brok 2: B02+B06+B03 (C1–C3) | `claude/x12-brok2-7b4` (`7c37b212`, `d6db800c`, gepusht) | **X12 15.056 → 12.973** (−2.083, 0 slechter per cel); critreview = no-go op 5 punten (migratie groep C op id pinnen; corpusloze fixtures voor C1-SS en C3 deels/niet-verstreken lag; "vijftien"→achttien; C1-commentaar/Oracle-URL; §9-dossier) — fixronde loopt. Inzicht reviewer: 761 cellen kwamen binnen dezelfde bucket verder van P6 (B01-compensatie; met B01-tegenfeit zijn C1+C2 = +1.706/0 en C3 = +772/0) — de bucket-ratchet ziet dat niet; een grootte-ratchet is een apart besluit (§1d) |
+| X12 naar nul — brok 3: B04 out-of-sequence (+B07 CP_Phys) | `claude/x12-brok3-oos` (basis brok 2) | in aanbouw (agent, gestart ~01:25) |
 | X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
