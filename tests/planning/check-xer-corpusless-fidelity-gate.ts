@@ -631,8 +631,8 @@ const decodedProductV2 = decodeProductPayload(productV2);
  */
 const pinMode = process.env.OPS_XER_GATE_PINS;
 if (pinMode !== undefined) {
-  if (pinMode !== 'print' && pinMode !== 'write') {
-    console.log(`XX OPS_XER_GATE_PINS=${pinMode.slice(0, 20)} onbekend (verwacht print of write)`);
+  if (pinMode !== 'print' && pinMode !== 'write' && pinMode !== 'corpus') {
+    console.log(`XX OPS_XER_GATE_PINS=${pinMode.slice(0, 20)} onbekend (verwacht print, write of corpus)`);
     process.exit(2);
   }
   const num = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '_');
@@ -660,7 +660,42 @@ if (pinMode !== undefined) {
     [/^  productProjectProjectionSha256: '[0-9a-f]{64}',$/m, `  productProjectProjectionSha256: '${productV2.projectProjectionSha256}',`],
   ];
   for (const [, line] of replacements) console.log(`PIN ${line.trim()}`);
-  if (pinMode === 'write') {
+  // Eén kant op (regel A): `write` weigert zodra een afwijkingenteller STIJGT t.o.v. de huidige
+  // EXPECTED (deviations per as, diff+missing per as, drivingPath.deviations) of zodra de dekking
+  // (measurable, projects, tasks) verandert — een verbetering zakt, een regressie of een blinder
+  // orakel wordt geweigerd. Een gewijzigd corpusmanifest kan alleen via `=corpus`, en `=corpus`
+  // alleen bij een werkelijk gewijzigd manifest.
+  if (pinMode !== 'print') {
+    const manifestChanged = rawHash(manifestRaw) !== EXPECTED.manifestRawSha256;
+    const refusals: string[] = [];
+    if (pinMode === 'corpus' && !manifestChanged) refusals.push('=corpus vereist een gewijzigd corpusmanifest; gebruik =write');
+    if (pinMode === 'write' && manifestChanged) refusals.push('het corpusmanifest is gewijzigd; gebruik bewust =corpus');
+    if (pinMode === 'write') {
+      const deviations = sumAxis('deviations');
+      const diff = sumAxis('diff');
+      const missing = sumAxis('missing');
+      const measurable = sumAxis('measurable');
+      for (const axis of AXES) {
+        if (deviations[axis] > EXPECTED.productStrict.deviations[axis]) {
+          refusals.push(`${axis}.deviations stijgt ${EXPECTED.productStrict.deviations[axis]} → ${deviations[axis]}`);
+        }
+        const before = EXPECTED.productStrict.diff[axis] + EXPECTED.productStrict.missing[axis];
+        if (diff[axis] + missing[axis] > before) refusals.push(`${axis}.diff+missing stijgt ${before} → ${diff[axis] + missing[axis]}`);
+        if (measurable[axis] !== EXPECTED.measurable[axis]) refusals.push(`${axis}.measurable wijzigt ${EXPECTED.measurable[axis]} → ${measurable[axis]}`);
+      }
+      if (driving.deviations > EXPECTED.productStrict.drivingPath.deviations) {
+        refusals.push(`drivingPath.deviations stijgt ${EXPECTED.productStrict.drivingPath.deviations} → ${driving.deviations}`);
+      }
+      if (driving.measurable !== EXPECTED.productStrict.drivingPath.measurable) refusals.push('drivingPath.measurable wijzigt');
+      if (projects !== EXPECTED.projects) refusals.push(`projects wijzigt ${EXPECTED.projects} → ${projects}`);
+      if (tasks !== EXPECTED.tasks) refusals.push(`tasks wijzigt ${EXPECTED.tasks} → ${tasks}`);
+    }
+    if (refusals.length > 0) {
+      for (const refusal of refusals) console.log(`XX OPS_XER_GATE_PINS=${pinMode} geweigerd (alleen omlaag): ${refusal}`);
+      process.exit(1);
+    }
+  }
+  if (pinMode !== 'print') {
     let next = sourceRaw;
     for (const [pattern, line] of replacements) {
       const matches = next.match(new RegExp(pattern.source, 'gm')) ?? [];

@@ -100,7 +100,8 @@ toont ze zonder te schrijven); zonder die stap staat `npm run verify` na een ver
 
 **Corpusgroei** (een entry erbij of eraf, dus een gewijzigd `xer-corpus-manifest.json`): de
 dekkingscheck en de cel-poort staan dan rood op het gewijzigde entry-set, en `=1` weigert. Gebruik
-`OPS_XER_V2_WRITE=corpus` en daarna `OPS_XER_CELLS_WRITE=corpus`, gevolgd door stap 3–5 hierboven.
+`OPS_XER_V2_WRITE=corpus` en daarna `OPS_XER_CELLS_WRITE=corpus`, gevolgd door stap 3–5 hierboven
+met `OPS_XER_GATE_PINS=corpus` in plaats van `=write`.
 `=corpus` staat alleen de entry-set-/manifestregels toe en alleen als het manifest werkelijk
 verschilt van dat van de gepinde baseline; elke nieuwe, verslechterde of onmeetbaar geworden cel en
 elke afwijking op een bestaande entry blijft blokkeren. De corpusloze vangrail pint het manifest en
@@ -108,7 +109,21 @@ de orakelselectie zelf ook (`EXPECTED.manifestRawSha256` e.a.); die pinnen bijwe
 corpusgroei een bewuste reviewstap en valt buiten `OPS_XER_GATE_PINS`.
 
 Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
-dan met uitleg, en `init` weigert over een bestaand bestand.
+dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een
+v2-baseline bij hetzelfde corpusmanifest bestaat — `init` is alleen voor een echt nieuw corpus. Een
+weggegooid cellenbestand zet je terug uit versiebeheer.
+
+**Verboden omwegen.** Alle drie de schrijfmodi (`OPS_XER_V2_WRITE`, `OPS_XER_CELLS_WRITE`,
+`OPS_XER_GATE_PINS`) schrijven alleen omlaag; `OPS_XER_GATE_PINS=write` weigert zodra een
+afwijkingenteller stijgt of de dekking wijzigt, en bij een gewijzigd manifest alleen via `=corpus`.
+Maak een baseline daarom nooit langs ze heen:
+
+- geen omleiding `OPS_XER_FIDELITY_REPORT=baseline … > tests/planning/xer-product-fidelity-baseline-v2.json`.
+  De rapportmodus print een kopregel `RAPPORT — niet als baseline gebruiken` vóór de JSON (een
+  omgeleid bestand is dus ongeldig en de strikte v2-lezer weigert het) en weigert rechtstreeks naar
+  het baselinebestand te schrijven;
+- geen cellenbestand weggooien om het met `init` opnieuw te maken;
+- `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen.
 
 ## Release en publicatie
 

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, fstatSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -2332,7 +2332,20 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   const writeProblem = cellWriteModeProblem(process.env.OPS_XER_CELLS_WRITE, existsSync(path));
   if (writeProblem) { checks++; diffs.push(`X12 cel-baseline: ${writeProblem}`); return undefined; }
   if (!existsSync(path)) {
-    if (process.env.OPS_XER_CELLS_WRITE !== 'init') red({ kind: 'hard', text: `X12 ${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init` });
+    if (process.env.OPS_XER_CELLS_WRITE !== 'init') {
+      red({ kind: 'hard', text: `X12 ${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init` });
+      return { measuredCells: built.baseline, measurable };
+    }
+    // `init` is alleen voor een echt nieuw corpus: bestaat er een v2-baseline bij hetzelfde manifest,
+    // dan is dit geen nieuw corpus maar een weggegooid cellenbestand — anders zou "weggooien + init"
+    // elke regressie stil laten landen.
+    let pinnedManifest: string | undefined;
+    try { pinnedManifest = readProductBaseline().manifestSha256; } catch { pinnedManifest = undefined; }
+    if (pinnedManifest === manifestSha256) {
+      checks++;
+      diffs.push(`X12 cel-baseline: OPS_XER_CELLS_WRITE=init geweigerd — er bestaat een v2-baseline bij hetzelfde corpusmanifest (${manifestSha256.slice(0, 12)}); init is alleen voor een nieuw corpus. Zet ${CELL_BASELINE_FILE} terug uit versiebeheer.`);
+      return undefined;
+    }
     return { measuredCells: built.baseline, measurable };
   }
   const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
@@ -2470,7 +2483,24 @@ else {
   if (REPORT !== undefined && (process.env.OPS_XER_V2_WRITE || process.env.OPS_XER_CELLS_WRITE)) {
     diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
   }
-  if (REPORT === 'baseline') process.stdout.write(canonicalProductEnvelope(measured));
+  if (REPORT === 'baseline') {
+    // Rapport, geen herpinroute: herpinnen gaat uitsluitend via OPS_XER_V2_WRITE (scripts/README.md).
+    // De kopregel maakt een omgeleide uitvoer ongeldige JSON, zodat de strikte v2-lezer hem weigert;
+    // wijst stdout rechtstreeks naar het baselinebestand, dan schrijven we helemaal niets.
+    const v2Path = join(HERE, 'xer-product-fidelity-baseline-v2.json');
+    let stdoutIsBaseline = false;
+    try {
+      const out = fstatSync(1);
+      const target = statSync(v2Path);
+      stdoutIsBaseline = out.isFile() && out.ino === target.ino && out.dev === target.dev;
+    } catch { /* stdout zonder bestand (pipe/terminal) of geen baseline: gewoon rapporteren */ }
+    if (stdoutIsBaseline) {
+      console.error('XX OPS_XER_FIDELITY_REPORT=baseline mag niet naar xer-product-fidelity-baseline-v2.json schrijven — herpin met OPS_XER_V2_WRITE=1 (scripts/README.md)');
+      process.exit(1);
+    }
+    process.stdout.write('RAPPORT — niet als baseline gebruiken; herpinnen uitsluitend via OPS_XER_V2_WRITE (scripts/README.md)\n');
+    process.stdout.write(canonicalProductEnvelope(measured));
+  }
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);
     const tasks = entries.reduce((total, [, entry]) => total + entry.tasks, 0);
