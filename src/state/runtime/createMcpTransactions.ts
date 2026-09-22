@@ -945,7 +945,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
 
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
-          restoreSnapshot(state, snapshot, { markEdited: false });
+          restoreSnapshot(state, snapshot, { markDirty: false, clearImportPristine: false });
           state.viewRows = previousViewRows;
           state.resourceLoadResult = previousResourceLoad;
           state.isDirty = previousDirty;

@@ -63,8 +63,9 @@ export type MaterializedHistoryTarget =
       snapshot: Snapshot;
       viewRows: ViewRow[];
       resourceLoadResult: ResourceLoadResult | null;
-      /** `false` alleen voor een `nonEdit`-delta: dan markeert het toepassen het document NIET. */
-      isDirty: boolean;
+      isDirty: true;
+      /** `false` alleen voor een `nonEdit`-delta: dan wist het toepassen "ongewijzigd sinds import" niet. */
+      clearImportPristine: boolean;
     }
   | {
       kind: 'document-view';
@@ -120,7 +121,8 @@ export function materializeHistoryTarget(
         isolated.calendar,
         isolated.calendars,
       ),
-      isDirty: delta.nonEdit !== true,
+      isDirty: true,
+      clearImportPristine: delta.nonEdit !== true,
     };
   }
 

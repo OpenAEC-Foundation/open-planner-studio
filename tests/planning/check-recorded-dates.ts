@@ -1368,17 +1368,18 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   S().undo();
   eq('16l undo herstelt de vlag NIET (nooit een gok richting automatisch aan)', S().importPristine, false);
 
-  // Critreview op ded4d8c3, bevinding 3: een undo van een stap die GEEN bewerking was (F5 in de
-  // modus, of "toon opgeslagen datums") mag de vlag niet wissen en het document niet vuil maken.
+  // Critreview op ded4d8c3, bevinding 3 (+ her-check): een undo van een stap die GEEN bewerking was
+  // (F5 in de modus, of "toon opgeslagen datums") mag de importvlag niet wissen. Vuil wordt het
+  // document wél: na een undo wijkt het geheugen af van wat er op schijf staat.
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc('16o')), { filePath: null, recompute: true });
   eq('16o geladen: modus aan, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
   S().runCPM();
   eq('16p F5: modus uit, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, false]);
   S().undo();
-  eq('16q Ctrl+Z na F5: modus weer aan, vlag AAN, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
+  eq('16q Ctrl+Z na F5: modus weer aan, vlag AAN, wel vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, true]);
   S().redo();
-  eq('16r Ctrl+Y: modus weer uit, vlag nog steeds aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, false]);
+  eq('16r Ctrl+Y: modus weer uit, vlag nog steeds aan, vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, true]);
   // "Toon opgeslagen datums" vanuit de AANBOD-stand met de vlag aan. Synthetisch opgezet (een
   // ImportResult zonder herkomst mét expliciete vlag), omdat een verse import meteen zelf de modus
   // in gaat; het gaat hier alleen om de stap die `showRecordedDates` als niet-bewerking vastlegt.
@@ -1388,7 +1389,7 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   S().showRecordedDates();
   eq('16s "toon opgeslagen datums": modus aan, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
   S().undo();
-  eq('16t Ctrl+Z daarvan: modus uit, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, false]);
+  eq('16t Ctrl+Z daarvan: modus uit, vlag aan, vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, true]);
   S().redo();
   // Tegenproef: na een ECHTE bewerking blijft 16l gelden, ook als de undo-keten daarna over een
   // niet-bewerking heen loopt.
@@ -1396,6 +1397,17 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   S().undo();
   S().undo();
   eq('16u bewerking + twee undo\'s (bewerking, dan "toon"): vlag blijft uit, document blijft vuil', [S().importPristine, S().isDirty], [false, true]);
+  // 16w (her-check): laden → F5 → OPSLAAN → Ctrl+Z. Het geheugen wijkt daarna af van het bestand:
+  // het document MOET vuil zijn (anders sluit het zonder vraag en schrijft autosave niets), terwijl
+  // de importvlag en de modus terugkomen. "Opslaan" via het echte versie-opgeslagen-pad.
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('16w')), { filePath: null, recompute: true });
+  S().runCPM();
+  S().markAutoSaveVersionSaved(S().activeDocumentId, S());
+  eq('16w0 na F5 en opslaan: niet vuil, vlag aan, modus uit', [S().isDirty, S().importPristine, S().datesAsRecorded], [false, true, false]);
+  S().undo();
+  eq('16w Ctrl+Z na opslaan: vuil, vlag aan, modus aan', [S().isDirty, S().importPristine, S().datesAsRecorded], [true, true, true]);
+
   // 16v: het vangnet in de runtime — een `finishUndoable({ nonEdit })` die een open mutatie sluit
   // waarbinnen tóch een `finishMutation` liep, legt een GEWONE bewerking vast (geen `nonEdit`).
   // Geen productpad doet dat vandaag; dit bewaakt dat een toekomstige nesting geen bewerking als
@@ -1439,6 +1451,10 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
         reden: 'idem, legacy-manifest' },
       { file: 'services/recovery/recoveryStore.ts', fragment: 'id, ifc: docKey(sid, id), filePath: null, isDirty: true',
         reden: 'idem, manifestregel per document' },
+      { file: 'state/sessionHistory.ts', fragment: '      isDirty: true;',
+        reden: 'typebeschrijving van een gematerialiseerd history-doel (geen state); het toepassen loopt via restoreSnapshot' },
+      { file: 'state/sessionHistory.ts', fragment: '      isDirty: true,',
+        reden: 'waarde in datzelfde history-doel; de live state wordt via restoreSnapshot gemarkeerd' },
       { file: 'state/slices/documentSlice.ts', fragment: 'isDirty: true,',
         reden: 'kopie van een document: zet in dezelfde literal expliciet importPristine: false' },
       { file: 'state/slices/librarySlice.ts', fragment: '...r.before, isDirty: true, resourceLoadResult: null',

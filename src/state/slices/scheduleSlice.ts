@@ -206,7 +206,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
       // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
-      // `nonEdit`: ook undo/redo van deze stap maakt het document niet vuil (bevinding 3).
+      // `nonEdit`: undo/redo van deze stap wist "ongewijzigd sinds import" niet (bevinding 3).
       runtime.finishUndoable(s, { nonEdit: true });
     });
     get().recomputeViewRows();

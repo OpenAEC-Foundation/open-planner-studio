@@ -8,6 +8,15 @@
  * Een broncodescan in `check-recorded-dates.ts` bewaakt dat `isDirty = true` nergens anders staat.
  */
 export function markDocumentEdited(state: { isDirty: boolean; importPristine: boolean }): void {
-  state.isDirty = true;
+  markDocumentUnsaved(state);
   state.importPristine = false;
+}
+
+/**
+ * Alleen "er is iets te bewaren" — zonder de importvlag te wissen. Voor undo/redo van een stap die
+ * GEEN bewerking was (F5 of "toon opgeslagen datums" in de modus): het geheugen wijkt dan af van wat
+ * er op schijf staat (dus vuil), maar het document is sinds de import niet bewerkt.
+ */
+export function markDocumentUnsaved(state: { isDirty: boolean }): void {
+  state.isDirty = true;
 }
