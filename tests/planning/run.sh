@@ -1459,6 +1459,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-scheduling-profile-roundtrip.ts" "$SCHEDPROFRTCHECK"; then node "$SCHEDPROFRTCHECK" || STATUS=1; fi
   PROFILEDRAFTCHECK="$DIR/.scheduling-profile-draft.mjs"
   if bundle_check "$DIR/check-scheduling-profile-draft.ts" "$PROFILEDRAFTCHECK"; then node "$PROFILEDRAFTCHECK" || STATUS=1; fi
+  CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
+  if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
 
   # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
   # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
