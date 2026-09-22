@@ -47,7 +47,7 @@ import { activeImportResult, isMultiDocumentImport } from '@/services/importType
 import type { ProjectSchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
-import { explainP6CompletedLateRemainingWindowEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { explainP6CompletedLateRemainingWindowEligibilityResolved } from '@/engine/scheduler/p6CompletedRouteTrace';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
@@ -465,7 +465,7 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
   const b = imported.tasks.find(task => task.id === 'B')!;
   eq('3 dezelfde topologie MET targetvenster opent de poort wél', {
     window: explainP6CompletedDataDateWindow(b, dataDate, solveOptionsFor(imported.project).schedulingOptions).reason,
-    shared: explainP6CompletedLateRemainingWindowEligibility(
+    shared: explainP6CompletedLateRemainingWindowEligibilityResolved(
       b, dataDate, solveOptionsFor(imported.project).schedulingOptions,
     ).eligible,
   }, { window: 'eligible', shared: true });

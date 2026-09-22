@@ -32,7 +32,7 @@ import { parseInstant } from '@/utils/dateUtils';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
 } from '@/engine/scheduler/p6CompletedRouteTrace';
 import type { SchedulingOptions } from '@/types/project';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
@@ -306,7 +306,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
 // completed-actual-pin niet — precies de spleet waarin de weergavelaag vóór deze fix wél meebewoog
 // (ls/lf verschoven naar het statusdatumvenster en de float ging tegen dat venster meten) terwijl
 // `CPMSolver.backwardPass` zijn nieuwe tak oversloeg. De gedeelde poort
-// `explainP6CompletedLateRemainingWindowEligibility` sluit beide kanten tegelijk; het bewijs is dat
+// `explainP6CompletedLateRemainingWindowEligibilityResolved` sluit beide kanten tegelijk; het bewijs is dat
 // NX met vlag AAN byte-identiek is aan NX met vlag UIT.
 {
   const { imported } = solveWith();
@@ -323,7 +323,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
     explainBackwardActualPinEligibility(nx, dataDate, so),
     { eligible: false, reason: 'missingActualFinish' });
   eq('poortpariteit: de gedeelde poort weigert NX om diezelfde reden',
-    explainP6CompletedLateRemainingWindowEligibility(nx, dataDate, so),
+    explainP6CompletedLateRemainingWindowEligibilityResolved(nx, dataDate, so),
     { eligible: false, reason: 'missingActualFinish' });
 
   const on = solveWith().result.tasks.get('NX')!;

@@ -1448,7 +1448,7 @@ export class CPMSolver {
         const relationalEarlyStart = this.hammockEarlyStart(task, preds, results, projectStart, cal);
         // De duurmeting is een uurkalender-primitief en hoort pas ná de expliciete XER-bronpoort
         // bereikbaar te zijn. Generieke hammocks en een onvolledige XER-dagkalender sluiten hier
-        // fail-closed via NaN; `explainOpenXerLoeTargetSpanEligibility` leest dat alleen nadat alle
+        // fail-closed via NaN; `explainOpenXerLoeTargetSpanEligibilityResolved` leest dat alleen nadat alle
         // voorafgaande bron-/provenance-/taakpoorten zijn gepasseerd.
         const targetWindowWorkMinutes = this.options.schedulingOptions?.p6OpenLoeTargetSpan === true
           && cal.isHourMode
@@ -3067,7 +3067,7 @@ export class CPMSolver {
       // XER early/late/float-uitkomsten zijn op geen van beide paden solverinvoer.
       if (backwardActualPin.eligible) {
         // Review-bevinding 4 (poortdivergentie): dezelfde gedeelde poort als `scheduleAnalysis`
-        // (`explainP6CompletedLateRemainingWindowEligibility`) — inclusief de `backwardActualPin`-
+        // (`explainP6CompletedLateRemainingWindowEligibilityResolved`) — inclusief de `backwardActualPin`-
         // voorwaarde die hierboven al gold, zodat een taak nooit "tussen de twee poorten in" kan
         // vallen (bv. `TK_Complete` zonder `act_end_date`: wel completedWindow-eligible, niet
         // backwardActualPin-eligible — de weergave mag dan niet stilzwijgend meebewegen terwijl
@@ -3086,7 +3086,7 @@ export class CPMSolver {
           // die ook de FORWARD-display stuurt): dat is precies de asymmetrie uit de diagnose — ES
           // toont daar al het statusdatumvenster, dus LS hoort dat ook te doen. Een voltooide taak
           // die niet door die (nauwe) poort komt — de CP_Phys-route of de LOE/hammock-actual-finish-
-          // uitzondering (`explainCompletedXerLoeActualFinishEligibility`, expliciet ZONDER
+          // uitzondering (`explainCompletedXerLoeActualFinishEligibilityResolved`, expliciet ZONDER
           // uitgaande relatie) — heeft geen zinvol statusdatumvenster aan de vroege kant en moet dus
           // ook aan de late kant op haar bestaande actual-pin blijven staan; anders raakt LS/LF los
           // van de eigen (niet-venster-)ES/EF van diezelfde taak.

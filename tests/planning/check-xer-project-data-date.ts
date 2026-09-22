@@ -1,5 +1,5 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
-import { explainCompletedXerLoeActualFinishEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { explainCompletedXerLoeActualFinishEligibilityResolved } from '@/engine/scheduler/p6CompletedRouteTrace';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
@@ -149,7 +149,7 @@ const dataDateOnlyOutgoing = dataDateOnlyCompletedLoe.sequences.filter(sequence 
 eq('PROJECT-data-date completed LOE: uitsluitend data_date levert de statusdatum voor de bestaande route',
   dataDateOnlyCompletedLoe.project.statusDate, '2026-06-30T17:00');
 eq('PROJECT-data-date completed LOE: TT_LOE blijft binnen de smalle actualFinish-route',
-  explainCompletedXerLoeActualFinishEligibility(
+  explainCompletedXerLoeActualFinishEligibilityResolved(
     dataDateOnlyLoe,
     dataDateOnlyCompletedLoe.project.statusDate ? parseInstant(dataDateOnlyCompletedLoe.project.statusDate) : null,
     solveOptionsFor(dataDateOnlyCompletedLoe.project).schedulingOptions,

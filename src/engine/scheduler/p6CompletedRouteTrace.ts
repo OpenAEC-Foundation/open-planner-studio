@@ -73,18 +73,6 @@ export interface CpmDisplayActualLateDecision {
  * actualFinish gebruikt. De helper leest uitsluitend toegestane invoer/bronprovenance, nooit P6's
  * opgeslagen early/late/float-uitkomst.
  */
-export function explainCompletedXerLoeActualFinishEligibility(
-  task: Task,
-  dataDate: Date | null,
-  schedulingOptions: SchedulingOptions | undefined,
-  incoming: readonly Sequence[],
-  outgoing: readonly Sequence[],
-): CompletedXerLoeActualFinishDecision {
-  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
-  return explainCompletedXerLoeActualFinishEligibilityResolved(task, dataDate, schedulingOptions, incoming, outgoing);
-}
-
-/** Dezelfde diagnose (`CPMSolver`); leest alleen vlaggen. */
 export function explainCompletedXerLoeActualFinishEligibilityResolved(
   task: Task,
   dataDate: Date | null,
@@ -217,16 +205,6 @@ export interface P6CompletedLateRemainingWindowDecision {
  * `p6CompletedLateFromRemainingWindow` zelf, dan de nauwe statusdatumvenster-poort (dezelfde als
  * de forward-display). De eerste afwijzing is de enige gerapporteerde reden.
  */
-export function explainP6CompletedLateRemainingWindowEligibility(
-  task: Task,
-  dataDate: Date | null,
-  schedulingOptions: SchedulingOptions | undefined,
-): P6CompletedLateRemainingWindowDecision {
-  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
-  return explainP6CompletedLateRemainingWindowEligibilityResolved(task, dataDate, schedulingOptions);
-}
-
-/** Dezelfde diagnose (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
 export function explainP6CompletedLateRemainingWindowEligibilityResolved(
   task: Task,
   dataDate: Date | null,
