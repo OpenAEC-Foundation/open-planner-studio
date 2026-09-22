@@ -13,7 +13,9 @@ export const CELL_OK_PREFIX = 'OK  X12 cel-baseline (regel A):';
 export const VERBETERD_STATUS = 'VERBETERD — exit 0, maar commit alleen mét herpin v2 + cellen';
 
 /** Env-sleutels die een kindproces in schrijf- of rapportmodus zouden zetten. */
-export const CHILD_ENV_STRIP = ['OPS_XER_CELLS_WRITE', 'OPS_XER_V2_WRITE', 'OPS_XER_FIDELITY_REPORT', 'OPS_MPP_FIDELITY_REPORT'];
+export const CHILD_ENV_STRIP = [
+  'OPS_XER_CELLS_WRITE', 'OPS_XER_V2_WRITE', 'OPS_XER_GATE_PINS', 'OPS_XER_FIDELITY_REPORT', 'OPS_MPP_FIDELITY_REPORT',
+];
 
 export function childEnv(env, { dropXerCorpus = false } = {}) {
   const out = { ...env };

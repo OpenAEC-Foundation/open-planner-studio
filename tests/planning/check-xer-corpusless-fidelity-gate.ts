@@ -14,7 +14,7 @@
  * dedupbuilder, solveProject en de product-/replayadapter zijn hier daarom verboden imports.
  */
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
@@ -621,6 +621,63 @@ const oracle = JSON.parse(oracleRaw) as OracleBaseline;
 const replay = JSON.parse(replayRaw) as ReplayPin;
 const productV2 = JSON.parse(productV2Raw) as ProductEnvelope;
 const decodedProductV2 = decodeProductPayload(productV2);
+
+/**
+ * Herpinroute na een echte verbetering (regel A, `scripts/README.md` stap 3): `OPS_XER_GATE_PINS=print`
+ * toont de uit de gecommitte v2 afgeleide pinwaarden; `OPS_XER_GATE_PINS=write` schrijft ze atomair
+ * in het `EXPECTED`-blok van dit bestand (alleen de v2-afgeleide velden: `measurable`, `projects`,
+ * `tasks`, `productStrict` en de drie product-hashes) en stopt. De toelichtende HERPIN-commentaar
+ * erboven blijft mensenwerk. Daarna draai je deze check gewoon: die moet groen eindigen.
+ */
+const pinMode = process.env.OPS_XER_GATE_PINS;
+if (pinMode !== undefined) {
+  if (pinMode !== 'print' && pinMode !== 'write') {
+    console.log(`XX OPS_XER_GATE_PINS=${pinMode.slice(0, 20)} onbekend (verwacht print of write)`);
+    process.exit(2);
+  }
+  const num = (value: number) => String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '_');
+  const sumAxis = (field: keyof ProductCounts) => Object.fromEntries(AXES.map(axis => [axis,
+    Object.values(decodedProductV2.files).reduce((total, entry) => total + entry.counters[axis][field], 0)])) as Record<Axis, number>;
+  const axisLine = (values: Record<Axis, number>) => `{ ${AXES.map(axis => `${axis}: ${num(values[axis])}`).join(', ')} }`;
+  const driving = Object.values(decodedProductV2.files).reduce((total, entry) => {
+    for (const key of Object.keys(total) as Array<keyof ProductCounts>) total[key] += entry.drivingPath[key];
+    return total;
+  }, { exact: 0, sameday: 0, diff: 0, missing: 0, measurable: 0, deviations: 0 } satisfies ProductCounts);
+  const projects = Object.values(decodedProductV2.files).reduce((total, entry) => total + entry.projects, 0);
+  const tasks = Object.values(decodedProductV2.files).reduce((total, entry) => total + entry.tasks, 0);
+  const replacements: Array<[RegExp, string]> = [
+    [/^  projects: [\d_]+,$/m, `  projects: ${num(projects)},`],
+    [/^  tasks: [\d_]+,$/m, `  tasks: ${num(tasks)},`],
+    [/^  measurable: \{[^}\n]*\},$/m, `  measurable: ${axisLine(sumAxis('measurable'))},`],
+    [/^    exact: \{[^}\n]*\},$/m, `    exact: ${axisLine(sumAxis('exact'))},`],
+    [/^    sameday: \{[^}\n]*\},$/m, `    sameday: ${axisLine(sumAxis('sameday'))},`],
+    [/^    diff: \{[^}\n]*\},$/m, `    diff: ${axisLine(sumAxis('diff'))},`],
+    [/^    missing: \{[^}\n]*\},$/m, `    missing: ${axisLine(sumAxis('missing'))},`],
+    [/^    deviations: \{[^}\n]*\},$/m, `    deviations: ${axisLine(sumAxis('deviations'))},`],
+    [/^    drivingPath: \{[^}\n]*\},$/m, `    drivingPath: { ${(Object.keys(driving) as Array<keyof ProductCounts>).map(key => `${key}: ${num(driving[key])}`).join(', ')} },`],
+    [/^  productPayloadSha256: '[0-9a-f]{64}',$/m, `  productPayloadSha256: '${productV2.payloadSha256}',`],
+    [/^  productPayloadGzipSha256: '[0-9a-f]{64}',$/m, `  productPayloadGzipSha256: '${productV2.payloadGzipSha256}',`],
+    [/^  productProjectProjectionSha256: '[0-9a-f]{64}',$/m, `  productProjectProjectionSha256: '${productV2.projectProjectionSha256}',`],
+  ];
+  for (const [, line] of replacements) console.log(`PIN ${line.trim()}`);
+  if (pinMode === 'write') {
+    let next = sourceRaw;
+    for (const [pattern, line] of replacements) {
+      const matches = next.match(new RegExp(pattern.source, 'gm')) ?? [];
+      if (matches.length !== 1) {
+        console.log(`XX pinregel ${pattern.source} komt ${matches.length}× voor in EXPECTED; verwacht precies 1 — niets geschreven`);
+        process.exit(1);
+      }
+      next = next.replace(pattern, line);
+    }
+    const path = join(HERE, 'check-xer-corpusless-fidelity-gate.ts');
+    const temp = `${path}.tmp-${process.pid}`;
+    writeFileSync(temp, next);
+    renameSync(temp, path);
+    console.log(`OK  EXPECTED-pins ${next === sourceRaw ? 'ongewijzigd' : 'herschreven'} uit xer-product-fidelity-baseline-v2.json — draai deze check nu zonder OPS_XER_GATE_PINS`);
+  }
+  process.exit(0);
+}
 const firstProductLabel = Object.keys(decodedProductV2.files)[0]!;
 const multiProjectLabel = Object.entries(decodedProductV2.files)
   .find(([, entry]) => entry.projectMeasurements.length >= 2)?.[0];

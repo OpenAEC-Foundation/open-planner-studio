@@ -19,7 +19,7 @@
 // Het oordeel per onderdeel staat in `measure-profiles-status.mjs` (rood is de standaard; zie daar
 // voor de drie niet-rode X12-toestanden GROEN, NULDOEL en VERBETERD). `--strict` maakt ook een nog
 // rode nuldoelregel rood. Kindprocessen krijgen nooit OPS_XER_CELLS_WRITE, OPS_XER_FIDELITY_REPORT of
-// OPS_MPP_FIDELITY_REPORT (noch OPS_XER_V2_WRITE) mee: een meting schrijft of herformatteert nooit per ongeluk iets.
+// OPS_MPP_FIDELITY_REPORT (noch OPS_XER_V2_WRITE / OPS_XER_GATE_PINS) mee: een meting schrijft of herformatteert nooit per ongeluk iets.
 //
 // Exit 0 = regel A gehouden onder elk gemeten profiel, 1 = minstens één onderdeel rood.
 // Niet in `verify`: corpusgebonden, en het corpus zit niet in de repo.
@@ -137,8 +137,10 @@ console.log('\nHet MS Project-orakel meet alleen start en einde (twee assen). He
   + 'drivingPath als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal).');
 if (!FULL) console.log('De volledige corpusloze suite is niet gedraaid (alleen met --full; hij draait al in `npm run verify`).');
 if (rows.some((row) => row.status.startsWith('VERBETERD'))) {
-  console.log('VERBETERD is exit 0, maar commit alleen mét herpin: eerst OPS_XER_V2_WRITE=1, dan '
-    + 'OPS_XER_CELLS_WRITE=1, daarna beide bestanden in dezelfde commit — recept in scripts/README.md.');
+  console.log('VERBETERD is exit 0, maar commit alleen mét herpin, in deze volgorde en in één commit: '
+    + '(1) OPS_XER_V2_WRITE=1, (2) OPS_XER_CELLS_WRITE=1, (3) OPS_XER_GATE_PINS=write op '
+    + 'check-xer-corpusless-fidelity-gate.ts plus de HERPIN-toelichting in EXPECTED, (4) de vangrails '
+    + 'draaien tot groen — recept in scripts/README.md.');
 }
 const scope = only ? ' (GERICHTE RUN — niet alle vangrails gedraaid)' : '';
 console.log(red ? `UITSLAG${scope}: ROOD — minstens één onderdeel rood` : `UITSLAG${scope}: regel A gehouden onder elk gemeten profiel`);

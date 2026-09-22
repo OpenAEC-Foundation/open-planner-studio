@@ -70,8 +70,7 @@ Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
 Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
 uitvoer).
 
-**Herpinnen na een VERBETERD-uitslag** — twee stappen, in deze volgorde, daarna beide bestanden in
-dezelfde commit:
+**Herpinnen na een VERBETERD-uitslag** — vier stappen, in deze volgorde, alles in één commit:
 
 ```bash
 export OPS_XER_CORPUS=/pad/naar/testdata-crawl
@@ -79,18 +78,37 @@ export OPS_XER_CORPUS=/pad/naar/testdata-crawl
 OPS_XER_V2_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
 # 2. de cellen
 OPS_XER_CELLS_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
-# 3. xer-product-fidelity-baseline-v2.json en xer-product-fidelity-cells.json samen committen
+# 3. de EXPECTED-pins van de corpusloze CI-vangrail (productStrict-tellers + payload-hashes)
+OPS_XER_GATE_PINS=write bash tests/planning/run.sh check-xer-corpusless-fidelity-gate.ts
+#    ...en werk de HERPIN-toelichting boven `productStrict` in dat bestand met de hand bij
+# 4. de vangrails moeten nu groen zijn
+bash tests/planning/run.sh check-xer-corpusless-fidelity-gate.ts check-fidelity-cells-gate.ts
+# 5. xer-product-fidelity-baseline-v2.json, xer-product-fidelity-cells.json en
+#    check-xer-corpusless-fidelity-gate.ts samen committen
 ```
 
-Beide runs eindigen zolang het nuldoel niet gehaald is met exit 1 op precies de drie nuldoelregels;
-dat is verwacht. Kijk naar de regel `OK  X12 v2-baseline herpind` resp. `OK  X12 cel-baseline
-herpind`. `OPS_XER_V2_WRITE=1` schrijft atomair (tijdelijk bestand + rename) en alleen als de
-meting verder schoon is: naast de drie nuldoelregels geen enkele rode regel, dus geen nieuwe,
-verslechterde of onmeetbaar geworden cel en geen meetbaarheids-/dekkingsafwijking. Anders weigert
-hij en blijft het bestand onaangeroerd. `OPS_XER_CELLS_WRITE=1` weigert op dezelfde rode cellen. De
-v2-stap gaat eerst omdat `check-fidelity-cells-gate.ts` eist dat de cellen per entry/as/emmer
-optellen tot de v2-tellingen. Een ontbrekend cellenbestand maak je alleen bewust aan met
-`OPS_XER_CELLS_WRITE=init`; `=1` weigert dan met uitleg, en `init` weigert over een bestaand bestand.
+Stap 1 en 2 eindigen zolang het nuldoel niet gehaald is met exit 1 op precies de drie
+nuldoelregels; dat is verwacht. Kijk naar de regel `OK  X12 v2-baseline herpind` resp. `OK  X12
+cel-baseline herpind`. Beide schrijven atomair (tijdelijk bestand + rename) en alleen als de meting
+verder schoon is: naast de drie nuldoelregels geen enkele rode regel — geen nieuwe, verslechterde
+of onmeetbaar geworden cel, geen gewijzigde drivingPath-orakelhash, geen meetbaarheids-,
+dekkings- of `schemaFingerprint`-afwijking t.o.v. v2 (een orakel dat verschuift is geen
+verbetering). Anders weigeren ze en blijft het bestand onaangeroerd. De v2-stap gaat vóór de
+cellen omdat `check-fidelity-cells-gate.ts` eist dat de cellen per entry/as/emmer optellen tot de
+v2-tellingen. Stap 3 schrijft uitsluitend de uit v2 afgeleide pinnen (`OPS_XER_GATE_PINS=print`
+toont ze zonder te schrijven); zonder die stap staat `npm run verify` na een verbetering rood.
+
+**Corpusgroei** (een entry erbij of eraf, dus een gewijzigd `xer-corpus-manifest.json`): de
+dekkingscheck en de cel-poort staan dan rood op het gewijzigde entry-set, en `=1` weigert. Gebruik
+`OPS_XER_V2_WRITE=corpus` en daarna `OPS_XER_CELLS_WRITE=corpus`, gevolgd door stap 3–5 hierboven.
+`=corpus` staat alleen de entry-set-/manifestregels toe en alleen als het manifest werkelijk
+verschilt van dat van de gepinde baseline; elke nieuwe, verslechterde of onmeetbaar geworden cel en
+elke afwijking op een bestaande entry blijft blokkeren. De corpusloze vangrail pint het manifest en
+de orakelselectie zelf ook (`EXPECTED.manifestRawSha256` e.a.); die pinnen bijwerken is bij
+corpusgroei een bewuste reviewstap en valt buiten `OPS_XER_GATE_PINS`.
+
+Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
+dan met uitleg, en `init` weigert over een bestaand bestand.
 
 ## Release en publicatie
 

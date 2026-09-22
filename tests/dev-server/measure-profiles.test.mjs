@@ -79,7 +79,7 @@ test('MS Project: gescande bestanden, exit 0 en OK-regel ⇒ GROEN', () => {
 
 test('kindprocessen krijgen geen schrijf- of rapportmodus mee', () => {
   const env = childEnv({
-    PATH: '/bin', OPS_XER_CORPUS: '/c', OPS_XER_CELLS_WRITE: '1', OPS_XER_V2_WRITE: '1',
+    PATH: '/bin', OPS_XER_CORPUS: '/c', OPS_XER_CELLS_WRITE: '1', OPS_XER_V2_WRITE: '1', OPS_XER_GATE_PINS: 'write',
     OPS_XER_FIDELITY_REPORT: 'baseline', OPS_MPP_FIDELITY_REPORT: 'baseline',
   });
   assert.deepEqual(env, { PATH: '/bin', OPS_XER_CORPUS: '/c' });
