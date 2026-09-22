@@ -2272,7 +2272,8 @@ async function productBaseline(
 
 /**
  * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, of
- * waarvan de emmer verslechtert, is rood. Verbeteringen zijn groen en worden als "te herpinnen"
+ * waarvan de emmer verslechtert, is rood. Emmervolgorde (spec §5): exact < sameday < diff < missing;
+ * elke stap naar rechts is verslechteren. Verbeteringen zijn groen en worden als "te herpinnen"
  * gemeld. `OPS_XER_CELLS_WRITE=1` herschrijft de baseline uit de meting, maar alleen zonder één
  * rode cel.
  */

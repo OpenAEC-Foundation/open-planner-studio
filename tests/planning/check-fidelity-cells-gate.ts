@@ -56,13 +56,18 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   eq('(a) één toegevoegde inexacte cel ⇒ precies die cel rood', cellGateFailures(newCell),
     [`cel was exact, nu inexact (sameday) — regel A: ${F1} as ef id 1/30`]);
 
-  // (b) verslechterde emmer: sameday→diff en diff→missing zijn allebei rood.
+  // (b) verslechterde emmer — volgorde exact < sameday < diff < missing (spec §5), elke stap naar
+  //     rechts is rood: sameday→diff, diff→missing en sameday→missing.
   const worse = compareCells(baseline, with_(cells => cells.map(cell =>
     cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'diff' } : cell)));
   eq('(b) sameday→diff ⇒ rood', cellGateFailures(worse), [`cel verslechterd sameday→diff — regel A: ${F1} as es id 1/20`]);
   const toMissing = compareCells(baseline, with_(cells => cells.map(cell =>
     cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell)));
   eq('(b) diff→missing ⇒ rood', cellGateFailures(toMissing).length, 1);
+  const samedayToMissing = compareCells(baseline, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'missing' } : cell)));
+  eq('(b) sameday→missing ⇒ rood', cellGateFailures(samedayToMissing),
+    [`cel verslechterd sameday→missing — regel A: ${F1} as es id 1/20`]);
 
   // Per cel, niet per som: één cel beter en één cel slechter op dezelfde as blijft rood.
   const swapped = compareCells(baseline, with_(cells => [

@@ -4,7 +4,9 @@
 // `XerProductTaskDelta.bucket` (`sameday` | `diff` | `missing`). Een cel die niet in de baseline
 // staat, was exact. Poortregels:
 //   (a) een cel die exact was en nu een emmer heeft                        ⇒ rood;
-//   (b) een cel waarvan de emmer verslechtert (rang stijgt, zie BUCKET_RANK) ⇒ rood;
+//   (b) een cel waarvan de emmer verslechtert                              ⇒ rood;
+//       volgorde (spec §5): exact < sameday < diff < missing — elke stap naar rechts is
+//       verslechteren (ook sameday→missing), elke stap naar links verbeteren;
 //   (c) verbetering (emmer → exact, of een lagere rang)                     ⇒ groen, "te herpinnen";
 //   verouderde baselineregels (cel nu exact) zijn toegestaan en onschuldig.
 // Herpinnen (`planCellRepin`) mag alleen zonder één rode cel.
@@ -25,7 +27,7 @@ export const CELL_BASELINE_FILE = 'xer-product-fidelity-cells.json';
 export const CELL_BASELINE_MAX_CHARS = 16 * 1024 * 1024;
 
 export type CellBucket = 'sameday' | 'diff' | 'missing';
-/** Oplopend slechter: zelfde dag < andere dag < geen waarde waar het orakel er één heeft. */
+/** Oplopend slechter (spec §5): exact (0, niet in de baseline) < sameday < diff < missing. */
 export const BUCKET_RANK: Readonly<Record<CellBucket, number>> = { sameday: 1, diff: 2, missing: 3 };
 export const CELL_BUCKETS: readonly CellBucket[] = ['sameday', 'diff', 'missing'];
 
