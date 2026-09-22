@@ -10,9 +10,10 @@ export const KNOWN_GOAL_PREFIXES = [
 /** De v2-tellingenbaseline wijkt af van de meting — bij een zuivere verbetering: herpinnen. */
 export const V2_EQUALITY_PREFIX = 'XX X12 productbaseline is de verse volledige productmeting: ';
 export const CELL_OK_PREFIX = 'OK  X12 cel-baseline (regel A):';
+export const VERBETERD_STATUS = 'VERBETERD — exit 0, maar commit alleen mét herpin v2 + cellen';
 
 /** Env-sleutels die een kindproces in schrijf- of rapportmodus zouden zetten. */
-export const CHILD_ENV_STRIP = ['OPS_XER_CELLS_WRITE', 'OPS_XER_FIDELITY_REPORT', 'OPS_MPP_FIDELITY_REPORT'];
+export const CHILD_ENV_STRIP = ['OPS_XER_CELLS_WRITE', 'OPS_XER_V2_WRITE', 'OPS_XER_FIDELITY_REPORT', 'OPS_MPP_FIDELITY_REPORT'];
 
 export function childEnv(env, { dropXerCorpus = false } = {}) {
   const out = { ...env };
@@ -27,7 +28,7 @@ export function failureLines(lines) {
     || /^\s+at \S.*:\d+:\d+\)?$/.test(line) || /^✘ \[ERROR\]/.test(line));
 }
 
-/** `CELDELTA p6 nieuw=… verslechterd=… verbeterd=…` → getallen; ontbreekt de regel ⇒ undefined. */
+/** `CELLDELTA p6 nieuw=… verslechterd=… verbeterd=… onmeetbaar=…` → getallen; ontbreekt iets ⇒ undefined. */
 export function parseCellDelta(lines, profile = 'p6') {
   const line = lines.find((candidate) => candidate.startsWith(`CELLDELTA ${profile} `));
   if (!line) return undefined;
@@ -38,8 +39,9 @@ export function parseCellDelta(lines, profile = 'p6') {
   const delta = {
     line: line.slice(`CELLDELTA ${profile} `.length),
     nieuw: value('nieuw'), verslechterd: value('verslechterd'), verbeterd: value('verbeterd'),
+    onmeetbaar: value('onmeetbaar'),
   };
-  return [delta.nieuw, delta.verslechterd, delta.verbeterd].some((number) => number === undefined) ? undefined : delta;
+  return [delta.nieuw, delta.verslechterd, delta.verbeterd, delta.onmeetbaar].some((number) => number === undefined) ? undefined : delta;
 }
 
 /**
@@ -47,8 +49,11 @@ export function parseCellDelta(lines, profile = 'p6') {
  *  - exit 0 met groene cel-poort                                         ⇒ GROEN;
  *  - uitsluitend (een deel van) de drie nuldoelregels rood, cel-poort groen, geen nieuwe of
  *    verslechterde cel                                                    ⇒ NULDOEL (regel A gehouden);
- *  - daarnaast alleen de v2-gelijkheidsregel rood, cel-delta nieuw=0 verslechterd=0 verbeterd>0
- *                                                                          ⇒ VERBETERD — herpin v2 + cellen.
+ *  - daarnaast alleen de v2-gelijkheidsregel rood, cel-delta nieuw=0 verslechterd=0 onmeetbaar=0
+ *    verbeterd>0                                                          ⇒ VERBETERD: exit 0, maar
+ *    committen alleen mét herpin van v2 én cellen in dezelfde commit.
+ * Een meetbaarheids-/dekkingsafwijking t.o.v. v2 ("X12 meetbaarheid/dekking wijkt af van v2") heeft
+ * een eigen prefix en is dus altijd een overige faalregel ⇒ ROOD: een blinder orakel is geen verbetering.
  * `strict` maakt elke nog rode nuldoelregel rood.
  */
 export function classifyP6({ exit, lines, strict = false }) {
@@ -61,12 +66,12 @@ export function classifyP6({ exit, lines, strict = false }) {
   const red = (reason) => ({ status: `ROOD (${reason})`, pass: false, failures });
   if (!cellOk || !delta) return red('cel-poort niet groen of cel-delta ontbreekt');
   if (other.length > 0) return red(`${other.length} faalregel(s)`);
-  if (delta.nieuw !== 0 || delta.verslechterd !== 0) return red('nieuwe of verslechterde cel');
+  if (delta.nieuw !== 0 || delta.verslechterd !== 0 || delta.onmeetbaar !== 0) return red('nieuwe, verslechterde of onmeetbaar geworden cel');
   if (exit === 0) return failures.length === 0 ? { status: 'GROEN', pass: true, failures } : red('exit 0 met faalregels');
   if (goal.length > 0 && strict) return red('nuldoel, --strict');
   if (v2.length > 0) {
     return delta.verbeterd > 0
-      ? { status: 'VERBETERD — herpin v2 + cellen', pass: true, failures }
+      ? { status: VERBETERD_STATUS, pass: true, failures }
       : red('v2-telling wijkt af zonder verbeterde cel');
   }
   if (goal.length > 0) return { status: 'NULDOEL (regel A gehouden)', pass: true, failures };

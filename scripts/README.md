@@ -62,7 +62,7 @@ Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
 
 | onderdeel | check | oordeel |
 |---|---|---|
-| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 verbeterd>0` — herpinnen, zie hieronder). `--strict` maakt een rode nuldoelregel rood |
+| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 onmeetbaar=0 verbeterd>0`: exit 0, maar commit alleen mét herpin v2 + cellen, zie hieronder). Een cel die niet meer meetbaar is (blinder orakel) telt nooit als verbeterd maar als `onmeetbaar` en is rood; meetbaarheid en dekking per entry/as worden daarnaast apart tegen v2 vergeleken (`X12 meetbaarheid/dekking wijkt af van v2`, altijd rood). `--strict` maakt een rode nuldoelregel rood |
 | MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort. Nul gescande bestanden is `ROOD (niet gemeten)` |
 | vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek en in de pas met de v2-tellingen |
 | `--full` (optioneel) | de volledige `run.sh`, zonder `OPS_XER_CORPUS` | standaard uit: draait al in `npm run verify`, en machinebreed hoort er maar één zware run tegelijk te lopen |
@@ -71,20 +71,24 @@ Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (
 uitvoer).
 
 **Herpinnen na een VERBETERD-uitslag** — twee stappen, in deze volgorde, daarna beide bestanden in
-één commit:
+dezelfde commit:
 
 ```bash
 export OPS_XER_CORPUS=/pad/naar/testdata-crawl
-bash tests/planning/run.sh check-xer-product-fidelity-x12.ts   # bundelt .xer-product-fidelity-x12.mjs
-# 1. de v2-tellingen (de check schrijft die niet zelf; baselinemodus print alleen het bestand)
-OPS_XER_FIDELITY_REPORT=baseline node tests/planning/.xer-product-fidelity-x12.mjs \
-  > tests/planning/xer-product-fidelity-baseline-v2.json
-# 2. de cellen (geweigerd zodra er één nieuwe of verslechterde cel is)
+# 1. de v2-tellingen
+OPS_XER_V2_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
+# 2. de cellen
 OPS_XER_CELLS_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
-# 3. beide committen: xer-product-fidelity-baseline-v2.json en xer-product-fidelity-cells.json
+# 3. xer-product-fidelity-baseline-v2.json en xer-product-fidelity-cells.json samen committen
 ```
 
-De v2-stap gaat eerst omdat `check-fidelity-cells-gate.ts` eist dat de cellen per entry/as/emmer
+Beide runs eindigen zolang het nuldoel niet gehaald is met exit 1 op precies de drie nuldoelregels;
+dat is verwacht. Kijk naar de regel `OK  X12 v2-baseline herpind` resp. `OK  X12 cel-baseline
+herpind`. `OPS_XER_V2_WRITE=1` schrijft atomair (tijdelijk bestand + rename) en alleen als de
+meting verder schoon is: naast de drie nuldoelregels geen enkele rode regel, dus geen nieuwe,
+verslechterde of onmeetbaar geworden cel en geen meetbaarheids-/dekkingsafwijking. Anders weigert
+hij en blijft het bestand onaangeroerd. `OPS_XER_CELLS_WRITE=1` weigert op dezelfde rode cellen. De
+v2-stap gaat eerst omdat `check-fidelity-cells-gate.ts` eist dat de cellen per entry/as/emmer
 optellen tot de v2-tellingen. Een ontbrekend cellenbestand maak je alleen bewust aan met
 `OPS_XER_CELLS_WRITE=init`; `=1` weigert dan met uitleg, en `init` weigert over een bestaand bestand.
 

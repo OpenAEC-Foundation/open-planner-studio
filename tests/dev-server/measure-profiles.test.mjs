@@ -7,15 +7,16 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  childEnv, classifyMsp, classifyP6, KNOWN_GOAL_PREFIXES, V2_EQUALITY_PREFIX,
+  childEnv, classifyMsp, classifyP6, KNOWN_GOAL_PREFIXES, V2_EQUALITY_PREFIX, VERBETERD_STATUS,
 } from '../../scripts/measure-profiles-status.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const GOAL = KNOWN_GOAL_PREFIXES.map((prefix, index) => `${prefix}verwacht ${index === 2 ? '0' : 'true'}, kreeg ${index === 2 ? '15056' : 'false'}`);
 const CELL_OK = 'OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over 34 bestanden; inexact per as drivingPath=417';
-const delta = (nieuw, verslechterd, verbeterd) =>
-  `CELLDELTA p6 nieuw=${nieuw} verslechterd=${verslechterd} verbeterd=${verbeterd} onbekend=0 ongemeten=0 totaal=15473`;
+const delta = (nieuw, verslechterd, verbeterd, onmeetbaar = 0) =>
+  `CELLDELTA p6 nieuw=${nieuw} verslechterd=${verslechterd} verbeterd=${verbeterd} onmeetbaar=${onmeetbaar} onbekend=0 ongemeten=0 totaal=15473`;
+const COVERAGE = 'XX X12 meetbaarheid/dekking wijkt af van v2: 0611f9054a4b tf.measurable v2=1234 nu=1233';
 const V2 = `${V2_EQUALITY_PREFIX}verwacht {…}, kreeg {…}`;
 
 test('P6: alleen de drie nuldoelregels rood met groene cel-poort ⇒ NULDOEL, geslaagd', () => {
@@ -30,7 +31,8 @@ test('P6: --strict maakt de nuldoeltoestand rood', () => {
 
 test('P6: zuivere verbetering (alleen v2-gelijkheid extra rood, verbeterd>0) ⇒ VERBETERD, geslaagd', () => {
   const verdict = classifyP6({ exit: 1, lines: [delta(0, 0, 3), CELL_OK, ...GOAL, V2] });
-  assert.equal(verdict.status, 'VERBETERD — herpin v2 + cellen');
+  assert.equal(verdict.status, VERBETERD_STATUS);
+  assert.match(verdict.status, /exit 0, maar commit alleen mét herpin v2 \+ cellen/);
   assert.equal(verdict.pass, true);
 });
 
@@ -41,6 +43,12 @@ test('P6: v2-afwijking zonder verbeterde cel ⇒ rood', () => {
 test('P6: v2-afwijking met een nieuwe of verslechterde cel ⇒ rood', () => {
   assert.equal(classifyP6({ exit: 1, lines: [delta(1, 0, 3), CELL_OK, ...GOAL, V2] }).pass, false);
   assert.equal(classifyP6({ exit: 1, lines: [delta(0, 1, 3), CELL_OK, ...GOAL, V2] }).pass, false);
+});
+
+test('P6: blinder orakel — meetbaarheid/dekking wijkt af, of een onmeetbaar geworden cel ⇒ rood', () => {
+  // Precies de reviewer-mutant: verbeterd=1 en v2 rood, maar de meetbaarheid is gekrompen.
+  assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 1), CELL_OK, ...GOAL, V2, COVERAGE] }).pass, false);
+  assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 1, 1), CELL_OK, ...GOAL, V2] }).pass, false);
 });
 
 test('P6: elke andere faalregel of een stacktrace ⇒ rood', () => {
@@ -71,7 +79,7 @@ test('MS Project: gescande bestanden, exit 0 en OK-regel ⇒ GROEN', () => {
 
 test('kindprocessen krijgen geen schrijf- of rapportmodus mee', () => {
   const env = childEnv({
-    PATH: '/bin', OPS_XER_CORPUS: '/c', OPS_XER_CELLS_WRITE: '1',
+    PATH: '/bin', OPS_XER_CORPUS: '/c', OPS_XER_CELLS_WRITE: '1', OPS_XER_V2_WRITE: '1',
     OPS_XER_FIDELITY_REPORT: 'baseline', OPS_MPP_FIDELITY_REPORT: 'baseline',
   });
   assert.deepEqual(env, { PATH: '/bin', OPS_XER_CORPUS: '/c' });
@@ -91,5 +99,5 @@ test('scriptrun: MS Project-profiel met lege corpuspaden ⇒ ROOD (niet gemeten)
   });
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stdout, /MS Project\s+\|.*\|\s+ROOD \(niet gemeten\)/);
-  assert.match(result.stdout, /UITSLAG: ROOD/);
+  assert.match(result.stdout, /UITSLAG \(GERICHTE RUN — niet alle vangrails gedraaid\): ROOD/);
 });
