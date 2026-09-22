@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { EffectiveSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
@@ -110,7 +110,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 
 // ── 3) Opties ⊥ conventies ──────────────────────────────────────────────────────────────────────
 {
-  const mixed: SchedulingOptions = {
+  const mixed: LegacySchedulingOptions = {
     p6Source: 'XER', lagCalendar: 'successor', clampNegativeFreeFloat: true, totalFloatMode: 'finish',
     p6OpenLoeTargetSpan: true, useExpectedFinishDates: true,
   };
@@ -131,7 +131,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('48 effective: alle vijftien conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
   // Conventies worden als LAATSTE gespreid: een conventiesleutel die in de overgang nog in het
   // projectblok staat, verliest van het profiel.
-  const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } });
+  const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } as unknown as ProjectSchedulingOptions });
   eq('49 effective: profiel wint van conventiesleutel in het blok', effWins.clampNegativeFreeFloat, false);
   // Typegrens: een kale SchedulingOptions is geen EffectiveSchedulingOptions (conventies verplicht).
   const bare: SchedulingOptions = { lagCalendar: 'successor' };
@@ -187,17 +187,17 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 }
 
 // ── 5) Pin: de XER-lezer wijkt nooit stil af van de P6-basis ─────────────────────────────────────
+// Sinds C3 draagt XER_SCHEDULING_DEFAULTS alleen projectopties; de conventies komen uit het profiel
+// dat de lezer zet (check-import-profile.ts bewijst dat een gelezen XER builtInProfile('p6') draagt).
 {
-  const migrated = legacyOptionsToProfile(XER_SCHEDULING_DEFAULTS.schedulingOptions);
-  same('70 XER-defaults ⇒ P6-profiel zonder afwijkingen', migrated.profile, builtInProfile('p6'));
-  eq('71 XER-defaults: opties == defaultOptionsFor(p6) (incl. volgorde)', migrated.options, defaultOptionsFor('p6'));
-  // Elke conventie die de XER-lezer zelf zaait heeft exact de P6-basiswaarde.
-  const p6 = builtInConventions('p6');
-  for (const [key, value] of Object.entries(XER_SCHEDULING_DEFAULTS.schedulingOptions)) {
-    if ((CONVENTION_KEYS as readonly string[]).includes(key)) {
-      eq(`72 XER-default ${key} == p6-basis`, value, p6[key as keyof typeof p6]);
-    }
-  }
+  eq('70 XER-defaults: opties == defaultOptionsFor(p6) (incl. volgorde)', XER_SCHEDULING_DEFAULTS.schedulingOptions, defaultOptionsFor('p6'));
+  ok('71 XER-defaults: geen conventiesleutels en geen bronmarkering',
+    Object.keys(XER_SCHEDULING_DEFAULTS.schedulingOptions).every(k => !(CONVENTION_KEYS as readonly string[]).includes(k) && k !== 'p6Source'));
+  same('72 een blob mét bronmarkering en de XER-defaults ⇒ P6-profiel zonder afwijkingen',
+    legacyOptionsToProfile({ p6Source: 'XER', ...XER_SCHEDULING_DEFAULTS.schedulingOptions,
+      preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true, p6ZeroDurationUsesPlannedBoundary: true,
+      p6UseTaskPlannedStartFloor: true, p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
+      p6PreserveZeroDurationConstraintInstants: true }).profile, builtInProfile('p6'));
 }
 
 // ── 6) Neerwaartse optieblob (spec v3.1 punt 1) ─────────────────────────────────────────────────
@@ -209,7 +209,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     { resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true });
   eq('83 p6 ⇒ A12/A13 NIET gespiegeld, geen p6Source', legacyOptionsBlobFor({ schedulingProfile: builtInProfile('p6') }), undefined);
   eq('84 conventies en p6Source uit het blok worden gestript',
-    legacyOptionsBlobFor({ schedulingOptions: { p6Source: 'XER', clampNegativeFreeFloat: true, totalFloatMode: 'finish' } }),
+    legacyOptionsBlobFor({ schedulingOptions: { p6Source: 'XER', clampNegativeFreeFloat: true, totalFloatMode: 'finish' } as unknown as ProjectSchedulingOptions }),
     { totalFloatMode: 'finish' });
 }
 

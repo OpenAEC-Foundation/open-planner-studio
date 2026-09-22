@@ -37,8 +37,9 @@ import {
   type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
 import {
-  MAX_PROFILE_JSON_LENGTH, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
+  MAX_PROFILE_JSON_LENGTH, profileAfterRead, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
+import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -252,18 +253,14 @@ export function readIFC(
   // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
 
-  // Scheduling-options (fase 2.9, §3.4/§6): het volledige blok uit de OPS_SchedulingOptions-JSON.
-  // INTEGRATIE(rekenprofielen): in de overgang blijft het blok ongewijzigd (incl. p6Source en
-  // conventiesleutels, die baan B nog leest); in het eindmodel eerst `legacyOptionsToProfile` op het
-  // gelezen blok (profiel alleen als er geen OPS_SchedulingProfile is), daarna de conventiesleutels
-  // strippen: `project.schedulingOptions = legacyOptionsToProfile(blok).options`.
+  // Scheduling-options (fase 2.9, §3.4/§6) en rekenprofiel (spec v3.1 §3.3): eerst het profiel —
+  // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
+  // conventiesleutels en de XER-bronmarkering strippen: het project draagt alleen projectopties.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
-  if (schedulingOptions) project.schedulingOptions = schedulingOptions;
-  // INTEGRATIE(rekenprofielen): hier het profiel zetten, tegelijk met de schrijverkant in
-  // `ifcWriter.ts`:
-  //   const schedulingProfile = profileAfterRead(extractSchedulingProfile(entities, entityMap), schedulingOptions);
-  //   if (schedulingProfile) project.schedulingProfile = schedulingProfile;
-  // Bewust nog NIET bedraad (zie de schrijver): een halve bedrading maakt opslaan niet-idempotent.
+  const schedulingProfile = profileAfterRead(extractSchedulingProfile(entities, entityMap), schedulingOptions);
+  if (schedulingProfile) project.schedulingProfile = schedulingProfile;
+  const projectOptions = optionKeysOnly(schedulingOptions);
+  if (projectOptions) project.schedulingOptions = projectOptions;
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
@@ -2813,8 +2810,8 @@ function extractTimephasedDurationWalksMeta(
 
 /**
  * Rekenprofielen — alleen de `OPS_SchedulingProfile`-pset uit een IFC-tekst lezen, los van `readIFC`
- * (die hem in de overgang nog niet leest; zie de INTEGRATIE-markering daar). Geen pset of een
- * onbruikbare ⇒ `undefined`; de migratie van het legacy-blok doet `profileAfterRead`.
+ * (diagnose/tests). Geen pset of een onbruikbare ⇒ `undefined`; de migratie van het legacy-blok doet
+ * `profileAfterRead` (in `readIFC`).
  */
 export function readSchedulingProfile(content: string): SchedulingProfile | undefined {
   const entities = parseSTEP(content);

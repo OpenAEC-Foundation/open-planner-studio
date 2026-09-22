@@ -3,6 +3,7 @@ import { explainCompletedXerLoeActualFinishEligibility } from '@/engine/schedule
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -151,7 +152,7 @@ eq('PROJECT-data-date completed LOE: TT_LOE blijft binnen de smalle actualFinish
   explainCompletedXerLoeActualFinishEligibility(
     dataDateOnlyLoe,
     dataDateOnlyCompletedLoe.project.statusDate ? parseInstant(dataDateOnlyCompletedLoe.project.statusDate) : null,
-    dataDateOnlyCompletedLoe.project.schedulingOptions,
+    solveOptionsFor(dataDateOnlyCompletedLoe.project).schedulingOptions,
     dataDateOnlyIncoming,
     dataDateOnlyOutgoing,
   ), { eligible: true, reason: 'eligible' });
@@ -162,7 +163,7 @@ const dataDateOnlyLoeSolve = solveProject({
   calendars: dataDateOnlyCompletedLoe.resourceCalendars ?? [],
   dataDate: dataDateOnlyCompletedLoe.project.statusDate,
   progressMode: dataDateOnlyCompletedLoe.project.progressMode,
-  schedulingOptions: dataDateOnlyCompletedLoe.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(dataDateOnlyCompletedLoe.project).schedulingOptions,
   projectStartDate: dataDateOnlyCompletedLoe.project.startDate,
   projectEndDate: dataDateOnlyCompletedLoe.project.endDate,
 });

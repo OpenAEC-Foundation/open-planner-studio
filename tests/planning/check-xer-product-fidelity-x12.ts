@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, fstatSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -14,11 +14,6 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import type { WorkCalendar } from '@/types/calendar';
 import { usesP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
-import {
-  LEGACY_P6_SOURCE_CONVENTION_KEYS,
-  LEGACY_P6_SOURCE_GATED_FLAGS,
-} from '@/engine/scheduler/conventions/legacyP6Source';
-import type { SchedulingOptions } from '@/types/project';
 import { buildXerTargetBaseline, type XerCorpusFile, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
 import { parseInstant } from '@/utils/dateUtils';
@@ -36,26 +31,29 @@ import {
   type ProductBaselineV2,
   type ProductEntryV2,
 } from './xerProductBaselineV2';
+import {
+  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellOracleRedLines, cellTotals, cellWriteModeProblem,
+  compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
+  type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
+} from './fidelityCells';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
+import { p6SemanticsOff } from './p6SemanticsOff';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
 const REPORT_MODES = new Set(['baseline', 'detail', 'summary', 'counterfactuals']);
 const diffs: string[] = [];
 
-// Rekenprofielen baan B: de motor leest de XER-bronmarkering niet meer; elke P6-conventie is een
-// eigen vlag. De "zonder bron"-armen hieronder houden hun oude betekenis (bron weg, vlaggen
-// blijven staan ⇒ generiek gedrag) dankzij de TIJDELIJKE vertaling in
-// `conventions/legacyP6Source.ts`, die A15–A20 zonder bron uitzet (spec §3.4 rij 4). Daarnaast
-// een arm met ALLE P6-gepoorte vlaggen expliciet uit (A15–A21 + de vijf groep-B-conventies): die
-// beschrijft de toestand na de integratie, wanneer de bronmarkering verdwijnt.
-const P6_GATED_CONVENTION_FLAGS = [
-  ...LEGACY_P6_SOURCE_GATED_FLAGS, 'p6CompletedLateFromRemainingWindow', ...LEGACY_P6_SOURCE_CONVENTION_KEYS,
-] as const satisfies readonly (keyof SchedulingOptions)[];
+// Rekenprofielen: de motor leest geen XER-bronmarkering meer; elke P6-conventie komt uit het
+// profiel. De "zonder bron"-armen hieronder bootsen het oude `delete p6Source` na met
+// `withoutP6Semantics` (alle P6-gepoorte conventies A15–A20 en B1–B5 uit, A12/A13 blijven; spec
+// v3.1 §7). `withoutP6Conventions` zet daarnaast ook de projectoptie A21 uit — de arm met ALLE
+// P6-gepoorte vlaggen expliciet uit.
 function withoutP6Conventions(input: ImportResult): void {
-  const options = input.project.schedulingOptions ?? {};
-  delete options.p6Source;
-  for (const flag of P6_GATED_CONVENTION_FLAGS) options[flag] = false;
-  input.project.schedulingOptions = options;
+  withoutP6Semantics(input);
+  input.project.schedulingOptions = { ...input.project.schedulingOptions, p6CompletedLateFromRemainingWindow: false };
 }
 let checks = 0;
 
@@ -176,7 +174,7 @@ function solveImported(imported: ImportResult): XerSolvedProject {
   const cpm = solveProject({
     tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
-    progressMode: imported.project.progressMode, schedulingOptions: imported.project.schedulingOptions,
+    progressMode: imported.project.progressMode, schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
   });
   if (cpm.error) throw new Error(`${imported.project.id}: ${cpm.error}`);
@@ -342,9 +340,18 @@ function counterfactualReports(
     sourceDayPrecisionReport(nonMidnightStrict).counters.es.deviations, 1);
 }
 
+/** Regel A (rekenprofielen-spec §5): per entry-SHA-256 de inexacte cellen (as, `<proj_id>/<task_id>`, emmer). */
+type XerCellSink = Map<string, MeasuredCell[]>;
+/** Per entry-SHA-256: de cellen (`<as>|<proj_id>/<task_id>`) waarvoor het orakel een waarde heeft —
+ *  precies de `measurable`-definitie van de tellers (truth ≠ null), alleen in het geheugen — plus een
+ *  SHA-256 over de orakel-`driving_path_flag`-waarden (die zit niet in de v2-`schemaFingerprint`). */
+type XerMeasurableSink = Map<string, { measurable: Set<string>; drivingPathOracle: string }>;
+
 async function productBaseline(
   corpus: readonly XerCorpusFile[],
   manifest: XerCorpusManifest,
+  cellSink?: XerCellSink,
+  measurableSink?: XerMeasurableSink,
 ): Promise<ProductBaseline> {
   const target = buildXerTargetBaseline(corpus, manifest);
   if (target.errors.length > 0) throw new Error(`X1-manifest/grondwaarheid faalt: ${target.errors.join('; ')}`);
@@ -494,6 +501,26 @@ async function productBaseline(
       }));
     }
     const fileSha256 = hash(file.bytes);
+    if (measurableSink) {
+      const measurable = new Set<string>();
+      const drivingLines: string[] = [];
+      for (const task of truth.tasks) {
+        const id = `${task.projectId}/${task.taskId}`;
+        for (const axis of XER_FIDELITY_AXES) if (task.axes[axis] !== null && task.axes[axis] !== undefined) measurable.add(`${axis}|${id}`);
+        if (task.drivingPath !== null && task.drivingPath !== undefined) measurable.add(`drivingPath|${id}`);
+        drivingLines.push(`${id}=${task.drivingPath === null || task.drivingPath === undefined ? '-' : task.drivingPath ? 'Y' : 'N'}`);
+      }
+      drivingLines.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      measurableSink.set(fileSha256, { measurable, drivingPathOracle: createHash('sha256').update(drivingLines.join('\n')).digest('hex') });
+    }
+    if (cellSink) {
+      // `detail` bevat precies één record per (taak, as) met deviations > 0, met de emmer uit
+      // dezelfde vergelijking als de tellers; `check-fidelity-cells-gate.ts` bewijst corpusloos dat
+      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen.
+      cellSink.set(fileSha256, result.detail.map(item => ({
+        axis: item.axis, id: `${item.projectId}/${item.taskId}`, bucket: item.bucket as MeasuredCell['bucket'],
+      })));
+    }
     files[fileSha256] = {
       sha256: fileSha256, schemaFingerprint: targetEntry.schemaFingerprint ?? '',
       projects: result.truthProjects, tasks: result.truthTasks,
@@ -1082,11 +1109,9 @@ async function productBaseline(
   if (isMultiDocumentImport(noSource) || isMultiDocumentImport(explicitOff)) {
     throw new Error('X12 finishmijlpaal-provenancefixture moet enkelproject zijn');
   }
-  delete noSource.project.schedulingOptions?.p6Source;
-  delete explicitOff.project.schedulingOptions?.p6Source;
-  if (explicitOff.project.schedulingOptions) {
-    explicitOff.project.schedulingOptions.p6FinishMilestoneBoundaryWindow = false;
-  }
+  withoutP6Semantics(noSource);
+  withoutP6Semantics(explicitOff);
+  setConvention(explicitOff, 'p6FinishMilestoneBoundaryWindow', false);
   const noSourceTask = solveImported(noSource).tasks.find(candidate => candidate.taskCode === 'A200');
   const explicitOffTask = solveImported(explicitOff).tasks.find(candidate => candidate.taskCode === 'A200');
   eq('X12 p6FinishMilestoneBoundaryWindow is inert zonder XER-projectprovenance', {
@@ -1110,9 +1135,8 @@ async function productBaseline(
 
 // Ook taakvloer en exact constraint-instant zijn uitsluitend P6-XER-projecties. Een gewone
 // solver/IFC-payload die alleen gelijknamige booleans bevat, maar geen bronstempel, moet exact het
-// expliciet-uitgeschakelde gedrag houden. Sinds rekenprofielen baan B leest de motor die
-// bronstempel niet meer; dit gedrag komt nu uit de TIJDELIJKE vertaling
-// `conventions/legacyP6Source.ts` (A15–A20 zonder bron uit) en verandert bij de integratie.
+// expliciet-uitgeschakelde gedrag houden. Sinds de rekenprofielen leest de motor die bronstempel
+// niet meer; "zonder bron" is nu `withoutP6Semantics` (A15–A20 en B1–B5 uit in het profiel).
 {
   const calendarData = fiveDayCalendarData('08:00', '16:00');
   const bytes = new TextEncoder().encode([
@@ -1139,12 +1163,10 @@ async function productBaseline(
   const explicitOff = readXER(bytes);
   if (isMultiDocumentImport(proven) || isMultiDocumentImport(noSource)
     || isMultiDocumentImport(explicitOff)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
-  delete noSource.project.schedulingOptions?.p6Source;
-  delete explicitOff.project.schedulingOptions?.p6Source;
-  if (explicitOff.project.schedulingOptions) {
-    explicitOff.project.schedulingOptions.p6UseTaskPlannedStartFloor = false;
-    explicitOff.project.schedulingOptions.p6PreserveZeroDurationConstraintInstants = false;
-  }
+  withoutP6Semantics(noSource);
+  withoutP6Semantics(explicitOff);
+  setConvention(explicitOff, 'p6UseTaskPlannedStartFloor', false);
+  setConvention(explicitOff, 'p6PreserveZeroDurationConstraintInstants', false);
   const resultOf = (input: ImportResult) => {
     const solved = solveImported(input).tasks;
     const floor = solved.find(task => task.taskCode === 'FLOOR');
@@ -1173,23 +1195,29 @@ async function productBaseline(
   // dan niet werken: FLOOR begint op de netwerkbasis (vr 2 jan 08:00), niet op ma 5 jan.
   const ifcNoSource = readXER(bytes);
   if (isMultiDocumentImport(ifcNoSource)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
-  delete ifcNoSource.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(ifcNoSource);
   const ifcNoSourceRead = readIFC(writeIFC({
     ...ifcNoSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
   }));
   const ifcFloorSolve = solveProject({
     tasks: ifcNoSourceRead.tasks, sequences: ifcNoSourceRead.sequences, calendar: ifcNoSourceRead.calendar,
     calendars: ifcNoSourceRead.resourceCalendars ?? [], dataDate: ifcNoSourceRead.project.statusDate,
-    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: ifcNoSourceRead.project.schedulingOptions,
+    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions,
     projectStartDate: ifcNoSourceRead.project.startDate, projectEndDate: ifcNoSourceRead.project.endDate,
   });
   if (ifcFloorSolve.error) throw new Error(ifcFloorSolve.error);
   const ifcFloor = ifcNoSourceRead.tasks.find(task => task.wbsCode === 'FLOOR');
+  // Rekenprofielen C4: "zonder bron" is `withoutP6Semantics`; dat profiel round-tript door het IFC
+  // en houdt de A16-vloer uit.
   eq('X12 taakvloer: IFC zonder bron met A16-vlag aan houdt de netwerkbasis', {
-    floorFlag: ifcNoSourceRead.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
-    source: ifcNoSourceRead.project.schedulingOptions?.p6Source,
+    floorConvention: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions.p6UseTaskPlannedStartFloor,
+    p6Off: p6SemanticsOff(ifcNoSourceRead.project),
     floorStart: canonicalProductMinute(ifcFloor?.time.earlyStart),
-  }, { floorFlag: true, source: undefined, floorStart: '2026-01-02T08:00' });
+  }, {
+    floorConvention: false,
+    p6Off: true,
+    floorStart: '2026-01-02T08:00',
+  });
   const hostileExt = readXER(bytes);
   if (isMultiDocumentImport(hostileExt)) throw new Error('X12 extensiesolvefixture moet enkelproject zijn');
   const hostilePredecessor = hostileExt.tasks.find(task => task.wbsCode === 'PRED');
@@ -1205,7 +1233,7 @@ async function productBaseline(
     ...hostileExt.project,
     schedulingOptions: {
       ...hostileExt.project.schedulingOptions,
-      p6Source: 'XER',
+      p6Source: 'XER', // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
       p6UseTaskPlannedStartFloor: true,
       p6PreserveZeroDurationConstraintInstants: true,
     },
@@ -1251,15 +1279,15 @@ async function productBaseline(
     calendars: genericExtensionImport.resourceCalendars ?? [],
     dataDate: genericExtensionImport.project.statusDate,
     progressMode: genericExtensionImport.project.progressMode,
-    schedulingOptions: genericExtensionImport.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(genericExtensionImport.project).schedulingOptions,
     projectStartDate: genericExtensionImport.project.startDate,
     projectEndDate: genericExtensionImport.project.endDate,
   });
   if (hostileSolve.error) throw new Error(`X12 hostile extensiesolve faalt: ${hostileSolve.error}`);
   const hostileSolvedTask = hostileSolve.tasks.get(importedHostileTask.id);
   eq('X12 generieke extensie-import kan interne P6-opties niet via de echte solve activeren', {
-    projectSource: genericExtensionImport.project.schedulingOptions?.p6Source,
-    plannedStartFloor: genericExtensionImport.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
+    projectProfile: genericExtensionImport.project.schedulingProfile,
+    plannedStartFloor: resolveConventions(genericExtensionImport.project.schedulingProfile).p6UseTaskPlannedStartFloor,
     taskProvenance: {
       p6DurationType: importedHostileTask.p6DurationType,
       p6ActivityType: importedHostileTask.p6ActivityType,
@@ -1273,8 +1301,9 @@ async function productBaseline(
     solvedEarlyFinish: hostileSolvedTask?.earlyFinish,
     appliedEarlyStart: hostileSolvedTask?.earlyStart,
   }, {
-    projectSource: undefined,
-    plannedStartFloor: undefined,
+    // Rekenprofielen C4 (R5): een extensie-import opent als OPS — geen profiel, A16 opgelost uit.
+    projectProfile: undefined,
+    plannedStartFloor: false,
     taskProvenance: {},
     // Zonder vervalste P6-bronstempel blijft de planned-start-floor inert. De generieke solver
     // kiest hier zijn gewone project-/netwerkvenster; een mutatie die `fromExtProject` met een
@@ -1312,10 +1341,10 @@ async function productBaseline(
   if (isMultiDocumentImport(imported)) throw new Error('X12 startvloer-negatief moet enkelproject zijn');
   const successor = solveImported(imported).tasks.find(task => task.taskCode === 'N');
   eq('X12 geplande startvloer blijft uit op de één-daggrens', {
-    source: imported.project.schedulingOptions?.p6Source,
-    option: imported.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
+    profile: imported.project.schedulingProfile?.id,
+    option: resolveConventions(imported.project.schedulingProfile).p6UseTaskPlannedStartFloor,
     earlyStart: successor?.earlyStart,
-  }, { source: 'XER', option: true, earlyStart: '2026-01-05T08:00' });
+  }, { profile: 'p6', option: true, earlyStart: '2026-01-05T08:00' });
 }
 
 // P6-XER gebruikt voor een lopende activiteit de start van het resterende werk als Early Start.
@@ -1357,7 +1386,7 @@ async function productBaseline(
   if (isMultiDocumentImport(unlinked)) throw new Error('X12 actual-starttegenvoorbeeld moet enkelproject zijn');
   const unlinkedTask = solveImported(unlinked).tasks.find(candidate => candidate.taskCode === 'A100');
   eq('X12 zonder resterend-doelkoppeling blijft de zichtbare Actual Start ongewijzigd', {
-    sourceFlag: unlinked.project.schedulingOptions?.p6UseRemainingStartForProgress,
+    sourceFlag: resolveConventions(unlinked.project.schedulingProfile).p6UseRemainingStartForProgress,
     earlyStart: unlinkedTask?.earlyStart,
   }, {
     sourceFlag: false,
@@ -1469,15 +1498,15 @@ async function productBaseline(
 
   // De relatievlag kan in een generieke payload nog aanwezig zijn, maar mag zonder conventie B1
   // (`p6RelationFinishBoundary`) geen enkel forward- of backward-pad bereiken; de `CPMSolver`-
-  // constructor stript haar dan. Zonder bronstempel staat B1 uit omdat de TIJDELIJKE vertaling
-  // (`conventions/legacyP6Source.ts`) haar alleen mét bron aanzet. Vergelijk met dezelfde XER
+  // constructor stript haar dan. Zonder P6-semantiek (`withoutP6Semantics`) staat B1 uit in het
+  // profiel. Vergelijk met dezelfde XER
   // input waarin uitsluitend de vlag zelf is weggehaald: alle zes taakassen moeten identiek zijn.
   const genericPayload = readXER(bytes);
   const explicitNoBoundary = readXER(bytes);
   if (isMultiDocumentImport(genericPayload) || isMultiDocumentImport(explicitNoBoundary)) {
     throw new Error('X12 relatie-firewallfixture moet enkelproject zijn');
   }
-  delete genericPayload.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(genericPayload);
   delete explicitNoBoundary.sequences[0]?.p6StartAtPredecessorFinishBoundary;
   const relationAxes = (input: ImportResult) => solveImported(input).tasks.map(task => [
     task.taskCode, task.earlyStart, task.earlyFinish, task.lateStart, task.lateFinish,
@@ -1501,7 +1530,7 @@ async function productBaseline(
   eq('X12 alle P6-conventies uit: rauwe P6-relatievlag is solver-identiek aan geen vlag',
     relationAxes(allOffPayload as ImportResult), relationAxes(allOffNoFlag as ImportResult));
   for (const input of [b1Off, b1OffNoFlag] as ImportResult[]) {
-    input.project.schedulingOptions = { ...input.project.schedulingOptions, p6RelationFinishBoundary: false };
+    setConvention(input, 'p6RelationFinishBoundary', false);
   }
   delete (b1OffNoFlag as ImportResult).sequences[0]?.p6StartAtPredecessorFinishBoundary;
   eq('X12 conventie B1 uit maakt de rauwe P6-relatievlag solver-identiek aan geen vlag',
@@ -1517,7 +1546,7 @@ async function productBaseline(
     calendars: roundTripped.resourceCalendars ?? [],
     dataDate: roundTripped.project.statusDate,
     progressMode: roundTripped.project.progressMode,
-    schedulingOptions: roundTripped.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(roundTripped.project).schedulingOptions,
     projectStartDate: roundTripped.project.startDate,
     projectEndDate: roundTripped.project.endDate,
   });
@@ -1675,7 +1704,7 @@ async function productBaseline(
   // forwardkant. `A100` (24 u) spant vooruit 12-31→01-02 en achteruit even lang, en houdt de twee
   // werkdagen speling die haar opvolger `B100` haar laat.
   eq('X12 er is geen brongebonden projectie meer: backward, lag en float spiegelen de forwardkant', {
-    projectSource: projectionImport.project.schedulingOptions?.p6Source,
+    projectProfile: projectionImport.project.schedulingProfile?.id,
     calendarSource: projectionImport.calendar.p6Source,
     penaltyDates: projectionImport.calendar.p6NonWorkPenaltyDates,
     aEarlyFinish: projectedTask('A100')?.earlyFinish,
@@ -1686,7 +1715,7 @@ async function productBaseline(
     lagPredecessorLateFinish: projectedTask('LP100')?.lateFinish,
     successorEarlyStart: projectedTask('B100')?.earlyStart,
   }, {
-    projectSource: 'XER',
+    projectProfile: 'p6',
     calendarSource: 'XER',
     penaltyDates: ['2026-01-03', '2026-01-05'],
     aEarlyFinish: '2026-01-02T17:00',
@@ -1706,7 +1735,7 @@ async function productBaseline(
       calendars: input.resourceCalendars ?? [],
       dataDate: input.project.statusDate,
       progressMode: input.project.progressMode,
-      schedulingOptions: input.project.schedulingOptions,
+      schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate,
       projectEndDate: input.project.endDate,
     });
@@ -1722,11 +1751,11 @@ async function productBaseline(
   const directForParity = readXER(projectionBytes);
   if (isMultiDocumentImport(directForParity)) throw new Error('X12 directe pariteitsfixture moet enkelproject zijn');
   eq('X12 XER-naar-IFC bewaart P6-provenance en alle zes solve-assen', {
-    projectSource: ifcRoundTrip.project.schedulingOptions?.p6Source,
+    projectProfile: ifcRoundTrip.project.schedulingProfile?.id,
     calendarSource: ifcRoundTrip.calendar.p6Source,
     axes: sixAxes(ifcRoundTrip),
   }, {
-    projectSource: 'XER',
+    projectProfile: 'p6',
     calendarSource: 'XER',
     axes: sixAxes(directForParity),
   });
@@ -1736,20 +1765,20 @@ async function productBaseline(
   if (isMultiDocumentImport(ordinaryIfcSource) || isMultiDocumentImport(ordinaryDirect)) {
     throw new Error('X12 gewone-IFC-provenancefixture moet enkelproject zijn');
   }
-  delete ordinaryIfcSource.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(ordinaryIfcSource);
   delete ordinaryIfcSource.calendar.p6Source;
-  delete ordinaryDirect.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(ordinaryDirect);
   delete ordinaryDirect.calendar.p6Source;
   // Zonder XER-archief blijft dit bewust een gewone IFC en dus een synchrone read-probe.
   const ordinaryIfc = readIFC(writeIFC({
     ...ordinaryIfcSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
   }));
   eq('X12 gewone IFC zonder XER-bronstempels blijft zesassig formaatneutraal', {
-    projectSource: ordinaryIfc.project.schedulingOptions?.p6Source,
+    projectP6Off: p6SemanticsOff(ordinaryIfc.project),
     calendarSource: ordinaryIfc.calendar.p6Source,
     axes: sixAxes(ordinaryIfc),
   }, {
-    projectSource: undefined,
+    projectP6Off: true,
     calendarSource: undefined,
     axes: sixAxes(ordinaryDirect),
   });
@@ -2062,14 +2091,14 @@ async function productBaseline(
   const completedGuardDataDate = new Date(0);
   eq('X12 completed bronpredicate blijft fail-closed voor alle uitgesloten bronvormen', {
     noPresence: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6ExplicitTargetWindow: undefined }, completedGuardDataDate, one.project.schedulingOptions),
-    active: usesP6CompletedDataDateWindow(activeTask, completedGuardDataDate, active.project.schedulingOptions),
-    milestone: usesP6CompletedDataDateWindow(milestoneTask, completedGuardDataDate, milestone.project.schedulingOptions),
+      { ...oneTask, p6ExplicitTargetWindow: undefined }, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
+    active: usesP6CompletedDataDateWindow(activeTask, completedGuardDataDate, solveOptionsFor(active.project).schedulingOptions),
+    milestone: usesP6CompletedDataDateWindow(milestoneTask, completedGuardDataDate, solveOptionsFor(milestone.project).schedulingOptions),
     loe: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, completedGuardDataDate, one.project.schedulingOptions),
+      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
     suspendResume: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6SuspendResume: true }, completedGuardDataDate, one.project.schedulingOptions),
-    summary: usesP6CompletedDataDateWindow(summaryCandidate, completedGuardDataDate, one.project.schedulingOptions),
+      { ...oneTask, p6SuspendResume: true }, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
+    summary: usesP6CompletedDataDateWindow(summaryCandidate, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
     generic: usesP6CompletedDataDateWindow(oneTask, completedGuardDataDate, undefined),
   }, {
     noPresence: false, active: false, milestone: false, loe: false,
@@ -2161,7 +2190,7 @@ async function productBaseline(
     calendars: displayOnlyCandidate.resourceCalendars ?? [],
     dataDate: displayOnlyCandidate.project.statusDate,
     progressMode: displayOnlyCandidate.project.progressMode,
-    schedulingOptions: displayOnlyCandidate.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(displayOnlyCandidate.project).schedulingOptions,
     projectStartDate: displayOnlyCandidate.project.startDate,
     projectEndDate: displayOnlyCandidate.project.endDate,
   });
@@ -2184,7 +2213,9 @@ async function productBaseline(
   // ingelezen of aan de solver doorgegeven.
   const generic: ImportResult = {
     ...one,
-    project: { ...one.project, schedulingOptions: undefined },
+    // Rekenprofielen C4: vroeger haalde het wissen van het hele optieblok ook de XER-bronmarkering
+    // weg (⇒ OPS); sinds C3 staat die in het profiel, dus dat gaat nu mee weg.
+    project: { ...one.project, schedulingOptions: undefined, schedulingProfile: undefined },
     tasks: one.tasks.map(({ p6ProjectId: _project, p6TaskId: _task, p6ActivityType: _activity, p6DurationType: _duration, p6ExplicitTargetWindow: _window, ...task }) => task),
     xer: undefined,
     xerSourceArchive: undefined,
@@ -2195,7 +2226,7 @@ async function productBaseline(
     const cpm = solveProject({
       tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
       calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
     });
     if (cpm.error) throw new Error(`X12 F5 generieke solve faalde: ${cpm.error}`);
@@ -2346,17 +2377,219 @@ async function productBaseline(
         [mutatedTruth.tasks[index]?.taskId, mutatedTruth.tasks[index]?.axes, mutatedTruth.tasks[index]?.drivingPath])), true);
 }
 
+/**
+ * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, waarvan
+ * de emmer verslechtert, of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
+ * sameday < diff < missing; elke stap naar rechts is verslechteren. Zeven poortassen: de zes
+ * X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige
+ * nuldoel-getal). Verbeteringen zijn groen en worden als "te herpinnen" gemeld.
+ *
+ * Elke rode regel krijgt een soort (`RedKind`): `hard` blokkeert iedere herpin; `fileset` (een
+ * entry erbij of eraf, een ander manifest) mag alleen in de corpusgroei-modus `=corpus`, en die
+ * vereist dat het manifest echt veranderd is. De drie bekende nuldoelregels blokkeren nooit.
+ */
+const redKinds = new Map<string, RedKind>();
+function red(line: RedLine): void {
+  checks++;
+  diffs.push(line.text);
+  redKinds.set(line.text, line.kind);
+}
+const KNOWN_GOAL_LABELS = [
+  'X12 nuldoel is baseline-onafhankelijk: ieder bestand haalt de zesassige poort:',
+  'X12 nuldoel is baseline-onafhankelijk: alle zes assen zijn nul:',
+  'X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul:',
+];
+/** Rode regels die een herpin in `mode` blokkeren: alles behalve de drie nuldoelregels, en in
+ *  `corpus`-modus ook behalve `fileset`-regels. Ongeclassificeerde regels (probes, identiteit,
+ *  scanner, v2-gelijkheid) blokkeren altijd. */
+function writeBlockers(mode: '1' | 'corpus' | 'init'): string[] {
+  return diffs.filter(diff => !KNOWN_GOAL_LABELS.some(label => diff.startsWith(label))
+    && !(mode !== '1' && redKinds.get(diff) === 'fileset'));
+}
+
+interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable }
+
+function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink, manifestSha256: string): CellState | undefined {
+  const built = tryBuildCellBaseline(cellSink, {
+    manifestSha256,
+    drivingPathOracle: new Map([...measurableSink].map(([key, value]) => [key, value.drivingPathOracle])),
+  });
+  checks++;
+  if (!built.baseline) { diffs.push(`X12 cel-meting ongeldig (regel A): ${built.error}`); return undefined; }
+  const measurable: CellMeasurable = (file, axis, id) => measurableSink.get(file)?.measurable.has(`${axis}|${id}`) === true;
+  const path = join(HERE, CELL_BASELINE_FILE);
+  const writeProblem = cellWriteModeProblem(process.env.OPS_XER_CELLS_WRITE, existsSync(path));
+  if (writeProblem) { checks++; diffs.push(`X12 cel-baseline: ${writeProblem}`); return undefined; }
+  if (!existsSync(path)) {
+    if (process.env.OPS_XER_CELLS_WRITE !== 'init') {
+      red({ kind: 'hard', text: `X12 ${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init` });
+      return { measuredCells: built.baseline, measurable };
+    }
+    // `init` is alleen voor een echt nieuw corpus: bestaat er een v2-baseline bij hetzelfde manifest,
+    // dan is dit geen nieuw corpus maar een weggegooid cellenbestand — anders zou "weggooien + init"
+    // elke regressie stil laten landen.
+    let pinnedManifest: string | undefined;
+    try { pinnedManifest = readProductBaseline().manifestSha256; } catch { pinnedManifest = undefined; }
+    if (pinnedManifest === manifestSha256) {
+      checks++;
+      diffs.push(`X12 cel-baseline: OPS_XER_CELLS_WRITE=init geweigerd — er bestaat een v2-baseline bij hetzelfde corpusmanifest (${manifestSha256.slice(0, 12)}); init is alleen voor een nieuw corpus. Zet ${CELL_BASELINE_FILE} terug uit versiebeheer.`);
+      return undefined;
+    }
+    return { measuredCells: built.baseline, measurable };
+  }
+  const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
+  checks++;
+  if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return undefined; }
+  const delta = compareCells(parsed.baseline, built.baseline, measurable);
+  console.log(cellDeltaLine('p6', delta, built.baseline));
+  const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline)];
+  for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
+  if (lines.length === 0) {
+    const totals = cellTotals(built.baseline);
+    console.log(`OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over ${Object.keys(built.baseline.files).length} bestanden; `
+      + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
+      + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : ''));
+  }
+  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable };
+}
+
+/**
+ * Meetbaarheid, dekking en orakel APART tegen v2: een blinder orakel (minder meetbare cellen), een
+ * orakel dat naar onze waarde toe schuift (`schemaFingerprint` verandert) of een krimpende dekking
+ * mag nooit onder de v2-gelijkheidsregel verdwijnen, want die staat bij een zuivere verbetering
+ * juist legitiem rood. Eigen prefix ⇒ `measure:profiles` telt hem als overige faalregel (ROOD).
+ * Een andere entry-set of een ander manifest is `fileset` (corpusgroei-route), al het andere `hard`.
+ */
+const COVERAGE_PREFIX = 'X12 meetbaarheid/dekking wijkt af van v2';
+function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline): void {
+  checks++;
+  if (pinned.manifestSha256 !== measured.manifestSha256) {
+    red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: manifest v2=${pinned.manifestSha256.slice(0, 12)} nu=${measured.manifestSha256.slice(0, 12)}` });
+  }
+  for (const key of Object.keys(pinned.files).filter(key => !measured.files[key]).sort()) {
+    red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: entry ${key.slice(0, 12)} staat in v2 maar is niet gemeten` });
+  }
+  for (const key of Object.keys(measured.files).sort()) {
+    const was = pinned.files[key];
+    const now = measured.files[key]!;
+    if (!was) { red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: entry ${key.slice(0, 12)} is gemeten maar staat niet in v2` }); continue; }
+    const pairs: Array<[string, string | number, string | number]> = [
+      ['schemaFingerprint', was.schemaFingerprint, now.schemaFingerprint],
+      ['projects', was.projects, now.projects],
+      ['tasks', was.tasks, now.tasks],
+      ['identityCoverage.solvedTasks', was.identityCoverage.solvedTasks, now.identityCoverage.solvedTasks],
+      ['identityCoverage.taskCodePresent', was.identityCoverage.taskCodePresent, now.identityCoverage.taskCodePresent],
+      ['identityCoverage.taskCodeExact', was.identityCoverage.taskCodeExact, now.identityCoverage.taskCodeExact],
+      ...XER_FIDELITY_AXES.map((axis): [string, number, number] =>
+        [`${axis}.measurable`, was.counters[axis].measurable, now.counters[axis].measurable]),
+      ['drivingPath.measurable', was.drivingPath.measurable, now.drivingPath.measurable],
+    ];
+    for (const [field, before, after] of pairs) {
+      if (before !== after) {
+        red({ kind: 'hard', text: `${COVERAGE_PREFIX}: ${key.slice(0, 12)} ${field} v2=${String(before).slice(0, 16)} nu=${String(after).slice(0, 16)}` });
+      }
+    }
+  }
+}
+
+/**
+ * Schrijfmodi, pas ná alle vergelijkingen (dus nooit na een exception):
+ *  - `OPS_XER_V2_WRITE=1`     v2 herschrijven; geweigerd bij elke rode regel naast de drie nuldoelregels;
+ *  - `OPS_XER_V2_WRITE=corpus` idem, maar `fileset`-regels toegestaan — alleen als het manifest
+ *                              echt anders is dan dat van de gepinde v2 (corpusgroei);
+ *  - `OPS_XER_CELLS_WRITE=1|corpus|init` dezelfde regels voor de cellen (`corpus`: manifest van de
+ *                              cel-baseline ≠ huidig manifest; `init`: alleen een ontbrekend bestand).
+ * Elke schrijfactie is atomair: tijdelijk bestand in dezelfde map, daarna rename.
+ */
+function atomicWrite(path: string, text: string): void {
+  const temp = `${path}.tmp-${process.pid}`;
+  writeFileSync(temp, text);
+  renameSync(temp, path);
+}
+function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, measured: ProductBaseline): void {
+  const cellMode = process.env.OPS_XER_CELLS_WRITE;
+  const v2Mode = process.env.OPS_XER_V2_WRITE;
+  const plans: Array<() => void> = [];
+  let refused = false;
+  const refuse = (text: string) => { refused = true; diffs.push(text); };
+  if (cellMode !== undefined && cellMode !== '' && !cells) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: de cel-meting of -baseline is ongeldig`);
+  if (cellMode !== undefined && cellMode !== '' && cells) {
+    const mode = cellMode as '1' | 'corpus' | 'init';
+    const blockers = writeBlockers(mode);
+    checks++;
+    if (mode === 'corpus' && cells.pinned && cells.pinned.manifestSha256 === cells.measuredCells.manifestSha256) {
+      refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: =corpus vereist een gewijzigd corpusmanifest; gebruik =1`);
+    } else if (blockers.length > 0) {
+      refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: ${blockers.length} rode regel(s); eerste: ${blockers[0]!.slice(0, 300)}`);
+    } else {
+      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable);
+      if (!plan.allowed) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.slice(0, 5).join('; ')}`);
+      else {
+        plans.push(() => {
+          atomicWrite(join(HERE, CELL_BASELINE_FILE), serializeCellBaseline(cells.measuredCells));
+          console.log(`OK  X12 cel-baseline herpind (${mode}): ${plan.delta.improvedCells.length} cellen beter, `
+            + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
+        });
+      }
+    }
+  }
+  if (v2Mode !== undefined && v2Mode !== '') {
+    checks++;
+    if (v2Mode !== '1' && v2Mode !== 'corpus') refuse(`OPS_XER_V2_WRITE=${v2Mode.slice(0, 20)} onbekend (verwacht 1 of corpus)`);
+    else if (v2Mode === 'corpus' && pinnedV2.manifestSha256 === measured.manifestSha256) {
+      refuse('herpin van xer-product-fidelity-baseline-v2.json geweigerd: =corpus vereist een gewijzigd corpusmanifest; gebruik =1');
+    } else {
+      const blockers = writeBlockers(v2Mode);
+      if (blockers.length > 0) {
+        refuse(`herpin van xer-product-fidelity-baseline-v2.json geweigerd: ${blockers.length} rode regel(s) naast het nuldoel; eerste: ${blockers[0]!.slice(0, 300)}`);
+      } else {
+        plans.push(() => {
+          atomicWrite(join(HERE, 'xer-product-fidelity-baseline-v2.json'), canonicalProductEnvelope(measured));
+          console.log(`OK  X12 v2-baseline herpind (${v2Mode}, atomair) uit een meting zonder blokkerende rode regel`);
+        });
+      }
+    }
+  }
+  // Pas schrijven als geen enkele gevraagde schrijfactie geweigerd is: nooit half herpinnen.
+  if (!refused) for (const write of plans) write();
+}
+
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (REPORT !== undefined && !REPORT_MODES.has(REPORT)) {
   diffs.push(`onbekende OPS_XER_FIDELITY_REPORT-modus: ${REPORT}`);
 }
-if (!corpusRoot) console.log('X12 PRODUCTGATE: corpus niet aanwezig; alleen corpusloze bescherming uitgevoerd');
+if (!corpusRoot) {
+  console.log('X12 PRODUCTGATE: corpus niet aanwezig; alleen corpusloze bescherming uitgevoerd');
+  console.log('OK  X12 cel-baseline (regel A): corpus niet aanwezig (OPS_XER_CORPUS) — overgeslagen');
+}
 else if (!existsSync(corpusRoot)) diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
 else {
   const corpus = listXerFiles(corpusRoot).map(path => ({ label: relative(corpusRoot, path).split('\\').join('/'), bytes: readFileSync(path) }));
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
-  const measured = await productBaseline(corpus, manifest);
-  if (REPORT === 'baseline') process.stdout.write(canonicalProductEnvelope(measured));
+  const cellSink: XerCellSink = new Map();
+  const measurableSink: XerMeasurableSink = new Map();
+  const measured = await productBaseline(corpus, manifest, cellSink, measurableSink);
+  if (REPORT !== undefined && (process.env.OPS_XER_V2_WRITE || process.env.OPS_XER_CELLS_WRITE)) {
+    diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
+  }
+  if (REPORT === 'baseline') {
+    // Rapport, geen herpinroute: herpinnen gaat uitsluitend via OPS_XER_V2_WRITE (scripts/README.md).
+    // De kopregel maakt een omgeleide uitvoer ongeldige JSON, zodat de strikte v2-lezer hem weigert;
+    // wijst stdout rechtstreeks naar het baselinebestand, dan schrijven we helemaal niets.
+    const v2Path = join(HERE, 'xer-product-fidelity-baseline-v2.json');
+    let stdoutIsBaseline = false;
+    try {
+      const out = fstatSync(1);
+      const target = statSync(v2Path);
+      stdoutIsBaseline = out.isFile() && out.ino === target.ino && out.dev === target.dev;
+    } catch { /* stdout zonder bestand (pipe/terminal) of geen baseline: gewoon rapporteren */ }
+    if (stdoutIsBaseline) {
+      console.error('XX OPS_XER_FIDELITY_REPORT=baseline mag niet naar xer-product-fidelity-baseline-v2.json schrijven — herpin met OPS_XER_V2_WRITE=1 (scripts/README.md)');
+      process.exit(1);
+    }
+    process.stdout.write('RAPPORT — niet als baseline gebruiken; herpinnen uitsluitend via OPS_XER_V2_WRITE (scripts/README.md)\n');
+    process.stdout.write(canonicalProductEnvelope(measured));
+  }
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);
     const tasks = entries.reduce((total, [, entry]) => total + entry.tasks, 0);
@@ -2366,6 +2599,7 @@ else {
     const scannerErrors = entries.reduce((total, [, entry]) => total + entry.scannerErrors.length, 0);
     console.log(`MEASURE ONLY X12 productfidelity: STRICT minute-exact ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
   } else {
+    const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256);
     const entries = Object.entries(measured.files);
     const allGatePassed = entries.every(([, entry]) => entry.gatePassed === true);
     const allAxesZero = entries.every(([, entry]) => XER_FIDELITY_AXES
@@ -2381,7 +2615,18 @@ else {
     eq('X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul', totalSixAxisDeviations, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: identiteitsfouten zijn nul', identityErrors, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: scannerfouten zijn nul', scannerErrors, 0);
-    eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
+    // Een ongeldige v2 (bv. een omgeleid rapport met kopregel, of een leeg bestand) wordt een nette
+    // XX-regel en blokkeert elke schrijfactie; nooit een stacktrace.
+    let pinnedV2: ProductBaseline | undefined;
+    try { pinnedV2 = readProductBaseline(); } catch (error) {
+      checks++;
+      diffs.push(`X12 v2-baseline ongeldig — herstel xer-product-fidelity-baseline-v2.json uit versiebeheer: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`);
+    }
+    if (pinnedV2) {
+      checkCoverageAgainstV2(pinnedV2, measured);
+      runWrites(cells, pinnedV2, measured);
+      eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
+    }
   }
 }
 if (diffs.length > 0) {

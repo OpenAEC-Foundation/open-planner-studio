@@ -4,6 +4,9 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -62,7 +65,7 @@ function projection(mutate?: (imported: ImportResult, loe: Task) => void) {
   const decision = explainCompletedXerLoeActualFinishEligibility(
     loe,
     imported.project.statusDate ? parseInstant(imported.project.statusDate) : null,
-    imported.project.schedulingOptions,
+    solveOptionsFor(imported.project).schedulingOptions,
     incoming,
     outgoing,
   );
@@ -73,7 +76,7 @@ function projection(mutate?: (imported: ImportResult, loe: Task) => void) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -107,7 +110,7 @@ function decisionOnly(mutate: (imported: ImportResult, loe: Task) => void) {
   return explainCompletedXerLoeActualFinishEligibility(
     loe,
     imported.project.statusDate ? parseInstant(imported.project.statusDate) : null,
-    imported.project.schedulingOptions,
+    solveOptionsFor(imported.project).schedulingOptions,
     imported.sequences.filter(sequence => sequence.successorId === loe.id),
     imported.sequences.filter(sequence => sequence.predecessorId === loe.id),
   );
@@ -116,14 +119,14 @@ function decisionOnly(mutate: (imported: ImportResult, loe: Task) => void) {
 const importedSource = importedFixture();
 const importedLoe = task(importedSource);
 eq('completed XER LOE: reader levert alle vereiste XER-provenance en vlaggen', {
-  source: importedSource.project.schedulingOptions?.p6Source,
-  remainingStart: importedSource.project.schedulingOptions?.p6UseRemainingStartForProgress,
-  preserveBackward: importedSource.project.schedulingOptions?.preserveActualDatesInBackwardPass,
-  preserveInstants: importedSource.project.schedulingOptions?.p6PreserveActualInstants,
+  profile: importedSource.project.schedulingProfile?.id,
+  remainingStart: resolveConventions(importedSource.project.schedulingProfile).p6UseRemainingStartForProgress,
+  preserveBackward: resolveConventions(importedSource.project.schedulingProfile).preserveActualDatesInBackwardPass,
+  preserveInstants: resolveConventions(importedSource.project.schedulingProfile).p6PreserveActualInstants,
   projectId: importedLoe.p6ProjectId,
   taskId: importedLoe.p6TaskId,
 }, {
-  source: 'XER', remainingStart: true, preserveBackward: true, preserveInstants: true,
+  profile: 'p6', remainingStart: true, preserveBackward: true, preserveInstants: true,
   projectId: 'P1', taskId: 'L',
 });
 
@@ -177,8 +180,8 @@ const rejections: Array<{
 }> = [
   // Rekenprofielen baan B: de poort is conventie B4 `p6CompletedLoeActualFinish`. Twee armen:
   // expliciet uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
-  { label: 'conventie B4 expliciet uit', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6CompletedLoeActualFinish: false }; }, reason: 'conventionOff' },
-  { label: 'andere bron', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6Source: undefined }; }, reason: 'conventionOff' },
+  { label: 'conventie B4 expliciet uit', mutate: imported => { setConvention(imported, 'p6CompletedLoeActualFinish', false); }, reason: 'conventionOff' },
+  { label: 'andere bron', mutate: imported => { withoutP6Semantics(imported); }, reason: 'conventionOff' },
   { label: 'ontbrekende projectprovenance', mutate: (_imported, loe) => { loe.p6ProjectId = undefined; }, reason: 'missingProjectProvenance' },
   { label: 'lege projectprovenance', mutate: (_imported, loe) => { loe.p6ProjectId = ''; }, reason: 'missingProjectProvenance' },
   { label: 'ontbrekende taakprovenance', mutate: (_imported, loe) => { loe.p6TaskId = undefined; }, reason: 'missingTaskProvenance' },
@@ -210,9 +213,9 @@ const rejections: Array<{
   { label: 'inkomende FS', mutate: imported => { imported.sequences[0]!.type = 'FINISH_START'; }, reason: 'incomingNotOnlyStartStart', schedule: hammockAfterPredecessorFinish },
   { label: 'gemengde inkomende relaties', mutate: imported => { imported.sequences.push({ ...imported.sequences[0]!, id: 'R-FS', type: 'FINISH_START' }); }, reason: 'incomingNotOnlyStartStart', schedule: hammockAfterPredecessorFinish },
   { label: 'uitgaande relatie', mutate: imported => { imported.sequences.push({ ...imported.sequences[0]!, id: 'R-OUT', predecessorId: 'L', successorId: 'O' }); }, reason: 'hasOutgoingRelation' },
-  { label: 'remaining-start-optie uit', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6UseRemainingStartForProgress: false }; }, reason: 'remainingStartOff' },
-  { label: 'backward-preserve-optie uit', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, preserveActualDatesInBackwardPass: false }; }, reason: 'preserveActualDatesOff' },
-  { label: 'actual-instant-optie uit', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6PreserveActualInstants: false }; }, reason: 'preserveActualInstantsOff' },
+  { label: 'remaining-start-optie uit', mutate: imported => { setConvention(imported, 'p6UseRemainingStartForProgress', false); }, reason: 'remainingStartOff' },
+  { label: 'backward-preserve-optie uit', mutate: imported => { setConvention(imported, 'preserveActualDatesInBackwardPass', false); }, reason: 'preserveActualDatesOff' },
+  { label: 'actual-instant-optie uit', mutate: imported => { setConvention(imported, 'p6PreserveActualInstants', false); }, reason: 'preserveActualInstantsOff' },
 ];
 
 for (const rejection of rejections) {

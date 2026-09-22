@@ -50,6 +50,7 @@ import {
   type XerResourceCatalog,
 } from './xerResources';
 import { assembleXerMultiProjectImport, type XerMultiProjectImport } from './xerMultiProject';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import {
   deriveXerScheduleOptions,
   indexXerScheduleOptions,
@@ -964,6 +965,12 @@ function readXerProject(
       ...(statusDate ? { statusDate } : {}),
       progressMode,
       schedulingOptions,
+      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6; A19 is per bestand (PROJECT.rem_target_link_flag)
+      // en dus een afwijking op het profiel.
+      schedulingProfile: {
+        ...builtInProfile('p6'),
+        overrides: derivedSchedule.p6UseRemainingStartForProgress ? { p6UseRemainingStartForProgress: true } : {},
+      },
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
@@ -975,6 +982,7 @@ function readXerProject(
     customFieldDefs: metadata.customFieldDefs,
     recordedTimes,
     recordedTimesOrigin: 'xer',
+    suggestedProfileId: 'p6',
     xer: {
       sourceProjectId: projectId,
       defaultCurrencyCode: tables.header.defaultCurrencyCode,

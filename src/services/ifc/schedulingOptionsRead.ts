@@ -1,5 +1,5 @@
 import type {
-  BuiltInProfileId, SchedulingConventions, SchedulingOptions, SchedulingProfile,
+  BuiltInProfileId, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
 import {
   CONVENTIONS, diffAgainstBase, isBuiltInProfileId, isDefaultProfile, resolveConventions,
@@ -36,7 +36,7 @@ const BOOLEAN_KEYS = [
   // baan B) mogen ze nog in dit blok staan; `sanitizeProjectOptions` hieronder stript ze wel.
   'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
   'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
-] as const satisfies ReadonlyArray<keyof SchedulingOptions>;
+] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
 const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest'] as const;
@@ -49,18 +49,18 @@ const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): value i
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** Compile-time: elke sleutel van `SchedulingOptions` moet hieronder een tak hebben. */
+/** Compile-time: elke sleutel van `LegacySchedulingOptions` moet hieronder een tak hebben. */
 type HandledKeys =
   | (typeof BOOLEAN_KEYS)[number]
   | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
   | 'nearCriticalThreshold' | 'floatPaths';
-type MissingKeys = Exclude<keyof SchedulingOptions, HandledKeys>;
+type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
 const _allKeysHandled: MissingKeys extends never ? true : MissingKeys = true;
 void _allKeysHandled;
 
-export function sanitizeSchedulingOptions(input: unknown): SchedulingOptions | undefined {
+export function sanitizeSchedulingOptions(input: unknown): LegacySchedulingOptions | undefined {
   if (!isRecord(input)) return undefined;
-  const out: SchedulingOptions = {};
+  const out: LegacySchedulingOptions = {};
   // Sleutelvolgorde van de INVOER behouden: de round-trip-checks vergelijken via JSON.stringify,
   // en een geschreven blok moet na lezen byte-identiek terugkomen — de poort filtert, herordent niet.
   for (const key of Object.keys(input)) {
@@ -98,9 +98,8 @@ export function sanitizeSchedulingOptions(input: unknown): SchedulingOptions | u
 // ── Rekenprofielen (spec 2026-09-22, tweelagenmodel) ─────────────────────────────────────────────
 
 /** Eindmodel-sanitizer voor `project.schedulingOptions`: zoals `sanitizeSchedulingOptions`, maar
- *  conventiesleutels en `p6Source` worden gestript (die horen in het profiel). Nog nergens bedraad —
- *  zie `// INTEGRATIE(rekenprofielen):` in `ifcReader.ts`. */
-export function sanitizeProjectOptions(input: unknown): SchedulingOptions | undefined {
+ *  conventiesleutels en `p6Source` worden gestript (die horen in het profiel). */
+export function sanitizeProjectOptions(input: unknown): ProjectSchedulingOptions | undefined {
   return optionKeysOnly(sanitizeSchedulingOptions(input));
 }
 
@@ -115,14 +114,40 @@ const validId = (value: unknown): value is string =>
 const validName = (value: unknown): value is string =>
   typeof value === 'string' && value.length <= MAX_PROFILE_NAME_LENGTH;
 
+/** De LETTERLIJKE afwijkingen van een profiel: alleen booleans op bekende conventiesleutels, in
+ *  registervolgorde (bytevolgorde van de pset). Anders dan `diffAgainstBase` blijven ook afwijkingen
+ *  staan die toevallig gelijk zijn aan de basis — die dragen de herkomst bij een profielwissel
+ *  (P6{A13 uit} → OPS → opslaan → heropenen → P6 geeft exact het origineel). */
+export function literalOverrides(overrides: unknown): Partial<SchedulingConventions> {
+  const raw = isRecord(overrides) ? overrides : {};
+  const out: Partial<SchedulingConventions> = {};
+  for (const d of CONVENTIONS) {
+    const value = raw[d.id];
+    if (typeof value === 'boolean') out[d.id] = value;
+  }
+  return out;
+}
+
+/** Moet dit profiel als pset worden weggeschreven / na lezen op het project blijven staan? Alleen
+ *  het ops-profiel zónder enige (ook letterlijke) afwijking is "afwezig" (byte-identiek aan vroeger). */
+export function carriesProfile(profile: SchedulingProfile | undefined): profile is SchedulingProfile {
+  return profile !== undefined
+    && (!isDefaultProfile(profile) || Object.keys(literalOverrides(profile.overrides)).length > 0);
+}
+
 /**
- * `OPS_SchedulingProfile`-JSON uit een IFC (`{ id, baseId, conventions, name? }`) ⇒ profiel.
+ * `OPS_SchedulingProfile`-JSON uit een IFC (`{ id, baseId, conventions, overrides?, name? }`) ⇒ profiel.
  *  - geen object ⇒ `undefined` (de lezer valt terug op de legacy-migratie);
  *  - onbekende/ontbrekende `baseId` ⇒ `ops`;
  *  - `conventions`: per conventie een boolean ⇒ die waarde; ONTBREKENDE sleutel (een bestand van
  *    vóór die conventie) of ongeldig getypeerde waarde ⇒ `legacyValue`, nooit de basiswaarde;
  *    onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
  *    bestandswaarden winnen en de state blijft compact;
+ *  - `overrides` (sinds de C2-aanvulling, letterlijk weggeschreven): elke letterlijke afwijking die
+ *    met de opgeloste `conventions` klopt, blijft óók staan als ze gelijk is aan de basis (herkomst
+ *    bij een profielwissel). Een letterlijke afwijking die de `conventions` tegenspreekt, wordt
+ *    genegeerd: de opgeloste set is waarmee het bestand rekende. Afwezig (oudere bestanden) ⇒
+ *    alleen het verschil met de basis;
  *  - ongeldige/te lange `id` ⇒ de basis-id; een ingebouwde id met een andere basis ⇒ de basis-id;
  *  - `name` alleen voor eigen profielen, ≤ 200 tekens, anders leeg.
  */
@@ -138,19 +163,29 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
   let id = validId(input.id) ? input.id : baseId;
   if (isBuiltInProfileId(id) && id !== baseId) id = baseId;
   const name = !isBuiltInProfileId(id) && validName(input.name) ? input.name : '';
-  return { baseId, id, name, overrides: diffAgainstBase(baseId, resolved) };
+  const overrides = diffAgainstBase(baseId, resolved);
+  const literal = literalOverrides(input.overrides);
+  for (const d of CONVENTIONS) {
+    const value = literal[d.id];
+    if (value !== undefined && value === resolved[d.id]) overrides[d.id] = value;
+  }
+  // Registervolgorde, zodat lezen → schrijven byte-identiek blijft.
+  return { baseId, id, name, overrides: literalOverrides(overrides) };
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
  *  alle vijftien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
-  id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions; name?: string;
+  id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions;
+  overrides: Partial<SchedulingConventions>; name?: string;
 } {
   return {
     id: profile.id,
     baseId: profile.baseId,
     conventions: resolveConventions(profile),
+    // C2-aanvulling: de afwijkingen letterlijk, zodat ze een opslag overleven (zie `literalOverrides`).
+    overrides: literalOverrides(profile.overrides),
     ...(!isBuiltInProfileId(profile.id) && profile.name ? { name: profile.name } : {}),
   };
 }
@@ -183,8 +218,8 @@ export function sanitizeStoredSchedulingProfile(input: unknown): SchedulingProfi
  * bestaand bestand na lezen dezelfde state oplevert als vóór de rekenprofielen.
  */
 export function profileAfterRead(
-  psetProfile: SchedulingProfile | undefined, legacyBlob: SchedulingOptions | undefined,
+  psetProfile: SchedulingProfile | undefined, legacyBlob: LegacySchedulingOptions | undefined,
 ): SchedulingProfile | undefined {
   const profile = psetProfile ?? legacyOptionsToProfile(legacyBlob).profile;
-  return isDefaultProfile(profile) ? undefined : profile;
+  return carriesProfile(profile) ? profile : undefined;
 }

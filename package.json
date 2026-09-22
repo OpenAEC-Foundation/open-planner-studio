@@ -36,7 +36,8 @@
     "verify:text-roles": "node scripts/verify-text-roles.mjs",
     "verify:audit": "npm audit --audit-level=high",
     "publish:wiki": "node scripts/publish-wiki.mjs",
-    "stats:downloads": "node scripts/download-stats.mjs"
+    "stats:downloads": "node scripts/download-stats.mjs",
+    "measure:profiles": "node scripts/measure-profiles.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

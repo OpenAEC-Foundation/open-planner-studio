@@ -12,6 +12,8 @@ import {
   expectedXerScheduleOptions,
   scanRawXerScheduleOptions,
 } from './xerScheduleOptionsGroundTruth';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { builtInProfile, resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -94,56 +96,42 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
     id: projectA?.project.id,
     progressMode: projectA?.project.progressMode,
     schedulingOptions: projectA?.project.schedulingOptions,
+    schedulingProfile: projectA?.project.schedulingProfile,
   },
   {
     id: projectB?.project.id,
     progressMode: projectB?.project.progressMode,
     schedulingOptions: projectB?.project.schedulingOptions,
+    schedulingProfile: projectB?.project.schedulingProfile,
   },
 ], [
   {
     id: 'P-A',
     progressMode: 'PROGRESS_OVERRIDE',
     schedulingOptions: {
-      p6Source: 'XER',
       lagCalendar: 'successor',
       criticalDefinition: { mode: 'totalFloat', thresholdHours: 8 },
       totalFloatMode: 'start',
       makeOpenEndedCritical: true,
       useExpectedFinishDates: false,
-      preserveActualDatesInBackwardPass: true,
-      clampNegativeFreeFloat: true,
-      p6ZeroDurationUsesPlannedBoundary: true,
-      p6UseTaskPlannedStartFloor: true,
-      p6FinishMilestoneBoundaryWindow: true,
-      p6PreserveActualInstants: true,
-      p6UseRemainingStartForProgress: true,
-      p6PreserveZeroDurationConstraintInstants: true,
       p6CompletedLateFromRemainingWindow: false,
       useProjectEndDateForFloat: true,
     },
+    schedulingProfile: { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } },
   },
   {
     id: 'P-B',
     progressMode: 'RETAINED_LOGIC',
     schedulingOptions: {
-      p6Source: 'XER',
       lagCalendar: '24hour',
       criticalDefinition: { mode: 'longestPath' },
       totalFloatMode: 'finish',
       makeOpenEndedCritical: false,
       useExpectedFinishDates: true,
-      preserveActualDatesInBackwardPass: true,
-      clampNegativeFreeFloat: true,
-      p6ZeroDurationUsesPlannedBoundary: true,
-      p6UseTaskPlannedStartFloor: true,
-      p6FinishMilestoneBoundaryWindow: true,
-      p6PreserveActualInstants: true,
-      p6UseRemainingStartForProgress: false,
-      p6PreserveZeroDurationConstraintInstants: true,
       p6CompletedLateFromRemainingWindow: true,
       useProjectEndDateForFloat: false,
     },
+    schedulingProfile: builtInProfile('p6'),
   },
 ]);
 
@@ -151,12 +139,14 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
 // als de productlezer, maar mag hem niet importeren. Dit dekt de OZB-klasse: PROJECT-invoer en
 // SCHEDOPTIONS-invoer worden per project samengevoegd, ook in een meerdocumentbestand.
 const independentMultiTruth = scanRawXerScheduleOptions(multiSource);
+/** Sleutelvolgorde-ongevoelig: het register en de hand-lijst in de grondwaarheid ordenen verschillend. */
+const sortedJson = (value: object) => JSON.stringify(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
 eq('2a onafhankelijke SCHEDOPTIONS-grondwaarheid combineert PROJECT en SCHEDOPTIONS per project',
   ['P-A', 'P-B'].map(projectId => {
     const expected = expectedXerScheduleOptions(independentMultiTruth, projectId, { taskCount: 1 });
     return {
       projectId,
-      useRemainingStartForProgress: expected.schedulingOptions.p6UseRemainingStartForProgress,
+      useRemainingStartForProgress: expected.conventions.p6UseRemainingStartForProgress,
       useProjectEndDateForFloat: expected.schedulingOptions.useProjectEndDateForFloat,
       retainedSource: expected.retainedSource,
     };
@@ -248,28 +238,21 @@ const defaultProject = openedProjects(noScheduleSource('1900-01-01 00:00', '999'
 eq('4 ontbrekende SCHEDOPTIONS krijgt altijd de expliciete P6-defaultset op de 4h/8h-fixture', {
   progressMode: defaultProject.project.progressMode,
   schedulingOptions: defaultProject.project.schedulingOptions,
+  schedulingProfile: defaultProject.project.schedulingProfile,
   projectHours: defaultProject.calendar.hoursPerDay,
   taskHours: defaultProject.resourceCalendars?.find(calendar => calendar.id === 'C4')?.hoursPerDay,
   metadata: legacyMetadata(scheduleMetadata(defaultProject)),
 }, {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
-    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition: { mode: 'totalFloat', thresholdHours: 8 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: false,
-    p6PreserveZeroDurationConstraintInstants: true,
     p6CompletedLateFromRemainingWindow: true,
   },
+  schedulingProfile: builtInProfile('p6'),
   projectHours: 8,
   taskHours: 4,
   metadata: {
@@ -341,7 +324,7 @@ function solvedAxes(source: Uint8Array): unknown {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
   });
   return tasks.map(task => ({
@@ -449,7 +432,8 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
     return {
       name: roundTripped.project.name,
       progressMode: roundTripped.project.progressMode,
-      schedulingOptions: roundTripped.project.schedulingOptions,
+      // Rekenprofielen C2: opties + profiel ⇒ dezelfde opgeloste set als direct na het lezen.
+      schedulingOptions: solveOptionsFor(roundTripped.project).schedulingOptions,
       xer: {
         sourceProjectId: roundTripped.xer?.sourceProjectId,
         source: roundTripped.xer?.scheduleOptions.source,
@@ -460,7 +444,7 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
   }), [
     {
       name: 'Project A', progressMode: 'PROGRESS_OVERRIDE',
-      schedulingOptions: projectA?.project.schedulingOptions,
+      schedulingOptions: projectA ? solveOptionsFor(projectA.project).schedulingOptions : undefined,
       xer: {
         sourceProjectId: projectA?.xer.sourceProjectId,
         source: projectA?.xer.scheduleOptions.source,
@@ -472,7 +456,7 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
       // RETAINED_LOGIC is IFC's bestaande canonieke default en komt daarom als `undefined` terug;
       // de solversemantiek blijft retained. Een expliciete PROGRESS_OVERRIDE hierboven blijft staan.
       name: 'Project B', progressMode: undefined,
-      schedulingOptions: projectB?.project.schedulingOptions,
+      schedulingOptions: projectB ? solveOptionsFor(projectB.project).schedulingOptions : undefined,
       xer: {
         sourceProjectId: projectB?.xer.sourceProjectId,
         source: projectB?.xer.scheduleOptions.source,
@@ -503,7 +487,8 @@ if (corpusRoot && existsSync(corpusRoot)) {
       }) === JSON.stringify({
         progressMode: expected.progressMode,
         schedulingOptions: expected.schedulingOptions,
-      }) && JSON.stringify({
+      }) && sortedJson(resolveConventions(result.project.schedulingProfile)) === sortedJson(expected.conventions)
+      && JSON.stringify({
         source: metadata?.source,
         retainedSource: metadata?.retainedSource,
         fallbacks: metadata?.fallbacks,

@@ -49,6 +49,7 @@ import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/typ
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { installDOMParser } from './xmldom-shim';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 installDOMParser();
 
@@ -268,7 +269,7 @@ console.log('-- (c) nivelleerder boekt de contour --');
     });
     const b = task('b', '2026-06-01', '2026-06-02', 2, { priority: 500 });
     const assignments = [assign('a-r1', 'a', 'r1', 1), assign('b-r1', 'b', 'r1', 0.5)];
-    return levelResources([a, b], [], [res('r1', 1)], assignments, CAL, [], stubCpmResult('2026-06-02'), OPTS);
+    return levelResources([a, b], [], [res('r1', 1)], assignments, CAL, [], stubCpmResult('2026-06-02'), OPTS, legacyCpmOptions());
   };
   eq('c1 met contour (0,5/dag) past B ernaast: geen delay', mk(true).delays['b'], undefined);
   ok('c2 zonder contour boekt A 1/dag en moet B wijken', (mk(false).delays['b'] ?? 0) > 0);

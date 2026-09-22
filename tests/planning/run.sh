@@ -361,6 +361,16 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Regel A (rekenprofielen-spec §5): corpusloos mutatiebewijs van de cel-poortlogica plus de
+  # geldigheid van de gecommitte xer-product-fidelity-cells.json en haar pas (per entry/as/emmer)
+  # met xer-product-fidelity-baseline-v2.json. De corpusgebonden cel-poort zelf draait in
+  # check-xer-product-fidelity-x12.ts. Leest alleen JSON en pure logica: tijdzone-onafhankelijk.
+  FIDCELLSGATE="$DIR/.fidelity-cells-gate.mjs"
+  if bundle_check "$DIR/check-fidelity-cells-gate.ts" "$FIDCELLSGATE"; then
+    node "$FIDCELLSGATE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
@@ -1457,8 +1467,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-conventions-registry.ts" "$CONVREGCHECK"; then node "$CONVREGCHECK" || STATUS=1; fi
   SCHEDPROFRTCHECK="$DIR/.scheduling-profile-roundtrip.mjs"
   if bundle_check "$DIR/check-scheduling-profile-roundtrip.ts" "$SCHEDPROFRTCHECK"; then node "$SCHEDPROFRTCHECK" || STATUS=1; fi
+  # Rekenprofielen (plan 2026-09-22): solver-invoer, lezerprofielen, melding, afnemers, bewerkmodel,
+  # store-acties en de conventiegrens van de motor. Vooraf bedraad in M1 zodat banen C en D run.sh
+  # niet hoeven aan te raken.
+  SOLVEINPUTCHECK="$DIR/.solve-input.mjs"
+  if bundle_check "$DIR/check-solve-input.ts" "$SOLVEINPUTCHECK"; then node "$SOLVEINPUTCHECK" || STATUS=1; fi
+  IMPORTPROFILECHECK="$DIR/.import-profile.mjs"
+  if bundle_check "$DIR/check-import-profile.ts" "$IMPORTPROFILECHECK"; then node "$IMPORTPROFILECHECK" || STATUS=1; fi
+  PROFILENOTICECHECK="$DIR/.scheduling-profile-notice.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-notice.ts" "$PROFILENOTICECHECK"; then node "$PROFILENOTICECHECK" || STATUS=1; fi
   PROFILEDRAFTCHECK="$DIR/.scheduling-profile-draft.mjs"
   if bundle_check "$DIR/check-scheduling-profile-draft.ts" "$PROFILEDRAFTCHECK"; then node "$PROFILEDRAFTCHECK" || STATUS=1; fi
+  PROFILEACTIONSCHECK="$DIR/.scheduling-profile-actions.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-actions.ts" "$PROFILEACTIONSCHECK"; then node "$PROFILEACTIONSCHECK" || STATUS=1; fi
   CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
   if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
 

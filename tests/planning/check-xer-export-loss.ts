@@ -18,6 +18,7 @@ import type {
   XerTaskResourceSource,
 } from '@/services/xer/xerResourceTypes';
 import { readFileSync } from 'node:fs';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
 declare const process: { exit(code: number): never };
 const failures: string[] = [];
@@ -305,7 +306,8 @@ store().saveBaseline('Eerste');
 store().saveBaseline('Tweede actief');
 store().setProject({
   progressMode: 'PROGRESS_OVERRIDE',
-  schedulingOptions: { p6Source: 'XER', lagCalendar: '24hour', makeOpenEndedCritical: true },
+  schedulingOptions: { lagCalendar: '24hour', makeOpenEndedCritical: true },
+  schedulingProfile: builtInProfile('p6'),
 });
 
 const richFixture = makeXerFixture({
@@ -550,6 +552,19 @@ expect('alle werkelijk succesvolle exportpaden schreven uitvoer', captures.lengt
 expect('MPP heeft geen misleidende exportadapter en blijft expliciet unsupported',
   !EXPORT_FORMATS.some(item => (item.format as string) === 'mpp')
   && xerExportTargetVerdict('mpp') === 'unsupported');
+
+// ── C7 (rekenprofielen, spec v3.1 §7): het criterium is "overleeft het heropenen via het doelformaat".
+// Alle drie de doelformaten heropenen deze etappe als OPS; een P6-profiel overleeft dat niet.
+// Mutatiebewijs: de profielregel in hasScheduleLoss weglaten ⇒ C7-01 rood.
+resetProject('Profiel zonder opties');
+store().setProject({ schedulingProfile: builtInProfile('p6') });
+installXer(makeXerFixture({ sourceBytes: '%T\tTASK\r\n%F\ttask_id\r\n%R\tprofiel\r\n%E' }));
+expect('C7-01 P6-profiel naar CSV ⇒ schedule-verlies (heropent als OPS)',
+  categoriesOf(await store().exportAs('csv')).includes('schedule-options-and-provenance'));
+resetProject('OPS zonder opties');
+installXer(makeXerFixture({ sourceBytes: '%T\tTASK\r\n%F\ttask_id\r\n%R\tops\r\n%E' }));
+expect('C7-02 OPS-profiel zonder opties naar CSV ⇒ geen schedule-verlies',
+  !categoriesOf(await store().exportAs('csv')).includes('schedule-options-and-provenance'));
 
 if (failures.length === 0) {
   console.log(`OK  xer-export-loss: alle checks groen (${checks})`);

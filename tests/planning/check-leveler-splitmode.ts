@@ -20,6 +20,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -110,7 +111,7 @@ console.log('-- leveler-splitmode: uit=uitloop, aan=onderbreking (geval 1) --');
   ];
   const rOff = levelResources(
     [taskAPlain, taskBOff], [], [resourceOff], assignmentsOff, PROJECT_CAL, [], stubCpmResult('2026-06-03'),
-    LEVEL_OPTS_OFF,
+    LEVEL_OPTS_OFF, legacyCpmOptions(),
   );
   eq('zonder onderbrekingen: B loopt uit (start do, delay 3)', rOff.delays['b1'], 3);
   eq('zonder onderbrekingen: geen gaten geschreven', rOff.gaps['b1'], undefined);
@@ -125,7 +126,7 @@ console.log('-- leveler-splitmode: uit=uitloop, aan=onderbreking (geval 1) --');
   const assignmentsOn = [blk1.a, assign('b1s-r', 'b1s', 'r-split1-on', 1)];
   const rOn = levelResources(
     [blk1.t, taskBOn], [], [resourceOn], assignmentsOn, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
-    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
   );
   eq('met onderbrekingen: B start op de eerste vrije dag (di, delay 1)', rOn.delays['b1s'], 1);
   ok('met onderbrekingen: B krijgt precies één leveling-gat',
@@ -167,7 +168,7 @@ console.log('-- leveler-splitmode: v1-grens — completion>0 en ELAPSEDTIME (gev
   const assignments3 = [blk3.a, assign('cdone3-r', 'cdone3', 'r-split3', 1)];
   const r3 = levelResources(
     [blk3.t, taskCDone], [], [resource3], assignments3, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
-    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
   );
   eq('completion > 0 ⇒ geen leveling-gaten, alleen (evt. onopgeloste) uitloop', r3.gaps['cdone3'], undefined);
 
@@ -188,7 +189,7 @@ console.log('-- leveler-splitmode: v1-grens — completion>0 en ELAPSEDTIME (gev
   const assignments4 = [blk4.a, assign('e4-r', 'e4', 'r-split4', 1)];
   const r4 = levelResources(
     [blk4.t, taskE], [], [resource4], assignments4, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
-    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
   );
   eq('ELAPSEDTIME ⇒ geen leveling-gaten', r4.gaps['e4'], undefined);
 }
@@ -215,7 +216,7 @@ console.log('-- leveler-splitmode: uur-modus is split-eligible (geval 3b) --');
   const assignments5 = [blk5.a, assign('h5-r', 'h5', 'r-split5', 1)];
   const r5 = levelResources(
     [blk5.t, taskH], [], [resource5], assignments5, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
-    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
   );
   ok('uur-modus krijgt precies één leveling-gat (een hele werkdag pauze)',
     r5.gaps['h5']?.length === 1 && r5.gaps['h5'][0].source === 'leveling');
@@ -242,7 +243,7 @@ console.log('-- leveler-splitmode: importsplit blijft, leveling-gat komt erbij (
   const assignments6 = [blk6.a, assign('f6-r', 'f6', 'r-split6', 1)];
   const r6 = levelResources(
     [blk6.t, taskF], [], [resource6], assignments6, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
-    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
   );
   ok('importsplit blijft, leveling-gat komt erbij',
     r6.gaps['f6']?.filter(g => g.source === undefined).length === 1);
@@ -282,7 +283,7 @@ console.log('-- B1c-plan3 taak 1: scatter-randen --');
   const assignments7 = [blk.a, assign('z7-r', 'z7', 'r-split7', 1)];
   const rEmpty = levelResources(
     [blk.t, taskZ], [], [resource7], assignments7, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
-    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
   );
   ok('lege scatter levert nooit een Invalid Date als start',
     !isNaN(parseDate(rEmpty.shifts['z7']?.newStart ?? '2026-06-01').getTime()));
@@ -309,7 +310,7 @@ console.log('-- B1c-plan3 taak 1: scatter-randen --');
   const t0 = Date.now();
   const rNoWindow = levelResources(
     tasksN, [], resourcesN, assignsN, PROJECT_CAL, [], stubCpmResult('2026-06-02'),
-    { constrainToFloat: false, allowSplits: true },
+    { constrainToFloat: false, allowSplits: true }, legacyCpmOptions(),
   );
   const elapsedMs = Date.now() - t0;
   eq('geen eindeloze scatter-scan: eerlijke horizon-reden', rNoWindow.unresolvedReasons['nw0'], 'NO_WINDOW_IN_HORIZON');
@@ -350,7 +351,7 @@ console.log('-- B1c-plan3 taak 1: scatter-randen --');
   const resource7h = res('r-split7h', 1);
   const rFrac = levelResources(
     [blockerTask, taskH], [], [resource7h], [blockerAssign, hAssign], PROJECT_CAL, [], stubCpmResult('2026-06-03'),
-    { constrainToFloat: false, overrunCeilingDays: 2, allowSplits: true },
+    { constrainToFloat: false, overrunCeilingDays: 2, allowSplits: true }, legacyCpmOptions(),
   );
   eq('fractionele uur-modus: drie curve-slots, dus drie werkdagen',
     enumerateTaskWorkDays(rFrac.gaps['h7'], projEng, rFrac.shifts['h7']?.newStart ?? '2026-06-01', 3),
@@ -384,7 +385,7 @@ console.log('-- B1c-plan3 taak 1: scatter-randen --');
   const rHorizon = levelResources(
     [hz, anchor], [], [resourceHz], [assign('hz-a', 'hz', 'r-hz', 1)],
     PROJECT_CAL, [], stubCpmResult('2026-07-15'),
-    { constrainToFloat: true, allowSplits: true },
+    { constrainToFloat: true, allowSplits: true }, legacyCpmOptions(),
   );
   eq('scatter die op de horizon vastloopt ⇒ NO_WINDOW_IN_HORIZON',
     rHorizon.unresolvedReasons['hz'], 'NO_WINDOW_IN_HORIZON');

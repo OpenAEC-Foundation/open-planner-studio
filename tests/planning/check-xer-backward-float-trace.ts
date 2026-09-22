@@ -3,6 +3,10 @@ import { readXER } from '@/services/xer/xerReader';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { replayXerProductBeforeOracle, syntheticZeroRegressionCandidate } from './xerTaskReplayProduct';
 import type { CpmBackwardFloatTrace, CpmProjectEndSource, CpmTaskBackwardFloatTrace } from '@/engine/scheduler/CPMSolver';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -112,10 +116,7 @@ function traceProjection(trace: CpmBackwardFloatTrace | undefined): TraceProject
 
 function solveTraceVariant(variant: Variant): TraceProjection {
   const imported = structuredClone(importFixture(fixtureBytes(variant)));
-  imported.project.schedulingOptions = {
-    ...imported.project.schedulingOptions,
-    p6FinishMilestoneBoundaryWindow: variant.finishMilestoneBoundary,
-  };
+  setConvention(imported, 'p6FinishMilestoneBoundaryWindow', variant.finishMilestoneBoundary);
   const result = solveProject({
     tasks: imported.tasks,
     sequences: imported.sequences,
@@ -123,7 +124,7 @@ function solveTraceVariant(variant: Variant): TraceProjection {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -162,7 +163,7 @@ function solveCompletedGuardFixture(
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -323,10 +324,7 @@ const completedGuardVariants: Array<{
   {
     id: 'preserve-uit',
     mutate: imported => {
-      imported.project.schedulingOptions = {
-        ...imported.project.schedulingOptions,
-        preserveActualDatesInBackwardPass: false,
-      };
+      setConvention(imported, 'preserveActualDatesInBackwardPass', false);
     },
     expected: {
       displayActualLate: false,
@@ -353,8 +351,8 @@ const completedGuardVariants: Array<{
   const imported = importFixture(fixtureBytes(variants[0]!));
   const completed = imported.tasks.find(task => task.id === 'C');
   eq('backward-float-trace fixture activeert de completed-window-guard zonder oracledata', {
-    p6Source: imported.project.schedulingOptions?.p6Source,
-    remainingStart: imported.project.schedulingOptions?.p6UseRemainingStartForProgress,
+    profile: imported.project.schedulingProfile?.id,
+    remainingStart: resolveConventions(imported.project.schedulingProfile).p6UseRemainingStartForProgress,
     completion: completed?.time.completion,
     p6ProjectId: completed?.p6ProjectId,
     p6TaskId: completed?.p6TaskId,
@@ -362,7 +360,7 @@ const completedGuardVariants: Array<{
     completePctType: completed?.p6CompletePctType,
     durationType: completed?.p6DurationType,
   }, {
-    p6Source: 'XER',
+    profile: 'p6',
     remainingStart: true,
     completion: 1,
     p6ProjectId: 'P1',
@@ -459,17 +457,22 @@ for (const variant of completedGuardVariants) {
 
 {
   const imported = structuredClone(importFixture(fixtureBytes(variants[0]!)));
-  imported.project.schedulingOptions = {
-    ...imported.project.schedulingOptions,
-    p6Source: undefined,
-  };
+  withoutP6Semantics(imported);
   const result = solveProject({
     tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
-    progressMode: imported.project.progressMode, schedulingOptions: imported.project.schedulingOptions,
+    progressMode: imported.project.progressMode, schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
   });
   eq('backward-float-trace faalt gesloten zonder XER-bronsignaal', result.backwardFloatTrace, undefined);
+}
+{
+  // Rekenprofielen C4: de trace volgt conventie B3 (spec v3.1 §4) — alleen die ene conventie uit ⇒ geen trace.
+  const imported = structuredClone(importFixture(fixtureBytes(variants[0]!)));
+  setConvention(imported, 'p6CompletedDataDateWindow', false);
+  const result = solveProject(solveInputFor(imported.project, imported.tasks, imported.sequences,
+    imported.calendar, imported.resourceCalendars ?? []));
+  eq('backward-float-trace volgt p6CompletedDataDateWindow: conventie uit ⇒ geen trace', result.backwardFloatTrace, undefined);
 }
 
 if (diffs.length > 0) {

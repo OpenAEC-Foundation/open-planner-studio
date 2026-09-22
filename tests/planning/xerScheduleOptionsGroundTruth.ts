@@ -4,7 +4,7 @@ import type {
   XerScheduleOptionsSourceArchive,
   XerScheduleOptionsSourceRow,
 } from '@/services/importTypes';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type { ConventionKey, ProgressMode, ProjectSchedulingOptions } from '@/types/project';
 
 export interface RawXerScheduleRow {
   line: number;
@@ -21,7 +21,12 @@ export interface RawXerScheduleScan {
 
 export interface IndependentXerScheduleExpected {
   progressMode: ProgressMode;
-  schedulingOptions: SchedulingOptions;
+  /** Alleen projectopties (rekenprofielen C4): de lezer zet geen conventies meer in de opties. */
+  schedulingOptions: ProjectSchedulingOptions;
+  /** De OPGELOSTE conventieset die een XER-project moet dragen (P6-profiel + A19 uit het bestand).
+   *  Een hand-lijst hier, bewust zonder import uit het register (spec v3.1 §7): een registerwijziging
+   *  mag deze verwachting niet meeschuiven. Vergelijk met `resolveConventions(project.schedulingProfile)`. */
+  conventions: Record<ConventionKey, boolean>;
   source: 'schedoptions' | 'xer-defaults';
   retainedSource: { sched_use_project_end_date_for_float?: boolean };
   fallbacks: XerScheduleOptionFallback[];
@@ -173,7 +178,7 @@ export function expectedXerScheduleOptions(
   const diagnostics = scan.sourceArchive.diagnostics.filter(item => item.projectId === projectId);
   const fallbacks: XerScheduleOptionFallback[] = [];
   const criticalToken = projectRow?.cells.critical_path_type?.trim() ?? '';
-  let criticalDefinition: SchedulingOptions['criticalDefinition'];
+  let criticalDefinition: ProjectSchedulingOptions['criticalDefinition'];
   if (criticalToken.toUpperCase() === 'CT_DRIVPATH') {
     criticalDefinition = { mode: 'longestPath' };
   } else {
@@ -185,35 +190,43 @@ export function expectedXerScheduleOptions(
       thresholdHours: rawNumber(projectRow?.cells.critical_drtn_hr_cnt ?? '') ?? 0,
     };
   }
-  const schedulingOptions: SchedulingOptions = {
+  const schedulingOptions: ProjectSchedulingOptions = {
     // Onafhankelijk testorakel: deze XER-eigen switches zijn letterlijk uit de toegestane
     // PROJECT/SCHEDOPTIONS-bronvorm afgeleid als vaste, brongebonden defaults — geen import van
     // `xerScheduleOptions.ts`, zodat een productwijziging de verwachting niet kan meeschuiven.
-    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition,
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
+    // X-O7 laag 1, klasse (i): de bewijsbasis is uitsluitend RETAINED_LOGIC-corpus, dus deze
+    // onafhankelijke afleiding zet 'm net als de productie-afleiding standaard aan en weer uit
+    // zodra `sched_progress_override=Y` blijkt (hieronder, ná de progressMode-afleiding).
+    p6CompletedLateFromRemainingWindow: true,
+  };
+  // De opgeloste P6-conventies (hand-lijst, spec v3.1 bijlage A): alles aan behalve de twee
+  // MS Project-conventies; A19 per bestand uit PROJECT.rem_target_link_flag — óók als een project
+  // geen SCHEDOPTIONS-rij heeft. Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
+  const conventions: Record<ConventionKey, boolean> = {
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
     p6ZeroDurationUsesPlannedBoundary: true,
     p6UseTaskPlannedStartFloor: true,
     p6FinishMilestoneBoundaryWindow: true,
     p6PreserveActualInstants: true,
-    // PROJECT is de bron van deze keuze, óók als een project geen SCHEDOPTIONS-rij heeft.
-    // Dit blijft een onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
-    p6UseRemainingStartForProgress:
-      projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y',
+    p6UseRemainingStartForProgress: projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y',
     p6PreserveZeroDurationConstraintInstants: true,
-    // X-O7 laag 1, klasse (i): de bewijsbasis is uitsluitend RETAINED_LOGIC-corpus, dus deze
-    // onafhankelijke afleiding zet 'm net als de productie-afleiding standaard aan en weer uit
-    // zodra `sched_progress_override=Y` blijkt (hieronder, ná de progressMode-afleiding).
-    p6CompletedLateFromRemainingWindow: true,
+    resumeFromActualElapsed: false,
+    unstartedIgnoresStatusDate: false,
+    p6RelationFinishBoundary: true,
+    p6BackwardLagFinishBoundary: true,
+    p6CompletedDataDateWindow: true,
+    p6CompletedLoeActualFinish: true,
+    p6OpenLoeTargetSpan: true,
   };
   if (!scheduleRow) {
     return {
-      progressMode: 'RETAINED_LOGIC', schedulingOptions, source: 'xer-defaults',
+      progressMode: 'RETAINED_LOGIC', schedulingOptions, conventions, source: 'xer-defaults',
       retainedSource: {}, fallbacks, diagnostics, sourceRowIndexes, sourceRows,
     };
   }
@@ -284,7 +297,7 @@ export function expectedXerScheduleOptions(
     };
   }
   return {
-    progressMode, schedulingOptions, source: 'schedoptions', retainedSource,
+    progressMode, schedulingOptions, conventions, source: 'schedoptions', retainedSource,
     fallbacks, diagnostics, sourceRowIndexes, sourceRows,
   };
 }

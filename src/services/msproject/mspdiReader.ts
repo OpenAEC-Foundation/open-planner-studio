@@ -751,6 +751,8 @@ export function readMSPDI(content: string): ImportResult {
     customTaskTypes: [...customTaskTypes.values()],
     baselines,
     activeBaselineId,
+    // Rekenprofielen (spec v3.1 §6): MSPDI opent in deze etappe als OPS (C10 wacht op een besluit).
+    suggestedProfileId: 'ops',
   };
 }
 

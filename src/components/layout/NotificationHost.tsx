@@ -23,6 +23,7 @@ export function NotificationHost() {
   const notifications = useAppStore((s) => s.ui.notifications);
   const dismissNotification = useAppStore((s) => s.dismissNotification);
   const openHelpArticle = useAppStore((s) => s.openHelpArticle);
+  const setUI = useAppStore((s) => s.setUI);
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
   const { t } = useTranslation();
@@ -73,6 +74,23 @@ export function NotificationHost() {
               onClick={(e) => { e.stopPropagation(); openHelpArticle(n.helpArticleId!); }}
             >
               {t('notifications.readMore')}
+            </button>
+          )}
+          {n.action && (
+            // Rekenprofielen (spec v3.1 §6): de serialiseerbare actie uit de store. `stopPropagation`
+            // zodat de klik niet ook de wegklik-handler van de toast triggert (zelfde als "Lees meer").
+            <button
+              type="button"
+              className="ops-textlink ops-toast-readmore"
+              data-ops-notification-action={n.action.kind}
+              onClick={(e) => {
+                e.stopPropagation();
+                const action = n.action!;
+                setUI({ activeRibbonTab: 'file', backstageSection: action.section });
+                dismissNotification(n.id);
+              }}
+            >
+              {t(n.action.labelKey)}
             </button>
           )}
         </div>
