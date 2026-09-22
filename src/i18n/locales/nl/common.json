@@ -1231,6 +1231,10 @@
     "p6CompletedRemainingLag": {
       "label": "Verstreken lag van een voltooide voorganger telt niet",
       "help": "Aan de late kant telt van de lag na een voltooide voorganger alleen het deel dat op de statusdatum nog niet verstreken is."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Voltooide taak buiten volgorde wacht op haar voorgangers",
+      "help": "Een voltooide taak waarvan een voorganger nog niet klaar is, krijgt haar nulvenster ná die voorganger in plaats van op de statusdatum (Retained Logic)."
     }
   },
   "profiles": {

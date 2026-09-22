@@ -1266,6 +1266,10 @@
     "p6CompletedRemainingLag": {
       "label": "Il ritardo trascorso di un predecessore completato non conta",
       "help": "Sul lato delle date al più tardi conta solo la parte del ritardo dopo un predecessore completato non ancora trascorsa alla data di stato."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Un'attività completata fuori sequenza attende i suoi predecessori",
+      "help": "Un'attività completata con un predecessore non ancora terminato riceve la sua finestra nulla dopo quel predecessore invece che alla data di stato (logica mantenuta)."
     }
   },
   "profiles": {

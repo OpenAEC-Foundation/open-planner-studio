@@ -78,6 +78,11 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  // HERPIN 2026-09-23c (X12 naar nul, brok 3 — conventie C4 `p6CompletedOutOfSequenceWindow`, brok
+  // B04): 12.973 → 11.771 (−1.202, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
+  // es −432, ef −432, tf −298, ff −40 — een voltooide taak (of actief met restduur 0) met een
+  // onvoltooide voorganger krijgt haar nul-restvenster ná die voorganger (Retained Logic), en haar
+  // opvolgers schuiven mee. De late kant van die 36 wortels wacht op B01/B05. Sameday ongewijzigd.
   // HERPIN 2026-09-23b (X12 naar nul, brok 2 vervolg — conventie C3 `p6CompletedRemainingLag`, brok
   // B03): 13.324 → 12.973 (−351, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
   // ls −122, lf −122, tf −107 — voltooide voorgangers op de B3-restvensterroute rekenen achterwaarts
@@ -113,16 +118,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 12_855, ef: 12_807, ls: 10_367, lf: 10_321, tf: 10_010, ff: 13_169 },
+    exact: { es: 13_287, ef: 13_239, ls: 10_367, lf: 10_321, tf: 10_308, ff: 13_209 },
     sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
-    diff: { es: 980, ef: 1_033, ls: 3_326, lf: 3_399, tf: 3_667, ff: 153 },
+    diff: { es: 548, ef: 601, ls: 3_326, lf: 3_399, tf: 3_369, ff: 113 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 1_076, ef: 1_130, ls: 3_455, lf: 3_492, tf: 3_667, ff: 153 },
+    deviations: { es: 644, ef: 698, ls: 3_455, lf: 3_492, tf: 3_369, ff: 113 },
     drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: '89a7de4be4d9d503caee9df8a5b54ddee7f9af2e6c8da9280f7e6a678032636e',
-  productPayloadGzipSha256: 'b78531585c808b5c6b53f2ed7c912a03719880c14173b7ec6eed47bc9a0c3700',
-  productProjectProjectionSha256: 'e83064c370d57497b26ba5bcd1cc06553ab5916633a919869c3172a1092afefa',
+  productPayloadSha256: 'a95e32a8dbf5740e2ef8d8971697afcf9f70805530b2787536125536329f2c6a',
+  productPayloadGzipSha256: 'b96d134170c38deceaab3af61ced37cc223990dc42924acd2c59f85802266cfb',
+  productProjectProjectionSha256: '8960285d1b2277b9e7b89d710ae148dbb6cacb7acc72f51ee5a98011afdf6b16',
   roles: {
     oracle: 45,
     'engine-input': 14,

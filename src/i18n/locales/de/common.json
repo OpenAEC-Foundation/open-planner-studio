@@ -1231,6 +1231,10 @@
     "p6CompletedRemainingLag": {
       "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",
       "help": "Auf der späten Seite zählt vom Zeitabstand nach einem abgeschlossenen Vorgänger nur der Teil, der am Statusdatum noch nicht verstrichen ist."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Abgeschlossener Vorgang außerhalb der Reihenfolge wartet auf seine Vorgänger",
+      "help": "Ein abgeschlossener Vorgang, dessen Vorgänger noch nicht fertig ist, erhält sein Nullfenster nach diesem Vorgänger statt am Statusdatum (Retained Logic)."
     }
   },
   "profiles": {

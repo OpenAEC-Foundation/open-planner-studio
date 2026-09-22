@@ -1266,6 +1266,10 @@
     "p6CompletedRemainingLag": {
       "label": "O atraso decorrido de uma predecessora concluída não conta",
       "help": "No lado das datas mais tardias, conta apenas a parte do atraso após uma predecessora concluída que ainda não decorreu na data de estado."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Tarefa concluída fora de sequência aguarda as suas predecessoras",
+      "help": "Uma tarefa concluída cuja predecessora ainda não terminou recebe a sua janela nula depois dessa predecessora, em vez de na data de estado (lógica retida)."
     }
   },
   "profiles": {

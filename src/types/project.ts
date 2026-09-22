@@ -252,10 +252,32 @@ export interface SchedulingOptions {
    *  - MS Project: uit. MS Project kent geen late-kant-statusdatumvenster voor voltooide taken (zie C1).
    *  - OPS: uit (de volle lag, het gedrag van vóór deze conventie). */
   p6CompletedRemainingLag?: boolean;
+  /** C4 — RETAINED LOGIC voor een voltooide activiteit buiten volgorde (out-of-sequence): het
+   *  nul-restvenster van een voltooide taak op de statusdatumroute (conventie B3,
+   *  `explainP6CompletedDataDateWindow`) ligt niet vóór de relatiegrens van een voorganger die nog
+   *  niet klaar is. Voor elke FS- of SS-relatie uit een open voorganger (of uit een voltooide
+   *  voorganger die zelf zo'n verschoven venster heeft) telt de gewone voorwaartse relatiegrens; het
+   *  venster begint op de laatste van die grenzen en de statusdatum (`CPMSolver`, alleen bij
+   *  Retained Logic, dus niet onder `progressMode: 'PROGRESS_OVERRIDE'`). Het verschoven venster
+   *  bepaalt de weergave (ES/EF, en daarmee de speling) en de relatiegrens naar de opvolgers; de
+   *  late kant blijft ongewijzigd. FF/SF-relaties naar zo'n taak doen (nog) niet mee: ongemeten.
+   *
+   *  - P6: aan. Oracle P6 Professional Help, "General tab - Schedule Options dialog box": "Retained
+   *    Logic: The remaining duration of a progressed activity is not scheduled until all of its
+   *    predecessors are finished" (docs.oracle.com/cd/F25600_01/client_help, `general_tab_-_
+   *    schedule_options_dialog_box`); de restduur 0 van een voltooide activiteit valt daar ook onder.
+   *    Gemeten: `rehab-2.xer`, 36 voltooide of actieve taken met restduur 0 en een onvoltooide
+   *    voorganger (classificatie brok B04): P6 zet ES op de eerste werkgrens ná de relatiegrens
+   *    (bv. V3117130: voorganger V3209135 EF 08-19 17:00 ⇒ ES 08-20 08:00 / EF 08-19 17:00; met
+   *    FS+240 h en SS evenzo), niet op de statusdatum 05-27.
+   *  - MS Project: uit. Een voltooide taak houdt in MS Project haar werkelijke Start en Finish; de
+   *    koppeling naar een onvoltooide voorganger verschuift alleen onvoltooid werk.
+   *  - OPS: uit (het venster op de statusdatum, het gedrag van vóór deze conventie). */
+  p6CompletedOutOfSequenceWindow?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de achttien PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de negentien PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -278,7 +300,8 @@ export type ConventionKey =
   | 'p6OpenLoeTargetSpan'
   | 'p6CompletedPredecessorAtDataDate'
   | 'p6FreeFloatOnOwnCalendar'
-  | 'p6CompletedRemainingLag';
+  | 'p6CompletedRemainingLag'
+  | 'p6CompletedOutOfSequenceWindow';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

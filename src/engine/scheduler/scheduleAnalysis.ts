@@ -42,6 +42,8 @@ export interface ScheduleAnalysisInput {
   // ── Aan de solver gebonden, stateless kalender-helpers (modus-bewust, §5) ──
   calendarFor: (task: Task) => CalendarEngine;
   progressCalendarFor: (task: Task) => CalendarEngine;
+  /** Conventie C4: verschoven begin van het nul-restvenster (voltooid buiten volgorde). */
+  completedOutOfSequenceEs?: ReadonlyMap<string, Date>;
   /** `task` optioneel (T8): ELAPSEDTIME ⇒ kale klok-span i.p.v. werkdag-telling, zie
    *  `CPMSolver.signedFloat`/`duration.ts`'s `signedElapsedSpan`. */
   signedFloat: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
@@ -268,7 +270,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const completedDisplayWindow = completedWindowDecision.eligible
       ? (() => {
         const progressCal = progressCalendarFor(taskObj);
-        const es = snapOnOrAfter(progressCal, dataDate!);
+        const es = input.completedOutOfSequenceEs?.get(taskId) ?? snapOnOrAfter(progressCal, dataDate!);
         return {
           es,
           ef: progressCal.prevWorkInstant(es),

@@ -1196,6 +1196,10 @@
     "p6CompletedRemainingLag": {
       "label": "완료된 선행 작업의 경과한 지연은 계산하지 않음",
       "help": "늦은 날짜 쪽에서는 완료된 선행 작업 뒤의 지연 중 상태 날짜에 아직 경과하지 않은 부분만 계산합니다."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "순서 밖에서 완료된 작업은 선행 작업을 기다림",
+      "help": "선행 작업이 아직 끝나지 않은 완료 작업은 영(0) 구간을 상태 날짜가 아니라 그 선행 작업 뒤에 둡니다(Retained Logic)."
     }
   },
   "profiles": {

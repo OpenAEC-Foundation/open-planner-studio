@@ -1266,6 +1266,10 @@
     "p6CompletedRemainingLag": {
       "label": "La demora transcurrida de un predecesor completado no cuenta",
       "help": "En el lado tardío solo cuenta la parte de la demora tras un predecesor completado que aún no ha transcurrido en la fecha de estado."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Una tarea completada fuera de secuencia espera a sus predecesoras",
+      "help": "Una tarea completada cuya predecesora aún no ha terminado recibe su ventana nula después de esa predecesora en lugar de en la fecha de estado (lógica retenida)."
     }
   },
   "profiles": {

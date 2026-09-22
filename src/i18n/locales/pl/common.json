@@ -1301,6 +1301,10 @@
     "p6CompletedRemainingLag": {
       "label": "Upłynięte opóźnienie zakończonego poprzednika nie jest liczone",
       "help": "Po stronie terminów najpóźniejszych liczy się tylko ta część opóźnienia po zakończonym poprzedniku, która w dacie stanu jeszcze nie upłynęła."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Zadanie zakończone poza kolejnością czeka na poprzedników",
+      "help": "Zakończone zadanie, którego poprzednik jeszcze się nie zakończył, dostaje swoje zerowe okno po tym poprzedniku zamiast w dacie stanu (Retained Logic)."
     }
   },
   "profiles": {

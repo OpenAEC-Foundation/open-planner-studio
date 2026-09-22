@@ -226,6 +226,7 @@ export function expectedXerScheduleOptions(
     p6CompletedPredecessorAtDataDate: true,
     p6FreeFloatOnOwnCalendar: true,
     p6CompletedRemainingLag: true,
+    p6CompletedOutOfSequenceWindow: true,
   };
   if (!scheduleRow) {
     return {

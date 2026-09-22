@@ -1231,6 +1231,10 @@
     "p6CompletedRemainingLag": {
       "label": "Tamamlanmış öncülün geçmiş gecikmesi sayılmaz",
       "help": "Geç tarihler tarafında, tamamlanmış bir öncülden sonraki gecikmenin yalnızca durum tarihinde henüz geçmemiş kısmı sayılır."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Sıra dışı tamamlanan görev öncüllerini bekler",
+      "help": "Öncülü henüz bitmemiş tamamlanmış bir görevin sıfır penceresi, durum tarihine değil o öncülden sonraya yerleştirilir (Retained Logic)."
     }
   },
   "profiles": {

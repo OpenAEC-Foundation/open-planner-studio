@@ -33,7 +33,7 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    `perFile` (op een ingebouwd id blijven alle afwijkingen letterlijk staan).
 5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
-6. **Gids**: één regel onder "De achttien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
+6. **Gids**: één regel onder "De negentien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
    (pas het aantal aan, ook in de kop en in "Wat je hier leert").
 7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
    met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).

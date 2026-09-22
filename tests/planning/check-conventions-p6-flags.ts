@@ -418,11 +418,11 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 }
 
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
-// C3 `p6CompletedRemainingLag` ──
+// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
-const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag'] as const satisfies readonly ConventionKey[];
+const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow'] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
 function calendarDataOn(workDays: readonly number[], bands: ReadonlyArray<readonly [string, string]>): string {
@@ -546,6 +546,44 @@ groupC.push({
   builtInOff: { ls: '2026-02-03T08:00', lf: '2026-02-03T17:00' },
 });
 
+// C4: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 17:00 (het restwerk begint do 15 jan 08:00),
+// rem_target_link_flag=Y (de B3-route). Open P (3 dagen, niet gestart) —FS0→ voltooide C (werkelijk
+// ma 5 jan) —FS0→ open S (1 dag). P loopt do 15 t/m ma 19 jan 17:00. P6 (Retained Logic): het
+// nul-restvenster van C ligt ná P — ES di 20 jan 08:00, EF ma 19 jan 17:00 — en S start di 20 jan.
+// Zonder C4: het venster op de statusdatum (ES do 15 jan 08:00, EF wo 14 jan 17:00).
+groupC.push({
+  flag: 'p6CompletedOutOfSequenceWindow',
+  label: 'C4 voltooide taak buiten volgorde',
+  input: importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tC4-fixture\tC1\t2026-01-14 17:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float\tsched_retained_logic',
+    '%R\tP1\tN\tY',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tP\tP1\tC1\tPRED\tOpen voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-15 08:00\t2026-01-19 17:00\t\t',
+    '%R\tC\tP1\tC1\tDONE\tVoltooid buiten volgorde\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t9\t0\t2026-01-05 08:00\t2026-01-05 17:00\t2026-01-05 08:00\t2026-01-05 17:00',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-15 08:00\t2026-01-15 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tC\tP\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tS\tC\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]),
+  taskId: 'C',
+  pick: axes => ({ es: axes.es, ef: axes.ef }),
+  on: { es: '2026-01-20T08:00', ef: '2026-01-19T17:00' },
+  off: { es: '2026-01-15T08:00', ef: '2026-01-14T17:00' },
+  // Zonder B3 (OPS/MS Project) toont een voltooide taak haar werkelijke datums.
+  builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-05T17:00' },
+});
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;
@@ -567,9 +605,56 @@ for (const fixture of groupC) {
   }
 }
 
+// C4, relatiekant en voortgangsmodus: de opvolger S van het verschoven venster start direct erna
+// (di 20 jan 08:00, zonder C4 op de statusdatum); onder Progress Override geldt C4 niet.
+{
+  const c4 = groupC.find(fixture => fixture.flag === 'p6CompletedOutOfSequenceWindow')!;
+  eq('C4 opvolger start ná het verschoven venster', solveAxes(c4.input, 'S').es, '2026-01-20T08:00');
+  eq('C4 uit ⇒ opvolger op de statusdatum',
+    solveAxes(withProfile(c4.input, copy => setConvention(copy, 'p6CompletedOutOfSequenceWindow', false)), 'S').es,
+    '2026-01-15T08:00');
+  const override = structuredClone(c4.input);
+  override.project.progressMode = 'PROGRESS_OVERRIDE';
+  eq('C4 onder Progress Override ⇒ venster op de statusdatum',
+    (({ es, ef }) => ({ es, ef }))(solveAxes(override, 'C')), c4.off);
+  // Wat C4 NIET raakt (docblok): een FF- of SF-relatie naar de voltooide taak (ankert op haar
+  // finish; ongemeten) en een LOE/hammock-voorganger. Met C4 aan blijft het venster dan op de
+  // statusdatum, en de late kant van C verandert in geen van de gevallen.
+  for (const type of ['FINISH_FINISH', 'START_FINISH'] as const) {
+    const variant = structuredClone(c4.input);
+    variant.sequences.find(seq => seq.successorId === 'C')!.type = type;
+    eq(`C4 raakt geen ${type}-relatie naar de voltooide taak`,
+      (({ es, ef }) => ({ es, ef }))(solveAxes(variant, 'C')), c4.off);
+  }
+  // LOE/hammock: P wordt een hammock die via SS+FF de open taak Q (do 15 – ma 19 jan) overspant,
+  // zodat haar eigen einde ná de statusdatum ligt; C4 negeert die relatie toch.
+  const hammock = structuredClone(c4.input);
+  const hammockP = hammock.tasks.find(task => task.id === 'P')!;
+  hammock.tasks.push({ ...structuredClone(hammockP), id: 'Q', wbsCode: 'SPAN', name: 'Overspannen', p6TaskId: 'Q' });
+  hammockP.isHammock = true;
+  hammock.sequences.push(
+    { id: 'H-SS', predecessorId: 'Q', successorId: 'P', type: 'START_START', lagDays: 0 },
+    { id: 'H-FF', predecessorId: 'Q', successorId: 'P', type: 'FINISH_FINISH', lagDays: 0 },
+  );
+  eq('C4 hammock-fixture: de hammock eindigt ná de statusdatum', solveAxes(hammock, 'P').ef, '2026-01-19T17:00');
+  eq('C4 raakt geen LOE/hammock-voorganger', (({ es, ef }) => ({ es, ef }))(solveAxes(hammock, 'C')), c4.off);
+  // Late kant: met een losse lange taak X die het projecteinde vastlegt (anders schuift het
+  // projecteinde mee met S), is de late kant van C met en zonder C4 gelijk.
+  const anchored = structuredClone(c4.input);
+  const s = anchored.tasks.find(task => task.id === 'S')!;
+  anchored.tasks.push({
+    ...structuredClone(s), id: 'X', wbsCode: 'LONG', name: 'Lang', p6TaskId: 'X',
+    time: { ...structuredClone(s.time), durationMinutes: 180 * 60, remainingMinutes: 180 * 60, scheduleDuration: 20, scheduleFinish: '2026-02-11T17:00' },
+  });
+  const lateOn = solveAxes(anchored, 'C');
+  const lateOff = solveAxes(withProfile(anchored, copy => setConvention(copy, 'p6CompletedOutOfSequenceWindow', false)), 'C');
+  eq('C4 laat de late kant ongemoeid', [lateOn.ls, lateOn.lf], [lateOff.ls, lateOff.lf]);
+  eq('C4 late kant fixture: X legt het projecteinde vast', solveAxes(anchored, 'X').ef, '2026-02-11T17:00');
+}
+
 if (diffs.length > 0) {
   console.error(`conventions-p6-flags RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 3 groep-C-conventies, aan/uit + bron- en basisinertheid)`);
+console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 4 groep-C-conventies, aan/uit + bron- en basisinertheid)`);

@@ -1196,6 +1196,10 @@
     "p6CompletedRemainingLag": {
       "label": "已完成紧前任务的已流逝延隔不计入",
       "help": "在最迟日期一侧，已完成紧前任务之后的延隔只计入在状态日期尚未流逝的部分。"
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "顺序外完成的任务等待其紧前任务",
+      "help": "若已完成任务的某个紧前任务尚未完成，其零时段排在该紧前任务之后，而不是状态日期（保留逻辑）。"
     }
   },
   "profiles": {

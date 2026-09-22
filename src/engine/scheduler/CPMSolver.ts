@@ -306,6 +306,11 @@ export class CPMSolver {
   // opvolger, vóór de projectstart-vloer en de werkdag-snap. Eén bron van waarheid voor
   // vrije speling én driving-markering, ongeacht lag-eenheid.
   private seqConstraint: Map<string, Date> = new Map();
+  /** Conventie C4: begin (ES) van het naar achteren geschoven nul-restvenster per voltooide taak
+   *  buiten volgorde. Alleen gevuld als het venster ná het statusdatumvenster ligt. */
+  private completedOutOfSequenceEs: Map<string, Date> = new Map();
+  /** Conventie C4: het relatie-instant van dat venster (de grens op de kalender van de voorganger). */
+  private completedOutOfSequenceRelation: Map<string, { at: Date; eng: CalendarEngine }> = new Map();
   // Relaties waarvan de lead in de forward-pass door de projectstart-vloer is afgekapt.
   private truncatedLeadIds: string[] = [];
   // Taken met een harde MSO/MFO-pin (fase 2.9, §4.2) waarvan de voorganger-druk (`rawMax`) later
@@ -477,6 +482,13 @@ export class CPMSolver {
     predTask: Task,
     window: { es: Date; ef: Date },
   ): { es: Date; ef: Date } {
+    // C4: een nul-restvenster buiten volgorde is voor de relatie één instant (ES = EF): de grens
+    // die zijn eigen maatgevende voorganger oplegde, op de kalender van díe voorganger — niet het
+    // op de eigen kalender gesnapte vensterbegin. Gemeten (rehab-2): V3163130 (kal. 842, venster
+    // 10-11) → V3163135 (kal. 893) start in P6 op 09-29 08:00, direct na de voorganger-EF 09-28;
+    // V3119130 → V3119135 op 09-13 08:00, direct na de voorganger-EF 09-12.
+    const outOfSequenceRelation = this.completedOutOfSequenceRelation.get(predTask.id);
+    if (outOfSequenceRelation) return { es: outOfSequenceRelation.at, ef: outOfSequenceRelation.at };
     if (this.options.schedulingOptions?.p6CompletedPredecessorAtDataDate !== true) return window;
     if (this.dataDate === null) return window;
     const t = predTask.time;
@@ -487,6 +499,79 @@ export class CPMSolver {
     const cap = progressCal.prevWorkInstant(this.snapOnOrAfter(progressCal, this.dataDate));
     if (Number.isNaN(cap.getTime()) || window.ef <= cap) return window;
     return { es: window.es, ef: cap };
+  }
+
+  /**
+   * Conventie C4, relatiekant: uit een voltooide voorganger met een verschoven nul-restvenster telt
+   * van een positieve lag alleen het deel dat op de statusdatum nog niet verstreken is — dezelfde
+   * rekenregel als C3 (`completedRemainingLagSeq`, en alleen als C3 aan staat), nu voorwaarts.
+   * Gemeten: rehab-2 V3117150 → V3117160 (FS+8 h, werkelijk einde 04-03) en V3229080 → V3229090
+   * (FS+16 h): P6 start de opvolger op het vensterbegin zelf. Geen verschoven venster ⇒ `seq` zelf.
+   */
+  /** De kalender waarin een relatie uit `predTask` rekent: bij een C4-venster de kalender van zijn
+   *  relatie-instant (een nul-restvenster heeft geen eigen werktijd), anders zijn eigen kalender. */
+  private relationEngineFor(predTask: Task): CalendarEngine {
+    return this.completedOutOfSequenceRelation.get(predTask.id)?.eng ?? this.calendarFor(predTask);
+  }
+
+  private completedOutOfSequenceRelationSeq(predTask: Task, seq: Sequence, succCal: CalendarEngine): Sequence {
+    if (!this.completedOutOfSequenceEs.has(predTask.id)) return seq;
+    const lagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), succCal);
+    return this.completedRemainingLagSeq(seq, predTask, lagEng);
+  }
+
+  /**
+   * Conventie C4 `p6CompletedOutOfSequenceWindow` (docblok + bron bij de sleutel in
+   * `types/project.ts`): Retained Logic voor een voltooide taak buiten volgorde. Het nul-restvenster
+   * van een taak op de statusdatumroute (B3-poort) begint op de laatste van: de statusdatumgrens en
+   * de voorwaartse FS/SS-relatiegrens uit elke voorganger die nog niet klaar is. Een voorganger die
+   * zelf op de B3-route staat, telt met zijn eigen (eventueel verschoven) venster en alleen als dat
+   * venster verschoven is; een gewone voltooide voorganger telt niet (zijn voortgang is historie).
+   * Ligt de uitkomst ná het statusdatumvenster, dan komt ze in `completedOutOfSequenceEs`; die map
+   * stuurt de weergave (`scheduleAnalysis`) en de relatiegrens naar opvolgers
+   * (`completedPredecessorRelationWindow`). Conventie uit, Progress Override, geen statusdatum,
+   * dagmodus of niet op de B3-route ⇒ geen effect.
+   */
+  private recordCompletedOutOfSequenceWindow(
+    task: Task,
+    preds: Sequence[],
+    results: Map<string, { es: Date; ef: Date }>,
+    progressCal: CalendarEngine,
+  ): void {
+    if (this.options.schedulingOptions?.p6CompletedOutOfSequenceWindow !== true) return;
+    if (this.options.progressMode === 'PROGRESS_OVERRIDE') return;
+    if (this.dataDate === null || !progressCal.isHourMode || preds.length === 0) return;
+    if (!this.p6CompletedDataDateWindowDecision(task).eligible) return;
+    const windowEs = this.snapOnOrAfter(progressCal, this.dataDate);
+    let anchor = windowEs;
+    let relation: { at: Date; eng: CalendarEngine } | null = null;
+    for (const seq of preds) {
+      // FF/SF: de relatie ankert op de finish van deze taak; ongemeten, dus geen effect.
+      if (seq.type !== 'FINISH_START' && seq.type !== 'START_START') continue;
+      const predTask = this.tasks.get(seq.predecessorId);
+      const rawPredResult = results.get(seq.predecessorId);
+      if (!predTask || !rawPredResult || predTask.isHammock) continue;
+      const predOnWindowRoute = this.p6CompletedDataDateWindowDecision(predTask).eligible;
+      if (predOnWindowRoute) {
+        if (!this.completedOutOfSequenceEs.has(predTask.id)) continue;
+      } else if (predTask.time.completion >= 1) {
+        continue;
+      }
+      const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
+      const relSeq = this.completedOutOfSequenceRelationSeq(predTask, seq, progressCal);
+      // De grens op de kalender van de voorganger (een nul-restvenster heeft geen eigen werktijd);
+      // het weergegeven vensterbegin is die grens gesnapt op de eigen voortgangskalender.
+      const predEng = this.relationEngineFor(predTask);
+      const bound = forwardConstraint(this.relDeps, predResult, predTask, relSeq, task, predEng, predEng, false);
+      if (Number.isNaN(bound.getTime())) continue;
+      const es = this.snapOnOrAfter(progressCal, bound);
+      if (es > anchor) anchor = es;
+      if (relation === null || bound > relation.at) relation = { at: bound, eng: predEng };
+    }
+    if (anchor > windowEs && relation !== null) {
+      this.completedOutOfSequenceEs.set(task.id, anchor);
+      this.completedOutOfSequenceRelation.set(task.id, relation);
+    }
   }
 
   /**
@@ -1229,6 +1314,8 @@ export class CPMSolver {
     // (graaf/kalenders/opties) of worden per solve onvoorwaardelijk herschreven; de
     // engine-cache is deterministisch per kalender-id en mag blijven staan.
     this.seqConstraint.clear();
+    this.completedOutOfSequenceEs.clear();
+    this.completedOutOfSequenceRelation.clear();
     this.truncatedLeadIds = [];
     this.hardPinViolatedIds = [];
     this.hammockNoFinishDriverIds = [];
@@ -1331,6 +1418,7 @@ export class CPMSolver {
       snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
       modeOf: (eng) => this.modeOf(eng),
       backwardFloatTrace: this.backwardFloatTrace,
+      completedOutOfSequenceEs: this.completedOutOfSequenceEs,
     });
     // Zachte WP7-waarschuwing: alleen bij een echt onwerkbaar venster het veld zetten, zodat een
     // normale solve byte-identiek blijft (veld afwezig ⇒ geen wijziging aan bestaande consumenten).
@@ -1718,8 +1806,9 @@ export class CPMSolver {
           const predTask = this.tasks.get(seq.predecessorId);
           if (!rawPredResult || !predTask) continue;
           const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
+          const relSeq = this.completedOutOfSequenceRelationSeq(predTask, seq, cal);
           const constraintDate = forwardConstraint(
-            this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+            this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
           this.seqConstraint.set(seq.id, constraintDate);
@@ -1731,7 +1820,7 @@ export class CPMSolver {
           // declaratie hierboven) — `null` voor alle andere relatietypes, dus deze regel is een
           // no-op zonder SF-voorganger.
           const finishFloor = forwardFinishFloor(
-            this.relDeps, predResult, predTask, seq, task, this.calendarFor(predTask), cal,
+            this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
           if (finishFloor && (!sfFinishFloor || finishFloor > sfFinishFloor)) sfFinishFloor = finishFloor;
@@ -1909,6 +1998,7 @@ export class CPMSolver {
       // geen echte afwijking) ⇒ `progressCal = cal`, BYTE-IDENTIEK — dat is de overgrote meerderheid
       // van alle taken, inclusief de volledige Z12-/Z6-/Z7-populaties (regressiewacht hieronder).
       const progressCal = this.progressCalendarFor(task, cal);
+      this.recordCompletedOutOfSequenceWindow(task, preds, results, progressCal);
       {
         const t = task.time;
         if (t.actualFinish && t.completion >= 1) {
@@ -3074,7 +3164,8 @@ export class CPMSolver {
       let candidateEf = early.ef;
       if (usesCompletedDisplayWindow) {
         const progressCal = this.progressCalendarFor(task);
-        const projectedEs = this.snapOnOrAfter(progressCal, this.dataDate!);
+        const projectedEs = this.completedOutOfSequenceEs.get(taskId)
+          ?? this.snapOnOrAfter(progressCal, this.dataDate!);
         candidateEf = progressCal.prevWorkInstant(projectedEs);
       }
       if (candidateEf > projectEnd) {

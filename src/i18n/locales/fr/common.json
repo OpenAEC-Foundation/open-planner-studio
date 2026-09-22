@@ -1266,6 +1266,10 @@
     "p6CompletedRemainingLag": {
       "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
       "help": "Côté dates au plus tard, seule la partie du décalage après un prédécesseur achevé qui n’est pas encore écoulée à la date d’état compte."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Une tâche achevée hors séquence attend ses prédécesseurs",
+      "help": "Une tâche achevée dont un prédécesseur n’est pas encore terminé reçoit sa fenêtre nulle après ce prédécesseur plutôt qu’à la date d’état (logique conservée)."
     }
   },
   "profiles": {
