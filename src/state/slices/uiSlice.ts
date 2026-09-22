@@ -313,6 +313,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           // meebrengt. Zo blijven alle historische meldingen byte-identiek bij een dedupe-update.
           if (n.detailLines !== undefined) existing.detailLines = [...n.detailLines];
           if (n.helpArticleId !== undefined) existing.helpArticleId = n.helpArticleId;
+          // Rekenprofielen: de serialiseerbare vervolgactie volgt dezelfde regel.
+          if (n.action !== undefined) existing.action = { ...n.action };
           return;
         }
       }
