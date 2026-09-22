@@ -4,7 +4,7 @@ import {
   PER_FILE_CONVENTION_KEYS, choiceOf, selectProfile, editConvention, renameProfile, profileLabel, templateRelation,
   totalFloatModeToUi, totalFloatModeFromUi, withCriticalMode, withCriticalThreshold, withDefaultOptions, sameSettings,
 } from '@/state/schedulingProfileDraft';
-import { builtInProfile, defaultOptionsFor } from '@/engine/scheduler/conventions/registry';
+import { CONVENTIONS, builtInProfile, defaultOptionsFor, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { SchedulingProfile } from '@/types/project';
 
 const diffs: string[] = [];
@@ -58,7 +58,7 @@ eq('24a sameSettings ziet een echte optiewijziging', sameSettings({ profile: und
 // ── Open punt uit M1 (orkestrator, 2026-09-22 22:40): een wissel VANAF een eigen profiel verliest via
 // `switchProfile` alle afwijkingen, dus ook de bestandswaarde A19 (`rem_target_link_flag`). Het
 // bewerkmodel draagt de per-bestand-conventies zelf over.
-eq('25 per-bestand-conventies = alleen A19', PER_FILE_CONVENTION_KEYS, ['p6UseRemainingStartForProgress']);
+eq('25 per-bestand-conventies = het register (perFile)', PER_FILE_CONVENTION_KEYS, CONVENTIONS.filter(d => d.perFile).map(d => d.id));
 // Een "Kopie van P6" ná een handmatige wijziging op een XER-project draagt A19 uit het bestand.
 const ownFromXer = editConvention(xerP6, 'clampNegativeFreeFloat', false, copy);
 eq('26 eigen kopie → P6: A19 uit het bestand blijft, de handmatige wijziging niet', selectProfile(ownFromXer, 'builtin:p6', []),
@@ -74,6 +74,39 @@ eq('29 heen en terug: P6 (aangepast) → kopie → P6 = het origineel', selectPr
 eq('30 override gelijk aan de basis ⇒ niet aangepast',
   profileLabel({ ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: true } }), { kind: 'builtIn', baseId: 'p6', modified: false });
 eq('31 afwezig profiel = OPS, niet aangepast', profileLabel(undefined), { kind: 'builtIn', baseId: 'ops', modified: false });
+
+// ── Critreview D deel 1 (orkestrator) ────────────────────────────────────────────────────────────
+// Punt 1: ook een sjabloonkeuze draagt de per-bestand-waarde (A19) van het huidige profiel over; het
+// sjabloon zelf beschrijft de school, dus de relatie blijft 'same'.
+const templateOnXer = selectProfile(xerP6, 'template:prof-own', [own]);
+eq('32 sjabloonkeuze op een XER-project houdt A19 uit het bestand', templateOnXer,
+  { baseId: 'p6', id: 'prof-own', name: 'Eigen', overrides: { clampNegativeFreeFloat: false, p6UseRemainingStartForProgress: true } });
+eq('33 …en telt dan niet als afwijking van het sjabloon', templateRelation(templateOnXer, [own]), 'same');
+const templateWithA19: SchedulingProfile = { ...own, overrides: { ...own.overrides, p6UseRemainingStartForProgress: true } };
+eq('33a sjabloon met A19 op een project zonder: de bestandswaarde (uit) wint',
+  selectProfile(undefined, 'template:prof-own', [templateWithA19])?.overrides, { clampNegativeFreeFloat: false });
+
+// Punt 3: P6 → OPS → P6 houdt afwijkingen letterlijk, ook als ze onder OPS gelijk aan de basis zijn.
+const p6NoClamp: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
+const viaOps = selectProfile(p6NoClamp, 'builtin:ops', []);
+eq('34 P6 {A13 uit} → OPS: niet genormaliseerd tot afwezig', viaOps, { ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: false } });
+eq('34a …→ P6: A13 weer uit', resolveConventions(selectProfile(viaOps, 'builtin:p6', [])).clampNegativeFreeFloat, false);
+eq('34b onder OPS toont de keuzelijst geen "(aangepast)"', profileLabel(viaOps), { kind: 'builtIn', baseId: 'ops', modified: false });
+
+// Punt 7: sameSettings vergelijkt inhoudelijk (id + basis + naam + opgeloste set), niet structureel.
+eq('35 afwijking gelijk aan de basis ≡ geen afwijking',
+  sameSettings({ profile: { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: true } }, options: undefined },
+    { profile: builtInProfile('p6'), options: undefined }), true);
+eq('35a echte conventiewijziging telt', sameSettings({ profile: p6NoClamp, options: undefined },
+  { profile: builtInProfile('p6'), options: undefined }), false);
+eq('35b zelfde opgeloste set, ander id telt', sameSettings({ profile: { ...own, overrides: {} }, options: undefined },
+  { profile: builtInProfile('p6'), options: undefined }), false);
+eq('35c hernoemen telt', sameSettings({ profile: own, options: undefined }, { profile: { ...own, name: 'Anders' }, options: undefined }), false);
+// Punt 7: editConvention weigert een kopie-id dat de sanitizers niet zouden accepteren.
+eq('36 kopie-id langer dan 64 ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: 'x'.repeat(65), name: 'K' }) === xerP6, true);
+eq('36a kopie-id van precies 64 mag', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: 'x'.repeat(64), name: 'K' })?.id.length, 64);
+eq('36b leeg kopie-id ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: '  ', name: 'K' }) === xerP6, true);
+eq('36c ingebouwd id als kopie-id ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: 'ops', name: 'K' }) === xerP6, true);
 
 if (diffs.length === 0) console.log(`OK: bewerkmodel rekenprofiel — ${checks} checks groen`);
 else { console.log(`XX bewerkmodel rekenprofiel — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }

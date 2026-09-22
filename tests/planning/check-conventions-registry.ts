@@ -98,6 +98,14 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   ok('33 eigen profiel op ops-basis zonder override is niet default',
     !isDefaultProfile({ baseId: 'ops', id: 'x', name: 'x', overrides: {} }));
   ok('34 msproject is niet default', !isDefaultProfile(builtInProfile('msproject')));
+  // Besluit orkestrator (critreview D deel 1): letterlijk. Een afwijking gelijk aan de ops-basis
+  // (P6 {A13: uit} → OPS) is géén standaardprofiel, anders gaat hij bij P6 → OPS → P6 verloren.
+  ok('34a ops met afwijking gelijk aan de basis is niet default',
+    !isDefaultProfile({ ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: false } }));
+  ok('34b onbekende/niet-boolean sleutels tellen niet als afwijking',
+    isDefaultProfile({ ...builtInProfile('ops'), overrides: { onzin: true, clampNegativeFreeFloat: 'ja' } as never }));
+  // perFile is beschrijvend en het register is de bron; volgens spec v3.1 §3.1 komt alleen A19 per bestand.
+  same('34c per-bestand-conventies volgens de spec', CONVENTIONS.filter(d => d.perFile).map(d => d.id), ['p6UseRemainingStartForProgress']);
 }
 
 // ── 3) Opties ⊥ conventies ──────────────────────────────────────────────────────────────────────
