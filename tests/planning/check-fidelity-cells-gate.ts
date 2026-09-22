@@ -42,6 +42,8 @@ const BASE: MeasuredCell[] = [
   { axis: 'tf', id: '1/10', bucket: 'diff' },
   { axis: 'lf', id: '2/7', bucket: 'missing' },
 ];
+/** In de synthetische meting is elke cel meetbaar, behalve wat een test expliciet blind maakt. */
+const MEASURABLE = () => true;
 const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(change(BASE.map(cell => ({ ...cell }))));
 
 // ── 1. Mutatiebewijs ─────────────────────────────────────────────────────────────────────────
@@ -50,24 +52,24 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   eq('build vult elke as, ook lege', Object.keys(baseline.files[F2]!), [...CELL_AXES]);
   eq('build sorteert ids binnen een as', Object.keys(baseline.files[F1]!.es!), ['1/10', '1/20']);
 
-  eq('ongewijzigde meting: geen rode regels', cellGateFailures(compareCells(baseline, measure(BASE))), []);
-  eq('ongewijzigde meting: niets te herpinnen', compareCells(baseline, measure(BASE)).improvedCells.length, 0);
+  eq('ongewijzigde meting: geen rode regels', cellGateFailures(compareCells(baseline, measure(BASE), MEASURABLE)), []);
+  eq('ongewijzigde meting: niets te herpinnen', compareCells(baseline, measure(BASE), MEASURABLE).improvedCells.length, 0);
 
   // (a) één cel die exact was (1/30 op ef) wordt inexact ⇒ rood met bestand/as/id.
-  const newCell = compareCells(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'sameday' }]));
+  const newCell = compareCells(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'sameday' }]), MEASURABLE);
   eq('(a) één toegevoegde inexacte cel ⇒ precies die cel rood', cellGateFailures(newCell),
     [`cel was exact, nu inexact (sameday) — regel A: ${F1} as ef id 1/30`]);
 
   // (b) verslechterde emmer — volgorde exact < sameday < diff < missing (spec §5), elke stap naar
   //     rechts is rood: sameday→diff, diff→missing en sameday→missing.
   const worse = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'diff' } : cell)));
+    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'diff' } : cell)), MEASURABLE);
   eq('(b) sameday→diff ⇒ rood', cellGateFailures(worse), [`cel verslechterd sameday→diff — regel A: ${F1} as es id 1/20`]);
   const toMissing = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell)));
+    cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell)), MEASURABLE);
   eq('(b) diff→missing ⇒ rood', cellGateFailures(toMissing).length, 1);
   const samedayToMissing = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'missing' } : cell)));
+    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'missing' } : cell)), MEASURABLE);
   eq('(b) sameday→missing ⇒ rood', cellGateFailures(samedayToMissing),
     [`cel verslechterd sameday→missing — regel A: ${F1} as es id 1/20`]);
 
@@ -75,32 +77,41 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   const swapped = compareCells(baseline, with_(cells => [
     ...cells.filter(cell => !(cell.axis === 'es' && cell.id === '1/20')),
     { axis: 'es', id: '1/30', bucket: 'sameday' },
-  ]));
+  ]), MEASURABLE);
   eq('gelijke som, andere cel ⇒ toch rood', cellGateFailures(swapped).length, 1);
 
   // (c) verbetering: cel exact geworden, of diff→sameday ⇒ groen, te herpinnen.
-  const resolved = compareCells(baseline, with_(cells => cells.filter(cell => cell.axis !== 'lf')));
+  const resolved = compareCells(baseline, with_(cells => cells.filter(cell => cell.axis !== 'lf')), MEASURABLE);
   eq('(c) één weggehaalde cel ⇒ geen rode regels', cellGateFailures(resolved), []);
   eq('(c) één weggehaalde cel ⇒ één te herpinnen', resolved.improvedCells, [{ file: F1, axis: 'lf', id: '2/7', was: 'missing' }]);
   const milder = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'tf' ? { ...cell, bucket: 'sameday' } : cell)));
+    cell.axis === 'tf' ? { ...cell, bucket: 'sameday' } : cell)), MEASURABLE);
   eq('(c) diff→sameday ⇒ geen rode regels', cellGateFailures(milder), []);
   eq('(c) diff→sameday ⇒ één te herpinnen', milder.improvedCells.length, 1);
 
+  // (d) een baselinecel die exact lijkt maar niet meer meetbaar is (blinder orakel) ⇒ rood, niet "verbeterd".
+  const blind = (file: string, axis: string, id: string) => !(file === F1 && axis === 'lf' && id === '2/7');
+  const blinder = compareCells(baseline, with_(cells => cells.filter(cell => cell.axis !== 'lf')), blind);
+  eq('(d) onmeetbaar geworden cel telt niet als verbeterd', blinder.improvedCells, []);
+  eq('(d) onmeetbaar geworden cel ⇒ rood', cellGateFailures(blinder),
+    [`cel onmeetbaar geworden (was missing) — regel A: ${F1} as lf id 2/7`]);
+  eq('(d) herpin met een onmeetbaar geworden cel wordt geweigerd',
+    planCellRepin(baseline, with_(cells => cells.filter(cell => cell.axis !== 'lf')), blind).allowed, false);
+
   // Bestandsdekking.
-  eq('onbekend gemeten bestand ⇒ rood', compareCells(measure(BASE, null), baseline).unknownFiles, [F2]);
-  eq('baselinebestand niet gemeten ⇒ rood', compareCells(baseline, measure(BASE, null)).unmeasuredFiles, [F2]);
+  eq('onbekend gemeten bestand ⇒ rood', compareCells(measure(BASE, null), baseline, MEASURABLE).unknownFiles, [F2]);
+  eq('baselinebestand niet gemeten ⇒ rood', compareCells(baseline, measure(BASE, null), MEASURABLE).unmeasuredFiles, [F2]);
 
   // Herpinnen alleen zonder rode cel.
   eq('herpin met een nieuwe inexacte cel wordt geweigerd',
-    planCellRepin(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'diff' }])).allowed, false);
+    planCellRepin(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'diff' }]), MEASURABLE).allowed, false);
   eq('herpin met een verslechterde cel wordt geweigerd',
-    planCellRepin(baseline, with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell))).allowed, false);
+    planCellRepin(baseline, with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell)), MEASURABLE).allowed, false);
   const betterMeasurement = with_(cells => cells.filter(cell => cell.axis !== 'lf'));
-  eq('herpin met alleen verbeteringen mag', planCellRepin(baseline, betterMeasurement).allowed, true);
+  eq('herpin met alleen verbeteringen mag', planCellRepin(baseline, betterMeasurement, MEASURABLE).allowed, true);
   eq('na herpin is dezelfde meting groen en niets meer te herpinnen',
-    compareCells(betterMeasurement, betterMeasurement).improvedCells.length, 0);
-  eq('eerste pin (geen baseline) mag', planCellRepin(undefined, baseline).allowed, true);
+    compareCells(betterMeasurement, betterMeasurement, MEASURABLE).improvedCells.length, 0);
+  eq('eerste pin (geen baseline) mag', planCellRepin(undefined, baseline, MEASURABLE).allowed, true);
 
   // Bouwer weigert onzin in plaats van hem stil te pinnen.
   const throws = (label: string, cells: MeasuredCell[]) => {

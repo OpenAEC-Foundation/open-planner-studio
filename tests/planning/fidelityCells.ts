@@ -8,7 +8,10 @@
 //       volgorde (spec §5): exact < sameday < diff < missing — elke stap naar rechts is
 //       verslechteren (ook sameday→missing), elke stap naar links verbeteren;
 //   (c) verbetering (emmer → exact, of een lagere rang)                     ⇒ groen, "te herpinnen";
-//   verouderde baselineregels (cel nu exact) zijn toegestaan en onschuldig.
+//   (d) een baselinecel die niet meer MEETBAAR is (het orakel heeft geen waarde meer, of de taak is
+//       weg) telt NIET als verbeterd maar als "onmeetbaar geworden"      ⇒ rood — een blinder
+//       orakel mag nooit als verbetering doorgaan;
+//   verouderde baselineregels (cel nu exact én meetbaar) zijn toegestaan en onschuldig.
 // Herpinnen (`planCellRepin`) mag alleen zonder één rode cel.
 //
 // Assen: de zes X12-assen (es/ef/ls/lf/tf/ff) plus `drivingPath` als zevende poort-as
@@ -65,8 +68,10 @@ export interface CellDelta {
   newCells: CellRef[];
   /** (b) emmer verslechterd. */
   worsenedCells: CellRef[];
-  /** (c) emmer verbeterd of cel exact geworden — groen, te herpinnen. */
+  /** (c) emmer verbeterd of cel exact geworden (en nog meetbaar) — groen, te herpinnen. */
   improvedCells: CellRef[];
+  /** (d) baselinecel niet meer meetbaar — rood. */
+  unmeasurableCells: CellRef[];
   /** Gemeten bestand zonder baselinerecord (onbekend corpusbestand of gewijzigde bytes). */
   unknownFiles: string[];
   /** Baselinebestand dat deze meting niet bevat. */
@@ -74,6 +79,8 @@ export interface CellDelta {
 }
 
 export interface MeasuredCell { axis: string; id: string; bucket: CellBucket }
+/** Heeft het orakel in déze meting een waarde voor (bestand, as, id)? Leverancier: de meetlat. */
+export type CellMeasurable = (file: string, axis: string, id: string) => boolean;
 
 function hasOwn(value: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
@@ -187,8 +194,10 @@ export function parseCellBaseline(raw: string): { baseline?: CellBaseline; probl
   return { baseline, problems };
 }
 
-export function compareCells(baseline: CellBaseline, measured: CellBaseline): CellDelta {
-  const delta: CellDelta = { newCells: [], worsenedCells: [], improvedCells: [], unknownFiles: [], unmeasuredFiles: [] };
+export function compareCells(baseline: CellBaseline, measured: CellBaseline, measurable: CellMeasurable): CellDelta {
+  const delta: CellDelta = {
+    newCells: [], worsenedCells: [], improvedCells: [], unmeasurableCells: [], unknownFiles: [], unmeasuredFiles: [],
+  };
   for (const file of sortedKeys(measured.files)) {
     const was = hasOwn(baseline.files, file) ? baseline.files[file] : undefined;
     if (!was) { delta.unknownFiles.push(file); continue; }
@@ -204,7 +213,9 @@ export function compareCells(baseline: CellBaseline, measured: CellBaseline): Ce
         else if (BUCKET_RANK[nowBucket] < BUCKET_RANK[wasBucket]) delta.improvedCells.push({ file, axis, id, was: wasBucket, now: nowBucket });
       }
       for (const id of sortedKeys(before)) {
-        if (!hasOwn(after, id)) delta.improvedCells.push({ file, axis, id, was: before[id] });
+        if (hasOwn(after, id)) continue;
+        if (measurable(file, axis, id)) delta.improvedCells.push({ file, axis, id, was: before[id] });
+        else delta.unmeasurableCells.push({ file, axis, id, was: before[id] });
       }
     }
   }
@@ -217,6 +228,7 @@ export function cellGateFailures(delta: CellDelta): string[] {
   return [
     ...delta.newCells.map(cell => `cel was exact, nu inexact (${cell.now}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`),
     ...delta.worsenedCells.map(cell => `cel verslechterd ${cell.was}→${cell.now} — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`),
+    ...delta.unmeasurableCells.map(cell => `cel onmeetbaar geworden (was ${cell.was}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`),
     ...delta.unknownFiles.map(file => `gemeten bestand ontbreekt in de cel-baseline: ${file}`),
     ...delta.unmeasuredFiles.map(file => `cel-baselinebestand niet gemeten: ${file}`),
   ];
@@ -255,19 +267,21 @@ export function cellWriteModeProblem(mode: string | undefined, baselineExists: b
 }
 
 /**
- * Herpinnen alleen zonder rode cel: geweigerd bij (a) of (b). Nieuwe bestanden (corpusgroei) mogen
+ * Herpinnen alleen zonder rode cel: geweigerd bij (a), (b) of (d). Nieuwe bestanden (corpusgroei) mogen
  * erbij — zij hadden geen gepinde exacte cel — en niet meer gemeten bestanden vallen weg; beide
  * staan in de teruggegeven delta. Wat geschreven wordt is precies de meting.
  */
 export function planCellRepin(
   baseline: CellBaseline | undefined,
   measured: CellBaseline,
+  measurable: CellMeasurable,
 ): { allowed: true; delta: CellDelta } | { allowed: false; reasons: string[]; delta: CellDelta } {
   const empty: CellBaseline = { version: CELL_BASELINE_VERSION, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS], files: {} };
-  const delta = compareCells(baseline ?? empty, measured);
+  const delta = compareCells(baseline ?? empty, measured, measurable);
   const reasons = [
     ...delta.newCells.map(cell => `nieuwe inexacte cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id}`),
     ...delta.worsenedCells.map(cell => `verslechterde cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id} ${cell.was}→${cell.now}`),
+    ...delta.unmeasurableCells.map(cell => `onmeetbaar geworden cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id}`),
   ];
   return reasons.length > 0 ? { allowed: false, reasons, delta } : { allowed: true, delta };
 }
@@ -276,6 +290,6 @@ export function planCellRepin(
 export function cellDeltaLine(profile: string, delta: CellDelta, measured: CellBaseline): string {
   const total = Object.values(cellTotals(measured)).reduce((sum, axis) => sum + axis.total, 0);
   return `CELLDELTA ${profile} nieuw=${delta.newCells.length} verslechterd=${delta.worsenedCells.length} `
-    + `verbeterd=${delta.improvedCells.length} onbekend=${delta.unknownFiles.length} `
+    + `verbeterd=${delta.improvedCells.length} onmeetbaar=${delta.unmeasurableCells.length} onbekend=${delta.unknownFiles.length} `
     + `ongemeten=${delta.unmeasuredFiles.length} totaal=${total}`;
 }
