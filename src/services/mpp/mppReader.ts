@@ -177,6 +177,18 @@ const PROPS_KEY_CRITICAL_SLACK_LIMIT = 37748756;
  *  allocatie). */
 const MAX_CRITICAL_SLACK_LIMIT_DAYS = 36500;
 
+/**
+ * Totale speling (tienden van een minuut) zoals MPXJ hem voor een `.mpp` afleidt — MPP14 slaat geen
+ * eigen TOTAL_SLACK op. Gestarte taak ⇒ de finish slack (ontbreekt die, dan GEEN speling: de start
+ * slack van een gestarte taak zegt niets — MPXJ geeft dan niets). Anders het minimum van beide;
+ * ontbreekt er één, dan de andere (ongewijzigd t.o.v. ded4d8c3). `null` = niet vastgelegd.
+ */
+export function mppTotalSlackTenths(started: boolean, startSlack: number | null, finishSlack: number | null): number | null {
+  if (started) return finishSlack;
+  if (startSlack !== null && finishSlack !== null) return Math.min(startSlack, finishSlack);
+  return finishSlack ?? startSlack;
+}
+
 /** De kritiekgrens (dagen) uit de projecteigenschappen; ontbrekend of onzinnig ⇒ 0. */
 export function criticalSlackLimitDaysOf(props: { getInt(key: number): number }): number {
   const days = props.getInt(PROPS_KEY_CRITICAL_SLACK_LIMIT);
@@ -1345,11 +1357,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
           ? recordedFloatDays(tenths / 10, 24 * 60)
           : recordedFloatDays(tenths / 10, (isHour ? effHpd : hoursPerDay) * 60);
       };
-      const totalSlackRaw = raw.actualStartTs !== null && raw.finishSlackRaw !== null
-        ? raw.finishSlackRaw
-        : raw.startSlackRaw !== null && raw.finishSlackRaw !== null
-          ? Math.min(raw.startSlackRaw, raw.finishSlackRaw)
-          : (raw.finishSlackRaw ?? raw.startSlackRaw);
+      const totalSlackRaw = mppTotalSlackTenths(raw.actualStartTs !== null, raw.startSlackRaw, raw.finishSlackRaw);
       const totalFloat = slackDays(totalSlackRaw);
       const completed = raw.actualFinishTs !== null || raw.percentComplete >= 100;
       const recorded = buildRecordedTime({

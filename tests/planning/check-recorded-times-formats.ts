@@ -13,7 +13,7 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readCSV } from '@/services/csv/csvReader';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { criticalSlackLimitDaysOf, openMppProject, parseProjectProperties, readMPP, readTasks } from '@/services/mpp/mppReader';
+import { criticalSlackLimitDaysOf, mppTotalSlackTenths, openMppProject, parseProjectProperties, readMPP, readTasks } from '@/services/mpp/mppReader';
 import { createTaskFieldMap } from '@/services/mpp/fieldMap14';
 import { readCalendars } from '@/services/mpp/mppCalendars';
 import type { ImportResult } from '@/services/importTypes';
@@ -140,6 +140,11 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('5-0a grens 3 dagen wordt gelezen', criticalSlackLimitDaysOf(props(3)), 3);
   eq('5-0b ontbrekend (Props geeft 0) ⇒ 0, de MSP-default', criticalSlackLimitDaysOf(props(0)), 0);
   eq('5-0c een onzinnige waarde (1e9 dagen) valt terug op 0', criticalSlackLimitDaysOf(props(1_000_000_000)), 0);
+  // Totale speling (tienden van een minuut) uit start- en finish slack.
+  eq('5-0d gestart: de finish slack, niet het minimum', mppTotalSlackTenths(true, 0, 4800), 4800);
+  eq('5-0e gestart zónder finish slack maar mét start slack: geen speling (zoals MPXJ)', mppTotalSlackTenths(true, 0, null), null);
+  eq('5-0f niet gestart: het minimum', mppTotalSlackTenths(false, 2400, 4800), 2400);
+  eq('5-0g niet gestart, één as ontbreekt: de andere', [mppTotalSlackTenths(false, null, 4800), mppTotalSlackTenths(false, 2400, null)], [4800, 2400]);
 }
 
 // ── (5) .mpp — corpus-optioneel (OPS_MPP_CRAWL, publieke MPXJ-junit-data + OzBuild) ─────────────

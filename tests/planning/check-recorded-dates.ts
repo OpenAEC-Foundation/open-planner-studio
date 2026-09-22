@@ -1408,6 +1408,23 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   S().undo();
   eq('16w Ctrl+Z na opslaan: vuil, vlag aan, modus aan', [S().isDirty, S().importPristine, S().datesAsRecorded], [true, true, true]);
 
+  // 16x (her-check): `refreshLatestDocumentDataHistoryAfter` werkt het `after` van het laatste event
+  // bij na een F5 buiten de modus; het `nonEdit`-kenmerk van dat event moet daarbij blijven staan.
+  // Opzet: F5 in de modus (nonEdit-event) → planning verouderd zónder nieuw event → F5 (ververst
+  // het laatste event).
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('16x')), { filePath: null, recompute: true });
+  S().runCPM();
+  useAppStore.setState((st) => { markScheduleStale(st); });
+  const voorRefresh = S().historyEvents.length;
+  S().runCPM();
+  {
+    const laatste = [...S().historyEvents].sort((a, b) => b.sequence - a.sequence)[0];
+    const delta = laatste?.deltas[0];
+    eq('16x na het verversen van het laatste event: nog steeds nonEdit, geen nieuw event',
+      [delta?.kind === 'document-data' ? delta.nonEdit ?? 'bewerking' : 'geen', S().historyEvents.length - voorRefresh], [true, 0]);
+  }
+
   // 16v: het vangnet in de runtime — een `finishUndoable({ nonEdit })` die een open mutatie sluit
   // waarbinnen tóch een `finishMutation` liep, legt een GEWONE bewerking vast (geen `nonEdit`).
   // Geen productpad doet dat vandaag; dit bewaakt dat een toekomstige nesting geen bewerking als
