@@ -34,7 +34,7 @@ When a file opens with a profile other than Open Planner Studio, you see one not
 
 ## Switching profiles
 
-Choose another profile in **Project info** and click **Apply**. The schedule is recalculated right away, also when *Calculate automatically* is off, and a notification tells you how many tasks moved as a result. A switch is one step in *Undo*.
+Choose another profile in **Project info** and click **Apply**. The schedule is recalculated right away, also when *Calculate automatically* is off. If tasks move as a result, a notification tells you how many; if nothing moves, there is no notification. A switch is one step in *Undo*.
 
 Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
 

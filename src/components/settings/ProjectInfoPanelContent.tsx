@@ -230,6 +230,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           calendar,
           phaseNames: templatePhases(template),
           defaultTaskDurationUnit: enableHourPlanning && canDefaultToHours ? defaultTaskDurationUnit : 'days',
+          // Rekenprofiel uit de keuzelijst hoort bij de aanmaak zelf (geen losse undo-stap erna).
+          schedulingProfile: scheduling.profile,
+          schedulingOptions: scheduling.options,
         });
         // Spec §2/§5: koppel aan het gekozen bedrijf (default = standaardbedrijf). Herkenning start
         // pas als het project al inhoud heeft — bij een vers, leeg project is dat een no-op. Geen
@@ -241,8 +244,6 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
             useAppStore.getState().setUI({ showLibraryLinkDialog: true });
           }
         }
-        // Rekenprofiel uit de wizard-keuzelijst (met de standaardopties van dat profiel).
-        if (calcTouched) applySchedulingSettings(scheduling);
         // Verlaat de Backstage zodat het nieuwe project meteen zichtbaar is; "Aangepast…" opent
         // meteen de kalenderdialoog zodat de gebruiker de kalender handmatig kan samenstellen (§7.2).
         setUI({

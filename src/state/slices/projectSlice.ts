@@ -1,4 +1,4 @@
-import type { Project, ProgressMode } from '@/types/project';
+import type { Project, ProgressMode, ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -33,6 +33,7 @@ import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
 import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
+import { copyProfile, normalizeOptions, normalizeProfile } from '../schedulingProfileDraft';
 export { createDefaultProject };
 
 /** Opties voor de nieuw-project-wizard. */
@@ -46,6 +47,12 @@ export interface NewProjectOptions {
   calendar: WorkCalendar;
   phaseNames: string[];
   defaultTaskDurationUnit?: 'days' | 'hours';
+  /** Rekenprofiel uit de wizard-keuzelijst (rekenprofielen, spec v3.1 §6). Hoort bij de aanmaak zelf,
+   *  niet bij een losse undo-stap erna: het nieuwe project begint zonder historie, dus Ctrl+Z kan niet
+   *  terugvallen naar OPS. Afwezig of standaardprofiel ⇒ afwezig (≡ ops). */
+  schedulingProfile?: SchedulingProfile;
+  /** De standaard-reken-opties van dat profiel (`defaultOptionsFor`); leeg ⇒ afwezig. */
+  schedulingOptions?: ProjectSchedulingOptions;
 }
 
 /** Uitkomst van een `moveProject`-commit. */
@@ -490,6 +497,9 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       proj.endDate = opts.endDate ?? '';
       proj.calendarId = opts.calendar.id;
       proj.defaultTaskDurationUnit = opts.defaultTaskDurationUnit ?? 'days';
+      const profile = normalizeProfile(opts.schedulingProfile);
+      proj.schedulingProfile = profile ? copyProfile(profile) : undefined;
+      proj.schedulingOptions = normalizeOptions(opts.schedulingOptions);
 
       // Reset-pad (audit P10): start van een verse payload en override alleen de wizard-velden.
       // hydratePayload vult §4.4 de bibliotheek met de wizard-kalender (promote) en synct de cache.

@@ -5,7 +5,7 @@ import type { AppSliceFactory } from './types';
 import { countShiftedTasks, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import {
-  copyProfile, normalizeOptions, normalizeProfile, sameSettings, type SchedulingSettingsDraft,
+  copyProfile, hasValidProfileName, normalizeOptions, normalizeProfile, sameSettings, type SchedulingSettingsDraft,
 } from '@/state/schedulingProfileDraft';
 
 export type SchedulingSettings = SchedulingSettingsDraft;
@@ -15,13 +15,15 @@ export interface SchedulingProfileSlice {
    *  `runCPM()` zoals Toepassen in Projectinfo altijd deed (ook met Automatisch berekenen uit; runCPM
    *  ververst het `after` van datzelfde undo-event), daarna één melding "N taken verschoven" (vóór/ná-
    *  telling, dezelfde als de #63-strook). Geen kloon-solve vooraf, geen dialoog. Inhoudelijk gelijke
-   *  instellingen (`sameSettings`) ⇒ niets, geen undo-stap. */
+   *  instellingen (`sameSettings`) ⇒ niets, geen undo-stap. Een eigen profiel zonder naam
+   *  (`hasValidProfileName`) wordt geweigerd (`changed: false`); een geldige naam wordt getrimd. */
   applySchedulingSettings: (next: SchedulingSettings) => { changed: boolean; shifted: number | null };
 }
 
 export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlice> = (runtime) => (set, get) => ({
   applySchedulingSettings: (next) => {
     const before = get();
+    if (!hasValidProfileName(next.profile)) return { changed: false, shifted: null };
     if (sameSettings({ profile: before.project.schedulingProfile, options: before.project.schedulingOptions }, next)) {
       return { changed: false, shifted: null };
     }
@@ -35,7 +37,7 @@ export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlic
     }
     set((s) => {
       runtime.beginUndoable(s, { label: 'Rekenprofiel' });
-      s.project.schedulingProfile = profile ? copyProfile(profile) : undefined;
+      s.project.schedulingProfile = profile ? { ...copyProfile(profile), name: profile.name.trim() } : undefined;
       s.project.schedulingOptions = options;
       s.project.modifiedAt = new Date().toISOString();
       runtime.finishMutation(s, { stale: true });

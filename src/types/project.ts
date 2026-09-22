@@ -182,13 +182,13 @@ export interface SchedulingOptions {
    *  `p6UseRemainingStartForProgress`. P6 aan / MS Project uit / OPS uit. */
   p6CompletedDataDateWindow?: boolean;
   /** B4 — een voltooide LOE met alleen SS-ingang en zonder opvolger volgt de actual-finish-route
-   *  i.p.v. de hammockroute (`explainCompletedXerLoeActualFinishEligibility`, `CPMSolver`'s
+   *  i.p.v. de hammockroute (`explainCompletedXerLoeActualFinishEligibilityResolved`, `CPMSolver`'s
    *  forward pass). Werkt alleen samen met `p6UseRemainingStartForProgress`,
    *  `preserveActualDatesInBackwardPass` en `p6PreserveActualInstants`.
    *  P6 aan / MS Project uit / OPS uit. */
   p6CompletedLoeActualFinish?: boolean;
   /** B5 — een niet-gestarte LOE met volledig targetvenster, alleen nul-lag SS-ingang en nul-lag
-   *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibility`,
+   *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibilityResolved`,
    *  `CPMSolver`'s hammocktak). P6 aan / MS Project uit / OPS uit. */
   p6OpenLoeTargetSpan?: boolean;
 }

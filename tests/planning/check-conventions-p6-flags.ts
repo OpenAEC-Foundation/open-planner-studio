@@ -28,10 +28,10 @@ import { diffAgainstBase, resolveConventions } from '@/engine/scheduler/conventi
 import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
-  explainCompletedXerLoeActualFinishEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainCompletedXerLoeActualFinishEligibilityResolved,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
 } from '@/engine/scheduler/p6CompletedRouteTrace';
-import { explainOpenXerLoeTargetSpanEligibility } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
+import { explainOpenXerLoeTargetSpanEligibilityResolved } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import type { ConventionKey, EffectiveSchedulingOptions, ProjectSchedulingOptions, SchedulingConventions } from '@/types/project';
@@ -373,30 +373,30 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
     explainP6CompletedDataDateWindow(done, b3Date, so(b3, { p6UseRemainingStartForProgress: false })).reason, 'remainingStartOff');
 
   eq('guardvolgorde B4: statusdatum ontbreekt én conventie uit ⇒ missingDataDate',
-    explainCompletedXerLoeActualFinishEligibility(loe, null, so(b4, { p6CompletedLoeActualFinish: false }), loeIn, loeOut).reason,
+    explainCompletedXerLoeActualFinishEligibilityResolved(loe, null, so(b4, { p6CompletedLoeActualFinish: false }), loeIn, loeOut).reason,
     'missingDataDate');
   eq('guardvolgorde B4: ongeldige statusdatum én conventie uit ⇒ invalidDataDate',
-    explainCompletedXerLoeActualFinishEligibility(loe, new Date(Number.NaN), so(b4, { p6CompletedLoeActualFinish: false }), loeIn, loeOut).reason,
+    explainCompletedXerLoeActualFinishEligibilityResolved(loe, new Date(Number.NaN), so(b4, { p6CompletedLoeActualFinish: false }), loeIn, loeOut).reason,
     'invalidDataDate');
   eq('guardvolgorde B4: conventie uit én A19 uit ⇒ conventionOff',
-    explainCompletedXerLoeActualFinishEligibility(loe, b4Date, so(b4, { p6CompletedLoeActualFinish: false, p6UseRemainingStartForProgress: false }), loeIn, loeOut).reason,
+    explainCompletedXerLoeActualFinishEligibilityResolved(loe, b4Date, so(b4, { p6CompletedLoeActualFinish: false, p6UseRemainingStartForProgress: false }), loeIn, loeOut).reason,
     'conventionOff');
 
   eq('guardvolgorde A21: A21-vlag uit én B3 uit ⇒ conventionOff (B3 vóór de vlag)',
-    explainP6CompletedLateRemainingWindowEligibility(done, b3Date, so(b3, { p6CompletedLateFromRemainingWindow: false, p6CompletedDataDateWindow: false })).reason,
+    explainP6CompletedLateRemainingWindowEligibilityResolved(done, b3Date, so(b3, { p6CompletedLateFromRemainingWindow: false, p6CompletedDataDateWindow: false })).reason,
     'conventionOff');
   eq('guardvolgorde A21: A21-vlag uit, B3 aan ⇒ flagOff',
-    explainP6CompletedLateRemainingWindowEligibility(done, b3Date, so(b3, { p6CompletedLateFromRemainingWindow: false })).reason,
+    explainP6CompletedLateRemainingWindowEligibilityResolved(done, b3Date, so(b3, { p6CompletedLateFromRemainingWindow: false })).reason,
     'flagOff');
   eq('guardvolgorde A21: statusdatum ontbreekt én B3 uit ⇒ missingDataDate (actual-pin eerst)',
-    explainP6CompletedLateRemainingWindowEligibility(done, null, so(b3, { p6CompletedDataDateWindow: false })).reason,
+    explainP6CompletedLateRemainingWindowEligibilityResolved(done, null, so(b3, { p6CompletedDataDateWindow: false })).reason,
     'missingDataDate');
 
   const openLoeArgs = [[], [], b3Date, 0, 0] as const;
   eq('guardvolgorde B5: conventie uit op een niet-LOE ⇒ conventionOff (vóór de taakchecks)',
-    explainOpenXerLoeTargetSpanEligibility(done, so(b3, { p6OpenLoeTargetSpan: false }), ...openLoeArgs).reason, 'conventionOff');
+    explainOpenXerLoeTargetSpanEligibilityResolved(done, so(b3, { p6OpenLoeTargetSpan: false }), ...openLoeArgs).reason, 'conventionOff');
   eq('guardvolgorde B5: conventie aan op een niet-LOE ⇒ wrongActivityType',
-    explainOpenXerLoeTargetSpanEligibility(done, so(b3, { p6OpenLoeTargetSpan: true }), ...openLoeArgs).reason, 'wrongActivityType');
+    explainOpenXerLoeTargetSpanEligibilityResolved(done, so(b3, { p6OpenLoeTargetSpan: true }), ...openLoeArgs).reason, 'wrongActivityType');
 }
 
 // ── Bronscan: `p6Source` staat nergens meer onder src/engine/ ──────────────────────────────────

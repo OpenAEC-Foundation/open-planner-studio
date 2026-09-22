@@ -3,6 +3,7 @@
 import {
   PER_FILE_CONVENTION_KEYS, choiceOf, selectProfile, editConvention, renameProfile, profileLabel, templateRelation,
   totalFloatModeToUi, totalFloatModeFromUi, withCriticalMode, withCriticalThreshold, withDefaultOptions, sameSettings,
+  hasValidProfileName,
 } from '@/state/schedulingProfileDraft';
 import { CONVENTIONS, builtInProfile, defaultOptionsFor, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { SchedulingProfile } from '@/types/project';
@@ -33,9 +34,14 @@ eq('10 conventie wijzigen op eigen profiel houdt het id', editConvention(own, 'p
 eq('11 terug naar de basiswaarde haalt de override weg', editConvention(own, 'clampNegativeFreeFloat', true, copy)?.overrides, {});
 eq('12 ongewijzigde waarde = no-op (zelfde object)', editConvention(own, 'clampNegativeFreeFloat', false, copy) === own, true);
 eq('13 hernoemen trimt en kapt af op 200', renameProfile(own, `  ${'x'.repeat(10_000_000)}  `)?.name.length, 200);
-eq('13a hernoemen: voorloopwitruimte telt niet mee voor de grens', renameProfile(own, `${' '.repeat(10_000)}Nieuw  `)?.name, 'Nieuw');
+eq('13a hernoemen: voorloopwitruimte telt niet mee voor de grens', renameProfile(own, `${' '.repeat(10_000)}Nieuw`)?.name, 'Nieuw');
+// Eindreview I4 (e): tijdens het typen blijft een spatie achteraan staan (anders is 'Mijn profiel' niet te typen).
+eq('13b spatie achteraan blijft tijdens het bewerken', renameProfile(own, 'Mijn ')?.name, 'Mijn ');
 eq('14 ingebouwd is niet hernoembaar', renameProfile(xerP6, 'Nee'), xerP6);
-eq('15 lege naam wordt genegeerd', renameProfile(own, '   ')?.name, 'Eigen');
+// Eindreview I4 (e): het veld is te wissen; leeg is 'nog niet geldig' (opslaan en toepassen weigeren).
+eq('15 een eigen profiel mag tijdelijk leeg zijn', renameProfile(own, '   ')?.name, '');
+eq('15a leeg of alleen spaties is geen geldige naam', [hasValidProfileName(renameProfile(own, '')), hasValidProfileName({ ...own, name: '  ' })], [false, false]);
+eq('15b ingebouwd en een echte naam zijn geldig', [hasValidProfileName(undefined), hasValidProfileName(xerP6), hasValidProfileName(own)], [true, true, true]);
 eq('16 label ingebouwd met bestandsoverride = aangepast', profileLabel(xerP6), { kind: 'builtIn', baseId: 'p6', modified: true });
 eq('17 label eigen profiel', profileLabel(own), { kind: 'custom', name: 'Eigen' });
 eq('18 sjabloonrelatie', [templateRelation(own, []), templateRelation(own, [own]),

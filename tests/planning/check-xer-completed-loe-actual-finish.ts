@@ -1,5 +1,5 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
-import { explainCompletedXerLoeActualFinishEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { explainCompletedXerLoeActualFinishEligibilityResolved } from '@/engine/scheduler/p6CompletedRouteTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
@@ -62,7 +62,7 @@ function projection(mutate?: (imported: ImportResult, loe: Task) => void) {
   mutate?.(imported, loe);
   const incoming = imported.sequences.filter(sequence => sequence.successorId === loe.id);
   const outgoing = imported.sequences.filter(sequence => sequence.predecessorId === loe.id);
-  const decision = explainCompletedXerLoeActualFinishEligibility(
+  const decision = explainCompletedXerLoeActualFinishEligibilityResolved(
     loe,
     imported.project.statusDate ? parseInstant(imported.project.statusDate) : null,
     solveOptionsFor(imported.project).schedulingOptions,
@@ -107,7 +107,7 @@ function decisionOnly(mutate: (imported: ImportResult, loe: Task) => void) {
   const imported = structuredClone(importedFixture());
   const loe = task(imported);
   mutate(imported, loe);
-  return explainCompletedXerLoeActualFinishEligibility(
+  return explainCompletedXerLoeActualFinishEligibilityResolved(
     loe,
     imported.project.statusDate ? parseInstant(imported.project.statusDate) : null,
     solveOptionsFor(imported.project).schedulingOptions,

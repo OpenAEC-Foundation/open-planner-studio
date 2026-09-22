@@ -46,6 +46,8 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     // De actie opent Backstage → Projectinfo met het profielblok.
     const select = page.locator('[data-ops-scheduling-profile-select]');
     await expect(select).toHaveValue('builtin:p6');
+    // Een XER draagt de kritiekdrempel in uren (thresholdHours): de eenheid staat ZICHTBAAR bij het veld.
+    await expect(page.locator('[data-ops-crit-threshold-unit]')).toHaveText(/(uren, per taakkalender|hours, per task calendar)/);
 
     // Wisselen naar MS Project en toepassen ⇒ herberekend, één taak verschoven, melding met de telling.
     await select.selectOption('builtin:msproject');
@@ -61,8 +63,17 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     await expect(select).toHaveValue('builtin:msproject');
     await page.locator('[data-ops-convention="clampNegativeFreeFloat"]').check();
     await expect(select).toHaveValue('current');
-    await expect(page.locator('[data-ops-scheduling-profile-name]')).toHaveValue(/^(Kopie van|Copy of) Microsoft Project$/);
+    const nameField = page.locator('[data-ops-scheduling-profile-name]');
+    await expect(nameField).toHaveValue(/^(Kopie van|Copy of) Microsoft Project$/);
+    // Het naamveld is te wissen; leeg is nog niet geldig: melding erbij, sjabloon opslaan uit.
+    await nameField.fill('');
+    await expect(page.locator('[data-ops-scheduling-profile-name-required]')).toBeVisible();
+    await expect(page.locator('[data-ops-scheduling-save-template]')).toBeDisabled();
+    await nameField.fill('Mijn profiel ');
+    await expect(nameField).toHaveValue('Mijn profiel ');
+    await expect(page.locator('[data-ops-scheduling-profile-name-required]')).toHaveCount(0);
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
+    await expect.poll(() => profileOf(page).then(p => p?.name)).toBe('Mijn profiel');
     await expect.poll(() => profileOf(page).then(p => [p?.baseId, p?.id.startsWith('prof')]))
       .toEqual(['msproject', true]);
   });

@@ -1,6 +1,6 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { explainOpenXerLoeTargetSpanEligibility } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
+import { explainOpenXerLoeTargetSpanEligibilityResolved } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -104,7 +104,7 @@ eq('open XER LOE: targetvenster en bronduur gebruiken dezelfde positieve werkmin
   ),
 }, { durationMinutes: 80 * 60, scheduleDuration: 10, targetWindowMinutes: 72 * 60 });
 eq('open XER LOE: de pure diagnose accepteert de positieve raw-vorm',
-  explainOpenXerLoeTargetSpanEligibility(
+  explainOpenXerLoeTargetSpanEligibilityResolved(
     loe,
     solveOptionsFor(imported.project).schedulingOptions,
     imported.sequences.filter(sequence => sequence.successorId === loe.id),
@@ -146,7 +146,7 @@ eq('open XER LOE: expliciet targetvenster bepaalt de eigen span', {
 function diagnose(input: ImportResult) {
   const candidate = task(input);
   const candidateCalendar = new CalendarEngine(input.calendar);
-  return explainOpenXerLoeTargetSpanEligibility(
+  return explainOpenXerLoeTargetSpanEligibilityResolved(
     candidate,
     // Rekenprofielen C2: de diagnose krijgt dezelfde opgeloste set als de solver.
     solveOptionsFor(input.project).schedulingOptions,
@@ -206,7 +206,7 @@ eq('open XER LOE dagmodus: echte reader bewaart provenance en expliciet doelvens
   start: '2026-01-05', finish: '2026-01-16', workTime: undefined, hourMode: false,
 });
 eq('open XER LOE dagmodus: uur-native route sluit fail-closed',
-  explainOpenXerLoeTargetSpanEligibility(
+  explainOpenXerLoeTargetSpanEligibilityResolved(
     dayModeLoe,
     solveOptionsFor(dayModeImported.project).schedulingOptions,
     dayModeImported.sequences.filter(sequence => sequence.successorId === dayModeLoe.id),
