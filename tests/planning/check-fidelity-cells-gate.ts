@@ -9,12 +9,14 @@
 //    `xer-product-fidelity-baseline-v2.json`: per entry, per as en per emmer is het aantal cellen
 //    gelijk aan de gepinde telling. Zo kan de cel-baseline op geen enkele machine stil uit de pas
 //    lopen met de tellingen.
+// Assen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het
+// zesassige nuldoel-getal) — alle zeven onder dezelfde poortregels.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  buildCellBaseline, CELL_AXES, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, compareCells,
-  parseCellBaseline, planCellRepin, serializeCellBaseline, type CellBaseline, type MeasuredCell,
+  buildCellBaseline, CELL_AXES, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
+  parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
 } from './fidelityCells';
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
@@ -110,6 +112,20 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   throws('onbekende as', [{ axis: 'xx', id: '1/1', bucket: 'diff' }]);
   throws('id zonder project', [{ axis: 'es', id: '11', bucket: 'diff' }]);
   throws('__proto__ als as', [{ axis: '__proto__', id: '1/1', bucket: 'diff' }]);
+
+  // Een dubbele cel binnen één project wordt een foutregel (de check maakt er een XX-regel van),
+  // geen exception die als stacktrace de run afbreekt.
+  const duplicate = tryBuildCellBaseline(new Map([[F1, [...BASE, { axis: 'es', id: '1/10', bucket: 'diff' as const }]]]));
+  eq('dubbele cel ⇒ nette foutregel', duplicate.error, `dubbele cel ${F1}/es/1/10`);
+  eq('geldige meting ⇒ geen foutregel', tryBuildCellBaseline(new Map([[F1, BASE]])).error, undefined);
+
+  // Schrijfmodus: een ontbrekend bestand vraagt `init`, `=1` herpint alleen een bestaand bestand.
+  eq('geen schrijfmodus ⇒ geen probleem', cellWriteModeProblem(undefined, false), undefined);
+  eq('=1 met bestaand bestand mag', cellWriteModeProblem('1', true), undefined);
+  eq('init zonder bestand mag', cellWriteModeProblem('init', false), undefined);
+  eq('=1 zonder bestand wordt geweigerd met uitleg', cellWriteModeProblem('1', false)?.includes('OPS_XER_CELLS_WRITE=init'), true);
+  eq('init over een bestaand bestand wordt geweigerd', cellWriteModeProblem('init', true) !== undefined, true);
+  eq('onbekende schrijfmodus wordt geweigerd', cellWriteModeProblem('yes', true) !== undefined, true);
 
   // Serialisatie en strikte lezer.
   const text = serializeCellBaseline(baseline);

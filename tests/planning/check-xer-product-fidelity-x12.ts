@@ -32,8 +32,8 @@ import {
   type ProductEntryV2,
 } from './xerProductBaselineV2';
 import {
-  buildCellBaseline, CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateFailures, cellTotals, compareCells,
-  parseCellBaseline, planCellRepin, serializeCellBaseline, type CellBaseline, type MeasuredCell,
+  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateFailures, cellTotals, cellWriteModeProblem, compareCells,
+  parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
 } from './fidelityCells';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -2273,12 +2273,21 @@ async function productBaseline(
 /**
  * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, of
  * waarvan de emmer verslechtert, is rood. Emmervolgorde (spec §5): exact < sameday < diff < missing;
- * elke stap naar rechts is verslechteren. Verbeteringen zijn groen en worden als "te herpinnen"
+ * elke stap naar rechts is verslechteren. Zeven poortassen: de zes X12-assen plus `drivingPath`
+ * als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Een ontbrekend
+ * cellenbestand wordt alleen met `OPS_XER_CELLS_WRITE=init` aangemaakt. Verbeteringen zijn groen en worden als "te herpinnen"
  * gemeld. `OPS_XER_CELLS_WRITE=1` herschrijft de baseline uit de meting, maar alleen zonder één
  * rode cel.
  */
-function checkCellBaseline(measuredCells: CellBaseline): void {
+function checkCellBaseline(cellSink: XerCellSink): void {
+  const built = tryBuildCellBaseline(cellSink);
+  checks++;
+  if (!built.baseline) { diffs.push(`X12 cel-meting ongeldig (regel A): ${built.error}`); return; }
+  const measuredCells = built.baseline;
   const path = join(HERE, CELL_BASELINE_FILE);
+  const writeMode = process.env.OPS_XER_CELLS_WRITE;
+  const writeProblem = cellWriteModeProblem(writeMode, existsSync(path));
+  if (writeProblem) { checks++; diffs.push(`X12 cel-baseline: ${writeProblem}`); return; }
   let baseline: CellBaseline | undefined;
   if (existsSync(path)) {
     const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
@@ -2286,7 +2295,7 @@ function checkCellBaseline(measuredCells: CellBaseline): void {
     if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return; }
     baseline = parsed.baseline;
   }
-  if (process.env.OPS_XER_CELLS_WRITE === '1') {
+  if (writeMode === '1' || writeMode === 'init') {
     const plan = planCellRepin(baseline, measuredCells);
     checks++;
     if (!plan.allowed) {
@@ -2299,7 +2308,7 @@ function checkCellBaseline(measuredCells: CellBaseline): void {
     baseline = measuredCells;
   }
   checks++;
-  if (!baseline) { diffs.push(`${CELL_BASELINE_FILE} ontbreekt — maak hem met OPS_XER_CELLS_WRITE=1`); return; }
+  if (!baseline) { diffs.push(`${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init`); return; }
   const delta = compareCells(baseline, measuredCells);
   const failures = cellGateFailures(delta);
   console.log(cellDeltaLine('p6', delta, measuredCells));
@@ -2328,7 +2337,7 @@ else {
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
   const cellSink: XerCellSink = new Map();
   const measured = await productBaseline(corpus, manifest, cellSink);
-  if (REPORT === undefined) checkCellBaseline(buildCellBaseline(cellSink));
+  if (REPORT === undefined) checkCellBaseline(cellSink);
   if (REPORT === 'baseline') process.stdout.write(canonicalProductEnvelope(measured));
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);

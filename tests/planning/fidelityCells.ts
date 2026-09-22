@@ -11,6 +11,11 @@
 //   verouderde baselineregels (cel nu exact) zijn toegestaan en onschuldig.
 // Herpinnen (`planCellRepin`) mag alleen zonder één rode cel.
 //
+// Assen: de zes X12-assen (es/ef/ls/lf/tf/ff) plus `drivingPath` als zevende poort-as
+// (eigenaarsbesluit 2026-09-22: "driving path wordt de zevende poort-as"). `drivingPath` valt in
+// deze cel-ratchet onder precies dezelfde regels (a)–(c), maar telt niet mee in het zesassige
+// nuldoel-getal van X12 (15.056); dat getal blijft de som van de zes datum-/floatassen.
+//
 // Identiteit: `<proj_id>/<task_id>` is precies de join van `measureXerProductFidelity` (project,
 // daarbinnen `sourceTaskId` = P6 `task_id`). `taskCode` is daar uitdrukkelijk géén identiteit.
 // Sleutel: volledige SHA-256 van de `.xer`-bytes, dezelfde sleutel als
@@ -38,7 +43,8 @@ function sortedKeys(value: object): string[] {
   return Object.keys(value).sort(codeUnitCompare);
 }
 
-/** De zes poortassen plus de rapportage-as `drivingPath`, gesorteerd. */
+/** De zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige
+ *  nuldoel-getal), gesorteerd. */
 export const CELL_AXES: readonly string[] = [...XER_FIDELITY_AXES, 'drivingPath'].sort(codeUnitCompare);
 export const CELL_KEY_PATTERN = /^[0-9a-f]{64}$/;
 export const CELL_ID_PATTERN = /^[0-9A-Za-z_.-]{1,64}\/[0-9A-Za-z_.-]{1,64}$/;
@@ -100,6 +106,19 @@ export function buildCellBaseline(measured: ReadonlyMap<string, readonly Measure
     files[key] = canonicalAxes(axes);
   }
   return { version: CELL_BASELINE_VERSION, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS], files };
+}
+
+/**
+ * Zelfde als `buildCellBaseline`, maar een ongeldige meting (dubbele cel binnen één project,
+ * onbekende as/emmer, id in de verkeerde vorm) wordt een foutregel in plaats van een exception —
+ * zodat de check een nette XX-regel print in plaats van een stacktrace.
+ */
+export function tryBuildCellBaseline(
+  measured: ReadonlyMap<string, readonly MeasuredCell[]>,
+): { baseline: CellBaseline; error?: undefined } | { baseline?: undefined; error: string } {
+  try { return { baseline: buildCellBaseline(measured) }; } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 /** `JSON.stringify(value, null, 2)` + LF over een object waarvan elke sleutelreeks gesorteerd is. */
@@ -213,6 +232,26 @@ export function cellTotals(baseline: CellBaseline): Record<string, Record<CellBu
     }
   }
   return totals;
+}
+
+/**
+ * Een ontbrekend cellenbestand wordt alleen met `OPS_XER_CELLS_WRITE=init` aangemaakt; `=1` herpint
+ * uitsluitend een bestaand bestand. Zo kan een verdwenen baseline (verkeerde checkout, weggegooid
+ * bestand) nooit stil door een gewone herpin opnieuw worden uitgevonden, en maakt `init` nooit een
+ * bestaand bestand kapot.
+ */
+export function cellWriteModeProblem(mode: string | undefined, baselineExists: boolean): string | undefined {
+  if (mode === undefined || mode === '') return undefined;
+  if (mode !== '1' && mode !== 'init') return `OPS_XER_CELLS_WRITE=${mode.slice(0, 20)} onbekend (verwacht 1 of init)`;
+  if (mode === '1' && !baselineExists) {
+    return `${CELL_BASELINE_FILE} ontbreekt; OPS_XER_CELLS_WRITE=1 herpint alleen een bestaand bestand — `
+      + 'maak een nieuwe baseline bewust aan met OPS_XER_CELLS_WRITE=init';
+  }
+  if (mode === 'init' && baselineExists) {
+    return `${CELL_BASELINE_FILE} bestaat al; OPS_XER_CELLS_WRITE=init maakt alleen een ontbrekend bestand aan — `
+      + 'herpin een bestaand bestand met OPS_XER_CELLS_WRITE=1';
+  }
+  return undefined;
 }
 
 /**
