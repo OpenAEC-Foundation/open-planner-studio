@@ -61,7 +61,7 @@ void bad; void missing; void good;
 
 // ── C5: benoemde gedragswijziging — laadpad en bezetting rekenen met dezelfde invoer als F5 ─────────
 // Verwachtingen komen uit F5/solveInputFor zelf (geen hard-gecodeerde datums). Mutatiebewijs: vóór
-// C5 (de C5-GEDRAGSWIJZIGING-regels die projectEndDate/projectStartDate op undefined zetten) zijn
+// C5 (toen laadpad en bezetting projectEndDate/projectStartDate nog op undefined zetten) zijn
 // C5-01 en C5-03 rood; C5-02/C5-04 bewijzen dat de fixture het verschil kan zien.
 {
   const cal5 = createDefaultCalendar();
