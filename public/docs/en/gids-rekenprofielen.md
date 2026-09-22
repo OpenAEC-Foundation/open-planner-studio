@@ -28,14 +28,17 @@ The three built-in profiles:
 - MS Project XML and P6 XML: **Open Planner Studio** in this version. There is no reference measurement for these formats yet; an automatic choice would move dates without proof that the result is right.
 - CSV, a new project and IFC from another program: **Open Planner Studio**.
 - Your own IFC file: the profile saved in it.
+- An IFC file from an older version of Open Planner Studio, without a saved profile: the profile follows from the saved calculation options. A project that was opened from a `.xer` file gets **Primavera P6** this way, one opened from an `.mpp` file **Microsoft Project**, everything else **Open Planner Studio**.
 
-When a file opens with a profile other than Open Planner Studio, you see one notification, for example "This project calculates as Primavera P6". The button in that notification opens Project info at the right section. For a `.xer` file that line is part of the normal opening notification, also when the file contains several projects.
+When a file opens with a profile other than Open Planner Studio, you see one notification, for example "This project calculates as Primavera P6". The button in that notification opens Project info. For a `.xer` file that line is part of the normal opening notification, also when the file contains several projects.
 
 ## Switching profiles
 
 Choose another profile in **Project info** and click **Apply**. The schedule is recalculated right away, also when *Calculate automatically* is off, and a notification tells you how many tasks moved as a result. A switch is one step in *Undo*.
 
-Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place when you switch. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
+Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
+
+When you switch between the built-in profiles, all deviations stay exactly as they are, including one that happens to equal the default of the new profile. So Primavera P6 → Open Planner Studio → Primavera P6 gives back exactly the profile you started with. If you save in between, the file keeps only what deviates under the profile of that moment.
 
 The project's calculation options do not change when you switch. If you want the default options of the new profile, click **Apply this profile's default options**.
 
@@ -43,7 +46,7 @@ Take care when switching a project that does not come from P6 to Primavera P6: t
 
 ## Making a custom profile
 
-Turn a convention on or off in the section. If the profile is built in, Open Planner Studio automatically makes a custom copy of it, for example "Copy of Primavera P6". You can change that name.
+Turn a convention on or off in the section. If the profile is built in, Open Planner Studio automatically makes a custom copy of it, for example "Copy of Primavera P6". You can change that name. When you choose a template for a project from a `.xer` file, the project keeps the value from the file for the start of remaining work; that does not count as a difference from the template.
 
 With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**.
 

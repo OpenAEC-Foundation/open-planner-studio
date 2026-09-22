@@ -17,17 +17,18 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    waar in de motor, P6/MS Project/OPS), en aan de unie `ConventionKey`. De compiler dwingt daarna
    stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
 2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep, de drie
-   ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden) en
-   `since` = vandaag. `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt
+   ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden),
+   `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag. `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt
    voor bestanden mét `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is
    de sleutelvolgorde in de IFC-JSON: voeg achteraan toe.
 3. **Motor.** Lees uitsluitend `schedulingOptions.<id>`. Nooit het bronformaat, nooit een lezer-import:
    `npm run verify:conventions` faalt anders. Een nieuwe lezing van een herkomstveld (`p6ProjectId`
    e.d.) laat de gepinde datagate-telling stijgen en maakt de poort ook rood — bespreek dat eerst.
 4. **Lezer** (alleen bij een per-bestand-conventie): de lezer zet de bestandswaarde als override op het
-   profiel, en de sleutel komt in `PER_FILE_CONVENTION_KEYS` (`src/state/schedulingProfileDraft.ts`),
-   zodat hij een profielwissel vanaf een eigen profiel overleeft. Het register zelf kent geen
-   per-bestand-veld.
+   profiel, en de register-rij krijgt `perFile: true`. Het bewerkmodel leidt daaruit
+   `PER_FILE_CONVENTION_KEYS` af (`src/state/schedulingProfileDraft.ts`) en draagt de waarde over bij
+   elke profielwissel, ook naar een eigen profiel of sjabloon. `switchProfile` kijkt bewust niet naar
+   `perFile` (op een ingebouwd id blijven alle afwijkingen letterlijk staan).
 5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
 6. **Gids**: één regel onder "De vijftien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`

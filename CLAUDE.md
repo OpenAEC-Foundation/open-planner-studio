@@ -25,7 +25,8 @@ npm run verify:examples   # los: de gebundelde voorbeelden laden/rekenen door zo
 npm run verify:docs       # los: in-app gidsen — nl+en hard vereist, overige 12 talen indien aanwezig
 npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-pluralcategorieën meegerekend)
 npm run verify:store-boundaries # los: AST-poort — core-runtimefactories en storegebonden MCP-tools importeren nooit useAppStore/appStoreContext
-npm run verify:conventions # los: AST-poort — src/engine/ leest geen bronformaat (p6Source/readFormat/lezer-imports); herkomst-datagates gepind, alleen omlaag
+npm run verify:conventions # los: AST-poort — src/engine/ leest geen bronformaat (p6Source/readFormat/XER-bronsignalen/lezer-imports); herkomst-datagates gepind, alleen omlaag
+npm run measure:profiles  # los: cel-baseline per rekenprofiel (regel A: geen exacte cel mag inexact worden); het P6-deel vereist OPS_XER_CORPUS
 npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
@@ -136,8 +137,8 @@ onder *State*) en de X12-meetlat, nooit `Task.time` als invoer. Bak 2 (`restart_
 corpusloos over heel `src/`; de X12-non-interferentie in `check-xer-product-fidelity-x12.ts` bewijst
 het per mutatie. (3) **P6-gedrag loopt via het rekenprofiel, niet via het bronformaat.** De XER-lezer zet
 `project.schedulingProfile` op het ingebouwde profiel Primavera P6 (A19 per bestand als override uit
-`rem_target_link_flag`); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
-*Rekenprofielen* hieronder). `SchedulingOptions.p6Source` bestaat niet meer; oude IFC-bestanden met
+`rem_target_link_flag`) (vanaf baan C); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
+*Rekenprofielen* hieronder). `SchedulingOptions.p6Source` bestaat niet meer (vanaf baan C); oude IFC-bestanden met
 `p6Source` migreren per veld (`legacyOptionsToProfile`). `WorkCalendar.p6Source` blijft als diagnoseveld.
 Uitzondering: `lagCalendar` is sinds X5 een werkende instelling voor élk formaat.
 
@@ -154,21 +155,25 @@ Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (
 basis `p6 | msproject | ops` + overrides) levert vijftien **conventies** (`ConventionKey`, booleans);
 `project.schedulingOptions` draagt alleen de negen **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
-(`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue` en `gatedByP6Source`); de migratie
-van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten de motor, in
-`src/services/ifc/schedulingProfileMigration.ts`. Per bestand komt alleen A19 (`PER_FILE_CONVENTION_KEYS` in
-het bewerkmodel): die waarde blijft bij elke profielwissel staan.
+(`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
+beschrijvende `perFile`); de migratie van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten
+de motor, in `src/services/ifc/schedulingProfileMigration.ts`. Per bestand komt alleen A19 (`perFile` in het
+register; het bewerkmodel leidt er `PER_FILE_CONVENTION_KEYS` uit af): die waarde blijft bij elke
+profielwissel staan, ook naar een eigen profiel of een sjabloon. Verder blijven afwijkingen op een
+ingebouwd id bij een wissel letterlijk staan (`switchProfile`), en `isDefaultProfile` is letterlijk "ops
+zonder enige afwijking" — zo geeft P6 → OPS → P6 het origineel terug.
 De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/`solveInputFor`
-(`src/engine/scheduler/solveInput.ts`) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
+(`src/engine/scheduler/solveInput.ts`) (vanaf baan C) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
 aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel voor (`ImportResult.suggestedProfileId`:
-XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe); openen meldt het profiel met een
-actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle vijftien opgelost, alleen ≠ standaardprofiel)
-naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true). Eigen profielen zijn app-globale
+XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe) (vanaf baan C); openen meldt het profiel met een
+actie naar Projectinfo (vanaf baan C). IFC: `OPS_SchedulingProfile` (alle vijftien opgelost, alleen ≠ standaardprofiel)
+naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door `writeIFC`/`readIFC` geschreven en
+gelezen (vanaf baan C). Eigen profielen zijn app-globale
 sjablonen (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt
 zijn eigen kopie. UI: het blok *Rekenprofiel en reken-opties* in Projectinfo
-(`SchedulingProfileSection.tsx`, bewerkmodel `state/schedulingProfileDraft.ts`, actie
-`applySchedulingSettings`). **Regel A/B voor motorwerk:** een wijziging landt alleen als onder elk
-profiel met orakel geen exacte cel inexact wordt (de cel-baseline-meting `measure:profiles`); verschilt
+(`SchedulingProfileSection.tsx` (vanaf D4), bewerkmodel `state/schedulingProfileDraft.ts`, actie
+`applySchedulingSettings` (vanaf D3)). **Regel A/B voor motorwerk:** een wijziging landt alleen als onder elk
+profiel met orakel geen exacte cel inexact wordt (`npm run measure:profiles`, cel-baseline); verschilt
 iets per profiel, dan is het een conventie in het register — nooit een `if` op het formaat.
 `npm run verify:conventions` bewaakt dat mechanisch. Recept: `docs/recepten/conventie.md`; gids:
 `public/docs/{nl,en}/gids-rekenprofielen.md`; spec: `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`;

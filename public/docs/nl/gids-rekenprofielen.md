@@ -28,14 +28,17 @@ De drie ingebouwde profielen:
 - MS Project XML en P6 XML: in deze versie **Open Planner Studio**. Voor deze formaten bestaat nog geen referentiemeting; een automatische keuze zou datums verschuiven zonder dat aantoonbaar is dat het klopt.
 - CSV, een nieuw project en IFC uit een ander programma: **Open Planner Studio**.
 - Een eigen IFC-bestand: het profiel dat erin is opgeslagen.
+- Een IFC-bestand uit een oudere versie van Open Planner Studio, zonder opgeslagen profiel: het profiel volgt uit de opgeslagen reken-opties. Een eerder geopend `.xer`-project krijgt zo **Primavera P6**, een eerder geopend `.mpp`-project **Microsoft Project**, al het andere **Open Planner Studio**.
 
-Opent een bestand met een ander profiel dan Open Planner Studio, dan zie je één melding, bijvoorbeeld "Dit project rekent als Primavera P6". De knop in die melding opent Projectinfo meteen op het goede blok. Bij een `.xer`-bestand staat die regel in de gewone openingsmelding, ook als het bestand meerdere projecten bevat.
+Opent een bestand met een ander profiel dan Open Planner Studio, dan zie je één melding, bijvoorbeeld "Dit project rekent als Primavera P6". De knop in die melding opent Projectinfo. Bij een `.xer`-bestand staat die regel in de gewone openingsmelding, ook als het bestand meerdere projecten bevat.
 
 ## Van profiel wisselen
 
 Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat, en een melding vertelt hoeveel taken daardoor verschoven zijn. Een wissel is één stap in *Ongedaan maken*.
 
-Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij een wissel staan. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
+Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij elke wissel staan, ook als je een eigen profiel of een sjabloon kiest. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
+
+Wissel je tussen de ingebouwde profielen, dan blijven alle afwijkingen letterlijk staan, ook een afwijking die onder het nieuwe profiel toevallig gelijk is aan de standaard. Zo geeft Primavera P6 → Open Planner Studio → Primavera P6 precies het profiel terug waarmee je begon. Sla je tussendoor op, dan bewaart het bestand alleen wat onder het profiel van dat moment afwijkt.
 
 De reken-opties van het project veranderen bij een wissel niet. Wil je de standaardopties van het nieuwe profiel, klik dan op **Standaardopties van dit profiel toepassen**.
 
@@ -43,7 +46,7 @@ Let op bij een wissel naar Primavera P6 voor een project dat niet uit P6 komt: d
 
 ## Een eigen profiel maken
 
-Zet in het blok een conventie aan of uit. Is het profiel ingebouwd, dan maakt Open Planner Studio er automatisch een eigen kopie van, bijvoorbeeld "Kopie van Primavera P6". Die naam kun je aanpassen.
+Zet in het blok een conventie aan of uit. Is het profiel ingebouwd, dan maakt Open Planner Studio er automatisch een eigen kopie van, bijvoorbeeld "Kopie van Primavera P6". Die naam kun je aanpassen. Kies je een sjabloon voor een project uit een `.xer`-bestand, dan houdt het project de waarde uit het bestand voor het begin van het restwerk; die telt niet als afwijking van het sjabloon.
 
 Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het in andere projecten kunt kiezen. Een project bewaart altijd een eigen kopie van zijn profiel: een sjabloon later wijzigen verandert geen bestaand project. Wijkt het profiel van een project af van zijn sjabloon, dan zie je dat in een gekleurd blok, met de knoppen **Bijwerken vanuit sjabloon** en **Sjabloon bijwerken vanuit dit project**.
 
