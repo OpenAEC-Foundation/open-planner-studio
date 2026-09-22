@@ -14,8 +14,8 @@
  * verslechtering mechanisch opvalt. Gemeten stand (brongetrouwe transcriptie, 2026-09-07): elf van
  * de dertien casussen kloppen volledig, 156 van de 160 door P6 vastgelegde cellen; de vier
  * verschillen (casus 08 en 10, bezig zijnde taken rond de statusdatum) staan cel voor cel gepind
- * onder punt 5. De ECHTE bytes (sectie 7) geven 77/160 zoals gelezen en 156/160 zonder de
- * geregistreerde projecteinde-fout — dus exact deze transcriptie.
+ * onder punt 5. De ECHTE bytes (sectie 7) gaven 77/160 zoals gelezen door de projecteinde-fout;
+ * sinds X12-brok 1 (2026-09-23) 156/160 zoals gelezen — exact deze transcriptie.
  *
  * BRONGETROUWHEID (her-review 2026-09-07, bevinding 1). De transcriptie volgt de ÉCHTE P6-export
  * van precies deze dertien casussen — `cpp-cpm-engine/validation/p6-comparison/cases-import.xer`,
@@ -26,10 +26,10 @@
  * `rem_target_link_flag` weg — twee elkaar opheffende afwijkingen die de poort op de verkeerde
  * reden dicht lieten staan. Wat hier bewust WEL wordt weggelaten is de SCHEDOPTIONS-tabel van de
  * bron: die zet `sched_use_project_end_date_for_float = Y` terwijl geen enkele taak een
- * `target_end_date` heeft, en dat raakt een geregistreerde productfout (het taak-afgeleide
- * projecteinde valt dan terug op de projectSTART, waarna de late zijde daarop verankert —
- * `docs/TODO.md`). Sectie 7 draait daarom de ECHTE bytes, corpusgebonden, en pint die fout
- * zichtbaar, in plaats van hem in de transcriptie te verstoppen.
+ * `target_end_date` heeft. Dat raakte een productfout (het taak-afgeleide projecteinde viel terug op
+ * de projectSTART, waarna de late zijde daarop verankerde); sinds X12-brok 1 zet de lezer de optie
+ * dan gerapporteerd uit (`deriveXerScheduleOptions`, `hasUsableProjectEnd`). Sectie 7 draait de
+ * ECHTE bytes, corpusgebonden, en pint dat zichtbaar.
  *
  * Gevolg voor casus 09: `explainP6CompletedDataDateWindow` blijft daar GESLOTEN — maar op
  * `wrongDurationType`/`missingExplicitTargetWindow`, een toevallige nauwte van de poort en géén
@@ -321,9 +321,10 @@ const AXES: readonly Axis[] = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'];
 // Gepinde poortredenen (sectie 1/2b) — gemeten op de brongetrouwe transcriptie.
 const GATE_REASONS_PIN = ['missingExplicitTargetWindow'];
 const GATE_REASON_CASE_09_B = 'missingExplicitTargetWindow';
-const REAL_AS_READ_PIN = { cellen: 160, eens: 77 };
+// X12-brok 1 (2026-09-23): 77 → 156 zoals gelezen (+79) — het gat met 7b is dicht.
+const REAL_AS_READ_PIN = { cellen: 160, eens: 156 };
 const REAL_WITHOUT_PROJECT_END_PIN = { cellen: 160, eens: 156 };
-const REAL_PROJECT_RANGE_PIN = { start: '2026-01-05T08:00', end: '2026-01-05T08:00', flag: true };
+const REAL_PROJECT_RANGE_PIN = { start: '2026-01-05T08:00', end: '2026-01-05T08:00', flag: false };
 const DEVIATING_CELLS_PIN: Record<string, Record<string, string[]>> = {
   '08-in-progress-retained-logic': { A: ['es', 'ls'] },
   '10-out-of-sequence-progress': { B: ['es', 'ls'] },
@@ -530,7 +531,8 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
   '06-multiple-calendars': { cellen: 12, eens: 12 },
   '07-ontario-holidays': { cellen: 6, eens: 6 },
   // Brongetrouw (her-review bevinding 1): 156 van 160 — exact gelijk aan de echte bytes zónder de
-  // projecteinde-fout (sectie 7b). De vier afwijkende cellen staan in sectie 5 gepind.
+  // projecteinde-fout (sectie 7b) en, sinds X12-brok 1, aan de echte bytes zoals gelezen (7a). De vier
+  // afwijkende cellen staan in sectie 5 gepind.
   '08-in-progress-retained-logic': { cellen: 12, eens: 10 },
   '09-completed-successor': { cellen: 10, eens: 10 },
   '10-out-of-sequence-progress': { cellen: 12, eens: 10 },
@@ -647,11 +649,12 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
 // ── 7. De ÉCHTE bytes: `cases-import.xer` door dezelfde lezer + solver (alleen mét corpus) ──────
 // Her-review bevinding 2: "157/160 eens met P6" was een uitspraak over de transcriptie, niet over
 // het bestand dat P6 werkelijk kreeg. Dit pint de echte export — dertien projecten in één XER —
-// zoals gelezen, én met `useProjectEndDateForFloat` uitgezet. Het gat ertussen is de geregistreerde
-// productfout (`docs/TODO.md`): `sched_use_project_end_date_for_float = Y` + geen enkele
-// `target_end_date`/`plan_end_date` ⇒ het taak-afgeleide projecteinde valt terug op de projectSTART
-// en de hele late zijde verankert daarop. Karakterisering, geen doel: beide tellers zijn gepind
-// zodat een fix het gat zichtbaar dichttrekt en een regressie het zichtbaar opent.
+// zoals gelezen, én met `useProjectEndDateForFloat` uitgezet. Het gat ertussen WAS de productfout
+// (`docs/TODO.md`, afgevinkt): `sched_use_project_end_date_for_float = Y` + geen enkele
+// `target_end_date`/`plan_end_date` ⇒ het taak-afgeleide projecteinde viel terug op de projectSTART
+// en de hele late zijde verankerde daarop (77/160). X12-brok 1 zet de optie dan gerapporteerd uit
+// (P6 rekent zonder Must Finish By terug vanaf max(EF)); beide tellers staan nu op 156/160 en blijven
+// gepind zodat een regressie het gat zichtbaar heropent.
 {
   const corpus = process.env.OPS_XER_CORPUS;
   const real = corpus ? join(corpus, 'cpp-cpm-engine', 'validation', 'p6-comparison', 'cases-import.xer') : undefined;
@@ -704,14 +707,14 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
     };
     const asRead = agreeReal();
     const withoutProjectEndFloat = agreeReal({ useProjectEndDateForFloat: false });
-    eq('7a echte bytes, zoals gelezen (de geregistreerde projecteinde-fout inbegrepen)',
+    eq('7a echte bytes, zoals gelezen (projecteinde-fout dicht sinds X12-brok 1)',
       { cellen: asRead.cells, eens: asRead.eens }, REAL_AS_READ_PIN);
     eq('7b echte bytes, met useProjectEndDateForFloat uit (het gat is precies die fout)',
       { cellen: withoutProjectEndFloat.cells, eens: withoutProjectEndFloat.eens }, REAL_WITHOUT_PROJECT_END_PIN);
     console.log(`.   p6-verified-cases-engine: echte bytes per casus zoals gelezen ${JSON.stringify(asRead.perCase)}`);
     console.log(`.   p6-verified-cases-engine: echte bytes per casus zonder projecteinde-float ${JSON.stringify(withoutProjectEndFloat.perCase)}`);
     const projectEnd = results[0]!.project.endDate;
-    eq('7c de bron heeft geen enkel einde (plan_end_date en target_end_date leeg) ⇒ projecteinde = projectstart — de fout zelf, gepind',
+    eq('7c de bron heeft geen enkel einde (plan_end_date en target_end_date leeg) ⇒ de optie staat uit (het projecteinde-veld stuurt de late pass niet meer)',
       { start: results[0]!.project.startDate, end: projectEnd, flag: results[0]!.project.schedulingOptions?.useProjectEndDateForFloat },
       REAL_PROJECT_RANGE_PIN);
   }
