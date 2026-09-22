@@ -247,7 +247,9 @@
       "floatPathsMethod": "الطريقة",
       "methodFree": "الفائض الحر (peeling)",
       "methodTotal": "الفائض الكلي (ترتيب)",
-      "maxPaths": "الحد الأقصى للمسارات"
+      "maxPaths": "الحد الأقصى للمسارات",
+      "tfAuto": "تلقائي (افتراضي)",
+      "critThresholdHours": "العتبة (ساعات، حسب تقويم المهمة)"
     }
   },
   "newProject": {

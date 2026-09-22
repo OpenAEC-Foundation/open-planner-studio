@@ -107,7 +107,14 @@
     "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "schedulingProfileApplied": "Questo progetto calcola come {{profile}}. Modificalo da File → Info progetto → Profilo di calcolo.",
+    "schedulingProfileShifted_many": "Il nuovo profilo di calcolo ha spostato {{count}} attività.",
+    "schedulingProfileShifted_one": "Il nuovo profilo di calcolo ha spostato {{count}} attività.",
+    "schedulingProfileShifted_other": "Il nuovo profilo di calcolo ha spostato {{count}} attività.",
+    "actions": {
+      "openProjectInfo": "Apri profilo di calcolo"
+    }
   },
   "yes": "Sì",
   "no": "No",
@@ -1187,11 +1194,88 @@
       "actualFinish": "Fine effettiva"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Mantieni le date effettive nel calcolo all’indietro",
+      "help": "Un’attività iniziata o completata mantiene le date registrate anche sul lato tardivo; un successore completato non riporta nel passato un predecessore aperto."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Margine libero mai negativo",
+      "help": "Con un vincolo tardivo irrealizzabile il margine totale resta negativo, ma il margine libero diventa zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "La milestone segue il limite di calendario pianificato",
+      "help": "Una milestone senza durata resta sul limite di calendario pianificato dal file: un inizio giornata resta una milestone di inizio, una fine fascia può cadere sulla fine del predecessore."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Inizio pianificato come limite inferiore aggiuntivo",
+      "help": "L’inizio pianificato del file vale come limite inferiore quando inizio e fine cadono più di un giorno di calendario dopo quanto consentito dalla rete."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Milestone finale come finestra di limite",
+      "help": "Una milestone finale può trovarsi su due limiti di calendario adiacenti: inizio anticipato all’inizio di una fascia, fine anticipata alla fine della fascia precedente."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Mantieni esatte le date effettive",
+      "help": "Le date effettive di inizio e fine registrate non vengono spostate in una fascia lavorativa."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Attività in corso: inizio anticipato = inizio del lavoro residuo",
+      "help": "L’inizio anticipato e posticipato di un’attività in corso indicano dove inizia il lavoro residuo, non l’inizio effettivo storico. Impostato per file da Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Istante del vincolo esatto su una milestone",
+      "help": "Un vincolo data e ora su una milestone senza durata è un punto esatto, anche all’inizio di una fascia lavorativa."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Il lavoro residuo riprende dopo la durata trascorsa",
+      "help": "Un’attività in corso riprende il lavoro residuo all’inizio effettivo più la durata trascorsa, non alla data di stato."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Non spostare le attività non iniziate alla data di stato",
+      "help": "Un’attività non ancora iniziata non viene spostata automaticamente alla data di stato o successivamente."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Il successore inizia sul limite di fine",
+      "help": "In una relazione fine-inizio senza ritardo su un limite di fascia condiviso, il successore inizia alla fine del predecessore (solo le relazioni che il file contrassegna così)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Ritardo all’indietro da un limite di fine",
+      "help": "Quando il calcolo all’indietro sottrae un ritardo in tempo lavorativo da un limite di fine e cade esattamente su un inizio di fascia, cade sul limite di fine precedente."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Attività completata nella finestra della data di stato",
+      "help": "Un’attività completata riceve date anticipate nella finestra della data di stato, e la sua fine conta per la fine del progetto (solo attività con origine P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "LOE completata tramite la fine effettiva",
+      "help": "Un’attività level-of-effort completata con un solo ingresso inizio-inizio segue il percorso tramite la sua fine effettiva (solo attività con origine P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "LOE non iniziata usa la finestra obiettivo",
+      "help": "Un’attività level-of-effort non ancora iniziata prende la sua finestra obiettivo come durata (solo attività con origine P6)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (modificato)",
+    "copyOf": "Copia di {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Profilo di calcolo e opzioni",
+    "profile": "Profilo di calcolo",
+    "conventionsTitle": "Convenzioni di questo profilo",
+    "optionsTitle": "Opzioni di calcolo di questo progetto",
+    "customName": "Nome di questo profilo personalizzato",
+    "saveAsTemplate": "Salva come modello",
+    "updateTemplate": "Aggiorna il modello da questo progetto",
+    "applyTemplate": "Aggiorna dal modello",
+    "deleteTemplate": "Elimina modello",
+    "templateDeviates": "Questo profilo differisce dal modello «{{name}}».",
+    "applyDefaultOptions": "Applica le opzioni predefinite di questo profilo"
   }
 }

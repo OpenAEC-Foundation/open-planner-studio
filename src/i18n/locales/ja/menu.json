@@ -247,7 +247,9 @@
       "floatPathsMethod": "方式",
       "methodFree": "フリーフロート（ピーリング）",
       "methodTotal": "トータルフロート（ランキング）",
-      "maxPaths": "最大パス数"
+      "maxPaths": "最大パス数",
+      "tfAuto": "自動（既定）",
+      "critThresholdHours": "しきい値（時間、タスクカレンダーごと）"
     }
   },
   "newProject": {

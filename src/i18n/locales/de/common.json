@@ -86,7 +86,13 @@
     "pasteSkippedReadOnly_other": "{{count}} Zellen übersprungen: Sie sind schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
     "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
     "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
-    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage."
+    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
+    "schedulingProfileApplied": "Dieses Projekt rechnet als {{profile}}. Ändern über Datei → Projektinfo → Berechnungsprofil.",
+    "schedulingProfileShifted_one": "Das neue Berechnungsprofil hat {{count}} Vorgang verschoben.",
+    "schedulingProfileShifted_other": "Das neue Berechnungsprofil hat {{count}} Vorgänge verschoben.",
+    "actions": {
+      "openProjectInfo": "Berechnungsprofil öffnen"
+    }
   },
   "yes": "Ja",
   "no": "Nein",
@@ -1153,11 +1159,88 @@
       "actualFinish": "Tatsächliches Ende"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Istdaten in der Rückwärtsrechnung beibehalten",
+      "help": "Ein begonnener oder abgeschlossener Vorgang behält seine erfassten Termine auch auf der späten Seite; ein abgeschlossener Nachfolger zieht einen offenen Vorgänger nicht in die Vergangenheit zurück."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Freier Puffer nie negativ",
+      "help": "Bei einer nicht einhaltbaren späten Einschränkung bleibt der Gesamtpuffer negativ, der freie Puffer wird jedoch null."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Meilenstein folgt der geplanten Kalendergrenze",
+      "help": "Ein Meilenstein ohne Dauer bleibt auf der Kalendergrenze, die die Datei geplant hat: ein Tagesbeginn bleibt ein Startmeilenstein, ein Bandende darf auf dem Ende des Vorgängers landen."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Geplanter Start als zusätzliche Untergrenze",
+      "help": "Der geplante Start aus der Datei gilt als Untergrenze, sobald Start und Ende mehr als einen Kalendertag später liegen, als das Netzwerk zulässt."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Endmeilenstein als Grenzfenster",
+      "help": "Ein Endmeilenstein darf auf zwei benachbarten Kalendergrenzen stehen: früher Start am Beginn eines Bandes, frühes Ende am Ende des vorherigen Bandes."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Istdaten exakt übernehmen",
+      "help": "Erfasste Ist-Start- und Ist-Endtermine werden nicht auf ein Arbeitszeitband verschoben."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Laufender Vorgang: früher Start = Beginn der Restarbeit",
+      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Kommt pro Datei aus Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Exakter Einschränkungszeitpunkt auf einem Meilenstein",
+      "help": "Eine Datums-und-Uhrzeit-Einschränkung auf einem Meilenstein ohne Dauer ist ein exakter Punkt, auch am Beginn eines Arbeitsbandes."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Restarbeit wird nach der verstrichenen Dauer fortgesetzt",
+      "help": "Ein laufender Vorgang setzt seine Restarbeit am Ist-Start plus der verstrichenen Dauer fort, nicht am Statusdatum."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Nicht begonnene Vorgänge nicht zum Statusdatum verschieben",
+      "help": "Ein noch nicht begonnener Vorgang wird nicht automatisch auf oder nach das Statusdatum verschoben."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Nachfolger beginnt an der Endgrenze",
+      "help": "Bei einer Ende-Anfang-Beziehung ohne Zeitabstand auf einer gemeinsamen Bandgrenze beginnt der Nachfolger am Ende des Vorgängers (nur Beziehungen, die die Datei so kennzeichnet)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Zeitabstand rückwärts ab einer Endgrenze",
+      "help": "Zieht die Rückwärtsrechnung einen Arbeitszeit-Zeitabstand von einer Endgrenze ab und landet genau auf einem Bandbeginn, landet sie auf der vorherigen Endgrenze."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Abgeschlossener Vorgang im Statusdatumsfenster",
+      "help": "Ein abgeschlossener Vorgang erhält frühe Termine im Fenster des Statusdatums, und sein Ende zählt für das Projektende (nur Vorgänge mit P6-Herkunft)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Abgeschlossene LOE über das Ist-Ende",
+      "help": "Eine abgeschlossene Level-of-Effort-Aktivität mit nur einem Anfang-Anfang-Eingang folgt der Route über ihr Ist-Ende (nur Vorgänge mit P6-Herkunft)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Nicht begonnene LOE übernimmt das Zielfenster",
+      "help": "Eine noch nicht begonnene Level-of-Effort-Aktivität übernimmt ihr Zielfenster als Laufzeit (nur Vorgänge mit P6-Herkunft)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (angepasst)",
+    "copyOf": "Kopie von {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Berechnungsprofil und Berechnungsoptionen",
+    "profile": "Berechnungsprofil",
+    "conventionsTitle": "Konventionen dieses Profils",
+    "optionsTitle": "Berechnungsoptionen dieses Projekts",
+    "customName": "Name dieses eigenen Profils",
+    "saveAsTemplate": "Als Vorlage speichern",
+    "updateTemplate": "Vorlage aus diesem Projekt aktualisieren",
+    "applyTemplate": "Aus Vorlage aktualisieren",
+    "deleteTemplate": "Vorlage löschen",
+    "templateDeviates": "Dieses Profil weicht von der Vorlage „{{name}}“ ab.",
+    "applyDefaultOptions": "Standardoptionen dieses Profils anwenden"
   }
 }

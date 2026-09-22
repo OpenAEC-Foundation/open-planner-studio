@@ -107,7 +107,14 @@
     "librarySaveFailed": "No se pudo guardar la biblioteca",
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
-    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
+    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "schedulingProfileApplied": "Este proyecto calcula como {{profile}}. Cámbialo en Archivo → Info del proyecto → Perfil de cálculo.",
+    "schedulingProfileShifted_many": "El nuevo perfil de cálculo movió {{count}} tareas.",
+    "schedulingProfileShifted_one": "El nuevo perfil de cálculo movió {{count}} tarea.",
+    "schedulingProfileShifted_other": "El nuevo perfil de cálculo movió {{count}} tareas.",
+    "actions": {
+      "openProjectInfo": "Abrir perfil de cálculo"
+    }
   },
   "yes": "Sí",
   "no": "No",
@@ -1187,11 +1194,88 @@
       "actualFinish": "Fin real"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Conservar las fechas reales en el cálculo hacia atrás",
+      "help": "Una tarea iniciada o completada conserva sus fechas registradas también en el lado tardío; un sucesor completado no arrastra a un predecesor abierto al pasado."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Holgura libre nunca negativa",
+      "help": "Con una restricción tardía inalcanzable, la holgura total sigue siendo negativa, pero la holgura libre pasa a ser cero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "El hito sigue el límite de calendario planificado",
+      "help": "Un hito sin duración permanece en el límite de calendario que planificó el archivo: un inicio de día sigue siendo un hito de inicio, un fin de franja puede coincidir con el fin del predecesor."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Inicio planificado como límite inferior adicional",
+      "help": "El inicio planificado del archivo actúa como límite inferior cuando el inicio y el fin quedan más de un día natural más tarde de lo que permite la red."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Hito final como ventana de límite",
+      "help": "Un hito final puede situarse en dos límites de calendario adyacentes: inicio temprano al principio de una franja, fin temprano al final de la franja anterior."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Mantener exactas las fechas reales",
+      "help": "Las fechas reales de inicio y fin registradas no se desplazan a una franja de trabajo."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Tarea en curso: inicio temprano = inicio del trabajo restante",
+      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. Lo define cada archivo de Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Momento de restricción exacto en un hito",
+      "help": "Una restricción de fecha y hora en un hito sin duración es un punto exacto, también al inicio de una franja de trabajo."
+    },
+    "resumeFromActualElapsed": {
+      "label": "El trabajo restante se reanuda tras la duración transcurrida",
+      "help": "Una tarea en curso reanuda su trabajo restante en el inicio real más la duración transcurrida, no en la fecha de estado."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "No mover las tareas no iniciadas a la fecha de estado",
+      "help": "Una tarea que aún no ha comenzado no se desplaza automáticamente a la fecha de estado o después."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "El sucesor empieza en el límite de fin",
+      "help": "En una relación fin-inicio sin desfase sobre un límite de franja compartido, el sucesor empieza en el fin del predecesor (solo las relaciones que el archivo marca así)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Desfase hacia atrás desde un límite de fin",
+      "help": "Cuando el cálculo hacia atrás resta un desfase en tiempo de trabajo desde un límite de fin y cae justo en un inicio de franja, cae en el límite de fin anterior."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Tarea completada en la ventana de la fecha de estado",
+      "help": "Una tarea completada recibe fechas tempranas en la ventana de la fecha de estado, y su fin cuenta para el fin del proyecto (solo tareas con origen P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "LOE completada mediante su fin real",
+      "help": "Una actividad de nivel de esfuerzo completada con solo una entrada inicio-inicio sigue la ruta por su fin real (solo tareas con origen P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "LOE no iniciada toma la ventana objetivo",
+      "help": "Una actividad de nivel de esfuerzo que aún no ha comenzado toma su ventana objetivo como duración (solo tareas con origen P6)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (modificado)",
+    "copyOf": "Copia de {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Perfil de cálculo y opciones",
+    "profile": "Perfil de cálculo",
+    "conventionsTitle": "Convenciones de este perfil",
+    "optionsTitle": "Opciones de cálculo de este proyecto",
+    "customName": "Nombre de este perfil propio",
+    "saveAsTemplate": "Guardar como plantilla",
+    "updateTemplate": "Actualizar la plantilla desde este proyecto",
+    "applyTemplate": "Actualizar desde la plantilla",
+    "deleteTemplate": "Eliminar plantilla",
+    "templateDeviates": "Este perfil difiere de la plantilla «{{name}}».",
+    "applyDefaultOptions": "Aplicar las opciones predeterminadas de este perfil"
   }
 }

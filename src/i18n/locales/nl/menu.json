@@ -247,7 +247,9 @@
       "floatPathsMethod": "Methode",
       "methodFree": "Vrije speling (peeling)",
       "methodTotal": "Totale speling (rangschikking)",
-      "maxPaths": "Max. paden"
+      "maxPaths": "Max. paden",
+      "tfAuto": "Automatisch (standaard)",
+      "critThresholdHours": "Drempel (uren, per taakkalender)"
     }
   },
   "newProject": {

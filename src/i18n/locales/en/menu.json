@@ -247,7 +247,9 @@
       "floatPathsMethod": "Method",
       "methodFree": "Free float (peeling)",
       "methodTotal": "Total float (ranking)",
-      "maxPaths": "Max. paths"
+      "maxPaths": "Max. paths",
+      "tfAuto": "Automatic (default)",
+      "critThresholdHours": "Threshold (hours, per task calendar)"
     }
   },
   "newProject": {

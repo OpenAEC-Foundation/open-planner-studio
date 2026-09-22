@@ -86,7 +86,13 @@
     "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
-    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar."
+    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
+    "schedulingProfileApplied": "Bu proje {{profile}} olarak hesaplanıyor. Dosya → Proje bilgisi → Hesaplama profili üzerinden değiştirin.",
+    "schedulingProfileShifted_one": "Yeni hesaplama profili {{count}} görevi kaydırdı.",
+    "schedulingProfileShifted_other": "Yeni hesaplama profili {{count}} görevi kaydırdı.",
+    "actions": {
+      "openProjectInfo": "Hesaplama profilini aç"
+    }
   },
   "yes": "Evet",
   "no": "Hayır",
@@ -1153,11 +1159,88 @@
       "actualFinish": "Gerçek bitiş"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Geri hesaplamada gerçekleşen tarihleri koru",
+      "help": "Başlamış veya tamamlanmış bir görev kayıtlı tarihlerini geç tarafta da korur; tamamlanmış bir ardıl, açık bir öncülü geçmişe çekmez."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Serbest bolluk asla negatif değil",
+      "help": "Karşılanamayan bir geç kısıtta toplam bolluk negatif kalır, ancak serbest bolluk sıfır olur."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Kilometre taşı planlanan takvim sınırını izler",
+      "help": "Süresiz bir kilometre taşı dosyanın planladığı takvim sınırında kalır: gün başlangıcı bir başlangıç taşı olarak kalır, bant sonu öncülün bitişine denk gelebilir."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Planlanan başlangıç ek alt sınır olarak",
+      "help": "Dosyadaki planlanan başlangıç, başlangıç ve bitiş ağın izin verdiğinden bir takvim gününden fazla sonra olduğunda alt sınır olarak sayılır."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Bitiş kilometre taşı sınır penceresi olarak",
+      "help": "Bir bitiş kilometre taşı iki bitişik takvim sınırında durabilir: erken başlangıç bir bandın başında, erken bitiş önceki bandın sonunda."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Gerçekleşen tarihleri aynen al",
+      "help": "Kayıtlı gerçekleşen başlangıç ve bitiş tarihleri bir çalışma zamanı bandına kaydırılmaz."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Devam eden görev: erken başlangıç = kalan işin başlangıcı",
+      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Primavera P6 tarafından dosya başına belirlenir."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Kilometre taşında kesin kısıt anı",
+      "help": "Süresiz bir kilometre taşındaki tarih-saat kısıtı, bir çalışma bandının başında da kesin bir noktadır."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Kalan iş geçen süreden sonra devam eder",
+      "help": "Devam eden bir görev kalan işine durum tarihinde değil, gerçek başlangıç artı geçen sürede devam eder."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Başlamamış görevleri durum tarihine taşıma",
+      "help": "Henüz başlamamış bir görev otomatik olarak durum tarihine veya sonrasına kaydırılmaz."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Ardıl bitiş sınırında başlar",
+      "help": "Ortak bir bant sınırında gecikmesiz bir bitiş-başlangıç ilişkisinde ardıl, öncülün bitişinde başlar (yalnızca dosyanın böyle işaretlediği ilişkiler)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Bitiş sınırından geriye gecikme",
+      "help": "Geri hesaplama bir bitiş sınırından çalışma zamanı gecikmesini çıkarıp tam bir bant başlangıcına denk gelirse, önceki bitiş sınırına iner."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Durum tarihi penceresinde tamamlanan görev",
+      "help": "Tamamlanmış bir görev durum tarihi penceresinde erken tarihler alır ve bitişi proje bitişine sayılır (yalnızca P6 kaynaklı görevler)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Gerçek bitiş üzerinden tamamlanan LOE",
+      "help": "Yalnızca başlangıç-başlangıç girişi olan tamamlanmış bir level-of-effort etkinliği gerçek bitişi üzerinden yolu izler (yalnızca P6 kaynaklı görevler)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Başlamamış LOE hedef pencereyi alır",
+      "help": "Henüz başlamamış bir level-of-effort etkinliği hedef penceresini süre olarak alır (yalnızca P6 kaynaklı görevler)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (değiştirildi)",
+    "copyOf": "{{name}} kopyası"
+  },
+  "schedulingProfile": {
+    "title": "Hesaplama profili ve seçenekleri",
+    "profile": "Hesaplama profili",
+    "conventionsTitle": "Bu profilin kuralları",
+    "optionsTitle": "Bu projenin hesaplama seçenekleri",
+    "customName": "Bu özel profilin adı",
+    "saveAsTemplate": "Şablon olarak kaydet",
+    "updateTemplate": "Şablonu bu projeden güncelle",
+    "applyTemplate": "Şablondan güncelle",
+    "deleteTemplate": "Şablonu sil",
+    "templateDeviates": "Bu profil “{{name}}” şablonundan farklı.",
+    "applyDefaultOptions": "Bu profilin varsayılan seçeneklerini uygula"
   }
 }
