@@ -141,7 +141,8 @@ interface SchedulingProfile {
   UI biedt "bijwerken vanuit sjabloon" en "sjabloon bijwerken vanuit dit project". Matching op `id`,
   nooit op naam.
 - **Overrides bij een wissel.** Een profielwissel vervangt `baseId` en `id`, maar bewaart de overrides
-  die uit het bestand kwamen (A19 uit `rem_target_link_flag`): zo geeft P6 → MS Project → P6 weer
+  op een ingebouwd id **letterlijk** — die zijn per definitie uit het bestand of de migratie (A19 uit
+  `rem_target_link_flag`), want een handmatige wijziging maakt een kopie — zo geeft P6 → MS Project → P6 weer
   exact het resultaat van vlak na het openen. Een ingebouwd id mét overrides verschijnt in de
   keuzelijst als "P6 (aangepast)" en is géén kopie: pas een handmatige wijziging van een conventie
   maakt "Kopie van P6".
@@ -151,8 +152,11 @@ interface SchedulingProfile {
 Eén JSON-veld, pset `OPS_SchedulingProfile` op de `IfcWorkSchedule` (exact het patroon van
 `OPS_SchedulingOptions`/`OPS_Baselines`): `{ id, baseId, conventions: <alle 15 opgelost>, name? }`
 — `name` alleen voor eigen profielen (ingebouwde namen zijn vertaald en horen niet in een bestand).
-De pset wordt **alleen geschreven als het profiel ≠ `ops` zonder overrides** ⇒ bestaande bestanden
-blijven byte-identiek. `OPS_SchedulingOptions` blijft precies zoals nu en draagt de optie-sleutels
+De pset wordt **alleen geschreven als het profiel ≠ `ops` zonder overrides** ⇒ bestaande
+**OPS-bestanden** blijven byte-identiek. Een `.mpp`-IFC uit v2026.9.0 (beide mpp-vlaggen) migreert naar
+MS Project en krijgt bij heropslaan de pset; een P6-bestand dat door een uitgebrachte versie zonder
+profielkennis heen gaat, verliest zijn profiel (die versie kent geen XER, dus geen verlies t.o.v.
+vandaag) — beide in de gids. `OPS_SchedulingOptions` blijft precies zoals nu en draagt de optie-sleutels
 plus — voor neerwaartse compatibiliteit met uitgebrachte versies, die van de conventies alleen
 `resumeFromActualElapsed`/`unstartedIgnoresStatusDate` kennen — A22 en A23, uitsluitend wanneer ze
 `true` zijn (een OPS-project zonder opties krijgt dus geen pset: byte-identiek). De nieuwe lezer geeft
