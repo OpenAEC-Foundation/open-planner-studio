@@ -247,7 +247,9 @@
       "floatPathsMethod": "方法",
       "methodFree": "自由浮动（剥离法）",
       "methodTotal": "总浮动（排序法）",
-      "maxPaths": "最大路径数"
+      "maxPaths": "最大路径数",
+      "tfAuto": "自动（默认）",
+      "critThresholdHours": "阈值（小时，按任务日历）"
     }
   },
   "newProject": {

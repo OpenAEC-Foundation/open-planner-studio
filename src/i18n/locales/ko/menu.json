@@ -247,7 +247,9 @@
       "floatPathsMethod": "방법",
       "methodFree": "자유 여유(피일링)",
       "methodTotal": "총 여유(순위)",
-      "maxPaths": "최대 경로 수"
+      "maxPaths": "최대 경로 수",
+      "tfAuto": "자동(기본값)",
+      "critThresholdHours": "임계값(시간, 작업 달력 기준)"
     }
   },
   "newProject": {

@@ -247,7 +247,9 @@
       "floatPathsMethod": "Metoda",
       "methodFree": "Zapas swobodny (peeling)",
       "methodTotal": "Zapas całkowity (ranking)",
-      "maxPaths": "Maks. ścieżek"
+      "maxPaths": "Maks. ścieżek",
+      "tfAuto": "Automatycznie (domyślnie)",
+      "critThresholdHours": "Próg (godziny, wg kalendarza zadania)"
     }
   },
   "newProject": {

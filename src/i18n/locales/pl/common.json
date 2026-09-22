@@ -128,7 +128,15 @@
     "levelingDelayRoundedToWorkdays_one": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadania do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
-    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
+    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "schedulingProfileApplied": "Ten projekt liczy się jako {{profile}}. Zmień to w Plik → Info o projekcie → Profil obliczeń.",
+    "schedulingProfileShifted_few": "Nowy profil obliczeń przesunął {{count}} zadania.",
+    "schedulingProfileShifted_many": "Nowy profil obliczeń przesunął {{count}} zadań.",
+    "schedulingProfileShifted_one": "Nowy profil obliczeń przesunął {{count}} zadanie.",
+    "schedulingProfileShifted_other": "Nowy profil obliczeń przesunął {{count}} zadania.",
+    "actions": {
+      "openProjectInfo": "Otwórz profil obliczeń"
+    }
   },
   "yes": "Tak",
   "no": "Nie",
@@ -1221,11 +1229,88 @@
       "actualFinish": "Rzeczywiste zakończenie"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Zachowaj daty rzeczywiste w obliczeniu wstecz",
+      "help": "Rozpoczęte lub zakończone zadanie zachowuje zarejestrowane daty także po stronie późnej; zakończony następnik nie cofa otwartego poprzednika w przeszłość."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Zapas swobodny nigdy ujemny",
+      "help": "Przy nieosiągalnym późnym ograniczeniu zapas całkowity pozostaje ujemny, ale zapas swobodny wynosi zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Kamień milowy trzyma się zaplanowanej granicy kalendarza",
+      "help": "Kamień milowy bez czasu trwania pozostaje na granicy kalendarza zaplanowanej w pliku: początek dnia pozostaje kamieniem początkowym, koniec pasma może wypaść na zakończeniu poprzednika."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Planowany początek jako dodatkowa dolna granica",
+      "help": "Planowany początek z pliku działa jako dolna granica, gdy początek i koniec wypadają ponad jeden dzień kalendarzowy później, niż pozwala sieć."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Kamień końcowy jako okno granicy",
+      "help": "Kamień końcowy może leżeć na dwóch sąsiednich granicach kalendarza: wczesny początek na początku pasma, wczesny koniec na końcu poprzedniego pasma."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Przejmij daty rzeczywiste dokładnie",
+      "help": "Zarejestrowane rzeczywiste daty rozpoczęcia i zakończenia nie są przesuwane do pasma czasu pracy."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Zadanie w toku: wczesny początek = początek pozostałej pracy",
+      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Ustawiane dla każdego pliku przez Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Dokładny moment ograniczenia na kamieniu milowym",
+      "help": "Ograniczenie daty i godziny na kamieniu milowym bez czasu trwania jest dokładnym punktem, także na początku pasma pracy."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Pozostała praca wznawia się po upływie czasu",
+      "help": "Zadanie w toku wznawia pozostałą pracę w rzeczywistym początku plus czas, który już upłynął, a nie w dacie stanu."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Nie przesuwaj nierozpoczętych zadań do daty stanu",
+      "help": "Zadanie, które jeszcze się nie rozpoczęło, nie jest automatycznie przesuwane na datę stanu lub później."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Następnik zaczyna na granicy zakończenia",
+      "help": "Przy relacji koniec-początek bez opóźnienia na wspólnej granicy pasma następnik zaczyna się w chwili zakończenia poprzednika (tylko relacje oznaczone tak w pliku)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Opóźnienie wstecz od granicy zakończenia",
+      "help": "Gdy obliczenie wstecz odejmuje opóźnienie w czasie pracy od granicy zakończenia i trafia dokładnie na początek pasma, ląduje na poprzedniej granicy zakończenia."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Zakończone zadanie w oknie daty stanu",
+      "help": "Zakończone zadanie otrzymuje wczesne daty w oknie daty stanu, a jego koniec liczy się do końca projektu (tylko zadania pochodzące z P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Zakończone LOE przez rzeczywisty koniec",
+      "help": "Zakończone działanie level-of-effort z jednym wejściem początek-początek podąża trasą przez swój rzeczywisty koniec (tylko zadania pochodzące z P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Nierozpoczęte LOE przyjmuje okno docelowe",
+      "help": "Działanie level-of-effort, które jeszcze się nie rozpoczęło, przyjmuje swoje okno docelowe jako czas trwania (tylko zadania pochodzące z P6)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (zmieniony)",
+    "copyOf": "Kopia {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Profil obliczeń i opcje",
+    "profile": "Profil obliczeń",
+    "conventionsTitle": "Konwencje tego profilu",
+    "optionsTitle": "Opcje obliczeń tego projektu",
+    "customName": "Nazwa tego własnego profilu",
+    "saveAsTemplate": "Zapisz jako szablon",
+    "updateTemplate": "Aktualizuj szablon z tego projektu",
+    "applyTemplate": "Aktualizuj z szablonu",
+    "deleteTemplate": "Usuń szablon",
+    "templateDeviates": "Ten profil różni się od szablonu „{{name}}”.",
+    "applyDefaultOptions": "Zastosuj domyślne opcje tego profilu"
   }
 }

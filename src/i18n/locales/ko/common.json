@@ -65,7 +65,12 @@
     "readMore": "더 알아보기",
     "pasteSkippedReadOnly_other": "읽기 전용 셀 {{count}}개를 건너뛰었습니다(예: 자동 번호가 매겨진 WBS 코드 또는 계산된 열).",
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
-    "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다."
+    "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다.",
+    "schedulingProfileApplied": "이 프로젝트는 {{profile}}(으)로 계산됩니다. 파일 → 프로젝트 정보 → 계산 프로필에서 변경하세요.",
+    "schedulingProfileShifted_other": "새 계산 프로필이 작업 {{count}}개를 이동했습니다.",
+    "actions": {
+      "openProjectInfo": "계산 프로필 열기"
+    }
   },
   "yes": "예",
   "no": "아니오",
@@ -1119,11 +1124,88 @@
       "actualFinish": "실제 종료일"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "역방향 계산에서 실적 날짜 유지",
+      "help": "시작되었거나 완료된 작업은 늦은 쪽에서도 기록된 날짜를 유지합니다. 완료된 후속 작업이 열린 선행 작업을 과거로 끌어당기지 않습니다."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "자유 여유 시간은 음수가 되지 않음",
+      "help": "달성할 수 없는 늦은 제약이 있으면 총 여유 시간은 음수로 남지만 자유 여유 시간은 0이 됩니다."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "마일스톤은 계획된 달력 경계를 따름",
+      "help": "기간이 0인 마일스톤은 파일이 계획한 달력 경계에 머뭅니다. 하루의 시작은 시작 마일스톤으로 남고, 구간 끝은 선행 작업의 완료에 놓일 수 있습니다."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "계획 시작을 추가 하한으로 사용",
+      "help": "시작과 완료가 모두 네트워크가 허용하는 것보다 하루 이상 늦으면 파일의 계획 시작이 하한으로 적용됩니다."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "완료 마일스톤을 경계 창으로 처리",
+      "help": "완료 마일스톤은 인접한 두 달력 경계에 놓일 수 있습니다. 조기 시작은 구간의 시작, 조기 완료는 이전 구간의 끝입니다."
+    },
+    "p6PreserveActualInstants": {
+      "label": "실적 날짜를 정확히 유지",
+      "help": "기록된 실적 시작 및 완료 날짜는 작업 시간 구간으로 이동되지 않습니다."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "진행 중 작업: 조기 시작 = 남은 작업의 시작",
+      "help": "진행 중 작업의 조기 및 지연 시작은 과거의 실적 시작이 아니라 남은 작업이 시작되는 지점을 나타냅니다. Primavera P6에서 파일별로 설정됩니다."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "마일스톤의 제약 시점을 정확히",
+      "help": "기간이 0인 마일스톤의 날짜·시간 제약은 작업 구간의 시작에서도 정확한 시점입니다."
+    },
+    "resumeFromActualElapsed": {
+      "label": "남은 작업은 경과 기간 후에 재개",
+      "help": "진행 중 작업은 상태 날짜가 아니라 실적 시작에 경과 기간을 더한 시점에 남은 작업을 재개합니다."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "시작되지 않은 작업을 상태 날짜로 옮기지 않음",
+      "help": "아직 시작되지 않은 작업은 자동으로 상태 날짜 또는 그 이후로 이동되지 않습니다."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "후속 작업은 완료 경계에서 시작",
+      "help": "공유 구간 경계에서 지연 없는 완료-시작 관계의 경우 후속 작업은 선행 작업의 완료 시점에 시작합니다(파일이 그렇게 표시한 관계만)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "완료 경계에서 역방향 지연",
+      "help": "역방향 계산이 완료 경계에서 작업 시간 지연을 빼서 정확히 구간 시작에 닿으면 이전 완료 경계에 놓입니다."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "상태 날짜 창 안의 완료 작업",
+      "help": "완료된 작업은 상태 날짜 창 안에서 조기 날짜를 받으며, 그 완료는 프로젝트 완료에 포함됩니다(P6 출처 작업만)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "실적 완료를 통한 완료 LOE",
+      "help": "시작-시작 입력만 있는 완료된 LOE(level-of-effort) 활동은 실적 완료를 거치는 경로를 따릅니다(P6 출처 작업만)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "시작되지 않은 LOE는 목표 창을 사용",
+      "help": "아직 시작되지 않은 LOE(level-of-effort) 활동은 목표 창을 기간으로 사용합니다(P6 출처 작업만)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (수정됨)",
+    "copyOf": "{{name}} 사본"
+  },
+  "schedulingProfile": {
+    "title": "계산 프로필 및 옵션",
+    "profile": "계산 프로필",
+    "conventionsTitle": "이 프로필의 규칙",
+    "optionsTitle": "이 프로젝트의 계산 옵션",
+    "customName": "이 사용자 지정 프로필의 이름",
+    "saveAsTemplate": "템플릿으로 저장",
+    "updateTemplate": "이 프로젝트로 템플릿 업데이트",
+    "applyTemplate": "템플릿에서 업데이트",
+    "deleteTemplate": "템플릿 삭제",
+    "templateDeviates": "이 프로필은 템플릿 “{{name}}”과(와) 다릅니다.",
+    "applyDefaultOptions": "이 프로필의 기본 옵션 적용"
   }
 }

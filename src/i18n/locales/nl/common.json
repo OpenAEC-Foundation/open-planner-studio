@@ -86,7 +86,13 @@
     "pasteSkippedReadOnly_other": "{{count}} cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
-    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
+    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
+    "schedulingProfileApplied": "Dit project rekent als {{profile}}. Aanpassen via Bestand → Projectinfo → Rekenprofiel.",
+    "schedulingProfileShifted_one": "Het nieuwe rekenprofiel verschoof {{count}} taak.",
+    "schedulingProfileShifted_other": "Het nieuwe rekenprofiel verschoof {{count}} taken.",
+    "actions": {
+      "openProjectInfo": "Rekenprofiel openen"
+    }
   },
   "yes": "Ja",
   "no": "Nee",
@@ -1153,11 +1159,88 @@
       "actualFinish": "Werkelijk einde"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Actuele datums behouden in de terugwaartse berekening",
+      "help": "Een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant; een voltooide opvolger trekt een open voorganger niet terug in het verleden."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Vrije speling nooit negatief",
+      "help": "Bij een onhaalbare late constraint blijft de totale speling negatief, maar de vrije speling wordt nul."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Mijlpaal volgt de geplande kalendergrens",
+      "help": "Een mijlpaal zonder duur blijft op de kalendergrens die het bestand plande: een dagstart blijft een startmijlpaal, een bandeinde mag op de finish van de voorganger landen."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Geplande start als extra ondergrens",
+      "help": "De geplande start uit het bestand telt als ondergrens zodra start én einde meer dan een kalenderdag later liggen dan het netwerk toelaat."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Eindmijlpaal als grensvenster",
+      "help": "Een eindmijlpaal mag op twee aangrenzende kalendergrenzen staan: vroege start aan het begin van een band, vroeg einde aan het einde van de vorige band."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Actuele datums exact overnemen",
+      "help": "Geregistreerde actuele start- en einddatums worden niet naar een werktijdband verschoven."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Lopende taak: vroege start = begin van het restwerk",
+      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische actuele start. Komt per bestand uit Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Constraintmoment op een mijlpaal exact",
+      "help": "Een datum-en-tijdconstraint op een mijlpaal zonder duur is een exact punt, ook aan het begin van een werkband."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Restwerk hervat na de al verstreken duur",
+      "help": "Een lopende taak hervat haar restwerk op de actuele start plus de al verstreken duur, niet op de statusdatum."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Niet-gestarte taken niet naar de statusdatum",
+      "help": "Een taak die nog niet begonnen is, schuift niet vanzelf naar op of na de statusdatum."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Opvolger start op de finishgrens",
+      "help": "Bij een einde-begin-relatie zonder lag op een gedeelde bandgrens begint de opvolger op de finish van de voorganger (alleen relaties die het bestand zo markeert)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Lag terugrekenen vanaf een finishgrens",
+      "help": "Trekt de terugwaartse berekening een werktijd-lag af vanaf een finishgrens en komt ze precies op een bandstart uit, dan landt ze op de vorige finishgrens."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Voltooide taak in het statusdatumvenster",
+      "help": "Een voltooide taak krijgt vroege datums in het venster van de statusdatum, en haar einde telt mee voor het projecteinde (alleen taken met P6-herkomst)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Voltooide LOE via het actuele einde",
+      "help": "Een voltooide level-of-effort-activiteit met alleen een begin-begin-ingang volgt de route via haar actuele einde (alleen taken met P6-herkomst)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Niet-gestarte LOE neemt het doelvenster",
+      "help": "Een level-of-effort-activiteit die nog niet begonnen is, neemt haar doelvenster als looptijd (alleen taken met P6-herkomst)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (aangepast)",
+    "copyOf": "Kopie van {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Rekenprofiel en reken-opties",
+    "profile": "Rekenprofiel",
+    "conventionsTitle": "Conventies van dit profiel",
+    "optionsTitle": "Reken-opties van dit project",
+    "customName": "Naam van dit eigen profiel",
+    "saveAsTemplate": "Opslaan als sjabloon",
+    "updateTemplate": "Sjabloon bijwerken vanuit dit project",
+    "applyTemplate": "Bijwerken vanuit sjabloon",
+    "deleteTemplate": "Sjabloon verwijderen",
+    "templateDeviates": "Dit profiel wijkt af van het sjabloon “{{name}}”.",
+    "applyDefaultOptions": "Standaardopties van dit profiel toepassen"
   }
 }
