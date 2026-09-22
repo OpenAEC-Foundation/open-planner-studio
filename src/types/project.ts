@@ -77,7 +77,10 @@ export interface SchedulingOptions {
   p6PreserveZeroDurationConstraintInstants?: boolean;
   /** XER/P6: gebruik PROJECT.plan_end_date als late-pass-anker wanneer
    *  SCHEDOPTIONS.sched_use_project_end_date_for_float=Y. De datum zelf blijft project.endDate;
-   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit. */
+   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit. Zonder
+   *  plan_end_date valt de lezer terug op het taak-afgeleide einde (max target_end_date); heeft het
+   *  bestand ook geen enkele target_end_date, dan zet de lezer de vlag gerapporteerd uit (X12-brok 1,
+   *  plan XER §9) zodat de solver op max(EF) verankert zoals P6 zonder Must Finish By. */
   useProjectEndDateForFloat?: boolean;
   /** Near-critical-drempel in werkdagen (fractioneel in uur-modus). Default undefined ⇒ feature uit. */
   nearCriticalThreshold?: number;
@@ -179,13 +182,13 @@ export interface SchedulingOptions {
    *  `p6UseRemainingStartForProgress`. P6 aan / MS Project uit / OPS uit. */
   p6CompletedDataDateWindow?: boolean;
   /** B4 — een voltooide LOE met alleen SS-ingang en zonder opvolger volgt de actual-finish-route
-   *  i.p.v. de hammockroute (`explainCompletedXerLoeActualFinishEligibility`, `CPMSolver`'s
+   *  i.p.v. de hammockroute (`explainCompletedXerLoeActualFinishEligibilityResolved`, `CPMSolver`'s
    *  forward pass). Werkt alleen samen met `p6UseRemainingStartForProgress`,
    *  `preserveActualDatesInBackwardPass` en `p6PreserveActualInstants`.
    *  P6 aan / MS Project uit / OPS uit. */
   p6CompletedLoeActualFinish?: boolean;
   /** B5 — een niet-gestarte LOE met volledig targetvenster, alleen nul-lag SS-ingang en nul-lag
-   *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibility`,
+   *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibilityResolved`,
    *  `CPMSolver`'s hammocktak). P6 aan / MS Project uit / OPS uit. */
   p6OpenLoeTargetSpan?: boolean;
 

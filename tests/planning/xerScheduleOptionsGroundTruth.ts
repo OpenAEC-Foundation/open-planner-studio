@@ -259,6 +259,19 @@ export function expectedXerScheduleOptions(
   else if (retainedToken) fallback(
     fallbacks, scheduleRow, 'sched_use_project_end_date_for_float', retainedToken, 'niet bewaard',
   );
+  // X12-brok 1 (plan XER §9): `Y` zonder enig einde in de bron — geen PROJECT.plan_end_date en geen
+  // enkele TASK.target_end_date van dit project — valt terug op N (P6 rekent dan terug vanaf max(EF)).
+  // Onafhankelijk afgeleid uit de rauwe rijen: alleen "niet leeg", geen datumparser.
+  if (schedulingOptions.useProjectEndDateForFloat === true
+    && (projectRow?.cells.plan_end_date?.trim() ?? '') === ''
+    && !(scan.tables.get('TASK')?.rows ?? []).some(row =>
+      (row.cells.proj_id?.trim() ?? '') === projectId && (row.cells.target_end_date?.trim() ?? '') !== '')) {
+    schedulingOptions.useProjectEndDateForFloat = false;
+    fallback(
+      fallbacks, scheduleRow, 'sched_use_project_end_date_for_float', retainedToken,
+      'N (geen projecteinddatum en geen taakeinddatum in de bron: projecteinde = max(EF))',
+    );
+  }
 
   const retainedTokenRaw = scheduleRow.cells.sched_retained_logic?.trim() ?? '';
   const overrideTokenRaw = scheduleRow.cells.sched_progress_override?.trim() ?? '';

@@ -88,7 +88,7 @@ export const PSET = {
   // Op de IfcWorkSchedule (autoritaire JSON-blob — alleen naam gedeeld).
   Baselines: 'OPS_Baselines',
   SchedulingOptions: 'OPS_SchedulingOptions',
-  /** Rekenprofielen: `{ id, baseId, conventions, name? }` — alle achttien conventies opgelost. */
+  /** Rekenprofielen: `{ id, baseId, conventions, overrides, name? }` — alle achttien conventies opgelost plus de letterlijke afwijkingen. */
   SchedulingProfile: 'OPS_SchedulingProfile',
   /** X9: één projectcontainer met de exacte oorspronkelijke XER-bytes. */
   XerSourceArchive: 'OPS_XerSourceArchive',

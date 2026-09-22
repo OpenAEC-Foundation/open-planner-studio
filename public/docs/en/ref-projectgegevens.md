@@ -19,9 +19,9 @@ The **Project Information** window holds the project's metadata plus the **Calcu
 
 ## Calculation profile and options
 
-At the top you choose the **Calculation profile**: Open Planner Studio, Primavera P6, Microsoft Project or a template of your own. Below it are the fifteen **Conventions of this profile**; if you change one, Open Planner Studio makes a custom copy of the profile. How that works is covered in the guide **Calculation profiles** (Backstage → Help).
+At the top you choose the **Calculation profile**: Open Planner Studio, Primavera P6, Microsoft Project or a template of your own. Below it are the eighteen **Conventions of this profile**; if you change one, Open Planner Studio makes a custom copy of the profile. How that works is covered in the guide **Calculation profiles** (Backstage → Help).
 
-Below those are the **Calculation options of this project** — they are stored with the file, not the app, so they travel to other machines. **Apply this profile's default options** sets them to the defaults of the chosen profile. If you change anything in this section, the schedule is recalculated right after **Apply**, also with *Calculate automatically* off, and a notification reports how many tasks moved.
+Below those are the **Calculation options of this project** — they are stored with the file, not the app, so they travel to other machines. **Apply this profile's default options** sets them to the defaults of the chosen profile. If you change anything in this section, the schedule is recalculated right after **Apply**, also with *Calculate automatically* off. If tasks move as a result, a notification reports how many (ordinary tasks, not summary tasks); if nothing moves, there is no notification.
 
 - **Critical definition** — **Total float ≤ threshold** (with **Threshold (work days)**, default 0) or **Longest path**. When the threshold is in hours, for example from a `.xer` file, the field is called **Threshold (hours, per task calendar)**; choosing another critical definition keeps that threshold.
 - **Float calculation** — **Automatic (default)**, **Smallest (start/finish)**, **Start float** or **Finish float**.

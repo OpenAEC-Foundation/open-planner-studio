@@ -669,10 +669,36 @@ bewaart. Klasse (ii)-materiaal (bezig zijnde taken rond de statusdatum, X5-vlag)
 
 ### Projecteinde valt terug op de projectstart bij leeg `plan_end_date` (her-review 7a, 2026-09-07)
 
-**Status:** geregistreerd in `docs/TODO.md`, niet gefixt. `sched_use_project_end_date_for_float = Y`
-zonder `plan_end_date` en zonder één `target_end_date` (de echte `cases-import.xer`) ⇒ het
-taak-afgeleide projecteinde is de projectSTART en de hele late zijde verankert daarop: 77/160
-P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de engine-check.
+**Status:** GEFIXT in X12-brok 1 (2026-09-23, branch `claude/x12-brok1-projecteinde`).
+`sched_use_project_end_date_for_float = Y` zonder `plan_end_date` en zonder één `target_end_date`
+(de echte `cases-import.xer`) ⇒ het taak-afgeleide projecteinde was de projectSTART en de hele late
+zijde verankerde daarop: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit.
+
+Fix (lezer, geen motorwijziging): `deriveXerScheduleOptions` krijgt van `xerReader` de vlag
+`hasUsableProjectEnd` (geldige `plan_end_date` óf minstens één geldige `target_end_date`); is die
+`false`, dan gaat de optie gerapporteerd uit (terugvalmelding op `sched_use_project_end_date_for_float`,
+bron-`Y` blijft in `retainedSource`) en verankert de solver op max(EF) — het P6-gedrag zonder Must
+Finish By volgens de P6-documentatie. Onafhankelijk gespiegeld in `xerScheduleOptionsGroundTruth.ts`.
+
+Metingen (ZEKER, zelf gemeten):
+- Corpusbreed 39 `Y`-rijen: 3 met `plan_end_date` (Hotel 2666 in twee kopieën, TERMINAL
+  BUILDING-AIRPORT), 20 met taakeinden (12× OZB 9029–10096, Roads, HarbourPointe, xernative,
+  ashspace, vier MPXJ-kalenderfixtures), 16 zonder enig einde (13× cases-import.xer, OZB 9026–9028
+  zonder taken). De fix raakt alleen die 16.
+- `cases-import.xer` zoals gelezen: 77/160 → 156/160 (sectie 7a gepind op 156; 7c: vlag nu uit).
+- X12: 15.056 → 15.056, cel-delta `nieuw=0 verslechterd=0 verbeterd=0` — geen van de 34
+  X12-entries valt in de klasse (de drie OZB-projecten hebben geen taken). Geen herpin nodig.
+- mpp-fidelity 216 ongewijzigd; `check-xer-schedule-options-corpus` `derivedFallbacks` 8 → 24.
+
+**Open vraag (escalatie, niet gepind).** De bredere variant — de optie óók uitzetten wanneer er
+wél taakeinden zijn (dus max(EF) in plaats van max(`target_end_date`) als anker) — is gemeten en
+afgewezen: 100 X12-cellen slechter, 6 beter, allemaal op `OZB-Start-09Dec24.xer` (projecten 9032,
+9033, 9049, 10096; ls/lf/tf + 2× drivingPath). P6 zet daar NEGATIEVE totale float (bijv. 9032/OZ1040
+tf −720 min) zonder `plan_end_date`, dus P6 verankert de late zijde vóór max(EF) — in tegenspraak met
+de gedocumenteerde "geen Must Finish By ⇒ max(EF)". Het huidige anker (max `target_end_date`) geeft
+op die projecten −1440 waar P6 −720 heeft: dichterbij, niet exact. Onverklaard uit P6-documentatie
+of corpus; kandidaat-verklaringen (constraints in de workshopprojecten, een ander forward-resultaat
+dan P6) zijn niet onderzocht. Hoort bij een volgende brok.
 
 ### De ONBEKENDE categorieën, gemeten (2026-09-07, volledig corpus)
 

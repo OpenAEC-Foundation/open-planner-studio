@@ -538,6 +538,57 @@ if (corpusRoot && existsSync(corpusRoot)) {
   console.log('OK  XER-SCHEDOPTIONS-wiring: openbare 15-projectenmeting overgeslagen (OPS_XER_CORPUS)');
 }
 
+// X12-brok 1 (plan XER §9, her-review 7a): de lezer bepaalt of er een bruikbaar projecteinde is.
+// P-Y: `Y`, geen plan_end_date, geen target_end_date (de cases-import.xer-vorm) ⇒ optie uit met
+// terugvalmelding. P-T: `Y` met een taakeinde, P-E: `Y` met alleen een plan_end_date ⇒ optie aan.
+// De onafhankelijke grondwaarheid moet dezelfde uitkomst afleiden uit de rauwe rijen.
+{
+  const noEndSource = bytes([
+    'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC8\tAcht uur\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_end_date',
+    '%R\tP-Y\tZonder einde\tC8\t2026-01-05 08:00\t',
+    '%R\tP-T\tMet taakeinde\tC8\t2026-01-05 08:00\t',
+    '%R\tP-E\tMet projecteinde\tC8\t2026-01-05 08:00\t2026-03-02 16:00',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float',
+    '%R\tP-Y\tY',
+    '%R\tP-T\tY',
+    '%R\tP-E\tY',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\ttask_code\ttask_name\tclndr_id\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt',
+    '%R\tY1\tP-Y\tY1\tTaak Y1\tC8\t2026-01-05 08:00\t\t40\t40',
+    '%R\tT1\tP-T\tT1\tTaak T1\tC8\t2026-01-05 08:00\t2026-01-09 16:00\t40\t40',
+    '%R\tE1\tP-E\tE1\tTaak E1\tC8\t2026-01-05 08:00\t\t40\t40',
+    '%E',
+  ]);
+  const byId = new Map(openedProjects(noEndSource).map(result => [result.project.id, result]));
+  const truth = scanRawXerScheduleOptions(noEndSource);
+  const FALLBACK = 'N (geen projecteinddatum en geen taakeinddatum in de bron: projecteinde = max(EF))';
+  eq('3 Y zonder bruikbaar projecteinde valt terug op N; mét taak- of projecteinde blijft Y (lezer én grondwaarheid)',
+    ['P-Y', 'P-T', 'P-E'].map(projectId => {
+      const result = byId.get(projectId);
+      const expected = expectedXerScheduleOptions(truth, projectId, { taskCount: 1 });
+      const noEnd = (fallbacks: readonly { field: string; fallback: string }[]) => fallbacks
+        .filter(item => item.field === 'sched_use_project_end_date_for_float').map(item => item.fallback);
+      return {
+        projectId,
+        reader: result?.project.schedulingOptions?.useProjectEndDateForFloat,
+        readerFallbacks: result ? noEnd(scheduleMetadata(result).fallbacks) : undefined,
+        retained: result ? scheduleMetadata(result).retainedSource : undefined,
+        truth: expected.schedulingOptions.useProjectEndDateForFloat,
+        truthFallbacks: noEnd(expected.fallbacks),
+      };
+    }), [
+      { projectId: 'P-Y', reader: false, readerFallbacks: [FALLBACK], retained: { sched_use_project_end_date_for_float: true }, truth: false, truthFallbacks: [FALLBACK] },
+      { projectId: 'P-T', reader: true, readerFallbacks: [], retained: { sched_use_project_end_date_for_float: true }, truth: true, truthFallbacks: [] },
+      { projectId: 'P-E', reader: true, readerFallbacks: [], retained: { sched_use_project_end_date_for_float: true }, truth: true, truthFallbacks: [] },
+    ]);
+}
+
 if (diffs.length > 0) {
   console.error(`XER-SCHEDOPTIONS-wiring: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX  ${diff}`);

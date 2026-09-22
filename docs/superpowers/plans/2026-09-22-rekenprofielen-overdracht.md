@@ -75,22 +75,42 @@ afwijkingen hebben met XER".)
 - `recorded-all-formats`: no-go van de review (8 punten) wordt door een fix-agent verwerkt op
   `claude/recorded-all-formats-v2`, gerebased op de PR-branch.
 
+### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
+
+1. **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
+   `rehab-2.xer` (V3114490 e.a.) die bij P6 TF 0 hebben terwijl hun opvolgers maanden speling geven en
+   drie van de zes FF > TF. Uit de relaties in het bestand volgt dat niet; kandidaten (relaties die de
+   splitter weggooide; een constraint die bij een import verloren ging) zijn niet aantoonbaar. Volgens
+   de goal prompt (regel 4) is dit escaleren, niet pinnen. Besluit nodig: dit bestand (deels) uit het
+   orakel halen in het manifest, of accepteren dat het nuldoel hier niet uit P6-regels te halen is.
+   Zie `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` B01.
+2. **Synthetische bestanden S1–S10 — 1.814 cellen** (MER-1, groupdocs, ProjectLens, gimmer/nPlan
+   GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
+   geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
+   B01 is dat 62 % van het restant; zonder besluit is 0 op het volledige corpus niet te halen.
+3. **Projecteinde (brok 1):** de fix landt (P6-conform voor de klasse zonder enig einde), maar Oracle
+   beschrijft `CalculateFloatBasedOnFinishDate` als een multi-project-optie ("each activity's float is
+   calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
+   registreert negatieve float zonder `plan_end_date`. Vervolgvraag in plan XER §9; `project.endDate =
+   start` + `<MustFinishByDate>` in de P6-XML-export is een vervolgpunt.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
 |---|---|---|
 | PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #166 gemerged en gepusht (`0a29147c`): planning/library/browser 164/mcp/dev-server groen, X12 15.056; draft blijft tot X12 nul is |
-| rekenprofielen (etappe) | `claude/rekenprofielen` (bovenop de PR-branch) | spec v3.1 `0979cc18`; overdracht (dit bestand) |
+| rekenprofielen (etappe) | `claude/rekenprofielen` → **draft-PR #169** (gestapeld op de PR-branch van #109) | kop `3128d215`; `verify` groen op `26d5b9dc` + `measure:profiles` NULDOEL; eindreview go; gebruikstest gedaan. Volgorde van mergen: #109 (pas bij X12 = 0) → #167 (RAF-v2) → #169; of #169 in #109 opnemen — eigenaarsbesluit. Brok 2 (12.973) volgt in deze PR zodra de review go geeft |
 | baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | GO na fixronde (`c7e7799e`); **gemerged** (`3fdf80c6`), migratiehelpers verhuisd naar `src/services/ifc/schedulingProfileMigration.ts`. Open voor baan D: A19 bewaren bij wissel vanaf een EIGEN profiel; `defaultStorage()` buiten try; label "(aangepast)" op `diffAgainstBase` baseren |
 | baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | GO na fixronde (`893e9955`); **gemerged** in `claude/rekenprofielen` (`e3545ed7`). Integratiepunt: tabeltest op `resolveLegacyP6SourceConventions` (zes gepoorte vlaggen zonder bron ⇒ false) corpusloos toevoegen; tijdelijke laag `legacyP6Source.ts` verwijderen zodra de lezers het profiel zetten |
 | cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | GO na vier fixrondes (`f639f96b`); **gemerged** (`921afa0b`); `npm run measure:profiles` mét corpus op de etappebranch: P6 NULDOEL 15.056, cellen 15.473, MS Project GROEN (661 bestanden), vangrails GROEN. Herpinrecept + verboden omwegen in `scripts/README.md` en de goal prompt |
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
-| baan D (deel 1 + 2) | `claude/rekenprofielen-baan-d` | deel 2 klaar (`85d29514`, gepusht): merge C, D10 af (verify:conventions in `verify`, 17 datagates gepind), D3 `applySchedulingSettings`, D4 `SchedulingProfileSection`, D5 Projectinfo, D6 browsertest 1/1; screenshots in de agent-worktree `qa/d4-0*.png`; her-check loopt; merge-tree conflictvrij |
+| baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
-| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`, gepusht) | klaar: lezer zet de optie gerapporteerd uit zonder bruikbaar einde; P6-casussen 77→156/160; X12 15.056→15.056 (0 corpuscellen in deze klasse, 0 slechter); bredere variant (uit bij elke lege plan_end_date) = 100 slechter/6 beter op OZB-Start ⇒ niet geland, open vraag plan §9; review loopt |
-| X12-restant-classificatie (meting) | — (rapport `/tmp/x12-restant-classificatie.md`, daarna in plan XER §9 opnemen) | meet-agent loopt; levert de brokken 2..n met signatuur, hypothese, verwacht effect |
+| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
+| X12 naar nul — brok 2: B02+B06+B03 (C1–C3) | `claude/x12-brok2-7b4` (`7c37b212`, `d6db800c`, gepusht; basis 1fe5dfc8) | **X12 15.056 → 12.973** (−2.083, 0 slechter): drie conventies groep C (P6 aan / MSP uit / OPS uit), herpin gedaan, mpp 216; critreview loopt; merge geeft 3 conflicten (SchedulingProfileSection, ifcPsets, schedulingProfileMigration) — oplossen ná go |
+| X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.

@@ -606,12 +606,14 @@ function readXerProject(
     'PROJECT',
   );
   const mappedActivities: Task[] = [];
+  let hasExplicitTaskFinish = false;
   for (const row of activityRows) {
     const effectiveCalendar = calendarById.get(row.cells.clndr_id) ?? projectCalendar;
     const hourMode = effectiveCalendar.workTime !== undefined;
     const explicitTargetStart = sourceInstant(row.cells.target_start_date ?? '', hourMode);
     const explicitTargetFinish = sourceInstant(row.cells.target_end_date ?? '', hourMode);
     const hasExplicitTargetWindow = explicitTargetStart !== undefined && explicitTargetFinish !== undefined;
+    if (explicitTargetFinish !== undefined) hasExplicitTaskFinish = true;
     let start = explicitTargetStart
       ?? sourceInstant(projectRow.cells.last_recalc_date ?? '', hourMode)
       ?? '1970-01-01';
@@ -779,9 +781,11 @@ function readXerProject(
   }
 
   const projectHourMode = projectCalendar.workTime !== undefined;
+  const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
   const derivedSchedule = deriveXerScheduleOptions(scheduleOptionsIndex, projectId, {
     hoursPerDay: projectCalendar.hoursPerDay,
     taskCount: mappedActivities.length,
+    hasUsableProjectEnd: sourceProjectEnd !== undefined || hasExplicitTaskFinish,
   });
   const {
     progressMode,
@@ -822,7 +826,6 @@ function readXerProject(
   const finishes = mappedActivities.map(task => task.time.scheduleFinish).filter(Boolean).sort();
   const projectStart = starts[0];
   const taskDerivedProjectEnd = finishes[finishes.length - 1] ?? projectStart;
-  const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
   // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
   // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the historical
   // task-derived project range remains byte-identical for XER and every other format.

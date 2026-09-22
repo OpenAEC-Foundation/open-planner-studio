@@ -439,7 +439,7 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-xer-open-loe-target-span.ts" "$XEROPENLOETARGETSPANCHECK"; then node "$XEROPENLOETARGETSPANCHECK" || STATUS=1; fi
 
   # Rekenprofielen baan B: de vijf groep-B-conventies (B1–B5) zijn eigen vlaggen; per vlag een
-  # aan/uit-fixture, en met de tijdelijke bronvertaling uit is `p6Source` in de motor inert.
+  # aan/uit-fixture, en `p6Source` wordt nergens in de motor meer gelezen.
   CONVENTIONSP6FLAGSCHECK="$DIR/.conventions-p6-flags.mjs"
   if bundle_check "$DIR/check-conventions-p6-flags.ts" "$CONVENTIONSP6FLAGSCHECK"; then node "$CONVENTIONSP6FLAGSCHECK" || STATUS=1; fi
 

@@ -1,6 +1,6 @@
 # Rekenprofielen — één solver, benoemde conventies, profielen per project
 
-*Ontwerp, 2026-09-22, **versie 3.1** (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
+*Ontwerp, 2026-09-22, **versie 3.1** (+ 2026-09-23: groep C — drie P6-conventies uit X12-brok 2: `p6CompletedPredecessorAtDataDate`, `p6FreeFloatOnOwnCalendar`, `p6CompletedRemainingLag`; het register telt daarmee 18 conventies; de tellingen hieronder zijn die van het ontwerp, het register is de bron) (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
 negen tekstpunten, v3 go onder drie voorwaarden; alle verwerkt — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
 vóór het X12-vervolg. Bijlage A is de inventaris van de motor op de kop van
 `claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
@@ -58,7 +58,9 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   `p6FinishMilestoneBoundaryWindow` (A17), `p6PreserveActualInstants` (A18),
   `p6UseRemainingStartForProgress` (A19 — P6-semantiek voor de ES/LS van een lopende taak; de waarde
   komt per bestand uit `rem_target_link_flag`, dus de XER-lezer zet hem als **override** op het
-  profiel; onder een ander profiel is hij uit), `p6PreserveZeroDurationConstraintInstants` (A20),
+  profiel — een per-bestand-conventie (`perFile`) die bij élke wissel, ook naar MS Project of OPS,
+  letterlijk blijft staan (besluit orkestrator 2026-09-22, overdracht §1c); alleen een bestand zonder
+  die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
   (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans.
