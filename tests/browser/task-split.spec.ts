@@ -137,3 +137,104 @@ test('Splits-modus: een mijlpaal wordt niet gesplitst', async ({ page, ops: _ops
   expect(after.undoDepth).toBe(before.undoDepth);
   expect(after.tasks).toEqual(before.tasks);
 });
+
+// ── Etappe 3: buiten de splits-modus de stukken zelf bewerken ────────────────────────────────────
+
+const DAY = 480;
+
+/** Zet via de ENE schrijfweg een split klaar: `pieces` in werkdagen, afwisselend werk/pauze. */
+async function seedSplit(page: Page, taskId: string, days: number[]): Promise<void> {
+  const refusal = await page.evaluate(({ id, pieces }) => (
+    window.__OPS__!.store.getState().setTaskSplits(id, pieces as never)
+  ), {
+    id: taskId,
+    pieces: days.map((d, i) => ({ kind: i % 2 === 0 ? 'work' : 'gap', minutes: d * DAY, ...(i % 2 ? { source: 'user' } : {}) })),
+  });
+  expect(refusal).toBeNull();
+}
+
+async function drag(page: Page, from: { x: number; y: number }, toX: number): Promise<void> {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(toX, from.y, { steps: 8 });
+  await page.mouse.up();
+}
+
+test('Stuk slepen: de pauze ervoor groeit en krimpt, tegen het vorige stuk = samenvoegen', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page);
+  // 5 werkdagen | 3 werkdagen pauze | 5 werkdagen ⇒ ma 06-01–vr 06-05 | ma–wo | do 06-11–wo 06-17.
+  await seedSplit(page, taskId, [5, 3, 5]);
+  const y = (await barPoint(page, taskId)).y;
+
+  // Grijp stuk 2 op ma 06-15 en sleep naar wo 06-17: twee werkdagen later ⇒ pauze 3 + 2 = 5.
+  const before = await state(page);
+  await drag(page, { x: await dayColumnX(page, taskId, 14), y }, await dayColumnX(page, taskId, 16));
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 2400, source: 'user' },
+  ]);
+  expect(await durationOf(page, taskId)).toBe(10);
+  const afterGrow = await state(page);
+  expect(afterGrow.undoDepth).toBe(before.undoDepth + 1);
+
+  // Stuk 2 staat nu op ma 06-15–vr 06-19. Grijp het op wo 06-17 en sleep tot ma 06-08, voorbij het
+  // einde van stuk 1: de pauze valt weg en de stukken zijn weer één balk.
+  await drag(page, { x: await dayColumnX(page, taskId, 16), y }, await dayColumnX(page, taskId, 7));
+  await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
+  expect(await durationOf(page, taskId)).toBe(10);
+  const afterMerge = await state(page);
+  expect(afterMerge.undoDepth).toBe(afterGrow.undoDepth + 1);
+
+  // Eén gebaar = één undo-stap: Ctrl+Z haalt precies de langere pauze terug.
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 2400, gapMinutes: 2400, source: 'user' },
+  ]);
+});
+
+test('Stukrand slepen: stuk 1 één werkdag korter maakt de taak één werkdag korter', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page);
+  await seedSplit(page, taskId, [5, 3, 5]);
+  const y = (await barPoint(page, taskId)).y;
+  const zoom = (await state(page)).view.zoom;
+  // De rechterrand van stuk 1 ligt op de grens met de volgende werkdag (ma 06-08, na het weekend).
+  const edgeX = (await barPoint(page, taskId, 'left')).x + 7 * zoom - 2;
+  // Naar vrijdag 06-05: één werkdag terug. Tijdens het slepen noemt het label de nieuwe stuklengte.
+  await page.mouse.move(edgeX, y);
+  await page.mouse.down();
+  await page.mouse.move(await dayColumnX(page, taskId, 4), y, { steps: 8 });
+  await expect(page.getByTestId('split-drag-label')).toHaveText(/\b4\b/);
+  await page.mouse.up();
+  await expect(page.getByTestId('split-drag-label')).toHaveCount(0);
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
+    { afterMinutes: 1920, gapMinutes: 1440, source: 'user' },
+  ]);
+  expect(await durationOf(page, taskId)).toBe(9);
+});
+
+test('Contextmenu: één onderbreking of alle onderbrekingen opheffen', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page);
+  await seedSplit(page, taskId, [5, 3, 5]);
+  const y = (await barPoint(page, taskId)).y;
+  const removeOne = page.getByRole('button', { name: /^(Remove break|Onderbreking opheffen)$/ });
+  const removeAll = page.getByRole('button', { name: /^(Remove all breaks|Alle onderbrekingen opheffen)$/ });
+
+  // Op stuk 1 ligt er geen pauze vóór het stuk: alleen "alle" staat er.
+  await page.mouse.click(await dayColumnX(page, taskId, 2), y, { button: 'right' });
+  await expect(removeAll).toBeVisible();
+  await expect(removeOne).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(removeAll).toHaveCount(0);
+
+  // Op stuk 2: de pauze ervóór opheffen.
+  await page.mouse.click(await dayColumnX(page, taskId, 14), y, { button: 'right' });
+  await removeOne.click();
+  await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
+  expect(await durationOf(page, taskId)).toBe(10);
+
+  // Twee pauzes (3 | 1 | 3 | 1 | 4): "alle" haalt ze in één keer weg.
+  await seedSplit(page, taskId, [3, 1, 3, 1, 4]);
+  await page.mouse.click(await dayColumnX(page, taskId, 1), y, { button: 'right' });
+  await removeAll.click();
+  await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
+  expect(await durationOf(page, taskId)).toBe(10);
+});
