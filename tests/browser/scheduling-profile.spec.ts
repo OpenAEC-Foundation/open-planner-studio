@@ -69,11 +69,34 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     await nameField.fill('');
     await expect(page.locator('[data-ops-scheduling-profile-name-required]')).toBeVisible();
     await expect(page.locator('[data-ops-scheduling-save-template]')).toBeDisabled();
+    // Her-check eindreview: met een lege naam is Toepassen uit — anders zou de metadata wel worden
+    // opgeslagen en de conventiewijziging stil verdwijnen.
+    const applyButton = page.getByRole('button', { name: /^(Apply|Toepassen)$/ });
+    await expect(applyButton).toBeDisabled();
     await nameField.fill('Mijn profiel ');
     await expect(nameField).toHaveValue('Mijn profiel ');
     await expect(page.locator('[data-ops-scheduling-profile-name-required]')).toHaveCount(0);
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
     await expect.poll(() => profileOf(page).then(p => p?.name)).toBe('Mijn profiel');
+
+    // Dezelfde regel in de dialoog (Instellingen → Projectinfo), waar Enter de primaire actie is:
+    // naam wissen + projectnaam wijzigen + Enter ⇒ dialoog blijft open, niets opgeslagen.
+    const projectNameBefore = await page.evaluate(() => window.__OPS__!.store.getState().project.name);
+    await page.locator('button.ribbon-tab').filter({ hasText: /^(Settings|Instellingen)$/ }).click();
+    await page.locator('button.ribbon-btn').filter({ hasText: /^(Project info|Projectinfo)$/ }).click();
+    const dialog = page.locator('[data-ops-project-dialog="info"]');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input').first().fill('Nieuwe projectnaam');
+    await dialog.locator('[data-ops-convention="p6OpenLoeTargetSpan"]').check();
+    await dialog.locator('[data-ops-scheduling-profile-name]').fill('');
+    await expect(dialog.locator('[data-ops-scheduling-profile-name-required]')).toBeVisible();
+    await expect(dialog.locator('[data-ops-project-primary]')).toBeDisabled();
+    await dialog.locator('[data-ops-scheduling-profile-name]').press('Enter');
+    await expect(dialog).toBeVisible();
+    expect(await page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      return [s.project.name, s.project.schedulingProfile?.name, s.project.schedulingProfile?.overrides.p6OpenLoeTargetSpan];
+    })).toEqual([projectNameBefore, 'Mijn profiel', undefined]);
     await expect.poll(() => profileOf(page).then(p => [p?.baseId, p?.id.startsWith('prof')]))
       .toEqual(['msproject', true]);
   });

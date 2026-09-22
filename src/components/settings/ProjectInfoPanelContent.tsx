@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Check, Pencil, X } from 'lucide-react';
@@ -8,7 +8,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from '@/components/dialogs/CalendarGeneratorFields';
 import { SchedulingProfileSection } from '@/components/settings/SchedulingProfileSection';
-import type { SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
+import { hasValidProfileName, type SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
@@ -46,6 +46,9 @@ export interface ProjectInfoPanelContentProps {
   /** Autofocus op het Naam-veld — ALLEEN de modale dialoog/wizard mag dit aanzetten (GO-NA-fix 4):
    *  in de niet-modale Backstage-pagina zou autoFocus bij elk bezoek de focus grijpen. Default: uit. */
   autoFocusName?: boolean;
+  /** Meldt of de draft nu toe te passen is (rekenprofielen: een eigen profiel zonder naam is dat niet).
+   *  De wrapper zet daarmee zijn Toepassen/Aanmaken-knop uit; `submit()` weigert zelf ook. */
+  onValidityChange?: (valid: boolean) => void;
 }
 
 /**
@@ -90,7 +93,7 @@ export interface ProjectInfoPanelContentProps {
  *  later wél projectvelden zou gaan raken).
  */
 export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle, ProjectInfoPanelContentProps>(
-  function ProjectInfoPanelContent({ mode, onDone, autoFocusName }, ref) {
+  function ProjectInfoPanelContent({ mode, onDone, autoFocusName, onValidityChange }, ref) {
     const isNew = mode === 'wizard';
     const { t: tMenu } = useTranslation('menu');
     const { t: tCommon } = useTranslation('common');
@@ -195,7 +198,14 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
     const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
 
+    // Her-check eindreview: een eigen profiel zonder naam is "nog niet geldig". Dan committeert
+    // submit() NIETS — ook de metadata niet — en blijft de dialoog/sectie open met het gekleurde blok
+    // "verplicht" in beeld; anders zou Toepassen de conventiewijzigingen stil weggooien.
+    const draftValid = hasValidProfileName(scheduling.profile);
+    useEffect(() => { onValidityChange?.(draftValid); }, [draftValid, onValidityChange]);
+
     const handleSubmit = () => {
+      if (!draftValid) return;
       // "+ Nieuwe resourcebibliotheek…" materialiseert pas HIER (GO-NA-fix 2) — vóór dit punt bestaat
       // er geen store-mutatie, dus Annuleren van de dialoog/sectie laat niets achter. `pendingNewCompany`
       // (niet `creatingCompany`, dat sluit al bij "bevestigen" — zie confirmNewCompany) blijft de
