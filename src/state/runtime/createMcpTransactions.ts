@@ -933,6 +933,9 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       const previousViewRows = initial.viewRows;
       const previousResourceLoad = initial.resourceLoadResult;
       const previousDirty = initial.isDirty;
+      // Critreview op ded4d8c3, bevinding 4: ook "ongewijzigd sinds import" hoort bij de poging —
+      // een geweigerde AI-actie is geen bewerking en mag het heropen-beleid (optie B) niet raken.
+      const previousPristine = initial.importPristine;
       // `runCPM` publiceert een gebruikersmelding zodra de tijdelijke solve een cyclus/fout ziet.
       // Als die solve de omvattende MCP-transactie vervolgens laat falen, hoort ook die melding bij
       // de teruggedraaide poging. Notifications zijn bewust appglobaal en zitten daarom niet in de
@@ -942,10 +945,11 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
 
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
-          restoreSnapshot(state, snapshot);
+          restoreSnapshot(state, snapshot, { markEdited: false });
           state.viewRows = previousViewRows;
           state.resourceLoadResult = previousResourceLoad;
           state.isDirty = previousDirty;
+          state.importPristine = previousPristine;
           replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
         });
