@@ -4,7 +4,7 @@ Het venster **Filteren** bepaalt welke taken zichtbaar zijn — in de Gantt én 
 
 ## Openen
 
-**Beeld** → lintgroep **Weergave** → **Filteren…**. De knop licht op zolang er een filter actief is. Zijn er nog geen opgeslagen filters, dan opent de knop direct het filtervenster. Anders opent de pijl op de knop je opgeslagen filters; een keuze past het filter direct toe en **Wissen** zet het actieve filter uit. **Esc**, het kruisje of een klik buiten het venster sluit zonder toe te passen.
+Een filter stel je in het layoutvenster in: **Beeld** → lintgroep **Layout** → **Nieuwe layout**, vink **Filteren** aan en bouw de regels eronder. **Opslaan** maakt er een layoutknop van, **Toepassen zonder opslaan** zet het filter alleen even op het scherm. Het losse filtervenster dat hieronder beschreven staat hoort bij de klassieke weergaveknoppen: **Beeld** → lintgroep **Weergave** → **Filteren…**, alleen zichtbaar als je die knoppen aanzet via **Instellingen** → **Geavanceerd** → **Legacy-functies**. De regels zelf werken op beide plekken hetzelfde. De knop licht op zolang er een filter actief is. Zijn er nog geen opgeslagen filters, dan opent de knop direct het filtervenster. Anders opent de pijl op de knop je opgeslagen filters; een keuze past het filter direct toe en **Wissen** zet het actieve filter uit. **Esc**, het kruisje of een klik buiten het venster sluit zonder toe te passen.
 
 ## Groepen: alles of iets
 
@@ -29,7 +29,7 @@ De prullenbak achter een regel verwijdert die regel; het kruisje rechtsboven in 
 
 ## Filters opslaan en hergebruiken
 
-Vul bovenaan het filtervenster een **Naam** in en klik op **Opslaan** om de huidige regels als filterpreset te bewaren. Opgeslagen filters zijn op dit apparaat in elk project beschikbaar; ze vervangen alleen het filter en raken nooit je kolommen, groepering, sortering of tijdschaal. Kies een opgeslagen filter uit dezelfde lijst om het direct toe te passen, of verwijder de gekozen preset met de prullenbak.
+Vul bovenaan het filtervenster een **Naam** in en klik op **Opslaan** om de huidige regels te bewaren. Een opgeslagen filter is een layout die alleen het filter vastlegt: hij verschijnt als layoutknop met een filtericoon op het lint, is op dit apparaat in elk project beschikbaar, en raakt nooit je kolommen, groepering, sortering of tijdschaal. Kies een opgeslagen filter uit dezelfde lijst om het direct toe te passen, of verwijder de gekozen preset met de prullenbak.
 
 ## Toepassen, annuleren en wissen
 

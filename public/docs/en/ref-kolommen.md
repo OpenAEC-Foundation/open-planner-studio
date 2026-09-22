@@ -4,7 +4,7 @@ The **Columns** window controls which columns the Table tab shows, in which orde
 
 ## Opening
 
-**View** → ribbon group **Display** → **Columns…**. Every change is applied immediately — there is no separate OK step; **Close**, **Esc**, the close cross or a click outside the window closes it.
+The plus at the right of the table header, or the **Table** tab → **Columns…**. (The **View** → ribbon group **Display** → **Columns…** button belongs to the classic view buttons — see the Layouts guide.) Every change is applied immediately — there is no separate OK step; **Close**, **Esc**, the close cross or a click outside the window closes it.
 
 ## Chosen columns
 

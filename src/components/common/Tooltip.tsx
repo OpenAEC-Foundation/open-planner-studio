@@ -14,6 +14,8 @@ import './Tooltip.css';
  * geklemd.
  */
 const DELAY_MS = 400;
+/** `data-tooltip-instant`: geen vertraging — voor info-iconen waar de tooltip dé inhoud is (issue #144). */
+const instantDelay = (el: HTMLElement): number => (el.hasAttribute('data-tooltip-instant') ? 0 : DELAY_MS);
 
 interface TipState { text: string; x: number; y: number; }
 
@@ -72,7 +74,7 @@ export function TooltipHost() {
       timer.current = setTimeout(() => {
         const r = el.getBoundingClientRect();
         setTip({ text, x: r.left + r.width / 2, y: r.bottom + 6 });
-      }, DELAY_MS);
+      }, instantDelay(el));
     };
     const onOut = (e: MouseEvent) => {
       if (!activeEl.current) return;

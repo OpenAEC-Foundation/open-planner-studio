@@ -441,7 +441,7 @@ storage.setItem('ops-layouts', JSON.stringify(oldLayouts));
 const migratedLayouts = await loadLayouts();
 eq('Eén kapotte oude layout verbergt zijn geldige buren niet',
   migratedLayouts.map(layout => layout.id), ['legacy-layout']);
-eq('Oude globale layout wordt lazy met opaque dynamiek gelezen', migratedLayouts[0]?.columns.map(column => column.id),
+eq('Oude globale layout wordt lazy met opaque dynamiek gelezen', migratedLayouts[0]?.columns?.map(column => column.id),
   ['task.name', 'legacy-activity-code:fase%3A1']);
 const oldLayoutRaw = storage.getItem('ops-layouts');
 await saveLayouts(migratedLayouts as Layout[]);

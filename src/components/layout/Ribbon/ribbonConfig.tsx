@@ -8,7 +8,7 @@ import {
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette, MoveHorizontal,
+  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, Spline, TrendingUp, CalendarDays, Palette, MoveHorizontal,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
   FileDown, FileUp,
@@ -96,6 +96,8 @@ export interface RibbonGroupSpec {
   id: string;
   labelKey: NsKey;
   items: RibbonItemSpec[];
+  /** Optionele zichtbaarheidshook (bv. een legacy-instelling). Afwezig = altijd zichtbaar. */
+  useVisible?: () => boolean;
 }
 
 export type RibbonTabConfig = RibbonGroupSpec[];
@@ -703,7 +705,13 @@ const outlineGroup: RibbonGroupSpec = {
 
 const beeldTab: RibbonTabConfig = [
   { id: 'timeScale', labelKey: 'menu:ribbon.timeScale', items: [{ kind: 'component', id: 'timeScale', Component: TimeScaleGroupContent }] },
-  { id: 'display', labelKey: 'menu:ribbon.display', items: [{ kind: 'component', id: 'display', Component: DisplayGroupContent }] },
+  {
+    // LEGACY (issue #144): de losse weergaveknoppen zijn vervangen door de layoutknoppen en de
+    // layoutdialoog. Alleen zichtbaar met Instellingen → Legacy-functies → Klassieke weergaveknoppen.
+    id: 'display', labelKey: 'menu:ribbon.display',
+    items: [{ kind: 'component', id: 'display', Component: DisplayGroupContent }],
+    useVisible: () => useAppStore(s => s.ui.showClassicViewControls),
+  },
   outlineGroup,
   { id: 'layout', labelKey: 'menu:ribbon.layout', items: [{ kind: 'component', id: 'layout', Component: LayoutGroupContent }] },
   { id: 'presentation', labelKey: 'menu:ribbon.presentationMode', items: [{ kind: 'component', id: 'presentation', Component: PresentationGroupContent }] },
@@ -806,6 +814,21 @@ const beeldTab: RibbonTabConfig = [
               const showFloatBand = useAppStore(s => s.ui.showFloatBand);
               const setUI = useAppStore(s => s.setUI);
               return { active: showFloatBand, onClick: () => { const next = !showFloatBand; setUI({ showFloatBand: next }); void saveShowFloatBand(next); } };
+            },
+          },
+        ],
+      },
+      // De kleurstapel zit vol (drie kleine knoppen per stapel); relatielijnen krijgt een eigen kolom.
+      {
+        kind: 'stack', id: 'relationsStack', items: [
+          {
+            // Issue #144: schermtegenhanger van de rapportoptie "Afhankelijkheden". Per document
+            // (view-state), en een layoutdeel: het resourcediagram zet de lijnen uit.
+            kind: 'small', id: 'toggleRelations', icon: <Spline size={14} />, labelKey: 'menu:ribbon.toggleRelations',
+            use: () => {
+              const showRelations = useAppStore(s => s.view.showRelations ?? true);
+              const setShowRelations = useAppStore(s => s.setShowRelations);
+              return { active: showRelations, onClick: () => setShowRelations(!showRelations) };
             },
           },
         ],

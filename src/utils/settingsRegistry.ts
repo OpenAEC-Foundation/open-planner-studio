@@ -175,6 +175,7 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Mini-map (view-state)
   setting({ key: 'showMiniMap', field: 'showMiniMap', parse: parseBoolean }),
+  setting({ key: 'showClassicViewControls', field: 'showClassicViewControls', parse: parseBoolean }),
 
   // Automatisch berekenen
   setting({ key: 'autoCalcCPM', field: 'autoCalcCPM', parse: parseBoolean }),

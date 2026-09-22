@@ -205,7 +205,10 @@
     "aiMode": "启用 AI 模式",
     "aiModeHint": "显示带有 MCP 桥接的 AI 选项卡，让 AI 助手可以通过 Model Context Protocol 处理你的计划。关闭后将停止桥接服务。",
     "aiAutostart": "自动启动桥接",
-    "aiAutostartHint": "应用启动时立即启用 MCP 桥接，AI 客户端无需你先打开 AI 选项卡即可连接。仅限桌面应用。"
+    "aiAutostartHint": "应用启动时立即启用 MCP 桥接，AI 客户端无需你先打开 AI 选项卡即可连接。仅限桌面应用。",
+    "legacySection": "旧版功能",
+    "classicViewControls": "显示经典视图按钮",
+    "classicViewControlsHint": "将单独的“列”“筛选”“分组”和“排序”按钮放回“视图”选项卡。它们的功能现在位于布局按钮和布局对话框中。"
   },
   "ai": {
     "start": "启动桥接",
@@ -788,7 +791,31 @@
       "missingRefs": "此文档中不存在某些字段，将被跳过。",
       "noLayouts": "尚无已保存的布局。",
       "activeLayout": "布局",
-      "none": "(无)"
+      "none": "(无)",
+      "builtinResourceDiagram": "资源图",
+      "newTitle": "新建布局",
+      "editTitle": "编辑布局",
+      "icon": "图标",
+      "partsTitle": "此布局保存哪些内容？",
+      "partsHint": "点击布局按钮时，只有勾选的部分会改变，视图的其余部分保持不变。",
+      "partRelations": "关系线",
+      "infoColumns": "任务表中可见的列及其顺序和宽度。",
+      "infoFilter": "当前启用的筛选器。如果没有启用筛选器，此布局会清除筛选器。",
+      "infoGroup": "任务的分组方式，例如按资源分组。不分组时布局显示 WBS 树。",
+      "infoSort": "任务在树中或分组内的排序顺序。",
+      "infoTimeScale": "甘特图的时间刻度（日、周、月…）。未勾选：缩放保持不变。",
+      "infoRelations": "是否显示任务之间的关系线。在分组视图中通常最好隐藏。",
+      "useCurrentView": "采用当前视图",
+      "infoUseCurrentView": "用当前屏幕上的内容填充下面的所有部分。",
+      "edit": "编辑…",
+      "duplicate": "复制",
+      "copyName": "{{name}}（副本）",
+      "needOnePart": "请至少勾选一项。",
+      "builtinReadonly": "内置布局：无法修改。请复制后创建自己的版本。",
+      "applyOnly": "应用但不保存",
+      "infoApplyOnly": "将勾选的部分应用到屏幕，但不创建布局按钮。适合快速的临时筛选。",
+      "columnsNote": "采用表格中当前的列。通过表头的加号选择列。",
+      "relationsShow": "显示关系线"
     },
     "presentation": {
       "hint": "按 Esc 或 F11 退出全屏模式。"
