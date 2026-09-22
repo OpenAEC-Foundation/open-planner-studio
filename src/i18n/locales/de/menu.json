@@ -202,7 +202,9 @@
     "screenColors_auto": "Pro Aufgabe — automatisch",
     "screenColors_category": "Nach Kategorie",
     "screenColorsMissingField": "Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird der Aufgabentyp verwendet.",
-    "screenColorsHint": "Außerhalb des Modus „Kritischer Pfad“ markiert ein roter Rand den kritischen Pfad."
+    "screenColorsHint": "Außerhalb des Modus „Kritischer Pfad“ markiert ein roter Rand den kritischen Pfad.",
+    "addLayout": "Neues Layout",
+    "toggleRelations": "Beziehungslinien"
   },
   "ifc": {
     "title": "IFC-Editor",

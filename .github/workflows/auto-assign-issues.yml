@@ -1,25 +1,14 @@
 name: Auto-assign issues to product owner
+
 on:
   issues:
     types: [opened]
+
 permissions:
   issues: write
+
 jobs:
   assign:
-    # Bevinding O6: één API-call, dus krap begrensd.
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v8
-        with:
-          script: |
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              // Één bron met .github/CODEOWNERS: dat bestand wijst de review toe,
-              // deze workflow de issue-triage. Ze stonden op twee verschillende
-              // accounts (hier DutchSailor, in CODEOWNERS @Nozzit) zonder dat
-              // ergens vastlag welke de bedoelde was; nu allebei Nozzit.
-              assignees: ['Nozzit']
-            });
+    uses: OpenAEC-Foundation/conventions/.github/workflows/auto-assign-issues.yml@main
+    with:
+      assignees: '["Nozzit"]'

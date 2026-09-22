@@ -258,7 +258,10 @@
     "aiMode": "Enable AI mode",
     "aiModeHint": "Shows the AI tab with the MCP bridge, so AI assistants can work with your schedule over the Model Context Protocol. Turning it off stops the bridge.",
     "aiAutostart": "Start bridge automatically",
-    "aiAutostartHint": "Brings the MCP bridge live as soon as the app starts, so an AI client can connect without you opening the AI tab first. Desktop app only."
+    "aiAutostartHint": "Brings the MCP bridge live as soon as the app starts, so an AI client can connect without you opening the AI tab first. Desktop app only.",
+    "legacySection": "Legacy features",
+    "classicViewControls": "Show classic view buttons",
+    "classicViewControlsHint": "Puts the separate Columns, Filter, Group and Sort buttons back on the View tab. Their function now lives in the layout buttons and the layout dialog."
   },
   "ai": {
     "start": "Start bridge",
@@ -846,7 +849,31 @@
       "missingRefs": "Some fields don't exist in this document and will be skipped.",
       "noLayouts": "No saved layouts yet.",
       "activeLayout": "Layout",
-      "none": "(none)"
+      "none": "(none)",
+      "builtinResourceDiagram": "Resource diagram",
+      "newTitle": "New layout",
+      "editTitle": "Edit layout",
+      "icon": "Icon",
+      "partsTitle": "What does this layout store?",
+      "partsHint": "Only ticked parts change when you click the layout button; the rest of the view stays as it is.",
+      "partRelations": "Relationship lines",
+      "infoColumns": "The visible columns of the task table, their order and their width.",
+      "infoFilter": "The filter that is active now. If no filter is on, this layout clears the filter.",
+      "infoGroup": "How tasks are grouped, for example by resource. Without grouping the layout shows the WBS tree.",
+      "infoSort": "The sort order of tasks within the tree or within a group.",
+      "infoTimeScale": "The time scale of the Gantt (day, week, month…). Unticked: your zoom stays as it is.",
+      "infoRelations": "Whether relationship lines between tasks are visible. In a grouped view they are usually better off.",
+      "useCurrentView": "Take over the current view",
+      "infoUseCurrentView": "Fills all parts below with what is on screen right now.",
+      "edit": "Edit…",
+      "duplicate": "Duplicate",
+      "copyName": "{{name}} (copy)",
+      "needOnePart": "Tick at least one part.",
+      "builtinReadonly": "Built-in layout: cannot be changed. Duplicate it to make your own version.",
+      "applyOnly": "Apply without saving",
+      "infoApplyOnly": "Puts the ticked parts on screen without making a layout button. Useful for a quick, temporary filter.",
+      "columnsNote": "Takes over the columns as they are in the table now. You choose columns with the plus in the table header.",
+      "relationsShow": "Show relationship lines"
     },
     "presentation": {
       "hint": "Press Esc or F11 to exit full screen."

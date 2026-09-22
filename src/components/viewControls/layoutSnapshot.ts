@@ -19,5 +19,6 @@ export function snapshotLayout(
     sort: view.sort ?? [],
     filter: view.filter ?? null,
     timeScale: scaleFromZoom(view.zoom),
+    showRelations: view.showRelations ?? true,
   };
 }

@@ -4,7 +4,7 @@ The **Filter** window controls which tasks are visible — in the Gantt and on t
 
 ## Opening
 
-**View** → ribbon group **Display** → **Filter…**. The button stays highlighted while a filter is active. If you have no saved filters yet, it opens the Filter window directly. Otherwise its arrow also opens your saved filters, so choosing one applies it immediately; **Clear** switches the active filter off. **Esc**, the close cross or a click outside the window closes without applying.
+You set a filter in the layout window: **View** → ribbon group **Layout** → **New layout**, tick **Filter** and build the rules underneath. **Save** turns it into a layout button, **Apply without saving** only puts the filter on screen for now. The separate Filter window described below belongs to the classic view buttons: **View** → ribbon group **Display** → **Filter…**, only visible if you switch those buttons on via **Settings** → **Advanced** → **Legacy features**. The rules themselves work the same in both places. The button stays highlighted while a filter is active. If you have no saved filters yet, it opens the Filter window directly. Otherwise its arrow also opens your saved filters, so choosing one applies it immediately; **Clear** switches the active filter off. **Esc**, the close cross or a click outside the window closes without applying.
 
 ## Groups: all or any
 
@@ -29,7 +29,7 @@ The trash icon behind a rule removes that rule; the cross at the top right of a 
 
 ## Save and reuse filters
 
-At the top of the Filter window, type a **Name** and click **Save** to store the current rules as a filter preset. Saved filters are available on this device in every project; they only replace the filter, never your columns, grouping, sorting or time scale. Choose a saved filter from the same list to apply it immediately, or remove the selected preset with the trash button.
+At the top of the Filter window, type a **Name** and click **Save** to store the current rules. A saved filter is a layout that stores only the filter: it appears on the ribbon as a layout button with a filter icon, is available on this device in every project, and never touches your columns, grouping, sorting or time scale. Choose a saved filter from the same list to apply it immediately, or remove the selected preset with the trash button.
 
 ## Apply, cancel and clear
 

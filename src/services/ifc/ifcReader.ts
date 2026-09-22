@@ -187,13 +187,20 @@ export function readIFC(
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
-    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId,
+    entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
   const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
-  const sequences = extractSequences(entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids);
+  const sequences = extractSequences(
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay,
+  );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
+  // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen (critreview PR #162): de app
+  // zelf laat een mijlpaal kinderen krijgen (`indentTasks`, `updateTask`, de checkbox) en de writer
+  // schrijft die vlag rauw — een lezer-reset maakte schrijven≠lezen en liet de vlag stil verdwijnen
+  // bij opslaan/openen én crashherstel. De (c)-guard "samenvatting is nooit mijlpaal" hoort bij de
+  // EXPORTgrenzen (MSPDI-writer, PR #161), niet in het native formaat.
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
@@ -841,7 +848,7 @@ function parseDateFromIFC(s: string): string {
   return clean.substring(0, 10);
 }
 
-function parseDurationDays(s: string): number {
+function parseDurationDays(s: string, hoursPerDay: number): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
   // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Negatief kan op twee manieren voorkomen:
@@ -854,7 +861,9 @@ function parseDurationDays(s: string): number {
   const hourMatch = clean.match(/(-?\d+)H/);
   if (hourMatch) {
     const h = parseInt(hourMatch[1]);
-    return applySign(h < 0 ? -Math.ceil(-h / 8) : Math.ceil(h / 8));
+    // Kale `PT{n}H` (andermans bestand) ⇒ werkdagen van de meegegeven kalender, niet van een vaste 8
+    // (issue #159, vervolg — de MSPDI-lezer had dezelfde `/8` al in fase 2.8b vervangen).
+    return applySign(h < 0 ? -Math.ceil(-h / hoursPerDay) : Math.ceil(h / hoursPerDay));
   }
   return 0;
 }
@@ -1031,7 +1040,15 @@ function applyHourModeIFC(
   //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
   for (const t of tasks) {
     const effCal = effCalOf(t);
-    if (!effCal.workTime) continue;
+    if (!effCal.workTime) {
+      // Dag-kalender, uur-taak (kale `PT{n}H` uit andermans bestand): de compatibiliteitsafgeleide
+      // `scheduleDuration` kwam uit `parseDurationDays`' vaste `/8`. Zelfde afleiding als de
+      // uurkalender-tak hieronder, met de hpd van de EFFECTIEVE kalender (issue #159, vervolg).
+      if (t.time.durationUnit === 'hours' && t.time.durationMinutes != null && effCal.hoursPerDay > 0) {
+        t.time.scheduleDuration = t.time.durationMinutes / (effCal.hoursPerDay * 60);
+      }
+      continue;
+    }
     const e = taskTimeEntities.get(t.id);
     if (!e) continue;
     const hpd = effCal.hoursPerDay;
@@ -1141,6 +1158,7 @@ function extractTasks(
   entityMap: Map<string, StepEntity>,
   baselineTaskStepIds: Set<string> = new Set(),
   persistedIds: Map<string, string> = new Map(),
+  hoursPerDay = 8,
 ): { tasks: Task[]; taskStepIdMap: Map<string, string>; taskTimeEntities: Map<string, StepEntity>; recordedFields: Record<string, RecordedFieldKey[]> } {
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
@@ -1176,7 +1194,7 @@ function extractTasks(
     // Parse IfcTaskTime reference
     const taskTimeRef = parseRef(te.args[taskTimeIdx] || '');
     const ttEntity = taskTimeRef ? entityMap.get(taskTimeRef) : undefined;
-    const time = ttEntity ? parseTaskTime(ttEntity) : createDefaultTaskTime(formatDate(new Date()), 5);
+    const time = ttEntity ? parseTaskTime(ttEntity, hoursPerDay) : createDefaultTaskTime(formatDate(new Date()), 5);
     if (ttEntity) taskTimeEntities.set(id, ttEntity);
     recordedFields[id] = ttEntity ? recordedSlotsOf(ttEntity) : [];
 
@@ -1273,19 +1291,20 @@ function extractTaskTypeMeta(
 function optDate(s: string | undefined): string | undefined {
   return s && s !== '$' ? parseDateFromIFC(s) : undefined;
 }
-function optDuration(s: string | undefined): number | undefined {
-  return s && s !== '$' ? parseDurationDays(s) : undefined;
-}
-
 /** STEP-parse-helpers die aan de IFCTASKTIME-read-descriptors (./ifcTaskSlots) worden doorgegeven —
  *  ze wonen hier (STEP-specifieke `$`/quote-semantiek) en worden geïnjecteerd zodat de slot-registry
- *  cyclusvrij blijft. `parseDate`/`parseDur` reproduceren de vroegere `... (e.args[N] || '')`-vorm. */
-const TASKTIME_READ_HELPERS: TaskTimeReadHelpers = {
-  parseDate: (arg) => parseDateFromIFC(arg || ''),
-  parseDur: (arg) => parseDurationDays(arg || ''),
-  optDate,
-  optDur: optDuration,
-};
+ *  cyclusvrij blijft. `parseDate`/`parseDur` reproduceren de vroegere `... (e.args[N] || '')`-vorm.
+ *  Fabriek per kalender-hpd (critreview PR #162): een kale `PT{n}H` in duur, speling of actuals
+ *  wordt met de PROJECTkalender naar dagen vertaald — niet met een vaste 8; de effectieve
+ *  taakkalender kent de lezer op dit punt nog niet, `applyHourModeIFC` corrigeert de duur later. */
+function taskTimeReadHelpers(hoursPerDay: number): TaskTimeReadHelpers {
+  return {
+    parseDate: (arg) => parseDateFromIFC(arg || ''),
+    parseDur: (arg) => parseDurationDays(arg || '', hoursPerDay),
+    optDate,
+    optDur: (s) => (s && s !== '$' ? parseDurationDays(s, hoursPerDay) : undefined),
+  };
+}
 
 /**
  * IFCTASKTIME → TaskTime via de gedeelde slot-registry (./ifcTaskSlots.IFC_TASKTIME_SLOTS): per slot
@@ -1295,10 +1314,11 @@ const TASKTIME_READ_HELPERS: TaskTimeReadHelpers = {
  * OPS_ProjectSettings, §15.3) laten hun veld ongemoeid ⇒ `$`/afwezige actuals blijven undefined en
  * legacy-bestanden laden ongewijzigd. Veld-voor-veld resultaat-identiek aan de vroegere object-literal.
  */
-function parseTaskTime(e: StepEntity): TaskTime {
+function parseTaskTime(e: StepEntity, hoursPerDay: number): TaskTime {
   const time = {} as TaskTime;
+  const helpers = taskTimeReadHelpers(hoursPerDay);
   for (let i = 0; i < IFC_TASKTIME_SLOTS.length; i++) {
-    IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], TASKTIME_READ_HELPERS);
+    IFC_TASKTIME_SLOTS[i].read?.(time, e.args[i], helpers);
   }
   const rawDuration = stripQuotes(e.args[TASKTIME_SLOT.scheduleDuration] || '');
   const hasTimeComponent = /^-?P[^T]*T/i.test(rawDuration);
@@ -1315,6 +1335,7 @@ function extractSequences(
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
   p6BoundarySequenceGuids: ReadonlySet<string>,
+  hoursPerDay: number,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -1372,7 +1393,7 @@ function extractSequences(
             lagDays = 0;
           } else {
             lagMinutes = undefined;
-            lagDays = parseDurationDays(durMatch[1]);
+            lagDays = parseDurationDays(durMatch[1], hoursPerDay);
           }
         } else if (lagValue.startsWith("'")) {
           // Ongetypte duur-string (soepel lezen van andermans bestanden) — zelfde volgorde als hierboven.
@@ -1383,11 +1404,11 @@ function extractSequences(
             lagDays = 0;
           } else {
             lagMinutes = undefined;
-            lagDays = parseDurationDays(lagValue);
+            lagDays = parseDurationDays(lagValue, hoursPerDay);
           }
         } else {
           // Legacy-lay-out: de duur staat in arg 5.
-          lagDays = parseDurationDays(lagEntity.args[4] || '');
+          lagDays = parseDurationDays(lagEntity.args[4] || '', hoursPerDay);
         }
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }

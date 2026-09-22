@@ -13,6 +13,7 @@ export type HistoryScopeKey = `document:${string}` | `grid:${TaskGridSurfaceId}`
 export type ViewLayoutHistoryState = Pick<
   ViewState,
   'filter' | 'group' | 'sort' | 'zoom' | 'scrollX' | 'timeScale' | 'collapsedGroupKeys'
+  | 'showRelations' | 'layoutSession'
 >;
 
 export type SessionHistoryDelta =
@@ -80,6 +81,10 @@ export function captureViewLayoutHistoryState(view: Readonly<ViewState>): ViewLa
     scrollX: view.scrollX,
     timeScale: view.timeScale,
     collapsedGroupKeys: [...view.collapsedGroupKeys],
+    // Issue #144: beide sleutels staan er ALTIJD (ook als `undefined`), zodat undo van een layoutklik
+    // ze via Object.assign terugzet; rauw overgenomen, zodat een ontbrekend veld ontbrekend blijft.
+    showRelations: view.showRelations,
+    layoutSession: view.layoutSession,
   };
 }
 

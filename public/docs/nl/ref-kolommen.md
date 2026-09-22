@@ -4,7 +4,7 @@ Het venster **Kolommen** bepaalt welke kolommen het Tabel-tabblad toont, in welk
 
 ## Openen
 
-**Beeld** → lintgroep **Weergave** → **Kolommen…**. Elke wijziging wordt direct toegepast — er is geen aparte OK-stap; **Sluiten**, **Esc**, het kruisje of een klik buiten het venster sluit het venster.
+Het plusje rechts in de tabelkop, of tabblad **Tabel** → **Kolommen…**. (De knop **Beeld** → lintgroep **Weergave** → **Kolommen…** hoort bij de klassieke weergaveknoppen — zie de gids Layouts.) Elke wijziging wordt direct toegepast — er is geen aparte OK-stap; **Sluiten**, **Esc**, het kruisje of een klik buiten het venster sluit het venster.
 
 ## Gekozen kolommen
 
