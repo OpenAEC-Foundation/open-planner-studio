@@ -17,6 +17,7 @@
  */
 import { formatDate } from '@/utils/dateUtils';
 import type { Project } from '@/types/project';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { WorkCalendar, Holiday, WorkTimeBands, WorkingException } from '@/types/calendar';
 import type { Task, TaskTime, TaskConstraint, ExternalLink } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -170,6 +171,13 @@ export function toExtProject(p: Project): ExtProject {
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
+    // Rekenprofielen C8 (contract 1.2.0): het opgeloste profiel, alleen-lezen.
+    schedulingProfile: {
+      id: p.schedulingProfile?.id ?? 'ops',
+      baseId: p.schedulingProfile?.baseId ?? 'ops',
+      name: p.schedulingProfile?.name ?? '',
+      conventions: { ...resolveConventions(p.schedulingProfile) },
+    },
   };
 }
 
@@ -190,6 +198,7 @@ export function fromExtProject(p: ExtProject): Project {
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
+    // Bewust géén `schedulingProfile`: een extensie-import rekent als OPS (spec v3.1 §7).
   };
 }
 

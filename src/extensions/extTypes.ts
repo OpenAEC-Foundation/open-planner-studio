@@ -42,6 +42,19 @@ export interface ExtProject {
   defaultTaskDurationUnit?: 'days' | 'hours';
   /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
+  /** Sinds 1.2.0 — het opgeloste rekenprofiel. Alleen-lezen. */
+  schedulingProfile?: ExtSchedulingProfile;
+}
+
+/** Rekenprofiel van het project, alleen-lezen (contractversie 1.2.0). `fromExtProject` en
+ *  `fromExtImportResult` nemen dit veld NOOIT over: een extensie-import rekent als OPS. */
+export interface ExtSchedulingProfile {
+  id: string;
+  baseId: 'p6' | 'msproject' | 'ops';
+  /** Leeg bij een ingebouwd profiel (de app toont dan de vertaalde naam). */
+  name: string;
+  /** De vijftien opgeloste conventies (sleutel = conventie-id). */
+  conventions: Record<string, boolean>;
 }
 
 /** Ext-facing reken-opties. Spiegelt {@link import('@/types/project').SchedulingOptions}. */
