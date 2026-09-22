@@ -857,6 +857,30 @@ exportverliesmelding (ná het schrijven), een bovengrens op documenten per besta
   de "niet vastgelegd"-poort ontbreekt in de tien rapporten/PDF/renderer (0,7–1,6% van de
   corpustaken heeft geen volledig late-paar of geen `total_float_hr_cnt`); in de modus staat er nu
   één melding bovenaan elk rapport, de cel zelf toont nog leeg/0.
+  BEVESTIGD DOOR DE EIGENAAR (2026-09-22), in zijn woorden, per vraag uit de PR-tekst van #109:
+  - **Mergebeleid.** #109 merget niet met een rode productpoort. Het restant van 15.056 cellen
+    gaat eerst omlaag; de planregel "geen pinnen met reden" blijft. Het "datums zoals opgeslagen
+    voor alle formaten"-werk (`claude/recorded-all-formats`) wordt een aparte PR ná de merge,
+    niet op #109.
+  - **(2) Crashherstel:** alleen de manifestvlag (v4) telt, geen heuristiek voor oude snapshots.
+  - **(3) Niet-vastgelegde as:** CSV leeg, MCP `null`, nooit 0.
+  - **(4) MCP-provenance:** codes altijd; resourcenamen alleen achter een opt-in, en de AI-client
+    moet die opt-in aan zijn gebruiker vragen. (Te bouwen: de opt-in; nu toont de tool
+    `name`/`code` zonder poort.)
+  - **(5) 7b:** de ES/EF-regressie blijft staan als tijdelijke stand, geen pin.
+  - **(6) Samenvattingen** rollen in de modus op uit hun kinderen, zoals P6.
+  - **(7) Driving path** wordt de zevende poort-as, met de longest-path-wandeling als instelling.
+  - **(8) Dossier 7b-4** hoort bij "naar nul": eerst meten, dan bouwen.
+  - **(9) Bronarchief:** één keer schrijven, in het IFC, niet per crashherstel-snapshot.
+  - **(11) `lagCalendar`** effectief voor alle formaten: accepteren, met releasenotitie.
+  - Regel A (landingsregel voor de gedeelde motor) en regel B (nieuwe conventies als benoemde
+    instelling) gaan beide in de goal prompt van het "naar nul"-vervolg.
+  - Solverprofiel per project: geparkeerd als eigen etappe ná X12.
+  - De 49 OzBuild-bestanden gaan in de privérepo (optie 1). Door de eigenaar uitgevoerd en
+    gemeten: `check-mpp-fidelity.ts` 213 pins groen in de cloud — de ONBEKEND-status van de
+    49 OzBuild-pins in §10.e is daarmee opgeheven.
+  Niet expliciet beantwoord: (10) de projecteinde-fout (valt onder "restant omlaag") en (12) de
+  weekend-klemheuristiek (blijft zoals hij staat tot er een besluit is).
 - **Bekende losse eindjes.** (1) Zes main-bestanden met `childIds.length > 0` i.p.v.
   `isSummaryTask()` — niet aangeraakt, niet stil om te zetten. (2) `readIFCWithXerReconstruction`
   vs de 7b-kalender op al opgeslagen documenten — niet uitgezocht. (3) rehab-2 heropenen uit IFC
