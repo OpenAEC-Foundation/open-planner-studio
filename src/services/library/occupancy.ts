@@ -77,19 +77,15 @@ export interface OccupancySolveInput {
 }
 
 /** Bouw de efemere solve-invoer van een document. De ENIGE bouwplek (ResourceOccupancyView gebruikt
- *  hem), zodat C5 de onvolledigheid op één plek repareert en test. */
+ *  hem). Sinds rekenprofielen C5 (benoemde gedragswijziging) de volledige invoer van F5, óók de
+ *  projectdatums: de bezetting respecteert de projectstart-vloer zoals F5. */
 export function occupancySolveInputFor(
   payload: { tasks: Task[]; sequences: Sequence[]; project: SolveProjectFields },
 ): OccupancySolveInput {
   return {
     tasks: payload.tasks,
     sequences: payload.sequences,
-    options: {
-      ...solveOptionsFor(payload.project),
-      // C5-GEDRAGSWIJZIGING: de efemere solve gaf nooit projectdatums door; taak C5 laat deze twee vallen.
-      projectStartDate: undefined,
-      projectEndDate: undefined,
-    },
+    options: solveOptionsFor(payload.project),
   };
 }
 

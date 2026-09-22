@@ -83,7 +83,8 @@ export interface DistributionDocInput extends OccupancyDocInput {
   ceilingWorkdays: number | null;
   /** Planningsinvoer voor de motor-run van dít document: de VOLLEDIGE takenlijst, relaties en
    *  CPM-opties — zelfde eis en zelfde reden als `OccupancySolveInput` (een gesnoeide lijst geeft
-   *  een andere planning dan `runCPM`). */
+   *  een andere planning dan `runCPM`). Een productiebouwer (straks de verdeeldialoog) bouwt hem met
+   *  `occupancySolveInputFor(payload)`, zodat de opties die van F5 zijn. */
   levelInput: OccupancySolveInput;
 }
 

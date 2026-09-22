@@ -6,7 +6,7 @@
 // zichtbaar bijwerkt.
 
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
-import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 // K-item 30: hier stond een eigen kopie van het terugschrijven, die al was gedivergeerd
 // (miste interferingFloat, isNearCritical, floatPath, de late-datum-rollup, de
@@ -150,10 +150,8 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   let lastResult: CPMResult | null = null;
   for (let i = 0; i < cpmIters; i++) {
     report('cpm', 1, i + 1, cpmIters);
-    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], {
-      // C5-GEDRAGSWIJZIGING: de benchmark rekende altijd met lege opties; taak C5 ⇒ solveOptionsFor(data.project).
-      schedulingOptions: effectiveSchedulingOptions({}),
-    });
+    // Rekenprofielen C5: dezelfde projectinvoer als F5 (was: lege opties).
+    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], solveOptionsFor(data.project));
     const t0 = performance.now();
     lastResult = solver.solve();
     cpmSamples.push(performance.now() - t0);

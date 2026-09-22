@@ -196,11 +196,11 @@ export function prepareLoadedPayload(
   if (!options.recompute || payload.cpmResult !== null) return payload;
 
   payload.tasks = cloneTasksForSolve(payload.tasks);
-  payload.cpmResult = solveProject({
-    ...solveInputFor(payload.project, payload.tasks, payload.sequences, payload.calendar, payload.calendars),
-    // C5-GEDRAGSWIJZIGING: het laadpad gaf nooit projectEndDate door; taak C5 laat deze regel vallen.
-    projectEndDate: undefined,
-  });
+  // Rekenprofielen C5 (benoemde gedragswijziging): dezelfde volledige invoer als F5, óók het
+  // projecteinde — een slapend XER-document met `useProjectEndDateForFloat` rekent bij laden nu met
+  // het projecteinde-anker.
+  payload.cpmResult = solveProject(
+    solveInputFor(payload.project, payload.tasks, payload.sequences, payload.calendar, payload.calendars));
   payload.scheduleStale = false;
   return payload;
 }
