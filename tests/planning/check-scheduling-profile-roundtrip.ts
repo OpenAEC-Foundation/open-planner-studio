@@ -2,18 +2,22 @@
 // vijandige pset-JSON, byte-identiteit zonder profiel, en de opslag van eigen profielen
 // (`ops-schedulingProfiles`). Spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md.
 //
-// INTEGRATIE(rekenprofielen): in de overgang zijn `writeSchedulingProfileMeta` en de profiellezer
-// bewust NIET aan writeIFC/readIFC gekoppeld. Deze check roept ze rechtstreeks aan (writeWithProfile /
-// readProfile hieronder) en bewaakt in sectie 0 dat de koppeling er inderdaad nog niet is.
+// Sinds taak C2 (plan 2026-09-22) schrijft en leest writeIFC/readIFC het profiel zelf, en draagt het
+// optieblok alleen nog projectopties (+ A22/A23 als true). Oude bestanden (legacy-blob met p6Source en
+// conventiesleutels, geen profiel-pset) maakt `legacyIfc` hieronder na door de opties-JSON van een
+// vers geschreven bestand te vervangen.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen; faalregels beginnen met "XX".
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createWriteContext, writeIFC, writeSchedulingProfileMeta } from '@/services/ifc/ifcWriter';
+import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC, readSchedulingProfile } from '@/services/ifc/ifcReader';
 import type { ImportResult } from '@/services/importTypes';
-import type { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { freshPayload } from '@/state/documentContract';
+import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
@@ -21,7 +25,7 @@ import {
 } from '@/engine/scheduler/conventions/registry';
 import { legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
 import {
-  MAX_PROFILE_NAME_LENGTH, profileAfterRead, sanitizeSchedulingProfile,
+  MAX_PROFILE_NAME_LENGTH, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
 import {
   SCHEDULING_PROFILES_KEY, deleteCustomProfile, loadCustomProfiles, saveCustomProfiles,
@@ -71,35 +75,31 @@ function fixture(projectExtra: Partial<Project> = {}): ImportResult {
 const PROFILE_LINE = /IFCPROPERTYSINGLEVALUE\('SchedulingProfile',\$,IFCTEXT\('[^']*'\),\$\)/;
 const withProfileJson = (ifc: string, json: string) =>
   ifc.replace(PROFILE_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT('${json}'),$)`);
-/** writeIFC + de losse profielschrijver, met de echte schrijffunctie op het echte IfcWorkSchedule-
- *  en IfcOwnerHistory-id, ingevoegd vóór ENDSEC (zoals writeIFC hem na integratie zou schrijven). */
-function writeWithProfile(input: ImportResult): string {
-  const ifc = writeIFC(input);
-  const idOf = (type: string) => Number(ifc.match(new RegExp(`#(\\d+)=${type}\\(`))![1]);
-  const maxId = Math.max(...[...ifc.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1])));
-  const ctx = createWriteContext(maxId + 1);
-  writeSchedulingProfileMeta(ctx, idOf('IFCWORKSCHEDULE'), input.project.schedulingProfile, idOf('IFCOWNERHISTORY'));
-  if (ctx.lines.length === 0) return ifc;
-  return ifc.replace('\nENDSEC;\nEND-ISO-10303-21;', `\n${ctx.lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;`);
-}
-/** Het profiel na lezen: pset via de losse lezer, anders migratie van het gelezen optieblok. */
-function readProfile(ifc: string): SchedulingProfile | undefined {
-  return profileAfterRead(readSchedulingProfile(ifc), readIFC(ifc).project.schedulingOptions);
+/** Sinds C2 schrijft writeIFC het profiel zelf (de naam blijft voor de leesbaarheid van de secties). */
+const writeWithProfile = (input: ImportResult): string => writeIFC(input);
+/** Het profiel na lezen via readIFC: pset wint, anders migratie van het gelezen optieblok. */
+const readProfile = (ifc: string): SchedulingProfile | undefined => readIFC(ifc).project.schedulingProfile;
+const OPTIONS_LINE = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('([^']*)'\),\$\)/;
+/** Een bestand zoals een versie vóór de rekenprofielen het schreef: het OPS_SchedulingOptions-blok is
+ *  letterlijk `blob` (incl. p6Source/conventies). Optioneel mét profiel-pset (voor "pset wint"). */
+function legacyIfc(blob: SchedulingOptions, profile?: SchedulingProfile): string {
+  const ifc = writeIFC(fixture({ schedulingProfile: profile, schedulingOptions: { nearCriticalThreshold: 1 } }));
+  if (!OPTIONS_LINE.test(ifc)) throw new Error('legacyIfc: geen optie-anker');
+  return ifc.replace(OPTIONS_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${JSON.stringify(blob)}'),$)`);
 }
 const CUSTOM: SchedulingProfile = {
   baseId: 'p6', id: 'eigen-1', name: 'Kopie van P6',
   overrides: { resumeFromActualElapsed: true, p6OpenLoeTargetSpan: false },
 };
 
-// ── 0) Overgang: nog niet aan writeIFC/readIFC gekoppeld ────────────────────────────────────────
+// ── 0) Sinds C2 gekoppeld aan writeIFC/readIFC ──────────────────────────────────────────────────
 {
   const plain = writeIFC(fixture({ schedulingProfile: builtInProfile('p6') }));
-  ok('00 writeIFC schrijft (nog) geen OPS_SchedulingProfile', !plain.includes('OPS_SchedulingProfile'));
-  const injected = writeWithProfile(fixture({ schedulingProfile: builtInProfile('p6') }));
-  ok('00b anker: de losse schrijver schrijft wél', injected.includes("'OPS_SchedulingProfile'"));
-  eq('00c readIFC zet (nog) geen schedulingProfile', readIFC(injected).project.schedulingProfile, undefined);
-  eq('00d readIFC op een legacy-p6-blok zet (nog) geen schedulingProfile',
-    readIFC(writeIFC(fixture({ schedulingOptions: { p6Source: 'XER' } }))).project.schedulingProfile, undefined);
+  ok('00 writeIFC schrijft OPS_SchedulingProfile', plain.includes("'OPS_SchedulingProfile'"));
+  same('00b de losse lezer ziet dezelfde pset', readSchedulingProfile(plain), builtInProfile('p6'));
+  same('00c readIFC zet het profiel', readIFC(plain).project.schedulingProfile, builtInProfile('p6'));
+  eq('00d readIFC op een legacy-p6-blok migreert naar p6',
+    readIFC(legacyIfc({ p6Source: 'XER' })).project.schedulingProfile?.baseId, 'p6');
 }
 
 // ── 1) Round-trip: drie ingebouwde + één eigen profiel ──────────────────────────────────────────
@@ -145,18 +145,18 @@ const CUSTOM: SchedulingProfile = {
 {
   eq('20 geen pset + geen opties ⇒ ops (afwezig)', readProfile(writeWithProfile(fixture())), undefined);
   const opts2: SchedulingOptions = { lagCalendar: 'successor', clampNegativeFreeFloat: true, p6UseTaskPlannedStartFloor: true };
-  const ifc2 = writeWithProfile(fixture({ schedulingOptions: opts2 }));
+  const ifc2 = legacyIfc(opts2);
   same('21 opties zonder p6Source ⇒ ops + niet-gepoorte afwijking; gepoorte vlag weg',
     readProfile(ifc2), { ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: true } });
-  // INTEGRATIE(rekenprofielen): in de overgang blijft het optieblok ongewijzigd staan.
-  same('22 overgang: schedulingOptions ongewijzigd', readIFC(ifc2).project.schedulingOptions, opts2);
+  // C2: na lezen draagt het project alleen de projectopties (conventies en p6Source gestript).
+  same('22 C2: schedulingOptions alleen projectopties', readIFC(ifc2).project.schedulingOptions, { lagCalendar: 'successor' });
   eq('23 alleen optie-sleutels ⇒ ops zonder afwijking (afwezig)',
-    readProfile(writeWithProfile(fixture({ schedulingOptions: { nearCriticalThreshold: 2 } }))), undefined);
+    readProfile(legacyIfc({ nearCriticalThreshold: 2 })), undefined);
   same('24 beide mpp-vlaggen ⇒ msproject',
-    readProfile(writeWithProfile(fixture({ schedulingOptions: { resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true } }))),
+    readProfile(legacyIfc({ resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true })),
     builtInProfile('msproject'));
   const opts3: SchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
-  const ifc3 = writeWithProfile(fixture({ schedulingOptions: opts3 }));
+  const ifc3 = legacyIfc(opts3);
   // Spec v3: een A-conventie die de blob niet noemt, rekende vandaag als uit ⇒ afwijking van p6.
   same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B1–B5 aan', readProfile(ifc3), {
     ...builtInProfile('p6'),
@@ -165,16 +165,14 @@ const CUSTOM: SchedulingProfile = {
       p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: false, p6PreserveZeroDurationConstraintInstants: false,
     },
   });
-  same('26 overgang: p6Source blijft in schedulingOptions', readIFC(ifc3).project.schedulingOptions, opts3);
-  same('27 pset wint van de legacy-migratie',
-    readProfile(writeWithProfile(fixture({ schedulingOptions: opts3, schedulingProfile: builtInProfile('msproject') }))),
-    builtInProfile('msproject'));
+  same('26 C2: p6Source en conventies gestript uit schedulingOptions', readIFC(ifc3).project.schedulingOptions, { totalFloatMode: 'finish' });
+  same('27 pset wint van de legacy-migratie', readProfile(legacyIfc(opts3, builtInProfile('msproject'))), builtInProfile('msproject'));
 }
 
 // ── 4) Vijandige pset-JSON: valt terug zonder throw ─────────────────────────────────────────────
 {
   const LEGACY_BLOB: SchedulingOptions = { p6Source: 'XER' };
-  const base = writeWithProfile(fixture({ schedulingProfile: CUSTOM, schedulingOptions: LEGACY_BLOB }));
+  const base = legacyIfc(LEGACY_BLOB, CUSTOM);
   // Waar de pset onbruikbaar is valt de lezer terug op de migratie van het legacy-blok.
   const FALLBACK = legacyOptionsToProfile(LEGACY_BLOB).profile;
   ok('30b anker: de terugval is herkenbaar (p6-basis)', FALLBACK.baseId === 'p6');
@@ -295,6 +293,52 @@ function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
   } finally {
     console.warn = warn;
   }
+}
+
+// ── C2: het optieblok in het eindmodel ──────────────────────────────────────────────────────────
+// Verwachte JSON met de hand (spec v3.1 §3.3). Mutatiebewijs (plan C2 step 5): de strip in de lezer
+// weglaten ⇒ 22, 26 en C2-04 rood (gemeten).
+const optionsJsonOf = (ifc: string): string | undefined => OPTIONS_LINE.exec(ifc)?.[1];
+function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSchedulingOptions | SchedulingOptions | undefined) {
+  const base = freshPayload();
+  const written = writeIFC(buildWriteIFCInput({ ...base, project: { ...base.project, schedulingProfile: profile, schedulingOptions: options } }));
+  return { written, read: readIFC(written).project };
+}
+{
+  const opts: ProjectSchedulingOptions = { totalFloatMode: 'finish', useProjectEndDateForFloat: true };
+  const { written, read } = roundTripC2(builtInProfile('p6'), opts);
+  eq('C2-01 P6: optieblok = alleen de projectopties', optionsJsonOf(written), JSON.stringify(opts));
+  eq('C2-02 P6: opties lezen terug zonder conventies', read.schedulingOptions, opts);
+}
+{
+  const { written, read } = roundTripC2(builtInProfile('msproject'), undefined);
+  eq('C2-03 MS Project: A22/A23 gespiegeld, alleen als true (compat oude versies)',
+    optionsJsonOf(written), '{"resumeFromActualElapsed":true,"unstartedIgnoresStatusDate":true}');
+  eq('C2-04 gespiegelde conventies komen niet terug als optie', read.schedulingOptions, undefined);
+  eq('C2-05 profiel wint van de spiegel', read.schedulingProfile, builtInProfile('msproject'));
+}
+{
+  const { written, read } = roundTripC2(undefined, { lagCalendar: 'successor' });
+  eq('C2-06 OPS: geen profiel-pset', written.includes('OPS_SchedulingProfile'), false);
+  eq('C2-07 OPS: optieblok byte-identiek aan vóór de profielen', optionsJsonOf(written), '{"lagCalendar":"successor"}');
+  eq('C2-08 OPS leest terug zonder profiel', [read.schedulingProfile, read.schedulingOptions], [undefined, { lagCalendar: 'successor' }]);
+}
+{
+  // H5: de catch in extractSchedulingOptions (corrupte optie-JSON) — geen throw, opties en profiel
+  // blijven op de default (ops).
+  const corrupt = writeIFC(fixture({ schedulingOptions: { nearCriticalThreshold: 1 } }))
+    .replace(OPTIONS_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('{"lagCalendar":'),$)`);
+  let corruptRead: Project | 'THROW';
+  try { corruptRead = readIFC(corrupt).project; } catch { corruptRead = 'THROW'; }
+  eq('C2-11 corrupte optie-JSON ⇒ geen throw, geen opties, geen profiel',
+    corruptRead === 'THROW' ? 'THROW' : [corruptRead.schedulingOptions, corruptRead.schedulingProfile], [undefined, undefined]);
+}
+{
+  // TIJDELIJK(rekenprofielen): een verse XER-import vóór C3 heeft nog geen profiel maar legacy-opties.
+  const legacy = { ...XER_SCHEDULING_DEFAULTS.schedulingOptions } as SchedulingOptions;
+  const { written, read } = roundTripC2(undefined, legacy);
+  eq('C2-09 TIJDELIJK legacy-XER-opties ⇒ P6-profiel in het bestand', read.schedulingProfile?.baseId, 'p6');
+  eq('C2-10 TIJDELIJK en het optieblok draagt geen p6Source meer', (optionsJsonOf(written) ?? '').includes('p6Source'), false);
 }
 
 if (diffs.length > 0) {

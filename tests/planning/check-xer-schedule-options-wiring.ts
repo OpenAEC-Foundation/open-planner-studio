@@ -450,7 +450,8 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
     return {
       name: roundTripped.project.name,
       progressMode: roundTripped.project.progressMode,
-      schedulingOptions: roundTripped.project.schedulingOptions,
+      // Rekenprofielen C2: opties + profiel ⇒ dezelfde opgeloste set als direct na het lezen.
+      schedulingOptions: solveOptionsFor(roundTripped.project).schedulingOptions,
       xer: {
         sourceProjectId: roundTripped.xer?.sourceProjectId,
         source: roundTripped.xer?.scheduleOptions.source,
@@ -461,7 +462,7 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
   }), [
     {
       name: 'Project A', progressMode: 'PROGRESS_OVERRIDE',
-      schedulingOptions: projectA?.project.schedulingOptions,
+      schedulingOptions: projectA ? solveOptionsFor(projectA.project).schedulingOptions : undefined,
       xer: {
         sourceProjectId: projectA?.xer.sourceProjectId,
         source: projectA?.xer.scheduleOptions.source,
@@ -473,7 +474,7 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
       // RETAINED_LOGIC is IFC's bestaande canonieke default en komt daarom als `undefined` terug;
       // de solversemantiek blijft retained. Een expliciete PROGRESS_OVERRIDE hierboven blijft staan.
       name: 'Project B', progressMode: undefined,
-      schedulingOptions: projectB?.project.schedulingOptions,
+      schedulingOptions: projectB ? solveOptionsFor(projectB.project).schedulingOptions : undefined,
       xer: {
         sourceProjectId: projectB?.xer.sourceProjectId,
         source: projectB?.xer.scheduleOptions.source,

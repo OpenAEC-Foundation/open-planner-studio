@@ -32,6 +32,7 @@ import { parseFlexibleDate } from '@/components/common/DateTextInput';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import type { Task } from '@/types/task';
 import { historyDepthsForActiveScope, latestAppliedDocumentDataDelta } from '@/state/sessionHistory';
 import type { Baseline } from '@/types/baseline';
@@ -480,6 +481,16 @@ truthy('d snapshot draagt het volledige project (id + naam + vlag)',
   typeof snap.project.wbsAutoNumber === 'boolean');
 truthy('d snapshot draagt de projectkalender-cache', typeof snap.calendar?.id === 'string');
 truthy('d snapshot draagt geen afleidbare resourceLoadResult', !('resourceLoadResult' in snap));
+
+// Rekenprofielen C2: het profiel (een veld BINNEN `project`) overleeft de echte recovery-keten
+// capturePayload → buildWriteIFCInput/writeIFC → readIFC → recoveryInputFromParsed → restoreDocuments.
+// Mutatiebewijs: writeSchedulingProfileMeta in writeIFC uitgezet ⇒ deze assertie rood.
+S().newProject();
+S().setProject({ name: 'Profielproject', schedulingProfile: builtInProfile('p6') });
+const profIfc = writeIFC(buildWriteIFCInput(capturePayload(S())));
+S().restoreDocuments([recoveryInputFromParsed(readIFC(profIfc),
+  { id: 'prof-doc', filePath: '/tmp/prof.ifc', isDirty: true, datesAsRecorded: false })], 'prof-doc');
+eq('d rekenprofiel overleeft de recovery-keten', S().project.schedulingProfile, builtInProfile('p6'));
 
 // ══ (e) IN-PLACE LOAD via loadState → applyLoadedProject (key-gedreven reset-pad) ════════════════
 // loadState vervangt de projectdata IN-PLACE: geen nieuw tabblad, view/inklap behouden, filePath

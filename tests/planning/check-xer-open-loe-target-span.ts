@@ -147,7 +147,8 @@ function diagnose(input: ImportResult) {
   const candidateCalendar = new CalendarEngine(input.calendar);
   return explainOpenXerLoeTargetSpanEligibility(
     candidate,
-    input.project.schedulingOptions,
+    // Rekenprofielen C2: de diagnose krijgt dezelfde opgeloste set als de solver.
+    solveOptionsFor(input.project).schedulingOptions,
     input.sequences.filter(sequence => sequence.successorId === candidate.id),
     input.sequences.filter(sequence => sequence.predecessorId === candidate.id),
     parseInstant('2026-01-05T08:00'),
@@ -280,10 +281,10 @@ eq('open XER LOE: toegevoegde toewijzingen veranderen de span niet', axes(assign
 
 const reloaded = await readIFCWithXerReconstruction(writeIFC(importedFixture()));
 eq('open XER LOE: XER-IFC-reload bewaart de relevante XER-provenance en span', {
-  source: reloaded.project.schedulingOptions?.p6Source,
+  profile: reloaded.project.schedulingProfile?.id,
   decision: diagnose(reloaded),
   axes: axes(reloaded),
-}, { source: 'XER', decision: { eligible: true, reason: 'eligible' }, axes: baseAxes });
+}, { profile: 'p6', decision: { eligible: true, reason: 'eligible' }, axes: baseAxes });
 
 const genericIfcSource = structuredClone(importedFixture());
 delete genericIfcSource.project.schedulingOptions?.p6Source;

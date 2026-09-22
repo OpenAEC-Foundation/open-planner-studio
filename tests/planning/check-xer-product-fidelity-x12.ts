@@ -1186,11 +1186,17 @@ async function productBaseline(
   });
   if (ifcFloorSolve.error) throw new Error(ifcFloorSolve.error);
   const ifcFloor = ifcNoSourceRead.tasks.find(task => task.wbsCode === 'FLOOR');
+  // Rekenprofielen C2: de IFC-migratie gooit de (inerte) A16-vlag zonder bron weg (spec v3.1 §3.4 rij 4).
   eq('X12 taakvloer: IFC zonder bron met A16-vlag aan houdt de netwerkbasis', {
-    floorFlag: ifcNoSourceRead.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
-    source: ifcNoSourceRead.project.schedulingOptions?.p6Source,
+    floorConvention: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions.p6UseTaskPlannedStartFloor,
+    profile: ifcNoSourceRead.project.schedulingProfile,
     floorStart: canonicalProductMinute(ifcFloor?.time.earlyStart),
-  }, { floorFlag: true, source: undefined, floorStart: '2026-01-02T08:00' });
+  }, {
+    floorConvention: false,
+    // Spec §3.4 rij 4: zonder bron blijven alleen de niet-gepoorte A12/A13 uit de XER-blob over.
+    profile: { baseId: 'ops', id: 'ops', name: '', overrides: { preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true } },
+    floorStart: '2026-01-02T08:00',
+  });
   const hostileExt = readXER(bytes);
   if (isMultiDocumentImport(hostileExt)) throw new Error('X12 extensiesolvefixture moet enkelproject zijn');
   const hostilePredecessor = hostileExt.tasks.find(task => task.wbsCode === 'PRED');
@@ -1723,11 +1729,11 @@ async function productBaseline(
   const directForParity = readXER(projectionBytes);
   if (isMultiDocumentImport(directForParity)) throw new Error('X12 directe pariteitsfixture moet enkelproject zijn');
   eq('X12 XER-naar-IFC bewaart P6-provenance en alle zes solve-assen', {
-    projectSource: ifcRoundTrip.project.schedulingOptions?.p6Source,
+    projectProfile: ifcRoundTrip.project.schedulingProfile?.id,
     calendarSource: ifcRoundTrip.calendar.p6Source,
     axes: sixAxes(ifcRoundTrip),
   }, {
-    projectSource: 'XER',
+    projectProfile: 'p6',
     calendarSource: 'XER',
     axes: sixAxes(directForParity),
   });

@@ -4,7 +4,8 @@ import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
-import { isDefaultProfile } from '@/engine/scheduler/conventions/registry';
+import { CONVENTION_KEYS, isDefaultProfile } from '@/engine/scheduler/conventions/registry';
+import { legacyOptionsBlobFor, legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -114,8 +115,7 @@ function guidOf(ctx: WriteContext, seed: string): string {
   return guid;
 }
 
-/** Een lege schrijfcontext die bij STEP-id `nextId` begint. Voor losse pset-schrijvers die (nog)
- *  niet vanuit `writeIFC` worden aangeroepen — zie `writeSchedulingProfileMeta`. */
+/** Een lege schrijfcontext die bij STEP-id `nextId` begint, voor losse pset-schrijvers. */
 export function createWriteContext(nextId: number): WriteContext {
   return { lines: [], nextId, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
 }
@@ -336,15 +336,12 @@ export function writeIFC(input: WriteIFCInput): string {
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
-  // INTEGRATIE(rekenprofielen): schrijft in de overgang het blok ongewijzigd (incl. p6Source en
-  // conventiesleutels); in het eindmodel wordt dit `legacyOptionsBlobFor(project)` (projectopties +
-  // alleen resumeFromActualElapsed/unstartedIgnoresStatusDate wanneer true, spec v3.1).
-  writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
-  // INTEGRATIE(rekenprofielen): hier `writeSchedulingProfileMeta(ctx, workSchedId,
-  // project.schedulingProfile, ownerHistId);` aansluiten — tegelijk met de lezerkant in
-  // `ifcReader.ts`. Bewust nog NIET bedraad: in de overgang zet geen lezer een profiel, dus een
-  // halve bedrading maakt opslaan niet-idempotent (eerste save geen pset, heropenen migreert naar
-  // p6, tweede save wél) en laat crashherstel afwijken van de live state.
+  // Rekenprofielen (spec v3.1 §3.3): OPS_SchedulingOptions = projectopties + A22/A23 alleen als ze
+  // opgelost true zijn (compat met uitgebrachte versies); het profiel staat in OPS_SchedulingProfile,
+  // alleen als het ≠ het standaardprofiel (OPS-bestanden blijven byte-identiek).
+  const scheduling = schedulingSettingsForWrite(project);
+  writeSchedulingOptionsMeta(ctx, workSchedId, legacyOptionsBlobFor(scheduling), ownerHistId);
+  writeSchedulingProfileMeta(ctx, workSchedId, scheduling.schedulingProfile, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -706,6 +703,19 @@ function writeBaselineMeta(
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_baselines'))},#${ownerHistId},${ifcStr(PSET.Baselines)},$,(${props.map(i => `#${i}`).join(',')}))`);
   addLine(ctx, '_rel_baselines',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_baselines'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
+/** TIJDELIJK(rekenprofielen): tot C3 hebben verse XER-/.mpp-imports nog geen profiel maar legacy-opties
+ *  met conventies (en de XER-bronmarkering). Die gaan hier door dezelfde migratie als bij het lezen, zodat
+ *  zo'n document na opslaan en heropenen exact zo rekent als ervoor. */
+function schedulingSettingsForWrite(project: Project): Pick<Project, 'schedulingProfile' | 'schedulingOptions'> {
+  const raw = project.schedulingOptions as SchedulingOptions | undefined;
+  if (project.schedulingProfile === undefined && raw !== undefined
+    && ('p6Source' in raw || CONVENTION_KEYS.some(key => key in raw))) {
+    const migrated = legacyOptionsToProfile(raw);
+    return { schedulingProfile: migrated.profile, schedulingOptions: migrated.options };
+  }
+  return { schedulingProfile: project.schedulingProfile, schedulingOptions: project.schedulingOptions };
 }
 
 /**

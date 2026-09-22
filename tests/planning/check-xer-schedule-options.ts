@@ -14,6 +14,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { legacyCpmOptions, legacyEffective } from './legacySolveOptions';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -1032,8 +1033,13 @@ const ifcRoundTrip = readIFC(writeIFC({
   resources: [],
   assignments: [],
 }));
-eq('X5-bronvlaggen round-trippen verliesloos via OPS_SchedulingOptions in IFC',
-  ifcRoundTrip.project.schedulingOptions, withoutTable.schedulingOptions);
+// Rekenprofielen C2: het IFC splitst de blob in projectopties (OPS_SchedulingOptions) en profiel
+// (OPS_SchedulingProfile); verliesloos = dezelfde OPGELOSTE set als vóór het opslaan.
+const sortedKeys = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
+eq('X5-bronvlaggen round-trippen verliesloos via IFC (opties + profiel ⇒ dezelfde opgeloste set)',
+  sortedKeys(solveOptionsFor(ifcRoundTrip.project).schedulingOptions), sortedKeys(legacyEffective(withoutTable.schedulingOptions)));
+eq('X5: het optieblok na lezen draagt geen bronmarkering meer',
+  ifcRoundTrip.project.schedulingOptions?.p6Source, undefined);
 
 const expectedColumns = [
   'enable_multiple_longest_path_calc',
