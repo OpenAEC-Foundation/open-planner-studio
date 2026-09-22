@@ -132,9 +132,12 @@ interface SchedulingProfile {
   solver-invoer (`EffectiveSchedulingOptions`, `progressMode`, `dataDate`, `projectStartDate`,
   `projectEndDate`). Dat de vier aanroepers die nu niet alles doorgeven (`documentActivation`,
   `occupancy`, `distribute`, `benchmark/runner`) daarmee óók `projectStart/EndDate` krijgen is een
-  **benoemde gedragswijziging** (slapende XER-documenten met `useProjectEndDateForFloat`; bezetting bij
-  wortels vóór de projectstart) in een eigen commit met eigen test — niet onder het
-  gedragsbehoud-bewijs van §3.4.
+  **benoemde gedragswijziging** in een eigen commit met eigen test (C5) — niet onder het
+  gedragsbehoud-bewijs van §3.4. Reikwijdte, gemeten in de critreview op baan C: `prepareLoadedPayload`
+  is het laadpad van **elk geopend bestand én crashherstel**, dus elke XER (en heropende IFC met
+  XER-archief) met `useProjectEndDateForFloat` toont bij het openen voortaan dezelfde late datums en
+  speling als na F5 en als in de X12-meting (voorheen weken die bij het openen af); ook de telling in de
+  #63-melding verandert daardoor. Releasenotitie verplicht.
 - **Eigen profielen** zijn app-globale **sjablonen** (`ops-schedulingProfiles`, JSON-lijst van
   `SchedulingProfile` via het `settingsStore`-patroon, gesanitized bij lezen, nooit throwen). Een
   project draagt zijn eigen kopie; een sjabloon wijzigen werkt **niet** door naar open documenten. De
