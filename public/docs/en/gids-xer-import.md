@@ -21,6 +21,8 @@ A P6 baseline project is not opened as a separate schedulable document. When it 
 
 Relations between two different P6 projects are retained as external source links. The app does not schedule them as ordinary relations, because every opened document is an independent schedule.
 
+A `.xer` file opens with the calculation profile **Primavera P6**; see [Calculation profiles](docs://gids-rekenprofielen).
+
 ## What comes from P6
 
 The import reads, among other things:
@@ -100,3 +102,4 @@ These limits do not remove source data from the IFC project file. When XER-speci
 - [Resources, histogram & leveling](docs://gids-resources-histogram) covers resources, assignments and loading in Open Planner Studio.
 - [Baselines & progress](docs://gids-baselines-voortgang) explains how to use baselines after import.
 - [Import/export](docs://gids-import-export) compares IFC, CSV, MS Project XML and Primavera P6 XML.
+- [Calculation profiles](docs://gids-rekenprofielen) explains which P6 conventions a `.xer` project gets and how to switch profiles.

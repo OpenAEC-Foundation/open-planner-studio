@@ -43,6 +43,9 @@ Open **Backstage → Exporteren** voor vier formaten:
 Elk formaat heeft zijn eigen beperkingen: hoe rijker het doelformaat, hoe meer er meegaat, maar
 geen van de drie externe formaten is een volledige spiegel van IFC.
 
+Het rekenprofiel gaat niet mee naar CSV, MS Project XML of P6 XML; zie
+[Rekenprofielen](docs://gids-rekenprofielen).
+
 ### CSV
 
 De CSV-export bevat **alleen de takentabel**: WBS-code, outline-niveau (1 = hoofdniveau, zodat een
@@ -176,3 +179,5 @@ extensies beschikbaar zijn.
 - Resources, toewijzingen en belastingscurves — lees de gids
   [Resources, histogram & nivellering](docs://gids-resources-histogram) voor hoe die tot stand komen
   vóór je exporteert.
+- Welk rekenprofiel een geopend bestand krijgt en wat IFC ervan bewaart — lees de gids
+  [Rekenprofielen](docs://gids-rekenprofielen).

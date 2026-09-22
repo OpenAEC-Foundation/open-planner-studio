@@ -40,6 +40,8 @@ Otwórz **Backstage → Eksportuj** dla czterech formatów:
 Każdy format ma własne ograniczenia: im bogatszy format docelowy, tym więcej się przenosi, ale żaden z
 trzech formatów zewnętrznych nie jest pełnym odzwierciedleniem IFC.
 
+Profil obliczeń nie jest przenoszony do CSV, MS Project XML ani P6 XML; zobacz [Profile obliczeń](docs://gids-rekenprofielen).
+
 ### CSV
 
 Eksport CSV zawiera **tylko tabelę zadań**: kod WBS, nazwę, czas trwania (dni), początek, koniec,
@@ -117,3 +119,4 @@ jest pusta. Sprawdź **Backstage → Rozszerzenia**, aby zobaczyć, co jest dost
 - Zasoby, przydziały i krzywe obciążenia — przeczytaj przewodnik
   [Zasoby, histogram i bilansowanie](docs://gids-resources-histogram), aby dowiedzieć się, jak są budowane, zanim
   je eksportujesz.
+- Jaki profil obliczeń otrzymuje otwarty plik i co IFC z niego zachowuje — przeczytaj przewodnik [Profile obliczeń](docs://gids-rekenprofielen).

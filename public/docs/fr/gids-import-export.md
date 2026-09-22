@@ -27,6 +27,8 @@ Ouvrez **Backstage → Exporter** pour quatre formats :
 
 Chaque format a ses propres limites : plus le format cible est riche, plus il conserve d'éléments, mais aucun des trois formats externes n'est un miroir complet de l'IFC.
 
+Le profil de calcul n’est pas repris en CSV, MS Project XML ou P6 XML ; voir [Profils de calcul](docs://gids-rekenprofielen).
+
 ### CSV
 
 L'export CSV contient **uniquement le tableau des tâches** : code WBS, nom, durée (jours), début, fin, prédécesseurs (sous forme de code texte, par ex. `2.1FS+3d`), type de tâche, statut, avancement (%), début/fin réels, critique (oui/non), marge totale et description. **Les ressources, affectations, calendriers et baselines sont délibérément omis** — le CSV est purement un tableau de tâches pour quiconque veut visualiser ou modifier le planning dans un tableur, pas un échange de projet à fidélité complète. Lorsque vous **importez** un fichier CSV en retour, les baselines restent donc vides (il n'y avait rien à en lire).
@@ -71,3 +73,4 @@ Au-delà des formats fixes ci-dessus, les extensions installées peuvent ajouter
 
 - Les baselines ne sont conservées que via IFC et MS Project XML, pas via CSV ou P6 — lisez le guide [Baselines & avancement](docs://gids-baselines-voortgang) pour savoir comment enregistrer une baseline.
 - Ressources, affectations et courbes de charge — lisez le guide [Ressources, histogramme & nivellement](docs://gids-resources-histogram) pour savoir comment celles-ci sont construites avant d'exporter.
+- Quel profil de calcul reçoit un fichier ouvert et ce qu’IFC en conserve — lisez le guide [Profils de calcul](docs://gids-rekenprofielen).

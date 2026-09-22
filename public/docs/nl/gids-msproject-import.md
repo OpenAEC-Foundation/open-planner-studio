@@ -52,6 +52,9 @@ Een `.mpp`-bestand open je op precies dezelfde manieren als elk ander projectbes
 Het bestand komt — net als bij elke import — in een **nieuw document** terecht, tenzij het actieve
 tabblad nog leeg en ongewijzigd is.
 
+Een `.mpp`-bestand opent met het rekenprofiel **Microsoft Project**; MS Project XML opent in deze
+versie als **Open Planner Studio**. Zie [Rekenprofielen](docs://gids-rekenprofielen).
+
 ## Datumgetrouwheid
 
 Open Planner Studio rekent een geopend `.mpp`-bestand door met dezelfde kalenderlogica als MS
@@ -168,7 +171,8 @@ voorgaande taken. Je merkt dit meestal niet — de twee benaderingen komen op de
 hetzelfde uit — maar het is de reden waarom een `.mpp`-geïmporteerde taak soms een net iets ander
 hervattingspunt toont dan een verder identieke taak die uit P6 of MS Project XML afkomstig is. Deze
 instelling is een permanente eigenschap van het project: ze blijft ook na **Opslaan** (als IFC) en
-een volgende **Openen** intact, zonder dat er ergens een schakelaar voor te vinden is.
+een volgende **Openen** intact. Deze conventie heet in Projectinfo *Restwerk hervat na de al
+verstreken duur* en hoort bij het profiel Microsoft Project.
 
 ## Kalenderuitzonderingen en werkweken
 
@@ -220,5 +224,6 @@ onder LGPL-3.0.
 ## Verder lezen
 
 - Wat elk export- en importformaat wél en niet meeneemt: [Im-/export](docs://gids-import-export).
+- Welk rekenprofiel een project krijgt en hoe je wisselt: [Rekenprofielen](docs://gids-rekenprofielen).
 - Werkdagen, werktijden en feestdagen na het openen controleren:
   [Kalenders & uren-planning](docs://gids-kalenders-uren).

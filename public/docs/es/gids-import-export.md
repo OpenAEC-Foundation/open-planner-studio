@@ -40,6 +40,8 @@ Abra **Backstage → Exportar** para cuatro formatos:
 Cada formato tiene sus propias limitaciones: cuanto más rico es el formato de destino, más se incluye, pero ninguno de
 los tres formatos externos es un espejo completo de IFC.
 
+El perfil de cálculo no se incluye en CSV, MS Project XML ni P6 XML; consulte [Perfiles de cálculo](docs://gids-rekenprofielen).
+
 ### CSV
 
 La exportación CSV contiene **solo la tabla de tareas**: código WBS, nombre, duración (días), inicio, fin,
@@ -117,3 +119,4 @@ sección está vacía. Consulte **Backstage → Extensiones** para ver qué hay 
 - Recursos, asignaciones y curvas de carga — lea la guía
   [Recursos, histograma y nivelación](docs://gids-resources-histogram) para saber cómo se construyen antes de
   exportar.
+- Qué perfil de cálculo recibe un archivo abierto y qué conserva IFC de él — lea la guía [Perfiles de cálculo](docs://gids-rekenprofielen).
