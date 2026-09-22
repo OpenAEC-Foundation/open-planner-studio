@@ -89,7 +89,7 @@ afwijkingen hebben met XER".)
 | baan D (deel 1 + 2) | `claude/rekenprofielen-baan-d` | deel 2 klaar (`85d29514`, gepusht): merge C, D10 af (verify:conventions in `verify`, 17 datagates gepind), D3 `applySchedulingSettings`, D4 `SchedulingProfileSection`, D5 Projectinfo, D6 browsertest 1/1; screenshots in de agent-worktree `qa/d4-0*.png`; her-check loopt; merge-tree conflictvrij |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
-| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (basis `claude/rekenprofielen` 1b45218a) | in aanbouw (agent, gestart ~23:20) onder de goal prompt; landt alleen met `measure:profiles` VERBETERD en 0 slechter, herpin in dezelfde commit |
+| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`, gepusht) | klaar: lezer zet de optie gerapporteerd uit zonder bruikbaar einde; P6-casussen 77→156/160; X12 15.056→15.056 (0 corpuscellen in deze klasse, 0 slechter); bredere variant (uit bij elke lege plan_end_date) = 100 slechter/6 beter op OZB-Start ⇒ niet geland, open vraag plan §9; review loopt |
 | X12-restant-classificatie (meting) | — (rapport `/tmp/x12-restant-classificatie.md`, daarna in plan XER §9 opnemen) | meet-agent loopt; levert de brokken 2..n met signatuur, hypothese, verwacht effect |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
