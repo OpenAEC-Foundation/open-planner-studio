@@ -11,6 +11,8 @@ import {
 import { optionKeysOnly, legacyOptionsToProfile, legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 import { sanitizeProjectOptions } from '@/services/ifc/schedulingOptionsRead';
+// M1.3 — C3 verwijdert deze import samen met legacyP6Source.ts.
+import { resolveLegacyP6SourceConventions } from '@/engine/scheduler/conventions/legacyP6Source';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -222,6 +224,39 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('97 wissel vanaf afwezig profiel', switchProfile(undefined, 'msproject'), builtInProfile('msproject'));
   const custom: SchedulingProfile = { baseId: 'p6', id: 'eigen', name: 'Eigen', overrides: { clampNegativeFreeFloat: false } };
   same('98 vanaf een EIGEN profiel ⇒ de kale ingebouwde basis', switchProfile(custom, 'msproject'), builtInProfile('msproject'));
+}
+
+// ── M1.3: B's tijdelijke vertaling en A's migratie zeggen per conventie hetzelfde ──────────────────
+// C3 verwijdert deze sectie samen met legacyP6Source.ts. Twee onafhankelijke paden: de verwachting
+// komt uit de ándere implementatie. Een uitkomst "afwezig" in de laag telt als false — zo rekende de
+// solver ermee. Mutatiebewijs (plan M1.3 step 2): B-groep zonder p6Source op true in de migratie ⇒
+// rij "zes gepoorte vlaggen zonder bron" rood; het uitzetten van de gepoorte vlaggen in de laag
+// weglaten ⇒ de slot-assertie rood.
+{
+  const GATED = ['p6ZeroDurationUsesPlannedBoundary', 'p6UseTaskPlannedStartFloor', 'p6FinishMilestoneBoundaryWindow',
+    'p6PreserveActualInstants', 'p6UseRemainingStartForProgress', 'p6PreserveZeroDurationConstraintInstants'] as const;
+  const allGatedOn = Object.fromEntries(GATED.map(k => [k, true])) as SchedulingOptions;
+  const table: Array<[string, SchedulingOptions]> = [
+    ['leeg', {}],
+    ['alleen p6Source', { p6Source: 'XER' }],
+    ['p6Source + A16', { p6Source: 'XER', p6UseTaskPlannedStartFloor: true }],
+    ['p6Source + B1 expliciet uit', { p6Source: 'XER', p6RelationFinishBoundary: false }],
+    ['zes gepoorte vlaggen zonder bron', allGatedOn],
+    ['zes gepoorte + A12/A13 zonder bron', { ...allGatedOn, preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true }],
+    ['.mpp-vlaggen', { resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true }],
+    ['alleen A22', { resumeFromActualElapsed: true }],
+    ['XER-defaults zoals de lezer ze zaait', { ...XER_SCHEDULING_DEFAULTS.schedulingOptions }],
+  ];
+  for (const [label, blob] of table) {
+    const viaLayer = resolveLegacyP6SourceConventions(blob) ?? {};
+    const migrated = legacyOptionsToProfile(blob);
+    const viaMigration = effectiveSchedulingOptions({ schedulingProfile: migrated.profile, schedulingOptions: migrated.options });
+    for (const key of CONVENTION_KEYS) {
+      eq(`M1.3 ${label}: ${key}`, viaMigration[key], viaLayer[key] === true);
+    }
+  }
+  eq('M1.3 zonder bron zijn de zes gepoorte vlaggen uit (laag)',
+    GATED.map(k => (resolveLegacyP6SourceConventions(allGatedOn) ?? {})[k] === true), GATED.map(() => false));
 }
 
 if (diffs.length > 0) {

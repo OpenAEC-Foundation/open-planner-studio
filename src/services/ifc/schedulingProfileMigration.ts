@@ -30,7 +30,7 @@ export function optionKeysOnly(options: SchedulingOptions | undefined): ProjectS
  * naar profiel + projectopties (spec v3 §3.4). `legacyValue` speelt hier geen rol:
  *  - blob afwezig ⇒ `ops` zonder afwijkingen;
  *  - `p6Source: 'XER'` ⇒ basis `p6`. Per A-conventie: sleutel aanwezig ⇒ die waarde, afwezig ⇒ UIT
- *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). B1–B5 ⇒ AAN (ze
+ *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). Afwezige B1–B5 ⇒ AAN (ze
  *    hingen vandaag alleen aan `p6Source`). Afwijkingen = verschil met p6;
  *  - geen `p6Source` ⇒ de p6Source-gepoorte conventies (A15–A20) worden weggegooid (ze waren inert;
  *    risico 1); A12/A13/A22/A23 worden afwijkingen; basis = `msproject` als `resumeFromActualElapsed`
@@ -45,9 +45,11 @@ export function legacyOptionsToProfile(blob: SchedulingOptions | undefined): {
   if (!blob) return { profile: builtInProfile('ops'), options };
   if (blob.p6Source === 'XER') {
     const resolved = conventionsFor(d => {
-      if (d.group === 'B') return true;
       const value = blob[d.id];
-      return typeof value === 'boolean' ? value : false;
+      // Een expliciet gezette vlag wint altijd (ook voor B1–B5, zoals in de oude motorvertaling —
+      // M1.3 bewijst die gelijkheid); afwezig ⇒ B aan, A uit.
+      if (typeof value === 'boolean') return value;
+      return d.group === 'B';
     });
     return { profile: { ...builtInProfile('p6'), overrides: diffAgainstBase('p6', resolved) }, options };
   }
