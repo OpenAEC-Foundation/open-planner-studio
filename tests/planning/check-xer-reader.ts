@@ -7,6 +7,8 @@ import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
+import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -144,7 +146,7 @@ solveProject({
   calendars: p6Lunch.resourceCalendars ?? [],
   dataDate: p6Lunch.project.statusDate,
   progressMode: p6Lunch.project.progressMode,
-  schedulingOptions: p6Lunch.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6Lunch.project).schedulingOptions,
   projectStartDate: p6Lunch.project.startDate,
 });
 eq('3a lege P6-5x8-kalender leidt lunchbanden af uit geplande start/eind/duur', {
@@ -220,7 +222,7 @@ solveProject({
   calendars: p6DurationProgressWithoutPct.resourceCalendars ?? [],
   dataDate: p6DurationProgressWithoutPct.project.statusDate,
   progressMode: p6DurationProgressWithoutPct.project.progressMode,
-  schedulingOptions: p6DurationProgressWithoutPct.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6DurationProgressWithoutPct.project).schedulingOptions,
   projectStartDate: p6DurationProgressWithoutPct.project.startDate,
 });
 eq('3j CP_Drtn zonder complete_pct leidt voortgang en restwerk af uit expliciete bronduur', {
@@ -256,7 +258,7 @@ solveProject({
   calendars: p6MidnightActual.resourceCalendars ?? [],
   dataDate: p6MidnightActual.project.statusDate,
   progressMode: p6MidnightActual.project.progressMode,
-  schedulingOptions: p6MidnightActual.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6MidnightActual.project).schedulingOptions,
   projectStartDate: p6MidnightActual.project.startDate,
 });
 eq('3k XER/P6 behoudt voltooide actual start/finish als minuutexacte broninstants', {
@@ -405,7 +407,7 @@ const p6ProjectEndSolveInput = {
   sequences: p6ProjectEndForFloat.sequences,
   calendar: p6ProjectEndForFloat.calendar,
   calendars: p6ProjectEndForFloat.resourceCalendars ?? [],
-  schedulingOptions: p6ProjectEndForFloat.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6ProjectEndForFloat.project).schedulingOptions,
   projectStartDate: p6ProjectEndForFloat.project.startDate,
   projectEndDate: p6ProjectEndForFloat.project.endDate,
 };
@@ -530,12 +532,12 @@ const emptyWbsId = 'xer-wbs:P1:W-EMPTY';
 const emptyWbs = emptyWbsResult.tasks.find(task => task.id === emptyWbsId);
 eq('17 lege PROJWBS heeft expliciete samenvattingsidentiteit',
   (emptyWbs as typeof emptyWbs & { isSummary?: boolean })?.isSummary, true);
-const emptyWbsSolve = solveProject({
+const emptyWbsSolve = solveProject(opsSolveInput({
   tasks: emptyWbsResult.tasks.map(task => ({ ...task, time: { ...task.time } })),
   sequences: [],
   calendar: emptyWbsResult.calendar,
   calendars: emptyWbsResult.resourceCalendars ?? [],
-});
+}));
 eq('18 echte solveProject-route neemt lege PROJWBS niet als CPM-knoop op',
   emptyWbsSolve.tasks.has(emptyWbsId), false);
 eq('19 samenvattingsrelatie vanaf lege PROJWBS wordt zichtbaar gedropt',
@@ -565,7 +567,7 @@ const emptyWbsLeveling = levelResources(
   emptyWbsResult.calendar,
   emptyWbsResult.resourceCalendars ?? [],
   emptyWbsSolve,
-  { constrainToFloat: false },
+  { constrainToFloat: false }, legacyCpmOptions(),
 );
 eq('20b nivelleerder laat lege PROJWBS ook bij directe aanroep buiten CPM en vraag', {
   delays: emptyWbsLeveling.delays,

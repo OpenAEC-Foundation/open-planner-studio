@@ -277,6 +277,14 @@ module.exports = {
 };
 ````
 
+### Rekenprofiel (sinds 1.2.0)
+
+`data.getProject()` levert sinds contractversie `1.2.0` het veld `schedulingProfile`: het rekenprofiel
+van het project (`id`, `baseId` ∈ `p6`/`msproject`/`ops`, `name` — leeg bij een ingebouwd profiel —
+en `conventions`, de vijftien opgeloste conventies). Het veld is **alleen-lezen**: de app neemt het
+nooit over uit wat een extensie teruggeeft. Een importer-resultaat van een extensie opent daarom altijd
+als OPS; het profiel kiest de gebruiker in Bestand → Projectinfo.
+
 ### Read-only XER-bronroute (permissie `importSource`, `apiVersion` ≥ 1.1)
 
 Naast de gemapte `data.*`-DTO's (afgeleid, genormaliseerd, altijd beschikbaar) kan een extensie met

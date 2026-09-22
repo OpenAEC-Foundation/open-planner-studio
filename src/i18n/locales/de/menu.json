@@ -247,7 +247,9 @@
       "floatPathsMethod": "Methode",
       "methodFree": "Freier Puffer (Peeling)",
       "methodTotal": "Gesamtpuffer (Rangfolge)",
-      "maxPaths": "Max. Pfade"
+      "maxPaths": "Max. Pfade",
+      "tfAuto": "Automatisch (Standard)",
+      "critThresholdHours": "Schwelle (Stunden, pro Vorgangskalender)"
     }
   },
   "newProject": {

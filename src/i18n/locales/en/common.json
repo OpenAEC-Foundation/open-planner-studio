@@ -86,7 +86,13 @@
     "pasteSkippedReadOnly_other": "Skipped {{count}} cells: they are read-only (for example an auto-numbered WBS code or a calculated column).",
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
-    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays."
+    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
+    "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project info → Calculation profile.",
+    "schedulingProfileShifted_one": "The new calculation profile moved {{count}} task.",
+    "schedulingProfileShifted_other": "The new calculation profile moved {{count}} tasks.",
+    "actions": {
+      "openProjectInfo": "Open calculation profile"
+    }
   },
   "yes": "Yes",
   "no": "No",
@@ -1153,11 +1159,88 @@
       "actualFinish": "Actual finish"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Keep actual dates in the backward pass",
+      "help": "A started or completed task keeps its recorded dates on the late side too; a completed successor does not pull an open predecessor back into the past."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Free float never negative",
+      "help": "With an unachievable late constraint, total float stays negative but free float becomes zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "Milestone follows the planned calendar boundary",
+      "help": "A zero-duration milestone stays on the calendar boundary the file planned: a day start stays a start milestone, a band end may land on the predecessor's finish."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Planned start as an extra floor",
+      "help": "The planned start from the file acts as a floor once both start and finish lie more than one calendar day later than the network allows."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Finish milestone as a boundary window",
+      "help": "A finish milestone may sit on two adjacent calendar boundaries: early start at the start of a band, early finish at the end of the previous band."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Keep actual dates exact",
+      "help": "Recorded actual start and finish dates are not moved to a working-time band."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "In-progress task: early start = start of remaining work",
+      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Set per file by Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Exact constraint moment on a milestone",
+      "help": "A date-and-time constraint on a zero-duration milestone is an exact point, also at the start of a working band."
+    },
+    "resumeFromActualElapsed": {
+      "label": "Remaining work resumes after the elapsed duration",
+      "help": "An in-progress task resumes its remaining work at the actual start plus the elapsed duration, not at the status date."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Don't move unstarted tasks to the status date",
+      "help": "A task that has not started is not moved to on or after the status date automatically."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "Successor starts on the finish boundary",
+      "help": "For a finish-to-start relation without lag on a shared band boundary, the successor starts at the predecessor's finish (only relations the file marks this way)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Backward lag from a finish boundary",
+      "help": "When the backward pass subtracts a working-time lag from a finish boundary and lands exactly on a band start, it lands on the previous finish boundary."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Completed task in the data-date window",
+      "help": "A completed task gets early dates in the data-date window, and its finish counts toward the project finish (only tasks with P6 provenance)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "Completed LOE via its actual finish",
+      "help": "A completed level-of-effort activity with only a start-to-start input follows the route through its actual finish (only tasks with P6 provenance)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "Unstarted LOE uses the target window",
+      "help": "A level-of-effort activity that has not started takes its target window as its span (only tasks with P6 provenance)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (modified)",
+    "copyOf": "Copy of {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Calculation profile and options",
+    "profile": "Calculation profile",
+    "conventionsTitle": "Conventions of this profile",
+    "optionsTitle": "Calculation options of this project",
+    "customName": "Name of this custom profile",
+    "saveAsTemplate": "Save as template",
+    "updateTemplate": "Update template from this project",
+    "applyTemplate": "Update from template",
+    "deleteTemplate": "Delete template",
+    "templateDeviates": "This profile differs from the template “{{name}}”.",
+    "applyDefaultOptions": "Apply this profile's default options"
   }
 }

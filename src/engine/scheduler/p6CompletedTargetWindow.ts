@@ -4,7 +4,6 @@ import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { parseInstant } from '@/utils/dateUtils';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 
 export type P6CompletedWindowReason =
   | 'eligible'
@@ -78,14 +77,11 @@ export function explainP6CompletedDataDateWindow(
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
-  // TIJDELIJK (rekenprofielen baan B): directe aanroepers geven soms nog alleen de oude
-  // bronmarkering mee. De solverpaden gebruiken de `Resolved`-variant met al vertaalde opties.
-  return explainP6CompletedDataDateWindowResolved(
-    task, dataDate, resolveLegacyP6SourceConventions(schedulingOptions),
-  );
+  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
+  return explainP6CompletedDataDateWindowResolved(task, dataDate, schedulingOptions);
 }
 
-/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
+/** Dezelfde diagnose (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
 export function explainP6CompletedDataDateWindowResolved(
   task: Task,
   dataDate: Date | null,

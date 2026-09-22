@@ -388,5 +388,7 @@ export function readCSV(content: string): ImportResult {
     resources: [],
     assignments: [],
     customTaskTypes: [...customById.values()],
+    // Rekenprofielen (spec v3.1 §6): CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
+    suggestedProfileId: 'ops',
   };
 }

@@ -26,6 +26,7 @@
 import type { AppState } from '@/state/appStore';
 import type { McpContext, McpErrorCode, McpToolDef, McpToolResult } from '../contracts';
 import { runReadTool, toolError } from './runtime';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import {
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
   type XerSourceArchive,
@@ -531,6 +532,9 @@ function summary(state: AppState, archive: XerSourceArchive | null): unknown {
       retainedSource: schedule?.retainedSource ?? {},
       mappedProgressMode: state.project.progressMode,
       mappedSchedulingOptions: state.project.schedulingOptions ?? null,
+      // Rekenprofielen (plan C9): het profiel en de OPGELOSTE set i.p.v. een optieblob met bronmarkering.
+      schedulingProfileId: state.project.schedulingProfile?.id ?? 'ops',
+      effectiveSchedulingOptions: effectiveSchedulingOptions(state.project),
       sourceRowCount: schedule?.sourceRows.length ?? 0,
       fallbackCount: schedule?.fallbacks.length ?? 0,
       diagnosticCount: schedule?.diagnostics.length ?? 0,

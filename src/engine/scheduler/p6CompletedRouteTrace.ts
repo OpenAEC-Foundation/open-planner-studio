@@ -6,7 +6,6 @@ import {
   explainP6CompletedDataDateWindowResolved,
   type P6CompletedWindowReason,
 } from '@/engine/scheduler/p6CompletedTargetWindow';
-import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 
 export type CompletedXerLoeActualFinishReason =
   | 'eligible'
@@ -81,14 +80,11 @@ export function explainCompletedXerLoeActualFinishEligibility(
   incoming: readonly Sequence[],
   outgoing: readonly Sequence[],
 ): CompletedXerLoeActualFinishDecision {
-  // TIJDELIJK (rekenprofielen baan B): vertaling voor directe aanroepers; de solver gebruikt
-  // de `Resolved`-variant met al vertaalde opties.
-  return explainCompletedXerLoeActualFinishEligibilityResolved(
-    task, dataDate, resolveLegacyP6SourceConventions(schedulingOptions), incoming, outgoing,
-  );
+  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
+  return explainCompletedXerLoeActualFinishEligibilityResolved(task, dataDate, schedulingOptions, incoming, outgoing);
 }
 
-/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`); leest alleen vlaggen. */
+/** Dezelfde diagnose (`CPMSolver`); leest alleen vlaggen. */
 export function explainCompletedXerLoeActualFinishEligibilityResolved(
   task: Task,
   dataDate: Date | null,
@@ -226,14 +222,11 @@ export function explainP6CompletedLateRemainingWindowEligibility(
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedLateRemainingWindowDecision {
-  // TIJDELIJK (rekenprofielen baan B): vertaling voor directe aanroepers; de solverpaden
-  // gebruiken de `Resolved`-variant met al vertaalde opties.
-  return explainP6CompletedLateRemainingWindowEligibilityResolved(
-    task, dataDate, resolveLegacyP6SourceConventions(schedulingOptions),
-  );
+  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
+  return explainP6CompletedLateRemainingWindowEligibilityResolved(task, dataDate, schedulingOptions);
 }
 
-/** Dezelfde diagnose op al vertaalde opties (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
+/** Dezelfde diagnose (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
 export function explainP6CompletedLateRemainingWindowEligibilityResolved(
   task: Task,
   dataDate: Date | null,

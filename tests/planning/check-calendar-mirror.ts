@@ -30,6 +30,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import type { SequenceType } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { opsSolveInput } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -245,9 +246,9 @@ for (const hourMode of [true, false]) {
               { id: 's1', predecessorId: 'X', successorId: 'Y', type: relType, lagDays },
               { id: 's2', predecessorId: 'Y', successorId: 'Z', type: 'FINISH_START', lagDays: 0 },
             ];
-            const result = solveProject({
+            const result = solveProject(opsSolveInput({
               tasks, sequences, calendar: cal, calendars: [cal], projectStartDate: iso,
-            });
+            }));
             if (result.error) { errors++; continue; }
             solves++;
             for (const t of tasks) {

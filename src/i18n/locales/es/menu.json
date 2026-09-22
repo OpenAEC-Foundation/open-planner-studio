@@ -247,7 +247,9 @@
       "floatPathsMethod": "Método",
       "methodFree": "Holgura libre (peeling)",
       "methodTotal": "Holgura total (clasificación)",
-      "maxPaths": "Rutas máx."
+      "maxPaths": "Rutas máx.",
+      "tfAuto": "Automático (predeterminado)",
+      "critThresholdHours": "Umbral (horas, por calendario de tarea)"
     }
   },
   "newProject": {

@@ -3,8 +3,8 @@ import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
-import { schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
-import { isDefaultProfile } from '@/engine/scheduler/conventions/registry';
+import { carriesProfile, schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
+import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -114,8 +114,7 @@ function guidOf(ctx: WriteContext, seed: string): string {
   return guid;
 }
 
-/** Een lege schrijfcontext die bij STEP-id `nextId` begint. Voor losse pset-schrijvers die (nog)
- *  niet vanuit `writeIFC` worden aangeroepen — zie `writeSchedulingProfileMeta`. */
+/** Een lege schrijfcontext die bij STEP-id `nextId` begint, voor losse pset-schrijvers. */
 export function createWriteContext(nextId: number): WriteContext {
   return { lines: [], nextId, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
 }
@@ -336,15 +335,11 @@ export function writeIFC(input: WriteIFCInput): string {
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
-  // INTEGRATIE(rekenprofielen): schrijft in de overgang het blok ongewijzigd (incl. p6Source en
-  // conventiesleutels); in het eindmodel wordt dit `legacyOptionsBlobFor(project)` (projectopties +
-  // alleen resumeFromActualElapsed/unstartedIgnoresStatusDate wanneer true, spec v3.1).
-  writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
-  // INTEGRATIE(rekenprofielen): hier `writeSchedulingProfileMeta(ctx, workSchedId,
-  // project.schedulingProfile, ownerHistId);` aansluiten — tegelijk met de lezerkant in
-  // `ifcReader.ts`. Bewust nog NIET bedraad: in de overgang zet geen lezer een profiel, dus een
-  // halve bedrading maakt opslaan niet-idempotent (eerste save geen pset, heropenen migreert naar
-  // p6, tweede save wél) en laat crashherstel afwijken van de live state.
+  // Rekenprofielen (spec v3.1 §3.3): OPS_SchedulingOptions = projectopties + A22/A23 alleen als ze
+  // opgelost true zijn (compat met uitgebrachte versies); het profiel staat in OPS_SchedulingProfile,
+  // alleen als het ≠ het standaardprofiel (OPS-bestanden blijven byte-identiek).
+  writeSchedulingOptionsMeta(ctx, workSchedId, legacyOptionsBlobFor(project), ownerHistId);
+  writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -733,8 +728,9 @@ function writeSchedulingOptionsMeta(
 /**
  * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
  * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle vijftien conventies
- * OPGELOST (`schedulingProfileToJson`). Golden rule: afwezig profiel of het standaardprofiel
- * (`ops` zonder afwijkingen) ⇒ geen pset, zodat bestaande bestanden byte-identiek blijven.
+ * OPGELOST (`schedulingProfileToJson`), plus de afwijkingen letterlijk. Golden rule: afwezig profiel
+ * of het standaardprofiel (`ops` zonder enige afwijking, `carriesProfile`) ⇒ geen pset, zodat
+ * bestaande bestanden byte-identiek blijven.
  */
 export function writeSchedulingProfileMeta(
   ctx: WriteContext,
@@ -742,7 +738,7 @@ export function writeSchedulingProfileMeta(
   profile: SchedulingProfile | undefined,
   ownerHistId: number,
 ): void {
-  if (!profile || isDefaultProfile(profile)) return;
+  if (!carriesProfile(profile)) return;
   const json = JSON.stringify(schedulingProfileToJson(profile));
   const propId = addLine(ctx, '_ps_schedprofile',
     `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);

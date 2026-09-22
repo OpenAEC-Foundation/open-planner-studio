@@ -14,6 +14,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -90,7 +91,7 @@ console.log('-- leveler-scope: scope-behoud, delay buiten scope blijft vaste las
   const cpmResult = stubCpmResult('2026-06-03');
 
   const scopedOpts: LevelingOptions = { constrainToFloat: false, scopeTaskIds: ['b'] };
-  const r = levelResources([taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, scopedOpts);
+  const r = levelResources([taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, scopedOpts, legacyCpmOptions());
 
   ok('A houdt haar delay: geen delay-vermelding voor A in het resultaat', r.delays['a'] === undefined);
   eq("B wijkt om A heen — A stond op 06-03, dus B krijgt delay 1", r.delays['b'], 1);
@@ -102,7 +103,7 @@ console.log('-- leveler-scope: scope-behoud, delay buiten scope blijft vaste las
   // resultaat op dan de scoped run hierboven; dat verschil IS de regressie die dit geval pint.
   const noScopeOpts: LevelingOptions = { constrainToFloat: false };
   const rNoScope = levelResources(
-    [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, noScopeOpts,
+    [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, noScopeOpts, legacyCpmOptions(),
   );
   ok('controle: zonder scope levert dezelfde fixture een ANDER (delay-vrij-baseline) antwoord',
     JSON.stringify(rNoScope.delays) !== JSON.stringify(r.delays));
@@ -133,7 +134,7 @@ console.log('-- leveler-scope: computePF respecteert een behouden out-of-scope-d
   const cpmResult = stubCpmResult('2026-06-01');
 
   const opts: LevelingOptions = { constrainToFloat: false, scopeTaskIds: ['d'] };
-  const r2 = levelResources([taskC, taskD], sequences, [resourceRoomy], assignments, PROJECT_CAL, [], cpmResult, opts);
+  const r2 = levelResources([taskC, taskD], sequences, [resourceRoomy], assignments, PROJECT_CAL, [], cpmResult, opts, legacyCpmOptions());
 
   eq('D krijgt geen eigen delay — ze heeft geen concurrent, alleen een verschoven voorganger',
     r2.delays['d'], undefined);
@@ -146,7 +147,7 @@ console.log('-- leveler-scope: computePF respecteert een behouden out-of-scope-d
     { ...taskC, time: { ...taskC.time } },
     { ...taskD, time: { ...taskD.time } },
   ];
-  const solved = solveProject({ tasks: solvedTasks, sequences, calendar: PROJECT_CAL, calendars: [] });
+  const solved = solveProject(opsSolveInput({ tasks: solvedTasks, sequences, calendar: PROJECT_CAL, calendars: [] }));
   ok('referentie-solve rekent zonder fout door', !solved.error);
   const expectedDStart = solvedTasks.find(t => t.id === 'd')!.time.earlyStart;
 

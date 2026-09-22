@@ -107,7 +107,14 @@
     "librarySaveFailed": "Não foi possível guardar a biblioteca",
     "levelingDelayRoundedToWorkdays_one": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefa para dias úteis inteiros.",
     "levelingDelayRoundedToWorkdays_many": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
-    "levelingDelayRoundedToWorkdays_other": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros."
+    "levelingDelayRoundedToWorkdays_other": "O nivelamento arredonda o atraso de nivelamento do MS Project, com precisão de minutos, de {{count}} tarefas para dias úteis inteiros.",
+    "schedulingProfileApplied": "Este projeto calcula como {{profile}}. Altere em Ficheiro → Info do projeto → Perfil de cálculo.",
+    "schedulingProfileShifted_many": "O novo perfil de cálculo deslocou {{count}} tarefas.",
+    "schedulingProfileShifted_one": "O novo perfil de cálculo deslocou {{count}} tarefa.",
+    "schedulingProfileShifted_other": "O novo perfil de cálculo deslocou {{count}} tarefas.",
+    "actions": {
+      "openProjectInfo": "Abrir perfil de cálculo"
+    }
   },
   "yes": "Sim",
   "no": "Não",
@@ -1187,11 +1194,88 @@
       "actualFinish": "Fim real"
     }
   },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Manter as datas reais no cálculo para trás",
+      "help": "Uma tarefa iniciada ou concluída mantém as datas registadas também no lado tardio; um sucessor concluído não puxa um predecessor aberto para o passado."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Folga livre nunca negativa",
+      "help": "Com uma restrição tardia impossível, a folga total continua negativa, mas a folga livre passa a zero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "O marco segue o limite de calendário planeado",
+      "help": "Um marco sem duração permanece no limite de calendário planeado pelo ficheiro: um início de dia continua a ser um marco de início, um fim de faixa pode coincidir com o fim do predecessor."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Início planeado como limite inferior adicional",
+      "help": "O início planeado do ficheiro funciona como limite inferior quando o início e o fim ficam mais de um dia de calendário depois do que a rede permite."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Marco final como janela de limite",
+      "help": "Um marco final pode estar em dois limites de calendário adjacentes: início cedo no começo de uma faixa, fim cedo no fim da faixa anterior."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Manter exatas as datas reais",
+      "help": "As datas reais de início e fim registadas não são deslocadas para uma faixa de trabalho."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Tarefa em curso: início cedo = início do trabalho restante",
+      "help": "O início cedo e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. Definido por ficheiro pelo Primavera P6."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Momento de restrição exato num marco",
+      "help": "Uma restrição de data e hora num marco sem duração é um ponto exato, também no início de uma faixa de trabalho."
+    },
+    "resumeFromActualElapsed": {
+      "label": "O trabalho restante retoma após a duração decorrida",
+      "help": "Uma tarefa em curso retoma o trabalho restante no início real mais a duração decorrida, não na data de estado."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "Não mover tarefas não iniciadas para a data de estado",
+      "help": "Uma tarefa que ainda não começou não é deslocada automaticamente para a data de estado ou depois."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "O sucessor começa no limite de fim",
+      "help": "Numa relação fim-início sem desfasamento num limite de faixa partilhado, o sucessor começa no fim do predecessor (apenas relações que o ficheiro marca assim)."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Desfasamento para trás a partir de um limite de fim",
+      "help": "Quando o cálculo para trás subtrai um desfasamento em tempo de trabalho a partir de um limite de fim e cai exatamente num início de faixa, cai no limite de fim anterior."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Tarefa concluída na janela da data de estado",
+      "help": "Uma tarefa concluída recebe datas cedo na janela da data de estado, e o seu fim conta para o fim do projeto (apenas tarefas com origem P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "LOE concluída através do fim real",
+      "help": "Uma atividade level-of-effort concluída com apenas uma entrada início-início segue o percurso pelo seu fim real (apenas tarefas com origem P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "LOE não iniciada usa a janela objetivo",
+      "help": "Uma atividade level-of-effort que ainda não começou usa a sua janela objetivo como duração (apenas tarefas com origem P6)."
+    }
+  },
   "profiles": {
     "builtIn": {
       "p6": "Primavera P6",
       "msproject": "Microsoft Project",
       "ops": "Open Planner Studio"
-    }
+    },
+    "modified": "{{name}} (modificado)",
+    "copyOf": "Cópia de {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Perfil de cálculo e opções",
+    "profile": "Perfil de cálculo",
+    "conventionsTitle": "Convenções deste perfil",
+    "optionsTitle": "Opções de cálculo deste projeto",
+    "customName": "Nome deste perfil próprio",
+    "saveAsTemplate": "Guardar como modelo",
+    "updateTemplate": "Atualizar o modelo a partir deste projeto",
+    "applyTemplate": "Atualizar a partir do modelo",
+    "deleteTemplate": "Eliminar modelo",
+    "templateDeviates": "Este perfil difere do modelo «{{name}}».",
+    "applyDefaultOptions": "Aplicar as opções predefinidas deste perfil"
   }
 }

@@ -1,5 +1,5 @@
 import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
-import type { SchedulingOptions } from '@/types/project';
+import type { EffectiveSchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
@@ -27,7 +27,6 @@ import {
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
-import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -147,9 +146,9 @@ export interface CPMPlannedFloorTrace {
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
-  /** Project-scoped rekenopties. Afwezig ⇒ elke brongebonden uitbreiding blijft uit en het
-   *  algemene solvergedrag blijft byte-identiek. */
-  schedulingOptions?: SchedulingOptions;
+  /** Rekenprofielen (spec v3.1 §3.1): verplicht en uitsluitend het opgeloste type. Aanroepers komen
+   *  hier via `solveOptionsFor`/`solveInputFor` (`solveInput.ts`) of `effectiveSchedulingOptions`. */
+  schedulingOptions: EffectiveSchedulingOptions;
   /** De geconfigureerde PROJECTSTARTDATUM (`Project.startDate`, ISO-datum), gebruikstest-bevinding
    *  2026-08: ondergrens voor de early-start-berekening van ELKE taak MET voorganger (en
    *  hammocks) — NIET uitsluitend tegen leads (T7-review M2, gecorrigeerd): ook een gewone FS/FF-
@@ -171,13 +170,6 @@ export interface CPMOptions {
   /** Geconfigureerde projecteinddatum. Alleen actief wanneer de brongebonden
    *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. */
   projectEndDate?: string;
-  /** TIJDELIJK — testhaak van rekenprofielen baan B. Default (afwezig/true): de oude
-   *  bronmarkering in `schedulingOptions` zet de vijf groep-B-conventies aan zolang ze niet
-   *  expliciet gezet zijn (`conventions/legacyP6Source.ts`), zodat het gedrag identiek blijft
-   *  tot de XER-lezer ze zelf zet. `false` schakelt die vertaling uit; daarmee bewijst
-   *  `check-conventions-p6-flags.ts` dat de motor de bronmarkering zelf nergens meer leest.
-   *  Verdwijnt samen met de vertaling. */
-  legacyP6SourceTranslation?: boolean;
 }
 
 /**
@@ -361,7 +353,7 @@ export class CPMSolver {
     sequences: Sequence[],
     projectCalendar: WorkCalendar,
     registry: WorkCalendar[] = [],
-    options: CPMOptions = {},
+    options: CPMOptions,
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
@@ -399,15 +391,9 @@ export class CPMSolver {
     // effectieve relaties: staat de conventie niet aan, dan wordt de relatievlag
     // `p6StartAtPredecessorFinishBoundary` gestript, zodat een LOSSE relatievlag geen P6-gedrag kan
     // activeren. Dit is geen bescherming tegen een vervalst projectbestand: de vlag round-tript
-    // bewust door het `OPS_SchedulingOptions`-pset, dus wie een IFC met de conventie aan opent,
+    // bewust door het `OPS_SchedulingProfile`-pset, dus wie een IFC met de conventie aan opent,
     // kiest daarmee voor die P6-semantiek.
-    const schedulingOptions = resolveLegacyP6SourceConventions(
-      options.schedulingOptions,
-      options.legacyP6SourceTranslation !== false,
-    );
-    options = schedulingOptions === options.schedulingOptions
-      ? options
-      : { ...options, schedulingOptions };
+    const schedulingOptions = options.schedulingOptions;
     this.sequences = schedulingOptions?.p6RelationFinishBoundary === true
       ? kept
       : kept.map(sequence => sequence.p6StartAtPredecessorFinishBoundary === true

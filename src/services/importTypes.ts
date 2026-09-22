@@ -1,4 +1,4 @@
-import type { Project } from '@/types/project';
+import type { BuiltInProfileId, Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -288,6 +288,11 @@ export interface ImportResult {
    *    heropen-beleid 2026-09-05). `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`)
    *    is de enige plek die op dit onderscheid let. */
   recordedTimesOrigin?: 'xer' | 'xer-archive';
+  /** Rekenprofielen (spec v3.1 §6): welk ingebouwd profiel deze LEZER voorstelt. Gezet door de
+   *  formaatlezers (XER ⇒ 'p6', `.mpp` ⇒ 'msproject', MSPDI/P6-XML/CSV ⇒ 'ops'); afwezig bij IFC
+   *  (het bestand draagt zijn eigen profiel) en bij extensie-importers. `applyOpenedImport` meldt
+   *  alleen bij een voorstel ≠ 'ops' (C6). Het profiel zelf staat al op `project.schedulingProfile`. */
+  suggestedProfileId?: BuiltInProfileId;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */

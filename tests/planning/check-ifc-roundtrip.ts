@@ -78,7 +78,7 @@ import { ALL_RECORDED_SLOT_KEYS, IFC_TASKTIME_SLOTS, TASKTIME_SLOT, IFC_TASK_SLO
 import type { Task, TaskTime, ExternalLink, TaskSplitGap, TaskTimephasedContour } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
-import type { Project, SchedulingOptions } from '@/types/project';
+import type { Project, ProjectSchedulingOptions } from '@/types/project';
 import type { WorkCalendar, CalendarGeneration, Holiday, WorkingException } from '@/types/calendar';
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef } from '@/types/structure';
 import type { Baseline, BaselineTask } from '@/types/baseline';
@@ -87,6 +87,7 @@ import type { ExtTaskTime } from '@/extensions/extTypes';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 // tests/ valt buiten de hoofd-tsconfig; process is niet via @types/node beschikbaar in de
 // dedicated round-trip-tsconfig (types:[]). Minimale, botsingvrije declaratie.
@@ -374,35 +375,19 @@ const assignments: ResourceAssignment[] = [
 ];
 
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
+// Rekenprofielen C2: het optieblok draagt alleen de negen projectopties (waarden ongewijzigd); de
+// conventies reizen via het profiel hieronder (OPS_SchedulingProfile).
 const SCHED_OPTS = {
-  p6Source: 'XER',
   lagCalendar: 'successor',
   criticalDefinition: { mode: 'longestPath', threshold: -1, thresholdHours: -8 },
   totalFloatMode: 'finish',
   makeOpenEndedCritical: true,
   useExpectedFinishDates: false,
-  preserveActualDatesInBackwardPass: true,
-  clampNegativeFreeFloat: true,
-  p6ZeroDurationUsesPlannedBoundary: true,
-  p6UseTaskPlannedStartFloor: true,
-  p6FinishMilestoneBoundaryWindow: true,
-  p6PreserveActualInstants: true,
-  p6UseRemainingStartForProgress: true,
-  p6PreserveZeroDurationConstraintInstants: true,
   p6CompletedLateFromRemainingWindow: true,
   useProjectEndDateForFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
-  resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob
-  unstartedIgnoresStatusDate: true, // B1 (dossier (c)4-herdiagnose): idem, rondt mee als deel van het JSON-blob
-  // Rekenprofielen baan B: de vijf groep-B-conventies, bewust gemengd — een expliciete `false`
-  // moet net zo goed terugkomen als `true`, want hij wint van de tijdelijke bronvertaling.
-  p6RelationFinishBoundary: true,
-  p6BackwardLagFinishBoundary: false,
-  p6CompletedDataDateWindow: true,
-  p6CompletedLoeActualFinish: false,
-  p6OpenLoeTargetSpan: true,
-} satisfies Required<SchedulingOptions>;
+} satisfies Required<ProjectSchedulingOptions>;
 const project = {
   id: 'proj-1', name: 'Nieuwbouw Testtoren', description: 'Beschrijving X', // description: (a) gap
   // CONTRACTUELE project-datums, bewust LOS van de taak-span (die loopt 2026-07-06 … 2026-07-24).
@@ -415,10 +400,13 @@ const project = {
   defaultTaskDurationUnit: 'days',
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   schedulingOptions: SCHED_OPTS,
-  // Rekenprofiel: een EIGEN profiel op msproject-basis met een afwijking — onderscheidend van de
-  // default (afwezig ≡ ops). In de overgang overgeslagen in PROJECT_CANON (zie daar).
-  schedulingProfile: { baseId: 'msproject', id: 'eigen-fixture', name: 'Fixture-profiel', overrides: { clampNegativeFreeFloat: true } },
-} satisfies Required<Project> & { schedulingOptions: Required<SchedulingOptions> };
+  // Rekenprofiel (C2): een EIGEN profiel op p6-basis met twee afwijkingen (één uit, één per-bestand
+  // aan) — onderscheidend van de default (afwezig ≡ ops) én van de kale p6-basis.
+  schedulingProfile: {
+    baseId: 'p6', id: 'prof-fixture', name: 'Fixtureprofiel',
+    overrides: { clampNegativeFreeFloat: false, p6UseRemainingStartForProgress: true },
+  },
+} satisfies Required<Project> & { schedulingOptions: Required<ProjectSchedulingOptions> };
 
 // ── Baselines (round-trippen verliesloos via OPS_Baselines-JSON; taskId remapt via GlobalId) ──────
 const baselines = [{
@@ -673,10 +661,8 @@ const PROJECT_CANON = {
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
   wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP, schedulingOptions: KEEP,
-  // INTEGRATIE(rekenprofielen): OPS_SchedulingProfile is in de overgang bewust nog niet aan
-  // writeIFC/readIFC gekoppeld (eigen round-trip in check-scheduling-profile-roundtrip.ts). Bij de
-  // integratie wordt dit KEEP.
-  schedulingProfile: { skip: 'INTEGRATIE(rekenprofielen): pset nog niet aan writeIFC/readIFC gekoppeld' },
+  // Rekenprofielen C2: OPS_SchedulingProfile round-tript via writeIFC/readIFC.
+  schedulingProfile: KEEP,
   defaultTaskDurationUnit: KEEP,
   // B1.1: bedrijfsbinding round-trippt via OPS_CompanyBinding.
   companyId: KEEP, companyName: KEEP,
@@ -857,9 +843,9 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 // ── Eindreview XER-etappe, bevinding 4: het OPS_SchedulingOptions-JSON is buiteninvoer ────────────
 // Een geschreven IFC waarvan het JSON-blob is vervangen door een vijandig object: onbekende sleutels,
 // een niet-bestaande kritiek-modus, een string waar een getal hoort, een half `floatPaths`. Alles wat
-// niet aan het `SchedulingOptions`-contract voldoet valt weg; wat wél klopt (incl. `p6Source`, dat
-// legitiem round-tript) blijft staan. Het commentaar in `CPMSolver.ts` bij `p6SourceActive` beschrijft
-// precies deze grens.
+// niet aan het `SchedulingOptions`-contract voldoet valt weg. Sinds C2 wordt wat wél klopt gesplitst:
+// de XER-bronmarkering en de conventies worden het profiel (migratie, geen profiel-pset in dit
+// bestand), het project draagt alleen de projectopties.
 {
   const hostile = JSON.stringify({
     p6Source: 'XER',
@@ -873,7 +859,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT' },
     onzin: [1, 2, 3],
   });
-  const written = writeIFC(fixture);
+  // Zonder profiel-pset (een pset zou van de migratie winnen); het optieblok is het anker.
+  const written = writeIFC({ ...fixture, project: { ...fixture.project, schedulingProfile: undefined } });
   const pattern = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('[^']*'\),\$\)/;
   assert(pattern.test(written), 'fixture schrijft het OPS_SchedulingOptions-pset (anker voor de vijandige vervanging)');
   const hostileIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostile}'),$)`);
@@ -881,12 +868,31 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     (v && typeof v === 'object' && !Array.isArray(v))
       ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
       : v);
-  const read = readIFC(hostileIfc).project.schedulingOptions;
-  assert(canon(read) === canon({
-    p6Source: 'XER',
+  const hostileProject = readIFC(hostileIfc).project;
+  assert(canon(hostileProject.schedulingOptions) === canon({
     p6CompletedLateFromRemainingWindow: true,
     totalFloatMode: 'finish',
-  }), 'vijandig OPS_SchedulingOptions-JSON: alleen de goed getypeerde, bekende sleutels overleven; onzin-mode, string-getallen, onbekende sleutels en een half floatPaths-blok vallen weg');
+  }), 'vijandig OPS_SchedulingOptions-JSON: alleen de goed getypeerde, bekende projectopties overleven; onzin-mode, string-getallen, onbekende sleutels en een half floatPaths-blok vallen weg');
+  // De bronmarkering migreert naar p6; elke p6-basisconventie die de blob niet GELDIG draagt
+  // (A12 = 1 is ongeldig) rekende vroeger als uit ⇒ afwijking false. A19 staat op de basis al uit.
+  assert(canon(hostileProject.schedulingProfile) === canon({
+    baseId: 'p6', id: 'p6', name: '',
+    overrides: {
+      preserveActualDatesInBackwardPass: false, clampNegativeFreeFloat: false,
+      p6ZeroDurationUsesPlannedBoundary: false, p6UseTaskPlannedStartFloor: false,
+      p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: false,
+      p6PreserveZeroDurationConstraintInstants: false,
+    },
+  }), 'vijandige blob mét XER-bronmarkering ⇒ p6-profiel; ontbrekende/ongeldige A-conventies als afwijking uit');
+  const gatedNoSource = JSON.stringify({
+    p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true, p6FinishMilestoneBoundaryWindow: true,
+    p6PreserveActualInstants: true, p6UseRemainingStartForProgress: true, p6PreserveZeroDurationConstraintInstants: true,
+    lagCalendar: 'successor',
+  });
+  const gatedProject = readIFC(written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${gatedNoSource}'),$)`)).project;
+  assert(gatedProject.schedulingProfile === undefined
+    && canon(gatedProject.schedulingOptions) === canon({ lagCalendar: 'successor' }),
+  'vijandige blob met A15–A20 true zónder bronmarkering ⇒ geen profiel (vroeger inert) en opties zonder die sleutels');
 
   const hostileCritical = JSON.stringify({ criticalDefinition: { mode: 'longestPath', threshold: 'x', thresholdHours: -4 }, floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 } });
   const partialIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostileCritical}'),$)`);
@@ -939,7 +945,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const solved = solveProject({
       tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
       calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
     });
     assert(!solved.error, `solverfout in REJECTED-inertietest: ${solved.error}`);

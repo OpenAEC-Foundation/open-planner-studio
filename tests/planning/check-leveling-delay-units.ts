@@ -15,6 +15,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -84,7 +85,7 @@ console.log('-- leveling-delay-units: levelingDelayMinutes wint van levelingDela
     levelingDelay: 1,
     levelingDelayMinutes: 2400,
   });
-  const solved = solveProject({ tasks: [taskT], sequences: [], calendar: PROJECT_CAL, calendars: [] });
+  const solved = solveProject(opsSolveInput({ tasks: [taskT], sequences: [], calendar: PROJECT_CAL, calendars: [] }));
   ok('solveProject rekent zonder fout door', !solved.error);
   eq('levelingDelayMinutes wint van levelingDelay: T landt op 2026-06-08, niet 2026-06-02',
     taskT.time.earlyStart, '2026-06-08');
@@ -114,7 +115,7 @@ console.log('-- leveling-delay-units: baseline is delay-vrij ook voor levelingDe
   const resourceR = res('r1', 1);
   const assignments = [assign('a-r1', 'a', 'r1', 1), assign('b-r1', 'b', 'r1', 1)];
   const cpmResult = stubCpmResult('2026-06-01');
-  const r = levelResources([taskP, taskA, taskB], [seq], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS);
+  const r = levelResources([taskP, taskA, taskB], [seq], [resourceR], assignments, PROJECT_CAL, [], cpmResult, LEVEL_OPTS, legacyCpmOptions());
 
   ok('baseline is delay-vrij: er is een echt conflict en precies één taak wijkt',
     Object.keys(r.delays).length === 1);

@@ -275,7 +275,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-04T08:00',
       earlyFinish: '2026-06-04T17:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-02T17:00',
@@ -291,7 +291,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-02T08:00',
       earlyFinish: '2026-06-02T17:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-02T17:00',
@@ -307,7 +307,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-02T08:00',
       earlyFinish: '2026-06-04T17:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-04T17:00',
@@ -323,7 +323,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-02T15:00',
       earlyFinish: '2026-06-03T15:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T15:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-03T15:00',
@@ -443,7 +443,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   );
   eq('task replay: geldige fallbackdatums zonder p6ExplicitTargetWindow leveren fail-closed geen trace',
     predicateBySourceId(noExplicitTargetWindowReplay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 {
@@ -469,7 +469,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const replay = replayXerProductBeforeOracle(multipleEqualDriversFixture, syntheticZeroRegressionCandidate);
   eq('task replay: meerdere gelijke relatiedrivers leveren fail-closed geen willekeurige trace',
     predicateBySourceId(replay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 {
@@ -494,7 +494,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const projectStartSource = predicateBySourceId(replay.predicate).get('S')?.source;
   eq('task replay: aantoonbare projectstartgrens krijgt trace zonder verzonnen relatiedriver',
     {
-      p6Source: projectStartSource?.p6Source,
+      profileId: projectStartSource?.profileId,
       activityType: projectStartSource?.activityType,
       plannedFloorTracePreFloorEarlyStart: projectStartSource?.plannedFloorTracePreFloorEarlyStart,
       plannedFloorTracePreFloorEarlyFinish: projectStartSource?.plannedFloorTracePreFloorEarlyFinish,
@@ -503,7 +503,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       plannedFloorTraceBoundarySource: projectStartSource?.plannedFloorTraceBoundarySource,
     },
     {
-      p6Source: 'XER',
+      profileId: 'p6',
       activityType: 'TT_Task',
       plannedFloorTracePreFloorEarlyStart: '2026-08-03T08:00',
       plannedFloorTracePreFloorEarlyFinish: '2026-08-03T17:00',
@@ -530,7 +530,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const replay = replayXerProductBeforeOracle(constraintOnlyFixture, syntheticZeroRegressionCandidate);
   eq('task replay: constraint-only zonder netwerk- of projectstartdriver levert geen trace',
     predicateBySourceId(replay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 {
@@ -554,7 +554,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const replay = replayXerProductBeforeOracle(invalidTargetFinishFixture, syntheticZeroRegressionCandidate);
   eq('task replay: ongeldig expliciet targeteinde levert fail-closed geen trace',
     predicateBySourceId(replay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 function solved(projectId = 'P1', taskCode = 'A100', overrides: Partial<XerSolvedTask> = {}): XerSolvedProject {

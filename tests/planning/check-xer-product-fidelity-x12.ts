@@ -14,11 +14,6 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import type { WorkCalendar } from '@/types/calendar';
 import { usesP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
-import {
-  LEGACY_P6_SOURCE_CONVENTION_KEYS,
-  LEGACY_P6_SOURCE_GATED_FLAGS,
-} from '@/engine/scheduler/conventions/legacyP6Source';
-import type { SchedulingOptions } from '@/types/project';
 import { buildXerTargetBaseline, type XerCorpusFile, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
 import { parseInstant } from '@/utils/dateUtils';
@@ -41,26 +36,24 @@ import {
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
   type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
+import { p6SemanticsOff } from './p6SemanticsOff';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
 const REPORT_MODES = new Set(['baseline', 'detail', 'summary', 'counterfactuals']);
 const diffs: string[] = [];
 
-// Rekenprofielen baan B: de motor leest de XER-bronmarkering niet meer; elke P6-conventie is een
-// eigen vlag. De "zonder bron"-armen hieronder houden hun oude betekenis (bron weg, vlaggen
-// blijven staan ⇒ generiek gedrag) dankzij de TIJDELIJKE vertaling in
-// `conventions/legacyP6Source.ts`, die A15–A20 zonder bron uitzet (spec §3.4 rij 4). Daarnaast
-// een arm met ALLE P6-gepoorte vlaggen expliciet uit (A15–A21 + de vijf groep-B-conventies): die
-// beschrijft de toestand na de integratie, wanneer de bronmarkering verdwijnt.
-const P6_GATED_CONVENTION_FLAGS = [
-  ...LEGACY_P6_SOURCE_GATED_FLAGS, 'p6CompletedLateFromRemainingWindow', ...LEGACY_P6_SOURCE_CONVENTION_KEYS,
-] as const satisfies readonly (keyof SchedulingOptions)[];
+// Rekenprofielen: de motor leest geen XER-bronmarkering meer; elke P6-conventie komt uit het
+// profiel. De "zonder bron"-armen hieronder bootsen het oude `delete p6Source` na met
+// `withoutP6Semantics` (alle P6-gepoorte conventies A15–A20 en B1–B5 uit, A12/A13 blijven; spec
+// v3.1 §7). `withoutP6Conventions` zet daarnaast ook de projectoptie A21 uit — de arm met ALLE
+// P6-gepoorte vlaggen expliciet uit.
 function withoutP6Conventions(input: ImportResult): void {
-  const options = input.project.schedulingOptions ?? {};
-  delete options.p6Source;
-  for (const flag of P6_GATED_CONVENTION_FLAGS) options[flag] = false;
-  input.project.schedulingOptions = options;
+  withoutP6Semantics(input);
+  input.project.schedulingOptions = { ...input.project.schedulingOptions, p6CompletedLateFromRemainingWindow: false };
 }
 let checks = 0;
 
@@ -181,7 +174,7 @@ function solveImported(imported: ImportResult): XerSolvedProject {
   const cpm = solveProject({
     tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
-    progressMode: imported.project.progressMode, schedulingOptions: imported.project.schedulingOptions,
+    progressMode: imported.project.progressMode, schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
   });
   if (cpm.error) throw new Error(`${imported.project.id}: ${cpm.error}`);
@@ -1116,11 +1109,9 @@ async function productBaseline(
   if (isMultiDocumentImport(noSource) || isMultiDocumentImport(explicitOff)) {
     throw new Error('X12 finishmijlpaal-provenancefixture moet enkelproject zijn');
   }
-  delete noSource.project.schedulingOptions?.p6Source;
-  delete explicitOff.project.schedulingOptions?.p6Source;
-  if (explicitOff.project.schedulingOptions) {
-    explicitOff.project.schedulingOptions.p6FinishMilestoneBoundaryWindow = false;
-  }
+  withoutP6Semantics(noSource);
+  withoutP6Semantics(explicitOff);
+  setConvention(explicitOff, 'p6FinishMilestoneBoundaryWindow', false);
   const noSourceTask = solveImported(noSource).tasks.find(candidate => candidate.taskCode === 'A200');
   const explicitOffTask = solveImported(explicitOff).tasks.find(candidate => candidate.taskCode === 'A200');
   eq('X12 p6FinishMilestoneBoundaryWindow is inert zonder XER-projectprovenance', {
@@ -1144,9 +1135,8 @@ async function productBaseline(
 
 // Ook taakvloer en exact constraint-instant zijn uitsluitend P6-XER-projecties. Een gewone
 // solver/IFC-payload die alleen gelijknamige booleans bevat, maar geen bronstempel, moet exact het
-// expliciet-uitgeschakelde gedrag houden. Sinds rekenprofielen baan B leest de motor die
-// bronstempel niet meer; dit gedrag komt nu uit de TIJDELIJKE vertaling
-// `conventions/legacyP6Source.ts` (A15–A20 zonder bron uit) en verandert bij de integratie.
+// expliciet-uitgeschakelde gedrag houden. Sinds de rekenprofielen leest de motor die bronstempel
+// niet meer; "zonder bron" is nu `withoutP6Semantics` (A15–A20 en B1–B5 uit in het profiel).
 {
   const calendarData = fiveDayCalendarData('08:00', '16:00');
   const bytes = new TextEncoder().encode([
@@ -1173,12 +1163,10 @@ async function productBaseline(
   const explicitOff = readXER(bytes);
   if (isMultiDocumentImport(proven) || isMultiDocumentImport(noSource)
     || isMultiDocumentImport(explicitOff)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
-  delete noSource.project.schedulingOptions?.p6Source;
-  delete explicitOff.project.schedulingOptions?.p6Source;
-  if (explicitOff.project.schedulingOptions) {
-    explicitOff.project.schedulingOptions.p6UseTaskPlannedStartFloor = false;
-    explicitOff.project.schedulingOptions.p6PreserveZeroDurationConstraintInstants = false;
-  }
+  withoutP6Semantics(noSource);
+  withoutP6Semantics(explicitOff);
+  setConvention(explicitOff, 'p6UseTaskPlannedStartFloor', false);
+  setConvention(explicitOff, 'p6PreserveZeroDurationConstraintInstants', false);
   const resultOf = (input: ImportResult) => {
     const solved = solveImported(input).tasks;
     const floor = solved.find(task => task.taskCode === 'FLOOR');
@@ -1207,23 +1195,29 @@ async function productBaseline(
   // dan niet werken: FLOOR begint op de netwerkbasis (vr 2 jan 08:00), niet op ma 5 jan.
   const ifcNoSource = readXER(bytes);
   if (isMultiDocumentImport(ifcNoSource)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
-  delete ifcNoSource.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(ifcNoSource);
   const ifcNoSourceRead = readIFC(writeIFC({
     ...ifcNoSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
   }));
   const ifcFloorSolve = solveProject({
     tasks: ifcNoSourceRead.tasks, sequences: ifcNoSourceRead.sequences, calendar: ifcNoSourceRead.calendar,
     calendars: ifcNoSourceRead.resourceCalendars ?? [], dataDate: ifcNoSourceRead.project.statusDate,
-    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: ifcNoSourceRead.project.schedulingOptions,
+    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions,
     projectStartDate: ifcNoSourceRead.project.startDate, projectEndDate: ifcNoSourceRead.project.endDate,
   });
   if (ifcFloorSolve.error) throw new Error(ifcFloorSolve.error);
   const ifcFloor = ifcNoSourceRead.tasks.find(task => task.wbsCode === 'FLOOR');
+  // Rekenprofielen C4: "zonder bron" is `withoutP6Semantics`; dat profiel round-tript door het IFC
+  // en houdt de A16-vloer uit.
   eq('X12 taakvloer: IFC zonder bron met A16-vlag aan houdt de netwerkbasis', {
-    floorFlag: ifcNoSourceRead.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
-    source: ifcNoSourceRead.project.schedulingOptions?.p6Source,
+    floorConvention: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions.p6UseTaskPlannedStartFloor,
+    p6Off: p6SemanticsOff(ifcNoSourceRead.project),
     floorStart: canonicalProductMinute(ifcFloor?.time.earlyStart),
-  }, { floorFlag: true, source: undefined, floorStart: '2026-01-02T08:00' });
+  }, {
+    floorConvention: false,
+    p6Off: true,
+    floorStart: '2026-01-02T08:00',
+  });
   const hostileExt = readXER(bytes);
   if (isMultiDocumentImport(hostileExt)) throw new Error('X12 extensiesolvefixture moet enkelproject zijn');
   const hostilePredecessor = hostileExt.tasks.find(task => task.wbsCode === 'PRED');
@@ -1239,7 +1233,7 @@ async function productBaseline(
     ...hostileExt.project,
     schedulingOptions: {
       ...hostileExt.project.schedulingOptions,
-      p6Source: 'XER',
+      p6Source: 'XER', // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
       p6UseTaskPlannedStartFloor: true,
       p6PreserveZeroDurationConstraintInstants: true,
     },
@@ -1285,15 +1279,15 @@ async function productBaseline(
     calendars: genericExtensionImport.resourceCalendars ?? [],
     dataDate: genericExtensionImport.project.statusDate,
     progressMode: genericExtensionImport.project.progressMode,
-    schedulingOptions: genericExtensionImport.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(genericExtensionImport.project).schedulingOptions,
     projectStartDate: genericExtensionImport.project.startDate,
     projectEndDate: genericExtensionImport.project.endDate,
   });
   if (hostileSolve.error) throw new Error(`X12 hostile extensiesolve faalt: ${hostileSolve.error}`);
   const hostileSolvedTask = hostileSolve.tasks.get(importedHostileTask.id);
   eq('X12 generieke extensie-import kan interne P6-opties niet via de echte solve activeren', {
-    projectSource: genericExtensionImport.project.schedulingOptions?.p6Source,
-    plannedStartFloor: genericExtensionImport.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
+    projectProfile: genericExtensionImport.project.schedulingProfile,
+    plannedStartFloor: resolveConventions(genericExtensionImport.project.schedulingProfile).p6UseTaskPlannedStartFloor,
     taskProvenance: {
       p6DurationType: importedHostileTask.p6DurationType,
       p6ActivityType: importedHostileTask.p6ActivityType,
@@ -1307,8 +1301,9 @@ async function productBaseline(
     solvedEarlyFinish: hostileSolvedTask?.earlyFinish,
     appliedEarlyStart: hostileSolvedTask?.earlyStart,
   }, {
-    projectSource: undefined,
-    plannedStartFloor: undefined,
+    // Rekenprofielen C4 (R5): een extensie-import opent als OPS — geen profiel, A16 opgelost uit.
+    projectProfile: undefined,
+    plannedStartFloor: false,
     taskProvenance: {},
     // Zonder vervalste P6-bronstempel blijft de planned-start-floor inert. De generieke solver
     // kiest hier zijn gewone project-/netwerkvenster; een mutatie die `fromExtProject` met een
@@ -1346,10 +1341,10 @@ async function productBaseline(
   if (isMultiDocumentImport(imported)) throw new Error('X12 startvloer-negatief moet enkelproject zijn');
   const successor = solveImported(imported).tasks.find(task => task.taskCode === 'N');
   eq('X12 geplande startvloer blijft uit op de één-daggrens', {
-    source: imported.project.schedulingOptions?.p6Source,
-    option: imported.project.schedulingOptions?.p6UseTaskPlannedStartFloor,
+    profile: imported.project.schedulingProfile?.id,
+    option: resolveConventions(imported.project.schedulingProfile).p6UseTaskPlannedStartFloor,
     earlyStart: successor?.earlyStart,
-  }, { source: 'XER', option: true, earlyStart: '2026-01-05T08:00' });
+  }, { profile: 'p6', option: true, earlyStart: '2026-01-05T08:00' });
 }
 
 // P6-XER gebruikt voor een lopende activiteit de start van het resterende werk als Early Start.
@@ -1391,7 +1386,7 @@ async function productBaseline(
   if (isMultiDocumentImport(unlinked)) throw new Error('X12 actual-starttegenvoorbeeld moet enkelproject zijn');
   const unlinkedTask = solveImported(unlinked).tasks.find(candidate => candidate.taskCode === 'A100');
   eq('X12 zonder resterend-doelkoppeling blijft de zichtbare Actual Start ongewijzigd', {
-    sourceFlag: unlinked.project.schedulingOptions?.p6UseRemainingStartForProgress,
+    sourceFlag: resolveConventions(unlinked.project.schedulingProfile).p6UseRemainingStartForProgress,
     earlyStart: unlinkedTask?.earlyStart,
   }, {
     sourceFlag: false,
@@ -1503,15 +1498,15 @@ async function productBaseline(
 
   // De relatievlag kan in een generieke payload nog aanwezig zijn, maar mag zonder conventie B1
   // (`p6RelationFinishBoundary`) geen enkel forward- of backward-pad bereiken; de `CPMSolver`-
-  // constructor stript haar dan. Zonder bronstempel staat B1 uit omdat de TIJDELIJKE vertaling
-  // (`conventions/legacyP6Source.ts`) haar alleen mét bron aanzet. Vergelijk met dezelfde XER
+  // constructor stript haar dan. Zonder P6-semantiek (`withoutP6Semantics`) staat B1 uit in het
+  // profiel. Vergelijk met dezelfde XER
   // input waarin uitsluitend de vlag zelf is weggehaald: alle zes taakassen moeten identiek zijn.
   const genericPayload = readXER(bytes);
   const explicitNoBoundary = readXER(bytes);
   if (isMultiDocumentImport(genericPayload) || isMultiDocumentImport(explicitNoBoundary)) {
     throw new Error('X12 relatie-firewallfixture moet enkelproject zijn');
   }
-  delete genericPayload.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(genericPayload);
   delete explicitNoBoundary.sequences[0]?.p6StartAtPredecessorFinishBoundary;
   const relationAxes = (input: ImportResult) => solveImported(input).tasks.map(task => [
     task.taskCode, task.earlyStart, task.earlyFinish, task.lateStart, task.lateFinish,
@@ -1535,7 +1530,7 @@ async function productBaseline(
   eq('X12 alle P6-conventies uit: rauwe P6-relatievlag is solver-identiek aan geen vlag',
     relationAxes(allOffPayload as ImportResult), relationAxes(allOffNoFlag as ImportResult));
   for (const input of [b1Off, b1OffNoFlag] as ImportResult[]) {
-    input.project.schedulingOptions = { ...input.project.schedulingOptions, p6RelationFinishBoundary: false };
+    setConvention(input, 'p6RelationFinishBoundary', false);
   }
   delete (b1OffNoFlag as ImportResult).sequences[0]?.p6StartAtPredecessorFinishBoundary;
   eq('X12 conventie B1 uit maakt de rauwe P6-relatievlag solver-identiek aan geen vlag',
@@ -1551,7 +1546,7 @@ async function productBaseline(
     calendars: roundTripped.resourceCalendars ?? [],
     dataDate: roundTripped.project.statusDate,
     progressMode: roundTripped.project.progressMode,
-    schedulingOptions: roundTripped.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(roundTripped.project).schedulingOptions,
     projectStartDate: roundTripped.project.startDate,
     projectEndDate: roundTripped.project.endDate,
   });
@@ -1709,7 +1704,7 @@ async function productBaseline(
   // forwardkant. `A100` (24 u) spant vooruit 12-31→01-02 en achteruit even lang, en houdt de twee
   // werkdagen speling die haar opvolger `B100` haar laat.
   eq('X12 er is geen brongebonden projectie meer: backward, lag en float spiegelen de forwardkant', {
-    projectSource: projectionImport.project.schedulingOptions?.p6Source,
+    projectProfile: projectionImport.project.schedulingProfile?.id,
     calendarSource: projectionImport.calendar.p6Source,
     penaltyDates: projectionImport.calendar.p6NonWorkPenaltyDates,
     aEarlyFinish: projectedTask('A100')?.earlyFinish,
@@ -1720,7 +1715,7 @@ async function productBaseline(
     lagPredecessorLateFinish: projectedTask('LP100')?.lateFinish,
     successorEarlyStart: projectedTask('B100')?.earlyStart,
   }, {
-    projectSource: 'XER',
+    projectProfile: 'p6',
     calendarSource: 'XER',
     penaltyDates: ['2026-01-03', '2026-01-05'],
     aEarlyFinish: '2026-01-02T17:00',
@@ -1740,7 +1735,7 @@ async function productBaseline(
       calendars: input.resourceCalendars ?? [],
       dataDate: input.project.statusDate,
       progressMode: input.project.progressMode,
-      schedulingOptions: input.project.schedulingOptions,
+      schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate,
       projectEndDate: input.project.endDate,
     });
@@ -1756,11 +1751,11 @@ async function productBaseline(
   const directForParity = readXER(projectionBytes);
   if (isMultiDocumentImport(directForParity)) throw new Error('X12 directe pariteitsfixture moet enkelproject zijn');
   eq('X12 XER-naar-IFC bewaart P6-provenance en alle zes solve-assen', {
-    projectSource: ifcRoundTrip.project.schedulingOptions?.p6Source,
+    projectProfile: ifcRoundTrip.project.schedulingProfile?.id,
     calendarSource: ifcRoundTrip.calendar.p6Source,
     axes: sixAxes(ifcRoundTrip),
   }, {
-    projectSource: 'XER',
+    projectProfile: 'p6',
     calendarSource: 'XER',
     axes: sixAxes(directForParity),
   });
@@ -1770,20 +1765,20 @@ async function productBaseline(
   if (isMultiDocumentImport(ordinaryIfcSource) || isMultiDocumentImport(ordinaryDirect)) {
     throw new Error('X12 gewone-IFC-provenancefixture moet enkelproject zijn');
   }
-  delete ordinaryIfcSource.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(ordinaryIfcSource);
   delete ordinaryIfcSource.calendar.p6Source;
-  delete ordinaryDirect.project.schedulingOptions?.p6Source;
+  withoutP6Semantics(ordinaryDirect);
   delete ordinaryDirect.calendar.p6Source;
   // Zonder XER-archief blijft dit bewust een gewone IFC en dus een synchrone read-probe.
   const ordinaryIfc = readIFC(writeIFC({
     ...ordinaryIfcSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
   }));
   eq('X12 gewone IFC zonder XER-bronstempels blijft zesassig formaatneutraal', {
-    projectSource: ordinaryIfc.project.schedulingOptions?.p6Source,
+    projectP6Off: p6SemanticsOff(ordinaryIfc.project),
     calendarSource: ordinaryIfc.calendar.p6Source,
     axes: sixAxes(ordinaryIfc),
   }, {
-    projectSource: undefined,
+    projectP6Off: true,
     calendarSource: undefined,
     axes: sixAxes(ordinaryDirect),
   });
@@ -2096,14 +2091,14 @@ async function productBaseline(
   const completedGuardDataDate = new Date(0);
   eq('X12 completed bronpredicate blijft fail-closed voor alle uitgesloten bronvormen', {
     noPresence: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6ExplicitTargetWindow: undefined }, completedGuardDataDate, one.project.schedulingOptions),
-    active: usesP6CompletedDataDateWindow(activeTask, completedGuardDataDate, active.project.schedulingOptions),
-    milestone: usesP6CompletedDataDateWindow(milestoneTask, completedGuardDataDate, milestone.project.schedulingOptions),
+      { ...oneTask, p6ExplicitTargetWindow: undefined }, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
+    active: usesP6CompletedDataDateWindow(activeTask, completedGuardDataDate, solveOptionsFor(active.project).schedulingOptions),
+    milestone: usesP6CompletedDataDateWindow(milestoneTask, completedGuardDataDate, solveOptionsFor(milestone.project).schedulingOptions),
     loe: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, completedGuardDataDate, one.project.schedulingOptions),
+      { ...oneTask, p6ActivityType: 'TT_LOE', isHammock: true }, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
     suspendResume: usesP6CompletedDataDateWindow(
-      { ...oneTask, p6SuspendResume: true }, completedGuardDataDate, one.project.schedulingOptions),
-    summary: usesP6CompletedDataDateWindow(summaryCandidate, completedGuardDataDate, one.project.schedulingOptions),
+      { ...oneTask, p6SuspendResume: true }, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
+    summary: usesP6CompletedDataDateWindow(summaryCandidate, completedGuardDataDate, solveOptionsFor(one.project).schedulingOptions),
     generic: usesP6CompletedDataDateWindow(oneTask, completedGuardDataDate, undefined),
   }, {
     noPresence: false, active: false, milestone: false, loe: false,
@@ -2195,7 +2190,7 @@ async function productBaseline(
     calendars: displayOnlyCandidate.resourceCalendars ?? [],
     dataDate: displayOnlyCandidate.project.statusDate,
     progressMode: displayOnlyCandidate.project.progressMode,
-    schedulingOptions: displayOnlyCandidate.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(displayOnlyCandidate.project).schedulingOptions,
     projectStartDate: displayOnlyCandidate.project.startDate,
     projectEndDate: displayOnlyCandidate.project.endDate,
   });
@@ -2218,7 +2213,9 @@ async function productBaseline(
   // ingelezen of aan de solver doorgegeven.
   const generic: ImportResult = {
     ...one,
-    project: { ...one.project, schedulingOptions: undefined },
+    // Rekenprofielen C4: vroeger haalde het wissen van het hele optieblok ook de XER-bronmarkering
+    // weg (⇒ OPS); sinds C3 staat die in het profiel, dus dat gaat nu mee weg.
+    project: { ...one.project, schedulingOptions: undefined, schedulingProfile: undefined },
     tasks: one.tasks.map(({ p6ProjectId: _project, p6TaskId: _task, p6ActivityType: _activity, p6DurationType: _duration, p6ExplicitTargetWindow: _window, ...task }) => task),
     xer: undefined,
     xerSourceArchive: undefined,
@@ -2229,7 +2226,7 @@ async function productBaseline(
     const cpm = solveProject({
       tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
       calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
     });
     if (cpm.error) throw new Error(`X12 F5 generieke solve faalde: ${cpm.error}`);

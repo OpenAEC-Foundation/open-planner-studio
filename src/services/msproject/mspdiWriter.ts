@@ -1,4 +1,5 @@
 import { Task, TaskConstraint } from '@/types/task';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -382,6 +383,7 @@ export function writeMSPDI(
   // near-critical, TF-modus) is niet native uitdrukbaar ⇒ weggelaten + warn. De VOLLE set round-trippt
   // wél via IFC OPS_SchedulingOptions. Golden rule: geen schedulingOptions ⇒ geen element.
   const so = project.schedulingOptions;
+  const lost: string[] = [];
   if (so) {
     const cd = so.criticalDefinition;
     if (cd && cd.mode === 'totalFloat' && typeof cd.threshold === 'number'
@@ -390,25 +392,27 @@ export function writeMSPDI(
     } else if (cd) {
       console.warn(`MSPDI-export: kritiek-definitie (${cd.mode}${cd.threshold != null ? `, drempel ${cd.threshold}` : ''}) niet uitdrukbaar als CriticalSlackLimit — weggelaten (§6).`);
     }
-    const lost: string[] = [];
     if (so.lagCalendar && so.lagCalendar !== 'predecessor') lost.push('lagCalendar');
     if (so.totalFloatMode && so.totalFloatMode !== 'smallest') lost.push('totalFloatMode');
     if (so.makeOpenEndedCritical) lost.push('makeOpenEndedCritical');
     if (so.nearCriticalThreshold != null) lost.push('nearCriticalThreshold');
     if (so.floatPaths?.enabled) lost.push('floatPaths');
-    // T9 (Opus-review N1): geen MSPDI-equivalent voor deze MPP-eigen hervattingsconventie (zie
-    // `SchedulingOptions.resumeFromActualElapsed`, `CPMSolver.ts`) — zonder deze warn zou
-    // .mpp → MSPDI-export → herimport het veld geruisloos laten vallen en de gefixte datums van T9
-    // stil weer laten verschuiven bij die herimport.
-    if (so.resumeFromActualElapsed) lost.push('resumeFromActualElapsed');
-    // B1 (eindreview T16c, dossier (c)4-herdiagnose): idem — geen MSPDI-equivalent voor de
-    // niet-gestart-vloer-uitzondering (`SchedulingOptions.unstartedIgnoresStatusDate`); zonder deze
-    // warn zou dezelfde .mpp → MSPDI-export → herimport-route de niet-gestarte taken van een
-    // statusdatum-project weer stil ~jaren vooruit klemmen.
-    if (so.unstartedIgnoresStatusDate) lost.push('unstartedIgnoresStatusDate');
-    if (lost.length > 0) {
-      console.warn(`MSPDI-export: scheduling-opties ${lost.join('/')} niet native uitdrukbaar — weggelaten, alleen via IFC OPS_SchedulingOptions (§6).`);
-    }
+  }
+  // Rekenprofielen C3: de twee MPP-eigen conventies staan sinds de profielen in het rekenprofiel
+  // (MS Project-profiel), niet meer in `schedulingOptions` — zelfde waarschuwing, andere bron.
+  const conventions = resolveConventions(project.schedulingProfile);
+  // T9 (Opus-review N1): geen MSPDI-equivalent voor deze MPP-eigen hervattingsconventie (zie
+  // `SchedulingOptions.resumeFromActualElapsed`, `CPMSolver.ts`) — zonder deze warn zou
+  // .mpp → MSPDI-export → herimport het veld geruisloos laten vallen en de gefixte datums van T9
+  // stil weer laten verschuiven bij die herimport.
+  if (conventions.resumeFromActualElapsed) lost.push('resumeFromActualElapsed');
+  // B1 (eindreview T16c, dossier (c)4-herdiagnose): idem — geen MSPDI-equivalent voor de
+  // niet-gestart-vloer-uitzondering (`SchedulingOptions.unstartedIgnoresStatusDate`); zonder deze
+  // warn zou dezelfde .mpp → MSPDI-export → herimport-route de niet-gestarte taken van een
+  // statusdatum-project weer stil ~jaren vooruit klemmen.
+  if (conventions.unstartedIgnoresStatusDate) lost.push('unstartedIgnoresStatusDate');
+  if (lost.length > 0) {
+    console.warn(`MSPDI-export: scheduling-opties ${lost.join('/')} niet native uitdrukbaar — weggelaten, alleen via IFC OPS_SchedulingOptions (§6).`);
   }
 
   // Calendars: UID 1 = projectkalender (basiskalender); overige bibliotheek-kalenders (fase 2.5,

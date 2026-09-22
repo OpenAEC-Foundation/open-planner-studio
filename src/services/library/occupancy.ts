@@ -54,10 +54,10 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
 import type { CompanyPool } from '@/types/library';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveOptionsFor, type ProjectSolveOptions, type SolveProjectFields } from '@/engine/scheduler/solveInput';
 
 /**
  * De planningsinvoer die een efemere doorrekening nodig heeft (§4.3b), bovenop wat de aggregatie
@@ -70,11 +70,23 @@ export interface OccupancySolveInput {
    *  bibliotheek-snit die de aggregatie gebruikt is hier dus expliciet NIET goed genoeg. */
   tasks: Task[];
   sequences: Sequence[];
-  /** `project.statusDate`/`progressMode`/`schedulingOptions` — dezelfde opties die `runCPM` aan de
-   *  solver geeft, zodat de efemere planning identiek is aan wat F5 in dat document zou opleveren. */
-  dataDate?: string;
-  progressMode?: ProgressMode;
-  schedulingOptions?: SchedulingOptions;
+  /** De solve-opties van het document, via `occupancySolveInputFor` ⇒ `solveOptionsFor(project)` —
+   *  dezelfde opties die `runCPM` aan de solver geeft, zodat de efemere planning identiek is aan
+   *  wat F5 in dat document zou opleveren (rekenprofielen C1). */
+  options: ProjectSolveOptions;
+}
+
+/** Bouw de efemere solve-invoer van een document. De ENIGE bouwplek (ResourceOccupancyView gebruikt
+ *  hem). Sinds rekenprofielen C5 (benoemde gedragswijziging) de volledige invoer van F5, óók de
+ *  projectdatums: de bezetting respecteert de projectstart-vloer zoals F5. */
+export function occupancySolveInputFor(
+  payload: { tasks: Task[]; sequences: Sequence[]; project: SolveProjectFields },
+): OccupancySolveInput {
+  return {
+    tasks: payload.tasks,
+    sequences: payload.sequences,
+    options: solveOptionsFor(payload.project),
+  };
 }
 
 /** Eén open document, gemapt uit zijn payload-snapshot (weergavelaag levert dit aan, §4.4). */
@@ -135,13 +147,7 @@ export const ephemeralSolve: OccupancyEphemeralSolve = (doc) => {
   if (!input) return null;
   const tasks = cloneTasksForSolve(input.tasks);
   const result = solveProject({
-    tasks,
-    sequences: input.sequences,
-    calendar: doc.calendar,
-    calendars: doc.calendars,
-    dataDate: input.dataDate,
-    progressMode: input.progressMode,
-    schedulingOptions: input.schedulingOptions,
+    tasks, sequences: input.sequences, calendar: doc.calendar, calendars: doc.calendars, ...input.options,
   });
   if (result.error) return null;
   return tasks;

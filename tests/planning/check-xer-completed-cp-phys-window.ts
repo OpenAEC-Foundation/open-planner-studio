@@ -10,6 +10,8 @@ import {
 import type { Task } from '@/types/task';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -59,7 +61,7 @@ function decisionOf(
   mutate?.(imported, task);
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
   return {
-    decision: explainP6CompletedDataDateWindow(task, dataDate, imported.project.schedulingOptions),
+    decision: explainP6CompletedDataDateWindow(task, dataDate, solveOptionsFor(imported.project).schedulingOptions),
     task,
     imported,
   };
@@ -74,7 +76,7 @@ function solveFixture(mutate?: (imported: ImportResult, task: Task) => void) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -83,8 +85,8 @@ function solveFixture(mutate?: (imported: ImportResult, task: Task) => void) {
   const trace = result.backwardFloatTrace?.byTaskId[task.id];
   return {
     source: {
-      p6Source: imported.project.schedulingOptions?.p6Source,
-      p6UseRemainingStartForProgress: imported.project.schedulingOptions?.p6UseRemainingStartForProgress,
+      profile: imported.project.schedulingProfile?.id,
+      p6UseRemainingStartForProgress: resolveConventions(imported.project.schedulingProfile).p6UseRemainingStartForProgress,
       p6CompletePctType: task.p6CompletePctType,
       p6DurationType: task.p6DurationType,
       p6ActivityType: task.p6ActivityType,
@@ -259,11 +261,11 @@ if (!corpusRoot) {
         if (task.time.completion < 1 || !task.time.actualFinish) return false;
         const asDuration = structuredClone(task);
         asDuration.p6CompletePctType = 'CP_Drtn';
-        return explainP6CompletedDataDateWindow(asDuration, dataDate, imported.project.schedulingOptions).eligible;
+        return explainP6CompletedDataDateWindow(asDuration, dataDate, solveOptionsFor(imported.project).schedulingOptions).eligible;
       });
       const sourceFormIds = new Set(sourceForm.map(task => task.id));
       const eligible = physical.filter(task =>
-        explainP6CompletedDataDateWindow(task, dataDate, imported.project.schedulingOptions).eligible,
+        explainP6CompletedDataDateWindow(task, dataDate, solveOptionsFor(imported.project).schedulingOptions).eligible,
       );
       if (sourceForm.length === 0 && eligible.length === 0) continue;
       const result = solveProject({
@@ -273,7 +275,7 @@ if (!corpusRoot) {
         calendars: imported.resourceCalendars ?? [],
         dataDate: imported.project.statusDate,
         progressMode: imported.project.progressMode,
-        schedulingOptions: imported.project.schedulingOptions,
+        schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
         projectStartDate: imported.project.startDate,
         projectEndDate: imported.project.endDate,
       });

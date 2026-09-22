@@ -247,7 +247,9 @@
       "floatPathsMethod": "Méthode",
       "methodFree": "Marge libre (peeling)",
       "methodTotal": "Marge totale (classement)",
-      "maxPaths": "Chemins max."
+      "maxPaths": "Chemins max.",
+      "tfAuto": "Automatique (par défaut)",
+      "critThresholdHours": "Seuil (heures, par calendrier de tâche)"
     }
   },
   "newProject": {

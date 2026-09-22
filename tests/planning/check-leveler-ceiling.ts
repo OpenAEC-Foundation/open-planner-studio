@@ -18,6 +18,7 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -91,11 +92,11 @@ console.log('-- leveler-ceiling: plafond 0 gedraagt zich als constrainToFloat (g
 
   const rCeiling0 = levelResources(
     [taskX, taskY, taskZ], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, overrunCeilingDays: 0 },
+    { constrainToFloat: false, overrunCeilingDays: 0 }, legacyCpmOptions(),
   );
   const rConstrainFloat = levelResources(
     [taskX, taskY, taskZ], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: true },
+    { constrainToFloat: true }, legacyCpmOptions(),
   );
 
   ok('vooronderstelling: Y verschuift daadwerkelijk (geen triviale no-op)', rCeiling0.delays['y'] === 1);
@@ -122,14 +123,14 @@ console.log('-- leveler-ceiling: plafond N laat precies N werkdagen uitloop toe 
 
   const r2 = levelResources(
     [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, overrunCeilingDays: 2 },
+    { constrainToFloat: false, overrunCeilingDays: 2 }, legacyCpmOptions(),
   );
   ok('plafond 2 ⇒ B onopgelost', (r2.unresolved['b2']?.length ?? 0) > 0);
   eq('plafond 2 ⇒ reden CEILING_TOO_TIGHT', r2.unresolvedReasons['b2'], 'CEILING_TOO_TIGHT');
 
   const r3 = levelResources(
     [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, overrunCeilingDays: 3 },
+    { constrainToFloat: false, overrunCeilingDays: 3 }, legacyCpmOptions(),
   );
   eq('plafond 3 ⇒ B past precies (delay 3)', r3.delays['b2'], 3);
   ok('plafond 3 ⇒ geen onopgelost conflict', Object.keys(r3.unresolved).length === 0);
@@ -153,7 +154,7 @@ console.log('-- leveler-ceiling: onbereikbaar plafond door een deadline (geval 3
 
   const r4 = levelResources(
     [taskD, taskC], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult,
-    { constrainToFloat: false, overrunCeilingDays: 5 },
+    { constrainToFloat: false, overrunCeilingDays: 5 }, legacyCpmOptions(),
   );
   eq('D (hoogste prioriteit) plaatst op haar eigen PF, geen delay', r4.delays['d3'], undefined);
   eq('onbereikbaar plafond door constraint ⇒ eigen reden', r4.unresolvedReasons['c3'], 'CEILING_UNREACHABLE');

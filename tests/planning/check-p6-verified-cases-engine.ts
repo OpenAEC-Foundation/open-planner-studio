@@ -44,10 +44,12 @@ import { fileURLToPath } from 'node:url';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
 import { activeImportResult, isMultiDocumentImport } from '@/services/importTypes';
-import type { SchedulingOptions } from '@/types/project';
+import type { ProjectSchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import { explainP6CompletedLateRemainingWindowEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const diffs: string[] = [];
@@ -343,7 +345,7 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -362,7 +364,7 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
   const gate: Record<string, string> = {};
   for (const task of imported.tasks) {
     gate[task.id] = explainP6CompletedDataDateWindow(
-      task, dataDate, imported.project.schedulingOptions,
+      task, dataDate, solveOptionsFor(imported.project).schedulingOptions,
     ).reason;
   }
   return { measured, gate };
@@ -462,9 +464,9 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
   const b = imported.tasks.find(task => task.id === 'B')!;
   eq('3 dezelfde topologie MET targetvenster opent de poort wél', {
-    window: explainP6CompletedDataDateWindow(b, dataDate, imported.project.schedulingOptions).reason,
+    window: explainP6CompletedDataDateWindow(b, dataDate, solveOptionsFor(imported.project).schedulingOptions).reason,
     shared: explainP6CompletedLateRemainingWindowEligibility(
-      b, dataDate, imported.project.schedulingOptions,
+      b, dataDate, solveOptionsFor(imported.project).schedulingOptions,
     ).eligible,
   }, { window: 'eligible', shared: true });
   const result = solveProject({
@@ -474,7 +476,7 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -659,13 +661,17 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
     const opened = readXER(new Uint8Array(readFileSync(real)));
     const results = isMultiDocumentImport(opened) ? opened.results : [opened];
     eq('7 de echte export draagt dertien projecten', results.length, 13);
-    const agreeReal = (overrides?: Partial<SchedulingOptions>) => {
+    const agreeReal = (overrides?: Partial<ProjectSchedulingOptions>) => {
       let cells = 0; let eens = 0;
       const perCase: Record<string, string> = {};
       for (const [index, item] of CASES.entries()) {
         const imported = results.find(candidate => candidate.project.name === `XV${String(index + 1).padStart(2, '0')}`)
           ?? results[index]!;
-        const schedulingOptions = { ...imported.project.schedulingOptions, ...overrides };
+        // Rekenprofielen C4: de conventies komen uit het profiel van de import, de overrides zijn projectopties.
+        const schedulingOptions = effectiveSchedulingOptions({
+          schedulingProfile: imported.project.schedulingProfile,
+          schedulingOptions: { ...imported.project.schedulingOptions, ...overrides },
+        });
         const result = solveProject({
           tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
           calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,

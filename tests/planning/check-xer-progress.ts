@@ -4,6 +4,7 @@ import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { XerImportError } from '@/services/xer/xerTables';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -59,7 +60,7 @@ const solveFirewall = (imported: XerReadResult) => {
     calendars: [imported.calendar, ...(imported.resourceCalendars ?? [])],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
   });
   const task = result.tasks.get('FW');
@@ -164,6 +165,9 @@ function solved(expectFlag: boolean): string | undefined {
     '%R\tA\tP1\tC1\tA\tVerwacht einde\tTT_Task\tTK_Active\tCP_Phys\t10\t75\t8\t2\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t2026-08-12 16:00',
     '%E',
   ]);
+  // Rekenprofielen C4 (spec v3.1 §7): vroeger verving dit het hele optieblok, dus ook de
+  // XER-bronmarkering ⇒ OPS + alleen useExpectedFinishDates. Dat blijft zo: profiel weg.
+  imported.project.schedulingProfile = undefined;
   imported.project.schedulingOptions = { useExpectedFinishDates: expectFlag };
   const result = solveProject({
     tasks: imported.tasks,
@@ -172,7 +176,7 @@ function solved(expectFlag: boolean): string | undefined {
     calendars: [imported.calendar, ...(imported.resourceCalendars ?? [])],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
   });
   return result.tasks.get('A')?.earlyFinish;
@@ -188,7 +192,7 @@ function solvedResume(taskId: string): string | undefined {
     calendars: [progress.calendar, ...(progress.resourceCalendars ?? [])],
     dataDate: progress.project.statusDate,
     progressMode: progress.project.progressMode,
-    schedulingOptions: progress.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(progress.project).schedulingOptions,
     projectStartDate: progress.project.startDate,
   });
   return result.tasks.get(taskId)?.earlyFinish;
@@ -215,7 +219,7 @@ const reloadedSolve = solveProject({
   calendars: [reloaded.calendar, ...(reloaded.resourceCalendars ?? [])],
   dataDate: reloaded.project.statusDate,
   progressMode: reloaded.project.progressMode,
-  schedulingOptions: reloaded.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(reloaded.project).schedulingOptions,
   projectStartDate: reloaded.project.startDate,
 });
 eq('X7-5b losse P6-resume erft ook ná IFC-reload nooit de MSP-resume-route',

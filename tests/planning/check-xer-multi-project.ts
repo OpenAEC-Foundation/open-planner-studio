@@ -21,6 +21,7 @@ import { payloadFromImport } from '@/state/documentContract';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
+import { opsSolveInput } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -636,12 +637,12 @@ eq('10a iedere betrokken documentpayload draagt exact dezelfde gededupliceerde b
     { projectId: 'P-LINK-A', links: linkImport.externalLinks },
     { projectId: 'P-LINK-B', links: linkImport.externalLinks },
   ]);
-const solvedLinkB = solveProject({
+const solvedLinkB = solveProject(opsSolveInput({
   tasks: linkImport.documents[1].result.tasks.map(item => ({ ...item, time: { ...item.time } })),
   sequences: linkImport.documents[1].result.sequences,
   calendar: linkImport.documents[1].result.calendar,
   calendars: linkImport.documents[1].result.resourceCalendars ?? [],
-});
+}));
 eq('11 cross-projectlink stuurt de losse documentsolve niet',
   solvedLinkB.tasks.get('LB')?.earlyStart, '2026-01-02');
 

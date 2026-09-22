@@ -47,6 +47,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 // ── Lokale leestool-wikkel + nette fout ──────────────────────────────────────────────────────────
 
@@ -287,6 +288,15 @@ function getProjectInfo(s: AppState) {
       company: p.company,
       ...(p.statusDate ? { statusDate: p.statusDate } : {}),
       ...(p.progressMode ? { progressMode: p.progressMode } : {}),
+      // Rekenprofielen (plan C9): altijd expliciet, ook een OPS-project; `conventions` is de opgeloste
+      // set waarmee de solver rekent, `overrides` de letterlijke afwijkingen van de basis.
+      schedulingProfile: {
+        id: p.schedulingProfile?.id ?? 'ops',
+        baseId: p.schedulingProfile?.baseId ?? 'ops',
+        name: p.schedulingProfile?.name ?? '',
+        overrides: { ...(p.schedulingProfile?.overrides ?? {}) },
+        conventions: resolveConventions(p.schedulingProfile),
+      },
     },
     statistics: {
       totalTasks: tasks.length,

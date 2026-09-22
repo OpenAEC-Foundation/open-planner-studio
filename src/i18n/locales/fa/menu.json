@@ -247,7 +247,9 @@
       "floatPathsMethod": "روش",
       "methodFree": "شناوری آزاد (peeling)",
       "methodTotal": "شناوری کل (رتبه‌بندی)",
-      "maxPaths": "حداکثر مسیرها"
+      "maxPaths": "حداکثر مسیرها",
+      "tfAuto": "خودکار (پیش‌فرض)",
+      "critThresholdHours": "آستانه (ساعت، بر اساس تقویم کار)"
     }
   },
   "newProject": {

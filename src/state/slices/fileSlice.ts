@@ -23,6 +23,7 @@ import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
+import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import {
   invalidateUndoneHistoryForScopes,
@@ -497,7 +498,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
       // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
-      const notice = xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal);
+      // Rekenprofielen (spec v3.1 §6): één melding per geopend bestand — bij XER samengevoegd met de
+      // openingsmelding, anders een eigen melding met de actie naar Bestand → Projectinfo.
+      const notice = withSchedulingProfileNotice(
+        results,
+        xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+        openedDocumentIds[0] ?? '',
+      );
       if (notice) get().notify(notice);
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
