@@ -11,6 +11,8 @@ import type { Task } from '@/types/task';
 import type { XerSolvedProject } from './xerFidelity';
 import type { XerReplayPredicateLog } from './xerTaskReplay';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import type { EffectiveSchedulingOptions } from '@/types/project';
+import { setConvention } from './p6SemanticsOff';
 
 export interface XerReplaySourceContext {
   projectId: string;
@@ -20,7 +22,9 @@ export interface XerReplaySourceContext {
   projectCalendar: Readonly<WorkCalendar>;
   taskCalendar: Readonly<WorkCalendar>;
   assignments: readonly Readonly<ResourceAssignment>[];
-  schedulingOptions: ImportResult['project']['schedulingOptions'];
+  /** De opgeloste set (rekenprofielen C4): projectopties + conventies uit het profiel. */
+  schedulingOptions: EffectiveSchedulingOptions;
+  schedulingProfile: ImportResult['project']['schedulingProfile'];
 }
 
 export interface XerReplayPredicateDecision {
@@ -173,7 +177,8 @@ function sourceContexts(imported: ImportResult): XerReplaySourceContext[] {
     projectCalendar: imported.calendar,
     taskCalendar: (task.calendarId ? calendars.get(task.calendarId) : undefined) ?? imported.calendar,
     assignments: assignments.get(task.id) ?? [],
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
+    schedulingProfile: imported.project.schedulingProfile,
   }));
 }
 
@@ -334,7 +339,7 @@ export const syntheticZeroRegressionCandidate: XerTaskReplayCandidate = {
   predicate: context => ({
     matched: false,
     source: {
-      p6Source: context.schedulingOptions?.p6Source ?? null,
+      profileId: context.schedulingProfile?.id ?? null,
       activityType: context.task.p6ActivityType ?? null,
     },
   }),
@@ -347,8 +352,8 @@ export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
   replayFrom: 'source',
   predicate: context => {
     const source = {
-      p6Source: context.schedulingOptions?.p6Source ?? null,
-      boundaryEnabled: context.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true,
+      profileId: context.schedulingProfile?.id ?? null,
+      boundaryEnabled: context.schedulingOptions.p6FinishMilestoneBoundaryWindow === true,
       useProjectEndDateForFloat: context.schedulingOptions?.useProjectEndDateForFloat === true,
       activityType: context.task.p6ActivityType ?? null,
       milestoneKind: context.task.milestoneKind ?? null,
@@ -359,18 +364,14 @@ export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
       assignmentCount: context.assignments.length,
     };
     return {
-      matched: source.p6Source === 'XER'
+      matched: source.profileId === 'p6'
         && source.boundaryEnabled,
       source,
     };
   },
   apply: (imported, matchedTaskIds) => {
     if (matchedTaskIds.size === 0) return;
-    const schedulingOptions = imported.project.schedulingOptions;
-    if (!schedulingOptions || schedulingOptions.p6Source !== 'XER') return;
-    imported.project.schedulingOptions = {
-      ...schedulingOptions,
-      p6FinishMilestoneBoundaryWindow: false,
-    };
+    if (imported.project.schedulingProfile?.baseId !== 'p6') return;
+    setConvention(imported, 'p6FinishMilestoneBoundaryWindow', false);
   },
 };

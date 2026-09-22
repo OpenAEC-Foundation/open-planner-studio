@@ -165,6 +165,9 @@ function solved(expectFlag: boolean): string | undefined {
     '%R\tA\tP1\tC1\tA\tVerwacht einde\tTT_Task\tTK_Active\tCP_Phys\t10\t75\t8\t2\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t2026-08-12 16:00',
     '%E',
   ]);
+  // Rekenprofielen C4 (spec v3.1 §7): vroeger verving dit het hele optieblok, dus ook de
+  // XER-bronmarkering ⇒ OPS + alleen useExpectedFinishDates. Dat blijft zo: profiel weg.
+  imported.project.schedulingProfile = undefined;
   imported.project.schedulingOptions = { useExpectedFinishDates: expectFlag };
   const result = solveProject({
     tasks: imported.tasks,

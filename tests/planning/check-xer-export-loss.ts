@@ -18,6 +18,7 @@ import type {
   XerTaskResourceSource,
 } from '@/services/xer/xerResourceTypes';
 import { readFileSync } from 'node:fs';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
 declare const process: { exit(code: number): never };
 const failures: string[] = [];
@@ -305,7 +306,8 @@ store().saveBaseline('Eerste');
 store().saveBaseline('Tweede actief');
 store().setProject({
   progressMode: 'PROGRESS_OVERRIDE',
-  schedulingOptions: { p6Source: 'XER', lagCalendar: '24hour', makeOpenEndedCritical: true },
+  schedulingOptions: { lagCalendar: '24hour', makeOpenEndedCritical: true },
+  schedulingProfile: builtInProfile('p6'),
 });
 
 const richFixture = makeXerFixture({

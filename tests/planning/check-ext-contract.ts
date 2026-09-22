@@ -305,7 +305,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
 {
   const hostileOptions = {
     ...VOL_PROJECT.schedulingOptions,
-    p6Source: 'XER' as const,
+    p6Source: 'XER' as const, // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,

@@ -152,7 +152,7 @@ eq('PROJECT-data-date completed LOE: TT_LOE blijft binnen de smalle actualFinish
   explainCompletedXerLoeActualFinishEligibility(
     dataDateOnlyLoe,
     dataDateOnlyCompletedLoe.project.statusDate ? parseInstant(dataDateOnlyCompletedLoe.project.statusDate) : null,
-    dataDateOnlyCompletedLoe.project.schedulingOptions,
+    solveOptionsFor(dataDateOnlyCompletedLoe.project).schedulingOptions,
     dataDateOnlyIncoming,
     dataDateOnlyOutgoing,
   ), { eligible: true, reason: 'eligible' });

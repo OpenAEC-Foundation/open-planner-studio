@@ -9,7 +9,7 @@ import {
   XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS,
 } from '@/services/xer/xerScheduleOptions';
 import { XerImportError } from '@/services/xer/xerTables';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type { ConventionKey, LegacySchedulingOptions, ProgressMode, SchedulingOptions } from '@/types/project';
 import {
   measureXerFidelity,
   type XerSolvedProject,
@@ -29,6 +29,7 @@ import {
   type RawXerScheduleScan,
 } from './xerScheduleOptionsGroundTruth';
 import { legacyEffective } from './legacySolveOptions';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 const BLAST_AXES = [...XER_FIDELITY_AXES, 'isCritical'] as const;
 type BlastAxis = typeof BLAST_AXES[number];
@@ -58,7 +59,8 @@ const DEFERRED_DEFAULTS = [] as const;
 
 interface SolverVariant {
   progressMode?: ProgressMode;
-  schedulingOptions?: SchedulingOptions;
+  /** Een (legacy-)blob; `projectResult` zet hem via `legacyEffective` om (rekenprofielen C1/C4). */
+  schedulingOptions?: LegacySchedulingOptions;
 }
 
 interface DefaultMeasurement {
@@ -745,9 +747,13 @@ function measureCorpus(root: string): BlastRadiusBaseline {
         taskCount: imported.tasks.filter(task => task.p6ActivityType !== undefined).length,
       });
       const actualMetadata = imported.xer?.scheduleOptions;
+      // Rekenprofielen C4: de conventies staan in het profiel; vergeleken als opgeloste set in de
+      // sleutelvolgorde van de onafhankelijke hand-lijst.
+      const resolved = resolveConventions(imported.project.schedulingProfile);
       const actual = {
         progressMode: imported.project.progressMode,
         schedulingOptions: imported.project.schedulingOptions,
+        conventions: Object.fromEntries(Object.keys(expected.conventions).map(key => [key, resolved[key as ConventionKey]])),
         source: actualMetadata?.source,
         retainedSource: actualMetadata?.retainedSource,
         fallbacks: actualMetadata?.fallbacks,
@@ -801,20 +807,28 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       expectedXerScheduleOptions(file.rawScan, imported.project.id, {
         taskCount: imported.tasks.filter(task => task.p6ActivityType !== undefined).length,
       }));
+    // Rekenprofielen C4: de solvervariant draagt opties + opgeloste conventies als één legacy-blob
+    // mét bronmarkering, zodat `legacyEffective` exact het verwachte P6-profiel oplevert.
     const xerDefaultsVariants = xerDefaultsExpected.map(expected => ({
       progressMode: expected.progressMode,
-      schedulingOptions: expected.schedulingOptions,
+      schedulingOptions: { p6Source: 'XER', ...expected.schedulingOptions, ...expected.conventions } as LegacySchedulingOptions,
     }));
     openedProjectsWithDefaults += importedProjects.length;
-    wiredProjectsWithDefaults += importedProjects.filter((imported, index) =>
-      JSON.stringify({
+    wiredProjectsWithDefaults += importedProjects.filter((imported, index) => {
+      const resolved = resolveConventions(imported.project.schedulingProfile);
+      const expected = xerDefaultsExpected[index];
+      return JSON.stringify({
         progressMode: imported.project.progressMode,
         schedulingOptions: imported.project.schedulingOptions,
+        conventions: Object.fromEntries(Object.keys(expected.conventions).map(key => [key, resolved[key as ConventionKey]])),
         source: imported.xer?.scheduleOptions.source,
       }) === JSON.stringify({
-        ...xerDefaultsVariants[index],
-        source: xerDefaultsExpected[index].source,
-      })).length;
+        progressMode: expected.progressMode,
+        schedulingOptions: expected.schedulingOptions,
+        conventions: expected.conventions,
+        source: expected.source,
+      });
+    }).length;
     const house = importedProjects.map(imported => projectResult(imported, {}));
     const houseMeasurement = measureXerFidelity(openedTruth, house);
     if (houseMeasurement.errors.length > 0) throw new Error(`${id}: fidelity-uitlijning mislukt`);

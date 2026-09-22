@@ -2,6 +2,7 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 const failures: string[] = [];
 let checks = 0;
@@ -128,15 +129,15 @@ equal('geen SCHEDOPTIONS-rij is herkenbaar als XER-defaults met PROJECT-signaal 
     scheduleRows: [],
   });
 equal('PROJECT-afleiding Y/N raakt uitsluitend de toegestane XER-progressievlag', [
-  noRowY.project.schedulingOptions?.p6UseRemainingStartForProgress,
-  noRowN.project.schedulingOptions?.p6UseRemainingStartForProgress,
+  resolveConventions(noRowY.project.schedulingProfile).p6UseRemainingStartForProgress,
+  resolveConventions(noRowN.project.schedulingProfile).p6UseRemainingStartForProgress,
 ], [true, false]);
 
 const invalidProjectSignal = opened(bytes(xerLines(undefined, 'MAYBE', '2099-01-01 00:00', '999')));
 equal('onbekend PROJECT-signaal valt fail-closed terug met een fallbackdiagnose', {
   source: invalidProjectSignal.xer.scheduleOptions.source,
   useRemainingStartForProgress:
-    invalidProjectSignal.project.schedulingOptions?.p6UseRemainingStartForProgress,
+    resolveConventions(invalidProjectSignal.project.schedulingProfile).p6UseRemainingStartForProgress,
   fallbacks: invalidProjectSignal.xer.scheduleOptions.fallbacks,
 }, {
   source: 'xer-defaults',
@@ -157,7 +158,7 @@ equal('finish-float-token kiest de finale SchedulingOptions zonder stored oracle
   lagCalendar: finishRow.project.schedulingOptions?.lagCalendar,
   totalFloatMode: finishRow.project.schedulingOptions?.totalFloatMode,
   useProjectEndDateForFloat: finishRow.project.schedulingOptions?.useProjectEndDateForFloat,
-  p6UseRemainingStartForProgress: finishRow.project.schedulingOptions?.p6UseRemainingStartForProgress,
+  p6UseRemainingStartForProgress: resolveConventions(finishRow.project.schedulingProfile).p6UseRemainingStartForProgress,
 }, {
   progressMode: 'RETAINED_LOGIC',
   lagCalendar: 'predecessor',
@@ -197,8 +198,8 @@ equal('mutatieproef tokenflip: FT_FF -> FT_SS verandert de bronkeuze aantoonbaar
   startRow.project.schedulingOptions?.totalFloatMode,
   'start');
 equal('mutatieproef tokenflip laat de PROJECT-afleiding intact',
-  startRow.project.schedulingOptions?.p6UseRemainingStartForProgress,
-  finishRow.project.schedulingOptions?.p6UseRemainingStartForProgress);
+  resolveConventions(startRow.project.schedulingProfile).p6UseRemainingStartForProgress,
+  resolveConventions(finishRow.project.schedulingProfile).p6UseRemainingStartForProgress);
 
 // Mutatieproef 2: dezelfde bytes zonder de SCHEDOPTIONS-rij vallen terug naar defaults.
 equal('mutatieproef row verwijderen: bron wordt XER-defaults', noRowY.xer.scheduleOptions.source, 'xer-defaults');
@@ -206,7 +207,7 @@ equal('mutatieproef row verwijderen: expliciet finish-float verdwijnt uit de fin
   noRowY.project.schedulingOptions?.totalFloatMode,
   'finish');
 equal('mutatieproef row verwijderen: PROJECT-signaal blijft behouden',
-  noRowY.project.schedulingOptions?.p6UseRemainingStartForProgress,
+  resolveConventions(noRowY.project.schedulingProfile).p6UseRemainingStartForProgress,
   true);
 
 // Mutatieproef 3: stored P6-late/float-orakel wijzigen mag geen options of solverinput wijzigen.

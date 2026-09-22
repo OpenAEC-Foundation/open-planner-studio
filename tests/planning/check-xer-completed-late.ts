@@ -183,7 +183,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
   for (const id of ['A', 'B', 'G']) {
     const task = imported.tasks.find(t => t.id === id);
     if (!task) throw new Error(`fixture mist taak ${id}`);
-    const decision = explainP6CompletedDataDateWindow(task, dataDate, imported.project.schedulingOptions);
+    const decision = explainP6CompletedDataDateWindow(task, dataDate, solveOptionsFor(imported.project).schedulingOptions);
     eq(`completed-late fixture: taak ${id} zit in de completedWindow-poort`, decision, { eligible: true, reason: 'eligible' });
   }
 }
@@ -311,7 +311,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
 {
   const { imported } = solveWith();
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
-  const so = imported.project.schedulingOptions;
+  const so = solveOptionsFor(imported.project).schedulingOptions;
   const nx = imported.tasks.find(t => t.id === 'NX');
   if (!nx) throw new Error('fixture mist taak NX');
   eq('poortpariteit: NX heeft completion 1 maar géén actualFinish', {

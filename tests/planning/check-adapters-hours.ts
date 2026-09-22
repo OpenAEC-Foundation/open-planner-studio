@@ -133,7 +133,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI zonder CriticalSlackLimit introduceert geen schedulingOptions',
     p.project.schedulingOptions, undefined);
   eq('MSPDI introduceert geen XER-project- of kalenderprovenance',
-    [p.project.schedulingOptions?.p6Source, p.calendar.p6Source], [undefined, undefined]);
+    [p.project.schedulingProfile, p.calendar.p6Source], [undefined, undefined]);
 }
 
 // Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
