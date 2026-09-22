@@ -1425,17 +1425,49 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   const srcRoot = kandidaten.find((p) => existsSync(p)) ?? null;
   truthy('16m de broncontrole vindt src/', srcRoot !== null);
   if (srcRoot) {
+    // Twee schrijfwijzen (critreview op ded4d8c3, bevinding 7): de toekenning `isDirty = true` én de
+    // objectliteral `isDirty: true` (een payload die zo wordt opgebouwd omzeilt markDocumentEdited
+    // net zo goed). Per REGEL, commentaarregels overgeslagen. Elke objectliteral-plek die bewust
+    // blijft staat hieronder met reden én een fragment van de regel; een uitzondering die niets
+    // meer vangt faalt ook (16n2), zodat de lijst niet stil veroudert.
+    const UITZONDERINGEN: { file: string; fragment: string; reden: string }[] = [
+      { file: 'services/mcp/tools/documentTools.ts', fragment: 'verse undo-stack en `isDirty: true`',
+        reden: 'tooltekst voor de AI-client (stringliteral), geen state' },
+      { file: 'services/recovery/recoveryStore.ts', fragment: 'docs.push({ id, ifc, filePath: null, isDirty: true',
+        reden: 'crashherstelmanifest; een hersteld document is te bewaren, de importvlag komt uit het IFC zelf' },
+      { file: 'services/recovery/recoveryStore.ts', fragment: "docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true",
+        reden: 'idem, legacy-manifest' },
+      { file: 'services/recovery/recoveryStore.ts', fragment: 'id, ifc: docKey(sid, id), filePath: null, isDirty: true',
+        reden: 'idem, manifestregel per document' },
+      { file: 'state/slices/documentSlice.ts', fragment: 'isDirty: true,',
+        reden: 'kopie van een document: zet in dezelfde literal expliciet importPristine: false' },
+      { file: 'state/slices/librarySlice.ts', fragment: '...r.before, isDirty: true, resourceLoadResult: null',
+        reden: 'undoDistribution op een slapend document: de verdeling zelf liep via applyLeveling → finishMutation '
+          + '(vlag al false in de payload); r.before is een Snapshot zonder importPristine, dus de vlag blijft false '
+          + '— zelfde uitkomst als restoreSnapshot op het actieve pad (16l)' },
+    ];
+    const gebruikt = new Set<number>();
     const overtreders: string[] = [];
     const loop = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = joinPath(dir, entry.name);
-        if (entry.isDirectory()) loop(full);
-        else if (/\.tsx?$/.test(entry.name) && !full.endsWith('documentEdited.ts')
-          && /\bisDirty\s*=\s*true\b/.test(readFileSync(full, 'utf8'))) overtreders.push(full.slice(srcRoot.length));
+        if (entry.isDirectory()) { loop(full); continue; }
+        if (!/\.tsx?$/.test(entry.name) || full.endsWith('documentEdited.ts')) continue;
+        const rel = full.slice(srcRoot.length).replace(/\\/g, '/').replace(/^\//, '');
+        readFileSync(full, 'utf8').split('\n').forEach((line, i) => {
+          const t = line.trim();
+          if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
+          if (!/\bisDirty\s*=\s*true\b/.test(line) && !/\bisDirty\s*:\s*true\b/.test(line)) return;
+          const u = UITZONDERINGEN.findIndex((x) => x.file === rel && line.includes(x.fragment) && /\bisDirty\s*:/.test(line));
+          if (u >= 0) { gebruikt.add(u); return; }
+          overtreders.push(`${rel}:${i + 1}`);
+        });
       }
     };
     loop(srcRoot);
-    eq('16n `isDirty = true` staat nergens buiten markDocumentEdited (documentEdited.ts)', overtreders, []);
+    eq('16n `isDirty = true` / `isDirty: true` staat nergens buiten markDocumentEdited (documentEdited.ts) en de uitzonderingenlijst', overtreders, []);
+    eq('16n2 elke uitzondering vangt nog een regel (geen verouderde lijst)',
+      UITZONDERINGEN.filter((_, i) => !gebruikt.has(i)).map((x) => `${x.file}: ${x.fragment}`), []);
   }
 }
 
