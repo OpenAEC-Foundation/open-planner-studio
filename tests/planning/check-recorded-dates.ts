@@ -1449,6 +1449,29 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   eq('17a onleesbare CSV-datums: geen modus, geen vastlegging', [S().datesAsRecorded, S().recordedDates], [false, null]);
 }
 
+// ── (18) Heropenen van een EIGEN IFC geeft geen openingsmelding (critreview ded4d8c3, bevinding 6) ─
+// Scenario: verse import (modus aan) → een bewerking die de modus NIET verlaat (projectomschrijving,
+// geen datumwijziging) wist "ongewijzigd sinds import" → opslaan ín de modus → heropenen. Het eigen
+// IFC ('ifc-own', vlag uit) biedt de weergave alleen aan; dat aanbod hoort in de strook, niet als
+// openingsmelding. Het echte openpad (`applyOpenedImport`), dat ook de melding plaatst.
+{
+  const importMeldingen = () => S().ui.notifications.filter((n) =>
+    n.messageKey === 'notifications.importDatesAsRecorded' || n.messageKey === 'notifications.importDatesAsRecordedOffer').length;
+  S().newProject();
+  const voorImport = importMeldingen();
+  S().applyOpenedImport(readIFC(externIfc('18')), { filePath: null, recompute: true });
+  eq('18a tegenproef: een verse import in de modus geeft wél de openingsmelding', importMeldingen() - voorImport, 1);
+  S().setProject({ description: 'bewerkt, zonder datumwijziging' });
+  eq('18b de bewerking wist de vlag maar laat de modus staan', [S().datesAsRecorded, S().importPristine], [true, false]);
+  const eigen = readIFC(writeIFC(buildWriteIFCInput(S())));
+  eq('18c het opgeslagen bestand is een eigen IFC zonder vlag', [eigen.recordedTimesOrigin, eigen.importPristine], ['ifc-own', false]);
+  S().newProject();
+  const voorHeropen = importMeldingen();
+  S().applyOpenedImport(eigen, { filePath: null, recompute: true });
+  eq('18d heropenen: alleen het aanbod in de strook (recordedDates gezet, modus uit)', [S().recordedDates !== null, S().datesAsRecorded], [true, false]);
+  eq('18e …en GEEN openingsmelding', importMeldingen() - voorHeropen, 0);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  recorded-dates: alle checks groen (${checks})`);

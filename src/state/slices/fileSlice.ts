@@ -11,7 +11,7 @@ import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
-import { hydratePayload, payloadFromImport, type DocumentPayload } from '../documentContract';
+import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
@@ -479,6 +479,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
       // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
       let datesAsRecordedOfferTotal = 0;
+      // Critreview op ded4d8c3, bevinding 6: de formaatneutrale melding hieronder telt een AANBOD
+      // alleen mee bij een VERSE import. Een heropend eigen IFC ('ifc-own') krijgt de strook met het
+      // aanbod, maar geen openingsmelding — dat is het eigen projectbestand, geen import.
+      let freshOfferTotal = 0;
       for (const result of results) {
         // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
         // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
@@ -492,7 +496,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
         const shifted = get().recordedDates?.shifted ?? 0;
         if (get().datesAsRecorded) datesAsRecordedShiftedTotal += shifted;
-        else datesAsRecordedOfferTotal += shifted;
+        else {
+          datesAsRecordedOfferTotal += shifted;
+          if (isFreshImportOrigin(get().recordedDates?.origin)) freshOfferTotal += shifted;
+        }
       }
 
       // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
@@ -505,12 +512,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // opgeslagen" — formaatneutraal verwoord (de strook kiest zelf de Primavera-tekst voor P6 XML).
       // Alleen wanneer er iets te melden is; een bestand zonder restverschillen blijft stil, zoals
       // vóór dit besluit.
-      if (!notice && (datesAsRecordedShiftedTotal > 0 || datesAsRecordedOfferTotal > 0)) {
+      if (!notice && (datesAsRecordedShiftedTotal > 0 || freshOfferTotal > 0)) {
         const shifted = datesAsRecordedShiftedTotal > 0;
         get().notify({
           severity: 'info',
           messageKey: shifted ? 'notifications.importDatesAsRecorded' : 'notifications.importDatesAsRecordedOffer',
-          params: { count: shifted ? datesAsRecordedShiftedTotal : datesAsRecordedOfferTotal },
+          params: { count: shifted ? datesAsRecordedShiftedTotal : freshOfferTotal },
           helpArticleId: RECORDED_DATES_HELP_ARTICLE_ID,
         });
       }
