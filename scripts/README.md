@@ -51,6 +51,24 @@ aangeroepen:
 `activity_code` en de `*_p6`-kolommen komen mee; kloktijden en actual-suffixen blijven onvertaald.
 De `*_engine`-kolommen en PASS-oordelen zijn uitdrukkelijk geen brondata voor deze generator.
 
+## Regel A: landingsmeting per rekenprofiel (corpusgebonden, niet in `verify`)
+
+`npm run measure:profiles` → `measure-profiles.mjs`. De landingspoort voor elke motorwijziging
+(rekenprofielen-spec §2 besluit 5, §5): draait elk onderdeel als eigen `bash tests/planning/run.sh
+<check>` en print per profiel exitcode, tellingen en cel-delta.
+
+| onderdeel | check | oordeel |
+|---|---|---|
+| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` (exact → inexact of een verslechterde emmer is rood) plus de drie nuldoelregels. Zijn die drie de énige rode regels en is de cel-poort groen, dan status NULDOEL = regel A gehouden; `--strict` maakt ook dat exit 1 |
+| MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort |
+| vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek en in de pas met de v2-tellingen |
+| `--full` (optioneel) | de volledige `run.sh`, zonder `OPS_XER_CORPUS` | standaard uit: draait al in `npm run verify`, en machinebreed hoort er maar één zware run tegelijk te lopen |
+
+Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
+uitvoer). Een verbeterde cel is groen en wordt als "te herpinnen" gemeld; herpinnen gaat met
+`OPS_XER_CELLS_WRITE=1 OPS_XER_CORPUS=… bash tests/planning/run.sh check-xer-product-fidelity-x12.ts`
+en wordt geweigerd zodra er één rode cel is.
+
 ## Release en publicatie
 
 | script | aangeroepen door | doet |
