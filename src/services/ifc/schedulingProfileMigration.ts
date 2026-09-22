@@ -1,10 +1,27 @@
 import type {
-  BuiltInProfileId, LegacySchedulingOptions, Project, ProjectSchedulingOptions, SchedulingConventions,
+  BuiltInProfileId, ConventionKey, LegacySchedulingOptions, Project, ProjectSchedulingOptions, SchedulingConventions,
   SchedulingOptions, SchedulingProfile,
 } from '@/types/project';
 import {
   CONVENTIONS, builtInProfile, conventionsFor, diffAgainstBase, isConventionKey, resolveConventions,
+  type ConventionDescriptor,
 } from '@/engine/scheduler/conventions/registry';
+
+/**
+ * De conventies die in een oud XER-IFC (`p6Source: 'XER'`, zonder `OPS_SchedulingProfile`) vanzelf
+ * AAN gingen: B1–B5, die vóór de rekenprofielen uitsluitend aan `p6Source` hingen (spec bijlage A).
+ * Bewust een GEPINDE lijst en niet "elke groep-B-conventie": een later toegevoegde conventie bestond
+ * in zo'n bestand niet en mag daar niet stil aangaan (eindreview I4). Zie `docs/recepten/conventie.md`.
+ */
+export const LEGACY_XER_ALWAYS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
+  'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
+  'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
+]);
+
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: alleen B1–B5 aan, al het andere uit. */
+export function legacyXerDefault(d: ConventionDescriptor): boolean {
+  return LEGACY_XER_ALWAYS_ON.has(d.id);
+}
 
 /**
  * Migratie- en compatibiliteitslaag voor het legacy `OPS_SchedulingOptions`-blok (rekenprofielen,
@@ -47,9 +64,9 @@ export function legacyOptionsToProfile(blob: LegacySchedulingOptions | undefined
     const resolved = conventionsFor(d => {
       const value = blob[d.id];
       // Een expliciet gezette vlag wint altijd (ook voor B1–B5, zoals in de oude motorvertaling —
-      // M1.3 bewijst die gelijkheid); afwezig ⇒ B aan, A uit.
+      // M1.3 bewees die gelijkheid); afwezig ⇒ alleen de gepinde B1–B5 aan (`LEGACY_XER_ALWAYS_ON`).
       if (typeof value === 'boolean') return value;
-      return d.group === 'B';
+      return legacyXerDefault(d);
     });
     return { profile: { ...builtInProfile('p6'), overrides: diffAgainstBase('p6', resolved) }, options };
   }

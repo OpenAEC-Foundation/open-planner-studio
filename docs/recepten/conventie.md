@@ -18,9 +18,15 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
 2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep, de drie
    ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden),
-   `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag. `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt
-   voor bestanden mét `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is
-   de sleutelvolgorde in de IFC-JSON: voeg achteraan toe.
+   `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag.
+   `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt voor bestanden mét
+   `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is de sleutelvolgorde
+   in de IFC-JSON: voeg achteraan toe. **Let op de groep:** kies je groep `B`, dan gaat de conventie
+   daarmee NIET vanzelf aan in oude XER-IFC's — die migratie (`legacyOptionsToProfile`) zet alleen de
+   gepinde B1–B5 uit `LEGACY_XER_ALWAYS_ON` (`src/services/ifc/schedulingProfileMigration.ts`) aan, want
+   een nieuwe conventie bestond in zo'n bestand niet. Breid die lijst nooit uit voor een nieuwe conventie.
+2a. **IFC-sanitizer.** Voeg de sleutel toe aan `BOOLEAN_KEYS` in `src/services/ifc/schedulingOptionsRead.ts`;
+   anders gooit de lezer van het legacy-optieblok (`sanitizeSchedulingOptions`) hem stil weg.
 3. **Motor.** Lees uitsluitend `schedulingOptions.<id>`. Nooit het bronformaat, nooit een lezer-import:
    `npm run verify:conventions` faalt anders. Een nieuwe lezing van een herkomstveld (`p6ProjectId`
    e.d.) laat de gepinde datagate-telling stijgen en maakt de poort ook rood — bespreek dat eerst.
