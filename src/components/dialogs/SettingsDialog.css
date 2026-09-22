@@ -46,7 +46,7 @@
 .settings-header span {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 600;
   color: var(--theme-text);
 }
@@ -54,7 +54,7 @@
 .settings-header .modal-close-btn {
   background: none;
   border: none;
-  font-size: calc(16px * var(--ui-font-scale, 1));
+  font-size: var(--text-heading);
   color: var(--theme-text-dim);
   cursor: pointer;
   padding: 0;
@@ -102,7 +102,7 @@
 
 .settings-tab {
   padding: 8px 10px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   background: transparent;
   border: none;
   color: var(--theme-text-dim);
@@ -141,7 +141,7 @@
 .settings-section h3 {
   margin: 0 0 8px 0;
   font-family: var(--font-heading);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -151,7 +151,7 @@
 }
 
 .settings-row {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text);
   margin-bottom: 4px;
 }
@@ -166,7 +166,7 @@
   background: none;
   border: none;
   color: var(--theme-accent-hover);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   padding: 0;
   cursor: pointer;
   text-decoration: none;
@@ -177,47 +177,6 @@
 
 .settings-link:hover {
   text-decoration: underline;
-}
-
-/* Language list */
-.settings-lang-list {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--theme-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  overflow-y: auto;
-}
-
-.settings-lang-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  background: transparent;
-  color: var(--theme-text);
-  cursor: pointer;
-  transition: background 0.1s;
-  border-bottom: 1px solid var(--theme-border);
-}
-
-.settings-lang-item:last-child {
-  border-bottom: none;
-}
-
-.settings-lang-item:hover {
-  background: var(--theme-hover);
-}
-
-.settings-lang-item.active {
-  background: var(--theme-accent);
-  color: var(--theme-accent-on);
-}
-
-.settings-lang-code {
-  font-weight: 700;
-  min-width: 20px;
 }
 
 /* Footer */
@@ -240,7 +199,7 @@
   padding: 6px 20px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
@@ -303,13 +262,13 @@
 }
 
 .scrollzoom-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text);
 }
 
 .scrollzoom-hint {
   margin: 4px 0 0 0;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   line-height: 1.4;
   color: var(--theme-text-muted);
 }

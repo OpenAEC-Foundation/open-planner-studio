@@ -46,9 +46,11 @@ CI. Ten steps, run in this order:
 | `npm run verify:examples` | the example projects in `examples/` |
 | `npm run verify:docs` | the in-app documentation, 14 languages |
 | `npm run verify:i18n` | missing translation keys relative to `nl` |
+| `npm run verify:release-highlights-json` | `public/release-highlights.json` matches the release-highlight catalog |
 | `npm run verify:store-boundaries` | core runtime factories and store-bound MCP tools never import `useAppStore`/`appStoreContext` |
 | `npm run verify:gantt-boundaries` | AST gate on the renderer/viewport/pointer/table boundaries |
 | `npm run verify:cycles` | circular imports within `src/` |
+| `npm run verify:text-roles` | interface text sizes only via the six text roles (`text-caption` … `text-title`, `var(--text-…)`) — no bare px/rem, `text-[Npx]` or Tailwind default sizes |
 
 `npm run verify:audit` (`npm audit --audit-level=high`) exists as a separate command but is
 deliberately **not** part of `verify`: a newly published advisory would otherwise turn every push

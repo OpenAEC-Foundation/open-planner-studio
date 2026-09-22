@@ -267,7 +267,7 @@ test('hook synchronization: de updatecontrole start eenmaal per open sessie', as
     window.__OPS__!.store.getState().setUI({ showSettingsDialog: true });
   });
 
-  await page.getByRole('button', { name: /^(Application|Applicatie)$/ }).click();
+  await page.getByRole('button', { name: /^(Advanced|Geavanceerd)$/ }).click();
   await page.getByRole('button', { name: /^(Check for updates|Controleren op updates)$/ }).click();
   await expect.poll(() => page.evaluate(() => (
     window as Window & { __opsUpdateCheckStarts?: number }
@@ -283,7 +283,7 @@ test('hook synchronization: de updatecontrole start eenmaal per open sessie', as
 
   await page.getByRole('dialog').getByTitle(/^(Close|Sluiten)$/).click();
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await page.getByRole('button', { name: /^(Application|Applicatie)$/ }).click();
+  await page.getByRole('button', { name: /^(Advanced|Geavanceerd)$/ }).click();
   await page.getByRole('button', { name: /^(Check for updates|Controleren op updates)$/ }).click();
   await expect.poll(() => page.evaluate(() => (
     window as Window & { __opsUpdateCheckStarts?: number }
@@ -317,9 +317,7 @@ test('hook synchronization: een taalwissel start de recoverycontrole niet opnieu
     window as Window & { __opsRecoveryOpenCount?: number }
   ).__opsRecoveryOpenCount ?? 0);
 
-  await page.getByRole('button', { name: /^(Language|Taal)$/ }).click();
-  const language = page.getByRole('button', { name: /^(Language|Taal)$/ }).last();
-  await language.click();
+  await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Nederlands/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'nl');
   await page.waitForTimeout(250);

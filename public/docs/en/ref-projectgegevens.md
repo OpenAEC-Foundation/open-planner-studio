@@ -5,7 +5,6 @@ The **Project Information** window holds the project's metadata plus the **Calcu
 ## Opening
 
 - **Settings** (ribbon tab) → ribbon group **Project** → **Project info**.
-- Settings window (gear ⚙) → **General** tab → **Project information...**
 - **File** → **Project info** — a simplified variant in the Backstage, with only the metadata fields (no Calculation section).
 
 **Apply** commits all changes at once; **Cancel**, **Esc** or a click outside the window discards them. **Enter** does the same as Apply.

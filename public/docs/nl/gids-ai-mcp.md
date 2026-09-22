@@ -17,7 +17,7 @@ De bridge werkt **alleen in de desktop-app**. In de browserversie is het AI-tabb
 
 ## Aanzetten
 
-De AI-modus staat standaard uit. Je zet hem aan bij **Instellingen → Toepassing → AI-modus inschakelen** — via het tandwiel, via het lint-tabblad Instellingen of via Bestand → Instellingen; alle drie tonen dezelfde schakelaar.
+De AI-modus staat standaard uit. Je zet hem aan bij **Instellingen → Geavanceerd → AI-modus inschakelen** — via het tandwiel, via het lint-tabblad Instellingen of via Bestand → Instellingen; alle drie tonen dezelfde schakelaar.
 
 Zodra hij aanstaat, verschijnt er een extra tabblad **AI** in het lint. Zet je de AI-modus weer uit, dan verdwijnt het tabblad en wordt een draaiende bridge meteen gestopt — er blijft dus nooit een server luisteren zonder dat het tabblad erbij staat.
 
@@ -100,6 +100,22 @@ Daarbovenop komt de gewone ongedaan-maak-geschiedenis: een assistent deelt die m
 **De assistent ziet geen tools, of krijgt een foutmelding over toegang.** Dan klopt het token niet. Dat gebeurt vooral als je op **Nieuw token** hebt geklikt nadat je de koppeling had gemaakt: de assistent draagt dan nog het oude. Kopieer het nieuwe uit het venster **Verbinden** en werk de configuratie van je client bij.
 
 **Er gebeurt niets terwijl de assistent zegt dat het gelukt is.** Kijk in het activiteitenpaneel wat hij daadwerkelijk heeft aangeroepen en wat er terugkwam. Staat daar een weigering, dan noemt die vrijwel altijd het veld dat fout was én het alternatief.
+
+## Laat je AI-assistent goed plannen
+
+Een assistent die de tools kent, kan nog steeds een planning bouwen waar geen planner iets aan heeft:
+taken zonder relaties, een vaste datum op elke taak, of een opdeling die veel te fijn is om bij te
+houden. Dat hoef je niet meer zelf te voorkomen. Bij het verbinden krijgt de assistent de kernregels
+automatisch mee — de bridge stuurt ze in het `instructions`-veld van de MCP-handshake, en clients
+zetten die tekst in hun systeemprompt: begin bij de mijlpalen, taken van ongeveer een dag tot twee
+weken, relaties in plaats van vaste datums, en meld je aannames terug.
+
+De volledige uitleg staat in de gids [Goed plannen](docs://gids-goed-plannen). Je assistent kan die zelf ophalen met de tool
+`planner_get_planning_guide` — die geeft de gidstekst (Nederlands of Engels), een korte agent-skill
+met de toolvolgorde, en de aanwijzing waar hij die skill neerzet zodat hij in een volgende sessie
+meekomt: `.claude/skills/goed-plannen/SKILL.md` in de projectmap waarin hij werkt, of
+`~/.claude/skills/goed-plannen/SKILL.md` voor al zijn projecten. Downloaden kan ook rechtstreeks,
+van `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md`.
 
 ## Verder lezen
 

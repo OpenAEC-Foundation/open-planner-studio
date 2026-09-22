@@ -29,6 +29,7 @@ import {
 } from '@/engine/taskGrid/relationPlan';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
+import type { Task } from '@/types/task';
 import type {
   CellEditIntent,
   CellValidationError,
@@ -408,6 +409,31 @@ function applyRelationSet(
   return { ok: true, value: { changed: planned.value.changed } };
 }
 
+/**
+ * Bouwt de `TaskEditPlanEnvironment` voor `task` tegen `state`. Uitgelicht uit `applyCellEdits`
+ * (T3, issue #27 etappe 2) zodat de voortgangsimport (`src/services/progressImport/buildPlan.ts`,
+ * via `taskSlice.ts`) exact dezelfde omgeving kan opbouwen als het taakgrid — één implementatie,
+ * geen tweede die kan afdrijven. Pure refactor: de body is ongewijzigd het oude objectliteral;
+ * `check-grid-transaction.ts` bewijst dat dit gedragsneutraal is (het bestaande callsite hieronder
+ * geeft nog steeds `taskForCalendar` mee, niet de rauwe `task`).
+ */
+export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskEditPlanEnvironment {
+  const effectiveCalendar = effectiveCalendarOf(task, state.calendar, state.calendars);
+  return {
+    projectId: state.project.id,
+    wbsAutoNumber: state.project.wbsAutoNumber === true,
+    statusDate: state.project.statusDate,
+    calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
+    effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
+    hourMode: isHourCalendar(effectiveCalendar) === true,
+    effectiveCalendar,
+    enableHourPlanning: state.ui.enableHourPlanning,
+    customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
+    activityCodeTypes: state.activityCodeTypes,
+    customFieldDefs: state.customFieldDefs,
+  };
+}
+
 function applyCellEdits(
   state: AppState,
   edits: readonly CellEditIntent[],
@@ -459,20 +485,7 @@ function applyCellEdits(
   const taskForCalendar = calendarEdit
     ? { ...task, calendarId: calendarEdit.value as string | undefined }
     : task;
-  const effectiveCalendar = effectiveCalendarOf(taskForCalendar, state.calendar, state.calendars);
-  const environment: TaskEditPlanEnvironment = {
-    projectId: state.project.id,
-    wbsAutoNumber: state.project.wbsAutoNumber === true,
-    statusDate: state.project.statusDate,
-    calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
-    effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
-    hourMode: isHourCalendar(effectiveCalendar) === true,
-    effectiveCalendar,
-    enableHourPlanning: state.ui.enableHourPlanning,
-    customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
-    activityCodeTypes: state.activityCodeTypes,
-    customFieldDefs: state.customFieldDefs,
-  };
+  const environment: TaskEditPlanEnvironment = buildTaskEditPlanEnvironment(state, taskForCalendar);
 
   // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
   // worden geschreven wanneer zij in de beginstaat al schrijfbaar is, of wanneer de OVERIGE
@@ -502,8 +515,10 @@ function applyCellEdits(
   // Alleen deze vier velden bepalen ooit de conditionele readOnly-uitkomst van een ANDERE cel
   // (zie descriptor.readOnly hierboven in taskColumnRegistry.ts: wbsCode/milestoneKind/mandatory/
   // constraint.hard/isHammock/scheduleDuration lezen uitsluitend `ctx.wbsAutoNumber`,
-  // `task.isMilestone`, `task.constraint?.type` of `task.isHammock`; alleen `task.notes` leest een
-  // veld dat het zelf schrijft, en heeft dus per definitie geen ANDERE write die het beïnvloedt).
+  // `task.isMilestone`, `task.constraint?.type`, `task.isHammock` of `task.childIds` (die laatste
+  // is structureel niet via een cel-paste schrijfbaar, zie aanname (1) hieronder); alleen
+  // `task.notes` leest een veld dat het zelf schrijft, en heeft dus per definitie geen ANDERE
+  // write die het beïnvloedt).
   // Tussenliggende, niet-controller writes kunnen de conditionele uitkomst dus nooit veranderen:
   // het is voldoende ELKE controllerGRENS te bekijken, niet elke prefixlengte van ALLE overige
   // writes. `orderWritesForDependentTransitions` heeft de controllers al in hun canonieke
@@ -513,7 +528,8 @@ function applyCellEdits(
   // Aanbeveling 4 (onafhankelijke eindreview): deze set is met de hand onderhouden, niet uit de
   // registry afgeleid (`readOnly` is een ondoorzichtige `(task, ctx) => boolean`, geen
   // gestructureerde afhankelijkheidslijst). Twee stilzwijgende aannames die daarbij horen:
-  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock e.a. childIds.length —
+  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock, durationUnit en
+  //     scheduleDuration childIds.length —
   //     childIds is nooit los via een cel-paste schrijfbaar (readonlyColumn, geen parse/planWrite),
   //     dus er is structureel geen CellEditIntent-route die childIds binnen dezelfde transactie
   //     kan veranderen; (2) `ctx.assignmentsByTaskId` staat hier ook NIET in, ook al zijn

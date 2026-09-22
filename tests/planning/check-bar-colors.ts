@@ -6,9 +6,17 @@
  * hash-fallback nooit data muteert (pure functie). Printvriendelijkheid = onderling
  * onderscheidbaar óók in grijswaarden: elke paletkleur moet een eigen lichtheidscel hebben.
  */
+// readGanttPalette leest CSS-vars van het document; headless bestaat dat niet. De stub laat elke
+// var leeg, zodat het palet op zijn ingebouwde fallbacks terugvalt — precies de BRAND-waarden die
+// we hier willen pinnen. Moet vóór de import staan die hem gebruikt.
+const g = globalThis as unknown as Record<string, unknown>;
+g.document = { documentElement: {} };
+g.getComputedStyle = () => ({ getPropertyValue: () => '' });
+
 import {
   RESOURCE_PALETTE, resourceDisplayColor, paletteColorForId, nextFreePaletteColor, ensureThemeVisible,
 } from '@/engine/renderer/resourcePalette';
+import { PRINT_PALETTE, readGanttPalette } from '@/engine/renderer/themePalette';
 
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
@@ -51,9 +59,40 @@ ok(nextFreePaletteColor([]) === RESOURCE_PALETTE[0], 'leeg veld → eerste kleur
 const taken = RESOURCE_PALETTE.slice(0, 5).map(c => ({ id: c, name: c, type: 'LABOR' as const, description: '', maxUnits: 1, color: c }));
 ok(nextFreePaletteColor(taken) === RESOURCE_PALETTE[5], 'eerste vijf bezet → zesde kleur');
 
-// 6. Geen paletkleur gelijk aan de kritiek-roodtint van het printpalet (PRINT_PALETTE.critical =
-//    '#DC2626') — de rode rand voor kritieke taken moet visueel vrij blijven.
-ok(!RESOURCE_PALETTE.includes('#DC2626'), 'palet vermijdt kritiek-rood');
+// 6. Geen paletkleur gelijk aan de kritiek-roodtint — de rode rand voor kritieke taken moet
+//    visueel vrij blijven. Scherm en papier staan sinds het kleurherstel van 18-09-2026 weer op
+//    dezelfde hex, maar blijven apart gedefinieerd, dus we halen ze ALLEBEI bij de bron op in
+//    plaats van één literal te pinnen die toevallig met beide samenvalt: verandert er morgen één,
+//    dan moet deze check dat zien en niet groen blijven staan op een verouderd hexje.
+const SCHERM_KRITIEK = readGanttPalette().critical;
+const PRINT_KRITIEK = PRINT_PALETTE.critical;
+ok(!RESOURCE_PALETTE.includes(SCHERM_KRITIEK), `palet vermijdt kritiek-rood scherm (${SCHERM_KRITIEK})`);
+ok(!RESOURCE_PALETTE.includes(PRINT_KRITIEK), `palet vermijdt kritiek-rood print (${PRINT_KRITIEK})`);
+// En pin dat ze vandaag inderdaad allebei op de verzadigde merkhex staan — anders zegt de
+// bovenstaande controle wel iets waars maar over de verkeerde kleur.
+ok(SCHERM_KRITIEK === '#DC2626', `schermkritiek is #DC2626, kreeg ${SCHERM_KRITIEK}`);
+ok(PRINT_KRITIEK === '#DC2626', `printkritiek is #DC2626, kreeg ${PRINT_KRITIEK}`);
+
+// 6b. Donker thema: `ensureThemeVisible` licht te donkere resourcekleuren op, en kan een paletkleur
+//     daarmee ONBEDOELD richting kritiek-rood duwen — een botsing die stap 6 (letterlijke
+//     gelijkheid) niet ziet. Bewaakt als bekende ondergrens, niet als ideaal: red-700 (#B91C1C)
+//     wordt #e03232 en houdt dan nog RGB-afstand 17. Zakt een paletkleur daar ooit ONDER, dan is
+//     de rode kritiek-rand echt niet meer te onderscheiden en moet die kleur wijken.
+const rgbOf = (hex: string): [number, number, number] => {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+};
+const rgbAfstand = (a: string, b: string): number => {
+  const [r1, g1, b1] = rgbOf(a); const [r2, g2, b2] = rgbOf(b);
+  return Math.round(Math.hypot(r1 - r2, g1 - g2, b1 - b2));
+};
+const MIN_AFSTAND_DONKER = 17;
+for (const kleur of RESOURCE_PALETTE) {
+  const donker = ensureThemeVisible(kleur, true);
+  const d = rgbAfstand(donker, SCHERM_KRITIEK);
+  ok(d >= MIN_AFSTAND_DONKER,
+    `donker thema: ${kleur} wordt ${donker}, afstand ${d} tot kritiek-rood ${SCHERM_KRITIEK} (min ${MIN_AFSTAND_DONKER})`);
+}
 
 // ── barColors: modi, segmenten, randen (#21, ontwerp §4) ───────────────────────────────────────
 import { computeBarColors } from '@/services/print/barColors';

@@ -179,7 +179,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
           }}
           disabled={derived || hourEditBlocked}
           aria-label={t('duration.label')}
-          className="input h-9 min-w-0 flex-1 !px-2.5 !py-0 !text-xs disabled:opacity-50"
+          className="input h-9 min-w-0 flex-1 !px-2.5 !py-0 !text-small !leading-4 disabled:opacity-50"
           data-ops-duration-value
         />
         {showUnitControls && (
@@ -230,13 +230,13 @@ export function TaskDurationField({ task, calendar, onChange }: {
         )}
       </div>
       {hourEditBlocked && (
-        <div className="text-[10px] text-text-secondary" data-ops-duration-hour-planning-blocked>
+        <div className="!text-small text-text-secondary" data-ops-duration-hour-planning-blocked>
           {t('duration.enableHourPlanningFirst')}{' '}
           <button type="button" className="underline" onClick={enableHours}>{t('duration.enableHourPlanning')}</button>
         </div>
       )}
       {message && (
-        <div className="text-[10px] text-text-secondary" role="status" data-ops-duration-message>
+        <div className="!text-small text-text-secondary" role="status" data-ops-duration-message>
           {message}
           {proposal && (
             <span className="ml-1.5 inline-flex gap-1">

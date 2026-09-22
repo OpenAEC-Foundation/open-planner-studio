@@ -70,7 +70,7 @@ export function TaskRecordedDatesNotice({ taskId }: { taskId: string }) {
       </span>
       <button
         type="button"
-        className="ops-textlink text-[11px]"
+        className="ops-textlink !text-body"
         onClick={() => openHelpArticle(RECORDED_DATES_HELP_ARTICLE_ID)}
       >
         {tCommon('notifications.readMore')}

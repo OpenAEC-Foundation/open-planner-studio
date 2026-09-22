@@ -72,8 +72,7 @@ test('tour layout: Nederlandse inhoud en een volgende stap worden hermeet zonder
   // Letterlijke taalkeuze vóór de modale tour: tijdens de tour blokkeert de overlay terecht alle
   // onderliggende bediening. De daaropvolgende Next-klik verandert de gemeten kaartinhoud live.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await page.getByRole('button', { name: /^(Language|Taal)$/ }).click();
-  await page.getByRole('button', { name: /^(Language|Taal)$/ }).last().click();
+  await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Nederlands/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
 

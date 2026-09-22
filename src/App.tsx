@@ -64,7 +64,9 @@ const FilterDialog = lazy(() => import('@/components/dialogs/FilterDialog').then
 const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').then(m => ({ default: m.LayoutsDialog })));
 const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
 const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
+const StatsDialog = lazy(() => import('@/components/dialogs/StatsDialog').then(m => ({ default: m.StatsDialog })));
 const PoolImportDialog = lazy(() => import('@/components/dialogs/PoolImportDialog').then(m => ({ default: m.PoolImportDialog })));
+const ProgressImportDialog = lazy(() => import('@/components/dialogs/ProgressImportDialog').then(m => ({ default: m.ProgressImportDialog })));
 const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDialog').then(m => ({ default: m.LibraryLinkDialog })));
 const RecoveryDialog = lazy(() => import('@/components/dialogs/RecoveryDialog').then(m => ({ default: m.RecoveryDialog })));
 const WelcomeDialog = lazy(() => import('@/components/dialogs/WelcomeDialog').then(m => ({ default: m.WelcomeDialog })));
@@ -90,11 +92,13 @@ function AppContent() {
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
+  const showProgressImportDialog = useAppStore(s => s.ui.showProgressImportDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
   const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
+  const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
   const justUpdated = useAppStore(s => s.ui.justUpdated);
@@ -351,10 +355,20 @@ function AppContent() {
         {showLayoutsDialog && <LayoutsDialog />}
         {showShortcutsDialog && <ShortcutsDialog />}
         {showBenchmarkDialog && <BenchmarkDialog />}
+        {showStatsDialog && <StatsDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {showTourOverlay && <TourOverlay />}
         <UpdateDialog />
         <PoolImportDialog />
+        {/* Fixronde (N-I): voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
+            gemount blijft en intern op `!open` teruggeeft. Bij deze dialoog is dat verschil van
+            belang: een unmount is de schoonste reset van zijn lokale state (sheet/rijen/overrides),
+            en voorkomt dat een latere heropening (na een vangnet-sluiting via
+            `resetDocumentScopedUI`) de oude preview van een ander document toont. Zowel
+            `hasBlockingDialogOpen` als `resetDocumentScopedUI` leunen uitsluitend op de
+            `ui.showProgressImportDialog`-vlag, niet op deze mount, dus de documentwissel-
+            blokkade (A12) blijft ongewijzigd werken. */}
+        {showProgressImportDialog && <ProgressImportDialog />}
         <ExtensionConsentDialog />
         <LibraryLinkDialog />
         {recovery && (
@@ -373,7 +387,7 @@ function AppContent() {
         <div
           // S1 (V2-vondst): pure melding, geen interactieve inhoud — zonder pointer-events-none
           // onderschept deze 4 seconden lang klikken op de UI eronder (elementFromPoint bewees dit).
-          className="fixed bottom-4 right-4 z-50 px-3 py-2 rounded-[10px] bg-surface border border-border shadow-[var(--shadow-pop)] text-xs pointer-events-none"
+          className="fixed bottom-4 right-4 z-50 px-3 py-2 rounded-[10px] bg-surface border border-border shadow-[var(--shadow-pop)] text-small leading-4 pointer-events-none"
           data-ops-library-refresh-notice
         >
           {t('companyLibrary.refreshNotice', { count: libraryRefreshNotice })}

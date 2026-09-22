@@ -32,7 +32,7 @@ export function CustomFieldInput({ def, value, onCommit }: {
   value: CustomFieldValue | undefined;
   onCommit: (value: CustomFieldValue | null) => void;
 }) {
-  const cls = 'input !text-xs !px-2.5 !py-1.5';
+  const cls = 'input !text-small !leading-4 !px-2.5 !py-1.5';
   if (def.type === 'boolean') {
     return (
       <input
@@ -82,7 +82,7 @@ export function Field({ label, children }: { label: string; children: React.Reac
   return (
     <div className="flex flex-col gap-1">
       <label
-        className="text-[10px] uppercase tracking-wide"
+        className="!text-small uppercase tracking-wide"
         style={{ color: 'var(--theme-text-muted)' }}
       >
         {label}
@@ -111,7 +111,7 @@ export const Input = forwardRef<HTMLInputElement, {
       max={max}
       step={step}
       disabled={disabled}
-      className="input !text-xs !px-2.5 !py-1.5 disabled:opacity-50"
+      className="input !text-small !leading-4 !px-2.5 !py-1.5 disabled:opacity-50"
     />
   );
 });

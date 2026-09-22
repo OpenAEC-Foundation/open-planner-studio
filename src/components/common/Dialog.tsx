@@ -10,6 +10,11 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
  *
  * Gedrag is per dialoog instelbaar zodat de migratie het bestaande gedrag exact behoudt:
  *  - géén `onBackdropClick` ⇒ backdrop-klik doet niets (WelcomeDialog);
+ *    **Regel sinds issue #158:** `onBackdropClick` alleen op dialogen ZONDER bewerkbare invoer
+ *    (informatie- en keuzedialogen zoals Confirm/Update/Recovery/Shortcuts). Een dialoog met
+ *    invoervelden of een lokale bewerkbuffer (wizard, taak, kalender, filter, …) sluit uitsluitend
+ *    via Annuleren/X/Escape — een klik naast het paneel gooit anders stil getypt werk weg.
+ *    `tests/planning/check-dialog-backdrop.ts` bewaakt dat mechanisch met een allowlist.
  *  - géén `onCancel` ⇒ Escape doet niets (ColumnsDialog/FilterDialog/ExternalLinkDialog);
  *  - géén `onConfirm` ⇒ Enter doet niets (de meeste dialogs);
  *  - `overlayClassName` overschrijft tint + z-laag (TaskDialog: `bg-black/50`; ConfirmDialog:
@@ -20,7 +25,10 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 export interface DialogProps {
   /** Paneel-klassen — exact de bestaande klassen per dialoog (incl. breedte/max-hoogte). */
   panelClassName: string;
-  /** Backdrop-klik sluit de dialoog; weglaten = backdrop-klik doet niets. */
+  /**
+   * Backdrop-klik sluit de dialoog; weglaten = backdrop-klik doet niets. Alleen zetten op een
+   * dialoog zonder bewerkbare invoer (zie de regel hierboven, issue #158).
+   */
   onBackdropClick?: () => void;
   /** Escape-afhandeling (via `useDialogKeys`); weglaten = Escape doet niets. */
   onCancel?: () => void;

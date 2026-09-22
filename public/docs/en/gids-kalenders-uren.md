@@ -43,7 +43,7 @@ Regenerating adds missing years while retaining manually entered closures.
 
 ### Enabling hour planning
 
-Open **Settings → Timeline / Zoom** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Also turn on **Allow mixed day/hour planning** below it when you want to choose a unit per task; without that second preference the compact duration input remains visible, but the Days/Hours choice does not.
+Open **Settings → Planning** and turn on **Enable hour planning**. This main switch makes hour input, hour-precise scheduling and the hour timescale available. Also turn on **Allow mixed day/hour planning** below it when you want to choose a unit per task; without that second preference the compact duration input remains visible, but the Days/Hours choice does not.
 
 When hour planning is off, new tasks use **Days**. Existing or imported hour tasks are not converted or rounded. Their hour value remains stored. You can still move such a bar in the Gantt or resize it from an edge; the day-grid step never turns its stored working minutes into days. Enable hour planning for hour- or quarter-precise entry and the finer time grid.
 

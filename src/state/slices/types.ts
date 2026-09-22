@@ -378,6 +378,7 @@ export interface UIState {
   /** #21: dun streepje in de resourcekleur onder taakbalken (scherm-accent; de balkvulling zelf
    *  blijft kritiek-pad-gekleurd — resourcekleuren gelden voor de export, dit is het schermsignaal). */
   showResourceAccent: boolean;               // persisted
+  showFloatBand: boolean;                    // persisted — groene spelingsband ná niet-kritieke balken (issue #130)
   /** #21: canonieke app-globale balkkleurkeuze; scherm en rapport delen deze selectie. */
   barColorSelection: BarColorSelection;       // persisted
   presentationMode: boolean;                // session — presentatie-modus (fase 2.7, §9); niet gepersisteerd
@@ -410,6 +411,9 @@ export interface UIState {
   /** session — ingebouwde benchmark-tool (pakket S) open. Draait geïsoleerd op gegenereerde
    *  data; raakt het open project/de store niet aan. */
   showBenchmarkDialog: boolean;
+  /** session — statistieken-dialoog (downloads per OS/release van de stats-branch) open; knop
+   *  op Instellingen → Toepassing, naast Benchmark. Leest alleen, raakt de store niet aan. */
+  showStatsDialog: boolean;
   /** session — de lopende toestemmingsvraag bij het installeren van een extensie (K-item 38), of
    *  `null` als er geen vraag openstaat. Bevat de gegevens die de dialoog toont; het ANTWOORD gaat
    *  niet via de store maar via de resolver in `extensions/consent.ts` — een promise-resolver hoort
@@ -428,6 +432,11 @@ export interface UIState {
    *  verwijderde Add/Update-dialogen. Data wordt live uit de store afgeleid (computeRecognition +
    *  classify*), dus er is geen transient payload nodig. */
   showLibraryLinkDialog: boolean;
+  /** session — issue #27 etappe 2: de voortgangsimportdialoog (bestand kiezen → evt. datumvolgorde-
+   *  vraag → verplichte preview met handmatige koppelkiezer → bevestigen). Documentgebonden: staat in
+   *  `hasBlockingDialogOpen`/`BLOCKING_UI_FLAGS` zodat een documentwissel onmogelijk is zolang hij open
+   *  staat (E4), en in `resetDocumentScopedUI` als vangnet dat in de praktijk nooit mag afgaan. */
+  showProgressImportDialog: boolean;
   /** session — aantal items dat de meest recente stille verversing (grens 1/2/3/4) heeft bijgewerkt,
    *  of `null` zonder openstaand signaal (Taak 18: het verversingssignaal in de UI). */
   libraryRefreshNotice: number | null;

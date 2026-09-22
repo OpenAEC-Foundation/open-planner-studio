@@ -23,7 +23,7 @@ A flat list of tasks says nothing about how they relate. By indenting a task und
 4. Went one level too far? **Alt+←** (or right-click → **Outdent**) moves the task back one level.
 5. For a brand-new subtask there's a faster route: right-click the parent task and choose **Add subtask**. That creates a new, already-indented task in one step, instead of adding a task first and indenting it separately afterwards.
 
-As soon as a task has at least one subtask, it automatically becomes a summary task: its bar in the Gantt chart then spans the full period from the earliest start to the latest finish of all subtasks beneath it, and its own duration and dates can no longer be set independently. A summary task is therefore normally always a derived value, never a schedule you enter directly — delete or shift the subtasks, and the summary task's bar adjusts itself automatically. One exception: a **manually scheduled** summary task (that flag arises from a `.mpp` import) does *not* roll up — it keeps its own stored dates, even when its subtasks shift.
+As soon as a task has at least one subtask, it automatically becomes a summary task: its bar in the Gantt chart then spans the full period from the earliest start to the latest finish of all subtasks beneath it, and its own duration and dates can no longer be set independently. A summary task is therefore normally always a derived value, never a schedule you enter directly — delete or shift the subtasks, and the summary task's bar adjusts itself automatically. The same goes for the **Duration** column: it shows the time between the summary task's start and finish — measured in the project calendar, since a summary task has no work of its own — recalculated as soon as you run **Calculate** (F5), and it cannot be edited on such a row. One exception: a **manually scheduled** summary task (that flag arises from a `.mpp` import) does *not* roll up — it keeps its own stored dates, even when its subtasks shift.
 
 **Recognizable in the name column.** In the task table (the **Table** tab, and the same name column in the right rail) a summary task shows in bold with a subtle background tint on the name cell; a milestone shows in bold in the same colour as its bar in the Gantt chart. A regular task stays unchanged. This is purely visual — it doesn't change how you select, drag, or edit a task.
 
@@ -88,6 +88,18 @@ rows to reorder it among its siblings, same as Alt+↑/↓. Drop it onto the low
 task's row instead, and it nests: the task becomes that summary task's new last subtask, re-indenting
 it in one motion — that's the mouse equivalent of Alt+→. Select several tasks first (Ctrl/Cmd-click,
 or a box-select) and the whole selection drags and drops together.
+
+You can do the same with the **bar** itself: grab a task bar by its middle in the Gantt chart and
+drag mostly up or down. The bar then follows the same row drag as the task table — same drop
+positions, same nesting rule, one undo step — and the task's dates stay unchanged. The insertion
+marker appears on the target row in the task table, next to the timeline. Drag mostly sideways
+instead and you shift the dates, as always. Which of the two it becomes is decided by the first few pixels of your
+movement: the gesture then sticks with that choice, even if you head the other way afterwards. So a
+single drag never changes both the dates and the position in the structure.
+
+Two differences from dragging a row. The bar always moves **one** task, even when several are
+selected — to move a whole selection, drag the rows. And when the view is sorted or grouped, the
+structure is locked: you get the same message as when dragging a row, and nothing changes.
 
 The **Table** ribbon tab shows this same structure as a plain, editable grid, useful when you're
 entering or correcting a lot of tasks at once: a single click on a cell only selects it — booleans,

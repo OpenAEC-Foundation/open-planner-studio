@@ -7,7 +7,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, parseDate, isoDayOfWeek } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildWbsHierarchy } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
@@ -371,6 +371,8 @@ export function readMSPDI(content: string): ImportResult {
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
+  // Issue #159: `<OutlineLevel>` per taak, parallel aan `tasks` (undefined = element ontbreekt).
+  const outlineLevels: (number | undefined)[] = [];
   const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number }[] = [];
   // Baseline 0 (fase 2.6, §9.1): per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
@@ -516,7 +518,9 @@ export function readMSPDI(content: string): ImportResult {
         taskId: id,
         start: parseMSPDate(getElementText(bEl, 'Start')),
         finish: parseMSPDate(getElementText(bEl, 'Finish')),
-        duration: parseMSPDuration(getElementText(bEl, 'Duration'), hoursPerDay),
+        // Critreview #159: dezelfde taakkalender-hpd als de taakduur hierboven (`effHpd`), anders leest
+        // een 24/7-taak haar eigen baseline als 2,33 dagen terug.
+        duration: parseMSPDuration(getElementText(bEl, 'Duration'), effHpd),
         isMilestone,
       });
       break;
@@ -563,6 +567,7 @@ export function readMSPDI(content: string): ImportResult {
       ...(deadline ? { deadline } : {}),
       ...(taskCalendarId ? { calendarId: taskCalendarId } : {}),
     });
+    outlineLevels.push(getElementText(te, 'OutlineLevel') ? outlineLevel : undefined);
     taskHourById.set(id, isHour);
 
     // Parse predecessor links within task element
@@ -585,8 +590,9 @@ export function readMSPDI(content: string): ImportResult {
     }
   }
 
-  // Parent-child-hiërarchie uit gepunte WBS-codes (gedeeld met CSV, F5-f).
-  rebuildWbsHierarchy(tasks);
+  // Parent-child-hiërarchie (issue #159): `<OutlineLevel>` + documentvolgorde, met de gepunte WBS als
+  // scheidsrechter én terugval — de beslisregel staat bij `rebuildImportedHierarchy` (gedeeld met CSV).
+  rebuildImportedHierarchy(tasks, outlineLevels);
 
   // Resolve sequences. LagFormat (subset van MSPDI DurationFormat): 19/20 = (elapsed) procent
   // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd
@@ -964,7 +970,9 @@ function applyCalendarBody(calEl: Element, calendar: WorkCalendar, budget: Holid
     }
     if (toTime) {
       const h = parseInt(toTime.split(':')[0]);
-      if (!isNaN(h)) calendar.workEndHour = h;
+      // `00:00:00` als eindtijd is middernacht ná de start (MS Project's eigen "24 Hours"-kalender en
+      // onze writer sinds critreview #159 schrijven dat zo) ⇒ 24, niet 0.
+      if (!isNaN(h)) calendar.workEndHour = h <= calendar.workStartHour ? h + 24 : h;
     }
     calendar.hoursPerDay = calendar.workEndHour - calendar.workStartHour;
     if (calendar.hoursPerDay <= 0) calendar.hoursPerDay = 8;

@@ -17,7 +17,7 @@ The bridge works **in the desktop app only**. The AI tab is visible in the brows
 
 ## Switching it on
 
-AI mode is off by default. Turn it on at **Settings → Application → Enable AI mode** — through the gear icon, the Settings ribbon tab or File → Settings; all three show the same switch.
+AI mode is off by default. Turn it on at **Settings → Advanced → Enable AI mode** — through the gear icon, the Settings ribbon tab or File → Settings; all three show the same switch.
 
 Once it is on, an extra **AI** tab appears in the ribbon. Switch AI mode back off and the tab disappears and a running bridge is stopped immediately — so a server never keeps listening without the tab being there.
 
@@ -100,6 +100,22 @@ On top of that there is the ordinary undo history, which an assistant shares wit
 **The assistant sees no tools, or reports an access error.** Then the token is wrong. This mostly happens after clicking **New token** once a connection was already established: the assistant is still carrying the old one. Copy the new one from the **Connect** window and update your client's configuration.
 
 **Nothing happens although the assistant says it worked.** Check the activity panel for what it actually called and what came back. If there is a refusal, it will almost always name the field that was wrong as well as the alternative.
+
+## Getting your AI assistant to plan well
+
+An assistant that knows the tools can still build a schedule no planner can use: tasks without
+relationships, a fixed date on everything, or a breakdown far too fine to maintain. You no longer
+have to prevent that yourself. On connecting, the assistant is handed the core rules automatically —
+the bridge sends them in the `instructions` field of the MCP handshake, and clients put that text
+into their system prompt: start from the milestones, tasks of roughly a day to two weeks,
+relationships instead of fixed dates, and report your assumptions back.
+
+The full explanation is in the guide [Planning well](docs://gids-goed-plannen). Your assistant can fetch it itself with the tool
+`planner_get_planning_guide` — that returns the guide text (Dutch or English), a short agent skill
+with the tool order, and where to install that skill so it comes along in a later session:
+`.claude/skills/goed-plannen/SKILL.md` in the project folder it works in, or
+`~/.claude/skills/goed-plannen/SKILL.md` for all of its projects. It can also be downloaded directly,
+from `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md`.
 
 ## Further reading
 

@@ -8,9 +8,10 @@ import {
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette,
+  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, TrendingUp, CalendarDays, Palette, MoveHorizontal,
   Keyboard, PanelRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
+  FileDown, FileUp,
 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
@@ -18,7 +19,7 @@ import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import {
-  saveShowBaselineOverlay, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
+  saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
 import type { RibbonTab } from '@/state/slices/types';
 import {
@@ -332,6 +333,51 @@ const moveProjectButton: RibbonButtonSpec = {
   },
 };
 
+/** E2 (issue #27 etappe 2): "Voortgang bijwerken uit een blad" — hetzelfde spec op Planning, Tabel
+ *  én Rapport (één bron, drie callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`).
+ *  Uitgeschakeld zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
+const progressImportButton: RibbonButtonSpec = {
+  kind: 'small', id: 'progressImport', icon: <FileUp size={14} />, labelKey: 'menu:ribbon.progressImport',
+  use: () => {
+    const setUI = useAppStore(s => s.setUI);
+    const hasTasks = useAppStore(s => s.tasks.length > 0);
+    return { onClick: () => setUI({ showProgressImportDialog: true }), disabled: !hasTasks };
+  },
+};
+
+/** E7 (eigenaarsbesluit 2026-09-05): "gewoon op een knop klikken en dan krijg ik de juiste CSV in
+ *  mijn downloads" — het slanke voortgangsblad via één knopdruk, vóór de importknop in dezelfde
+ *  gedeelde groep (Planning + Tabel + Rapport). `disabled` volgt hetzelfde patroon als
+ *  `progressImportButton`: zonder taken is er niets te exporteren.
+ *
+ *  Sinds issue #27 etappe 3 (X10/Q1) levert deze knop `.xlsx` in plaats van `.csv`: één knop = het
+ *  beste antwoord, en op elk punt dat E9 noemt (kolombreedte, vergrendeling, validatie,
+ *  datumtrouw) is de werkmap simpelweg beter. CSV verdwijnt niet — het blijft een exportkaart in
+ *  Backstage → Exporteren en onverkort een leesbaar importformaat. Het knoplabel
+ *  (`menu:ribbon.progressExport`) noemt bewust geen formaat en hoefde dus niet te wijzigen. */
+const progressExportButton: RibbonButtonSpec = {
+  kind: 'small', id: 'progressExport', icon: <FileDown size={14} />, labelKey: 'menu:ribbon.progressExport',
+  use: () => {
+    const exportAs = useAppStore(s => s.exportAs);
+    const hasTasks = useAppStore(s => s.tasks.length > 0);
+    return { onClick: () => { void exportAs('progress-xlsx'); }, disabled: !hasTasks };
+  },
+};
+
+/** Afwijking 2026-09-04 (gebruikstest): `progressImportButton` in zijn EIGEN groep, gedeeld door
+ *  Planning, Tabel en Rapport — niet als losse knop náást een `kind: 'component'`-item (dat werkte op
+ *  Planning eerst zo in de `baselines`-groep naast `BaselinesProgressGroupContent`). Een `RibbonButtonSpec`
+ *  rendert zijn label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een
+ *  component gemengd render je hem als kaal icoontje zonder label of knopvormgeving (bevestigd met
+ *  screenshot). Vandaar een eigen groep op alle drie de tabs i.p.v. het item in een bestaande groep te hangen.
+ *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
+ *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab`/`reportTab` toegevoegd.
+ *  `progressExportButton` staat VÓÓR de importknop (E7): eerst het blad eraf, dan terug erin. */
+const progressGroup: RibbonGroupSpec = {
+  id: 'progress', labelKey: 'menu:ribbon.progressGroup',
+  items: [{ kind: 'stack', id: 'progressStack', items: [progressExportButton, progressImportButton] }],
+};
+
 /** Waarschuwingenpaneel aan/uit (issue #53) — Beeld → Panelen én Planning → Planning, naast Bereken. */
 const warningsPanelButton: RibbonButtonSpec = {
   kind: 'button', id: 'warningsPanel', icon: <AlertTriangle size={20} />, labelKey: 'menu:ribbon.warningsPanel',
@@ -425,6 +471,7 @@ const planningTab: RibbonTabConfig = [
     id: 'baselines', labelKey: 'menu:ribbon.baselines',
     items: [{ kind: 'component', id: 'baselinesProgress', Component: BaselinesProgressGroupContent }],
   },
+  progressGroup,
 ];
 
 /**
@@ -584,7 +631,17 @@ const resourcesTab: RibbonTabConfig = [
         kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
-          const hasLeveling = useAppStore(s => s.tasks.some(t => t.levelingDelay !== undefined));
+          // B1c-plan3 taak 2: houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
+          // `clearLeveling` (`scheduleSlice.ts`) — een knop die inschakelt terwijl de actie een
+          // no-op is, of andersom, is de bug die dit repareert. Vóór deze uitbreiding stond "Nivellering
+          // wissen" grijs op een `.mpp`-project met uitsluitend sub-dag-precisie (`levelingDelayMinutes`/
+          // `levelingDelayElapsed`) én op een project dat alleen ingevoegde pauzedagen draagt
+          // (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
+          const hasLeveling = useAppStore(s => s.tasks.some(t =>
+            t.levelingDelay !== undefined
+            || t.levelingDelayMinutes !== undefined
+            || t.levelingDelayElapsed !== undefined
+            || (t.splitGaps ?? []).some(g => g.source === 'leveling')));
           return { onClick: () => clearLeveling(), disabled: !hasLeveling };
         },
       },
@@ -741,6 +798,16 @@ const beeldTab: RibbonTabConfig = [
               return { active: showResourceAccent, onClick: () => { const next = !showResourceAccent; setUI({ showResourceAccent: next }); void saveShowResourceAccent(next); } };
             },
           },
+          {
+            // #130: de groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
+            // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
+            kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
+            use: () => {
+              const showFloatBand = useAppStore(s => s.ui.showFloatBand);
+              const setUI = useAppStore(s => s.setUI);
+              return { active: showFloatBand, onClick: () => { const next = !showFloatBand; setUI({ showFloatBand: next }); void saveShowFloatBand(next); } };
+            },
+          },
         ],
       },
     ],
@@ -772,7 +839,7 @@ const instellingenTab: RibbonTabConfig = [
 ];
 
 /**
- * Tabel-tab: de Start-tab min de zoomknoppen.
+ * Tabel-tab: de Start-tab min de zoomknoppen, plus één tabel-eigen groep.
  *
  * Issue #49 bracht de Taken-groep hierheen; de vervolgvraag van de melder was "alles van Start
  * hoort ook op Tabel, behalve zoom". Dat klopt inhoudelijk: Bestand, Bewerken, Taken en Bereken
@@ -782,8 +849,11 @@ const instellingenTab: RibbonTabConfig = [
  * betekenis. Dezelfde redenering als bij de zes Gantt-schakelaars in `docs/TODO.md` — een knop
  * aanbieden in een weergave waar hij niets kan doen, is geen volledigheid maar een valstrik.
  *
- * Alle vier de groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
- * zodat een volgende knop op Start hier automatisch meekomt.
+ * De eerste vijf groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
+ * zodat een volgende knop op Start hier automatisch meekomt. **Uitzondering (E2, issue #27 etappe 2):**
+ * `progressGroup` (gedeeld met Planning en Rapport, zie daar) hangt hier ACHTERAAN als eigen groep — niet in de
+ * gedeelde `scheduleGroup`, want een knop dáár zou automatisch ook op Start verschijnen, en de
+ * voortgangsimport is bewust alleen op Backstage → Importeren, Planning, Tabel en Rapport te vinden.
  */
 const tableTab: RibbonTabConfig = [
   fileGroup,
@@ -792,6 +862,7 @@ const tableTab: RibbonTabConfig = [
   scheduleGroup,
   traceGroup,
   tableColumnsGroup,
+  progressGroup,
 ];
 
 const ifcTab: RibbonTabConfig = [
@@ -800,6 +871,7 @@ const ifcTab: RibbonTabConfig = [
 
 const reportTab: RibbonTabConfig = [
   { id: 'reporting', labelKey: 'menu:ribbon.reporting', items: [printPreviewButton] },
+  progressGroup,
 ];
 
 /** AI-tab (T14/T15/T16) — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier

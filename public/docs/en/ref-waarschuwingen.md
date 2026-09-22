@@ -21,7 +21,7 @@ Everything comes from the last calculation (F5) and the resource load derived fr
 - **Relation ignored** — the predecessor or successor is missing or is not a leaf task; the relation is not part of the calculation.
 - **Hammock without a finish driver** — a hammock task without an FF or SF predecessor; its duration falls back to zero.
 - **Finish date capped** — the calendar leaves no workable window for this task.
-- **Overallocated** — a resource is loaded beyond its capacity on one or more days. The row shows the number of days and the first and last day.
+- **Overallocated** — a resource is loaded beyond its capacity on one or more days. The row shows the number of days and the first and last day, and distinguishes three cases: plain overallocation (the assignment exceeds capacity), overallocation because the resource calendar doesn't count those day(s) as working days (see the guide [Resources & histogram](docs://gids-resources-histogram)), or a mix of both with the number of calendar days added.
 
 If it says **No warnings**, the schedule passes all checks. If the schedule has never been calculated, the panel offers a **Calculate** button.
 

@@ -101,4 +101,5 @@ Maintenant que vous avez des tâches et des relations, vous pouvez faire calcule
 
 - Rejouez les étapes ci-dessus avec un exemple complet : ouvrez [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) via **Fichier → Exemples** et repérez la chaîne FS entre les phases, le chevauchement SS entre les travaux de murs et de charpente, le lien FF entre le carrelage et la peinture, et la contrainte de permis (SNET) avant le démarrage.
 - Vous voulez en savoir plus sur la structure des tâches, les tâches récapitulatives, les types de jalons et les codes d'activité ? Lisez le guide [Planification & WBS](docs://gids-plannen-wbs).
+- Vous savez maintenant comment fonctionnent les boutons ; pour savoir ce qui rend un planning fiable — granularité, liens, contraintes, marge, baseline — lisez le guide [Bien planifier](docs://gids-goed-plannen).
 - Vous préférez faire une visite visuelle des principales zones de l'écran ? Relancez la visite via l'onglet **Affichage** → bouton **Visite guidée**, ou via **Fichier** → **Démarrer la visite guidée**.

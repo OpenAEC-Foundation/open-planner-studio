@@ -7,8 +7,10 @@ async function changeUiLocale(page: Page, option: string, expectedLocale: string
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.locator('.settings-dialog');
   await expect(settings).toBeVisible();
-  await settings.locator('.settings-tab').nth(1).click();
-  await settings.locator('button[aria-haspopup="listbox"]').click();
+  // Taal zit sinds U1 op de Weergave-tab (tab 0, standaard al actief) samen met andere Selects,
+  // dus scopen op de aria-label i.p.v. de eerste listbox-knop op de tab.
+  await settings.locator('.settings-tab').nth(0).click();
+  await settings.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: option, exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(expectedLocale);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: false }));

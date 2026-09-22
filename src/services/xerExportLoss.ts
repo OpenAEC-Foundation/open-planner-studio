@@ -80,6 +80,22 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc'>, ExportC
     elapsedLag: false,
     schedulingOptions: 'none',
   },
+  // De voortgangsbladen (issue #27) schrijven alleen id/WBS/naam/datums/voortgang: geen relaties,
+  // toewijzingen, baselines of planningsopties — dus elk daarvan is per definitie niet uitdrukbaar.
+  'progress-csv': {
+    baselineProjection: 'none',
+    projectedAssignments: false,
+    percentLag: false,
+    elapsedLag: false,
+    schedulingOptions: 'none',
+  },
+  'progress-xlsx': {
+    baselineProjection: 'none',
+    projectedAssignments: false,
+    percentLag: false,
+    elapsedLag: false,
+    schedulingOptions: 'none',
+  },
 };
 
 export function xerExportTargetVerdict(

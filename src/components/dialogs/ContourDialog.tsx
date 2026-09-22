@@ -193,23 +193,22 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     onClose();
   };
 
-  const cellCls = 'px-2 py-1 text-[11px]';
-  const inputCls = 'input !text-[11px] !px-1 !py-0.5 text-right';
+  const cellCls = 'px-2 py-1 !text-body';
+  const inputCls = 'input !text-body !px-1 !py-0.5 text-right';
 
   return (
     <Dialog
       overlayClassName="bg-black/60 z-[60]"
       stopBackdropPropagation
-      onBackdropClick={onClose}
       overlayProps={{ 'data-ops-contour-dialog': true }}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[88vh] flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex flex-col gap-0.5 min-w-0">
-          <h2 className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <h2 className="text-body leading-5 font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('contourDialog.title')}
           </h2>
-          <span className="text-[11px] text-text-secondary truncate">
+          <span className="!text-body text-text-secondary truncate">
             {resource?.name || assignment.resourceId} · {task.name}
           </span>
         </div>
@@ -218,11 +217,11 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
         </button>
       </div>
 
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border text-[11px]">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border !text-body">
         <label className="flex items-center gap-1">
           <span className="text-text-secondary">{t('contourDialog.applyShape')}</span>
           <select
-            className="input !text-[11px] !px-1 !py-0.5"
+            className="input !text-body !px-1 !py-0.5"
             value=""
             data-ops-contour-shape
             onChange={e => { if (e.target.value) applyShape(e.target.value as ContourShape); }}
@@ -254,14 +253,14 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
             fmtDay={fmtIso}
             fmtUnits={fmtNum}
           />
-          <div className="text-[10px] text-text-secondary mt-1">{t('contourDialog.stripHint')}</div>
+          <div className="!text-small text-text-secondary mt-1">{t('contourDialog.stripHint')}</div>
         </div>
       )}
 
       <div className="flex-1 overflow-y-auto" ref={grid.gridRef}>
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-surface">
-            <tr className="text-left text-[10px] uppercase tracking-wide text-text-secondary border-b border-border">
+            <tr className="text-left !text-small uppercase tracking-wide text-text-secondary border-b border-border">
               <th className={cellCls}>#</th>
               <th className={cellCls}>{t('contourDialog.from')}</th>
               <th className={cellCls}>{t('contourDialog.to')}</th>
@@ -321,7 +320,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
                   <td className={`${cellCls} whitespace-nowrap`}>
                     <button
                       type="button"
-                      className="ops-textlink text-[10px] mr-2 disabled:opacity-40"
+                      className="ops-textlink !text-small mr-2 disabled:opacity-40"
                       disabled={p.days < 2}
                       data-ops-contour-split={i}
                       onClick={e => { e.stopPropagation(); split(i, Math.floor(p.days / 2)); }}
@@ -330,7 +329,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
                     </button>
                     <button
                       type="button"
-                      className="ops-textlink text-[10px] disabled:opacity-40"
+                      className="ops-textlink !text-small disabled:opacity-40"
                       disabled={isLast}
                       data-ops-contour-merge={i}
                       onClick={e => { e.stopPropagation(); merge(i); }}
@@ -356,11 +355,11 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
           </tfoot>
         </table>
         {totalDays === 0 && (
-          <div className="p-4 text-[11px] text-text-secondary">{t('contourDialog.noDays')}</div>
+          <div className="p-4 !text-body text-text-secondary">{t('contourDialog.noDays')}</div>
         )}
       </div>
 
-      <div className="px-4 py-2 text-[10px] text-text-secondary border-t border-border">
+      <div className="px-4 py-2 !text-small text-text-secondary border-t border-border">
         {t('contourDialog.hint')}
       </div>
 

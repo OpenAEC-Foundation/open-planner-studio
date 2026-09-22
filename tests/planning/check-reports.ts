@@ -10,11 +10,22 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import {
-  type ReportContext,
+  type ReportContext, type ReportingPeriod,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
-  computeResourceLoading, computeResourceAssignments, computeWbsSummary, progressState, remainingDays,
+  computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
+  remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
 } from '@/engine/reports';
+import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
+import { formatReportNumber, formatSignedReportNumber, localizeDecimalPoint } from '@/utils/reportNumber';
+import { layoutRuns, stripBidiControls, type ShapeFontkitFont, type ShapingFonts } from '@/services/pdf/bidiShape';
+import {
+  isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
+} from '@/engine/reports';
+import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
+import { makeMonthLabeler } from '@/utils/monthLabel';
+import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
+import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -84,7 +95,6 @@ const ctxFromStore = (): ReportContext => {
     calendar: s.calendar, calendars: s.calendars, cpmResult: s.cpmResult,
     baseline: s.baselines.find(b => b.id === s.activeBaselineId) ?? null,
     statusDate: s.project.statusDate, today: '2026-09-18',
-    nearCriticalThreshold: s.project.schedulingOptions?.nearCriticalThreshold,
   };
 };
 const ctx = ctxFromStore();
@@ -96,7 +106,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
 // ── Look-ahead ───────────────────────────────────────────────────────────────────────────────────
 {
-  const r = computeLookAhead(ctx, { weeks: 2, nearCriticalDays: 5 });
+  const r = computeLookAhead(ctx, { period: { preset: 'next2Weeks' }, nearCriticalDays: 5 });
   eq('lookAhead: venster start op de statusdatum', r.from, '2026-09-18');
   eq('lookAhead: venster van 2 weken (14 dagen, inclusief)', r.to, '2026-10-01');
   eq('lookAhead: geen statusdatum-melding', r.statusDateMissing, false);
@@ -108,9 +118,11 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('lookAhead: D (start op de statusdatum) staat erin', r.rows.some(x => x.taskId === D));
   ok('lookAhead: rijen gesorteerd op start', r.rows.every((x, i) => i === 0 || r.rows[i - 1].start <= x.start));
   eq('lookAhead: tellingen sluiten', r.counts.overdue + r.counts.lateStart + r.counts.inProgress + r.counts.starting, r.counts.total);
+  // Issue #110 punt 1: de near-critical-telling hoort in de samenvatting.
+  eq('lookAhead: near-critical geteld', r.counts.nearCritical, r.rows.filter(x => x.isNearCritical).length);
 
   // Zonder statusdatum ⇒ vandaag als referentie + melding.
-  const r2 = computeLookAhead({ ...ctx, statusDate: undefined, today: '2026-09-25' }, { weeks: 1, nearCriticalDays: 0 });
+  const r2 = computeLookAhead({ ...ctx, statusDate: undefined, today: '2026-09-25' }, { period: { preset: 'nextWeek' }, nearCriticalDays: 0 });
   eq('lookAhead: zonder statusdatum meldt het rapport dat', r2.statusDateMissing, true);
   eq('lookAhead: en rekent met vandaag', r2.from, '2026-09-25');
 
@@ -120,7 +132,10 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   g.time.earlyStart = '2026-09-08'; g.time.earlyFinish = '2026-09-09';
   const d = clone.find(t => t.id === D)!;
   d.time.earlyStart = '2026-09-10'; d.time.earlyFinish = '2026-09-30';
-  const r3 = computeLookAhead({ ...ctx, tasks: clone }, { weeks: 2, nearCriticalDays: 5 });
+  const f = clone.find(t => t.id === F)!;
+  f.time.isCritical = false; f.time.totalFloat = 4;
+  const r3 = computeLookAhead({ ...ctx, tasks: clone }, { period: { preset: 'next2Weeks' }, nearCriticalDays: 5 });
+  eq('lookAhead: TF 4 ≤ 5 ⇒ near-critical-telling 1', r3.counts.nearCritical, 1);
   eq('lookAhead: finish vóór de statusdatum ⇒ achterstallig', r3.rows.find(x => x.taskId === G)?.status, 'overdue');
   eq('lookAhead: start vóór de statusdatum, niet gestart ⇒ had moeten starten', r3.rows.find(x => x.taskId === D)?.status, 'lateStart');
 }
@@ -147,11 +162,12 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
 // ── Voortgangsrapport ────────────────────────────────────────────────────────────────────────────
 {
-  const r = computeProgressReport(ctx, { periodWeeks: 2, nearCriticalDays: 5 });
+  const r = computeProgressReport(ctx, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
   const s = r.summary;
   eq('progress: statusdatum', s.statusDate, '2026-09-18');
   eq('progress: periode terug 14 dagen', s.periodFrom, '2026-09-05');
-  eq('progress: periode vooruit 14 dagen', s.periodTo, '2026-10-02');
+  eq('progress: periode t/m de statusdatum', s.periodTo, '2026-09-18');
+  eq('progress: vooruitblik gespiegeld, 14 dagen (byte-identiek aan de oude 2-wekenoptie)', s.lookAheadTo, '2026-10-02');
   eq('progress: gepland t.o.v. de baseline', s.plannedBasis, 'baseline');
   eq('progress: 1 voltooid', s.counts.complete, 1);
   eq('progress: 1 in uitvoering', s.counts.inProgress, 1);
@@ -161,16 +177,45 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('progress: baseline-einde bekend', !!s.baselineFinish);
   ok('progress: prognose-einde bekend', !!s.forecastFinish);
   ok('progress: C 3 dagen langer ⇒ projecteinde later dan de baseline', (s.finishVarianceDays ?? 0) > 0, `Δ=${s.finishVarianceDays}`);
-  // Werkelijke voortgang duurgewogen op de BASELINE-duren: A 5×1 + B 10×0.4 = 9 van (5+10+5+0+3+46+2)=71 ⇒ 12.7%.
-  near('progress: werkelijke voortgang duurgewogen', s.actualPct, (9 / 71) * 100, 0.2);
+  // Werkelijke voortgang duurgewogen op de HUIDIGE duren (C = 8, niet de baseline-5):
+  // A 5×1 + B 10×0.4 = 9 van (5+10+8+0+3+46+2)=74 ⇒ 12.2%.
+  near('progress: werkelijke voortgang duurgewogen', s.actualPct, (9 / 74) * 100, 0.2);
   ok('progress: geplande voortgang tussen werkelijk en 100', s.plannedPct > s.actualPct && s.plannedPct <= 100, `gepland=${s.plannedPct}`);
   ok('progress: kritieke sectie bevat alleen open kritieke taken', r.critical.every(x => x.isCritical && x.status !== 'complete'));
 
-  // Zonder baseline: gepland t.o.v. de huidige planning, gewicht = huidige duur (C = 8).
-  const r2 = computeProgressReport({ ...ctx, baseline: null }, { periodWeeks: 1, nearCriticalDays: 5 });
+  // Zonder baseline: gepland t.o.v. de huidige planning; het gewicht is ALTIJD de huidige duur
+  // (C = 8), ook mét baseline (review-bevinding 5: baseline.duration is voor uur-taken niet canoniek).
+  const r2 = computeProgressReport({ ...ctx, baseline: null }, { period: { preset: 'lastWeek' }, nearCriticalDays: 5 });
   eq('progress: zonder baseline ⇒ huidige planning als basis', r2.summary.plannedBasis, 'current');
   near('progress: zonder baseline weegt C 8', r2.summary.actualPct, (9 / 74) * 100, 0.2);
+  near('progress: mét baseline hetzelfde gewicht (huidige duur)', s.actualPct, (9 / 74) * 100, 0.2);
   eq('progress: zonder baseline geen Δ einde', r2.summary.finishVarianceDays, undefined);
+
+  // Bevinding 4: een lopende taak die te laat is blijft "in uitvoering" én is achterstallig; de drie
+  // staat-tellingen sommeren tot het totaal.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const b = clone.find(t => t.id === B)!;
+    b.time.earlyStart = '2026-09-07'; b.time.earlyFinish = '2026-09-11'; // einde vóór de statusdatum, 40% klaar
+    const r3 = computeProgressReport({ ...ctx, tasks: clone }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+    const c = r3.summary.counts;
+    eq('progress: staat-tellingen sommeren tot het totaal', c.complete + c.inProgress + c.notStarted, c.total);
+    ok('progress: te late lopende taak staat in "in uitvoering"', r3.inProgress.some(x => x.taskId === B));
+    ok('progress: … én in "achterstallig"', r3.overdue.some(x => x.taskId === B && x.overdue === 'finish'));
+    eq('progress: weergavestatus = had moeten eindigen', r3.inProgress.find(x => x.taskId === B)?.status, 'overdueFinish');
+    eq('progress: in uitvoering geteld', c.inProgress, 1);
+  }
+
+  // Bevinding 5: een uur-taak weegt naar haar echte werkdag-duur, óók mét actieve baseline.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const g = clone.find(t => t.id === G)!;
+    g.time.durationUnit = 'hours'; g.time.durationMinutes = 4 * 60; g.time.scheduleDuration = 5; // 4 u = 0,5 wd
+    const withBase = computeProgressReport({ ...ctx, tasks: clone }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+    const noBase = computeProgressReport({ ...ctx, tasks: clone, baseline: null }, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+    near('progress: uur-taak weegt 0,5 wd — baseline aan/uit maakt geen verschil', withBase.summary.actualPct, noBase.summary.actualPct, 0.01);
+    near('progress: gewicht G = 0,5 (A 5 + B 10 + C 8 + G 0,5 + D 3 + F 46 = 72,5)', noBase.summary.actualPct, (9 / 72.5) * 100, 0.2);
+  }
 }
 
 // ── Planningsgezondheid ──────────────────────────────────────────────────────────────────────────
@@ -195,6 +240,57 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('health: relaties geteld', r.relationCount, 3);
   eq('health: bladtaken geteld', r.leafCount, 7);
 
+  // Bevinding 2: relaties op VERZAMELTAKEN telt de solver wél (expandSummaryRelations) — dit rapport dus ook.
+  {
+    S().newProject();
+    S().setProject({ name: 'Fasen', startDate: '2026-09-07' });
+    const f1 = S().addTask({ name: 'Fase 1' });
+    const f2 = S().addTask({ name: 'Fase 2' });
+    const a1 = task('A1', 5, f1); const a2 = task('A2', 5, f1);
+    const b1 = task('B1', 5, f2); const b2 = task('B2', 5, f2);
+    S().addSequence({ predecessorId: a1, successorId: a2, type: 'FINISH_START', lagDays: 0 });
+    S().addSequence({ predecessorId: b1, successorId: b2, type: 'FINISH_START', lagDays: 0 });
+    S().addSequence({ predecessorId: f1, successorId: f2, type: 'FINISH_START', lagDays: 20 });
+    S().runCPM();
+    const c2 = ctxFromStore();
+    const h = computeScheduleHealth(c2, { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 });
+    const it = (id: string) => h.checks.find(c => c.id === id)!.items;
+    ok('health: A2 heeft via de faserelatie een opvolger', !it('noSuccessor').some(i => i.taskId === a2));
+    ok('health: B1 heeft via de faserelatie een voorganger', !it('noPredecessor').some(i => i.taskId === b1));
+    // De faserelatie wordt voor de solver uitgevouwen tot 2×2 bladrelaties, maar de planner
+    // modelleerde er ÉÉN: het rapport meldt hem één keer, op de fasenamen, en telt hem één keer.
+    eq('health: de faserelatie (lag 20) telt als één lange lag', it('longLag').length, 1);
+    ok('health: … op de fasenamen', it('longLag')[0].name.includes('Fase 1') && it('longLag')[0].name.includes('Fase 2'));
+    eq('health: relatietelling = gemodelleerde relaties (2 + 1)', h.relationCount, 3);
+  }
+
+  // Bevinding 3: één lag-definitie met de solver — procent-lag, procent-lead en uurlag.
+  {
+    S().newProject();
+    S().setProject({ name: 'Lag', startDate: '2026-09-07' });
+    const p = task('P', 40, null); const q = task('Q', 5, null); const r = task('R', 5, null); const u = task('U', 5, null);
+    S().addSequence({ predecessorId: p, successorId: q, type: 'FINISH_START', lagDays: 0, lagPercent: 50 });   // +20 wd
+    S().addSequence({ predecessorId: p, successorId: r, type: 'FINISH_START', lagDays: 0, lagPercent: -25 });  // −10 wd
+    S().addSequence({ predecessorId: q, successorId: u, type: 'FINISH_START', lagDays: 5, lagMinutes: 240 });  // dag-lag leidend: 5
+    S().runCPM();
+    const h = computeScheduleHealth(ctxFromStore(), { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 });
+    const it = (id: string) => h.checks.find(c => c.id === id)!.items;
+    eq('health: +50% van 40 wd = 20 wd ⇒ lange lag', it('longLag').map(i => i.detail.days), [20]);
+    eq('health: −25% van 40 wd = −10 wd ⇒ lead', it('lead').map(i => i.detail.days), [-10]);
+    ok('health: lagDays 5 + lagMinutes ⇒ 5 wd (dag-lag leidend), dus geen lange lag', !it('longLag').some(i => i.detail.days === 0.5));
+  }
+
+  // Bevinding 6: een corrupte parentId/childIds-kring mag niet crashen.
+  {
+    const kring = ctx.tasks.map(t => ({ ...t, childIds: [...t.childIds] }));
+    const x = kring.find(t => t.id === D)!; const y = kring.find(t => t.id === G)!;
+    x.parentId = y.id; y.parentId = x.id; x.childIds = [y.id]; y.childIds = [x.id];
+    let crashed = false;
+    try { computeWbsSummary({ ...ctx, tasks: kring }, { maxLevel: 0, includeActivities: true }); } catch { crashed = true; }
+    eq('wbs: kringverwijzing crasht niet', crashed, false);
+    ok('wbs: diepten eindig', [...taskDepths(kring).values()].every(d => Number.isFinite(d) && d >= 1));
+  }
+
   // Inconsistente actuals + negatieve speling op een kloon.
   const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
   const b = clone.find(t => t.id === B)!;
@@ -213,34 +309,145 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 
 // ── Resourcebelasting ────────────────────────────────────────────────────────────────────────────
 {
-  const r = computeResourceLoading(ctx, { onlyOverloaded: false });
+  const weekly = { period: { preset: 'project' } as ReportingPeriod, bucket: 'week' as const };
+  const r = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: false });
   ok('resourceLoading: rijen voor Ploeg 1', r.rows.length > 0 && r.rows.every(x => x.resourceName === 'Ploeg 1'));
-  ok('resourceLoading: weken chronologisch', r.rows.every((x, i) => i === 0 || x.weekStart > r.rows[i - 1].weekStart));
+  ok('resourceLoading: weken chronologisch', r.rows.every((x, i) => i === 0 || x.bucketStart > r.rows[i - 1].bucketStart));
   ok('resourceLoading: variance = beschikbaar − gevraagd', r.rows.every(x => Math.abs(x.variance - (x.available - x.required)) < 0.001));
   ok('resourceLoading: alleen weken met vraag', r.rows.every(x => x.required > 0));
   eq('resourceLoading: A (7–11 sep), B (14–25 sep, rest ná de statusdatum) en D ⇒ 3 weken', r.rows.length, 3);
   ok('resourceLoading: B en D overlappen ⇒ overbelaste week', r.rows.some(x => x.overloaded));
-  eq('resourceLoading: aantal resources', r.counts.resources, 1);
-  eq('resourceLoading: weken = rijen zonder filter', r.counts.weeks, r.rows.length);
-  const r2 = computeResourceLoading(ctx, { onlyOverloaded: true });
+  eq('resourceLoading: aantal resources = resources in de tabel (zelfde telling als toewijzingen)', r.counts.resources, 1);
+  eq('resourceLoading: een resource zonder rijen telt niet mee', computeResourceLoading({ ...ctx, resources: [...ctx.resources, { ...ctx.resources[0], id: 'leeg', name: 'Leeg' }] }, { ...weekly, onlyOverloaded: false }).counts.resources, 1);
+  eq('resourceLoading: weken = rijen zonder filter', r.counts.buckets, r.rows.length);
+  const r2 = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: true });
   ok('resourceLoading: filter houdt alleen overbelaste weken', r2.rows.every(x => x.overloaded));
-  eq('resourceLoading: filter verandert de tellingen niet', r2.counts.weeks, r.counts.weeks);
+  eq('resourceLoading: tellingen gaan over de tabel — met filter tellen alleen overbelaste buckets', r2.counts.buckets, r2.rows.length);
+  eq('resourceLoading: … en overbelaste buckets blijven gelijk', r2.counts.overloadedBuckets, r.counts.overloadedBuckets);
   ok('resourceLoading: overbelaste rijen zijn een deelverzameling', r2.rows.length <= r.rows.length);
+  eq('resourceLoading: project-periode = projectspanne', [r.from, r.to], [projectSpan(ctx.tasks)!.from, projectSpan(ctx.tasks)!.to]);
+  eq('resourceLoading: project-periode meldt geen ontbrekende statusdatum', computeResourceLoading({ ...ctx, statusDate: undefined }, { ...weekly, onlyOverloaded: false }).statusDateMissing, false);
+
+  // Issue #119: maandaggregatie — één bucket voor september die de drie weken samenneemt.
+  const m = computeResourceLoading(ctx, { period: { preset: 'project' }, bucket: 'month', onlyOverloaded: false });
+  eq('resourceLoading: maandbucket ⇒ één rij (alles in september)', m.rows.map(x => [x.bucketStart, x.bucketEnd]), [['2026-09-01', '2026-09-30']]);
+  near('resourceLoading: maandsom = som van de weken', m.rows[0].required, r.rows.reduce((n, x) => n + x.required, 0), 0.11);
+  ok('resourceLoading: maand-capaciteit ≥ som van de weekcapaciteiten binnen de maand', m.rows[0].available >= r.rows.reduce((n, x) => n + x.available, 0) - 0.01);
+  eq('resourceLoading: overbelaste maand', m.counts.overloadedBuckets, 1);
+  ok('resourceLoading: piekdag van de maand = hoogste weekpiek', Math.abs(m.rows[0].peakDayLoad - Math.max(...r.rows.map(x => x.peakDayLoad))) < 0.01);
+
+  // Issue #120: een rapportageperiode beperkt de buckets tot de weken die de periode raken.
+  const w = computeResourceLoading(ctx, { period: { preset: 'nextWeek' }, bucket: 'week', onlyOverloaded: false });
+  eq('resourceLoading: "volgende week" vanaf vr 18 sep ⇒ [18 sep, 24 sep]', [w.from, w.to], ['2026-09-18', '2026-09-24']);
+  eq('resourceLoading: … raakt de weken van 14 en 21 sep', w.rows.map(x => x.bucketStart), ['2026-09-14', '2026-09-21']);
+  eq('resourceLoading: de weekrij is dezelfde hele kalenderweek als zonder periode', w.rows[0].required, r.rows.find(x => x.bucketStart === '2026-09-14')!.required);
+  const c = computeResourceLoading(ctx, { period: { preset: 'custom', from: '2026-09-07', to: '2026-09-11' }, bucket: 'week', onlyOverloaded: false });
+  eq('resourceLoading: aangepaste periode ⇒ alleen de week van 7 sep', c.rows.map(x => x.bucketStart), ['2026-09-07']);
+  eq('resourceLoading: zonder statusdatum meldt een relatieve periode dat wél', computeResourceLoading({ ...ctx, statusDate: undefined }, { period: { preset: 'lastWeek' }, bucket: 'week', onlyOverloaded: false }).statusDateMissing, true);
 }
 
 // ── Resourcetoewijzingen ─────────────────────────────────────────────────────────────────────────
 {
-  const r = computeResourceAssignments(ctx, { weeks: 0, includeCompleted: false });
+  const r = computeResourceAssignments(ctx, { period: { preset: 'project' }, includeCompleted: false });
   eq('assignments: voltooide A weggelaten ⇒ B en D', r.rows.map(x => x.taskId).sort(), [B, D].sort());
-  eq('assignments: geen venster', r.from, undefined);
-  ok('assignments: gesorteerd op start binnen de resource', r.rows.every((x, i) => i === 0 || x.start <= r.rows[i].start));
+  eq('assignments: hele project ⇒ venster = projectspanne', [r.from, r.to], [projectSpan(ctx.tasks)!.from, projectSpan(ctx.tasks)!.to]);
+  ok('assignments: gesorteerd op start binnen de resource', r.rows.every((x, i) => i === 0 || r.rows[i - 1].start <= x.start));
   eq('assignments: taken zonder resource (C, F, G — E is mijlpaal)', r.counts.unassignedTasks, 3);
-  const r2 = computeResourceAssignments(ctx, { weeks: 0, includeCompleted: true });
+  const r2 = computeResourceAssignments(ctx, { period: { preset: 'project' }, includeCompleted: true });
   eq('assignments: met voltooide ⇒ ook A', r2.rows.length, 3);
   eq('assignments: A voltooid', r2.rows.find(x => x.taskId === A)?.state, 'complete');
-  const r3 = computeResourceAssignments(ctx, { weeks: 1, includeCompleted: false });
+  const r3 = computeResourceAssignments(ctx, { period: { preset: 'nextWeek' }, includeCompleted: false });
   eq('assignments: venster van 1 week vanaf de statusdatum', [r3.from, r3.to], ['2026-09-18', '2026-09-24']);
   ok('assignments: B (in uitvoering) valt in het venster', r3.rows.some(x => x.taskId === B));
+  const r4 = computeResourceAssignments(ctx, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false });
+  ok('assignments: aangepast venster in oktober ⇒ D (30 sep – 2 okt) valt eruit', !r4.rows.some(x => x.taskId === D));
+  // Ook bij een aangepast venster stuurt de referentiedag de insluiting van achterstallig werk.
+  eq('assignments: aangepast venster zonder statusdatum meldt dat wél', computeResourceAssignments({ ...ctx, statusDate: undefined }, { period: { preset: 'custom', from: '2026-10-05', to: '2026-10-09' }, includeCompleted: false }).statusDateMissing, true);
+  eq('assignments: hele project meldt geen ontbrekende statusdatum', computeResourceAssignments({ ...ctx, statusDate: undefined }, { period: { preset: 'project' }, includeCompleted: false }).statusDateMissing, false);
+}
+
+// ── Rapportageperiode (issue #120) ───────────────────────────────────────────────────────────────
+{
+  const ref = '2026-09-10'; // donderdag, het voorbeeld uit het issue
+  const span = { from: '2026-09-01', to: '2026-12-31' };
+  const res = (p: ReportingPeriod) => resolveReportingPeriod(p, ref, span);
+  eq('period: volgende 4 weken = 10 sep t/m 7 okt (het voorbeeld uit het issue)', res({ preset: 'next4Weeks' }), { from: '2026-09-10', to: '2026-10-07' });
+  eq('period: volgende week = 7 dagen inclusief', res({ preset: 'nextWeek' }), { from: '2026-09-10', to: '2026-09-16' });
+  eq('period: afgelopen 2 weken eindigt op de referentiedag', res({ preset: 'last2Weeks' }), { from: '2026-08-28', to: '2026-09-10' });
+  eq('period: volgende maand = t/m 9 okt', res({ preset: 'nextMonth' }), { from: '2026-09-10', to: '2026-10-09' });
+  eq('period: afgelopen maand = vanaf 11 aug', res({ preset: 'lastMonth' }), { from: '2026-08-11', to: '2026-09-10' });
+  eq('period: volgende maand vanaf 31 jan klemt op februari', resolveReportingPeriod({ preset: 'nextMonth' }, '2026-01-31', span), { from: '2026-01-31', to: '2026-02-27' });
+  eq('period: addCalendarMonths klemt op de maandlengte', formatDate(addCalendarMonths(parseDate('2026-01-31'), 1)), '2026-02-28');
+  eq('period: hele project = projectspanne', res({ preset: 'project' }), span);
+  eq('period: hele project zonder taken = de referentiedag', resolveReportingPeriod({ preset: 'project' }, ref, undefined), { from: ref, to: ref });
+  eq('period: aangepast = de eigen datums', res({ preset: 'custom', from: '2026-10-01', to: '2026-10-31' }), { from: '2026-10-01', to: '2026-10-31' });
+  eq('period: aangepast zonder datums valt terug op de projectspanne', res({ preset: 'custom' }), span);
+  eq('period: to < from is ongeldig', isValidReportingPeriod({ preset: 'custom', from: '2026-10-31', to: '2026-10-01' }), false);
+  eq('period: 2026-02-31 is ongeldig', isValidReportingPeriod({ preset: 'custom', from: '2026-02-31', to: '2026-03-01' }), false);
+  eq('period: lengte in dagen, inclusief', periodDays({ from: '2026-09-10', to: '2026-10-07' }), 28);
+  ok('period: alle 12 weekpresets sluiten aan op de referentiedag', ([1, 2, 4, 6, 8, 12] as const).every(n => {
+    const nx = res({ preset: weeksToPreset(n, 'next') }); const ls = res({ preset: weeksToPreset(n, 'last') });
+    return nx.from === ref && periodDays(nx) === 7 * n && ls.to === ref && periodDays(ls) === 7 * n;
+  }));
+
+  // Migratie van de oude "N weken"-getallen (reportSettings) naar presets.
+  eq('period: weeksToPreset 3 ⇒ 4 weken, 9 ⇒ 12, 1 ⇒ week', [weeksToPreset(3, 'next'), weeksToPreset(9, 'last'), weeksToPreset(1, 'next')], ['next4Weeks', 'last12Weeks', 'nextWeek']);
+  const migrated = parseTableReportOptions({ lookAheadWeeks: 3, progressPeriodWeeks: 1, resourceAssignmentWeeks: 0 });
+  eq('settings: oude look-ahead 3 weken ⇒ volgende 4 weken', migrated.lookAheadPeriod, { preset: 'next4Weeks' });
+  eq('settings: oude voortgang 1 week ⇒ afgelopen week', migrated.progressPeriod, { preset: 'lastWeek' });
+  eq('settings: oude toewijzingen 0 ⇒ hele project', migrated.resourceAssignmentPeriod, { preset: 'project' });
+  eq('settings: belasting krijgt de defaults', [migrated.resourceLoadPeriod, migrated.resourceLoadBucket], [{ preset: 'project' }, 'week']);
+  const kept = parseTableReportOptions({ lookAheadWeeks: 3, lookAheadPeriod: { preset: 'nextMonth' }, resourceLoadBucket: 'month' });
+  eq('settings: het nieuwe periodeveld wint van het oude getal', kept.lookAheadPeriod, { preset: 'nextMonth' });
+  eq('settings: maandaggregatie bewaard', kept.resourceLoadBucket, 'month');
+  eq('settings: defaults volgen issue #120 (volgende maand / afgelopen maand)', [DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod, DEFAULT_TABLE_REPORT_OPTIONS.progressPeriod], [{ preset: 'nextMonth' }, { preset: 'lastMonth' }]);
+  eq('settings: aangepaste periode met omgekeerde datums ⇒ default', parseReportingPeriod({ preset: 'custom', from: '2026-10-31', to: '2026-10-01' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'nextMonth' });
+  eq('settings: aangepaste periode met geldige datums blijft', parseReportingPeriod({ preset: 'custom', from: '2026-10-01', to: '2026-10-31' }, DEFAULT_TABLE_REPORT_OPTIONS.lookAheadPeriod), { preset: 'custom', from: '2026-10-01', to: '2026-10-31' });
+  eq('settings: onbekende preset ⇒ default', parseReportingPeriod({ preset: 'nextYear' }, { preset: 'project' }), { preset: 'project' });
+
+  // Look-ahead en voortgang volgen dezelfde periode-keuze.
+  const la = computeLookAhead(ctx, { period: { preset: 'nextMonth' }, nearCriticalDays: 5 });
+  eq('lookAhead: volgende maand vanaf 18 sep = t/m 17 okt', [la.from, la.to], ['2026-09-18', '2026-10-17']);
+  const laProject = computeLookAhead(ctx, { period: { preset: 'project' }, nearCriticalDays: 5 });
+  ok('lookAhead: hele project ⇒ minstens zoveel open activiteiten als een maand', laProject.rows.length >= la.rows.length);
+  const pr = computeProgressReport(ctx, { period: { preset: 'next4Weeks' }, nearCriticalDays: 5 });
+  eq('progress: periode ná de statusdatum ⇒ vooruitblik tot het periode-einde (niet gespiegeld)', [pr.summary.periodFrom, pr.summary.periodTo, pr.summary.lookAheadTo], ['2026-09-18', '2026-10-15', '2026-10-15']);
+  const pm = computeProgressReport(ctx, { period: { preset: 'lastMonth' }, nearCriticalDays: 5 });
+  eq('progress: afgelopen maand ⇒ 19 aug t/m 18 sep, vooruitblik gespiegeld t/m 19 okt', [pm.summary.periodFrom, pm.summary.periodTo, pm.summary.lookAheadTo], ['2026-08-19', '2026-09-18', '2026-10-19']);
+  ok('progress: A (voltooid 11 sep) valt in de afgelopen maand', pm.completedInPeriod.some(x => x.taskId === A));
+  const pc = computeProgressReport(ctx, { period: { preset: 'custom', from: '2026-09-14', to: '2026-09-15' }, nearCriticalDays: 5 });
+  ok('progress: aangepaste periode 14–15 sep ⇒ A (klaar 11 sep) valt erbuiten', !pc.completedInPeriod.some(x => x.taskId === A));
+  // Reviewbevinding ronde 2: een aangepaste periode in het verleden wordt NIET gespiegeld — een
+  // venster in 2020 zegt niets over de komende periode; de vooruitkijksectie blijft dan leeg.
+  const p2020 = computeProgressReport(ctx, { period: { preset: 'custom', from: '2020-01-01', to: '2020-12-31' }, nearCriticalDays: 5 });
+  eq('progress: aangepaste periode in 2020 ⇒ vooruitblik t/m het periode-einde, niet een jaar vooruit', p2020.summary.lookAheadTo, '2020-12-31');
+  eq('progress: … en de sectie "start in de komende periode" is leeg', p2020.startingNext.length, 0);
+  eq('progress: "afgelopen …"-preset spiegelt wél', computeProgressReport(ctx, { period: { preset: 'lastWeek' }, nearCriticalDays: 5 }).summary.lookAheadTo, '2026-09-25');
+
+  // Reviewbevinding ronde 3: een venster dat helemaal in het verleden ligt is een terugblik en sleept
+  // de actuele achterstand (overdue / had-moeten-starten) niet mee — look-ahead én toewijzingen.
+  {
+    const clone = ctx.tasks.map(t => ({ ...t, time: { ...t.time } }));
+    const g = clone.find(t => t.id === G)!;
+    g.time.earlyStart = '2026-09-08'; g.time.earlyFinish = '2026-09-09'; // achterstallig t.o.v. 18 sep
+    const past = { preset: 'custom' as const, from: '2020-01-01', to: '2020-12-31' };
+    eq('lookAhead: venster in 2020 ⇒ geen rijen, ook geen achterstand', computeLookAhead({ ...ctx, tasks: clone }, { period: past, nearCriticalDays: 5 }).rows.length, 0);
+    ok('lookAhead: venster dat de statusdatum raakt ⇒ achterstand wél', computeLookAhead({ ...ctx, tasks: clone }, { period: { preset: 'custom', from: '2026-09-18', to: '2026-09-18' }, nearCriticalDays: 5 }).rows.some(x => x.taskId === G && x.status === 'overdue'));
+    eq('assignments: venster in 2020 ⇒ geen rijen', computeResourceAssignments({ ...ctx, tasks: clone }, { period: past, includeCompleted: false }).rows.length, 0);
+  }
+
+  // Reviewbevinding ronde 3: het maandlabel is Gregoriaans met Latijnse cijfers in élke taal —
+  // zonder de unicode-extensies gaf `fa` "شهریور ۱۴۰۵" naast een ondertitel met 2026.
+  {
+    const persianDigits = /[\u06F0-\u06F9\u0660-\u0669]/;
+    for (const loc of ['nl', 'en', 'fa', 'ar', 'ja', 'zh', 'ko', 'de', 'tr', 'pl']) {
+      const label = makeMonthLabeler(loc)('2026-09-01');
+      ok(`monthLabel: ${loc} bevat het Gregoriaanse jaar 2026 ("${label}")`, label.includes('2026'));
+      ok(`monthLabel: ${loc} gebruikt Latijnse cijfers`, !persianDigits.test(label));
+    }
+    ok('monthLabel: fa is niet de Solar-Hijri-kalender', !makeMonthLabeler('fa')('2026-09-01').includes('1405'));
+    eq('monthLabel: onbekende locale valt terug op Engels', makeMonthLabeler('xx-YY')('2026-09-01'), 'Sep 2026');
+  }
 }
 
 // ── WBS-samenvatting ─────────────────────────────────────────────────────────────────────────────
@@ -260,6 +467,260 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('wbs: volledige boom met activiteiten ⇒ 8 rijen in documentvolgorde', r2.rows.map(x => x.name), ['Fase 1', 'A fundering', 'B casco', 'C gevel', 'E oplevering casco', 'D los werk', 'F lange taak', 'G kort los werk']);
   eq('wbs: niveaus', r2.rows.map(x => x.level), [1, 2, 2, 2, 2, 1, 1, 1]);
   eq('wbs: tellingen', [r2.counts.elements, r2.counts.activities], [1, 7]);
+}
+
+// ── Resourcediagram (issue #113) ─────────────────────────────────────────────────────────────────
+// Per resource-IDENTITEIT een band (niet per naam — review op #132, bevinding 1), daaronder zijn
+// bladtaken op start; een taak met twee resources staat onder beide banden; de "(geen)"-band alleen
+// op verzoek. Op de ReportContext van het hoofdscenario (de store staat inmiddels op een ander
+// project), met synthetische extra resources/toewijzingen.
+{
+  const res = (id: string, name: string): Resource => ({ id, name, type: 'EQUIPMENT', description: '', maxUnits: 1 });
+  const asg = (id: string, taskId: string, resourceId: string): ResourceAssignment => ({ id, taskId, resourceId, unitsPerDay: 1 });
+  const kraan = res('res-kraan', 'Kraan');
+  const base = {
+    tasks: ctx.tasks,
+    resources: [...ctx.resources, kraan],
+    assignments: [...ctx.assignments, asg('asg-kraan', B, kraan.id)],
+  };
+  const opts = { includeUnassigned: false, noneLabel: '(geen)', locale: 'nl' };
+  const label = (row: { kind: string; label?: string }) => (row.kind === 'group' ? row.label : undefined);
+  const bandTasks = (rows: ReturnType<typeof computeResourceGanttRows>['rows'], name: string) => {
+    const start = rows.findIndex(x => label(x) === name);
+    const out: string[] = [];
+    if (start < 0) return out;
+    for (const x of rows.slice(start + 1)) { if (x.kind !== 'task') break; out.push(x.task.id); }
+    return out;
+  };
+
+  const r = computeResourceGanttRows(base, opts);
+  eq('resourceGantt: één band per resource, op naam', r.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1']);
+  // Ploeg 1 → A, B, D; Kraan → B; zonder resource: C, E (mijlpaal is óók een bladtaak), F, G.
+  eq('resourceGantt: tellingen', r.counts, { resources: 2, assignments: 4, unassignedTasks: 4, outsidePeriod: 0, inPeriod: 7 });
+  eq('resourceGantt: Ploeg 1 heeft A, B en D', [...bandTasks(r.rows, 'Ploeg 1')].sort(), [A, B, D].sort());
+  eq('resourceGantt: Kraan heeft alleen B', bandTasks(r.rows, 'Kraan'), [B]);
+  ok('resourceGantt: B staat onder beide banden', r.rows.filter(x => x.kind === 'task' && x.task.id === B).length === 2);
+  ok('resourceGantt: alle rijsleutels uniek', new Set(r.rows.map(x => x.rowKey)).size === r.rows.length);
+  const starts = bandTasks(r.rows, 'Ploeg 1').map(id => byId(id).time.earlyStart || byId(id).time.scheduleStart);
+  ok('resourceGantt: binnen een band op start gesorteerd', starts.every((d, i) => i === 0 || starts[i - 1] <= d), starts.join(','));
+  ok('resourceGantt: zonder optie geen "(geen)"-band', !r.rows.some(x => label(x) === '(geen)'));
+  ok('resourceGantt: geen verzameltaak tussen de rijen', !r.rows.some(x => x.kind === 'task' && x.task.id === fase));
+  ok('resourceGantt: taakrijen hangen op diepte 1 onder hun band', r.rows.every(x => x.kind !== 'task' || x.depth === 1));
+
+  const r2 = computeResourceGanttRows(base, { ...opts, includeUnassigned: true });
+  eq('resourceGantt: met optie staat "(geen)" als laatste band', r2.rows.filter(x => x.kind === 'group').map(label), ['Kraan', 'Ploeg 1', '(geen)']);
+  eq('resourceGantt: tellingen ongewijzigd door de optie', r2.counts, r.counts);
+  eq('resourceGantt: de vier taken zonder resource staan onder "(geen)"', [...bandTasks(r2.rows, '(geen)')].sort(), [C, E, F, G].sort());
+
+  // Review-bevinding 1: twee resources met dezelfde naam zijn twee banden, elk met een eigen sleutel;
+  // een taak van beiden staat onder beide — en niet twee keer onder één.
+  const jan1 = res('res-jan-1', 'Jan');
+  const jan2 = res('res-jan-2', 'Jan');
+  const twins = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [jan1, jan2],
+    assignments: [asg('a1', A, jan1.id), asg('a2', A, jan2.id), asg('a3', B, jan2.id)],
+  }, opts);
+  eq('resourceGantt: gelijknamige resources ⇒ twee banden met volgnummer', twins.rows.filter(x => x.kind === 'group').map(label), ['Jan #1', 'Jan #2']);
+  eq('resourceGantt: gelijknamig — tellingen op identiteit', twins.counts, { resources: 2, assignments: 3, unassignedTasks: 5, outsidePeriod: 0, inPeriod: 7 });
+  eq('resourceGantt: gelijknamig — Jan #1 heeft A', bandTasks(twins.rows, 'Jan #1'), [A]);
+  eq('resourceGantt: gelijknamig — Jan #2 heeft A en B', [...bandTasks(twins.rows, 'Jan #2')].sort(), [A, B].sort());
+  ok('resourceGantt: gelijknamig — rijsleutels uniek', new Set(twins.rows.map(x => x.rowKey)).size === twins.rows.length);
+
+  // Review-bevinding 4: een resource zonder naam verdwijnt niet stil in "(geen)" maar krijgt een surrogaat.
+  const naamloos = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan, res('res-leeg', '  ')],
+    assignments: [asg('a1', A, 'res-leeg')],
+  }, opts);
+  eq('resourceGantt: naamloze resource ⇒ band "#2" (positie in de projectlijst)', naamloos.rows.filter(x => x.kind === 'group').map(label), ['#2']);
+  eq('resourceGantt: naamloze resource — A telt als toegewezen', naamloos.counts, { resources: 1, assignments: 1, unassignedTasks: 6, outsidePeriod: 0, inPeriod: 7 });
+
+  // manuvarkey op #113, punt 2: twee lagen — typeband (vaste volgorde: mensen, dan materieel, dan
+  // materiaal), daarin de resourcebanden op diepte 1, de taken op diepte 2; "(geen)" blijft achteraan
+  // op diepte 0 (taken zonder resource hebben geen type). Zonder de optie byte-identiek.
+  const typeLabels = { LABOR: 'Arbeid', CREW: 'Ploeg', SUBCONTRACTOR: 'Onderaannemer', EQUIPMENT: 'Materieel', MATERIAL: 'Materiaal' };
+  const typed = computeResourceGanttRows(base, { ...opts, groupByType: true, typeLabels });
+  const typedGroups = typed.rows.filter(x => x.kind === 'group');
+  eq('resourceGantt/type: typebanden vóór hun resources, mensen eerst', typedGroups.map(x => `${x.depth}:${label(x)}`), ['0:Ploeg', '1:Ploeg 1', '0:Materieel', '1:Kraan']);
+  ok('resourceGantt/type: taakrijen op diepte 2', typed.rows.every(x => x.kind !== 'task' || x.depth === 2));
+  ok('resourceGantt/type: rijsleutels uniek', new Set(typed.rows.map(x => x.rowKey)).size === typed.rows.length);
+  eq('resourceGantt/type: typeband telt de taakrijen eronder', typedGroups.filter(x => x.depth === 0).map(x => x.count), [3, 1]);
+  eq('resourceGantt/type: tellingen ongewijzigd', typed.counts, r.counts);
+  eq('resourceGantt/type: dezelfde taken onder Ploeg 1', [...bandTasks(typed.rows, 'Ploeg 1')].sort(), [A, B, D].sort());
+  const typedNone = computeResourceGanttRows(base, { ...opts, groupByType: true, typeLabels, includeUnassigned: true });
+  const typedNoneGroups = typedNone.rows.filter(x => x.kind === 'group');
+  const lastGroup = typedNoneGroups[typedNoneGroups.length - 1];
+  ok('resourceGantt/type: "(geen)" blijft als laatste band op diepte 0', label(lastGroup) === '(geen)' && lastGroup.depth === 0);
+  ok('resourceGantt/type: zonder de optie byte-identiek', JSON.stringify(computeResourceGanttRows(base, { ...opts, typeLabels }).rows) === JSON.stringify(r.rows));
+  eq('resourceGantt/type: ontbrekend label ⇒ enum-naam', computeResourceGanttRows(base, { ...opts, groupByType: true }).rows.filter(x => x.kind === 'group' && x.depth === 0).map(label), ['CREW', 'EQUIPMENT']);
+  // Gelijknamigen binnen één type houden hun volgnummer; de nummering loopt over de hele lijst.
+  const typedTwins = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [jan1, { ...jan2, type: 'LABOR' }],
+    assignments: [asg('a1', A, jan1.id), asg('a2', B, jan2.id)],
+  }, { ...opts, groupByType: true, typeLabels });
+  eq('resourceGantt/type: gelijknamigen over twee typen houden hun volgnummer', typedTwins.rows.filter(x => x.kind === 'group').map(x => `${x.depth}:${label(x)}`), ['0:Arbeid', '1:Jan #2', '0:Materieel', '1:Jan #1']);
+
+  // manuvarkey op #113, punt 3: tijdvenster — alleen bladtaken die het venster raken (start ≤ tot én
+  // einde ≥ van, op dagniveau); de tellingen volgen de gefilterde set en `outsidePeriod` telt wat er
+  // is weggelaten. Zonder venster (Hele project) is outsidePeriod 0 en verandert er niets.
+  const dayOfTask = (id: string) => ({ s: taskStart(byId(id)).slice(0, 10), f: taskFinish(byId(id)).slice(0, 10) });
+  const dayB = dayOfTask(B).s;
+  const overlapsB = (id: string) => { const { s, f } = dayOfTask(id); return s !== '' && f !== '' && s <= dayB && f >= dayB; };
+  const leavesAll = ctx.tasks.filter(t => t.childIds.length === 0);
+  const windowed = computeResourceGanttRows(base, { ...opts, includeUnassigned: true, window: { from: dayB, to: dayB } });
+  ok('resourceGantt/venster: B (start op de vensterdag) staat onder Ploeg 1', bandTasks(windowed.rows, 'Ploeg 1').includes(B));
+  ok('resourceGantt/venster: A (klaar vóór het venster) staat er niet', !windowed.rows.some(x => x.kind === 'task' && x.task.id === A));
+  ok('resourceGantt/venster: elke getekende taak raakt het venster', windowed.rows.every(x => x.kind !== 'task' || overlapsB(x.task.id)));
+  ok('resourceGantt/venster: elke bladtaak die het venster raakt staat er ook', leavesAll.filter(t => overlapsB(t.id)).every(t => windowed.rows.some(x => x.kind === 'task' && x.task.id === t.id)));
+  eq('resourceGantt/venster: outsidePeriod telt de weggelaten bladtaken', windowed.counts.outsidePeriod, leavesAll.filter(t => !overlapsB(t.id)).length);
+  eq('resourceGantt/venster: inPeriod + outsidePeriod = alle bladtaken', windowed.counts.inPeriod + windowed.counts.outsidePeriod, leavesAll.length);
+  ok('resourceGantt/venster: tellingen volgen de gefilterde set', windowed.counts.assignments < r.counts.assignments && windowed.counts.unassignedTasks < r.counts.unassignedTasks);
+  const buiten = computeResourceGanttRows(base, { ...opts, window: { from: '2030-01-01', to: '2030-01-31' } });
+  eq('resourceGantt/venster: venster zonder taken ⇒ geen rijen, alles buiten de periode', [buiten.rows.length, buiten.counts.outsidePeriod, buiten.counts.resources], [0, leavesAll.length, 0]);
+  const ruim = computeResourceGanttRows(base, { ...opts, window: { from: '2020-01-01', to: '2035-12-31' } });
+  ok('resourceGantt/venster: een venster dat alles omvat ⇒ dezelfde rijen als zonder venster', JSON.stringify(ruim.rows) === JSON.stringify(r.rows) && ruim.counts.outsidePeriod === 0);
+
+  // manuvarkey op #113, punt 1: per taakrij de toewijzing van de band op die taak — eenheden opgeteld
+  // over records van dezelfde resource, curve alleen als alle records dezelfde hebben (afwezig =
+  // UNIFORM), anders null; taakrijen onder "(geen)" hebben geen entry.
+  const asgFull = (id: string, taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve, extra: Partial<ResourceAssignment> = {}): ResourceAssignment => ({ id, taskId, resourceId, unitsPerDay, curve, ...extra });
+  const loaded = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan, jan1],
+    assignments: [
+      asgFull('l1', A, kraan.id, 0.5, 'FRONT_LOADED'), asgFull('l2', A, kraan.id, 1, 'FRONT_LOADED'),
+      asgFull('l3', B, kraan.id, 2), asgFull('l4', B, jan1.id, 1, 'BELL'), asgFull('l5', B, jan1.id, 1, 'BACK_LOADED'),
+    ],
+  }, { ...opts, includeUnassigned: true });
+  const rowOf = (bandName: string, taskId: string) => {
+    const start = loaded.rows.findIndex(x => label(x) === bandName);
+    return loaded.rows.slice(start + 1).find(x => x.kind === 'task' && x.task.id === taskId)!;
+  };
+  eq('resourceGantt/toewijzing: Kraan op A — twee records opgeteld, zelfde curve', loaded.assignmentByRowKey.get(rowOf('Kraan', A).rowKey), { unitsPerDay: 1.5, curve: 'FRONT_LOADED' });
+  eq('resourceGantt/toewijzing: Kraan op B — record zonder curve telt als UNIFORM', loaded.assignmentByRowKey.get(rowOf('Kraan', B).rowKey), { unitsPerDay: 2, curve: 'UNIFORM' });
+  eq('resourceGantt/toewijzing: Jan op B — verschillende curves ⇒ null', loaded.assignmentByRowKey.get(rowOf('Jan', B).rowKey), { unitsPerDay: 2, curve: null });
+  const noneStart = loaded.rows.findIndex(x => label(x) === '(geen)');
+  ok('resourceGantt/toewijzing: elke taakrij onder een resourceband heeft een entry', loaded.rows.slice(0, noneStart).every(x => x.kind !== 'task' || loaded.assignmentByRowKey.has(x.rowKey)));
+  ok('resourceGantt/toewijzing: "(geen)"-rijen hebben geen entry', noneStart > 0 && loaded.rows.slice(noneStart).every(x => x.kind !== 'task' || !loaded.assignmentByRowKey.has(x.rowKey)));
+  eq('resourceGantt/toewijzing: aantal entries = aantal taakrijen onder resourcebanden', loaded.assignmentByRowKey.size, loaded.rows.slice(0, noneStart).filter(x => x.kind === 'task').length);
+  // Review-bevinding 1: dezelfde drie lagen als de lastverdeling — een contour op de taak wint, dan
+  // een geïmporteerde exacte curve zonder OPS-vorm, dan pas `curve`. Nooit "Uniform" bij een
+  // P6-/MSP-import met een echte curve.
+  const curveValues = [0, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const dMetContour = { ...byId(D), timephasedContours: [{ resourceUid: null, resourceId: jan1.id, periods: [] }] };
+  const layered = computeResourceGanttRows({
+    tasks: ctx.tasks.map(t => (t.id === D ? dMetContour : t)), resources: [kraan, jan1],
+    assignments: [
+      asgFull('c1', A, kraan.id, 1, undefined, { curveValues }),          // geïmporteerd, geen OPS-vorm
+      asgFull('c2', B, kraan.id, 1, 'FRONT_LOADED', { curveValues }),     // OPS-vorm aanwezig ⇒ die wint
+      asgFull('c3', D, jan1.id, 1, 'BELL'),                                // contour op de taak ⇒ contoured
+      asgFull('c4', D, kraan.id, 1, undefined, { curveValues }),          // geen contour voor Kraan ⇒ imported
+    ],
+  }, opts);
+  const rowOf2 = (bandName: string, taskId: string) => {
+    const start = layered.rows.findIndex(x => label(x) === bandName);
+    return layered.rows.slice(start + 1).find(x => x.kind === 'task' && x.task.id === taskId)!;
+  };
+  eq('resourceGantt/curve: curveValues zonder curve ⇒ imported', layered.assignmentByRowKey.get(rowOf2('Kraan', A).rowKey)?.curve, 'imported');
+  eq('resourceGantt/curve: curveValues mét OPS-vorm ⇒ de vorm', layered.assignmentByRowKey.get(rowOf2('Kraan', B).rowKey)?.curve, 'FRONT_LOADED');
+  eq('resourceGantt/curve: contour op de taak voor deze resource ⇒ contoured', layered.assignmentByRowKey.get(rowOf2('Jan', D).rowKey)?.curve, 'contoured');
+  eq('resourceGantt/curve: contour geldt alleen voor de gekoppelde resource', layered.assignmentByRowKey.get(rowOf2('Kraan', D).rowKey)?.curve, 'imported');
+  // Ronde 2, bevinding 3: de contourkoppeling loopt op de VOLLEDIGE recordlijst van de taak, ook
+  // met een record naar een onbekende resource erbij — dan slaat de legacy-terugval (één contour
+  // zonder resourceId bij precies één record) níét toe, net als in het paneel en de lastverdeling.
+  const dLegacy = { ...byId(D), timephasedContours: [{ resourceUid: null, periods: [] }] };
+  const legacy = computeResourceGanttRows({
+    tasks: ctx.tasks.map(t => (t.id === D ? dLegacy : t)), resources: [kraan],
+    assignments: [asgFull('g1', D, kraan.id, 1), asgFull('g2', D, 'res-onbekend', 1)],
+  }, opts);
+  eq('resourceGantt/curve: legacy-contour telt niet bij twee records (ook als er één naar een onbekende resource wijst)', legacy.assignmentByRowKey.get(legacy.rows.find(x => x.kind === 'task' && x.task.id === D)!.rowKey)?.curve, 'UNIFORM');
+
+  // Restpunt review #138: de gedeelde weergaveregel zelf (paneel én rapport lezen deze ene functie).
+  const bare = asgFull('s1', A, kraan.id, 1);
+  eq('curveState: contour wint', assignmentCurveState({ ...bare, curve: 'BELL', curveValues }, true), 'contoured');
+  eq('curveState: curveValues zonder vorm ⇒ imported', assignmentCurveState({ ...bare, curveValues }, false), 'imported');
+  eq('curveState: curveValues mét vorm ⇒ de vorm', assignmentCurveState({ ...bare, curve: 'FRONT_LOADED', curveValues }, false), 'FRONT_LOADED');
+  eq('curveState: niets ⇒ UNIFORM', assignmentCurveState(bare, false), 'UNIFORM');
+  eq('curveState: contouredAssignmentIds koppelt op resourceId', [...contouredAssignmentIds(dMetContour, [asgFull('k1', D, jan1.id, 1), asgFull('k2', D, kraan.id, 1)])], ['k1']);
+  eq('curveState: zonder contouren een lege set', contouredAssignmentIds(byId(D), [bare]).size, 0);
+
+  // Restpunt review #138: één getalnotatie voor alle rapporten — app-taal bepaalt het decimaalteken.
+  eq('reportNumber: nl ⇒ komma', formatReportNumber(0.5, 'nl'), '0,5');
+  eq('reportNumber: en ⇒ punt', formatReportNumber(0.5, 'en'), '0.5');
+  eq('reportNumber: zonder taal ⇒ punt', formatReportNumber(0.5), '0.5');
+  eq('reportNumber: geheel zonder decimalen', formatReportNumber(2, 'nl'), '2');
+  eq('reportNumber: hoogstens twee decimalen, geen duizendtalscheiding', formatReportNumber(1234.567, 'de'), '1234,57');
+  eq('reportNumber: plus bij positief', formatSignedReportNumber(1.25, 'nl'), '+1,25');
+  eq('reportNumber: geen plus bij nul of negatief', [formatSignedReportNumber(0, 'nl'), formatSignedReportNumber(-2, 'nl')], ['0', '-2']);
+  // Review #139, bevindingen 5–7: Latijnse cijfers in élke taal, geen bidi-markering, geen "-0".
+  eq('reportNumber: fa ⇒ Latijnse cijfers', formatReportNumber(1.5, 'fa'), '1.5');
+  // De U+200E die Intl vóór het teken zet BLIJFT: zonder staat "-2" in een RTL-alinea als "2-" (ronde 2, bevinding 1).
+  eq('reportNumber: ar negatief houdt de bidi-markering', [...formatReportNumber(-2, 'ar')].map(c => c.charCodeAt(0)), [0x200e, 45, 50]);
+  eq('reportNumber: fa signed positief houdt de bidi-markering', [...formatSignedReportNumber(2, 'fa')].map(c => c.charCodeAt(0)), [0x200e, 43, 50]);
+  eq('reportNumber: welgevormde maar onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz'), '0.5');
+  eq('reportNumber: gecachete formatter geeft dezelfde uitkomst', [formatReportNumber(1.25, 'de'), formatReportNumber(1.25, 'de')], ['1,25', '1,25']);
+  eq('reportNumber: -0,001 rondt af op "0", niet "-0"', [formatReportNumber(-0.001, 'nl'), formatReportNumber(-0.001), formatSignedReportNumber(-0.001, 'nl'), formatSignedReportNumber(-0.001)], ['0', '0', '0', '0']);
+  eq('reportNumber: NaN/oneindig ⇒ leeg', [formatReportNumber(NaN, 'nl'), formatSignedReportNumber(Infinity, 'nl')], ['', '']);
+  eq('reportNumber: onbekende taalcode valt terug op de punt', formatReportNumber(0.5, 'zz-!!'), '0.5');
+  eq('reportNumber: lag-tekst krijgt het decimaalteken van de taal', [localizeDecimalPoint('+1.5d', 'nl'), localizeDecimalPoint('+1.5d', 'en'), localizeDecimalPoint('+2d', 'nl'), localizeDecimalPoint('+1.5d')], ['+1,5d', '+1.5d', '+2d', '+1.5d']);
+  eq('curveState: lege curveValues zijn geen geïmporteerde curve', assignmentCurveState({ ...bare, curveValues: [] }, false), 'UNIFORM');
+
+  // Vector-PDF: de bidi-markering stuurt de levels (min links van het cijfer in een RTL-alinea) maar
+  // krijgt nooit een glyph — anders tekent Inter een `.notdef` van 0,66 em (ronde 2, bevinding 1/6).
+  eq('bidi: stripBidiControls haalt LRM/RLM/ALM/isolaten weg', stripBidiControls('\u200E-2 \u202Bx\u202C \u2067y\u2069 \u061Cz'), '-2 x y z');
+  {
+    const seen: string[] = [];
+    const fakeFont = (tag: string): ShapeFontkitFont => ({
+      unitsPerEm: 1000,
+      layout: (str: string) => { seen.push(`${tag}:${str}`); return { glyphs: [...str].map((_, i) => ({ id: i + 1 })), positions: [...str].map(() => ({ xAdvance: 500 })) }; },
+      hasGlyphForCodePoint: (cp: number) => cp !== 0x200e,
+    });
+    const fonts: ShapingFonts = { latinRegular: fakeFont('L'), latinBold: fakeFont('LB'), arabicRegular: fakeFont('A'), arabicBold: fakeFont('AB') };
+    const runs = layoutRuns('\u0645 \u200E-2', 'rtl', fonts, false, 10);
+    ok('bidi: geen run bevat nog de LRM bij het shapen', !seen.some(str => str.includes('\u200E')), JSON.stringify(seen));
+    ok('bidi: glyphs = tekens zonder stuurtekens', runs.every(r => r.glyphIds.length === stripBidiControls(r.text).length));
+    const minus = runs.find(r => r.text.includes('-'));
+    ok('bidi: "-2" blijft één LTR-run met de min vooraan', !!minus && minus.dir === 'ltr' && minus.text.startsWith('-'), JSON.stringify(runs.map(r => [r.text, r.dir])));
+  }
+
+  // Twee toewijzingen van dezelfde resource op één taak zijn één rij; een toewijzing aan een
+  // onbekende resource telt niet (die taak is dan "zonder resource", zoals op het scherm).
+  const dubbel = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [kraan],
+    assignments: [asg('a1', A, kraan.id), asg('a2', A, kraan.id), asg('a3', B, 'res-bestaat-niet')],
+  }, opts);
+  eq('resourceGantt: dubbele toewijzing ⇒ één rij', bandTasks(dubbel.rows, 'Kraan'), [A]);
+  // …maar de telling volgt de records, zoals het tabelrapport Resourcetoewijzingen (review N8).
+  eq('resourceGantt: onbekende resource ⇒ taak zonder resource; toewijzingen tellen records', dubbel.counts, { resources: 1, assignments: 2, unassignedTasks: 6, outsidePeriod: 0, inPeriod: 7 });
+
+  // Bandvolgorde: taal-/cijferbewust ("Ploeg 2" vóór "Ploeg 10"), hoofdletterongevoelig.
+  const p10 = res('p10', 'Ploeg 10'); const p2 = res('p2', 'ploeg 2'); const aa = res('aa', 'Aannemer');
+  const volgorde = computeResourceGanttRows({
+    tasks: ctx.tasks, resources: [p10, p2, aa],
+    assignments: [asg('a1', A, p10.id), asg('a2', A, p2.id), asg('a3', A, aa.id)],
+  }, opts);
+  eq('resourceGantt: bandvolgorde cijferbewust en hoofdletterongevoelig', volgorde.rows.filter(x => x.kind === 'group').map(label), ['Aannemer', 'ploeg 2', 'Ploeg 10']);
+
+  // Review N1: de bandvolgorde volgt de meegegeven app-taal, niet de OS-taal van de afdrukker. Het
+  // Zweeds sorteert Å/Ä/Ö ná Z, het Engels/Nederlands bij de A — hetzelfde project, twee volgordes,
+  // dus de parameter moet dragend zijn (en het scherm van de afdrukker irrelevant).
+  const alg = res('alg', 'Älg'); const ost = res('ost', 'Ostersund'); const zorg = res('zorg', 'Zorg');
+  const noords = { tasks: ctx.tasks, resources: [zorg, alg, ost], assignments: [asg('a1', A, alg.id), asg('a2', A, ost.id), asg('a3', A, zorg.id)] };
+  eq('resourceGantt: bandvolgorde in het Engels', computeResourceGanttRows(noords, { ...opts, locale: 'en' }).rows.filter(x => x.kind === 'group').map(label), ['Älg', 'Ostersund', 'Zorg']);
+  eq('resourceGantt: bandvolgorde in het Zweeds (Ä ná Z)', computeResourceGanttRows(noords, { ...opts, locale: 'sv' }).rows.filter(x => x.kind === 'group').map(label), ['Ostersund', 'Zorg', 'Älg']);
+
+  // Review N5: gelijknaamdetectie gebruikt dezelfde collator als de sortering — Jan/jan/" Jan " zijn
+  // drie banden mét volgnummer, in projectvolgorde, en sorteren bij elkaar.
+  const jan = [res('j1', 'Jan'), res('j2', 'jan'), res('j3', ' Jan ')];
+  eq('resourceBandLabels: hoofdletter-/spatievarianten krijgen alle drie een volgnummer', [...resourceBandLabels(jan, 'nl').values()], ['Jan #1', 'jan #2', 'Jan #3']);
+  const janRows = computeResourceGanttRows({ tasks: ctx.tasks, resources: jan, assignments: jan.map((r, i) => asg(`j${i}`, A, r.id)) }, opts);
+  eq('resourceGantt: gelijkende namen sorteren bij elkaar in projectvolgorde', janRows.rows.filter(x => x.kind === 'group').map(label), ['Jan #1', 'jan #2', 'Jan #3']);
+  // Review N4: een surrogaat "#2" naast een resource die letterlijk "#2" heet — beide genummerd.
+  eq('resourceBandLabels: surrogaat botst niet stil met een letterlijke "#2"', [...resourceBandLabels([res('x1', '#2'), res('x2', '')], 'nl').values()], ['#2 #1', '#2 #2']);
+  eq('resourceBandLabels: unieke namen blijven kaal, accentgelijk telt als gelijk', [...resourceBandLabels([res('e1', 'Renée'), res('e2', 'Renee'), res('e3', 'Piet')], 'nl').values()], ['Renée #1', 'Renee #2', 'Piet']);
+
+  // Leeg: geen toewijzingen ⇒ geen rijen; geen taken ⇒ ook geen "(geen)"-band en nultellingen.
+  ok('resourceGantt: geen toewijzingen ⇒ leeg', computeResourceGanttRows({ ...base, assignments: [] }, opts).rows.length === 0);
+  const leeg = computeResourceGanttRows({ tasks: [], resources: base.resources, assignments: base.assignments }, { ...opts, includeUnassigned: true });
+  eq('resourceGantt: leeg project ⇒ geen rijen, nultellingen', [leeg.rows.length, leeg.counts], [0, { resources: 0, assignments: 0, unassignedTasks: 0, outsidePeriod: 0, inPeriod: 0 }]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

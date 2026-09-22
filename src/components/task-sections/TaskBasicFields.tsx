@@ -59,7 +59,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, ma
             eerstvolgende structuurmutatie toch overschreven worden. */}
         {wbsAutoNumber ? (
           <input value={task.wbsCode} disabled title={t('properties.wbsAutoHint')}
-            className="input !text-xs !px-2.5 !py-1.5 opacity-60 cursor-not-allowed" />
+            className="input !text-small !leading-4 !px-2.5 !py-1.5 opacity-60 cursor-not-allowed" />
         ) : (
           <Input value={task.wbsCode} onChange={v => onChange({ wbsCode: v })} />
         )}
@@ -69,7 +69,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, ma
         <textarea
           value={task.description}
           onChange={e => onChange({ description: e.target.value })}
-          className="input !text-xs !px-2.5 !py-1.5 h-16 resize-none"
+          className="input !text-small !leading-4 !px-2.5 !py-1.5 h-16 resize-none"
         />
       </Field>
 

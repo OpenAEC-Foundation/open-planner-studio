@@ -57,7 +57,7 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
 
 // De stub geeft fillStyle letterlijk terug (geen canvas-normalisatie naar rgba()), en met de
 // lege getComputedStyle-stub valt de float-kleur terug op de hardcoded default.
-const FLOAT_FILL = '#059669E6';
+const FLOAT_FILL = '#05966999'; // readGanttPalette-fallback voor --theme-bar-float, 60% dekking
 const isFloat = (fill: string) => fill.toUpperCase() === FLOAT_FILL.toUpperCase();
 
 // ── Scenario: één taak met speling naast een langere kritieke taak ───────────
@@ -87,7 +87,7 @@ if (floatTask.time.isCritical) diffs.push('opzet: speling-taak is kritiek — sc
 
 // ── Renderen per scrollX ─────────────────────────────────────────────────────
 const W = 1200, H = 600, TTW = 0;
-function bandAt(scrollX: number): { x: number; right: number } | null {
+function bandAt(scrollX: number, showFloatBand?: boolean): { x: number; right: number } | null {
   const { ctx, rects } = makeCtx();
   const st = S();
   new GanttRenderer(ctx, {
@@ -96,6 +96,7 @@ function bandAt(scrollX: number): { x: number; right: number } | null {
     calendar: st.calendar,
     view: { ...st.view, scrollX, scrollY: 0 },
     selectedTaskIds: [],
+    showFloatBand,
     canvasWidth: W,
     canvasHeight: H,
     rowHeight: 28,
@@ -122,6 +123,13 @@ if (!base) {
     );
   }
 }
+
+// ── #130: de toggle ──────────────────────────────────────────────────────────
+// Ontbreekt de optie of staat hij op `true`, dan tekent de renderer als vanouds; `false` laat de
+// band weg — óók bij scrollX=0, waar hij gegarandeerd in beeld zou staan.
+eq('showFloatBand ontbreekt: band getekend', bandAt(0) !== null, true);
+eq('showFloatBand=true: band getekend', bandAt(0, true) !== null, true);
+eq('showFloatBand=false: band NIET getekend', bandAt(0, false), null);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

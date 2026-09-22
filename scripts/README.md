@@ -28,8 +28,9 @@ poort te pakken. Zie de kop van `CLAUDE.md` en `tests/dev-server/` voor het gehe
 | script | npm-script | doet |
 |---|---|---|
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
+| `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
 | `verify-cycles.mjs` | `verify:cycles` | circulaire imports binnen `src/`, gemeten op de esbuild-metafile (dus ná type-erasure — `import type` geeft geen valse treffers) |
-| `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft |
+| `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |
 | `verify-examples.ts` | `verify:examples` | de gebundelde voorbeeldprojecten laden en rekenen door zoals verwacht |
 
 ## Voorbeeldprojecten genereren
@@ -57,6 +58,7 @@ De `*_engine`-kolommen en PASS-oordelen zijn uitdrukkelijk geen brondata voor de
 | `bump-version.js` | `npm run bump X.Y.Z` | CalVer synchroon zetten in `package.json`, `tauri.conf.json` en de lockfile (`Cargo.toml` blijft bewust `0.1.0`) |
 | `release-notes.mjs` | `.github/workflows/release.yml` (twee plekken) | `docs/release-notes/v<versie>.md` → `--format=body` voor de GitHub-releasepagina, `--format=notes` (platte tekst) voor het `notes`-veld in `latest.json` |
 | `release-highlights.mjs` | `npm run verify:release-highlights` | start de getypeerde releasehighlight-verifier: eist één volledig versieblok met 14 locales, één primary en vier secondary-kaarten zonder gidslink, veilige pictogrammen en reproduceerbare Git-cijfers; docs, vertalingen, lock-, gegenereerde en vendorbestanden tellen niet mee |
+| `build-release-highlights-json.ts` | `npm run gen:release-highlights-json` (schrijven) en `npm run verify:release-highlights-json` (poort, in de `verify`-keten); tijdens een release stap 4a van de `release`-skill | genereert `public/release-highlights.json` uit `src/services/updater/releaseHighlights.ts` — de webbuild serveert dat als `https://open-planner-studio.open-aec.com/release-highlights.json` voor de releasetijdlijn op open-aec.com; `--check` faalt (exit 1) zodra het bestand achterloopt op de catalogus (`generated` telt niet mee) |
 | `verify-package-docs.mjs` | `.github/workflows/snap.yml`, direct na de Snap-build | leest de executable uit de zojuist gebouwde Snap en eist dat het manifest plus de aanwezige Help-artikelen uit `public/docs/` als Tauri-assets zijn ingesloten, vóór upload of Store-publicatie |
 | `publish-wiki.mjs` | `npm run publish:wiki` | genereert de GitHub-wiki uit `public/docs/en`, `docs/wiki/*` en de changelog. De wiki is een build-artefact — nooit met de hand bewerken |
 | `download-stats.mjs` | `npm run stats:downloads` en `.github/workflows/download-stats.yml` (wekelijks + op verzoek) | downloadcijfers per besturingssysteem uit de `download_count` per release-asset van de GitHub Releases-API — tekst, markdown of JSON. Let op: Linux is install+update samen (de updater haalt hetzelfde `.deb`/`.rpm`/`.AppImage` op), de Snap Store zit er niet in, `.sig`-bestanden tellen niet mee. Unit-test: `tests/dev-server/download-stats.test.mjs` |

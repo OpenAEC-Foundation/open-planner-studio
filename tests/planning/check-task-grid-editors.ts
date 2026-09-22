@@ -271,6 +271,37 @@ eq('Dynamisch veld uit een ander project wordt geweigerd', planTaskCellEdit(base
 
 eq('Verkeerde route kan een geldig kolom-id niet misbruiken',
   plan('task.name', 'task-progress', 'Misbruik').ok, false);
+
+// ── Leveling-gaten invalideren vanuit het GRID (B1c-plan-2 spec §4 "Invalidatie", bedraad in de
+// fixronde op etappe 3, bevinding B7). Het grid schrijft niet via `updateTask`, dus het heeft een
+// eigen poort (`LEVELING_GAP_ROUTES` in taskEditPlan.ts) — vóór deze ronde wiste een celwrite hier
+// NOOIT een leveling-gat, ook niet bij een duur- of voortgangswijziging. Importsplits (gaten zonder
+// `source`) zijn brondata en blijven altijd staan. ────────────────────────────────────────────────
+const leveledTask = {
+  ...baseTask,
+  splitGaps: [
+    { afterMinutes: 480, gapMinutes: 480 },                      // importsplit — blijft
+    { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' }, // nivelleeruitvoer — moet weg
+  ],
+} as Task;
+const gapCases: readonly [string, string, CellEditRoute, unknown][] = [
+  ['duur', 'task.time.scheduleDuration', 'task-schedule', 9],
+  ['handmatige startdatum', 'task.time.scheduleStart', 'task-schedule', '2026-01-12'],
+  ['voortgang', 'task.time.completion', 'task-progress', 0.4],
+  ['status', 'task.status', 'task-progress', 'STARTED'],
+  ['mijlpaal', 'task.isMilestone', 'task-milestone', true],
+  ['constraint', 'task.constraint.type', 'task-constraint', 'SNET'],
+];
+for (const [label, columnId, route, value] of gapCases) {
+  const result = plan(columnId, route, value, leveledTask);
+  eq(`Gridwrite (${label}) wist het leveling-gat en houdt de importsplit`,
+    result.ok ? result.value.task.splitGaps : result,
+    [{ afterMinutes: 480, gapMinutes: 480 }]);
+}
+const priorityOnLeveled = plan('task.priority', 'task-field', 900, leveledTask);
+eq('Gridwrite (prioriteit) laat BEIDE gaten staan — nivelleer-invoer verzet geen datum',
+  priorityOnLeveled.ok ? priorityOnLeveled.value.task.splitGaps?.length : priorityOnLeveled, 2);
+
 eq('De planner muteert de brontaak nooit', baseTask, {
   ...baseTask,
   time: { ...baseTask.time },

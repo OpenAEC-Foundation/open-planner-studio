@@ -32,7 +32,10 @@ bestand kan door BIM-software gelezen worden voor de 4D-koppeling (planning naas
 Open **Backstage → Exporteren** voor vier formaten:
 
 - **CSV (puntkomma-gescheiden)** — universele tabel-export. Alle taken met datums en duur.
-- **MS Project XML** — te openen in Microsoft Project. Volledige WBS-structuur.
+- **MS Project XML** — te openen in Microsoft Project. Volledige WBS-structuur. Let op bij taken met een
+  eigen kalender: MS Project toont een duur altijd in *project*-dagen (de "uren per dag" van het
+  project), dus een taak van 7 dagen op een 24-uurskalender staat daar als 21 dagen — met dezelfde
+  doorlooptijd van 7 etmalen.
 - **Primavera P6 XML** — voor Oracle Primavera P6.
 - **IFC 4x3** — de BuildingSMART-standaard, dezelfde als het native formaat (handig als "opslaan als"
   naar een apart bestand, of om een kopie te delen zonder de rest van je open documenten te raken).
@@ -42,8 +45,12 @@ geen van de drie externe formaten is een volledige spiegel van IFC.
 
 ### CSV
 
-De CSV-export bevat **alleen de takentabel**: WBS-code, naam, duur (dagen), start, einde,
-voorgangers (als tekstcode, bijvoorbeeld `2.1FS+3d`), taaktype, status, voltooiing (%), werkelijke
+De CSV-export bevat **alleen de takentabel**: WBS-code, outline-niveau (1 = hoofdniveau, zodat een
+spreadsheet of de CSV-import van MS Project de nesting kan herbouwen — de WBS-code zelf is vrije
+tekst), naam, duur (dagen), start, einde,
+voorgangers (als tekstcode op de WBS-code, bijvoorbeeld `2.1FS+3d` — bij terugimport moeten die codes
+daarom uniek zijn, anders meldt de import welke relaties niet eenduidig waren), taaktype, status,
+voltooiing (%), werkelijke
 start/einde, kritiek (ja/nee), totale speling en omschrijving. Er gaan bewust **geen resources,
 toewijzingen, kalenders of baselines** mee — CSV is puur een taken-tabel voor wie de planning in
 een spreadsheet wil bekijken of bewerken, niet een volwaardige projectuitwisseling. Bij het

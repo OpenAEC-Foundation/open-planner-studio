@@ -22,6 +22,7 @@ import { resourceTools } from './tools/resourceTools';
 import { baselineTools } from './tools/baselineTools';
 import { documentTools } from './tools/documentTools';
 import { fileTools } from './tools/fileTools';
+import { guideTools } from './tools/guideTools';
 import { batchTools } from './tools/batchTool';
 import { xerProvenanceTools } from './tools/xerProvenanceTools';
 
@@ -43,6 +44,10 @@ const MODULES: McpToolDef[][] = [
   baselineTools,
   documentTools,
   fileTools,
+  // Documentatie-tool: geen projectdata, maar de gids/skill waarmee een agent leert hoe hij de
+  // tools hierboven hoort in te zetten. Staat vlak vóór batch omdat hij, net als batch, over de
+  // hele toolset gaat in plaats van over één onderwerp.
+  guideTools,
   batchTools,
 ];
 

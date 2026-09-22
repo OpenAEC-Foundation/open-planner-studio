@@ -76,11 +76,27 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
   // effect wordt dan terecht met actuele kalenderinvoer herstart, maar dat mag geen nieuw
   // coalesce-venster openen: één pointergesture blijft exact één undoable handeling.
   const undoKeyRef = useRef<string | null>(null);
+  // Deze twee horen bij het GEBAAR, niet bij de effect-instantie. Ze stonden eerder als `let` in de
+  // effect-body, en dat was fout om exact dezelfde reden als bij `undoKeyRef` hierboven: het effect
+  // herstart tijdens een lopende sleep (o.a. omdat `effectiveCalById` na elke gecommitte
+  // `updateTask` een nieuwe identiteit krijgt), waarna de closure-variabelen terugvielen op hun
+  // beginwaarde. Voor `direction` betekende dat een tweede richtingskeuze halverwege het gebaar: een
+  // diagonale sleep verzette dan éérst datums en dáárna de structuur — twee mutaties, twee
+  // undo-stappen, precies wat de drempelkeuze moest uitsluiten (review 2026-09-15).
+  const directionRef = useRef<'undecided' | 'horizontal'>('undecided');
+  // Laatst toegepaste dag-verschuiving. Init op 0 = de begintoestand (geen no-op-update bij het
+  // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie de guard
+  // in `handleMouseMove`). Ook deze mag een effectherstart niet resetten, anders wordt dezelfde
+  // verschuiving na de herstart nog een keer gecommit.
+  const lastAppliedDeltaRef = useRef(0);
   const startBarDrag = useCallback((next: DragState) => {
     const canvas = canvasRef.current;
     const rect = canvas?.getBoundingClientRect();
     const pointerStart = rect ? axis.xToDate(next.startX - rect.left) : undefined;
     undoKeyRef.current = `bardrag:${next.taskId}:${++dragSeq}`;
+    // Eén gebaar = één richtingskeuze. Alleen hier resetten.
+    directionRef.current = 'undecided';
+    lastAppliedDeltaRef.current = 0;
     setDragState({ ...next, pointerStart });
   }, [axis, canvasRef]);
 
@@ -112,15 +128,6 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     // past de taak-kalender in het gesleepte bereik) en verandert hier niet.
     const axisCalEngine = new CalendarEngine(calendar);
     const compressed = isCompressedEffective(axisCalEngine, compressNonWorkdays);
-    // Laatst toegepaste dag-verschuiving. Init op 0 = de begintoestand (geen no-op-update bij het
-    // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie fix
-    // bij de guard hieronder).
-    let lastAppliedDelta = 0;
-    // De balkbody heeft twee betekenisvolle richtingen. Kies pas na dezelfde korte drempel als de
-    // rijsleep één as, zodat een natuurlijke diagonale beweging nooit zowel datum als structuur
-    // verandert. Randen zijn bewust altijd horizontale duur-grepen.
-    let direction: 'undecided' | 'horizontal' = 'undecided';
-
     // Snap-quantum is dezelfde actieve minor-tier als de tijdkop. Op kwartierzoom is 15 minuten
     // werkelijk bereikbaar; zonder die opt-in blijft de ondergrens één uur. Met urenplanning uit
     // blijft de as voor nieuwe gebaren dag-granulair, maar bestaande urentaken behouden hun eigen
@@ -172,14 +179,19 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (dragState.edge === 'body' && direction === 'undecided') {
+      // De balkbody heeft twee betekenisvolle richtingen. Kies ÉÉNMAAL per gebaar, na dezelfde korte
+      // drempel als de rijsleep, zodat een diagonale beweging nooit zowel datum als structuur
+      // verandert. Randen zijn bewust altijd horizontale duur-grepen. De keuze staat in een ref
+      // (zie `directionRef`) en overleeft daarom een effectherstart midden in de sleep.
+      if (dragState.edge === 'body' && directionRef.current === 'undecided') {
         const deltaX = e.clientX - dragState.startX;
         const deltaY = e.clientY - dragState.startY;
         if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < ROW_DRAG_THRESHOLD) return;
-        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+        if (Math.abs(deltaY) > Math.abs(deltaX) && onVerticalBodyDrag) {
           // Delegatie vóór elke updateTask-aanroep: verticale verplaatsing verandert nooit datums
-          // en blijft één undo-stap via useRowDrag → moveTaskTo/moveTasksTo.
-          onVerticalBodyDrag?.({
+          // en blijft één undo-stap via de rijsleep → moveTaskTo/moveTasksTo. De ontvanger beslist
+          // zelf of de structuur bewerkbaar is (`useTableRowDrag`'s `enabled`/`onBlocked`).
+          onVerticalBodyDrag({
             taskId: dragState.taskId,
             startClientX: dragState.startX,
             startClientY: dragState.startY,
@@ -188,7 +200,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
           setDragState(null);
           return;
         }
-        direction = 'horizontal';
+        // Zonder ontvanger (geen ingebedde taakgrid) bestaat het verticale gebaar niet en blijft de
+        // body een gewone datumsleep, zoals vóór 2026-08-27. Het gebaar hier afbreken zou de balk
+        // stil doodleggen tot mouseup.
+        directionRef.current = 'horizontal';
       }
       const pixelDelta = e.clientX - dragState.startX;
       if (isHourDrag) {
@@ -201,8 +216,8 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       // terug naar Δ0 werd niets gecommit, dus de balk bleef op de buur-waarde hangen en "flipte"
       // tussen de duren links/rechts van de begin-duur (bug: "ik kan 'm niet op 4 krijgen, hij
       // springt tussen 3 en 5"). Nu herstelt Δ0 netjes de originele duur.
-      if (daysDelta === lastAppliedDelta) return;
-      lastAppliedDelta = daysDelta;
+      if (daysDelta === lastAppliedDeltaRef.current) return;
+      lastAppliedDeltaRef.current = daysDelta;
 
       const origStart = parseDate(dragState.originalStart);
       const origFinish = parseDate(dragState.originalFinish);

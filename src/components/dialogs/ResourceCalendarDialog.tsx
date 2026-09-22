@@ -86,12 +86,11 @@ export function ResourceCalendarDialog({
   return (
     // Esc sluit dialog (LAYOUTS.md §3.3) — via de standaard-toetsafhandeling van `Dialog`.
     <Dialog
-      onBackdropClick={onClose}
       onCancel={onClose}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {tCommon('resource.calendarDialog.title')}
           </span>
           <button onClick={onClose} className="p-1 hover:bg-surface-hover rounded-[8px]">

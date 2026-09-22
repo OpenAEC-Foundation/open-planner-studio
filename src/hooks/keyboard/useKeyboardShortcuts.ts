@@ -77,7 +77,12 @@ export function useKeyboardShortcuts() {
         if (e.key === 'F5') runCPM();
         else if (ctrlB && e.shiftKey && e.key.toLowerCase() === 's') void saveFileAs();
         else if (ctrlB && e.key.toLowerCase() === 's') void saveFile();
-        else if (ctrlB && e.key.toLowerCase() === 'o') void openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
+        // Issue #27/E4: zelfde "geen dialoog open"-guard als de Ctrl+N-tak hieronder — `openFile`
+        // opent doorgaans in een NIEUW document (een documentwissel), die onmogelijk moet zijn
+        // zolang een blokkerende dialoog (bv. de voortgangsimportdialoog) openstaat. Deze voorpoort
+        // draait vóór het sneltoets-register, dus de `when` op de `file.open`-entry in
+        // shortcutRegistry.ts dekt dit pad in een productiebuild niet — die tweede helft is hier nodig.
+        else if (ctrlB && e.key.toLowerCase() === 'o' && !isAnyDialogOpen()) void openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
         // S2 (V1/V3-vondst): dezelfde "geen dialoog open"-guard als de `file.newProject`-entry in
         // shortcutRegistry.ts — zonder guard opende Ctrl+N de projectwizard óver een al openstaande
         // dialoog heen (twee overlays, wizard onbereikbaar).

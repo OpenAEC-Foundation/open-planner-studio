@@ -80,7 +80,7 @@
   -webkit-app-region: no-drag;
   height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 5px;
   border: none; border-radius: var(--radius-md); background: transparent; color: var(--theme-text-dim);
-  font: inherit; font-size: calc(11px * var(--ui-font-scale, 1)); cursor: pointer;
+  font: inherit; font-size: var(--text-body); cursor: pointer;
 }
 .title-bar-autosave:hover { background: var(--theme-titlebar-btn-hover); color: var(--theme-text); }
 .title-bar-autosave:disabled { opacity: .55; cursor: not-allowed; }
@@ -120,7 +120,7 @@
 }
 
 .title-bar-app-name {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 600;
   color: var(--theme-text);
   white-space: nowrap;
@@ -130,7 +130,7 @@
 }
 
 .title-bar-file-name {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -162,7 +162,7 @@
   border-radius: var(--radius-md);
   color: var(--theme-text-dim);
   font-family: inherit;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;

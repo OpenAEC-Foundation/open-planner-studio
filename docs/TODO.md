@@ -11,6 +11,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ## Openstaand
 
+### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
+- [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
+  `public/docs/{de,fr,es,it,pt,pl,tr,ar,fa,zh,ja,ko}/gids-rapporten-printen.md` staat nog dat het
+  instellingenpaneel een printknop met systeemdialoog heeft; die is er niet (alles gaat via
+  Exporteer PDF). nl en en zijn gecorrigeerd; de rest volgt in de maandelijkse vertaalronde.
+  `verify:docs` vangt proza niet.
+- [ ] **Relatiepijlen in de Gantt-afdruk over een paginagrens.** Sinds issue #110 eindigt een
+  pagina op een rijgrens, maar een pijl tussen twee rijen op verschillende pagina's wordt nog
+  gesneden. Inherent aan tegelen; een oplossing (pijl per pagina afkappen met een markering) is
+  renderer-werk.
+- [ ] **RTL-tabelrapporten: DOM spiegelt kolommen, PDF niet.** Een `dir=rtl`-locale (ar/fa)
+  spiegelt de HTML-tabel; de vector-PDF tekent de kolommen LTR. Niet geverifieerd in een echte
+  browser; wel een bekende divergentie tussen de twee weergaven.
+
 ### Bedrijfsbibliotheken (B1.1) — vervolgen (2026-07-24)
 - [ ] **B1b — bezettingsoverzicht** over open documenten (binnen één bedrijf/pool; bouwt op de
   herkomststempels + Resources-tab Bedrijfsweergave uit B1.1). Zie docs/library.md
@@ -440,6 +454,54 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       opname in `get_project_overview`/vergelijkbare MCP-leestools (`src/services/mcp/tools/
       readTools.ts`) zodat een AI-assistent het kan zien en melden. Geen UI-werk nu — bewust
       doorgeschoven, dit is puur zichtbaarheid, geen correctheidsgat.
+
+### Verticaal slepen aan de Gantt-balk — resterende punten (hyperkritische review 2026-09-15)
+
+Het gebaar zelf is hersteld in PR #143 (balkbody draagt een overwegend verticale sleep over aan de
+rijsleep van de DOM-taakgrid, via `src/components/canvas/ganttRowDragBridge.ts`). De drie
+blokkerende bevindingen zijn daar opgelost; de poorten kennen dat pad sinds dezelfde PR
+(`check-gantt-event-ownership.ts` bewaakt de delegatieketen, `verify-gantt-boundaries.mjs` de
+importgrens). Deze drie zijn bewust blijven liggen.
+
+- [ ] **`probeRootRef` staat ook op de volledige Tabel-tab aan.** `FullTaskGrid.tsx` geeft
+      `probeRootRef: containerRef` onvoorwaardelijk mee, dus ook voor `surfaceId === 'full-task-grid'`,
+      terwijl de docstring alleen over het Gantt-canvas praat. Gemeten gevolg: sleep je daar een rij
+      en beweeg je buiten het raster, dan toont de invoegstreep een plek die bij loslaten niets doet
+      (de drop-zone staat op de rij, `dropTarget` blijft null). In één meting bleef de sleep zelfs
+      hangen doordat de mouseup op een *disabled* `<input>` in de rechterrail landde, waar Chromium
+      geen muisevents dispatcht — dat vastlopen is ouder dan de brug, maar `probeRootRef` maakt
+      "loslaten buiten het raster" nu een uitnodigende handeling in plaats van een duidelijke
+      annulering. **Aanpak:** de ref alleen meegeven voor de ingebedde Gantt-grid
+      (`surfaceId === 'gantt-task-grid'`), plus een browsertest op de Tabel-tab die eist dat er
+      buiten het raster géén invoegstreep verschijnt. Terzijde, uit dezelfde meting: `computeHover`
+      garandeert alleen voor `zone === 'nest'` dat zone en target uit dezelfde berekening komen; voor
+      `before`/`after` kan `target` null zijn terwijl de indicator gewoon getoond wordt, dus het
+      commentaar "de indicator kan niet iets anders tonen dan waar de taak landt" klopt maar half.
+- [ ] **De pointercoördinator weet niet dat er een overgedragen gebaar loopt.** Bij de overdracht
+      wordt `barDrag.dragState` genulld, dus `onMouseMove`'s guard grijpt niet meer en de
+      cursorafleiding kent het gebaar niet. Gemeten: midden in de structurele sleep staat er een
+      hover-tooltip van de taak ónder de cursor (dus de drop-doeltaak, niet de gesleepte), valt de
+      cursor terug van `grabbing` naar `grab`, pant een middelklik de tijdlijn terwijl de rijsleep
+      loopt, en verzet een rechtsklik de selectie naar de doeltaak. Het gedocumenteerde invariant in
+      `onMouseDown` ("1 actief gebaar weigert een tweede") is daarmee stuk, want het gebaar leeft in
+      een ander component. Bijvangst: een volledige React-render van de GanttCanvas-subtree per
+      mousemove tijdens de sleep. **Aanpak:** één `transferredRowDragRef`/state in de coördinator die
+      zowel de tooltip- en cursorafleiding als de "één gebaar tegelijk"-guard voedt, in plaats van
+      alleen de wegwerp-vlag `justRowDraggedRef`. Browsertest: tijdens een overgedragen sleep geen
+      tooltip, cursor blijft `grabbing`, en middel-/rechtsklik doen niets.
+- [ ] **Meervoudige selectie sleept nooit mee vanaf de balk** — eerst een productbesluit. De
+      balk-mousedown doet `selectTask(hit.task.id, false)` (`useGanttPointerCoordinator.ts`), en
+      `selectionSlice.selectTask` met `multi=false` zet `selectedTaskIds = [id]`. Tegen de tijd dat
+      `useTableRowDrag`'s mouseup `selectedTaskIds.length > 1` test, is de selectie al gesloopt;
+      Ctrl/Cmd vasthouden helpt niet, want dan valt de mousedown in tak 5 en start er geen sleep.
+      Vanaf een RIJ werkt groepssleep wel. **Keuze:** óf de balk-mousedown laat een bestaande
+      meervoudige selectie waarin de taak zit met rust (gedrag gelijk aan de rij), óf het blijft
+      bewust één taak. De gidsen `public/docs/{nl,en}/gids-plannen-wbs.md` zeggen sinds PR #143
+      expliciet dát de balk altijd één taak verplaatst, dus bij de eerste keuze moeten die mee.
+- [ ] **Klein: de overdracht vraagt één extra muisbeweging.** `startRowDrag` is `setCandidate`; de
+      kandidaat promoveert pas op de eerstvolgende mousemove ná de overdracht. Eén enkele sprong van
+      6 px verticaal gevolgd door loslaten doet dus niets (en slikt de afsluitende klik in). In de
+      praktijk zeldzaam — het is een gratis extra drempel bovenop `ROW_DRAG_THRESHOLD`.
 
 ### Klein
 - [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft

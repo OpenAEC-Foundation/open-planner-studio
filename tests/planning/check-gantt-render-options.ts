@@ -409,6 +409,9 @@ const load: ResourceLoadResult = {
     r3: { '2027-03-01': 999 },
   },
   overallocatedDays: { r1: ['2027-03-01', '2027-03-05'], r2: [], r3: [], r4: [] },
+  // R1: beide overbezette dagen zijn "gewone" overvraag (inzet > capaciteit op een echte werkdag),
+  // geen kalendermismatch — vandaar over-capacity op allebei.
+  overallocatedReasons: { r1: { '2027-03-01': 'over-capacity', '2027-03-05': 'over-capacity' } },
 };
 // Losse fixture waarin ALLEEN materiaal overbelast is. Nodig omdat `anyRenewableOver` in de fixture
 // hierboven sowieso true is (r1 is overbelast): de MATERIAL-uitsluiting in `buildHistogramPicker`
@@ -417,6 +420,7 @@ const materialOnlyOver: ResourceLoadResult = {
   load: { r3: { '2027-03-01': 1500 } },
   capacity: { r3: { '2027-03-01': 999 } },
   overallocatedDays: { r1: [], r2: [], r3: ['2027-03-01'], r4: [] },
+  overallocatedReasons: { r3: { '2027-03-01': 'over-capacity' } },
 };
 for (const [i, sel] of [undefined, 'r1', 'r3', 'onbekend'].entries()) {
   eqDeep(`16.${i} histogramSeries identiek aan het orakel (selectie=${sel ?? 'alle'})`,
@@ -464,6 +468,7 @@ const cpmDistinct = {
 // dan zijn ze onderling niet te onderscheiden en overleeft een kruisbedrading
 // (`showStatusDateLine: input.showProgressLine`) — de meest waarschijnlijke fout bij overtypen.
 // Gemeten: drie van zulke verwisselingen bleven groen. Vandaar drie op `false` en drie op `true`.
+// (#130: `showFloatBand` kwam er als zevende bij, op `false` — de renderer-default is `true`.)
 const baseInput: GanttRenderOptionsInput = {
   rows: S().viewRows,
   sequences,
@@ -477,6 +482,7 @@ const baseInput: GanttRenderOptionsInput = {
   showStatusDateLine: false,
   showProgressLine: true,
   showResourceAccent: true,
+  showFloatBand: false,
   barColorSelection: { mode: 'category', field: { src: 'activityCode', typeId: 'discipline' } },
   activityCodeTypes: [{
     id: 'discipline', name: 'Discipline',
@@ -547,6 +553,7 @@ const passthrough: [string, unknown, unknown][] = [
   ['showStatusDateLine', optsOk.showStatusDateLine, baseInput.showStatusDateLine],
   ['showProgressLine', optsOk.showProgressLine, baseInput.showProgressLine],
   ['showResourceAccent', optsOk.showResourceAccent, baseInput.showResourceAccent],
+  ['showFloatBand', optsOk.showFloatBand, baseInput.showFloatBand],
   ['barColorSelection', optsOk.barColorSelection, baseInput.barColorSelection],
   ['activityCodeTypes', optsOk.activityCodeTypes, baseInput.activityCodeTypes],
   ['customFieldDefs', optsOk.customFieldDefs, baseInput.customFieldDefs],

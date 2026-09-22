@@ -148,6 +148,7 @@ function useRibbonAutoFit(
   activeTab: RibbonTab,
   manualCompact: boolean,
   language: string,
+  fontScale: number,
 ): void {
   // Het toegepaste plan: hoeveel knoppen mini staan, en over hoeveel knoppen dat ging (die telling
   // is de goedkope check of de inhoud tussentijds veranderd is).
@@ -176,9 +177,11 @@ function useRibbonAutoFit(
     plan.current = { count: buttons.length, k: best };
   }, [scrollRef, manualCompact]);
 
-  // Herberekenen bij tabwissel (andere inhoud), bij het omzetten van de handmatige knop en bij een
-  // taalwissel (andere labelbreedtes bij gelijk aantal knoppen).
-  useLayoutEffect(() => { measure(); }, [measure, activeTab, language]);
+  // Herberekenen bij tabwissel (andere inhoud), bij het omzetten van de handmatige knop, bij een
+  // taalwissel en bij een tekengrootte-wissel (`ui.uiFontScale`) — beide veranderen labelbreedtes
+  // bij gelijk aantal knoppen, en geen van beide raakt de containerbreedte, dus de ResizeObserver
+  // hieronder vangt dit niet vanzelf op.
+  useLayoutEffect(() => { measure(); }, [measure, activeTab, language, fontScale]);
 
   // Breedtewijziging van het lint (venster/paneel). Alleen op breedte reageren — de hoogte ligt
   // vast, maar een hoogte-trigger zou hoe dan ook een lus riskeren.
@@ -221,6 +224,7 @@ export function Ribbon() {
   const setUI = useAppStore(s => s.setUI);
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
   const ribbonCompact = useAppStore(s => s.ui.ribbonCompact);
+  const uiFontScale = useAppStore(s => s.ui.uiFontScale);
   // T14: het AI-tabblad verschijnt alleen bij ingeschakelde AI-modus (conditioneel, net als de
   // debug-terminal een paneel toont). Uitzetten verwijdert de tab; de reducer valt dan terug op
   // 'start' als dit tabblad actief was.
@@ -228,7 +232,7 @@ export function Ribbon() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  useRibbonAutoFit(containerRef, scrollRef, activeTab, ribbonCompact, i18n.language);
+  useRibbonAutoFit(containerRef, scrollRef, activeTab, ribbonCompact, i18n.language, uiFontScale);
   // De dichtheid is nu puur de handmatige keuze: 'compact' is de platte 40px-strip die de gebruiker
   // zelf aanzet. De automaat werkt niet meer met een globale dichtheidsladder (die gooide álle
   // labels tegelijk weg), maar degradeert per knop van rechts naar links binnen dezelfde

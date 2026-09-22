@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { useSplitter } from '@/hooks/useSplitter';
@@ -11,6 +11,7 @@ import type { Task } from '@/types/task';
 import { GanttTaskGrid } from '@/components/task-grid/GanttTaskGrid';
 import { GanttCanvas, type GanttGridRevealRequest } from './GanttCanvas';
 import { clampTaskGridWidth, effectiveTaskGridMax } from './ganttSplitter';
+import { GanttRowDragBridgeContext, type GanttRowDragBridge, type GanttRowDragStarter } from './ganttRowDragBridge';
 
 export function GanttWorkspace() {
   const { t } = useTranslation('task');
@@ -23,6 +24,9 @@ export function GanttWorkspace() {
   const [workspaceWidth, setWorkspaceWidth] = useState(TASK_TABLE_MAX_WIDTH + 180);
   const taskGridMax = effectiveTaskGridMax(workspaceWidth);
   const renderedLeftPanelWidth = clampTaskGridWidth(leftPanelWidth, workspaceWidth);
+  // Eén brug per werkruimte: de grid registreert zijn rijsleep, het canvas draagt eraan over.
+  const rowDragStartRef = useRef<GanttRowDragStarter | null>(null);
+  const rowDragBridge = useMemo<GanttRowDragBridge>(() => ({ startRef: rowDragStartRef }), []);
 
   useEffect(() => {
     const node = workspaceRef.current;
@@ -55,6 +59,7 @@ export function GanttWorkspace() {
   }, []);
 
   return (
+    <GanttRowDragBridgeContext.Provider value={rowDragBridge}>
     <div ref={workspaceRef} className="gantt-workspace" data-testid="gantt-workspace">
       <div className="gantt-workspace-grid" style={{ width: renderedLeftPanelWidth }}>
         <GanttTaskGrid onPlainTaskClick={revealTask} />
@@ -102,5 +107,6 @@ export function GanttWorkspace() {
         data-testid="gantt-minimap-host"
       />
     </div>
+    </GanttRowDragBridgeContext.Provider>
   );
 }

@@ -2,7 +2,12 @@
   "app": {
     "title": "Open Planner Studio"
   },
-  "autosave": { "label": "Salvataggio automatico", "noFile": "Salva prima questo progetto per usare il salvataggio automatico.", "onHint": "Il salvataggio automatico è attivo: le modifiche vengono scritte in questo file.", "offHint": "Il salvataggio automatico è disattivato. Il recupero rimane attivo." },
+  "autosave": {
+    "label": "Salvataggio automatico",
+    "noFile": "Salva prima questo progetto per usare il salvataggio automatico.",
+    "onHint": "Il salvataggio automatico è attivo: le modifiche vengono scritte in questo file.",
+    "offHint": "Il salvataggio automatico è disattivato. Il recupero rimane attivo."
+  },
   "notifications": {
     "dismiss": "Chiudi notifica",
     "openFailed": "Apertura del file non riuscita",
@@ -158,10 +163,13 @@
   },
   "settings": {
     "title": "Impostazioni",
-    "general": "Generale",
     "appearanceTab": "Aspetto",
-    "applicationTab": "Applicazione",
-    "statsTab": "Statistiche",
+    "planningTab": "Pianificazione",
+    "advancedTab": "Avanzate",
+    "statsSection": "Statistiche",
+    "statsSectionHint": "Quante volte Open Planner Studio è stato scaricato, per sistema operativo e per release.",
+    "statsOpen": "Statistiche…",
+    "statsTitle": "Statistiche dei download",
     "statsDownloadsSection": "Download per sistema operativo",
     "statsIntro": "Quante volte Open Planner Studio è stato scaricato. Cifre pubbliche da GitHub Releases; non viene raccolto nulla su di te.",
     "statsColOs": "Sistema",
@@ -184,18 +192,18 @@
     "statsError": "Impossibile recuperare le cifre. Controlla la connessione a Internet.",
     "statsSnapHint": "Le installazioni tramite Snap Store non passano da GitHub e non compaiono qui.",
     "quarterHourSection": "Zoom al quarto d'ora",
-    "projectInfoSection": "Progetto",
     "language": "Lingua",
+    "languageHint": "La lingua di visualizzazione dell'app, applicata immediatamente.",
     "version": "Versione",
-    "projectInfo": "Informazioni sul progetto...",
+    "versionHint": "Il numero di versione attuale dell'app.",
     "tourHint": "Rifai il tour introduttivo dell'app.",
     "theme": "Tema",
+    "themeHint": "Lo schema di colori dell'interfaccia.",
     "themeDark": "Scuro",
     "themeLight": "Chiaro",
     "themeHighContrast": "Alto contrasto",
     "themeFollowSystem": "Segui il tema di sistema",
     "themeSystemHint": "Segue lo schema di colori del sistema (ora: {{theme}}).",
-    "timeline": "Sequenza temporale / Zoom",
     "hourPlanningSection": "Pianificazione oraria",
     "enableHourPlanning": "Attiva pianificazione oraria",
     "enableHourPlanningHint": "Attiva la pianificazione ora/minuto: una scala temporale oraria, turni con fasce orarie di lavoro e barre attività precise all'ora. Disattivato ⇒ l'app resta completamente granulare per giorni, come prima.",
@@ -203,18 +211,23 @@
     "defaultTaskDurationUnit": "Unità predefinita per le nuove attività",
     "defaultTaskDurationUnitHint": "Stabilisce se le nuove attività iniziano in giorni lavorativi o ore di lavoro. Le attività esistenti non cambiano.",
     "durationDisplay": "Visualizzazione della durata",
+    "durationDisplayHint": "Determina come viene mostrata la durata dell'attività, indipendentemente dall'unità in cui l'attività stessa è registrata.",
     "durationDisplayAuto": "Automatica (unità propria per attività)",
     "durationDisplayDays": "Sempre giorni",
     "durationDisplayHours": "Sempre ore",
     "barSplitMode": "Barre attività alle interruzioni",
+    "barSplitModeHint": "Se una barra attività si divide visivamente attorno ai giorni non lavorativi.",
     "barSplitNever": "Non dividere mai",
     "barSplitSelection": "Dividi alla selezione",
     "barSplitAlways": "Dividi sempre",
+    "ganttSection": "Gantt",
     "compressNonWorkdaysSection": "Asse temporale",
     "compressNonWorkdays": "Mostra solo i giorni lavorativi",
     "compressNonWorkdaysHint": "Comprime la linea temporale: i weekend e le festività del calendario di progetto vengono saltati, così un'attività di 5 giorni lavorativi occupa esattamente 5 colonne.",
     "enableQuarterHourZoom": "Mostra i quarti d'ora con ingrandimento elevato",
+    "enableQuarterHourZoomHint": "Graduazione aggiuntiva al quarto d'ora sulla scala oraria quando si esegue lo zoom avanzato.",
     "weekStartDay": "La settimana inizia il",
+    "weekStartDayHint": "Disposizione settimanale della scala temporale.",
     "weekStartMonday": "Lunedì",
     "weekStartSunday": "Domenica",
     "calculationSection": "Calcolo",
@@ -242,8 +255,10 @@
     "wheelCtrlCtrl": "Ctrl + rotella",
     "wheelCtrlShift": "Shift + rotella",
     "debugTerminal": "Terminale di debug",
+    "debugTerminalHint": "Mostra il pannello di log per la risoluzione dei problemi.",
     "debugTerminalEnable": "Abilita il terminale di debug",
     "documentChrome": "Stile di cambio documento",
+    "documentChromeHint": "Come passi da un documento aperto all'altro.",
     "documentChromeTabs": "Schede orizzontali",
     "documentChromeRail": "Schede verticali",
     "documentChromeSwitcher": "Pillola",
@@ -254,6 +269,7 @@
     "dateNotationYmd": "aaaa-mm-gg",
     "fontFamilyLabel": "Carattere",
     "fontScaleLabel": "Dimensione testo",
+    "fontScaleHint": "Ridimensiona il testo e il layout dell'interfaccia.",
     "fontFamilyDefault": "Predefinito",
     "fontFamilySystem": "Sistema",
     "fontFamilySerif": "Serif",
@@ -293,7 +309,7 @@
     "tokenWarning": "Questo token dà accesso al piano aperto. Non condividerlo con altri.",
     "connectPrompt": "Prompt di connessione",
     "connectPromptHint": "Incolla questo nel tuo agente IA: si collega da solo.",
-    "connectPromptText": "Connettiti a un server MCP in esecuzione sul mio computer: nome {{name}}, trasporto HTTP in streaming, URL {{url}}, con l'header Authorization: Bearer {{token}}. Aggiungilo alla tua configurazione MCP (per esempio come blocco mcpServers) e collegati. Poi chiedi l'elenco degli strumenti come verifica: dovresti vedere circa {{count}} strumenti con il prefisso {{prefix}}. Riassumi brevemente cosa puoi fare con questo server.",
+    "connectPromptText": "Connettiti a un server MCP in esecuzione sul mio computer: nome {{name}}, trasporto HTTP in streaming, URL {{url}}, con l'header Authorization: Bearer {{token}}. Aggiungilo alla tua configurazione MCP (per esempio come blocco mcpServers) e collegati. Poi chiedi l'elenco degli strumenti come verifica: dovresti vedere circa {{count}} strumenti con il prefisso {{prefix}}. Riassumi brevemente cosa puoi fare con questo server. Prima di modificare qualcosa, leggi la guida alla pianificazione con lo strumento planner_get_planning_guide.",
     "statusDot": "Bridge IA: {{status}}"
   },
   "aiSafety": {
@@ -433,7 +449,19 @@
       "sameSize": "Stessa dimensione della versione precedente",
       "daysSincePrevious": "Dalla versione precedente: {{count}} giorni",
       "currentOnly": "Stai usando la versione {{version}}",
-      "whatsNewButton": "Novità", "newVersion": "Nuova versione", "readGuide": "Leggi la guida", "fullNotes": "Note di rilascio complete", "openFailed": "Impossibile aprire le note di rilascio.", "inNumbers": "Questo aggiornamento in numeri", "days": "giorni dalla versione precedente", "commits": "commit dalla versione precedente", "codeLines": "righe di codice aggiunte", "codeLinesHint": "Righe aggiunte in applicazione, Rust, script e test.", "smallerLabel": "pacchetto più piccolo", "largerLabel": "pacchetto più grande", "acknowledge": "Capito"
+      "whatsNewButton": "Novità",
+      "newVersion": "Nuova versione",
+      "readGuide": "Leggi la guida",
+      "fullNotes": "Note di rilascio complete",
+      "openFailed": "Impossibile aprire le note di rilascio.",
+      "inNumbers": "Questo aggiornamento in numeri",
+      "days": "giorni dalla versione precedente",
+      "commits": "commit dalla versione precedente",
+      "codeLines": "righe di codice aggiunte",
+      "codeLinesHint": "Righe aggiunte in applicazione, Rust, script e test.",
+      "smallerLabel": "pacchetto più piccolo",
+      "largerLabel": "pacchetto più grande",
+      "acknowledge": "Capito"
     }
   },
   "statusWarnings": {
@@ -460,7 +488,9 @@
       "droppedSequence": "Relazione ignorata: predecessore o successore mancante o non è un'attività foglia",
       "hammockNoFinishDriver": "Hammock senza driver di fine (nessun predecessore FF/SF): la durata torna a zero",
       "cappedTask": "Data di fine limitata: il calendario non lascia alcuna finestra lavorativa per questa attività",
-      "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})"
+      "overallocation": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}})",
+      "overallocationNonWorkingDay": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}}) — la risorsa non lavora in questo/i giorno/i secondo il suo calendario",
+      "overallocationMixed": "Sovrassegnata per {{count}} giorno/i ({{first}} – {{last}}), di cui {{nonWorking}} giorno/i in cui la risorsa non lavora secondo il suo calendario"
     },
     "target": {
       "project": "Progetto",
@@ -620,6 +650,7 @@
     "histogram": {
       "allResources": "Tutte le risorse",
       "overallocatedTooltip": "{{count}} attività contribuiscono il {{date}}",
+      "overallocatedNonWorkingDay": "Non lavora in questo giorno secondo il calendario \"{{calendar}}\"",
       "noData": "Ricalcola (F5) per mostrare il carico",
       "noResources": "Ancora nessuna risorsa",
       "units": "unità",
@@ -648,7 +679,11 @@
       "conflictDays": "{{count}} giorno/i",
       "reason": {
         "calendarMismatch": "La risorsa non lavora in tutti i giorni richiesti da questa attività — lo spostamento non risolve il problema.",
-        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto."
+        "insufficientCapacity": "Capacità libera insufficiente entro il margine per risolvere questo conflitto.",
+        "ceilingTooTight": "Il tetto di slittamento lascia troppo poco spazio: entro quel numero di giorni lavorativi non c'è una finestra libera.",
+        "ceilingUnreachable": "Concedere slittamento qui non aiuta — una scadenza o un vincolo tiene questa attività al suo posto.",
+        "noWindowInHorizon": "Nel periodo esplorato non è stata trovata alcuna finestra libera; oltre non si sa.",
+        "residualFull": "L'impegno proprio aveva spazio, ma la capacità residua della libreria è esaurita — altri progetti la occupano."
       }
     },
     "curve": {
@@ -747,8 +782,14 @@
       "decreaseTime": "Riduci l’orario di 15 minuti",
       "increaseBreakDuration": "Aumenta la durata della pausa di 15 minuti",
       "decreaseBreakDuration": "Riduci la durata della pausa di 15 minuti",
-      "start": "Inizio pausa", "duration": "Durata pausa (minuti)", "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
-      "errors": { "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.", "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.", "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa." }
+      "start": "Inizio pausa",
+      "duration": "Durata pausa (minuti)",
+      "hint": "Le fasce di lavoro vengono calcolate automaticamente. Durata 0 elimina la pausa.",
+      "errors": {
+        "invalidDuration": "La durata deve essere un numero intero di minuti non negativo.",
+        "outsideWorkingDay": "La pausa deve rientrare interamente nella giornata lavorativa.",
+        "consumesWorkingDay": "La pausa non può occupare tutta la giornata lavorativa."
+      }
     },
     "worktime": {
       "section": "Orari di lavoro",
@@ -1061,5 +1102,62 @@
     "permImportSource": "importSource — i byte di origine completi di ogni file importato (ad esempio un file Primavera grezzo), compresi i campi che non arrivano mai nel progetto.",
     "cancel": "Non installare",
     "confirm": "Installa"
+  },
+  "progressImport": {
+    "title": "Aggiorna l'avanzamento da un foglio",
+    "chooseFile": "Scegli file…",
+    "intro": "Scegli un foglio CSV restituito. L'app legge solo completamento, inizio effettivo e fine effettiva — il resto della pianificazione resta invariato.",
+    "summaryApplied": "Applicato: {{applied}}",
+    "summaryNoop": "Invariato: {{noop}}",
+    "summaryNeedsLink": "In attesa di collegamento: {{needsLink}}",
+    "summaryRefused": "Rifiutato: {{refused}}",
+    "sectionNeedsLink": "In attesa di collegamento",
+    "sectionDoubtful": "Collegamento incerto",
+    "confirmLink": "Conferma",
+    "changeLink": "Modifica",
+    "clearLink": "Rimuovi collegamento",
+    "pickerPlaceholder": "Scegli un'attività…",
+    "pickerFilter": "Cerca per WBS o nome…",
+    "pickerTooMany": "Troppe attività da mostrare — restringi la ricerca.",
+    "pickerTaken": "già collegata a un'altra riga",
+    "overrideDropped": "Il collegamento della riga {{row}} punta a un'attività non più esistente ed è stato ignorato.",
+    "moreRows": "…e altri {{more}}",
+    "sheetRowHint": "riga {{row}} nel foglio",
+    "dateOrderTitle": "Prima il giorno o prima il mese?",
+    "dateOrderQuestion": "«{{sample}}» — che data è?",
+    "dateOrderOptionA": "{{date}}",
+    "dateOrderOptionB": "{{date}}",
+    "dateOrderBack": "Torna alla domanda sulla data",
+    "dateOrderContradictory": "Questo file contiene notazioni di data contraddittorie, senza una cella chiara su cui interrogare. L'app ha presunto giorno-mese; le date che non corrispondono vengono rifiutate qui sotto come illeggibili.",
+    "confirm": "Applica",
+    "close": "Chiudi",
+    "resultTitle": "Risultato",
+    "empty": "—",
+    "fileIssue": {
+      "tooLarge": "Questo file è troppo grande per essere letto come foglio di avanzamento.",
+      "tooManyRows": "Questo file ha troppe righe per essere letto come foglio di avanzamento.",
+      "noKeyColumn": "Questo file non ha una colonna «OPS Task ID» né «WBS» per collegare le righe alle attività.",
+      "noProgressColumns": "Questo file non ha nessuna delle colonne Completamento, Inizio effettivo o Fine effettiva.",
+      "unreadable": "Questo file non è stato possibile leggerlo come foglio di avanzamento.",
+      "encrypted": "Questo file è protetto da password e non può essere letto."
+    },
+    "reason": {
+      "unmatched": "Nessuna attività trovata per questa riga.",
+      "ambiguousWbs": "Questo codice WBS compare in più attività — collega la riga manualmente.",
+      "duplicateRow": "Un'altra riga ha già rivendicato questa attività.",
+      "summaryTask": "Le attività di riepilogo non possono ricevere avanzamento da un foglio.",
+      "unreadableDate": "Data illeggibile.",
+      "unreadableNumber": "Percentuale illeggibile.",
+      "percentOutOfRange": "Percentuale fuori dall'intervallo 0–100. Controlla il separatore decimale: in un foglio di calcolo con impostazioni regionali diverse, \"8,38\" può essere letto come 838.",
+      "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
+      "actualFinishBeforeStart": "La fine effettiva precede l'inizio effettivo.",
+      "conflictingProgressInputs": "I valori inseriti si contraddicono.",
+      "rejected": "Rifiutato dal pianificatore."
+    },
+    "field": {
+      "completion": "Completamento",
+      "actualStart": "Inizio effettivo",
+      "actualFinish": "Fine effettiva"
+    }
   }
 }

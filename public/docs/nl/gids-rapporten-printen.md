@@ -2,13 +2,14 @@
 
 Een planning is pas af als je hem ook kunt delen — op papier voor een bouwvergadering, als
 afbeelding in een presentatie, of als overzicht van wat er straks moet gebeuren en wat er al
-verschoven is. Daarvoor is er het tabblad **Rapport**, met tien rapporttypen en een printvoorbeeld.
+verschoven is. Daarvoor is er het tabblad **Rapport**, met elf rapporttypen en een printvoorbeeld.
 
 ## Wat je hier leert
 
-- De rapporttypen op het tabblad **Rapport**: de Gantt-afdruk, twee tabelrapporten over mijlpalen
-  en variance, en zeven tabelrapporten voor de weekvergadering, de voortgangsrapportage, de
-  planningsreview, de resources en het management.
+- De rapporttypen op het tabblad **Rapport**: de Gantt-afdruk, het resourcediagram ("wie doet wat,
+  en wanneer" — desgewenst een blad per persoon), twee tabelrapporten over mijlpalen en variance,
+  en zeven tabelrapporten voor de weekvergadering, de voortgangsrapportage, de planningsreview, de
+  resources en het management.
 - Hoe het printvoorbeeld werkt: papierformaat, oriëntatie en welke elementen je aan/uit zet.
 - Hoe je een rapport daadwerkelijk afdrukt of als bestand bewaart.
 - Wat **Ctrl+P** doet in deze app.
@@ -40,6 +41,14 @@ instellingenblok:
   van het zoomniveau hierboven.
 - **Kop op elke pagina herhalen** — standaard aan; houdt de rapportkop zichtbaar op elke afgedrukte
   pagina in plaats van alleen de eerste.
+- **Voet op elke pagina herhalen** — standaard aan; zet de voet met projectnaam, afdrukdatum en
+  legenda onderaan elke pagina in plaats van alleen de laatste, zodat een los uitgedeeld vel zijn
+  eigen legenda heeft — ook wanneer de tijdlijn over meerdere pagina's naast elkaar staat. Past de
+  hele afdruk op één pagina, dan blijft de voet gewoon onder de laatste rij staan. De strook kost
+  per pagina ruimte: ongeveer twee rijen minder per vel, dus soms een pagina meer, en een resource
+  die met *Elke resource op een nieuwe pagina* nét op één vel paste kan daardoor over twee vellen
+  gaan. Uit = de voet alleen op de laatste pagina. Het paginanummer ("3 / 7") staat altijd in de
+  ondermarge, los van de voet; de voet zelf draagt geen paginanummer meer.
 - **Tijdlijn over** — verdeelt de Gantt-tijdlijn over 1 tot 8 pagina's naast elkaar; alleen
   beschikbaar met auto-fit aan. Kies meer pagina's wanneer je de tijdas minder wilt comprimeren
   zonder de tabeltekst kleiner te maken.
@@ -52,6 +61,12 @@ instellingenblok:
   wordt precies zo breed als de langste naam in het rapport (inclusief inspringing), zodat niets
   wordt afgekapt; de tijdlijn wordt navenant smaller. Alleen bij een extreem lange naam kapt de
   kolom alsnog af, zodat één naam nooit de hele pagina opeist.
+- De overige tabelkolommen — *WBS*, *Duur*, *Start*, *Einde*, *Volt.* en bij het resourcediagram
+  *Eenh./d* en *Curve* — hebben geen instelling nodig: elke kolom wordt precies zo breed als haar
+  kop en haar breedste cel in dít rapport. Een lange vertaalde kop krijgt daarmee de ruimte die hij
+  nodig heeft in plaats van over de buurkolom te lopen, en korte inhoud (WBS-codes van één niveau,
+  duren van één cijfer) geeft de overgebleven millimeters aan de tijdlijn. Alleen een uitzonderlijk
+  brede waarde stopt bij het maximum van de kolom; die cel eindigt dan op een beletselteken.
 - **Balkkleuren** — één keuze die het Gantt-scherm en het rapport samen gebruiken. *Kritiek pad*
   geeft het vertrouwde rood/oranje/blauw; *Per taak — automatisch* geeft iedere taak een vaste
   paletkleur; met *Op categorie* kiest u een veld uit dezelfde lijst als bij **Groeperen**. Kies
@@ -76,7 +91,8 @@ instellingenblok:
 De relatielijnen in het rapport gebruiken dezelfde tekentaal als het Gantt-scherm: een
 **doorgetrokken** lijn is een bepalende (driving) relatie, een **gestreepte** lijn een
 niet-bepalende, en een bepalende relatie tussen twee kritieke taken is **rood**. Zet je *kritiek pad*
-uit, dan worden ook die lijnen neutraal. De legenda onderaan vat het verschil samen. Is er nog niet
+uit, dan worden die lijnen neutraal en verdwijnt de legendaregel; de balkkleur zelf volgt de keuze
+**Balkkleuren**. De legenda onderaan vat het verschil samen. Is er nog niet
 gerekend, dan staan alle lijnen neutraal doorgetrokken — druk eerst op *Bereken* (F5).
 
 Het overzichtsblok erboven toont live het aantal taken, bladtaken, kritieke taken en relaties in
@@ -84,6 +100,58 @@ het project. Het instellingenpaneel onthoudt je keuzes tussen sessies — open h
 later opnieuw en papierformaat, schakelaars, lettergrootte en de rest staan er weer precies zo bij
 als je ze achterliet. Alleen het bedrijfsveld reset: dat begint altijd bij de eigen instelling van
 het project, zodat een rapport nooit de bedrijfsnaam van een ander project meesleept.
+
+### Resourcediagram
+
+Dezelfde Gantt-afdruk, maar gegroepeerd **per resource**: elke ploeg, medewerker of machine krijgt
+een eigen band met daaronder de taken die eraan zijn toegewezen, op volgorde van start. Dat is het
+"wie doet wat, en wanneer"-overzicht voor de bouwvergadering, of — met de optie **Elke resource op
+een nieuwe pagina** — een los vel per persoon om uit te delen. Een taak met twee resources staat
+onder beide banden; verzameltaken doen niet mee — een toewijzing op een verzameltaak (die uit een
+import kan komen) wordt hier niet getoond. Met **Taken zonder
+resource meenemen** komt er onderaan een band *(geen)* bij, zodat je in het overleg meteen ziet wat
+nog niemand heeft. Met **Groeperen op resourcetype** komt er een laag boven: eerst een band per type
+— arbeid, ploeg, onderaannemer, materieel, materiaal, in die vaste volgorde — en daarbinnen de
+resources; handig als je in het overleg eerst de mensen en dan het materieel bespreekt, of alleen het
+materieelblok wilt afdrukken; het getal achter een typeband telt de taakrijen eronder, dus een taak
+die onder twee resources van hetzelfde type staat telt twee keer. Bij *Elke resource op een nieuwe
+pagina* begint een typeband op een nieuw vel samen met zijn eerste resource. Met **Rapportageperiode** — dezelfde keuze als bij de
+tabelrapporten, zie verderop — beperk je het diagram tot een tijdvenster: alleen taken die het
+venster raken doen mee, de tijdas loopt precies van de begin- tot de einddatum, en een balk die
+verder doorloopt wordt aan de rand afgekapt. Zo leg je in dezelfde vergadering het look-ahead-rapport
+en het resourcediagram over exact dezelfde weken naast elkaar. *Hele project* (standaard) is het
+gewone gedrag; bij een venster telt het overzichtsblok ook hoeveel taken erbuiten vallen.
+Achter de taaknaam staan standaard twee kolommen **Eenh./d** en **Curve**: hoeveel eenheden per
+dag de resource van die band op de taak staat en met welke verdeelcurve — "je staat halve dagen
+op Fundering, vooraan belast" zegt meer dan "je staat op Fundering". Een taak onder twee banden
+toont per band de eigen inzet; twee toewijzingen van dezelfde resource op één taak worden
+opgeteld, en een streepje bij de curve betekent dat die toewijzingen verschillende curves hebben.
+Heeft de toewijzing een eigen urenverdeling, dan staat er *Contour*; is de curve uit MS Project of
+P6 geïmporteerd en is het geen van de acht eigen vormen, dan staat er *Geïmporteerde curve* —
+hetzelfde als in het eigenschappenpaneel. De twee kolommen maken de tabel tot ruim 130 px breder (de curvekolom is zo breed
+als de langste curvenaam in het rapport) en de tijdas dus smaller. Blijft er voor de tijdlijn minder over dan ongeveer een vijfde van de
+papierbreedte — door een brede naamkolom, een grote lettergrootte (de tabel schaalt mee, de tijdlijn
+niet) of klein of staand papier — dan laat het rapport de twee kolommen zelf weg en meldt dat in het
+overzichtsblok. Op A4 staand met de standaardinstellingen passen ze. Meer ruimte voor de tijdlijn
+geeft groter of liggend papier, een kleinere lettergrootte of een smallere tabel (een smallere
+naamkolom bij *Taaknamen afkappen*, of *Voltooiing tonen* uit); zodra de tabel weer ruimte laat komen
+de kolommen vanzelf terug. Zet **Eenheden/dag en curve tonen** uit voor de smalle tabel van de
+Gantt-afdruk.
+
+De instellingen van de Gantt-afdruk gelden hier ook — kritiek pad, speling, balkkleuren, statuslijn,
+papier, kopherhaling — op drie na: *Volg weergave* (de rijen komen bij dit rapport niet van het
+scherm), *Afhankelijkheden* (een taak kan onder meerdere banden staan en pijlen zouden bij een blad per
+resource van het vel af lopen; dit rapport tekent er daarom geen) en *Kritiek pad* (dat vinkje kleurt
+alleen relatielijnen, en die zijn er hier niet — de balken volgen gewoon de keuze **Balkkleuren**, en
+de legenda verklaart ze). Je hoeft de Gantt-weergave dus
+niet eerst zelf op resource te groeperen. Banden zijn per resource, niet per naam: twee resources die
+toevallig hetzelfde heten krijgen elk een eigen band (*Jan #1*, *Jan #2*), en een resource zonder
+naam een volgnummer. Het overzichtsblok telt de resources, de toewijzingen en de taken zonder
+resource — die laatste telling omvat ook mijlpalen en hammocks, want die worden hier getekend (het
+tabelrapport *Resourcetoewijzingen* telt alleen echte activiteiten). Met *Voet op elke pagina
+herhalen* (standaard aan) heeft elk uitgedeeld vel zijn eigen legenda. Zijn er nog geen
+toewijzingen, dan zegt het voorbeeld dat in plaats van een lege pagina te tonen; toewijzen gebeurt
+op het tabblad **Resources** (zie [Resources & histogram](docs://gids-resources-histogram)).
 
 ### Mijlpalen-overzicht
 
@@ -108,22 +176,46 @@ De overige rapporttypen zijn tabelrapporten die rechtstreeks uit de laatste bere
 delen een paar afspraken:
 
 - Alleen **bladtaken** tellen als activiteit; verzameltaken zie je alleen in de WBS-samenvatting.
-  Hammock-taken (LOE) doen niet mee.
+  Hammock-taken (LOE) doen in de activiteitenrapporten niet mee; in de twee resourcerapporten
+  wél, want ook toezicht boekt inzet — dezelfde set als het histogram.
 - De **referentiedag** is de statusdatum van het project. Is er geen statusdatum, dan rekent het
   rapport met vandaag en zegt dat er bij. Stel dus eerst een statusdatum in via de projectgegevens
   als je een rapport voor een vaste peildatum wilt.
 - Datums en speling komen uit de laatste **berekening**. Is de planning gewijzigd sinds de laatste
   keer dat je op *Bereken* (F5) drukte, dan staat er een melding boven het rapport; de PDF-export
   rekent altijd eerst door.
-- Elk rapport heeft een klein blok **Rapportopties** onder de samenvatting; die keuzes worden
-  onthouden tussen sessies. Werkdagen worden afgekort tot *wd*.
+- Elk rapport heeft een klein blok **Rapportopties** onder de samenvatting, met bovenaan het
+  papierformaat en de oriëntatie van de PDF (een brede tabel op A4 staand wordt erg klein — kies
+  dan A3 liggend); die keuzes worden onthouden tussen sessies. Werkdagen worden afgekort tot *wd*.
 - Een taak kan in meerdere secties van één rapport staan wanneer die secties elk een andere vraag
   beantwoorden (in uitvoering én kritiek, bijvoorbeeld).
 
+### Rapportageperiode
+
+Vier rapporten werken op een tijdvenster: look-ahead, voortgang, resourcebelasting en
+resourcetoewijzingen. Ze delen één *Rapportageperiode*-keuze in de rapportopties, met een eigen
+onthouden instelling per rapport (het resourcediagram hierboven kent dezelfde keuze):
+
+- **Volgende / afgelopen week, 2, 4, 6, 8 of 12 weken** en **volgende / afgelopen maand** — gerekend
+  vanaf de statusdatum van het project (of vandaag als die ontbreekt). Een preset is inclusief aan
+  beide kanten: *volgende 4 weken* op donderdag 10 september loopt t/m woensdag 7 oktober. Wijzig je
+  de statusdatum, dan schuift het venster automatisch mee. Zonder statusdatum rekent een preset
+  vanaf vandaag, en "vandaag" wordt bij elke weergave van het paneel opnieuw bepaald — op de
+  UTC-kalender, niet op de lokale klok: in Nederland kantelt de dag dus om 01:00 (wintertijd) of
+  02:00 (zomertijd). Blijft de app 's nachts open, dan schuift het venster daarna een dag op.
+- **Hele project** — van de vroegste start tot het laatste einde in de planning.
+- **Aangepast** — twee eigen datums. De velden *Van* en *Tot* worden dan bewerkbaar (typen of de
+  datumkiezer); bij een preset tonen ze alleen-lezen de berekende datums. Een einddatum vóór de
+  begindatum, of een leeg datumveld, wordt rood gemarkeerd en niet toegepast. Kies je daarna weer een preset, dan
+  vervangen de presetdatums je eigen bereik.
+
+De gekozen periode staat als ondertitel in het rapport en in de PDF; het voortgangsrapport toont
+hem in de samenvatting.
+
 ### Look-ahead
 
-De lijst voor het weekoverleg op de bouw: alle activiteiten die de komende *N* weken (standaard
-vier) aan de orde zijn — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
+De lijst voor het weekoverleg op de bouw: alle activiteiten in de rapportageperiode (standaard de
+komende maand) — wat start, wat loopt door, wat eindigt — plus wat er al had moeten
 gebeuren. Per rij zie je WBS, naam, start en einde, de resterende duur, de voltooiing, de totale
 speling, of de taak kritiek of near-critical is, de toegewezen resources en een status:
 **Start** (begint in het venster), **In uitvoering**, **Had moeten starten** (start vóór de
@@ -147,9 +239,13 @@ prognose-einde met het verschil in werkdagen, de **geplande** tegenover de **wer
 voortgang en de tellingen per staat. Beide percentages zijn duurgewogen over de bladtaken: een
 mijlpaal weegt niets, een maand werk weegt zwaar. Gepland wordt gemeten op de datums van de
 actieve baseline (de afspraak waartegen je meet); zonder baseline op de huidige planning, en dat
-staat er dan bij. Daaronder vijf secties: voltooid in de afgelopen periode, in uitvoering, start
-in de komende periode, achterstallig, en de open kritieke activiteiten. De periode (standaard twee
-weken) kijkt evenveel terug als vooruit.
+staat er dan bij. Daaronder vijf secties: voltooid in de rapportageperiode, in uitvoering, start
+in de komende periode, achterstallig, en de open kritieke activiteiten. De rapportageperiode
+(standaard de afgelopen maand) bepaalt wat als *voltooid in de periode* telt; de sectie *start
+in de komende periode* kijkt vanaf de statusdatum vooruit — tot het einde van de periode als die
+(deels) ná de statusdatum ligt; bij een *afgelopen …*-preset even ver vooruit als de periode
+terugkijkt; bij een aangepaste of projectperiode die helemaal in het verleden ligt blijft de sectie
+leeg. De samenvatting toont beide grenzen.
 
 ### Planningsgezondheid
 
@@ -167,20 +263,25 @@ De drempels staan in de rapportopties. Standaard volgen ze DCMA: hoge speling en
 44 werkdagen; een lag boven 10 werkdagen. Een schone planning heeft nul fouten; waarschuwingen en
 informatie zijn aanleiding om te kijken, niet per se om te veranderen.
 
-### Resourcebelasting per week
+### Resourcebelasting
 
-Per resource en per week de gevraagde inzet tegenover de beschikbare capaciteit (in eenheid-dagen),
-het verschil, de piekbelasting op één dag en of de week overbelast is. Het is dezelfde berekening
-als het histogram op het tabblad **Resources**, maar dan als tabel om naast elkaar te leggen in
-een bemensingsoverleg. Alleen weken met vraag staan erin; met de optie *Alleen overbelaste weken*
-houd je uitsluitend de knelpunten over.
+Per resource en per week of maand de gevraagde inzet tegenover de beschikbare capaciteit (in
+eenheid-dagen), het verschil, de piekbelasting op één dag en of de periode overbelast is. Het is
+dezelfde berekening als het histogram op het tabblad **Resources**, maar dan als tabel om naast
+elkaar te leggen in een bemensingsoverleg. De rijen zijn per resource gegroepeerd — naam en type
+staan alleen op de eerste rij van elke groep, net als bij de resourcetoewijzingen. Kies met
+*Aggregatie* tussen kalenderweken en kalendermaanden; de rapportageperiode bepaalt welke weken of
+maanden meedoen (elke week of maand die de periode raakt, als geheel — dus altijd hetzelfde getal
+als in het histogram). Alleen periodes met vraag staan erin; met de optie *Alleen overbelaste
+periodes* houd je uitsluitend de knelpunten over. Valt in de PDF een paginaovergang midden in een
+groep, dan herhaalt de resourcenaam zich niet op de volgende pagina.
 
 ### Resourcetoewijzingen
 
 Per resource welke activiteiten eraan hangen: WBS, naam, start en einde, resterende duur, inzet in
 eenheden per dag, voltooiing, kritiek en status. Voltooide taken staan er standaard niet in. Met een
-venster in weken wordt het de *resource-look-ahead*: alleen wat deze ploeg of dit materieel de
-komende weken te doen heeft, plus wat er nog open staat. De samenvatting telt ook de taken zonder
+rapportageperiode (standaard het hele project) wordt het de *resource-look-ahead*: alleen wat deze
+ploeg of dit materieel in die periode te doen heeft, plus wat er nog open staat. De samenvatting telt ook de taken zonder
 resource.
 
 ### WBS-samenvatting
@@ -193,10 +294,14 @@ activiteiten zelf onder hun element.
 
 ## Afdrukken en exporteren
 
-Onderaan het instellingenpaneel staat altijd een knop **Afdrukken...** — die opent een apart
-afdrukvenster met het rapport erin en start meteen de browser-/systeem-printdialoog. Bij het
-Gantt-rapport gebruikt dat venster het gekozen papierformaat en de oriëntatie; het mijlpalen- en
-variance-rapport printen de tabel zoals weergegeven.
+Er is geen aparte printknop met een systeemdialoog: afdrukken gaat via de PDF. Exporteer het
+rapport, open de PDF en print die — zo komt op papier precies wat het voorbeeld toont, met dezelfde
+paginaovergangen (nooit dwars door een rij).
+
+Kolomkoppen staan in de PDF altijd voluit: past een vertaalde kop niet in de breedte waarop de
+kolom ontworpen is, dan groeit de kolom mee in plaats van de kop af te kappen — net als in de
+tabel op het scherm. Celinhoud die te lang is (een lange taaknaam, een rij resources) eindigt wél
+op een beletselteken; dat is de bedoelde ruimteverdeling.
 
 Elk rapporttype heeft een knop **Exporteer PDF**. Bij het Gantt-rapport bewaart die het huidige
 voorbeeld als een echt PDF-bestand (bestandsnaam eindigend op `-planning.pdf`) — één pagina op de
@@ -209,8 +314,8 @@ worden eveneens als vector geshapet en ingebed. Chinese, Japanse en Koreaanse te
 installeer je een font-extensie die die glyphs levert, dan wordt ook die tekst als vector ingebed
 (selecteerbaar en doorzoekbaar); zonder zo'n extensie wordt die tekst als raster-afbeelding
 geëxporteerd — nog steeds correct leesbaar, maar niet selecteerbaar of doorzoekbaar. Handig voor e-mail of archief zonder de systeem-printdialoog erbij te hoeven halen.
-Wil je liever direct printen (of via de systeemdialoog naar PDF, bijvoorbeeld om een ander
-papierformaat te kiezen dan hierboven ingesteld), gebruik dan **Afdrukken...**.
+Wil je een ander papierformaat dan hierboven ingesteld, kies dat dan in het rapport zelf vóór het
+exporteren — de PDF is altijd op de fysieke maat van het gekozen papier.
 
 ## Rapporten in de praktijk
 
@@ -237,8 +342,8 @@ Elk rapporttype dient een ander gesprek:
   staat, de look-ahead wat er nu moet gebeuren.
 - **Planningsgezondheid** hoort bij een planningsreview vóór je een baseline vastlegt of een
   planning bij een contract voegt: nul fouten is de lat.
-- De twee **resource**-rapporten en de **WBS-samenvatting** zijn er voor respectievelijk het
-  bemensingsoverleg en het managementoverzicht. Alle zeven tabelrapporten werken ook op de
+- Het **resourcediagram** is het uitdeelbare "wie doet wat"-vel; de twee **resource**-tabellen en de
+  **WBS-samenvatting** zijn er voor respectievelijk het bemensingsoverleg en het managementoverzicht. Alle zeven tabelrapporten werken ook op de
   showcase hierboven, die een statusdatum, baselines en voortgang bevat.
 
 Het live voorbeeld rechts ververst bij elke wijziging aan de instellingen links — er is geen aparte

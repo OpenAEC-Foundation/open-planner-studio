@@ -14,13 +14,13 @@
   display: flex;
   padding: 0 8px;
   gap: 2px;
-  height: 28px;
+  height: calc(28px * var(--ui-font-scale, 1));
   align-items: flex-end;
 }
 
 .ribbon-tab {
-  padding: 6px 16px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  padding: calc(6px * var(--ui-font-scale, 1)) calc(16px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   background: transparent;
   border: 1px solid transparent;
   border-bottom: none;
@@ -92,7 +92,7 @@
 
 .ribbon-group-label {
   font-family: var(--font-heading);
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--text-caption);
   color: var(--theme-text-muted);
   text-align: center;
   font-weight: 600;
@@ -190,7 +190,7 @@
 }
 
 .ribbon-btn-label {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   color: var(--theme-text-dim);
   text-align: center;
   line-height: 1.1;
@@ -247,7 +247,7 @@
 }
 
 .ribbon-btn.small .ribbon-btn-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   text-align: left;
   max-width: none;
   white-space: nowrap;
@@ -474,7 +474,7 @@
   writing-mode: vertical-rl;
   text-orientation: mixed;
   transform: rotate(180deg);
-  font-size: calc(8px * var(--ui-font-scale, 1));
+  font-size: var(--text-caption);
   letter-spacing: 0.06em;
 }
 
@@ -483,7 +483,7 @@
   background: var(--theme-file-tab-bg);
   color: var(--theme-accent-on);
   font-weight: 700;
-  padding: 6px 18px;
+  padding: calc(6px * var(--ui-font-scale, 1)) calc(18px * var(--ui-font-scale, 1));
 }
 .ribbon-tab--file:hover,
 .ribbon-tab--file.active {
@@ -529,7 +529,7 @@
   border: 0;
   background: transparent;
   color: var(--theme-text);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   text-align: start;
   white-space: nowrap;
   cursor: pointer;
@@ -558,7 +558,7 @@
   padding: 6px 12px;
   border-top: 1px solid var(--theme-border-light);
   color: var(--theme-text-dim);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   white-space: normal;
 }
 
@@ -570,7 +570,7 @@
 }
 
 .ribbon-info {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   color: var(--theme-text-dim);
   padding: 4px 8px;
   white-space: nowrap;

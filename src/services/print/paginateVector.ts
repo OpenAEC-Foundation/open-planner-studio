@@ -26,7 +26,7 @@ import { subsetFont } from '@/services/pdf/hbSubset';
 import { appLog } from '@/services/debug/appLog';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
-import { computeTileLayout, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
+import { computeTileLayout, footerLayoutWidthFor, type PaperSize, type Orientation, type PaginateMode } from './tileLayout';
 
 /** Optie-subset voor de vector-pagineerder; de logische dims + bevroren-kolombreedte komen uit de render. */
 export interface VectorPaginateOptions {
@@ -47,6 +47,12 @@ export interface VectorPaginateOptions {
    * hem daarom uit het render-resultaat ({@link RenderReportResult.headerHeight}).
    */
   repeatHeader?: boolean;
+  /**
+   * Herhaal de voetstrook (projectnaam, afdrukdatum, legenda) onderaan ELKE pagina. Zelfde
+   * boolean-vorm als `repeatHeader`, om dezelfde reden: de hoogte komt uit
+   * {@link RenderReportResult.footerHeight}. Default false = voet alleen op de laatste pagina.
+   */
+  repeatFooter?: boolean;
   /**
    * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt (issue #25 punt 5). Alleen in
    * `'fit-width'`; default 1 = alles op één paginabreedte persen (oud gedrag).
@@ -103,13 +109,16 @@ export class VectorUnsupportedError extends Error {
 /**
  * Bouw een multi-page VECTOR-PDF uit een print-render.
  *
- * @param renderReport  wordt exact één keer aangeroepen met een Draw2D-fabriek; levert de logische
- *                       dims + bevroren-kolombreedte. Sluit `tasks/sequences/calendar/...` in.
+ * @param renderReport  wordt aangeroepen met een Draw2D-fabriek (één keer, plus een extra pass voor
+ *                       CJK-fonts of voor de voetbreedte — zie hieronder); levert de logische dims +
+ *                       bevroren-kolombreedte. Sluit `tasks/sequences/calendar/...` in. De tweede
+ *                       parameter is `PrintOptions.footerLayoutWidth`: de breedte (logische px) die
+ *                       op één pagina past, zodat de herhaalde voet op elke kolompagina compleet is.
  * @param opts          papierformaat/oriëntatie/modus/marge.
  * @param fontBytes     rauwe Inter-TTF-bytes (Regular + Bold) voor de subset-embedding.
  */
 export async function paginateVectorToPdfBytes(
-  renderReport: (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult,
+  renderReport: (makeDraw2D: (w: number, h: number) => Draw2D, footerLayoutWidth?: number) => RenderReportResult,
   opts: VectorPaginateOptions,
   fontBytes: InterFontBytes,
   arabicBytes: ArabicFontBytes,
@@ -140,12 +149,14 @@ export async function paginateVectorToPdfBytes(
   // Render-helper: draai `renderReport` één keer met een verse PdfVectorDraw2D die de gegeven CJK-fonts
   // kent. Beide passes delen dezelfde `pool` (alpha-/font-dedup is idempotent, dus pass 2 hergebruikt de
   // resource-sleutels van pass 1). Geeft de laatste capture + de logische dims terug.
-  const runRender = (cjk: CjkVectorFont[]): { d2d: PdfVectorDraw2D; dims: RenderReportResult } => {
+  let lastCjk: CjkVectorFont[] = [];
+  const runRender = (cjk: CjkVectorFont[], footerLayoutWidth?: number): { d2d: PdfVectorDraw2D; dims: RenderReportResult } => {
     let captured: PdfVectorDraw2D | null = null;
+    lastCjk = cjk;
     const dims = renderReport((w, h) => {
       captured = new PdfVectorDraw2D(w, h, pool, baseDir, arabicFonts, cjk);
       return captured;
-    });
+    }, footerLayoutWidth);
     if (!captured) throw new Error('paginateVectorToPdfBytes: renderReport riep de Draw2D-fabriek niet aan');
     return { d2d: captured as PdfVectorDraw2D, dims };
   };
@@ -256,6 +267,45 @@ export async function paginateVectorToPdfBytes(
     ({ d2d, dims } = runRender(cjkPass2));
   }
 
+  // ---- Tegel-/schaalwiskunde: gedeeld met de raster-pagineerder via `tileLayout.computeTileLayout` ----
+  // Stond hier vroeger als letterlijke kopie van de raster-pagineerder; nu één bron van waarheid,
+  // zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
+  const tileInput = (d: RenderReportResult) => ({
+    paperSize: opts.paperSize,
+    orientation: opts.orientation,
+    mode: opts.mode,
+    logicalWidth: d.width,
+    logicalHeight: d.height,
+    frozenColumnWidthPx: d.tableWidth,
+    // De kop- en voetstrookhoogte komen uit de render zelf (zie `VectorPaginateOptions.repeatHeader`).
+    repeatHeaderHeightPx: opts.repeatHeader ? d.headerHeight : 0,
+    repeatFooterHeightPx: opts.repeatFooter ? d.footerHeight : 0,
+    timelineColumns: opts.timelineColumns,
+    marginPt: opts.marginPt,
+    breakOffsetsPx: d.breakOffsets,
+    forcedBreakOffsetsPx: d.forcedBreakOffsets,
+  });
+  let layout = computeTileLayout(tileInput(dims));
+
+  // Voet op elke pagina: de voetinhoud moet binnen één paginabreedte gelegd zijn (anders staat bij
+  // meerdere kolommen het merk in kolom N en de legenda in kolom 2). De render kent die breedte pas
+  // ná de tegelwiskunde, dus één extra pass met `footerLayoutWidth` — alleen wanneer die breedte
+  // écht kleiner is dan het canvas. In fit-width met één kolom zijn beide analytisch gelijk
+  // (`col0Bodypx = printW/scale = cw`) maar als floats soms 1e-13 uit elkaar; zonder de marge draaide
+  // ~5 % van de exports een tweede volledige render voor niets (review #135 ronde 3, F1). De maten
+  // veranderen niet door de pass (de voet bepaalt de canvasbreedte niet); de layout wordt toch
+  // herrekend. Een smallere voet kan alleen legenda-items wéglaten, dus nieuwe codepoints zijn
+  // uitgesloten — de coverage-poort wordt hieronder tóch herhaald, zodat die invariant geen
+  // ongeschreven aanname blijft (F2).
+  const footerLayoutWidth = footerLayoutWidthFor(layout);
+  if (footerLayoutWidth !== undefined && footerLayoutWidth < dims.width - 0.5) {
+    ({ d2d, dims } = runRender(lastCjk, footerLayoutWidth));
+    layout = computeTileLayout(tileInput(dims));
+    if (d2d.uncoveredCodepoints.size > 0) {
+      throw new VectorUnsupportedError([...d2d.uncoveredCodepoints], d2d.hasRtl);
+    }
+  }
+
   // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
   // tekening wordt exact één keer vastgelegd en per pagina ge-`Do`'d). De TEKST zit BEWUST niet in het
   // XObject (fase 2.1): een gedeeld XObject `Do`'t z'n volledige tekstlaag op élke pagina, waardoor de
@@ -269,22 +319,10 @@ export async function paginateVectorToPdfBytes(
   const xobjRef = doc.context.register(xobj);
   const texts = d2d.texts;
 
-  // ---- Tegel-/schaalwiskunde: gedeeld met de raster-pagineerder via `tileLayout.computeTileLayout` ----
-  // Stond hier vroeger als letterlijke kopie van de raster-pagineerder; nu één bron van waarheid,
-  // zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
-  const layout = computeTileLayout({
-    paperSize: opts.paperSize,
-    orientation: opts.orientation,
-    mode: opts.mode,
-    logicalWidth: dims.width,
-    logicalHeight: dims.height,
-    frozenColumnWidthPx: dims.tableWidth,
-    // De kopstrookhoogte komt uit de render zelf (zie `VectorPaginateOptions.repeatHeader`).
-    repeatHeaderHeightPx: opts.repeatHeader ? dims.headerHeight : 0,
-    timelineColumns: opts.timelineColumns,
-    marginPt: opts.marginPt,
-  });
-  const { pageWidthPt: pageW, pageHeightPt: pageH, marginPt, scale, rows, cols, repeatHeaderPx, bodyTopPt } = layout;
+  const {
+    pageWidthPt: pageW, pageHeightPt: pageH, marginPt, scale, rows, cols, repeatHeaderPx, bodyTopPt,
+    repeatFooterPx, repeatFooterSrcY, footerTopPt, footerWindow,
+  } = layout;
 
   const ch = dims.height;
   const totalPages = rows * cols;
@@ -342,6 +380,7 @@ export async function paginateVectorToPdfBytes(
   // Top van het printgebied in PDF-punten (y-omhoog); de kopstrook begint hier, de body eronder.
   const printTopYUp = pageH - marginPt;
   const bodyTopYUp = pageH - bodyTopPt;
+  const footerTopYUp = pageH - footerTopPt;
 
   let pageIndex = 0;
   for (const row of layout.bodyRows) {
@@ -372,6 +411,12 @@ export async function paginateVectorToPdfBytes(
           drawTile(pageOps, win.srcX, 0, win.srcW, repeatHeaderPx, win.pageX, printTopYUp);
         }
         drawTile(pageOps, win.srcX, row.srcY, win.srcW, row.srcH, win.pageX, bodyTopYUp);
+      }
+      // Voetstrook onderaan het printgebied, één keer per pagina uit het vaste `footerWindow` (x vanaf
+      // 0, één paginabreedte — niet het kolomvenster); de voettekst valt in dat bronvenster en wordt
+      // dus — net als de koptekst — per pagina geëmit.
+      if (repeatFooterPx > 0) {
+        drawTile(pageOps, footerWindow.srcX, repeatFooterSrcY, footerWindow.srcW, repeatFooterPx, footerWindow.pageX, footerTopYUp);
       }
 
       // Paginanummer rechtsonder in de marge (grijs ~8pt), als vector-tekst — buiten het XObject.

@@ -2,6 +2,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
+  useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,6 +15,7 @@ import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { resolveUIFontStack } from '@/utils/uiFont';
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MiniMap } from './MiniMap';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
@@ -44,7 +47,9 @@ import { buildTrace } from '@/engine/taskGrid/trace';
 import { useGanttRendererHost, useGanttRendererRefs } from './hooks/useGanttRendererHost';
 import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator';
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
+import { useGanttHistogramPickerScroll } from './hooks/useGanttHistogramPickerScroll';
 import { useGanttPointerCoordinator } from './hooks/useGanttPointerCoordinator';
+import { useGanttRowDragBridge } from './ganttRowDragBridge';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 
 // Basisgeometrie op Tekengrootte 100% (issue #60): de component leidt hieruit de EFFECTIEVE
@@ -176,6 +181,7 @@ export function GanttCanvas({
   // #21: resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/
   // tabelweergave — de renderer krijgt alles doorgegeven en leeft buiten de store).
   const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
+  const showFloatBand = useAppStore(s => s.ui.showFloatBand);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
@@ -242,6 +248,18 @@ export function GanttCanvas({
     primaryHScrollRef: hScrollRef,
     secondaryHScrollRef: hScrollSecondaryRef,
   } = viewport.refs;
+  // R2a-fixronde punt 1: `histogramContainerRef` is een stabiel `RefObject` — bij een remount van de
+  // strook (portal-doel `histogramHost` bestaat pas ná de eerste render, of de hele Gantt wordt
+  // ver- en hermount bij een tabwissel naar Tabel/Backstage) wijzigt `.current` zonder dat React dat
+  // als een echte waardewissel ziet. `useGanttHistogramPickerScroll` moet de node zelf als afhankelijk-
+  // heid krijgen om zijn wheel-listener opnieuw te hechten, dus spiegelen we `.current` hier naar
+  // React-state via een callback-ref (die overige consumenten van `histogramContainerRef`, zoals
+  // `useGanttRendererHost`, blijven ongewijzigd via het ref-object lezen).
+  const [histogramContainerEl, setHistogramContainerEl] = useState<HTMLDivElement | null>(null);
+  const setHistogramContainerNode = useCallback((node: HTMLDivElement | null) => {
+    histogramContainerRef.current = node;
+    setHistogramContainerEl(node);
+  }, [histogramContainerRef]);
   const effectiveViewStart = viewport.effectiveViewStart;
   const effectiveView = viewport.effectiveView;
   const sharedAxis = viewport.sharedAxis;
@@ -301,6 +319,16 @@ export function GanttCanvas({
     }),
     [tCommon],
   );
+  // R1: reden achter een overbezette dag zichtbaar maken in de bestaande tooltip — géén nieuwe
+  // UI-laag. `non-working-day` (resourcekalender kent die dag geen werkdag) krijgt de kalendernaam
+  // erbij; `over-capacity` laat de tooltip ongewijzigd (de bestaande taaklijst zegt daar al genoeg).
+  const describeHistogramNonWorkingDay = useCallback((resourceId: string, isoDate: string): string | null => {
+    const reason = scopedResourceLoadResult?.overallocatedReasons[resourceId]?.[isoDate];
+    if (reason !== 'non-working-day') return null;
+    const resource = scopedTaskResources.resources.find(r => r.id === resourceId);
+    const resourceCalendar = resolveCalendar(resource?.calendarId, calendars, calendar);
+    return tCommon('resource.histogram.overallocatedNonWorkingDay', { calendar: resourceCalendar.name });
+  }, [scopedResourceLoadResult, scopedTaskResources, calendars, calendar, tCommon]);
   const histogramInteraction = useGanttHistogramInteraction({
     canvasRef: histogramCanvasRef,
     rendererRef: histogramRendererRef,
@@ -310,6 +338,8 @@ export function GanttCanvas({
     selectedResourceId: effectiveHistogramResourceId,
     selectResource: setHistogramResource,
     formatContributionLabel: formatHistogramContributionLabel,
+    describeNonWorkingDay: describeHistogramNonWorkingDay,
+    active: showHistogram,
   });
 
   const defaultTaskName = tTask('defaultTask');
@@ -340,8 +370,15 @@ export function GanttCanvas({
     state.setScroll(Math.max(0, startX - 40), currentView.scrollY);
   }, [canvasRef, sharedAxis]);
 
+  // Issue #118: een onthulverzoek is eenmalig. `revealTaskIfOffscreen` hangt aan `sharedAxis`,
+  // die bij iedere scrollX-wijziging opnieuw gebouwd wordt; zonder deze poort vuurde het effect
+  // daardoor bij élke scroll opnieuw voor hetzelfde verzoek en trok het de balk telkens terug in
+  // beeld — de Gantt zat "vast" aan de laatst in de tabel aangeklikte taak, ook na deselectie.
+  const handledRevealNonceRef = useRef<number | null>(null);
   useEffect(() => {
     if (!revealRequest) return;
+    if (handledRevealNonceRef.current === revealRequest.nonce) return;
+    handledRevealNonceRef.current = revealRequest.nonce;
     const task = tasks.find(candidate => candidate.id === revealRequest.taskId);
     if (task) revealTaskIfOffscreen(task);
   }, [revealRequest, tasks, revealTaskIfOffscreen]);
@@ -349,6 +386,23 @@ export function GanttCanvas({
   const openTask = useCallback((taskId: string) => {
     setUI({ showTaskDialog: true, editingTaskId: taskId });
   }, [setUI]);
+
+  // Verticale balkbody-sleep ⇒ de rijsleep van de taakgrid links (zie `ganttRowDragBridge`).
+  // BEWUST geen `isTreeMode`-poort hier: die hoort bij de ontvanger. `useTableRowDrag` kent hem al
+  // als `enabled`, en koppelt er `onBlocked` aan — de melding die uitlegt dat de structuur op slot
+  // zit zolang er gesorteerd of gegroepeerd wordt. Zeefde het canvas de kandidaat er zelf uit, dan
+  // kreeg de balk-gebruiker die uitleg niet terwijl de rij-gebruiker hem wél kreeg, en werd het
+  // gebaar bovendien stil afgebroken (review 2026-09-15). Eén poort, bij de eigenaar van de sleep.
+  // De starter wordt via de ref op het gebaar zelf gelezen, zodat een (her)registratie van de
+  // grid geen rerender van de coördinator uitlokt.
+  const rowDragBridge = useGanttRowDragBridge();
+  const startVerticalRowDrag = useCallback((candidate: {
+    taskId: string;
+    startClientX: number;
+    startClientY: number;
+  }) => {
+    rowDragBridge?.startRef.current?.(candidate);
+  }, [rowDragBridge]);
 
   const pointer = useGanttPointerCoordinator({
     host: rendererHost,
@@ -370,6 +424,7 @@ export function GanttCanvas({
     setScroll,
     openTask,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
+    startVerticalRowDrag: rowDragBridge ? startVerticalRowDrag : undefined,
   });
 
   // Canvas is wel tabbable, maar krijgt bij een gepositioneerde canvas-klik niet in elke browser
@@ -386,6 +441,10 @@ export function GanttCanvas({
     focusCanvas(event);
     histogramInteraction.onClick(event);
   }, [focusCanvas, histogramInteraction]);
+  // Eigenaarscorrectie op R1: de tooltip is een echte hover-tooltip (zie de hook), dus deze twee
+  // routes hoeven geen focus te claimen — alleen de klik (resourceselectie) doet dat. Geen eigen
+  // wrapper nodig: `histogramInteraction.onMouseMove`/`.onMouseLeave` zijn zelf al gememoiseerd in
+  // de hook, dus rechtstreeks doorgeven zoals `onKeyDown` hieronder al deed.
 
   // Issue #51: alleen een actieve RAND-sleep voedt de bestaande duurpil in de renderer.
   const durationDrag = useMemo(
@@ -419,6 +478,23 @@ export function GanttCanvas({
     [scopedResourceLoadResult, effectiveHistogramResourceId, scopedTaskResources.resources],
   );
 
+  // R2a: scrollpositie van de kiezerlijst — sessiestate, buiten de store (zie de hook-kop). De
+  // id-lijst is nodig voor de reveal-logica (punt 4: een van buiten gekozen resource die buiten
+  // beeld ligt) en volgt bewust dezelfde volgorde als `buildHistogramPicker`.
+  const histogramPickerIds = useMemo(
+    () => histogramPicker.map(item => item.id),
+    [histogramPicker],
+  );
+  const { pickerScrollY: histogramPickerScrollY } = useGanttHistogramPickerScroll({
+    container: showHistogram ? histogramContainerEl : null,
+    pickerWidth: histogramPickerWidth,
+    canvasHeight: histogramHeight,
+    itemCount: histogramPicker.length,
+    pickerIds: histogramPickerIds,
+    selectedResourceId: effectiveHistogramResourceId,
+    fontScale,
+  });
+
   const histogramRenderInput = useMemo<HistogramRenderInput | undefined>(() => (
     showHistogram ? {
       series: histogramSeries,
@@ -426,6 +502,7 @@ export function GanttCanvas({
       selectedResourceId: effectiveHistogramResourceId,
       view: effectiveView,
       pickerWidth: histogramPickerWidth,
+      pickerScrollY: histogramPickerScrollY,
       axis: histogramAxis,
       // Issue #25 punt 4: zelfde lettertypefamilie als de Gantt erboven en de DOM-chrome.
       fontFamily: canvasFontFamily,
@@ -439,7 +516,7 @@ export function GanttCanvas({
           ? tCommon('resource.histogram.noResources')
           : undefined,
     } : undefined
-  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
+  ), [showHistogram, histogramSeries, histogramPicker, effectiveHistogramResourceId, effectiveView, histogramPickerWidth, histogramPickerScrollY, scopedResourceLoadResult, scopedTaskResources.resources.length, tCommon, histogramAxis, canvasFontFamily, fontScale]);
 
   const primaryRenderInput = useMemo<GanttRenderOptionsSourceInput>(() => ({
     rows: viewRows,
@@ -452,6 +529,7 @@ export function GanttCanvas({
     showStatusDateLine,
     showProgressLine,
     showResourceAccent,
+    showFloatBand,
     barColorSelection,
     activityCodeTypes,
     customFieldDefs,
@@ -482,7 +560,7 @@ export function GanttCanvas({
     axis: sharedAxis,
     fontFamily: canvasFontFamily,
     fontScale,
-  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
+  }), [viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, durationDisplay, durationSuffixes, tTask, durationDrag, uiTheme, compressNonWorkdays, sharedAxis, canvasFontFamily, fontScale]);
 
   // Secondary houdt exact zijn eigen zoom/scrollX en deelt rows/scrollY met primary.
   const secondaryRenderInput = useMemo<GanttRenderOptionsSourceInput | undefined>(() => (
@@ -501,6 +579,7 @@ export function GanttCanvas({
       showStatusDateLine,
       showProgressLine,
       showResourceAccent,
+      showFloatBand,
       barColorSelection,
       activityCodeTypes,
       customFieldDefs,
@@ -535,7 +614,7 @@ export function GanttCanvas({
       fontFamily: canvasFontFamily,
       fontScale,
     } : undefined
-  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
+  ), [splitView, viewRows, sequences, calendar, effectiveView, selectedTaskIds, cpmResult, statusDate, showStatusDateLine, showProgressLine, showResourceAccent, showFloatBand, barColorSelection, activityCodeTypes, customFieldDefs, taskTypeLabels, resources, assignments, showBaselineOverlay, baselineOverlay, trace, rowHeight, headerHeight, localizedMonths, localizedWeekdays, weekStartDay, enableQuarterHourZoom, effectiveCalById, barSplitMode, enableHourPlanning, tTask, uiTheme, compressNonWorkdays, canvasFontFamily, fontScale]);
 
   useGanttRendererHost({
     containers: {
@@ -578,7 +657,7 @@ export function GanttCanvas({
             style={{ height: 5, flexShrink: 0, cursor: 'row-resize', background: 'var(--theme-border)' }}
           />
           <div
-            ref={histogramContainerRef}
+            ref={setHistogramContainerNode}
             className="relative overflow-hidden"
             style={{ height: histogramHeight, flexShrink: 0 }}
             data-tour-anchor="histogram-strip"
@@ -590,11 +669,13 @@ export function GanttCanvas({
               className="absolute inset-0 outline-none"
               style={{ cursor: 'pointer' }}
               onClick={handleHistogramClick}
+              onMouseMove={histogramInteraction.onMouseMove}
+              onMouseLeave={histogramInteraction.onMouseLeave}
               onKeyDown={histogramInteraction.onKeyDown}
             />
             {scheduleStale && (
               <div
-                className="absolute top-1 right-2 text-[10px] px-1.5 py-0.5 rounded pointer-events-none"
+                className="absolute top-1 right-2 !text-small px-1.5 py-0.5 rounded pointer-events-none"
                 style={{ background: 'var(--theme-surface)', color: 'var(--theme-warning-text)', opacity: 0.9 }}
               >
                 ⚠ {tCommon('resource.histogram.staleHint')}

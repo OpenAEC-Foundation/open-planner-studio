@@ -1,0 +1,132 @@
+name: Label sync
+
+# De labels van deze repository staan in `.github/labels.json`; deze workflow
+# schrijft ze naar GitHub. Reden om ze vast te leggen: het labeloppervlak (naam,
+# kleur, omschrijving) bestond alleen in de GitHub-UI. Wie daar een kleur
+# aanpaste of een label bijmaakte liet geen spoor na, en de betekenis van een
+# label stond nergens naast de issues die hem dragen.
+#
+# De sync is ADDITIEF en idempotent:
+#   label ontbreekt op GitHub          -> aanmaken
+#   label bestaat, kleur/tekst wijkt af -> bijwerken
+#   label bestaat, alles gelijk         -> niets doen
+#   label bestaat op GitHub, maar niet in labels.json -> ONGEMOEID laten
+#
+# Dat laatste is een bewuste keuze en geen omissie. Pruning zou van één typefout
+# in labels.json een onomkeerbare actie maken: een verwijderd label verdwijnt van
+# alle issues die hem droegen, en GitHub kent daar geen ongedaan maken voor.
+# GitHub's eigen standaardlabels (`documentation`, `question`, `duplicate`, …)
+# staan daarom ook niet in het bestand — ze bestaan in de repo, worden niet
+# gebruikt, en hoeven niet beheerd te worden. Alleen `bug` en `enhancement` staan
+# erin, want die zijn wél in gebruik.
+
+on:
+  workflow_dispatch:
+  push:
+    # Bewust zonder branchfilter. De sync verwijdert niets en raakt uitsluitend de
+    # labels die in het gewijzigde bestand staan, dus een labelwijziging hoeft niet
+    # op een merge naar main te wachten — anders kun je een nieuw label pas ná de
+    # merge aan een issue hangen.
+    paths:
+      - '.github/labels.json'
+      - '.github/workflows/label-sync.yml'
+
+# Alleen labels schrijven; de checkout hoeft niets terug te schrijven.
+permissions:
+  issues: write
+
+concurrency:
+  # Twee gelijktijdige syncs zouden dezelfde labels schrijven. Niet annuleren:
+  # een halverwege afgebroken run laat de helft van de labels oud achter.
+  group: label-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Een dozijn API-calls; meer dan dit betekent dat er iets hangt.
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { owner, repo } = context.repo;
+
+            const parsed = JSON.parse(fs.readFileSync('.github/labels.json', 'utf8'));
+            if (!Array.isArray(parsed.labels)) {
+              core.setFailed('.github/labels.json: verwacht een object met een `labels`-array.');
+              return;
+            }
+
+            // Eerst alles valideren, dan pas schrijven. Zonder deze volgorde laat een
+            // typefout in het tiende label de eerste negen al bijgewerkt achter, en is
+            // de repo in een toestand die in geen enkel bestand staat.
+            const problems = [];
+            const seen = new Set();
+            parsed.labels.forEach((label, i) => {
+              const where = `labels[${i}]`;
+              if (typeof label.name !== 'string' || label.name.trim() === '') {
+                problems.push(`${where}: naam ontbreekt of is leeg`);
+              } else if (seen.has(label.name)) {
+                problems.push(`${where}: dubbele naam "${label.name}"`);
+              } else {
+                seen.add(label.name);
+              }
+              if (typeof label.color !== 'string' || !/^[0-9a-fA-F]{6}$/.test(label.color)) {
+                problems.push(`${where} (${label.name}): kleur moet zes hexcijfers zijn, zonder #`);
+              }
+              if (typeof label.description !== 'string') {
+                problems.push(`${where} (${label.name}): omschrijving ontbreekt`);
+              } else if (label.description.length > 100) {
+                problems.push(
+                  `${where} (${label.name}): omschrijving is ${label.description.length} tekens, ` +
+                    'GitHub staat er 100 toe'
+                );
+              }
+            });
+            if (problems.length > 0) {
+              core.setFailed(`labels.json is ongeldig:\n${problems.join('\n')}`);
+              return;
+            }
+
+            const report = [];
+            for (const label of parsed.labels) {
+              const color = label.color.toLowerCase();
+              let existing = null;
+              try {
+                existing = (await github.rest.issues.getLabel({ owner, repo, name: label.name })).data;
+              } catch (err) {
+                // 404 is het normale geval bij een nieuw label; al het andere is een echte fout.
+                if (err.status !== 404) throw err;
+              }
+
+              if (existing === null) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: label.name,
+                  color,
+                  description: label.description,
+                });
+                report.push(`aangemaakt   ${label.name}`);
+              } else if (
+                existing.color.toLowerCase() !== color ||
+                (existing.description ?? '') !== label.description
+              ) {
+                await github.rest.issues.updateLabel({
+                  owner,
+                  repo,
+                  name: label.name,
+                  color,
+                  description: label.description,
+                });
+                report.push(`bijgewerkt   ${label.name}`);
+              } else {
+                report.push(`ongewijzigd  ${label.name}`);
+              }
+            }
+
+            core.summary.addHeading('Label sync', 2).addCodeBlock(report.join('\n'), 'text');
+            await core.summary.write();

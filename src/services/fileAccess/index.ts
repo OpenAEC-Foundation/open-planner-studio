@@ -1,9 +1,9 @@
 import { isTauri } from '@/utils/platform';
 import {
-  openFileDialogTauri, saveFileDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
+  openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
 } from './tauriBackend';
 import {
-  openFileDialogWeb, saveFileDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
+  openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
 } from './webBackend';
 
 /** Bestandsfilter (naam + extensies zonder punt), zoals de bestaande dialoog-aanroepen. */
@@ -35,6 +35,22 @@ export interface OpenDialogOpts {
   binaryExtensions?: string[];
 }
 
+/** Extra sturing voor `saveFileDialog` — optioneel, bestaande callers ongewijzigd (E7,
+ *  voortgangsblad-export). `preferDownloads` opent de dialoog waar mogelijk al in de downloadmap:
+ *  Tauri kan dat via een volledig `defaultPath` (downloadDir() + bestandsnaam); Chromium-web kent
+ *  `showSaveFilePicker({ startIn: 'downloads' })`. Firefox/Safari (geen FSA) landen sowieso al in
+ *  de downloadmap via de bestaande `downloadBlob`-terugval — daar verandert deze vlag niets aan. */
+export interface SaveDialogOpts {
+  preferDownloads?: boolean;
+  /**
+   * MIME-type voor de download-terugval in de browser (`saveBytesDialog`/`saveFileDialog` op
+   * Firefox/Safari of een policy-geblokkeerde webview). Alleen de terugval kent het: het
+   * FSA-pad schrijft naar een door de gebruiker gekozen bestand en heeft geen MIME nodig.
+   * Zonder waarde blijft het `application/octet-stream` — precies wat elke bestaande caller had.
+   */
+  mime?: string;
+}
+
 export interface SaveOutcome {
   ref: FileRef | null;
   name: string;
@@ -58,8 +74,25 @@ export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Pr
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */
-export function saveFileDialog(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
-  return isTauri() ? saveFileDialogTauri(defaultName, content, filters) : saveFileDialogWeb(defaultName, content, filters);
+export function saveFileDialog(
+  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return isTauri()
+    ? saveFileDialogTauri(defaultName, content, filters, opts)
+    : saveFileDialogWeb(defaultName, content, filters, opts);
+}
+
+/**
+ * Opslaan-als / export van BYTES via picker (X8) — de binaire tegenhanger van `saveFileDialog`,
+ * met dezelfde annuleer-, weigerings- en download-terugvalafhandeling. Dit is het ENIGE
+ * byte-schrijfpad in de app: een tweede zou onvermijdelijk een eigen foutafhandeling krijgen.
+ */
+export function saveBytesDialog(
+  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return isTauri()
+    ? saveBytesDialogTauri(defaultName, bytes, filters, opts)
+    : saveBytesDialogWeb(defaultName, bytes, filters, opts);
 }
 
 /** In-place opslaan naar een bestaande ref. `false` als onmogelijk (fallback-web of geweigerde

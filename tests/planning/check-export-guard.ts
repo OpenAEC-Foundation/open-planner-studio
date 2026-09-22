@@ -11,6 +11,8 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
+import { exportGoesToRecents } from '@/state/slices/fileSlice';
+import { EXPORT_FORMATS, type ExportFormat } from '@/services/formatRegistry';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -86,6 +88,30 @@ truthy('10 opzet: geen cyclus', !S().cpmResult?.error);
 const okRes = await S().exportAs('csv').catch(() => ({ ok: true as const }));
 truthy('11 schone planning wordt niet geweigerd', okRes.ok === true);
 truthy('12 taak bestaat nog (guard muteert niets onnodigs)', !!S().tasks.find(t => t.id === d1));
+
+// ── 4. Alleen echte projectbestanden komen in Recente bestanden ──────────────
+// Eindreview 2026-09-12, bevinding 5: `exportAs` deed onvoorwaardelijk `pushRecent`, dus
+// `<project>-voortgang.csv|xlsx` belandde in Recente bestanden — waar één klik de OPENroute start
+// die het invulblad als project probeert te lezen en met een foutmelding eindigt. De regel zit in
+// `exportGoesToRecents`; die is los exporteerbaar juist zodat dit zonder bestandsdialoog toetsbaar
+// is. De lijst hieronder is met de hand geschreven vanuit "kan de app dit terug openen als
+// project?", niet uit de implementatie teruggelezen.
+const recentsVerwacht: Record<ExportFormat, boolean> = {
+  ifc: true,
+  csv: true,
+  mspdi: true,
+  p6: true,
+  'progress-csv': false,
+  'progress-xlsx': false,
+};
+for (const [format, want] of Object.entries(recentsVerwacht) as [ExportFormat, boolean][]) {
+  eq(`13 recents-regel voor '${format}'`, exportGoesToRecents(format), want);
+}
+// Vangnet tegen een NIEUW exportformaat dat stil aan de recents wordt toegevoegd: de tabel
+// hierboven moet elke `ExportFormat` noemen. `EXPORT_FORMATS` is de registry die de exportlijst
+// voedt, dus een nieuw formaat verschijnt daar en valt hier meteen door de mand.
+eq('14 de recents-tabel dekt elk geregistreerd exportformaat',
+  EXPORT_FORMATS.map(m => m.format).filter(f => !(f in recentsVerwacht)), []);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

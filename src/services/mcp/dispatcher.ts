@@ -25,6 +25,36 @@ export const MCP_SERVER_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VE
 /** Onze default MCP-protocolversie wanneer de client er geen bekende meestuurt. */
 export const DEFAULT_PROTOCOL_VERSION = '2025-06-18';
 
+/**
+ * `InitializeResult.instructions` — het optionele vrije-tekstveld uit de MCP-spec dat clients
+ * (Claude Code e.d.) in hun systeemprompt zetten. Dit is het ENIGE kanaal waarlangs de app een
+ * agent ONGEVRAAGD iets kan meegeven: tools/list beschrijft losse tools, maar niet hoe je een
+ * planning hoort te bouwen. Zonder dit veld begint elke agent blanco en levert hij het klassieke
+ * resultaat op — taken zonder relaties, een vaste datum op alles, een veel te fijne opdeling.
+ *
+ * ENGELS, en dat is bewust: de dispatcher kent de UI-taal niet (hij draait onder de Rust-bridge,
+ * los van i18n) en een MCP-client vertaalt zelf naar de taal van het gesprek — dezelfde afweging
+ * als bij `MCP_UNTITLED_TITLE` in `tools/runtime.ts`.
+ *
+ * KORT HOUDEN: dit gaat in élke systeemprompt mee. Alleen de regels die een agent zonder verdere
+ * vraag fout doet; de volledige inhoud staat in de gids, bereikbaar via de tool die hieronder
+ * genoemd wordt (`planner_get_planning_guide`, `tools/guideTools.ts`). Eén exportconstante zodat
+ * `tests/mcp/cases-planning-guide.ts` hem tegen de initialize-respons kan houden.
+ */
+export const MCP_INSTRUCTIONS = [
+  'Open Planner Studio is a construction planning application. You are editing a real schedule that a person will rely on.',
+  '',
+  'Core rules:',
+  '- Start from the milestones and the delivery date, then fill in the work that leads to them.',
+  '- Build a WBS of tasks that each take roughly one day to two weeks. Finer is unmaintainable, coarser is unsteerable. Summary tasks never get their own duration.',
+  '- Drive the schedule with relationships, not fixed dates. Finish-to-start is the default; every task needs at least one predecessor and one successor apart from the first task and the final milestone. Use date constraints only for hard external dates the user gave you (permit, closure window, connection date) — a few percent of tasks at most, and never a negative lag.',
+  '- Mutating tools recalculate the schedule themselves, so you never work on stale dates. Call planner_run_cpm to OBTAIN the result (project end, duration, critical path) — not to refresh anything.',
+  '- Use planner_batch for a coherent series of steps: one undo step, one recalculation, one backup.',
+  '- Finish by telling the user what you assumed: estimated durations, the chosen granularity, relationships you added on your own, resource capacities, calendar assumptions, and every constraint you set and why. Also say what you deliberately did not do.',
+  '',
+  'For the full guide call `planner_get_planning_guide`, or read https://open-planner-studio.open-aec.com/docs/en/gids-goed-plannen.md',
+].join('\n');
+
 /** Protocolversies die we herkennen en dus mogen echoën (nieuwste eerst). */
 const KNOWN_PROTOCOL_VERSIONS = new Set(['2025-06-18', '2025-03-26', '2024-11-05']);
 
@@ -107,6 +137,8 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         protocolVersion,
         capabilities: { tools: {} },
         serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
+        // Optioneel spec-veld; clients zetten het in hun systeemprompt. Zie MCP_INSTRUCTIONS.
+        instructions: MCP_INSTRUCTIONS,
       });
     }
 

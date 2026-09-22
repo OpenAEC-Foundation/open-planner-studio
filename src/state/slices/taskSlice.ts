@@ -1,7 +1,8 @@
 import { Task, type ExternalLink } from '@/types/task';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork,
+  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
+  taskUpdateInvalidatesLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -18,6 +19,10 @@ import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { buildTaskEditPlanEnvironment } from '../gridTransaction';
+import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
+import { buildProgressImportPlan } from '@/services/progressImport';
+import type { ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/services/progressImport';
 
 /**
  * Zelfstandige kopie van een takenselectie (incl. subtaken), de interne
@@ -100,6 +105,21 @@ export interface TaskSlice {
   updateExternalLink: (taskId: string, linkId: string, link: Omit<ExternalLink, 'id'>) => boolean;
   /** Verwijder een externe link van een taak (fase 2.9). Datum-beïnvloedend ⇒ scheduleStale. */
   removeExternalLink: (taskId: string, linkId: string) => void;
+  /** Issue #27 etappe 2 (T5): bouwt het voortgangsplan tegen de HUIDIGE taken. Muteert niets — de
+   *  `ProgressImportDialog` toont dit als preview en herbouwt het bij elke wijziging in de
+   *  handmatige koppelingen (A11: "herbouw, niet bijwerken"). Precedent voor een lezende actie:
+   *  `isLocalPoolNewer` (librarySlice). */
+  previewProgressImport: (
+    rows: readonly ProgressRow[],
+    overrides?: ProgressOverrides,
+  ) => ProgressImportPlan;
+  /** Herberekent hetzelfde plan tegen de LIVE taken en past het in ÉÉN undo-stap toe (A4/A8): drift
+   *  tussen preview en apply wordt opgelost door opnieuw te bouwen, nooit door het preview-plan te
+   *  hergebruiken. Nul toepassingen ⇒ nul undo-stappen (zoals `setActualStart` bij een weigering). */
+  applyProgressImport: (
+    rows: readonly ProgressRow[],
+    overrides?: ProgressOverrides,
+  ) => ProgressImportPlan;
 }
 
 function sameExternalLink(left: ExternalLink, right: ExternalLink): boolean {
@@ -420,6 +440,16 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           && clearTimephasedDurationWalks(s.tasks[idx]);
         lostTimephasedGuidance = clearedWindow || clearedWalks;
       }
+      // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
+      // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
+      // verouderde tijd-as. Importsplits (gaten zonder `source`) zijn brondata en blijven staan;
+      // `clearLevelingGaps` doet dat onderscheid. GEEN melding: anders dan de M10-afronding hierboven
+      // is dit geen verlies van gebruikersdata uit een importbestand maar het opruimen van app-eigen
+      // afgeleide nivelleeruitvoer op een as die de gebruiker zelf zojuist heeft verzet.
+      // EIGEN POORT sinds de fixronde op etappe 3 (bevinding B7): de triggerset is BREDER dan die van
+      // het Z8-venster hierboven — voortgang en constraints horen erbij. Zie
+      // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
+      if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });
     });
@@ -437,6 +467,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s);
       task.calendarId = calendarId; // undefined = projectkalender
       lostTimephasedGuidance = clearTimephasedWindow(task); // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts
+      // B1c-plan3 taak 3 — zie `updateTask` hierboven.
+      clearLevelingGaps(task);
       runtime.finishMutation(s, { stale: true }); // taak-kalender-toewijzing is datum-beïnvloedend (§5.4).
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -1008,6 +1040,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
+      // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
+      // eigen aanroep; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts voor het waarom.
+      clearLevelingGaps(task);
       // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
       // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
       // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
@@ -1033,6 +1069,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
     });
@@ -1054,10 +1091,48 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
       if (!date && task.time.completion >= 1) task.time.completion = 0;
       applyProgressInvariants(task, s.project.statusDate);
+      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
     return accepted;
+  },
+
+  previewProgressImport: (rows, overrides) => {
+    const s = get();
+    return buildProgressImportPlan(
+      rows,
+      s.tasks,
+      { planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(s, task)) },
+      overrides,
+    );
+  },
+
+  // A4 (issue #27 etappe 2, T5): het plan wordt HIER, binnen dezelfde `set()`, opnieuw gebouwd
+  // tegen de LIVE taken — nooit het (mogelijk verouderde) preview-plan hergebruikt (A8, drift).
+  // Atomair: het hele plan staat vast vóórdat er iets geschreven wordt. Nul toepassingen ⇒ geen
+  // snapshot (net als een geweigerde `setActualStart`); één undo-stap voor het HELE blad, nooit één
+  // per rij.
+  applyProgressImport: (rows, overrides) => {
+    let plan!: ProgressImportPlan;
+    set((s) => {
+      plan = buildProgressImportPlan(
+        rows,
+        s.tasks,
+        { planEdits: (task, edits) => planTaskCellEdits(task, edits, buildTaskEditPlanEnvironment(s, task)) },
+        overrides,
+      );
+      if (plan.appliedCount === 0) return;
+      runtime.beginUndoable(s);
+      for (const row of plan.rows) {
+        if (row.outcome !== 'apply') continue;
+        const index = s.tasks.findIndex((t) => t.id === row.taskId);
+        if (index >= 0) s.tasks[index] = row.plannedTask!;
+      }
+      runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
+    });
+    get().recomputeViewRows();
+    return plan;
   },
 });

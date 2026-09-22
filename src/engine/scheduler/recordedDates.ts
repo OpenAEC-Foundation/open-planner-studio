@@ -400,7 +400,9 @@ export function applyRecordedTimesToTasks(
   // afgeleiden worden ook op de samenvattingen gewist, om dezelfde reden als op de bladtaken.
   // Her-check R1: een samenvatting MET eigen vastlegging (de #63-IFC-route) blijft staan zoals het
   // bestand haar gaf — de rollup slaat haar over; alleen samenvattingen zónder vastlegging rollen op.
-  rollupSummaryTasks(tasks, { skip: task => times[task.id] !== undefined });
+  // Issue #145 (main): ook hier rekent de auto-verzameltaak haar duur uit de opgerolde span, in de
+  // projectkalender — dezelfde rollup als ná een echte solve, dus dezelfde afleiding.
+  rollupSummaryTasks(tasks, { skip: task => times[task.id] !== undefined, projectCalendar: calendar });
   for (const task of tasks) {
     if (isLeafTask(task) || times[task.id]) continue;
     task.time.interferingFloat = undefined;
