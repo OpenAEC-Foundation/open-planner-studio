@@ -58,7 +58,16 @@ interface ExportCapabilities {
  * Gemeten tegen de drie writerimplementaties. Dit is een capabilitymatrix, geen vaste verlieslijst:
  * een categorie ontstaat pas wanneer de bijbehorende retained/live data werkelijk aanwezig is.
  */
-const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc'>, ExportCapabilities>> = {
+/** De voortgangsbladen (issue #27) zijn werkbladen om rond te sturen, geen projectexport: ze dragen
+ *  alleen id/WBS/naam/datums/voortgang en worden via `OPS Task ID` teruggekoppeld. Een
+ *  XER-verliesmelding is daar per definitie loos (gevonden in de critreview op de merge van main,
+ *  2026-09-22: elke voortgangsexport van een XER-document meldde "PROGRESS-CSV" met de categorie
+ *  relatie-lag-degradatie, voor een blad zonder relaties). */
+type ProgressSheetFormat = 'progress-csv' | 'progress-xlsx';
+const isProgressSheetFormat = (format: string): format is ProgressSheetFormat =>
+  format === 'progress-csv' || format === 'progress-xlsx';
+
+const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | ProgressSheetFormat>, ExportCapabilities>> = {
   csv: {
     baselineProjection: 'none',
     projectedAssignments: false,
@@ -76,22 +85,6 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc'>, ExportC
   p6: {
     baselineProjection: 'none',
     projectedAssignments: true,
-    percentLag: false,
-    elapsedLag: false,
-    schedulingOptions: 'none',
-  },
-  // De voortgangsbladen (issue #27) schrijven alleen id/WBS/naam/datums/voortgang: geen relaties,
-  // toewijzingen, baselines of planningsopties — dus elk daarvan is per definitie niet uitdrukbaar.
-  'progress-csv': {
-    baselineProjection: 'none',
-    projectedAssignments: false,
-    percentLag: false,
-    elapsedLag: false,
-    schedulingOptions: 'none',
-  },
-  'progress-xlsx': {
-    baselineProjection: 'none',
-    projectedAssignments: false,
     percentLag: false,
     elapsedLag: false,
     schedulingOptions: 'none',
@@ -226,7 +219,7 @@ function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossI
 }
 
 function categoriesFor(
-  format: Exclude<ExportFormat, 'ifc'>,
+  format: Exclude<ExportFormat, 'ifc' | ProgressSheetFormat>,
   input: XerExportLossInput,
 ): XerExportLossCategory[] {
   const capabilities = EXPORT_CAPABILITIES[format];
@@ -265,7 +258,8 @@ export function detectXerExportLoss(
   format: ExportFormat | 'mpp',
   input: XerExportLossInput,
 ): readonly XerExportLossWarning[] {
-  if (format === 'ifc' || (!input.sourceArchive && !input.importMetadata)) return [];
+  if (format === 'ifc' || isProgressSheetFormat(format)) return [];
+  if (!input.sourceArchive && !input.importMetadata) return [];
   const target = format === 'mpp' ? 'csv' : format;
   const categories = categoriesFor(target, input);
   if (categories.length === 0) return [];

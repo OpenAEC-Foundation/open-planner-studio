@@ -200,7 +200,9 @@ export function readIFC(
   const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
-  const sequences = extractSequences(entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay);
+  const sequences = extractSequences(
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay,
+  );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen (critreview PR #162): de app
   // zelf laat een mijlpaal kinderen krijgen (`indentTasks`, `updateTask`, de checkbox) en de writer

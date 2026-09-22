@@ -337,7 +337,8 @@ export function writeP6XML(
   // WBS elements (parent tasks). Diepte-eerst (issue #159, vervolg): een ouder staat vóór zijn
   // kinderen en broers/zussen staan in weergavevolgorde — P6 sorteert WBS-broers op
   // `SequenceNumber`, dat hieronder uit deze volgorde komt; de store-volgorde ("samenvattingen
-  // eerst" na een P6-import) zegt daar niets over.
+  // eerst" na een P6-import) zegt daar niets over. `isSummaryTask`/`isLeafTask` (XER-etappe): een
+  // lege P6-WBS-rij (`isSummary`, geen kinderen) is óók een WBS-element, geen activiteit.
   tasks = [...flattenOrder(tasks)];
   const wbsTasks = tasks.filter(isSummaryTask);
   const leafTasks = tasks.filter(isLeafTask);

@@ -324,6 +324,10 @@ function getProjectOverview(s: AppState) {
     if (arr) arr.push(seq);
     else outByPred.set(seq.predecessorId, [seq]);
   }
+  const unrecordedOverview = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
+  const critUnrecorded = unrecordedOverview
+    ? (t: Task) => unrecordedOverview(t).includes('isCritical')
+    : undefined;
   // Rijen in BOOMVOLGORDE met expliciete diepte (issue #159, vervolg): de store-volgorde is na een
   // P6-/IFC-import "samenvattingen eerst", en `parent` (een WBS-code) is bij vrije of dubbele codes
   // niet eenduidig — `parentId` en `depth` zijn dat wel. `parent` blijft staan voor bestaande clients.
@@ -334,10 +338,6 @@ function getProjectOverview(s: AppState) {
     const parentDepth = t.parentId ? depthById.get(t.parentId) : undefined;
     depthById.set(t.id, parentDepth === undefined ? 1 : parentDepth + 1);
   }
-  const unrecordedOverview = unrecordedExportGate(s.recordedDates, s.datesAsRecorded);
-  const critUnrecorded = unrecordedOverview
-    ? (t: Task) => unrecordedOverview(t).includes('isCritical')
-    : undefined;
   const rows = ordered.map((t) => {
     const rels = (outByPred.get(t.id) ?? []).map((seq) => relShort(taskById, seq));
     const row: Record<string, unknown> = {
