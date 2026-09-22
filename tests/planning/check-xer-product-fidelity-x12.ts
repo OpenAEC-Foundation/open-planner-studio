@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -31,6 +31,10 @@ import {
   type ProductBaselineV2,
   type ProductEntryV2,
 } from './xerProductBaselineV2';
+import {
+  buildCellBaseline, CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateFailures, cellTotals, compareCells,
+  parseCellBaseline, planCellRepin, serializeCellBaseline, type CellBaseline, type MeasuredCell,
+} from './fidelityCells';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
@@ -321,9 +325,13 @@ function counterfactualReports(
     sourceDayPrecisionReport(nonMidnightStrict).counters.es.deviations, 1);
 }
 
+/** Regel A (rekenprofielen-spec §5): per entry-SHA-256 de inexacte cellen (as, `<proj_id>/<task_id>`, emmer). */
+type XerCellSink = Map<string, MeasuredCell[]>;
+
 async function productBaseline(
   corpus: readonly XerCorpusFile[],
   manifest: XerCorpusManifest,
+  cellSink?: XerCellSink,
 ): Promise<ProductBaseline> {
   const target = buildXerTargetBaseline(corpus, manifest);
   if (target.errors.length > 0) throw new Error(`X1-manifest/grondwaarheid faalt: ${target.errors.join('; ')}`);
@@ -473,6 +481,14 @@ async function productBaseline(
       }));
     }
     const fileSha256 = hash(file.bytes);
+    if (cellSink) {
+      // `detail` bevat precies één record per (taak, as) met deviations > 0, met de emmer uit
+      // dezelfde vergelijking als de tellers; `check-fidelity-cells-gate.ts` bewijst corpusloos dat
+      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen.
+      cellSink.set(fileSha256, result.detail.map(item => ({
+        axis: item.axis, id: `${item.projectId}/${item.taskId}`, bucket: item.bucket as MeasuredCell['bucket'],
+      })));
+    }
     files[fileSha256] = {
       sha256: fileSha256, schemaFingerprint: targetEntry.schemaFingerprint ?? '',
       projects: result.truthProjects, tasks: result.truthTasks,
@@ -2254,16 +2270,64 @@ async function productBaseline(
         [mutatedTruth.tasks[index]?.taskId, mutatedTruth.tasks[index]?.axes, mutatedTruth.tasks[index]?.drivingPath])), true);
 }
 
+/**
+ * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, of
+ * waarvan de emmer verslechtert, is rood. Verbeteringen zijn groen en worden als "te herpinnen"
+ * gemeld. `OPS_XER_CELLS_WRITE=1` herschrijft de baseline uit de meting, maar alleen zonder één
+ * rode cel.
+ */
+function checkCellBaseline(measuredCells: CellBaseline): void {
+  const path = join(HERE, CELL_BASELINE_FILE);
+  let baseline: CellBaseline | undefined;
+  if (existsSync(path)) {
+    const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
+    checks++;
+    if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return; }
+    baseline = parsed.baseline;
+  }
+  if (process.env.OPS_XER_CELLS_WRITE === '1') {
+    const plan = planCellRepin(baseline, measuredCells);
+    checks++;
+    if (!plan.allowed) {
+      diffs.push(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.length} reden(en); eerste: ${plan.reasons.slice(0, 5).join('; ')}`);
+      return;
+    }
+    writeFileSync(path, serializeCellBaseline(measuredCells));
+    console.log(`OK  X12 cel-baseline herpind: ${plan.delta.improvedCells.length} cellen beter, `
+      + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
+    baseline = measuredCells;
+  }
+  checks++;
+  if (!baseline) { diffs.push(`${CELL_BASELINE_FILE} ontbreekt — maak hem met OPS_XER_CELLS_WRITE=1`); return; }
+  const delta = compareCells(baseline, measuredCells);
+  const failures = cellGateFailures(delta);
+  console.log(cellDeltaLine('p6', delta, measuredCells));
+  if (failures.length > 0) {
+    diffs.push(`X12 cel-baseline (regel A): ${failures.length} rode cel-/bestandsregel(s)`);
+    for (const failure of failures) diffs.push(`X12 ${failure}`);
+    return;
+  }
+  const totals = cellTotals(measuredCells);
+  console.log(`OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over ${Object.keys(measuredCells.files).length} bestanden; `
+    + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
+    + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter (OPS_XER_CELLS_WRITE=1)` : ''));
+}
+
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (REPORT !== undefined && !REPORT_MODES.has(REPORT)) {
   diffs.push(`onbekende OPS_XER_FIDELITY_REPORT-modus: ${REPORT}`);
 }
-if (!corpusRoot) console.log('X12 PRODUCTGATE: corpus niet aanwezig; alleen corpusloze bescherming uitgevoerd');
+if (!corpusRoot) {
+  console.log('X12 PRODUCTGATE: corpus niet aanwezig; alleen corpusloze bescherming uitgevoerd');
+  console.log('OK  X12 cel-baseline (regel A): corpus niet aanwezig (OPS_XER_CORPUS) — overgeslagen');
+}
 else if (!existsSync(corpusRoot)) diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
 else {
   const corpus = listXerFiles(corpusRoot).map(path => ({ label: relative(corpusRoot, path).split('\\').join('/'), bytes: readFileSync(path) }));
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
-  const measured = await productBaseline(corpus, manifest);
+  const cellSink: XerCellSink = new Map();
+  const measured = await productBaseline(corpus, manifest, cellSink);
+  if (REPORT === undefined) checkCellBaseline(buildCellBaseline(cellSink));
   if (REPORT === 'baseline') process.stdout.write(canonicalProductEnvelope(measured));
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);
