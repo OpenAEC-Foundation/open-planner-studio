@@ -86,7 +86,7 @@ afwijkingen hebben met XER".)
 | cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | GO na vier fixrondes (`f639f96b`); **gemerged** (`921afa0b`); `npm run measure:profiles` mét corpus op de etappebranch: P6 NULDOEL 15.056, cellen 15.473, MS Project GROEN (661 bestanden), vangrails GROEN. Herpinrecept + verboden omwegen in `scripts/README.md` en de goal prompt |
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | in aanbouw (agent, gestart 22:45) |
-| baan D deel 1: D1, D2, D7, D8, D10-voorbereiding | `claude/rekenprofielen-baan-d` | `05a9491a` gepusht; critreview = no-go (8 punten); fixronde loopt; rebase op C + D10-afronding + D3–D6 ná merge van C. Besluiten orkestrator: A19 blijft ook bij sjabloonkeuze; overrides letterlijk óók onder OPS (P6→OPS→P6 exact); `perFile` terug als beschrijvend descriptorveld |
+| baan D deel 1: D1, D2, D7, D8, D10-voorbereiding | `claude/rekenprofielen-baan-d` | fixronde klaar (`ef095429`, gepusht): A19 ook bij sjabloonkeuze, `perFile` beschrijvend in het register, P6→OPS→P6 letterlijk, `verify:conventions` gedicht (37 checks), gids/CLAUDE.md gemarkeerd. Wacht op merge van C: dan rebase, her-check, D10-afronding, D3–D6. Besluit: pset draagt `overrides` letterlijk mee (C2) |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
