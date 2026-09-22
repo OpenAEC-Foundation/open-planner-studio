@@ -58,7 +58,9 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   `p6FinishMilestoneBoundaryWindow` (A17), `p6PreserveActualInstants` (A18),
   `p6UseRemainingStartForProgress` (A19 — P6-semantiek voor de ES/LS van een lopende taak; de waarde
   komt per bestand uit `rem_target_link_flag`, dus de XER-lezer zet hem als **override** op het
-  profiel; onder een ander profiel is hij uit), `p6PreserveZeroDurationConstraintInstants` (A20),
+  profiel — een per-bestand-conventie (`perFile`) die bij élke wissel, ook naar MS Project of OPS,
+  letterlijk blijft staan (besluit orkestrator 2026-09-22, overdracht §1c); alleen een bestand zonder
+  die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
   (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans.
