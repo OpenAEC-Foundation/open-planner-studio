@@ -69,9 +69,9 @@ op het moment van schrijven).*
 
 | wat | branch | stand |
 |---|---|---|
-| PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #161 gemerged (`c2284cf6`), review-fixes `bd0fb55b`; draft; X12 15.056; main loopt alweer voor (#162/#166) ⇒ nog een merge nodig vóór de PR |
+| PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #161 gemerged (`c2284cf6`), review-fixes `bd0fb55b`; main t/m #166 gemerged (`0a29147c`, lokaal in `/tmp/ops-pr109-main2`, gerichte poorten groen; volledige suites + X12 lopen; daarna pushen) |
 | rekenprofielen (etappe) | `claude/rekenprofielen` (bovenop de PR-branch) | spec v3.1 `0979cc18`; overdracht (dit bestand) |
-| baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | in aanbouw (agent) |
+| baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | klaar: `5e2084fd`, `56602e59` (gepusht); critreview loopt; `verify:i18n` rood tot de integratie (alleen nl/en) |
 | baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | klaar: `d12aeb14`, `770ee823`; X12 15.056, mpp 216; critreview loopt |
 | cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | klaar: `ae947fc1`, `abfaef46`, `1d0cfda3`; critreview loopt |
 | uitvoeringsplan | `claude/rekenprofielen` | architect-agent schrijft `2026-09-22-plan-rekenprofielen.md` |
