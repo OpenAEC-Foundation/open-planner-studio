@@ -2526,10 +2526,18 @@ else {
     eq('X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul', totalSixAxisDeviations, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: identiteitsfouten zijn nul', identityErrors, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: scannerfouten zijn nul', scannerErrors, 0);
-    const pinnedV2 = readProductBaseline();
-    checkCoverageAgainstV2(pinnedV2, measured);
-    runWrites(cells, pinnedV2, measured);
-    eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
+    // Een ongeldige v2 (bv. een omgeleid rapport met kopregel, of een leeg bestand) wordt een nette
+    // XX-regel en blokkeert elke schrijfactie; nooit een stacktrace.
+    let pinnedV2: ProductBaseline | undefined;
+    try { pinnedV2 = readProductBaseline(); } catch (error) {
+      checks++;
+      diffs.push(`X12 v2-baseline ongeldig — herstel xer-product-fidelity-baseline-v2.json uit versiebeheer: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`);
+    }
+    if (pinnedV2) {
+      checkCoverageAgainstV2(pinnedV2, measured);
+      runWrites(cells, pinnedV2, measured);
+      eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
+    }
   }
 }
 if (diffs.length > 0) {
