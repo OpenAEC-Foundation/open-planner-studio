@@ -12,7 +12,7 @@ import type { ImportResult } from '@/services/importTypes';
 import type { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { builtInConventions, builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { builtInConventions, builtInProfile, legacyOptionsToProfile } from '@/engine/scheduler/conventions/registry';
 import {
   MAX_PROFILE_NAME_LENGTH, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
@@ -75,7 +75,8 @@ const CUSTOM: SchedulingProfile = {
     const ifc = writeIFC(fixture({ schedulingProfile: builtInProfile(id) }));
     ok(`01 ${id}: pset geschreven`, ifc.includes("'OPS_SchedulingProfile'"));
     same(`02 ${id}: round-trip`, readIFC(ifc).project.schedulingProfile, builtInProfile(id));
-    const json = JSON.parse(ifc.match(/IFCTEXT\('(\{"id":"[^']*)'\)/)![1]) as Record<string, unknown>;
+    const match = ifc.match(/IFCTEXT\('(\{"id":"[^']*)'\)/);
+    const json = (match ? JSON.parse(match[1]) : {}) as Record<string, unknown>;
     eq(`03 ${id}: geen naam voor ingebouwd profiel`, 'name' in json, false);
     same(`04 ${id}: alle veertien conventies opgelost weggeschreven`, json.conventions, builtInConventions(id));
   }
@@ -127,7 +128,14 @@ const CUSTOM: SchedulingProfile = {
   // (3) met p6Source ⇒ p6 + overige afwijkingen (p6Source zelf niet in de afwijkingen).
   const opts3: SchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
   const r3 = readIFC(writeIFC(fixture({ schedulingOptions: opts3 })));
-  same('25 p6Source ⇒ p6 + afwijkende conventie', r3.project.schedulingProfile, { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } });
+  // Spec v3: een A-conventie die de blob niet noemt, rekende vandaag als uit ⇒ afwijking van p6.
+  same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B1–B5 aan', r3.project.schedulingProfile, {
+    ...builtInProfile('p6'),
+    overrides: {
+      clampNegativeFreeFloat: false, p6ZeroDurationUsesPlannedBoundary: false, p6UseTaskPlannedStartFloor: false,
+      p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: false, p6PreserveZeroDurationConstraintInstants: false,
+    },
+  });
   same('26 overgang: p6Source blijft in schedulingOptions', r3.project.schedulingOptions, opts3);
   // (4) nieuwe pset ⇒ zoals gelezen, ook als het legacy-blok iets anders zou migreren.
   const r4 = readIFC(writeIFC(fixture({ schedulingOptions: opts3, schedulingProfile: builtInProfile('msproject') })));
@@ -136,7 +144,11 @@ const CUSTOM: SchedulingProfile = {
 
 // ── 4) Vijandige pset-JSON: valt terug zonder throw ─────────────────────────────────────────────
 {
-  const base = writeIFC(fixture({ schedulingProfile: CUSTOM, schedulingOptions: { p6Source: 'XER' } }));
+  const LEGACY_BLOB: SchedulingOptions = { p6Source: 'XER' };
+  const base = writeIFC(fixture({ schedulingProfile: CUSTOM, schedulingOptions: LEGACY_BLOB }));
+  // Waar de pset onbruikbaar is valt de lezer terug op de migratie van het legacy-blok.
+  const FALLBACK = legacyOptionsToProfile(LEGACY_BLOB).profile;
+  ok('30b anker: de terugval is herkenbaar (p6-basis)', FALLBACK.baseId === 'p6');
   ok('30 anker: pset aanwezig', PROFILE_LINE.test(base));
   const readWith = (json: string) => readIFC(withProfileJson(base, json)).project.schedulingProfile;
   // Onbekende baseId ⇒ ops; ontbrekende conventies ⇒ legacyValue (ops) ⇒ geen afwijkingen.
@@ -161,10 +173,13 @@ const CUSTOM: SchedulingProfile = {
   let threw = false;
   try { hugeResult = readWith(huge); } catch { threw = true; }
   eq('38 10 MB naam: geen throw', threw, false);
-  same('39 10 MB naam: valt terug op de legacy-migratie', hugeResult, builtInProfile('p6'));
+  same('39 10 MB naam: valt terug op de legacy-migratie', hugeResult, FALLBACK);
   // Corrupte JSON en geen object ⇒ legacy-migratie.
-  same('40 corrupte JSON ⇒ legacy-migratie', readWith('{"id":'), builtInProfile('p6'));
-  same('41 JSON-array ⇒ legacy-migratie', readWith('[1,2,3]'), builtInProfile('p6'));
+  const safeRead = (json: string): SchedulingProfile | undefined | 'THROW' => {
+    try { return readWith(json); } catch { return 'THROW'; }
+  };
+  same('40 corrupte JSON ⇒ legacy-migratie (geen throw)', safeRead('{"id":'), FALLBACK);
+  same('41 JSON-array ⇒ legacy-migratie', safeRead('[1,2,3]'), FALLBACK);
   eq('42 sanitize(null) ⇒ undefined', sanitizeSchedulingProfile(null), undefined);
 }
 /** Verwachte afwijkingen van p6 als alle conventies op hun legacyValue (uit) vallen, behalve de

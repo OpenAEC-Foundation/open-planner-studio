@@ -331,7 +331,8 @@ export function writeIFC(input: WriteIFCInput): string {
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
   // INTEGRATIE(rekenprofielen): schrijft in de overgang het blok ongewijzigd (incl. p6Source en
-  // conventiesleutels); in het eindmodel wordt dit `optionKeysOnly(project.schedulingOptions)`.
+  // conventiesleutels); in het eindmodel wordt dit `legacyOptionsBlobFor(project)` (projectopties +
+  // alleen resumeFromActualElapsed/unstartedIgnoresStatusDate wanneer true, spec v3.1).
   writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
   // Rekenprofiel: OPS_SchedulingProfile-pset (JSON autoritair) op de IfcWorkSchedule; afwezig of
   // het standaardprofiel (ops zonder afwijkingen) ⇒ geen pset.

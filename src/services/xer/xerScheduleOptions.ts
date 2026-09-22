@@ -129,7 +129,7 @@ export const XER_SCHEDULING_DEFAULTS = {
     p6UseTaskPlannedStartFloor: P6_CONVENTIONS.p6UseTaskPlannedStartFloor,
     p6FinishMilestoneBoundaryWindow: P6_CONVENTIONS.p6FinishMilestoneBoundaryWindow,
     p6PreserveActualInstants: P6_CONVENTIONS.p6PreserveActualInstants,
-    p6UseRemainingStartForProgress: P6_OPTIONS.p6UseRemainingStartForProgress,
+    p6UseRemainingStartForProgress: P6_CONVENTIONS.p6UseRemainingStartForProgress,
     p6PreserveZeroDurationConstraintInstants: P6_CONVENTIONS.p6PreserveZeroDurationConstraintInstants,
     p6CompletedLateFromRemainingWindow: P6_OPTIONS.p6CompletedLateFromRemainingWindow,
   },

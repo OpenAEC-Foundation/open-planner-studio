@@ -38,7 +38,7 @@ const BOOLEAN_KEYS = [
 ] as const satisfies ReadonlyArray<keyof SchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
-const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest', 'auto'] as const;
+const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest'] as const;
 const CRITICAL_MODES = ['totalFloat', 'longestPath'] as const;
 const FLOAT_PATH_METHODS = ['FREE_FLOAT', 'TOTAL_FLOAT'] as const;
 

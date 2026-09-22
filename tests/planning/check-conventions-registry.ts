@@ -1,19 +1,15 @@
 // Rekenprofielen — het conventieregister (spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md,
 // tweelagenmodel). Bewaakt: register ⇔ ConventionKey, drie ingebouwde waarden per conventie binnen
-// het domein, resolve/diff, de legacy-migratie per tak, de XER-defaults-pin, en dat
-// totalFloatMode 'auto' in de solver exact rekent als afwezig.
+// het domein, resolve/diff, de legacy-migratie per tak (spec v3), de XER-defaults-pin, de
+// neerwaartse optieblob, de profielwissel en de typegrens van EffectiveSchedulingOptions.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen; faalregels beginnen met "XX".
-import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
-import type { Task } from '@/types/task';
-import type { Sequence } from '@/types/sequence';
-import type { WorkCalendar } from '@/types/calendar';
-import type { SchedulingOptions, SchedulingProfile } from '@/types/project';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import type { EffectiveSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile,
   defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isDefaultProfile,
-  legacyConventions, legacyOptionsToProfile, optionKeysOnly, resolveConventions,
+  legacyConventions, legacyOptionsBlobFor, legacyOptionsToProfile, optionKeysOnly, resolveConventions,
+  switchProfile,
 } from '@/engine/scheduler/conventions/registry';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 import { sanitizeProjectOptions } from '@/services/ifc/schedulingOptionsRead';
@@ -37,7 +33,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 // ── 1) Register ⇔ ConventionKey, unieke id's, domein van de ingebouwde waarden ─────────────────
 {
   const ids = CONVENTIONS.map(d => d.id);
-  eq('01 veertien conventies', ids.length, 14);
+  eq('01 vijftien conventies', ids.length, 15);
   eq('02 unieke id\'s', new Set(ids).size, ids.length);
   same('03 register-lijst == CONVENTION_KEYS (compile-time Record)', [...ids].sort(), [...CONVENTION_KEYS].sort());
   for (const d of CONVENTIONS) {
@@ -60,7 +56,8 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const OPS = builtInConventions('ops');
   for (const key of CONVENTION_KEYS) {
     const mspOnly = key === 'resumeFromActualElapsed' || key === 'unstartedIgnoresStatusDate';
-    eq(`09 p6.${key}`, P6[key], !mspOnly);
+    // A19 is per bestand: de P6-basis is uit, de XER-lezer zet hem als afwijking.
+    eq(`09 p6.${key}`, P6[key], !mspOnly && key !== 'p6UseRemainingStartForProgress');
     eq(`10 msproject.${key}`, MSP[key], mspOnly);
     eq(`11 ops.${key}`, OPS[key], false);
   }
@@ -125,44 +122,62 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);
   eq('47 effective: optie uit project', eff.lagCalendar, '24hour');
-  eq('48 effective: geen p6Source uit het profiel', 'p6Source' in eff, false);
+  eq('48 effective: alle vijftien conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
+  // Conventies worden als LAATSTE gespreid: een conventiesleutel die in de overgang nog in het
+  // projectblok staat, verliest van het profiel.
+  const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } });
+  eq('49 effective: profiel wint van conventiesleutel in het blok', effWins.clampNegativeFreeFloat, false);
+  // Typegrens: een kale SchedulingOptions is geen EffectiveSchedulingOptions (conventies verplicht).
+  const bare: SchedulingOptions = { lagCalendar: 'successor' };
+  // @ts-expect-error — een kaal optieblok mag het profiel niet omzeilen
+  const notEffective: EffectiveSchedulingOptions = bare;
+  void notEffective;
 }
 
-// ── 4) Legacy-migratie per tak (§3.4, modelwijziging punt 4) ─────────────────────────────────────
+// ── 4) Legacy-migratie per tak (spec v3 §3.4) ───────────────────────────────────────────────────
 {
   const none = legacyOptionsToProfile(undefined);
   same('50 geen blob ⇒ ops zonder overrides', none.profile, builtInProfile('ops'));
   eq('51 geen blob ⇒ geen opties', none.options, undefined);
 
-  // (a) p6Source ⇒ p6; overrides = afwijkende conventies; ontbrekende B-vlaggen waren onder p6Source al aan.
-  const a = legacyOptionsToProfile({ p6Source: 'XER', lagCalendar: 'successor', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true });
-  eq('52 (a) basis p6', a.profile.baseId, 'p6');
-  same('53 (a) alleen de afwijkende conventie wordt override', a.profile.overrides, { clampNegativeFreeFloat: false });
-  eq('54 (a) opties zonder p6Source/conventies', a.options, { lagCalendar: 'successor' });
+  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5 ⇒ AAN.
+  const partial = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true });
+  eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
+  const r = resolveConventions(partial.profile);
+  const on = CONVENTION_KEYS.filter(k => r[k]).sort();
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 aan', on, [
+    'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
+    'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary', 'p6UseTaskPlannedStartFloor',
+  ]);
+  eq('54 rij 2: opties zonder p6Source/conventies', partial.options, undefined);
+  const a = legacyOptionsToProfile({ p6Source: 'XER', lagCalendar: 'successor', p6UseRemainingStartForProgress: true });
+  eq('55 rij 2: A19 uit het bestand wordt afwijking', a.profile.overrides.p6UseRemainingStartForProgress, true);
+  eq('56 rij 2: projectopties blijven', a.options, { lagCalendar: 'successor' });
 
-  // (b) geen p6Source: gepoorte vlaggen weg (risico 1), niet-gepoorte worden overrides, basis ops.
+  // Rij 4 (geen p6Source): gepoorte A15–A20 (incl. A19) weg (risico 1), A12/A13/A22/A23 afwijkingen.
   const risk1 = legacyOptionsToProfile({
     p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
     p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
-    p6PreserveZeroDurationConstraintInstants: true, p6OpenLoeTargetSpan: true,
+    p6UseRemainingStartForProgress: true, p6PreserveZeroDurationConstraintInstants: true,
+    p6OpenLoeTargetSpan: true, p6RelationFinishBoundary: true,
   });
-  same('55 (b) risico 1: gepoorte p6-vlaggen zonder p6Source ⇒ ops zonder overrides', risk1.profile, builtInProfile('ops'));
+  same('57 rij 4: vijandige blob met p6-vlaggen incl. A19 zonder p6Source ⇒ ops zonder overrides', risk1.profile, builtInProfile('ops'));
   const b = legacyOptionsToProfile({ clampNegativeFreeFloat: true, preserveActualDatesInBackwardPass: true, totalFloatMode: 'start' });
-  eq('56 (b) basis ops', b.profile.baseId, 'ops');
-  same('57 (b) niet-gepoorte vlaggen worden overrides', b.profile.overrides, { preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true });
-  eq('58 (c) optie-sleutels gaan naar options', b.options, { totalFloatMode: 'start' });
-
-  // (b) msproject-basis: beide mpp-vlaggen true.
-  const m = legacyOptionsToProfile({ resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true, clampNegativeFreeFloat: true });
-  eq('59 (b) beide mpp-vlaggen ⇒ msproject', m.profile.baseId, 'msproject');
-  same('60 (b) msproject-overrides alleen de extra vlag', m.profile.overrides, { clampNegativeFreeFloat: true });
-  eq('61 (b) msproject: geen opties', m.options, undefined);
+  eq('58 rij 4: basis ops', b.profile.baseId, 'ops');
+  same('59 rij 4: A12/A13 worden afwijkingen', b.profile.overrides, { preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true });
+  eq('60 projectopties gaan naar options', b.options, { totalFloatMode: 'start' });
   const half = legacyOptionsToProfile({ resumeFromActualElapsed: true });
-  eq('62 (b) één mpp-vlag ⇒ ops', half.profile.baseId, 'ops');
-  same('63 (b) die ene vlag wordt override', half.profile.overrides, { resumeFromActualElapsed: true });
+  eq('61 rij 4: één mpp-vlag ⇒ ops', half.profile.baseId, 'ops');
+  same('62 rij 4: die ene vlag wordt afwijking', half.profile.overrides, { resumeFromActualElapsed: true });
+
+  // Rij 3 (geen p6Source, beide mpp-vlaggen) ⇒ msproject.
+  const m = legacyOptionsToProfile({ resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true, clampNegativeFreeFloat: true });
+  eq('63 rij 3: beide mpp-vlaggen ⇒ msproject', m.profile.baseId, 'msproject');
+  same('64 rij 3: alleen de extra vlag is afwijking', m.profile.overrides, { clampNegativeFreeFloat: true });
+  eq('65 rij 3: geen opties', m.options, undefined);
   const onlyOptions = legacyOptionsToProfile({ nearCriticalThreshold: 2 });
-  same('64 alleen opties ⇒ ops zonder overrides', onlyOptions.profile, builtInProfile('ops'));
-  eq('65 alleen opties ⇒ opties behouden', onlyOptions.options, { nearCriticalThreshold: 2 });
+  same('66 alleen opties ⇒ ops zonder overrides', onlyOptions.profile, builtInProfile('ops'));
+  eq('67 alleen opties ⇒ opties behouden', onlyOptions.options, { nearCriticalThreshold: 2 });
 }
 
 // ── 5) Pin: de XER-lezer wijkt nooit stil af van de P6-basis ─────────────────────────────────────
@@ -179,45 +194,30 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   }
 }
 
-// ── 6) totalFloatMode 'auto' rekent exact als afwezig ────────────────────────────────────────────
-// De hybride regel (afwezig) kiest finish-float voor een GESTARTE taak MÉT statusdatum, en anders
-// min(start, finish). P is gestart op 2026-06-01 en voor 90% af: zijn ES ligt dus ver vóór zijn
-// restwerk, waardoor start- en eindspeling uiteenlopen (gemeten 17 vs 19 werkdagen). Scenario A (met
-// statusdatum) onderscheidt 'auto' van 'smallest' en 'start'; scenario B (zonder statusdatum)
-// onderscheidt 'auto' van 'finish'. Samen vangt dit elke verkeerde afbeelding van 'auto'.
+// ── 6) Neerwaartse optieblob (spec v3.1 punt 1) ─────────────────────────────────────────────────
 {
-  const CAL: WorkCalendar = {
-    id: 'c', name: 'c', description: 'c',
-    workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
-  };
-  const mk = (id: string, dur: number): Task => ({
-    id, name: id, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
-    isMilestone: false, priority: 500, parentId: null, childIds: [],
-    time: createDefaultTaskTime('2026-06-01', dur), resourceIds: [],
-  });
-  const fs = (id: string, pred: string, succ: string): Sequence =>
-    ({ id, predecessorId: pred, successorId: succ, type: 'FINISH_START', lagDays: 0 });
-  const net = (): Task[] => {
-    const p = mk('P', 10);
-    p.time.actualStart = '2026-06-01';
-    p.time.completion = 0.9;
-    return [p, mk('U', 3), mk('L', 20), mk('END', 1)];
-  };
-  const seqs = [fs('s1', 'P', 'END'), fs('s2', 'U', 'END'), fs('s3', 'L', 'END')];
-  const digest = (r: CPMResult) => JSON.stringify([...r.tasks.entries()].sort(([a], [b]) => a.localeCompare(b))
-    .map(([id, t]) => [id, t.earlyStart, t.earlyFinish, t.lateStart, t.lateFinish, t.totalFloat, t.freeFloat, t.isCritical]));
-  const run = (dataDate: string | undefined, so?: SchedulingOptions) => {
-    const opts: CPMOptions = { ...(dataDate ? { dataDate } : {}), ...(so ? { schedulingOptions: so } : {}) };
-    return digest(new CPMSolver(net(), seqs, CAL, [], opts).solve());
-  };
-  const absentA = run('2026-06-10');
-  const absentB = run(undefined);
-  eq('80 A: auto ≡ afwezig (met statusdatum)', run('2026-06-10', { totalFloatMode: 'auto' }), absentA);
-  eq('81 B: auto ≡ afwezig (zonder statusdatum)', run(undefined, { totalFloatMode: 'auto' }), absentB);
-  // De meetlat onderscheidt: anders bewijzen 80/81 niets.
-  ok('82 meetlat A: smallest wijkt af van afwezig', run('2026-06-10', { totalFloatMode: 'smallest' }) !== absentA);
-  ok('83 meetlat A: start wijkt af van afwezig', run('2026-06-10', { totalFloatMode: 'start' }) !== absentA);
-  ok('84 meetlat B: finish wijkt af van afwezig', run(undefined, { totalFloatMode: 'finish' }) !== absentB);
+  eq('80 ops zonder opties ⇒ geen blob (geen pset)', legacyOptionsBlobFor({}), undefined);
+  eq('81 ops met opties ⇒ alleen de opties', legacyOptionsBlobFor({ schedulingOptions: { lagCalendar: 'successor' } }),
+    { lagCalendar: 'successor' });
+  eq('82 msproject ⇒ A22/A23 true gespiegeld', legacyOptionsBlobFor({ schedulingProfile: builtInProfile('msproject') }),
+    { resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true });
+  eq('83 p6 ⇒ A12/A13 NIET gespiegeld, geen p6Source', legacyOptionsBlobFor({ schedulingProfile: builtInProfile('p6') }), undefined);
+  eq('84 conventies en p6Source uit het blok worden gestript',
+    legacyOptionsBlobFor({ schedulingOptions: { p6Source: 'XER', clampNegativeFreeFloat: true, totalFloatMode: 'finish' } }),
+    { totalFloatMode: 'finish' });
+}
+
+// ── 7) Profielwissel bewaart bestandsafwijkingen (spec v3.1 punt 3) ──────────────────────────────
+{
+  const fromFile: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
+  const toMsp = switchProfile(fromFile, 'msproject');
+  eq('90 wissel naar msproject: basis', toMsp.baseId, 'msproject');
+  eq('91 wissel naar msproject: A19 uit het bestand blijft', resolveConventions(toMsp).p6UseRemainingStartForProgress, true);
+  eq('92 wissel naar msproject: overige conventies volgen msproject', resolveConventions(toMsp).resumeFromActualElapsed, true);
+  same('93 P6 → msproject → P6 = origineel (opgelost)', resolveConventions(switchProfile(toMsp, 'p6')), resolveConventions(fromFile));
+  const userEdit: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
+  same('94 een niet-bestandsafwijking vervalt bij wisselen', switchProfile(userEdit, 'p6'), builtInProfile('p6'));
+  same('95 wissel vanaf afwezig profiel', switchProfile(undefined, 'msproject'), builtInProfile('msproject'));
 }
 
 if (diffs.length > 0) {

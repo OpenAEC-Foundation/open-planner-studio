@@ -27,13 +27,8 @@ export interface SchedulingOptions {
     threshold?: number;
     thresholdHours?: number;
   };
-  /** TF-berekeningswijze. `'start'` = LS−ES, `'finish'` = LF−EF, `'smallest'` = min(beide).
-   *  `'auto'` = het gedrag bij AFWEZIG (rekenprofielen, spec §3.5.2): finish-float bij een gezette
-   *  statusdatum én een gestarte taak (actualStart of voortgang > 0), anders min(start, finish).
-   *  `scheduleAnalysis.ts` valt voor elke waarde buiten start/finish/smallest in die hybride tak,
-   *  dus `'auto'` en afwezig rekenen byte-identiek (bewaakt door `check-conventions-registry.ts`).
-   *  Schrijf `'auto'` niet weg als er niets gekozen is: afwezig houdt bestaande bestanden gelijk. */
-  totalFloatMode?: 'start' | 'finish' | 'smallest' | 'auto';
+  /** TF-berekeningswijze. Default 'smallest' = de huidige min(finish,start)-float. */
+  totalFloatMode?: 'start' | 'finish' | 'smallest';
   /** Open-ended taken kritiek? Default = huidig gedrag (een eindtaak krijgt tf via LF−EF). */
   makeOpenEndedCritical?: boolean;
   /** P6/XER-bronsignaal: verwachte einddatums mogen de resterende duur begrenzen. X7 consumeert
@@ -172,7 +167,7 @@ export interface SchedulingOptions {
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22, tweelagenmodel): de veertien PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vijftien PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -185,6 +180,7 @@ export type ConventionKey =
   | 'p6FinishMilestoneBoundaryWindow'
   | 'p6PreserveActualInstants'
   | 'p6PreserveZeroDurationConstraintInstants'
+  | 'p6UseRemainingStartForProgress'
   | 'resumeFromActualElapsed'
   | 'unstartedIgnoresStatusDate'
   | 'p6RelationFinishBoundary'
@@ -193,8 +189,20 @@ export type ConventionKey =
   | 'p6CompletedLoeActualFinish'
   | 'p6OpenLoeTargetSpan';
 
+/** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies en
+ *  de overgangsvlag `p6Source` (die bij de integratie met baan B verdwijnt). */
+export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey | 'p6Source'>;
+
+/** Wat `Project.schedulingOptions` in het eindmodel draagt: uitsluitend projectopties. */
+export type ProjectSchedulingOptions = Pick<SchedulingOptions, ProjectOptionKey>;
+
 /** De volledig opgeloste set conventies: élke conventie heeft een waarde. */
 export type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
+
+/** De ene set die de solver krijgt: projectopties + alle opgeloste conventies. Een kale
+ *  `SchedulingOptions` is hier bewust NIET aan toewijsbaar (de conventies zijn verplicht), zodat
+ *  niemand het profiel per ongeluk overslaat. */
+export type EffectiveSchedulingOptions = ProjectSchedulingOptions & SchedulingConventions;
 
 /** De drie ingebouwde basisprofielen. */
 export type BuiltInProfileId = 'p6' | 'msproject' | 'ops';

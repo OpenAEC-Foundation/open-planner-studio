@@ -248,8 +248,9 @@ export function readIFC(
 
   // Scheduling-options (fase 2.9, §3.4/§6): het volledige blok uit de OPS_SchedulingOptions-JSON.
   // INTEGRATIE(rekenprofielen): in de overgang blijft het blok ongewijzigd (incl. p6Source en
-  // conventiesleutels, die baan B nog leest); in het eindmodel wordt dit
-  // `legacyOptionsToProfile(...).options` resp. `sanitizeProjectOptions`.
+  // conventiesleutels, die baan B nog leest); in het eindmodel eerst `legacyOptionsToProfile` op het
+  // gelezen blok (profiel alleen als er geen OPS_SchedulingProfile is), daarna de conventiesleutels
+  // strippen: `project.schedulingOptions = legacyOptionsToProfile(blok).options`.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
   if (schedulingOptions) project.schedulingOptions = schedulingOptions;
   // Rekenprofiel: de OPS_SchedulingProfile-pset wint; zonder (of bij een onbruikbare) pset migreert
