@@ -1254,6 +1254,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "LOE no iniciada toma la ventana objetivo",
       "help": "Una actividad de nivel de esfuerzo que aún no ha comenzado toma su ventana objetivo como duración (solo tareas con origen P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Un predecesor completado no retiene más allá de la fecha de estado",
+      "help": "Si el fin real de un predecesor completado cae después de la fecha de estado, sus sucesores pueden empezar igualmente en la fecha de estado."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Holgura libre en el calendario propio",
+      "help": "La holgura libre de una tarea abierta en una relación fin-inicio sin demora se cuenta en el calendario de la propia tarea, no en el del sucesor."
     }
   },
   "profiles": {

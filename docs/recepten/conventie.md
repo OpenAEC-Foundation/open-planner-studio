@@ -16,7 +16,9 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
 1. **Type.** Voeg de boolean toe aan `SchedulingOptions` (`src/types/project.ts`) met een docblok (wat,
    waar in de motor, P6/MS Project/OPS), en aan de unie `ConventionKey`. De compiler dwingt daarna
    stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
-2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep, de drie
+2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep (nieuwe
+   conventies: `'C'` — een legacy-XER-blob zonder profiel-pset migreert dan naar het P6-profiel
+   zonder afwijkingen, dus met de conventie op de P6-waarde; zie `legacyOptionsToProfile`), de drie
    ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden),
    `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag. `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt
    voor bestanden mét `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is
@@ -31,8 +33,8 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    `perFile` (op een ingebouwd id blijven alle afwijkingen letterlijk staan).
 5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
-6. **Gids**: één regel onder "De vijftien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
-   (pas "vijftien" aan, ook in de kop en in "Wat je hier leert").
+6. **Gids**: één regel onder "De zeventien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
+   (pas het aantal aan, ook in de kop en in "Wat je hier leert").
 7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
    met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).
 8. **Landingspoort**: `npm run measure:profiles` vóór de commit — geen exacte cel mag inexact worden

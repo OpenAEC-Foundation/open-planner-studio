@@ -417,9 +417,117 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
   eq('bronscan: p6Source komt nergens onder src/engine/ voor', hits.sort(), []);
 }
 
+// ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar` ──
+// Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
+// UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
+// verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
+const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar'] as const satisfies readonly ConventionKey[];
+
+/** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
+function calendarDataOn(workDays: readonly number[], bands: ReadonlyArray<readonly [string, string]>): string {
+  const day = (n: number) => {
+    const inner = workDays.includes(n)
+      ? bands.map(([s, f]) => `(0||0(s|${s}|f|${f})())`).join('')
+      : '';
+    return `(0||${n}()(${inner}))`;
+  };
+  return `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7].map(day).join('')}))(0||Exceptions()())))`;
+}
+
+interface GroupCFixture {
+  flag: typeof GROUP_C[number];
+  label: string;
+  input: ImportResult;
+  taskId: string;
+  pick: (axes: Axes) => Partial<Axes>;
+  on: Partial<Axes>;
+  off: Partial<Axes>;
+}
+const groupC: GroupCFixture[] = [];
+
+// C1: band 08:00–17:00 ma–vr. Statusdatum wo 7 jan 00:00. Voltooide A met werkelijk einde wo 7 jan
+// 17:00 (ná de statusdatum). P6: de opvolger B (FS+0, niet gestart) begint op de statusdatum, wo
+// 08:00; generiek pas ná het werkelijke einde, do 08:00.
+groupC.push({
+  flag: 'p6CompletedPredecessorAtDataDate',
+  label: 'C1 voltooide voorganger met einde ná de statusdatum',
+  input: importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC1-fixture\tC1\t2026-01-07 00:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tA\tP1\tC1\tA100\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t27\t0\t2026-01-05 08:00\t2026-01-07 17:00\t2026-01-05 08:00\t2026-01-07 17:00',
+    '%R\tB\tP1\tC1\tB100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-08 08:00\t2026-01-08 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]),
+  taskId: 'B',
+  pick: axes => ({ es: axes.es }),
+  on: { es: '2026-01-07T08:00' },
+  off: { es: '2026-01-08T08:00' },
+});
+
+// C2: taak T op een ma–vr-kalender (08:00–17:00), opvolger S op een ma–do-kalender. T eindigt do 8
+// jan 17:00; S (FS+0) kan pas ma 12 jan 08:00 beginnen. Op de kalender van T ligt daartussen één
+// werkdag (vr 9 jan) ⇒ P6-FF 1 dag; op de kalender van S niets ⇒ generiek 0.
+groupC.push({
+  flag: 'p6FreeFloatOnOwnCalendar',
+  label: 'C2 vrije speling in de eigen kalender',
+  input: importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC5\tVijfdaags\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    `%R\tC4\tVierdaags\tP1\tCA_Project\t9\t36\t${calendarDataOn([2, 3, 4, 5], [['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC2-fixture\tC5\t2026-01-05 08:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tT\tP1\tC5\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t36\t36\t2026-01-05 08:00\t2026-01-08 17:00',
+    '%R\tS\tP1\tC4\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-12 08:00\t2026-01-12 17:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tT\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]),
+  taskId: 'T',
+  pick: axes => ({ ef: axes.ef, ff: axes.ff }),
+  on: { ef: '2026-01-08T17:00', ff: 1 },
+  off: { ef: '2026-01-08T17:00', ff: 0 },
+});
+
+eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
+for (const fixture of groupC) {
+  const { flag, label, input, taskId, pick } = fixture;
+  eq(`${label}: fixture draagt het P6-profiel`, input.project.schedulingProfile?.baseId, 'p6');
+  eq(`${label}: AAN en UIT verschillen (fixture is onderscheidend)`,
+    JSON.stringify(fixture.on) !== JSON.stringify(fixture.off), true);
+  const asRead = resolveConventions(input.project.schedulingProfile);
+  eq(`${label}: 1. XER-import zoals gelezen (P6-profiel) ⇒ AAN`, pick(solveAxes(input, taskId)), fixture.on);
+  eq(`${label}: 2. alleen ${flag} uit ⇒ UIT`,
+    pick(solveAxes(withProfile(input, copy => setConvention(copy, flag, false)), taskId)), fixture.off);
+  const onlyThis = { ...asRead };
+  for (const key of GROUP_C) onlyThis[key] = key === flag;
+  eq(`${label}: 3. OPS-basis, overige waarden van het bestand, alleen ${flag} aan ⇒ AAN`,
+    pick(solveAxes(withConventions(input, 'ops', onlyThis), taskId)), fixture.on);
+  for (const baseId of ['ops', 'msproject'] as const) {
+    const plain = structuredClone(input);
+    plain.project.schedulingProfile = { baseId, id: baseId, name: '', overrides: {} };
+    eq(`${label}: 4. ingebouwd profiel ${baseId} ⇒ UIT`, pick(solveAxes(plain, taskId)), fixture.off);
+  }
+}
+
 if (diffs.length > 0) {
   console.error(`conventions-p6-flags RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B-conventies, aan/uit + bron- en basisinertheid)`);
+console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 2 groep-C-conventies, aan/uit + bron- en basisinertheid)`);

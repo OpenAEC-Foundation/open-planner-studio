@@ -1219,6 +1219,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "Nicht begonnene LOE übernimmt das Zielfenster",
       "help": "Eine noch nicht begonnene Level-of-Effort-Aktivität übernimmt ihr Zielfenster als Laufzeit (nur Vorgänge mit P6-Herkunft)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Abgeschlossener Vorgänger hält nicht über das Statusdatum hinaus",
+      "help": "Liegt das Ist-Ende eines abgeschlossenen Vorgängers nach dem Statusdatum, dürfen seine Nachfolger trotzdem schon am Statusdatum beginnen."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Freier Puffer im eigenen Kalender",
+      "help": "Der freie Puffer eines offenen Vorgangs über eine Ende-Anfang-Beziehung ohne Zeitabstand zählt im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers."
     }
   },
   "profiles": {

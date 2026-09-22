@@ -1254,6 +1254,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "LOE non iniziata usa la finestra obiettivo",
       "help": "Un’attività level-of-effort non ancora iniziata prende la sua finestra obiettivo come durata (solo attività con origine P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Il predecessore completato non trattiene oltre la data di stato",
+      "help": "Se la fine effettiva di un predecessore completato cade dopo la data di stato, i suoi successori possono comunque iniziare alla data di stato."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Margine libero nel calendario dell'attività",
+      "help": "Il margine libero di un'attività aperta su un legame fine-inizio senza ritardo si calcola nel calendario dell'attività stessa, non in quello del successore."
     }
   },
   "profiles": {

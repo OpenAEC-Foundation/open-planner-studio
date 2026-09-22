@@ -727,7 +727,7 @@ function writeSchedulingOptionsMeta(
 
 /**
  * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
- * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle vijftien conventies
+ * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle zeventien conventies
  * OPGELOST (`schedulingProfileToJson`), plus de afwijkingen letterlijk. Golden rule: afwezig profiel
  * of het standaardprofiel (`ops` zonder enige afwijking, `carriesProfile`) ⇒ geen pset, zodat
  * bestaande bestanden byte-identiek blijven.

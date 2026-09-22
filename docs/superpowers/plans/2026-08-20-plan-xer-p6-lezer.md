@@ -601,7 +601,18 @@ dan meet, meet zijn eigen aannames.
 
 ### 7b-4 — forward-anker na gereconstrueerde kalenderblokken
 
-**Status:** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
+**Status:** GEBOUWD 2026-09-23 (X12 naar nul, brok 2) als conventie C1
+`p6CompletedPredecessorAtDataDate` (P6 aan / MS Project uit / OPS uit; docblok en bron in
+`src/types/project.ts`). De oorzaak was geen kalenderfout en geen `ownAnchor`-vloer: vijf voltooide
+taken (V3209120, V3227100, V3247140, V3248140, V3265140) hebben `act_end_date` 2008-05-27 17:00, ná de
+statusdatum 2008-05-27 00:00; P6 laat hun opvolgers op de statusdatum beginnen, wij deden dat pas ná
+het werkelijke einde. C1 begrenst de relatiegrens van een voltooide voorganger op de werkgrens vóór de
+statusdatum. Samen geland met C2 `p6FreeFloatOnOwnCalendar` (brok B06), omdat C1 alleen één ff-cel
+(V3248175) liet omslaan die C2 verklaart. X12 15.056 → 13.324 (−1.732, 0 slechter); de dossiertaak
+V3109400 staat nu op ES 12-04 zoals P6. De resterende LS/LF/tf-cellen van deze keten horen bij brok
+B01 (de zes TF-0-ankers). Oorspronkelijke registratie hieronder blijft als geschiedenis.
+
+**Status (oud):** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
 2026-09-05.
 
 **Wat er staat.** Op `rehab-2.xer` verschuiven 344 ES- en 327 EF-cellen van goed naar fout

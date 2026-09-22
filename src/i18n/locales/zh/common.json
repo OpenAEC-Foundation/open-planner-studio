@@ -1184,6 +1184,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "未开始的 LOE 采用目标窗口",
       "help": "尚未开始的投入水平作业以其目标窗口作为工期（仅限来自 P6 的任务）。"
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "已完成的紧前任务不在状态日期之后约束",
+      "help": "如果已完成的紧前任务的实际完成时间晚于状态日期，其后续任务仍可在状态日期开始。"
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "按任务自身日历计算自由浮动",
+      "help": "未完成任务在无延隔的完成-开始关系上的自由浮动时间按任务自身的日历计算，而不是按后续任务的日历。"
     }
   },
   "profiles": {

@@ -1184,6 +1184,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "시작되지 않은 LOE는 목표 창을 사용",
       "help": "아직 시작되지 않은 LOE(level-of-effort) 활동은 목표 창을 기간으로 사용합니다(P6 출처 작업만)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "완료된 선행 작업은 상태 날짜 이후로 붙잡지 않음",
+      "help": "완료된 선행 작업의 실제 완료가 상태 날짜 이후이더라도 후속 작업은 상태 날짜에 시작할 수 있습니다."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "자유 여유 시간을 작업 자체 달력으로 계산",
+      "help": "지연 없는 완료-시작 관계에서 미완료 작업의 자유 여유 시간은 후속 작업이 아니라 작업 자체의 달력으로 계산합니다."
     }
   },
   "profiles": {

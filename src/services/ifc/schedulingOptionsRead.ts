@@ -36,6 +36,7 @@ const BOOLEAN_KEYS = [
   // baan B) mogen ze nog in dit blok staan; `sanitizeProjectOptions` hieronder stript ze wel.
   'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
   'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
+  'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar',
 ] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
@@ -174,7 +175,7 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
- *  alle vijftien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
+ *  alle zeventien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
   id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions;

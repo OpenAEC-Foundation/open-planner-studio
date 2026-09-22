@@ -1219,6 +1219,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "Unstarted LOE uses the target window",
       "help": "A level-of-effort activity that has not started takes its target window as its span (only tasks with P6 provenance)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Completed predecessor does not hold past the data date",
+      "help": "If a completed predecessor's actual finish lies after the data date, its successors may still start at the data date."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Free float in the task's own calendar",
+      "help": "The free float of an open task over a finish-to-start relationship without lag counts in the task's own calendar, not in the successor's."
     }
   },
   "profiles": {

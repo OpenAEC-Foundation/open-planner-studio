@@ -1254,6 +1254,14 @@
     "p6OpenLoeTargetSpan": {
       "label": "LOE não iniciada usa a janela objetivo",
       "help": "Uma atividade level-of-effort que ainda não começou usa a sua janela objetivo como duração (apenas tarefas com origem P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Predecessora concluída não retém além da data de estado",
+      "help": "Se o término real de uma predecessora concluída cair depois da data de estado, as sucessoras podem mesmo assim começar na data de estado."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Folga livre no calendário da própria tarefa",
+      "help": "A folga livre de uma tarefa em aberto numa relação término-início sem atraso é contada no calendário da própria tarefa, não no da sucessora."
     }
   },
   "profiles": {
