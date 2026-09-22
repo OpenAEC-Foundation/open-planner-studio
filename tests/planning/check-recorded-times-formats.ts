@@ -13,7 +13,9 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readCSV } from '@/services/csv/csvReader';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readMPP } from '@/services/mpp/mppReader';
+import { criticalSlackLimitDaysOf, openMppProject, parseProjectProperties, readMPP, readTasks } from '@/services/mpp/mppReader';
+import { createTaskFieldMap } from '@/services/mpp/fieldMap14';
+import { readCalendars } from '@/services/mpp/mppCalendars';
 import type { ImportResult } from '@/services/importTypes';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import { externIfc } from '../fixtures/recordedDatesIfc';
@@ -130,14 +132,25 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('4j een OPS_-pset alleen is óók voldoende', readIFC(noApp).recordedTimesOrigin, 'ifc-own');
 }
 
-// ── (5) .mpp — corpus-optioneel (OPS_MPP_CRAWL, publieke MPXJ-junit-data) ───────────────────────
-// Geen synthetische MPP-fixture: de veldkaart (EARLY_START 37 e.a., `fieldMap14.ts`) is uit
-// MPXJ overgenomen en wordt hier tegen echte bestanden bewezen. Zonder crawl: overgeslagen, met
-// melding — de andere vier lagen hierboven draaien altijd.
+// ── (5-0) .mpp-kritiekgrens uit de projecteigenschappen (corpusloos) ────────────────────────────
+// CRITICAL_SLACK_LIMIT (MPXJ `ProjectPropertiesReader`: `props.getInt`, dagen). In het publieke
+// corpus staat hij overal op 0, dus de grens zelf is alleen hier en in 5f hieronder bewezen.
 {
-  const crawl = process.env.OPS_MPP_CRAWL;
-  if (!crawl || !existsSync(crawl)) {
-    console.log('.   recorded-times-formats: OPS_MPP_CRAWL niet aanwezig — .mpp-laag overgeslagen');
+  const props = (v: number) => ({ getInt: (key: number) => (key === 37748756 ? v : 0) });
+  eq('5-0a grens 3 dagen wordt gelezen', criticalSlackLimitDaysOf(props(3)), 3);
+  eq('5-0b ontbrekend (Props geeft 0) ⇒ 0, de MSP-default', criticalSlackLimitDaysOf(props(0)), 0);
+  eq('5-0c een onzinnige waarde (1e9 dagen) valt terug op 0', criticalSlackLimitDaysOf(props(1_000_000_000)), 0);
+}
+
+// ── (5) .mpp — corpus-optioneel (OPS_MPP_CRAWL, publieke MPXJ-junit-data + OzBuild) ─────────────
+// Geen synthetische MPP-fixture: de veldkaart (EARLY_START 37 e.a., `fieldMap14.ts`) is uit
+// MPXJ overgenomen en wordt hier tegen echte bestanden bewezen. Zelfde standaardpad als
+// `check-mpp-fidelity.ts`; ontbreekt het: overgeslagen, met melding — de andere vier lagen
+// hierboven draaien altijd.
+{
+  const crawl = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
+  if (!existsSync(crawl)) {
+    console.log('.   recorded-times-formats: crawl (OPS_MPP_CRAWL) niet aanwezig — .mpp-laag overgeslagen');
   } else {
     const files: string[] = [];
     const walk = (dir: string) => {
@@ -149,6 +162,9 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     };
     walk(crawl);
     let readable = 0, withRecorded = 0, tasksTotal = 0, tasksRecorded = 0, lateAxes = 0, floatAxes = 0, inverted = 0, mismatchedStart = 0;
+    // Critreview op ded4d8c3, bevinding 2: MS Project (MPXJ `Task.calculateCritical`) noemt een
+    // voltooide taak (werkelijk einde of 100%) NOOIT kritiek. Telling over de vastgelegde taken.
+    let completedRecorded = 0, completedCritical = 0;
     for (const file of files.sort()) {
       let r: ImportResult;
       try { r = readMPP(new Uint8Array(readFileSync(file))); } catch { continue; }
@@ -164,6 +180,10 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
           if (rec.lateStart !== undefined && rec.lateFinish !== undefined) lateAxes++;
           if (rec.totalFloat !== undefined) floatAxes++;
           if (rec.finish < rec.start) inverted++;
+          if (t.time.actualFinish || t.time.completion >= 1) {
+            completedRecorded++;
+            if (rec.isCritical === true) completedCritical++;
+          }
           // De vastgelegde vroege start moet voor een AUTO-taak zonder actuals samenvallen met MSP's
           // eigen geplande start (`task.time.scheduleStart`): EARLY_START = START in MSP zolang er
           // geen voortgang is. Een afwijking wijst op een verkeerde veldkaart-offset.
@@ -171,10 +191,60 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
         }
       }
     }
-    console.log(`.   recorded-times-formats .mpp: ${files.length} bestanden, ${readable} leesbaar, ${withRecorded} met vastlegging, taken ${tasksRecorded}/${tasksTotal} vastgelegd, late-assen ${lateAxes}, speling ${floatAxes}, start≠scheduleStart(NOT_STARTED) ${mismatchedStart}, finish<start ${inverted}`);
+    console.log(`.   recorded-times-formats .mpp: ${files.length} bestanden, ${readable} leesbaar, ${withRecorded} met vastlegging, taken ${tasksRecorded}/${tasksTotal} vastgelegd, late-assen ${lateAxes}, speling ${floatAxes}, start≠scheduleStart(NOT_STARTED) ${mismatchedStart}, finish<start ${inverted}, voltooid-en-kritiek ${completedCritical}/${completedRecorded}`);
     truthy('5b minstens één leesbaar crawl-bestand draagt een vastlegging', withRecorded > 0);
     truthy('5c de vastgelegde vroege start valt voor niet-gestarte taken samen met MSP\'s geplande start (veldkaart-offset EARLY_START bewezen)', mismatchedStart === 0);
     truthy('5d geen enkele vastlegging eindigt vóór haar start', inverted === 0);
+    // 5f: de grens werkt echt door in `readTasks` — op het eerste crawl-bestand met een NIET-
+    // voltooide vastgelegde taak met positieve speling: grens 0 ⇒ niet kritiek, grens ≥ die
+    // speling ⇒ kritiek; een voltooide taak blijft bij elke grens niet-kritiek.
+    let limitProven = false;
+    for (const file of files) {
+      if (limitProven) break;
+      let scan: ReturnType<typeof readTasks>;
+      try {
+        const { cfb, projectProps, applicationVersion } = openMppProject(new Uint8Array(readFileSync(file)));
+        const { project, hoursPerDay, calendarHoursPerDayOverride } = parseProjectProperties(projectProps, undefined);
+        const base = { cfb, taskFieldMap: createTaskFieldMap(projectProps), hoursPerDay, statusDate: project.statusDate, applicationVersion };
+        const run = (limit: number) => readTasks({ ...base, calResult: readCalendars(cfb, projectProps, applicationVersion, calendarHoursPerDayOverride), criticalSlackLimitDays: limit });
+        scan = run(0);
+        const idx = scan.tasks.findIndex(t => !(t.time.actualFinish || t.time.completion >= 1) && (scan.recordedTimes[t.id]?.totalFloat ?? 0) > 0);
+        if (idx < 0) continue;
+        const tf = scan.recordedTimes[scan.tasks[idx].id].totalFloat!;
+        const wide = run(Math.ceil(tf));
+        const doneIdx = wide.tasks.findIndex(t => t.time.actualFinish || t.time.completion >= 1);
+        eq(`5f ${file.slice(crawl.length)}: speling ${tf} d is niet kritiek bij grens 0, wél bij grens ${Math.ceil(tf)}; voltooid blijft niet-kritiek`,
+          [scan.recordedTimes[scan.tasks[idx].id].isCritical, wide.recordedTimes[wide.tasks[idx].id].isCritical,
+            doneIdx < 0 ? false : wide.recordedTimes[wide.tasks[doneIdx].id]?.isCritical ?? false],
+          [false, true, false]);
+        limitProven = true;
+      } catch { continue; }
+    }
+    truthy('5f de kritiekgrens is op minstens één crawl-bestand doorgemeten', limitProven);
+    // 5g: bij een GESTARTE (niet-voltooide) taak is de totale speling de finish slack, niet
+    // min(start, finish) — MSP zet de start slack van een gestarte taak op 0, waardoor het minimum
+    // elke gestarte taak kritiek maakte. Telling: gestart, finish slack > 0, toch speling 0.
+    let startedChecked = 0, startedZeroed = 0;
+    for (const file of files) {
+      try {
+        const { cfb, projectProps, applicationVersion } = openMppProject(new Uint8Array(readFileSync(file)));
+        const { project, hoursPerDay, calendarHoursPerDayOverride } = parseProjectProperties(projectProps, undefined);
+        const scan = readTasks({ cfb, taskFieldMap: createTaskFieldMap(projectProps), hoursPerDay, statusDate: project.statusDate, applicationVersion,
+          calResult: readCalendars(cfb, projectProps, applicationVersion, calendarHoursPerDayOverride) });
+        for (const raw of scan.rawScans) {
+          if (raw.actualStartTs === null || raw.actualFinishTs !== null || raw.percentComplete >= 100) continue;
+          if (raw.finishSlackRaw === null || raw.finishSlackRaw <= 0) continue;
+          const id = scan.taskIdByUniqueId.get(raw.uniqueId);
+          const rec = id ? scan.recordedTimes[id] : undefined;
+          if (!rec || rec.totalFloat === undefined) continue;
+          startedChecked++;
+          if (rec.totalFloat <= 0) startedZeroed++;
+        }
+      } catch { continue; }
+    }
+    console.log(`.   recorded-times-formats .mpp: gestart met finish slack > 0: ${startedChecked}, daarvan speling ≤ 0: ${startedZeroed}`);
+    truthy(`5g gestarte taken met positieve finish slack krijgen die als totale speling (${startedZeroed}/${startedChecked} op ≤ 0)`, startedChecked > 0 && startedZeroed === 0);
+    truthy(`5e geen voltooide taak is als kritiek vastgelegd (MPXJ calculateCritical) — ${completedCritical}/${completedRecorded}`, completedCritical === 0);
   }
 }
 

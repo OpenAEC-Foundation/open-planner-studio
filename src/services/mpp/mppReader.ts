@@ -170,6 +170,18 @@ const PROPS_KEY_PROJECT_START_DATE = 37748738;
 const PROPS_KEY_PROJECT_FINISH_DATE = 37748739;
 const PROPS_KEY_STATUS_DATE = 37748805;
 const PROPS_KEY_MINUTES_PER_DAY = 37748765;
+/** PropsKey CRITICAL_SLACK_LIMIT — MPXJ `ProjectPropertiesReader`: `props.getInt(...)` in dagen. */
+const PROPS_KEY_CRITICAL_SLACK_LIMIT = 37748756;
+/** MSP's instelling loopt in de UI tot een paar duizend dagen; een waarde daarbuiten is een corrupt
+ *  of vijandig veld en valt terug op de MSP-default 0 (alleen een vergelijkingsgrens, geen
+ *  allocatie). */
+const MAX_CRITICAL_SLACK_LIMIT_DAYS = 36500;
+
+/** De kritiekgrens (dagen) uit de projecteigenschappen; ontbrekend of onzinnig ⇒ 0. */
+export function criticalSlackLimitDaysOf(props: { getInt(key: number): number }): number {
+  const days = props.getInt(PROPS_KEY_CRITICAL_SLACK_LIMIT);
+  return Number.isInteger(days) && Math.abs(days) <= MAX_CRITICAL_SLACK_LIMIT_DAYS ? days : 0;
+}
 
 /** TBkndTask/FixedMeta-itemgrootte (MPP14Reader.java r. 993: `new FixedMeta(..., 47)`). */
 const TASK_FIXED_META_ITEM_SIZE = 47;
@@ -713,6 +725,9 @@ export interface ReadTasksContext {
   statusDate: string | undefined;
   applicationVersion: number | null;
   calResult: CalendarReadResult;
+  /** "Datums zoals opgeslagen": MSP's kritiekgrens ("taken zijn kritiek als de speling kleiner of
+   *  gelijk is aan N dagen", PropsKey CRITICAL_SLACK_LIMIT) in dagen. Afwezig ⇒ 0 (MSP-default). */
+  criticalSlackLimitDays?: number;
 }
 
 /** I2 (T5-kwaliteitsreview) — bereidt de returnvorm voor op T6/T7:
@@ -844,6 +859,7 @@ type MppTaskMode = 'AUTO_SCHEDULED' | 'MANUALLY_SCHEDULED';
 
 export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const { cfb, taskFieldMap, hoursPerDay, statusDate, applicationVersion, calResult } = ctx;
+  const criticalSlackLimitDays = ctx.criticalSlackLimitDays ?? 0;
   const fixedMetaBytes = cfb.getStream(['   114', 'TBkndTask', 'FixedMeta']);
   const fixedDataBytes = cfb.getStream(['   114', 'TBkndTask', 'FixedData']);
   const varMetaBytes = cfb.getStream(['   114', 'TBkndTask', 'VarMeta']);
@@ -1312,10 +1328,16 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     // Start/einde: EARLY_START/EARLY_FINISH, terugval het opgeslagen (manual-bewuste) start/einde-
     // paar dat `task.time` óók kreeg. Slack: tienden van een minuut → werkdagen op de taak-
     // effectieve kalender; ELAPSED-eenheden (zie `isElapsedDuration`) tellen in klokminuten en
-    // gaan door de vaste 24-uursdag, exact zoals de duur hierboven. Total Slack = min(start-,
-    // finish-slack) — MS Project's definitie; MPP14 slaat geen eigen TOTAL_SLACK op. Kritiek =
-    // total slack ≤ 0 (MSP's default "Tasks are critical if slack is less than or equal to 0
-    // days"); zonder omrekenbare total slack geen oordeel. Ontbrekende assen ontbreken.
+    // gaan door de vaste 24-uursdag, exact zoals de duur hierboven. MPP14 slaat geen eigen
+    // TOTAL_SLACK op; MPXJ rekent hem (MicrosoftSlackCalculator, standaard SMALLEST_SLACK — een
+    // .mpp kent geen TotalSlackCalculationType-instelling) als min(start-, finish-slack), maar bij
+    // een GESTARTE taak (werkelijke start) als de finish slack. Kritiek volgt MPXJ
+    // `Task.calculateCritical` (critreview op ded4d8c3, bevinding 2): een taak met werkelijk einde
+    // of 100% is NOOIT kritiek; anders total slack ≤ de kritiekgrens uit de projecteigenschappen
+    // (CRITICAL_SLACK_LIMIT, dagen). Zonder omrekenbare total slack geen oordeel (MPXJ zegt dan
+    // "niet kritiek"; wij leggen niets vast dat het bestand niet draagt). NIET gevolgd: MPXJ's
+    // uitzondering voor handmatige taken met tekstuele duur/start/einde — die tekstvelden leest
+    // deze lezer niet. Ontbrekende assen ontbreken.
     {
       const slackDays = (tenths: number | null): number | undefined => {
         if (tenths === null) return undefined;
@@ -1323,10 +1345,13 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
           ? recordedFloatDays(tenths / 10, 24 * 60)
           : recordedFloatDays(tenths / 10, (isHour ? effHpd : hoursPerDay) * 60);
       };
-      const totalSlackRaw = raw.startSlackRaw !== null && raw.finishSlackRaw !== null
-        ? Math.min(raw.startSlackRaw, raw.finishSlackRaw)
-        : (raw.finishSlackRaw ?? raw.startSlackRaw);
+      const totalSlackRaw = raw.actualStartTs !== null && raw.finishSlackRaw !== null
+        ? raw.finishSlackRaw
+        : raw.startSlackRaw !== null && raw.finishSlackRaw !== null
+          ? Math.min(raw.startSlackRaw, raw.finishSlackRaw)
+          : (raw.finishSlackRaw ?? raw.startSlackRaw);
       const totalFloat = slackDays(totalSlackRaw);
+      const completed = raw.actualFinishTs !== null || raw.percentComplete >= 100;
       const recorded = buildRecordedTime({
         start: formatField(raw.earlyStartTs) ?? formatField(resolvedStartTs),
         finish: formatField(raw.earlyFinishTs) ?? formatField(resolvedFinishTs),
@@ -1334,7 +1359,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
         lateFinish: formatField(raw.lateFinishTs),
         totalFloat,
         freeFloat: slackDays(raw.freeSlackRaw),
-        isCritical: totalFloat === undefined ? undefined : totalFloat <= 0,
+        isCritical: completed ? false : totalFloat === undefined ? undefined : totalFloat <= criticalSlackLimitDays,
       });
       if (recorded) recordedTimes[task.id] = recorded;
     }
@@ -2315,6 +2340,7 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // vervallen; `taskHourById` voedt T7's relaties (lag-eenheid-keuze, spiegelt mspdiReader).
   const { tasks, taskIdByUniqueId, taskHourById, recordedTimes } = readTasks({
     cfb, taskFieldMap, hoursPerDay, statusDate: project.statusDate, applicationVersion, calResult,
+    criticalSlackLimitDays: criticalSlackLimitDaysOf(projectProps),
   });
 
   // T7: relaties/resources/assignments — compleet ImportResult, geen placeholders meer.
