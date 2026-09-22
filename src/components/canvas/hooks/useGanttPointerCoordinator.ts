@@ -275,6 +275,13 @@ export function useGanttPointerCoordinator(
       }
       return;
     }
+    // Een pauze is sinds etappe 3 geen grijpvlak meer (`getTaskBarBounds` geeft er `null`), maar
+    // hoort in de splits-modus nog steeds bij de balk: een klik erin doet niets, net als vóórheen,
+    // in plaats van een kaderselectie te starten.
+    if (splitMode && renderer.getSplitGapAt(x, y)) {
+      event.preventDefault();
+      return;
+    }
 
     if (hit) {
       // 5. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
@@ -330,7 +337,11 @@ export function useGanttPointerCoordinator(
     // terugkoppeling, en twee zwevende doosjes boven elkaar leest niemand.
     if (splitMode) {
       setTooltip(null);
-      if (!hit) { splitGesture.clearHover(); setHoverCursor('default'); return; }
+      if (!hit) {
+        splitGesture.clearHover();
+        setHoverCursor(renderer.getSplitGapAt(x, y) ? 'not-allowed' : 'default');
+        return;
+      }
       const splittable = splitRefusalFor(hit.task) === null;
       setHoverCursor(splittable ? 'col-resize' : 'not-allowed');
       if (splittable) splitGesture.updateHover(event.clientX, event.clientY);

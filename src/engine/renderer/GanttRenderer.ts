@@ -234,6 +234,12 @@ export class GanttRenderer {
    *  voorkomt alleen herhaalde engine-constructie binnen één render. */
   private engineCache = new Map<string, CalendarEngine>();
 
+  /** Issue #146 etappe 3: per getekende GESPLITSTE balk (`Task.splitGaps`) de x-grenzen van de
+   *  stukken, precies zoals ze deze render getekend zijn. De hit-test leest ze terug, zodat een
+   *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
+   *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
+  private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
+
   constructor(ctx: CanvasRenderingContext2D, opts: GanttRenderOptions) {
     this.ctx = ctx;
     this.opts = opts;
@@ -412,6 +418,7 @@ export class GanttRenderer {
   render(): void {
     const { canvasWidth, canvasHeight } = this.opts;
     const ctx = this.ctx;
+    this.splitSegmentsByTask.clear();
 
     // Clear
     ctx.fillStyle = this.colors.bg;
@@ -1251,6 +1258,7 @@ export class GanttRenderer {
           x2: i === segments.length - 1 ? x2 : this.dateToX(s.end),
         }));
         split = true;
+        this.splitSegmentsByTask.set(task.id, segs);
       }
     } else if (geo.hourMode && this.shouldSplit(isSelected)) {
       const eng = this.engineFor(task);
@@ -2218,8 +2226,18 @@ export class GanttRenderer {
     };
   }
 
-  /** Hit test: get task bar bounds for a task at row index (for drag & drop) */
-  getTaskBarBounds(canvasX: number, canvasY: number): { task: Task; edge: 'left' | 'right' | 'body' } | null {
+  /** Hit test: get task bar bounds for a task at row index (for drag & drop).
+   *
+   *  Issue #146 etappe 3: `segmentIndex`/`segmentCount` zeggen op WELK stuk van een gesplitste balk
+   *  (`Task.splitGaps`) de muis staat; een ongesplitste balk is één stuk (0 van 1) en houdt zijn
+   *  randen byte-identiek. Op een gesplitste balk is elk stuk een eigen grijpvlak: de linkerrand
+   *  bestaat ALLEEN op stuk 0 (hele taak, zoals altijd), een rechterrand op elk stuk (de lengte van
+   *  dát stuk), en een x in een pauze is GEEN grijpvlak (`null` — zie `getSplitGapAt`). Het
+   *  vertalen van een stuk naar een bewerking is niet van de renderer: dat doen `useBarDrag` en
+   *  `splitEdit.ts`, op de stukkenlijst van de taak. */
+  getTaskBarBounds(canvasX: number, canvasY: number): {
+    task: Task; edge: 'left' | 'right' | 'body'; segmentIndex: number; segmentCount: number;
+  } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
     const task = this.getTaskAtY(canvasY);
     // M3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` — een mijlpaal-met-duur tekent als
@@ -2232,22 +2250,59 @@ export class GanttRenderer {
     if (!(task.time.earlyStart || task.time.scheduleStart) || !(task.time.earlyFinish || task.time.scheduleFinish)) {
       return null;
     }
-
-    // Uur-bewuste balk-uiteinden, zodat de resize-grepen op een sub-dag-balk kloppen (§6.1/§6.3).
-    // Z15: BEWUST de volle extent `[x1,x2]`, ook voor een gesplitste taak (`Task.splitGaps`) — een
-    // gesplitste balk is deze etappe als GEHEEL sleep-/resize-baar, niet per segment. Dat is de
-    // GEWENSTE uitkomst (plan-§Z15): bewerken van splits (een gat verslepen, een split opheffen)
-    // is een aparte, latere etappe (O2-besluit); deze balk drag-/resize't dus exact zoals een
-    // ongesplitste balk, ongeacht `splitGaps`.
-    const { x1, x2 } = this.barGeometry(task);
     const edgeZone = 6; // pixels for edge detection
 
+    const segs = this.drawnSplitSegments(task);
+    if (segs) {
+      // Per stuk, van links naar rechts; het eerste stuk dat de x claimt wint (ligt een pauze
+      // smaller dan de randzone, dan wint de rechterrand van het stuk ervóór). De grijpzone van een
+      // rand is binnen het stuk hooguit een derde van zijn breedte, zodat ook een smal stuk een
+      // body houdt om aan te slepen.
+      const count = segs.length;
+      for (let i = 0; i < count; i++) {
+        const { x1, x2 } = segs[i];
+        const inner = Math.min(edgeZone, (x2 - x1) / 3);
+        const lo = i === 0 ? x1 - edgeZone : x1;
+        if (canvasX < lo || canvasX > x2 + edgeZone) continue;
+        if (i === 0 && canvasX <= x1 + inner) return { task, edge: 'left', segmentIndex: 0, segmentCount: count };
+        if (canvasX >= x2 - inner) return { task, edge: 'right', segmentIndex: i, segmentCount: count };
+        return { task, edge: 'body', segmentIndex: i, segmentCount: count };
+      }
+      return null;
+    }
+
+    // Uur-bewuste balk-uiteinden, zodat de resize-grepen op een sub-dag-balk kloppen (§6.1/§6.3).
+    const { x1, x2 } = this.barGeometry(task);
+
     if (canvasX >= x1 - edgeZone && canvasX <= x2 + edgeZone) {
-      if (canvasX <= x1 + edgeZone) return { task, edge: 'left' };
-      if (canvasX >= x2 - edgeZone) return { task, edge: 'right' };
-      return { task, edge: 'body' };
+      if (canvasX <= x1 + edgeZone) return { task, edge: 'left', segmentIndex: 0, segmentCount: 1 };
+      if (canvasX >= x2 - edgeZone) return { task, edge: 'right', segmentIndex: 0, segmentCount: 1 };
+      return { task, edge: 'body', segmentIndex: 0, segmentCount: 1 };
     }
     return null;
+  }
+
+  /** Issue #146 etappe 3: ligt `canvasX` in een PAUZE van een getekende gesplitste balk? Geeft de
+   *  pauze-index (0 = tussen stuk 0 en 1). Precies het complement van de stuk-grijpvlakken in
+   *  `getTaskBarBounds`: waar die `null` geeft binnen de balk, geeft deze de pauze. Gebruikt door
+   *  het contextmenu ("de pauze onder de cursor") en door de splits-modus (klik in een pauze = niets). */
+  getSplitGapAt(canvasX: number, canvasY: number): { task: Task; gapIndex: number } | null {
+    if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
+    const task = this.getTaskAtY(canvasY);
+    if (!task || task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
+    const segs = this.drawnSplitSegments(task);
+    if (!segs || this.getTaskBarBounds(canvasX, canvasY)) return null;
+    for (let i = 0; i < segs.length - 1; i++) {
+      if (canvasX > segs[i].x2 && canvasX < segs[i + 1].x1) return { task, gapIndex: i };
+    }
+    return null;
+  }
+
+  /** De stuk-rechthoeken van de laatste render, alleen zolang de taak nog gesplitst is. */
+  private drawnSplitSegments(task: Task): { x1: number; x2: number }[] | null {
+    if (!task.splitGaps || task.splitGaps.length === 0) return null;
+    const segs = this.splitSegmentsByTask.get(task.id);
+    return segs && segs.length > 1 ? segs : null;
   }
 
   /**
