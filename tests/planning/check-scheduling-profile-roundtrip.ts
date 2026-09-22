@@ -20,7 +20,7 @@ import { freshPayload } from '@/state/documentContract';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
-  builtInConventions, builtInProfile, resolveConventions,
+  builtInConventions, builtInProfile, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
 import { legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
 import {
@@ -332,6 +332,34 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   eq('C2-11 corrupte optie-JSON ⇒ geen throw, geen opties, geen profiel',
     corruptRead === 'THROW' ? 'THROW' : [corruptRead.schedulingOptions, corruptRead.schedulingProfile], [undefined, undefined]);
 }
+// ── C2-aanvulling: afwijkingen op een ingebouwd id overleven een opslag letterlijk ─────────────────
+// Besluit 2026-09-22 (review baan D): P6{A13 uit} → OPS → opslaan → heropenen → P6 = het origineel.
+// De pset draagt daarvoor naast `conventions` ook `overrides` letterlijk. Verwachtingen met de hand.
+// Mutatiebewijs: `overrides` niet wegschrijven (schedulingProfileToJson) ⇒ C2b-01/03 rood; de
+// letterlijke overlay in sanitizeSchedulingProfile weglaten ⇒ C2b-01 rood; carriesProfile terug naar
+// isDefaultProfile ⇒ C2b-02 rood.
+{
+  const p6Adjusted: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
+  const underOps = switchProfile(p6Adjusted, 'ops');
+  const written = writeIFC(fixture({ schedulingProfile: underOps }));
+  const reread = readIFC(written).project.schedulingProfile;
+  const back = switchProfile(reread, 'p6');
+  eq('C2b-01 P6{A13 uit} → OPS → opslaan → heropenen → P6: A13 blijft uit', resolveConventions(back).clampNegativeFreeFloat, false);
+  same('C2b-01b …en is exact het origineel', back, p6Adjusted);
+  ok('C2b-02 OPS met alleen een basisgelijke letterlijke afwijking schrijft tóch een pset', written.includes("'OPS_SchedulingProfile'"));
+  const json = JSON.parse(written.match(/IFCTEXT\('(\{"id":"[^']*)'\)/)?.[1] ?? '{}') as Record<string, unknown>;
+  same('C2b-03 de pset draagt overrides letterlijk', json.overrides, { clampNegativeFreeFloat: false });
+  // Vijandige letterlijke afwijkingen: onbekend/niet-boolean ⇒ genegeerd; in strijd met de opgeloste
+  // conventions ⇒ genegeerd (de opgeloste set is waarmee het bestand rekende).
+  const hostile = sanitizeSchedulingProfile({
+    id: 'ops', baseId: 'ops', conventions: builtInConventions('ops'),
+    overrides: { clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true, onzin: true, p6OpenLoeTargetSpan: 'ja' },
+  });
+  same('C2b-04 vijandige overrides: alleen de consistente letterlijke afwijking blijft', hostile?.overrides, { clampNegativeFreeFloat: false });
+  same('C2b-05 zonder overrides-veld (ouder bestand) ⇒ alleen het verschil met de basis',
+    sanitizeSchedulingProfile({ id: 'ops', baseId: 'ops', conventions: builtInConventions('ops') }), builtInProfile('ops'));
+}
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`XX  scheduling-profile-roundtrip: ${diffs.length} van ${checks} checks rood`);

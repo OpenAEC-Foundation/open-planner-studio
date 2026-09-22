@@ -3,8 +3,7 @@ import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
-import { schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
-import { isDefaultProfile } from '@/engine/scheduler/conventions/registry';
+import { carriesProfile, schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
 import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
@@ -729,8 +728,9 @@ function writeSchedulingOptionsMeta(
 /**
  * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
  * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle vijftien conventies
- * OPGELOST (`schedulingProfileToJson`). Golden rule: afwezig profiel of het standaardprofiel
- * (`ops` zonder afwijkingen) ⇒ geen pset, zodat bestaande bestanden byte-identiek blijven.
+ * OPGELOST (`schedulingProfileToJson`), plus de afwijkingen letterlijk. Golden rule: afwezig profiel
+ * of het standaardprofiel (`ops` zonder enige afwijking, `carriesProfile`) ⇒ geen pset, zodat
+ * bestaande bestanden byte-identiek blijven.
  */
 export function writeSchedulingProfileMeta(
   ctx: WriteContext,
@@ -738,7 +738,7 @@ export function writeSchedulingProfileMeta(
   profile: SchedulingProfile | undefined,
   ownerHistId: number,
 ): void {
-  if (!profile || isDefaultProfile(profile)) return;
+  if (!carriesProfile(profile)) return;
   const json = JSON.stringify(schedulingProfileToJson(profile));
   const propId = addLine(ctx, '_ps_schedprofile',
     `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);

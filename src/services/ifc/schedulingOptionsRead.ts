@@ -114,14 +114,40 @@ const validId = (value: unknown): value is string =>
 const validName = (value: unknown): value is string =>
   typeof value === 'string' && value.length <= MAX_PROFILE_NAME_LENGTH;
 
+/** De LETTERLIJKE afwijkingen van een profiel: alleen booleans op bekende conventiesleutels, in
+ *  registervolgorde (bytevolgorde van de pset). Anders dan `diffAgainstBase` blijven ook afwijkingen
+ *  staan die toevallig gelijk zijn aan de basis — die dragen de herkomst bij een profielwissel
+ *  (P6{A13 uit} → OPS → opslaan → heropenen → P6 geeft exact het origineel). */
+export function literalOverrides(overrides: unknown): Partial<SchedulingConventions> {
+  const raw = isRecord(overrides) ? overrides : {};
+  const out: Partial<SchedulingConventions> = {};
+  for (const d of CONVENTIONS) {
+    const value = raw[d.id];
+    if (typeof value === 'boolean') out[d.id] = value;
+  }
+  return out;
+}
+
+/** Moet dit profiel als pset worden weggeschreven / na lezen op het project blijven staan? Alleen
+ *  het ops-profiel zónder enige (ook letterlijke) afwijking is "afwezig" (byte-identiek aan vroeger). */
+export function carriesProfile(profile: SchedulingProfile | undefined): profile is SchedulingProfile {
+  return profile !== undefined
+    && (!isDefaultProfile(profile) || Object.keys(literalOverrides(profile.overrides)).length > 0);
+}
+
 /**
- * `OPS_SchedulingProfile`-JSON uit een IFC (`{ id, baseId, conventions, name? }`) ⇒ profiel.
+ * `OPS_SchedulingProfile`-JSON uit een IFC (`{ id, baseId, conventions, overrides?, name? }`) ⇒ profiel.
  *  - geen object ⇒ `undefined` (de lezer valt terug op de legacy-migratie);
  *  - onbekende/ontbrekende `baseId` ⇒ `ops`;
  *  - `conventions`: per conventie een boolean ⇒ die waarde; ONTBREKENDE sleutel (een bestand van
  *    vóór die conventie) of ongeldig getypeerde waarde ⇒ `legacyValue`, nooit de basiswaarde;
  *    onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
  *    bestandswaarden winnen en de state blijft compact;
+ *  - `overrides` (sinds de C2-aanvulling, letterlijk weggeschreven): elke letterlijke afwijking die
+ *    met de opgeloste `conventions` klopt, blijft óók staan als ze gelijk is aan de basis (herkomst
+ *    bij een profielwissel). Een letterlijke afwijking die de `conventions` tegenspreekt, wordt
+ *    genegeerd: de opgeloste set is waarmee het bestand rekende. Afwezig (oudere bestanden) ⇒
+ *    alleen het verschil met de basis;
  *  - ongeldige/te lange `id` ⇒ de basis-id; een ingebouwde id met een andere basis ⇒ de basis-id;
  *  - `name` alleen voor eigen profielen, ≤ 200 tekens, anders leeg.
  */
@@ -137,19 +163,29 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
   let id = validId(input.id) ? input.id : baseId;
   if (isBuiltInProfileId(id) && id !== baseId) id = baseId;
   const name = !isBuiltInProfileId(id) && validName(input.name) ? input.name : '';
-  return { baseId, id, name, overrides: diffAgainstBase(baseId, resolved) };
+  const overrides = diffAgainstBase(baseId, resolved);
+  const literal = literalOverrides(input.overrides);
+  for (const d of CONVENTIONS) {
+    const value = literal[d.id];
+    if (value !== undefined && value === resolved[d.id]) overrides[d.id] = value;
+  }
+  // Registervolgorde, zodat lezen → schrijven byte-identiek blijft.
+  return { baseId, id, name, overrides: literalOverrides(overrides) };
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
  *  alle vijftien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
-  id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions; name?: string;
+  id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions;
+  overrides: Partial<SchedulingConventions>; name?: string;
 } {
   return {
     id: profile.id,
     baseId: profile.baseId,
     conventions: resolveConventions(profile),
+    // C2-aanvulling: de afwijkingen letterlijk, zodat ze een opslag overleven (zie `literalOverrides`).
+    overrides: literalOverrides(profile.overrides),
     ...(!isBuiltInProfileId(profile.id) && profile.name ? { name: profile.name } : {}),
   };
 }
@@ -185,5 +221,5 @@ export function profileAfterRead(
   psetProfile: SchedulingProfile | undefined, legacyBlob: LegacySchedulingOptions | undefined,
 ): SchedulingProfile | undefined {
   const profile = psetProfile ?? legacyOptionsToProfile(legacyBlob).profile;
-  return isDefaultProfile(profile) ? undefined : profile;
+  return carriesProfile(profile) ? profile : undefined;
 }
