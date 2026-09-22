@@ -64,14 +64,28 @@ melding — je zit dan weer in de normale, doorgerekende planning. **Ctrl+Z** ma
 en brengt je terug naar de opgeslagen datums.
 
 Werk je eenmaal verder in de doorgerekende planning, dan is er geen knop meer om op elk moment heen
-en weer te schakelen: de enige manier om de oorspronkelijke datums opnieuw te zien is het bestand
-opnieuw te openen.
+en weer te schakelen: de enige manier om de oorspronkelijke datums opnieuw te zien is het
+**oorspronkelijke bronbestand** opnieuw te openen. Een IFC dat je intussen zelf hebt opgeslagen helpt
+daar niet altijd bij — zie hieronder.
 
 ## Opslaan
 
 Sla je op terwijl je de opgeslagen datums bekijkt, dan schrijft de app die datums weg — niet de
 doorgerekende versie. Zo overschrijf je nooit per ongeluk de planning van een collega of van het
 bronpakket met een uitkomst die de app er zelf bij heeft bedacht.
+
+### Wat een opgeslagen project nog weet van het bronbestand
+
+Alleen bij een Primavera `.xer`-import bewaart het projectbestand een volledige kopie van het
+oorspronkelijke bestand. Daardoor kan de app de datums van Primavera ook later nog tonen, zelfs als
+je eerst met **F5** hebt herberekend en daarna hebt opgeslagen.
+
+Bij P6 XML, MS Project XML, `.mpp`, CSV en een IFC uit een ander pakket bewaart de app zo'n kopie
+**niet**. Na opslaan staan de oorspronkelijke datums alleen in je projectbestand als je opslaat
+**terwijl deze weergave aanstaat**. Druk je eerst op **F5** en sla je daarna op, dan staan in het
+bestand de herberekende datums, en zijn de oorspronkelijke datums daaruit verdwenen. Heropen je dat
+bestand, dan valt er niets meer te vergelijken: je krijgt dan geen melding en geen weergave. Wil je
+de oorspronkelijke datums dan toch terugzien, open dan opnieuw het oorspronkelijke bronbestand.
 
 ## Bij het openen van een ander bestandsformaat gaat deze weergave vanzelf aan
 
@@ -89,12 +103,16 @@ Bij een `.xer`- of P6 XML-bestand zegt de strook "zoals Primavera hem opsloeg"; 
 formaten "zoals ze in het bestand staan", omdat de app dan niet weet uit welk pakket de datums komen.
 
 Sla je het project daarna op als IFC en open je dat bestand later opnieuw, dan gaat de weergave
-alleen vanzelf aan zolang je het project sinds de import **niet hebt bewerkt**. Herberekenen met
-**F5** en opslaan tellen daarbij niet als bewerking; een taak wijzigen, een relatie toevoegen of een
-kalender aanpassen wel. Heb je bewerkt, dan wordt de weergave bij het heropenen alleen nog
-aangeboden — je klikt dan zelf — zodat een planning die je intussen hebt veranderd nooit ongevraagd
+alleen vanzelf aan zolang je het project sinds de import **niet hebt bewerkt** — en zolang het
+bestand de oorspronkelijke datums nog draagt (zie *Wat een opgeslagen project nog weet van het
+bronbestand* hierboven: bij alles behalve `.xer` alleen als je in deze weergave hebt opgeslagen).
+Herberekenen met **F5** en opslaan tellen daarbij niet als bewerking; een taak wijzigen, een relatie
+toevoegen of een kalender aanpassen wel. Heb je een `.xer`-project bewerkt, dan wordt de weergave bij
+het heropenen alleen nog aangeboden — je klikt dan zelf — zodat een planning die je intussen hebt veranderd nooit ongevraagd
 weer met de oude datums uit het bronbestand op het scherm komt. De app onthoudt dat "ongewijzigd
-sinds import" in het projectbestand zelf.
+sinds import" in het projectbestand zelf. Bij de andere formaten valt er na een bewerking niets
+meer aan te bieden: een bewerking verlaat de weergave, dus wat je daarna opslaat zijn herberekende
+datums.
 
 De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
 datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het

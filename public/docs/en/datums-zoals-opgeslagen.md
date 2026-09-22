@@ -62,13 +62,26 @@ back in the normal, recalculated schedule. **Ctrl+Z** undoes that step and bring
 recorded dates.
 
 Once you've worked further in the recalculated schedule, there's no button left to switch back and
-forth at will: the only way to see the original dates again is to reopen the file.
+forth at will: the only way to see the original dates again is to reopen the **original source
+file**. An IFC you have saved yourself in the meantime does not always help — see below.
 
 ## Saving
 
 Save while you're viewing the recorded dates, and the app writes those dates — not the recalculated
 version. That way you never accidentally overwrite a colleague's schedule, or the source package's
 schedule, with an outcome the app made up on its own.
+
+### What a saved project still knows about the source file
+
+Only for a Primavera `.xer` import does the project file keep a complete copy of the original file.
+That lets the app show Primavera's dates later on, even after you first recalculated with **F5** and
+then saved.
+
+For P6 XML, MS Project XML, `.mpp`, CSV and an IFC from another package the app does **not** keep
+such a copy. After saving, the original dates are only in your project file if you save **while this
+view is on**. Press **F5** first and save afterwards, and the file holds the recalculated dates; the
+original dates are gone from it. Reopen that file and there is nothing left to compare: you get no
+notification and no view. To see the original dates again, reopen the original source file.
 
 ## Opening another file format turns this view on by itself
 
@@ -86,11 +99,15 @@ For a `.xer` or P6 XML file the notice says "as Primavera recorded them"; for th
 recorded in the file", because the app then does not know which package the dates came from.
 
 If you then save the project as IFC and reopen that file later, the view only switches on by itself
-as long as you have **not edited** the project since the import. Recalculating with **F5** and
+as long as you have **not edited** the project since the import — and as long as the file still
+carries the original dates (see *What a saved project still knows about the source file* above: for
+everything except `.xer`, only if you saved while this view was on). Recalculating with **F5** and
 saving do not count as editing; changing a task, adding a relationship or adjusting a calendar do.
-Once you have edited, reopening only offers the view — you click yourself — so that a schedule you
+Once you have edited a `.xer` project, reopening only offers the view — you click yourself — so that a schedule you
 have changed in the meantime never comes back on screen with the old dates from the source file
-unasked. The app remembers "unchanged since import" inside the project file itself.
+unasked. The app remembers "unchanged since import" inside the project file itself. For the other formats
+there is nothing left to offer after an edit: editing leaves the view, so what you save afterwards
+are recalculated dates.
 
 Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
 with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
