@@ -262,6 +262,24 @@ gebruikt ze als landingspoort.
 
 ## M1 — samenvoegen A + B en de banen C/D voorbereiden
 
+> **Stand 2026-09-22, 22:40 (orkestrator, ná het schrijven van dit plan):**
+> - **M1.1 is gedaan** — merge `3fdf80c6` op `claude/rekenprofielen`; daarbij zijn `optionKeysOnly`,
+>   `legacyOptionsToProfile` en `legacyOptionsBlobFor` verhuisd naar
+>   `src/services/ifc/schedulingProfileMigration.ts` (de motor draagt geen bronkennis; baan B's
+>   bronscan eiste dat). Importeer ze dáár, niet uit het register. `conventionsFor` is geëxporteerd.
+> - **M1.2 is al gedaan in baan A's fixronde** (`c7e7799e`): op een ingebouwd id blijven ALLE
+>   overrides letterlijk staan (tests 94–96). Wat nog open is: een wissel VANAF een eigen profiel geeft
+>   nu de kale basis (test 98) en verliest daarmee de bestandsconventie A19 — hoort bij D2/D3
+>   (bewaar bij die wissel de per-bestand-conventies; het `perFile`-veld is weg, dus de lezer of het
+>   bewerkmodel moet bijhouden wat uit het bestand kwam).
+> - De sanitizer zet een ongeldig getypeerde waarde al op `legacyValue` (fixronde A); het "bekende
+>   gat" in de PR-tekst vervalt.
+> - `defaultStorage()` in `profileStore.ts` doet `typeof localStorage` buiten de try (reviewer,
+>   VERMOED) — meenemen in D3.
+> - Het label "(aangepast)" in de UI moet op `diffAgainstBase` gebaseerd zijn, niet op het aantal
+>   sleutels in `overrides` (na een wissel kunnen er sleutels gelijk aan de nieuwe basis staan).
+> - M1.3, M1.4 en M1.5 zijn nog te doen en horen bij de start van baan C.
+
 ### Task M1.1: Merge en contractcontrole
 
 **Files:** merge-commits op `claude/rekenprofielen`.
