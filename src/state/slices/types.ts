@@ -202,7 +202,10 @@ export type NotificationMessageKey =
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
-  | 'notifications.levelingDelayRoundedToWorkdays';
+  | 'notifications.levelingDelayRoundedToWorkdays'
+  // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
+  // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
+  | 'notifications.exportSplitsLost';
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */

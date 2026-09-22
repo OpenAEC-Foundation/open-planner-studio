@@ -4,7 +4,7 @@ import { Resource, ResourceAssignment, ResourceType, ResourceCurve } from '@/typ
 import {
   CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, isFlatCurveValues, matchContoursToAssignments,
 } from '@/engine/contour/contourEngine';
-import { contourPeriodsToP6Spread } from '@/services/contourIo';
+import { contourPeriodsToP6Spread, countSplitTasksWithoutContour } from '@/services/contourIo';
 import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
@@ -282,10 +282,9 @@ export function writeP6XML(
   // spreiding (zie de toewijzingensectie) en de lezer leest ze terug. Alleen een gesplitste taak
   // ZONDER contour (bv. een nivelleergat) heeft geen per-toewijzing-verdeling om te schrijven —
   // die blijft een warn (P6 kent een onderbreking alleen als spreiding van een toewijzing).
-  const contouredTaskIds = new Set(tasks.filter(t => t.timephasedContours && t.timephasedContours.length > 0).map(t => t.id));
-  const splitWithoutContour = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0 && !contouredTaskIds.has(t.id)).length;
+  const splitWithoutContour = countSplitTasksWithoutContour(tasks);
   if (splitWithoutContour > 0) {
-    console.warn(`P6-export: ${splitWithoutContour} gesplitste taak/taken zonder contourdata weggelaten — alleen contouren (uit .mpp/MSPDI/P6) worden als spreiding geschreven (§6).`);
+    console.warn(`P6-export: ${splitWithoutContour} onderbroken taak/taken zonder urenverdeling geëxporteerd ZONDER hun onderbrekingen (gebruikers-, nivelleer- of importsplits) — alleen een contour wordt als spreiding geschreven (§6; de gebruiker krijgt een melding via exportAs).`);
   }
   const resumeStopCount = tasks.filter(t => t.time.resume || t.time.stop).length;
   if (resumeStopCount > 0) {

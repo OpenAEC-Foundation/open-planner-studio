@@ -11,8 +11,9 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
-import { exportGoesToRecents } from '@/state/slices/fileSlice';
+import { exportGoesToRecents, exportSplitsLostNotice } from '@/state/slices/fileSlice';
 import { EXPORT_FORMATS, type ExportFormat } from '@/services/formatRegistry';
+import type { Task } from '@/types/task';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -112,6 +113,43 @@ for (const [format, want] of Object.entries(recentsVerwacht) as [ExportFormat, b
 // voedt, dus een nieuw formaat verschijnt daar en valt hier meteen door de mand.
 eq('14 de recents-tabel dekt elk geregistreerd exportformaat',
   EXPORT_FORMATS.map(m => m.format).filter(f => !(f in recentsVerwacht)), []);
+
+// ── 5. Verlies van onderbrekingen naar MSPDI/P6 wordt gemeld (issue #146) ──────
+// MS Project en P6 kennen een onderbreking alleen als urenverdeling van een toewijzing. Een taak met
+// `splitGaps` maar ZONDER contour gaat daar dus zonder onderbreking heen — dat mag niet alleen in de
+// console staan (spec, verwerkte critreview bevinding 5). `exportSplitsLostNotice` is de ene regel
+// die `exportAs` na een geslaagde export toepast; los exporteerbaar zodat dit zonder bestandsdialoog
+// toetsbaar is, net als `exportGoesToRecents` hierboven.
+S().newProject();
+const sp = S().addTask({ name: 'Gesplitst' });
+const setSpDur = (id: string, d: number) => {
+  const t = S().tasks.find(x => x.id === id)!;
+  S().updateTask(id, { time: { ...t.time, scheduleDuration: d } });
+};
+setSpDur(sp, 10);
+S().setTaskSplits(sp, [
+  { kind: 'work', minutes: 2400 }, { kind: 'gap', minutes: 1440, source: 'user' }, { kind: 'work', minutes: 2400 },
+]);
+const heel = S().addTask({ name: 'Heel' });
+setSpDur(heel, 4);
+truthy('15 opzet: één taak draagt een gebruikersgat', S().tasks.find(t => t.id === sp)?.splitGaps?.[0]?.source === 'user');
+for (const format of ['mspdi', 'p6'] as ExportFormat[]) {
+  eq(`16 ${format}: precies één melding met het aantal`, exportSplitsLostNotice(format, S().tasks), {
+    severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count: 1 },
+  });
+}
+// IFC draagt de onderbreking (native formaat); de voortgangsbladen kennen geen stukken. CSV verliest
+// hem wél maar valt bewust (nog) buiten deze melding, die over MS Project/P6 gaat — zie docs/TODO.md.
+for (const format of ['ifc', 'csv', 'progress-csv', 'progress-xlsx'] as ExportFormat[]) {
+  eq(`17 ${format}: geen melding`, exportSplitsLostNotice(format, S().tasks), null);
+}
+// Mét contour schrijven beide writers de onderbreking als spreiding mee ⇒ geen verlies, geen melding.
+// De contourinhoud doet er voor deze regel niet toe (de writers kijken alleen óf er één is).
+const metContour: Task[] = S().tasks.map(t => (t.id === sp
+  ? { ...t, timephasedContours: [{ resourceUid: null, periods: [] }] as unknown as Task['timephasedContours'] }
+  : t));
+eq('18 mspdi: taak met contour ⇒ geen melding', exportSplitsLostNotice('mspdi', metContour), null);
+eq('19 p6: taak met contour ⇒ geen melding', exportSplitsLostNotice('p6', metContour), null);
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
