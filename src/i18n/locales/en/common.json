@@ -87,7 +87,7 @@
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
     "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
-    "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project info → Calculation profile.",
+    "schedulingProfileApplied": "This project calculates as {{profile}}. Change it via File → Project info → Calculation profile and options.",
     "schedulingProfileShifted_one": "The new calculation profile moved {{count}} task.",
     "schedulingProfileShifted_other": "The new calculation profile moved {{count}} tasks.",
     "actions": {

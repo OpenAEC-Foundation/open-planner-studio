@@ -87,7 +87,7 @@
     "librarySaveFailed": "ذخیره‌سازی کتابخانه ناموفق بود",
     "levelingDelayRoundedToWorkdays_one": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
     "levelingDelayRoundedToWorkdays_other": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
-    "schedulingProfileApplied": "این پروژه به‌صورت {{profile}} محاسبه می‌شود. از فایل ← اطلاعات پروژه ← پروفایل محاسبه تغییر دهید.",
+    "schedulingProfileApplied": "این پروژه به‌صورت {{profile}} محاسبه می‌شود. از فایل ← اطلاعات پروژه ← پروفایل محاسبه و گزینه‌ها تغییر دهید.",
     "schedulingProfileShifted_one": "پروفایل محاسبهٔ جدید {{count}} کار را جابه‌جا کرد.",
     "schedulingProfileShifted_other": "پروفایل محاسبهٔ جدید {{count}} کار را جابه‌جا کرد.",
     "actions": {
