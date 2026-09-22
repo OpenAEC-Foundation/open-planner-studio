@@ -52,17 +52,10 @@ const CLEAN = [
 ].join('\n');
 const LEAK = "export const leak = (o: { schedulingOptions: { p6Source?: string } }) => o.schedulingOptions.p6Source === 'XER';";
 
-// 1. De echte repository.
-// TIJDELIJK(rekenprofielen): zolang baan C de tijdelijke vertaling (legacyP6Source.ts) nog niet heeft
-// verwijderd (C3), is de datagate-telling bewust NIET gepind (plan D10: pinnen op de kop ná de merge van
-// C). Tot dan is de enige toegestane overtreding de ontbrekende pin; daarna moet dit weer `status === 0`
-// zijn. Taak I2 faalt zolang deze markering bestaat.
+// 1. De echte repository (pin gezet na C3, zonder allowlist).
 const real = run(root);
-const realOut = `${real.stdout}${real.stderr}`;
-const realViolations = realOut.split('\n').filter(line => line.startsWith('  - '));
-ok('01 actuele conventiegrens: geen overtreding behalve de nog niet gezette pin',
-  real.status === 0 || (realViolations.length > 0 && realViolations.every(line => line.includes('datagates.json ontbreekt'))),
-  realOut.trim());
+ok('01 actuele conventiegrens is groen', real.status === 0, `${real.stdout}${real.stderr}`.trim());
+ok('01a geen tijdelijke allowlist meer', !real.stdout.includes('tijdelijke allowlist'), real.stdout.trim());
 
 // 2. Commentaar en strings zijn geen lek; één datagate-lezing binnen de pin.
 withFixture({ [ENGINE]: CLEAN, [PIN]: JSON.stringify({ p6ProjectId: 1 }) }, dir => {
