@@ -33,6 +33,15 @@ poort te pakken. Zie de kop van `CLAUDE.md` en `tests/dev-server/` voor het gehe
 | `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |
 | `verify-examples.ts` | `verify:examples` | de gebundelde voorbeeldprojecten laden en rekenen door zoals verwacht |
 
+`verify-conventions.mjs` (`npm run verify:conventions`, ook aangeroepen door
+`tests/planning/check-conventions-boundary.ts`) — AST-poort van de rekenprofielen: de motor
+(`src/engine/`) leest geen bronformaat (`p6Source`/`importFormat`/`readFormat`, geen lezer- of
+`formatRegistry`-imports); herkomst-datagates gepind in `verify-conventions.datagates.json`, alleen
+omlaag. `verify-conventions.allowlist.json` is een tijdelijke vrijstelling (alleen namen, alleen
+bestaande bestanden onder `src/engine/`, reden met de markering voor overgangscode). Staat nog níét in
+`npm run verify`: de pin en de opname volgen op de rekenprofielen-etappe zodra de overgangsvertaling
+`legacyP6Source.ts` weg is.
+
 ## Voorbeeldprojecten genereren
 
 `npm run gen:examples` → `generate-examples.ts`. De rest is de generator eronder en wordt niet los
