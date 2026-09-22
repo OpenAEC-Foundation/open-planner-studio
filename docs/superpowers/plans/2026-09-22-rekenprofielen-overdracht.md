@@ -87,7 +87,7 @@ afwijkingen hebben met XER".)
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | in aanbouw (agent, gestart 22:45) |
 | baan D deel 1: D1, D2, D7, D8, D10-voorbereiding | `claude/rekenprofielen-baan-d` | in aanbouw (agent, gestart 22:45); D3–D6 + D10-pin ná merge van C |
-| recorded-all-formats | `claude/recorded-all-formats-v2` (gepusht) | inhoud go (her-check 3); moet nog PR-branchkop `0a29147c` mergen (agent bezig), dan `npm run verify` en een draft-PR "merget ná #109" |
+| recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.
