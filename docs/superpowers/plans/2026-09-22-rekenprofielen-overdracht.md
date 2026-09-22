@@ -84,7 +84,9 @@ afwijkingen hebben met XER".)
 | baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | GO na fixronde (`c7e7799e`); **gemerged** (`3fdf80c6`), migratiehelpers verhuisd naar `src/services/ifc/schedulingProfileMigration.ts`. Open voor baan D: A19 bewaren bij wissel vanaf een EIGEN profiel; `defaultStorage()` buiten try; label "(aangepast)" op `diffAgainstBase` baseren |
 | baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | GO na fixronde (`893e9955`); **gemerged** in `claude/rekenprofielen` (`e3545ed7`). Integratiepunt: tabeltest op `resolveLegacyP6SourceConventions` (zes gepoorte vlaggen zonder bron ⇒ false) corpusloos toevoegen; tijdelijke laag `legacyP6Source.ts` verwijderen zodra de lezers het profiel zetten |
 | cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | fixronde 2 klaar (`fba062f7`, gepusht): onmeetbaar = rood, `OPS_XER_V2_WRITE`; her-check 2 loopt |
-| uitvoeringsplan | `claude/rekenprofielen` | architect-agent schrijft `2026-09-22-plan-rekenprofielen.md` |
+| uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
+| baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | in aanbouw (agent, gestart 22:45) |
+| baan D deel 1: D1, D2, D7, D8, D10-voorbereiding | `claude/rekenprofielen-baan-d` | in aanbouw (agent, gestart 22:45); D3–D6 + D10-pin ná merge van C |
 | recorded-all-formats | `claude/recorded-all-formats-v2` (gepusht) | inhoud go (her-check 3); moet nog PR-branchkop `0a29147c` mergen (agent bezig), dan `npm run verify` en een draft-PR "merget ná #109" |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
