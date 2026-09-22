@@ -46,6 +46,8 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     // De actie opent Backstage → Projectinfo met het profielblok.
     const select = page.locator('[data-ops-scheduling-profile-select]');
     await expect(select).toHaveValue('builtin:p6');
+    // Een XER draagt de kritiekdrempel in uren (thresholdHours): de eenheid staat ZICHTBAAR bij het veld.
+    await expect(page.locator('[data-ops-crit-threshold-unit]')).toHaveText(/(uren, per taakkalender|hours, per task calendar)/);
 
     // Wisselen naar MS Project en toepassen ⇒ herberekend, één taak verschoven, melding met de telling.
     await select.selectOption('builtin:msproject');

@@ -34,8 +34,15 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
- * eigen sjablonen, of het eigen profiel van dit project), daaronder de vijftien conventies en de negen
- * projectopties. Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
+ * eigen sjablonen, of het eigen profiel van dit project), daaronder de vijftien conventies en zes van de
+ * negen projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
+ * kritiek, meerdere speling-paden, lag-kalender). De andere drie — `useExpectedFinishDates`,
+ * `useProjectEndDateForFloat` en `p6CompletedLateFromRemainingWindow` — zijn bewust NIET bewerkbaar:
+ * het zijn P6-bronsignalen die de XER-lezer uit SCHEDOPTIONS zet (of die aan de P6-herkomstketen van
+ * B3/B4 hangen), zonder betekenis voor een project dat niet uit P6 komt. Het blok laat ze ongemoeid
+ * (elke optiewijziging spreidt de bestaande opties); alleen "Standaardopties van dit profiel
+ * toepassen" vervangt alle opties door `defaultOptionsFor` (onder P6 zet dat de eerste en de laatste
+ * aan; `useProjectEndDateForFloat` valt dan weg, want die komt alleen uit het bestand). Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
  * herberekenen, melding "N taken verschoven"). Alleen sjablonen opslaan/verwijderen gaat direct: dat
  * is app-data, geen projectdata.
  */
@@ -213,19 +220,24 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
               ]}
             />
             {critMode === 'totalFloat' && (
-              <input
-                type="number"
-                step="any"
-                aria-label={hoursThreshold ? tMenu('projectInfo.calc.critThresholdHours') : tMenu('projectInfo.calc.critThreshold')}
-                title={hoursThreshold ? tMenu('projectInfo.calc.critThresholdHours') : tMenu('projectInfo.calc.critThreshold')}
-                value={hoursThreshold ? crit?.thresholdHours : (crit?.threshold ?? 0)}
-                onChange={e => {
-                  const n = parseFloat(e.target.value);
-                  patchOptions(withCriticalThreshold(so, hoursThreshold ? 'thresholdHours' : 'threshold', Number.isFinite(n) ? n : 0));
-                }}
-                className={numCls}
-                data-ops-crit-threshold
-              />
+              // De eenheid staat zichtbaar bij het veld: een drempel uit een .xer staat in uren (per
+              // taakkalender), een eigen drempel in werkdagen — zonder label is "8" dubbelzinnig.
+              <label className="flex flex-col gap-0.5">
+                <input
+                  type="number"
+                  step="any"
+                  value={hoursThreshold ? crit?.thresholdHours : (crit?.threshold ?? 0)}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value);
+                    patchOptions(withCriticalThreshold(so, hoursThreshold ? 'thresholdHours' : 'threshold', Number.isFinite(n) ? n : 0));
+                  }}
+                  className={numCls}
+                  data-ops-crit-threshold
+                />
+                <span className="text-text-secondary" data-ops-crit-threshold-unit>
+                  {hoursThreshold ? tMenu('projectInfo.calc.critThresholdHours') : tMenu('projectInfo.calc.critThreshold')}
+                </span>
+              </label>
             )}
           </div>
         </div>
