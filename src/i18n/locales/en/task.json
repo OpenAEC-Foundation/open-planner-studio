@@ -432,6 +432,18 @@
       "remove": "Remove",
       "done": "Done",
       "empty": "No notes yet."
+    },
+    "splits": {
+      "title": "Breaks",
+      "after": "after",
+      "pause": "pause",
+      "add": "Add break",
+      "remove": "Remove break",
+      "readOnly": "These breaks come from the source file in a form that cannot be edited here.",
+      "removeAll": "Remove all breaks",
+      "leveling": "leveling",
+      "unitDays": "work days",
+      "unitHours": "hours"
     }
   },
   "relations": {

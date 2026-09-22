@@ -344,6 +344,18 @@
       "remove": "Entfernen",
       "done": "Erledigt",
       "empty": "Noch keine Notizen."
+    },
+    "splits": {
+      "title": "Unterbrechungen",
+      "after": "nach",
+      "pause": "Pause",
+      "add": "Unterbrechung hinzufügen",
+      "remove": "Unterbrechung entfernen",
+      "readOnly": "Diese Unterbrechungen stammen aus der Quelldatei in einer Form, die hier nicht bearbeitet werden kann.",
+      "removeAll": "Alle Unterbrechungen aufheben",
+      "leveling": "Kapazitätsabgleich",
+      "unitDays": "Arbeitstage",
+      "unitHours": "Stunden"
     }
   },
   "relations": {

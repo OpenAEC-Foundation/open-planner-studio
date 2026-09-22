@@ -339,6 +339,18 @@
       "remove": "Usuń",
       "done": "Gotowe",
       "empty": "Brak notatek."
+    },
+    "splits": {
+      "title": "Przerwy",
+      "after": "po",
+      "pause": "przerwa",
+      "add": "Dodaj przerwę",
+      "remove": "Usuń przerwę",
+      "readOnly": "Te przerwy pochodzą z pliku źródłowego w postaci, której nie można tutaj edytować.",
+      "removeAll": "Usuń wszystkie przerwy",
+      "leveling": "bilansowanie",
+      "unitDays": "dni robocze",
+      "unitHours": "godziny"
     }
   },
   "relations": {

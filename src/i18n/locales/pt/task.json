@@ -335,6 +335,18 @@
       "remove": "Remover",
       "done": "Concluído",
       "empty": "Ainda sem notas."
+    },
+    "splits": {
+      "title": "Pausas",
+      "after": "após",
+      "pause": "pausa",
+      "add": "Adicionar pausa",
+      "remove": "Remover a pausa",
+      "readOnly": "Estas pausas vêm do ficheiro de origem numa forma que não pode ser editada aqui.",
+      "removeAll": "Remover todas as pausas",
+      "leveling": "nivelamento",
+      "unitDays": "dias úteis",
+      "unitHours": "horas"
     }
   },
   "relations": {

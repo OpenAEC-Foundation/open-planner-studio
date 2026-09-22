@@ -335,6 +335,18 @@
       "remove": "Supprimer",
       "done": "Terminé",
       "empty": "Pas encore de notes."
+    },
+    "splits": {
+      "title": "Pauses",
+      "after": "après",
+      "pause": "pause",
+      "add": "Ajouter une pause",
+      "remove": "Supprimer la pause",
+      "readOnly": "Ces pauses proviennent du fichier source sous une forme qui ne peut pas être modifiée ici.",
+      "removeAll": "Supprimer toutes les pauses",
+      "leveling": "nivellement",
+      "unitDays": "jours ouvrés",
+      "unitHours": "heures"
     }
   },
   "relations": {
