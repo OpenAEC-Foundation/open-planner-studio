@@ -453,6 +453,11 @@
     "gapDays_one": "{{count}} روز کاری وقفه",
     "gapDays_other": "{{count}} روز کاری وقفه",
     "gapHours_one": "{{count}} ساعت وقفه",
-    "gapHours_other": "{{count}} ساعت وقفه"
+    "gapHours_other": "{{count}} ساعت وقفه",
+    "pieceDays_one": "بخش: {{count}} روز کاری",
+    "pieceDays_other": "بخش: {{count}} روز کاری",
+    "pieceHours_one": "بخش: {{count}} ساعت",
+    "pieceHours_other": "بخش: {{count}} ساعت",
+    "merged": "ادغام"
   }
 }

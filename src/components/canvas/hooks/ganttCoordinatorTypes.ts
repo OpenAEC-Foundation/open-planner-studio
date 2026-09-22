@@ -22,7 +22,7 @@ import type { SplitViewState, ViewState } from '@/types/view';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Splitter } from '@/hooks/useSplitter';
 import type { GanttRenderOptionsSourceInput } from '../ganttRenderOptions';
-import type { DragState } from './useBarDrag';
+import type { DragState, SplitDragLabel } from './useBarDrag';
 import type { PanState } from './usePan';
 import type { BoxSelectCandidate, BoxSelectState } from './useBoxSelect';
 import type { DependencyDragState } from './useDependencyDraw';
@@ -160,6 +160,8 @@ export interface GanttRelationPopoverState {
 /** De vijf tijdlijngebaren blijven eigenaar van hun eigen state en windowlisteners. */
 export interface GanttGestureOverlays {
   barDrag: DragState | null;
+  /** Issue #146 etappe 3: het label bij een stuk- of stukrandsleep op een gesplitste balk. */
+  barSplitDrag: SplitDragLabel | null;
   pan: PanState | null;
   boxSelectCandidate: BoxSelectCandidate | null;
   boxSelect: BoxSelectState | null;

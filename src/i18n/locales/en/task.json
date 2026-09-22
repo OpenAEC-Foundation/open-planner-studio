@@ -554,6 +554,11 @@
     "gapDays_one": "{{count}} workday break",
     "gapDays_other": "{{count}} workdays break",
     "gapHours_one": "{{count}} hour break",
-    "gapHours_other": "{{count}} hours break"
+    "gapHours_other": "{{count}} hours break",
+    "pieceDays_one": "Piece: {{count}} workday",
+    "pieceDays_other": "Piece: {{count}} workdays",
+    "pieceHours_one": "Piece: {{count}} hour",
+    "pieceHours_other": "Piece: {{count}} hours",
+    "merged": "Merge"
   }
 }

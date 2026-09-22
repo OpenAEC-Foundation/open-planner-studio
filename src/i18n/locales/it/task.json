@@ -459,6 +459,13 @@
     "gapDays_other": "{{count}} giorni lavorativi di pausa",
     "gapHours_one": "{{count}} ora di pausa",
     "gapHours_many": "{{count}} ore di pausa",
-    "gapHours_other": "{{count}} ore di pausa"
+    "gapHours_other": "{{count}} ore di pausa",
+    "pieceDays_one": "Tratto: {{count}} giorno lavorativo",
+    "pieceDays_many": "Tratto: {{count}} giorni lavorativi",
+    "pieceDays_other": "Tratto: {{count}} giorni lavorativi",
+    "pieceHours_one": "Tratto: {{count}} ora",
+    "pieceHours_many": "Tratto: {{count}} ore",
+    "pieceHours_other": "Tratto: {{count}} ore",
+    "merged": "Unisci"
   }
 }

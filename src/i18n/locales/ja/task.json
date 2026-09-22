@@ -447,6 +447,9 @@
   },
   "split": {
     "gapDays_other": "{{count}} 稼働日の中断",
-    "gapHours_other": "{{count}} 時間の中断"
+    "gapHours_other": "{{count}} 時間の中断",
+    "pieceDays_other": "区間: {{count}} 稼働日",
+    "pieceHours_other": "区間: {{count}} 時間",
+    "merged": "結合"
   }
 }

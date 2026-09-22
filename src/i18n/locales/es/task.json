@@ -472,6 +472,13 @@
     "gapDays_other": "{{count}} días laborables de pausa",
     "gapHours_one": "{{count}} hora de pausa",
     "gapHours_many": "{{count}} horas de pausa",
-    "gapHours_other": "{{count}} horas de pausa"
+    "gapHours_other": "{{count}} horas de pausa",
+    "pieceDays_one": "Tramo: {{count}} día laborable",
+    "pieceDays_many": "Tramo: {{count}} días laborables",
+    "pieceDays_other": "Tramo: {{count}} días laborables",
+    "pieceHours_one": "Tramo: {{count}} hora",
+    "pieceHours_many": "Tramo: {{count}} horas",
+    "pieceHours_other": "Tramo: {{count}} horas",
+    "merged": "Unir"
   }
 }

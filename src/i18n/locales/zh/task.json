@@ -447,6 +447,9 @@
   },
   "split": {
     "gapDays_other": "中断 {{count}} 个工作日",
-    "gapHours_other": "中断 {{count}} 小时"
+    "gapHours_other": "中断 {{count}} 小时",
+    "pieceDays_other": "片段：{{count}} 个工作日",
+    "pieceHours_other": "片段：{{count}} 小时",
+    "merged": "合并"
   }
 }

@@ -459,6 +459,13 @@
     "gapDays_other": "{{count}} jours ouvrés de pause",
     "gapHours_one": "{{count}} heure de pause",
     "gapHours_many": "{{count}} heures de pause",
-    "gapHours_other": "{{count}} heures de pause"
+    "gapHours_other": "{{count}} heures de pause",
+    "pieceDays_one": "Segment : {{count}} jour ouvré",
+    "pieceDays_many": "Segment : {{count}} jours ouvrés",
+    "pieceDays_other": "Segment : {{count}} jours ouvrés",
+    "pieceHours_one": "Segment : {{count}} heure",
+    "pieceHours_many": "Segment : {{count}} heures",
+    "pieceHours_other": "Segment : {{count}} heures",
+    "merged": "Fusionner"
   }
 }

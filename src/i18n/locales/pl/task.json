@@ -465,6 +465,15 @@
     "gapHours_one": "{{count}} godzina przerwy",
     "gapHours_few": "{{count}} godziny przerwy",
     "gapHours_many": "{{count}} godzin przerwy",
-    "gapHours_other": "{{count}} godziny przerwy"
+    "gapHours_other": "{{count}} godziny przerwy",
+    "pieceDays_one": "Odcinek: {{count}} dzień roboczy",
+    "pieceDays_few": "Odcinek: {{count}} dni robocze",
+    "pieceDays_many": "Odcinek: {{count}} dni roboczych",
+    "pieceDays_other": "Odcinek: {{count}} dnia roboczego",
+    "pieceHours_one": "Odcinek: {{count}} godzina",
+    "pieceHours_few": "Odcinek: {{count}} godziny",
+    "pieceHours_many": "Odcinek: {{count}} godzin",
+    "pieceHours_other": "Odcinek: {{count}} godziny",
+    "merged": "Scal"
   }
 }

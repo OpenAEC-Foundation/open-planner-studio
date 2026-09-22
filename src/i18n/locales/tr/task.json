@@ -453,6 +453,11 @@
     "gapDays_one": "{{count}} iş günü kesinti",
     "gapDays_other": "{{count}} iş günü kesinti",
     "gapHours_one": "{{count}} saat kesinti",
-    "gapHours_other": "{{count}} saat kesinti"
+    "gapHours_other": "{{count}} saat kesinti",
+    "pieceDays_one": "Parça: {{count}} iş günü",
+    "pieceDays_other": "Parça: {{count}} iş günü",
+    "pieceHours_one": "Parça: {{count}} saat",
+    "pieceHours_other": "Parça: {{count}} saat",
+    "merged": "Birleştir"
   }
 }

@@ -658,6 +658,7 @@ export function GanttCanvas({
   const { contextMenu, relationPopover, tooltip } = pointer;
   const boxSelectState = pointer.overlays.boxSelect;
   const splitOverlay = pointer.overlays.split;
+  const splitDragLabel = pointer.overlays.barSplitDrag;
 
   const histogramPortal = histogramHost
     ? createPortal(showHistogram ? (
@@ -837,6 +838,28 @@ export function GanttCanvas({
             {splitOverlay.gapUnits > 0
               ? tTask(splitOverlay.hourMode ? 'split.gapHours' : 'split.gapDays', { count: splitOverlay.gapUnits })
               : (splitOverlay.hourMode ? displayDateFormat.dateTime(splitOverlay.atIso) : displayDateFormat.date(splitOverlay.atIso))}
+          </div>
+        )}
+
+        {/* Issue #146 etappe 3: hetzelfde DOM-label tijdens het verslepen van een stuk (de pauze
+            ervóór) of een stukrand (de lengte van dat stuk) op een gesplitste balk. */}
+        {splitDragLabel && (
+          <div
+            data-testid="split-drag-label"
+            className="absolute text-small leading-4 px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap"
+            style={{
+              left: splitDragLabel.x + 6,
+              top: splitDragLabel.top - 18,
+              background: 'var(--theme-accent)',
+              color: 'var(--theme-accent-contrast, #fff)',
+              zIndex: 3,
+            }}
+          >
+            {splitDragLabel.kind === 'gap'
+              ? (splitDragLabel.units > 0
+                ? tTask(splitDragLabel.hourMode ? 'split.gapHours' : 'split.gapDays', { count: splitDragLabel.units })
+                : tTask('split.merged'))
+              : tTask(splitDragLabel.hourMode ? 'split.pieceHours' : 'split.pieceDays', { count: splitDragLabel.units })}
           </div>
         )}
 

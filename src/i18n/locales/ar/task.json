@@ -546,6 +546,19 @@
     "gapHours_two": "توقف ساعتين",
     "gapHours_few": "توقف {{count}} ساعات",
     "gapHours_many": "توقف {{count}} ساعة",
-    "gapHours_other": "توقف {{count}} من الساعات"
+    "gapHours_other": "توقف {{count}} من الساعات",
+    "pieceDays_zero": "المقطع: {{count}} يوم عمل",
+    "pieceDays_one": "المقطع: يوم عمل واحد",
+    "pieceDays_two": "المقطع: يوما عمل",
+    "pieceDays_few": "المقطع: {{count}} أيام عمل",
+    "pieceDays_many": "المقطع: {{count}} يوم عمل",
+    "pieceDays_other": "المقطع: {{count}} من أيام العمل",
+    "pieceHours_zero": "المقطع: {{count}} ساعة",
+    "pieceHours_one": "المقطع: ساعة واحدة",
+    "pieceHours_two": "المقطع: ساعتان",
+    "pieceHours_few": "المقطع: {{count}} ساعات",
+    "pieceHours_many": "المقطع: {{count}} ساعة",
+    "pieceHours_other": "المقطع: {{count}} من الساعات",
+    "merged": "دمج"
   }
 }

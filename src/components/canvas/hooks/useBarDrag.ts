@@ -6,6 +6,11 @@ import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import { resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
+import {
+  canSplitTask, setGapLength, setWorkLength, splitUnitMinutes, toSplitPieces, workAxisMinutesBetween,
+  type SplitPiece,
+} from '@/engine/scheduler/splitEdit';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
@@ -15,6 +20,53 @@ import { ROW_DRAG_THRESHOLD } from './constants';
 // een reeks per-mousemove `updateTask`-commits samen tot ÉÉN undo-stap, terwijl twee opeenvolgende
 // sleeps nooit samenvloeien — ook niet binnen dezelfde milliseconde (de teller loopt altijd door).
 let dragSeq = 0;
+// Idem voor een stuk-/stukrandsleep op een gesplitste balk (`splitdrag:<taskId>:<n>`).
+let splitDragSeq = 0;
+
+/** Issue #146 etappe 3: wat bij de START van een stuk-/stukrandsleep bevroren wordt. Elke mousemove
+ *  rekent vanaf `pieces0`, niet vanaf de vorige move — anders maakt terugslepen niets ongedaan. */
+export interface SplitDragContext {
+  /** `gap` = de body van stuk i>0 verslepen (de pauze ervóór), `work` = de rechterrand van stuk i. */
+  kind: 'gap' | 'work';
+  /** Pauze-index (`gap`) of werkstuk-index (`work`) in de stukkenlijst. */
+  index: number;
+  pieces0: SplitPiece[];
+  /** De lengte van het bewerkte stuk in `pieces0`, in werkminuten. */
+  baseMinutes: number;
+  unitMinutes: number;
+  /** Gesnapte pointerdatum bij de start. */
+  anchorDate: Date;
+  eng: CalendarEngine;
+  hourMode: boolean;
+  coalesceKey: string;
+}
+
+/** Het sleeplabel van een stuk-/stukrandsleep (DOM, zie `GanttCanvas`), in canvascoördinaten. */
+export interface SplitDragLabel {
+  x: number;
+  top: number;
+  kind: 'gap' | 'work';
+  /** Nieuwe lengte in EENHEDEN (werkdagen, of uren bij een uur-taak). 0 = pauze opgeheven. */
+  units: number;
+  hourMode: boolean;
+}
+
+/**
+ * De stukkenlijst waarop een stuk-sleep mag rekenen, of `null` wanneer de gesplitste balk als ÉÉN
+ * balk moet slepen: de taak is niet splitsbaar (`canSplitTask`, o.a. een niet-wélgevormde
+ * importsplit — alleen-lezen, spec §1), of de renderer tekende een ander aantal stukken dan de
+ * stukkenlijst telt (een pauze korter dan een halve werkdag is in dag-modus onzichtbaar; een
+ * stuk-index zou dan naar het verkeerde werkstuk wijzen). Eén bron voor coördinator en sleep.
+ */
+export function splitPiecesForDrag(task: Task, calendar: WorkCalendar, segmentCount: number): SplitPiece[] | null {
+  if (segmentCount <= 1) return null;
+  const hourMode = taskDurationUnit(task) === 'hours';
+  const hoursPerDay = new CalendarEngine(hourMode ? calendarForEngine(calendar) : calendar).hoursPerDay;
+  if (canSplitTask(task, hoursPerDay, task.childIds.length > 0) !== null) return null;
+  const pieces = toSplitPieces(task.splitGaps, durationMinutesOf(task, { isHourMode: hourMode, hoursPerDay }));
+  if (!pieces || pieces.filter(p => p.kind === 'work').length !== segmentCount) return null;
+  return pieces;
+}
 
 export interface DragState {
   taskId: string;
@@ -28,6 +80,13 @@ export interface DragState {
   originalDurationMinutes?: number;
   /** Gantt-aspositie bij pointer-down; de volgende muisbewegingen worden hiertegen afgezet. */
   pointerStart?: Date;
+  /** Issue #146 etappe 3: op welk stuk van een gesplitste balk het gebaar begon (0 van 1 = een
+   *  ongesplitste balk, of een gesplitste die als geheel sleept). */
+  segmentIndex?: number;
+  segmentCount?: number;
+  /** Gezet door `startBarDrag` wanneer dit een stuk- of stukrandsleep is; anders ongedefinieerd en
+   *  loopt het gebaar byte-identiek over de bestaande body/rand-takken. */
+  split?: SplitDragContext;
 }
 
 interface UseBarDragOptions {
@@ -54,6 +113,11 @@ interface UseBarDragOptions {
   /** De exacte as waarmee de renderer de balk heeft getekend, inclusief werkdagencompressie. */
   axis: GanttAxis;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  /** Issue #146 etappe 3: de ENE schrijfweg voor gebruikerssplits. Zonder deze naad (tests,
+   *  oudere aanroepers) sleept een gesplitste balk als geheel, zoals vóór etappe 3. */
+  setTaskSplits?: (taskId: string, pieces: SplitPiece[] | null, opts?: { coalesceKey?: string }) => unknown;
+  /** Bovenkant van de getekende balk in canvascoördinaten, voor het sleeplabel. */
+  barTopOf?: (taskId: string) => number | null;
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
@@ -70,8 +134,16 @@ interface UseBarDragOptions {
 // `addCalendarDays`). Toggle uit ⇒ ongewijzigd. De UUR-tak leest de gedeelde Gantt-as terug en laat
 // daarna CalendarEngine de werkminuten/werkbanden bepalen, dus een naad onder werkdagencompressie
 // volgt precies wat de gebruiker op de as zag.
-export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask, onVerticalBodyDrag, axis, canvasRef }: UseBarDragOptions) {
+//
+// Issue #146 etappe 3: op een GESPLITSTE balk zijn er twee extra takken, vóór de bestaande. De body
+// van stuk i>0 verslepen stelt de pauze ervóór bij (`setGapLength`; tegen het vorige stuk aan =
+// samenvoegen), de rechterrand van stuk i zet de lengte van dát stuk (`setWorkLength`, ook voor het
+// laatste stuk: de duur verandert mee). Beide rekenen via `splitEdit.ts` vanaf een bevroren
+// `pieces0` en committen per mousemove via `setTaskSplits` met één coalesce-key per gebaar. Stuk 0
+// (body en linkerrand) en elke ongesplitste balk lopen over de bestaande code hieronder.
+export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask, updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [splitLabel, setSplitLabel] = useState<SplitDragLabel | null>(null);
   // De kaart met effectieve taakkalenders verandert ook wanneer een live drag de taak muteert. Het
   // effect wordt dan terecht met actuele kalenderinvoer herstart, maar dat mag geen nieuw
   // coalesce-venster openen: één pointergesture blijft exact één undoable handeling.
@@ -89,16 +161,60 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
   // in `handleMouseMove`). Ook deze mag een effectherstart niet resetten, anders wordt dezelfde
   // verschuiving na de herstart nog een keer gecommit.
   const lastAppliedDeltaRef = useRef(0);
+  // Snap-quantum van de uur-sleep: de actieve minor-tier, met een kwartier alleen wanneer die zoom
+  // is aangezet — dezelfde formule als in het effect hieronder en in `useSplitGesture`.
+  const hourSnapMinutes = Math.max(
+    enableQuarterHourZoom ? 15 : 60,
+    Math.round(TIER_CONFIG[pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor].stepDays * 1440),
+  );
+  /** De gesnapte datum onder een canvas-x — exact `useSplitGesture.snapAt`: dag-modus het begin van
+   *  de dag, uur-modus het snap-quantum. De x loopt via de gedeelde as (compressie inbegrepen). */
+  const snapAt = useCallback((x: number, hourMode: boolean): Date | null => {
+    const raw = axis.xToDate(x);
+    if (Number.isNaN(raw.getTime())) return null;
+    if (!hourMode) return parseDate(formatDate(raw));
+    const q = Math.max(1, hourSnapMinutes) * 60_000;
+    return new Date(Math.round(raw.getTime() / q) * q);
+  }, [axis, hourSnapMinutes]);
+
+  /** Bouwt de bevroren stuk-sleepcontext, of `undefined` = bestaande sleep. */
+  const prepareSplitDrag = useCallback((next: DragState, canvasX: number | null): SplitDragContext | undefined => {
+    const { edge, segmentIndex = 0, segmentCount = 1 } = next;
+    if (!setTaskSplits || canvasX === null || segmentCount <= 1) return undefined;
+    const kind = edge === 'body' && segmentIndex > 0 ? 'gap' : edge === 'right' ? 'work' : null;
+    if (!kind) return undefined;
+    const task = getTask(next.taskId);
+    if (!task) return undefined;
+    const cal = effectiveCalById.get(task.id) ?? calendar;
+    const pieces0 = splitPiecesForDrag(task, cal, segmentCount);
+    if (!pieces0) return undefined;
+    const hourMode = taskDurationUnit(task) === 'hours';
+    const eng = new CalendarEngine(hourMode ? calendarForEngine(cal) : cal);
+    const anchorDate = snapAt(canvasX, hourMode);
+    if (!anchorDate) return undefined;
+    const index = kind === 'gap' ? segmentIndex - 1 : segmentIndex;
+    const base = pieces0.filter(p => p.kind === kind)[index];
+    if (!base) return undefined;
+    return {
+      kind, index, pieces0, baseMinutes: base.minutes,
+      unitMinutes: splitUnitMinutes(task, eng.hoursPerDay, hourSnapMinutes),
+      anchorDate, eng, hourMode,
+      coalesceKey: `splitdrag:${task.id}:${++splitDragSeq}`,
+    };
+  }, [setTaskSplits, getTask, effectiveCalById, calendar, snapAt, hourSnapMinutes]);
+
   const startBarDrag = useCallback((next: DragState) => {
     const canvas = canvasRef.current;
     const rect = canvas?.getBoundingClientRect();
     const pointerStart = rect ? axis.xToDate(next.startX - rect.left) : undefined;
-    undoKeyRef.current = `bardrag:${next.taskId}:${++dragSeq}`;
+    const split = prepareSplitDrag(next, rect ? next.startX - rect.left : null);
+    undoKeyRef.current = split ? split.coalesceKey : `bardrag:${next.taskId}:${++dragSeq}`;
     // Eén gebaar = één richtingskeuze. Alleen hier resetten.
     directionRef.current = 'undecided';
     lastAppliedDeltaRef.current = 0;
-    setDragState({ ...next, pointerStart });
-  }, [axis, canvasRef]);
+    setSplitLabel(null);
+    setDragState({ ...next, pointerStart, split });
+  }, [axis, canvasRef, prepareSplitDrag]);
 
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
@@ -178,7 +294,45 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       }, { coalesceKey: undoKey });
     };
 
+    /** Stuk- of stukrandsleep (issue #146 etappe 3). Geen richtingskeuze: alleen stuk 0 draagt de
+     *  verticale rijsleep, zoals een ongesplitste balk. */
+    const handleSplitDrag = (e: MouseEvent, split: SplitDragContext) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !setTaskSplits) return;
+      const x = e.clientX - canvas.getBoundingClientRect().left;
+      const at = snapAt(x, split.hourMode);
+      if (!at) return;
+      // Getekende werkafstand tussen het grijppunt en de dag onder de muis, met teken: naar links
+      // negatief. `workAxisMinutesBetween` is half-open en telt alleen vooruit.
+      const delta = at.getTime() >= split.anchorDate.getTime()
+        ? workAxisMinutesBetween(split.anchorDate, at, split.eng, split.hourMode)
+        : -workAxisMinutesBetween(at, split.anchorDate, split.eng, split.hourMode);
+      const top = barTopOf?.(dragState.taskId) ?? null;
+      if (delta === lastAppliedDeltaRef.current) return;
+      lastAppliedDeltaRef.current = delta;
+      const result = split.kind === 'gap'
+        ? setGapLength(split.pieces0, split.index, split.baseMinutes + delta, split.unitMinutes)
+        : setWorkLength(split.pieces0, split.index, split.baseMinutes + delta, split.unitMinutes);
+      if (!result.ok) return;
+      setTaskSplits(dragState.taskId, result.pieces, { coalesceKey: undoKey });
+      // Het label leest de nieuwe lengte terug uit de UITKOMST (dus gesnapt en geklemd), niet uit de
+      // ruwe muisafstand. Een samengevoegde pauze bestaat niet meer ⇒ 0.
+      const edited = split.kind === 'gap'
+        ? (result.pieces.length === split.pieces0.length ? result.pieces.filter(p => p.kind === 'gap')[split.index]?.minutes ?? 0 : 0)
+        : result.pieces.filter(p => p.kind === 'work')[split.index]?.minutes ?? 0;
+      if (top !== null) {
+        setSplitLabel({
+          x, top, kind: split.kind, hourMode: split.hourMode,
+          units: Math.round(edited / split.unitMinutes),
+        });
+      }
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
+      if (dragState.split) {
+        handleSplitDrag(e, dragState.split);
+        return;
+      }
       // De balkbody heeft twee betekenisvolle richtingen. Kies ÉÉNMAAL per gebaar, na dezelfde korte
       // drempel als de rijsleep, zodat een diagonale beweging nooit zowel datum als structuur
       // verandert. Randen zijn bewust altijd horizontale duur-grepen. De keuze staat in een ref
@@ -283,6 +437,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
 
     const handleMouseUp = () => {
       undoKeyRef.current = null;
+      setSplitLabel(null);
       setDragState(null);
     };
 
@@ -305,7 +460,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     onVerticalBodyDrag,
     axis,
     canvasRef,
+    setTaskSplits,
+    barTopOf,
+    snapAt,
   ]);
 
-  return { dragState, startBarDrag, active: !!dragState };
+  return { dragState, startBarDrag, splitLabel, active: !!dragState };
 }

@@ -466,6 +466,11 @@
     "gapDays_one": "{{count}} Arbeitstag Unterbrechung",
     "gapDays_other": "{{count}} Arbeitstage Unterbrechung",
     "gapHours_one": "{{count}} Stunde Unterbrechung",
-    "gapHours_other": "{{count}} Stunden Unterbrechung"
+    "gapHours_other": "{{count}} Stunden Unterbrechung",
+    "pieceDays_one": "Abschnitt: {{count}} Arbeitstag",
+    "pieceDays_other": "Abschnitt: {{count}} Arbeitstage",
+    "pieceHours_one": "Abschnitt: {{count}} Stunde",
+    "pieceHours_other": "Abschnitt: {{count}} Stunden",
+    "merged": "Zusammenführen"
   }
 }

@@ -447,6 +447,9 @@
   },
   "split": {
     "gapDays_other": "{{count}} 근무일 중단",
-    "gapHours_other": "{{count}}시간 중단"
+    "gapHours_other": "{{count}}시간 중단",
+    "pieceDays_other": "구간: {{count}} 근무일",
+    "pieceHours_other": "구간: {{count}}시간",
+    "merged": "병합"
   }
 }
