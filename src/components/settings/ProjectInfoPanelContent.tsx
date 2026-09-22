@@ -9,10 +9,10 @@ import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type Templat
 import { CalendarGeneratorFields } from '@/components/dialogs/CalendarGeneratorFields';
 import { SchedulingProfileSection } from '@/components/settings/SchedulingProfileSection';
 import { hasValidProfileName, type SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
-import type { Project } from '@/types/project';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
@@ -102,10 +102,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const projectCalendar = useAppStore(s => s.calendar);
     const activeDocumentId = useAppStore(s => s.activeDocumentId);
     const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
-    const setProject = useAppStore(s => s.setProject);
     const createNewProject = useAppStore(s => s.createNewProject);
     const setUI = useAppStore(s => s.setUI);
-    const applySchedulingSettings = useAppStore(s => s.applySchedulingSettings);
+    const applyProjectInfo = useAppStore(s => s.applyProjectInfo);
 
     const [name, setName] = useState(isNew ? '' : project.name);
     const [description, setDescription] = useState(isNew ? '' : project.description);
@@ -265,15 +264,16 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         // Committeer de metadata altijd; het rekenprofielblok ALLEEN als de gebruiker het aanraakte
         // (GO-NA-fix 1b — anders geen spurious dirty / geen onnodige herberekening op een stale of
         // nooit-bekeken draft). De store-actie normaliseert zelf (leeg ⇒ `undefined`).
-        const patch: Partial<Project> = {
-          name, description, author, company, startDate, endDate,
-          // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata.
-          // Nieuwe taken vallen in taskSlice veilig terug op dagen zolang de capability of
-          // concrete werkblokken ontbreken; alleen deze voorkeur hier stil terugzetten zou een
-          // ongerelateerde metadata-edit echter dataverlies laten veroorzaken.
-          defaultTaskDurationUnit,
-        };
-        setProject(patch);
+        // Gebruikstest I5: alleen de ÉCHT gewijzigde metadata (afwezige eenheid ≡ 'days', geen
+        // modifiedAt), en samen met het rekenprofiel in ÉÉN undo-stap ("Projectinfo"). Toepassen
+        // zonder wijziging doet dan niets: geen undo-stap, niet vuil, "datums zoals opgeslagen" blijft.
+        // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata: nieuwe
+        // taken vallen in taskSlice veilig terug op dagen zolang de capability of concrete
+        // werkblokken ontbreken; hem hier stil terugzetten zou dataverlies zijn.
+        applyProjectInfo(
+          projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit }),
+          calcTouched ? scheduling : undefined,
+        );
         // GO-NA-fix 1b: bind/unbind ALLEEN als de gebruiker de select in DEZE mount aanraakte — dit is
         // de vangrail tegen de stale-draft-unbind (zie JSDoc hierboven).
         if (effectiveCompanyTouched) {
@@ -289,9 +289,6 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
             }
           }
         }
-        // Rekenprofielen (spec v3.1 §6): no-op bij inhoudelijk gelijke instellingen; anders één
-        // undo-stap, herberekenen (ook met Automatisch berekenen uit) en de melding met de telling.
-        if (calcTouched) applySchedulingSettings(scheduling);
       }
       onDone();
     };

@@ -8,6 +8,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { SchedulingProfile } from '@/types/project';
 import { loadCustomProfiles, saveCustomProfiles } from '@/services/schedulingProfiles/profileStore';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -74,6 +75,47 @@ eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], 
     [false, ...beforeNameless]);
   S().applySchedulingSettings({ profile: { ...mine, id: 'prof-trim', name: '  Mijn profiel  ', overrides: {} }, options: undefined });
   eq('16a geldige naam wordt getrimd opgeslagen', S().project.schedulingProfile?.name, 'Mijn profiel');
+}
+
+// Gebruikstest I5 punt 1: Projectinfo-Toepassen. Een geïmporteerd project mist
+// `defaultTaskDurationUnit` (afwezig ≡ 'days'); het formulier stuurt 'days'. Dat mag geen wijziging
+// zijn. En metadata + profiel samen = ÉÉN undo-stap ("Projectinfo"), die ook "datums zoals
+// opgeslagen" in één keer terugzet.
+{
+  const x = createAppStoreContext();
+  const X = () => x.store.getState();
+  const xApplied = () => X().historyEvents.filter(event => event.state === 'applied').length;
+  X().newProject();
+  X().setProject({ name: 'Import', startDate: '2026-05-04' });
+  X().addTask({ name: 'A', time: createDefaultTaskTime('2026-05-04', 3) });
+  X().runCPM();
+  x.store.setState(s => {
+    delete s.project.defaultTaskDurationUnit;
+    s.datesAsRecorded = true; s.scheduleStale = false; s.isDirty = false;
+  });
+  const p = X().project;
+  const form = {
+    name: p.name, description: p.description, author: p.author, company: p.company,
+    startDate: p.startDate, endDate: p.endDate, defaultTaskDurationUnit: 'days' as const,
+  };
+  eq('17 ongewijzigd formulier ⇒ lege metadata-patch (afwezige eenheid ≡ days)', projectInfoPatch(p, form), {});
+  eq('17a alleen echte wijzigingen komen in de patch', projectInfoPatch(p, { ...form, name: 'Nieuw', startDate: p.startDate }), { name: 'Nieuw' });
+  const n17 = xApplied();
+  const same = X().applyProjectInfo({}, { profile: p.schedulingProfile, options: p.schedulingOptions });
+  eq('17b Toepassen zonder wijziging ⇒ geen undo-stap, niet vuil, modus blijft',
+    [same.changed, xApplied(), X().isDirty, X().datesAsRecorded, X().scheduleStale], [false, n17, false, true, false]);
+  const both = X().applyProjectInfo({ name: 'Nieuw' }, { profile: builtInProfile('msproject'), options: undefined });
+  const last = X().historyEvents.filter(event => event.state === 'applied').at(-1);
+  eq('18 metadata + profiel = precies één undo-stap met label Projectinfo',
+    [both.changed, xApplied(), last?.label], [true, n17 + 1, 'Projectinfo']);
+  eq('18a beide zijn toegepast, modus verlaten', [X().project.name, X().project.schedulingProfile?.id, X().datesAsRecorded], ['Nieuw', 'msproject', false]);
+  X().undo();
+  eq('18b één Ctrl+Z zet naam, profiel en de modus terug',
+    [X().project.name, X().project.schedulingProfile, X().datesAsRecorded], ['Import', undefined, true]);
+  X().redo();
+  const onlyMeta = X().applyProjectInfo({ author: 'Ik' }, { profile: X().project.schedulingProfile, options: X().project.schedulingOptions });
+  eq('18c alleen metadata ⇒ één undo-stap, profiel ongemoeid', [onlyMeta.changed, xApplied(), X().project.author, X().project.schedulingProfile?.id],
+    [true, n17 + 2, 'Ik', 'msproject']);
 }
 
 // Critreview D2 punt 3: de wizard geeft het profiel mee aan createNewProject. Het nieuwe project

@@ -87,7 +87,7 @@
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
     "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
-    "schedulingProfileApplied": "Bu proje {{profile}} olarak hesaplanıyor. Dosya → Proje bilgisi → Hesaplama profili üzerinden değiştirin.",
+    "schedulingProfileApplied": "Bu proje {{profile}} olarak hesaplanıyor. Dosya → Proje bilgisi → Hesaplama profili ve seçenekleri üzerinden değiştirin.",
     "schedulingProfileShifted_one": "Yeni hesaplama profili {{count}} görevi kaydırdı.",
     "schedulingProfileShifted_other": "Yeni hesaplama profili {{count}} görevi kaydırdı.",
     "actions": {

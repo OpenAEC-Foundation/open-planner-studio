@@ -73,11 +73,12 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     // opgeslagen en de conventiewijziging stil verdwijnen.
     const applyButton = page.getByRole('button', { name: /^(Apply|Toepassen)$/ });
     await expect(applyButton).toBeDisabled();
-    await nameField.fill('Mijn profiel ');
-    await expect(nameField).toHaveValue('Mijn profiel ');
+    // Gebruikstest I5 punt 2: toets voor toets typen, met een spatie in het midden én tijdelijk achteraan.
+    await nameField.pressSequentially('Mijn P6-variant ');
+    await expect(nameField).toHaveValue('Mijn P6-variant ');
     await expect(page.locator('[data-ops-scheduling-profile-name-required]')).toHaveCount(0);
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
-    await expect.poll(() => profileOf(page).then(p => p?.name)).toBe('Mijn profiel');
+    await expect.poll(() => profileOf(page).then(p => p?.name)).toBe('Mijn P6-variant');
 
     // Dezelfde regel in de dialoog (Instellingen → Projectinfo), waar Enter de primaire actie is:
     // naam wissen + projectnaam wijzigen + Enter ⇒ dialoog blijft open, niets opgeslagen.
@@ -96,7 +97,69 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     expect(await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       return [s.project.name, s.project.schedulingProfile?.name, s.project.schedulingProfile?.overrides.p6OpenLoeTargetSpan];
-    })).toEqual([projectNameBefore, 'Mijn profiel', undefined]);
+    })).toEqual([projectNameBefore, 'Mijn P6-variant', undefined]);
     await expect.poll(() => profileOf(page).then(p => [p?.baseId, p?.id.startsWith('prof')]))
       .toEqual(['msproject', true]);
+  });
+
+// Gebruikstest I5: een XER die opent in "datums zoals opgeslagen" (vastgelegde vroege datums wijken af
+// van onze herberekening — zelfde orakel-fixture als recorded-dates.spec.ts). Toepassen zonder wijziging
+// laat de modus en de strook staan; een profielwissel is ÉÉN undo-stap, en één Ctrl+Z zet profiel,
+// datums en de modus (met strook) samen terug.
+const RECORDED_XER = [
+  'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR', '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC1\tStandaard 8u\tCA_Base\t8\t40\t',
+  '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+  '%R\tP1\tProfielModus\tC1\t2026-01-01\t2026-01-01',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tearly_start_date\tearly_end_date\tlate_start_date\tlate_end_date\ttotal_float_hr_cnt\tfree_float_hr_cnt',
+  '%R\tT1\tP1\tC1\tA1\tDeviates\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-01-02\t2026-01-09\t2026-01-05\t2026-01-12\t2026-01-10\t2026-01-17\t40\t8',
+  '%E',
+].join('\n');
+
+test('rekenprofiel: in "datums zoals opgeslagen" is Toepassen zonder wijziging een no-op en is een wissel één undo-stap',
+  async ({ page, ops: _ops }) => {
+    const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
+    const chooser = page.waitForEvent('filechooser');
+    await openButton.click();
+    await (await chooser).setFiles({ name: 'modus.xer', mimeType: 'application/octet-stream', buffer: Buffer.from(RECORDED_XER) });
+    const strip = page.locator('[data-ops-recorded-dates-active]');
+    await expect(strip).toBeVisible();
+    const snapshot = () => page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      return {
+        profile: s.project.schedulingProfile?.id ?? null,
+        mode: s.datesAsRecorded,
+        stale: s.scheduleStale,
+        dirty: s.isDirty,
+        start: s.tasks.find(task => task.wbsCode === 'A1')?.time.earlyStart?.slice(0, 10),
+        undo: s.historyEvents.filter(event => event.state === 'applied').length,
+      };
+    });
+    const opened = await snapshot();
+    expect([opened.profile, opened.mode, opened.stale]).toEqual(['p6', true, false]);
+
+    const toBackstageInfo = async () => {
+      await page.getByRole('button', { name: /^(File|Bestand)$/ }).first().click();
+      await page.getByRole('button', { name: /^(Project info|Projectinfo)$/ }).first().click();
+    };
+    // Toepassen zonder iets te wijzigen: geen undo-stap, niet vuil, modus + strook blijven.
+    await toBackstageInfo();
+    await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
+    await expect(strip).toBeVisible();
+    expect(await snapshot()).toEqual(opened);
+
+    // Wissel naar MS Project: één undo-stap, modus verlaten.
+    await toBackstageInfo();
+    await page.locator('[data-ops-scheduling-profile-select]').selectOption('builtin:msproject');
+    await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
+    await expect.poll(() => snapshot().then(s => [s.profile, s.mode, s.undo])).toEqual(['msproject', false, opened.undo + 1]);
+    await expect(strip).toHaveCount(0);
+
+    // Eén Ctrl+Z: profiel, datums en de modus met strook in één keer terug.
+    await page.keyboard.press('Control+z');
+    await expect(strip).toBeVisible();
+    const undone = await snapshot();
+    expect([undone.profile, undone.mode, undone.stale, undone.start]).toEqual([opened.profile, true, false, opened.start]);
   });

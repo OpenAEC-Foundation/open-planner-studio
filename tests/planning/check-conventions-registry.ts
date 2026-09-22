@@ -263,6 +263,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
       conventions?: Record<string, { label?: unknown; help?: unknown }>;
       profiles?: { builtIn?: Record<string, unknown>; modified?: unknown; copyOf?: unknown };
       notifications?: { schedulingProfileApplied?: unknown; schedulingProfileShifted_other?: unknown; actions?: { openProjectInfo?: unknown } };
+      schedulingProfile?: { title?: unknown };
     };
     for (const c of CONVENTIONS) {
       eq(`i18n ${locale} ${c.labelKey}.label`, typeof common.conventions?.[c.id]?.label, 'string');
@@ -274,6 +275,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     eq(`i18n ${locale} notifications.schedulingProfileApplied`, typeof common.notifications?.schedulingProfileApplied, 'string');
     eq(`i18n ${locale} notifications.schedulingProfileShifted_other`, typeof common.notifications?.schedulingProfileShifted_other, 'string');
     eq(`i18n ${locale} notifications.actions.openProjectInfo`, typeof common.notifications?.actions?.openProjectInfo, 'string');
+    // Gebruikstest I5 (3c): de melding wijst naar het blok zoals het in Projectinfo heet.
+    ok(`i18n ${locale} melding noemt de bloknaam`, typeof common.schedulingProfile?.title === 'string'
+      && typeof common.notifications?.schedulingProfileApplied === 'string'
+      && common.notifications.schedulingProfileApplied.includes(common.schedulingProfile.title));
     // Merknamen zijn in elke taal gelijk (de store-melding gebruikt ze onvertaald, spec v3.1 §6).
     eq(`i18n ${locale} merknamen`, common.profiles?.builtIn, { p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio' });
     // Geen sleutels buiten het register: een verweesde vertaling wijst op een hernoemde conventie.
