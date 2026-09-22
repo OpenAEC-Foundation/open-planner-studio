@@ -35,6 +35,12 @@ export interface ConventionDescriptor {
   /** Was deze conventie vóór de rekenprofielen alleen actief onder de XER-bronmarkering? Zo ja, dan
    *  was een losse vlag zonder die markering inert en gooit de legacy-migratie hem weg (risico 1). */
   gatedByP6Source: boolean;
+  /** BESCHRIJVEND: komt de waarde per BESTAND uit de bron (A19 uit `rem_target_link_flag`), niet uit
+   *  de school? Het register is hiervoor de ene bron; het bewerkmodel (`PER_FILE_CONVENTION_KEYS` in
+   *  `state/schedulingProfileDraft.ts`) leidt er zijn lijst uit af en draagt zulke waarden bij elke
+   *  profielwissel over. `switchProfile` beslist hier bewust NIET op (baan A misbruikte het veld
+   *  daarvoor; op een ingebouwd id blijven alle afwijkingen letterlijk staan, ongeacht dit veld). */
+  perFile: boolean;
   /** i18n-sleutel (namespace common): `<labelKey>.label` / `<labelKey>.help`. De vertalingen komen
    *  met het profielpaneel; deze baan legt alleen de sleutelnaam vast. */
   labelKey: string;
@@ -49,9 +55,10 @@ const SINCE = '2026-09-22';
 
 function convention(
   id: ConventionKey, group: 'A' | 'B', builtIn: Record<BuiltInProfileId, boolean>, gatedByP6Source: boolean,
+  perFile = false,
 ): ConventionDescriptor {
   return {
-    id, kind: 'boolean', builtIn, group, legacyValue: builtIn.ops, gatedByP6Source,
+    id, kind: 'boolean', builtIn, group, legacyValue: builtIn.ops, gatedByP6Source, perFile,
     labelKey: `conventions.${id}`, since: SINCE,
   };
 }
@@ -66,7 +73,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6FinishMilestoneBoundaryWindow', 'A', P6_ONLY, true),           // A17
   convention('p6PreserveActualInstants', 'A', P6_ONLY, true),                  // A18
   // A19: per bestand (`rem_target_link_flag`); de P6-basis is uit, de XER-lezer zet hem als override.
-  convention('p6UseRemainingStartForProgress', 'A', NONE, true),               // A19
+  convention('p6UseRemainingStartForProgress', 'A', NONE, true, true),         // A19 (per bestand)
   convention('p6PreserveZeroDurationConstraintInstants', 'A', P6_ONLY, true),  // A20
   convention('resumeFromActualElapsed', 'A', MSP_ONLY, false),                 // A22
   convention('unstartedIgnoresStatusDate', 'A', MSP_ONLY, false),              // A23
@@ -156,12 +163,16 @@ export function diffAgainstBase(
   return out;
 }
 
-/** Is dit profiel semantisch het standaardprofiel (ingebouwd `ops`, niets afwijkend)? Zo'n profiel
- *  wordt niet weggeschreven en na lezen niet op het project gezet (afwezig ≡ ops). */
+/** Is dit profiel het standaardprofiel: ingebouwd `ops` zonder ENIGE afwijking? Zo'n profiel wordt
+ *  niet weggeschreven en na lezen niet op het project gezet (afwezig ≡ ops). Letterlijk, niet
+ *  semantisch (besluit orkestrator 2026-09-22): een afwijking die onder ops toevallig gelijk is aan de
+ *  basis (P6 {A13: uit} → OPS) blijft staan, zodat P6 → OPS → P6 het origineel teruggeeft. Alleen
+ *  bekende conventiesleutels met een boolean tellen (zoals in `resolveConventions`). */
 export function isDefaultProfile(profile: SchedulingProfile | undefined): boolean {
   if (!profile) return true;
+  const overrides = profile.overrides as Partial<Record<string, unknown>>;
   return profile.id === 'ops' && profile.baseId === 'ops'
-    && Object.keys(diffAgainstBase('ops', profile.overrides)).length === 0;
+    && CONVENTION_KEYS.every(key => typeof overrides[key] !== 'boolean');
 }
 
 /** De P6-projectoptie-defaults met precieze types (alle velden aanwezig), voor de XER-lezer die er

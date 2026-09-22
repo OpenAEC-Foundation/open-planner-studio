@@ -21,6 +21,8 @@ Een P6-baselineproject wordt niet als los, planbaar document geopend. Als het bi
 
 Relaties tussen twee verschillende P6-projecten worden als externe bronlinks bewaard. De app rekent ze niet door als gewone relaties, omdat elk geopend document een zelfstandige planning is.
 
+Een `.xer`-bestand opent met het rekenprofiel **Primavera P6**; zie [Rekenprofielen](docs://gids-rekenprofielen).
+
 ## Wat er uit P6 meekomt
 
 De import leest onder meer:
@@ -101,3 +103,4 @@ Deze grenzen verwijderen geen brongegevens uit het IFC-projectbestand. Als XER-s
 - [Resources, histogram & nivellering](docs://gids-resources-histogram) behandelt resources, toewijzingen en belasting in Open Planner Studio.
 - [Baselines & voortgang](docs://gids-baselines-voortgang) legt het gebruik van baselines na import uit.
 - [Im-/export](docs://gids-import-export) vergelijkt IFC, CSV, MS Project XML en Primavera P6 XML.
+- [Rekenprofielen](docs://gids-rekenprofielen) legt uit welke P6-conventies een `.xer`-project meekrijgt en hoe je van profiel wisselt.

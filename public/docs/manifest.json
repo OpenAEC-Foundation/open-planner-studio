@@ -274,6 +274,27 @@
       "cluster": "xer-import"
     },
     {
+      "id": "gids-rekenprofielen",
+      "title": {
+        "nl": "Rekenprofielen",
+        "en": "Calculation profiles",
+        "de": "Berechnungsprofile",
+        "fr": "Profils de calcul",
+        "es": "Perfiles de cálculo",
+        "zh": "计算配置文件",
+        "it": "Profili di calcolo",
+        "pt": "Perfis de cálculo",
+        "pl": "Profile obliczeń",
+        "tr": "Hesaplama profilleri",
+        "ar": "ملفات الحساب",
+        "ja": "計算プロファイル",
+        "ko": "계산 프로필",
+        "fa": "پروفایل‌های محاسبه"
+      },
+      "layer": "gidsen",
+      "cluster": "rekenprofielen"
+    },
+    {
       "id": "datums-zoals-opgeslagen",
       "title": {
         "nl": "Datums zoals opgeslagen",

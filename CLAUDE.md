@@ -25,6 +25,8 @@ npm run verify:examples   # los: de gebundelde voorbeelden laden/rekenen door zo
 npm run verify:docs       # los: in-app gidsen — nl+en hard vereist, overige 12 talen indien aanwezig
 npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-pluralcategorieën meegerekend)
 npm run verify:store-boundaries # los: AST-poort — core-runtimefactories en storegebonden MCP-tools importeren nooit useAppStore/appStoreContext
+npm run verify:conventions # los: AST-poort — src/engine/ leest geen bronformaat (p6Source/readFormat/XER-bronsignalen/lezer-imports); herkomst-datagates gepind, alleen omlaag
+npm run measure:profiles  # los: cel-baseline per rekenprofiel (regel A: geen exacte cel mag inexact worden); het P6-deel vereist OPS_XER_CORPUS
 npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
@@ -133,12 +135,12 @@ weergave, nooit solverinvoer.** De zes P6-uitvoerkolommen (`early_/late_start/en
 onder *State*) en de X12-meetlat, nooit `Task.time` als invoer. Bak 2 (`restart_date`, `driving_path_flag`,
 …) mag de lezer nooit lezen. `tests/planning/check-xer-field-whitelist.ts` grept beide grenzen
 corpusloos over heel `src/`; de X12-non-interferentie in `check-xer-product-fidelity-x12.ts` bewijst
-het per mutatie. (3) **P6-gedrag is fail-closed op `p6Source`.** Elke P6-specifieke solvertak
-(`CPMSolver.ts`, `p6Completed*.ts`, `p6OpenLoe*.ts`) staat achter
-`schedulingOptions.p6Source === 'XER'`; de XER-lezer zet die vlag, het IFC round-tript haar (met
-`sanitizeSchedulingOptions` als type-/sleutelpoort in `ifcReader.ts`), andere formaten blijven
-byte-identiek — de corpusloze planningssuite bewaakt dat. Uitzondering: `lagCalendar` is sinds X5 een
-werkende instelling voor élk formaat (was een dode UI-keuze).
+het per mutatie. (3) **P6-gedrag loopt via het rekenprofiel, niet via het bronformaat.** De XER-lezer zet
+`project.schedulingProfile` op het ingebouwde profiel Primavera P6 (A19 per bestand als override uit
+`rem_target_link_flag`); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
+*Rekenprofielen* hieronder). `SchedulingOptions.p6Source` bestaat niet meer; oude IFC-bestanden met
+`p6Source` migreren per veld (`legacyOptionsToProfile`). `WorkCalendar.p6Source` blijft als diagnoseveld.
+Uitzondering: `lagCalendar` is sinds X5 een werkende instelling voor élk formaat.
 
 Meten gaat via het corpus (`OPS_XER_CORPUS`, plan §10.a; niet in de repo, geen CI-poort):
 `check-xer-product-fidelity-x12.ts` telt zesassige afwijkingen tegen P6's eigen uitvoer
@@ -146,6 +148,36 @@ Meten gaat via het corpus (`OPS_XER_CORPUS`, plan §10.a; niet in de repo, geen 
 en corpusloos in `check-xer-corpusless-fidelity-gate.ts`. Het nuldoel van plan §1 is niet gehaald
 (15.056 op 2026-09-07); mét corpus staat de suite daarom by design rood op precies die drie regels.
 Gebruikersgidsen: `public/docs/{nl,en}/gids-xer-import.md` en `datums-zoals-opgeslagen.md`.
+
+### Rekenprofielen: benoemde conventies, geen formaatvlag
+
+Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (`project.schedulingProfile`,
+basis `p6 | msproject | ops` + overrides) levert vijftien **conventies** (`ConventionKey`, booleans);
+`project.schedulingOptions` draagt alleen de negen **projectopties** (`ProjectOptionKey`, per bestand) en
+`progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
+(`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
+beschrijvende `perFile`); de migratie van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten
+de motor, in `src/services/ifc/schedulingProfileMigration.ts`. Per bestand komt alleen A19 (`perFile` in het
+register; het bewerkmodel leidt er `PER_FILE_CONVENTION_KEYS` uit af): die waarde blijft bij elke
+profielwissel staan, ook naar een eigen profiel of een sjabloon. Verder blijven afwijkingen op een
+ingebouwd id bij een wissel letterlijk staan (`switchProfile`), en `isDefaultProfile` is letterlijk "ops
+zonder enige afwijking" — zo geeft P6 → OPS → P6 het origineel terug.
+De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/`solveInputFor`
+(`src/engine/scheduler/solveInput.ts`) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
+aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel voor (`ImportResult.suggestedProfileId`:
+XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe); openen meldt het profiel met een
+actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle vijftien opgelost plus de letterlijke afwijkingen, alleen ≠ standaardprofiel)
+naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door `writeIFC`/`readIFC` geschreven en
+gelezen. Eigen profielen zijn app-globale
+sjablonen (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt
+zijn eigen kopie. UI: het blok *Rekenprofiel en reken-opties* in Projectinfo
+(`SchedulingProfileSection.tsx`, bewerkmodel `state/schedulingProfileDraft.ts`, actie
+`applySchedulingSettings`). **Regel A/B voor motorwerk:** een wijziging landt alleen als onder elk
+profiel met orakel geen exacte cel inexact wordt (`npm run measure:profiles`, cel-baseline); verschilt
+iets per profiel, dan is het een conventie in het register — nooit een `if` op het formaat.
+`npm run verify:conventions` bewaakt dat mechanisch. Recept: `docs/recepten/conventie.md`; gids:
+`public/docs/{nl,en}/gids-rekenprofielen.md`; spec: `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`;
+regel A en B: `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`.
 
 ### De contour-engine: werkverdeling-per-dag als data, de curve-formule als terugval
 
@@ -396,7 +428,7 @@ De artikelen worden gerenderd door `src/utils/miniMarkdown.tsx`, dat een **beper
 - [PLAN.md](PLAN.md) — large project plan, source of truth for the **roadmap**. ⚠️ Alleen voor de roadmap: §4 "Mappenstructuur" is vervallen (de ontwerpfase-boom is verwijderd, er staat alleen een verwijzing). Voor de werkelijke structuur: dit bestand en `AGENTS.md`.
 - [docs/TODO.md](docs/TODO.md) — lopende to-do-lijst met dingen die nog gedaan moeten worden.
 - [docs/ifc-round-trip.md](docs/ifc-round-trip.md) — **hoe je een veld toevoegt dat een opslaan/laden overleeft.** IFC is het native formaat, dus domeindata die niet round-trippt is bij het volgende openen weg; dit is de route langs writer, reader, fixture en canon-tabel, plus waar de compiler je tegenhoudt.
-- [docs/recepten/](docs/recepten/) — dezelfde receptvorm als hierboven voor vijf andere terugkerende klussen: een nieuwe `planner_*`-MCP-tool, een nieuwe instelling, een nieuwe vertaalsleutel, een nieuw ribbontabblad en een tekstgrootte kiezen/toevoegen, plus een nieuwe in-app gids.
+- [docs/recepten/](docs/recepten/) — dezelfde receptvorm als hierboven voor andere terugkerende klussen: een nieuwe `planner_*`-MCP-tool, een nieuwe instelling, een nieuwe vertaalsleutel, een nieuw ribbontabblad, een tekstgrootte kiezen/toevoegen, een nieuwe in-app gids en een nieuwe rekenconventie.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — per **uitgebrachte** versie de uitgebreide beschrijving (Engels). Wordt alleen tijdens een release bijgewerkt (zie de `release`-skill) — geen `Ongepubliceerd`-kop, geen commit-dump.
 - [docs/self-test-harness.md](docs/self-test-harness.md) — how Claude drives the app to self-test changes. Tier 1 (default): Playwright MCP (`.mcp.json`) + the dev-only `window.__OPS__` hook (installed by `src/utils/devBridge.ts`: store, log-bus, `extensions.*`) against the **browser** dev build (`npm run dev` — de poort wordt per worktree toegewezen en gestempeld in `.claude/launch.json`, dus lees hem uit de dev-server-uitvoer in plaats van 3007 aan te nemen) — assert via store state, not canvas pixels. Tier 2 (opt-in): `tauri-driver` for the real desktop window.
 - [docs/superpowers/](docs/superpowers/) — ontwerp- en implementatiedocs (specs, plannen en een handvol losse stukken). **Begin bij [docs/superpowers/README.md](docs/superpowers/README.md)**; die zegt per document wat de status is en waarom er niet blind gearchiveerd wordt (er wijzen ~50 commentaarregels in `src/`/`tests/` naar deze bestanden). Hier stond een handmatige opsomming van "actieve" onderwerpen die niet meer klopte — op het actieve programma en enkele nog-niet-uitgevoerde stukken na gaan alle specs/plannen over opgeleverde functionaliteit, en de afvinkvakjes in de plannen zijn nooit bijgehouden. Lees ze als *waarom het zo is*, niet als *wat er is*.

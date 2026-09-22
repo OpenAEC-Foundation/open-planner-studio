@@ -1,0 +1,87 @@
+# Rekenprofielen
+
+Open Planner Studio rekent met één planningsmotor, maar Primavera P6 en Microsoft Project maken op een handvol plekken een andere keuze. Een **rekenprofiel** bundelt die keuzes. Elk project heeft precies één profiel; je ziet en wijzigt het onder **Bestand → Projectinfo → Rekenprofiel en reken-opties**.
+
+## Wat je hier leert
+
+- Wat een rekenprofiel is en welke drie ingebouwde profielen er zijn.
+- Welk profiel een geopend bestand krijgt, en waarom je daar een melding over ziet.
+- Hoe je van profiel wisselt en wat er dan met je planning gebeurt.
+- Hoe je een eigen profiel maakt en als sjabloon bewaart.
+- Wat de vijftien conventies doen.
+- Wanneer een combinatie geen referentiepakket heeft.
+
+## Wat een rekenprofiel is
+
+Een profiel is een set van vijftien **conventies**: regels die bij een planningspakket horen, zoals "een niet-gestarte taak schuift niet vanzelf naar de statusdatum". Daarnaast heeft elk project **reken-opties** die per bestand verschillen, zoals de lag-kalender, de kritiek-definitie en de speling-berekening. Die opties horen bij het project; het profiel levert er alleen de standaard voor bij een nieuw project.
+
+De drie ingebouwde profielen:
+
+- **Open Planner Studio** — de standaard voor nieuwe projecten, CSV-bestanden en IFC-bestanden uit andere programma's. Rekent zoals Open Planner Studio altijd rekende.
+- **Primavera P6** — de conventies van P6. Een `.xer`-bestand opent met dit profiel.
+- **Microsoft Project** — de voortgangsconventies van MS Project. Een `.mpp`-bestand opent met dit profiel.
+
+## Welk profiel krijgt een geopend bestand?
+
+- `.xer` (Primavera P6): **Primavera P6**. De reken-opties uit het bestand worden de reken-opties van het project.
+- `.mpp` (Microsoft Project): **Microsoft Project**.
+- MS Project XML en P6 XML: in deze versie **Open Planner Studio**. Voor deze formaten bestaat nog geen referentiemeting; een automatische keuze zou datums verschuiven zonder dat aantoonbaar is dat het klopt.
+- CSV, een nieuw project en IFC uit een ander programma: **Open Planner Studio**.
+- Een eigen IFC-bestand: het profiel dat erin is opgeslagen.
+- Een IFC-bestand uit een oudere versie van Open Planner Studio, zonder opgeslagen profiel: het profiel volgt uit de opgeslagen reken-opties. Een eerder geopend `.xer`-project krijgt zo **Primavera P6**, een eerder geopend `.mpp`-project **Microsoft Project**, al het andere **Open Planner Studio**.
+
+Opent een bestand met een ander profiel dan Open Planner Studio, dan zie je één melding, bijvoorbeeld "Dit project rekent als Primavera P6". De knop in die melding opent Projectinfo. Bij een `.xer`-bestand staat die regel in de gewone openingsmelding, ook als het bestand meerdere projecten bevat.
+
+## Van profiel wisselen
+
+Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat, en een melding vertelt hoeveel taken daardoor verschoven zijn. Een wissel is één stap in *Ongedaan maken*.
+
+Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij elke wissel staan, ook als je een eigen profiel of een sjabloon kiest. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
+
+Wissel je tussen de ingebouwde profielen, dan blijven alle afwijkingen letterlijk staan, ook een afwijking die onder het nieuwe profiel toevallig gelijk is aan de standaard. Zo geeft Primavera P6 → Open Planner Studio → Primavera P6 precies het profiel terug waarmee je begon.
+
+De reken-opties van het project veranderen bij een wissel niet. Wil je de standaardopties van het nieuwe profiel, klik dan op **Standaardopties van dit profiel toepassen**.
+
+Let op bij een wissel naar Primavera P6 voor een project dat niet uit P6 komt: de conventie *Geplande start als extra ondergrens* maakt de geplande start van een taak tot ondergrens zodra die meer dan een kalenderdag later ligt dan het netwerk toelaat.
+
+## Een eigen profiel maken
+
+Zet in het blok een conventie aan of uit. Is het profiel ingebouwd, dan maakt Open Planner Studio er automatisch een eigen kopie van, bijvoorbeeld "Kopie van Primavera P6". Die naam kun je aanpassen. Kies je een sjabloon voor een project uit een `.xer`-bestand, dan houdt het project de waarde uit het bestand voor het begin van het restwerk; die telt niet als afwijking van het sjabloon.
+
+Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het in andere projecten kunt kiezen. Een project bewaart altijd een eigen kopie van zijn profiel: een sjabloon later wijzigen verandert geen bestaand project. Wijkt het profiel van een project af van zijn sjabloon, dan zie je dat in een gekleurd blok, met de knoppen **Bijwerken vanuit sjabloon** en **Sjabloon bijwerken vanuit dit project**.
+
+## De vijftien conventies
+
+Onder Open Planner Studio staan ze alle vijftien uit.
+
+- **Actuele datums behouden in de terugwaartse berekening** (Primavera P6) — een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant.
+- **Vrije speling nooit negatief** (Primavera P6) — bij een onhaalbare late constraint blijft de totale speling negatief, maar wordt de vrije speling nul.
+- **Mijlpaal volgt de geplande kalendergrens** (Primavera P6) — een mijlpaal zonder duur blijft op de kalendergrens die het bestand plande.
+- **Geplande start als extra ondergrens** (Primavera P6) — zie de waarschuwing hierboven.
+- **Eindmijlpaal als grensvenster** (Primavera P6) — een eindmijlpaal mag op twee aangrenzende kalendergrenzen staan.
+- **Actuele datums exact overnemen** (Primavera P6) — geregistreerde actuele datums worden niet naar een werktijdband verschoven.
+- **Lopende taak: vroege start = begin van het restwerk** (per bestand uit Primavera P6) — de vroege start van een lopende taak is waar het resterende werk begint.
+- **Constraintmoment op een mijlpaal exact** (Primavera P6) — een datum-en-tijdconstraint op een mijlpaal is een exact punt.
+- **Restwerk hervat na de al verstreken duur** (Microsoft Project) — een lopende taak hervat op de actuele start plus de al verstreken duur.
+- **Niet-gestarte taken niet naar de statusdatum** (Microsoft Project) — een taak die nog niet begonnen is, schuift niet vanzelf naar de statusdatum.
+- **Opvolger start op de finishgrens** (Primavera P6) — bij relaties die het bestand zo markeert.
+- **Lag terugrekenen vanaf een finishgrens** (Primavera P6) — een lag die precies op een bandstart uitkomt, landt op de vorige finishgrens.
+- **Voltooide taak in het statusdatumvenster** (Primavera P6) — alleen voor taken met P6-herkomst.
+- **Voltooide LOE via het actuele einde** (Primavera P6) — alleen voor taken met P6-herkomst.
+- **Niet-gestarte LOE neemt het doelvenster** (Primavera P6) — alleen voor taken met P6-herkomst.
+
+## Combinaties zonder referentiepakket
+
+Een deel van de P6-conventies werkt alleen op taken met P6-herkomst, dus uit een `.xer`-bestand. Kies je Primavera P6 voor een eigen project, een `.mpp`-bestand of een P6 XML-bestand, dan gaan die regels niet aan. Een `.xer`-project onder het profiel Microsoft Project is eveneens een combinatie waarvoor geen referentiepakket bestaat. Zulke combinaties rekenen consistent, maar er is geen pakket om de uitkomst tegen te controleren.
+
+## Opslaan en uitwisselen
+
+Het profiel wordt in het IFC-bestand opgeslagen, met alle vijftien waarden, zodat het bestand overal hetzelfde rekent. Een project met het standaardprofiel slaat niets extra's op. Oudere versies van Open Planner Studio kennen het profiel niet: zij lezen alleen de reken-opties en de twee voortgangsconventies van Microsoft Project, en rekenen een P6-project zonder P6-conventies.
+
+Bij exporteren naar CSV, MS Project XML of P6 XML gaat het profiel niet mee; die bestanden openen weer als Open Planner Studio. Voor een project uit een `.xer`-bestand meldt de export dat verlies.
+
+## Verder lezen
+
+- [Primavera P6 (.xer) openen](docs://gids-xer-import)
+- [MS Project (.mpp) openen](docs://gids-msproject-import)
+- [Im-/export](docs://gids-import-export)

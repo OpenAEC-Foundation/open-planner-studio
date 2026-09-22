@@ -4,6 +4,9 @@
 // neerwaartse optieblob, de profielwissel en de typegrens van EffectiveSchedulingOptions.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen; faalregels beginnen met "XX".
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
@@ -95,6 +98,14 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   ok('33 eigen profiel op ops-basis zonder override is niet default',
     !isDefaultProfile({ baseId: 'ops', id: 'x', name: 'x', overrides: {} }));
   ok('34 msproject is niet default', !isDefaultProfile(builtInProfile('msproject')));
+  // Besluit orkestrator (critreview D deel 1): letterlijk. Een afwijking gelijk aan de ops-basis
+  // (P6 {A13: uit} → OPS) is géén standaardprofiel, anders gaat hij bij P6 → OPS → P6 verloren.
+  ok('34a ops met afwijking gelijk aan de basis is niet default',
+    !isDefaultProfile({ ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: false } }));
+  ok('34b onbekende/niet-boolean sleutels tellen niet als afwijking',
+    isDefaultProfile({ ...builtInProfile('ops'), overrides: { onzin: true, clampNegativeFreeFloat: 'ja' } as never }));
+  // perFile is beschrijvend en het register is de bron; volgens spec v3.1 §3.1 komt alleen A19 per bestand.
+  same('34c per-bestand-conventies volgens de spec', CONVENTIONS.filter(d => d.perFile).map(d => d.id), ['p6UseRemainingStartForProgress']);
 }
 
 // ── 3) Opties ⊥ conventies ──────────────────────────────────────────────────────────────────────
@@ -222,6 +233,34 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('97 wissel vanaf afwezig profiel', switchProfile(undefined, 'msproject'), builtInProfile('msproject'));
   const custom: SchedulingProfile = { baseId: 'p6', id: 'eigen', name: 'Eigen', overrides: { clampNegativeFreeFloat: false } };
   same('98 vanaf een EIGEN profiel ⇒ de kale ingebouwde basis', switchProfile(custom, 'msproject'), builtInProfile('msproject'));
+}
+
+// ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle 14 talen ──
+// Alleen aanwezigheid en type; de pluralcategorieën per locale bewaakt `npm run verify:i18n`.
+{
+  const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'];
+  for (const locale of LOCALES) {
+    const common = JSON.parse(readFileSync(join(ROOT, `src/i18n/locales/${locale}/common.json`), 'utf8')) as {
+      conventions?: Record<string, { label?: unknown; help?: unknown }>;
+      profiles?: { builtIn?: Record<string, unknown>; modified?: unknown; copyOf?: unknown };
+      notifications?: { schedulingProfileApplied?: unknown; schedulingProfileShifted_other?: unknown; actions?: { openProjectInfo?: unknown } };
+    };
+    for (const c of CONVENTIONS) {
+      eq(`i18n ${locale} ${c.labelKey}.label`, typeof common.conventions?.[c.id]?.label, 'string');
+      eq(`i18n ${locale} ${c.labelKey}.help`, typeof common.conventions?.[c.id]?.help, 'string');
+    }
+    for (const id of BUILT_IN_PROFILE_IDS) eq(`i18n ${locale} profiles.builtIn.${id}`, typeof common.profiles?.builtIn?.[id], 'string');
+    eq(`i18n ${locale} profiles.modified`, typeof common.profiles?.modified, 'string');
+    eq(`i18n ${locale} profiles.copyOf`, typeof common.profiles?.copyOf, 'string');
+    eq(`i18n ${locale} notifications.schedulingProfileApplied`, typeof common.notifications?.schedulingProfileApplied, 'string');
+    eq(`i18n ${locale} notifications.schedulingProfileShifted_other`, typeof common.notifications?.schedulingProfileShifted_other, 'string');
+    eq(`i18n ${locale} notifications.actions.openProjectInfo`, typeof common.notifications?.actions?.openProjectInfo, 'string');
+    // Merknamen zijn in elke taal gelijk (de store-melding gebruikt ze onvertaald, spec v3.1 §6).
+    eq(`i18n ${locale} merknamen`, common.profiles?.builtIn, { p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio' });
+    // Geen sleutels buiten het register: een verweesde vertaling wijst op een hernoemde conventie.
+    same(`i18n ${locale} conventions == register`, Object.keys(common.conventions ?? {}).sort(), [...CONVENTION_KEYS].sort());
+  }
 }
 
 if (diffs.length > 0) {

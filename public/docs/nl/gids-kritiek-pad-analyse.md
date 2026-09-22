@@ -11,7 +11,7 @@ Elke planning heeft een langste keten van taken die samen bepalen wanneer het pr
 - Hammocks (Level of Effort): wat ze wel en niet doen.
 - Externe koppelingen tussen projecten: het bevroren anker, verversen, en de "bron ontbreekt"-status.
 - Een pad traceren via het contextmenu of het lint.
-- De sectie **Berekening** in de projectinstellingen.
+- Het blok **Rekenprofiel en reken-opties** in de projectinstellingen.
 
 Volg mee met [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) — de grote, "kitchen sink"-showcase met drie parallelle torens die vrijwel elk onderwerp in deze gids laat zien: meerdere kritieke paden, bijna-kritiek werk, een hammock, een harde pin en een externe koppeling naar een apart bronbestand.
 
@@ -31,13 +31,13 @@ In het Gantt-diagram wordt de totale speling van een niet-kritieke taak getekend
 
 ## Bijna-kritiek werk
 
-Een taak met een kleine, maar niet-nul totale speling is kwetsbaar: een kleine tegenslag maakt hem alsnog kritiek. Zet dit aan via **Projectgegevens → Berekening → Bijna-kritiek markeren**, met een **Drempel** in werkdagen (of uren, afhankelijk van je duurweergave). Elke taak met totale speling groter dan nul én kleiner dan of gelijk aan die drempel krijgt een amber balkkleur in de Gantt — tussen het rood van kritiek en het groen van ruime speling in. In het thema **Hoog contrast** (Instellingen) krijgt near-critical werk bovendien een geblokt vulpatroon in plaats van een effen balk, zodat het onderscheid ook zonder kleurwaarneming zichtbaar blijft; in het lichte en donkere thema blijft de amber-kleur zelf het signaal.
+Een taak met een kleine, maar niet-nul totale speling is kwetsbaar: een kleine tegenslag maakt hem alsnog kritiek. Zet dit aan via **Projectinfo → Rekenprofiel en reken-opties → Bijna-kritiek markeren**, met een **Drempel** in werkdagen (of uren, afhankelijk van je duurweergave). Elke taak met totale speling groter dan nul én kleiner dan of gelijk aan die drempel krijgt een amber balkkleur in de Gantt — tussen het rood van kritiek en het groen van ruime speling in. In het thema **Hoog contrast** (Instellingen) krijgt near-critical werk bovendien een geblokt vulpatroon in plaats van een effen balk, zodat het onderscheid ook zonder kleurwaarneming zichtbaar blijft; in het lichte en donkere thema blijft de amber-kleur zelf het signaal.
 
 De grote showcase zet de drempel op 3 werkdagen. De opleverkeuring van **Toren C** heeft daardoor precies 3 werkdagen totale speling — net binnen de drempel — terwijl de identieke opleverkeuringen van **Toren A** en **Toren B** op nul speling staan en dus echt kritiek zijn. Toren C is qua taken en duren identiek aan de andere twee, op één iets kortere afwerktaak na; dat kleine verschil is precies genoeg om hem van kritiek naar bijna-kritiek te verplaatsen.
 
 ## Meerdere kritieke paden
 
-Normaal gesproken is er precies één langste keten, maar het kán voorkomen dat twee of meer ketens exact even lang zijn — dan zijn ze allebei (of alledrie) even kritiek. Zet **Meerdere speling-paden** aan (**Projectgegevens → Berekening**) om dit te laten uitrekenen: kies de **Methode** (**Vrije speling (peeling)** of **Totale speling (rangschikking)**) en een **Max. paden**. Elke taak krijgt dan een **Speling-pad**-nummer (1 = meest kritiek); een taak zonder float-pad zit op geen van de berekende paden.
+Normaal gesproken is er precies één langste keten, maar het kán voorkomen dat twee of meer ketens exact even lang zijn — dan zijn ze allebei (of alledrie) even kritiek. Zet **Meerdere speling-paden** aan (**Projectinfo → Rekenprofiel en reken-opties**) om dit te laten uitrekenen: kies de **Methode** (**Vrije speling (peeling)** of **Totale speling (rangschikking)**) en een **Max. paden**. Elke taak krijgt dan een **Speling-pad**-nummer (1 = meest kritiek); een taak zonder float-pad zit op geen van de berekende paden.
 
 In de grote showcase zijn Toren A en Toren B qua taken en duren volledig symmetrisch — ze zijn exact tegelijk klaar. Zodra je **Meerdere speling-paden** aanzet, ziet u dan ook meer dan één pad in de resultaten (`criticalPaths.length` groter dan 1 in de berekening): niet één enkele langste keten, maar meerdere gelijkwaardige ketens door het project heen. Dat is een ander signaal dan "één kritiek pad met wat bijna-kritiek werk ernaast" — het betekent dat vertraging in *elk* van die paden de einddatum evenveel raakt, dus je kunt je aandacht niet op één enkele keten concentreren.
 
@@ -69,12 +69,12 @@ De grote showcase demonstreert precies dat laatste pad met opzet: de taak "Bestr
 
 Wil je precies zien welke taken een bepaalde taak stroomopwaarts en -afwaarts beïnvloeden? Rechtsklik de taak en kies **Pad traceren** (of **Traceren stoppen** om het weer uit te zetten) — dat markeert in één keer de volledige keten van voorgangers én opvolgers. Voor gerichter werk staat op het lint (tabblad **Planning** of **Tabel**, lintgroep **Pad traceren**) een los knoppenpaar **Voorgangers**/**Opvolgers**: allebei uit toont niets, één aan toont die ene richting, allebei aan is gelijk aan het contextmenu-commando. De trace maakt bovendien onderscheid tussen álle logisch verbonden taken en de taken die daadwerkelijk **bepalend** zijn voor de datum (dezelfde bepalend-markering in de voorganger-/opvolgercellen) — zo zie je niet alleen wát er verbonden is, maar ook wát er werkelijk stuurt.
 
-## Berekening-instellingen
+## Reken-opties
 
-De sectie **Berekening** in **Projectgegevens** (Backstage → Projectinfo, of het venster **Projectgegevens**) verzamelt de reken-opties die bij dít project horen — ze horen bij het bestand, niet bij de app, zodat een collega die hetzelfde bestand opent dezelfde uitkomst krijgt:
+Het blok **Rekenprofiel en reken-opties** in **Projectinfo** (Backstage → Projectinfo, of het venster **Projectinformatie**) verzamelt het rekenprofiel en de reken-opties die bij dít project horen — ze horen bij het bestand, niet bij de app, zodat een collega die hetzelfde bestand opent dezelfde uitkomst krijgt:
 
 - **Kritiek-definitie** — **Totale speling ≤ drempel** (standaard drempel 0) of **Langste pad**, dat taken op basis van de langste keten door het netwerk als kritiek aanmerkt, onafhankelijk van hun speling-getal.
-- **Speling-berekening** — hoe totale speling wordt bepaald bij een taak met zowel een start- als een finish-kant: **Kleinste (start/finish)** (standaard), **Startspeling** of **Finishspeling**.
+- **Speling-berekening** — hoe totale speling wordt bepaald bij een taak met zowel een start- als een finish-kant: **Automatisch (standaard)**, **Kleinste (start/finish)**, **Startspeling** of **Finishspeling**.
 - **Open-eind-taken kritiek** — taken zonder opvolger automatisch als kritiek behandelen.
 - **Bijna-kritiek markeren** met **Drempel** (zie hierboven).
 - **Meerdere speling-paden** met **Methode** en **Max. paden** (zie hierboven).
