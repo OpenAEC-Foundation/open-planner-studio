@@ -41,7 +41,7 @@ export function TaskTimeFields({ task, onChange }: {
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-xs">{t('properties.time')}</span>
+      <span className="ui-card-header !text-small !leading-4">{t('properties.time')}</span>
 
       {/* In de smalle rechterrail zou de helft van een tweekolomsrij de duurwaarde weer tot een
           strookje drukken. Start en duur blijven dezelfde velden, maar krijgen hier elk de volle
@@ -49,7 +49,7 @@ export function TaskTimeFields({ task, onChange }: {
       <div className="grid grid-cols-1 gap-2">
         <Field label={t('properties.start')}>
           <DateTextInput
-            className="input !text-xs !px-2.5 !py-1.5"
+            className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.start')}
             title={t('properties.scheduleStartHint')}
             value={shownStart}

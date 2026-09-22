@@ -71,7 +71,7 @@ export function IFCPanel() {
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 bg-surface-alt" style={{ borderBottom: '1px solid var(--theme-border)' }}>
         <span
-          className="text-xs font-bold uppercase"
+          className="text-small leading-4 font-bold uppercase"
           style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.08em', color: 'var(--theme-text-muted)' }}
         >
           {t('ifc.title')}
@@ -79,7 +79,7 @@ export function IFCPanel() {
         <div className="flex-1" />
         <button
           onClick={handleGenerate}
-          className="px-3 py-1 text-xs bg-accent text-accent-on hover:bg-accent-hover"
+          className="px-3 py-1 text-small leading-4 bg-accent text-accent-on hover:bg-accent-hover"
           style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-glow)' }}
         >
           {t('ifc.generate')}
@@ -87,19 +87,19 @@ export function IFCPanel() {
         <button
           onClick={handleApply}
           disabled={!dirty}
-          className="px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
+          className="px-3 py-1 text-small leading-4 bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
           style={{ borderRadius: 'var(--radius-md)' }}
         >
           {t('ifc.apply')}
         </button>
         <button
           onClick={handleCopy}
-          className="px-3 py-1 text-xs hover:bg-surface-hover"
+          className="px-3 py-1 text-small leading-4 hover:bg-surface-hover"
           style={{ border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-md)' }}
         >
           {t('ifc.copy')}
         </button>
-        <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{lineCount} {t('ifc.lines')}</span>
+        <span className="!text-small" style={{ color: 'var(--theme-text-muted)' }}>{lineCount} {t('ifc.lines')}</span>
       </div>
 
       {/* Editor */}
@@ -108,7 +108,7 @@ export function IFCPanel() {
           value={content}
           onChange={e => { setContent(e.target.value); setDirty(true); }}
           spellCheck={false}
-          className="absolute inset-0 w-full h-full bg-surface text-text-primary font-mono text-[11px] leading-5 p-3 resize-none outline-none border-none"
+          className="absolute inset-0 w-full h-full bg-surface text-text-primary font-mono !text-body leading-5 p-3 resize-none outline-none border-none"
           style={{ tabSize: 2 }}
         />
       </div>

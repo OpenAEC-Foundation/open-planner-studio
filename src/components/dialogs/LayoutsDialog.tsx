@@ -137,7 +137,7 @@ export function LayoutsDialog() {
           <select
             value={draft.timeScale}
             onChange={e => setDraft(d => ({ ...d, timeScale: e.target.value as TimeScale }))}
-            className="input !text-[11px] !px-1.5 !py-1"
+            className="input !text-small !leading-4 !px-1.5 !py-1"
             style={{ alignSelf: 'flex-start' }}
             aria-label={t('menu:ribbon.timeScale')}
           >
@@ -151,12 +151,11 @@ export function LayoutsDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t(editing ? 'common:view.layout.editTitle' : 'common:view.layout.newTitle')}
         </span>
         <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('common:close')}>
@@ -164,20 +163,20 @@ export function LayoutsDialog() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs" data-ops-layout-dialog="true">
+      <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4" data-ops-layout-dialog="true">
         <label className="flex flex-col gap-1">
-          <span className="ui-card-header !text-xs">{t('common:view.layout.name')}</span>
+          <span className="ui-card-header !text-small">{t('common:view.layout.name')}</span>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            className="input !text-xs !px-2.5 !py-1.5"
+            className="input !text-small !leading-4 !px-2.5 !py-1.5"
             data-ops-layout-name="true"
             autoFocus
           />
         </label>
 
         <div className="flex flex-col gap-1">
-          <span className="ui-card-header !text-xs">{t('common:view.layout.icon')}</span>
+          <span className="ui-card-header !text-small">{t('common:view.layout.icon')}</span>
           <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t('common:view.layout.icon')}>
             {LAYOUT_ICON_KEYS.map(key => (
               <button
@@ -200,7 +199,7 @@ export function LayoutsDialog() {
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <span className="ui-card-header !text-xs flex-1">{t('common:view.layout.partsTitle')}</span>
+            <span className="ui-card-header !text-small flex-1">{t('common:view.layout.partsTitle')}</span>
             <button
               type="button"
               onClick={() => setDraft(d => ({ ...fromScreen(), id: d.id, name: d.name }))}

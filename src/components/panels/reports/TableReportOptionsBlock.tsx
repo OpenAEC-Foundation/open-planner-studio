@@ -60,7 +60,7 @@ function NumberField({ id, value, min, max, onCommit, dataKey }: {
       onChange={e => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
-      className="input flex-1 min-w-0 !text-xs !px-2 !py-1"
+      className="input flex-1 min-w-0 !text-small !leading-4 !px-2 !py-1"
       data-ops-report-option={dataKey}
     />
   );
@@ -171,8 +171,8 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
 
   return (
     <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }} data-ops-report-options>
-      <h3 className="ui-card-header !text-xs mb-2">{t('tableReports.options.sectionTitle')}</h3>
-      <div className="flex flex-col gap-2 text-xs">
+      <h3 className="ui-card-header !text-small !leading-4 mb-2">{t('tableReports.options.sectionTitle')}</h3>
+      <div className="flex flex-col gap-2 text-small leading-4">
         {/* Papier en oriëntatie elk op een eigen rij met het label erboven: naast een `w-32`-label
             (en ook in twee kolommen) bleef bij de standaardkolom ~53 px over en las "Landscape"
             als "Landsc…" (dezelfde meting als bij de rapportageperiode, reviewronde 3). */}

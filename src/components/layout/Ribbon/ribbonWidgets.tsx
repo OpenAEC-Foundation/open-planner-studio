@@ -88,8 +88,9 @@ export function BaselinesProgressGroupContent() {
           value={statusDate ?? ''}
           onCommit={v => setStatusDate(v || undefined)}
           ariaLabel={tMenu('ribbon.statusDate')}
+          className="!text-body"
           style={{
-            padding: '3px 6px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', background: 'var(--theme-input-bg)',
+            padding: '3px 6px', background: 'var(--theme-input-bg)',
             border: '1px solid var(--theme-control-border)', borderRadius: 'var(--radius-sm)',
             color: 'var(--theme-text)',
           }}
@@ -222,9 +223,10 @@ export function MilestoneDropdown() {
       {items.map(item => (
         <button
           key={item.key}
+          className="!text-body"
           style={{
             display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
-            fontSize: 'calc(11px * var(--ui-font-scale, 1))', border: 'none', background: 'transparent',
+            border: 'none', background: 'transparent',
             color: 'var(--theme-text)', cursor: 'pointer', whiteSpace: 'nowrap',
           }}
           onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
@@ -410,15 +412,16 @@ export function TemplatesDropdown() {
       }
     >
       {templates.length === 0 ? (
-        <div style={{ padding: '8px 12px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)' }}>
+        <div className="!text-body" style={{ padding: '8px 12px', color: 'var(--theme-text-dim)' }}>
           {tMenu('ribbon.noTemplates')}
         </div>
       ) : (
         templates.map(tpl => (
           <div key={tpl.id} style={{ display: 'flex', alignItems: 'center' }}>
             <button
+              className="!text-body"
               style={{
-                flex: 1, textAlign: 'left', padding: '6px 12px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', border: 'none',
+                flex: 1, textAlign: 'left', padding: '6px 12px', border: 'none',
                 background: 'transparent', color: 'var(--theme-text)', cursor: 'pointer',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}
@@ -431,7 +434,7 @@ export function TemplatesDropdown() {
               }}
             >
               {tpl.name}
-              <span style={{ display: 'block', fontSize: 'calc(9px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)', marginTop: 1 }}>
+              <span className="!text-caption" style={{ display: 'block', color: 'var(--theme-text-dim)', marginTop: 1 }}>
                 {tMenu('ribbon.templateMeta', { tasks: tpl.tasks.length, relations: tpl.sequences.length })}
               </span>
             </button>
@@ -475,7 +478,7 @@ export function RecentFilesDropdown() {
       }
     >
       {recentFiles.length === 0 ? (
-        <div style={{ padding: '8px 12px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)' }}>
+        <div className="!text-body" style={{ padding: '8px 12px', color: 'var(--theme-text-dim)' }}>
           {tMenu('ribbon.noRecentFiles')}
         </div>
       ) : (
@@ -485,9 +488,10 @@ export function RecentFilesDropdown() {
           return (
             <button
               key={e.id}
+              className="!text-body"
               style={{
                 display: 'block', width: '100%', textAlign: 'left',
-                padding: '6px 12px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', border: 'none',
+                padding: '6px 12px', border: 'none',
                 background: 'transparent', color: 'var(--theme-text)',
                 cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}
@@ -497,7 +501,7 @@ export function RecentFilesDropdown() {
               onClick={() => { void openRecentFile(e.id, buildImportLabels(tCommon)); setOpen(false); }}
             >
               {e.name}
-              <span style={{ display: 'block', fontSize: 'calc(9px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)', marginTop: 1 }}>
+              <span className="!text-caption" style={{ display: 'block', color: 'var(--theme-text-dim)', marginTop: 1 }}>
                 {sub}
               </span>
             </button>
@@ -535,9 +539,10 @@ export function ExportDropdown() {
       {formats.map((f) => (
         <button
           key={f.format}
+          className="!text-body"
           style={{
             display: 'block', width: '100%', textAlign: 'left',
-            padding: '6px 12px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', border: 'none',
+            padding: '6px 12px', border: 'none',
             background: 'transparent', color: 'var(--theme-text)',
             cursor: 'pointer',
           }}
@@ -645,28 +650,28 @@ export function ResourceAssignDropdown() {
       }
     >
       {available.length === 0 ? (
-            <div style={{ padding: '8px 12px', fontSize: 'calc(11px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)' }}>
+            <div className="!text-body" style={{ padding: '8px 12px', color: 'var(--theme-text-dim)' }}>
               {resources.length === 0 ? tTask('properties.assignments.noResources') : tTask('properties.assignments.allAssigned')}
             </div>
           ) : (
             <>
               {/* Eenheden/dag + curve gelden voor de volgende toewijzing die je aanklikt. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px' }}>
-                <label style={{ fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.unitsPerDay')}</label>
+                <label className="!text-small" style={{ color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.unitsPerDay')}</label>
                 <UnitsInput
                   value={units}
                   ariaLabel={tTask('properties.assignments.unitsPerDay')}
                   onCommit={setUnits}
-                  className="input !text-[11px] !px-1.5 !py-1 !w-16 text-right"
+                  className="input !text-body !px-1.5 !py-1 !w-16 text-right"
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px 6px' }}>
-                <label style={{ fontSize: 'calc(10px * var(--ui-font-scale, 1))', color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.curve')}</label>
+                <label className="!text-small" style={{ color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.curve')}</label>
                 <select
                   value={curve}
                   aria-label={tTask('properties.assignments.curve')}
                   onChange={e => setCurve(e.target.value as ResourceCurve)}
-                  className="input !text-[11px] !px-1.5 !py-1 flex-1"
+                  className="input !text-body !px-1.5 !py-1 flex-1"
                 >
                   {RESOURCE_CURVES.map(c => (
                     <option key={c} value={c}>{tCommon(CURVE_KEY[c])}</option>
@@ -677,9 +682,10 @@ export function ResourceAssignDropdown() {
               {available.map(r => (
                 <button
                   key={r.id}
+                  className="!text-body"
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
-                    fontSize: 'calc(11px * var(--ui-font-scale, 1))', border: 'none', background: 'transparent', color: 'var(--theme-text)',
+                    border: 'none', background: 'transparent', color: 'var(--theme-text)',
                     cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
                   onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
@@ -1227,8 +1233,8 @@ export function OverallocationIndicator() {
         .filter(d => (d?.length ?? 0) > 0).length;
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px', fontSize: 'calc(12px * var(--ui-font-scale, 1))',
+    <div className="!text-large" style={{
+      display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px',
       color: overallocatedCount > 0 ? 'var(--error)' : 'var(--theme-text-dim)',
     }}>
       {overallocatedCount > 0 && <AlertTriangle size={16} />}

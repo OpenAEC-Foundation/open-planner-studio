@@ -69,7 +69,7 @@ export function ProgressImportLinkPicker({ tasks, takenTaskIds, value, onChange,
         value={filter}
         onChange={e => setFilter(e.target.value)}
         placeholder={t('progressImport.pickerFilter')}
-        className="input !text-xs !px-2.5 !py-1.5"
+        className="input !text-small !leading-4 !px-2.5 !py-1.5"
         aria-label={t('progressImport.pickerFilter')}
       />
       <Select

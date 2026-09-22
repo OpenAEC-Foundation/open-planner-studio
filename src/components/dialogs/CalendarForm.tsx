@@ -556,7 +556,7 @@ export function CalendarForm({
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
       {/* Name */}
       <div className="flex flex-col gap-1">
         <label className="text-text-secondary font-medium">
@@ -707,11 +707,11 @@ export function CalendarForm({
                 dataAttribute="break-duration" />
             </div>
           </div>
-          <p className="col-span-2 text-[11px] text-text-secondary">
+          <p className="col-span-2 !text-body text-text-secondary">
             {tCommon('calendar.simpleBreak.hint')}
           </p>
           {(scalarBreakError || Object.keys(scalarTimeIssues).length > 0) && (
-            <p className="col-span-2 text-[11px] text-red-600" role="alert" data-ops-simple-break-error>
+            <p className="col-span-2 !text-body text-red-600" role="alert" data-ops-simple-break-error>
               {scalarTimeIssues.workStart === 'invalidWorkStart'
                 ? tCommon('calendar.simpleBreak.invalidWorkStart')
                 : scalarTimeIssues.workEnd === 'invalidWorkEnd'
@@ -783,7 +783,7 @@ export function CalendarForm({
 
           {savingPreset && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-text-secondary italic" data-ops-preset-saveas-hint>
+              <span className="!text-small text-text-secondary italic" data-ops-preset-saveas-hint>
                 {tCommon('calendar.worktime.saveAsPresetHint')}
               </span>
               <div className="flex items-center gap-2">
@@ -815,7 +815,7 @@ export function CalendarForm({
             {tCommon('calendar.generate.button')}
           </button>
           {needsRegen && (
-            <div className="flex items-center gap-2 text-[11px] text-text-secondary">
+            <div className="flex items-center gap-2 !text-body text-text-secondary">
               <span>
                 {tCommon('calendar.regen.hint', {
                   from: draft.generation!.generatedFromYear,

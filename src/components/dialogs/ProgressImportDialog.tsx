@@ -277,13 +277,12 @@ export function ProgressImportDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-progress-import-dialog': true }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('progressImport.title')}
         </span>
         <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -291,7 +290,7 @@ export function ProgressImportDialog() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         {stage === 'pick' && (
           <>
             <p>{t('progressImport.intro')}</p>

@@ -28,6 +28,7 @@ poort te pakken. Zie de kop van `CLAUDE.md` en `tests/dev-server/` voor het gehe
 | script | npm-script | doet |
 |---|---|---|
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
+| `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
 | `verify-cycles.mjs` | `verify:cycles` | circulaire imports binnen `src/`, gemeten op de esbuild-metafile (dus ná type-erasure — `import type` geeft geen valse treffers) |
 | `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |
 | `verify-examples.ts` | `verify:examples` | de gebundelde voorbeeldprojecten laden en rekenen door zoals verwacht |

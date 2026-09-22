@@ -30,7 +30,7 @@
   border: none;
   padding: var(--sp-2) var(--sp-4);
   margin-bottom: var(--sp-3);
-  font-size: 0.8125rem;
+  font-size: var(--text-body);
   color: var(--theme-text-dim);
   cursor: pointer;
   text-align: left;
@@ -46,7 +46,7 @@
   background: transparent;
   border: none;
   padding: var(--sp-2) var(--sp-4);
-  font-size: 0.8125rem;
+  font-size: var(--text-body);
   color: var(--theme-text);
   cursor: pointer;
   text-align: left;
@@ -85,7 +85,7 @@
 
 .backstage-title {
   font-family: var(--font-heading);
-  font-size: 1.625rem;
+  font-size: var(--text-title);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0 0 var(--sp-1) 0;
@@ -93,7 +93,7 @@
 }
 
 .backstage-subtitle {
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   color: var(--theme-text-dim);
   margin: 0 0 var(--sp-6) 0;
 }
@@ -138,7 +138,7 @@
 }
 .backstage-recent-info { flex: 1; min-width: 0; }
 .backstage-recent-name {
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   font-weight: 500;
   color: var(--theme-text);
   white-space: nowrap;
@@ -147,7 +147,7 @@
 }
 .backstage-recent-path {
   font-family: var(--font-code);
-  font-size: 0.6875rem;
+  font-size: var(--text-caption);
   color: var(--theme-text-muted);
   margin-top: 2px;
   white-space: nowrap;
@@ -158,7 +158,7 @@
   padding: var(--sp-12);
   text-align: center;
   color: var(--theme-text-dim);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
 }
 
 /* Export — keuzekaarten per formaat */
@@ -198,7 +198,7 @@
   border: 1px solid var(--theme-accent);
   border-radius: var(--radius-md);
   font-family: var(--font-code);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
   font-weight: 700;
   flex-shrink: 0;
   background: transparent;
@@ -207,12 +207,12 @@
 .backstage-export-info h4 {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 0.9375rem;
+  font-size: var(--text-large);
   font-weight: 600;
 }
 .backstage-export-info p {
   margin: var(--sp-1) 0 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--text-body);
   color: var(--theme-text-dim);
 }
 
@@ -224,7 +224,7 @@
   margin-top: var(--sp-2);
 }
 .backstage-example-tag {
-  font-size: 0.6875rem;
+  font-size: var(--text-caption);
   line-height: 1;
   padding: 3px 7px;
   border-radius: var(--radius-sm);
@@ -241,7 +241,7 @@
 .backstage-example-heading {
   margin: var(--sp-6) 0 var(--sp-3) 0;
   font-family: var(--font-heading);
-  font-size: 0.8125rem;
+  font-size: var(--text-body);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -258,7 +258,7 @@
   display: inline-block;
   margin-left: var(--sp-2);
   font-family: var(--font-heading);
-  font-size: 0.625rem;
+  font-size: var(--text-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;

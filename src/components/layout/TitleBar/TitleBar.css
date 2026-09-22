@@ -80,7 +80,7 @@
   -webkit-app-region: no-drag;
   height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 5px;
   border: none; border-radius: var(--radius-md); background: transparent; color: var(--theme-text-dim);
-  font: inherit; font-size: calc(11px * var(--ui-font-scale, 1)); cursor: pointer;
+  font: inherit; font-size: var(--text-body); cursor: pointer;
 }
 .title-bar-autosave:hover { background: var(--theme-titlebar-btn-hover); color: var(--theme-text); }
 .title-bar-autosave:disabled { opacity: .55; cursor: not-allowed; }
@@ -99,55 +99,58 @@
 }
 
 /* Title Bar Center */
-/* Écht paginacentraal (position:absolute, left:50%), MAAR met een max-width-reservering
-   aan beide zijden zodat de titel bij smalle vensters netjes inkort (ellipsis) i.p.v. de
-   toolbar/vensterknoppen te overlappen. De reservering (~390px per kant) is ruimer dan de
-   breedste linkercluster-stand (icon + snelkoppelingen + de langste roterende feedback-
-   knoplabel ≈ 370px), zodat de gecentreerde titel de linkerknoppen altijd vrij houdt en
-   toch precies in het midden staat. Onder ~1045px begint hij af te kappen — exact wanneer
-   de volle titel anders zou overlappen. (fase 2.10 UX-fix: titelbalk gecentreerd + geen overlap) */
+/* Écht paginacentraal (position:absolute, left:50%), met aan beide kanten een reservering
+   ter grootte van het BREEDSTE zijcluster (`--title-bar-side-reserve`, gemeten door
+   TitleBar.tsx met een ResizeObserver: links icon + snelkoppelingen + AutoSave + het
+   roterende feedbacklabel, rechts de vensterknoppen in Tauri). Zo blijft de titel exact in
+   het midden zolang hij past, en kort hij in (ellipsis) zodra hij een cluster zou raken —
+   in elke taal en bij elk label, zonder hier een getal te hoeven raden. De fallback van
+   390px geldt alleen vóór de eerste meting. */
 .title-bar-center {
+  --title-bar-center-gap: 12px;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+  width: max(0px, calc(100% - 2 * var(--title-bar-side-reserve, 390px) - 2 * var(--title-bar-center-gap)));
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  max-width: calc(100% - 780px);
   overflow: hidden;
   pointer-events: none;
+  container-type: inline-size;
+  container-name: titlebar-center;
 }
 
+/* De appnaam kort nooit in ("Open Planner Stu…" oogt kapot); de projectnaam wel. */
 .title-bar-app-name {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 600;
   color: var(--theme-text);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .title-bar-file-name {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  flex: 0 1 auto;
 }
 
-/* Onder ~1050px past de volledige, paginacentrale titel niet meer tussen de toolbar en de
-   vensterknoppen. In plaats van 'm tot een onleesbaar restje af te knippen ("O… N") verbergen
-   we de tekst-titel netjes — de projectnaam blijft zichtbaar in de documenttabbalk eronder.
-   Alleen de tekst-spans, NIET de hele .title-bar-center, zodat de SwitcherPill-chrome-stijl
-   (die óók in de center leeft) ongemoeid blijft. (fase 2.10 UX-fix: titelbalk) */
-@media (max-width: 1050px) {
-  .title-bar-app-name,
-  .title-bar-file-name {
-    display: none;
-  }
+/* Wordt de beschikbare middenruimte krap, dan wijkt eerst de appnaam (de versie staat ook
+   in Backstage → Help) zodat de projectnaam de ruimte krijgt; onder ~120px is ook een
+   afgekapte projectnaam onleesbaar en verdwijnt hij — hij blijft zichtbaar in de
+   documenttabbalk eronder. Alleen de tekst-spans, NIET de hele .title-bar-center, zodat de
+   SwitcherPill-chrome-stijl (die óók in de center leeft) ongemoeid blijft. */
+@container titlebar-center (max-width: 400px) {
+  .title-bar-app-name { display: none; }
+}
+@container titlebar-center (max-width: 120px) {
+  .title-bar-file-name { display: none; }
 }
 
 /* Feedback-tekstknop (rechts, vlak vóór de vensterknoppen) */
@@ -162,7 +165,7 @@
   border-radius: var(--radius-md);
   color: var(--theme-text-dim);
   font-family: inherit;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;

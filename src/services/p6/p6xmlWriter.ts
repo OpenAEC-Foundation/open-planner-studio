@@ -10,6 +10,7 @@ import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
+import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
 
 const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -327,9 +328,14 @@ export function writeP6XML(
     return calendarId ? [calendarId] : [];
   }));
 
-  // WBS elements (parent tasks)
+  // WBS elements (parent tasks). Diepte-eerst (issue #159, vervolg): een ouder staat vóór zijn
+  // kinderen en broers/zussen staan in weergavevolgorde — P6 sorteert WBS-broers op
+  // `SequenceNumber`, dat hieronder uit deze volgorde komt; de store-volgorde ("samenvattingen
+  // eerst" na een P6-import) zegt daar niets over.
+  tasks = [...flattenOrder(tasks)];
   const wbsTasks = tasks.filter(t => t.childIds.length > 0);
   const leafTasks = tasks.filter(t => t.childIds.length === 0);
+  const sequenceNumberByTask = new Map(tasks.map((t, i) => [t.id, i + 1]));
 
   // Project
   lines.push(`${indent(1)}<Project>`);
@@ -481,6 +487,7 @@ export function writeP6XML(
     lines.push(`${indent(2)}<Code>${escapeXML(wbsTask.wbsCode)}</Code>`);
     lines.push(`${indent(2)}<Name>${escapeXML(wbsTask.name)}</Name>`);
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
+    lines.push(`${indent(2)}<SequenceNumber>${sequenceNumberByTask.get(wbsTask.id)}</SequenceNumber>`);
     if (parentObjId !== undefined) {
       lines.push(`${indent(2)}<ParentObjectId>${parentObjId}</ParentObjectId>`);
     }
@@ -524,7 +531,9 @@ export function writeP6XML(
     if (isHour && task.time.remainingMinutes != null) {
       lines.push(`${indent(2)}<RemainingDuration>${task.time.remainingMinutes / 60}</RemainingDuration>`);
     } else if (task.time.remainingTime != null) {
-      lines.push(`${indent(2)}<RemainingDuration>${durationToP6Hours(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
+      // Zelfde `effHpd` als PlannedDuration (issue #159, vervolg): P6 rekent de restduur op de
+      // activity-kalender; met de projectkalender stond naast 168 u gepland een restduur van 56 u.
+      lines.push(`${indent(2)}<RemainingDuration>${durationToP6Hours(task.time.remainingTime, effHpd)}</RemainingDuration>`);
     }
     if (task.description) {
       lines.push(`${indent(2)}<Description>${escapeXML(task.description)}</Description>`);

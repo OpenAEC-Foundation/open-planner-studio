@@ -267,7 +267,7 @@ export function TourOverlay() {
       <div
         ref={setCardNode}
         data-ops-tour-card
-        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] flex flex-col gap-3 p-4 text-sm"
+        className="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] flex flex-col gap-3 p-4 text-body leading-5"
         style={{
           position: 'fixed',
           left: cardLeft,

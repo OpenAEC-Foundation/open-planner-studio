@@ -410,7 +410,7 @@ function ExportSection() {
         ))}
       </div>
       {companyId && (
-        <label className="flex items-center gap-2 mt-1 text-xs">
+        <label className="flex items-center gap-2 mt-1 text-small leading-4">
           <input type="checkbox" checked={alsoPool} onChange={e => setAlsoPool(e.target.checked)} className="accent-accent" />
           <span>{tCommon('companyLibrary.exportWithPool')}</span>
         </label>

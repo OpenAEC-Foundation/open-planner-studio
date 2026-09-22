@@ -304,6 +304,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Issue #159: MSPDI-/CSV-export van de WBS-hiërarchie (OutlineLevel + documentvolgorde uit de echte
+  # ouderketen i.p.v. uit de wbsCode-tekst), samenvatting nooit als mijlpaal, dagduur in uren van de
+  # TAAK-kalender (symmetrisch met de lezer), en de lezers die de boom uit het niveau herbouwen.
+  MHCHECK="$DIR/.mspdi-hierarchy-export.mjs"
+  if bundle_check "$DIR/check-mspdi-hierarchy-export.ts" "$MHCHECK"; then node "$MHCHECK" || STATUS=1; fi
+  # Issue #159, vervolg (PR-2): dezelfde bugklasse in de andere adapters — P6 restduur op de
+  # taakkalender, P6-lezer in boomvolgorde + SequenceNumber (schrijven én lezen), IFC-lezer PT{n}H
+  # met kalender-hpd i.p.v. vaste /8 (duur, speling, actuals); het native IFC normaliseert
+  # isMilestone bewust NIET.
+  AHCHECK="$DIR/.adapters-hierarchy-rest.mjs"
+  if bundle_check "$DIR/check-adapters-hierarchy-rest.ts" "$AHCHECK"; then node "$AHCHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
@@ -445,6 +456,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-cell-editor.ts" "$TGCELLEDITORCHECK"; then node "$TGCELLEDITORCHECK" || STATUS=1; fi
   TGEDITORSCHECK="$DIR/.task-grid-editors.mjs"
   if bundle_check "$DIR/check-task-grid-editors.ts" "$TGEDITORSCHECK"; then node "$TGEDITORSCHECK" || STATUS=1; fi
+  # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
+  # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
+  # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.
+  DLGBDCHECK="$DIR/.dialog-backdrop.mjs"
+  if bundle_check "$DIR/check-dialog-backdrop.ts" "$DLGBDCHECK"; then node "$DLGBDCHECK" || STATUS=1; fi
   TGASSIGNMENTSCHECK="$DIR/.task-grid-assignments.mjs"
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"

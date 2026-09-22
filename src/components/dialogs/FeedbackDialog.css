@@ -37,7 +37,7 @@
 
 .feedback-dialog-title {
   font-family: var(--font-heading);
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 600;
   color: var(--theme-text);
 }
@@ -89,7 +89,7 @@
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--theme-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
@@ -114,7 +114,7 @@
 }
 
 .feedback-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   font-weight: 600;
   color: var(--theme-text-secondary);
   text-transform: uppercase;
@@ -127,7 +127,7 @@
   border: 1px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   color: var(--theme-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   padding: 7px 10px;
   font-family: inherit;
   resize: vertical;
@@ -155,7 +155,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   color: var(--theme-text);
   cursor: pointer;
   user-select: none;
@@ -163,13 +163,13 @@
 
 /* Status-meldingen */
 .feedback-capturing {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text-muted);
   font-style: italic;
 }
 
 .feedback-error {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-danger, #e81123);
   padding: 6px 10px;
   background: rgba(232, 17, 35, 0.08);
@@ -186,7 +186,7 @@
 }
 
 .feedback-confirm-title {
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 600;
   color: var(--theme-text);
   margin: 0;
@@ -198,7 +198,7 @@
      lijstmarkers) — de gebruiker wil duidelijke, genummerde stappen. */
   padding-left: 20px;
   list-style: decimal;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   color: var(--theme-text);
   line-height: 1.5;
 }
@@ -208,7 +208,7 @@
 }
 
 .feedback-confirm-fallback {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text-muted);
   margin: 0;
   padding: 8px 10px;

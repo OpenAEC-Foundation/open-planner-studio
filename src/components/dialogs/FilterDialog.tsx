@@ -45,9 +45,9 @@ function RuleValueEditor({
     const selected = Array.isArray(rule.value) ? rule.value : [];
     return (
       <div className="flex flex-col gap-0.5 max-h-28 overflow-y-auto border border-border rounded-[6px] p-1.5" style={{ minWidth: 140 }}>
-        {options.length === 0 && <span className="text-text-secondary text-[11px]">—</span>}
+        {options.length === 0 && <span className="text-text-secondary !text-body">—</span>}
         {options.map(o => (
-          <label key={o.value} className="flex items-center gap-1.5 text-[11px] cursor-pointer">
+          <label key={o.value} className="flex items-center gap-1.5 !text-body cursor-pointer">
             <input
               type="checkbox"
               checked={selected.includes(o.value)}
@@ -69,7 +69,7 @@ function RuleValueEditor({
       <select
         value={rule.value === true ? 'true' : rule.value === false ? 'false' : ''}
         onChange={e => onChange({ value: e.target.value === 'true' })}
-        className="input !text-xs !px-1.5 !py-1"
+        className="input !text-small !leading-4 !px-1.5 !py-1"
         style={{ width: 90, flexShrink: 0 }}
         aria-label={t('view.filter.value')}
       >
@@ -86,7 +86,7 @@ function RuleValueEditor({
       <select
         value={typeof rule.value === 'string' ? rule.value : ''}
         onChange={e => onChange({ value: e.target.value })}
-        className="input !text-xs !px-1.5 !py-1"
+        className="input !text-small !leading-4 !px-1.5 !py-1"
         style={{ width: 160, flexShrink: 0 }}
         aria-label={t('view.filter.value')}
       >
@@ -102,17 +102,17 @@ function RuleValueEditor({
         <div className="flex items-center gap-1">
           <input type="number" value={typeof rule.value === 'number' ? rule.value : ''} placeholder={t('view.filter.valueFrom') ?? ''}
             onChange={e => onChange({ value: e.target.value === '' ? undefined : Number(e.target.value) })}
-            className="input !text-xs !px-1.5 !py-1" style={{ width: 80, flexShrink: 0 }} />
+            className="input !text-small !leading-4 !px-1.5 !py-1" style={{ width: 80, flexShrink: 0 }} />
           <input type="number" value={typeof rule.value2 === 'number' ? rule.value2 : ''} placeholder={t('view.filter.valueTo') ?? ''}
             onChange={e => onChange({ value2: e.target.value === '' ? undefined : Number(e.target.value) })}
-            className="input !text-xs !px-1.5 !py-1" style={{ width: 80, flexShrink: 0 }} />
+            className="input !text-small !leading-4 !px-1.5 !py-1" style={{ width: 80, flexShrink: 0 }} />
         </div>
       );
     }
     return (
       <input type="number" value={typeof rule.value === 'number' ? rule.value : ''}
         onChange={e => onChange({ value: e.target.value === '' ? undefined : Number(e.target.value) })}
-        className="input !text-xs !px-1.5 !py-1" style={{ width: 96, flexShrink: 0 }} aria-label={t('view.filter.value')} />
+        className="input !text-small !leading-4 !px-1.5 !py-1" style={{ width: 96, flexShrink: 0 }} aria-label={t('view.filter.value')} />
     );
   }
 
@@ -122,17 +122,17 @@ function RuleValueEditor({
         <div className="flex items-center gap-1">
           <DateTextInput value={typeof rule.value === 'string' ? rule.value : ''}
             onCommit={v => onChange({ value: v })}
-            className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} />
+            className="input !text-small !leading-4 !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} />
           <DateTextInput value={typeof rule.value2 === 'string' ? rule.value2 : ''}
             onCommit={v => onChange({ value2: v })}
-            className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} />
+            className="input !text-small !leading-4 !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} />
         </div>
       );
     }
     return (
       <DateTextInput value={typeof rule.value === 'string' ? rule.value : ''}
         onCommit={v => onChange({ value: v })}
-        className="input !text-xs !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} ariaLabel={t('view.filter.value')} />
+        className="input !text-small !leading-4 !px-1.5 !py-1" style={{ width: 140, flexShrink: 0 }} ariaLabel={t('view.filter.value')} />
     );
   }
 
@@ -140,7 +140,7 @@ function RuleValueEditor({
   return (
     <input type="text" value={typeof rule.value === 'string' ? rule.value : ''}
       onChange={e => onChange({ value: e.target.value })}
-      className="input !text-xs !px-1.5 !py-1 flex-1 min-w-0" aria-label={t('view.filter.value')} />
+      className="input !text-small !leading-4 !px-1.5 !py-1 flex-1 min-w-0" aria-label={t('view.filter.value')} />
   );
 }
 
@@ -168,7 +168,7 @@ function RuleEditor({
           const newOps = operatorsForKind(newKind);
           onChange({ field, operator: newOps[0], value: undefined, value2: undefined });
         }}
-        className="input !text-xs !px-1.5 !py-1"
+        className="input !text-small !leading-4 !px-1.5 !py-1"
         style={{ width: 150, flexShrink: 0 }}
         aria-label={t('view.filter.field')}
       >
@@ -177,7 +177,7 @@ function RuleEditor({
       <select
         value={rule.operator}
         onChange={e => onChange({ operator: e.target.value as FilterOperator, value: undefined, value2: undefined })}
-        className="input !text-xs !px-1.5 !py-1"
+        className="input !text-small !leading-4 !px-1.5 !py-1"
         style={{ width: 140, flexShrink: 0 }}
         aria-label={t('view.filter.operator')}
       >
@@ -213,7 +213,7 @@ export function GroupEditor({
         <select
           value={node.op}
           onChange={e => onChange(g => ({ ...g, op: e.target.value as 'AND' | 'OR' }))}
-          className="input !text-xs !px-1.5 !py-1"
+          className="input !text-small !leading-4 !px-1.5 !py-1"
           style={{ width: 220, flexShrink: 0 }}
         >
           <option value="AND">{t('view.filter.all')}</option>
@@ -227,7 +227,7 @@ export function GroupEditor({
       </div>
 
       {node.children.length === 0 && (
-        <span className="text-text-secondary" style={{ fontSize: 'calc(11px * var(--ui-font-scale, 1))' }}>{t('view.filter.noRules')}</span>
+        <span className="text-text-secondary !text-body">{t('view.filter.noRules')}</span>
       )}
 
       <div className="flex flex-col gap-2">
@@ -360,11 +360,10 @@ export function FilterDialog() {
   return (
     // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
     <Dialog
-      onBackdropClick={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('view.filter.title')}
           </span>
           <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -372,12 +371,12 @@ export function FilterDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 text-xs flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2 border border-border rounded-[8px] p-2">
             <select
               value={selectedSavedFilterId}
               onChange={e => selectSavedFilter(e.target.value)}
-              className="input !text-xs !px-2 !py-1 flex-1 min-w-[170px]"
+              className="input !text-small !leading-4 !px-2 !py-1 flex-1 min-w-[170px]"
               aria-label={t('view.filter.title')}
             >
               <option value="">{t('view.layout.none')}</option>
@@ -398,7 +397,7 @@ export function FilterDialog() {
               onChange={e => setSavedFilterName(e.target.value)}
               placeholder={t('view.layout.name')}
               aria-label={t('view.layout.name')}
-              className="input !text-xs !px-2 !py-1 flex-1 min-w-[120px]"
+              className="input !text-small !leading-4 !px-2 !py-1 flex-1 min-w-[120px]"
             />
             <button onClick={saveCurrentFilter} disabled={root.children.length === 0} className="btn btn--sm btn--secondary">
               {t('save')}

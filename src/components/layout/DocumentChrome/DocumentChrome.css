@@ -37,7 +37,7 @@
 }
 .ops-dot { width: 9px; height: 9px; border-radius: 9999px; flex: none; background: var(--doc-color); }
 .ops-tab-name {
-  flex: 1; font-size: calc(12px * var(--ui-font-scale, 1)); font-weight: 500; color: var(--theme-text-dim);
+  flex: 1; font-size: var(--text-large); font-weight: 500; color: var(--theme-text-dim);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ops-tab.active .ops-tab-name { font-weight: 600; color: var(--theme-text); }
@@ -60,7 +60,7 @@
 .ops-rail-item {
   position: relative; width: 38px; height: 38px; flex: none; display: flex;
   align-items: center; justify-content: center; border-radius: 10px; cursor: pointer;
-  font-family: var(--font-heading); font-weight: 700; font-size: calc(13px * var(--ui-font-scale, 1));
+  font-family: var(--font-heading); font-weight: 700; font-size: var(--text-large);
   background: var(--theme-surface); color: var(--theme-text-dim); border: 1px solid var(--theme-border);
 }
 .ops-rail-item:hover { color: var(--theme-text); }
@@ -87,7 +87,7 @@
   box-shadow: var(--shadow-pop); padding: 12px 13px; animation: ops-flyin 0.1s ease-out;
   pointer-events: none;
 }
-.ops-flyout-name { font-size: calc(13px * var(--ui-font-scale, 1)); font-weight: 700; color: var(--theme-text); font-family: var(--font-heading); }
+.ops-flyout-name { font-size: var(--text-large); font-weight: 700; color: var(--theme-text); font-family: var(--font-heading); }
 
 /* ---------- C: Wisselaar-pil ---------- */
 .ops-pill {
@@ -99,12 +99,16 @@
      de pil moet die expliciet terugzetten, anders vangt de titelbalk de klik. */
   pointer-events: auto;
   -webkit-app-region: no-drag;
+  /* De center is precies zo breed als de ruimte tussen de zijclusters (zie TitleBar.css);
+     de pil past zich daaraan aan door de projectnaam in te korten, niet door over te lopen. */
+  max-width: 100%;
+  min-width: 0;
 }
 .ops-pill:hover { border-color: var(--theme-control-border); }
-.ops-pill-name { font-size: calc(12px * var(--ui-font-scale, 1)); font-weight: 600; white-space: nowrap; }
+.ops-pill-name { font-size: var(--text-large); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ops-pill-badge {
-  font-size: calc(10px * var(--ui-font-scale, 1)); font-weight: 600; color: var(--theme-accent-on); background: var(--theme-accent);
-  border-radius: 9999px; padding: 2px 8px; white-space: nowrap;
+  font-size: var(--text-small); font-weight: 600; color: var(--theme-accent-on); background: var(--theme-accent);
+  border-radius: 9999px; padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
 }
 
 /* ---------- Gedeeld overzicht ---------- */

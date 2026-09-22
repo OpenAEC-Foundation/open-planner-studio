@@ -1,6 +1,7 @@
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
+import { flattenOrder } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
@@ -441,7 +442,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             import('@/services/xlsx/writeProgressXlsx'),
           ]);
           const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
-          payload = await writeProgressSheetXLSX(state.tasks, {
+          // Rijen in boomvolgorde (issue #159, vervolg): de store-volgorde is na een P6-/IFC-import
+          // "samenvattingen eerst" — onleesbaar als rondgestuurd blad. Terugimport matcht op OPS Task ID.
+          payload = await writeProgressSheetXLSX([...flattenOrder(state.tasks)], {
             // `'xlsx'`: alleen de voltooiingskolom krijgt een eigen instructie (decimalen mogen
             // hier wél, anders dan in de CSV) — zie `buildProgressHeaderNotes`.
             headerNotes: buildProgressHeaderNotes(menuT, 'xlsx'),
@@ -472,7 +475,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // precies de bestaande overloop-uitweg daarvoor (zie `importLabels.ts`).
           const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
           payload = writeProgressSheetCSV(
-            state.tasks,
+            [...flattenOrder(state.tasks)],
             buildProgressHeaderNotes(menuT),
             // Fix 1 (gebruikstest 2026-09-11): verzameltaken dragen hun "niet invullen" IN het
             // blad zelf, i.p.v. pas bij terugimport als weigering op te duiken.

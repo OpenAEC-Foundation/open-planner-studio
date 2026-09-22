@@ -36,7 +36,7 @@ export function LevelListEditor({
           <select
             value={encodeFieldRef(lvl.field)}
             onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-            className="input !text-[11px] !px-1.5 !py-1 flex-1"
+            className="input !text-small !leading-4 !px-1.5 !py-1 flex-1"
             aria-label={t('view.filter.field')}
           >
             {options.map(({ field: f, label }) => (
@@ -46,7 +46,7 @@ export function LevelListEditor({
           <select
             value={lvl.dir}
             onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-            className="input !text-[11px] !px-1.5 !py-1 !w-32"
+            className="input !text-small !leading-4 !px-1.5 !py-1 !w-32"
             aria-label={t('view.group.direction')}
           >
             <option value="asc">{t('view.sort.ascending')}</option>

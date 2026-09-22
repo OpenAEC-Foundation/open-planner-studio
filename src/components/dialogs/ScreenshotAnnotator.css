@@ -33,7 +33,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 600;
   color: #fff;
   background: rgba(20, 20, 20, 0.78);

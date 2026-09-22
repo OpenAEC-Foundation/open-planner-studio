@@ -470,7 +470,7 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
                     style={{
                       left: textInput.screenLeft,
                       top: textInput.screenTop,
-                      fontSize: `${textInput.fontSize}px`,
+                      fontSize: `${textInput.fontSize}px`, // text-roles: volgt de schaal van de screenshot (16 × canvas-schaal), geen interfacetekst
                       color: textInput.color,
                     }}
                     value={textValue}

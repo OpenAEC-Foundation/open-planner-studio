@@ -57,7 +57,7 @@ export function VarianceReport() {
   const dd = useDisplayDate();
 
   return (
-    <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+    <table className="w-full text-small leading-4" style={{ borderCollapse: 'collapse' }}>
       <thead>
         <tr style={{ borderBottom: '2px solid var(--theme-border)' }}>
           {COLUMNS.map(h => (

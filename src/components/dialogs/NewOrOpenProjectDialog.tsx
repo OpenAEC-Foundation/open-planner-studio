@@ -23,7 +23,7 @@ export function NewOrOpenProjectDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[360px] overflow-hidden"
       panelProps={{ 'data-ops-new-or-open-project-dialog': true }}
     >
-      <div className="px-4 py-3 border-b border-border text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+      <div className="px-4 py-3 border-b border-border text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
         {t('documents.newOrOpenTitle')}
       </div>
       <div className="p-3 flex flex-col gap-2">

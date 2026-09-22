@@ -15,7 +15,7 @@
 .settings-subhead {
   margin: 4px 0 0 0;
   font-family: var(--font-heading);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   font-weight: 700;
   color: var(--theme-text);
 }
@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text);
   cursor: pointer;
 }
@@ -73,7 +73,7 @@
 
 .settings-theme-card h4 {
   margin: 0 0 6px 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   font-weight: 600;
   color: var(--theme-text);
 }
@@ -97,7 +97,7 @@
 .settings-stats-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text);
   font-variant-numeric: tabular-nums;
 }
@@ -111,7 +111,7 @@
 .settings-stats-table th {
   font-weight: 600;
   color: var(--theme-text-muted);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
 }
 .settings-stats-table th.num,
 .settings-stats-table td.num {

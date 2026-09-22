@@ -219,7 +219,6 @@ export function TaskDialog() {
     // ná de `showTaskDialog`-gate hierboven, dus de toetsen zijn alleen actief bij een open dialoog.
     // Let op: overlaytint is hier bg-black/50 (historisch iets lichter dan de andere dialogs).
     <Dialog
-      onBackdropClick={handleClose}
       onCancel={handleClose}
       onConfirm={handleSave}
       overlayClassName="bg-black/50 z-50"
@@ -227,7 +226,7 @@ export function TaskDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[620px] max-h-[85vh] overflow-hidden flex flex-col"
     >
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-sm font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <h2 className="text-body leading-5 font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
           </h2>
           <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -235,7 +234,7 @@ export function TaskDialog() {
           </button>
         </div>
 
-        <div className="p-4 flex flex-col gap-3 text-xs overflow-y-auto">
+        <div className="p-4 flex flex-col gap-3 text-small leading-4 overflow-y-auto">
           {/* Naam wordt apart gehouden (i.p.v. binnen TaskBasicFields) omdat de dialoog er de
               auto-focus/select-all-ref op zet bij het openen — TaskBasicFields kent die ref niet. */}
           <div className="flex flex-col gap-1">
@@ -282,13 +281,13 @@ export function TaskDialog() {
           {/* Start blijft dialoogdraft-specifiek; de duurbediening hieronder is exact dezelfde
               component als in het vaste eigenschappenpaneel. */}
           <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-          <span className="ui-card-header !text-xs">{t('properties.time')}</span>
+          <span className="ui-card-header !text-small !leading-4">{t('properties.time')}</span>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('dialog.startDate')}>
               <DateTextInput
                 value={startDate}
                 onCommit={setStartDate}
-                className="input !text-xs !px-2.5 !py-1.5"
+                className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('dialog.startDate')}
               />
             </Field>
