@@ -1457,6 +1457,21 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-conventions-registry.ts" "$CONVREGCHECK"; then node "$CONVREGCHECK" || STATUS=1; fi
   SCHEDPROFRTCHECK="$DIR/.scheduling-profile-roundtrip.mjs"
   if bundle_check "$DIR/check-scheduling-profile-roundtrip.ts" "$SCHEDPROFRTCHECK"; then node "$SCHEDPROFRTCHECK" || STATUS=1; fi
+  # Rekenprofielen (plan 2026-09-22): solver-invoer, lezerprofielen, melding, afnemers, bewerkmodel,
+  # store-acties en de conventiegrens van de motor. Vooraf bedraad in M1 zodat banen C en D run.sh
+  # niet hoeven aan te raken.
+  SOLVEINPUTCHECK="$DIR/.solve-input.mjs"
+  if bundle_check "$DIR/check-solve-input.ts" "$SOLVEINPUTCHECK"; then node "$SOLVEINPUTCHECK" || STATUS=1; fi
+  IMPORTPROFILECHECK="$DIR/.import-profile.mjs"
+  if bundle_check "$DIR/check-import-profile.ts" "$IMPORTPROFILECHECK"; then node "$IMPORTPROFILECHECK" || STATUS=1; fi
+  PROFILENOTICECHECK="$DIR/.scheduling-profile-notice.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-notice.ts" "$PROFILENOTICECHECK"; then node "$PROFILENOTICECHECK" || STATUS=1; fi
+  PROFILEDRAFTCHECK="$DIR/.scheduling-profile-draft.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-draft.ts" "$PROFILEDRAFTCHECK"; then node "$PROFILEDRAFTCHECK" || STATUS=1; fi
+  PROFILEACTIONSCHECK="$DIR/.scheduling-profile-actions.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-actions.ts" "$PROFILEACTIONSCHECK"; then node "$PROFILEACTIONSCHECK" || STATUS=1; fi
+  CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
+  if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
 
   # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
   # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
