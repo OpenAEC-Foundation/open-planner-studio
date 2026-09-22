@@ -86,6 +86,8 @@
     "priorityNormal": "Normaal",
     "priorityHigh": "Hoog",
     "startRelationHere": "Relatie leggen vanaf hier",
+    "removeSplitGap": "Onderbreking opheffen",
+    "removeAllSplitGaps": "Alle onderbrekingen opheffen",
     "paste": "Plakken",
     "zoomReset": "Zoom herstellen",
     "fitToProject": "Passend maken op project",

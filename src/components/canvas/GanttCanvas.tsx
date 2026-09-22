@@ -50,6 +50,8 @@ import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
 import { useGanttHistogramPickerScroll } from './hooks/useGanttHistogramPickerScroll';
 import { useGanttPointerCoordinator } from './hooks/useGanttPointerCoordinator';
+import { editableSplitPieces } from './hooks/useBarDrag';
+import { removeGap } from '@/engine/scheduler/splitEdit';
 import { useGanttRowDragBridge } from './ganttRowDragBridge';
 import type { HistogramRenderInput } from './hooks/ganttCoordinatorTypes';
 
@@ -1012,6 +1014,17 @@ export function GanttCanvas({
           onSetPriority={(priority) => {
             if (contextMenu.task) contextMenuBulk.setPriority(contextMenu.task.id, priority);
           }}
+          splitGapIndex={contextMenu.splitGapIndex}
+          onRemoveSplitGap={(gapIndex) => {
+            // Issue #146 etappe 3: rekenen via `splitEdit.ts` op de ACTUELE taak, schrijven via de
+            // ene schrijfweg. Een weigering (taak intussen gewijzigd) doet niets.
+            const task = contextMenu.task && useAppStore.getState().tasks.find(t => t.id === contextMenu.task!.id);
+            if (!task?.splitGaps) return;
+            const pieces = editableSplitPieces(task, effectiveCalById.get(task.id) ?? calendar, task.splitGaps.length + 1);
+            const result = pieces ? removeGap(pieces, gapIndex) : null;
+            if (result?.ok) setTaskSplits(task.id, result.pieces);
+          }}
+          onRemoveAllSplitGaps={() => { if (contextMenu.task) setTaskSplits(contextMenu.task.id, null); }}
           onStartRelationFromBar={() => {
             // Zelfde route als `onAddRelation` (balk-contextmenu i.p.v. rij-contextmenu).
             if (contextMenu.task) {

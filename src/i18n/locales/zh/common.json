@@ -79,6 +79,8 @@
     "priorityNormal": "普通",
     "priorityHigh": "高",
     "startRelationHere": "从此处开始建立关系",
+    "removeSplitGap": "取消中断",
+    "removeAllSplitGaps": "取消所有中断",
     "paste": "粘贴",
     "zoomReset": "重置缩放",
     "fitToProject": "适应项目",

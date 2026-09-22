@@ -2286,14 +2286,14 @@ export class GanttRenderer {
    *  pauze-index (0 = tussen stuk 0 en 1). Precies het complement van de stuk-grijpvlakken in
    *  `getTaskBarBounds`: waar die `null` geeft binnen de balk, geeft deze de pauze. Gebruikt door
    *  het contextmenu ("de pauze onder de cursor") en door de splits-modus (klik in een pauze = niets). */
-  getSplitGapAt(canvasX: number, canvasY: number): { task: Task; gapIndex: number } | null {
+  getSplitGapAt(canvasX: number, canvasY: number): { task: Task; gapIndex: number; segmentCount: number } | null {
     if (canvasX < 0 || canvasX >= this.opts.canvasWidth) return null;
     const task = this.getTaskAtY(canvasY);
     if (!task || task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
     const segs = this.drawnSplitSegments(task);
     if (!segs || this.getTaskBarBounds(canvasX, canvasY)) return null;
     for (let i = 0; i < segs.length - 1; i++) {
-      if (canvasX > segs[i].x2 && canvasX < segs[i + 1].x1) return { task, gapIndex: i };
+      if (canvasX > segs[i].x2 && canvasX < segs[i + 1].x1) return { task, gapIndex: i, segmentCount: segs.length };
     }
     return null;
   }

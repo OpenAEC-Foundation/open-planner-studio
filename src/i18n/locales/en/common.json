@@ -86,6 +86,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "High",
     "startRelationHere": "Start relation from here",
+    "removeSplitGap": "Remove break",
+    "removeAllSplitGaps": "Remove all breaks",
     "paste": "Paste",
     "zoomReset": "Reset zoom",
     "fitToProject": "Fit to project",

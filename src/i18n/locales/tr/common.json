@@ -86,6 +86,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Yüksek",
     "startRelationHere": "İlişkiyi buradan başlat",
+    "removeSplitGap": "Kesintiyi kaldır",
+    "removeAllSplitGaps": "Tüm kesintileri kaldır",
     "paste": "Yapıştır",
     "zoomReset": "Yakınlaştırmayı sıfırla",
     "fitToProject": "Projeye sığdır",

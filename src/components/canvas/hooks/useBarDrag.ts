@@ -58,7 +58,7 @@ export interface SplitDragLabel {
  * stukkenlijst telt (een pauze korter dan een halve werkdag is in dag-modus onzichtbaar; een
  * stuk-index zou dan naar het verkeerde werkstuk wijzen). Eén bron voor coördinator en sleep.
  */
-export function splitPiecesForDrag(task: Task, calendar: WorkCalendar, segmentCount: number): SplitPiece[] | null {
+export function editableSplitPieces(task: Task, calendar: WorkCalendar, segmentCount: number): SplitPiece[] | null {
   if (segmentCount <= 1) return null;
   const hourMode = taskDurationUnit(task) === 'hours';
   const hoursPerDay = new CalendarEngine(hourMode ? calendarForEngine(calendar) : calendar).hoursPerDay;
@@ -186,7 +186,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     const task = getTask(next.taskId);
     if (!task) return undefined;
     const cal = effectiveCalById.get(task.id) ?? calendar;
-    const pieces0 = splitPiecesForDrag(task, cal, segmentCount);
+    const pieces0 = editableSplitPieces(task, cal, segmentCount);
     if (!pieces0) return undefined;
     const hourMode = taskDurationUnit(task) === 'hours';
     const eng = new CalendarEngine(hourMode ? calendarForEngine(cal) : cal);

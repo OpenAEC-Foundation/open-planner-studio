@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useLatestRef } from '@/hooks/useLatestRef';
-import { splitPiecesForDrag, useBarDrag } from './useBarDrag';
+import { editableSplitPieces, useBarDrag } from './useBarDrag';
 import { usePan } from './usePan';
 import { useBoxSelect } from './useBoxSelect';
 import { useDependencyDraw } from './useDependencyDraw';
@@ -141,14 +141,14 @@ export function useGanttPointerCoordinator(
   /**
    * Issue #146 etappe 3: de hit van `getTaskBarBounds` zoals de BALKSLEEP hem moet lezen. Een
    * gesplitste balk waarvan de stukken niet bewerkbaar zijn (alleen-lezen importsplit, niet
-   * splitsbaar, of een onzichtbare pauze — zie `splitPiecesForDrag`) sleept als ÉÉN balk: de
+   * splitsbaar, of een onzichtbare pauze — zie `editableSplitPieces`) sleept als ÉÉN balk: de
    * rechterrand van een tussenstuk is dan gewoon body, alleen het laatste stuk houdt de duurgreep.
    * Zo belooft de cursor nooit een greep die de sleep daarna weigert.
    */
   const dragHit = useCallback((hit: NonNullable<ReturnType<GanttRenderer['getTaskBarBounds']>>) => {
     if (hit.segmentCount <= 1) return hit;
     const cal = effectiveCalendarByTaskId.get(hit.task.id) ?? calendar;
-    if (splitPiecesForDrag(hit.task, cal, hit.segmentCount)) return hit;
+    if (editableSplitPieces(hit.task, cal, hit.segmentCount)) return hit;
     const last = hit.segmentIndex === hit.segmentCount - 1;
     return {
       ...hit,
@@ -222,14 +222,29 @@ export function useGanttPointerCoordinator(
     const task = renderer.getRelationSourceAt(x, y);
     if (!task) return;
     if (task && !selectedTaskIds.includes(task.id)) selectTask(task.id, false);
+    // Issue #146 etappe 3: welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
+    // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
+    // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.
+    let splitGapIndex: number | null = null;
+    if (task.splitGaps && task.splitGaps.length > 0) {
+      const gap = renderer.getSplitGapAt(x, y);
+      const bounds = gap ? null : renderer.getTaskBarBounds(x, y);
+      const index = gap?.task.id === task.id
+        ? gap.gapIndex
+        : bounds?.task.id === task.id && bounds.segmentIndex > 0 ? bounds.segmentIndex - 1 : null;
+      const drawn = gap?.segmentCount ?? bounds?.segmentCount ?? 0;
+      const cal = effectiveCalendarByTaskId.get(task.id) ?? calendar;
+      if (index !== null && editableSplitPieces(task, cal, drawn)) splitGapIndex = index;
+    }
     setContextMenu({
       x: event.clientX,
       y: event.clientY,
       task,
       barHit: true,
       group: null,
+      splitGapIndex,
     });
-  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask]);
+  }, [canvasRef, rendererRef, clearHistogramTooltip, headerHeight, selectedTaskIds, selectTask, effectiveCalendarByTaskId, calendar]);
 
   const beginPan = useCallback((event: ReactMouseEvent<HTMLCanvasElement>, button: number) => {
     pan.startPan({

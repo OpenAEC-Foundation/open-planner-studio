@@ -142,6 +142,10 @@ export interface GanttContextMenuState {
   task: Task | null;
   barHit: boolean;
   group: { key: string; collapsed: boolean } | null;
+  /** Issue #146 etappe 3: de pauze die "Onderbreking opheffen" opheft — die onder de cursor, of die
+   *  VÓÓR het aangeklikte stuk. `null` op stuk 0, zonder splits, of op een split die niet bewerkbaar
+   *  is (dan blijft alleen "Alle onderbrekingen opheffen" over, spec §1). */
+  splitGapIndex: number | null;
 }
 
 export interface GanttTooltipState {

@@ -114,6 +114,8 @@
     "priorityNormal": "عادية",
     "priorityHigh": "مرتفعة",
     "startRelationHere": "بدء علاقة من هنا",
+    "removeSplitGap": "إزالة التوقف",
+    "removeAllSplitGaps": "إزالة كل التوقفات",
     "paste": "لصق",
     "zoomReset": "إعادة ضبط التكبير",
     "fitToProject": "ملاءمة للمشروع",

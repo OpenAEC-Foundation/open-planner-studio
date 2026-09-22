@@ -79,6 +79,8 @@
     "priorityNormal": "標準",
     "priorityHigh": "高",
     "startRelationHere": "ここから関係を開始",
+    "removeSplitGap": "中断を解除",
+    "removeAllSplitGaps": "すべての中断を解除",
     "paste": "貼り付け",
     "zoomReset": "ズームをリセット",
     "fitToProject": "プロジェクトに合わせる",

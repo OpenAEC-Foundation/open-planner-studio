@@ -86,6 +86,8 @@
     "priorityNormal": "عادی",
     "priorityHigh": "زیاد",
     "startRelationHere": "شروع رابطه از اینجا",
+    "removeSplitGap": "حذف وقفه",
+    "removeAllSplitGaps": "حذف همه وقفه‌ها",
     "paste": "چسباندن",
     "zoomReset": "بازنشانی بزرگ‌نمایی",
     "fitToProject": "تنظیم با پروژه",

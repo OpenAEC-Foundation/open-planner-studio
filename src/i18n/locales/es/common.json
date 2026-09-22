@@ -93,6 +93,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Alta",
     "startRelationHere": "Iniciar relación desde aquí",
+    "removeSplitGap": "Quitar la pausa",
+    "removeAllSplitGaps": "Quitar todas las pausas",
     "paste": "Pegar",
     "zoomReset": "Restablecer zoom",
     "fitToProject": "Ajustar al proyecto",
