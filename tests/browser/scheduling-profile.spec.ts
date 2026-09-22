@@ -73,11 +73,12 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     // opgeslagen en de conventiewijziging stil verdwijnen.
     const applyButton = page.getByRole('button', { name: /^(Apply|Toepassen)$/ });
     await expect(applyButton).toBeDisabled();
-    await nameField.fill('Mijn profiel ');
-    await expect(nameField).toHaveValue('Mijn profiel ');
+    // Gebruikstest I5 punt 2: toets voor toets typen, met een spatie in het midden én tijdelijk achteraan.
+    await nameField.pressSequentially('Mijn P6-variant ');
+    await expect(nameField).toHaveValue('Mijn P6-variant ');
     await expect(page.locator('[data-ops-scheduling-profile-name-required]')).toHaveCount(0);
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
-    await expect.poll(() => profileOf(page).then(p => p?.name)).toBe('Mijn profiel');
+    await expect.poll(() => profileOf(page).then(p => p?.name)).toBe('Mijn P6-variant');
 
     // Dezelfde regel in de dialoog (Instellingen → Projectinfo), waar Enter de primaire actie is:
     // naam wissen + projectnaam wijzigen + Enter ⇒ dialoog blijft open, niets opgeslagen.
@@ -96,7 +97,7 @@ test('rekenprofiel: XER opent als P6 met melding, wissel naar MS Project herbere
     expect(await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       return [s.project.name, s.project.schedulingProfile?.name, s.project.schedulingProfile?.overrides.p6OpenLoeTargetSpan];
-    })).toEqual([projectNameBefore, 'Mijn profiel', undefined]);
+    })).toEqual([projectNameBefore, 'Mijn P6-variant', undefined]);
     await expect.poll(() => profileOf(page).then(p => [p?.baseId, p?.id.startsWith('prof')]))
       .toEqual(['msproject', true]);
   });

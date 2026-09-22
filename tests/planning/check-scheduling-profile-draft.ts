@@ -37,6 +37,13 @@ eq('13 hernoemen trimt en kapt af op 200', renameProfile(own, `  ${'x'.repeat(10
 eq('13a hernoemen: voorloopwitruimte telt niet mee voor de grens', renameProfile(own, `${' '.repeat(10_000)}Nieuw`)?.name, 'Nieuw');
 // Eindreview I4 (e): tijdens het typen blijft een spatie achteraan staan (anders is 'Mijn profiel' niet te typen).
 eq('13b spatie achteraan blijft tijdens het bewerken', renameProfile(own, 'Mijn ')?.name, 'Mijn ');
+// Gebruikstest I5 punt 2: toets voor toets typen zoals een <input> doet (elke toets = de hele waarde
+// opnieuw door renameProfile). Op b0fb3d5a werd 'Mijn P6-variant' tot 'MijnP6-variant'.
+{
+  let typed = { ...own, name: '' } as typeof own | undefined;
+  for (const ch of 'Mijn P6-variant ') typed = renameProfile(typed, `${typed?.name ?? ''}${ch}`);
+  eq('13c letterlijk typen: spatie in het midden én tijdelijk achteraan', typed?.name, 'Mijn P6-variant ');
+}
 eq('14 ingebouwd is niet hernoembaar', renameProfile(xerP6, 'Nee'), xerP6);
 // Eindreview I4 (e): het veld is te wissen; leeg is 'nog niet geldig' (opslaan en toepassen weigeren).
 eq('15 een eigen profiel mag tijdelijk leeg zijn', renameProfile(own, '   ')?.name, '');
