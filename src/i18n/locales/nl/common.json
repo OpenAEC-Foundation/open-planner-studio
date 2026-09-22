@@ -214,7 +214,6 @@
     "aiAutostart": "Bridge automatisch starten",
     "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app.",
     "legacySection": "Legacy-functies",
-    "legacyNotice": "Oudere functies die zijn vervangen. Ze blijven beschikbaar voor wie eraan gewend is, maar krijgen geen nieuwe mogelijkheden.",
     "classicViewControls": "Klassieke weergaveknoppen tonen",
     "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Hun functie zit nu in de layoutknoppen en de layoutdialoog."
   },
@@ -828,7 +827,8 @@
       "applyOnly": "Toepassen zonder opslaan",
       "infoApplyOnly": "Zet de aangevinkte onderdelen op het scherm zonder er een layoutknop van te maken. Handig voor een snel, tijdelijk filter.",
       "columnsNote": "Neemt de kolommen over zoals ze nu in de tabel staan. Kolommen kies je met het plusje in de tabelkop.",
-      "relationsShow": "Relatielijnen tonen"
+      "relationsShow": "Relatielijnen tonen",
+      "relationsHide": "Relatielijnen verbergen"
     },
     "presentation": {
       "hint": "Druk op Esc of F11 om volledig scherm te verlaten."

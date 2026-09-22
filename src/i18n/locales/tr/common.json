@@ -214,7 +214,6 @@
     "aiAutostart": "Köprüyü otomatik başlat",
     "aiAutostartHint": "MCP köprüsünü uygulama açılır açılmaz devreye alır; böylece bir yapay zekâ istemcisi, siz önce AI sekmesini açmadan bağlanabilir. Yalnızca masaüstü uygulamasında.",
     "legacySection": "Eski özellikler",
-    "legacyNotice": "Yerine yenisi gelen eski özellikler. Alışkın olanlar için kullanılabilir kalır, ancak yeni olanak almaz.",
     "classicViewControls": "Klasik görünüm düğmelerini göster",
     "classicViewControlsHint": "Ayrı Sütunlar, Filtre, Grupla ve Sırala düğmelerini Görünüm sekmesine geri getirir. İşlevleri artık düzen düğmelerinde ve düzen iletişim kutusundadır."
   },
@@ -828,7 +827,8 @@
       "applyOnly": "Kaydetmeden uygula",
       "infoApplyOnly": "İşaretli bölümleri düzen düğmesi oluşturmadan ekrana uygular. Hızlı, geçici bir filtre için kullanışlıdır.",
       "columnsNote": "Sütunları tabloda şu anda olduğu gibi alır. Sütunları tablo başlığındaki artı ile seçersiniz.",
-      "relationsShow": "İlişki çizgilerini göster"
+      "relationsShow": "İlişki çizgilerini göster",
+      "relationsHide": "İlişki çizgilerini gizle"
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

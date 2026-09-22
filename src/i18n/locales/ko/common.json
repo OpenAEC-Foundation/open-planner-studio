@@ -207,7 +207,6 @@
     "aiAutostart": "브리지 자동 시작",
     "aiAutostartHint": "앱이 시작될 때 MCP 브리지를 바로 활성화하여, AI 탭을 먼저 열지 않아도 AI 클라이언트가 연결할 수 있습니다. 데스크톱 앱에서만 사용할 수 있습니다.",
     "legacySection": "레거시 기능",
-    "legacyNotice": "대체된 이전 기능입니다. 익숙한 사용자를 위해 계속 제공되지만 새로운 기능은 추가되지 않습니다.",
     "classicViewControls": "기존 보기 버튼 표시",
     "classicViewControlsHint": "열, 필터, 그룹화, 정렬 개별 버튼을 보기 탭에 다시 표시합니다. 해당 기능은 이제 레이아웃 버튼과 레이아웃 대화 상자에 있습니다."
   },
@@ -816,7 +815,8 @@
       "applyOnly": "저장하지 않고 적용",
       "infoApplyOnly": "레이아웃 버튼을 만들지 않고 선택한 항목을 화면에 적용합니다. 빠른 임시 필터에 유용합니다.",
       "columnsNote": "표에 현재 있는 열을 그대로 가져옵니다. 열은 표 머리글의 더하기로 선택합니다.",
-      "relationsShow": "관계선 표시"
+      "relationsShow": "관계선 표시",
+      "relationsHide": "관계선 숨기기"
     },
     "presentation": {
       "hint": "Esc 또는 F11 키를 눌러 전체 화면을 종료하세요."

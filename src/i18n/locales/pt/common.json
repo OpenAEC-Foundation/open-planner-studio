@@ -221,7 +221,6 @@
     "aiAutostart": "Iniciar a ponte automaticamente",
     "aiAutostartHint": "Ativa a ponte MCP assim que a aplicação arranca, para que um cliente de IA se possa ligar sem abrires primeiro o separador IA. Apenas na aplicação de ambiente de trabalho.",
     "legacySection": "Funcionalidades legadas",
-    "legacyNotice": "Funcionalidades antigas que foram substituídas. Continuam disponíveis para quem está habituado, mas não recebem novidades.",
     "classicViewControls": "Mostrar os botões de vista clássicos",
     "classicViewControlsHint": "Repõe os botões separados Colunas, Filtro, Agrupar e Ordenar no separador Vista. A sua função está agora nos botões de layout e na caixa de diálogo de layouts."
   },
@@ -840,7 +839,8 @@
       "applyOnly": "Aplicar sem guardar",
       "infoApplyOnly": "Coloca as partes marcadas no ecrã sem criar um botão de layout. Útil para um filtro rápido e temporário.",
       "columnsNote": "Assume as colunas tal como estão agora na tabela. As colunas escolhem-se com o mais no cabeçalho da tabela.",
-      "relationsShow": "Mostrar linhas de relação"
+      "relationsShow": "Mostrar linhas de relação",
+      "relationsHide": "Ocultar linhas de relação"
     },
     "presentation": {
       "hint": "Prima Esc ou F11 para sair do ecrã inteiro."

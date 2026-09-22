@@ -221,7 +221,6 @@
     "aiAutostart": "Iniciar el puente automáticamente",
     "aiAutostartHint": "Activa el puente MCP nada más iniciar la aplicación, para que un cliente de IA pueda conectarse sin que abras antes la pestaña IA. Solo en la aplicación de escritorio.",
     "legacySection": "Funciones heredadas",
-    "legacyNotice": "Funciones antiguas que han sido sustituidas. Siguen disponibles para quien esté acostumbrado a ellas, pero no reciben novedades.",
     "classicViewControls": "Mostrar los botones de vista clásicos",
     "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Su función está ahora en los botones de diseño y en el cuadro de diseños."
   },
@@ -840,7 +839,8 @@
       "applyOnly": "Aplicar sin guardar",
       "infoApplyOnly": "Pone en pantalla las partes marcadas sin crear un botón de diseño. Útil para un filtro rápido y temporal.",
       "columnsNote": "Toma las columnas tal como están ahora en la tabla. Las columnas se eligen con el signo más del encabezado de la tabla.",
-      "relationsShow": "Mostrar líneas de relación"
+      "relationsShow": "Mostrar líneas de relación",
+      "relationsHide": "Ocultar líneas de relación"
     },
     "presentation": {
       "hint": "Pulse Esc o F11 para salir de pantalla completa."

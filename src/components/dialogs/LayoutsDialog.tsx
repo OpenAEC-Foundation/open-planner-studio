@@ -103,7 +103,8 @@ export function LayoutsDialog() {
     <span
       title={t(key as 'common:view.layout.infoRelations')}
       aria-label={t(key as 'common:view.layout.infoRelations')}
-      style={{ color: 'var(--theme-text-dim)', display: 'inline-flex', cursor: 'help' }}
+      data-tooltip-instant="true"
+      style={{ color: 'var(--theme-text-dim)', display: 'inline-flex' }}
     >
       <Info size={14} />
     </span>
@@ -144,16 +145,19 @@ export function LayoutsDialog() {
           </select>
         );
       case 'showRelations':
+        // Geen tweede vinkje onder het vinkje "vastleggen": een keuze tonen/verbergen.
         return (
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={draft.showRelations ?? true}
-              onChange={e => setDraft(d => ({ ...d, showRelations: e.target.checked }))}
-              data-ops-layout-relations="true"
-            />
-            <span>{t('common:view.layout.relationsShow')}</span>
-          </label>
+          <select
+            value={draft.showRelations ?? true ? 'show' : 'hide'}
+            onChange={e => setDraft(d => ({ ...d, showRelations: e.target.value === 'show' }))}
+            className="input !text-[11px] !px-1.5 !py-1"
+            style={{ alignSelf: 'flex-start' }}
+            data-ops-layout-relations="true"
+            aria-label={t('common:view.layout.partRelations')}
+          >
+            <option value="show">{t('common:view.layout.relationsShow')}</option>
+            <option value="hide">{t('common:view.layout.relationsHide')}</option>
+          </select>
         );
     }
   };
@@ -198,7 +202,8 @@ export function LayoutsDialog() {
                 data-ops-layout-icon={key}
                 onClick={() => setIcon(key)}
                 className={`ribbon-btn small${icon === key ? ' active' : ''}`}
-                style={{ minWidth: 0, padding: 6 }}
+                // De lint-'active'-stijl draagt een afwijkende randkleur; hier valt de rand samen met de vulling.
+                style={{ minWidth: 0, padding: 6, ...(icon === key ? { borderColor: 'var(--theme-active)' } : {}) }}
               >
                 {layoutIcon(key, 18)}
               </button>

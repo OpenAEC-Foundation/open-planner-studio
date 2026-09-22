@@ -591,18 +591,6 @@ export function SettingsPanelContent() {
             {/* Legacy-functies (issue #144): vervangen functies, duidelijk als zodanig gemarkeerd. */}
             <div className="settings-section" data-ops-legacy-settings="true">
               <h3>{t('settings.legacySection')}</h3>
-              <div
-                className="rounded-[8px] px-3 py-2"
-                style={{
-                  background: 'color-mix(in srgb, var(--warning, #d97706) 14%, transparent)',
-                  border: '1px solid color-mix(in srgb, var(--warning, #d97706) 50%, transparent)',
-                  marginBottom: 8,
-                  fontSize: 'calc(12px * var(--ui-font-scale, 1))',
-                  lineHeight: 1.4,
-                }}
-              >
-                {t('settings.legacyNotice')}
-              </div>
               <label className="settings-checkbox-row">
                 <input
                   type="checkbox"

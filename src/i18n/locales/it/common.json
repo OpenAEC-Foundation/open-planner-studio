@@ -221,7 +221,6 @@
     "aiAutostart": "Avvia il bridge automaticamente",
     "aiAutostartHint": "Attiva il bridge MCP all'avvio dell'applicazione, così un client IA può collegarsi senza che tu apra prima la scheda IA. Solo nell'app desktop.",
     "legacySection": "Funzioni legacy",
-    "legacyNotice": "Funzioni precedenti che sono state sostituite. Restano disponibili per chi vi è abituato, ma non ricevono nuove possibilità.",
     "classicViewControls": "Mostra i pulsanti di vista classici",
     "classicViewControlsHint": "Riporta i pulsanti separati Colonne, Filtro, Raggruppa e Ordina nella scheda Vista. La loro funzione ora si trova nei pulsanti di layout e nella finestra dei layout."
   },
@@ -840,7 +839,8 @@
       "applyOnly": "Applica senza salvare",
       "infoApplyOnly": "Applica allo schermo le parti selezionate senza creare un pulsante di layout. Utile per un filtro rapido e temporaneo.",
       "columnsNote": "Riprende le colonne così come sono ora nella tabella. Le colonne si scelgono con il più nell’intestazione della tabella.",
-      "relationsShow": "Mostra le linee di relazione"
+      "relationsShow": "Mostra le linee di relazione",
+      "relationsHide": "Nascondi le linee di relazione"
     },
     "presentation": {
       "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."

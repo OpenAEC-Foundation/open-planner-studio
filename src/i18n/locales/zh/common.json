@@ -207,7 +207,6 @@
     "aiAutostart": "自动启动桥接",
     "aiAutostartHint": "应用启动时立即启用 MCP 桥接，AI 客户端无需你先打开 AI 选项卡即可连接。仅限桌面应用。",
     "legacySection": "旧版功能",
-    "legacyNotice": "已被取代的旧功能。它们仍可供习惯使用的人使用，但不会再增加新功能。",
     "classicViewControls": "显示经典视图按钮",
     "classicViewControlsHint": "将单独的“列”“筛选”“分组”和“排序”按钮放回“视图”选项卡。它们的功能现在位于布局按钮和布局对话框中。"
   },
@@ -816,7 +815,8 @@
       "applyOnly": "应用但不保存",
       "infoApplyOnly": "将勾选的部分应用到屏幕，但不创建布局按钮。适合快速的临时筛选。",
       "columnsNote": "采用表格中当前的列。通过表头的加号选择列。",
-      "relationsShow": "显示关系线"
+      "relationsShow": "显示关系线",
+      "relationsHide": "隐藏关系线"
     },
     "presentation": {
       "hint": "按 Esc 或 F11 退出全屏模式。"

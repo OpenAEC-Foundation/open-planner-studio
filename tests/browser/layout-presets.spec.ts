@@ -163,7 +163,7 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   const groupRow = dialog.locator('[data-ops-layout-part-row="group"]');
   await groupRow.getByRole('button').click();
   await groupRow.locator('select').first().selectOption(JSON.stringify({ src: 'resource' }));
-  await dialog.locator('[data-ops-layout-relations]').uncheck();
+  await dialog.locator('[data-ops-layout-relations]').selectOption('hide');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/03-layoutdialoog.png` });
   expect((await viewState(page)).group).toEqual([]);
   await page.locator('[data-ops-layout-save]').click();
@@ -193,7 +193,7 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   for (const part of ['columns', 'filter', 'group', 'sort', 'timeScale']) {
     await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
   }
-  await dialog.locator('[data-ops-layout-relations]').uncheck();
+  await dialog.locator('[data-ops-layout-relations]').selectOption('hide');
   await page.locator('[data-ops-layout-apply-only]').click();
   await expect(dialog).toHaveCount(0);
   expect((await viewState(page)).showRelations).toBe(false);

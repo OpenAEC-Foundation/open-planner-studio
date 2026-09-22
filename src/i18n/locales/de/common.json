@@ -214,7 +214,6 @@
     "aiAutostart": "Bridge automatisch starten",
     "aiAutostartHint": "Aktiviert die MCP-Bridge direkt beim Start der App, sodass ein KI-Client sich verbinden kann, ohne dass Sie zuerst den KI-Tab öffnen. Nur in der Desktop-App.",
     "legacySection": "Legacy-Funktionen",
-    "legacyNotice": "Ältere Funktionen, die ersetzt wurden. Sie bleiben für Gewohnheitsnutzer verfügbar, erhalten aber keine neuen Möglichkeiten.",
     "classicViewControls": "Klassische Ansichtsschaltflächen anzeigen",
     "classicViewControlsHint": "Bringt die einzelnen Schaltflächen Spalten, Filter, Gruppieren und Sortieren zurück auf die Registerkarte Ansicht. Ihre Funktion steckt jetzt in den Layout-Schaltflächen und im Layout-Dialog."
   },
@@ -828,7 +827,8 @@
       "applyOnly": "Anwenden ohne Speichern",
       "infoApplyOnly": "Bringt die angehakten Teile auf den Bildschirm, ohne eine Layout-Schaltfläche anzulegen. Praktisch für einen schnellen, vorübergehenden Filter.",
       "columnsNote": "Übernimmt die Spalten, wie sie jetzt in der Tabelle stehen. Spalten wählen Sie mit dem Plus im Tabellenkopf.",
-      "relationsShow": "Beziehungslinien anzeigen"
+      "relationsShow": "Beziehungslinien anzeigen",
+      "relationsHide": "Beziehungslinien ausblenden"
     },
     "presentation": {
       "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."
