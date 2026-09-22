@@ -654,6 +654,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SPLITEDITSTORECHECK="$DIR/.check-split-edit-store.mjs"
   if bundle_check "$DIR/check-split-edit-store.ts" "$SPLITEDITSTORECHECK"; then node "$SPLITEDITSTORECHECK" || STATUS=1; fi
 
+  # Issue #146 etappe 5: rooktests voor de oppervlakken die de splits-critreview niet naliep —
+  # print/PDF, WBS-/voortgangsrapport, verzameltaak-rollup en baseline/variance met een gebruikerssplit.
+  SPLITSMOKECHECK="$DIR/.check-split-smoke.mjs"
+  if bundle_check "$DIR/check-split-smoke.ts" "$SPLITSMOKECHECK"; then node "$SPLITSMOKECHECK" || STATUS=1; fi
+
   # B1c-W0.1: `computeResourceLoad`/`computeHistogramReport` volgen nu de ECHTE werkdagen van een
   # taak — splitGaps-pauzedagen overgeslagen, mapping op de TAAKkalender i.p.v. onvoorwaardelijk de
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
