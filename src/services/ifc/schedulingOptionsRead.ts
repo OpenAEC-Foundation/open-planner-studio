@@ -2,7 +2,8 @@ import type {
   BuiltInProfileId, SchedulingConventions, SchedulingOptions, SchedulingProfile,
 } from '@/types/project';
 import {
-  CONVENTIONS, builtInConventions, diffAgainstBase, isBuiltInProfileId, optionKeysOnly, resolveConventions,
+  CONVENTIONS, diffAgainstBase, isBuiltInProfileId, isDefaultProfile, legacyOptionsToProfile, optionKeysOnly,
+  resolveConventions,
 } from '@/engine/scheduler/conventions/registry';
 
 /**
@@ -118,9 +119,9 @@ const validName = (value: unknown): value is string =>
  * `OPS_SchedulingProfile`-JSON uit een IFC (`{ id, baseId, conventions, name? }`) ⇒ profiel.
  *  - geen object ⇒ `undefined` (de lezer valt terug op de legacy-migratie);
  *  - onbekende/ontbrekende `baseId` ⇒ `ops`;
- *  - `conventions`: per conventie een boolean ⇒ die waarde; ONTBREKENDE sleutel ⇒ `legacyValue`
- *    (een bestand van vóór die conventie rekende zonder); ongeldig getypeerde waarde ⇒ de
- *    basiswaarde; onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
+ *  - `conventions`: per conventie een boolean ⇒ die waarde; ONTBREKENDE sleutel (een bestand van
+ *    vóór die conventie) of ongeldig getypeerde waarde ⇒ `legacyValue`, nooit de basiswaarde;
+ *    onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
  *    bestandswaarden winnen en de state blijft compact;
  *  - ongeldige/te lange `id` ⇒ de basis-id; een ingebouwde id met een andere basis ⇒ de basis-id;
  *  - `name` alleen voor eigen profielen, ≤ 200 tekens, anders leeg.
@@ -128,14 +129,11 @@ const validName = (value: unknown): value is string =>
 export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | undefined {
   if (!isRecord(input)) return undefined;
   const baseId: BuiltInProfileId = isBuiltInProfileId(input.baseId) ? input.baseId : 'ops';
-  const base = builtInConventions(baseId);
   const raw = isRecord(input.conventions) ? input.conventions : {};
   const resolved: Partial<SchedulingConventions> = {};
   for (const d of CONVENTIONS) {
     const value = raw[d.id];
-    resolved[d.id] = typeof value === 'boolean'
-      ? value
-      : Object.prototype.hasOwnProperty.call(raw, d.id) ? base[d.id] : d.legacyValue;
+    resolved[d.id] = typeof value === 'boolean' ? value : d.legacyValue;
   }
   let id = validId(input.id) ? input.id : baseId;
   if (isBuiltInProfileId(id) && id !== baseId) id = baseId;
@@ -144,7 +142,7 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
- *  alle veertien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
+ *  alle vijftien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
   id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions; name?: string;
@@ -176,4 +174,17 @@ export function sanitizeStoredSchedulingProfile(input: unknown): SchedulingProfi
     if (typeof value === 'boolean') overrides[d.id] = value;
   }
   return { baseId, id: input.id, name: input.name, overrides: diffAgainstBase(baseId, overrides) };
+}
+
+/**
+ * Het profiel dat een project na het lezen krijgt: de `OPS_SchedulingProfile`-pset wint; zonder
+ * (bruikbare) pset migreert het legacy `OPS_SchedulingOptions`-blok (`legacyOptionsToProfile`).
+ * Het standaardprofiel (`ops` zonder afwijkingen) levert `undefined` — afwezig ≡ ops, zodat een
+ * bestaand bestand na lezen dezelfde state oplevert als vóór de rekenprofielen.
+ */
+export function profileAfterRead(
+  psetProfile: SchedulingProfile | undefined, legacyBlob: SchedulingOptions | undefined,
+): SchedulingProfile | undefined {
+  const profile = psetProfile ?? legacyOptionsToProfile(legacyBlob).profile;
+  return isDefaultProfile(profile) ? undefined : profile;
 }

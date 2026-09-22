@@ -39,10 +39,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   for (const d of CONVENTIONS) {
     for (const p of BUILT_IN_PROFILE_IDS) {
       const v = d.builtIn[p];
-      const inDomain = d.kind === 'boolean' ? typeof v === 'boolean'
-        : d.kind === 'choice' ? d.values?.includes(v as unknown as string) === true
-          : typeof v === 'number' && !!d.range && v >= d.range.min && v <= d.range.max;
-      ok(`04 ${d.id}.${p} binnen het domein`, inDomain);
+      ok(`04 ${d.id}.${p} binnen het domein`, d.kind === 'boolean' && typeof v === 'boolean');
     }
     ok(`05 ${d.id}: legacyValue binnen het domein`, typeof d.legacyValue === 'boolean');
     // Alle huidige conventies zijn van ná de legacy-bestanden: legacy = het OPS-gedrag van toen.
@@ -118,7 +115,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     ok(`43 defaultOptionsFor(${b}) bevat geen conventies`, Object.keys(opts).every(k => !(CONVENTION_KEYS as readonly string[]).includes(k)));
   }
   eq('44 defaultOptionsFor(msproject)', defaultOptionsFor('msproject'), { totalFloatMode: 'smallest' });
-  eq('45 defaultOptionsFor(ops) — geen auto wegschrijven', defaultOptionsFor('ops'), {});
+  eq('45 defaultOptionsFor(ops) — leeg (afwezig ≡ huidig gedrag)', defaultOptionsFor('ops'), {});
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);
   eq('47 effective: optie uit project', eff.lagCalendar, '24hour');
@@ -207,17 +204,26 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     { totalFloatMode: 'finish' });
 }
 
-// ── 7) Profielwissel bewaart bestandsafwijkingen (spec v3.1 punt 3) ──────────────────────────────
+// ── 7) Profielwissel: op een ingebouwd id blijven alle afwijkingen letterlijk staan ─────────────
 {
+  const roundTrip = (p: SchedulingProfile) => switchProfile(switchProfile(p, 'msproject'), 'p6');
   const fromFile: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
   const toMsp = switchProfile(fromFile, 'msproject');
   eq('90 wissel naar msproject: basis', toMsp.baseId, 'msproject');
   eq('91 wissel naar msproject: A19 uit het bestand blijft', resolveConventions(toMsp).p6UseRemainingStartForProgress, true);
-  eq('92 wissel naar msproject: overige conventies volgen msproject', resolveConventions(toMsp).resumeFromActualElapsed, true);
-  same('93 P6 → msproject → P6 = origineel (opgelost)', resolveConventions(switchProfile(toMsp, 'p6')), resolveConventions(fromFile));
-  const userEdit: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
-  same('94 een niet-bestandsafwijking vervalt bij wisselen', switchProfile(userEdit, 'p6'), builtInProfile('p6'));
-  same('95 wissel vanaf afwezig profiel', switchProfile(undefined, 'msproject'), builtInProfile('msproject'));
+  eq('92 wissel naar msproject: niet-overschreven conventies volgen msproject', resolveConventions(toMsp).resumeFromActualElapsed, true);
+  same('93 P6 → msproject → P6 = origineel (opgelost)', resolveConventions(roundTrip(fromFile)), resolveConventions(fromFile));
+  // Reviewer-proef 1: een gemigreerd legacy-profiel.
+  const migrated = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true }).profile;
+  same('94 gemigreerd {p6Source, A16} → P6 → msproject → P6 = origineel (opgelost)',
+    resolveConventions(roundTrip(switchProfile(migrated, 'p6'))), resolveConventions(migrated));
+  // Reviewer-proef 2: "P6 (aangepast)" met clampNegativeFreeFloat:false uit de pset.
+  const adjusted: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
+  same('95 P6 (aangepast) → msproject → P6 = origineel (opgelost)', resolveConventions(roundTrip(adjusted)), resolveConventions(adjusted));
+  same('96 op een ingebouwd id blijft ook een niet-bestandsafwijking staan', switchProfile(adjusted, 'msproject').overrides, { clampNegativeFreeFloat: false });
+  same('97 wissel vanaf afwezig profiel', switchProfile(undefined, 'msproject'), builtInProfile('msproject'));
+  const custom: SchedulingProfile = { baseId: 'p6', id: 'eigen', name: 'Eigen', overrides: { clampNegativeFreeFloat: false } };
+  same('98 vanaf een EIGEN profiel ⇒ de kale ingebouwde basis', switchProfile(custom, 'msproject'), builtInProfile('msproject'));
 }
 
 if (diffs.length > 0) {

@@ -1159,5 +1159,12 @@
       "actualStart": "Inicio real",
       "actualFinish": "Fin real"
     }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    }
   }
 }

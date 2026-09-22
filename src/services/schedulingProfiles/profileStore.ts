@@ -38,7 +38,14 @@ export function builtInProfile(id: BuiltInProfileId): SchedulingProfile {
 
 export function loadCustomProfiles(storage: ProfileStorage | undefined = defaultStorage()): SchedulingProfile[] {
   if (!storage) return [];
-  const raw = storage.getItem(SCHEDULING_PROFILES_KEY);
+  let raw: string | null;
+  try {
+    raw = storage.getItem(SCHEDULING_PROFILES_KEY);
+  } catch (error) {
+    // Bijv. een geblokkeerde opslag (privacymodus, SecurityError): geen eigen profielen, geen crash.
+    console.warn(`[rekenprofielen] ${SCHEDULING_PROFILES_KEY} niet leesbaar — genegeerd`, error);
+    return [];
+  }
   if (raw === null) return [];
   if (raw.length > MAX_STORED_PROFILES_LENGTH) {
     console.warn(`[rekenprofielen] ${SCHEDULING_PROFILES_KEY} is te groot (${raw.length} tekens) — genegeerd`);
@@ -63,10 +70,12 @@ export function loadCustomProfiles(storage: ProfileStorage | undefined = default
   return out;
 }
 
+/** Schrijft de lijst weg. Geeft `false` als de opslag ontbreekt of het schrijven mislukt (bijv.
+ *  QuotaExceededError) — gooit nooit. */
 export function saveCustomProfiles(
   list: readonly SchedulingProfile[], storage: ProfileStorage | undefined = defaultStorage(),
-): void {
-  if (!storage) return;
+): boolean {
+  if (!storage) return false;
   const clean: SchedulingProfile[] = [];
   const seen = new Set<string>();
   for (const item of list) {
@@ -76,7 +85,13 @@ export function saveCustomProfiles(
     clean.push(profile);
     if (clean.length >= MAX_CUSTOM_PROFILES) break;
   }
-  storage.setItem(SCHEDULING_PROFILES_KEY, JSON.stringify(clean));
+  try {
+    storage.setItem(SCHEDULING_PROFILES_KEY, JSON.stringify(clean));
+    return true;
+  } catch (error) {
+    console.warn(`[rekenprofielen] ${SCHEDULING_PROFILES_KEY} niet opgeslagen`, error);
+    return false;
+  }
 }
 
 /** Voegt een eigen profiel toe of vervangt het profiel met dezelfde `id`. Een ongeldig profiel
@@ -90,12 +105,12 @@ export function upsertCustomProfile(
   if (index >= 0) list[index] = profile;
   else if (list.length >= MAX_CUSTOM_PROFILES) return false;
   else list.push(profile);
-  saveCustomProfiles(list, storage);
-  return true;
+  return saveCustomProfiles(list, storage);
 }
 
-export function deleteCustomProfile(id: string, storage: ProfileStorage | undefined = defaultStorage()): void {
+/** Verwijdert het eigen profiel met deze id. Geeft `false` als het wegschrijven mislukt. */
+export function deleteCustomProfile(id: string, storage: ProfileStorage | undefined = defaultStorage()): boolean {
   const list = loadCustomProfiles(storage);
   const next = list.filter(p => p.id !== id);
-  if (next.length !== list.length) saveCustomProfiles(next, storage);
+  return next.length === list.length ? true : saveCustomProfiles(next, storage);
 }

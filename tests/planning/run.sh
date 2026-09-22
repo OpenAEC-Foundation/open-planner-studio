@@ -1436,7 +1436,7 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
   # Rekenprofielen: het conventieregister (resolve/diff, legacy-migratie, XER-defaults-pin,
-  # totalFloatMode 'auto' ≡ afwezig) en de IFC-round-trip van OPS_SchedulingProfile.
+  # profielwissel) en de IFC-round-trip van OPS_SchedulingProfile.
   CONVREGCHECK="$DIR/.conventions-registry.mjs"
   if bundle_check "$DIR/check-conventions-registry.ts" "$CONVREGCHECK"; then node "$CONVREGCHECK" || STATUS=1; fi
   SCHEDPROFRTCHECK="$DIR/.scheduling-profile-roundtrip.mjs"

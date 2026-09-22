@@ -39,7 +39,6 @@ import {
 import {
   MAX_PROFILE_JSON_LENGTH, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
 } from '@/services/ifc/schedulingOptionsRead';
-import { isDefaultProfile, legacyOptionsToProfile } from '@/engine/scheduler/conventions/registry';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -253,12 +252,11 @@ export function readIFC(
   // strippen: `project.schedulingOptions = legacyOptionsToProfile(blok).options`.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
   if (schedulingOptions) project.schedulingOptions = schedulingOptions;
-  // Rekenprofiel: de OPS_SchedulingProfile-pset wint; zonder (of bij een onbruikbare) pset migreert
-  // het legacy-optieblok per veld (§3.4). Het standaardprofiel (ops zonder afwijkingen) wordt niet
-  // gezet — afwezig ≡ ops, zodat een bestaand bestand na lezen dezelfde state oplevert als vóór.
-  const schedulingProfile = extractSchedulingProfile(entities, entityMap)
-    ?? legacyOptionsToProfile(schedulingOptions).profile;
-  if (!isDefaultProfile(schedulingProfile)) project.schedulingProfile = schedulingProfile;
+  // INTEGRATIE(rekenprofielen): hier het profiel zetten, tegelijk met de schrijverkant in
+  // `ifcWriter.ts`:
+  //   const schedulingProfile = profileAfterRead(extractSchedulingProfile(entities, entityMap), schedulingOptions);
+  //   if (schedulingProfile) project.schedulingProfile = schedulingProfile;
+  // Bewust nog NIET bedraad (zie de schrijver): een halve bedrading maakt opslaan niet-idempotent.
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
@@ -2790,6 +2788,18 @@ function extractTimephasedDurationWalksMeta(
       if (task) task.timephasedDurationWalks = walks;
     }
   }
+}
+
+/**
+ * Rekenprofielen — alleen de `OPS_SchedulingProfile`-pset uit een IFC-tekst lezen, los van `readIFC`
+ * (die hem in de overgang nog niet leest; zie de INTEGRATIE-markering daar). Geen pset of een
+ * onbruikbare ⇒ `undefined`; de migratie van het legacy-blok doet `profileAfterRead`.
+ */
+export function readSchedulingProfile(content: string): SchedulingProfile | undefined {
+  const entities = parseSTEP(content);
+  const entityMap = new Map<string, StepEntity>();
+  for (const e of entities) entityMap.set(e.id, e);
+  return extractSchedulingProfile(entities, entityMap);
 }
 
 /**

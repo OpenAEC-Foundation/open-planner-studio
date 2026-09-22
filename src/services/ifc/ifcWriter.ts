@@ -77,7 +77,7 @@ function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
 }
 
-interface WriteContext {
+export interface WriteContext {
   lines: string[];
   nextId: number;
   idMap: Map<string, number>; // our ID -> STEP #id
@@ -112,6 +112,12 @@ function guidOf(ctx: WriteContext, seed: string): string {
   ctx.guids.set(seed, guid);
   ctx.usedGuids.add(guid);
   return guid;
+}
+
+/** Een lege schrijfcontext die bij STEP-id `nextId` begint. Voor losse pset-schrijvers die (nog)
+ *  niet vanuit `writeIFC` worden aangeroepen — zie `writeSchedulingProfileMeta`. */
+export function createWriteContext(nextId: number): WriteContext {
+  return { lines: [], nextId, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
 }
 
 function ref(ctx: WriteContext, key: string): string {
@@ -334,9 +340,11 @@ export function writeIFC(input: WriteIFCInput): string {
   // conventiesleutels); in het eindmodel wordt dit `legacyOptionsBlobFor(project)` (projectopties +
   // alleen resumeFromActualElapsed/unstartedIgnoresStatusDate wanneer true, spec v3.1).
   writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
-  // Rekenprofiel: OPS_SchedulingProfile-pset (JSON autoritair) op de IfcWorkSchedule; afwezig of
-  // het standaardprofiel (ops zonder afwijkingen) ⇒ geen pset.
-  writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
+  // INTEGRATIE(rekenprofielen): hier `writeSchedulingProfileMeta(ctx, workSchedId,
+  // project.schedulingProfile, ownerHistId);` aansluiten — tegelijk met de lezerkant in
+  // `ifcReader.ts`. Bewust nog NIET bedraad: in de overgang zet geen lezer een profiel, dus een
+  // halve bedrading maakt opslaan niet-idempotent (eerste save geen pset, heropenen migreert naar
+  // p6, tweede save wél) en laat crashherstel afwijken van de live state.
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -724,11 +732,11 @@ function writeSchedulingOptionsMeta(
 
 /**
  * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
- * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle veertien conventies
+ * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle vijftien conventies
  * OPGELOST (`schedulingProfileToJson`). Golden rule: afwezig profiel of het standaardprofiel
  * (`ops` zonder afwijkingen) ⇒ geen pset, zodat bestaande bestanden byte-identiek blijven.
  */
-function writeSchedulingProfileMeta(
+export function writeSchedulingProfileMeta(
   ctx: WriteContext,
   workSchedId: number,
   profile: SchedulingProfile | undefined,

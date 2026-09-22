@@ -30,17 +30,12 @@ export const BUILT_IN_PROFILE_IDS = ['p6', 'msproject', 'ops'] as const satisfie
 export interface ConventionDescriptor {
   /** Stabiele sleutel; tegelijk de sleutel in `SchedulingOptions` en in de IFC-JSON. */
   id: ConventionKey;
-  /** Alle huidige conventies zijn booleans. `choice`/`number` blijven in de unie voor de conventies
-   *  die het X12-vervolg of de OPS-keuze nog kan opleveren; de sanitizers weigeren ze tot dan. */
-  kind: 'boolean' | 'choice' | 'number';
-  values?: readonly string[];
-  range?: { min: number; max: number };
+  /** Alle conventies zijn booleans. Komt er ooit een andere soort bij, dan breidt die de unie uit
+   *  samen met de sanitizers (die nu alleen booleans accepteren). */
+  kind: 'boolean';
   builtIn: Record<BuiltInProfileId, boolean>;
   /** Bijlage A: groep A (al benoemd in `SchedulingOptions`) of groep B (was alleen `p6Source`). */
   group: 'A' | 'B';
-  /** Komt de waarde per bestand uit de bron (A19: XER `rem_target_link_flag`)? Zo'n afwijking is
-   *  projectdata en overleeft een profielwissel (`switchProfile`). */
-  perFile: boolean;
   /** De waarde die geldt wanneer een bestand MÉT `OPS_SchedulingProfile` deze sleutel niet kent (een
    *  bestand van vóór `since`). Nooit de basiswaarde. Geldt niet voor de legacy-migratie van
    *  bestanden zonder die pset — daarvoor zie `legacyOptionsToProfile`. */
@@ -62,10 +57,9 @@ const SINCE = '2026-09-22';
 
 function convention(
   id: ConventionKey, group: 'A' | 'B', builtIn: Record<BuiltInProfileId, boolean>, gatedByP6Source: boolean,
-  perFile = false,
 ): ConventionDescriptor {
   return {
-    id, kind: 'boolean', builtIn, group, perFile, legacyValue: builtIn.ops, gatedByP6Source,
+    id, kind: 'boolean', builtIn, group, legacyValue: builtIn.ops, gatedByP6Source,
     labelKey: `conventions.${id}`, since: SINCE,
   };
 }
@@ -80,7 +74,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6FinishMilestoneBoundaryWindow', 'A', P6_ONLY, true),           // A17
   convention('p6PreserveActualInstants', 'A', P6_ONLY, true),                  // A18
   // A19: per bestand (`rem_target_link_flag`); de P6-basis is uit, de XER-lezer zet hem als override.
-  convention('p6UseRemainingStartForProgress', 'A', NONE, true, true),         // A19
+  convention('p6UseRemainingStartForProgress', 'A', NONE, true),               // A19
   convention('p6PreserveZeroDurationConstraintInstants', 'A', P6_ONLY, true),  // A20
   convention('resumeFromActualElapsed', 'A', MSP_ONLY, false),                 // A22
   convention('unstartedIgnoresStatusDate', 'A', MSP_ONLY, false),              // A23
@@ -279,18 +273,18 @@ export function legacyOptionsBlobFor(
 }
 
 /**
- * Profielwissel (spec v3.1 punt 3): het project krijgt het ingebouwde profiel `newBaseId`; de
- * afwijkingen die uit het BESTAND kwamen (`perFile`, nu A19) blijven met hun opgeloste waarde
- * staan, alle overige afwijkingen vervallen. Zo geeft P6 → MS Project → P6 dezelfde opgeloste set
- * als het origineel zolang het origineel alleen bestandsafwijkingen had. Puur; geen state.
+ * Profielwissel naar het ingebouwde profiel `newBaseId`.
+ *  - Staat het project op een INGEBOUWD id, dan blijven ALLE afwijkingen letterlijk staan: op een
+ *    ingebouwd id komen afwijkingen per definitie uit het bestand of uit de migratie (A19 uit XER,
+ *    `clampNegativeFreeFloat: false` uit een pset, …) en die zijn projectdata. Niet opnieuw tegen de
+ *    nieuwe basis diffen: dan zou P6 → MS Project → P6 een andere opgeloste set geven.
+ *  - Staat het project op een EIGEN profiel, dan is dat een bewuste gebruikerskeuze die de wissel
+ *    juist verlaat: het nieuwe profiel is de kale basis.
+ * Puur; geen state.
  */
 export function switchProfile(profile: SchedulingProfile | undefined, newBaseId: BuiltInProfileId): SchedulingProfile {
-  const current = resolveConventions(profile);
-  const kept: Partial<SchedulingConventions> = {};
-  for (const d of CONVENTIONS) {
-    if (d.perFile) kept[d.id] = current[d.id];
-  }
-  return { ...builtInProfile(newBaseId), overrides: diffAgainstBase(newBaseId, kept) };
+  const keep = !profile || isBuiltInProfileId(profile.id);
+  return { ...builtInProfile(newBaseId), overrides: keep && profile ? { ...profile.overrides } : {} };
 }
 
 /** De ene set die de solver krijgt: het projectblok met de opgeloste conventies van het profiel
