@@ -324,6 +324,15 @@ export function useGanttPointerCoordinator(
       event.preventDefault();
       return;
     }
+    // Ook buiten de modus is een pauze van de balk en niet van de achtergrond: een klik erin
+    // selecteert de taak en start géén pan of kaderselectie (eigenaarsbevinding kijkmoment 2:
+    // "in de pauze zit de grijphand maar hij doet niets" — dat was de pan-cursor van stap 7).
+    const gapHit = hit ? null : renderer.getSplitGapAt(x, y);
+    if (gapHit) {
+      event.preventDefault();
+      selectTask(gapHit.task.id, false);
+      return;
+    }
 
     if (hit) {
       // 5. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
@@ -407,6 +416,11 @@ export function useGanttPointerCoordinator(
       setTooltip({ x: event.clientX, y: event.clientY, task: hoveredTask });
     } else {
       setTooltip(null);
+    }
+    // Een pauze is geen grijpvlak én geen achtergrond: gewone cursor, geen pan-grijphand.
+    if (renderer.getSplitGapAt(x, y)) {
+      setHoverCursor('default');
+      return;
     }
     if (scrollMode === 'drag') {
       setHoverCursor(event.ctrlKey || event.metaKey ? 'crosshair' : 'grab');

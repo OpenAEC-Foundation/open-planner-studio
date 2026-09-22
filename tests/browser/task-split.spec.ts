@@ -238,3 +238,23 @@ test('Contextmenu: één onderbreking of alle onderbrekingen opheffen', async ({
   await expect.poll(() => splitGapsOf(page, taskId)).toBeNull();
   expect(await durationOf(page, taskId)).toBe(10);
 });
+
+test('Pauze: geen grijphand en geen pan — een klik selecteert alleen de taak', async ({ page, ops: _ops }) => {
+  const taskId = await seedSplittableTask(page);
+  await seedSplit(page, taskId, [5, 3, 5]);
+  const y = (await barPoint(page, taskId)).y;
+  // Ma 06-08 ligt in de pauze (ma–wo na het eerste stuk).
+  const gapX = await dayColumnX(page, taskId, 7);
+  await page.mouse.move(gapX, y);
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.querySelector('canvas')!).cursor)).toBe('default');
+  const before = await state(page);
+  await page.evaluate(() => window.__OPS__!.store.getState().deselectAll());
+  await page.mouse.move(gapX, y);
+  await page.mouse.down();
+  await page.mouse.move(gapX + 60, y, { steps: 4 });
+  await page.mouse.up();
+  const after = await state(page);
+  expect(after.view.scrollX).toBe(before.view.scrollX);
+  expect(after.selectedTaskIds).toEqual([taskId]);
+  expect(await splitGapsOf(page, taskId)).toEqual([{ afterMinutes: 2400, gapMinutes: 1440, source: 'user' }]);
+});
