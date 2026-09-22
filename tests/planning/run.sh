@@ -662,6 +662,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # TAAK-kalender (symmetrisch met de lezer), en de lezers die de boom uit het niveau herbouwen.
   MHCHECK="$DIR/.mspdi-hierarchy-export.mjs"
   if bundle_check "$DIR/check-mspdi-hierarchy-export.ts" "$MHCHECK"; then node "$MHCHECK" || STATUS=1; fi
+  # Issue #159, vervolg (PR-2): dezelfde bugklasse in de andere adapters — P6 restduur op de
+  # taakkalender, P6-lezer in boomvolgorde + SequenceNumber (schrijven én lezen), IFC-lezer PT{n}H
+  # met kalender-hpd i.p.v. vaste /8 (duur, speling, actuals); het native IFC normaliseert
+  # isMilestone bewust NIET.
+  AHCHECK="$DIR/.adapters-hierarchy-rest.mjs"
+  if bundle_check "$DIR/check-adapters-hierarchy-rest.ts" "$AHCHECK"; then node "$AHCHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
@@ -930,6 +936,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # localStorage en houdt meerdere filterbomen in dezelfde volgorde beschikbaar.
   SFLCHECK="$DIR/.saved-filters.mjs"
   if bundle_check "$DIR/check-saved-filters.ts" "$SFLCHECK"; then node "$SFLCHECK" || STATUS=1; fi
+
+  # Layouts als weergavepresets (issue #144): een layout zet alleen de delen die hij draagt, en de
+  # losse opgeslagen filters gaan eenmalig en idempotent op in de layouts, zonder de oude sleutel te wissen.
+  LPRCHECK="$DIR/.layout-presets.mjs"
+  if bundle_check "$DIR/check-layout-presets.ts" "$LPRCHECK"; then node "$LPRCHECK" || STATUS=1; fi
 
   # Rapportoptie voor de werkdagen-as (#21): staat bewust in ops-reportSettings, zodat de
   # rapportlay-out niet met de algemene scherminstelling meeschakelt.

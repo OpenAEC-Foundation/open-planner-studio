@@ -22,6 +22,7 @@ import { splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import type { Task } from '@/types/task';
+import type { Sequence } from '@/types/sequence';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { ContextMenu } from './ContextMenu';
 // Issue #42/#45: reikwijdte (aangeklikte taak = handgreep, selectie = bereik) + de bulk-uitvoering
@@ -80,6 +81,8 @@ export interface GanttCanvasProps {
   miniMapHost: HTMLDivElement | null;
 }
 
+const NO_SEQUENCES: Sequence[] = [];
+
 export function GanttCanvas({
   revealRequest = null,
   histogramHost,
@@ -92,7 +95,11 @@ export function GanttCanvas({
   const { labels: taskTypeLabels } = useTaskTypeLabels();
 
   const tasks = useAppStore(s => s.tasks);
-  const sequences = useAppStore(s => s.sequences);
+  const allSequences = useAppStore(s => s.sequences);
+  // Issue #144: relatielijnen uit (o.a. het resourcediagram, waar een taak onder meerdere banden
+  // staat) = de renderer krijgt geen relaties; tekenen én hit-testen vallen dan samen weg.
+  const showRelations = useAppStore(s => s.view.showRelations ?? true);
+  const sequences = useMemo(() => (showRelations ? allSequences : NO_SEQUENCES), [showRelations, allSequences]);
   const calendar = useAppStore(s => s.calendar);
   const calendars = useAppStore(s => s.calendars);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
@@ -463,8 +470,8 @@ export function GanttCanvas({
   // Path tracing rond de (eerst) geselecteerde taak: transitieve voorgangers/opvolgers, met de
   // driving-ketens apart zodat de renderer die sterker kan tinten (MSP Task Path-conventie).
   const trace = useMemo(
-    () => buildTrace(traceMode, selectedTaskIds, sequences, cpmResult),
-    [traceMode, selectedTaskIds, sequences, cpmResult],
+    () => buildTrace(traceMode, selectedTaskIds, allSequences, cpmResult),
+    [traceMode, selectedTaskIds, allSequences, cpmResult],
   );
 
   // --- Histogram (fase 2.5, §6.4) ---

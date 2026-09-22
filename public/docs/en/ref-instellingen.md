@@ -51,6 +51,7 @@ Less frequently used settings: the AI assistant, troubleshooting and device/vers
 - **Statistics** — opens **Statistics…**: how often Open Planner Studio has been downloaded, per operating system and per release. Deliberately a button next to Benchmark, not a tab of its own.
 - **Tour** — **Start tour** replays the introductory tour. The same restart also sits on the **View** ribbon tab → **Tour** and in the Backstage (**File** → **Start tour**).
 - **Version** — the app's version number (read-only), with a **Check for updates** link that opens the update window. Installing updates only works in the desktop app; Snap and AppImage installs update through their own channel. Separately, the first time you open the app after it auto-updated itself, a one-off "You've just been updated" dialog appears on its own — the version jump, the installer size difference, the days since the previous release and the GitHub release notes, whichever of those it could fetch. That's a different, automatic moment from the manual **Check for updates** link here.
+- **Legacy features** — a separate, marked block at the bottom with features that have been replaced. **Show classic view buttons** puts the separate Columns, Filter, Group and Sort buttons back on the View tab; their function now lives in the layout buttons and the layout window (see the Layouts guide). Off by default.
 
 ## Statistics (button on the Advanced tab)
 

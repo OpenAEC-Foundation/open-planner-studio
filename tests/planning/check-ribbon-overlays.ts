@@ -2,8 +2,9 @@
  * Ribbon-groep Baselines & Progress — layoutcontract.
  *
  * De drie baseline-/voortgangsregels vormen de linker RibbonButtonStack; balkkleuren,
- * resource-accent en de spelingsband (#130) vormen de rechter. Elke stack rendert zijn kinderen
- * onder elkaar (maximaal drie per stack binnen de vaste linthoogte), zonder naast elkaar te staan.
+ * resource-accent en de spelingsband (#130) vormen de middelste. Beide zitten VOL, dus de schakelaar
+ * voor relatielijnen (#144) staat in een eigen derde stack. Elke stack rendert zijn kinderen onder
+ * elkaar (maximaal drie per stack binnen de vaste linthoogte), zonder naast elkaar te staan.
  */
 // De ribbon-config laadt i18n, dat bij module-initialisatie de documentrichting zet. De test leest
 // alleen declaratieve config en heeft dus geen DOM nodig, behalve deze minimale Node-shim.
@@ -23,11 +24,11 @@ const eq = (label: string, got: unknown, want: unknown) => {
 
 const overlays = RIBBON_TABS.beeld.find(group => group.id === 'overlays');
 eq('Baselines & Progress-groep bestaat', !!overlays, true);
-eq('Baselines & Progress bestaat uit twee verticale stacks', overlays?.items.length, 2);
+eq('Baselines & Progress bestaat uit drie verticale stacks', overlays?.items.length, 3);
 eq(
-  'Baselines & Progress houdt de twee stacks in leesvolgorde',
+  'Baselines & Progress houdt de drie stacks in leesvolgorde',
   overlays?.items.map(item => item.id),
-  ['overlaysStack', 'colorAccentStack'],
+  ['overlaysStack', 'colorAccentStack', 'relationsStack'],
 );
 
 const overlayStack = overlays?.items[0];
@@ -44,6 +45,16 @@ eq(
   colorAccentStack?.kind === 'stack' ? colorAccentStack.items.map(item => item.id) : [],
   ['screenColors', 'toggleResourceAccent', 'toggleFloatBand'],
 );
+
+const relationsStack = overlays?.items[2];
+eq(
+  'Relatielijnen staat in een eigen stack en overvult de kleurstack niet',
+  relationsStack?.kind === 'stack' ? relationsStack.items.map(item => item.id) : [],
+  ['toggleRelations'],
+);
+for (const stack of overlays?.items ?? []) {
+  eq(`Stack ${stack.id} past binnen de vaste linthoogte (max drie)`, stack.kind === 'stack' && stack.items.length <= 3, true);
+}
 
 if (diffs.length === 0) {
   console.log(`OK  ribbon-overlays: alle checks groen (${checks})`);

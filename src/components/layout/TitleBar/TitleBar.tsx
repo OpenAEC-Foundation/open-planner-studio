@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
@@ -33,6 +33,32 @@ export function TitleBar() {
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
 
   const [maximized, setMaximized] = useState(false);
+
+  // De gecentreerde titel staat absoluut op 50% en moet aan beide kanten evenveel ruimte
+  // vrijhouden als het breedste zijcluster inneemt — anders schuift hij bij een lange
+  // projectnaam over de feedbackknop heen. Die breedte is niet statisch (AutoSave-label,
+  // roterend feedbacklabel, taal, vensterknoppen alleen in Tauri), dus we meten hem en
+  // geven hem als CSS-variabele door; `.title-bar-center` rekent daar zijn breedte uit.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+    const apply = () => {
+      const reserve = Math.max(
+        leftRef.current?.getBoundingClientRect().width ?? 0,
+        rightRef.current?.getBoundingClientRect().width ?? 0,
+      );
+      root.style.setProperty('--title-bar-side-reserve', `${Math.ceil(reserve)}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    if (leftRef.current) observer.observe(leftRef.current);
+    if (rightRef.current) observer.observe(rightRef.current);
+    return () => observer.disconnect();
+    // De rechterzijde bestaat alleen in Tauri; die conditie verandert nooit tijdens de sessie.
+  }, []);
 
   // Roteer het feedback-knoplabel elke 10 minuten.
   const [feedbackLabelIdx, setFeedbackLabelIdx] = useState(0);
@@ -99,8 +125,8 @@ export function TitleBar() {
   }, [autoSaveRef, autoSaveToFile, setAutoSaveToFile]);
 
   return (
-    <div className="title-bar" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-      <div className="title-bar-left">
+    <div ref={rootRef} className="title-bar" data-tauri-drag-region style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+      <div ref={leftRef} className="title-bar-left">
         <div className="quick-access-toolbar">
           <img src="/icon.png" className="title-bar-app-icon" alt="Open Planner Studio" />
           <div className="quick-access-separator" />
@@ -178,10 +204,10 @@ export function TitleBar() {
           <SwitcherPill />
         ) : (
           <>
-            <span className="title-bar-app-name">Open Planner Studio v{__APP_VERSION__}</span>
+            <span className="title-bar-app-name" data-ops-title-app-name>Open Planner Studio v{__APP_VERSION__}</span>
             {/* Een naamloos project blijft in de data naamloos; de weergave valt terug op de
                 vertaalde tekst (i.p.v. hier niets te tonen). */}
-            <span className="title-bar-file-name">
+            <span className="title-bar-file-name" data-ops-title-file-name>
               {isDirty ? '* ' : ''}{project.name || tCommon('project.untitled')}
             </span>
           </>
@@ -193,7 +219,7 @@ export function TitleBar() {
           de handlers hierboven met `if (!isTauri()) return;`. Ze renderden tot nu toe
           onvoorwaardelijk, dus de webgebruiker zag drie knoppen die niets deden. */}
       {isTauri() && (
-        <div className="window-controls">
+        <div ref={rightRef} className="window-controls">
           <button className="window-btn" title={tCommon('window.minimize')} onClick={() => { void handleMinimize(); }}>
             <Minus size={14} />
           </button>

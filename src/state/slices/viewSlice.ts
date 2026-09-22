@@ -9,8 +9,10 @@ import {
 } from '@/engine/view/visibleRows';
 import type {
   ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
-  SplitViewState, Layout,
+  SplitViewState, Layout, LayoutSession,
 } from './types';
+import { liveSessionLayouts, switchLayoutOff, switchLayoutOn } from '@/engine/view/layoutPresets';
+import { currentLayoutParts } from '../layoutView';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
   captureViewLayoutHistoryState,
@@ -89,10 +91,53 @@ export interface ViewSlice {
    *  huidige view en herberekent viewRows. Onbekende refs zijn stille tolerantie (§8.4) — die zit al
    *  in de evaluatie/render, niet hier. */
   applyLayout: (layout: Layout) => void;
+  /** Weergave-instellingen toepassen zonder layoutknop (de layoutdialoog, "zonder opslaan"). */
+  applyViewSettings: (parts: Layout, label: string) => void;
+  /** Layoutknop (issue #144): aan = toepassen; nogmaals = uit, terug naar het beeld van vóór de klik. */
+  toggleLayout: (layout: Layout) => void;
+  /** Relatielijnen in de Gantt tonen of verbergen (schermtegenhanger van de rapportoptie). */
+  setShowRelations: (show: boolean) => void;
 }
 
 
-export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
+export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
+  /** Schrijf de gedragen delen van `parts` naar het scherm als ÉÉN undo-stap, met de nieuwe sessie. */
+  const writeLayoutParts = (parts: Layout, session: LayoutSession | undefined, label: string): void => {
+    const beforeState = get();
+    const documentId = beforeState.activeDocumentId;
+    const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
+    const viewBefore = captureViewLayoutHistoryState(beforeState.view);
+    const gridBefore = {
+      columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: beforeState.taskGridSurfaces[surface].scrollX,
+    };
+    set((s) => {
+      if (parts.group !== undefined) s.view.group = parts.group;
+      if (parts.sort !== undefined) s.view.sort = parts.sort;
+      if (parts.filter !== undefined) s.view.filter = parts.filter;
+      if (parts.showRelations !== undefined) s.view.showRelations = parts.showRelations;
+      s.view.layoutSession = session;
+    });
+    if (parts.columns !== undefined) get().applyTaskGridLayoutColumns(parts.columns);
+    if (parts.timeScale !== undefined) get().setTimeScale(parts.timeScale);
+    get().recomputeViewRows();
+    const afterState = get();
+    const viewAfter = captureViewLayoutHistoryState(afterState.view);
+    const gridAfter = {
+      columns: afterState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
+      scrollX: afterState.taskGridSurfaces[surface].scrollX,
+    };
+    const deltas: SessionHistoryDelta[] = [];
+    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
+      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
+    }
+    if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
+      deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
+    }
+    if (deltas.length > 0) afterState.recordSessionHistoryEvent(label, deltas);
+  };
+
+  return {
   view: createDefaultView(),
   viewRows: [],
 
@@ -236,35 +281,34 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => ({
   },
 
   applyLayout: (layout) => {
-    const beforeState = get();
-    const documentId = beforeState.activeDocumentId;
-    const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
-    const viewBefore = captureViewLayoutHistoryState(beforeState.view);
-    const gridBefore = {
-      columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
-      scrollX: beforeState.taskGridSurfaces[surface].scrollX,
-    };
-    set((s) => {
-      s.view.group = layout.group;
-      s.view.sort = layout.sort;
-      s.view.filter = layout.filter;
-    });
-    get().applyTaskGridLayoutColumns(layout.columns);
-    get().setTimeScale(layout.timeScale);
-    get().recomputeViewRows();
-    const afterState = get();
-    const viewAfter = captureViewLayoutHistoryState(afterState.view);
-    const gridAfter = {
-      columns: afterState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
-      scrollX: afterState.taskGridSurfaces[surface].scrollX,
-    };
-    const deltas: SessionHistoryDelta[] = [];
-    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
-      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
-    }
-    if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
-      deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
-    }
-    if (deltas.length > 0) afterState.recordSessionHistoryEvent(`Layout ${layout.name} toepassen`, deltas);
+    // Issue #144: een layout zet alleen de delen die hij draagt; zie `switchLayoutOn` voor wat er
+    // met de al aanstaande layoutknoppen gebeurt.
+    const state = get();
+    const { session, write } = switchLayoutOn(state.view.layoutSession, currentLayoutParts(state), layout);
+    writeLayoutParts(write, session, `Layout ${layout.name} toepassen`);
   },
-});
+
+  applyViewSettings: (parts, label) => {
+    // "Toepassen zonder opslaan": het beeld verandert, maar er gaat geen layoutknop aan en er komt
+    // dus ook geen herstelpunt. Een aanstaande knop valt vanzelf af zodra hij niet meer klopt.
+    writeLayoutParts(parts, get().view.layoutSession, label);
+  },
+
+  toggleLayout: (layout) => {
+    const state = get();
+    const current = currentLayoutParts(state);
+    const session = state.view.layoutSession;
+    if (!session || !liveSessionLayouts(session, current).some(l => l.id === layout.id)) {
+      get().applyLayout(layout);
+      return;
+    }
+    // Uitzetten: alleen de delen van DEZE layout gaan terug naar het beeld van vóór de klik.
+    const off = switchLayoutOff(session, current, layout.id);
+    writeLayoutParts(off.write, off.session, `Layout ${layout.name} uitzetten`);
+  },
+
+  setShowRelations: (show) => {
+    set((s) => { s.view.showRelations = show; });
+  },
+};
+};

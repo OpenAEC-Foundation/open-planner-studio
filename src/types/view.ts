@@ -85,17 +85,54 @@ export interface SortLevel {
   dir: 'asc' | 'desc';
 }
 
-/** App-globale presentatie-preset (§2.5). Bewust GEEN scroll/zoom-positie of sessie-flags. */
+/** App-globale presentatie-preset (§2.5). Bewust GEEN scroll/zoom-positie of sessie-flags.
+ *
+ *  Een layout legt alleen vast wat hij DRAAGT (issue #144): een ontbrekende sleutel betekent "laat
+ *  dat deel van het beeld met rust". Een opgeslagen filter is zo een layout met alleen `filter`, het
+ *  meegeleverde resourcediagram een layout met alleen `group` + `sort`. Layouts van vóór #144 dragen
+ *  alle vijf delen en gedragen zich dus ongewijzigd. Zie `src/engine/view/layoutPresets.ts`. */
 export interface Layout {
   id: string;
   name: string;
   /** Kolomindeling die op het actieve taakgridoppervlak wordt toegepast. De bron-surface wordt
    *  niet vastgelegd: dezelfde layout is bewust bruikbaar in Gantt en volledige Tabel. */
+  columns?: TaskGridColumnPreference[];
+  group?: GroupLevel[];
+  sort?: SortLevel[];
+  /** Aanwezig + `null` = "wis het filter"; afwezig = filter ongemoeid. */
+  filter?: FilterNode | null;
+  timeScale?: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
+  /** Relatielijnen in de Gantt tonen. Het resourcediagram zet ze uit: een taak kan daar onder
+   *  meerdere banden staan, waardoor de pijlen kriskras door het beeld lopen. */
+  showRelations?: boolean;
+  /** Sleutel uit de vaste icoonset van de layoutknoppen (`layoutIcons.tsx`); geen layoutDEEL. */
+  icon?: string;
+}
+
+/** De delen die een layout kan dragen, in vaste UI-volgorde. */
+export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale', 'showRelations'] as const;
+export type LayoutPart = typeof LAYOUT_PARTS[number];
+
+/** Het deel van het scherm waar een layout over gaat — precies de layoutdelen, volledig ingevuld. */
+export interface LayoutViewParts {
   columns: TaskGridColumnPreference[];
+  filter: FilterNode | null;
   group: GroupLevel[];
   sort: SortLevel[];
-  filter: FilterNode | null;
-  timeScale: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
+  timeScale: TimeScale;
+  showRelations: boolean;
+}
+
+/**
+ * Een layoutknop is een SCHAKELAAR (eigenaarsbesluit 2026-09-19): aanzetten past de layout toe,
+ * nogmaals klikken zet hem uit en brengt zijn delen terug naar `restore` — het beeld van vóór de
+ * eerste layoutklik. Knoppen die VERSCHILLENDE delen dragen kunnen tegelijk aanstaan (resourcediagram
+ * + een filterknop); een knop die een deel van een andere draagt vervangt die andere.
+ */
+export interface LayoutSession {
+  /** De aangezette layouts zoals ze werden toegepast; de store kent de layoutlijst zelf niet. */
+  layouts: Layout[];
+  restore: LayoutViewParts;
 }
 
 /** Split view binnen één document (§10) — undefined = uit. */
@@ -125,6 +162,10 @@ export interface ViewState {
   collapsedGroupKeys: string[];
   /** Split view binnen dit document; undefined = uit. */
   splitView?: SplitViewState;
+  /** Relatielijnen in de Gantt tonen (issue #144); undefined = aan. */
+  showRelations?: boolean;
+  /** De layoutknop die nu aanstaat, met het beeld om naar terug te keren; undefined = geen. */
+  layoutSession?: LayoutSession;
   /** Open-fit-signaal (issue #16): na het laden van een document zet fileSlice dit op `true`; de
    *  GanttCanvas voert dan de fit-to-project uit (het kent de viewport-breedte, de store niet) en
    *  wist het meteen weer. Transient — bewust GEEN undo/redo (view zit niet in de snapshot). */

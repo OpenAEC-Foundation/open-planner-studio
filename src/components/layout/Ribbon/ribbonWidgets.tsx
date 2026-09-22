@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
@@ -7,12 +7,12 @@ import {
   History, Download, Puzzle,
   LayoutTemplate, UserPlus, Flag, GitCompareArrows, CalendarClock, X,
   Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Palette,
-  Map as MapIcon, AlertTriangle, Save, RefreshCw, Settings2,
+  Map as MapIcon, AlertTriangle, Plus,
 } from 'lucide-react';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
-  saveShowMiniMap, loadLayouts, saveLayouts, loadLastLayoutId, saveLastLayoutId, loadSavedFilters,
+  saveShowMiniMap, loadLayouts, saveLayouts,
 } from '@/utils/settingsStore';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { ExportFormat } from '@/state/appStore';
@@ -22,7 +22,7 @@ import { supportsHandles } from '@/services/fileAccess';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { ExtensionIcon } from '@/components/common/ExtensionIcon';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import { RibbonTab, type GroupLevel, type SortLevel, type Layout, type SavedFilter, type TimeScale } from '@/state/slices/types';
+import { RibbonTab, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
@@ -33,8 +33,13 @@ import {
   effectiveBarColorControl,
 } from '@/components/viewControls/barColorFieldOptions';
 import { buildImportLabels } from '@/i18n/importLabels';
-import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
-import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
+import { builtinLayouts } from '@/components/viewControls/builtinLayouts';
+import { layoutIcon } from '@/components/viewControls/layoutIcons';
+import { LevelListEditor } from '@/components/viewControls/LevelListEditor';
+import { activeLayoutIds } from '@/state/layoutView';
+import { isBuiltinLayoutId, isFilterOnlyLayout } from '@/engine/view/layoutPresets';
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
   RibbonInlineSelect,
@@ -797,15 +802,6 @@ export function GroupPopoverButton() {
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
 
-  const setLevel = (i: number, changes: Partial<GroupLevel>) => {
-    setGroup(group.map((g, gi) => (gi === i ? { ...g, ...changes } : g)));
-  };
-  const addLevel = () => {
-    if (group.length >= 2 || fields.length === 0) return;
-    setGroup([...group, { field: fields[0], dir: 'asc' }]);
-  };
-  const removeLevel = (i: number) => setGroup(group.filter((_, gi) => gi !== i));
-
   return (
     <Popover
       open={open}
@@ -827,40 +823,14 @@ export function GroupPopoverButton() {
       }
     >
       <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.group.title')}</span>
-      {group.length === 0 && (
-        <span className="ribbon-info">{tCommon('view.group.noLevels')}</span>
-      )}
-      {group.map((lvl, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <select
-            value={encodeFieldRef(lvl.field)}
-            onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-            className="input !text-body !px-1.5 !py-1 flex-1"
-            aria-label={tCommon('view.filter.field')}
-          >
-            {options.map(({ field: f, label }) => (
-              <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
-            ))}
-          </select>
-          <select
-            value={lvl.dir}
-            onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-            className="input !text-body !px-1.5 !py-1 !w-32"
-            aria-label={tCommon('view.group.direction')}
-          >
-            <option value="asc">{tCommon('view.sort.ascending')}</option>
-            <option value="desc">{tCommon('view.sort.descending')}</option>
-          </select>
-          <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
-            <X size={13} />
-          </button>
-        </div>
-      ))}
-      {group.length < 2 && (
-        <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
-          {tCommon('view.group.addLevel')}
-        </button>
-      )}
+      <LevelListEditor
+        levels={group}
+        onChange={setGroup}
+        options={options}
+        maxLevels={2}
+        emptyLabel={tCommon('view.group.noLevels')}
+        addLabel={tCommon('view.group.addLevel')}
+      />
     </Popover>
   );
 }
@@ -878,15 +848,6 @@ export function SortPopoverButton() {
   const fields = fullFieldList(ctx);
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
-
-  const setLevel = (i: number, changes: Partial<SortLevel>) => {
-    setSort(sort.map((lvl, li) => (li === i ? { ...lvl, ...changes } : lvl)));
-  };
-  const addLevel = () => {
-    if (fields.length === 0) return;
-    setSort([...sort, { field: fields[0], dir: 'asc' }]);
-  };
-  const removeLevel = (i: number) => setSort(sort.filter((_, li) => li !== i));
 
   return (
     <Popover
@@ -909,153 +870,120 @@ export function SortPopoverButton() {
       }
     >
       <span className="ribbon-info" style={{ fontWeight: 600 }}>{tCommon('view.sort.title')}</span>
-      {sort.length === 0 && (
-        <span className="ribbon-info">{tCommon('view.sort.noLevels')}</span>
-      )}
-      {sort.map((lvl, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <select
-            value={encodeFieldRef(lvl.field)}
-            onChange={e => setLevel(i, { field: decodeFieldRef(e.target.value) })}
-            className="input !text-body !px-1.5 !py-1 flex-1"
-            aria-label={tCommon('view.filter.field')}
-          >
-            {options.map(({ field: f, label }) => (
-              <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>
-            ))}
-          </select>
-          <select
-            value={lvl.dir}
-            onChange={e => setLevel(i, { dir: e.target.value as 'asc' | 'desc' })}
-            className="input !text-body !px-1.5 !py-1 !w-32"
-            aria-label={tCommon('view.group.direction')}
-          >
-            <option value="asc">{tCommon('view.sort.ascending')}</option>
-            <option value="desc">{tCommon('view.sort.descending')}</option>
-          </select>
-          <button onClick={() => removeLevel(i)} style={{ color: 'var(--error)' }} title={tCommon('delete')}>
-            <X size={13} />
-          </button>
-        </div>
-      ))}
-      <button onClick={addLevel} className="btn btn--sm btn--secondary" style={{ alignSelf: 'flex-start' }}>
-        {tCommon('view.sort.addLevel')}
-      </button>
+      <LevelListEditor
+        levels={sort}
+        onChange={setSort}
+        options={options}
+        emptyLabel={tCommon('view.sort.noLevels')}
+        addLabel={tCommon('view.sort.addLevel')}
+      />
     </Popover>
   );
 }
 
 /**
- * Layout-groep (fase 2.7, §8/§13): actieve-layout-dropdown (kies + toepassen) + Opslaan als…/
- * Bijwerken/Beheren…. Opslag app-globaal via `settingsStore` (§8.2); `ops-lastLayoutId` alleen als
- * dropdown-voorselectie (BIJ opstart/documentwissel NIET automatisch toegepast, §8.3).
+ * Layout-groep (issue #144): elke layout is een eigen lintknop met icoon en naam — één klik zet hem
+ * aan, nogmaals klikken zet hem uit en brengt het beeld van vóór de klik terug (`toggleLayout`). De
+ * plusknop opent de layoutdialoog. Knoppen die verschillende delen dragen kunnen samen aanstaan
+ * (resourcediagram + een filterknop); een opgeslagen filter van vóór #144 is zo'n filterknop.
+ * Opslag app-globaal via `settingsStore`; meegeleverde layouts komen uit code (`builtinLayouts`).
  */
 export function LayoutGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
-  const compact = useRibbonDensity() !== 'full';
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
-  const applyLayout = useAppStore(s => s.applyLayout);
-  const view = useAppStore(s => s.view);
-  const activeSurface = useAppStore(s => taskGridSurfaceForRibbonTab(s.ui.activeRibbonTab));
-  const columns = useAppStore(s => s.taskGridSurfaces[activeSurface].columns);
+  const toggleLayout = useAppStore(s => s.toggleLayout);
+  // Als tekst geselecteerd: een selector die telkens een nieuwe array teruggeeft zou elke render
+  // als wijziging tellen.
+  const activeKey = useAppStore(s => activeLayoutIds(s).join('\n'));
+  const activeIds = useMemo(() => new Set(activeKey ? activeKey.split('\n') : []), [activeKey]);
 
   const [layouts, setLayouts] = useState<Layout[]>([]);
-  const [selectedId, setSelectedId] = useState<string>('');
+  const reload = useCallback(() => { void loadLayouts().then(setLayouts); }, []);
+  useEffect(() => { reload(); }, [reload]);
 
-  const reload = useCallback(() => {
-    void loadLayouts().then(setLayouts);
-  }, []);
-
-  useEffect(() => {
-    reload();
-    void loadLastLayoutId().then(id => { if (id) setSelectedId(id); });
-  }, [reload]);
-
-  // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de lijst verversen.
+  // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de knoppenrij verversen.
   const prevOpenRef = useRef(showLayoutsDialog);
   useEffect(() => {
     if (prevOpenRef.current && !showLayoutsDialog) reload();
     prevOpenRef.current = showLayoutsDialog;
   }, [showLayoutsDialog, reload]);
 
-  const activeLayout = layouts.find(l => l.id === selectedId);
+  const buttons = useMemo(
+    () => [...builtinLayouts(tCommon), ...layouts],
+    [tCommon, layouts],
+  );
 
-  const pick = (id: string) => {
-    setSelectedId(id);
-    const layout = layouts.find(l => l.id === id);
-    if (layout) {
-      applyLayout(layout);
-      void saveLastLayoutId(id);
-    }
-  };
-
-  const update = () => {
-    if (!activeLayout) return;
-    const next = layouts.map(l => (l.id === activeLayout.id
-      ? snapshotLayout(view, columns, l.name, l.id)
-      : l));
-    setLayouts(next);
-    void saveLayouts(next);
+  // Rechtsklik op een layoutknop: bewerken / dupliceren / verwijderen. Meegeleverde layouts zijn
+  // alleen te dupliceren. Verwijderen vraagt eerst een bevestiging (geen native dialoog).
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Layout | null>(null);
+  const persist = (next: Layout[]) => { setLayouts(next); void saveLayouts(next); };
+  const duplicate = (layout: Layout) => {
+    const { id: _id, ...rest } = layout;
+    persist([...layouts, { ...structuredClone(rest), id: generateId('layout'), name: tCommon('view.layout.copyName', { name: layout.name }) }]);
+    setMenuId(null);
   };
 
   return (
-    // minWidth 150 → 210 (issue #29): bij 150 kregen de drie knoppen elk maar ~46px — te weinig
-    // voor "Opslaan als…"/"Beheren…" (NL) en zeker voor langere talen (bv. FR "Enregistrer sous…"),
-    // wat de labels rauw liet afknippen i.p.v. netjes met "…" (zie de ellipsis-fix in Ribbon.css
-    // hierboven, die als vangnet blijft voor talen die ook bij 210px nog niet passen).
-    // In compacte dichtheid vervalt die ondergrens: alles staat dan op één platte rij (A2-fix,
-    // issue #38 punt 4) i.p.v. een 2-regelige kolom die boven de 40px-strip uitstak.
-    <div style={{
-      display: 'flex',
-      flexDirection: compact ? 'row' : 'column',
-      alignItems: compact ? 'center' : 'stretch',
-      gap: 4, padding: '2px 4px', minWidth: compact ? 0 : 210,
-    }}>
-      <select
-        value={selectedId}
-        onChange={e => pick(e.target.value)}
-        className="input !text-body !px-1.5 !py-1"
-        style={compact ? { width: 120 } : undefined}
-        aria-label={tCommon('view.layout.activeLayout')}
-      >
-        <option value="">{tCommon('view.layout.none')}</option>
-        {layouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-      </select>
-      <div style={{ display: 'flex', gap: 2 }}>
-        {/* Iconen zijn hier niet decoratief: in de icoon-dichtheid verbergt de CSS élk
-            `.ribbon-btn-label`, dus een knop zonder icoon bleef als leeg stompje van ~14px over.
-            Met een icoon houdt elke knop betekenis, en de tooltip draagt het label. */}
-        <button
-          className="ribbon-btn small"
-          style={{ minWidth: 0, flex: '0 0 auto' }}
-          onClick={() => setUI({ showLayoutsDialog: true })}
-          title={tMenu('ribbon.saveLayoutAs')}
-        >
-          <span className="ribbon-btn-icon"><Save size={14} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.saveLayoutAs')}</span>
-        </button>
-        <button
-          className="ribbon-btn small"
-          style={{ minWidth: 0, flex: '0 0 auto' }}
-          onClick={update}
-          disabled={!activeLayout}
-          title={tMenu('ribbon.updateLayout')}
-        >
-          <span className="ribbon-btn-icon"><RefreshCw size={14} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.updateLayout')}</span>
-        </button>
-        <button
-          className="ribbon-btn small"
-          style={{ minWidth: 0, flex: '0 0 auto' }}
-          onClick={() => setUI({ showLayoutsDialog: true })}
-          title={tMenu('ribbon.manageLayouts')}
-        >
-          <span className="ribbon-btn-icon"><Settings2 size={14} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.manageLayouts')}</span>
-        </button>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: 2 }} data-ops-layout-buttons="true">
+      {buttons.map(layout => {
+        const builtin = isBuiltinLayoutId(layout.id);
+        return (
+          <Popover
+            key={layout.id}
+            open={menuId === layout.id}
+            onClose={() => setMenuId(null)}
+            panelStyle={{ marginTop: 2, zIndex: 9999, minWidth: 170, padding: 4, display: 'flex', flexDirection: 'column', gap: 2 }}
+            trigger={
+              <span
+                data-ops-layout-button={layout.id}
+                style={{ display: 'flex', height: '100%' }}
+                onContextMenu={e => { e.preventDefault(); setMenuId(layout.id); }}
+              >
+                <RibbonButton
+                  icon={layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined))}
+                  label={layout.name}
+                  active={activeIds.has(layout.id)}
+                  onClick={() => toggleLayout(layout)}
+                />
+              </span>
+            }
+          >
+            {builtin ? (
+              <span className="ribbon-info" style={{ padding: '4px 6px', maxWidth: 220, whiteSpace: 'normal' }}>
+                {tCommon('view.layout.builtinReadonly')}
+              </span>
+            ) : (
+              <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setMenuId(null); setUI({ showLayoutsDialog: true, layoutDialogTargetId: layout.id }); }}>
+                <span className="ribbon-btn-label">{tCommon('view.layout.edit')}</span>
+              </button>
+            )}
+            <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => duplicate(layout)}>
+              <span className="ribbon-btn-label">{tCommon('view.layout.duplicate')}</span>
+            </button>
+            {!builtin && (
+              <button className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--error)' }} onClick={() => { setMenuId(null); setPendingDelete(layout); }}>
+                <span className="ribbon-btn-label">{tCommon('view.layout.delete')}</span>
+              </button>
+            )}
+          </Popover>
+        );
+      })}
+      <RibbonButton
+        icon={<Plus size={20} />}
+        label={tMenu('ribbon.addLayout')}
+        onClick={() => setUI({ showLayoutsDialog: true, layoutDialogTargetId: null })}
+      />
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`${tCommon('view.layout.delete')}: ${pendingDelete.name}?`}
+          danger
+          onConfirm={() => { persist(layouts.filter(l => l.id !== pendingDelete.id)); setPendingDelete(null); }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1209,22 +1137,28 @@ function SavedFilterDropdown() {
   const setUI = useAppStore(s => s.setUI);
   const filter = useAppStore(s => s.view.filter);
   const setFilter = useAppStore(s => s.setFilter);
+  const applyLayout = useAppStore(s => s.applyLayout);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
+  const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const [open, setOpen] = useState(false);
-  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  // Issue #144: opgeslagen filters zijn layouts die alleen een filter dragen — één opslag, en
+  // toepassen loopt via `applyLayout` (dus mét undo-stap), net als in de layoutlijst.
+  const [savedFilters, setSavedFilters] = useState<Layout[]>([]);
 
-  const reload = useCallback(() => { void loadSavedFilters().then(setSavedFilters); }, []);
+  const loadFilterLayouts = useCallback(() => loadLayouts().then(all => all.filter(isFilterOnlyLayout)), []);
+  const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters); }, [loadFilterLayouts]);
   useEffect(() => { reload(); }, [reload]);
-  const previousDialogOpen = useRef(showFilterDialog);
+  const dialogOpen = showFilterDialog || showLayoutsDialog;
+  const previousDialogOpen = useRef(dialogOpen);
   useEffect(() => {
-    if (previousDialogOpen.current && !showFilterDialog) reload();
-    previousDialogOpen.current = showFilterDialog;
-  }, [showFilterDialog, reload]);
+    if (previousDialogOpen.current && !dialogOpen) reload();
+    previousDialogOpen.current = dialogOpen;
+  }, [dialogOpen, reload]);
 
   const openFilterControls = () => {
     // Lees bij de klik opnieuw: bij het openen van de app kan de asynchrone initiële laadactie
     // nog lopen. Daardoor wordt een bestaande preset nooit ten onrechte als een lege lijst gezien.
-    void loadSavedFilters().then(filters => {
+    void loadFilterLayouts().then(filters => {
       setSavedFilters(filters);
       if (filters.length === 0) {
         setUI({ showFilterDialog: true });
@@ -1262,7 +1196,7 @@ function SavedFilterDropdown() {
         </button>
       )}
       {savedFilters.map(saved => (
-        <button key={saved.id} className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setFilter(structuredClone(saved.filter)); setOpen(false); }}>
+        <button key={saved.id} className="ribbon-btn small" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { applyLayout(saved); setOpen(false); }}>
           <span className="ribbon-btn-label">{saved.name}</span>
         </button>
       ))}
