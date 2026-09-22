@@ -1,24 +1,33 @@
 # Rekenprofielen — één solver, benoemde conventies, profielen per project
 
-*Ontwerp, 2026-09-22. Status: besproken met de eigenaar (vragen 1–7 hieronder beantwoord), wordt
-uitgevoerd vóór het X12-vervolg. Bijlage A (de conventietabel) is de inventaris van de motor op de
-kop van `claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
+*Ontwerp, 2026-09-22, **versie 2** (na de critreview van v1: no-go op veertien punten, waarvan de kern
+verwerkt is — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
+vóór het X12-vervolg. Bijlage A is de inventaris van de motor op de kop van
+`claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
 
 ## 1. Waarom
 
-Bij elke formaat-etappe (`.mpp`, XER, straks PMXML/PP) kwam dezelfde vraag terug: "moeten we dit
-in de solver doen? Dan rekent het raar voor wie MS Project gewend is." Eén gedeelde motor, drie
-scholen (Primavera P6, MS Project, en wat OPS zelf tot nu toe deed), en elke etappe moest kiezen
-wiens gedrag de motor krijgt. De huidige uitweg is een vlag — `schedulingOptions.p6Source === 'XER'`,
-fail-closed — waarachter P6-takken schuilen. Dat werkt, maar elke nieuwe pakketregel is opnieuw een
-vraag aan de eigenaar, en het antwoord landt als een `if` op het bronformaat. Voorbeelden uit de
-XER-etappe: echte totale speling op voltooide activiteiten (7a), het projecteinde als anker van de
-late kant, de sameday-conventie, `lagCalendar`, longest-path-kritiek.
+Bij elke formaat-etappe (`.mpp`, XER, straks PMXML/PP) kwam dezelfde vraag terug: "moeten we dit in
+de solver doen? Dan rekent het raar voor wie MS Project gewend is." Eén gedeelde motor, drie scholen
+(Primavera P6, MS Project, en wat OPS zelf tot nu toe deed), en elke etappe moest kiezen wiens gedrag
+de motor krijgt. De huidige uitweg is een vlag — `schedulingOptions.p6Source === 'XER'`, fail-closed —
+waarachter P6-takken schuilen. Elke nieuwe pakketregel is dan opnieuw een vraag aan de eigenaar, en het
+antwoord landt als een `if` op het bronformaat.
 
-Dit ontwerp haalt die keuze uit de motor. De solver kent geen bestandsformaten meer, alleen
-**conventies**; een **profiel** is een benoemde set waarden voor alle conventies; elk project heeft
-precies één profiel. "Moeten we dit in de solver doen?" wordt "welke conventie is dit, en wat is de
-waarde per profiel?" — een tabelrij, geen compromis.
+Dit ontwerp haalt die keuze uit de motor. Het onderscheidt twee dingen die v1 op één hoop gooide:
+
+- **Pakketconventies** — regels die bij een *school* horen en niet per bestand verschillen: "een
+  finishmijlpaal is een grensvenster", "actuals zijn exacte broninstants", "restwerk hervat op
+  actualStart + verstreken duur". Dat zijn er veertien (bijlage A, groep A-conventies + B). Zij vormen
+  het **rekenprofiel**.
+- **Reken-opties van het project** — instellingen die P6 en MS Project *per project* opslaan en die de
+  lezer uit het bestand haalt: lagkalender, kritiekdefinitie en -drempel, floatformule, open einden,
+  near-critical, floatpaden, verwachte einddatums, projecteinde-anker, `rem_target_link_flag`,
+  en de voortgangsmodus. Die blijven `project.schedulingOptions` (en `project.progressMode`); het
+  profiel levert er alleen de standaard voor bij een nieuw of bronloos project.
+
+"Moeten we dit in de solver doen?" wordt zo: *is het een pakketconventie (rij in het register, drie
+waarden) of een projectoptie (veld in het bestand, profiel geeft de default)?* Beide zijn tabelwerk.
 
 ## 2. Besluiten van de eigenaar (2026-09-22)
 
@@ -26,7 +35,7 @@ waarde per profiel?" — een tabelrij, geen compromis.
 |---|---|---|
 | 1 | welke compromissen | de conventiekeuzes in de gedeelde motor (P6 vs MS Project vs OPS) |
 | 2 | wie bepaalt de conventie | de gebruiker, als één profielkeuze per project — mét eigen profielen met eigen waarden; het bronbestand stelt voor |
-| 3 | waar leeft een profiel | volledige opgeloste waarden in het IFC + profielnaam als herkomst; eigen profielen app-globaal |
+| 3 | waar leeft een profiel | volledige opgeloste waarden in het IFC + profiel-id als herkomst; eigen profielen app-globaal |
 | 4 | OPS-profiel | bewuste keuze van de eigenaar, te nemen ná X12; tot dan = "wat OPS vandaag doet", byte-identiek |
 | 5 | regel A (landingsregel) | een motorwijziging landt alleen als onder elk profiel met orakel geen enkele cel die exact was inexact wordt — per cel, niet per som; en een conventie die per profiel verschilt is altijd een benoemde instelling (regel B), nooit een `if` op het formaat |
 | 6 | volgorde | eerst het volledige profielsysteem (incl. eigen profielen), daarna X12 eronder, daarna de OPS-inhoud |
@@ -34,198 +43,254 @@ waarde per profiel?" — een tabelrij, geen compromis.
 
 "Geen pinnen met reden" (plan XER §6, X12) blijft onverkort: binnen een profiel is nul nul; het
 referentiepakket is per profiel (P6-profiel ⇒ P6 is het orakel, MS Project-profiel ⇒ MS Project).
+Plan XER §10.f is hierop bijgewerkt (het "geparkeerd ná X12" van de ochtend is door dit besluit
+vervangen).
 
 ## 3. Datamodel
 
-### 3.1 Conventieregister
+### 3.1 De veertien conventies en het register
 
-`src/engine/scheduler/conventions/registry.ts` — één descriptor per conventie:
+`SchedulingOptions` (`src/types/project.ts`) blijft het opgeloste type dat de solver leest — geen
+hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelverzamelingen benoemd:
+
+- **`ConventionKey`** (14): `preserveActualDatesInBackwardPass` (A12), `clampNegativeFreeFloat` (A13),
+  `p6ZeroDurationUsesPlannedBoundary` (A15), `p6UseTaskPlannedStartFloor` (A16),
+  `p6FinishMilestoneBoundaryWindow` (A17), `p6PreserveActualInstants` (A18),
+  `p6PreserveZeroDurationConstraintInstants` (A20), `resumeFromActualElapsed` (A22),
+  `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
+  `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
+  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans.
+- **`ProjectOptionKey`** (10): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
+  `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
+  `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6UseRemainingStartForProgress`,
+  `p6CompletedLateFromRemainingWindow`. Plus `project.progressMode` als apart projectveld.
+
+`p6Source` verdwijnt uit `SchedulingOptions`. `WorkCalendar.p6Source` (diagnose, round-trip) blijft.
+
+`src/engine/scheduler/conventions/registry.ts`:
 
 ```ts
-interface ConventionDescriptor<V> {
-  id: ConventionId;                 // stabiele sleutel, ook de IFC-sleutel
-  kind: 'choice' | 'boolean' | 'number';
-  values?: readonly V[];            // bij 'choice'
-  range?: { min: number; max: number };   // bij 'number'
-  builtIn: { p6: V; msproject: V; ops: V };
-  labelKey: string;                 // i18n, `conventions.<id>.label` / `.help` (namespace common)
-  since: string;                    // ISO-datum van introductie
+interface ConventionDescriptor {
+  id: ConventionKey;
+  builtIn: { p6: boolean; msproject: boolean; ops: boolean };
+  /** Waarde die geldt als een opgeslagen bestand de sleutel niet kent (= het gedrag vóór `since`). */
+  legacyValue: boolean;
+  labelKey: string;   // common:conventions.<id>.label / .help
+  since: string;      // ISO-datum; documenteert vanaf wanneer `legacyValue` ≠ basiswaarde kan zijn
 }
+type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
 ```
 
-`SchedulingConventions` is het opgeloste type (`{ [id]: waarde }`), afgeleid uit het register.
-De bestaande `SchedulingOptions`-velden (`lagCalendar`, `totalFloatMode`, `makeOpenEndedCritical`,
-`nearCriticalThreshold`, `floatPaths`, `resumeFromActualElapsed`, `unstartedIgnoresStatusDate`,
-en de `p6*`-velden) worden conventies in dít register; er blijven geen twee systemen naast elkaar.
-Het register is de enige bron: UI, IFC-lezer/-schrijver, gids-tabel en poorten lopen erover.
+Ingebouwde waarden (bijlage A): **P6** = alle veertien aan, behalve `resumeFromActualElapsed` en
+`unstartedIgnoresStatusDate`; **MS Project** = alleen die twee aan; **OPS** = alles uit. Voor alle
+huidige conventies is `legacyValue` = de OPS-waarde (uit).
 
-### 3.2 Profiel
+Daarnaast levert het register per basis de **standaard-projectopties** voor een nieuw of bronloos
+project, `defaultOptionsFor(baseId): SchedulingOptions`: p6 = de optie-defaults uit
+`XER_SCHEDULING_DEFAULTS` (die constante verhuist naar het register; `xerScheduleOptions.ts` importeert
+hem daar); msproject = `{ totalFloatMode: 'smallest' }`; ops = `{}`. `totalFloatMode` krijgt de
+expliciete waarde `'auto'` = het huidige gedrag bij afwezig (finish-float bij statusdatum én gestarte
+taak, anders min); de UI toont die waarde, maar de writer schrijft hem niet weg als er niets gekozen
+is (byte-identiek).
+
+### 3.2 Profiel en project
 
 ```ts
 interface SchedulingProfile {
-  baseId: 'p6' | 'msproject' | 'ops';   // ingebouwde basis
-  id: string;                            // 'p6' | 'msproject' | 'ops' | eigen id (nanoid)
-  name: string;                          // weergavenaam; ingebouwd ⇒ i18n
-  overrides: Partial<SchedulingConventions>;  // alleen afwijkingen van de basis
+  baseId: 'p6' | 'msproject' | 'ops';
+  id: string;                               // 'p6' | 'msproject' | 'ops' | eigen id
+  name: string;                             // alleen betekenisvol voor eigen profielen
+  overrides: Partial<SchedulingConventions>;
 }
 ```
 
-`resolveConventions(profile)` = basiswaarden uit het register + overrides. De opgeloste set staat
-nooit dubbel in de state; de solver krijgt uitsluitend het opgeloste object.
-
-- **Project**: `project.schedulingProfile: SchedulingProfile` (documentveld, `DOCUMENT_FIELDS`,
-  snapshot-rol `clone`, undo-baar). Vervangt `project.schedulingOptions` — de migratie staat in §3.4.
-- **Eigen profielen**: app-globaal, niet per document geswapt; persistentie `ops-schedulingProfiles`
-  via `settingsStore`/`settingsRegistry` (JSON-lijst van `SchedulingProfile`). Een eigen profiel is
-  klein (alleen overrides) en hoort niet in de bibliotheekopslag.
+- `project.schedulingProfile: SchedulingProfile` — een veld **binnen** `project`; `project` staat al in
+  `DOCUMENT_FIELDS` (snapshot-rol `data`), dus geen eigen contract-entry. Undo, documentwissel,
+  crashherstel en opslaan volgen vanzelf.
+- `resolveConventions(profile)` = basiswaarden + overrides. `effectiveSchedulingOptions(project)` =
+  `{ ...resolveConventions(project.schedulingProfile), ...project.schedulingOptions }`; de sanitizer
+  stript conventiesleutels uit `schedulingOptions` (runtime) en het type sluit ze uit (compile-time).
+- Eén helper `solveInputFor(project, tasks, sequences, calendar, calendars)` levert de volledige
+  solver-invoer (opties, `progressMode`, `dataDate`, `projectStartDate`, `projectEndDate`) aan élke
+  aanroeper — ook de vier die nu niet alles doorgeven (`documentActivation`, `occupancy`, `distribute`,
+  `benchmark/runner`). `CPMOptions.schedulingOptions` wordt verplicht zodat de compiler dat afdwingt.
+- **Eigen profielen** zijn app-globale **sjablonen** (`ops-schedulingProfiles`, JSON-lijst van
+  `SchedulingProfile` via het `settingsStore`-patroon, gesanitized bij lezen, nooit throwen). Een
+  project draagt zijn eigen kopie; een sjabloon wijzigen werkt **niet** door naar open documenten. De
+  UI biedt "bijwerken vanuit sjabloon" en "sjabloon bijwerken vanuit dit project". Matching op `id`,
+  nooit op naam.
 
 ### 3.3 IFC-round-trip
 
-Pset `OPS_SchedulingProfile` op het `IfcProject`:
+Eén JSON-veld, pset `OPS_SchedulingProfile` op de `IfcWorkSchedule` (exact het patroon van
+`OPS_SchedulingOptions`/`OPS_Baselines`): `{ id, baseId, conventions: <alle 14 opgelost>, name? }`
+— `name` alleen voor eigen profielen (ingebouwde namen zijn vertaald en horen niet in een bestand).
+De pset wordt **alleen geschreven als het profiel ≠ `ops` zonder overrides** ⇒ bestaande bestanden
+blijven byte-identiek. `OPS_SchedulingOptions` blijft precies zoals nu, maar draagt voortaan alleen
+optie-sleutels.
 
-- `ProfileId`, `ProfileName`, `BaseId`;
-- per conventie één property met de **opgeloste** waarde (niet alleen de override), zodat een
-  bestand overal identiek rekent, ook waar het eigen profiel ontbreekt.
+Lezen: `sanitizeSchedulingProfile` (whitelist: `baseId` uit de drie, `id`/`name` strings met
+lengtegrens, `conventions` booleans; onbekende sleutel genegeerd, ongeldige waarde ⇒ `legacyValue`,
+**ontbrekende sleutel ⇒ `legacyValue`**, nooit de basiswaarde — anders rekent een ouder bestand na een
+nieuwe conventie ineens anders). `overrides` wordt bij het lezen herleid als verschil met de basis.
 
-Lezen via `sanitizeSchedulingProfile` (opvolger van `sanitizeSchedulingOptions`): onbekende sleutel ⇒
-genegeerd; ongeldige waarde ⇒ waarde van de basis; ontbrekende basis ⇒ `ops`. Bij het openen wordt
-`overrides` herleid als verschil tussen de gelezen waarden en de basis, zodat de state compact
-blijft en een aanwezig eigen profiel met dezelfde naam níét stil de bestandswaarden overschrijft
-(de bestandswaarden winnen; de UI toont "wijkt af van het opgeslagen profiel" zodra ze verschillen).
-De oude pset `OPS_SchedulingOptions` wordt nog gelezen (§3.4) en niet meer geschreven.
+### 3.4 Migratie (byte-identiek in rekenresultaat), per veld
 
-### 3.4 Migratie (byte-identiek in rekenresultaat)
+`legacyOptionsToProfile(blob)` speelt de huidige semantiek na:
 
-| bestand | profiel na openen |
-|---|---|
-| geen `OPS_SchedulingProfile`, geen `OPS_SchedulingOptions` | `ops` zonder overrides |
-| alleen `OPS_SchedulingOptions` zonder `p6Source` | `ops` met de gelezen opties als overrides |
-| `OPS_SchedulingOptions` met `p6Source: 'XER'` | `p6` met de overige gelezen opties als overrides |
-| `OPS_SchedulingProfile` | zoals gelezen |
+| bestand | profiel na openen | `schedulingOptions` |
+|---|---|---|
+| geen `OPS_SchedulingProfile`, geen `OPS_SchedulingOptions` | `ops` zonder overrides | leeg |
+| `OPS_SchedulingOptions` mét `p6Source: 'XER'` | `p6`; overrides = conventiesleutels uit de blob die van p6 afwijken | de optiesleutels |
+| `OPS_SchedulingOptions` zónder `p6Source`, beide `.mpp`-vlaggen `true` | `msproject`; overrides = afwijkende niet-gepoorte conventies | de optiesleutels |
+| `OPS_SchedulingOptions` zónder `p6Source`, anders | `ops`; de `p6Source`-**gepoorte** conventies (A15–A18, A20) worden **weggegooid** (ze waren inert), de niet-gepoorte (A12, A13, A22, A23) worden overrides | de optiesleutels |
+| `OPS_SchedulingProfile` | zoals gelezen (§3.3) | `OPS_SchedulingOptions` |
 
-De corpusloze planningssuite bewijst dat elk bestaand fixture identiek rekent; X12 en
-`check-mpp-fidelity` bewijzen het op de corpora (§5).
+Bewijs: de corpusloze planningssuite (alle fixtures identiek), X12 mét corpus exact 15.056 onder het
+P6-profiel, `check-mpp-fidelity` "GOAL_ZERO_DEVIATIONS groen, 216 pins ongewijzigd (0 verbeterd / 0
+verslechterd)", plus een vijandige-blob-test: p6-vlaggen `true` zonder `p6Source` ⇒ geen overrides.
 
 ## 4. De motor
 
-- `CPMSolver`, `solveProject`, `applyCpmResult`, `recordedDates`, `p6Completed*`, `p6OpenLoe*`,
-  `ResourceLoad`/`ResourceLeveler` krijgen `conventions: SchedulingConventions` en lezen uitsluitend
-  daaruit. Elke `p6Source === 'XER'`-tak wordt een conventie met `p6: aan, msproject: uit, ops: uit`
-  (= vandaag). Bijlage A is de volledige lijst; elke rij daar wordt één conventie of wordt expliciet
-  als "geen conventie, blijft hard" gemotiveerd.
-- De ombouw is **gedragsbehoudend**: ná de refactor X12 exact 15.056 (P6-profiel), `check-mpp-fidelity`
-  exact 216 ongewijzigd (MS Project-profiel), corpusloze suite groen (OPS). Dat is het bewijs dat er
-  alleen verplaatst is.
-- Nieuwe mechanische poort `npm run verify:conventions` (in `verify`): AST-scan dat `src/engine/`
-  nergens `p6Source`, `importFormat`, `readFormat`, `mspTaskType`-als-formaatdetectie of een
-  lezer-module importeert of leest om rekengedrag te sturen; alleen `conventions.<id>`. Zelfde patroon
-  als `verify:store-boundaries`. `p6Source` verdwijnt als veld; taakvelden uit een import
-  (`p6ActivityType`, `mspTaskType`) blijven data over de taak en mogen gelezen worden — zij zeggen
-  wat de taak ís, niet uit welk pakket het bestand komt.
+- `CPMSolver`, `scheduleAnalysis`, `relationMath`, `p6Completed*`, `p6OpenLoe*` en
+  `p6CompletedTargetWindow` (verhuist van `src/utils` naar `src/engine/scheduler`) lezen uitsluitend
+  `schedulingOptions.<sleutel>`. Elke `p6Source === 'XER'`-poort (incl. `p6XerOption`) vervalt: de vlag
+  zelf is de conventie. De vijf B-takken krijgen hun eigen vlag; de traces volgen
+  `p6CompletedDataDateWindow` (backward-float-trace) resp. `p6UseTaskPlannedStartFloor`
+  (planned-floor-trace). Redencode `notXerSource` wordt `conventionOff`, op exact dezelfde plek in de
+  guardvolgorde. B2 krijgt zijn eerste eigen (negatieve) test.
+- **Herkomstvelden op taken** (`p6ProjectId`, `p6TaskId`, `p6ActivityType`, `p6ExplicitTargetWindow`,
+  `p6CompletePctType`, `p6DurationType`, `manuallyScheduled`, `levelingDelayMinutes`, timephased-velden,
+  `resume`, `mspTaskType`) blijven **datagates**: zij zeggen wat een taak ís, en veranderen daarvan
+  zou X12-gedrag wijzigen zonder eigen meting. Gevolg, eerlijk benoemd: een P6-profiel op een project
+  zonder P6-taakprovenance (eigen project, `.mpp`, P6-XML) activeert B3–B5 en A11/A18 niet, en een
+  XER-project onder het MS Project-profiel is een combinatie zonder orakel. De gids zegt dat; de poort
+  `verify:conventions` telt en rapporteert deze datagates (lijst in bijlage A) zonder ze te verbieden.
+- De ombouw is **gedragsbehoudend** (bewijs §3.4). Tot de lezers op het profiel staan, vertaalt een
+  tijdelijke, gemarkeerde laag `p6Source` ⇒ de vijf B-vlaggen aan; de integratie verwijdert haar.
+- `npm run verify:conventions` (in `verify`): AST-scan over `src/engine/**` — verbiedt `p6Source`,
+  `importFormat`/`readFormat` en imports uit `src/services/{xer,mpp,msproject,p6,csv}`; rapporteert de
+  datagates. Mutatietest met `--root` (patroon `check-store-runtime-boundaries.ts`).
 
 ## 5. Regel A als poort
 
-- **Cel-baseline**: `tests/planning/xer-product-fidelity-cells.json` — per corpusbestand, per as, de
-  gesorteerde lijst van taak-id's die **niet** exact zijn (nu ±15k). Een cel die exact was en inexact
-  wordt is een nieuwe id in die lijst ⇒ rood. Verdwijnende id's zijn groen; herpinnen mag alleen
-  omlaag (de poort weigert een baseline met méér id's dan de meting). Zelfde vorm voor het
-  `.mpp`-corpus: `mpp-fidelity-cells.json` (start/einde per taak; later zes assen).
-- `npm run measure:profiles`: één script dat X12 onder het P6-profiel, mpp-fidelity onder het
-  MS Project-profiel en de corpusloze suite voor OPS draait en per profiel `exit` én de cel-delta
-  rapporteert. Dit is de landingspoort voor elke motorwijziging; corpus blijft buiten de repo, CI
-  blijft corpusloos, de cel-baselines zijn gecommit.
-- **Goal prompt**: `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md` — de opdrachttekst
-  voor het X12-vervolg met regel A (per cel, elk profiel, `measure:profiles` vóór elke commit) en
-  regel B (verschil per profiel ⇒ conventie in het register, nooit een `if` op het formaat).
+- **Cel-baseline** `tests/planning/xer-product-fidelity-cells.json`: per corpusbestand (sha256-sleutel,
+  canonicalisatie als de v2-baseline) per project per as de gesorteerde lijst van inexacte cellen
+  `(taskId, bucket)` met bucket ∈ {sameday, diff, missing}. Poort: een cel die exact was en nu een
+  bucket heeft ⇒ rood; een bucket die verslechtert ⇒ rood; verbetering ⇒ groen + "te herpinnen: N";
+  verouderde regels (cel nu exact) zijn toegestaan; de schrijfmodus herschrijft de baseline alleen
+  zonder rode cellen. Corpusloos: overslaan met OK-regel. Geen `.mpp`-cellenbaseline: die baseline
+  staat al op nul met `GOAL_ZERO_DEVIATIONS` per bestand.
+- `npm run measure:profiles`: X12 mét corpus (nuldoelregels + cel-poort) onder het P6-profiel,
+  `check-mpp-fidelity` onder het MS Project-profiel, `check-xer-corpusless-fidelity-gate`; `--full`
+  voegt de corpusloze suite toe. Eén samenvattingstabel; exit 1 bij één rode regel. Niet in `verify`.
+  Benoemd gat: het MS Project-orakel meet twee assen (start/einde); MSPDI en P6-XML hebben geen orakel.
+- **Goal prompt** `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`: regel A (per cel,
+  elk profiel, `measure:profiles` vóór elke commit) en regel B (verschil per profiel ⇒ conventie in het
+  register, nooit een `if` op het formaat; per-bestand-waarden ⇒ projectoptie).
 
 ## 6. Wat de gebruiker ziet
 
-- **Openen**: XER ⇒ P6; `.mpp`/MSPDI ⇒ MS Project; CSV, nieuw project en IFC uit een ander pakket ⇒
-  OPS; eigen IFC ⇒ wat erin staat. `ImportResult.suggestedProfileId` komt uit de lezer via
-  `formatRegistry`. Eén melding via het K8a-kanaal: "Dit project rekent als Primavera P6 — aanpassen
-  via Bestand → Projectinfo → Rekenprofiel", met de bestaande `helpArticleId`-link naar de gids en een
-  actie die Backstage → Projectinfo opent. Geen dialoog.
-- **Kiezen**: keuzelijst *Rekenprofiel* in de projectwizard (`ProjectInfoDialog`) en op
-  Backstage → Projectinfo. Wisselen = `markScheduleStale` + de gewone herbereken-flow; in "datums
-  zoals opgeslagen" verlaat het de modus, net als F5.
-- **Eigen profiel**: één gedeeld paneel *Rekenprofiel* (`SettingsPanelContent`, dus op alle drie de
-  instellingenplekken) toont elke conventie uit het register met naam, uitleg en de waarde in het
-  huidige profiel. Een waarde wijzigen op een ingebouwd profiel maakt automatisch een eigen profiel
-  "Kopie van P6" (hernoembaar) en koppelt het project eraan; verwijderen kan alleen als geen open
-  document het gebruikt. Geen import/export van profielen (YAGNI: het IFC draagt de waarden al).
-- **Docs**: gids `gids-rekenprofielen.md` (nl+en, manifest-entry) met de conventietabel in
-  mensentaal; `gids-xer-import`/`gids-msproject-import`/`gids-import-export` verwijzen ernaar;
-  CLAUDE.md krijgt een sectie *Rekenprofielen*; `docs/recepten/conventie.md` beschrijft hoe je een
-  conventie toevoegt (register-rij, drie waarden, i18n, gidsregel, poort).
-- i18n: `conventions.<id>.label/.help`, `profiles.builtIn.*`, `notifications.schedulingProfileApplied`
-  in alle 14 locales (`verify:i18n`).
+- **Openen**: XER ⇒ P6 (+ SCHEDOPTIONS als projectopties); `.mpp` ⇒ MS Project; MSPDI ⇒ **OPS** (+
+  `CriticalSlackLimit`) in deze etappe — de wissel naar MS Project verandert elk MSPDI-bestand met
+  voortgang en heeft geen orakel; dat is een aparte, apart gemeten taak met releasenotitie, alleen op
+  besluit van de eigenaar; P6-XML ⇒ P6 (zonder taakprovenance: B3–B5 inactief, gids zegt het); CSV,
+  nieuw project, IFC uit een ander pakket en extensie-importers ⇒ OPS; eigen IFC ⇒ wat erin staat.
+  `ImportResult.suggestedProfileId` komt uit de lezer via `formatRegistry`.
+- **Melding** (K8a-kanaal, één per document, `dedupeKey` per documentId): "Dit project rekent als
+  Primavera P6 — aanpassen via Bestand → Projectinfo → Rekenprofiel", met `helpArticleId` naar de gids
+  en een nieuw **serialiseerbaar** actieveld `AppNotification.action?: { kind: 'openBackstageSection';
+  section: BackstageSection; labelKey: string }` dat `NotificationHost` afhandelt (geen functies in de
+  store). Niet bij heropenen uit eigen IFC of crashherstel.
+- **Kiezen en bewerken**: het bestaande `CalcOptionsSection` wordt het blok *Rekenprofiel en
+  reken-opties* in Projectinfo (dialoog én Backstage → Projectinfo): bovenaan de keuzelijst
+  (P6 / MS Project / OPS / eigen sjablonen), daaronder de veertien conventies (aan/uit, met uitleg) en
+  de bestaande projectopties. `thresholdHours` wordt niet meer weggegooid bij een bewerking. Een
+  conventie wijzigen op een ingebouwd profiel maakt automatisch een eigen profiel "Kopie van P6" op
+  het project (hernoembaar; "opslaan als sjabloon" zet hem in de app-lijst). Géén paneel in
+  `SettingsPanelContent`: dit is projectdata, geen app-instelling.
+- **Wisselen** = `finishMutation(state, { stale: true })` (niet `markScheduleStale`, dat doet niets in
+  "datums zoals opgeslagen") met vooraf de telling verschoven taken (dezelfde telling als de
+  #63-strook); één undo-stap.
+- **Docs**: gids `gids-rekenprofielen.md` (nl+en, manifest) met de conventietabel in mensentaal en de
+  "geen orakel"-waarschuwing; `gids-xer-import`/`gids-msproject-import`/`gids-import-export` verwijzen
+  ernaar; CLAUDE.md-sectie *Rekenprofielen*; `docs/recepten/conventie.md`; `docs/ifc-round-trip.md`
+  noemt `OPS_SchedulingProfile`.
+- i18n: `conventions.<id>.label/.help` (14×2), `profiles.builtIn.*`,
+  `notifications.schedulingProfileApplied`, actielabel — alle 14 locales (`verify:i18n`).
 
-## 7. Tests
+## 7. Afnemers
 
-- `tests/planning/check-conventions-registry.ts`: elke conventie heeft drie ingebouwde waarden binnen
-  `values`/`range`, unieke id's, i18n-sleutels aanwezig; `resolveConventions` met/zonder overrides.
-- `check-scheduling-profile-roundtrip.ts`: IFC schrijven/lezen voor de drie ingebouwde en een eigen
-  profiel; de vier migratierijen uit §3.4; `sanitize` op vijandige waarden; documentcontract
-  (`check-document-contract.ts` breidt uit).
-- Gedragsbehoud: bestaande suites ongewijzigd groen; X12 15.056 en mpp 216 exact (mét corpus, in de
-  etappe gemeten en in het commitbericht).
-- `verify:conventions`-poort met een mutant (een `p6Source`-lezing in `src/engine/` ⇒ rood).
-- Browser: `tests/browser/scheduling-profile.spec.ts` — XER openen toont de melding met de link, de
-  keuzelijst wisselt naar MS Project en herberekent, een waarde wijzigen maakt "Kopie van …".
-- Cel-baseline: `check-xer-product-fidelity-x12.ts` krijgt de cel-vergelijking erbij; mutatiebewijs:
-  één id toevoegen aan de meting ⇒ rood, één weghalen ⇒ groen.
+- **Export-guard** `xerExportLoss.hasScheduleLoss`: vergelijkt de effectieve opties/conventies met wat
+  het doelformaat native kan, niet "er is iets gedefinieerd" (anders meldt elke export verlies zodra
+  een profiel altijd aanwezig is). Writers (`mspdiWriter`, `p6xmlWriter`) lezen alleen projectopties —
+  ongewijzigd.
+- **Extensie-API**: `ExtProject.schedulingProfile` additief (apiVersion 1.2.0); `publicSchedulingOptions`
+  blijft; `fromExtProject`/`fromExtImportResult` nemen **nooit** een meegegeven profiel over
+  (extensie-import ⇒ OPS). `ExtCalendar.p6Source` blijft (gepubliceerd).
+- **MCP**: `planner_get_project_info` toont het profiel; `planner_xer_provenance` geeft de opgeloste
+  set i.p.v. `mappedSchedulingOptions` met `p6Source`; de weigerteksten in `calendarResourceTools`
+  worden bijgewerkt.
+- **Tests**: 106 `p6Source`-treffers (tweede inventaris) — per bestand voorgeschreven in het plan; de
+  vijf riskante: x12-mutanten `delete p6Source` ⇒ "alle gepoorte + B-vlaggen uit" (niet ops-met-
+  overrides); `check-xer-progress.ts:167` ⇒ ops + alleen `useExpectedFinishDates`; de vijandige
+  blob-test wordt de migratietest; `xerScheduleOptionsGroundTruth` vergelijkt op de opgeloste set
+  zonder het register te importeren; `check-xer-schedule-options` pint `XER_SCHEDULING_DEFAULTS` ≡
+  p6-basis + p6-optie-defaults.
 
-## 8. Buiten scope
+## 8. Tests
 
-De inhoud van het OPS-profiel (eigenaar, ná X12); driving path als zevende as; dossier 7b-4; het
-X12-restant zelf; `recorded-all-formats` (aparte PR); import/export van profielen; profielen per
-taak.
+- `check-conventions-registry.ts`: 14 conventies, drie ingebouwde waarden, `legacyValue`, unieke ids,
+  i18n-sleutels; resolve/diff-identiteit; `'auto'` ≡ afwezig; `XER_SCHEDULING_DEFAULTS` ≡ p6.
+- `check-scheduling-profile-roundtrip.ts`: IFC-round-trip voor drie ingebouwde + één eigen profiel; de
+  vijf migratierijen; vijandige pset (onbekende baseId, onzin-conventies, 10 MB name) valt terug zonder
+  throw; bestaande fixtures byte-identiek; `check-document-contract` groen.
+- `check-conventions-p6-flags.ts`: per B-vlag aan/uit ⇒ ander bekend resultaat (mutatiebewijs), B2
+  incl.; `p6Source` doet niets meer zodra de tijdelijke laag uit staat.
+- `verify:conventions`-poort met mutant (een `p6Source`-lezing in `src/engine/` ⇒ rood).
+- Gedragsbehoud: bestaande asserties gelijk (harness via de legacy-adapter); X12 15.056; mpp
+  GOAL_ZERO groen, 216 pins ongewijzigd.
+- Browser `scheduling-profile.spec.ts`: XER openen ⇒ melding met actie; keuzelijst wisselt naar
+  MS Project en herberekent (telling zichtbaar); conventie wijzigen ⇒ "Kopie van …".
+- Cel-baseline: mutatiebewijs (één nieuwe inexacte cel ⇒ rood; verslechterde bucket ⇒ rood).
 
-## 9. Volgorde binnen de etappe
+## 9. Buiten scope
 
-1. Register + `SchedulingProfile` + migratie + solverombouw, gedragsbehoudend (poorten exact gelijk).
-2. Cel-baselines + `measure:profiles` + `verify:conventions`.
-3. Import-koppeling + melding.
-4. UI: keuzelijst, paneel, eigen profielen.
-5. Gids, CLAUDE.md, recept, goal prompt.
-6. Critreview (Opus) op de hele diff; gebruikstest in de browser met de gids als meetlat.
+De inhoud van het OPS-profiel (eigenaar, ná X12); MSPDI ⇒ MS Project (eigen taak op besluit);
+driving path als zevende as; dossier 7b-4; het X12-restant; `recorded-all-formats` (aparte PR);
+import/export van sjablonen; profielen per taak; het ombouwen van herkomst-datagates naar conventies.
+
+## 10. Volgorde binnen de etappe
+
+1. Baan A: register + `SchedulingProfile` + `effectiveSchedulingOptions` + IFC-pset + migratie +
+   sjabloonopslag (gedragsbehoudend: schrijver/lezer van `OPS_SchedulingOptions` pas bij de integratie
+   omgezet, gemarkeerd `INTEGRATIE(rekenprofielen)`).
+2. Baan B: `p6Source` uit de motor, vijf B-conventies, `p6CompletedTargetWindow` naar de engine,
+   tijdelijke vertaallaag, `check-conventions-p6-flags`.
+3. Cel-baseline + `measure:profiles` (loopt parallel).
+4. Baan C: lezers op het profiel (`suggestedProfileId`), `solveInputFor` voor alle aanroepers, melding
+   met actieveld, export-guard, extensie-API, MCP.
+5. Baan D: UI-blok, sjablonen-UI, i18n 14 talen, gids, CLAUDE.md, recept, goal prompt, browser-test,
+   `verify:conventions`.
+6. Integratie: merges, tijdelijke laag weg, testmigratie (106 treffers), `OPS_SchedulingOptions` alleen
+   opties, X12 15.056 exact, mpp GOAL_ZERO + 216 pins, `npm run verify`, critreview op de hele diff,
+   gebruikstest in de browser met de gids als meetlat.
 
 Branch `claude/rekenprofielen` bovenop `claude/file-formats-support-phase-3-a0ebe2`; PR ná #109 of
 gestapeld erop — besluit eigenaar bij aanbieden.
 
-## 3.5 Gevolgen van de inventaris voor het model (2026-09-22, uit bijlage A)
+## 11. Verwerking van de critreview op v1 (2026-09-22)
 
-1. **Elf conventies zijn projectdata, geen pakketconstante.** A2–A8, A10, A11, A14, A19 en A21 komen
-   per bestand uit `SCHEDOPTIONS`/`PROJECT` (XER) of `CriticalSlackLimit` (MSPDI). Het profiel levert
-   daar alleen de **standaard**; de gelezen waarde is een override op de basis. Een profiel dat "de
-   P6-waarde" invult overschrijft dus nooit bestandsdata — het model basis + overrides dekt dit, en
-   de lezers schrijven hun bestandswaarden in `overrides`.
-2. **A7 (`totalFloatMode`) heeft een vierde waarde nodig.** OPS rekent vandaag bij *afwezig* hybride
-   (finish-float bij statusdatum + gestarte taak, anders min). Het register krijgt de expliciete
-   waarde `'auto'` met precies dat gedrag; het OPS-profiel staat op `'auto'`, P6 op `'finish'`,
-   MS Project op `'smallest'`. De UI toont dan wat de solver doet (nu toont hij "smallest").
-3. **A6 (`thresholdHours`) mag niet meer wegvallen bij een UI-bewerking**: het paneel bewerkt de
-   opgeloste set per conventie, niet `{mode, threshold}` als geheel.
-4. **Groep B wordt zeven benoemde conventies** (P6 aan, MS Project/OPS uit): `p6RelationFinishBoundary`
-   (B1, inclusief het strippen van `Sequence.p6StartAtPredecessorFinishBoundary` wanneer uit),
-   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
-   (B4), `p6OpenLoeTargetSpan` (B5). B6 en B7 zijn taakprovenance resp. lezerwerk en blijven zoals
-   ze zijn. `p6Source` verdwijnt als veld; `WorkCalendar.p6Source` (alleen diagnose) blijft.
-5. **Groep D blijft hard** in deze etappe. Regel B maakt een regel pas conventie zodra een profiel er
-   een andere waarde voor nodig heeft; tot dan is een schakelaar zonder tweede waarde YAGNI. De lijst
-   in bijlage A is de kandidatenlijst voor het X12-vervolg en voor de OPS-keuze van de eigenaar.
-6. **Groep C blijft taakdata.** `manuallyScheduled`, `levelingDelayMinutes`, timephased-velden,
-   `resume`, `mspTaskType` zeggen wat een taak ís; het ontwerp staat het lezen daarvan toe (§4).
-7. **Vier aanroepers geven niet alle opties door** (`documentActivation`, `occupancy`, `distribute`,
-   `benchmark/runner`): A14 werkt daar niet. Eén helper `solveInputFor(project, …)` levert voortaan
-   de volledige set (profiel opgelost + `projectStartDate`/`projectEndDate`) aan élke aanroeper.
-8. **`progressMode` blijft een projectveld** naast het profiel (het heeft eigen UI in het lint en een
-   MCP-ingang); het profiel levert er wel de standaard voor (P6/OPS: RETAINED_LOGIC; MS Project:
-   ONBEKEND ⇒ RETAINED_LOGIC tot een meting anders zegt).
-9. **A23-waarschuwing.** Wisselen van MS Project naar P6 op een `.mpp` met een oude statusdatum
-   verschuift niet-gestarte taken naar de statusdatum (gemeten: ±8 jaar op
-   `calendar-exception-precedence.mpp`). Een profielwissel toont daarom vóór het herberekenen hoeveel
-   taken verschuiven (dezelfde telling als de "datums zoals opgeslagen"-strook).
+Verwerkt: (1) twee lagen i.p.v. één profiel met overrides; (2) migratie per veld met `p6Source`-poort
+nagespeeld; (3) `legacyValue`; (4) MSPDI blijft OPS, extra migratierij voor `.mpp`-IFC; (5) scan
+inclusief `p6CompletedTargetWindow` (verhuist naar de engine), datagates geteld en benoemd; (6) plan
+§10.f gelijkgetrokken, "216" herformuleerd; (7) één ratchetregel met bucket, geen `.mpp`-cellen;
+(8) alle 20 sleutels ingedeeld, `progressMode` benoemd; (9) `CalcOptionsSection` wordt het blok, geen
+Settings-paneel, `thresholdHours`, matching op id, ingebouwde naam niet in het IFC; (10)
+`finishMutation`; (11) serialiseerbaar actieveld; (12) afnemers-paragraaf; (13) snapshot-rol `data`,
+één JSON-veld op de IfcWorkSchedule, "geen pset bij ops-zonder-overrides". Bewust **niet** verwerkt:
+herkomstvelden als verboden gedragsschakelaar (§4 — eigen meting nodig) en het schrappen van eigen
+sjablonen (§3.2 — eigenaarsbesluit 2).
 
 ## Bijlage A — conventietabel (inventaris van de motor, 2026-09-22)
 
