@@ -1,4 +1,9 @@
-import type { SchedulingOptions } from '@/types/project';
+import type {
+  BuiltInProfileId, SchedulingConventions, SchedulingOptions, SchedulingProfile,
+} from '@/types/project';
+import {
+  CONVENTIONS, builtInConventions, diffAgainstBase, isBuiltInProfileId, optionKeysOnly, resolveConventions,
+} from '@/engine/scheduler/conventions/registry';
 
 /**
  * Eindreview XER-etappe, bevinding 4 — het `OPS_SchedulingOptions`-JSON uit een IFC is BUITEN-
@@ -26,10 +31,14 @@ const BOOLEAN_KEYS = [
   'p6FinishMilestoneBoundaryWindow', 'p6PreserveActualInstants', 'p6UseRemainingStartForProgress',
   'p6PreserveZeroDurationConstraintInstants', 'useProjectEndDateForFloat', 'resumeFromActualElapsed',
   'unstartedIgnoresStatusDate', 'p6CompletedLateFromRemainingWindow',
+  // Rekenprofielen, groep B (bijlage A): conventiesleutels. In de overgang (tot de integratie met
+  // baan B) mogen ze nog in dit blok staan; `sanitizeProjectOptions` hieronder stript ze wel.
+  'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
+  'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
 ] as const satisfies ReadonlyArray<keyof SchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
-const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest'] as const;
+const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest', 'auto'] as const;
 const CRITICAL_MODES = ['totalFloat', 'longestPath'] as const;
 const FLOAT_PATH_METHODS = ['FREE_FLOAT', 'TOTAL_FLOAT'] as const;
 
@@ -83,4 +92,88 @@ export function sanitizeSchedulingOptions(input: unknown): SchedulingOptions | u
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// ── Rekenprofielen (spec 2026-09-22, tweelagenmodel) ─────────────────────────────────────────────
+
+/** Eindmodel-sanitizer voor `project.schedulingOptions`: zoals `sanitizeSchedulingOptions`, maar
+ *  conventiesleutels en `p6Source` worden gestript (die horen in het profiel). Nog nergens bedraad —
+ *  zie `// INTEGRATIE(rekenprofielen):` in `ifcReader.ts`. */
+export function sanitizeProjectOptions(input: unknown): SchedulingOptions | undefined {
+  return optionKeysOnly(sanitizeSchedulingOptions(input));
+}
+
+/** Bovengrens op de rauwe JSON van één profiel: een geldig profiel is ruim onder 2 KB. Groter ⇒
+ *  niet parsen (geen allocaties uit ongevalideerde bestandswaarden). */
+export const MAX_PROFILE_JSON_LENGTH = 64 * 1024;
+export const MAX_PROFILE_ID_LENGTH = 64;
+export const MAX_PROFILE_NAME_LENGTH = 200;
+
+const validId = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_PROFILE_ID_LENGTH;
+const validName = (value: unknown): value is string =>
+  typeof value === 'string' && value.length <= MAX_PROFILE_NAME_LENGTH;
+
+/**
+ * `OPS_SchedulingProfile`-JSON uit een IFC (`{ id, baseId, conventions, name? }`) ⇒ profiel.
+ *  - geen object ⇒ `undefined` (de lezer valt terug op de legacy-migratie);
+ *  - onbekende/ontbrekende `baseId` ⇒ `ops`;
+ *  - `conventions`: per conventie een boolean ⇒ die waarde; ONTBREKENDE sleutel ⇒ `legacyValue`
+ *    (een bestand van vóór die conventie rekende zonder); ongeldig getypeerde waarde ⇒ de
+ *    basiswaarde; onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
+ *    bestandswaarden winnen en de state blijft compact;
+ *  - ongeldige/te lange `id` ⇒ de basis-id; een ingebouwde id met een andere basis ⇒ de basis-id;
+ *  - `name` alleen voor eigen profielen, ≤ 200 tekens, anders leeg.
+ */
+export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | undefined {
+  if (!isRecord(input)) return undefined;
+  const baseId: BuiltInProfileId = isBuiltInProfileId(input.baseId) ? input.baseId : 'ops';
+  const base = builtInConventions(baseId);
+  const raw = isRecord(input.conventions) ? input.conventions : {};
+  const resolved: Partial<SchedulingConventions> = {};
+  for (const d of CONVENTIONS) {
+    const value = raw[d.id];
+    resolved[d.id] = typeof value === 'boolean'
+      ? value
+      : Object.prototype.hasOwnProperty.call(raw, d.id) ? base[d.id] : d.legacyValue;
+  }
+  let id = validId(input.id) ? input.id : baseId;
+  if (isBuiltInProfileId(id) && id !== baseId) id = baseId;
+  const name = !isBuiltInProfileId(id) && validName(input.name) ? input.name : '';
+  return { baseId, id, name, overrides: diffAgainstBase(baseId, resolved) };
+}
+
+/** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
+ *  alle veertien conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
+ *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
+export function schedulingProfileToJson(profile: SchedulingProfile): {
+  id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions; name?: string;
+} {
+  return {
+    id: profile.id,
+    baseId: profile.baseId,
+    conventions: resolveConventions(profile),
+    ...(!isBuiltInProfileId(profile.id) && profile.name ? { name: profile.name } : {}),
+  };
+}
+
+/**
+ * Een EIGEN profiel uit `ops-schedulingProfiles` (vorm `SchedulingProfile`). Strenger dan de
+ * IFC-sanitizer, want een sjabloon zonder geldige kern heeft geen waarde: onbekende `baseId`,
+ * een ongeldige/ingebouwde `id` of een ongeldige naam ⇒ `undefined` (het item valt weg).
+ * `overrides`: alleen booleans op bekende conventiesleutels, geminimaliseerd tegen de basis.
+ */
+export function sanitizeStoredSchedulingProfile(input: unknown): SchedulingProfile | undefined {
+  if (!isRecord(input)) return undefined;
+  const baseId = input.baseId;
+  if (!isBuiltInProfileId(baseId)) return undefined;
+  if (!validId(input.id) || isBuiltInProfileId(input.id)) return undefined;
+  if (!validName(input.name)) return undefined;
+  const raw = isRecord(input.overrides) ? input.overrides : {};
+  const overrides: Partial<SchedulingConventions> = {};
+  for (const d of CONVENTIONS) {
+    const value = raw[d.id];
+    if (typeof value === 'boolean') overrides[d.id] = value;
+  }
+  return { baseId, id: input.id, name: input.name, overrides: diffAgainstBase(baseId, overrides) };
 }

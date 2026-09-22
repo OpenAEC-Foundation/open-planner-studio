@@ -395,6 +395,13 @@ const SCHED_OPTS = {
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   resumeFromActualElapsed: true, // T9 (voortgangsafronding): rondt lossless mee als deel van het JSON-blob
   unstartedIgnoresStatusDate: true, // B1 (dossier (c)4-herdiagnose): idem, rondt mee als deel van het JSON-blob
+  // Rekenprofielen groep B: in de overgang nog als sleutels in dit blob (de integratie verhuist ze
+  // naar OPS_SchedulingProfile). Bewust gemengd true/false zodat een writer die er één laat vallen opvalt.
+  p6RelationFinishBoundary: true,
+  p6BackwardLagFinishBoundary: false,
+  p6CompletedDataDateWindow: true,
+  p6CompletedLoeActualFinish: false,
+  p6OpenLoeTargetSpan: true,
 } satisfies Required<SchedulingOptions>;
 const project = {
   id: 'proj-1', name: 'Nieuwbouw Testtoren', description: 'Beschrijving X', // description: (a) gap
@@ -408,6 +415,9 @@ const project = {
   defaultTaskDurationUnit: 'days',
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   schedulingOptions: SCHED_OPTS,
+  // Rekenprofiel: een EIGEN profiel op msproject-basis met een afwijking — onderscheidend van de
+  // default (afwezig ≡ ops), dus een writer die de OPS_SchedulingProfile-pset vergeet valt rood.
+  schedulingProfile: { baseId: 'msproject', id: 'eigen-fixture', name: 'Fixture-profiel', overrides: { clampNegativeFreeFloat: true } },
 } satisfies Required<Project> & { schedulingOptions: Required<SchedulingOptions> };
 
 // ── Baselines (round-trippen verliesloos via OPS_Baselines-JSON; taskId remapt via GlobalId) ──────
@@ -663,6 +673,8 @@ const PROJECT_CANON = {
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
   wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP, schedulingOptions: KEEP,
+  // Rekenprofiel round-trippt via OPS_SchedulingProfile (JSON op de IfcWorkSchedule).
+  schedulingProfile: KEEP,
   defaultTaskDurationUnit: KEEP,
   // B1.1: bedrijfsbinding round-trippt via OPS_CompanyBinding.
   companyId: KEEP, companyName: KEEP,

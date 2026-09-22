@@ -1435,6 +1435,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
+  # Rekenprofielen: het conventieregister (resolve/diff, legacy-migratie, XER-defaults-pin,
+  # totalFloatMode 'auto' ≡ afwezig) en de IFC-round-trip van OPS_SchedulingProfile.
+  CONVREGCHECK="$DIR/.conventions-registry.mjs"
+  if bundle_check "$DIR/check-conventions-registry.ts" "$CONVREGCHECK"; then node "$CONVREGCHECK" || STATUS=1; fi
+  SCHEDPROFRTCHECK="$DIR/.scheduling-profile-roundtrip.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-roundtrip.ts" "$SCHEDPROFRTCHECK"; then node "$SCHEDPROFRTCHECK" || STATUS=1; fi
+
   # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
   # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
   SUMDUR="$DIR/.summary-duration.mjs"

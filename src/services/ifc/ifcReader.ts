@@ -4,7 +4,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
-import { Project, SchedulingOptions } from '@/types/project';
+import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
@@ -36,7 +36,10 @@ import {
   type XerSourceArchiveEncoding, type XerSourceArchiveNewline, type XerArchiveMetadataPayloadV1,
   type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
-import { sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
+import {
+  MAX_PROFILE_JSON_LENGTH, sanitizeSchedulingOptions, sanitizeSchedulingProfile,
+} from '@/services/ifc/schedulingOptionsRead';
+import { isDefaultProfile, legacyOptionsToProfile } from '@/engine/scheduler/conventions/registry';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -244,8 +247,17 @@ export function readIFC(
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
 
   // Scheduling-options (fase 2.9, §3.4/§6): het volledige blok uit de OPS_SchedulingOptions-JSON.
+  // INTEGRATIE(rekenprofielen): in de overgang blijft het blok ongewijzigd (incl. p6Source en
+  // conventiesleutels, die baan B nog leest); in het eindmodel wordt dit
+  // `legacyOptionsToProfile(...).options` resp. `sanitizeProjectOptions`.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
   if (schedulingOptions) project.schedulingOptions = schedulingOptions;
+  // Rekenprofiel: de OPS_SchedulingProfile-pset wint; zonder (of bij een onbruikbare) pset migreert
+  // het legacy-optieblok per veld (§3.4). Het standaardprofiel (ops zonder afwijkingen) wordt niet
+  // gezet — afwezig ≡ ops, zodat een bestaand bestand na lezen dezelfde state oplevert als vóór.
+  const schedulingProfile = extractSchedulingProfile(entities, entityMap)
+    ?? legacyOptionsToProfile(schedulingOptions).profile;
+  if (!isDefaultProfile(schedulingProfile)) project.schedulingProfile = schedulingProfile;
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
@@ -2777,6 +2789,32 @@ function extractTimephasedDurationWalksMeta(
       if (task) task.timephasedDurationWalks = walks;
     }
   }
+}
+
+/**
+ * Rekenprofielen — het profiel teruglezen uit de `OPS_SchedulingProfile`-JSON op de
+ * `IfcWorkSchedule` (spiegel van `writeSchedulingProfileMeta`, exact het extractSchedulingOptions-
+ * patroon). Afwezig, te groot (> `MAX_PROFILE_JSON_LENGTH`), corrupte JSON of geen object ⇒
+ * `undefined`, waarna de lezer op de legacy-migratie terugvalt.
+ */
+function extractSchedulingProfile(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): SchedulingProfile | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.SchedulingProfile) continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'SchedulingProfile') continue;
+      const raw = parseTypedValue(prop.args[2] || '');
+      if (typeof raw !== 'string' || !raw || raw.length > MAX_PROFILE_JSON_LENGTH) continue;
+      try {
+        return sanitizeSchedulingProfile(JSON.parse(raw));
+      } catch { /* corrupte JSON — negeer, de legacy-migratie neemt het over */ }
+    }
+  }
+  return undefined;
 }
 
 /**

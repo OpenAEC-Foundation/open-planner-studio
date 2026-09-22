@@ -16,7 +16,7 @@
  *   (b) hernoem je een INTERN veld → dat duikt alléén hier op, nooit in extensie-code.
  */
 import { formatDate } from '@/utils/dateUtils';
-import type { Project } from '@/types/project';
+import type { Project, SchedulingOptions } from '@/types/project';
 import type { WorkCalendar, Holiday, WorkTimeBands, WorkingException } from '@/types/calendar';
 import type { Task, TaskTime, TaskConstraint, ExternalLink } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -52,11 +52,15 @@ import type {
  *  interne `p6*`-sleutels dragen die niet in `ExtSchedulingOptions` staan. Een spread zou die
  *  ongemerkt als solverinvoer activeren. De native XER-lezer zet zulke bronopties rechtstreeks op
  *  het interne model en loopt dus niet door deze generieke extensie-invoer. */
-function publicSchedulingOptions(o: ExtSchedulingOptions): ExtSchedulingOptions {
+function publicSchedulingOptions(
+  o: Omit<ExtSchedulingOptions, 'totalFloatMode'> & { totalFloatMode?: SchedulingOptions['totalFloatMode'] },
+): ExtSchedulingOptions {
   return {
     lagCalendar: o.lagCalendar,
     criticalDefinition: o.criticalDefinition ? { ...o.criticalDefinition } : undefined,
-    totalFloatMode: o.totalFloatMode,
+    // `'auto'` (rekenprofielen) is intern exact het gedrag bij afwezig; de publieke API kent de
+    // waarde niet en krijgt daarom afwezig — semantisch identiek, geen API-uitbreiding.
+    totalFloatMode: o.totalFloatMode === 'auto' ? undefined : o.totalFloatMode,
     makeOpenEndedCritical: o.makeOpenEndedCritical,
     nearCriticalThreshold: o.nearCriticalThreshold,
     floatPaths: o.floatPaths ? { ...o.floatPaths } : undefined,

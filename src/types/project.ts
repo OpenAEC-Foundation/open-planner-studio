@@ -27,8 +27,13 @@ export interface SchedulingOptions {
     threshold?: number;
     thresholdHours?: number;
   };
-  /** TF-berekeningswijze. Default 'smallest' = de huidige min(finish,start)-float. */
-  totalFloatMode?: 'start' | 'finish' | 'smallest';
+  /** TF-berekeningswijze. `'start'` = LS−ES, `'finish'` = LF−EF, `'smallest'` = min(beide).
+   *  `'auto'` = het gedrag bij AFWEZIG (rekenprofielen, spec §3.5.2): finish-float bij een gezette
+   *  statusdatum én een gestarte taak (actualStart of voortgang > 0), anders min(start, finish).
+   *  `scheduleAnalysis.ts` valt voor elke waarde buiten start/finish/smallest in die hybride tak,
+   *  dus `'auto'` en afwezig rekenen byte-identiek (bewaakt door `check-conventions-registry.ts`).
+   *  Schrijf `'auto'` niet weg als er niets gekozen is: afwezig houdt bestaande bestanden gelijk. */
+  totalFloatMode?: 'start' | 'finish' | 'smallest' | 'auto';
   /** Open-ended taken kritiek? Default = huidig gedrag (een eindtaak krijgt tf via LF−EF). */
   makeOpenEndedCritical?: boolean;
   /** P6/XER-bronsignaal: verwachte einddatums mogen de resterende duur begrenzen. X7 consumeert
@@ -143,6 +148,70 @@ export interface SchedulingOptions {
    *  poort dicht op `wrongDurationType`/`missingExplicitTargetWindow`; dat is een toevallige
    *  nauwte, geen semantische verzoening. Zie plan §5 X-O7 laag 1. */
   p6CompletedLateFromRemainingWindow?: boolean;
+  /** Rekenprofielen B1 (spec bijlage A): een FS-relatie met nul lag op een gedeelde bandgrens laat
+   *  de opvolger op de finish van de voorganger starten (`Sequence.p6StartAtPredecessorFinishBoundary`);
+   *  staat de conventie uit, dan wordt die relatievlag genegeerd. Vandaag achter `p6Source`; baan B
+   *  bedraadt deze vlag. P6 aan / MS Project uit / OPS uit. */
+  p6RelationFinishBoundary?: boolean;
+  /** Rekenprofielen B2: een backward WORKTIME-lag vanaf een finishgrens landt op de complementaire
+   *  vorige finishgrens (`CPMSolver.shiftLagPred`). Vandaag achter `p6Source`; baan B bedraadt deze
+   *  vlag. P6 aan / MS Project uit / OPS uit. */
+  p6BackwardLagFinishBoundary?: boolean;
+  /** Rekenprofielen B3: een voltooide taak krijgt ES/EF als statusdatum-venster en haar EF telt mee
+   *  voor het projecteinde (`p6CompletedTargetWindow`). Vandaag achter `p6Source`; baan B bedraadt
+   *  deze vlag. P6 aan / MS Project uit / OPS uit. */
+  p6CompletedDataDateWindow?: boolean;
+  /** Rekenprofielen B4: een voltooide LOE met alleen een SS-ingang volgt de actual-finish-route
+   *  (`p6CompletedRouteTrace`). Vandaag achter `p6Source`; baan B bedraadt deze vlag.
+   *  P6 aan / MS Project uit / OPS uit. */
+  p6CompletedLoeActualFinish?: boolean;
+  /** Rekenprofielen B5: een niet-gestarte LOE neemt haar targetvenster als span
+   *  (`p6OpenLoeTargetSpanTrace`). Vandaag achter `p6Source`; baan B bedraadt deze vlag.
+   *  P6 aan / MS Project uit / OPS uit. */
+  p6OpenLoeTargetSpan?: boolean;
+}
+
+/**
+ * Rekenprofielen (spec 2026-09-22, tweelagenmodel): de veertien PAKKETCONVENTIES — regels die per
+ * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
+ * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
+ * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
+ */
+export type ConventionKey =
+  | 'preserveActualDatesInBackwardPass'
+  | 'clampNegativeFreeFloat'
+  | 'p6ZeroDurationUsesPlannedBoundary'
+  | 'p6UseTaskPlannedStartFloor'
+  | 'p6FinishMilestoneBoundaryWindow'
+  | 'p6PreserveActualInstants'
+  | 'p6PreserveZeroDurationConstraintInstants'
+  | 'resumeFromActualElapsed'
+  | 'unstartedIgnoresStatusDate'
+  | 'p6RelationFinishBoundary'
+  | 'p6BackwardLagFinishBoundary'
+  | 'p6CompletedDataDateWindow'
+  | 'p6CompletedLoeActualFinish'
+  | 'p6OpenLoeTargetSpan';
+
+/** De volledig opgeloste set conventies: élke conventie heeft een waarde. */
+export type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
+
+/** De drie ingebouwde basisprofielen. */
+export type BuiltInProfileId = 'p6' | 'msproject' | 'ops';
+
+/**
+ * Een rekenprofiel: een ingebouwde basis plus uitsluitend de afwijkingen daarvan. De opgeloste set
+ * staat nooit dubbel in de state (`resolveConventions`). Eigen profielen matchen op `id`, nooit op
+ * naam; een project draagt zijn eigen kopie (sjablonen in `ops-schedulingProfiles` werken niet door).
+ */
+export interface SchedulingProfile {
+  baseId: BuiltInProfileId;
+  /** 'p6' | 'msproject' | 'ops' voor een ingebouwd profiel, anders een eigen id. */
+  id: string;
+  /** Weergavenaam van een EIGEN profiel. Ingebouwde profielen hebben een i18n-naam
+   *  (`profiles.builtIn.<id>`) en dragen dit veld leeg; het wordt nooit vertaald weggeschreven. */
+  name: string;
+  overrides: Partial<SchedulingConventions>;
 }
 
 export interface Project {
@@ -175,6 +244,11 @@ export interface Project {
   /** OPTIONEEL — project-scoped reken-opties (fase 2.9, §3.4/§7). Afwezig ⇒ elke default ⇒
    *  byte-identiek gedrag. */
   schedulingOptions?: SchedulingOptions;
+  /** OPTIONEEL — rekenprofiel (spec rekenprofielen, tweelagenmodel): de pakketconventies. Afwezig ≡
+   *  het ingebouwde `ops`-profiel zonder afwijkingen, en zo blijft een bestaand bestand zonder
+   *  `OPS_SchedulingProfile` byte-identiek. De solver krijgt één set via
+   *  `effectiveSchedulingOptions(project)` (`engine/scheduler/conventions/registry.ts`). */
+  schedulingProfile?: SchedulingProfile;
   /** OPTIONEEL — projectbinding aan een bedrijfsbibliotheek (spec B1, §2). Afwezig ⇒ project is
    *  (nog) aan geen enkel bedrijf gebonden; heropening zonder de pool is onschuldig. `companyName`
    *  is een gedenormaliseerde cache zodat een gedeeld bestand het bedrijf toont zonder de pool. */

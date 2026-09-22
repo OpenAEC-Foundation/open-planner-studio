@@ -15,6 +15,7 @@ import type {
   XerScheduleOptionsSourceRow,
 } from '../importTypes';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
+import { builtInConventions, p6OptionDefaults } from '@/engine/scheduler/conventions/registry';
 
 export type {
   XerScheduleOptionFallback,
@@ -105,25 +106,32 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
   },
 ] as const;
 
-/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. */
+const P6_OPTIONS = p6OptionDefaults();
+const P6_CONVENTIONS = builtInConventions('p6');
+
+/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. De WAARDEN komen uit
+ *  het conventieregister (P6-basisconventies + `p6OptionDefaults`); hier staat alleen welke sleutels
+ *  de lezer zaait en in welke volgorde (die volgorde is de bytevolgorde van het IFC-optieblok). Dat
+ *  deze set via `legacyOptionsToProfile` exact het P6-profiel zonder afwijkingen plus de P6-optie-
+ *  defaults oplevert, pint `check-conventions-registry.ts`. */
 export const XER_SCHEDULING_DEFAULTS = {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
     p6Source: 'XER',
-    lagCalendar: 'predecessor',
-    criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 },
-    totalFloatMode: 'finish',
-    makeOpenEndedCritical: false,
-    useExpectedFinishDates: true,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: false,
-    p6PreserveZeroDurationConstraintInstants: true,
-    p6CompletedLateFromRemainingWindow: true,
+    lagCalendar: P6_OPTIONS.lagCalendar,
+    criticalDefinition: P6_OPTIONS.criticalDefinition,
+    totalFloatMode: P6_OPTIONS.totalFloatMode,
+    makeOpenEndedCritical: P6_OPTIONS.makeOpenEndedCritical,
+    useExpectedFinishDates: P6_OPTIONS.useExpectedFinishDates,
+    preserveActualDatesInBackwardPass: P6_CONVENTIONS.preserveActualDatesInBackwardPass,
+    clampNegativeFreeFloat: P6_CONVENTIONS.clampNegativeFreeFloat,
+    p6ZeroDurationUsesPlannedBoundary: P6_CONVENTIONS.p6ZeroDurationUsesPlannedBoundary,
+    p6UseTaskPlannedStartFloor: P6_CONVENTIONS.p6UseTaskPlannedStartFloor,
+    p6FinishMilestoneBoundaryWindow: P6_CONVENTIONS.p6FinishMilestoneBoundaryWindow,
+    p6PreserveActualInstants: P6_CONVENTIONS.p6PreserveActualInstants,
+    p6UseRemainingStartForProgress: P6_OPTIONS.p6UseRemainingStartForProgress,
+    p6PreserveZeroDurationConstraintInstants: P6_CONVENTIONS.p6PreserveZeroDurationConstraintInstants,
+    p6CompletedLateFromRemainingWindow: P6_OPTIONS.p6CompletedLateFromRemainingWindow,
   },
 } as const satisfies { progressMode: ProgressMode; schedulingOptions: SchedulingOptions };
 
