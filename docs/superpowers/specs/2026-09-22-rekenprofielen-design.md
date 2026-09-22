@@ -209,7 +209,11 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 
 - **Cel-baseline** `tests/planning/xer-product-fidelity-cells.json`: per corpusbestand (sha256-sleutel,
   canonicalisatie als de v2-baseline) per project per as de gesorteerde lijst van inexacte cellen
-  `(taskId, bucket)` met bucket ∈ {sameday, diff, missing}, geordend exact < sameday < diff < missing. Poort: een cel die exact was en nu een
+  `(taskId, bucket)` met bucket ∈ {sameday, diff, missing}, geordend exact < sameday < diff < missing.
+  De assen zijn de zes nuldoel-assen **plus `drivingPath`** als zevende poort-as in de cel-ratchet
+  (eigenaarsbesluit 2026-09-22, vraag 7): een driving-vlag die goed was mag niet omslaan, maar de as
+  telt niet mee in het zesassige nuldoel-getal (15.056) en de longest-path-wandeling als instelling
+  hoort bij het X12-vervolg, niet bij deze etappe. Poort: een cel die exact was en nu een
   bucket heeft ⇒ rood; een bucket die verslechtert ⇒ rood; verbetering ⇒ groen + "te herpinnen: N";
   verouderde regels (cel nu exact) zijn toegestaan; de schrijfmodus herschrijft de baseline alleen
   zonder rode cellen. Corpusloos: overslaan met OK-regel. Geen `.mpp`-cellenbaseline: die baseline
@@ -300,7 +304,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 ## 9. Buiten scope
 
 De inhoud van het OPS-profiel (eigenaar, ná X12); MSPDI ⇒ MS Project (eigen taak op besluit);
-driving path als zevende as; dossier 7b-4; het X12-restant; `recorded-all-formats` (aparte PR);
+de longest-path-wandeling als instelling voor de driving-path-as; dossier 7b-4; het X12-restant; `recorded-all-formats` (aparte PR);
 import/export van sjablonen; profielen per taak; het ombouwen van herkomst-datagates naar conventies.
 
 ## 10. Volgorde binnen de etappe
