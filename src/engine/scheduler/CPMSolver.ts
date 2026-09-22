@@ -27,7 +27,6 @@ import {
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from './p6OpenLoeTargetSpanTrace';
-import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -171,13 +170,6 @@ export interface CPMOptions {
   /** Geconfigureerde projecteinddatum. Alleen actief wanneer de brongebonden
    *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. */
   projectEndDate?: string;
-  /** TIJDELIJK — testhaak van rekenprofielen baan B. Default (afwezig/true): de oude
-   *  bronmarkering in `schedulingOptions` zet de vijf groep-B-conventies aan zolang ze niet
-   *  expliciet gezet zijn (`conventions/legacyP6Source.ts`), zodat het gedrag identiek blijft
-   *  tot de XER-lezer ze zelf zet. `false` schakelt die vertaling uit; daarmee bewijst
-   *  `check-conventions-p6-flags.ts` dat de motor de bronmarkering zelf nergens meer leest.
-   *  Verdwijnt samen met de vertaling. */
-  legacyP6SourceTranslation?: boolean;
 }
 
 /**
@@ -399,17 +391,9 @@ export class CPMSolver {
     // effectieve relaties: staat de conventie niet aan, dan wordt de relatievlag
     // `p6StartAtPredecessorFinishBoundary` gestript, zodat een LOSSE relatievlag geen P6-gedrag kan
     // activeren. Dit is geen bescherming tegen een vervalst projectbestand: de vlag round-tript
-    // bewust door het `OPS_SchedulingOptions`-pset, dus wie een IFC met de conventie aan opent,
+    // bewust door het `OPS_SchedulingProfile`-pset, dus wie een IFC met de conventie aan opent,
     // kiest daarmee voor die P6-semantiek.
-    const schedulingOptions = resolveLegacyP6SourceConventions(
-      options.schedulingOptions,
-      options.legacyP6SourceTranslation !== false,
-    );
-    // TIJDELIJK: de vertaling levert het brede type; voor elke aanroeper via `solveOptionsFor` is ze
-    // een no-op (EffectiveSchedulingOptions draagt alle B-vlaggen expliciet). Verdwijnt in C3.
-    options = schedulingOptions === options.schedulingOptions
-      ? options
-      : { ...options, schedulingOptions: schedulingOptions as EffectiveSchedulingOptions };
+    const schedulingOptions = options.schedulingOptions;
     this.sequences = schedulingOptions?.p6RelationFinishBoundary === true
       ? kept
       : kept.map(sequence => sequence.p6StartAtPredecessorFinishBoundary === true

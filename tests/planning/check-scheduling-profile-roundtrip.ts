@@ -14,10 +14,9 @@ import { fileURLToPath } from 'node:url';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC, readSchedulingProfile } from '@/services/ifc/ifcReader';
 import type { ImportResult } from '@/services/importTypes';
-import type { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { LegacySchedulingOptions, Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { freshPayload } from '@/state/documentContract';
-import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
@@ -82,7 +81,7 @@ const readProfile = (ifc: string): SchedulingProfile | undefined => readIFC(ifc)
 const OPTIONS_LINE = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('([^']*)'\),\$\)/;
 /** Een bestand zoals een versie vóór de rekenprofielen het schreef: het OPS_SchedulingOptions-blok is
  *  letterlijk `blob` (incl. p6Source/conventies). Optioneel mét profiel-pset (voor "pset wint"). */
-function legacyIfc(blob: SchedulingOptions, profile?: SchedulingProfile): string {
+function legacyIfc(blob: LegacySchedulingOptions, profile?: SchedulingProfile): string {
   const ifc = writeIFC(fixture({ schedulingProfile: profile, schedulingOptions: { nearCriticalThreshold: 1 } }));
   if (!OPTIONS_LINE.test(ifc)) throw new Error('legacyIfc: geen optie-anker');
   return ifc.replace(OPTIONS_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${JSON.stringify(blob)}'),$)`);
@@ -155,7 +154,7 @@ const CUSTOM: SchedulingProfile = {
   same('24 beide mpp-vlaggen ⇒ msproject',
     readProfile(legacyIfc({ resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true })),
     builtInProfile('msproject'));
-  const opts3: SchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
+  const opts3: LegacySchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
   const ifc3 = legacyIfc(opts3);
   // Spec v3: een A-conventie die de blob niet noemt, rekende vandaag als uit ⇒ afwijking van p6.
   same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B1–B5 aan', readProfile(ifc3), {
@@ -171,7 +170,7 @@ const CUSTOM: SchedulingProfile = {
 
 // ── 4) Vijandige pset-JSON: valt terug zonder throw ─────────────────────────────────────────────
 {
-  const LEGACY_BLOB: SchedulingOptions = { p6Source: 'XER' };
+  const LEGACY_BLOB: LegacySchedulingOptions = { p6Source: 'XER' };
   const base = legacyIfc(LEGACY_BLOB, CUSTOM);
   // Waar de pset onbruikbaar is valt de lezer terug op de migratie van het legacy-blok.
   const FALLBACK = legacyOptionsToProfile(LEGACY_BLOB).profile;
@@ -333,14 +332,6 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   eq('C2-11 corrupte optie-JSON ⇒ geen throw, geen opties, geen profiel',
     corruptRead === 'THROW' ? 'THROW' : [corruptRead.schedulingOptions, corruptRead.schedulingProfile], [undefined, undefined]);
 }
-{
-  // TIJDELIJK(rekenprofielen): een verse XER-import vóór C3 heeft nog geen profiel maar legacy-opties.
-  const legacy = { ...XER_SCHEDULING_DEFAULTS.schedulingOptions } as SchedulingOptions;
-  const { written, read } = roundTripC2(undefined, legacy);
-  eq('C2-09 TIJDELIJK legacy-XER-opties ⇒ P6-profiel in het bestand', read.schedulingProfile?.baseId, 'p6');
-  eq('C2-10 TIJDELIJK en het optieblok draagt geen p6Source meer', (optionsJsonOf(written) ?? '').includes('p6Source'), false);
-}
-
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`XX  scheduling-profile-roundtrip: ${diffs.length} van ${checks} checks rood`);

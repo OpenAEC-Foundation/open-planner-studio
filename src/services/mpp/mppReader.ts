@@ -156,6 +156,7 @@ import {
 import { readCalendars, promoteCalendarsForHourMode, type CalendarReadResult } from './mppCalendars';
 import { MAX_VAR_TEXT_BYTES, clampRemainingDurationTenths, clampManualDurationTenths, clampLevelingDelayTenths } from './limits';
 import { readRelations, readResources, readAssignments, readAssignmentTimephasedRaw } from './mppEntities';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import {
   decodeRegularTimephasedWork, decodePlannedRegularTimephasedWork,
   deriveSplitGapsFromPeriods, deriveTaskSplitGaps, shiftPeriods, hasAnyTimephasedData,
@@ -1343,10 +1344,8 @@ export function parseProjectProperties(
     // formule (`CPMSolver.ts` leest `task.time.resume`, hierboven al per taak gelezen uit MPP-
     // veld-id 99). De AANWEZIGHEID van `resume` op een taak ís het signaal; er is dus niets meer
     // project-breed te zetten (spiegelt hoe `actualStart` ook geen eigen vlag nodig heeft).
-    schedulingOptions: {
-      resumeFromActualElapsed: true,
-      unstartedIgnoresStatusDate: true,
-    },
+    // Sinds de rekenprofielen staan beide conventies in het MS Project-profiel.
+    schedulingProfile: builtInProfile('msproject'),
   };
 
   const statusBytes = props.getByteArray(PROPS_KEY_STATUS_DATE);
@@ -2367,6 +2366,8 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     resources,
     assignments,
     resourceCalendars: calResult.resourceCalendars,
+    // Rekenprofielen (spec v3.1 §6): .mpp ⇒ MS Project.
+    suggestedProfileId: 'msproject',
     // T12 (§9/O1), telling sinds Z16 herzien: alleen gezet als er daadwerkelijk ≥1 taak een signaal
     // draagt — `undefined` bij een schoon bestand, zodat `fileSlice.ts` met
     // `parsed.sourceScheduleNotes?.total` kan volstaan en geen aparte "0 gevonden"-staat hoeft te

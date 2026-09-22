@@ -6,7 +6,7 @@
  * (https://github.com/joniles/mpxj, LGPL-2.1, Jon Iles e.a.). Er is geen MPXJ-code overgenomen;
  * mapping, defaults, kolommatrix en terugvalrapportage zijn hier zelfstandig geïmplementeerd.
  */
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type { ProgressMode, ProjectSchedulingOptions } from '@/types/project';
 import type {
   XerScheduleOptionFallback,
   XerScheduleOptionsDiagnostic,
@@ -15,7 +15,7 @@ import type {
   XerScheduleOptionsSourceRow,
 } from '../importTypes';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
-import { builtInConventions, p6OptionDefaults } from '@/engine/scheduler/conventions/registry';
+import { p6OptionDefaults } from '@/engine/scheduler/conventions/registry';
 
 export type {
   XerScheduleOptionFallback,
@@ -27,7 +27,11 @@ export type {
 
 export interface XerScheduleOptionsResult extends XerScheduleOptionsMetadata {
   progressMode: ProgressMode;
-  schedulingOptions: SchedulingOptions;
+  /** Alleen projectopties (rekenprofielen C3); de conventies komen uit het P6-profiel. */
+  schedulingOptions: ProjectSchedulingOptions;
+  /** A19 per bestand uit `PROJECT.rem_target_link_flag`. Geen projectoptie maar een afwijking op het
+   *  P6-profiel (de P6-basis heeft hem uit); `xerReader` zet hem als override. */
+  p6UseRemainingStartForProgress: boolean;
 }
 
 interface IndexedSourceRow {
@@ -107,35 +111,25 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
 ] as const;
 
 const P6_OPTIONS = p6OptionDefaults();
-const P6_CONVENTIONS = builtInConventions('p6');
 
-/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. De WAARDEN komen uit
- *  het conventieregister (P6-basisconventies + `p6OptionDefaults`); hier staat alleen welke sleutels
- *  de lezer zaait en in welke volgorde (die volgorde is de bytevolgorde van het IFC-optieblok). Dat
- *  deze set via `legacyOptionsToProfile` exact het P6-profiel zonder afwijkingen plus de P6-optie-
- *  defaults oplevert, pint `check-conventions-registry.ts`. */
+/** XER-eigen defaults; worden nooit als algemene OPS-projectdefaults toegepast. Sinds rekenprofielen
+ *  C3 alleen PROJECTOPTIES (de P6-conventies staan in het profiel dat `xerReader` zet). De WAARDEN
+ *  komen uit het conventieregister (`p6OptionDefaults`); hier staat alleen welke sleutels de lezer
+ *  zaait en in welke volgorde (die volgorde is de bytevolgorde van het IFC-optieblok). Dat deze set
+ *  gelijk is aan `defaultOptionsFor('p6')`, pint `check-conventions-registry.ts`. */
 export const XER_SCHEDULING_DEFAULTS = {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
-    p6Source: 'XER',
     lagCalendar: P6_OPTIONS.lagCalendar,
     criticalDefinition: P6_OPTIONS.criticalDefinition,
     totalFloatMode: P6_OPTIONS.totalFloatMode,
     makeOpenEndedCritical: P6_OPTIONS.makeOpenEndedCritical,
     useExpectedFinishDates: P6_OPTIONS.useExpectedFinishDates,
-    preserveActualDatesInBackwardPass: P6_CONVENTIONS.preserveActualDatesInBackwardPass,
-    clampNegativeFreeFloat: P6_CONVENTIONS.clampNegativeFreeFloat,
-    p6ZeroDurationUsesPlannedBoundary: P6_CONVENTIONS.p6ZeroDurationUsesPlannedBoundary,
-    p6UseTaskPlannedStartFloor: P6_CONVENTIONS.p6UseTaskPlannedStartFloor,
-    p6FinishMilestoneBoundaryWindow: P6_CONVENTIONS.p6FinishMilestoneBoundaryWindow,
-    p6PreserveActualInstants: P6_CONVENTIONS.p6PreserveActualInstants,
-    p6UseRemainingStartForProgress: P6_CONVENTIONS.p6UseRemainingStartForProgress,
-    p6PreserveZeroDurationConstraintInstants: P6_CONVENTIONS.p6PreserveZeroDurationConstraintInstants,
     p6CompletedLateFromRemainingWindow: P6_OPTIONS.p6CompletedLateFromRemainingWindow,
   },
-} as const satisfies { progressMode: ProgressMode; schedulingOptions: SchedulingOptions };
+} as const satisfies { progressMode: ProgressMode; schedulingOptions: ProjectSchedulingOptions };
 
-function freshDefaults(): { progressMode: ProgressMode; schedulingOptions: SchedulingOptions } {
+function freshDefaults(): { progressMode: ProgressMode; schedulingOptions: ProjectSchedulingOptions } {
   return {
     progressMode: XER_SCHEDULING_DEFAULTS.progressMode,
     schedulingOptions: {
@@ -250,7 +244,7 @@ function projectCriticalDefinition(
   index: XerScheduleOptionsIndex,
   projectId: string,
   fallbacks: XerScheduleOptionFallback[],
-): SchedulingOptions['criticalDefinition'] {
+): ProjectSchedulingOptions['criticalDefinition'] {
   const row = index.projectRowsById.get(projectId)?.row;
   if (!row) return { ...XER_SCHEDULING_DEFAULTS.schedulingOptions.criticalDefinition };
   const token = row.cells.critical_path_type?.trim() ?? '';
@@ -356,10 +350,7 @@ export function deriveXerScheduleOptions(
   // gekoppeld blijven. Alleen dan beschrijven de XER Early/Late Start-assen bij een lopende taak
   // het resterende werkvenster; ontbrekend/N behoudt de historische Actual Start. De afleiding
   // gebruikt uitsluitend PROJECT-invoer en nooit early/late/float-orakelcellen.
-  defaults.schedulingOptions.p6UseRemainingStartForProgress = projectRemainingStartValue(
-    projectRow,
-    fallbacks,
-  );
+  const p6UseRemainingStartForProgress = projectRemainingStartValue(projectRow, fallbacks);
   const sourceRowIndexes = [...(index.sourceRowIndexesByProject.get(projectId) ?? [])];
   const retainedRows = sourceRowIndexes.map(rowIndex => index.sourceArchive.rows[rowIndex]);
   const diagnostics = [...(index.diagnosticsByProject.get(projectId) ?? [])];
@@ -375,6 +366,7 @@ export function deriveXerScheduleOptions(
       source: 'xer-defaults',
       progressMode: defaults.progressMode,
       schedulingOptions: defaults.schedulingOptions,
+      p6UseRemainingStartForProgress,
       retainedSource: {},
       fallbacks,
       diagnostics,
@@ -384,16 +376,16 @@ export function deriveXerScheduleOptions(
     };
   }
 
-  const schedulingOptions: SchedulingOptions = {
+  const schedulingOptions: ProjectSchedulingOptions = {
     ...defaults.schedulingOptions,
-    lagCalendar: enumValue<NonNullable<SchedulingOptions['lagCalendar']>>(
+    lagCalendar: enumValue<NonNullable<ProjectSchedulingOptions['lagCalendar']>>(
       row, 'sched_calendar_on_relationship_lag', {
       RCAL_PREDECESSOR: 'predecessor',
       RCAL_SUCCESSOR: 'successor',
       RCAL_24HOUR: '24hour',
       RCAL_PROJDEFAULT: 'projectDefault',
     }, 'predecessor', fallbacks),
-    totalFloatMode: enumValue<NonNullable<SchedulingOptions['totalFloatMode']>>(
+    totalFloatMode: enumValue<NonNullable<ProjectSchedulingOptions['totalFloatMode']>>(
       row, 'sched_float_type', {
       FT_SS: 'start',
       FT_FF: 'finish',
@@ -456,6 +448,7 @@ export function deriveXerScheduleOptions(
     source: 'schedoptions',
     progressMode,
     schedulingOptions,
+    p6UseRemainingStartForProgress,
     retainedSource,
     fallbacks,
     diagnostics,

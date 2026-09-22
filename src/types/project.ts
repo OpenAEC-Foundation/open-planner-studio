@@ -8,20 +8,11 @@ export type ProgressMode = 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
  * een ander schema geven (§7). De solver leest ze via `CPMOptions.schedulingOptions`.
  */
 export interface SchedulingOptions {
-  /** Herkomstmarkering van een XER-import. Alleen de XER-reader zet deze waarde; IFC bewaart
-   *  haar om een XER-import semantisch gelijk te round-trippen. Sinds rekenprofielen baan B leest
-   *  de motor (`src/engine/`) haar NIET meer voor rekengedrag: elke P6-conventie is een eigen vlag
-   *  hieronder. Enige uitzondering, TIJDELIJK: `engine/scheduler/conventions/legacyP6Source.ts`
-   *  vertaalt `'XER'` naar de vijf groep-B-conventies (`p6RelationFinishBoundary` t/m
-   *  `p6OpenLoeTargetSpan`) zolang die niet expliciet gezet zijn, en zet zonder `'XER'` de
-   *  vlaggen A15–A20 uit (vóór baan B waren die zonder bron inert) — tot de XER-lezer en de
-   *  IFC-migratie de conventies zelf zetten. */
-  p6Source?: 'XER';
   /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' ⇒ byte-identiek
    *  met de oude vaste voorgangerskalender. LET OP (XER-etappe X5, eindreview bevinding 5): tot
    *  september 2026 was dit een dode instelling — de UI bood de keuze en het IFC bewaarde haar, maar
    *  de solver las een constante. Sinds `relDeps.lagEngine` (`CPMSolver.ts`) is ze effectief, voor
-   *  ELK formaat en niet alleen achter `p6Source`: een bestaand document waarin ooit 'successor',
+   *  ELK formaat en niet alleen achter de XER-bronmarkering: een bestaand document waarin ooit 'successor',
    *  '24hour' of 'projectDefault' is gekozen, plant sindsdien naar die keuze. Eigenaarsbesluit,
    *  plan §10.f. */
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
@@ -165,10 +156,9 @@ export interface SchedulingOptions {
   p6CompletedLateFromRemainingWindow?: boolean;
 
   // ── Groep B (rekenprofielen baan B, spec 2026-09-22 bijlage A) ─────────────────────────────
-  // Vijf P6-conventies die tot baan B alleen achter de XER-bronmarkering (`p6Source`) stonden.
-  // Elk: P6 aan / MS Project uit / OPS uit. Default afwezig = uit. TIJDELIJK zet
-  // `conventions/legacyP6Source.ts` ze aan voor een project met `p6Source: 'XER'` dat ze niet
-  // expliciet zet — zo blijft het gedrag identiek tot de XER-lezer ze via het profiel zet.
+  // Vijf P6-conventies die tot baan B alleen achter de XER-bronmarkering stonden. Elk: P6 aan /
+  // MS Project uit / OPS uit. Sinds C3 komen ze uitsluitend uit het rekenprofiel; een oud bestand
+  // met de bronmarkering migreert via `legacyOptionsToProfile` (B1–B5 aan).
 
   /** B1 — FS-nul-lag op een gedeelde bandgrens: een relatie met
    *  `Sequence.p6StartAtPredecessorFinishBoundary` laat de opvolger op de finishgrens van de
@@ -223,15 +213,19 @@ export type ConventionKey =
   | 'p6CompletedLoeActualFinish'
   | 'p6OpenLoeTargetSpan';
 
-/** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies en
- *  de overgangsvlag `p6Source` (die bij de integratie met baan B verdwijnt). */
-export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey | 'p6Source'>;
+/** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
+export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;
 
 /** Wat `Project.schedulingOptions` in het eindmodel draagt: uitsluitend projectopties. */
 export type ProjectSchedulingOptions = Pick<SchedulingOptions, ProjectOptionKey>;
 
 /** De volledig opgeloste set conventies: élke conventie heeft een waarde. */
 export type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
+
+/** Een `OPS_SchedulingOptions`-blob zoals oudere bestanden hem schreven: met de XER-herkomstmarkering
+ *  (en eventueel conventiesleutels). Alleen de IFC-lezer en `legacyOptionsToProfile` zien dit type;
+ *  de motor en de state nooit. */
+export type LegacySchedulingOptions = SchedulingOptions & { p6Source?: 'XER' };
 
 /** De ene set die de solver krijgt: projectopties + alle opgeloste conventies. Een kale
  *  `SchedulingOptions` is hier bewust NIET aan toewijsbaar (de conventies zijn verplicht), zodat
@@ -284,8 +278,9 @@ export interface Project {
   /** Voortgangs-scheduling-modus (fase 2.6). undefined ⇒ RETAINED_LOGIC. Documentinstelling. */
   progressMode?: ProgressMode;
   /** OPTIONEEL — project-scoped reken-opties (fase 2.9, §3.4/§7). Afwezig ⇒ elke default ⇒
-   *  byte-identiek gedrag. */
-  schedulingOptions?: SchedulingOptions;
+   *  byte-identiek gedrag. Sinds rekenprofielen C3 alleen projectopties: de conventies staan in
+   *  `schedulingProfile`. */
+  schedulingOptions?: ProjectSchedulingOptions;
   /** OPTIONEEL — rekenprofiel (spec rekenprofielen, tweelagenmodel): de pakketconventies. Afwezig ≡
    *  het ingebouwde `ops`-profiel zonder afwijkingen, en zo blijft een bestaand bestand zonder
    *  `OPS_SchedulingProfile` byte-identiek. De solver krijgt één set via

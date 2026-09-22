@@ -38,9 +38,6 @@ const stray = {
   schedulingOptions: { clampNegativeFreeFloat: true } as unknown as ProjectSchedulingOptions,
 };
 eq('05 profiel wint van een verdwaalde conventiesleutel in de opties', solveOptionsFor(stray).schedulingOptions.clampNegativeFreeFloat, false);
-// TIJDELIJK(rekenprofielen): tot C3 dragen verse XER-imports hun p6Source nog in de opties.
-const legacy = { ...project, schedulingOptions: { p6Source: 'XER' } as unknown as ProjectSchedulingOptions };
-eq('06 TIJDELIJK legacy p6Source ⇒ B-vlaggen aan', solveOptionsFor(legacy).schedulingOptions.p6OpenLoeTargetSpan, true);
 const cal = createDefaultCalendar();
 const input: SolveProjectInput = solveInputFor(project, [], [], cal, [cal]);
 eq('07 solveInputFor = invoerlijsten + solveOptionsFor', [input.projectStartDate, input.calendar === cal, input.schedulingOptions.lagCalendar],

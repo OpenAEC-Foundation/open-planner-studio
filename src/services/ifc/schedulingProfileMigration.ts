@@ -1,6 +1,6 @@
 import type {
-  BuiltInProfileId, Project, ProjectSchedulingOptions, SchedulingConventions, SchedulingOptions,
-  SchedulingProfile,
+  BuiltInProfileId, LegacySchedulingOptions, Project, ProjectSchedulingOptions, SchedulingConventions,
+  SchedulingOptions, SchedulingProfile,
 } from '@/types/project';
 import {
   CONVENTIONS, builtInProfile, conventionsFor, diffAgainstBase, isConventionKey, resolveConventions,
@@ -15,7 +15,7 @@ import {
 
 /** Alleen de projectopties (geen conventies, geen `p6Source`), sleutelvolgorde behouden.
  *  Leeg resultaat ⇒ `undefined`, net als een afwezig blok. */
-export function optionKeysOnly(options: SchedulingOptions | undefined): ProjectSchedulingOptions | undefined {
+export function optionKeysOnly(options: LegacySchedulingOptions | undefined): ProjectSchedulingOptions | undefined {
   if (!options) return undefined;
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(options)) {
@@ -37,7 +37,7 @@ export function optionKeysOnly(options: SchedulingOptions | undefined): ProjectS
  *    én `unstartedIgnoresStatusDate` allebei true zijn (de `.mpp`-lezer), anders `ops`;
  *  - projectopties gaan altijd naar `options` (conventies en `p6Source` gestript).
  */
-export function legacyOptionsToProfile(blob: SchedulingOptions | undefined): {
+export function legacyOptionsToProfile(blob: LegacySchedulingOptions | undefined): {
   profile: SchedulingProfile;
   options: ProjectSchedulingOptions | undefined;
 } {
@@ -68,7 +68,7 @@ export function legacyOptionsToProfile(blob: SchedulingOptions | undefined): {
  * in het eindmodel wegschrijft = de projectopties + ALLEEN `resumeFromActualElapsed` en
  * `unstartedIgnoresStatusDate`, en alleen wanneer `true`. Uitgebrachte OPS-versies kennen A12/A13
  * niet als losse projectkeuze, en een OPS-project zonder opties mag geen pset krijgen (byte-
- * identiek aan vandaag). Nog nergens bedraad — zie `// INTEGRATIE(rekenprofielen):` in `ifcWriter.ts`.
+ * identiek aan vandaag). Aanroeper: `writeIFC` (`ifcWriter.ts`).
  */
 export function legacyOptionsBlobFor(
   project: Pick<Project, 'schedulingProfile' | 'schedulingOptions'>,

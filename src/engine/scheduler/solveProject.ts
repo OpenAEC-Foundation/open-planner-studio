@@ -50,9 +50,6 @@ export interface SolveProjectInput {
   projectStartDate?: string;
   /** `project.endDate`; alleen bronsemantisch actief via useProjectEndDateForFloat. */
   projectEndDate?: string;
-  /** TIJDELIJK — testhaak, zie `CPMOptions.legacyP6SourceTranslation`. Productiecode geeft hem
-   *  nooit mee (default = vertaling aan, gedrag identiek aan vóór rekenprofielen baan B). */
-  legacyP6SourceTranslation?: boolean;
 }
 
 /**
@@ -85,7 +82,6 @@ export function solveProject(input: SolveProjectInput): CPMResult {
     schedulingOptions: input.schedulingOptions,
     projectStartDate: input.projectStartDate,
     projectEndDate: input.projectEndDate,
-    ...(input.legacyP6SourceTranslation === false ? { legacyP6SourceTranslation: false } : {}),
   });
   const result = solver.solve();
   // I2 (CPM-review): de solver rekende op de GEËXPANDEERDE (synthetische) relatie-set, dus zijn

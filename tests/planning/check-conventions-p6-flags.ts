@@ -1,46 +1,31 @@
-// Rekenprofielen baan B — de vijf groep-B-conventies (spec 2026-09-22, §3.5 punt 4, bijlage A).
+// Rekenprofielen — de vijf groep-B-conventies (spec 2026-09-22, §3.5 punt 4, bijlage A).
 //
 // Tot baan B stonden deze vijf P6-rekenregels uitsluitend achter de XER-bronmarkering van het
-// project (`schedulingOptions.p6Source === 'XER'`). Nu is elk een eigen vlag in
-// `SchedulingOptions`, en leest de motor de bronmarkering nergens meer; alleen de TIJDELIJKE
-// vertaling `engine/scheduler/conventions/legacyP6Source.ts` zet de vijf vlaggen nog aan voor een
-// XER-project dat ze niet expliciet zet.
+// project. Sinds baan B is elk een eigen vlag; sinds C3 komen de vlaggen uitsluitend uit het
+// rekenprofiel (`project.schedulingProfile` ⇒ `solveOptionsFor`) en bestaat er geen bronmarkering
+// of vertaallaag meer.
 //
 // Wat deze check bewijst, per conventie, op een kleine synthetische XER-fixture waarvan de
 // P6-uitkomst vooraf uit de regel zelf volgt (niet uit de implementatie afgelezen):
-//   1. XER-import zoals gelezen (vertaling aan)                   ⇒ de P6-uitkomst (AAN);
-//   2. dezelfde import met ALLEEN deze vlag expliciet `false`     ⇒ de generieke uitkomst (UIT) —
-//      de negatieve arm: een expliciete `false` wint van de vertaling;
-//   3. bron weg, testhaak uit, ALLEEN deze vlag `true`            ⇒ AAN — de vlag schakelt, niet de bron;
-//   4. bron weg, vertaling aan, vlag afwezig                      ⇒ UIT;
-//   5. bron blijft, testhaak uit, vlag expliciet `true`           ⇒ AAN;
-//   6. bron blijft, testhaak uit, vlag afwezig                    ⇒ UIT — de bron alleen doet niets.
-// (Arm 3 draait met de testhaak uit omdat de vertaling zonder bron A15–A20 uitzet, zoals vóór
-// baan B; B3/B4 hebben A18/A19 nodig. Zie de sectie "vertaling zonder bron" hieronder.)
-// Daarna, over alle vijf fixtures: met de testhaak uit is een project MÉT bronmarkering zesassig
-// identiek aan hetzelfde project ZONDER. Verder: de guardvolgorde van de redencodes, en een
-// bronscan dat `p6Source` onder `src/engine/` alleen nog in de tijdelijke vertaling staat.
+//   1. XER-import zoals gelezen (P6-profiel)                          ⇒ de P6-uitkomst (AAN);
+//   2. dezelfde import met ALLEEN deze conventie uit                  ⇒ de generieke uitkomst (UIT);
+//   3. OPS-basis met de A-conventies van het bestand en ALLEEN deze
+//      B-conventie aan (de andere vier uit)                           ⇒ AAN — de vlag schakelt, niet de basis;
+//   4. alle P6-gepoorte conventies uit (`withoutP6Semantics`)         ⇒ UIT;
+//   5. P6-profiel met alle vijf B-conventies uit                      ⇒ UIT — de basis alleen doet niets.
+// Daarna, over alle vijf fixtures: een verdwaalde bronmarkering in de projectopties is zesassig
+// inert, en de basis van het profiel lekt niet (P6-basis met B uit = OPS-basis met dezelfde
+// waarden). Verder: B3/B4 zonder A19 ⇒ UIT, de guardvolgorde van de redencodes, en een bronscan dat
+// `p6Source` nergens meer onder `src/engine/` staat.
 //
-// MUTATIEBEWIJS (2026-09-22, 26 mutanten, elk afzonderlijk toegepast op src/engine ⇒ deze check
-// exit 1; tussen haakjes de eerste rode regel):
-//   B1 altijd strippen / nooit strippen        ⇒ rood (B1 arm 1 / arm 2)
-//   B2 `if (false` / `if (true`                ⇒ rood (B2 arm 1 / arm 2)
-//   B3 guard altijd open / altijd dicht        ⇒ rood (B3 arm 2 / arm 1)
-//   B4 guard altijd open / altijd dicht        ⇒ rood (B4 arm 2 / arm 1)
-//   B5 beide poorten open                      ⇒ rood (B5 arm 2)
-//   B5 guard dicht / alleen solverpoort dicht  ⇒ rood (B5 arm 1)
-//   `p6Source === 'XER'` terug naast B1…B5 (elk apart) ⇒ rood (o.a. arm 2)
-//   A17-poort `so?.p6Source === 'XER' &&` terug in scheduleAnalysis ⇒ rood (bronscan)
-//   vertaling negeert een expliciete false    ⇒ rood (arm 2 van B1–B5)
-//   vertaling negeert de testhaak             ⇒ rood (o.a. arm 6)
-//   vertaling zet A15–A20 zonder bron niet uit ⇒ rood ("vertaling zonder bron")
-//   guardvolgorde: B3 vóór dataDate / B3 ná A19 / B4 vóór de dataDate-checks / B4 ná A19 /
-//     in A21 B3 ná de vlag / B5 ná de taakchecks ⇒ rood (de bijbehorende "guardvolgorde"-regel)
+// MUTATIEBEWIJS. Baan B (2026-09-22, 26 mutanten op src/engine, toen tegen de armen met testhaak):
+// B1–B5 altijd aan/uit, de `p6Source`-poort terug, de guardvolgorde-mutanten. Opnieuw gemeten ná de
+// C3-omzetting tegen déze armen: B1 nooit strippen ⇒ rood (B1 arm 2 en 4); B3-guard altijd open ⇒
+// rood (B3 arm 2 en 5); een `p6Source`-vermelding in scheduleAnalysis.ts ⇒ rood (bronscan).
 import { solveProject } from '@/engine/scheduler/solveProject';
-import {
-  LEGACY_P6_SOURCE_CONVENTION_KEYS,
-  type LegacyP6SourceConventionKey,
-} from '@/engine/scheduler/conventions/legacyP6Source';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { diffAgainstBase, resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainCompletedXerLoeActualFinishEligibility,
@@ -49,7 +34,7 @@ import {
 import { explainOpenXerLoeTargetSpanEligibility } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
-import type { EffectiveSchedulingOptions, SchedulingOptions } from '@/types/project';
+import type { ConventionKey, EffectiveSchedulingOptions, ProjectSchedulingOptions, SchedulingConventions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -88,7 +73,14 @@ function importXer(lines: string[]): ImportResult {
 
 interface Axes { es: string; ef: string; ls: string; lf: string; tf: number; ff: number }
 
-function solveAxes(input: ImportResult, taskId: string, legacyP6SourceTranslation?: boolean): Axes {
+/** De vijf groep-B-conventies (bijlage A), in fixturevolgorde. */
+const GROUP_B = [
+  'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
+  'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
+] as const satisfies readonly ConventionKey[];
+type GroupBKey = typeof GROUP_B[number];
+
+function solveAxes(input: ImportResult, taskId: string): Axes {
   const imported = structuredClone(input);
   const result = solveProject({
     tasks: imported.tasks,
@@ -97,12 +89,9 @@ function solveAxes(input: ImportResult, taskId: string, legacyP6SourceTranslatio
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    // TIJDELIJK(rekenprofielen): deze check test de motorvertaling zelf en geeft daarom de RAUWE
-    // blob door (incl. bronmarkering en losse vlaggen); C3 zet hem om naar het profiel.
-    schedulingOptions: imported.project.schedulingOptions as EffectiveSchedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
-    ...(legacyP6SourceTranslation === false ? { legacyP6SourceTranslation: false } : {}),
   });
   if (result.error) throw new Error(result.error);
   const solved = result.tasks.get(taskId);
@@ -115,25 +104,28 @@ function solveAxes(input: ImportResult, taskId: string, legacyP6SourceTranslatio
 }
 
 /** Alle zes assen van ALLE taken — voor de inertheidsvergelijking zonder vertaling. */
-function solveAllAxes(input: ImportResult, legacyP6SourceTranslation?: boolean): Record<string, Axes> {
+function solveAllAxes(input: ImportResult): Record<string, Axes> {
   const out: Record<string, Axes> = {};
-  for (const task of input.tasks) out[task.id] = solveAxes(input, task.id, legacyP6SourceTranslation);
+  for (const task of input.tasks) out[task.id] = solveAxes(input, task.id);
   return out;
 }
 
-function withOptions(
-  input: ImportResult,
-  mutate: (options: NonNullable<ImportResult['project']['schedulingOptions']>) => void,
-): ImportResult {
+/** Een kopie waarvan het profiel door `mutate` is aangepast (setConvention/withoutP6Semantics). */
+function withProfile(input: ImportResult, mutate: (copy: ImportResult) => void): ImportResult {
   const copy = structuredClone(input);
-  const options = { ...(copy.project.schedulingOptions ?? {}) };
-  mutate(options);
-  copy.project.schedulingOptions = options;
+  mutate(copy);
+  return copy;
+}
+
+/** Een kopie met een expliciet profiel op `baseId` waarvan de opgeloste waarden `values` zijn. */
+function withConventions(input: ImportResult, baseId: 'p6' | 'ops', values: SchedulingConventions): ImportResult {
+  const copy = structuredClone(input);
+  copy.project.schedulingProfile = { baseId, id: `test-${baseId}`, name: 'test', overrides: diffAgainstBase(baseId, values) };
   return copy;
 }
 
 interface ConventionFixture {
-  flag: LegacyP6SourceConventionKey;
+  flag: GroupBKey;
   label: string;
   input: ImportResult;
   taskId: string;
@@ -304,60 +296,56 @@ fixtures.push({
 });
 
 eq('inventaris: één fixture per groep-B-conventie',
-  fixtures.map(fixture => fixture.flag), [...LEGACY_P6_SOURCE_CONVENTION_KEYS]);
+  fixtures.map(fixture => fixture.flag), [...GROUP_B]);
 
 for (const fixture of fixtures) {
   const { flag, label, input, taskId, pick } = fixture;
-  eq(`${label}: fixture draagt de XER-bronmarkering en zet de vlag zelf niet`, {
-    source: input.project.schedulingOptions?.p6Source,
-    flag: input.project.schedulingOptions?.[flag],
-  }, { source: 'XER', flag: undefined });
+  eq(`${label}: fixture draagt het P6-profiel`, input.project.schedulingProfile?.baseId, 'p6');
   // Vooraf: de fixture moet de conventie echt kunnen onderscheiden, anders bewijst niets hieronder iets.
   eq(`${label}: AAN en UIT verschillen (fixture is onderscheidend)`,
     JSON.stringify(fixture.on) !== JSON.stringify(fixture.off), true);
 
-  eq(`${label}: 1. XER-import zoals gelezen ⇒ AAN (tijdelijke vertaling)`,
+  const asRead = resolveConventions(input.project.schedulingProfile);
+  eq(`${label}: 1. XER-import zoals gelezen (P6-profiel) ⇒ AAN`,
     pick(solveAxes(input, taskId)), fixture.on);
-  eq(`${label}: 2. XER met ${flag}: false ⇒ UIT (expliciet wint van de vertaling)`,
-    pick(solveAxes(withOptions(input, options => { options[flag] = false; }), taskId)), fixture.off);
-  eq(`${label}: 3. zonder bron, testhaak uit, alleen ${flag}: true ⇒ AAN (de vlag schakelt, niet de bron)`,
-    pick(solveAxes(withOptions(input, options => { delete options.p6Source; options[flag] = true; }), taskId, false)),
-    fixture.on);
-  eq(`${label}: 4. zonder bron, vlag afwezig ⇒ UIT`,
-    pick(solveAxes(withOptions(input, options => { delete options.p6Source; }), taskId)), fixture.off);
-  eq(`${label}: 5. met bron, testhaak uit, ${flag}: true ⇒ AAN`,
-    pick(solveAxes(withOptions(input, options => { options[flag] = true; }), taskId, false)), fixture.on);
-  eq(`${label}: 6. met bron, testhaak uit, vlag afwezig ⇒ UIT (de bron alleen doet niets)`,
-    pick(solveAxes(input, taskId, false)), fixture.off);
+  eq(`${label}: 2. alleen ${flag} uit ⇒ UIT`,
+    pick(solveAxes(withProfile(input, copy => setConvention(copy, flag, false)), taskId)), fixture.off);
+  const onlyThisB = { ...asRead };
+  for (const key of GROUP_B) onlyThisB[key] = key === flag;
+  eq(`${label}: 3. OPS-basis, A-waarden van het bestand, alleen ${flag} aan ⇒ AAN (de vlag schakelt, niet de basis)`,
+    pick(solveAxes(withConventions(input, 'ops', onlyThisB), taskId)), fixture.on);
+  eq(`${label}: 4. alle P6-gepoorte conventies uit ⇒ UIT`,
+    pick(solveAxes(withProfile(input, withoutP6Semantics), taskId)), fixture.off);
+  const noB = { ...asRead };
+  for (const key of GROUP_B) noB[key] = false;
+  eq(`${label}: 5. P6-basis met alle vijf B-conventies uit ⇒ UIT (de basis alleen doet niets)`,
+    pick(solveAxes(withConventions(input, 'p6', noB), taskId)), fixture.off);
 }
 
-// ── De motor leest de bronmarkering zelf niet meer ─────────────────────────────────────────────
-// Met de tijdelijke vertaling uitgeschakeld moet een project MÉT `p6Source: 'XER'` op alle zes
-// assen van alle taken identiek zijn aan hetzelfde project zónder; én identiek aan hetzelfde project
-// met alle vijf groep-B-vlaggen expliciet uit. Een overgebleven `p6Source`-lezing in de motor die
-// rekengedrag stuurt, maakt minstens één fixture hier rood (elke fixture raakt een andere tak).
+// ── Geen bron- of basislek ──────────────────────────────────────────────────────────────────────
+// (a) Een verdwaalde XER-bronmarkering in de projectopties (bv. een extensie of een oude payload)
+// is zesassig inert: de motor leest haar nergens. (b) De basis van het profiel lekt niet: P6-basis
+// met alle B-conventies uit rekent zesassig gelijk aan OPS-basis met exact dezelfde opgeloste waarden.
 for (const fixture of fixtures) {
-  const withSource = solveAllAxes(fixture.input, false);
-  const withoutSource = solveAllAxes(withOptions(fixture.input, options => { delete options.p6Source; }), false);
-  const allOff = solveAllAxes(withOptions(fixture.input, options => {
-    for (const key of LEGACY_P6_SOURCE_CONVENTION_KEYS) options[key] = false;
-  }));
-  eq(`${fixture.label}: zonder vertaling is de bronmarkering zesassig inert`, withSource, withoutSource);
-  eq(`${fixture.label}: zonder vertaling = alle groep-B-vlaggen expliciet uit`, withSource, allOff);
-  eq(`${fixture.label}: zonder vertaling ⇒ UIT op de geclaimde assen`,
-    fixture.pick(withSource[fixture.taskId]!), fixture.off);
+  const plain = solveAllAxes(fixture.input);
+  const stray = structuredClone(fixture.input);
+  stray.project.schedulingOptions = {
+    ...stray.project.schedulingOptions, p6Source: 'XER',
+  } as unknown as ProjectSchedulingOptions; // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
+  eq(`${fixture.label}: verdwaalde bronmarkering is zesassig inert`, solveAllAxes(stray), plain);
+  const noB = { ...resolveConventions(fixture.input.project.schedulingProfile) };
+  for (const key of GROUP_B) noB[key] = false;
+  eq(`${fixture.label}: P6-basis = OPS-basis bij gelijke opgeloste waarden (zesassig)`,
+    solveAllAxes(withConventions(fixture.input, 'p6', noB)), solveAllAxes(withConventions(fixture.input, 'ops', noB)));
 }
 
-// ── Vertaling zonder bron: A15–A20 uit, zoals vóór baan B ───────────────────────────────────────
-// B3 en B4 hebben A19 (`p6UseRemainingStartForProgress`) en B4 ook A18 nodig. Zonder bron en mét
-// de (default) vertaling zet `legacyP6Source.ts` die uit, dus zelfs een expliciete B-vlag `true`
-// geeft dan UIT. Dat is precies het oude gedrag: zonder bron waren A15–A20 inert.
+// ── B3/B4 hebben A19 nodig ──────────────────────────────────────────────────────────────────────
+// B3 en B4 hebben A19 (`p6UseRemainingStartForProgress`) en B4 ook A18 nodig: met A19 uit geeft
+// zelfs de B-conventie aan UIT (zo rekende een bestand zonder bronmarkering vroeger ook).
 for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow' || f.flag === 'p6CompletedLoeActualFinish')) {
-  eq(`${fixture.label}: zonder bron, vertaling aan, ${fixture.flag}: true ⇒ UIT (A19 zonder bron uit)`,
-    fixture.pick(solveAxes(withOptions(fixture.input, options => {
-      delete options.p6Source;
-      options[fixture.flag] = true;
-    }), fixture.taskId)), fixture.off);
+  eq(`${fixture.label}: ${fixture.flag} aan, A19 uit ⇒ UIT`,
+    fixture.pick(solveAxes(withProfile(fixture.input, copy => setConvention(copy, 'p6UseRemainingStartForProgress', false)), fixture.taskId)),
+    fixture.off);
 }
 
 // ── Guardvolgorde van de redencodes ─────────────────────────────────────────────────────────────
@@ -371,8 +359,8 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
   const loe = b4.tasks.find(task => task.id === 'L')!;
   const b3Date = parseInstant(b3.project.statusDate!);
   const b4Date = parseInstant(b4.project.statusDate!);
-  const so = (input: ImportResult, patch: Partial<SchedulingOptions>): SchedulingOptions =>
-    ({ ...input.project.schedulingOptions, ...patch });
+  const so = (input: ImportResult, patch: Partial<EffectiveSchedulingOptions>): EffectiveSchedulingOptions =>
+    ({ ...solveOptionsFor(input.project).schedulingOptions, ...patch });
   const loeIn = b4.sequences.filter(sequence => sequence.successorId === loe.id);
   const loeOut = b4.sequences.filter(sequence => sequence.predecessorId === loe.id);
 
@@ -411,7 +399,7 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
     explainOpenXerLoeTargetSpanEligibility(done, so(b3, { p6OpenLoeTargetSpan: true }), ...openLoeArgs).reason, 'wrongActivityType');
 }
 
-// ── Bronscan: `p6Source` onder src/engine/ alleen in de tijdelijke vertaling ────────────────────
+// ── Bronscan: `p6Source` staat nergens meer onder src/engine/ ──────────────────────────────────
 {
   const here = fileURLToPath(new URL('.', import.meta.url));
   const engineRoot = join(here, '..', '..', 'src', 'engine');
@@ -426,8 +414,7 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
     }
   };
   walk(engineRoot);
-  eq('bronscan: p6Source komt onder src/engine/ alleen in conventions/legacyP6Source.ts voor',
-    hits.sort(), ['scheduler/conventions/legacyP6Source.ts']);
+  eq('bronscan: p6Source komt nergens onder src/engine/ voor', hits.sort(), []);
 }
 
 if (diffs.length > 0) {
@@ -435,4 +422,4 @@ if (diffs.length > 0) {
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B-conventies, aan/uit + bron-inertheid)`);
+console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B-conventies, aan/uit + bron- en basisinertheid)`);

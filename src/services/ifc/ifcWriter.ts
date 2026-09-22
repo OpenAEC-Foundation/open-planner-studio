@@ -4,8 +4,8 @@ import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
 import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
-import { CONVENTION_KEYS, isDefaultProfile } from '@/engine/scheduler/conventions/registry';
-import { legacyOptionsBlobFor, legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
+import { isDefaultProfile } from '@/engine/scheduler/conventions/registry';
+import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -339,9 +339,8 @@ export function writeIFC(input: WriteIFCInput): string {
   // Rekenprofielen (spec v3.1 §3.3): OPS_SchedulingOptions = projectopties + A22/A23 alleen als ze
   // opgelost true zijn (compat met uitgebrachte versies); het profiel staat in OPS_SchedulingProfile,
   // alleen als het ≠ het standaardprofiel (OPS-bestanden blijven byte-identiek).
-  const scheduling = schedulingSettingsForWrite(project);
-  writeSchedulingOptionsMeta(ctx, workSchedId, legacyOptionsBlobFor(scheduling), ownerHistId);
-  writeSchedulingProfileMeta(ctx, workSchedId, scheduling.schedulingProfile, ownerHistId);
+  writeSchedulingOptionsMeta(ctx, workSchedId, legacyOptionsBlobFor(project), ownerHistId);
+  writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -703,19 +702,6 @@ function writeBaselineMeta(
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_baselines'))},#${ownerHistId},${ifcStr(PSET.Baselines)},$,(${props.map(i => `#${i}`).join(',')}))`);
   addLine(ctx, '_rel_baselines',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_baselines'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
-}
-
-/** TIJDELIJK(rekenprofielen): tot C3 hebben verse XER-/.mpp-imports nog geen profiel maar legacy-opties
- *  met conventies (en de XER-bronmarkering). Die gaan hier door dezelfde migratie als bij het lezen, zodat
- *  zo'n document na opslaan en heropenen exact zo rekent als ervoor. */
-function schedulingSettingsForWrite(project: Project): Pick<Project, 'schedulingProfile' | 'schedulingOptions'> {
-  const raw = project.schedulingOptions as SchedulingOptions | undefined;
-  if (project.schedulingProfile === undefined && raw !== undefined
-    && ('p6Source' in raw || CONVENTION_KEYS.some(key => key in raw))) {
-    const migrated = legacyOptionsToProfile(raw);
-    return { schedulingProfile: migrated.profile, schedulingOptions: migrated.options };
-  }
-  return { schedulingProfile: project.schedulingProfile, schedulingOptions: project.schedulingOptions };
 }
 
 /**

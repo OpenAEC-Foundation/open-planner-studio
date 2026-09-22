@@ -1,5 +1,5 @@
 import type {
-  BuiltInProfileId, SchedulingConventions, SchedulingOptions, SchedulingProfile,
+  BuiltInProfileId, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
 import {
   CONVENTIONS, diffAgainstBase, isBuiltInProfileId, isDefaultProfile, resolveConventions,
@@ -36,7 +36,7 @@ const BOOLEAN_KEYS = [
   // baan B) mogen ze nog in dit blok staan; `sanitizeProjectOptions` hieronder stript ze wel.
   'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
   'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
-] as const satisfies ReadonlyArray<keyof SchedulingOptions>;
+] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
 const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest'] as const;
@@ -49,18 +49,18 @@ const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): value i
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-/** Compile-time: elke sleutel van `SchedulingOptions` moet hieronder een tak hebben. */
+/** Compile-time: elke sleutel van `LegacySchedulingOptions` moet hieronder een tak hebben. */
 type HandledKeys =
   | (typeof BOOLEAN_KEYS)[number]
   | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
   | 'nearCriticalThreshold' | 'floatPaths';
-type MissingKeys = Exclude<keyof SchedulingOptions, HandledKeys>;
+type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
 const _allKeysHandled: MissingKeys extends never ? true : MissingKeys = true;
 void _allKeysHandled;
 
-export function sanitizeSchedulingOptions(input: unknown): SchedulingOptions | undefined {
+export function sanitizeSchedulingOptions(input: unknown): LegacySchedulingOptions | undefined {
   if (!isRecord(input)) return undefined;
-  const out: SchedulingOptions = {};
+  const out: LegacySchedulingOptions = {};
   // Sleutelvolgorde van de INVOER behouden: de round-trip-checks vergelijken via JSON.stringify,
   // en een geschreven blok moet na lezen byte-identiek terugkomen — de poort filtert, herordent niet.
   for (const key of Object.keys(input)) {
@@ -98,9 +98,8 @@ export function sanitizeSchedulingOptions(input: unknown): SchedulingOptions | u
 // ── Rekenprofielen (spec 2026-09-22, tweelagenmodel) ─────────────────────────────────────────────
 
 /** Eindmodel-sanitizer voor `project.schedulingOptions`: zoals `sanitizeSchedulingOptions`, maar
- *  conventiesleutels en `p6Source` worden gestript (die horen in het profiel). Nog nergens bedraad —
- *  zie `// INTEGRATIE(rekenprofielen):` in `ifcReader.ts`. */
-export function sanitizeProjectOptions(input: unknown): SchedulingOptions | undefined {
+ *  conventiesleutels en `p6Source` worden gestript (die horen in het profiel). */
+export function sanitizeProjectOptions(input: unknown): ProjectSchedulingOptions | undefined {
   return optionKeysOnly(sanitizeSchedulingOptions(input));
 }
 
@@ -183,7 +182,7 @@ export function sanitizeStoredSchedulingProfile(input: unknown): SchedulingProfi
  * bestaand bestand na lezen dezelfde state oplevert als vóór de rekenprofielen.
  */
 export function profileAfterRead(
-  psetProfile: SchedulingProfile | undefined, legacyBlob: SchedulingOptions | undefined,
+  psetProfile: SchedulingProfile | undefined, legacyBlob: LegacySchedulingOptions | undefined,
 ): SchedulingProfile | undefined {
   const profile = psetProfile ?? legacyOptionsToProfile(legacyBlob).profile;
   return isDefaultProfile(profile) ? undefined : profile;
