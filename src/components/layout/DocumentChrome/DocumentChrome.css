@@ -99,12 +99,16 @@
      de pil moet die expliciet terugzetten, anders vangt de titelbalk de klik. */
   pointer-events: auto;
   -webkit-app-region: no-drag;
+  /* De center is precies zo breed als de ruimte tussen de zijclusters (zie TitleBar.css);
+     de pil past zich daaraan aan door de projectnaam in te korten, niet door over te lopen. */
+  max-width: 100%;
+  min-width: 0;
 }
 .ops-pill:hover { border-color: var(--theme-control-border); }
-.ops-pill-name { font-size: var(--text-large); font-weight: 600; white-space: nowrap; }
+.ops-pill-name { font-size: var(--text-large); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ops-pill-badge {
   font-size: var(--text-small); font-weight: 600; color: var(--theme-accent-on); background: var(--theme-accent);
-  border-radius: 9999px; padding: 2px 8px; white-space: nowrap;
+  border-radius: 9999px; padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
 }
 
 /* ---------- Gedeeld overzicht ---------- */
