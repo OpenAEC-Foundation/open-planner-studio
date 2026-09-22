@@ -81,11 +81,11 @@ afwijkingen hebben met XER".)
 |---|---|---|
 | PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #166 gemerged en gepusht (`0a29147c`): planning/library/browser 164/mcp/dev-server groen, X12 15.056; draft blijft tot X12 nul is |
 | rekenprofielen (etappe) | `claude/rekenprofielen` (bovenop de PR-branch) | spec v3.1 `0979cc18`; overdracht (dit bestand) |
-| baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | klaar: `5e2084fd`, `56602e59` (gepusht); critreview loopt; `verify:i18n` rood tot de integratie (alleen nl/en) |
+| baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | GO na fixronde (`c7e7799e`); **gemerged** (`3fdf80c6`), migratiehelpers verhuisd naar `src/services/ifc/schedulingProfileMigration.ts`. Open voor baan D: A19 bewaren bij wissel vanaf een EIGEN profiel; `defaultStorage()` buiten try; label "(aangepast)" op `diffAgainstBase` baseren |
 | baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | GO na fixronde (`893e9955`); **gemerged** in `claude/rekenprofielen` (`e3545ed7`). Integratiepunt: tabeltest op `resolveLegacyP6SourceConventions` (zes gepoorte vlaggen zonder bron ⇒ false) corpusloos toevoegen; tijdelijke laag `legacyP6Source.ts` verwijderen zodra de lezers het profiel zetten |
-| cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | fixronde klaar (`6bae49c6`, gepusht); her-check loopt |
+| cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | fixronde 2 klaar (`fba062f7`, gepusht): onmeetbaar = rood, `OPS_XER_V2_WRITE`; her-check 2 loopt |
 | uitvoeringsplan | `claude/rekenprofielen` | architect-agent schrijft `2026-09-22-plan-rekenprofielen.md` |
-| recorded-all-formats | `claude/recorded-all-formats-v2` (gepusht) | 8 reviewpunten gefixt (t/m `b63c55f1`), gerebased op de PR-branch t/m 16785c73; her-check loopt; daarna: nog main t/m #166 erin, volledige suites, dan aparte PR ná #109 |
+| recorded-all-formats | `claude/recorded-all-formats-v2` (gepusht) | inhoud go (her-check 3); moet nog PR-branchkop `0a29147c` mergen (agent bezig), dan `npm run verify` en een draft-PR "merget ná #109" |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.
