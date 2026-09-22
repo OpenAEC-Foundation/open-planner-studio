@@ -34,7 +34,7 @@ Opent een bestand met een ander profiel dan Open Planner Studio, dan zie je éé
 
 ## Van profiel wisselen
 
-Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat, en een melding vertelt hoeveel taken daardoor verschoven zijn. Een wissel is één stap in *Ongedaan maken*.
+Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat. Verschuiven daardoor taken, dan vertelt een melding hoeveel; verschuift er niets, dan komt er geen melding. Een wissel is één stap in *Ongedaan maken*.
 
 Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij elke wissel staan, ook als je een eigen profiel of een sjabloon kiest. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
 
