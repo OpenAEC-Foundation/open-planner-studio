@@ -174,6 +174,9 @@
     "splitView": "분할 보기",
     "miniMap": "미니맵",
     "moveProject": "프로젝트 이동…",
+    "progressImport": "시트에서 진행률 업데이트",
+    "progressExport": "진행률 시트 내보내기",
+    "progressGroup": "진행률",
     "relationDraw": "관계 그리기",
     "relationDrawOnHint": "링크 모드를 켠 다음 간트 차트에서 막대에서 막대로 끕니다",
     "relationDrawOffHint": "링크 모드 끄기",
@@ -193,6 +196,7 @@
     "columnsHintTable": "테이블 보기의 열 선택",
     "columnsHintGoToTable": "테이블 보기의 열 선택 — 테이블 탭에 표시됩니다",
     "toggleResourceAccent": "리소스 강조",
+    "toggleFloatBand": "여유 시간 띠",
     "screenColors": "막대 색상",
     "screenColors_critical": "임계 경로",
     "screenColors_auto": "작업별 — 자동",
@@ -285,6 +289,8 @@
     "examplesShowcaseBadge": "모든 기능",
     "exportTitle": "내보내기",
     "exportSubtitle": "형식을 선택하세요. 프로젝트가 변환되어 저장됩니다.",
+    "progressImportCardTitle": "시트에서 진행률 업데이트",
+    "progressImportCardDesc": "반송된 CSV 시트를 읽어 완료율, 실제 시작일, 실제 종료일을 업데이트합니다.",
     "printTitle": "인쇄",
     "printSubtitle": "인쇄 미리보기 및 설정을 위해 보고서 화면을 엽니다.",
     "openPrintPreview": "인쇄 미리보기 열기",
@@ -307,6 +313,32 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "진행률 시트(Excel)",
+    "progressXlsxDesc": "ID, WBS, 이름, 날짜, 완료율만 포함된 간결한 시트 — 열 너비 고정, 필드 잠금, 날짜 검사 포함.",
+    "progressXlsxShort": "진행률(Excel)",
+    "progressXlsxSheetName": "진행률",
+    "progressXlsxValidation": {
+      "percentTitle": "완료율(%)",
+      "percentError": "0에서 100 사이의 숫자를 입력하세요.",
+      "dateTitle": "실제 날짜",
+      "dateError": "올바른 날짜를 입력하세요."
+    },
+    "progressXlsxNotes": {
+      "completion": "입력: 0~100, 소수점 사용 가능",
+      "actualStart": "입력: 실제 시작일 (날짜 형식)",
+      "actualFinish": "입력: 실제 종료일 (날짜 형식)"
+    },
+    "progressCsvLabel": "진행률 시트(CSV)",
+    "progressCsvDesc": "같은 간결한 진행률 시트의 일반 텍스트 버전 — CSV로 작업하는 것을 선호하는 분용.",
+    "progressCsvShort": "진행률(CSV)",
+    "progressCsvNotes": {
+      "readOnly": "변경하지 마세요",
+      "plannedReadOnly": "계획값, 변경하지 마세요",
+      "completion": "입력: 0~100 사이의 정수",
+      "actualStart": "입력: 실제 시작일 (일-월-년)",
+      "actualFinish": "입력: 실제 종료일 (일-월-년)",
+      "summaryRow": "— 요약 작업: 입력하지 마세요"
+    },
     "csvLabel": "CSV (세미콜론 구분)",
     "csvDesc": "범용 테이블 내보내기. 날짜 및 기간이 포함된 모든 작업.",
     "mspdiLabel": "MS Project XML",

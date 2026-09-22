@@ -332,7 +332,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     };
 
     return (
-      <div className="flex flex-col gap-3 text-xs" data-ops-project-info-panel>
+      <div className="flex flex-col gap-3 text-small leading-4" data-ops-project-info-panel>
         <div className="flex flex-col gap-1">
           <label className="text-text-secondary font-medium">{tMenu('projectInfo.name')}</label>
           {/* Leeg laten mag: het project blijft dan naamloos in de data en toont overal de

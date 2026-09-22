@@ -147,7 +147,7 @@ export function UpdateDialog() {
     >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('updates.dialogTitle')}
           </span>
           <button
@@ -161,17 +161,17 @@ export function UpdateDialog() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Versie-overzicht */}
           <div className="flex items-center gap-6">
             <div className="flex flex-col gap-0.5">
               <span className="text-text-secondary font-medium">{t('updates.currentVersion')}</span>
-              <span className="text-text-primary font-semibold text-sm">{currentVersion}</span>
+              <span className="text-text-primary font-semibold text-body leading-5">{currentVersion}</span>
             </div>
             {status?.kind === 'available' && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-text-secondary font-medium">{t('updates.newVersion')}</span>
-                <span className="text-accent font-semibold text-sm">{status.info.version}</span>
+                <span className="text-accent font-semibold text-body leading-5">{status.info.version}</span>
               </div>
             )}
           </div>
@@ -271,7 +271,7 @@ export function UpdateDialog() {
                     {copied ? t('updates.copied') : t('updates.copyCommand')}
                   </button>
                 </div>
-                <pre className="whitespace-pre-wrap break-all bg-surface-hover border border-border rounded-[8px] p-3 text-text-primary max-h-[140px] overflow-y-auto font-mono text-[11px] select-all">
+                <pre className="whitespace-pre-wrap break-all bg-surface-hover border border-border rounded-[8px] p-3 text-text-primary max-h-[140px] overflow-y-auto font-mono !text-body select-all">
                   {DEB_INSTALL_COMMAND}
                 </pre>
               </div>

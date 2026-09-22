@@ -55,9 +55,38 @@ export interface UseTableRowDragOptions {
   onBlocked?: () => void;
   /** Gedeelde vlag met de click-handler: onderdrukt de eerstvolgende click ná een rijsleep. */
   justDraggedRef: RefObject<boolean>;
+  /** Het grid-element zelf. Staat de pointer NIET boven een rij (bv. boven het Gantt-canvas naast
+   *  het grid, bij een overgedragen balkbody-sleep — zie `ganttRowDragBridge`), dan wordt de rij op
+   *  dezelfde HOOGTE binnen dit element gezocht. Rijen in grid en canvas delen hun verticale
+   *  positie, dus dat is exact de rij waar de balk visueel overheen hangt. Zonder ref: alleen
+   *  rijen recht onder de pointer. */
+  probeRootRef?: RefObject<HTMLElement | null>;
 }
 
-export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, moveTasksTo, enabled, onBlocked, justDraggedRef }: UseTableRowDragOptions) {
+/** Terugval voor een pointer die niet boven een rij staat: zoek binnen `root` de rij die deze
+ *  hoogte beslaat.
+ *
+ *  Uitsluitend op Y, en zonder `elementFromPoint`. Een eerdere versie prikte op een vaste
+ *  X (`rect.left + 8`) en was daarmee afhankelijk van wat er toevallig op die X lag: in RTL
+ *  (`ar`/`fa`) staat de takenlijst rechts en landde die prik midden op `.gantt-workspace-splitter`,
+ *  waardoor het hele balkgebaar in twee van de veertien talen niets deed (review 2026-09-15). De
+ *  rijen dragen hun index al als attribuut, dus er valt niets te raden — dit is ook immuun voor
+ *  overlays en portals boven het grid.
+ *
+ *  Buiten de verticale band van het grid, boven de kop of onder de laatste rij beslaat geen enkele
+ *  rij deze hoogte, dus blijft het antwoord "geen rij". */
+function probeRowInRoot(root: HTMLElement | null, clientY: number): Element | null {
+  if (!root) return null;
+  const rect = root.getBoundingClientRect();
+  if (clientY < rect.top || clientY > rect.bottom) return null;
+  for (const row of root.querySelectorAll('[data-ops-row-index]')) {
+    const rowRect = row.getBoundingClientRect();
+    if (clientY >= rowRect.top && clientY < rowRect.bottom) return row;
+  }
+  return null;
+}
+
+export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, moveTasksTo, enabled, onBlocked, justDraggedRef, probeRootRef }: UseTableRowDragOptions) {
   const [candidate, setCandidate] = useState<TableRowDragCandidate | null>(null);
   const [dragState, setDragState] = useState<TableRowDragState | null>(null);
   const optionsRef = useLatestRef({
@@ -69,6 +98,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     enabled,
     onBlocked,
     justDraggedRef,
+    probeRootRef,
   });
   const candidateRef = useLatestRef(candidate);
   const dragStateRef = useLatestRef(dragState);
@@ -87,7 +117,8 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
     draggedTaskId: string,
   ): { rowIndex: number; zone: 'before' | 'after' | 'nest'; target: DropTarget | null } | null => {
     const current = optionsRef.current;
-    const el = document.elementFromPoint(clientX, clientY)?.closest('[data-ops-row-index]');
+    const el = document.elementFromPoint(clientX, clientY)?.closest('[data-ops-row-index]')
+      ?? probeRowInRoot(current.probeRootRef?.current ?? null, clientY);
     if (!el) return null;
     const rowIndex = Number(el.getAttribute('data-ops-row-index'));
     if (!Number.isFinite(rowIndex)) return null; // kapot/afwezig attribuut ⇒ als "niet gevonden"

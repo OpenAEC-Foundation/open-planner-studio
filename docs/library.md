@@ -413,7 +413,7 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    vast id geven) staat als openstaand punt in `docs/TODO.md` — vergt een migratie voor bestaande
    installaties en opgeslagen stempels, daarom nu niet gedaan.
 
-5. **Verdeler-kern bestaat, nog zonder schrijfpad/paneel.** Sinds B1c-etappe 2
+5. **Verdelen over projecten: rekenkern en schrijfpad.** Sinds B1c-etappe 2
    (`src/services/library/distribute.ts`) is er een pure rekenkern die, gegeven een poolitem en de
    geopende documenten die erop boeken, een verdelingsvoorstel berekent: documenten worden één voor
    één, in een opgegeven rangorde, tegen de restcapaciteit geplaatst — nummer 1 nivelleert alleen
@@ -423,8 +423,26 @@ Alle drie komen voort uit dezelfde wortel — **er is geen gedeelde opslag tusse
    bezettingsoverzicht hierboven). Past een taak niet, dan wordt ze als tekort geregistreerd en boekt
    ze niets in het gedeelde grootboek — een tekort cascadeert dus niet naar de volgende documenten in
    de rangorde. Deze kern draait volledig puur (`computeDistribution`, headless getest in
-   `tests/library/check-distribute.ts`); het schrijfpad (de gevonden verschuivingen daadwerkelijk
-   toepassen) en het paneel dat dit voorstel toont, bestaan nog niet.
+   `tests/library/check-distribute.ts`).
+
+   Sinds B1c-etappe 3 heeft dit voorstel ook een **schrijfpad**: `applyDistribution`
+   (`src/services/library/applyDistribution.ts` + de gelijknamige store-actie in `librarySlice`)
+   schrijft de verschuiving in álle deelnemende documenten tegelijk — het actieve document via het
+   gewone `applyLeveling`-pad, de slapers via een wegwerpbare headless scratch-instantie
+   (`src/state/runtime/scratchDocument.ts`) — ook als **Automatisch berekenen** daar uitstaat. Elk
+   document krijgt daarbij een gewone ongedaan-maken-stap in de app-globale sessiehistorie;
+   `undoDistribution` draait die stappen in één keer terug, behalve in een document waar intussen
+   zelf verder gewerkt is (dat wordt via `skippedDocIds` gemeld en blijft op zijn nieuwe stand).
+   Mislukt de schrijfronde, dan is er niets gemuteerd en komt de reden mee
+   (`DistributionApplyResult`). De seed-versie van de demobibliotheek
+   (`DEMO_LIBRARY_SEED_VERSION`, `migrateDemoLibrarySeed`) werkt een bestaande demo-pool eenmalig
+   bij op capaciteiten en omschrijvingen, zonder id's of eigen bewerkingen te raken.
+
+   De bediening (de dialoog "Verdelen over projecten" met pins, plafonds en de
+   onderbrekingsschakelaar) volgt in een aparte PR; de tune-state daarvan hoort bij de
+   verdeelsessie en niet bij het project — het zijn geen `DOCUMENT_FIELDS` en ze round-trippen dus
+   niet door het IFC. Zie
+   `docs/superpowers/plans/2026-08-31-b1c-plan3-schrijfpad-paneel.md` voor de volledige afweging.
 
 ## Bekende kleine punten
 

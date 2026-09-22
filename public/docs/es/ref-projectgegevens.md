@@ -5,7 +5,6 @@ La ventana **Información del proyecto** contiene los metadatos del proyecto má
 ## Abrir
 
 - **Configuración** (pestaña de la cinta) → grupo de la cinta **Proyecto** → **Info del proyecto**.
-- Ventana de configuración (engranaje ⚙) → pestaña **General** → **Información del proyecto...**
 - **Archivo** → **Info del proyecto** — una variante simplificada en el Backstage, solo con los campos de metadatos (sin la sección Cálculo).
 
 **Aplicar** confirma todos los cambios a la vez; **Cancelar**, **Esc** o un clic fuera de la ventana los descarta. **Intro** hace lo mismo que Aplicar.

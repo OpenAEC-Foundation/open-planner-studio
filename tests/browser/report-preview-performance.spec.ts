@@ -68,7 +68,11 @@ async function firstVisibleAnchor(page: Page): Promise<{ index: number; relative
 
 test('De Vaart-preview houdt vaste pagina-geometrie en een stabiel scrollanker', async ({ page, ops: _ops }) => {
   test.setTimeout(60_000);
-  await seedProject(page, Array.from({ length: 260 }, (_, i) => ({
+  // 200 rijen: ruim meer dan twee pagina's, maar met marge binnen het previewcachebudget (`maxPages`
+  // = 7 op kwaliteit 300; dit geeft 6), want deze test materialiseert bewust de HELE preview. Met 260
+  // rijen zat het paginatotaal precies op die grens en viel — sinds de voet op elke pagina staat
+  // (issue #113) en er per pagina één strook minder body past — de laatste pagina buiten de cache.
+  await seedProject(page, Array.from({ length: 200 }, (_, i) => ({
     name: `Taak ${i + 1}`,
     start: `2026-01-${String(1 + (i % 20)).padStart(2, '0')}`,
     finish: `2026-03-${String(1 + (i % 20)).padStart(2, '0')}`,

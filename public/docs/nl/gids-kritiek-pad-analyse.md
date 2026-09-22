@@ -21,6 +21,8 @@ Druk op **F5** (of de knop **Bereken**) om de planning door te rekenen. De statu
 
 Dubbelklik een taak en kijk in de sectie **CPM Resultaat** voor de exacte cijfers: **Vroegste start**, **Vroegste einde**, **Laatste start**, **Laatste einde**, **Totale speling**, **Vrije speling** en (indien van toepassing) **Interfererende speling**, plus of de taak op het **Kritiek pad** ligt. Wil je deze velden als kolommen in de taaktabel? **Beeld → Kolommen…** en vink ze aan.
 
+In het Gantt-diagram wordt de totale speling van een niet-kritieke taak getekend als een lichtgroene band die ná de balk doorloopt tot de laatste einddatum. Wil je die banden niet zien — bijvoorbeeld voor een rustiger beeld bij een presentatie — zet ze dan uit via **Beeld → lintgroep Baselines & voortgang → Spelingsband**. De keuze wordt onthouden; de berekende speling zelf blijft gewoon beschikbaar in het eigenschappenpaneel en de kolommen.
+
 ### Totale, vrije en interfererende speling
 
 - **Totale speling** — hoeveel een taak in totaal mag uitlopen zonder de projecteinddatum te raken. Nul betekent kritiek.

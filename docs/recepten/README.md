@@ -1,6 +1,6 @@
 # Recepten
 
-Stap-voor-stapgidsen voor vijf terugkerende ontwikkelklussen in deze repo — waar de compiler en de
+Stap-voor-stapgidsen voor zes terugkerende ontwikkelklussen in deze repo — waar de compiler en de
 tests je tegenhouden, en waar niet. Dit zijn geen vervangingen van de code of van `CLAUDE.md`: loopt
 een recept ooit achter, dan heeft de code gelijk.
 
@@ -13,3 +13,4 @@ Dit is repo-documentatie (Nederlands, net als de rest van de codebase — zie *W
 - [`i18n-sleutel.md`](i18n-sleutel.md) — een nieuwe vertaalsleutel toevoegen.
 - [`ribbontabblad.md`](ribbontabblad.md) — een nieuw ribbontabblad toevoegen.
 - [`in-app-gids.md`](in-app-gids.md) — een nieuwe in-app gids (`public/docs/`) toevoegen.
+- [`tekstgrootte.md`](tekstgrootte.md) — een tekstgrootte kiezen uit de zes rollen, of er één toevoegen.

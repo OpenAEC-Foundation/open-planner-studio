@@ -64,6 +64,36 @@ expectSource(
   component,
   /--dependency-role-color['"]?:\s*GANTT_TRACE_COLORS\[role\]/,
 );
+// Issue #114: de rijmarkering in het taakraster (border-inline-start) leest `--trace-predecessor`/
+// `--trace-successor`; die CSS-variabelen moeten letterlijk dezelfde hex dragen als het Gantt-palet,
+// anders staan er twee kleurtalen naast elkaar (raster paars/blauw, balken goud/paars — het
+// gerapporteerde beeld).
+function cssVar(name: string): string | null {
+  const m = new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})\\s*;`).exec(css);
+  return m ? m[1].toUpperCase() : null;
+}
+function paletteHex(key: string): string | null {
+  const m = new RegExp(`GANTT_TRACE_COLORS\\s*=\\s*\\{[\\s\\S]*?\\b${key}:\\s*'(#[0-9A-Fa-f]{6})'`).exec(palette);
+  return m ? m[1].toUpperCase() : null;
+}
+checks += 2;
+if (cssVar('trace-predecessor') === null || cssVar('trace-predecessor') !== paletteHex('predecessor')) {
+  diffs.push(`--trace-predecessor (${cssVar('trace-predecessor')}) ≠ GANTT_TRACE_COLORS.predecessor (${paletteHex('predecessor')})`);
+}
+if (cssVar('trace-successor') === null || cssVar('trace-successor') !== paletteHex('successor')) {
+  diffs.push(`--trace-successor (${cssVar('trace-successor')}) ≠ GANTT_TRACE_COLORS.successor (${paletteHex('successor')})`);
+}
+expectSource(
+  'rastermarkering voorganger leest de gedeelde trace-variabele',
+  css,
+  /\.task-grid-trace-predecessor-driving \{\s*border-inline-start: 3px solid var\(--trace-predecessor, #F59E0B\);/,
+);
+expectSource(
+  'rastermarkering opvolger leest de gedeelde trace-variabele',
+  css,
+  /\.task-grid-trace-successor-driving \{\s*border-inline-start: 3px dashed var\(--trace-successor, #A78BFA\);/,
+);
+
 expectSource(
   'het Gantt-palet exporteert de semantische voorganger-/opvolgerkleuren',
   palette,

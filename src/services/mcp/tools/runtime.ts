@@ -112,7 +112,7 @@ const BLOCKING_UI_FLAGS = [
   'showCalendarDialog', 'showUpdateDialog', 'showNewProjectDialog', 'showFeedbackDialog',
   'showStructureDialog', 'showLevelingDialog', 'showBaselineDialog', 'showColumnsDialog',
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
-  'showTourOverlay', 'showWelcomeDialog',
+  'showTourOverlay', 'showWelcomeDialog', 'showProgressImportDialog',
 ] as const;
 
 /** Naam van de eerste open blokkerende ui-vlag, of null wanneer er geen open staat. */

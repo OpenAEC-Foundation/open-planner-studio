@@ -28,6 +28,7 @@ npm run verify:store-boundaries # los: AST-poort — core-runtimefactories en st
 npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
 npm run verify:cycles     # los: circulaire imports binnen src/ (esbuild-metafile, dus ná type-erasure)
+npm run verify:text-roles # los: tekstgroottes alleen via de zes tekstrollen — geen kale px/rem, text-[Npx] of Tailwind-standaardmaat
 npm run verify:audit      # los: npm audit --audit-level=high — bewust NIET in `verify` (zie hieronder)
 npm run gen:examples      # Voorbeeldprojecten (public/examples) opnieuw genereren
 npm run publish:wiki      # GitHub-wiki genereren uit repo-bronnen (dry-run; `-- --push` publiceert)
@@ -186,19 +187,55 @@ De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/re
 
 ### Rapporten: één kolomspec voor DOM én PDF
 
-Het Rapport-tabblad (`ReportPanel.tsx`) kent tien rapporttypen (`ReportType` in
-`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het mijlpalen- en
-variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
+Het Rapport-tabblad (`ReportPanel.tsx`) kent elf rapporttypen (`ReportType` in
+`src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het **resourcediagram**
+(issue #113: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
+`src/engine/reports/resourceGantt.ts` — per resource-IDENTITEIT een band (niet per naam, zoals de
+schermgroepering: gelijknamigen krijgen `#n`, naamlozen een surrogaat), daaronder zijn bladtaken op
+start; relaties staan bij dit type uit omdat een taak onder meerdere banden kan staan, en het vinkje
+*Kritiek pad* is er verborgen en geforceerd aan (`reportTypeShowsCriticalToggle`: het vinkje kleurt alleen
+relatielijnen en legendaregel, de balken volgen `barColorSelection` via `criticalFill`); optie "blad
+per resource" = `PrintOptions.pageBreakBeforeGroups`
+→ `RenderReportResult.forcedBreakOffsets` → `forcedBreakOffsetsPx` in `tileLayout`, waar een gedwongen
+positie zonder vulgraaddrempel wint — een band direct onder een band (de optionele typelaag
+`groupByType`: eerst een band per resourcetype in de vaste volgorde `RESOURCE_TYPE_BAND_ORDER`) krijgt
+geen eigen gedwongen positie; optie *Rapportageperiode* = de gedeelde `ReportingPeriod` als
+`PrintOptions.timeWindow` (tijdas exact op het venster, geometrie geklemd op het chartgebied want
+`Draw2D` kent geen clip; de rijenbron filtert op overlap en telt `counts.outsidePeriod`); optie
+*Eenheden/dag en curve tonen* = `PrintOptions.assignmentColumns` + `rowAssignments` (per `rowKey`
+uit `assignmentByRowKey`: eenheden opgeteld, curve alleen bij eensluidende records) als twee
+tabelkolommen achter de naam; `isGanttReportType()` bundelt beide Gantt-achtige typen; de voet
+met legenda is sinds #113 net als de kop een herhaalbaar blok — `RenderReportResult.footerHeight` →
+`repeatFooterHeightPx`/`repeatFooter`, instelling `repeatFooter` standaard aan; let op: de preview
+rendert per pagina één volledige `renderReport`-pass extra voor die strook, net als voor de kop), het
+mijlpalen- en variance-rapport (eigen DOM-component + `build*Columns` voor de PDF) en zeven **tabelrapporten**
 uit discussie #31 — look-ahead, kritiek/near-critical, voortgang, planningsgezondheid,
-resourcebelasting per week, resourcetoewijzingen en WBS-samenvatting. Die zeven hebben een pure
-rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit; headless
-getest in `tests/planning/check-reports.ts`) en één presentatielaag: `useTableReportSpec.tsx` bouwt
+resourcebelasting (per week of maand), resourcetoewijzingen en WBS-samenvatting. Die zeven hebben
+een pure rekenlaag in `src/engine/reports/` (één `ReportContext` in, rijen met rauwe waarden uit;
+headless getest in `tests/planning/check-reports.ts`) en één presentatielaag: `useTableReportSpec.tsx` bouwt
 per type een `TableReportSpec` (titel, meldingen, samenvatting, secties met een `ReportColumn`-
 lijst), `TableReportView.tsx` tekent daar de `<table>`s uit en `makeSectionedRenderReport`
 (`pdfTable.ts`) de vector-PDF — dezelfde kolomspec, dus DOM en PDF kunnen niet uit elkaar lopen.
 Nieuw tabelrapport ⇒ engine-module, een `build*`-functie in `useTableReportSpec`, opties in
 `TableReportOptions` + `TableReportOptionsBlock`, sleutels onder `tableReports.*` in alle 14
-`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en).
+`report.json`-locales, en een sectie in `gids-rapporten-printen.md` (nl+en). Rapporten met een
+tijdvenster (look-ahead, voortgang, belasting, toewijzingen) delen de **rapportageperiode** (issue
+#120): een `ReportingPeriod` (preset rond de statusdatum, `project` of `custom` met twee ISO-dagen)
+uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableReportOptions`, in de
+UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePeriodFor(ctx, period)`
+— nooit een eigen weken-getal erbij bouwen.
+
+**Kolombreedtes zijn gemeten, niet vast.** De datakolommen van de Gantt-/resourcediagram-tabel (WBS,
+Duur, Start, Einde, Volt., Eenh./d) worden — net als de naam- en de curvekolom — door `ReportPanel`
+op de echte koppen én cellen van dít rapport gemeten (`measureTableColumnWidths`) en via
+`PrintOptions.columnWidths` doorgegeven; zonder meting gelden de oude vaste breedtes uit `COL`, dus
+elk pad zonder canvas blijft byte-identiek. Meten hoort in het paneel en niet in de printlaag:
+`measurePrintReport` (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen
+dan de raster- en vector-render. De celteksten komen daarbij uit één bron (`taskTableCellTexts`) die
+de render óók gebruikt — anders meet je "Duur" en teken je iets anders. Bij de tabelrapporten doet
+`fitColumnsToHeaders` (`pdfTable.ts`) hetzelfde voor de PDF, maar **alleen verbreden**: een kolom die
+haar eigen vertaalde kop niet kwijt kan groeit mee, versmallen niet — `mode: 'fit-width'` schaalt een
+smallere tabel juist gróter, en celinhoud hoort in een vrije-tekstkolom wél af te kappen.
 
 ### State: één Zustand + Immer store, samengesteld uit slices
 
@@ -252,6 +289,10 @@ Backstage-secties (`BackstageSection`): `recent`, `examples`, `export`, `import`
 
 The active tab is in `ui.activeRibbonTab`. De rechterrail bevat conditioneel `TaskPropertiesPanel` en de compacte `ResourcePanelCompact` (samen de stapel met sleepgrens), daaronder het `WarningsPanel` (issue #53: alle waarschuwingen uit `cpmResult`/`resourceLoadResult` via de pure `collectScheduleWarnings`, klik navigeert via `revealScheduleWarning`; `ui.showWarningsPanel`, sessie); `DebugTerminal` en `AIActivityPanel` kunnen daaronder verschijnen. De volledige Tabel-, Resource-, IFC- en Rapportweergaven zijn werkruimtes en geen rechterpanelen. De rail gebruikt `ui.rightPanelCollapsed` / `ui.rightPanelWidth`. Global dialogs (`UpdateDialog`, `JustUpdatedDialog`, `FeedbackDialog` + `ScreenshotAnnotator`, `ProjectInfoDialog`, `LibraryLinkDialog`, `CloseDocumentDialog`) mount from `App.tsx` behind `ui.show*` flags. De gedeelde `Dialog` heeft een focus-trap (Tab/Shift+Tab blijven in de modal); dialogen die elkaar zouden overlappen worden geweerd via een gedeelde guard (`hasBlockingDialogOpen`). Gebruikerzichtbare meldingen lopen sinds K8a via **één** kanaal, gevoed vanuit de store — geen losse `alert()`/ad-hoc toasts erbij bouwen.
 
+### Tekstgroottes: zes rollen, één bron
+
+De interface kent precies zes absolute tekstgroottes (plus relatieve afleidingen daarvan), gedefinieerd in het `@theme static`-blok van `src/styles/globals.css`: `caption` 9 · `small` 10 · `body` 11 · `large` 12 · `heading` 14 · `title` 20 (px × `--ui-font-scale`, dus elke rol volgt de instelling `ui.uiFontScale` vanzelf). In klassen schrijf je `text-body` (met `!` waar een `.input`/`.btn`-regel overstemd moet worden), in losse CSS `font-size: var(--text-body)`. `--text-*: initial` heeft Tailwinds eigen schaal verwijderd: `text-xs`/`text-sm`/… bestaan niet meer en zouden stil níéts doen. Een rol is alleen een grootte — regelhoogte zet je zelf met `leading-*` (de omgezette `text-xs`/`text-sm`-plekken dragen daarom `leading-4`/`leading-5`). De `13px` op `html` is geen rol maar de rem-basis waar Tailwinds spacing aan hangt; `body` erft `large`. Relatieve maten (`em`, `%`) mogen, want die erven van een rol — de enige in gebruik is `.help-inline-code` (`0.85em`, zodat inline code met kop of alinea meegroeit). `npm run verify:text-roles` (onderdeel van `verify`) keurt de gangbare schrijfwijzen van een absolute maat in `src/` af (CSS-`font-size` via een witte lijst, `font`-shorthand, `@apply`, `text-[…]`, Tailwinds eigen schaal, `fontSize`/`setProperty`/`cssText`); wat hij níét ziet — `fontSize: n` met een variabele, HTML-strings — vangt `tests/browser/text-roles.spec.ts` op de oppervlakken die die test bezoekt (computed font-size op 100% en 125%); Canvas-/PDF-/printtekst (`src/engine/`, `src/services/`) en SVG-`fontSize={n}` vallen erbuiten, en een bewuste uitzondering krijgt op de regel zelf `text-roles: <reden>`. Een zevende rol toevoegen is een ontwerpbesluit, geen gemak: de poort kent de lijst en faalt op een onbekende `var(--text-…)`; het recept staat in `docs/recepten/tekstgrootte.md`.
+
 ### i18n
 
 Fourteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`) via `react-i18next`, configured in `src/i18n/config.ts`; each locale has four namespaces (`common`, `task`, `report`, `menu`). Alleen Engels wordt eager geladen; de rest komt lazy binnen via `loadLocale()` (Vite splitst per taal een eigen async chunk), dus vertalingen zijn niet synchroon beschikbaar direct na een taalwissel. `ar` and `fa` are RTL — `RTL_LOCALES` drives `document.documentElement.dir`. i18n initializes and falls back to **English** (`lng`/`fallbackLng: 'en'`); on startup `initLocale()` picks the saved preference, otherwise the OS/browser locale — it is not hard-defaulted to one language. The project's *working* language is Dutch, though: code comments, commit messages, and the canonical source translations are Dutch. Always go through `t(...)`; never hard-code visible text.
@@ -260,13 +301,15 @@ Fourteen locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`) via 
 
 ### Settings persistence
 
-`src/utils/settingsStore.ts` persists settings to `localStorage` only, under `ops-`-prefixed keys — it does **not** use `@tauri-apps/plugin-store` (that package is a dependency but unused here). De **load**-kant loopt declaratief via `src/utils/settingsRegistry.ts`: één descriptor per instelling (localStorage-sleutel → validator/parser → doelveld in `UIState`), naar het `SHORTCUTS`-patroon. Een nieuwe instelling toevoegen = één entry daar, eventueel een dunne `saveX`-wrapper in `settingsStore.ts`, plus de gedeelde UI. Drie bewuste afwijkers worden expliciet in `loadAllSettings()` afgehandeld: thema (`initTheme()` migreert legacy-namen, persisteert de conversie en levert áltijd een voorkeur; `useResolvedUITheme()` zet de extra voorkeur `system` live om naar Light/Dark voor DOM en Canvas), bouwmodus (synchroon, want de kalenderfabriek leest 'm direct) en balkkleurkeuze (`barColorSelection`, één objectkeuze met legacy-migratie uit twee oude instellingen). `UI_THEMES` bevat bewust alleen de drie handmatig kiesbare thema's; de pre-paintspiegel in `index.html` resolveert `system` al vóór React. Sleutels die buiten de opstart-hydratatie lazy laden (layouts, workTimePresets, welcomeSeen, locale) staan bewust níét in het register. Settings-UI-conventie: elke instelling moet op alle drie de plekken verschijnen — tandwiel-popup (⚙), Instellingen-ribbontab en Backstage → Instellingen — door één gedeeld component te gebruiken (`src/components/settings/SettingsPanelContent`). Datzelfde paneel heeft sinds 2026-09 een vijfde tabblad **Statistieken** (`DownloadStatsSection.tsx`): geen instelling maar een leesweergave van `downloads.json` op de `stats`-databranch (`src/services/stats/downloadStats.ts`, 30 min cache in `ops-downloadStats`, in-flight-dedupe, verlopen cache als terugval bij een netwerkfout) — dezelfde drie ingangen, nooit een GitHub-API-call vanuit de app. Regressie: `tests/planning/check-download-stats.ts` en `tests/browser/settings-stats.spec.ts`.
+`src/utils/settingsStore.ts` persists settings to `localStorage` only, under `ops-`-prefixed keys — it does **not** use `@tauri-apps/plugin-store` (that package is a dependency but unused here). De **load**-kant loopt declaratief via `src/utils/settingsRegistry.ts`: één descriptor per instelling (localStorage-sleutel → validator/parser → doelveld in `UIState`), naar het `SHORTCUTS`-patroon. Een nieuwe instelling toevoegen = één entry daar, eventueel een dunne `saveX`-wrapper in `settingsStore.ts`, plus de gedeelde UI. Drie bewuste afwijkers worden expliciet in `loadAllSettings()` afgehandeld: thema (`initTheme()` migreert legacy-namen, persisteert de conversie en levert áltijd een voorkeur; `useResolvedUITheme()` zet de extra voorkeur `system` live om naar Light/Dark voor DOM en Canvas), bouwmodus (synchroon, want de kalenderfabriek leest 'm direct) en balkkleurkeuze (`barColorSelection`, één objectkeuze met legacy-migratie uit twee oude instellingen). `UI_THEMES` bevat bewust alleen de drie handmatig kiesbare thema's; de pre-paintspiegel in `index.html` resolveert `system` al vóór React. Sleutels die buiten de opstart-hydratatie lazy laden (layouts, workTimePresets, welcomeSeen, locale) staan bewust níét in het register. Settings-UI-conventie: elke instelling moet op alle drie de plekken verschijnen — tandwiel-popup (⚙), Instellingen-ribbontab en Backstage → Instellingen — door één gedeeld component te gebruiken (`src/components/settings/SettingsPanelContent`). Op het tabblad Toepassing staat sinds 2026-09 naast Benchmark de knop **Statistieken…** (`ui.showStatsDialog` → `StatsDialog.tsx` met `DownloadStatsSection.tsx`; bewust een knop en geen eigen tabblad, de gemiddelde gebruiker heeft er niets aan): geen instelling maar een leesweergave van `downloads.json` op de `stats`-databranch (`src/services/stats/downloadStats.ts`, 30 min cache in `ops-downloadStats`, in-flight-dedupe, verlopen cache als terugval bij een netwerkfout) — dezelfde drie ingangen, nooit een GitHub-API-call vanuit de app. Regressie: `tests/planning/check-download-stats.ts` en `tests/browser/settings-stats.spec.ts`.
 
 Separately, project **auto-save** draait zowel in Tauri als in de browser: een store-subscription (`src/hooks/useAutoSave.ts`, **gethrottled op 10 s** — bewust een throttle en geen debounce, want een debounce schrijft pas 10 s ná de láátste wijziging en vergroot dus juist het dataverliesvenster tijdens een lange bewerksessie) schrijft per open document één IFC-snapshot naar een gedeelde backend (`src/services/recovery/recoveryStore.ts` — Tauri: `appDataDir` via `plugin-fs`; web: IndexedDB) als `recovery[.<slug>].<docId>.ifc` plus een `recovery[.<slug>].documents.json`-manifest, met opruimen van verouderde snapshots, hersteld bij de volgende start. De oude enkele `recovery[.<slug>].ifc` wordt alleen nog als legacy-fallback gelezen. Dat crashherstel staat los van de runtime-only keuze **Automatisch opslaan** per document: `src/services/actualAutosave/` schrijft uitsluitend een gewijzigd, al bestaand `FileRef` terug op dezelfde 10-seconden-throttle, zonder dialoog, downloadfallback of browser-permissieprompt. Een nieuw document of een browserhandle zonder bestaand schrijfrecht kan dus nooit stil overschreven worden; uitzetten stopt alleen die bestandswrite, niet het crashherstel.
 
 ### Auto-update & releases
 
 Versies zijn CalVer (`YYYY.M.patch`), gelijkgehouden tussen `package.json` en `src-tauri/tauri.conf.json` via `npm run bump` (`Cargo.toml` blijft bewust `0.1.0`). De volledige runbook staat in de **`release`-skill** (`.claude/skills/release/`) — draai die bij een release in plaats van de stappen los te herhalen; een `v*`-tag is onomkeerbaar en auto-update naar alle gebruikers. Release-flow in het kort: `npm run bump <versie>` → **releasetekst schrijven in `docs/release-notes/v<versie>.md`** → commit → tag `v*` → push; `release.yml` bouwt en signeert installers (Windows via Azure Trusted Signing; macOS universal, met `app`-target voor de updater) en publiceert `latest.json`; `snap.yml` verpakt daarna de release-`.deb` tot Snap (`snap/snapcraft.yaml`) en publiceert 'm — sinds 2026-07-30, met het secret `SNAPCRAFT_STORE_CREDENTIALS` (zie `docs/release-secrets.md`) — ook automatisch naar het `stable`-kanaal van de Snap Store; dat gebeurt bij elke `v*`-tag en is, net als de rest van een release, onomkeerbaar. De in-app updater checkt stil bij het opstarten (`App.tsx` → `updaterService`, `UpdateDialog`): endpoint is de GitHub-release-`latest.json`, geverifieerd met de minisign-pubkey in `tauri.conf.json`; Snap/AppImage-installs slaan de updater over (detectie via het `install_kind`-command). Ná een geslaagde update toont `JustUpdatedDialog` één keer wat er nieuw is: `ui.justUpdated` wordt gezet door de versievergelijking tegen de bewaarde `ops-lastVersion`, en `src/services/updater/releaseInfo.ts` haalt de release-omschrijving, het grootteverschil en de tijd tussen releases op bij de GitHub Releases-API (pure functies, headless getest in `tests/planning/check-just-updated.ts`).
+
+De webbuild levert daarnaast `public/release-highlights.json` mee — gegenereerd uit de catalogus met `npm run gen:release-highlights-json`, bewaakt door `npm run verify:release-highlights-json` en geserveerd op `https://open-planner-studio.open-aec.com/release-highlights.json` als bron voor de releasetijdlijn op open-aec.com.
 
 **Releaseteksten hebben één bron.** `docs/release-notes/v<versie>.md` bevat alleen de "What's New"-inhoud; `scripts/release-notes.mjs` maakt daar de twee vormen van die de release nodig heeft: `--format=body` (markdown + het vaste Downloads-blok) voor de GitHub-releasepagina, en `--format=notes` (platte tekst — de updater-dialoog rendert geen markdown) voor het `notes`-veld in `latest.json`. `release.yml` roept dat op twee plekken aan: `create-release` voor de body, en `publish-release` voor `latest.json` vlak vóór publicatie. Ontbreekt het bestand, dan valt alles terug op het oude gedrag (generieke body, leeg `notes`-veld) en logt de gate een warning — een vergeten notesbestand breekt de release niet.
 
@@ -289,7 +332,7 @@ bedrading — álle `@tauri-apps/*`-imports dynamisch achter `isTauri()`, zodat 
 bouwen), `dispatcher.ts`, `schemaValidate.ts` (schema's worden in de dispatcher afgedwongen, óók
 binnen `planner_batch` — een draaiboek mag de poort niet omzeilen), `toolRegistry.ts`/`toolIndex.ts`,
 `staleGuard.ts` (`ensureFreshSchedule`), `backup.ts` (AI-backups per document in `appDataDir`,
-`MAX_PER_DOC = 10`) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 40
+`MAX_PER_DOC = 10`) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 41
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, XER/P6-bronprovenance, en `planner_batch` als
 transactionele executor met temp-id-resolutie).
@@ -350,13 +393,13 @@ De artikelen worden gerenderd door `src/utils/miniMarkdown.tsx`, dat een **beper
 
 ## Docs
 
-- [PLAN.md](PLAN.md) — large project plan, source of truth for the **roadmap**. ⚠️ Alleen voor de roadmap: §4 "Mappenstructuur" is een aangenomen ontwerp uit de ontwerpfase en beschrijft code die grotendeels niet bestaat (`src/api/`, `documentStore.ts`, `MonteCarloSim`, …). Er staat een banner boven. Voor de werkelijke structuur: dit bestand en `AGENTS.md`.
+- [PLAN.md](PLAN.md) — large project plan, source of truth for the **roadmap**. ⚠️ Alleen voor de roadmap: §4 "Mappenstructuur" is vervallen (de ontwerpfase-boom is verwijderd, er staat alleen een verwijzing). Voor de werkelijke structuur: dit bestand en `AGENTS.md`.
 - [docs/TODO.md](docs/TODO.md) — lopende to-do-lijst met dingen die nog gedaan moeten worden.
 - [docs/ifc-round-trip.md](docs/ifc-round-trip.md) — **hoe je een veld toevoegt dat een opslaan/laden overleeft.** IFC is het native formaat, dus domeindata die niet round-trippt is bij het volgende openen weg; dit is de route langs writer, reader, fixture en canon-tabel, plus waar de compiler je tegenhoudt.
-- [docs/recepten/](docs/recepten/) — dezelfde receptvorm als hierboven voor vier andere terugkerende klussen: een nieuwe `planner_*`-MCP-tool, een nieuwe instelling, een nieuwe vertaalsleutel en een nieuw ribbontabblad, plus een nieuwe in-app gids.
+- [docs/recepten/](docs/recepten/) — dezelfde receptvorm als hierboven voor vijf andere terugkerende klussen: een nieuwe `planner_*`-MCP-tool, een nieuwe instelling, een nieuwe vertaalsleutel, een nieuw ribbontabblad en een tekstgrootte kiezen/toevoegen, plus een nieuwe in-app gids.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — per **uitgebrachte** versie de uitgebreide beschrijving (Engels). Wordt alleen tijdens een release bijgewerkt (zie de `release`-skill) — geen `Ongepubliceerd`-kop, geen commit-dump.
 - [docs/self-test-harness.md](docs/self-test-harness.md) — how Claude drives the app to self-test changes. Tier 1 (default): Playwright MCP (`.mcp.json`) + the dev-only `window.__OPS__` hook (installed by `src/utils/devBridge.ts`: store, log-bus, `extensions.*`) against the **browser** dev build (`npm run dev` — de poort wordt per worktree toegewezen en gestempeld in `.claude/launch.json`, dus lees hem uit de dev-server-uitvoer in plaats van 3007 aan te nemen) — assert via store state, not canvas pixels. Tier 2 (opt-in): `tauri-driver` for the real desktop window.
-- [docs/superpowers/](docs/superpowers/) — ontwerp- en implementatiedocs: 35 specs, 9 plannen en een handvol losse stukken. **Begin bij [docs/superpowers/README.md](docs/superpowers/README.md)**; die zegt per document wat de status is en waarom er niet blind gearchiveerd wordt (er wijzen ~50 commentaarregels in `src/`/`tests/` naar deze bestanden). Hier stond een handmatige opsomming van "actieve" onderwerpen die niet meer klopte — alle 44 specs/plannen beschrijven inmiddels opgeleverde functionaliteit, en de afvinkvakjes in de plannen zijn nooit bijgehouden. Lees ze als *waarom het zo is*, niet als *wat er is*.
+- [docs/superpowers/](docs/superpowers/) — ontwerp- en implementatiedocs (specs, plannen en een handvol losse stukken). **Begin bij [docs/superpowers/README.md](docs/superpowers/README.md)**; die zegt per document wat de status is en waarom er niet blind gearchiveerd wordt (er wijzen ~50 commentaarregels in `src/`/`tests/` naar deze bestanden). Hier stond een handmatige opsomming van "actieve" onderwerpen die niet meer klopte — op het actieve programma en enkele nog-niet-uitgevoerde stukken na gaan alle specs/plannen over opgeleverde functionaliteit, en de afvinkvakjes in de plannen zijn nooit bijgehouden. Lees ze als *waarom het zo is*, niet als *wat er is*.
 - [docs/onderhoudbaarheid/](docs/onderhoudbaarheid/) — het onderhoudbaarheidsonderzoek: deelrapporten, critreviews en een visueel overzicht. Bron van de "K-items" die in commitberichten opduiken (K2 STEP-strings, K4/K5 recovery, K6a Rust-oppervlak, K7 export-guard, K8 meldingen/`isDirty`, K9–K11 CI-poorten).
 - [docs/planning-test-bevindingen.md](docs/planning-test-bevindingen.md) — bevindingen van het CPM-correctheidsonderzoek dat de `tests/planning/`-suite opleverde.
 - [docs/archive/superpowers/](docs/archive/superpowers/) — historical design docs and implementation plans for shipped features (zoom, debug terminal, stylebook). Archived; useful for context on *why* something was built, not *what* exists now — verify against current code.
@@ -364,6 +407,7 @@ De artikelen worden gerenderd door `src/utils/miniMarkdown.tsx`, dat een **beper
 - [docs/extensions.md](docs/extensions.md) — handleiding voor extensie-auteurs (manifest, API, installeren).
 - [docs/library.md](docs/library.md) — resourcebibliotheken (B1/B1.1): bibliotheek als bron met projectinzet, herkomststempels, pool-IFC-export/-import, bekende beperkingen (geen sync tussen machines).
 - [docs/release-secrets.md](docs/release-secrets.md) — de sleutels achter de uitleverketen: wat elk secret doet, wat er stukgaat bij verlies, en het migratiepad voor de minisign-sleutel (de enige onherstelbare SPOF: zijn pubkey zit in elke uitgeleverde binary).
+- `artifacts/<onderwerp>/` — **gecommit schermbewijs** bij een PR (bijv. `artifacts/resourcediagram/`), waar een PR-tekst of issue-reactie naar linkt via `raw.githubusercontent.com`. Klein houden: PNG, ≤ ~150 KB per bestand, een handvol per PR, en na de merge niet bijwerken (het is bewijs van dat moment, geen documentatie). Die regel geldt vanaf 2026-09 voor nieuwe mappen; `artifacts/tabel-overhaul/` (25 JPG's, 2,3 MB) dateert van daarvóór en blijft bewust zoals hij is. Lokale QA-screenshots horen in `qa/` (in `.gitignore`).
 - [scripts/README.md](scripts/README.md) — wat elk script in `scripts/` doet en wie het aanroept (dev-serverpoorten, de verify-poorten, de generatoren, release-hulpjes). Regel: wat daar staat wordt aangeroepen — eenmalige klussen horen weg, niet "voor het geval dat".
 - [tests/planning/README.md](tests/planning/README.md) — hoe de CPM/kalender-regressiesuite werkt en hoe je cases toevoegt.
 - `public/docs/<taal>/*.md` — de **in-app gidsen** achter Backstage → Help (viewer met taalkiezer, stale-waarschuwing en 14-taal-fallback). Brontalen zijn `nl` + `en`; die twee eist `npm run verify:docs` hard, de overige twaalf worden alleen gevalideerd wanneer ze bestaan (vertalingen volgen maandelijks, niet per release).

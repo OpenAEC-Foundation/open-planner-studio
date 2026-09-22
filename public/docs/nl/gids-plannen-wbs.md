@@ -23,7 +23,7 @@ Een platte lijst taken vertelt niets over samenhang. Door taken in te laten spri
 4. Ging je een niveau te ver? **Alt+←** (of rechtsklik → **Uitspringen**) zet de taak weer een niveau terug.
 5. Voor een compleet nieuwe subtaak is er een snellere weg: rechtsklik op de bovenliggende taak en kies **Subtaak toevoegen**. Dat maakt in één keer een nieuwe taak aan die al is ingesprongen, in plaats van eerst een taak toe te voegen en die daarna apart in te laten springen.
 
-Zodra een taak minstens één subtaak heeft, wordt hij automatisch een samenvattende taak: de balk in het Gantt-diagram overspant dan de volledige periode van de vroegste start tot de laatste finish van alle subtaken eronder, en zijn eigen duur en data zijn niet langer los in te stellen. Een samenvattende taak is dus normaal gesproken altijd een afgeleide, geen los ingevoerde planning — verwijder of verschuif je de subtaken, dan past de balk van de samenvattende taak zich vanzelf aan. Eén uitzondering: een **handmatig geplande** samenvattingstaak (die vlag ontstaat bij een `.mpp`-import) rolt juist niét op — die houdt haar eigen opgeslagen datums, ook als haar subtaken verschuiven.
+Zodra een taak minstens één subtaak heeft, wordt hij automatisch een samenvattende taak: de balk in het Gantt-diagram overspant dan de volledige periode van de vroegste start tot de laatste finish van alle subtaken eronder, en zijn eigen duur en data zijn niet langer los in te stellen. Een samenvattende taak is dus normaal gesproken altijd een afgeleide, geen los ingevoerde planning — verwijder of verschuif je de subtaken, dan past de balk van de samenvattende taak zich vanzelf aan. Dat geldt ook voor de kolom **Duur**: die toont de tijd tussen de start en de finish van de samenvattende taak — gerekend in de projectkalender, want een samenvattende taak heeft zelf geen werk — herberekend zodra je **Berekenen** (F5) draait, en op zo'n rij niet te bewerken. Eén uitzondering: een **handmatig geplande** samenvattingstaak (die vlag ontstaat bij een `.mpp`-import) rolt juist niét op — die houdt haar eigen opgeslagen datums, ook als haar subtaken verschuiven.
 
 **Herkenbaar in de naamkolom.** In de taaktabel (het tabblad **Tabel**, en dezelfde naamkolom in de rechterrail) staat een samenvattende taak vet en met een subtiele achtergrondtint op de naamcel; een mijlpaal staat vet in dezelfde kleur als zijn balk in het Gantt-diagram. Een gewone taak blijft ongewijzigd. Dat is puur visueel — er verandert niets aan hoe je een taak selecteert, sleept of bewerkt.
 
@@ -91,6 +91,19 @@ hem in plaats daarvan los op het onderste deel van de rij van een samenvattende 
 de taak wordt de nieuwe, laatste subtaak van die samenvattende taak — opnieuw inspringen in één
 beweging, het muis-equivalent van Alt+→. Selecteer eerst meerdere taken (Ctrl/Cmd-klik, of een
 box-selectie) en de hele selectie sleept en landt samen.
+
+Dat kan ook aan de **balk** zelf: pak in het Gantt-diagram een taakbalk in het midden vast en sleep
+overwegend omhoog of omlaag. De balk volgt dan dezelfde rijsleep als de taaktabel — zelfde
+invoegplekken, zelfde nestregel, één undo-stap — en de datums van de taak veranderen niet. De
+invoegstreep verschijnt daarbij op de doelrij in de taaktabel, naast de tijdlijn. Sleep je overwegend
+opzij, dan verschuif je zoals altijd de datums. Welke van de twee het wordt, beslist de eerste paar
+pixels van je beweging: daarna blijft het gebaar bij die keuze, ook als je alsnog de andere kant op
+gaat. Eén sleep verandert dus nooit én de datums én de plek in de structuur.
+
+Twee verschillen met het slepen aan de rij. De balk verplaatst altijd **één** taak, ook als er
+meerdere geselecteerd zijn — wil je een hele selectie verplaatsen, sleep dan aan de rijen. En staat
+de weergave gesorteerd of gegroepeerd, dan is de structuur op slot: je krijgt dezelfde melding als
+bij het slepen van een rij, en er verandert niets.
 
 Het lint-tabblad **Tabel** toont diezelfde structuur als een gewoon, bewerkbaar raster, handig als je
 in één keer veel taken invoert of corrigeert: één klik op een cel selecteert hem alleen — booleans,

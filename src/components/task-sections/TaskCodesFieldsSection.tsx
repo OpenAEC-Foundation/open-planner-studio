@@ -22,13 +22,13 @@ export function TaskCodesFieldsSection({ taskId }: { taskId: string }) {
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-xs">{t('structure.title')}</span>
+      <span className="ui-card-header !text-small !leading-4">{t('structure.title')}</span>
       {activityCodeTypes.map(type => (
         <Field key={type.id} label={type.name}>
           <select
             value={task.activityCodes?.[type.id] ?? ''}
             onChange={e => setTaskActivityCode(taskId, type.id, e.target.value || null)}
-            className="input !text-xs !px-2.5 !py-1.5"
+            className="input !text-small !leading-4 !px-2.5 !py-1.5"
           >
             <option value="">{t('structure.none')}</option>
             {type.values.map(v => (

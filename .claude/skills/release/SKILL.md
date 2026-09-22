@@ -104,8 +104,12 @@ De routine-releasegegevens kennen bewust geen screenshots, afbeeldingen of layou
 `JustUpdatedDialog.tsx` alleen na een expliciet, afzonderlijk door de user goedgekeurd redesign;
 een gewone release vult uitsluitend het nieuwe versieblok. Controleer vóór de tag-akkoord-poort:
 
+Draai na het toevoegen van het versieblok `npm run gen:release-highlights-json` en commit de
+bijgewerkte `public/release-highlights.json` mee — die JSON voedt de releasetijdlijn op open-aec.com.
+
 ```bash
 npm run verify:release-highlights -- X.Y.Z
+npm run gen:release-highlights-json
 npm run test:browser -- just-updated-dialog.spec.ts
 ```
 

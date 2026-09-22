@@ -17,8 +17,8 @@ export function TaskCpmResultSection({ taskId }: { taskId: string }) {
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-xs">{t('properties.cpmResult')}</span>
-      <div className="grid grid-cols-2 gap-1 text-[10px]">
+      <span className="ui-card-header !text-small !leading-4">{t('properties.cpmResult')}</span>
+      <div className="grid grid-cols-2 gap-1 !text-small">
         <span className="text-text-secondary">{t('properties.earlyStart')}</span>
         <span>{dd.date(task.time.earlyStart)}</span>
         <span className="text-text-secondary">{t('properties.earlyFinish')}</span>

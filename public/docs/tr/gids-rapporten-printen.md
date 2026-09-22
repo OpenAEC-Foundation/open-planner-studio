@@ -34,6 +34,25 @@ Rapordaki ilişki çizgileri, Gantt görünümüyle aynı görsel dili kullanır
 
 Üstteki özet bloğu, projedeki görevlerin, yaprak görevlerin, kritik görevlerin ve ilişkilerin canlı sayısını gösterir. Ayarlar paneli seçimlerinizi oturumlar arasında hatırlar — Rapor sekmesini daha sonra tekrar açtığınızda kağıt boyutu, açma/kapamalar, yazı boyutu ve gerisi tam olarak bıraktığınız gibi geri gelir. Yalnızca şirket alanı sıfırlanır: her zaman projenin kendi ayarından başlar, böylece bir rapor asla başka bir projenin şirket adını devralmaz.
 
+### Kaynak diyagramı
+
+Aynı Gantt çıktısı, ancak **kaynağa göre** gruplanmış: her ekip, kişi veya makine kendi bandını
+alır ve altında kendisine atanan görevler başlangıç sırasına göre listelenir. Bu, şantiye toplantısı
+için "kim, neyi, ne zaman yapıyor" görünümüdür; **Her kaynak yeni bir sayfada** seçeneğiyle de
+dağıtılacak kişi başına ayrı bir sayfa olur. İki kaynağı olan bir görev her iki bandın altında da
+görünür; özet görevler dışarıda kalır; bir özet göreve yapılan atama (içe aktarmadan gelebilir) burada
+gösterilmez. **Kaynaksız görevleri dahil et** en alta
+bir *(yok)* bandı ekler; böylece toplantıda henüz kimsenin üstlenmediği işler bir bakışta görülür.
+
+Gantt çıktısının tüm ayarları olduğu gibi geçerlidir — kritik yol, bolluk, çubuk renkleri,
+durum çizgisi, kâğıt, başlık tekrarı — iki istisna dışında: *Görünümü izle* (bu rapor satırlarını
+ekrandan almaz) ve *Bağımlılıklar* (bir görev kendisine atanan her kaynağın altında yer alır, bu
+yüzden bir okun tek bir bağlantı noktası olmaz; bu rapor ok çizmez). Bantlar ada göre değil kaynağa
+göre oluşur: aynı adı taşıyan iki kaynak ayrı ayrı bant alır (*Jan #1*, *Jan #2*). Dolayısıyla Gantt görünümünü önce kendiniz kaynağa göre gruplamanız
+gerekmez. Özet bloğu kaynakları, atamaları ve kaynaksız görevleri sayar. Henüz atama yoksa önizleme
+boş bir sayfa göstermek yerine bunu söyler; atama **Kaynaklar** sekmesinde yapılır (bkz.
+[Kaynaklar ve histogram](docs://gids-resources-histogram)).
+
 ### Kilometre taşı özeti
 
 Projedeki her kilometre taşının bir tablosu: WBS, ad, tür (otomatik/başlangıç/bitiş), tarih, temeldeki kısıtlama veya son tarih, bolluk, kilometre taşının zorunlu olup olmadığı ve durum (planında / kritik / gecikmiş). Özet bloğu, toplam kilometre taşı sayısını, kaçının zorunlu ve kaçının gecikmiş olduğunu gösterir. Bu raporun kağıt boyutu/yön ayarları yoktur — tabloyu gösterildiği gibi tam olarak yazdırır.
@@ -52,9 +71,27 @@ program bir notla belirtilir ve PDF dışa aktarımı her zaman önce yeniden he
 oturumlar arasında hatırlanan küçük bir **Rapor seçenekleri** bloğu vardır. İş günleri *ig* olarak
 kısaltılır.
 
+### Raporlama dönemi
+
+Dört rapor bir zaman penceresi üzerinde çalışır: ileriye bakış, ilerleme, kaynak yükü ve kaynak
+atamaları. Rapor seçeneklerinde tek bir *Raporlama dönemi* denetimini paylaşırlar; her raporun kendi
+hatırlanan ayarı vardır:
+
+- **Gelecek / geçen hafta, 2, 4, 6, 8 veya 12 hafta** ve **gelecek / geçen ay** — projenin durum
+  tarihinden (yoksa bugünden) sayılır. Bir ön ayar iki uçta da dahildir: 10 Eylül Perşembe günü
+  *gelecek 4 hafta*, 7 Ekim Çarşamba'ya kadar sürer. Durum tarihini değiştirirseniz pencere onunla
+  birlikte kayar.
+- **Tüm proje** — programdaki en erken başlangıçtan en geç bitişe.
+- **Özel** — kendi seçtiğiniz iki tarih. *Başlangıç* ve *Bitiş* alanları düzenlenebilir olur (yazın
+  veya tarih seçiciyi kullanın); bir ön ayarla hesaplanan tarihleri salt okunur gösterirler.
+  Başlangıçtan önceki bir bitiş tarihi veya boş bir tarih alanı kırmızıyla işaretlenir ve uygulanmaz. Yeniden bir ön ayar
+  seçtiğinizde ön ayarın tarihleri sizin aralığınızın yerini alır.
+
+Seçilen dönem raporun ve PDF'nin alt başlığında görünür; ilerleme raporu bunu özetinde gösterir.
+
 ### İleriye bakış (look-ahead)
 
-Haftalık şantiye toplantısının listesi: önümüzdeki *N* haftanın (varsayılan dört) tüm aktiviteleri —
+Haftalık şantiye toplantısının listesi: raporlama dönemindeki (varsayılan gelecek ay) tüm aktiviteler —
 ne başlıyor, ne sürüyor, ne bitiyor — artı çoktan olmuş olması gerekenler. Satır başına: İKY, ad,
 başlangıç ve bitiş, kalan süre, tamamlanma, toplam bolluk, kritik veya kritiğe yakın, atanan
 kaynaklar ve bir durum: **Başlıyor**, **Devam ediyor**, **Başlamış olmalıydı** veya **Gecikmiş**.
@@ -73,8 +110,11 @@ Durum tarihinde periyodik "neredeyiz" özeti. Özet, temel ve tahmini bitişi i�
 **planlanan** ile **gerçekleşen** ilerlemeyi (her ikisi de yaprak görevlerin süresine göre
 ağırlıklı; planlanan etkin temel planın tarihlerinde, yoksa mevcut programda) ve duruma göre
 sayımları verir. Altında beş bölüm: geçen dönemde tamamlananlar, devam edenler, gelecek dönemde
-başlayanlar, gecikmişler ve açık kritik aktiviteler. Dönem (varsayılan iki hafta) geriye baktığı
-kadar ileriye de bakar.
+başlayanlar, gecikmişler ve açık kritik aktiviteler. Raporlama dönemi (varsayılan geçen ay) neyin *dönemde tamamlanan* sayılacağını belirler;
+*gelecek dönemde başlayanlar* bölümü durum tarihinden ileriye bakar — dönem (kısmen) durum tarihinden
+sonraysa dönemin sonuna kadar, *Geçen/Son …* ön ayarında dönemin geriye baktığı kadar
+ileriye; tamamen geçmişte kalan özel veya tüm proje döneminde bölüm boş kalır. Özet her iki sınırı da
+gösterir.
 
 ### Program sağlığı
 
@@ -85,18 +125,21 @@ tarih, ihlal edilen kısıt, tutarsız ilerleme), **uyarılar** (açık başlang
 gecikmeler). Eşikler seçeneklerdedir; varsayılan DCMA'ya göre: yüksek bolluk ve uzun süre için 44
 iş günü, gecikmeler için 10. Temiz bir programda sıfır hata vardır.
 
-### Haftalık kaynak yükü
+### Kaynak yükü
 
-Kaynak ve hafta başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve haftanın
-aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo halinde.
-Yalnızca gereksinimi olan haftalar listelenir; *Yalnızca aşırı yüklü haftalar* ile sadece darboğazlar
-kalır.
+Satırlar kaynağa göre gruplanır (ad ve tür yalnızca her grubun ilk satırında, kaynak atamalarında olduğu gibi); *Toplama* ile takvim haftası veya takvim ayı seçersiniz ve raporlama dönemi hangi haftaların veya ayların görüneceğini belirler.
+
+Kaynak ve hafta ya da ay başına, mevcut kapasiteye (birim-gün) karşı gereksinim, fark, günlük tepe ve
+dönemin aşırı yüklü olup olmadığı — **Kaynaklar** sekmesindeki histogramla aynı hesaplama, tablo
+halinde. Yalnızca gereksinimi olan dönemler listelenir; *Yalnızca aşırı yüklü dönemler* ile sadece
+darboğazlar kalır. PDF'de sayfa sonu bir grubun ortasına denk gelirse kaynak adı sonraki sayfada
+yinelenmez.
 
 ### Kaynak atamaları
 
 Kaynak başına atanan aktiviteler: İKY, ad, başlangıç ve bitiş, kalan süre, günlük birim,
-tamamlanma, kritik ve durum. Tamamlanan görevler varsayılan olarak hariçtir. Hafta cinsinden bir
-pencereyle *kaynak ileriye bakışı* olur. Özet, kaynaksız görevleri de sayar.
+tamamlanma, kritik ve durum. Tamamlanan görevler varsayılan olarak hariçtir. Bir raporlama
+dönemiyle (varsayılan tüm proje) *kaynak ileriye bakışı* olur. Özet, kaynaksız görevleri de sayar.
 
 ### İKY özeti
 

@@ -62,10 +62,10 @@ export function CalcOptionsSection({ value, onChange }: CalcOptionsSectionProps)
     <div className="flex flex-col gap-3">
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
       <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
           {t('projectInfo.calc.title')}
         </span>
-        <span className="text-[11px] text-text-secondary">{t('projectInfo.calc.subtitle')}</span>
+        <span className="!text-body text-text-secondary">{t('projectInfo.calc.subtitle')}</span>
       </div>
 
       {/* Kritiek-definitie */}

@@ -16,6 +16,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
 import { contourPeriodsToDayItems, minutesToMspdiValue } from '@/services/contourIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
+import { flattenOrder, taskDepths } from '@/utils/wbs';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -136,11 +137,6 @@ function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFo
   return { linkLag: lagToTenthsOfMinutes(seq.lagDays, hoursPerDay), lagFormat: 7 };
 }
 
-function getOutlineLevel(wbs: string): number {
-  if (!wbs) return 1;
-  return wbs.split('.').length;
-}
-
 /** Schrijft één `<Calendar>`-blok (WeekDays + Exceptions) — hergebruikt voor de
  *  projectkalender (UID 1, `IsBaseCalendar`) én voor resource-kalenders (fase 2.5, §8.2). */
 function writeCalendarBlock(
@@ -184,7 +180,9 @@ function writeCalendarBlock(
       lines.push(`${indent(5)}<WorkingTimes>`);
       lines.push(`${indent(6)}<WorkingTime>`);
       lines.push(`${indent(7)}<FromTime>${String(cal.workStartHour).padStart(2, '0')}:00:00</FromTime>`);
-      lines.push(`${indent(7)}<ToTime>${String(cal.workEndHour).padStart(2, '0')}:00:00</ToTime>`);
+      // Via `minutesToClock`: een 24/7-dagkalender (`workEndHour` 24) wordt `00:00:00` — een geldige
+      // kloktijd (middernacht), zoals MS Project's eigen "24 Hours"-kalender — en niet `24:00:00`.
+      lines.push(`${indent(7)}<ToTime>${minutesToClock(cal.workEndHour * 60)}</ToTime>`);
       lines.push(`${indent(6)}</WorkingTime>`);
       lines.push(`${indent(5)}</WorkingTimes>`);
     }
@@ -256,6 +254,16 @@ export function writeMSPDI(
 ): string {
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
+
+  // Issue #159: MS Project reconstrueert de hiërarchie uit `<OutlineLevel>` + DOCUMENTVOLGORDE — het
+  // `<WBS>`-veld is daarbij alleen tekst. Beide moeten dus uit de echte boom komen: diepte-eerst
+  // geordend (ouders vóór hun kinderen, exact zoals het taakraster flattent) en het niveau uit de
+  // ouderketen. Voorheen kwam het niveau uit `wbsCode.split('.').length` en de volgorde uit de store:
+  // een IFC-import draagt de vrije `IfcTask.Identification` als code (hernummeren gebeurt niet bij
+  // laden) en kan "samenvattingen eerst, dan bladen" geordend zijn — dan belandden alle bladen onder
+  // de laatste samenvatting, of werd de boom vlak. De UID-toekenning hieronder volgt deze volgorde.
+  tasks = [...flattenOrder(tasks)];
+  const depthById = taskDepths(tasks);
 
   // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in MSPDI niet uitdrukbaar buiten de
   // master/subproject-context ⇒ weggelaten (ghost-weergave blijft in-app). Één warn.
@@ -452,16 +460,23 @@ export function writeMSPDI(
     const task = tasks[i];
     const uid = i + 1;
     const isSummary = isSummaryTask(task);
-    const isMilestone = task.isMilestone || task.time.scheduleDuration === 0;
+    // Issue #159: een samenvattingstaak is nooit een mijlpaal, ook niet met duur 0 (een bestand van
+    // vóór #145, of een IFC met `$`-duur op de samenvatting). MS Project rekent haar duur uit de
+    // kinderen; `Milestone=1` maakte er anders een ruit van zonder duur.
+    const isMilestone = !isSummary && (task.isMilestone || task.time.scheduleDuration === 0);
 
-    // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ het
-    // bestaande `PT{dagen×hpd}H0M0S`-pad (byte-identiek).
+    // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒
+    // `PT{dagen×hpd}H0M0S`. De hpd is die van de EFFECTIEVE (taak-)kalender, niet de projectkalender
+    // (issue #159): een OPS-dagduur is N werkdagen van de kalender waarin de taak rekent, en MS Project
+    // plant de uren op diezelfde taakkalender. `readMSPDI` deelt bij het teruglezen ook door `effHpd`
+    // — met de projectkalender kwam een 7-daagse taak op een 24/7-kalender (8u-project) als `PT56H`
+    // terug als 2,33 dagen, en plande MS Project haar op 56 klokuren in plaats van 7 etmalen.
     const effCal = effCalByTask.get(task.id);
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
     const isHourTask = taskDurationUnitForIo(task) === 'hours';
     const durationTag = isHourTask
       ? minutesToIsoDuration(taskMinutesForWrite(task, effHpd))
-      : durationToISO8601(task.time.scheduleDuration, calendar.hoursPerDay);
+      : durationToISO8601(task.time.scheduleDuration, effHpd);
     const durationFormat = isHourTask
       ? (task.time.durationType === 'ELAPSEDTIME' ? 6 : 5)
       : (task.time.durationType === 'ELAPSEDTIME' ? 8 : 7);
@@ -475,7 +490,7 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
     lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
-    lines.push(`${indent(3)}<OutlineLevel>${getOutlineLevel(task.wbsCode)}</OutlineLevel>`);
+    lines.push(`${indent(3)}<OutlineLevel>${depthById.get(task.id) ?? 1}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
     // T14b-vervolg (spec-review-bevinding): `completion` ongeguard vermenigvuldigen gaf `NaN` in de
@@ -493,7 +508,7 @@ export function writeMSPDI(
     if (isHourTask && task.time.remainingMinutes != null) {
       lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(task.time.remainingMinutes)}</RemainingDuration>`);
     } else if (task.time.remainingTime != null) {
-      lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, calendar.hoursPerDay)}</RemainingDuration>`);
+      lines.push(`${indent(3)}<RemainingDuration>${durationToISO8601(task.time.remainingTime, effHpd)}</RemainingDuration>`);
     }
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
@@ -542,7 +557,9 @@ export function writeMSPDI(
       lines.push(`${indent(4)}<Number>0</Number>`);
       lines.push(`${indent(4)}<Start>${formatMSPDateTime(bt.start)}</Start>`);
       lines.push(`${indent(4)}<Finish>${formatMSPDateTime(bt.finish)}</Finish>`);
-      lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, calendar.hoursPerDay)}</Duration>`);
+      // Critreview #159: dezelfde `effHpd` als <Duration> — anders staat naast een taakduur van 168 u een
+      // baseline van 56 u en verzint MS Project 112 u afwijking.
+      lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, effHpd)}</Duration>`);
       lines.push(`${indent(3)}</Baseline>`);
     }
 
@@ -633,6 +650,9 @@ export function writeMSPDI(
       if (taskUid === undefined || resUid === undefined) continue;
       const task = tasks.find(t => t.id === a.taskId);
       const workDays = (task?.time.scheduleDuration ?? 0) * a.unitsPerDay;
+      // Critreview #159: werk in uren van de TAAK-kalender, consistent met <Duration> — anders leest MS
+      // Project Duration 168 u / Work 56 u / Units 100% en herrekent de eenheden naar 33%.
+      const workHpd = task ? (effCalByTask.get(task.id)?.hoursPerDay ?? calendar.hoursPerDay) : calendar.hoursPerDay;
       // Contour-engine (2026-09): de contour van déze toewijzing (gekoppeld via `resourceId`).
       const taskContour = task ? contourOf(task, a) : undefined;
       const dayItems = task && taskContour && (task.time.earlyStart || task.time.scheduleStart)
@@ -650,7 +670,7 @@ export function writeMSPDI(
       lines.push(`${indent(3)}<Units>${a.unitsPerDay}</Units>`);
       // Werk: bij een contour de SOM van de dagverdeling (de echte werkinhoud), anders duur × units.
       const contourWorkMinutes = dayItems.reduce((n, d) => n + d.workMinutes, 0);
-      lines.push(`${indent(3)}<Work>${dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, calendar.hoursPerDay)}</Work>`);
+      lines.push(`${indent(3)}<Work>${dayItems.length > 0 ? minutesToMspdiValue(contourWorkMinutes) : durationToISO8601(workDays, workHpd)}</Work>`);
       // WorkContour 8 = Contoured zodra er een echte verdeling meegaat (MPXJ `WorkContour.CONTOURED`).
       const contour = dayItems.length > 0 ? MSPDI_WORKCONTOUR_CONTOURED : CURVE_TO_WORKCONTOUR[a.curve ?? 'UNIFORM'];
       if (contour !== 0) {

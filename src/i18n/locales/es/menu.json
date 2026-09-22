@@ -174,6 +174,9 @@
     "splitView": "Vista dividida",
     "miniMap": "Minimapa",
     "moveProject": "Mover proyecto…",
+    "progressImport": "Actualizar avance desde una hoja",
+    "progressExport": "Exportar hoja de avance",
+    "progressGroup": "Avance",
     "relationDraw": "Dibujar relación",
     "relationDrawOnHint": "Active el modo enlace; después arrastre de barra a barra en el Gantt",
     "relationDrawOffHint": "Desactivar el modo enlace",
@@ -193,6 +196,7 @@
     "columnsHintTable": "Elegir las columnas de la vista Tabla",
     "columnsHintGoToTable": "Elegir las columnas de la vista Tabla: se ven en la pestaña Tabla",
     "toggleResourceAccent": "Acento de recurso",
+    "toggleFloatBand": "Banda de holgura",
     "screenColors": "Colores de barras",
     "screenColors_critical": "Ruta crítica",
     "screenColors_auto": "Por tarea — automático",
@@ -285,6 +289,8 @@
     "examplesShowcaseBadge": "Todas las funciones",
     "exportTitle": "Exportar",
     "exportSubtitle": "Elija un formato. El proyecto se convertirá y guardará.",
+    "progressImportCardTitle": "Actualizar avance desde una hoja",
+    "progressImportCardDesc": "Lee una hoja CSV devuelta y actualiza la finalización, el inicio real y el fin real.",
     "printTitle": "Imprimir",
     "printSubtitle": "Abra la pantalla de informe para la vista previa de impresión y la configuración.",
     "openPrintPreview": "Abrir vista previa de impresión",
@@ -307,6 +313,32 @@
     }
   },
   "export": {
+    "progressXlsxLabel": "Hoja de avance (Excel)",
+    "progressXlsxDesc": "Hoja reducida con solo id, EDT, nombre, fechas y avance — con anchos de columna fijos, campos bloqueados y control de fechas.",
+    "progressXlsxShort": "Avance (Excel)",
+    "progressXlsxSheetName": "Avance",
+    "progressXlsxValidation": {
+      "percentTitle": "Avance (%)",
+      "percentError": "Introduzca un número de 0 a 100.",
+      "dateTitle": "Fecha real",
+      "dateError": "Introduzca una fecha válida."
+    },
+    "progressXlsxNotes": {
+      "completion": "rellenar: de 0 a 100, se permiten decimales",
+      "actualStart": "rellenar: fecha de inicio real (como fecha)",
+      "actualFinish": "rellenar: fecha de fin real (como fecha)"
+    },
+    "progressCsvLabel": "Hoja de avance (CSV)",
+    "progressCsvDesc": "La misma hoja de avance reducida en texto plano — para quien prefiera trabajar con un CSV.",
+    "progressCsvShort": "Avance (CSV)",
+    "progressCsvNotes": {
+      "readOnly": "no modificar",
+      "plannedReadOnly": "planificado, no modificar",
+      "completion": "rellenar: de 0 a 100, números enteros",
+      "actualStart": "rellenar: fecha de inicio real (dd-mm-aaaa)",
+      "actualFinish": "rellenar: fecha de fin real (dd-mm-aaaa)",
+      "summaryRow": "— tarea resumen: no rellenar"
+    },
     "csvLabel": "CSV (separado por punto y coma)",
     "csvDesc": "Exportación de tabla universal. Todas las tareas con fechas y duraciones.",
     "mspdiLabel": "MS Project XML",

@@ -11,7 +11,7 @@ import {
   type DocumentPayload,
   type RecoveryDocInput,
 } from '../documentContract';
-import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
+import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
@@ -81,6 +81,10 @@ function resetDocumentScopedUI(s: AppState): void {
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
+  // Issue #27/E4: vangnet, geen normale route — een documentwissel is al onmogelijk zolang deze
+  // dialoog openstaat (zie hasBlockingDialogOpen/BLOCKING_UI_FLAGS + de when-guards op Ctrl/⌘1-9 en
+  // Ctrl+O). Gaat dit wél af, dan is er een wisselroute gemist; dat is een bug, geen normaal gedrag.
+  s.ui.showProgressImportDialog = false;
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {
@@ -306,11 +310,26 @@ function openProjectNames(s: AppState): string[] {
   return s.documents.map((d) => (d.id === s.activeDocumentId ? s.project.name : d.payload!.project.name));
 }
 
-const INITIAL_DOC_ID = generateId('doc');
+/**
+ * Het id van het EERSTE document van een contextinstantie — PER CONTEXT vers gegenereerd.
+ *
+ * Dit stond hiervoor als `const INITIAL_DOC_ID = generateId('doc')` op MODULE-niveau, en dat is
+ * precies één id voor het hele proces: élke `createAppStoreContext()` (dus ook elke wegwerpbare
+ * scratch-context uit `state/runtime/scratchDocument.ts`) begon met hetzélfde `activeDocumentId` als
+ * document 1 van de gemounte app. Sessie-permanente registraties die op een document-id sleutelen —
+ * `state/timephasedLossNotice.ts`'s `notifiedDocIds`/`notifiedLevelingDelayDocIds` — zijn app-globale
+ * module-state en kijken dus dwars door contextgrenzen heen: een `applyLeveling` in een scratch-run
+ * claimde de M10-melding voor het ECHTE document 1, dat 'm daarna deze sessie nooit meer kreeg.
+ * Één functieaanroep per slice-instantie in plaats van één per module lost dat structureel op; de
+ * scratch-context zet daar bovenop nog het ECHTE docId van de payload (zie `runInScratchDocument`).
+ */
+function initialDocumentRegistry(): Pick<DocumentSlice, 'documents' | 'activeDocumentId'> {
+  const id = generateId('doc');
+  return { documents: [{ id, payload: null }], activeDocumentId: id };
+}
 
 export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => (set, get) => ({
-  documents: [{ id: INITIAL_DOC_ID, payload: null }],
-  activeDocumentId: INITIAL_DOC_ID,
+  ...initialDocumentRegistry(),
 
   newDocument: () => {
     const state = get();
@@ -329,7 +348,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectNew);
+    runtime.emitHostEvent(HOST_EVENTS.projectNew);
     return newId;
   },
 
@@ -402,7 +421,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       resetDocumentScopedUI(s);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
       sequences: copy.sequences.length,
       resources: copy.resources.length,
@@ -433,7 +452,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (activation.invalidateRedoScope) invalidateActivationRedo(s, id);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
@@ -458,7 +477,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         resetDocumentScopedUI(s);
         publishActivation(s, activation);
       });
-      emitExtensionEvent(HOST_EVENTS.projectNew);
+      runtime.emitHostEvent(HOST_EVENTS.projectNew);
       return;
     }
 
@@ -488,7 +507,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (activation.invalidateRedoScope) invalidateActivationRedo(s, neighbor.id);
       publishActivation(s, activation);
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: incoming.tasks.length,
       sequences: incoming.sequences.length,
       resources: incoming.resources.length,
@@ -661,12 +680,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         dedupeKey: 'cpm-error',
       });
     }
-    emitExtensionEvent(HOST_EVENTS.scheduleCalculated, {
+    runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,
       criticalTasks: activePayload.tasks.filter(task => task.time.isCritical).length,
     });
-    emitExtensionEvent(HOST_EVENTS.projectLoaded, {
+    runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: activeDoc.tasks.length,
       sequences: activeDoc.sequences.length,
       resources: activeDoc.resources.length,

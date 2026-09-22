@@ -101,4 +101,5 @@ Teraz, gdy masz zadania i relacje, możesz zlecić obliczenie harmonogramu (CPM 
 
 - Powtórz powyższe kroki na pełnym przykładzie: otwórz [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) przez **Plik → Przykłady** i rozpoznaj łańcuch FS między fazami, nakładanie SS między robotami ściennymi a konstrukcją dachu, powiązanie FF między pracami glazurniczymi a malarskimi oraz ograniczenie pozwolenia (SNET) przed startem.
 - Chcesz dowiedzieć się więcej o strukturze zadań, zadaniach sumarycznych, rodzajach kamieni milowych i kodach zadań? Przeczytaj przewodnik [Planowanie i WBS](docs://gids-plannen-wbs).
+- Wiesz już, jak działają przyciski; jeśli chcesz wiedzieć, co czyni harmonogram wiarygodnym — szczegółowość, powiązania, ograniczenia, zapas, baseline — przeczytaj przewodnik [Dobre planowanie](docs://gids-goed-plannen).
 - Wolisz zwiedzić wizualnie główne obszary ekranu? Uruchom ponownie wycieczkę przez kartę **Widok** → przycisk **Wycieczka**, albo przez **Plik** → **Rozpocznij wycieczkę**.

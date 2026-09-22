@@ -6,6 +6,7 @@ import { Dialog } from '@/components/common/Dialog';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import { parseDate } from '@/utils/dateUtils';
+import { LEVELING_REASON_KEY } from '@/utils/levelingReasonKey';
 
 function fmt(iso: string): string {
   if (!iso) return '—';
@@ -110,12 +111,11 @@ export function LevelingDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[88vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
             {t('resource.leveling.dialogTitle')}
           </span>
           <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
@@ -123,7 +123,7 @@ export function LevelingDialog() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           {/* Opties */}
           <label className="flex items-start gap-2">
             <input
@@ -136,7 +136,7 @@ export function LevelingDialog() {
           </label>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
+            <span className="!text-small uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
               {t('resource.leveling.resourceSelect')}
             </span>
             {renewables.length === 0 ? (
@@ -159,7 +159,7 @@ export function LevelingDialog() {
           </div>
 
           {needsCPM && (
-            <div className="text-[11px]" style={{ color: 'var(--error)' }}>
+            <div className="!text-body" style={{ color: 'var(--error)' }}>
               {t('resource.leveling.needsCPM')}
             </div>
           )}
@@ -177,7 +177,7 @@ export function LevelingDialog() {
           {/* Preview */}
           {result && (
             <div className="flex flex-col gap-3 border-t border-border pt-3">
-              <div className="text-[11px]" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
+              <div className="!text-body" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
                 {endChanged
                   ? t('resource.leveling.projectEndChanged', { before: fmt(result.projectEndBefore), after: fmt(result.projectEndAfter) })
                   : t('resource.leveling.projectEndUnchanged', { date: fmt(result.projectEndAfter) })}
@@ -210,30 +210,31 @@ export function LevelingDialog() {
 
               {conflicts.length > 0 && (
                 <div className="flex flex-col gap-1">
-                  <span className="ui-card-header !text-xs" style={{ color: 'var(--error)' }}>
+                  <span className="ui-card-header !text-small !leading-4" style={{ color: 'var(--error)' }}>
                     {t('resource.leveling.remainingConflicts')}
                   </span>
-                  <span className="text-[10px] text-text-secondary">{t('resource.leveling.remainingConflictsHint')}</span>
+                  <span className="!text-small text-text-secondary">{t('resource.leveling.remainingConflictsHint')}</span>
                   {conflicts.map(([taskId, days]) => {
                     const task = tasks.find(t => t.id === taskId);
                     const reason = result?.unresolvedReasons[taskId];
                     const intrinsic = intrinsicByTask[taskId];
-                    // Reden-specifieke uitleg (A3), gededupliceerd met de leveler-classificatie: de
-                    // leveler kiest de reden, de dialoog vult alleen de weergavedetails in.
+                    // Reden-specifieke uitleg (A3, uitgebreid B1c-plan3 taak 7), gededupliceerd met
+                    // de leveler-classificatie via `LEVELING_REASON_KEY`: de leveler kiest de reden,
+                    // de dialoog vult alleen de weergavedetails in. `INTRINSIC_OVERRUN` draagt
+                    // interpolatie (resource/peak/capacity) en krijgt daarom zijn eigen tak; de
+                    // overige zes lopen via de gedeelde mapping.
                     let explain: string | null = null;
                     if (reason === 'INTRINSIC_OVERRUN' && intrinsic) {
-                      explain = t('resource.leveling.intrinsicOverrun', {
+                      explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {
                         resource: intrinsic.resource,
                         peak: numberFmt.format(intrinsic.peak),
                         capacity: numberFmt.format(intrinsic.capacity),
                       });
-                    } else if (reason === 'CALENDAR_MISMATCH') {
-                      explain = t('resource.leveling.reason.calendarMismatch');
-                    } else if (reason === 'INSUFFICIENT_CAPACITY') {
-                      explain = t('resource.leveling.reason.insufficientCapacity');
+                    } else if (reason) {
+                      explain = t(LEVELING_REASON_KEY[reason]);
                     } else if (intrinsic) {
                       // Vangnet (geen reden meegegeven, maar intrinsiek gedetecteerd).
-                      explain = t('resource.leveling.intrinsicOverrun', {
+                      explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {
                         resource: intrinsic.resource,
                         peak: numberFmt.format(intrinsic.peak),
                         capacity: numberFmt.format(intrinsic.capacity),
@@ -241,12 +242,12 @@ export function LevelingDialog() {
                     }
                     return (
                       <div key={taskId} className="flex flex-col gap-0.5">
-                        <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center justify-between !text-body">
                           <span className="truncate" style={{ maxWidth: 360 }}>{task?.name || taskId}</span>
                           <span style={{ color: 'var(--error)' }}>{t('resource.leveling.conflictDays', { count: days.length })}</span>
                         </div>
                         {explain && (
-                          <span className="text-[10px] pl-3" style={{ color: 'var(--error)' }}>{explain}</span>
+                          <span className="!text-small pl-3" style={{ color: 'var(--error)' }}>{explain}</span>
                         )}
                       </div>
                     );

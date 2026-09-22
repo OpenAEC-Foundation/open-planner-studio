@@ -5,7 +5,6 @@ La finestra **Informazioni sul progetto** contiene i metadati del progetto più 
 ## Apertura
 
 - **Impostazioni** (scheda della barra multifunzione) → gruppo della barra multifunzione **Progetto** → **Info progetto**.
-- Finestra Impostazioni (ingranaggio ⚙) → scheda **Generale** → **Informazioni sul progetto...**
 - **File** → **Info progetto** — una variante semplificata nel Backstage, con solo i campi dei metadati (senza la sezione Calcolo).
 
 **Applica** conferma tutte le modifiche in una volta; **Annulla**, **Esc** o un clic fuori dalla finestra le scarta. **Invio** fa lo stesso di Applica.

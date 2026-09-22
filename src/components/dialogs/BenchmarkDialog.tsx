@@ -99,14 +99,13 @@ export function BenchmarkDialog() {
 
   return (
     <Dialog
-      onBackdropClick={close}
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-benchmark-dialog': true }}
     >
       {/* Kop */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
+        <span className="text-body leading-5 font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
           <Gauge size={16} />
           {t('benchmark.title')}
         </span>
@@ -115,7 +114,7 @@ export function BenchmarkDialog() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
         <p className="text-text-secondary">{t('benchmark.intro')}</p>
 
         {/* Grootte-keuze */}
@@ -130,7 +129,7 @@ export function BenchmarkDialog() {
                 disabled={running}
                 onClick={() => setSize(s)}
                 className={
-                  'px-3 py-1.5 rounded-[8px] border text-xs transition-colors disabled:opacity-40 ' +
+                  'px-3 py-1.5 rounded-[8px] border text-small leading-4 transition-colors disabled:opacity-40 ' +
                   (size === s
                     ? 'bg-accent/10 border-accent text-text-primary font-semibold'
                     : 'bg-surface border-border text-text-secondary hover:bg-surface-hover')
@@ -161,7 +160,7 @@ export function BenchmarkDialog() {
                 disabled={running}
                 onClick={() => setResourceCount(n)}
                 className={
-                  'px-3 py-1.5 rounded-[8px] border text-xs transition-colors disabled:opacity-40 ' +
+                  'px-3 py-1.5 rounded-[8px] border text-small leading-4 transition-colors disabled:opacity-40 ' +
                   (resourceCount === n
                     ? 'bg-accent/10 border-accent text-text-primary font-semibold'
                     : 'bg-surface border-border text-text-secondary hover:bg-surface-hover')
@@ -230,7 +229,7 @@ export function BenchmarkDialog() {
 
             {/* Fase-tabel */}
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-xs">
+              <table className="w-full border-collapse text-small leading-4">
                 <thead>
                   <tr className="text-text-secondary text-left border-b border-border">
                     <th className="py-1.5 pr-2 font-semibold">{t('benchmark.colPhase')}</th>

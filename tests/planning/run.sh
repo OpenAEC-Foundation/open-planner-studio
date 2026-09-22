@@ -657,6 +657,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Draait de ECHTE store-exportactie (niet writeMSPDI direct) en leest het resultaat terug.
   MBCHECK="$DIR/.mspdi-baseline-export.mjs"
   if bundle_check "$DIR/check-mspdi-baseline-export.ts" "$MBCHECK"; then node "$MBCHECK" || STATUS=1; fi
+  # Issue #159: MSPDI-/CSV-export van de WBS-hiërarchie (OutlineLevel + documentvolgorde uit de echte
+  # ouderketen i.p.v. uit de wbsCode-tekst), samenvatting nooit als mijlpaal, dagduur in uren van de
+  # TAAK-kalender (symmetrisch met de lezer), en de lezers die de boom uit het niveau herbouwen.
+  MHCHECK="$DIR/.mspdi-hierarchy-export.mjs"
+  if bundle_check "$DIR/check-mspdi-hierarchy-export.ts" "$MHCHECK"; then node "$MHCHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
@@ -798,6 +803,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-cell-editor.ts" "$TGCELLEDITORCHECK"; then node "$TGCELLEDITORCHECK" || STATUS=1; fi
   TGEDITORSCHECK="$DIR/.task-grid-editors.mjs"
   if bundle_check "$DIR/check-task-grid-editors.ts" "$TGEDITORSCHECK"; then node "$TGEDITORSCHECK" || STATUS=1; fi
+  # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
+  # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
+  # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.
+  DLGBDCHECK="$DIR/.dialog-backdrop.mjs"
+  if bundle_check "$DIR/check-dialog-backdrop.ts" "$DLGBDCHECK"; then node "$DLGBDCHECK" || STATUS=1; fi
   TGASSIGNMENTSCHECK="$DIR/.task-grid-assignments.mjs"
   if bundle_check "$DIR/check-task-grid-assignments.ts" "$TGASSIGNMENTSCHECK"; then node "$TGASSIGNMENTSCHECK" || STATUS=1; fi
   TGFULLSURFACECHECK="$DIR/.full-task-grid-surface.mjs"
@@ -930,6 +940,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RNCSETTINGSCHECK="$DIR/.report-name-column-setting.mjs"
   if bundle_check "$DIR/check-report-name-column-setting.ts" "$RNCSETTINGSCHECK"; then node "$RNCSETTINGSCHECK" || STATUS=1; fi
 
+  # Resourcediagram (issue #113): rapporttype + twee opties in ops-reportSettings, defaults en tolerantie.
+  RRGSETTINGSCHECK="$DIR/.report-resource-gantt-setting.mjs"
+  if bundle_check "$DIR/check-report-resource-gantt-setting.ts" "$RRGSETTINGSCHECK"; then node "$RRGSETTINGSCHECK" || STATUS=1; fi
+
+  # Voet op elke pagina (issue #113): default aan, round-trip, tolerantie.
+  RFSETTINGSCHECK="$DIR/.report-footer-setting.mjs"
+  if bundle_check "$DIR/check-report-footer-setting.ts" "$RFSETTINGSCHECK"; then node "$RFSETTINGSCHECK" || STATUS=1; fi
+
   # Renderer-datumloos-regressie (TODO-item 2026-07-28): `barGeometry` (en `drawMilestone`) gooide
   # per frame een TypeError op een taak zonder start-/finishdatums (`undefined.includes('T')`) en
   # liet de hele Gantt zwart. Draait de echte renderer over datumloze leaf-/summary-/mijlpaal-rijen:
@@ -937,6 +955,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # viewstart, en getTaskBarBounds weigert de stub (geen drag met undefined originalStart).
   RDCHECK="$DIR/.renderer-dateless.mjs"
   if bundle_check "$DIR/check-renderer-dateless.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
+
+  # Issue #114: de trace-tint (voorganger goud / opvolger paars) mag niet door de blauwe/rode
+  # voortgangsvulling worden overschilderd — een voltooide voorganger leek anders niet gemarkeerd.
+  TRACEPROGCHECK="$DIR/.gantt-trace-progress.mjs"
+  if bundle_check "$DIR/check-gantt-trace-progress.ts" "$TRACEPROGCHECK"; then node "$TRACEPROGCHECK" || STATUS=1; fi
 
   # Dev-only Gantt-testdriver: reverse locator gebruikt exact de renderer-eigen balkgeometrie en
   # behoudt het bestaande hit-testbeleid voor datumloze taken, mijlpalen en verzameltaken.
@@ -948,6 +971,38 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # en sleep-/resize-baar zijn — dezelfde discriminator als de solver (isZeroDurationMilestone).
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
+
+  # U2: rasterdichtheid per zoom. De dagraster-lus tekende op elk zoomniveau een lijn per kalender-
+  # dag; op jaarzoom werd het canvas daardoor een streeppatroon. Telt met de echte renderer de
+  # verticale rasterlijnen bij dag-/week-/maandzoom (dagzoom moet ONGEWIJZIGD blijven).
+  GGDCHECK="$DIR/.gantt-grid-density.mjs"
+  if bundle_check "$DIR/check-gantt-grid-density.ts" "$GGDCHECK"; then node "$GGDCHECK" || STATUS=1; fi
+
+  # U2: balklabels worden met "…" afgekapt i.p.v. hard geclipt ("Sheet pil") of samengeknepen via
+  # fillText-maxWidth. Toetst met de echte renderer welke string er in de fillText ging.
+  GLECHECK="$DIR/.gantt-label-ellipsis.mjs"
+  if bundle_check "$DIR/check-gantt-label-ellipsis.ts" "$GLECHECK"; then node "$GLECHECK" || STATUS=1; fi
+
+  # Labelkleur op de balk. Een vaste witte tekst kan niet zodra de balkkleur uit projectdata komt
+  # (de kleurmodi); `barLabelColor` kiest per vlak zwart of wit op de gemeten WCAG-verhouding.
+  # Pint wit op de vijf balktinten, de voortgangsvulling en de 25%-zwart-overlay, zwart op de
+  # spelinggroenen — de uitkomst, niet de formule.
+  BLCCHECK="$DIR/.bar-label-color.mjs"
+  if bundle_check "$DIR/check-bar-label-color.ts" "$BLCCHECK"; then node "$BLCCHECK" || STATUS=1; fi
+
+  # Thema-balktinten: de tekenlaag leest de balkkleuren via een thema-var met BRAND als fallback.
+  # Licht/donker zetten die vars niet (dus BRAND), hoog contrast wel. Deze poort leest globals.css
+  # en bewaakt de fallback, het contrast op de eigen kaart en balk-vs-voortgang-onderscheid.
+  TBCCHECK="$DIR/.theme-bar-contrast.mjs"
+  if bundle_check "$DIR/check-theme-bar-contrast.ts" "$TBCCHECK"; then node "$TBCCHECK" || STATUS=1; fi
+
+  # R2a (opvolgpunt uit de review): de histogram-resourcekiezerlijst scrolt binnen de strook met
+  # een gepinde "alle resources"-somrij op index 0 — `histogramPickerTrackHeight`/
+  # `histogramPickerMaxScroll`/`pickerAt` moeten dezelfde geometrie delen (tekenen, scroll-klem
+  # en hit-test). Standaardgeval, exact passende lijst, nul resources en de laatste-resource-hit
+  # bij volle scroll.
+  HISTPICKCHECK="$DIR/.histogram-picker-geometry.mjs"
+  if bundle_check "$DIR/check-histogram-picker-geometry.ts" "$HISTPICKCHECK"; then node "$HISTPICKCHECK" || STATUS=1; fi
 
   # Z15 (etappe "nul afwijkingen", baan D): onderbroken balken (Task.splitGaps) in de Gantt-canvas
   # ÉN print/PDF — gatentelling ⇒ segmentaantal + necking-connector, O5 (splitGaps ALTIJD gesplitst,
@@ -965,6 +1020,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
   RESLOADSPLITSCHECK="$DIR/.resource-load-splits.mjs"
   if bundle_check "$DIR/check-resource-load-splits.ts" "$RESLOADSPLITSCHECK"; then node "$RESLOADSPLITSCHECK" || STATUS=1; fi
+
+  # R1: `computeResourceLoad` levert per overbezette dag ook de REDEN (`overallocatedReasons`) —
+  # `non-working-day` (resourcekalender kent de dag geen werkdag) vs. `over-capacity` (inzet groter
+  # dan capaciteit > 0), zodat het histogram-tooltip en het waarschuwingenpaneel kunnen uitleggen
+  # waaróm een dag rood staat.
+  RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
+  if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
 
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
@@ -1007,6 +1069,25 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # gestarte taak, en met behoud van bestaande importsplits.
   LEVELERSPLITMODECHECK="$DIR/.leveler-splitmode.mjs"
   if bundle_check "$DIR/check-leveler-splitmode.ts" "$LEVELERSPLITMODECHECK"; then node "$LEVELERSPLITMODECHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 2: `applyLeveling` schrijft scope-behoudend en schrijft ook `splitGaps`;
+  # `clearLeveling` wist ook de leveling-gaten (met een no-op-guard die gaten meetelt); de
+  # motor-baseline is idempotent in de onderbreek-modus (geen accumulatie bij een tweede run).
+  APPLYLEVELINGSCOPECHECK="$DIR/.apply-leveling-scope.mjs"
+  if bundle_check "$DIR/check-apply-leveling-scope.ts" "$APPLYLEVELINGSCOPECHECK"; then node "$APPLYLEVELINGSCOPECHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 4: de monotone mutatieteller op de store-runtime (beweegt óók binnen een
+  # coalesce-reeks, waar undoStack.length en het interne undo-volgnummer tekortschieten) plus de
+  # referentie-gebaseerde voorstel-vingerafdruk (`documentFingerprint`).
+  MUTATIONSEQCHECK="$DIR/.mutation-seq.mjs"
+  if bundle_check "$DIR/check-mutation-seq.ts" "$MUTATIONSEQCHECK"; then node "$MUTATIONSEQCHECK" || STATUS=1; fi
+
+  # B1c-plan3 taak 5: de headless scratch-instantie (`runInScratchDocument`) — round-trip via het
+  # documentcontract, echte acties met echte undo-semantiek, de context-bewuste host-event-emitter
+  # die in de scratch-context zwijgt, meldingen die opbubbelen i.p.v. verdwijnen, en geen sporen in
+  # de app-globale store.
+  SCRATCHDOCCHECK="$DIR/.scratch-document.mjs"
+  if bundle_check "$DIR/check-scratch-document.ts" "$SCRATCHDOCCHECK"; then node "$SCRATCHDOCCHECK" || STATUS=1; fi
 
   # Ribbon Baselines & Progress: drie overlays links en twee kleurcontrols rechts horen ieder in
   # een verticale stack; losse groepsitems worden horizontaal gerenderd en maken de rij te breed.
@@ -1354,6 +1435,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
+  # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
+  # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
+  SUMDUR="$DIR/.summary-duration.mjs"
+  if bundle_check "$DIR/check-summary-duration.ts" "$SUMDUR"; then node "$SUMDUR" || STATUS=1; fi
+
   # Datums zoals opgeslagen (issue #63) — de pure laag: aanwezigheidsregistratie, verschiltelling,
   # reconstructie. Betreden/verlaten en de undo-keten volgen later (aparte taak, hangt de store/UI
   # eraan). Draait mee in de tijdzone-matrix — de reconstructie rekent met datums, dus
@@ -1375,6 +1461,26 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # ('ifc' vs 'ifc-own' + OPS_ImportProvenance) stuurt het heropen-beleid (optie B).
   RECFORMATS="$DIR/.check-recorded-times-formats.mjs"
   if bundle_check "$DIR/check-recorded-times-formats.ts" "$RECFORMATS"; then node "$RECFORMATS" || STATUS=1; fi
+  # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
+  # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
+  PICHECK="$DIR/.progress-import.mjs"
+  if bundle_check "$DIR/check-progress-import.ts" "$PICHECK"; then node "$PICHECK" || STATUS=1; fi
+  # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
+  PICSVCHECK="$DIR/.progress-import-csv.mjs"
+  if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+
+  # Issue #27 etappe 3: de `.xlsx`-laag onder het voortgangsblad. Vier batterijen, van onder naar
+  # boven: de XML-/serialdatum-primitieven, de eigen ZIP-schrijver en -lezer (inclusief de
+  # zip-bom- en Zip64-weigeringen), de OOXML-schrijver van het blad (kindvolgordes, bescherming,
+  # invoervalidatie) en ten slotte `parseProgressXlsx` met de ECHTE round-trip door beide.
+  XLSXPRIMCHECK="$DIR/.xlsx-primitives.mjs"
+  if bundle_check "$DIR/check-xlsx-primitives.ts" "$XLSXPRIMCHECK"; then node "$XLSXPRIMCHECK" || STATUS=1; fi
+  ZIPCHECK="$DIR/.zip.mjs"
+  if bundle_check "$DIR/check-zip.ts" "$ZIPCHECK"; then node "$ZIPCHECK" || STATUS=1; fi
+  PXLSXWCHECK="$DIR/.progress-xlsx-writer.mjs"
+  if bundle_check "$DIR/check-progress-xlsx-writer.ts" "$PXLSXWCHECK"; then node "$PXLSXWCHECK" || STATUS=1; fi
+  PIXLSXCHECK="$DIR/.progress-import-xlsx.mjs"
+  if bundle_check "$DIR/check-progress-import-xlsx.ts" "$PIXLSXCHECK"; then node "$PIXLSXCHECK" || STATUS=1; fi
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────

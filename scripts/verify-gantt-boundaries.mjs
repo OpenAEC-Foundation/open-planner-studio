@@ -117,6 +117,13 @@ const tableEditorFile = resolve(root, 'src/components/panels/TableEditor.tsx');
 const ganttRendererModule = withoutExtension(resolve(root, 'src/engine/renderer/GanttRenderer.ts'));
 const histogramRendererModule = withoutExtension(resolve(root, 'src/engine/renderer/HistogramRenderer.ts'));
 const ganttOptionsModule = withoutExtension(resolve(root, 'src/components/canvas/ganttRenderOptions.ts'));
+// De rijsleep is eigendom van de DOM-taakgrid (`ganttEventOwnership.rowdrag`). Het tijdlijncanvas
+// mag hem bereiken, maar uitsluitend via de brug — dat is de ENE plek waar die overdracht staat en
+// waar hij dus ook te vinden is als iemand hem later weer weghaalt. Een canvasbestand dat de hook
+// rechtstreeks importeert bouwt een tweede pad en omzeilt die vindbaarheid (review 2026-09-15).
+const rowDragHookModule = withoutExtension(resolve(root, 'src/components/panels/hooks/useTableRowDrag.ts'));
+const rowDragBridgeModule = withoutExtension(resolve(root, 'src/components/canvas/ganttRowDragBridge.ts'));
+const canvasRootModule = `${withoutExtension(resolve(root, 'src/components/canvas'))}/`;
 const viewportHelpers = new Set([
   'computeGanttScrollBounds',
   'resolveWheelFunction',
@@ -164,6 +171,13 @@ for (const file of sourceFiles(componentsRoot)) {
             `viewporthelper '${binding.imported}' mag alleen door useGanttViewportCoordinator worden geïmporteerd`);
         }
       }
+    }
+
+    if (module === rowDragHookModule
+        && fileModule.startsWith(canvasRootModule)
+        && fileModule !== rowDragBridgeModule) {
+      report(file, sourceFile, imported.statement,
+        'canvasbestanden bereiken de rijsleep uitsluitend via ganttRowDragBridge');
     }
   }
 

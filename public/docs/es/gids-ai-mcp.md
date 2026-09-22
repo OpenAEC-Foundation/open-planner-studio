@@ -101,6 +101,10 @@ Además de eso está el historial normal de deshacer, que un asistente comparte 
 
 **No ocurre nada aunque el asistente dice que ha funcionado.** Compruebe en el panel de actividad qué llamó realmente y qué recibió de vuelta. Si hay una negativa, casi siempre nombrará también el campo que fallaba y la alternativa.
 
+## Haga que su asistente de IA planifique bien
+
+Un asistente que conoce las herramientas todavía puede construir un cronograma que no le sirve a ningún planificador: tareas sin vínculos, una fecha fija en cada tarea, o un desglose demasiado fino para mantenerlo. Los principios que lo evitan están en la guía [Planificar bien](docs://gids-goed-plannen) — haga que su asistente la lea antes de empezar, o remítase a ella en su encargo. Además, el código fuente de Open Planner Studio incluye una breve habilidad de agente en `.claude/skills/goed-plannen/`, que remite a esa misma guía para el contenido y solo añade lo específico del agente: en qué orden usar las herramientas `planner_` y qué debe informarle al usuario.
+
 ## Siga leyendo
 
 - [Baselines y progreso](docs://gids-baselines-voortgang) — qué le hace la fecha de estado a su planificación. Bueno saberlo antes de dejar que un asistente la establezca: no es solo una fecha de referencia, también adelanta el trabajo aún no iniciado.

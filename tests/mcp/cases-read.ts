@@ -365,6 +365,16 @@ test('get_resource_histogram: ongescopt (geen venster/resourceIds) ⇒ aggregaat
   assert(bytes < 20 * 1024, `aggregaat-payload ruim < 20 KB (kreeg ${(bytes / 1024).toFixed(1)} KB)`);
 });
 
+test('get_resource_histogram: bucket maand ⇒ kalendermaanden (issue #119)', () => {
+  const rId = S().resources[0].id;
+  const data = callOk('planner_get_resource_histogram', { bucket: 'maand', resourceIds: [rId] });
+  assertEq(data.bucket, 'maand', 'bucket-echo');
+  const res = data.resources.find((r: any) => r.resourceId === rId);
+  assert(!!res && res.buckets.length > 0, 'maandbuckets aanwezig');
+  assert(res.buckets.every((b: any) => b.start.endsWith('-01')), 'elke maandbucket start op de 1e');
+  assert(res.buckets.some((b: any) => b.load > 0), 'maandbucket met belasting');
+});
+
 test('get_resource_histogram: gescopt op resourceIds ⇒ volledig detail met bucket-arrays', () => {
   loadBenchmark(500);
   const rId = S().resources[0].id;

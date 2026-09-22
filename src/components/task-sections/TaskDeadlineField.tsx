@@ -12,7 +12,7 @@ export function TaskDeadlineField({ task, onChange }: {
   return (
     <Field label={t('properties.deadline')}>
       <DateTextInput
-        className="input !text-xs !px-2.5 !py-1.5"
+        className="input !text-small !leading-4 !px-2.5 !py-1.5"
         ariaLabel={t('properties.deadline')}
         value={task.deadline ?? ''}
         onCommit={v => onChange({ deadline: v || undefined })}

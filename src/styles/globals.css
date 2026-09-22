@@ -8,7 +8,7 @@
   background: var(--theme-surface);
   color: var(--theme-text);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-body);
   outline: none;
 }
 
@@ -57,7 +57,7 @@
   background: var(--theme-surface-alt);
   color: var(--theme-text-muted);
   font-family: var(--font-heading);
-  font-size: 10px;
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -189,12 +189,12 @@
 
 .task-grid-data-row.task-grid-trace-predecessor,
 .task-grid-data-row.task-grid-trace-predecessor-driving {
-  border-inline-start: 3px solid var(--trace-predecessor, #7c3aed);
+  border-inline-start: 3px solid var(--trace-predecessor, #F59E0B);
 }
 
 .task-grid-data-row.task-grid-trace-successor,
 .task-grid-data-row.task-grid-trace-successor-driving {
-  border-inline-start: 3px dashed var(--trace-successor, #0284c7);
+  border-inline-start: 3px dashed var(--trace-successor, #A78BFA);
 }
 
 .task-grid-data-row.task-grid-trace-predecessor-driving,
@@ -504,7 +504,7 @@
   color: var(--error);
   background: var(--theme-surface);
   box-shadow: var(--shadow-pop);
-  font-size: 12px;
+  font-size: var(--text-large);
 }
 
 .task-grid-group-cell {
@@ -537,7 +537,7 @@
   flex: none;
   color: var(--theme-text-muted);
   font-family: var(--font-code);
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 
 /* Browserreview, observatie 7 (grijpzone-kant): was `inset-inline-end: -4px; width: 8px` — een
@@ -673,7 +673,7 @@
   align-items: center;
   padding-inline: 10px 40px;
   color: var(--theme-text-muted);
-  font-size: 11px;
+  font-size: var(--text-body);
   pointer-events: none;
 }
 
@@ -688,20 +688,20 @@
   border-radius: 6px;
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-body);
 }
 
 .task-grid-column-chooser-title {
   padding: 3px 5px 7px;
   font-family: var(--font-heading);
-  font-size: 12px;
+  font-size: var(--text-large);
   font-weight: 700;
 }
 
 .task-grid-column-chooser-section-label {
   padding: 7px 5px 3px;
   color: var(--theme-text-muted);
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -786,7 +786,7 @@
   margin-inline-start: auto;
   color: var(--theme-text-muted);
   font-family: var(--font-code);
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 
 .task-grid-column-chooser-category svg[data-expanded="true"] {
@@ -917,7 +917,7 @@
 /* Browserreview, observatie 6 (tweede plek met dezelfde afwijking): dit paneel portaalt naar
  * document.body (RelationCellEditor.tsx) zonder eigen `font-size` — zonder deze regel erven al zijn
  * kinderen (chips, tokens, invoervelden — geen van allen zet zelf een font-size) html/body's volle
- * `calc(13px * --ui-font-scale)` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
+ * `body`-rol `--text-large` i.p.v. de compacte roosterdichtheid. `.task-grid-column-chooser`
  * (dezelfde soort portal-popup) had dit al goed; hier hetzelfde patroon toegepast. */
 .task-grid-relation-editor {
   position: fixed;
@@ -933,7 +933,7 @@
   border: 1px solid var(--theme-accent);
   box-shadow: var(--shadow-pop);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--text-body);
 }
 
 .task-grid-relation-editor-anchor {
@@ -1136,7 +1136,7 @@ button.task-grid-relation-reference {
   background: var(--theme-surface-elevated);
   border: 1px solid var(--error);
   box-shadow: var(--shadow-pop);
-  font-size: 11px;
+  font-size: var(--text-body);
   white-space: normal;
 }
 
@@ -1149,6 +1149,12 @@ button.task-grid-relation-reference {
 :root {
   /* Brand — primary */
   --deep-forge:      #36363E;
+
+  /* Path tracing (issue #114): de rijmarkering in het taakraster gebruikt dezelfde tinten als de
+     Gantt-balken — GANTT_TRACE_COLORS in src/engine/renderer/themePalette.ts is de bron;
+     tests/planning/check-dependency-presentation.ts bewaakt dat beide gelijk blijven. */
+  --trace-predecessor: #F59E0B;
+  --trace-successor:   #A78BFA;
 
   /* Brand — secondary */
   --signal-orange:   #EA580C;
@@ -1237,6 +1243,24 @@ button.task-grid-relation-reference {
    Theme CSS Variables
    ============================================================================ */
 
+/* Tekstrollen — de ENIGE bron voor tekstgroottes in de interface. `--text-*: initial` haalt
+   Tailwinds eigen schaal (text-xs/sm/base/…) weg, zodat alleen `text-caption` … `text-title`
+   bestaan; in losse CSS: `font-size: var(--text-body)`. Elke rol schaalt mee met
+   `--ui-font-scale` (uiFontScale-instelling). Bewust ZONDER `--line-height`-partner: een rol is
+   alleen een grootte, regelhoogte zet de aanroeper (`leading-*`). `static`: een rol die alleen
+   via `var(--text-…)` in een los CSS-bestand wordt gebruikt mag niet worden weggesnoeid. Een kale
+   px/rem-font-size, `text-[Npx]` of een Tailwind-standaardmaat keurt `npm run verify:text-roles`
+   af. */
+@theme static {
+  --text-*: initial;
+  --text-caption: calc(9px * var(--ui-font-scale, 1));
+  --text-small: calc(10px * var(--ui-font-scale, 1));
+  --text-body: calc(11px * var(--ui-font-scale, 1));
+  --text-large: calc(12px * var(--ui-font-scale, 1));
+  --text-heading: calc(14px * var(--ui-font-scale, 1));
+  --text-title: calc(20px * var(--ui-font-scale, 1));
+}
+
 @theme {
   --color-surface: var(--theme-surface);
   --color-surface-alt: var(--theme-surface-alt);
@@ -1247,6 +1271,28 @@ button.task-grid-relation-reference {
   --color-accent: var(--theme-accent);
   --color-accent-hover: var(--theme-accent-hover);
   --color-accent-on: var(--theme-accent-on);
+  /* Balkpalet — de VERZADIGDE merktinten (besluit eigenaar 18-09-2026). Werkblok U2 had ze één
+     stap ontzadigd zodat één set >=3:1 haalde tegen ELKE kaart; dat kostte het merkkarakter en is
+     teruggedraaid. Gemeten (WCAG 2.x relatieve luminantie), lichte kaart #FAFAFA / donkere kaart
+     #2E3239 / hoog-contrastkaart #0a0a0a / wit-label-op-balk:
+       critical  #DC2626  4.63 / 2.67 / 4.10 / 4.83
+       normal    #2563EB  4.95 / 2.49 / 3.83 / 5.17
+       complete  #1D4ED8  6.42 / 1.92 / 2.95 / 6.70
+       milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
+       baseline  #6B7280  4.63 / 2.66 / 4.10 / 4.83
+     Die 3:1-eis is dus opgegeven, en niet alleen op de donkere kaart: in het HOOG-CONTRASTTHEMA
+     zakt `complete` naar 2.95. Formeel is dat non-conform met WCAG 1.4.11 — bewust aanvaard voor
+     licht en donker; voor hoog contrast staat het open (zie themePalette.ts). Wat de afruil draagt
+     is het LABEL (4.83-6.70), niet de vlakgrootte: de balk is ~14 px hoog en heeft in de
+     standaardmodus geen rand. De speling (`--theme-bar-float`) is als enige WEL per thema
+     gescheiden: die band is halfdoorzichtig en draagt geen label, dus hij moet het puur van zijn
+     ondergrond winnen (donker #10B981 op #2E3239 = 5.07; licht #059669 op #FAFAFA = 3.61;
+     hoog contrast houdt zijn eigen #34D399).
+     LET OP 1: dezelfde waarden staan als merk-hex in `src/engine/renderer/themePalette.ts`
+     (BRAND/`--theme-bar-float`-fallback) — die tekenlaag leest geen CSS in headless tests.
+     LET OP 2: `--color-critical` is geen zuivere balkkleur. Tailwind v4 leidt hier de utility
+     `text-critical` uit af, die als echte tekst wordt gebruikt in ExtensionConsentDialog,
+     BenchmarkDialog en TaskCpmResultSection (2.67 op de donkere kaart — geen AA). */
   --color-critical: #DC2626;
   --color-task-normal: #2563EB;
   --color-task-milestone: #7C3AED;
@@ -1290,6 +1336,7 @@ button.task-grid-relation-reference {
      (beter leesbaar op donkere kaarten dan --color-task-milestone zelf). */
   --theme-grid-summary-bg: rgba(255, 255, 255, 0.045);
   --theme-grid-milestone-text: #A78BFA;
+  /* Spelingband, donker thema: 5,07:1 op de donkere kaart (#2E3239). */
   --theme-bar-float: #10B981;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1379,6 +1426,7 @@ button.task-grid-relation-reference {
      --color-task-milestone (#7C3AED) voor voldoende contrast op de kaart (AA). */
   --theme-grid-summary-bg: rgba(54, 54, 62, 0.06);
   --theme-grid-milestone-text: #6D28D9;
+  /* Spelingband, licht thema: donkerder groen dan --color-task-float, 3,61:1 op de lichte kaart. */
   --theme-bar-float: #059669;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
@@ -1444,8 +1492,40 @@ button.task-grid-relation-reference {
      van dit thema (geen alpha, expliciete tint zoals --theme-grid-weekend hierboven). */
   --theme-grid-summary-bg: #1c1c1c;
   --theme-grid-milestone-text: #D9A6FF;
-  /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). */
+  /* Gantt float-balk: heldere emerald op zwart (op ~90% opacity 8.85:1). Het U2-besluit "één
+     balkpalet" gold voor licht en dark; high-contrast houdt bewust zijn eigen, hardere tint. */
   --theme-bar-float: #34D399;
+  /* Eigen BALKTINTEN voor hoog contrast (18-09-2026). De verzadigde merkset die licht en donker
+     delen zakt op deze kaart (#0a0a0a) door de 3:1 heen — gemeten: critical 4.10, normal 3.83,
+     complete 2.95, milestone 3.47, baseline 4.10 — en juist in het thema dat er is om die norm te
+     halen. Zelfde patroon als --theme-bar-float hierboven: licht en donker definiëren deze vars
+     NIET en vallen in de tekenlaag terug op BRAND, alleen dit thema zet ze. Waar dit thema al een
+     eigen harde tint had, hergebruiken we die (kritiek = --theme-critical-text, mijlpaal =
+     --theme-grid-milestone-text) zodat balk en tekst dezelfde taal spreken.
+     Gemeten (WCAG 2.x) op #0a0a0a:
+       critical          #FF6B6B   7.13
+       critical-progress #FFC2C2  12.96   (voortgangsvulling; #991B1B haalde 2.38 — donkere vlek)
+       normal            #60A5FA   7.79
+       complete          #BFDBFE  13.93   (voortgang/voltooid; #1D4ED8 haalde 2.95)
+       milestone         #D9A6FF  10.23
+       baseline          #9CA3AF   7.80
+     De voortgangsvulling is hier LICHTER dan de balk, niet donkerder: op een zwarte kaart is
+     "donkerder" onzichtbaar. Normal->complete houdt RGB-afstand 109, critical->progress 123.
+     REIKWIJDTE, expliciet: deze vars sturen uitsluitend de CANVAS-renderers (Gantt, histogram,
+     minimap) via readGanttPalette/readHistogramPalette/readMiniMapPalette. De app-brede
+     `--color-*`-designtokens hierboven blijven in ELK thema de verzadigde merkset — dus het
+     mijlpaalbalkje in utils/documents.ts (`var(--color-task-milestone)`) blijft ook hier #7C3AED.
+     Dat is een bewuste grens, geen vergeten plek: die tokens voeden DOM-UI op kaarten met een
+     andere ondergrond dan het Gantt-canvas.
+     NIET meegenomen, bewust en pre-existent: summary (#475569, 2.61) en hammock (#0E7490, 3.70)
+     lezen nog steeds BRAND. nearCritical heeft in dit thema al het geblokte vulpatroon
+     (fase 2.9 §5.4) en heeft aan kleur alleen niet genoeg. */
+  --theme-bar-critical: #FF6B6B;
+  --theme-bar-critical-progress: #FFC2C2;
+  --theme-bar-normal: #60A5FA;
+  --theme-bar-complete: #BFDBFE;
+  --theme-bar-milestone: #D9A6FF;
+  --theme-bar-baseline: #9CA3AF;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
   --theme-critical-text: #FF6B6B;
   --theme-input-bg: #000000;
@@ -1501,19 +1581,27 @@ button.task-grid-relation-reference {
 }
 
 /* Interface-lettertype-schaal (issue #25.4). --ui-font-scale wordt door App.tsx gezet vanuit de
-   uiFontScale-instelling (default 1). Tailwind-`text-*`-klassen zijn rem-gebaseerd en volgen deze
-   html-font-size vanzelf; de losse px-font-sizes in de chrome-css volgen NIET automatisch en
-   schalen daarom expliciet mee via `calc(<n>px * var(--ui-font-scale, 1))` (zie de 10 chrome-CSS-
-   bestanden). De fallback `1` houdt de pre-hydratie-weergave en headless tests zonder App-effect
-   op de huidige 13px, zodat er geen verkeerde-grootte-flikkering ontstaat. */
+   uiFontScale-instelling (default 1). Tekstgroottes lopen via de tekstrollen (`--text-caption` …
+   `--text-title`, zie het `@theme static`-blok hierboven), die elk zelf met de schaal meerekenen.
+   De font-size hieronder is GEEN tekstrol maar de rem-basis: Tailwinds spacing (`p-2`, `gap-1`, …)
+   is rem-gebaseerd en groeit zo met de tekst mee. De fallback `1` houdt de pre-hydratie-weergave
+   en headless tests zonder App-effect op 13px, zodat er geen verkeerde-grootte-flikkering ontstaat. */
 html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
   font-family: var(--font-body);
-  font-size: calc(13px * var(--ui-font-scale, 1));
   background: var(--theme-bg);
   color: var(--theme-text);
+}
+
+/* De rem-basis staat ALLEEN op html; tekst die zelf geen rol kiest erft vanaf body de rol `large`,
+   zodat ook ongestileerde tekst binnen de rollen valt. */
+html {
+  font-size: calc(13px * var(--ui-font-scale, 1)); /* text-roles: rem-basis */
+}
+body {
+  font-size: var(--text-large);
 }
 
 /* Scrollbar styling */
@@ -1631,7 +1719,7 @@ html, body, #root {
   border-radius: var(--radius-md);
   padding: var(--sp-2) var(--sp-3);
   font-family: var(--font-body);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   line-height: 1.5;
   color: var(--theme-text);
   box-shadow: var(--shadow-lg);
@@ -1643,7 +1731,6 @@ html, body, #root {
 
 .gantt-tooltip .tooltip-title {
   font-weight: 600;
-  font-size: calc(13px * var(--ui-font-scale, 1));
   margin-bottom: 4px;
   color: var(--theme-text);
 }
@@ -1764,6 +1851,93 @@ html, body, #root {
   justify-content: center;
 }
 
+/* Relatie toevoegen vanuit het eigenschappenpaneel (2026-09). De conceptrij hergebruikt bewust
+   `.dependency-row` voor type/lag/bevestigen, zodat hij exact onder de bestaande relaties uitlijnt
+   — ook in de smalle container-query-variant. Alleen de kop (richting + zoekveld) staat erboven,
+   want die twee passen niet in dezelfde vijf kolommen. */
+.dependency-add-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.dependency-add-button:hover {
+  background: var(--theme-hover);
+  color: var(--theme-text);
+}
+
+.dependency-add-button:focus-visible {
+  outline: 2px solid var(--theme-text);
+  outline-offset: 1px;
+}
+
+.dependency-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-hover);
+}
+
+.dependency-draft-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* De trefferlijst zweeft boven de rest van het paneel: hij mag de conceptrij en de knoppen
+   eronder niet verspringen terwijl er getypt wordt. */
+.dependency-draft-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dependency-draft-options {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 2px);
+  z-index: var(--z-dropdown);
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-elevated);
+  box-shadow: var(--shadow-pop);
+}
+
+.dependency-draft-option {
+  display: block;
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-small);
+  text-align: start;
+  color: var(--theme-text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dependency-draft-option:hover,
+[data-ops-dependency-highlighted].dependency-draft-option {
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+}
+
+
 /* Toast notification — gecentraliseerde gebruikersmeldingen (bevinding K8). De stapel-container
    positioneert; de losse melding verzorgt alleen inhoud + klik. De naam is ops-toast (was
    gantt-toast): de meldingen komen ook uit Backstage/tabel/rapport, waar geen canvas is. */
@@ -1787,7 +1961,7 @@ html, body, #root {
   padding: var(--sp-3) var(--sp-6);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   line-height: 1.4;
   box-shadow: var(--shadow-lg);
   max-width: 500px;
@@ -1803,14 +1977,14 @@ html, body, #root {
 }
 
 .ops-toast-count {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   opacity: 0.8;
   margin-inline-start: var(--sp-2);
   font-variant-numeric: tabular-nums;
 }
 
 .ops-toast-detail {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   opacity: 0.85;
   margin-top: var(--sp-1);
   word-break: break-word;
@@ -1833,7 +2007,7 @@ html, body, #root {
 .ops-toast-readmore {
   display: block;
   margin-top: var(--sp-1);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
 }
 
 @keyframes toast-in {
@@ -1884,7 +2058,7 @@ html, body, #root {
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-6);
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   font-weight: 600;
   border-radius: var(--radius-md);
   border: none;
@@ -1896,8 +2070,8 @@ html, body, #root {
   outline: 2px solid var(--theme-accent);
   outline-offset: 2px;
 }
-.btn--sm  { padding: var(--sp-2) var(--sp-4); font-size: 0.75rem; }
-.btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: 1rem; }
+.btn--sm  { padding: var(--sp-2) var(--sp-4); font-size: var(--text-small); }
+.btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: var(--text-large); }
 
 .btn--primary {
   background: var(--theme-accent);
@@ -1955,7 +2129,7 @@ html, body, #root {
 /* Inputs (DESIGN-SYSTEM.md §3.2) */
 .input {
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   padding: var(--sp-3) var(--sp-4);
   border: 1.5px solid var(--theme-control-border);
   border-radius: var(--radius-md);
@@ -1980,13 +2154,13 @@ html, body, #root {
 }
 .input-label {
   display: block;
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   font-weight: 500;
   margin-bottom: var(--sp-2);
   color: var(--theme-text);
 }
 .input-hint {
-  font-size: 0.75rem;
+  font-size: var(--text-small);
   /* was --scaffold-gray #A1A1AA (~2.5:1 op licht, onleesbaar); text-muted is
      AA in elk thema (light 5.3:1, HC 7:1, dark gelijk aan oude scaffold-gray). */
   color: var(--theme-text-muted);
@@ -2002,7 +2176,7 @@ html, body, #root {
   border-radius: var(--radius-md);
   border-left: 4px solid;
   font-family: var(--font-body);
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 .alert--info    { background: #EFF6FF; border-left-color: var(--info);    color: #1E40AF; }
@@ -2014,7 +2188,7 @@ html, body, #root {
 .badge {
   display: inline-block;
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  font-size: var(--text-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2034,7 +2208,7 @@ html, body, #root {
   align-items: center;
   gap: var(--sp-1);
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
   font-weight: 500;
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-full);
@@ -2086,7 +2260,7 @@ html, body, #root {
 /* Kaart-koptekst (Space Grotesk small-caps), bv. paneel-headers. */
 .ui-card-header {
   font-family: var(--font-heading);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;

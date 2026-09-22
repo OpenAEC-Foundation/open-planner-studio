@@ -1,4 +1,4 @@
-import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveOutcome } from './index';
+import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { extensionOf } from '@/utils/filePath';
 
 const hasFSA = (): boolean => typeof window !== 'undefined' && 'showOpenFilePicker' in window;
@@ -144,8 +144,8 @@ function openViaInput(filters: FileFilter[], opts?: OpenDialogOpts): Promise<Ope
   });
 }
 
-function downloadBlob(name: string, content: string): void {
-  const blob = new Blob([content], { type: 'application/octet-stream' });
+function downloadBlob(name: string, content: string | Uint8Array, mime?: string): void {
+  const blob = new Blob([content as BlobPart], { type: mime ?? 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -186,15 +186,30 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
   return openViaInput(filters, opts);
 }
 
-export async function saveFileDialogWeb(defaultName: string, content: string, filters: FileFilter[]): Promise<SaveOutcome | null> {
+/**
+ * De web-opslaanroute voor tekst én bytes (X8). `FileSystemWritableFileStream.write` accepteert
+ * beide vormen, dus het enige verschil tussen de twee publieke varianten is het MIME-type van de
+ * download-terugval; de picker, de weigeringsafhandeling en het latchen blijven één plek. Zou dit
+ * twee kopieën zijn, dan drift de foutafhandeling van het byte-pad onvermijdelijk weg van die van
+ * het tekstpad — precies de duplicatie waar K6 over gaat.
+ */
+async function saveDataDialogWeb(
+  defaultName: string, data: string | Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
   // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
   // weigert) — de catch hieronder ving dat al af via `platformRefusesWrites`/de download-route,
   // maar de featurePolicy-precheck bespaart ook hier de nutteloze picker-flits.
   if (hasFSA() && !platformRefusesWrites && !featurePolicyBlocksFSA()) {
     try {
-      const handle = await window.showSaveFilePicker!({ suggestedName: defaultName, types: toAcceptTypes(filters) });
+      // `startIn: 'downloads'` is een Chromium-uitbreiding op de FSA-spec (well-known directory) —
+      // niet-Chromium browsers negeren een onbekende optie stilzwijgend, dus dit is veilig overal.
+      const handle = await window.showSaveFilePicker!({
+        suggestedName: defaultName,
+        types: toAcceptTypes(filters),
+        ...(opts?.preferDownloads ? { startIn: 'downloads' as const } : {}),
+      });
       const writable = await handle.createWritable();
-      await writable.write(content);
+      await writable.write(data as FileSystemWriteChunkType);
       await writable.close();
       const file = await handle.getFile();
       return { ref: { kind: 'handle', handle }, name: file.name };
@@ -211,8 +226,20 @@ export async function saveFileDialogWeb(defaultName: string, content: string, fi
   }
   // Terugval: download. Geen herbruikbare ref — dit is de enige route die in élke omgeving werkt,
   // dus het bestand raakt hoe dan ook bij de gebruiker. `viaDownload` laat de aanroeper dat zeggen.
-  downloadBlob(defaultName, content);
+  downloadBlob(defaultName, data, opts?.mime);
   return { ref: null, name: defaultName, viaDownload: true };
+}
+
+export function saveFileDialogWeb(
+  defaultName: string, content: string, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return saveDataDialogWeb(defaultName, content, filters, opts);
+}
+
+export function saveBytesDialogWeb(
+  defaultName: string, bytes: Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
+): Promise<SaveOutcome | null> {
+  return saveDataDialogWeb(defaultName, bytes, filters, opts);
 }
 
 export async function saveToRefWeb(ref: FileRef, content: string): Promise<boolean> {

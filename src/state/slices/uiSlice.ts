@@ -132,6 +132,7 @@ export function createDefaultUI(): UIState {
     showProgressLine: true,
     showStatusDateLine: true,
     showResourceAccent: false,   // #21: schermbeeld verandert eerst niet — expliciet aanzetten
+    showFloatBand: true,         // #130: de speling-band was altijd zichtbaar; uitzetten is de nieuwe keuze
     barColorSelection: DEFAULT_BAR_COLOR_SELECTION,
     presentationMode: false,
     showMiniMap: false,
@@ -155,10 +156,12 @@ export function createDefaultUI(): UIState {
     structureLockedNotice: 0,
     showShortcutsDialog: false,
     showBenchmarkDialog: false,
+    showStatsDialog: false,
     pendingExtensionConsent: null,
     showPoolImportDialog: false,
     poolImportCompanyId: null,
     showLibraryLinkDialog: false,
+    showProgressImportDialog: false,
     libraryRefreshNotice: null,
     resourcesView: 'project',
     // Issue #48-1: ephemeral verzoek-vlag voor een concept-rij in het resource-paneel (zie UIState).

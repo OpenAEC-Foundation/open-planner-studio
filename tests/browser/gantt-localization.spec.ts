@@ -46,8 +46,7 @@ test('Gantt vertaalt weekdagen en duursuffix na een echte taalkeuze', async ({ p
   });
   const beforePaint = await paintCount(page);
 
-  await page.getByRole('button', { name: /^(Language|Taal)$/ }).click();
-  await page.getByRole('button', { name: /^(Language|Taal)$/ }).last().click();
+  await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Deutsch/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await page.getByRole('dialog').getByRole('button', { name: /^(Close|Sluiten|Schließen)$/ }).click();

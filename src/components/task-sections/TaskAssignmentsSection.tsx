@@ -6,7 +6,7 @@ import { UnitsInput } from '@/components/common/UnitsInput';
 import { BarChart3, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
-import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
+import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
 
 /** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine
@@ -41,7 +41,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
 
   // Toewijzingen (fase 2.5, §6.3) — leaf-only, geen mijlpalen/samenvattingstaken.
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
-  const contourOf = matchContoursToAssignments(task.timephasedContours, taskAssignments);
+  // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
+  const contouredIds = contouredAssignmentIds(task, taskAssignments);
   const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
   const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
@@ -56,9 +57,9 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   return (
     <>
       <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
-      <span className="ui-card-header !text-xs">{t('properties.assignments.title')}</span>
+      <span className="ui-card-header !text-small !leading-4">{t('properties.assignments.title')}</span>
       {assignmentsDisabled ? (
-        <span className="text-[10px] text-text-secondary italic">
+        <span className="!text-small text-text-secondary italic">
           {task.isMilestone
             ? t('properties.assignments.disabledMilestone')
             : t('properties.assignments.disabledSummary')}
@@ -66,23 +67,24 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
       ) : (
         <>
           {taskAssignments.length === 0 && (
-            <span className="text-[10px] text-text-secondary">{t('properties.assignments.empty')}</span>
+            <span className="!text-small text-text-secondary">{t('properties.assignments.empty')}</span>
           )}
           {taskAssignments.map(a => {
             const res = resources.find(r => r.id === a.resourceId);
             const candidates = moveCandidates(a.resourceId);
-            const contoured = contourOf.has(a.id);
-            const importedCurve = !contoured && !a.curve && !!a.curveValues;
-            const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : (a.curve ?? 'UNIFORM');
+            const curveState = assignmentCurveState(a, contouredIds.has(a.id));
+            const contoured = curveState === 'contoured';
+            const importedCurve = curveState === 'imported';
+            const curveValue = contoured ? CONTOURED : importedCurve ? IMPORTED_CURVE : curveState;
             return (
-              <div key={a.id} className="flex items-center gap-1 text-[10px]" data-ops-assignment-row={a.id}>
+              <div key={a.id} className="flex items-center gap-1 !text-small" data-ops-assignment-row={a.id}>
                 <span className="flex-1 truncate" title={res?.name}>{res?.name || '?'}</span>
                 <UnitsInput
                   value={a.unitsPerDay}
                   title={t('properties.assignments.unitsPerDay')}
                   ariaLabel={t('properties.assignments.unitsPerDay')}
                   onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
-                  className="input !text-[10px] !px-1 !py-0.5 !w-14 text-right"
+                  className="input !text-small !px-1 !py-0.5 !w-14 text-right"
                 />
                 <select
                   value={curveValue}
@@ -93,7 +95,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                     if (e.target.value === CONTOURED || e.target.value === IMPORTED_CURVE) return;
                     updateAssignment(a.id, { curve: e.target.value as ResourceCurve });
                   }}
-                  className="input !text-[10px] !px-1 !py-0.5 !w-24 disabled:opacity-60"
+                  className="input !text-small !px-1 !py-0.5 !w-24 disabled:opacity-60"
                   data-ops-assignment-curve
                 >
                   {contoured && <option value={CONTOURED}>{t('properties.assignments.contoured')}</option>}
@@ -119,7 +121,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                     title={t('properties.assignments.moveTo')}
                     aria-label={t('properties.assignments.moveTo')}
                     onChange={e => { if (e.target.value) moveAssignment(a.id, e.target.value); }}
-                    className="input !text-[10px] !px-1 !py-0.5 !w-24"
+                    className="input !text-small !px-1 !py-0.5 !w-24"
                     data-ops-assignment-move
                   >
                     <option value="">{t('properties.assignments.moveTo')}</option>
@@ -140,7 +142,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             <select
               value=""
               onChange={e => { if (e.target.value) assignResource(taskId, e.target.value, 1); }}
-              className="input !text-xs !px-2.5 !py-1.5"
+              className="input !text-small !leading-4 !px-2.5 !py-1.5"
             >
               <option value="">{t('properties.assignments.add')}</option>
               {availableResources.map(r => (
@@ -148,7 +150,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
               ))}
             </select>
           ) : (
-            <span className="text-[10px] text-text-secondary">
+            <span className="!text-small text-text-secondary">
               {resources.length === 0
                 ? t('properties.assignments.noResources')
                 : t('properties.assignments.allAssigned')}

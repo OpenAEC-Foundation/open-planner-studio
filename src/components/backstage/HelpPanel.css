@@ -38,7 +38,7 @@
   border: 1px solid var(--theme-control-border);
   border-radius: var(--radius-md);
   color: var(--theme-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -54,7 +54,7 @@
   margin-bottom: var(--sp-3, 10px);
 }
 .help-toc-layer-title {
-  font-size: 0.6875rem;
+  font-size: var(--text-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -70,7 +70,7 @@
   border: none;
   border-radius: var(--radius-md);
   padding: 6px var(--sp-2, 8px);
-  font-size: 0.8125rem;
+  font-size: var(--text-body);
   color: var(--theme-text);
   cursor: pointer;
   font-family: inherit;
@@ -87,27 +87,27 @@
 }
 .help-article-body {
   max-width: 760px;
-  font-size: 0.875rem;
+  font-size: var(--text-body);
   line-height: 1.6;
   color: var(--theme-text);
 }
 
 .help-h1 {
   font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: var(--text-title);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0 0 var(--sp-4, 14px) 0;
 }
 .help-h2 {
   font-family: var(--font-heading);
-  font-size: 1.125rem;
+  font-size: var(--text-heading);
   font-weight: 700;
   margin: var(--sp-6, 20px) 0 var(--sp-2, 8px) 0;
 }
 .help-h3 {
   font-family: var(--font-heading);
-  font-size: 0.9375rem;
+  font-size: var(--text-large);
   font-weight: 700;
   margin: var(--sp-4, 14px) 0 var(--sp-1, 6px) 0;
 }
@@ -141,7 +141,7 @@
 }
 .help-code-block code {
   font-family: var(--font-code, monospace);
-  font-size: 0.8125rem;
+  font-size: var(--text-body);
   white-space: pre;
 }
 
@@ -177,7 +177,7 @@
   border-radius: var(--radius-md);
   background: var(--theme-surface-alt);
   color: var(--theme-text-dim);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
   font-style: italic;
   padding: var(--sp-4, 12px);
   text-align: center;
@@ -192,13 +192,13 @@
   margin-bottom: var(--sp-2, 8px);
 }
 .help-docslang-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--text-body);
   color: var(--theme-text-dim);
 }
 .help-docslang {
   width: 100%;
   padding: 4px 6px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   color: var(--theme-text);
   background: var(--theme-input-bg);
   border: 1px solid var(--theme-control-border);
@@ -213,7 +213,7 @@
   gap: 8px 12px;
   margin-bottom: var(--sp-3, 12px);
   padding: 8px 12px;
-  font-size: calc(12.5px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   line-height: 1.45;
   color: var(--theme-text);
   background: var(--theme-surface-alt);
@@ -229,7 +229,7 @@
 }
 .help-stale-btn {
   padding: 3px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--text-large);
   cursor: pointer;
   color: var(--theme-accent-on);
   background: var(--theme-accent);

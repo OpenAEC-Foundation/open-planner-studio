@@ -36,7 +36,7 @@ export function TaskMilestoneFields({ task, onChange }: {
                 const v = e.target.value;
                 onChange({ milestoneKind: v === 'AUTO' ? undefined : (v as MilestoneKind) });
               }}
-              className="input !text-xs !px-2.5 !py-1.5"
+              className="input !text-small !leading-4 !px-2.5 !py-1.5"
             >
               <option value="AUTO">{t('milestoneKind.AUTO')}</option>
               <option value="START">{t('milestoneKind.START')}</option>

@@ -54,7 +54,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
       onBackdropClick={onCancel}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[420px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-        <div className="flex-1 overflow-y-auto p-4 text-xs text-text-primary leading-relaxed">
+        <div className="flex-1 overflow-y-auto p-4 text-small text-text-primary leading-relaxed">
           {message}
         </div>
 

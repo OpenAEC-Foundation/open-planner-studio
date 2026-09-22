@@ -101,6 +101,10 @@ Bunun üstüne, bir asistanın sizinle paylaştığı olağan geri alma geçmiş
 
 **Asistan başarılı olduğunu söylediği halde hiçbir şey olmuyor.** Etkinlik panelinden asistanın gerçekte neyi çağırdığını ve geriye ne döndüğünü kontrol edin. Bir ret yanıtı varsa, bu hemen hemen her zaman hangi alanın yanlış olduğunu ve alternatifi belirtir.
 
+## Yapay zekâ asistanınıza iyi plan yaptırma
+
+Araçları bilen bir asistan bile hiçbir planlamacının işine yaramayacak bir program kurabilir: ilişkisi olmayan görevler, her göreve konmuş sabit bir tarih ya da sürdürülemeyecek kadar ince bir kırılım. Bunu önleyen ilkeler [İyi planlama](docs://gids-goed-plannen) kılavuzunda yer alır — asistanınıza işe başlamadan önce okutun veya görevinizde ona atıf yapın. Ayrıca Open Planner Studio'nun kaynak kodunda `.claude/skills/goed-plannen/` altında kısa bir ajan becerisi bulunur; içerik için aynı kılavuza yönlendirir ve yalnızca ajana özgü olanı ekler: `planner_` araçlarının hangi sırayla kullanılacağı ve kullanıcıya ne rapor edileceği.
+
 ## Daha fazla okuma
 
 - [Baseline'lar & ilerleme](docs://gids-baselines-voortgang) — durum tarihinin planınıza ne yaptığı. Bir asistana bunu ayarlatmadan önce bilmekte fayda var: yalnızca bir raporlama tarihi değildir, henüz başlamamış işi de ileri iter.

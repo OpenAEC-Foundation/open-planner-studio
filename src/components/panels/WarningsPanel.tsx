@@ -4,6 +4,7 @@ import { AlertTriangle, OctagonAlert, CheckCircle2, RefreshCw } from 'lucide-rea
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { formatLagShort } from '@/utils/lagFormat';
+import { localizeDecimalPoint } from '@/utils/reportNumber';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import {
   collectScheduleWarnings, summarizeScheduleWarnings, hasScheduleWarningTarget,
@@ -26,7 +27,7 @@ import type { Task } from '@/types/task';
  * verborgen maar benoemd, met de Bereken-knop ernaast — hetzelfde F5-pad als het lint.
  */
 export function WarningsPanel() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const { t: tMenu } = useTranslation('menu');
   const dd = useDisplayDate();
@@ -85,9 +86,21 @@ export function WarningsPanel() {
       case 'droppedSequence': return t('warnings.kind.droppedSequence');
       case 'hammockNoFinishDriver': return t('warnings.kind.hammockNoFinishDriver');
       case 'cappedTask': return t('warnings.kind.cappedTask');
-      case 'overallocation': return t('warnings.kind.overallocation', {
-        count: f.days ?? 0, first: dd.date(f.firstDay), last: dd.date(f.lastDay),
-      });
+      case 'overallocation': {
+        const count = f.days ?? 0;
+        const nonWorking = f.nonWorkingDays ?? 0;
+        const first = dd.date(f.firstDay);
+        const last = dd.date(f.lastDay);
+        // R1: alle overbezette dagen zijn vrije dagen van de resourcekalender ⇒ eigen tekst; een
+        // mix van reden krijgt beide aantallen; puur over-capacity blijft de bestaande tekst.
+        if (nonWorking > 0 && nonWorking === count) {
+          return t('warnings.kind.overallocationNonWorkingDay', { count, first, last });
+        }
+        if (nonWorking > 0) {
+          return t('warnings.kind.overallocationMixed', { count, nonWorking, first, last });
+        }
+        return t('warnings.kind.overallocation', { count, first, last });
+      }
     }
   };
 
@@ -98,7 +111,8 @@ export function WarningsPanel() {
       case 'sequence': {
         const seq = seqById.get(tg.sequenceId);
         const type = seq ? (SEQUENCE_TYPE_OPTIONS.find(o => o.value === seq.type)?.label ?? seq.type) : '';
-        const lag = seq ? formatLagShort(seq) : '';
+        // Weergave-only: het decimaalteken van de app-taal, net als het gezondheidsrapport (review #139).
+        const lag = seq ? localizeDecimalPoint(formatLagShort(seq), i18n.language) : '';
         const relation = t('warnings.target.relation', {
           predecessor: taskLabel(tg.predecessorId), successor: taskLabel(tg.successorId),
         });
@@ -121,7 +135,7 @@ export function WarningsPanel() {
   const onReveal = (w: ScheduleWarning) => revealScheduleWarning(useAppStore.getState(), w);
 
   return (
-    <div className="flex flex-col h-full text-[11px]" data-ops-warnings-panel>
+    <div className="flex flex-col h-full !text-body" data-ops-warnings-panel>
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border text-text-secondary flex-shrink-0">
         <span className="flex-1 min-w-0 truncate" data-ops-warnings-summary>
           {cpmResult

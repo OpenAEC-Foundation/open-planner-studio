@@ -770,7 +770,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   // de sterkste assert die haalbaar is zonder taken/toewijzingen op te tuigen in dit library-blok.
   useAppStore.setState((st) => {
     const doc = st.documents.find(d => d.id === firstDoc);
-    if (doc?.payload) doc.payload.resourceLoadResult = { load: {}, capacity: { __stale__: {} }, overallocatedDays: {} };
+    if (doc?.payload) doc.payload.resourceLoadResult = { load: {}, capacity: { __stale__: {} }, overallocatedDays: {}, overallocatedReasons: {} };
   });
   useAppStore.getState().switchDocument(firstDoc);
   const activeLoad = useAppStore.getState().resourceLoadResult;

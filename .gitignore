@@ -10,6 +10,7 @@ dist/
 !.claude/skills/release/
 !.claude/skills/wiki/
 !.claude/skills/docs-update/
+!.claude/skills/goed-plannen/
 temp/
 
 # Tauri
@@ -26,7 +27,8 @@ test-results/
 # Visual brainstorm companion mockups
 .superpowers/
 
-# Lokale QA-screenshots (niet committen)
+# Lokale QA-screenshots (niet committen). Gecommit schermbewijs bij een PR hoort juist in
+# artifacts/<onderwerp>/ — klein houden (PNG, ≤ ~150 KB, een handvol per PR); zie CLAUDE.md.
 qa/
 
 # Gegenereerde wiki (build-artefact van scripts/publish-wiki.mjs)

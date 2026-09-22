@@ -22,7 +22,7 @@
 .library-detail { flex: 1; min-width: 0; }
 .library-detail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
 .library-name-input {
-  font-size: 1.1em; font-weight: 600; background: transparent; border: none;
+  font-size: var(--text-heading); font-weight: 600; background: transparent; border: none;
   border-bottom: 1px solid var(--theme-border); color: var(--theme-text); padding: 2px 0; min-width: 160px;
   /* Fix B6: idem voor het bewerkbare naamveld — begrensd op de beschikbare breedte + ellipsis i.p.v.
      de header (en daarmee het hele detailpaneel) te laten uitdijen op een spatieloze mega-naam. */
@@ -34,7 +34,7 @@
 .library-detail-actions button {
   display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px;
   background: var(--theme-surface); border: 1px solid var(--theme-control-border);
-  border-radius: var(--radius-md); color: var(--theme-text); font-size: 12px; cursor: pointer;
+  border-radius: var(--radius-md); color: var(--theme-text); font-size: var(--text-large); cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .library-detail-actions button:hover:not(:disabled) { background: var(--theme-hover); border-color: var(--theme-accent); }
@@ -43,11 +43,11 @@
 .library-detail-actions .danger:hover:not(:disabled) { border-color: var(--error); }
 
 .library-backup-hint, .library-promote-hint {
-  font-size: 0.85em; color: var(--theme-text-dim); display: flex; align-items: center; gap: 6px; margin: 6px 0;
+  font-size: var(--text-body); color: var(--theme-text-dim); display: flex; align-items: center; gap: 6px; margin: 6px 0;
 }
 
-.library-pool h3 { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; color: var(--theme-text); font-family: var(--font-heading); font-size: 0.95em; }
-.library-pool .pool-version { font-size: 0.75em; color: var(--theme-text-muted); font-weight: 400; }
+.library-pool h3 { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; color: var(--theme-text); font-family: var(--font-heading); font-size: var(--text-large); }
+.library-pool .pool-version { font-size: var(--text-caption); color: var(--theme-text-muted); font-weight: 400; }
 .library-pool ul { list-style: none; padding: 0; margin: 0; }
 .library-pool li {
   display: flex; justify-content: space-between; align-items: center; padding: 4px 8px;
@@ -76,7 +76,7 @@
 }
 .library-item-name-input {
   flex: 1; min-width: 0; background: var(--theme-bg); border: 1px solid var(--theme-control-border);
-  border-radius: var(--radius-sm); color: var(--theme-text); padding: 3px 6px; font-size: 0.85em;
+  border-radius: var(--radius-sm); color: var(--theme-text); padding: 3px 6px; font-size: var(--text-body);
 }
 .library-item-name-input:focus { outline: none; border-color: var(--theme-accent); }
 
@@ -85,7 +85,7 @@
 .library-promote-toggle {
   display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px 8px;
   background: var(--theme-surface); border: 1px solid var(--theme-control-border);
-  border-radius: var(--radius-md); color: var(--theme-text); font-size: 0.78em; font-weight: 400;
+  border-radius: var(--radius-md); color: var(--theme-text); font-size: var(--text-small); font-weight: 400;
   font-family: var(--font-body); cursor: pointer;
 }
 .library-promote-toggle:hover { background: var(--theme-hover); border-color: var(--theme-accent); }
@@ -97,11 +97,11 @@
 .library-promote-panel ul { list-style: none; padding: 0; margin: 0; }
 .library-promote-panel li {
   display: flex; justify-content: space-between; align-items: center; padding: 4px 8px;
-  border-radius: var(--radius-sm); color: var(--theme-text); font-size: 0.85em;
+  border-radius: var(--radius-sm); color: var(--theme-text); font-size: var(--text-body);
 }
 .library-promote-panel li:hover { background: var(--theme-hover); }
-.library-promote-linked { color: var(--theme-text-muted); font-style: italic; font-size: 0.85em; }
+.library-promote-linked { color: var(--theme-text-muted); font-style: italic; font-size: var(--text-caption); }
 .library-promote-item { color: var(--theme-accent); background: transparent; border: none; cursor: pointer; padding: 2px; border-radius: var(--radius-sm); }
 .library-promote-item:hover { background: var(--theme-hover); }
 
-.library-notice { font-size: 0.85em; color: var(--success); display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.library-notice { font-size: var(--text-body); color: var(--success); display: flex; align-items: center; gap: 6px; margin: 6px 0; }

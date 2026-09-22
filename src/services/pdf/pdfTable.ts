@@ -28,6 +28,9 @@ export interface PdfTableColumn<Row> {
   color?(row: Row): string | undefined;
   /** Optioneel vetgedrukt (bv. status-badges, of speling/delta < 0 resp. > 0). */
   bold?(row: Row): boolean;
+  /** Optionele inspringing (logische px) vóór de celtekst — WBS-hiërarchie; DOM zet 'm als
+   *  `paddingLeft`, de PDF schuift de tekst op. Nooit als spaties in de tekst (die vouwt HTML weg). */
+  indent?(row: Row): number;
 }
 
 export interface PdfTableSpec<Row> {
@@ -56,6 +59,9 @@ export interface PdfSectionedReportSpec {
   title: string;
   /** Kleine regel onder de titel (bv. de periode of de statusdatum). */
   subtitle?: string;
+  /** Meldingen (niet berekend, geen statusdatum, …) — elk op een eigen regel, nooit ingekort tot
+   *  één ellipsis-regel: het zijn correctheidsmeldingen over de getallen eronder. */
+  notes?: string[];
   summary: { label: string; value: string; color?: string }[];
   sections: PdfReportSection[];
 }
@@ -68,6 +74,7 @@ const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sa
  * DOM-screenshot moest een thema forceren, de vector-tekening hoeft dat niet). */
 const COLORS = {
   bg: '#ffffff',
+  note: '#D97706',      // spiegelt de oranje meldingsregel in TableReportView
   text: '#111827',
   textMuted: '#6b7280', // spiegelt --theme-text-muted (headers)
   textDim: '#9ca3af',   // spiegelt --theme-text-dim (lege-staat-tekst)
@@ -109,6 +116,36 @@ function fitText(d2d: Draw2D, text: string, maxWidth: number): string {
   return text.slice(0, lo) + ellipsis;
 }
 
+/** Meet tekst op een letter (CSS-fontstring) — het paneel levert dit vanuit een canvas. */
+export type MeasureText = (text: string, font: string) => number;
+
+/** De letter van een kolomkop — `drawTable` tekent ermee en {@link fitColumnsToHeaders} meet ermee. */
+const COLUMN_HEADER_FONT = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
+
+/**
+ * Verbreed elke kolom die haar eigen KOP niet kwijt kan. De kolombreedtes in een spec zijn een
+ * ontwerpkeuze die voor de Nederlandse/Engelse brontekst gemeten is; vertaalde koppen zijn langer
+ * en werden door `drawTable` met een beletselteken afgekapt — in het Engels al "Duration (wd)"
+ * (73 px in een kolom van 70, dus 54 px beschikbaar), in het Pools "Czas trwania (dr)" (92 px) en
+ * in het Arabisch bijna elke speling-/duurkop. Een kop is kort, vast en informatiedragend; die
+ * hoort niet af te kappen. De DOM-weergave (`TableReportView`) heeft dit probleem niet — een
+ * `<table>` meet zichzelf — dus dit brengt de PDF terug bij wat het scherm al toont.
+ *
+ * Bewust ALLEEN verbreden, nooit versmallen: de pagineerder perst de tabel op papierbreedte
+ * (`mode: 'fit-width'`, schaal = printbreedte / tabelbreedte, zonder bovengrens), dus een smallere
+ * tabel zou de tekst niet netter maken maar groter — en een kolom die met de inhoud meekrimpt zou
+ * de lettergrootte per rapport laten verspringen. Celinhoud kapt dus af zoals voorheen (dat is bij
+ * een vrije-tekstkolom als "Naam" of "Resources" ook de bedoeling); alleen de kop krijgt de ruimte
+ * die hij nodig heeft.
+ */
+export function fitColumnsToHeaders<Row>(columns: PdfTableColumn<Row>[], measure: MeasureText): PdfTableColumn<Row>[] {
+  return columns.map(col => {
+    // +1: afronding van subpixel-breedtes mag nooit nét een beletselteken uitlokken.
+    const needed = Math.ceil(measure(col.header, COLUMN_HEADER_FONT) + 2 * CELL_PAD_X + 1);
+    return needed > col.width ? { ...col, width: needed } : col;
+  });
+}
+
 function cellX(align: PdfTableAlign, colX: number, colW: number): number {
   if (align === 'left') return colX + CELL_PAD_X;
   if (align === 'right') return colX + colW - CELL_PAD_X;
@@ -130,12 +167,13 @@ function drawTable<Row>(
   columns: PdfTableColumn<Row>[],
   rows: Row[],
   emptyText: string | undefined,
+  breaks?: number[],
 ): number {
   const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
 
   // ---- Header-rij (bold, 2px onderlijn — spiegelt de DOM `2px solid var(--theme-border)`) ----
   let x = 0;
-  d2d.font = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
+  d2d.font = COLUMN_HEADER_FONT;
   d2d.fillStyle = COLORS.textMuted;
   d2d.textBaseline = 'middle';
   const headerMidY = y + HEADER_HEIGHT / 2;
@@ -161,6 +199,7 @@ function drawTable<Row>(
     d2d.textBaseline = 'middle';
     d2d.fillText(emptyText ?? '', CELL_PAD_X, y + ROW_HEIGHT / 2);
     y += ROW_HEIGHT;
+    breaks?.push(y);
   } else {
     for (const row of rows) {
       let cx = 0;
@@ -172,8 +211,9 @@ function drawTable<Row>(
         d2d.fillStyle = color;
         d2d.textAlign = col.align;
         d2d.textBaseline = 'middle';
-        const avail = col.width - 2 * CELL_PAD_X;
-        d2d.fillText(fitText(d2d, col.text(row), avail), cellX(col.align, cx, col.width), midY);
+        const indent = col.align === 'left' ? Math.max(0, col.indent?.(row) ?? 0) : 0;
+        const avail = col.width - 2 * CELL_PAD_X - indent;
+        d2d.fillText(fitText(d2d, col.text(row), avail), cellX(col.align, cx, col.width) + indent, midY);
         cx += col.width;
       }
       d2d.strokeStyle = COLORS.rowBorder;
@@ -183,6 +223,8 @@ function drawTable<Row>(
       d2d.lineTo(tableWidth, y + ROW_HEIGHT);
       d2d.stroke();
       y += ROW_HEIGHT;
+      // Onder elke rij mag een pagina eindigen — nooit erdoorheen (issue #110 punt 3).
+      breaks?.push(y);
     }
   }
   return y;
@@ -198,9 +240,11 @@ function drawTable<Row>(
  */
 export function makeTableRenderReport<Row>(
   spec: PdfTableSpec<Row>,
+  measure?: MeasureText,
 ): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
+  const columns = measure ? fitColumnsToHeaders(spec.columns, measure) : spec.columns;
   return (makeDraw2D) => {
-    const tableWidth = spec.columns.reduce((sum, c) => sum + c.width, 0);
+    const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
     const titleH = spec.title ? TITLE_HEIGHT : 0;
     const height = titleH + tableHeight(spec.rows.length);
 
@@ -221,14 +265,15 @@ export function makeTableRenderReport<Row>(
       y = titleH;
     }
 
-    drawTable(d2d, y, spec.columns, spec.rows, spec.emptyText);
+    const breakOffsets: number[] = [];
+    drawTable(d2d, y, columns, spec.rows, spec.emptyText, breakOffsets);
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
 
     // `headerHeight: 0` — een tabel-render heeft géén herhaalbare kopstrook: titel + kolomkoppen
     // staan bewust alleen bovenaan het eerste vel (de pagineerder herhaalt niets als dit 0 is).
-    return { width: tableWidth, height, tableWidth: 0, headerHeight: 0 };
+    return { width: tableWidth, height, tableWidth: 0, headerHeight: 0, footerHeight: 0, breakOffsets };
   };
 }
 
@@ -239,16 +284,22 @@ export function makeTableRenderReport<Row>(
  */
 export function makeSectionedRenderReport(
   spec: PdfSectionedReportSpec,
+  measure?: MeasureText,
 ): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
+  const sections = measure
+    ? spec.sections.map(s => ({ ...s, columns: fitColumnsToHeaders(s.columns, measure) }))
+    : spec.sections;
   return (makeDraw2D) => {
-    const sectionWidths = spec.sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
+    const sectionWidths = sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
     const width = Math.max(SUMMARY_COLUMN_WIDTH, ...sectionWidths);
     const subtitleH = spec.subtitle ? SUBTITLE_HEIGHT : 0;
+    const notes = spec.notes ?? [];
+    const notesH = notes.length * SUBTITLE_HEIGHT;
     // Samenvatting in twee kolommen (zoals het DOM-blok): ceil(n/2) regels.
     const summaryLines = Math.ceil(spec.summary.length / 2);
     const summaryH = summaryLines > 0 ? summaryLines * SUMMARY_LINE_HEIGHT + SUMMARY_GAP : 0;
-    let height = TITLE_HEIGHT + subtitleH + summaryH;
-    for (const s of spec.sections) {
+    let height = TITLE_HEIGHT + subtitleH + notesH + summaryH;
+    for (const s of sections) {
       height += (s.heading ? SECTION_HEADING_HEIGHT : 0) + tableHeight(s.rows.length) + SECTION_GAP;
     }
 
@@ -268,6 +319,13 @@ export function makeSectionedRenderReport(
       d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
       d2d.textBaseline = 'middle';
       d2d.fillText(fitText(d2d, spec.subtitle, width), 0, y + SUBTITLE_HEIGHT / 2);
+      y += SUBTITLE_HEIGHT;
+    }
+    for (const note of notes) {
+      d2d.fillStyle = COLORS.note;
+      d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+      d2d.textBaseline = 'middle';
+      d2d.fillText(fitText(d2d, note, width), 0, y + SUBTITLE_HEIGHT / 2);
       y += SUBTITLE_HEIGHT;
     }
 
@@ -292,7 +350,9 @@ export function makeSectionedRenderReport(
       y += summaryH;
     }
 
-    for (const s of spec.sections) {
+    const breakOffsets: number[] = [];
+    if (spec.summary.length > 0 || spec.subtitle || notes.length > 0) breakOffsets.push(y);
+    for (const s of sections) {
       if (s.heading) {
         d2d.fillStyle = COLORS.text;
         d2d.font = `bold ${HEADER_FONT_SIZE + 1}px ${FONT_FAMILY}`;
@@ -301,12 +361,15 @@ export function makeSectionedRenderReport(
         d2d.fillText(fitText(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
         y += SECTION_HEADING_HEIGHT;
       }
-      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText);
+      // Een sectiekop mag niet los onderaan een pagina blijven staan: de breekpositie vóór de kop
+      // vervalt zodra de kop getekend is (de laatste breek vóór de kop was het sectie-einde ervoor).
+      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText, breakOffsets);
       y += SECTION_GAP;
+      breakOffsets.push(y);
     }
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
-    return { width, height, tableWidth: 0, headerHeight: 0 };
+    return { width, height, tableWidth: 0, headerHeight: 0, footerHeight: 0, breakOffsets };
   };
 }

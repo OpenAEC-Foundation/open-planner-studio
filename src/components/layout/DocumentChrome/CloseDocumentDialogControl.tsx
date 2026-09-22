@@ -45,13 +45,13 @@ export function CloseDocumentDialogControl({
           boxShadow: 'var(--shadow-pop)', padding: 20,
         }}
       >
-        <h3 style={{
-          margin: '0 0 8px', fontFamily: "'Space Grotesk', sans-serif", fontSize: 'calc(15px * var(--ui-font-scale, 1))',
+        <h3 className="!text-heading" style={{
+          margin: '0 0 8px', fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 700, color: 'var(--theme-text)',
         }}>
           {title}
         </h3>
-        <p style={{ margin: '0 0 18px', fontSize: 'calc(13px * var(--ui-font-scale, 1))', lineHeight: 1.5, color: 'var(--theme-text-dim)' }}>
+        <p className="!text-large" style={{ margin: '0 0 18px', lineHeight: 1.5, color: 'var(--theme-text-dim)' }}>
           {body}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
