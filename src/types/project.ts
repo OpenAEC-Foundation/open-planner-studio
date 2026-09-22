@@ -200,6 +200,62 @@ export interface SchedulingOptions {
   p6OpenLoeTargetSpan?: boolean;
 }
 
+/**
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vijftien PAKKETCONVENTIES — regels die per
+ * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
+ * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
+ * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
+ */
+export type ConventionKey =
+  | 'preserveActualDatesInBackwardPass'
+  | 'clampNegativeFreeFloat'
+  | 'p6ZeroDurationUsesPlannedBoundary'
+  | 'p6UseTaskPlannedStartFloor'
+  | 'p6FinishMilestoneBoundaryWindow'
+  | 'p6PreserveActualInstants'
+  | 'p6PreserveZeroDurationConstraintInstants'
+  | 'p6UseRemainingStartForProgress'
+  | 'resumeFromActualElapsed'
+  | 'unstartedIgnoresStatusDate'
+  | 'p6RelationFinishBoundary'
+  | 'p6BackwardLagFinishBoundary'
+  | 'p6CompletedDataDateWindow'
+  | 'p6CompletedLoeActualFinish'
+  | 'p6OpenLoeTargetSpan';
+
+/** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies en
+ *  de overgangsvlag `p6Source` (die bij de integratie met baan B verdwijnt). */
+export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey | 'p6Source'>;
+
+/** Wat `Project.schedulingOptions` in het eindmodel draagt: uitsluitend projectopties. */
+export type ProjectSchedulingOptions = Pick<SchedulingOptions, ProjectOptionKey>;
+
+/** De volledig opgeloste set conventies: élke conventie heeft een waarde. */
+export type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
+
+/** De ene set die de solver krijgt: projectopties + alle opgeloste conventies. Een kale
+ *  `SchedulingOptions` is hier bewust NIET aan toewijsbaar (de conventies zijn verplicht), zodat
+ *  niemand het profiel per ongeluk overslaat. */
+export type EffectiveSchedulingOptions = ProjectSchedulingOptions & SchedulingConventions;
+
+/** De drie ingebouwde basisprofielen. */
+export type BuiltInProfileId = 'p6' | 'msproject' | 'ops';
+
+/**
+ * Een rekenprofiel: een ingebouwde basis plus uitsluitend de afwijkingen daarvan. De opgeloste set
+ * staat nooit dubbel in de state (`resolveConventions`). Eigen profielen matchen op `id`, nooit op
+ * naam; een project draagt zijn eigen kopie (sjablonen in `ops-schedulingProfiles` werken niet door).
+ */
+export interface SchedulingProfile {
+  baseId: BuiltInProfileId;
+  /** 'p6' | 'msproject' | 'ops' voor een ingebouwd profiel, anders een eigen id. */
+  id: string;
+  /** Weergavenaam van een EIGEN profiel. Ingebouwde profielen hebben een i18n-naam
+   *  (`profiles.builtIn.<id>`) en dragen dit veld leeg; het wordt nooit vertaald weggeschreven. */
+  name: string;
+  overrides: Partial<SchedulingConventions>;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -230,6 +286,11 @@ export interface Project {
   /** OPTIONEEL — project-scoped reken-opties (fase 2.9, §3.4/§7). Afwezig ⇒ elke default ⇒
    *  byte-identiek gedrag. */
   schedulingOptions?: SchedulingOptions;
+  /** OPTIONEEL — rekenprofiel (spec rekenprofielen, tweelagenmodel): de pakketconventies. Afwezig ≡
+   *  het ingebouwde `ops`-profiel zonder afwijkingen, en zo blijft een bestaand bestand zonder
+   *  `OPS_SchedulingProfile` byte-identiek. De solver krijgt één set via
+   *  `effectiveSchedulingOptions(project)` (`engine/scheduler/conventions/registry.ts`). */
+  schedulingProfile?: SchedulingProfile;
   /** OPTIONEEL — projectbinding aan een bedrijfsbibliotheek (spec B1, §2). Afwezig ⇒ project is
    *  (nog) aan geen enkel bedrijf gebonden; heropening zonder de pool is onschuldig. `companyName`
    *  is een gedenormaliseerde cache zodat een gedeeld bestand het bedrijf toont zonder de pool. */

@@ -1118,5 +1118,12 @@
       "actualStart": "실제 시작일",
       "actualFinish": "실제 종료일"
     }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    }
   }
 }

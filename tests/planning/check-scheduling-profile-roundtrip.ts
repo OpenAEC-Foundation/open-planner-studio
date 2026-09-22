@@ -1,0 +1,305 @@
+// Rekenprofielen — IFC-round-trip van `OPS_SchedulingProfile`, de legacy-migratie na het lezen,
+// vijandige pset-JSON, byte-identiteit zonder profiel, en de opslag van eigen profielen
+// (`ops-schedulingProfiles`). Spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md.
+//
+// INTEGRATIE(rekenprofielen): in de overgang zijn `writeSchedulingProfileMeta` en de profiellezer
+// bewust NIET aan writeIFC/readIFC gekoppeld. Deze check roept ze rechtstreeks aan (writeWithProfile /
+// readProfile hieronder) en bewaakt in sectie 0 dat de koppeling er inderdaad nog niet is.
+//
+// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen; faalregels beginnen met "XX".
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createWriteContext, writeIFC, writeSchedulingProfileMeta } from '@/services/ifc/ifcWriter';
+import { readIFC, readSchedulingProfile } from '@/services/ifc/ifcReader';
+import type { ImportResult } from '@/services/importTypes';
+import type { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { Task } from '@/types/task';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import {
+  builtInConventions, builtInProfile, resolveConventions,
+} from '@/engine/scheduler/conventions/registry';
+import { legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
+import {
+  MAX_PROFILE_NAME_LENGTH, profileAfterRead, sanitizeSchedulingProfile,
+} from '@/services/ifc/schedulingOptionsRead';
+import {
+  SCHEDULING_PROFILES_KEY, deleteCustomProfile, loadCustomProfiles, saveCustomProfiles,
+  upsertCustomProfile, type ProfileStorage,
+} from '@/services/schedulingProfiles/profileStore';
+
+const diffs: string[] = [];
+let checks = 0;
+const eq = (label: string, got: unknown, want: unknown) => {
+  checks++;
+  const g = JSON.stringify(got);
+  const w = JSON.stringify(want);
+  if (g !== w) diffs.push(`${label}: verwacht ${w}, kreeg ${g}`);
+};
+const ok = (label: string, cond: boolean) => eq(label, cond, true);
+const canon = (value: unknown): string => JSON.stringify(value, (_k, v: unknown) =>
+  (v && typeof v === 'object' && !Array.isArray(v))
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
+    : v);
+const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got), canon(want));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+// ── Fixture ─────────────────────────────────────────────────────────────────────────────────────
+function mkTask(id: string, wbs: string): Task {
+  return {
+    id, name: id, description: '', wbsCode: wbs, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [],
+    time: createDefaultTaskTime('2026-06-01', 3), resourceIds: [],
+  };
+}
+function fixture(projectExtra: Partial<Project> = {}): ImportResult {
+  return {
+    project: {
+      id: 'p', name: 'Profieltest', description: '', startDate: '2026-06-01', endDate: '2026-06-30',
+      calendarId: 'cal', createdAt: '2026-01-01T00:00:00.000Z', modifiedAt: '2026-01-01T00:00:00.000Z',
+      author: '', company: '', ...projectExtra,
+    },
+    calendar: {
+      id: 'cal', name: 'Standaard', description: '',
+      workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+    },
+    tasks: [mkTask('a', '1'), mkTask('b', '2')],
+    sequences: [{ id: 's', predecessorId: 'a', successorId: 'b', type: 'FINISH_START', lagDays: 0 }],
+    resources: [], assignments: [],
+  };
+}
+const PROFILE_LINE = /IFCPROPERTYSINGLEVALUE\('SchedulingProfile',\$,IFCTEXT\('[^']*'\),\$\)/;
+const withProfileJson = (ifc: string, json: string) =>
+  ifc.replace(PROFILE_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT('${json}'),$)`);
+/** writeIFC + de losse profielschrijver, met de echte schrijffunctie op het echte IfcWorkSchedule-
+ *  en IfcOwnerHistory-id, ingevoegd vóór ENDSEC (zoals writeIFC hem na integratie zou schrijven). */
+function writeWithProfile(input: ImportResult): string {
+  const ifc = writeIFC(input);
+  const idOf = (type: string) => Number(ifc.match(new RegExp(`#(\\d+)=${type}\\(`))![1]);
+  const maxId = Math.max(...[...ifc.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1])));
+  const ctx = createWriteContext(maxId + 1);
+  writeSchedulingProfileMeta(ctx, idOf('IFCWORKSCHEDULE'), input.project.schedulingProfile, idOf('IFCOWNERHISTORY'));
+  if (ctx.lines.length === 0) return ifc;
+  return ifc.replace('\nENDSEC;\nEND-ISO-10303-21;', `\n${ctx.lines.join('\n')}\nENDSEC;\nEND-ISO-10303-21;`);
+}
+/** Het profiel na lezen: pset via de losse lezer, anders migratie van het gelezen optieblok. */
+function readProfile(ifc: string): SchedulingProfile | undefined {
+  return profileAfterRead(readSchedulingProfile(ifc), readIFC(ifc).project.schedulingOptions);
+}
+const CUSTOM: SchedulingProfile = {
+  baseId: 'p6', id: 'eigen-1', name: 'Kopie van P6',
+  overrides: { resumeFromActualElapsed: true, p6OpenLoeTargetSpan: false },
+};
+
+// ── 0) Overgang: nog niet aan writeIFC/readIFC gekoppeld ────────────────────────────────────────
+{
+  const plain = writeIFC(fixture({ schedulingProfile: builtInProfile('p6') }));
+  ok('00 writeIFC schrijft (nog) geen OPS_SchedulingProfile', !plain.includes('OPS_SchedulingProfile'));
+  const injected = writeWithProfile(fixture({ schedulingProfile: builtInProfile('p6') }));
+  ok('00b anker: de losse schrijver schrijft wél', injected.includes("'OPS_SchedulingProfile'"));
+  eq('00c readIFC zet (nog) geen schedulingProfile', readIFC(injected).project.schedulingProfile, undefined);
+  eq('00d readIFC op een legacy-p6-blok zet (nog) geen schedulingProfile',
+    readIFC(writeIFC(fixture({ schedulingOptions: { p6Source: 'XER' } }))).project.schedulingProfile, undefined);
+}
+
+// ── 1) Round-trip: drie ingebouwde + één eigen profiel ──────────────────────────────────────────
+{
+  for (const id of ['p6', 'msproject'] as const) {
+    const ifc = writeWithProfile(fixture({ schedulingProfile: builtInProfile(id) }));
+    ok(`01 ${id}: pset geschreven`, ifc.includes("'OPS_SchedulingProfile'"));
+    same(`02 ${id}: round-trip`, readProfile(ifc), builtInProfile(id));
+    const match = ifc.match(/IFCTEXT\('(\{"id":"[^']*)'\)/);
+    const json = (match ? JSON.parse(match[1]) : {}) as Record<string, unknown>;
+    eq(`03 ${id}: geen naam voor ingebouwd profiel`, 'name' in json, false);
+    same(`04 ${id}: alle vijftien conventies opgelost weggeschreven`, json.conventions, builtInConventions(id));
+  }
+  const opsIfc = writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') }));
+  ok('05 ops zonder afwijkingen: GEEN pset', !opsIfc.includes('OPS_SchedulingProfile'));
+  eq('06 ops: na lezen afwezig (≡ ops)', readProfile(opsIfc), undefined);
+  const opsOverride: SchedulingProfile = { ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: true } };
+  same('07 ops mét afwijking: round-trip', readProfile(writeWithProfile(fixture({ schedulingProfile: opsOverride }))), opsOverride);
+  const customIfc = writeWithProfile(fixture({ schedulingProfile: CUSTOM }));
+  same('08 eigen profiel: round-trip (id, naam, basis, afwijkingen)', readProfile(customIfc), CUSTOM);
+  const profileLine = (ifc: string) => ifc.match(PROFILE_LINE)?.[0];
+  const reread = fixture({ schedulingProfile: readProfile(customIfc) });
+  eq('09 eigen profiel: idempotent (tweede write, zelfde profielregel)', profileLine(writeWithProfile(reread)), profileLine(customIfc));
+}
+
+// ── 2) Byte-identiteit zonder profiel ───────────────────────────────────────────────────────────
+{
+  const bare = writeWithProfile(fixture());
+  ok('10 geen profiel ⇒ geen pset', !bare.includes('OPS_SchedulingProfile'));
+  eq('11 standaardprofiel schrijft byte-identiek aan geen profiel', writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') })), bare);
+  // De gecommitte voorbeeldbestanden (gemaakt vóór de rekenprofielen): na lezen geen profiel.
+  const dir = join(ROOT, 'public', 'examples');
+  const files = readdirSync(dir).filter(f => f.endsWith('.ifc'));
+  ok('12 er zijn voorbeeldbestanden om tegen te meten', files.length > 0);
+  for (const f of files) {
+    const text = readFileSync(join(dir, f), 'utf8');
+    ok(`13 ${f}: bevat nog geen OPS_SchedulingProfile`, !text.includes('OPS_SchedulingProfile'));
+    eq(`14 ${f}: na lezen geen profiel (≡ ops)`, readProfile(text), undefined);
+  }
+}
+
+// ── 3) De vier migratierijen (§3.4) na het lezen ────────────────────────────────────────────────
+{
+  eq('20 geen pset + geen opties ⇒ ops (afwezig)', readProfile(writeWithProfile(fixture())), undefined);
+  const opts2: SchedulingOptions = { lagCalendar: 'successor', clampNegativeFreeFloat: true, p6UseTaskPlannedStartFloor: true };
+  const ifc2 = writeWithProfile(fixture({ schedulingOptions: opts2 }));
+  same('21 opties zonder p6Source ⇒ ops + niet-gepoorte afwijking; gepoorte vlag weg',
+    readProfile(ifc2), { ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: true } });
+  // INTEGRATIE(rekenprofielen): in de overgang blijft het optieblok ongewijzigd staan.
+  same('22 overgang: schedulingOptions ongewijzigd', readIFC(ifc2).project.schedulingOptions, opts2);
+  eq('23 alleen optie-sleutels ⇒ ops zonder afwijking (afwezig)',
+    readProfile(writeWithProfile(fixture({ schedulingOptions: { nearCriticalThreshold: 2 } }))), undefined);
+  same('24 beide mpp-vlaggen ⇒ msproject',
+    readProfile(writeWithProfile(fixture({ schedulingOptions: { resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true } }))),
+    builtInProfile('msproject'));
+  const opts3: SchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
+  const ifc3 = writeWithProfile(fixture({ schedulingOptions: opts3 }));
+  // Spec v3: een A-conventie die de blob niet noemt, rekende vandaag als uit ⇒ afwijking van p6.
+  same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B1–B5 aan', readProfile(ifc3), {
+    ...builtInProfile('p6'),
+    overrides: {
+      clampNegativeFreeFloat: false, p6ZeroDurationUsesPlannedBoundary: false, p6UseTaskPlannedStartFloor: false,
+      p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: false, p6PreserveZeroDurationConstraintInstants: false,
+    },
+  });
+  same('26 overgang: p6Source blijft in schedulingOptions', readIFC(ifc3).project.schedulingOptions, opts3);
+  same('27 pset wint van de legacy-migratie',
+    readProfile(writeWithProfile(fixture({ schedulingOptions: opts3, schedulingProfile: builtInProfile('msproject') }))),
+    builtInProfile('msproject'));
+}
+
+// ── 4) Vijandige pset-JSON: valt terug zonder throw ─────────────────────────────────────────────
+{
+  const LEGACY_BLOB: SchedulingOptions = { p6Source: 'XER' };
+  const base = writeWithProfile(fixture({ schedulingProfile: CUSTOM, schedulingOptions: LEGACY_BLOB }));
+  // Waar de pset onbruikbaar is valt de lezer terug op de migratie van het legacy-blok.
+  const FALLBACK = legacyOptionsToProfile(LEGACY_BLOB).profile;
+  ok('30b anker: de terugval is herkenbaar (p6-basis)', FALLBACK.baseId === 'p6');
+  ok('30 anker: pset aanwezig', PROFILE_LINE.test(base));
+  const readWith = (json: string) => readProfile(withProfileJson(base, json));
+  // Onbekende baseId ⇒ ops; ontbrekende conventies ⇒ legacyValue (ops) ⇒ geen afwijkingen.
+  same('31 onbekende baseId ⇒ ops', readWith('{"id":"x","baseId":"primavera","conventions":{}}'),
+    { baseId: 'ops', id: 'x', name: '', overrides: {} });
+  // Ongeldig getypeerd ⇒ legacyValue (uit), nooit de p6-basis (aan); onbekende sleutels genegeerd.
+  const hostile = readWith('{"baseId":"p6","conventions":{"clampNegativeFreeFloat":"ja","p6OpenLoeTargetSpan":1,"onzin":true}}');
+  eq('32 ongeldig getypeerd ⇒ legacyValue (clampNegativeFreeFloat uit)', hostile && resolveConventions(hostile).clampNegativeFreeFloat, false);
+  same('32b ongeldig/ontbrekend ⇒ alle conventies op legacy (uit)', hostile, { ...builtInProfile('p6'), overrides: diffAgainstLegacyForP6() });
+  same('33 conventions geen object ⇒ legacy-waarden', readWith('{"id":"p6","baseId":"p6","conventions":[1,2]}'),
+    { ...builtInProfile('p6'), overrides: diffAgainstLegacyForP6() });
+  // Ingebouwde id met een andere basis ⇒ de basis-id.
+  eq('34 id "p6" op msproject-basis ⇒ id msproject', readWith('{"id":"p6","baseId":"msproject","conventions":{}}')?.id, 'msproject');
+  // Naam: te lang ⇒ leeg (profiel blijft); geen string ⇒ leeg.
+  const longName = 'x'.repeat(MAX_PROFILE_NAME_LENGTH + 1);
+  eq('35 te lange naam ⇒ leeg', readWith(`{"id":"eigen","baseId":"ops","name":"${longName}","conventions":{}}`)?.name, '');
+  eq('36 naam precies op de grens blijft', readWith(`{"id":"eigen","baseId":"ops","name":"${'y'.repeat(MAX_PROFILE_NAME_LENGTH)}","conventions":{}}`)?.name.length, MAX_PROFILE_NAME_LENGTH);
+  eq('37 te lange id ⇒ basis-id', readWith(`{"id":"${'i'.repeat(65)}","baseId":"msproject","conventions":{}}`)?.id, 'msproject');
+  // 10 MB naam: de rauwe JSON overschrijdt de bovengrens ⇒ pset genegeerd ⇒ legacy-migratie (p6Source ⇒ p6).
+  const huge = `{"id":"eigen","baseId":"ops","name":"${'z'.repeat(10 * 1024 * 1024)}","conventions":{}}`;
+  let hugeResult: SchedulingProfile | undefined;
+  let threw = false;
+  try { hugeResult = readWith(huge); } catch { threw = true; }
+  eq('38 10 MB naam: geen throw', threw, false);
+  same('39 10 MB naam: valt terug op de legacy-migratie', hugeResult, FALLBACK);
+  const safeRead = (json: string): SchedulingProfile | undefined | 'THROW' => {
+    try { return readWith(json); } catch { return 'THROW'; }
+  };
+  same('40 corrupte JSON ⇒ legacy-migratie (geen throw)', safeRead('{"id":'), FALLBACK);
+  same('41 JSON-array ⇒ legacy-migratie', safeRead('[1,2,3]'), FALLBACK);
+  eq('42 sanitize(null) ⇒ undefined', sanitizeSchedulingProfile(null), undefined);
+}
+/** Verwachte afwijkingen van p6 als alle conventies op hun legacyValue (uit) vallen. */
+function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
+  const p6 = builtInConventions('p6');
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(p6)) {
+    if (v !== false) out[k] = false;
+  }
+  return out;
+}
+
+// ── 5) Missende sleutel ⇒ legacyValue, niet de basiswaarde ──────────────────────────────────────
+{
+  const p6 = builtInConventions('p6');
+  const partial = { ...p6 } as Record<string, boolean>;
+  delete partial.p6OpenLoeTargetSpan; // een bestand van vóór deze conventie
+  const read = sanitizeSchedulingProfile({ id: 'p6', baseId: 'p6', conventions: partial });
+  same('50 ontbrekende conventie ⇒ legacyValue (uit), dus afwijking van p6', read?.overrides, { p6OpenLoeTargetSpan: false });
+}
+
+// ── 6) Opslag van eigen profielen ───────────────────────────────────────────────────────────────
+{
+  const memory = (initial?: string): ProfileStorage & { value: string | null } => {
+    const s = {
+      value: initial ?? null,
+      getItem: (key: string) => (key === SCHEDULING_PROFILES_KEY ? s.value : null),
+      setItem: (key: string, v: string) => { if (key === SCHEDULING_PROFILES_KEY) s.value = v; },
+    };
+    return s;
+  };
+  const warn = console.warn;
+  const warnings: unknown[] = [];
+  console.warn = (...args: unknown[]) => { warnings.push(args); };
+  try {
+    eq('60 leeg ⇒ lege lijst', loadCustomProfiles(memory()), []);
+    eq('61 geen opslag (Node) ⇒ lege lijst', loadCustomProfiles(undefined), []);
+    const corrupt = memory('{niet json');
+    eq('62 corrupte JSON ⇒ lege lijst', loadCustomProfiles(corrupt), []);
+    eq('63 corrupte JSON ⇒ één waarschuwing', warnings.length, 1);
+    eq('64 te grote opslag ⇒ lege lijst', loadCustomProfiles(memory(`["${'a'.repeat(300 * 1024)}"]`)), []);
+    eq('65 geen array ⇒ lege lijst', loadCustomProfiles(memory('{"a":1}')), []);
+    const mixed = memory(JSON.stringify([
+      CUSTOM,
+      { baseId: 'onbekend', id: 'x', name: 'x', overrides: {} },
+      { baseId: 'ops', id: 'p6', name: 'ingebouwde id', overrides: {} },
+      { baseId: 'ops', id: 'z', name: 'n'.repeat(MAX_PROFILE_NAME_LENGTH + 1), overrides: {} },
+      { baseId: 'ops', id: 'w', name: 'Wel', overrides: { clampNegativeFreeFloat: false, onzin: true, preserveActualDatesInBackwardPass: 'ja' } },
+      { ...CUSTOM, name: 'dubbele id' },
+    ]));
+    same('66 alleen geldige items, overrides geminimaliseerd, dubbele id weg', loadCustomProfiles(mixed), [
+      CUSTOM, { baseId: 'ops', id: 'w', name: 'Wel', overrides: {} },
+    ]);
+    const store = memory();
+    ok('67 upsert nieuw', upsertCustomProfile(CUSTOM, store));
+    ok('68 upsert ingebouwde id geweigerd', !upsertCustomProfile({ ...CUSTOM, id: 'ops' }, store));
+    ok('69 upsert vervangt op id', upsertCustomProfile({ ...CUSTOM, name: 'Hernoemd' }, store));
+    same('70 na upserts', loadCustomProfiles(store), [{ ...CUSTOM, name: 'Hernoemd' }]);
+    deleteCustomProfile('eigen-1', store);
+    eq('71 na verwijderen leeg', loadCustomProfiles(store), []);
+    saveCustomProfiles([CUSTOM, { ...CUSTOM, id: '' }], store);
+    same('72 save filtert ongeldige items', loadCustomProfiles(store), [CUSTOM]);
+    // Een opslag die gooit (QuotaExceededError bij schrijven, SecurityError bij lezen): nooit een throw.
+    const quota: ProfileStorage = {
+      getItem: () => JSON.stringify([CUSTOM]),
+      setItem: () => { throw new DOMException('vol', 'QuotaExceededError'); },
+    };
+    let threw = false;
+    let upserted: boolean | undefined;
+    try { upserted = upsertCustomProfile({ ...CUSTOM, id: 'nieuw' }, quota); } catch { threw = true; }
+    eq('73 upsert bij QuotaExceeded: geen throw', threw, false);
+    eq('74 upsert bij QuotaExceeded: false', upserted, false);
+    eq('75 save bij QuotaExceeded: false', saveCustomProfiles([CUSTOM], quota), false);
+    eq('76 delete bij QuotaExceeded: false', deleteCustomProfile('eigen-1', quota), false);
+    const blocked: ProfileStorage = {
+      getItem: () => { throw new DOMException('geblokkeerd', 'SecurityError'); },
+      setItem: () => { throw new DOMException('geblokkeerd', 'SecurityError'); },
+    };
+    let loadThrew = false;
+    let loaded: SchedulingProfile[] | undefined;
+    try { loaded = loadCustomProfiles(blocked); } catch { loadThrew = true; }
+    eq('77 load bij gooiende getItem: geen throw', loadThrew, false);
+    eq('78 load bij gooiende getItem: lege lijst', loaded, []);
+    eq('79 save naar werkende opslag: true', saveCustomProfiles([CUSTOM], memory()), true);
+  } finally {
+    console.warn = warn;
+  }
+}
+
+if (diffs.length > 0) {
+  for (const d of diffs) console.log(`XX  ${d}`);
+  console.log(`XX  scheduling-profile-roundtrip: ${diffs.length} van ${checks} checks rood`);
+  process.exit(1);
+}
+console.log(`OK  scheduling-profile-roundtrip: alle checks groen (${checks})`);

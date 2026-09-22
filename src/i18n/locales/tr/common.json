@@ -1152,5 +1152,12 @@
       "actualStart": "Gerçek başlangıç",
       "actualFinish": "Gerçek bitiş"
     }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    }
   }
 }

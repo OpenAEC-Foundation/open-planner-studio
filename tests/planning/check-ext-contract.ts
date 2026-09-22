@@ -136,7 +136,9 @@ const NIET_PUBLIEK = {
   // Bibliotheekbinding (spec B1): de bibliotheek is app-globaal en wordt buiten het document
   // beheerd. Een extensie die deze stempels kon zetten zou een projectkopie kunnen laten dóén
   // alsof hij uit een bibliotheek komt.
-  project: ['companyId', 'companyName'] as readonly string[],
+  // Rekenprofiel (spec rekenprofielen): de extensie-API kent nog geen profielen; de keuze of en hoe
+  // een extensie een profiel mag lezen/zetten valt bij de UI-/integratie-etappe. Tot dan bewust dicht.
+  project: ['companyId', 'companyName', 'schedulingProfile'] as readonly string[],
   // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
   // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
@@ -266,6 +268,7 @@ const VOL_PROJECT = {
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   },
   companyId: 'bedrijf-1', companyName: 'Bibliotheek BV',
+  schedulingProfile: { baseId: 'msproject', id: 'eigen-1', name: 'Eigen', overrides: { clampNegativeFreeFloat: true } },
 } satisfies Required<Project>;
 
 const VOL_CALENDAR = {

@@ -2,7 +2,9 @@ import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
-import { Project, SchedulingOptions } from '@/types/project';
+import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import { schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
+import { isDefaultProfile } from '@/engine/scheduler/conventions/registry';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -75,7 +77,7 @@ function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
 }
 
-interface WriteContext {
+export interface WriteContext {
   lines: string[];
   nextId: number;
   idMap: Map<string, number>; // our ID -> STEP #id
@@ -110,6 +112,12 @@ function guidOf(ctx: WriteContext, seed: string): string {
   ctx.guids.set(seed, guid);
   ctx.usedGuids.add(guid);
   return guid;
+}
+
+/** Een lege schrijfcontext die bij STEP-id `nextId` begint. Voor losse pset-schrijvers die (nog)
+ *  niet vanuit `writeIFC` worden aangeroepen — zie `writeSchedulingProfileMeta`. */
+export function createWriteContext(nextId: number): WriteContext {
+  return { lines: [], nextId, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
 }
 
 function ref(ctx: WriteContext, key: string): string {
@@ -328,7 +336,15 @@ export function writeIFC(input: WriteIFCInput): string {
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
+  // INTEGRATIE(rekenprofielen): schrijft in de overgang het blok ongewijzigd (incl. p6Source en
+  // conventiesleutels); in het eindmodel wordt dit `legacyOptionsBlobFor(project)` (projectopties +
+  // alleen resumeFromActualElapsed/unstartedIgnoresStatusDate wanneer true, spec v3.1).
   writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
+  // INTEGRATIE(rekenprofielen): hier `writeSchedulingProfileMeta(ctx, workSchedId,
+  // project.schedulingProfile, ownerHistId);` aansluiten — tegelijk met de lezerkant in
+  // `ifcReader.ts`. Bewust nog NIET bedraad: in de overgang zet geen lezer een profiel, dus een
+  // halve bedrading maakt opslaan niet-idempotent (eerste save geen pset, heropenen migreert naar
+  // p6, tweede save wél) en laat crashherstel afwijken van de live state.
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -712,6 +728,28 @@ function writeSchedulingOptionsMeta(
     `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedopts'))},#${ownerHistId},${ifcStr(PSET.SchedulingOptions)},$,(#${propId}))`);
   addLine(ctx, '_rel_schedopts',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedopts'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
+/**
+ * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
+ * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle vijftien conventies
+ * OPGELOST (`schedulingProfileToJson`). Golden rule: afwezig profiel of het standaardprofiel
+ * (`ops` zonder afwijkingen) ⇒ geen pset, zodat bestaande bestanden byte-identiek blijven.
+ */
+export function writeSchedulingProfileMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  profile: SchedulingProfile | undefined,
+  ownerHistId: number,
+): void {
+  if (!profile || isDefaultProfile(profile)) return;
+  const json = JSON.stringify(schedulingProfileToJson(profile));
+  const propId = addLine(ctx, '_ps_schedprofile',
+    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);
+  const setId = addLine(ctx, '_pset_schedprofile',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedprofile'))},#${ownerHistId},${ifcStr(PSET.SchedulingProfile)},$,(#${propId}))`);
+  addLine(ctx, '_rel_schedprofile',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedprofile'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
 /** Fase 2.8b (§7.1) — `IfcWorkCalendar.PredefinedType` uit `calendar.shift`. CONVENTIE: buildingSMART
