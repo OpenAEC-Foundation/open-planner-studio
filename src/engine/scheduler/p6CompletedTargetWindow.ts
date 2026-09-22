@@ -4,11 +4,12 @@ import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { parseInstant } from '@/utils/dateUtils';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 
 export type P6CompletedWindowReason =
   | 'eligible'
   | 'missingDataDate'
-  | 'notXerSource'
+  | 'conventionOff'
   | 'remainingStartOff'
   | 'notLeafTask'
   | 'missingProjectProvenance'
@@ -75,10 +76,17 @@ function mayUseSuspendResumeCompletedWindow(
 export function explainP6CompletedDataDateWindow(
   task: Task,
   dataDate: Date | null,
-  schedulingOptions: SchedulingOptions | undefined,
+  rawSchedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
+  // TIJDELIJK (rekenprofielen baan B): directe aanroepers geven soms nog alleen de oude
+  // bronmarkering mee; de vertaling is idempotent, dus voor de solver (die al vertaalde opties
+  // doorgeeft) verandert ze niets.
+  const schedulingOptions = resolveLegacyP6SourceConventions(rawSchedulingOptions);
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
-  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  // Conventie B3 `p6CompletedDataDateWindow` — staat exact op de plek van de vroegere bron-check.
+  if (schedulingOptions?.p6CompletedDataDateWindow !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
   if (schedulingOptions.p6UseRemainingStartForProgress !== true) {
     return { eligible: false, reason: 'remainingStartOff' };
   }

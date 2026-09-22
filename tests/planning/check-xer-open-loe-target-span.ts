@@ -246,7 +246,10 @@ for (const mutation of [
   { label: 'omgekeerd targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleStart = '2026-01-17T08:00'; }, reason: 'targetWindowNotPositive' },
   { label: 'half targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleFinish = ''; }, reason: 'missingScheduleFinish' },
   { label: 'ongeldig targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleFinish = 'geen-datum'; }, reason: 'invalidScheduleFinish' },
-  { label: 'andere bron', mutate: (input: ImportResult) => { delete input.project.schedulingOptions?.p6Source; }, reason: 'notXerSource' },
+  // Rekenprofielen baan B: de poort is conventie B5 `p6OpenLoeTargetSpan`. Twee armen: expliciet
+  // uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
+  { label: 'conventie B5 expliciet uit', mutate: (input: ImportResult) => { input.project.schedulingOptions = { ...input.project.schedulingOptions, p6OpenLoeTargetSpan: false }; }, reason: 'conventionOff' },
+  { label: 'andere bron', mutate: (input: ImportResult) => { delete input.project.schedulingOptions?.p6Source; }, reason: 'conventionOff' },
   { label: 'ander taaktype', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6ActivityType = 'TT_Task'; }, reason: 'wrongActivityType' },
   { label: 'ander duurtype', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6DurationType = 'DT_FixedDrtn'; }, reason: 'wrongDurationType' },
   { label: 'andere voortgangsfamilie', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6CompletePctType = 'CP_Phys'; }, reason: 'wrongCompletePctType' },
@@ -288,7 +291,7 @@ genericIfcSource.xerSourceArchive = undefined;
 genericIfcSource.xerSourceProjectId = undefined;
 const genericIfc = readIFC(writeIFC(genericIfcSource));
 eq('open XER LOE: generieke IFC zonder XER-provenance blijft fail-closed',
-  diagnose(genericIfc), { eligible: false, reason: 'notXerSource' });
+  diagnose(genericIfc), { eligible: false, reason: 'conventionOff' });
 
 if (diffs.length > 0) {
   console.error(`XER open LOE targetspan RED: ${diffs.length}/${checks} checks rood`);

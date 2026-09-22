@@ -6,7 +6,7 @@ import { scanXerGroundTruth } from './xerGroundTruth';
 import {
   explainP6CompletedDataDateWindow,
   type P6CompletedWindowReason,
-} from '@/utils/p6CompletedTargetWindow';
+} from '@/engine/scheduler/p6CompletedTargetWindow';
 import type { Task } from '@/types/task';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';

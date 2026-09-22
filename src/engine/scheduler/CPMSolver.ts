@@ -18,7 +18,7 @@ import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   explainP6CompletedDataDateWindow,
   type P6CompletedWindowDecision,
-} from '@/utils/p6CompletedTargetWindow';
+} from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
   explainCompletedXerLoeActualFinishEligibility,
@@ -27,6 +27,7 @@ import {
   type CpmDisplayActualLateDecision,
 } from './p6CompletedRouteTrace';
 import { explainOpenXerLoeTargetSpanEligibility } from './p6OpenLoeTargetSpanTrace';
+import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, MS_PER_DAY, type RelationDeps,
 } from './relationMath';
@@ -170,6 +171,13 @@ export interface CPMOptions {
   /** Geconfigureerde projecteinddatum. Alleen actief wanneer de brongebonden
    *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. */
   projectEndDate?: string;
+  /** TIJDELIJK — testhaak van rekenprofielen baan B. Default (afwezig/true): de oude
+   *  bronmarkering in `schedulingOptions` zet de vijf groep-B-conventies aan zolang ze niet
+   *  expliciet gezet zijn (`conventions/legacyP6Source.ts`), zodat het gedrag identiek blijft
+   *  tot de XER-lezer ze zelf zet. `false` schakelt die vertaling uit; daarmee bewijst
+   *  `check-conventions-p6-flags.ts` dat de motor de bronmarkering zelf nergens meer leest.
+   *  Verdwijnt samen met de vertaling. */
+  legacyP6SourceTranslation?: boolean;
 }
 
 /**
@@ -386,16 +394,21 @@ export class CPMSolver {
         dropped.push(seq.id);
       }
     }
-    // X12: relationele P6/XER-ankers vormen één brongepoorte grens. RelationMath en alle solver-
-    // paden zien uitsluitend deze effectieve relaties; een LOSSE relatievlag zonder projectniveau-
-    // `p6Source` kan daarmee geen P6-gedrag activeren. Wat deze poort NIET is (eindreview
-    // bevinding 4): een bescherming tegen een vervalst projectbestand — `p6Source` round-tript
-    // bewust door het `OPS_SchedulingOptions`-pset van het IFC (een uit XER geïmporteerd project moet
-    // na opslaan/heropenen dezelfde P6-opties dragen), dus de IFC-lezer is náást de XER-lezer een
-    // legitieme schrijver. Die lezer valideert sleutels en typen (`sanitizeSchedulingOptions`),
-    // meer niet; wie een IFC met `p6Source: 'XER'` opent, kiest daarmee voor P6-semantiek.
-    const p6SourceActive = options.schedulingOptions?.p6Source === 'XER';
-    this.sequences = p6SourceActive
+    // Conventie B1 `p6RelationFinishBoundary` (rekenprofielen baan B; vroeger gepoort op de
+    // bronmarkering van het project). RelationMath en alle solverpaden zien uitsluitend deze
+    // effectieve relaties: staat de conventie niet aan, dan wordt de relatievlag
+    // `p6StartAtPredecessorFinishBoundary` gestript, zodat een LOSSE relatievlag geen P6-gedrag kan
+    // activeren. Dit is geen bescherming tegen een vervalst projectbestand: de vlag round-tript
+    // bewust door het `OPS_SchedulingOptions`-pset, dus wie een IFC met de conventie aan opent,
+    // kiest daarmee voor die P6-semantiek.
+    const schedulingOptions = resolveLegacyP6SourceConventions(
+      options.schedulingOptions,
+      options.legacyP6SourceTranslation !== false,
+    );
+    options = schedulingOptions === options.schedulingOptions
+      ? options
+      : { ...options, schedulingOptions };
+    this.sequences = schedulingOptions?.p6RelationFinishBoundary === true
       ? kept
       : kept.map(sequence => sequence.p6StartAtPredecessorFinishBoundary === true
         ? { ...sequence, p6StartAtPredecessorFinishBoundary: undefined }
@@ -461,10 +474,6 @@ export class CPMSolver {
     );
   }
 
-  private p6XerOption(value: boolean | undefined): boolean {
-    return this.options.schedulingOptions?.p6Source === 'XER' && value === true;
-  }
-
   private p6CompletedDataDateWindowDecision(task: Task): P6CompletedWindowDecision {
     return explainP6CompletedDataDateWindow(task, this.dataDate, this.options.schedulingOptions);
   }
@@ -479,7 +488,7 @@ export class CPMSolver {
       lateStartSource: 'subDuration',
       freeFloatSource: 'derivedFromSuccessor',
       displayActualLate: false,
-      completedWindow: { eligible: false, reason: 'notXerSource' } as const,
+      completedWindow: { eligible: false, reason: 'conventionOff' } as const,
       backwardActualPin: { eligible: false, reason: 'missingDataDate' } as const,
       displayActualLateDecision: { eligible: false, reason: 'missingDataDate' } as const,
     };
@@ -605,7 +614,7 @@ export class CPMSolver {
   /** P6 bewaart TT_Mile als één enum, maar de geplande TASK-grens maakt het operationele verschil:
    *  start van een band ⇒ volgende werkstart; einde van een band ⇒ voorgangerfinish blijft geldig. */
   private p6ZeroDurationUsesFinishBoundary(task: Task, eng: CalendarEngine): boolean {
-    if (!this.p6XerOption(this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary)
+    if (this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary !== true
       || !eng.isHourMode || !isZeroDurationMilestone(task)) return false;
     const planned = parseInstant(task.time.scheduleStart);
     if (Number.isNaN(planned.getTime())) return false;
@@ -617,7 +626,7 @@ export class CPMSolver {
    *  geïnverteerde geplande venster is het invoersignaal; zonder XER-vlag of op andere taaktypen
    *  blijft de algemene nulduursemantiek ongewijzigd. */
   private p6ZeroDurationActivityUsesBoundaryPair(task: Task, eng: CalendarEngine): boolean {
-    if (!this.p6XerOption(this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary)
+    if (this.options.schedulingOptions?.p6ZeroDurationUsesPlannedBoundary !== true
       || !eng.isHourMode || task.time.scheduleDuration !== 0
       || (task.p6ActivityType !== 'TT_Task' && task.p6ActivityType !== 'TT_Rsrc')) return false;
     const plannedStart = parseInstant(task.time.scheduleStart);
@@ -1067,7 +1076,7 @@ export class CPMSolver {
         // min twee werkdagen = ma 17:00, niet di 08:00. Alleen de XER-resultaatprojectie krijgt
         // deze conventie; duur-aftrek en de generieke kalenderprimitieven blijven fysiek/invers.
         const projectedDayStart = this.dayFirstBandStart(predEng, projected);
-        if (this.options.schedulingOptions?.p6Source === 'XER'
+        if (this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
           && this.isExactBandEnd(predEng, base)
           && projectedDayStart?.getTime() === projected.getTime()) {
           return predEng.prevWorkInstantBefore(projected);
@@ -1193,7 +1202,8 @@ export class CPMSolver {
     this.hammockNoFinishDriverIds = [];
     this.cappedTaskIds = [];
     this.plannedFloorTraceByTaskId = {};
-    this.backwardFloatTrace = this.options.schedulingOptions?.p6Source === 'XER'
+    // Diagnose-trace zonder rekeneffect; volgt conventie B3 als aan-schakelaar.
+    this.backwardFloatTrace = this.options.schedulingOptions?.p6CompletedDataDateWindow === true
       ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
       : undefined;
     this.dataDate = null; // wordt hieronder herzet; zo blijft hij ook over guard-returns heen nooit stale
@@ -1454,7 +1464,7 @@ export class CPMSolver {
         // bereikbaar te zijn. Generieke hammocks en een onvolledige XER-dagkalender sluiten hier
         // fail-closed via NaN; `explainOpenXerLoeTargetSpanEligibility` leest dat alleen nadat alle
         // voorafgaande bron-/provenance-/taakpoorten zijn gepasseerd.
-        const targetWindowWorkMinutes = this.options.schedulingOptions?.p6Source === 'XER'
+        const targetWindowWorkMinutes = this.options.schedulingOptions?.p6OpenLoeTargetSpan === true
           && cal.isHourMode
           ? cal.workMinutesBetween(
               parseInstant(task.time.scheduleStart),
@@ -1697,7 +1707,7 @@ export class CPMSolver {
         // het geplande begin als einde meer dan één kalenderdag ná het netwerkvenster liggen. Dat
         // dubbele criterium voorkomt dat een lang targetvenster of een gewone volgende-bandstart
         // als impliciete constraint wordt behandeld. Relatiedruk die later ligt blijft altijd winnen.
-        if (this.p6XerOption(this.options.schedulingOptions?.p6UseTaskPlannedStartFloor)) {
+        if (this.options.schedulingOptions?.p6UseTaskPlannedStartFloor === true) {
           const plannedFloor = this.ownAnchor(cal, task.time.scheduleStart, task);
           const networkFinish = this.finishFromStart(cal, earlyStart, task);
           const plannedFinish = this.parseIn(cal, task.time.scheduleFinish);
@@ -1708,8 +1718,7 @@ export class CPMSolver {
             : plannedFloor.getTime() - earlyStart.getTime() > MS_PER_DAY
               && plannedFinish.getTime() - networkFinish.getTime() > MS_PER_DAY;
           if (
-            this.options.schedulingOptions?.p6Source === 'XER'
-            && task.p6ActivityType !== undefined
+            task.p6ActivityType !== undefined
             && task.p6ExplicitTargetWindow === true
             && !Number.isNaN(plannedFloor.getTime())
             && !Number.isNaN(plannedFinish.getTime())
@@ -1876,7 +1885,7 @@ export class CPMSolver {
           // zaterdag → maandag). Zie die functie se docblock voor de twee tegenstrijdige
           // corpusmetingen die dit reconcilieert.
           const preserveP6ActualInstants = task.p6ProjectId !== undefined
-            && this.p6XerOption(this.options.schedulingOptions?.p6PreserveActualInstants);
+            && this.options.schedulingOptions?.p6PreserveActualInstants === true;
           const actualStart = this.parseIn(progressCal, t.actualStart ?? t.actualFinish);
           let es = preserveP6ActualInstants
             ? actualStart
@@ -1939,7 +1948,7 @@ export class CPMSolver {
           // kreeg zo een ANDER antwoord al naargelang completion toevallig <1 of ===1 stond.
           const actualES = t.actualStart
             ? task.p6ProjectId !== undefined
-                && this.p6XerOption(this.options.schedulingOptions?.p6PreserveActualInstants)
+                && this.options.schedulingOptions?.p6PreserveActualInstants === true
               ? this.parseIn(progressCal, t.actualStart)
               : this.snapActualForward(progressCal, this.parseIn(progressCal, t.actualStart))
             : earlyStart;
@@ -2343,9 +2352,8 @@ export class CPMSolver {
           // opgebouwd (statusdatum, relatiegrens en eventueel gevalideerde suspend/resume); er
           // wordt geen P6 early/late-uitvoer gelezen. Andere formaten houden hun bestaande
           // actual-startweergave doordat alleen het XER-pad deze vlag zet.
-          const displayedEarlyStart = this.p6XerOption(
-            this.options.schedulingOptions?.p6UseRemainingStartForProgress,
-          )
+          const displayedEarlyStart =
+            this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
             ? remStart
             : actualES;
           results.set(taskId, { es: displayedEarlyStart, ef });
@@ -2418,7 +2426,7 @@ export class CPMSolver {
       // XER/P6-grensvenster voor de zeldzame TT_FinMile-vorm waarin scheduleStart de eerste
       // bandstart en scheduleFinish het vorige bandeinde draagt. Alleen toepassen zolang de
       // netwerkuitkomst exact op dat geplande startanker staat; latere relatiedruk wint gewoon.
-      if (this.p6XerOption(this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow)
+      if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
         const plannedStart = this.parseIn(cal, task.time.scheduleStart);
         const plannedFinish = this.parseIn(cal, task.time.scheduleFinish);
@@ -2784,9 +2792,8 @@ export class CPMSolver {
   private backwardBoundOf(task: Task, c: TaskConstraint | undefined, eng: CalendarEngine): Date | null {
     const d = this.constraintInstant(c, eng);
     if (!c || !d) return null;
-    const preserveMilestoneInstant = this.p6XerOption(
-      this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants,
-    )
+    const preserveMilestoneInstant =
+      this.options.schedulingOptions?.p6PreserveZeroDurationConstraintInstants === true
       && isZeroDurationMilestone(task) && eng.isHourMode && c.date?.includes('T');
     const dW = preserveMilestoneInstant ? d : this.snapOnOrBefore(eng, d);
     if (c.type === 'FNLT' || c.type === 'MFO') return dW;
@@ -3211,9 +3218,9 @@ export class CPMSolver {
         }
         const ed = earlyDates.get(taskId)!;
         this.recordBackwardFloatTrace(taskId, {
-          lateStartSource: this.p6XerOption(
-            this.options.schedulingOptions?.p6UseRemainingStartForProgress,
-          ) ? 'subRemainingDuration' : 'subDuration',
+          lateStartSource: this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
+            ? 'subRemainingDuration'
+            : 'subDuration',
         });
         results.set(taskId, { ls: new Date(ed.es.getTime()), lf: new Date(ed.ef.getTime()) });
         continue;
@@ -3277,7 +3284,7 @@ export class CPMSolver {
       // dat projecteinde juist de late-passgrens (Terminal-fixture). De voorgangerpoort houdt een
       // volledig geïsoleerde finishmijlpaal buiten deze regel. Alleen de bestaande XER-vlag kan de
       // tak activeren; alle andere formaten blijven byte-identiek.
-      if (this.p6XerOption(this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow)
+      if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && this.options.schedulingOptions?.useProjectEndDateForFloat !== true
         && succs.length === 0
         && (this.predecessors.get(taskId)?.length ?? 0) > 0
@@ -3363,9 +3370,7 @@ export class CPMSolver {
         lateFinish = predCal.prevWorkInstant(lateFinish);
       }
 
-      const useP6RemainingProgress = this.p6XerOption(
-        this.options.schedulingOptions?.p6UseRemainingStartForProgress,
-      )
+      const useP6RemainingProgress = this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
         && task.time.actualStart !== undefined && task.time.completion > 0 && task.time.completion < 1;
       const computedLateStart = useP6RemainingProgress
         ? this.subRemainingDuration(predCal, lateFinish, task)
@@ -3373,10 +3378,10 @@ export class CPMSolver {
       // Bij P6-voortgang is een geregistreerde actual start ook de getoonde LS; LF blijft uit het
       // resterende netwerk volgen. Zonder bronvlag blijft de berekende late start leidend.
       let lateStart = preserveActualDates && task.time.actualStart && task.time.completion < 1
-          && !this.p6XerOption(this.options.schedulingOptions?.p6UseRemainingStartForProgress)
+          && this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true
         ? new Date(earlyDates.get(taskId)!.es.getTime())
         : computedLateStart;
-      if (this.p6XerOption(this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow)
+      if (this.options.schedulingOptions?.p6FinishMilestoneBoundaryWindow === true
         && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
         const plannedStart = this.parseIn(predCal, task.time.scheduleStart);
         const plannedFinish = this.parseIn(predCal, task.time.scheduleFinish);

@@ -8,8 +8,12 @@ export type ProgressMode = 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
  * een ander schema geven (§7). De solver leest ze via `CPMOptions.schedulingOptions`.
  */
 export interface SchedulingOptions {
-  /** Expliciete provenance voor P6-XER-projectieregels. Alleen de XER-reader zet deze waarde;
-   *  IFC bewaart haar uitsluitend om een XER-import semantisch gelijk te round-trippen. */
+  /** Herkomstmarkering van een XER-import. Alleen de XER-reader zet deze waarde; IFC bewaart
+   *  haar om een XER-import semantisch gelijk te round-trippen. Sinds rekenprofielen baan B leest
+   *  de motor (`src/engine/`) haar NIET meer voor rekengedrag: elke P6-conventie is een eigen vlag
+   *  hieronder. Enige uitzondering, TIJDELIJK: `engine/scheduler/conventions/legacyP6Source.ts`
+   *  vertaalt `'XER'` naar de vijf groep-B-conventies (`p6RelationFinishBoundary` t/m
+   *  `p6OpenLoeTargetSpan`) zolang die niet expliciet gezet zijn, tot de XER-lezer ze zelf zet. */
   p6Source?: 'XER';
   /** Kalender voor relatie-lag (P6 4-way, Rapport B §7.1). Default 'predecessor' ⇒ byte-identiek
    *  met de oude vaste voorgangerskalender. LET OP (XER-etappe X5, eindreview bevinding 5): tot
@@ -44,26 +48,38 @@ export interface SchedulingOptions {
   clampNegativeFreeFloat?: boolean;
   /** P6/XER gebruikt voor een nulduurmijlpaal de in TASK geplande kalendergrens: een geplande
    *  dagstart blijft startmijlpaal, een gepland bandeinde mag op de voorgangerfinish landen.
-   *  Afwezig/false houdt de algemene/MSP-conventie byte-identiek. */
+   *  Afwezig/false houdt de algemene/MSP-conventie byte-identiek.
+   *  A15 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  P6 aan / MS Project uit / OPS uit. */
   p6ZeroDurationUsesPlannedBoundary?: boolean;
   /** XER TASK.target_start_date kan bij P6 naast het netwerk een geplande vloer vertegenwoordigen,
    *  maar alleen wanneer start én finish meer dan één kalenderdag later liggen dan de berekende
    *  netwerkgrens. Een gewone volgende-bandstart is geen vrije planning en activeert deze regel
-   *  niet. Alleen XER zet de vlag; andere bronnen houden de generieke netwerksemantiek. */
+   *  niet. Alleen XER zet de vlag; andere bronnen houden de generieke netwerksemantiek.
+   *  A16 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  P6 aan / MS Project uit / OPS uit. */
   p6UseTaskPlannedStartFloor?: boolean;
   /** P6 kan een TT_FinMile als twee aangrenzende kalendergrenzen opslaan (ES op bandstart,
-   *  EF op het vorige bandeinde). Alleen XER activeert deze representatie. */
+   *  EF op het vorige bandeinde). Alleen XER activeert deze representatie.
+   *  A17 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  P6 aan / MS Project uit / OPS uit. */
   p6FinishMilestoneBoundaryWindow?: boolean;
   /** XER/P6: geregistreerde actual start/finish zijn broninstants en worden niet naar een
-   *  kalenderband genormaliseerd. Default afwezig houdt de bestaande formaatsemantiek. */
+   *  kalenderband genormaliseerd. Default afwezig houdt de bestaande formaatsemantiek.
+   *  A18 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  P6 aan / MS Project uit / OPS uit. */
   p6PreserveActualInstants?: boolean;
   /** XER/P6 bewaart Actual Start als historie, maar de zesassige Early/Late Start van een lopende
    *  activiteit beschrijft de start van het resterende werk (`max(statusdatum, relatiegrens)`).
    *  Alleen het XER-importpad zet deze bronvlag; andere formaten blijven hun bestaande zichtbare
-   *  actual-startvenster gebruiken. */
+   *  actual-startvenster gebruiken.
+   *  A19 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  P6 aan / MS Project uit / OPS uit. */
   p6UseRemainingStartForProgress?: boolean;
   /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
-   *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit. */
+   *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit.
+   *  A20 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  P6 aan / MS Project uit / OPS uit. */
   p6PreserveZeroDurationConstraintInstants?: boolean;
   /** XER/P6: gebruik PROJECT.plan_end_date als late-pass-anker wanneer
    *  SCHEDOPTIONS.sched_use_project_end_date_for_float=Y. De datum zelf blijft project.endDate;
@@ -115,8 +131,9 @@ export interface SchedulingOptions {
    *  haar eigen voorgangers zoals elke andere taak. Default afwezig/false ⇒ de bestaande
    *  actual-venster-pin blijft behouden, byte-identiek voor IFC/MSPDI/MPP en voor elke XER die
    *  vóór deze vlag is ingelezen en als IFC is opgeslagen. Uitsluitend gezet door `xerReader`
-   *  (`xerScheduleOptions.ts`), en alleen effectief onder `p6Source === 'XER'`
-   *  (`CPMSolver.p6XerOption`) — exact het `p6FinishMilestoneBoundaryWindow`-stramien.
+   *  (`xerScheduleOptions.ts`). Sinds rekenprofielen baan B is de vlag zelf de conventie (geen
+   *  bronpoort meer); hij werkt alleen samen met `p6CompletedDataDateWindow` (B3), want de regel
+   *  meet tegen dat statusdatumvenster.
    *
    *  BEWIJSBASIS (review-bevinding 6, eerlijk afgebakend): de regel is gemeten op precies ÉÉN
    *  corpusbestand. Over het hele XER-corpus komen 2.042 voltooide taken door de venster-poort;
@@ -143,6 +160,41 @@ export interface SchedulingOptions {
    *  poort dicht op `wrongDurationType`/`missingExplicitTargetWindow`; dat is een toevallige
    *  nauwte, geen semantische verzoening. Zie plan §5 X-O7 laag 1. */
   p6CompletedLateFromRemainingWindow?: boolean;
+
+  // ── Groep B (rekenprofielen baan B, spec 2026-09-22 bijlage A) ─────────────────────────────
+  // Vijf P6-conventies die tot baan B alleen achter de XER-bronmarkering (`p6Source`) stonden.
+  // Elk: P6 aan / MS Project uit / OPS uit. Default afwezig = uit. TIJDELIJK zet
+  // `conventions/legacyP6Source.ts` ze aan voor een project met `p6Source: 'XER'` dat ze niet
+  // expliciet zet — zo blijft het gedrag identiek tot de XER-lezer ze via het profiel zet.
+
+  /** B1 — FS-nul-lag op een gedeelde bandgrens: een relatie met
+   *  `Sequence.p6StartAtPredecessorFinishBoundary` laat de opvolger op de finishgrens van de
+   *  voorganger starten (forward) en spiegelt dat backward (`relationMath`, `CPMSolver`'s
+   *  `snapSuccessorEarlyStart` via `preserveP6FinishBoundary`). Staat de conventie uit, dan stript
+   *  de `CPMSolver`-constructor die relatievlag en heeft ze geen enkel effect.
+   *  P6 aan / MS Project uit / OPS uit. */
+  p6RelationFinishBoundary?: boolean;
+  /** B2 — backward WORKTIME-lag vanaf een exacte bandeinde-grens die precies op een bandstart
+   *  landt, geeft de complementaire vorige finishgrens terug (wo 17:00 − 2 werkdagen = ma 17:00,
+   *  niet di 08:00; `CPMSolver.shiftLagPred`). Alleen uurmodus, alleen de aftrek met positieve lag.
+   *  P6 aan / MS Project uit / OPS uit. */
+  p6BackwardLagFinishBoundary?: boolean;
+  /** B3 — een voltooide XER-bladactiviteit (nauwe provenance-poort in
+   *  `explainP6CompletedDataDateWindow`) krijgt ES/EF als statusdatumvenster, dat venster telt mee
+   *  voor het projecteinde (`CPMSolver.backwardPass`) en de float-weergave (`scheduleAnalysis`).
+   *  Schakelt ook de diagnose-trace `backwardFloatTrace` in. Werkt alleen samen met
+   *  `p6UseRemainingStartForProgress`. P6 aan / MS Project uit / OPS uit. */
+  p6CompletedDataDateWindow?: boolean;
+  /** B4 — een voltooide LOE met alleen SS-ingang en zonder opvolger volgt de actual-finish-route
+   *  i.p.v. de hammockroute (`explainCompletedXerLoeActualFinishEligibility`, `CPMSolver`'s
+   *  forward pass). Werkt alleen samen met `p6UseRemainingStartForProgress`,
+   *  `preserveActualDatesInBackwardPass` en `p6PreserveActualInstants`.
+   *  P6 aan / MS Project uit / OPS uit. */
+  p6CompletedLoeActualFinish?: boolean;
+  /** B5 — een niet-gestarte LOE met volledig targetvenster, alleen nul-lag SS-ingang en nul-lag
+   *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibility`,
+   *  `CPMSolver`'s hammocktak). P6 aan / MS Project uit / OPS uit. */
+  p6OpenLoeTargetSpan?: boolean;
 }
 
 export interface Project {

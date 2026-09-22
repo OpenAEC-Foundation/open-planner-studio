@@ -2,7 +2,7 @@ import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProjec
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
-import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
@@ -216,6 +216,18 @@ const rejectionCases: Array<{
     },
     want: { eligible: false, reason: 'hasSuspendResume' },
   },
+  // Rekenprofielen baan B: de poort is conventie B3 `p6CompletedDataDateWindow`. Twee armen:
+  // expliciet uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
+  {
+    label: 'conventie B3 expliciet uit',
+    mutate: imported => {
+      imported.project.schedulingOptions = {
+        ...imported.project.schedulingOptions,
+        p6CompletedDataDateWindow: false,
+      };
+    },
+    want: { eligible: false, reason: 'conventionOff' },
+  },
   {
     label: 'niet-XER',
     mutate: imported => {
@@ -224,7 +236,7 @@ const rejectionCases: Array<{
         p6Source: undefined,
       };
     },
-    want: { eligible: false, reason: 'notXerSource' },
+    want: { eligible: false, reason: 'conventionOff' },
   },
   {
     label: 'completion kleiner dan 1',

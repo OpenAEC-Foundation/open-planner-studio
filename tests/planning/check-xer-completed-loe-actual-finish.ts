@@ -175,7 +175,10 @@ const rejections: Array<{
   schedule?: typeof hammockAtDataDate;
   skipSolver?: true;
 }> = [
-  { label: 'andere bron', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6Source: undefined }; }, reason: 'notXerSource' },
+  // Rekenprofielen baan B: de poort is conventie B4 `p6CompletedLoeActualFinish`. Twee armen:
+  // expliciet uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
+  { label: 'conventie B4 expliciet uit', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6CompletedLoeActualFinish: false }; }, reason: 'conventionOff' },
+  { label: 'andere bron', mutate: imported => { imported.project.schedulingOptions = { ...imported.project.schedulingOptions, p6Source: undefined }; }, reason: 'conventionOff' },
   { label: 'ontbrekende projectprovenance', mutate: (_imported, loe) => { loe.p6ProjectId = undefined; }, reason: 'missingProjectProvenance' },
   { label: 'lege projectprovenance', mutate: (_imported, loe) => { loe.p6ProjectId = ''; }, reason: 'missingProjectProvenance' },
   { label: 'ontbrekende taakprovenance', mutate: (_imported, loe) => { loe.p6TaskId = undefined; }, reason: 'missingTaskProvenance' },

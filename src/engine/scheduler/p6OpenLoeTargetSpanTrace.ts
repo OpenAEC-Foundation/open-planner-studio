@@ -2,10 +2,11 @@ import type { SchedulingOptions } from '@/types/project';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
+import { resolveLegacyP6SourceConventions } from './conventions/legacyP6Source';
 
 export type OpenXerLoeTargetSpanReason =
   | 'eligible'
-  | 'notXerSource'
+  | 'conventionOff'
   | 'missingProjectProvenance'
   | 'missingTaskProvenance'
   | 'wrongActivityType'
@@ -57,7 +58,11 @@ export function explainOpenXerLoeTargetSpanEligibility(
   targetWindowWorkMinutes: number,
   targetWindowToleranceMinutes: number,
 ): OpenXerLoeTargetSpanDecision {
-  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  // Conventie B5 `p6OpenLoeTargetSpan` (TIJDELIJK via de idempotente bronvertaling voor directe
+  // aanroepers) — exact op de plek van de vroegere bron-check.
+  if (resolveLegacyP6SourceConventions(schedulingOptions)?.p6OpenLoeTargetSpan !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
   if (task.p6ProjectId === undefined || task.p6ProjectId === '') {
     return { eligible: false, reason: 'missingProjectProvenance' };
   }

@@ -46,7 +46,7 @@ import { readXER } from '@/services/xer/xerReader';
 import { activeImportResult, isMultiDocumentImport } from '@/services/importTypes';
 import type { SchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
-import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import { explainP6CompletedLateRemainingWindowEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));

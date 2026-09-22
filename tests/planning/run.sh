@@ -428,6 +428,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   XEROPENLOETARGETSPANCHECK="$DIR/.xer-open-loe-target-span.mjs"
   if bundle_check "$DIR/check-xer-open-loe-target-span.ts" "$XEROPENLOETARGETSPANCHECK"; then node "$XEROPENLOETARGETSPANCHECK" || STATUS=1; fi
 
+  # Rekenprofielen baan B: de vijf groep-B-conventies (B1–B5) zijn eigen vlaggen; per vlag een
+  # aan/uit-fixture, en met de tijdelijke bronvertaling uit is `p6Source` in de motor inert.
+  CONVENTIONSP6FLAGSCHECK="$DIR/.conventions-p6-flags.mjs"
+  if bundle_check "$DIR/check-conventions-p6-flags.ts" "$CONVENTIONSP6FLAGSCHECK"; then node "$CONVENTIONSP6FLAGSCHECK" || STATUS=1; fi
+
   # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
   XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
   if bundle_check "$DIR/check-xer-x7-hour-mode.ts" "$XERX7HOURMODECHECK"; then node "$XERX7HOURMODECHECK" || STATUS=1; fi
