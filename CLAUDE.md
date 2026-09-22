@@ -171,8 +171,8 @@ naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door `write
 gelezen. Eigen profielen zijn app-globale
 sjablonen (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt
 zijn eigen kopie. UI: het blok *Rekenprofiel en reken-opties* in Projectinfo
-(`SchedulingProfileSection.tsx` (vanaf D4), bewerkmodel `state/schedulingProfileDraft.ts`, actie
-`applySchedulingSettings` (vanaf D3)). **Regel A/B voor motorwerk:** een wijziging landt alleen als onder elk
+(`SchedulingProfileSection.tsx`, bewerkmodel `state/schedulingProfileDraft.ts`, actie
+`applySchedulingSettings`). **Regel A/B voor motorwerk:** een wijziging landt alleen als onder elk
 profiel met orakel geen exacte cel inexact wordt (`npm run measure:profiles`, cel-baseline); verschilt
 iets per profiel, dan is het een conventie in het register — nooit een `if` op het formaat.
 `npm run verify:conventions` bewaakt dat mechanisch. Recept: `docs/recepten/conventie.md`; gids:
