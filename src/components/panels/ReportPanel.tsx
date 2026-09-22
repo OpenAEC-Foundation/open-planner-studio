@@ -244,7 +244,7 @@ export function ReportPanel() {
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   const recordedDatesNote = datesAsRecorded ? (
     <div
-      className="mb-2 shrink-0 rounded-[6px] border border-border bg-surface px-3 py-2 text-body leading-4 text-text-secondary"
+      className="mb-2 shrink-0 rounded-[6px] border border-border bg-surface px-3 py-2 text-small leading-4 text-text-secondary"
       data-report-recorded-dates-note
     >
       {t('tableReports.recordedDatesNote')}

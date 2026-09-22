@@ -9,7 +9,7 @@ import {
 } from '@/services/xerSourceArchive';
 import type { XerImportMetadata } from '@/services/importTypes';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
-import { xerExportTargetVerdict } from '@/services/xerExportLoss';
+import { detectXerExportLoss, xerExportTargetVerdict } from '@/services/xerExportLoss';
 import { parseXerTables } from '@/services/xer/xerTables';
 import type {
   XerAssignmentCostsSource,
@@ -171,6 +171,28 @@ store().assignResource(capTask, capResource, 0.5, 'BELL');
 const activeBaselineId = store().saveBaseline('Actief');
 store().setProject({ schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: 2 } } });
 installXer(makeXerFixture());
+
+// Voortgangsbladen zijn werkbladen, geen projectexport (critreview merge 2026-09-22): op ditzelfde
+// XER-gebonden document met echte inhoud mag geen enkele verliescategorie ontstaan. Rechtstreeks via
+// `detectXerExportLoss` (dezelfde invoer als `fileSlice.exportAs` opbouwt), want de voortgangsexport
+// zelf laadt `@/i18n/config` dynamisch en dat heeft headless geen `document`. MUTATIEBEWIJS: haal de
+// `isProgressSheetFormat`-guard uit `detectXerExportLoss` ⇒ 'exact-source-bytes' en
+// 'p6-relation-lag-degradation' verschijnen en deze twee regels slaan rood.
+{
+  const s = store();
+  const lossInput = {
+    sourceArchive: s.xerSourceArchive, importMetadata: s.xerImportMetadata, project: s.project,
+    tasks: s.tasks, sequences: s.sequences, assignments: s.assignments,
+    activityCodeTypes: s.activityCodeTypes, customFieldDefs: s.customFieldDefs,
+    baselines: s.baselines, activeBaselineId: s.activeBaselineId,
+  };
+  expect('mspdi op ditzelfde document geeft wél een categorie (anker voor het mutatiebewijs)',
+    detectXerExportLoss('mspdi', lossInput).length === 1);
+  for (const format of ['progress-csv', 'progress-xlsx'] as const) {
+    expect(`${format}: een voortgangsblad krijgt nooit een XER-verliesmelding`,
+      detectXerExportLoss(format, lossInput).length === 0);
+  }
+}
 
 const capMspdi = await store().exportAs('mspdi');
 const capMspdiXml = captures.at(-1) ?? '';
