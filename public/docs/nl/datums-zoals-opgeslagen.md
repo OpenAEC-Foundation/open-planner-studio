@@ -107,12 +107,17 @@ alleen vanzelf aan zolang je het project sinds de import **niet hebt bewerkt** �
 bestand de oorspronkelijke datums nog draagt (zie *Wat een opgeslagen project nog weet van het
 bronbestand* hierboven: bij alles behalve `.xer` alleen als je in deze weergave hebt opgeslagen).
 Herberekenen met **F5** en opslaan tellen daarbij niet als bewerking; een taak wijzigen, een relatie
-toevoegen of een kalender aanpassen wel. Heb je een `.xer`-project bewerkt, dan wordt de weergave bij
-het heropenen alleen nog aangeboden — je klikt dan zelf — zodat een planning die je intussen hebt veranderd nooit ongevraagd
-weer met de oude datums uit het bronbestand op het scherm komt. De app onthoudt dat "ongewijzigd
-sinds import" in het projectbestand zelf. Bij de andere formaten valt er na een bewerking niets
-meer aan te bieden: een bewerking verlaat de weergave, dus wat je daarna opslaat zijn herberekende
-datums.
+toevoegen of een kalender aanpassen wel. Heb je bewerkt, dan wordt de weergave bij het heropenen
+alleen nog aangeboden — je klikt dan zelf — zodat een planning die je intussen hebt veranderd nooit
+ongevraagd weer met de oude datums uit het bronbestand op het scherm komt. De app onthoudt dat
+"ongewijzigd sinds import" in het projectbestand zelf.
+
+Bij een `.xer`-project kan dat aanbod altijd, dankzij de kopie van het bronbestand. Bij de andere
+formaten hangt het ervan af of de weergave nog aanstond toen je opsloeg. Een bewerking die datums
+raakt (een duur, een relatie, een kalender) verlaat de weergave, dus wat je daarna opslaat zijn
+herberekende datums en valt er bij het heropenen niets meer aan te bieden. Een bewerking die geen
+datums raakt, zoals de projectomschrijving wijzigen, laat de weergave aan; sla je dan op, dan blijven
+de oorspronkelijke datums in het bestand en krijg je ze bij het heropenen wél aangeboden.
 
 De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
 datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het

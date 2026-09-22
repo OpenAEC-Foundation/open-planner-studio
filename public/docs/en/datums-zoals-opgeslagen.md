@@ -103,11 +103,16 @@ as long as you have **not edited** the project since the import — and as long 
 carries the original dates (see *What a saved project still knows about the source file* above: for
 everything except `.xer`, only if you saved while this view was on). Recalculating with **F5** and
 saving do not count as editing; changing a task, adding a relationship or adjusting a calendar do.
-Once you have edited a `.xer` project, reopening only offers the view — you click yourself — so that a schedule you
+Once you have edited, reopening only offers the view — you click yourself — so that a schedule you
 have changed in the meantime never comes back on screen with the old dates from the source file
-unasked. The app remembers "unchanged since import" inside the project file itself. For the other formats
-there is nothing left to offer after an edit: editing leaves the view, so what you save afterwards
-are recalculated dates.
+unasked. The app remembers "unchanged since import" inside the project file itself.
+
+For a `.xer` project that offer is always possible, thanks to the copy of the source file. For the
+other formats it depends on whether the view was still on when you saved. An edit that affects dates (a duration,
+a relationship, a calendar) leaves the view, so what you save afterwards are recalculated dates and
+reopening has nothing left to offer. An edit that does not affect dates, such as changing the project
+description, keeps the view on; save then, and the original dates stay in the file and reopening
+does offer them.
 
 Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
 with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
