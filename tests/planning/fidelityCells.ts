@@ -56,10 +56,18 @@ export const CELL_ID_PATTERN = /^[0-9A-Za-z_.-]{1,64}\/[0-9A-Za-z_.-]{1,64}$/;
 export type CellFiles = Record<string, Record<string, Record<string, CellBucket>>>;
 export interface CellBaseline {
   version: typeof CELL_BASELINE_VERSION;
+  /** SHA-256 van `xer-corpus-manifest.json` waarbij deze cellen horen (corpusgroei-route). */
+  manifestSha256: string;
   axes: string[];
   buckets: CellBucket[];
+  /** Per entry een SHA-256 over de orakel-`driving_path_flag`-waarden (die zit niet in de
+   *  `schemaFingerprint` van v2): een orakel dat naar onze waarde toe schuift is zo zichtbaar. */
+  drivingPathOracle: Record<string, string>;
   files: CellFiles;
 }
+/** Metagegevens die de meetlat naast de cellen levert. */
+export interface CellMeta { manifestSha256: string; drivingPathOracle: ReadonlyMap<string, string> }
+export const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
 export interface CellRef { file: string; axis: string; id: string; was?: CellBucket; now?: CellBucket }
 
@@ -97,7 +105,15 @@ function canonicalAxes(axes: Record<string, Record<string, CellBucket>>): Record
 }
 
 /** Bouwt een (gesorteerde) baseline uit per-bestand-metingen. Dubbele cel ⇒ fout (identiteitslek). */
-export function buildCellBaseline(measured: ReadonlyMap<string, readonly MeasuredCell[]>): CellBaseline {
+export function buildCellBaseline(measured: ReadonlyMap<string, readonly MeasuredCell[]>, meta: CellMeta): CellBaseline {
+  if (!SHA256_PATTERN.test(meta.manifestSha256)) throw new Error('manifestSha256 is geen sha256');
+  const drivingPathOracle: Record<string, string> = {};
+  for (const key of [...measured.keys()].sort(codeUnitCompare)) {
+    const oracle = meta.drivingPathOracle.get(key);
+    if (oracle === undefined || !SHA256_PATTERN.test(oracle)) throw new Error(`drivingPath-orakelhash ontbreekt voor ${key.slice(0, 12)}`);
+    drivingPathOracle[key] = oracle;
+  }
+  if ([...meta.drivingPathOracle.keys()].some(key => !measured.has(key))) throw new Error('drivingPath-orakelhash voor een niet-gemeten entry');
   const files: CellFiles = {};
   for (const key of [...measured.keys()].sort(codeUnitCompare)) {
     if (!CELL_KEY_PATTERN.test(key)) throw new Error(`bestandssleutel ${key.slice(0, 80)} is geen sha256`);
@@ -112,7 +128,10 @@ export function buildCellBaseline(measured: ReadonlyMap<string, readonly Measure
     }
     files[key] = canonicalAxes(axes);
   }
-  return { version: CELL_BASELINE_VERSION, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS], files };
+  return {
+    version: CELL_BASELINE_VERSION, manifestSha256: meta.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
+    drivingPathOracle, files,
+  };
 }
 
 /**
@@ -122,8 +141,9 @@ export function buildCellBaseline(measured: ReadonlyMap<string, readonly Measure
  */
 export function tryBuildCellBaseline(
   measured: ReadonlyMap<string, readonly MeasuredCell[]>,
+  meta: CellMeta,
 ): { baseline: CellBaseline; error?: undefined } | { baseline?: undefined; error: string } {
-  try { return { baseline: buildCellBaseline(measured) }; } catch (error) {
+  try { return { baseline: buildCellBaseline(measured, meta) }; } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -132,8 +152,11 @@ export function tryBuildCellBaseline(
 export function serializeCellBaseline(baseline: CellBaseline): string {
   const files: CellFiles = {};
   for (const key of sortedKeys(baseline.files)) files[key] = canonicalAxes(baseline.files[key]!);
+  const drivingPathOracle: Record<string, string> = {};
+  for (const key of sortedKeys(baseline.drivingPathOracle)) drivingPathOracle[key] = baseline.drivingPathOracle[key]!;
   return `${JSON.stringify({
-    version: baseline.version, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS], files,
+    version: baseline.version, manifestSha256: baseline.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
+    drivingPathOracle, files,
   }, null, 2)}\n`;
 }
 
@@ -159,8 +182,23 @@ export function parseCellBaseline(raw: string): { baseline?: CellBaseline; probl
   if (!isPlainObject(parsed)) return { problems: ['top-level is geen object'] };
   const problems: string[] = [];
   const top = Object.keys(parsed).join(',');
-  if (top !== 'version,axes,buckets,files') problems.push(`top-level sleutels ${top} ≠ version,axes,buckets,files`);
+  const wantTop = 'version,manifestSha256,axes,buckets,drivingPathOracle,files';
+  if (top !== wantTop) problems.push(`top-level sleutels ${top} ≠ ${wantTop}`);
   if (parsed.version !== CELL_BASELINE_VERSION) problems.push(`version ≠ ${CELL_BASELINE_VERSION}`);
+  if (typeof parsed.manifestSha256 !== 'string' || !SHA256_PATTERN.test(parsed.manifestSha256)) problems.push('manifestSha256 is geen sha256');
+  if (!isPlainObject(parsed.drivingPathOracle)) problems.push('drivingPathOracle is geen object');
+  else {
+    for (const [key, value] of Object.entries(parsed.drivingPathOracle)) {
+      if (!CELL_KEY_PATTERN.test(key) || typeof value !== 'string' || !SHA256_PATTERN.test(value)) {
+        problems.push(`drivingPathOracle ${JSON.stringify(key.slice(0, 80))}: geen sha256-paar`);
+        break;
+      }
+    }
+    if (isPlainObject(parsed.files)
+      && JSON.stringify(Object.keys(parsed.drivingPathOracle).sort(codeUnitCompare)) !== JSON.stringify(Object.keys(parsed.files).sort(codeUnitCompare))) {
+      problems.push('drivingPathOracle dekt niet precies de bestandssleutels');
+    }
+  }
   if (JSON.stringify(parsed.axes) !== JSON.stringify(CELL_AXES)) problems.push(`axes ≠ ${JSON.stringify(CELL_AXES)}`);
   if (JSON.stringify(parsed.buckets) !== JSON.stringify(CELL_BUCKETS)) problems.push(`buckets ≠ ${JSON.stringify(CELL_BUCKETS)}`);
   if (!isPlainObject(parsed.files)) return { problems: [...problems, 'files is geen object'] };
@@ -223,15 +261,48 @@ export function compareCells(baseline: CellBaseline, measured: CellBaseline, mea
   return delta;
 }
 
-/** Rode regels voor de poort; leeg ⇒ regel A gehouden. */
-export function cellGateFailures(delta: CellDelta): string[] {
+/**
+ * Soort rode regel: `hard` blokkeert elke herpin; `fileset` (een entry erbij of eraf, een ander
+ * manifest) is alleen toegestaan in de corpusgroei-modus (`=corpus`), en dan uitsluitend bij een
+ * gewijzigd manifest.
+ */
+export type RedKind = 'hard' | 'fileset';
+export interface RedLine { kind: RedKind; text: string }
+
+/** Rode regels voor de poort, met hun soort; leeg ⇒ regel A gehouden. */
+export function cellGateRedLines(delta: CellDelta): RedLine[] {
+  const hard = (text: string): RedLine => ({ kind: 'hard', text });
+  const fileset = (text: string): RedLine => ({ kind: 'fileset', text });
   return [
-    ...delta.newCells.map(cell => `cel was exact, nu inexact (${cell.now}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`),
-    ...delta.worsenedCells.map(cell => `cel verslechterd ${cell.was}→${cell.now} — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`),
-    ...delta.unmeasurableCells.map(cell => `cel onmeetbaar geworden (was ${cell.was}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`),
-    ...delta.unknownFiles.map(file => `gemeten bestand ontbreekt in de cel-baseline: ${file}`),
-    ...delta.unmeasuredFiles.map(file => `cel-baselinebestand niet gemeten: ${file}`),
+    ...delta.newCells.map(cell => hard(`cel was exact, nu inexact (${cell.now}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`)),
+    ...delta.worsenedCells.map(cell => hard(`cel verslechterd ${cell.was}→${cell.now} — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`)),
+    ...delta.unmeasurableCells.map(cell => hard(`cel onmeetbaar geworden (was ${cell.was}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`)),
+    ...delta.unknownFiles.map(file => fileset(`gemeten bestand ontbreekt in de cel-baseline: ${file}`)),
+    ...delta.unmeasuredFiles.map(file => fileset(`cel-baselinebestand niet gemeten: ${file}`)),
   ];
+}
+
+export function cellGateFailures(delta: CellDelta): string[] {
+  return cellGateRedLines(delta).map(line => line.text);
+}
+
+/**
+ * Orakel- en manifestpinnen van de cel-baseline tegen de meting. Een gewijzigde drivingPath-
+ * orakelhash van een entry die in beide staat is `hard` (het orakel is veranderd, niet het corpus);
+ * een ander manifest is `fileset`.
+ */
+export function cellOracleRedLines(baseline: CellBaseline, measured: CellBaseline): RedLine[] {
+  const lines: RedLine[] = [];
+  if (baseline.manifestSha256 !== measured.manifestSha256) {
+    lines.push({ kind: 'fileset', text: `cel-baseline hoort bij een ander corpusmanifest (${baseline.manifestSha256.slice(0, 12)} ≠ ${measured.manifestSha256.slice(0, 12)})` });
+  }
+  for (const key of sortedKeys(measured.drivingPathOracle)) {
+    const was = hasOwn(baseline.drivingPathOracle, key) ? baseline.drivingPathOracle[key] : undefined;
+    if (was !== undefined && was !== measured.drivingPathOracle[key]) {
+      lines.push({ kind: 'hard', text: `orakel drivingPath gewijzigd t.o.v. de cel-baseline: ${key}` });
+    }
+  }
+  return lines;
 }
 
 /** Per as het aantal inexacte cellen, uitgesplitst per emmer. */
@@ -254,7 +325,8 @@ export function cellTotals(baseline: CellBaseline): Record<string, Record<CellBu
  */
 export function cellWriteModeProblem(mode: string | undefined, baselineExists: boolean): string | undefined {
   if (mode === undefined || mode === '') return undefined;
-  if (mode !== '1' && mode !== 'init') return `OPS_XER_CELLS_WRITE=${mode.slice(0, 20)} onbekend (verwacht 1 of init)`;
+  if (mode !== '1' && mode !== 'init' && mode !== 'corpus') return `OPS_XER_CELLS_WRITE=${mode.slice(0, 20)} onbekend (verwacht 1, corpus of init)`;
+  if (mode === 'corpus' && !baselineExists) return `${CELL_BASELINE_FILE} ontbreekt; =corpus werkt alleen op een bestaand bestand (gebruik init)`;
   if (mode === '1' && !baselineExists) {
     return `${CELL_BASELINE_FILE} ontbreekt; OPS_XER_CELLS_WRITE=1 herpint alleen een bestaand bestand — `
       + 'maak een nieuwe baseline bewust aan met OPS_XER_CELLS_WRITE=init';
@@ -276,7 +348,10 @@ export function planCellRepin(
   measured: CellBaseline,
   measurable: CellMeasurable,
 ): { allowed: true; delta: CellDelta } | { allowed: false; reasons: string[]; delta: CellDelta } {
-  const empty: CellBaseline = { version: CELL_BASELINE_VERSION, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS], files: {} };
+  const empty: CellBaseline = {
+    version: CELL_BASELINE_VERSION, manifestSha256: measured.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
+    drivingPathOracle: {}, files: {},
+  };
   const delta = compareCells(baseline ?? empty, measured, measurable);
   const reasons = [
     ...delta.newCells.map(cell => `nieuwe inexacte cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id}`),

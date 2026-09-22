@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  buildCellBaseline, CELL_AXES, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
+  buildCellBaseline, CELL_AXES, cellOracleRedLines, type CellMeta, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
   parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
 } from './fidelityCells';
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
@@ -31,10 +31,14 @@ function eq(label: string, got: unknown, want: unknown): void {
 
 const F1 = 'a'.repeat(64);
 const F2 = 'b'.repeat(64);
+const MANIFEST = 'c'.repeat(64);
+function metaFor(keys: Iterable<string>, manifestSha256 = MANIFEST, oracle = 'd'): CellMeta {
+  return { manifestSha256, drivingPathOracle: new Map([...keys].map(key => [key, oracle.repeat(64)])) };
+}
 function measure(f1: MeasuredCell[], f2: MeasuredCell[] | null = []): CellBaseline {
   const map = new Map<string, MeasuredCell[]>([[F1, f1]]);
   if (f2) map.set(F2, f2);
-  return buildCellBaseline(map);
+  return buildCellBaseline(map, metaFor(map.keys()));
 }
 const BASE: MeasuredCell[] = [
   { axis: 'es', id: '1/20', bucket: 'sameday' },
@@ -126,9 +130,22 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
 
   // Een dubbele cel binnen één project wordt een foutregel (de check maakt er een XX-regel van),
   // geen exception die als stacktrace de run afbreekt.
-  const duplicate = tryBuildCellBaseline(new Map([[F1, [...BASE, { axis: 'es', id: '1/10', bucket: 'diff' as const }]]]));
+  const duplicate = tryBuildCellBaseline(new Map([[F1, [...BASE, { axis: 'es', id: '1/10', bucket: 'diff' as const }]]]), metaFor([F1]));
   eq('dubbele cel ⇒ nette foutregel', duplicate.error, `dubbele cel ${F1}/es/1/10`);
-  eq('geldige meting ⇒ geen foutregel', tryBuildCellBaseline(new Map([[F1, BASE]])).error, undefined);
+  eq('geldige meting ⇒ geen foutregel', tryBuildCellBaseline(new Map([[F1, BASE]]), metaFor([F1])).error, undefined);
+  eq('ontbrekende drivingPath-orakelhash ⇒ foutregel', tryBuildCellBaseline(new Map([[F1, BASE]]), metaFor([])).error !== undefined, true);
+
+  // Orakel- en manifestpinnen: een orakel dat naar onze waarde toe schuift verandert de
+  // drivingPath-hash van een bestaande entry ⇒ hard rood; een ander manifest ⇒ fileset.
+  const shifted = buildCellBaseline(new Map([[F1, BASE], [F2, []]]), {
+    manifestSha256: MANIFEST, drivingPathOracle: new Map([[F1, 'e'.repeat(64)], [F2, 'd'.repeat(64)]]),
+  });
+  eq('gewijzigde drivingPath-orakelhash ⇒ hard', cellOracleRedLines(baseline, shifted).map(line => line.kind), ['hard']);
+  const otherManifest = buildCellBaseline(new Map([[F1, BASE], [F2, []]]), metaFor([F1, F2], 'f'.repeat(64)));
+  eq('ander manifest ⇒ fileset', cellOracleRedLines(baseline, otherManifest).map(line => line.kind), ['fileset']);
+  eq('ongewijzigd orakel en manifest ⇒ niets', cellOracleRedLines(baseline, measure(BASE)), []);
+  eq('=corpus zonder bestand wordt geweigerd', cellWriteModeProblem('corpus', false) !== undefined, true);
+  eq('=corpus met bestaand bestand mag (manifestcontrole in de check)', cellWriteModeProblem('corpus', true), undefined);
 
   // Schrijfmodus: een ontbrekend bestand vraagt `init`, `=1` herpint alleen een bestaand bestand.
   eq('geen schrijfmodus ⇒ geen probleem', cellWriteModeProblem(undefined, false), undefined);
@@ -171,6 +188,7 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
     const cells = parsed.baseline;
     const counts = v2.payload.files;
     eq(`${CELL_BASELINE_FILE} dekt precies de v2-entries`, Object.keys(cells.files).sort(), Object.keys(counts).sort());
+    eq(`${CELL_BASELINE_FILE} hoort bij hetzelfde corpusmanifest als v2`, cells.manifestSha256, v2.payload.manifestSha256);
     const mismatches: string[] = [];
     let total = 0;
     for (const [key, entry] of Object.entries(counts)) {

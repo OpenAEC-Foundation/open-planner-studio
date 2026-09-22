@@ -32,8 +32,9 @@ import {
   type ProductEntryV2,
 } from './xerProductBaselineV2';
 import {
-  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateFailures, cellTotals, cellWriteModeProblem, compareCells,
-  parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
+  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellOracleRedLines, cellTotals, cellWriteModeProblem,
+  compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
+  type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -327,9 +328,10 @@ function counterfactualReports(
 
 /** Regel A (rekenprofielen-spec §5): per entry-SHA-256 de inexacte cellen (as, `<proj_id>/<task_id>`, emmer). */
 type XerCellSink = Map<string, MeasuredCell[]>;
-/** Per entry-SHA-256 de cellen (`<as>|<proj_id>/<task_id>`) waarvoor het orakel een waarde heeft —
- *  precies de `measurable`-definitie van de tellers (truth ≠ null). Alleen in het geheugen. */
-type XerMeasurableSink = Map<string, Set<string>>;
+/** Per entry-SHA-256: de cellen (`<as>|<proj_id>/<task_id>`) waarvoor het orakel een waarde heeft —
+ *  precies de `measurable`-definitie van de tellers (truth ≠ null), alleen in het geheugen — plus een
+ *  SHA-256 over de orakel-`driving_path_flag`-waarden (die zit niet in de v2-`schemaFingerprint`). */
+type XerMeasurableSink = Map<string, { measurable: Set<string>; drivingPathOracle: string }>;
 
 async function productBaseline(
   corpus: readonly XerCorpusFile[],
@@ -487,12 +489,15 @@ async function productBaseline(
     const fileSha256 = hash(file.bytes);
     if (measurableSink) {
       const measurable = new Set<string>();
+      const drivingLines: string[] = [];
       for (const task of truth.tasks) {
         const id = `${task.projectId}/${task.taskId}`;
         for (const axis of XER_FIDELITY_AXES) if (task.axes[axis] !== null && task.axes[axis] !== undefined) measurable.add(`${axis}|${id}`);
         if (task.drivingPath !== null && task.drivingPath !== undefined) measurable.add(`drivingPath|${id}`);
+        drivingLines.push(`${id}=${task.drivingPath === null || task.drivingPath === undefined ? '-' : task.drivingPath ? 'Y' : 'N'}`);
       }
-      measurableSink.set(fileSha256, measurable);
+      drivingLines.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      measurableSink.set(fileSha256, { measurable, drivingPathOracle: createHash('sha256').update(drivingLines.join('\n')).digest('hex') });
     }
     if (cellSink) {
       // `detail` bevat precies één record per (taak, as) met deviations > 0, met de emmer uit
@@ -2284,77 +2289,90 @@ async function productBaseline(
 }
 
 /**
- * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, of
- * waarvan de emmer verslechtert, is rood. Emmervolgorde (spec §5): exact < sameday < diff < missing;
- * elke stap naar rechts is verslechteren. Zeven poortassen: de zes X12-assen plus `drivingPath`
- * als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Een ontbrekend
- * cellenbestand wordt alleen met `OPS_XER_CELLS_WRITE=init` aangemaakt. Verbeteringen zijn groen en worden als "te herpinnen"
- * gemeld. `OPS_XER_CELLS_WRITE=1` herschrijft de baseline uit de meting, maar alleen zonder één
- * rode cel.
+ * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, waarvan
+ * de emmer verslechtert, of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
+ * sameday < diff < missing; elke stap naar rechts is verslechteren. Zeven poortassen: de zes
+ * X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige
+ * nuldoel-getal). Verbeteringen zijn groen en worden als "te herpinnen" gemeld.
+ *
+ * Elke rode regel krijgt een soort (`RedKind`): `hard` blokkeert iedere herpin; `fileset` (een
+ * entry erbij of eraf, een ander manifest) mag alleen in de corpusgroei-modus `=corpus`, en die
+ * vereist dat het manifest echt veranderd is. De drie bekende nuldoelregels blokkeren nooit.
  */
-function checkCellBaseline(cellSink: XerCellSink, measurableSink: XerMeasurableSink): void {
-  const measurable = (file: string, axis: string, id: string) => measurableSink.get(file)?.has(`${axis}|${id}`) === true;
-  const built = tryBuildCellBaseline(cellSink);
+const redKinds = new Map<string, RedKind>();
+function red(line: RedLine): void {
   checks++;
-  if (!built.baseline) { diffs.push(`X12 cel-meting ongeldig (regel A): ${built.error}`); return; }
-  const measuredCells = built.baseline;
+  diffs.push(line.text);
+  redKinds.set(line.text, line.kind);
+}
+const KNOWN_GOAL_LABELS = [
+  'X12 nuldoel is baseline-onafhankelijk: ieder bestand haalt de zesassige poort:',
+  'X12 nuldoel is baseline-onafhankelijk: alle zes assen zijn nul:',
+  'X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul:',
+];
+/** Rode regels die een herpin in `mode` blokkeren: alles behalve de drie nuldoelregels, en in
+ *  `corpus`-modus ook behalve `fileset`-regels. Ongeclassificeerde regels (probes, identiteit,
+ *  scanner, v2-gelijkheid) blokkeren altijd. */
+function writeBlockers(mode: '1' | 'corpus' | 'init'): string[] {
+  return diffs.filter(diff => !KNOWN_GOAL_LABELS.some(label => diff.startsWith(label))
+    && !(mode !== '1' && redKinds.get(diff) === 'fileset'));
+}
+
+interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable }
+
+function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink, manifestSha256: string): CellState | undefined {
+  const built = tryBuildCellBaseline(cellSink, {
+    manifestSha256,
+    drivingPathOracle: new Map([...measurableSink].map(([key, value]) => [key, value.drivingPathOracle])),
+  });
+  checks++;
+  if (!built.baseline) { diffs.push(`X12 cel-meting ongeldig (regel A): ${built.error}`); return undefined; }
+  const measurable: CellMeasurable = (file, axis, id) => measurableSink.get(file)?.measurable.has(`${axis}|${id}`) === true;
   const path = join(HERE, CELL_BASELINE_FILE);
-  const writeMode = process.env.OPS_XER_CELLS_WRITE;
-  const writeProblem = cellWriteModeProblem(writeMode, existsSync(path));
-  if (writeProblem) { checks++; diffs.push(`X12 cel-baseline: ${writeProblem}`); return; }
-  let baseline: CellBaseline | undefined;
-  if (existsSync(path)) {
-    const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
-    checks++;
-    if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return; }
-    baseline = parsed.baseline;
+  const writeProblem = cellWriteModeProblem(process.env.OPS_XER_CELLS_WRITE, existsSync(path));
+  if (writeProblem) { checks++; diffs.push(`X12 cel-baseline: ${writeProblem}`); return undefined; }
+  if (!existsSync(path)) {
+    if (process.env.OPS_XER_CELLS_WRITE !== 'init') red({ kind: 'hard', text: `X12 ${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init` });
+    return { measuredCells: built.baseline, measurable };
   }
-  if (writeMode === '1' || writeMode === 'init') {
-    const plan = planCellRepin(baseline, measuredCells, measurable);
-    checks++;
-    if (!plan.allowed) {
-      diffs.push(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.length} reden(en); eerste: ${plan.reasons.slice(0, 5).join('; ')}`);
-      return;
-    }
-    writeFileSync(path, serializeCellBaseline(measuredCells));
-    console.log(`OK  X12 cel-baseline herpind: ${plan.delta.improvedCells.length} cellen beter, `
-      + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
-    baseline = measuredCells;
-  }
+  const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
   checks++;
-  if (!baseline) { diffs.push(`${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init`); return; }
-  const delta = compareCells(baseline, measuredCells, measurable);
-  const failures = cellGateFailures(delta);
-  console.log(cellDeltaLine('p6', delta, measuredCells));
-  if (failures.length > 0) {
-    diffs.push(`X12 cel-baseline (regel A): ${failures.length} rode cel-/bestandsregel(s)`);
-    for (const failure of failures) diffs.push(`X12 ${failure}`);
-    return;
+  if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return undefined; }
+  const delta = compareCells(parsed.baseline, built.baseline, measurable);
+  console.log(cellDeltaLine('p6', delta, built.baseline));
+  const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline)];
+  for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
+  if (lines.length === 0) {
+    const totals = cellTotals(built.baseline);
+    console.log(`OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over ${Object.keys(built.baseline.files).length} bestanden; `
+      + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
+      + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : ''));
   }
-  const totals = cellTotals(measuredCells);
-  console.log(`OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over ${Object.keys(measuredCells.files).length} bestanden; `
-    + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
-    + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter (OPS_XER_CELLS_WRITE=1)` : ''));
+  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable };
 }
 
 /**
- * Meetbaarheid en dekking APART tegen v2 (regel A): een blinder orakel (minder meetbare cellen) of
- * een krimpende dekking mag nooit onder de v2-gelijkheidsregel verdwijnen, want die regel staat bij
- * een zuivere verbetering juist legitiem rood. Eigen prefix ⇒ `measure:profiles` telt hem als
- * overige faalregel en dus als ROOD.
+ * Meetbaarheid, dekking en orakel APART tegen v2: een blinder orakel (minder meetbare cellen), een
+ * orakel dat naar onze waarde toe schuift (`schemaFingerprint` verandert) of een krimpende dekking
+ * mag nooit onder de v2-gelijkheidsregel verdwijnen, want die staat bij een zuivere verbetering
+ * juist legitiem rood. Eigen prefix ⇒ `measure:profiles` telt hem als overige faalregel (ROOD).
+ * Een andere entry-set of een ander manifest is `fileset` (corpusgroei-route), al het andere `hard`.
  */
 const COVERAGE_PREFIX = 'X12 meetbaarheid/dekking wijkt af van v2';
 function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline): void {
   checks++;
-  const problems: string[] = [];
-  const pinnedKeys = Object.keys(pinned.files).sort();
-  const measuredKeys = Object.keys(measured.files).sort();
-  if (JSON.stringify(pinnedKeys) !== JSON.stringify(measuredKeys)) problems.push(`entry-set v2=${pinnedKeys.length} nu=${measuredKeys.length}`);
-  for (const key of measuredKeys) {
+  if (pinned.manifestSha256 !== measured.manifestSha256) {
+    red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: manifest v2=${pinned.manifestSha256.slice(0, 12)} nu=${measured.manifestSha256.slice(0, 12)}` });
+  }
+  for (const key of Object.keys(pinned.files).filter(key => !measured.files[key]).sort()) {
+    red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: entry ${key.slice(0, 12)} staat in v2 maar is niet gemeten` });
+  }
+  for (const key of Object.keys(measured.files).sort()) {
     const was = pinned.files[key];
     const now = measured.files[key]!;
-    if (!was) continue;
-    const pairs: Array<[string, number, number]> = [
+    if (!was) { red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: entry ${key.slice(0, 12)} is gemeten maar staat niet in v2` }); continue; }
+    const pairs: Array<[string, string | number, string | number]> = [
+      ['schemaFingerprint', was.schemaFingerprint, now.schemaFingerprint],
       ['projects', was.projects, now.projects],
       ['tasks', was.tasks, now.tasks],
       ['identityCoverage.solvedTasks', was.identityCoverage.solvedTasks, now.identityCoverage.solvedTasks],
@@ -2365,40 +2383,73 @@ function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseli
       ['drivingPath.measurable', was.drivingPath.measurable, now.drivingPath.measurable],
     ];
     for (const [field, before, after] of pairs) {
-      if (before !== after) problems.push(`${key.slice(0, 12)} ${field} v2=${before} nu=${after}`);
+      if (before !== after) {
+        red({ kind: 'hard', text: `${COVERAGE_PREFIX}: ${key.slice(0, 12)} ${field} v2=${String(before).slice(0, 16)} nu=${String(after).slice(0, 16)}` });
+      }
     }
   }
-  for (const problem of problems) diffs.push(`${COVERAGE_PREFIX}: ${problem}`);
 }
 
 /**
- * `OPS_XER_V2_WRITE=1`: herschrijft `xer-product-fidelity-baseline-v2.json` uit deze meting — atomair
- * (tijdelijk bestand + rename), en alleen als de meting verder schoon is: behalve de drie bekende
- * nuldoelregels mag er geen enkele rode regel zijn (dus geen nieuwe/verslechterde/onmeetbaar
- * geworden cel, geen meetbaarheids-/dekkingsafwijking, geen identiteits- of scannerfout, geen
- * rode corpusloze probe). Een mislukte meting (exception) komt hier nooit.
+ * Schrijfmodi, pas ná alle vergelijkingen (dus nooit na een exception):
+ *  - `OPS_XER_V2_WRITE=1`     v2 herschrijven; geweigerd bij elke rode regel naast de drie nuldoelregels;
+ *  - `OPS_XER_V2_WRITE=corpus` idem, maar `fileset`-regels toegestaan — alleen als het manifest
+ *                              echt anders is dan dat van de gepinde v2 (corpusgroei);
+ *  - `OPS_XER_CELLS_WRITE=1|corpus|init` dezelfde regels voor de cellen (`corpus`: manifest van de
+ *                              cel-baseline ≠ huidig manifest; `init`: alleen een ontbrekend bestand).
+ * Elke schrijfactie is atomair: tijdelijk bestand in dezelfde map, daarna rename.
  */
-const KNOWN_GOAL_LABELS = [
-  'X12 nuldoel is baseline-onafhankelijk: ieder bestand haalt de zesassige poort:',
-  'X12 nuldoel is baseline-onafhankelijk: alle zes assen zijn nul:',
-  'X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul:',
-];
-function writeV2Baseline(measured: ProductBaseline): void {
-  checks++;
-  if (process.env.OPS_XER_V2_WRITE !== '1') {
-    diffs.push(`OPS_XER_V2_WRITE=${String(process.env.OPS_XER_V2_WRITE).slice(0, 20)} onbekend (verwacht 1)`);
-    return;
-  }
-  const blocking = diffs.filter(diff => !KNOWN_GOAL_LABELS.some(label => diff.startsWith(label)));
-  if (blocking.length > 0) {
-    diffs.push(`herpin van xer-product-fidelity-baseline-v2.json geweigerd: ${blocking.length} rode regel(s) naast het nuldoel; eerste: ${blocking[0]!.slice(0, 300)}`);
-    return;
-  }
-  const path = join(HERE, 'xer-product-fidelity-baseline-v2.json');
+function atomicWrite(path: string, text: string): void {
   const temp = `${path}.tmp-${process.pid}`;
-  writeFileSync(temp, canonicalProductEnvelope(measured));
+  writeFileSync(temp, text);
   renameSync(temp, path);
-  console.log('OK  X12 v2-baseline herpind (atomair) uit een meting zonder rode regel naast het nuldoel');
+}
+function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, measured: ProductBaseline): void {
+  const cellMode = process.env.OPS_XER_CELLS_WRITE;
+  const v2Mode = process.env.OPS_XER_V2_WRITE;
+  const plans: Array<() => void> = [];
+  let refused = false;
+  const refuse = (text: string) => { refused = true; diffs.push(text); };
+  if (cellMode !== undefined && cellMode !== '' && !cells) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: de cel-meting of -baseline is ongeldig`);
+  if (cellMode !== undefined && cellMode !== '' && cells) {
+    const mode = cellMode as '1' | 'corpus' | 'init';
+    const blockers = writeBlockers(mode);
+    checks++;
+    if (mode === 'corpus' && cells.pinned && cells.pinned.manifestSha256 === cells.measuredCells.manifestSha256) {
+      refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: =corpus vereist een gewijzigd corpusmanifest; gebruik =1`);
+    } else if (blockers.length > 0) {
+      refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: ${blockers.length} rode regel(s); eerste: ${blockers[0]!.slice(0, 300)}`);
+    } else {
+      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable);
+      if (!plan.allowed) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.slice(0, 5).join('; ')}`);
+      else {
+        plans.push(() => {
+          atomicWrite(join(HERE, CELL_BASELINE_FILE), serializeCellBaseline(cells.measuredCells));
+          console.log(`OK  X12 cel-baseline herpind (${mode}): ${plan.delta.improvedCells.length} cellen beter, `
+            + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
+        });
+      }
+    }
+  }
+  if (v2Mode !== undefined && v2Mode !== '') {
+    checks++;
+    if (v2Mode !== '1' && v2Mode !== 'corpus') refuse(`OPS_XER_V2_WRITE=${v2Mode.slice(0, 20)} onbekend (verwacht 1 of corpus)`);
+    else if (v2Mode === 'corpus' && pinnedV2.manifestSha256 === measured.manifestSha256) {
+      refuse('herpin van xer-product-fidelity-baseline-v2.json geweigerd: =corpus vereist een gewijzigd corpusmanifest; gebruik =1');
+    } else {
+      const blockers = writeBlockers(v2Mode);
+      if (blockers.length > 0) {
+        refuse(`herpin van xer-product-fidelity-baseline-v2.json geweigerd: ${blockers.length} rode regel(s) naast het nuldoel; eerste: ${blockers[0]!.slice(0, 300)}`);
+      } else {
+        plans.push(() => {
+          atomicWrite(join(HERE, 'xer-product-fidelity-baseline-v2.json'), canonicalProductEnvelope(measured));
+          console.log(`OK  X12 v2-baseline herpind (${v2Mode}, atomair) uit een meting zonder blokkerende rode regel`);
+        });
+      }
+    }
+  }
+  // Pas schrijven als geen enkele gevraagde schrijfactie geweigerd is: nooit half herpinnen.
+  if (!refused) for (const write of plans) write();
 }
 
 const corpusRoot = process.env.OPS_XER_CORPUS;
@@ -2416,9 +2467,8 @@ else {
   const cellSink: XerCellSink = new Map();
   const measurableSink: XerMeasurableSink = new Map();
   const measured = await productBaseline(corpus, manifest, cellSink, measurableSink);
-  if (REPORT === undefined) checkCellBaseline(cellSink, measurableSink);
-  if (REPORT !== undefined && process.env.OPS_XER_V2_WRITE) {
-    diffs.push('OPS_XER_V2_WRITE werkt alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
+  if (REPORT !== undefined && (process.env.OPS_XER_V2_WRITE || process.env.OPS_XER_CELLS_WRITE)) {
+    diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
   }
   if (REPORT === 'baseline') process.stdout.write(canonicalProductEnvelope(measured));
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
@@ -2430,6 +2480,7 @@ else {
     const scannerErrors = entries.reduce((total, [, entry]) => total + entry.scannerErrors.length, 0);
     console.log(`MEASURE ONLY X12 productfidelity: STRICT minute-exact ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
   } else {
+    const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256);
     const entries = Object.entries(measured.files);
     const allGatePassed = entries.every(([, entry]) => entry.gatePassed === true);
     const allAxesZero = entries.every(([, entry]) => XER_FIDELITY_AXES
@@ -2445,8 +2496,9 @@ else {
     eq('X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul', totalSixAxisDeviations, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: identiteitsfouten zijn nul', identityErrors, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: scannerfouten zijn nul', scannerErrors, 0);
-    checkCoverageAgainstV2(readProductBaseline(), measured);
-    if (process.env.OPS_XER_V2_WRITE !== undefined) writeV2Baseline(measured);
+    const pinnedV2 = readProductBaseline();
+    checkCoverageAgainstV2(pinnedV2, measured);
+    runWrites(cells, pinnedV2, measured);
     eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
   }
 }
