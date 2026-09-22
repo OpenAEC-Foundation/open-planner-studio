@@ -3,7 +3,8 @@
 // onder MS Project (A23 `unstartedIgnoresStatusDate`) niet.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
-import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { builtInProfile, defaultOptionsFor } from '@/engine/scheduler/conventions/registry';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { SchedulingProfile } from '@/types/project';
 import { loadCustomProfiles, saveCustomProfiles } from '@/services/schedulingProfiles/profileStore';
@@ -44,8 +45,11 @@ S().redo();
 eq('09b redo zet het profiel terug met de berekende datums', [S().project.schedulingProfile?.id,
   S().tasks.find(t => t.id === a)?.time.earlyStart?.slice(0, 10)], ['msproject', '2026-05-04']);
 ctx.store.setState(s => { s.datesAsRecorded = true; s.scheduleStale = false; }); // fixture: modus aan
+const beforeRecorded = applied();
 S().applySchedulingSettings({ profile: builtInProfile('p6'), options: undefined });
 eq('10 een wissel verlaat "datums zoals opgeslagen"', S().datesAsRecorded, false);
+// Critreview D2: ook in de modus precies één undo-stap (niet een tweede via runCPM's backstop).
+eq('10a …met precies één undo-stap erbij', applied(), beforeRecorded + 1);
 S().applySchedulingSettings({ profile: builtInProfile('ops'), options: {} });
 eq('11 ops-zonder-overrides en lege opties ⇒ afwezig', [S().project.schedulingProfile, S().project.schedulingOptions], [undefined, undefined]);
 // De store houdt een eigen kopie: latere mutatie van het doorgegeven object raakt het project niet.
@@ -61,6 +65,27 @@ const count = () => S().ui.notifications.filter(n => n.messageKey === 'notificat
 const n0 = count();
 const r2 = S().applySchedulingSettings({ profile: S().project.schedulingProfile, options: { totalFloatMode: 'start' } });
 eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], [true, 0, n0]);
+
+// Critreview D2 punt 3: de wizard geeft het profiel mee aan createNewProject. Het nieuwe project
+// begint zonder historie, dus Ctrl+Z mag niet terugvallen naar OPS.
+{
+  const w = createAppStoreContext();
+  const W = () => w.store.getState();
+  W().createNewProject({
+    name: 'Wizard', startDate: '2026-05-04', calendar: createDefaultCalendar(2026), phaseNames: [],
+    schedulingProfile: builtInProfile('p6'), schedulingOptions: defaultOptionsFor('p6'),
+  });
+  eq('15 wizard: profiel staat op het nieuwe project', W().project.schedulingProfile?.id, 'p6');
+  eq('15a wizard: standaardopties van het profiel', W().project.schedulingOptions, defaultOptionsFor('p6'));
+  const wApplied = W().historyEvents.filter(event => event.state === 'applied').length;
+  W().undo();
+  eq('15b geen undo-stap naar OPS', [wApplied, W().project.schedulingProfile?.id], [0, 'p6']);
+  W().createNewProject({
+    name: 'Wizard OPS', startDate: '2026-05-04', calendar: createDefaultCalendar(2026), phaseNames: [],
+    schedulingProfile: builtInProfile('ops'), schedulingOptions: {},
+  });
+  eq('15c OPS zonder opties ⇒ afwezig', [W().project.schedulingProfile, W().project.schedulingOptions], [undefined, undefined]);
+}
 
 // Sjabloonopslag (M1-open punt, reviewer VERMOED): een browser zonder toegang tot `localStorage`
 // (SecurityError bij het lezen van de global zelf) mag de sjabloon-UI niet laten crashen.
