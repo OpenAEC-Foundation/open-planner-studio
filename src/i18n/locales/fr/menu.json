@@ -205,7 +205,9 @@
     "screenColors_auto": "Par tâche — automatique",
     "screenColors_category": "Par catégorie",
     "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. Le type de tâche est utilisé temporairement.",
-    "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique."
+    "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique.",
+    "addLayout": "Nouveau layout",
+    "toggleRelations": "Lignes de liaison"
   },
   "ifc": {
     "title": "Éditeur IFC",

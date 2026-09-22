@@ -200,7 +200,6 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     <Dialog
       overlayClassName="bg-black/60 z-[60]"
       stopBackdropPropagation
-      onBackdropClick={onClose}
       overlayProps={{ 'data-ops-contour-dialog': true }}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[88vh] flex flex-col overflow-hidden"
     >

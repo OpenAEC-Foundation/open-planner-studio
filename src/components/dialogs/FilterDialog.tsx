@@ -10,14 +10,15 @@ import {
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { generateId } from '@/utils/id';
-import { loadSavedFilters, saveSavedFilters } from '@/utils/settingsStore';
-import type { FieldRef, FilterNode, FilterOperator, SavedFilter } from '@/state/slices/types';
+import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
+import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
+import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 
-type GroupNode = Extract<FilterNode, { kind: 'group' }>;
+export type GroupNode = Extract<FilterNode, { kind: 'group' }>;
 type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
 
 const defaultRule = (): RuleNode => ({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: '' });
-const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
+export const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
 
 function encodeField(f: FieldRef): string {
   return JSON.stringify(f);
@@ -190,7 +191,8 @@ function RuleEditor({
   );
 }
 
-function GroupEditor({
+/** De filterboom-editor; controlled, ook gebruikt door de layoutdialoog (issue #144). */
+export function GroupEditor({
   node, depth, ctx, fields, onChange, onRemove,
 }: {
   node: GroupNode;
@@ -296,13 +298,16 @@ export function FilterDialog() {
   const [root, setRoot] = useState<GroupNode>(
     () => (viewFilter && viewFilter.kind === 'group' ? viewFilter : defaultGroup()),
   );
-  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  // Issue #144: een opgeslagen filter is een layout die alleen een filter draagt. Deze dialoog
+  // beheert dus een DEEL van de layoutlijst; de overige layouts reizen ongewijzigd mee bij opslaan.
+  const [layouts, setLayouts] = useState<Layout[]>([]);
+  const savedFilters = useMemo(() => layouts.filter(isFilterOnlyLayout), [layouts]);
   const [savedFilterName, setSavedFilterName] = useState('');
   const [selectedSavedFilterId, setSelectedSavedFilterId] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    void loadSavedFilters().then(filters => { if (!cancelled) setSavedFilters(filters); });
+    void loadLayouts().then(all => { if (!cancelled) setLayouts(all); });
     return () => { cancelled = true; };
   }, []);
 
@@ -320,15 +325,15 @@ export function FilterDialog() {
     setSelectedSavedFilterId('');
   };
 
-  const persistSavedFilters = (next: SavedFilter[]) => {
-    setSavedFilters(next);
-    void saveSavedFilters(next);
+  const persistLayouts = (next: Layout[]) => {
+    setLayouts(next);
+    void saveLayouts(next);
   };
 
   const selectSavedFilter = (id: string) => {
     setSelectedSavedFilterId(id);
     const saved = savedFilters.find(filter => filter.id === id);
-    if (!saved) return;
+    if (!saved?.filter) return;
     const filter = structuredClone(saved.filter) as GroupNode;
     setRoot(filter);
     setFilter(filter);
@@ -336,26 +341,25 @@ export function FilterDialog() {
 
   const saveCurrentFilter = () => {
     if (root.children.length === 0) return;
-    const saved: SavedFilter = {
+    const saved: Layout = {
       id: generateId('filter'),
       name: savedFilterName.trim() || t('view.layout.name'),
       filter: structuredClone(root),
     };
-    persistSavedFilters([...savedFilters, saved]);
+    persistLayouts([...layouts, saved]);
     setSelectedSavedFilterId(saved.id);
     setSavedFilterName('');
   };
 
   const removeSelectedSavedFilter = () => {
     if (!selectedSavedFilterId) return;
-    persistSavedFilters(savedFilters.filter(filter => filter.id !== selectedSavedFilterId));
+    persistLayouts(layouts.filter(layout => layout.id !== selectedSavedFilterId));
     setSelectedSavedFilterId('');
   };
 
   return (
     // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
     <Dialog
-      onBackdropClick={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">

@@ -32,7 +32,9 @@ BIM software for the 4D link (schedule alongside the building model).
 Open **Backstage → Export** for four formats:
 
 - **CSV (semicolon-separated)** — universal table export. All tasks with dates and durations.
-- **MS Project XML** — opens in Microsoft Project. Full WBS structure.
+- **MS Project XML** — opens in Microsoft Project. Full WBS structure. Note for tasks with their own
+  calendar: MS Project always shows a duration in *project* days (the project's "hours per day"), so a
+  7-day task on a 24-hour calendar appears there as 21 days — with the same 7-day elapsed span.
 - **Primavera P6 XML** — for Oracle Primavera P6.
 - **IFC 4x3** — the buildingSMART standard, the same as the native format (handy as a "save as" to a
   separate file, or to share a copy without touching the rest of your open documents).
@@ -42,8 +44,12 @@ the three external formats is a full mirror of IFC.
 
 ### CSV
 
-The CSV export contains **only the task table**: WBS code, name, duration (days), start, finish,
-predecessors (as a text code, e.g. `2.1FS+3d`), task type, status, completion (%), actual
+The CSV export contains **only the task table**: WBS code, outline level (1 = top level, so a
+spreadsheet or MS Project's CSV import can rebuild the nesting — the WBS code itself is free text),
+name, duration (days), start, finish,
+predecessors (as a text code on the WBS code, e.g. `2.1FS+3d` — so on re-import those codes must be
+unique, otherwise the import reports which relations were ambiguous), task type, status,
+completion (%), actual
 start/finish, critical (yes/no), total float and description. **Resources, assignments, calendars
 and baselines are deliberately left out** — CSV is purely a task table for anyone who wants to view
 or edit the schedule in a spreadsheet, not a full-fidelity project exchange. When you **import** a

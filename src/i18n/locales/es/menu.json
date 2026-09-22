@@ -205,7 +205,9 @@
     "screenColors_auto": "Por tarea — automático",
     "screenColors_category": "Por categoría",
     "screenColorsMissingField": "Este campo no existe en este proyecto. Se usa temporalmente el tipo de tarea.",
-    "screenColorsHint": "Fuera del modo Ruta crítica, un contorno rojo marca la ruta crítica."
+    "screenColorsHint": "Fuera del modo Ruta crítica, un contorno rojo marca la ruta crítica.",
+    "addLayout": "Nuevo diseño",
+    "toggleRelations": "Líneas de relación"
   },
   "ifc": {
     "title": "Editor IFC",

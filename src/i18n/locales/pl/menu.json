@@ -205,7 +205,9 @@
     "screenColors_auto": "Na zadanie — automatycznie",
     "screenColors_category": "Według kategorii",
     "screenColorsMissingField": "To pole nie istnieje w tym projekcie. Tymczasowo używany jest typ zadania.",
-    "screenColorsHint": "Poza trybem Ścieżka krytyczna czerwony obrys oznacza ścieżkę krytyczną."
+    "screenColorsHint": "Poza trybem Ścieżka krytyczna czerwony obrys oznacza ścieżkę krytyczną.",
+    "addLayout": "Nowy układ",
+    "toggleRelations": "Linie relacji"
   },
   "ifc": {
     "title": "Edytor IFC",

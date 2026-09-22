@@ -224,7 +224,10 @@
     "aiMode": "Activar modo IA",
     "aiModeHint": "Muestra la pestaña de IA con el puente MCP, para que los asistentes de IA puedan trabajar con tu planificación mediante el Model Context Protocol. Desactivarlo detiene el puente.",
     "aiAutostart": "Iniciar el puente automáticamente",
-    "aiAutostartHint": "Activa el puente MCP nada más iniciar la aplicación, para que un cliente de IA pueda conectarse sin que abras antes la pestaña IA. Solo en la aplicación de escritorio."
+    "aiAutostartHint": "Activa el puente MCP nada más iniciar la aplicación, para que un cliente de IA pueda conectarse sin que abras antes la pestaña IA. Solo en la aplicación de escritorio.",
+    "legacySection": "Funciones heredadas",
+    "classicViewControls": "Mostrar los botones de vista clásicos",
+    "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Su función está ahora en los botones de diseño y en el cuadro de diseños."
   },
   "ai": {
     "start": "Iniciar puente",
@@ -817,7 +820,31 @@
       "missingRefs": "Algunos campos no existen en este documento y se omitirán.",
       "noLayouts": "Aún no hay layouts guardados.",
       "activeLayout": "Layout",
-      "none": "(ninguno)"
+      "none": "(ninguno)",
+      "builtinResourceDiagram": "Diagrama de recursos",
+      "newTitle": "Nuevo diseño",
+      "editTitle": "Editar diseño",
+      "icon": "Icono",
+      "partsTitle": "¿Qué guarda este diseño?",
+      "partsHint": "Solo cambian las partes marcadas al pulsar el botón del diseño; el resto de la vista queda igual.",
+      "partRelations": "Líneas de relación",
+      "infoColumns": "Las columnas visibles de la tabla de tareas, su orden y su ancho.",
+      "infoFilter": "El filtro activo ahora. Si no hay filtro activo, este diseño borra el filtro.",
+      "infoGroup": "La agrupación de las tareas, por ejemplo por recurso. Sin agrupación, el diseño muestra el árbol WBS.",
+      "infoSort": "El orden de las tareas dentro del árbol o dentro de un grupo.",
+      "infoTimeScale": "La escala de tiempo del Gantt (día, semana, mes…). Sin marcar: el zoom se queda como está.",
+      "infoRelations": "Si se ven las líneas de relación entre tareas. En una vista agrupada suele ser mejor ocultarlas.",
+      "useCurrentView": "Tomar la vista actual",
+      "infoUseCurrentView": "Rellena todas las partes de abajo con lo que hay ahora en pantalla.",
+      "edit": "Editar…",
+      "duplicate": "Duplicar",
+      "copyName": "{{name}} (copia)",
+      "needOnePart": "Marque al menos una parte.",
+      "builtinReadonly": "Diseño incluido: no se puede modificar. Duplíquelo para crear su propia versión.",
+      "applyOnly": "Aplicar sin guardar",
+      "infoApplyOnly": "Pone en pantalla las partes marcadas sin crear un botón de diseño. Útil para un filtro rápido y temporal.",
+      "columnsNote": "Toma las columnas tal como están ahora en la tabla. Las columnas se eligen con el signo más del encabezado de la tabla.",
+      "relationsShow": "Mostrar líneas de relación"
     },
     "presentation": {
       "hint": "Pulse Esc o F11 para salir de pantalla completa."

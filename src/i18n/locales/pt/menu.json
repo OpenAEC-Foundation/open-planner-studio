@@ -205,7 +205,9 @@
     "screenColors_auto": "Por tarefa — automático",
     "screenColors_category": "Por categoria",
     "screenColorsMissingField": "Este campo não existe neste projeto. O tipo de tarefa é usado temporariamente.",
-    "screenColorsHint": "Fora do modo Caminho crítico, um contorno vermelho marca o caminho crítico."
+    "screenColorsHint": "Fora do modo Caminho crítico, um contorno vermelho marca o caminho crítico.",
+    "addLayout": "Novo layout",
+    "toggleRelations": "Linhas de relação"
   },
   "ifc": {
     "title": "Editor IFC",

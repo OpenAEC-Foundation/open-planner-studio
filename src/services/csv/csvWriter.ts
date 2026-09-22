@@ -4,6 +4,7 @@ import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import type { CustomTaskType } from '@/types/taskType';
+import { flattenOrder, taskDepths } from '@/utils/wbs';
 
 const DELIMITER = ';';
 const BOM = '\uFEFF';
@@ -76,6 +77,16 @@ export function writeCSV(
     taskByIdMap.set(t.id, t);
   }
 
+  // Critreview #159: de voorgangerkolom verwijst op WBS-code; met dubbele codes kan de lezer een
+  // relatie niet meer eenduidig terugvinden. Weggelaten-met-warn (zelfde patroon als de andere
+  // exporters) — de kolom zelf blijft leesbaar voor spreadsheetgebruikers.
+  const codeCount = new Map<string, number>();
+  for (const t of tasks) codeCount.set(t.wbsCode, (codeCount.get(t.wbsCode) ?? 0) + 1);
+  const duplicateCodes = [...codeCount].filter(([, n]) => n > 1).length;
+  if (duplicateCodes > 0) {
+    console.warn(`CSV-export: ${duplicateCodes} WBS-code(s) komen meer dan één keer voor — de Predecessors-kolom verwijst op WBS-code en is voor die taken bij terugimport niet eenduidig.`);
+  }
+
   for (const seq of sequences) {
     const predTask = taskByIdMap.get(seq.predecessorId);
     if (!predTask) continue;
@@ -95,7 +106,11 @@ export function writeCSV(
     // constructie (mapColumnIndex negeert onbekende koppen), niet iets om later "voor de
     // volledigheid" alsnog te laten adopteren.
     'OPS Task ID',
-    'WBS', 'Name', 'Duration (days)', 'Start', 'Finish',
+    // Issue #159: 'Outline Level' (1 = hoofdniveau) uit de echte ouderketen, in MS-Project-termen.
+    // Een WBS-code is vrije tekst (IFC-`Identification`) en zegt niets over de nesting; met deze
+    // kolom kan MS Project's CSV-import (veld "Outline Level") én `readCSV` de boom exact herbouwen.
+    // Rijvolgorde is daarom diepte-eerst (`flattenOrder`), zoals het taakraster hem toont.
+    'WBS', 'Outline Level', 'Name', 'Duration (days)', 'Start', 'Finish',
     'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
     // Actuals (fase 2.6, §9.3): achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
     // een taak zonder actuals levert lege cellen. Geen baselines/statusdatum in CSV (bewust).
@@ -106,13 +121,15 @@ export function writeCSV(
   const rows: string[] = [];
   rows.push(headers.map(h => escapeCSV(h)).join(DELIMITER));
 
-  for (const task of tasks) {
+  const depthById = taskDepths(tasks);
+  for (const task of flattenOrder(tasks)) {
     const predecessors = predMap.get(task.id)?.join(', ') || '';
     const completion = formatCompletionPercent(task.time.completion);
 
     const row = [
       escapeCSV(task.id),
       escapeCSV(task.wbsCode),
+      String(depthById.get(task.id) ?? 1),
       escapeCSV(task.name),
       task.time.scheduleDuration.toString(),
       task.time.earlyStart || task.time.scheduleStart,

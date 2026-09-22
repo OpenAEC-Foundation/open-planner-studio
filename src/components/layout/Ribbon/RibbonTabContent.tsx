@@ -1,4 +1,4 @@
-import { Fragment, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RibbonTab } from '@/state/slices/types';
 import { RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack } from './ribbonPrimitives';
@@ -92,16 +92,26 @@ function RibbonGroupView({ group }: { group: RibbonGroupSpec }) {
   );
 }
 
+/** Groep + voorafgaande scheidingslijn; een groep met `useVisible() === false` rendert niets. */
+function RibbonGroupSlot({ group, first }: { group: RibbonGroupSpec; first: boolean }) {
+  // `useVisible` is per groep een vaste eigenschap van de config, dus de hookvolgorde is stabiel.
+  const visible = group.useVisible ? group.useVisible() : true;
+  if (!visible) return null;
+  return (
+    <>
+      {!first && <div className="ribbon-separator" />}
+      <RibbonGroupView group={group} />
+    </>
+  );
+}
+
 export function RibbonTabContent({ tab }: { tab: Exclude<RibbonTab, 'file'> }) {
   const groups = RIBBON_TABS[tab];
   return (
     <>
       {groups.map((group, i) => (
         // tab-uniek key → remount bij tab-wissel (rules-of-hooks veilig)
-        <Fragment key={`${tab}:${group.id}`}>
-          {i > 0 && <div className="ribbon-separator" />}
-          <RibbonGroupView group={group} />
-        </Fragment>
+        <RibbonGroupSlot key={`${tab}:${group.id}`} group={group} first={i === 0} />
       ))}
     </>
   );

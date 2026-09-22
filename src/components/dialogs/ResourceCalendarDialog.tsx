@@ -86,7 +86,6 @@ export function ResourceCalendarDialog({
   return (
     // Esc sluit dialog (LAYOUTS.md §3.3) — via de standaard-toetsafhandeling van `Dialog`.
     <Dialog
-      onBackdropClick={onClose}
       onCancel={onClose}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
     >

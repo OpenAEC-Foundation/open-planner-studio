@@ -18,13 +18,13 @@ export type AppSliceFactory<T> = (runtime: StoreRuntime) => AppSlice<T>;
 import type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
   BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
-  GroupLevel, SortLevel, Layout, SplitViewState, ViewState,
+  GroupLevel, SortLevel, Layout, LayoutSession, LayoutViewParts, SplitViewState, ViewState,
 } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
 export type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
   BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
-  GroupLevel, SortLevel, Layout, SplitViewState, ViewState,
+  GroupLevel, SortLevel, Layout, LayoutSession, LayoutViewParts, SplitViewState, ViewState,
 };
 export type { BarColorSelection };
 
@@ -350,7 +350,9 @@ export interface UIState {
   // --- Fase 2.7 golf 3: dialogen (§5.5/§6/§13.1/§8) ---
   showColumnsDialog: boolean;                // session — kolommen-dialoog open
   showFilterDialog: boolean;                 // session — filter-editor open
-  showLayoutsDialog: boolean;                // session — layouts-beheer/opslaan-als-dialoog open
+  showLayoutsDialog: boolean;                // session — layoutdialoog open (nieuw of bewerken, issue #144)
+  showClassicViewControls: boolean;          // persisted — LEGACY: losse Kolommen/Filter/Groeperen/Sorteren-knoppen op Beeld (issue #144), default uit
+  layoutDialogTargetId: string | null;       // session — de layout die bewerkt wordt; null = nieuwe layout
   autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
   constructionMode: boolean;                 // persisted — bouwmodus (AAN=bouwgericht, default); UIT=bouw-agnostisch
 
