@@ -875,7 +875,11 @@ exportverliesmelding (ná het schrijven), een bovengrens op documenten per besta
   - **(11) `lagCalendar`** effectief voor alle formaten: accepteren, met releasenotitie.
   - Regel A (landingsregel voor de gedeelde motor) en regel B (nieuwe conventies als benoemde
     instelling) gaan beide in de goal prompt van het "naar nul"-vervolg.
-  - Solverprofiel per project: geparkeerd als eigen etappe ná X12.
+  - Solverprofiel per project: in de ochtend geparkeerd als eigen etappe ná X12; later op de dag
+    (2026-09-22, brainstorm) HERZIEN: het wordt de etappe **rekenprofielen** die VÓÓR het
+    X12-vervolg wordt gebouwd, omdat regel A pas met profielen als poort te meten is — zie
+    `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md` §2. De inhoud van het
+    OPS-profiel wordt wél pas ná X12 gekozen.
   - De 49 OzBuild-bestanden gaan in de privérepo (optie 1). Door de eigenaar uitgevoerd en
     gemeten: `check-mpp-fidelity.ts` 213 pins groen in de cloud — de ONBEKEND-status van de
     49 OzBuild-pins in §10.e is daarmee opgeheven.
