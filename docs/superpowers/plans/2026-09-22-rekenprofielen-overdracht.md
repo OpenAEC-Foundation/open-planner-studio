@@ -89,6 +89,9 @@ afwijkingen hebben met XER".)
 | baan D deel 1: D1, D2, D7, D8, D10-voorbereiding | `claude/rekenprofielen-baan-d` | fixronde klaar (`ef095429`, gepusht): A19 ook bij sjabloonkeuze, `perFile` beschrijvend in het register, P6→OPS→P6 letterlijk, `verify:conventions` gedicht (37 checks), gids/CLAUDE.md gemarkeerd. Wacht op merge van C: dan rebase, her-check, D10-afronding, D3–D6. Besluit: pset draagt `overrides` letterlijk mee (C2) |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
+| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (basis `claude/rekenprofielen` 1b45218a) | in aanbouw (agent, gestart ~23:20) onder de goal prompt; landt alleen met `measure:profiles` VERBETERD en 0 slechter, herpin in dezelfde commit |
+| X12-restant-classificatie (meting) | — (rapport `/tmp/x12-restant-classificatie.md`, daarna in plan XER §9 opnemen) | meet-agent loopt; levert de brokken 2..n met signatuur, hypothese, verwacht effect |
+
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.
 
