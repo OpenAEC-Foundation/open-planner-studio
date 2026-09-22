@@ -73,7 +73,8 @@ export interface SchedulingOptions {
    *  activiteit beschrijft de start van het resterende werk (`max(statusdatum, relatiegrens)`).
    *  Alleen het XER-importpad zet deze bronvlag; andere formaten blijven hun bestaande zichtbare
    *  actual-startvenster gebruiken.
-   *  A19 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
+   *  A19 — conventie (spec v3), per bestand als override door de XER-lezer (`rem_target_link_flag`);
+   *  sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
    *  P6 aan / MS Project uit / OPS uit. */
   p6UseRemainingStartForProgress?: boolean;
   /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
