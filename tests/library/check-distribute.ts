@@ -19,6 +19,7 @@ import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resour
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { neutralSolveOptions } from './neutralSolveOptions';
 
 declare const process: { exit(code: number): never };
 
@@ -97,12 +98,12 @@ function distDoc(docId: string, opts: DistDocOpts = {}): DistributionDocInput {
     tasks,
     calendar,
     calendars: [],
-    ...(opts.omitSolveInput ? {} : { solveInput: { tasks, sequences } }),
+    ...(opts.omitSolveInput ? {} : { solveInput: { tasks, sequences, options: neutralSolveOptions() } }),
     rank: opts.rank ?? 1,
     pinned: opts.pinned ?? false,
     datesAsRecorded: opts.datesAsRecorded ?? false,
     ceilingWorkdays: opts.ceilingWorkdays ?? null,
-    levelInput: { tasks, sequences },
+    levelInput: { tasks, sequences, options: neutralSolveOptions() },
   };
 }
 const OPTS_OFF = { allowSplits: false };

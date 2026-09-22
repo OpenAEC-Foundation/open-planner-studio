@@ -28,6 +28,7 @@ import {
   type IndependentXerScheduleExpected,
   type RawXerScheduleScan,
 } from './xerScheduleOptionsGroundTruth';
+import { legacyEffective } from './legacySolveOptions';
 
 const BLAST_AXES = [...XER_FIDELITY_AXES, 'isCritical'] as const;
 type BlastAxis = typeof BLAST_AXES[number];
@@ -508,7 +509,7 @@ function projectResult(
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: variant.progressMode,
-    schedulingOptions: variant.schedulingOptions,
+    schedulingOptions: legacyEffective(variant.schedulingOptions),
     projectStartDate: imported.project.startDate,
   });
   if (cpm.error) throw new Error(cpm.error);

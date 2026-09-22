@@ -170,22 +170,13 @@ export type DistributionLevelRun = (doc: DistributionDocInput, options: Leveling
 const defaultLevelRun: DistributionLevelRun = (doc, options) => {
   const tasks = cloneTasksForSolve(doc.levelInput.tasks);
   const cpmResult = solveProject({
-    tasks,
-    sequences: doc.levelInput.sequences,
-    calendar: doc.calendar,
-    calendars: doc.calendars,
-    dataDate: doc.levelInput.dataDate,
-    progressMode: doc.levelInput.progressMode,
-    schedulingOptions: doc.levelInput.schedulingOptions,
+    tasks, sequences: doc.levelInput.sequences, calendar: doc.calendar, calendars: doc.calendars,
+    ...doc.levelInput.options,
   });
   return levelResources(
     tasks, doc.levelInput.sequences, doc.resources, doc.assignments,
     doc.calendar, doc.calendars, cpmResult, options,
-    {
-      dataDate: doc.levelInput.dataDate,
-      progressMode: doc.levelInput.progressMode,
-      schedulingOptions: doc.levelInput.schedulingOptions,
-    },
+    doc.levelInput.options,
   );
 };
 
@@ -219,13 +210,8 @@ function currentProjectEndFor(doc: DistributionDocInput): string {
   try {
     const tasks = cloneTasksForSolve(doc.levelInput.tasks);
     const result = solveProject({
-      tasks,
-      sequences: doc.levelInput.sequences,
-      calendar: doc.calendar,
-      calendars: doc.calendars,
-      dataDate: doc.levelInput.dataDate,
-      progressMode: doc.levelInput.progressMode,
-      schedulingOptions: doc.levelInput.schedulingOptions,
+      tasks, sequences: doc.levelInput.sequences, calendar: doc.calendar, calendars: doc.calendars,
+      ...doc.levelInput.options,
     });
     if (result.error) return currentProjectEnd(doc.levelInput.tasks);
     return currentProjectEnd(tasks);

@@ -47,6 +47,8 @@ export const LEGACY_P6_SOURCE_GATED_FLAGS = [
  *   false) wint altijd.
  * - Geen XER-bron ⇒ elke A15–A20-vlag die `true` staat wordt `false` (vóór baan B waren ze
  *   zonder bron inert, spec §3.4 rij 4). Groep-B-vlaggen blijven zoals ze staan.
+ * - Alle vijf groep-B-vlaggen expliciet gezet (een opgeloste set, rekenprofielen C1) ⇒ ongewijzigd
+ *   terug, met of zonder bron.
  * - Niets te doen ⇒ dezelfde referentie terug. Muteert de invoer nooit; idempotent.
  * - `legacyTranslation: false` (testhaak `CPMOptions.legacyP6SourceTranslation`) ⇒ helemaal
  *   geen vertaling: de invoer ongewijzigd terug. Daarmee bewijst `check-conventions-p6-flags.ts`
@@ -57,10 +59,13 @@ export function resolveLegacyP6SourceConventions(
   legacyTranslation = true,
 ): SchedulingOptions | undefined {
   if (!legacyTranslation || !schedulingOptions) return schedulingOptions;
+  // Rekenprofielen C1: een OPGELOSTE set (`EffectiveSchedulingOptions`, via `solveOptionsFor`) draagt
+  // alle groep-B-vlaggen expliciet en geen bronmarkering; die is al vertaald en mag hier niet
+  // nogmaals door de "zonder bron ⇒ A15–A20 uit"-tak. Vertalen gebeurt alleen voor rauwe blobs.
+  if (LEGACY_P6_SOURCE_CONVENTION_KEYS.every(key => schedulingOptions[key] !== undefined)) {
+    return schedulingOptions;
+  }
   if (schedulingOptions.p6Source === 'XER') {
-    if (LEGACY_P6_SOURCE_CONVENTION_KEYS.every(key => schedulingOptions[key] !== undefined)) {
-      return schedulingOptions;
-    }
     const resolved: SchedulingOptions = { ...schedulingOptions };
     for (const key of LEGACY_P6_SOURCE_CONVENTION_KEYS) {
       if (resolved[key] === undefined) resolved[key] = true;

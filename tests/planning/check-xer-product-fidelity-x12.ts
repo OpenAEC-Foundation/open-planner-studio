@@ -36,6 +36,7 @@ import {
   type ProductBaselineV2,
   type ProductEntryV2,
 } from './xerProductBaselineV2';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
@@ -176,7 +177,7 @@ function solveImported(imported: ImportResult): XerSolvedProject {
   const cpm = solveProject({
     tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
-    progressMode: imported.project.progressMode, schedulingOptions: imported.project.schedulingOptions,
+    progressMode: imported.project.progressMode, schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
   });
   if (cpm.error) throw new Error(`${imported.project.id}: ${cpm.error}`);
@@ -1180,7 +1181,7 @@ async function productBaseline(
   const ifcFloorSolve = solveProject({
     tasks: ifcNoSourceRead.tasks, sequences: ifcNoSourceRead.sequences, calendar: ifcNoSourceRead.calendar,
     calendars: ifcNoSourceRead.resourceCalendars ?? [], dataDate: ifcNoSourceRead.project.statusDate,
-    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: ifcNoSourceRead.project.schedulingOptions,
+    progressMode: ifcNoSourceRead.project.progressMode, schedulingOptions: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions,
     projectStartDate: ifcNoSourceRead.project.startDate, projectEndDate: ifcNoSourceRead.project.endDate,
   });
   if (ifcFloorSolve.error) throw new Error(ifcFloorSolve.error);
@@ -1251,7 +1252,7 @@ async function productBaseline(
     calendars: genericExtensionImport.resourceCalendars ?? [],
     dataDate: genericExtensionImport.project.statusDate,
     progressMode: genericExtensionImport.project.progressMode,
-    schedulingOptions: genericExtensionImport.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(genericExtensionImport.project).schedulingOptions,
     projectStartDate: genericExtensionImport.project.startDate,
     projectEndDate: genericExtensionImport.project.endDate,
   });
@@ -1517,7 +1518,7 @@ async function productBaseline(
     calendars: roundTripped.resourceCalendars ?? [],
     dataDate: roundTripped.project.statusDate,
     progressMode: roundTripped.project.progressMode,
-    schedulingOptions: roundTripped.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(roundTripped.project).schedulingOptions,
     projectStartDate: roundTripped.project.startDate,
     projectEndDate: roundTripped.project.endDate,
   });
@@ -1706,7 +1707,7 @@ async function productBaseline(
       calendars: input.resourceCalendars ?? [],
       dataDate: input.project.statusDate,
       progressMode: input.project.progressMode,
-      schedulingOptions: input.project.schedulingOptions,
+      schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate,
       projectEndDate: input.project.endDate,
     });
@@ -2161,7 +2162,7 @@ async function productBaseline(
     calendars: displayOnlyCandidate.resourceCalendars ?? [],
     dataDate: displayOnlyCandidate.project.statusDate,
     progressMode: displayOnlyCandidate.project.progressMode,
-    schedulingOptions: displayOnlyCandidate.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(displayOnlyCandidate.project).schedulingOptions,
     projectStartDate: displayOnlyCandidate.project.startDate,
     projectEndDate: displayOnlyCandidate.project.endDate,
   });
@@ -2195,7 +2196,7 @@ async function productBaseline(
     const cpm = solveProject({
       tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
       calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
     });
     if (cpm.error) throw new Error(`X12 F5 generieke solve faalde: ${cpm.error}`);

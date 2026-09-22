@@ -12,6 +12,7 @@ import { generateId } from '@/utils/id';
 import { diffDays } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
 import {
@@ -377,9 +378,8 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     ): CPMResult => {
       const leaf = tasks.filter(isLeafTask);
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
+        ...solveOptionsFor(s.project),
         dataDate,
-        progressMode: s.project.progressMode,
-        schedulingOptions: s.project.schedulingOptions,
         // Gebruikstest-bevinding 2026-08 (zie `scheduleSlice.runCPM`): de "voor"-solve rekent tegen
         // de HUIDIGE projectstart, de "na"-solve tegen de NIEUWE — anders zou deze preview een
         // wortel-taak vóór zijn eigen projectbegin kunnen tonen.

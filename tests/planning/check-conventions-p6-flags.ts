@@ -49,7 +49,7 @@ import {
 import { explainOpenXerLoeTargetSpanEligibility } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
-import type { SchedulingOptions } from '@/types/project';
+import type { EffectiveSchedulingOptions, SchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -97,7 +97,9 @@ function solveAxes(input: ImportResult, taskId: string, legacyP6SourceTranslatio
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    // TIJDELIJK(rekenprofielen): deze check test de motorvertaling zelf en geeft daarom de RAUWE
+    // blob door (incl. bronmarkering en losse vlaggen); C3 zet hem om naar het profiel.
+    schedulingOptions: imported.project.schedulingOptions as EffectiveSchedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
     ...(legacyP6SourceTranslation === false ? { legacyP6SourceTranslation: false } : {}),

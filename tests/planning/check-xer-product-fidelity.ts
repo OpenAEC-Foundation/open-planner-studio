@@ -7,6 +7,7 @@ import { readXER } from '@/services/xer/xerReader';
 import { activeImportResult } from '@/services/importTypes';
 import { scanXerGroundTruth, XER_FIDELITY_AXES, type XerFidelityAxis } from './xerGroundTruth';
 import { measureXerFidelity, type XerSolvedProject, type XerSolvedTask } from './xerFidelity';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -66,7 +67,7 @@ function solved(bytes: Uint8Array): XerSolvedProject {
     // structureel blind was voor precies de wijzigingen waarvoor ze bedoeld is. Nu meet ze het
     // echte product, zoals `check-xer-product-fidelity-x12.ts` en de solver zelf.
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });

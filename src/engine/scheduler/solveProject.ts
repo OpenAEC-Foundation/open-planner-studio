@@ -18,7 +18,7 @@
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type { EffectiveSchedulingOptions, ProgressMode } from '@/types/project';
 import { CPMSolver, type CPMResult } from './CPMSolver';
 import { applyCpmResult } from './applyCpmResult';
 import { expandSummaryRelations, foldSyntheticSequenceIds } from './expandSummaryRelations';
@@ -38,8 +38,8 @@ export interface SolveProjectInput {
   dataDate?: string;
   /** `project.progressMode` — default RETAINED_LOGIC. */
   progressMode?: ProgressMode;
-  /** `project.schedulingOptions` — project-scoped reken-opties (fase 2.9). */
-  schedulingOptions?: SchedulingOptions;
+  /** De opgeloste reken-opties (rekenprofielen C1): verplicht, via `solveInputFor`/`solveOptionsFor`. */
+  schedulingOptions: EffectiveSchedulingOptions;
   /** `project.startDate` — ondergrens (`rootFloor`) voor de early-start-berekening van ELKE taak
    *  MET voorganger (T7-review M2: niet uitsluitend tegen relatie-leads — ook een gewone FS/FF-
    *  relatie met lag 0 van een vroege wortel-taak wordt hier gevloerd; alleen de gebruikers-

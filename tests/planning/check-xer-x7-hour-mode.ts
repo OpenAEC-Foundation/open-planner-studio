@@ -4,6 +4,7 @@ import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import type { ImportResult } from '@/services/importTypes';
+import { legacyEffective } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -40,7 +41,7 @@ function solve(imported: ImportResult): Map<string, string | undefined> {
     calendars: [imported.calendar, ...(imported.resourceCalendars ?? [])],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: { ...imported.project.schedulingOptions, useExpectedFinishDates: true },
+    schedulingOptions: legacyEffective({ ...imported.project.schedulingOptions, useExpectedFinishDates: true }),
     projectStartDate: imported.project.startDate,
   });
   return new Map(imported.tasks.map(task => [task.wbsCode, result.tasks.get(task.id)?.earlyFinish]));

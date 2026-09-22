@@ -3,6 +3,7 @@ import { readXER } from '@/services/xer/xerReader';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { replayXerProductBeforeOracle, syntheticZeroRegressionCandidate } from './xerTaskReplayProduct';
 import type { CpmBackwardFloatTrace, CpmProjectEndSource, CpmTaskBackwardFloatTrace } from '@/engine/scheduler/CPMSolver';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -123,7 +124,7 @@ function solveTraceVariant(variant: Variant): TraceProjection {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -162,7 +163,7 @@ function solveCompletedGuardFixture(
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -466,7 +467,7 @@ for (const variant of completedGuardVariants) {
   const result = solveProject({
     tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
-    progressMode: imported.project.progressMode, schedulingOptions: imported.project.schedulingOptions,
+    progressMode: imported.project.progressMode, schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
   });
   eq('backward-float-trace faalt gesloten zonder XER-bronsignaal', result.backwardFloatTrace, undefined);

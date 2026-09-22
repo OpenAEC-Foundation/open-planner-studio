@@ -25,6 +25,7 @@ import { refreshExternalAnchors, externalSourceSide, type ExternalSourceDoc } fr
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
+import { legacyCpmOptions, legacyEffective } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -52,7 +53,7 @@ function mkTask(id: string, dur: number, extra: Partial<Task> = {}): Task {
 function fs(id: string, pred: string, succ: string): Sequence {
   return { id, predecessorId: pred, successorId: succ, type: 'FINISH_START', lagDays: 0 };
 }
-function solve(tasks: Task[], seqs: Sequence[], opts: CPMOptions = {}): CPMResult {
+function solve(tasks: Task[], seqs: Sequence[], opts: CPMOptions = legacyCpmOptions()): CPMResult {
   return new CPMSolver(tasks, seqs, CAL, [], opts).solve();
 }
 
@@ -115,9 +116,9 @@ eq('16 elke taak floatPath === undefined (floatPaths uit)', all.every(t => t.flo
 
 // ── 4) Plumbing byte-identiek: met vs zonder (leeg) schedulingOptions (§2) ─────
 const rNone = solve(netA, seqA);                              // opties-object leeg
-const rEmptyOpts = solve(netA, seqA, { schedulingOptions: {} });    // leeg 2.9-blok doorgegeven
+const rEmptyOpts = solve(netA, seqA, { schedulingOptions: legacyEffective({}) });    // leeg 2.9-blok doorgegeven
 const rFullDefaults = solve(netA, seqA, {
-  schedulingOptions: { lagCalendar: 'predecessor', criticalDefinition: { mode: 'totalFloat', threshold: 0 }, totalFloatMode: 'smallest' },
+  schedulingOptions: legacyEffective({ lagCalendar: 'predecessor', criticalDefinition: { mode: 'totalFloat', threshold: 0 }, totalFloatMode: 'smallest' }),
 });
 eq('17 leeg schedulingOptions ⇒ byte-identieke solve', digest(rEmptyOpts), digest(rNone));
 eq('18 default-waarden-blok ⇒ byte-identieke solve', digest(rFullDefaults), digest(rNone));
@@ -188,30 +189,30 @@ eq('35 harde pin: A negatieve float upstream', rp1.tasks.get('A')!.totalFloat, -
 eq('36 harde pin: B in violatedConstraintTaskIds (rawMax > pin)', rp1.violatedConstraintTaskIds.includes('B'), true);
 
 // ── 9) Golf 2 — near-critical-drempel (§4.6) op net A (A1 tf0, A2 tf1, A3 tf3, END tf0) ─
-const rNear1 = solve(netA, seqA, { schedulingOptions: { nearCriticalThreshold: 1 } });
+const rNear1 = solve(netA, seqA, { schedulingOptions: legacyEffective({ nearCriticalThreshold: 1 }) });
 eq('37 near thr1: nearCriticalTaskIds == [A2]', JSON.stringify([...rNear1.nearCriticalTaskIds].sort()), JSON.stringify(['A2']));
 eq('38 near thr1: A1 tf=0 NIET near (randgeval)', rNear1.tasks.get('A1')!.isNearCritical, false);
 eq('39 near thr1: A2 tf=thr WÉL near (randgeval)', rNear1.tasks.get('A2')!.isNearCritical, true);
 eq('40 near thr1: A3 tf=3 niet near', rNear1.tasks.get('A3')!.isNearCritical, false);
 eq('41 near: criticalPath ongewijzigd (A1,END)', JSON.stringify([...rNear1.criticalPath].sort()), JSON.stringify(['A1', 'END']));
-const rNear3 = solve(netA, seqA, { schedulingOptions: { nearCriticalThreshold: 3 } });
+const rNear3 = solve(netA, seqA, { schedulingOptions: legacyEffective({ nearCriticalThreshold: 3 }) });
 eq('42 near thr3: {A2,A3}', JSON.stringify([...rNear3.nearCriticalTaskIds].sort()), JSON.stringify(['A2', 'A3']));
 eq('43 near thr3: A3 tf=thr WÉL near', rNear3.tasks.get('A3')!.isNearCritical, true);
 
 // ── 10) Golf 2 — kritiek-definitie: totalFloat-drempel (§4.6) ──────────────────
-const rThr1 = solve(netA, seqA, { schedulingOptions: { criticalDefinition: { mode: 'totalFloat', threshold: 1 } } });
+const rThr1 = solve(netA, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'totalFloat', threshold: 1 } }) });
 eq('44 crit thr1: criticalPath = {A1,A2,END}', JSON.stringify([...rThr1.criticalPath].sort()), JSON.stringify(['A1', 'A2', 'END']));
 eq('45 crit thr1: A2 kritiek (tf1≤1)', rThr1.tasks.get('A2')!.isCritical, true);
 eq('46 crit thr1: A3 niet kritiek (tf3)', rThr1.tasks.get('A3')!.isCritical, false);
 
 // ── 11) Golf 2 — kritiek-definitie: longestPath (§4.6, tf-onafhankelijk) ───────
-const rLP = solve(netA, seqA, { schedulingOptions: { criticalDefinition: { mode: 'longestPath' } } });
+const rLP = solve(netA, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'longestPath' } }) });
 eq('47 longestPath: criticalPath = {A1,END}', JSON.stringify([...rLP.criticalPath].sort()), JSON.stringify(['A1', 'END']));
 eq('48 longestPath: A2 niet kritiek', rLP.tasks.get('A2')!.isCritical, false);
 // Discriminator: A2 krijgt tf=0 via een deadline, tóch NIET kritiek in longestPath (ongeacht tf).
 const netAdl: Task[] = [mkTask('A1', 5), mkTask('A2', 4, { deadline: '2026-06-04' }), mkTask('A3', 2), mkTask('END', 1)];
 const rDlDefault = solve(netAdl, seqA);
-const rDlLP = solve(netAdl, seqA, { schedulingOptions: { criticalDefinition: { mode: 'longestPath' } } });
+const rDlLP = solve(netAdl, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'longestPath' } }) });
 eq('49 deadline: A2 tf=0', rDlDefault.tasks.get('A2')!.totalFloat, 0);
 eq('50 deadline+totalFloat: A2 kritiek (tf≤0)', rDlDefault.tasks.get('A2')!.isCritical, true);
 eq('51 deadline+longestPath: A2 NIET kritiek (ongeacht tf=0)', rDlLP.tasks.get('A2')!.isCritical, false);
@@ -221,7 +222,7 @@ eq('52 deadline+longestPath: criticalPath = {A1,END}', JSON.stringify([...rDlLP.
 const netO: Task[] = [mkTask('OA', 1), mkTask('OB', 2), mkTask('OC', 5)];
 const seqO: Sequence[] = [fs('o1', 'OA', 'OB'), fs('o2', 'OA', 'OC')];
 const rODefault = solve(netO, seqO);
-const rOForce = solve(netO, seqO, { schedulingOptions: { makeOpenEndedCritical: true } });
+const rOForce = solve(netO, seqO, { schedulingOptions: legacyEffective({ makeOpenEndedCritical: true }) });
 eq('53 open-ended default: OB niet kritiek', rODefault.tasks.get('OB')!.isCritical, false);
 eq('54 open-ended default: OB tf=3', rODefault.tasks.get('OB')!.totalFloat, 3);
 eq('55 makeOpenEndedCritical: OB kritiek', rOForce.tasks.get('OB')!.isCritical, true);
@@ -231,11 +232,11 @@ eq('58 makeOpenEndedCritical: OB intf=tf−ff invariant', rOForce.tasks.get('OB'
 
 // ── 13) Golf 2 — TF-berekeningswijze (§3.4): observationeel identiek in de symmetrische ─
 //        backward-pass (LS=LF−dur ⇒ start-float == finish-float). Byte-inert bewezen via digest.
-eq('59 totalFloatMode finish ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: { totalFloatMode: 'finish' } })), digest(rA));
-eq('60 totalFloatMode start ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: { totalFloatMode: 'start' } })), digest(rA));
+eq('59 totalFloatMode finish ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: legacyEffective({ totalFloatMode: 'finish' }) })), digest(rA));
+eq('60 totalFloatMode start ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: legacyEffective({ totalFloatMode: 'start' }) })), digest(rA));
 
 // ── 14) Golf 3 — multiple float paths: FREE_FLOAT-peel op net A (§4.6) ─────────
-const rFP = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } });
+const rFP = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) });
 eq('61 free-float: A1=1', rFP.floatPathByTask['A1'], 1);
 eq('62 free-float: END=1 (zelfde driving-keten als A1)', rFP.floatPathByTask['END'], 1);
 eq('63 free-float: A2=2', rFP.floatPathByTask['A2'], 2);
@@ -250,7 +251,7 @@ eq('69 free-float: per-taak floatPath == floatPathByTask',
   [...rFP.tasks.entries()].every(([id, t]) => t.floatPath === rFP.floatPathByTask[id]), true);
 
 // ── 15) Golf 3 — TOTAL_FLOAT-rangschikking (distinct tf {0,1,3}) ───────────────
-const rTFp = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 10 } } });
+const rTFp = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 10 } }) });
 eq('70 total-float: A1=1 (tf0)', rTFp.floatPathByTask['A1'], 1);
 eq('71 total-float: END=1 (tf0, zelfde rang)', rTFp.floatPathByTask['END'], 1);
 eq('72 total-float: A2=2 (tf1)', rTFp.floatPathByTask['A2'], 2);
@@ -258,7 +259,7 @@ eq('73 total-float: A3=3 (tf3)', rTFp.floatPathByTask['A3'], 3);
 eq('74 total-float: criticalPaths[0] == criticalPath', JSON.stringify(rTFp.criticalPaths[0]), JSON.stringify(rTFp.criticalPath));
 
 // ── 16) Golf 3 — maxPaths harde begrenzing: A3 krijgt GEEN floatPath ───────────
-const rMax2 = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } } });
+const rMax2 = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } }) });
 eq('75 maxPaths2: A1=1', rMax2.floatPathByTask['A1'], 1);
 eq('76 maxPaths2: A2=2', rMax2.floatPathByTask['A2'], 2);
 eq('77 maxPaths2: A3 GEEN floatPath (map)', rMax2.floatPathByTask['A3'], undefined);
@@ -268,11 +269,11 @@ eq('79 maxPaths2: precies 3 toegewezen', Object.keys(rMax2.floatPathByTask).leng
 const netBig: Task[] = [mkTask('END', 1)];
 const seqBig: Sequence[] = [];
 for (let i = 1; i <= 6; i++) { netBig.unshift(mkTask('T' + i, i)); seqBig.push(fs('bs' + i, 'T' + i, 'END')); }
-const rBig = solve(netBig, seqBig, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } } });
+const rBig = solve(netBig, seqBig, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } }) });
 eq('80 groot net maxPaths2: hoogste padnummer 2', Math.max(...Object.values(rBig.floatPathByTask)), 2);
 
 // ── 17) Golf 3 — enabled=false ⇒ VOLLEDIG inert (byte-identiek golf 0) ─────────
-const rDis = solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 10 } } });
+const rDis = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 10 } }) });
 eq('81 disabled: floatPathByTask leeg', Object.keys(rDis.floatPathByTask).length, 0);
 eq('82 disabled: criticalPaths == [criticalPath]', JSON.stringify(rDis.criticalPaths), JSON.stringify([rDis.criticalPath]));
 eq('83 disabled: geen per-taak floatPath', [...rDis.tasks.values()].every(t => t.floatPath === undefined), true);
@@ -282,7 +283,7 @@ eq('84 disabled: digest byte-identiek aan geen-opties', digest(rDis), digest(rA)
 // S(3) root; S→FS B(5) (langste keten), S→FS C(2). S is driving-voorganger van B én C.
 const netSh: Task[] = [mkTask('S', 3), mkTask('B', 5), mkTask('C', 2)];
 const seqSh: Sequence[] = [fs('sh1', 'S', 'B'), fs('sh2', 'S', 'C')];
-const rSh = solve(netSh, seqSh, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } });
+const rSh = solve(netSh, seqSh, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) });
 eq('85 gedeeld: B=1 (langste keten peelt eerst)', rSh.floatPathByTask['B'], 1);
 eq('86 gedeeld: S=1 (padnummer van de EERSTE peel)', rSh.floatPathByTask['S'], 1);
 eq('87 gedeeld: C=2 (tweede peel; S houdt zijn 1)', rSh.floatPathByTask['C'], 2);
@@ -345,7 +346,7 @@ function mkH(id: string, mins: number, extra: Partial<Task> = {}): Task {
 const engH8 = new CalendarEngine(H8);
 const hourTasks = [mkH('A', 240), mkH('B', 360), mkH('H', 480, { isHammock: true })];
 const hourSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
-const rHour = new CPMSolver(hourTasks, hourSeq, H8, [], {}).solve();
+const rHour = new CPMSolver(hourTasks, hourSeq, H8, [], legacyCpmOptions()).solve();
 const hH = rHour.tasks.get('H')!;
 eq('104 uur: H.es', hH.earlyStart, '2026-07-06T08:00');
 eq('105 uur: H.ef', hH.earlyFinish, '2026-07-07T10:00');
@@ -385,7 +386,7 @@ eq('119 opvolger: criticalPath = {Z} (alleen de echte eindketen)', JSON.stringif
 const rFpHam = solve(
   [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }), mkTask('Z', 2)],
   [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH'), lk('l4', 'H', 'Z', 'FINISH_START')],
-  { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } },
+  { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) },
 );
 eq('120 float-paths: H NIET in floatPathByTask', rFpHam.floatPathByTask['H'], undefined);
 eq('121 float-paths: H per-taak floatPath ongeschreven', rFpHam.tasks.get('H')!.floatPath, undefined);
@@ -403,8 +404,8 @@ eq('126 hammock-tweeling: H als hammock is NIET kritiek', s10a.r.tasks.get('H')!
 // Twee keer solve op dezelfde task-objecten (afgeleide-duur-mutatie) ⇒ idempotent.
 const idemT = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true })];
 const idemS = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
-const idem1 = digest(new CPMSolver(idemT, idemS, CAL, [], {}).solve());
-const idem2 = digest(new CPMSolver(idemT, idemS, CAL, [], {}).solve());
+const idem1 = digest(new CPMSolver(idemT, idemS, CAL, [], legacyCpmOptions()).solve());
+const idem2 = digest(new CPMSolver(idemT, idemS, CAL, [], legacyCpmOptions()).solve());
 eq('127 hammock: solve idempotent na duur-mutatie (zelfde digest)', idem1, idem2);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -609,17 +610,17 @@ function tfMap(r: CPMResult): Record<string, number> {
 // (a) S2-net: A(3)→FS B(2), B SNLT 06-03 ⇒ tf −1 (negatief).
 const s2 = [mkTask('A', 3), mkTask('B', 2, { constraint: { type: 'SNLT', date: '2026-06-03' } })];
 const s2seq = [fs('s2s', 'A', 'B')];
-const s2start = tfMap(solve(s2, s2seq, { schedulingOptions: { totalFloatMode: 'start' } }));
-const s2finish = tfMap(solve(s2, s2seq, { schedulingOptions: { totalFloatMode: 'finish' } }));
-const s2small = tfMap(solve(s2, s2seq, { schedulingOptions: { totalFloatMode: 'smallest' } }));
+const s2start = tfMap(solve(s2, s2seq, { schedulingOptions: legacyEffective({ totalFloatMode: 'start' }) }));
+const s2finish = tfMap(solve(s2, s2seq, { schedulingOptions: legacyEffective({ totalFloatMode: 'finish' }) }));
+const s2small = tfMap(solve(s2, s2seq, { schedulingOptions: legacyEffective({ totalFloatMode: 'smallest' }) }));
 eq('165 disc S2 (SNLT): start == finish per taak', JSON.stringify(s2start), JSON.stringify(s2finish));
 eq('166 disc S2: smallest == start (drie modi identiek)', JSON.stringify(s2small), JSON.stringify(s2start));
 eq('167 disc S2: waarde niet-triviaal (B tf=-1)', s2finish['B'], -1);
 // (b) H8 uur-net Q1(16u),Q2(12u),Q3(8u)→FS ENDH(8u): fractionele floats.
 const qn = [mkH('Q1', 960), mkH('Q2', 720), mkH('Q3', 480), mkH('ENDH', 480)];
 const qs = [lk('qa', 'Q1', 'ENDH', 'FINISH_START'), lk('qb', 'Q2', 'ENDH', 'FINISH_START'), lk('qc', 'Q3', 'ENDH', 'FINISH_START')];
-const qStart = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: { totalFloatMode: 'start' } }).solve());
-const qFinish = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: { totalFloatMode: 'finish' } }).solve());
+const qStart = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: legacyEffective({ totalFloatMode: 'start' }) }).solve());
+const qFinish = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: legacyEffective({ totalFloatMode: 'finish' }) }).solve());
 eq('168 disc uur: start == finish per taak (fractioneel)', JSON.stringify(qStart), JSON.stringify(qFinish));
 eq('169 disc uur: Q2 fractionele tf=0.5 (niet-triviaal)', qFinish['Q2'], 0.5);
 eq('170 disc uur: Q3 fractionele tf=1.0', qFinish['Q3'], 1);
@@ -633,13 +634,13 @@ const HAMSEQ = [lk('hs1', 'A', 'B', 'FINISH_START'), lk('hs2', 'A', 'H', 'START_
 type Scen = { label: string; run: () => CPMResult; hammocks?: string[] };
 const scen: Scen[] = [
   { label: 'netA', run: () => solve(netA, seqA) },
-  { label: 'netA+near2', run: () => solve(netA, seqA, { schedulingOptions: { nearCriticalThreshold: 2 } }) },
-  { label: 'netA+fp', run: () => solve(netA, seqA, { schedulingOptions: { floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } }) },
-  { label: 'netA+longest', run: () => solve(netA, seqA, { schedulingOptions: { criticalDefinition: { mode: 'longestPath' } } }) },
+  { label: 'netA+near2', run: () => solve(netA, seqA, { schedulingOptions: legacyEffective({ nearCriticalThreshold: 2 }) }) },
+  { label: 'netA+fp', run: () => solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) }) },
+  { label: 'netA+longest', run: () => solve(netA, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'longestPath' } }) }) },
   { label: 'S2-neg', run: () => solve(s2, s2seq) },
   { label: 'pin', run: () => solve(pinTasks, pinSeq) },
-  { label: 'ham+near2+fp', run: () => solve(HAM(), HAMSEQ, { schedulingOptions: { nearCriticalThreshold: 2, floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } } }), hammocks: ['H'] },
-  { label: 'qnet-hour', run: () => new CPMSolver(qn, qs, H8, [], { schedulingOptions: { nearCriticalThreshold: 0.5 } }).solve() },
+  { label: 'ham+near2+fp', run: () => solve(HAM(), HAMSEQ, { schedulingOptions: legacyEffective({ nearCriticalThreshold: 2, floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) }), hammocks: ['H'] },
+  { label: 'qnet-hour', run: () => new CPMSolver(qn, qs, H8, [], { schedulingOptions: legacyEffective({ nearCriticalThreshold: 0.5 }) }).solve() },
 ];
 let sweepOk = true;
 for (const s of scen) {
@@ -658,11 +659,11 @@ for (const s of scen) {
 eq('171 invariant-sweep I1..I3 groen over alle sweep-netten', sweepOk, true);
 // I4 — 'start'/'finish'-tf identiek over de sweep-netten (bevestigt scope 1b breder dan één net).
 const modeNets: { label: string; m: (mode: 'start' | 'finish') => CPMResult }[] = [
-  { label: 'netA', m: mode => solve(netA, seqA, { schedulingOptions: { totalFloatMode: mode } }) },
-  { label: 'S2', m: mode => solve(s2, s2seq, { schedulingOptions: { totalFloatMode: mode } }) },
-  { label: 'pin', m: mode => solve(pinTasks, pinSeq, { schedulingOptions: { totalFloatMode: mode } }) },
-  { label: 'ham', m: mode => solve(HAM(), HAMSEQ, { schedulingOptions: { totalFloatMode: mode } }) },
-  { label: 'qnet', m: mode => new CPMSolver(qn, qs, H8, [], { schedulingOptions: { totalFloatMode: mode } }).solve() },
+  { label: 'netA', m: mode => solve(netA, seqA, { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }) },
+  { label: 'S2', m: mode => solve(s2, s2seq, { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }) },
+  { label: 'pin', m: mode => solve(pinTasks, pinSeq, { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }) },
+  { label: 'ham', m: mode => solve(HAM(), HAMSEQ, { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }) },
+  { label: 'qnet', m: mode => new CPMSolver(qn, qs, H8, [], { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }).solve() },
 ];
 let modeOk = true;
 for (const n of modeNets) if (JSON.stringify(tfMap(n.m('start'))) !== JSON.stringify(tfMap(n.m('finish')))) { modeOk = false; diffs.push(`mode ${n.label}: start≠finish`); }
@@ -671,8 +672,8 @@ eq('172 totalFloatMode start==finish over alle sweep-netten (I4)', modeOk, true)
 // ── 22) Harde-pin-idempotentie ook in UUR-modus (scope 3; dag bestond als check 32) ──────────────
 const hourPin = [mkH('A', 960), mkH('B', 480, { constraint: { type: 'MSO', date: '2026-07-07T08:00', hard: true } })];
 const hourPinSeq = [lk('hp', 'A', 'B', 'FINISH_START')];
-const hp1 = new CPMSolver(hourPin, hourPinSeq, H8, [], {}).solve();
-const hp2 = new CPMSolver(hourPin, hourPinSeq, H8, [], {}).solve();
+const hp1 = new CPMSolver(hourPin, hourPinSeq, H8, [], legacyCpmOptions()).solve();
+const hp2 = new CPMSolver(hourPin, hourPinSeq, H8, [], legacyCpmOptions()).solve();
 eq('173 uur harde pin: solve idempotent (zelfde digest)', digest(hp1), digest(hp2));
 eq('174 uur harde pin: B gepind op 07-07T08:00 (logica gebroken)', hp1.tasks.get('B')!.earlyStart, '2026-07-07T08:00');
 eq('175 uur harde pin: B in violatedConstraintTaskIds', hp1.violatedConstraintTaskIds.includes('B'), true);
@@ -733,7 +734,7 @@ gateP.time.completion = 1;
 gateP.time.actualStart = '2026-06-10'; // exact op de pin
 gateP.time.actualFinish = '2026-06-12';
 const gateSeq: Sequence[] = [fs('gp1', 'GateS', 'GateP')];
-const rGateA = solve([gateS, gateP], gateSeq, { dataDate: '2026-07-01' });
+const rGateA = solve([gateS, gateP], gateSeq, legacyCpmOptions({ dataDate: '2026-07-01' }));
 eq('182 detector-gate: actual EXACT op de pin ⇒ GEEN violation', rGateA.violatedConstraintTaskIds.includes('GateP'), false);
 eq('183 detector-gate: P blijft gepind op zijn actuals (ES)', rGateA.tasks.get('GateP')!.earlyStart, '2026-06-10');
 eq('184 detector-gate: P blijft gepind op zijn actuals (EF)', rGateA.tasks.get('GateP')!.earlyFinish, '2026-06-12');
@@ -747,7 +748,7 @@ const gateP2: Task = mkTask('GateP2', 3, {
 gateP2.time.completion = 1;
 gateP2.time.actualStart = '2026-06-15'; // NA de pin — reële schending
 gateP2.time.actualFinish = '2026-06-17';
-const rGateB = solve([mkStartMs('GateS2'), gateP2], [fs('gp2', 'GateS2', 'GateP2')], { dataDate: '2026-07-01' });
+const rGateB = solve([mkStartMs('GateS2'), gateP2], [fs('gp2', 'GateS2', 'GateP2')], legacyCpmOptions({ dataDate: '2026-07-01' }));
 eq('185 detector-gate CONTROLE: actual NA de pin ⇒ violation blijft vuren', rGateB.violatedConstraintTaskIds.includes('GateP2'), true);
 
 // (c) CONTROLE — geen actuals, structureel te laat (nog geen feit geregistreerd) ⇒ violation
@@ -875,7 +876,7 @@ function mkProg(id: string, extra: Partial<Task> = {}): Task {
 }
 // IP1: WEL geactiveerd (walks.length===1, resourcekalender = RCAL, isHourMode) ⇒ progressCal=RCAL.
 const ip1 = mkProg('IP1', { timephasedDurationWalks: [{ anchor: '2026-07-06T08:00', resourceCalendarId: 'rcal' }] });
-const rIp1 = new CPMSolver([ip1], [], H8, [RCAL], {}).solve();
+const rIp1 = new CPMSolver([ip1], [], H8, [RCAL], legacyCpmOptions()).solve();
 const ip1r = rIp1.tasks.get('IP1')!;
 eq('204 Z8-fix2: progressCal=RCAL (2u/dag) ⇒ 240min restwerk loopt over 2 dagen', ip1r.earlyFinish, '2026-07-07T10:00');
 // IP2: GEEN walks (mutatie-equivalent van "terug naar de taakkalender") ⇒ progressCal=H8 blijft
@@ -886,7 +887,7 @@ eq('204 Z8-fix2: progressCal=RCAL (2u/dag) ⇒ 240min restwerk loopt over 2 dage
 // cal` zonder de `if`-tak) laat check 204 rood gaan (H8 geeft 12:00 i.p.v. RCAL se 10:00 twee dagen
 // later) — geverifieerd tijdens deze fixronde, ONGEWIJZIGD teruggezet ná verificatie.
 const ip2 = mkProg('IP2');
-const rIp2 = new CPMSolver([ip2], [], H8, [RCAL], {}).solve();
+const rIp2 = new CPMSolver([ip2], [], H8, [RCAL], legacyCpmOptions()).solve();
 const ip2r = rIp2.tasks.get('IP2')!;
 eq('205 Z8-fix2: zonder walk ⇒ progressCal blijft H8 (8u/dag) ⇒ zelfde dag klaar', ip2r.earlyFinish, '2026-07-06T12:00');
 eq('206 Z8-fix2: IP1 (RCAL) en IP2 (H8) geven AANTOONBAAR verschillende antwoorden', ip1r.earlyFinish !== ip2r.earlyFinish, true);
@@ -901,7 +902,7 @@ const ip3 = mkProg('IP3', {
 });
 ip3.time.resume = '2026-07-01T08:00'; // wo vóór actualStart (ma) — hostiel
 ip3.time.remainingMinutes = 60;
-const rIp3 = new CPMSolver([ip3], [], H8, [RCAL], {}).solve();
+const rIp3 = new CPMSolver([ip3], [], H8, [RCAL], legacyCpmOptions()).solve();
 const ip3r = rIp3.tasks.get('IP3')!;
 // Zonder de wacht zou ef = RCAL.addWorkMinutes(2026-07-01T08:00, 60) = 2026-07-01T09:00 zijn —
 // vóór actualES (2026-07-06T08:00). MET de wacht wordt ef geklemd op actualES.
@@ -929,7 +930,7 @@ function sfChain(preDur: number) {
   const sf1 = mkTask('SF1', 1);
   const sf2 = mkTask('SF2', 1, { timephasedFinishFloor: '2026-06-01T16:00' }); // uur-modus, laag 3
   const seqs = [fs('sfp', 'SF-PRE', 'SF1'), lk('sf1', 'SF1', 'SF2', 'START_FINISH')];
-  return new CPMSolver([pre, sf1, sf2], seqs, H8, [], {}).solve().tasks.get('SF2')!;
+  return new CPMSolver([pre, sf1, sf2], seqs, H8, [], legacyCpmOptions()).solve().tasks.get('SF2')!;
 }
 const sf2aR = sfChain(1);
 // PRE dur1 (H8, 8u/dag) ⇒ SF1 start 2026-06-02T08:00 ⇒ SF-vereiste-finish voor SF2 = diezelfde
@@ -954,7 +955,7 @@ eq('211 Z8-deferred: SF-druk wint nu van het venster, ook 10 werkdagen verder', 
 // FS-druk ná het venster te liggen.
 const invPre = mkTask('INV-PRE', 5);
 const inv = mkTask('INV', 1, { timephasedFinishFloor: '2026-06-01T10:00' }); // ver vóór INV se eigen FS-druk
-const rInv = new CPMSolver([invPre, inv], [fs('invfs', 'INV-PRE', 'INV')], H8, [], {}).solve();
+const rInv = new CPMSolver([invPre, inv], [fs('invfs', 'INV-PRE', 'INV')], H8, [], legacyCpmOptions()).solve();
 const invR = rInv.tasks.get('INV')!;
 eq('212 Z8-slotronde: AUTO-tak EF<ES-wacht — ef geklemd op es (stale venster vóór voorganger-druk)', invR.earlyFinish, invR.earlyStart);
 eq('213 Z8-slotronde: es blijft de voorganger-gedreven 2026-06-08T08:00, niet het stale venster', invR.earlyStart, '2026-06-08T08:00');

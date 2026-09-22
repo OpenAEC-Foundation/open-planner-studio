@@ -8,6 +8,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import type { Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -121,7 +122,7 @@ const result = solveProject({
   calendars: imported.resourceCalendars ?? [],
   dataDate: imported.project.statusDate,
   progressMode: imported.project.progressMode,
-  schedulingOptions: imported.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
   projectStartDate: imported.project.startDate,
   projectEndDate: imported.project.endDate,
 });
@@ -162,7 +163,7 @@ function axes(input: ImportResult) {
   const solvedResult = solveProject({
     tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
     calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-    progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+    progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
     projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
   });
   if (solvedResult.error) throw new Error(solvedResult.error);

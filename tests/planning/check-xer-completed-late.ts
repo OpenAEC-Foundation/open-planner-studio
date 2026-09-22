@@ -35,6 +35,7 @@ import {
   explainP6CompletedLateRemainingWindowEligibility,
 } from '@/engine/scheduler/p6CompletedRouteTrace';
 import type { SchedulingOptions } from '@/types/project';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -166,7 +167,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });

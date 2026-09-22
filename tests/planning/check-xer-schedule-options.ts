@@ -13,6 +13,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { legacyCpmOptions, legacyEffective } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -132,7 +133,7 @@ const successorLag = new CPMSolver(
   sequences,
   predecessorCalendar,
   [successorCalendar],
-  { schedulingOptions: { lagCalendar: 'successor' } },
+  { schedulingOptions: legacyEffective({ lagCalendar: 'successor' }) },
 ).solve();
 
 eq(
@@ -175,7 +176,7 @@ function solveLag(lagCalendar: 'predecessor' | 'successor' | 'projectDefault' | 
     lagSequences,
     projectLagCalendar,
     [predLagCalendar, succLagCalendar],
-    { schedulingOptions: { lagCalendar } },
+    { schedulingOptions: legacyEffective({ lagCalendar }) },
   ).solve().tasks.get('LS')?.earlyStart;
 }
 eq('vier lagkalenders kiezen ieder hun eigen bron', {
@@ -203,7 +204,7 @@ function solveElapsedLag(lagCalendar: 'predecessor' | 'successor' | 'projectDefa
     elapsedSequence,
     projectLagCalendar,
     [predLagCalendar, succLagCalendar],
-    { schedulingOptions: { lagCalendar } },
+    { schedulingOptions: legacyEffective({ lagCalendar }) },
   ).solve();
   return axes(result, 'LP');
 }
@@ -254,7 +255,7 @@ function solveCrossModeLag(
     crossModeSequences,
     crossModeProjectCalendar,
     [crossModePredCalendar, crossModeSuccCalendar],
-    { schedulingOptions: { lagCalendar } },
+    { schedulingOptions: legacyEffective({ lagCalendar }) },
   ).solve();
   return {
     predecessor: axes(result, 'CROSS-P'),
@@ -303,7 +304,7 @@ const sixDayCalendar: WorkCalendar = {
   workDays: [1, 2, 3, 4, 5, 6],
 };
 const endTasks = [task('LONG', 6, 'six-day'), task('SHORT', 1, 'end-project')];
-const ordinaryEnd = new CPMSolver(endTasks, [], endProjectCalendar, [sixDayCalendar]).solve();
+const ordinaryEnd = new CPMSolver(endTasks, [], endProjectCalendar, [sixDayCalendar], legacyCpmOptions()).solve();
 eq('één project gebruikt één gemeenschappelijk projecteinde zonder taakkalender-snap',
   ordinaryEnd.tasks.get('SHORT')?.lateFinish, '2026-06-06');
 
@@ -316,7 +317,7 @@ function sourceWithoutXerFloatValue(options?: {
     [],
     endProjectCalendar,
     [sixDayCalendar],
-    { schedulingOptions: options },
+    { schedulingOptions: legacyEffective(options) },
   ).solve().tasks];
 }
 eq('afwezige XER-floatbron houdt verse/MPP/MSPDI/P6XML-uitvoer byte-identiek', {
@@ -340,11 +341,11 @@ const explicitInertEnd = new CPMSolver(
   endProjectCalendar,
   [sixDayCalendar],
   {
-    schedulingOptions: {
+    schedulingOptions: legacyEffective({
       useExpectedFinishDates: false,
       preserveActualDatesInBackwardPass: false,
       clampNegativeFreeFloat: false,
-    },
+    }),
   },
 ).solve();
 eq('expliciet uitgeschakelde XER-bronvlaggen laten niet-XER-solvergedrag byte-identiek',
@@ -364,7 +365,7 @@ const p6MultiCalendar = new CPMSolver(
   [],
   p6MonFri,
   [p6SixDay],
-  { schedulingOptions: { totalFloatMode: 'finish' } },
+  { schedulingOptions: legacyEffective({ totalFloatMode: 'finish' }) },
 ).solve();
 eq('P6-geval 06: meerdere kalenders, alle zes datum-/floatassen', {
   A: axes(p6MultiCalendar, 'A'),
@@ -386,7 +387,7 @@ const p6Retained = new CPMSolver(
   {
     dataDate: '2026-01-12',
     progressMode: 'RETAINED_LOGIC',
-    schedulingOptions: { totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true },
+    schedulingOptions: legacyEffective({ totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true }),
   },
 ).solve();
 eq('P6-geval 08: retained logic plant restwerk vanaf de statusdatum', {
@@ -410,7 +411,7 @@ const p6CompletedSuccessor = new CPMSolver(
     dataDate: '2026-01-05',
     progressMode: 'RETAINED_LOGIC',
     projectStartDate: '2025-12-01',
-    schedulingOptions: { totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true },
+    schedulingOptions: legacyEffective({ totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true }),
   },
 ).solve();
 eq('P6-geval 09: voltooide opvolger trekt de voorganger niet historisch terug', {
@@ -433,7 +434,7 @@ const p6NegativeFloat = new CPMSolver(
     dataDate: '2026-01-05T08:00',
     progressMode: 'RETAINED_LOGIC',
     projectStartDate: '2026-01-05T08:00',
-    schedulingOptions: { totalFloatMode: 'finish', clampNegativeFreeFloat: true },
+    schedulingOptions: legacyEffective({ totalFloatMode: 'finish', clampNegativeFreeFloat: true }),
   },
 ).solve();
 eq('P6-geval 05: finish-float bewaart de negatieve float op beide ketentaken', {
@@ -460,7 +461,7 @@ const completedFloat = new CPMSolver(
   {
     dataDate: '2026-06-01',
     progressMode: 'RETAINED_LOGIC',
-    schedulingOptions: { preserveActualDatesInBackwardPass: true },
+    schedulingOptions: legacyEffective({ preserveActualDatesInBackwardPass: true }),
   },
 ).solve().tasks.get('CP');
 eq('P6-voltooide activiteit rapporteert geen float, ook niet bij out-of-sequence-actuals', {
@@ -482,7 +483,7 @@ function solveRunningFloat(mode: 'start' | 'finish' | 'smallest'): unknown {
     {
       dataDate: '2026-07-08',
       progressMode: 'RETAINED_LOGIC',
-      schedulingOptions: { totalFloatMode: mode, preserveActualDatesInBackwardPass: true },
+      schedulingOptions: legacyEffective({ totalFloatMode: mode, preserveActualDatesInBackwardPass: true }),
     },
   ).solve().tasks.get('RUNNING');
   return solved && {
@@ -574,14 +575,14 @@ const projectEndTrueSolve = new CPMSolver(
   [],
   endProjectCalendar,
   [sixDayCalendar],
-  { schedulingOptions: projectEndTrue.schedulingOptions },
+  { schedulingOptions: legacyEffective(projectEndTrue.schedulingOptions) },
 ).solve();
 const projectEndFalseSolve = new CPMSolver(
   endTasks,
   [],
   endProjectCalendar,
   [sixDayCalendar],
-  { schedulingOptions: projectEndFalse.schedulingOptions },
+  { schedulingOptions: legacyEffective(projectEndFalse.schedulingOptions) },
 ).solve();
 eq('projecteindevlag true/false verandert binnen één project geen enkele taakdatum', {
   trueResult: [...projectEndTrueSolve.tasks],
@@ -811,7 +812,7 @@ const thresholdSolve = new CPMSolver(
   [],
   p6MonFri,
   [fourHourCalendar],
-  { schedulingOptions: thresholdSource.schedulingOptions },
+  { schedulingOptions: legacyEffective(thresholdSource.schedulingOptions) },
 ).solve().tasks.get(thresholdTask.id);
 eq('P6-drempeluren vergelijken tegen floaturen van de effectieve 4h-taakkalender', {
   mapped: thresholdSource.schedulingOptions.criticalDefinition,
@@ -832,7 +833,7 @@ const defaultLagSolve = new CPMSolver(
   [predLagCalendar, succLagCalendar],
   {
     progressMode: withoutTable.progressMode,
-    schedulingOptions: withoutTable.schedulingOptions,
+    schedulingOptions: legacyEffective(withoutTable.schedulingOptions),
   },
 ).solve();
 eq('XER-default gebruikt aantoonbaar de voorgangerskalender in een multi-kalendernet',

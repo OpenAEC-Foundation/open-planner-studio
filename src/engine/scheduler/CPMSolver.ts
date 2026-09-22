@@ -1,5 +1,5 @@
 import { Task, type TaskConstraint, type ExternalLink } from '@/types/task';
-import type { SchedulingOptions } from '@/types/project';
+import type { EffectiveSchedulingOptions } from '@/types/project';
 import { Sequence, LagUnit } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
@@ -147,9 +147,9 @@ export interface CPMPlannedFloorTrace {
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; // default RETAINED_LOGIC
-  /** Project-scoped rekenopties. Afwezig ⇒ elke brongebonden uitbreiding blijft uit en het
-   *  algemene solvergedrag blijft byte-identiek. */
-  schedulingOptions?: SchedulingOptions;
+  /** Rekenprofielen (spec v3.1 §3.1): verplicht en uitsluitend het opgeloste type. Aanroepers komen
+   *  hier via `solveOptionsFor`/`solveInputFor` (`solveInput.ts`) of `effectiveSchedulingOptions`. */
+  schedulingOptions: EffectiveSchedulingOptions;
   /** De geconfigureerde PROJECTSTARTDATUM (`Project.startDate`, ISO-datum), gebruikstest-bevinding
    *  2026-08: ondergrens voor de early-start-berekening van ELKE taak MET voorganger (en
    *  hammocks) — NIET uitsluitend tegen leads (T7-review M2, gecorrigeerd): ook een gewone FS/FF-
@@ -361,7 +361,7 @@ export class CPMSolver {
     sequences: Sequence[],
     projectCalendar: WorkCalendar,
     registry: WorkCalendar[] = [],
-    options: CPMOptions = {},
+    options: CPMOptions,
   ) {
     this.tasks = new Map(tasks.map(t => [t.id, t]));
 
@@ -405,9 +405,11 @@ export class CPMSolver {
       options.schedulingOptions,
       options.legacyP6SourceTranslation !== false,
     );
+    // TIJDELIJK: de vertaling levert het brede type; voor elke aanroeper via `solveOptionsFor` is ze
+    // een no-op (EffectiveSchedulingOptions draagt alle B-vlaggen expliciet). Verdwijnt in C3.
     options = schedulingOptions === options.schedulingOptions
       ? options
-      : { ...options, schedulingOptions };
+      : { ...options, schedulingOptions: schedulingOptions as EffectiveSchedulingOptions };
     this.sequences = schedulingOptions?.p6RelationFinishBoundary === true
       ? kept
       : kept.map(sequence => sequence.p6StartAtPredecessorFinishBoundary === true

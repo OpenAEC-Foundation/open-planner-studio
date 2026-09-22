@@ -1,6 +1,7 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const failures: string[] = [];
 let checks = 0;
@@ -88,7 +89,7 @@ function solverAxes(result: XerReadResult): unknown {
     calendars: result.resourceCalendars ?? [],
     dataDate: result.project.statusDate,
     progressMode: result.project.progressMode,
-    schedulingOptions: result.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(result.project).schedulingOptions,
     projectStartDate: result.project.startDate,
     projectEndDate: result.project.endDate,
   });

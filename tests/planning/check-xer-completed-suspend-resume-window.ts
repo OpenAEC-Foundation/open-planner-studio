@@ -4,6 +4,7 @@ import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import type { Task } from '@/types/task';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -72,7 +73,7 @@ function solveProjection(mutate?: (imported: ImportResult, task: Task) => void) 
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });

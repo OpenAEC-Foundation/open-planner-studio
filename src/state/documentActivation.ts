@@ -1,5 +1,6 @@
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
 import {
   applyRecordedTimesToTasks,
   captureRecordedDates,
@@ -196,14 +197,9 @@ export function prepareLoadedPayload(
 
   payload.tasks = cloneTasksForSolve(payload.tasks);
   payload.cpmResult = solveProject({
-    tasks: payload.tasks,
-    sequences: payload.sequences,
-    calendar: payload.calendar,
-    calendars: payload.calendars,
-    dataDate: payload.project.statusDate,
-    progressMode: payload.project.progressMode,
-    schedulingOptions: payload.project.schedulingOptions,
-    projectStartDate: payload.project.startDate,
+    ...solveInputFor(payload.project, payload.tasks, payload.sequences, payload.calendar, payload.calendars),
+    // C5-GEDRAGSWIJZIGING: het laadpad gaf nooit projectEndDate door; taak C5 laat deze regel vallen.
+    projectEndDate: undefined,
   });
   payload.scheduleStale = false;
   return payload;

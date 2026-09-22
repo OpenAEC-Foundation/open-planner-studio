@@ -12,6 +12,7 @@ import {
   expectedXerScheduleOptions,
   scanRawXerScheduleOptions,
 } from './xerScheduleOptionsGroundTruth';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -341,7 +342,7 @@ function solvedAxes(source: Uint8Array): unknown {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
   });
   return tasks.map(task => ({

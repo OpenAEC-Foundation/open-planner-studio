@@ -87,6 +87,7 @@ import type { ExtTaskTime } from '@/extensions/extTypes';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 // tests/ valt buiten de hoofd-tsconfig; process is niet via @types/node beschikbaar in de
 // dedicated round-trip-tsconfig (types:[]). Minimale, botsingvrije declaratie.
@@ -939,7 +940,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const solved = solveProject({
       tasks: input.tasks, sequences: input.sequences, calendar: input.calendar,
       calendars: input.resourceCalendars ?? [], dataDate: input.project.statusDate,
-      progressMode: input.project.progressMode, schedulingOptions: input.project.schedulingOptions,
+      progressMode: input.project.progressMode, schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
       projectStartDate: input.project.startDate, projectEndDate: input.project.endDate,
     });
     assert(!solved.error, `solverfout in REJECTED-inertietest: ${solved.error}`);

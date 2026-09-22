@@ -26,6 +26,7 @@ import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resour
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
+import { neutralSolveOptions } from './neutralSolveOptions';
 
 declare const process: { exit(code: number): never };
 
@@ -112,7 +113,7 @@ function doc(docId: string, opts: DocOpts = {}): OccupancyDocInput {
     calendars: [],
     ...(opts.skipSolve === true ? { skipEphemeralSolve: true } : {}),
     ...(opts.solveTasks !== undefined
-      ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [] } }
+      ? { solveInput: { tasks: opts.solveTasks, sequences: opts.solveSequences ?? [], options: neutralSolveOptions() } }
       : {}),
   };
 }
@@ -510,7 +511,7 @@ function pool(resources: Resource[]): CompanyPool {
   // Referentie: dezelfde invoer vers doorgerekend (solveProject == de kern van runCPM) en dan door
   // computeResourceLoad — precies wat F5-in-het-document + het projecthistogram zouden opleveren.
   const refTasks = cloneTasksForSolve(staleTasks);
-  const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [] });
+  const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [], ...neutralSolveOptions() });
   const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), []);
   const refDaily = refLoad.load['d1-r1'];
   const refDays = Object.keys(refDaily).filter(iso => refDaily[iso] > 0).sort();

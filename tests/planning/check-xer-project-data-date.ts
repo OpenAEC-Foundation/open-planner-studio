@@ -3,6 +3,7 @@ import { explainCompletedXerLoeActualFinishEligibility } from '@/engine/schedule
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -162,7 +163,7 @@ const dataDateOnlyLoeSolve = solveProject({
   calendars: dataDateOnlyCompletedLoe.resourceCalendars ?? [],
   dataDate: dataDateOnlyCompletedLoe.project.statusDate,
   progressMode: dataDateOnlyCompletedLoe.project.progressMode,
-  schedulingOptions: dataDateOnlyCompletedLoe.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(dataDateOnlyCompletedLoe.project).schedulingOptions,
   projectStartDate: dataDateOnlyCompletedLoe.project.startDate,
   projectEndDate: dataDateOnlyCompletedLoe.project.endDate,
 });

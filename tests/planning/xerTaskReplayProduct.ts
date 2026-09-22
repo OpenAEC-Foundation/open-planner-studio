@@ -10,6 +10,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import type { XerSolvedProject } from './xerFidelity';
 import type { XerReplayPredicateLog } from './xerTaskReplay';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 export interface XerReplaySourceContext {
   projectId: string;
@@ -83,7 +84,7 @@ function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResu
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });

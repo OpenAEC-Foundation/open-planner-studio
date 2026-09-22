@@ -48,6 +48,8 @@ import type { SchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
 import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import { explainP6CompletedLateRemainingWindowEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { legacyEffective } from './legacySolveOptions';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const diffs: string[] = [];
@@ -343,7 +345,7 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -474,7 +476,7 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -669,7 +671,7 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
         const result = solveProject({
           tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
           calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
-          progressMode: imported.project.progressMode, schedulingOptions,
+          progressMode: imported.project.progressMode, schedulingOptions: legacyEffective(schedulingOptions),
           projectStartDate: imported.project.startDate, projectEndDate: imported.project.endDate,
         });
         if (result.error) throw new Error(`${item.id} (echt): ${result.error}`);

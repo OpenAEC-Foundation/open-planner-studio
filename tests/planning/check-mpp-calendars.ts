@@ -65,6 +65,7 @@ import {
   buildVarMetaBytes,
   type CfbTreeNode,
 } from './mppFixtures';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -309,7 +310,7 @@ function buildI4T6FixtureBytes(): Uint8Array {
   const solveInputBefore = {
     tasks: before.tasks, sequences: before.sequences, calendar: before.calendar,
     calendars: before.resourceCalendars ?? [], dataDate: before.project.statusDate,
-    progressMode: before.project.progressMode, schedulingOptions: before.project.schedulingOptions,
+    progressMode: before.project.progressMode, schedulingOptions: solveOptionsFor(before.project).schedulingOptions,
     projectStartDate: before.project.startDate,
   };
   const cpmBefore = solveProject(solveInputBefore);
@@ -326,7 +327,7 @@ function buildI4T6FixtureBytes(): Uint8Array {
   const solveInputAfter = {
     tasks: after.tasks, sequences: after.sequences, calendar: after.calendar,
     calendars: after.resourceCalendars ?? [], dataDate: after.project.statusDate,
-    progressMode: after.project.progressMode, schedulingOptions: after.project.schedulingOptions,
+    progressMode: after.project.progressMode, schedulingOptions: solveOptionsFor(after.project).schedulingOptions,
     projectStartDate: after.project.startDate,
   };
   const cpmAfter = solveProject(solveInputAfter);

@@ -7,6 +7,7 @@ import { createAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import type { Task } from '@/types/task';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -44,7 +45,7 @@ function solveFinish(imported: ImportResult): string | undefined {
     calendars: [imported.calendar, ...(imported.resourceCalendars ?? [])],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
   });
   return result.tasks.get(task.id)?.earlyFinish;

@@ -10,6 +10,7 @@ import {
 import type { Task } from '@/types/task';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -74,7 +75,7 @@ function solveFixture(mutate?: (imported: ImportResult, task: Task) => void) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -273,7 +274,7 @@ if (!corpusRoot) {
         calendars: imported.resourceCalendars ?? [],
         dataDate: imported.project.statusDate,
         progressMode: imported.project.progressMode,
-        schedulingOptions: imported.project.schedulingOptions,
+        schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
         projectStartDate: imported.project.startDate,
         projectEndDate: imported.project.endDate,
       });

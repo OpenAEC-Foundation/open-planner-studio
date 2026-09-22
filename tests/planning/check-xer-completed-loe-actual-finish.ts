@@ -4,6 +4,7 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
 import type { Task } from '@/types/task';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -73,7 +74,7 @@ function projection(mutate?: (imported: ImportResult, loe: Task) => void) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
