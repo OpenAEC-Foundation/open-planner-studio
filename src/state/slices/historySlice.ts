@@ -68,7 +68,7 @@ function applyHistoryEvent(
 
     for (const target of targets) {
       if (target.kind === 'document-data') {
-        restoreSnapshot(state, target.snapshot);
+        restoreSnapshot(state, target.snapshot, { markEdited: target.isDirty });
         state.viewRows = target.viewRows;
         state.resourceLoadResult = target.resourceLoadResult;
       } else if (target.kind === 'document-view') {

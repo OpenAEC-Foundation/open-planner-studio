@@ -24,7 +24,7 @@ import {
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
-import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
 import { recordedDatesActiveKey, recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
@@ -1367,6 +1367,54 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   S().updateTask(S().tasks[0]!.id, { name: 'Bewerkt' });
   S().undo();
   eq('16l undo herstelt de vlag NIET (nooit een gok richting automatisch aan)', S().importPristine, false);
+
+  // Critreview op ded4d8c3, bevinding 3: een undo van een stap die GEEN bewerking was (F5 in de
+  // modus, of "toon opgeslagen datums") mag de vlag niet wissen en het document niet vuil maken.
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('16o')), { filePath: null, recompute: true });
+  eq('16o geladen: modus aan, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
+  S().runCPM();
+  eq('16p F5: modus uit, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, false]);
+  S().undo();
+  eq('16q Ctrl+Z na F5: modus weer aan, vlag AAN, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
+  S().redo();
+  eq('16r Ctrl+Y: modus weer uit, vlag nog steeds aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, false]);
+  // "Toon opgeslagen datums" vanuit de AANBOD-stand met de vlag aan. Synthetisch opgezet (een
+  // ImportResult zonder herkomst mét expliciete vlag), omdat een verse import meteen zelf de modus
+  // in gaat; het gaat hier alleen om de stap die `showRecordedDates` als niet-bewerking vastlegt.
+  S().newProject();
+  S().applyLoadedProject({ ...readIFC(externIfc('16s')), recordedTimesOrigin: undefined, importPristine: true }, { filePath: null, recompute: true });
+  eq('16s0 aanbodstand met vlag aan', [S().datesAsRecorded, S().recordedDates !== null, S().importPristine, S().isDirty], [false, true, true, false]);
+  S().showRecordedDates();
+  eq('16s "toon opgeslagen datums": modus aan, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
+  S().undo();
+  eq('16t Ctrl+Z daarvan: modus uit, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, false]);
+  S().redo();
+  // Tegenproef: na een ECHTE bewerking blijft 16l gelden, ook als de undo-keten daarna over een
+  // niet-bewerking heen loopt.
+  S().updateTask(S().tasks[0]!.id, { name: 'Bewerkt' });
+  S().undo();
+  S().undo();
+  eq('16u bewerking + twee undo\'s (bewerking, dan "toon"): vlag blijft uit, document blijft vuil', [S().importPristine, S().isDirty], [false, true]);
+  // 16v: het vangnet in de runtime — een `finishUndoable({ nonEdit })` die een open mutatie sluit
+  // waarbinnen tóch een `finishMutation` liep, legt een GEWONE bewerking vast (geen `nonEdit`).
+  // Geen productpad doet dat vandaag; dit bewaakt dat een toekomstige nesting geen bewerking als
+  // niet-bewerking laat registreren.
+  {
+    const ctx = createAppStoreContext();
+    ctx.store.getState().addTask({ name: 'X' });
+    ctx.store.setState((st) => {
+      ctx.runtime.beginUndoable(st);
+      ctx.runtime.beginUndoable(st);
+      st.tasks[0]!.name = 'Y';
+      ctx.runtime.finishMutation(st);
+      ctx.runtime.finishUndoable(st, { nonEdit: true });
+    });
+    const last = [...ctx.store.getState().historyEvents].sort((a, b) => b.sequence - a.sequence)[0];
+    const delta = last?.deltas[0];
+    eq('16v nonEdit wordt genegeerd zodra er binnen dezelfde mutatie een bewerking liep',
+      delta?.kind === 'document-data' ? delta.nonEdit ?? 'bewerking' : 'geen event', 'bewerking');
+  }
 
   // Broncodescan: `isDirty = true` staat uitsluitend in `documentEdited.ts` — élke mutator die het
   // document vuil maakt, wist daarmee ook de vlag. Zelfde wortelkandidaten als sectie 11.

@@ -25,7 +25,8 @@ import { markDocumentEdited } from '@/state/documentEdited';
  *    cpmResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
  *  UIT ('none' — undo mag deze bewust NIET aanraken):
  *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, filePath, fileHandle en isDirty
- *    (data-undo/redo zet isDirty altijd op true). De sessiehistorie is app-globaal en hoort niet bij
+ *    (data-undo/redo zet isDirty op true — behalve voor een `nonEdit`-event, zie `restoreSnapshot`;
+ *    `importPristine` evenmin, die wist alleen een undo/redo van een echte bewerking). De sessiehistorie is app-globaal en hoort niet bij
  *    `DocumentPayload`. resourceLoadResult en viewRows worden door `materializeHistoryTarget` uit
  *    het herstelde target afgeleid.
  *
@@ -200,7 +201,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
  *  De herstelde waarden zijn dezelfde objecten als in de snapshot (zie `createSnapshot`): de live
  *  state en de snapshot aliassen dus na een undo. Dat is veilig om exact dezelfde reden — de
  *  eerstvolgende mutatie is een producer en die kopieert. */
-export function restoreSnapshot(s: AppState, raw: Snapshot): void {
+export function restoreSnapshot(s: AppState, raw: Snapshot, opts?: { markEdited?: boolean }): void {
   const snap = migrateSnapshot(raw);
   const flat = snap as unknown as Record<string, unknown>;
   for (const f of DOCUMENT_FIELDS) {
@@ -211,5 +212,9 @@ export function restoreSnapshot(s: AppState, raw: Snapshot): void {
   // DEZELFDE snapshot, dus de cache wordt consistent met het herstelde id afgeleid; de
   // orphan-fallback promoveert de meegeherstelde `calendar`-waarde (niet de nieuwere).
   syncProjectCalendar(s);
-  markDocumentEdited(s);
+  // Undo/redo van een event dat GEEN bewerking was (F5 of "toon opgeslagen datums" in de modus,
+  // `nonEdit` op de delta) laat `isDirty` en `importPristine` staan: anders wiste Ctrl+Z na F5 de
+  // vlag "ongewijzigd sinds import" en maakte het een ongewijzigd document vuil (critreview op
+  // ded4d8c3, bevinding 3).
+  if (opts?.markEdited !== false) markDocumentEdited(s);
 }
