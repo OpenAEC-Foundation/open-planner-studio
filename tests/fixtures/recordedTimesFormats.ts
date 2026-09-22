@@ -220,3 +220,12 @@ export const CSV_FIXTURE_DATES_ONLY = [
   '1.1,A,5,2026-03-02,2026-03-06,',
   '1.2,B,5,2026-03-16,2026-03-20,1.1',
 ].join('\n');
+
+/** CSV met GEVULDE maar onleesbare datumcellen (Amerikaanse weekdagnotatie met 2-cijferig jaar en een
+ *  uitgeschreven Nederlandse datum). B hangt aan A, zodat een verzonnen vastlegging "beide op
+ *  vandaag" na de solve een verschuiving zou opleveren (en dus de modus). */
+export const CSV_FIXTURE_UNREADABLE_DATES = [
+  'WBS,Name,Duration,Start,Finish,Predecessors',
+  '1.1,A,5,Mon 3/2/26,Fri 3/6/26,',
+  '1.2,B,5,2 maart 2026,6 maart 2026,1.1',
+].join('\n');

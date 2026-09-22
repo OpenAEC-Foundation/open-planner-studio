@@ -29,6 +29,8 @@ import { recoveryInputFromParsed } from '@/state/documentContract';
 import { recordedDatesActiveKey, recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import { writeCSV } from '@/services/csv/csvWriter';
+import { readCSV } from '@/services/csv/csvReader';
+import { CSV_FIXTURE_UNREADABLE_DATES } from '../fixtures/recordedTimesFormats';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -1387,6 +1389,16 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
     loop(srcRoot);
     eq('16n `isDirty = true` staat nergens buiten markDocumentEdited (documentEdited.ts)', overtreders, []);
   }
+}
+
+// ── (17) CSV met onleesbare datumcellen opent NIET in de modus (critreview ded4d8c3, bevinding 1) ─
+// Vóór de fix legde de CSV-lezer "vandaag" vast voor een gevulde maar onleesbare datumcel; B hangt
+// aan A, dus na de solve verschoof B t.o.v. die verzonnen vastlegging en ging het document de modus
+// in met alle taken op vandaag. Het laadpad hieronder is het echte (`applyOpenedImport`).
+{
+  S().newProject();
+  S().applyOpenedImport(readCSV(CSV_FIXTURE_UNREADABLE_DATES), { filePath: null, recompute: true });
+  eq('17a onleesbare CSV-datums: geen modus, geen vastlegging', [S().datesAsRecorded, S().recordedDates], [false, null]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

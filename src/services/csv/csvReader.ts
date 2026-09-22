@@ -5,7 +5,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
-import { csvDateOrToday } from '@/services/importDates';
+import { csvDateOrToday, csvDateOrUndefined } from '@/services/importDates';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
 import { buildRecordedTime, type RecordedTime } from '@/engine/scheduler/recordedDates';
@@ -223,8 +223,8 @@ export function readCSV(content: string): ImportResult {
     const outlineLevelRaw = get('outlineLevel').trim();
     rows.push({
       recorded: buildRecordedTime({
-        start: recordedStartRaw ? parseDate(recordedStartRaw) : undefined,
-        finish: recordedFinishRaw ? parseDate(recordedFinishRaw) : undefined,
+        start: recordedStartRaw ? csvDateOrUndefined(recordedStartRaw) : undefined,
+        finish: recordedFinishRaw ? csvDateOrUndefined(recordedFinishRaw) : undefined,
         totalFloat: Number.isFinite(recordedFloat) ? recordedFloat : undefined,
         isCritical: recordedCriticalRaw === 'yes' || recordedCriticalRaw === 'ja' || recordedCriticalRaw === 'true' || recordedCriticalRaw === '1' ? true
           : recordedCriticalRaw === 'no' || recordedCriticalRaw === 'nee' || recordedCriticalRaw === 'false' || recordedCriticalRaw === '0' ? false
