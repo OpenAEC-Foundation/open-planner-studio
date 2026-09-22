@@ -38,7 +38,7 @@ Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning 
 
 Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij elke wissel staan, ook als je een eigen profiel of een sjabloon kiest. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
 
-Wissel je tussen de ingebouwde profielen, dan blijven alle afwijkingen letterlijk staan, ook een afwijking die onder het nieuwe profiel toevallig gelijk is aan de standaard. Zo geeft Primavera P6 → Open Planner Studio → Primavera P6 precies het profiel terug waarmee je begon. Sla je tussendoor op, dan bewaart het bestand alleen wat onder het profiel van dat moment afwijkt.
+Wissel je tussen de ingebouwde profielen, dan blijven alle afwijkingen letterlijk staan, ook een afwijking die onder het nieuwe profiel toevallig gelijk is aan de standaard. Zo geeft Primavera P6 → Open Planner Studio → Primavera P6 precies het profiel terug waarmee je begon.
 
 De reken-opties van het project veranderen bij een wissel niet. Wil je de standaardopties van het nieuwe profiel, klik dan op **Standaardopties van dit profiel toepassen**.
 

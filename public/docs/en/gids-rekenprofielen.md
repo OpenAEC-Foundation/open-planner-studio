@@ -38,7 +38,7 @@ Choose another profile in **Project info** and click **Apply**. The schedule is 
 
 Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
 
-When you switch between the built-in profiles, all deviations stay exactly as they are, including one that happens to equal the default of the new profile. So Primavera P6 → Open Planner Studio → Primavera P6 gives back exactly the profile you started with. If you save in between, the file keeps only what deviates under the profile of that moment.
+When you switch between the built-in profiles, all deviations stay exactly as they are, including one that happens to equal the default of the new profile. So Primavera P6 → Open Planner Studio → Primavera P6 gives back exactly the profile you started with.
 
 The project's calculation options do not change when you switch. If you want the default options of the new profile, click **Apply this profile's default options**.
 

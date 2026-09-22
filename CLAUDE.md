@@ -137,8 +137,8 @@ onder *State*) en de X12-meetlat, nooit `Task.time` als invoer. Bak 2 (`restart_
 corpusloos over heel `src/`; de X12-non-interferentie in `check-xer-product-fidelity-x12.ts` bewijst
 het per mutatie. (3) **P6-gedrag loopt via het rekenprofiel, niet via het bronformaat.** De XER-lezer zet
 `project.schedulingProfile` op het ingebouwde profiel Primavera P6 (A19 per bestand als override uit
-`rem_target_link_flag`) (vanaf baan C); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
-*Rekenprofielen* hieronder). `SchedulingOptions.p6Source` bestaat niet meer (vanaf baan C); oude IFC-bestanden met
+`rem_target_link_flag`); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
+*Rekenprofielen* hieronder). `SchedulingOptions.p6Source` bestaat niet meer; oude IFC-bestanden met
 `p6Source` migreren per veld (`legacyOptionsToProfile`). `WorkCalendar.p6Source` blijft als diagnoseveld.
 Uitzondering: `lagCalendar` is sinds X5 een werkende instelling voor élk formaat.
 
@@ -163,12 +163,12 @@ profielwissel staan, ook naar een eigen profiel of een sjabloon. Verder blijven 
 ingebouwd id bij een wissel letterlijk staan (`switchProfile`), en `isDefaultProfile` is letterlijk "ops
 zonder enige afwijking" — zo geeft P6 → OPS → P6 het origineel terug.
 De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/`solveInputFor`
-(`src/engine/scheduler/solveInput.ts`) (vanaf baan C) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
+(`src/engine/scheduler/solveInput.ts`) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
 aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel voor (`ImportResult.suggestedProfileId`:
-XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe) (vanaf baan C); openen meldt het profiel met een
-actie naar Projectinfo (vanaf baan C). IFC: `OPS_SchedulingProfile` (alle vijftien opgelost, alleen ≠ standaardprofiel)
+XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe); openen meldt het profiel met een
+actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle vijftien opgelost plus de letterlijke afwijkingen, alleen ≠ standaardprofiel)
 naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door `writeIFC`/`readIFC` geschreven en
-gelezen (vanaf baan C). Eigen profielen zijn app-globale
+gelezen. Eigen profielen zijn app-globale
 sjablonen (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt
 zijn eigen kopie. UI: het blok *Rekenprofiel en reken-opties* in Projectinfo
 (`SchedulingProfileSection.tsx` (vanaf D4), bewerkmodel `state/schedulingProfileDraft.ts`, actie
