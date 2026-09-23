@@ -94,14 +94,22 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     // hangen. De berekende planning leeft in earlyStart/earlyFinish; weergave/export gebruikt
     // `earlyStart || scheduleStart`.
     //
-    // UUR-MODUS (fase 2.8b, FIX golf, §2.4): scheduleStart/scheduleFinish moeten wél een
-    // datetime-representatie dragen i.p.v. date-only/verouderd te blijven. scheduleFinish volgt de
-    // berekende finish (geen anker ⇒ veilig; nooit meer stale na een duur-wijziging); scheduleStart
-    // houdt zijn ANKER-instant maar wordt idempotent naar de datetime-vorm genormaliseerd
-    // (parseInstant→formatInstant('hour') verandert de instant niet, dus geen drift). Dag-taken
-    // blijven ONGEMOEID ⇒ byte-identiek (`formatDate`, verify:examples).
+    // EN OOK GEEN scheduleFinish: net als scheduleStart is het INVOER (`TaskTimeInput`, en in de
+    // IFC-laag `RECORDED_INPUT_SLOT_KEYS`: "wat het bestand zei"). De P6-conventies lezen het als
+    // het geplande bronvenster (`target_end_date`: A16-vloer, het TT_FinMile-grensvenster, het
+    // nulduur-grenspaar, het LOE-doelvenster, de voltooid-routes). Tot gebruikstest 24-09 (B1)
+    // schreef deze functie in uur-modus `scheduleFinish = earlyFinish` terug (fase 2.8b, "nooit
+    // meer stale na een duur-wijziging"); daardoor werd de uitvoer van de ene berekening invoer
+    // voor de volgende. Gemeten: XER onder P6 → OPS → P6 gaf de eindmijlpaal ES 27-03 / EF 13-03
+    // (einde vóór start), en Bereken herstelde het niet. De berekende finish leeft in `earlyFinish`;
+    // weergave en export lezen `earlyFinish || scheduleFinish`, precies zoals voor dag-taken.
+    //
+    // UUR-MODUS (fase 2.8b, FIX golf, §2.4): scheduleStart houdt zijn ANKER-instant maar wordt
+    // idempotent naar de datetime-vorm genormaliseerd (parseInstant→formatInstant('hour') verandert
+    // de instant niet, dus geen drift). Voor scheduleFinish kan dat niet: een date-only finish naar
+    // T00:00 normaliseren zou het einde een dag vervroegen, dus die blijft zoals hij is ingevoerd.
+    // Dag-taken blijven ONGEMOEID ⇒ byte-identiek (`formatDate`, verify:examples).
     if (taskDurationUnit(task) === 'hours') {
-      task.time.scheduleFinish = r.earlyFinish;
       task.time.scheduleStart = formatInstant(parseInstant(task.time.scheduleStart), 'hour');
     }
   }

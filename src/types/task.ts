@@ -271,9 +271,11 @@ export interface TaskTime {
  */
 
 /** INVOER — door de gebruiker/importers geschreven. `runCPM` raakt deze normaliter niet aan, MAAR
- *  overschrijft in UUR-modus `scheduleStart`/`scheduleFinish` (naar de berekende instants,
- *  `scheduleSlice.ts`) en de passende afgeleide duurbron (`scheduleDuration` of `durationMinutes`) voor
- *  HAMMOCK-taken (afgeleide span, `CPMSolver`). `durationType` blijft puur invoer. */
+ *  normaliseert in UUR-modus de VORM van `scheduleStart` (datetime, zelfde instant — `applyCpmResult`)
+ *  en overschrijft de passende afgeleide duurbron (`scheduleDuration` of `durationMinutes`) voor
+ *  HAMMOCK-taken (afgeleide span, `CPMSolver`). `durationType` blijft puur invoer, en `scheduleFinish`
+ *  ook: de solve schrijft hem nooit terug (gebruikstest 24-09, B1 — anders leest de volgende berekening
+ *  onder een P6-conventie de uitvoer van de vorige als gepland bronvenster). */
 export type TaskTimeInput = Pick<
   TaskTime,
   'durationType' | 'durationUnit' | 'scheduleDuration' | 'durationMinutes' | 'scheduleStart' | 'scheduleFinish'
