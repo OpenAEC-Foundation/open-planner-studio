@@ -131,7 +131,12 @@ Maak een baseline daarom nooit langs ze heen:
 - `xer-p6-computed.ts` — `node scripts/run-ts.mjs scripts/xer-p6-computed.ts [--check]` met
   `OPS_XER_CORPUS`. Meet per manifest-entry de drie kenmerken (SCHEDOPTIONS-rij, `rem_late_start_date`
   gevuld op open taken, `driving_path_flag` ergens Y) op de ruwe tabellen en schrijft
-  `tests/planning/xer-corpus-p6computed.json` (`p6Computed: true|false|"unknown"` + evidence). Dat
+  `tests/planning/xer-corpus-p6computed.json`. Het oordeel is per PROJECT (`projects[proj_id]:
+  { p6Computed: true|false|"unknown", schedOptions, remLateStartFilled, drivingPathFlagY }`; "unknown"
+  = geen open taken); de X12-splitsing telt per (bestand, project), en projecten zonder sidecar-regel
+  tellen apart als "niet in sidecar". Het bestandsveld `p6Computed` is alleen een samenvatting: de
+  gemeenschappelijke waarde, of `"mixed"` als projecten verschillen. `measure:profiles` draait in het
+  P6-deel `--check` mee en print de exitcode, zonder het oordeel te veranderen. Dat
   bestand is de enige bron voor de splitsing "P6-doorgerekend / niet / onbekend" in de X12-uitvoer en
   in `measure:profiles`; het stuurt de populatie nooit. `--check` faalt (exit 1) als het bestand niet
   met de meting overeenkomt. Het staat bewust naast en niet ín `xer-corpus-manifest.json`: de
