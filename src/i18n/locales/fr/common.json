@@ -1274,6 +1274,10 @@
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Une liaison fin-fin vers un jalon de début se lie au jalon lui-même",
       "help": "Une liaison fin-fin vers un jalon de début compte jusqu’au jalon lui-même, et non jusqu’au début de sa journée : la fin au plus tard du prédécesseur peut aller jusqu’à la fin au plus tard du jalon."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Le début planifié n’est pas un plancher pour une tâche en cours",
+      "help": "Le travail restant d’une tâche commencée débute à la date d’état et juste après ses prédécesseurs, même si son début planifié est plus tardif."
     }
   },
   "profiles": {

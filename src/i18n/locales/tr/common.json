@@ -1239,6 +1239,10 @@
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi kilometre taşının kendisine bağlanır",
       "help": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi, kilometre taşının gününün başına değil kendisine kadar sayılır: öncülün en geç bitişi kilometre taşının en geç bitişine kadar uzayabilir."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",
+      "help": "Başlamış bir görevin kalan işi, planlanan başlangıcı daha geç olsa bile durum tarihinde ve öncüllerinin hemen ardından başlar."
     }
   },
   "profiles": {

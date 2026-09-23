@@ -294,10 +294,29 @@ export interface SchedulingOptions {
    *    berekening van een FF-relatie; ongemeten, dus het gedrag van vóór deze conventie.
    *  - OPS: uit (de werkgrens vóór het dagbegin van de mijlpaal, het gedrag van vóór deze conventie). */
   p6FinishFinishStartMilestoneLateFinish?: boolean;
+  /** C7 — de geplande-startvloer van A16 (`p6UseTaskPlannedStartFloor`: `TASK.target_start_date`
+   *  als vloer zodra het geplande venster ruim ná de netwerkgrens ligt) geldt niet voor een LOPENDE
+   *  taak (werkelijke start, voortgang < 100%). Haar resterende werk begint dan op de statusdatum en
+   *  de relatiegrens uit haar voorgangers (`CPMSolver.forwardPass`, voortgangstak: `remStart`), en
+   *  haar opvolgers volgen. Zonder deze conventie tilt A16 ook een lopende taak naar haar geplande
+   *  start. Leest geen `restart_date` (bak 2, `check-xer-field-whitelist.ts`): P6's opgeslagen
+   *  herstart is alleen de meetlat.
+   *
+   *  - P6: aan. Gemeten op P6-doorgerekende bestanden (classificatiebrok B11):
+   *    `eh_P6Workshops/OZB-Start-09Dec24.xer`, projecten 9032 en 10096 (statusdatum 2024-12-23
+   *    08:00): de lopende OZ1040 (target_start 12-30 08:00) start in P6 op 12-24 12:00, het einde van
+   *    haar lopende voorganger OZ1030; zonder conventie 12-30 08:00, en de keten OZ1050–OZ1130 schuift
+   *    mee. `Roads_Project_TEC.xer`: de lopende B3071 en B2591 (target 05-01 resp. 05-05) starten op
+   *    de statusdatum 2013-04-23 07:00. `rehab-2.xer` telt hier niet mee: zijn orakel is P3-uitvoer,
+   *    geen P6.
+   *  - MS Project: uit. A16 is een P6-conventie; het MS Project-profiel kent de vloer niet, dus deze
+   *    uitzondering erop is daar zonder betekenis. Het gedrag van vóór deze conventie.
+   *  - OPS: uit (het gedrag van vóór deze conventie). */
+  p6StartedTaskIgnoresPlannedStartFloor?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de twintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de eenentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -322,7 +341,8 @@ export type ConventionKey =
   | 'p6FreeFloatOnOwnCalendar'
   | 'p6CompletedRemainingLag'
   | 'p6CompletedOutOfSequenceWindow'
-  | 'p6FinishFinishStartMilestoneLateFinish';
+  | 'p6FinishFinishStartMilestoneLateFinish'
+  | 'p6StartedTaskIgnoresPlannedStartFloor';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

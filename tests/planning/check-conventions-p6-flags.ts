@@ -419,13 +419,13 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
 // C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`; brok 4: C6
-// `p6FinishFinishStartMilestoneLateFinish` ──
+// `p6FinishFinishStartMilestoneLateFinish`, C7 `p6StartedTaskIgnoresPlannedStartFloor` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
 const GROUP_C = [
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow',
-  'p6FinishFinishStartMilestoneLateFinish',
+  'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
 ] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
@@ -633,6 +633,50 @@ groupC.push({
   off: { ls: '2026-01-15T08:00', lf: '2026-01-16T08:00', tf: 8, ff: 1 },
 });
 
+// C7: band 08:00–17:00 ma–vr, statusdatum ma 12 jan 08:00, rem_target_link_flag=Y (A19: de
+// getoonde ES van een lopende taak is de start van het restwerk). Lopende Q (9 u rest) eindigt ma 12
+// jan 17:00 —FS0→ lopende T (werkelijke start ma 5 jan, 27 u gepland, 18 u rest) met een gepland
+// venster ma 19 – wo 21 jan: ruim ná de netwerkgrens (di 13 jan 08:00), dus A16 zou het als vloer
+// gebruiken. P6 (OZB, B11, OZ1030 → OZ1040): het restwerk begint direct ná de voorganger — ES di 13
+// jan 08:00, EF wo 14 jan 17:00 — en opvolger S (FS0) op do 15 jan 08:00. Zonder C7: ES ma 19 jan
+// 08:00, EF di 20 jan 17:00, S wo 21 jan.
+function c7Fixture(started: boolean): ImportResult {
+  const task = started
+    ? '%R\tT\tP1\tC1\tT100\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t27\t18\t2026-01-19 08:00\t2026-01-21 17:00\t2026-01-05 08:00\t'
+    : '%R\tT\tP1\tC1\tT100\tNiet gestart\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-19 08:00\t2026-01-21 17:00\t\t';
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tC7-fixture\tC1\t2026-01-12 08:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tQ\tP1\tC1\tQ100\tLopende voorganger\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t18\t9\t2026-01-12 08:00\t2026-01-12 17:00\t2026-01-05 08:00\t',
+    task,
+    '%R\tS\tP1\tC1\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tT\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tT\tQ\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6StartedTaskIgnoresPlannedStartFloor',
+  label: 'C7 geplande-startvloer niet voor een lopende taak',
+  input: c7Fixture(true),
+  taskId: 'T',
+  pick: axes => ({ es: axes.es, ef: axes.ef }),
+  on: { es: '2026-01-13T08:00', ef: '2026-01-14T17:00' },
+  off: { es: '2026-01-19T08:00', ef: '2026-01-20T17:00' },
+  // OPS/MS Project kennen de vloer (A16) niet en tonen de werkelijke start (geen A19); het restwerk
+  // loopt daar ook ná Q: EF wo 14 jan 17:00.
+  builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-14T17:00' },
+});
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;
@@ -712,6 +756,18 @@ for (const fixture of groupC) {
   const finMile = c6Fixture('TT_FinMile');
   eq('C6 fixture: de eindmijlpaal is een FINISH-mijlpaal', finMile.tasks.find(task => task.id === 'M')?.milestoneKind, 'FINISH');
   eq('C6 raakt geen FF-relatie naar een eindmijlpaal (alle assen, alle taken)', solveAllAxes(finMile), solveAllAxes(off(finMile)));
+}
+
+// C7, relatiekant en randgeval (docblok): de opvolger volgt het restwerk (do 15 jan 08:00, zonder C7
+// wo 21 jan); een NIET-gestarte taak houdt de vloer van A16 — met en zonder C7 gelijk op alle assen.
+{
+  const c7 = groupC.find(fixture => fixture.flag === 'p6StartedTaskIgnoresPlannedStartFloor')!;
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6StartedTaskIgnoresPlannedStartFloor', false));
+  eq('C7 opvolger volgt het restwerk', solveAxes(c7.input, 'S').es, '2026-01-15T08:00');
+  eq('C7 uit ⇒ opvolger ná het geplande venster', solveAxes(off(c7.input), 'S').es, '2026-01-21T08:00');
+  const unstarted = c7Fixture(false);
+  eq('C7 fixture: niet-gestarte taak staat op de vloer van A16', solveAxes(unstarted, 'T').es, '2026-01-19T08:00');
+  eq('C7 raakt geen niet-gestarte taak', solveAllAxes(unstarted), solveAllAxes(off(unstarted)));
 }
 
 if (diffs.length > 0) {

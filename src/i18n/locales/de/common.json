@@ -1239,6 +1239,10 @@
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Ende-Ende-Beziehung zu einem Startmeilenstein bindet an den Meilenstein selbst",
       "help": "Eine Ende-Ende-Beziehung zu einem Startmeilenstein zählt bis zum Meilenstein selbst, nicht bis zum Beginn seines Tages: das späteste Ende des Vorgängers darf bis zum spätesten Ende des Meilensteins reichen."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang",
+      "help": "Die Restarbeit eines begonnenen Vorgangs beginnt am Statusdatum und direkt nach seinen Vorgängern, auch wenn sein geplanter Anfang später liegt."
     }
   },
   "profiles": {

@@ -1274,6 +1274,10 @@
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Una relazione fine-fine verso una milestone di inizio si lega alla milestone stessa",
       "help": "Una relazione fine-fine verso una milestone di inizio conta fino alla milestone stessa, non fino all'inizio della sua giornata: la fine tardiva del predecessore può arrivare fino alla fine tardiva della milestone."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "L'inizio pianificato non è un limite minimo per un'attività in corso",
+      "help": "Il lavoro residuo di un'attività avviata inizia alla data di stato e subito dopo i suoi predecessori, anche se il suo inizio pianificato è successivo."
     }
   },
   "profiles": {

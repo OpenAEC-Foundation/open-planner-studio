@@ -1893,7 +1893,12 @@ export class CPMSolver {
               };
             }
           }
-          if (plannedWindowIsLater) earlyStart = plannedFloor;
+          // Conventie C7 `p6StartedTaskIgnoresPlannedStartFloor` (docblok + bron bij de sleutel in
+          // `types/project.ts`): voor een lopende taak (werkelijke start, nog niet voltooid) is het
+          // geplande venster geen vloer; haar resterende werk start op statusdatum + relatiegrens.
+          const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
+            && !!task.time.actualStart && task.time.completion < 1;
+          if (plannedWindowIsLater && !startedTaskSkipsFloor) earlyStart = plannedFloor;
         }
         // Vloer-afkap: wilde óók de strengste relatie de taak nog vóór het projectbegin trekken,
         // markeer dan de bindende lead(s) als afgekapt — de gebruiker moet kunnen zien dat een

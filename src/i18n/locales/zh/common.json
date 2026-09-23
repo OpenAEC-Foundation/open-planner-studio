@@ -1204,6 +1204,10 @@
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "指向开始里程碑的完成-完成关系绑定到里程碑本身",
       "help": "指向开始里程碑的完成-完成关系计到里程碑本身，而不是其当天的开始：紧前任务的最迟完成可以延伸到里程碑的最迟完成。"
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "计划开始不是进行中任务的下限",
+      "help": "已开始任务的剩余工作从状态日期、紧接其紧前任务之后开始，即使其计划开始更晚。"
     }
   },
   "profiles": {
