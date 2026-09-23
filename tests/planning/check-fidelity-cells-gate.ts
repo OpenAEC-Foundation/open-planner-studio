@@ -13,11 +13,15 @@
 //    sameday/diff-cel op de zes X12-assen draagt een grootte in minuten (missing en drivingPath
 //    `null`), een versie-1-bestand wordt geweigerd met verwijzing naar het recept, en een cel die
 //    binnen dezelfde emmer groter wordt is rood (`groter`), kleiner is "verbeterd-grootte".
-// 4. Ratchet-schuld (orkestratorbesluit 2026-09-23): het gecommitte bestand draagt precies
-//    EXPECTED_DEBT_CELLS schuldcellen; een schuldcel die verder groeit dan `current` is rood; daalt hij
-//    tot ≤ `reference` (of wordt hij exact), dan vervalt de schuld; daalt hij maar blijft hij boven
-//    `reference`, dan schuift `current` mee; schuld kan niet ontstaan buiten de eenmalige overgang op
-//    een bestand zonder schuldsectie, en de lezer weigert een schuldregel die niet klopt.
+// 4. Ratchet-schuld (orkestratorbesluit 2026-09-23): de schuldSET van het gecommitte bestand
+//    (bestand, as, id, reference) is gepind als digest (`EXPECTED_DEBT_SHA256`, gegenereerd blok
+//    hieronder), zodat de lijst niet ongemerkt geruild, verlengd of ingekort kan worden; een schuldcel
+//    die verder groeit dan `current` is rood; daalt hij tot ≤ `reference` (of wordt hij exact), dan
+//    vervalt de schuld en herpint `OPS_XER_CELLS_WRITE` het blok mee; daalt hij maar blijft hij boven
+//    `reference`, dan schuift `current` mee. Er is geen route meer die schuld aanmaakt: een bestand
+//    zonder schuldsectie wordt geweigerd, en de lezer weigert een schuldregel die niet klopt.
+// 5. Minuten-digest (critreview integratie-eindstand 2026-09-23): de grootten van het cellenbestand
+//    horen bij `cellMinutesSha256` in de v2-envelop; een met de hand opgerekte grootte is rood.
 // Assen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het
 // zesassige nuldoel-getal) — alle zeven onder dezelfde poortregels.
 import { readFileSync } from 'node:fs';
@@ -27,13 +31,34 @@ import {
   buildCellBaseline, CELL_AXES, CELL_BASELINE_VERSION, CELL_V1_PROBLEM, cellDeltaLine, cellHasMagnitude, cellMagnitude, cellOracleRedLines,
   type CellMeta, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
   parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
-  carryRatchetDebt, debtCount, CELL_PRE_DEBT_PROBLEM,
+  carryRatchetDebt, debtCount, CELL_PRE_DEBT_PROBLEM, debtDigest, cellMinutesDigest, cellMinutesProblems,
+  renderDebtPinBlock, extractDebtPinBlock, rewriteDebtPin, type CellDebt,
 } from './fidelityCells';
 
 /** Ratchet-schuld van de eenmalige overgang bij de merge van de grootte-ratchet (2026-09-23): 14 cellen in
- *  Roads_Project_TEC (plan XER §9 "Ratchet-schuld 2026-09-23"). Mag alleen DALEN: een herpin die cellen
- *  ontschuldt, verlaagt deze pin in dezelfde commit; hoger is nooit toegestaan. */
-const EXPECTED_DEBT_CELLS = 14;
+ *  Roads_Project_TEC (plan XER §9 "Ratchet-schuld 2026-09-23"). Mag alleen KRIMPEN. Het blok hieronder
+ *  wordt bij een daling door `OPS_XER_CELLS_WRITE` herschreven (digest + lijst); zet er dan met de hand
+ *  een HERPIN-regel bij die noemt welke cel ontschuld is (de schrijfmodus print ze).
+ *  HERPIN 2026-09-23 (fixronde critreview integratie-eindstand): telpin 14 vervangen door een digest over
+ *  de schuldset; de eenmalige init-route (`OPS_XER_CELLS_DEBT_INIT`) is verwijderd. */
+// BEGIN ratchet-schuldpin — herschreven door OPS_XER_CELLS_WRITE bij een daling; nooit met de hand
+// 14 schuldcel(len): bestand (12) · as · id · reference (min)
+//   a2ef7b35c00d lf 1346/85462 137400
+//   a2ef7b35c00d lf 1346/86905 127680
+//   a2ef7b35c00d lf 1346/86912 127680
+//   a2ef7b35c00d ls 1346/85462 151800
+//   a2ef7b35c00d ls 1346/86905 172320
+//   a2ef7b35c00d ls 1346/86912 172320
+//   a2ef7b35c00d tf 1346/86945 24600
+//   a2ef7b35c00d tf 1346/86962 32400
+//   a2ef7b35c00d tf 1346/87055 41400
+//   a2ef7b35c00d tf 1346/87145 4800
+//   a2ef7b35c00d tf 1346/87146 4800
+//   a2ef7b35c00d tf 1346/87147 4800
+//   a2ef7b35c00d tf 1346/87148 4800
+//   a2ef7b35c00d tf 1346/87149 4800
+const EXPECTED_DEBT_SHA256 = '00205a77d1d2db96f1e7ffbe8e22c14bafe29f021d4eba208c27392bb84c802e';
+// END ratchet-schuldpin
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
 
@@ -213,6 +238,17 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
 }
 
 // ── 2. Gecommitte baseline in de pas met de v2-tellingen ──────────────────────────────────────
+const OWN_SOURCE = readFileSync(join(HERE, 'check-fidelity-cells-gate.ts'), 'utf8');
+/** Rood als de schuldset niet bij de gepinde digest hoort of het gegenereerde blok niet bij de set. */
+function debtPinProblems(debt: CellDebt, source = OWN_SOURCE): string[] {
+  const problems: string[] = [];
+  if (debtDigest(debt) !== EXPECTED_DEBT_SHA256) {
+    problems.push(`schuldset-digest ${debtDigest(debt).slice(0, 12)} ≠ gepind ${EXPECTED_DEBT_SHA256.slice(0, 12)} — de schuldlijst is geruild, verlengd of ingekort`);
+  }
+  if (extractDebtPinBlock(source) !== renderDebtPinBlock(debt)) problems.push('schuldpin-blok in de bron hoort niet bij de schuldset');
+  return problems;
+}
+let committed: { cells: CellBaseline; v2Minutes: string } | undefined;
 {
   const parsed = parseCellBaseline(readFileSync(join(HERE, CELL_BASELINE_FILE), 'utf8'));
   eq(`${CELL_BASELINE_FILE} is geldig en canoniek`, parsed.problems, []);
@@ -256,8 +292,12 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
     }
     eq(`${CELL_BASELINE_FILE}: grootte op precies de sameday/diff-cellen van de zes assen`, sizeProblems.slice(0, 5), []);
     console.log(`   . ${CELL_BASELINE_FILE}: ${Object.keys(cells.files).length} entries, ${total} inexacte cellen, ${sized} met grootte`);
-    // Ratchet-schuld: gepind aantal, alleen omlaag.
-    eq(`${CELL_BASELINE_FILE}: ratchet-schuld = ${EXPECTED_DEBT_CELLS} cellen (alleen dalen)`, debtCount(cells.ratchetDebt), EXPECTED_DEBT_CELLS);
+    // Ratchet-schuld: gepinde schuldset (digest), alleen krimpen via OPS_XER_CELLS_WRITE.
+    eq(`${CELL_BASELINE_FILE}: ratchet-schuldset = gepinde digest (${debtCount(cells.ratchetDebt)} cellen; alleen krimpen)`,
+      debtPinProblems(cells.ratchetDebt), []);
+    // Minuten: het cellenbestand hoort bij cellMinutesSha256 in de v2-envelop.
+    eq(`${CELL_BASELINE_FILE}: grootten = cellMinutesSha256 in v2`, cellMinutesProblems(cells, v2.envelope!.cellMinutesSha256), []);
+    committed = { cells, v2Minutes: v2.envelope!.cellMinutesSha256 };
   }
 }
 
@@ -326,23 +366,27 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
 
 // ── 4. Ratchet-schuld ─────────────────────────────────────────────────────────────────────────
 {
-  // Oude kant: es 1/10 diff 1440, tf 1/10 diff 480. De eenmalige overgang: beide groeien ⇒ schuld.
+  // Oude kant: es 1/10 diff 1440, tf 1/10 diff 480. Beide groeien: er is GEEN route die daar schuld
+  // van maakt (de eenmalige init-route van 2026-09-23 is verwijderd) — de herpin weigert.
   const old = measure(BASE);
   const grown = with_(cells => cells.map(cell =>
     cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 2000 } : cell.axis === 'tf' ? { ...cell, minutes: 900 } : cell));
-  eq('schuld: zonder overgang weigert de herpin op groter', planCellRepin(old, grown, MEASURABLE).allowed, false);
-  const init = planCellRepin(old, grown, MEASURABLE, { acceptLargerAsDebt: true });
-  eq('schuld: eenmalige overgang maakt van groter schuld (reference = oud, current = nieuw)', init.allowed ? init.debt : null, {
+  eq('schuld: groter wordt nooit schuld — de herpin weigert', planCellRepin(old, grown, MEASURABLE).allowed, false);
+  eq('schuld: herpin zonder schuld schrijft geen schuld', (() => {
+    const plan = planCellRepin(old, measure(BASE), MEASURABLE);
+    return plan.allowed ? debtCount(plan.debt) : -1;
+  })(), 0);
+  // Een bestaande schuldsectie (zoals de gecommitte, ontstaan op 2026-09-23), hier synthetisch.
+  const withDebt: CellBaseline = { ...grown, ratchetDebt: {
     [F1]: { es: { '1/10': { reference: 1440, current: 2000 } }, tf: { '1/10': { reference: 480, current: 900 } } },
-  });
-  const withDebt: CellBaseline = { ...grown, ratchetDebt: init.allowed ? init.debt : {} };
+  } };
   const text = serializeCellBaseline(withDebt);
   const reread = parseCellBaseline(text);
   eq('schuld: canoniek bestand met schuld wordt geaccepteerd', [reread.problems, debtCount(reread.baseline?.ratchetDebt ?? {})], [[], 2]);
-  // Een tweede overgang op een bestand MET schuld voegt niets toe: grotere cellen blijven weigeren.
+  // Een schuldcel die verder groeit: herpin geweigerd (schuld kan niet stijgen).
   const growAgain = with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, minutes: 901 } : cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 2000 } : cell));
-  eq('schuld: acceptLargerAsDebt op een bestand met schuld ⇒ geweigerd (schuld kan niet stijgen)',
-    planCellRepin(reread.baseline!, growAgain, MEASURABLE, { acceptLargerAsDebt: true }).allowed, false);
+  eq('schuld: schuldcel groeit ⇒ herpin geweigerd (schuld kan niet stijgen)',
+    planCellRepin(reread.baseline!, growAgain, MEASURABLE).allowed, false);
   // Schuldcel groeit verder dan current ⇒ rood (ratchet-referentie is current).
   eq('schuld: groter dan current ⇒ rood', cellGateFailures(compareCells(reread.baseline!, growAgain, MEASURABLE)),
     [`cel groter geworden (diff) 900→901 min — regel A (grootte): ${F1} as tf id 1/10`]);
@@ -375,11 +419,81 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   eq('schuld: reference ≥ current ⇒ geweigerd', tamper(json => { debtOf(json).tf!['1/10']!.reference = 900; }), true);
   eq('schuld: regel zonder bijbehorende cel ⇒ geweigerd', tamper(json => { debtOf(json).es!['1/99'] = { reference: 1, current: 2 }; }), true);
   eq('schuld: schuld op drivingPath ⇒ geweigerd', tamper(json => { debtOf(json).drivingPath = { '1/10': { reference: 1, current: 2 } }; }), true);
-  // Een versie-2-bestand zonder schuldsectie is alleen de eenmalige overgang.
+  // Een versie-2-bestand zonder schuldsectie wordt geweigerd (net als versie 1): geen baseline, geen route.
   const preDebt = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(old)), ratchetDebt: undefined }, null, 2)}
 `;
   const pre = parseCellBaseline(preDebt);
-  eq('schuld: v2 zonder ratchetDebt ⇒ preDebt met verwijzing naar de overgang', [pre.preDebt, pre.problems], [true, [CELL_PRE_DEBT_PROBLEM]]);
+  eq('schuld: v2 zonder ratchetDebt-sectie ⇒ geweigerd, geen baseline', [pre.preDebt, pre.problems, pre.baseline === undefined], [true, [CELL_PRE_DEBT_PROBLEM], true]);
+
+  // Schuldpin-blok: herschrijven alleen bij krimp, vanaf een blok dat bij de oude set hoort.
+  const oldDebt = reread.baseline!.ratchetDebt;
+  const shrunk = carryRatchetDebt(oldDebt, down);
+  const source = `voor\n${renderDebtPinBlock(oldDebt)}\nna\n`;
+  const rewritten = rewriteDebtPin(source, oldDebt, shrunk);
+  eq('schuldpin: krimp ⇒ blok herschreven, ontschulde cel genoemd',
+    'text' in rewritten ? [extractDebtPinBlock(rewritten.text) === renderDebtPinBlock(shrunk), rewritten.removed] : rewritten.error,
+    [true, [[F1, 'es', '1/10', 1440]]]);
+  eq('schuldpin: nieuwe regel in de set ⇒ geweigerd', 'error' in rewriteDebtPin(source, shrunk, oldDebt), true);
+  eq('schuldpin: blok hoort niet bij de gepinde set ⇒ geweigerd', 'error' in rewriteDebtPin(source, shrunk, shrunk), true);
+  eq('schuldpin: digest verandert bij een andere reference', debtDigest({ [F1]: { tf: { '1/10': { reference: 481, current: 700 } } } }) !== debtDigest(shrunk), true);
+  eq('schuldpin: digest negeert current (die daalt mee)', debtDigest({ [F1]: { tf: { '1/10': { reference: 480, current: 650 } } } }), debtDigest(shrunk));
+}
+
+// ── 5. Mutanten op het GECOMMITTE cellenbestand (critreview integratie-eindstand 2026-09-23) ──
+// Elke mutant is canoniek en voor de strikte lezer geldig; de pinnen moeten hem toch rood maken.
+if (committed) {
+  const { cells, v2Minutes } = committed;
+  const mutate = (change: (copy: CellBaseline) => void): CellBaseline => {
+    const copy = parseCellBaseline(serializeCellBaseline(cells)).baseline!;
+    change(copy);
+    const reparsed = parseCellBaseline(serializeCellBaseline(copy));
+    if (!reparsed.baseline) throw new Error(`mutant is voor de lezer al ongeldig: ${reparsed.problems.join('; ')}`);
+    return reparsed.baseline;
+  };
+  const debtKeys = new Set(debtEntriesOf(cells.ratchetDebt));
+  function debtEntriesOf(debt: CellDebt): string[] {
+    return Object.entries(debt).flatMap(([file, axes]) => Object.entries(axes).flatMap(([axis, ids]) => Object.keys(ids).map(id => `${file}|${axis}|${id}`)));
+  }
+  // Een niet-schuldcel met grootte (de eerste in bestandsvolgorde) en de eerste schuldcel.
+  let plain: { file: string; axis: string; id: string; minutes: number } | undefined;
+  for (const [file, axes] of Object.entries(cells.files)) {
+    for (const axis of CELL_AXES) {
+      for (const [id, value] of Object.entries(axes[axis] ?? {})) {
+        if (!plain && value.minutes !== null && value.minutes > 0 && !debtKeys.has(`${file}|${axis}|${id}`)) plain = { file, axis, id, minutes: value.minutes };
+      }
+    }
+  }
+  const [debtFile, debtAxis, debtId] = [...debtKeys][0]!.split('|') as [string, string, string];
+  eq('mutant-basis: een niet-schuldcel met grootte en een schuldcel gevonden', [plain !== undefined, debtKeys.size > 0], [true, true]);
+  if (plain) {
+    const target = plain;
+    // M1: 15e schuldcel (geldige regel: wijst naar een bestaande cel, reference < current = minuten).
+    const extra = mutate(copy => { ((copy.ratchetDebt[target.file] ??= {})[target.axis] ??= {})[target.id] = { reference: 0, current: target.minutes }; });
+    eq(`M1 ${debtCount(cells.ratchetDebt) + 1}e schuldcel ⇒ rood (schuldset-digest)`, debtPinProblems(extra.ratchetDebt).length > 0, true);
+    // M2: schuldcel met de hand groter (cel én current opgerekt; reference gelijk ⇒ zelfde schuldset).
+    const grownDebt = mutate(copy => {
+      copy.files[debtFile]![debtAxis]![debtId]!.minutes! += 100000;
+      copy.ratchetDebt[debtFile]![debtAxis]![debtId]!.current += 100000;
+    });
+    eq('M2 schuldcel met de hand groter ⇒ rood (minuten-digest ≠ v2)', cellMinutesProblems(grownDebt, v2Minutes).length > 0, true);
+    // M3: niet-schuldcel met de hand groter (de mutant van de reviewer: 105360 → 205360).
+    const grownPlain = mutate(copy => { copy.files[target.file]![target.axis]![target.id]!.minutes = target.minutes + 100000; });
+    eq(`M3 niet-schuldcel met de hand groter (${target.minutes} → ${target.minutes + 100000}) ⇒ rood (minuten-digest ≠ v2)`,
+      [cellMinutesProblems(grownPlain, v2Minutes).length > 0, cellMinutesDigest(grownPlain) !== cellMinutesDigest(cells)], [true, true]);
+    // M4: schuldlijst ingekort (één regel weg) en geruild (reference anders) ⇒ rood.
+    const shortened = mutate(copy => { delete copy.ratchetDebt[debtFile]![debtAxis]![debtId]; });
+    eq('M4 schuldlijst ingekort ⇒ rood (schuldset-digest)', debtPinProblems(shortened.ratchetDebt).length > 0, true);
+    const swapped = mutate(copy => { copy.ratchetDebt[debtFile]![debtAxis]![debtId]!.reference -= 1; });
+    eq('M5 schuldregel geruild (andere reference) ⇒ rood (schuldset-digest)', debtPinProblems(swapped.ratchetDebt).length > 0, true);
+  }
+  // M6: sectie weg ⇒ geweigerd door de lezer.
+  const noSection = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(cells)), ratchetDebt: undefined }, null, 2)}\n`;
+  eq('M6 cellenbestand zonder ratchetDebt-sectie ⇒ geweigerd', parseCellBaseline(noSection).problems, [CELL_PRE_DEBT_PROBLEM]);
+  // M7: schuldpin-blok in de bron met de hand bewerkt (digest laten staan, één lijstregel weg).
+  const ownBlock = extractDebtPinBlock(OWN_SOURCE) ?? '';
+  const blockLines = ownBlock.split('\n');
+  const tamperedSource = OWN_SOURCE.replace(ownBlock, () => [...blockLines.slice(0, 2), ...blockLines.slice(3)].join('\n'));
+  eq('M7 schuldpin-lijst met de hand ingekort ⇒ rood', [tamperedSource !== OWN_SOURCE, debtPinProblems(cells.ratchetDebt, tamperedSource).length > 0], [true, true]);
 }
 
 if (diffs.length > 0) {
@@ -387,4 +501,4 @@ if (diffs.length > 0) {
   for (const diff of diffs) console.log(`XX  ${diff}`);
   process.exit(1);
 }
-console.log(`OK  fidelity-cellen (regel A): ${checks} checks groen — poortlogica mutatiebewezen (emmer + grootte), cel-baseline versie 2 canoniek en in de pas met de v2-tellingen`);
+console.log(`OK  fidelity-cellen (regel A): ${checks} checks groen — poortlogica mutatiebewezen (emmer + grootte), cel-baseline versie 2 canoniek en in de pas met de v2-tellingen, grootten = cellMinutesSha256, schuldset = gepinde digest`);

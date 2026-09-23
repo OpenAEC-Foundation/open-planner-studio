@@ -485,7 +485,7 @@ function decodeProductPayload(envelope: ProductEnvelope): ProductV2 {
 function withMutatedProduct(envelope: ProductEnvelope, mutate: (product: ProductV2) => void): ProductEnvelope {
   const product = clone(decodeProductPayload(envelope));
   mutate(product);
-  return createProductEnvelope(sealProductBaseline(product));
+  return createProductEnvelope(sealProductBaseline(product), envelope.cellMinutesSha256);
 }
 
 function withRawMutatedProduct(envelope: ProductEnvelope, mutate: (product: ProductV2) => void): ProductEnvelope {
