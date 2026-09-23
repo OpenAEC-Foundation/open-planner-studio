@@ -1,4 +1,5 @@
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { setConvention } from './p6SemanticsOff';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { XerImportError } from '@/services/xer/xerTables';
 import { solveProject } from '@/engine/scheduler/solveProject';
@@ -139,6 +140,9 @@ const p6Lunch = read([
   '%R\tR7\t8010\t8000\tP1\tP1\tPR_FS\t0',
   '%E',
 ]);
+// A17 staat sinds 2026-09-23 (§1d-7) in elk ingebouwd profiel uit (0 cellen op de P6-doorgerekende
+// populatie); 3g toetst de regel zelf, dus als afwijking aan.
+setConvention(p6Lunch, 'p6FinishMilestoneBoundaryWindow', true);
 solveProject({
   tasks: p6Lunch.tasks,
   sequences: p6Lunch.sequences,

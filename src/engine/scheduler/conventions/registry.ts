@@ -80,11 +80,15 @@ function convention(
 /** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
   *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5; daarna C1–C3 (X12 naar nul, brok 2), C4–C6 (brok 3), C7–C8 (brok 4), C9 (brok 6), C11–C12 (brok 8; C10 = geparkeerde ALAP). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
+  // A17, B3 en B4 staan sinds 2026-09-23 in elk ingebouwd profiel uit (eigenaarsvraag §1d-7): P6: uit —
+  // geen effect op P6-doorgerekende bestanden; gebouwd op rehab-2 (P3). Gemeten op de motor mét C5/C6:
+  // elk apart en alle drie samen 0 nieuw / 0 verslechterd / 0 groter / 0 verbeterd, X12 blijft 192.
+  // Na integratieronde 2 (C11–C13, C2-breed, C6-optie) herbevestigd: measure:profiles NULDOEL 175, 0/0/0.
   convention('preserveActualDatesInBackwardPass', 'A', P6_ONLY, false),        // A12
   convention('clampNegativeFreeFloat', 'A', P6_ONLY, false),                   // A13
   convention('p6ZeroDurationUsesPlannedBoundary', 'A', P6_ONLY, true),         // A15
   convention('p6UseTaskPlannedStartFloor', 'A', P6_ONLY, true),                // A16
-  convention('p6FinishMilestoneBoundaryWindow', 'A', P6_ONLY, true),           // A17
+  convention('p6FinishMilestoneBoundaryWindow', 'A', NONE, true),              // A17 (P6: uit, zie hieronder)
   convention('p6PreserveActualInstants', 'A', P6_ONLY, true),                  // A18
   // A19: per bestand (`rem_target_link_flag`); de P6-basis is uit, de XER-lezer zet hem als override.
   convention('p6UseRemainingStartForProgress', 'A', NONE, true, true),         // A19 (per bestand)
@@ -93,8 +97,8 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('unstartedIgnoresStatusDate', 'A', MSP_ONLY, false),              // A23
   convention('p6RelationFinishBoundary', 'B', P6_ONLY, true),                  // B1
   convention('p6BackwardLagFinishBoundary', 'B', P6_ONLY, true),               // B2
-  convention('p6CompletedDataDateWindow', 'B', P6_ONLY, true),                 // B3
-  convention('p6CompletedLoeActualFinish', 'B', P6_ONLY, true),                // B4
+  convention('p6CompletedDataDateWindow', 'B', NONE, true),                    // B3 (P6: uit)
+  convention('p6CompletedLoeActualFinish', 'B', NONE, true),                   // B4 (P6: uit)
   convention('p6OpenLoeTargetSpan', 'B', P6_ONLY, true),                       // B5
   // C1–C9: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`. C1 en C4
   // staan sinds 2026-09-23 in elk ingebouwd profiel uit (besluit: alleen P6-doorgerekende orakels;

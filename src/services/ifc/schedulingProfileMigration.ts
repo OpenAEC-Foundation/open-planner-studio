@@ -12,6 +12,10 @@ import {
  * AAN gingen: B1–B5, die vóór de rekenprofielen uitsluitend aan `p6Source` hingen (spec bijlage A).
  * Bewust een GEPINDE lijst en niet "elke groep-B-conventie": een later toegevoegde conventie bestond
  * in zo'n bestand niet en mag daar niet stil aangaan (eindreview I4). Zie `docs/recepten/conventie.md`.
+ * Sinds 2026-09-23 (eigenaarsvraag §1d-7) volgt een afwezige B-sleutel de P6-profielwaarde, net als
+ * `LEGACY_XER_ALSO_ON_X12`: B3/B4 staan in P6 uit (0 cellen effect op P6-doorgerekende bestanden), dus
+ * een oud XER-IFC zonder die sleutels rekent ze uit — als een herimport. Een expliciet gezette B3/B4
+ * blijft staan (wordt dan een afwijking van p6). B1, B2 en B5 blijven aan.
  */
 export const LEGACY_XER_ALWAYS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
   'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
@@ -47,10 +51,10 @@ export const LEGACY_XER_ALSO_ON_X12: ReadonlySet<ConventionKey> = new Set<Conven
   'p6FinishNotBeforeFinishFinishBound',
 ]);
 
-/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C9, C11 en C12 op hun P6-waarde,
- *  al het andere uit. */
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5, C1–C9, C11 en C12 op hun P6-waarde
+ *  (B3/B4 sinds 2026-09-23 uit, net als C1/C4), al het andere uit. */
 export function legacyXerDefault(d: ConventionDescriptor): boolean {
-  if (LEGACY_XER_ALWAYS_ON.has(d.id)) return true;
+  if (LEGACY_XER_ALWAYS_ON.has(d.id)) return d.builtIn.p6;
   if (LEGACY_XER_ALSO_ON_X12.has(d.id)) return d.builtIn.p6;
   return false;
 }
@@ -79,8 +83,8 @@ export function optionKeysOnly(options: LegacySchedulingOptions | undefined): Pr
  * naar profiel + projectopties (spec v3 §3.4). `legacyValue` speelt hier geen rol:
  *  - blob afwezig ⇒ `ops` zonder afwijkingen;
  *  - `p6Source: 'XER'` ⇒ basis `p6`. Per A-conventie: sleutel aanwezig ⇒ die waarde, afwezig ⇒ UIT
- *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). Afwezige B1–B5 ⇒ AAN (ze
- *    hingen vandaag alleen aan `p6Source`), afwezige C1–C9 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
+ *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). Afwezige B1–B5 ⇒ hun P6-waarde (B1/B2/B5 aan,
+ *    B3/B4 sinds 2026-09-23 uit), afwezige C1–C9, C11 en C12 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
  *  - geen `p6Source` ⇒ de p6Source-gepoorte conventies (A15–A20) worden weggegooid (ze waren inert;
  *    risico 1); A12/A13/A22/A23 worden afwijkingen; basis = `msproject` als `resumeFromActualElapsed`
  *    én `unstartedIgnoresStatusDate` allebei true zijn (de `.mpp`-lezer), anders `ops`;

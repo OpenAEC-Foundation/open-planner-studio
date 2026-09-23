@@ -157,11 +157,13 @@ const CUSTOM: SchedulingProfile = {
   const opts3: LegacySchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
   const ifc3 = legacyIfc(opts3);
   // Spec v3: een A-conventie die de blob niet noemt, rekende vandaag als uit ⇒ afwijking van p6.
-  same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B1–B5 aan', readProfile(ifc3), {
+  // A17 staat sinds 2026-09-23 (§1d-7) ook in P6 uit, dus "ontbrekend ⇒ uit" is daar geen afwijking meer;
+  // B3/B4 volgen hun P6-waarde (uit) en zijn evenmin een afwijking.
+  same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B-set op P6-waarde', readProfile(ifc3), {
     ...builtInProfile('p6'),
     overrides: {
       clampNegativeFreeFloat: false, p6ZeroDurationUsesPlannedBoundary: false, p6UseTaskPlannedStartFloor: false,
-      p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: false, p6PreserveZeroDurationConstraintInstants: false,
+      p6PreserveActualInstants: false, p6PreserveZeroDurationConstraintInstants: false,
     },
   });
   same('26 C2: p6Source en conventies gestript uit schedulingOptions', readIFC(ifc3).project.schedulingOptions, { totalFloatMode: 'finish' });

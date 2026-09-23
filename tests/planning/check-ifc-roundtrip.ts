@@ -876,13 +876,14 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     totalFloatMode: 'finish',
   }), 'vijandig OPS_SchedulingOptions-JSON: alleen de goed getypeerde, bekende projectopties overleven; onzin-mode, string-getallen, onbekende sleutels en een half floatPaths-blok vallen weg');
   // De bronmarkering migreert naar p6; elke p6-basisconventie die de blob niet GELDIG draagt
-  // (A12 = 1 is ongeldig) rekende vroeger als uit ⇒ afwijking false. A19 staat op de basis al uit.
+  // (A12 = 1 is ongeldig) rekende vroeger als uit ⇒ afwijking false. A19 en (sinds 2026-09-23, §1d-7)
+  // A17 staan op de basis al uit, dus die zijn geen afwijking.
   assert(canon(hostileProject.schedulingProfile) === canon({
     baseId: 'p6', id: 'p6', name: '',
     overrides: {
       preserveActualDatesInBackwardPass: false, clampNegativeFreeFloat: false,
       p6ZeroDurationUsesPlannedBoundary: false, p6UseTaskPlannedStartFloor: false,
-      p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: false,
+      p6PreserveActualInstants: false,
       p6PreserveZeroDurationConstraintInstants: false,
     },
   }), 'vijandige blob mét XER-bronmarkering ⇒ p6-profiel; ontbrekende/ongeldige A-conventies als afwijking uit');
