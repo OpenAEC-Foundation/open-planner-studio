@@ -1243,6 +1243,14 @@
     "p6InProgressStartLagElapsed": {
       "label": "Elapsed SS lag from an in-progress predecessor does not count",
       "help": "For a start-to-start relationship from a task that has already started, only the part of the lag that has not yet elapsed since its actual start at the data date counts."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Finish-to-finish relationship to a start milestone binds to the milestone itself",
+      "help": "A finish-to-finish relationship to a start milestone counts up to the milestone itself, not up to the start of the milestone's day: the predecessor's late finish may run up to the milestone's late finish."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Planned start is not a floor for a task in progress",
+      "help": "The remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later."
     }
   },
   "profiles": {

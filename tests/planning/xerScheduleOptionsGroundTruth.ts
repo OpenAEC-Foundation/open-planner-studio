@@ -229,6 +229,8 @@ export function expectedXerScheduleOptions(
     p6CompletedOutOfSequenceWindow: true,
     p6CompletedPhysicalAtDataDate: true,
     p6InProgressStartLagElapsed: true,
+    p6FinishFinishStartMilestoneLateFinish: true,
+    p6StartedTaskIgnoresPlannedStartFloor: true,
   };
   if (!scheduleRow) {
     return {

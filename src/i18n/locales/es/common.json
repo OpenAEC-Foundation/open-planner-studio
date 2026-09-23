@@ -1278,6 +1278,14 @@
     "p6InProgressStartLagElapsed": {
       "label": "El retraso CC transcurrido de un predecesor en curso no cuenta",
       "help": "En una relación comienzo-comienzo desde una tarea ya iniciada, solo cuenta la parte del retraso que aún no ha transcurrido desde su comienzo real en la fecha de estado."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Una relación fin-fin hacia un hito de inicio se vincula al propio hito",
+      "help": "Una relación fin-fin hacia un hito de inicio cuenta hasta el propio hito, no hasta el comienzo de su día: el fin tardío de la predecesora puede llegar hasta el fin tardío del hito."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "El inicio planificado no es un mínimo para una tarea en curso",
+      "help": "El trabajo restante de una tarea iniciada comienza en la fecha de estado y justo después de sus predecesoras, aunque su inicio planificado sea posterior."
     }
   },
   "profiles": {

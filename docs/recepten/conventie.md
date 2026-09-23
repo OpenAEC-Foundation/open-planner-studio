@@ -27,10 +27,10 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    gepinde B1–B5 uit `LEGACY_XER_ALWAYS_ON` (`src/services/ifc/schedulingProfileMigration.ts`) aan, want
    een nieuwe conventie bestond in zo'n bestand niet. De regel: een nieuwe conventie gaat voor oude
    bestanden NOOIT vanzelf aan, welke groep ook, tenzij ze met een meting expliciet in een gepinde set
-   wordt gezet — zoals C1–C6 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
-   15.056 → 10.947 gemeten, 0 slechter). Breid `LEGACY_XER_ALWAYS_ON` nooit uit. Twee sets, twee
+   wordt gezet — zoals C1–C8 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
+   15.056 → 10.947 gemeten met C1–C6, 0 slechter; C7/C8 daarna per cel gemeten, 0 slechter). Breid `LEGACY_XER_ALWAYS_ON` nooit uit. Twee sets, twee
    betekenissen: `LEGACY_XER_ALWAYS_ON` (B1–B5) geeft `true` — die hingen vroeger letterlijk aan
-   `p6Source` —, `LEGACY_XER_ALSO_ON_X12` (C1–C6) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
+   `p6Source` —, `LEGACY_XER_ALSO_ON_X12` (C1–C8) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
    rekent als een herimport). Een expliciet gezette vlag in het oude blok wint altijd, ook `false`.
    Bewaakt door 99e–99i in `check-conventions-registry.ts` en 28/28b in
    `check-scheduling-profile-roundtrip.ts` (echte IFC-leesroute).
@@ -46,7 +46,7 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    `perFile` (op een ingebouwd id blijven alle afwijkingen letterlijk staan).
 5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
-6. **Gids**: één regel onder "De eenentwintig conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
+6. **Gids**: één regel onder "De drieëntwintig conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
    (pas het aantal aan, ook in de kop en in "Wat je hier leert").
 7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
    met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).
