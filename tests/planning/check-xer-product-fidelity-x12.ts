@@ -35,8 +35,13 @@ import {
   CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellMagnitude, cellOracleRedLines, cellTotals, cellWriteModeProblem,
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
   carryRatchetDebt, debtCount, cellMinutesDigest, cellMinutesProblems, rewriteDebtPin,
-  type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
+  type CellExclusions, type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
+import {
+  changedExclusionFiles, exclusionSummary, extractExclusionPinBlock, filterSolvedExclusions,
+  filterTruthExclusions, parseExclusionPinBlock, readManifestExclusions, resolveExclusions, rewriteExclusionPin,
+  type ResolvedExclusions, type XerExclusionRecord,
+} from './xerManifestExclusions';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
@@ -350,15 +355,41 @@ type XerCellSink = Map<string, MeasuredCell[]>;
  *  precies de `measurable`-definitie van de tellers (truth ≠ null), alleen in het geheugen — plus een
  *  SHA-256 over de orakel-`driving_path_flag`-waarden (die zit niet in de v2-`schemaFingerprint`). */
 type XerMeasurableSink = Map<string, { measurable: Set<string>; drivingPathOracle: string }>;
+/**
+ * Manifestuitsluiting per project/taak (eigenaarsbesluit, `xerManifestExclusions.ts`), per entry-SHA:
+ * de uitsluiting van nu, die van de gepinde lijst (uitsluitingspin-blok in `check-fidelity-cells-gate.ts`)
+ * en de zesassige afwijkingen/drivingPath-cellen die de uitgesloten taken zouden hebben gehad —
+ * rapportage, zodat een uitsluiting nooit stil is.
+ */
+interface XerExclusionState {
+  label: string;
+  now: ResolvedExclusions;
+  was: ResolvedExclusions;
+  hiddenSixAxis: number;
+  hiddenDrivingPath: number;
+}
+type XerExclusionSink = Map<string, XerExclusionState>;
+/** De gepinde uitsluitingen uit het blok in `check-fidelity-cells-gate.ts` (`undefined` = blok ongeldig). */
+const CELLS_GATE_SOURCE = 'check-fidelity-cells-gate.ts';
+function readPinnedExclusions(): XerExclusionRecord[] | undefined {
+  const block = extractExclusionPinBlock(readFileSync(join(HERE, CELLS_GATE_SOURCE), 'utf8'));
+  return block === undefined ? undefined : parseExclusionPinBlock(block);
+}
 
 async function productBaseline(
   corpus: readonly XerCorpusFile[],
   manifest: XerCorpusManifest,
   cellSink?: XerCellSink,
   measurableSink?: XerMeasurableSink,
+  exclusionSink?: XerExclusionSink,
+  pinnedExclusions: readonly XerExclusionRecord[] = [],
 ): Promise<ProductBaseline> {
   const target = buildXerTargetBaseline(corpus, manifest);
   if (target.errors.length > 0) throw new Error(`X1-manifest/grondwaarheid faalt: ${target.errors.join('; ')}`);
+  // Dezelfde uitsluitingen als de X1-doelbaseline; `buildXerTargetBaseline` weigerde al ongeldige.
+  const exclusions = readManifestExclusions(manifest);
+  const pinnedBySha = new Map<string, XerExclusionRecord[]>();
+  for (const record of pinnedExclusions) pinnedBySha.set(record.sha256, [...(pinnedBySha.get(record.sha256) ?? []), record]);
   const byLabel = new Map(corpus.map(file => [file.label, file]));
   const files: Record<string, ProductBaselineEntryDraft> = {};
   for (const targetEntry of Object.values(target.baseline.files).sort((a, b) => a.label.localeCompare(b.label))) {
@@ -366,9 +397,28 @@ async function productBaseline(
     if (!file) throw new Error(`geselecteerde X1-entry ontbreekt: ${targetEntry.label}`);
     const opened = readXER(file.bytes);
     const imports = isMultiDocumentImport(opened) ? opened.taskProjects.map(document => document.result) : [opened];
+    // De solve draait over het hele bestand (uitgesloten taken blijven invoer); de probes hieronder
+    // lezen `solvedProjects` ongefilterd. Alleen de METING laat de uitgesloten projecten/taken weg.
     const solvedProjects = solveProductProjects(imports);
-    const truth = scanXerGroundTruth(file.bytes);
-    const result = measureXerProductFidelity(truth, solvedProjects);
+    const fileTruth = scanXerGroundTruth(file.bytes);
+    const fileSha = hash(file.bytes);
+    const excludedNow = resolveExclusions(fileTruth.tasks, exclusions.bySha.get(fileSha) ?? []);
+    if (excludedNow.problems.length > 0) throw new Error(`X12 manifestuitsluiting ${targetEntry.label}: ${excludedNow.problems.join('; ')}`);
+    const truth = filterTruthExclusions(fileTruth, excludedNow);
+    const measuredSolved = filterSolvedExclusions(solvedProjects, excludedNow);
+    const result = measureXerProductFidelity(truth, measuredSolved);
+    if (exclusionSink) {
+      const hidden = excludedNow.taskKeys.size === 0 ? undefined : measureXerProductFidelity(fileTruth, solvedProjects);
+      exclusionSink.set(fileSha, {
+        label: targetEntry.label,
+        now: excludedNow,
+        // De gepinde lijst wordt tegen dezelfde grondwaarheid opgelost; een regel die niets meer raakt
+        // telt dan gewoon als "niets" (het manifest van nu is de poort, niet de pin).
+        was: resolveExclusions(fileTruth.tasks, pinnedBySha.get(fileSha) ?? []),
+        hiddenSixAxis: hidden ? XER_FIDELITY_AXES.reduce((sum, axis) => sum + hidden.counters[axis].deviations - result.counters[axis].deviations, 0) : 0,
+        hiddenDrivingPath: hidden ? hidden.drivingPath.deviations - result.drivingPath.deviations : 0,
+      });
+    }
     if (REPORT === undefined && targetEntry.label === 'crawl-xer/p6diff-baseline.xer') {
       const publicTask = solvedProjects.flatMap(project => project.tasks)
         .find(task => task.sourceTaskId === '1010');
@@ -506,7 +556,7 @@ async function productBaseline(
       for (const error of result.errors) console.log(`.   IDENTITEIT ${error}`);
     }
     if (REPORT === 'counterfactuals') {
-      const reports = counterfactualReports(result, truth, imports, solvedProjects);
+      const reports = counterfactualReports(result, truth, imports, measuredSolved);
       const strictReport = selectProductReportMode('strict-minute-exact', {
         strictMinuteExact: summarizeMeasurement(result),
         historicalCompletedLate: reports[0]!,
@@ -518,7 +568,7 @@ async function productBaseline(
         counterfactuals: reports,
       }));
     }
-    const fileSha256 = hash(file.bytes);
+    const fileSha256 = fileSha;
     if (measurableSink) {
       const measurable = new Set<string>();
       const drivingLines: string[] = [];
@@ -2485,9 +2535,29 @@ function writeBlockers(mode: '1' | 'corpus' | 'init'): string[] {
     && !(mode !== '1' && redKinds.get(diff) === 'fileset'));
 }
 
-interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable }
+interface CellState {
+  measuredCells: CellBaseline;
+  pinned?: CellBaseline;
+  measurable: CellMeasurable;
+  exclusions: CellExclusions;
+}
 
-function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink, manifestSha256: string): CellState | undefined {
+/** Uitgesloten volgens nu (`now`) of volgens de gepinde lijst (`was`), per entry-SHA en `proj/taak`-id. */
+function cellExclusions(exclusionSink: XerExclusionSink): CellExclusions {
+  return {
+    now: (file, id) => exclusionSink.get(file)?.now.taskKeys.has(id) === true,
+    was: (file, id) => exclusionSink.get(file)?.was.taskKeys.has(id) === true,
+  };
+}
+
+function evaluateCells(
+  cellSink: XerCellSink,
+  measurableSink: XerMeasurableSink,
+  manifestSha256: string,
+  exclusionSink: XerExclusionSink,
+  exclusionChanged: ReadonlySet<string>,
+): CellState | undefined {
+  const exclusions = cellExclusions(exclusionSink);
   const built = tryBuildCellBaseline(cellSink, {
     manifestSha256,
     drivingPathOracle: new Map([...measurableSink].map(([key, value]) => [key, value.drivingPathOracle])),
@@ -2501,7 +2571,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   if (!existsSync(path)) {
     if (process.env.OPS_XER_CELLS_WRITE !== 'init') {
       red({ kind: 'hard', text: `X12 ${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init` });
-      return { measuredCells: built.baseline, measurable };
+      return { measuredCells: built.baseline, measurable, exclusions };
     }
     // `init` is alleen voor een echt nieuw corpus: bestaat er een v2-baseline bij hetzelfde manifest,
     // dan is dit geen nieuw corpus maar een weggegooid cellenbestand — anders zou "weggooien + init"
@@ -2513,7 +2583,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
       diffs.push(`X12 cel-baseline: OPS_XER_CELLS_WRITE=init geweigerd — er bestaat een v2-baseline bij hetzelfde corpusmanifest (${manifestSha256.slice(0, 12)}); init is alleen voor een nieuw corpus. Zet ${CELL_BASELINE_FILE} terug uit versiebeheer.`);
       return undefined;
     }
-    return { measuredCells: built.baseline, measurable };
+    return { measuredCells: built.baseline, measurable, exclusions };
   }
   const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
   checks++;
@@ -2547,7 +2617,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
     checks++;
     for (const problem of cellMinutesProblems(parsed.baseline, pinnedMinutes)) red({ kind: 'hard', text: `X12 ${problem}` });
   }
-  const delta = compareCells(parsed.baseline, built.baseline, measurable);
+  const delta = compareCells(parsed.baseline, built.baseline, measurable, exclusions);
   // Schuld doorschuiven: blijft staan zolang de cel > reference afwijkt; nooit toevoegen.
   built.baseline.ratchetDebt = carryRatchetDebt(parsed.baseline.ratchetDebt, built.baseline);
   console.log(cellDeltaLine('p6', delta, built.baseline));
@@ -2555,7 +2625,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   if (debtCount(built.baseline.ratchetDebt) > debtCount(parsed.baseline.ratchetDebt)) {
     red({ kind: 'hard', text: `X12 ratchet-schuld gestegen: ${debtCount(parsed.baseline.ratchetDebt)} → ${debtCount(built.baseline.ratchetDebt)} (schuld mag alleen dalen)` });
   }
-  const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline)];
+  const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline, exclusionChanged)];
   for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
   if (lines.length === 0) {
     const totals = cellTotals(built.baseline);
@@ -2564,7 +2634,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
       + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : '')
       + (delta.smallerCells.length > 0 ? `; te herpinnen: ${delta.smallerCells.length} cellen kleiner` : ''));
   }
-  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable };
+  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable, exclusions };
 }
 
 /**
@@ -2575,7 +2645,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
  * Een andere entry-set of een ander manifest is `fileset` (corpusgroei-route), al het andere `hard`.
  */
 const COVERAGE_PREFIX = 'X12 meetbaarheid/dekking wijkt af van v2';
-function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline): void {
+function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline, exclusionChanged: ReadonlySet<string>): void {
   checks++;
   if (pinned.manifestSha256 !== measured.manifestSha256) {
     red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: manifest v2=${pinned.manifestSha256.slice(0, 12)} nu=${measured.manifestSha256.slice(0, 12)}` });
@@ -2600,7 +2670,10 @@ function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseli
     ];
     for (const [field, before, after] of pairs) {
       if (before !== after) {
-        red({ kind: 'hard', text: `${COVERAGE_PREFIX}: ${key.slice(0, 12)} ${field} v2=${String(before).slice(0, 16)} nu=${String(after).slice(0, 16)}` });
+        // Een gewijzigde manifestuitsluiting voor déze entry verandert haar dekking bewust (corpusgroei-
+        // route, `=corpus`); zonder zo'n wijziging blijft elke dekkingsverschuiving `hard`.
+        const kind: RedKind = exclusionChanged.has(key) && field !== 'schemaFingerprint' ? 'fileset' : 'hard';
+        red({ kind, text: `${COVERAGE_PREFIX}: ${key.slice(0, 12)} ${field} v2=${String(before).slice(0, 16)} nu=${String(after).slice(0, 16)}${kind === 'fileset' ? ' (gewijzigde manifestuitsluiting)' : ''}` });
       }
     }
   }
@@ -2620,7 +2693,12 @@ function atomicWrite(path: string, text: string): void {
   writeFileSync(temp, text);
   renameSync(temp, path);
 }
-function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, measured: ProductBaseline): void {
+function runWrites(
+  cells: CellState | undefined,
+  pinnedV2: ProductBaseline,
+  measured: ProductBaseline,
+  exclusionPin: { current: readonly XerExclusionRecord[]; changed: boolean; valid: boolean },
+): void {
   const cellMode = process.env.OPS_XER_CELLS_WRITE;
   const v2Mode = process.env.OPS_XER_V2_WRITE;
   const plans: Array<() => void> = [];
@@ -2641,16 +2719,24 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
     } else if (blockers.length > 0) {
       refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: ${blockers.length} rode regel(s); eerste: ${blockers[0]!.slice(0, 300)}`);
     } else {
-      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable);
+      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable, cells.exclusions);
       // Schuldpin in de corpusloze gate: alleen herschrijven als de set kromp, en alleen vanaf een blok
       // dat bij de gepinde set hoort (anders liepen pin en cellenbestand al uit de pas: weigeren).
       const gatePath = join(HERE, 'check-fidelity-cells-gate.ts');
-      const pin = plan.allowed ? rewriteDebtPin(readFileSync(gatePath, 'utf8'), cells.pinned?.ratchetDebt ?? {}, plan.debt) : undefined;
+      const gateSource = readFileSync(gatePath, 'utf8');
+      const pin = plan.allowed ? rewriteDebtPin(gateSource, cells.pinned?.ratchetDebt ?? {}, plan.debt) : undefined;
+      // Uitsluitingspin (manifest per project/taak) in hetzelfde bronbestand: alleen bij een gewijzigde
+      // lijst, en alleen via =corpus (een gewijzigde uitsluiting is een gewijzigd manifest).
+      const debtText = pin && 'text' in pin ? pin.text : gateSource;
+      const exclusionRewrite = exclusionPin.changed ? rewriteExclusionPin(debtText, exclusionPin.current) : undefined;
       // De minuten-digest in de v2-envelop schuift mee; de v2-payload blijft byte-gelijk.
       let v2Envelope: { payload: ProductBaseline; cellMinutesSha256: string } | undefined;
       try { v2Envelope = readProductEnvelopeAndPayload(); } catch { v2Envelope = undefined; }
       if (!plan.allowed) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.slice(0, 5).join('; ')}`);
       else if (pin && 'error' in pin) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: schuldpin in check-fidelity-cells-gate.ts — ${pin.error}`);
+      else if (!exclusionPin.valid) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: uitsluitingspin-blok in check-fidelity-cells-gate.ts ongeldig — zet het terug uit versiebeheer`);
+      else if (exclusionPin.changed && mode !== 'corpus') refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: de manifestuitsluitingen zijn gewijzigd; gebruik OPS_XER_CELLS_WRITE=corpus`);
+      else if (exclusionRewrite && 'error' in exclusionRewrite) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: uitsluitingspin in check-fidelity-cells-gate.ts — ${exclusionRewrite.error}`);
       else if (!v2Envelope) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: xer-product-fidelity-baseline-v2.json ongeldig (cellMinutesSha256 kan niet mee)`);
       else {
         envelopeMinutes = cellMinutesDigest(cells.measuredCells);
@@ -2659,8 +2745,12 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
           atomicWrite(join(HERE, CELL_BASELINE_FILE), serializeCellBaseline(cells.measuredCells));
           atomicWrite(join(HERE, 'xer-product-fidelity-baseline-v2.json'),
             canonicalProductEnvelope(v2Envelope.payload, cellMinutesDigest(cells.measuredCells)));
+          if (exclusionRewrite && 'text' in exclusionRewrite) {
+            atomicWrite(gatePath, exclusionRewrite.text);
+            console.log(`OK  X12 uitsluitingspin in check-fidelity-cells-gate.ts herschreven: ${exclusionPin.current.length} uitsluiting(en) — zet er een HERPIN-regel met het eigenaarsbesluit bij`);
+          }
           if (pin && 'text' in pin && pin.removed.length > 0) {
-            atomicWrite(gatePath, pin.text);
+            if (!(exclusionRewrite && 'text' in exclusionRewrite)) atomicWrite(gatePath, pin.text);
             for (const [file, axis, id, reference] of pin.removed) {
               console.log(`OK  X12 ratchet-schuld ONTSCHULD: ${file.slice(0, 12)} ${axis} ${id} (reference ${reference}) — schuldpin in check-fidelity-cells-gate.ts herschreven; zet er een HERPIN-regel bij`);
             }
@@ -2726,6 +2816,21 @@ function printP6ComputedSplit(files: Record<string, ProductBaselineEntry>): void
     + ` / niet in sidecar: ${groups.missing.cells} (${groups.missing.projects} projecten)`);
 }
 
+/**
+ * Rapportage, geen poort: welke taken/projecten een eigenaarsbesluit uit de meting haalt, met reden,
+ * en hoeveel zesassige afwijkingen en drivingPath-cellen daardoor buiten de telling vallen. Altijd
+ * geprint (ook bij nul), zodat een uitsluiting nooit stil is.
+ */
+function printExclusionReport(exclusionSink: XerExclusionSink, changed: ReadonlySet<string>): void {
+  const states = [...exclusionSink.values()].filter(state => state.now.applied.length > 0);
+  const summary = exclusionSummary(states.map(state => ({ label: state.label, resolved: state.now })));
+  const hiddenSix = states.reduce((sum, state) => sum + state.hiddenSixAxis, 0);
+  const hiddenDriving = states.reduce((sum, state) => sum + state.hiddenDrivingPath, 0);
+  console.log(`INFO X12 manifestuitsluiting (eigenaarsbesluit; telt niet in de zes assen, cellen, drivingPath en nuldoel): ${summary.line}`
+    + `; buiten de telling: ${hiddenSix} zesassige afwijkingen, ${hiddenDriving} drivingPath-cellen`
+    + (changed.size > 0 ? `; GEWIJZIGD t.o.v. de uitsluitingspin in ${changed.size} bestand(en) — herpin via =corpus` : ''));
+}
+
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (REPORT !== undefined && !REPORT_MODES.has(REPORT)) {
   diffs.push(`onbekende OPS_XER_FIDELITY_REPORT-modus: ${REPORT}`);
@@ -2740,7 +2845,17 @@ else {
   const manifest = JSON.parse(readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
   const cellSink: XerCellSink = new Map();
   const measurableSink: XerMeasurableSink = new Map();
-  const measured = await productBaseline(corpus, manifest, cellSink, measurableSink);
+  const exclusionSink: XerExclusionSink = new Map();
+  // Gepinde uitsluitingen (blok in check-fidelity-cells-gate.ts) tegenover die van het manifest nu:
+  // alleen een verschil maakt de dekkings-/celwijziging van die entries tot corpusgroei (`fileset`).
+  const pinnedExclusions = readPinnedExclusions();
+  if (pinnedExclusions === undefined) {
+    red({ kind: 'hard', text: `X12 uitsluitingspin-blok in ${CELLS_GATE_SOURCE} ontbreekt of is met de hand bewerkt — zet het terug uit versiebeheer` });
+  }
+  const currentExclusions = readManifestExclusions(manifest).records;
+  const exclusionChanged = changedExclusionFiles(pinnedExclusions ?? [], currentExclusions);
+  const measured = await productBaseline(corpus, manifest, cellSink, measurableSink, exclusionSink, pinnedExclusions ?? []);
+  printExclusionReport(exclusionSink, exclusionChanged);
   if (REPORT !== undefined && (process.env.OPS_XER_V2_WRITE || process.env.OPS_XER_CELLS_WRITE)) {
     diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
   }
@@ -2776,7 +2891,7 @@ else {
     console.log(`MEASURE ONLY X12 productfidelity: STRICT minute-exact ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
     printP6ComputedSplit(measured.files);
   } else {
-    const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256);
+    const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256, exclusionSink, exclusionChanged);
     printP6ComputedSplit(measured.files);
     const entries = Object.entries(measured.files);
     const allGatePassed = entries.every(([, entry]) => entry.gatePassed === true);
@@ -2801,8 +2916,10 @@ else {
       diffs.push(`X12 v2-baseline ongeldig — herstel xer-product-fidelity-baseline-v2.json uit versiebeheer: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`);
     }
     if (pinnedV2) {
-      checkCoverageAgainstV2(pinnedV2, measured);
-      runWrites(cells, pinnedV2, measured);
+      checkCoverageAgainstV2(pinnedV2, measured, exclusionChanged);
+      runWrites(cells, pinnedV2, measured, {
+        current: currentExclusions, changed: exclusionChanged.size > 0, valid: pinnedExclusions !== undefined,
+      });
       eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
     }
   }

@@ -230,6 +230,73 @@ manifest-orakels): neem die rijen over uit `OPS_XER_SCHEDOPTIONS_REPORT=baseline
 in de corpusloze vangrail: die flipt het eerste teken van de manifesthash en moet een ander teken kiezen
 als de hash zelf al met `0` begint.
 
+**Uitsluiting per project of taak** (mechanisme 2026-09-24, `tests/planning/xerManifestExclusions.ts`).
+Een orakelentry kan bij eigenaarsbesluit een deel van zichzelf uit de meetlat halen, zonder het hele bestand
+een andere rol te geven:
+
+```json
+"decision": "JJJJ-MM-DD eigenaarsbesluit: …",
+"excludeProjects": [{ "projId": "2665", "reason": "…" }],
+"excludeTasks": [{ "projId": "4408", "taskCode": "EC1430", "reason": "…" }]
+```
+
+Regels: alleen op een `role: "oracle"`/`included: true`-entry; zonder `decision` (datum vooraan plus het
+woord "eigenaarsbesluit") weigert de lezer de hele entry, net als bij een lege lijst, een onbekende sleutel,
+een dubbele regel of een taak onder een al uitgesloten project; een taak noem je met precies één van
+`taskId` of `taskCode`, en een uitsluiting die geen orakeltaak raakt of een dubbelzinnige taakcode is een
+fout, nooit een stille no-op. De solve draait ongewijzigd over het hele bestand (uitgesloten taken blijven
+invoer voor hun opvolgers); alleen de meting laat ze weg: de zes assen, de cellen, drivingPath, de
+nuldoelregels, de X1-doelbaseline (`buildXerTargetBaseline`) en de task-replay. De schemavingerafdruk
+(dedup) en de ruwe corpusdekking (C3/C4/C4a) blijven over het hele bestand. X12 print altijd een regel
+`INFO X12 manifestuitsluiting …: uitgesloten: N taken in K projecten — <label>: <project/taak> (<n> taken) —
+<reden> [<datum>]; buiten de telling: … zesassige afwijkingen, … drivingPath-cellen`, ook bij nul, en
+`measure:profiles` neemt het aantal over in zijn tellingenkolom.
+
+De lijst is gepind zoals de schuldset: een gegenereerd blok `manifest-uitsluitingspin` met
+`EXPECTED_EXCLUSIONS_SHA256` in `check-fidelity-cells-gate.ts` (corpusloos: lijst = digest, blok = lijst, geen
+cel en geen v2-project op een uitgesloten project/taak-id). Een uitsluiting wijzigen is een
+manifestwijziging, dus de corpusgroei-route hierboven: in één run
+`OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus bash tests/planning/run.sh check-xer-product-fidelity-x12.ts`.
+Alleen voor entries waarvan de uitsluitingen verschillen van het gepinde blok zijn de dekkingsverschuiving,
+de weggevallen cellen ("cel valt weg door een nieuwe manifestuitsluiting") en de drivingPath-orakelhash
+`fileset` in plaats van `hard`; bij een opgeheven uitsluiting idem voor terugkerende cellen. De cel-herpin
+herschrijft het blok zelf (alleen via `=corpus`, en alleen vanaf een ongeschonden blok) — zet er een
+HERPIN-regel met het besluit bij. Daarna de vijf handmatige pinplekken hierboven (de X1-baseline, C5–C8b,
+het baselineschema, de task-replay-pin, `EXPECTED` van de corpusloze vangrail) en `OPS_XER_GATE_PINS=corpus`.
+Verboden: het blok of de digest met de hand bijwerken, of een uitsluiting laten kiezen door veldinhoud
+(een script dat taken selecteert op hun waarden) — de lijst staat letterlijk in het manifest, per regel met
+reden.
+
+**Kant-en-klaar voor de eigenaarsvragen §1d-8, §1d-10 en Hotel/CR** (overdracht rekenprofielen). Zeg ja ⇒
+deze drie entries in `tests/planning/xer-corpus-manifest.json` krijgen dit blok (datum van het besluit invullen),
+gevolgd door de route hierboven:
+
+```json
+"crawl-xer/HarbourPointe_AssistedLiving.xer": { …, "decision": "JJJJ-MM-DD eigenaarsbesluit: §1d-8, de 8 taken met verouderde P6-uitvoer uit het orakel",
+  "excludeTasks": [
+    { "projId": "4408", "taskCode": "EC1430", "reason": "P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC1590", "reason": "P6-span 696 u < opgeslagen restduur 720 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC1680", "reason": "P6-span 840 u < opgeslagen restduur 864 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2060", "reason": "P6-span 480 u < opgeslagen restduur 552 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2170", "reason": "P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2200", "reason": "P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2380", "reason": "P6-span 96 u < opgeslagen restduur 144 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2410", "reason": "P6-span 720 u < opgeslagen restduur 920 u (§1d-8)" }
+  ] },
+"crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer": { …, "decision": "JJJJ-MM-DD eigenaarsbesluit: §1d-10, project 9033 is door P6 genivelleerd",
+  "excludeProjects": [{ "projId": "9033", "reason": "door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)" }] },
+"crawl-xer/Hotel_Construction_TEC.xer": { …, "decision": "JJJJ-MM-DD eigenaarsbesluit: project CR (2665) niet door P6 doorgerekend",
+  "excludeProjects": [{ "projId": "2665", "reason": "project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)" }] }
+```
+
+Proef op 2026-09-24 (niet gecommit, mechanismebranch `claude/x12-manifest-uitsluiting-taak-project`): met
+precies deze drie blokken gaat X12 van 192 naar 121 zesassige afwijkingen (OZB 9033 −38 op 14 taken,
+HarbourPointe −33 op de 8 taken; Hotel/CR −0, het had er geen) en drivingPath van 169 naar 146 (Hotel/CR
+−19, OZB 9033 −4); de cel-poort meldt alleen `fileset`-regels en de nuldoelregels, en
+`OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus` herpint in één run (uitsluitingspin mee). Geen cel
+werd daarbij slechter of groter. Van de 81 HarbourPointe-cellen die het onderzoek aan de verouderde uitvoer
+toeschreef, zitten er 48 op andere taken dan de 8; die blijven meetellen.
+
 Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
 dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een
 v2-baseline bij hetzelfde corpusmanifest bestaat — `init` is alleen voor een echt nieuw corpus. Een

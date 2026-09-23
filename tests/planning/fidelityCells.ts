@@ -148,6 +148,10 @@ export interface CellDelta {
   smallerCells: CellRef[];
   /** (d) baselinecel niet meer meetbaar — rood. */
   unmeasurableCells: CellRef[];
+  /** Baselinecel van een taak die een eigenaarsbesluit nu uitsluit (`xerManifestExclusions.ts`) — `fileset`. */
+  excludedCells: CellRef[];
+  /** Nieuwe cel van een taak die in de gepinde uitsluitingslijst stond en nu weer meetelt — `fileset`. */
+  reincludedCells: CellRef[];
   /** Gemeten bestand zonder baselinerecord (onbekend corpusbestand of gewijzigde bytes). */
   unknownFiles: string[];
   /** Baselinebestand dat deze meting niet bevat. */
@@ -157,6 +161,12 @@ export interface CellDelta {
 export interface MeasuredCell { axis: string; id: string; bucket: CellBucket; minutes: number | null }
 /** Heeft het orakel in déze meting een waarde voor (bestand, as, id)? Leverancier: de meetlat. */
 export type CellMeasurable = (file: string, axis: string, id: string) => boolean;
+/**
+ * Uitsluiting per project/taak (eigenaarsbesluit in het manifest): `now` = in deze meting uitgesloten,
+ * `was` = uitgesloten volgens de gepinde lijst. Alleen een verschil tussen die twee verklaart een
+ * verdwenen of nieuwe cel; zonder dit argument gedraagt `compareCells` zich als vroeger.
+ */
+export interface CellExclusions { now(file: string, id: string): boolean; was(file: string, id: string): boolean }
 
 function hasOwn(value: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
@@ -481,10 +491,10 @@ function validateDebt(debt: unknown, files: CellFiles): string[] {
   return problems;
 }
 
-export function compareCells(baseline: CellBaseline, measured: CellBaseline, measurable: CellMeasurable): CellDelta {
+export function compareCells(baseline: CellBaseline, measured: CellBaseline, measurable: CellMeasurable, exclusions?: CellExclusions): CellDelta {
   const delta: CellDelta = {
     newCells: [], worsenedCells: [], improvedCells: [], largerCells: [], smallerCells: [],
-    unmeasurableCells: [], unknownFiles: [], unmeasuredFiles: [],
+    unmeasurableCells: [], excludedCells: [], reincludedCells: [], unknownFiles: [], unmeasuredFiles: [],
   };
   for (const file of sortedKeys(measured.files)) {
     const was = hasOwn(baseline.files, file) ? baseline.files[file] : undefined;
@@ -497,7 +507,11 @@ export function compareCells(baseline: CellBaseline, measured: CellBaseline, mea
         const nowCell = after[id]!;
         const nowBucket = nowCell.bucket;
         const wasCell = hasOwn(before, id) ? before[id] : undefined;
-        if (wasCell === undefined) { delta.newCells.push({ file, axis, id, now: nowBucket }); continue; }
+        if (wasCell === undefined) {
+          if (exclusions?.was(file, id) === true && !exclusions.now(file, id)) delta.reincludedCells.push({ file, axis, id, now: nowBucket });
+          else delta.newCells.push({ file, axis, id, now: nowBucket });
+          continue;
+        }
         const wasBucket = wasCell.bucket;
         if (BUCKET_RANK[nowBucket] > BUCKET_RANK[wasBucket]) delta.worsenedCells.push({ file, axis, id, was: wasBucket, now: nowBucket });
         else if (BUCKET_RANK[nowBucket] < BUCKET_RANK[wasBucket]) {
@@ -518,7 +532,8 @@ export function compareCells(baseline: CellBaseline, measured: CellBaseline, mea
       }
       for (const id of sortedKeys(before)) {
         if (hasOwn(after, id)) continue;
-        if (measurable(file, axis, id)) delta.improvedCells.push({ file, axis, id, was: before[id]!.bucket });
+        if (exclusions?.now(file, id) === true && !exclusions.was(file, id)) delta.excludedCells.push({ file, axis, id, was: before[id]!.bucket });
+        else if (measurable(file, axis, id)) delta.improvedCells.push({ file, axis, id, was: before[id]!.bucket });
         else delta.unmeasurableCells.push({ file, axis, id, was: before[id]!.bucket });
       }
     }
@@ -544,6 +559,8 @@ export function cellGateRedLines(delta: CellDelta): RedLine[] {
     ...delta.worsenedCells.map(cell => hard(`cel verslechterd ${cell.was}→${cell.now} — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`)),
     ...delta.largerCells.map(cell => hard(`cel groter geworden (${cell.now}) ${cell.wasMinutes}→${cell.nowMinutes} min — regel A (grootte): ${cell.file} as ${cell.axis} id ${cell.id}`)),
     ...delta.unmeasurableCells.map(cell => hard(`cel onmeetbaar geworden (was ${cell.was}) — regel A: ${cell.file} as ${cell.axis} id ${cell.id}`)),
+    ...delta.excludedCells.map(cell => fileset(`cel valt weg door een nieuwe manifestuitsluiting (was ${cell.was}): ${cell.file} as ${cell.axis} id ${cell.id}`)),
+    ...delta.reincludedCells.map(cell => fileset(`cel telt weer mee na het opheffen van een manifestuitsluiting (${cell.now}): ${cell.file} as ${cell.axis} id ${cell.id}`)),
     ...delta.unknownFiles.map(file => fileset(`gemeten bestand ontbreekt in de cel-baseline: ${file}`)),
     ...delta.unmeasuredFiles.map(file => fileset(`cel-baselinebestand niet gemeten: ${file}`)),
   ];
@@ -558,7 +575,7 @@ export function cellGateFailures(delta: CellDelta): string[] {
  * orakelhash van een entry die in beide staat is `hard` (het orakel is veranderd, niet het corpus);
  * een ander manifest is `fileset`.
  */
-export function cellOracleRedLines(baseline: CellBaseline, measured: CellBaseline): RedLine[] {
+export function cellOracleRedLines(baseline: CellBaseline, measured: CellBaseline, exclusionChangedFiles?: ReadonlySet<string>): RedLine[] {
   const lines: RedLine[] = [];
   if (baseline.manifestSha256 !== measured.manifestSha256) {
     lines.push({ kind: 'fileset', text: `cel-baseline hoort bij een ander corpusmanifest (${baseline.manifestSha256.slice(0, 12)} ≠ ${measured.manifestSha256.slice(0, 12)})` });
@@ -566,7 +583,9 @@ export function cellOracleRedLines(baseline: CellBaseline, measured: CellBaselin
   for (const key of sortedKeys(measured.drivingPathOracle)) {
     const was = hasOwn(baseline.drivingPathOracle, key) ? baseline.drivingPathOracle[key] : undefined;
     if (was !== undefined && was !== measured.drivingPathOracle[key]) {
-      lines.push({ kind: 'hard', text: `orakel drivingPath gewijzigd t.o.v. de cel-baseline: ${key}` });
+      // Een gewijzigde uitsluitingslijst voor dít bestand verandert de orakelset: corpusgroei, geen orakelwissel.
+      if (exclusionChangedFiles?.has(key)) lines.push({ kind: 'fileset', text: `orakel drivingPath gewijzigd door een gewijzigde manifestuitsluiting: ${key}` });
+      else lines.push({ kind: 'hard', text: `orakel drivingPath gewijzigd t.o.v. de cel-baseline: ${key}` });
     }
   }
   return lines;
@@ -614,12 +633,15 @@ export function planCellRepin(
   baseline: CellBaseline | undefined,
   measured: CellBaseline,
   measurable: CellMeasurable,
+  exclusions?: CellExclusions,
 ): { allowed: true; delta: CellDelta; debt: CellDebt } | { allowed: false; reasons: string[]; delta: CellDelta } {
   const empty: CellBaseline = {
     version: CELL_BASELINE_VERSION, manifestSha256: measured.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
     drivingPathOracle: {}, files: {}, ratchetDebt: {},
   };
-  const delta = compareCells(baseline ?? empty, measured, measurable);
+  // Uitgesloten of weer meetellende cellen (manifestuitsluiting) zijn geen reden: de poort laat ze
+  // alleen in de corpusgroei-modus toe (`fileset`), en dan schrijft de herpin precies de meting.
+  const delta = compareCells(baseline ?? empty, measured, measurable, exclusions);
   const reasons = [
     ...delta.newCells.map(cell => `nieuwe inexacte cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id}`),
     ...delta.worsenedCells.map(cell => `verslechterde cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id} ${cell.was}→${cell.now}`),

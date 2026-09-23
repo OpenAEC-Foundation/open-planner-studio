@@ -371,6 +371,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Manifestuitsluiting per project/taak (eigenaarsbesluit, xerManifestExclusions.ts): corpusloze
+  # fixtures en mutanten — lezer (decision verplicht), telling in X12 en X1, digest-pin, cel-poort.
+  XERMANIFESTEXCL="$DIR/.xer-manifest-exclusions.mjs"
+  if bundle_check "$DIR/check-xer-manifest-exclusions.ts" "$XERMANIFESTEXCL"; then
+    node "$XERMANIFESTEXCL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

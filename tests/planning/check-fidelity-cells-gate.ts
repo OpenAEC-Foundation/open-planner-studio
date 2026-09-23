@@ -22,6 +22,12 @@
 //    zonder schuldsectie wordt geweigerd, en de lezer weigert een schuldregel die niet klopt.
 // 5. Minuten-digest (critreview integratie-eindstand 2026-09-23): de grootten van het cellenbestand
 //    horen bij `cellMinutesSha256` in de v2-envelop; een met de hand opgerekte grootte is rood.
+// 6. Manifestuitsluiting per project/taak (`xerManifestExclusions.ts`): de uitsluitingslijst van
+//    `xer-corpus-manifest.json` is geldig (elke uitsluiting draagt een `decision` met datum en
+//    "eigenaarsbesluit"), is gepind als digest in een gegenereerd blok (`EXPECTED_EXCLUSIONS_SHA256`,
+//    hieronder, zoals de schuldset), en geen cel van het cellenbestand of project van v2 hoort bij een
+//    uitgesloten project of taak-id. Een gewijzigde lijst herpint alleen `OPS_XER_CELLS_WRITE=corpus`.
+//    De fixtures en mutanten van het mechanisme zelf staan in `check-xer-manifest-exclusions.ts`.
 // Assen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het
 // zesassige nuldoel-getal) — alle zeven onder dezelfde poortregels.
 import { readFileSync } from 'node:fs';
@@ -49,6 +55,18 @@ import {
 // 0 schuldcel(len): bestand (12) · as · id · reference (min)
 const EXPECTED_DEBT_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 // END ratchet-schuldpin
+/** Manifestuitsluitingen per project/taak (eigenaarsbesluiten; §6 hierboven). Het blok wordt bij een
+ *  gewijzigde lijst door `OPS_XER_CELLS_WRITE=corpus` herschreven; zet er dan met de hand een
+ *  HERPIN-regel bij die het eigenaarsbesluit noemt.
+ *  PIN 2026-09-24 (mechanisme geland, nog geen besluit): lege lijst. */
+// BEGIN manifest-uitsluitingspin — herschreven door OPS_XER_CELLS_WRITE=corpus bij een gewijzigde uitsluiting; nooit met de hand
+// 0 uitsluiting(en): [bestand-sha256, soort, project, taskId, taskCode, reden, besluit]
+const EXPECTED_EXCLUSIONS_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
+// END manifest-uitsluitingspin
+import {
+  exclusionsDigest, extractExclusionPinBlock, parseExclusionPinBlock, readManifestExclusions, renderExclusionPinBlock,
+  type XerExclusionManifestLike, type XerExclusionRecord,
+} from './xerManifestExclusions';
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
 
@@ -494,9 +512,87 @@ if (committed) {
   eq('M7 schuldpin-blok met de hand ingekort ⇒ rood', [tamperedSource !== OWN_SOURCE, debtPinProblems(cells.ratchetDebt, tamperedSource).length > 0], [true, true]);
 }
 
+// ── 6. Manifestuitsluiting per project/taak ──────────────────────────────────────────────────
+/** Rood als de lijst niet bij de gepinde digest hoort of het gegenereerde blok niet bij de lijst. */
+function exclusionPinProblems(records: readonly XerExclusionRecord[], source = OWN_SOURCE): string[] {
+  const problems: string[] = [];
+  if (exclusionsDigest(records) !== EXPECTED_EXCLUSIONS_SHA256) {
+    problems.push(`uitsluitings-digest ${exclusionsDigest(records).slice(0, 12)} ≠ gepind ${EXPECTED_EXCLUSIONS_SHA256.slice(0, 12)} — `
+      + 'de manifestuitsluitingen zijn gewijzigd zonder herpin (OPS_XER_CELLS_WRITE=corpus, scripts/README.md)');
+  }
+  const block = extractExclusionPinBlock(source);
+  if (block !== renderExclusionPinBlock(records)) problems.push('uitsluitingspin-blok in de bron hoort niet bij de manifestuitsluitingen');
+  else if (parseExclusionPinBlock(block) === undefined) problems.push('uitsluitingspin-blok is niet terug te lezen');
+  return problems;
+}
+/** Een cel of v2-project dat bij een uitgesloten project of taak-id hoort, is een verkeerd herpind bestand.
+ *  Taakcode-uitsluitingen zijn corpusloos niet naar een taak-id te vertalen; die bewaakt de X12-check. */
+function excludedLeftovers(records: readonly XerExclusionRecord[], cells: CellBaseline, v2Projects: Record<string, string[]>): string[] {
+  const problems: string[] = [];
+  for (const record of records) {
+    const file = cells.files[record.sha256];
+    for (const axis of [...CELL_AXES]) {
+      for (const id of Object.keys(file?.[axis] ?? {})) {
+        const hit = record.kind === 'project' ? id.startsWith(`${record.projId}/`)
+          : record.taskId !== undefined && id === `${record.projId}/${record.taskId}`;
+        if (hit) problems.push(`cel ${record.sha256.slice(0, 12)} ${axis} ${id} hoort bij een uitgesloten ${record.kind}`);
+      }
+    }
+    if (record.kind === 'project' && (v2Projects[record.sha256] ?? []).includes(record.projId)) {
+      problems.push(`v2 ${record.sha256.slice(0, 12)} meet het uitgesloten project ${record.projId}`);
+    }
+  }
+  return problems;
+}
+{
+  const manifestRaw = readFileSync(join(HERE, 'xer-corpus-manifest.json'), 'utf8');
+  const manifest = JSON.parse(manifestRaw) as XerExclusionManifestLike;
+  const read = readManifestExclusions(manifest);
+  eq('xer-corpus-manifest.json: uitsluitingen geldig (elk met eigenaarsbesluit)', read.problems, []);
+  eq(`xer-corpus-manifest.json: uitsluitingslijst = gepinde digest (${read.records.length} uitsluiting(en))`, exclusionPinProblems(read.records), []);
+  const v2 = validateProductBaselineV2(readFileSync(join(HERE, 'xer-product-fidelity-baseline-v2.json'), 'utf8'));
+  const v2Projects = Object.fromEntries(Object.entries(v2.payload?.files ?? {})
+    .map(([sha, entry]) => [sha, entry.projectMeasurements.map(project => project.projectId)]));
+  if (committed) eq('geen cel of v2-project hoort bij een uitgesloten project/taak', excludedLeftovers(read.records, committed.cells, v2Projects), []);
+  console.log(`   . manifestuitsluiting: ${read.records.length} uitsluiting(en) gepind (${EXPECTED_EXCLUSIONS_SHA256.slice(0, 12)})`);
+
+  // Mutanten op de gecommitte stand: elke wijziging van de lijst zonder herpin is rood.
+  const oracleLabel = Object.keys(manifest.files).sort().find(label => manifest.files[label]!.role === 'oracle' && manifest.files[label]!.included)!;
+  const withExclusion = (entry: Record<string, unknown>) => {
+    const copy = JSON.parse(manifestRaw) as XerExclusionManifestLike;
+    // Eigen uitsluitingsvelden van de entry eerst weg: de mutant bepaalt ze volledig zelf.
+    for (const key of ['decision', 'excludeProjects', 'excludeTasks'] as const) delete copy.files[oracleLabel]![key];
+    Object.assign(copy.files[oracleLabel]!, entry);
+    return readManifestExclusions(copy);
+  };
+  const added = withExclusion({ decision: '2026-09-24 eigenaarsbesluit (mutant)', excludeProjects: [{ projId: 'MUTANT', reason: 'mutant' }] });
+  eq('X1 geldige uitsluiting erbij zonder herpin ⇒ rood (digest)', [added.problems, exclusionPinProblems(added.records).length > 0], [[], true]);
+  const noDecision = withExclusion({ excludeTasks: [{ projId: 'MUTANT', taskId: '1', reason: 'mutant' }] });
+  eq('X2 uitsluiting zonder decision ⇒ geweigerd door de lezer', noDecision.problems.length > 0 && noDecision.records.length === 0, true);
+  const ownBlock = extractExclusionPinBlock(OWN_SOURCE) ?? '';
+  const tampered = OWN_SOURCE.replace(ownBlock, () => ownBlock.replace(/'[0-9a-f]{64}'/, `'${'0'.repeat(64)}'`));
+  eq('X3 uitsluitingspin-blok met de hand bewerkt ⇒ rood', [tampered !== OWN_SOURCE, exclusionPinProblems(read.records, tampered).length > 0], [true, true]);
+  if (committed) {
+    const withCell = Object.entries(committed.cells.files).flatMap(([sha, axes]) =>
+      CELL_AXES.flatMap(axis => Object.keys(axes[axis] ?? {}).map(id => ({ sha, id }))))[0];
+    eq('X4a het cellenbestand heeft een cel om de mutant op te zetten', withCell !== undefined, true);
+    if (withCell) {
+      const [projId, taskId] = withCell.id.split('/') as [string, string];
+      const mutant = (kind: 'project' | 'task'): XerExclusionRecord => ({
+        sha256: withCell.sha, kind, projId, ...(kind === 'task' ? { taskId } : {}),
+        reason: 'mutant', decision: '2026-09-24 eigenaarsbesluit (mutant)',
+      });
+      eq('X4b uitgesloten project of taak met een cel in het cellenbestand ⇒ rood',
+        [excludedLeftovers([mutant('project')], committed.cells, {}).length > 0, excludedLeftovers([mutant('task')], committed.cells, {}).length > 0], [true, true]);
+      eq('X4c uitgesloten project dat v2 nog meet ⇒ rood',
+        excludedLeftovers([mutant('project')], { ...committed.cells, files: {} }, { [withCell.sha]: [projId] }).length > 0, true);
+    }
+  }
+}
+
 if (diffs.length > 0) {
   console.log(`XX  fidelity-cellen (regel A): ${diffs.length} afwijking(en) van ${checks}`);
   for (const diff of diffs) console.log(`XX  ${diff}`);
   process.exit(1);
 }
-console.log(`OK  fidelity-cellen (regel A): ${checks} checks groen — poortlogica mutatiebewezen (emmer + grootte), cel-baseline versie 2 canoniek en in de pas met de v2-tellingen, grootten = cellMinutesSha256, schuldset = gepinde digest`);
+console.log(`OK  fidelity-cellen (regel A): ${checks} checks groen — poortlogica mutatiebewezen (emmer + grootte), cel-baseline versie 2 canoniek en in de pas met de v2-tellingen, grootten = cellMinutesSha256, schuldset = gepinde digest, manifestuitsluitingen = gepinde digest`);
