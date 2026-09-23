@@ -166,6 +166,19 @@ const CUSTOM: SchedulingProfile = {
   });
   same('26 C2: p6Source en conventies gestript uit schedulingOptions', readIFC(ifc3).project.schedulingOptions, { totalFloatMode: 'finish' });
   same('27 pset wint van de legacy-migratie', readProfile(legacyIfc(opts3, builtInProfile('msproject'))), builtInProfile('msproject'));
+  // X12 brok 2 en 3 (critreview must-fix 1): C1–C6 via de echte IFC-leesroute. Een oud XER-IFC zonder
+  // C-sleutels rekent C1–C6 op de P6-profielwaarde; een expliciete false in het blok blijft false.
+  const C_KEYS = [
+    'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
+    'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
+  ] as const;
+  const oldXer = resolveConventions(readProfile(legacyIfc({ p6Source: 'XER' })));
+  for (const key of C_KEYS) eq(`28 oud XER-IFC zonder ${key} ⇒ P6-profielwaarde`, oldXer[key], builtInConventions('p6')[key]);
+  const oldXerFalse = resolveConventions(readProfile(legacyIfc({
+    p6Source: 'XER', p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: false, p6CompletedRemainingLag: false,
+    p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: false, p6InProgressStartLagElapsed: false,
+  })));
+  for (const key of C_KEYS) eq(`28b oud XER-IFC met ${key}=false ⇒ blijft false`, oldXerFalse[key], false);
 }
 
 // ── 4) Vijandige pset-JSON: valt terug zonder throw ─────────────────────────────────────────────

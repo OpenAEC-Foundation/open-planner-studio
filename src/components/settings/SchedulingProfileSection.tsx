@@ -11,7 +11,7 @@ import { generateId } from '@/utils/id';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import {
-  choiceOf, editConvention, profileLabel, renameProfile, selectProfile, templateRelation, totalFloatModeFromUi,
+  choiceOf, editConvention, hasValidProfileName, profileLabel, renameProfile, selectProfile, templateRelation, totalFloatModeFromUi,
   totalFloatModeToUi, withCriticalMode, withCriticalThreshold, withDefaultOptions,
   type ProfileChoice, type SchedulingSettingsDraft, type TotalFloatModeUi,
 } from '@/state/schedulingProfileDraft';
@@ -34,19 +34,29 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
- * eigen sjablonen, of het eigen profiel van dit project), daaronder de eenentwintig conventies en de negen
- * projectopties. Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
+ * eigen sjablonen, of het eigen profiel van dit project), daaronder de eenentwintig conventies en zes van de
+ * negen projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
+ * kritiek, meerdere speling-paden, lag-kalender). De andere drie — `useExpectedFinishDates`,
+ * `useProjectEndDateForFloat` en `p6CompletedLateFromRemainingWindow` — zijn bewust NIET bewerkbaar:
+ * het zijn P6-bronsignalen die de XER-lezer uit SCHEDOPTIONS zet (of die aan de P6-herkomstketen van
+ * B3/B4 hangen), zonder betekenis voor een project dat niet uit P6 komt. Het blok laat ze ongemoeid
+ * (elke optiewijziging spreidt de bestaande opties); alleen "Standaardopties van dit profiel
+ * toepassen" vervangt alle opties door `defaultOptionsFor` (onder P6 zet dat de eerste en de laatste
+ * aan; `useProjectEndDateForFloat` valt dan weg, want die komt alleen uit het bestand). Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
  * herberekenen, melding "N taken verschoven"). Alleen sjablonen opslaan/verwijderen gaat direct: dat
  * is app-data, geen projectdata.
  */
 export function SchedulingProfileSection({ mode, value, onChange }: SchedulingProfileSectionProps) {
   const { t } = useTranslation('common');
   const { t: tMenu } = useTranslation('menu');
+  const { t: tTask } = useTranslation('task');
   // Eigen sjablonen: app-globaal, buiten de store (profileStore). Lezen bij mount; na opslaan of
   // verwijderen opnieuw lezen, zodat de lijst gelijk is aan wat er gepersisteerd staat.
   const [templates, setTemplates] = useState(() => loadCustomProfiles());
   const saveTemplate = (p: SchedulingProfile) => {
-    if (upsertCustomProfile(p)) setTemplates(loadCustomProfiles());
+    // Een sjabloon zonder naam is niet te kiezen; de knop staat dan uit, dit is de vangrail.
+    if (!hasValidProfileName(p)) return;
+    if (upsertCustomProfile({ ...p, name: p.name.trim() })) setTemplates(loadCustomProfiles());
   };
   const deleteTemplate = (id: string) => {
     deleteCustomProfile(id);
@@ -122,6 +132,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   const fp = so.floatPaths;
   const copyTarget = () => ({ id: generateId('prof'), name: t('profiles.copyOf', { name: currentName }) });
   const templateName = templates.find(tp => tp.id === profile?.id)?.name ?? '';
+  const nameValid = hasValidProfileName(profile);
 
   return (
     <div className="flex flex-col gap-3" data-ops-scheduling-profile-section>
@@ -139,8 +150,15 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
             value={label.name}
             onChange={e => onChange({ ...value, profile: renameProfile(profile, e.target.value) })}
             className={inputCls}
+            aria-invalid={!nameValid}
             data-ops-scheduling-profile-name
           />
+          {!nameValid && (
+            // Leeg mag tijdens het bewerken; opslaan als sjabloon en Toepassen weigeren het.
+            <div className="alert alert--warning" data-ops-scheduling-profile-name-required>
+              {tTask('taskGrid.validation.required')}
+            </div>
+          )}
         </div>
       )}
 
@@ -153,13 +171,13 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
       {label.kind === 'custom' && profile && (
         <div className="flex flex-wrap gap-2">
           {relation === 'none' && (
-            <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} data-ops-scheduling-save-template>
+            <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} disabled={!nameValid} data-ops-scheduling-save-template>
               {t('schedulingProfile.saveAsTemplate')}
             </button>
           )}
           {relation === 'deviates' && (
             <>
-              <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} data-ops-scheduling-update-template>
+              <button type="button" className={btnCls} onClick={() => saveTemplate(profile)} disabled={!nameValid} data-ops-scheduling-update-template>
                 {t('schedulingProfile.updateTemplate')}
               </button>
               <button type="button" className={btnCls} onClick={() => onChoose(`template:${profile.id}`)} data-ops-scheduling-apply-template>
@@ -213,19 +231,24 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
               ]}
             />
             {critMode === 'totalFloat' && (
-              <input
-                type="number"
-                step="any"
-                aria-label={hoursThreshold ? tMenu('projectInfo.calc.critThresholdHours') : tMenu('projectInfo.calc.critThreshold')}
-                title={hoursThreshold ? tMenu('projectInfo.calc.critThresholdHours') : tMenu('projectInfo.calc.critThreshold')}
-                value={hoursThreshold ? crit?.thresholdHours : (crit?.threshold ?? 0)}
-                onChange={e => {
-                  const n = parseFloat(e.target.value);
-                  patchOptions(withCriticalThreshold(so, hoursThreshold ? 'thresholdHours' : 'threshold', Number.isFinite(n) ? n : 0));
-                }}
-                className={numCls}
-                data-ops-crit-threshold
-              />
+              // De eenheid staat zichtbaar bij het veld: een drempel uit een .xer staat in uren (per
+              // taakkalender), een eigen drempel in werkdagen — zonder label is "8" dubbelzinnig.
+              <label className="flex flex-col gap-0.5">
+                <input
+                  type="number"
+                  step="any"
+                  value={hoursThreshold ? crit?.thresholdHours : (crit?.threshold ?? 0)}
+                  onChange={e => {
+                    const n = parseFloat(e.target.value);
+                    patchOptions(withCriticalThreshold(so, hoursThreshold ? 'thresholdHours' : 'threshold', Number.isFinite(n) ? n : 0));
+                  }}
+                  className={numCls}
+                  data-ops-crit-threshold
+                />
+                <span className="text-text-secondary" data-ops-crit-threshold-unit>
+                  {hoursThreshold ? tMenu('projectInfo.calc.critThresholdHours') : tMenu('projectInfo.calc.critThreshold')}
+                </span>
+              </label>
             )}
           </div>
         </div>

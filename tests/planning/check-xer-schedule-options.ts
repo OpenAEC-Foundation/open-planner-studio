@@ -33,7 +33,7 @@ function eq(label: string, got: unknown, want: unknown): void {
 function deriveXerScheduleOptions(
   tables: ReturnType<typeof parseXerTables>,
   projectId: string,
-  context: { hoursPerDay?: number; taskCount?: number } = {},
+  context: { hoursPerDay?: number; taskCount?: number; hasUsableProjectEnd?: boolean } = {},
 ) {
   return deriveIndexedXerScheduleOptions(indexXerScheduleOptions(tables), projectId, context);
 }
@@ -605,6 +605,48 @@ eq('projecteindevlag true/false verandert binnen één project geen enkele taakd
   trueResult: [...ordinaryEnd.tasks],
   falseResult: [...ordinaryEnd.tasks],
 });
+
+// X12-brok 1 (plan XER §9, her-review 7a): `Y` zonder bruikbaar einde — geen PROJECT.plan_end_date
+// en geen TASK.target_end_date — valt zichtbaar terug op N; de bronwaarde blijft `Y` in retainedSource.
+// Mét een bruikbaar einde, of zonder dat de lezer het weet (`undefined`), blijft `Y` staan.
+{
+  const withUsable = (hasUsableProjectEnd: boolean | undefined) => deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'],
+    ['P1'],
+    { fields: ['proj_id', 'sched_use_project_end_date_for_float'], values: ['P1', 'Y'] },
+  )), 'P1', { hasUsableProjectEnd });
+  const without = withUsable(false);
+  const noEndFallbacks = without.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float');
+  eq('Y zonder bruikbaar projecteinde ⇒ optie uit, als terugval gerapporteerd, bron Y bewaard', {
+    option: without.schedulingOptions.useProjectEndDateForFloat,
+    retained: without.retainedSource,
+    fallbacks: noEndFallbacks.map(({ field, token, fallback }) => ({ field, token, fallback })),
+  }, {
+    option: false,
+    retained: { sched_use_project_end_date_for_float: true },
+    fallbacks: [{
+      field: 'sched_use_project_end_date_for_float',
+      token: 'Y',
+      fallback: 'N (geen projecteinddatum en geen taakeinddatum in de bron: projecteinde = max(EF))',
+    }],
+  });
+  eq('Y mét bruikbaar projecteinde (of onbekend) ⇒ optie blijft aan, geen terugval', [true, undefined].map(usable => {
+    const result = withUsable(usable);
+    return {
+      option: result.schedulingOptions.useProjectEndDateForFloat,
+      fallbacks: result.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float').length,
+    };
+  }), [{ option: true, fallbacks: 0 }, { option: true, fallbacks: 0 }]);
+  const explicitNo = deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'],
+    ['P1'],
+    { fields: ['proj_id', 'sched_use_project_end_date_for_float'], values: ['P1', 'N'] },
+  )), 'P1', { hasUsableProjectEnd: false });
+  eq('N zonder bruikbaar projecteinde blijft N zonder terugvalmelding', {
+    option: explicitNo.schedulingOptions.useProjectEndDateForFloat,
+    fallbacks: explicitNo.fallbacks.length,
+  }, { option: false, fallbacks: 0 });
+}
 
 const withoutTable = deriveXerScheduleOptions(parseXerTables(xer(
   ['proj_id', 'critical_path_type', 'critical_drtn_hr_cnt'],

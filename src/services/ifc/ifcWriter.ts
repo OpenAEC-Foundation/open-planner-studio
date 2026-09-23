@@ -114,11 +114,6 @@ function guidOf(ctx: WriteContext, seed: string): string {
   return guid;
 }
 
-/** Een lege schrijfcontext die bij STEP-id `nextId` begint, voor losse pset-schrijvers. */
-export function createWriteContext(nextId: number): WriteContext {
-  return { lines: [], nextId, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
-}
-
 function ref(ctx: WriteContext, key: string): string {
   return `#${ctx.idMap.get(key) || 0}`;
 }

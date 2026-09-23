@@ -184,6 +184,7 @@ interface BlastRadiusBaseline {
     derivedRows: number;
     derivedFallbacks: number;
     derivedFloatDialectFallbacks: number;
+    derivedNoProjectEndFallbacks: number;
     derivedRetainedLogic: number;
     derivedProgressOverride: number;
     derivedFinishFloat: number;
@@ -931,6 +932,9 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       derivedFallbacks: derivedRows.reduce((sum, result) => sum + result.fallbacks.length, 0),
       derivedFloatDialectFallbacks: derivedRows.reduce((sum, result) => sum
         + result.fallbacks.filter(item => item.field === 'sched_float_type').length, 0),
+      // X12-brok 1: `Y` zonder PROJECT.plan_end_date en zonder één TASK.target_end_date ⇒ terugval N.
+      derivedNoProjectEndFallbacks: derivedRows.reduce((sum, result) => sum
+        + result.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float').length, 0),
       derivedRetainedLogic: derivedRows.filter(result => result.progressMode === 'RETAINED_LOGIC').length,
       derivedProgressOverride: derivedRows.filter(result => result.progressMode === 'PROGRESS_OVERRIDE').length,
       derivedFinishFloat: derivedRows.filter(result => result.schedulingOptions.totalFloatMode === 'finish').length,
@@ -1024,8 +1028,11 @@ if (!root) {
     progressOverride: 1,
     unknownFloatDialect: 8,
     derivedRows: 49,
-    derivedFallbacks: 8,
+    // X12-brok 1: +16 terugvallen `sched_use_project_end_date_for_float` Y ⇒ N (geen enkel einde in de
+    // bron: de dertien cases-import.xer-projecten en drie taakloze OZB-projecten) — samen 8 + 16.
+    derivedFallbacks: 24,
     derivedFloatDialectFallbacks: 8,
+    derivedNoProjectEndFallbacks: 16,
     derivedRetainedLogic: 48,
     derivedProgressOverride: 1,
     derivedFinishFloat: 49,
@@ -1059,6 +1066,16 @@ if (!root) {
     // opvolger-LS komt (diagnose laag 1, klasse (ii)); vóór deze etappe was hun `tf = 0`
     // degeneratie (LS = de historische actual-start), dus per ongeluk goed. Zie het baanrapport en
     // het docblok bij `p6CompletedLateFromRemainingWindow` in `types/project.ts`.
+    // Herpin 2026-09-23 (X12 brok 2, conventies C1–C3; bij de brok-2-herpin vergeten, opgevangen in
+    // de fixronde): alleen de `xerDefaults`-rijen bewegen, alle zes assen omlaag — es 1384 → 887,
+    // ef 1414 → 917, ls 3353 → 3231, lf 3351 → 3229, tf 3868 → 3494, ff 303 → 88. `house` en de
+    // completedProgress-rijen (chosen/counterfactual) zijn byte-identiek; bijgewerkt in het JSON-bestand:
+    // `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement` en deze projectie.
+    // Herpin 2026-09-23 (X12 brok 3, C4 + C5 + C6, na de merge van de brok-2-fixronde): opnieuw alleen
+    // `xerDefaults` — es 887 → 452, ef 917 → 482, tf 3494 → 3196, ff 88 → 47; ls/lf ongewijzigd (3231/
+    // 3229). rehab-2 xerDefaultsMovement [3714, 3563, 3325, 3433, 4395, 2251, 70] → [4001, 3894, 3325,
+    // 3433, 4675, 2268, 70]. `house` en completedProgress byte-identiek. Overgenomen uit
+    // `OPS_XER_SCHEDOPTIONS_REPORT=baseline` (alleen deze drie plekken).
     eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
       shape: causalProductEffectsShape(committed.causalProductEffects),
       measured: causalProductEffects(measured),

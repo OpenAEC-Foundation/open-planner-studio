@@ -66,8 +66,8 @@
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
-    "schedulingProfileApplied": "此项目按 {{profile}} 计算。可通过 文件 → 项目信息 → 计算配置文件 更改。",
-    "schedulingProfileShifted_other": "新的计算配置文件移动了 {{count}} 个任务。",
+    "schedulingProfileApplied": "此项目按 {{profile}} 计算。可通过 文件 → 项目信息 → 计算配置文件和选项 更改。",
+    "schedulingProfileShifted_other": "应用后移动了 {{count}} 个任务。",
     "actions": {
       "openProjectInfo": "打开计算配置文件"
     }

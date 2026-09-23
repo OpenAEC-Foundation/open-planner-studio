@@ -612,6 +612,39 @@ statusdatum. Samen geland met C2 `p6FreeFloatOnOwnCalendar` (brok B06), omdat C1
 V3109400 staat nu op ES 12-04 zoals P6. De resterende LS/LF/tf-cellen van deze keten horen bij brok
 B01 (de zes TF-0-ankers). Oorspronkelijke registratie hieronder blijft als geschiedenis.
 
+**Meetuitkomst brok 2 (compleet, 2026-09-23; `npm run measure:profiles` mét corpus, herpind per
+commit volgens het recept).** Drie conventies in groep C, alle drie P6 aan / MS Project uit / OPS uit:
+
+| stap | conventie(s) | X12 zesassig | cel-delta (nieuw/slechter/beter) | per as |
+|---|---|---|---|---|
+| vóór | — | 15.056 | — | — |
+| `7c37b212` | C1 `p6CompletedPredecessorAtDataDate` + C2 `p6FreeFloatOnOwnCalendar` | 13.324 | 0 / 0 / 1.732 | es −497, ef −497, tf −267, ff −471 (rehab-2 1.476, Hotel 244, Roads 11, DCP-03 1) |
+| `d6db800c` | C3 `p6CompletedRemainingLag` | 12.973 | 0 / 0 / 351 | ls −122, lf −122, tf −107 (alles rehab-2) |
+
+Totaal −2.083, 0 cellen slechter; drivingPath (417) en MS Project (2.196 checks, GOAL_ZERO-rood 0)
+ongewijzigd. Waarom C1 en C2 samen: C1 alleen gaf +1.301/−1; die ene cel (rehab-2 V3248175, ff) was
+vóór C1 toevallig exact via de opvolgerkalender, en C2 is de regel die hem verklaart.
+
+**Voorbehoud orakel (toets 2026-09-23, `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` op de
+etappebranch).** Het orakel van `rehab-2.xer` is P3-uitvoer (geen SCHEDOPTIONS, `rem_late_start_date`
+0/4.940, geen `driving_path_flag`). C1 en C3 veranderen buiten rehab-2 geen enkele cel; hun P6-waarde
+"aan" staat daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). C2 staat op eigen
+benen: 256 ff-cellen in drie P6-doorgerekende bestanden (Hotel +244, Roads +11, DCP-03 BL +1), 0
+slechter. De Oracle-tekst "Using the data date" beschrijft de C1-regel (actual ná de statusdatum) niet;
+de docblokken in `src/types/project.ts` zeggen dat nu zo. De gelande stand blijft (de ratchet gaat
+alleen omlaag); de standaardwaarde van C1/C3 wordt pas herzien na het manifestbesluit.
+
+**Inzicht uit de critreview: 761 cellen binnen de bucket verder van P6.** De cel-ratchet kent alleen
+de buckets exact/sameday/diff/missing. Onder C1–C3 zijn 761 cellen die al `diff` waren binnen die
+bucket VERDER van P6 komen te liggen — onzichtbaar voor de ratchet. Verklaring: compensatie met brok
+B01 (de zes TF-0-ankers aan de late kant). Met het B01-tegenfeit (meting van de reviewer; niet
+opnieuw gedraaid in de fixronde) zijn de conventies zelf zuiver: C1+C2 = +1.706 beter / 0 slechter, C3 = +772 / 0 — de 761
+cellen zijn dus B01-schuld die door een eerder toevallig compenserende fout heen zichtbaar wordt, geen
+regressie van C1–C3. Gevolg: de bucket-ratchet bewijst "geen exacte cel wordt inexact" (regel A), niet
+"geen cel komt verder van P6". Of er een extra ratchet op de afwijkingsGROOTTE per cel moet komen, is
+een open eigenaarsbesluit (overdracht rekenprofielen, open vraag 3 "Grootte-ratchet?"); tot dat besluit
+dwingt het nuldoel het vanzelf af zodra B01 landt.
+
 **Status (oud):** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
 2026-09-05.
 
@@ -669,10 +702,36 @@ bewaart. Klasse (ii)-materiaal (bezig zijnde taken rond de statusdatum, X5-vlag)
 
 ### Projecteinde valt terug op de projectstart bij leeg `plan_end_date` (her-review 7a, 2026-09-07)
 
-**Status:** geregistreerd in `docs/TODO.md`, niet gefixt. `sched_use_project_end_date_for_float = Y`
-zonder `plan_end_date` en zonder één `target_end_date` (de echte `cases-import.xer`) ⇒ het
-taak-afgeleide projecteinde is de projectSTART en de hele late zijde verankert daarop: 77/160
-P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de engine-check.
+**Status:** GEFIXT in X12-brok 1 (2026-09-23, branch `claude/x12-brok1-projecteinde`).
+`sched_use_project_end_date_for_float = Y` zonder `plan_end_date` en zonder één `target_end_date`
+(de echte `cases-import.xer`) ⇒ het taak-afgeleide projecteinde was de projectSTART en de hele late
+zijde verankerde daarop: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit.
+
+Fix (lezer, geen motorwijziging): `deriveXerScheduleOptions` krijgt van `xerReader` de vlag
+`hasUsableProjectEnd` (geldige `plan_end_date` óf minstens één geldige `target_end_date`); is die
+`false`, dan gaat de optie gerapporteerd uit (terugvalmelding op `sched_use_project_end_date_for_float`,
+bron-`Y` blijft in `retainedSource`) en verankert de solver op max(EF) — het P6-gedrag zonder Must
+Finish By volgens de P6-documentatie. Onafhankelijk gespiegeld in `xerScheduleOptionsGroundTruth.ts`.
+
+Metingen (ZEKER, zelf gemeten):
+- Corpusbreed 39 `Y`-rijen: 3 met `plan_end_date` (Hotel 2666 in twee kopieën, TERMINAL
+  BUILDING-AIRPORT), 20 met taakeinden (12× OZB 9029–10096, Roads, HarbourPointe, xernative,
+  ashspace, vier MPXJ-kalenderfixtures), 16 zonder enig einde (13× cases-import.xer, OZB 9026–9028
+  zonder taken). De fix raakt alleen die 16.
+- `cases-import.xer` zoals gelezen: 77/160 → 156/160 (sectie 7a gepind op 156; 7c: vlag nu uit).
+- X12: 15.056 → 15.056, cel-delta `nieuw=0 verslechterd=0 verbeterd=0` — geen van de 34
+  X12-entries valt in de klasse (de drie OZB-projecten hebben geen taken). Geen herpin nodig.
+- mpp-fidelity 216 ongewijzigd; `check-xer-schedule-options-corpus` `derivedFallbacks` 8 → 24.
+
+**Open vraag (escalatie, niet gepind).** De bredere variant — de optie óók uitzetten wanneer er
+wél taakeinden zijn (dus max(EF) in plaats van max(`target_end_date`) als anker) — is gemeten en
+afgewezen: 100 X12-cellen slechter, 6 beter, allemaal op `OZB-Start-09Dec24.xer` (projecten 9032,
+9033, 9049, 10096; ls/lf/tf + 2× drivingPath). P6 zet daar NEGATIEVE totale float (bijv. 9032/OZ1040
+tf −720 min) zonder `plan_end_date`, dus P6 verankert de late zijde vóór max(EF) — in tegenspraak met
+de gedocumenteerde "geen Must Finish By ⇒ max(EF)". Het huidige anker (max `target_end_date`) geeft
+op die projecten −1440 waar P6 −720 heeft: dichterbij, niet exact. Onverklaard uit P6-documentatie
+of corpus; kandidaat-verklaringen (constraints in de workshopprojecten, een ander forward-resultaat
+dan P6) zijn niet onderzocht. Hoort bij een volgende brok.
 
 ### De ONBEKENDE categorieën, gemeten (2026-09-07, volledig corpus)
 
@@ -782,6 +841,8 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
 ### 10.d Dossier 7b-4
 
 - **ZEKER.** Gemeten, niet gebouwd — §9 draagt de cijfers. Bouwbesluit bij de eigenaar.
+- **Bijgewerkt 2026-09-23.** Gebouwd in X12 brok 2 als C1–C3 (X12 15.056 → 12.973, 0 slechter); zie §9
+  7b-4 voor de meetuitkomst en de 761-cellen-kanttekening.
 
 ### 10.e Poorten op de kop van de branch
 

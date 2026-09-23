@@ -30,11 +30,11 @@ De drie ingebouwde profielen:
 - Een eigen IFC-bestand: het profiel dat erin is opgeslagen.
 - Een IFC-bestand uit een oudere versie van Open Planner Studio, zonder opgeslagen profiel: het profiel volgt uit de opgeslagen reken-opties. Een eerder geopend `.xer`-project krijgt zo **Primavera P6**, een eerder geopend `.mpp`-project **Microsoft Project**, al het andere **Open Planner Studio**.
 
-Opent een bestand met een ander profiel dan Open Planner Studio, dan zie je één melding, bijvoorbeeld "Dit project rekent als Primavera P6". De knop in die melding opent Projectinfo. Bij een `.xer`-bestand staat die regel in de gewone openingsmelding, ook als het bestand meerdere projecten bevat.
+Open je een `.xer`- of `.mpp`-bestand, dan zie je één melding, bijvoorbeeld "Dit project rekent als Primavera P6". De knop in die melding opent Projectinfo. Bij een `.xer`-bestand staat die regel in de gewone openingsmelding, ook als het bestand meerdere projecten bevat. Bij het heropenen van een eigen IFC-bestand en bij crashherstel komt die melding niet: het profiel stond er al, en je hebt het zelf gekozen of gezien.
 
 ## Van profiel wisselen
 
-Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat, en een melding vertelt hoeveel taken daardoor verschoven zijn. Een wissel is één stap in *Ongedaan maken*.
+Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat. Verschuiven daardoor taken, dan vertelt een melding hoeveel; verschuift er niets, dan komt er geen melding. De telling gaat over gewone taken, niet over samenvattingstaken (die volgen hun onderliggende taken). Een wissel is één stap in *Ongedaan maken*.
 
 Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij elke wissel staan, ook als je een eigen profiel of een sjabloon kiest. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
 
@@ -48,7 +48,7 @@ Let op bij een wissel naar Primavera P6 voor een project dat niet uit P6 komt: d
 
 Zet in het blok een conventie aan of uit. Is het profiel ingebouwd, dan maakt Open Planner Studio er automatisch een eigen kopie van, bijvoorbeeld "Kopie van Primavera P6". Die naam kun je aanpassen. Kies je een sjabloon voor een project uit een `.xer`-bestand, dan houdt het project de waarde uit het bestand voor het begin van het restwerk; die telt niet als afwijking van het sjabloon.
 
-Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het in andere projecten kunt kiezen. Een project bewaart altijd een eigen kopie van zijn profiel: een sjabloon later wijzigen verandert geen bestaand project. Wijkt het profiel van een project af van zijn sjabloon, dan zie je dat in een gekleurd blok, met de knoppen **Bijwerken vanuit sjabloon** en **Sjabloon bijwerken vanuit dit project**.
+Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het in andere projecten kunt kiezen. Een project bewaart altijd een eigen kopie van zijn profiel: een sjabloon later wijzigen verandert geen bestaand project. Wijkt het profiel van een project af van zijn sjabloon, dan zie je dat in een gekleurd blok, met de knoppen **Bijwerken vanuit sjabloon** en **Sjabloon bijwerken vanuit dit project**. Met **Sjabloon verwijderen** haal je het sjabloon weer uit de app; het project houdt zijn eigen kopie.
 
 ## De eenentwintig conventies
 
@@ -84,7 +84,7 @@ Een deel van de P6-conventies werkt alleen op taken met P6-herkomst, dus uit een
 
 Het profiel wordt in het IFC-bestand opgeslagen, met alle eenentwintig waarden, zodat het bestand overal hetzelfde rekent. Een project met het standaardprofiel slaat niets extra's op. Oudere versies van Open Planner Studio kennen het profiel niet: zij lezen alleen de reken-opties en de twee voortgangsconventies van Microsoft Project, en rekenen een P6-project zonder P6-conventies.
 
-Bij exporteren naar CSV, MS Project XML of P6 XML gaat het profiel niet mee; die bestanden openen weer als Open Planner Studio. Voor een project uit een `.xer`-bestand meldt de export dat verlies.
+Bij exporteren naar CSV, MS Project XML of P6 XML gaat het profiel niet mee; die bestanden openen weer als Open Planner Studio. Voor een project uit een `.xer`-bestand meldt de export dat er XER-broninformatie verloren gaat; het rekenprofiel hoort daarbij, maar de melding noemt het niet apart.
 
 ## Verder lezen
 

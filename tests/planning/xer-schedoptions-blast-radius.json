@@ -93,37 +93,37 @@
         {
           "branch": "xerDefaults",
           "axis": "es",
-          "deviations": 1384,
+          "deviations": 452,
           "measurable": 7637
         },
         {
           "branch": "xerDefaults",
           "axis": "ef",
-          "deviations": 1414,
+          "deviations": 482,
           "measurable": 7649
         },
         {
           "branch": "xerDefaults",
           "axis": "ls",
-          "deviations": 3353,
+          "deviations": 3231,
           "measurable": 7519
         },
         {
           "branch": "xerDefaults",
           "axis": "lf",
-          "deviations": 3351,
+          "deviations": 3229,
           "measurable": 7510
         },
         {
           "branch": "xerDefaults",
           "axis": "tf",
-          "deviations": 3868,
+          "deviations": 3196,
           "measurable": 7602
         },
         {
           "branch": "xerDefaults",
           "axis": "ff",
-          "deviations": 303,
+          "deviations": 47,
           "measurable": 7221
         }
       ]
@@ -1110,12 +1110,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 44,
       "xerDefaultsMovement": [
-        3228,
-        3066,
-        3326,
+        4001,
+        3894,
+        3325,
         3433,
-        3937,
-        2129,
+        4675,
+        2268,
         70
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -4700,27 +4700,27 @@
     },
     "xerDefaults": {
       "es": {
-        "deviations": 1384,
+        "deviations": 452,
         "measurable": 7637
       },
       "ef": {
-        "deviations": 1414,
+        "deviations": 482,
         "measurable": 7649
       },
       "ls": {
-        "deviations": 3353,
+        "deviations": 3231,
         "measurable": 7519
       },
       "lf": {
-        "deviations": 3351,
+        "deviations": 3229,
         "measurable": 7510
       },
       "tf": {
-        "deviations": 3868,
+        "deviations": 3196,
         "measurable": 7602
       },
       "ff": {
-        "deviations": 303,
+        "deviations": 47,
         "measurable": 7221
       }
     },

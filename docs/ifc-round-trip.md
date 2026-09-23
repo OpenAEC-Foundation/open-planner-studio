@@ -92,7 +92,7 @@ custom-field- en activity-code-definities, de bedrijfsbibliotheek — schrijven 
 `IFCPROPERTYSINGLEVALUE` met JSON erin, op het `IfcWorkSchedule` of het `IfcProject`.
 
 `OPS_SchedulingProfile` (rekenprofielen) staat naast `OPS_SchedulingOptions` op het `IfcWorkSchedule`:
-één JSON `{ id, baseId, conventions, name? }` met alle conventies opgelost; alleen geschreven als het
+één JSON `{ id, baseId, conventions, overrides, name? }` met alle conventies opgelost plus de letterlijke afwijkingen (zodat P6 → OPS → opslaan → P6 het origineel teruggeeft); alleen geschreven als het
 profiel ≠ het standaardprofiel (OPS zonder afwijkingen), zodat bestaande bestanden byte-identiek
 blijven. De lezer geeft hem voorrang op het (gemigreerde) `OPS_SchedulingOptions`-blok
 (`profileAfterRead` in `schedulingOptionsRead.ts`, migratie in `schedulingProfileMigration.ts`). Een nieuwe

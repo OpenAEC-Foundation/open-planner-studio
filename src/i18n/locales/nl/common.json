@@ -87,9 +87,9 @@
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
     "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
-    "schedulingProfileApplied": "Dit project rekent als {{profile}}. Aanpassen via Bestand → Projectinfo → Rekenprofiel.",
-    "schedulingProfileShifted_one": "Het nieuwe rekenprofiel verschoof {{count}} taak.",
-    "schedulingProfileShifted_other": "Het nieuwe rekenprofiel verschoof {{count}} taken.",
+    "schedulingProfileApplied": "Dit project rekent als {{profile}}. Aanpassen via Bestand → Projectinfo → Rekenprofiel en reken-opties.",
+    "schedulingProfileShifted_one": "Na het toepassen is {{count}} taak verschoven.",
+    "schedulingProfileShifted_other": "Na het toepassen zijn {{count}} taken verschoven.",
     "actions": {
       "openProjectInfo": "Rekenprofiel openen"
     }

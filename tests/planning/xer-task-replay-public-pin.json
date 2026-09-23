@@ -61,18 +61,18 @@
         },
         "ls": {
           "improved": 0,
-          "regressed": 1559,
-          "unchanged": 12263
+          "regressed": 1671,
+          "unchanged": 12151
         },
         "lf": {
           "improved": 0,
-          "regressed": 1570,
-          "unchanged": 12243
+          "regressed": 1682,
+          "unchanged": 12131
         },
         "tf": {
           "improved": 0,
-          "regressed": 1487,
-          "unchanged": 12190
+          "regressed": 1666,
+          "unchanged": 12011
         },
         "ff": {
           "improved": 0,
@@ -81,8 +81,8 @@
         },
         "overall": {
           "improved": 0,
-          "regressed": 1570,
-          "unchanged": 12389
+          "regressed": 1682,
+          "unchanged": 12277
         }
       },
       "rejected": true,

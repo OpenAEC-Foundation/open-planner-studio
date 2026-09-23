@@ -16,12 +16,14 @@ import { optionKeysOnly, legacyOptionsToProfile } from '@/services/ifc/schedulin
  * blijft op zijn solver-default), nooit "gerepareerd" — een half geldig object mag geen ander
  * gedrag activeren dan het bestand letterlijk beschrijft.
  *
- * Wat deze poort bewust NIET doet: `p6Source: 'XER'` weigeren. Een uit XER geïmporteerd project
- * round-tript zijn P6-opties via ditzelfde pset (`ifcWriter.ts`, `writeSchedulingOptionsMeta`), dus
- * de IFC-lezer is — naast de XER-lezer — een legitieme schrijver van `p6Source`. De
- * `CPMSolver`-hardening op de sequences (X12, `p6StartAtPredecessorFinishBoundary` wordt gestript
- * zonder `p6Source`) beschermt tegen een LOSSE relatievlag zonder projectniveau-bron; ze beschermt
- * niet tegen een vervalst projectbestand, en beweert dat sinds deze bijstelling ook niet meer.
+ * `p6Source: 'XER'` blijft doorgelaten, maar is sinds de rekenprofielen geen poort meer: niets in de
+ * motor leest hem (`npm run verify:conventions`). Hij bestaat alleen nog in OUDE bestanden, en de
+ * enige afnemer is de migratie `legacyOptionsToProfile` (bestand zonder `OPS_SchedulingProfile` ⇒
+ * profiel Primavera P6); `sanitizeProjectOptions` stript hem, dus hij komt nooit op het project. Het
+ * P6-gedrag hangt aan de conventies van het profiel. De `CPMSolver`-hardening op de sequences (X12,
+ * `p6StartAtPredecessorFinishBoundary` wordt gestript zonder conventie B1 `p6RelationFinishBoundary`)
+ * beschermt tegen een LOSSE relatievlag; niet tegen een vervalst projectbestand, en dat beweert hij
+ * ook niet.
  *
  * Leesmigratie-vrij: sleutels die de app niet (meer) kent verdwijnen stil; dat is hetzelfde
  * gedrag als voorheen voor onbekende psets. Headless getest in `check-ifc-roundtrip.ts`.

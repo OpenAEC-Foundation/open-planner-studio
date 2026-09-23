@@ -452,6 +452,8 @@ function ProjectInfoSection({ onApply }: { onApply: () => void }) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
   const panelRef = useRef<ProjectInfoPanelContentHandle>(null);
+  // Uit zolang de draft ongeldig is (eigen rekenprofiel zonder naam); submit() weigert zelf ook.
+  const [canSubmit, setCanSubmit] = useState(true);
 
   return (
     <>
@@ -459,10 +461,10 @@ function ProjectInfoSection({ onApply }: { onApply: () => void }) {
       <p className="backstage-subtitle">{tMenu('backstage.projectInfoSubtitle')}</p>
 
       <div className="backstage-form">
-        <ProjectInfoPanelContent ref={panelRef} mode="edit" onDone={onApply} />
+        <ProjectInfoPanelContent ref={panelRef} mode="edit" onDone={onApply} onValidityChange={setCanSubmit} />
 
         <div className="backstage-actions">
-          <button className="btn btn--primary" onClick={() => panelRef.current?.submit()}>{tCommon('apply')}</button>
+          <button className="btn btn--primary" disabled={!canSubmit} onClick={() => panelRef.current?.submit()}>{tCommon('apply')}</button>
         </div>
       </div>
     </>
