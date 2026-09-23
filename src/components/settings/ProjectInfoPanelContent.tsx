@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Check, Pencil, X } from 'lucide-react';
@@ -8,7 +8,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { PROJECT_TEMPLATES, templatePhases, buildGeneratedCalendar, type TemplateKey } from '@/utils/projectTemplates';
 import { CalendarGeneratorFields } from '@/components/dialogs/CalendarGeneratorFields';
 import { SchedulingProfileSection } from '@/components/settings/SchedulingProfileSection';
-import { hasValidProfileName, type SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
+import { hasValidProfileName, sameSettings, type SchedulingSettingsDraft } from '@/state/schedulingProfileDraft';
 import { projectInfoPatch } from '@/state/projectInfoPatch';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
@@ -31,7 +31,16 @@ export interface ProjectInfoPanelContentHandle {
   /** Committeert de huidige draft — wizard ⇒ createNewProject + bibliotheek-koppeling; edit ⇒
    *  setProject + bibliotheek-(ont)koppeling (+ applySchedulingSettings als het blok Rekenprofiel en
    *  reken-opties werd aangeraakt: één undo-stap, herberekenen, melding "N taken verschoven"). */
-  submit: () => void;
+  submit: (options?: ProjectInfoSubmitOptions) => boolean;
+  /** Gooit de draft weg en zet alle velden terug op het huidige project (B2, gebruikstest 24-09:
+   *  "Verwerpen" in de plakkende voetbalk en in de niet-toegepast-dialoog van Backstage). */
+  discard: () => void;
+}
+
+export interface ProjectInfoSubmitOptions {
+  /** `onDone` NIET aanroepen: de Backstage-wegnavigeerbewaking past toe en navigeert daarna zelf
+   *  naar het gekozen doel, in plaats van via `onDone` terug naar de Start-tab. */
+  skipDone?: boolean;
 }
 
 export interface ProjectInfoPanelContentProps {
@@ -49,6 +58,10 @@ export interface ProjectInfoPanelContentProps {
   /** Meldt of de draft nu toe te passen is (rekenprofielen: een eigen profiel zonder naam is dat niet).
    *  De wrapper zet daarmee zijn Toepassen/Aanmaken-knop uit; `submit()` weigert zelf ook. */
   onValidityChange?: (valid: boolean) => void;
+  /** Meldt of de draft afwijkt van het project (B2, gebruikstest 24-09): Backstage toont dan de
+   *  gekleurde markering "niet toegepast" en vraagt bij wegnavigeren Toepassen/Verwerpen/Annuleren.
+   *  Zelfde maatstaf als `submit()`: alleen wat Toepassen echt zou wijzigen telt. */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -93,7 +106,7 @@ export interface ProjectInfoPanelContentProps {
  *  later wél projectvelden zou gaan raken).
  */
 export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle, ProjectInfoPanelContentProps>(
-  function ProjectInfoPanelContent({ mode, onDone, autoFocusName, onValidityChange }, ref) {
+  function ProjectInfoPanelContent({ mode, onDone, autoFocusName, onValidityChange, onDirtyChange }, ref) {
     const isNew = mode === 'wizard';
     const { t: tMenu } = useTranslation('menu');
     const { t: tCommon } = useTranslation('common');
@@ -165,19 +178,10 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       setSchedulingRaw(next);
     };
 
-    // GO-NA-fix 1a: her-initialiseer de VOLLEDIGE draft zodra het ACTIEVE document verandert
-    // (Ctrl+1..9 kan vuren terwijl deze component gemount blijft — zie de JSDoc hierboven). Alléén
-    // relevant in edit-modus (de wizard heeft geen "vorig document" om stale te worden). Bewust
-    // GEEN afhankelijkheid op losse `project`-velden: elke store-mutatie die toevallig een nieuwe
-    // `project`-referentie oplevert zou anders de tekst die de gebruiker nog aan het intypen is
-    // wegvegen; `activeDocumentId` is het bewezen, precieze identiteitssignaal (zie snapshot.ts-analyse
-    // hierboven — undo raakt geen projectvelden, dus er is daar niets te herinitialiseren).
-    const draftDocIdRef = useRef(activeDocumentId);
-    useLayoutEffect(() => {
-      if (isNew) return;
-      if (activeDocumentId === draftDocIdRef.current) return;
-      draftDocIdRef.current = activeDocumentId;
-      const p = useAppStore.getState().project; // vers — dit IS de state ná de documentwissel
+    // Zet de hele draft terug op het (verse) actieve project: gedeeld door de documentwissel
+    // hieronder en `discard()` ("Verwerpen", B2). Leest de store op het moment zelf.
+    const resetDraftFromProject = useCallback(() => {
+      const p = useAppStore.getState().project;
       setName(p.name);
       setDescription(p.description);
       setAuthor(p.author);
@@ -192,7 +196,23 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       setCreatingCompany(false);
       setPendingNewCompany(false);
       setNewCompanyName('');
-    }, [isNew, activeDocumentId]);
+    }, []);
+
+    // GO-NA-fix 1a: her-initialiseer de VOLLEDIGE draft zodra het ACTIEVE document verandert
+    // (Ctrl+1..9 kan vuren terwijl deze component gemount blijft — zie de JSDoc hierboven). Alléén
+    // relevant in edit-modus (de wizard heeft geen "vorig document" om stale te worden). Bewust
+    // GEEN afhankelijkheid op losse `project`-velden: elke store-mutatie die toevallig een nieuwe
+    // `project`-referentie oplevert zou anders de tekst die de gebruiker nog aan het intypen is
+    // wegvegen; `activeDocumentId` is het bewezen, precieze identiteitssignaal (zie snapshot.ts-analyse
+    // hierboven — undo raakt geen projectvelden, dus er is daar niets te herinitialiseren).
+    const draftDocIdRef = useRef(activeDocumentId);
+    useLayoutEffect(() => {
+      if (isNew) return;
+      if (activeDocumentId === draftDocIdRef.current) return;
+      draftDocIdRef.current = activeDocumentId;
+      resetDraftFromProject();
+    }, [isNew, activeDocumentId, resetDraftFromProject]);
+
 
     // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
     const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
@@ -203,8 +223,22 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const draftValid = hasValidProfileName(scheduling.profile);
     useEffect(() => { onValidityChange?.(draftValid); }, [draftValid, onValidityChange]);
 
-    const handleSubmit = () => {
-      if (!draftValid) return;
+    // B2 (gebruikstest 24-09): wijkt de draft af van het project? Zelfde maatstaven als de commit
+    // hieronder — metadata via `projectInfoPatch`, het rekenprofiel alleen na aanraken én inhoudelijk
+    // anders (`sameSettings`, zoals `applyProjectInfo`), de bibliotheek alleen na aanraken. De wizard
+    // maakt een nieuw project en kent dus geen "niet toegepast".
+    const dirty = !isNew && (
+      Object.keys(projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit })).length > 0
+      || (calcTouched && !sameSettings({ profile: project.schedulingProfile, options: project.schedulingOptions }, scheduling))
+      || pendingNewCompany
+      || (companyTouched && linkedCompanyId !== (project.companyId ?? ''))
+    );
+    useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+    // Bij unmount is er niets meer "niet toegepast" (de draft bestaat dan niet meer).
+    useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
+
+    const handleSubmit = (options?: ProjectInfoSubmitOptions): boolean => {
+      if (!draftValid) return false;
       // "+ Nieuwe resourcebibliotheek…" materialiseert pas HIER (GO-NA-fix 2) — vóór dit punt bestaat
       // er geen store-mutatie, dus Annuleren van de dialoog/sectie laat niets achter. `pendingNewCompany`
       // (niet `creatingCompany`, dat sluit al bij "bevestigen" — zie confirmNewCompany) blijft de
@@ -216,6 +250,10 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         const createdId = addCompany(newCompanyName.trim() || tCommon('companyLibrary.newCompany'));
         effectiveLinkedCompanyId = createdId;
         effectiveCompanyTouched = true;
+        // Gematerialiseerd: de intentie is vervuld (anders bleef de draft na een `skipDone`-submit "vuil").
+        setPendingNewCompany(false);
+        setCreatingCompany(false);
+        setLinkedCompanyId(createdId);
       }
 
       if (isNew) {
@@ -290,13 +328,14 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           }
         }
       }
-      onDone();
+      if (!options?.skipDone) onDone();
+      return true;
     };
 
     // BEWUST geen dependency-array: elke render moet de NIEUWSTE `handleSubmit`-closure (met de
     // actuele draft-state) aan de ref hangen. Een `[]` zou de closure op de EERSTE render bevriezen en
     // submit() daarna altijd de staat van dat allereerste render laten committeren.
-    useImperativeHandle(ref, () => ({ submit: handleSubmit }));
+    useImperativeHandle(ref, () => ({ submit: handleSubmit, discard: resetDraftFromProject }));
 
     const inputCls =
       'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';

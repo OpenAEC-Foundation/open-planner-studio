@@ -1,8 +1,67 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { AppNotification } from '@/state/slices/types';
 import { notificationDetailText } from '@/utils/notificationDetail';
+import { measureToastPlacement, samePlacement, type ToastPlacement } from './toastPlacement';
+
+/**
+ * B5 (gebruikstest rekenprofielen 24-09): houdt de stapel weg van de knoppen van een open dialoog
+ * en van plakkende actiebalken — zie `toastPlacement.ts` voor de regel. Meet alleen zolang er
+ * meldingen zijn: synchroon bij het verschijnen, in het frame na elke storewijziging (een dialoog
+ * die opengaat) en bij resize, plus elke {@link PLACEMENT_POLL_MS} ms als vangnet voor wat daarbuiten
+ * verschuift; zonder meldingen draait er niets. Nieuwe state
+ * alleen als de plaatsing echt verandert. Bewust geen rAF-lus: een foutmelding blijft staan tot
+ * wegklikken, en een meting per frame naast de Gantt-canvas is dan verspilde layoutwerk.
+ */
+const PLACEMENT_POLL_MS = 100;
+
+function useToastPlacement(active: boolean): ToastPlacement {
+  const [placement, setPlacement] = useState<ToastPlacement>({ kind: 'default' });
+  useLayoutEffect(() => {
+    if (!active) return;
+    let last: ToastPlacement | null = null;
+    const measure = () => {
+      const next = measureToastPlacement(document, window);
+      if (!last || !samePlacement(last, next)) {
+        last = next;
+        setPlacement(next);
+      }
+    };
+    measure(); // synchroon vóór de eerste paint van de stapel
+    const timer = setInterval(measure, PLACEMENT_POLL_MS);
+    // Dialogen openen via `ui.show*`-vlaggen: meet na elke storewijziging in het volgende frame
+    // (React heeft de dialoog dan gecommit), zodat de stapel niet eerst 100 ms over de voet ligt.
+    let frame = 0;
+    const unsubscribe = useAppStore.subscribe(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    window.addEventListener('resize', measure);
+    return () => {
+      clearInterval(timer);
+      cancelAnimationFrame(frame);
+      unsubscribe();
+      window.removeEventListener('resize', measure);
+    };
+  }, [active]);
+  return placement;
+}
+
+function placementStyle(p: ToastPlacement): CSSProperties | undefined {
+  switch (p.kind) {
+    case 'side':
+      // Zijstrook naast de dialoog: vaste linker- en rechtergrens, de meldingen passen zich aan.
+      return { left: p.left, right: p.right, bottom: p.bottom, transform: 'none' };
+    case 'above':
+      return { bottom: p.bottom };
+    case 'underModal':
+      // Onder de dialoogbackdrop (`--z-modal-backdrop`, = Tailwind `z-50` van `Dialog`).
+      return { zIndex: 'calc(var(--z-modal-backdrop) - 1)' };
+    default:
+      return undefined;
+  }
+}
 
 /**
  * NotificationHost — de gecentraliseerde gebruikersmeldingen (bevinding K8).
@@ -27,6 +86,7 @@ export function NotificationHost() {
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
   const { t } = useTranslation();
+  const placement = useToastPlacement(notifications.length > 0);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s); `error` blijft staan tot wegklikken.
   // Bekend en geaccepteerd neveneffect: bij elke lijstwijziging herstart dit effect álle lopende
@@ -44,7 +104,7 @@ export function NotificationHost() {
   if (notifications.length === 0) return null;
 
   return (
-    <div className="ops-toast-stack">
+    <div className="ops-toast-stack" style={placementStyle(placement)} data-ops-toast-placement={placement.kind}>
       {notifications.map((n: AppNotification) => (
         <div
           key={n.id}

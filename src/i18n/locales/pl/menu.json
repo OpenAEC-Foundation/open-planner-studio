@@ -318,6 +318,13 @@
       "quickstart": "Szybki start",
       "gidsen": "Przewodniki tematyczne",
       "referentie": "Materiały referencyjne"
+    },
+    "unapplied": {
+      "title": "Zmiany nie zostały zastosowane",
+      "body": "Zmieniono informacje o projekcie, ale ich jeszcze nie zastosowano. Co zrobić z tymi zmianami?",
+      "marker": "Zmiany nie zostały zastosowane — kliknij {{apply}}, aby je zachować.",
+      "discard": "Odrzuć",
+      "invalid": "Własny profil obliczeń nie ma jeszcze nazwy. Nadaj mu nazwę lub odrzuć zmiany."
     }
   },
   "export": {

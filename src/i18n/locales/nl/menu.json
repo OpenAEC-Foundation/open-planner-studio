@@ -318,6 +318,13 @@
       "quickstart": "Snel starten",
       "gidsen": "Gidsen per onderwerp",
       "referentie": "Referentie"
+    },
+    "unapplied": {
+      "title": "Wijzigingen niet toegepast",
+      "body": "Je hebt de projectinfo gewijzigd maar nog niet toegepast. Wat wil je met deze wijzigingen doen?",
+      "marker": "Wijzigingen niet toegepast — klik op {{apply}} om ze te bewaren.",
+      "discard": "Verwerpen",
+      "invalid": "Het eigen rekenprofiel heeft nog geen naam. Geef het een naam of verwerp de wijzigingen."
     }
   },
   "export": {

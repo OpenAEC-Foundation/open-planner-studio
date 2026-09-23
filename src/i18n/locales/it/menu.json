@@ -318,6 +318,13 @@
       "quickstart": "Avvio rapido",
       "gidsen": "Guide per argomento",
       "referentie": "Riferimento"
+    },
+    "unapplied": {
+      "title": "Modifiche non applicate",
+      "body": "Hai modificato le informazioni del progetto ma non le hai ancora applicate. Cosa vuoi fare con queste modifiche?",
+      "marker": "Modifiche non applicate: fai clic su {{apply}} per conservarle.",
+      "discard": "Scarta",
+      "invalid": "Il profilo di calcolo personalizzato non ha ancora un nome. Assegnagli un nome o scarta le modifiche."
     }
   },
   "export": {
