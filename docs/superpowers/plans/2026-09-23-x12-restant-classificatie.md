@@ -463,6 +463,7 @@ Verdeling: Hotel 65, Roads 6, DCP-03 5, OZB 1, HarbourPointe 1.
 - **Signatuur.** Alleen ff fout. Het gaat om opvolgers met lag, FF of SS, vooral Hotel-FinMiles met gelagde FS-opvolgers; OPS-FF ligt 1 tot 140 uur lager.
 - **Hypothese.** Hetzelfde als B06, maar met lag erbij. Niet rekenkundig getoetst.
 - **Stand 2026-09-23.** Na C2 resteren in P6-bestanden ± 15 ff-only-cellen; de meeste hangen aan foute opvolgerdatums. C8 `p6FreeFloatLaggedRelationsOnOwnCalendar` gemeten, +2/−1 (rehab-2 −1), niet geland; patch in `docs/superpowers/plans/patches/2026-09-23-c8-p6FreeFloatLaggedRelationsOnOwnCalendar.patch`.
+- **Bijgewerkt (X12 brok 9).** Het meetonderzoek `2026-09-24-x12-hotel-ff-60min.md` verklaarde de Hotel-ff-cellen van 60 min: de relatie-vrije-speling telt op de eigen kalender (= voorgangerslagkalender) voor álle relatietypes en elke WORKTIME-lag, grens ongesnapt, tot de vroege opvolgerdatum (ES bij FS/SS, EF bij FF/SF), minimum over de opvolgers (bron: T. Boyle 2018, populatietoets 5.641/5.650). Geland als verbreding van C2 `p6FreeFloatOnOwnCalendar` (geen aparte sleutel; de losse C8-poging hierboven is daarmee vervangen, de −1 zat in rehab-2, dat geen orakel meer is): X12 180 → 177, Hotel HCSWB4Z4240, HCSWB2Z2240 en HEPSS00020 ff exact (de eerste twee samen met C12), 0 slechter. ELAPSEDTIME-, procentlags en andere lagkalenders blijven erbuiten (ongemeten).
 
 ## 3. Synthetische bestanden: 1.814 cellen
 

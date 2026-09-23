@@ -88,6 +88,10 @@ if (!corpusRoot) {
   // verschuiven 8 FF-opvolgers zodanig dat C12's kloktijdgrens hun EF verplaatst; de mutant breekt daardoor 8
   // ef-cellen meer: ef regressed 942 → 950, unchanged 4959 → 4951; overall regressed 1083 → 1091, unchanged
   // 4818 → 4810. Som regressed + unchanged per as gelijk (5901); de andere assen ongewijzigd.
+  // Herpin 2026-09-23 (X12 brok 9, C2 `p6FreeFloatOnOwnCalendar` verbreed naar alle relatietypes en
+  // WORKTIME-lags): het product maakt 3 Hotel-ff-cellen exact; de B1-mutant breekt daardoor 4 ff-cellen
+  // meer: ff regressed 309 → 313, unchanged 5403 → 5399. Som regressed + unchanged per as gelijk (ff 5712);
+  // de andere assen en overall (1091 / 4810) ongewijzigd.
   for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

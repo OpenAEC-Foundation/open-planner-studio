@@ -1545,11 +1545,80 @@ const lateOf = (input: ImportResult, id: string) => {
     '%R\tT\tP1\tC5\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t36\t0\t2026-01-05 08:00\t2026-01-08 17:00\t2026-01-05 08:00\t2026-01-08 17:00',
     0, '2026-01-08 17:00');
   eq('C2 geldt niet voor een voltooide taak (A12 uit): ff met C2 = ff zonder C2', ffOf(done, true, false), ffOf(done, false, false));
-  // M9: FS met lag > 0 valt buiten C2: met en zonder C2 dezelfde vrije speling.
+  // M9 (brok 9: C2 verbreed naar elke lag, `docs/superpowers/plans/2026-09-24-x12-hotel-ff-60min.md`):
+  // FS+4 u. De grens ligt op T's eigen kalender (= de lagkalender, voorganger) op vr 9 jan 12:00; S
+  // (ma–do) begint ma 12 jan 08:00. Eigen kalender: vr 12:00–17:00 = 5 u = 5/9 dag; op de kalender van
+  // S ligt er niets tussen ⇒ 0.
   const lagged = c2Variant(
     '%R\tT\tP1\tC5\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t36\t36\t2026-01-05 08:00\t2026-01-08 17:00\t\t',
     4, '2026-01-05 08:00');
-  eq('C2 alleen bij lag 0: FS+4 u, ff met C2 = ff zonder C2', ffOf(lagged, true), ffOf(lagged, false));
+  eq('C2 verbreed, FS+4 u: ff = vr 12:00–17:00 op de eigen kalender = 5/9 dag', ffOf(lagged, true), 300 / 540);
+  eq('C2 uit, FS+4 u: ff op de kalender van S = 0', ffOf(lagged, false), 0);
+}
+
+{
+  // C2 verbreed (X12 brok 9, Hotel ff 60 min): de relatie-vrije-speling telt voor ALLE relatietypes en
+  // elke lag op de eigen kalender van de taak, van de ongesnapte relatiegrens (anker + lag) tot de vroege
+  // opvolgerdatum (ES bij FS/SS, EF bij FF/SF). Opbouw naar Hotel (kal. 3196 tegen 3195): T op K17 (alle
+  // zeven dagen 08:00–17:00, 9 u), S op K16 (alle zeven dagen 08:00–16:00, 8 u). De grens valt in het uur
+  // 16:00–17:00: werktijd voor T, vrij voor S, dus S begint pas de volgende ochtend.
+  const hotel = (rows: { t: string; s: string; x?: string; rel: string; xrel?: string; sCal?: string; lagCal?: string }) => importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tK17\tTot vijf\tP1\tCA_Project\t9\t63\t${calendarDataOn([1, 2, 3, 4, 5, 6, 7], [['08:00', '17:00']])}`,
+    `%R\tK16\tTot vier\tP1\tCA_Project\t8\t56\t${calendarDataOn([1, 2, 3, 4, 5, 6, 7], [['08:00', '16:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC2-breed\tK17\t2026-01-05 08:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    ...(rows.lagCal ? ['%T\tSCHEDOPTIONS', '%F\tproj_id\tsched_calendar_on_relationship_lag', `%R\tP1\t${rows.lagCal}`] : []),
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    `%R\tT\tP1\tK17\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t${rows.t}`,
+    `%R\tS\tP1\t${rows.sCal ?? 'K16'}\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t${rows.s}`,
+    ...(rows.x ? [`%R\tX\tP1\tK16\tX100\tDrijver\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t${rows.x}`] : []),
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    `%R\tR1\tS\tT\tP1\tP1\t${rows.rel}`,
+    ...(rows.xrel ? [`%R\tR2\tS\tX\tP1\tP1\t${rows.xrel}`] : []),
+    '%E',
+  ]);
+  const ffWith = (input: ImportResult, on: boolean) =>
+    solveAxes(withProfile(input, copy => setConvention(copy, 'p6FreeFloatOnOwnCalendar', on)), 'T').ff;
+
+  // SS+8 u (HEPSS00020-vorm): T start ma 5 jan 08:00; grens = 08:00 + 8 u = ma 16:00 op K17. S kan op
+  // K16 pas di 6 jan 08:00 beginnen. Eigen kalender: ma 16:00–17:00 = 60 min = 1/9 dag; op K16 niets.
+  const ssLag = hotel({ t: '36\t36\t2026-01-05 08:00\t2026-01-08 17:00', s: '8\t8\t2026-01-06 08:00\t2026-01-06 16:00', rel: 'PR_SS\t8' });
+  eq('C2 verbreed, SS+8 u: ff = ma 16:00–17:00 op de eigen kalender = 60 min', ffWith(ssLag, true), 60 / 540);
+  eq('C2 uit, SS+8 u: ff op de opvolgerkalender = 0', ffWith(ssLag, false), 0);
+
+  // FF+1 u (HCSWB2Z2240-vorm, zonder C12-afhankelijkheid): T (34 u) eindigt do 8 jan 15:00; grens = do
+  // 16:00 op K17. S (4 u) wacht op X (FS, 32 u, t/m do 8 jan 16:00) en loopt vr 9 jan 08:00–12:00, dus
+  // haar vroege EF is vr 12:00. Eigen kalender: do 16:00–17:00 + vr 08:00–12:00 = 5 u = 5/9 dag. Zonder
+  // C2 (opvolgerkalender, via de afgeleide startgrens do 16:00 − 4 u = do 12:00 op K16, tot S.ES vr
+  // 08:00): 4 u van 8 = 0,5 dag — het uur do 16:00–17:00 telt daar niet.
+  const ffLag = hotel({
+    t: '34\t34\t2026-01-05 08:00\t2026-01-08 15:00', s: '4\t4\t2026-01-09 08:00\t2026-01-09 12:00',
+    x: '32\t32\t2026-01-05 08:00\t2026-01-08 16:00', rel: 'PR_FF\t1', xrel: 'PR_FS\t0',
+  });
+  eq('FF+1 u-fixture: S loopt vr 9 jan 08:00–12:00', [solveAxes(ffLag, 'S').es, solveAxes(ffLag, 'S').ef], ['2026-01-09T08:00', '2026-01-09T12:00']);
+  eq('C2 verbreed, FF+1 u: ff = do 16:00 → vr 12:00 op de eigen kalender = 5/9 dag', ffWith(ffLag, true), 300 / 540);
+  eq('C2 uit, FF+1 u: ff op de opvolgerkalender = 0,5 dag', ffWith(ffLag, false), 0.5);
+
+  // Gemengde kalenders als voorwaarde: S op T's eigen kalender (K17) ⇒ SS+8 u begint S ma 16:00 zelf en
+  // is er met en zonder C2 niets te winnen (ff 0).
+  const sameCal = hotel({ t: '36\t36\t2026-01-05 08:00\t2026-01-08 17:00', s: '8\t8\t2026-01-05 16:00\t2026-01-06 15:00', rel: 'PR_SS\t8', sCal: 'K17' });
+  eq('C2 verbreed, zelfde kalender: ff met C2 = ff zonder C2 = 0', [ffWith(sameCal, true), ffWith(sameCal, false)], [0, 0]);
+
+  // Uitsluitingen (ongemeten, docblok C2): ELAPSEDTIME-lag, procentlag en een lagkalender die niet de
+  // voorganger is houden de bestaande berekening ⇒ ff met C2 = ff zonder C2.
+  const elapsed = withProfile(ssLag, copy => { for (const q of copy.sequences) q.lagUnit = 'ELAPSEDTIME'; });
+  eq('C2 niet bij een ELAPSEDTIME-lag: ff met C2 = ff zonder C2', ffWith(elapsed, true), ffWith(elapsed, false));
+  const percent = withProfile(ssLag, copy => { for (const q of copy.sequences) { q.lagPercent = 25; q.lagMinutes = undefined; q.lagDays = 0; } });
+  eq('C2 niet bij een procentlag: ff met C2 = ff zonder C2', ffWith(percent, true), ffWith(percent, false));
+  const succLagCal = hotel({ t: '36\t36\t2026-01-05 08:00\t2026-01-08 17:00', s: '8\t8\t2026-01-06 08:00\t2026-01-06 16:00', rel: 'PR_SS\t8', lagCal: 'rcal_Successor' });
+  eq('lagkalender = opvolger zit in de fixture', solveOptionsFor(succLagCal.project).schedulingOptions.lagCalendar, 'successor');
+  eq('C2 niet bij een lag op de opvolgerkalender: ff met C2 = ff zonder C2', ffWith(succLagCal, true), ffWith(succLagCal, false));
 }
 
 if (diffs.length > 0) {

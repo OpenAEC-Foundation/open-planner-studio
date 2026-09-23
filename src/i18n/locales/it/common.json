@@ -1261,7 +1261,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Margine libero nel calendario dell'attività",
-      "help": "Il margine libero di un'attività aperta su un legame fine-inizio senza ritardo si calcola nel calendario dell'attività stessa, non in quello del successore."
+      "help": "Il margine libero di un'attività aperta si calcola, per ogni legame, nel calendario dell'attività stessa e non in quello del successore: per ogni tipo di legame, anche con un ritardo in tempo lavorativo sul calendario del predecessore."
     },
     "p6CompletedRemainingLag": {
       "label": "Il ritardo trascorso di un predecessore completato non conta",

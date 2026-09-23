@@ -212,22 +212,35 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       freeFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     } else {
       // Conventie C2 `p6FreeFloatOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
-      // voor een niet-voltooide uurtaak telt een FS-nul-lag-relatie in de kalender van de TAAK zelf
-      // (werktijd tussen haar vroege einde en de vroege start van de opvolger). `sequenceFreeFloat`
+      // voor een niet-voltooide uurtaak telt de relatie-vrije-speling in de kalender van de TAAK zelf,
+      // voor alle vier relatietypes: van de ONGESNAPTE relatiegrens (anker ES bij SS/SF, EF bij FS/FF,
+      // plus de lag op de eigen kalender) tot de vroege opvolgerdatum (ES bij FS/SS, EF bij FF/SF);
+      // de taak-ff is het minimum over de opvolgers. Een lag ≠ 0 telt alleen mee als de lagkalender de
+      // voorganger (= deze taak) is; ELAPSEDTIME- en procentlags en andere lagkalenders zijn ongemeten
+      // en houden de bestaande berekening (`sequenceFreeFloat`, opvolgerkalender). `sequenceFreeFloat`
       // (en daarmee de driving-markering) blijft ongemoeid; alleen de vrije speling van de taak
       // verandert. Een relatie zonder eigen vrije speling (bv. naar een voltooide opvolger, waarvan
       // `preserveActualDatesInBackwardPass` de grens wist) levert ook hier niets. De vroegere deeltak
       // "voltooide opvolger ⇒ ff = 0" is op 2026-09-23 verwijderd: alleen in rehab-2 (P3-uitvoer)
       // gemeten, 0 cellen effect op de P6-populatie (zelfde criterium als C1/C4).
-      const ownCalendarFs0 = so?.p6FreeFloatOnOwnCalendar === true
+      const ownCalendarFreeFloat = so?.p6FreeFloatOnOwnCalendar === true
         && cal.isHourMode && taskObj.time.completion < 1;
+      const lagOnOwnCalendar = so?.lagCalendar === undefined || so.lagCalendar === 'predecessor';
       for (const seq of succs) {
         let ff = sequenceFreeFloat[seq.id];
-        if (ownCalendarFs0 && ff !== undefined && seq.type === 'FINISH_START'
-          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+        if (ownCalendarFreeFloat && ff !== undefined
+          && seq.lagPercent === undefined && seq.lagUnit !== 'ELAPSEDTIME') {
+          const lagMinutes = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)
+            ? seq.lagMinutes
+            : (Number.isFinite(seq.lagDays) ? seq.lagDays : 0) * cal.hoursPerDay * 60;
           const succEarly = earlyDates.get(seq.successorId);
-          if (succEarly && tasks.has(seq.successorId)) {
-            ff = cal.workMinutesBetween(early.ef, succEarly.es) / (cal.hoursPerDay * 60);
+          if ((lagMinutes === 0 || lagOnOwnCalendar) && succEarly && tasks.has(seq.successorId)) {
+            const fromStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
+            const toFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
+            const anchor = fromStart ? early.es : early.ef;
+            const bound = lagMinutes > 0 ? cal.addWorkMinutes(anchor, lagMinutes)
+              : lagMinutes < 0 ? cal.subtractWorkMinutes(anchor, -lagMinutes) : anchor;
+            ff = cal.workMinutesBetween(bound, toFinish ? succEarly.ef : succEarly.es) / (cal.hoursPerDay * 60);
           }
         }
         // Conventie C12 `p6FinishNotBeforeFinishFinishBound`, vrije-spelingkant: over een FF-relatie zonder

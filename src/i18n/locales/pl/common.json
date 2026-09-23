@@ -1296,7 +1296,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Zapas swobodny we własnym kalendarzu",
-      "help": "Zapas swobodny otwartego zadania w relacji koniec-początek bez opóźnienia liczy się w kalendarzu samego zadania, a nie następnika."
+      "help": "Zapas swobodny otwartego zadania liczy się dla każdej relacji w kalendarzu samego zadania, a nie następnika: dla każdego typu relacji, także z opóźnieniem w czasie pracy w kalendarzu poprzednika."
     },
     "p6CompletedRemainingLag": {
       "label": "Upłynięte opóźnienie zakończonego poprzednika nie jest liczone",

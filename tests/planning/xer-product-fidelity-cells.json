@@ -785,20 +785,7 @@
       },
       "ef": {},
       "es": {},
-      "ff": {
-        "2666/143800": {
-          "bucket": "diff",
-          "minutes": 60
-        },
-        "2666/144004": {
-          "bucket": "diff",
-          "minutes": 60
-        },
-        "2666/144440": {
-          "bucket": "diff",
-          "minutes": 60
-        }
-      },
+      "ff": {},
       "lf": {
         "2666/146012": {
           "bucket": "sameday",
