@@ -912,8 +912,10 @@ for (const fixture of groupC) {
 // C5-vangnet (critreview manifest-etappe 2026-09-23): vervangt het corpusvangnet dat DCP-03 As-Built
 // was (216 verslechteringen bij een naïeve brede B07-poort; As-Built is sinds het populatiebesluit
 // geen orakel meer). Voltooide taken met werkelijke datums vóór de statusdatum en een ANDER
-// targetvenster (wo 7 – do 8 jan), in de As-Built-vormen die niet onder B3 vallen: CP_Drtn +
-// DT_FixedDrtn, CP_Units + DT_FixedDUR2, CP_Units + DT_FixedDrtn. Onder het P6-profiel houden die hun
+// targetvenster (wo 7 – do 8 jan), in vormen die niet onder B3 vallen. As-Built zelf kent alleen
+// CP_Drtn + DT_FixedDrtn (op TT_Task, mijlpalen en LOE): dat is V1. V2 (CP_Units + DT_FixedDUR2) en V3
+// (CP_Units + DT_FixedDrtn) komen in As-Built niet voor; de casus dekt ze bewust, zodat het
+// CP_Phys-filter ook tegen CP_Units getoetst is. Onder het P6-profiel houden die hun
 // werkelijke datums (ma 5 jan 08:00 – di 6 jan 17:00); alleen de CP_Phys-tegenhanger D schuift naar
 // het statusdatumpunt (wo 14 jan 00:00). Mutant "C5-poort zonder CP_Phys-filter"
 // (`explainP6CompletedPhysicalPoint` zonder de `completePctType !== 'CP_Phys'`-regel) ⇒ V1–V3 op
