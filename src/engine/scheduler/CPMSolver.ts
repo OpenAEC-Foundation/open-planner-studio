@@ -681,6 +681,22 @@ export class CPMSolver {
   }
 
   /**
+   * A19 `p6UseRemainingStartForProgress`, late kant (X12 brok 6): een LOPENDE taak met restduur 0 is voor
+   * een SS/SF-relatie achterwaarts een nulduur — haar late finish is dan de late start die de relatie
+   * toelaat, niet die start plus de volle geplande duur. Gemeten: Roads OCEC11731 (lopend, rest 0)
+   * —SS+70 h→ OCEC12121 (LS 2013-08-18 16:00): P6 LS = LF = 08-18 16:00. Een lopende taak met een
+   * rest > 0 is ongemeten (op het corpus 0 verschil) en blijft ongewijzigd. Anders ⇒ `task` zelf.
+   */
+  private zeroRemainingTaskForStartRelation(task: Task, eng: CalendarEngine): Task {
+    if (this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true || !eng.isHourMode) return task;
+    const t = task.time;
+    if (t.actualStart === undefined || !(t.completion > 0 && t.completion < 1)) return task;
+    if (t.durationType === 'ELAPSEDTIME' || (task.splitGaps?.length ?? 0) > 0) return task;
+    if (t.remainingMinutes !== 0 || durationMinutesOf(task, eng) === 0) return task;
+    return { ...task, isMilestone: true, milestoneKind: undefined, time: { ...t, scheduleDuration: 0, durationMinutes: 0 } };
+  }
+
+  /**
    * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
    * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
    * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
@@ -3685,8 +3701,11 @@ export class CPMSolver {
         // C6, late kant: van een SS-lag uit deze LOPENDE taak telt ook achterwaarts alleen de rest-lag
         // (Roads OCEC10311 —SS+70 h→ OCEC10851: P6-LS = de LS van de opvolger). Conventie uit ⇒ `seq`.
         const lateSeq = this.inProgressStartLagSeq(task, seq, this.relDeps.lagEngine(predCal, succCal));
+        // A19, late kant: een lopende taak met restduur 0 is voor een SS/SF-grens achterwaarts een nulduur.
+        const remainingTask = (seq.type === 'START_START' || seq.type === 'START_FINISH')
+          ? this.zeroRemainingTaskForStartRelation(task, predCal) : task;
         const constraintDate = backwardConstraint(
-          this.relDeps, delayShiftedSuccResult, lateSeq, task, succTask, predCal, succCal,
+          this.relDeps, delayShiftedSuccResult, lateSeq, remainingTask, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
           this.finishFinishAtStartMilestoneLateFinish(seq, succTask, predCal, succCal),
         );

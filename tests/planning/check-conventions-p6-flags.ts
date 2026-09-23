@@ -1097,6 +1097,25 @@ const lateSideOf = (input: ImportResult, id: string) => (({ ls, lf }) => ({ ls, 
     lateSideOf(withProfile(fs, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false)), 'A'));
 }
 
+// A19, late kant (X12 brok 6; Roads OCEC11731 —SS+70 h→ OCEC12121). Band 08:00–17:00 ma–vr,
+// statusdatum wo 14 jan 00:00, rem_target_link_flag=Y. Lopende A (CP_Phys 50 %, 18 u gepland, rest 0)
+// —SS+0→ open S (1 dag); een losse X (10 werkdagen, wo 14 – di 27 jan) legt het projecteinde vast.
+// S.LS = di 27 jan 08:00. P6: A is achterwaarts een nulduur, LS = LF = di 27 jan 08:00. Zonder de regel
+// telt de SS-grens de volle 18 u erbij, dus kapt het projecteinde af: A.LF = di 27 jan 17:00. Mutant
+// "rest-0-tak weg" ⇒ rood; zonder A19 (per bestand) geen effect.
+{
+  const input = lateSideFixture([
+    '%R\tA\tP1\tC1\tRUN\tLopend fysiek\tTT_Task\tDT_FixedDrtn\tTK_Active\tCP_Phys\t18\t0\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+  ], ['%R\tR1\tS\tA\tP1\tP1\tPR_SS\t0']);
+  input.tasks.find(task => task.id === 'A')!.time.completion = 0.5;
+  eq('A19-laat fixture: A is lopend met rest 0', (({ completion, remainingMinutes }) => ({ completion, remainingMinutes }))(input.tasks.find(task => task.id === 'A')!.time), { completion: 0.5, remainingMinutes: 0 });
+  eq('A19-laat fixture: S.LS di 27 jan 08:00', lateSideOf(input, 'S').ls, '2026-01-27T08:00');
+  eq('A19-laat: lopende taak met rest 0 is achterwaarts een nulduur', lateSideOf(input, 'A'), { ls: '2026-01-27T08:00', lf: '2026-01-27T08:00' });
+  eq('A19 uit ⇒ geen effect van deze regel op de late finish',
+    lateSideOf(withProfile(input, copy => setConvention(copy, 'p6UseRemainingStartForProgress', false)), 'A').lf, '2026-01-27T17:00');
+}
+
 // C7, randgevallen (docblok): de startmijlpaal zelf staat met en zonder C7 gelijk (ES do 8 jan door
 // Y), en een FF-relatie naar een EINDmijlpaal (`TT_FinMile`, 34× in het corpus, nu exact) verandert
 // op geen enkele as van geen enkele taak.

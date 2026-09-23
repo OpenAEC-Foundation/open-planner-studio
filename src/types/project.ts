@@ -68,7 +68,13 @@ export interface SchedulingOptions {
    *  actual-startvenster gebruiken.
    *  A19 — conventie (spec v3); sinds rekenprofielen baan B is de vlag zelf de conventie, zonder
    *  bronpoort. P6 uit (standaard; de XER-lezer zet hem per bestand als override uit
-   *  `rem_target_link_flag`) / MS Project uit / OPS uit. */
+   *  `rem_target_link_flag`) / MS Project uit / OPS uit.
+   *  Late kant (X12 brok 6, 2026-09-23): een lopende taak met restduur 0 is achterwaarts voor een
+   *  SS/SF-relatie een nulduur (LS = LF = de grens die de relatie toelaat, niet die start plus de volle
+   *  geplande duur; `CPMSolver.zeroRemainingTaskForStartRelation`). Gemeten op het P6-doorgerekende
+   *  `Roads_Project_TEC.xer`: OCEC11731 (lopend, rest 0) —SS+70 h→ OCEC12121 (LS 08-18 16:00) ⇒ P6 LS =
+   *  LF = 08-18 16:00, en het CP_Phys-punt OCEC11721 ervóór volgt (5 cellen, 0 slechter, X12 298 → 293).
+   *  Een lopende taak met rest > 0 is ongemeten (op het corpus 0 verschil) en blijft ongewijzigd. */
   p6UseRemainingStartForProgress?: boolean;
   /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
    *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit.

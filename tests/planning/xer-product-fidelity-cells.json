@@ -1328,32 +1328,9 @@
           "minutes": 3000
         }
       },
-      "lf": {
-        "1346/87109": {
-          "bucket": "diff",
-          "minutes": 28800
-        },
-        "1346/87110": {
-          "bucket": "diff",
-          "minutes": 28800
-        }
-      },
-      "ls": {
-        "1346/87109": {
-          "bucket": "diff",
-          "minutes": 28800
-        },
-        "1346/87110": {
-          "bucket": "diff",
-          "minutes": 28800
-        }
-      },
-      "tf": {
-        "1346/87109": {
-          "bucket": "diff",
-          "minutes": 8400
-        }
-      }
+      "lf": {},
+      "ls": {},
+      "tf": {}
     },
     "a2f3b2469e26f19985ac801786c90edfb965a7bc194a6e57704aa845c5f8611f": {
       "drivingPath": {

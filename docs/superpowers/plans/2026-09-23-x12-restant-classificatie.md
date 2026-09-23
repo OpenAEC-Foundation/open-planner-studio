@@ -170,7 +170,14 @@ HMMOAZ040 —FF0→ HMMOAZ000: P6 08-04 16:00, OPS 08-05 08:00). Aanscherping va
 lag telt vanaf de finishgrens), alleen FF. **308 → 298, 10 beter (Hotel 5, ashspace 4,
 Sample_Construction 1), 0 slechter, 0 groter.**
 
-**Wat overblijft na landing 1 en 2 (308; na landing 3: 298, de FF0-rijen hieronder zijn opgelost).**
+**Landing 4 — A19 late kant, lopende taak met rest 0.** Roads OCEC11731 (lopend, CP_Phys, rest 0) —SS+70 h→
+OCEC12121: de SS-grens telde achterwaarts de volle geplande duur erbij (`finishFromStart`), P6 behandelt
+de taak als nulduur (LS = LF = 08-18 16:00); het C5-punt OCEC11721 ervóór volgt. **298 → 293, 5 beter,
+0 slechter.** Een lopende taak met rest > 0 (33 in het corpus) verandert in geen enkele cel en blijft
+dus ongewijzigd (ongemeten).
+
+**Wat overblijft na landing 1 en 2 (308; na landing 3: 298, de FF0-rijen hieronder zijn opgelost; na
+landing 4: 293, OCEC11731 is opgelost).**
 
 | bestand | cellen | oorzaak | waarom niet gebouwd |
 |---|---|---|---|
