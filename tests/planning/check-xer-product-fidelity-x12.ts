@@ -35,10 +35,11 @@ import {
   CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellMagnitude, cellOracleRedLines, cellTotals, cellWriteModeProblem,
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
   carryRatchetDebt, debtCount, cellMinutesDigest, cellMinutesProblems, rewriteDebtPin,
-  type CellExclusions, type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
+  excludedHiddenRedLines,
+  type CellExclusions, type CellMeasurable, type ExcludedHidden, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
 import {
-  changedExclusionFiles, exclusionSummary, extractExclusionPinBlock, filterSolvedExclusions,
+  changedExclusionFiles, exclusionHerpinLine, exclusionIdentityChanged, exclusionLabelFor, exclusionSummary, extractExclusionPinBlock, filterSolvedExclusions,
   filterTruthExclusions, parseExclusionPinBlock, readManifestExclusions, resolveExclusions, rewriteExclusionPin,
   type ResolvedExclusions, type XerExclusionRecord,
 } from './xerManifestExclusions';
@@ -365,6 +366,12 @@ interface XerExclusionState {
   label: string;
   now: ResolvedExclusions;
   was: ResolvedExclusions;
+  /** De opgeloste identiteitsset (projecten + taken) verschilt tussen nu en de pin; een gewijzigde
+   *  reden of datum alleen telt niet. */
+  identityChanged: boolean;
+  /** Bij `identityChanged`: de dekkingsvelden zoals de meting ze met de GEPINDE uitsluiting geeft —
+   *  de v2-pin moet daar exact aan gelijk zijn, anders verklaart de uitsluitingsdelta de verschuiving niet. */
+  wasCoverage?: Record<string, string | number>;
   hiddenSixAxis: number;
   hiddenDrivingPath: number;
 }
@@ -374,6 +381,32 @@ const CELLS_GATE_SOURCE = 'check-fidelity-cells-gate.ts';
 function readPinnedExclusions(): XerExclusionRecord[] | undefined {
   const block = extractExclusionPinBlock(readFileSync(join(HERE, CELLS_GATE_SOURCE), 'utf8'));
   return block === undefined ? undefined : parseExclusionPinBlock(block);
+}
+
+/** De dekkingsvelden van een meting, in de vorm van een v2-entry (zonder vingerafdruk). */
+type CoverageSource = Pick<ProductBaselineEntryDraft, 'projects' | 'tasks' | 'identityCoverage' | 'counters' | 'drivingPath'>;
+function entryCoverageOf(result: ReturnType<typeof measureXerProductFidelity>): CoverageSource {
+  return {
+    projects: result.truthProjects, tasks: result.truthTasks,
+    identityCoverage: {
+      solvedTasks: result.solvedTasks,
+      taskCodePresent: result.projects.reduce((sum, project) => sum + project.taskCodePresent, 0),
+      taskCodeExact: result.projects.reduce((sum, project) => sum + project.taskCodeExact, 0),
+    },
+    counters: result.counters, drivingPath: result.drivingPath,
+  };
+}
+/** De dekkingsvelden die `checkCoverageAgainstV2` tegen v2 legt (naast de `schemaFingerprint`). */
+function coverageFields(entry: CoverageSource): Record<string, number> {
+  return {
+    projects: entry.projects,
+    tasks: entry.tasks,
+    'identityCoverage.solvedTasks': entry.identityCoverage.solvedTasks,
+    'identityCoverage.taskCodePresent': entry.identityCoverage.taskCodePresent,
+    'identityCoverage.taskCodeExact': entry.identityCoverage.taskCodeExact,
+    ...Object.fromEntries(XER_FIDELITY_AXES.map(axis => [`${axis}.measurable`, entry.counters[axis].measurable])),
+    'drivingPath.measurable': entry.drivingPath.measurable,
+  };
 }
 
 async function productBaseline(
@@ -409,12 +442,19 @@ async function productBaseline(
     const result = measureXerProductFidelity(truth, measuredSolved);
     if (exclusionSink) {
       const hidden = excludedNow.taskKeys.size === 0 ? undefined : measureXerProductFidelity(fileTruth, solvedProjects);
+      // De gepinde lijst wordt tegen dezelfde grondwaarheid opgelost; een regel die niets meer raakt
+      // telt dan gewoon als "niets" (het manifest van nu is de poort, niet de pin).
+      const excludedWas = resolveExclusions(fileTruth.tasks, pinnedBySha.get(fileSha) ?? []);
+      const identityChanged = exclusionIdentityChanged(excludedNow, excludedWas);
       exclusionSink.set(fileSha, {
         label: targetEntry.label,
         now: excludedNow,
-        // De gepinde lijst wordt tegen dezelfde grondwaarheid opgelost; een regel die niets meer raakt
-        // telt dan gewoon als "niets" (het manifest van nu is de poort, niet de pin).
-        was: resolveExclusions(fileTruth.tasks, pinnedBySha.get(fileSha) ?? []),
+        was: excludedWas,
+        identityChanged,
+        ...(identityChanged ? {
+          wasCoverage: coverageFields(entryCoverageOf(measureXerProductFidelity(
+            filterTruthExclusions(fileTruth, excludedWas), filterSolvedExclusions(solvedProjects, excludedWas)))),
+        } : {}),
         hiddenSixAxis: hidden ? XER_FIDELITY_AXES.reduce((sum, axis) => sum + hidden.counters[axis].deviations - result.counters[axis].deviations, 0) : 0,
         hiddenDrivingPath: hidden ? hidden.drivingPath.deviations - result.drivingPath.deviations : 0,
       });
@@ -595,14 +635,8 @@ async function productBaseline(
     }
     files[fileSha256] = {
       sha256: fileSha256, schemaFingerprint: targetEntry.schemaFingerprint ?? '',
-      projects: result.truthProjects, tasks: result.truthTasks,
-      identityCoverage: {
-        solvedTasks: result.solvedTasks,
-        taskCodePresent: result.projects.reduce((sum, project) => sum + project.taskCodePresent, 0),
-        taskCodeExact: result.projects.reduce((sum, project) => sum + project.taskCodeExact, 0),
-      },
+      ...entryCoverageOf(result),
       projectMeasurements: result.projects,
-      counters: result.counters, drivingPath: result.drivingPath,
       identityErrors: result.identityErrors,
       scannerErrors: result.scannerErrors,
       gatePassed: result.gatePassed,
@@ -2542,6 +2576,20 @@ interface CellState {
   exclusions: CellExclusions;
 }
 
+/** Verborgen aantallen per bestand met een uitsluiting nu (ook bij nul: de pin dekt precies die bestanden). */
+function measuredExcludedHidden(exclusionSink: XerExclusionSink): ExcludedHidden {
+  const hidden: ExcludedHidden = {};
+  for (const [file, state] of exclusionSink) {
+    if (state.now.applied.length > 0) hidden[file] = { sixAxis: state.hiddenSixAxis, drivingPath: state.hiddenDrivingPath };
+  }
+  return hidden;
+}
+
+/** Bestanden waarvan de uitsluitings-IDENTITEITSSET t.o.v. de pin veranderde (niet: alleen de reden). */
+function identityChangedFiles(exclusionSink: XerExclusionSink): Set<string> {
+  return new Set([...exclusionSink].filter(([, state]) => state.identityChanged).map(([file]) => file));
+}
+
 /** Uitgesloten volgens nu (`now`) of volgens de gepinde lijst (`was`), per entry-SHA en `proj/taak`-id. */
 function cellExclusions(exclusionSink: XerExclusionSink): CellExclusions {
   return {
@@ -2555,7 +2603,7 @@ function evaluateCells(
   measurableSink: XerMeasurableSink,
   manifestSha256: string,
   exclusionSink: XerExclusionSink,
-  exclusionChanged: ReadonlySet<string>,
+  identityChanged: ReadonlySet<string>,
 ): CellState | undefined {
   const exclusions = cellExclusions(exclusionSink);
   const built = tryBuildCellBaseline(cellSink, {
@@ -2564,6 +2612,10 @@ function evaluateCells(
   });
   checks++;
   if (!built.baseline) { diffs.push(`X12 cel-meting ongeldig (regel A): ${built.error}`); return undefined; }
+  // Verborgen aantallen (niet-stijgende pin): alleen bestanden mét uitsluiting, dus zonder uitsluiting
+  // blijft het cellenbestand byte-gelijk.
+  const hidden = measuredExcludedHidden(exclusionSink);
+  if (Object.keys(hidden).length > 0) built.baseline.excludedHidden = hidden;
   const measurable: CellMeasurable = (file, axis, id) => measurableSink.get(file)?.measurable.has(`${axis}|${id}`) === true;
   const path = join(HERE, CELL_BASELINE_FILE);
   const writeProblem = cellWriteModeProblem(process.env.OPS_XER_CELLS_WRITE, existsSync(path));
@@ -2625,12 +2677,15 @@ function evaluateCells(
   if (debtCount(built.baseline.ratchetDebt) > debtCount(parsed.baseline.ratchetDebt)) {
     red({ kind: 'hard', text: `X12 ratchet-schuld gestegen: ${debtCount(parsed.baseline.ratchetDebt)} → ${debtCount(built.baseline.ratchetDebt)} (schuld mag alleen dalen)` });
   }
-  const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline, exclusionChanged)];
+  const hiddenCheck = excludedHiddenRedLines(parsed.baseline.excludedHidden, hidden, identityChanged);
+  const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline, identityChanged), ...hiddenCheck.lines];
   for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
+  if (hiddenCheck.lower.length > 0) console.log(`INFO X12 verborgen aantallen (manifestuitsluiting) gedaald — te herpinnen: ${hiddenCheck.lower.join('; ')}`);
   if (lines.length === 0) {
     const totals = cellTotals(built.baseline);
     console.log(`OK  X12 cel-baseline (regel A): geen nieuwe, verslechterde of grotere cel over ${Object.keys(built.baseline.files).length} bestanden; `
       + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
+      + `; weggevallen door manifestuitsluiting: ${delta.excludedCells.length} cellen`
       + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : '')
       + (delta.smallerCells.length > 0 ? `; te herpinnen: ${delta.smallerCells.length} cellen kleiner` : ''));
   }
@@ -2645,7 +2700,7 @@ function evaluateCells(
  * Een andere entry-set of een ander manifest is `fileset` (corpusgroei-route), al het andere `hard`.
  */
 const COVERAGE_PREFIX = 'X12 meetbaarheid/dekking wijkt af van v2';
-function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline, exclusionChanged: ReadonlySet<string>): void {
+function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline, exclusionSink: XerExclusionSink): void {
   checks++;
   if (pinned.manifestSha256 !== measured.manifestSha256) {
     red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: manifest v2=${pinned.manifestSha256.slice(0, 12)} nu=${measured.manifestSha256.slice(0, 12)}` });
@@ -2657,22 +2712,20 @@ function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseli
     const was = pinned.files[key];
     const now = measured.files[key]!;
     if (!was) { red({ kind: 'fileset', text: `${COVERAGE_PREFIX}: entry ${key.slice(0, 12)} is gemeten maar staat niet in v2` }); continue; }
+    const before = coverageFields(was);
+    const after = coverageFields(now);
     const pairs: Array<[string, string | number, string | number]> = [
       ['schemaFingerprint', was.schemaFingerprint, now.schemaFingerprint],
-      ['projects', was.projects, now.projects],
-      ['tasks', was.tasks, now.tasks],
-      ['identityCoverage.solvedTasks', was.identityCoverage.solvedTasks, now.identityCoverage.solvedTasks],
-      ['identityCoverage.taskCodePresent', was.identityCoverage.taskCodePresent, now.identityCoverage.taskCodePresent],
-      ['identityCoverage.taskCodeExact', was.identityCoverage.taskCodeExact, now.identityCoverage.taskCodeExact],
-      ...XER_FIDELITY_AXES.map((axis): [string, number, number] =>
-        [`${axis}.measurable`, was.counters[axis].measurable, now.counters[axis].measurable]),
-      ['drivingPath.measurable', was.drivingPath.measurable, now.drivingPath.measurable],
+      ...Object.keys(after).map((field): [string, number, number] => [field, before[field]!, after[field]!]),
     ];
+    // Bij een gewijzigde uitsluitings-identiteitsset voor déze entry: de verwachte v2-waarde is die van
+    // de meting mét de GEPINDE uitsluiting (dus precies de delta van (nu ∖ was) en (was ∖ nu)). Alleen
+    // een verschil dat die delta exact verklaart is `fileset` (corpusgroei, `=corpus`); elke andere
+    // dekkingsverschuiving — en elke verschuiving zonder identiteitswijziging — blijft `hard`.
+    const expected = exclusionSink.get(key)?.identityChanged === true ? exclusionSink.get(key)!.wasCoverage : undefined;
     for (const [field, before, after] of pairs) {
       if (before !== after) {
-        // Een gewijzigde manifestuitsluiting voor déze entry verandert haar dekking bewust (corpusgroei-
-        // route, `=corpus`); zonder zo'n wijziging blijft elke dekkingsverschuiving `hard`.
-        const kind: RedKind = exclusionChanged.has(key) && field !== 'schemaFingerprint' ? 'fileset' : 'hard';
+        const kind: RedKind = expected !== undefined && field !== 'schemaFingerprint' && expected[field] === before ? 'fileset' : 'hard';
         red({ kind, text: `${COVERAGE_PREFIX}: ${key.slice(0, 12)} ${field} v2=${String(before).slice(0, 16)} nu=${String(after).slice(0, 16)}${kind === 'fileset' ? ' (gewijzigde manifestuitsluiting)' : ''}` });
       }
     }
@@ -2697,7 +2750,7 @@ function runWrites(
   cells: CellState | undefined,
   pinnedV2: ProductBaseline,
   measured: ProductBaseline,
-  exclusionPin: { current: readonly XerExclusionRecord[]; changed: boolean; valid: boolean },
+  exclusionPin: { current: readonly XerExclusionRecord[]; changed: boolean; valid: boolean; label: (sha256: string) => string },
 ): void {
   const cellMode = process.env.OPS_XER_CELLS_WRITE;
   const v2Mode = process.env.OPS_XER_V2_WRITE;
@@ -2747,7 +2800,10 @@ function runWrites(
             canonicalProductEnvelope(v2Envelope.payload, cellMinutesDigest(cells.measuredCells)));
           if (exclusionRewrite && 'text' in exclusionRewrite) {
             atomicWrite(gatePath, exclusionRewrite.text);
-            console.log(`OK  X12 uitsluitingspin in check-fidelity-cells-gate.ts herschreven: ${exclusionPin.current.length} uitsluiting(en) — zet er een HERPIN-regel met het eigenaarsbesluit bij`);
+            console.log(`OK  X12 uitsluitingspin in check-fidelity-cells-gate.ts herschreven: ${exclusionPin.current.length} uitsluiting(en) — `
+              + 'de cellenpoort eist boven het blok letterlijk deze HERPIN-regel(s):');
+            for (const line of [...new Set(exclusionPin.current.map(record =>
+              exclusionHerpinLine(record, exclusionPin.label(record.sha256))))]) console.log(`       ${line}`);
           }
           if (pin && 'text' in pin && pin.removed.length > 0) {
             if (!(exclusionRewrite && 'text' in exclusionRewrite)) atomicWrite(gatePath, pin.text);
@@ -2759,6 +2815,7 @@ function runWrites(
           console.log(`OK  X12 cellMinutesSha256 in de v2-envelop bijgewerkt (payload ongewijzigd)`);
           console.log(`OK  X12 cel-baseline herpind (${mode}, versie 2): ${plan.delta.improvedCells.length} cellen beter, `
             + `${plan.delta.smallerCells.length} cellen kleiner, `
+            + `${plan.delta.excludedCells.length} cellen weggevallen door manifestuitsluiting, ${plan.delta.reincludedCells.length} teruggekeerd, `
             + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
         });
       }
@@ -2853,8 +2910,11 @@ else {
     red({ kind: 'hard', text: `X12 uitsluitingspin-blok in ${CELLS_GATE_SOURCE} ontbreekt of is met de hand bewerkt — zet het terug uit versiebeheer` });
   }
   const currentExclusions = readManifestExclusions(manifest).records;
+  // Lijst gewijzigd (digest; ook alleen een reden) ⇒ herpin van het blok. De meting kijkt alleen naar de
+  // opgeloste identiteitsset (`identityChangedFiles`), zie `exclusionIdentityChanged`.
   const exclusionChanged = changedExclusionFiles(pinnedExclusions ?? [], currentExclusions);
   const measured = await productBaseline(corpus, manifest, cellSink, measurableSink, exclusionSink, pinnedExclusions ?? []);
+  const identityChanged = identityChangedFiles(exclusionSink);
   printExclusionReport(exclusionSink, exclusionChanged);
   if (REPORT !== undefined && (process.env.OPS_XER_V2_WRITE || process.env.OPS_XER_CELLS_WRITE)) {
     diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
@@ -2891,7 +2951,7 @@ else {
     console.log(`MEASURE ONLY X12 productfidelity: STRICT minute-exact ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
     printP6ComputedSplit(measured.files);
   } else {
-    const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256, exclusionSink, exclusionChanged);
+    const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256, exclusionSink, identityChanged);
     printP6ComputedSplit(measured.files);
     const entries = Object.entries(measured.files);
     const allGatePassed = entries.every(([, entry]) => entry.gatePassed === true);
@@ -2916,9 +2976,10 @@ else {
       diffs.push(`X12 v2-baseline ongeldig — herstel xer-product-fidelity-baseline-v2.json uit versiebeheer: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`);
     }
     if (pinnedV2) {
-      checkCoverageAgainstV2(pinnedV2, measured, exclusionChanged);
+      checkCoverageAgainstV2(pinnedV2, measured, exclusionSink);
       runWrites(cells, pinnedV2, measured, {
         current: currentExclusions, changed: exclusionChanged.size > 0, valid: pinnedExclusions !== undefined,
+        label: (sha: string) => exclusionLabelFor(manifest, sha),
       });
       eq('X12 productbaseline is de verse volledige productmeting', readProductBaseline(), measured);
     }

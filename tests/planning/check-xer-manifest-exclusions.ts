@@ -18,14 +18,16 @@
  *     identiteitsfouten; een filter dat de projectgrens negeert raakt een taak in een ander project.
  */
 import {
-  buildCellBaseline, cellGateRedLines, cellOracleRedLines, compareCells, planCellRepin,
+  buildCellBaseline, cellDeltaLine, cellGateRedLines, cellOracleRedLines, compareCells, excludedHiddenRedLines, parseCellBaseline,
+  planCellRepin, serializeCellBaseline,
   type CellExclusions, type MeasuredCell,
 } from './fidelityCells';
 import { buildXerTargetBaseline, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES } from './xerGroundTruth';
 import { measureXerProductFidelity } from './xerProductFidelity';
 import {
-  changedExclusionFiles, exclusionsDigest, exclusionSummary, extractExclusionPinBlock, filterSolvedExclusions,
+  changedExclusionFiles, decisionProblem, exclusionHerpinLine, exclusionIdentityChanged, exclusionLabelFor,
+  exclusionsDigest, exclusionSummary, extractExclusionPinBlock, filterSolvedExclusions,
   filterTruthExclusions, parseExclusionPinBlock, readManifestExclusions, renderExclusionPinBlock, resolveExclusions,
   rewriteExclusionPin, type XerExclusionRecord,
 } from './xerManifestExclusions';
@@ -66,7 +68,7 @@ const SOLVED: XerSolvedProject[] = [
   { projectId: 'P1', tasks: [solvedTask('1', 'A1', '5', true), solvedTask('2', 'A2', '6', true, true), solvedTask('3', 'A3', '7', false)] },
   { projectId: 'P2', tasks: [solvedTask('10', 'B1', '5', true, true), solvedTask('11', 'B2', '6', false, true)] },
 ];
-const DECISION = '2026-09-24 eigenaarsbesluit: fixture';
+const DECISION = '2026-09-23 eigenaarsbesluit: fixture';
 const LABEL = 'mini/mini.xer';
 function manifestWith(extra: Record<string, unknown>, role = 'oracle'): XerCorpusManifest {
   return {
@@ -95,15 +97,34 @@ const VALID = {
   refused('decision zonder het woord eigenaarsbesluit', { ...VALID, decision: '2026-09-24 akkoord' });
   refused('decision met onmogelijke datum', { ...VALID, decision: '2026-13-01 eigenaarsbesluit' });
   refused('decision zonder uitsluiting', { decision: DECISION });
+  // Critreview 2026-09-23: exact "JJJJ-MM-DD eigenaarsbesluit: <tekst>", bestaande datum, niet in de toekomst.
+  refused('decision met niet-bestaande datum 2026-02-31', { ...VALID, decision: '2026-02-31 eigenaarsbesluit: fixture' });
+  refused('decision in de verre toekomst 2099-01-01', { ...VALID, decision: '2099-01-01 eigenaarsbesluit: fixture' });
+  refused('decision "geen eigenaarsbesluit"', { ...VALID, decision: '2026-09-23 geen eigenaarsbesluit: fixture' });
+  refused('decision "… niet als eigenaarsbesluit …"', { ...VALID, decision: '2026-09-23 dit is niet als eigenaarsbesluit bedoeld' });
+  refused('decision zonder dubbelepunt en tekst', { ...VALID, decision: '2026-09-23 eigenaarsbesluit' });
+  refused('decision met lege tekst na de dubbelepunt', { ...VALID, decision: '2026-09-23 eigenaarsbesluit: ' });
+  refused('decision met hoofdletters (niet exact)', { ...VALID, decision: '2026-09-23 Eigenaarsbesluit: fixture' });
+  refused('reden korter dan 10 tekens', { decision: DECISION, excludeProjects: [{ projId: 'P2', reason: 'mutant' }] });
+  eq('1e toekomst relatief aan vandaag: morgen mag (tijdzonespeling), overmorgen niet',
+    [decisionProblem('2026-09-24 eigenaarsbesluit: fixture', '2026-09-23'), decisionProblem('2026-09-25 eigenaarsbesluit: fixture', '2026-09-23') !== undefined],
+    [undefined, true]);
+  eq('1f schrikkeldag bestaat alleen in een schrikkeljaar',
+    [decisionProblem('2024-02-29 eigenaarsbesluit: fixture', '2026-09-23'), decisionProblem('2025-02-29 eigenaarsbesluit: fixture', '2026-09-23') !== undefined],
+    [undefined, true]);
+  const numeric = readManifestExclusions(manifestWith({ decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: 12345, reason: 'fixture-reden-x' }] }));
+  eq('1g taskId als getal ⇒ duidelijke melding', [numeric.records.length, numeric.problems.some(problem => problem.includes('taskId moet een string zijn') && problem.includes('"12345"'))], [0, true]);
+  const numericProject = readManifestExclusions(manifestWith({ decision: DECISION, excludeProjects: [{ projId: 2665, reason: 'fixture-reden-x' }] }));
+  eq('1h projId als getal ⇒ duidelijke melding', numericProject.problems.some(problem => problem.includes('projId moet een string zijn')), true);
   refused('uitsluiting op een reader-only-entry', VALID, 'reader-only');
   refused('lege excludeTasks', { ...VALID, excludeTasks: [] });
-  refused('excludeProjects geen lijst', { ...VALID, excludeProjects: { projId: 'P2', reason: 'x' } });
-  refused('taak met taskId én taskCode', { decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: '2', taskCode: 'A2', reason: 'x' }] });
-  refused('taak zonder taskId en taskCode', { decision: DECISION, excludeTasks: [{ projId: 'P1', reason: 'x' }] });
+  refused('excludeProjects geen lijst', { ...VALID, excludeProjects: { projId: 'P2', reason: 'fixture-reden-x' } });
+  refused('taak met taskId én taskCode', { decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: '2', taskCode: 'A2', reason: 'fixture-reden-x' }] });
+  refused('taak zonder taskId en taskCode', { decision: DECISION, excludeTasks: [{ projId: 'P1', reason: 'fixture-reden-x' }] });
   refused('lege reden', { decision: DECISION, excludeProjects: [{ projId: 'P2', reason: ' ' }] });
-  refused('onbekende sleutel', { decision: DECISION, excludeProjects: [{ projId: 'P2', reason: 'x', proj: 'P2' }] });
-  refused('dubbele uitsluiting', { decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'x' }, { projId: 'P1', taskId: '2', reason: 'y' }] });
-  refused('taak onder een al uitgesloten project', { decision: DECISION, excludeProjects: [{ projId: 'P1', reason: 'x' }], excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'y' }] });
+  refused('onbekende sleutel', { decision: DECISION, excludeProjects: [{ projId: 'P2', reason: 'fixture-reden-x', proj: 'P2' }] });
+  refused('dubbele uitsluiting', { decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-x' }, { projId: 'P1', taskId: '2', reason: 'fixture-reden-y' }] });
+  refused('taak onder een al uitgesloten project', { decision: DECISION, excludeProjects: [{ projId: 'P1', reason: 'fixture-reden-x' }], excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-y' }] });
   const twin = manifestWith(VALID);
   twin.files['mini/twin.xer'] = { sha256: SHA, source: 'fixture', role: 'oracle', included: true };
   eq('1 weigert byte-identieke orakellabels met verschillende uitsluitingen', readManifestExclusions(twin).problems.length > 0, true);
@@ -152,19 +173,24 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('2j X1: de ruwe corpusdekking telt het hele bestand', withExclusions.stats.sixAxisTasks, without.stats.sixAxisTasks);
   const refused = buildXerTargetBaseline(files, manifestWith({ excludeProjects: VALID.excludeProjects }));
   eq('2k X1 weigert een uitsluiting zonder decision', refused.errors.some(error => error.includes('eigenaarsbesluit')), true);
-  const ghost = buildXerTargetBaseline(files, manifestWith({ decision: DECISION, excludeProjects: [{ projId: 'P9', reason: 'x' }] }));
+  const ghost = buildXerTargetBaseline(files, manifestWith({ decision: DECISION, excludeProjects: [{ projId: 'P9', reason: 'fixture-reden-x' }] }));
   eq('2l X1 weigert een uitsluiting die niets raakt', ghost.errors.some(error => error.includes('raakt geen enkele orakeltaak')), true);
 }
 
 // ── 3. Oplossen: nooit een stille no-op ─────────────────────────────────────────────────────
 {
-  const record = (extra: Partial<XerExclusionRecord>): XerExclusionRecord => ({ sha256: SHA, kind: 'task', projId: 'P1', reason: 'x', decision: DECISION, ...extra });
+  const record = (extra: Partial<XerExclusionRecord>): XerExclusionRecord => ({ sha256: SHA, kind: 'task', projId: 'P1', reason: 'fixture-reden-x', decision: DECISION, ...extra });
   eq('3a onbekend project ⇒ probleem', resolveExclusions(truthAll.tasks, [record({ kind: 'project', projId: 'P9' })]).problems.length, 1);
   eq('3b onbekende taskId ⇒ probleem', resolveExclusions(truthAll.tasks, [record({ taskId: '99' })]).problems.length, 1);
   eq('3c taskId van een ander project ⇒ probleem', resolveExclusions(truthAll.tasks, [record({ taskId: '10' })]).problems.length, 1);
   const twice = [...truthAll.tasks, { ...truthAll.tasks[0]!, taskId: '4' }];
   eq('3d dubbelzinnige taakcode ⇒ probleem (gebruik taskId)', resolveExclusions(twice, [record({ taskCode: 'A1' })]).problems.some(problem => problem.includes('dubbelzinnig')), true);
   eq('3e taskId-uitsluiting raakt precies één taak', [...resolveExclusions(truthAll.tasks, [record({ taskId: '3' })]).taskKeys], ['P1/3']);
+  const both = resolveExclusions(truthAll.tasks, [record({ taskId: '2' }), record({ taskCode: 'A2' })]);
+  eq('3f dezelfde taak via taskId én taskCode ⇒ dubbel-fout', both.problems.some(problem => problem.includes('dubbel')), true);
+  const viaReader = buildXerTargetBaseline([{ label: LABEL, bytes: XER }], manifestWith({ decision: DECISION,
+    excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-x' }, { projId: 'P1', taskCode: 'A2', reason: 'fixture-reden-y' }] }));
+  eq('3g ... ook via het manifest (X1 weigert)', viaReader.errors.some(error => error.includes('dubbel')), true);
 }
 
 // ── 4. De pin ───────────────────────────────────────────────────────────────────────────────
@@ -173,7 +199,7 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('4a blok ⇄ lijst (render en parse)', parseExclusionPinBlock(block), [...records].sort((a, b) => a.kind.localeCompare(b.kind)));
   eq('4b leeg blok heeft de lege digest', exclusionsDigest([]), createHash('sha256').update('[]').digest('hex'));
   eq('4c digest verandert bij een andere reden', exclusionsDigest(records) !== exclusionsDigest(records.map(r => ({ ...r, reason: `${r.reason}!` }))), true);
-  eq('4d digest verandert bij een ander besluit', exclusionsDigest(records) !== exclusionsDigest(records.map(r => ({ ...r, decision: '2026-09-25 eigenaarsbesluit' }))), true);
+  eq('4d digest verandert bij een ander besluit', exclusionsDigest(records) !== exclusionsDigest(records.map(r => ({ ...r, decision: '2026-09-22 eigenaarsbesluit: ander besluit' }))), true);
   eq('4e digest is volgorde-onafhankelijk', exclusionsDigest(records), exclusionsDigest([...records].reverse()));
   const source = `voor\n${renderExclusionPinBlock([])}\nna\n`;
   const rewritten = rewriteExclusionPin(source, records);
@@ -181,13 +207,24 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   const tampered = source.replace(/'[0-9a-f]{64}'/, `'${'1'.repeat(64)}'`);
   eq('4g met de hand bewerkt blok ⇒ niet terug te lezen en herschrijven geweigerd',
     [parseExclusionPinBlock(extractExclusionPinBlock(tampered)!), 'error' in rewriteExclusionPin(tampered, records)], [undefined, true]);
-  const extraRow = block.replace('\nconst ', `\n//   ${JSON.stringify([SHA, 'project', 'P3', '', '', 'x', DECISION])}\nconst `);
+  const extraRow = block.replace('\nconst ', `\n//   ${JSON.stringify([SHA, 'project', 'P3', '', '', 'fixture-reden-x', DECISION])}\nconst `);
   eq('4h ingeschoven regel zonder nieuwe digest ⇒ niet terug te lezen', parseExclusionPinBlock(extraRow), undefined);
   eq('4i ontbrekend blok ⇒ herschrijven geweigerd', 'error' in rewriteExclusionPin('niets', records), true);
   const other = 'f'.repeat(64);
   eq('4j gewijzigde bestanden: alleen waar de lijst verschilt', [...changedExclusionFiles(records, [...records, { ...records[0]!, sha256: other }])], [other]);
   eq('4k reden gewijzigd telt als gewijzigd bestand', [...changedExclusionFiles(records, records.map(r => ({ ...r, reason: 'anders' })))], [SHA]);
   eq('4l ongewijzigd ⇒ leeg', changedExclusionFiles(records, [...records].reverse()).size, 0);
+  // Identiteitsset (critreview 2026-09-23): alleen een andere set projecten/taken telt voor de meting.
+  const reasonOnly = resolveExclusions(truthAll.tasks, records.map(r => ({ ...r, reason: 'andere reden, zelfde set' })));
+  eq('4m alleen een andere reden ⇒ identiteit ongewijzigd (dekking/cellen blijven hard)', exclusionIdentityChanged(resolved, reasonOnly), false);
+  eq('4n taskCode ⇄ taskId voor dezelfde taak ⇒ identiteit ongewijzigd',
+    exclusionIdentityChanged(resolveExclusions(truthAll.tasks, [{ ...records[1]!, taskCode: undefined, taskId: '2' }]),
+      resolveExclusions(truthAll.tasks, [records[1]!])), false);
+  eq('4o een taak meer ⇒ identiteit gewijzigd', exclusionIdentityChanged(resolved, resolveExclusions(truthAll.tasks, records.filter(r => r.kind === 'project'))), true);
+  const manifest = manifestWith(VALID);
+  eq('4p HERPIN-regel letterlijk uit het record, met het manifestlabel',
+    exclusionHerpinLine(records.find(r => r.kind === 'project')!, exclusionLabelFor(manifest, SHA)),
+    `HERPIN 2026-09-23 uitsluiting: ${LABEL} — P2 niet door P6 doorgerekend`);
 }
 
 // ── 5. De cel-poort ─────────────────────────────────────────────────────────────────────────
@@ -218,6 +255,26 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   const shifted = buildCellBaseline(new Map([[SHA, []]]), { ...META, drivingPathOracle: new Map([[SHA, 'e'.repeat(64)]]) });
   eq('5i drivingPath-orakelhash verschoven door een gewijzigde uitsluiting ⇒ fileset', cellOracleRedLines(afterExclusion, shifted, new Set([SHA])).map(line => line.kind), ['fileset']);
   eq('5j ... zonder uitsluitingswijziging ⇒ hard', cellOracleRedLines(afterExclusion, shifted, new Set()).map(line => line.kind), ['hard']);
+  eq('5k CELLDELTA noemt het aantal door uitsluiting weggevallen cellen', cellDeltaLine('p6', excludedDelta, afterExclusion).endsWith(' uitgesloten=2 teruggekeerd=0'), true);
+
+  // Verborgen aantallen: niet-stijgende pin (critreview 2026-09-23, punt 6).
+  const pin = { [SHA]: { sixAxis: 4, drivingPath: 2 } };
+  const kinds = (lines: { kind: string }[]) => lines.map(line => line.kind);
+  eq('5l gelijk ⇒ niets', excludedHiddenRedLines(pin, pin, new Set()), { lines: [], lower: [] });
+  eq('5m gestegen (zelfde uitsluiting) ⇒ hard', kinds(excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 5, drivingPath: 2 } }, new Set()).lines), ['hard']);
+  eq('5n drivingPath gestegen ⇒ hard', kinds(excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 1, drivingPath: 3 } }, new Set()).lines), ['hard']);
+  eq('5o gedaald ⇒ geen rood, te herpinnen', [excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 3, drivingPath: 2 } }, new Set()).lines, excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 3, drivingPath: 2 } }, new Set()).lower.length], [[], 1]);
+  eq('5p gestegen door een gewijzigde uitsluitings-identiteit ⇒ fileset', kinds(excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 9, drivingPath: 9 } }, new Set([SHA])).lines), ['fileset']);
+  eq('5q uitsluiting zonder gepinde aantallen ⇒ hard', kinds(excludedHiddenRedLines(undefined, pin, new Set()).lines), ['hard']);
+  eq('5r gepinde aantallen zonder uitsluiting ⇒ hard', kinds(excludedHiddenRedLines(pin, {}, new Set()).lines), ['hard']);
+  const withHidden = { ...cells([{ axis: 'es', id: 'P1/1', bucket: 'sameday', minutes: 60 }]), excludedHidden: pin };
+  const text = serializeCellBaseline(withHidden);
+  eq('5s excludedHidden round-tript canoniek door het cellenbestand', [parseCellBaseline(text).problems, parseCellBaseline(text).baseline?.excludedHidden], [[], pin]);
+  const without = serializeCellBaseline({ ...withHidden, excludedHidden: {} });
+  eq('5t leeg ⇒ sectie weggelaten (bestand byte-gelijk aan de vorm zonder veld)', [without.includes('excludedHidden'), parseCellBaseline(without).problems], [false, []]);
+  eq('5u lege sectie met de hand ⇒ geweigerd', parseCellBaseline(without.replace(/\n}\n$/, ',\n  "excludedHidden": {}\n}\n')).problems.length > 0, true);
+  eq('5v sectie op een niet-gemeten bestand ⇒ geweigerd', parseCellBaseline(text.replace(`"excludedHidden": {\n    "${SHA}"`, `"excludedHidden": {\n    "${'e'.repeat(64)}"`)).problems.length > 0, true);
+  eq('5w negatieve of gebroken telling ⇒ geweigerd', parseCellBaseline(text.replace('"sixAxis": 4', '"sixAxis": -1')).problems.length > 0, true);
 }
 
 // ── 6. Mutanten van het mechanisme ─────────────────────────────────────────────────────────

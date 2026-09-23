@@ -23,10 +23,13 @@
 // 5. Minuten-digest (critreview integratie-eindstand 2026-09-23): de grootten van het cellenbestand
 //    horen bij `cellMinutesSha256` in de v2-envelop; een met de hand opgerekte grootte is rood.
 // 6. Manifestuitsluiting per project/taak (`xerManifestExclusions.ts`): de uitsluitingslijst van
-//    `xer-corpus-manifest.json` is geldig (elke uitsluiting draagt een `decision` met datum en
-//    "eigenaarsbesluit"), is gepind als digest in een gegenereerd blok (`EXPECTED_EXCLUSIONS_SHA256`,
-//    hieronder, zoals de schuldset), en geen cel van het cellenbestand of project van v2 hoort bij een
-//    uitgesloten project of taak-id. Een gewijzigde lijst herpint alleen `OPS_XER_CELLS_WRITE=corpus`.
+//    `xer-corpus-manifest.json` is geldig (elke uitsluiting draagt een `decision` in exact de vorm
+//    "JJJJ-MM-DD eigenaarsbesluit: <tekst>"), is gepind als digest in een gegenereerd blok
+//    (`EXPECTED_EXCLUSIONS_SHA256`, hieronder, zoals de schuldset), boven dat blok staat per uitsluiting
+//    letterlijk `HERPIN <datum> uitsluiting: <label> — <reden>`, de verborgen aantallen in het
+//    cellenbestand (`excludedHidden`) dekken precies de bestanden met een uitsluiting, en geen cel van
+//    het cellenbestand of project van v2 hoort bij een uitgesloten project of taak-id. Een gewijzigde
+//    lijst herpint alleen `OPS_XER_CELLS_WRITE=corpus`.
 //    De fixtures en mutanten van het mechanisme zelf staan in `check-xer-manifest-exclusions.ts`.
 // Assen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het
 // zesassige nuldoel-getal) — alle zeven onder dezelfde poortregels.
@@ -38,7 +41,7 @@ import {
   type CellMeta, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
   parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
   carryRatchetDebt, debtCount, CELL_PRE_DEBT_PROBLEM, debtDigest, cellMinutesDigest, cellMinutesProblems,
-  renderDebtPinBlock, extractDebtPinBlock, rewriteDebtPin, type CellDebt,
+  renderDebtPinBlock, extractDebtPinBlock, rewriteDebtPin, DEBT_PIN_END, type CellDebt,
 } from './fidelityCells';
 
 /** Ratchet-schuld van de eenmalige overgang bij de merge van de grootte-ratchet (2026-09-23): 14 cellen in
@@ -56,15 +59,17 @@ import {
 const EXPECTED_DEBT_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 // END ratchet-schuldpin
 /** Manifestuitsluitingen per project/taak (eigenaarsbesluiten; §6 hierboven). Het blok wordt bij een
- *  gewijzigde lijst door `OPS_XER_CELLS_WRITE=corpus` herschreven; zet er dan met de hand een
- *  HERPIN-regel bij die het eigenaarsbesluit noemt.
- *  PIN 2026-09-24 (mechanisme geland, nog geen besluit): lege lijst. */
+ *  gewijzigde lijst door `OPS_XER_CELLS_WRITE=corpus` herschreven; de poort eist dan hierboven (tussen
+ *  de schuldpin en het blok) per uitsluiting letterlijk de regel die de herpin print:
+ *  `HERPIN <datum> uitsluiting: <label> — <reden>`.
+ *  PIN 2026-09-23 (mechanisme geland, nog geen besluit): lege lijst. */
 // BEGIN manifest-uitsluitingspin — herschreven door OPS_XER_CELLS_WRITE=corpus bij een gewijzigde uitsluiting; nooit met de hand
 // 0 uitsluiting(en): [bestand-sha256, soort, project, taskId, taskCode, reden, besluit]
 const EXPECTED_EXCLUSIONS_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 // END manifest-uitsluitingspin
 import {
-  exclusionsDigest, extractExclusionPinBlock, parseExclusionPinBlock, readManifestExclusions, renderExclusionPinBlock,
+  EXCLUSION_PIN_BEGIN, exclusionHerpinLine, exclusionLabelFor, exclusionsDigest, extractExclusionPinBlock,
+  parseExclusionPinBlock, readManifestExclusions, renderExclusionPinBlock,
   type XerExclusionManifestLike, type XerExclusionRecord,
 } from './xerManifestExclusions';
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
@@ -347,7 +352,7 @@ let committed: { cells: CellBaseline; v2Minutes: string } | undefined;
     cellGateFailures(compareCells(reread, with_(cells => cells.map(cell =>
       cell.axis === 'es' ? { ...cell, minutes: cell.id === '1/10' ? 1500 : 1 } : cell)), MEASURABLE)).length, 1);
   eq('grootte: delta-regel draagt groter= en kleiner=', cellDeltaLine('p6', smaller, pinned),
-    'CELLDELTA p6 nieuw=0 verslechterd=0 groter=0 verbeterd=0 kleiner=1 onmeetbaar=0 onbekend=0 ongemeten=0 schuld=0 totaal=4');
+    'CELLDELTA p6 nieuw=0 verslechterd=0 groter=0 verbeterd=0 kleiner=1 onmeetbaar=0 onbekend=0 ongemeten=0 schuld=0 totaal=4 uitgesloten=0 teruggekeerd=0');
 
   // Versie 1 wordt geweigerd met verwijzing naar het recept; de lezer levert de emmers wel voor de herpin.
   const v1 = `${JSON.stringify({
@@ -500,8 +505,9 @@ if (committed) {
     eq(`M3 niet-schuldcel met de hand groter (${target.minutes} → ${target.minutes + 100000}) ⇒ rood (minuten-digest ≠ v2)`,
       [cellMinutesProblems(grownPlain, v2Minutes).length > 0, cellMinutesDigest(grownPlain) !== cellMinutesDigest(cells)], [true, true]);
   }
-  // M6: sectie weg ⇒ geweigerd door de lezer.
-  const noSection = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(cells)), ratchetDebt: undefined }, null, 2)}\n`;
+  // M6: sectie weg ⇒ geweigerd door de lezer. (Een bestand van vóór de schuldsectie kende ook
+  // `excludedHidden` nog niet; die gaat mee weg, anders is de vorm gewoon een onbekende sleutelvolgorde.)
+  const noSection = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(cells)), ratchetDebt: undefined, excludedHidden: undefined }, null, 2)}\n`;
   eq('M6 cellenbestand zonder ratchetDebt-sectie ⇒ geweigerd', parseCellBaseline(noSection).problems, [CELL_PRE_DEBT_PROBLEM]);
   // M7: schuldpin-blok in de bron met de hand bewerkt: de derde blokregel weg. Bij een gevulde schuldset
   // is dat de eerste lijstregel (digest blijft staan); bij de lege schuldset van nu (X12 brok 6) is het
@@ -524,6 +530,23 @@ function exclusionPinProblems(records: readonly XerExclusionRecord[], source = O
   if (block !== renderExclusionPinBlock(records)) problems.push('uitsluitingspin-blok in de bron hoort niet bij de manifestuitsluitingen');
   else if (parseExclusionPinBlock(block) === undefined) problems.push('uitsluitingspin-blok is niet terug te lezen');
   return problems;
+}
+/** Per uitsluiting de letterlijke HERPIN-regel tussen de schuldpin en het uitsluitingsblok (§6). */
+function exclusionHerpinProblems(records: readonly XerExclusionRecord[], manifest: XerExclusionManifestLike, source = OWN_SOURCE): string[] {
+  const start = source.indexOf(DEBT_PIN_END);
+  const end = source.indexOf(EXCLUSION_PIN_BEGIN);
+  if (start < 0 || end < start) return ['HERPIN-gebied tussen schuldpin en uitsluitingsblok niet gevonden'];
+  const region = source.slice(start, end);
+  return [...new Set(records.map(record => exclusionHerpinLine(record, exclusionLabelFor(manifest, record.sha256))))]
+    .filter(line => !region.includes(line))
+    .map(line => `HERPIN-regel ontbreekt boven het uitsluitingsblok: ${line}`);
+}
+/** De verborgen aantallen (`excludedHidden`) dekken precies de bestanden met een uitsluiting. */
+function excludedHiddenCoverageProblems(records: readonly XerExclusionRecord[], cells: CellBaseline): string[] {
+  const want = [...new Set(records.map(record => record.sha256))].sort();
+  const got = Object.keys(cells.excludedHidden ?? {}).sort();
+  return JSON.stringify(want) === JSON.stringify(got) ? []
+    : [`excludedHidden dekt ${got.length} bestand(en), uitsluitingen staan op ${want.length}: ${JSON.stringify(got.map(sha => sha.slice(0, 12)))} ≠ ${JSON.stringify(want.map(sha => sha.slice(0, 12)))}`];
 }
 /** Een cel of v2-project dat bij een uitgesloten project of taak-id hoort, is een verkeerd herpind bestand.
  *  Taakcode-uitsluitingen zijn corpusloos niet naar een taak-id te vertalen; die bewaakt de X12-check. */
@@ -554,6 +577,8 @@ function excludedLeftovers(records: readonly XerExclusionRecord[], cells: CellBa
   const v2Projects = Object.fromEntries(Object.entries(v2.payload?.files ?? {})
     .map(([sha, entry]) => [sha, entry.projectMeasurements.map(project => project.projectId)]));
   if (committed) eq('geen cel of v2-project hoort bij een uitgesloten project/taak', excludedLeftovers(read.records, committed.cells, v2Projects), []);
+  eq('boven het uitsluitingsblok staat per uitsluiting de letterlijke HERPIN-regel', exclusionHerpinProblems(read.records, manifest), []);
+  if (committed) eq('verborgen aantallen (excludedHidden) dekken precies de bestanden met een uitsluiting', excludedHiddenCoverageProblems(read.records, committed.cells), []);
   console.log(`   . manifestuitsluiting: ${read.records.length} uitsluiting(en) gepind (${EXPECTED_EXCLUSIONS_SHA256.slice(0, 12)})`);
 
   // Mutanten op de gecommitte stand: elke wijziging van de lijst zonder herpin is rood.
@@ -565,10 +590,21 @@ function excludedLeftovers(records: readonly XerExclusionRecord[], cells: CellBa
     Object.assign(copy.files[oracleLabel]!, entry);
     return readManifestExclusions(copy);
   };
-  const added = withExclusion({ decision: '2026-09-24 eigenaarsbesluit (mutant)', excludeProjects: [{ projId: 'MUTANT', reason: 'mutant' }] });
+  const oracleSha = manifest.files[oracleLabel]!.sha256;
+  const added = withExclusion({ decision: '2026-09-23 eigenaarsbesluit: mutant', excludeProjects: [{ projId: 'MUTANT', reason: 'mutant-uitsluiting' }] });
   eq('X1 geldige uitsluiting erbij zonder herpin ⇒ rood (digest)', [added.problems, exclusionPinProblems(added.records).length > 0], [[], true]);
-  const noDecision = withExclusion({ excludeTasks: [{ projId: 'MUTANT', taskId: '1', reason: 'mutant' }] });
-  eq('X2 uitsluiting zonder decision ⇒ geweigerd door de lezer', noDecision.problems.length > 0 && noDecision.records.length === 0, true);
+  eq('X1b ... en zonder HERPIN-regel ⇒ rood', exclusionHerpinProblems(added.records, manifest).length > 0, true);
+  // Onafhankelijk van hoeveel andere entries al uitsluitingen dragen: de mutant-entry zelf moet leeg zijn.
+  const noDecision = withExclusion({ excludeTasks: [{ projId: 'MUTANT', taskId: '1', reason: 'mutant-uitsluiting' }] });
+  eq('X2 uitsluiting zonder decision ⇒ geweigerd door de lezer (voor déze entry)',
+    [noDecision.problems.some(problem => problem.includes(oracleLabel)), noDecision.bySha.has(oracleSha)], [true, false]);
+  if (committed) {
+    const freeSha = Object.keys(committed.cells.files).sort().find(sha => !read.records.some(record => record.sha256 === sha));
+    eq('X5a het cellenbestand heeft een bestand zonder uitsluiting', freeSha !== undefined, true);
+    const hiddenMutant: CellBaseline = { ...committed.cells, excludedHidden: { ...(committed.cells.excludedHidden ?? {}), [freeSha ?? '']: { sixAxis: 0, drivingPath: 0 } } };
+    eq('X5 excludedHidden op een bestand zonder uitsluiting ⇒ rood', excludedHiddenCoverageProblems(read.records, hiddenMutant).length > 0, true);
+    eq('X5b uitsluiting zonder excludedHidden ⇒ rood', excludedHiddenCoverageProblems(added.records, { ...committed.cells, excludedHidden: {} }).length > 0, true);
+  }
   const ownBlock = extractExclusionPinBlock(OWN_SOURCE) ?? '';
   const tampered = OWN_SOURCE.replace(ownBlock, () => ownBlock.replace(/'[0-9a-f]{64}'/, `'${'0'.repeat(64)}'`));
   eq('X3 uitsluitingspin-blok met de hand bewerkt ⇒ rood', [tampered !== OWN_SOURCE, exclusionPinProblems(read.records, tampered).length > 0], [true, true]);
@@ -580,7 +616,7 @@ function excludedLeftovers(records: readonly XerExclusionRecord[], cells: CellBa
       const [projId, taskId] = withCell.id.split('/') as [string, string];
       const mutant = (kind: 'project' | 'task'): XerExclusionRecord => ({
         sha256: withCell.sha, kind, projId, ...(kind === 'task' ? { taskId } : {}),
-        reason: 'mutant', decision: '2026-09-24 eigenaarsbesluit (mutant)',
+        reason: 'mutant-uitsluiting', decision: '2026-09-23 eigenaarsbesluit: mutant',
       });
       eq('X4b uitgesloten project of taak met een cel in het cellenbestand ⇒ rood',
         [excludedLeftovers([mutant('project')], committed.cells, {}).length > 0, excludedLeftovers([mutant('task')], committed.cells, {}).length > 0], [true, true]);

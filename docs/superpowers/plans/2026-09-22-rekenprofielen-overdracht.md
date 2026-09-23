@@ -175,12 +175,14 @@ afwijkingen hebben met XER".)
    taakniveau-uitsluiting die het manifest nu niet kent. **Consequentie:** zolang EC1430 orakel is, kan
    C10 (ALAP, −27 cellen) niet landen — de 3 groter-cellen hangen aan diezelfde verouderde duur. De overige 43: 34 ALAP (C10, geparkeerd op brok 5,
    alleen landbaar mét Hotel in de meting), 7 eindmijlpalen-vloer (n=1), 2 meetrest.
-   **Beslisbaar met één manifestregel (mechanisme 24-09, branch `claude/x12-manifest-uitsluiting-taak-project`):**
-   het manifest kent nu `excludeTasks` per entry (achter een `decision` met datum + "eigenaarsbesluit").
+   **Beslisbaar met één manifestregel (mechanisme 23-09, branch `claude/x12-manifest-uitsluiting-taak-project`):**
+   het manifest kent nu `excludeTasks` per entry (achter een `decision` "JJJJ-MM-DD eigenaarsbesluit: …").
    Zeg ja ⇒ `crawl-xer/HarbourPointe_AssistedLiving.xer` krijgt `excludeTasks` voor project 4408, taakcodes
    EC1430, EC1590, EC1680, EC2060, EC2170, EC2200, EC2380, EC2410 (het kant-en-klare blok staat in
-   `scripts/README.md`, "Kant-en-klaar voor de eigenaarsvragen"). Gemeten in een proef: −33 zesassige cellen
-   (de cellen óp die 8 taken); de rest van de 81 zit op andere taken en blijft meetellen.
+   `scripts/README.md`, "Kant-en-klaar voor de eigenaarsvragen"). Eerlijk: de 8-taken-uitsluiting neemt
+   **33 van de 81** cellen weg (de cellen óp die 8 taken, gemeten in de proef); de andere 48 zitten op
+   andere taken en blijven meetellen, en C10 (ALAP) blijft daarmee vermoedelijk geblokkeerd (niet gemeten
+   met C10 aan). De uitsluiting lost §1d-8 dus maar gedeeltelijk op.
 9. **Meettolerantie:** EC1600 (HarbourPointe, 2 cellen) wijkt 0,00002 min af (396640,00002 vs 396640) —
    orakelafronding. Besluit nodig: tolerantie < 0,001 min in de X12-vergelijking (aanbeveling: ja, met de
    grens expliciet in de goal prompt), of laten staan als meetrest.
@@ -189,16 +191,16 @@ afwijkingen hebben met XER".)
     als drie gewone relaties nagebootst: 42 → 6. Nivellering is geen CPM-conventie maar een aparte P6-stap.
     Besluit nodig: 9033 buiten het nuldoel (projectniveau-uitsluiting, kent het manifest nog niet), of
     P6-nivellering als eigen etappe in de meting bouwen. Aanbeveling: buiten het nuldoel, als eigen etappe
-    ná X12. **Beslisbaar met één manifestregel (mechanisme 24-09):** zeg ja ⇒
+    ná X12. **Beslisbaar met één manifestregel (mechanisme 23-09):** zeg ja ⇒
     `crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer` krijgt `excludeProjects: [{ projId: "9033", … }]` met een
     `decision` (blok in `scripts/README.md`); proef: −38 zesassige cellen, −4 drivingPath. — Sample_Construction (12): één SF-lag-0-relatie waar P6 het einde één minuut ná de start van
     de voorganger zet (08:01/15:59 zijn echte P6-waarden); n=1 zonder Oracle-bron ⇒ open restant. Hotel:
     3 ff-cellen van 60 min zonder formule; ATWTPR000 (3) hoort bij C10 ALAP.
-11. **Hotel project CR (2665) is niet door P6 doorgerekend** (vervolgpunt uit de manifest-etappe 23-09;
+12. **Hotel project CR (2665) is niet door P6 doorgerekend** (vervolgpunt uit de manifest-etappe 23-09;
     `xer-corpus-p6computed.json`: p6Computed false): 0 zesassige cellen, wel 19 drivingPath-cellen (diff).
-    **Beslisbaar met één manifestregel (mechanisme 24-09):** zeg ja ⇒ `crawl-xer/Hotel_Construction_TEC.xer`
+    **Beslisbaar met één manifestregel (mechanisme 23-09):** zeg ja ⇒ `crawl-xer/Hotel_Construction_TEC.xer`
     krijgt `excludeProjects: [{ projId: "2665", … }]` met een `decision` (blok in `scripts/README.md`); proef:
-    X12 ongewijzigd, drivingPath −19. Met §1d-8 en §1d-10 samen (proef 24-09, zelfde blokken): X12 192 →
+    X12 ongewijzigd, drivingPath −19. Met §1d-8 en §1d-10 samen (proef 23-09, zelfde blokken): X12 192 →
     121, drivingPath 169 → 146, geen cel slechter of groter; herpin via de corpusgroei-route
     (`OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus` in één run, dan de handmatige pinplekken en
     `OPS_XER_GATE_PINS=corpus`).

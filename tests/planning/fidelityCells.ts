@@ -70,6 +70,15 @@
 // `OPS_XER_CELLS_WRITE`, en getoetst door `check-fidelity-cells-gate.ts` (corpusloos) én de
 // X12-check: cellenbestand en v2 moeten dezelfde digest hebben.
 //
+// VERBORGEN AANTALLEN (`excludedHidden`, critreview manifestuitsluiting 2026-09-23): per bestand met een
+// manifestuitsluiting (eigenaarsbesluit, `xerManifestExclusions.ts`) het aantal zesassige afwijkingen en
+// drivingPath-cellen dat op de uitgesloten taken valt. Die tellen niet in de poort, maar een
+// motorregressie op een uitgesloten populatie mag niet onzichtbaar zijn: het getal is een
+// NIET-STIJGENDE pin (stijging = hard rood; daling = herpinnen). Alleen een gewijzigde
+// uitsluitings-identiteitsset voor dat bestand maakt een verschuiving `fileset` (`=corpus`). Het veld is
+// optioneel en staat alleen in het bestand als er uitsluitingen zijn — zonder uitsluiting blijft het
+// cellenbestand byte-gelijk aan zijn vorm van vóór het veld.
+//
 // Pure functies zonder I/O, zodat `check-fidelity-cells-gate.ts` de poortlogica corpusloos op
 // synthetische metingen kan bewijzen.
 import { createHash } from 'node:crypto';
@@ -125,7 +134,13 @@ export interface CellBaseline {
   files: CellFiles;
   /** Ratchet-schuld (zie de kop van dit bestand); leeg object als er geen schuld is. */
   ratchetDebt: CellDebt;
+  /** Verborgen aantallen per bestand met een manifestuitsluiting (zie de kop); ontbreekt = geen. */
+  excludedHidden?: ExcludedHidden;
 }
+/** Zesassige afwijkingen en drivingPath-cellen op de uitgesloten taken van één bestand. */
+export interface HiddenCounts { sixAxis: number; drivingPath: number }
+/** excludedHidden[sha256] = verborgen aantallen; alleen bestanden mét uitsluiting, gesorteerd. */
+export type ExcludedHidden = Record<string, HiddenCounts>;
 /** Metagegevens die de meetlat naast de cellen levert. */
 export interface CellMeta { manifestSha256: string; drivingPathOracle: ReadonlyMap<string, string> }
 export const SHA256_PATTERN = /^[0-9a-f]{64}$/;
@@ -333,9 +348,13 @@ export function serializeCellBaseline(baseline: CellBaseline): string {
   for (const key of sortedKeys(baseline.files)) files[key] = canonicalAxes(baseline.files[key]!);
   const drivingPathOracle: Record<string, string> = {};
   for (const key of sortedKeys(baseline.drivingPathOracle)) drivingPathOracle[key] = baseline.drivingPathOracle[key]!;
+  const hidden = baseline.excludedHidden ?? {};
+  const excludedHidden: ExcludedHidden = {};
+  for (const key of sortedKeys(hidden)) excludedHidden[key] = { sixAxis: hidden[key]!.sixAxis, drivingPath: hidden[key]!.drivingPath };
   return `${JSON.stringify({
     version: baseline.version, manifestSha256: baseline.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
     drivingPathOracle, files, ratchetDebt: canonicalDebt(baseline.ratchetDebt ?? {}),
+    ...(Object.keys(excludedHidden).length > 0 ? { excludedHidden } : {}),
   }, null, 2)}\n`;
 }
 
@@ -375,7 +394,9 @@ export function parseCellBaseline(raw: string): ParsedCellBaseline {
   const preDebtTop = 'version,manifestSha256,axes,buckets,drivingPathOracle,files';
   const preDebt = !legacyV1 && top === preDebtTop;
   const wantTop = legacyV1 || preDebt ? preDebtTop : `${preDebtTop},ratchetDebt`;
-  if (top !== wantTop) problems.push(`top-level sleutels ${top} ≠ ${wantTop}`);
+  const withHidden = !legacyV1 && !preDebt && top === `${wantTop},excludedHidden`;
+  if (top !== wantTop && !withHidden) problems.push(`top-level sleutels ${top} ≠ ${wantTop}[,excludedHidden]`);
+  if (withHidden) problems.push(...validateExcludedHidden(parsed.excludedHidden, parsed.files));
   if (!legacyV1 && parsed.version !== CELL_BASELINE_VERSION) problems.push(`version ≠ ${CELL_BASELINE_VERSION}`);
   if (typeof parsed.manifestSha256 !== 'string' || !SHA256_PATTERN.test(parsed.manifestSha256)) problems.push('manifestSha256 is geen sha256');
   if (!isPlainObject(parsed.drivingPathOracle)) problems.push('drivingPathOracle is geen object');
@@ -459,6 +480,53 @@ export function parseCellBaseline(raw: string): ParsedCellBaseline {
     return { problems: ['baseline is niet canoniek geserialiseerd (herpin via OPS_XER_CELLS_WRITE=1, niet met de hand)'] };
   }
   return { baseline, problems };
+}
+
+/** `excludedHidden`: niet leeg (anders weglaten), sha256-sleutels die in `files` staan, waarden
+ *  precies `{ sixAxis, drivingPath }` als niet-negatieve gehele getallen (sortering: canonieke bytes). */
+function validateExcludedHidden(hidden: unknown, files: unknown): string[] {
+  if (!isPlainObject(hidden)) return ['excludedHidden is geen object'];
+  const keys = Object.keys(hidden);
+  if (keys.length === 0) return ['excludedHidden is leeg (laat de sectie weg)'];
+  const problems: string[] = [];
+  for (const key of keys) {
+    const value = hidden[key];
+    if (!CELL_KEY_PATTERN.test(key) || !isPlainObject(files) || !hasOwn(files, key)) {
+      problems.push(`excludedHidden ${JSON.stringify(key.slice(0, 80))}: geen gemeten bestand`);
+    } else if (!isPlainObject(value) || Object.keys(value).join(',') !== 'sixAxis,drivingPath'
+      || ![value.sixAxis, value.drivingPath].every(count => Number.isInteger(count) && (count as number) >= 0)) {
+      problems.push(`excludedHidden ${key.slice(0, 12)}: verwacht { sixAxis, drivingPath } als niet-negatieve gehele getallen`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * De niet-stijgende pin op de verborgen aantallen (zie de kop). `identityChanged` = bestanden waarvan de
+ * uitsluitings-identiteitsset t.o.v. de gepinde lijst veranderde: daar is elke verschuiving `fileset`.
+ */
+export function excludedHiddenRedLines(
+  pinned: ExcludedHidden | undefined,
+  measured: ExcludedHidden,
+  identityChanged: ReadonlySet<string>,
+): { lines: RedLine[]; lower: string[] } {
+  const lines: RedLine[] = [];
+  const lower: string[] = [];
+  const was = pinned ?? {};
+  for (const file of [...new Set([...Object.keys(was), ...Object.keys(measured)])].sort(codeUnitCompare)) {
+    const before = hasOwn(was, file) ? was[file] : undefined;
+    const after = hasOwn(measured, file) ? measured[file] : undefined;
+    const text = (what: string) => `verborgen aantallen (manifestuitsluiting) ${file}: ${what}`;
+    const show = (counts: HiddenCounts | undefined) => (counts ? `${counts.sixAxis} zesassig/${counts.drivingPath} drivingPath` : 'geen');
+    if (JSON.stringify(before) === JSON.stringify(after)) continue;
+    if (identityChanged.has(file)) { lines.push({ kind: 'fileset', text: text(`${show(before)} → ${show(after)} door een gewijzigde uitsluiting`) }); continue; }
+    if (!before) { lines.push({ kind: 'hard', text: text(`uitsluiting zonder gepinde verborgen aantallen (nu ${show(after)})`) }); continue; }
+    if (!after) { lines.push({ kind: 'hard', text: text(`gepinde verborgen aantallen (${show(before)}) zonder uitsluiting`) }); continue; }
+    if (after.sixAxis > before.sixAxis || after.drivingPath > before.drivingPath) {
+      lines.push({ kind: 'hard', text: text(`gestegen ${show(before)} → ${show(after)} — een regressie op de uitgesloten taken`) });
+    } else lower.push(`${file.slice(0, 12)} ${show(before)} → ${show(after)}`);
+  }
+  return { lines, lower };
 }
 
 /** Elke schuldregel wijst naar een bestaande sameday/diff-cel met `minutes === current`, en
@@ -744,5 +812,6 @@ export function cellDeltaLine(profile: string, delta: CellDelta, measured: CellB
   return `CELLDELTA ${profile} nieuw=${delta.newCells.length} verslechterd=${delta.worsenedCells.length} `
     + `groter=${delta.largerCells.length} verbeterd=${delta.improvedCells.length} kleiner=${delta.smallerCells.length} `
     + `onmeetbaar=${delta.unmeasurableCells.length} onbekend=${delta.unknownFiles.length} `
-    + `ongemeten=${delta.unmeasuredFiles.length} schuld=${debtCount(measured.ratchetDebt ?? {})} totaal=${total}`;
+    + `ongemeten=${delta.unmeasuredFiles.length} schuld=${debtCount(measured.ratchetDebt ?? {})} totaal=${total}`
+    + ` uitgesloten=${delta.excludedCells.length} teruggekeerd=${delta.reincludedCells.length}`;
 }

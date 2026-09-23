@@ -230,24 +230,28 @@ manifest-orakels): neem die rijen over uit `OPS_XER_SCHEDOPTIONS_REPORT=baseline
 in de corpusloze vangrail: die flipt het eerste teken van de manifesthash en moet een ander teken kiezen
 als de hash zelf al met `0` begint.
 
-**Uitsluiting per project of taak** (mechanisme 2026-09-24, `tests/planning/xerManifestExclusions.ts`).
+**Uitsluiting per project of taak** (mechanisme 2026-09-23, `tests/planning/xerManifestExclusions.ts`).
 Een orakelentry kan bij eigenaarsbesluit een deel van zichzelf uit de meetlat halen, zonder het hele bestand
 een andere rol te geven:
 
 ```json
-"decision": "JJJJ-MM-DD eigenaarsbesluit: …",
+"decision": "JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>",
 "excludeProjects": [{ "projId": "2665", "reason": "…" }],
 "excludeTasks": [{ "projId": "4408", "taskCode": "EC1430", "reason": "…" }]
 ```
 
-Regels: alleen op een `role: "oracle"`/`included: true`-entry; zonder `decision` (datum vooraan plus het
-woord "eigenaarsbesluit") weigert de lezer de hele entry, net als bij een lege lijst, een onbekende sleutel,
-een dubbele regel of een taak onder een al uitgesloten project; een taak noem je met precies één van
-`taskId` of `taskCode`, en een uitsluiting die geen orakeltaak raakt of een dubbelzinnige taakcode is een
-fout, nooit een stille no-op. De solve draait ongewijzigd over het hele bestand (uitgesloten taken blijven
-invoer voor hun opvolgers); alleen de meting laat ze weg: de zes assen, de cellen, drivingPath, de
-nuldoelregels, de X1-doelbaseline (`buildXerTargetBaseline`) en de task-replay. De schemavingerafdruk
-(dedup) en de ruwe corpusdekking (C3/C4/C4a) blijven over het hele bestand. X12 print altijd een regel
+Regels: alleen op een `role: "oracle"`/`included: true`-entry. `decision` heeft EXACT de vorm
+`JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>` (een bestaande datum, niet in de toekomst; "geen
+eigenaarsbesluit" of een vrije plaatsing van het woord glipt dus niet door); anders weigert de lezer de hele
+entry, net als bij een lege lijst, een onbekende sleutel, een reden korter dan 10 tekens, een `projId`/`taskId`
+als getal (schrijf `"12345"`), een dubbele regel of een taak onder een al uitgesloten project. Een taak noem
+je met precies één van `taskId` of `taskCode`; dezelfde taak via `taskId` én `taskCode` is een dubbel-fout,
+en een uitsluiting die geen orakeltaak raakt of een dubbelzinnige taakcode is een fout, nooit een stille
+no-op. De solve draait ongewijzigd over het hele bestand (uitgesloten taken blijven invoer voor hun
+opvolgers). **Wat filtert wel/niet:** WEL de zes assen, de cellen, drivingPath, de nuldoelregels, de
+X1-doelbaseline (`buildXerTargetBaseline`) en de task-replay; NIET de schemavingerafdruk (dedup), de ruwe
+corpusdekking (C3/C4/C4a), de X12-probes op `solvedProjects` en `expectedFinishVariant` in
+`xer-schedoptions-blast-radius.json` (telt op manifest-orakels, hele bestand). X12 print altijd een regel
 `INFO X12 manifestuitsluiting …: uitgesloten: N taken in K projecten — <label>: <project/taak> (<n> taken) —
 <reden> [<datum>]; buiten de telling: … zesassige afwijkingen, … drivingPath-cellen`, ook bij nul, en
 `measure:profiles` neemt het aantal over in zijn tellingenkolom.
@@ -257,17 +261,27 @@ De lijst is gepind zoals de schuldset: een gegenereerd blok `manifest-uitsluitin
 cel en geen v2-project op een uitgesloten project/taak-id). Een uitsluiting wijzigen is een
 manifestwijziging, dus de corpusgroei-route hierboven: in één run
 `OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus bash tests/planning/run.sh check-xer-product-fidelity-x12.ts`.
-Alleen voor entries waarvan de uitsluitingen verschillen van het gepinde blok zijn de dekkingsverschuiving,
-de weggevallen cellen ("cel valt weg door een nieuwe manifestuitsluiting") en de drivingPath-orakelhash
-`fileset` in plaats van `hard`; bij een opgeheven uitsluiting idem voor terugkerende cellen. De cel-herpin
-herschrijft het blok zelf (alleen via `=corpus`, en alleen vanaf een ongeschonden blok) — zet er een
-HERPIN-regel met het besluit bij. Daarna de vijf handmatige pinplekken hierboven (de X1-baseline, C5–C8b,
+Alleen voor entries waarvan de opgeloste IDENTITEITSSET (uitgesloten projecten en taken) verschilt van het
+gepinde blok zijn de weggevallen cellen ("cel valt weg door een nieuwe manifestuitsluiting"), de
+drivingPath-orakelhash en de dekkingsverschuiving `fileset` in plaats van `hard` — en de dekking alleen als
+de v2-pin exact gelijk is aan de meting met de GEPINDE uitsluiting (dus precies de delta van nu ∖ was en
+was ∖ nu; elke andere verschuiving blijft `hard`). Alleen een andere reden of datum verandert de digest
+(herpin van het blok) maar niet de identiteitsset, en maakt dus niets `fileset`. De `CELLDELTA`-regel en de
+herpin-OK-regel noemen het aantal door uitsluiting weggevallen cellen (`uitgesloten=N`). De cel-herpin
+herschrijft het blok zelf (alleen via `=corpus`, en alleen vanaf een ongeschonden blok) en print per
+uitsluiting de regel `HERPIN <datum> uitsluiting: <label> — <reden>`; de corpusloze cellenpoort eist die
+regels letterlijk tussen de schuldpin en het blok. **Verborgen aantallen:** per bestand met een uitsluiting
+staan de zesassige afwijkingen en drivingPath-cellen óp de uitgesloten taken als `excludedHidden` in
+`xer-product-fidelity-cells.json` — een NIET-STIJGENDE pin (stijging = `hard`, daling = herpinnen via de
+schrijfmodi; alleen bij een gewijzigde identiteitsset `fileset`), zodat een motorregressie op een
+uitgesloten populatie niet onzichtbaar wordt. Zonder uitsluiting ontbreekt de sectie (bestand byte-gelijk).
+Daarna de vijf handmatige pinplekken hierboven (de X1-baseline, C5–C8b,
 het baselineschema, de task-replay-pin, `EXPECTED` van de corpusloze vangrail) en `OPS_XER_GATE_PINS=corpus`.
 Verboden: het blok of de digest met de hand bijwerken, of een uitsluiting laten kiezen door veldinhoud
 (een script dat taken selecteert op hun waarden) — de lijst staat letterlijk in het manifest, per regel met
 reden.
 
-**Kant-en-klaar voor de eigenaarsvragen §1d-8, §1d-10 en Hotel/CR** (overdracht rekenprofielen). Zeg ja ⇒
+**Kant-en-klaar voor de eigenaarsvragen §1d-8, §1d-10 en §1d-12 (Hotel/CR)** (overdracht rekenprofielen). Zeg ja ⇒
 deze drie entries in `tests/planning/xer-corpus-manifest.json` krijgen dit blok (datum van het besluit invullen),
 gevolgd door de route hierboven:
 
@@ -289,7 +303,7 @@ gevolgd door de route hierboven:
   "excludeProjects": [{ "projId": "2665", "reason": "project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)" }] }
 ```
 
-Proef op 2026-09-24 (niet gecommit, mechanismebranch `claude/x12-manifest-uitsluiting-taak-project`): met
+Proef op 2026-09-23 (niet gecommit, mechanismebranch `claude/x12-manifest-uitsluiting-taak-project`): met
 precies deze drie blokken gaat X12 van 192 naar 121 zesassige afwijkingen (OZB 9033 −38 op 14 taken,
 HarbourPointe −33 op de 8 taken; Hotel/CR −0, het had er geen) en drivingPath van 169 naar 146 (Hotel/CR
 −19, OZB 9033 −4); de cel-poort meldt alleen `fileset`-regels en de nuldoelregels, en

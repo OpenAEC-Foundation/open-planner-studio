@@ -831,12 +831,51 @@ if (pinMode !== undefined) {
 const firstProductLabel = Object.keys(decodedProductV2.files)[0]!;
 const multiProjectLabel = Object.entries(decodedProductV2.files)
   .find(([, entry]) => entry.projectMeasurements.length >= 2)?.[0];
-const algebraProjectLabel = Object.entries(decodedProductV2.files)
-  .find(([, entry]) => entry.projectMeasurements.some((project, index) => project.counters.es.exact > 0
-    && entry.projectMeasurements.some((candidate, candidateIndex) => candidateIndex !== index
-      && candidate.counters.es.diff > 0)))?.[0];
+/**
+ * M32 zoekt zijn donor/ontvanger breed (critreview manifestuitsluiting 2026-09-23): eerder eiste hij
+ * `es.exact > 0` in het ene en `es.diff > 0` in een ander project van dezelfde entry, en na een
+ * uitsluiting (OZB 9033, Hotel/CR) bestond die combinatie niet meer. Nu: elke multi-projectentry, elke
+ * as, twee projecten p ≠ q en een paar (exact, afwijkingsemmer) — in beide richtingen — met p[van] > 0 en
+ * q[naar] > 0. De ruil p[van]−−, p[naar]++, q[naar]−−, q[van]++ houdt per project `measurable` en per
+ * entry elke som gelijk, maar breekt per project `sameday+diff+missing = deviations`. Alleen als geen enkele
+ * entry zo'n paar heeft (b.v. alle projecten exact) valt hij terug op een overdracht p[c]−−, q[c]++ van één
+ * emmer, die per project `measurable` breekt en de entrysom houdt — ook dat is telleralgebra.
+ */
+type AlgebraBucket = 'exact' | 'sameday' | 'diff' | 'missing';
+const ALGEBRA_DEVIATION_BUCKETS: readonly AlgebraBucket[] = ['sameday', 'diff', 'missing'];
+function findAlgebraMutation(files: ProductV2['files']): { label: string; axis: Axis; donor: number; receiver: number; from: AlgebraBucket; to: AlgebraBucket | undefined } | undefined {
+  const labels = Object.keys(files).sort();
+  for (const swap of [true, false]) {
+    for (const label of labels) {
+      const projects = files[label]!.projectMeasurements;
+      if (projects.length < 2) continue;
+      for (const axis of AXES) {
+        for (let donor = 0; donor < projects.length; donor++) {
+          for (let receiver = 0; receiver < projects.length; receiver++) {
+            if (donor === receiver) continue;
+            const p = projects[donor]!.counters[axis];
+            const q = projects[receiver]!.counters[axis];
+            if (swap) {
+              for (const deviation of ALGEBRA_DEVIATION_BUCKETS) {
+                for (const [from, to] of [['exact', deviation], [deviation, 'exact']] as Array<[AlgebraBucket, AlgebraBucket]>) {
+                  if (p[from] > 0 && q[to] > 0) return { label, axis, donor, receiver, from, to };
+                }
+              }
+            } else {
+              for (const from of ['exact', ...ALGEBRA_DEVIATION_BUCKETS] as AlgebraBucket[]) {
+                if (p[from] > 0) return { label, axis, donor, receiver, from, to: undefined };
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return undefined;
+}
+const algebraMutation = findAlgebraMutation(decodedProductV2.files);
 if (!multiProjectLabel) throw new Error('product-v2-mutanten vereisen minstens een multi-projectentry');
-if (!algebraProjectLabel) throw new Error('product-v2-mutanten vereisen geschikte projecttellers');
+if (!algebraMutation) throw new Error('M32 vereist een multi-projectentry met minstens één meetbare cel');
 
 type NewMutationCase = {
   id: 'M33' | 'M34' | 'M35' | 'M36' | 'M37';
@@ -1153,16 +1192,19 @@ if (singleMutant !== undefined) {
     product.files[firstProductLabel]!.gatePassed = !product.files[firstProductLabel]!.gatePassed;
   }), manifest, oracle);
 
-  expectProductRejected('M32 projecttelleralgebra breken met behouden entrysom', withMutatedProduct(productV2, product => {
-    const projects = product.files[algebraProjectLabel]!.projectMeasurements;
-    const donor = projects.find(project => project.counters.es.exact > 0);
-    const receiver = projects.find(project => project !== donor && project.counters.es.diff > 0);
-    if (!donor || !receiver) throw new Error('M32 vereist twee geschikte projecttellers');
-    donor.counters.es.exact--;
-    donor.counters.es.diff++;
-    receiver.counters.es.exact++;
-    receiver.counters.es.diff--;
-  }), manifest, oracle);
+  const { label: algebraLabel, axis: algebraAxis, donor: donorIndex, receiver: receiverIndex, from, to } = algebraMutation;
+  expectProductRejected(`M32 projecttelleralgebra breken met behouden entrysom (${to ? `ruil ${from}↔${to}` : `overdracht ${from}`} op ${algebraAxis})`,
+    withMutatedProduct(productV2, product => {
+      const projects = product.files[algebraLabel]!.projectMeasurements;
+      const donor = projects[donorIndex]!.counters[algebraAxis];
+      const receiver = projects[receiverIndex]!.counters[algebraAxis];
+      donor[from]--;
+      receiver[from]++;
+      if (to) {
+        donor[to]++;
+        receiver[to]--;
+      }
+    }), manifest, oracle);
 
   for (const mutation of newMutationCases) {
     const problems = mutation.run();
