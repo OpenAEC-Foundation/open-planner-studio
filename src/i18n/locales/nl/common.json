@@ -1243,6 +1243,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Geplande start is geen vloer voor een lopende taak",
       "help": "Het resterende werk van een gestarte taak begint op de statusdatum en direct na haar voorgangers, ook als haar geplande start later ligt."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP-taak zo laat als de opvolgers toestaan",
+      "help": "Een niet-gestarte taak met ‘zo laat mogelijk’ eindigt precies waar haar opvolgers het toelaten, op de minuut; haar eigen geplande start telt niet."
     }
   },
   "profiles": {

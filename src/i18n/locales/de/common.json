@@ -1243,6 +1243,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang",
       "help": "Die Restarbeit eines begonnenen Vorgangs beginnt am Statusdatum und direkt nach seinen Vorgängern, auch wenn sein geplanter Anfang später liegt."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP-Vorgang so spät, wie die Nachfolger erlauben",
+      "help": "Ein nicht begonnener Vorgang „so spät wie möglich“ endet genau dort, wo seine Nachfolger es zulassen, auf die Minute; sein eigener geplanter Anfang zählt nicht."
     }
   },
   "profiles": {

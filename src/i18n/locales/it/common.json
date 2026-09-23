@@ -1278,6 +1278,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "L'inizio pianificato non è un limite minimo per un'attività in corso",
       "help": "Il lavoro residuo di un'attività avviata inizia alla data di stato e subito dopo i suoi predecessori, anche se il suo inizio pianificato è successivo."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Attività ALAP il più tardi consentito dai successori",
+      "help": "Un'attività «il più tardi possibile» non avviata termina esattamente dove lo consentono i suoi successori, al minuto; il suo inizio pianificato non conta."
     }
   },
   "profiles": {

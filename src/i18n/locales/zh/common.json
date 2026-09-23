@@ -1208,6 +1208,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "计划开始不是进行中任务的下限",
       "help": "已开始任务的剩余工作从状态日期、紧接其紧前任务之后开始，即使其计划开始更晚。"
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP 任务在紧后任务允许的范围内尽量晚",
+      "help": "未开始的“越晚越好”任务精确到分钟地在其紧后任务允许的位置结束；其自身的计划开始不计入。"
     }
   },
   "profiles": {

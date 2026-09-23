@@ -34,7 +34,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 // ── 1) Register ⇔ ConventionKey, unieke id's, domein van de ingebouwde waarden ─────────────────
 {
   const ids = CONVENTIONS.map(d => d.id);
-  eq('01 eenentwintig conventies', ids.length, 21);
+  eq('01 tweeëntwintig conventies', ids.length, 22);
   eq('02 unieke id\'s', new Set(ids).size, ids.length);
   same('03 register-lijst == CONVENTION_KEYS (compile-time Record)', [...ids].sort(), [...CONVENTION_KEYS].sort());
   for (const d of CONVENTIONS) {
@@ -128,7 +128,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);
   eq('47 effective: optie uit project', eff.lagCalendar, '24hour');
-  eq('48 effective: alle eenentwintig conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
+  eq('48 effective: alle tweeëntwintig conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
   // Conventies worden als LAATSTE gespreid: een conventiesleutel die in de overgang nog in het
   // projectblok staat, verliest van het profiel.
   const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } as unknown as ProjectSchedulingOptions });
@@ -146,13 +146,13 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('50 geen blob ⇒ ops zonder overrides', none.profile, builtInProfile('ops'));
   eq('51 geen blob ⇒ geen opties', none.options, undefined);
 
-  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5, C1–C4, C6 en C7 ⇒ AAN.
+  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5, C1–C4, C6, C7 en C9 ⇒ AAN.
   const partial = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true });
   eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
-  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C4 + C6–C7 aan', on, [
-    'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C4 + C6–C7 + C9 aan', on, [
+    'p6AlapPositionedFromSuccessors', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
     'p6CompletedOutOfSequenceWindow', 'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag',
     'p6FinishFinishStartMilestoneLateFinish', 'p6FreeFloatOnOwnCalendar', 'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary',
     'p6StartedTaskIgnoresPlannedStartFloor', 'p6UseTaskPlannedStartFloor',

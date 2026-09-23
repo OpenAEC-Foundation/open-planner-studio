@@ -1313,6 +1313,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planowany start nie jest dolną granicą dla zadania w toku",
       "help": "Pozostała praca rozpoczętego zadania zaczyna się w dacie stanu i zaraz po jego poprzednikach, nawet jeśli planowany start jest późniejszy."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Zadanie ALAP tak późno, jak pozwalają następniki",
+      "help": "Nierozpoczęte zadanie „jak najpóźniej” kończy się dokładnie tam, gdzie pozwalają jego następniki, co do minuty; jego własny planowany start się nie liczy."
     }
   },
   "profiles": {

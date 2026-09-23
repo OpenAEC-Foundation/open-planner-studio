@@ -313,10 +313,38 @@ export interface SchedulingOptions {
    *    uitzondering erop is daar zonder betekenis. Het gedrag van vóór deze conventie.
    *  - OPS: uit (het gedrag van vóór deze conventie). */
   p6StartedTaskIgnoresPlannedStartFloor?: boolean;
+  /** C9 — een niet-gestarte ALAP-activiteit (`constraint.type === 'ALAP'`, P6 `CS_ALAP`) krijgt als
+   *  vroege finish de strengste grens die haar opvolgers met hun VROEGE datums via de gewone
+   *  achterwaartse relatiewiskunde toestaan (zonder opvolger: haar late finish), en als vroege start
+   *  die finish min haar duur — in werktijd op de minuut, niet in hele werkdagen. Opvolgers eerst
+   *  (omgekeerde topologische volgorde), zodat een keten van ALAP-taken aaneensluit; de opvolgers
+   *  zelf bewegen niet. Ondergrens: de relatiegrenzen van haar voorgangers en de statusdatum. Haar
+   *  eigen geplande venster telt niet: een ALAP-wortel start voorwaarts op de statusdatum, niet op
+   *  haar eigen anker, en de geplande-startvloer van A16 geldt niet voor haar
+   *  (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een gestarte of voltooide ALAP-taak houdt
+   *  haar werkelijke datums. Alleen uurkalenders.
+   *
+   *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": de activiteit wordt zo laat
+   *    ingepland als kan zonder haar opvolgers te vertragen, dus binnen haar vrije speling. Gemeten
+   *    (classificatiebrok B12): `HarbourPointe_AssistedLiving.xer` (P6-doorgerekend), de ALAP-keten
+   *    EC1420 (startmijlpaal zonder voorganger, target 2011-06-27 07:00) → EC1430 → EC1810 (beide
+   *    ALAP, 720 u) → EC2090: P6 zet EC1810 op EF 2012-03-06 16:49 = de start van EC2090, en EC2090
+   *    zelf op zijn geplande start (A16), niet achter het geplande venster van EC1420. Zonder deze
+   *    conventie staat EC1420 op haar eigen target en schuift de hele keten (EC1430 … EC2400) enkele
+   *    werkdagen later; met de conventie worden 27 cellen exact (es/ef/tf/ff), 0 slechter.
+   *    `Hotel_Construction_TEC.xer` (vier ALAP-taken) verandert niet: daar vallen de geplande datums
+   *    al samen met de ALAP-positie. Wat niet klopt: EC1420/EC1430 zelf komen op ES 2011-06-21 16:49
+   *    (720 werkuren vóór EC1810), P6 toont 06-24 16:49 — een span van 696 werkuren op dezelfde
+   *    kalender; ongeklaard.
+   *  - MS Project: uit. MS Project plant ALAP vanaf de late datums van de taak (zijn eigen
+   *    ALAP-semantiek, niet gemeten tegen ons MPP-orakel); het gedrag van vóór deze conventie.
+   *  - OPS: uit (de oude stap: de vroege datums schuiven in hele werkdagen op met de vrije speling,
+   *    in topologische volgorde, ook bij een gestarte taak). */
+  p6AlapPositionedFromSuccessors?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de eenentwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de tweeëntwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -342,7 +370,8 @@ export type ConventionKey =
   | 'p6CompletedRemainingLag'
   | 'p6CompletedOutOfSequenceWindow'
   | 'p6FinishFinishStartMilestoneLateFinish'
-  | 'p6StartedTaskIgnoresPlannedStartFloor';
+  | 'p6StartedTaskIgnoresPlannedStartFloor'
+  | 'p6AlapPositionedFromSuccessors';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

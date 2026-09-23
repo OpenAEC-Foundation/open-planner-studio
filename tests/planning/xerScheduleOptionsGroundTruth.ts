@@ -229,6 +229,7 @@ export function expectedXerScheduleOptions(
     p6CompletedOutOfSequenceWindow: true,
     p6FinishFinishStartMilestoneLateFinish: true,
     p6StartedTaskIgnoresPlannedStartFloor: true,
+    p6AlapPositionedFromSuccessors: true,
   };
   if (!scheduleRow) {
     return {

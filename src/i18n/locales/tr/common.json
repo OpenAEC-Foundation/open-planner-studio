@@ -1243,6 +1243,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",
       "help": "Başlamış bir görevin kalan işi, planlanan başlangıcı daha geç olsa bile durum tarihinde ve öncüllerinin hemen ardından başlar."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP görevi ardıllarının izin verdiği kadar geç",
+      "help": "Başlamamış bir ‘olabildiğince geç’ görevi, ardıllarının izin verdiği yerde dakikası dakikasına biter; kendi planlanan başlangıcı sayılmaz."
     }
   },
   "profiles": {

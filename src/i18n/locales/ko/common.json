@@ -1208,6 +1208,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "계획 시작은 진행 중인 작업의 하한이 아님",
       "help": "시작된 작업의 남은 작업은 계획 시작이 더 늦더라도 상태 날짜에, 선행 작업 바로 뒤에 시작됩니다."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP 작업은 후속 작업이 허용하는 만큼 늦게",
+      "help": "시작되지 않은 ‘가능한 한 늦게’ 작업은 후속 작업이 허용하는 지점에서 분 단위로 정확히 끝납니다. 자체 계획 시작은 계산하지 않습니다."
     }
   },
   "profiles": {

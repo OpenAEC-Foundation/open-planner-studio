@@ -419,13 +419,15 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
 // C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`; brok 4: C6
-// `p6FinishFinishStartMilestoneLateFinish`, C7 `p6StartedTaskIgnoresPlannedStartFloor` ──
+// `p6FinishFinishStartMilestoneLateFinish`, C7 `p6StartedTaskIgnoresPlannedStartFloor`; brok 5: C9
+// `p6AlapPositionedFromSuccessors` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
 const GROUP_C = [
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow',
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
+  'p6AlapPositionedFromSuccessors',
 ] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
@@ -677,6 +679,42 @@ groupC.push({
   builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-14T17:00' },
 });
 
+// C9: band 08:00–17:00 ma–vr, statusdatum ma 5 jan 08:00. C (31 u) loopt ma 5 jan 08:00 – do 8 jan
+// 12:00 —FS0→ B (9 u), dus B begint do 8 jan 12:00. A is een ALAP-wortel (9 u, CS_ALAP) —FS0→ B.
+// P6 (HarbourPointe, B12, EC1420 → EC1430 → EC1810 → EC2090): A eindigt precies waar B begint —
+// EF do 8 jan 12:00, ES wo 7 jan 12:00 (9 werkuren terug). Zonder C9 schuift de oude ALAP-stap A
+// in hele werkdagen op haar vrije speling: ES wo 7 jan 08:00, EF wo 7 jan 17:00.
+function c9Fixture(alapTargetStart: string, alapTargetEnd: string): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC9-fixture\tC1\t2026-01-05 08:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tcstr_type',
+    `%R\tA\tP1\tC1\tA100\tZo laat mogelijk\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t${alapTargetStart}\t${alapTargetEnd}\t\t\tCS_ALAP`,
+    '%R\tC\tP1\tC1\tC100\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t31\t31\t2026-01-05 08:00\t2026-01-08 12:00\t\t\t',
+    '%R\tB\tP1\tC1\tB100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-08 12:00\t2026-01-09 12:00\t\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tB\tC\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6AlapPositionedFromSuccessors',
+  label: 'C9 ALAP zo laat als de opvolgers toestaan, in werktijd',
+  input: c9Fixture('2026-01-05 08:00', '2026-01-05 17:00'),
+  taskId: 'A',
+  pick: axes => ({ es: axes.es, ef: axes.ef }),
+  on: { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' },
+  off: { es: '2026-01-07T08:00', ef: '2026-01-07T17:00' },
+});
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;
@@ -768,6 +806,38 @@ for (const fixture of groupC) {
   const unstarted = c7Fixture(false);
   eq('C7 fixture: niet-gestarte taak staat op de vloer van A16', solveAxes(unstarted, 'T').es, '2026-01-19T08:00');
   eq('C7 raakt geen niet-gestarte taak', solveAllAxes(unstarted), solveAllAxes(off(unstarted)));
+}
+
+// C9, randgevallen (docblok): een ALAP-wortel met een gepland venster ná haar opvolger heeft geen
+// eigen anker (P6: EC1420, target 06-27 07:00, ES 06-24 16:49) en landt toch vóór B, dat dan op de
+// grens van C blijft (do 8 jan 12:00); zonder C9 staat A op dat venster en duwt ze B naar di 13 jan.
+// Een gestarte ALAP-taak houdt met C9 haar werkelijke start; de oude stap schoof ook die op. Een
+// keten A0 —FS0→ A (beide ALAP) sluit aaneen: A eerst (wo 7 jan 12:00), dan A0 er direct vóór
+// (EF wo 7 jan 12:00, ES di 6 jan 12:00) — opvolgers eerst, anders blijft A0 op de statusdatum.
+{
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6AlapPositionedFromSuccessors', false));
+  const later = c9Fixture('2026-01-12 08:00', '2026-01-12 17:00');
+  const pickEsEf = (axes: Axes) => ({ es: axes.es, ef: axes.ef });
+  eq('C9 ALAP-wortel met later gepland venster ⇒ vóór haar opvolger', pickEsEf(solveAxes(later, 'A')),
+    { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
+  eq('C9 uit ⇒ ALAP-wortel op haar eigen geplande venster', pickEsEf(solveAxes(off(later), 'A')),
+    { es: '2026-01-12T08:00', ef: '2026-01-12T17:00' });
+  eq('C9 opvolger blijft op de grens van C', solveAxes(later, 'B').es, '2026-01-08T12:00');
+  eq('C9 uit ⇒ opvolger achter het geplande venster van A', solveAxes(off(later), 'B').es, '2026-01-13T08:00');
+  const started = c9Fixture('2026-01-05 08:00', '2026-01-05 17:00');
+  const a = started.tasks.find(task => task.id === 'A')!;
+  a.time.actualStart = '2026-01-05T08:00';
+  a.time.completion = 0.5;
+  eq('C9 gestarte ALAP-taak houdt haar werkelijke start', pickEsEf(solveAxes(started, 'A')),
+    { es: '2026-01-05T08:00', ef: '2026-01-05T17:00' });
+  eq('C9 uit ⇒ de oude stap schuift ook de gestarte taak op', solveAxes(off(started), 'A').es, '2026-01-07T08:00');
+  const chain = c9Fixture('2026-01-05 08:00', '2026-01-05 17:00');
+  const a0 = structuredClone(chain.tasks.find(task => task.id === 'A')!);
+  chain.tasks.unshift({ ...a0, id: 'A0', wbsCode: 'A000', name: 'Zo laat mogelijk (eerder)', p6TaskId: 'A0' });
+  chain.sequences.push({ id: 'R0', predecessorId: 'A0', successorId: 'A', type: 'FINISH_START', lagDays: 0, lagMinutes: 0 });
+  eq('C9 ALAP-keten sluit aaneen (A)', pickEsEf(solveAxes(chain, 'A')), { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
+  eq('C9 ALAP-keten sluit aaneen (A0 direct vóór A)', pickEsEf(solveAxes(chain, 'A0')),
+    { es: '2026-01-06T12:00', ef: '2026-01-07T12:00' });
 }
 
 if (diffs.length > 0) {

@@ -1208,6 +1208,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "計画開始は進行中タスクの下限ではない",
       "help": "開始済みタスクの残作業は、計画開始がそれより遅くても、ステータス日付かつ先行タスクの直後から始まります。"
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP タスクは後続タスクが許す限り遅く",
+      "help": "未開始の「できるだけ遅く」タスクは、後続タスクが許す位置で分単位で正確に終了します。自身の計画開始は考慮しません。"
     }
   },
   "profiles": {

@@ -1278,6 +1278,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Le début planifié n’est pas un plancher pour une tâche en cours",
       "help": "Le travail restant d’une tâche commencée débute à la date d’état et juste après ses prédécesseurs, même si son début planifié est plus tardif."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tâche ALAP aussi tard que ses successeurs le permettent",
+      "help": "Une tâche « le plus tard possible » non commencée se termine exactement là où ses successeurs le permettent, à la minute près ; son propre début planifié ne compte pas."
     }
   },
   "profiles": {

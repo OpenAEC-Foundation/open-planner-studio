@@ -78,6 +78,12 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  // HERPIN 2026-09-23f (X12 naar nul, brok 5 — conventie C9 `p6AlapPositionedFromSuccessors`, brok
+  // B12): 11.529 → 11.502 (−27, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles
+  // HarbourPointe_AssistedLiving (P6-doorgerekend): es −8, ef −8, tf −7, ff −4 — de ALAP-keten EC1420 →
+  // EC1430 → EC1810 sluit aan op EC2090 (ES 2012-03-06 16:49, zijn geplande start) in plaats van op
+  // het geplande venster van de ALAP-wortel EC1420; EC2090 … EC2260 volgen. Geen enkel ander bestand
+  // verandert (Hotel: de ALAP-posities vallen al samen met de geplande datums).
   // HERPIN 2026-09-23e (X12 naar nul, brok 4 — conventie C7 `p6StartedTaskIgnoresPlannedStartFloor`,
   // brok B11): 11.608 → 11.529 (−79, 0 cellen slechter, drivingPath 417 ongewijzigd). OZB-Start-09Dec24
   // (projecten 9032 en 10096): es −18, ef −18, tf −18, ff −4 — de lopende OZ1040 start ná haar lopende
@@ -131,16 +137,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 13_311, ef: 13_263, ls: 10_425, lf: 10_379, tf: 10_374, ff: 13_221 },
+    exact: { es: 13_319, ef: 13_271, ls: 10_425, lf: 10_379, tf: 10_381, ff: 13_225 },
     sameday: { es: 96, ef: 97, ls: 71, lf: 84, tf: 0, ff: 0 },
-    diff: { es: 524, ef: 577, ls: 3_326, lf: 3_350, tf: 3_303, ff: 101 },
+    diff: { es: 516, ef: 569, ls: 3_326, lf: 3_350, tf: 3_296, ff: 97 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 620, ef: 674, ls: 3_397, lf: 3_434, tf: 3_303, ff: 101 },
+    deviations: { es: 612, ef: 666, ls: 3_397, lf: 3_434, tf: 3_296, ff: 97 },
     drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: 'db051d1cc9321f75e506cd17e747275e7f4fd0db2236bb3b9c73ce84ef3c3f41',
-  productPayloadGzipSha256: 'f46d9c86e0fa249233897642675cc4e193d2f73d69aa50782b05fe84d6f811de',
-  productProjectProjectionSha256: '6463c53fad93d41c9a1bdb73ddcd005909e374b2718559517108387f6f94b85a',
+  productPayloadSha256: '586df51f6f175d3acd474238022fd03fbcf9d3ec53ab50be2d251601f91026f6',
+  productPayloadGzipSha256: 'b055c15e9d917395293b36deaa41bca10392e12f997b17bb0e37b8eee0caa35d',
+  productProjectProjectionSha256: '71e8df1f512fad6dd5e869603955ea6e37ca76feb271433e95daf85bb1f557f2',
   roles: {
     oracle: 45,
     'engine-input': 14,

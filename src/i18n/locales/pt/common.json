@@ -1278,6 +1278,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "O início planeado não é um limite mínimo para uma tarefa em curso",
       "help": "O trabalho restante de uma tarefa iniciada começa na data de estado e logo após as suas predecessoras, mesmo que o início planeado seja posterior."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tarefa ALAP tão tarde quanto as sucessoras permitem",
+      "help": "Uma tarefa «o mais tarde possível» não iniciada termina exatamente onde as suas sucessoras permitem, ao minuto; o seu próprio início planeado não conta."
     }
   },
   "profiles": {

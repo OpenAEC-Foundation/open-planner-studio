@@ -34,7 +34,7 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
- * eigen sjablonen, of het eigen profiel van dit project), daaronder de eenentwintig conventies en de negen
+ * eigen sjablonen, of het eigen profiel van dit project), daaronder de tweeëntwintig conventies en de negen
  * projectopties. Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
  * herberekenen, melding "N taken verschoven"). Alleen sjablonen opslaan/verwijderen gaat direct: dat
  * is app-data, geen projectdata.

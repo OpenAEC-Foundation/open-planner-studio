@@ -1243,6 +1243,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planned start is not a floor for a task in progress",
       "help": "The remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP task as late as its successors allow",
+      "help": "An unstarted as-late-as-possible task finishes exactly where its successors allow, to the minute; its own planned start does not count."
     }
   },
   "profiles": {
