@@ -8,7 +8,10 @@ P6-bestanden", overdracht §1a) uitsluitend de aantoonbaar door P6 doorgerekende
 `tests/planning/xer-corpus-manifest.json`, onderbouwd door `scripts/xer-p6-computed.ts`): 9 entries / 21
 projecten / 5.983 taken, X12 **1.274** na die populatiewijziging (was 11.529 op 34 entries / 47 projecten /
 13.982 taken; 15.056 bij de start). Sinds 2026-09-23 (tweede toepassing: DCP-03 Baseline is generatoruitvoer)
-8 entries / 20 projecten / 5.923 taken, X12 **192**.*
+8 entries / 20 projecten / 5.923 taken, X12 **192** (na brok 8/9 en integratieronde 2: 175). Sinds de
+eigenaarsbesluiten van 2026-09-23 (overdracht §1a, vragen 8/10/12; uitsluiting per taak/project in het manifest,
+geen nieuwe regel) 8 entries / 18 projecten / 5.882 taken, X12 **104**; 41 uitgesloten taken met hun 71
+zesassige afwijkingen staan als niet-stijgende pin `excludedHidden` in het cellenbestand.*
 
 *Meettolerantie float-assen (overdracht §1d-9) — EIGENAARSBESLUIT IN AFWACHTING, branch
 `claude/x12-tolerantie-vraag9`, niet gemerged: tf/ff tellen als exact als `|ours − truth|` op de
@@ -105,10 +108,14 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
   zelf genomen op 2026-09-23 ("alleen die P6-bestanden"): de 32 entries zonder aantoonbare P6-doorrekening
   (rehab-2 = P3-uitvoer, synthetische/generatorbestanden, hb-intel, stack_data_center, DCP-03 As-Built)
   gingen naar `reader-only`, via het corpusgroei-recept (`=corpus`-schrijfmodi, `scripts/README.md`).
-  Tweede toepassing (2026-09-23; bevestiging door de eigenaar gevraagd, overdracht §1d-11): de vier DCP-03-Baseline-kopieën
+  Tweede toepassing (2026-09-23; bevestigd door de eigenaar op 2026-09-23, overdracht §1a): de vier DCP-03-Baseline-kopieën
   hebben de kenmerken wél, maar zijn aantoonbaar generatoruitvoer (`build_programmes.py` naast het bestand);
   `build_programmes.py` reproduceert het bestand byte-exact — geen staande regel. X12 284 → 192. Elke volgende populatiewijziging vraagt een
   eigenaarsbesluit.
+  Op 2026-09-23 volgden drie eigenaarsbesluiten over een
+  DEEL van een orakelbestand (§1d-8 HarbourPointe 8 taken, §1d-10 OZB project 9033, §1d-12 Hotel project CR),
+  via `excludeTasks`/`excludeProjects` met `decision` en reden per regel: X12 175 → 104. Ook dat zijn
+  eigenaarsbesluiten, geen regel die een agent zelf mag toepassen.
 - Een cel of as pinnen om groen te worden.
 - Een P6-tak achter een formaat- of herkomstcheck stoppen.
 - Het OPS-profiel veranderen (inhoud is een eigenaarsbesluit ná nul).

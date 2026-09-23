@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie. Populatie (eigenaarsbesluit 2026-09-23, \"alleen die P6-bestanden\"): dat besluit classificeerde de toenmalige 93 entries zo dat orakel alleen een bestand is met minstens één aantoonbaar door P6 doorgerekend project, gemeten door scripts/xer-p6-computed.ts (SCHEDOPTIONS-rij + rem_late_start_date gevuld op alle open taken + driving_path_flag ergens Y; tests/planning/xer-corpus-p6computed.json). Die meting is de onderbouwing van dit besluit, geen automatische selectie: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (en een bewuste manifestwijziging). DCP-03 Baseline is op 2026-09-23 uitgesloten omdat build_programmes.py het bestand byte-exact reproduceert (sha 0611f905…; As-Built 816e0173… uit hetzelfde script); bevestiging door de eigenaar gevraagd (overdracht §1d-11); dit is geen staande regel.",
+  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie. Populatie (eigenaarsbesluit 2026-09-23, \"alleen die P6-bestanden\"): dat besluit classificeerde de toenmalige 93 entries zo dat orakel alleen een bestand is met minstens één aantoonbaar door P6 doorgerekend project, gemeten door scripts/xer-p6-computed.ts (SCHEDOPTIONS-rij + rem_late_start_date gevuld op alle open taken + driving_path_flag ergens Y; tests/planning/xer-corpus-p6computed.json). Die meting is de onderbouwing van dit besluit, geen automatische selectie: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (en een bewuste manifestwijziging). DCP-03 Baseline is op 2026-09-23 uitgesloten omdat build_programmes.py het bestand byte-exact reproduceert (sha 0611f905…; As-Built 816e0173… uit hetzelfde script); bevestigd door de eigenaar op 2026-09-23 (overdracht §1a); dit is geen staande regel. Uitsluitingen per project/taak (excludeProjects/excludeTasks) staan alleen per eigenaarsbesluit in decision, met reden per regel (2026-09-23: §1d-8 HarbourPointe, §1d-10 OZB 9033, §1d-12 Hotel CR).",
   "files": {
     "cpp-cpm-engine/validation/p6-comparison/cases-import.xer": {
       "sha256": "df264eb25ca8dc0e6e29d5ba5ba4a4e370f9126aecb99ab48e9fd4383f0287b7",
@@ -146,7 +146,11 @@
       "sha256": "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0",
       "source": "crawl-xer (publieke crawl)",
       "role": "oracle",
-      "included": true
+      "included": true,
+      "decision": "2026-09-23 eigenaarsbesluit: vraag 10 (overdracht §1d-10), letterlijk \"uitsluiten\": project 9033 is door P6 genivelleerd; P6-nivellering wordt een eigen etappe na het nuldoel",
+      "excludeProjects": [
+        { "projId": "9033", "reason": "door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)" }
+      ]
     },
     "crawl-xer/gimmer-crag-mountain-refuge.xer": {
       "sha256": "9590c4cdc4efa69a231b66ac509611d17f31605599ee7abde02a197f5e8b1e6e",
@@ -159,7 +163,18 @@
       "sha256": "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167",
       "source": "crawl-xer (publieke crawl)",
       "role": "oracle",
-      "included": true
+      "included": true,
+      "decision": "2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen",
+      "excludeTasks": [
+        { "projId": "4408", "taskCode": "EC1430", "reason": "P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC1590", "reason": "P6-span 696 u < opgeslagen restduur 720 u (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC1680", "reason": "P6-span 840 u < opgeslagen restduur 864 u (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC2060", "reason": "P6-span 480 u < opgeslagen restduur 552 u (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC2170", "reason": "P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC2200", "reason": "P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC2380", "reason": "P6-span 96 u < opgeslagen restduur 144 u (§1d-8)" },
+        { "projId": "4408", "taskCode": "EC2410", "reason": "P6-span 720 u < opgeslagen restduur 920 u (§1d-8)" }
+      ]
     },
     "crawl-xer/hb-intel_Project_Schedule.xer": {
       "sha256": "ad92ce52ba95b27539a4c0ba0c44e2a6b755ec2c15c3066009694c7430846684",
@@ -186,7 +201,11 @@
       "sha256": "9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe",
       "source": "crawl-xer (publieke crawl)",
       "role": "oracle",
-      "included": true
+      "included": true,
+      "decision": "2026-09-23 eigenaarsbesluit: vraag 12 (overdracht §1d-12), letterlijk \"ja, uitsluiten\": project CR (2665) niet door P6 doorgerekend",
+      "excludeProjects": [
+        { "projId": "2665", "reason": "project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)" }
+      ]
     },
     "crawl-xer/kedular-empty-schedule.xer": {
       "sha256": "f0af54006bc07b8731794e4b69ddad6be9ed6b0777961cd01c1cbcf3ce9dae53",
