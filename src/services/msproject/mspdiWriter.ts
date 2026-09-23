@@ -13,7 +13,7 @@ import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWork
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
-import { contourPeriodsToDayItems, minutesToMspdiValue } from '@/services/contourIo';
+import { contourPeriodsToDayItems, countSplitTasksWithoutContour, minutesToMspdiValue } from '@/services/contourIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { flattenOrder, taskDepths } from '@/utils/wbs';
 
@@ -315,10 +315,9 @@ export function writeMSPDI(
   // ZONDER contour (bv. een nivelleergat, `splitGaps` met `source: 'leveling'`) heeft geen
   // per-toewijzing-verdeling om te schrijven; die blijft een warn (MSP kent een split alleen als
   // timephased-vorm van een toewijzing).
-  const contouredTaskIds = new Set(tasks.filter(t => t.timephasedContours && t.timephasedContours.length > 0).map(t => t.id));
-  const splitWithoutContour = tasks.filter(t => t.splitGaps && t.splitGaps.length > 0 && !contouredTaskIds.has(t.id)).length;
+  const splitWithoutContour = countSplitTasksWithoutContour(tasks);
   if (splitWithoutContour > 0) {
-    console.warn(`MSPDI-export: ${splitWithoutContour} gesplitste taak/taken zonder contourdata geëxporteerd zonder native <TimephasedData> — alleen contouren (uit .mpp/MSPDI/P6) worden als tijdgefaseerde verdeling geschreven (§6).`);
+    console.warn(`MSPDI-export: ${splitWithoutContour} onderbroken taak/taken zonder urenverdeling geëxporteerd ZONDER hun onderbrekingen (gebruikers-, nivelleer- of importsplits) — alleen een contour wordt als <TimephasedData> geschreven (§6; de gebruiker krijgt een melding via exportAs).`);
   }
   // Z12-herwerk/Z14: MSP's eigen resume/stop-instanten (uit-volgorde-hervatting). MSPDI kent native
   // <Resume>/<Stop>, maar onze lezer leest ze (nog) niet terug — zelfde conservatieve keuze.

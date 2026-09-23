@@ -34,6 +34,9 @@
     "mppSourceScheduleNotes_one": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Viene importata e mostrata così com'è.",
     "mppSourceScheduleNotes_many": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
     "mppSourceScheduleNotes_other": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
+    "exportSplitsLost_one": "{{count}} attività con interruzioni è stata esportata senza le sue interruzioni: MS Project/P6 le conoscono solo come distribuzione del lavoro.",
+    "exportSplitsLost_many": "{{count}} attività con interruzioni sono state esportate senza le loro interruzioni: MS Project/P6 le conoscono solo come distribuzione del lavoro.",
+    "exportSplitsLost_other": "{{count}} attività con interruzioni sono state esportate senza le loro interruzioni: MS Project/P6 le conoscono solo come distribuzione del lavoro.",
     "projectStartAnchorsClamped_one": "Inizio del progetto spostato: {{count}} ancoraggio di attività senza predecessore né vincolo è stato spostato alla nuova data di inizio.",
     "projectStartAnchorsClamped_many": "Inizio del progetto spostato: {{count}} ancoraggi di attività senza predecessore né vincolo sono stati spostati alla nuova data di inizio.",
     "projectStartAnchorsClamped_other": "Inizio del progetto spostato: {{count}} ancoraggi di attività senza predecessore né vincolo sono stati spostati alla nuova data di inizio.",
@@ -93,6 +96,8 @@
     "priorityNormal": "Normale",
     "priorityHigh": "Alta",
     "startRelationHere": "Avvia relazione da qui",
+    "removeSplitGap": "Rimuovi la pausa",
+    "removeAllSplitGaps": "Rimuovi tutte le pause",
     "paste": "Incolla",
     "zoomReset": "Reimposta zoom",
     "fitToProject": "Adatta al progetto",
@@ -849,7 +854,9 @@
       "secondary": "Secondaria"
     },
     "dependencyModeHint": "Modalità collegamento: trascina da una barra all'altra nel Gantt per creare una relazione. Esc per uscire.",
-    "dependencyModeStop": "Esci"
+    "dependencyModeStop": "Esci",
+    "splitModeHint": "Fai clic su una barra nel giorno in cui inizia l'interruzione e trascina verso destra per la durata. Esc per uscire.",
+    "splitModeStop": "Esci"
   },
   "dateInput": {
     "placeholder": "gg-mm-aaaa",

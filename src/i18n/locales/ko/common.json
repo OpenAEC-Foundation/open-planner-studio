@@ -28,6 +28,7 @@
     "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다. 선행 작업과 후속 작업 열을 확인하세요.",
     "relationsSkippedOnInsert_other": "관계 {{count}}개를 만들지 않았습니다. 잘못된 연결입니다(예: 작업이 자신의 상위 요약 작업에 연결되었거나 중복된 관계).",
     "mppSourceScheduleNotes_other": "이 MS Project 파일에는 분할되었거나 평준화되었거나 리소스 기반으로 조정된 작업이 {{count}}개 포함되어 있습니다. 있는 그대로 가져와 표시됩니다.",
+    "exportSplitsLost_other": "중단이 있는 작업 {{count}}개가 중단 없이 내보내졌습니다. MS Project/P6은 중단을 작업 분배로만 인식합니다.",
     "projectStartAnchorsClamped_other": "프로젝트 시작일이 변경되었습니다. 선행 작업이나 제약 조건이 없는 작업 기준점 {{count}}개를 새 시작일로 이동했습니다.",
     "mppTimephasedSteeringLost_other": "이 편집 이후 MS Project의 시간 분배가 더 이상 {{count}}개 작업을 제어하지 않습니다. 원래 분배는 파일에 그대로 보존됩니다.",
     "readMore": "더 알아보기",
@@ -79,6 +80,8 @@
     "priorityNormal": "보통",
     "priorityHigh": "높음",
     "startRelationHere": "여기서 관계 시작",
+    "removeSplitGap": "중단 해제",
+    "removeAllSplitGaps": "모든 중단 해제",
     "paste": "붙여넣기",
     "zoomReset": "확대/축소 재설정",
     "fitToProject": "프로젝트에 맞추기",
@@ -825,7 +828,9 @@
       "secondary": "보조"
     },
     "dependencyModeHint": "링크 모드: 간트 차트에서 막대에서 다른 막대로 끌어 관계를 만듭니다. Esc를 누르면 종료됩니다.",
-    "dependencyModeStop": "종료"
+    "dependencyModeStop": "종료",
+    "splitModeHint": "중단이 시작되는 날에서 막대를 클릭한 다음 오른쪽으로 끌어 길이를 정합니다. Esc를 누르면 종료됩니다.",
+    "splitModeStop": "종료"
   },
   "dateInput": {
     "placeholder": "일-월-년",

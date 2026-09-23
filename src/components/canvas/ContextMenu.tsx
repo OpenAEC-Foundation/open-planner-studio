@@ -51,6 +51,12 @@ export interface ContextMenuProps {
   onSetPriority: (priority: number) => void;
   // Golf 2 — balk
   onStartRelationFromBar: () => void;
+  /** Issue #146 etappe 3: pauze-index voor "Onderbreking opheffen" (alleen bij een balk-klik op een
+   *  bewerkbare split, niet op stuk 0). Ontbreekt of `null` ⇒ dat item staat er niet. */
+  splitGapIndex?: number | null;
+  onRemoveSplitGap?: (gapIndex: number) => void;
+  /** "Alle onderbrekingen opheffen" — ook op een alleen-lezen importsplit (spec §1). */
+  onRemoveAllSplitGaps?: () => void;
   // Golf 2 — leeg canvas
   onPaste: () => void;
   onZoomReset: () => void;
@@ -89,7 +95,7 @@ export function ContextMenu({
   onCollapse, onExpand, onDelete, onAddTask,
   onInsertAbove, onInsertBelow, onIndent, onOutdent, onToggleMilestone,
   onSetCalendar, onSetProgress, onSetPriority,
-  onStartRelationFromBar,
+  onStartRelationFromBar, splitGapIndex = null, onRemoveSplitGap, onRemoveAllSplitGaps,
   onPaste, onZoomReset, onFitToProject,
   onToggleGroupCollapse, onExpandAll, onCollapseAll,
 }: ContextMenuProps) {
@@ -155,6 +161,16 @@ export function ContextMenu({
           {barHit && (
             <>
               <MenuItem label={t('context.startRelationHere')} onClick={() => { onStartRelationFromBar(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+              {(task.splitGaps?.length ?? 0) > 0 && (
+                <>
+                  {splitGapIndex !== null && onRemoveSplitGap && (
+                    <MenuItem label={t('context.removeSplitGap')} onClick={() => { onRemoveSplitGap(splitGapIndex); closeAll(); }} onEnter={() => setOpenSub(null)} />
+                  )}
+                  {onRemoveAllSplitGaps && (
+                    <MenuItem label={t('context.removeAllSplitGaps')} onClick={() => { onRemoveAllSplitGaps(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+                  )}
+                </>
+              )}
               <Separator />
             </>
           )}

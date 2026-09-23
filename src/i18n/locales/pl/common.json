@@ -37,6 +37,10 @@
     "mppSourceScheduleNotes_few": "Ten plik MS Project zawiera {{count}} zadania z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
     "mppSourceScheduleNotes_many": "Ten plik MS Project zawiera {{count}} zadań z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
     "mppSourceScheduleNotes_other": "Ten plik MS Project zawiera {{count}} zadania z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
+    "exportSplitsLost_one": "{{count}} zadanie z przerwami zostało wyeksportowane bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
+    "exportSplitsLost_few": "{{count}} zadania z przerwami zostały wyeksportowane bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
+    "exportSplitsLost_many": "{{count}} zadań z przerwami zostało wyeksportowanych bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
+    "exportSplitsLost_other": "{{count}} zadania z przerwami zostało wyeksportowane bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
     "projectStartAnchorsClamped_one": "Start projektu przesunięty: {{count}} kotwica zadania bez poprzednika lub ograniczenia została przesunięta na nową datę rozpoczęcia.",
     "projectStartAnchorsClamped_few": "Start projektu przesunięty: {{count}} kotwice zadań bez poprzednika lub ograniczenia zostały przesunięte na nową datę rozpoczęcia.",
     "projectStartAnchorsClamped_many": "Start projektu przesunięty: {{count}} kotwic zadań bez poprzednika lub ograniczenia zostało przesuniętych na nową datę rozpoczęcia.",
@@ -100,6 +104,8 @@
     "priorityNormal": "Normalny",
     "priorityHigh": "Wysoki",
     "startRelationHere": "Rozpocznij relację stąd",
+    "removeSplitGap": "Usuń przerwę",
+    "removeAllSplitGaps": "Usuń wszystkie przerwy",
     "paste": "Wklej",
     "zoomReset": "Resetuj powiększenie",
     "fitToProject": "Dopasuj do projektu",
@@ -861,7 +867,9 @@
       "secondary": "Dodatkowy"
     },
     "dependencyModeHint": "Tryb połączeń: przeciągnij od jednego paska do drugiego na wykresie Gantta, aby utworzyć relację. Esc kończy.",
-    "dependencyModeStop": "Zakończ"
+    "dependencyModeStop": "Zakończ",
+    "splitModeHint": "Kliknij pasek w dniu, w którym zaczyna się przerwa, i przeciągnij w prawo, aby ustawić długość. Esc kończy.",
+    "splitModeStop": "Zakończ"
   },
   "dateInput": {
     "placeholder": "dd-mm-rrrr",

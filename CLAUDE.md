@@ -144,6 +144,8 @@ Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histog
 
 De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/renderer/` (`GanttRenderer`): balken, relaties, tijdschaal en hit-testing horen daar. De taakrijen links van de tijdlijn zijn juist het gedeelde DOM-raster `FullTaskGrid`, via `GanttTaskGrid`; het volledige lint-tabblad **Tabel** gebruikt dezelfde kern. `TableEditor` is alleen nog een compatibiliteitsexport naar `FullTaskGrid` en heeft geen eigen structurele verantwoordelijkheid. React beheert daarnaast de omringende chrome, panelen en dialogen.
 
+**Taken splitsen (issue #146)** is één bewerkmodel met drie oppervlakken. `src/engine/scheduler/splitEdit.ts` (puur) vertaalt `Task.splitGaps` (de H1-as, waar elk gat meetelt in de positie van het volgende — zie `splitWalk.ts`) naar STUKKEN werk/pauze/werk en terug, en bevat alle bewerkingen (`splitAt`, `setGapLength`, `setWorkLength`, `removeGap`) plus `canSplitTask`; geen oppervlak rekent zelf op `afterMinutes`/`gapMinutes`. De ENE schrijfweg is `taskSlice.setTaskSplits` (undo met `coalesceKey` per sleepgebaar, `markScheduleStale`, contour verhuist mee, eigen `scheduleFinish` direct bijgewerkt). Oppervlakken: de splits-modus (`ui.showSplitMode`, knop **Taak splitsen**) met `useSplitGesture` en het stuk-/randslepen in `useBarDrag` in de Gantt, de sectie `TaskSplitsSection` in het eigenschappenpaneel, en de MCP-tool `planner_set_task_splits` (`splitFields.ts`). Een gebruikersgat draagt `source: 'user'`; bewerken adopteert nivelleergaten van die taak. Een niet-wélgevormde gatenlijst (overlap, gat op/voorbij het werktotaal) is **alleen-lezen** — nooit stil normaliseren, alleen opheffen. MSPDI/P6 kennen een split alleen als contour: zonder contour meldt de export het verlies (`exportSplitsLostNotice`).
+
 ### Rapporten: één kolomspec voor DOM én PDF
 
 Het Rapport-tabblad (`ReportPanel.tsx`) kent elf rapporttypen (`ReportType` in
@@ -291,7 +293,7 @@ bedrading — álle `@tauri-apps/*`-imports dynamisch achter `isTauri()`, zodat 
 bouwen), `dispatcher.ts`, `schemaValidate.ts` (schema's worden in de dispatcher afgedwongen, óók
 binnen `planner_batch` — een draaiboek mag de poort niet omzeilen), `toolRegistry.ts`/`toolIndex.ts`,
 `staleGuard.ts` (`ensureFreshSchedule`), `backup.ts` (AI-backups per document in `appDataDir`,
-`MAX_PER_DOC = 10`) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 40
+`MAX_PER_DOC = 10`) en `activityLog.ts` (ring-buffer achter het AI-activiteitenpaneel). De 41
 `planner_*`-tools staan in `src/services/mcp/tools/` (taken, relaties, resources, kalender, project,
 baselines, documenten/bestanden, leestools, en `planner_batch` als transactionele executor met
 temp-id-resolutie).

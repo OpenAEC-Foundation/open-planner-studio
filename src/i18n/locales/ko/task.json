@@ -327,6 +327,18 @@
       "remove": "삭제",
       "done": "완료",
       "empty": "아직 메모가 없습니다."
+    },
+    "splits": {
+      "title": "중단",
+      "after": "이후",
+      "pause": "휴지",
+      "add": "중단 추가",
+      "remove": "중단 삭제",
+      "readOnly": "이 중단은 원본 파일에서 온 것으로, 여기서 편집할 수 없는 형식입니다.",
+      "removeAll": "모든 중단 해제",
+      "leveling": "평준화",
+      "unitDays": "작업일",
+      "unitHours": "시간"
     }
   },
   "relations": {
@@ -444,5 +456,12 @@
     "edit": "외부 관계 편집…",
     "refreshSource": "소스 새로 고침",
     "deleteRelation": "관계 삭제"
+  },
+  "split": {
+    "gapDays_other": "{{count}} 근무일 중단",
+    "gapHours_other": "{{count}}시간 중단",
+    "pieceDays_other": "구간: {{count}} 근무일",
+    "pieceHours_other": "구간: {{count}}시간",
+    "merged": "병합"
   }
 }

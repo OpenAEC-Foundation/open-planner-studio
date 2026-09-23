@@ -34,6 +34,9 @@
     "mppSourceScheduleNotes_one": "Ce fichier MS Project contient {{count}} tâche à la planification fractionnée, lissée ou pilotée par les ressources. Elle est importée et affichée telle quelle.",
     "mppSourceScheduleNotes_many": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
     "mppSourceScheduleNotes_other": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
+    "exportSplitsLost_one": "{{count}} tâche avec interruptions a été exportée sans ses interruptions : MS Project/P6 ne les connaissent que comme répartition du travail.",
+    "exportSplitsLost_many": "{{count}} tâches avec interruptions ont été exportées sans leurs interruptions : MS Project/P6 ne les connaissent que comme répartition du travail.",
+    "exportSplitsLost_other": "{{count}} tâches avec interruptions ont été exportées sans leurs interruptions : MS Project/P6 ne les connaissent que comme répartition du travail.",
     "projectStartAnchorsClamped_one": "Début de projet déplacé : {{count}} ancre de tâche sans prédécesseur ni contrainte a été déplacée vers la nouvelle date de début.",
     "projectStartAnchorsClamped_many": "Début de projet déplacé : {{count}} ancres de tâche sans prédécesseur ni contrainte ont été déplacées vers la nouvelle date de début.",
     "projectStartAnchorsClamped_other": "Début de projet déplacé : {{count}} ancres de tâche sans prédécesseur ni contrainte ont été déplacées vers la nouvelle date de début.",
@@ -93,6 +96,8 @@
     "priorityNormal": "Normale",
     "priorityHigh": "Haute",
     "startRelationHere": "Démarrer une relation à partir d'ici",
+    "removeSplitGap": "Supprimer la pause",
+    "removeAllSplitGaps": "Supprimer toutes les pauses",
     "paste": "Coller",
     "zoomReset": "Réinitialiser le zoom",
     "fitToProject": "Ajuster au projet",
@@ -849,7 +854,9 @@
       "secondary": "Secondaire"
     },
     "dependencyModeHint": "Mode lien : faites glisser d'une barre à l'autre dans le Gantt pour créer une relation. Échap pour arrêter.",
-    "dependencyModeStop": "Arrêter"
+    "dependencyModeStop": "Arrêter",
+    "splitModeHint": "Cliquez sur une barre au jour où l’interruption commence et faites glisser vers la droite pour en définir la longueur. Échap pour arrêter.",
+    "splitModeStop": "Arrêter"
   },
   "dateInput": {
     "placeholder": "jj-mm-aaaa",

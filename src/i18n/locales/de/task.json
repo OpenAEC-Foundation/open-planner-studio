@@ -344,6 +344,18 @@
       "remove": "Entfernen",
       "done": "Erledigt",
       "empty": "Noch keine Notizen."
+    },
+    "splits": {
+      "title": "Unterbrechungen",
+      "after": "nach",
+      "pause": "Pause",
+      "add": "Unterbrechung hinzufügen",
+      "remove": "Unterbrechung entfernen",
+      "readOnly": "Diese Unterbrechungen stammen aus der Quelldatei in einer Form, die hier nicht bearbeitet werden kann.",
+      "removeAll": "Alle Unterbrechungen aufheben",
+      "leveling": "Kapazitätsabgleich",
+      "unitDays": "Arbeitstage",
+      "unitHours": "Stunden"
     }
   },
   "relations": {
@@ -461,5 +473,16 @@
     "edit": "Externe Beziehung bearbeiten…",
     "refreshSource": "Quelle aktualisieren",
     "deleteRelation": "Beziehung löschen"
+  },
+  "split": {
+    "gapDays_one": "{{count}} Arbeitstag Unterbrechung",
+    "gapDays_other": "{{count}} Arbeitstage Unterbrechung",
+    "gapHours_one": "{{count}} Stunde Unterbrechung",
+    "gapHours_other": "{{count}} Stunden Unterbrechung",
+    "pieceDays_one": "Abschnitt: {{count}} Arbeitstag",
+    "pieceDays_other": "Abschnitt: {{count}} Arbeitstage",
+    "pieceHours_one": "Abschnitt: {{count}} Stunde",
+    "pieceHours_other": "Abschnitt: {{count}} Stunden",
+    "merged": "Zusammenführen"
   }
 }

@@ -43,6 +43,7 @@ import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
 import { computeVariance, type VarianceRow } from '@/engine/variance';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { interruptionsOf, type Interruption } from './splitFields';
 // Zelfde twee bronnen als het slot in `ResourcePanel` en de weigering in `resourceTools` — één lijst.
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 
@@ -54,6 +55,14 @@ class ToolError extends Error {
   constructor(public code: McpErrorCode, message: string) {
     super(message);
   }
+}
+
+/** Issue #146 — de leesbare onderbrekingen van één taak (zie `splitFields.ts`). Leeg object bij een
+ *  taak zonder onderbrekingen, zodat de detailrespons van gewone taken ongewijzigd blijft. */
+function splitReadFields(task: Task, s: AppState): { interruptions?: Interruption[]; splitsEditable?: false } {
+  if (!task.splitGaps || task.splitGaps.length === 0) return {};
+  const { interruptions, editable } = interruptionsOf(task, s);
+  return editable && interruptions ? { interruptions } : { splitsEditable: false };
 }
 
 /**
@@ -513,6 +522,10 @@ function getTask(s: AppState, args: GetTaskArgs) {
     // isHammock is zelf via de bridge afgewezen) — mutatie-bewezen door de her-check-probe.
     ...(task.manuallyScheduled ? { manuallyScheduled: true } : {}),
     ...(task.splitGaps && task.splitGaps.length > 0 ? { splitGaps: task.splitGaps } : {}),
+    // Issue #146: naast de rauwe `splitGaps` de leesbare werk-as-vorm, in exact de eenheden die
+    // `planner_set_task_splits` accepteert (de schrijfkant spreekt de leeskant, zie `splitFields.ts`).
+    // Een niet-wélgevormde importsplit heeft geen leesbare vorm: `splitsEditable: false`.
+    ...splitReadFields(task, s),
     ...(task.levelingDelayMinutes != null ? { levelingDelayMinutes: task.levelingDelayMinutes } : {}),
     ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
     ...(task.effortDriven ? { effortDriven: true } : {}),
@@ -1044,9 +1057,11 @@ export const readTools: McpToolDef[] = [
       'Detail van één taak (`taskId` verplicht): metadata, duur/durationType, vroege/late datums, ' +
       'total/free float, kritiek-vlag, voortgang (+actuals), constraints (primair/secundair) en ' +
       'deadline, de effectieve kalender, ouder/kinderen, alle toewijzingen (resource, units/dag, ' +
-      'curve) en voorgangers/opvolgers (met type + lag). Bij een uit .mpp geïmporteerde taak, indien ' +
-      'aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
-      'READ-ONLY `splitGaps` (werkonderbrekingen), `levelingDelayMinutes`, `mspTaskType` (MSP Task ' +
+      'curve) en voorgangers/opvolgers (met type + lag). Een onderbroken taak draagt `splitGaps` ' +
+      '(rauw) plus de leesbare `interruptions` — dezelfde vorm die planner_set_task_splits accepteert; ' +
+      '`splitsEditable: false` = een importsplit die alleen opgeheven kan worden. Bij een uit .mpp ' +
+      'geïmporteerde taak, indien aanwezig: READ-ONLY `manuallyScheduled` (handmatig gepland), ' +
+      '`levelingDelayMinutes`, `mspTaskType` (MSP Task ' +
       'Type: FIXED_UNITS/FIXED_DURATION/FIXED_WORK), `effortDriven` en `timephasedContours` (rauwe ' +
       'contourperiodes — puur data, geen rekengedrag). Onbekend id ⇒ nette NOT_FOUND. ' +
       'NAAMDRIFT LEZEN↔SCHRIJVEN: `wbs` heet bij het schrijven `wbsCode`, en `calendar.effectiveId` ' +

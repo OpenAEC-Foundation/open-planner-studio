@@ -34,6 +34,7 @@ import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { HourDataNotice } from '@/components/layout/HourDataNotice';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
+import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 
@@ -253,6 +254,10 @@ function AppContent() {
       {/* Relatiemodus-strook (issue #40): zichtbaar zolang de Relatie-knop/het contextmenu de
           "plakkende Shift" heeft aangezet — sleep dan in de Gantt van balk naar balk. */}
       <DependencyModeNotice />
+
+      {/* Splits-modus-strook (issue #146): zichtbaar zolang de knop Taak splitsen aan staat — klik
+          dan op een balk waar de onderbreking begint en sleep naar rechts voor de lengte. */}
+      <SplitModeNotice />
 
       {/* "Datums zoals opgeslagen"-strook (issue #63): aanbod ná het laden van een bestand waarvan
           herberekening de datums verschoof, of de modus zelf zolang hij aan staat. Bewust BOVEN de

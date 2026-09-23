@@ -202,7 +202,7 @@ function hourTask(id: string, earlyStart: string, earlyFinish: string, splitGaps
 }
 
 const W = 1400, H = 600, ROWH = 28, HDRH = 60;
-function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { rects: RRect[]; lines: LineEv[] } {
+function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { rects: RRect[]; lines: LineEv[]; renderer: GanttRenderer } {
   const { ctx, rects, lines } = makeCtx();
   const renderer = new GanttRenderer(ctx, {
     rows,
@@ -225,7 +225,7 @@ function renderRows(rows: ViewRow[], opts: Partial<GanttRenderOptions> = {}): { 
   let err: unknown = null;
   try { renderer.render(); } catch (e) { err = e; }
   ok(`render() gooit niet: ${String(err)}`, err === null);
-  return { rects, lines };
+  return { rects, lines, renderer };
 }
 const barTop = (i: number) => HDRH + i * ROWH;
 const inRow = (r: { y: number }, i: number) => r.y >= barTop(i) && r.y < barTop(i + 1);
@@ -370,6 +370,77 @@ console.log('-- split-bar-render: dag-modus splitGaps (addWorkingDaysSigned-pad,
   const { rects } = renderRows([{ kind: 'task', rowKey: dayTask.id, task: dayTask, depth: 0, dimmed: false }]);
   const dayRects = rects.filter(r => inRow(r, 0));
   eq('dag-modus: 1 gat ⇒ 2 segmenten, GEEN crash', dayRects.length, 2);
+}
+
+// ── Etappe 3 (issue #146): de hit-test kent de STUKKEN van een gesplitste balk. Een stuk-body en
+//    een stuk-rechterrand zijn grijpvlakken met hun eigen index; een pauze is GEEN grijpvlak. Een
+//    ongesplitste balk is één stuk (index 0 van 1) en houdt zijn oude randen. ──────────────────
+//    10-daagse dag-taak (ma 06-01), gat na 5 werkdagen van 3 werkdagen ⇒ ma–vr | pauze ma–wo |
+//    do 06-11 t/m wo 06-17. Zoom 30, viewstart 06-01 ⇒ stuk 1 x 0..210 (de exclusieve stukgrens
+//    is de volgende WERKdag, ma 06-08, dus het weekend tekent aan het stuk vast), stuk 2 x 300..510.
+console.log('-- split-bar-render: hit-test per stuk (segmentIndex/segmentCount, pauze = null) --');
+{
+  const splitTask: Task = {
+    ...base, id: 'dayrow',
+    time: {
+      ...base.time,
+      earlyStart: '2026-06-01', earlyFinish: '2026-06-17',
+      scheduleStart: '2026-06-01', scheduleFinish: '2026-06-17', scheduleDuration: 10, completion: 0,
+    },
+    splitGaps: [{ afterMinutes: 2400, gapMinutes: 1440, source: 'user' }],
+  } as Task;
+  const plainTask: Task = {
+    ...base, id: 'dayrow2',
+    time: {
+      ...base.time,
+      earlyStart: '2026-06-01', earlyFinish: '2026-06-12',
+      scheduleStart: '2026-06-01', scheduleFinish: '2026-06-12', scheduleDuration: 10, completion: 0,
+    },
+    splitGaps: undefined,
+  } as Task;
+  const { rects, renderer } = renderRows([
+    { kind: 'task', rowKey: splitTask.id, task: splitTask, depth: 0, dimmed: false },
+    { kind: 'task', rowKey: plainTask.id, task: plainTask, depth: 0, dimmed: false },
+  ]);
+  const segs = rects.filter(r => inRow(r, 0));
+  eq('opzet: 1 gat ⇒ 2 stukken', segs.length, 2);
+  if (segs.length === 2) {
+    const [s1, s2] = segs;
+    near('opzet: stuk 1 eindigt op x 210', s1.x + s1.w, 210);
+    near('opzet: stuk 2 begint op x 300', s2.x, 300);
+    const y = rowMidY(0);
+    const mid2 = renderer.getTaskBarBounds((s2.x + s2.x + s2.w) / 2, y);
+    eq('midden stuk 2: taak', mid2?.task.id, 'dayrow');
+    eq('midden stuk 2: body', mid2?.edge, 'body');
+    eq('midden stuk 2: segmentIndex 1', mid2?.segmentIndex, 1);
+    eq('midden stuk 2: segmentCount 2', mid2?.segmentCount, 2);
+    const right1 = renderer.getTaskBarBounds(s1.x + s1.w - 2, y);
+    eq('rechterrand stuk 1: right', right1?.edge, 'right');
+    eq('rechterrand stuk 1: segmentIndex 0', right1?.segmentIndex, 0);
+    eq('rechterrand stuk 1: segmentCount 2', right1?.segmentCount, 2);
+    const left1 = renderer.getTaskBarBounds(s1.x + 2, y);
+    eq('linkerrand stuk 1: left (hele taak)', left1?.edge, 'left');
+    eq('linkerrand stuk 1: segmentIndex 0', left1?.segmentIndex, 0);
+    const left2 = renderer.getTaskBarBounds(s2.x + 2, y);
+    eq('linkerrand stuk 2 heeft GEEN eigen grijpzone: body', left2?.edge, 'body');
+    eq('linkerrand stuk 2: segmentIndex 1', left2?.segmentIndex, 1);
+    const right2 = renderer.getTaskBarBounds(s2.x + s2.w - 2, y);
+    eq('rechterrand laatste stuk: right', right2?.edge, 'right');
+    eq('rechterrand laatste stuk: segmentIndex 1', right2?.segmentIndex, 1);
+    eq('x IN de pauze: geen grijpvlak', renderer.getTaskBarBounds(255, y), null);
+    eq('x in de pauze: getSplitGapAt geeft pauze 0', renderer.getSplitGapAt(255, y)?.gapIndex, 0);
+    eq('x in de pauze: getSplitGapAt geeft de taak', renderer.getSplitGapAt(255, y)?.task.id, 'dayrow');
+    eq('x op een stuk: getSplitGapAt null', renderer.getSplitGapAt((s2.x + s2.x + s2.w) / 2, y), null);
+  }
+  // Ongesplitste balk: één stuk, randen en body zoals altijd.
+  const y2 = rowMidY(1);
+  const plainBody = renderer.getTaskBarBounds(150, y2);
+  eq('ongesplitst: body', plainBody?.edge, 'body');
+  eq('ongesplitst: segmentIndex 0', plainBody?.segmentIndex, 0);
+  eq('ongesplitst: segmentCount 1', plainBody?.segmentCount, 1);
+  eq('ongesplitst: linkerrand', renderer.getTaskBarBounds(2, y2)?.edge, 'left');
+  eq('ongesplitst: rechterrand', renderer.getTaskBarBounds(358, y2)?.edge, 'right');
+  eq('ongesplitst: getSplitGapAt null', renderer.getSplitGapAt(150, y2), null);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
