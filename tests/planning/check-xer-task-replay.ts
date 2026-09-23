@@ -60,6 +60,10 @@ if (!corpusRoot) {
   // maken (corpusbreed ls 4791 → 3901 en lf 4781 → 3891 afwijkingen, zie
   // `xer-schedoptions-blast-radius.json`). `synthetic-zero-regression` blijft ongewijzigd op 0
   // regressies — de nulmeting is dus niet meeverschoven.
+  // Herpin 2026-09-23 (X12 brok 2, C1–C3): dezelfde richting. C3 maakt 122 ls-, 122 lf- en 107
+  // tf-cellen exact (rehab-2); de mutant maakt er daardoor ls 1559 → 1671, lf 1570 → 1682, tf 1487 →
+  // 1591 en overall 1570 → 1682 kapot. Som regressed+unchanged per as ongewijzigd; es/ef/ff gelijk.
+  // Dit pin was bij de brok-2-herpin (7c37b212/d6db800c) vergeten en ving de fixronde op.
   for (const candidate of [syntheticZeroRegressionCandidate, dropFinishMilestoneBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {
