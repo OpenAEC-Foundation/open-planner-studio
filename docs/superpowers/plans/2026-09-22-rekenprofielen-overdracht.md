@@ -319,12 +319,11 @@ groter=0 schuld=0`, uitgesloten 41 taken in 3 projecten. De eindreview van de et
 staat in `2026-09-24-eindreview-fable-pr169.md` — oordeel GO met B1 uitgezonderd; de PR-body van #169 is
 op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.md`). Wat nog telt:
 
-1. **B1 landen** (`claude/x12-ui-profielwissel-datums`, worktree `agent-x12-ui-profielwissel-datums`,
-   kop `8b9358b0` + tweede fixronde door `opus-laag-b1-landfixes-2`): reconcile ná `clearLevelingGaps`
-   in `updateTask`/`setTaskCalendar`/MCP `updateTaskFields`/`patchTaskFields`, echte mutantentellingen,
-   checks voor manual/hammock/samenvatting + store-`addTask`-seed. Na het rapport: korte her-check,
-   mergen op de etappebranch vanuit de orkestrator-worktree, lichte poorten, losgekoppelde `verify`
-   (één tegelijk, `flock /tmp/ops-heavy-suite.lock`), `measure:profiles` moet 104/0/0/0 blijven.
+1. **B1 gemerged** (`520c1bf7`, tweede fixronde `f0bbf901` her-gecheckt door Fable, eindreview deel 3;
+   `check-profile-switch-dates` 08/09 bijgewerkt naar 2 verschoven na vraag 7, `7f2fc214`). Lichte
+   poorten groen; losgekoppelde keten gestart 00:33 (`/tmp/ops-chain-b1-measure.log` → `MEASURE_EXIT=`,
+   `/tmp/ops-chain-b1-verify.log` → `EXIT=`): verwacht 104/0/0/0 en EXIT=0. Is dat zo, dan is de etappe
+   op de kop compleet op de eigenaarsvragen na; is het niet zo, dan eerst dát.
 2. **Eigenaarsvraag 13** (§1d): EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op

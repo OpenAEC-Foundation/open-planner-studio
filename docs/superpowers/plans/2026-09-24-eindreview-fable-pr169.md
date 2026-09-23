@@ -96,3 +96,21 @@ bronformaat, elke P6-regel is een benoemde conventie met bron en meting, de meet
 (alleen P6-uitvoer, ratchet per cel op emmer én grootte, uitsluitingen alleen per eigenaarsbesluit),
 en de documentatie volgt de code. B1 (invoercoherentie) volgt na zijn tweede fixronde als eigen
 merge met eigen her-check.
+
+## Deel 3 — B1 gemerged (`520c1bf7` + `7f2fc214`, 2026-09-24 ~00:33)
+
+Eigen her-check van de tweede fixronde (`8b9358b0..f0bbf901`, Opus 5.5): de reconcile staat in alle
+vier de paden ná `clearLevelingGaps` (taskSlice `updateTask`/`setTaskCalendar`, MCP
+`updateTaskFields`/`patchTaskFields`; het gridpad stond al goed: `applyOneCellEdit` en de groepsroute
+in `taskEditPlan.ts`), met per pad een check met een nivelleergat die met de oude volgorde rood wordt.
+De mutantentabel in de testkop noemt nu de echte aantallen. De niet-herleidende paden (project-/gedeelde
+kalender, split zonder duur, nivelleerder, `moveProject`, `.mpp`-resourcekalender) staan als bewuste keuze
+in docblok en gids. Eén spelfout (`hamock`) in de merge gecorrigeerd. [BEVESTIGD]
+
+Eén rode gerichte check ná de merge, `check-profile-switch-dates` 08/09 (3 verwacht, 2 gekregen): geen
+regressie maar de vraag-7-merge — A1 (voltooid) verliest onder P6 zijn statusdatumvenster niet meer omdat
+B3 in P6 uit staat, dus P6 en OPS geven A1 dezelfde datums; alleen A4 en M1 schuiven nog. Telling en
+kopcommentaar bijgewerkt (`7f2fc214`). [BEVESTIGD met een ES/EF-dump per taak]
+
+**Oordeel Fable: GO voor de hele etappe, B1 inbegrepen**, onder voorbehoud van de lopende keten
+(`measure:profiles` moet 104/0/0/0 blijven, `verify` EXIT=0) — uitslag in de overdracht §2.
