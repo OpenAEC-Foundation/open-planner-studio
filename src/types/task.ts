@@ -215,7 +215,10 @@ export interface TaskTime {
    *  uit imports blijft daarbij ongewijzigd. */
   durationMinutes?: number;
   scheduleStart: string;    // ISO 8601 — date-only in dag-modus, datetime in uur-modus
-  scheduleFinish: string;   // ISO 8601 — date-only in dag-modus, datetime in uur-modus
+  /** ISO 8601 — date-only in dag-modus, datetime in uur-modus. INVOER ("Gepland einde"): de solve schrijft
+   *  hem nooit terug (B1). Bij een niet-gestarte urentaak houdt de invoerkant hem gelijk aan start + duur
+   *  op de taakkalender (`reconcileHourInputFinish`, utils/taskDefaults.ts); lezers zetten de bronwaarde. */
+  scheduleFinish: string;
   /** OPTIONEEL — MSP's EIGEN opgeslagen hervattingsinstant voor een IN-PROGRESS-taak (`.mpp`-
    *  veld-id 99, `TaskField.RESUME`, `DataType.DATE`; Z12-herwerk, dossier out-of-sequence-
    *  actuals). Geen afgeleide/herberekende waarde — de invoer staat letterlijk in het bestand,
@@ -275,7 +278,8 @@ export interface TaskTime {
  *  en overschrijft de passende afgeleide duurbron (`scheduleDuration` of `durationMinutes`) voor
  *  HAMMOCK-taken (afgeleide span, `CPMSolver`). `durationType` blijft puur invoer, en `scheduleFinish`
  *  ook: de solve schrijft hem nooit terug (gebruikstest 24-09, B1 — anders leest de volgende berekening
- *  onder een P6-conventie de uitvoer van de vorige als gepland bronvenster). */
+ *  onder een P6-conventie de uitvoer van de vorige als gepland bronvenster). Bij een urentaak houdt de
+ *  INVOERKANT hem coherent met start + duur (`reconcileHourInputFinish` in utils/taskDefaults.ts). */
 export type TaskTimeInput = Pick<
   TaskTime,
   'durationType' | 'durationUnit' | 'scheduleDuration' | 'durationMinutes' | 'scheduleStart' | 'scheduleFinish'

@@ -101,8 +101,13 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     // schreef deze functie in uur-modus `scheduleFinish = earlyFinish` terug (fase 2.8b, "nooit
     // meer stale na een duur-wijziging"); daardoor werd de uitvoer van de ene berekening invoer
     // voor de volgende. Gemeten: XER onder P6 → OPS → P6 gaf de eindmijlpaal ES 27-03 / EF 13-03
-    // (einde vóór start), en Bereken herstelde het niet. De berekende finish leeft in `earlyFinish`;
-    // weergave en export lezen `earlyFinish || scheduleFinish`, precies zoals voor dag-taken.
+    // (einde vóór start), en Bereken herstelde het niet. De berekende finish leeft in `earlyFinish`.
+    // LET OP (rechtzetting critreview 24-09): niet ÁLLE weergave en export lezen
+    // `earlyFinish || scheduleFinish` — de gridkolom "Gepland einde", IfcTaskTime.ScheduleFinish, het
+    // IFC-werkplan-einde en de extensie-mapping lezen `scheduleFinish` RAUW, als ingevoerd einde. Die
+    // blijft daarom coherent aan de INVOERKANT: nieuwe taak en elke duur-/start-/kalenderwijziging
+    // leiden het einde van een niet-gestarte urentaak af uit start + duur (`reconcileHourInputFinish`,
+    // `seedNewHourTaskFinish` en `createDefaultTaskTime` in utils/taskDefaults.ts) — nooit hier.
     //
     // UUR-MODUS (fase 2.8b, FIX golf, §2.4): scheduleStart houdt zijn ANKER-instant maar wordt
     // idempotent naar de datetime-vorm genormaliseerd (parseInstant→formatInstant('hour') verandert

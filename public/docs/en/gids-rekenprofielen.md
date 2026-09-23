@@ -38,11 +38,13 @@ Choose another profile in **Project info** and click **Apply**. The schedule is 
 
 Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
 
-When you switch between the built-in profiles, all deviations stay exactly as they are, including one that happens to equal the default of the new profile. So Primavera P6 → Open Planner Studio → Primavera P6 gives back exactly the profile you started with.
+When you switch between the built-in profiles, all deviations stay exactly as they are, including one that happens to equal the default of the new profile. So Primavera P6 → Open Planner Studio → Primavera P6 gives back exactly the profile you started with, and the schedule: the calculated dates are the same as before the switch, also after **Calculate** and after saving and reopening.
 
 The project's calculation options do not change when you switch. If you want the default options of the new profile, click **Apply this profile's default options**.
 
 Take care when switching a project that does not come from P6 to Primavera P6: the convention *Planned start as an extra floor* makes a task's planned start a floor as soon as it lies more than one calendar day later than the network allows.
+
+The columns *Scheduled start* and *Scheduled finish* are input, not a calculation result: the calculated dates are in *Early start* and *Early finish*. A calculation or a profile switch therefore does not change them, and some Primavera P6 conventions read them as the planned window from the file. For a task in hours that has not started yet, *Scheduled finish* does move along when you change the duration, the start or the calendar: it then becomes the start plus the duration on the task's calendar. For a started task and for a P6 task with its own planned window from the `.xer` file it stays as it is.
 
 ## Making a custom profile
 

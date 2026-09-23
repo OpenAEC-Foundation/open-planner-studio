@@ -1492,6 +1492,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # scheduleFinish niet meer terug), ook na opslaan als IFC en heropenen.
   PROFILESWITCHDATESCHECK="$DIR/.profile-switch-dates.mjs"
   if bundle_check "$DIR/check-profile-switch-dates.ts" "$PROFILESWITCHDATESCHECK"; then node "$PROFILESWITCHDATESCHECK" || STATUS=1; fi
+  # B1-vervolg (critreview 24-09): het ingevoerde einde van een urentaak blijft coherent met start + duur
+  # aan de invoerkant (nieuwe taak, updateTask, grid, MCP), nu de solve het niet meer terugschrijft.
+  HOURINPUTFINISHCHECK="$DIR/.hour-input-finish.mjs"
+  if bundle_check "$DIR/check-hour-input-finish.ts" "$HOURINPUTFINISHCHECK"; then node "$HOURINPUTFINISHCHECK" || STATUS=1; fi
   CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
   if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
 
