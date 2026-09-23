@@ -765,7 +765,7 @@ if (!corpusRoot) {
   }, { files: 27, cells: 2_025 });
   // C5–C8b: populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
   // orakels, zie `xer-corpus-manifest.json` policy); vóór dat besluit 36/18.190/34/13.959/2. Herpin
-  // 2026-09-24 (tweede toepassing van hetzelfde besluit: DCP-03 Baseline, generatoruitvoer van
+  // 2026-09-23 (tweede toepassing van hetzelfde besluit: DCP-03 Baseline, generatoruitvoer van
   // build_programmes.py, naar reader-only): 10/10.178/9/5.961 → 9/10.118/8/5.901.
   eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 9);
   eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_118);

@@ -29,7 +29,7 @@ import {
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 // Populatie na het eigenaarsbesluit van 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels.
-// Herpin 2026-09-24 (tweede toepassing: DCP-03 Baseline 0611f9054a4b5663 is generatoruitvoer → reader-only).
+// Herpin 2026-09-23 (tweede toepassing: DCP-03 Baseline 0611f9054a4b5663 is generatoruitvoer → reader-only).
 const EXPECTED_BASELINE_KEYS = [
   '2bc12241c3f8ee5b', '4d8bce790a93b9bc', '55b7e4463dcd36ba', '68ce5f0bb2b534d5',
   '9679599df9108bd3', 'a2ef7b35c00d8cf8', 'a2f3b2469e26f199', 'b9547eb91c30af17',
@@ -37,7 +37,8 @@ const EXPECTED_BASELINE_KEYS = [
 const EXPECTED_MEASURABLE = {
   es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712,
 } as const;
-const EXPECTED_MANIFEST_SHA256 = '0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605';
+// HERPIN 2026-09-23i (fix critreview DCP-03): alleen policytekst/datums in het manifest, populatie ongewijzigd.
+const EXPECTED_MANIFEST_SHA256 = 'd5bb689cb8068307ad29ee6ae46d39ba61fa162a5575ff7cd81add85b6b69b1c';
 const EXPECTED_BASELINE_SHA256 = '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2';
 
 const diffs: string[] = [];
@@ -235,7 +236,7 @@ function validateBaseline(v: unknown): string[] {
     const entries = Object.entries(manifest.files);
     // Populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
     // orakels): 45 → 13 orakelbestanden; de 32 andere zijn `reader-only` met reden. Tweede toepassing
-    // 2026-09-24: de vier DCP-03-Baseline-kopieën (generatoruitvoer) → 13 → 9, 80 → 84.
+    // 2026-09-23: de vier DCP-03-Baseline-kopieën (generatoruitvoer) → 13 → 9, 80 → 84.
     eq('1h manifestselectie bevat 9 aantoonbaar door P6 doorgerekende orakelbestanden',
       entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 9);
     eq('1i manifest sluit 84 fixtures/pseudo-/invoer-/lezerbestanden met reden uit',

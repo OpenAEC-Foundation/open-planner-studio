@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie. Populatie (eigenaarsbesluit 2026-09-23, \"alleen die P6-bestanden\"): dat besluit classificeerde de toenmalige 93 entries zo dat orakel alleen een bestand is met minstens één aantoonbaar door P6 doorgerekend project, gemeten door scripts/xer-p6-computed.ts (SCHEDOPTIONS-rij + rem_late_start_date gevuld op alle open taken + driving_path_flag ergens Y; tests/planning/xer-corpus-p6computed.json). Die meting is de onderbouwing van dit besluit, geen automatische selectie: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (en een bewuste manifestwijziging). Het kenmerkencriterium is noodzakelijk maar niet voldoende: bewijs dat een generator(script) de kenmerken zelf schrijft sluit een entry uit (tweede toepassing van hetzelfde besluit, 2026-09-24: de vier byte-identieke DCP-03-Baseline-kopieën, generatoruitvoer van build_programmes.py).",
+  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie. Populatie (eigenaarsbesluit 2026-09-23, \"alleen die P6-bestanden\"): dat besluit classificeerde de toenmalige 93 entries zo dat orakel alleen een bestand is met minstens één aantoonbaar door P6 doorgerekend project, gemeten door scripts/xer-p6-computed.ts (SCHEDOPTIONS-rij + rem_late_start_date gevuld op alle open taken + driving_path_flag ergens Y; tests/planning/xer-corpus-p6computed.json). Die meting is de onderbouwing van dit besluit, geen automatische selectie: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (en een bewuste manifestwijziging). DCP-03 Baseline is op 2026-09-23 uitgesloten omdat build_programmes.py het bestand byte-exact reproduceert (sha 0611f905…; As-Built 816e0173… uit hetzelfde script); bevestiging door de eigenaar gevraagd (overdracht §1d-11); dit is geen staande regel.",
   "files": {
     "cpp-cpm-engine/validation/p6-comparison/cases-import.xer": {
       "sha256": "df264eb25ca8dc0e6e29d5ba5ba4a4e370f9126aecb99ab48e9fd4383f0287b7",
@@ -442,7 +442,7 @@
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-24: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
+      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
       "note": "De drie p6Computed-kenmerken zijn hier aanwezig (p6Computed true), maar het bestand komt uit build_programmes.py naast het bestand (regels 641 SCHEDOPTIONS-kolommen, 945 rem_late_start_date, 947 driving_path_flag, 937-938 total_float = free_float = TF*hpd; ERMHDR 'oaltun'). Zie docs/superpowers/plans/2026-09-24-x12-restant-onderzoek-284.md §DCP-03 en generatorEvidence in xer-corpus-p6computed.json."
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
@@ -457,7 +457,7 @@
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-24: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
+      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
       "note": "De drie p6Computed-kenmerken zijn hier aanwezig (p6Computed true), maar het bestand komt uit build_programmes.py naast het bestand (regels 641 SCHEDOPTIONS-kolommen, 945 rem_late_start_date, 947 driving_path_flag, 937-938 total_float = free_float = TF*hpd; ERMHDR 'oaltun'). Zie docs/superpowers/plans/2026-09-24-x12-restant-onderzoek-284.md §DCP-03 en generatorEvidence in xer-corpus-p6computed.json."
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revA.xer": {
@@ -493,7 +493,7 @@
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-24: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
+      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
       "note": "De drie p6Computed-kenmerken zijn hier aanwezig (p6Computed true), maar het bestand komt uit build_programmes.py naast het bestand (regels 641 SCHEDOPTIONS-kolommen, 945 rem_late_start_date, 947 driving_path_flag, 937-938 total_float = free_float = TF*hpd; ERMHDR 'oaltun'). Zie docs/superpowers/plans/2026-09-24-x12-restant-onderzoek-284.md §DCP-03 en generatorEvidence in xer-corpus-p6computed.json."
     },
     "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
@@ -508,7 +508,7 @@
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-24: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
+      "exclusionReason": "Generatoruitvoer (build_programmes.py schrijft SCHEDOPTIONS/rem_late_start_date/driving_path_flag zelf; dagplanning met EF 17:00, ff = tf). Blijft lezertest; eigenaarsbesluit 2026-09-23, tweede toepassing 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel.",
       "note": "De drie p6Computed-kenmerken zijn hier aanwezig (p6Computed true), maar het bestand komt uit build_programmes.py naast het bestand (regels 641 SCHEDOPTIONS-kolommen, 945 rem_late_start_date, 947 driving_path_flag, 937-938 total_float = free_float = TF*hpd; ERMHDR 'oaltun'). Zie docs/superpowers/plans/2026-09-24-x12-restant-onderzoek-284.md §DCP-03 en generatorEvidence in xer-corpus-p6computed.json."
     },
     "delay-analysis-toolkit/sample/revisions/revA.xer": {

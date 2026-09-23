@@ -1014,7 +1014,7 @@ if (!root) {
     }
     eq('files[]-identiteiten exact als gemeten',
       measured.files.map(file => file.id).sort(), committed.files.map(file => file.id).sort());
-    // Herpin 2026-09-24 (populatie, tweede toepassing van het besluit van 2026-09-23: de vier
+    // Herpin 2026-09-23 (populatie, tweede toepassing van het besluit van 2026-09-23: de vier
     // DCP-03-Baseline-kopieën zijn generatoruitvoer → reader-only): alleen `expectedFinishVariant.fidelity`
     // (manifest-orakels) beweegt — measurable −240 per as (4 × 60), deviations es 2559 → 2331,
     // ef 2534 → 2298, ls 655 → 419, lf 846 → 606, tf 2932 → 2888, ff 1139 → 1059; chosen en
