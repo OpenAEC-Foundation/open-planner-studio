@@ -295,7 +295,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 - **Extensie-API**: `ExtProject.schedulingProfile` additief (apiVersion 1.2.0); `publicSchedulingOptions`
   blijft; `fromExtProject`/`fromExtImportResult` nemen **nooit** een meegegeven profiel over
   (extensie-import ⇒ OPS). `ExtCalendar.p6Source` blijft (gepubliceerd).
-- **MCP**: `planner_get_project_info` toont het profiel; `planner_xer_provenance` geeft de opgeloste
+- **MCP**: `planner_get_project_info` toont het profiel; `planner_inspect_xer_provenance` geeft de opgeloste
   set i.p.v. `mappedSchedulingOptions` met `p6Source`; de weigerteksten in `calendarResourceTools`
   worden bijgewerkt.
 - **Tests**: 106 `p6Source`-treffers (tweede inventaris) — per bestand voorgeschreven in het

@@ -124,10 +124,10 @@ de overdrachtsstand staat in `docs/superpowers/plans/2026-08-20-plan-xer-p6-leze
 
 Drie architectuurregels die je moet kennen. (1) **Het bronarchief.** De volledige oorspronkelijke
 `.xer`-bytes reizen als `xerSourceArchive` (+ `xerImportMetadata`, `xerSourceProjectId`) mee in
-`DOCUMENT_FIELDS` én in `IFC_SAVE_KEYS` (`src/services/xerSourceArchive.ts`): het IFC-projectbestand
+`DOCUMENT_FIELDS` én in `IFC_SAVE_KEYS` (`src/state/ifcSaveInput.ts`; de archiefvelden zelf in `src/services/xerSourceArchive.ts`): het IFC-projectbestand
 en elke crashherstel-snapshot dragen het archief, zonder bovengrens — gemeten 17,7 MB `.xer` ⇒ ±50 MB
 IFC, ±3,6 s hoofdthread per auto-save-tick (`docs/xer-recovery-guardrails.md`; eigenaarsbesluit,
-plan §10.f). De MCP-tool `planner_xer_provenance` en de extensie-API `data.getImportSource*` (achter
+plan §10.f). De MCP-tool `planner_inspect_xer_provenance` en de extensie-API `data.getImportSource*` (achter
 de permissie `importSource`, default-deny) lezen eruit. (2) **Bak 4 — opgeslagen rekenuitvoer is
 weergave, nooit solverinvoer.** De zes P6-uitvoerkolommen (`early_/late_start/end_date`,
 `total_/free_float_hr_cnt`) mogen uitsluitend via `xerRecordedTimes.ts` gelezen worden, als
