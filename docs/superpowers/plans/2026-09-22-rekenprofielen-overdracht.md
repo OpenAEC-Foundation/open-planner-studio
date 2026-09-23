@@ -70,6 +70,9 @@ afwijkingen hebben met XER".)
   gaat per `excludeProjects` met `decision` uit het orakel; P6-nivellering wordt een eigen etappe ná het
   nuldoel (niet in deze meting).
 
+- **24-09, vraag 12 (Hotel deelproject CR 2665, niet P6-doorgerekend), letterlijk: "ja, uitsluiten"** —
+  project 2665 gaat per `excludeProjects` met `decision` uit het orakel (alleen drivingPath-cellen).
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -213,7 +216,7 @@ afwijkingen hebben met XER".)
     als drie gewone relaties nagebootst: 42 → 6. Nivellering is geen CPM-conventie maar een aparte P6-stap.
     Besluit nodig: 9033 buiten het nuldoel (projectniveau-uitsluiting, kent het manifest nog niet), of
     P6-nivellering als eigen etappe in de meting bouwen. Aanbeveling: buiten het nuldoel, als eigen etappe
-    ná X12. **Beslisbaar met één manifestregel (mechanisme 23-09):** zeg ja ⇒
+    ná X12. *(beantwoord 24-09: "ja, uitsluiten", zie §1a)* **Beslisbaar met één manifestregel (mechanisme 23-09):** zeg ja ⇒
     `crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer` krijgt `excludeProjects: [{ projId: "9033", … }]` met een
     `decision` (blok in `scripts/README.md`); proef: −38 zesassige cellen, −4 drivingPath. — Sample_Construction (12): één SF-lag-0-relatie waar P6 het einde één minuut ná de start van
     de voorganger zet (08:01/15:59 zijn echte P6-waarden); n=1 zonder Oracle-bron ⇒ open restant
