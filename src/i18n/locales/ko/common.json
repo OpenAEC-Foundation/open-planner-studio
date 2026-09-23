@@ -1220,6 +1220,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "자체 캘린더 기준 최종 완료",
       "help": "후속 작업이 정한 최종 완료가 작업의 근무 시간 밖에 있으면, 작업 자체 캘린더의 이전 근무 기간 종료 시점이 됩니다."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override는 시작된 후행 작업을 역방향 계산에서도 무시",
+      "help": "Progress Override에서는 이미 시작된 후행 작업과의 관계가 아직 끝나지 않은 선행 작업의 최늦 날짜와 자유 여유에 반영되지 않습니다."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "가장 이른 종료는 종료-종료 경계보다 앞서지 않음",
+      "help": "종료-종료 관계에서 후행 작업의 가장 이른 종료는 시계 시간으로 선행 작업이 정한 경계보다 앞서지 않습니다. 그 경계가 후행 작업의 비작업 시간에 해당하면, 종료는 다음 작업 시간대의 시작이 됩니다."
     }
   },
   "profiles": {

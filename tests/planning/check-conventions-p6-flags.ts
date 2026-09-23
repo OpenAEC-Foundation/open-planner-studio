@@ -484,7 +484,9 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
 // C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`, C5 `p6CompletedPhysicalAtDataDate`,
 // C6 `p6InProgressStartLagElapsed`; brok 4: C7 `p6FinishFinishStartMilestoneLateFinish`, C8
-// `p6StartedTaskIgnoresPlannedStartFloor`; brok 6: C9 `p6LateFinishOnOwnCalendar` ──
+// `p6StartedTaskIgnoresPlannedStartFloor`; brok 6: C9 `p6LateFinishOnOwnCalendar`; brok 8: C11
+// `p6ProgressOverrideIgnoresStartedSuccessor`, C12 `p6FinishNotBeforeFinishFinishBound` (C10 = de geparkeerde
+// ALAP-conventie, niet in het register) ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
@@ -492,6 +494,7 @@ const GROUP_C = [
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow',
   'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6LateFinishOnOwnCalendar',
+  'p6ProgressOverrideIgnoresStartedSuccessor', 'p6FinishNotBeforeFinishFinishBound',
 ] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
@@ -705,6 +708,51 @@ groupC.push({
   off: { es: '2026-01-05T08:00', ef: '2026-01-06T17:00' },
 });
 
+// C5, vrije-spelingkant (X12 brok 8; Roads OCEC18201 → de voltooide CP_Phys-OCEC18381 met punt 06-23 17:00:
+// P6 ff 3000 min = 50 h van EF 06-16 17:00 tot dat punt). Twee open voorgangers van D: O (9 u, wo 14 jan
+// 08:00–17:00) en Q (27 u, wo 14 – vr 16 jan 17:00). D's punt is de laatste rauwe relatiegrens, vr 16 jan
+// 17:00. De vrije speling van O telt tot dat punt: do + vr = 18 u = 2 dagen; zonder deze kant heeft de
+// relatie naar de voltooide D geen grens en valt ze terug op 0. Mutant "ff-kant weg" ⇒ rood.
+{
+  const input = c5Fixture([
+    '%R\tO\tP1\tC1\tOPEN1\tKorte voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+    '%R\tQ\tP1\tC1\tOPEN2\tLange voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-14 08:00\t2026-01-16 17:00\t\t',
+  ], ['%R\tR2\tD\tO\tP1\tP1\tPR_FS\t0', '%R\tR3\tD\tQ\tP1\tP1\tPR_FS\t0']);
+  eq('C5 ff-kant fixture: het punt van D ligt op de grens van Q', (({ es, ef }) => ({ es, ef }))(solveAxes(input, 'D')),
+    { es: '2026-01-16T17:00', ef: '2026-01-16T17:00' });
+  eq('C5 ff-kant: vrije speling van O tot het punt van D', solveAxes(input, 'O').ff, 2);
+  eq('C5 uit ⇒ geen punt, vrije speling 0',
+    solveAxes(withProfile(input, copy => setConvention(copy, 'p6CompletedPhysicalAtDataDate', false)), 'O').ff, 0);
+  // Randgeval (ongemeten ⇒ terugval zoals vóór brok 8): een FS-relatie MET lag (O —FS+9 u→ D).
+  // Mutant "FS/lag-0-poort weg" ⇒ rood. (Een voltooide voorganger bereikt deze tak niet: met A12 wist de
+  // motor haar relatiegrens maar zet A12 haar vrije speling op 0, zonder A12 heeft ze een eigen grens.)
+  const lagged = structuredClone(input);
+  const rel = lagged.sequences.find(seq => seq.predecessorId === 'O')!;
+  rel.lagMinutes = 540;
+  rel.lagDays = 1;
+  eq('C5 ff-kant niet bij een FS-relatie met lag', solveAxes(lagged, 'O').ff, 0);
+  // Randgeval (bewuste beperking, niet gemeten): een SS- of FF-relatie naar het punt geeft géén vrije
+  // speling tot het punt. Mutant "FS-poort weg" ⇒ rood.
+  for (const type of ['START_START', 'FINISH_FINISH'] as const) {
+    const typed = structuredClone(input);
+    typed.sequences.find(seq => seq.predecessorId === 'O')!.type = type;
+    eq(`C5 ff-kant niet bij een ${type}-relatie naar het punt`, solveAxes(typed, 'O').ff, 0);
+  }
+  // Voltooiingspoort (integratieronde 2, reviewfix brok 8): een VOLTOOIDE voorganger van D krijgt geen
+  // vrije speling tot het punt. O voltooid (werkelijk wo 7 jan). Onder P6 (A12 aan) wist de motor haar
+  // relatiegrens en zet A12 haar vrije speling op 0; met A12 uit heeft de relatie een eigen grens (ff 7)
+  // en bereikt ze deze tak niet. De mutant "voltooiingspoort weg" is daardoor EQUIVALENT (bewezen: de tak
+  // vraagt ff === undefined, dat kan alleen met A12 aan, en A12 zet voltooid werk met statusdatum — die
+  // een punt vereist — altijd op 0); deze regels pinnen het gedrag, niet de poort.
+  const donePred = c5Fixture([
+    '%R\tO\tP1\tC1\tDONE1\tVoltooide voorganger\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t9\t0\t2026-01-07 08:00\t2026-01-07 17:00\t2026-01-07 08:00\t2026-01-07 17:00',
+    '%R\tQ\tP1\tC1\tOPEN2\tLange voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-14 08:00\t2026-01-16 17:00\t\t',
+  ], ['%R\tR2\tD\tO\tP1\tP1\tPR_FS\t0', '%R\tR3\tD\tQ\tP1\tP1\tPR_FS\t0']);
+  eq('C5 ff-kant: voltooide voorganger van het punt heeft vrije speling 0', solveAxes(donePred, 'O').ff, 0);
+  eq('C5 ff-kant: voltooide voorganger, A12 uit ⇒ eigen relatiegrens (ff 7)',
+    solveAxes(withProfile(donePred, copy => setConvention(copy, 'preserveActualDatesInBackwardPass', false)), 'O').ff, 7);
+}
+
 // C6: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 00:00, rem_target_link_flag=Y (A19). Lopende A
 // (werkelijk gestart ma 5 jan 08:00, 18 h restwerk vanaf de statusdatum: wo 14 jan 08:00) —SS+18 h→
 // niet-gestarte S. Sinds de werkelijke start is op de statusdatum 7 × 9 = 63 h werktijd verstreken,
@@ -787,8 +835,10 @@ groupC.push({
   pick: axes => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff }),
   on: { ls: '2026-01-16T08:00', lf: '2026-01-16T17:00', tf: 9, ff: 2 },
   // Zonder C7 onder P6 blijft de FF0-grens do 15 jan 17:00 staan (B2 bij lag 0, X12 brok 6) — werktijd-
-  // gelijk aan vr 08:00, dus dezelfde ls/tf/ff; OPS en MS Project (zonder B2) normaliseren naar vr 08:00.
-  off: { ls: '2026-01-15T08:00', lf: '2026-01-15T17:00', tf: 8, ff: 1 },
+  // gelijk aan vr 08:00, dus dezelfde ls/tf; OPS en MS Project (zonder B2) normaliseren naar vr 08:00.
+  // De vrije speling blijft onder P6 zonder C7 toch 2: C12 (brok 8) telt over een FF0-relatie tot de
+  // vroege finish van de opvolger, hier de mijlpaal zelf — dezelfde P6-waarde langs een tweede weg.
+  off: { ls: '2026-01-15T08:00', lf: '2026-01-15T17:00', tf: 8, ff: 2 },
   builtInOff: { ls: '2026-01-15T08:00', lf: '2026-01-16T08:00', tf: 8, ff: 1 },
 });
 
@@ -885,6 +935,211 @@ groupC.push({
   input.tasks.find(task => task.id === 'M')!.constraint = { type: 'FNLT', date: '2026-01-16T12:00' };
   eq('C9 bronvoorwaarde: een strakkere FNLT buiten de werktijd wint en wordt niet gesnapt',
     (({ lf }) => ({ lf }))(solveAxes(input, 'M')), { lf: '2026-01-16T12:00' });
+}
+
+// C11: kalender ma–vr 08:00–17:00 (9 u), statusdatum ma 12 jan 08:00, Progress Override (zoals OZB
+// project 10093: `sched_progress_override = Y`, `sched_retained_logic = N`). A is lopend (werkelijke start
+// ma 5 jan, rest 9 u) en heeft twee FS0-opvolgers: B, al buiten volgorde gestart op di 6 jan (rest 18 u),
+// en de niet-gestarte C (27 u), die ook op de niet-gestarte D (27 u) wacht. Een losse X (72 u) legt het
+// projecteinde op wo 21 jan 17:00.
+// Met de hand, Progress Override zonder logica naar B: A's restwerk ma 12 jan 08:00–17:00. D wo 14 jan 17:00,
+// dus C do 15 jan 08:00 – ma 19 jan 17:00 (vroeg); laat eindigt C op het projecteinde wo 21 jan 17:00 en
+// start ze ma 19 jan 08:00, dus A.LF = vr 16 jan 17:00: tf = 4 werkdagen (di–vr). Vrije speling tot
+// C's vroege start do 15 jan 08:00: 2 werkdagen (di, wo). P6 (OZ1030): LF 12-31 16:00 = de dag vóór de LS
+// van de niet-gestarte opvolger, ff 24 h tot diens ES; de relatie naar de gestarte OZ1040 telt nergens.
+// Zonder C11 telt B achterwaarts (A12 houdt B's LS op haar werkelijke start) en in de vrije speling.
+function c11Fixture(successorStarted = true, predecessorCompleted = false): ImportResult {
+  const a = predecessorCompleted
+    ? '%R\tA\tP1\tC1\tA100\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t18\t0\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t2026-01-09 17:00'
+    : '%R\tA\tP1\tC1\tA100\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t18\t9\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t';
+  const b = successorStarted
+    ? '%R\tB\tP1\tC1\tB100\tGestarte opvolger\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t27\t18\t2026-01-06 08:00\t2026-01-08 17:00\t2026-01-06 08:00\t'
+    : '%R\tB\tP1\tC1\tB100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t18\t18\t2026-01-13 08:00\t2026-01-14 17:00\t\t';
+  const input = importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC11-fixture\tC1\t2026-01-12 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tX\tP1\tC1\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t72\t72\t2026-01-12 08:00\t2026-01-21 17:00\t\t',
+    a,
+    b,
+    '%R\tC\tP1\tC1\tC100\tNiet gestart\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-15 08:00\t2026-01-19 17:00\t\t',
+    '%R\tD\tP1\tC1\tD100\tAndere voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-12 08:00\t2026-01-14 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tC\tA\tP1\tP1\tPR_FS\t0',
+    '%R\tR3\tC\tD\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+  input.project.progressMode = 'PROGRESS_OVERRIDE';
+  return input;
+}
+groupC.push({
+  flag: 'p6ProgressOverrideIgnoresStartedSuccessor',
+  label: 'C11 Progress Override negeert de gestarte opvolger ook achterwaarts',
+  input: c11Fixture(),
+  taskId: 'A',
+  pick: axes => ({ lf: axes.lf, tf: axes.tf, ff: axes.ff }),
+  on: { lf: '2026-01-16T17:00', tf: 4, ff: 2 },
+  // Zonder C11: A12 houdt B's LS op haar werkelijke start di 6 jan 08:00, dus A.LF = ma 5 jan 17:00 en
+  // tf = −5 werkdagen; de vrije speling naar B is negatief en A13 klemt hem op 0.
+  off: { lf: '2026-01-05T17:00', tf: -5, ff: 0 },
+  // OPS/MS Project: geen A12 (B's LS volgt uit haar restwerk, dus de late kant van A toevallig gelijk)
+  // en geen A13 (de negatieve vrije speling naar B blijft staan): het onderscheid zit in ff.
+  builtInOff: { lf: '2026-01-16T17:00', tf: 4, ff: -5 },
+});
+
+// C11, randgevallen (docblok): alleen onder Progress Override, alleen naar een gestarte opvolger.
+{
+  const pickA = (axes: Axes) => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff });
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6ProgressOverrideIgnoresStartedSuccessor', false));
+  // (a) Retained Logic: de relatie naar B telt gewoon; C11 aan = C11 uit. Mutant "PO-poort weg" ⇒ rood.
+  const retained = c11Fixture();
+  retained.project.progressMode = 'RETAINED_LOGIC';
+  eq('C11 onder Retained Logic ⇒ geen effect', pickA(solveAxes(retained, 'A')), pickA(solveAxes(off(retained), 'A')));
+  // (b) een niet-gestarte B is gewone logica, ook onder Progress Override. Mutant "startpoort weg" ⇒ rood.
+  const unstarted = c11Fixture(false);
+  eq('C11 naar een niet-gestarte opvolger ⇒ geen effect', pickA(solveAxes(unstarted, 'A')), pickA(solveAxes(off(unstarted), 'A')));
+  // (c) een voltooide voorganger valt erbuiten (historie; P6: "without delay" gaat over de lopende
+  // opvolger). Mutant "voorgangerpoort weg" ⇒ rood.
+  const completed = c11Fixture(true, true);
+  eq('C11 vanuit een voltooide voorganger ⇒ geen effect', pickA(solveAxes(completed, 'A')), pickA(solveAxes(off(completed), 'A')));
+  const opsOnly = (input: ImportResult, on: boolean) => withProfile(input, copy => {
+    copy.project.schedulingProfile = { baseId: 'ops', id: 'test-ops', name: 'test', overrides: on ? { p6ProgressOverrideIgnoresStartedSuccessor: true } : {} };
+  });
+  eq('C11 vanuit een voltooide voorganger, OPS-basis ⇒ geen effect',
+    pickA(solveAxes(opsOnly(completed, true), 'A')), pickA(solveAxes(opsOnly(completed, false), 'A')));
+  // (d) de lopende opvolger zelf verandert niet (de voorwaartse kant negeerde de relatie al).
+  const input = c11Fixture();
+  eq('C11 laat de gestarte opvolger zelf ongemoeid', solveAxes(input, 'B'), solveAxes(off(input), 'B'));
+}
+
+// C12: P op een zevendaagse kalender C7 (08:00–17:00) eindigt do 8 jan 12:00 (31 u vanaf ma 5 jan) en
+// is via FF0 voorganger van S (9 u) op kalender C3, die alleen ma–wo werkt (zoals Roads A10650 op kal. 1474
+// → A10660 op kal. 1473, en Hotel HCSWB4Z4240 → HCSWB3Z2190). De FF-grens do 12:00 valt in vrije tijd van
+// S. Zonder C12: S eindigt op het laatste bandeinde ervóór, wo 7 jan 17:00 (nul werktijd verschil, maar in
+// kloktijd vóór de grens). P6 (FF: "cannot finish until its predecessor finishes"): de eerste werkgrens
+// ná de grens, ma 12 jan 08:00. De vrije speling van P over die relatie telt dan in P's eigen kalender tot
+// die finish: do 12:00–17:00 plus vr, za, zo = 5 + 27 = 32 u = 32/9 dag (P6 A10650: 960 min = 16 u op
+// kal. 1474 tot A10660-EF); zonder C12 volgt ze uit de afgeleide startgrens: 0.
+function c12Fixture(opts: { predMilestone?: boolean; sameCalendar?: boolean; predHours?: number; lagHours?: number } = {}): ImportResult {
+  const hours = opts.predHours ?? 31;
+  const succCal = opts.sameCalendar ? 'C7' : 'C3';
+  const pred = opts.predMilestone
+    ? '%R\tP\tP1\tC7\tP100\tStartmijlpaal\tTT_Mile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-08 08:00\t2026-01-08 08:00\t\t'
+    : `%R\tP\tP1\tC7\tP100\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t${hours}\t${hours}\t2026-01-05 08:00\t2026-01-08 12:00\t\t`;
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC7\tZevendaags\tP1\tCA_Project\t9\t63\t${calendarDataOn([1, 2, 3, 4, 5, 6, 7], [['08:00', '17:00']])}`,
+    `%R\tC3\tMa-wo\tP1\tCA_Project\t9\t27\t${calendarDataOn([2, 3, 4], [['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC12-fixture\tC7\t2026-01-05 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tX\tP1\tC7\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t180\t180\t2026-01-05 08:00\t2026-01-24 17:00\t\t',
+    pred,
+    `%R\tS\tP1\t${succCal}\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-05 08:00\t2026-01-05 17:00\t\t`,
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    `%R\tR1\tS\tP\tP1\tP1\tPR_FF\t${opts.lagHours ?? 0}`,
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6FinishNotBeforeFinishFinishBound',
+  label: 'C12 vroege finish niet vóór de FF-grens',
+  input: c12Fixture(),
+  taskId: 'S',
+  pick: axes => ({ ef: axes.ef }),
+  on: { ef: '2026-01-12T08:00' },
+  off: { ef: '2026-01-07T17:00' },
+});
+
+// C12, de andere vormen en randgevallen (docblok).
+{
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6FinishNotBeforeFinishFinishBound', false));
+  // (a) De vrije-spelingkant: P telt tot S' vroege finish. Mutant "ff-kant weg" ⇒ rood.
+  const base = c12Fixture();
+  eq('C12 vrije speling van de FF-voorganger tot de vroege finish van de opvolger', solveAxes(base, 'P').ff, 32 / 9);
+  eq('C12 uit ⇒ vrije speling via de afgeleide startgrens', solveAxes(off(base), 'P').ff, 0);
+  // (b) FF vanaf een open STARTmijlpaal (Roads OCEC12101 → OCEC9761: P6 EF 01-15 07:00 = de start van de
+  // mijlpaal, OPS het bandeinde ervóór). Mijlpaal P do 8 jan 08:00, S op dezelfde zevendaagse kalender:
+  // zonder C12 wo 7 jan 17:00, met C12 do 8 jan 08:00. Mutant "startmijlpaal-uitzondering weg" (grens ook
+  // hier naar het vorige bandeinde) ⇒ rood.
+  const milestone = c12Fixture({ predMilestone: true, sameCalendar: true });
+  eq('C12 FF vanaf een startmijlpaal: EF op de start van de mijlpaal', solveAxes(milestone, 'S').ef, '2026-01-08T08:00');
+  eq('C12 uit, FF vanaf een startmijlpaal: het bandeinde ervóór', solveAxes(off(milestone), 'S').ef, '2026-01-07T17:00');
+  // (c) Gewone FF op dezelfde kalender, grens op een bandeinde (P 27 u: wo 7 jan 17:00): de motor draagt
+  // die grens intern als de volgende bandstart. Zonder de normalisatie naar de finish-kant sprong de EF een
+  // dag vooruit, naar do 08:00 (restant-onderzoek 284: 82 cellen slechter). Met C12 ⇒ geen effect.
+  // Mutant "normalisatie weg" ⇒ rood.
+  const plain = c12Fixture({ sameCalendar: true, predHours: 27 });
+  eq('C12 fixture: gewone FF eindigt op het bandeinde van de voorganger', solveAxes(plain, 'S').ef, '2026-01-07T17:00');
+  eq('C12 gewone FF op dezelfde kalender ⇒ geen effect', solveAxes(plain, 'S'), solveAxes(off(plain), 'S'));
+  // (c2) Lopende opvolger (Roads A10660, lopend op kal. 1473): S gestart ma 5 jan 08:00, rest 9 u (de volle
+  // duur), statusdatum ma 5 jan 13:00, Retained Logic. De FF-grens schuift het restwerk naar wo 7 jan
+  // 08:00–17:00; C12 legt de finish op ma 12 jan 08:00. Mutant "lopende tak niet aangeroepen" ⇒ rood.
+  const running = c12Fixture();
+  const r = running.tasks.find(task => task.id === 'S')!;
+  r.time.actualStart = '2026-01-05T08:00';
+  r.time.completion = 0.01;
+  r.time.remainingMinutes = 540;
+  running.project.statusDate = '2026-01-05T13:00';
+  eq('C12 lopende opvolger: restwerk eindigt niet vóór de FF-grens', solveAxes(running, 'S').ef, '2026-01-12T08:00');
+  eq('C12 uit, lopende opvolger: het bandeinde ervóór', solveAxes(off(running), 'S').ef, '2026-01-07T17:00');
+  // (d) Een grens die met werktijd ná de EF ligt (hier: Progress Override, de lopende S negeert P) wordt
+  // niet opgelegd: C12 is een kloktijdcorrectie, geen extra relatielogica. Mutant "nul-werktijd-eis weg" ⇒ rood.
+  const started = c12Fixture({ sameCalendar: true });
+  const s = started.tasks.find(task => task.id === 'S')!;
+  s.time.actualStart = '2026-01-05T08:00';
+  s.time.completion = 0.5;
+  s.time.remainingMinutes = 270;
+  started.project.statusDate = '2026-01-05T13:00';
+  started.project.progressMode = 'PROGRESS_OVERRIDE';
+  eq('C12 legt geen grens met werktijd ertussen op', solveAxes(started, 'S').ef, solveAxes(off(started), 'S').ef);
+  // (e) Lagpoort van de vrije-spelingkant: FF+4 u (grens do 16:00, nog steeds in vrije tijd van S, dus EF
+  // ma 12 jan 08:00). De vrije speling springt NIET naar S' vroege finish (zou 32/9 geven), maar volgt de
+  // afgeleide startgrens zoals zonder C12. Mutant "lagpoort weg" ⇒ rood.
+  const lagged = c12Fixture({ lagHours: 4 });
+  eq('C12 FF+4 u: grens nog in vrije tijd van S', solveAxes(lagged, 'S').ef, '2026-01-12T08:00');
+  eq('C12 FF+4 u: vrije speling springt niet naar de vroege finish van S', solveAxes(lagged, 'P').ff, 0);
+  eq('C12 FF+4 u: vrije speling gelijk aan C12 uit', solveAxes(lagged, 'P').ff, solveAxes(off(lagged), 'P').ff);
+  // (f) Lopende opvolger onder Progress Override met de FF-grens in vrije tijd (ongemeten, geen P6-orakel):
+  // de lopende tak kent geen PO-poort, dus C12 legt de grens nog steeds op. Restwerk 22 u vanaf ma 13:00
+  // eindigt zonder voorgangerdruk op wo 7 jan 17:00; C12 legt de finish op ma 12 jan 08:00. Pint het
+  // huidige gedrag; mutant "PO-poort in de lopende tak" ⇒ rood.
+  const runningPo = structuredClone(running);
+  runningPo.project.progressMode = 'PROGRESS_OVERRIDE';
+  runningPo.tasks.find(task => task.id === 'S')!.time.remainingMinutes = 1320;
+  eq('C12 lopende opvolger onder Progress Override: grens in vrije tijd wordt opgelegd', solveAxes(runningPo, 'S').ef, '2026-01-12T08:00');
+  eq('C12 uit, lopende opvolger onder Progress Override: het bandeinde', solveAxes(off(runningPo), 'S').ef, '2026-01-07T17:00');
+  // (g) Voltooiingspoort van de vrije-spelingkant (integratieronde 2, reviewfix brok 8): vanuit een
+  // VOLTOOIDE voorganger telt de vrije speling niet tot de vroege finish van de opvolger. P voltooid
+  // (werkelijk ma 5 jan 08:00 – do 8 jan 12:00), statusdatum vr 9 jan 08:00. Onder P6 zet A12 de vrije
+  // speling van voltooid werk toch op 0 (de poort is daar onzichtbaar); daarom A12 uit: dan volgt ze de
+  // afgeleide startgrens (1 dag), gelijk aan C12 uit. Mutant "voltooiingspoort weg" telt tot S' vroege
+  // finish ma 12 jan 17:00 (41/9 dag) ⇒ rood.
+  const a12off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'preserveActualDatesInBackwardPass', false));
+  const donePred = c12Fixture();
+  const dp = donePred.tasks.find(task => task.id === 'P')!;
+  dp.time.actualStart = '2026-01-05T08:00';
+  dp.time.actualFinish = '2026-01-08T12:00';
+  dp.time.completion = 1;
+  dp.time.remainingMinutes = 0;
+  donePred.project.statusDate = '2026-01-09T08:00';
+  eq('C12 voltooide FF-voorganger (A12 uit): vrije speling via de afgeleide startgrens', solveAxes(a12off(donePred), 'P').ff, 1);
+  eq('C12 voltooide FF-voorganger (A12 uit): gelijk aan C12 uit',
+    solveAxes(a12off(donePred), 'P').ff, solveAxes(off(a12off(donePred)), 'P').ff);
+  eq('C12 voltooide FF-voorganger onder P6 (A12 aan): vrije speling 0', solveAxes(donePred, 'P').ff, 0);
 }
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);

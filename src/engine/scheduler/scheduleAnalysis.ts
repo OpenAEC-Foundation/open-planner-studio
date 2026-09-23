@@ -73,7 +73,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat,
     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
-    backwardFloatTrace,
+    backwardFloatTrace, completedPhysicalPoints,
   } = input;
 
   const taskResults = new Map<string, CPMTaskResult>();
@@ -229,6 +229,27 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
           if (succEarly && tasks.has(seq.successorId)) {
             ff = cal.workMinutesBetween(early.ef, succEarly.es) / (cal.hoursPerDay * 60);
           }
+        }
+        // Conventie C12 `p6FinishNotBeforeFinishFinishBound`, vrije-spelingkant: over een FF-relatie zonder
+        // lag telt de vrije speling in de eigen kalender tot de vroege FINISH van de opvolger (die C12 op de
+        // relatiegrens kan leggen zonder haar start te verplaatsen), niet via de afgeleide startgrens.
+        // Alleen vanuit een open voorganger (docblok).
+        if (so?.p6FinishNotBeforeFinishFinishBound === true && ff !== undefined && cal.isHourMode
+          && taskObj.time.completion < 1 && seq.type === 'FINISH_FINISH'
+          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+          const succEarly = earlyDates.get(seq.successorId);
+          if (succEarly) ff = cal.workMinutesBetween(early.ef, succEarly.ef) / (cal.hoursPerDay * 60);
+        }
+        // Conventie C5 `p6CompletedPhysicalAtDataDate`, vrije-spelingkant (X12 brok 8): een voltooide CP_Phys-
+        // opvolger met een punt heeft geen relatiegrens (de voorwaartse pas slaat haar voorgangers over), maar
+        // staat wel op één vroeg punt. Over een FS0-relatie zonder eigen grens telt de vrije speling in de
+        // eigen kalender tot dat punt, spiegel van de late kant van C5 (docblok in `types/project.ts`). Punten
+        // bestaan alleen met C5 aan (`CPMSolver.recordCompletedPhysicalPoint`); geen aparte poort nodig.
+        if (ff === undefined && cal.isHourMode && taskObj.time.completion < 1
+          && seq.type === 'FINISH_START'
+          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+          const point = completedPhysicalPoints?.get(seq.successorId);
+          if (point) ff = cal.workMinutesBetween(early.ef, point) / (cal.hoursPerDay * 60);
         }
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
       }

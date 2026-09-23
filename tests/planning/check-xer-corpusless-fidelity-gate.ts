@@ -91,6 +91,23 @@ const EXPECTED = {
   tasks: 5_923,
   tasksWithAnyMeasuredAxis: 5_901,
   measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23p (X12 naar nul, brok 8 — C13: de vrije-spelingkant van C5
+  // `p6CompletedPhysicalAtDataDate`, motorwijziging zonder nieuwe conventie; regel A: measure:profiles
+  // VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=1 kleiner=0 schuld=0). Over een FS0-relatie naar
+  // een voltooide CP_Phys-opvolger met punt telt de vrije speling tot dat punt. X12 181 → 180 (ff 20 → 19):
+  // Roads OCEC18201 (1346/87054, diff 3000 min → exact). Overige cellen byte-identiek.
+  // HERPIN 2026-09-23o (merge van de etappebranch met DCP-03 Baseline uit het orakel, 192, in brok 8;
+  // herpinrecept opnieuw met de schrijfmodi: CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=12
+  // kleiner=0 schuld=0). X12 192 → 181 (−11 = C11 4 + C12 7; drivingPath 169 → 168).
+  // HERPIN 2026-09-23n (X12 naar nul, brok 8 — conventie C12 `p6FinishNotBeforeFinishFinishBound`,
+  // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=7
+  // kleiner=0 schuld=0; vóór de DCP-03-merge). De vroege finish ligt in kloktijd niet vóór een
+  // FF-relatiegrens; vrije speling over FF0 tot de vroege finish van de opvolger. X12 280 → 273: Roads
+  // OCEC9761/OCEC6681/A10660/A10650, Hotel HCSWB3Z2190/HCSWB2Z6190. Overige cellen byte-identiek.
+  // HERPIN 2026-09-23m (X12 naar nul, brok 8 — conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor`,
+  // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=5
+  // kleiner=0 schuld=0; vóór de DCP-03-merge). Onder Progress Override telt de relatie naar een al
+  // gestarte opvolger ook achterwaarts en in de vrije speling niet. X12 284 → 280, alles OZB 10093 OZ1030.
   // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
   // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
@@ -212,16 +229,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_876, ef: 5_869, ls: 5_867, lf: 5_871, tf: 5_663, ff: 5_690 },
+    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_664, ff: 5_693 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 23, ef: 31, ls: 33, lf: 28, tf: 49, ff: 22 },
+    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 48, ff: 19 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 25, ef: 32, ls: 34, lf: 30, tf: 49, ff: 22 },
-    drivingPath: { exact: 5_754, sameday: 0, diff: 169, missing: 0, measurable: 5_923, deviations: 169 },
+    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 48, ff: 19 },
+    drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
   },
-  productPayloadSha256: '69451b8f2fa4a384c2a6bd92c6ff6c031af9745bbbdfc72df5f2d1a939690ffc',
-  productPayloadGzipSha256: '7838445e1bb78721f885792f5dade2e223fc044d65bd0b87066a6ca4da8ff64d',
-  productProjectProjectionSha256: '7811960406bc6b6a92802b1324a4cc2864c7d19473abd623cb0dfdcd17262ad2',
+  productPayloadSha256: '9c2b854c5c786d130f7a8ce35ccda9368763fff5f87db5d3871134d2f6289a0f',
+  productPayloadGzipSha256: 'e55e7326a3549b840cbae923c3c62d1052bb8c99d19730c1a0612454ef3cf1cb',
+  productProjectProjectionSha256: 'dbb0b78db203f5ca59daa3ec4a926799db542f6c8798d5500253c6c98d7fb956',
   roles: {
     oracle: 9,
     'engine-input': 14,

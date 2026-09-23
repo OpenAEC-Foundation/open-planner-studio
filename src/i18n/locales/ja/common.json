@@ -1220,6 +1220,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "遅い終了日を自身のカレンダーに合わせる",
       "help": "後続作業が課す遅い終了日が作業の稼働時間外になる場合、作業自身のカレンダー上の直前の稼働期間の終わりになります。"
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override は開始済みの後続を後方計算でも無視する",
+      "help": "Progress Override では、すでに開始した後続作業との関係は、未完了の先行作業の最遅日付とフリーフロートに含まれません。"
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "最早終了は終了-終了の境界より前にならない",
+      "help": "終了-終了関係では、後続作業の最早終了は時刻で見て先行作業が定める境界より前になりません。その境界が後続作業の非稼働時間にあたる場合、終了は次の稼働時間帯の開始になります。"
     }
   },
   "profiles": {
