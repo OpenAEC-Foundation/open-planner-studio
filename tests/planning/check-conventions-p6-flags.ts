@@ -199,6 +199,38 @@ fixtures.push({
   off: { lf: '2026-01-06T08:00' },
 });
 
+// B2 bij lag 0 (X12 brok 6). Eén band 08:00–16:00 ma–vr. A (ma) —FF+0→ B (ma) —FS+0→ C (1 dag); een
+// losse X van 5 dagen (ma 5 – vr 9 jan) legt het projecteinde vast. C.LS = vr 08:00 ⇒ B.LF = de
+// finishgrens do 8 jan 16:00. P6 (Hotel HMMOAZ040 —FF0→ HMMOAZ000, ashspace A1050 —FF0→ EM01): A.LF =
+// die finishgrens zelf. Zonder B2 normaliseert de lag-0-verschuiving naar de volgende bandstart, vr
+// 08:00. Mutant "lag-0-tak weg" ⇒ rood.
+{
+  const ff0 = importXer([
+    'ERMHDR\t23.12\t2026-01-05\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tStandard 5x8\tCA_Base\t8\t40\t${calendarData([['08:00', '16:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP\tB2-lag0\tC1\t2026-01-05 08:00\t2026-01-05 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tX\tP\tC1\tX100\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t40\t40\t2026-01-05 08:00\t2026-01-09 16:00',
+    '%R\tA\tP\tC1\tA100\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-01-05 08:00\t2026-01-05 16:00',
+    '%R\tB\tP\tC1\tB100\tMidden\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-01-05 08:00\t2026-01-05 16:00',
+    '%R\tC\tP\tC1\tC100\tSlot\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-01-06 08:00\t2026-01-06 16:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP\tP\tPR_FF\t0',
+    '%R\tR2\tC\tB\tP\tP\tPR_FS\t0',
+    '%E',
+  ]);
+  eq('B2 lag 0 fixture: B.LF op de finishgrens do 8 jan 16:00', solveAxes(ff0, 'B').lf, '2026-01-08T16:00');
+  eq('B2 FF+0 vanaf een bandeinde ⇒ de finishgrens zelf', solveAxes(ff0, 'A').lf, '2026-01-08T16:00');
+  eq('B2 uit ⇒ FF+0 normaliseert naar de volgende bandstart',
+    solveAxes(withProfile(ff0, copy => setConvention(copy, 'p6BackwardLagFinishBoundary', false)), 'A').lf, '2026-01-09T08:00');
+}
+
 // ── B3 `p6CompletedDataDateWindow` ─────────────────────────────────────────────────────────────
 // Een voltooide TT_Task (DT_FixedDUR2, CP_Drtn, expliciet targetvenster, rem_target_link_flag=Y)
 // die op ma 5 jan werkte; statusdatum wo 14 jan 17:00. P6 toont een voltooide activiteit met
@@ -723,7 +755,10 @@ groupC.push({
   taskId: 'A',
   pick: axes => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff }),
   on: { ls: '2026-01-16T08:00', lf: '2026-01-16T17:00', tf: 9, ff: 2 },
-  off: { ls: '2026-01-15T08:00', lf: '2026-01-16T08:00', tf: 8, ff: 1 },
+  // Zonder C7 onder P6 blijft de FF0-grens do 15 jan 17:00 staan (B2 bij lag 0, X12 brok 6) — werktijd-
+  // gelijk aan vr 08:00, dus dezelfde ls/tf/ff; OPS en MS Project (zonder B2) normaliseren naar vr 08:00.
+  off: { ls: '2026-01-15T08:00', lf: '2026-01-15T17:00', tf: 8, ff: 1 },
+  builtInOff: { ls: '2026-01-15T08:00', lf: '2026-01-16T08:00', tf: 8, ff: 1 },
 });
 
 // C8: band 08:00–17:00 ma–vr, statusdatum ma 12 jan 08:00, rem_target_link_flag=Y (A19: de

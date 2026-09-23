@@ -172,7 +172,13 @@ export interface SchedulingOptions {
   p6RelationFinishBoundary?: boolean;
   /** B2 — backward WORKTIME-lag vanaf een exacte bandeinde-grens die precies op een bandstart
    *  landt, geeft de complementaire vorige finishgrens terug (wo 17:00 − 2 werkdagen = ma 17:00,
-   *  niet di 08:00; `CPMSolver.shiftLagPred`). Alleen uurmodus, alleen de aftrek met positieve lag.
+   *  niet di 08:00; `CPMSolver.shiftLagPred`). Alleen uurmodus. Sinds X12 brok 6 (2026-09-23) ook bij
+   *  een FF-relatie met lag 0: een late finish van de opvolger op een exact bandeinde blijft die
+   *  finishgrens voor de voorganger, in plaats van naar de volgende bandstart te normaliseren. Gemeten
+   *  op P6-doorgerekende bestanden: Hotel_Construction_TEC (HBTF-2) HMMOAZ040 —FF0→ HMMOAZ000 (LF 08-04
+   *  16:00 ⇒ P6 16:00, zonder de regel 08-05 08:00) en vier andere, Sample_Construction_TEC 1 en ashspace
+   *  A1050/A2050/A3050/A4050 —FF0→ eindmijlpaal (ashspace: twijfelachtig orakel, zie B5): X12 308 → 298,
+   *  0 slechter, 0 groter. Andere relatietypen met lag 0 ongemeten en ongewijzigd.
    *  P6 aan / MS Project uit / OPS uit. */
   p6BackwardLagFinishBoundary?: boolean;
   /** B3 — een voltooide XER-bladactiviteit (nauwe provenance-poort in

@@ -86,6 +86,10 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23j (X12 naar nul, brok 6 — B2 `p6BackwardLagFinishBoundary` bij FF-lag 0, regel A:
+  // measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=10 kleiner=0 schuld=0). Een
+  // FF0-grens op een exact bandeinde blijft de finishgrens (niet de volgende bandstart). X12 308 → 298
+  // (lf 46 → 36): Hotel 5, ashspace sample 4, Sample_Construction 1. Overige cellen byte-identiek.
   // HERPIN 2026-09-23i (X12 naar nul, brok 6 — conventie C9 `p6LateFinishOnOwnCalendar`, motorwijziging,
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=42 kleiner=0 schuld=0).
   // Een late finish buiten de werktijd van de taak (grens van een opvolger op een andere kalender) wordt
@@ -195,16 +199,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_912, lf: 5_915, tf: 5_700, ff: 5_730 },
+    exact: { es: 5_916, ef: 5_907, ls: 5_912, lf: 5_925, tf: 5_700, ff: 5_730 },
     sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 48, lf: 44, tf: 72, ff: 42 },
+    diff: { es: 43, ef: 52, ls: 48, lf: 34, tf: 72, ff: 42 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 49, lf: 46, tf: 72, ff: 42 },
+    deviations: { es: 45, ef: 54, ls: 49, lf: 36, tf: 72, ff: 42 },
     drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: 'e01a47ce8b40fe47345edac51b2850200f1cf43c0a73813dc4ce585dff0d7205',
-  productPayloadGzipSha256: '01321b3bd30ac97b8bf050a25f95f8d2f979f474d0b6f0aeb6573bff5cd8daeb',
-  productProjectProjectionSha256: '2829b30e4df6e9bf4aee10349ec7a6401719b260834daaa51ddea450355f8c2c',
+  productPayloadSha256: '6a840e6702952c0bb2fd1e40666499376c99962ee39ae92751d3863d419e2ade',
+  productPayloadGzipSha256: '369c2e7f6ac6071a99ef59ee168b9aa3602470217798c1437cd0f10a2676d79e',
+  productProjectProjectionSha256: '8f5127d5fbc23fdbc60b9eb4cc739cfddf3d3750939a57c7b87ac56675b0a322',
   roles: {
     oracle: 13,
     'engine-input': 14,

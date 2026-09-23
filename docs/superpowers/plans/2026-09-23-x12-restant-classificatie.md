@@ -164,7 +164,13 @@ bandstart: Hotel 5, ashspace A1050–A4050, Sample_Construction 1) zijn dan echt
 (`p6BackwardLagFinishBoundary`) zonder lag, en de B2-fixture verliest zijn onderscheidend vermogen. Die
 FF0-bandstartgroep is een aparte hypothese (zie "Wat overblijft").
 
-**Wat overblijft na landing 1 en 2 (308).**
+**Landing 3 — B2 bij FF-lag 0.** De FF0-bandstartgroep van hierboven: een late finish van de opvolger op
+een exact bandeinde bleef bij lag 0 niet staan maar normaliseerde naar de volgende bandstart (Hotel
+HMMOAZ040 —FF0→ HMMOAZ000: P6 08-04 16:00, OPS 08-05 08:00). Aanscherping van B2 (dezelfde regel: een
+lag telt vanaf de finishgrens), alleen FF. **308 → 298, 10 beter (Hotel 5, ashspace 4,
+Sample_Construction 1), 0 slechter, 0 groter.**
+
+**Wat overblijft na landing 1 en 2 (308; na landing 3: 298, de FF0-rijen hieronder zijn opgelost).**
 
 | bestand | cellen | oorzaak | waarom niet gebouwd |
 |---|---|---|---|

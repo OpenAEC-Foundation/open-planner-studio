@@ -1325,6 +1325,13 @@ export class CPMSolver {
         }
         return projected;
       }
+      // B2 bij lag 0 (X12 brok 6): een FF-grens op een exact bandeinde blijft die finishgrens; de
+      // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
+      if (sign < 0 && minutes === 0 && seq.type === 'FINISH_FINISH'
+        && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
+        && this.isExactBandEnd(predEng, base)) {
+        return new Date(base.getTime());
+      }
       return predEng.addWorkingMinutesSigned(base, sign * minutes);
     }
     // Dag-voorganger: WORKTIME-lag in dagen; `hoursPerDay` van de voorganger-kalender vertaalt een

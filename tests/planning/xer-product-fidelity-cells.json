@@ -788,10 +788,6 @@
         "771/80994": {
           "bucket": "sameday",
           "minutes": 1
-        },
-        "771/80995": {
-          "bucket": "diff",
-          "minutes": 2400
         }
       },
       "ls": {
@@ -861,24 +857,7 @@
       "ef": {},
       "es": {},
       "ff": {},
-      "lf": {
-        "4508/101725": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "4508/101743": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "4508/101753": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "4508/101798": {
-          "bucket": "diff",
-          "minutes": 960
-        }
-      },
+      "lf": {},
       "ls": {},
       "tf": {}
     },
@@ -1263,29 +1242,9 @@
         }
       },
       "lf": {
-        "2666/144224": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "2666/144831": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "2666/144898": {
-          "bucket": "diff",
-          "minutes": 960
-        },
         "2666/146012": {
           "bucket": "sameday",
           "minutes": 60
-        },
-        "2666/147583": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "2666/147615": {
-          "bucket": "diff",
-          "minutes": 960
         }
       },
       "ls": {
