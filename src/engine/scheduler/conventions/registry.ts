@@ -5,8 +5,8 @@
  * Twee lagen, disjuncte sleutels:
  *  - **Conventies** (`ConventionKey`, zesentwintig booleans): regels die per planningspakket verschillen.
  *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
- *  - **Projectopties** (`ProjectOptionKey`, tien sleutels): per-bestand projectinstellingen
- *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, …). Ze blijven in `Project.schedulingOptions`.
+ *  - **Projectopties** (`ProjectOptionKey`, elf sleutels): per-bestand projectinstellingen
+ *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, nivelleerinstellingen als data, …). Ze blijven in `Project.schedulingOptions`.
  *
  * De solver krijgt één `EffectiveSchedulingOptions` via `effectiveSchedulingOptions(project)`.
  *

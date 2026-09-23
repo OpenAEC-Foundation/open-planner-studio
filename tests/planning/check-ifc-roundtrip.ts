@@ -375,7 +375,7 @@ const assignments: ResourceAssignment[] = [
 ];
 
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
-// Rekenprofielen C2: het optieblok draagt alleen de tien projectopties (waarden ongewijzigd); de
+// Rekenprofielen C2: het optieblok draagt alleen de elf projectopties (waarden ongewijzigd); de
 // conventies reizen via het profiel hieronder (OPS_SchedulingProfile).
 const SCHED_OPTS = {
   lagCalendar: 'successor',
@@ -389,6 +389,14 @@ const SCHED_OPTS = {
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   // Niet-default (P6 "Calculate Start-to-Start lag from: Actual Start"), zodat de round-trip iets bewijst.
   startToStartLagFrom: 'actualStart',
+  // Nivelleerfundament: alleen data, zonder aan/uit-veld (eigenaarsbeslissing 1 open). Resource-ids worden bij het lezen
+  // geregenereerd en via de GlobalId teruggemapt (canon hieronder vergelijkt op naam); een id zonder
+  // resource ('r-verwijderd') blijft letterlijk staan.
+  leveling: {
+    preserveScheduledDates: false, levelAllResources: false,
+    priority: [{ field: 'priority_type', direction: 'DESC' }, { field: 'task_code', direction: 'ASC' }],
+    resources: [{ resourceId: 'r-mem', maxUnitsPerHour: 1 }, { resourceId: 'r-eq' }, { resourceId: 'r-verwijderd', maxUnitsPerHour: 0.5 }],
+  },
 } satisfies Required<ProjectSchedulingOptions>;
 const project = {
   id: 'proj-1', name: 'Nieuwbouw Testtoren', description: 'Beschrijving X', // description: (a) gap
@@ -662,7 +670,19 @@ const PROJECT_CANON = {
   description: KEEP, startDate: KEEP, endDate: KEEP,
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
-  wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP, schedulingOptions: KEEP,
+  wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP,
+  // Letterlijk, behalve de resource-ids in het nivelleerblok: die regenereren bij het lezen (op naam).
+  schedulingOptions: {
+    get: (p: Project, k: Keys) => (p.schedulingOptions?.leveling?.resources
+      ? {
+        ...p.schedulingOptions,
+        leveling: {
+          ...p.schedulingOptions.leveling,
+          resources: p.schedulingOptions.leveling.resources.map(entry => ({ ...entry, resourceId: k.res(entry.resourceId) })),
+        },
+      }
+      : p.schedulingOptions),
+  },
   // Rekenprofielen C2: OPS_SchedulingProfile round-tript via writeIFC/readIFC.
   schedulingProfile: KEEP,
   defaultTaskDurationUnit: KEEP,
@@ -903,6 +923,30 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     criticalDefinition: { mode: 'longestPath', thresholdHours: -4 },
     floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 },
   }), 'geneste blokken: een geldige mode met een ongeldige threshold houdt alleen de geldige velden; een compleet floatPaths-blok blijft heel');
+
+  // Nivelleerblok (fundament): geen verplicht veld, ongeldige lijstelementen vallen los weg, niets gerepareerd.
+  const hostileLeveling = JSON.stringify({
+    leveling: {
+      enabled: false, preserveScheduledDates: 'N', levelAllResources: true, extra: 1,
+      priority: [{ field: 'priority_type', direction: 'ASC' }, { field: 'x-drop', direction: 'ASC' },
+        { field: 'task_code', direction: 'UP' }, 'kaal', { field: 'task_code', direction: 'DESC', x: 1 }],
+      resources: [{ resourceId: 'r-a', maxUnitsPerHour: -1 }, { resourceId: '' }, { resourceId: 7 },
+        { resourceId: 'r-b', maxUnitsPerHour: 2 }],
+    },
+  });
+  assert(canon(readIFC(written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${hostileLeveling}'),$)`)).project.schedulingOptions) === canon({
+    leveling: {
+      levelAllResources: true,
+      priority: [{ field: 'priority_type', direction: 'ASC' }, { field: 'task_code', direction: 'DESC' }],
+      resources: [{ resourceId: 'r-a' }, { resourceId: 'r-b', maxUnitsPerHour: 2 }],
+    },
+  }), 'vijandig nivelleerblok: string-boolean, onbekende sleutels, ongeldige veldnamen/richtingen, lege/niet-string-ids en negatieve capaciteit vallen weg; de geldige rest blijft');
+  const noEnabled = JSON.stringify({ lagCalendar: 'successor', leveling: { levelAllResources: true, priority: [] } });
+  assert(canon(readIFC(written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${noEnabled}'),$)`)).project.schedulingOptions) === canon({ lagCalendar: 'successor', leveling: { levelAllResources: true, priority: [] } }),
+    'nivelleerblok zonder enabled blijft staan (er is geen aan/uit-veld; eigenaarsbeslissing 1 open)');
+  const legacyEnabledOnly = JSON.stringify({ lagCalendar: 'successor', leveling: { enabled: true, extra: 1 } });
+  assert(canon(readIFC(written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('${legacyEnabledOnly}'),$)`)).project.schedulingOptions) === canon({ lagCalendar: 'successor' }),
+    'nivelleerblok met alleen onbekende sleutels (ook een oude enabled) vervalt helemaal; enabled overleeft nooit');
 
   const emptyIfc = written.replace(pattern, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('{"onzin":true}'),$)`);
   assert(readIFC(emptyIfc).project.schedulingOptions === undefined,

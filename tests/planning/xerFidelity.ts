@@ -6,6 +6,7 @@ import {
   type XerProjectExclusion,
   type XerTaskExclusion,
 } from './xerManifestExclusions';
+import { readManifestLeveledProjects, type XerLeveledProject } from './xerManifestLeveling';
 import {
   classifyExact,
   classifyMinuteExact,
@@ -99,6 +100,9 @@ export interface XerCorpusManifestEntry {
   excludeProjects?: XerProjectExclusion[];
   /** Taken binnen dit orakelbestand die niet meetellen (`xerManifestExclusions.ts`). */
   excludeTasks?: XerTaskExclusion[];
+  /** Projecten die P6 volgens de eigenaar genivelleerd heeft (`xerManifestLeveling.ts`). Mechanisme
+   *  zonder data en zonder invloed op de telling: alleen gevalideerd en gerapporteerd (eigenaarsbeslissing 2 open). */
+  leveledProjects?: XerLeveledProject[];
 }
 
 export interface XerCorpusManifest {
@@ -340,6 +344,8 @@ export function buildXerTargetBaseline(
   // Uitsluiting per project/taak (eigenaarsbesluit, `xerManifestExclusions.ts`): ongeldig ⇒ weigeren.
   const exclusions = readManifestExclusions(manifest);
   errors.push(...exclusions.problems);
+  // Nivelleerclassificatie (eigenaarsbesluit per project): ongeldig ⇒ weigeren; telt verder nergens mee.
+  errors.push(...readManifestLeveledProjects(manifest).problems);
   const seenSchemas = new Set<string>();
   const filesByHash = new Map<string, Array<{
     file: XerCorpusFile;

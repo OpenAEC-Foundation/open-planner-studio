@@ -95,6 +95,7 @@ Some P6 concepts are already retained but do not yet have a fully equivalent sch
 
 - **`TT_Rsrc`** (resource-dependent activity) and **`TT_WBS`** are retained as P6 source types. The solver does not yet have a separate P6 scheduling mode for these types.
 - A P6 resource curve with 21 points is retained as source distribution. A recognisable shape can be mapped to the nearest built-in curve for the histogram, but the original 21-point shape is not yet recalculated after an edit.
+- **Leveling settings** from P6 (preserving scheduled dates, which resources, the priority list) are read and kept in the project file, but not yet applied: the app does not level automatically when calculating.
 - The existing **P6 XML** reader and this XER reader do not yet cover the same full field set. XER can therefore contain data that P6 XML in the app does not yet read or write.
 - **Project finish as float anchor without a finish date.** If the file has the P6 option "compute total float against the project finish" switched on, but the project has no *Must Finish By* date and no activity has a planned finish date, the app's project finish falls back to the project start. All late dates then anchor on it and almost every activity shows negative float and is critical. In the test material this combination occurs in P6 exports of small, bare projects. The early dates and the **dates as recorded** view are correct; only the recalculated late side is unusable then, and there is no switch yet to turn the option off. This is registered as a known defect.
 

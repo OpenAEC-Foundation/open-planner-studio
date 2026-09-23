@@ -312,8 +312,9 @@ if (!root) {
     },
     // TASKNOTE is sinds X8 een retained bron-tabel: precies twee dossier-tabellen met samen
     // 132 rijen verdwijnen daarom uit de onbekende X2-rapportage.
-    unknownTables: 58,
-    unknownRows: 782,
+    // Nivelleerfundament (2026-09-24): RSRCLEVELLIST is een bekende tabel (OZB, 4 rijen) ⇒ 58 → 57 / 782 → 778.
+    unknownTables: 57,
+    unknownRows: 778,
   });
 }
 

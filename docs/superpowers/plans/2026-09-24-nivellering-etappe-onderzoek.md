@@ -17,6 +17,11 @@ hieronder volledig beschreven. Vorige stand: `2026-09-24-x12-restant-onderzoek-2
 drie FS-relaties: OZB 42 → 6). Eigenaarsbesluit van vandaag: 9033 gaat uit het X12-orakel en nivellering
 wordt een eigen etappe ná het nuldoel.
 
+**Plan-noot — fundament gelegd (2026-09-24, branch `claude/x12-nivellering-fundament`).** Stap 1 van §7 is
+gebouwd als pure data, zonder motorstap en zonder effect op X12: projectoptie `schedulingOptions.leveling`,
+XER-lezer, IFC-round-trip, MCP alleen-lezen en het manifestmechanisme `leveledProjects` (zonder data). Details
+en metingen in §9.
+
 ## Uitkomst in één tabel
 
 | vraag | antwoord | status |
@@ -363,3 +368,71 @@ de 84 verwachte waarden uit §3. Die mag in de repo en maakt de etappe CI-bewaak
 - **Resourcekalender** (PM-1 op kalender 178, zonder feestdagen) tegenover taakkalender 8402: in 9033 zonder
   effect, want alle PM-1-taken liggen op 8402 en er valt geen PM-1-taak op een feestdag. Niet getoetst.
 - **Uurniveau, lopende taken, "binnen float", over-allocatie %, andere projecten**: geen orakel.
+
+## 9. Fundament gelegd (2026-09-24)
+
+Model: Claude Opus 5.5 (uitvoerder-opus-midden). Branch `claude/x12-nivellering-fundament`, basis `9bfae749`.
+Alleen wat de vijf eigenaarsbeslissingen niet vooruitloopt; `ResourceLeveler.ts`, de motor en de UI zijn niet
+aangeraakt.
+
+**Wat er is.**
+- Projectoptie `leveling` (`LevelingSettings` in `src/types/project.ts`; `ProjectOptionKey` telt nu elf
+  sleutels) zonder aan/uit-veld (de vorm daarvan is besluit 1; een vroegtijdig verplicht `enabled: false` zou in
+  opgeslagen IFC's vastzitten — fixronde 2026-09-24), `preserveScheduledDates`
+  (`level_keep_sched_date_flag`), `levelAllResources` (`level_all_rsrc_flag`), `priority` (`LevelPriorityList`
+  als `{ field, direction }` in bronvolgorde; het veld blijft de letterlijke P6-kolomnaam, ongeïnterpreteerd) en
+  `resources` (RSRCLEVELLIST via `schedoptions_id`, met `maxUnitsPerHour` uit `RSRCRATE.max_qty_per_hr` alleen als
+  alle tariefrijen één waarde dragen). Geen enkele `level_*`-kolom en geen lijst ⇒ geen blok (byte-identiek).
+- XER: RSRCLEVELLIST is een bekende tabel (`XER_KNOWN_FIELDS_BY_TABLE`); in de kolomtabel van
+  `xerScheduleOptions.ts` staan `level_keep_sched_date_flag`, `level_all_rsrc_flag`, `levelprioritylist` en
+  `schedoptions_id` nu op `mapped`. De vijf andere `level_*`-kolommen (binnen float, min. float, over-allocatie %,
+  andere projecten + prioriteit) blijven `ignored` met reden. Onbekende tokens, een sleutel buiten de vorm en een
+  lijstregel zonder RSRC-rij vallen zichtbaar terug (`scheduleOptions.fallbacks`), nooit stil.
+- Bakken: alle gelezen kolommen zijn **invoerinstellingen** (SCHEDOPTIONS, RSRCLEVELLIST, RSRCRATE) — geen
+  TASK-kolom, dus buiten bak 1–4 van `check-xer-field-whitelist.ts`, en niets uit bak 2 of 4. Let op voor de
+  vervolgetappe: een prioriteitssleutel kan een rekenuitvoerkolom *noemen* (9033: `early_start_date`); de pas moet
+  dan de eigen berekende waarde gebruiken, nooit de opgeslagen P6-uitvoer.
+- IFC: via `OPS_SchedulingOptions` (alleen geschreven als aanwezig), sanitizer met whitelist
+  (`sanitizeLeveling`: geen verplicht veld, ongeldige elementen los weg, niets geldigs ⇒ geen blok, bovengrenzen); resource-ids worden bij
+  het lezen via de GlobalId teruggemapt (`remapLevelingResourceIds`, spiegel van de contouren).
+- MCP: `planner_get_project_info` toont het blok letterlijk; `planner_update_project` weigert `leveling` met de
+  reden "gelezen, nog niet toegepast". MSPDI-export meldt het blok als niet uitdrukbaar, maar alleen als het
+  afwijkt van de P6-dialoogdefaults (`isP6DialogDefaultLeveling`): acht van de twaalf OZB-projecten dragen
+  precies die defaults, en die melding zou dan ruis zijn.
+- Projectinfo "Standaardopties" en de profielwissel in de wizard laten de bronsignalen `leveling` en
+  `useProjectEndDateForFloat` staan (`withDefaultOptions(profile, current)`): ze komen alleen uit het bestand,
+  geen profiel kent er een default voor en de UI kan ze niet terugzetten.
+- RSRCLEVELLIST-rijen met een lege of onbekende `schedoptions_id` vallen zichtbaar terug (`fallbacks`,
+  `RSRCLEVELLIST.schedoptions_id`), bij elk project van het bestand.
+- Manifest: `leveledProjects: [{ projId, decision, reason }]` per inbegrepen orakelentry
+  (`tests/planning/xerManifestLeveling.ts`), besluit per regel verplicht. Mechanisme zonder data: het manifest
+  draagt het veld nergens, X1 valideert het alleen, X12 rapporteert "genivelleerd volgens eigenaar: N projecten".
+  Geen invloed op de telling (besluit 2 open). Een project dat in dezelfde entry ook in `excludeProjects` staat
+  wordt geweigerd (uitgesloten én genivelleerd gemeten is tegenstrijdig).
+
+**Harde voorwaarden voor de motoretappe (§8), nu gelegd.** `src/services/leveling/levelingInput.ts` (puur,
+nog door niets gelezen) is de enige toegestane leesweg voor de motor: `resolveLevelingResources` filtert
+hangende resource-ids en geeft ze terug om te melden; `levelingPriorityQuantity` is een gesloten tabel P6-kolomnaam
+⇒ eigen grootheid (de zes bak-4-namen ⇒ de EIGEN berekende ES/EF/LS/LF/TF/FF, bak 2 ⇒ geen betekenis, onbekend
+⇒ geen betekenis, nooit een terugval naar de bronkolom). `tests/planning/check-leveling-input.ts` haalt de
+bak-2/4-namen mechanisch uit `check-xer-field-whitelist.ts` en voert ze elk als sleutel.
+
+**Rest van stap 1 (§7), bewust niet gelezen.** Deze SCHEDOPTIONS-kolommen blijven `ignored` met reden en staan
+dus niet in het blok: `level_within_float_flag` (binnen float), `level_float_thrs_cnt` (minimale float),
+`level_over_alloc_pct` (over-allocatie %), `level_outer_assign_flag` en `level_outer_assign_priority`
+(toewijzingen van andere projecten + hun prioriteit). Reden: geen orakel (§8, laatste punt) en geen consument;
+ze lezen zonder meting zou een belofte doen die de motor niet kan houden. Ze blijven wel in het bronarchief.
+
+**Gemeten (OZB).** 9033, 9045, 9047 en 9049 krijgen dezelfde data `{ preserveScheduledDates:
+false, levelAllResources: false, priority: [early_start_date ↑], resources: [PM-1 (6900), 1/u] }`; de acht andere
+projecten de dialoogdefaults (keep/all aan, Activity Priority ↑), gepind in
+`check-xer-schedule-options-wiring.ts` (test 13). Zo blijft zichtbaar dat de instellingen niets zeggen over óf er
+genivelleerd is (§2b).
+
+**Regel A.** `npm run measure:profiles` (mét corpus, 2026-09-24): P6 NULDOEL met de huidige telling
+(175 zesassige afwijkingen, drivingPath 168), cel-delta nieuw=0 verslechterd=0 groter=0 (en verbeterd=0: geen
+motorwijziging); MS Project `mpp-fidelity` groen. Uitslag "regel A gehouden onder elk gemeten profiel". De
+voorbeeld-IFC's zijn na `gen:examples` gelijk aan die van de basis (op de per run willekeurige GUID's,
+tijdstempels en id's na); `verify:examples` groen. Het XER-profiel verandert per constructie niet: niets in
+de motor leest `leveling`.
+

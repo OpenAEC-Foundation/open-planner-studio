@@ -1,6 +1,48 @@
 /** Voortgangs-scheduling-modus (P6, fase 2.6). undefined ⇒ RETAINED_LOGIC (de default). */
 export type ProgressMode = 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
 
+/** Eén sleutel uit de nivelleerprioriteitslijst (P6 "Leveling priorities"; bovenste wint). */
+export interface LevelingPriorityKey {
+  /** De bronveldnaam LETTERLIJK zoals het bestand hem noemt (P6: een TASK-/PROJECT-kolomnaam zoals
+   *  `priority_type`), ongeïnterpreteerd. Wat een sleutel betekent en welke waarde hij straks leest
+   *  (altijd de EIGEN berekening, nooit opgeslagen P6-rekenuitvoer: bak 4) beslist de nivelleeretappe. */
+  field: string;
+  direction: 'ASC' | 'DESC';
+}
+
+/** Eén resource uit de nivelleerlijst (P6 RSRCLEVELLIST, "Select resources"). */
+export interface LevelingResourceSetting {
+  /** Interne resource-id van dit document (XER: `xer-resource:<rsrc_id>`). De IFC-lezer regenereert
+   *  resource-ids en mapt deze via de GlobalId terug (`ifcReader.remapLevelingResourceIds`), net als
+   *  `TaskTimephasedContour.resourceId`. Een id zonder resource (bv. na verwijderen) blijft staan. */
+  resourceId: string;
+  /** P6 Max Units/Time (`RSRCRATE.max_qty_per_hr`), alleen als alle tariefrijen van deze resource
+   *  dezelfde waarde dragen; anders afwezig (de tijdsafhankelijke waarde staat in
+   *  `Resource.availabilitySteps`). Eenheden per uur. */
+  maxUnitsPerHour?: number;
+}
+
+/**
+ * Nivelleerinstellingen als DATA (etappe P6-nivellering, fundament). Het bestand zegt niet óf P6
+ * genivelleerd heeft (onderzoek §2b: OZB 9045/9047/9049 dragen dezelfde instellingen als het wél
+ * genivelleerde 9033), dus dit blok is de dialoog "Level Resources", niet een nivelleerrun.
+ * Er is bewust GEEN aan/uit-veld: of nivelleren een projectoptie of een eigen knop wordt is
+ * eigenaarsbeslissing 1 (open). Een vroegtijdig verplicht `enabled: false` zou in opgeslagen IFC's
+ * vastzitten. Niets leest dit blok: het heeft vandaag geen rekeneffect.
+ */
+export interface LevelingSettings {
+  /** P6 "Preserve scheduled early and late dates" (`SCHEDOPTIONS.level_keep_sched_date_flag`). */
+  preserveScheduledDates?: boolean;
+  /** P6 "Level all resources" (`SCHEDOPTIONS.level_all_rsrc_flag`); uit ⇒ alleen `resources`. */
+  levelAllResources?: boolean;
+  /** P6 `SCHEDOPTIONS.LevelPriorityList`, in bronvolgorde; `[]` = kolom aanwezig maar leeg (P6 sorteert
+   *  dan op Activity ID). */
+  priority?: LevelingPriorityKey[];
+  /** P6 RSRCLEVELLIST voor de SCHEDOPTIONS-rij van dit project, in bronvolgorde; alleen aanwezig als
+   *  de lijst rijen draagt. */
+  resources?: LevelingResourceSetting[];
+}
+
 /**
  * Project-scoped reken-opties (fase 2.9, §3.4/§7). ELKE default = het huidige gedrag ⇒ een afwezig
  * (of leeg) blok is byte-identiek aan vóór 2.9. Deze opties horen bij het BESTAND (net als
@@ -200,6 +242,13 @@ export interface SchedulingOptions {
    *  orakel met N. Werkt alleen met A19 (`p6UseRemainingStartForProgress`) aan, net als C6 zelf.
    *  Per bestand, dus een projectoptie en geen conventie (regel B). */
   startToStartLagFrom?: 'earlyStart' | 'actualStart';
+  /** Nivelleerinstellingen van het bestand (etappe P6-nivellering, FUNDAMENT; onderzoek
+   *  `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §5 en §7 stap 1). Uitsluitend
+   *  DATA: niets in de motor, de UI of de handmatige nivelleerder (`ResourceLeveler.ts`) leest dit blok.
+   *  Afwezig ≡ geen instellingen bekend (elk formaat behalve XER, en XER zonder SCHEDOPTIONS-rij of
+   *  zonder één `level_*`-kolom). Per bestand, dus een projectoptie en geen conventie (regel B).
+   *  Zie `LevelingSettings` voor de velden en hun bron. */
+  leveling?: LevelingSettings;
 
   // ── Groep B (rekenprofielen baan B, spec 2026-09-22 bijlage A) ─────────────────────────────
   // Vijf P6-conventies die tot baan B alleen achter de XER-bronmarkering stonden. Elk: P6 aan /
@@ -683,7 +732,7 @@ export type ConventionKey =
   | 'p6ProgressOverrideIgnoresStartedSuccessor'
   | 'p6FinishNotBeforeFinishFinishBound';
 
-/** De tien per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
+/** De elf per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;
 
 /** Wat `Project.schedulingOptions` in het eindmodel draagt: uitsluitend projectopties. */

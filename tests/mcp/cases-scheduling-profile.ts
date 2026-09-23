@@ -52,6 +52,30 @@ test('update_project weigert schedulingOptions (ook de SS-lag-variant) met een v
     `weigertekst noemt de optie en Projectinfo: ${res.ok ? '' : res.error}`);
 });
 
+// Nivelleerfundament: `schedulingOptions.leveling` komt letterlijk en alleen-lezen mee; schrijven via de
+// bridge wordt geweigerd met een eigen, eerlijke reden (niet de Projectinfo-tekst: daar staat het blok
+// niet). Mutatiebewijs: de `leveling`-regel uit PROJECT_REFUSED halen ⇒ de tweede test rood (generieke
+// "onbekend veld"-tekst zonder "nog NIET toegepast").
+test('get_project_info toont het nivelleerblok alleen-lezen en letterlijk', async () => {
+  S().newProject();
+  const leveling = {
+    preserveScheduledDates: false, levelAllResources: false,
+    priority: [{ field: 'priority_type', direction: 'ASC' as const }],
+    resources: [{ resourceId: 'xer-resource:6900', maxUnitsPerHour: 1 }],
+  };
+  S().setProject({ schedulingOptions: { leveling } });
+  const res = await call('planner_get_project_info') as McpToolOk;
+  assertEq((res.data as { project: { schedulingOptions?: { leveling?: unknown } } }).project.schedulingOptions?.leveling,
+    leveling, 'nivelleerblok letterlijk');
+});
+
+test('update_project weigert leveling met de reden "gelezen, nog niet toegepast"', async () => {
+  S().newProject();
+  const res = await call('planner_update_project', { leveling: { levelAllResources: true } });
+  assert(!res.ok && /leveling/.test(res.error) && /nog NIET toegepast/.test(res.error),
+    `weigertekst noemt leveling en dat het nog niet wordt toegepast: ${res.ok ? '' : res.error}`);
+});
+
 test('update_project weigert schedulingProfile met een verwijzing naar Projectinfo', async () => {
   S().newProject();
   const res = await call('planner_update_project', { schedulingProfile: { id: 'p6' } });

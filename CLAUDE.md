@@ -163,7 +163,7 @@ Gebruikersgidsen: `public/docs/{nl,en}/gids-xer-import.md` en `datums-zoals-opge
 
 Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (`project.schedulingProfile`,
 basis `p6 | msproject | ops` + overrides) levert zesentwintig **conventies** (`ConventionKey`, booleans);
-`project.schedulingOptions` draagt alleen de tien **projectopties** (`ProjectOptionKey`, per bestand) en
+`project.schedulingOptions` draagt alleen de elf **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
 (`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
 beschrijvende `perFile`); de migratie van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten
@@ -188,6 +188,16 @@ iets per profiel, dan is het een conventie in het register — nooit een `if` op
 `npm run verify:conventions` bewaakt dat mechanisch. Recept: `docs/recepten/conventie.md`; gids:
 `public/docs/{nl,en}/gids-rekenprofielen.md`; spec: `docs/superpowers/specs/2026-09-22-rekenprofielen-design.md`;
 regel A en B: `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`.
+De elfde projectoptie, `leveling`, is het **fundament voor P6-nivellering** en nog pure data: de XER-lezer
+vult hem uit SCHEDOPTIONS (`level_keep_sched_date_flag`, `level_all_rsrc_flag`, `LevelPriorityList`) en
+RSRCLEVELLIST (+ `RSRCRATE.max_qty_per_hr`), bewust zonder aan/uit-veld (P6 bewaart niet óf er
+genivelleerd is; de vorm van de aan/uit is eigenaarsbeslissing 1); hij round-tript via `OPS_SchedulingOptions` en MCP
+`get_project_info` toont hem, maar motor, UI en `ResourceLeveler.ts` lezen hem niet. De motoretappe leest
+hem straks uitsluitend via `src/services/leveling/levelingInput.ts` (hangende resource-ids gemeld, gesloten
+mapping P6-kolomnaam ⇒ eigen berekende grootheid, nooit opgeslagen P6-uitvoer). Het manifestveld
+`leveledProjects` (`tests/planning/xerManifestLeveling.ts`) is het bijbehorende meetmechanisme, zonder
+data en zonder invloed op de telling (eigenaarsbeslissing 2). Plan en open besluiten:
+`docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md`.
 
 ### De contour-engine: werkverdeling-per-dag als data, de curve-formule als terugval
 
