@@ -21,9 +21,15 @@
 // (plan-xer-p6-lezer §4.1, tests/planning/check-xer-field-whitelist.ts). Dit script leest ze
 // alleen voor deze meting, buiten `src/`. Zet zo'n lezing NOOIT in `src/`: de lezer mag deze
 // P6-rekenuitvoer nooit lezen, en de whitelist-grep over `src/` bewaakt dat.
+//
+// `generatorEvidence` (alleen aanwezig als niet leeg) is eveneens informatief: de `.py`-bestanden
+// in de map van dit bestand of van een byte-identieke kopie ervan (zelfde sha256) die zelf een
+// XER schrijven (tekst bevat `ERMHDR` én `SCHEDOPTIONS`). Zo'n script kan de drie kenmerken zelf
+// produceren — de kenmerken zijn dan noodzakelijk maar niet voldoende (manifest-policy, 24-09).
+// Het veld stuurt de populatie net zo min; de uitsluiting staat als rolwissel in het manifest.
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { parseXerTables } from '@/services/xer/xerTables';
 
 type P6Computed = true | false | 'unknown';
@@ -32,6 +38,7 @@ interface ProjectEntry extends Evidence { p6Computed: P6Computed }
 interface Entry {
   sha256: string; p6Computed: P6Computed | 'mixed'; p6ComputedEvidence: Evidence; projectsP6Computed: string;
   projects: Record<string, ProjectEntry>;
+  generatorEvidence?: string[];
 }
 
 const OUT = 'tests/planning/xer-corpus-p6computed.json';
@@ -89,6 +96,19 @@ const root = process.env.OPS_XER_CORPUS;
 if (!root || !existsSync(root)) { console.error('XX OPS_XER_CORPUS ontbreekt of bestaat niet'); process.exit(2); }
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as { files: Record<string, { sha256: string }> };
 const onDisk = new Map(listXer(root).map(p => [relative(root, p).split('\\').join('/'), p]));
+const shaOf = new Map<string, string>();
+for (const [label, path] of onDisk) shaOf.set(label, createHash('sha256').update(readFileSync(path)).digest('hex'));
+function generatorEvidence(sha256: string): string[] {
+  const dirs = new Set<string>();
+  for (const [label, s] of shaOf) if (s === sha256) dirs.add(dirname(onDisk.get(label)!));
+  const out = new Set<string>();
+  for (const dir of dirs) for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (!e.isFile() || !e.name.toLowerCase().endsWith('.py')) continue;
+    const text = readFileSync(join(dir, e.name), 'utf8');
+    if (text.includes('ERMHDR') && text.includes('SCHEDOPTIONS')) out.add(relative(root!, join(dir, e.name)).split('\\').join('/'));
+  }
+  return [...out].sort();
+}
 const files: Record<string, Entry> = {};
 const errors: string[] = [];
 for (const label of Object.keys(manifest.files).sort()) {
@@ -97,7 +117,8 @@ for (const label of Object.keys(manifest.files).sort()) {
   const bytes = readFileSync(path);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   if (sha256 !== manifest.files[label]!.sha256) { errors.push(`sha256 wijkt af van manifest: ${label}`); continue; }
-  files[label] = { sha256, ...measure(bytes) };
+  const gen = generatorEvidence(sha256);
+  files[label] = { sha256, ...measure(bytes), ...(gen.length ? { generatorEvidence: gen } : {}) };
 }
 if (errors.length) { for (const e of errors) console.error(`XX ${e}`); process.exit(1); }
 const text = JSON.stringify({ version: 2, policy: POLICY, files }, null, 2) + '\n';

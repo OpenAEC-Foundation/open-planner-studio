@@ -296,7 +296,8 @@ if (!root) {
     ok: 71,
     // 13 sinds het populatiebesluit van 2026-09-23 (alleen P6-doorgerekende orakels; de 32 andere
     // voormalige orakels zijn `reader-only` en worden hier nog steeds zonder fout geparseerd: ok 71).
-    oracleOk: 13,
+    // 9 sinds 2026-09-24 (tweede toepassing: de vier DCP-03-Baseline-kopieën zijn generatoruitvoer).
+    oracleOk: 9,
     oracleErrors: 0,
     referenceOk: 1,
     referenceErrors: 0,

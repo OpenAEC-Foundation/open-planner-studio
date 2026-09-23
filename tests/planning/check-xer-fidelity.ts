@@ -764,14 +764,16 @@ if (!corpusRoot) {
     cells: corpus.stats.partialOnlyAxisCells,
   }, { files: 27, cells: 2_025 });
   // C5–C8b: populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
-  // orakels, zie `xer-corpus-manifest.json` policy); vóór dat besluit 36/18.190/34/13.959/2.
-  eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 10);
-  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_178);
-  eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 9);
-  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 5_961);
+  // orakels, zie `xer-corpus-manifest.json` policy); vóór dat besluit 36/18.190/34/13.959/2. Herpin
+  // 2026-09-24 (tweede toepassing van hetzelfde besluit: DCP-03 Baseline, generatoruitvoer van
+  // build_programmes.py, naar reader-only): 10/10.178/9/5.961 → 9/10.118/8/5.901.
+  eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 9);
+  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_118);
+  eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 8);
+  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 5_901);
   eq('C8a één inhoudsduplicaat na byte-dedup', corpus.stats.schemaDuplicateFiles, 1);
   eq('C8b geselecteerde meetbaarheid wordt per as uit de bytes herleid', corpus.stats.selectedMeasurable, {
-    es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772,
+    es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712,
   });
 
   const baselinePath = join(HERE, 'xer-fidelity-baseline.json');

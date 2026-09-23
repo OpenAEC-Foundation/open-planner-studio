@@ -80,10 +80,14 @@ if (!corpusRoot) {
   // Herpin 2026-09-23 (X12 brok 6, B1 late kant): de B1-mutant "verbeterde" ook 9 ls-cellen in Hotel (de
   // LS-weergave die het product nu zelf goed doet): ls improved 9 → 0, unchanged 5952 → 5961; regressed op
   // elke as gelijk, overall ongewijzigd (1083 / 4878).
-  // Herpin 2026-09-23 (X12 brok 8, C12 `p6FinishNotBeforeFinishFinishBound`): zonder B1 verschuiven 8 FF-
-  // opvolgers zodanig dat C12's kloktijdgrens hun EF verplaatst; de mutant breekt daardoor 8 ef-cellen meer:
-  // ef regressed 942 → 950, unchanged 5019 → 5011; overall regressed 1083 → 1091, unchanged 4878 → 4870.
-  // Som regressed + unchanged per as gelijk (5961); de andere assen ongewijzigd. Detectievermogen groter.
+  // Herpin 2026-09-24 (populatie, tweede toepassing van het besluit van 2026-09-23: DCP-03 Baseline is
+  // generatoruitvoer → reader-only): selectie 9 → 8, projecten 21 → 20, taken 5983 → 5923. Alleen
+  // `unchanged` daalt met 60 (tf/ff met 60 op 5772 → 5712); regressed op elke as gelijk (es/ef 942,
+  // tf 926, ff 309, overall 1083) — de mutant brak niets in DCP-03, detectievermogen onveranderd.
+  // Herpin 2026-09-23 (X12 brok 8, C12 `p6FinishNotBeforeFinishFinishBound`, na de DCP-03-merge): zonder B1
+  // verschuiven 8 FF-opvolgers zodanig dat C12's kloktijdgrens hun EF verplaatst; de mutant breekt daardoor 8
+  // ef-cellen meer: ef regressed 942 → 950, unchanged 4959 → 4951; overall regressed 1083 → 1091, unchanged
+  // 4818 → 4810. Som regressed + unchanged per as gelijk (5901); de andere assen ongewijzigd.
   for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

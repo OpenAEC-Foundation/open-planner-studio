@@ -2,6 +2,31 @@
 
 *Gemeten op 2026-09-23 in een eigen detached worktree `/tmp/ops-x12-meet`. De kop van `claude/rekenprofielen` was inmiddels `86d720fb`; dat is `1b45218a` plus één commit die alleen documentatie wijzigt (`git diff --stat 1b45218a 86d720fb`: 1 bestand, `docs/…overdracht.md`). De motor is dus identiek. Er is niets in de repo gewijzigd. Alle hulpscripts en tussenresultaten staan in `/tmp/x12scripts/`.*
 
+## Populatie na 24-09
+
+*Bijgewerkt 2026-09-24 op `claude/x12-manifest-dcp03` (Claude Opus 5.5).* Tweede toepassing van het
+besluit van 23-09, geen nieuw besluit: de vier byte-identieke kopieën van DCP-03 Baseline Rev 0 (sha256
+`0611f905…`) gaan naar `reader-only`. Ze hebben de drie kenmerken van `scripts/xer-p6-computed.ts`, maar het
+bestand is generatoruitvoer: `build_programmes.py` staat ernaast in het corpus en schrijft SCHEDOPTIONS,
+`rem_late_start_date` en `driving_path_flag` zelf, op een eigen dagplanning (alle EF 17:00, ff = tf). Zie
+`2026-09-24-x12-restant-onderzoek-284.md` §DCP-03. Het kenmerkencriterium is dus noodzakelijk maar niet
+voldoende; de sidecar meldt zo'n script als `generatorEvidence` (informatief, stuurt niets).
+
+Orakels 13 → 9 entries, geselecteerd 9 → 8, 21 → 20 projecten, 5.983 → 5.923 taken. **X12 284 → 192**
+(es 25, ef 32, ls 34, lf 30, tf 49, ff 22; drivingPath 176 → 169). De cellen van de 8 behouden entries
+zijn byte-identiek; alleen DCP-03 (92: es 20, ef 22, ls 4, lf 4, tf 22, ff 20; drivingPath 7) valt weg.
+Daarmee vervallen ook B10, B14 en het DCP-03-deel van B15 en B09.
+
+| bestand | es | ef | ls | lf | tf | ff | totaal | drivingPath |
+|---|---|---|---|---|---|---|---|---|
+| HarbourPointe_AssistedLiving | 18 | 21 | 23 | 19 | 32 | 11 | **124** | 7 |
+| OZB-Start-09Dec24 | 4 | 4 | 9 | 9 | 13 | 3 | **42** | 29 |
+| Sample_Construction | 2 | 2 | 1 | 1 | 3 | 3 | **12** | 0 |
+| Hotel_Construction_TEC | 0 | 2 | 1 | 1 | 1 | 3 | **8** | 88 |
+| Roads_Project_TEC | 1 | 3 | 0 | 0 | 0 | 2 | **6** | 0 |
+| ashspace, TERMINAL, xernative | 0 | 0 | 0 | 0 | 0 | 0 | **0** | 10 / 35 / 0 |
+| **totaal** | 25 | 32 | 34 | 30 | 49 | 22 | **192** | 169 |
+
 ## Populatie na besluit 23-09
 
 *Bijgewerkt 2026-09-23 op `claude/x12-manifest-p6-orakels` (Claude Opus 5.5). De rest van dit document

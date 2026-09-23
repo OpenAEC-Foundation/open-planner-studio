@@ -64,38 +64,45 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
+  // Manifestpinnen 2026-09-24 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
+  // handmatige reviewstap): de vier byte-identieke DCP-03-Baseline-kopieën (0611f9054a4b) zijn
+  // generatoruitvoer van build_programmes.py → reader-only. Orakels 13 → 9, byte-uniek 10 → 9,
+  // geselecteerd 9 → 8 (schema-dedup blijft 1), 5.961 → 5.901
+  // taken met een gemeten as. De cellen van de 8 behouden entries zijn byte-identiek.
   // Manifestpinnen 2026-09-23h (fix manifest-review, handmatige reviewstap): alleen de teksten
   // veranderden — `exclusionReason` per entry naar wat gemeten is, de policy als eenmalig besluit, en een
   // `note` bij ashspace. Rollen, `included` en de selectie zijn ongewijzigd (selectiedigests gelijk).
-  manifestRawSha256: '19f16d1fd71240890b3edd089e3d84947458df141afa06caa485da3f2b878f6c',
-  baselineRawSha256: 'c945d59ac0cc7ec723ff16738a0ca54e3b194bda02f919d6885c2b2bc8a1aba0',
-  manifestProjectionSha256: '3dafe5e195ec383eeb9d5b80528dd9d6d0a80d34d882b6deda2efd469c4f9b11',
+  manifestRawSha256: '0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605',
+  baselineRawSha256: '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2',
+  manifestProjectionSha256: 'e1c31338076c0ca6dd1081ae42287854e0f41c814fa5fa837cb3f2f9488ac6ae',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
-  oracleByteUniqueSha256: '7fee48a5ef51dd3c7b9940f631a1140a57b51ee2d65e22c048e48d12d67d7d47',
-  selectedFullSha256: 'dd29b9e103709e8827f9ea159ed68bcfe7a70b141e9269bbc618ad786fa604d8',
-  selectedSchemaSha256: '357eda2c6f02bb927e405bb51d8c51b3cfe55c279a86dd9f0446531fee0f97ef',
-  selectedContractSha256: 'd710b69e540479162bd86c5702dbc4f37c2e25df0deda9b4943c570067ee5400',
+  oracleByteUniqueSha256: '7b9f8f4cbeb3f4f95ff5d712e9bb3a6b94881eafcfa95ac30645ceac409ef30e',
+  selectedFullSha256: 'dd2b9fac2918e2268873937421eb9230110f5ffeeffa4457e65f6a5d337f69ff',
+  selectedSchemaSha256: '76f7b8fded1761551dbf61d68e87577e92dd71f575de01b3fb1b973b577d77a1',
+  selectedContractSha256: 'bdd4cfcfb11c31dc6c5cb98e257976007e887f1c58e9c3a7a780ab699777a0be',
   occurrences: 93,
-  included: 13,
-  excluded: 80,
+  included: 9,
+  excluded: 84,
   byteUnique: 84,
-  oracleByteUnique: 10,
-  selected: 9,
+  oracleByteUnique: 9,
+  selected: 8,
   schemaDuplicates: 1,
-  projects: 21,
-  tasks: 5_983,
-  tasksWithAnyMeasuredAxis: 5_961,
-  measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  projects: 20,
+  tasks: 5_923,
+  tasksWithAnyMeasuredAxis: 5_901,
+  measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23o (merge van de etappebranch met DCP-03 Baseline uit het orakel, 192, in brok 8;
+  // herpinrecept opnieuw met de schrijfmodi: CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=12
+  // kleiner=0 schuld=0). X12 192 → 181 (−11 = C11 4 + C12 7; drivingPath 169 → 168).
   // HERPIN 2026-09-23n (X12 naar nul, brok 8 — conventie C12 `p6FinishNotBeforeFinishFinishBound`,
   // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=7
-  // kleiner=0 schuld=0). De vroege finish ligt in kloktijd niet vóór een FF-relatiegrens; vrije speling over
-  // FF0 tot de vroege finish van de opvolger. X12 280 → 273 (ef 54 → 49, es 45 → 44, ff 41 → 40): Roads
+  // kleiner=0 schuld=0; vóór de DCP-03-merge). De vroege finish ligt in kloktijd niet vóór een
+  // FF-relatiegrens; vrije speling over FF0 tot de vroege finish van de opvolger. X12 280 → 273: Roads
   // OCEC9761/OCEC6681/A10660/A10650, Hotel HCSWB3Z2190/HCSWB2Z6190. Overige cellen byte-identiek.
   // HERPIN 2026-09-23m (X12 naar nul, brok 8 — conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor`,
   // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=5
-  // kleiner=0 schuld=0). Onder Progress Override telt de relatie naar een al gestarte opvolger ook
-  // achterwaarts en in de vrije speling niet. X12 284 → 280 (ls, lf, tf, ff −1 elk; drivingPath 176 → 175),
-  // alles OZB project 10093 OZ1030. Overige cellen byte-identiek.
+  // kleiner=0 schuld=0; vóór de DCP-03-merge). Onder Progress Override telt de relatie naar een al
+  // gestarte opvolger ook achterwaarts en in de vrije speling niet. X12 284 → 280, alles OZB 10093 OZ1030.
   // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
   // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
@@ -217,24 +224,24 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_917, ef: 5_912, ls: 5_924, lf: 5_928, tf: 5_702, ff: 5_732 },
-    sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 42, ef: 47, ls: 36, lf: 31, tf: 70, ff: 40 },
+    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_664, ff: 5_692 },
+    sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
+    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 48, ff: 20 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 44, ef: 49, ls: 37, lf: 33, tf: 70, ff: 40 },
-    drivingPath: { exact: 5_808, sameday: 0, diff: 175, missing: 0, measurable: 5_983, deviations: 175 },
+    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 48, ff: 20 },
+    drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
   },
-  productPayloadSha256: '176ccc59af9aa7109163ff037339f5a52120a7916bb9b41303c978fa706ddd6e',
-  productPayloadGzipSha256: 'b678719f0b37296b56f82f46521fc8656c8c2768bb8559900270a66421f4cc49',
-  productProjectProjectionSha256: '803448a3cb59003ed79ce196dcf5e863295e2923e88249c67bfdd560533feeed',
+  productPayloadSha256: '7df62680db3c08b381bfc0e90bd6bee18616fa5c728c8da7bd974a69178f2db4',
+  productPayloadGzipSha256: '817f9884cbf6af2121431705d9258e981635dbb0875fdb01bfa593456eef397f',
+  productProjectProjectionSha256: '0462c861627f1d2d2c4ffdcbcb7267643d604fe87b4246c2db8bfac1c18b7583',
   roles: {
-    oracle: 13,
+    oracle: 9,
     'engine-input': 14,
     'parser-fixture': 15,
     'pseudo-xer': 13,
     'reference-only': 1,
     'synthetic-fixture': 5,
-    'reader-only': 32,
+    'reader-only': 36,
   } satisfies Record<Role, number>,
 } as const;
 
@@ -1060,8 +1067,10 @@ if (singleMutant !== undefined) {
     product.files[firstProductLabel]!.projectMeasurements[0]!.taskCodeExact--;
   }), manifest, oracle);
 
+  // Herpin 2026-09-24: de manifesthash begint nu zelf met '0' (0793e3…), dus de oude mutant "eerste
+  // teken → 0" was een no-op; hij flipt nu het eerste teken naar een ander hexteken.
   expectProductRejected('M24 productmanifesthash drift', withMutatedProduct(productV2, product => {
-    product.manifestSha256 = `0${product.manifestSha256.slice(1)}`;
+    product.manifestSha256 = `${product.manifestSha256.startsWith('0') ? '1' : '0'}${product.manifestSha256.slice(1)}`;
   }), manifest, oracle);
 
   expectProductRejected('M25 productschemafingerprint drift', withMutatedProduct(productV2, product => {
