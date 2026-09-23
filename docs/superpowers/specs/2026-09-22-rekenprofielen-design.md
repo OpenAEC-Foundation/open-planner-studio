@@ -1,6 +1,6 @@
 # Rekenprofielen — één solver, benoemde conventies, profielen per project
 
-*Ontwerp, 2026-09-22, **versie 3.1** (+ 2026-09-23: groep C — drie P6-conventies uit X12-brok 2: `p6CompletedPredecessorAtDataDate`, `p6FreeFloatOnOwnCalendar`, `p6CompletedRemainingLag`; het register telt daarmee 18 conventies; de tellingen hieronder zijn die van het ontwerp, het register is de bron) (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
+*Ontwerp, 2026-09-22, **versie 3.1** (+ 2026-09-23: groep C — negen P6-conventies C1–C9 uit X12 naar nul, brok 2, 3, 4 en 6, zie §3.1; het register telt daarmee 24 conventies; de tellingen in de latere secties zijn die van het ontwerp, het register is de bron) (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
 negen tekstpunten, v3 go onder drie voorwaarden; alle verwerkt — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
 vóór het X12-vervolg. Bijlage A is de inventaris van de motor op de kop van
 `claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
@@ -18,7 +18,7 @@ Dit ontwerp haalt die keuze uit de motor. Het onderscheidt twee dingen die v1 op
 
 - **Pakketconventies** — regels die bij een *school* horen en niet per bestand verschillen: "een
   finishmijlpaal is een grensvenster", "actuals zijn exacte broninstants", "restwerk hervat op
-  actualStart + verstreken duur". Dat zijn er achttien (bijlage A: groep A-conventies + B, het ontwerp telde er vijftien; sinds 2026-09-23 plus groep C). Zij vormen
+  actualStart + verstreken duur". Dat zijn er vierentwintig (bijlage A: groep A-conventies + B, het ontwerp telde er vijftien; sinds 2026-09-23 plus de negen van groep C). Zij vormen
   het **rekenprofiel**.
 - **Reken-opties van het project** — instellingen die P6 en MS Project *per project* opslaan en die de
   lezer uit het bestand haalt: lagkalender, kritiekdefinitie en -drempel, floatformule, open einden,
@@ -63,7 +63,13 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
-  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans.
+  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans. Sinds 2026-09-23 (X12 naar nul) plus groep C (9):
+  `p6CompletedPredecessorAtDataDate` (C1), `p6FreeFloatOnOwnCalendar` (C2), `p6CompletedRemainingLag` (C3),
+  `p6CompletedOutOfSequenceWindow` (C4), `p6CompletedPhysicalAtDataDate` (C5), `p6InProgressStartLagElapsed`
+  (C6), `p6FinishFinishStartMilestoneLateFinish` (C7), `p6StartedTaskIgnoresPlannedStartFloor` (C8),
+  `p6LateFinishOnOwnCalendar` (C9) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
+  in het docblok bij de sleutel in `src/types/project.ts`. Samen 24. (Niet te verwarren met de
+  taakdata-inventaris C1–C5 in bijlage A.)
 - **`ProjectOptionKey`** (9): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
   `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
   `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` (A21 —
@@ -93,8 +99,10 @@ interface ConventionDescriptor {
 type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
 ```
 
-Ingebouwde waarden (bijlage A): **P6** = alle achttien aan (ook groep C), behalve `resumeFromActualElapsed`,
-`unstartedIgnoresStatusDate` en `p6UseRemainingStartForProgress` (uit; per bestand als override);
+Ingebouwde waarden (bijlage A): **P6** = alle vierentwintig aan (ook groep C), behalve `resumeFromActualElapsed`,
+`unstartedIgnoresStatusDate`, `p6UseRemainingStartForProgress` (uit; per bestand als override) en de
+groep-C-conventies C1 en C4 (sinds 2026-09-23 uit: alleen door P3-uitvoer gedragen, 0 effect op de
+P6-doorgerekende orakels);
 **MS Project** = alleen `resumeFromActualElapsed` en `unstartedIgnoresStatusDate` aan; **OPS** = alles
 uit. `legacyValue` geldt voor bestanden mét `OPS_SchedulingProfile` waarin een (later toegevoegde)
 sleutel ontbreekt; voor alle huidige conventies is dat uit. Voor bestanden ZONDER die pset geldt niet
@@ -181,7 +189,7 @@ nieuwe conventie ineens anders). `overrides` wordt bij het lezen herleid als ver
 | bestand | profiel na openen | `schedulingOptions` |
 |---|---|---|
 | geen `OPS_SchedulingProfile`, geen `OPS_SchedulingOptions` | `ops` zonder overrides | leeg |
-| `OPS_SchedulingOptions` mét `p6Source: 'XER'` | `p6`; per conventie: sleutel aanwezig ⇒ die waarde als override waar hij van p6 afwijkt; A-sleutel **afwezig ⇒ uit** (`legacyValue`, want afwezig was uit); B1–B5 ⇒ **aan** (die werden uit `p6Source` afgeleid) | de optiesleutels |
+| `OPS_SchedulingOptions` mét `p6Source: 'XER'` | `p6`; per conventie: sleutel aanwezig ⇒ die waarde als override waar hij van p6 afwijkt; A-sleutel **afwezig ⇒ uit** (`legacyValue`, want afwezig was uit); B1–B5 ⇒ **aan** (die werden uit `p6Source` afgeleid); groep C (C1–C9) afwezig ⇒ de P6-waarde (`LEGACY_XER_ALSO_ON_X12`, sinds 2026-09-23) | de optiesleutels |
 | `OPS_SchedulingOptions` zónder `p6Source`, beide `.mpp`-vlaggen `true` | `msproject`; overrides = afwijkende niet-gepoorte conventies | de optiesleutels |
 | `OPS_SchedulingOptions` zónder `p6Source`, anders | `ops`; de `p6Source`-**gepoorte** conventies (A15–A20, dus ook A19) worden **weggegooid** (ze waren inert), de niet-gepoorte (A12, A13, A22, A23) worden overrides | de optiesleutels |
 | `OPS_SchedulingProfile` | zoals gelezen (§3.3) | `OPS_SchedulingOptions` |
@@ -296,7 +304,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 
 ## 8. Tests
 
-- `check-conventions-registry.ts`: 18 conventies (ontwerp: 15), drie ingebouwde waarden, `legacyValue`, unieke ids,
+- `check-conventions-registry.ts`: 24 conventies (ontwerp: 15), drie ingebouwde waarden, `legacyValue`, unieke ids,
   i18n-sleutels; resolve/diff-identiteit; `'auto'` ≡ afwezig; `XER_SCHEDULING_DEFAULTS` ≡ p6.
 - `check-scheduling-profile-roundtrip.ts`: IFC-round-trip voor drie ingebouwde + één eigen profiel; de
   vijf migratierijen; vijandige pset (onbekende baseId, onzin-conventies, 10 MB name) valt terug zonder
@@ -413,6 +421,8 @@ Traces (`backwardFloatTrace`, `plannedFloorTraceByTaskId`) staan ook achter p6So
 rekeneffect; ze volgen `p6CompletedDataDateWindow` resp. `p6UseTaskPlannedStartFloor` (§4).
 
 ### C. MS-Project-specifiek via taakvelden (blijft taakdata)
+
+*Deze nummers C1–C5 zijn inventarisnummers van taakdata, NIET de groep-C-conventies C1–C9 uit §3.1.*
 
 C1 `manuallyScheduled` (alleen `.mpp`-lezer; MSPDI leest het niet), C2 `levelingDelayMinutes`/`-Elapsed`,
 C3 timephased-velden (`timephasedStartAnchor`/`-FinishFloor`/`-DurationWalks`), C4 `time.resume` bij

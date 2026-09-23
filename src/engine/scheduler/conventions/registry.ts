@@ -93,7 +93,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6CompletedDataDateWindow', 'B', P6_ONLY, true),                 // B3
   convention('p6CompletedLoeActualFinish', 'B', P6_ONLY, true),                // B4
   convention('p6OpenLoeTargetSpan', 'B', P6_ONLY, true),                       // B5
-  // C1–C8: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`. C1 en C4
+  // C1–C9: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`. C1 en C4
   // staan sinds 2026-09-23 in elk ingebouwd profiel uit (besluit: alleen P6-doorgerekende orakels;
   // op die populatie 0 effect, alleen rehab-2 = P3-uitvoer droeg ze). C3 blijft in P6 aan: C5 rekent
   // de lag tussen zijn statusdatumpunt en een opvolger met rekenregel C3, en C3 uit kost 640 exacte

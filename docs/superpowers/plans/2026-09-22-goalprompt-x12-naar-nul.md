@@ -30,8 +30,9 @@ exact was inexact wordt, geen enkele bucket verslechtert, en geen enkele cel bin
   de eenmalige vlag `OPS_XER_CELLS_DEBT_INIT` is na gebruik verwijderd, een cellenbestand zonder
   schuldsectie wordt geweigerd, en `check-fidelity-cells-gate.ts` pint een digest over de schuldset
   (bestand, as, id, `reference`), dus de lijst kan alleen krimpen. De grootten zelf zijn tegen handwerk
-  gepind via `cellMinutesSha256` in de v2-envelop. Oplossen is de eerste opdracht van de
-  volgende brok (plan XER §9, "Ratchet-schuld 2026-09-23").
+  gepind via `cellMinutesSha256` in de v2-envelop. **Stand:** X12 brok 6 maakte alle 14 exact; de
+  schuldsectie is sindsdien leeg (`ratchetDebt` = 0) en kan niet meer groeien (plan XER §9,
+  "Ratchet-schuld 2026-09-23").
 - **Grootte-clausule** (eigenaarsbesluit 23-09, "2. Invoeren"): het cellenbestand (versie 2) pint per
   inexacte cel ook de absolute afwijking `|ours − truth|` in minuten (datum-assen wandklok, tf/ff
   floatminuten; `missing` en `drivingPath` zonder grootte). Groter binnen dezelfde bucket is rood
@@ -82,6 +83,9 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
 4. **Escaleren, niet pinnen.** Kun je een afwijking niet verklaren uit P6's eigen documentatie of het
    corpus, dan komt hij als open vraag in `docs/superpowers/plans/2026-08-20-plan-xer-p6-lezer.md` §9 —
    nooit in de baseline met een `reason`.
+   **n = 1-criterium** (orkestratorbesluit bij brok 6, overdracht §1c): een regel met één corpusgeval
+   mag alleen landen als hij een gedocumenteerd P6-principe is (Oracle-bron geciteerd in het docblok)
+   en niet uit dat ene bestand is afgeleid; anders blijft het een open restant (zoals B10, B13/B14).
 5. **Machineregel:** maximaal één zware suite tegelijk (`ps aux | grep run.sh`); gerichte checks
    tussendoor, de volledige suite bij het landen.
 

@@ -167,6 +167,24 @@ Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde st
 | `plans/2026-09-11-plan-issue27-xlsx-voortgangsblad.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `plans/archief-2026-08-14-f0-brief-concept.md` | verhuisd naar archief (2026-09-14) | 0 |
 
+**Na de peildatum toegevoegd: XER-lezer, rekenprofielen en X12 naar nul (bijgewerkt 2026-09-23).**
+Verwijzingen hier = aantal bestanden in `src/`, `tests/`, `docs/`, `public/` en `scripts/` dat de
+bestandsnaam noemt (zelfde uitsluitingen als hierboven).
+
+| stuk | stand | verwijzingen |
+|---|---|---|
+| `plans/2026-08-20-plan-xer-p6-lezer.md` | actief — het XER-etappeplan; §4.1 veldwhitelist, §9 dossiers, §10 overdrachtsstand | 2 |
+| `specs/2026-09-22-rekenprofielen-design.md` | naslag (opgeleverd; groep C daarna bijgeschreven) — het register is de bron | 8 |
+| `plans/2026-09-22-plan-rekenprofielen.md` | naslag (opgeleverd) | 2 |
+| `plans/2026-09-22-rekenprofielen-overdracht.md` | actief — eigenaarsbesluiten en de lopende stand van het programma | 1 |
+| `plans/2026-09-22-goalprompt-x12-naar-nul.md` | actief — regel A/B en de opdrachttekst voor elk X12-brok | 4 |
+| `plans/2026-09-23-x12-restant-classificatie.md` | actief — brokkentelling per populatie (kop "Populatie na 24-09" is de actuele) | 5 |
+| `plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` | naslag — meetonderzoek achter C1/C4 uit | 5 |
+| `plans/2026-09-23-x12-b01-onderzoek.md` | naslag — meetonderzoek (rehab-2 = P3-uitvoer) | 2 |
+| `plans/2026-09-24-x12-harbourpointe-kalender.md` | invoer voor lopend X12-werk | 1 |
+| `plans/2026-09-24-x12-restant-onderzoek-284.md` | invoer voor lopend X12-werk (o.a. DCP-03 Baseline = generatoruitvoer) | 3 |
+| `plans/patches/` | geparkeerde, niet gelande motorpatches (B15, zie plan XER §9) | — |
+
 Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma;
 **naslag** = het werk is gedaan, het stuk blijft als uitleg bij de code;
 **deels uitgevoerd** = een deel van het ontwerp bestaat, een deel niet (welk deel staat erbij);
