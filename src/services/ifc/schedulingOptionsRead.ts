@@ -46,6 +46,7 @@ const BOOLEAN_KEYS = [
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
 const TOTAL_FLOAT_MODES = ['start', 'finish', 'smallest'] as const;
+const START_TO_START_LAG_FROM = ['earlyStart', 'actualStart'] as const;
 const CRITICAL_MODES = ['totalFloat', 'longestPath'] as const;
 const FLOAT_PATH_METHODS = ['FREE_FLOAT', 'TOTAL_FLOAT'] as const;
 
@@ -59,7 +60,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 type HandledKeys =
   | (typeof BOOLEAN_KEYS)[number]
   | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
-  | 'nearCriticalThreshold' | 'floatPaths';
+  | 'nearCriticalThreshold' | 'floatPaths' | 'startToStartLagFrom';
 type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
 const _allKeysHandled: MissingKeys extends never ? true : MissingKeys = true;
 void _allKeysHandled;
@@ -75,6 +76,9 @@ export function sanitizeSchedulingOptions(input: unknown): LegacySchedulingOptio
       case 'p6Source': if (value === 'XER') out.p6Source = 'XER'; break;
       case 'lagCalendar': if (oneOf(value, LAG_CALENDARS)) out.lagCalendar = value; break;
       case 'totalFloatMode': if (oneOf(value, TOTAL_FLOAT_MODES)) out.totalFloatMode = value; break;
+      case 'startToStartLagFrom':
+        if (oneOf(value, START_TO_START_LAG_FROM)) out.startToStartLagFrom = value;
+        break;
       case 'nearCriticalThreshold': if (isFiniteNumber(value)) out.nearCriticalThreshold = value; break;
       case 'criticalDefinition':
         if (isRecord(value) && oneOf(value.mode, CRITICAL_MODES)) {

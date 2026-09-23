@@ -63,17 +63,21 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
-  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans. Sinds 2026-09-23 (X12 naar nul) plus groep C (9):
+  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans. Sinds 2026-09-23 (X12 naar nul) plus groep C (11):
   `p6CompletedPredecessorAtDataDate` (C1), `p6FreeFloatOnOwnCalendar` (C2), `p6CompletedRemainingLag` (C3),
   `p6CompletedOutOfSequenceWindow` (C4), `p6CompletedPhysicalAtDataDate` (C5), `p6InProgressStartLagElapsed`
   (C6), `p6FinishFinishStartMilestoneLateFinish` (C7), `p6StartedTaskIgnoresPlannedStartFloor` (C8),
-  `p6LateFinishOnOwnCalendar` (C9) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
-  in het docblok bij de sleutel in `src/types/project.ts`. Samen 24. (Niet te verwarren met de
+  `p6LateFinishOnOwnCalendar` (C9), `p6ProgressOverrideIgnoresStartedSuccessor` (C11),
+  `p6FinishNotBeforeFinishFinishBound` (C12; C10 = de geparkeerde ALAP) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
+  in het docblok bij de sleutel in `src/types/project.ts`. Samen 26. (Niet te verwarren met de
   taakdata-inventaris C1–C5 in bijlage A.)
-- **`ProjectOptionKey`** (9): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
+- **`ProjectOptionKey`** (10): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
   `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
   `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` (A21 —
-  hangt in de motor aan de B3/B4-keten en werkt dus alleen onder een profiel met die conventies aan).
+  hangt in de motor aan de B3/B4-keten en werkt dus alleen onder een profiel met die conventies aan),
+  en sinds 2026-09-23 `startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start
+  lag from", uit XER `sched_lag_early_start_flag`; kiest de variant van conventie C6 en doet niets
+  zonder C6).
   Plus `project.progressMode` als apart projectveld.
 - Typen: `ProjectSchedulingOptions = Pick<SchedulingOptions, ProjectOptionKey>`,
   `SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>`, en

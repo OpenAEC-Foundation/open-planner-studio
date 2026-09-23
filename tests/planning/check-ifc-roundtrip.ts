@@ -375,7 +375,7 @@ const assignments: ResourceAssignment[] = [
 ];
 
 // ── Project incl. schedulingOptions/statusDate/progressMode/wbsAutoNumber ─────────────────────────
-// Rekenprofielen C2: het optieblok draagt alleen de negen projectopties (waarden ongewijzigd); de
+// Rekenprofielen C2: het optieblok draagt alleen de tien projectopties (waarden ongewijzigd); de
 // conventies reizen via het profiel hieronder (OPS_SchedulingProfile).
 const SCHED_OPTS = {
   lagCalendar: 'successor',
@@ -387,6 +387,8 @@ const SCHED_OPTS = {
   useProjectEndDateForFloat: true,
   nearCriticalThreshold: 3,
   floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
+  // Niet-default (P6 "Calculate Start-to-Start lag from: Actual Start"), zodat de round-trip iets bewijst.
+  startToStartLagFrom: 'actualStart',
 } satisfies Required<ProjectSchedulingOptions>;
 const project = {
   id: 'proj-1', name: 'Nieuwbouw Testtoren', description: 'Beschrijving X', // description: (a) gap

@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ConventionKey, EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import {
-  BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
+  BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isConventionKey, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
 import { optionKeysOnly, legacyOptionsToProfile, legacyOptionsBlobFor, LEGACY_XER_ALWAYS_ON, LEGACY_XER_ALSO_ON_X12, legacyXerDefault } from '@/services/ifc/schedulingProfileMigration';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
@@ -312,6 +312,18 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   for (const key of CONVENTION_KEYS) {
     eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], true);
   }
+  // Projectoptie `startToStartLagFrom` (de variant van C6): alleen de twee bekende waarden komen door.
+  eq('99k sanitizer: startToStartLagFrom actualStart/earlyStart blijven, onzin valt weg', [
+    sanitizeSchedulingOptions({ startToStartLagFrom: 'actualStart' })?.startToStartLagFrom,
+    sanitizeSchedulingOptions({ startToStartLagFrom: 'earlyStart' })?.startToStartLagFrom,
+    sanitizeSchedulingOptions({ startToStartLagFrom: 'dataDate' }),
+    sanitizeSchedulingOptions({ startToStartLagFrom: true }),
+  ], ['actualStart', 'earlyStart', undefined, undefined]);
+  eq('99l startToStartLagFrom is een projectoptie, geen conventie', isConventionKey('startToStartLagFrom'), false);
+  eq('99m P6-standaardopties: Early Start; MS Project/OPS zonder (inert zonder C6)', [
+    defaultOptionsFor('p6').startToStartLagFrom, defaultOptionsFor('msproject').startToStartLagFrom,
+    defaultOptionsFor('ops').startToStartLagFrom,
+  ], ['earlyStart', undefined, undefined]);
 }
 
 // ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle 14 talen ──

@@ -6,7 +6,7 @@ import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, displayNameKey, resolveConventions,
 } from '@/engine/scheduler/conventions/registry';
 import { deleteCustomProfile, loadCustomProfiles, upsertCustomProfile } from '@/services/schedulingProfiles/profileStore';
-import type { BuiltInProfileId, ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { BuiltInProfileId, ConventionKey, ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
 import { generateId } from '@/utils/id';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -34,9 +34,9 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
- * eigen sjablonen, of het eigen profiel van dit project), daaronder de zesentwintig conventies en zes van de
- * negen projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
- * kritiek, meerdere speling-paden, lag-kalender). De andere drie — `useExpectedFinishDates`,
+ * eigen sjablonen, of het eigen profiel van dit project), daaronder de zesentwintig conventies en zeven van de
+ * tien projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
+ * kritiek, meerdere speling-paden, lag-kalender, SS-lag-variant van C6). De andere drie — `useExpectedFinishDates`,
  * `useProjectEndDateForFloat` en `p6CompletedLateFromRemainingWindow` — zijn bewust NIET bewerkbaar:
  * het zijn P6-bronsignalen die de XER-lezer uit SCHEDOPTIONS zet (of die aan de P6-herkomstketen van
  * B3/B4 hangen), zonder betekenis voor een project dat niet uit P6 komt. Het blok laat ze ongemoeid
@@ -69,6 +69,9 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   const profile = value.profile;
   const so: ProjectSchedulingOptions = value.options ?? {};
   const conventions = useMemo(() => resolveConventions(profile), [profile]);
+  // De SS-lag-projectoptie werkt alleen met C6 én A19 aan (`CPMSolver.inProgressStartLag`).
+  const ssLagMissing: ConventionKey | null = !conventions.p6InProgressStartLagElapsed ? 'p6InProgressStartLagElapsed'
+    : !conventions.p6UseRemainingStartForProgress ? 'p6UseRemainingStartForProgress' : null;
   const label = profileLabel(profile);
   const relation = templateRelation(profile, templates);
   const brand = (id: BuiltInProfileId) => t(displayNameKey(id) as BuiltInNameKey);
@@ -333,6 +336,23 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
               { value: 'successor', label: tMenu('projectInfo.calc.lagSuccessor') },
               { value: '24hour', label: tMenu('projectInfo.calc.lag24hour') },
               { value: 'projectDefault', label: tMenu('projectInfo.calc.lagProjectDefault') },
+            ]} />
+        </div>
+
+        {/* P6 "Calculate Start-to-Start lag from": de variant van conventie C6, die in de motor alleen
+            samen met A19 (`p6UseRemainingStartForProgress`) werkt. Staat een van beide uit, dan doet de
+            optie niets: uitgeschakeld (de waarde blijft staan), tooltip noemt de ontbrekende conventie. */}
+        <div className="flex flex-col gap-1"
+          title={ssLagMissing ? tMenu('projectInfo.calc.ssLagNeedsConvention', {
+            convention: t(`conventions.${ssLagMissing}.label` as ConventionLabelKey),
+          }) : undefined}>
+          <label className={labelCls}>{tMenu('projectInfo.calc.ssLagFrom')}</label>
+          <Select aria-label={tMenu('projectInfo.calc.ssLagFrom')} value={so.startToStartLagFrom ?? 'earlyStart'}
+            disabled={ssLagMissing !== null}
+            onChange={v => patchOptions({ ...so, startToStartLagFrom: v as ProjectSchedulingOptions['startToStartLagFrom'] })}
+            options={[
+              { value: 'earlyStart', label: tMenu('projectInfo.calc.ssLagEarlyStart') },
+              { value: 'actualStart', label: tMenu('projectInfo.calc.ssLagActualStart') },
             ]} />
         </div>
       </div>

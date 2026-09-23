@@ -758,7 +758,11 @@ groupC.push({
 // niet-gestarte S. Sinds de werkelijke start is op de statusdatum 7 × 9 = 63 h werktijd verstreken,
 // dus niets van de lag blijft over: S start met A's restwerk, wo 14 jan 08:00. Zonder C6: de volle
 // lag vanaf A's restwerkstart, wo 14 jan 08:00 + 18 h = do 15 jan 17:00 ⇒ vr 16 jan 08:00.
-function c6Fixture(actualStart = '2026-01-05 08:00', extraTasks: string[] = [], extraRelations: string[] = []): ImportResult {
+function c6Fixture(
+  actualStart = '2026-01-05 08:00', extraTasks: string[] = [], extraRelations: string[] = [],
+  /** `SCHEDOPTIONS.sched_lag_early_start_flag`; afwezig ⇒ geen SCHEDOPTIONS-tabel (P6-standaard Y). */
+  ssLagEarlyStartFlag?: 'Y' | 'N',
+): ImportResult {
   return importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -767,6 +771,9 @@ function c6Fixture(actualStart = '2026-01-05 08:00', extraTasks: string[] = [], 
     '%T\tPROJECT',
     '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
     '%R\tP1\tC6-fixture\tC1\t2026-01-14 00:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    ...(ssLagEarlyStartFlag
+      ? ['%T\tSCHEDOPTIONS', '%F\tproj_id\tsched_lag_early_start_flag', `%R\tP1\t${ssLagEarlyStartFlag}`]
+      : []),
     '%T\tTASK',
     '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
     `%R\tA\tP1\tC1\tRUN\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t45\t18\t2026-01-05 08:00\t2026-01-15 17:00\t${actualStart}\t`,
@@ -1325,6 +1332,65 @@ for (const fixture of groupC) {
   eq('C6 raakt geen FS-relatie',
     solveAxes(fs, 'S').es,
     solveAxes(withProfile(fs, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false)), 'S').es);
+}
+
+// Projectoptie `startToStartLagFrom` — P6 "Calculate Start-to-Start lag from" (Oracle P6 Help 99348),
+// de VARIANT van C6, gelezen uit `sched_lag_early_start_flag` (Y ⇒ earlyStart, N ⇒ actualStart). Met de
+// hand afgeleid op de C6-fixture (band 08:00–17:00 ma–vr, statusdatum wo 14 jan 00:00, A19 aan):
+//  (a) volledig verstreken lag, B —FS→ A duwt A's restwerkstart naar vr 16 jan 08:00. Early Start:
+//      S = A's restwerkstart + rest-lag 0 = vr 16 jan 08:00. Actual Start: S = statusdatum + 0 = wo 14
+//      jan 00:00 ⇒ de eerste werkstart, wo 14 jan 08:00;
+//  (b) deels verstreken (werkelijk gestart di 13 jan 08:00: 9 h verstreken, 9 h rest) mét B. Early
+//      Start: vr 16 jan 08:00 + 9 h = vr 16 jan 17:00 ⇒ ma 19 jan 08:00. Actual Start: wo 14 jan
+//      00:00 + 9 h werktijd = wo 14 jan 17:00 ⇒ do 15 jan 08:00;
+//  (c) zonder B valt A's restwerkstart op de statusdatumgrens: beide varianten gelijk;
+//  (d) C6 uit ⇒ de optie is inert (de volle lag vanaf A's vroege start, beide varianten gelijk);
+//  (e) spiegel: Actual Start begrenst de lopende voorganger achterwaarts niet (anders onechte
+//      negatieve speling, reviewer-tegenvoorbeeld); ongemeten tegen P6, zie docblok.
+// Mutanten (2026-09-23, tegen `CPMSolver.inProgressStartLagAnchor` en de lezer): "anker negeert de
+// optie" ⇒ rood op (a), (b) en de readerregels; "anker zonder C6-poort" ⇒ rood op (d); "lezer N ⇒
+// earlyStart" ⇒ rood op (a) en (b) (en in check-xer-schedule-options.ts).
+{
+  const B_TASK = '%R\tB\tP1\tC1\tPRE\tVoorganger A\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t18\t18\t2026-01-14 08:00\t2026-01-15 17:00\t\t';
+  const B_REL = '%R\tR2\tA\tB\tP1\tP1\tPR_FS\t0';
+  const floorEs = c6Fixture('2026-01-05 08:00', [B_TASK], [B_REL], 'Y');
+  const floorAs = c6Fixture('2026-01-05 08:00', [B_TASK], [B_REL], 'N');
+  eq('SS-lag-variant: Y ⇒ projectoptie earlyStart, N ⇒ actualStart', [
+    floorEs.project.schedulingOptions?.startToStartLagFrom, floorAs.project.schedulingOptions?.startToStartLagFrom,
+  ], ['earlyStart', 'actualStart']);
+  eq('SS-lag-variant (a): Early Start ⇒ S op A\'s restwerkstart', solveAxes(floorEs, 'S').es, '2026-01-16T08:00');
+  eq('SS-lag-variant (a): Actual Start ⇒ S op de statusdatum + rest-lag 0', solveAxes(floorAs, 'S').es, '2026-01-14T08:00');
+  eq('SS-lag-variant (a): de voorganger zelf verschuift niet mee', solveAxes(floorAs, 'A').es, '2026-01-16T08:00');
+  eq('SS-lag-variant (b): Early Start ⇒ restwerkstart + 9 h rest-lag',
+    solveAxes(c6Fixture('2026-01-13 08:00', [B_TASK], [B_REL], 'Y'), 'S').es, '2026-01-19T08:00');
+  eq('SS-lag-variant (b): Actual Start ⇒ statusdatum + 9 h rest-lag',
+    solveAxes(c6Fixture('2026-01-13 08:00', [B_TASK], [B_REL], 'N'), 'S').es, '2026-01-15T08:00');
+  eq('SS-lag-variant (c): restwerkstart op de statusdatumgrens ⇒ beide varianten gelijk',
+    [solveAxes(c6Fixture(undefined, [], [], 'Y'), 'S').es, solveAxes(c6Fixture(undefined, [], [], 'N'), 'S').es],
+    ['2026-01-14T08:00', '2026-01-14T08:00']);
+  const c6Off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false));
+  eq('SS-lag-variant (d): C6 uit ⇒ optie inert (volle lag vanaf A\'s vroege start)',
+    [solveAxes(c6Off(floorEs), 'S').es, solveAxes(c6Off(floorAs), 'S').es], ['2026-01-20T08:00', '2026-01-20T08:00']);
+  for (const baseId of ['ops', 'msproject'] as const) {
+    const plain = (input: ImportResult) => withProfile(input, copy => {
+      copy.project.schedulingProfile = { baseId, id: baseId, name: '', overrides: {} };
+    });
+    eq(`SS-lag-variant (d): ingebouwd profiel ${baseId} ⇒ optie inert`,
+      solveAxes(plain(floorAs), 'S'), solveAxes(plain(floorEs), 'S'));
+  }
+  // (e) spiegel achterwaarts: lange opvolger L (S —FS→ L, 180 h) maakt S kritiek. Actual Start: de
+  // SS-relatie begrenst de lopende A achterwaarts niet (vóór de fix: A en B tf −2). A (EF ma 19 jan
+  // 17:00) en haar voorganger B hangen dan alleen aan het projecteinde (L: wo 11 feb 17:00) ⇒ tf 17
+  // werkdagen, niet 0: A drijft S onder Actual Start per definitie niet. S zelf blijft kritiek (tf 0).
+  const L_TASK = '%R\tL\tP1\tC1\tLONG\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t180\t180\t2026-01-15 08:00\t2026-02-11 17:00\t\t';
+  const L_REL = '%R\tR3\tL\tS\tP1\tP1\tPR_FS\t0';
+  const critAs = c6Fixture('2026-01-05 08:00', [B_TASK, L_TASK], [B_REL, L_REL], 'N');
+  const critEs = c6Fixture('2026-01-05 08:00', [B_TASK, L_TASK], [B_REL, L_REL], 'Y');
+  eq('SS-lag-variant (e): Actual Start ⇒ S kritiek (tf 0)', solveAxes(critAs, 'S').tf, 0);
+  eq('SS-lag-variant (e): Actual Start ⇒ lopende A niet door S begrensd (tf 17, geen −2)', solveAxes(critAs, 'A').tf, 17);
+  eq('SS-lag-variant (e): Actual Start ⇒ B niet via A door S begrensd (tf 17, geen −2)', solveAxes(critAs, 'B').tf, 17);
+  eq('SS-lag-variant (e): Early Start ⇒ A, B, S kritiek (tf 0)',
+    ['A', 'B', 'S'].map(id => solveAxes(critEs, id).tf), [0, 0, 0]);
 }
 
 // X12 brok 6 — de late kant van de B07-keten (ratchet-schuld 2026-09-23). Band 08:00–17:00 ma–vr,

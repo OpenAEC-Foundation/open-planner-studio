@@ -1518,10 +1518,10 @@ const PROJECT_KEYS = [
  *  oneindig veel bruikbaarder dan de stilte van vroeger. */
 const PROJECT_REFUSED: Record<string, string> = {
   schedulingOptions:
-    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`) ' +
+    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`, `startToStartLagFrom`) ' +
     'zijn NIET via de bridge instelbaar: samen met het rekenprofiel bepalen ze de solver-semantiek van het ' +
     'hele document. Zet ze in de app onder Bestand → Projectinfo → Rekenprofiel en reken-opties; ' +
-    '`planner_get_project_info` toont het actieve profiel, `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    '`planner_get_project_info` toont het actieve profiel en de projectopties, `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
   schedulingProfile:
     'het rekenprofiel (P6 / MS Project / OPS / eigen) is NIET via de bridge instelbaar: een wissel verschuift ' +
     'datums van het hele document. Kies het in de app onder Bestand → Projectinfo → Rekenprofiel; ' +

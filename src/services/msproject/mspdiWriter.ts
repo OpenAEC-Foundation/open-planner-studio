@@ -397,6 +397,7 @@ export function writeMSPDI(
     if (so.makeOpenEndedCritical) lost.push('makeOpenEndedCritical');
     if (so.nearCriticalThreshold != null) lost.push('nearCriticalThreshold');
     if (so.floatPaths?.enabled) lost.push('floatPaths');
+    if (so.startToStartLagFrom === 'actualStart') lost.push('startToStartLagFrom');
   }
   // Rekenprofielen C3: de twee MPP-eigen conventies staan sinds de profielen in het rekenprofiel
   // (MS Project-profiel), niet meer in `schedulingOptions` — zelfde waarschuwing, andere bron.

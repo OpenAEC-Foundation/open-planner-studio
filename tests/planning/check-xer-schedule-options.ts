@@ -699,6 +699,7 @@ eq('hostile bronarchief bewaart iedere raw rij eenmaal en diagnosticeert duplica
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
     p6CompletedLateFromRemainingWindow: true,
+    startToStartLagFrom: 'earlyStart',
   },
   duplicateDiagnostics: [{
     code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
@@ -762,6 +763,7 @@ eq('expliciete XER-defaultset is brongebonden en compleet', legacyResult(without
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
     p6CompletedLateFromRemainingWindow: true,
+    startToStartLagFrom: 'earlyStart',
   },
   p6UseRemainingStartForProgress: false,
   retainedSource: {},
@@ -785,6 +787,7 @@ eq('geexporteerde defaults blijven de ongewijzigde nul-drempel leveren', XER_SCH
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
     p6CompletedLateFromRemainingWindow: true,
+    startToStartLagFrom: 'earlyStart',
   },
 });
 eq('default 1/8: finish-float', XER_SCHEDULING_DEFAULTS.schedulingOptions.totalFloatMode, 'finish');
@@ -899,8 +902,9 @@ const mapped = deriveXerScheduleOptions(parseXerTables(xer(
       'use_total_float',
       'limit_multiple_longest_path_calc',
       'max_multiple_longest_path',
+      'sched_lag_early_start_flag',
     ],
-    values: ['P1', 'RCAL_SUCCESSOR', 'ft_ss', 'N', 'y', 'Y', 'n', 'N', 'Y', 'Y', 'Y', '3'],
+    values: ['P1', 'RCAL_SUCCESSOR', 'ft_ss', 'N', 'y', 'Y', 'n', 'N', 'Y', 'Y', 'Y', '3', 'n'],
   },
 )), 'P1', { hoursPerDay: 8, taskCount: 9 });
 
@@ -914,6 +918,8 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
     makeOpenEndedCritical: true,
     useExpectedFinishDates: false,
     p6CompletedLateFromRemainingWindow: false,
+    // `n` (case-insensitief) ⇒ P6 "Calculate Start-to-Start lag from: Actual Start".
+    startToStartLagFrom: 'actualStart',
     useProjectEndDateForFloat: false,
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 3 },
   },
@@ -946,6 +952,7 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
         use_total_float: 'Y',
         limit_multiple_longest_path_calc: 'Y',
         max_multiple_longest_path: '3',
+        sched_lag_early_start_flag: 'n',
       },
     },
   ],
@@ -1075,6 +1082,28 @@ eq('X5-bronvlaggen round-trippen verliesloos via IFC (opties + profiel ⇒ dezel
   sortedKeys(solveOptionsFor(ifcRoundTrip.project).schedulingOptions), sortedKeys(xerEffective(withoutTable)));
 eq('X5: het optieblok na lezen draagt alleen projectopties',
   optionKeysOnly(ifcRoundTrip.project.schedulingOptions), ifcRoundTrip.project.schedulingOptions);
+
+// Projectoptie `startToStartLagFrom` uit `sched_lag_early_start_flag` (P6 "Calculate Start-to-Start lag
+// from", plan XER §9 vervolgpunt X12 brok 3): Y ⇒ earlyStart, N ⇒ actualStart, leeg ⇒ de P6-standaard
+// earlyStart, een onbekend token ⇒ zichtbare terugval op earlyStart. Mutant "N ook op earlyStart" ⇒ rood
+// (N-regel en de `mapped`-fixture hierboven); mutant "leeg ⇒ actualStart" ⇒ rood (leeg-regel).
+{
+  const ssLag = (token: string) => deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'], ['P1'], { fields: ['proj_id', 'sched_lag_early_start_flag'], values: ['P1', token] },
+  )), 'P1');
+  eq('sched_lag_early_start_flag Y ⇒ earlyStart', ssLag('Y').schedulingOptions.startToStartLagFrom, 'earlyStart');
+  eq('sched_lag_early_start_flag N ⇒ actualStart', ssLag('N').schedulingOptions.startToStartLagFrom, 'actualStart');
+  eq('sched_lag_early_start_flag leeg ⇒ earlyStart (P6-standaard)',
+    ssLag('').schedulingOptions.startToStartLagFrom, 'earlyStart');
+  const unknown = ssLag('X');
+  eq('sched_lag_early_start_flag onbekend ⇒ zichtbare terugval op earlyStart', {
+    value: unknown.schedulingOptions.startToStartLagFrom,
+    fallbacks: unknown.fallbacks.map(item => [item.field, item.token, item.fallback]),
+  }, { value: 'earlyStart', fallbacks: [['sched_lag_early_start_flag', 'X', 'true']] });
+  eq('sched_lag_early_start_flag is een gemapte kolom (X5-status niet meer todo)',
+    XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === 'sched_lag_early_start_flag'),
+    { field: 'sched_lag_early_start_flag', status: 'mapped', target: 'schedulingOptions.startToStartLagFrom' });
+}
 
 const expectedColumns = [
   'enable_multiple_longest_path_calc',

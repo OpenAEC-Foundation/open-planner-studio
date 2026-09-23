@@ -169,6 +169,31 @@ export interface SchedulingOptions {
    *  poort dicht op `wrongDurationType`/`missingExplicitTargetWindow`; dat is een toevallige
    *  nauwte, geen semantische verzoening. Zie plan §5 X-O7 laag 1. */
   p6CompletedLateFromRemainingWindow?: boolean;
+  /** Projectoptie "Calculate Start-to-Start lag from" (P6, Schedule Options; plan XER §9, vervolgpunt
+   *  X12 brok 3). Kiest de VARIANT van conventie C6 (`p6InProgressStartLagElapsed`); de conventie zelf
+   *  blijft de schakelaar "P6-lagregel aan". Staat C6 uit (MS Project, OPS), dan doet deze optie niets.
+   *  Met C6 aan, voor een SS-relatie met positieve WORKTIME-lag uit een LOPENDE voorganger:
+   *   - `'earlyStart'` (afwezig ≡ dit; P6's eigen standaard): de opvolger start op de restwerkstart
+   *     van de voorganger plus de rest-lag — exact het C6-gedrag van vóór deze optie;
+   *   - `'actualStart'`: de opvolger start op de STATUSDATUM plus de rest-lag, los van de
+   *     restwerkstart van de voorganger (`CPMSolver.inProgressStartLagAnchor`).
+   *  Bron: Oracle P6 Help "Calculate Start-to-Start lag from"
+   *  (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm) — *Early Start*: "the predecessor's
+   *  remaining early start plus any remaining lag"; *Actual Start*: "the data date plus any remaining
+   *  lag". In XER `SCHEDOPTIONS.sched_lag_early_start_flag` (Y ⇒ `earlyStart`, N ⇒ `actualStart`, leeg
+   *  ⇒ `earlyStart`; `xerScheduleOptions.ts`). De rest-lag (`max(0, lag − werktijd(werkelijke start →
+   *  statusdatum))`) is in beide varianten gelijk. Late kant: bij `'earlyStart'` begrenst de relatie de
+   *  voorganger achterwaarts met de C6-rest-lag; bij `'actualStart'` begrenst ze de lopende voorganger
+   *  achterwaarts NIET (spiegel van het statusdatumanker: de voorganger kan de opvolger via deze relatie
+   *  niet vertragen, dus geen onechte negatieve speling). [VERMOED] intern consistent; wat P6 achterwaarts
+   *  doet is ONGEMETEN — geen enkel P6-doorgerekend orakelbestand heeft N (corpus: Y bij OZB,
+   *  HarbourPointe, Hotel, Roads, Sample, ashspace, xernative en TERMINAL; N alleen bij DCP-03, dat sinds
+   *  2026-09-23 geen orakel meer is). Buiten de C6-poort blijft de optie inert, ook bij `'actualStart'`:
+   *  lag 0 (of negatief), een ELAPSEDTIME-lag en dagmodus houden het gewone anker (restwerkstart) en de
+   *  gewone late kant. Oracle's helptekst noemt voor die gevallen geen uitzondering; ongemeten, er is geen
+   *  orakel met N. Werkt alleen met A19 (`p6UseRemainingStartForProgress`) aan, net als C6 zelf.
+   *  Per bestand, dus een projectoptie en geen conventie (regel B). */
+  startToStartLagFrom?: 'earlyStart' | 'actualStart';
 
   // ── Groep B (rekenprofielen baan B, spec 2026-09-22 bijlage A) ─────────────────────────────
   // Vijf P6-conventies die tot baan B alleen achter de XER-bronmarkering stonden. Elk: P6 aan /
@@ -447,9 +472,9 @@ export interface SchedulingOptions {
    *    Early-Start-variant; de max(0)-vloer is gedocumenteerd ("remaining lag"). In XER is dit
    *    `sched_lag_early_start_flag` (corpus: Y 40, N 8, leeg 2; Roads Y, DCP-03 Baseline/As-Built N).
    *    Het deels-verstreken geval (0 < rest-lag < lag) komt in het corpus niet voor.
-   *    VERVOLGPUNT (niet gebouwd): C6 hoort een projectoptie uit `sched_lag_early_start_flag` te
-   *    worden, waarbij N = "statusdatum + rest-lag" (`xerScheduleOptions.ts`, veld nu `status: 'todo'`);
-   *    zie plan §9. Meting die dit bevestigt: alle niet-gestarte opvolgers met een SS+lag-relatie
+   *    De keuze tussen beide varianten is sinds 2026-09-23 de projectoptie `startToStartLagFrom`
+   *    (uit `sched_lag_early_start_flag`; N = "statusdatum + rest-lag"); C6 blijft de schakelaar.
+   *    Meting die de Early-Start-variant bevestigt: alle niet-gestarte opvolgers met een SS+lag-relatie
    *    uit een lopende voorganger in het P6-doorgerekende `Roads_Project_TEC.xer` (8) starten op de
    *    restwerkstart van die voorganger zelf, niet een volle lag later: OCEC11371 (werkelijk gestart
    *    2013-02-23, restwerkstart 06-24 07:00) —SS+60 h→ OCEC11381 ES 06-24 07:00; evenzo OCEC10811
@@ -644,7 +669,7 @@ export type ConventionKey =
   | 'p6ProgressOverrideIgnoresStartedSuccessor'
   | 'p6FinishNotBeforeFinishFinishBound';
 
-/** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
+/** De tien per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;
 
 /** Wat `Project.schedulingOptions` in het eindmodel draagt: uitsluitend projectopties. */
