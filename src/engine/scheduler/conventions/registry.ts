@@ -32,8 +32,10 @@ export interface ConventionDescriptor {
    *  afwijkingen, dus met C aan; een profiel-pset die de sleutel niet kent krijgt `legacyValue`. */
   group: 'A' | 'B' | 'C';
   /** De waarde die geldt wanneer een bestand MÉT `OPS_SchedulingProfile` deze sleutel niet kent (een
-   *  bestand van vóór `since`). Nooit de basiswaarde. Geldt niet voor de legacy-migratie van
-   *  bestanden zonder die pset — daarvoor zie `legacyOptionsToProfile`. */
+   *  bestand van vóór `since`). Per constructie de OPS-waarde (`builtIn.ops`, dus voor elke conventie
+   *  `false`): zo'n bestand rekende zonder de regel, en onder een P6-basis verschijnt de ontbrekende
+   *  sleutel dan eerlijk als afwijking. Nooit de waarde van de GEKOZEN basis. Geldt niet voor de
+   *  legacy-migratie van bestanden zonder die pset — daarvoor zie `legacyOptionsToProfile`. */
   legacyValue: boolean;
   /** Was deze conventie vóór de rekenprofielen alleen actief onder de XER-bronmarkering? Zo ja, dan
    *  was een losse vlag zonder die markering inert en gooit de legacy-migratie hem weg (risico 1). */
