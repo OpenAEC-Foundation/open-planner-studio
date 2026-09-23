@@ -75,7 +75,7 @@ export function optionKeysOnly(options: LegacySchedulingOptions | undefined): Pr
  *  - blob afwezig ⇒ `ops` zonder afwijkingen;
  *  - `p6Source: 'XER'` ⇒ basis `p6`. Per A-conventie: sleutel aanwezig ⇒ die waarde, afwezig ⇒ UIT
  *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). Afwezige B1–B5 ⇒ AAN (ze
- *    hingen vandaag alleen aan `p6Source`), afwezige C1–C8 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
+ *    hingen vandaag alleen aan `p6Source`), afwezige C1–C9 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
  *  - geen `p6Source` ⇒ de p6Source-gepoorte conventies (A15–A20) worden weggegooid (ze waren inert;
  *    risico 1); A12/A13/A22/A23 worden afwijkingen; basis = `msproject` als `resumeFromActualElapsed`
  *    én `unstartedIgnoresStatusDate` allebei true zijn (de `.mpp`-lezer), anders `ops`;
@@ -91,7 +91,7 @@ export function legacyOptionsToProfile(blob: LegacySchedulingOptions | undefined
     const resolved = conventionsFor(d => {
       const value = blob[d.id];
       // Een expliciet gezette vlag wint altijd (ook voor B1–B5, zoals in de oude motorvertaling —
-      // M1.3 bewees die gelijkheid); afwezig ⇒ de gepinde B1–B5 en C1–C8 (`legacyXerDefault`).
+      // M1.3 bewees die gelijkheid); afwezig ⇒ de gepinde B1–B5 en C1–C9 (`legacyXerDefault`).
       if (typeof value === 'boolean') return value;
       return legacyXerDefault(d);
     });
