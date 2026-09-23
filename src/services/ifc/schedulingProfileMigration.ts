@@ -37,9 +37,12 @@ export const LEGACY_XER_ALSO_ON_X12: ReadonlySet<ConventionKey> = new Set<Conven
   // 0 slechter (C7 11.771 → 11.608, C8 11.608 → 11.529 op de brok-4-tak). Zo rekende de brok-4-tak
   // oude XER-IFC's al.
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
+  // C9 (X12 brok 6, 2026-09-23): per cel gemeten tegen P6, 0 slechter (X12 350 → 308). Zelfde
+  // besluitlijn als C1–C8: een oud XER-IFC rekent als een herimport.
+  'p6LateFinishOnOwnCalendar',
 ]);
 
-/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C8 op hun P6-waarde,
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C9 op hun P6-waarde,
  *  al het andere uit. */
 export function legacyXerDefault(d: ConventionDescriptor): boolean {
   if (LEGACY_XER_ALWAYS_ON.has(d.id)) return true;

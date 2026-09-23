@@ -86,6 +86,31 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
+  // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
+  // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
+  // X12 293 → 284 (ls 47 → 38), alles Hotel HBTF-2. Overige cellen byte-identiek.
+  // HERPIN 2026-09-23k (X12 naar nul, brok 6 — A19 late kant: lopende taak met rest 0 is voor SS/SF
+  // achterwaarts een nulduur; regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0
+  // verbeterd=5 kleiner=0 schuld=0). X12 298 → 293 (ls −2, lf −2, tf −1), alles Roads (OCEC11731 en
+  // het CP_Phys-punt OCEC11721). Overige cellen byte-identiek.
+  // HERPIN 2026-09-23j (X12 naar nul, brok 6 — B2 `p6BackwardLagFinishBoundary` bij FF-lag 0, regel A:
+  // measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=10 kleiner=0 schuld=0). Een
+  // FF0-grens op een exact bandeinde blijft de finishgrens (niet de volgende bandstart). X12 308 → 298
+  // (lf 46 → 36): Hotel 5, ashspace sample 4, Sample_Construction 1. Overige cellen byte-identiek.
+  // HERPIN 2026-09-23i (X12 naar nul, brok 6 — conventie C9 `p6LateFinishOnOwnCalendar`, motorwijziging,
+  // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=42 kleiner=0 schuld=0).
+  // Een late finish buiten de werktijd van de taak (grens van een opvolger op een andere kalender) wordt
+  // het einde van de vorige werkperiode op de eigen kalender. X12 350 → 308 (ls 61 → 49, lf 76 → 46),
+  // alles in Hotel_Construction_TEC (64 → 22). Overige bestanden byte-identiek. Geen schuldcellen.
+  // HERPIN 2026-09-23h (X12 naar nul, brok 6 — de late kant van C5 en C6, motorwijziging, regel A:
+  // measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=78 kleiner=5 schuld=0). Een
+  // voltooide CP_Phys-opvolger met statusdatumpunt legt backward-druk op een open voorganger, en de
+  // SS-rest-lag uit een lopende voorganger telt ook achterwaarts. X12 428 → 350 (ls 90 → 61, lf 105 → 76,
+  // tf 92 → 72), alles in Roads (89 → 11: 1/3/2/2/1/2); ratchet-schuld 14 → 0. Ontschuld (alle 14 nu
+  // exact, Roads_Project_TEC project 1346): A15112 (85462) ls/lf, B2921 (86905) ls/lf, B2922 (86912)
+  // ls/lf; tf van OCEC10851 (86945), OCEC11701 (86962), OCEC20101 (87055), OCEC11741/11751/11762/11771/
+  // 12121 (87145–87149). Overige bestanden byte-identiek.
   // HERPIN 2026-09-23g (merge van de manifest-etappe in de etappebranch; motor = brok 2 + 3 + 4, C1–C8):
   // dezelfde populatiewijziging als 23f-populatie hieronder, nu op de gemergde motor. Corpus-herpin
   // (V2_WRITE=corpus, CELLS_WRITE=corpus; GATE_PINS=write omdat de manifestpins hier al van de
@@ -182,16 +207,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_871, lf: 5_856, tf: 5_680, ff: 5_730 },
-    sameday: { es: 2, ef: 2, ls: 1, lf: 13, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 89, lf: 92, tf: 92, ff: 42 },
+    exact: { es: 5_916, ef: 5_907, ls: 5_923, lf: 5_927, tf: 5_701, ff: 5_730 },
+    sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
+    diff: { es: 43, ef: 52, ls: 37, lf: 32, tf: 71, ff: 42 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 90, lf: 105, tf: 92, ff: 42 },
+    deviations: { es: 45, ef: 54, ls: 38, lf: 34, tf: 71, ff: 42 },
     drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: '40a70a7b3a898b10475360f38a0bc81b482327a4fb12874f5a7acd673060d81a',
-  productPayloadGzipSha256: 'fe3e16db5bda6960a02be33f7b7f86f5ff70523492aedd39c45497697a55d6f5',
-  productProjectProjectionSha256: '7a335862f5e6fc0976408093e3edd64ab10f37be4e221e88fcb3c9d93814e4a6',
+  productPayloadSha256: '771c4a9dd305d73bd3ab1c304b048e07977c7d109a78cc8ec58c0a1136ebff5f',
+  productPayloadGzipSha256: '5494eb24f341e141c65c1df615f030b2b1090d5d332e5b1440564d778ed500bf',
+  productProjectProjectionSha256: 'b1636deafabbc30cb0f387c199b40ca4bb0551137d0bdedf78a7dbc74972f4ed',
   roles: {
     oracle: 13,
     'engine-input': 14,

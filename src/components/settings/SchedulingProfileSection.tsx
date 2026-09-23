@@ -34,7 +34,7 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
- * eigen sjablonen, of het eigen profiel van dit project), daaronder de drieëntwintig conventies en zes van de
+ * eigen sjablonen, of het eigen profiel van dit project), daaronder de vierentwintig conventies en zes van de
  * negen projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
  * kritiek, meerdere speling-paden, lag-kalender). De andere drie — `useExpectedFinishDates`,
  * `useProjectEndDateForFloat` en `p6CompletedLateFromRemainingWindow` — zijn bewust NIET bewerkbaar:

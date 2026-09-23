@@ -342,9 +342,9 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   eq('C8-03 fromExtProject neemt NOOIT een profiel over (extensie-import ⇒ OPS)', fromExtProject(exposed).schedulingProfile, undefined);
   eq('C8-04 contractversie 1.2.0', EXTENSION_API_VERSION, '1.2.0');
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
-  eq('C8-05 eigen profiel: id, basis, naam en de drieëntwintig opgeloste conventies',
+  eq('C8-05 eigen profiel: id, basis, naam en de vierentwintig opgeloste conventies',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],
-    ['eigen-1', 'msproject', 'Eigen', 23, true]);
+    ['eigen-1', 'msproject', 'Eigen', 24, true]);
 }
 
 {

@@ -40,24 +40,14 @@ import {
  *  wordt bij een daling door `OPS_XER_CELLS_WRITE` herschreven (digest + lijst); zet er dan met de hand
  *  een HERPIN-regel bij die noemt welke cel ontschuld is (de schrijfmodus print ze).
  *  HERPIN 2026-09-23 (fixronde critreview integratie-eindstand): telpin 14 vervangen door een digest over
- *  de schuldset; de eenmalige init-route (`OPS_XER_CELLS_DEBT_INIT`) is verwijderd. */
+ *  de schuldset; de eenmalige init-route (`OPS_XER_CELLS_DEBT_INIT`) is verwijderd.
+ *  HERPIN 2026-09-23 (X12 brok 6, merge met de etappebranch; late kant van C5/C6 plus C9): alle 14
+ *  ontschuld, nu exact — Roads_Project_TEC (a2ef7b35c00d) project 1346: A15112 (85462) ls/lf, B2921
+ *  (86905) ls/lf, B2922 (86912) ls/lf; tf van OCEC10851 (86945), OCEC11701 (86962), OCEC20101 (87055),
+ *  OCEC11741/11751/11762/11771/12121 (87145–87149). Schuldset leeg. */
 // BEGIN ratchet-schuldpin — herschreven door OPS_XER_CELLS_WRITE bij een daling; nooit met de hand
-// 14 schuldcel(len): bestand (12) · as · id · reference (min)
-//   a2ef7b35c00d lf 1346/85462 137400
-//   a2ef7b35c00d lf 1346/86905 127680
-//   a2ef7b35c00d lf 1346/86912 127680
-//   a2ef7b35c00d ls 1346/85462 151800
-//   a2ef7b35c00d ls 1346/86905 172320
-//   a2ef7b35c00d ls 1346/86912 172320
-//   a2ef7b35c00d tf 1346/86945 24600
-//   a2ef7b35c00d tf 1346/86962 32400
-//   a2ef7b35c00d tf 1346/87055 41400
-//   a2ef7b35c00d tf 1346/87145 4800
-//   a2ef7b35c00d tf 1346/87146 4800
-//   a2ef7b35c00d tf 1346/87147 4800
-//   a2ef7b35c00d tf 1346/87148 4800
-//   a2ef7b35c00d tf 1346/87149 4800
-const EXPECTED_DEBT_SHA256 = '00205a77d1d2db96f1e7ffbe8e22c14bafe29f021d4eba208c27392bb84c802e';
+// 0 schuldcel(len): bestand (12) · as · id · reference (min)
+const EXPECTED_DEBT_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 // END ratchet-schuldpin
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
@@ -463,37 +453,45 @@ if (committed) {
       }
     }
   }
-  const [debtFile, debtAxis, debtId] = [...debtKeys][0]!.split('|') as [string, string, string];
-  eq('mutant-basis: een niet-schuldcel met grootte en een schuldcel gevonden', [plain !== undefined, debtKeys.size > 0], [true, true]);
+  // Sinds X12 brok 6 is de schuldset leeg (alle 14 ontschuld). De mutanten die een BESTAANDE schuldcel
+  // wijzigen (M2, M4, M5) hebben dan geen doel; M1 (schuld erbij) is dan juist de kern: schuld kan niet
+  // ontstaan.
+  const firstDebt = [...debtKeys][0]?.split('|') as [string, string, string] | undefined;
+  eq('mutant-basis: een niet-schuldcel met grootte gevonden', plain !== undefined, true);
   if (plain) {
     const target = plain;
     // M1: 15e schuldcel (geldige regel: wijst naar een bestaande cel, reference < current = minuten).
     const extra = mutate(copy => { ((copy.ratchetDebt[target.file] ??= {})[target.axis] ??= {})[target.id] = { reference: 0, current: target.minutes }; });
     eq(`M1 ${debtCount(cells.ratchetDebt) + 1}e schuldcel ⇒ rood (schuldset-digest)`, debtPinProblems(extra.ratchetDebt).length > 0, true);
+    if (firstDebt) {
+    const [debtFile, debtAxis, debtId] = firstDebt;
     // M2: schuldcel met de hand groter (cel én current opgerekt; reference gelijk ⇒ zelfde schuldset).
     const grownDebt = mutate(copy => {
       copy.files[debtFile]![debtAxis]![debtId]!.minutes! += 100000;
       copy.ratchetDebt[debtFile]![debtAxis]![debtId]!.current += 100000;
     });
     eq('M2 schuldcel met de hand groter ⇒ rood (minuten-digest ≠ v2)', cellMinutesProblems(grownDebt, v2Minutes).length > 0, true);
-    // M3: niet-schuldcel met de hand groter (de mutant van de reviewer: 105360 → 205360).
-    const grownPlain = mutate(copy => { copy.files[target.file]![target.axis]![target.id]!.minutes = target.minutes + 100000; });
-    eq(`M3 niet-schuldcel met de hand groter (${target.minutes} → ${target.minutes + 100000}) ⇒ rood (minuten-digest ≠ v2)`,
-      [cellMinutesProblems(grownPlain, v2Minutes).length > 0, cellMinutesDigest(grownPlain) !== cellMinutesDigest(cells)], [true, true]);
     // M4: schuldlijst ingekort (één regel weg) en geruild (reference anders) ⇒ rood.
     const shortened = mutate(copy => { delete copy.ratchetDebt[debtFile]![debtAxis]![debtId]; });
     eq('M4 schuldlijst ingekort ⇒ rood (schuldset-digest)', debtPinProblems(shortened.ratchetDebt).length > 0, true);
     const swapped = mutate(copy => { copy.ratchetDebt[debtFile]![debtAxis]![debtId]!.reference -= 1; });
     eq('M5 schuldregel geruild (andere reference) ⇒ rood (schuldset-digest)', debtPinProblems(swapped.ratchetDebt).length > 0, true);
+    }
+    // M3: niet-schuldcel met de hand groter (de mutant van de reviewer: 105360 → 205360).
+    const grownPlain = mutate(copy => { copy.files[target.file]![target.axis]![target.id]!.minutes = target.minutes + 100000; });
+    eq(`M3 niet-schuldcel met de hand groter (${target.minutes} → ${target.minutes + 100000}) ⇒ rood (minuten-digest ≠ v2)`,
+      [cellMinutesProblems(grownPlain, v2Minutes).length > 0, cellMinutesDigest(grownPlain) !== cellMinutesDigest(cells)], [true, true]);
   }
   // M6: sectie weg ⇒ geweigerd door de lezer.
   const noSection = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(cells)), ratchetDebt: undefined }, null, 2)}\n`;
   eq('M6 cellenbestand zonder ratchetDebt-sectie ⇒ geweigerd', parseCellBaseline(noSection).problems, [CELL_PRE_DEBT_PROBLEM]);
-  // M7: schuldpin-blok in de bron met de hand bewerkt (digest laten staan, één lijstregel weg).
+  // M7: schuldpin-blok in de bron met de hand bewerkt: de derde blokregel weg. Bij een gevulde schuldset
+  // is dat de eerste lijstregel (digest blijft staan); bij de lege schuldset van nu (X12 brok 6) is het
+  // de digestregel zelf. Beide moeten rood zijn.
   const ownBlock = extractDebtPinBlock(OWN_SOURCE) ?? '';
   const blockLines = ownBlock.split('\n');
   const tamperedSource = OWN_SOURCE.replace(ownBlock, () => [...blockLines.slice(0, 2), ...blockLines.slice(3)].join('\n'));
-  eq('M7 schuldpin-lijst met de hand ingekort ⇒ rood', [tamperedSource !== OWN_SOURCE, debtPinProblems(cells.ratchetDebt, tamperedSource).length > 0], [true, true]);
+  eq('M7 schuldpin-blok met de hand ingekort ⇒ rood', [tamperedSource !== OWN_SOURCE, debtPinProblems(cells.ratchetDebt, tamperedSource).length > 0], [true, true]);
 }
 
 if (diffs.length > 0) {

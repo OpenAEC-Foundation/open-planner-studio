@@ -53,7 +53,7 @@ export interface ExtSchedulingProfile {
   baseId: 'p6' | 'msproject' | 'ops';
   /** Leeg bij een ingebouwd profiel (de app toont dan de vertaalde naam). */
   name: string;
-  /** De drieëntwintig opgeloste conventies (sleutel = conventie-id). */
+  /** De vierentwintig opgeloste conventies (sleutel = conventie-id). */
   conventions: Record<string, boolean>;
 }
 

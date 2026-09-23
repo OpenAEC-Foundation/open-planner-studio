@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Attività in corso: inizio anticipato = inizio del lavoro residuo",
-      "help": "L’inizio anticipato e posticipato di un’attività in corso indicano dove inizia il lavoro residuo, non l’inizio effettivo storico. Impostato per file da Primavera P6."
+      "help": "L’inizio anticipato e posticipato di un’attività in corso indicano dove inizia il lavoro residuo, non l’inizio effettivo storico. Impostato per file da Primavera P6. Nel calcolo all'indietro su una relazione inizio-inizio conta solo la durata residua."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Istante del vincolo esatto su una milestone",
@@ -1237,11 +1237,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Il successore inizia sul limite di fine",
-      "help": "In una relazione fine-inizio senza ritardo su un limite di fascia condiviso, il successore inizia alla fine del predecessore (solo le relazioni che il file contrassegna così)."
+      "help": "In una relazione fine-inizio senza ritardo su un limite di fascia condiviso, il successore inizia alla fine del predecessore (solo le relazioni che il file contrassegna così). Nel calcolo all'indietro, il successore mostra il suo inizio al più tardi semplicemente come inizio di una fascia di lavoro."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Ritardo all’indietro da un limite di fine",
-      "help": "Quando il calcolo all’indietro sottrae un ritardo in tempo lavorativo da un limite di fine e cade esattamente su un inizio di fascia, cade sul limite di fine precedente."
+      "help": "Quando il calcolo all’indietro sottrae un ritardo in tempo lavorativo da un limite di fine e cade esattamente su un inizio di fascia, cade sul limite di fine precedente. Anche in una relazione fine-fine senza ritardo, una fine al più tardi sulla fine di una fascia resta su quel limite di fine."
     },
     "p6CompletedDataDateWindow": {
       "label": "Attività completata nella finestra della data di stato",
@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "L'inizio pianificato non è un limite minimo per un'attività in corso",
       "help": "Il lavoro residuo di un'attività avviata inizia alla data di stato e subito dopo i suoi predecessori, anche se il suo inizio pianificato è successivo."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fine al più tardi sul calendario dell'attività",
+      "help": "Se la fine al più tardi imposta da un successore cade fuori dall'orario di lavoro dell'attività, diventa la fine del periodo lavorativo precedente sul calendario dell'attività."
     }
   },
   "profiles": {

@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tarefa em curso: início cedo = início do trabalho restante",
-      "help": "O início cedo e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. Definido por ficheiro pelo Primavera P6."
+      "help": "O início cedo e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. Definido por ficheiro pelo Primavera P6. No cálculo para trás por uma relação início-início, conta apenas a duração restante."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restrição exato num marco",
@@ -1237,11 +1237,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "O sucessor começa no limite de fim",
-      "help": "Numa relação fim-início sem desfasamento num limite de faixa partilhado, o sucessor começa no fim do predecessor (apenas relações que o ficheiro marca assim)."
+      "help": "Numa relação fim-início sem desfasamento num limite de faixa partilhado, o sucessor começa no fim do predecessor (apenas relações que o ficheiro marca assim). No cálculo para trás, o sucessor mostra o seu início mais tarde simplesmente como o início de uma faixa de trabalho."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Desfasamento para trás a partir de um limite de fim",
-      "help": "Quando o cálculo para trás subtrai um desfasamento em tempo de trabalho a partir de um limite de fim e cai exatamente num início de faixa, cai no limite de fim anterior."
+      "help": "Quando o cálculo para trás subtrai um desfasamento em tempo de trabalho a partir de um limite de fim e cai exatamente num início de faixa, cai no limite de fim anterior. Numa relação fim-fim sem atraso, um fim mais tarde no fim de uma faixa também fica nesse limite de fim."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tarefa concluída na janela da data de estado",
@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "O início planeado não é um limite mínimo para uma tarefa em curso",
       "help": "O trabalho restante de uma tarefa iniciada começa na data de estado e logo após as suas predecessoras, mesmo que o início planeado seja posterior."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Término mais tarde no calendário próprio",
+      "help": "Se o término mais tarde imposto por um sucessor cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
     }
   },
   "profiles": {

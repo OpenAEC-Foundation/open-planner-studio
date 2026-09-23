@@ -98,6 +98,114 @@ beslist de eigenaar (overdracht §1a). Dit document kiest niet. Gevolg voor de o
 negatieve controle `drop-p6-finish-milestone-boundary` (A17) gaf op deze populatie 0 regressies. Die
 rol is daarom overgegaan naar `drop-p6-relation-finish-boundary` (B1).
 
+## Restant 428 na integratie 23-09
+
+*Gemeten 2026-09-23 op `claude/x12-brok6-c5-late-kant` (basis `9eed2903`: C1–C8, C1/C4 uit in P6, populatie =
+P6-doorgerekend, grootte-ratchet met 14 schuldcellen). Claude Opus 5.5. Hulpscripts in `/tmp/brok6/`
+(`dump.ts` = de dump van §0 op deze worktree, `roots.py` = wortelattributie, `cmp.py` = cel-vergelijking
+met emmer en grootte), niet in de repo.*
+
+In gewone taal: van de 428 cellen hing bijna een vijfde (78) aan één ontbrekende spiegel in de motor.
+Een voltooide CP_Phys-taak staat sinds C5 op één punt, maar een open taak die vóór zo'n punt ligt keek
+achterwaarts niet naar dat punt en viel op het projecteinde; en C6 haalde de verstreken SS-lag alleen
+voorwaarts weg. Beide zijn nu gespiegeld (landing 1 hieronder). De rest zit in vier bestanden met elk een
+eigen oorzaak, en is grotendeels n = 1 of niet uit het bestand af te leiden.
+
+**Methode.** Dump per taak (alle zes assen), dan wortelattributie zoals §0 regel 5: ES/EF lopen via
+afwijkende voorgangers omhoog, LS/LF via afwijkende opvolgers, tf via de kant die afwijkt, ff per taak.
+Telling klopt met het rapport: 428 (es 45, ef 54, ls 90, lf 105, tf 92, ff 42).
+
+| bestand | cellen | wortels (cellen) | oorzaak | status |
+|---|---|---|---|---|
+| Roads_Project_TEC | 89 | OCEC18201 25, OCEC11771 22, B2911 10, OCEC11701 10, OCEC10851 8, A33 5, OCEC10811 3 (achterwaarts); rest 11 | B07-keten late kant: open voorganger van een CP_Phys-punt valt op het projecteinde; SS-rest-lag alleen voorwaarts | **78 opgelost (landing 1)**; rest 11: OCEC11731 5 (lopend, achterwaarts), OCEC9761 3, A10660 1, ff 2 |
+| HarbourPointe_AssistedLiving | 124 | EC1420/EC1430 (ALAP) 39, EC2410 29, EC2060 15, EC1590 14, EC2170 10, EC2380 5; ff 11; tf 1 | P6-waarden op minuten die de opgeslagen kalender niet kent (16:49, 11:28, 10:40); duurspannes korter dan de restduur op kalender 5829 (EC2410: 920 h ⇒ P6 03-25 → 07-31, OPS 04-29 → 10-10); doeldatums op 07:00/16:00 terwijl 5829 08–12/13–17 is | niet afleidbaar uit het bestand [VERMOED: doorgerekend op een andere kalender dan opgeslagen]; EC1600 tf is een afrondingsrest van het orakel (396.640,00002) |
+| DCP-03 Baseline Rev 0 | 92 | E-1000 64 (voorwaarts), Z-9010/Z-9000 8 (LOE), ff 20 | B10 startmijlpaal met targetvenster; B14 LOE zonder relaties; B15 vrije speling (P6 ff = tf) | n = 1 (één bestand, één mijlpaal); niet gebouwd |
+| Hotel_Construction_TEC | 64 | ~40 losse achterwaartse wortels, meest mijlpalen op kalender 844 (vrijdag vrij) | B09: een late datum die van een opvolger op een andere kalender komt, wordt niet op de eigen kalender teruggezet (HCMEF6Z5565: opvolger-LS vr 12-27 16:00 op kal. 843, P6 do 12-26 17:00 op kal. 844, OPS vr 12-27 16:00) | zie verderop (landing 2) |
+| OZB-Start-09Dec24 | 42 | project 9033: OZ1100 21, OZ1090 12, OZ1060 (CS_MSOA) 3; 10093: OZ1030 4; ff 2 | één project met negatieve speling, één MSOA-beperking | n = 1 project; niet gebouwd |
+| Sample_Construction_TEC | 13 | REPLBE03 6, REPLBE01 4, REPLBE02 2, RDARCH02 1 | onverklaard (U2) | niet gebouwd |
+| ashspace sample | 4 | A1050/A2050/A3050/A4050, lf | B09-vorm (FF0 naar een FinMile, P6 16:00, OPS 08:00 volgende dag) | zie landing 2 |
+
+**De 14 schuldcellen, per cel bewezen.** Conventie voor conventie terug uitgezet in het register (de dump
+op de basis, `builtIn.p6 = false`, daarna `git checkout src`):
+
+- A15112, B2921, B2922 ls/lf — **C5**. Met C5 uit liggen ze weer op de werkelijke datums, precies de
+  `reference` (A15112 ls 01-26 00:00 = 151.800 min vóór P6's 05-11 10:00, lf 02-05 00:00 = 137.400). Met C5
+  aan volgt het punt terecht de LS van zijn opvolger (A33, resp. B2931), maar die opvolger stond op het
+  projecteinde: A33 (lopend, restduur 0) heeft als enige opvolger het CP_Phys-punt A65, B2931 → B2911 heeft
+  alleen CP_Phys-punten als opvolgers (OCEC10791, OCEC18381, OCEC11361, OCEC11781), en de generieke
+  backward pass sloeg een voltooide opvolger als historie over. P6: B2911 LF = 09-10 16:00 = LS van
+  OCEC11361; A33 LS = LF = 05-11 10:00 = LS van A65.
+- De acht tf-cellen — **C6**. Met C6 uit liggen ze op `reference` (OCEC10851 tf 91.740, afwijking 24.600;
+  OCEC11741 53.940, afwijking 4.800). C6 haalde de verstreken SS-lag alleen voorwaarts weg, dus de vroege
+  kant schoof 70 h (4.200 min) naar voren en de late kant niet. P6: OCEC10311 (lopend, 140 h rest) —SS+70 h→
+  OCEC10851 met LS 09-29 16:00 geeft OCEC10311 LS 09-29 16:00, dus ook achterwaarts zonder de verstreken lag.
+- C7 en C8 uit veranderen geen van de 14.
+
+**Landing 1 — de late kant van C5 en C6.** Twee regels in de generieke backward pass, samen één
+spiegel: (a) een voltooide opvolger met een C5-punt legt gewone backward-druk op een open voorganger;
+(b) de SS-lag uit een lopende voorganger telt ook achterwaarts alleen als rest-lag. Apart zijn ze niet
+landbaar: (a) alleen geeft 428 → 374 met 2 slechter (OCEC10181 ls/lf: een punt-opvolger die nu te vroeg
+komt omdat OCEC10311 de volle lag nog achterwaarts rekende), (b) alleen 428 → 425 met 20 groter. Samen:
+**428 → 350, 78 beter (ls 29, lf 29, tf 20, alles Roads), 0 slechter, 0 groter, 5 kleiner; schuld 14 → 0**.
+
+**Landing 2 — C9 `p6LateFinishOnOwnCalendar` (Hotel, B09).** Een late finish die van een opvolger op een
+andere kalender komt en buiten de werktijd van de taak zelf valt, wordt het einde van de vorige
+werkperiode op de eigen kalender (HCMEF6Z5565, kal. 844 vrijdag vrij: opvolger-LS vr 12-27 16:00 ⇒ P6
+do 12-26 17:00; taken op kal. 3195 met een grens 17:00 van kal. 3196 ⇒ P6 16:00). Een nieuwe conventie en
+geen aanscherping, want het is een eigen P6-regel over kalenders (regel B). Alleen als een opvolger de
+late finish bepaalt; de variant die ook het projecteinde snapt is op het corpus identiek, maar verandert
+een corpusloze P6-fixture (`check-xer-schedule-options-wiring.ts` 5) zonder orakel, dus niet gebouwd.
+**350 → 308, 42 beter
+(Hotel lf 30, ls 12), 0 slechter, 0 groter.** Twee varianten gemeten en verworpen: (a) élke late finish
+naar `prevWorkInstant` (ook een bandSTART naar het vorige band-einde): 54 beter maar 54 slechter
+(startmijlpalen met LS = LF 08:00 in Hotel-project 2666 en TERMINAL A1010); (b) als (a) maar
+startmijlpalen uitgezonderd: 52 beter, 0 slechter — de 10 extra cellen (FF0 met een late finish op een
+bandstart: Hotel 5, ashspace A1050–A4050, Sample_Construction 1) zijn dan echter hetzelfde effect als B2
+(`p6BackwardLagFinishBoundary`) zonder lag, en de B2-fixture verliest zijn onderscheidend vermogen. Die
+FF0-bandstartgroep is een aparte hypothese (zie "Wat overblijft").
+
+**Landing 3 — B2 bij FF-lag 0.** De FF0-bandstartgroep van hierboven: een late finish van de opvolger op
+een exact bandeinde bleef bij lag 0 niet staan maar normaliseerde naar de volgende bandstart (Hotel
+HMMOAZ040 —FF0→ HMMOAZ000: P6 08-04 16:00, OPS 08-05 08:00). Aanscherping van B2 (dezelfde regel: een
+lag telt vanaf de finishgrens), alleen FF. **308 → 298, 10 beter (Hotel 5, ashspace 4,
+Sample_Construction 1), 0 slechter, 0 groter.**
+
+**Landing 4 — A19 late kant, lopende taak met rest 0.** Roads OCEC11731 (lopend, CP_Phys, rest 0) —SS+70 h→
+OCEC12121: de SS-grens telde achterwaarts de volle geplande duur erbij (`finishFromStart`), P6 behandelt
+de taak als nulduur (LS = LF = 08-18 16:00); het C5-punt OCEC11721 ervóór volgt. **298 → 293, 5 beter,
+0 slechter.** Een lopende taak met rest > 0 (33 in het corpus) verandert in geen enkele cel en blijft
+dus ongewijzigd (ongemeten).
+
+**Landing 5 — B1 late kant: de finishgrens hoort bij de relatie, niet bij de LS van de opvolger.** Een
+opvolger op een voorgangerfinishgrens-relatie toonde haar late start als finishgrens (do 17:00) wanneer
+de duurwandeling op een bandstart landde; P6 toont de bandstart (Hotel HCSWB1Z1240 LS 03-04 08:00, 9 van
+die cellen, 0 waar de oude weergave klopte). De spiegel voor de voorganger zit nu in de FS-backward van
+B1 (`prevWorkInstant` op de voorgangerkalender), zodat HCSWB1Z1230 LF 03-03 16:00 exact blijft. **293 → 284,
+9 beter (Hotel ls), 0 slechter.** Van de 42 C9-cellen worden er 18 nu ook door B1 gedekt; C9 blijft
+nodig voor 24 (twaalf startmijlpalen op kalender 844).
+
+**Eindstand brok 6: 284.** HarbourPointe 124, DCP-03 Baseline 92, OZB-Start 42, Sample_Construction 12,
+Hotel 8, Roads 6 (ashspace 0). Wat in Hotel en Roads overblijft, is voor het grootste deel één vorm: een EF
+die P6 als de volgende bandstart toont (07:00/08:00) waar OPS de finishgrens ervoor laat zien.
+Voorbeelden zijn Roads OCEC9761/OCEC6681 via FF0 vanaf de startmijlpaal OCEC12101 (de voorwaartse spiegel
+van C7) en Hotel HCSWB3Z2190/HCSWB2Z6190. Daarnaast zijn er ff-cellen van 60 min (Hotel) en de
+ALAP-eindmijlpaal ATWTPR000. Omdat al die vormen op één mijlpaal of een paar taken rusten, zijn ze niet
+gebouwd.
+
+**Wat overblijft na landing 1 en 2 (308; na landing 3: 298, de FF0-rijen hieronder zijn opgelost; na
+landing 4: 293, OCEC11731 is opgelost).**
+
+| bestand | cellen | oorzaak | waarom niet gebouwd |
+|---|---|---|---|
+| HarbourPointe_AssistedLiving | 124 | P6-uitvoer op minuten die de opgeslagen kalender niet kent; ALAP-keten EC1420/EC1430 (B12) | niet afleidbaar uit het bestand; ALAP n = 1 bestand (Hotel heeft 3 ALAP-cellen) |
+| DCP-03 Baseline Rev 0 | 92 | B10 (E-1000, 64), B14 LOE (8), B15 ff = tf (20) | n = 1 (B10 expliciet n = 1; B14/B15 alleen in dit bestand) |
+| OZB-Start-09Dec24 | 42 | project 9033 (negatieve speling, OZ1090/OZ1100, CS_MSOA OZ1060) + 10093 OZ1030 | n = 1 project |
+| Hotel_Construction_TEC | 22 | 9 × LS op band-einde i.p.v. volgende bandstart (taken met ES op een finishgrens en speling > 0: 603 exact tegen 9 fout, onderscheid niet gevonden); FF0-late-finish op bandstart 5; eindmijlpaal ATWTPR000 (ALAP) ls/lf + tf 3; ff −60 min 3; ef 2 | onderscheid onbekend (9); FF0-bandstart zie boven |
+| Sample_Construction_TEC | 13 | REPLBE01–03 en RDARCH02: P6-waarden op 08:01/15:59 [VERMOED: afrondingsresten in het orakel] | niet afleidbaar |
+| Roads_Project_TEC | 11 | OCEC11731 (lopend) 5, OCEC9761 3, A10660/A10650 2, ff 1 | n klein, niet onderzocht |
+| ashspace sample | 4 | FF0 naar een eindmijlpaal, late finish op bandstart | FF0-bandstart, zie boven; ashspace is bovendien een twijfelachtig orakel (B5-noot) |
+
+
 ## 0. Totaal en meetmethode
 
 | meting | commando | uitkomst |
@@ -313,7 +421,7 @@ Verdeling: Hotel 58, ashspace 4, Roads 4, OZB 2, HarbourPointe 1, Sample_Constru
 - **Signatuur.** EC1420 is een startmijlpaal met `CS_ALAP`. P6-ES = 2011-06-24T16:49; OPS = 06-27 07:00 (het targetvenster).
 - **Opmerking.** HarbourPointe rekent met afwijkende minuutbanden (16:49, 10:40).
 - **Hypothese.** P6 legt ALAP-datums anders op de kalender dan de OPS-verschuiving "vrije speling = 0" (`CPMSolver`, ALAP-blok).
-- **Stand 2026-09-23.** Gebouwd als C9 `p6AlapPositionedFromSuccessors` (+27 / 0 per emmer, alles HarbourPointe), maar **geparkeerd** op `d9973123` (`claude/x12-brok5-klein`): drie cellen (EC1420 es/ef, EC1430 es) komen verder van P6 door P6's duur van EC1430 (696 i.p.v. 720 u). Dossier: plan XER §9, "C9 ALAP-positionering (geparkeerd) + duur uit toewijzingen".
+- **Stand 2026-09-23.** Gebouwd als C10 `p6AlapPositionedFromSuccessors` (vóór 23-09 "C9" genoemd; C9 is sinds brok 6 `p6LateFinishOnOwnCalendar`) (+27 / 0 per emmer, alles HarbourPointe), maar **geparkeerd** op `d9973123` (`claude/x12-brok5-klein`): drie cellen (EC1420 es/ef, EC1430 es) komen verder van P6 door P6's duur van EC1430 (696 i.p.v. 720 u). Dossier: plan XER §9, "C10 ALAP-positionering (geparkeerd) + duur uit toewijzingen".
 
 ### B13 · CS_MSOA (OZB): 15 cellen
 

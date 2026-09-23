@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Devam eden görev: erken başlangıç = kalan işin başlangıcı",
-      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Primavera P6 tarafından dosya başına belirlenir."
+      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Primavera P6 tarafından dosya başına belirlenir. Başlangıç-başlangıç ilişkisi üzerinden geriye hesaplamada yalnızca kalan süre sayılır."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Kilometre taşında kesin kısıt anı",
@@ -1202,11 +1202,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Ardıl bitiş sınırında başlar",
-      "help": "Ortak bir bant sınırında gecikmesiz bir bitiş-başlangıç ilişkisinde ardıl, öncülün bitişinde başlar (yalnızca dosyanın böyle işaretlediği ilişkiler)."
+      "help": "Ortak bir bant sınırında gecikmesiz bir bitiş-başlangıç ilişkisinde ardıl, öncülün bitişinde başlar (yalnızca dosyanın böyle işaretlediği ilişkiler). Geriye hesaplamada ardıl, en geç başlangıcını basitçe bir çalışma bandının başlangıcı olarak gösterir."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Bitiş sınırından geriye gecikme",
-      "help": "Geri hesaplama bir bitiş sınırından çalışma zamanı gecikmesini çıkarıp tam bir bant başlangıcına denk gelirse, önceki bitiş sınırına iner."
+      "help": "Geri hesaplama bir bitiş sınırından çalışma zamanı gecikmesini çıkarıp tam bir bant başlangıcına denk gelirse, önceki bitiş sınırına iner. Gecikmesiz bir bitiş-bitiş ilişkisinde de bant sonundaki en geç bitiş o bitiş sınırında kalır."
     },
     "p6CompletedDataDateWindow": {
       "label": "Durum tarihi penceresinde tamamlanan görev",
@@ -1251,6 +1251,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",
       "help": "Başlamış bir görevin kalan işi, planlanan başlangıcı daha geç olsa bile durum tarihinde ve öncüllerinin hemen ardından başlar."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Geç bitiş, faaliyetin kendi takviminde",
+      "help": "Ardıl faaliyetin belirlediği geç bitiş, faaliyetin çalışma saatleri dışına düşerse, faaliyetin kendi takvimindeki önceki çalışma döneminin sonu olur."
     }
   },
   "profiles": {

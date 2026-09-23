@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tâche en cours : début au plus tôt = début du travail restant",
-      "help": "Les débuts au plus tôt et au plus tard d’une tâche en cours indiquent où commence le travail restant, et non le début réel historique. Défini par fichier par Primavera P6."
+      "help": "Les débuts au plus tôt et au plus tard d’une tâche en cours indiquent où commence le travail restant, et non le début réel historique. Défini par fichier par Primavera P6. En calcul arrière sur une relation début-début, seule la durée restante compte."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Instant de contrainte exact sur un jalon",
@@ -1237,11 +1237,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Le successeur commence sur la limite de fin",
-      "help": "Pour une relation fin-début sans décalage sur une limite de plage partagée, le successeur commence à la fin du prédécesseur (uniquement les relations que le fichier marque ainsi)."
+      "help": "Pour une relation fin-début sans décalage sur une limite de plage partagée, le successeur commence à la fin du prédécesseur (uniquement les relations que le fichier marque ainsi). En calcul arrière, le successeur affiche son début au plus tard simplement comme le début d'une plage de travail."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Décalage arrière depuis une limite de fin",
-      "help": "Lorsque le calcul au plus tard soustrait un décalage en temps de travail depuis une limite de fin et tombe exactement sur un début de plage, il tombe sur la limite de fin précédente."
+      "help": "Lorsque le calcul au plus tard soustrait un décalage en temps de travail depuis une limite de fin et tombe exactement sur un début de plage, il tombe sur la limite de fin précédente. Pour une relation fin-fin sans décalage, une fin au plus tard sur une fin de plage reste aussi cette limite de fin."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tâche terminée dans la fenêtre de la date d’état",
@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Le début planifié n’est pas un plancher pour une tâche en cours",
       "help": "Le travail restant d’une tâche commencée débute à la date d’état et juste après ses prédécesseurs, même si son début planifié est plus tardif."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fin au plus tard sur le calendrier propre de l'activité",
+      "help": "Si la fin au plus tard imposée par un successeur tombe en dehors du temps de travail de l'activité, elle devient la fin de la période de travail précédente sur le calendrier propre de l'activité."
     }
   },
   "profiles": {

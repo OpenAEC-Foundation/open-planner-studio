@@ -68,7 +68,19 @@ export interface SchedulingOptions {
    *  actual-startvenster gebruiken.
    *  A19 — conventie (spec v3); sinds rekenprofielen baan B is de vlag zelf de conventie, zonder
    *  bronpoort. P6 uit (standaard; de XER-lezer zet hem per bestand als override uit
-   *  `rem_target_link_flag`) / MS Project uit / OPS uit. */
+   *  `rem_target_link_flag`) / MS Project uit / OPS uit.
+   *  Late kant (X12 brok 6, 2026-09-23) — de restduurregel: P6 plant een lopende activiteit op haar
+   *  RESTduur ("The total working time from the activity remaining start date to the remaining finish
+   *  date", Oracle P6 Help, Durations Columns, https://docs.oracle.com/cd/F37125_01/p6help/en/47223.htm).
+   *  Achterwaarts over een SS-relatie is de late finish van een lopende voorganger dus de late start die
+   *  de relatie toelaat plus de restduur, niet plus de volle geplande duur; rest 0 ⇒ LS = LF
+   *  (`CPMSolver.remainingDurationTaskForStartRelation`). Het is een gedocumenteerd P6-principe, niet
+   *  uit het bestand afgeleid, maar het corpusbewijs is smal: ÉÉN relatie, `Roads_Project_TEC.xer`
+   *  OCEC11731 (lopend, rest 0) —SS+70 h→ OCEC12121 (LS 08-18 16:00) ⇒ P6 LS = LF = 08-18 16:00, met het
+   *  CP_Phys-punt OCEC11721 ervóór (5 cellen, 0 slechter, X12 298 → 293). De 7 andere lopende
+   *  SS-voorgangers in het corpus hebben rest = gepland en onderscheiden de varianten niet. SF valt er
+   *  bewust buiten (geen enkel geval, niet gepind). [VERMOED] dat de regel alleen onder
+   *  `rem_target_link_flag`=N (A19 aan) geldt: de koppeling aan deze vlag is ongetoetst. */
   p6UseRemainingStartForProgress?: boolean;
   /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
    *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit.
@@ -168,11 +180,28 @@ export interface SchedulingOptions {
    *  voorganger starten (forward) en spiegelt dat backward (`relationMath`, `CPMSolver`'s
    *  `snapSuccessorEarlyStart` via `preserveP6FinishBoundary`). Staat de conventie uit, dan stript
    *  de `CPMSolver`-constructor die relatievlag en heeft ze geen enkel effect.
+   *  Backward werkt B1 alleen nog via de weergave van de opvolger (X12 brok 6, 2026-09-23): de
+   *  achterwaartse duurwandeling (`CPMSolver.subDuration`) trok de late start van een opvolger op zo'n
+   *  relatie vroeger één band terug naar de finishgrens (do 17:00) zodra ze op een bandstart landde; die
+   *  spiegel is weg, de opvolger toont haar LS als gewone bandSTART. De late finish van de voorganger
+   *  komt uit de gewone FS-backward (`relationMath`, `prevWorkInstant` op de voorgangerkalender) — B1
+   *  heeft daar geen eigen tak (een tak `prevWorkInstant(succ.LS)` gaf 0 cellen verschil en is
+   *  weggehaald). Gemeten op het P6-doorgerekende Hotel HBTF-2: HCSWB1Z1240 LS 03-04 08:00 (vroeger
+   *  03-03 17:00) e.a., 9 ls-cellen beter, 0 slechter (X12 293 → 284); de voorganger-LF (HCSWB1Z1230
+   *  03-03 16:00) blijft exact.
    *  P6 aan / MS Project uit / OPS uit. */
   p6RelationFinishBoundary?: boolean;
   /** B2 — backward WORKTIME-lag vanaf een exacte bandeinde-grens die precies op een bandstart
    *  landt, geeft de complementaire vorige finishgrens terug (wo 17:00 − 2 werkdagen = ma 17:00,
-   *  niet di 08:00; `CPMSolver.shiftLagPred`). Alleen uurmodus, alleen de aftrek met positieve lag.
+   *  niet di 08:00; `CPMSolver.shiftLagPred`). Alleen uurmodus. Sinds X12 brok 6 (2026-09-23) ook bij
+   *  een FF-relatie met lag 0: een late finish van de opvolger op een exact bandeinde blijft die
+   *  finishgrens voor de voorganger, in plaats van naar de volgende bandstart te normaliseren. Gemeten
+   *  op P6-doorgerekende bestanden: Hotel_Construction_TEC (HBTF-2) HMMOAZ040 —FF0→ HMMOAZ000 (LF 08-04
+   *  16:00 ⇒ P6 16:00, zonder de regel 08-05 08:00) en vier andere, Sample_Construction_TEC 1 en ashspace
+   *  A1050/A2050/A3050/A4050 —FF0→ eindmijlpaal: X12 308 → 298, 0 slechter, 0 groter. Let op: 4 van
+   *  die 10 cellen komen uit ashspace, een twijfelachtig orakel (zie B5); daartegenover staan 94
+   *  FF0-relaties in het corpus die met de regel consistent exact zijn. Andere relatietypen met lag 0
+   *  ongemeten en ongewijzigd.
    *  P6 aan / MS Project uit / OPS uit. */
   p6BackwardLagFinishBoundary?: boolean;
   /** B3 — een voltooide XER-bladactiviteit (nauwe provenance-poort in
@@ -336,7 +365,9 @@ export interface SchedulingOptions {
    *  grens die de opvolgers stellen (FS/SS: hun LS, FF/SF: hun LF), zonder statusdatumklem; een
    *  VOLTOOIDE opvolger zonder eigen punt en zonder rest-venster (C2) telt daarbij niet mee (de
    *  achterwaartse tak slaat die over). Zonder opvolger het projecteinde — dat steunt op slechts twee
-   *  taken (HarbourPointe EC1040/EC1050). Van de lag tussen zo'n punt en
+   *  taken (HarbourPointe EC1040/EC1050). Omgekeerd legt het punt als OPVOLGER gewone backward-druk op
+   *  een open voorganger (FS/SS: zijn LS, FF/SF: zijn LF, met de gewone relatiewiskunde); de generieke
+   *  backward pass slaat een voltooide opvolger anders als historie over. Van de lag tussen zo'n punt en
    *  een opvolger of voorganger telt alleen het deel dat na het werkelijke einde op de statusdatum nog
    *  niet verstreken is (rekenregel C3). Poort: P6-herkomst, blad, `p6ExplicitTargetWindow`, A19
    *  (`p6UseRemainingStartForProgress`), voltooid met een werkelijk einde op of vóór de statusdatum,
@@ -350,7 +381,13 @@ export interface SchedulingOptions {
    *    06-03 17:00 ⇒ ES = EF = 06-03 17:00; A15081: voorganger A15069 ES 05-06 07:00 SS+60 h ⇒ 05-13
    *    17:00; A15087 —SS+30 h→ A15089 start 05-14 07:00, de lag is verstreken). De late kant klopt bij
    *    alle 187 met een laat orakel met de vroegste opvolgergrens (Roads 157, HarbourPointe 16 + 2 zonder
-   *    opvolger op het projecteinde, OZB 14). Dit zijn P6-doorgerekende bestanden; rehab-2 (P3-orakel,
+   *    opvolger op het projecteinde, OZB 14). De backward-druk op een open voorganger (X12 brok 6,
+   *    2026-09-23): in Roads staat elke open taak waarvan alle opvolgers zo'n punt zijn in P6 op dat punt
+   *    (B2911 LF 09-10 16:00 = LS van OCEC11361; A33 LS = LF 05-11 10:00 = LS van A65; OCEC10851 —SS0→
+   *    OCEC10791: LS 09-29 16:00; volgens de critreview 13 relaties in Roads), niet op het projecteinde;
+   *    samen met de late kant van C6 X12 428 → 350
+   *    (ls 29, lf 29, tf 20 beter, 0 slechter, 0 groter), waaronder de 14 schuldcellen. Dit zijn
+   *    P6-doorgerekende bestanden; rehab-2 (P3-orakel,
    *    zie C4) heeft geen voltooide CP_Phys-activiteiten en is hier geen bron.
    *    Bewust smal (CP_Phys): een brede poort "elke voltooide taak met werkelijk einde op/vóór de
    *    statusdatum" (B3 wint waar die geldt) maakt in de meting precies dezelfde cellen goed, maar
@@ -370,7 +407,8 @@ export interface SchedulingOptions {
    *  verstreken is, `max(0, lag − werktijd(werkelijke start → statusdatum))` in de lag-kalender, bovenop
    *  de restwerkstart van de voorganger. Alleen positieve WORKTIME-lag, alleen met A19
    *  (`p6UseRemainingStartForProgress`, de vroege start van een lopende taak is dan haar restwerkstart);
-   *  FS/FF/SF, de late kant en ELAPSEDTIME-lag ongewijzigd (ongemeten). `CPMSolver.inProgressStartLagSeq`.
+   *  ook achterwaarts: de late start van de lopende voorganger ligt op de LS van de opvolger min alleen de
+   *  rest-lag (X12 brok 6). FS/FF/SF en ELAPSEDTIME-lag ongewijzigd (ongemeten). `CPMSolver.inProgressStartLagSeq`.
    *
    *  - P6: aan. Bron: Oracle P6 Help "Calculate Start-to-Start lag from"
    *    (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm). *Early Start*: "Calculates the
@@ -389,6 +427,13 @@ export interface SchedulingOptions {
    *    —SS+30 h→ OCEC18251 en OCEC18391 —SS+40 h→ OCEC18401. (rehab-2 V3259300 —SS+56 h→ V3259220 volgt
    *    hetzelfde patroon, maar dat orakel is P3-uitvoer, zie C4: geen bewijs.) Zichtbaar geworden met
    *    C5: de voorganger stond daarvóór zelf verkeerd, waardoor de opvolger toevallig goed uitkwam.
+   *    De late kant (X12 brok 6, 2026-09-23): Roads OCEC10311 (lopend, 140 h rest) —SS+70 h→ OCEC10851
+   *    (LS 09-29 16:00): P6 zet OCEC10311 LS op 09-29 16:00, dus zonder de verstreken lag; met alleen de
+   *    voorwaartse kant groeide de totale speling van de opvolgers met de volle lag (70 h = 4.200 min:
+   *    de acht tf-schuldcellen OCEC10851/11701/20101/11741/11751/11762/11771/12121, gemeten door C6 uit
+   *    te zetten). Critreview 23-09: vijf onafhankelijke relaties in Roads dragen de late kant
+   *    (OCEC10311 —SS→ OCEC10851, OCEC10771, OCEC10881, OCEC10811 → OCEC18251, OCEC11731 → OCEC12121).
+   *    Alleen gemeten bij rest = geplande duur (OCEC10311 140/140 h).
    *  - MS Project: uit. MS Project kent geen P6-restwerkstart als vroege start; de lag loopt vanaf de
    *    start van de voorganger zoals die op de balk staat.
    *  - OPS: uit (de volle lag vanaf de vroege start, het gedrag van vóór deze conventie). */
@@ -437,10 +482,42 @@ export interface SchedulingOptions {
    *    uitzondering erop is daar zonder betekenis. Het gedrag van vóór deze conventie.
    *  - OPS: uit (het gedrag van vóór deze conventie). */
   p6StartedTaskIgnoresPlannedStartFloor?: boolean;
+  /** C9 — de late finish staat op de EIGEN kalender van de activiteit. Bepaalt een opvolgergrens de late
+   *  finish (ook ná de late-zijde-constraints: een strakkere constraint of deadline wint en blijft staan)
+   *  en ligt die grens buiten de werktijd van de taak zelf — in het corpus steeds omdat de opvolger op
+   *  een andere kalender rekent, maar de code toetst alleen de eigen werktijd —, dan wordt de late finish
+   *  het einde van de vorige werkperiode op de eigen kalender. Een grens op of binnen de werktijd (ook op
+   *  een band-rand) blijft staan. Niet voor het projecteinde (ongemeten; op het corpus identiek), alleen
+   *  uurmodus, alleen de generieke backward pass (niet de voortgangs-, C5-, hammock- of handmatige
+   *  takken). `CPMSolver.lateFinishOnOwnCalendar`.
+   *
+   *  - P6: aan. Gemeten, niet uit de documentatie (X12 brok 6, classificatiebrok B09, 2026-09-23), op
+   *    het P6-doorgerekende `Hotel_Construction_TEC.xer`, project HBTF-2 (2666; SCHEDOPTIONS-rij,
+   *    `rem_late_start_date` gevuld, `driving_path_flag` Y — `xer-corpus-p6computed.json`): 42 cellen
+   *    (lf 30, ls 12), 0 slechter, 0 groter (X12 350 → 308). Er is geen P6-instelling (SCHEDOPTIONS- of
+   *    PROJECT-veld) voor gevonden: het is een vaste P6-rekenregel, dus een conventie en geen
+   *    projectoptie. Inhoudelijk de late-kant-tegenhanger van C2 (vrije speling op de eigen kalender) en
+   *    van de bandgrens-weergave B09: P6 drukt de datums van een activiteit uit in haar eigen kalender.
+   *    Voorbeelden: startmijlpaal HCMEF6Z5565 op kalender 844 (vrijdag vrij),
+   *    opvolger-LS vr 2013-12-27 16:00 op kalender 843: P6 do 12-26 17:00, zonder C9 vr 12-27 16:00;
+   *    taken op kalender 3195 (08:00–16:00) met een opvolgergrens 17:00 van kalender 3196: P6 16:00
+   *    (HCSWB1Z1230 → HCSWB1Z1240, een FS0-relatie op de voorgangerfinishgrens, B1, die de LS van de
+   *    opvolger ongesnapt doorgeeft — sinds de B1-late-kant van brok 6 legt die relatie de finishgrens
+   *    zelf, en dragen nog 24 cellen C9: twaalf startmijlpalen op kalender 844 als HCMEF6Z5565, met C9 uit
+   *    24 slechter). Beperkt tot een door een opvolger bepaalde late finish: op het
+   *    corpus identiek aan de variant die ook het projecteinde snapt (0 cellen verschil).
+   *    Een BREDERE variant (elke late finish op een bandSTART ook naar het vorige band-einde) maakt 10
+   *    cellen meer goed (FF0-relaties in Hotel, ashspace en Sample_Construction), maar breekt 54 exacte
+   *    startmijlpalen (LS = LF 08:00) en valt samen met B2; die 10 cellen zijn als aanscherping van B2
+   *    (FF-lag 0) geland, niet hier.
+   *  - MS Project: uit. Ons MPP-orakel meet alleen start en einde (vroege datums), niet de late kant;
+   *    ongemeten, dus het gedrag van vóór deze conventie.
+   *  - OPS: uit (de rauwe grens, het gedrag van vóór deze conventie). */
+  p6LateFinishOnOwnCalendar?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de drieëntwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vierentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -468,7 +545,8 @@ export type ConventionKey =
   | 'p6CompletedPhysicalAtDataDate'
   | 'p6InProgressStartLagElapsed'
   | 'p6FinishFinishStartMilestoneLateFinish'
-  | 'p6StartedTaskIgnoresPlannedStartFloor';
+  | 'p6StartedTaskIgnoresPlannedStartFloor'
+  | 'p6LateFinishOnOwnCalendar';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

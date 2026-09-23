@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Laufender Vorgang: früher Start = Beginn der Restarbeit",
-      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Kommt pro Datei aus Primavera P6."
+      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Kommt pro Datei aus Primavera P6. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exakter Einschränkungszeitpunkt auf einem Meilenstein",
@@ -1202,11 +1202,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Nachfolger beginnt an der Endgrenze",
-      "help": "Bei einer Ende-Anfang-Beziehung ohne Zeitabstand auf einer gemeinsamen Bandgrenze beginnt der Nachfolger am Ende des Vorgängers (nur Beziehungen, die die Datei so kennzeichnet)."
+      "help": "Bei einer Ende-Anfang-Beziehung ohne Zeitabstand auf einer gemeinsamen Bandgrenze beginnt der Nachfolger am Ende des Vorgängers (nur Beziehungen, die die Datei so kennzeichnet). Bei der Rückwärtsrechnung zeigt der Nachfolger seinen spätesten Anfang einfach als Beginn eines Arbeitsbands."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Zeitabstand rückwärts ab einer Endgrenze",
-      "help": "Zieht die Rückwärtsrechnung einen Arbeitszeit-Zeitabstand von einer Endgrenze ab und landet genau auf einem Bandbeginn, landet sie auf der vorherigen Endgrenze."
+      "help": "Zieht die Rückwärtsrechnung einen Arbeitszeit-Zeitabstand von einer Endgrenze ab und landet genau auf einem Bandbeginn, landet sie auf der vorherigen Endgrenze. Auch bei einer Ende-Ende-Beziehung ohne Zeitabstand bleibt ein spätestes Ende auf einem Bandende diese Endgrenze."
     },
     "p6CompletedDataDateWindow": {
       "label": "Abgeschlossener Vorgang im Statusdatumsfenster",
@@ -1251,6 +1251,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang",
       "help": "Die Restarbeit eines begonnenen Vorgangs beginnt am Statusdatum und direkt nach seinen Vorgängern, auch wenn sein geplanter Anfang später liegt."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Spätestes Ende im eigenen Kalender",
+      "help": "Fällt das späteste Ende, das ein Nachfolger vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es zum Ende der vorherigen Arbeitsperiode im eigenen Kalender."
     }
   },
   "profiles": {

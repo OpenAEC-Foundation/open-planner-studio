@@ -72,6 +72,14 @@ if (!corpusRoot) {
   // selectie gaat 34 → 9 entries. Op die populatie is `drop-p6-finish-milestone-boundary` (A17) inert
   // — 0 regressies op alle assen, gemeten — en dus geen negatieve controle meer. Die rol gaat naar
   // `drop-p6-relation-finish-boundary` (B1), die op dezelfde populatie duidelijk regressies geeft.
+  // Herpin 2026-09-23 (X12 brok 6, C9 `p6LateFinishOnOwnCalendar`): de B1-mutant "verbeterde" 18
+  // lf-cellen in Hotel (overall 17 taken); precies die maakt C9 in het product zelf exact, dus de mutant
+  // verbetert ze niet meer: lf improved 18 → 0, unchanged 5943 → 5961; overall improved 17 → 0,
+  // unchanged 4861 → 4878. Detectievermogen gelijk: regressed op elke as ongewijzigd (es/ef 942,
+  // tf 926, ff 309, overall 1083); de som regressed + unchanged wordt nergens kleiner.
+  // Herpin 2026-09-23 (X12 brok 6, B1 late kant): de B1-mutant "verbeterde" ook 9 ls-cellen in Hotel (de
+  // LS-weergave die het product nu zelf goed doet): ls improved 9 → 0, unchanged 5952 → 5961; regressed op
+  // elke as gelijk, overall ongewijzigd (1083 / 4878).
   for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

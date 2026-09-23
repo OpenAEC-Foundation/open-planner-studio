@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tarea en curso: inicio temprano = inicio del trabajo restante",
-      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. Lo define cada archivo de Primavera P6."
+      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. Lo define cada archivo de Primavera P6. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restricción exacto en un hito",
@@ -1237,11 +1237,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "El sucesor empieza en el límite de fin",
-      "help": "En una relación fin-inicio sin desfase sobre un límite de franja compartido, el sucesor empieza en el fin del predecesor (solo las relaciones que el archivo marca así)."
+      "help": "En una relación fin-inicio sin desfase sobre un límite de franja compartido, el sucesor empieza en el fin del predecesor (solo las relaciones que el archivo marca así). En el cálculo hacia atrás, el sucesor muestra su comienzo tardío simplemente como el inicio de una franja de trabajo."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Desfase hacia atrás desde un límite de fin",
-      "help": "Cuando el cálculo hacia atrás resta un desfase en tiempo de trabajo desde un límite de fin y cae justo en un inicio de franja, cae en el límite de fin anterior."
+      "help": "Cuando el cálculo hacia atrás resta un desfase en tiempo de trabajo desde un límite de fin y cae justo en un inicio de franja, cae en el límite de fin anterior. En una relación fin-fin sin posposición, un fin tardío en el final de una franja también se queda en ese límite de fin."
     },
     "p6CompletedDataDateWindow": {
       "label": "Tarea completada en la ventana de la fecha de estado",
@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "El inicio planificado no es un mínimo para una tarea en curso",
       "help": "El trabajo restante de una tarea iniciada comienza en la fecha de estado y justo después de sus predecesoras, aunque su inicio planificado sea posterior."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fin tardío en el calendario propio",
+      "help": "Si el fin tardío que impone un sucesor cae fuera del horario laboral de la actividad, pasa a ser el final del período de trabajo anterior en el calendario propio."
     }
   },
   "profiles": {

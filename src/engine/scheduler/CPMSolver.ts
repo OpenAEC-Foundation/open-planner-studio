@@ -665,6 +665,46 @@ export class CPMSolver {
   }
 
   /**
+   * Conventie C9 `p6LateFinishOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
+   * de late finish op de eigen kalender. Ligt de grens buiten de werktijd van de taak (niet binnen een
+   * band en niet op een band-rand), dan wordt hij het einde van de vorige werkperiode. Een grens op of
+   * binnen de werktijd blijft staan. De aanroeper past dit alleen toe als een opvolgergrens de late
+   * finish bepaalt, ook ná de late-zijde-constraints (projecteinde en een strakkere constraint/deadline
+   * zijn ongemeten). Conventie uit of dagmodus ⇒ `lateFinish` zelf.
+   */
+  private lateFinishOnOwnCalendar(eng: CalendarEngine, lateFinish: Date): Date {
+    if (this.options.schedulingOptions?.p6LateFinishOnOwnCalendar !== true || !eng.isHourMode) return lateFinish;
+    const t = lateFinish.getTime();
+    if (eng.nextWorkInstant(lateFinish).getTime() === t || eng.prevWorkInstant(lateFinish).getTime() === t) return lateFinish;
+    const snapped = eng.prevWorkInstant(lateFinish);
+    return Number.isNaN(snapped.getTime()) ? lateFinish : snapped;
+  }
+
+  /**
+   * A19 `p6UseRemainingStartForProgress`, late kant (X12 brok 6; docblok bij de sleutel in
+   * `types/project.ts`): de restduurregel. P6 plant een LOPENDE activiteit op haar RESTduur ("The total
+   * working time from the activity remaining start date to the remaining finish date", Oracle P6 Help,
+   * Durations Columns, https://docs.oracle.com/cd/F37125_01/p6help/en/47223.htm); achterwaarts over een
+   * SS-relatie is haar late finish dus de late start die de relatie toelaat plus de restduur, niet plus de
+   * volle geplande duur. Rest 0 ⇒ een nulduur (LS = LF). Alleen SS: SF is niet gepind. Anders ⇒ `task`.
+   */
+  private remainingDurationTaskForStartRelation(task: Task, eng: CalendarEngine): Task {
+    if (this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true || !eng.isHourMode) return task;
+    const t = task.time;
+    if (t.actualStart === undefined || !(t.completion > 0 && t.completion < 1)) return task;
+    if (t.durationType === 'ELAPSEDTIME' || (task.splitGaps?.length ?? 0) > 0) return task;
+    const planned = durationMinutesOf(task, eng);
+    const rest = t.remainingMinutes;
+    if (rest === undefined || !(rest >= 0) || rest >= planned) return task;
+    if (rest === 0) {
+      return { ...task, isMilestone: true, milestoneKind: undefined, time: { ...t, scheduleDuration: 0, durationMinutes: 0 } };
+    }
+    return taskDurationUnit(task) === 'hours'
+      ? { ...task, time: { ...t, durationMinutes: rest } }
+      : { ...task, time: { ...t, scheduleDuration: rest / (eng.hoursPerDay * 60) } };
+  }
+
+  /**
    * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
    * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
    * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
@@ -1134,12 +1174,10 @@ export class CPMSolver {
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
-      if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
-        const naturalDayStart = this.dayFirstBandStart(eng, natural);
-        if (naturalDayStart?.getTime() === natural.getTime()) {
-          return eng.prevWorkInstantBefore(natural);
-        }
-      }
+      // B1 (X12 brok 6): de late start van een opvolger op een voorgangerfinishgrens-relatie is een
+      // gewone bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger
+      // legt de gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender); hier
+      // vroeger `prevWorkInstantBefore(natural)` — 9 ls-cellen fout, 0 goed.
       // Z13 (backward-spiegel van `addDurationChecked`s band-eind-wacht): voor een WORTEL-taak
       // (geen voorganger) wier eigen `ownAnchor` het rauwe band-eind-anker behoudt (zie die
       // functie), telt `addDurationChecked` de EIGEN kalenderdag van dat anker mee als volledig
@@ -1309,6 +1347,13 @@ export class CPMSolver {
           return predEng.prevWorkInstantBefore(projected);
         }
         return projected;
+      }
+      // B2 bij lag 0 (X12 brok 6): een FF-grens op een exact bandeinde blijft die finishgrens; de
+      // generieke normalisatie (`nextWorkInstant`) zou hem naar de volgende bandstart duwen.
+      if (sign < 0 && minutes === 0 && seq.type === 'FINISH_FINISH'
+        && this.options.schedulingOptions?.p6BackwardLagFinishBoundary === true
+        && this.isExactBandEnd(predEng, base)) {
+        return new Date(base.getTime());
       }
       return predEng.addWorkingMinutesSigned(base, sign * minutes);
     }
@@ -3625,7 +3670,11 @@ export class CPMSolver {
         const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
           succTask, this.dataDate, this.options.schedulingOptions,
         ).eligible;
-        if (succCompletedHistoric && !succUsesRemainingWindow) continue;
+        // C5, late kant: een voltooide CP_Phys-opvolger met een statusdatumpunt draagt een zinvolle
+        // late kant (LS = LF = zijn punt) en legt dus gewone backward-druk op een open voorganger.
+        // Gemeten (X12 brok 6): Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791.
+        const succIsPhysicalPoint = this.completedPhysicalPoints.has(succTask.id);
+        if (succCompletedHistoric && !succUsesRemainingWindow && !succIsPhysicalPoint) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
@@ -3655,8 +3704,14 @@ export class CPMSolver {
           ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
           lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
         };
+        // C6, late kant: van een SS-lag uit deze LOPENDE taak telt ook achterwaarts alleen de rest-lag
+        // (Roads OCEC10311 —SS+70 h→ OCEC10851: P6-LS = de LS van de opvolger). Conventie uit ⇒ `seq`.
+        const lateSeq = this.inProgressStartLagSeq(task, seq, this.relDeps.lagEngine(predCal, succCal));
+        // A19, late kant: een lopende taak telt achterwaarts over een SS-grens alleen haar restduur.
+        const remainingTask = seq.type === 'START_START'
+          ? this.remainingDurationTaskForStartRelation(task, predCal) : task;
         const constraintDate = backwardConstraint(
-          this.relDeps, delayShiftedSuccResult, seq, task, succTask, predCal, succCal,
+          this.relDeps, delayShiftedSuccResult, lateSeq, remainingTask, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
           this.finishFinishAtStartMilestoneLateFinish(seq, succTask, predCal, succCal),
         );
@@ -3667,7 +3722,13 @@ export class CPMSolver {
       }
 
       // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
+      const successorBound = lateFinish;
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
+      // C9: een opvolgergrens buiten de eigen werktijd naar het einde van de vorige werkperiode — alleen
+      // als die grens ook ná de late-zijde-constraints de late finish bepaalt.
+      if (lateFinishSource === 'successorConstraint' && lateFinish.getTime() === successorBound.getTime()) {
+        lateFinish = this.lateFinishOnOwnCalendar(predCal, lateFinish);
+      }
       if (this.p6ZeroDurationActivityUsesBoundaryPair(task, predCal)) {
         // Een opvolgergrens kan als volgende bandSTART binnenkomen. P6 toont voor deze
         // geïnverteerde nulduurvorm de complementaire finishrand; op een echt bandeinde is deze

@@ -193,8 +193,8 @@ schuld vastleggen. Het cellenbestand draagt sindsdien een sectie `ratchetDebt` m
   een herpin een cel, dan herschrijft `OPS_XER_CELLS_WRITE` dat blok zelf (alleen als het bij de
   gepinde set hoorde, en alleen krimp) en print per cel `ratchet-schuld ONTSCHULD: …`; zet er met de
   hand een `HERPIN <datum>`-regel bij die die cel noemt, en commit het blok samen met de cellen.
-De 14 staan met hun minuten in plan XER §9 ("Ratchet-schuld 2026-09-23"); ze zijn de eerste opdracht
-van de volgende brok.
+De 14 staan met hun minuten en hun oorzaak (C5 en C6 zonder late kant) in plan XER §9 ("Ratchet-schuld
+2026-09-23"); X12 brok 6 maakte ze alle 14 exact, de schuldsectie is sindsdien leeg.
 
 **Corpusgroei** (een entry erbij of eraf, dus een gewijzigd `xer-corpus-manifest.json`): de
 dekkingscheck en de cel-poort staan dan rood op het gewijzigde entry-set, en `=1` weigert. Gebruik
