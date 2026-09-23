@@ -110,7 +110,7 @@ const CUSTOM: SchedulingProfile = {
     const match = ifc.match(/IFCTEXT\('(\{"id":"[^']*)'\)/);
     const json = (match ? JSON.parse(match[1]) : {}) as Record<string, unknown>;
     eq(`03 ${id}: geen naam voor ingebouwd profiel`, 'name' in json, false);
-    same(`04 ${id}: alle vijfentwintig conventies opgelost weggeschreven`, json.conventions, builtInConventions(id));
+    same(`04 ${id}: alle zesentwintig conventies opgelost weggeschreven`, json.conventions, builtInConventions(id));
   }
   const opsIfc = writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') }));
   ok('05 ops zonder afwijkingen: GEEN pset', !opsIfc.includes('OPS_SchedulingProfile'));
@@ -166,13 +166,13 @@ const CUSTOM: SchedulingProfile = {
   });
   same('26 C2: p6Source en conventies gestript uit schedulingOptions', readIFC(ifc3).project.schedulingOptions, { totalFloatMode: 'finish' });
   same('27 pset wint van de legacy-migratie', readProfile(legacyIfc(opts3, builtInProfile('msproject'))), builtInProfile('msproject'));
-  // X12 brok 2, 3 en 4 (critreview must-fix 1): C1–C9 en C11 (C9: brok 6) via de echte IFC-leesroute. Een oud XER-IFC zonder
-  // C-sleutels rekent C1–C9 en C11 op de P6-profielwaarde; een expliciete false in het blok blijft false.
+  // X12 brok 2, 3 en 4 (critreview must-fix 1): C1–C9, C11 en C12 (C9: brok 6) via de echte IFC-leesroute. Een oud XER-IFC zonder
+  // C-sleutels rekent C1–C9, C11 en C12 op de P6-profielwaarde; een expliciete false in het blok blijft false.
   const C_KEYS = [
     'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
     'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
     'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
-    'p6LateFinishOnOwnCalendar', 'p6ProgressOverrideIgnoresStartedSuccessor',
+    'p6LateFinishOnOwnCalendar', 'p6ProgressOverrideIgnoresStartedSuccessor', 'p6FinishNotBeforeFinishFinishBound',
   ] as const;
   const oldXer = resolveConventions(readProfile(legacyIfc({ p6Source: 'XER' })));
   for (const key of C_KEYS) eq(`28 oud XER-IFC zonder ${key} ⇒ P6-profielwaarde`, oldXer[key], builtInConventions('p6')[key]);
@@ -180,7 +180,7 @@ const CUSTOM: SchedulingProfile = {
     p6Source: 'XER', p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: false, p6CompletedRemainingLag: false,
     p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: false, p6InProgressStartLagElapsed: false,
     p6FinishFinishStartMilestoneLateFinish: false, p6StartedTaskIgnoresPlannedStartFloor: false,
-    p6LateFinishOnOwnCalendar: false, p6ProgressOverrideIgnoresStartedSuccessor: false,
+    p6LateFinishOnOwnCalendar: false, p6ProgressOverrideIgnoresStartedSuccessor: false, p6FinishNotBeforeFinishFinishBound: false,
   })));
   for (const key of C_KEYS) eq(`28b oud XER-IFC met ${key}=false ⇒ blijft false`, oldXerFalse[key], false);
 }

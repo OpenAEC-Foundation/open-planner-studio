@@ -542,10 +542,42 @@ export interface SchedulingOptions {
    *  - OPS: uit (de relatie telt achterwaarts en in de vrije speling mee, het gedrag van vóór deze
    *    conventie). */
   p6ProgressOverrideIgnoresStartedSuccessor?: boolean;
+  /** C12 — bij een FF-relatie ligt de vroege finish van de opvolger in KLOKTIJD nooit vóór de relatiegrens.
+   *  Grens X = voorgangerfinish + lag (WORKTIME, lagkalender), eerst genormaliseerd naar de finish-kant
+   *  (`prevWorkInstant`: de motor draagt een finish op een bandeinde intern als de volgende bandstart),
+   *  behalve als de voorganger een open STARTmijlpaal is — die ankert op een start-instant (bandstart).
+   *  Ligt X ná de berekende vroege finish met nul werktijd ertussen op de eigen kalender (X valt in vrije
+   *  tijd van de opvolger), dan wordt de vroege finish de eerste werkgrens op of ná X; de vroege start
+   *  blijft staan. Geldt in de niet-gestarte tak en op het restwerk van een lopende taak (niet bij een harde
+   *  finish-pin, niet bij ELAPSEDTIME-lag, alleen uurmodus). Vrije-spelingkant: over een FF-relatie zonder
+   *  lag telt de vrije speling van de voorganger in haar eigen kalender tot de vroege FINISH van de
+   *  opvolger (niet via de afgeleide startgrens, die C12 niet verplaatst).
+   *  `CPMSolver.finishNotBeforeFinishFinishBound`, `scheduleAnalysis.computeScheduleResults`.
+   *
+   *  - P6: aan. Bron: Oracle P6 EPPM Help, "About Relationships"
+   *    (https://docs.oracle.com/cd/F88966_01/p6help/en/6616.htm), Finish to Finish: "The successor
+   *    activity cannot finish until its predecessor finishes." Dat P6 dan de volgende bandstart toont (en
+   *    niet de grens zelf) is corpusgedrag, niet beschreven. Gemeten (X12 brok 8, 2026-09-23, restant-
+   *    onderzoek 284 §3a): `Roads_Project_TEC.xer` OCEC9761 (FF0 vanaf de open startmijlpaal OCEC12101, ES
+   *    2014-01-15 07:00): P6 EF 01-15 07:00, zonder C12 01-14 17:00; OCEC6681 (FinMile, FF0 vanaf
+   *    OCEC9761) es/ef mee; A10660 (lopend, kal. 1473 za–wo, FF0 vanaf A10650 op kal. 1474 met EF do 05-23
+   *    11:00): P6 EF za 05-25 07:00, en A10650 ff 960 min (16 h tot die finish); `Hotel_Construction_TEC.xer`
+   *    HCSWB3Z2190/HCSWB2Z6190 (FF+32 h, grens in een meerdaags vrij blok van kal. 3195): P6 de eerste
+   *    bandstart ná de grens. X12 280 → 273: 7 cellen beter, 0 slechter, 0 groter; precies die 7
+   *    OPS-waarden veranderen over alle 5.983 orakeltaken. Risicokring: 759 FF-relaties naar een open
+   *    opvolger in de orakelprojecten, waarvan alleen deze vijf C12 raken. Zonder de normalisatie naar de
+   *    finish-kant: 72 cellen slechter (elke gewone FF-finish op een bandeinde sprong een dag vooruit).
+   *    Samenloop met C7: bij FF0 naar een startmijlpaal geeft de vrije-spelingkant van C12 dezelfde P6-
+   *    waarde als C7 voorwaarts (vrije speling tot de mijlpaal zelf).
+   *  - MS Project: uit. Ons MPP-orakel heeft geen gemeten FF-grens in vrije tijd van de opvolger;
+   *    ongemeten, dus het gedrag van vóór deze conventie.
+   *  - OPS: uit (het laatste bandeinde vóór de grens, werktijd-gelijk; vrije speling via de startgrens —
+   *    het gedrag van vóór deze conventie). */
+  p6FinishNotBeforeFinishFinishBound?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vijfentwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de zesentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -575,7 +607,8 @@ export type ConventionKey =
   | 'p6FinishFinishStartMilestoneLateFinish'
   | 'p6StartedTaskIgnoresPlannedStartFloor'
   | 'p6LateFinishOnOwnCalendar'
-  | 'p6ProgressOverrideIgnoresStartedSuccessor';
+  | 'p6ProgressOverrideIgnoresStartedSuccessor'
+  | 'p6FinishNotBeforeFinishFinishBound';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

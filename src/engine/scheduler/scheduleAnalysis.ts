@@ -230,6 +230,14 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
             ff = cal.workMinutesBetween(early.ef, succEarly.es) / (cal.hoursPerDay * 60);
           }
         }
+        // Conventie C12 `p6FinishNotBeforeFinishFinishBound`, vrije-spelingkant: over een FF-relatie zonder
+        // lag telt de vrije speling in de eigen kalender tot de vroege FINISH van de opvolger (die C12 op de
+        // relatiegrens kan leggen zonder haar start te verplaatsen), niet via de afgeleide startgrens.
+        if (so?.p6FinishNotBeforeFinishFinishBound === true && ff !== undefined && cal.isHourMode && seq.type === 'FINISH_FINISH'
+          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+          const succEarly = earlyDates.get(seq.successorId);
+          if (succEarly) ff = cal.workMinutesBetween(early.ef, succEarly.ef) / (cal.hoursPerDay * 60);
+        }
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
       }
     }

@@ -1294,6 +1294,10 @@
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignore aussi en arrière un successeur commencé",
       "help": "Avec Progress Override, la relation vers un successeur déjà commencé ne compte pas dans les dates au plus tard ni dans la marge libre d'un prédécesseur non terminé."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fin au plus tôt jamais avant une limite fin-fin",
+      "help": "Avec une relation fin-fin, la fin au plus tôt du successeur n'est jamais, en heure réelle, avant la limite fixée par le prédécesseur. Si cette limite tombe hors du temps de travail du successeur, la fin devient le début de la période de travail suivante."
     }
   },
   "profiles": {

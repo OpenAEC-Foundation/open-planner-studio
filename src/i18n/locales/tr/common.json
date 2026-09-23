@@ -1259,6 +1259,10 @@
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override başlamış bir ardılı geriye doğru da yok sayar",
       "help": "Progress Override altında, zaten başlamış bir ardılla olan ilişki, henüz bitmemiş bir öncülün geç tarihlerinde ve serbest bolluğunda hesaba katılmaz."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Erken bitiş bir bitiş-bitiş sınırından önce olmaz",
+      "help": "Bitiş-bitiş ilişkisinde ardılın erken bitişi, saat olarak öncülün koyduğu sınırdan asla önce olmaz. Bu sınır ardılın çalışma dışı zamanına denk gelirse, bitiş bir sonraki çalışma döneminin başlangıcı olur."
     }
   },
   "profiles": {

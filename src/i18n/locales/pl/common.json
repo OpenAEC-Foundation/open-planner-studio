@@ -1329,6 +1329,10 @@
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override pomija rozpoczętego następnika także wstecz",
       "help": "Przy Progress Override powiązanie z już rozpoczętym następnikiem nie wpływa na najpóźniejsze terminy ani zapas swobodny niezakończonego poprzednika."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Najwcześniejsze zakończenie nie przed granicą koniec-koniec",
+      "help": "Przy powiązaniu koniec-koniec najwcześniejsze zakończenie następnika nigdy nie wypada w czasie zegarowym przed granicą wyznaczoną przez poprzednika. Jeśli ta granica przypada w czasie wolnym następnika, zakończeniem staje się początek następnego okresu pracy."
     }
   },
   "profiles": {

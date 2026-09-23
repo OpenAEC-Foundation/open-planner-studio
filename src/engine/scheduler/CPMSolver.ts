@@ -729,6 +729,37 @@ export class CPMSolver {
     return succStarted && succTask.time.completion < 1 && predTask.time.completion < 1;
   }
 
+  /**
+   * Conventie C12 `p6FinishNotBeforeFinishFinishBound` (docblok + bron bij de sleutel in
+   * `types/project.ts`): de vroege finish ligt in kloktijd nooit vóór de grens van een FF-relatie.
+   * Per WORKTIME-FF-voorganger: grens X = voorgangerfinish + lag (lagkalender), genormaliseerd naar de
+   * finish-kant (`prevWorkInstant`: een interne bandstart wordt het vorige bandeinde), behalve als de
+   * voorganger een startmijlpaal is (die ankert op een start-instant). Ligt X ná de berekende EF met nul
+   * werkminuten ertussen op de eigen kalender, dan wordt EF de eerste werkgrens op of ná X. Conventie
+   * uit of dagmodus ⇒ `earlyFinish` zelf.
+   */
+  private finishNotBeforeFinishFinishBound(
+    preds: Sequence[], results: Map<string, { es: Date; ef: Date }>, cal: CalendarEngine, earlyFinish: Date,
+  ): Date {
+    if (this.options.schedulingOptions?.p6FinishNotBeforeFinishFinishBound !== true || !cal.isHourMode) return earlyFinish;
+    let out = earlyFinish;
+    for (const seq of preds) {
+      if (seq.type !== 'FINISH_FINISH' || seq.lagUnit === 'ELAPSEDTIME') continue;
+      const predTask = this.tasks.get(seq.predecessorId);
+      const rawPredResult = results.get(seq.predecessorId);
+      if (!predTask || !rawPredResult || predTask.isHammock) continue;
+      const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
+      const lagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), cal);
+      let bound = this.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
+      const predIsStartMilestone = isZeroDurationMilestone(predTask) && predTask.milestoneKind !== 'FINISH';
+      if (!predIsStartMilestone) bound = lagEng.prevWorkInstant(bound);
+      if (Number.isNaN(bound.getTime()) || bound <= out || cal.workMinutesBetween(out, bound) !== 0) continue;
+      const snapped = this.snapOnOrAfter(cal, bound);
+      if (!Number.isNaN(snapped.getTime()) && snapped > out) out = snapped;
+    }
+    return out;
+  }
+
   private finishFinishAtStartMilestoneLateFinish(
     seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
   ): boolean {
@@ -2688,6 +2719,8 @@ export class CPMSolver {
           // opgebouwd (statusdatum, relatiegrens en eventueel gevalideerde suspend/resume); er
           // wordt geen P6 early/late-uitvoer gelezen. Andere formaten houden hun bestaande
           // actual-startweergave doordat alleen het XER-pad deze vlag zet.
+          // C12, lopende taak (restant-onderzoek 284 §3a: Roads A10660): dezelfde FF-grens op het restwerk.
+          ef = this.finishNotBeforeFinishFinishBound(preds, results, progressCal, ef);
           const displayedEarlyStart =
             this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
             ? remStart
@@ -2758,6 +2791,8 @@ export class CPMSolver {
       // corpus+crawl) BLEEF dit vóór de wacht al 0/0 — de wacht is dus verdedigend (defense-in-depth
       // tegen een nog niet waargenomen bestand-vorm), corpusloos mutatiebewijs in cases-advanced-cpm.json.
       if (tf && earlyFinish < earlyStart) earlyFinish = earlyStart;
+      // C12: de vroege finish niet in kloktijd vóór een FF-relatiegrens (geen harde finish-pin).
+      if (!hardFinishPin) earlyFinish = this.finishNotBeforeFinishFinishBound(preds, results, cal, earlyFinish);
 
       // XER/P6-grensvenster voor de zeldzame TT_FinMile-vorm waarin scheduleStart de eerste
       // bandstart en scheduleFinish het vorige bandeinde draagt. Alleen toepassen zolang de

@@ -1259,6 +1259,10 @@
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts",
       "help": "Bei Progress Override zählt die Beziehung zu einem bereits begonnenen Nachfolger nicht für die späten Termine und die freie Pufferzeit eines noch nicht abgeschlossenen Vorgängers."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Früheres Ende nicht vor einer Ende-Ende-Grenze",
+      "help": "Bei einer Ende-Ende-Beziehung liegt das frühe Ende des Nachfolgers in Uhrzeit nie vor der Grenze, die der Vorgänger setzt. Fällt diese Grenze in arbeitsfreie Zeit des Nachfolgers, wird das Ende der Beginn der nächsten Arbeitsperiode."
     }
   },
   "profiles": {

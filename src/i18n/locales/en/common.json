@@ -1259,6 +1259,10 @@
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override ignores a started successor on the late side too",
       "help": "Under Progress Override, the relationship to a successor that has already started does not count in the late dates and free float of a predecessor that is not finished."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Early finish not before a finish-to-finish boundary",
+      "help": "With a finish-to-finish relationship, the successor's early finish never lies before the boundary set by the predecessor in clock time. If that boundary falls in the successor's non-working time, the finish becomes the start of the next work period."
     }
   },
   "profiles": {

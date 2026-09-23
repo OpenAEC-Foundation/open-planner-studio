@@ -233,6 +233,7 @@ export function expectedXerScheduleOptions(
     p6StartedTaskIgnoresPlannedStartFloor: true,
     p6LateFinishOnOwnCalendar: true,
     p6ProgressOverrideIgnoresStartedSuccessor: true,
+  p6FinishNotBeforeFinishFinishBound: true,
   };
   if (!scheduleRow) {
     return {

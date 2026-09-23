@@ -1196,16 +1196,7 @@
           "minutes": null
         }
       },
-      "ef": {
-        "2666/143873": {
-          "bucket": "diff",
-          "minutes": 8160
-        },
-        "2666/144083": {
-          "bucket": "diff",
-          "minutes": 3840
-        }
-      },
+      "ef": {},
       "es": {},
       "ff": {
         "2666/143800": {
@@ -1242,31 +1233,9 @@
     },
     "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae": {
       "drivingPath": {},
-      "ef": {
-        "1346/85153": {
-          "bucket": "diff",
-          "minutes": 3720
-        },
-        "1346/86736": {
-          "bucket": "diff",
-          "minutes": 840
-        },
-        "1346/86737": {
-          "bucket": "diff",
-          "minutes": 840
-        }
-      },
-      "es": {
-        "1346/86736": {
-          "bucket": "diff",
-          "minutes": 840
-        }
-      },
+      "ef": {},
+      "es": {},
       "ff": {
-        "1346/85152": {
-          "bucket": "diff",
-          "minutes": 960
-        },
         "1346/87054": {
           "bucket": "diff",
           "minutes": 3000

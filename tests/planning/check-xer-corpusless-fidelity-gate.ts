@@ -86,6 +86,11 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23n (X12 naar nul, brok 8 — conventie C12 `p6FinishNotBeforeFinishFinishBound`,
+  // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=7
+  // kleiner=0 schuld=0). De vroege finish ligt in kloktijd niet vóór een FF-relatiegrens; vrije speling over
+  // FF0 tot de vroege finish van de opvolger. X12 280 → 273 (ef 54 → 49, es 45 → 44, ff 41 → 40): Roads
+  // OCEC9761/OCEC6681/A10660/A10650, Hotel HCSWB3Z2190/HCSWB2Z6190. Overige cellen byte-identiek.
   // HERPIN 2026-09-23m (X12 naar nul, brok 8 — conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor`,
   // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=5
   // kleiner=0 schuld=0). Onder Progress Override telt de relatie naar een al gestarte opvolger ook
@@ -212,16 +217,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_924, lf: 5_928, tf: 5_702, ff: 5_731 },
+    exact: { es: 5_917, ef: 5_912, ls: 5_924, lf: 5_928, tf: 5_702, ff: 5_732 },
     sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 36, lf: 31, tf: 70, ff: 41 },
+    diff: { es: 42, ef: 47, ls: 36, lf: 31, tf: 70, ff: 40 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 37, lf: 33, tf: 70, ff: 41 },
+    deviations: { es: 44, ef: 49, ls: 37, lf: 33, tf: 70, ff: 40 },
     drivingPath: { exact: 5_808, sameday: 0, diff: 175, missing: 0, measurable: 5_983, deviations: 175 },
   },
-  productPayloadSha256: 'ac6ba7189e42a58a69230312cd3898732ce6de83b9b7a92f6a9e89ec58041fdd',
-  productPayloadGzipSha256: '66032a4fe1c6eb2cb85de7cc3a900021b79a99814a868b6239fd0a1998f2b282',
-  productProjectProjectionSha256: '54688cf42c97ad22e3bbfdc5d903db26b2ecd8a7c44842d1fae0560ea4abc426',
+  productPayloadSha256: '176ccc59af9aa7109163ff037339f5a52120a7916bb9b41303c978fa706ddd6e',
+  productPayloadGzipSha256: 'b678719f0b37296b56f82f46521fc8656c8c2768bb8559900270a66421f4cc49',
+  productProjectProjectionSha256: '803448a3cb59003ed79ce196dcf5e863295e2923e88249c67bfdd560533feeed',
   roles: {
     oracle: 13,
     'engine-input': 14,
