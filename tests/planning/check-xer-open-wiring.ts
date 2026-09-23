@@ -323,24 +323,43 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   ok('T4-23 …maar het aanbod verschijnt wél', useAppStore.getState().recordedDates !== null);
   eq('T4-24 …met dezelfde teller', useAppStore.getState().recordedDates?.shifted, 1);
 
-  // T4-25..29 — DE MELDING MOET DE WAARHEID ZEGGEN (critreview laag 3, bevinding 4).
-  // `notifications.xerImportDatesAsRecorded` zegt letterlijk "niet herberekend". Een heropende IFC
-  // met XER-archief draagt óók `xer`-metadata en kwam dus in dezelfde regel terecht — terwijl daar
-  // per heropen-beleid juist WÉL herberekend is en de modus uit staat. De aanbodroute heeft nu een
-  // eigen, aanbiedende regel. MUTATIEBEWIJS: tel de aanbodstand weer bij
-  // `datesAsRecordedShiftedTotal` op ⇒ T4-27/T4-28 slaan rood.
+  // T4-25..29 — heropenen uit eigen IFC meldt NIETS (gebruikstest rekenprofielen 24-09, B4; vervangt
+  // de eerdere aanbiedende XER-meldingsregel). `readIFC` zet `xerOrigin: 'xer-archive'` naast de
+  // gereconstrueerde `xer`-metadata; het aanbod blijft zichtbaar via `RecordedDatesNotice`
+  // (documentstate `recordedDates`). MUTATIEBEWIJS: haal het `xerOrigin`-filter uit
+  // `xerImportNotice` ⇒ T4-25 slaat rood (weer één XER-melding).
+  const reopenedArchive = { ...singleAsArchiveOrigin, xerOrigin: 'xer-archive' as const };
   const notifBeforeArchive = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
   useAppStore.getState().newDocument();
-  useAppStore.getState().applyOpenedImport(singleAsArchiveOrigin, { filePath: null, recompute: true });
+  useAppStore.getState().applyOpenedImport(reopenedArchive, { filePath: null, recompute: true });
   const archiveNotifs = useAppStore.getState().ui.notifications.filter((n) => !notifBeforeArchive.has(n.id));
-  eq('T4-25 de heropende XER-archief-IFC geeft één melding', archiveNotifs.length, 1);
+  eq('T4-25 de heropende XER-archief-IFC geeft GEEN XER-openingsmelding',
+    archiveNotifs.filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 0);
   eq('T4-26 voorwaarde: de modus staat daarbij UIT', useAppStore.getState().datesAsRecorded, false);
-  ok('T4-27 de melding zegt NIET "niet herberekend" (er is wél herberekend)',
-    archiveNotifs[0]?.detailLines?.every((d) => d.messageKey !== 'notifications.xerImportDatesAsRecorded') ?? false);
-  const offerDetail = archiveNotifs[0]?.detailLines
-    ?.find((d) => d.messageKey === 'notifications.xerImportDatesAsRecordedOffer');
-  ok('T4-28 …maar biedt de opgeslagen datums wél aan', offerDetail);
-  eq('T4-29 …met hetzelfde aantal afwijkende taken', offerDetail?.params?.count, 1);
+  ok('T4-27 het aanbod "datums zoals opgeslagen" blijft (recordedDates gevuld)',
+    useAppStore.getState().recordedDates !== null);
+  eq('T4-28 …met hetzelfde aantal afwijkende taken', useAppStore.getState().recordedDates?.shifted, 1);
+  // Tegenproef: dezelfde vastlegging als VERSE XER geeft wél de openingsmelding.
+  const notifBeforeFresh = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
+  useAppStore.getState().newDocument();
+  useAppStore.getState().applyOpenedImport(singleAgain, { filePath: null, recompute: true });
+  eq('T4-29 een verse XER-import meldt wél',
+    useAppStore.getState().ui.notifications.filter((n) => !notifBeforeFresh.has(n.id))
+      .filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 1);
+  // T4-30..32 — de ECHTE route: het zojuist geopende XER-document als IFC wegschrijven en via
+  // `readIFC` heropenen (archief reist mee) ⇒ `xerOrigin` gezet en geen XER-openingsmelding.
+  const activePayload = useAppStore.getState().getOpenDocumentPayloads()
+    .find((d) => d.id === useAppStore.getState().activeDocumentId)?.payload;
+  if (!activePayload) throw new Error('T4-30: actief documentpayload ontbreekt');
+  const reopenedReal = readIFC(writeIFC(buildWriteIFCInput(activePayload)));
+  ok('T4-30 heropende IFC draagt XER-metadata uit het archief', reopenedReal.xer !== undefined);
+  eq('T4-31 …en markeert die als archiefherkomst', reopenedReal.xerOrigin, 'xer-archive');
+  const notifBeforeReal = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
+  useAppStore.getState().newDocument();
+  useAppStore.getState().applyOpenedImport(reopenedReal, { filePath: null, recompute: true });
+  eq('T4-32 echte heropen-route geeft GEEN XER-openingsmelding',
+    useAppStore.getState().ui.notifications.filter((n) => !notifBeforeReal.has(n.id))
+      .filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 0);
 }
 
 const corpusRoot = process.env.OPS_XER_CORPUS;

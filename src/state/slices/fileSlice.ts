@@ -71,13 +71,17 @@ export function xerImportNotice(
    *
    *  De SPLITSING is critreview laag 3, bevinding 4: `xerImportDatesAsRecorded` zegt letterlijk
    *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. Een
-   *  heropende IFC met XER-archief draagt óók `xer`-metadata, maar krijgt per heropen-beleid
-   *  alleen het AANBOD — daar is wél herberekend, dus die telt in `offerTotal` en krijgt zijn
-   *  eigen, aanbiedende regel. Beide `0` ⇒ geen detailregel. */
+   *  verse XER waarvan de modus niet aanging telt in `offerTotal` en krijgt een eigen, aanbiedende
+   *  regel. (Een heropende IFC met XER-archief meldt sinds B4 helemaal niets meer.) Beide `0` ⇒
+   *  geen detailregel. */
   datesAsRecordedShiftedTotal = 0,
   /** Som van `recordedDates.shifted` over de documenten die de modus alléén AANBIEDEN. */
   datesAsRecordedOfferTotal = 0,
 ): NotifyInput | undefined {
+  // Gebruikstest rekenprofielen 24-09 (B4): alleen een VERSE XER-import meldt. Een heropende IFC
+  // draagt via het bronarchief óók `xer`-metadata, maar is geen import — het aanbod "datums zoals
+  // opgeslagen" loopt daar via `RecordedDatesNotice`, niet via deze melding.
+  results = results.filter(result => result.xerOrigin !== 'xer-archive');
   const xers = results.flatMap(result => result.xer ? [result.xer] : []);
   const xer = xers[0];
   if (!xer) return undefined;

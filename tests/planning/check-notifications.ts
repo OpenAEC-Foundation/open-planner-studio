@@ -656,6 +656,13 @@ S().applyOpenedImport(x10Import(), {
 eq('117 twee afzonderlijke XER-imports tonen twee afzonderlijke meldingen', N().length, 2);
 eq('118 ook de tweede melding is de samengestelde XER-melding', N()[1]?.messageKey, 'notifications.xerImportOpened');
 
+// B4 (gebruikstest rekenprofielen 24-09): heropenen uit eigen IFC — `readIFC` zet `xerOrigin:
+// 'xer-archive'` naast de archief-`xer` — meldt niets. MUTATIEBEWIJS: filter uit `xerImportNotice` ⇒ rood.
+S().applyOpenedImport({ ...x10Result(0), xerOrigin: 'xer-archive' }, {
+  filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+});
+eq('118c heropende IFC met XER-archief geeft geen extra melding', N().length, 2);
+
 // De host roept deze pure helper rechtstreeks in zijn React-renderlus aan. Dit bewijst dat een
 // detailregel nooit via `detail` of een eigen formatter ontsnapt, maar met sleutel én params door
 // de bestaande t-route gaat. Oude meldingen hebben bovenaan expliciet geen detailregels.
