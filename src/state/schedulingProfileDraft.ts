@@ -175,9 +175,25 @@ export function withCriticalThreshold(
   return { ...(options ?? {}), criticalDefinition: { ...previous, [field]: value } };
 }
 
-/** De standaard-projectopties van de basis van dit profiel; OPS ⇒ afwezig. */
-export function withDefaultOptions(profile: SchedulingProfile | undefined): ProjectSchedulingOptions | undefined {
-  const options = defaultOptionsFor((profile ?? builtInProfile('ops')).baseId);
+/**
+ * Projectopties die uitsluitend een BRONSIGNAAL zijn: ze komen alleen uit het bestand (de XER-lezer),
+ * geen profiel kent er een standaardwaarde voor en de UI biedt ze niet aan. "Standaardopties" (en een
+ * profielwissel in de wizard) mag ze daarom niet wissen: dat zou stil bestandsdata weggooien die de
+ * gebruiker nergens terug kan zetten. `useProjectEndDateForFloat` (SCHEDOPTIONS
+ * `sched_use_project_end_date_for_float`) en `leveling` (SCHEDOPTIONS/RSRCLEVELLIST) volgen hetzelfde
+ * patroon: gelezen, bewaard, niet door een profiel bepaald.
+ */
+const SOURCE_ONLY_OPTION_KEYS = ['useProjectEndDateForFloat', 'leveling'] as const;
+
+/** De standaard-projectopties van de basis van dit profiel; OPS ⇒ afwezig. De bronsignalen uit
+ *  `current` (`SOURCE_ONLY_OPTION_KEYS`) blijven staan. */
+export function withDefaultOptions(
+  profile: SchedulingProfile | undefined, current?: ProjectSchedulingOptions,
+): ProjectSchedulingOptions | undefined {
+  const options: ProjectSchedulingOptions = { ...defaultOptionsFor((profile ?? builtInProfile('ops')).baseId) };
+  for (const key of SOURCE_ONLY_OPTION_KEYS) {
+    if (current?.[key] !== undefined) Object.assign(options, { [key]: current[key] });
+  }
   return Object.keys(options).length > 0 ? options : undefined;
 }
 

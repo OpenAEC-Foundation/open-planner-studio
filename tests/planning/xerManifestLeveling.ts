@@ -21,7 +21,8 @@
  *
  * Anders dan bij de uitsluitingen draagt elke regel zijn EIGEN besluit: een nivelleerclassificatie per
  * project is een los besluit, geen gedeeld besluit over een lijst. Een regel die niets raakt (project
- * bestaat niet in het bestand) is een fout, geen no-op.
+ * bestaat niet in het bestand) is een fout, geen no-op, en een project dat ook in `excludeProjects` van
+ * dezelfde entry staat ook (tegenstrijdig).
  *
  * Puur (geen I/O): de corpusloze check (`check-xer-manifest-leveling.ts`) en X12 gebruiken dezelfde lezer.
  */
@@ -33,7 +34,7 @@ export interface XerLeveledProject { projId: string; decision: string; reason: s
 export interface XerLeveledRecord extends XerLeveledProject { sha256: string }
 
 export interface XerLeveledManifestLike {
-  files: Record<string, { sha256: string; role: string; included: boolean; leveledProjects?: unknown }>;
+  files: Record<string, { sha256: string; role: string; included: boolean; leveledProjects?: unknown; excludeProjects?: unknown }>;
 }
 
 const KEYS = new Set(['projId', 'decision', 'reason']);
@@ -87,6 +88,16 @@ function entryRecords(
     if (seen.has(record.projId)) problems.push(`${where}: project ${record.projId} staat er dubbel in`);
     seen.add(record.projId);
     records.push(record);
+  }
+  // Tegenstrijdig: een uitgesloten project wordt niet gemeten, een nivelleerregel zegt hoe het gemeten
+  // moet worden. Niet stil één van beide laten winnen — weigeren (de uitsluitingslezer valideert zijn
+  // eigen lijst; hier alleen de projIds die hij als string zou accepteren).
+  const excluded = new Set((Array.isArray(entry.excludeProjects) ? entry.excludeProjects : [])
+    .filter(isObject).map(item => item.projId).filter(nonEmpty));
+  for (const record of records) {
+    if (excluded.has(record.projId)) {
+      problems.push(`${where}: project ${record.projId} staat ook in excludeProjects (uitgesloten én genivelleerd gemeten is tegenstrijdig; kies één)`);
+    }
   }
   return { records: problems.length > 0 ? [] : records, problems };
 }

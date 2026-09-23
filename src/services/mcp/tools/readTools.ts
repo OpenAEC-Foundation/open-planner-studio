@@ -1054,8 +1054,8 @@ export const readTools: McpToolDef[] = [
       '`startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start lag from") ' +
       'kiest de variant van conventie `p6InProgressStartLagElapsed` en staat er altijd. ' +
       '`schedulingOptions.leveling` (alleen bij een bestand dat ze draagt, bv. een P6-XER) zijn de ' +
-      'nivelleerinstellingen van het bronbestand: gelezen en bewaard, nog NIET toegepast (`enabled` is ' +
-      'een gebruikerskeuze die nog nergens effect heeft); handmatig nivelleren blijft `planner_level_resources`.',
+      'nivelleerinstellingen van het bronbestand: gelezen en bewaard, nog NIET toegepast (geen ' +
+      'rekeneffect); handmatig nivelleren blijft `planner_level_resources`.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

@@ -93,7 +93,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   const onChoose = (next: ProfileChoice) => {
     const nextProfile = selectProfile(profile, next, templates);
     onChange(mode === 'wizard'
-      ? { profile: nextProfile, options: withDefaultOptions(nextProfile) }
+      ? { profile: nextProfile, options: withDefaultOptions(nextProfile, value.options) }
       : { ...value, profile: nextProfile });
   };
   const patchOptions = (next: ProjectSchedulingOptions) => onChange({ ...value, options: next });
@@ -216,7 +216,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
       <div className="flex flex-col gap-2" data-ops-scheduling-options>
         <div className="flex items-center justify-between gap-2">
           <span className={labelCls}>{t('schedulingProfile.optionsTitle')}</span>
-          <button type="button" className={btnCls} onClick={() => onChange({ ...value, options: withDefaultOptions(profile) })}
+          <button type="button" className={btnCls} onClick={() => onChange({ ...value, options: withDefaultOptions(profile, value.options) })}
             data-ops-scheduling-apply-defaults>
             {t('schedulingProfile.applyDefaultOptions')}
           </button>

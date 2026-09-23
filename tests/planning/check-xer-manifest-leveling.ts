@@ -72,6 +72,15 @@ const refusedBy = (extra: Record<string, unknown>, role = 'oracle') => {
   ];
   for (const [label, extra, role] of cases) eq(`${label} ⇒ geweigerd`, refusedBy(extra, role), true);
 
+  // Een project dat zowel genivelleerd gemeten als uitgesloten zou worden is tegenstrijdig: de uitsluiting
+  // haalt het uit de meting, de nivelleerregel zegt hoe het gemeten moet worden. Weigeren, niet kiezen.
+  const both = readManifestLeveledProjects(manifestWith({ ...VALID, decision: DECISION,
+    excludeProjects: [{ projId: 'P1', reason: 'fixture-uitsluiting van P1' }] }));
+  eq('1g project in zowel leveledProjects als excludeProjects ⇒ geweigerd',
+    [both.records.length, both.problems.some(problem => problem.includes('excludeProjects'))], [0, true]);
+  const other = readManifestLeveledProjects(manifestWith({ ...VALID, decision: DECISION,
+    excludeProjects: [{ projId: 'P2', reason: 'fixture-uitsluiting van P2' }] }));
+  eq('1g ander project uitgesloten ⇒ geen probleem', [other.problems, other.records.length], [[], 1]);
   const twin: XerCorpusManifest = manifestWith(VALID);
   twin.files['mini/twin.xer'] = { sha256: SHA, source: 'fixture', role: 'oracle', included: true };
   eq('1f byte-identieke orakellabels met verschillende lijsten ⇒ geweigerd',

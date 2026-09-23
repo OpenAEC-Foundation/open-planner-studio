@@ -52,6 +52,9 @@ export interface XerScheduleOptionsIndex {
   sourceArchive: XerScheduleOptionsSourceArchive;
   /** Nivellering (fundament): RSRCLEVELLIST-rijen per `schedoptions_id`, in bronvolgorde. */
   levelResourceRowsByScheduleOptionsId: ReadonlyMap<string, readonly XerRow[]>;
+  /** RSRCLEVELLIST-rijen met een lege `schedoptions_id` of een id zonder SCHEDOPTIONS-rij: ze horen bij
+   *  geen enkel project en worden per afgeleid project als terugval gemeld (nooit stil). */
+  orphanLevelResourceRows: readonly XerRow[];
   /** Alle `RSRC.rsrc_id`'s van het bestand (een lijstregel zonder resource valt zichtbaar weg). */
   resourceSourceIds: ReadonlySet<string>;
   /** `RSRCRATE.max_qty_per_hr` per resource, alleen als alle tariefrijen één en dezelfde waarde dragen. */
@@ -340,9 +343,15 @@ export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIn
     .flatMap(([, rows]) => rows.map(item => item.sourceRowIndex));
 
   const levelResourceRowsByScheduleOptionsId = new Map<string, XerRow[]>();
+  const orphanLevelResourceRows: XerRow[] = [];
+  const scheduleOptionsIds = new Set((tables.tables.get('SCHEDOPTIONS')?.rows ?? [])
+    .map(row => row.cells.schedoptions_id?.trim() ?? '').filter(id => id !== ''));
   for (const row of tables.tables.get('RSRCLEVELLIST')?.rows ?? []) {
     const scheduleOptionsId = row.cells.schedoptions_id?.trim() ?? '';
-    if (!scheduleOptionsId) continue;
+    if (!scheduleOptionsId || !scheduleOptionsIds.has(scheduleOptionsId)) {
+      orphanLevelResourceRows.push(row);
+      continue;
+    }
     levelResourceRowsByScheduleOptionsId.set(scheduleOptionsId, [
       ...(levelResourceRowsByScheduleOptionsId.get(scheduleOptionsId) ?? []), row,
     ]);
@@ -373,6 +382,7 @@ export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIn
     diagnosticsByProject,
     sourceArchive: { rows: sourceRows, unmatchedScheduleOptionsRowIndexes, diagnostics },
     levelResourceRowsByScheduleOptionsId,
+    orphanLevelResourceRows,
     resourceSourceIds,
     maxUnitsPerHourByResource,
   };
@@ -415,8 +425,8 @@ function levelPriorityValue(
  * Nivelleerinstellingen van één SCHEDOPTIONS-rij als DATA (`SchedulingOptions.leveling`, etappe
  * P6-nivellering fundament). Leest uitsluitend invoerinstellingen: de drie `level_*`-kolommen hieronder,
  * RSRCLEVELLIST (via `schedoptions_id`) en `RSRCRATE.max_qty_per_hr` — nooit opgeslagen rekenuitvoer
- * (bak 4) en nooit een afleiding "is er genivelleerd". `enabled` is altijd false: P6 slaat niet op of
- * er genivelleerd is; aanzetten is een gebruikerskeuze (eigenaarsbeslissing 1 open, onderzoek §2b).
+ * (bak 4) en nooit een afleiding "is er genivelleerd": P6 slaat niet op of er genivelleerd is, en het
+ * blok heeft bewust geen aan/uit-veld (eigenaarsbeslissing 1 open, onderzoek §2b).
  * Draagt de rij geen van de drie kolommen en geen resourcelijst, dan `undefined` (geen blok).
  */
 function levelingValue(
@@ -448,12 +458,23 @@ function levelingValue(
   if (preserveScheduledDates === undefined && levelAllResources === undefined
     && priority === undefined && listRows.length === 0) return undefined;
   return {
-    enabled: false,
     ...(preserveScheduledDates !== undefined ? { preserveScheduledDates } : {}),
     ...(levelAllResources !== undefined ? { levelAllResources } : {}),
     ...(priority !== undefined ? { priority } : {}),
     ...(listRows.length > 0 ? { resources } : {}),
   };
+}
+
+/**
+ * RSRCLEVELLIST-rijen die bij geen SCHEDOPTIONS-rij horen (lege of onbekende `schedoptions_id`) vallen
+ * weg, maar zichtbaar: elke afgeleide projectuitkomst meldt ze (een bestandsbrede rij heeft geen eigen
+ * project, dus in een meerprojectbestand staat dezelfde melding bij elk project).
+ */
+function reportOrphanLevelResourceRows(index: XerScheduleOptionsIndex, fallbacks: XerScheduleOptionFallback[]): void {
+  for (const listRow of index.orphanLevelResourceRows) {
+    reportFallback(fallbacks, listRow, 'RSRCLEVELLIST.schedoptions_id',
+      listRow.cells.schedoptions_id?.trim() || '(leeg)', 'weggelaten (geen SCHEDOPTIONS-rij)');
+  }
 }
 
 export function deriveXerScheduleOptions(
@@ -488,6 +509,7 @@ export function deriveXerScheduleOptions(
 
   const row = index.scheduleRowsById.get(projectId)?.row;
   if (!row) {
+    reportOrphanLevelResourceRows(index, fallbacks);
     return {
       source: 'xer-defaults',
       progressMode: defaults.progressMode,
@@ -597,6 +619,7 @@ export function deriveXerScheduleOptions(
 
   const leveling = levelingValue(index, row, fallbacks);
   if (leveling) schedulingOptions.leveling = leveling;
+  reportOrphanLevelResourceRows(index, fallbacks);
 
   return {
     source: 'schedoptions',

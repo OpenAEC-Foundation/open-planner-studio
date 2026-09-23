@@ -377,7 +377,8 @@ aangeraakt.
 
 **Wat er is.**
 - Projectoptie `leveling` (`LevelingSettings` in `src/types/project.ts`; `ProjectOptionKey` telt nu elf
-  sleutels): `enabled` (altijd `false` uit de lezer; niets leest hem — besluit 1 open), `preserveScheduledDates`
+  sleutels) zonder aan/uit-veld (de vorm daarvan is besluit 1; een vroegtijdig verplicht `enabled: false` zou in
+  opgeslagen IFC's vastzitten — fixronde 2026-09-24), `preserveScheduledDates`
   (`level_keep_sched_date_flag`), `levelAllResources` (`level_all_rsrc_flag`), `priority` (`LevelPriorityList`
   als `{ field, direction }` in bronvolgorde; het veld blijft de letterlijke P6-kolomnaam, ongeïnterpreteerd) en
   `resources` (RSRCLEVELLIST via `schedoptions_id`, met `maxUnitsPerHour` uit `RSRCRATE.max_qty_per_hr` alleen als
@@ -392,16 +393,37 @@ aangeraakt.
   vervolgetappe: een prioriteitssleutel kan een rekenuitvoerkolom *noemen* (9033: `early_start_date`); de pas moet
   dan de eigen berekende waarde gebruiken, nooit de opgeslagen P6-uitvoer.
 - IFC: via `OPS_SchedulingOptions` (alleen geschreven als aanwezig), sanitizer met whitelist
-  (`sanitizeLeveling`: `enabled` verplicht, ongeldige elementen los weg, bovengrenzen); resource-ids worden bij
+  (`sanitizeLeveling`: geen verplicht veld, ongeldige elementen los weg, niets geldigs ⇒ geen blok, bovengrenzen); resource-ids worden bij
   het lezen via de GlobalId teruggemapt (`remapLevelingResourceIds`, spiegel van de contouren).
 - MCP: `planner_get_project_info` toont het blok letterlijk; `planner_update_project` weigert `leveling` met de
-  reden "gelezen, nog niet toegepast". MSPDI-export meldt het blok als niet uitdrukbaar.
+  reden "gelezen, nog niet toegepast". MSPDI-export meldt het blok als niet uitdrukbaar, maar alleen als het
+  afwijkt van de P6-dialoogdefaults (`isP6DialogDefaultLeveling`): acht van de twaalf OZB-projecten dragen
+  precies die defaults, en die melding zou dan ruis zijn.
+- Projectinfo "Standaardopties" en de profielwissel in de wizard laten de bronsignalen `leveling` en
+  `useProjectEndDateForFloat` staan (`withDefaultOptions(profile, current)`): ze komen alleen uit het bestand,
+  geen profiel kent er een default voor en de UI kan ze niet terugzetten.
+- RSRCLEVELLIST-rijen met een lege of onbekende `schedoptions_id` vallen zichtbaar terug (`fallbacks`,
+  `RSRCLEVELLIST.schedoptions_id`), bij elk project van het bestand.
 - Manifest: `leveledProjects: [{ projId, decision, reason }]` per inbegrepen orakelentry
   (`tests/planning/xerManifestLeveling.ts`), besluit per regel verplicht. Mechanisme zonder data: het manifest
   draagt het veld nergens, X1 valideert het alleen, X12 rapporteert "genivelleerd volgens eigenaar: N projecten".
-  Geen invloed op de telling (besluit 2 open).
+  Geen invloed op de telling (besluit 2 open). Een project dat in dezelfde entry ook in `excludeProjects` staat
+  wordt geweigerd (uitgesloten én genivelleerd gemeten is tegenstrijdig).
 
-**Gemeten (OZB).** 9033, 9045, 9047 en 9049 krijgen dezelfde data `{ enabled: false, preserveScheduledDates:
+**Harde voorwaarden voor de motoretappe (§8), nu gelegd.** `src/services/leveling/levelingInput.ts` (puur,
+nog door niets gelezen) is de enige toegestane leesweg voor de motor: `resolveLevelingResources` filtert
+hangende resource-ids en geeft ze terug om te melden; `levelingPriorityQuantity` is een gesloten tabel P6-kolomnaam
+⇒ eigen grootheid (de zes bak-4-namen ⇒ de EIGEN berekende ES/EF/LS/LF/TF/FF, bak 2 ⇒ geen betekenis, onbekend
+⇒ geen betekenis, nooit een terugval naar de bronkolom). `tests/planning/check-leveling-input.ts` haalt de
+bak-2/4-namen mechanisch uit `check-xer-field-whitelist.ts` en voert ze elk als sleutel.
+
+**Rest van stap 1 (§7), bewust niet gelezen.** Deze SCHEDOPTIONS-kolommen blijven `ignored` met reden en staan
+dus niet in het blok: `level_within_float_flag` (binnen float), `level_float_thrs_cnt` (minimale float),
+`level_over_alloc_pct` (over-allocatie %), `level_outer_assign_flag` en `level_outer_assign_priority`
+(toewijzingen van andere projecten + hun prioriteit). Reden: geen orakel (§8, laatste punt) en geen consument;
+ze lezen zonder meting zou een belofte doen die de motor niet kan houden. Ze blijven wel in het bronarchief.
+
+**Gemeten (OZB).** 9033, 9045, 9047 en 9049 krijgen dezelfde data `{ preserveScheduledDates:
 false, levelAllResources: false, priority: [early_start_date ↑], resources: [PM-1 (6900), 1/u] }`; de acht andere
 projecten de dialoogdefaults (keep/all aan, Activity Priority ↑), gepind in
 `check-xer-schedule-options-wiring.ts` (test 13). Zo blijft zichtbaar dat de instellingen niets zeggen over óf er

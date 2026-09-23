@@ -1107,8 +1107,8 @@ eq('X5: het optieblok na lezen draagt alleen projectopties',
 }
 
 // Nivelleerfundament (`SchedulingOptions.leveling`, onderzoek 2026-09-24 §7 stap 1): de instellingen als
-// DATA, nooit rekeninvoer. Mutanten: `enabled` uit `level_*` afleiden ⇒ rood ("enabled altijd false");
-// DEL-DEL niet splitsen ⇒ rood (twee sleutels); RSRCLEVELLIST op proj_id i.p.v. schedoptions_id ⇒ rood
+// DATA, nooit rekeninvoer. Mutanten: een `enabled`-veld terugzetten ⇒ rood ("geen aan/uit-veld");
+// DEL-DEL niet splitsen ⇒ rood (twee sleutels); verweesde RSRCLEVELLIST-rij stil overslaan ⇒ rood; RSRCLEVELLIST op proj_id i.p.v. schedoptions_id ⇒ rood
 // (resourcelijst); ongelijke tariefrijen toch een waarde ⇒ rood (maxUnitsPerHour afwezig).
 {
   const DEL = '\u007f\u007f';
@@ -1144,13 +1144,23 @@ eq('X5: het optieblok na lezen draagt alleen projectopties',
   );
   const p1 = leveling(ozb, 'P1');
   eq('nivellering: OZB-9033-vorm ⇒ keep/all uit, ES-prioriteit, eigen resourcelijst via schedoptions_id', p1.schedulingOptions.leveling, {
-    enabled: false, preserveScheduledDates: false, levelAllResources: false,
+    preserveScheduledDates: false, levelAllResources: false,
     priority: [{ field: 'early_start_date', direction: 'ASC' }],
     resources: [{ resourceId: 'xer-resource:R1', maxUnitsPerHour: 1 }, { resourceId: 'xer-resource:R3' }],
   });
   eq('nivellering: onbekende rsrc_id in RSRCLEVELLIST valt zichtbaar weg; een dubbele stil (zelfde resource)',
     p1.fallbacks.map(item => [item.field, item.token, item.fallback]),
     [['RSRCLEVELLIST.rsrc_id', 'R9', 'weggelaten (geen RSRC-rij)']]);
+  const orphan = leveling(levelXer(
+    { level_all_rsrc_flag: 'Y' },
+    { list: [['1', '8', 'R1'], ['2', '', 'R2'], ['3', '77', 'R3']] },
+  ));
+  eq('nivellering: RSRCLEVELLIST-rij met lege of onbekende schedoptions_id valt zichtbaar weg (nooit stil)',
+    orphan.fallbacks.map(item => [item.field, item.token, item.fallback]),
+    [['RSRCLEVELLIST.schedoptions_id', '(leeg)', 'weggelaten (geen SCHEDOPTIONS-rij)'],
+      ['RSRCLEVELLIST.schedoptions_id', '77', 'weggelaten (geen SCHEDOPTIONS-rij)']]);
+  eq('nivellering: de verweesde rijen komen niet in de lijst van P1',
+    orphan.schedulingOptions.leveling?.resources, [{ resourceId: 'xer-resource:R1' }]);
   eq('nivellering: elk project krijgt alleen de lijst van zijn eigen SCHEDOPTIONS-rij',
     leveling(ozb, 'P2').schedulingOptions.leveling?.resources, [{ resourceId: 'xer-resource:R2' }]);
 
@@ -1160,7 +1170,7 @@ eq('X5: het optieblok na lezen draagt alleen projectopties',
   }));
   eq('nivellering: meerdere sleutels in bronvolgorde, met en zonder tussenstuk, richting hoofdletterongevoelig',
     many.schedulingOptions.leveling, {
-      enabled: false, preserveScheduledDates: true, levelAllResources: true,
+      preserveScheduledDates: true, levelAllResources: true,
       priority: [
         { field: 'priority_type', direction: 'ASC' }, { field: 'total_float_hr_cnt', direction: 'DESC' },
         { field: 'task_code', direction: 'DESC' },
@@ -1172,13 +1182,13 @@ eq('X5: het optieblok na lezen draagt alleen projectopties',
   const empty = leveling(levelXer({ level_keep_sched_date_flag: '', level_all_rsrc_flag: 'X', levelprioritylist: '' }));
   eq('nivellering: lege lijstkolom ⇒ priority [] (P6 sorteert dan op Activity ID); lege vlag afwezig; onbekende vlag terugval',
     { leveling: empty.schedulingOptions.leveling, fallbacks: empty.fallbacks.map(item => [item.field, item.token, item.fallback]) },
-    { leveling: { enabled: false, priority: [] }, fallbacks: [['level_all_rsrc_flag', 'X', 'niet bewaard']] });
+    { leveling: { priority: [] }, fallbacks: [['level_all_rsrc_flag', 'X', 'niet bewaard']] });
 
   const none = leveling(levelXer({ sched_float_type: 'FT_FF' }));
   eq('nivellering: geen enkele level_*-kolom en geen lijst ⇒ geen blok (byte-identiek aan vóór het fundament)',
     'leveling' in none.schedulingOptions, false);
-  eq('nivellering: enabled is altijd false — ook bij de OZB-9033-vorm (eigenaarsbeslissing 1 open)',
-    [p1, many, empty].every(result => result.schedulingOptions.leveling?.enabled === false), true);
+  eq('nivellering: geen aan/uit-veld in het blok — ook niet bij de OZB-9033-vorm (eigenaarsbeslissing 1 open)',
+    [p1, many, empty].some(result => 'enabled' in (result.schedulingOptions.leveling ?? {})), false);
   eq('nivellering: de drie gelezen level_*-kolommen staan als mapped in de kolomtabel',
     ['level_keep_sched_date_flag', 'level_all_rsrc_flag', 'levelprioritylist']
       .map(field => XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === field)?.status),

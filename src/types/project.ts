@@ -26,12 +26,11 @@ export interface LevelingResourceSetting {
  * Nivelleerinstellingen als DATA (etappe P6-nivellering, fundament). Het bestand zegt niet óf P6
  * genivelleerd heeft (onderzoek §2b: OZB 9045/9047/9049 dragen dezelfde instellingen als het wél
  * genivelleerde 9033), dus dit blok is de dialoog "Level Resources", niet een nivelleerrun.
+ * Er is bewust GEEN aan/uit-veld: of nivelleren een projectoptie of een eigen knop wordt is
+ * eigenaarsbeslissing 1 (open). Een vroegtijdig verplicht `enabled: false` zou in opgeslagen IFC's
+ * vastzitten. Niets leest dit blok: het heeft vandaag geen rekeneffect.
  */
 export interface LevelingSettings {
-  /** Nivelleren tijdens berekenen. P6 slaat niet op of er genivelleerd is; aanzetten is een
-   *  gebruikerskeuze — eigenaarsbeslissing 1 open. Geen enkele lezer zet dit op true (de XER-lezer
-   *  schrijft altijd false) en niets leest het: ook `true` heeft vandaag geen rekeneffect. */
-  enabled: boolean;
   /** P6 "Preserve scheduled early and late dates" (`SCHEDOPTIONS.level_keep_sched_date_flag`). */
   preserveScheduledDates?: boolean;
   /** P6 "Level all resources" (`SCHEDOPTIONS.level_all_rsrc_flag`); uit ⇒ alleen `resources`. */

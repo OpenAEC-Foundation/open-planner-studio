@@ -62,6 +62,17 @@ eq('21 drempel in dagen zetten houdt thresholdHours',
   { mode: 'totalFloat', thresholdHours: 8, threshold: 2 });
 eq('22 standaardopties van p6', withDefaultOptions(builtInProfile('p6')), defaultOptionsFor('p6'));
 eq('23 standaardopties van ops = afwezig', withDefaultOptions(undefined), undefined);
+// Bronsignalen (alleen uit het bestand, geen profieldefault) overleven "Standaardopties"; de rest niet.
+// Mutant: SOURCE_ONLY_OPTION_KEYS leeg ⇒ 23a/23b rood.
+{
+  const leveling = { levelAllResources: false, priority: [{ field: 'early_start_date', direction: 'ASC' as const }] };
+  const current = { lagCalendar: '24hour' as const, useProjectEndDateForFloat: true, leveling };
+  eq('23a standaardopties p6 houden leveling en useProjectEndDateForFloat',
+    withDefaultOptions(builtInProfile('p6'), current), { ...defaultOptionsFor('p6'), useProjectEndDateForFloat: true, leveling });
+  eq('23b standaardopties ops houden alleen de bronsignalen',
+    withDefaultOptions(undefined, current), { useProjectEndDateForFloat: true, leveling });
+  eq('23c zonder bronsignalen blijft ops afwezig', withDefaultOptions(undefined, { lagCalendar: '24hour' }), undefined);
+}
 eq('24 sameSettings negeert sleutelvolgorde en normaliseert ops',
   sameSettings({ profile: builtInProfile('ops'), options: { lagCalendar: 'successor', totalFloatMode: 'finish' } },
     { profile: undefined, options: { totalFloatMode: 'finish', lagCalendar: 'successor' } }), true);

@@ -68,13 +68,14 @@ const LEVELING_DIRECTIONS = ['ASC', 'DESC'] as const;
 
 /**
  * Het nivelleerblok (`SchedulingOptions.leveling`, etappe P6-nivellering fundament). Zelfde regels
- * als de rest: onbekend of verkeerd getypeerd valt weg, niets wordt gerepareerd. `enabled` is verplicht
- * (zonder geldige boolean vervalt het hele blok); ongeldige lijstelementen vallen los weg. Vaste
+ * als de rest: onbekend of verkeerd getypeerd valt weg, niets wordt gerepareerd; ongeldige lijstelementen
+ * vallen los weg. Er is geen verplicht veld (geen `enabled`: eigenaarsbeslissing 1 open, een onbekende
+ * sleutel zoals een oude `enabled` valt gewoon weg); blijft er niets geldigs over, dan vervalt het blok. Vaste
  * sleutelvolgorde = de volgorde van de XER-lezer, zodat lezen → schrijven byte-identiek blijft.
  */
 function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
-  if (!isRecord(value) || typeof value.enabled !== 'boolean') return undefined;
-  const out: LevelingSettings = { enabled: value.enabled };
+  if (!isRecord(value)) return undefined;
+  const out: LevelingSettings = {};
   if (typeof value.preserveScheduledDates === 'boolean') out.preserveScheduledDates = value.preserveScheduledDates;
   if (typeof value.levelAllResources === 'boolean') out.levelAllResources = value.levelAllResources;
   if (Array.isArray(value.priority)) {
@@ -100,7 +101,7 @@ function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
     }
     out.resources = resources;
   }
-  return out;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Compile-time: elke sleutel van `LegacySchedulingOptions` moet hieronder een tak hebben. */

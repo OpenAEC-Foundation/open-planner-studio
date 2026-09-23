@@ -118,8 +118,8 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       startToStartLagFrom: 'actualStart',
       useProjectEndDateForFloat: true,
       // Nivelleerfundament: de kolom `levelprioritylist` staat in de fixture ('A-RAW', geen geldige
-      // sleutel) ⇒ een leeg prioriteitsblok met zichtbare terugval (test 3); enabled nooit true.
-      leveling: { enabled: false, priority: [] },
+      // sleutel) ⇒ een leeg prioriteitsblok met zichtbare terugval (test 3); geen aan/uit-veld.
+      leveling: { priority: [] },
     },
     schedulingProfile: { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } },
   },
@@ -135,7 +135,7 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       p6CompletedLateFromRemainingWindow: true,
       startToStartLagFrom: 'earlyStart',
       useProjectEndDateForFloat: false,
-      leveling: { enabled: false, priority: [] },
+      leveling: { priority: [] },
     },
     schedulingProfile: builtInProfile('p6'),
   },
@@ -544,17 +544,17 @@ if (corpusRoot && existsSync(corpusRoot)) {
   for (const item of settings) console.log(`.   X5-settings ${JSON.stringify(item)}`);
   // Nivelleerfundament (onderzoek 2026-09-24 §2a): 9033 draagt de door P6 gebruikte instellingen, maar
   // 9045/9047/9049 exact dezelfde zonder dat P6 daar nivelleerde (§2b). De lezer leest ze dus als data
-  // en zet `enabled` nergens aan; de andere acht projecten dragen de P6-dialoogdefaults.
+  // zonder aan/uit-veld; de andere acht projecten dragen de P6-dialoogdefaults.
   const ozbLeveling = {
-    enabled: false, preserveScheduledDates: false, levelAllResources: false,
+    preserveScheduledDates: false, levelAllResources: false,
     priority: [{ field: 'early_start_date', direction: 'ASC' }],
     resources: [{ resourceId: 'xer-resource:6900', maxUnitsPerHour: 1 }],
   };
   const dialogDefaults = {
-    enabled: false, preserveScheduledDates: true, levelAllResources: true,
+    preserveScheduledDates: true, levelAllResources: true,
     priority: [{ field: 'priority_type', direction: 'ASC' }],
   };
-  eq('13 openbare 15-projectenmeting: nivelleerinstellingen per project als data, enabled nergens aan',
+  eq('13 openbare 15-projectenmeting: nivelleerinstellingen per project als data, geen aan/uit-veld',
     (publicOpened.results as XerReadResult[]).map(result => [result.project.id, result.project.schedulingOptions?.leveling]),
     expectedProjectIds.map(projectId => [projectId,
       ['9033', '9045', '9047', '9049'].includes(projectId) ? ozbLeveling : dialogDefaults]));

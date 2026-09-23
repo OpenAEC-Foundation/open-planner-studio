@@ -240,6 +240,7 @@ export function expectedXerScheduleOptions(
   p6FinishNotBeforeFinishFinishBound: true,
   };
   if (!scheduleRow) {
+    expectedOrphanLevelRows(scan, fallbacks);
     return {
       progressMode: 'RETAINED_LOGIC', schedulingOptions, conventions, source: 'xer-defaults',
       retainedSource: {}, fallbacks, diagnostics, sourceRowIndexes, sourceRows,
@@ -329,10 +330,22 @@ export function expectedXerScheduleOptions(
   }
   const leveling = expectedLeveling(scan, scheduleRow, fallbacks);
   if (leveling) schedulingOptions.leveling = leveling;
+  expectedOrphanLevelRows(scan, fallbacks);
   return {
     progressMode, schedulingOptions, conventions, source: 'schedoptions', retainedSource,
     fallbacks, diagnostics, sourceRowIndexes, sourceRows,
   };
+}
+
+/** RSRCLEVELLIST-rijen zonder bijbehorende SCHEDOPTIONS-rij (lege of onbekende `schedoptions_id`):
+ *  zichtbare terugval bij elk project, nooit stil. */
+function expectedOrphanLevelRows(scan: RawXerScheduleScan, fallbacks: XerScheduleOptionFallback[]): void {
+  const known = new Set((scan.tables.get('SCHEDOPTIONS')?.rows ?? []).map(row => row.cells.schedoptions_id?.trim() ?? ''));
+  for (const listRow of scan.tables.get('RSRCLEVELLIST')?.rows ?? []) {
+    const id = listRow.cells.schedoptions_id?.trim() ?? '';
+    if (id !== '' && known.has(id)) continue;
+    fallbacks.push({ field: 'RSRCLEVELLIST.schedoptions_id', token: id || '(leeg)', fallback: 'weggelaten (geen SCHEDOPTIONS-rij)', line: listRow.line });
+  }
 }
 
 /** Y/N ⇒ boolean, leeg ⇒ afwezig, iets anders ⇒ zichtbare terugval "niet bewaard" (zelfde contract als
@@ -352,7 +365,7 @@ function optionalFlag(
  * Nivelleerfundament (`SchedulingOptions.leveling`), onafhankelijk uit de rauwe tabellen: de drie
  * `level_*`-instellingen, `LevelPriorityList` (sleutels gescheiden door DEL-DEL, vorm
  * `veld,[tussenstuk/]richting`), RSRCLEVELLIST via `schedoptions_id` en `RSRCRATE.max_qty_per_hr` als
- * alle tariefrijen van de resource één waarde dragen. `enabled` is altijd false (eigenaarsbeslissing 1).
+ * alle tariefrijen van de resource één waarde dragen. Geen aan/uit-veld (eigenaarsbeslissing 1 open).
  */
 function expectedLeveling(
   scan: RawXerScheduleScan, row: XerScheduleOptionsSourceRow, fallbacks: XerScheduleOptionFallback[],
@@ -392,7 +405,6 @@ function expectedLeveling(
   if (preserveScheduledDates === undefined && levelAllResources === undefined && priority === undefined
     && listRows.length === 0) return undefined;
   return {
-    enabled: false,
     ...(preserveScheduledDates !== undefined ? { preserveScheduledDates } : {}),
     ...(levelAllResources !== undefined ? { levelAllResources } : {}),
     ...(priority !== undefined ? { priority } : {}),

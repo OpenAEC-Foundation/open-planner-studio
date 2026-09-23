@@ -1,4 +1,5 @@
 import { Task, TaskConstraint } from '@/types/task';
+import { isP6DialogDefaultLeveling } from '@/services/leveling/levelingInput';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
@@ -399,8 +400,10 @@ export function writeMSPDI(
     if (so.floatPaths?.enabled) lost.push('floatPaths');
     if (so.startToStartLagFrom === 'actualStart') lost.push('startToStartLagFrom');
     // Nivelleerinstellingen (fundament, alleen data): MSPDI heeft geen P6-prioriteitslijst of
-    // -resourcelijst; het blok round-tript alleen via IFC.
-    if (so.leveling) lost.push('leveling');
+    // -resourcelijst; het blok round-tript alleen via IFC. Alleen melden als het afwijkt van de
+    // P6-dialoogdefaults: acht van de twaalf openbare OZB-projecten dragen precies die defaults, en een
+    // melding over iets wat een ontvanger toch al aanneemt is ruis die de echte meldingen verdringt.
+    if (so.leveling && !isP6DialogDefaultLeveling(so.leveling)) lost.push('leveling');
   }
   // Rekenprofielen C3: de twee MPP-eigen conventies staan sinds de profielen in het rekenprofiel
   // (MS Project-profiel), niet meer in `schedulingOptions` — zelfde waarschuwing, andere bron.

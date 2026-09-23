@@ -186,9 +186,11 @@ iets per profiel, dan is het een conventie in het register — nooit een `if` op
 regel A en B: `docs/superpowers/plans/2026-09-22-goalprompt-x12-naar-nul.md`.
 De elfde projectoptie, `leveling`, is het **fundament voor P6-nivellering** en nog pure data: de XER-lezer
 vult hem uit SCHEDOPTIONS (`level_keep_sched_date_flag`, `level_all_rsrc_flag`, `LevelPriorityList`) en
-RSRCLEVELLIST (+ `RSRCRATE.max_qty_per_hr`), met `enabled` altijd `false` (P6 bewaart niet óf er
-genivelleerd is — eigenaarsbeslissing 1); hij round-tript via `OPS_SchedulingOptions` en MCP
-`get_project_info` toont hem, maar motor, UI en `ResourceLeveler.ts` lezen hem niet. Het manifestveld
+RSRCLEVELLIST (+ `RSRCRATE.max_qty_per_hr`), bewust zonder aan/uit-veld (P6 bewaart niet óf er
+genivelleerd is; de vorm van de aan/uit is eigenaarsbeslissing 1); hij round-tript via `OPS_SchedulingOptions` en MCP
+`get_project_info` toont hem, maar motor, UI en `ResourceLeveler.ts` lezen hem niet. De motoretappe leest
+hem straks uitsluitend via `src/services/leveling/levelingInput.ts` (hangende resource-ids gemeld, gesloten
+mapping P6-kolomnaam ⇒ eigen berekende grootheid, nooit opgeslagen P6-uitvoer). Het manifestveld
 `leveledProjects` (`tests/planning/xerManifestLeveling.ts`) is het bijbehorende meetmechanisme, zonder
 data en zonder invloed op de telling (eigenaarsbeslissing 2). Plan en open besluiten:
 `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md`.
