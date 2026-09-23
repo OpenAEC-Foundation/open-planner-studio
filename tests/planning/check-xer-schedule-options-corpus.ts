@@ -43,7 +43,8 @@ type DefaultKey =
   | 'expectedFinishDates'
   | 'preserveActualDates'
   | 'clampNegativeFreeFloat'
-  | 'projectCriticalDefinition';
+  | 'projectCriticalDefinition'
+  | 'startToStartLagFromEarlyStart';
 
 const DEFAULT_KEYS: readonly DefaultKey[] = [
   'totalFloatFinish',
@@ -54,6 +55,9 @@ const DEFAULT_KEYS: readonly DefaultKey[] = [
   'preserveActualDates',
   'clampNegativeFreeFloat',
   'projectCriticalDefinition',
+  // Critreview C6-projectoptie punt 4 (2026-09-23): de tiende projectoptie `startToStartLagFrom`
+  // (leeg/afwezig `sched_lag_early_start_flag` ⇒ 'earlyStart') staat nu ook in de defaults-projectie.
+  'startToStartLagFromEarlyStart',
 ];
 
 const DEFERRED_DEFAULTS = [] as const;
@@ -126,7 +130,7 @@ interface BaselineValueDelta {
 const FIDELITY_AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
 
 interface BlastRadiusBaseline {
-  version: 10;
+  version: 11;
   axes: readonly BlastAxis[];
   defaults: readonly DefaultKey[];
   deferredDefaults: typeof DEFERRED_DEFAULTS;
@@ -502,6 +506,10 @@ function variantDefinitions(
       chosen: { schedulingOptions: { criticalDefinition } },
       counterfactual: { schedulingOptions: { criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 } } },
     },
+    startToStartLagFromEarlyStart: {
+      chosen: { schedulingOptions: { startToStartLagFrom: 'earlyStart' } },
+      counterfactual: { schedulingOptions: { startToStartLagFrom: 'actualStart' } },
+    },
   };
 }
 
@@ -825,7 +833,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
   }
 
   return {
-    version: 10,
+    version: 11,
     axes: BLAST_AXES,
     defaults: DEFAULT_KEYS,
     deferredDefaults: DEFERRED_DEFAULTS,
@@ -888,8 +896,13 @@ if (!existsSync(baselinePath)) {
   diffs.push('blast-radiusbaseline ontbreekt');
 } else {
   const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
+  // Herpin 2026-09-23 (v10 → v11, critreview C6-projectoptie punt 4): `startToStartLagFromEarlyStart`
+  // toegevoegd aan DEFAULT_KEYS. Alleen die sleutel is erbij gekomen (in `defaults` en per gemeten
+  // bestandregel, 34× chosen = counterfactual = 0 negatieve float); alle bestaande waarden zijn
+  // byte-gelijk overgenomen uit v10 — de verse meting zonder de nieuwe sleutel gaf identieke `files[]`
+  // en `expectedFinishVariant`.
   eq('baselineversie en asvolgorde', { version: committed.version, axes: committed.axes }, {
-    version: 10,
+    version: 11,
     axes: BLAST_AXES,
   });
   eq('baseline bevat alle defaults los van elkaar', committed.defaults, DEFAULT_KEYS);

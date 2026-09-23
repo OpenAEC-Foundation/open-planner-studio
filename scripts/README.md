@@ -107,7 +107,8 @@ op regels BUITEN het nuldoel). Beide hebben geen schrijfmodus; herpin met de han
   niet vergeleken (mutant 0 → 99999 bleef groen) en maten P3-/generatorbestanden; een structuurregel
   ("geen dode pinnen") houdt ze uit het bestand. Sinds v10 worden de overige waarden in `files[]` (de
   negatieve-floattellingen per defaultset, gekozen/tegenvariant) mét corpus per bestand exact tegen de
-  meting vergeleken. Toeschrijving: een kapotte lezerdefault wordt gevangen door de onafhankelijke
+  meting vergeleken. Sinds v11 staat ook de projectoptie `startToStartLagFrom` (default `earlyStart`)
+  als `startToStartLagFromEarlyStart` in de defaults-projectie. Toeschrijving: een kapotte lezerdefault wordt gevangen door de onafhankelijke
   handlijst (uitzondering "concrete SCHEDOPTIONS-afleiding wijkt af"), niet door deze pin; de
   blast-radius-pin is een struikeldraad voor structuur en populatie.
   Herpinnen: `OPS_XER_SCHEDOPTIONS_REPORT=baseline bash tests/planning/run.sh check-xer-schedule-options-corpus.ts`
