@@ -126,7 +126,7 @@ interface BaselineValueDelta {
 const FIDELITY_AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
 
 interface BlastRadiusBaseline {
-  version: 9;
+  version: 10;
   axes: readonly BlastAxis[];
   defaults: readonly DefaultKey[];
   deferredDefaults: typeof DEFERRED_DEFAULTS;
@@ -825,7 +825,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
   }
 
   return {
-    version: 9,
+    version: 10,
     axes: BLAST_AXES,
     defaults: DEFAULT_KEYS,
     deferredDefaults: DEFERRED_DEFAULTS,
@@ -889,7 +889,7 @@ if (!existsSync(baselinePath)) {
 } else {
   const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
   eq('baselineversie en asvolgorde', { version: committed.version, axes: committed.axes }, {
-    version: 9,
+    version: 10,
     axes: BLAST_AXES,
   });
   eq('baseline bevat alle defaults los van elkaar', committed.defaults, DEFAULT_KEYS);
@@ -914,6 +914,14 @@ if (!existsSync(baselinePath)) {
     movement: committed.files.filter(file => 'xerDefaultsMovement' in file
       || Object.values(file.defaults ?? {}).some(value => 'movement' in value)).map(file => file.id),
   }, { top: [], movement: [] });
+  // v10: de negatieve-floatvelden in `files[]` zijn geen vormpin meer maar worden mét corpus per
+  // bestand tegen de meting vergeleken; deze regel eist dat ze op iedere gemeten regel bestaan.
+  eq('v10: iedere gemeten bestandregel draagt alle negatieve-floatvelden die tegen de meting vergeleken worden',
+    committed.files.filter(file => file.state === 'measured').every(file =>
+      typeof file.houseNegativeFloatTasks === 'number'
+      && Object.values(file.defaults ?? {}).every(value =>
+        typeof value.chosenNegativeFloatTasks === 'number'
+        && typeof value.counterfactualNegativeFloatTasks === 'number')), true);
   eq('expectedFinishDates heeft een zelfstandige gekozen/tegenvariant-corpuspin',
     typeof committed.expectedFinishVariant === 'object'
     && Array.isArray(committed.expectedFinishVariant?.files)
@@ -996,6 +1004,16 @@ if (!root) {
     console.log(JSON.stringify(pinned));
   } else if (existsSync(baselinePath)) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
+    // v10 (hercheck 2026-09-23): `files[]` — incl. `xerDefaultsNegativeFloatTasks` en
+    // `defaults[*].chosen/counterfactualNegativeFloatTasks` — werd alleen op vorm gecontroleerd
+    // (mutant 99999 bleef groen). Nu per bestand exact tegen de meting.
+    const measuredById = new Map(measured.files.map(file => [file.id, file]));
+    for (const file of committed.files) {
+      eq(`files[${file.id}] (state, taken, negatieve-floattellingen per defaultset) exact als gemeten`,
+        measuredById.get(file.id), file);
+    }
+    eq('files[]-identiteiten exact als gemeten',
+      measured.files.map(file => file.id).sort(), committed.files.map(file => file.id).sort());
     eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
       measured.expectedFinishVariant, committed.expectedFinishVariant);
     // Herpin 2026-09-05 (X-O7 laag 1, klasse (i) — `p6CompletedLateFromRemainingWindow`), gemeten
