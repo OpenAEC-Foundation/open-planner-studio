@@ -676,6 +676,47 @@ const lateOf = (input: ImportResult, id: string) => {
     solveAxes(withProfile(withDone, copy => setConvention(copy, 'p6FreeFloatOnOwnCalendar', false)), 'T').ff, 4);
 }
 
+{
+  // C2-grenzen (critreview her-check, M8/M9). Opbouw als de C2-fixture: T op ma–vr, S op ma–do.
+  // Op T's eigen kalender ligt vr 9 jan tussen T en S (1 dag), op die van S niets (0).
+  const c2Variant = (tRow: string, lagHours: number, statusDate: string) => importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC5\tVijfdaags\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    `%R\tC4\tVierdaags\tP1\tCA_Project\t9\t36\t${calendarDataOn([2, 3, 4, 5], [['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    `%R\tP1\tC2-grens\tC5\t${statusDate}\t2026-01-05 08:00\t2026-01-30 17:00`,
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    tRow,
+    '%R\tS\tP1\tC4\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-12 08:00\t2026-01-12 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    `%R\tR1\tS\tT\tP1\tP1\tPR_FS\t${lagHours}`,
+    '%E',
+  ]);
+  const ffOf = (input: ImportResult, on: boolean, a12 = true) =>
+    solveAxes(withProfile(input, copy => {
+      setConvention(copy, 'p6FreeFloatOnOwnCalendar', on);
+      setConvention(copy, 'preserveActualDatesInBackwardPass', a12);
+    }), 'T').ff;
+  // M8: een VOLTOOIDE T (werkelijk ma 5 – do 8 jan 17:00, statusdatum do 8 jan 17:00) valt buiten C2:
+  // met en zonder C2 dezelfde vrije speling (de bestaande berekening, op de kalender van S). A12
+  // (`preserveActualDatesInBackwardPass`) staat hier UIT: met A12 aan zet P6 de ff van elke
+  // voltooide taak toch op 0 en is de grens onzichtbaar (daarom ving het corpus M8 niet).
+  const done = c2Variant(
+    '%R\tT\tP1\tC5\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t36\t0\t2026-01-05 08:00\t2026-01-08 17:00\t2026-01-05 08:00\t2026-01-08 17:00',
+    0, '2026-01-08 17:00');
+  eq('C2 geldt niet voor een voltooide taak (A12 uit): ff met C2 = ff zonder C2', ffOf(done, true, false), ffOf(done, false, false));
+  // M9: FS met lag > 0 valt buiten C2: met en zonder C2 dezelfde vrije speling.
+  const lagged = c2Variant(
+    '%R\tT\tP1\tC5\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t36\t36\t2026-01-05 08:00\t2026-01-08 17:00\t\t',
+    4, '2026-01-05 08:00');
+  eq('C2 alleen bij lag 0: FS+4 u, ff met C2 = ff zonder C2', ffOf(lagged, true), ffOf(lagged, false));
+}
+
 if (diffs.length > 0) {
   console.error(`conventions-p6-flags RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);

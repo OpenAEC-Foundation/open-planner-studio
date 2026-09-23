@@ -24,9 +24,12 @@ exact was inexact wordt, en geen enkele bucket verslechtert, in geen enkel profi
 
 "Netto beter" bestaat niet. 1.200 cellen goed en 300 slecht = rood; splits de wijziging tot elk deel
 alleen verbetert, en zoek per resterende verslechtering uit welke P6-regel daar anders uitpakt — dat is
-de informatie voor een fix of een conventie. Een verbetering herpin je volgens het recept in `scripts/README.md` — vier stappen in
-één commit: `OPS_XER_V2_WRITE=1`, `OPS_XER_CELLS_WRITE=1`, `OPS_XER_GATE_PINS=write`, daarna de
-vangrails groen — en commit je mét het getal in het commitbericht: "X12 15.056 → 14.312 (−744, 0 slechter)".
+de informatie voor een fix of een conventie. Een verbetering herpin je volgens het recept in `scripts/README.md` — in
+één commit: `OPS_XER_V2_WRITE=1`, `OPS_XER_CELLS_WRITE=1`, `OPS_XER_GATE_PINS=write`, de vangrails
+groen, en dan de twee tweede-orde pins met de hand: `xer-schedoptions-blast-radius.json`
+(`check-xer-schedule-options-corpus`; `xerDefaults`-afwijkingen alleen omlaag) en
+`xer-task-replay-public-pin.json` (`check-xer-task-replay`, o.a. `drop-p6-finish-milestone-boundary`;
+detectievermogen, som per as gelijk) — en commit je mét het getal in het commitbericht: "X12 15.056 → 14.312 (−744, 0 slechter)".
 
 ## Regel B — verschil per school is een conventie, nooit een `if` op het formaat
 

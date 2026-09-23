@@ -207,6 +207,10 @@ export interface SchedulingOptions {
    *  ook als die ná de statusdatum ligt. Geen effect bij: conventie uit, geen statusdatum, dagmodus,
    *  een niet-voltooide voorganger, of een werkelijk einde op/vóór die grens. Zijn eigen weergegeven
    *  datums veranderen nooit — de begrenzing geldt alleen voor de relatie naar de opvolgers.
+   *  De GRENSKEUZE is ongemeten: `prevWorkInstant(snapOnOrAfter(statusdatum))` en de variant zonder
+   *  `prevWorkInstant` geven op het corpus (X12, 12.973) en in alle corpusloze fixtures dezelfde
+   *  uitkomst (mutant M5, critreview her-check brok 2); ook een FS-kruiskalenderfixture (opvolger op
+   *  06:00–17:00, lag in de opvolgerkalender) onderscheidt ze niet. De keuze volgt B3, niet een meting.
    *
    *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (geen
    *    SCHEDOPTIONS, `rem_late_start_date` 0/4.940, geen `driving_path_flag`; zie
@@ -237,16 +241,22 @@ export interface SchedulingOptions {
    *  Alleen uurmodus, alleen FS met lag 0; andere relatietypes en voltooide taken houden de
    *  bestaande berekening.
    *
-   *  - P6: aan. Oracle P6 Help, "View activity float values": free float is "the maximum number of
-   *    hours or days an activity can be delayed without also delaying the early start dates of any
-   *    immediate successor activities" — uitstel van de ACTIVITEIT, dus op haar eigen kalender
-   *    (net als totale speling hier al per taak op de eigen kalender rekent). Gemeten: op P6's eigen
+   *  - P6: aan. Oracle P6 Help, "View activity float values"
+   *    (https://docs.oracle.com/cd/F88968_01/client_help/en_US/view_activity_float_values.htm, P6
+   *    Professional 24, opgehaald 2026-09-23): "The Free Float field displays the amount of time the
+   *    selected activity can be delayed without delaying the activities that immediately follow
+   *    (successor activities)." (Het eerder geciteerde "maximum number of hours or days …" staat NIET
+   *    op die pagina.) Over kalenders zegt die zin niets; "uitstel van de ACTIVITEIT, dus op haar eigen kalender" is ONZE INTERPRETATIE (naar
+   *    analogie van de totale speling, die hier al per taak op de eigen kalender rekent). Gemeten: op P6's eigen
    *    datums is P6-FF = werkminuten tussen EF en de vroegste opvolger-ES op de taakkalender in alle
    *    362 ff-cellen met een andere opvolgerkalender (Hotel, rehab-2, Roads, DCP-03; classificatie
    *    brok B06); samen met C1 471 ff-cellen beter, 0 slechter. Steun uit echte P6-uitvoer, los van
    *    rehab-2 (dat P3-uitvoer is): Hotel_Construction_TEC +244, Roads_Project_TEC +11 en Harbour Point
    *    DCP-03 Baseline Rev 0 +1 = 256 ff-cellen, 0 slechter — alle drie P6-doorgerekend
-   *    (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5).
+   *    (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). Dat geldt voor de
+   *    HOOFDREGEL (eigen kalender). De DEELTAK "voltooide opvolger ⇒ ff = 0" is uitsluitend in
+   *    `rehab-2.xer` gemeten (P3-uitvoer; mutant M4 = die tak weg: 12.973 → 12.980, alle 8 cellen `ff`
+   *    in rehab-2) en valt dus onder hetzelfde voorbehoud als C1/C3 (eigenaarsbesluit over dat orakel).
    *  - MS Project: uit. Ons MPP-orakel meet alleen start en einde, niet de vrije speling; zonder
    *    meting verandert het MSP-profiel niet.
    *  - OPS: uit (relatie-vrije-speling in de kalender van de opvolger, `scheduleAnalysis`). */
