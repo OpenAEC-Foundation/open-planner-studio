@@ -14,9 +14,11 @@
 // De wissel loopt via `selectProfile`, dezelfde functie als de keuzelijst in Projectinfo (A19 blijft
 // dus staan, zoals in de UI).
 //
-// Verwachting met de hand afgeleid: onder OPS verliest A1 het P6-statusdatumvenster van een voltooide
-// taak, en valt voor A4 de A16-vloer (gepland venster 09-03…20-03) weg, dus A4 en M1 schuiven naar
-// voren. A2 (A19 blijft aan) en A3 (niet gestart, statusdatum) houden hun datums: 3 verschoven.
+// Verwachting met de hand afgeleid: onder OPS valt voor A4 de A16-vloer (gepland venster 09-03…20-03)
+// weg, dus A4 en M1 schuiven naar voren. A1 (voltooid) schuift sinds eigenaarsvraag 7 (2026-09-23,
+// B3 `p6CompletedDataDateWindow` in P6 uit) niet meer: het statusdatumvenster van een voltooide taak
+// is onder P6 al weg, dus P6 en OPS geven A1 dezelfde datums. A2 (A19 blijft aan) en A3 (niet gestart,
+// statusdatum) houden hun datums: 2 verschoven (vóór vraag 7 waren het er 3, met A1).
 // Terug naar P6 draait dezelfde 3 terug, en ELK tijdveld van elke taak is weer byte-gelijk aan de
 // verse opening.
 //
@@ -114,15 +116,15 @@ for (const other of ['ops', 'msproject'] as const) {
   S().runCPM();
   eq(`07 ${other}: Bereken daarna verandert niets`, JSON.stringify(timesOf(S().tasks)), fresh);
 }
-// De telling uit de gebruikstest, met de hand afgeleid (kop): A1, A4 en M1.
+// De telling uit de gebruikstest, met de hand afgeleid (kop): A4 en M1 (A1 sinds vraag 7 niet meer).
 S().undo(); S().undo(); // terug naar P6 vóór de MS Project-ronde
 const toOps = switchTo(ctx, 'ops');
-eq('08 P6 → OPS: 3 taken verschoven (A1, A4, M1)', toOps.shifted, 3);
+eq('08 P6 → OPS: 2 taken verschoven (A4, M1)', toOps.shifted, 2);
 // Onder OPS (A19 blijft aan, C6 en A16 uit): A2 restwerk vanaf 02-03 08:00; A4 SS 40 u (9-urige dagen)
 // ⇒ 06-03 12:00, plus 90 u ⇒ 20-03 12:00; M1 (FS) daar. Een gewoon venster, niet omgekeerd.
 eq('08a …en onder OPS staat M1 eerder, niet omgekeerd', [m1(ctx).earlyStart, m1(ctx).earlyFinish],
   ['2026-03-20T12:00', '2026-03-20T12:00']);
-eq('09 OPS → P6: 3 taken terug', switchTo(ctx, 'p6').shifted, 3);
+eq('09 OPS → P6: 2 taken terug', switchTo(ctx, 'p6').shifted, 2);
 
 // 3. "Gaat zo het IFC in": opslaan ná een berekening onder OPS, heropenen, terug naar P6.
 switchTo(ctx, 'ops');
