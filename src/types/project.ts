@@ -55,7 +55,9 @@ export interface SchedulingOptions {
   /** P6 kan een TT_FinMile als twee aangrenzende kalendergrenzen opslaan (ES op bandstart,
    *  EF op het vorige bandeinde). Alleen XER activeert deze representatie.
    *  A17 — sinds rekenprofielen baan B is de vlag zelf de conventie, zonder bronpoort.
-   *  P6 aan / MS Project uit / OPS uit. */
+   *  P6: uit — geen effect op P6-doorgerekende bestanden; gebouwd op rehab-2 (P3). Sinds 2026-09-23
+   *  (eigenaarsvraag §1d-7) uit in elk ingebouwd profiel; gemeten 0 cellen, X12 blijft 192.
+   *  P6 uit / MS Project uit / OPS uit. */
   p6FinishMilestoneBoundaryWindow?: boolean;
   /** XER/P6: geregistreerde actual start/finish zijn broninstants en worden niet naar een
    *  kalenderband genormaliseerd. Default afwezig houdt de bestaande formaatsemantiek.
@@ -208,13 +210,18 @@ export interface SchedulingOptions {
    *  `explainP6CompletedDataDateWindow`) krijgt ES/EF als statusdatumvenster, dat venster telt mee
    *  voor het projecteinde (`CPMSolver.backwardPass`) en de float-weergave (`scheduleAnalysis`).
    *  Schakelt ook de diagnose-trace `backwardFloatTrace` in. Werkt alleen samen met
-   *  `p6UseRemainingStartForProgress`. P6 aan / MS Project uit / OPS uit. */
+   *  `p6UseRemainingStartForProgress`.
+   *  P6: uit — geen effect op P6-doorgerekende bestanden; gebouwd op rehab-2 (P3). Sinds 2026-09-23
+   *  (eigenaarsvraag §1d-7) uit in elk ingebouwd profiel; gemeten 0 cellen, X12 blijft 192.
+   *  P6 uit / MS Project uit / OPS uit. */
   p6CompletedDataDateWindow?: boolean;
   /** B4 — een voltooide LOE met alleen SS-ingang en zonder opvolger volgt de actual-finish-route
    *  i.p.v. de hammockroute (`explainCompletedXerLoeActualFinishEligibilityResolved`, `CPMSolver`'s
    *  forward pass). Werkt alleen samen met `p6UseRemainingStartForProgress`,
    *  `preserveActualDatesInBackwardPass` en `p6PreserveActualInstants`.
-   *  P6 aan / MS Project uit / OPS uit. */
+   *  P6: uit — geen effect op P6-doorgerekende bestanden; gebouwd op rehab-2 (P3). Sinds 2026-09-23
+   *  (eigenaarsvraag §1d-7) uit in elk ingebouwd profiel; gemeten 0 cellen, X12 blijft 192.
+   *  P6 uit / MS Project uit / OPS uit. */
   p6CompletedLoeActualFinish?: boolean;
   /** B5 — een niet-gestarte LOE met volledig targetvenster, alleen nul-lag SS-ingang en nul-lag
    *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibilityResolved`,

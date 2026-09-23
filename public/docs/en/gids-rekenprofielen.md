@@ -58,7 +58,6 @@ Under Open Planner Studio all twenty-four are off.
 - **Free float never negative** (Primavera P6) — with an unachievable late constraint, total float stays negative but free float becomes zero.
 - **Milestone follows the planned calendar boundary** (Primavera P6) — a zero-duration milestone stays on the calendar boundary the file planned.
 - **Planned start as an extra floor** (Primavera P6) — see the warning above.
-- **Finish milestone as a boundary window** (Primavera P6) — a finish milestone may sit on two adjacent calendar boundaries.
 - **Keep actual dates exact** (Primavera P6) — recorded actual dates are not moved to a working-time band.
 - **In-progress task: early start = start of remaining work** (per file from Primavera P6) — the early start of an in-progress task is where the remaining work begins. Calculating backward over a start-to-start relationship, only its remaining duration counts: without remaining work, late start and late finish coincide.
 - **Exact constraint moment on a milestone** (Primavera P6) — a date-and-time constraint on a milestone is an exact point.
@@ -66,8 +65,6 @@ Under Open Planner Studio all twenty-four are off.
 - **Don't move unstarted tasks to the status date** (Microsoft Project) — a task that has not started does not move to the status date by itself.
 - **Successor starts on the finish boundary** (Primavera P6) — for relations the file marks this way. Calculating backward, the successor shows its late start simply as the start of a work band.
 - **Backward lag from a finish boundary** (Primavera P6) — a lag that lands exactly on a band start lands on the previous finish boundary. With a finish-to-finish relationship without lag, a late finish on a band end also stays on that finish boundary.
-- **Completed task in the data-date window** (Primavera P6) — only for tasks with P6 provenance.
-- **Completed LOE via its actual finish** (Primavera P6) — only for tasks with P6 provenance.
 - **Unstarted LOE uses the target window** (Primavera P6) — only for tasks with P6 provenance.
 - **Free float in the task's own calendar** (Primavera P6) — the free float of an open task over a finish-to-start relationship without lag counts in the task's own calendar. If the successor is already complete while the task is still open, that float is zero.
 - **Elapsed lag of a completed predecessor does not count** (Primavera P6) — only the part of the lag after a completed task that has not yet elapsed at the data date counts. This applies on the late side, and also going forward: when a completed task sits at the data date (or directly after a predecessor that is not finished yet), its successor starts after the rest of the lag. Turning it off makes 640 dates and floats that are exact today wrong in the measured Primavera P6 files, and 56 that already deviate deviate further.
@@ -79,10 +76,13 @@ Under Open Planner Studio all twenty-four are off.
 
 ### Off by default in every profile
 
-Two conventions are off in every built-in profile, including Primavera P6. They were derived from a file that was not calculated by P6 (output of the older Primavera P3) and change nothing in the files that were demonstrably calculated by P6. To use them anyway, turn them on in a custom profile.
+Five conventions are off in every built-in profile, including Primavera P6. They were derived from a file that was not calculated by P6 (output of the older Primavera P3) and change nothing in the files that were demonstrably calculated by P6. To use them anyway, turn them on in a custom profile.
 
 - **Completed predecessor does not hold past the data date** (off by default) — if a completed task's actual finish lies after the data date, its successors may still start at the data date. The completed task's own dates do not change.
 - **Completed out-of-sequence task waits for its predecessors** (off by default) — if a task is already completed while a predecessor is still in progress or has not started, it is placed right after that predecessor instead of at the data date, and its successors move with it. This does not apply under the P6 setting Progress Override.
+- **Finish milestone as a boundary window** (off by default) — a finish milestone may sit on two adjacent calendar boundaries.
+- **Completed task in the data-date window** (off by default) — only for tasks with P6 provenance.
+- **Completed LOE via its actual finish** (off by default) — only for tasks with P6 provenance.
 
 ## Combinations without a reference package
 

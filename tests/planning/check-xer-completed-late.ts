@@ -144,6 +144,10 @@ function fixtureBytes(): Uint8Array {
 function importFixture(): ImportResult {
   const opened = readXER(fixtureBytes());
   if (isMultiDocumentImport(opened)) throw new Error('completed-late fixture moet precies één project openen');
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(opened, 'p6CompletedDataDateWindow', true);
+  setConvention(opened, 'p6CompletedLoeActualFinish', true);
   return opened;
 }
 

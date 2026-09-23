@@ -1054,6 +1054,12 @@ async function productBaseline(
   if (isMultiDocumentImport(without) || isMultiDocumentImport(explicit)) {
     throw new Error('X12 D1 moet tweemaal enkelproject importeren');
   }
+  // A17 (`p6FinishMilestoneBoundaryWindow`) staat sinds 2026-09-23 in elk ingebouwd profiel uit (0 cellen
+  // effect op de P6-doorgerekende populatie); D1/D2 bewaken de regel zelf, dus als expliciete afwijking aan.
+  eq('X12 D1/D2: A17 staat in het P6-profiel zoals gelezen uit',
+    resolveConventions(without.project.schedulingProfile).p6FinishMilestoneBoundaryWindow, false);
+  setConvention(without, 'p6FinishMilestoneBoundaryWindow', true);
+  setConvention(explicit, 'p6FinishMilestoneBoundaryWindow', true);
   const defaultTasks = solveImported(without).tasks;
   const explicitTasks = solveImported(explicit).tasks;
   const pick = (tasks: XerSolvedProject['tasks'], code: string) => tasks.find(task => task.taskCode === code);
@@ -1114,6 +1120,10 @@ async function productBaseline(
   ].join('\n'));
   const imported = readXER(bytes);
   if (isMultiDocumentImport(imported)) throw new Error('X12 open-eindfixture moet enkelproject zijn');
+  // A17 staat sinds 2026-09-23 in elk ingebouwd profiel uit; deze fixture bewaakt de regel zelf.
+  eq('X12 open TT_FinMile: A17 staat in het P6-profiel zoals gelezen uit',
+    resolveConventions(imported.project.schedulingProfile).p6FinishMilestoneBoundaryWindow, false);
+  setConvention(imported, 'p6FinishMilestoneBoundaryWindow', true);
   const task = solveImported(imported).tasks.find(candidate => candidate.taskCode === 'A200');
   eq('X12 verbonden open TT_FinMile houdt late grens maar behoudt vrije ruimte tot projecteinde', {
     lateStart: task?.lateStart,
@@ -1985,6 +1995,14 @@ async function productBaseline(
     || isMultiDocumentImport(active) || isMultiDocumentImport(milestone)
     || isMultiDocumentImport(startOnly) || isMultiDocumentImport(invalidStart)) {
     throw new Error('X12 completed/actual-fixtures moeten elk één project opleveren');
+  }
+  // B3 (`p6CompletedDataDateWindow`) staat sinds 2026-09-23 in elk ingebouwd profiel uit (0 cellen effect
+  // op de P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Dit pakket bewaakt de B3-regel zelf, dus
+  // als expliciete afwijking aan; `connected`, de weergaveprojectie en de IFC-reload erven dat profiel.
+  eq('X12 F1: B3 staat in het P6-profiel zoals gelezen uit',
+    resolveConventions(one.project.schedulingProfile).p6CompletedDataDateWindow, false);
+  for (const input of [one, oneRawMutated, two, active, milestone, startOnly, invalidStart]) {
+    setConvention(input, 'p6CompletedDataDateWindow', true);
   }
   const resultOf = (input: ImportResult) => solveImported(input).tasks.find(task => task.taskCode === 'A100');
   const oneResult = resultOf(one);
