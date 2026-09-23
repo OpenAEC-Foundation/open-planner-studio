@@ -450,8 +450,9 @@ export interface SchedulingOptions {
    *    (EF = punt: 0). X12 181 → 180, 0 slechter, 0 groter; precies één OPS-waarde verandert. Bewust geen
    *    eigen conventie (brok-8-opdracht noemde het C13): het is de ff-spiegel van dezelfde P6-regel, net
    *    als de late kant van C5 in brok 6, en valt met C5 uit vanzelf weg (punten bestaan alleen met C5).
-   *    Alleen FS zonder lag, alleen vanuit een open (niet-voltooide) voorganger: bewuste beperking, niet
-   *    gemeten (zoals C7) — andere relatietypen, lag en een voltooide voorganger houden de terugval.
+   *    Alleen FS zonder lag: bewuste beperking, niet gemeten (zoals C7) — andere relatietypen en lag
+   *    houden de terugval. Een voltooide voorganger krijgt via A12 al vrije speling 0; daar is geen
+   *    eigen poort voor (die zou dood zijn, zie review integratieronde 2).
    *  - MS Project: uit. MS Project kent geen voortgangstype per activiteit; een voltooide taak houdt
    *    haar werkelijke Start en Finish.
    *  - OPS: uit (de werkelijke datums, het gedrag van vóór deze conventie). */

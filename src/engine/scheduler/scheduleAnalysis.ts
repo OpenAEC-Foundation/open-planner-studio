@@ -263,7 +263,10 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         // staat wel op één vroeg punt. Over een FS0-relatie zonder eigen grens telt de vrije speling in de
         // eigen kalender tot dat punt, spiegel van de late kant van C5 (docblok in `types/project.ts`). Punten
         // bestaan alleen met C5 aan (`CPMSolver.recordCompletedPhysicalPoint`); geen aparte poort nodig.
-        if (ff === undefined && cal.isHourMode && taskObj.time.completion < 1
+        // Geen eigen voltooiingspoort: een voltooide voorganger heeft met A12 aan al ff 0 (r. ~393), en
+        // zonder A12 blijft de relatiegrens staan (ff gedefinieerd) — de poort was aantoonbaar dood (review
+        // integratieronde 2).
+        if (ff === undefined && cal.isHourMode
           && seq.type === 'FINISH_START'
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
           const point = completedPhysicalPoints?.get(seq.successorId);

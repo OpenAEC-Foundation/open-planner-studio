@@ -1,6 +1,6 @@
 # Rekenprofielen — één solver, benoemde conventies, profielen per project
 
-*Ontwerp, 2026-09-22, **versie 3.1** (+ 2026-09-23: groep C — negen P6-conventies C1–C9 uit X12 naar nul, brok 2, 3, 4 en 6, zie §3.1; het register telt daarmee 24 conventies; de tellingen in de latere secties zijn die van het ontwerp, het register is de bron) (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
+*Ontwerp, 2026-09-22, **versie 3.1** (+ 2026-09-23: groep C — negen P6-conventies C1–C9 uit X12 naar nul, brok 2, 3, 4 en 6, zie §3.1; het register telde toen 24 conventies (stand 23-09; sinds brok 8 zesentwintig, het register is de bron); de tellingen in de latere secties zijn die van het ontwerp, het register is de bron) (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
 negen tekstpunten, v3 go onder drie voorwaarden; alle verwerkt — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
 vóór het X12-vervolg. Bijlage A is de inventaris van de motor op de kop van
 `claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
@@ -308,7 +308,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 
 ## 8. Tests
 
-- `check-conventions-registry.ts`: 24 conventies (ontwerp: 15), drie ingebouwde waarden, `legacyValue`, unieke ids,
+- `check-conventions-registry.ts`: 26 conventies (ontwerp: 15), drie ingebouwde waarden, `legacyValue`, unieke ids,
   i18n-sleutels; resolve/diff-identiteit; `'auto'` ≡ afwezig; `XER_SCHEDULING_DEFAULTS` ≡ p6.
 - `check-scheduling-profile-roundtrip.ts`: IFC-round-trip voor drie ingebouwde + één eigen profiel; de
   vijf migratierijen; vijandige pset (onbekende baseId, onzin-conventies, 10 MB name) valt terug zonder
