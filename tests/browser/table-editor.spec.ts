@@ -69,6 +69,9 @@ test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen',
   await expect.poll(() => state(page).then(snapshot => snapshot.selectedTaskIds)).toEqual([secondId]);
   await page.keyboard.press('ArrowUp');
   await expect(nameCell).toHaveAttribute('data-grid-active', 'true');
+  // De grid verplaatst DOM-focus pas in een volgend animatieframe (requestCellFocus → nextFrame);
+  // wacht daarop zoals een gebruiker de focusrand ziet, anders landt de toets op de vorige cel.
+  await expect(nameCell).toBeFocused();
   await page.keyboard.press('Enter');
 
   const input = nameCell.locator('input');
@@ -81,6 +84,10 @@ test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen',
   ))).toBe('Naam via toetsenbord');
   const committed = await state(page);
   expect(committed.undoDepth).toBe(before.undoDepth + 1);
+  // Na de commit krijgt de volgende rij de focus pas in een volgend animatieframe. Een Escape die
+  // daarvóór valt, landt op <body> (de input is al weg), zodat 'exit-to-container' nooit draait en
+  // het late frame de cel alsnog focust — de flake onder belasting (verify op 9eed2903).
+  await expect(taskCell(page, secondId, 'task.name')).toBeFocused();
 
   // Enter navigeert volgens bestaand tabelgedrag naar de volgende rij; Escape geeft het globale
   // Ctrl+Z-pad daarna weer de focus zonder een tweede mutatie te veroorzaken.
