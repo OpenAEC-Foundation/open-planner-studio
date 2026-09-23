@@ -84,6 +84,10 @@ export interface ProductEnvelopeV2 {
   payloadSha256: string;
   payloadGzipSha256: string;
   projectProjectionSha256: string;
+  /** SHA-256 over de grootten van `xer-product-fidelity-cells.json` (`cellMinutesDigest` in
+   *  `fidelityCells.ts`). Bewust in de envelop en niet in de payload: een herpin van alleen de
+   *  cellen (VERBETERD-grootte) verandert zo geen payload-hash of gate-pin. */
+  cellMinutesSha256: string;
   payloadGzipBase64: string;
 }
 
@@ -117,7 +121,7 @@ export type ProductBaselineDraft = Omit<ProductBaselineV2, 'files'> & {
 const HEX_64 = /^[0-9a-f]{64}$/;
 const ENVELOPE_KEYS = [
   'version', 'manifestSha256', 'characterization', 'reportModes', 'encoding', 'canonicalization',
-  'payloadSha256', 'payloadGzipSha256', 'projectProjectionSha256', 'payloadGzipBase64',
+  'payloadSha256', 'payloadGzipSha256', 'projectProjectionSha256', 'cellMinutesSha256', 'payloadGzipBase64',
 ] as const;
 const CANONICALIZATION_KEYS = ['json', 'gzip'] as const;
 const CHARACTERIZATION_KEYS = ['finalZeroGate', 'accepted', 'openCategories'] as const;
@@ -282,7 +286,7 @@ export function sealProductBaseline(payload: ProductBaselineDraft | ProductBasel
   };
 }
 
-export function createProductEnvelope(payloadInput: ProductBaselineDraft | ProductBaselineV2): ProductEnvelopeV2 {
+export function createProductEnvelope(payloadInput: ProductBaselineDraft | ProductBaselineV2, cellMinutesSha256: string): ProductEnvelopeV2 {
   const payload = sealProductBaseline(payloadInput);
   const payloadText = canonicalProductJson(payload);
   const compressed = canonicalGzip(payloadText);
@@ -299,12 +303,13 @@ export function createProductEnvelope(payloadInput: ProductBaselineDraft | Produ
     payloadSha256: productSha256(payloadText),
     payloadGzipSha256: productSha256(compressed),
     projectProjectionSha256: productProjectionDigest(payload),
+    cellMinutesSha256,
     payloadGzipBase64: compressed.toString('base64'),
   };
 }
 
-export function canonicalProductEnvelope(payload: ProductBaselineDraft | ProductBaselineV2): string {
-  return canonicalProductJson(createProductEnvelope(payload));
+export function canonicalProductEnvelope(payload: ProductBaselineDraft | ProductBaselineV2, cellMinutesSha256: string): string {
+  return canonicalProductJson(createProductEnvelope(payload, cellMinutesSha256));
 }
 
 export function decodeProductEnvelopeUnchecked(envelope: { payloadGzipBase64: string }): ProductBaselineV2 {
@@ -486,7 +491,7 @@ export function validateProductBaselineV2(rawText: string, pins?: ProductValidat
     equal(problems, 'product-v2.envelope.canonicalization.json', envelope.canonicalization.json, 'JSON.stringify(value, null, 2) + LF');
     equal(problems, 'product-v2.envelope.canonicalization.gzip', envelope.canonicalization.gzip, 'gzip level 9, deterministic header');
   }
-  for (const field of ['payloadSha256', 'payloadGzipSha256', 'projectProjectionSha256'] as const) {
+  for (const field of ['payloadSha256', 'payloadGzipSha256', 'projectProjectionSha256', 'cellMinutesSha256'] as const) {
     if (!HEX_64.test(envelope[field] ?? '')) issue(problems, `product-v2.envelope.${field}: volledige SHA-256 verwacht`);
   }
   if (typeof envelope.payloadGzipBase64 !== 'string'

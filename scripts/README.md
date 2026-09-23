@@ -63,9 +63,9 @@ Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
 
 | onderdeel | check | oordeel |
 |---|---|---|
-| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. **Grootte-ratchet** (cellenbestand versie 2, eigenaarsbesluit 2026-09-23): elke `sameday`/`diff`-cel op de zes X12-assen draagt zijn absolute afwijking `\|ours − truth\|` in minuten (datum-assen: wandklokminuten; tf/ff: floatminuten; afgerond op 0,001; `missing` en `drivingPath` zonder grootte) — een cel die in baseline én meting dezelfde emmer `sameday`/`diff` heeft en nu GROTER afwijkt is rood (`groter`), kleiner telt apart als verbeterd-grootte (`kleiner`). De cel-deltaregel luidt `CELLDELTA p6 nieuw=… verslechterd=… groter=… verbeterd=… kleiner=… onmeetbaar=… onbekend=… ongemeten=… schuld=… totaal=…`; een regel zonder `groter=`/`kleiner=`/`schuld=` is onleesbaar en dus rood. `schuld=N` is de ratchet-schuld (zie hieronder): informatief, NULDOEL blijft mogelijk bij `groter=0`; de check zelf is rood als de schuld stijgt. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen, `groter=0 kleiner=0`); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 groter=0 onmeetbaar=0 verbeterd>0`: exit 0, maar commit alleen mét herpin v2 + cellen, zie hieronder); VERBETERD (grootte) (geen v2-afwijking, `groter=0 kleiner>0`: exit 0, maar commit alleen mét herpin van de cellen — v2 en de gate-pins tellen emmers en veranderen niet). Een cel die niet meer meetbaar is (blinder orakel) telt nooit als verbeterd maar als `onmeetbaar` en is rood; meetbaarheid en dekking per entry/as worden daarnaast apart tegen v2 vergeleken (`X12 meetbaarheid/dekking wijkt af van v2`, altijd rood). `--strict` maakt een rode nuldoelregel rood |
+| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. **Grootte-ratchet** (cellenbestand versie 2, eigenaarsbesluit 2026-09-23): elke `sameday`/`diff`-cel op de zes X12-assen draagt zijn absolute afwijking `\|ours − truth\|` in minuten (datum-assen: wandklokminuten; tf/ff: floatminuten; afgerond op 0,001; `missing` en `drivingPath` zonder grootte) — een cel die in baseline én meting dezelfde emmer `sameday`/`diff` heeft en nu GROTER afwijkt is rood (`groter`), kleiner telt apart als verbeterd-grootte (`kleiner`). De cel-deltaregel luidt `CELLDELTA p6 nieuw=… verslechterd=… groter=… verbeterd=… kleiner=… onmeetbaar=… onbekend=… ongemeten=… schuld=… totaal=…`; een regel zonder `groter=`/`kleiner=`/`schuld=` is onleesbaar en dus rood. `schuld=N` is de ratchet-schuld (zie hieronder): informatief, NULDOEL blijft mogelijk bij `groter=0`; de check zelf is rood als de schuld stijgt. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen, `groter=0 kleiner=0`); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 groter=0 onmeetbaar=0 verbeterd>0`: exit 0, maar commit alleen mét herpin v2 + cellen, zie hieronder); VERBETERD (grootte) (geen v2-afwijking, `groter=0 kleiner>0`: exit 0, maar commit alleen mét herpin van de cellen — de v2-payload en de gate-pins tellen emmers en veranderen niet; de cellenherpin werkt alleen `cellMinutesSha256` in de v2-envelop mee bij, zie *Minuten-digest* hieronder). Een cel die niet meer meetbaar is (blinder orakel) telt nooit als verbeterd maar als `onmeetbaar` en is rood; meetbaarheid en dekking per entry/as worden daarnaast apart tegen v2 vergeleken (`X12 meetbaarheid/dekking wijkt af van v2`, altijd rood). `--strict` maakt een rode nuldoelregel rood |
 | MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort. Nul gescande bestanden is `ROOD (niet gemeten)` |
-| vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek, versie 2, grootte op precies de sameday/diff-cellen van de zes assen, in de pas met de v2-tellingen; plus de synthetische ratchetbewijzen (groter ⇒ rood, kleiner ⇒ verbeterd-grootte) |
+| vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek, versie 2, grootte op precies de sameday/diff-cellen van de zes assen, in de pas met de v2-tellingen, grootten gelijk aan `cellMinutesSha256` in de v2-envelop, schuldset gelijk aan de gepinde digest; plus de synthetische ratchetbewijzen (groter ⇒ rood, kleiner ⇒ verbeterd-grootte) en mutanten op het gecommitte bestand (15e schuldcel, ingekorte/geruilde schuldlijst, schuldcel of gewone cel met de hand groter, ontbrekende schuldsectie ⇒ rood) |
 | `--full` (optioneel) | de volledige `run.sh`, zonder `OPS_XER_CORPUS` | standaard uit: draait al in `npm run verify`, en machinebreed hoort er maar één zware run tegelijk te lopen |
 
 Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
@@ -126,7 +126,20 @@ toont ze zonder te schrijven); zonder die stap staat `npm run verify` na een ver
 De cel-herpin weigert ook bij één `groter`-cel (grootte-ratchet).
 
 **Herpinnen na VERBETERD (grootte)** — alleen stap 2 (`OPS_XER_CELLS_WRITE=1`) en daarna stap 4:
-kleinere cellen binnen dezelfde emmer veranderen geen enkele v2-telling of gate-pin.
+kleinere cellen binnen dezelfde emmer veranderen geen enkele v2-telling of gate-pin. De cellenherpin
+schrijft wel `cellMinutesSha256` in de envelop van `xer-product-fidelity-baseline-v2.json` bij (de
+payload blijft byte-gelijk); commit beide bestanden samen.
+
+**Minuten-digest (`cellMinutesSha256`, critreview integratie-eindstand 2026-09-23).** De grootte van
+een cel is haar ratchet-referentie; een met de hand opgerekte grootte (gemeten mutant: 105360 → 205360
+min) versoepelde de ratchet stil — de meting zag hem alleen als "kleiner". Daarom staat in de envelop
+van de v2-baseline een SHA-256 over alle grootten van het cellenbestand (`cellMinutesDigest` in
+`tests/planning/fidelityCells.ts`). `OPS_XER_CELLS_WRITE` schrijft hem (samen met de cellen);
+`OPS_XER_V2_WRITE` neemt de gepinde waarde mee, of die van de cellenherpin in dezelfde run (zo blokkeert
+stap 1 van het herpinrecept stap 2 niet). `check-fidelity-cells-gate.ts` en de X12-check vergelijken
+het cellenbestand ermee; ongelijk ⇒ rood ("grootten met de hand bewerkt of maar één van beide bestanden
+herpind"). Bewust in de envelop en niet in de payload: de payload-hashes in `EXPECTED` van de
+corpusloze vangrail veranderen er niet door.
 
 **Versie 1 → versie 2 en merges met een versie-1-cellenbestand.** Een cellenbestand met
 `"version": 1` (alleen emmers, geen grootte) wordt door de poort en door
@@ -149,7 +162,8 @@ OPS_XER_CELLS_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.
 Weigert die herpin op `groter`, dan is dat een echte bevinding, geen merge-artefact. Die los je op door
 de motor te herstellen, of doordat de betreffende cellen via een eigenaarsbesluit uit de populatie
 verdwijnen (zoals de rehab-2-cellen die met de manifest-etappe uit het orakel gaan). Er is bewust geen
-modus "accepteer grotere cellen": dat zou pinnen met reden zijn.
+modus "accepteer grotere cellen": dat zou pinnen met reden zijn. (De eenmalige schuld-overgang van
+2026-09-23 was precies zo'n modus; hij is na gebruik verwijderd, zie hieronder.)
 
 **Ratchet-schuld (`ratchetDebt`, eenmalig ontstaan 2026-09-23).** Bij de merge van de grootte-ratchet in
 de etappebranch waren 14 Roads-cellen op de huidige motor groter dan in de oude v2-kant (gemeten op de
@@ -160,11 +174,16 @@ schuld vastleggen. Het cellenbestand draagt sindsdien een sectie `ratchetDebt` m
 - de ratchet-referentie van een schuldcel is `current`: verder groeien is `groter`, rood;
 - daalt de cel tot ≤ `reference` of wordt hij exact, dan vervalt de schuld (de volgende herpin laat de
   regel weg); daalt hij maar blijft hij boven `reference`, dan schuift `current` mee omlaag;
-- schuld ontstaat uitsluitend via de eenmalige overgang `OPS_XER_CELLS_WRITE=corpus|1
-  OPS_XER_CELLS_DEBT_INIT=2026-09-23` op een versie-2-bestand ZONDER schuldsectie (zo is hij gemaakt).
-  Op een bestand met een schuldsectie weigert die vlag; daarna kan de schuld alleen dalen;
-- `check-fidelity-cells-gate.ts` pint het aantal (`EXPECTED_DEBT_CELLS`, nu 14): een herpin die cellen
-  ontschuldt, verlaagt die pin in dezelfde commit; hoger nooit.
+- er is GEEN route meer die schuld aanmaakt. De eenmalige overgang (`OPS_XER_CELLS_DEBT_INIT=2026-09-23`)
+  heeft de sectie op 23-09 gemaakt en is daarna verwijderd; de X12-check weigert de vlag. Een
+  cellenbestand zonder `ratchetDebt`-sectie wordt geweigerd, net als versie 1; neem bij een merge
+  altijd de kant mét sectie. De sectie kan alleen krimpen via `OPS_XER_CELLS_WRITE`;
+- `check-fidelity-cells-gate.ts` pint een digest over de schuldSET (`EXPECTED_DEBT_SHA256` over
+  bestand, as, id en `reference`; `current` niet, die daalt mee) in een gegenereerd blok met de
+  leesbare lijst, zodat de lijst niet ongemerkt geruild, verlengd of ingekort kan worden. Ontschuldt
+  een herpin een cel, dan herschrijft `OPS_XER_CELLS_WRITE` dat blok zelf (alleen als het bij de
+  gepinde set hoorde, en alleen krimp) en print per cel `ratchet-schuld ONTSCHULD: …`; zet er met de
+  hand een `HERPIN <datum>`-regel bij die die cel noemt, en commit het blok samen met de cellen.
 De 14 staan met hun minuten in plan XER §9 ("Ratchet-schuld 2026-09-23"); ze zijn de eerste opdracht
 van de volgende brok.
 
@@ -210,8 +229,10 @@ Maak een baseline daarom nooit langs ze heen:
   het baselinebestand te schrijven;
 - geen cellenbestand weggooien om het met `init` opnieuw te maken;
 - `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen;
-- nooit `ratchetDebt` in het cellenbestand met de hand bewerken, en nooit `OPS_XER_CELLS_DEBT_INIT` opnieuw
-  gebruiken (de lezer en de poort weigeren het; schuld kan alleen dalen);
+- nooit `ratchetDebt` of een grootte (`minutes`) in het cellenbestand met de hand bewerken, en nooit
+  `cellMinutesSha256` of het schuldpin-blok met de hand bijwerken om zo'n bewerking te dekken;
+- `OPS_XER_CELLS_DEBT_INIT` bestond eenmalig op 2026-09-23 (de overgang die de 14 schuldcellen
+  vastlegde) en is daarna verwijderd; de X12-check weigert de vlag, en er komt geen opvolger;
 - geen `OPS_XER_CELLS_V1_UPGRADE=1` meer na het landen van `claude/x12-grootte-ratchet` (en nooit de
   v1-kant van een cellenbestand nemen bij een merge).
 

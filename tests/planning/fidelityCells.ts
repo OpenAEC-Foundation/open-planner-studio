@@ -53,14 +53,26 @@
 //   - daalt de cel tot ≤ `reference` (of wordt hij exact), dan vervalt de schuld: `carryRatchetDebt`
 //     laat de regel bij de volgende herpin weg; daalt hij maar blijft hij > `reference`, dan schuift
 //     `current` mee omlaag;
-//   - schuld kan ALLEEN ontstaan via de eenmalige overgang (`planCellRepin` met
-//     `acceptLargerAsDebt`, uitsluitend op een versie-2-bestand zonder `ratchetDebt`-sectie, achter
-//     `OPS_XER_CELLS_DEBT_INIT`); daarna alleen dalen. Nooit met de hand bewerken: de strikte lezer
-//     eist dat elke schuldregel naar een bestaande sameday/diff-cel met `minutes === current` wijst en
-//     dat `reference < current`.
+//   - er bestaat GEEN route meer die schuld aanmaakt: de eenmalige overgang van 2026-09-23
+//     (`OPS_XER_CELLS_DEBT_INIT`) is na gebruik verwijderd (critreview integratie-eindstand). Een
+//     cellenbestand zonder `ratchetDebt`-sectie wordt geweigerd, net als versie 1; de sectie kan
+//     alleen krimpen via `OPS_XER_CELLS_WRITE`. Nooit met de hand bewerken: de strikte lezer eist dat
+//     elke schuldregel naar een bestaande sameday/diff-cel met `minutes === current` wijst en dat
+//     `reference < current`, en `check-fidelity-cells-gate.ts` pint een digest over de schuldSET
+//     (`debtDigest`: bestand, as, id, reference) zodat de lijst niet ongemerkt geruild of ingekort
+//     kan worden.
+//
+// MINUTEN-DIGEST (`cellMinutesDigest`, critreview integratie-eindstand 2026-09-23): de grootte van
+// een cel is de ratchet-referentie; een met de hand opgerekte grootte (105360 → 205360) zou de
+// ratchet stil versoepelen zonder rode regel. Daarom draagt de v2-envelop
+// (`xer-product-fidelity-baseline-v2.json`, veld `cellMinutesSha256`) een SHA-256 over alle
+// `files[..].minutes` van het cellenbestand, geschreven door `OPS_XER_V2_WRITE` en
+// `OPS_XER_CELLS_WRITE`, en getoetst door `check-fidelity-cells-gate.ts` (corpusloos) én de
+// X12-check: cellenbestand en v2 moeten dezelfde digest hebben.
 //
 // Pure functies zonder I/O, zodat `check-fidelity-cells-gate.ts` de poortlogica corpusloos op
 // synthetische metingen kan bewijzen.
+import { createHash } from 'node:crypto';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
 
 export const CELL_BASELINE_VERSION = 2;
@@ -69,10 +81,8 @@ export const CELL_V1_PROBLEM = 'versie 1 (alleen emmers, geen grootte) wordt nie
   + 'OPS_XER_CELLS_WRITE=1 OPS_XER_CELLS_V1_UPGRADE=1 mét corpus, alleen voor de eerste overgang (scripts/README.md, herpinrecept); nooit met de hand';
 export const CELL_BASELINE_FILE = 'xer-product-fidelity-cells.json';
 /** Melding bij een versie-2-bestand zonder `ratchetDebt`-sectie (van vóór de schuldregel). */
-export const CELL_PRE_DEBT_PROBLEM = 'versie 2 zonder ratchetDebt-sectie (van vóór 2026-09-23) — alleen de eenmalige overgang '
-  + 'OPS_XER_CELLS_WRITE=corpus|1 met OPS_XER_CELLS_DEBT_INIT=2026-09-23 leest hem nog (scripts/README.md); nooit met de hand';
-/** De enige geldige waarde van `OPS_XER_CELLS_DEBT_INIT` (eenmalig, merge van de grootte-ratchet). */
-export const CELL_DEBT_INIT_TOKEN = '2026-09-23';
+export const CELL_PRE_DEBT_PROBLEM = 'versie 2 zonder ratchetDebt-sectie (van vóór 2026-09-23) wordt geweigerd — er is geen route meer '
+  + 'die schuld aanmaakt; neem bij een merge de kant mét ratchetDebt-sectie (scripts/README.md); nooit met de hand';
 /** Bovengrens vóór `JSON.parse`; de echte baseline (versie 2) is ±1,39 MB. */
 export const CELL_BASELINE_MAX_CHARS = 16 * 1024 * 1024;
 
@@ -338,8 +348,8 @@ export interface ParsedCellBaseline {
   /** Het bestand is een geldig, canoniek versie-1-bestand. `problems` bevat dan `CELL_V1_PROBLEM` en
    *  `baseline` de emmers met `minutes: null` — uitsluitend bruikbaar voor de herpin (`=1`). */
   legacyV1?: boolean;
-  /** Geldig, canoniek versie-2-bestand ZONDER `ratchetDebt`-sectie. `problems` bevat dan
-   *  `CELL_PRE_DEBT_PROBLEM`; `baseline.ratchetDebt` is leeg — alleen voor de eenmalige overgang. */
+  /** Versie-2-bestand ZONDER `ratchetDebt`-sectie: geweigerd (`problems` = `CELL_PRE_DEBT_PROBLEM`),
+   *  zonder `baseline` — geen enkele modus leest hem nog. */
   preDebt?: boolean;
 }
 export function parseCellBaseline(raw: string): ParsedCellBaseline {
@@ -431,13 +441,7 @@ export function parseCellBaseline(raw: string): ParsedCellBaseline {
     };
     return { baseline, problems: [CELL_V1_PROBLEM], legacyV1: true };
   }
-  if (preDebt) {
-    if (`${JSON.stringify(parsed, null, 2)}\n` !== raw) {
-      return { problems: ['baseline is niet canoniek geserialiseerd (herpin via OPS_XER_CELLS_WRITE=1, niet met de hand)'] };
-    }
-    const baseline = { ...(parsed as unknown as Omit<CellBaseline, 'ratchetDebt'>), ratchetDebt: {} } as CellBaseline;
-    return { baseline, problems: [CELL_PRE_DEBT_PROBLEM], preDebt: true };
-  }
+  if (preDebt) return { problems: [CELL_PRE_DEBT_PROBLEM], preDebt: true };
   const debtProblems = validateDebt(parsed.ratchetDebt, parsed.files as CellFiles);
   if (debtProblems.length > 0) return { problems: debtProblems };
   const baseline = parsed as unknown as CellBaseline;
@@ -528,7 +532,7 @@ export function compareCells(baseline: CellBaseline, measured: CellBaseline, mea
  * manifest) is alleen toegestaan in de corpusgroei-modus (`=corpus`), en dan uitsluitend bij een
  * gewijzigd manifest.
  */
-export type RedKind = 'hard' | 'fileset' | 'debt-init';
+export type RedKind = 'hard' | 'fileset';
 export interface RedLine { kind: RedKind; text: string }
 
 /** Rode regels voor de poort, met hun soort; leeg ⇒ regel A gehouden. */
@@ -610,30 +614,106 @@ export function planCellRepin(
   baseline: CellBaseline | undefined,
   measured: CellBaseline,
   measurable: CellMeasurable,
-  options: { acceptLargerAsDebt?: boolean } = {},
 ): { allowed: true; delta: CellDelta; debt: CellDebt } | { allowed: false; reasons: string[]; delta: CellDelta } {
   const empty: CellBaseline = {
     version: CELL_BASELINE_VERSION, manifestSha256: measured.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
     drivingPathOracle: {}, files: {}, ratchetDebt: {},
   };
   const delta = compareCells(baseline ?? empty, measured, measurable);
-  // Eenmalige overgang: alleen op een bestand ZONDER schuldsectie (de aanroeper bewaakt dat via
-  // `preDebt`); grotere cellen worden dan schuld in plaats van een weigering.
-  const acceptLarger = options.acceptLargerAsDebt === true && debtCount(baseline?.ratchetDebt ?? {}) === 0;
   const reasons = [
     ...delta.newCells.map(cell => `nieuwe inexacte cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id}`),
     ...delta.worsenedCells.map(cell => `verslechterde cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id} ${cell.was}→${cell.now}`),
-    ...(acceptLarger ? [] : delta.largerCells.map(cell => `grotere cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id} ${cell.wasMinutes}→${cell.nowMinutes} min`)),
+    ...delta.largerCells.map(cell => `grotere cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id} ${cell.wasMinutes}→${cell.nowMinutes} min`),
     ...delta.unmeasurableCells.map(cell => `onmeetbaar geworden cel ${cell.file.slice(0, 12)} ${cell.axis} ${cell.id}`),
   ];
   if (reasons.length > 0) return { allowed: false, reasons, delta };
-  const debt = carryRatchetDebt(baseline?.ratchetDebt ?? {}, measured);
-  if (acceptLarger) {
-    for (const cell of delta.largerCells) {
-      ((debt[cell.file] ??= {})[cell.axis] ??= {})[cell.id] = { reference: cell.wasMinutes!, current: cell.nowMinutes! };
+  // Schuld kan hier alleen krimpen: `carryRatchetDebt` voegt nooit een regel toe.
+  return { allowed: true, delta, debt: carryRatchetDebt(baseline?.ratchetDebt ?? {}, measured) };
+}
+
+/** De schuldset als gesorteerde regels `[bestand, as, id, reference]` — `current` hoort er bewust niet
+ *  bij (die daalt mee bij een verkleinde cel; de set en de referenties niet). */
+export function debtEntries(debt: CellDebt): Array<[string, string, string, number]> {
+  const out: Array<[string, string, string, number]> = [];
+  for (const file of sortedKeys(debt)) {
+    for (const axis of sortedKeys(debt[file]!)) {
+      for (const id of sortedKeys(debt[file]![axis]!)) out.push([file, axis, id, debt[file]![axis]![id]!.reference]);
     }
   }
-  return { allowed: true, delta, debt: canonicalDebt(debt) };
+  return out;
+}
+
+/** SHA-256 over `debtEntries` (JSON): gepind in `check-fidelity-cells-gate.ts`. */
+export function debtDigest(debt: CellDebt): string {
+  return createHash('sha256').update(JSON.stringify(debtEntries(debt))).digest('hex');
+}
+
+/** SHA-256 over alle grootten van het cellenbestand: gesorteerde regels `[bestand, as, id, minutes]`
+ *  voor elke cel met een grootte (sameday/diff op de zes assen). Staat als `cellMinutesSha256` in de
+ *  v2-envelop; een met de hand gewijzigde grootte maakt de twee ongelijk. */
+export function cellMinutesDigest(baseline: CellBaseline): string {
+  const rows: Array<[string, string, string, number]> = [];
+  for (const file of sortedKeys(baseline.files)) {
+    for (const axis of CELL_AXES) {
+      const cells = baseline.files[file]![axis] ?? {};
+      for (const id of sortedKeys(cells)) {
+        const minutes = cells[id]!.minutes;
+        if (minutes !== null) rows.push([file, axis, id, minutes]);
+      }
+    }
+  }
+  return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
+}
+
+/** Markeringen van het gegenereerde schuldpin-blok in `check-fidelity-cells-gate.ts`. */
+export const DEBT_PIN_BEGIN = '// BEGIN ratchet-schuldpin — herschreven door OPS_XER_CELLS_WRITE bij een daling; nooit met de hand';
+export const DEBT_PIN_END = '// END ratchet-schuldpin';
+
+/** Het schuldpin-blok (markeringen, leesbare lijst, digest-constante) voor een schuldset. */
+export function renderDebtPinBlock(debt: CellDebt): string {
+  const entries = debtEntries(debt);
+  return [
+    DEBT_PIN_BEGIN,
+    `// ${entries.length} schuldcel(len): bestand (12) · as · id · reference (min)`,
+    ...entries.map(([file, axis, id, reference]) => `//   ${file.slice(0, 12)} ${axis} ${id} ${reference}`),
+    `const EXPECTED_DEBT_SHA256 = '${debtDigest(debt)}';`,
+    DEBT_PIN_END,
+  ].join('\n');
+}
+
+/** Het schuldpin-blok uit een bronbestand, of `undefined` als de markeringen niet precies één keer staan. */
+export function extractDebtPinBlock(source: string): string | undefined {
+  const begin = source.indexOf(DEBT_PIN_BEGIN);
+  const end = source.indexOf(DEBT_PIN_END);
+  if (begin < 0 || end < begin || source.indexOf(DEBT_PIN_BEGIN, begin + 1) >= 0 || source.indexOf(DEBT_PIN_END, end + 1) >= 0) return undefined;
+  return source.slice(begin, end + DEBT_PIN_END.length);
+}
+
+/**
+ * Herschrijft het schuldpin-blok van `oldDebt` naar `newDebt`. Weigert als het blok in de bron niet
+ * exact bij `oldDebt` hoort (pin en cellenbestand liepen al uit de pas) of als `newDebt` een regel
+ * bevat die niet met dezelfde reference in `oldDebt` stond (schuld kan alleen krimpen).
+ */
+export function rewriteDebtPin(source: string, oldDebt: CellDebt, newDebt: CellDebt): { text: string; removed: Array<[string, string, string, number]> } | { error: string } {
+  const block = extractDebtPinBlock(source);
+  if (block === undefined) return { error: 'schuldpin-blok niet (precies één keer) gevonden' };
+  if (block !== renderDebtPinBlock(oldDebt)) return { error: 'schuldpin-blok hoort niet bij de gepinde ratchetDebt (met de hand bewerkt?)' };
+  const before = new Set(debtEntries(oldDebt).map(entry => JSON.stringify(entry)));
+  const after = debtEntries(newDebt);
+  if (after.some(entry => !before.has(JSON.stringify(entry)))) return { error: 'nieuwe schuldset bevat een regel die niet in de gepinde stond (schuld kan alleen krimpen)' };
+  const kept = new Set(after.map(entry => JSON.stringify(entry)));
+  const removed = debtEntries(oldDebt).filter(entry => !kept.has(JSON.stringify(entry)));
+  return { text: source.replace(block, () => renderDebtPinBlock(newDebt)), removed };
+}
+
+/** Rode regel als het cellenbestand niet bij de minuten-digest van v2 hoort, anders leeg. */
+export function cellMinutesProblems(baseline: CellBaseline, v2CellMinutesSha256: string): string[] {
+  const got = cellMinutesDigest(baseline);
+  return got === v2CellMinutesSha256 ? [] : [
+    `${CELL_BASELINE_FILE}: minuten-digest ${got.slice(0, 12)} ≠ cellMinutesSha256 in v2 ${v2CellMinutesSha256.slice(0, 12)} — `
+      + 'grootten met de hand bewerkt of maar één van beide bestanden herpind; zet ze terug uit versiebeheer of herpin via '
+      + 'OPS_XER_CELLS_WRITE (scripts/README.md)',
+  ];
 }
 
 /** Eén machineleesbare regel voor `scripts/measure-profiles.mjs`. */
