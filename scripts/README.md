@@ -264,7 +264,11 @@ Maak een baseline daarom nooit langs ze heen:
   tellen apart als "niet in sidecar". Het bestandsveld `p6Computed` is alleen een samenvatting: de
   gemeenschappelijke waarde, of `"mixed"` als projecten verschillen. Het eigenaarsbesluit van 2026-09-23
   ("alleen die P6-bestanden") classificeerde de toenmalige 93 entries met deze meting als onderbouwing:
-  `oracle` waar minstens één project `true` was, anders `reader-only`. Dat is een eenmalig besluit, geen
+  `oracle` waar minstens één project `true` was, anders `reader-only`. De tweede toepassing (DCP-03
+  Baseline, zie hierboven) maakte het kenmerkencriterium noodzakelijk maar niet voldoende: bewijs dat een
+  generator(script) de kenmerken zelf schrijft sluit uit; de meting noteert zulke vondsten informatief
+  als `generatorEvidence` (XER-schrijvende `.py`-bestanden naast het bestand of een byte-identieke kopie;
+  stuurt de populatie niet, de uitsluiting is een rolwissel in het manifest). Dat is een eenmalig besluit, geen
   vaste regel: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (zoals de
   manifest-policy zegt: veldinhoud kiest nooit zelf de populatie). `measure:profiles` draait in het
   P6-deel `--check` mee en print de exitcode, zonder het oordeel te veranderen. Dat

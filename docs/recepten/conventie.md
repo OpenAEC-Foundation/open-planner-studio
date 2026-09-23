@@ -50,8 +50,12 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    (pas het aantal aan, ook in de kop en in "Wat je hier leert").
 7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
    met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).
-8. **Landingspoort**: `npm run measure:profiles` vóór de commit — geen exacte cel mag inexact worden
-   onder welk profiel met orakel ook (regel A).
+8. **Landingspoort**: `npm run measure:profiles` vóór de commit — geen exacte cel mag inexact worden,
+   geen emmer verslechteren en geen inexacte cel binnen haar emmer groter worden (grootte-ratchet,
+   `groter=0`), onder welk profiel met orakel ook; de ratchet-schuld (`ratchetDebt`, sinds X12 brok 6
+   leeg) mag alleen dalen (regel A). Verbetert de X12-meting, dan herpin je in dezelfde commit volgens
+   de zes stappen in `scripts/README.md` (*Herpinnen na een VERBETERD-uitslag*, incl. de tweede-orde pins
+   met de hand) en zet je het getal in het commitbericht; bij alleen `kleiner>0` volstaat de cellenherpin.
 
 IFC hoeft niets: `OPS_SchedulingProfile` schrijft alle conventies opgelost; oude bestanden vallen via
 `legacyValue` terug. Zie `docs/ifc-round-trip.md`.
