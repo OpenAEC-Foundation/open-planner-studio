@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "El inicio planificado no es un mínimo para una tarea en curso",
       "help": "El trabajo restante de una tarea iniciada comienza en la fecha de estado y justo después de sus predecesoras, aunque su inicio planificado sea posterior."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fin tardío en el calendario propio",
+      "help": "Si el fin tardío que impone un sucesor en otro calendario cae fuera del horario laboral de la actividad, pasa a ser el final del período de trabajo anterior en el calendario propio."
     }
   },
   "profiles": {

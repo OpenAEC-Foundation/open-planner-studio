@@ -1321,6 +1321,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planowany start nie jest dolną granicą dla zadania w toku",
       "help": "Pozostała praca rozpoczętego zadania zaczyna się w dacie stanu i zaraz po jego poprzednikach, nawet jeśli planowany start jest późniejszy."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Najpóźniejsze zakończenie w kalendarzu zadania",
+      "help": "Jeśli najpóźniejsze zakończenie wyznaczone przez następnika w innym kalendarzu wypada poza czasem pracy zadania, staje się końcem poprzedniego okresu pracy w kalendarzu zadania."
     }
   },
   "profiles": {

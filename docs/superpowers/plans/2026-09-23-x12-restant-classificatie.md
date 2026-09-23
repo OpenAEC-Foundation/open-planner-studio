@@ -148,6 +148,35 @@ landbaar: (a) alleen geeft 428 → 374 met 2 slechter (OCEC10181 ls/lf: een punt
 komt omdat OCEC10311 de volle lag nog achterwaarts rekende), (b) alleen 428 → 425 met 20 groter. Samen:
 **428 → 350, 78 beter (ls 29, lf 29, tf 20, alles Roads), 0 slechter, 0 groter, 5 kleiner; schuld 14 → 0**.
 
+**Landing 2 — C9 `p6LateFinishOnOwnCalendar` (Hotel, B09).** Een late finish die van een opvolger op een
+andere kalender komt en buiten de werktijd van de taak zelf valt, wordt het einde van de vorige
+werkperiode op de eigen kalender (HCMEF6Z5565, kal. 844 vrijdag vrij: opvolger-LS vr 12-27 16:00 ⇒ P6
+do 12-26 17:00; taken op kal. 3195 met een grens 17:00 van kal. 3196 ⇒ P6 16:00). Een nieuwe conventie en
+geen aanscherping, want het is een eigen P6-regel over kalenders (regel B). Alleen als een opvolger de
+late finish bepaalt; de variant die ook het projecteinde snapt is op het corpus identiek, maar verandert
+een corpusloze P6-fixture (`check-xer-schedule-options-wiring.ts` 5) zonder orakel, dus niet gebouwd.
+**350 → 308, 42 beter
+(Hotel lf 30, ls 12), 0 slechter, 0 groter.** Twee varianten gemeten en verworpen: (a) élke late finish
+naar `prevWorkInstant` (ook een bandSTART naar het vorige band-einde): 54 beter maar 54 slechter
+(startmijlpalen met LS = LF 08:00 in Hotel-project 2666 en TERMINAL A1010); (b) als (a) maar
+startmijlpalen uitgezonderd: 52 beter, 0 slechter — de 10 extra cellen (FF0 met een late finish op een
+bandstart: Hotel 5, ashspace A1050–A4050, Sample_Construction 1) zijn dan echter hetzelfde effect als B2
+(`p6BackwardLagFinishBoundary`) zonder lag, en de B2-fixture verliest zijn onderscheidend vermogen. Die
+FF0-bandstartgroep is een aparte hypothese (zie "Wat overblijft").
+
+**Wat overblijft na landing 1 en 2 (308).**
+
+| bestand | cellen | oorzaak | waarom niet gebouwd |
+|---|---|---|---|
+| HarbourPointe_AssistedLiving | 124 | P6-uitvoer op minuten die de opgeslagen kalender niet kent; ALAP-keten EC1420/EC1430 (B12) | niet afleidbaar uit het bestand; ALAP n = 1 bestand (Hotel heeft 3 ALAP-cellen) |
+| DCP-03 Baseline Rev 0 | 92 | B10 (E-1000, 64), B14 LOE (8), B15 ff = tf (20) | n = 1 (B10 expliciet n = 1; B14/B15 alleen in dit bestand) |
+| OZB-Start-09Dec24 | 42 | project 9033 (negatieve speling, OZ1090/OZ1100, CS_MSOA OZ1060) + 10093 OZ1030 | n = 1 project |
+| Hotel_Construction_TEC | 22 | 9 × LS op band-einde i.p.v. volgende bandstart (taken met ES op een finishgrens en speling > 0: 603 exact tegen 9 fout, onderscheid niet gevonden); FF0-late-finish op bandstart 5; eindmijlpaal ATWTPR000 (ALAP) ls/lf + tf 3; ff −60 min 3; ef 2 | onderscheid onbekend (9); FF0-bandstart zie boven |
+| Sample_Construction_TEC | 13 | REPLBE01–03 en RDARCH02: P6-waarden op 08:01/15:59 [VERMOED: afrondingsresten in het orakel] | niet afleidbaar |
+| Roads_Project_TEC | 11 | OCEC11731 (lopend) 5, OCEC9761 3, A10660/A10650 2, ff 1 | n klein, niet onderzocht |
+| ashspace sample | 4 | FF0 naar een eindmijlpaal, late finish op bandstart | FF0-bandstart, zie boven; ashspace is bovendien een twijfelachtig orakel (B5-noot) |
+
+
 ## 0. Totaal en meetmethode
 
 | meting | commando | uitkomst |

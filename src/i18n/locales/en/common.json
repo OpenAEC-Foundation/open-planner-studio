@@ -1251,6 +1251,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planned start is not a floor for a task in progress",
       "help": "The remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Late finish on the task's own calendar",
+      "help": "If the late finish imposed by a successor on another calendar falls outside the task's working time, it becomes the end of the previous work period on the task's own calendar."
     }
   },
   "profiles": {

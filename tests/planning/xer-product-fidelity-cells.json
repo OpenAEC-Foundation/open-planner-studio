@@ -1263,33 +1263,9 @@
         }
       },
       "lf": {
-        "2666/144003": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/144111": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
         "2666/144224": {
           "bucket": "diff",
           "minutes": 960
-        },
-        "2666/144408": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/144409": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/144435": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/144821": {
-          "bucket": "sameday",
-          "minutes": 60
         },
         "2666/144831": {
           "bucket": "diff",
@@ -1299,109 +1275,13 @@
           "bucket": "diff",
           "minutes": 960
         },
-        "2666/144960": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
-        "2666/145595": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/145633": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
-        "2666/145639": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
-        "2666/145652": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/145893": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
-        "2666/145914": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
-        "2666/145958": {
-          "bucket": "sameday",
-          "minutes": 60
-        },
         "2666/146012": {
           "bucket": "sameday",
           "minutes": 60
         },
-        "2666/146052": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146254": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146279": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146304": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146679": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146729": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146854": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147104": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147179": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147204": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147254": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147279": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147395": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
-        "2666/147401": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
-        "2666/147402": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
         "2666/147583": {
           "bucket": "diff",
           "minutes": 960
-        },
-        "2666/147613": {
-          "bucket": "sameday",
-          "minutes": 60
         },
         "2666/147615": {
           "bucket": "diff",
@@ -1441,10 +1321,6 @@
           "bucket": "sameday",
           "minutes": 60
         },
-        "2666/146052": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
         "2666/146069": {
           "bucket": "diff",
           "minutes": 900
@@ -1452,50 +1328,6 @@
         "2666/146072": {
           "bucket": "diff",
           "minutes": 900
-        },
-        "2666/146254": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146279": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146304": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146679": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146729": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/146854": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147104": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147179": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147204": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147254": {
-          "bucket": "diff",
-          "minutes": 1380
-        },
-        "2666/147279": {
-          "bucket": "diff",
-          "minutes": 1380
         }
       },
       "tf": {

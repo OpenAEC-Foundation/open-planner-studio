@@ -1251,6 +1251,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planlanan başlangıç, devam eden bir görev için alt sınır değildir",
       "help": "Başlamış bir görevin kalan işi, planlanan başlangıcı daha geç olsa bile durum tarihinde ve öncüllerinin hemen ardından başlar."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Geç bitiş, faaliyetin kendi takviminde",
+      "help": "Başka bir takvimdeki ardıl faaliyetin belirlediği geç bitiş, faaliyetin çalışma saatleri dışına düşerse, faaliyetin kendi takvimindeki önceki çalışma döneminin sonu olur."
     }
   },
   "profiles": {

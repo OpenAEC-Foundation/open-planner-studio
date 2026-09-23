@@ -231,6 +231,7 @@ export function expectedXerScheduleOptions(
     p6InProgressStartLagElapsed: true,
     p6FinishFinishStartMilestoneLateFinish: true,
     p6StartedTaskIgnoresPlannedStartFloor: true,
+    p6LateFinishOnOwnCalendar: true,
   };
   if (!scheduleRow) {
     return {

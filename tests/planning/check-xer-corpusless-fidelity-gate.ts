@@ -86,12 +86,19 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23i (X12 naar nul, brok 6 — conventie C9 `p6LateFinishOnOwnCalendar`, motorwijziging,
+  // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=42 kleiner=0 schuld=0).
+  // Een late finish buiten de werktijd van de taak (grens van een opvolger op een andere kalender) wordt
+  // het einde van de vorige werkperiode op de eigen kalender. X12 350 → 308 (ls 61 → 49, lf 76 → 46),
+  // alles in Hotel_Construction_TEC (64 → 22). Overige bestanden byte-identiek. Geen schuldcellen.
   // HERPIN 2026-09-23h (X12 naar nul, brok 6 — de late kant van C5 en C6, motorwijziging, regel A:
   // measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=78 kleiner=5 schuld=0). Een
   // voltooide CP_Phys-opvolger met statusdatumpunt legt backward-druk op een open voorganger, en de
   // SS-rest-lag uit een lopende voorganger telt ook achterwaarts. X12 428 → 350 (ls 90 → 61, lf 105 → 76,
-  // tf 92 → 72), alles in Roads (89 → 11: 1/3/2/2/1/2); ratchet-schuld 14 → 0. Overige bestanden
-  // byte-identiek.
+  // tf 92 → 72), alles in Roads (89 → 11: 1/3/2/2/1/2); ratchet-schuld 14 → 0. Ontschuld (alle 14 nu
+  // exact, Roads_Project_TEC project 1346): A15112 (85462) ls/lf, B2921 (86905) ls/lf, B2922 (86912)
+  // ls/lf; tf van OCEC10851 (86945), OCEC11701 (86962), OCEC20101 (87055), OCEC11741/11751/11762/11771/
+  // 12121 (87145–87149). Overige bestanden byte-identiek.
   // HERPIN 2026-09-23g (merge van de manifest-etappe in de etappebranch; motor = brok 2 + 3 + 4, C1–C8):
   // dezelfde populatiewijziging als 23f-populatie hieronder, nu op de gemergde motor. Corpus-herpin
   // (V2_WRITE=corpus, CELLS_WRITE=corpus; GATE_PINS=write omdat de manifestpins hier al van de
@@ -188,16 +195,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_900, lf: 5_885, tf: 5_700, ff: 5_730 },
-    sameday: { es: 2, ef: 2, ls: 1, lf: 13, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 60, lf: 63, tf: 72, ff: 42 },
+    exact: { es: 5_916, ef: 5_907, ls: 5_912, lf: 5_915, tf: 5_700, ff: 5_730 },
+    sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
+    diff: { es: 43, ef: 52, ls: 48, lf: 44, tf: 72, ff: 42 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 61, lf: 76, tf: 72, ff: 42 },
+    deviations: { es: 45, ef: 54, ls: 49, lf: 46, tf: 72, ff: 42 },
     drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: '3c5d5ae41073e6c12b192a6a8e47eb99daec853c7de2f856a0391ab91602a3e8',
-  productPayloadGzipSha256: 'e69dd16997759eef4d93d0695ff9c7fdab2b924cc94b586db8ddefd3470bedcd',
-  productProjectProjectionSha256: 'fb85d9234666dc6062fd1b2cb21d4720df8a3a4e1443c64ba1ffe3fa6fdbb9b3',
+  productPayloadSha256: 'e01a47ce8b40fe47345edac51b2850200f1cf43c0a73813dc4ce585dff0d7205',
+  productPayloadGzipSha256: '01321b3bd30ac97b8bf050a25f95f8d2f979f474d0b6f0aeb6573bff5cd8daeb',
+  productProjectProjectionSha256: '2829b30e4df6e9bf4aee10349ec7a6401719b260834daaa51ddea450355f8c2c',
   roles: {
     oracle: 13,
     'engine-input': 14,

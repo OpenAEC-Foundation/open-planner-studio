@@ -674,6 +674,21 @@ export class CPMSolver {
    * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
    * (`milestoneKind: 'FINISH'`) valt er per definitie buiten.
    */
+  /**
+   * Conventie C9 `p6LateFinishOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
+   * de late finish op de eigen kalender. Ligt de grens buiten de werktijd van de taak (niet binnen een
+   * band en niet op een band-rand), dan wordt hij het einde van de vorige werkperiode. Een grens op of
+   * binnen de werktijd blijft staan. De aanroeper past dit alleen toe als een opvolger de late finish
+   * bepaalt (het projecteinde is ongemeten). Conventie uit of dagmodus ⇒ `lateFinish` zelf.
+   */
+  private lateFinishOnOwnCalendar(eng: CalendarEngine, lateFinish: Date): Date {
+    if (this.options.schedulingOptions?.p6LateFinishOnOwnCalendar !== true || !eng.isHourMode) return lateFinish;
+    const t = lateFinish.getTime();
+    if (eng.nextWorkInstant(lateFinish).getTime() === t || eng.prevWorkInstant(lateFinish).getTime() === t) return lateFinish;
+    const snapped = eng.prevWorkInstant(lateFinish);
+    return Number.isNaN(snapped.getTime()) ? lateFinish : snapped;
+  }
+
   private finishFinishAtStartMilestoneLateFinish(
     seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
   ): boolean {
@@ -3675,6 +3690,8 @@ export class CPMSolver {
 
       // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
+      // C9: een late finish die een opvolger op een andere kalender oplegt, op de eigen kalender.
+      if (lateFinishSource === 'successorConstraint') lateFinish = this.lateFinishOnOwnCalendar(predCal, lateFinish);
       if (this.p6ZeroDurationActivityUsesBoundaryPair(task, predCal)) {
         // Een opvolgergrens kan als volgende bandSTART binnenkomen. P6 toont voor deze
         // geïnverteerde nulduurvorm de complementaire finishrand; op een echt bandeinde is deze

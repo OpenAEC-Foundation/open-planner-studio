@@ -1216,6 +1216,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "计划开始不是进行中任务的下限",
       "help": "已开始任务的剩余工作从状态日期、紧接其紧前任务之后开始，即使其计划开始更晚。"
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "最晚完成落在自身日历上",
+      "help": "如果另一日历上的后续工作所施加的最晚完成时间落在本作业的工作时间之外，则取本作业日历上前一个工作时段的结束时间。"
     }
   },
   "profiles": {

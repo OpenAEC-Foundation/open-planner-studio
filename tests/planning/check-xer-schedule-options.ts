@@ -814,6 +814,7 @@ eq('P6-profiel ≡ hand-lijst (A19 uit, per bestand als afwijking)', byKey(P6_PR
   p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
   p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
+  p6LateFinishOnOwnCalendar: true,
 }));
 eq('default 7/8: P6-actuals blijven feiten in de backward-pass', P6_PROFILE.preserveActualDatesInBackwardPass, true);
 eq('default 8/8: P6-vrije-float wordt niet negatief', P6_PROFILE.clampNegativeFreeFloat, true);

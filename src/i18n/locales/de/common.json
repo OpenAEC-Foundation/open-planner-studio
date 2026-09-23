@@ -1251,6 +1251,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Geplanter Anfang ist keine Untergrenze für einen laufenden Vorgang",
       "help": "Die Restarbeit eines begonnenen Vorgangs beginnt am Statusdatum und direkt nach seinen Vorgängern, auch wenn sein geplanter Anfang später liegt."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Spätestes Ende im eigenen Kalender",
+      "help": "Fällt das späteste Ende, das ein Nachfolger in einem anderen Kalender vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es zum Ende der vorherigen Arbeitsperiode im eigenen Kalender."
     }
   },
   "profiles": {

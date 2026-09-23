@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Le début planifié n’est pas un plancher pour une tâche en cours",
       "help": "Le travail restant d’une tâche commencée débute à la date d’état et juste après ses prédécesseurs, même si son début planifié est plus tardif."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fin au plus tard sur le calendrier propre de l'activité",
+      "help": "Si la fin au plus tard imposée par un successeur sur un autre calendrier tombe en dehors du temps de travail de l'activité, elle devient la fin de la période de travail précédente sur le calendrier propre de l'activité."
     }
   },
   "profiles": {

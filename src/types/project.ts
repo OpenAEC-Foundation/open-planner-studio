@@ -443,10 +443,37 @@ export interface SchedulingOptions {
    *    uitzondering erop is daar zonder betekenis. Het gedrag van vóór deze conventie.
    *  - OPS: uit (het gedrag van vóór deze conventie). */
   p6StartedTaskIgnoresPlannedStartFloor?: boolean;
+  /** C9 — de late finish staat op de EIGEN kalender van de activiteit. Nadat de backward pass de
+   *  vroegste opvolgergrens (en de late-zijde-constraints) heeft genomen, ligt die grens soms buiten de werktijd van de taak zelf: hij komt van een opvolger op een andere kalender.
+   *  Dan wordt de late finish het einde van de vorige werkperiode op de eigen kalender. Een grens op of
+   *  binnen de werktijd (ook op een band-rand) blijft staan. Alleen als een OPVOLGER de late finish
+   *  bepaalt (niet het projecteinde: ongemeten, op het corpus identiek), alleen uurmodus, alleen de
+   *  generieke backward pass (niet de voortgangs-, C5-, hammock- of handmatige takken).
+   *  `CPMSolver.lateFinishOnOwnCalendar`.
+   *
+   *  - P6: aan. Gemeten, niet uit de documentatie (X12 brok 6, classificatiebrok B09, 2026-09-23), op
+   *    het P6-doorgerekende `Hotel_Construction_TEC.xer`, project HBTF-2 (2666; SCHEDOPTIONS-rij,
+   *    `rem_late_start_date` gevuld, `driving_path_flag` Y — `xer-corpus-p6computed.json`): 42 cellen
+   *    (lf 30, ls 12), 0 slechter, 0 groter (X12 350 → 308). Er is geen P6-instelling (SCHEDOPTIONS- of
+   *    PROJECT-veld) voor gevonden: het is een vaste P6-rekenregel, dus een conventie en geen
+   *    projectoptie. Inhoudelijk de late-kant-tegenhanger van C2 (vrije speling op de eigen kalender) en
+   *    van de bandgrens-weergave B09: P6 drukt de datums van een activiteit uit in haar eigen kalender. Voorbeelden: startmijlpaal HCMEF6Z5565 op kalender 844 (vrijdag vrij),
+   *    opvolger-LS vr 2013-12-27 16:00 op kalender 843: P6 do 12-26 17:00, zonder C9 vr 12-27 16:00;
+   *    taken op kalender 3195 (08:00–16:00) met een opvolgergrens 17:00 van kalender 3196: P6 16:00
+   *    (HCSWB1Z1230 → HCSWB1Z1240, een FS0-relatie op de voorgangerfinishgrens, B1, die de LS van de
+   *    opvolger ongesnapt doorgeeft). Beperkt tot een door een opvolger bepaalde late finish: op het
+   *    corpus identiek aan de variant die ook het projecteinde snapt (0 cellen verschil).
+   *    Een BREDERE variant (elke late finish op een bandSTART ook naar het vorige band-einde) maakt 10
+   *    cellen meer goed (FF0-relaties in Hotel, ashspace en Sample_Construction), maar breekt 54 exacte
+   *    startmijlpalen (LS = LF 08:00) en valt samen met B2; dat is een aparte regel, niet deze.
+   *  - MS Project: uit. Ons MPP-orakel meet alleen start en einde (vroege datums), niet de late kant;
+   *    ongemeten, dus het gedrag van vóór deze conventie.
+   *  - OPS: uit (de rauwe grens, het gedrag van vóór deze conventie). */
+  p6LateFinishOnOwnCalendar?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de drieëntwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vierentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -474,7 +501,8 @@ export type ConventionKey =
   | 'p6CompletedPhysicalAtDataDate'
   | 'p6InProgressStartLagElapsed'
   | 'p6FinishFinishStartMilestoneLateFinish'
-  | 'p6StartedTaskIgnoresPlannedStartFloor';
+  | 'p6StartedTaskIgnoresPlannedStartFloor'
+  | 'p6LateFinishOnOwnCalendar';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

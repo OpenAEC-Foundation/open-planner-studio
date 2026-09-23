@@ -421,14 +421,14 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
 // C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`, C5 `p6CompletedPhysicalAtDataDate`,
 // C6 `p6InProgressStartLagElapsed`; brok 4: C7 `p6FinishFinishStartMilestoneLateFinish`, C8
-// `p6StartedTaskIgnoresPlannedStartFloor` ──
+// `p6StartedTaskIgnoresPlannedStartFloor`; brok 6: C9 `p6LateFinishOnOwnCalendar` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
 const GROUP_C = [
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow',
   'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
-  'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
+  'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6LateFinishOnOwnCalendar',
 ] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
@@ -768,6 +768,46 @@ groupC.push({
   // OPS/MS Project kennen de vloer (A16) niet en tonen de werkelijke start (geen A19); het restwerk
   // loopt daar ook ná Q: EF wo 14 jan 17:00.
   builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-14T17:00' },
+});
+
+// C9: twee ma–vr-kalenders, C8 (08:00–16:00) en C9 (08:00–17:00) — de vorm van Hotel (kalender 3195
+// en 3196). T (C8, ma 5 jan 08:00–16:00) —FS0→ S (C9, 9 u, gepland vanaf T's finishgrens ma 16:00, dus
+// een relatie op de voorgangerfinishgrens, B1). Een losse X (C9, 15 werkdagen, tot vr 23 jan 17:00)
+// legt het projecteinde vast; S.LS komt dan op do 22 jan 17:00 (finishgrens-weergave van B1), en die
+// grens geeft de relatie ongesnapt door als late finish van T. Do 17:00 ligt buiten de werktijd van T.
+// P6 (Hotel HCSWB1Z1230 → HCSWB1Z1240: 03-03 16:00, niet 17:00): de late finish is het einde van de
+// vorige werkperiode op de eigen kalender, do 22 jan 16:00. Zonder C9 blijft 17:00 staan.
+function c9Fixture(): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC8\tAcht uur\tP1\tCA_Project\t8\t40\t${calendarData([['08:00', '16:00']])}`,
+    `%R\tC9\tNegen uur\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC9-fixture\tC9\t2026-01-05 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tX\tP1\tC9\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t135\t135\t2026-01-05 08:00\t2026-01-23 17:00\t\t',
+    '%R\tT\tP1\tC8\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t8\t8\t2026-01-05 08:00\t2026-01-05 16:00\t\t',
+    '%R\tS\tP1\tC9\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-05 16:00\t2026-01-06 16:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tT\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6LateFinishOnOwnCalendar',
+  label: 'C9 late finish op de eigen kalender',
+  input: c9Fixture(),
+  taskId: 'T',
+  pick: axes => ({ lf: axes.lf }),
+  on: { lf: '2026-01-22T16:00' },
+  off: { lf: '2026-01-22T17:00' },
+  // Zonder B1 (OPS/MS Project) snapt de FS-relatie zelf al op de kalender van T: ook 16:00.
+  builtInOff: { lf: '2026-01-22T16:00' },
 });
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);

@@ -1286,6 +1286,10 @@
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "O início planeado não é um limite mínimo para uma tarefa em curso",
       "help": "O trabalho restante de uma tarefa iniciada começa na data de estado e logo após as suas predecessoras, mesmo que o início planeado seja posterior."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Término mais tarde no calendário próprio",
+      "help": "Se o término mais tarde imposto por um sucessor noutro calendário cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
     }
   },
   "profiles": {
