@@ -687,6 +687,78 @@ P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in sectie 7 van de eng
   10, p6diff 8+7, HarbourPointe 7, Harbour Point DCP-03 7, sample-target 4, stack_data_center 4.
   Of die as poort wordt is een eigenaarsbesluit (§3).
 
+### C9 ALAP-positionering (geparkeerd) + duur uit toewijzingen (HarbourPointe) (2026-09-23)
+
+*In gewone taal: de regel voor "zo laat mogelijk"-taken (C9) klopt en maakt 27 cellen exact, maar
+drie cellen komen verder van P6 te staan. Dat komt niet door ALAP maar doordat P6 één taak (EC1430)
+24 uur korter laat duren dan haar opgegeven duur, en welke toewijzing P6 daarvoor kiest, is uit de
+bestanden niet af te leiden. Daarom landt C9 niet. Gemeten door Opus 5.5 (uitvoerder-opus-midden)
+op `claude/x12-brok5-klein`.*
+
+**De C9-regel** (`p6AlapPositionedFromSuccessors`, geparkeerd op `d9973123`,
+`claude/x12-brok5-klein`). Een niet-gestarte ALAP-taak op een uurkalender krijgt als vroege finish
+de strengste grens die haar opvolgers met hun vroege datums via de achterwaartse relatiewiskunde
+toestaan, op de minuut. Opvolgers eerst, zodat een ALAP-keten aaneensluit. Ondergrens: de
+voorgangers en de statusdatum; het eigen geplande venster (en de A16-vloer) telt niet. Gestarte en
+voltooide ALAP-taken houden de oude stap. Bron: HarbourPointe, de keten EC1420 → EC1430 → EC1810 →
+EC2090; P6 zet EC1810 op EF 2012-03-06 16:49 = de start van EC2090.
+
+- Per emmer: **+27 / 0** (es 8, ef 8, tf 7, ff 4), alles HarbourPointe (P6-doorgerekend); geen
+  ander bestand verandert. X12 11.529 → 11.502.
+- **Grootte-ratchet rood op 3 cellen** (afstand tot P6 in werkminuten, vóór → na): EC1420 es
+  11 → 1.440, EC1420 ef 11 → 1.440, EC1430 es 11 → 1.440. Oorzaak: EC1430 eindigt nu exact op
+  2011-10-27 16:49; wij rekenen de start terug met `remain_drtn_hr_cnt` = 720 u (→ 06-21 16:49),
+  P6 geeft EC1430 een span van **696** werkuren (06-24 16:49 → 10-27 16:49, en in het late venster
+  evenzo). De oude positie lag er toevallig 11 minuten naast (het geplande venster van EC1420).
+- Getoetst en verworpen: kalenderuitzondering (de 24 uitzonderingsdagen van 5829 kloppen; EC1620
+  over 09-05 is exact), lag-kalender (alleen FS0), ALAP met de late datums van de opvolger (EC1430
+  eindigt in P6 op de vroege start van EC1810). Met brok 3 (C5 `p6CompletedPhysicalAtDataDate`,
+  wegwerpmerge van `e76e3d39`) verandert EC1030 met en zonder C9 niet.
+
+**Duur uit toewijzingen, corpusbreed.** Niet-gestarte taken met uurkalender in de acht
+P6-doorgerekende bestanden: 5.660; bij **9** wijkt P6's span af van `remain_drtn_hr_cnt` — 8
+HarbourPointe-taken (`DT_FixedDrtn` met toewijzingen) plus E-1000 (B10). `DT_FixedDUR2` (4.435,
+waarvan 1.278 met toewijzingen) heeft altijd span = resterende duur. Gelezen zijn alleen
+TASKRSRC-invoerkolommen die de lezer al leest (`remain_qty`, `remain_qty_per_hr`,
+`relag_drtn_hr_cnt`, `rsrc_id`); geen `restart_date`/`reend_date`/`rem_late_*`.
+
+Formules op de 821 niet-gestarte `DT_FixedDrtn`-taken met toewijzingen (fouten = span ≠ formule):
+
+- `remain_drtn_hr_cnt` (huidig gedrag): 8 fout;
+- max(qty/rate + toewijzingslag): 52 fout;
+- **max(qty/rate), zonder lag, terugval op `remain_drtn_hr_cnt` zonder tarief: 3 fout** (EC1430,
+  EC2380, EC1590);
+- qty/rate van de primaire resource (`TASK.rsrc_id`): 75 fout;
+- min(qty/rate): 67 fout.
+
+De vijf lag-gevallen: EC2170, EC2200, EC2410, EC1680 en EC2060 hebben een toewijzing met
+`relag_drtn_hr_cnt` 240/240/200/24/72 u; `remain_drtn_hr_cnt` = langste qty/rate + die lag, P6's
+span = langste qty/rate zonder lag. Die deelregel ("toewijzingslag telt niet mee in de span") is op
+zichzelf eenduidig, maar neemt EC1430 niet weg.
+
+Zes taken met dezelfde vorm (primaire resource 6686, een toewijzing op 6604 "Project Managers" die
+langer duurt dan de overige), uren:
+
+- EC1430 (ALAP): 6604 720, overige 696, P6-span 696 → volgt de overige;
+- EC2380: 6604 144, overige 96, P6-span 96 → volgt de overige;
+- EC1590: 6604 720, overige 696, P6-span 696 → volgt de overige;
+- EC1810 (ALAP): 6604 720, overige 696, P6-span 720 → volgt 6604;
+- EC2090: 6604 960, overige 936, P6-span 960 → volgt 6604;
+- EC1280: 6604 960, overige 888, P6-span 960 → volgt 6604.
+
+Alle TASKRSRC-invoerkolommen van de 6604-rijen, de RSRC-rijen, de dubbele 76xxx/82xxx-
+toewijzingsrijen, de target-vensters en `target_drtn_hr_cnt` zijn in beide groepen gelijk; de spans
+in de "6604"-groep zijn echte duren (EC2280 hangt alleen aan EC2090; late spans = vroege spans).
+**De invoerkolommen scheiden de twee groepen niet**; daarom is er geen C10 gebouwd.
+
+**Open vraag.** Welke toewijzing bepaalt in P6 de duur van een `DT_FixedDrtn`-activiteit bij
+gelijke invoer? Mogelijk een niet-geëxporteerde "Drive activity dates"-vlag per toewijzing. Zolang
+dat open is, blijft C9 geparkeerd.
+
+**C8 (B15, vrije speling over gelagde relaties op de eigen kalender)** is gemeten maar niet
+geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
+`docs/superpowers/plans/patches/2026-09-23-c8-p6FreeFloatLaggedRelationsOnOwnCalendar.patch`.
+
 ## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
 *Herschreven door de Claude-sessie die op 2026-09-07 de etappe overnam, 7a en laag 3 landde en de

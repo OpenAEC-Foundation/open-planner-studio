@@ -1,0 +1,140 @@
+diff --git a/src/engine/scheduler/CPMSolver.ts b/src/engine/scheduler/CPMSolver.ts
+index ba69eb38..a5e3f144 100644
+--- a/src/engine/scheduler/CPMSolver.ts
++++ b/src/engine/scheduler/CPMSolver.ts
+@@ -1437,6 +1437,10 @@ export class CPMSolver {
+       modeOf: (eng) => this.modeOf(eng),
+       backwardFloatTrace: this.backwardFloatTrace,
+       completedOutOfSequenceEs: this.completedOutOfSequenceEs,
++      shiftBackByLag: (seq, predTask, succTask, instant) => this.shiftLagPred(
++        this.relDeps.lagEngine(this.calendarFor(predTask), this.calendarFor(succTask)),
++        instant, seq, predTask, -1,
++      ),
+     });
+     // Zachte WP7-waarschuwing: alleen bij een echt onwerkbaar venster het veld zetten, zodat een
+     // normale solve byte-identiek blijft (veld afwezig ⇒ geen wijziging aan bestaande consumenten).
+diff --git a/src/engine/scheduler/conventions/registry.ts b/src/engine/scheduler/conventions/registry.ts
+index adca5951..df4da78c 100644
+--- a/src/engine/scheduler/conventions/registry.ts
++++ b/src/engine/scheduler/conventions/registry.ts
+@@ -57,6 +57,8 @@ const SINCE_X12_BROK2 = '2026-09-23';
+ const SINCE_X12_BROK3 = '2026-09-23';
+ /** Groep C, brok 4 (FF naar een startmijlpaal, geplande-startvloer niet voor lopende taken). */
+ const SINCE_X12_BROK4 = '2026-09-23';
++/** Groep C, brok 5 (vrije speling over gelagde relaties, ALAP, …). */
++const SINCE_X12_BROK5 = '2026-09-23';
+ 
+ const P6_ONLY = { p6: true, msproject: false, ops: false } as const;
+ const MSP_ONLY = { p6: false, msproject: true, ops: false } as const;
+@@ -99,6 +101,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
+   convention('p6CompletedOutOfSequenceWindow', 'C', P6_ONLY, false, false, SINCE_X12_BROK3),   // C4
+   convention('p6FinishFinishStartMilestoneLateFinish', 'C', P6_ONLY, false, false, SINCE_X12_BROK4), // C6
+   convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', P6_ONLY, false, false, SINCE_X12_BROK4),  // C7
++  convention('p6FreeFloatLaggedRelationsOnOwnCalendar', 'C', P6_ONLY, false, false, SINCE_X12_BROK5), // C8
+ ];
+ 
+ // ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
+@@ -117,6 +120,7 @@ const _everyConventionNamed: Record<ConventionKey, true> = {
+   p6CompletedPredecessorAtDataDate: true, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
+   p6CompletedOutOfSequenceWindow: true,
+   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
++  p6FreeFloatLaggedRelationsOnOwnCalendar: true,
+ };
+ export const CONVENTION_KEYS = Object.keys(_everyConventionNamed) as readonly ConventionKey[];
+ type Overlap = Extract<ProjectOptionKey, ConventionKey>;
+diff --git a/src/engine/scheduler/scheduleAnalysis.ts b/src/engine/scheduler/scheduleAnalysis.ts
+index 37d1b04f..ba94caed 100644
+--- a/src/engine/scheduler/scheduleAnalysis.ts
++++ b/src/engine/scheduler/scheduleAnalysis.ts
+@@ -42,6 +42,9 @@ export interface ScheduleAnalysisInput {
+   // ── Aan de solver gebonden, stateless kalender-helpers (modus-bewust, §5) ──
+   calendarFor: (task: Task) => CalendarEngine;
+   progressCalendarFor: (task: Task) => CalendarEngine;
++  /** Conventie C8: `instant` min de lag van `seq`, in de lag-kalender van de relatie
++   *  (`schedulingOptions.lagCalendar`) — dezelfde lagverschuiving als de achterwaartse relatiewiskunde. */
++  shiftBackByLag?: (seq: Sequence, predTask: Task, succTask: Task, instant: Date) => Date;
+   /** Conventie C4: verschoven begin van het nul-restvenster (voltooid buiten volgorde). */
+   completedOutOfSequenceEs?: ReadonlyMap<string, Date>;
+   /** `task` optioneel (T8): ELAPSEDTIME ⇒ kale klok-span i.p.v. werkdag-telling, zie
+@@ -70,7 +73,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult
+     projectEngine,
+     calendarFor, progressCalendarFor, signedFloat,
+     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
+-    backwardFloatTrace,
++    backwardFloatTrace, shiftBackByLag,
+   } = input;
+ 
+   const taskResults = new Map<string, CPMTaskResult>();
+@@ -215,10 +218,35 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult
+       // de driving-markering) blijft ongemoeid; alleen de vrije speling van de taak verandert.
+       const ownCalendarFs0 = so?.p6FreeFloatOnOwnCalendar === true
+         && cal.isHourMode && taskObj.time.completion < 1;
++      // Conventie C8 `p6FreeFloatLaggedRelationsOnOwnCalendar` (docblok + bron bij de sleutel in
++      // `types/project.ts`): hetzelfde voor de overige relaties (FS met lag, FF, SS, SF) naar een
++      // niet-voltooide opvolger. De grens is de vroege datum van de opvolger (start bij FS/SS, einde
++      // bij FF/SF) min de lag in de lag-kalender; de speling is de werktijd van het eigen anker
++      // (einde bij FS/FF, start bij SS/SF) tot die grens, in de kalender van de taak.
++      const ownCalendarLagged = so?.p6FreeFloatLaggedRelationsOnOwnCalendar === true
++        && cal.isHourMode && taskObj.time.completion < 1 && shiftBackByLag !== undefined;
+       for (const seq of succs) {
+         let ff = sequenceFreeFloat[seq.id];
+-        if (ownCalendarFs0 && seq.type === 'FINISH_START'
+-          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
++        const fs0 = seq.type === 'FINISH_START'
++          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0;
++        if (ownCalendarLagged && !fs0 && ff !== undefined
++          && seq.lagPercent === undefined && seq.lagUnit !== 'ELAPSEDTIME') {
++          const succEarly = earlyDates.get(seq.successorId);
++          const succTask = tasks.get(seq.successorId);
++          if (succEarly && succTask && succTask.time.completion < 1) {
++            const fromFinish = seq.type === 'FINISH_START' || seq.type === 'FINISH_FINISH';
++            const toStart = seq.type === 'FINISH_START' || seq.type === 'START_START';
++            const anchor = fromFinish ? early.ef : early.es;
++            const succDate = toStart ? succEarly.es : succEarly.ef;
++            const hasLag = (seq.lagMinutes ?? 0) !== 0 || seq.lagDays !== 0;
++            const limit = hasLag ? shiftBackByLag!(seq, taskObj, succTask, succDate) : succDate;
++            const minutes = limit >= anchor
++              ? cal.workMinutesBetween(anchor, limit)
++              : -cal.workMinutesBetween(limit, anchor);
++            ff = minutes / (cal.hoursPerDay * 60);
++          }
++        }
++        if (ownCalendarFs0 && fs0) {
+           const succEarly = earlyDates.get(seq.successorId);
+           const succTask = tasks.get(seq.successorId);
+           if (succTask && succTask.time.completion >= 1) {
+diff --git a/src/services/ifc/schedulingOptionsRead.ts b/src/services/ifc/schedulingOptionsRead.ts
+index d6c31bcc..5133ed02 100644
+--- a/src/services/ifc/schedulingOptionsRead.ts
++++ b/src/services/ifc/schedulingOptionsRead.ts
+@@ -38,6 +38,7 @@ const BOOLEAN_KEYS = [
+   'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
+   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
+   'p6CompletedOutOfSequenceWindow', 'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
++  'p6FreeFloatLaggedRelationsOnOwnCalendar',
+ ] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
+ 
+ const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
+diff --git a/src/types/project.ts b/src/types/project.ts
+index f63da433..65ab8eec 100644
+--- a/src/types/project.ts
++++ b/src/types/project.ts
+@@ -313,6 +313,8 @@ export interface SchedulingOptions {
+    *    uitzondering erop is daar zonder betekenis. Het gedrag van vóór deze conventie.
+    *  - OPS: uit (het gedrag van vóór deze conventie). */
+   p6StartedTaskIgnoresPlannedStartFloor?: boolean;
++  /** C8 — DOCBLOK_C8 */
++  p6FreeFloatLaggedRelationsOnOwnCalendar?: boolean;
+ }
+ 
+ /**
+@@ -342,7 +344,8 @@ export type ConventionKey =
+   | 'p6CompletedRemainingLag'
+   | 'p6CompletedOutOfSequenceWindow'
+   | 'p6FinishFinishStartMilestoneLateFinish'
+-  | 'p6StartedTaskIgnoresPlannedStartFloor';
++  | 'p6StartedTaskIgnoresPlannedStartFloor'
++  | 'p6FreeFloatLaggedRelationsOnOwnCalendar';
+ 
+ /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
+ export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;
