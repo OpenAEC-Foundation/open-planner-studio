@@ -84,6 +84,15 @@ afwijkingen hebben met XER".)
    de goal prompt (regel 4) is dit escaleren, niet pinnen. Besluit nodig: dit bestand (deels) uit het
    orakel halen in het manifest, of accepteren dat het nuldoel hier niet uit P6-regels te halen is.
    Zie `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` B01.
+   **Uitkomst B01-onderzoek (23-09, `docs/superpowers/plans/2026-09-23-x12-b01-onderzoek.md`): vorm (b),
+   bestandsdefect.** Het orakel van `rehab-2.xer` is P3-uitvoer, niet P6: geen SCHEDOPTIONS-tabel,
+   `rem_late_start_date` 0/4.940 gevuld (elk echt P6-bestand ≈100 %), `driving_path_flag` nergens Y, alle
+   taken aangemaakt 2010-05-05 13:13 met statusdatum twee jaar eerder, enige memo-type "P3 Activity Log
+   Info". De zes droegen vrijwel zeker de P3-beperking "Zero Total Float", die Oracle bij P3-import
+   als "Not Converted" documenteert; tegenfeit "LF := eigen EF" op de zes = +7.516/0 zonder orakeldatum.
+   Aanbeveling orkestrator: rehab-2 uit het P6-orakel (manifest), houden als lezer-/prestatietest.
+   Gevolg: B02–B05 zijn alleen op rehab-2 gemeten; C1–C4 worden daarom apart getoetst op de andere
+   corpusbestanden (agent gestart 23-09 ~08:00) vóór ze definitief landen.
 2. **Synthetische bestanden S1–S10 — 1.814 cellen** (MER-1, groupdocs, ProjectLens, gimmer/nPlan
    GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
    geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
@@ -113,7 +122,8 @@ afwijkingen hebben met XER".)
 | X12 naar nul — brok 2: B02+B06+B03 (C1–C3) | `claude/x12-brok2-7b4` (`7c37b212`, `d6db800c`, gepusht) | **X12 15.056 → 12.973** (−2.083, 0 slechter per cel); critreview = no-go op 5 punten (migratie groep C op id pinnen; corpusloze fixtures voor C1-SS en C3 deels/niet-verstreken lag; "vijftien"→achttien; C1-commentaar/Oracle-URL; §9-dossier) — fixronde loopt (de eerste fixronde-agent stierf 23-09 ~03:00 door de sessielimiet ná de merge van `3128d215+` in brok 2 = `13826f20`, met de C3/C1-SS-fixtures half af; hervat door een nieuwe agent in dezelfde worktree `agent-a78788e689e933148`). Inzicht reviewer: 761 cellen kwamen binnen dezelfde bucket verder van P6 (B01-compensatie; met B01-tegenfeit zijn C1+C2 = +1.706/0 en C3 = +772/0) — de bucket-ratchet ziet dat niet; een grootte-ratchet is een apart besluit (§1d) |
 | X12 naar nul — brok 3: B04 out-of-sequence (+B07 CP_Phys) | `claude/x12-brok3-oos` (basis brok 2, kop `1aa63a40`, niet gepusht) | **C4 `p6CompletedOutOfSequenceWindow` geland: X12 12.973 → 11.771** (−1.202, 0 slechter, herpin in dezelfde commit). C5 `p6CompletedPhysicalAtDataDate` (B07) in aanbouw: docblok/register/lezer stonden ongecommit toen de agent door de sessielimiet stierf; hervat in worktree `agent-abb39c3cdb1144813`. Moet nog: gefixte brok-2-kop inmergen, critreview, merge in de etappebranch |
 | X12 naar nul — brok 4: B08 FF→startmijlpaal (C6) + B05 actief-rest-0 late kant (C7) | `claude/x12-brok4-ff-mijlpaal` (basis `1aa63a40` = C4; worktree `agent-x12-brok4-ff-mijlpaal`) | in aanbouw (agent gestart 23-09 ~07:40); merget ná brok 2-fix en brok 3 |
-| B01-onderzoek (rehab-2, 7.516 cellen) | agent-worktree, alleen `docs/superpowers/plans/2026-09-23-x12-b01-onderzoek.md` | meetonderzoek gestart 23-09 ~07:40: externe relaties/`external_*_date`, SCHEDOPTIONS, UDF, resourcekalender, multiple float paths, controlegroep, tegenfeiten. Uitkomst (a) conventie / (b) bestandsdefect / (c) onbeslisbaar ⇒ voedt §1d vraag 1 |
+| B01-onderzoek (rehab-2, 7.516 cellen) | `claude/rekenprofielen` (`ef1eb881`, doc `2026-09-23-x12-b01-onderzoek.md`) | **klaar: vorm (b)** — rehab-2-orakel is P3-uitvoer, zie §1d vraag 1. Vervolg: C1–C4-toets buiten rehab-2 |
+| C1–C4-toets buiten rehab-2 | `claude/x12-c-toets-buiten-rehab2` (basis `1aa63a40`, worktree `agent-x12-c-toets-buiten-rehab2`) | meting gestart 23-09 ~08:00: per conventie de cellenwinst/-verlies per bestand ≠ rehab-2 |
 | X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
