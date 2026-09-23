@@ -829,8 +829,8 @@ in de "6604"-groep zijn echte duren (EC2280 hangt alleen aan EC2090; late spans 
 gelijke invoer? Mogelijk een niet-geëxporteerde "Drive activity dates"-vlag per toewijzing. Zolang
 dat open is, blijft C10 geparkeerd.
 
-**C8 (B15, vrije speling over gelagde relaties op de eigen kalender)** is gemeten maar niet
-geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
+**B15 (vrije speling over gelagde relaties op de eigen kalender; in brok 5 "C8" genoemd — C8 is sinds
+brok 4 `p6StartedTaskIgnoresPlannedStartFloor`)** is gemeten maar niet geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
 `docs/superpowers/plans/patches/2026-09-23-c8-p6FreeFloatLaggedRelationsOnOwnCalendar.patch`.
 ### Vervolgpunten X12 brok 3 (C5/C6, 2026-09-23)
 
