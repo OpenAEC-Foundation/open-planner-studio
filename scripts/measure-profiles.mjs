@@ -78,6 +78,10 @@ if (selected.has('p6')) {
     record({ profile: 'P6', part: 'X12 productfidelity', exit: '-', counts: '-', cells: '-' },
       { status: 'ROOD (geen corpus)', pass: false, failures: [] });
   } else {
+    // Rapportage-only: houdt de p6Computed-sidecar vers. Exitcode wordt geprint, niet in het oordeel
+    // meegenomen — een verouderde sidecar maakt alleen de splitsing onbetrouwbaar, niet de cel-poort.
+    const side = spawnSync(process.execPath, ['scripts/run-ts.mjs', 'scripts/xer-p6-computed.ts', '--check'], { encoding: 'utf8', env: process.env });
+    console.log(`INFO p6Computed-sidecar --check exit ${side.status ?? side.signal}: ${`${side.stdout ?? ''}${side.stderr ?? ''}`.trim().split('\n').join(' | ')}`);
     const x12 = run('p6-x12', ['check-xer-product-fidelity-x12.ts'], childEnv(process.env));
     const verdict = classifyP6({ exit: x12.exit, lines: x12.lines, strict: STRICT });
     const perAxis = (x12.lines.find((line) => line.startsWith('OK  X12 cel-baseline (regel A):')) ?? '')
@@ -85,7 +89,7 @@ if (selected.has('p6')) {
     const goal = x12.lines.find((line) => line.startsWith('XX X12 nuldoel is baseline-onafhankelijk: totaal zesassige'));
     const sixAxis = goal ? goal.replace(/^.*kreeg /, '') : (x12.exit === 0 ? '0' : '?');
     // Rapportage-only splitsing naar p6Computed (scripts/xer-p6-computed.ts); geen invloed op het oordeel.
-    const split = (x12.lines.find((line) => line.startsWith('INFO X12 split')) ?? '').replace(/^INFO X12 split \(rapportage, geen poort\): /, '');
+    const split = (x12.lines.find((line) => line.startsWith('INFO X12 split')) ?? '').replace(/^INFO X12 split \(rapportage, geen poort[^)]*\): /, '');
     record({
       profile: 'P6', part: 'X12 productfidelity (cel-poort + nuldoel)', exit: String(x12.exit),
       counts: `zesassige afwijkingen ${sixAxis}${split ? ` (${split})` : ''}; cellen ${perAxis || '?'}`,

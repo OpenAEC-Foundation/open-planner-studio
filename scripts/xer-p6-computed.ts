@@ -10,9 +10,12 @@
 //   S  er is een SCHEDOPTIONS-rij voor het project;
 //   R  `rem_late_start_date` is gevuld op ALLE open taken (status_code ≠ TK_Complete), met ≥1 open taak;
 //   D  `driving_path_flag` = Y op minstens één taak.
-// Een project is P6-doorgerekend als S, R en D gelden. Het bestand: true als ≥1 project dat is;
-// anders "unknown" als geen enkel project open taken heeft (of het bestand niet als XER te lezen
-// is); anders false. De evidence is over het hele bestand opgeteld.
+// Een project is P6-doorgerekend (`projects[proj_id].p6Computed`) als S, R en D gelden; "unknown"
+// als het project geen open taken heeft; anders false. Dit per-projectoordeel is de eenheid van de
+// X12-splitsing (check-xer-product-fidelity-x12.ts telt per (bestand, project)). Het bestandsveld
+// `p6Computed` is alleen een samenvatting: de gemeenschappelijke waarde als alle projecten dezelfde
+// hebben, "mixed" als ze verschillen, "unknown" zonder projecten of als het bestand niet als XER te
+// lezen is. De bestands-evidence is over het hele bestand opgeteld.
 //
 // LET OP — bak 2: `rem_late_start_date` en `driving_path_flag` staan in XER_TASK_FORBIDDEN
 // (plan-xer-p6-lezer §4.1, tests/planning/check-xer-field-whitelist.ts). Dit script leest ze
@@ -25,7 +28,11 @@ import { parseXerTables } from '@/services/xer/xerTables';
 
 type P6Computed = true | false | 'unknown';
 interface Evidence { schedOptions: boolean; remLateStartFilled: string; drivingPathFlagY: boolean }
-interface Entry { sha256: string; p6Computed: P6Computed; p6ComputedEvidence: Evidence; projectsP6Computed: string }
+interface ProjectEntry extends Evidence { p6Computed: P6Computed }
+interface Entry {
+  sha256: string; p6Computed: P6Computed | 'mixed'; p6ComputedEvidence: Evidence; projectsP6Computed: string;
+  projects: Record<string, ProjectEntry>;
+}
 
 const OUT = 'tests/planning/xer-corpus-p6computed.json';
 const MANIFEST = 'tests/planning/xer-corpus-manifest.json';
@@ -44,7 +51,7 @@ function listXer(root: string): string[] {
 function measure(bytes: Uint8Array): Omit<Entry, 'sha256'> {
   let tables;
   try { tables = parseXerTables(bytes); } catch {
-    return { p6Computed: 'unknown', p6ComputedEvidence: { schedOptions: false, remLateStartFilled: '0/0', drivingPathFlagY: false }, projectsP6Computed: '0/0' };
+    return { p6Computed: 'unknown', p6ComputedEvidence: { schedOptions: false, remLateStartFilled: '0/0', drivingPathFlagY: false }, projectsP6Computed: '0/0', projects: {} };
   }
   const tasks = tables.tables.get('TASK')?.rows ?? [];
   const sched = new Set((tables.tables.get('SCHEDOPTIONS')?.rows ?? []).map(r => r.cells.proj_id ?? ''));
@@ -61,14 +68,18 @@ function measure(bytes: Uint8Array): Omit<Entry, 'sha256'> {
       if ((t.cells.rem_late_start_date ?? '').trim() !== '') { p.filled++; filled++; }
     }
   }
-  let yes = 0, anyOpen = false;
-  for (const [pid, p] of projects) {
-    if (p.open > 0) anyOpen = true;
-    if (sched.has(pid) && p.open > 0 && p.filled === p.open && p.d) yes++;
+  let yes = 0;
+  const perProject: Record<string, ProjectEntry> = {};
+  for (const pid of [...projects.keys()].sort()) {
+    const p = projects.get(pid)!;
+    const value: P6Computed = p.open === 0 ? 'unknown' : sched.has(pid) && p.filled === p.open && p.d ? true : false;
+    if (value === true) yes++;
+    perProject[pid] = { p6Computed: value, schedOptions: sched.has(pid), remLateStartFilled: `${p.filled}/${p.open}`, drivingPathFlagY: p.d };
   }
-  const p6Computed: P6Computed = yes > 0 ? true : anyOpen ? false : 'unknown';
+  const values = new Set(Object.values(perProject).map(p => p.p6Computed));
+  const p6Computed: P6Computed | 'mixed' = values.size === 0 ? 'unknown' : values.size > 1 ? 'mixed' : [...values][0]!;
   return {
-    p6Computed,
+    p6Computed, projects: perProject,
     p6ComputedEvidence: { schedOptions: sched.size > 0, remLateStartFilled: `${filled}/${open}`, drivingPathFlagY: d },
     projectsP6Computed: `${yes}/${projects.size}`,
   };
@@ -89,14 +100,14 @@ for (const label of Object.keys(manifest.files).sort()) {
   files[label] = { sha256, ...measure(bytes) };
 }
 if (errors.length) { for (const e of errors) console.error(`XX ${e}`); process.exit(1); }
-const text = JSON.stringify({ version: 1, policy: POLICY, files }, null, 2) + '\n';
+const text = JSON.stringify({ version: 2, policy: POLICY, files }, null, 2) + '\n';
 if (process.argv.includes('--check')) {
   const current = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
   if (current !== text) { console.error(`XX ${OUT} komt niet overeen met de meting — draai zonder --check en commit`); process.exit(1); }
   console.log(`OK  ${OUT}: ${Object.keys(files).length} entries komen overeen met de meting`);
 } else {
   writeFileSync(OUT, text);
-  const c = { true: 0, false: 0, unknown: 0 } as Record<string, number>;
+  const c = { true: 0, false: 0, unknown: 0, mixed: 0 } as Record<string, number>;
   for (const e of Object.values(files)) c[String(e.p6Computed)]!++;
-  console.log(`geschreven ${OUT}: ${Object.keys(files).length} entries; true ${c.true}, false ${c.false}, unknown ${c.unknown}`);
+  console.log(`geschreven ${OUT}: ${Object.keys(files).length} entries; true ${c.true}, false ${c.false}, unknown ${c.unknown}, mixed ${c.mixed}`);
 }

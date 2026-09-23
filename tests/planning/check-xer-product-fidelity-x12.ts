@@ -2555,25 +2555,32 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
 }
 
 
-/** Rapportage-only (scripts/xer-p6-computed.ts): splits de zesassige afwijkingen naar
- *  `p6Computed` uit xer-corpus-p6computed.json. Raakt geen telling, poort, baseline of ratchet. */
+/** Rapportage-only (scripts/xer-p6-computed.ts): splits de zesassige afwijkingen naar het
+ *  per-PROJECT-oordeel `projects[proj_id].p6Computed` uit xer-corpus-p6computed.json — geteld per
+ *  (bestand, project), nooit per bestand (één doorgerekend project maakt een ander project in
+ *  hetzelfde bestand niet P6-doorgerekend). Ontbreekt het bestand, de sha of het project in de
+ *  sidecar, dan telt dat apart als "niet in sidecar". Raakt geen telling, poort, baseline of ratchet. */
 function printP6ComputedSplit(files: Record<string, ProductBaselineEntry>): void {
   const path = join(HERE, 'xer-corpus-p6computed.json');
-  const bySha = new Map<string, unknown>();
+  const bySha = new Map<string, Record<string, { p6Computed: unknown }>>();
   if (existsSync(path)) {
-    const side = JSON.parse(readFileSync(path, 'utf8')) as { files: Record<string, { sha256: string; p6Computed: unknown }> };
-    for (const entry of Object.values(side.files)) bySha.set(entry.sha256, entry.p6Computed);
+    const side = JSON.parse(readFileSync(path, 'utf8')) as { files: Record<string, { sha256: string; projects?: Record<string, { p6Computed: unknown }> }> };
+    for (const entry of Object.values(side.files)) bySha.set(entry.sha256, entry.projects ?? {});
   }
-  const groups = { true: { cells: 0, entries: 0 }, false: { cells: 0, entries: 0 }, unknown: { cells: 0, entries: 0 } };
+  const groups = { true: { cells: 0, projects: 0 }, false: { cells: 0, projects: 0 }, unknown: { cells: 0, projects: 0 }, missing: { cells: 0, projects: 0 } };
   for (const [sha, entry] of Object.entries(files)) {
-    const value = bySha.get(sha);
-    const group = value === true ? groups.true : value === false ? groups.false : groups.unknown;
-    group.cells += totalDeviations(entry);
-    group.entries++;
+    const side = bySha.get(sha);
+    for (const project of entry.projectMeasurements) {
+      const value = side && Object.prototype.hasOwnProperty.call(side, project.projectId) ? side[project.projectId]!.p6Computed : 'missing';
+      const group = value === 'missing' ? groups.missing : value === true ? groups.true : value === false ? groups.false : groups.unknown;
+      group.cells += XER_FIDELITY_AXES.reduce((total, axis) => total + project.counters[axis].deviations, 0);
+      group.projects++;
+    }
   }
-  console.log(`INFO X12 split (rapportage, geen poort): P6-doorgerekend: ${groups.true.cells} cellen in ${groups.true.entries} entries`
-    + ` / niet-P6-doorgerekend: ${groups.false.cells} (${groups.false.entries} entries)`
-    + ` / onbekend: ${groups.unknown.cells} (${groups.unknown.entries} entries)`);
+  console.log(`INFO X12 split (rapportage, geen poort; per project): P6-doorgerekend: ${groups.true.cells} cellen in ${groups.true.projects} projecten`
+    + ` / niet-P6-doorgerekend: ${groups.false.cells} (${groups.false.projects} projecten)`
+    + ` / onbekend: ${groups.unknown.cells} (${groups.unknown.projects} projecten)`
+    + ` / niet in sidecar: ${groups.missing.cells} (${groups.missing.projects} projecten)`);
 }
 
 const corpusRoot = process.env.OPS_XER_CORPUS;
