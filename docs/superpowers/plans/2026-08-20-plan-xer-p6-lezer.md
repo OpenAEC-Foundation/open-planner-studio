@@ -627,8 +627,13 @@ vóór C1 toevallig exact via de opvolgerkalender, en C2 is de regel die hem ver
 
 **Voorbehoud orakel (toets 2026-09-23, `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` op de
 etappebranch).** Het orakel van `rehab-2.xer` is P3-uitvoer (geen SCHEDOPTIONS, `rem_late_start_date`
-0/4.940, geen `driving_path_flag`). C1 en C3 veranderen buiten rehab-2 geen enkele cel; hun P6-waarde
-"aan" staat daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). C2 staat deels op eigen
+0/4.940, geen `driving_path_flag`). C1 en C3 veranderden buiten rehab-2 geen enkele cel; hun P6-waarde
+"aan" stond daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). **Uitkomst na het
+populatiebesluit (2026-09-23, integratie):** C1 (en C4) staan in P6 uit. C3 blijft aan: sinds C5 draagt C3
+op de P6-doorgerekende bestanden echte cellen — C5 rekent de lag tussen zijn statusdatumpunt en een
+opvolger met rekenregel C3; C3 uit kost 640 exacte cellen (Roads 503: es 153, ef 153, tf 142, ff 41,
+ls 7, lf 7; HarbourPointe 137: es 50, ef 48, tf 34, ff 3, ls 1, lf 1). rehab-2 was de eerste vindplaats, geen orakel
+meer. C2 staat deels op eigen
 benen: de HOOFDREGEL (vrije speling op de eigen kalender) is gesteund door 256 ff-cellen in drie
 P6-doorgerekende bestanden (Hotel +244, Roads +11, DCP-03 BL +1), 0 slechter; de DEELTAK "voltooide
 opvolger ⇒ ff = 0" niet — die is uitsluitend in rehab-2 gemeten (mutant M4 = tak weg: 12.973 →

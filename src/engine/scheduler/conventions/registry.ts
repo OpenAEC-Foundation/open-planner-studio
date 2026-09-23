@@ -96,7 +96,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   // staan sinds 2026-09-23 in elk ingebouwd profiel uit (besluit: alleen P6-doorgerekende orakels;
   // op die populatie 0 effect, alleen rehab-2 = P3-uitvoer droeg ze). C3 blijft in P6 aan: C5 rekent
   // de lag tussen zijn statusdatumpunt en een opvolger met rekenregel C3, en C3 uit kost 640 exacte
-  // cellen in Roads en HarbourPointe (gemeten 2026-09-23, regel A).
+  // cellen in Roads (503) en HarbourPointe (137), gemeten 2026-09-23 (regel A).
   convention('p6CompletedPredecessorAtDataDate', 'C', NONE, false, false, SINCE_X12_BROK2), // C1
   convention('p6FreeFloatOnOwnCalendar', 'C', P6_ONLY, false, false, SINCE_X12_BROK2),         // C2
   convention('p6CompletedRemainingLag', 'C', P6_ONLY, false, false, SINCE_X12_BROK2),          // C3

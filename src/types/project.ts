@@ -272,12 +272,12 @@ export interface SchedulingOptions {
    *  het deel dat na zijn werkelijke einde op de statusdatum nog niet verstreken is:
    *  `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender (`CPMSolver`).
    *
-   *  - P6: aan — oorspronkelijk gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is
-   *    (zie C1 en `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). Blijft AAN
-   *    na het populatiebesluit van 2026-09-23 (C1 en C4 gingen uit): sinds C5 draagt C3 op de
-   *    P6-doorgerekende populatie wél cellen — C5 rekent de lag tussen zijn statusdatumpunt en een
-   *    opvolger met deze regel, en C3 uit kost 640 exacte cellen (Roads es 153, ef 153, tf 142, ff 41,
-   *    ls 7, lf 7; HarbourPointe es 50, ef 48, tf 34, ff 3; gemeten 2026-09-23). Vóór C5 gold: buiten
+   *  - P6: aan — gemeten via C5 op de P6-doorgerekende bestanden `Roads_Project_TEC.xer` (503 cellen:
+   *    es 153, ef 153, tf 142, ff 41, ls 7, lf 7) en `HarbourPointe_AssistedLiving.xer` (137: es 50,
+   *    ef 48, tf 34, ff 3, ls 1, lf 1): C5 rekent de lag tussen zijn statusdatumpunt en een opvolger met deze
+   *    regel, en C3 uit maakt die 640 exacte cellen inexact (X12 428 → 1.068, gemeten 2026-09-23 op
+   *    de P6-populatie). `rehab-2.xer` was de eerste vindplaats (P3-uitvoer, geen orakel meer; zie C1 en
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). Vóór C5 gold: buiten
    *    rehab-2 verandert C3 geen enkele cel (de voltooide voorgangers met lag in Roads en
    *    HarbourPointe zijn `CP_Phys` en vallen buiten de B3-route). Geen documentatiebron voor de
    *    rekenregel; hij is afgelezen aan rehab-2-relaties (classificatie brok B03): volledig verstreken
