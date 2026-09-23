@@ -1226,7 +1226,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Serbest bolluk kendi takviminde",
-      "help": "Açık bir görevin serbest bolluğu her ilişki için ardılın değil görevin kendi takviminde hesaplanır: her ilişki türü için, öncülün takvimindeki çalışma süresi cinsinden gecikmeler dahil."
+      "help": "Başlamamış bir görevin serbest bolluğu her ilişki için ardılın değil görevin kendi takviminde hesaplanır: bitiş-başlangıç, başlangıç-başlangıç ve bitiş-bitiş için, öncülün takvimindeki çalışma süresi cinsinden gecikmeler dahil. Başlamış bir görev yalnızca gecikmesiz bitiş-başlangıç için."
     },
     "p6CompletedRemainingLag": {
       "label": "Tamamlanmış öncülün geçmiş gecikmesi sayılmaz",

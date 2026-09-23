@@ -1226,7 +1226,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Freier Puffer im eigenen Kalender",
-      "help": "Der freie Puffer eines offenen Vorgangs zählt je Beziehung im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers: für jeden Beziehungstyp, auch mit einem Zeitabstand in Arbeitszeit im Kalender des Vorgängers."
+      "help": "Der freie Puffer eines nicht begonnenen Vorgangs zählt je Beziehung im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers: bei Ende-Anfang, Anfang-Anfang und Ende-Ende, auch mit einem Zeitabstand in Arbeitszeit im Kalender des Vorgängers. Ein begonnener Vorgang nur bei Ende-Anfang ohne Zeitabstand."
     },
     "p6CompletedRemainingLag": {
       "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",

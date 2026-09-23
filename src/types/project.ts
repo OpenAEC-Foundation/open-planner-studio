@@ -269,28 +269,31 @@ export interface SchedulingOptions {
    *    `unstartedIgnoresStatusDate` (MSP aan).
    *  - OPS: uit (het gedrag van vóór deze conventie: de relatie rekent vanaf het werkelijke einde). */
   p6CompletedPredecessorAtDataDate?: boolean;
-  /** C2 — de vrije speling van een niet-voltooide taak telt per relatie in de kalender van de TAAK
-   *  zelf, niet in die van de opvolger, voor ALLE VIER relatietypes en elke lag: werktijd op de eigen
-   *  kalender van de ONGESNAPTE relatiegrens (anker ES bij SS/SF, EF bij FS/FF, plus de lag) tot de
-   *  vroege opvolgerdatum (ES bij FS/SS, EF bij FF/SF); de taak-ff is het minimum over de opvolgers
-   *  (`scheduleAnalysis`). Alleen uurmodus. Een lag ≠ 0 telt alleen als de lagkalender de voorganger
-   *  is (`lagCalendar` afwezig of `predecessor`; dan is lagkalender = eigen kalender). BUITEN C2, want
-   *  ONGEMETEN (de bestaande berekening op de opvolgerkalender blijft): ELAPSEDTIME-lags, procentlags,
-   *  een lag ≠ 0 op een andere lagkalender (`successor`/`24hour`/`projectDefault`; in het corpus hebben
-   *  de 111 taken onder `rcal_Successor` voorganger en opvolger op dezelfde kalender), en voltooide
-   *  taken. Een relatie zonder eigen vrije speling (zoals naar een VOLTOOIDE opvolger waarvan de
-   *  achterwaartse pass de grens wist) telt niet mee; C2 geeft zo'n opvolger geen aparte regel.
-   *  `sequenceFreeFloat` en de driving-markering blijven ongemoeid.
+  /** C2 — de vrije speling van een NIET-GESTARTE taak telt per relatie in de kalender van de TAAK
+   *  zelf, niet in die van de opvolger, voor FS, SS en FF en elke lag: werktijd op de eigen kalender van
+   *  de ONGESNAPTE relatiegrens (anker ES bij SS, EF bij FS/FF, plus de lag) tot de vroege opvolgerdatum
+   *  (ES bij FS/SS, EF bij FF); de taak-ff is het minimum over de opvolgers (`scheduleAnalysis`). Alleen
+   *  uurmodus. Een lag ≠ 0 telt alleen als de lagkalender de voorganger is (`lagCalendar` afwezig of
+   *  `predecessor`; dan is lagkalender = eigen kalender); lag 0 telt onder elke lagkalender. Een negatieve
+   *  lag volgt dezelfde regel (gekozen gedrag, extrapolatie; gepind in `check-conventions-p6-flags.ts`).
+   *  Een GESTARTE, niet-voltooide taak houdt het oude C2: alleen FS met lag 0 (letterlijk het predicaat van
+   *  vóór brok 9). BUITEN C2, want ONGEMETEN (de bestaande berekening op de opvolgerkalender blijft): SF,
+   *  ELAPSEDTIME-lags, procentlags, een lag ≠ 0 op een andere lagkalender (`successor`/`24hour`/
+   *  `projectDefault`; in het corpus hebben de 111 taken onder `rcal_Successor` voorganger en opvolger op
+   *  dezelfde kalender), elke lag of niet-FS-relatie uit een gestarte taak, en voltooide taken. Voor
+   *  gestarte taken gaf de formule bij de 9 populatiemissers −1800…−4200 min, die A13 op 0 klemt: dat is
+   *  gemaskeerd, niet correct, dus uitgesloten (0 cellen effect). Een relatie zonder eigen vrije speling
+   *  (zoals naar een VOLTOOIDE opvolger waarvan de achterwaartse pass de grens wist) telt niet mee; C2
+   *  geeft zo'n opvolger geen aparte regel. `sequenceFreeFloat` en de driving-markering blijven ongemoeid.
    *
-   *  Verbreding (X12 brok 9, 2026-09-23; tot dan alleen FS met lag 0): meetonderzoek
-   *  `docs/superpowers/plans/2026-09-24-x12-hotel-ff-60min.md`. Derde-partijbron (waargenomen gedrag,
-   *  geen Oracle-tekst): T. Boyle, "Relationship Free Float and Float Paths in Multi-Calendar Projects"
+   *  Verbreding (X12 brok 9, 2026-09-23; tot dan alleen FS met lag 0; fixronde na critreview: SF en
+   *  gestarte taken eruit): meetonderzoek `docs/superpowers/plans/2026-09-24-x12-hotel-ff-60min.md`.
+   *  Derde-partijbron (waargenomen gedrag, geen Oracle-tekst): T. Boyle, "Relationship Free Float and
+   *  Float Paths in Multi-Calendar Projects"
    *  (2018, https://boyleprojectconsulting.com/TomsBlog/2018/07/18/relationship-free-float-and-float-paths-in-multi-calendar-projects-p6-mfp-free-float-option/):
    *  "Relationship free float and total float use the predecessor calendar" en "RelFF = (Early Date of
    *  Relationship Successor Activity, ES for FS and SS links, EF for FF and SF links) – RelEF".
-   *  Populatietoets op P6's eigen datums: 5.641/5.650 open uurtaken met open opvolgers (alle 9 missers
-   *  lopend), 166/166 met gemengde kalenders en niet alleen FS0. Op de X12-meting (met C12): Hotel
-   *  HCSWB4Z4240, HCSWB2Z2240 en HEPSS00020 ff van 0 naar P6's 60 min.
+   *  Bewijs op P6's eigen datums: 4 discriminerende taken (oud en nieuw C2 verschillen bij precies 4 van de 5.650 open uurtaken met open opvolgers: Hotel HCSWB4Z4240 FF+lag, HCSWB2Z2240 FF+lag, HEPSS00020 SS+lag, Roads A10650 FF0 — die laatste al gedekt door C12), 4/4 goed. SS+lag en FF+lag zijn dus gemeten met n=1 elk, op één kalenderpaar; FS+lag, negatieve lag en SF zijn EXTRAPOLATIE via Boyle (geen Oracle-bron).
    *
    *  - P6: aan. Oracle P6 Help, "View activity float values"
    *    (https://docs.oracle.com/cd/F88968_01/client_help/en_US/view_activity_float_values.htm, P6

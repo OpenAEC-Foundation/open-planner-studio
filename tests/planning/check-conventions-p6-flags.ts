@@ -1619,6 +1619,58 @@ const lateOf = (input: ImportResult, id: string) => {
   const succLagCal = hotel({ t: '36\t36\t2026-01-05 08:00\t2026-01-08 17:00', s: '8\t8\t2026-01-06 08:00\t2026-01-06 16:00', rel: 'PR_SS\t8', lagCal: 'rcal_Successor' });
   eq('lagkalender = opvolger zit in de fixture', solveOptionsFor(succLagCal.project).schedulingOptions.lagCalendar, 'successor');
   eq('C2 niet bij een lag op de opvolgerkalender: ff met C2 = ff zonder C2', ffWith(succLagCal, true), ffWith(succLagCal, false));
+
+  // Fixronde brok 9. Lag 0 onder `rcal_Successor` (M10): zonder lag doet de lagkalender er niet toe, dus
+  // C2 geldt wel. T (35,5 u) eindigt do 8 jan 16:30 op K17; S (K16) begint vr 08:00. Eigen kalender:
+  // do 16:30–17:00 = 30 min; op K16 niets.
+  const lag0SuccCal = hotel({ t: '35.5\t35.5\t2026-01-05 08:00\t2026-01-08 16:30', s: '8\t8\t2026-01-09 08:00\t2026-01-09 16:00', rel: 'PR_FS\t0', lagCal: 'rcal_Successor' });
+  eq('lag 0 onder rcal_Successor: C2 geldt, ff = 30 min op de eigen kalender', [ffWith(lag0SuccCal, true), ffWith(lag0SuccCal, false)], [30 / 540, 0]);
+  // Het lagDays-pad (M8): een lag zonder `lagMinutes` telt via `lagDays × uren/dag` van de eigen kalender.
+  // SS 8/9 dag op K17 = 8 u ⇒ dezelfde grens ma 16:00 als de SS+8 u-fixture ⇒ ff 60 min.
+  const ssLagDays = withProfile(ssLag, copy => { for (const q of copy.sequences) { q.lagMinutes = undefined; q.lagDays = 8 / 9; } });
+  eq('C2 verbreed, SS-lag via lagDays (8/9 dag): ff = 60 min op de eigen kalender', ffWith(ssLagDays, true), 60 / 540);
+  // Negatieve lag: gekozen gedrag = de eigen-kalenderregel (EXTRAPOLATIE via Boyle, niet gemeten in het
+  // corpus). FS −1 u: T eindigt do 8 jan 17:00; grens do 16:00 op K17; S (K16) begint vr 08:00. Eigen
+  // kalender: do 16:00–17:00 = 60 min.
+  const negLag = hotel({ t: '36\t36\t2026-01-05 08:00\t2026-01-08 17:00', s: '8\t8\t2026-01-09 08:00\t2026-01-09 16:00', rel: 'PR_FS\t-1' });
+  eq('C2 verbreed, FS −1 u (extrapolatie): ff = do 16:00–17:00 op de eigen kalender = 60 min', ffWith(negLag, true), 60 / 540);
+  // SF valt buiten C2 (ongemeten, fixronde brok 9). SF +8 u: grens ma 16:00 op K17. S (1 u, K16) wacht op
+  // X (FS0, 9 u op K16, t/m di 09:00) en loopt di 09:00–10:00. De eigen-kalenderformule zou ma 16:00 →
+  // di 10:00 = 3 u = 1/3 dag geven; met SF buiten C2 blijft de opvolgerkalenderwaarde staan.
+  const sfLag = hotel({
+    t: '36\t36\t2026-01-05 08:00\t2026-01-08 17:00', s: '1\t1\t2026-01-06 09:00\t2026-01-06 10:00',
+    x: '9\t9\t2026-01-05 08:00\t2026-01-06 09:00', rel: 'PR_SF\t8', xrel: 'PR_FS\t0',
+  });
+  eq('SF-fixture: S loopt di 6 jan 09:00–10:00', [solveAxes(sfLag, 'S').es, solveAxes(sfLag, 'S').ef], ['2026-01-06T09:00', '2026-01-06T10:00']);
+  eq('C2 niet bij SF: ff met C2 = ff zonder C2 ≠ 1/3 dag (eigen-kalenderformule)', [ffWith(sfLag, true) === ffWith(sfLag, false), ffWith(sfLag, true) === 3 / 9], [true, false]);
+}
+
+{
+  // Gestarte taken (fixronde brok 9): de verbreding geldt alleen voor NIET-GESTARTE taken; een gestarte,
+  // niet-voltooide taak houdt het oude C2 (alleen FS met lag 0). Opbouw als de C2-grens-fixture (T ma–vr,
+  // S ma–do); T gestart ma 5 jan 08:00, 9 u gedaan, statusdatum di 6 jan 08:00, rest 27 u t/m do 17:00.
+  const started = (lagHours: number) => importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC5\tVijfdaags\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    `%R\tC4\tVierdaags\tP1\tCA_Project\t9\t36\t${calendarDataOn([2, 3, 4, 5], [['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC2-gestart\tC5\t2026-01-06 08:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tT\tP1\tC5\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t36\t27\t2026-01-05 08:00\t2026-01-08 17:00\t2026-01-05 08:00\t',
+    '%R\tS\tP1\tC4\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-12 08:00\t2026-01-12 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    `%R\tR1\tS\tT\tP1\tP1\tPR_FS\t${lagHours}`,
+    '%E',
+  ]);
+  const ffS = (input: ImportResult, on: boolean) =>
+    solveAxes(withProfile(input, copy => setConvention(copy, 'p6FreeFloatOnOwnCalendar', on)), 'T').ff;
+  eq('gestarte taak, FS0: oude C2 blijft, ff = vr 9 jan op de eigen kalender = 1 dag', [ffS(started(0), true), ffS(started(0), false)], [1, 0]);
+  eq('gestarte taak, FS+4 u: buiten de verbreding, ff met C2 = ff zonder C2', ffS(started(4), true), ffS(started(4), false));
 }
 
 if (diffs.length > 0) {

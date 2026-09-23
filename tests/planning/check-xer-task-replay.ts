@@ -89,9 +89,11 @@ if (!corpusRoot) {
   // ef-cellen meer: ef regressed 942 → 950, unchanged 4959 → 4951; overall regressed 1083 → 1091, unchanged
   // 4818 → 4810. Som regressed + unchanged per as gelijk (5901); de andere assen ongewijzigd.
   // Herpin 2026-09-23 (X12 brok 9, C2 `p6FreeFloatOnOwnCalendar` verbreed naar alle relatietypes en
-  // WORKTIME-lags): het product maakt 3 Hotel-ff-cellen exact; de B1-mutant breekt daardoor 4 ff-cellen
-  // meer: ff regressed 309 → 313, unchanged 5403 → 5399. Som regressed + unchanged per as gelijk (ff 5712);
-  // de andere assen en overall (1091 / 4810) ongewijzigd.
+  // WORKTIME-lags): het product maakt 3 Hotel-ff-cellen exact (HCSWB4Z4240, HCSWB2Z2240, HEPSS00020); de
+  // B1-mutant breekt daardoor die 3 plus een vierde, mutant-only: Hotel 2666/144046 HCSWB2Z4240 (orakel 960,
+  // product 960 vóór én na brok 9; de B1-mutant gaat van 960 naar 900). ff regressed 309 → 313, unchanged
+  // 5403 → 5399; de andere assen en overall (1091 / 4810) ongewijzigd. Criterium voor zo'n herpin is NIET
+  // "som gelijk" maar: improved blijft 0 en regressed daalt niet.
   for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

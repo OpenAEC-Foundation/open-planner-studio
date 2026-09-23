@@ -1261,7 +1261,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Marge libre dans le calendrier de la tâche",
-      "help": "La marge libre d'une tâche ouverte se compte, pour chaque liaison, dans le calendrier de la tâche elle-même et non dans celui du successeur : pour tout type de liaison, y compris avec un décalage en temps de travail sur le calendrier du prédécesseur."
+      "help": "La marge libre d'une tâche non commencée se compte, pour chaque liaison, dans le calendrier de la tâche elle-même et non dans celui du successeur : pour fin-début, début-début et fin-fin, y compris avec un décalage en temps de travail sur le calendrier du prédécesseur. Une tâche commencée seulement pour fin-début sans décalage."
     },
     "p6CompletedRemainingLag": {
       "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
