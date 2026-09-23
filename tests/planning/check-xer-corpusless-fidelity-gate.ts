@@ -78,6 +78,13 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  // HERPIN 2026-09-23d (X12 naar nul, brok 4 — conventie C6 `p6FinishFinishStartMilestoneLateFinish`,
+  // brok B08): 11.771 → 11.608 (−163, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles Roads:
+  // ls −58 (sameday 129 → 71), lf −58 (sameday −9, diff −49), tf −42, ff −5 — een FF-relatie naar de
+  // startmijlpaal OCEC12101 (`TT_Mile`, LF 2014-01-15 16:00) bindt aan de mijlpaal zelf, niet aan het
+  // begin van de mijlpaaldag (07:00). De vijf wortels (OCEC11971/11851/18821/11911/18751) staan op
+  // ls/lf/tf exact; de rest van B08 (52 cellen, stroomopwaarts) hangt aan andere wortels (ES-afwijking
+  // van OCEC11911/18821, voltooide CP_Phys-voorgangers B07). FF naar een `TT_FinMile` ongewijzigd.
   // HERPIN 2026-09-23c (X12 naar nul, brok 3 — conventie C4 `p6CompletedOutOfSequenceWindow`, brok
   // B04): 12.973 → 11.771 (−1.202, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
   // es −432, ef −432, tf −298, ff −40 — een voltooide taak (of actief met restduur 0) met een
@@ -118,16 +125,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 13_287, ef: 13_239, ls: 10_367, lf: 10_321, tf: 10_308, ff: 13_209 },
-    sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
-    diff: { es: 548, ef: 601, ls: 3_326, lf: 3_399, tf: 3_369, ff: 113 },
+    exact: { es: 13_287, ef: 13_239, ls: 10_425, lf: 10_379, tf: 10_350, ff: 13_214 },
+    sameday: { es: 96, ef: 97, ls: 71, lf: 84, tf: 0, ff: 0 },
+    diff: { es: 548, ef: 601, ls: 3_326, lf: 3_350, tf: 3_327, ff: 108 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 644, ef: 698, ls: 3_455, lf: 3_492, tf: 3_369, ff: 113 },
+    deviations: { es: 644, ef: 698, ls: 3_397, lf: 3_434, tf: 3_327, ff: 108 },
     drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: 'a95e32a8dbf5740e2ef8d8971697afcf9f70805530b2787536125536329f2c6a',
-  productPayloadGzipSha256: 'b96d134170c38deceaab3af61ced37cc223990dc42924acd2c59f85802266cfb',
-  productProjectProjectionSha256: '8960285d1b2277b9e7b89d710ae148dbb6cacb7acc72f51ee5a98011afdf6b16',
+  productPayloadSha256: '4457cb12d9821561d21e17df12c309d1b54ad8d12ebb32bf49ef2cde1833085e',
+  productPayloadGzipSha256: 'cf4770a3860db4d47cf00585922f7c2fe449594c0648e10c50c35a95f7c88d8b',
+  productProjectProjectionSha256: '99b4f34f74bb8ebf944b17296e9f6465fe052920f3f088029d581cf219e6c9de',
   roles: {
     oracle: 45,
     'engine-input': 14,

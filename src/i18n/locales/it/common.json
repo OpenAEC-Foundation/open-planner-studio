@@ -1270,6 +1270,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Un'attività completata fuori sequenza attende i suoi predecessori",
       "help": "Un'attività completata con un predecessore non ancora terminato riceve la sua finestra nulla dopo quel predecessore invece che alla data di stato (logica mantenuta)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Una relazione fine-fine verso una milestone di inizio si lega alla milestone stessa",
+      "help": "Una relazione fine-fine verso una milestone di inizio conta fino alla milestone stessa, non fino all'inizio della sua giornata: la fine tardiva del predecessore può arrivare fino alla fine tardiva della milestone."
     }
   },
   "profiles": {

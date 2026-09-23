@@ -1235,6 +1235,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Completed out-of-sequence task waits for its predecessors",
       "help": "A completed task whose predecessor is not yet finished gets its zero window after that predecessor instead of at the data date (Retained Logic)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Finish-to-finish relationship to a start milestone binds to the milestone itself",
+      "help": "A finish-to-finish relationship to a start milestone counts up to the milestone itself, not up to the start of the milestone's day: the predecessor's late finish may run up to the milestone's late finish."
     }
   },
   "profiles": {

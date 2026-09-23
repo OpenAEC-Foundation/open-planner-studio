@@ -274,10 +274,30 @@ export interface SchedulingOptions {
    *    koppeling naar een onvoltooide voorganger verschuift alleen onvoltooid werk.
    *  - OPS: uit (het venster op de statusdatum, het gedrag van vóór deze conventie). */
   p6CompletedOutOfSequenceWindow?: boolean;
+  /** C6 — een FF-relatie naar een STARTmijlpaal (nulduur, `milestoneKind: 'START'`; in P6 een
+   *  `TT_Mile`) bindt in de terugwaartse berekening aan de LATE FINISH van die mijlpaal zelf. Zonder
+   *  deze conventie behandelt de motor een startmijlpaal als dagbegin-anker: de late finish van de
+   *  FF-voorganger moet dan op de werkgrens vóór dat anker liggen (`relationMath.backwardHour`,
+   *  `snapStrictBefore` plus de lag-0-normalisatie ⇒ het begin van de mijlpaaldag), en voorwaarts
+   *  op de werkgrens strikt ná de voorgangerfinish (`forwardHour`, `snapStrictAfter`), wat de vrije
+   *  speling van de voorganger een werkdag korter maakt. Met de conventie vervallen beide sprongen:
+   *  de FF-grens is de late finish van de mijlpaal zelf, resp. de voorgangerfinish zelf. Alleen in
+   *  uur-modus aan beide kanten; een eindmijlpaal (`TT_FinMile`) blijft ongewijzigd.
+   *
+   *  - P6: aan. Gemeten: `Roads_Project_TEC.xer`, vijf voorgangers (OCEC11971, OCEC11851,
+   *    OCEC18821, OCEC11911, OCEC18751), elk met `PR_FF` lag 0 naar de `TT_Mile` OCEC12101
+   *    (ES 2014-01-15 07:00, LS = LF 2014-01-15 16:00): P6 zet hun LF op 2014-01-15 16:00, de late
+   *    finish van de mijlpaal, niet op 07:00 (classificatiebrok B08); hun vrije speling telt P6 tot
+   *    de mijlpaal zelf (OCEC11971: 32.400 min, zonder conventie 31.800). FF-relaties naar een
+   *    `TT_FinMile` (34 in het corpus) staan zonder deze regel al goed en worden niet geraakt.
+   *  - MS Project: uit. MS Project kent geen apart dagbegin-anker voor een startmijlpaal in de late
+   *    berekening van een FF-relatie; ongemeten, dus het gedrag van vóór deze conventie.
+   *  - OPS: uit (de werkgrens vóór het dagbegin van de mijlpaal, het gedrag van vóór deze conventie). */
+  p6FinishFinishStartMilestoneLateFinish?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de negentien PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de twintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -301,7 +321,8 @@ export type ConventionKey =
   | 'p6CompletedPredecessorAtDataDate'
   | 'p6FreeFloatOnOwnCalendar'
   | 'p6CompletedRemainingLag'
-  | 'p6CompletedOutOfSequenceWindow';
+  | 'p6CompletedOutOfSequenceWindow'
+  | 'p6FinishFinishStartMilestoneLateFinish';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

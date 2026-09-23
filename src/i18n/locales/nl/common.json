@@ -1235,6 +1235,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Voltooide taak buiten volgorde wacht op haar voorgangers",
       "help": "Een voltooide taak waarvan een voorganger nog niet klaar is, krijgt haar nulvenster ná die voorganger in plaats van op de statusdatum (Retained Logic)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Eind-eind-relatie naar een startmijlpaal bindt aan de mijlpaal zelf",
+      "help": "Een eind-eind-relatie naar een startmijlpaal telt tot de mijlpaal zelf, niet tot het begin van de mijlpaaldag: de late finish van de voorganger mag tot de late finish van de mijlpaal lopen."
     }
   },
   "profiles": {

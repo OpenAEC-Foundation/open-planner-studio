@@ -418,11 +418,15 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 }
 
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
-// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow` ──
+// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`; brok 4: C6
+// `p6FinishFinishStartMilestoneLateFinish` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
-const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow'] as const satisfies readonly ConventionKey[];
+const GROUP_C = [
+  'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow',
+  'p6FinishFinishStartMilestoneLateFinish',
+] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
 function calendarDataOn(workDays: readonly number[], bands: ReadonlyArray<readonly [string, string]>): string {
@@ -584,6 +588,51 @@ groupC.push({
   builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-05T17:00' },
 });
 
+// C6: band 08:00–17:00 ma–vr, geen statusdatumvoortgang. Open A (1 dag, ma 5 jan) —FF0→
+// startmijlpaal M (`TT_Mile`) —FF0→ open Z (1 dag). Een losse open X van 10 werkdagen legt het
+// projecteinde op vr 16 jan 17:00, dus Z.LF = M.LF = vr 16 jan 17:00. P6 (Roads, B08): A.LF = de
+// late finish van M zelf, vr 16 jan 17:00, dus A.LS = vr 16 jan 08:00. Zonder C6 is M een dagbegin-
+// anker: A.LF = het begin van de mijlpaaldag, vr 16 jan 08:00 (werktijd-gelijk aan do 15 jan 17:00),
+// dus A.LS = do 15 jan 08:00 — één werkdag (9 u) minder totale speling. Voorwaarts: een open Y
+// (3 dagen, ma 5 – wo 7 jan) —FS0→ M zet M op do 8 jan 08:00. P6 telt de vrije speling van A tot
+// M zelf: di 6 en wo 7 jan = 2 dagen; zonder C6 vanaf de werkgrens ná het dagbegin-anker: 1 dag.
+function c6Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile'): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC6-fixture\tC1\t2026-01-05 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float',
+    '%R\tP1\tN',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tA\tP1\tC1\tA100\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-05 08:00\t2026-01-05 17:00',
+    `%R\tM\tP1\tC1\tM100\tMijlpaal\t${milestoneType}\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-06 08:00\t2026-01-06 08:00`,
+    '%R\tZ\tP1\tC1\tZ100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-06 08:00\t2026-01-06 17:00',
+    '%R\tY\tP1\tC1\tY100\tDrijver\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-05 08:00\t2026-01-07 17:00',
+    '%R\tX\tP1\tC1\tX100\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t90\t90\t2026-01-05 08:00\t2026-01-16 17:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tM\tA\tP1\tP1\tPR_FF\t0',
+    '%R\tR2\tZ\tM\tP1\tP1\tPR_FF\t0',
+    '%R\tR3\tM\tY\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6FinishFinishStartMilestoneLateFinish',
+  label: 'C6 FF-relatie naar een startmijlpaal',
+  input: c6Fixture('TT_Mile'),
+  taskId: 'A',
+  pick: axes => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff }),
+  on: { ls: '2026-01-16T08:00', lf: '2026-01-16T17:00', tf: 9, ff: 2 },
+  off: { ls: '2026-01-15T08:00', lf: '2026-01-16T08:00', tf: 8, ff: 1 },
+});
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;
@@ -652,9 +701,22 @@ for (const fixture of groupC) {
   eq('C4 late kant fixture: X legt het projecteinde vast', solveAxes(anchored, 'X').ef, '2026-02-11T17:00');
 }
 
+// C6, randgevallen (docblok): de startmijlpaal zelf staat met en zonder C6 gelijk (ES do 8 jan door
+// Y), en een FF-relatie naar een EINDmijlpaal (`TT_FinMile`, 34× in het corpus, nu exact) verandert
+// op geen enkele as van geen enkele taak.
+{
+  const c6 = groupC.find(fixture => fixture.flag === 'p6FinishFinishStartMilestoneLateFinish')!;
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6FinishFinishStartMilestoneLateFinish', false));
+  eq('C6 fixture: Y zet de startmijlpaal op do 8 jan', solveAxes(c6.input, 'M').es, '2026-01-08T08:00');
+  eq('C6 laat de startmijlpaal zelf ongemoeid', solveAxes(c6.input, 'M'), solveAxes(off(c6.input), 'M'));
+  const finMile = c6Fixture('TT_FinMile');
+  eq('C6 fixture: de eindmijlpaal is een FINISH-mijlpaal', finMile.tasks.find(task => task.id === 'M')?.milestoneKind, 'FINISH');
+  eq('C6 raakt geen FF-relatie naar een eindmijlpaal (alle assen, alle taken)', solveAllAxes(finMile), solveAllAxes(off(finMile)));
+}
+
 if (diffs.length > 0) {
   console.error(`conventions-p6-flags RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 4 groep-C-conventies, aan/uit + bron- en basisinertheid)`);
+console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en ${GROUP_C.length} groep-C-conventies, aan/uit + bron- en basisinertheid)`);

@@ -1270,6 +1270,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Tarefa concluída fora de sequência aguarda as suas predecessoras",
       "help": "Uma tarefa concluída cuja predecessora ainda não terminou recebe a sua janela nula depois dessa predecessora, em vez de na data de estado (lógica retida)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Uma relação fim-fim para um marco de início liga-se ao próprio marco",
+      "help": "Uma relação fim-fim para um marco de início conta até ao próprio marco, e não até ao início do seu dia: o fim mais tardio da predecessora pode ir até ao fim mais tardio do marco."
     }
   },
   "profiles": {

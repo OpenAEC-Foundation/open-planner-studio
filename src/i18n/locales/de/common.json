@@ -1235,6 +1235,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Abgeschlossener Vorgang außerhalb der Reihenfolge wartet auf seine Vorgänger",
       "help": "Ein abgeschlossener Vorgang, dessen Vorgänger noch nicht fertig ist, erhält sein Nullfenster nach diesem Vorgänger statt am Statusdatum (Retained Logic)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Ende-Ende-Beziehung zu einem Startmeilenstein bindet an den Meilenstein selbst",
+      "help": "Eine Ende-Ende-Beziehung zu einem Startmeilenstein zählt bis zum Meilenstein selbst, nicht bis zum Beginn seines Tages: das späteste Ende des Vorgängers darf bis zum spätesten Ende des Meilensteins reichen."
     }
   },
   "profiles": {

@@ -1235,6 +1235,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Sıra dışı tamamlanan görev öncüllerini bekler",
       "help": "Öncülü henüz bitmemiş tamamlanmış bir görevin sıfır penceresi, durum tarihine değil o öncülden sonraya yerleştirilir (Retained Logic)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi kilometre taşının kendisine bağlanır",
+      "help": "Başlangıç kilometre taşına bitiş-bitiş ilişkisi, kilometre taşının gününün başına değil kendisine kadar sayılır: öncülün en geç bitişi kilometre taşının en geç bitişine kadar uzayabilir."
     }
   },
   "profiles": {

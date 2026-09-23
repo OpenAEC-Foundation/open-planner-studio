@@ -575,6 +575,24 @@ export class CPMSolver {
   }
 
   /**
+   * Conventie C6 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
+   * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
+   * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
+   * (en daarmee de vrije speling) de voorgangerfinish zonder sprong naar de volgende werkgrens.
+   * Alleen uur-modus aan beide kanten (gemeten); een eindmijlpaal (`milestoneKind: 'FINISH'`) valt
+   * er per definitie buiten.
+   */
+  private finishFinishAtStartMilestoneLateFinish(
+    seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
+  ): boolean {
+    return this.options.schedulingOptions?.p6FinishFinishStartMilestoneLateFinish === true
+      && seq.type === 'FINISH_FINISH'
+      && predEng.isHourMode && succEng.isHourMode
+      && succTask.isMilestone && succTask.milestoneKind === 'START'
+      && isZeroDurationMilestone(succTask);
+  }
+
+  /**
    * Conventie C3 `p6CompletedRemainingLag` (docblok + bron bij de sleutel in `types/project.ts`): aan
    * de late kant van een voltooide voorganger telt alleen het deel van een positieve WORKTIME-lag dat
    * na zijn werkelijke einde op de statusdatum nog niet verstreken is:
@@ -1810,6 +1828,7 @@ export class CPMSolver {
           const constraintDate = forwardConstraint(
             this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
+            this.finishFinishAtStartMilestoneLateFinish(seq, task, this.relationEngineFor(predTask), cal),
           );
           this.seqConstraint.set(seq.id, constraintDate);
           if (!rawMax || constraintDate > rawMax) rawMax = constraintDate;
@@ -3319,6 +3338,7 @@ export class CPMSolver {
             const constraintFinish = backwardConstraint(
               this.relDeps, delayShiftedSuccResult, effectiveSeq, zeroRemainingPredTask, succTask,
               progressCal, succCal, this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+              this.finishFinishAtStartMilestoneLateFinish(seq, succTask, progressCal, succCal),
             );
             // FS/FF: `constraintFinish` is een echte late FINISH van de voorganger — de
             // nulrestduur-conversie naar een late START loopt via `nextWorkInstant` (spiegel van
@@ -3478,6 +3498,7 @@ export class CPMSolver {
         const constraintDate = backwardConstraint(
           this.relDeps, delayShiftedSuccResult, seq, task, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+          this.finishFinishAtStartMilestoneLateFinish(seq, succTask, predCal, succCal),
         );
         if (constraintDate < lateFinish) {
           lateFinish = constraintDate;

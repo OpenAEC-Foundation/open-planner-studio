@@ -1270,6 +1270,10 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Una tarea completada fuera de secuencia espera a sus predecesoras",
       "help": "Una tarea completada cuya predecesora aún no ha terminado recibe su ventana nula después de esa predecesora en lugar de en la fecha de estado (lógica retenida)."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Una relación fin-fin hacia un hito de inicio se vincula al propio hito",
+      "help": "Una relación fin-fin hacia un hito de inicio cuenta hasta el propio hito, no hasta el comienzo de su día: el fin tardío de la predecesora puede llegar hasta el fin tardío del hito."
     }
   },
   "profiles": {
