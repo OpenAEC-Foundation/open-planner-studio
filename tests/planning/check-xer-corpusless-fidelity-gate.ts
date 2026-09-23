@@ -64,7 +64,7 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
-  // Manifestpinnen 2026-09-24 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
+  // Manifestpinnen 2026-09-23 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
   // handmatige reviewstap): de vier byte-identieke DCP-03-Baseline-kopieën (0611f9054a4b) zijn
   // generatoruitvoer van build_programmes.py → reader-only. Orakels 13 → 9, byte-uniek 10 → 9,
   // geselecteerd 9 → 8 (schema-dedup blijft 1), 5.961 → 5.901
@@ -72,9 +72,11 @@ const EXPECTED = {
   // Manifestpinnen 2026-09-23h (fix manifest-review, handmatige reviewstap): alleen de teksten
   // veranderden — `exclusionReason` per entry naar wat gemeten is, de policy als eenmalig besluit, en een
   // `note` bij ashspace. Rollen, `included` en de selectie zijn ongewijzigd (selectiedigests gelijk).
-  manifestRawSha256: '0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605',
+  // HERPIN 2026-09-23i (fix critreview DCP-03, handmatige reviewstap): alleen de policytekst (geen staande
+  // generatorregel, bevestiging gevraagd) en de datums 24 → 23; rollen, `included` en selectie ongewijzigd.
+  manifestRawSha256: 'd5bb689cb8068307ad29ee6ae46d39ba61fa162a5575ff7cd81add85b6b69b1c',
   baselineRawSha256: '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2',
-  manifestProjectionSha256: 'e1c31338076c0ca6dd1081ae42287854e0f41c814fa5fa837cb3f2f9488ac6ae',
+  manifestProjectionSha256: 'aaa6d53e1cc8c63d34fade5071dddce295a1e0a92111d71d80d0c5e912023c2a',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
   oracleByteUniqueSha256: '7b9f8f4cbeb3f4f95ff5d712e9bb3a6b94881eafcfa95ac30645ceac409ef30e',
   selectedFullSha256: 'dd2b9fac2918e2268873937421eb9230110f5ffeeffa4457e65f6a5d337f69ff',
@@ -219,8 +221,8 @@ const EXPECTED = {
     deviations: { es: 25, ef: 32, ls: 34, lf: 30, tf: 49, ff: 22 },
     drivingPath: { exact: 5_754, sameday: 0, diff: 169, missing: 0, measurable: 5_923, deviations: 169 },
   },
-  productPayloadSha256: '69451b8f2fa4a384c2a6bd92c6ff6c031af9745bbbdfc72df5f2d1a939690ffc',
-  productPayloadGzipSha256: '7838445e1bb78721f885792f5dade2e223fc044d65bd0b87066a6ca4da8ff64d',
+  productPayloadSha256: '552ec72bed3dadcd2d4a47d7fdf2b14546516c7fffeedfdb601c9e41d7afd502',
+  productPayloadGzipSha256: '1826e60577a2ab3e7a44cfd6be97f97837efc18827f41a97c7dc27b0c04d8724',
   productProjectProjectionSha256: '7811960406bc6b6a92802b1324a4cc2864c7d19473abd623cb0dfdcd17262ad2',
   roles: {
     oracle: 9,
@@ -964,7 +966,7 @@ if (singleMutant !== undefined) {
   expectRejected('M2 occurrence toevoegen', addedOccurrence, oracle, replay);
 
   const changedSha = clone(manifest);
-  changedSha.files[firstLabel]!.sha256 = `0${changedSha.files[firstLabel]!.sha256.slice(1)}`;
+  changedSha.files[firstLabel]!.sha256 = `${changedSha.files[firstLabel]!.sha256.startsWith('0') ? '1' : '0'}${changedSha.files[firstLabel]!.sha256.slice(1)}`;
   expectRejected('M3 volledige SHA wijzigen', changedSha, oracle, replay);
 
   const changedRole = clone(manifest);
@@ -1055,7 +1057,7 @@ if (singleMutant !== undefined) {
     product.files[firstProductLabel]!.projectMeasurements[0]!.taskCodeExact--;
   }), manifest, oracle);
 
-  // Herpin 2026-09-24: de manifesthash begint nu zelf met '0' (0793e3…), dus de oude mutant "eerste
+  // Herpin 2026-09-23: de manifesthash begint nu zelf met '0' (0793e3…), dus de oude mutant "eerste
   // teken → 0" was een no-op; hij flipt nu het eerste teken naar een ander hexteken.
   expectProductRejected('M24 productmanifesthash drift', withMutatedProduct(productV2, product => {
     product.manifestSha256 = `${product.manifestSha256.startsWith('0') ? '1' : '0'}${product.manifestSha256.slice(1)}`;

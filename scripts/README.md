@@ -222,7 +222,7 @@ waarden zelf in zijn foutregel. `xer-schedoptions-blast-radius.json` telt zijn f
 alleen op manifest-orakels (zie stap 5); een rolwissel die een orakel zonder SCHEDOPTIONS oplevert, maakt
 daar de struikeldraad "0 meetbaar" rood — dat vraagt een meetlat, geen herpin.
 
-Tweede toepassing (2026-09-24, DCP-03 Baseline naar `reader-only`, zelfde besluit): dezelfde route, met
+Tweede toepassing (2026-09-23, DCP-03 Baseline naar `reader-only`, bevestiging door de eigenaar gevraagd, overdracht §1d-11): dezelfde route, met
 twee aanvullingen. `OPS_XER_GATE_PINS=corpus` werkte hier (het manifest verschilde nog van de v2-pin). In
 `check-xer-corpus.ts` staat C1 `oracleOk` (het aantal orakelentries), en in
 `xer-schedoptions-blast-radius.json` beweegt `expectedFinishVariant.fidelity` mee (die telt op

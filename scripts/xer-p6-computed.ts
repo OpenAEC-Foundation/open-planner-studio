@@ -25,7 +25,9 @@
 // `generatorEvidence` (alleen aanwezig als niet leeg) is eveneens informatief: de `.py`-bestanden
 // in de map van dit bestand of van een byte-identieke kopie ervan (zelfde sha256) die zelf een
 // XER schrijven (tekst bevat `ERMHDR` én `SCHEDOPTIONS`). Zo'n script kan de drie kenmerken zelf
-// produceren — de kenmerken zijn dan noodzakelijk maar niet voldoende (manifest-policy, 24-09).
+// produceren. Dit is een heuristiek (alleen .py in dezelfde map), geen dekking; andere generators in
+// het corpus: cpp-cpm-engine/generate-corpus.js, p6flow/make_synthetic_fixture.py, MPXJ-writer — geen
+// van de huidige orakels. Geen staande uitsluitingsregel (manifest-policy, DCP-03, 2026-09-23).
 // Het veld stuurt de populatie net zo min; de uitsluiting staat als rolwissel in het manifest.
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';

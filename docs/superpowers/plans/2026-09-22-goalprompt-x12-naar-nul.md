@@ -7,7 +7,7 @@ met `GOAL_ZERO_DEVIATIONS_XER` aan. Het orakelcorpus is sinds het eigenaarsbeslu
 P6-bestanden", overdracht §1a) uitsluitend de aantoonbaar door P6 doorgerekende bestanden (`role: oracle` in
 `tests/planning/xer-corpus-manifest.json`, onderbouwd door `scripts/xer-p6-computed.ts`): 9 entries / 21
 projecten / 5.983 taken, X12 **1.274** na die populatiewijziging (was 11.529 op 34 entries / 47 projecten /
-13.982 taken; 15.056 bij de start). Sinds 2026-09-24 (tweede toepassing: DCP-03 Baseline is generatoruitvoer)
+13.982 taken; 15.056 bij de start). Sinds 2026-09-23 (tweede toepassing: DCP-03 Baseline is generatoruitvoer)
 8 entries / 20 projecten / 5.923 taken, X12 **192**.*
 
 ## Het doel
@@ -96,10 +96,10 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
   zelf genomen op 2026-09-23 ("alleen die P6-bestanden"): de 32 entries zonder aantoonbare P6-doorrekening
   (rehab-2 = P3-uitvoer, synthetische/generatorbestanden, hb-intel, stack_data_center, DCP-03 As-Built)
   gingen naar `reader-only`, via het corpusgroei-recept (`=corpus`-schrijfmodi, `scripts/README.md`).
-  Tweede toepassing van hetzelfde besluit (2026-09-24, geen nieuw besluit): de vier DCP-03-Baseline-kopieën
+  Tweede toepassing (2026-09-23; bevestiging door de eigenaar gevraagd, overdracht §1d-11): de vier DCP-03-Baseline-kopieën
   hebben de kenmerken wél, maar zijn aantoonbaar generatoruitvoer (`build_programmes.py` naast het bestand);
-  bewijs van een generator sluit uit. X12 284 → 192. Een volgende populatiewijziging die niet onder dat
-  besluit valt, vraagt weer een eigenaarsbesluit.
+  `build_programmes.py` reproduceert het bestand byte-exact — geen staande regel. X12 284 → 192. Elke volgende populatiewijziging vraagt een
+  eigenaarsbesluit.
 - Een cel of as pinnen om groen te worden.
 - Een P6-tak achter een formaat- of herkomstcheck stoppen.
 - Het OPS-profiel veranderen (inhoud is een eigenaarsbesluit ná nul).
