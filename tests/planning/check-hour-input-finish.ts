@@ -12,10 +12,11 @@
 //
 // Kalender: ma–vr 08–12 + 13–17 (8 u). Start maandag 2026-09-07.
 //
-// Mutatiebewijs (gemeten 2026-09-23): `reconcileHourInputFinish` laten returnen vóór de schrijfactie
-// ⇒ 11 rood (03, 05, 07, 08, 10, 12, 13, 17, 20, 21, 22); `seedNewHourTaskFinish` leeg ⇒ 11 rood (de
-// store-`addTask` geeft de kalender óók al aan `createDefaultTaskTime`, dus 01 blijft dan groen); de
-// `p6ExplicitTargetWindow`-uitzondering weg ⇒ 15 rood; de gestart-uitzondering weg ⇒ 14 rood.
+// Mutatiebewijs (gemeten 2026-09-24, 34 checks; eerdere kop noemde checknummers als tellingen):
+// `reconcileHourInputFinish` altijd `false` ⇒ 15 rood (03 05 07 08 10 12 13 17 20 21 22 25–28);
+// `seedNewHourTaskFinish` leeg ⇒ 2 rood (11, 32); oude volgorde (reconcile vóór `clearLevelingGaps`)
+// ⇒ 4 rood (25–28); elk van de uitzonderingen handmatig gepland / hammock / samenvatting /
+// `p6ExplicitTargetWindow` / gestart weg ⇒ 1 rood (resp. 29, 30, 31, 15, 14).
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
@@ -186,6 +187,60 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   eq('21 IFC-werkplan-einde is het coherente einde', workplan.includes("'2026-09-08T12:00'"), true);
   const reopened = readIFC(ifc).tasks.find(t => t.name === 'IFC')!;
   eq('22 heropend: ingevoerd einde onveranderd', reopened.time.scheduleFinish, '2026-09-08T12:00');
+}
+
+// 13. Nivelleergaten (`source: 'leveling'`) die dezelfde bewerking wist tellen NIET mee in het einde
+// (fixronde 2 her-check B1): de reconcile draait ná `clearLevelingGaps`, op alle vier de paden.
+{
+  const c = freshContext();
+  const Sx = c.store.getState;
+  const H12x = { ...H12 };
+  Sx().addCalendar(H12x);
+  const h12 = Sx().calendars.find(k => k.name === 'H12')!.id;
+  const withGap = (id: string) => c.store.setState((s) => {
+    const t = s.tasks.find(k => k.id === id)!;
+    t.splitGaps = [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }];
+  });
+  const t1 = Sx().addTask({ name: 'L1' });
+  withGap(t1);
+  Sx().updateTask(t1, { time: part({ durationMinutes: 360, scheduleDuration: 0.75 }) });
+  eq('25 updateTask duur 6 u met nivelleergat: gat gewist en niet meegeteld', [sf(c, t1), taskOf(c, t1).splitGaps ?? []],
+    ['2026-09-07T15:00', []]);
+  const t2 = Sx().addTask({ name: 'L2' });
+  withGap(t2);
+  Sx().setTaskCalendar(t2, h12);
+  eq('26 setTaskCalendar met nivelleergat: 5 u op 07–19 vanaf de dagstart 07:00', sf(c, t2), '2026-09-07T12:00');
+  const tx = createMcpTransactions(c);
+  const t3 = Sx().addTask({ name: 'L3' });
+  withGap(t3);
+  tx.run(() => { tx.draft.updateTaskFields(t3, { time: { ...taskOf(c, t3).time, durationMinutes: 360, scheduleDuration: 0.75 } }); });
+  eq('27 MCP updateTaskFields met nivelleergat', sf(c, t3), '2026-09-07T15:00');
+  const t4 = Sx().addTask({ name: 'L4' });
+  withGap(t4);
+  tx.run(() => { tx.draft.patchTaskFields(t4, {}, { durationMinutes: 360, scheduleDuration: 0.75 }); });
+  eq('28 MCP patchTaskFields met nivelleergat', sf(c, t4), '2026-09-07T15:00');
+}
+
+// 14. Overige uitzonderingen: handmatig gepland, hammock, samenvatting — het einde blijft staan.
+{
+  const c = freshContext();
+  const Sy = c.store.getState;
+  const flagged = (name: string, set: (t: Task) => void) => {
+    const id = Sy().addTask({ name });
+    c.store.setState((s) => { set(s.tasks.find(k => k.id === id)!); });
+    const before = sf(c, id);
+    Sy().updateTask(id, { time: part({ durationMinutes: 900, scheduleDuration: 1.875 }) });
+    return [before, sf(c, id)];
+  };
+  const [m0, m1] = flagged('Handmatig', (t) => { t.manuallyScheduled = true; });
+  eq('29 handmatig gepland: het einde blijft staan', m1, m0);
+  const [h0, h1] = flagged('Hammock', (t) => { t.isHammock = true; });
+  eq('30 hammock: het einde blijft staan', h1, h0);
+  const [s0, s1] = flagged('Samenvatting', (t) => { t.isSummary = true; });
+  eq('31 samenvatting: het einde blijft staan', s1, s0);
+  // Seed in de store-`addTask` (niet alleen MCP): een meegegeven uurduur zonder einde.
+  const seeded = Sy().addTask({ name: 'Seed', time: part({ durationUnit: 'hours', durationMinutes: 180, scheduleDuration: 0.375 }) });
+  eq('32 store-addTask met 3 u zonder einde: einde = start + 3 werkuren', sf(c, seeded), '2026-09-07T11:00');
 }
 
 // 12. De afleiding zelf: ELAPSEDTIME telt klokminuten, duur 0 geeft de start.

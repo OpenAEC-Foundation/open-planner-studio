@@ -372,9 +372,6 @@ function createMcpDraft(
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
       // Contour-engine (2026-09) — tweeling van taskSlice.ts's `updateTask`: herschaal de contour.
       if (timeUpdateTouchesTimephasedWindow(time)) rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
-      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee.
-      reconcileHourInputFinish(s.tasks[idx], finishBasis,
-        resolveCalendar(s.tasks[idx].calendarId, s.calendars, s.calendar));
       reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
@@ -395,6 +392,10 @@ function createMcpDraft(
       // EIGEN, BREDERE poort sinds de fixronde op etappe 3 (bevinding B7) — gedocumenteerde tweeling
       // van taskSlice.ts's `updateTask`; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
       if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
+      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee,
+      // bewust NA `clearLevelingGaps` (anders telt het einde gewiste nivelleergaten mee).
+      reconcileHourInputFinish(s.tasks[idx], finishBasis,
+        resolveCalendar(s.tasks[idx].calendarId, s.calendars, s.calendar));
       s.isDirty = true;
     });
   },
@@ -435,8 +436,6 @@ function createMcpDraft(
       }
       // Contour-engine (2026-09) — zelfde herschaling als `updateTaskFields` hierboven.
       if (timeTouched) rescaleTaskContours(task, oldWorkMinutes, contourHpd);
-      // B1-vervolg — zie `updateTaskFields` hierboven.
-      reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       reconcileP6SuspendResume(task);
       // Z14b (eigenaarsprincipe 2026-08-18) — zelfde triggerset als `updateTaskFields`, zie
       // `taskDefaults.ts`. `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een
@@ -454,6 +453,8 @@ function createMcpDraft(
       // geen voortgangsvelden, dus voor de `time`-kant volstaat `timeTouched`; de top-level triggers
       // (`calendarId`, `constraint`, `constraint2`) lopen wél via de gedeelde poort (B7).
       if (taskUpdateInvalidatesLevelingGaps(top) || timeTouched) clearLevelingGaps(task);
+      // B1-vervolg — zie `updateTaskFields` hierboven (ná `clearLevelingGaps`).
+      reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
       s.isDirty = true;
     });
   },

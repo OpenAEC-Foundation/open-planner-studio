@@ -67,8 +67,8 @@ export function createDefaultTaskTime(
 // ene berekening werd zo invoer voor de volgende. Tot B1 hield juist die terugschrijving het einde van
 // een urentaak actueel (d67b26a7, juli: "scheduleFinish liep stale na een duur-wijziging"). Zonder haar
 // moet de INVOERKANT het einde coherent houden: bij aanmaken en bij elke duur-, start-, eenheids-,
-// duurtype- of kalenderwijziging leidt de bewerking het einde af uit start + duur op de echte
-// taakkalender. Nooit vanuit de solve, en alleen voor een urentaak — een dagtaak blijft byte-identiek
+// duurtype- of kalenderwijziging leidt de bewerking het einde af uit start + duur op de kalender van
+// de taak zelf. Nooit vanuit de solve, en alleen voor een urentaak — een dagtaak blijft byte-identiek
 // (daar volgde het einde ook vóór B1 de solve niet).
 //
 // Wat NIET meebeweegt (zie `hourInputFinishFollowsEdits`): een gestarte of voltooide taak (het geplande
@@ -77,6 +77,13 @@ export function createDefaultTaskTime(
 // geplande taak (daar IS `scheduleFinish` het einde), een hamock (afgeleide span) en een samenvattende
 // taak. Een lezer loopt hier nooit doorheen: het einde uit het bestand blijft dus staan tot de gebruiker
 // de taak bewerkt.
+//
+// Wat het einde bewust NIET herleidt (orkestratorbesluit fixronde 2: niet herleiden, wél documenteren;
+// het einde volgt bij de volgende invoerbewerking van de taak): wijzigingen aan de project- of een
+// gedeelde kalender of haar uitzonderingen (`setCalendar`, `updateCalendar`, `setProjectCalendar`),
+// splits zonder duurwijziging, de uitvoer van de nivelleerder, `moveProject`, en de resourcekalender
+// van een `.mpp`-taak (de afleiding rekent op de taakkalender). De reconcile draait ná
+// `clearLevelingGaps`, zodat nivelleergaten die dezelfde bewerking wist niet meetellen.
 
 /** De invoervelden waaruit het einde van een urentaak volgt. */
 type HourInputFinishTime = Pick<TaskTime, 'scheduleStart' | 'durationType'> & { durationMinutes?: number };
@@ -138,7 +145,8 @@ export function hourInputFinishBasis(task: Task): HourInputFinishBasis {
  * Houdt het ingevoerde einde van `task` na een invoerbewerking coherent (muteert in-place,
  * Immer-draft-stijl). Doet alleen iets als (a) de taak meebeweegt (`hourInputFinishFollowsEdits`),
  * (b) de bewerking de invoer echt veranderde (`before` ≠ nu), en (c) de bewerking het einde zelf NIET
- * zette — een expliciet ingevoerd einde (grid-kolom "Gepland einde", uursleep, extensie) wint.
+ * wijzigde (detectie `!==` t.o.v. vóór; een einde dat gelijk aan het oude wordt meegegeven telt dus
+ * niet als gezet) — een in dezelfde bewerking gewijzigd einde (grid-kolom "Gepland einde", uursleep, extensie) wint.
  * `calendar` is de kalender waar de taak NA de bewerking in rekent (projectkalender als `calendarId`
  * leeg is). Geeft `true` als het einde veranderde.
  */
