@@ -142,7 +142,10 @@ for (const [index, cells] of table.entries()) {
 console.log('\nHet MS Project-orakel meet alleen start en einde (twee assen). Het P6-orakel meet zes assen plus '
   + 'drivingPath als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal).');
 if (!FULL) console.log('De volledige corpusloze suite is niet gedraaid (alleen met --full; hij draait al in `npm run verify`).');
-if (rows.some((row) => row.status.startsWith('VERBETERD'))) {
+if (rows.some((row) => row.status.startsWith('VERBETERD (grootte)'))) {
+  console.log('VERBETERD (grootte) is exit 0, maar commit alleen mét herpin van de cellen: OPS_XER_CELLS_WRITE=1 '
+    + '(v2 en de gate-pins tellen emmers en veranderen niet), daarna de vangrails tot groen — recept in scripts/README.md.');
+} else if (rows.some((row) => row.status.startsWith('VERBETERD'))) {
   console.log('VERBETERD is exit 0, maar commit alleen mét herpin, in deze volgorde en in één commit: '
     + '(1) OPS_XER_V2_WRITE=1, (2) OPS_XER_CELLS_WRITE=1, (3) OPS_XER_GATE_PINS=write op '
     + 'check-xer-corpusless-fidelity-gate.ts plus de HERPIN-toelichting in EXPECTED, (4) de vangrails '

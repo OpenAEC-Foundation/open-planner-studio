@@ -15,11 +15,20 @@ reden".
 ## Regel A — de landingsregel (per cel, elk profiel)
 
 Een wijziging aan de gedeelde motor (`src/engine/scheduler/**`) landt alleen als **geen enkele cel die
-exact was inexact wordt, en geen enkele bucket verslechtert, in geen enkel profiel met een orakel**:
+exact was inexact wordt, geen enkele bucket verslechtert, en geen enkele cel binnen dezelfde bucket
+`sameday`/`diff` verder van het orakel af komt te liggen, in geen enkel profiel met een orakel**:
+
+- **Grootte-clausule** (eigenaarsbesluit 23-09, "2. Invoeren"): het cellenbestand (versie 2) pint per
+  inexacte cel ook de absolute afwijking `|ours − truth|` in minuten (datum-assen wandklok, tf/ff
+  floatminuten; `missing` en `drivingPath` zonder grootte). Groter binnen dezelfde bucket is rood
+  (`groter=N` in de cel-deltaregel), kleiner telt als verbeterd-grootte (`kleiner=M`) en wordt herpind
+  met alleen `OPS_XER_CELLS_WRITE=1`. Een bucketverbetering (diff → sameday) is altijd een verbetering,
+  ook als de minuten daarbij groeien.
 
 - P6-profiel: `npm run measure:profiles` (X12 mét corpus + cel-ratchet, `xer-product-fidelity-cells.json`);
 - MS Project-profiel: `check-mpp-fidelity.ts` — `GOAL_ZERO_DEVIATIONS` groen, 216 pins ongewijzigd
-  (0 verbeterd / 0 verslechterd; het orakel meet alleen start/einde);
+  (0 verbeterd / 0 verslechterd; het orakel meet alleen start/einde, en de baseline staat op nul, dus
+  de grootte-clausule is daar al gedekt);
 - OPS-profiel: de corpusloze planningssuite byte-identiek.
 
 "Netto beter" bestaat niet. 1.200 cellen goed en 300 slecht = rood; splits de wijziging tot elk deel

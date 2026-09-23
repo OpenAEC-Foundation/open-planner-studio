@@ -32,7 +32,7 @@ import {
   type ProductEntryV2,
 } from './xerProductBaselineV2';
 import {
-  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellOracleRedLines, cellTotals, cellWriteModeProblem,
+  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellMagnitude, cellOracleRedLines, cellTotals, cellWriteModeProblem,
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
   type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
@@ -516,10 +516,14 @@ async function productBaseline(
     if (cellSink) {
       // `detail` bevat precies één record per (taak, as) met deviations > 0, met de emmer uit
       // dezelfde vergelijking als de tellers; `check-fidelity-cells-gate.ts` bewijst corpusloos dat
-      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen.
-      cellSink.set(fileSha256, result.detail.map(item => ({
-        axis: item.axis, id: `${item.projectId}/${item.taskId}`, bucket: item.bucket as MeasuredCell['bucket'],
-      })));
+      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen. De grootte
+      // (`|ours − truth|` in minuten, versie 2) komt uit dezelfde twee waarden; is hij vereist maar
+      // niet te bepalen, dan wordt het NaN en weigert de bouwer de meting met een nette foutregel.
+      cellSink.set(fileSha256, result.detail.map(item => {
+        const bucket = item.bucket as MeasuredCell['bucket'];
+        const minutes = cellMagnitude(item.axis, bucket, item.truth, item.ours);
+        return { axis: item.axis, id: `${item.projectId}/${item.taskId}`, bucket, minutes: minutes === undefined ? NaN : minutes };
+      }));
     }
     files[fileSha256] = {
       sha256: fileSha256, schemaFingerprint: targetEntry.schemaFingerprint ?? '',
@@ -2379,7 +2383,8 @@ async function productBaseline(
 
 /**
  * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, waarvan
- * de emmer verslechtert, of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
+ * de emmer verslechtert, die binnen dezelfde emmer sameday/diff GROTER afwijkt (grootte-ratchet,
+ * versie 2), of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
  * sameday < diff < missing; elke stap naar rechts is verslechteren. Zeven poortassen: de zes
  * X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige
  * nuldoel-getal). Verbeteringen zijn groen en worden als "te herpinnen" gemeld.
@@ -2439,16 +2444,25 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   }
   const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
   checks++;
-  if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return undefined; }
+  // Versie 1 (alleen emmers): in de poort rood met verwijzing naar het recept; alleen de bewuste
+  // herpin `OPS_XER_CELLS_WRITE=1` gebruikt hem nog, als emmer-ratchet zonder grootte, en schrijft
+  // daarna versie 2. Geen stille migratie.
+  const legacyRepin = parsed.legacyV1 === true && process.env.OPS_XER_CELLS_WRITE === '1';
+  if (parsed.legacyV1 && legacyRepin) console.log(`.   X12 ${CELL_BASELINE_FILE} is versie 1: emmer-ratchet zonder grootte, herpin schrijft versie 2`);
+  if (!parsed.baseline || (parsed.problems.length > 0 && !legacyRepin)) {
+    diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`);
+    return undefined;
+  }
   const delta = compareCells(parsed.baseline, built.baseline, measurable);
   console.log(cellDeltaLine('p6', delta, built.baseline));
   const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline)];
   for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
   if (lines.length === 0) {
     const totals = cellTotals(built.baseline);
-    console.log(`OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over ${Object.keys(built.baseline.files).length} bestanden; `
+    console.log(`OK  X12 cel-baseline (regel A): geen nieuwe, verslechterde of grotere cel over ${Object.keys(built.baseline.files).length} bestanden; `
       + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
-      + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : ''));
+      + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : '')
+      + (delta.smallerCells.length > 0 ? `; te herpinnen: ${delta.smallerCells.length} cellen kleiner` : ''));
   }
   return { measuredCells: built.baseline, pinned: parsed.baseline, measurable };
 }
@@ -2527,7 +2541,8 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
       else {
         plans.push(() => {
           atomicWrite(join(HERE, CELL_BASELINE_FILE), serializeCellBaseline(cells.measuredCells));
-          console.log(`OK  X12 cel-baseline herpind (${mode}): ${plan.delta.improvedCells.length} cellen beter, `
+          console.log(`OK  X12 cel-baseline herpind (${mode}, versie 2): ${plan.delta.improvedCells.length} cellen beter, `
+            + `${plan.delta.smallerCells.length} cellen kleiner, `
             + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
         });
       }
