@@ -58,6 +58,10 @@ afwijkingen hebben met XER".)
   worden. Doel: compensatie-effecten (761 cellen bij brok 2, vijf lopende Roads-taken bij brok 4)
   zichtbaar maken. Vraag 3 is hiermee beantwoord; alleen vraag 4 (projecteinde/Oracle) blijft open.
 
+- **24-09, vraag 11 (DCP-03 Baseline uit het orakel), letterlijk: "bevestigen, lijkt me logisch"** — de
+  uitsluiting van de vier DCP-03-Baseline-kopieën (generatoruitvoer van `build_programmes.py`, byte-exact
+  gereproduceerd) is hiermee een eigenaarsbesluit. De manifest-policy mag naar dit besluit verwijzen.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -209,7 +213,7 @@ afwijkingen hebben met XER".)
     P6-gedrag te onderbouwen — drie kleine P6-testruns zouden het beslissen; jouw keus: laten staan, of
     die runs aanleveren). Hotel:
     3 ff-cellen van 60 min zonder formule; ATWTPR000 (3) hoort bij C10 ALAP.
-11. **Bevestiging gevraagd: DCP-03 Baseline uit het orakel.** Ik heb dat op eigen gezag gedaan onder het
+11. *(beantwoord 24-09: "bevestigen, lijkt me logisch", zie §1a)* **Bevestiging gevraagd: DCP-03 Baseline uit het orakel.** Ik heb dat op eigen gezag gedaan onder het
     besluit van 23-09 ("alleen die P6-bestanden"), maar jouw lijst van toen noemde DCP-03 Baseline nog als
     P6-doorgerekend — de critreview wijst er terecht op dat een rolwissel een eigenaarsbesluit is. Bewijs:
     het script `build_programmes.py` (naast het bestand in het corpus) reproduceert het bestand **byte-exact**
