@@ -57,74 +57,74 @@
         {
           "branch": "house",
           "axis": "es",
-          "deviations": 4557,
-          "measurable": 7637
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "house",
           "axis": "ef",
-          "deviations": 4391,
-          "measurable": 7649
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "house",
           "axis": "ls",
-          "deviations": 5280,
-          "measurable": 7519
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "house",
           "axis": "lf",
-          "deviations": 5317,
-          "measurable": 7510
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "house",
           "axis": "tf",
-          "deviations": 6233,
-          "measurable": 7602
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "house",
           "axis": "ff",
-          "deviations": 2314,
-          "measurable": 7221
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "xerDefaults",
           "axis": "es",
-          "deviations": 452,
-          "measurable": 7637
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "xerDefaults",
           "axis": "ef",
-          "deviations": 482,
-          "measurable": 7649
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "xerDefaults",
           "axis": "ls",
-          "deviations": 3231,
-          "measurable": 7519
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "xerDefaults",
           "axis": "lf",
-          "deviations": 3229,
-          "measurable": 7510
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "xerDefaults",
           "axis": "tf",
-          "deviations": 3196,
-          "measurable": 7602
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "xerDefaults",
           "axis": "ff",
-          "deviations": 47,
-          "measurable": 7221
+          "deviations": 0,
+          "measurable": 0
         }
       ]
     },
@@ -138,169 +138,169 @@
           "branch": "retainedLogic",
           "variant": "chosen",
           "axis": "es",
-          "deviations": 4557,
-          "measurable": 7637
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "chosen",
           "axis": "ef",
-          "deviations": 4391,
-          "measurable": 7649
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "chosen",
           "axis": "ls",
-          "deviations": 5280,
-          "measurable": 7519
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "chosen",
           "axis": "lf",
-          "deviations": 5317,
-          "measurable": 7510
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "chosen",
           "axis": "tf",
-          "deviations": 6233,
-          "measurable": 7602
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "chosen",
           "axis": "ff",
-          "deviations": 2314,
-          "measurable": 7221
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "counterfactual",
           "axis": "es",
-          "deviations": 6359,
-          "measurable": 7637
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "counterfactual",
           "axis": "ef",
-          "deviations": 6251,
-          "measurable": 7649
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "counterfactual",
           "axis": "ls",
-          "deviations": 7470,
-          "measurable": 7519
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "counterfactual",
           "axis": "lf",
-          "deviations": 7440,
-          "measurable": 7510
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "counterfactual",
           "axis": "tf",
-          "deviations": 7410,
-          "measurable": 7602
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "retainedLogic",
           "variant": "counterfactual",
           "axis": "ff",
-          "deviations": 2513,
-          "measurable": 7221
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "chosen",
           "axis": "es",
-          "deviations": 4557,
-          "measurable": 7637
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "chosen",
           "axis": "ef",
-          "deviations": 4391,
-          "measurable": 7649
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "chosen",
           "axis": "ls",
-          "deviations": 5248,
-          "measurable": 7519
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "chosen",
           "axis": "lf",
-          "deviations": 5303,
-          "measurable": 7510
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "chosen",
           "axis": "tf",
-          "deviations": 5702,
-          "measurable": 7602
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "chosen",
           "axis": "ff",
-          "deviations": 675,
-          "measurable": 7221
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "counterfactual",
           "axis": "es",
-          "deviations": 4557,
-          "measurable": 7637
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "counterfactual",
           "axis": "ef",
-          "deviations": 4391,
-          "measurable": 7649
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "counterfactual",
           "axis": "ls",
-          "deviations": 5280,
-          "measurable": 7519
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "counterfactual",
           "axis": "lf",
-          "deviations": 5317,
-          "measurable": 7510
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "counterfactual",
           "axis": "tf",
-          "deviations": 6233,
-          "measurable": 7602
+          "deviations": 0,
+          "measurable": 0
         },
         {
           "branch": "preserveActualDates",
           "variant": "counterfactual",
           "axis": "ff",
-          "deviations": 2314,
-          "measurable": 7221
+          "deviations": 0,
+          "measurable": 0
         }
       ]
     }
@@ -1110,12 +1110,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 44,
       "xerDefaultsMovement": [
-        4001,
-        3894,
+        3228,
+        3066,
         3325,
         3433,
-        4675,
-        2268,
+        3938,
+        2217,
         70
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -4619,54 +4619,54 @@
     "fidelity": {
       "chosen": {
         "es": {
-          "deviations": 7120,
-          "measurable": 18524
+          "deviations": 2559,
+          "measurable": 10358
         },
         "ef": {
-          "deviations": 7002,
-          "measurable": 18536
+          "deviations": 2534,
+          "measurable": 10358
         },
         "ls": {
-          "deviations": 6176,
-          "measurable": 18406
+          "deviations": 655,
+          "measurable": 10358
         },
         "lf": {
-          "deviations": 6447,
-          "measurable": 18397
+          "deviations": 846,
+          "measurable": 10358
         },
         "tf": {
-          "deviations": 9393,
-          "measurable": 18296
+          "deviations": 2932,
+          "measurable": 10169
         },
         "ff": {
-          "deviations": 3521,
-          "measurable": 17915
+          "deviations": 1139,
+          "measurable": 10169
         }
       },
       "counterfactual": {
         "es": {
-          "deviations": 7120,
-          "measurable": 18524
+          "deviations": 2559,
+          "measurable": 10358
         },
         "ef": {
-          "deviations": 7002,
-          "measurable": 18536
+          "deviations": 2534,
+          "measurable": 10358
         },
         "ls": {
-          "deviations": 6176,
-          "measurable": 18406
+          "deviations": 655,
+          "measurable": 10358
         },
         "lf": {
-          "deviations": 6447,
-          "measurable": 18397
+          "deviations": 846,
+          "measurable": 10358
         },
         "tf": {
-          "deviations": 9393,
-          "measurable": 18296
+          "deviations": 2932,
+          "measurable": 10169
         },
         "ff": {
-          "deviations": 3521,
-          "measurable": 17915
+          "deviations": 1139,
+          "measurable": 10169
         }
       }
     }
@@ -4674,486 +4674,486 @@
   "fidelity": {
     "house": {
       "es": {
-        "deviations": 4557,
-        "measurable": 7637
+        "deviations": 0,
+        "measurable": 0
       },
       "ef": {
-        "deviations": 4391,
-        "measurable": 7649
+        "deviations": 0,
+        "measurable": 0
       },
       "ls": {
-        "deviations": 5280,
-        "measurable": 7519
+        "deviations": 0,
+        "measurable": 0
       },
       "lf": {
-        "deviations": 5317,
-        "measurable": 7510
+        "deviations": 0,
+        "measurable": 0
       },
       "tf": {
-        "deviations": 6233,
-        "measurable": 7602
+        "deviations": 0,
+        "measurable": 0
       },
       "ff": {
-        "deviations": 2314,
-        "measurable": 7221
+        "deviations": 0,
+        "measurable": 0
       }
     },
     "xerDefaults": {
       "es": {
-        "deviations": 452,
-        "measurable": 7637
+        "deviations": 0,
+        "measurable": 0
       },
       "ef": {
-        "deviations": 482,
-        "measurable": 7649
+        "deviations": 0,
+        "measurable": 0
       },
       "ls": {
-        "deviations": 3231,
-        "measurable": 7519
+        "deviations": 0,
+        "measurable": 0
       },
       "lf": {
-        "deviations": 3229,
-        "measurable": 7510
+        "deviations": 0,
+        "measurable": 0
       },
       "tf": {
-        "deviations": 3196,
-        "measurable": 7602
+        "deviations": 0,
+        "measurable": 0
       },
       "ff": {
-        "deviations": 47,
-        "measurable": 7221
+        "deviations": 0,
+        "measurable": 0
       }
     },
     "defaults": {
       "totalFloatFinish": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6232,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "retainedLogic": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 6359,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 6251,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 7470,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 7440,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 7410,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2513,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "openEndedNotCritical": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6217,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2316,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "predecessorLagCalendar": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2315,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "expectedFinishDates": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "preserveActualDates": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5248,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5303,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 5702,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 675,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "clampNegativeFreeFloat": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 1725,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       },
       "projectCriticalDefinition": {
         "chosen": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         },
         "counterfactual": {
           "es": {
-            "deviations": 4557,
-            "measurable": 7637
+            "deviations": 0,
+            "measurable": 0
           },
           "ef": {
-            "deviations": 4391,
-            "measurable": 7649
+            "deviations": 0,
+            "measurable": 0
           },
           "ls": {
-            "deviations": 5280,
-            "measurable": 7519
+            "deviations": 0,
+            "measurable": 0
           },
           "lf": {
-            "deviations": 5317,
-            "measurable": 7510
+            "deviations": 0,
+            "measurable": 0
           },
           "tf": {
-            "deviations": 6233,
-            "measurable": 7602
+            "deviations": 0,
+            "measurable": 0
           },
           "ff": {
-            "deviations": 2314,
-            "measurable": 7221
+            "deviations": 0,
+            "measurable": 0
           }
         }
       }

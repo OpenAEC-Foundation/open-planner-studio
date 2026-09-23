@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
@@ -12,6 +12,7 @@ import { XerImportError } from '@/services/xer/xerTables';
 import type { ConventionKey, LegacySchedulingOptions, ProgressMode, SchedulingOptions } from '@/types/project';
 import {
   measureXerFidelity,
+  type XerCorpusManifest,
   type XerSolvedProject,
   type XerSolvedTask,
 } from './xerFidelity';
@@ -341,6 +342,24 @@ function hash(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+/**
+ * Is dit corpusbestand een manifest-orakel (`role: oracle`, `included: true`)? Sinds 2026-09-23
+ * (eigenaarsbesluit "alleen die P6-bestanden" + critreview manifest-etappe, optie (b)) tellen de
+ * FIDELITY-afwijkingen van deze check alleen nog op manifest-orakels. De populatie zelf (welke
+ * bestanden hebben een orakelas, welke hebben geen SCHEDOPTIONS-rij, worden de XER-standaardwaarden
+ * daar toegepast en bedraad) blijft corpusbreed: dat is lezergedrag, geen P6-orakel. Een label buiten
+ * het manifest of een afwijkende bytehash is een fout, geen stille uitsluiting.
+ */
+let manifestCache: XerCorpusManifest | undefined;
+function manifestOracle(root: string, path: string, fullHash: string): boolean {
+  manifestCache ??= JSON.parse(readFileSync(join(here, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
+  const label = relative(root, path).split('\\').join('/');
+  const entry = manifestCache.files[label];
+  if (!entry) throw new Error(`${label}: corpusbestand ontbreekt in xer-corpus-manifest.json`);
+  if (entry.sha256 !== fullHash) throw new Error(`${label}: SHA-256 wijkt af van het manifest`);
+  return entry.included === true;
+}
+
 function hasOracleAxis(truth: XerGroundTruth): boolean {
   return truth.tasks.some(task => XER_FIDELITY_AXES.some(axis => task.axes[axis] !== null));
 }
@@ -649,6 +668,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     const occurrence = (expectedOccurrences.get(file.fullHash) ?? 0) + 1;
     expectedOccurrences.set(file.fullHash, occurrence);
     const id = `${file.fullHash.slice(0, 16)}-${occurrence}`;
+    const fileIsOracle = manifestOracle(root, file.path, file.fullHash);
     let importedProjects: ImportResult[];
     try {
       const opened = readXER(file.bytes);
@@ -691,7 +711,8 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     ] as const) {
       const measured = measureXerFidelity(openedTruth, solved);
       if (measured.errors.length > 0) throw new Error(`${id}: expected-finish ${variant}-uitlijning mislukt`);
-      addCounters(expectedFidelity[variant], measured.counters);
+      // Fidelity alleen op manifest-orakels (zie `manifestOracle`); de uitlijning blijft corpusbreed.
+      if (fileIsOracle) addCounters(expectedFidelity[variant], measured.counters);
     }
     if (sourceTasks > 0 || details.length > 0) {
       expectedFiles.push({
@@ -773,6 +794,11 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     const occurrence = (occurrences.get(file.fullHash) ?? 0) + 1;
     occurrences.set(file.fullHash, occurrence);
     const id = `${file.fullHash.slice(0, 16)}-${occurrence}`;
+    // Fidelity alleen op manifest-orakels. Een bestand zonder SCHEDOPTIONS-rij is per definitie niet
+    // aantoonbaar door P6 doorgerekend (SCHEDOPTIONS is een van de drie kenmerken), dus met de huidige
+    // populatie telt hier niets mee: 0 meetbaar, verwacht en gepind. Detectie, bedrading en de
+    // bewegingsvectoren blijven corpusbreed — die zijn karakterisering (herpinbaar), geen ratchet.
+    const fileIsOracle = manifestOracle(root, file.path, file.fullHash);
     let oracleNegativeFloatTasks = file.truth.tasks.filter(taskHasNegativeFloat).length;
     let importedProjects: ImportResult[];
     try {
@@ -833,7 +859,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     const house = importedProjects.map(imported => projectResult(imported, {}));
     const houseMeasurement = measureXerFidelity(openedTruth, house);
     if (houseMeasurement.errors.length > 0) throw new Error(`${id}: fidelity-uitlijning mislukt`);
-    addCounters(fidelity.house, houseMeasurement.counters);
+    if (fileIsOracle) addCounters(fidelity.house, houseMeasurement.counters);
 
     const xerDefaults = importedProjects.map((imported, index) => projectResult(imported, {
       progressMode: xerDefaultsVariants[index].progressMode,
@@ -843,7 +869,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     if (xerDefaultsFidelity.errors.length > 0) {
       throw new Error(`${id}: gecombineerde-XER-defaultuitlijning mislukt`);
     }
-    addCounters(fidelity.xerDefaults, xerDefaultsFidelity.counters);
+    if (fileIsOracle) addCounters(fidelity.xerDefaults, xerDefaultsFidelity.counters);
     if (report === 'details' && id === '2a7732b5b99de2a5-1') {
       console.log(`XER-DETAILS ${JSON.stringify(movementDetails(house, xerDefaults))}`);
     }
@@ -878,7 +904,7 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       ] as const) {
         const measured = measureXerFidelity(openedTruth, solved);
         if (measured.errors.length > 0) throw new Error(`${id}: ${variant}-uitlijning mislukt`);
-        addCounters(fidelity.defaults[key][variant], measured.counters);
+        if (fileIsOracle) addCounters(fidelity.defaults[key][variant], measured.counters);
       }
     }
     files.push({
@@ -1076,6 +1102,22 @@ if (!root) {
     // 3229). rehab-2 xerDefaultsMovement [3714, 3563, 3325, 3433, 4395, 2251, 70] → [4001, 3894, 3325,
     // 3433, 4675, 2268, 70]. `house` en completedProgress byte-identiek. Overgenomen uit
     // `OPS_XER_SCHEDOPTIONS_REPORT=baseline` (alleen deze drie plekken).
+    // Herpin 2026-09-23 (populatiewijziging van deze pin, geen omhoog-herpin; orkestratorbesluit (b)
+    // na de critreview van de manifest-etappe): de fidelity-afwijkingen tellen alleen nog op manifest-
+    // orakels (`manifestOracle`). De xerDefaults-/house-/defaults-populatie (bestanden ZONDER SCHEDOPTIONS-
+    // rij) bevat geen enkel manifest-orakel — SCHEDOPTIONS is een van de drie P6-kenmerken — dus die
+    // tellers zijn nu 0 meetbaar, verwacht en hieronder expliciet gepind. Oude telling (alle 36 bestanden,
+    // o.a. rehab-2 = P3-uitvoer): xerDefaults es 452, ef 482, ls 3231, lf 3229, tf 3196, ff 47 (meetbaar
+    // 7637/7649/7519/7510/7602/7221); house es 4557, ef 4391, ls 5280, lf 5317, tf 6233, ff 2314. Nieuw:
+    // alles 0/0. expected-finish-fidelity idem alleen op de 13 manifest-orakels (meetbaar es 18524 →
+    // 10358 e.d.; chosen = counterfactual). De bewegingsvectoren (`files[].xerDefaultsMovement`, de
+    // defaults-movement) blijven corpusbreed als KARAKTERISERING: herpinbaar, geen ratchet, want de
+    // "afwijking t.o.v. P6" van een bestand zonder SCHEDOPTIONS is geen meetlat. Ze bewogen hier door C1/C4
+    // uit (rehab-2 [4001, 3894, 3325, 3433, 4675, 2268, 70] → [3228, 3066, 3325, 3433, 3938, 2217, 70]).
+    // Op de P6-populatie waren de xerDefaults-afwijkingen al 0 meetbaar, dus daar niets omhoog.
+    eq('defaults-fidelity telt alleen op manifest-orakels: 0 meetbaar (verwacht; geen orakel zonder SCHEDOPTIONS)',
+      (['house', 'xerDefaults'] as const).map(branch => CAUSAL_FIDELITY_AXES.map(axis => measured.fidelity[branch][axis].measurable)),
+      [CAUSAL_FIDELITY_AXES.map(() => 0), CAUSAL_FIDELITY_AXES.map(() => 0)]);
     eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
       shape: causalProductEffectsShape(committed.causalProductEffects),
       measured: causalProductEffects(measured),

@@ -99,7 +99,13 @@ op regels BUITEN het nuldoel). Beide hebben geen schrijfmodus; herpin met de han
   `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement`, plus de projectie in de check).
   Criterium: de `xerDefaults`-afwijkingen mogen per as alleen OMLAAG; `house` en de
   completedProgress-rijen blijven byte-identiek. Beweegt er iets omhoog of daarbuiten ⇒ niet
-  herpinnen, uitzoeken.
+  herpinnen, uitzoeken. **Volgt het manifest sinds 2026-09-23:** de fidelity-afwijkingen (house,
+  xerDefaults, defaults, completedProgress, expected-finish) tellen alleen op manifest-orakels
+  (`role: oracle`/`included: true`). De defaults-populatie (bestanden zonder SCHEDOPTIONS-rij) bevat
+  geen enkel P6-doorgerekend bestand, dus die tellers staan op 0 meetbaar; de check pint dat expliciet
+  en wordt rood zodra er een orakel zonder SCHEDOPTIONS bijkomt. Detectie en bedrading van de
+  XER-standaardwaarden en de bewegingsvectoren (`files[].xerDefaultsMovement`) blijven corpusbreed als
+  karakterisering: herpinbaar met toelichting, geen ratchet.
 - `tests/planning/xer-task-replay-public-pin.json` (`check-xer-task-replay.ts`, o.a. de negatieve
   kandidaat `drop-p6-relation-finish-boundary` (B1; sinds de populatiewijziging van 2026-09-23, daarvoor
   A17 `drop-p6-finish-milestone-boundary`, die op de nieuwe populatie inert is)). Dit pint DETECTIEVERMOGEN: een mutant die meer
@@ -140,8 +146,9 @@ check-xer-fidelity.ts` (de JSON tussen de kopregels, byte-exact); (2) de ankers 
 mét corpus); (5) in `EXPECTED` van de corpusloze vangrail de manifest-/selectiepinnen
 (`manifestRawSha256`, `baselineRawSha256`, de projectie- en selectiedigests, `included`, `excluded`,
 `oracleByteUnique`, `selected`, `tasksWithAnyMeasuredAxis`, `roles`) — de vangrail noemt de verwachte
-waarden zelf in zijn foutregel. `xer-schedoptions-blast-radius.json` kent de manifestpopulatie niet (hij
-selecteert op meetbare orakelassen) en blijft ongewijzigd.
+waarden zelf in zijn foutregel. `xer-schedoptions-blast-radius.json` telt zijn fidelity sinds 2026-09-23
+alleen op manifest-orakels (zie stap 5); een rolwissel kan daar dus tellers verschuiven — herpin met
+toelichting.
 
 Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
 dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een

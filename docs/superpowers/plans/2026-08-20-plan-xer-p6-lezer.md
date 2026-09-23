@@ -854,6 +854,13 @@ Genoteerd, niet gebouwd.
   Daardoor pint `xer-schedoptions-blast-radius.json` na de populatiewijziging nog steeds rehab-2 (P3-
   uitvoer) en de synthetische bestanden mee: in de praktijk een ratchet op P3-gedrag. Vervolg: de
   selectie op het manifest laten lopen (of expliciet per rol splitsen) en de pin daarna opnieuw meten.
+  **Gedaan 2026-09-23 (integratie, orkestratorbesluit optie (b)).** De populatie volledig op het manifest
+  laten lopen maakte de defaults-projectie leeg: die meet bestanden ZONDER SCHEDOPTIONS-rij, en
+  SCHEDOPTIONS is een van de drie P6-kenmerken (13 → 0 bestanden). Daarom: detectie, bedrading en
+  bewegingsvectoren blijven corpusbreed (karakterisering, herpinbaar); de fidelity-afwijkingen tellen
+  alleen op manifest-orakels en staan dus op 0 meetbaar, expliciet gepind. Aanleiding: C1/C4 uit in het
+  P6-profiel liet de oude pin in rehab-2 stijgen (xerDefaults es 452 → 1384, ef 482 → 1414, tf 3196 →
+  3761, ff 47 → 139) zonder dat er op de P6-populatie iets veranderde.
 - **Het As-Built-vangnet voor een brede B07/C5-poort is weg uit de corpuspoort.** Een naïeve poort
   "elke voltooide taak met werkelijk einde op/vóór de statusdatum staat op het statusdatumpunt" gaf 216
   verslechteringen (285 cellen in de brede C5-meting), allemaal in DCP-03 As-Built. As-Built is sinds het
