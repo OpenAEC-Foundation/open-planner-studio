@@ -1290,6 +1290,10 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Término mais tarde no calendário próprio",
       "help": "Se o término mais tarde imposto por um sucessor cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignora também para trás um sucessor iniciado",
+      "help": "Com Progress Override, a relação com um sucessor já iniciado não conta nas datas mais tardias nem na folga livre de um predecessor que ainda não terminou."
     }
   },
   "profiles": {

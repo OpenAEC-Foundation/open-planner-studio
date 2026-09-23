@@ -86,6 +86,11 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23m (X12 naar nul, brok 8 — conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor`,
+  // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=5
+  // kleiner=0 schuld=0). Onder Progress Override telt de relatie naar een al gestarte opvolger ook
+  // achterwaarts en in de vrije speling niet. X12 284 → 280 (ls, lf, tf, ff −1 elk; drivingPath 176 → 175),
+  // alles OZB project 10093 OZ1030. Overige cellen byte-identiek.
   // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
   // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
@@ -207,16 +212,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_923, lf: 5_927, tf: 5_701, ff: 5_730 },
+    exact: { es: 5_916, ef: 5_907, ls: 5_924, lf: 5_928, tf: 5_702, ff: 5_731 },
     sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 37, lf: 32, tf: 71, ff: 42 },
+    diff: { es: 43, ef: 52, ls: 36, lf: 31, tf: 70, ff: 41 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 38, lf: 34, tf: 71, ff: 42 },
-    drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
+    deviations: { es: 45, ef: 54, ls: 37, lf: 33, tf: 70, ff: 41 },
+    drivingPath: { exact: 5_808, sameday: 0, diff: 175, missing: 0, measurable: 5_983, deviations: 175 },
   },
-  productPayloadSha256: '771c4a9dd305d73bd3ab1c304b048e07977c7d109a78cc8ec58c0a1136ebff5f',
-  productPayloadGzipSha256: '5494eb24f341e141c65c1df615f030b2b1090d5d332e5b1440564d778ed500bf',
-  productProjectProjectionSha256: 'b1636deafabbc30cb0f387c199b40ca4bb0551137d0bdedf78a7dbc74972f4ed',
+  productPayloadSha256: 'ac6ba7189e42a58a69230312cd3898732ce6de83b9b7a92f6a9e89ec58041fdd',
+  productPayloadGzipSha256: '66032a4fe1c6eb2cb85de7cc3a900021b79a99814a868b6239fd0a1998f2b282',
+  productProjectProjectionSha256: '54688cf42c97ad22e3bbfdc5d903db26b2ecd8a7c44842d1fae0560ea4abc426',
   roles: {
     oracle: 13,
     'engine-input': 14,

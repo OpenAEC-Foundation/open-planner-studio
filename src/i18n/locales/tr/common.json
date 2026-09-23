@@ -1255,6 +1255,10 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Geç bitiş, faaliyetin kendi takviminde",
       "help": "Ardıl faaliyetin belirlediği geç bitiş, faaliyetin çalışma saatleri dışına düşerse, faaliyetin kendi takvimindeki önceki çalışma döneminin sonu olur."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override başlamış bir ardılı geriye doğru da yok sayar",
+      "help": "Progress Override altında, zaten başlamış bir ardılla olan ilişki, henüz bitmemiş bir öncülün geç tarihlerinde ve serbest bolluğunda hesaba katılmaz."
     }
   },
   "profiles": {

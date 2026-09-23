@@ -8,12 +8,12 @@ Open Planner Studio rekent met één planningsmotor, maar Primavera P6 en Micros
 - Welk profiel een geopend bestand krijgt, en waarom je daar een melding over ziet.
 - Hoe je van profiel wisselt en wat er dan met je planning gebeurt.
 - Hoe je een eigen profiel maakt en als sjabloon bewaart.
-- Wat de vierentwintig conventies doen.
+- Wat de vijfentwintig conventies doen.
 - Wanneer een combinatie geen referentiepakket heeft.
 
 ## Wat een rekenprofiel is
 
-Een profiel is een set van vierentwintig **conventies**: regels die bij een planningspakket horen, zoals "een niet-gestarte taak schuift niet vanzelf naar de statusdatum". Daarnaast heeft elk project **reken-opties** die per bestand verschillen, zoals de lag-kalender, de kritiek-definitie en de speling-berekening. Die opties horen bij het project; het profiel levert er alleen de standaard voor bij een nieuw project.
+Een profiel is een set van vijfentwintig **conventies**: regels die bij een planningspakket horen, zoals "een niet-gestarte taak schuift niet vanzelf naar de statusdatum". Daarnaast heeft elk project **reken-opties** die per bestand verschillen, zoals de lag-kalender, de kritiek-definitie en de speling-berekening. Die opties horen bij het project; het profiel levert er alleen de standaard voor bij een nieuw project.
 
 De drie ingebouwde profielen:
 
@@ -50,9 +50,9 @@ Zet in het blok een conventie aan of uit. Is het profiel ingebouwd, dan maakt Op
 
 Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het in andere projecten kunt kiezen. Een project bewaart altijd een eigen kopie van zijn profiel: een sjabloon later wijzigen verandert geen bestaand project. Wijkt het profiel van een project af van zijn sjabloon, dan zie je dat in een gekleurd blok, met de knoppen **Bijwerken vanuit sjabloon** en **Sjabloon bijwerken vanuit dit project**. Met **Sjabloon verwijderen** haal je het sjabloon weer uit de app; het project houdt zijn eigen kopie.
 
-## De vierentwintig conventies
+## De vijfentwintig conventies
 
-Onder Open Planner Studio staan ze alle vierentwintig uit.
+Onder Open Planner Studio staan ze alle vijfentwintig uit.
 
 - **Actuele datums behouden in de terugwaartse berekening** (Primavera P6) — een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant.
 - **Vrije speling nooit negatief** (Primavera P6) — bij een onhaalbare late constraint blijft de totale speling negatief, maar wordt de vrije speling nul.
@@ -76,6 +76,7 @@ Onder Open Planner Studio staan ze alle vierentwintig uit.
 - **Eind-eind-relatie naar een startmijlpaal bindt aan de mijlpaal zelf** (Primavera P6) — bij een eind-eind-relatie naar een startmijlpaal mag de voorganger uitlopen tot de mijlpaal zelf, niet alleen tot het begin van de mijlpaaldag. Dat verandert de late datums en de speling van die voorganger. Een eindmijlpaal verandert niet.
 - **Geplande start is geen vloer voor een lopende taak** (Primavera P6) — het resterende werk van een gestarte taak begint op de statusdatum en direct na haar voorgangers, ook als haar geplande start later ligt. Haar opvolgers schuiven mee. Voor een taak die nog niet gestart is, blijft de geplande start een ondergrens (*Geplande start als extra ondergrens*).
 - **Late finish op de eigen kalender** (Primavera P6) — legt een opvolger een late finish op die buiten de werktijd van de taak zelf valt (meestal omdat die opvolger op een andere kalender rekent), dan wordt de late finish het einde van de vorige werkperiode op de eigen kalender. Voorbeeld: een taak werkt niet op vrijdag en haar opvolger moet vrijdag 16:00 starten; dan is haar late finish donderdag 17:00.
+- **Progress Override negeert een gestarte opvolger ook achterwaarts** (Primavera P6) — alleen als het project de voortgangsinstelling *Progress Override* gebruikt. Is een opvolger al gestart terwijl zijn voorganger nog loopt, dan negeert de planning die relatie al bij het vooruit rekenen. Met deze conventie telt ze ook niet mee in de late datums en de vrije speling van de voorganger. Zonder deze conventie kan de voorganger daardoor negatieve speling krijgen, terwijl Primavera P6 hem speling geeft tot zijn andere opvolgers.
 
 ### Standaard uit in elk profiel
 
@@ -90,7 +91,7 @@ Een deel van de P6-conventies werkt alleen op taken met P6-herkomst, dus uit een
 
 ## Opslaan en uitwisselen
 
-Het profiel wordt in het IFC-bestand opgeslagen, met alle vierentwintig waarden, zodat het bestand overal hetzelfde rekent. Een project met het standaardprofiel slaat niets extra's op. Oudere versies van Open Planner Studio kennen het profiel niet: zij lezen alleen de reken-opties en de twee voortgangsconventies van Microsoft Project, en rekenen een P6-project zonder P6-conventies.
+Het profiel wordt in het IFC-bestand opgeslagen, met alle vijfentwintig waarden, zodat het bestand overal hetzelfde rekent. Een project met het standaardprofiel slaat niets extra's op. Oudere versies van Open Planner Studio kennen het profiel niet: zij lezen alleen de reken-opties en de twee voortgangsconventies van Microsoft Project, en rekenen een P6-project zonder P6-conventies.
 
 Bij exporteren naar CSV, MS Project XML of P6 XML gaat het profiel niet mee; die bestanden openen weer als Open Planner Studio. Voor een project uit een `.xer`-bestand meldt de export dat er XER-broninformatie verloren gaat; het rekenprofiel hoort daarbij, maar de melding noemt het niet apart.
 

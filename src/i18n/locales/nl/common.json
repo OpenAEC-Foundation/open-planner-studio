@@ -1255,6 +1255,10 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Late finish op de eigen kalender",
       "help": "Valt de late finish die een opvolger oplegt buiten de werktijd van de taak, dan wordt hij het einde van de vorige werkperiode op de eigen kalender."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override negeert een gestarte opvolger ook achterwaarts",
+      "help": "Onder Progress Override telt de relatie naar een opvolger die al gestart is niet mee in de late datums en de vrije speling van een voorganger die nog niet klaar is."
     }
   },
   "profiles": {

@@ -484,7 +484,8 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
 // C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`, C5 `p6CompletedPhysicalAtDataDate`,
 // C6 `p6InProgressStartLagElapsed`; brok 4: C7 `p6FinishFinishStartMilestoneLateFinish`, C8
-// `p6StartedTaskIgnoresPlannedStartFloor`; brok 6: C9 `p6LateFinishOnOwnCalendar` ──
+// `p6StartedTaskIgnoresPlannedStartFloor`; brok 6: C9 `p6LateFinishOnOwnCalendar`; brok 8: C11
+// `p6ProgressOverrideIgnoresStartedSuccessor` (C10 = de geparkeerde ALAP-conventie, niet in het register) ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
@@ -492,6 +493,7 @@ const GROUP_C = [
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow',
   'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6LateFinishOnOwnCalendar',
+  'p6ProgressOverrideIgnoresStartedSuccessor',
 ] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
@@ -885,6 +887,89 @@ groupC.push({
   input.tasks.find(task => task.id === 'M')!.constraint = { type: 'FNLT', date: '2026-01-16T12:00' };
   eq('C9 bronvoorwaarde: een strakkere FNLT buiten de werktijd wint en wordt niet gesnapt',
     (({ lf }) => ({ lf }))(solveAxes(input, 'M')), { lf: '2026-01-16T12:00' });
+}
+
+// C11: kalender ma–vr 08:00–17:00 (9 u), statusdatum ma 12 jan 08:00, Progress Override (zoals OZB
+// project 10093: `sched_progress_override = Y`, `sched_retained_logic = N`). A is lopend (werkelijke start
+// ma 5 jan, rest 9 u) en heeft twee FS0-opvolgers: B, al buiten volgorde gestart op di 6 jan (rest 18 u),
+// en de niet-gestarte C (27 u), die ook op de niet-gestarte D (27 u) wacht. Een losse X (72 u) legt het
+// projecteinde op wo 21 jan 17:00.
+// Met de hand, Progress Override zonder logica naar B: A's restwerk ma 12 jan 08:00–17:00. D wo 14 jan 17:00,
+// dus C do 15 jan 08:00 – ma 19 jan 17:00 (vroeg); laat eindigt C op het projecteinde wo 21 jan 17:00 en
+// start ze ma 19 jan 08:00, dus A.LF = vr 16 jan 17:00: tf = 4 werkdagen (di–vr). Vrije speling tot
+// C's vroege start do 15 jan 08:00: 2 werkdagen (di, wo). P6 (OZ1030): LF 12-31 16:00 = de dag vóór de LS
+// van de niet-gestarte opvolger, ff 24 h tot diens ES; de relatie naar de gestarte OZ1040 telt nergens.
+// Zonder C11 telt B achterwaarts (A12 houdt B's LS op haar werkelijke start) en in de vrije speling.
+function c11Fixture(successorStarted = true, predecessorCompleted = false): ImportResult {
+  const a = predecessorCompleted
+    ? '%R\tA\tP1\tC1\tA100\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t18\t0\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t2026-01-09 17:00'
+    : '%R\tA\tP1\tC1\tA100\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t18\t9\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t';
+  const b = successorStarted
+    ? '%R\tB\tP1\tC1\tB100\tGestarte opvolger\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t27\t18\t2026-01-06 08:00\t2026-01-08 17:00\t2026-01-06 08:00\t'
+    : '%R\tB\tP1\tC1\tB100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t18\t18\t2026-01-13 08:00\t2026-01-14 17:00\t\t';
+  const input = importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC11-fixture\tC1\t2026-01-12 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tX\tP1\tC1\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t72\t72\t2026-01-12 08:00\t2026-01-21 17:00\t\t',
+    a,
+    b,
+    '%R\tC\tP1\tC1\tC100\tNiet gestart\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-15 08:00\t2026-01-19 17:00\t\t',
+    '%R\tD\tP1\tC1\tD100\tAndere voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-12 08:00\t2026-01-14 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tC\tA\tP1\tP1\tPR_FS\t0',
+    '%R\tR3\tC\tD\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+  input.project.progressMode = 'PROGRESS_OVERRIDE';
+  return input;
+}
+groupC.push({
+  flag: 'p6ProgressOverrideIgnoresStartedSuccessor',
+  label: 'C11 Progress Override negeert de gestarte opvolger ook achterwaarts',
+  input: c11Fixture(),
+  taskId: 'A',
+  pick: axes => ({ lf: axes.lf, tf: axes.tf, ff: axes.ff }),
+  on: { lf: '2026-01-16T17:00', tf: 4, ff: 2 },
+  // Zonder C11: A12 houdt B's LS op haar werkelijke start di 6 jan 08:00, dus A.LF = ma 5 jan 17:00 en
+  // tf = −5 werkdagen; de vrije speling naar B is negatief en A13 klemt hem op 0.
+  off: { lf: '2026-01-05T17:00', tf: -5, ff: 0 },
+  // OPS/MS Project: geen A12 (B's LS volgt uit haar restwerk, dus de late kant van A toevallig gelijk)
+  // en geen A13 (de negatieve vrije speling naar B blijft staan): het onderscheid zit in ff.
+  builtInOff: { lf: '2026-01-16T17:00', tf: 4, ff: -5 },
+});
+
+// C11, randgevallen (docblok): alleen onder Progress Override, alleen naar een gestarte opvolger.
+{
+  const pickA = (axes: Axes) => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff });
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6ProgressOverrideIgnoresStartedSuccessor', false));
+  // (a) Retained Logic: de relatie naar B telt gewoon; C11 aan = C11 uit. Mutant "PO-poort weg" ⇒ rood.
+  const retained = c11Fixture();
+  retained.project.progressMode = 'RETAINED_LOGIC';
+  eq('C11 onder Retained Logic ⇒ geen effect', pickA(solveAxes(retained, 'A')), pickA(solveAxes(off(retained), 'A')));
+  // (b) een niet-gestarte B is gewone logica, ook onder Progress Override. Mutant "startpoort weg" ⇒ rood.
+  const unstarted = c11Fixture(false);
+  eq('C11 naar een niet-gestarte opvolger ⇒ geen effect', pickA(solveAxes(unstarted, 'A')), pickA(solveAxes(off(unstarted), 'A')));
+  // (c) een voltooide voorganger valt erbuiten (historie; P6: "without delay" gaat over de lopende
+  // opvolger). Mutant "voorgangerpoort weg" ⇒ rood.
+  const completed = c11Fixture(true, true);
+  eq('C11 vanuit een voltooide voorganger ⇒ geen effect', pickA(solveAxes(completed, 'A')), pickA(solveAxes(off(completed), 'A')));
+  const opsOnly = (input: ImportResult, on: boolean) => withProfile(input, copy => {
+    copy.project.schedulingProfile = { baseId: 'ops', id: 'test-ops', name: 'test', overrides: on ? { p6ProgressOverrideIgnoresStartedSuccessor: true } : {} };
+  });
+  eq('C11 vanuit een voltooide voorganger, OPS-basis ⇒ geen effect',
+    pickA(solveAxes(opsOnly(completed, true), 'A')), pickA(solveAxes(opsOnly(completed, false), 'A')));
+  // (d) de lopende opvolger zelf verandert niet (de voorwaartse kant negeerde de relatie al).
+  const input = c11Fixture();
+  eq('C11 laat de gestarte opvolger zelf ongemoeid', solveAxes(input, 'B'), solveAxes(off(input), 'B'));
 }
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);

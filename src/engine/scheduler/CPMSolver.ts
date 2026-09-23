@@ -714,6 +714,21 @@ export class CPMSolver {
    * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
    * (`milestoneKind: 'FINISH'`) valt er per definitie buiten.
    */
+  /**
+   * Conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor` (docblok + bron bij de sleutel in
+   * `types/project.ts`): onder Progress Override negeert de planning de netwerklogica naar een al
+   * gestarte, nog lopende opvolger — niet alleen voorwaarts (de voortgangstak rekent daar al zonder
+   * voorgangerdruk), maar ook achterwaarts en in de vrije speling. Waar voor deze relatie: conventie
+   * aan, `progressMode === 'PROGRESS_OVERRIDE'`, de opvolger heeft een werkelijke start (of voortgang)
+   * en is niet voltooid, en de voorganger is niet voltooid.
+   */
+  private progressOverrideIgnoresRelation(predTask: Task, succTask: Task): boolean {
+    if (this.options.schedulingOptions?.p6ProgressOverrideIgnoresStartedSuccessor !== true) return false;
+    if (this.options.progressMode !== 'PROGRESS_OVERRIDE') return false;
+    const succStarted = !!succTask.time.actualStart || succTask.time.completion > 0;
+    return succStarted && succTask.time.completion < 1 && predTask.time.completion < 1;
+  }
+
   private finishFinishAtStartMilestoneLateFinish(
     seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
   ): boolean {
@@ -2297,6 +2312,12 @@ export class CPMSolver {
           // RESUME-veld komt i.p.v. de gewone voorganger-druk/elapsed-vloer — stuurt de ef<es-
           // inversiecorrectie ná de gedeelde ef-berekening (zie die toelichting verderop).
           let usedResumeOverride = false;
+          // C11: onder Progress Override telt de relatie van een open voorganger naar deze lopende taak
+          // nergens mee; zonder relatiegrens geen vrije speling en geen driving-markering voor haar.
+          for (const seq of preds) {
+            const predTask = this.tasks.get(seq.predecessorId);
+            if (predTask && this.progressOverrideIgnoresRelation(predTask, task)) this.seqConstraint.delete(seq.id);
+          }
           if (this.options.progressMode !== 'PROGRESS_OVERRIDE') {
             // Z12-herwerk (dossier out-of-sequence-actuals, ná Opus-weerlegging van het eerdere
             // anker-ontwerp) → Z8-HERWERKRONDE-FIXRONDE 2 ("laag 1/2-gat") → Z19 (residu-iteratie
@@ -3675,6 +3696,8 @@ export class CPMSolver {
         // Gemeten (X12 brok 6): Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791.
         const succIsPhysicalPoint = this.completedPhysicalPoints.has(succTask.id);
         if (succCompletedHistoric && !succUsesRemainingWindow && !succIsPhysicalPoint) continue;
+        // C11: onder Progress Override legt een lopende opvolger geen backward-druk op een open voorganger.
+        if (this.progressOverrideIgnoresRelation(task, succTask)) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen

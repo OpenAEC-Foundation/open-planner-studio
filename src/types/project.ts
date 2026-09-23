@@ -514,10 +514,38 @@ export interface SchedulingOptions {
    *    ongemeten, dus het gedrag van vóór deze conventie.
    *  - OPS: uit (de rauwe grens, het gedrag van vóór deze conventie). */
   p6LateFinishOnOwnCalendar?: boolean;
+  /** C11 — onder Progress Override (`progressMode: 'PROGRESS_OVERRIDE'`) negeert de planning de
+   *  relatie van een NIET-voltooide voorganger naar een al GESTARTE, nog lopende opvolger ook aan de
+   *  late kant en in de vrije speling. Voorwaarts deed de motor dat al (de voortgangstak van de lopende
+   *  opvolger rekent onder Progress Override zonder voorgangerdruk); met C11 legt die opvolger ook geen
+   *  backward-druk op de voorganger, en telt de relatie niet in diens vrije speling (geen relatiegrens,
+   *  dus ook geen driving-markering). Poort: conventie aan, projectoptie Progress Override (zoals C4 die
+   *  leest: `this.options.progressMode`), opvolger met werkelijke start of voortgang en niet voltooid,
+   *  voorganger niet voltooid. `CPMSolver.progressOverrideIgnoresRelation`. Nummer C11: C10 is bezet door
+   *  de geparkeerde ALAP-conventie (plan XER §9).
+   *
+   *  - P6: aan. Bron: Oracle P6 EPPM Help, "Scheduling Settings"
+   *    (https://docs.oracle.com/cd/F88966_01/p6help/en/99348.htm): "Progress Override: The schedule
+   *    ignores network logic and allows the activity to progress without delay." — de logica wordt
+   *    genegeerd, niet alleen de voorwaartse druk. Gemeten (X12 brok 8, 2026-09-23, n = 1 project,
+   *    toegestaan onder het n = 1-criterium omdat het principe gedocumenteerd is): `eh_P6Workshops/
+   *    OZB-Start-09Dec24.xer`, project 10093 (`sched_progress_override = Y`, `sched_retained_logic = N`;
+   *    het enige Progress-Override-project in de orakelpopulatie). OZ1030 (lopend, rest 16 h) heeft twee
+   *    FS-opvolgers: de al op 12-20 gestarte OZ1040 en de niet-gestarte OZ1060 (MSOA 01-02). P6: LF
+   *    12-31 16:00 (de dag vóór OZ1060 LS 01-02; 01-01 is een feestdag), tf 1440, ff 1440; zonder C11 LF
+   *    12-20 16:00 (via OZ1040, wier LS A12 op de werkelijke start houdt), tf −960, ff 0. X12 284 → 280
+   *    (ls, lf, tf, ff van OZ1030; ook de driving-markering klopt dan), 0 slechter, 0 groter.
+   *    Risicokring in de orakelpopulatie: precies die ene relatie (OZ1030 → OZ1040); geen ander project
+   *    rekent met Progress Override.
+   *  - MS Project: uit. MS Project kent geen Progress Override-instelling; ongemeten, dus het gedrag van
+   *    vóór deze conventie.
+   *  - OPS: uit (de relatie telt achterwaarts en in de vrije speling mee, het gedrag van vóór deze
+   *    conventie). */
+  p6ProgressOverrideIgnoresStartedSuccessor?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vierentwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vijfentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -546,7 +574,8 @@ export type ConventionKey =
   | 'p6InProgressStartLagElapsed'
   | 'p6FinishFinishStartMilestoneLateFinish'
   | 'p6StartedTaskIgnoresPlannedStartFloor'
-  | 'p6LateFinishOnOwnCalendar';
+  | 'p6LateFinishOnOwnCalendar'
+  | 'p6ProgressOverrideIgnoresStartedSuccessor';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

@@ -441,10 +441,6 @@
     },
     "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": {
       "drivingPath": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": null
-        },
         "10096/130463": {
           "bucket": "diff",
           "minutes": null
@@ -595,10 +591,6 @@
         }
       },
       "ff": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
         "9033/120193": {
           "bucket": "diff",
           "minutes": 480
@@ -609,10 +601,6 @@
         }
       },
       "lf": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 15840
-        },
         "9033/120184": {
           "bucket": "diff",
           "minutes": 12960
@@ -647,10 +635,6 @@
         }
       },
       "ls": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 15840
-        },
         "9033/120184": {
           "bucket": "diff",
           "minutes": 12960
@@ -685,10 +669,6 @@
         }
       },
       "tf": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 2400
-        },
         "9033/120184": {
           "bucket": "diff",
           "minutes": 3360

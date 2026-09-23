@@ -19,7 +19,7 @@ The **Project Information** window holds the project's metadata plus the **Calcu
 
 ## Calculation profile and options
 
-At the top you choose the **Calculation profile**: Open Planner Studio, Primavera P6, Microsoft Project or a template of your own. Below it are the twenty-four **Conventions of this profile**; if you change one, Open Planner Studio makes a custom copy of the profile. How that works is covered in the guide **Calculation profiles** (Backstage → Help).
+At the top you choose the **Calculation profile**: Open Planner Studio, Primavera P6, Microsoft Project or a template of your own. Below it are the twenty-five **Conventions of this profile**; if you change one, Open Planner Studio makes a custom copy of the profile. How that works is covered in the guide **Calculation profiles** (Backstage → Help).
 
 Below those are the **Calculation options of this project** — they are stored with the file, not the app, so they travel to other machines. **Apply this profile's default options** sets them to the defaults of the chosen profile. If you change anything in this section, the schedule is recalculated right after **Apply**, also with *Calculate automatically* off. If tasks move as a result, a notification reports how many (ordinary tasks, not summary tasks); if nothing moves, there is no notification.
 
