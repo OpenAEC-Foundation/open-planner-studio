@@ -1085,7 +1085,8 @@ for (const fixture of groupC) {
 //      00:00 + 9 h werktijd = wo 14 jan 17:00 ⇒ do 15 jan 08:00;
 //  (c) zonder B valt A's restwerkstart op de statusdatumgrens: beide varianten gelijk;
 //  (d) C6 uit ⇒ de optie is inert (de volle lag vanaf A's vroege start, beide varianten gelijk);
-//  (e) de late kant is in beide varianten de C6-rest-lag (voor Actual Start ongemeten, zie docblok).
+//  (e) spiegel: Actual Start begrenst de lopende voorganger achterwaarts niet (anders onechte
+//      negatieve speling, reviewer-tegenvoorbeeld); ongemeten tegen P6, zie docblok.
 // Mutanten (2026-09-23, tegen `CPMSolver.inProgressStartLagAnchor` en de lezer): "anker negeert de
 // optie" ⇒ rood op (a), (b) en de readerregels; "anker zonder C6-poort" ⇒ rood op (d); "lezer N ⇒
 // earlyStart" ⇒ rood op (a) en (b) (en in check-xer-schedule-options.ts).
@@ -1117,8 +1118,19 @@ for (const fixture of groupC) {
     eq(`SS-lag-variant (d): ingebouwd profiel ${baseId} ⇒ optie inert`,
       solveAxes(plain(floorAs), 'S'), solveAxes(plain(floorEs), 'S'));
   }
-  eq('SS-lag-variant (e): late kant in beide varianten de C6-rest-lag',
-    (({ ls, lf }) => ({ ls, lf }))(solveAxes(floorAs, 'A')), (({ ls, lf }) => ({ ls, lf }))(solveAxes(floorEs, 'A')));
+  // (e) spiegel achterwaarts: lange opvolger L (S —FS→ L, 180 h) maakt S kritiek. Actual Start: de
+  // SS-relatie begrenst de lopende A achterwaarts niet (vóór de fix: A en B tf −2). A (EF ma 19 jan
+  // 17:00) en haar voorganger B hangen dan alleen aan het projecteinde (L: wo 11 feb 17:00) ⇒ tf 17
+  // werkdagen, niet 0: A drijft S onder Actual Start per definitie niet. S zelf blijft kritiek (tf 0).
+  const L_TASK = '%R\tL\tP1\tC1\tLONG\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t180\t180\t2026-01-15 08:00\t2026-02-11 17:00\t\t';
+  const L_REL = '%R\tR3\tL\tS\tP1\tP1\tPR_FS\t0';
+  const critAs = c6Fixture('2026-01-05 08:00', [B_TASK, L_TASK], [B_REL, L_REL], 'N');
+  const critEs = c6Fixture('2026-01-05 08:00', [B_TASK, L_TASK], [B_REL, L_REL], 'Y');
+  eq('SS-lag-variant (e): Actual Start ⇒ S kritiek (tf 0)', solveAxes(critAs, 'S').tf, 0);
+  eq('SS-lag-variant (e): Actual Start ⇒ lopende A niet door S begrensd (tf 17, geen −2)', solveAxes(critAs, 'A').tf, 17);
+  eq('SS-lag-variant (e): Actual Start ⇒ B niet via A door S begrensd (tf 17, geen −2)', solveAxes(critAs, 'B').tf, 17);
+  eq('SS-lag-variant (e): Early Start ⇒ A, B, S kritiek (tf 0)',
+    ['A', 'B', 'S'].map(id => solveAxes(critEs, id).tf), [0, 0, 0]);
 }
 
 // X12 brok 6 — de late kant van de B07-keten (ratchet-schuld 2026-09-23). Band 08:00–17:00 ma–vr,

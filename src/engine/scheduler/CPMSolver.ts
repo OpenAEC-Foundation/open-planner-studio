@@ -613,8 +613,10 @@ export class CPMSolver {
    * in `types/project.ts`): de variant van C6, VOORWAARTS. `'actualStart'` ankert de rest-lag van een
    * SS-relatie uit een lopende voorganger op de STATUSDATUM in plaats van op diens restwerkstart ("the
    * data date plus any remaining lag"). Zelfde poort als C6 (`inProgressStartLag`); optie afwezig of
-   * `'earlyStart'`, of C6 geldt niet ⇒ `predResult` zelf. De late kant blijft de C6-rest-lag (voor
-   * `'actualStart'` ongemeten: geen P6-orakel met `sched_lag_early_start_flag` = N).
+   * `'earlyStart'`, of C6 geldt niet ⇒ `predResult` zelf. Late kant, spiegel: bij `'actualStart'` (en
+   * geldende C6-poort) begrenst de relatie de lopende voorganger achterwaarts NIET (zie `backwardPass`);
+   * [VERMOED] intern consistent, P6's achterwaartse gedrag is ongemeten (geen orakel met
+   * `sched_lag_early_start_flag` = N).
    */
   private inProgressStartLagAnchor<T extends { es: Date }>(
     predTask: Task, seq: Sequence, lagEng: CalendarEngine, predResult: T,
@@ -3736,7 +3738,13 @@ export class CPMSolver {
         };
         // C6, late kant: van een SS-lag uit deze LOPENDE taak telt ook achterwaarts alleen de rest-lag
         // (Roads OCEC10311 —SS+70 h→ OCEC10851: P6-LS = de LS van de opvolger). Conventie uit ⇒ `seq`.
-        const lateSeq = this.inProgressStartLagSeq(task, seq, this.relDeps.lagEngine(predCal, succCal));
+        const lateLagEng = this.relDeps.lagEngine(predCal, succCal);
+        // Projectoptie `startToStartLagFrom` = 'actualStart', late kant (SPIEGEL van het anker): voorwaarts
+        // hangt deze SS-relatie aan de statusdatum, niet aan deze lopende taak — dus begrenst ze haar
+        // achterwaarts ook niet (anders onechte negatieve speling). Wat P6 hier doet is ongemeten.
+        if (this.options.schedulingOptions?.startToStartLagFrom === 'actualStart'
+          && this.dataDate !== null && this.inProgressStartLag(task, seq, lateLagEng)) continue;
+        const lateSeq = this.inProgressStartLagSeq(task, seq, lateLagEng);
         // A19, late kant: een lopende taak telt achterwaarts over een SS-grens alleen haar restduur.
         const remainingTask = seq.type === 'START_START'
           ? this.remainingDurationTaskForStartRelation(task, predCal) : task;

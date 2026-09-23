@@ -182,11 +182,17 @@ export interface SchedulingOptions {
    *  remaining early start plus any remaining lag"; *Actual Start*: "the data date plus any remaining
    *  lag". In XER `SCHEDOPTIONS.sched_lag_early_start_flag` (Y ⇒ `earlyStart`, N ⇒ `actualStart`, leeg
    *  ⇒ `earlyStart`; `xerScheduleOptions.ts`). De rest-lag (`max(0, lag − werktijd(werkelijke start →
-   *  statusdatum))`) is in beide varianten gelijk, en de late kant (C6 achterwaarts, rest-lag) ook:
-   *  voor `actualStart` is achterwaarts ONGEMETEN — geen enkel P6-doorgerekend orakelbestand heeft N
-   *  (corpus: Y bij OZB, HarbourPointe, Hotel, Roads, Sample, ashspace, xernative en TERMINAL; N alleen
-   *  bij DCP-03, dat sinds 2026-09-23 geen orakel meer is). Per bestand, dus een projectoptie en geen
-   *  conventie (regel B). */
+   *  statusdatum))`) is in beide varianten gelijk. Late kant: bij `'earlyStart'` begrenst de relatie de
+   *  voorganger achterwaarts met de C6-rest-lag; bij `'actualStart'` begrenst ze de lopende voorganger
+   *  achterwaarts NIET (spiegel van het statusdatumanker: de voorganger kan de opvolger via deze relatie
+   *  niet vertragen, dus geen onechte negatieve speling). [VERMOED] intern consistent; wat P6 achterwaarts
+   *  doet is ONGEMETEN — geen enkel P6-doorgerekend orakelbestand heeft N (corpus: Y bij OZB,
+   *  HarbourPointe, Hotel, Roads, Sample, ashspace, xernative en TERMINAL; N alleen bij DCP-03, dat sinds
+   *  2026-09-23 geen orakel meer is). Buiten de C6-poort blijft de optie inert, ook bij `'actualStart'`:
+   *  lag 0 (of negatief), een ELAPSEDTIME-lag en dagmodus houden het gewone anker (restwerkstart) en de
+   *  gewone late kant. Oracle's helptekst noemt voor die gevallen geen uitzondering; ongemeten, er is geen
+   *  orakel met N. Werkt alleen met A19 (`p6UseRemainingStartForProgress`) aan, net als C6 zelf.
+   *  Per bestand, dus een projectoptie en geen conventie (regel B). */
   startToStartLagFrom?: 'earlyStart' | 'actualStart';
 
   // ── Groep B (rekenprofielen baan B, spec 2026-09-22 bijlage A) ─────────────────────────────

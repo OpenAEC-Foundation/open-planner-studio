@@ -6,7 +6,7 @@ import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, displayNameKey, resolveConventions,
 } from '@/engine/scheduler/conventions/registry';
 import { deleteCustomProfile, loadCustomProfiles, upsertCustomProfile } from '@/services/schedulingProfiles/profileStore';
-import type { BuiltInProfileId, ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { BuiltInProfileId, ConventionKey, ProjectSchedulingOptions, SchedulingProfile } from '@/types/project';
 import { generateId } from '@/utils/id';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -69,6 +69,9 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   const profile = value.profile;
   const so: ProjectSchedulingOptions = value.options ?? {};
   const conventions = useMemo(() => resolveConventions(profile), [profile]);
+  // De SS-lag-projectoptie werkt alleen met C6 én A19 aan (`CPMSolver.inProgressStartLag`).
+  const ssLagMissing: ConventionKey | null = !conventions.p6InProgressStartLagElapsed ? 'p6InProgressStartLagElapsed'
+    : !conventions.p6UseRemainingStartForProgress ? 'p6UseRemainingStartForProgress' : null;
   const label = profileLabel(profile);
   const relation = templateRelation(profile, templates);
   const brand = (id: BuiltInProfileId) => t(displayNameKey(id) as BuiltInNameKey);
@@ -336,15 +339,16 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
             ]} />
         </div>
 
-        {/* P6 "Calculate Start-to-Start lag from": de variant van conventie C6. Zonder C6 doet de
-            optie niets, dus dan uitgeschakeld (de waarde blijft staan). */}
+        {/* P6 "Calculate Start-to-Start lag from": de variant van conventie C6, die in de motor alleen
+            samen met A19 (`p6UseRemainingStartForProgress`) werkt. Staat een van beide uit, dan doet de
+            optie niets: uitgeschakeld (de waarde blijft staan), tooltip noemt de ontbrekende conventie. */}
         <div className="flex flex-col gap-1"
-          title={conventions.p6InProgressStartLagElapsed ? undefined : tMenu('projectInfo.calc.ssLagNeedsConvention', {
-            convention: t('conventions.p6InProgressStartLagElapsed.label' as ConventionLabelKey),
-          })}>
+          title={ssLagMissing ? tMenu('projectInfo.calc.ssLagNeedsConvention', {
+            convention: t(`conventions.${ssLagMissing}.label` as ConventionLabelKey),
+          }) : undefined}>
           <label className={labelCls}>{tMenu('projectInfo.calc.ssLagFrom')}</label>
           <Select aria-label={tMenu('projectInfo.calc.ssLagFrom')} value={so.startToStartLagFrom ?? 'earlyStart'}
-            disabled={!conventions.p6InProgressStartLagElapsed}
+            disabled={ssLagMissing !== null}
             onChange={v => patchOptions({ ...so, startToStartLagFrom: v as ProjectSchedulingOptions['startToStartLagFrom'] })}
             options={[
               { value: 'earlyStart', label: tMenu('projectInfo.calc.ssLagEarlyStart') },

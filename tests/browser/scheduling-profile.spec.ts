@@ -167,13 +167,14 @@ test('rekenprofiel: in "datums zoals opgeslagen" is Toepassen zonder wijziging e
 // Projectoptie `startToStartLagFrom` (P6 "Calculate Start-to-Start lag from", de variant van C6): een
 // XER met `sched_lag_early_start_flag` = N opent op "Werkelijke start"; de keuze is in Projectinfo met
 // echte klikken te wijzigen en landt na Toepassen in de projectopties. Onder een profiel zonder C6
-// (MS Project) is het veld uitgeschakeld: daar doet de optie niets.
+// (MS Project) of zonder A19 (`rem_target_link_flag` = Y hieronder zet A19 aan) is het veld
+// uitgeschakeld: daar doet de optie niets.
 const SS_LAG_XER = [
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR', '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
   '%R\tC1\tStandaard 8u\tCA_Base\t8\t40\t',
-  '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
-  '%R\tP1\tSsLagBrowser\tC1\t2026-03-02\t2026-01-05',
+  '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\trem_target_link_flag',
+  '%R\tP1\tSsLagBrowser\tC1\t2026-03-02\t2026-01-05\tY',
   '%T\tSCHEDOPTIONS', '%F\tproj_id\tsched_lag_early_start_flag', '%R\tP1\tN',
   '%T\tTASK',
   '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
@@ -200,9 +201,19 @@ test('rekenprofiel: de SS-lag-variant komt uit de XER en is in Projectinfo te wi
   await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
   await expect.poll(option).toBe('earlyStart');
 
-  // Onder MS Project staat C6 uit: het veld is uitgeschakeld (de waarde blijft staan).
+  // De motor eist C6 én A19: met A19 uit (C6 aan) is het veld uitgeschakeld, met een tooltip die A19 noemt.
   await page.getByRole('button', { name: /^(File|Bestand)$/ }).first().click();
   await page.getByRole('button', { name: /^(Project info|Projectinfo)$/ }).first().click();
+  await expect(ssLag).toBeEnabled();
+  await page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]').uncheck();
+  await expect(page.locator('[data-ops-convention="p6InProgressStartLagElapsed"]')).toBeChecked();
+  await expect(ssLag).toBeDisabled();
+  const a19Label = (await page.locator('label:has([data-ops-convention="p6UseRemainingStartForProgress"])').innerText()).trim();
+  await expect(ssLag.locator('xpath=ancestor::div[@title][1]')).toHaveAttribute('title', new RegExp(a19Label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  await page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]').check();
+  await expect(ssLag).toBeEnabled();
+
+  // Onder MS Project staat C6 uit: het veld is uitgeschakeld (de waarde blijft staan).
   await page.locator('[data-ops-scheduling-profile-select]').selectOption('builtin:msproject');
   await expect(ssLag).toBeDisabled();
 });
