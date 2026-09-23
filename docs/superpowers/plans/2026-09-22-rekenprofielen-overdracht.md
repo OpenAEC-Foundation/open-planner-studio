@@ -73,6 +73,11 @@ afwijkingen hebben met XER".)
 - **24-09, vraag 12 (Hotel deelproject CR 2665, niet P6-doorgerekend), letterlijk: "ja, uitsluiten"** —
   project 2665 gaat per `excludeProjects` met `decision` uit het orakel (alleen drivingPath-cellen).
 
+- **24-09, vraag 7 (B3, B4, A17 in het P6-profiel uit), letterlijk: "ja"** — de drie conventies blijven in
+  het register maar staan in het ingebouwde P6-profiel uit (0 cellen verschil, gemeten op de motor mét
+  C5/C6); landing `claude/x12-vraag7-b3-b4-a17` (`b3121e2e`) wordt gemerged. Kanttekening bekend: A21
+  werkt alleen samen met B3.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -178,7 +183,7 @@ afwijkingen hebben met XER".)
    de brede variant (alle voltooide taken op de rauwe statusdatum) landen. Aanbeveling orkestrator:
    As-Built buiten het orakel (niet aantoonbaar P6-doorgerekend), maar C5 vooralsnog smal houden
    omdat de brede variant op de P6-bestanden geen extra cel wint.
-7. *(voorbereid 24-09 op `claude/x12-vraag7-b3-b4-a17` `b3121e2e`: gemeten op de motor mét C5/C6 = 0/0/0/0, landing klaar; één woord van jou: mergen of niet. Let op: A21 `p6CompletedLateFromRemainingWindow` werkt alleen samen met B3.)* **B3, B4 en A17 (uit PR #109) hebben op de P6-populatie 0 effect** (manifest-meting 23-09); ze zijn
+7. *(beantwoord 24-09: "ja", zie §1a; voorbereid op `claude/x12-vraag7-b3-b4-a17` `b3121e2e`: gemeten op de motor mét C5/C6 = 0/0/0/0, landing klaar; één woord van jou: mergen of niet. Let op: A21 `p6CompletedLateFromRemainingWindow` werkt alleen samen met B3.)* **B3, B4 en A17 (uit PR #109) hebben op de P6-populatie 0 effect** (manifest-meting 23-09); ze zijn
    destijds op rehab-2 (P3) gebouwd, net als C1/C3/C4 die nu op P6=uit gaan. Aanbeveling orkestrator:
    ook B3/B4/A17 op P6=uit (register blijft; regel B), in een aparte commit met meting 0/0 — LET OP de
    C3-les: meet op de motor mét C5/C6, want een "inerte" conventie kan via een latere conventie alsnog
