@@ -101,7 +101,8 @@ op regels BUITEN het nuldoel). Beide hebben geen schrijfmodus; herpin met de han
   completedProgress-rijen blijven byte-identiek. Beweegt er iets omhoog of daarbuiten ⇒ niet
   herpinnen, uitzoeken.
 - `tests/planning/xer-task-replay-public-pin.json` (`check-xer-task-replay.ts`, o.a. de negatieve
-  kandidaat `drop-p6-finish-milestone-boundary`). Dit pint DETECTIEVERMOGEN: een mutant die meer
+  kandidaat `drop-p6-relation-finish-boundary` (B1; sinds de populatiewijziging van 2026-09-23, daarvoor
+  A17 `drop-p6-finish-milestone-boundary`, die op de nieuwe populatie inert is)). Dit pint DETECTIEVERMOGEN: een mutant die meer
   exacte cellen breekt is de verwachte richting na een verbetering. Criterium: per as blijft de som
   `regressed + unchanged` gelijk (alleen de verdeling schuift), assen die de wijziging niet raakt
   blijven gelijk. Een kleinere som of een detectieverlies ⇒ niet herpinnen, uitzoeken.
@@ -125,7 +126,9 @@ met `OPS_XER_GATE_PINS=corpus` in plaats van `=write`.
 verschilt van dat van de gepinde baseline; elke nieuwe, verslechterde of onmeetbaar geworden cel en
 elke afwijking op een bestaande entry blijft blokkeren. De corpusloze vangrail pint het manifest en
 de orakelselectie zelf ook (`EXPECTED.manifestRawSha256` e.a.); die pinnen bijwerken is bij
-corpusgroei een bewuste reviewstap en valt buiten `OPS_XER_GATE_PINS`.
+corpusgroei een bewuste reviewstap en valt buiten `OPS_XER_GATE_PINS`. Zijn die manifestpinnen al
+bijgewerkt (bijvoorbeeld omdat ze met een merge meekwamen), dan weigert `OPS_XER_GATE_PINS=corpus`
+("vereist een gewijzigd corpusmanifest") en is `=write` de juiste modus voor de tellers.
 
 Een manifestwijziging raakt naast de drie schrijfmodi nog vijf handmatige, bewust te reviewen pinplekken
 (gemeten bij de populatiewijziging van 2026-09-23): (1) `tests/planning/xer-fidelity-baseline.json` —
@@ -167,9 +170,10 @@ Maak een baseline daarom nooit langs ze heen:
   = geen open taken); de X12-splitsing telt per (bestand, project), en projecten zonder sidecar-regel
   tellen apart als "niet in sidecar". Het bestandsveld `p6Computed` is alleen een samenvatting: de
   gemeenschappelijke waarde, of `"mixed"` als projecten verschillen. Het eigenaarsbesluit van 2026-09-23
-  ("alleen die P6-bestanden") gebruikt deze meting als onderbouwing voor de populatie: een manifestentry
-  is `oracle` als minstens één project `true` is, anders `reader-only`. De meting kiest niet zelf; een
-  wisseling blijft een bewuste manifestwijziging. `measure:profiles` draait in het
+  ("alleen die P6-bestanden") classificeerde de toenmalige 93 entries met deze meting als onderbouwing:
+  `oracle` waar minstens één project `true` was, anders `reader-only`. Dat is een eenmalig besluit, geen
+  vaste regel: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (zoals de
+  manifest-policy zegt: veldinhoud kiest nooit zelf de populatie). `measure:profiles` draait in het
   P6-deel `--check` mee en print de exitcode, zonder het oordeel te veranderen. Dat
   bestand is de enige bron voor de splitsing "P6-doorgerekend / niet / onbekend" in de X12-uitvoer en
   in `measure:profiles`; het stuurt de populatie nooit. `--check` faalt (exit 1) als het bestand niet

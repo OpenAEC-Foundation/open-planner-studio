@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie. Populatie (eigenaarsbesluit 2026-09-23, \"alleen die P6-bestanden\"): orakel is uitsluitend een bestand met minstens één aantoonbaar door P6 doorgerekend project, gemeten door scripts/xer-p6-computed.ts (SCHEDOPTIONS-rij + rem_late_start_date gevuld op alle open taken + driving_path_flag ergens Y; tests/planning/xer-corpus-p6computed.json). Die meting is de onderbouwing van dit besluit, geen automatische selectie: een entry wisselt alleen van rol via een bewuste manifestwijziging.",
+  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie. Populatie (eigenaarsbesluit 2026-09-23, \"alleen die P6-bestanden\"): dat besluit classificeerde de toenmalige 93 entries zo dat orakel alleen een bestand is met minstens één aantoonbaar door P6 doorgerekend project, gemeten door scripts/xer-p6-computed.ts (SCHEDOPTIONS-rij + rem_late_start_date gevuld op alle open taken + driving_path_flag ergens Y; tests/planning/xer-corpus-p6computed.json). Die meting is de onderbouwing van dit besluit, geen automatische selectie: een nieuwe entry of een rolwissel vraagt opnieuw een eigenaarsbesluit (en een bewuste manifestwijziging).",
   "files": {
     "cpp-cpm-engine/validation/p6-comparison/cases-import.xer": {
       "sha256": "df264eb25ca8dc0e6e29d5ba5ba4a4e370f9126aecb99ab48e9fd4383f0287b7",
@@ -153,7 +153,7 @@
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/93, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/93 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/93, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/HarbourPointe_AssistedLiving.xer": {
       "sha256": "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167",
@@ -166,21 +166,21 @@
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS ja, rem_late_start_date op open taken 0/281, driving_path_flag Y ja; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt rem_late_start_date op alle open taken (0/281 gevuld) (gemeten: SCHEDOPTIONS ja, rem_late_start_date op open taken 0/281, driving_path_flag Y ja; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/Hospital_GW_Programme.bound.xer": {
       "sha256": "0fa5172162fbd6895f88042d0277a8fbc46c9c82badbcbae333d3423dd208c86",
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/14, driving_path_flag Y ja; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/14 gevuld) (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/14, driving_path_flag Y ja; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/Hospital_GW_Programme.xer": {
       "sha256": "fc74bdab8629d9e81e5c7e58900ea4632b4525f63cca9fa546d4f17605936de6",
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/14, driving_path_flag Y ja; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/14 gevuld) (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/14, driving_path_flag Y ja; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/Hotel_Construction_TEC.xer": {
       "sha256": "9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe",
@@ -249,7 +249,7 @@
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/120, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/120 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/120, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/p6_torture_test_v1.xer": {
       "sha256": "2a7732b5b99de2a5f40aab40e0af52757fbe68e5d4eda404a9a060fdc1be1140",
@@ -263,14 +263,14 @@
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 8/8, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 8/8, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/p6diff-revised.xer": {
       "sha256": "97058f720a70f62399c92f7f84ffb4a29b936baf95c6a2e339e3cc4a222f318c",
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 8/8, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 8/8, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/p6xer-basic.xer": {
       "sha256": "18edce1bd5bd7a50a97e7dda260cb09270afc0fab3649b6d54867a4e9bd1c26b",
@@ -331,7 +331,7 @@
       "source": "crawl-xer (publieke crawl)",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/4, driving_path_flag Y ja; p6Computed mixed): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend, in geen enkel project: project 1001: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/4 gevuld) (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/4, driving_path_flag Y ja); project 9998: ontbreekt SCHEDOPTIONS-rij, open taak om rem_late_start_date te toetsen (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/0, driving_path_flag Y ja) (p6Computed mixed). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer/submitlog-baseline-taskpred.xer": {
       "sha256": "a303595f1def90620cb7da693e7217f364dd66bbc3b3775de5ae93106fa504e4",
@@ -344,14 +344,15 @@
       "sha256": "68ce5f0bb2b534d5ba192e3ad8241025d74ae45e94209f11731d42d32f18f82b",
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "oracle",
-      "included": true
+      "included": true,
+      "note": "Twijfelachtig orakel (critreview manifest-etappe 2026-09-23): de drie kenmerken zijn aanwezig (SCHEDOPTIONS ja, rem_late_start_date 52/52, driving_path_flag Y 52/52), maar de bron is de repo \"primeveraxereditor\" — een XER-editor kan die vlaggen zelf zetten; dat het bestand na de laatste bewerking door P6 is doorgerekend is niet aangetoond. Het is het enige bewijsbestand van B5 `p6OpenLoeTargetSpan` (+20 cellen alleen hier). Blijft orakel tot een eigenaarsbesluit."
     },
     "crawl-xer-extra/clause-epc/MER-1-2026_update_2026-05-01.xer": {
       "sha256": "5d71eac4e70b0d95365d5637d0e79874686f7332d1e90a939c28124260d79f47",
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/120, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/120 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/120, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/eq-proof/schedule.xer": {
       "sha256": "233486f70f5a4ee98c6fcac046515148b28b4256e5d61466146324359c6b888a",
@@ -365,7 +366,7 @@
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/70, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/70 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/70, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer": {
       "sha256": "2c1dce175b9f078111a48dc13fd1777f5fbd4cd7ab6623e647e7437330c60b7f",
@@ -379,21 +380,21 @@
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/15, driving_path_flag Y ja; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/15 gevuld) (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/15, driving_path_flag Y ja; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/meridianiq/sample_update2.xer": {
       "sha256": "53f5cdbeb3fbd9c6cb252a48c2ad9206f1f2ab44215372f83199df3a90803ffd",
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/7, driving_path_flag Y ja; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/7 gevuld) (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/7, driving_path_flag Y ja; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/p6difftool/sample-target.xer": {
       "sha256": "c872c9e704797d829205f3c5486e7c4cd5aec729143a63fbcf8b0ec8e8864a3c",
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 8/8, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 8/8, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/pda-platform/simple_project.xer": {
       "sha256": "8c82d244fb59e3439ba34e44ff7989f6b490344cdee3493ab7caacdce3038270",
@@ -407,7 +408,7 @@
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/16, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/16 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/16, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/polittdj-schedule-manipulation/commercial_construction.xer": {
       "sha256": "3daf749da5d4cd8909a33da2ea07f8c84cfdb62edfe4ce31d32152ffe152367d",
@@ -421,7 +422,7 @@
       "source": "crawl-xer-extra/MANIFEST.md",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/24, driving_path_flag Y ja; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/24 gevuld) (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/24, driving_path_flag Y ja; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "crawl-xer-extra/xernative/sample.xer": {
       "sha256": "4d8bce790a93b9bc747abec5d99840e3e0d1ce5523e0afae3ba881762cfe2c13",
@@ -460,21 +461,21 @@
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/5 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revB.xer": {
       "sha256": "def489b2a803af9f939b964b80e8fd9b2dc8143df280ad2a3088d91d4d6cdac3",
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/5 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revC.xer": {
       "sha256": "a7fc367eab6c904e6659a8206b9a162df132824c630e6175665c8a63f054104b",
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/3, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/3 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/3, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "delay-analysis-toolkit/sample/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
       "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
@@ -507,21 +508,21 @@
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/5 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "delay-analysis-toolkit/sample/revisions/revB.xer": {
       "sha256": "def489b2a803af9f939b964b80e8fd9b2dc8143df280ad2a3088d91d4d6cdac3",
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/5 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/5, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "delay-analysis-toolkit/sample/revisions/revC.xer": {
       "sha256": "a7fc367eab6c904e6659a8206b9a162df132824c630e6175665c8a63f054104b",
       "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/3, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/3 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/3, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "mpxj/junit/data/assignment/resource-rates-test.xer": {
       "sha256": "7298574bb32ac3068b07b427a35cd2834308d2fcb0e2ac74fea4e013e738c62e",
@@ -583,7 +584,7 @@
       "source": "P6-Viewer@c32dc4c46502adf8d8338ed1abac119aedf21f75",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/10, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/10 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/10, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "P6-Viewer/XER Files/TERMINAL BUILDING-AIRPORT.xer": {
       "sha256": "a2f3b2469e26f19985ac801786c90edfb965a7bc194a6e57704aa845c5f8611f",
@@ -610,35 +611,35 @@
       "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/10, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/10 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/10, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "ProjectLens/docs/demo/northstar-current.xer": {
       "sha256": "a132f8c7ebb070d29936b8852c6dca772ebb547c0ade91c17c96425e37e63818",
       "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/21 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "ProjectLens/docs/demo/northstar-previous.xer": {
       "sha256": "ac4b9d677133c6edcd6129050f32233e77c9d62ef06c7caac0dbf1da0d1e43ab",
       "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/21 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "ProjectLens/docs/demo/riverside-current.xer": {
       "sha256": "790b90fda837bad342658bf2c712cf6c39ab6adcd812e67edf93cda1c7eb362f",
       "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/21 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     },
     "ProjectLens/docs/demo/riverside-previous.xer": {
       "sha256": "78325fb6445d22f5949bf05c1e0afe3e14b72efc9cc9480800eab4bf2b0a1056",
       "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
       "role": "reader-only",
       "included": false,
-      "exclusionReason": "Geen P6-kenmerken (SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed False): orakel door een generator of ander pakket geschreven, niet aantoonbaar door P6 doorgerekend. Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
+      "exclusionReason": "Niet aantoonbaar door P6 doorgerekend: ontbreekt SCHEDOPTIONS-rij, rem_late_start_date op alle open taken (0/21 gevuld), driving_path_flag Y (gemeten: SCHEDOPTIONS nee, rem_late_start_date op open taken 0/21, driving_path_flag Y nee; p6Computed false). Blijft lezertest; eigenaarsbesluit 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels tellen voor het nuldoel."
     }
   }
 }

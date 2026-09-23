@@ -80,7 +80,12 @@ vergeleken. Het register is daarna teruggezet (`git diff --exit-code src` = 0).
 | C4 `p6CompletedOutOfSequenceWindow` | 1.274 (0) | 0 | 0 | inert |
 | A17 `p6FinishMilestoneBoundaryWindow` (extra) | 1.274 (0) | 0 | 0 | inert |
 
-B1, B2 en B5 worden gedragen door P6-doorgerekende bestanden. B3, B4, C1, C3, C4 en A17 hebben op de
+B1, B2 en B5 worden gedragen door P6-doorgerekende bestanden. Kanttekening bij B5 (critreview
+manifest-etappe): het enige bewijsbestand is ashspace, en dat is een twijfelachtig orakel. Het heeft de
+drie kenmerken (SCHEDOPTIONS, `rem_late_start_date` 52/52, `driving_path_flag` Y 52/52), maar de bronrepo
+heet "primeveraxereditor": een XER-editor kan die vlaggen zelf zetten. Dat het bestand na de laatste
+bewerking door P6 is doorgerekend, is niet aangetoond. De twijfel staat als `note` bij de entry in
+`xer-corpus-manifest.json` en in het docblok van B5; ashspace blijft orakel tot een eigenaarsbesluit. B3, B4, C1, C3, C4 en A17 hebben op de
 nieuwe populatie geen enkel effect, in geen van beide richtingen. Wat de P6-standaard van die zes wordt,
 beslist de eigenaar (overdracht §1a). Dit document kiest niet. Gevolg voor de openbare replay-pin: de
 negatieve controle `drop-p6-finish-milestone-boundary` (A17) gaf op deze populatie 0 regressies. Die

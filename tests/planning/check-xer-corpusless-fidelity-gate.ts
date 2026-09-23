@@ -37,6 +37,8 @@ type ManifestEntry = {
   role: Role;
   included: boolean;
   exclusionReason?: string;
+  /** Vrije toelichting bij een entry (bv. een twijfel over het orakel); stuurt niets. */
+  note?: string;
 };
 type Manifest = { version: number; policy: string; files: Record<string, ManifestEntry> };
 type OracleEntry = {
@@ -62,9 +64,12 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
-  manifestRawSha256: 'f3b74ea7f1b1c765667323b4d6bb3e0ef167b5365079bd712abc71ca8a0b2200',
+  // Manifestpinnen 2026-09-23h (fix manifest-review, handmatige reviewstap): alleen de teksten
+  // veranderden — `exclusionReason` per entry naar wat gemeten is, de policy als eenmalig besluit, en een
+  // `note` bij ashspace. Rollen, `included` en de selectie zijn ongewijzigd (selectiedigests gelijk).
+  manifestRawSha256: '19f16d1fd71240890b3edd089e3d84947458df141afa06caa485da3f2b878f6c',
   baselineRawSha256: 'c945d59ac0cc7ec723ff16738a0ca54e3b194bda02f919d6885c2b2bc8a1aba0',
-  manifestProjectionSha256: '9254180bb5db249ade8b875d104831c6fb2fdc89f761deb55d1bf5d5b8a04812',
+  manifestProjectionSha256: '3dafe5e195ec383eeb9d5b80528dd9d6d0a80d34d882b6deda2efd469c4f9b11',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
   oracleByteUniqueSha256: '7fee48a5ef51dd3c7b9940f631a1140a57b51ee2d65e22c048e48d12d67d7d47',
   selectedFullSha256: 'dd29b9e103709e8827f9ea159ed68bcfe7a70b141e9269bbc618ad786fa604d8',
@@ -184,8 +189,8 @@ const EXPECTED = {
     deviations: { es: 45, ef: 54, ls: 90, lf: 105, tf: 92, ff: 42 },
     drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: '25da9a9dc39dadf85ee2650f0c180a5ab3210c3b846626ead4312050315c168c',
-  productPayloadGzipSha256: '76755d0d564fb9cdb33618542181098829492319698cfdba44ded8ad82128a5d',
+  productPayloadSha256: '40a70a7b3a898b10475360f38a0bc81b482327a4fb12874f5a7acd673060d81a',
+  productPayloadGzipSha256: 'fe3e16db5bda6960a02be33f7b7f86f5ff70523492aedd39c45497697a55d6f5',
   productProjectProjectionSha256: '7a335862f5e6fc0976408093e3edd64ab10f37be4e221e88fcb3c9d93814e4a6',
   roles: {
     oracle: 13,

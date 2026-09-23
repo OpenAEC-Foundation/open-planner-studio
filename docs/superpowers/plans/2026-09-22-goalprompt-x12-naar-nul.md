@@ -32,7 +32,8 @@ de informatie voor een fix of een conventie. Een verbetering herpin je volgens h
 één commit: `OPS_XER_V2_WRITE=1`, `OPS_XER_CELLS_WRITE=1`, `OPS_XER_GATE_PINS=write`, de vangrails
 groen, en dan de twee tweede-orde pins met de hand: `xer-schedoptions-blast-radius.json`
 (`check-xer-schedule-options-corpus`; `xerDefaults`-afwijkingen alleen omlaag) en
-`xer-task-replay-public-pin.json` (`check-xer-task-replay`, o.a. `drop-p6-finish-milestone-boundary`;
+`xer-task-replay-public-pin.json` (`check-xer-task-replay`, o.a. `drop-p6-relation-finish-boundary`, sinds de
+populatiewijziging van 2026-09-23 de negatieve controle i.p.v. A17;
 detectievermogen, som per as gelijk) — en commit je mét het getal in het commitbericht: "X12 15.056 → 14.312 (−744, 0 slechter)".
 
 ## Regel B — verschil per school is een conventie, nooit een `if` op het formaat

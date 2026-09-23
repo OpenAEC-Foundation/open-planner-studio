@@ -84,6 +84,8 @@ export interface XerCorpusManifestEntry {
   role: XerCorpusRole;
   included: boolean;
   exclusionReason?: string;
+  /** Vrije toelichting bij een entry (bv. een twijfel over het orakel, zoals bij ashspace); stuurt de populatie niet. */
+  note?: string;
 }
 
 export interface XerCorpusManifest {

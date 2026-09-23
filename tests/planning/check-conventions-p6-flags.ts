@@ -884,6 +884,33 @@ for (const fixture of groupC) {
     (({ ls, lf }) => ({ ls, lf }))(solveAxes(lone, 'D')), { ls: '2026-01-14T17:00', lf: '2026-01-14T17:00' });
 }
 
+// C5-vangnet (critreview manifest-etappe 2026-09-23): vervangt het corpusvangnet dat DCP-03 As-Built
+// was (216 verslechteringen bij een naïeve brede B07-poort; As-Built is sinds het populatiebesluit
+// geen orakel meer). Voltooide taken met werkelijke datums vóór de statusdatum en een ANDER
+// targetvenster (wo 7 – do 8 jan), in de As-Built-vormen die niet onder B3 vallen: CP_Drtn +
+// DT_FixedDrtn, CP_Units + DT_FixedDUR2, CP_Units + DT_FixedDrtn. Onder het P6-profiel houden die hun
+// werkelijke datums (ma 5 jan 08:00 – di 6 jan 17:00); alleen de CP_Phys-tegenhanger D schuift naar
+// het statusdatumpunt (wo 14 jan 00:00). Mutant "C5-poort zonder CP_Phys-filter"
+// (`explainP6CompletedPhysicalPoint` zonder de `completePctType !== 'CP_Phys'`-regel) ⇒ V1–V3 op
+// wo 14 jan 00:00 ⇒ rood.
+{
+  const completed = (id: string, pctType: string, durationType: string) =>
+    `%R\t${id}\tP1\tC1\t${id}00\tVoltooid ${pctType}/${durationType}\tTT_Task\t${durationType}\tTK_Complete\t${pctType}\t18\t0\t2026-01-07 08:00\t2026-01-08 17:00\t2026-01-05 08:00\t2026-01-06 17:00`;
+  const net = c5Fixture([
+    completed('V1', 'CP_Drtn', 'DT_FixedDrtn'),
+    completed('V2', 'CP_Units', 'DT_FixedDUR2'),
+    completed('V3', 'CP_Units', 'DT_FixedDrtn'),
+  ]);
+  eq('C5-vangnet fixture draagt het P6-profiel', net.project.schedulingProfile?.baseId, 'p6');
+  const actuals = { es: '2026-01-05T08:00', ef: '2026-01-06T17:00' };
+  for (const id of ['V1', 'V2', 'V3']) {
+    eq(`C5-vangnet: voltooide ${id} (geen CP_Phys) houdt haar werkelijke datums onder P6`,
+      (({ es, ef }) => ({ es, ef }))(solveAxes(net, id)), actuals);
+  }
+  eq('C5-vangnet: de CP_Phys-tegenhanger staat op het statusdatumpunt',
+    (({ es, ef }) => ({ es, ef }))(solveAxes(net, 'D')), { es: '2026-01-14T00:00', ef: '2026-01-14T00:00' });
+}
+
 // C6, randgevallen: een deels verstreken lag (werkelijk gestart di 13 jan 08:00: 9 h verstreken, 9 h
 // over ⇒ wo 14 jan 17:00 ⇒ do 15 jan 08:00); een FS-relatie blijft ongemoeid (C6 geldt alleen voor SS).
 {

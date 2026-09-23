@@ -839,6 +839,25 @@ geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
   (`CPMSolver.ts` bij de C4-tak), C5 kent die poort niet. Eén OZB-project heeft Progress Override;
   niet gemeten of C5 daar anders hoort.
 
+### Vervolgpunten manifest-etappe (populatie = P6-doorgerekend, critreview 2026-09-23)
+
+Genoteerd, niet gebouwd.
+
+- **Blast-radius volgt het manifest niet.** `check-xer-schedule-options-corpus.ts` (r. ~597,
+  `oracleFiles = scanned.filter(file => hasOracleAxis(file.truth))`) selecteert over alle 93
+  corpusbestanden op meetbare orakelassen, niet op `role`/`included` uit `xer-corpus-manifest.json`.
+  Daardoor pint `xer-schedoptions-blast-radius.json` na de populatiewijziging nog steeds rehab-2 (P3-
+  uitvoer) en de synthetische bestanden mee: in de praktijk een ratchet op P3-gedrag. Vervolg: de
+  selectie op het manifest laten lopen (of expliciet per rol splitsen) en de pin daarna opnieuw meten.
+- **Het As-Built-vangnet voor een brede B07/C5-poort is weg uit de corpuspoort.** Een naïeve poort
+  "elke voltooide taak met werkelijk einde op/vóór de statusdatum staat op het statusdatumpunt" gaf 216
+  verslechteringen (285 cellen in de brede C5-meting), allemaal in DCP-03 As-Built. As-Built is sinds het
+  besluit `reader-only` (p6Computed `unknown`), dus regel A ziet die verslechteringen niet meer. Het
+  vangnet is vervangen door een corpusloze casus in `check-conventions-p6-flags.ts` ("C5-vangnet":
+  voltooide CP_Drtn/CP_Units/DT_FixedDrtn-taken houden hun werkelijke datums, alleen CP_Phys schuift),
+  maar dat is een fixture, geen orakel; of P6 een voltooide CP_Drtn-taak werkelijk op haar datums laat,
+  steunt alleen op As-Built (eigenaarsvraag overdracht §1d-6).
+
 ## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
 *Herschreven door de Claude-sessie die op 2026-09-07 de etappe overnam, 7a en laag 3 landde en de

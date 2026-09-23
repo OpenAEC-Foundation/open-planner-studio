@@ -189,7 +189,11 @@ export interface SchedulingOptions {
   p6CompletedLoeActualFinish?: boolean;
   /** B5 — een niet-gestarte LOE met volledig targetvenster, alleen nul-lag SS-ingang en nul-lag
    *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibilityResolved`,
-   *  `CPMSolver`'s hammocktak). P6 aan / MS Project uit / OPS uit. */
+   *  `CPMSolver`'s hammocktak). P6 aan / MS Project uit / OPS uit.
+   *  Bewijs op de P6-doorgerekende populatie (besluit 2026-09-23): één bestand, en dat is twijfelachtig —
+   *  uitzetten kost +20 cellen (ef 10, lf 10), uitsluitend in `ashspace-primeveraxereditor/sample.xer`.
+   *  Dat bestand heeft de drie P6-kenmerken, maar komt uit een XER-editor-repo die die vlaggen zelf kan
+   *  zetten (manifest-`note` bij de entry; `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md`). */
   p6OpenLoeTargetSpan?: boolean;
 
   // ── Groep C (X12 naar nul, 2026-09-23): conventies die pas ná de rekenprofielen uit de
