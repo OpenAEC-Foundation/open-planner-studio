@@ -2,6 +2,8 @@ import {
   addFidelityCounts,
   classify,
   classifyExact,
+  classifyFloatMinutes,
+  FLOAT_EXACT_TOLERANCE_MIN,
   compareFidelityRow,
   countFidelityAxis,
   emptyFidelityCounts,
@@ -24,6 +26,14 @@ eq('1b andere dag', classify('2026-01-06T08:00', '2026-01-05T08:00'), 'diff');
 eq('1c ontbrekend orakel', classify('2026-01-05T08:00', null), 'missing');
 eq('1d scalaire gelijkheid gebruikt geen datumdagvergelijking', classifyExact('75', '75'), 'exact');
 eq('1e scalaire afwijking is direct diff', classifyExact('76', '75'), 'diff');
+// §1d-9 (eigenaarsbesluit in afwachting): float-ruis onder de celafronding is exact, 0,002 niet.
+eq('1f float-tolerantie is de celafronding', FLOAT_EXACT_TOLERANCE_MIN, 0.001);
+eq('1g EC1600-ruis 396640.00002 vs 396640 is exact', classifyFloatMinutes('396640.00002000004', '396640'), 'exact');
+eq('1h 396640.002 vs 396640 blijft diff', classifyFloatMinutes('396640.002', '396640'), 'diff');
+eq('1i 0,0006 rondt af op 0,001 ⇒ diff', classifyFloatMinutes('10.0006', '10'), 'diff');
+eq('1j niet-getal is diff', classifyFloatMinutes('x', '10'), 'diff');
+eq('1k ontbrekend orakel', classifyFloatMinutes('10', null), 'missing');
+eq('1l classifyExact zelf blijft tekst-exact', classifyExact('396640.00002000004', '396640'), 'diff');
 
 const rows = [
   compareFidelityRow('A', {

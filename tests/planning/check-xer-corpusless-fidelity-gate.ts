@@ -91,6 +91,12 @@ const EXPECTED = {
   tasks: 5_923,
   tasksWithAnyMeasuredAxis: 5_901,
   measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23q (integratieronde 2 — merge van claude/x12-tolerantie-vraag9 op brok 8;
+  // MEETTOLERANTIE, geen motorwijziging, orkestratorbesluit §1c/§1d-9): tf/ff exact als het verschil op de
+  // 0,001-minuutraster naar 0 afrondt (`FLOAT_EXACT_TOLERANCE_MIN`, fidelityCore.ts). Op de branch zelf
+  // (motor vóór brok 8): X12 192 → 190, alleen HarbourPointe 4408/EC1600 (ops 396640,00002 vs P6 396640).
+  // Op de brok-8-motor (herpinrecept met de schrijfmodi, cellen: 2 beter, 0 kleiner): X12 180 → 178
+  // (tf 48 → 47, ff 19 → 18): dezelfde twee HarbourPointe-cellen 4408/98250. Overige cellen byte-identiek.
   // HERPIN 2026-09-23p (X12 naar nul, brok 8 — C13: de vrije-spelingkant van C5
   // `p6CompletedPhysicalAtDataDate`, motorwijziging zonder nieuwe conventie; regel A: measure:profiles
   // VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=1 kleiner=0 schuld=0). Over een FS0-relatie naar
@@ -229,16 +235,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_664, ff: 5_693 },
+    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_665, ff: 5_694 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 48, ff: 19 },
+    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 47, ff: 18 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 48, ff: 19 },
+    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 47, ff: 18 },
     drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
   },
-  productPayloadSha256: '9c2b854c5c786d130f7a8ce35ccda9368763fff5f87db5d3871134d2f6289a0f',
-  productPayloadGzipSha256: 'e55e7326a3549b840cbae923c3c62d1052bb8c99d19730c1a0612454ef3cf1cb',
-  productProjectProjectionSha256: 'dbb0b78db203f5ca59daa3ec4a926799db542f6c8798d5500253c6c98d7fb956',
+  productPayloadSha256: 'c1e5bf6b514bf6057cef77c208ba75f1e4bda3f39771c03373925b5342477b35',
+  productPayloadGzipSha256: '0cdb73cdca5574ca4bef460d82bfdfe974818d0c64f8e4c4300111da546ac84f',
+  productProjectProjectionSha256: 'bae6181b38d6cd600488d7a47a9136f598d37aea1ccaeb3a146fa0d22bc61611',
   roles: {
     oracle: 9,
     'engine-input': 14,

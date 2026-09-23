@@ -1208,10 +1208,6 @@
         "4408/98247": {
           "bucket": "diff",
           "minutes": 1451
-        },
-        "4408/98250": {
-          "bucket": "diff",
-          "minutes": 0
         }
       },
       "lf": {
@@ -1510,10 +1506,6 @@
         "4408/98247": {
           "bucket": "diff",
           "minutes": 1451
-        },
-        "4408/98250": {
-          "bucket": "diff",
-          "minutes": 0
         }
       }
     }
