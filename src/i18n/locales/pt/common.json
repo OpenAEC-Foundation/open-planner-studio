@@ -1278,6 +1278,14 @@
     "p6InProgressStartLagElapsed": {
       "label": "O atraso II decorrido de um predecessor em andamento não conta",
       "help": "Numa relação início-início a partir de uma tarefa já iniciada, só conta a parte do atraso que ainda não decorreu desde o seu início real na data de status."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Uma relação fim-fim para um marco de início liga-se ao próprio marco",
+      "help": "Uma relação fim-fim para um marco de início conta até ao próprio marco, e não até ao início do seu dia: o fim mais tardio da predecessora pode ir até ao fim mais tardio do marco."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "O início planeado não é um limite mínimo para uma tarefa em curso",
+      "help": "O trabalho restante de uma tarefa iniciada começa na data de estado e logo após as suas predecessoras, mesmo que o início planeado seja posterior."
     }
   },
   "profiles": {

@@ -1313,6 +1313,14 @@
     "p6InProgressStartLagElapsed": {
       "label": "Upłynięte opóźnienie SS od trwającego poprzednika się nie liczy",
       "help": "Przy relacji start-start od zadania, które już się rozpoczęło, liczy się tylko ta część opóźnienia, która od jego rzeczywistego startu do daty stanu jeszcze nie upłynęła."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Relacja koniec-koniec do kamienia milowego startu wiąże się z samym kamieniem",
+      "help": "Relacja koniec-koniec do kamienia milowego startu liczy się do samego kamienia milowego, a nie do początku jego dnia: najpóźniejsze zakończenie poprzednika może sięgać najpóźniejszego zakończenia kamienia milowego."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Planowany start nie jest dolną granicą dla zadania w toku",
+      "help": "Pozostała praca rozpoczętego zadania zaczyna się w dacie stanu i zaraz po jego poprzednikach, nawet jeśli planowany start jest późniejszy."
     }
   },
   "profiles": {

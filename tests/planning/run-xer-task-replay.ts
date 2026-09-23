@@ -5,6 +5,7 @@ import type { XerCorpusManifest } from './xerFidelity';
 import { corpusReplayExitCode, runXerTaskReplayCorpus } from './xerTaskReplayCorpus';
 import {
   dropFinishMilestoneBoundaryCandidate,
+  dropRelationFinishBoundaryCandidate,
   syntheticZeroRegressionCandidate,
 } from './xerTaskReplayProduct';
 
@@ -17,13 +18,15 @@ const corpusRoot = value('--corpus');
 const manifestPath = value('--manifest') ?? join(process.cwd(), 'tests/planning/xer-corpus-manifest.json');
 const candidateName = value('--candidate') ?? 'finish-milestone-boundary';
 const report = value('--report') ?? 'summary';
-if (!corpusRoot) throw new Error('gebruik: --corpus <map> [--candidate finish-milestone-boundary|zero] [--report summary|detail]');
+if (!corpusRoot) throw new Error('gebruik: --corpus <map> [--candidate finish-milestone-boundary|relation-finish-boundary|zero] [--report summary|detail]');
 if (report !== 'summary' && report !== 'detail') throw new Error(`onbekend rapporttype: ${report}`);
 const candidate = candidateName === 'finish-milestone-boundary'
   ? dropFinishMilestoneBoundaryCandidate
-  : candidateName === 'zero'
-    ? syntheticZeroRegressionCandidate
-    : undefined;
+  : candidateName === 'relation-finish-boundary'
+    ? dropRelationFinishBoundaryCandidate
+    : candidateName === 'zero'
+      ? syntheticZeroRegressionCandidate
+      : undefined;
 if (!candidate) throw new Error(`onbekende kandidaat: ${candidateName}`);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as XerCorpusManifest;
 

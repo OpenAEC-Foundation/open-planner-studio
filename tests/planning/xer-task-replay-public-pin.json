@@ -1,88 +1,88 @@
 {
   "version": 1,
   "manifestEntries": 93,
-  "selectedEntries": 34,
-  "projects": 47,
-  "tasks": 13982,
+  "selectedEntries": 9,
+  "projects": 21,
+  "tasks": 5983,
   "candidates": {
     "synthetic-zero-regression": {
       "aggregate": {
         "es": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13931
+          "unchanged": 5961
         },
         "ef": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13937
+          "unchanged": 5961
         },
         "ls": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13822
+          "unchanged": 5961
         },
         "lf": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13813
+          "unchanged": 5961
         },
         "tf": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13677
+          "unchanged": 5772
         },
         "ff": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13322
+          "unchanged": 5772
         },
         "overall": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 13959
+          "unchanged": 5961
         }
       },
       "rejected": false,
       "exitCode": 0,
       "memoryModel": "one-manifest-entry-and-one-project-solve-clone-at-a-time"
     },
-    "drop-p6-finish-milestone-boundary": {
+    "drop-p6-relation-finish-boundary": {
       "aggregate": {
         "es": {
           "improved": 0,
-          "regressed": 0,
-          "unchanged": 13931
+          "regressed": 942,
+          "unchanged": 5019
         },
         "ef": {
           "improved": 0,
-          "regressed": 2,
-          "unchanged": 13935
+          "regressed": 942,
+          "unchanged": 5019
         },
         "ls": {
-          "improved": 0,
-          "regressed": 1671,
-          "unchanged": 12151
+          "improved": 9,
+          "regressed": 0,
+          "unchanged": 5952
         },
         "lf": {
-          "improved": 0,
-          "regressed": 1682,
-          "unchanged": 12131
+          "improved": 18,
+          "regressed": 0,
+          "unchanged": 5943
         },
         "tf": {
           "improved": 0,
-          "regressed": 1666,
-          "unchanged": 12011
+          "regressed": 926,
+          "unchanged": 4846
         },
         "ff": {
           "improved": 0,
-          "regressed": 0,
-          "unchanged": 13322
+          "regressed": 309,
+          "unchanged": 5463
         },
         "overall": {
-          "improved": 0,
-          "regressed": 1682,
-          "unchanged": 12277
+          "improved": 17,
+          "regressed": 1083,
+          "unchanged": 4861
         }
       },
       "rejected": true,

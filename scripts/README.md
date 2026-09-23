@@ -127,6 +127,19 @@ elke afwijking op een bestaande entry blijft blokkeren. De corpusloze vangrail p
 de orakelselectie zelf ook (`EXPECTED.manifestRawSha256` e.a.); die pinnen bijwerken is bij
 corpusgroei een bewuste reviewstap en valt buiten `OPS_XER_GATE_PINS`.
 
+Een manifestwijziging raakt naast de drie schrijfmodi nog vijf handmatige, bewust te reviewen pinplekken
+(gemeten bij de populatiewijziging van 2026-09-23): (1) `tests/planning/xer-fidelity-baseline.json` —
+de orakel-doelbaseline, opnieuw gemeten met `OPS_XER_FIDELITY_REPORT=baseline bash tests/planning/run.sh
+check-xer-fidelity.ts` (de JSON tussen de kopregels, byte-exact); (2) de ankers C5–C8b in
+`check-xer-fidelity.ts`; (3) `EXPECTED_BASELINE_KEYS`/`EXPECTED_MEASURABLE`/de twee raw-hashes en 1h/1i in
+`check-xer-fidelity-baseline-schema.ts`; (4) `tests/planning/xer-task-replay-public-pin.json`
+(`selectedEntries`, `projects`, `tasks`, de kandidaat-aggregaten, gemeten met `check-xer-task-replay.ts`
+mét corpus); (5) in `EXPECTED` van de corpusloze vangrail de manifest-/selectiepinnen
+(`manifestRawSha256`, `baselineRawSha256`, de projectie- en selectiedigests, `included`, `excluded`,
+`oracleByteUnique`, `selected`, `tasksWithAnyMeasuredAxis`, `roles`) — de vangrail noemt de verwachte
+waarden zelf in zijn foutregel. `xer-schedoptions-blast-radius.json` kent de manifestpopulatie niet (hij
+selecteert op meetbare orakelassen) en blijft ongewijzigd.
+
 Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
 dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een
 v2-baseline bij hetzelfde corpusmanifest bestaat — `init` is alleen voor een echt nieuw corpus. Een
@@ -153,7 +166,10 @@ Maak een baseline daarom nooit langs ze heen:
   { p6Computed: true|false|"unknown", schedOptions, remLateStartFilled, drivingPathFlagY }`; "unknown"
   = geen open taken); de X12-splitsing telt per (bestand, project), en projecten zonder sidecar-regel
   tellen apart als "niet in sidecar". Het bestandsveld `p6Computed` is alleen een samenvatting: de
-  gemeenschappelijke waarde, of `"mixed"` als projecten verschillen. `measure:profiles` draait in het
+  gemeenschappelijke waarde, of `"mixed"` als projecten verschillen. Het eigenaarsbesluit van 2026-09-23
+  ("alleen die P6-bestanden") gebruikt deze meting als onderbouwing voor de populatie: een manifestentry
+  is `oracle` als minstens één project `true` is, anders `reader-only`. De meting kiest niet zelf; een
+  wisseling blijft een bewuste manifestwijziging. `measure:profiles` draait in het
   P6-deel `--check` mee en print de exitcode, zonder het oordeel te veranderen. Dat
   bestand is de enige bron voor de splitsing "P6-doorgerekend / niet / onbekend" in de X12-uitvoer en
   in `measure:profiles`; het stuurt de populatie nooit. `--check` faalt (exit 1) als het bestand niet

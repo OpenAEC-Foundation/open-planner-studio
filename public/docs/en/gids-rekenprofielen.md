@@ -8,12 +8,12 @@ Open Planner Studio schedules with one engine, but Primavera P6 and Microsoft Pr
 - Which profile an opened file gets, and why you see a notification about it.
 - How to switch profiles and what then happens to your schedule.
 - How to make a custom profile and keep it as a template.
-- What the twenty-one conventions do.
+- What the twenty-three conventions do.
 - When a combination has no reference package.
 
 ## What a calculation profile is
 
-A profile is a set of twenty-one **conventions**: rules that belong to a scheduling package, such as "an unstarted task does not move to the status date by itself". In addition, every project has **calculation options** that differ per file, such as the lag calendar, the critical definition and the float calculation. Those options belong to the project; the profile only supplies their defaults for a new project.
+A profile is a set of twenty-three **conventions**: rules that belong to a scheduling package, such as "an unstarted task does not move to the status date by itself". In addition, every project has **calculation options** that differ per file, such as the lag calendar, the critical definition and the float calculation. Those options belong to the project; the profile only supplies their defaults for a new project.
 
 The three built-in profiles:
 
@@ -50,9 +50,9 @@ Turn a convention on or off in the section. If the profile is built in, Open Pla
 
 With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**. **Delete template** removes the template from the app again; the project keeps its own copy.
 
-## The twenty-one conventions
+## The twenty-three conventions
 
-Under Open Planner Studio all twenty-one are off.
+Under Open Planner Studio all twenty-three are off.
 
 - **Keep actual dates in the backward pass** (Primavera P6) — a started or completed task keeps its recorded dates on the late side too.
 - **Free float never negative** (Primavera P6) — with an unachievable late constraint, total float stays negative but free float becomes zero.
@@ -75,6 +75,8 @@ Under Open Planner Studio all twenty-one are off.
 - **Completed out-of-sequence task waits for its predecessors** (Primavera P6) — if a task is already completed while a predecessor is still in progress or has not started, it is placed right after that predecessor instead of at the data date, and its successors move with it. This does not apply under the P6 setting Progress Override.
 - **Completed physical-progress task sits at the data date** (Primavera P6) — a completed task with physical percent complete is not shown at its actual dates, but as a single point at the data date, or later if a predecessor that is still in progress or has not started requires it. Its successors calculate from that point.
 - **Elapsed SS lag from an in-progress predecessor does not count** (Primavera P6) — for a start-to-start relationship from a task that has already started, only the part of the lag that has not yet elapsed since its actual start at the data date counts. If the lag has already elapsed, the successor may start as soon as the remaining work of the predecessor starts.
+- **Finish-to-finish relationship to a start milestone binds to the milestone itself** (Primavera P6) — with a finish-to-finish relationship to a start milestone, the predecessor may run up to the milestone itself, not only up to the start of the milestone's day. That changes the predecessor's late dates and float. A finish milestone does not change.
+- **Planned start is not a floor for a task in progress** (Primavera P6) — the remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later. Its successors move with it. For a task that has not started, the planned start remains a floor (*Planned start as an extra floor*).
 
 ## Combinations without a reference package
 
@@ -82,7 +84,7 @@ Some of the P6 conventions only act on tasks with P6 provenance, that is, from a
 
 ## Saving and exchanging
 
-The profile is saved in the IFC file, with all twenty-one values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
+The profile is saved in the IFC file, with all twenty-three values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
 
 When you export to CSV, MS Project XML or P6 XML, the profile does not come along; those files open as Open Planner Studio again. For a project from a `.xer` file, the export reports that XER source information is lost; the calculation profile is part of that, but the notification does not name it separately.
 

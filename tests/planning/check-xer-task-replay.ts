@@ -10,6 +10,7 @@ import {
 } from './xerTaskReplay';
 import {
   dropFinishMilestoneBoundaryCandidate,
+  dropRelationFinishBoundaryCandidate,
   replayXerProductBeforeOracle,
   syntheticZeroRegressionCandidate,
   type XerTaskReplayCandidate,
@@ -67,7 +68,11 @@ if (!corpusRoot) {
   // Herpin 2026-09-23 (X12 brok 3, C4 + C5 + C6, na de merge van de brok-2-fixronde): alleen tf beweegt,
   // regressed 1591 → 1666 en unchanged 12086 → 12011 (som gelijk). C4 maakt 298 tf-cellen exact in
   // rehab-2; de mutant breekt er daardoor meer. es/ef/ls/lf/ff en overall ongewijzigd.
-  for (const candidate of [syntheticZeroRegressionCandidate, dropFinishMilestoneBoundaryCandidate]) {
+  // Herpin 2026-09-23 (populatiebesluit: alleen aantoonbaar door P6 doorgerekende orakels): de
+  // selectie gaat 34 → 9 entries. Op die populatie is `drop-p6-finish-milestone-boundary` (A17) inert
+  // — 0 regressies op alle assen, gemeten — en dus geen negatieve controle meer. Die rol gaat naar
+  // `drop-p6-relation-finish-boundary` (B1), die op dezelfde populatie duidelijk regressies geeft.
+  for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {
       manifestEntries: summary.manifestEntries,
@@ -289,6 +294,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
         plannedFloorTraceTargetStart: '2026-06-04T08:00',
         plannedFloorTraceTargetFinish: '2026-06-04T17:00',
         plannedFloorTracePlannedWindowIsLater: true,
+        plannedFloorTraceFloorApplied: true,
         plannedFloorTraceBoundarySource: 'relationship',
         plannedFloorTraceBoundarySequenceId: 'R-FB',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'FB-PRED',
@@ -305,6 +311,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
         plannedFloorTraceTargetStart: '2026-06-03T08:00',
         plannedFloorTraceTargetFinish: '2026-06-03T17:00',
         plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceFloorApplied: false,
         plannedFloorTraceBoundarySource: 'relationship',
         plannedFloorTraceBoundarySequenceId: 'R-OD',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'OD-PRED',
@@ -321,6 +328,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
         plannedFloorTraceTargetStart: '2026-06-04T08:00',
         plannedFloorTraceTargetFinish: '2026-06-04T17:00',
         plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceFloorApplied: false,
         plannedFloorTraceBoundarySource: 'relationship',
         plannedFloorTraceBoundarySequenceId: 'R-FN',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'FN-PRED',
@@ -337,6 +345,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
         plannedFloorTraceTargetStart: '2026-06-02T15:00',
         plannedFloorTraceTargetFinish: '2026-06-03T15:00',
         plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceFloorApplied: false,
         plannedFloorTraceBoundarySource: 'relationship:p6-predecessor-finish-boundary',
         plannedFloorTraceBoundarySequenceId: 'R-BC',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'BC-PRED',

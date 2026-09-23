@@ -2,8 +2,12 @@
 
 *De opdrachttekst voor elke sessie of subagent die aan het X12-restant werkt. Eigenaarsbesluiten
 2026-09-22: het nuldoel van plan XER §1 is de lat; "geen pinnen met reden"; regel A en B zijn de
-landingsregels. Eindtoestand van het hele programma: **0 zesassige afwijkingen tegen P6 op het volledige
-corpus** (nu 15.056 op 34 entries / 47 projecten / 13.982 taken), met `GOAL_ZERO_DEVIATIONS_XER` aan.*
+landingsregels. Eindtoestand van het hele programma: **0 zesassige afwijkingen tegen P6 op het orakelcorpus**
+met `GOAL_ZERO_DEVIATIONS_XER` aan. Het orakelcorpus is sinds het eigenaarsbesluit van 2026-09-23 ("alleen die
+P6-bestanden", overdracht §1a) uitsluitend de aantoonbaar door P6 doorgerekende bestanden (`role: oracle` in
+`tests/planning/xer-corpus-manifest.json`, onderbouwd door `scripts/xer-p6-computed.ts`): 9 entries / 21
+projecten / 5.983 taken, X12 **1.274** na die populatiewijziging (was 11.529 op 34 entries / 47 projecten /
+13.982 taken; 15.056 bij de start).*
 
 ## Het doel
 
@@ -48,7 +52,9 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
    welk bestand, welke as, welke taakklasse). Begin bij de grootste homogene groep: de projecteinde-fout
    (`sched_use_project_end_date_for_float=Y` zonder einddatum, 36 van 39 rijen), dossier 7b-4 (forward-
    anker, ≤ 690 cellen op rehab-2), de 215 tf-cellen `TK_Complete`/`DT_FixedDUR2`, sameday (415, 280 in
-   `groupdocs-conversion/sample.xer`).
+   `groupdocs-conversion/sample.xer`). *(Stand 2026-09-22; rehab-2 en groupdocs zijn sinds het
+   populatiebesluit van 2026-09-23 geen orakel meer — de actuele brokkentelling staat in
+   `2026-09-23-x12-restant-classificatie.md`, kop "Populatie na besluit 23-09".)*
 2. **Eén hypothese, één fix, één meting.** Geen twee regels tegelijk in de motor.
 3. **Bewijs in de commit:** de X12-regels letterlijk, de cel-delta, mpp-fidelity-regel, corpusloos groen.
 4. **Escaleren, niet pinnen.** Kun je een afwijking niet verklaren uit P6's eigen documentatie of het
@@ -59,6 +65,12 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
 
 ## Wat niet mag
 
+- De populatie wijzigen om het getal te laten zakken — een entry uit het orakel halen, een rol omboeken,
+  `included` omzetten. Het orakelcorpus is een eigenaarsbesluit. Eenmalige uitzondering, door de eigenaar
+  zelf genomen op 2026-09-23 ("alleen die P6-bestanden"): de 32 entries zonder aantoonbare P6-doorrekening
+  (rehab-2 = P3-uitvoer, synthetische/generatorbestanden, hb-intel, stack_data_center, DCP-03 As-Built)
+  gingen naar `reader-only`, via het corpusgroei-recept (`=corpus`-schrijfmodi, `scripts/README.md`). Een
+  volgende populatiewijziging vraagt weer een eigenaarsbesluit.
 - Een cel of as pinnen om groen te worden.
 - Een P6-tak achter een formaat- of herkomstcheck stoppen.
 - Het OPS-profiel veranderen (inhoud is een eigenaarsbesluit ná nul).

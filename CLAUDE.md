@@ -152,7 +152,7 @@ Gebruikersgidsen: `public/docs/{nl,en}/gids-xer-import.md` en `datums-zoals-opge
 ### Rekenprofielen: benoemde conventies, geen formaatvlag
 
 Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (`project.schedulingProfile`,
-basis `p6 | msproject | ops` + overrides) levert achttien **conventies** (`ConventionKey`, booleans);
+basis `p6 | msproject | ops` + overrides) levert drieëntwintig **conventies** (`ConventionKey`, booleans);
 `project.schedulingOptions` draagt alleen de negen **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
 (`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
@@ -166,7 +166,7 @@ De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/
 (`src/engine/scheduler/solveInput.ts`) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
 aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel voor (`ImportResult.suggestedProfileId`:
 XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe); openen meldt het profiel met een
-actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle achttien opgelost plus de letterlijke afwijkingen, alleen ≠ standaardprofiel)
+actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle drieëntwintig opgelost plus de letterlijke afwijkingen, alleen ≠ standaardprofiel)
 naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door `writeIFC`/`readIFC` geschreven en
 gelezen. Eigen profielen zijn app-globale
 sjablonen (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt

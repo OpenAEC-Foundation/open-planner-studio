@@ -2,6 +2,90 @@
 
 *Gemeten op 2026-09-23 in een eigen detached worktree `/tmp/ops-x12-meet`. De kop van `claude/rekenprofielen` was inmiddels `86d720fb`; dat is `1b45218a` plus één commit die alleen documentatie wijzigt (`git diff --stat 1b45218a 86d720fb`: 1 bestand, `docs/…overdracht.md`). De motor is dus identiek. Er is niets in de repo gewijzigd. Alle hulpscripts en tussenresultaten staan in `/tmp/x12scripts/`.*
 
+## Populatie na besluit 23-09
+
+*Bijgewerkt 2026-09-23 op `claude/x12-manifest-p6-orakels` (Claude Opus 5.5). De rest van dit document
+beschrijft de stand van 15.056 cellen op het oude orakel en blijft als geschiedenis staan.*
+
+**Besluit.** Eigenaar, 23-09, letterlijk: "Ja die alleen die p6 Bestände" (overdracht §1a). Het orakel is
+voortaan alleen een bestand met minstens één project dat aantoonbaar door P6 is doorgerekend. Het bewijs
+per project komt uit `scripts/xer-p6-computed.ts`: een SCHEDOPTIONS-rij, `rem_late_start_date` gevuld op
+alle open taken, en `driving_path_flag` ergens Y. Er gingen 32 manifestentries naar de rol `reader-only`
+(met `exclusionReason`): rehab-2 (P3), S1–S10, hb-intel, stack_data_center, de vier kopieën van DCP-03
+As-Built (p6Computed `unknown`: geen open taak) en de delay-analysis-revisies A/B/C. Er blijven 13
+orakelentries over. Na byte- en schemadedup zijn dat 9 geselecteerde entries, met 21 projecten en 5.983
+taken.
+
+**Nieuwe stand (X12, gemeten na de herpin, kop brok 4 = C7):** **1.274** zesassige afwijkingen. Per as:
+es 271, ef 280, ls 267, lf 282, tf 120, ff 54. Daarvan sameday: es 2, ef 2, ls 1, lf 13. drivingPath:
+176 (was 417). De 11.529 − 1.274 = 10.255 cellen die wegvallen, zijn 8.441 uit rehab-2 en 1.814 uit de
+niet-P6-bestanden. Geen enkele cel in de P6-bestanden veranderde; alleen de populatie werd kleiner.
+
+| bestand | es | ef | ls | lf | tf | ff | totaal | drivingPath |
+|---|---|---|---|---|---|---|---|---|
+| Roads_Project_TEC | 195 | 197 | 178 | 178 | 49 | 14 | **811** | 0 |
+| HarbourPointe_AssistedLiving | 36 | 39 | 39 | 35 | 32 | 11 | **192** | 7 |
+| OZB-Start-09Dec24 (12 projecten) | 18 | 18 | 23 | 23 | 13 | 3 | **98** | 29 |
+| DCP-03 Baseline Rev 0 | 20 | 22 | 4 | 4 | 22 | 20 | **92** | 7 |
+| Hotel_Construction_TEC (HBTF-2 + CR) | 0 | 2 | 22 | 36 | 1 | 3 | **64** | 88 |
+| Sample_Construction_TEC | 2 | 2 | 1 | 2 | 3 | 3 | **13** | 0 |
+| ashspace sample | 0 | 0 | 0 | 4 | 0 | 0 | **4** | 10 |
+| TERMINAL BUILDING-AIRPORT | 0 | 0 | 0 | 0 | 0 | 0 | **0** | 35 |
+| xernative sample | 0 | 0 | 0 | 0 | 0 | 0 | **0** | 0 |
+
+**Brokkentelling op alleen de P6-bestanden.** Elke overgebleven cel kreeg het brok uit de toewijzing van
+§1 (`/tmp/x12scripts/assign.json`, cel voor cel op sleutel label|project|task_id|as). Alle 1.274 cellen
+hadden een toewijzing. Kanttekening: die toewijzing is gemaakt op de stand van 15.056. Na C1–C4, C6 en
+C7 kan een wortel verschoven zijn. De telling geeft dus de oorsprong aan, geen nieuwe classificatie.
+
+| brok | es | ef | ls | lf | tf | ff | **totaal** | sameday | bestanden |
+|---|---|---|---|---|---|---|---|---|---|
+| B07 voltooide CP_Phys | 226 | 223 | 193 | 193 | 27 | 13 | **875** | 0 | Roads 754; HarbourPointe 67; OZB 54 |
+| U2 onverklaard | 12 | 15 | 25 | 22 | 33 | 10 | **117** | 4 | HarbourPointe 82; OZB 23; Sample_Construction 12 |
+| B10 startmijlpaal met targetvenster (n=1) | 20 | 22 | 0 | 0 | 18 | 15 | **75** | 1 | DCP-03 Baseline 75 |
+| B09 bandgrens-weergave | 1 | 8 | 21 | 41 | 0 | 0 | **71** | 11 | Hotel 58; ashspace 4; Roads 4; OZB 2; HarbourPointe, Sample_Construction, DCP-03 1 elk |
+| B08 FF naar startmijlpaal (rest na C6) | 0 | 0 | 14 | 14 | 21 | 0 | **49** | 0 | Roads 49 |
+| B12 ALAP | 12 | 12 | 3 | 2 | 10 | 5 | **44** | 2 | HarbourPointe 41; Hotel 3 |
+| B13 CS_MSOA | 0 | 0 | 5 | 5 | 5 | 0 | **15** | 0 | OZB 15 |
+| B14 LOE zonder relaties | 0 | 0 | 4 | 3 | 4 | 0 | **11** | 0 | DCP-03 Baseline 11 |
+| B15 vrije speling, overig | 0 | 0 | 0 | 0 | 0 | 11 | **11** | 0 | DCP-03 5; Hotel 3; OZB, HarbourPointe, Roads 1 elk |
+| B11 actief, restart-ES (rest na C7) | 0 | 0 | 2 | 2 | 2 | 0 | **6** | 0 | OZB 3; Roads 3 |
+| **som** | **271** | **280** | **267** | **282** | **120** | **54** | **1.274** | **18** | |
+
+B01–B06 en S1–S10 zijn uit het orakel verdwenen: ze lagen alleen in rehab-2 en de synthetische
+bestanden, of ze zijn opgelost (B06 door C2). drivingPath 176: P6 N / OPS J met tf exact 75, P6 J / OPS N
+met tf exact 59, en tf leeg of afwijkend 42. Van die 42 zijn er 19 van Hotel-project CR (2665, niet
+P6-doorgerekend, geen enkele zesassige cel). Het manifest kan niet per project uitsluiten, dus CR blijft
+meetellen; dat is een vervolgpunt.
+
+**Bouwvolgorde op de nieuwe populatie.** B07 is nu 69 % van het restant. Een eerdere naïeve poort voor
+B07 gaf 216 verslechteringen, allemaal in DCP-03 As-Built. As-Built hoort sinds dit besluit niet meer bij
+het orakel, dus regel A ziet die verslechteringen niet meer. Het vangnet moet dan uit een corpusloze
+casus komen: voltooide CP_Drtn/FixedDrtn-taken houden hun werkelijke datums. Daarna komen U2 (117) en de
+kleine brokken B09, B08, B12, B13, B14, B15 en B11. B10 (n = 1) blijft staan.
+
+**Conventies die op rehab-2 gebouwd zijn, gemeten op de nieuwe populatie.** Per conventie is de
+P6-waarde tijdelijk uitgezet (register `builtIn.p6 = false`), X12 in detail gedraaid en per cel
+vergeleken. Het register is daarna teruggezet (`git diff --exit-code src` = 0).
+
+| conventie | X12 | beter | slechter | waar |
+|---|---|---|---|---|
+| B1 `p6RelationFinishBoundary` | 4.366 (+3.092) | 27 (+2 dp) | 3.119 | alleen Hotel: es 942, ef 942, tf 926, ff 309 slechter; ls 9, lf 18 beter |
+| B2 `p6BackwardLagFinishBoundary` | 1.383 (+109) | 0 | 109 | Hotel lf 104, ls 2, tf 2; Sample_Construction lf 1 |
+| B3 `p6CompletedDataDateWindow` | 1.274 (0) | 0 | 0 | inert |
+| B4 `p6CompletedLoeActualFinish` | 1.274 (0) | 0 | 0 | inert |
+| B5 `p6OpenLoeTargetSpan` | 1.294 (+20) | 0 | 20 | ashspace sample ef 10, lf 10 |
+| C1 `p6CompletedPredecessorAtDataDate` | 1.274 (0) | 0 | 0 | inert |
+| C3 `p6CompletedRemainingLag` | 1.274 (0) | 0 | 0 | inert |
+| C4 `p6CompletedOutOfSequenceWindow` | 1.274 (0) | 0 | 0 | inert |
+| A17 `p6FinishMilestoneBoundaryWindow` (extra) | 1.274 (0) | 0 | 0 | inert |
+
+B1, B2 en B5 worden gedragen door P6-doorgerekende bestanden. B3, B4, C1, C3, C4 en A17 hebben op de
+nieuwe populatie geen enkel effect, in geen van beide richtingen. Wat de P6-standaard van die zes wordt,
+beslist de eigenaar (overdracht §1a). Dit document kiest niet. Gevolg voor de openbare replay-pin: de
+negatieve controle `drop-p6-finish-milestone-boundary` (A17) gaf op deze populatie 0 regressies. Die
+rol is daarom overgegaan naar `drop-p6-relation-finish-boundary` (B1).
+
 ## 0. Totaal en meetmethode
 
 | meting | commando | uitkomst |

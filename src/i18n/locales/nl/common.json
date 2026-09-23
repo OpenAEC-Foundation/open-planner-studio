@@ -1243,6 +1243,14 @@
     "p6InProgressStartLagElapsed": {
       "label": "Verstreken SS-lag uit een lopende voorganger telt niet",
       "help": "Bij een start-start-relatie uit een al gestarte taak telt van de lag alleen het deel dat sinds haar werkelijke start op de statusdatum nog niet verstreken is."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Eind-eind-relatie naar een startmijlpaal bindt aan de mijlpaal zelf",
+      "help": "Een eind-eind-relatie naar een startmijlpaal telt tot de mijlpaal zelf, niet tot het begin van de mijlpaaldag: de late finish van de voorganger mag tot de late finish van de mijlpaal lopen."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "Geplande start is geen vloer voor een lopende taak",
+      "help": "Het resterende werk van een gestarte taak begint op de statusdatum en direct na haar voorgangers, ook als haar geplande start later ligt."
     }
   },
   "profiles": {

@@ -27,7 +27,7 @@ test('get_project_info toont ook een OPS-project expliciet', async () => {
   S().newProject();
   const res = await call('planner_get_project_info') as McpToolOk;
   const profile = (res.data as { project: { schedulingProfile?: ProfileView } }).project.schedulingProfile;
-  assertEq([profile?.id, profile?.baseId, Object.keys(profile?.conventions ?? {}).length], ['ops', 'ops', 21], 'ops expliciet, eenentwintig conventies');
+  assertEq([profile?.id, profile?.baseId, Object.keys(profile?.conventions ?? {}).length], ['ops', 'ops', 23], 'ops expliciet, drieëntwintig conventies');
 });
 
 test('update_project weigert schedulingProfile met een verwijzing naar Projectinfo', async () => {
