@@ -1504,6 +1504,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-scheduling-profile-draft.ts" "$PROFILEDRAFTCHECK"; then node "$PROFILEDRAFTCHECK" || STATUS=1; fi
   PROFILEACTIONSCHECK="$DIR/.scheduling-profile-actions.mjs"
   if bundle_check "$DIR/check-scheduling-profile-actions.ts" "$PROFILEACTIONSCHECK"; then node "$PROFILEACTIONSCHECK" || STATUS=1; fi
+  # Gebruikstest 24-09, B1: P6 → ander profiel → P6 geeft byte-gelijke datums (de solve schrijft
+  # scheduleFinish niet meer terug), ook na opslaan als IFC en heropenen.
+  PROFILESWITCHDATESCHECK="$DIR/.profile-switch-dates.mjs"
+  if bundle_check "$DIR/check-profile-switch-dates.ts" "$PROFILESWITCHDATESCHECK"; then node "$PROFILESWITCHDATESCHECK" || STATUS=1; fi
+  # B1-vervolg (critreview 24-09): het ingevoerde einde van een urentaak blijft coherent met start + duur
+  # aan de invoerkant (nieuwe taak, updateTask, grid, MCP), nu de solve het niet meer terugschrijft.
+  HOURINPUTFINISHCHECK="$DIR/.hour-input-finish.mjs"
+  if bundle_check "$DIR/check-hour-input-finish.ts" "$HOURINPUTFINISHCHECK"; then node "$HOURINPUTFINISHCHECK" || STATUS=1; fi
   CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
   if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
 

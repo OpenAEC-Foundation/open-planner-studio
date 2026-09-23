@@ -510,7 +510,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
         ? deriveHoursPerDay(opts.calendar.workTime, opts.calendar.hoursPerDay)
         : opts.calendar.hoursPerDay;
       payload.tasks = opts.phaseNames.map((name, i) => {
-        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit);
+        const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit, opts.calendar); // B1-vervolg: uur-einde op de echte kalender
         if (time.durationUnit === 'hours') {
           time.scheduleDuration = phaseHoursPerDay > 0
             ? (time.durationMinutes ?? 0) / (phaseHoursPerDay * 60)

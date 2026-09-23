@@ -217,3 +217,84 @@ test('rekenprofiel: de SS-lag-variant komt uit de XER en is in Projectinfo te wi
   await page.locator('[data-ops-scheduling-profile-select]').selectOption('builtin:msproject');
   await expect(ssLag).toBeDisabled();
 });
+
+// Gebruikstest 24-09, bevinding B1: P6 → OPS → P6 gaf het profiel terug maar niet de datums — de solve
+// schreef in uur-modus `scheduleFinish` terug, en de P6-conventies lazen die uitvoer daarna als het
+// geplande bronvenster. Eindmijlpaal M1 stond dan op start 27-03, einde vóór de start, en Bereken
+// herstelde het niet. Dezelfde fixture als `tests/planning/check-profile-switch-dates.ts` (daar staat de
+// handafleiding: de wissel verschuift A1, A4 en M1, heen én terug).
+const WORKWEEK = `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7]
+  .map(n => `(0||${n}()(${n >= 2 && n <= 6 ? '(0||0(s|08:00|f|17:00)())' : ''}))`).join('')}))(0||Exceptions()())))`;
+const SWITCH_XER = [
+  'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR', '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${WORKWEEK}`,
+  '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+  '%R\tP1\tWisselBrowser\tC1\t2026-03-02 08:00\t2026-01-05 08:00\t2026-06-30 17:00\tY',
+  '%T\tSCHEDOPTIONS', '%F\tproj_id\tsched_lag_early_start_flag', '%R\tP1\tN',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+  '%R\tA1\tP1\tC1\tA1\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t90\t0\t2026-01-05 08:00\t2026-01-16 17:00\t2026-01-05 08:00\t2026-01-16 17:00',
+  '%R\tA2\tP1\tC1\tA2\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t90\t45\t2026-02-23 08:00\t2026-03-06 17:00\t2026-02-23 08:00\t',
+  '%R\tA3\tP1\tC1\tA3\tLos\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t45\t45\t2026-03-02 08:00\t2026-03-06 17:00\t\t',
+  '%R\tA4\tP1\tC1\tA4\tNiet gestart\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t90\t90\t2026-03-09 08:00\t2026-03-20 17:00\t\t',
+  '%R\tM1\tP1\tC1\tM1\tEindmijlpaal\tTT_FinMile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-03-27 17:00\t2026-03-27 17:00\t\t',
+  '%T\tTASKPRED', '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR1\tA2\tA1\tP1\tP1\tPR_FS\t0',
+  '%R\tR2\tA4\tA2\tP1\tP1\tPR_SS\t40',
+  '%R\tR3\tM1\tA4\tP1\tP1\tPR_FS\t0',
+  '%R\tR4\tM1\tA3\tP1\tP1\tPR_FS\t0',
+  '%E',
+].join('\n');
+
+test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereken (B1)', async ({ page, ops: _ops }) => {
+  const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
+  const chooser = page.waitForEvent('filechooser');
+  await openButton.click();
+  await (await chooser).setFiles({ name: 'wissel.xer', mimeType: 'application/octet-stream', buffer: Buffer.from(SWITCH_XER) });
+  await expect.poll(() => profileOf(page)).toEqual({ id: 'p6', baseId: 'p6', name: '' });
+
+  const times = () => page.evaluate(() => JSON.stringify(Object.fromEntries(window.__OPS__!.store.getState().tasks
+    .map(task => [task.wbsCode, task.time]).sort(([a], [b]) => String(a).localeCompare(String(b))))));
+  const m1 = () => page.evaluate(() => {
+    const time = window.__OPS__!.store.getState().tasks.find(task => task.wbsCode === 'M1')!.time;
+    return [time.earlyStart, time.earlyFinish];
+  });
+  await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
+  const fresh = await times();
+
+  const shiftedToast = page.locator('.ops-toast').filter({ hasText: /zijn 3 taken verschoven|3 tasks moved/ });
+  // De tweede melding vouwt samen met de eerste (dedupe, "×2"); lees de telling en de herhaling uit.
+  const shiftedNotice = () => page.evaluate(() => {
+    const n = window.__OPS__!.store.getState().ui.notifications
+      .find(x => x.messageKey === 'notifications.schedulingProfileShifted');
+    return n ? [n.params?.count, n.count] : null;
+  });
+  const applyProfile = async (choice: string) => {
+    await page.getByRole('button', { name: /^(File|Bestand)$/ }).first().click();
+    await page.getByRole('button', { name: /^(Project info|Projectinfo)$/ }).first().click();
+    await page.locator('[data-ops-scheduling-profile-select]').selectOption(choice);
+    await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
+  };
+
+  // Heen: drie taken verschoven, M1 eerder (een gewoon venster).
+  await applyProfile('builtin:ops');
+  await expect.poll(() => profileOf(page).then(p => p?.baseId)).toBe('ops');
+  await expect.poll(m1).toEqual(['2026-03-20T12:00', '2026-03-20T12:00']);
+  await expect(shiftedToast).toHaveCount(1);
+  expect(await shiftedNotice()).toEqual([3, 1]);
+
+  // Terug: hetzelfde profiel, dezelfde drie taken terug, en elk tijdveld gelijk aan de verse opening.
+  await applyProfile('builtin:p6');
+  await expect.poll(() => profileOf(page)).toEqual({ id: 'p6', baseId: 'p6', name: '' });
+  await expect.poll(times).toBe(fresh);
+  await expect(shiftedToast).toHaveCount(1);
+  expect(await shiftedNotice()).toEqual([3, 2]);
+
+  // Bereken verandert daarna niets meer.
+  const calculate = page.locator('button.ribbon-btn').filter({ hasText: /^(Calculate|Bereken)$/ });
+  await expect(calculate).toHaveCount(1);
+  await calculate.click();
+  expect(await times()).toBe(fresh);
+  await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
+});

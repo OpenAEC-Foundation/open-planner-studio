@@ -1,7 +1,10 @@
-import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
-import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
+import { parseDate, formatDate, addBusinessDays, parseInstant, formatInstant } from '@/utils/dateUtils';
+import type { Task, TaskDurationUnit, TaskSplitGap, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { addElapsedMinutes, splitTotalSpanMinutes } from '@/engine/scheduler/duration';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
@@ -14,6 +17,11 @@ export function createDefaultTaskTime(
   start: string,
   durationDays: number,
   durationUnit: TaskDurationUnit = 'days',
+  /** De effectieve taakkalender. Alleen gebruikt voor een urentaak: dan is het einde start + duur in
+   *  WERKMINUTEN op deze kalender (met tijd), zie {@link hourTaskInputFinish}. Zonder kalender blijft
+   *  het oude werkdagen-einde staan — alleen lezers laten hem weg, en die overschrijven het einde
+   *  direct met de bronwaarde (xerReader). Elke app-ingang (nieuwe taak, MCP, wizard) geeft hem mee. */
+  calendar?: WorkCalendar,
 ): TaskTime {
   // Derive a finish consistent with the duration so the Gantt bar spans the
   // right number of days before CPM runs. Matches CalendarEngine.addWorkDays
@@ -21,11 +29,19 @@ export function createDefaultTaskTime(
   // Bij een onparseerbare start (bv. corrupte import) NIET formatteren — formatDate
   // (toISOString) gooit dan. Val terug op `start`; de CPM-solver vangt de ongeldige
   // datum verderop af met een nette foutmelding i.p.v. een crash.
+  //
+  // UURTAAK (B1-vervolg, critreview 24-09): de solve schrijft `scheduleFinish` sinds B1 niet meer
+  // terug, dus dit einde BLIJFT staan als ingevoerd einde ("Gepland einde", IfcTaskTime.ScheduleFinish,
+  // het IFC-werkplan-einde). Het oude werkdagen-einde las het tweede argument (hier UREN) als
+  // werkdagen: een nieuwe taak van 5 u eindigde zo 5 werkdagen later, zonder tijd.
   const startDate = parseDate(start);
-  const finish =
-    durationDays > 0 && !isNaN(startDate.getTime())
+  const hourFinish = durationUnit === 'hours' && calendar
+    ? hourTaskInputFinish({ scheduleStart: start, durationMinutes: durationDays * 60, durationType: 'WORKTIME' }, calendar)
+    : undefined;
+  const finish = hourFinish
+    ?? (durationDays > 0 && !isNaN(startDate.getTime())
       ? formatDate(addBusinessDays(startDate, durationDays))
-      : start;
+      : start);
   return {
     durationType: 'WORKTIME',
     durationUnit,
@@ -42,6 +58,122 @@ export function createDefaultTaskTime(
     isCritical: false,
     completion: 0,
   };
+}
+
+// ── Ingevoerd einde van een urentaak (B1-vervolg, critreview 24-09) ─────────────────────────────
+//
+// `scheduleFinish` is INVOER: de solve schrijft hem sinds gebruikstest 24-09 (B1) niet meer terug,
+// want de P6-conventies lezen hem als het geplande bronvenster (`target_end_date`) — de uitvoer van de
+// ene berekening werd zo invoer voor de volgende. Tot B1 hield juist die terugschrijving het einde van
+// een urentaak actueel (d67b26a7, juli: "scheduleFinish liep stale na een duur-wijziging"). Zonder haar
+// moet de INVOERKANT het einde coherent houden: bij aanmaken en bij elke duur-, start-, eenheids-,
+// duurtype- of kalenderwijziging leidt de bewerking het einde af uit start + duur op de kalender van
+// de taak zelf. Nooit vanuit de solve, en alleen voor een urentaak — een dagtaak blijft byte-identiek
+// (daar volgde het einde ook vóór B1 de solve niet).
+//
+// Wat NIET meebeweegt (zie `hourInputFinishFollowsEdits`): een gestarte of voltooide taak (het geplande
+// einde is dan geschiedenis, zoals in P6), een taak met een expliciet P6-targetvenster uit de XER
+// (`p6ExplicitTargetWindow`: dat venster mag planningsruimte bevatten en is bronwaarde), een handmatig
+// geplande taak (daar IS `scheduleFinish` het einde), een hammock (afgeleide span) en een samenvattende
+// taak. Een lezer loopt hier nooit doorheen: het einde uit het bestand blijft dus staan tot de gebruiker
+// de taak bewerkt.
+//
+// Wat het einde bewust NIET herleidt (orkestratorbesluit fixronde 2: niet herleiden, wél documenteren;
+// het einde volgt bij de volgende invoerbewerking van de taak): wijzigingen aan de project- of een
+// gedeelde kalender of haar uitzonderingen (`setCalendar`, `updateCalendar`, `setProjectCalendar`),
+// splits zonder duurwijziging, de uitvoer van de nivelleerder, `moveProject`, en de resourcekalender
+// van een `.mpp`-taak (de afleiding rekent op de taakkalender). De reconcile draait ná
+// `clearLevelingGaps`, zodat nivelleergaten die dezelfde bewerking wist niet meetellen.
+
+/** De invoervelden waaruit het einde van een urentaak volgt. */
+type HourInputFinishTime = Pick<TaskTime, 'scheduleStart' | 'durationType'> & { durationMinutes?: number };
+
+/**
+ * Het ingevoerde einde van een urentaak: `scheduleStart` + `durationMinutes` op de (effectieve)
+ * taakkalender, in de datetime-vorm (`YYYY-MM-DDTHH:MM`). WORKTIME wandelt werkminuten
+ * (`CalendarEngine.addWorkMinutes`, dezelfde wandeling als de solver voor een taak zonder voorganger,
+ * inclusief importsplits via `splitTotalSpanMinutes`); ELAPSEDTIME telt klokminuten. Duur 0 ⇒ de
+ * start zelf. `undefined` bij een onleesbare start of een kalender zonder werkbare uurbanden — dan
+ * raakt de aanroeper het einde niet aan.
+ */
+export function hourTaskInputFinish(
+  time: HourInputFinishTime,
+  calendar: WorkCalendar,
+  splitGaps?: readonly TaskSplitGap[],
+): string | undefined {
+  const start = parseInstant(time.scheduleStart);
+  if (Number.isNaN(start.getTime())) return undefined;
+  const minutes = Math.max(0, time.durationMinutes ?? 0);
+  if (time.durationType === 'ELAPSEDTIME') return formatInstant(addElapsedMinutes(start, minutes), 'hour');
+  const engine = new CalendarEngine(calendarForEngine(calendar));
+  if (!engine.isHourMode) return undefined;
+  const total = splitTotalSpanMinutes(splitGaps, minutes);
+  return formatInstant(total > 0 ? engine.addWorkMinutes(start, total) : start, 'hour');
+}
+
+/** `true` als het ingevoerde einde van deze taak met haar invoer mee hoort te bewegen — zie het
+ *  sectieblok hierboven voor de uitzonderingen en waarom. */
+export function hourInputFinishFollowsEdits(task: Task): boolean {
+  const legacy = task.time as TaskTime & { durationUnit?: TaskDurationUnit };
+  const unit = legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+  if (unit !== 'hours') return false;
+  if (task.isSummary || task.childIds.length > 0 || task.isHammock) return false;
+  if (task.manuallyScheduled || task.p6ExplicitTargetWindow === true) return false;
+  if (task.status !== 'NOT_STARTED') return false;
+  const time = task.time;
+  return !time.actualStart && !time.actualFinish && !(time.completion > 0);
+}
+
+/** Momentopname van de invoer waar het einde van afhangt, vóór een bewerking vastgelegd. */
+export interface HourInputFinishBasis {
+  readonly key: string;
+  readonly scheduleFinish: string;
+}
+
+export function hourInputFinishBasis(task: Task): HourInputFinishBasis {
+  const t = task.time;
+  return {
+    key: JSON.stringify([
+      t.scheduleStart, t.durationUnit, t.durationMinutes, t.scheduleDuration, t.durationType,
+      task.calendarId, task.isMilestone,
+    ]),
+    scheduleFinish: t.scheduleFinish,
+  };
+}
+
+/**
+ * Houdt het ingevoerde einde van `task` na een invoerbewerking coherent (muteert in-place,
+ * Immer-draft-stijl). Doet alleen iets als (a) de taak meebeweegt (`hourInputFinishFollowsEdits`),
+ * (b) de bewerking de invoer echt veranderde (`before` ≠ nu), en (c) de bewerking het einde zelf NIET
+ * wijzigde (detectie `!==` t.o.v. vóór; een einde dat gelijk aan het oude wordt meegegeven telt dus
+ * niet als gezet) — een in dezelfde bewerking gewijzigd einde (grid-kolom "Gepland einde", uursleep, extensie) wint.
+ * `calendar` is de kalender waar de taak NA de bewerking in rekent (projectkalender als `calendarId`
+ * leeg is). Geeft `true` als het einde veranderde.
+ */
+export function reconcileHourInputFinish(task: Task, before: HourInputFinishBasis, calendar: WorkCalendar): boolean {
+  if (task.time.scheduleFinish !== before.scheduleFinish) return false;
+  if (hourInputFinishBasis(task).key === before.key) return false;
+  if (!hourInputFinishFollowsEdits(task)) return false;
+  const finish = hourTaskInputFinish(task.time, calendar, task.splitGaps);
+  if (!finish || finish === task.time.scheduleFinish) return false;
+  task.time.scheduleFinish = finish;
+  return true;
+}
+
+/**
+ * Nieuwe taak (store-`addTask` en MCP-`draft.addTask`): leid het einde van een urentaak af uit de
+ * DEFINITIEVE invoer (na de merge met `partialTime`), tenzij de aanroeper zelf een `scheduleFinish`
+ * meegaf. De vroege/late finish volgen mee zolang de aanroeper die niet noemde, zodat de balk vóór de
+ * eerste berekening al klopt. Muteert `task` in-place.
+ */
+export function seedNewHourTaskFinish(task: Task, partialTime: Partial<TaskTime> | undefined, calendar: WorkCalendar): void {
+  if (partialTime?.scheduleFinish !== undefined) return;
+  if (!hourInputFinishFollowsEdits(task)) return;
+  const finish = hourTaskInputFinish(task.time, calendar, task.splitGaps);
+  if (!finish) return;
+  task.time.scheduleFinish = finish;
+  if (partialTime?.earlyFinish === undefined) task.time.earlyFinish = finish;
+  if (partialTime?.lateFinish === undefined) task.time.lateFinish = finish;
 }
 
 /**
