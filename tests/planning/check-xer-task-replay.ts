@@ -94,6 +94,11 @@ if (!corpusRoot) {
   // product 960 vóór én na brok 9; de B1-mutant gaat van 960 naar 900). ff regressed 309 → 313, unchanged
   // 5403 → 5399; de andere assen en overall (1091 / 4810) ongewijzigd. Criterium voor zo'n herpin is NIET
   // "som gelijk" maar: improved blijft 0 en regressed daalt niet.
+  // Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12: manifestuitsluiting HarbourPointe 8 taken, OZB
+  // project 9033, Hotel project CR 2665): projecten 20 → 18, taken 5923 → 5882; alleen `unchanged` daalt
+  // met 22 op elke zesassige as (5901 → 5879, tf/ff 5712 → 5690; overall 4810 → 4788). regressed en
+  // improved op elke as gelijk (es 942, ef 950, tf 926, ff 313, overall 1091) — de mutant brak niets op de
+  // uitgesloten taken, detectievermogen onveranderd.
   for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

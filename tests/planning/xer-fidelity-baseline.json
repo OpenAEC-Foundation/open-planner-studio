@@ -66,72 +66,72 @@
     },
     "2bc12241c3f8ee5b": {
       "label": "crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer",
-      "tasks": 169,
-      "projects": 12,
+      "tasks": 155,
+      "projects": 11,
       "counters": {
         "es": {
           "deviations": 0,
-          "measurable": 166
+          "measurable": 152
         },
         "ef": {
           "deviations": 0,
-          "measurable": 166
+          "measurable": 152
         },
         "ls": {
           "deviations": 0,
-          "measurable": 166
+          "measurable": 152
         },
         "lf": {
           "deviations": 0,
-          "measurable": 166
+          "measurable": 152
         },
         "tf": {
           "deviations": 0,
-          "measurable": 152
+          "measurable": 138
         },
         "ff": {
           "deviations": 0,
-          "measurable": 152
+          "measurable": 138
         }
       },
       "schemaFingerprint": "ec668c11ba3d5921"
     },
     "b9547eb91c30af17": {
       "label": "crawl-xer/HarbourPointe_AssistedLiving.xer",
-      "tasks": 131,
+      "tasks": 123,
       "projects": 1,
       "counters": {
         "es": {
           "deviations": 0,
-          "measurable": 131
+          "measurable": 123
         },
         "ef": {
           "deviations": 0,
-          "measurable": 131
+          "measurable": 123
         },
         "ls": {
           "deviations": 0,
-          "measurable": 131
+          "measurable": 123
         },
         "lf": {
           "deviations": 0,
-          "measurable": 131
+          "measurable": 123
         },
         "tf": {
           "deviations": 0,
-          "measurable": 113
+          "measurable": 105
         },
         "ff": {
           "deviations": 0,
-          "measurable": 113
+          "measurable": 105
         }
       },
       "schemaFingerprint": "a81fedfd4aaa73d8"
     },
     "9679599df9108bd3": {
       "label": "crawl-xer/Hotel_Construction_TEC.xer",
-      "tasks": 4236,
-      "projects": 2,
+      "tasks": 4217,
+      "projects": 1,
       "counters": {
         "es": {
           "deviations": 0,

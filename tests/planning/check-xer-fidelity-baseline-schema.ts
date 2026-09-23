@@ -34,12 +34,17 @@ const EXPECTED_BASELINE_KEYS = [
   '2bc12241c3f8ee5b', '4d8bce790a93b9bc', '55b7e4463dcd36ba', '68ce5f0bb2b534d5',
   '9679599df9108bd3', 'a2ef7b35c00d8cf8', 'a2f3b2469e26f199', 'b9547eb91c30af17',
 ] as const;
+// Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12: manifestuitsluiting HarbourPointe 8 taken, OZB project
+// 9033, Hotel project CR 2665): de uitgesloten taken vallen uit de X1-doelbaseline, 5.901/5.712 → 5.879/5.690.
 const EXPECTED_MEASURABLE = {
-  es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712,
+  es: 5_879, ef: 5_879, ls: 5_879, lf: 5_879, tf: 5_690, ff: 5_690,
 } as const;
 // HERPIN 2026-09-23i (fix critreview DCP-03): alleen policytekst/datums in het manifest, populatie ongewijzigd.
-const EXPECTED_MANIFEST_SHA256 = 'd5bb689cb8068307ad29ee6ae46d39ba61fa162a5575ff7cd81add85b6b69b1c';
-const EXPECTED_BASELINE_SHA256 = '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2';
+// HERPIN 2026-09-23 (eigenaarsbesluiten vraag 8/10/12): drie uitsluitingsblokken + policyzin (DCP-03 bevestigd, §1a) in het manifest;
+// orakelselectie (9 bestanden, 84 uitgesloten) ongewijzigd.
+// HERPIN 2026-09-23 datumcorrectie (integratie 3): `decision`-datums 24 → 23; alleen manifestbytes.
+const EXPECTED_MANIFEST_SHA256 = '5d6f4863a06c4879d208fdaa49907fc83f5906774085570556ba6973212986c7';
+const EXPECTED_BASELINE_SHA256 = '698c388fb4a3001b7e2eafb2335ae583d2197cd2955fc2cf0625085a5ed3e659';
 
 const diffs: string[] = [];
 let checks = 0;
