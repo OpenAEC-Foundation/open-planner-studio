@@ -1226,7 +1226,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Free float in the task's own calendar",
-      "help": "The free float of an open task over a finish-to-start relationship without lag counts in the task's own calendar, not in the successor's."
+      "help": "The free float of a not-started task counts per relationship in the task's own calendar, not in the successor's: for finish-to-start, start-to-start and finish-to-finish, including a working-time lag on the predecessor's calendar. A started task only for finish-to-start without lag."
     },
     "p6CompletedRemainingLag": {
       "label": "Elapsed lag of a completed predecessor does not count",

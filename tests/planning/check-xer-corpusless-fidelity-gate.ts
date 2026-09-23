@@ -93,6 +93,16 @@ const EXPECTED = {
   tasks: 5_923,
   tasksWithAnyMeasuredAxis: 5_901,
   measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23t (integratieronde 2 — merge van claude/x12-brok9-c2-breed op brok 8 + tolerantie +
+  // manifestfix; herpinrecept met de schrijfmodi; CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0
+  // schuld=0): X12 178 → 175 (ff 18 → 15), dezelfde drie Hotel-cellen 2666/143800, 2666/144004, 2666/144440.
+  // Overige cellen en drivingPath (168) byte-identiek; replay-pin van de branch (ff 313) groen.
+  // HERPIN 2026-09-23s (X12 naar nul, brok 9 — op de branch zelf, basis brok 8 vóór de reviewfixes — C2 `p6FreeFloatOnOwnCalendar` verbreed van FS0 naar alle
+  // relatietypes en WORKTIME-lags op de voorgangerslagkalender; zelfde sleutel, geen nieuwe conventie;
+  // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0 schuld=0).
+  // X12 180 → 177 (ff 19 → 16): Hotel 2666/143800 HCSWB4Z4240, 2666/144004 HCSWB2Z2240 en 2666/144440
+  // HEPSS00020, elk ff diff 60 min → exact (meetonderzoek `2026-09-24-x12-hotel-ff-60min.md`; de eerste
+  // twee alleen samen met C12). Overige cellen en drivingPath (168) byte-identiek.
   // HERPIN 2026-09-23r (integratieronde 2 — merge van claude/x12-manifest-policy-fix): alleen de manifestbytes
   // (policytekst/datums) veranderen ⇒ OPS_XER_V2_WRITE=corpus + OPS_XER_CELLS_WRITE=corpus; de manifestpinnen
   // kwamen met de merge mee, dus OPS_XER_GATE_PINS=corpus weigerde en =write schreef alleen de payload-hashes.
@@ -241,16 +251,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_665, ff: 5_694 },
+    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_665, ff: 5_697 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 47, ff: 18 },
+    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 47, ff: 15 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 47, ff: 18 },
+    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 47, ff: 15 },
     drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
   },
-  productPayloadSha256: '55fe19fb373da1a509d4fc5a6e8ae3ab82f4f8230378dd3aefa86d6102ca655d',
-  productPayloadGzipSha256: '457ef5d3657fec385eff42359f1d98e3aa86a7418b4352bb4ead8c2f2782481e',
-  productProjectProjectionSha256: 'bae6181b38d6cd600488d7a47a9136f598d37aea1ccaeb3a146fa0d22bc61611',
+  productPayloadSha256: 'bc36c61b0487782f1083fd06a0ef530778fc115bf4a00d2b4b3c95db246c7813',
+  productPayloadGzipSha256: '262ca2ba45b73702f54434fb4e846bee69bc53d1b27ca6123d6330145074262d',
+  productProjectProjectionSha256: '50c407859c5320de4c91bb6a141dfb842e111b00f051a9fc282df82e38cad3c5',
   roles: {
     oracle: 9,
     'engine-input': 14,
