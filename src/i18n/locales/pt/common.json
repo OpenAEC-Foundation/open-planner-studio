@@ -1298,6 +1298,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Término mais cedo nunca antes de um limite término-término",
       "help": "Numa relação término-término, o término mais cedo do sucessor nunca fica, em hora de relógio, antes do limite fixado pelo predecessor. Se esse limite cair em tempo não útil do sucessor, o término passa a ser o início do período de trabalho seguinte."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tarefas ALAP tão tarde quanto as sucessoras permitem",
+      "help": "Uma tarefa não iniciada com a restrição «o mais tarde possível» termina no minuto em que as sucessoras precisam dela, sucessoras primeiro, para que uma cadeia fique contínua. O seu próprio início planeado não conta; uma tarefa sem predecessora não começa então antes da data de estado. Aplica-se apenas com um calendário horário."
     }
   },
   "profiles": {

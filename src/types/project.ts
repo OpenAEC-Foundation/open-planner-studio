@@ -634,10 +634,43 @@ export interface SchedulingOptions {
    *  - OPS: uit (het laatste bandeinde vóór de grens, werktijd-gelijk; vrije speling via de startgrens —
    *    het gedrag van vóór deze conventie). */
   p6FinishNotBeforeFinishFinishBound?: boolean;
+  /** C14 (in plan XER §9 "C10" genoemd; vóór 23-09 "C9") — een niet-gestarte ALAP-activiteit
+   *  (`constraint.type === 'ALAP'`, P6 `CS_ALAP`) op een uurkalender krijgt als vroege finish de strengste
+   *  grens die haar opvolgers met hun VROEGE datums via de gewone achterwaartse relatiewiskunde toestaan
+   *  (zonder opvolger: haar late finish), en als vroege start die finish min haar duur — in werktijd op de
+   *  minuut, niet in hele werkdagen. Opvolgers eerst (omgekeerde topologische volgorde), zodat een keten
+   *  van ALAP-taken aaneensluit; de opvolgers zelf bewegen niet. Ondergrens: de relatiegrenzen van haar
+   *  voorgangers en de statusdatum. Haar eigen geplande venster telt niet: een ALAP-wortel start
+   *  voorwaarts op de statusdatum, niet op haar eigen anker, en de geplande-startvloer van A16 geldt niet
+   *  voor haar (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een gestarte of voltooide ALAP-taak,
+   *  of een op een dagkalender, valt buiten deze conventie en houdt de oude stap (gemeten: een voltooide
+   *  ALAP-taak, HarbourPointe EC1030, kwam anders verder van P6 te staan).
+   *
+   *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": de activiteit wordt zo laat
+   *    ingepland als kan zonder haar opvolgers te vertragen, dus binnen haar vrije speling. Gemeten
+   *    (classificatiebrok B12, geparkeerd in brok 5 en 7, gebouwd in brok 10):
+   *    `HarbourPointe_AssistedLiving.xer` (P6-doorgerekend), de ALAP-keten EC1420 (startmijlpaal zonder
+   *    voorganger, target 2011-06-27 07:00) → EC1430 → EC1810 (beide ALAP) → EC2090: P6 zet EC1810 op
+   *    EF 2012-03-06 16:49 = de start van EC2090, niet achter het geplande venster van EC1420. Zonder
+   *    deze conventie staat EC1420 op haar eigen target en schuift de hele keten enkele werkdagen later.
+   *    Gemeten op de populatie van 24-09 (X12 175 → 148): 27 cellen exact (es 8, ef 8, tf 7, ff 4), 11
+   *    kleiner (EC2280/2310/2380/2390/2400: 4.331 → 2.880 en 18.731 → 14.400 min), 0 slechter, maar 3
+   *    groter: EC1420 es/ef (3.731 → 4.320 min) en EC1430 es (3.791 → 4.320 min). Oorzaak buiten ALAP: P6
+   *    geeft EC1430 een span van 696 werkuren bij `remain_drtn_hr_cnt` 720 (plan XER §9); EC1430 is een
+   *    van de acht verouderde HarbourPointe-taken die het eigenaarsbesluit van 24-09 uit het orakel haalt.
+   *    `Hotel_Construction_TEC.xer` ATWTPR000 (ALAP-eindmijlpaal zonder opvolgers, kal. 844) valt er
+   *    formeel onder, maar haar es/ef waren al exact en haar afwijking zit aan de late kant (P6 LF 17:00 op
+   *    het einde van haar eigen werkdag, wij 16:00 = het projecteinde): ls/lf 60 min en tf 60 min blijven
+   *    met en zonder deze conventie gelijk (gemeten).
+   *  - MS Project: uit. MS Project plant ALAP vanaf de late datums van de taak (zijn eigen
+   *    ALAP-semantiek, niet gemeten tegen ons MPP-orakel); het gedrag van vóór deze conventie.
+   *  - OPS: uit (de oude stap: de vroege datums schuiven in hele werkdagen op met de vrije speling,
+   *    in topologische volgorde, ook bij een gestarte taak). */
+  p6AlapPositionedFromSuccessors?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de zesentwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de zevenentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -668,7 +701,8 @@ export type ConventionKey =
   | 'p6StartedTaskIgnoresPlannedStartFloor'
   | 'p6LateFinishOnOwnCalendar'
   | 'p6ProgressOverrideIgnoresStartedSuccessor'
-  | 'p6FinishNotBeforeFinishFinishBound';
+  | 'p6FinishNotBeforeFinishFinishBound'
+  | 'p6AlapPositionedFromSuccessors';
 
 /** De tien per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

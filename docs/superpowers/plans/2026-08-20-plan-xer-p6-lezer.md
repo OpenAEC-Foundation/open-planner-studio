@@ -769,6 +769,12 @@ drie cellen komen verder van P6 te staan. Dat komt niet door ALAP maar doordat P
 bestanden niet af te leiden. Daarom landt C10 niet. Gemeten door Opus 5.5 (uitvoerder-opus-midden)
 op `claude/x12-brok5-klein`.*
 
+**Stand 2026-09-24:** C10 is volledig gebouwd als registerconventie **C14** (C11–C13 waren vergeven)
+op `claude/x12-c10-alap-port`, als voorbereidingscommit die pas landt ná de uitsluiting van de acht
+verouderde HarbourPointe-taken (eigenaarsbesluit 24-09, vraag 8): op de populatie van 175 geeft ze
+X12 → 148 (+27 exact, 11 kleiner, 0 slechter), maar de 3 groter-cellen hieronder staan nog, en die
+liggen op EC1420/EC1430.
+
 **De C10-regel** (`p6AlapPositionedFromSuccessors`, geparkeerd op `d9973123`,
 `claude/x12-brok5-klein`). Een niet-gestarte ALAP-taak op een uurkalender krijgt als vroege finish
 de strengste grens die haar opvolgers met hun vroege datums via de achterwaartse relatiewiskunde

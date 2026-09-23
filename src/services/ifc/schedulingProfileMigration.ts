@@ -45,9 +45,12 @@ export const LEGACY_XER_ALSO_ON_X12: ReadonlySet<ConventionKey> = new Set<Conven
   'p6ProgressOverrideIgnoresStartedSuccessor',
   // C12 (X12 brok 8, 2026-09-23): per cel gemeten tegen P6, 0 slechter (X12 280 → 273).
   'p6FinishNotBeforeFinishFinishBound',
+  // C14 (X12 brok 10, 2026-09-24; plan XER §9 "C10"): per cel gemeten tegen P6, 0 slechter (X12 175 → 148), wel 3 cellen
+  // groter op EC1420/EC1430 — taken die het uitsluitingsbesluit van 24-09 uit het orakel haalt.
+  'p6AlapPositionedFromSuccessors',
 ]);
 
-/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C9, C11 en C12 op hun P6-waarde,
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C9, C11, C12 en C14 op hun P6-waarde,
  *  al het andere uit. */
 export function legacyXerDefault(d: ConventionDescriptor): boolean {
   if (LEGACY_XER_ALWAYS_ON.has(d.id)) return true;
