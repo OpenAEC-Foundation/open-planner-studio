@@ -892,6 +892,14 @@ groei veroorzaakt hebben; per conventie terugrekenen (C5/C6/C7/C8 één voor é�
 Bekend uit overdracht §1d-3: vijf lopende CP_Phys-taken in Roads (OCEC10801/10811/11371/18391/11791) die
 sinds C7 binnen de emmer verder van P6 kwamen (oorzaak B07) — dat zijn andere taken dan deze 14.
 
+**Opgelost in X12 brok 6 (2026-09-23, `claude/x12-brok6-c5-late-kant`).** Oorzaak per cel bewezen door
+C5–C8 één voor één uit te zetten: de zes ls/lf-cellen komen van C5 (met C5 uit staan ze exact op
+`reference`), de acht tf-cellen van C6 (idem). Beide conventies misten hun late kant: een open taak vóór
+een CP_Phys-punt keek achterwaarts niet naar dat punt (de generieke backward pass sloeg een voltooide
+opvolger over, dus viel ze op het projecteinde en het punt volgde haar), en de verstreken SS-lag uit een
+lopende voorganger viel alleen voorwaarts weg. Beide gespiegeld; X12 428 → 350, 0 slechter, 0 groter,
+schuld 14 → 0. Details: `2026-09-23-x12-restant-classificatie.md`, kop "Restant 428 na integratie 23-09".
+
 ## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
 *Herschreven door de Claude-sessie die op 2026-09-07 de etappe overnam, 7a en laag 3 landde en de

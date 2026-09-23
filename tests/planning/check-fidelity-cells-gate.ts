@@ -32,8 +32,10 @@ import {
 
 /** Ratchet-schuld van de eenmalige overgang bij de merge van de grootte-ratchet (2026-09-23): 14 cellen in
  *  Roads_Project_TEC (plan XER §9 "Ratchet-schuld 2026-09-23"). Mag alleen DALEN: een herpin die cellen
- *  ontschuldt, verlaagt deze pin in dezelfde commit; hoger is nooit toegestaan. */
-const EXPECTED_DEBT_CELLS = 14;
+ *  ontschuldt, verlaagt deze pin in dezelfde commit; hoger is nooit toegestaan.
+ *  14 → 0 (X12 brok 6, 2026-09-23): de late kant van C5 (backward-druk van een CP_Phys-punt op een open
+ *  voorganger) en van C6 (rest-lag ook achterwaarts) maakt alle 14 exact. */
+const EXPECTED_DEBT_CELLS = 0;
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
 

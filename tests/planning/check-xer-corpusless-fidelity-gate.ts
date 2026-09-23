@@ -86,6 +86,12 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23h (X12 naar nul, brok 6 — de late kant van C5 en C6, motorwijziging, regel A:
+  // measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=78 kleiner=5 schuld=0). Een
+  // voltooide CP_Phys-opvolger met statusdatumpunt legt backward-druk op een open voorganger, en de
+  // SS-rest-lag uit een lopende voorganger telt ook achterwaarts. X12 428 → 350 (ls 90 → 61, lf 105 → 76,
+  // tf 92 → 72), alles in Roads (89 → 11: 1/3/2/2/1/2); ratchet-schuld 14 → 0. Overige bestanden
+  // byte-identiek.
   // HERPIN 2026-09-23g (merge van de manifest-etappe in de etappebranch; motor = brok 2 + 3 + 4, C1–C8):
   // dezelfde populatiewijziging als 23f-populatie hieronder, nu op de gemergde motor. Corpus-herpin
   // (V2_WRITE=corpus, CELLS_WRITE=corpus; GATE_PINS=write omdat de manifestpins hier al van de
@@ -182,16 +188,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_871, lf: 5_856, tf: 5_680, ff: 5_730 },
+    exact: { es: 5_916, ef: 5_907, ls: 5_900, lf: 5_885, tf: 5_700, ff: 5_730 },
     sameday: { es: 2, ef: 2, ls: 1, lf: 13, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 89, lf: 92, tf: 92, ff: 42 },
+    diff: { es: 43, ef: 52, ls: 60, lf: 63, tf: 72, ff: 42 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 90, lf: 105, tf: 92, ff: 42 },
+    deviations: { es: 45, ef: 54, ls: 61, lf: 76, tf: 72, ff: 42 },
     drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: '40a70a7b3a898b10475360f38a0bc81b482327a4fb12874f5a7acd673060d81a',
-  productPayloadGzipSha256: 'fe3e16db5bda6960a02be33f7b7f86f5ff70523492aedd39c45497697a55d6f5',
-  productProjectProjectionSha256: '7a335862f5e6fc0976408093e3edd64ab10f37be4e221e88fcb3c9d93814e4a6',
+  productPayloadSha256: '3c5d5ae41073e6c12b192a6a8e47eb99daec853c7de2f856a0391ab91602a3e8',
+  productPayloadGzipSha256: 'e69dd16997759eef4d93d0695ff9c7fdab2b924cc94b586db8ddefd3470bedcd',
+  productProjectProjectionSha256: 'fb85d9234666dc6062fd1b2cb21d4720df8a3a4e1443c64ba1ffe3fa6fdbb9b3',
   roles: {
     oracle: 13,
     'engine-input': 14,

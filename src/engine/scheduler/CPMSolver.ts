@@ -3625,7 +3625,11 @@ export class CPMSolver {
         const succUsesRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
           succTask, this.dataDate, this.options.schedulingOptions,
         ).eligible;
-        if (succCompletedHistoric && !succUsesRemainingWindow) continue;
+        // C5, late kant: een voltooide CP_Phys-opvolger met een statusdatumpunt draagt een zinvolle
+        // late kant (LS = LF = zijn punt) en legt dus gewone backward-druk op een open voorganger.
+        // Gemeten (X12 brok 6): Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791.
+        const succIsPhysicalPoint = this.completedPhysicalPoints.has(succTask.id);
+        if (succCompletedHistoric && !succUsesRemainingWindow && !succIsPhysicalPoint) continue;
         // Een hammock is een gevolg, geen oorzaak (§4.4): hij legt GEEN backward-druk op zijn
         // voorgangers (drivers). Een strakke opvolger van de hammock kan zo nooit via de hammock heen
         // negatieve float op de start-/finish-driver leggen — de driver ziet alleen zijn eigen
@@ -3655,8 +3659,11 @@ export class CPMSolver {
           ls: this.shiftByLevelingDelay(succCal, succTask, succResult.ls, -1),
           lf: this.shiftByLevelingDelay(succCal, succTask, succResult.lf, -1),
         };
+        // C6, late kant: van een SS-lag uit deze LOPENDE taak telt ook achterwaarts alleen de rest-lag
+        // (Roads OCEC10311 —SS+70 h→ OCEC10851: P6-LS = de LS van de opvolger). Conventie uit ⇒ `seq`.
+        const lateSeq = this.inProgressStartLagSeq(task, seq, this.relDeps.lagEngine(predCal, succCal));
         const constraintDate = backwardConstraint(
-          this.relDeps, delayShiftedSuccResult, seq, task, succTask, predCal, succCal,
+          this.relDeps, delayShiftedSuccResult, lateSeq, task, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
           this.finishFinishAtStartMilestoneLateFinish(seq, succTask, predCal, succCal),
         );

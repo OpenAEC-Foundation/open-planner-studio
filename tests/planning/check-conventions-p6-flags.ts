@@ -948,6 +948,78 @@ for (const fixture of groupC) {
     solveAxes(withProfile(fs, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false)), 'S').es);
 }
 
+// X12 brok 6 — de late kant van de B07-keten (ratchet-schuld 2026-09-23). Band 08:00–17:00 ma–vr,
+// statusdatum wo 14 jan 00:00, rem_target_link_flag=Y (A19). Een losse open X van 10 werkdagen (wo 14 –
+// di 27 jan 17:00) legt het projecteinde vast.
+function lateSideFixture(tasks: string[], relations: string[]): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tLaat-fixture\tC1\t2026-01-14 00:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tX\tP1\tC1\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t90\t90\t2026-01-14 08:00\t2026-01-27 17:00\t\t',
+    ...tasks,
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    ...relations,
+    '%E',
+  ]);
+}
+const lateSideOf = (input: ImportResult, id: string) => (({ ls, lf }) => ({ ls, lf }))(solveAxes(input, id));
+
+// C5, late kant van een OPEN voorganger (Roads B2911 → OCEC11361, A33 → A65, OCEC10851 —SS→ OCEC10791):
+// een voltooide CP_Phys-opvolger met een statusdatumpunt legt gewone backward-druk op haar open
+// voorganger. Open P (2 dagen, wo 14 – do 15 jan) —FS0→ voltooide CP_Phys D —FS0→ open S (1 dag).
+// S.LS = di 27 jan 08:00 ⇒ D.LS = D.LF = di 27 jan 08:00 ⇒ P.LF = de werkgrens daarvóór, ma 26 jan
+// 17:00, P.LS = vr 23 jan 08:00. Zonder deze regel sloeg de backward pass D over en viel P op het
+// projecteinde (di 27 jan 17:00 / ma 26 jan 08:00) — in Roads was dat de bron van de schuldcellen
+// A15112/B2921/B2922 (hun punt volgt de opvolger-LS). Mutant "C5-opvolger weer overslaan" ⇒ rood.
+{
+  const input = lateSideFixture([
+    '%R\tP\tP1\tC1\tPRED\tOpen voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t18\t18\t2026-01-14 08:00\t2026-01-15 17:00\t\t',
+    '%R\tD\tP1\tC1\tDONE\tVoltooid fysiek\tTT_Task\tDT_FixedDrtn\tTK_Complete\tCP_Phys\t18\t0\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t2026-01-06 17:00',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-16 08:00\t2026-01-16 17:00\t\t',
+  ], ['%R\tR0\tD\tP\tP1\tP1\tPR_FS\t0', '%R\tR1\tS\tD\tP1\tP1\tPR_FS\t0']);
+  eq('C5 late kant fixture: D staat op het punt van haar voorganger', solveAxes(input, 'D').es, '2026-01-15T17:00');
+  eq('C5 late kant fixture: het punt volgt de LS van S', lateSideOf(input, 'D'), { ls: '2026-01-27T08:00', lf: '2026-01-27T08:00' });
+  eq('C5 late kant: het punt legt backward-druk op de open voorganger', lateSideOf(input, 'P'),
+    { ls: '2026-01-23T08:00', lf: '2026-01-26T17:00' });
+  eq('C5 uit ⇒ de open voorganger valt op het projecteinde (voltooide opvolger is historie)',
+    lateSideOf(withProfile(input, copy => setConvention(copy, 'p6CompletedPhysicalAtDataDate', false)), 'P'),
+    { ls: '2026-01-26T08:00', lf: '2026-01-27T17:00' });
+}
+
+// C6, late kant (Roads OCEC10311 —SS+70 h→ OCEC10851; de tf-schuldcellen OCEC11741 e.a.): ook
+// achterwaarts telt van de SS-lag uit een LOPENDE voorganger alleen de rest-lag. Lopende A (werkelijk
+// gestart ma 5 jan 08:00, 18 h rest = de geplande duur, zoals OCEC10311: 140 h / 140 h) —SS+18 h→ open S
+// (3 dagen). S.LF = di 27 jan 17:00, S.LS = vr
+// 23 jan 08:00. De lag is op de statusdatum verstreken (63 h ≥ 18 h) ⇒ A.LS = vr 23 jan 08:00, A.LF =
+// ma 26 jan 17:00. Zonder de late kant trok de volle lag A 18 h naar voren (wo 21 jan 08:00 / do 22 jan
+// 17:00) terwijl de vroege kant de lag al kwijt was: 18 h te veel totale speling. Mutant "C6 alleen
+// voorwaarts" ⇒ rood.
+{
+  const input = lateSideFixture([
+    '%R\tA\tP1\tC1\tRUN\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t18\t18\t2026-01-05 08:00\t2026-01-15 17:00\t2026-01-05 08:00\t',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-14 08:00\t2026-01-16 17:00\t\t',
+  ], ['%R\tR1\tS\tA\tP1\tP1\tPR_SS\t18']);
+  eq('C6 late kant fixture: S op A\'s restwerkstart', solveAxes(input, 'S').es, '2026-01-14T08:00');
+  eq('C6 late kant fixture: S op het projecteinde', lateSideOf(input, 'S'), { ls: '2026-01-23T08:00', lf: '2026-01-27T17:00' });
+  eq('C6 late kant: verstreken SS-lag telt ook achterwaarts niet', lateSideOf(input, 'A'),
+    { ls: '2026-01-23T08:00', lf: '2026-01-26T17:00' });
+  eq('C6 uit ⇒ de volle lag, voorwaarts én achterwaarts',
+    lateSideOf(withProfile(input, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false)), 'A'),
+    { ls: '2026-01-21T08:00', lf: '2026-01-22T17:00' });
+  const fs = structuredClone(input);
+  fs.sequences[0].type = 'FINISH_START';
+  eq('C6 late kant raakt geen FS-relatie', lateSideOf(fs, 'A'),
+    lateSideOf(withProfile(fs, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false)), 'A'));
+}
+
 // C7, randgevallen (docblok): de startmijlpaal zelf staat met en zonder C7 gelijk (ES do 8 jan door
 // Y), en een FF-relatie naar een EINDmijlpaal (`TT_FinMile`, 34× in het corpus, nu exact) verandert
 // op geen enkele as van geen enkele taak.

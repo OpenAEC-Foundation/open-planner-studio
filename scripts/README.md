@@ -163,10 +163,10 @@ schuld vastleggen. Het cellenbestand draagt sindsdien een sectie `ratchetDebt` m
 - schuld ontstaat uitsluitend via de eenmalige overgang `OPS_XER_CELLS_WRITE=corpus|1
   OPS_XER_CELLS_DEBT_INIT=2026-09-23` op een versie-2-bestand ZONDER schuldsectie (zo is hij gemaakt).
   Op een bestand met een schuldsectie weigert die vlag; daarna kan de schuld alleen dalen;
-- `check-fidelity-cells-gate.ts` pint het aantal (`EXPECTED_DEBT_CELLS`, nu 14): een herpin die cellen
-  ontschuldt, verlaagt die pin in dezelfde commit; hoger nooit.
-De 14 staan met hun minuten in plan XER §9 ("Ratchet-schuld 2026-09-23"); ze zijn de eerste opdracht
-van de volgende brok.
+- `check-fidelity-cells-gate.ts` pint het aantal (`EXPECTED_DEBT_CELLS`, sinds X12 brok 6 op 0): een herpin
+  die cellen ontschuldt, verlaagt die pin in dezelfde commit; hoger nooit.
+De 14 staan met hun minuten en hun oorzaak (C5 en C6 zonder late kant) in plan XER §9 ("Ratchet-schuld
+2026-09-23"); X12 brok 6 maakte ze alle 14 exact. De schuldsectie is nu leeg en kan niet opnieuw ontstaan.
 
 **Corpusgroei** (een entry erbij of eraf, dus een gewijzigd `xer-corpus-manifest.json`): de
 dekkingscheck en de cel-poort staan dan rood op het gewijzigde entry-set, en `=1` weigert. Gebruik

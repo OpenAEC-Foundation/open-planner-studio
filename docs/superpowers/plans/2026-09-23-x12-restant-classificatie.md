@@ -98,6 +98,56 @@ beslist de eigenaar (overdracht §1a). Dit document kiest niet. Gevolg voor de o
 negatieve controle `drop-p6-finish-milestone-boundary` (A17) gaf op deze populatie 0 regressies. Die
 rol is daarom overgegaan naar `drop-p6-relation-finish-boundary` (B1).
 
+## Restant 428 na integratie 23-09
+
+*Gemeten 2026-09-23 op `claude/x12-brok6-c5-late-kant` (basis `9eed2903`: C1–C8, C1/C4 uit in P6, populatie =
+P6-doorgerekend, grootte-ratchet met 14 schuldcellen). Claude Opus 5.5. Hulpscripts in `/tmp/brok6/`
+(`dump.ts` = de dump van §0 op deze worktree, `roots.py` = wortelattributie, `cmp.py` = cel-vergelijking
+met emmer en grootte), niet in de repo.*
+
+In gewone taal: van de 428 cellen hing bijna een vijfde (78) aan één ontbrekende spiegel in de motor.
+Een voltooide CP_Phys-taak staat sinds C5 op één punt, maar een open taak die vóór zo'n punt ligt keek
+achterwaarts niet naar dat punt en viel op het projecteinde; en C6 haalde de verstreken SS-lag alleen
+voorwaarts weg. Beide zijn nu gespiegeld (landing 1 hieronder). De rest zit in vier bestanden met elk een
+eigen oorzaak, en is grotendeels n = 1 of niet uit het bestand af te leiden.
+
+**Methode.** Dump per taak (alle zes assen), dan wortelattributie zoals §0 regel 5: ES/EF lopen via
+afwijkende voorgangers omhoog, LS/LF via afwijkende opvolgers, tf via de kant die afwijkt, ff per taak.
+Telling klopt met het rapport: 428 (es 45, ef 54, ls 90, lf 105, tf 92, ff 42).
+
+| bestand | cellen | wortels (cellen) | oorzaak | status |
+|---|---|---|---|---|
+| Roads_Project_TEC | 89 | OCEC18201 25, OCEC11771 22, B2911 10, OCEC11701 10, OCEC10851 8, A33 5, OCEC10811 3 (achterwaarts); rest 11 | B07-keten late kant: open voorganger van een CP_Phys-punt valt op het projecteinde; SS-rest-lag alleen voorwaarts | **78 opgelost (landing 1)**; rest 11: OCEC11731 5 (lopend, achterwaarts), OCEC9761 3, A10660 1, ff 2 |
+| HarbourPointe_AssistedLiving | 124 | EC1420/EC1430 (ALAP) 39, EC2410 29, EC2060 15, EC1590 14, EC2170 10, EC2380 5; ff 11; tf 1 | P6-waarden op minuten die de opgeslagen kalender niet kent (16:49, 11:28, 10:40); duurspannes korter dan de restduur op kalender 5829 (EC2410: 920 h ⇒ P6 03-25 → 07-31, OPS 04-29 → 10-10); doeldatums op 07:00/16:00 terwijl 5829 08–12/13–17 is | niet afleidbaar uit het bestand [VERMOED: doorgerekend op een andere kalender dan opgeslagen]; EC1600 tf is een afrondingsrest van het orakel (396.640,00002) |
+| DCP-03 Baseline Rev 0 | 92 | E-1000 64 (voorwaarts), Z-9010/Z-9000 8 (LOE), ff 20 | B10 startmijlpaal met targetvenster; B14 LOE zonder relaties; B15 vrije speling (P6 ff = tf) | n = 1 (één bestand, één mijlpaal); niet gebouwd |
+| Hotel_Construction_TEC | 64 | ~40 losse achterwaartse wortels, meest mijlpalen op kalender 844 (vrijdag vrij) | B09: een late datum die van een opvolger op een andere kalender komt, wordt niet op de eigen kalender teruggezet (HCMEF6Z5565: opvolger-LS vr 12-27 16:00 op kal. 843, P6 do 12-26 17:00 op kal. 844, OPS vr 12-27 16:00) | zie verderop (landing 2) |
+| OZB-Start-09Dec24 | 42 | project 9033: OZ1100 21, OZ1090 12, OZ1060 (CS_MSOA) 3; 10093: OZ1030 4; ff 2 | één project met negatieve speling, één MSOA-beperking | n = 1 project; niet gebouwd |
+| Sample_Construction_TEC | 13 | REPLBE03 6, REPLBE01 4, REPLBE02 2, RDARCH02 1 | onverklaard (U2) | niet gebouwd |
+| ashspace sample | 4 | A1050/A2050/A3050/A4050, lf | B09-vorm (FF0 naar een FinMile, P6 16:00, OPS 08:00 volgende dag) | zie landing 2 |
+
+**De 14 schuldcellen, per cel bewezen.** Conventie voor conventie terug uitgezet in het register (de dump
+op de basis, `builtIn.p6 = false`, daarna `git checkout src`):
+
+- A15112, B2921, B2922 ls/lf — **C5**. Met C5 uit liggen ze weer op de werkelijke datums, precies de
+  `reference` (A15112 ls 01-26 00:00 = 151.800 min vóór P6's 05-11 10:00, lf 02-05 00:00 = 137.400). Met C5
+  aan volgt het punt terecht de LS van zijn opvolger (A33, resp. B2931), maar die opvolger stond op het
+  projecteinde: A33 (lopend, restduur 0) heeft als enige opvolger het CP_Phys-punt A65, B2931 → B2911 heeft
+  alleen CP_Phys-punten als opvolgers (OCEC10791, OCEC18381, OCEC11361, OCEC11781), en de generieke
+  backward pass sloeg een voltooide opvolger als historie over. P6: B2911 LF = 09-10 16:00 = LS van
+  OCEC11361; A33 LS = LF = 05-11 10:00 = LS van A65.
+- De acht tf-cellen — **C6**. Met C6 uit liggen ze op `reference` (OCEC10851 tf 91.740, afwijking 24.600;
+  OCEC11741 53.940, afwijking 4.800). C6 haalde de verstreken SS-lag alleen voorwaarts weg, dus de vroege
+  kant schoof 70 h (4.200 min) naar voren en de late kant niet. P6: OCEC10311 (lopend, 140 h rest) —SS+70 h→
+  OCEC10851 met LS 09-29 16:00 geeft OCEC10311 LS 09-29 16:00, dus ook achterwaarts zonder de verstreken lag.
+- C7 en C8 uit veranderen geen van de 14.
+
+**Landing 1 — de late kant van C5 en C6.** Twee regels in de generieke backward pass, samen één
+spiegel: (a) een voltooide opvolger met een C5-punt legt gewone backward-druk op een open voorganger;
+(b) de SS-lag uit een lopende voorganger telt ook achterwaarts alleen als rest-lag. Apart zijn ze niet
+landbaar: (a) alleen geeft 428 → 374 met 2 slechter (OCEC10181 ls/lf: een punt-opvolger die nu te vroeg
+komt omdat OCEC10311 de volle lag nog achterwaarts rekende), (b) alleen 428 → 425 met 20 groter. Samen:
+**428 → 350, 78 beter (ls 29, lf 29, tf 20, alles Roads), 0 slechter, 0 groter, 5 kleiner; schuld 14 → 0**.
+
 ## 0. Totaal en meetmethode
 
 | meting | commando | uitkomst |
