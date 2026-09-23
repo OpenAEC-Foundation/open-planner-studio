@@ -406,7 +406,8 @@ export interface SchedulingOptions {
    *    (EF = punt: 0). X12 181 → 180, 0 slechter, 0 groter; precies één OPS-waarde verandert. Bewust geen
    *    eigen conventie (brok-8-opdracht noemde het C13): het is de ff-spiegel van dezelfde P6-regel, net
    *    als de late kant van C5 in brok 6, en valt met C5 uit vanzelf weg (punten bestaan alleen met C5).
-   *    Alleen FS zonder lag (gemeten); andere relatietypen en lag houden de terugval.
+   *    Alleen FS zonder lag, alleen vanuit een open (niet-voltooide) voorganger: bewuste beperking, niet
+   *    gemeten (zoals C7) — andere relatietypen, lag en een voltooide voorganger houden de terugval.
    *  - MS Project: uit. MS Project kent geen voortgangstype per activiteit; een voltooide taak houdt
    *    haar werkelijke Start en Finish.
    *  - OPS: uit (de werkelijke datums, het gedrag van vóór deze conventie). */
@@ -530,7 +531,8 @@ export interface SchedulingOptions {
    *  backward-druk op de voorganger, en telt de relatie niet in diens vrije speling (geen relatiegrens,
    *  dus ook geen driving-markering). Poort: conventie aan, projectoptie Progress Override (zoals C4 die
    *  leest: `this.options.progressMode`), opvolger met werkelijke start of voortgang en niet voltooid,
-   *  voorganger niet voltooid. `CPMSolver.progressOverrideIgnoresRelation`. Nummer C11: C10 is bezet door
+   *  voorganger niet voltooid (die laatste poort is verdedigend, niet gemeten: onder P6 wist A12 de grens
+   *  van een voltooide voorganger al). `CPMSolver.progressOverrideIgnoresRelation`. Nummer C11: C10 is bezet door
    *  de geparkeerde ALAP-conventie (plan XER §9).
    *
    *  - P6: aan. Bron: Oracle P6 EPPM Help, "Scheduling Settings"
@@ -558,9 +560,13 @@ export interface SchedulingOptions {
    *  Ligt X ná de berekende vroege finish met nul werktijd ertussen op de eigen kalender (X valt in vrije
    *  tijd van de opvolger), dan wordt de vroege finish de eerste werkgrens op of ná X; de vroege start
    *  blijft staan. Geldt in de niet-gestarte tak en op het restwerk van een lopende taak (niet bij een harde
-   *  finish-pin, niet bij ELAPSEDTIME-lag, alleen uurmodus). Vrije-spelingkant: over een FF-relatie zonder
-   *  lag telt de vrije speling van de voorganger in haar eigen kalender tot de vroege FINISH van de
-   *  opvolger (niet via de afgeleide startgrens, die C12 niet verplaatst).
+   *  finish-pin, niet bij ELAPSEDTIME-lag, alleen uurmodus, niet vanuit een hammock — deze vier poorten
+   *  zijn verdedigend, niet gemeten). De lopende tak heeft geen Progress-Override-poort: onder Progress
+   *  Override met een FF-grens in vrije tijd legt C12 de grens nog steeds op (fixture pint dat gedrag;
+   *  ongemeten, geen P6-orakel). De nul-werktijd-eis is niet gemeten; ontwerpgrens: C12 is een
+   *  kloktijdcorrectie, geen extra relatielogica. Vrije-spelingkant: over een FF-relatie zonder lag telt
+   *  de vrije speling van een open (niet-voltooide) voorganger in haar eigen kalender tot de vroege
+   *  FINISH van de opvolger (niet via de afgeleide startgrens, die C12 niet verplaatst).
    *  `CPMSolver.finishNotBeforeFinishFinishBound`, `scheduleAnalysis.computeScheduleResults`.
    *
    *  - P6: aan. Bron: Oracle P6 EPPM Help, "About Relationships"

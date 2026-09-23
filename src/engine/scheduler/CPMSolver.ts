@@ -705,16 +705,6 @@ export class CPMSolver {
   }
 
   /**
-   * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
-   * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
-   * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
-   * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
-   * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
-   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
-   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
-   * (`milestoneKind: 'FINISH'`) valt er per definitie buiten.
-   */
-  /**
    * Conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor` (docblok + bron bij de sleutel in
    * `types/project.ts`): onder Progress Override negeert de planning de netwerklogica naar een al
    * gestarte, nog lopende opvolger — niet alleen voorwaarts (de voortgangstak rekent daar al zonder
@@ -751,7 +741,8 @@ export class CPMSolver {
       const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
       const lagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), cal);
       let bound = this.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
-      const predIsStartMilestone = isZeroDurationMilestone(predTask) && predTask.milestoneKind !== 'FINISH';
+      const predIsStartMilestone = isZeroDurationMilestone(predTask) && predTask.milestoneKind !== 'FINISH'
+        && predTask.time.completion < 1;
       if (!predIsStartMilestone) bound = lagEng.prevWorkInstant(bound);
       if (Number.isNaN(bound.getTime()) || bound <= out || cal.workMinutesBetween(out, bound) !== 0) continue;
       const snapped = this.snapOnOrAfter(cal, bound);
@@ -760,6 +751,18 @@ export class CPMSolver {
     return out;
   }
 
+  /**
+   * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
+   * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
+   * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
+   * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
+   * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
+   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
+   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
+   * (`milestoneKind: 'FINISH'`) valt er per definitie buiten. Voorwaarts doet C7 onder P6 niets meer
+   * sinds C12 dezelfde vrije speling levert (vrije-spelingkant van C12); arm 3 (OPS-basis) van de
+   * groep-C-fixture bewaakt hem.
+   */
   private finishFinishAtStartMilestoneLateFinish(
     seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
   ): boolean {

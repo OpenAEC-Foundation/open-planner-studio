@@ -731,6 +731,13 @@ groupC.push({
   rel.lagMinutes = 540;
   rel.lagDays = 1;
   eq('C5 ff-kant niet bij een FS-relatie met lag', solveAxes(lagged, 'O').ff, 0);
+  // Randgeval (bewuste beperking, niet gemeten): een SS- of FF-relatie naar het punt geeft géén vrije
+  // speling tot het punt. Mutant "FS-poort weg" ⇒ rood.
+  for (const type of ['START_START', 'FINISH_FINISH'] as const) {
+    const typed = structuredClone(input);
+    typed.sequences.find(seq => seq.predecessorId === 'O')!.type = type;
+    eq(`C5 ff-kant niet bij een ${type}-relatie naar het punt`, solveAxes(typed, 'O').ff, 0);
+  }
 }
 
 // C6: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 00:00, rem_target_link_flag=Y (A19). Lopende A
@@ -1008,7 +1015,7 @@ groupC.push({
 // ná de grens, ma 12 jan 08:00. De vrije speling van P over die relatie telt dan in P's eigen kalender tot
 // die finish: do 12:00–17:00 plus vr, za, zo = 5 + 27 = 32 u = 32/9 dag (P6 A10650: 960 min = 16 u op
 // kal. 1474 tot A10660-EF); zonder C12 volgt ze uit de afgeleide startgrens: 0.
-function c12Fixture(opts: { predMilestone?: boolean; sameCalendar?: boolean; predHours?: number } = {}): ImportResult {
+function c12Fixture(opts: { predMilestone?: boolean; sameCalendar?: boolean; predHours?: number; lagHours?: number } = {}): ImportResult {
   const hours = opts.predHours ?? 31;
   const succCal = opts.sameCalendar ? 'C7' : 'C3';
   const pred = opts.predMilestone
@@ -1030,7 +1037,7 @@ function c12Fixture(opts: { predMilestone?: boolean; sameCalendar?: boolean; pre
     `%R\tS\tP1\t${succCal}\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-05 08:00\t2026-01-05 17:00\t\t`,
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
-    '%R\tR1\tS\tP\tP1\tP1\tPR_FF\t0',
+    `%R\tR1\tS\tP\tP1\tP1\tPR_FF\t${opts.lagHours ?? 0}`,
     '%E',
   ]);
 }
@@ -1086,6 +1093,22 @@ groupC.push({
   started.project.statusDate = '2026-01-05T13:00';
   started.project.progressMode = 'PROGRESS_OVERRIDE';
   eq('C12 legt geen grens met werktijd ertussen op', solveAxes(started, 'S').ef, solveAxes(off(started), 'S').ef);
+  // (e) Lagpoort van de vrije-spelingkant: FF+4 u (grens do 16:00, nog steeds in vrije tijd van S, dus EF
+  // ma 12 jan 08:00). De vrije speling springt NIET naar S' vroege finish (zou 32/9 geven), maar volgt de
+  // afgeleide startgrens zoals zonder C12. Mutant "lagpoort weg" ⇒ rood.
+  const lagged = c12Fixture({ lagHours: 4 });
+  eq('C12 FF+4 u: grens nog in vrije tijd van S', solveAxes(lagged, 'S').ef, '2026-01-12T08:00');
+  eq('C12 FF+4 u: vrije speling springt niet naar de vroege finish van S', solveAxes(lagged, 'P').ff, 0);
+  eq('C12 FF+4 u: vrije speling gelijk aan C12 uit', solveAxes(lagged, 'P').ff, solveAxes(off(lagged), 'P').ff);
+  // (f) Lopende opvolger onder Progress Override met de FF-grens in vrije tijd (ongemeten, geen P6-orakel):
+  // de lopende tak kent geen PO-poort, dus C12 legt de grens nog steeds op. Restwerk 22 u vanaf ma 13:00
+  // eindigt zonder voorgangerdruk op wo 7 jan 17:00; C12 legt de finish op ma 12 jan 08:00. Pint het
+  // huidige gedrag; mutant "PO-poort in de lopende tak" ⇒ rood.
+  const runningPo = structuredClone(running);
+  runningPo.project.progressMode = 'PROGRESS_OVERRIDE';
+  runningPo.tasks.find(task => task.id === 'S')!.time.remainingMinutes = 1320;
+  eq('C12 lopende opvolger onder Progress Override: grens in vrije tijd wordt opgelegd', solveAxes(runningPo, 'S').ef, '2026-01-12T08:00');
+  eq('C12 uit, lopende opvolger onder Progress Override: het bandeinde', solveAxes(off(runningPo), 'S').ef, '2026-01-07T17:00');
 }
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
