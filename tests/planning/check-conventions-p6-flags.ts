@@ -168,6 +168,37 @@ fixtures.push({
   off: { es: '2026-01-06T08:00' },
 });
 
+// B1, late kant (X12 brok 6). Eén band 08:00–16:00 ma–vr. T (ma 5 jan) —FS0→ S (8 u, gepland vanaf T's
+// finishgrens ma 16:00: een voorgangerfinishgrens-relatie); een losse X (5 dagen, tot vr 9 jan 16:00)
+// legt het projecteinde vast. S.LF = vr 16:00, dus S.LS = vr 08:00: P6 toont die als bandSTART (Hotel
+// HCSWB1Z1240 LS 03-04 08:00), niet als finishgrens do 16:00. De finishgrens hoort bij de relatie: T.LF =
+// do 16:00 (Hotel HCSWB1Z1230 03-03 16:00). Mutanten "LS-spiegel terug in subDuration" (S.LS do 16:00)
+// en "relatie geeft de rauwe LS door" (T.LF vr 08:00) ⇒ rood.
+{
+  const b1 = importXer([
+    'ERMHDR\t23.12\t2026-01-05\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tStandard 5x8\tCA_Base\t8\t40\t${calendarData([['08:00', '16:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date',
+    '%R\tP\tB1-laat\tC1\t2026-01-05 08:00\t2026-01-05 08:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tX\tP\tC1\tX100\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t40\t40\t2026-01-05 08:00\t2026-01-09 16:00',
+    '%R\tT\tP\tC1\tT100\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-01-05 08:00\t2026-01-05 16:00',
+    '%R\tS\tP\tC1\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\t8\t8\t2026-01-05 16:00\t2026-01-06 16:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tT\tP\tP\tPR_FS\t0',
+    '%E',
+  ]);
+  eq('B1-laat fixture: de relatie staat op de voorgangerfinishgrens', b1.sequences[0].p6StartAtPredecessorFinishBoundary, true);
+  eq('B1-laat: de opvolger toont haar late start als bandstart', (({ ls, lf }) => ({ ls, lf }))(solveAxes(b1, 'S')),
+    { ls: '2026-01-09T08:00', lf: '2026-01-09T16:00' });
+  eq('B1-laat: de voorganger krijgt de finishgrens ervóór', solveAxes(b1, 'T').lf, '2026-01-08T16:00');
+}
+
 // ── B2 `p6BackwardLagFinishBoundary` ───────────────────────────────────────────────────────────
 // Eén band 08:00–16:00 (8 u). A (ma) —FF+16u→ B (wo). B eindigt wo 16:00 = projecteinde, dus
 // B.LF = wo 16:00, een exact bandeinde. Backward: A.LF = wo 16:00 − 16 werkuren = precies de
@@ -805,31 +836,33 @@ groupC.push({
   builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-14T17:00' },
 });
 
-// C9: twee ma–vr-kalenders, C8 (08:00–16:00) en C9 (08:00–17:00) — de vorm van Hotel (kalender 3195
-// en 3196). T (C8, ma 5 jan 08:00–16:00) —FS0→ S (C9, 9 u, gepland vanaf T's finishgrens ma 16:00, dus
-// een relatie op de voorgangerfinishgrens, B1). Een losse X (C9, 15 werkdagen, tot vr 23 jan 17:00)
-// legt het projecteinde vast; S.LS komt dan op do 22 jan 17:00 (finishgrens-weergave van B1), en die
-// grens geeft de relatie ongesnapt door als late finish van T. Do 17:00 ligt buiten de werktijd van T.
-// P6 (Hotel HCSWB1Z1230 → HCSWB1Z1240: 03-03 16:00, niet 17:00): de late finish is het einde van de
-// vorige werkperiode op de eigen kalender, do 22 jan 16:00. Zonder C9 blijft 17:00 staan.
+// C9: startmijlpaal M (`TT_Mile`) op een ma–do-kalender (08:00–17:00, vrijdag vrij, zoals Hotel
+// kalender 844) —FS0→ S (1 u, ma–vr) —FS0→ Z (5 dagen, ma–vr); een losse X (ma–vr, 15 werkdagen, tot vr 23
+// jan 17:00) legt het projecteinde vast. Z.LS = ma 19 jan 08:00 ⇒ S.LF = vr 16 jan 17:00, S.LS = vr 16 jan
+// 16:00, en die grens komt ongesnapt als late finish bij M: een vrijdag, buiten M's werktijd. P6 (Hotel
+// HCMEF6Z5565: opvolger-LS vr 12-27 16:00 ⇒ do 12-26 17:00; twaalf zulke startmijlpalen): de late finish
+// is het einde van de vorige werkperiode op de eigen kalender, do 15 jan 17:00. Zonder C9 blijft vr 16
+// jan 16:00 staan.
 function c9Fixture(): ImportResult {
   return importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
     '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
-    `%R\tC8\tAcht uur\tP1\tCA_Project\t8\t40\t${calendarData([['08:00', '16:00']])}`,
-    `%R\tC9\tNegen uur\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    `%R\tC5\tVijfdaags\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    `%R\tC4\tVierdaags\tP1\tCA_Project\t9\t36\t${calendarDataOn([2, 3, 4, 5], [['08:00', '17:00']])}`,
     '%T\tPROJECT',
     '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
-    '%R\tP1\tC9-fixture\tC9\t2026-01-05 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
+    '%R\tP1\tC9-fixture\tC5\t2026-01-05 08:00\t2026-01-05 08:00\t2026-03-31 17:00',
     '%T\tTASK',
     '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
-    '%R\tX\tP1\tC9\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t135\t135\t2026-01-05 08:00\t2026-01-23 17:00\t\t',
-    '%R\tT\tP1\tC8\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t8\t8\t2026-01-05 08:00\t2026-01-05 16:00\t\t',
-    '%R\tS\tP1\tC9\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-05 16:00\t2026-01-06 16:00\t\t',
+    '%R\tX\tP1\tC5\tLANG\tProjecteinde\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t135\t135\t2026-01-05 08:00\t2026-01-23 17:00\t\t',
+    '%R\tM\tP1\tC4\tM100\tStartmijlpaal\tTT_Mile\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t0\t0\t2026-01-05 08:00\t2026-01-05 08:00\t\t',
+    '%R\tS\tP1\tC5\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t1\t1\t2026-01-05 08:00\t2026-01-05 09:00\t\t',
+    '%R\tZ\tP1\tC5\tZ100\tSlot\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t45\t45\t2026-01-05 09:00\t2026-01-12 09:00\t\t',
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
-    '%R\tR1\tS\tT\tP1\tP1\tPR_FS\t0',
+    '%R\tR1\tS\tM\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tZ\tS\tP1\tP1\tPR_FS\t0',
     '%E',
   ]);
 }
@@ -837,12 +870,10 @@ groupC.push({
   flag: 'p6LateFinishOnOwnCalendar',
   label: 'C9 late finish op de eigen kalender',
   input: c9Fixture(),
-  taskId: 'T',
+  taskId: 'M',
   pick: axes => ({ lf: axes.lf }),
-  on: { lf: '2026-01-22T16:00' },
-  off: { lf: '2026-01-22T17:00' },
-  // Zonder B1 (OPS/MS Project) snapt de FS-relatie zelf al op de kalender van T: ook 16:00.
-  builtInOff: { lf: '2026-01-22T16:00' },
+  on: { lf: '2026-01-15T17:00' },
+  off: { lf: '2026-01-16T16:00' },
 });
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);

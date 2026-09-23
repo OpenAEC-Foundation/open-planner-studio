@@ -86,6 +86,10 @@ const EXPECTED = {
   tasks: 5_983,
   tasksWithAnyMeasuredAxis: 5_961,
   measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
+  // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
+  // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
+  // X12 293 → 284 (ls 47 → 38), alles Hotel HBTF-2. Overige cellen byte-identiek.
   // HERPIN 2026-09-23k (X12 naar nul, brok 6 — A19 late kant: lopende taak met rest 0 is voor SS/SF
   // achterwaarts een nulduur; regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0
   // verbeterd=5 kleiner=0 schuld=0). X12 298 → 293 (ls −2, lf −2, tf −1), alles Roads (OCEC11731 en
@@ -203,16 +207,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_914, lf: 5_927, tf: 5_701, ff: 5_730 },
+    exact: { es: 5_916, ef: 5_907, ls: 5_923, lf: 5_927, tf: 5_701, ff: 5_730 },
     sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 46, lf: 32, tf: 71, ff: 42 },
+    diff: { es: 43, ef: 52, ls: 37, lf: 32, tf: 71, ff: 42 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 47, lf: 34, tf: 71, ff: 42 },
+    deviations: { es: 45, ef: 54, ls: 38, lf: 34, tf: 71, ff: 42 },
     drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: '5c4a582c01f5337abfb38933853562a1cf55cc73897c7f3077d82297091bf399',
-  productPayloadGzipSha256: '694c5ec3df4492c95b6c3c73280c8d8cf0f90b5b0edefe7f5bf0d24d11c8e185',
-  productProjectProjectionSha256: '16f5c6e72d0fc97cd6559bffce479589ee56871b740d491e9023007fb959edb0',
+  productPayloadSha256: '771c4a9dd305d73bd3ab1c304b048e07977c7d109a78cc8ec58c0a1136ebff5f',
+  productPayloadGzipSha256: '5494eb24f341e141c65c1df615f030b2b1090d5d332e5b1440564d778ed500bf',
+  productProjectProjectionSha256: 'b1636deafabbc30cb0f387c199b40ca4bb0551137d0bdedf78a7dbc74972f4ed',
   roles: {
     oracle: 13,
     'engine-input': 14,

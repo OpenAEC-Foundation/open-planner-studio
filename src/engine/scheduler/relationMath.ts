@@ -898,9 +898,14 @@ function backwardHour(
         // Klok-minuten terug vanaf succ.LS, dan achteruit-snap in de voorganger.
         return deps.snapOnOrBefore(pe, new Date(succResult.ls.getTime() - elapsedMin()));
       }
-      // Spiegel van de XER/P6-forwardgrens hierboven: de late finish van de voorganger mag exact
-      // op de late start van de opvolger liggen; een `prevWorkInstant` zou één band terugtrekken.
-      if (seq.p6StartAtPredecessorFinishBoundary) return succResult.ls;
+      // Spiegel van de XER/P6-forwardgrens hierboven (B1): de late finish van de voorganger is de
+      // finishgrens op of vóór de late start van de opvolger, op de kalender van de voorganger. Sinds
+      // X12 brok 6 toont de opvolger haar LS als bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00, niet
+      // 03-03 17:00); de finishgrens hoort bij de relatie, dus `prevWorkInstant` hier (idempotent op een
+      // band-eind en binnen een band). Vroeger zat die grens in de LS-weergave van de opvolger zelf.
+      if (seq.p6StartAtPredecessorFinishBoundary) {
+        return pe.isHourMode ? pe.prevWorkInstant(succResult.ls) : succResult.ls;
+      }
       const succDayStart = () => deps.startOfDay(succResult.ls);
       if (pe.isHourMode && se.isHourMode) {
         // hour-hour: pred.LF = prevWorkInstant( succ.LS ⊖ lag ) (scenario 1-6 backward).

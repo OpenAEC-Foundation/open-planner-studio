@@ -1248,45 +1248,9 @@
         }
       },
       "ls": {
-        "2666/144004": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/144112": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/144154": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/144196": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/144436": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/144437": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/144439": {
-          "bucket": "diff",
-          "minutes": 900
-        },
         "2666/146012": {
           "bucket": "sameday",
           "minutes": 60
-        },
-        "2666/146069": {
-          "bucket": "diff",
-          "minutes": 900
-        },
-        "2666/146072": {
-          "bucket": "diff",
-          "minutes": 900
         }
       },
       "tf": {

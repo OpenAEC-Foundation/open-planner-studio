@@ -1166,12 +1166,10 @@ export class CPMSolver {
     if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
       const totalMinutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
-      if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)) {
-        const naturalDayStart = this.dayFirstBandStart(eng, natural);
-        if (naturalDayStart?.getTime() === natural.getTime()) {
-          return eng.prevWorkInstantBefore(natural);
-        }
-      }
+      // B1 (X12 brok 6): de late start van een opvolger op een voorgangerfinishgrens-relatie is een
+      // gewone bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger
+      // legt `relationMath` (FS-backward, `p6StartAtPredecessorFinishBoundary`) zelf; hier vroeger
+      // `prevWorkInstantBefore(natural)` — 9 ls-cellen fout, 0 goed.
       // Z13 (backward-spiegel van `addDurationChecked`s band-eind-wacht): voor een WORTEL-taak
       // (geen voorganger) wier eigen `ownAnchor` het rauwe band-eind-anker behoudt (zie die
       // functie), telt `addDurationChecked` de EIGEN kalenderdag van dat anker mee als volledig

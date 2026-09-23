@@ -174,6 +174,11 @@ export interface SchedulingOptions {
    *  voorganger starten (forward) en spiegelt dat backward (`relationMath`, `CPMSolver`'s
    *  `snapSuccessorEarlyStart` via `preserveP6FinishBoundary`). Staat de conventie uit, dan stript
    *  de `CPMSolver`-constructor die relatievlag en heeft ze geen enkel effect.
+   *  Backward (X12 brok 6, 2026-09-23): de late finish van de voorganger is de finishgrens op of vóór de
+   *  late start van de opvolger op de kalender van de voorganger (`prevWorkInstant`); de opvolger zelf
+   *  toont haar late start als gewone bandSTART. Gemeten op het P6-doorgerekende Hotel HBTF-2:
+   *  HCSWB1Z1240 LS 03-04 08:00 (vroeger 03-03 17:00) e.a., 9 ls-cellen beter, 0 slechter
+   *  (X12 293 → 284); de voorganger-LF (HCSWB1Z1230 03-03 16:00) blijft exact.
    *  P6 aan / MS Project uit / OPS uit. */
   p6RelationFinishBoundary?: boolean;
   /** B2 — backward WORKTIME-lag vanaf een exacte bandeinde-grens die precies op een bandstart
@@ -485,7 +490,9 @@ export interface SchedulingOptions {
    *    opvolger-LS vr 2013-12-27 16:00 op kalender 843: P6 do 12-26 17:00, zonder C9 vr 12-27 16:00;
    *    taken op kalender 3195 (08:00–16:00) met een opvolgergrens 17:00 van kalender 3196: P6 16:00
    *    (HCSWB1Z1230 → HCSWB1Z1240, een FS0-relatie op de voorgangerfinishgrens, B1, die de LS van de
-   *    opvolger ongesnapt doorgeeft). Beperkt tot een door een opvolger bepaalde late finish: op het
+   *    opvolger ongesnapt doorgeeft — sinds de B1-late-kant van brok 6 legt die relatie de finishgrens
+   *    zelf, en dragen nog 24 cellen C9: twaalf startmijlpalen op kalender 844 als HCMEF6Z5565, met C9 uit
+   *    24 slechter). Beperkt tot een door een opvolger bepaalde late finish: op het
    *    corpus identiek aan de variant die ook het projecteinde snapt (0 cellen verschil).
    *    Een BREDERE variant (elke late finish op een bandSTART ook naar het vorige band-einde) maakt 10
    *    cellen meer goed (FF0-relaties in Hotel, ashspace en Sample_Construction), maar breekt 54 exacte

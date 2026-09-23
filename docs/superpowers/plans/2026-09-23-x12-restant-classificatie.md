@@ -176,6 +176,14 @@ de taak als nulduur (LS = LF = 08-18 16:00); het C5-punt OCEC11721 ervóór volg
 0 slechter.** Een lopende taak met rest > 0 (33 in het corpus) verandert in geen enkele cel en blijft
 dus ongewijzigd (ongemeten).
 
+**Landing 5 — B1 late kant: de finishgrens hoort bij de relatie, niet bij de LS van de opvolger.** Een
+opvolger op een voorgangerfinishgrens-relatie toonde haar late start als finishgrens (do 17:00) wanneer
+de duurwandeling op een bandstart landde; P6 toont de bandstart (Hotel HCSWB1Z1240 LS 03-04 08:00, 9 van
+die cellen, 0 waar de oude weergave klopte). De spiegel voor de voorganger zit nu in de FS-backward van
+B1 (`prevWorkInstant` op de voorgangerkalender), zodat HCSWB1Z1230 LF 03-03 16:00 exact blijft. **293 → 284,
+9 beter (Hotel ls), 0 slechter.** Van de 42 C9-cellen worden er 18 nu ook door B1 gedekt; C9 blijft
+nodig voor 24 (twaalf startmijlpalen op kalender 844).
+
 **Wat overblijft na landing 1 en 2 (308; na landing 3: 298, de FF0-rijen hieronder zijn opgelost; na
 landing 4: 293, OCEC11731 is opgelost).**
 
