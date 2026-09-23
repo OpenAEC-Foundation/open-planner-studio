@@ -49,6 +49,11 @@ afwijkingen hebben met XER".)
   nieuwe populatie opnieuw beoordeeld (P3-gedrag hoort niet als P6-standaard aan); §1d-vragen 1 en 2 zijn
   hiermee beantwoord. Vragen 3 (grootte-ratchet) en 4 blijven open.
 
+- **23-09, op §1d-vraag 3, letterlijk: "2. Invoeren"** — de grootte-ratchet komt erbij: naast de
+  bucket-ratchet (exact/sameday/diff/missing) mag per cel de absolute afwijking tot P6 niet groter
+  worden. Doel: compensatie-effecten (761 cellen bij brok 2, vijf lopende Roads-taken bij brok 4)
+  zichtbaar maken. Vraag 3 is hiermee beantwoord; alleen vraag 4 (projecteinde/Oracle) blijft open.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -115,7 +120,7 @@ afwijkingen hebben met XER".)
    GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
    geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
    B01 is dat 62 % van het restant; zonder besluit is 0 op het volledige corpus niet te halen.
-3. **Grootte-ratchet?** De cel-ratchet ziet alleen exact/sameday/diff/missing; een cel die binnen `diff` verder van P6 af komt te liggen is onzichtbaar (brok 2: 761 zulke cellen, verklaard door B01). Besluit nodig: een extra ratchet op de afwijkingsgrootte per cel (strenger, vangt compensatie-effecten) of accepteren dat het nuldoel dat vanzelf afdwingt.
+3. *(beantwoord 23-09: "Invoeren", zie §1a)* **Grootte-ratchet?** De cel-ratchet ziet alleen exact/sameday/diff/missing; een cel die binnen `diff` verder van P6 af komt te liggen is onzichtbaar (brok 2: 761 zulke cellen, verklaard door B01). Besluit nodig: een extra ratchet op de afwijkingsgrootte per cel (strenger, vangt compensatie-effecten) of accepteren dat het nuldoel dat vanzelf afdwingt.
 4. **Projecteinde (brok 1):** de fix landt (P6-conform voor de klasse zonder enig einde), maar Oracle
    beschrijft `CalculateFloatBasedOnFinishDate` als een multi-project-optie ("each activity's float is
    calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
@@ -156,6 +161,7 @@ afwijkingen hebben met XER".)
 | manifest `p6Computed` + X12-splitsing (rapportage) | `claude/rekenprofielen` (`57df6ed0`, merge `69d13d65`) | **gemerged**; critreview = LANDEN-MET-FIXES (splitsing per bestand terwijl kenmerken per project gemeten zijn: Hotel/CR telt onterecht als P6-doorgerekend; stil "onbekend" bij ontbrekende sidecar; `--check` nergens aangeroepen) — fix **gemerged** (`30503b35` → `1a73b034`: per project, Hotel = mixed, sidecar-telling, `--check` in measure:profiles): `scripts/xer-p6-computed.ts` + `tests/planning/xer-corpus-p6computed.json` (apart bestand, want de manifest-hash zit in de baselines), splitsing in X12-check en measure:profiles. Gemeten op 15.056: P6-doorgerekend 1.772 (9 entries) / niet 13.284 (24) / onbekend 0 (1, As-Built) |
 | X12 naar nul — brok 5: B15 (C8) + B12 ALAP (C9) + B13/B14 (C10/C11, mits verdedigbaar) | `claude/x12-brok5-klein` (basis `5fcd85de` = C7; worktree `agent-x12-brok5-klein`) | in aanbouw (agent gestart 23-09 ~10:20); alleen P6-doorgerekende bronbestanden gelden; merget ná brok 4 |
 | **manifest-etappe: populatie = P6-doorgerekende orakels** (besluit 23-09) | `claude/x12-manifest-p6-orakels` (basis `5fcd85de` + p6Computed-rapportage; worktree `agent-x12-manifest-p6-orakels`) | in aanbouw (agent gestart 23-09 ~10:45): manifestrollen, volledige herpin (`CELLS_WRITE=corpus`), meting B1–B5/C1/C3/C4 op de nieuwe populatie (geen landing), classificatie bijwerken. Merget ná brok 4; brok 3/5 herpinnen daarna opnieuw |
+| **grootte-ratchet** (besluit 23-09) | `claude/x12-grootte-ratchet` (basis `claude/rekenprofielen`; agent-worktree) | in aanbouw (agent gestart 23-09 ~11:05): per cel de absolute afwijking in de cel-baseline, ratchet "niet groter", herpinrecept en measure:profiles bijgewerkt; merget ná de manifest-etappe met een verse herpin |
 | X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
