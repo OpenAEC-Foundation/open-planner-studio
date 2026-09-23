@@ -1068,10 +1068,12 @@ const lateOf = (input: ImportResult, id: string) => {
     solveAxes(ss, 'B').es, '2026-01-07T10:00');
 }
 {
-  // C2, tak "voltooide opvolger": open T (1 dag vanaf ma 5 jan) —FS+0→ open S en —FS+0→ voltooide K
-  // (buiten volgorde, 2 jan). S wacht ook op X (5 dagen) en begint ma 12 jan 08:00, dus via S heeft
-  // T 4 werkdagen speling. P6 (C2): K laat geen speling ⇒ ff 0. Zonder C2 levert K niets
-  // (`preserveActualDatesInBackwardPass` wist die grens) ⇒ ff 4.
+  // C2 zonder de vroegere deeltak "voltooide opvolger ⇒ ff = 0" (verwijderd 2026-09-23: alleen in
+  // rehab-2 = P3-uitvoer gemeten, 0 cellen effect op de P6-populatie). Open T (1 dag vanaf ma 5 jan)
+  // —FS+0→ open S en —FS+0→ voltooide K (buiten volgorde, 2 jan). S wacht ook op X (5 dagen) en
+  // begint ma 12 jan 08:00, dus via S heeft T 4 werkdagen speling. K levert geen grens
+  // (`preserveActualDatesInBackwardPass` wist die), met én zonder C2 ⇒ ff 4. Komt de deeltak terug,
+  // dan wordt de eerste regel rood (ff 0).
   const withDone = importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -1093,7 +1095,7 @@ const lateOf = (input: ImportResult, id: string) => {
     '%R\tR3\tK\tT\tP1\tP1\tPR_FS\t0',
     '%E',
   ]);
-  eq('C2 voltooide opvolger: ff 0', solveAxes(withDone, 'T').ff, 0);
+  eq('C2 aan, voltooide opvolger: geen deeltak meer, ff via S = 4 werkdagen', solveAxes(withDone, 'T').ff, 4);
   eq('C2 uit: de voltooide opvolger telt niet, ff via S = 4 werkdagen',
     solveAxes(withProfile(withDone, copy => setConvention(copy, 'p6FreeFloatOnOwnCalendar', false)), 'T').ff, 4);
 }

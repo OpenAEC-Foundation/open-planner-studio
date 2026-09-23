@@ -242,10 +242,10 @@ export interface SchedulingOptions {
   p6CompletedPredecessorAtDataDate?: boolean;
   /** C2 — de vrije speling van een niet-voltooide taak over een FS-nul-lag-relatie telt in de
    *  kalender van de TAAK zelf (werktijd tussen haar vroege einde en de vroege start van de
-   *  opvolger), niet in die van de opvolger. Een FS-nul-lag-relatie naar een VOLTOOIDE opvolger
-   *  (buiten volgorde) laat geen speling: P6 legt diens nul-restvenster direct achter de taak.
-   *  Alleen uurmodus, alleen FS met lag 0; andere relatietypes en voltooide taken houden de
-   *  bestaande berekening.
+   *  opvolger), niet in die van de opvolger. Alleen uurmodus, alleen FS met lag 0; andere
+   *  relatietypes en voltooide taken houden de bestaande berekening. Een relatie zonder eigen
+   *  vrije speling (zoals naar een VOLTOOIDE opvolger waarvan de achterwaartse pass de grens wist)
+   *  telt niet mee; C2 geeft zo'n opvolger geen aparte regel.
    *
    *  - P6: aan. Oracle P6 Help, "View activity float values"
    *    (https://docs.oracle.com/cd/F88968_01/client_help/en_US/view_activity_float_values.htm, P6
@@ -259,10 +259,11 @@ export interface SchedulingOptions {
    *    brok B06); samen met C1 471 ff-cellen beter, 0 slechter. Steun uit echte P6-uitvoer, los van
    *    rehab-2 (dat P3-uitvoer is): Hotel_Construction_TEC +244, Roads_Project_TEC +11 en Harbour Point
    *    DCP-03 Baseline Rev 0 +1 = 256 ff-cellen, 0 slechter — alle drie P6-doorgerekend
-   *    (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). Dat geldt voor de
-   *    HOOFDREGEL (eigen kalender). De DEELTAK "voltooide opvolger ⇒ ff = 0" is uitsluitend in
-   *    `rehab-2.xer` gemeten (P3-uitvoer; mutant M4 = die tak weg: 12.973 → 12.980, alle 8 cellen `ff`
-   *    in rehab-2) en valt dus onder hetzelfde voorbehoud als C1/C3 (eigenaarsbesluit over dat orakel).
+   *    (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). C2 is sindsdien
+   *    uitsluitend deze hoofdregel (eigen kalender), gedragen door Hotel, Roads en DCP-03. De vroegere
+   *    deeltak "voltooide opvolger ⇒ ff = 0" is op 2026-09-23 VERWIJDERD (besluit, zelfde criterium
+   *    als C1/C4): hij was alleen in `rehab-2.xer` gemeten (P3-uitvoer, geen orakel meer) en had op de
+   *    P6-populatie 0 cellen effect (mutant tak-weg: cel-delta nieuw=0 verslechterd=0 groter=0).
    *  - MS Project: uit. Ons MPP-orakel meet alleen start en einde, niet de vrije speling; zonder
    *    meting verandert het MSP-profiel niet.
    *  - OPS: uit (relatie-vrije-speling in de kalender van de opvolger, `scheduleAnalysis`). */
