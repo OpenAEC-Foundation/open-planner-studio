@@ -64,10 +64,13 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
   (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans.
-- **`ProjectOptionKey`** (9): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
+- **`ProjectOptionKey`** (10): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
   `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
   `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` (A21 —
-  hangt in de motor aan de B3/B4-keten en werkt dus alleen onder een profiel met die conventies aan).
+  hangt in de motor aan de B3/B4-keten en werkt dus alleen onder een profiel met die conventies aan),
+  en sinds 2026-09-23 `startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start
+  lag from", uit XER `sched_lag_early_start_flag`; kiest de variant van conventie C6 en doet niets
+  zonder C6).
   Plus `project.progressMode` als apart projectveld.
 - Typen: `ProjectSchedulingOptions = Pick<SchedulingOptions, ProjectOptionKey>`,
   `SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>`, en

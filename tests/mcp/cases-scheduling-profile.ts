@@ -30,6 +30,28 @@ test('get_project_info toont ook een OPS-project expliciet', async () => {
   assertEq([profile?.id, profile?.baseId, Object.keys(profile?.conventions ?? {}).length], ['ops', 'ops', 24], 'ops expliciet, vierentwintig conventies');
 });
 
+// Projectoptie `startToStartLagFrom` (P6 "Calculate Start-to-Start lag from", de variant van C6): altijd
+// zichtbaar, afwezig ⇒ earlyStart. Mutatiebewijs: de expliciete terugval in `getProjectInfo` weglaten ⇒
+// de eerste assertie rood; de spread van de projectopties weglaten ⇒ de tweede rood.
+test('get_project_info toont de SS-lag-variant (projectoptie) expliciet', async () => {
+  S().newProject();
+  type OptionsView = { schedulingOptions?: { startToStartLagFrom?: string; lagCalendar?: string } };
+  const plain = await call('planner_get_project_info') as McpToolOk;
+  assertEq((plain.data as { project: OptionsView }).project.schedulingOptions?.startToStartLagFrom, 'earlyStart',
+    'afwezig ⇒ earlyStart expliciet');
+  S().setProject({ schedulingOptions: { lagCalendar: 'successor', startToStartLagFrom: 'actualStart' } });
+  const set = await call('planner_get_project_info') as McpToolOk;
+  assertEq((set.data as { project: OptionsView }).project.schedulingOptions,
+    { lagCalendar: 'successor', startToStartLagFrom: 'actualStart' }, 'projectopties letterlijk');
+});
+
+test('update_project weigert schedulingOptions (ook de SS-lag-variant) met een verwijzing naar Projectinfo', async () => {
+  S().newProject();
+  const res = await call('planner_update_project', { schedulingOptions: { startToStartLagFrom: 'actualStart' } });
+  assert(!res.ok && /startToStartLagFrom/.test(res.error) && /Projectinfo/.test(res.error),
+    `weigertekst noemt de optie en Projectinfo: ${res.ok ? '' : res.error}`);
+});
+
 test('update_project weigert schedulingProfile met een verwijzing naar Projectinfo', async () => {
   S().newProject();
   const res = await call('planner_update_project', { schedulingProfile: { id: 'p6' } });

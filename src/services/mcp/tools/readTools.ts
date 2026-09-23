@@ -297,6 +297,12 @@ function getProjectInfo(s: AppState) {
         overrides: { ...(p.schedulingProfile?.overrides ?? {}) },
         conventions: resolveConventions(p.schedulingProfile),
       },
+      // De tien projectopties letterlijk zoals het bestand ze draagt, plus de variant van C6
+      // (`startToStartLagFrom`) altijd expliciet: afwezig rekent de solver als 'earlyStart'.
+      schedulingOptions: {
+        ...(p.schedulingOptions ?? {}),
+        startToStartLagFrom: p.schedulingOptions?.startToStartLagFrom ?? 'earlyStart',
+      },
     },
     statistics: {
       totalTasks: tasks.length,
@@ -1041,7 +1047,11 @@ export const readTools: McpToolDef[] = [
       'P6/MSP, en die stuurt de berekening. Werk met completion 0 kan niet vóór die datum starten en ' +
       'wordt erheen vooruitgeschoven — staat er een statusdatum, dan is `schedule.projectEnd` dus ' +
       'mede dóór die datum bepaald, ook als er nog geen enkele voortgang geregistreerd is. Ontbreekt ' +
-      'het veld, dan geldt die vloer niet en zijn reeds geregistreerde actuals inert.',
+      'het veld, dan geldt die vloer niet en zijn reeds geregistreerde actuals inert. ' +
+      '`project.schedulingProfile` is het rekenprofiel met de opgeloste conventies, ' +
+      '`project.schedulingOptions` de projectopties van het bestand (alleen-lezen via de bridge); ' +
+      '`startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start lag from") ' +
+      'kiest de variant van conventie `p6InProgressStartLagElapsed` en staat er altijd.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

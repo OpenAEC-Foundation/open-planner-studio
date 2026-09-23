@@ -5,8 +5,8 @@
  * Twee lagen, disjuncte sleutels:
  *  - **Conventies** (`ConventionKey`, vierentwintig booleans): regels die per planningspakket verschillen.
  *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
- *  - **Projectopties** (`ProjectOptionKey`, negen sleutels): per-bestand projectinstellingen
- *    (lagCalendar, kritiek-definitie, TF-modus, …). Ze blijven in `Project.schedulingOptions`.
+ *  - **Projectopties** (`ProjectOptionKey`, tien sleutels): per-bestand projectinstellingen
+ *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, …). Ze blijven in `Project.schedulingOptions`.
  *
  * De solver krijgt één `EffectiveSchedulingOptions` via `effectiveSchedulingOptions(project)`.
  *
@@ -213,6 +213,7 @@ export function p6OptionDefaults(): {
   makeOpenEndedCritical: boolean;
   useExpectedFinishDates: boolean;
   p6CompletedLateFromRemainingWindow: boolean;
+  startToStartLagFrom: 'earlyStart';
 } {
   return {
     lagCalendar: 'predecessor',
@@ -221,6 +222,8 @@ export function p6OptionDefaults(): {
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
     p6CompletedLateFromRemainingWindow: true,
+    // P6-standaard "Calculate Start-to-Start lag from: Early Start" (de variant van C6).
+    startToStartLagFrom: 'earlyStart',
   };
 }
 

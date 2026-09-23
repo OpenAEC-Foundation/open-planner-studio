@@ -43,6 +43,10 @@ Primavera treats a completed activity, for its entire calculation, as a task wit
 
 The rule applies only where the source file supports it: activities of the "fixed duration and units" type with duration-based percent complete, a recorded planned window, and a project that links remaining work to the plan. If the file also declares that it was scheduled with *progress override* rather than *retained logic*, the previous behaviour stays. Projects from IFC, MS Project or Primavera P6 XML are unaffected.
 
+## Start-to-start lag from an in-progress activity
+
+P6 has the setting *Calculate Start-to-Start lag from* with two choices: *Early Start* and *Actual Start*. Both count only the part of the lag of a start-to-start relationship from an already started activity that has not yet elapsed at the data date. With *Early Start* (the P6 default) the successor starts after the start of the predecessor's remaining work plus that remaining lag; with *Actual Start* after the data date plus that remaining lag. Open Planner Studio reads that choice from the `.xer` file and shows it in **File → Project info → Calculation profile and options** as **Calculate SS lag from an in-progress predecessor from**. Every test file scheduled by P6 uses *Early Start*; the *Actual Start* variant follows the P6 documentation but has not been checked against a P6 calculation. See also [Calculation profiles](docs://gids-rekenprofielen).
+
 ## Text encoding and numbers
 
 XER does not reliably declare its text encoding in the file. A UTF BOM is followed; without one, the reader uses valid UTF-8 and otherwise falls back to Windows-1252. If that non-ASCII choice is needed, the opening notification states the encoding used. The app does not guess individual rows or describe them as "skipped".

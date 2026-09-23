@@ -159,7 +159,7 @@ Gebruikersgidsen: `public/docs/{nl,en}/gids-xer-import.md` en `datums-zoals-opge
 
 Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (`project.schedulingProfile`,
 basis `p6 | msproject | ops` + overrides) levert vierentwintig **conventies** (`ConventionKey`, booleans);
-`project.schedulingOptions` draagt alleen de negen **projectopties** (`ProjectOptionKey`, per bestand) en
+`project.schedulingOptions` draagt alleen de tien **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
 (`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
 beschrijvende `perFile`); de migratie van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten

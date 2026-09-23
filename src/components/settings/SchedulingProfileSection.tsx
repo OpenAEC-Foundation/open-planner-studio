@@ -34,9 +34,9 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
- * eigen sjablonen, of het eigen profiel van dit project), daaronder de vierentwintig conventies en zes van de
- * negen projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
- * kritiek, meerdere speling-paden, lag-kalender). De andere drie — `useExpectedFinishDates`,
+ * eigen sjablonen, of het eigen profiel van dit project), daaronder de vierentwintig conventies en zeven van de
+ * tien projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
+ * kritiek, meerdere speling-paden, lag-kalender, SS-lag-variant van C6). De andere drie — `useExpectedFinishDates`,
  * `useProjectEndDateForFloat` en `p6CompletedLateFromRemainingWindow` — zijn bewust NIET bewerkbaar:
  * het zijn P6-bronsignalen die de XER-lezer uit SCHEDOPTIONS zet (of die aan de P6-herkomstketen van
  * B3/B4 hangen), zonder betekenis voor een project dat niet uit P6 komt. Het blok laat ze ongemoeid
@@ -333,6 +333,22 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
               { value: 'successor', label: tMenu('projectInfo.calc.lagSuccessor') },
               { value: '24hour', label: tMenu('projectInfo.calc.lag24hour') },
               { value: 'projectDefault', label: tMenu('projectInfo.calc.lagProjectDefault') },
+            ]} />
+        </div>
+
+        {/* P6 "Calculate Start-to-Start lag from": de variant van conventie C6. Zonder C6 doet de
+            optie niets, dus dan uitgeschakeld (de waarde blijft staan). */}
+        <div className="flex flex-col gap-1"
+          title={conventions.p6InProgressStartLagElapsed ? undefined : tMenu('projectInfo.calc.ssLagNeedsConvention', {
+            convention: t('conventions.p6InProgressStartLagElapsed.label' as ConventionLabelKey),
+          })}>
+          <label className={labelCls}>{tMenu('projectInfo.calc.ssLagFrom')}</label>
+          <Select aria-label={tMenu('projectInfo.calc.ssLagFrom')} value={so.startToStartLagFrom ?? 'earlyStart'}
+            disabled={!conventions.p6InProgressStartLagElapsed}
+            onChange={v => patchOptions({ ...so, startToStartLagFrom: v as ProjectSchedulingOptions['startToStartLagFrom'] })}
+            options={[
+              { value: 'earlyStart', label: tMenu('projectInfo.calc.ssLagEarlyStart') },
+              { value: 'actualStart', label: tMenu('projectInfo.calc.ssLagActualStart') },
             ]} />
         </div>
       </div>

@@ -43,6 +43,10 @@ Primavera zet een voltooide activiteit voor zijn hele berekening neer als een ta
 
 De regel geldt alleen waar het bronbestand hem ondersteunt: activiteiten van het type "vaste duur en eenheden" met een voortgangspercentage op duurbasis, een vastgelegd geplande venster, en een project dat resterend werk aan het plan koppelt. Verklaart het bestand bovendien dat het met *progress override* gerekend is in plaats van *retained logic*, dan blijft het oude gedrag staan. Projecten uit IFC, MS Project of Primavera P6 XML veranderen niet.
 
+## Start-start-lag uit een lopende activiteit
+
+P6 kent de instelling *Calculate Start-to-Start lag from* met twee keuzes: *Early Start* en *Actual Start*. Beide tellen van de lag van een start-start-relatie uit een al gestarte activiteit alleen het deel dat op de statusdatum nog niet verstreken is. Bij *Early Start* (de P6-standaard) begint de opvolger na de start van het restwerk van de voorganger plus die resterende lag; bij *Actual Start* na de statusdatum plus die resterende lag. Open Planner Studio leest die keuze uit het `.xer`-bestand en toont haar in **Bestand → Projectinfo → Rekenprofiel en reken-opties** als **SS-lag van een lopende voorganger rekenen vanaf**. Alle door P6 doorgerekende testbestanden gebruiken *Early Start*; de variant *Actual Start* volgt de P6-documentatie, maar is niet tegen een P6-berekening gecontroleerd. Zie ook [Rekenprofielen](docs://gids-rekenprofielen).
+
 ## Tekencodering en getallen
 
 XER noemt zijn tekencodering niet betrouwbaar in het bestand. Een UTF-BOM wordt gevolgd; zonder BOM gebruikt de lezer geldige UTF-8 en valt hij anders terug op Windows-1252. Is zo'n niet-ASCII-keuze nodig, dan staat de gebruikte codering in de openingsmelding. De app probeert geen regels te raden of als "overgeslagen" voor te stellen.

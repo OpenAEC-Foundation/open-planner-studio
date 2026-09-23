@@ -564,7 +564,8 @@ export class CPMSolver {
         ? this.completedRemainingLagSeq(seq, predTask, lagEng)
         : this.inProgressStartLagSeq(predTask, seq, lagEng);
       const fromStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
-      const anchor = predPoint ?? (fromStart ? predResult.es : predResult.ef);
+      const anchorResult = predPoint ? predResult : this.inProgressStartLagAnchor(predTask, seq, lagEng, predResult);
+      const anchor = predPoint ?? (fromStart ? anchorResult.es : anchorResult.ef);
       const bound = this.physicalPointLag(anchor, relSeq, predTask, lagEng, 1);
       if (Number.isNaN(bound.getTime())) continue;
       if (bound > point) point = bound;
@@ -582,19 +583,45 @@ export class CPMSolver {
    * statusdatum, dagmodus, ander relatietype, ELAPSEDTIME- of niet-positieve lag ⇒ `seq` zelf.
    */
   private inProgressStartLagSeq(predTask: Task, seq: Sequence, lagEng: CalendarEngine): Sequence {
-    const so = this.options.schedulingOptions;
-    if (so?.p6InProgressStartLagElapsed !== true || so.p6UseRemainingStartForProgress !== true) return seq;
-    if (seq.type !== 'START_START' || this.dataDate === null || !lagEng.isHourMode) return seq;
-    if (seq.lagUnit === 'ELAPSEDTIME') return seq;
-    const t = predTask.time;
-    if (!t.actualStart || t.completion >= 1) return seq;
-    const lagMinutes = this.resolveLagMinutes(seq, predTask, lagEng);
-    if (!(lagMinutes > 0)) return seq;
-    const actualStart = this.parseIn(lagEng, t.actualStart);
-    if (Number.isNaN(actualStart.getTime()) || actualStart >= this.dataDate) return seq;
-    const remaining = Math.max(0, lagMinutes - lagEng.workMinutesBetween(actualStart, this.dataDate));
-    if (remaining === lagMinutes) return seq;
+    const lag = this.inProgressStartLag(predTask, seq, lagEng);
+    if (!lag || lag.remaining === lag.lagMinutes) return seq;
+    const remaining = lag.remaining;
     return { ...seq, lagMinutes: remaining, lagDays: remaining / (lagEng.hoursPerDay * 60), lagPercent: undefined };
+  }
+
+  /** De C6-poort en de rest-lag, gedeeld door `inProgressStartLagSeq` en `inProgressStartLagAnchor`:
+   *  `null` ⇒ C6 geldt niet voor deze relatie (zie het docblok van `inProgressStartLagSeq`). */
+  private inProgressStartLag(
+    predTask: Task, seq: Sequence, lagEng: CalendarEngine,
+  ): { lagMinutes: number; remaining: number } | null {
+    const so = this.options.schedulingOptions;
+    if (so?.p6InProgressStartLagElapsed !== true || so.p6UseRemainingStartForProgress !== true) return null;
+    if (seq.type !== 'START_START' || this.dataDate === null || !lagEng.isHourMode) return null;
+    if (seq.lagUnit === 'ELAPSEDTIME') return null;
+    const t = predTask.time;
+    if (!t.actualStart || t.completion >= 1) return null;
+    const lagMinutes = this.resolveLagMinutes(seq, predTask, lagEng);
+    if (!(lagMinutes > 0)) return null;
+    const actualStart = this.parseIn(lagEng, t.actualStart);
+    if (Number.isNaN(actualStart.getTime()) || actualStart >= this.dataDate) return null;
+    const remaining = Math.max(0, lagMinutes - lagEng.workMinutesBetween(actualStart, this.dataDate));
+    return { lagMinutes, remaining };
+  }
+
+  /**
+   * Projectoptie `startToStartLagFrom` (P6 "Calculate Start-to-Start lag from", docblok bij de sleutel
+   * in `types/project.ts`): de variant van C6, VOORWAARTS. `'actualStart'` ankert de rest-lag van een
+   * SS-relatie uit een lopende voorganger op de STATUSDATUM in plaats van op diens restwerkstart ("the
+   * data date plus any remaining lag"). Zelfde poort als C6 (`inProgressStartLag`); optie afwezig of
+   * `'earlyStart'`, of C6 geldt niet ⇒ `predResult` zelf. De late kant blijft de C6-rest-lag (voor
+   * `'actualStart'` ongemeten: geen P6-orakel met `sched_lag_early_start_flag` = N).
+   */
+  private inProgressStartLagAnchor<T extends { es: Date }>(
+    predTask: Task, seq: Sequence, lagEng: CalendarEngine, predResult: T,
+  ): T {
+    if (this.options.schedulingOptions?.startToStartLagFrom !== 'actualStart') return predResult;
+    if (this.dataDate === null || !this.inProgressStartLag(predTask, seq, lagEng)) return predResult;
+    return { ...predResult, es: new Date(this.dataDate.getTime()) };
   }
 
   /** C5: verschuif een rauw instant met de relatie-lag, zonder te snappen: WORKTIME via de bandwandeling
@@ -1965,9 +1992,12 @@ export class CPMSolver {
           const rawPredResult = results.get(seq.predecessorId);
           const predTask = this.tasks.get(seq.predecessorId);
           if (!rawPredResult || !predTask) continue;
-          const predResult = this.completedPredecessorRelationWindow(predTask, rawPredResult);
-          const relSeq = this.inProgressStartLagSeq(
-            predTask, this.completedOutOfSequenceRelationSeq(predTask, seq, cal), this.relDeps.lagEngine(this.relationEngineFor(predTask), cal),
+          const c6LagEng = this.relDeps.lagEngine(this.relationEngineFor(predTask), cal);
+          const oosSeq = this.completedOutOfSequenceRelationSeq(predTask, seq, cal);
+          const relSeq = this.inProgressStartLagSeq(predTask, oosSeq, c6LagEng);
+          // Projectoptie `startToStartLagFrom` = 'actualStart': de rest-lag vanaf de statusdatum.
+          const predResult = this.inProgressStartLagAnchor(
+            predTask, oosSeq, c6LagEng, this.completedPredecessorRelationWindow(predTask, rawPredResult),
           );
           const constraintDate = forwardConstraint(
             this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
