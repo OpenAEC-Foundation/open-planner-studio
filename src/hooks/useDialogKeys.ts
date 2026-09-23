@@ -11,6 +11,17 @@ import { useEffect, useRef } from 'react';
  * — die blijft ongemoeid en vuurt sowieso vóór deze bubble-fase-listeners.
  */
 let dialogStack: symbol[] = [];
+const stackListeners = new Set<() => void>();
+
+function notifyStackChange(): void {
+  for (const listener of stackListeners) listener();
+}
+
+/** Luistert naar push/pop op de dialoogstapel (bv. de meldingenplaatsing, B5). Geeft een opzegfunctie. */
+export function subscribeDialogStack(listener: () => void): () => void {
+  stackListeners.add(listener);
+  return () => { stackListeners.delete(listener); };
+}
 
 /** Is er momenteel minstens één dialoog gestapeld? Gebruikt door sneltoetsen die niet óver een
  *  openstaande dialoog heen mogen openen (bv. Ctrl+N, zie `shortcutRegistry.ts`). */
@@ -61,8 +72,10 @@ export function useDialogKeys({
   useEffect(() => {
     const id = idRef.current!;
     dialogStack.push(id);
+    notifyStackChange();
     return () => {
       dialogStack = dialogStack.filter((s) => s !== id);
+      notifyStackChange();
     };
   }, []);
 

@@ -318,6 +318,13 @@
       "quickstart": "Início rápido",
       "gidsen": "Guias por tema",
       "referentie": "Referência"
+    },
+    "unapplied": {
+      "title": "Alterações não aplicadas",
+      "body": "Alterou as informações do projeto, mas ainda não as aplicou. O que pretende fazer com estas alterações?",
+      "marker": "Alterações não aplicadas — clique em {{apply}} para as manter.",
+      "discard": "Descartar",
+      "invalid": "O perfil de cálculo personalizado ainda não tem nome. Dê-lhe um nome ou descarte as alterações."
     }
   },
   "export": {

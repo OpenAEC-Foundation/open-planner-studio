@@ -318,6 +318,13 @@
       "quickstart": "Quick start",
       "gidsen": "Guides by topic",
       "referentie": "Reference"
+    },
+    "unapplied": {
+      "title": "Changes not applied",
+      "body": "You changed the project info but have not applied it yet. What do you want to do with these changes?",
+      "marker": "Changes not applied — click {{apply}} to keep them.",
+      "discard": "Discard",
+      "invalid": "The custom scheduling profile has no name yet. Give it a name or discard the changes."
     }
   },
   "export": {

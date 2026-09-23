@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
@@ -21,6 +21,10 @@ import { fromExtImportResult } from '@/extensions/extMappers';
 import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
 import { buildImportLabels } from '@/i18n/importLabels';
 import type { ImportLabels } from '@/services/importTypes';
+import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
+import { leaveBackstageGuarded, setBackstageLeaveGuard } from './backstageLeaveGuard';
+import { UnappliedChangesDialog } from './UnappliedChangesDialog';
+import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import './Backstage.css';
 
 export function Backstage() {
@@ -42,6 +46,36 @@ export function Backstage() {
     setUI({ activeRibbonTab: 'start' });
   }, [setUI]);
 
+  // B2 (gebruikstest rekenprofielen 24-09): Projectinfo werkt met een lokale draft. Zolang die
+  // afwijkt, loopt elke wegnavigatie (zijbalk, Terug, Escape, een linttabblad) via de bewaker, die de
+  // keuzedialoog Toepassen / Verwerpen / Annuleren toont in plaats van de wijziging stil weg te gooien.
+  const projectInfoRef = useRef<ProjectInfoPanelContentHandle>(null);
+  const [projectInfoDirty, setProjectInfoDirty] = useState(false);
+  const [projectInfoValid, setProjectInfoValid] = useState(true);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const guardActive = section === 'project-info' && projectInfoDirty;
+  useEffect(() => {
+    if (!guardActive) return;
+    return setBackstageLeaveGuard(proceed => { setPendingLeave(() => proceed); return true; });
+  }, [guardActive]);
+  const leave = (proceed: () => void) => leaveBackstageGuarded(proceed);
+  const leaveChoice = {
+    cancel: () => setPendingLeave(null),
+    discard: () => {
+      const proceed = pendingLeave;
+      setPendingLeave(null);
+      projectInfoRef.current?.discard();
+      proceed?.();
+    },
+    apply: () => {
+      const proceed = pendingLeave;
+      // Ongeldige draft (eigen profiel zonder naam): de knop staat dan uit; submit weigert ook.
+      if (!projectInfoRef.current?.submit({ skipDone: true })) return;
+      setPendingLeave(null);
+      proceed?.();
+    },
+  };
+
   const handleCloseProject = () => {
     // Backstage éérst dicht: de sluit-bevestiging hoort boven de gewone werkruimte te staan, niet
     // achter/onder het File-menu dat de hele body overneemt.
@@ -49,32 +83,39 @@ export function Backstage() {
     closeWithGuard({ id: activeDocumentId, isDirty });
   };
 
-  // Esc sluit backstage
+  // Esc sluit backstage — niet terwijl er een dialoog boven staat (die handelt zijn eigen Escape af,
+  // o.a. de niet-toegepast-dialoog hieronder: Escape = Annuleren, niet óók nog Backstage sluiten).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeBackstage();
+      // `defaultPrevented`: een open `Select`-lijst (portal) handelt Escape zelf af (lijst dicht) en
+      // roept `preventDefault` — dan mag dezelfde Escape niet óók Backstage verlaten.
+      if (e.key !== 'Escape' || e.defaultPrevented || isAnyDialogOpen()) return;
+      leaveBackstageGuarded(closeBackstage);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [closeBackstage]);
 
-  const goTo = (s: BackstageSection) => setUI({ backstageSection: s });
+  const goTo = (s: BackstageSection) => {
+    if (s === section) return;
+    leave(() => setUI({ backstageSection: s }));
+  };
 
   return (
     <div className="backstage" role="region" aria-label={tMenu('backstage.fileMenu')}>
       <aside className="backstage-sidebar" aria-label={tMenu('backstage.fileNav')}>
-        <button className="backstage-back" onClick={closeBackstage}>
+        <button className="backstage-back" onClick={() => leave(closeBackstage)} data-ops-backstage-back>
           <ArrowLeft size={16} /> {tMenu('backstage.back')}
         </button>
 
         {/* Actie-items: triggeren actie en sluiten backstage */}
-        <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => { handleNewProject(); closeBackstage(); }} />
-        <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); }} />
+        <ActionItem icon={<FileText size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
+        <ActionItem icon={<FolderOpen size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
         <NavItem icon={<Clock size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
         {/* data-tour-anchor (fase 2.10, onderdeel 3, tourstap 6): voorbeelden-navitem. */}
         <NavItem icon={<BookOpen size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
-        <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => { handleSave(); closeBackstage(); }} />
-        <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => { handleSaveAs(); closeBackstage(); }} />
+        <ActionItem icon={<Save size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
+        <ActionItem icon={<SaveAll size={14} />} label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
 
         <div className="backstage-nav-divider" />
 
@@ -104,12 +145,12 @@ export function Backstage() {
         <ActionItem
           icon={<Compass size={14} />}
           label={tCommon('tour.backstageRestart')}
-          onClick={() => { closeBackstage(); setUI({ showTourOverlay: true, tourStepIndex: 0 }); }}
+          onClick={() => leave(() => { closeBackstage(); setUI({ showTourOverlay: true, tourStepIndex: 0 }); })}
         />
 
         <div className="backstage-nav-divider" />
 
-        <ActionItem icon={<X size={14} />} label={tMenu('backstage.closeProject')} onClick={handleCloseProject} />
+        <ActionItem icon={<X size={14} />} label={tMenu('backstage.closeProject')} onClick={() => leave(handleCloseProject)} />
       </aside>
 
       <main className="backstage-main">
@@ -118,12 +159,30 @@ export function Backstage() {
         {section === 'export' && <ExportSection />}
         {section === 'import' && <ImportSection />}
         {section === 'print' && <PrintSection onClose={closeBackstage} />}
-        {section === 'project-info' && <ProjectInfoSection onApply={closeBackstage} />}
+        {section === 'project-info' && (
+          <ProjectInfoSection
+            panelRef={projectInfoRef}
+            onApply={closeBackstage}
+            dirty={projectInfoDirty}
+            onDirtyChange={setProjectInfoDirty}
+            canSubmit={projectInfoValid}
+            onValidityChange={setProjectInfoValid}
+          />
+        )}
         {section === 'settings' && <SettingsSection />}
         {section === 'extensions' && <ExtensionsSection />}
         {section === 'library' && <LibrarySection />}
         {section === 'help' && <HelpSection />}
       </main>
+
+      {pendingLeave && (
+        <UnappliedChangesDialog
+          canApply={projectInfoValid}
+          onCancel={leaveChoice.cancel}
+          onDiscard={leaveChoice.discard}
+          onApply={leaveChoice.apply}
+        />
+      )}
     </div>
   );
 }
@@ -448,12 +507,23 @@ function PrintSection({ onClose }: { onClose: () => void }) {
 // Project info section
 // ---------------------------------------------------------------------------
 
-function ProjectInfoSection({ onApply }: { onApply: () => void }) {
+interface ProjectInfoSectionProps {
+  panelRef: RefObject<ProjectInfoPanelContentHandle | null>;
+  onApply: () => void;
+  dirty: boolean;
+  onDirtyChange: (dirty: boolean) => void;
+  canSubmit: boolean;
+  onValidityChange: (valid: boolean) => void;
+}
+
+function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit, onValidityChange }: ProjectInfoSectionProps) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
-  const panelRef = useRef<ProjectInfoPanelContentHandle>(null);
-  // Uit zolang de draft ongeldig is (eigen rekenprofiel zonder naam); submit() weigert zelf ook.
-  const [canSubmit, setCanSubmit] = useState(true);
+  // B5: de plakkende actiebalk is een toast-mijdbalk — meld mount/unmount aan de meldingenplaatsing.
+  useLayoutEffect(() => {
+    notifyToastLayoutChange();
+    return notifyToastLayoutChange;
+  }, []);
 
   return (
     <>
@@ -461,10 +531,30 @@ function ProjectInfoSection({ onApply }: { onApply: () => void }) {
       <p className="backstage-subtitle">{tMenu('backstage.projectInfoSubtitle')}</p>
 
       <div className="backstage-form">
-        <ProjectInfoPanelContent ref={panelRef} mode="edit" onDone={onApply} onValidityChange={setCanSubmit} />
+        <ProjectInfoPanelContent ref={panelRef} mode="edit" onDone={onApply} onValidityChange={onValidityChange} onDirtyChange={onDirtyChange} />
 
-        <div className="backstage-actions">
-          <button className="btn btn--primary" disabled={!canSubmit} onClick={() => panelRef.current?.submit()}>{tCommon('apply')}</button>
+        {/* B2 (gebruikstest 24-09): de actiebalk plakt onderaan het zichtbare deel van de sectie —
+            Toepassen stond anders ±900 px onder de eerste conventie. Wijkt de draft af, dan staat er
+            een gekleurd blok "niet toegepast" met Verwerpen naast Toepassen. `data-ops-toast-avoid`:
+            de meldingenstapel schuift boven deze balk (B5). */}
+        <div
+          className={`backstage-actions backstage-actions--sticky${dirty ? ' is-dirty' : ''}`}
+          data-ops-project-info-actions
+          data-ops-toast-avoid
+        >
+          {dirty && (
+            <div className="alert alert--warning backstage-unapplied" role="status" data-ops-project-info-unapplied>
+              {tMenu('backstage.unapplied.marker', { apply: tCommon('apply') })}
+            </div>
+          )}
+          <div className="backstage-actions-buttons">
+            {dirty && (
+              <button className="btn btn--secondary" onClick={() => panelRef.current?.discard()} data-ops-project-info-discard>
+                {tMenu('backstage.unapplied.discard')}
+              </button>
+            )}
+            <button className="btn btn--primary" disabled={!canSubmit} onClick={() => panelRef.current?.submit()}>{tCommon('apply')}</button>
+          </div>
         </div>
       </div>
     </>

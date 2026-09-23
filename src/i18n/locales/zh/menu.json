@@ -318,6 +318,13 @@
       "quickstart": "快速入门",
       "gidsen": "主题指南",
       "referentie": "参考"
+    },
+    "unapplied": {
+      "title": "更改尚未应用",
+      "body": "您已修改项目信息，但尚未应用。要如何处理这些更改？",
+      "marker": "更改尚未应用——点击“{{apply}}”以保留。",
+      "discard": "放弃",
+      "invalid": "自定义计算配置文件尚无名称。请为其命名或放弃更改。"
     }
   },
   "export": {

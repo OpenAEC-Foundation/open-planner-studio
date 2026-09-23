@@ -318,6 +318,13 @@
       "quickstart": "Hızlı başlangıç",
       "gidsen": "Konuya göre kılavuzlar",
       "referentie": "Referans"
+    },
+    "unapplied": {
+      "title": "Değişiklikler uygulanmadı",
+      "body": "Proje bilgilerini değiştirdiniz ancak henüz uygulamadınız. Bu değişikliklerle ne yapmak istiyorsunuz?",
+      "marker": "Değişiklikler uygulanmadı — korumak için {{apply}}'ya tıklayın.",
+      "discard": "Vazgeç",
+      "invalid": "Özel hesaplama profilinin henüz bir adı yok. Ona bir ad verin veya değişikliklerden vazgeçin."
     }
   },
   "export": {

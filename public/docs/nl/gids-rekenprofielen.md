@@ -36,6 +36,8 @@ Open je een `.xer`- of `.mpp`-bestand, dan zie je één melding, bijvoorbeeld "D
 
 Kies in **Projectinfo** een ander profiel en klik op **Toepassen**. De planning wordt meteen opnieuw berekend, ook als *Automatisch berekenen* uit staat. Verschuiven daardoor taken, dan vertelt een melding hoeveel; verschuift er niets, dan komt er geen melding. De telling gaat over gewone taken, niet over samenvattingstaken (die volgen hun onderliggende taken). Een wissel is één stap in *Ongedaan maken*.
 
+Zolang je iets hebt gewijzigd maar nog niet hebt toegepast, staat onderaan in beeld een gekleurd blok *Wijzigingen niet toegepast*, met **Verwerpen** naast **Toepassen**. Ga je dan naar een ander onderdeel, klik je op **Terug**, druk je op Escape of F1, dan vraagt de app eerst of je de wijzigingen wilt toepassen, verwerpen of wilt blijven; wisselen naar een ander project (Ctrl+1–9, Ctrl+N, Ctrl+O) kan pas als je hebt toegepast of verworpen. Is het venster te smal om meldingen naast die vraag te tonen, dan staan ze gedimd achter de dialoog en komen ze terug zodra je een keuze hebt gemaakt.
+
 Sommige waarden kwamen uit het bestand zelf, zoals de P6-instelling voor het begin van het restwerk. Die blijven bij elke wissel staan, ook als je een eigen profiel of een sjabloon kiest. Daarom kan in de keuzelijst "Primavera P6 (aangepast)" staan: dat is geen eigen profiel, maar het ingebouwde profiel met waarden uit je bestand.
 
 Wissel je tussen de ingebouwde profielen, dan blijven alle afwijkingen letterlijk staan, ook een afwijking die onder het nieuwe profiel toevallig gelijk is aan de standaard. Zo geeft Primavera P6 → Open Planner Studio → Primavera P6 precies het profiel terug waarmee je begon.

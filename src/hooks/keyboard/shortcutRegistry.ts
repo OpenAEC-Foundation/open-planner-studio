@@ -27,6 +27,7 @@ import { useAppStore } from '@/state/appStore';
 import type { UIState } from '@/state/slices/types';
 import type { AppState } from '@/state/appStore';
 import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
+import { isBackstageLeaveGuardActive, leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 // DOM-vrij en JSX-vrij bij constructie (zie de kop van dat bestand): de anker- en weergaveregels
 // voor nieuwe taken wonen daar zodat sneltoets, menu, lintknop én regressiebatterij letterlijk
 // dezelfde functie draaien.
@@ -85,6 +86,28 @@ export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): 
   );
 }
 
+/**
+ * De sneltoetsvariant van {@link hasBlockingDialogOpen}: óók elke gemounte dialoog op de
+ * dialoogstapel (`isAnyDialogOpen`) blokkeert — dialogen zonder eigen `ui.show*`-vlag, zoals de
+ * niet-toegepast-keuzedialoog van Backstage → Projectinfo (B2) of een `ConfirmDialog`, waren anders
+ * doorzichtig voor Ctrl/⌘+1–9, F1 en de bewerktoetsen. Bewust een aparte functie:
+ * `hasBlockingDialogOpen(ui)` blijft de vlag-gebaseerde poort van de MCP-runtime, die per vlag
+ * benoemt wélke dialoog blokkeert en tegen een meegegeven (eventueel headless) `ui` evalueert.
+ */
+export function isShortcutBlockedByDialog(): boolean {
+  return hasBlockingDialogOpen() || isAnyDialogOpen();
+}
+
+/**
+ * Documentwissels (Ctrl/⌘+1–9, Ctrl/⌘+N, Ctrl/⌘+O): geblokkeerd zolang een dialoog openstaat én
+ * zolang Backstage → Projectinfo een niet-toegepaste draft bewaakt (B2). Een wissel kan niet via de
+ * keuzedialoog lopen — de draft hoort bij het actieve document — dus blokkeren is de veilige route;
+ * de gebruiker past eerst toe of verwerpt.
+ */
+export function isDocumentLeaveBlocked(): boolean {
+  return isShortcutBlockedByDialog() || isBackstageLeaveGuardActive();
+}
+
 function hasSelection(): boolean {
   return useAppStore.getState().selectedTaskIds.length > 0;
 }
@@ -111,7 +134,8 @@ const documentSwitchShortcuts: ShortcutDef[] = Array.from({ length: 9 }, (_, i) 
     // dit ene document). Dit sluit tegelijk een bestaand gat: vóór deze guard wisselde Ctrl+1 gewoon
     // van document terwijl bv. een TaskDialog openstond, waarna `resetDocumentScopedUI` die sloot —
     // een modale dialoog hoort modaal te zijn, dus dat is een bewuste, gewenste opschoning.
-    when: () => !hasBlockingDialogOpen(),
+    // B2: óók geblokkeerd bij een dialoog zonder ui-vlag en bij een niet-toegepaste Projectinfo-draft.
+    when: () => !isDocumentLeaveBlocked(),
     // Byte-identiek: het origineel riep altijd preventDefault() bij Ctrl+1..9 (ook zonder zóveel
     // open documenten) — de "bestaat dit document?"-guard zat in de actie zelf, niet ervóór.
     run: (store) => {
@@ -157,7 +181,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     // Zelfde guard als `documentSwitchShortcuts`. Let op: in PRODUCTIEBUILDS vangt de browser-
     // sneltoets-voorpoort in `useKeyboardShortcuts.ts` Ctrl+O al vóór dit register af — díe tak heeft
     // zijn EIGEN `!isAnyDialogOpen()`-guard nodig, deze `when` alleen dekt dev/test.
-    when: () => !hasBlockingDialogOpen(),
+    when: () => !isDocumentLeaveBlocked(),
     run: COMMANDS.open.run,
   },
   {
@@ -170,7 +194,8 @@ export const SHORTCUTS: ShortcutDef[] = [
     // Escape sloot dan meteen beide. `isAnyDialogOpen()` is de generieke stapel-check uit
     // `useDialogKeys` (zie daar); dit is dezelfde guard als de productie-voorpoort hieronder in
     // `useKeyboardShortcuts.ts`.
-    when: () => !isAnyDialogOpen(),
+    // B2: plus de Projectinfo-draftbewaking (`isDocumentLeaveBlocked` omvat `isAnyDialogOpen`).
+    when: () => !isDocumentLeaveBlocked(),
     run: (store) => store.setUI({ showNewProjectDialog: true }),
   },
 
@@ -268,7 +293,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowRight', alt: true, shift: true },
     category: 'structure',
     labelKey: 'context.indent',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: COMMANDS.indent.run,
   },
   {
@@ -276,7 +301,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowLeft', alt: true, shift: true },
     category: 'structure',
     labelKey: 'context.outdent',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: COMMANDS.outdent.run,
   },
   // Aliassen (user-besluit tijdens golf 2): Alt+→/← naast de MS Project-conventie Alt+Shift+→/←
@@ -289,7 +314,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowRight', alt: true },
     category: 'structure',
     labelKey: 'context.indent',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: COMMANDS.indent.run,
   },
   {
@@ -297,7 +322,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowLeft', alt: true },
     category: 'structure',
     labelKey: 'context.outdent',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: COMMANDS.outdent.run,
   },
   {
@@ -305,7 +330,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'Insert' },
     category: 'structure',
     labelKey: 'context.insertAbove',
-    when: () => !hasBlockingDialogOpen(),
+    when: () => !isShortcutBlockedByDialog(),
     // Issue #45-nasleep: NIET `selectedTaskIds[0]` — dat is de EERST AANGEKLIKTE taak, dus wie
     // van onder naar boven selecteert kreeg de nieuwe taak midden in zijn selectie. Dezelfde
     // ankerregel als het menu-item ernaast (bovenste taak in schermvolgorde), gedeeld via
@@ -337,7 +362,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'i', mod: true },
     category: 'structure',
     labelKey: 'context.insertBelow',
-    when: () => !hasBlockingDialogOpen(),
+    when: () => !isShortcutBlockedByDialog(),
     run: (store) => {
       insertTaskRelativeToScope(store.selectedTaskIds, 'below', { name: i18n.t('defaultTask', { ns: 'task' }) });
     },
@@ -347,7 +372,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'm', mod: true },
     category: 'structure',
     labelKey: 'context.addMilestone',
-    when: () => !hasBlockingDialogOpen(),
+    when: () => !isShortcutBlockedByDialog(),
     run: (store) => {
       store.addTask({
         name: i18n.t('defaultMilestone', { ns: 'task' }),
@@ -361,7 +386,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowUp', alt: true },
     category: 'structure',
     labelKey: 'shortcuts.structure.moveUp',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: (store) => {
       const id = store.selectedTaskIds[0];
       if (id) store.reorderSibling(id, 'up');
@@ -372,7 +397,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'ArrowDown', alt: true },
     category: 'structure',
     labelKey: 'shortcuts.structure.moveDown',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: (store) => {
       const id = store.selectedTaskIds[0];
       if (id) store.reorderSibling(id, 'down');
@@ -383,7 +408,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'F2' },
     category: 'edit',
     labelKey: 'context.edit',
-    when: () => hasSelection() && !hasBlockingDialogOpen(),
+    when: () => hasSelection() && !isShortcutBlockedByDialog(),
     run: (store) => {
       const id = store.selectedTaskIds[0];
       if (id) store.setUI({ showTaskDialog: true, editingTaskId: id });
@@ -394,7 +419,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'a', mod: true },
     category: 'edit',
     labelKey: 'shortcuts.edit.selectAll',
-    when: () => !hasBlockingDialogOpen(),
+    when: () => !isShortcutBlockedByDialog(),
     run: (store) => store.selectAllTasks(),
   },
 
@@ -462,7 +487,9 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'p', mod: true },
     category: 'nav',
     labelKey: 'shortcuts.nav.reportTab',
-    run: (store) => store.setUI({ activeRibbonTab: 'report' }),
+    // B2: verlaat Backstage → Projectinfo via de bewaker (keuzedialoog bij een niet-toegepaste draft).
+    when: () => !isShortcutBlockedByDialog(),
+    run: (store) => leaveBackstageGuarded(() => store.setUI({ activeRibbonTab: 'report' })),
   },
   // Fase 2.10, onderdeel 5 (golf 1, architect-besluit 5): F1 opent de in-app help-viewer via de
   // Backstage-sectie 'help' (§2.1 ontwerpdocument — geen aparte ribbon-knop). `allowInInput` is
@@ -474,8 +501,10 @@ export const SHORTCUTS: ShortcutDef[] = [
     combo: { key: 'F1' },
     category: 'nav',
     labelKey: 'shortcuts.nav.help',
-    when: () => !hasBlockingDialogOpen(),
-    run: (store) => store.setUI({ activeRibbonTab: 'file', backstageSection: 'help' }),
+    // B2: ook niet door een vlagloze dialoog heen (bv. de niet-toegepast-keuzedialoog), en vanuit
+    // Backstage → Projectinfo via de bewaker — anders verdween een niet-toegepaste draft stil.
+    when: () => !isShortcutBlockedByDialog(),
+    run: (store) => leaveBackstageGuarded(() => store.setUI({ activeRibbonTab: 'file', backstageSection: 'help' })),
   },
   ...documentSwitchShortcuts,
   {
