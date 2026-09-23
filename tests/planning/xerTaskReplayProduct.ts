@@ -274,6 +274,7 @@ export function replayXerProductBeforeOracle(
           plannedFloorTraceTargetStart: trace.targetStart,
           plannedFloorTraceTargetFinish: trace.targetFinish,
           plannedFloorTracePlannedWindowIsLater: trace.plannedWindowIsLater,
+          plannedFloorTraceFloorApplied: trace.floorApplied,
           plannedFloorTraceBoundarySource: trace.boundarySource,
           ...(trace.boundarySequenceId
             ? { plannedFloorTraceBoundarySequenceId: trace.boundarySequenceId }

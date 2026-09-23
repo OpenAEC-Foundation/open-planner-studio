@@ -137,6 +137,9 @@ export interface CPMPlannedFloorTrace {
   targetStart: string;
   targetFinish: string;
   plannedWindowIsLater: boolean;
+  /** Of de vloer daadwerkelijk is toegepast: `plannedWindowIsLater` en niet overruled door C7
+   *  (`p6StartedTaskIgnoresPlannedStartFloor`, lopende taak). */
+  floorApplied: boolean;
   boundarySource: 'project-start' | 'relationship' | 'relationship:p6-predecessor-finish-boundary';
   boundarySequenceId?: string;
   boundaryPredecessorTaskCode?: string;
@@ -578,9 +581,11 @@ export class CPMSolver {
    * Conventie C6 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
    * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
    * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
-   * (en daarmee de vrije speling) de voorgangerfinish zonder sprong naar de volgende werkgrens.
-   * Alleen uur-modus aan beide kanten (gemeten); een eindmijlpaal (`milestoneKind: 'FINISH'`) valt
-   * er per definitie buiten.
+   * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
+   * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
+   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
+   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
+   * (`milestoneKind: 'FINISH'`) valt er per definitie buiten.
    */
   private finishFinishAtStartMilestoneLateFinish(
     seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
@@ -1819,6 +1824,7 @@ export class CPMSolver {
         // (de opvolger haalt de eis vanzelf) en wordt een lead niet vóór dag 1 getrokken.
         earlyStart = projectStart ? new Date(projectStart.getTime()) : new Date(0);
         let rawMax: Date | null = null;
+        const c6FloatBoundaries: Array<[string, Date, Date]> = [];
         for (const seq of preds) {
           const rawPredResult = results.get(seq.predecessorId);
           const predTask = this.tasks.get(seq.predecessorId);
@@ -1828,9 +1834,16 @@ export class CPMSolver {
           const constraintDate = forwardConstraint(
             this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
-            this.finishFinishAtStartMilestoneLateFinish(seq, task, this.relationEngineFor(predTask), cal),
           );
           this.seqConstraint.set(seq.id, constraintDate);
+          // Conventie C6 voorwaarts: alleen de relatiegrens voor de vrije speling, nooit de vroege
+          // start van de mijlpaal (die blijft op de gewone grens; zie het docblok in `types/project.ts`).
+          if (this.finishFinishAtStartMilestoneLateFinish(seq, task, this.relationEngineFor(predTask), cal)) {
+            c6FloatBoundaries.push([seq.id, forwardConstraint(
+              this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
+              this.p6ZeroDurationUsesFinishBoundary(task, cal), true,
+            ), constraintDate]);
+          }
           if (!rawMax || constraintDate > rawMax) rawMax = constraintDate;
           if (constraintDate > earlyStart) {
             earlyStart = constraintDate;
@@ -1843,6 +1856,12 @@ export class CPMSolver {
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
           if (finishFloor && (!sfFinishFloor || finishFloor > sfFinishFloor)) sfFinishFloor = finishFloor;
+        }
+        // C6: een niet-bindende FF naar de startmijlpaal krijgt de grens zonder dagsprong, zodat de
+        // vrije speling tot de mijlpaal zelf telt. Een bindende (= maximale) relatie houdt de gewone
+        // grens: zij blijft driving en de vroege start verschuift niet.
+        for (const [seqId, c6Boundary, normalBoundary] of c6FloatBoundaries) {
+          if (rawMax && normalBoundary < rawMax) this.seqConstraint.set(seqId, c6Boundary);
         }
         // P6-bronsemantiek: target_start is alleen een aanvullende geplande vloer wanneer zowel
         // het geplande begin als einde meer dan één kalenderdag ná het netwerkvenster liggen. Dat
@@ -1858,6 +1877,11 @@ export class CPMSolver {
             ? plannedFloor > earlyStart
             : plannedFloor.getTime() - earlyStart.getTime() > MS_PER_DAY
               && plannedFinish.getTime() - networkFinish.getTime() > MS_PER_DAY;
+          // Conventie C7 `p6StartedTaskIgnoresPlannedStartFloor` (docblok + bron bij de sleutel in
+          // `types/project.ts`): voor een lopende taak (werkelijke start, nog niet voltooid) is het
+          // geplande venster geen vloer; haar resterende werk start op statusdatum + relatiegrens.
+          const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
+            && !!task.time.actualStart && task.time.completion < 1;
           if (
             task.p6ActivityType !== undefined
             && task.p6ExplicitTargetWindow === true
@@ -1887,17 +1911,13 @@ export class CPMSolver {
                 targetStart: plannedFloor.toISOString().slice(0, 16),
                 targetFinish: plannedFinish.toISOString().slice(0, 16),
                 plannedWindowIsLater,
+                floorApplied: plannedWindowIsLater && !startedTaskSkipsFloor,
                 boundarySource,
                 ...(drivingSequence ? { boundarySequenceId: drivingSequence.id } : {}),
                 ...(drivingPredecessor ? { boundaryPredecessorTaskCode: drivingPredecessor.wbsCode } : {}),
               };
             }
           }
-          // Conventie C7 `p6StartedTaskIgnoresPlannedStartFloor` (docblok + bron bij de sleutel in
-          // `types/project.ts`): voor een lopende taak (werkelijke start, nog niet voltooid) is het
-          // geplande venster geen vloer; haar resterende werk start op statusdatum + relatiegrens.
-          const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
-            && !!task.time.actualStart && task.time.completion < 1;
           if (plannedWindowIsLater && !startedTaskSkipsFloor) earlyStart = plannedFloor;
         }
         // Vloer-afkap: wilde óók de strengste relatie de taak nog vóór het projectbegin trekken,
@@ -3343,7 +3363,7 @@ export class CPMSolver {
             const constraintFinish = backwardConstraint(
               this.relDeps, delayShiftedSuccResult, effectiveSeq, zeroRemainingPredTask, succTask,
               progressCal, succCal, this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
-              this.finishFinishAtStartMilestoneLateFinish(seq, succTask, progressCal, succCal),
+              // C6 bewust NIET in deze nulrestduur-voortgangstak: ongemeten (B05-vorm, geschrapt).
             );
             // FS/FF: `constraintFinish` is een echte late FINISH van de voorganger — de
             // nulrestduur-conversie naar een late START loopt via `nextWorkInstant` (spiegel van

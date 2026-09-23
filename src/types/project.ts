@@ -281,8 +281,13 @@ export interface SchedulingOptions {
    *  `snapStrictBefore` plus de lag-0-normalisatie ⇒ het begin van de mijlpaaldag), en voorwaarts
    *  op de werkgrens strikt ná de voorgangerfinish (`forwardHour`, `snapStrictAfter`), wat de vrije
    *  speling van de voorganger een werkdag korter maakt. Met de conventie vervallen beide sprongen:
-   *  de FF-grens is de late finish van de mijlpaal zelf, resp. de voorgangerfinish zelf. Alleen in
-   *  uur-modus aan beide kanten; een eindmijlpaal (`TT_FinMile`) blijft ongewijzigd.
+   *  de FF-grens is de late finish van de mijlpaal zelf, resp. — alleen voor de vrije speling van een
+   *  NIET-bindende FF — de voorgangerfinish zelf. De vroege start van de mijlpaal verandert nooit:
+   *  een bindende FF houdt de gewone grens (het drijvende geval heeft geen P6-orakel in het corpus).
+   *  De nulrestduur-voortgangstak van de terugwaartse pass valt er bewust buiten (ongemeten).
+   *  Alleen in uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten
+   *  van dagmodus niet — dagmodus is ongemeten en de poort is een bewuste beperking, geen gemeten
+   *  grens. Een eindmijlpaal (`TT_FinMile`) blijft ongewijzigd.
    *
    *  - P6: aan. Gemeten: `Roads_Project_TEC.xer`, vijf voorgangers (OCEC11971, OCEC11851,
    *    OCEC18821, OCEC11911, OCEC18751), elk met `PR_FF` lag 0 naar de `TT_Mile` OCEC12101

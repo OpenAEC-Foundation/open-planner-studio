@@ -596,7 +596,7 @@ groupC.push({
 // dus A.LS = do 15 jan 08:00 — één werkdag (9 u) minder totale speling. Voorwaarts: een open Y
 // (3 dagen, ma 5 – wo 7 jan) —FS0→ M zet M op do 8 jan 08:00. P6 telt de vrije speling van A tot
 // M zelf: di 6 en wo 7 jan = 2 dagen; zonder C6 vanaf de werkgrens ná het dagbegin-anker: 1 dag.
-function c6Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile'): ImportResult {
+function c6Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile', withDriver = true): ImportResult {
   return importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -619,7 +619,7 @@ function c6Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile'): ImportResult {
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
     '%R\tR1\tM\tA\tP1\tP1\tPR_FF\t0',
     '%R\tR2\tZ\tM\tP1\tP1\tPR_FF\t0',
-    '%R\tR3\tM\tY\tP1\tP1\tPR_FS\t0',
+    ...(withDriver ? ['%R\tR3\tM\tY\tP1\tP1\tPR_FS\t0'] : []),
     '%E',
   ]);
 }
@@ -756,6 +756,22 @@ for (const fixture of groupC) {
   const finMile = c6Fixture('TT_FinMile');
   eq('C6 fixture: de eindmijlpaal is een FINISH-mijlpaal', finMile.tasks.find(task => task.id === 'M')?.milestoneKind, 'FINISH');
   eq('C6 raakt geen FF-relatie naar een eindmijlpaal (alle assen, alle taken)', solveAllAxes(finMile), solveAllAxes(off(finMile)));
+}
+
+// C6, drijvend geval (fixronde critreview): zonder Y is de FF van A de bindende relatie van M. P6-orakel
+// ontbreekt in het corpus, dus C6 mag de voorwaartse pass hier niet raken: M.es blijft de gewone
+// grens (wo 7 jan 08:00, beide snaps van `forwardHour`), en de vroege datums van alle taken zijn met
+// en zonder C6 gelijk. Mutant "C6-grens ook voor de bindende relatie" ⇒ M.es di 6 jan ⇒ rood.
+{
+  const floating = c6Fixture('TT_Mile', false);
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6FinishFinishStartMilestoneLateFinish', false));
+  eq('C6 drijvend: M.es blijft wo 7 jan 08:00', solveAxes(floating, 'M').es, '2026-01-07T08:00');
+  const early = (input: ImportResult) => Object.fromEntries(['A', 'M', 'Z', 'X'].map(id => {
+    const axes = solveAxes(input, id);
+    return [id, { es: axes.es, ef: axes.ef }];
+  }));
+  eq('C6 drijvend: vroege datums van alle taken ongewijzigd', early(floating), early(off(floating)));
+  eq('C6 drijvend: de bindende FF blijft driving (ff A = 0)', solveAxes(floating, 'A').ff, solveAxes(off(floating), 'A').ff);
 }
 
 // C7, relatiekant en randgeval (docblok): de opvolger volgt het restwerk (do 15 jan 08:00, zonder C7
