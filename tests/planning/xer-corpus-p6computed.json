@@ -1293,7 +1293,11 @@
         "remLateStartFilled": "0/0",
         "drivingPathFlagY": false
       },
-      "projectsP6Computed": "0/1"
+      "projectsP6Computed": "0/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
       "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
@@ -1311,7 +1315,11 @@
         "remLateStartFilled": "60/60",
         "drivingPathFlagY": true
       },
-      "projectsP6Computed": "1/1"
+      "projectsP6Computed": "1/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
       "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
@@ -1329,7 +1337,11 @@
         "remLateStartFilled": "0/0",
         "drivingPathFlagY": false
       },
-      "projectsP6Computed": "0/1"
+      "projectsP6Computed": "0/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
       "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
@@ -1347,7 +1359,11 @@
         "remLateStartFilled": "60/60",
         "drivingPathFlagY": true
       },
-      "projectsP6Computed": "1/1"
+      "projectsP6Computed": "1/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revA.xer": {
       "sha256": "79f6fb43bb391ed609f164e6dc5d38d329b634467bc6a7b06cbf3d8a351c8078",
@@ -1419,7 +1435,11 @@
         "remLateStartFilled": "0/0",
         "drivingPathFlagY": false
       },
-      "projectsP6Computed": "0/1"
+      "projectsP6Computed": "0/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/sample/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
       "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
@@ -1437,7 +1457,11 @@
         "remLateStartFilled": "60/60",
         "drivingPathFlagY": true
       },
-      "projectsP6Computed": "1/1"
+      "projectsP6Computed": "1/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
       "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
@@ -1455,7 +1479,11 @@
         "remLateStartFilled": "0/0",
         "drivingPathFlagY": false
       },
-      "projectsP6Computed": "0/1"
+      "projectsP6Computed": "0/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
       "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
@@ -1473,7 +1501,11 @@
         "remLateStartFilled": "60/60",
         "drivingPathFlagY": true
       },
-      "projectsP6Computed": "1/1"
+      "projectsP6Computed": "1/1",
+      "generatorEvidence": [
+        "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/build_programmes.py",
+        "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/build_programmes.py"
+      ]
     },
     "delay-analysis-toolkit/sample/revisions/revA.xer": {
       "sha256": "79f6fb43bb391ed609f164e6dc5d38d329b634467bc6a7b06cbf3d8a351c8078",

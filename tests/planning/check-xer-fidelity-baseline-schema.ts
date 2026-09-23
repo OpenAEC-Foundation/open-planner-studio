@@ -29,16 +29,16 @@ import {
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 // Populatie na het eigenaarsbesluit van 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels.
+// Herpin 2026-09-24 (tweede toepassing: DCP-03 Baseline 0611f9054a4b5663 is generatoruitvoer → reader-only).
 const EXPECTED_BASELINE_KEYS = [
-  '0611f9054a4b5663', '2bc12241c3f8ee5b', '4d8bce790a93b9bc', '55b7e4463dcd36ba',
-  '68ce5f0bb2b534d5', '9679599df9108bd3', 'a2ef7b35c00d8cf8', 'a2f3b2469e26f199',
-  'b9547eb91c30af17',
+  '2bc12241c3f8ee5b', '4d8bce790a93b9bc', '55b7e4463dcd36ba', '68ce5f0bb2b534d5',
+  '9679599df9108bd3', 'a2ef7b35c00d8cf8', 'a2f3b2469e26f199', 'b9547eb91c30af17',
 ] as const;
 const EXPECTED_MEASURABLE = {
-  es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772,
+  es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712,
 } as const;
-const EXPECTED_MANIFEST_SHA256 = '19f16d1fd71240890b3edd089e3d84947458df141afa06caa485da3f2b878f6c';
-const EXPECTED_BASELINE_SHA256 = 'c945d59ac0cc7ec723ff16738a0ca54e3b194bda02f919d6885c2b2bc8a1aba0';
+const EXPECTED_MANIFEST_SHA256 = '0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605';
+const EXPECTED_BASELINE_SHA256 = '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -190,7 +190,7 @@ function validateBaseline(v: unknown): string[] {
   const parsed: unknown = JSON.parse(raw);
   const problems = validateBaseline(parsed);
   truthy(`1 xer-fidelity-baseline.json is welgevormd (${problems.join('; ')})`, problems.length === 0);
-  eq('1a corpusloze CI pint de exacte 9-entryset',
+  eq('1a corpusloze CI pint de exacte 8-entryset',
     isPlainObject(parsed) && isPlainObject(parsed.files) ? Object.keys(parsed.files).sort() : [],
     EXPECTED_BASELINE_KEYS);
   truthy('1b elke X1-entry draagt een niet-lege schemaFingerprint',
@@ -234,12 +234,13 @@ function validateBaseline(v: unknown): string[] {
   if (isPlainObject(manifest) && isPlainObject(manifest.files)) {
     const entries = Object.entries(manifest.files);
     // Populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
-    // orakels): 45 → 13 orakelbestanden; de 32 andere zijn `reader-only` met reden.
-    eq('1h manifestselectie bevat 13 aantoonbaar door P6 doorgerekende orakelbestanden',
-      entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 13);
-    eq('1i manifest sluit 80 fixtures/pseudo-/invoer-/lezerbestanden met reden uit',
+    // orakels): 45 → 13 orakelbestanden; de 32 andere zijn `reader-only` met reden. Tweede toepassing
+    // 2026-09-24: de vier DCP-03-Baseline-kopieën (generatoruitvoer) → 13 → 9, 80 → 84.
+    eq('1h manifestselectie bevat 9 aantoonbaar door P6 doorgerekende orakelbestanden',
+      entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 9);
+    eq('1i manifest sluit 84 fixtures/pseudo-/invoer-/lezerbestanden met reden uit',
       entries.filter(([, entry]) => isPlainObject(entry) && entry.included === false
-        && typeof entry.exclusionReason === 'string' && entry.exclusionReason.length > 0).length, 80);
+        && typeof entry.exclusionReason === 'string' && entry.exclusionReason.length > 0).length, 84);
     truthy('1j cases-import.xer is op engine-input-herkomst uitgesloten',
       isPlainObject(manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'])
         && manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'].role === 'engine-input'

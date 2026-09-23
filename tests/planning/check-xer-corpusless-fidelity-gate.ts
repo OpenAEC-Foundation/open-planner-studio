@@ -64,28 +64,33 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
+  // Manifestpinnen 2026-09-24 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
+  // handmatige reviewstap): de vier byte-identieke DCP-03-Baseline-kopieën (0611f9054a4b) zijn
+  // generatoruitvoer van build_programmes.py → reader-only. Orakels 13 → 9, byte-uniek 10 → 9,
+  // geselecteerd 9 → 8 (schema-dedup blijft 1), 5.961 → 5.901
+  // taken met een gemeten as. De cellen van de 8 behouden entries zijn byte-identiek.
   // Manifestpinnen 2026-09-23h (fix manifest-review, handmatige reviewstap): alleen de teksten
   // veranderden — `exclusionReason` per entry naar wat gemeten is, de policy als eenmalig besluit, en een
   // `note` bij ashspace. Rollen, `included` en de selectie zijn ongewijzigd (selectiedigests gelijk).
-  manifestRawSha256: '19f16d1fd71240890b3edd089e3d84947458df141afa06caa485da3f2b878f6c',
-  baselineRawSha256: 'c945d59ac0cc7ec723ff16738a0ca54e3b194bda02f919d6885c2b2bc8a1aba0',
-  manifestProjectionSha256: '3dafe5e195ec383eeb9d5b80528dd9d6d0a80d34d882b6deda2efd469c4f9b11',
+  manifestRawSha256: '0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605',
+  baselineRawSha256: '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2',
+  manifestProjectionSha256: 'e1c31338076c0ca6dd1081ae42287854e0f41c814fa5fa837cb3f2f9488ac6ae',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
-  oracleByteUniqueSha256: '7fee48a5ef51dd3c7b9940f631a1140a57b51ee2d65e22c048e48d12d67d7d47',
-  selectedFullSha256: 'dd29b9e103709e8827f9ea159ed68bcfe7a70b141e9269bbc618ad786fa604d8',
-  selectedSchemaSha256: '357eda2c6f02bb927e405bb51d8c51b3cfe55c279a86dd9f0446531fee0f97ef',
-  selectedContractSha256: 'd710b69e540479162bd86c5702dbc4f37c2e25df0deda9b4943c570067ee5400',
+  oracleByteUniqueSha256: '7b9f8f4cbeb3f4f95ff5d712e9bb3a6b94881eafcfa95ac30645ceac409ef30e',
+  selectedFullSha256: 'dd2b9fac2918e2268873937421eb9230110f5ffeeffa4457e65f6a5d337f69ff',
+  selectedSchemaSha256: '76f7b8fded1761551dbf61d68e87577e92dd71f575de01b3fb1b973b577d77a1',
+  selectedContractSha256: 'bdd4cfcfb11c31dc6c5cb98e257976007e887f1c58e9c3a7a780ab699777a0be',
   occurrences: 93,
-  included: 13,
-  excluded: 80,
+  included: 9,
+  excluded: 84,
   byteUnique: 84,
-  oracleByteUnique: 10,
-  selected: 9,
+  oracleByteUnique: 9,
+  selected: 8,
   schemaDuplicates: 1,
-  projects: 21,
-  tasks: 5_983,
-  tasksWithAnyMeasuredAxis: 5_961,
-  measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  projects: 20,
+  tasks: 5_923,
+  tasksWithAnyMeasuredAxis: 5_901,
+  measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
   // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
   // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
@@ -207,24 +212,24 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_916, ef: 5_907, ls: 5_923, lf: 5_927, tf: 5_701, ff: 5_730 },
-    sameday: { es: 2, ef: 2, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 43, ef: 52, ls: 37, lf: 32, tf: 71, ff: 42 },
+    exact: { es: 5_876, ef: 5_869, ls: 5_867, lf: 5_871, tf: 5_663, ff: 5_690 },
+    sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
+    diff: { es: 23, ef: 31, ls: 33, lf: 28, tf: 49, ff: 22 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 45, ef: 54, ls: 38, lf: 34, tf: 71, ff: 42 },
-    drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
+    deviations: { es: 25, ef: 32, ls: 34, lf: 30, tf: 49, ff: 22 },
+    drivingPath: { exact: 5_754, sameday: 0, diff: 169, missing: 0, measurable: 5_923, deviations: 169 },
   },
-  productPayloadSha256: '771c4a9dd305d73bd3ab1c304b048e07977c7d109a78cc8ec58c0a1136ebff5f',
-  productPayloadGzipSha256: '5494eb24f341e141c65c1df615f030b2b1090d5d332e5b1440564d778ed500bf',
-  productProjectProjectionSha256: 'b1636deafabbc30cb0f387c199b40ca4bb0551137d0bdedf78a7dbc74972f4ed',
+  productPayloadSha256: '69451b8f2fa4a384c2a6bd92c6ff6c031af9745bbbdfc72df5f2d1a939690ffc',
+  productPayloadGzipSha256: '7838445e1bb78721f885792f5dade2e223fc044d65bd0b87066a6ca4da8ff64d',
+  productProjectProjectionSha256: '7811960406bc6b6a92802b1324a4cc2864c7d19473abd623cb0dfdcd17262ad2',
   roles: {
-    oracle: 13,
+    oracle: 9,
     'engine-input': 14,
     'parser-fixture': 15,
     'pseudo-xer': 13,
     'reference-only': 1,
     'synthetic-fixture': 5,
-    'reader-only': 32,
+    'reader-only': 36,
   } satisfies Record<Role, number>,
 } as const;
 
@@ -1050,8 +1055,10 @@ if (singleMutant !== undefined) {
     product.files[firstProductLabel]!.projectMeasurements[0]!.taskCodeExact--;
   }), manifest, oracle);
 
+  // Herpin 2026-09-24: de manifesthash begint nu zelf met '0' (0793e3…), dus de oude mutant "eerste
+  // teken → 0" was een no-op; hij flipt nu het eerste teken naar een ander hexteken.
   expectProductRejected('M24 productmanifesthash drift', withMutatedProduct(productV2, product => {
-    product.manifestSha256 = `0${product.manifestSha256.slice(1)}`;
+    product.manifestSha256 = `${product.manifestSha256.startsWith('0') ? '1' : '0'}${product.manifestSha256.slice(1)}`;
   }), manifest, oracle);
 
   expectProductRejected('M25 productschemafingerprint drift', withMutatedProduct(productV2, product => {

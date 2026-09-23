@@ -1598,54 +1598,54 @@
     "fidelity": {
       "chosen": {
         "es": {
-          "deviations": 2559,
-          "measurable": 10358
+          "deviations": 2331,
+          "measurable": 10118
         },
         "ef": {
-          "deviations": 2534,
-          "measurable": 10358
+          "deviations": 2298,
+          "measurable": 10118
         },
         "ls": {
-          "deviations": 655,
-          "measurable": 10358
+          "deviations": 419,
+          "measurable": 10118
         },
         "lf": {
-          "deviations": 846,
-          "measurable": 10358
+          "deviations": 606,
+          "measurable": 10118
         },
         "tf": {
-          "deviations": 2932,
-          "measurable": 10169
+          "deviations": 2888,
+          "measurable": 9929
         },
         "ff": {
-          "deviations": 1139,
-          "measurable": 10169
+          "deviations": 1059,
+          "measurable": 9929
         }
       },
       "counterfactual": {
         "es": {
-          "deviations": 2559,
-          "measurable": 10358
+          "deviations": 2331,
+          "measurable": 10118
         },
         "ef": {
-          "deviations": 2534,
-          "measurable": 10358
+          "deviations": 2298,
+          "measurable": 10118
         },
         "ls": {
-          "deviations": 655,
-          "measurable": 10358
+          "deviations": 419,
+          "measurable": 10118
         },
         "lf": {
-          "deviations": 846,
-          "measurable": 10358
+          "deviations": 606,
+          "measurable": 10118
         },
         "tf": {
-          "deviations": 2932,
-          "measurable": 10169
+          "deviations": 2888,
+          "measurable": 9929
         },
         "ff": {
-          "deviations": 1139,
-          "measurable": 10169
+          "deviations": 1059,
+          "measurable": 9929
         }
       }
     }
