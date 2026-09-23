@@ -93,13 +93,13 @@
         {
           "branch": "xerDefaults",
           "axis": "es",
-          "deviations": 887,
+          "deviations": 452,
           "measurable": 7637
         },
         {
           "branch": "xerDefaults",
           "axis": "ef",
-          "deviations": 917,
+          "deviations": 482,
           "measurable": 7649
         },
         {
@@ -117,13 +117,13 @@
         {
           "branch": "xerDefaults",
           "axis": "tf",
-          "deviations": 3494,
+          "deviations": 3196,
           "measurable": 7602
         },
         {
           "branch": "xerDefaults",
           "axis": "ff",
-          "deviations": 88,
+          "deviations": 47,
           "measurable": 7221
         }
       ]
@@ -1110,12 +1110,12 @@
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 44,
       "xerDefaultsMovement": [
-        3714,
-        3563,
+        4001,
+        3894,
         3325,
         3433,
-        4395,
-        2251,
+        4675,
+        2268,
         70
       ],
       "xerDefaultsNegativeFloatTasks": 0,
@@ -4700,11 +4700,11 @@
     },
     "xerDefaults": {
       "es": {
-        "deviations": 887,
+        "deviations": 452,
         "measurable": 7637
       },
       "ef": {
-        "deviations": 917,
+        "deviations": 482,
         "measurable": 7649
       },
       "ls": {
@@ -4716,11 +4716,11 @@
         "measurable": 7510
       },
       "tf": {
-        "deviations": 3494,
+        "deviations": 3196,
         "measurable": 7602
       },
       "ff": {
-        "deviations": 88,
+        "deviations": 47,
         "measurable": 7221
       }
     },

@@ -451,9 +451,23 @@ async function productBaseline(
         .find(task => task.taskCode === 'A10500');
       const effectiveCalendarFloat = solvedProjects.flatMap(project => project.tasks)
         .find(task => task.taskCode === 'A14610');
-      eq('publieke Roads-taak A10500 behoudt voltooide P6-actuals op middernacht', {
+      // C5 (`p6CompletedPhysicalAtDataDate`): A10500 is voltooid met CP_Phys; P6 zet haar als één punt
+      // op de rauwe statusdatum (orakel ES = EF = 2013-04-23 00:00). Het oorspronkelijke doel van deze
+      // check — voltooide P6-actuals op middernacht blijven ongesnapt — meet hieronder met C5 uit.
+      eq('publieke Roads-taak A10500 (voltooid, CP_Phys) staat als punt op de rauwe statusdatum', {
         earlyStart: publicTask?.earlyStart,
         earlyFinish: publicTask?.earlyFinish,
+      }, {
+        earlyStart: '2013-04-23T00:00',
+        earlyFinish: '2013-04-23T00:00',
+      });
+      const withoutC5 = structuredClone(imports);
+      for (const imported of withoutC5) setConvention(imported, 'p6CompletedPhysicalAtDataDate', false);
+      const actualsTask = solveProductProjects(withoutC5).flatMap(project => project.tasks)
+        .find(task => task.taskCode === 'A10500');
+      eq('publieke Roads-taak A10500 behoudt voltooide P6-actuals op middernacht (C5 uit)', {
+        earlyStart: actualsTask?.earlyStart,
+        earlyFinish: actualsTask?.earlyFinish,
       }, {
         earlyStart: '2013-01-19T00:00',
         earlyFinish: '2013-01-26T00:00',
@@ -2129,7 +2143,12 @@ async function productBaseline(
       type: 'FINISH_START', lagDays: 0,
     }],
   };
-  const connectedSolved = solveImported(connected).tasks;
+  // B is voltooid terwijl haar voorganger A nog open is (buiten volgorde). Sinds conventie C4
+  // (`p6CompletedOutOfSequenceWindow`, X12 brok 3) legt het P6-profiel B's vroege venster ná A; deze
+  // regel gaat over de late kant en isoleert die daarom met C4 UIT. De C4-uitkomst staat eronder.
+  const connectedProject = structuredClone(one.project);
+  setConvention({ project: connectedProject }, 'p6CompletedOutOfSequenceWindow', false);
+  const connectedSolved = solveImported({ ...connected, project: connectedProject }).tasks;
   const connectedA = connectedSolved.find(task => task.taskCode === 'P100');
   const connectedB = connectedSolved.find(task => task.taskCode === 'A100');
   // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i)): vóór deze vlag beschreef B's
@@ -2162,6 +2181,18 @@ async function productBaseline(
       earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
       lateStart: '2026-01-05T08:00', lateFinish: '2026-01-02T16:00', freeFloatMinutes: 0,
     },
+  });
+  // C4 AAN (het P6-profiel zoals gelezen): B's nul-restvenster begint direct ná A (A eindigt
+  // 2026-01-05 16:00 ⇒ ES 2026-01-06 08:00, EF 2026-01-05 16:00). De late kant en A veranderen niet.
+  const c4Solved = solveImported(connected).tasks;
+  const c4A = c4Solved.find(task => task.taskCode === 'P100');
+  const c4B = c4Solved.find(task => task.taskCode === 'A100');
+  eq('X12 A→FS→B(completed) met C4: B-venster ná A, late kant en A ongewijzigd', {
+    a: [c4A?.earlyStart, c4A?.earlyFinish, c4A?.lateStart, c4A?.lateFinish, c4A?.totalFloatMinutes],
+    b: [c4B?.earlyStart, c4B?.earlyFinish, c4B?.lateStart, c4B?.lateFinish],
+  }, {
+    a: ['2026-01-05T08:00', '2026-01-05T16:00', '2026-01-02T08:00', '2026-01-02T16:00', -480],
+    b: ['2026-01-06T08:00', '2026-01-05T16:00', '2026-01-05T08:00', '2026-01-02T16:00'],
   });
 
   const openSuccessor = {

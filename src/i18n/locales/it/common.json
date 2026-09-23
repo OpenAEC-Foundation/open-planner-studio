@@ -1266,6 +1266,18 @@
     "p6CompletedRemainingLag": {
       "label": "Il ritardo trascorso di un predecessore completato non conta",
       "help": "Sul lato delle date al più tardi conta solo la parte del ritardo dopo un predecessore completato non ancora trascorsa alla data di stato."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Un'attività completata fuori sequenza attende i suoi predecessori",
+      "help": "Un'attività completata con un predecessore non ancora terminato riceve la sua finestra nulla dopo quel predecessore invece che alla data di stato (logica mantenuta)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Attività completata ad avanzamento fisico sulla data di stato",
+      "help": "Un'attività completata con percentuale di avanzamento fisico appare come un unico punto sulla data di stato, o più tardi se un predecessore lo richiede, invece che sulle sue date effettive."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Il ritardo II trascorso di un predecessore in corso non conta",
+      "help": "In una relazione inizio-inizio da un'attività già iniziata conta solo la parte del ritardo non ancora trascorsa dal suo inizio effettivo alla data di stato."
     }
   },
   "profiles": {

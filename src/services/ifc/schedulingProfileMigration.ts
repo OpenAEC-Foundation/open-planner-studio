@@ -19,18 +19,21 @@ export const LEGACY_XER_ALWAYS_ON: ReadonlySet<ConventionKey> = new Set<Conventi
 ]);
 
 /**
- * X12 naar nul, brok 2 (orkestratorbesluit 2026-09-23): de groep-C-conventies C1–C3 gaan in een oud
- * XER-IFC óók aan, op hun P6-waarde — zo'n bestand rekent dan als een herimport van dezelfde XER.
+ * X12 naar nul, brok 2 en 3 (orkestratorbesluit 2026-09-23): de groep-C-conventies C1–C6 gaan in een
+ * oud XER-IFC óók aan, op hun P6-waarde — zo'n bestand rekent dan als een herimport van dezelfde XER.
  * Verantwoording: oude XER-IFC's bestaan alleen in dev-builds (de XER-lezer is nooit uitgebracht vóór
- * de rekenprofielen), en C1–C3 zijn per cel gemeten tegen P6 (X12 15.056 → 12.973, 0 slechter).
+ * de rekenprofielen), en C1–C6 zijn per cel gemeten (X12 15.056 → 12.973 voor C1–C3, → 11.771 met C4,
+ * → 10.947 met C5 + C6; telkens 0 slechter). Let op: C1, C3 en C4 steunen alleen op rehab-2, een
+ * P3-orakel (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`).
  * Ook hier een GEPINDE lijst: een latere conventie gaat voor oude bestanden nooit vanzelf aan, tenzij
  * ze met een meting expliciet in zo'n set wordt gezet (`docs/recepten/conventie.md` stap 2).
  */
 export const LEGACY_XER_ALSO_ON_X12: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
+  'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
 ]);
 
-/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C3 op hun P6-waarde,
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C6 op hun P6-waarde,
  *  al het andere uit. */
 export function legacyXerDefault(d: ConventionDescriptor): boolean {
   if (LEGACY_XER_ALWAYS_ON.has(d.id)) return true;
@@ -63,7 +66,7 @@ export function optionKeysOnly(options: LegacySchedulingOptions | undefined): Pr
  *  - blob afwezig ⇒ `ops` zonder afwijkingen;
  *  - `p6Source: 'XER'` ⇒ basis `p6`. Per A-conventie: sleutel aanwezig ⇒ die waarde, afwezig ⇒ UIT
  *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). Afwezige B1–B5 ⇒ AAN (ze
- *    hingen vandaag alleen aan `p6Source`), afwezige C1–C3 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
+ *    hingen vandaag alleen aan `p6Source`), afwezige C1–C6 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
  *  - geen `p6Source` ⇒ de p6Source-gepoorte conventies (A15–A20) worden weggegooid (ze waren inert;
  *    risico 1); A12/A13/A22/A23 worden afwijkingen; basis = `msproject` als `resumeFromActualElapsed`
  *    én `unstartedIgnoresStatusDate` allebei true zijn (de `.mpp`-lezer), anders `ops`;
@@ -79,7 +82,7 @@ export function legacyOptionsToProfile(blob: LegacySchedulingOptions | undefined
     const resolved = conventionsFor(d => {
       const value = blob[d.id];
       // Een expliciet gezette vlag wint altijd (ook voor B1–B5, zoals in de oude motorvertaling —
-      // M1.3 bewees die gelijkheid); afwezig ⇒ de gepinde B1–B5 en C1–C3 (`legacyXerDefault`).
+      // M1.3 bewees die gelijkheid); afwezig ⇒ de gepinde B1–B5 en C1–C6 (`legacyXerDefault`).
       if (typeof value === 'boolean') return value;
       return legacyXerDefault(d);
     });

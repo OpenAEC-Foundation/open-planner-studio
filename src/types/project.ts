@@ -281,10 +281,103 @@ export interface SchedulingOptions {
    *  - MS Project: uit. MS Project kent geen late-kant-statusdatumvenster voor voltooide taken (zie C1).
    *  - OPS: uit (de volle lag, het gedrag van vóór deze conventie). */
   p6CompletedRemainingLag?: boolean;
+  /** C4 — RETAINED LOGIC voor een voltooide activiteit buiten volgorde (out-of-sequence): het
+   *  nul-restvenster van een voltooide taak op de statusdatumroute (conventie B3,
+   *  `explainP6CompletedDataDateWindow`) ligt niet vóór de relatiegrens van een voorganger die nog
+   *  niet klaar is. Voor elke FS- of SS-relatie uit een open voorganger (of uit een voltooide
+   *  voorganger die zelf zo'n verschoven venster heeft) telt de gewone voorwaartse relatiegrens; het
+   *  venster begint op de laatste van die grenzen en de statusdatum (`CPMSolver`, alleen bij
+   *  Retained Logic, dus niet onder `progressMode: 'PROGRESS_OVERRIDE'`). Het verschoven venster
+   *  bepaalt de weergave (ES/EF, en daarmee de speling) en de relatiegrens naar de opvolgers; de
+   *  late kant blijft ongewijzigd. FF/SF-relaties naar zo'n taak doen (nog) niet mee: ongemeten.
+   *
+   *  - P6: aan. Oracle P6 Professional Help, "General tab - Schedule Options dialog box": "Retained
+   *    Logic: The remaining duration of a progressed activity is not scheduled until all of its
+   *    predecessors are finished" (docs.oracle.com/cd/F25600_01/client_help, `general_tab_-_
+   *    schedule_options_dialog_box`); de restduur 0 van een voltooide activiteit valt daar ook onder.
+   *    Gemeten: `rehab-2.xer`, 36 voltooide of actieve taken met restduur 0 en een onvoltooide
+   *    voorganger (classificatie brok B04): P6 zet ES op de eerste werkgrens ná de relatiegrens
+   *    (bv. V3117130: voorganger V3209135 EF 08-19 17:00 ⇒ ES 08-20 08:00 / EF 08-19 17:00; met
+   *    FS+240 h en SS evenzo), niet op de statusdatum 05-27. LET OP: het rehab-2-orakel is
+   *    P3-uitvoer, geen P6-uitvoer (geen SCHEDOPTIONS, lege `rem_late_start_date`; zie
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` en het B01-onderzoek). De
+   *    B3-vorm waarop deze regel rust komt in het corpus alleen in rehab-2 voor; buiten rehab-2 verandert
+   *    C4 geen cel. rehab-2 is dus GEEN bewijs dat P6 zo rekent — alleen de Oracle-tekst hierboven is dat.
+   *  - MS Project: uit. Een voltooide taak houdt in MS Project haar werkelijke Start en Finish; de
+   *    koppeling naar een onvoltooide voorganger verschuift alleen onvoltooid werk.
+   *  - OPS: uit (het venster op de statusdatum, het gedrag van vóór deze conventie). */
+  p6CompletedOutOfSequenceWindow?: boolean;
+  /** C5 — een VOLTOOIDE activiteit met fysiek voortgangspercentage (`p6CompletePctType === 'CP_Phys'`)
+   *  staat als één punt op de statusdatum: ES = EF = het RAUWE statusdatum-instant (niet gesnapt op de
+   *  werktijd), of later als een voorganger dat eist — de rauwe relatiegrens (FS/FF: het einde, SS/SF:
+   *  de start van een voorganger die nog niet klaar is, met een finishgrens: niet naar de volgende
+   *  werkstart geschoven), of het punt van een voorganger die zelf zo'n punt heeft. De lag uit een
+   *  LOPENDE voorganger is de volle lag, behalve bij SS met C6 aan: dan telt via
+   *  `inProgressStartLagSeq` alleen de rest-lag. Ook de late kant is één punt: LS = LF = de vroegste
+   *  grens die de opvolgers stellen (FS/SS: hun LS, FF/SF: hun LF), zonder statusdatumklem; een
+   *  VOLTOOIDE opvolger zonder eigen punt en zonder rest-venster (C2) telt daarbij niet mee (de
+   *  achterwaartse tak slaat die over). Zonder opvolger het projecteinde — dat steunt op slechts twee
+   *  taken (HarbourPointe EC1040/EC1050). Van de lag tussen zo'n punt en
+   *  een opvolger of voorganger telt alleen het deel dat na het werkelijke einde op de statusdatum nog
+   *  niet verstreken is (rekenregel C3). Poort: P6-herkomst, blad, `p6ExplicitTargetWindow`, A19
+   *  (`p6UseRemainingStartForProgress`), voltooid met een werkelijk einde op of vóór de statusdatum,
+   *  TT_Task of TT_Mile/TT_FinMile, geen suspend/resume; geen eis op het duurtype
+   *  (`explainP6CompletedPhysicalPoint`, `CPMSolver.recordCompletedPhysicalPoint` en de backward pass).
+   *
+   *  - P6: aan. Gemeten, niet uit de documentatie: in `Roads_Project_TEC.xer`, `HarbourPointe_
+   *    AssistedLiving.xer` en `OZB-Start-09Dec24.xer` staan alle voltooide CP_Phys-activiteiten met een
+   *    orakel op één punt: 134 + 18 + 14 op precies de statusdatum (Roads 2013-04-23T00:00, ook buiten
+   *    de werktijd), de rest op de rauwe relatiegrens van een voorganger (Roads A10: voorganger A7 EF
+   *    06-03 17:00 ⇒ ES = EF = 06-03 17:00; A15081: voorganger A15069 ES 05-06 07:00 SS+60 h ⇒ 05-13
+   *    17:00; A15087 —SS+30 h→ A15089 start 05-14 07:00, de lag is verstreken). De late kant klopt bij
+   *    alle 187 met een laat orakel met de vroegste opvolgergrens (Roads 157, HarbourPointe 16 + 2 zonder
+   *    opvolger op het projecteinde, OZB 14). Dit zijn P6-doorgerekende bestanden; rehab-2 (P3-orakel,
+   *    zie C4) heeft geen voltooide CP_Phys-activiteiten en is hier geen bron.
+   *    Bewust smal (CP_Phys): een brede poort "elke voltooide taak met werkelijk einde op/vóór de
+   *    statusdatum" (B3 wint waar die geldt) maakt in de meting precies dezelfde cellen goed, maar
+   *    verslechtert DCP-03 As-Built: 57 voltooide CP_Drtn/DT_FixedDrtn-taken waarvan het orakel de
+   *    werkelijke datums houdt (285 cellen); de variant die ook B3 vervangt verslechtert daarnaast
+   *    rehab-2 (5.340 cellen). Of As-Built door P6 is doorgerekend is niet vastgesteld (herkomst
+   *    onbekend). De P6-regel zelf lijkt dus breed — op de P6-doorgerekende bestanden is smal = breed —
+   *    en CP_Phys is een beschermgrens vanwege DCP-03 As-Built, geen bewezen P6-onderscheid. Dat
+   *    onderscheid kan net zo goed in het duurtype zitten (B3 eist `DT_FixedDUR2`, As-Built is
+   *    `DT_FixedDrtn`). [VERMOED] C5 kent geen Progress-Override-poort, C4 wel; zie plan §9.
+   *  - MS Project: uit. MS Project kent geen voortgangstype per activiteit; een voltooide taak houdt
+   *    haar werkelijke Start en Finish.
+   *  - OPS: uit (de werkelijke datums, het gedrag van vóór deze conventie). */
+  p6CompletedPhysicalAtDataDate?: boolean;
+  /** C6 — de lag van een SS-relatie uit een LOPENDE voorganger (werkelijke start, niet voltooid) loopt
+   *  vanaf die werkelijke start: voorwaarts telt alleen het deel dat op de statusdatum nog niet
+   *  verstreken is, `max(0, lag − werktijd(werkelijke start → statusdatum))` in de lag-kalender, bovenop
+   *  de restwerkstart van de voorganger. Alleen positieve WORKTIME-lag, alleen met A19
+   *  (`p6UseRemainingStartForProgress`, de vroege start van een lopende taak is dan haar restwerkstart);
+   *  FS/FF/SF, de late kant en ELAPSEDTIME-lag ongewijzigd (ongemeten). `CPMSolver.inProgressStartLagSeq`.
+   *
+   *  - P6: aan. Bron: Oracle P6 Help "Calculate Start-to-Start lag from"
+   *    (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm). *Early Start*: "Calculates the
+   *    expired lag as the number of work periods between the actual start and the data date and
+   *    determines the successor's start date as the predecessor's remaining early start plus any
+   *    remaining lag"; *Actual Start*: "the data date plus any remaining lag". C6 is exact de
+   *    Early-Start-variant; de max(0)-vloer is gedocumenteerd ("remaining lag"). In XER is dit
+   *    `sched_lag_early_start_flag` (corpus: Y 40, N 8, leeg 2; Roads Y, DCP-03 Baseline/As-Built N).
+   *    Het deels-verstreken geval (0 < rest-lag < lag) komt in het corpus niet voor.
+   *    VERVOLGPUNT (niet gebouwd): C6 hoort een projectoptie uit `sched_lag_early_start_flag` te
+   *    worden, waarbij N = "statusdatum + rest-lag" (`xerScheduleOptions.ts`, veld nu `status: 'todo'`);
+   *    zie plan §9. Meting die dit bevestigt: alle niet-gestarte opvolgers met een SS+lag-relatie
+   *    uit een lopende voorganger in het P6-doorgerekende `Roads_Project_TEC.xer` (8) starten op de
+   *    restwerkstart van die voorganger zelf, niet een volle lag later: OCEC11371 (werkelijk gestart
+   *    2013-02-23, restwerkstart 06-24 07:00) —SS+60 h→ OCEC11381 ES 06-24 07:00; evenzo OCEC10811
+   *    —SS+30 h→ OCEC18251 en OCEC18391 —SS+40 h→ OCEC18401. (rehab-2 V3259300 —SS+56 h→ V3259220 volgt
+   *    hetzelfde patroon, maar dat orakel is P3-uitvoer, zie C4: geen bewijs.) Zichtbaar geworden met
+   *    C5: de voorganger stond daarvóór zelf verkeerd, waardoor de opvolger toevallig goed uitkwam.
+   *  - MS Project: uit. MS Project kent geen P6-restwerkstart als vroege start; de lag loopt vanaf de
+   *    start van de voorganger zoals die op de balk staat.
+   *  - OPS: uit (de volle lag vanaf de vroege start, het gedrag van vóór deze conventie). */
+  p6InProgressStartLagElapsed?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de achttien PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de eenentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -307,7 +400,10 @@ export type ConventionKey =
   | 'p6OpenLoeTargetSpan'
   | 'p6CompletedPredecessorAtDataDate'
   | 'p6FreeFloatOnOwnCalendar'
-  | 'p6CompletedRemainingLag';
+  | 'p6CompletedRemainingLag'
+  | 'p6CompletedOutOfSequenceWindow'
+  | 'p6CompletedPhysicalAtDataDate'
+  | 'p6InProgressStartLagElapsed';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

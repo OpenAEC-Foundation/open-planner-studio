@@ -1266,6 +1266,18 @@
     "p6CompletedRemainingLag": {
       "label": "O atraso decorrido de uma predecessora concluída não conta",
       "help": "No lado das datas mais tardias, conta apenas a parte do atraso após uma predecessora concluída que ainda não decorreu na data de estado."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Tarefa concluída fora de sequência aguarda as suas predecessoras",
+      "help": "Uma tarefa concluída cuja predecessora ainda não terminou recebe a sua janela nula depois dessa predecessora, em vez de na data de estado (lógica retida)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Tarefa concluída com avanço físico na data de status",
+      "help": "Uma tarefa concluída com percentual de avanço físico aparece como um único ponto na data de status, ou mais tarde se um predecessor o exigir, em vez de nas suas datas reais."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "O atraso II decorrido de um predecessor em andamento não conta",
+      "help": "Numa relação início-início a partir de uma tarefa já iniciada, só conta a parte do atraso que ainda não decorreu desde o seu início real na data de status."
     }
   },
   "profiles": {

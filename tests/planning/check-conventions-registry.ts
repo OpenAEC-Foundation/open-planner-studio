@@ -34,7 +34,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 // ── 1) Register ⇔ ConventionKey, unieke id's, domein van de ingebouwde waarden ─────────────────
 {
   const ids = CONVENTIONS.map(d => d.id);
-  eq('01 achttien conventies', ids.length, 18);
+  eq('01 eenentwintig conventies', ids.length, 21);
   eq('02 unieke id\'s', new Set(ids).size, ids.length);
   same('03 register-lijst == CONVENTION_KEYS (compile-time Record)', [...ids].sort(), [...CONVENTION_KEYS].sort());
   for (const d of CONVENTIONS) {
@@ -128,7 +128,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);
   eq('47 effective: optie uit project', eff.lagCalendar, '24hour');
-  eq('48 effective: alle achttien conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
+  eq('48 effective: alle eenentwintig conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
   // Conventies worden als LAATSTE gespreid: een conventiesleutel die in de overgang nog in het
   // projectblok staat, verliest van het profiel.
   const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } as unknown as ProjectSchedulingOptions });
@@ -146,14 +146,14 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('50 geen blob ⇒ ops zonder overrides', none.profile, builtInProfile('ops'));
   eq('51 geen blob ⇒ geen opties', none.options, undefined);
 
-  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5 en C1–C3 ⇒ AAN.
+  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5 en C1–C6 ⇒ AAN.
   const partial = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true });
   eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
-  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C3 aan', on, [
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C6 aan', on, [
     'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
-    'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag', 'p6FreeFloatOnOwnCalendar',
+    'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag', 'p6FreeFloatOnOwnCalendar', 'p6InProgressStartLagElapsed',
     'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary', 'p6UseTaskPlannedStartFloor',
   ]);
   eq('54 rij 2: opties zonder p6Source/conventies', partial.options, undefined);
@@ -248,9 +248,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('99a een hypothetische zesde groep-B-conventie gaat NIET stil aan', legacyXerDefault(hypothetical), false);
   eq('99b een bestaande groep-B-conventie wel', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6OpenLoeTargetSpan')!), true);
   eq('99c een A-conventie niet', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6UseTaskPlannedStartFloor')!), false);
-  // X12 brok 2: C1–C3 gepind in een eigen set (orkestratorbesluit: oude XER-IFC's rekenen als herimport).
-  same('99e gepinde X12-lijst = C1–C3', [...LEGACY_XER_ALSO_ON_X12].sort(), [
-    'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag', 'p6FreeFloatOnOwnCalendar',
+  // X12 brok 2 en 3: C1–C6 gepind in een eigen set (orkestratorbesluit: oude XER-IFC's rekenen als herimport).
+  same('99e gepinde X12-lijst = C1–C6', [...LEGACY_XER_ALSO_ON_X12].sort(), [
+    'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6CompletedPredecessorAtDataDate',
+    'p6CompletedRemainingLag', 'p6FreeFloatOnOwnCalendar', 'p6InProgressStartLagElapsed',
   ]);
   for (const key of LEGACY_XER_ALSO_ON_X12) {
     const d = CONVENTIONS.find(c => c.id === key)!;
@@ -259,7 +260,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     eq(`99f ${key} P6-waarde is aan`, d.builtIn.p6, true);
   }
   // 99h/99i: de volle migratie (legacyOptionsToProfile), niet alleen de default-helper. Een oud
-  // XER-blok zonder C-sleutels krijgt het P6-profiel voor C1–C3 (geen afwijking); een expliciete
+  // XER-blok zonder C-sleutels krijgt het P6-profiel voor C1–C6 (geen afwijking); een expliciete
   // false blijft false (een gezette vlag wint altijd) en wordt dus een afwijking van p6.
   {
     const absent = legacyOptionsToProfile({ p6Source: 'XER' }).profile;
@@ -270,6 +271,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     }
     const explicitFalse = legacyOptionsToProfile({
       p6Source: 'XER', p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: false, p6CompletedRemainingLag: false,
+      p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: false, p6InProgressStartLagElapsed: false,
     }).profile;
     const resolvedFalse = resolveConventions(explicitFalse);
     for (const key of LEGACY_XER_ALSO_ON_X12) {
@@ -277,8 +279,8 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
       eq(`99i ${key} expliciet false ⇒ afwijking van p6`, explicitFalse.overrides?.[key], false);
     }
   }
-  const hypotheticalC = { ...CONVENTIONS.find(d => d.group === 'C')!, id: 'p6HypothetischeVierdeC' as never, since: '2027-01-01' };
-  eq('99g een hypothetische vierde groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
+  const hypotheticalC = { ...CONVENTIONS.find(d => d.group === 'C')!, id: 'p6HypothetischeZevendeC' as never, since: '2027-01-01' };
+  eq('99g een hypothetische zevende groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
   // Recept stap 2a: elke conventie staat in BOOLEAN_KEYS van de IFC-sanitizer (anders valt hij stil weg).
   for (const key of CONVENTION_KEYS) {
     eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], true);

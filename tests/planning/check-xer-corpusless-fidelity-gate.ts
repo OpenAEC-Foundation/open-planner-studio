@@ -78,6 +78,23 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  // HERPIN 2026-09-23d (X12 naar nul, brok 3 — conventies C5 `p6CompletedPhysicalAtDataDate` en C6
+  // `p6InProgressStartLagElapsed`, samen geland; classificatiebrok B07): 11.771 → 10.947 (−824, 0 cellen
+  // slechter, drivingPath 417 ongewijzigd). Per bestand/as (dump per cel tegen de vorige cellen):
+  //  - Roads_Project_TEC: es −194, ef −194, ls −140, lf −140, tf −15, ff −10 (C5: voltooide CP_Phys-
+  //    taken als punt op de rauwe statusdatum of relatiegrens, late kant één punt op de opvolgergrens);
+  //  - HarbourPointe_AssistedLiving: es −18, ef −18, ls −16, lf −16 (C5);
+  //  - OZB-Start-09Dec24: es −14, ef −14, ls −14, lf −14 (C5);
+  //  - rehab-2: es −3, ef −3, ff −1 (C6: V3259220 e.a., SS+lag uit een lopende voorganger).
+  //  C5 alleen gaf +733/−65: de 65 (Roads, drie wortels OCEC11381/OCEC18251/OCEC18401 en hun keten)
+  //  stonden vóór C5 toevallig goed via een zelf verkeerde lopende voorganger; C6 maakt ze weer exact,
+  //  vandaar samen landen. Sameday: ls 129 → 136, lf 93 → 100 (Roads, 7 + 7 cellen diff → sameday,
+  //  een betere emmer); es/ef ongewijzigd.
+  // HERPIN 2026-09-23c (X12 naar nul, brok 3 — conventie C4 `p6CompletedOutOfSequenceWindow`, brok
+  // B04): 12.973 → 11.771 (−1.202, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
+  // es −432, ef −432, tf −298, ff −40 — een voltooide taak (of actief met restduur 0) met een
+  // onvoltooide voorganger krijgt haar nul-restvenster ná die voorganger (Retained Logic), en haar
+  // opvolgers schuiven mee. De late kant van die 36 wortels wacht op B01/B05. Sameday ongewijzigd.
   // HERPIN 2026-09-23b (X12 naar nul, brok 2 vervolg — conventie C3 `p6CompletedRemainingLag`, brok
   // B03): 13.324 → 12.973 (−351, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
   // ls −122, lf −122, tf −107 — voltooide voorgangers op de B3-restvensterroute rekenen achterwaarts
@@ -113,16 +130,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 12_855, ef: 12_807, ls: 10_367, lf: 10_321, tf: 10_010, ff: 13_169 },
-    sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
-    diff: { es: 980, ef: 1_033, ls: 3_326, lf: 3_399, tf: 3_667, ff: 153 },
+    exact: { es: 13_516, ef: 13_468, ls: 10_537, lf: 10_491, tf: 10_323, ff: 13_220 },
+    sameday: { es: 96, ef: 97, ls: 136, lf: 100, tf: 0, ff: 0 },
+    diff: { es: 319, ef: 372, ls: 3_149, lf: 3_222, tf: 3_354, ff: 102 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 1_076, ef: 1_130, ls: 3_455, lf: 3_492, tf: 3_667, ff: 153 },
+    deviations: { es: 415, ef: 469, ls: 3_285, lf: 3_322, tf: 3_354, ff: 102 },
     drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: '89a7de4be4d9d503caee9df8a5b54ddee7f9af2e6c8da9280f7e6a678032636e',
-  productPayloadGzipSha256: 'b78531585c808b5c6b53f2ed7c912a03719880c14173b7ec6eed47bc9a0c3700',
-  productProjectProjectionSha256: 'e83064c370d57497b26ba5bcd1cc06553ab5916633a919869c3172a1092afefa',
+  productPayloadSha256: 'f29fa3f8c997cf4ee21eae297ff1ea95c718b311002792aabfa5535f290c791f',
+  productPayloadGzipSha256: '24ea997ce15fb82a40678b1aeb217682314e6047d715c12683146f9f1290d312',
+  productProjectProjectionSha256: '0e3ded2cc516482b9e1848fcc5d7e37db994ce49022b3346956cac4adcfdc3da',
   roles: {
     oracle: 45,
     'engine-input': 14,

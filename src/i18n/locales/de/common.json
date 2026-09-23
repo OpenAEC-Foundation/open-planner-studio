@@ -1231,6 +1231,18 @@
     "p6CompletedRemainingLag": {
       "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",
       "help": "Auf der späten Seite zählt vom Zeitabstand nach einem abgeschlossenen Vorgänger nur der Teil, der am Statusdatum noch nicht verstrichen ist."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Abgeschlossener Vorgang außerhalb der Reihenfolge wartet auf seine Vorgänger",
+      "help": "Ein abgeschlossener Vorgang, dessen Vorgänger noch nicht fertig ist, erhält sein Nullfenster nach diesem Vorgänger statt am Statusdatum (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Abgeschlossener Vorgang mit physischem Fortschritt steht am Statusdatum",
+      "help": "Ein abgeschlossener Vorgang mit physischem Fertigstellungsgrad steht als ein Punkt am Statusdatum, oder später, wenn ein Vorgänger es verlangt, statt auf seinen Ist-Terminen."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Verstrichener AA-Zeitabstand eines laufenden Vorgängers zählt nicht",
+      "help": "Bei einer Anfang-Anfang-Beziehung von einem bereits begonnenen Vorgang zählt vom Zeitabstand nur der Teil, der seit dessen Ist-Anfang am Statusdatum noch nicht verstrichen ist."
     }
   },
   "profiles": {

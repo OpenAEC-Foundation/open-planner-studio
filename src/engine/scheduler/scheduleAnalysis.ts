@@ -42,6 +42,11 @@ export interface ScheduleAnalysisInput {
   // ── Aan de solver gebonden, stateless kalender-helpers (modus-bewust, §5) ──
   calendarFor: (task: Task) => CalendarEngine;
   progressCalendarFor: (task: Task) => CalendarEngine;
+  /** Conventie C4: verschoven begin van het nul-restvenster (voltooid buiten volgorde). */
+  completedOutOfSequenceEs?: ReadonlyMap<string, Date>;
+  /** Conventie C5: voltooide CP_Phys-activiteiten met een punt (ES = EF, LS = LF) uit de solver; hun
+   *  late kant komt uit de backward pass, niet uit de actual-pin. */
+  completedPhysicalPoints?: ReadonlyMap<string, Date>;
   /** `task` optioneel (T8): ELAPSEDTIME ⇒ kale klok-span i.p.v. werkdag-telling, zie
    *  `CPMSolver.signedFloat`/`duration.ts`'s `signedElapsedSpan`. */
   signedFloat: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
@@ -269,7 +274,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const completedDisplayWindow = completedWindowDecision.eligible
       ? (() => {
         const progressCal = progressCalendarFor(taskObj);
-        const es = snapOnOrAfter(progressCal, dataDate!);
+        const es = input.completedOutOfSequenceEs?.get(taskId) ?? snapOnOrAfter(progressCal, dataDate!);
         return {
           es,
           ef: progressCal.prevWorkInstant(es),
@@ -430,7 +435,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // `CPMSolver.backwardPass` voor deze taak al de P6-restwerkregel toegepast (`late.ls`/`late.lf`
     // dragen dan een zinvol, niet-gedegenereerd statusdatumvenster inclusief float) — die uitkomst
     // hoort dan getoond te worden i.p.v. de rauwe actual-pin.
-    const pinLateToActualWindow = displayActualLate && !useCompletedRemainingWindow;
+    const pinLateToActualWindow = displayActualLate && !useCompletedRemainingWindow
+      && input.completedPhysicalPoints?.has(taskId) !== true;
     if (backwardFloatTrace) {
       const prior = backwardFloatTrace.byTaskId[taskId] ?? {
         lateFinishSource: 'projectEnd' as const,

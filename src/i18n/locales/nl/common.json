@@ -1231,6 +1231,18 @@
     "p6CompletedRemainingLag": {
       "label": "Verstreken lag van een voltooide voorganger telt niet",
       "help": "Aan de late kant telt van de lag na een voltooide voorganger alleen het deel dat op de statusdatum nog niet verstreken is."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Voltooide taak buiten volgorde wacht op haar voorgangers",
+      "help": "Een voltooide taak waarvan een voorganger nog niet klaar is, krijgt haar nulvenster ná die voorganger in plaats van op de statusdatum (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Voltooide fysieke-voortgangstaak staat op de statusdatum",
+      "help": "Een voltooide taak met fysiek voortgangspercentage staat als één punt op de statusdatum, of later als een voorganger dat eist, in plaats van op haar werkelijke datums."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Verstreken SS-lag uit een lopende voorganger telt niet",
+      "help": "Bij een start-start-relatie uit een al gestarte taak telt van de lag alleen het deel dat sinds haar werkelijke start op de statusdatum nog niet verstreken is."
     }
   },
   "profiles": {

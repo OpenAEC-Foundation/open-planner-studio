@@ -37,7 +37,7 @@ const project = {
 const o = solveOptionsFor(project);
 eq('01 vijf projectvelden letterlijk', [o.dataDate, o.progressMode, o.projectStartDate, o.projectEndDate],
   ['2026-07-01', 'PROGRESS_OVERRIDE', '2026-06-01', '2026-12-31']);
-eq('02 zonder profiel: achttien conventies uit', CONVENTION_KEYS.map(k => o.schedulingOptions[k]), CONVENTION_KEYS.map(() => false));
+eq('02 zonder profiel: eenentwintig conventies uit', CONVENTION_KEYS.map(k => o.schedulingOptions[k]), CONVENTION_KEYS.map(() => false));
 eq('03 projectopties komen mee', o.schedulingOptions.lagCalendar, 'successor');
 eq('04 p6-profiel zet B1 aan',
   solveOptionsFor({ ...project, schedulingProfile: builtInProfile('p6') }).schedulingOptions.p6RelationFinishBoundary, true);
