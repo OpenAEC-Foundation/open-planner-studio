@@ -91,6 +91,11 @@ const EXPECTED = {
   tasks: 5_923,
   tasksWithAnyMeasuredAxis: 5_901,
   measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23p (X12 naar nul, brok 8 — C13: de vrije-spelingkant van C5
+  // `p6CompletedPhysicalAtDataDate`, motorwijziging zonder nieuwe conventie; regel A: measure:profiles
+  // VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=1 kleiner=0 schuld=0). Over een FS0-relatie naar
+  // een voltooide CP_Phys-opvolger met punt telt de vrije speling tot dat punt. X12 181 → 180 (ff 20 → 19):
+  // Roads OCEC18201 (1346/87054, diff 3000 min → exact). Overige cellen byte-identiek.
   // HERPIN 2026-09-23o (merge van de etappebranch met DCP-03 Baseline uit het orakel, 192, in brok 8;
   // herpinrecept opnieuw met de schrijfmodi: CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=12
   // kleiner=0 schuld=0). X12 192 → 181 (−11 = C11 4 + C12 7; drivingPath 169 → 168).
@@ -224,16 +229,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_664, ff: 5_692 },
+    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_664, ff: 5_693 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 48, ff: 20 },
+    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 48, ff: 19 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 48, ff: 20 },
+    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 48, ff: 19 },
     drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
   },
-  productPayloadSha256: '7df62680db3c08b381bfc0e90bd6bee18616fa5c728c8da7bd974a69178f2db4',
-  productPayloadGzipSha256: '817f9884cbf6af2121431705d9258e981635dbb0875fdb01bfa593456eef397f',
-  productProjectProjectionSha256: '0462c861627f1d2d2c4ffdcbcb7267643d604fe87b4246c2db8bfac1c18b7583',
+  productPayloadSha256: '9c2b854c5c786d130f7a8ce35ccda9368763fff5f87db5d3871134d2f6289a0f',
+  productPayloadGzipSha256: 'e55e7326a3549b840cbae923c3c62d1052bb8c99d19730c1a0612454ef3cf1cb',
+  productProjectProjectionSha256: 'dbb0b78db203f5ca59daa3ec4a926799db542f6c8798d5500253c6c98d7fb956',
   roles: {
     oracle: 9,
     'engine-input': 14,

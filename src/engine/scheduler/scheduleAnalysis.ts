@@ -73,7 +73,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat,
     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
-    backwardFloatTrace,
+    backwardFloatTrace, completedPhysicalPoints,
   } = input;
 
   const taskResults = new Map<string, CPMTaskResult>();
@@ -237,6 +237,17 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
           const succEarly = earlyDates.get(seq.successorId);
           if (succEarly) ff = cal.workMinutesBetween(early.ef, succEarly.ef) / (cal.hoursPerDay * 60);
+        }
+        // Conventie C5 `p6CompletedPhysicalAtDataDate`, vrije-spelingkant (X12 brok 8): een voltooide CP_Phys-
+        // opvolger met een punt heeft geen relatiegrens (de voorwaartse pas slaat haar voorgangers over), maar
+        // staat wel op één vroeg punt. Over een FS0-relatie zonder eigen grens telt de vrije speling in de
+        // eigen kalender tot dat punt, spiegel van de late kant van C5 (docblok in `types/project.ts`). Punten
+        // bestaan alleen met C5 aan (`CPMSolver.recordCompletedPhysicalPoint`); geen aparte poort nodig.
+        if (ff === undefined && cal.isHourMode
+          && seq.type === 'FINISH_START'
+          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+          const point = completedPhysicalPoints?.get(seq.successorId);
+          if (point) ff = cal.workMinutesBetween(early.ef, point) / (cal.hoursPerDay * 60);
         }
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
       }

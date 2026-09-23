@@ -708,6 +708,31 @@ groupC.push({
   off: { es: '2026-01-05T08:00', ef: '2026-01-06T17:00' },
 });
 
+// C5, vrije-spelingkant (X12 brok 8; Roads OCEC18201 → de voltooide CP_Phys-OCEC18381 met punt 06-23 17:00:
+// P6 ff 3000 min = 50 h van EF 06-16 17:00 tot dat punt). Twee open voorgangers van D: O (9 u, wo 14 jan
+// 08:00–17:00) en Q (27 u, wo 14 – vr 16 jan 17:00). D's punt is de laatste rauwe relatiegrens, vr 16 jan
+// 17:00. De vrije speling van O telt tot dat punt: do + vr = 18 u = 2 dagen; zonder deze kant heeft de
+// relatie naar de voltooide D geen grens en valt ze terug op 0. Mutant "ff-kant weg" ⇒ rood.
+{
+  const input = c5Fixture([
+    '%R\tO\tP1\tC1\tOPEN1\tKorte voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+    '%R\tQ\tP1\tC1\tOPEN2\tLange voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-14 08:00\t2026-01-16 17:00\t\t',
+  ], ['%R\tR2\tD\tO\tP1\tP1\tPR_FS\t0', '%R\tR3\tD\tQ\tP1\tP1\tPR_FS\t0']);
+  eq('C5 ff-kant fixture: het punt van D ligt op de grens van Q', (({ es, ef }) => ({ es, ef }))(solveAxes(input, 'D')),
+    { es: '2026-01-16T17:00', ef: '2026-01-16T17:00' });
+  eq('C5 ff-kant: vrije speling van O tot het punt van D', solveAxes(input, 'O').ff, 2);
+  eq('C5 uit ⇒ geen punt, vrije speling 0',
+    solveAxes(withProfile(input, copy => setConvention(copy, 'p6CompletedPhysicalAtDataDate', false)), 'O').ff, 0);
+  // Randgeval (ongemeten ⇒ terugval zoals vóór brok 8): een FS-relatie MET lag (O —FS+9 u→ D).
+  // Mutant "FS/lag-0-poort weg" ⇒ rood. (Een voltooide voorganger bereikt deze tak niet: met A12 wist de
+  // motor haar relatiegrens maar zet A12 haar vrije speling op 0, zonder A12 heeft ze een eigen grens.)
+  const lagged = structuredClone(input);
+  const rel = lagged.sequences.find(seq => seq.predecessorId === 'O')!;
+  rel.lagMinutes = 540;
+  rel.lagDays = 1;
+  eq('C5 ff-kant niet bij een FS-relatie met lag', solveAxes(lagged, 'O').ff, 0);
+}
+
 // C6: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 00:00, rem_target_link_flag=Y (A19). Lopende A
 // (werkelijk gestart ma 5 jan 08:00, 18 h restwerk vanaf de statusdatum: wo 14 jan 08:00) —SS+18 h→
 // niet-gestarte S. Sinds de werkelijke start is op de statusdatum 7 × 9 = 63 h werktijd verstreken,

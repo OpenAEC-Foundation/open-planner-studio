@@ -398,6 +398,15 @@ export interface SchedulingOptions {
    *    en CP_Phys is een beschermgrens vanwege DCP-03 As-Built, geen bewezen P6-onderscheid. Dat
    *    onderscheid kan net zo goed in het duurtype zitten (B3 eist `DT_FixedDUR2`, As-Built is
    *    `DT_FixedDrtn`). [VERMOED] C5 kent geen Progress-Override-poort, C4 wel; zie plan §9.
+   *    Vrije-spelingkant (X12 brok 8, 2026-09-23; `scheduleAnalysis.computeScheduleResults`): een punt heeft
+   *    geen relatiegrens naar zijn voorgangers, dus over een FS0-relatie naar een punt telt de vrije speling
+   *    van de voorganger in haar eigen kalender tot dat punt (niet de terugval 0). Gemeten: in de
+   *    orakelpopulatie hebben drie open taken alleen voltooide CP_Phys-opvolgers en alle drie volgen dit:
+   *    Roads OCEC18201 (EF 06-16 17:00, punt OCEC18381 06-23 17:00: P6 ff 3000 min, zonder 0), B2911 en A33
+   *    (EF = punt: 0). X12 181 → 180, 0 slechter, 0 groter; precies één OPS-waarde verandert. Bewust geen
+   *    eigen conventie (brok-8-opdracht noemde het C13): het is de ff-spiegel van dezelfde P6-regel, net
+   *    als de late kant van C5 in brok 6, en valt met C5 uit vanzelf weg (punten bestaan alleen met C5).
+   *    Alleen FS zonder lag (gemeten); andere relatietypen en lag houden de terugval.
    *  - MS Project: uit. MS Project kent geen voortgangstype per activiteit; een voltooide taak houdt
    *    haar werkelijke Start en Finish.
    *  - OPS: uit (de werkelijke datums, het gedrag van vóór deze conventie). */
