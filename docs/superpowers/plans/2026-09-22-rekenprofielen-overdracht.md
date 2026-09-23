@@ -62,6 +62,10 @@ afwijkingen hebben met XER".)
   uitsluiting van de vier DCP-03-Baseline-kopieën (generatoruitvoer van `build_programmes.py`, byte-exact
   gereproduceerd) is hiermee een eigenaarsbesluit. De manifest-policy mag naar dit besluit verwijzen.
 
+- **24-09, vraag 8 (HarbourPointe: 8 taken met verouderde P6-uitvoer uit het orakel), letterlijk: "ja"** —
+  de 8 taken (project 4408; EC1430, EC1590, EC2380 e.a., zie `scripts/README.md` "Kant-en-klaar") worden
+  per `excludeTasks` met `decision` uitgesloten; de 48 cellen op hun opvolgers blijven tellen.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -172,7 +176,7 @@ afwijkingen hebben met XER".)
    ook B3/B4/A17 op P6=uit (register blijft; regel B), in een aparte commit met meting 0/0 — LET OP de
    C3-les: meet op de motor mét C5/C6, want een "inerte" conventie kan via een latere conventie alsnog
    dragen; niet zelf gedaan omdat het de oudere etappe (#109) raakt. B1/B2/B5 blijven aan (Hotel/Sample/ashspace dragen ze).
-8. **HarbourPointe: 81 cellen zijn P6-uitvoer die verouderd is t.o.v. de opgeslagen invoer** (24-09,
+8. *(beantwoord 24-09: "ja", zie §1a)* **HarbourPointe: 81 cellen zijn P6-uitvoer die verouderd is t.o.v. de opgeslagen invoer** (24-09,
    `docs/superpowers/plans/2026-09-24-x12-harbourpointe-kalender.md`): kalender en decoder kloppen (0 van 124
    op een verkeerde bandgrens); bij 8 taken is P6's eigen start–einde-span 24–240 u korter dan de opgeslagen
    restduur (span = langste toewijzing mín één, zonder vaste regel; EC1810/EC2090/EC1280 hebben dezelfde
