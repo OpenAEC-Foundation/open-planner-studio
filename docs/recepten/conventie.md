@@ -16,13 +16,26 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
 1. **Type.** Voeg de boolean toe aan `SchedulingOptions` (`src/types/project.ts`) met een docblok (wat,
    waar in de motor, P6/MS Project/OPS), en aan de unie `ConventionKey`. De compiler dwingt daarna
    stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
-2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep (nieuwe
-   conventies: `'C'` — een legacy-XER-blob zonder profiel-pset migreert dan naar het P6-profiel
-   zonder afwijkingen, dus met de conventie op de P6-waarde; zie `legacyOptionsToProfile`), de drie
+2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep (`A`, `B`
+   of `C`; de groep zet niets aan in oude bestanden, zie hieronder), de drie
    ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden),
-   `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag. `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt
-   voor bestanden mét `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is
-   de sleutelvolgorde in de IFC-JSON: voeg achteraan toe.
+   `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag.
+   `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt voor bestanden mét
+   `OPS_SchedulingProfile` die de sleutel nog niet kennen. De volgorde in de lijst is de sleutelvolgorde
+   in de IFC-JSON: voeg achteraan toe. **Let op de groep:** kies je groep `B`, dan gaat de conventie
+   daarmee NIET vanzelf aan in oude XER-IFC's — die migratie (`legacyOptionsToProfile`) zet alleen de
+   gepinde B1–B5 uit `LEGACY_XER_ALWAYS_ON` (`src/services/ifc/schedulingProfileMigration.ts`) aan, want
+   een nieuwe conventie bestond in zo'n bestand niet. De regel: een nieuwe conventie gaat voor oude
+   bestanden NOOIT vanzelf aan, welke groep ook, tenzij ze met een meting expliciet in een gepinde set
+   wordt gezet — zoals C1–C4 en C6–C7 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
+   15.056 → 12.973 gemeten, 0 slechter). Breid `LEGACY_XER_ALWAYS_ON` nooit uit. Twee sets, twee
+   betekenissen: `LEGACY_XER_ALWAYS_ON` (B1–B5) geeft `true` — die hingen vroeger letterlijk aan
+   `p6Source` —, `LEGACY_XER_ALSO_ON_X12` (C1–C4, C6–C7) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
+   rekent als een herimport). Een expliciet gezette vlag in het oude blok wint altijd, ook `false`.
+   Bewaakt door 99e–99i in `check-conventions-registry.ts` en 28/28b in
+   `check-scheduling-profile-roundtrip.ts` (echte IFC-leesroute).
+2a. **IFC-sanitizer.** Voeg de sleutel toe aan `BOOLEAN_KEYS` in `src/services/ifc/schedulingOptionsRead.ts`;
+   anders gooit de lezer van het legacy-optieblok (`sanitizeSchedulingOptions`) hem stil weg.
 3. **Motor.** Lees uitsluitend `schedulingOptions.<id>`. Nooit het bronformaat, nooit een lezer-import:
    `npm run verify:conventions` faalt anders. Een nieuwe lezing van een herkomstveld (`p6ProjectId`
    e.d.) laat de gepinde datagate-telling stijgen en maakt de poort ook rood — bespreek dat eerst.

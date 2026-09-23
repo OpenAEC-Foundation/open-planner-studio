@@ -41,6 +41,19 @@ afwijkingen hebben met XER".)
 - Niet expliciet beantwoord: (10) de projecteinde-fout (valt onder "restant omlaag") en (12) de
   weekend-klemheuristiek (blijft zoals hij staat).
 
+- **23-09, na het B01-onderzoek en de C1–C4-toets (vraag §1d-5), letterlijk: "Ja die alleen die p6 Bestände"** —
+  alleen de aantoonbaar door P6 doorgerekende bestanden tellen als orakel voor het nuldoel (kenmerken:
+  SCHEDOPTIONS-rij + `rem_late_start_date` gevuld op de open taken + `driving_path_flag` ergens Y, gemeten
+  door `scripts/xer-p6-computed.ts`). rehab-2 (P3-uitvoer), hb-intel en de synthetische S1–S10 verliezen
+  hun orakelrol in het manifest en blijven lezer-/prestatietest. Gevolg: C1/C3/C4 en B3 worden op de
+  nieuwe populatie opnieuw beoordeeld (P3-gedrag hoort niet als P6-standaard aan); §1d-vragen 1 en 2 zijn
+  hiermee beantwoord. Vragen 3 (grootte-ratchet) en 4 blijven open.
+
+- **23-09, op §1d-vraag 3, letterlijk: "2. Invoeren"** — de grootte-ratchet komt erbij: naast de
+  bucket-ratchet (exact/sameday/diff/missing) mag per cel de absolute afwijking tot P6 niet groter
+  worden. Doel: compensatie-effecten (761 cellen bij brok 2, vijf lopende Roads-taken bij brok 4)
+  zichtbaar maken. Vraag 3 is hiermee beantwoord; alleen vraag 4 (projecteinde/Oracle) blijft open.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -74,26 +87,87 @@ afwijkingen hebben met XER".)
   groen) telt als geslaagd; `--strict` maakt hem rood.
 - `recorded-all-formats`: no-go van de review (8 punten) wordt door een fix-agent verwerkt op
   `claude/recorded-all-formats-v2`, gerebased op de PR-branch.
+- **Koerswijziging X12, 23-09 ~08:30 (na B01-onderzoek + C1–C4-toets):** het orakel van `rehab-2.xer`
+  is P3-uitvoer en de synthetische bestanden hebben geen P6-kenmerken; van de 11.771 restcellen liggen
+  er maar 1.516 in aantoonbaar door P6 doorgerekende bestanden. Daarom: (1) nieuwe brokken worden alleen
+  nog gebouwd op P6-doorgerekende bestanden (B08 Roads, B11 OZB/Roads, B09, B12, B13, B14, B15, en de
+  voltooide-taakvorm in Roads/HarbourPointe/OZB — 769 cellen); B05 is geschrapt; (2) de reeds gebouwde
+  C1/C3/C4 blijven op hun gemeten stand (ratchet gaat alleen omlaag) maar hun docblokken zeggen eerlijk
+  dat rehab-2 een P3-orakel is en dat de P6-standaardwaarde onder voorbehoud van het manifestbesluit
+  staat; hun default wordt herzien zodra de eigenaar over het orakel beslist (§1d vraag 5); (3) het
+  manifest krijgt een informatief `p6Computed`-veld en de X12-samenvatting een splitsing — rapportage,
+  geen poortwijziging; de populatie blijft eigenaarsbesluit.
+
+### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
+
+1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
+   `rehab-2.xer` (V3114490 e.a.) die bij P6 TF 0 hebben terwijl hun opvolgers maanden speling geven en
+   drie van de zes FF > TF. Uit de relaties in het bestand volgt dat niet; kandidaten (relaties die de
+   splitter weggooide; een constraint die bij een import verloren ging) zijn niet aantoonbaar. Volgens
+   de goal prompt (regel 4) is dit escaleren, niet pinnen. Besluit nodig: dit bestand (deels) uit het
+   orakel halen in het manifest, of accepteren dat het nuldoel hier niet uit P6-regels te halen is.
+   Zie `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` B01.
+   **Uitkomst B01-onderzoek (23-09, `docs/superpowers/plans/2026-09-23-x12-b01-onderzoek.md`): vorm (b),
+   bestandsdefect.** Het orakel van `rehab-2.xer` is P3-uitvoer, niet P6: geen SCHEDOPTIONS-tabel,
+   `rem_late_start_date` 0/4.940 gevuld (elk echt P6-bestand ≈100 %), `driving_path_flag` nergens Y, alle
+   taken aangemaakt 2010-05-05 13:13 met statusdatum twee jaar eerder, enige memo-type "P3 Activity Log
+   Info". De zes droegen vrijwel zeker de P3-beperking "Zero Total Float", die Oracle bij P3-import
+   als "Not Converted" documenteert; tegenfeit "LF := eigen EF" op de zes = +7.516/0 zonder orakeldatum.
+   Aanbeveling orkestrator: rehab-2 uit het P6-orakel (manifest), houden als lezer-/prestatietest.
+   Gevolg: B02–B05 zijn alleen op rehab-2 gemeten; C1–C4 worden daarom apart getoetst op de andere
+   corpusbestanden (agent gestart 23-09 ~08:00) vóór ze definitief landen.
+2. *(beantwoord 23-09, zie §1a)* **Synthetische bestanden S1–S10 — 1.814 cellen** (MER-1, groupdocs, ProjectLens, gimmer/nPlan
+   GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
+   geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
+   B01 is dat 62 % van het restant; zonder besluit is 0 op het volledige corpus niet te halen.
+3. *(beantwoord 23-09: "Invoeren", zie §1a; bekende gevallen die de bucket-ratchet miste: 761 cellen brok 2 (B01-compensatie), Roads OCEC10801/10811/11371/18391/11791 sinds C7 (oorzaak B07))* **Grootte-ratchet?** De cel-ratchet ziet alleen exact/sameday/diff/missing; een cel die binnen `diff` verder van P6 af komt te liggen is onzichtbaar (brok 2: 761 zulke cellen, verklaard door B01). Besluit nodig: een extra ratchet op de afwijkingsgrootte per cel (strenger, vangt compensatie-effecten) of accepteren dat het nuldoel dat vanzelf afdwingt.
+4. **Projecteinde (brok 1):** de fix landt (P6-conform voor de klasse zonder enig einde), maar Oracle
+   beschrijft `CalculateFloatBasedOnFinishDate` als een multi-project-optie ("each activity's float is
+   calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
+   registreert negatieve float zonder `plan_end_date`. Vervolgvraag in plan XER §9; `project.endDate =
+   start` + `<MustFinishByDate>` in de P6-XML-export is een vervolgpunt.
+5. *(beantwoord 23-09: "alleen die P6-bestanden", zie §1a)* **Welke orakels tellen voor het nuldoel?** (23-09, uit `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`.)
+   Aantoonbaar door P6 doorgerekend (SCHEDOPTIONS-rij + `rem_late_start_date` gevuld + `driving_path_flag`
+   ergens Y): Hotel_Construction_TEC, Roads_Project_TEC, HarbourPointe, Sample_Construction_TEC, TERMINAL
+   BUILDING-AIRPORT, OZB-Start (12 projecten), DCP-03 Baseline, xernative/sample, (ashspace twijfelachtig);
+   niet: rehab-2 (P3), hb-intel en de synthetische S1–S10; onbepaalbaar: DCP-03 As-Built. Restant
+   11.771 = 8.441 rehab-2 + 1.814 niet-P6 + 1.516 P6-doorgerekend. Aanbeveling orkestrator: het
+   nuldoel definiëren over de P6-doorgerekende orakels (manifest `role`/`included`), rehab-2 en de
+   synthetische bestanden houden als lezer-/prestatietest zonder orakelrol. Consequentie: C1, C3 en
+   mogelijk C4 (en B3 zelf — de B3-vorm van voltooide taken komt alleen in rehab-2 voor; echte P6-
+   bestanden zetten ES én EF van voltooide taken op de rauwe statusdatum) zijn P3-gedrag en horen dan
+   niet als P6-standaard aan; C2 blijft (Hotel 244, Roads 11, DCP-03 1).
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
 |---|---|---|
 | PR #109 (XER-etappe) | `claude/file-formats-support-phase-3-a0ebe2` | main t/m #166 gemerged en gepusht (`0a29147c`): planning/library/browser 164/mcp/dev-server groen, X12 15.056; draft blijft tot X12 nul is |
-| rekenprofielen (etappe) | `claude/rekenprofielen` (bovenop de PR-branch) | spec v3.1 `0979cc18`; overdracht (dit bestand) |
+| rekenprofielen (etappe) | `claude/rekenprofielen` → **draft-PR #169** (gestapeld op de PR-branch van #109) | kop `3128d215`; `verify` groen op `26d5b9dc` + `measure:profiles` NULDOEL; eindreview go; gebruikstest gedaan. Volgorde van mergen: #109 (pas bij X12 = 0) → #167 (RAF-v2) → #169; of #169 in #109 opnemen — eigenaarsbesluit. Brok 2 (12.973) volgt in deze PR zodra de review go geeft |
 | baan A: register/profiel/IFC/migratie/sjablonen | `claude/rekenprofielen-baan-a` | GO na fixronde (`c7e7799e`); **gemerged** (`3fdf80c6`), migratiehelpers verhuisd naar `src/services/ifc/schedulingProfileMigration.ts`. Open voor baan D: A19 bewaren bij wissel vanaf een EIGEN profiel; `defaultStorage()` buiten try; label "(aangepast)" op `diffAgainstBase` baseren |
 | baan B: p6Source uit de motor | `claude/rekenprofielen-baan-b` | GO na fixronde (`893e9955`); **gemerged** in `claude/rekenprofielen` (`e3545ed7`). Integratiepunt: tabeltest op `resolveLegacyP6SourceConventions` (zes gepoorte vlaggen zonder bron ⇒ false) corpusloos toevoegen; tijdelijke laag `legacyP6Source.ts` verwijderen zodra de lezers het profiel zetten |
 | cel-baseline + `measure:profiles` | `claude/rekenprofielen-celbaseline` | GO na vier fixrondes (`f639f96b`); **gemerged** (`921afa0b`); `npm run measure:profiles` mét corpus op de etappebranch: P6 NULDOEL 15.056, cellen 15.473, MS Project GROEN (661 bestanden), vangrails GROEN. Herpinrecept + verboden omwegen in `scripts/README.md` en de goal prompt |
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
-| baan D (deel 1 + 2) | `claude/rekenprofielen-baan-d` | deel 2 klaar (`85d29514`, gepusht): merge C, D10 af (verify:conventions in `verify`, 17 datagates gepind), D3 `applySchedulingSettings`, D4 `SchedulingProfileSection`, D5 Projectinfo, D6 browsertest 1/1; screenshots in de agent-worktree `qa/d4-0*.png`; her-check loopt; merge-tree conflictvrij |
+| baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
-| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`, gepusht) | klaar: lezer zet de optie gerapporteerd uit zonder bruikbaar einde; P6-casussen 77→156/160; X12 15.056→15.056 (0 corpuscellen in deze klasse, 0 slechter); bredere variant (uit bij elke lege plan_end_date) = 100 slechter/6 beter op OZB-Start ⇒ niet geland, open vraag plan §9; review loopt |
-| X12-restant-classificatie (meting) | — (rapport `/tmp/x12-restant-classificatie.md`, daarna in plan XER §9 opnemen) | meet-agent loopt; levert de brokken 2..n met signatuur, hypothese, verwacht effect |
+| X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
+| X12 naar nul — brok 2: B02+B06+B03 (C1–C3) | `claude/x12-brok2-7b4` (kop `af2a9b47`, gepusht) → **gemerged in de etappebranch (`461a310d`)**; volledige `verify` loopt losgekoppeld (log `/tmp/ops-verify-461a310d.log`) | **X12 15.056 → 12.973** (−2.083, 0 slechter per cel); landfixes na her-check gedaan (C2-deeltak eerlijk, fixtures M8/M9, M5 als ongemeten benoemd, recept 6 stappen); critreview = no-go op 5 punten (migratie groep C op id pinnen; corpusloze fixtures voor C1-SS en C3 deels/niet-verstreken lag; "vijftien"→achttien; C1-commentaar/Oracle-URL; §9-dossier) — **fixronde klaar: kop `bc7f3a6b` (gepusht)**: vijf must-fixes (99h/99i + roundtrip 28/28b, fixtures C3 deels/niet-verstreken + C1-SS + C2 voltooide-opvolger met mutanten M1–M4 rood, achttien, C1/C3-docblokken eerlijk over rehab-2/P3 met echte Oracle-URL's als context, §9-dossier) + vergeten herpin van twee corpuspins (blast-radius, task-replay); measure:profiles NULDOEL 12.973 0/0/0; her-check-critreview = LANDEN-MET-FIXES (C2-deeltak "voltooide opvolger ⇒ ff=0" steunt alleen op rehab-2 en moet dat eerlijk zeggen; fixtures M8/M9, M5 pinnen of benoemen; tweede-orde pins in het herpinrecept; [VERMOED] C3 bij SS/SF meet vanaf het einde) — landfix-agent gestart ~11:15 (de eerste fixronde-agent stierf 23-09 ~03:00 door de sessielimiet ná de merge van `3128d215+` in brok 2 = `13826f20`, met de C3/C1-SS-fixtures half af; hervat door een nieuwe agent in dezelfde worktree `agent-a78788e689e933148`). Inzicht reviewer: 761 cellen kwamen binnen dezelfde bucket verder van P6 (B01-compensatie; met B01-tegenfeit zijn C1+C2 = +1.706/0 en C3 = +772/0) — de bucket-ratchet ziet dat niet; een grootte-ratchet is een apart besluit (§1d) |
+| X12 naar nul — brok 3: B04 out-of-sequence (+B07 CP_Phys) | `claude/x12-brok3-oos` (basis brok 2, kop `1aa63a40`, niet gepusht) | **C4 `p6CompletedOutOfSequenceWindow` geland: X12 12.973 → 11.771** (−1.202, 0 slechter, herpin in dezelfde commit). C5 `p6CompletedPhysicalAtDataDate` (B07) in aanbouw: docblok/register/lezer stonden ongecommit toen de agent door de sessielimiet stierf; hervat in worktree `agent-abb39c3cdb1144813`. Aanvulling 08:30: ook de brede variant meten (álle voltooide taken op de rauwe statusdatum, zoals Roads/HarbourPointe/OZB tonen — 769 cellen), regel A kiest. Moet nog: gefixte brok-2-kop inmergen, critreview, merge in de etappebranch |
+| X12 naar nul — brok 4: B08 FF→startmijlpaal (C6) + B05 actief-rest-0 late kant (C7) | `claude/x12-brok4-ff-mijlpaal` (basis `1aa63a40` = C4; worktree `agent-x12-brok4-ff-mijlpaal`) | **klaar, kop `5fcd85de` (gepusht), critreview = LANDEN-MET-FIXES (C6: drijvend FF→startmijlpaal verschuift ES ongemeten; voortgangstak zonder bron; "(gemeten)" bij uurpoort; C7 trace-kleinigheid) — landfix-agent gestart ~12:00**: C6 `p6FinishFinishStartMilestoneLateFinish` (B08, Roads) 11.771 → 11.608 (−163, 0 slechter); C7 `p6StartedTaskIgnoresPlannedStartFloor` (B11, OZB+Roads, zonder `restart_date` te lezen) 11.608 → 11.529 (−79, 0 slechter); herpin per commit (HERPIN 2026-09-23d/e); B05 geschrapt (patch in /tmp, +72/0 rehab-2 alleen). Let op voor §1d-3: vijf lopende CP_Phys-taken in Roads komen binnen dezelfde bucket verder van P6 (oorzaak B07); telling 21 (wordt 22 na merge met C5). Merget ná brok 2 en brok 3 |
+| B01-onderzoek (rehab-2, 7.516 cellen) | `claude/rekenprofielen` (`ef1eb881`, doc `2026-09-23-x12-b01-onderzoek.md`) | **klaar: vorm (b)** — rehab-2-orakel is P3-uitvoer, zie §1d vraag 1. Vervolg: C1–C4-toets buiten rehab-2 |
+| C1–C4-toets buiten rehab-2 | `claude/rekenprofielen` (`2c5812ef`, doc `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`) | **klaar:** C2 gesteund (256 cellen in Hotel/Roads/DCP-03), C1/C3 alleen rehab-2, C4 gemengd (Roads kent het principe in een andere vorm: ES=EF één punt, late kant schuift mee). Zie §1c koerswijziging en §1d vraag 5 |
+| manifest `p6Computed` + X12-splitsing (rapportage) | `claude/rekenprofielen` (`57df6ed0`, merge `69d13d65`) | **gemerged**; critreview = LANDEN-MET-FIXES (splitsing per bestand terwijl kenmerken per project gemeten zijn: Hotel/CR telt onterecht als P6-doorgerekend; stil "onbekend" bij ontbrekende sidecar; `--check` nergens aangeroepen) — fix **gemerged** (`30503b35` → `1a73b034`: per project, Hotel = mixed, sidecar-telling, `--check` in measure:profiles): `scripts/xer-p6-computed.ts` + `tests/planning/xer-corpus-p6computed.json` (apart bestand, want de manifest-hash zit in de baselines), splitsing in X12-check en measure:profiles. Gemeten op 15.056: P6-doorgerekend 1.772 (9 entries) / niet 13.284 (24) / onbekend 0 (1, As-Built) |
+| X12 naar nul — brok 5: B15 (C8) + B12 ALAP (C9) + B13/B14 (C10/C11, mits verdedigbaar) | `claude/x12-brok5-klein` (basis `5fcd85de` = C7; worktree `agent-x12-brok5-klein`) | in aanbouw (agent gestart 23-09 ~10:20); alleen P6-doorgerekende bronbestanden gelden; merget ná brok 4 |
+| **manifest-etappe: populatie = P6-doorgerekende orakels** (besluit 23-09) | `claude/x12-manifest-p6-orakels` (basis `5fcd85de` + p6Computed-rapportage; worktree `agent-x12-manifest-p6-orakels`) | in aanbouw (agent gestart 23-09 ~10:45): manifestrollen, volledige herpin (`CELLS_WRITE=corpus`), meting B1–B5/C1/C3/C4 op de nieuwe populatie (geen landing), classificatie bijwerken. Merget ná brok 4; brok 3/5 herpinnen daarna opnieuw |
+| **grootte-ratchet** (besluit 23-09) | `claude/x12-grootte-ratchet` (basis `claude/rekenprofielen`; agent-worktree) | in aanbouw (agent gestart 23-09 ~11:05): per cel de absolute afwijking in de cel-baseline, ratchet "niet groter", herpinrecept en measure:profiles bijgewerkt; merget ná de manifest-etappe met een verse herpin |
+| X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
 tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en de worktree opruimen.
+
+**Sessielimiet-les (23-09):** een sessielimiet (429, reset 03:00) doodt álle lopende agents én de orkestrator; niet-gecommit werk blijft in de worktree staan. Daarom: (a) agents committen tussentijds (WIP-commit is beter dan een schone maar verloren werkboom), (b) de orkestrator zet meerdere cron-wake-ups over een langere tijd (elk uur + reserve elke 3 uur, sessiegebonden, 7 dagen), (c) bij hervatten eerst `git status`/`git log` in de worktree van de gestorven agent en dan een nieuwe agent dáár laten doorgaan.
 
 ## 3. Werkvolgorde voor de opvolger
 

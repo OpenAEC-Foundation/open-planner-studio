@@ -341,7 +341,15 @@ export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIn
 export function deriveXerScheduleOptions(
   index: XerScheduleOptionsIndex,
   projectId: string,
-  context: { hoursPerDay?: number; taskCount?: number } = {},
+  context: {
+    hoursPerDay?: number;
+    taskCount?: number;
+    /** Heeft het project een bruikbaar einde voor `sched_use_project_end_date_for_float`: een
+     *  geldige PROJECT-einddatum (P6's "Must Finish By") óf minstens één geldige
+     *  TASK-doeleinddatum? De lezer bepaalt dit (hij kent de taakrijen en de uurmodus);
+     *  `undefined` laat de optie ongemoeid. */
+    hasUsableProjectEnd?: boolean;
+  } = {},
 ): XerScheduleOptionsResult {
   const defaults = freshDefaults();
   const projectRow = index.projectRowsById.get(projectId)?.row;
@@ -405,6 +413,27 @@ export function deriveXerScheduleOptions(
     : { sched_use_project_end_date_for_float: retainedProjectEndValue };
   if (retainedProjectEndValue !== undefined) {
     schedulingOptions.useProjectEndDateForFloat = retainedProjectEndValue;
+  }
+  // Projecteinde zonder einde (her-review 7a, plan XER §9, X12-brok 1). `Y` zegt dat de late pass op
+  // het projecteinde verankert, maar het bestand draagt dan geen einde: geen PROJECT-einddatum (P6's
+  // "Must Finish By") en geen enkele TASK-doeleinddatum. Het taak-afgeleide einde van de lezer valt
+  // dan terug op de projectSTART en de hele late zijde verankerde daarop (cases-import.xer: 77/160
+  // P6-cellen). Volgens de P6-documentatie rekent P6 zonder Must Finish By de late datums terug
+  // vanaf het vroegste projecteinde, max(EF) — wat de solver doet met de optie uit; gemeten op
+  // cases-import.xer: 156/160, gelijk aan de transcriptie. Daarom: optie uit, en zichtbaar als
+  // terugval gerapporteerd. De bronwaarde `Y` blijft in `retainedSource` bewaard.
+  // Bewust smal: een bestand mét taakeinden houdt het taak-afgeleide einde (OZB, Roads, Harbour,
+  // xernative, ashspace — de optie daar óók uitzetten verslechterde 100 X12-cellen op OZB; open
+  // vraag in plan XER §9).
+  if (schedulingOptions.useProjectEndDateForFloat === true && context.hasUsableProjectEnd === false) {
+    schedulingOptions.useProjectEndDateForFloat = false;
+    reportFallback(
+      fallbacks,
+      row,
+      'sched_use_project_end_date_for_float',
+      row.cells.sched_use_project_end_date_for_float?.trim() ?? '',
+      'N (geen projecteinddatum en geen taakeinddatum in de bron: projecteinde = max(EF))',
+    );
   }
 
   const progressMode = progressModeValue(row, fallbacks);

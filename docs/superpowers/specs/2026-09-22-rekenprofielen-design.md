@@ -1,6 +1,6 @@
 # Rekenprofielen — één solver, benoemde conventies, profielen per project
 
-*Ontwerp, 2026-09-22, **versie 3.1** (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
+*Ontwerp, 2026-09-22, **versie 3.1** (+ 2026-09-23: groep C — drie P6-conventies uit X12-brok 2: `p6CompletedPredecessorAtDataDate`, `p6FreeFloatOnOwnCalendar`, `p6CompletedRemainingLag`; het register telt daarmee 18 conventies; de tellingen hieronder zijn die van het ontwerp, het register is de bron) (na drie critreview-rondes: v1 no-go op veertien punten, v2 no-go op
 negen tekstpunten, v3 go onder drie voorwaarden; alle verwerkt — zie §11). Status: besproken met de eigenaar (vragen 1–7 beantwoord), wordt uitgevoerd
 vóór het X12-vervolg. Bijlage A is de inventaris van de motor op de kop van
 `claude/file-formats-support-phase-3-a0ebe2` ná de merge van main (`c2284cf6`).*
@@ -18,7 +18,7 @@ Dit ontwerp haalt die keuze uit de motor. Het onderscheidt twee dingen die v1 op
 
 - **Pakketconventies** — regels die bij een *school* horen en niet per bestand verschillen: "een
   finishmijlpaal is een grensvenster", "actuals zijn exacte broninstants", "restwerk hervat op
-  actualStart + verstreken duur". Dat zijn er vijftien (bijlage A, groep A-conventies + B). Zij vormen
+  actualStart + verstreken duur". Dat zijn er achttien (bijlage A: groep A-conventies + B, het ontwerp telde er vijftien; sinds 2026-09-23 plus groep C). Zij vormen
   het **rekenprofiel**.
 - **Reken-opties van het project** — instellingen die P6 en MS Project *per project* opslaan en die de
   lezer uit het bestand haalt: lagkalender, kritiekdefinitie en -drempel, floatformule, open einden,
@@ -48,7 +48,7 @@ vervangen).
 
 ## 3. Datamodel
 
-### 3.1 De vijftien conventies en het register
+### 3.1 De achttien conventies en het register
 
 `SchedulingOptions` (`src/types/project.ts`) blijft het opgeloste type dat de solver leest — geen
 hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelverzamelingen benoemd:
@@ -58,7 +58,9 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   `p6FinishMilestoneBoundaryWindow` (A17), `p6PreserveActualInstants` (A18),
   `p6UseRemainingStartForProgress` (A19 — P6-semantiek voor de ES/LS van een lopende taak; de waarde
   komt per bestand uit `rem_target_link_flag`, dus de XER-lezer zet hem als **override** op het
-  profiel; onder een ander profiel is hij uit), `p6PreserveZeroDurationConstraintInstants` (A20),
+  profiel — een per-bestand-conventie (`perFile`) die bij élke wissel, ook naar MS Project of OPS,
+  letterlijk blijft staan (besluit orkestrator 2026-09-22, overdracht §1c); alleen een bestand zonder
+  die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
   (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans.
@@ -91,7 +93,7 @@ interface ConventionDescriptor {
 type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
 ```
 
-Ingebouwde waarden (bijlage A): **P6** = alle vijftien aan, behalve `resumeFromActualElapsed`,
+Ingebouwde waarden (bijlage A): **P6** = alle achttien aan (ook groep C), behalve `resumeFromActualElapsed`,
 `unstartedIgnoresStatusDate` en `p6UseRemainingStartForProgress` (uit; per bestand als override);
 **MS Project** = alleen `resumeFromActualElapsed` en `unstartedIgnoresStatusDate` aan; **OPS** = alles
 uit. `legacyValue` geldt voor bestanden mét `OPS_SchedulingProfile` waarin een (later toegevoegde)
@@ -252,7 +254,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 - **Kiezen en bewerken**: het bestaande `CalcOptionsSection` wordt het blok *Rekenprofiel en
   reken-opties* in Projectinfo (wizard: alleen de keuzelijst, die dan `defaultOptionsFor` toepast;
   dialoog én Backstage → Projectinfo: het volledige blok): bovenaan de keuzelijst
-  (P6 / MS Project / OPS / eigen sjablonen), daaronder de vijftien conventies (aan/uit, met uitleg) en
+  (P6 / MS Project / OPS / eigen sjablonen), daaronder de achttien conventies (aan/uit, met uitleg) en
   de bestaande projectopties. `thresholdHours` wordt niet meer weggegooid bij een bewerking. Een
   conventie wijzigen op een ingebouwd profiel maakt automatisch een eigen profiel "Kopie van P6" op
   het project (hernoembaar; "opslaan als sjabloon" zet hem in de app-lijst). Géén paneel in
@@ -294,7 +296,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 
 ## 8. Tests
 
-- `check-conventions-registry.ts`: 15 conventies, drie ingebouwde waarden, `legacyValue`, unieke ids,
+- `check-conventions-registry.ts`: 18 conventies (ontwerp: 15), drie ingebouwde waarden, `legacyValue`, unieke ids,
   i18n-sleutels; resolve/diff-identiteit; `'auto'` ≡ afwezig; `XER_SCHEDULING_DEFAULTS` ≡ p6.
 - `check-scheduling-profile-roundtrip.ts`: IFC-round-trip voor drie ingebouwde + één eigen profiel; de
   vijf migratierijen; vijandige pset (onbekende baseId, onzin-conventies, 10 MB name) valt terug zonder

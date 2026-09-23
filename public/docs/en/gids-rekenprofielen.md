@@ -30,11 +30,11 @@ The three built-in profiles:
 - Your own IFC file: the profile saved in it.
 - An IFC file from an older version of Open Planner Studio, without a saved profile: the profile follows from the saved calculation options. A project that was opened from a `.xer` file gets **Primavera P6** this way, one opened from an `.mpp` file **Microsoft Project**, everything else **Open Planner Studio**.
 
-When a file opens with a profile other than Open Planner Studio, you see one notification, for example "This project calculates as Primavera P6". The button in that notification opens Project info. For a `.xer` file that line is part of the normal opening notification, also when the file contains several projects.
+When you open a `.xer` or `.mpp` file, you see one notification, for example "This project calculates as Primavera P6". The button in that notification opens Project info. For a `.xer` file that line is part of the normal opening notification, also when the file contains several projects. Reopening your own IFC file or recovering after a crash shows no such notification: the profile was already there, and you chose or saw it yourself.
 
 ## Switching profiles
 
-Choose another profile in **Project info** and click **Apply**. The schedule is recalculated right away, also when *Calculate automatically* is off, and a notification tells you how many tasks moved as a result. A switch is one step in *Undo*.
+Choose another profile in **Project info** and click **Apply**. The schedule is recalculated right away, also when *Calculate automatically* is off. If tasks move as a result, a notification tells you how many; if nothing moves, there is no notification. The count covers ordinary tasks, not summary tasks (those follow the tasks below them). A switch is one step in *Undo*.
 
 Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
 
@@ -48,7 +48,7 @@ Take care when switching a project that does not come from P6 to Primavera P6: t
 
 Turn a convention on or off in the section. If the profile is built in, Open Planner Studio automatically makes a custom copy of it, for example "Copy of Primavera P6". You can change that name. When you choose a template for a project from a `.xer` file, the project keeps the value from the file for the start of remaining work; that does not count as a difference from the template.
 
-With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**.
+With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**. **Delete template** removes the template from the app again; the project keeps its own copy.
 
 ## The twenty-one conventions
 
@@ -84,7 +84,7 @@ Some of the P6 conventions only act on tasks with P6 provenance, that is, from a
 
 The profile is saved in the IFC file, with all twenty-one values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
 
-When you export to CSV, MS Project XML or P6 XML, the profile does not come along; those files open as Open Planner Studio again. For a project from a `.xer` file, the export reports that loss.
+When you export to CSV, MS Project XML or P6 XML, the profile does not come along; those files open as Open Planner Studio again. For a project from a `.xer` file, the export reports that XER source information is lost; the calculation profile is part of that, but the notification does not name it separately.
 
 ## Further reading
 

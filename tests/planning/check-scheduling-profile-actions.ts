@@ -3,10 +3,12 @@
 // onder MS Project (A23 `unstartedIgnoresStatusDate`) niet.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
-import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { builtInProfile, defaultOptionsFor } from '@/engine/scheduler/conventions/registry';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { SchedulingProfile } from '@/types/project';
 import { loadCustomProfiles, saveCustomProfiles } from '@/services/schedulingProfiles/profileStore';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -44,8 +46,11 @@ S().redo();
 eq('09b redo zet het profiel terug met de berekende datums', [S().project.schedulingProfile?.id,
   S().tasks.find(t => t.id === a)?.time.earlyStart?.slice(0, 10)], ['msproject', '2026-05-04']);
 ctx.store.setState(s => { s.datesAsRecorded = true; s.scheduleStale = false; }); // fixture: modus aan
+const beforeRecorded = applied();
 S().applySchedulingSettings({ profile: builtInProfile('p6'), options: undefined });
 eq('10 een wissel verlaat "datums zoals opgeslagen"', S().datesAsRecorded, false);
+// Critreview D2: ook in de modus precies één undo-stap (niet een tweede via runCPM's backstop).
+eq('10a …met precies één undo-stap erbij', applied(), beforeRecorded + 1);
 S().applySchedulingSettings({ profile: builtInProfile('ops'), options: {} });
 eq('11 ops-zonder-overrides en lege opties ⇒ afwezig', [S().project.schedulingProfile, S().project.schedulingOptions], [undefined, undefined]);
 // De store houdt een eigen kopie: latere mutatie van het doorgegeven object raakt het project niet.
@@ -61,6 +66,97 @@ const count = () => S().ui.notifications.filter(n => n.messageKey === 'notificat
 const n0 = count();
 const r2 = S().applySchedulingSettings({ profile: S().project.schedulingProfile, options: { totalFloatMode: 'start' } });
 eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], [true, 0, n0]);
+
+// Eindreview I4 (e): toepassen weigert een eigen profiel zonder naam en trimt een geldige naam.
+{
+  const beforeNameless = [applied(), JSON.stringify(S().project.schedulingProfile)];
+  const nameless = S().applySchedulingSettings({ profile: { ...mine, id: 'prof-leeg', name: '   ' }, options: undefined });
+  eq('16 lege naam ⇒ geweigerd, niets veranderd', [nameless.changed, applied(), JSON.stringify(S().project.schedulingProfile)],
+    [false, ...beforeNameless]);
+  S().applySchedulingSettings({ profile: { ...mine, id: 'prof-trim', name: '  Mijn profiel  ', overrides: {} }, options: undefined });
+  eq('16a geldige naam wordt getrimd opgeslagen', S().project.schedulingProfile?.name, 'Mijn profiel');
+}
+
+// Gebruikstest I5 punt 1: Projectinfo-Toepassen. Een geïmporteerd project mist
+// `defaultTaskDurationUnit` (afwezig ≡ 'days'); het formulier stuurt 'days'. Dat mag geen wijziging
+// zijn. En metadata + profiel samen = ÉÉN undo-stap ("Projectinfo"), die ook "datums zoals
+// opgeslagen" in één keer terugzet.
+{
+  const x = createAppStoreContext();
+  const X = () => x.store.getState();
+  const xApplied = () => X().historyEvents.filter(event => event.state === 'applied').length;
+  X().newProject();
+  X().setProject({ name: 'Import', startDate: '2026-05-04' });
+  X().addTask({ name: 'A', time: createDefaultTaskTime('2026-05-04', 3) });
+  X().runCPM();
+  x.store.setState(s => {
+    delete s.project.defaultTaskDurationUnit;
+    s.datesAsRecorded = true; s.scheduleStale = false; s.isDirty = false;
+  });
+  const p = X().project;
+  const form = {
+    name: p.name, description: p.description, author: p.author, company: p.company,
+    startDate: p.startDate, endDate: p.endDate, defaultTaskDurationUnit: 'days' as const,
+  };
+  eq('17 ongewijzigd formulier ⇒ lege metadata-patch (afwezige eenheid ≡ days)', projectInfoPatch(p, form), {});
+  eq('17a alleen echte wijzigingen komen in de patch', projectInfoPatch(p, { ...form, name: 'Nieuw', startDate: p.startDate }), { name: 'Nieuw' });
+  const n17 = xApplied();
+  const same = X().applyProjectInfo({}, { profile: p.schedulingProfile, options: p.schedulingOptions });
+  eq('17b Toepassen zonder wijziging ⇒ geen undo-stap, niet vuil, modus blijft',
+    [same.changed, xApplied(), X().isDirty, X().datesAsRecorded, X().scheduleStale], [false, n17, false, true, false]);
+  const both = X().applyProjectInfo({ name: 'Nieuw' }, { profile: builtInProfile('msproject'), options: undefined });
+  const last = X().historyEvents.filter(event => event.state === 'applied').at(-1);
+  eq('18 metadata + profiel = precies één undo-stap met label Projectinfo',
+    [both.changed, xApplied(), last?.label], [true, n17 + 1, 'Projectinfo']);
+  eq('18a beide zijn toegepast, modus verlaten', [X().project.name, X().project.schedulingProfile?.id, X().datesAsRecorded], ['Nieuw', 'msproject', false]);
+  X().undo();
+  eq('18b één Ctrl+Z zet naam, profiel en de modus terug',
+    [X().project.name, X().project.schedulingProfile, X().datesAsRecorded], ['Import', undefined, true]);
+  X().redo();
+  const onlyMeta = X().applyProjectInfo({ author: 'Ik' }, { profile: X().project.schedulingProfile, options: X().project.schedulingOptions });
+  eq('18c alleen metadata ⇒ één undo-stap, profiel ongemoeid', [onlyMeta.changed, xApplied(), X().project.author, X().project.schedulingProfile?.id],
+    [true, n17 + 2, 'Ik', 'msproject']);
+}
+
+// Eindreview (GO, punt 1): startdatum + profiel SAMEN wijzigen gaat door het gecombineerde pad van
+// applyProjectInfo; ook daar klemt een wortel-anker vóór de nieuwe startdatum mee, met de klemmelding.
+{
+  const y = createAppStoreContext();
+  const Y = () => y.store.getState();
+  Y().newProject();
+  Y().setProject({ startDate: '2026-05-04' });
+  const root = Y().addTask({ name: 'Wortel', time: createDefaultTaskTime('2026-05-04', 3) });
+  Y().runCPM();
+  const yApplied = Y().historyEvents.filter(event => event.state === 'applied').length;
+  Y().applyProjectInfo({ startDate: '2026-05-11' }, { profile: builtInProfile('msproject'), options: undefined });
+  eq('19 startdatum + profiel: het wortel-anker schuift mee naar de nieuwe start',
+    Y().tasks.find(t => t.id === root)?.time.scheduleStart?.slice(0, 10), '2026-05-11');
+  eq('19a …met de klemmelding', Y().ui.notifications.some(n => n.messageKey === 'notifications.projectStartAnchorsClamped'
+    && n.params?.count === 1), true);
+  eq('19b …in één undo-stap met profiel en startdatum', [Y().historyEvents.filter(event => event.state === 'applied').length,
+    Y().project.startDate, Y().project.schedulingProfile?.id], [yApplied + 1, '2026-05-11', 'msproject']);
+}
+
+// Critreview D2 punt 3: de wizard geeft het profiel mee aan createNewProject. Het nieuwe project
+// begint zonder historie, dus Ctrl+Z mag niet terugvallen naar OPS.
+{
+  const w = createAppStoreContext();
+  const W = () => w.store.getState();
+  W().createNewProject({
+    name: 'Wizard', startDate: '2026-05-04', calendar: createDefaultCalendar(2026), phaseNames: [],
+    schedulingProfile: builtInProfile('p6'), schedulingOptions: defaultOptionsFor('p6'),
+  });
+  eq('15 wizard: profiel staat op het nieuwe project', W().project.schedulingProfile?.id, 'p6');
+  eq('15a wizard: standaardopties van het profiel', W().project.schedulingOptions, defaultOptionsFor('p6'));
+  const wApplied = W().historyEvents.filter(event => event.state === 'applied').length;
+  W().undo();
+  eq('15b geen undo-stap naar OPS', [wApplied, W().project.schedulingProfile?.id], [0, 'p6']);
+  W().createNewProject({
+    name: 'Wizard OPS', startDate: '2026-05-04', calendar: createDefaultCalendar(2026), phaseNames: [],
+    schedulingProfile: builtInProfile('ops'), schedulingOptions: {},
+  });
+  eq('15c OPS zonder opties ⇒ afwezig', [W().project.schedulingProfile, W().project.schedulingOptions], [undefined, undefined]);
+}
 
 // Sjabloonopslag (M1-open punt, reviewer VERMOED): een browser zonder toegang tot `localStorage`
 // (SecurityError bij het lezen van de global zelf) mag de sjabloon-UI niet laten crashen.

@@ -48,23 +48,6 @@ function hasOnlyZeroLag(sequences: readonly Sequence[]): boolean {
  * FF-uitgang. De relationele startdruk wordt als al-berekende productinvoer meegegeven; zo mag
  * target_start_date hem nooit overschrijven. P6 early/late/float/driving-uitvoer wordt niet gelezen.
  */
-export function explainOpenXerLoeTargetSpanEligibility(
-  task: Task,
-  schedulingOptions: SchedulingOptions | undefined,
-  incoming: readonly Sequence[],
-  outgoing: readonly Sequence[],
-  relationalEarlyStart: Date,
-  targetWindowWorkMinutes: number,
-  targetWindowToleranceMinutes: number,
-): OpenXerLoeTargetSpanDecision {
-  // Rekenprofielen: de aanroeper geeft de opgeloste set (`solveOptionsFor(project)`); geen vertaling meer.
-  return explainOpenXerLoeTargetSpanEligibilityResolved(
-    task, schedulingOptions, incoming, outgoing,
-    relationalEarlyStart, targetWindowWorkMinutes, targetWindowToleranceMinutes,
-  );
-}
-
-/** Dezelfde diagnose (`CPMSolver`); leest alleen vlaggen. */
 export function explainOpenXerLoeTargetSpanEligibilityResolved(
   task: Task,
   schedulingOptions: SchedulingOptions | undefined,

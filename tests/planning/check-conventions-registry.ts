@@ -11,9 +11,9 @@ import type { EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedu
 import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
-import { optionKeysOnly, legacyOptionsToProfile, legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
+import { optionKeysOnly, legacyOptionsToProfile, legacyOptionsBlobFor, LEGACY_XER_ALWAYS_ON, LEGACY_XER_ALSO_ON_X12, legacyXerDefault } from '@/services/ifc/schedulingProfileMigration';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
-import { sanitizeProjectOptions } from '@/services/ifc/schedulingOptionsRead';
+import { sanitizeProjectOptions, sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -237,6 +237,58 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('98 vanaf een EIGEN profiel ⇒ de kale ingebouwde basis', switchProfile(custom, 'msproject'), builtInProfile('msproject'));
 }
 
+// ── 7b) Migratie oude XER-IFC's: alleen de vijf BESTAANDE groep-B-conventies gaan vanzelf aan ─────
+// Eindreview I4 (b): "elke groep-B-conventie aan" zou een LATER toegevoegde groep-B-conventie stil
+// aanzetten op elk oud XER-project. De lijst is gepind op B1–B5 (spec bijlage A, met de hand).
+{
+  same('99 gepinde lijst = B1–B5', [...LEGACY_XER_ALWAYS_ON].sort(), [
+    'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
+    'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary',
+  ]);
+  const hypothetical = { ...CONVENTIONS.find(d => d.group === 'B')!, id: 'p6HypothetischeZesde' as never, since: '2027-01-01' };
+  eq('99a een hypothetische zesde groep-B-conventie gaat NIET stil aan', legacyXerDefault(hypothetical), false);
+  eq('99b een bestaande groep-B-conventie wel', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6OpenLoeTargetSpan')!), true);
+  eq('99c een A-conventie niet', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6UseTaskPlannedStartFloor')!), false);
+  // X12 brok 2: C1–C3 gepind in een eigen set (orkestratorbesluit: oude XER-IFC's rekenen als herimport).
+  // Brok 3/4 (merge): C4, C6 en C7 expliciet toegevoegd, elk per cel gemeten (0 slechter).
+  same('99e gepinde X12-lijst = C1–C4 + C6–C7', [...LEGACY_XER_ALSO_ON_X12].sort(), [
+    'p6CompletedOutOfSequenceWindow', 'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag',
+    'p6FinishFinishStartMilestoneLateFinish', 'p6FreeFloatOnOwnCalendar', 'p6StartedTaskIgnoresPlannedStartFloor',
+  ]);
+  for (const key of LEGACY_XER_ALSO_ON_X12) {
+    const d = CONVENTIONS.find(c => c.id === key)!;
+    // Id-gepind op de P6-profielwaarde (niet een hardgecodeerde true): gelijk aan builtIn.p6, en die is aan.
+    eq(`99f ${key} volgt de P6-profielwaarde`, legacyXerDefault(d), d.builtIn.p6);
+    eq(`99f ${key} P6-waarde is aan`, d.builtIn.p6, true);
+  }
+  // 99h/99i: de volle migratie (legacyOptionsToProfile), niet alleen de default-helper. Een oud
+  // XER-blok zonder C-sleutels krijgt het P6-profiel voor C1–C3 (geen afwijking); een expliciete
+  // false blijft false (een gezette vlag wint altijd) en wordt dus een afwijking van p6.
+  {
+    const absent = legacyOptionsToProfile({ p6Source: 'XER' }).profile;
+    const resolvedAbsent = resolveConventions(absent);
+    for (const key of LEGACY_XER_ALSO_ON_X12) {
+      eq(`99h ${key} afwezig in oud XER-blok ⇒ P6-profielwaarde`, resolvedAbsent[key], builtInConventions('p6')[key]);
+      eq(`99h ${key} afwezig ⇒ geen afwijking`, absent.overrides?.[key], undefined);
+    }
+    const explicitFalse = legacyOptionsToProfile({
+      p6Source: 'XER', p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: false, p6CompletedRemainingLag: false,
+      p6CompletedOutOfSequenceWindow: false, p6FinishFinishStartMilestoneLateFinish: false, p6StartedTaskIgnoresPlannedStartFloor: false,
+    }).profile;
+    const resolvedFalse = resolveConventions(explicitFalse);
+    for (const key of LEGACY_XER_ALSO_ON_X12) {
+      eq(`99i ${key} expliciet false ⇒ blijft false`, resolvedFalse[key], false);
+      eq(`99i ${key} expliciet false ⇒ afwijking van p6`, explicitFalse.overrides?.[key], false);
+    }
+  }
+  const hypotheticalC = { ...CONVENTIONS.find(d => d.group === 'C')!, id: 'p6HypothetischeVierdeC' as never, since: '2027-01-01' };
+  eq('99g een hypothetische vierde groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
+  // Recept stap 2a: elke conventie staat in BOOLEAN_KEYS van de IFC-sanitizer (anders valt hij stil weg).
+  for (const key of CONVENTION_KEYS) {
+    eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], true);
+  }
+}
+
 // ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle 14 talen ──
 // Alleen aanwezigheid en type; de pluralcategorieën per locale bewaakt `npm run verify:i18n`.
 {
@@ -247,6 +299,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
       conventions?: Record<string, { label?: unknown; help?: unknown }>;
       profiles?: { builtIn?: Record<string, unknown>; modified?: unknown; copyOf?: unknown };
       notifications?: { schedulingProfileApplied?: unknown; schedulingProfileShifted_other?: unknown; actions?: { openProjectInfo?: unknown } };
+      schedulingProfile?: { title?: unknown };
     };
     for (const c of CONVENTIONS) {
       eq(`i18n ${locale} ${c.labelKey}.label`, typeof common.conventions?.[c.id]?.label, 'string');
@@ -258,6 +311,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     eq(`i18n ${locale} notifications.schedulingProfileApplied`, typeof common.notifications?.schedulingProfileApplied, 'string');
     eq(`i18n ${locale} notifications.schedulingProfileShifted_other`, typeof common.notifications?.schedulingProfileShifted_other, 'string');
     eq(`i18n ${locale} notifications.actions.openProjectInfo`, typeof common.notifications?.actions?.openProjectInfo, 'string');
+    // Gebruikstest I5 (3c): de melding wijst naar het blok zoals het in Projectinfo heet.
+    ok(`i18n ${locale} melding noemt de bloknaam`, typeof common.schedulingProfile?.title === 'string'
+      && typeof common.notifications?.schedulingProfileApplied === 'string'
+      && common.notifications.schedulingProfileApplied.includes(common.schedulingProfile.title));
     // Merknamen zijn in elke taal gelijk (de store-melding gebruikt ze onvertaald, spec v3.1 §6).
     eq(`i18n ${locale} merknamen`, common.profiles?.builtIn, { p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio' });
     // Geen sleutels buiten het register: een verweesde vertaling wijst op een hernoemde conventie.
