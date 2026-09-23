@@ -1,7 +1,7 @@
 // Bewerkmodel van het rekenprofielblok (rekenprofielen, spec v3.1 §3.2/§6; plan taak D2). Exit 0 = groen.
 // Verwachtingen met de hand afgeleid uit de spec en het register (geen gekopieerde uitvoer).
 import {
-  PER_FILE_CONVENTION_KEYS, choiceOf, selectProfile, editConvention, renameProfile, profileLabel, templateRelation,
+  PER_FILE_CONVENTION_KEYS, choiceOf, selectProfile, editConvention, renameProfile, resetConventionToBase, profileLabel, templateRelation,
   totalFloatModeToUi, totalFloatModeFromUi, withCriticalMode, withCriticalThreshold, withDefaultOptions, sameSettings,
   hasValidProfileName,
 } from '@/state/schedulingProfileDraft';
@@ -120,6 +120,16 @@ eq('36 kopie-id langer dan 64 ⇒ no-op', editConvention(xerP6, 'clampNegativeFr
 eq('36a kopie-id van precies 64 mag', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: 'x'.repeat(64), name: 'K' })?.id.length, 64);
 eq('36b leeg kopie-id ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: '  ', name: 'K' }) === xerP6, true);
 eq('36c ingebouwd id als kopie-id ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: 'ops', name: 'K' }) === xerP6, true);
+// "Terug naar basis" (UI-voorstel conventiegroepen): haalt één afwijking weg, zonder kopie op een ingebouwd id.
+{
+  const reset = resetConventionToBase(xerP6, 'p6UseRemainingStartForProgress');
+  eq('37 terug naar basis op ingebouwd houdt het id', reset?.id, xerP6.id);
+  eq('37a terug naar basis haalt de afwijking weg', reset?.overrides.p6UseRemainingStartForProgress, undefined);
+  eq('37b zonder afwijking ⇒ ongewijzigd', resetConventionToBase(xerP6, 'clampNegativeFreeFloat') === xerP6, true);
+  eq('37c afwezig profiel ⇒ afwezig', resetConventionToBase(undefined, 'clampNegativeFreeFloat'), undefined);
+  const ownReset = resetConventionToBase(own, 'clampNegativeFreeFloat');
+  eq('37d eigen profiel houdt id en verliest de afwijking', [ownReset?.id, ownReset?.overrides], [own.id, {}]);
+}
 
 if (diffs.length === 0) console.log(`OK: bewerkmodel rekenprofiel — ${checks} checks groen`);
 else { console.log(`XX bewerkmodel rekenprofiel — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }

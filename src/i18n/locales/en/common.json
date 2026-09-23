@@ -1285,6 +1285,31 @@
     "applyTemplate": "Update from template",
     "deleteTemplate": "Delete template",
     "templateDeviates": "This profile differs from the template “{{name}}”.",
-    "applyDefaultOptions": "Apply this profile's default options"
+    "applyDefaultOptions": "Apply this profile's default options",
+    "themes": {
+      "completedWork": "Progress and completed work",
+      "relationsLag": "Relationships and lag",
+      "milestones": "Milestones and LOE activities",
+      "float": "Float and late dates",
+      "instants": "Dates and moments from the file",
+      "msproject": "Progress as in Microsoft Project",
+      "ownProfilesOnly": "Custom profiles only"
+    },
+    "ownProfilesOnlyNote": "These conventions are off in every built-in profile, including Primavera P6. Turning one on makes it a custom profile.",
+    "deviatingCount": "changed: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "on",
+    "off": "off",
+    "resetToBase": "back to base",
+    "perFile": "per file",
+    "showHelp": "Explanation of “{{name}}”",
+    "sourceOptions": {
+      "title": "Settings from the source file",
+      "intro": "These calculation options come from a Primavera P6 file (.xer). They are used in the calculation but cannot be changed here.",
+      "useExpectedFinishDates": "Use expected finish dates (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calculate float up to the project finish date",
+      "p6CompletedLateFromRemainingWindow": "Completed task: late dates from the data date",
+      "needsConvention": "Only works together with the convention “{{convention}}”, which is currently off."
+    }
   }
 }

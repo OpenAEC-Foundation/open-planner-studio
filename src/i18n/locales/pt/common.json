@@ -1320,6 +1320,31 @@
     "applyTemplate": "Atualizar a partir do modelo",
     "deleteTemplate": "Eliminar modelo",
     "templateDeviates": "Este perfil difere do modelo «{{name}}».",
-    "applyDefaultOptions": "Aplicar as opções predefinidas deste perfil"
+    "applyDefaultOptions": "Aplicar as opções predefinidas deste perfil",
+    "themes": {
+      "completedWork": "Progresso e trabalho concluído",
+      "relationsLag": "Relações e defasagem",
+      "milestones": "Marcos e atividades LOE",
+      "float": "Folga e datas mais tardias",
+      "instants": "Datas e instantes do ficheiro",
+      "msproject": "Progresso como no Microsoft Project",
+      "ownProfilesOnly": "Apenas para perfis próprios"
+    },
+    "ownProfilesOnlyNote": "Estas convenções estão desativadas em todos os perfis integrados, incluindo o Primavera P6. Ativar uma cria um perfil próprio.",
+    "deviatingCount": "alteradas: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "sim",
+    "off": "não",
+    "resetToBase": "voltar à base",
+    "perFile": "por ficheiro",
+    "showHelp": "Explicação de «{{name}}»",
+    "sourceOptions": {
+      "title": "Definições do ficheiro de origem",
+      "intro": "Estas opções de cálculo vêm de um ficheiro Primavera P6 (.xer). Entram no cálculo, mas não podem ser alteradas aqui.",
+      "useExpectedFinishDates": "Usar datas de fim previstas (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calcular a folga até à data de fim do projeto",
+      "p6CompletedLateFromRemainingWindow": "Tarefa concluída: datas mais tardias a partir da data de status",
+      "needsConvention": "Só funciona em conjunto com a convenção «{{convention}}», que está desativada."
+    }
   }
 }

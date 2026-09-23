@@ -107,6 +107,17 @@ export function editConvention(
   return { ...p, overrides };
 }
 
+/** "Terug naar basis" voor één conventie: haal haar afwijking uit het profiel, zodat de waarde van de
+ *  basis (`baseId`) weer geldt. Anders dan `editConvention` maakt dit van een ingebouwd profiel GEEN
+ *  kopie: een afwijking weghalen brengt het profiel juist dichter bij de school (op een ingebouwd id
+ *  is zo'n afwijking een waarde uit het bestand, bijvoorbeeld A19). Zonder afwijking: ongewijzigd. */
+export function resetConventionToBase(current: SchedulingProfile | undefined, key: ConventionKey): SchedulingProfile | undefined {
+  if (!current || typeof current.overrides[key] !== 'boolean') return current;
+  const overrides = { ...current.overrides };
+  delete overrides[key];
+  return { ...current, overrides };
+}
+
 /** Alleen een eigen profiel is hernoembaar. Het bewerkmodel neemt de naam zoals getypt (zonder
  *  voorloopwitruimte, hooguit `MAX_PROFILE_NAME_LENGTH`): een spatie achteraan moet tijdens het typen
  *  kunnen blijven staan, en het veld moet te wissen zijn. Leeg is "nog niet geldig"

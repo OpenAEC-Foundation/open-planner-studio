@@ -1285,6 +1285,31 @@
     "applyTemplate": "به‌روزرسانی از الگو",
     "deleteTemplate": "حذف الگو",
     "templateDeviates": "این پروفایل با الگوی «{{name}}» تفاوت دارد.",
-    "applyDefaultOptions": "اعمال گزینه‌های پیش‌فرض این پروفایل"
+    "applyDefaultOptions": "اعمال گزینه‌های پیش‌فرض این پروفایل",
+    "themes": {
+      "completedWork": "پیشرفت و کار تکمیل‌شده",
+      "relationsLag": "روابط و تأخیر",
+      "milestones": "نقاط عطف و فعالیت‌های LOE",
+      "float": "شناوری و تاریخ‌های دیرهنگام",
+      "instants": "تاریخ‌ها و لحظه‌های فایل",
+      "msproject": "پیشرفت مانند Microsoft Project",
+      "ownProfilesOnly": "فقط برای نمایه‌های سفارشی"
+    },
+    "ownProfilesOnlyNote": "این قواعد در همه نمایه‌های داخلی، از جمله Primavera P6، خاموش‌اند. روشن کردن هر یک آن را به نمایه سفارشی تبدیل می‌کند.",
+    "deviatingCount": "تغییریافته: {{n}}",
+    "baseValue": "پایه: {{value}}",
+    "on": "روشن",
+    "off": "خاموش",
+    "resetToBase": "بازگشت به پایه",
+    "perFile": "برای هر فایل",
+    "showHelp": "توضیح «{{name}}»",
+    "sourceOptions": {
+      "title": "تنظیمات فایل مبدأ",
+      "intro": "این گزینه‌های محاسبه از یک فایل Primavera P6 ‏(.xer) آمده‌اند. در محاسبه به کار می‌روند اما اینجا قابل تغییر نیستند.",
+      "useExpectedFinishDates": "استفاده از تاریخ‌های پایان مورد انتظار (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "محاسبه شناوری تا تاریخ پایان پروژه",
+      "p6CompletedLateFromRemainingWindow": "کار تکمیل‌شده: تاریخ‌های دیرهنگام از تاریخ وضعیت",
+      "needsConvention": "فقط همراه با قاعده «{{convention}}» کار می‌کند که اکنون خاموش است."
+    }
   }
 }

@@ -1320,6 +1320,31 @@
     "applyTemplate": "Actualizar desde la plantilla",
     "deleteTemplate": "Eliminar plantilla",
     "templateDeviates": "Este perfil difiere de la plantilla «{{name}}».",
-    "applyDefaultOptions": "Aplicar las opciones predeterminadas de este perfil"
+    "applyDefaultOptions": "Aplicar las opciones predeterminadas de este perfil",
+    "themes": {
+      "completedWork": "Avance y trabajo completado",
+      "relationsLag": "Relaciones y desfase",
+      "milestones": "Hitos y actividades LOE",
+      "float": "Holgura y fechas tardías",
+      "instants": "Fechas e instantes del archivo",
+      "msproject": "Avance como en Microsoft Project",
+      "ownProfilesOnly": "Solo para perfiles propios"
+    },
+    "ownProfilesOnlyNote": "Estas convenciones están desactivadas en todos los perfiles integrados, también en Primavera P6. Si activa una, se convierte en un perfil propio.",
+    "deviatingCount": "modificadas: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "sí",
+    "off": "no",
+    "resetToBase": "volver a la base",
+    "perFile": "por archivo",
+    "showHelp": "Explicación de «{{name}}»",
+    "sourceOptions": {
+      "title": "Ajustes del archivo de origen",
+      "intro": "Estas opciones de cálculo proceden de un archivo de Primavera P6 (.xer). Se usan en el cálculo, pero no se pueden cambiar aquí.",
+      "useExpectedFinishDates": "Usar fechas de fin previstas (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calcular la holgura hasta la fecha de fin del proyecto",
+      "p6CompletedLateFromRemainingWindow": "Tarea completada: fechas tardías desde la fecha de estado",
+      "needsConvention": "Solo funciona junto con la convención «{{convention}}», que ahora está desactivada."
+    }
   }
 }

@@ -1285,6 +1285,31 @@
     "applyTemplate": "Aus Vorlage aktualisieren",
     "deleteTemplate": "Vorlage löschen",
     "templateDeviates": "Dieses Profil weicht von der Vorlage „{{name}}“ ab.",
-    "applyDefaultOptions": "Standardoptionen dieses Profils anwenden"
+    "applyDefaultOptions": "Standardoptionen dieses Profils anwenden",
+    "themes": {
+      "completedWork": "Fortschritt und abgeschlossene Arbeit",
+      "relationsLag": "Beziehungen und Zeitabstand",
+      "milestones": "Meilensteine und LOE-Vorgänge",
+      "float": "Puffer und späte Termine",
+      "instants": "Termine und Zeitpunkte aus der Datei",
+      "msproject": "Fortschritt wie in Microsoft Project",
+      "ownProfilesOnly": "Nur für eigene Profile"
+    },
+    "ownProfilesOnlyNote": "Diese Konventionen sind in jedem integrierten Profil aus, auch unter Primavera P6. Wenn Sie eine einschalten, wird daraus ein eigenes Profil.",
+    "deviatingCount": "abweichend: {{n}}",
+    "baseValue": "Basis: {{value}}",
+    "on": "an",
+    "off": "aus",
+    "resetToBase": "zurück zur Basis",
+    "perFile": "pro Datei",
+    "showHelp": "Erläuterung zu „{{name}}“",
+    "sourceOptions": {
+      "title": "Einstellungen aus der Quelldatei",
+      "intro": "Diese Berechnungsoptionen stammen aus einer Primavera-P6-Datei (.xer). Sie fließen in die Berechnung ein, sind hier aber nicht änderbar.",
+      "useExpectedFinishDates": "Erwartete Endtermine verwenden (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Puffer bis zum Projektendtermin berechnen",
+      "p6CompletedLateFromRemainingWindow": "Abgeschlossener Vorgang: späte Termine ab dem Statusdatum",
+      "needsConvention": "Wirkt nur zusammen mit der Konvention „{{convention}}“, die derzeit aus ist."
+    }
   }
 }

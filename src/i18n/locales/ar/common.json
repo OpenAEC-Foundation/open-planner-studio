@@ -1425,6 +1425,31 @@
     "applyTemplate": "تحديث من القالب",
     "deleteTemplate": "حذف القالب",
     "templateDeviates": "يختلف هذا الملف عن القالب «{{name}}».",
-    "applyDefaultOptions": "تطبيق الخيارات الافتراضية لهذا الملف"
+    "applyDefaultOptions": "تطبيق الخيارات الافتراضية لهذا الملف",
+    "themes": {
+      "completedWork": "التقدم والعمل المكتمل",
+      "relationsLag": "العلاقات والتأخير",
+      "milestones": "المعالم وأنشطة LOE",
+      "float": "الفائض والتواريخ المتأخرة",
+      "instants": "التواريخ واللحظات من الملف",
+      "msproject": "التقدم كما في Microsoft Project",
+      "ownProfilesOnly": "للملفات الشخصية المخصصة فقط"
+    },
+    "ownProfilesOnlyNote": "هذه القواعد معطلة في كل ملف تعريف مدمج، بما في ذلك Primavera P6. تفعيل أي منها يجعله ملف تعريف مخصصًا.",
+    "deviatingCount": "معدّلة: {{n}}",
+    "baseValue": "الأساس: {{value}}",
+    "on": "مفعّل",
+    "off": "معطّل",
+    "resetToBase": "العودة إلى الأساس",
+    "perFile": "لكل ملف",
+    "showHelp": "شرح «{{name}}»",
+    "sourceOptions": {
+      "title": "إعدادات من الملف المصدر",
+      "intro": "تأتي خيارات الحساب هذه من ملف Primavera P6 ‏(.xer). تُستخدم في الحساب لكن لا يمكن تغييرها هنا.",
+      "useExpectedFinishDates": "استخدام تواريخ الانتهاء المتوقعة (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "حساب الفائض حتى تاريخ انتهاء المشروع",
+      "p6CompletedLateFromRemainingWindow": "مهمة مكتملة: التواريخ المتأخرة من تاريخ الحالة",
+      "needsConvention": "لا يعمل إلا مع القاعدة «{{convention}}» المعطلة حاليًا."
+    }
   }
 }
