@@ -78,13 +78,6 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
-  // HERPIN 2026-09-23f (merge brok 4 — C7 + C8 — in de etappebranch met brok 3 — C4–C6): 10.947 →
-  // 10.676 (−271, 0 cellen slechter, drivingPath 417 ongewijzigd; verwacht ≈ −242 uit de losse brok-4-
-  // winsten, de rest is samenspel met C5/C6). Per bestand/as (dump per cel tegen de cellen van 23d):
-  //  - Roads_Project_TEC: ls −65 (alle 65 sameday → exact), lf −65 (sameday 16 + diff 49 → exact),
-  //    tf −61, ff −10, es −6, ef −6 (C7 op de startmijlpaal OCEC12101; C8 op B3071/B2591);
-  //  - OZB-Start-09Dec24: es −18, ef −18, tf −18, ff −4 (C8, OZ1040 en keten).
-  //  De twee brok-4-toelichtingen hieronder (23e, 23d-brok-4) zijn gemeten op de brok-4-tak zonder C5/C6.
   // HERPIN 2026-09-23d (X12 naar nul, brok 3 — conventies C5 `p6CompletedPhysicalAtDataDate` en C6
   // `p6InProgressStartLagElapsed`, samen geland; classificatiebrok B07): 11.771 → 10.947 (−824, 0 cellen
   // slechter, drivingPath 417 ongewijzigd). Per bestand/as (dump per cel tegen de vorige cellen):
@@ -97,19 +90,6 @@ const EXPECTED = {
   //  stonden vóór C5 toevallig goed via een zelf verkeerde lopende voorganger; C6 maakt ze weer exact,
   //  vandaar samen landen. Sameday: ls 129 → 136, lf 93 → 100 (Roads, 7 + 7 cellen diff → sameday,
   //  een betere emmer); es/ef ongewijzigd.
-  // HERPIN 2026-09-23e (X12 naar nul, brok 4 — conventie C8 `p6StartedTaskIgnoresPlannedStartFloor`,
-  // brok B11): 11.608 → 11.529 (−79, 0 cellen slechter, drivingPath 417 ongewijzigd). OZB-Start-09Dec24
-  // (projecten 9032 en 10096): es −18, ef −18, tf −18, ff −4 — de lopende OZ1040 start ná haar lopende
-  // voorganger OZ1030 (12-24 12:00) in plaats van op haar target_start (12-30 08:00); OZ1050–OZ1130
-  // schuiven mee. Roads: es −6, ef −6, tf −6, ff −3 — de lopende B3071/B2591 starten op de statusdatum.
-  // Geen `restart_date` gelezen (bak 2). rehab-2 ongewijzigd (P3-orakel, telt niet als bron).
-  // HERPIN 2026-09-23d (X12 naar nul, brok 4 — conventie C7 `p6FinishFinishStartMilestoneLateFinish`,
-  // brok B08): 11.771 → 11.608 (−163, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles Roads:
-  // ls −58 (sameday 129 → 71), lf −58 (sameday −9, diff −49), tf −42, ff −5 — een FF-relatie naar de
-  // startmijlpaal OCEC12101 (`TT_Mile`, LF 2014-01-15 16:00) bindt aan de mijlpaal zelf, niet aan het
-  // begin van de mijlpaaldag (07:00). De vijf wortels (OCEC11971/11851/18821/11911/18751) staan op
-  // ls/lf/tf exact; de rest van B08 (52 cellen, stroomopwaarts) hangt aan andere wortels (ES-afwijking
-  // van OCEC11911/18821, voltooide CP_Phys-voorgangers B07). FF naar een `TT_FinMile` ongewijzigd.
   // HERPIN 2026-09-23c (X12 naar nul, brok 3 — conventie C4 `p6CompletedOutOfSequenceWindow`, brok
   // B04): 12.973 → 11.771 (−1.202, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
   // es −432, ef −432, tf −298, ff −40 — een voltooide taak (of actief met restduur 0) met een
@@ -150,16 +130,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 13_540, ef: 13_492, ls: 10_602, lf: 10_556, tf: 10_402, ff: 13_234 },
-    sameday: { es: 96, ef: 97, ls: 71, lf: 84, tf: 0, ff: 0 },
-    diff: { es: 295, ef: 348, ls: 3_149, lf: 3_173, tf: 3_275, ff: 88 },
+    exact: { es: 13_516, ef: 13_468, ls: 10_537, lf: 10_491, tf: 10_323, ff: 13_220 },
+    sameday: { es: 96, ef: 97, ls: 136, lf: 100, tf: 0, ff: 0 },
+    diff: { es: 319, ef: 372, ls: 3_149, lf: 3_222, tf: 3_354, ff: 102 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 391, ef: 445, ls: 3_220, lf: 3_257, tf: 3_275, ff: 88 },
+    deviations: { es: 415, ef: 469, ls: 3_285, lf: 3_322, tf: 3_354, ff: 102 },
     drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: '06155c2ad3c37d83fd2eb60695b34f78f0fb3f9c4824d5cb45a1f5e4ea4470d2',
-  productPayloadGzipSha256: 'eb0f553ba4edaddb344b8162aeb18f7c9bbbf8d65aac3693b9bf37b637b4c938',
-  productProjectProjectionSha256: 'ddee46d1917b81f8a18a66a23eb008834f5bc4e85e7bcf9b90e048071c859ec7',
+  productPayloadSha256: 'f29fa3f8c997cf4ee21eae297ff1ea95c718b311002792aabfa5535f290c791f',
+  productPayloadGzipSha256: '24ea997ce15fb82a40678b1aeb217682314e6047d715c12683146f9f1290d312',
+  productProjectProjectionSha256: '0e3ded2cc516482b9e1848fcc5d7e37db994ce49022b3346956cac4adcfdc3da',
   roles: {
     oracle: 45,
     'engine-input': 14,

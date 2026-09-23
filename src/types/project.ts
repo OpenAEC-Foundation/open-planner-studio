@@ -374,54 +374,10 @@ export interface SchedulingOptions {
    *    start van de voorganger zoals die op de balk staat.
    *  - OPS: uit (de volle lag vanaf de vroege start, het gedrag van vóór deze conventie). */
   p6InProgressStartLagElapsed?: boolean;
-  /** C7 — een FF-relatie naar een STARTmijlpaal (nulduur, `milestoneKind: 'START'`; in P6 een
-   *  `TT_Mile`) bindt in de terugwaartse berekening aan de LATE FINISH van die mijlpaal zelf. Zonder
-   *  deze conventie behandelt de motor een startmijlpaal als dagbegin-anker: de late finish van de
-   *  FF-voorganger moet dan op de werkgrens vóór dat anker liggen (`relationMath.backwardHour`,
-   *  `snapStrictBefore` plus de lag-0-normalisatie ⇒ het begin van de mijlpaaldag), en voorwaarts
-   *  op de werkgrens strikt ná de voorgangerfinish (`forwardHour`, `snapStrictAfter`), wat de vrije
-   *  speling van de voorganger een werkdag korter maakt. Met de conventie vervallen beide sprongen:
-   *  de FF-grens is de late finish van de mijlpaal zelf, resp. — alleen voor de vrije speling van een
-   *  NIET-bindende FF — de voorgangerfinish zelf. De vroege start van de mijlpaal verandert nooit:
-   *  een bindende FF houdt de gewone grens (het drijvende geval heeft geen P6-orakel in het corpus).
-   *  De nulrestduur-voortgangstak van de terugwaartse pass valt er bewust buiten (ongemeten).
-   *  Alleen in uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten
-   *  van dagmodus niet — dagmodus is ongemeten en de poort is een bewuste beperking, geen gemeten
-   *  grens. Een eindmijlpaal (`TT_FinMile`) blijft ongewijzigd.
-   *
-   *  - P6: aan. Gemeten: `Roads_Project_TEC.xer`, vijf voorgangers (OCEC11971, OCEC11851,
-   *    OCEC18821, OCEC11911, OCEC18751), elk met `PR_FF` lag 0 naar de `TT_Mile` OCEC12101
-   *    (ES 2014-01-15 07:00, LS = LF 2014-01-15 16:00): P6 zet hun LF op 2014-01-15 16:00, de late
-   *    finish van de mijlpaal, niet op 07:00 (classificatiebrok B08); hun vrije speling telt P6 tot
-   *    de mijlpaal zelf (OCEC11971: 32.400 min, zonder conventie 31.800). FF-relaties naar een
-   *    `TT_FinMile` (34 in het corpus) staan zonder deze regel al goed en worden niet geraakt.
-   *  - MS Project: uit. MS Project kent geen apart dagbegin-anker voor een startmijlpaal in de late
-   *    berekening van een FF-relatie; ongemeten, dus het gedrag van vóór deze conventie.
-   *  - OPS: uit (de werkgrens vóór het dagbegin van de mijlpaal, het gedrag van vóór deze conventie). */
-  p6FinishFinishStartMilestoneLateFinish?: boolean;
-  /** C8 — de geplande-startvloer van A16 (`p6UseTaskPlannedStartFloor`: `TASK.target_start_date`
-   *  als vloer zodra het geplande venster ruim ná de netwerkgrens ligt) geldt niet voor een LOPENDE
-   *  taak (werkelijke start, voortgang < 100%). Haar resterende werk begint dan op de statusdatum en
-   *  de relatiegrens uit haar voorgangers (`CPMSolver.forwardPass`, voortgangstak: `remStart`), en
-   *  haar opvolgers volgen. Zonder deze conventie tilt A16 ook een lopende taak naar haar geplande
-   *  start. Leest geen `restart_date` (bak 2, `check-xer-field-whitelist.ts`): P6's opgeslagen
-   *  herstart is alleen de meetlat.
-   *
-   *  - P6: aan. Gemeten op P6-doorgerekende bestanden (classificatiebrok B11):
-   *    `eh_P6Workshops/OZB-Start-09Dec24.xer`, projecten 9032 en 10096 (statusdatum 2024-12-23
-   *    08:00): de lopende OZ1040 (target_start 12-30 08:00) start in P6 op 12-24 12:00, het einde van
-   *    haar lopende voorganger OZ1030; zonder conventie 12-30 08:00, en de keten OZ1050–OZ1130 schuift
-   *    mee. `Roads_Project_TEC.xer`: de lopende B3071 en B2591 (target 05-01 resp. 05-05) starten op
-   *    de statusdatum 2013-04-23 07:00. `rehab-2.xer` telt hier niet mee: zijn orakel is P3-uitvoer,
-   *    geen P6.
-   *  - MS Project: uit. A16 is een P6-conventie; het MS Project-profiel kent de vloer niet, dus deze
-   *    uitzondering erop is daar zonder betekenis. Het gedrag van vóór deze conventie.
-   *  - OPS: uit (het gedrag van vóór deze conventie). */
-  p6StartedTaskIgnoresPlannedStartFloor?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de drieëntwintig PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de eenentwintig PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -447,9 +403,7 @@ export type ConventionKey =
   | 'p6CompletedRemainingLag'
   | 'p6CompletedOutOfSequenceWindow'
   | 'p6CompletedPhysicalAtDataDate'
-  | 'p6InProgressStartLagElapsed'
-  | 'p6FinishFinishStartMilestoneLateFinish'
-  | 'p6StartedTaskIgnoresPlannedStartFloor';
+  | 'p6InProgressStartLagElapsed';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

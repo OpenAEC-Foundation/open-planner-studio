@@ -212,15 +212,8 @@ export function forwardConstraint(
   predEng: CalendarEngine,
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
-  finishFinishAtStartMilestoneLateFinish = false,
 ): Date {
-  const boundaryFlags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
-  // Conventie C7 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): spiegel
-  // van `backwardConstraint` — de FF-grens naar een startmijlpaal is de voorgangerfinish zelf, zonder
-  // de sprong naar de werkgrens ná een dagbegin-anker.
-  const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'
-    ? { ...boundaryFlags, succIsStartMs: false }
-    : boundaryFlags;
+  const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
   if (predEng.isHourMode || succEng.isHourMode) {
     return forwardHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
   }
@@ -318,15 +311,8 @@ export function backwardConstraint(
   predEng: CalendarEngine,
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
-  finishFinishAtStartMilestoneLateFinish = false,
 ): Date {
-  const boundaryFlags = relationBoundaryFlags(predTask, succTask, p6ZeroDurationSuccessorAtFinish);
-  // Conventie C7 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): de
-  // aanroeper beslist; hier alleen het effect — een FF-relatie naar een startmijlpaal bindt aan
-  // diens LATE FINISH zelf, zonder de dagbegin-sprong naar de vorige werkgrens.
-  const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'
-    ? { ...boundaryFlags, succIsStartMs: false }
-    : boundaryFlags;
+  const flags = relationBoundaryFlags(predTask, succTask, p6ZeroDurationSuccessorAtFinish);
   if (predEng.isHourMode || succEng.isHourMode) {
     return backwardHour(deps, succResult, seq, predTask, predEng, succEng, flags);
   }

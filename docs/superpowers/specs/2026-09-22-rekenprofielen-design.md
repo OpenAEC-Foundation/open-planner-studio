@@ -48,7 +48,7 @@ vervangen).
 
 ## 3. Datamodel
 
-### 3.1 De drieëntwintig conventies en het register
+### 3.1 De achttien conventies en het register
 
 `SchedulingOptions` (`src/types/project.ts`) blijft het opgeloste type dat de solver leest — geen
 hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelverzamelingen benoemd:
@@ -254,7 +254,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 - **Kiezen en bewerken**: het bestaande `CalcOptionsSection` wordt het blok *Rekenprofiel en
   reken-opties* in Projectinfo (wizard: alleen de keuzelijst, die dan `defaultOptionsFor` toepast;
   dialoog én Backstage → Projectinfo: het volledige blok): bovenaan de keuzelijst
-  (P6 / MS Project / OPS / eigen sjablonen), daaronder de drieëntwintig conventies (aan/uit, met uitleg) en
+  (P6 / MS Project / OPS / eigen sjablonen), daaronder de achttien conventies (aan/uit, met uitleg) en
   de bestaande projectopties. `thresholdHours` wordt niet meer weggegooid bij een bewerking. Een
   conventie wijzigen op een ingebouwd profiel maakt automatisch een eigen profiel "Kopie van P6" op
   het project (hernoembaar; "opslaan als sjabloon" zet hem in de app-lijst). Géén paneel in
