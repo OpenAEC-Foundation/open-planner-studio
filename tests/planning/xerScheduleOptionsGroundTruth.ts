@@ -205,7 +205,7 @@ export function expectedXerScheduleOptions(
     p6CompletedLateFromRemainingWindow: true,
   };
   // De opgeloste P6-conventies (hand-lijst, spec v3.1 bijlage A): alles aan behalve de twee
-  // MS Project-conventies; A19 per bestand uit PROJECT.rem_target_link_flag — óók als een project
+  // MS Project-conventies en C1/C4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 per bestand uit PROJECT.rem_target_link_flag — óók als een project
   // geen SCHEDOPTIONS-rij heeft. Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
   const conventions: Record<ConventionKey, boolean> = {
     preserveActualDatesInBackwardPass: true,
@@ -223,10 +223,10 @@ export function expectedXerScheduleOptions(
     p6CompletedDataDateWindow: true,
     p6CompletedLoeActualFinish: true,
     p6OpenLoeTargetSpan: true,
-    p6CompletedPredecessorAtDataDate: true,
+    p6CompletedPredecessorAtDataDate: false,
     p6FreeFloatOnOwnCalendar: true,
     p6CompletedRemainingLag: true,
-    p6CompletedOutOfSequenceWindow: true,
+    p6CompletedOutOfSequenceWindow: false,
     p6CompletedPhysicalAtDataDate: true,
     p6InProgressStartLagElapsed: true,
     p6FinishFinishStartMilestoneLateFinish: true,

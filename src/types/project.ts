@@ -197,8 +197,9 @@ export interface SchedulingOptions {
   p6OpenLoeTargetSpan?: boolean;
 
   // ── Groep C (X12 naar nul, 2026-09-23): conventies die pas ná de rekenprofielen uit de
-  // corpusmeting kwamen. Nooit achter een bronmarkering geweest. Een P6-profiel zet ze aan (ook een
-  // legacy-XER-blob, die naar het P6-profiel migreert); een profiel-pset van vóór 2026-09-23 die de
+  // corpusmeting kwamen. Nooit achter een bronmarkering geweest. Een P6-profiel zet ze aan, behalve
+  // C1 en C4 (sinds 2026-09-23 in elk ingebouwd profiel uit; ook een legacy-XER-blob, die naar het
+  // P6-profiel migreert, volgt die waarde); een profiel-pset van vóór 2026-09-23 die de
   // sleutel niet kent krijgt `legacyValue` = uit.
 
   /** C1 — RETAINED LOGIC rond de statusdatum: bij een VOLTOOIDE voorganger is het relatie-EINDE
@@ -216,10 +217,11 @@ export interface SchedulingOptions {
    *  uitkomst (mutant M5, critreview her-check brok 2); ook een FS-kruiskalenderfixture (opvolger op
    *  06:00–17:00, lag in de opvolgerkalender) onderscheidt ze niet. De keuze volgt B3, niet een meting.
    *
-   *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (geen
+   *  - P6: uit — geen effect op P6-doorgerekende bestanden; gemeten in rehab-2 = P3-uitvoer (geen
    *    SCHEDOPTIONS, `rem_late_start_date` 0/4.940, geen `driving_path_flag`; zie
-   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §3 en §5). De
-   *    P6-standaardwaarde staat onder voorbehoud van het eigenaarsbesluit over dat orakel. Buiten
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §3 en §5). Besluit
+   *    2026-09-23 (overdracht §1a/§1c: alleen P6-doorgerekende orakels): P3-gedrag hoort niet als
+   *    P6-standaard aan; de conventie blijft bestaan en is per project aan te zetten. Buiten
    *    rehab-2 verandert C1 geen enkele cel; geen P6-doorgerekend bestand in het corpus heeft een open
    *    opvolger van een voltooide voorganger die ná de statusdatum eindigt.
    *    Meting: vijf voltooide taken met `act_end_date` 2008-05-27 17:00 bij statusdatum 2008-05-27
@@ -270,9 +272,12 @@ export interface SchedulingOptions {
    *  het deel dat na zijn werkelijke einde op de statusdatum nog niet verstreken is:
    *  `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender (`CPMSolver`).
    *
-   *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (zie C1 en
-   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). De
-   *    P6-standaardwaarde staat onder voorbehoud van het eigenaarsbesluit over dat orakel. Buiten
+   *  - P6: aan — oorspronkelijk gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is
+   *    (zie C1 en `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). Blijft AAN
+   *    na het populatiebesluit van 2026-09-23 (C1 en C4 gingen uit): sinds C5 draagt C3 op de
+   *    P6-doorgerekende populatie wél cellen — C5 rekent de lag tussen zijn statusdatumpunt en een
+   *    opvolger met deze regel, en C3 uit kost 640 exacte cellen (Roads es 153, ef 153, tf 142, ff 41,
+   *    ls 7, lf 7; HarbourPointe es 50, ef 48, tf 34, ff 3; gemeten 2026-09-23). Vóór C5 gold: buiten
    *    rehab-2 verandert C3 geen enkele cel (de voltooide voorgangers met lag in Roads en
    *    HarbourPointe zijn `CP_Phys` en vallen buiten de B3-route). Geen documentatiebron voor de
    *    rekenregel; hij is afgelezen aan rehab-2-relaties (classificatie brok B03): volledig verstreken
@@ -295,7 +300,10 @@ export interface SchedulingOptions {
    *  bepaalt de weergave (ES/EF, en daarmee de speling) en de relatiegrens naar de opvolgers; de
    *  late kant blijft ongewijzigd. FF/SF-relaties naar zo'n taak doen (nog) niet mee: ongemeten.
    *
-   *  - P6: aan. Oracle P6 Professional Help, "General tab - Schedule Options dialog box": "Retained
+   *  - P6: uit — geen effect op P6-doorgerekende bestanden; gemeten in rehab-2 = P3-uitvoer. Besluit
+   *    2026-09-23 (alleen P6-doorgerekende orakels): P3-gedrag hoort niet als P6-standaard aan; de
+   *    conventie blijft bestaan en is per project aan te zetten. Context (geen bewijs dat P6 deze vorm
+   *    zo rekent): Oracle P6 Professional Help, "General tab - Schedule Options dialog box": "Retained
    *    Logic: The remaining duration of a progressed activity is not scheduled until all of its
    *    predecessors are finished" (docs.oracle.com/cd/F25600_01/client_help, `general_tab_-_
    *    schedule_options_dialog_box`); de restduur 0 van een voltooide activiteit valt daar ook onder.

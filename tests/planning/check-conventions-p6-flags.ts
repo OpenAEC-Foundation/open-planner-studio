@@ -455,8 +455,19 @@ interface GroupCFixture {
   builtInOff?: Partial<Axes>;
   /** Als `builtInOff`, maar per ingebouwd profiel (wanneer OPS en MS Project zelf verschillen). */
   builtInOffByBase?: Record<'ops' | 'msproject', Partial<Axes>>;
+  /** Besluit 2026-09-23 (populatie = P6-doorgerekende orakels): C1 en C4 staan in het ingebouwde
+   *  P6-profiel UIT — op de P6-doorgerekende bestanden 0 effect, alleen rehab-2 (P3-uitvoer) droeg ze.
+   *  (C3 bleef aan: C5 leunt erop.)
+   *  `input` is dan de import MET de conventie expliciet aan (zodat de regel zelf getoetst blijft);
+   *  zoals gelezen staat ze uit. */
+  p6BuiltInOff?: true;
 }
 const groupC: GroupCFixture[] = [];
+
+/** De import met `flag` als expliciete afwijking aan op het P6-profiel (C1/C4, zie `p6BuiltInOff`). */
+function enabledOverP6(flag: typeof GROUP_C[number], input: ImportResult): ImportResult {
+  return withProfile(input, copy => setConvention(copy, flag, true));
+}
 
 // C1: band 08:00–17:00 ma–vr. Statusdatum wo 7 jan 00:00. Voltooide A met werkelijk einde wo 7 jan
 // 17:00 (ná de statusdatum). P6: de opvolger B (FS+0, niet gestart) begint op de statusdatum, wo
@@ -464,7 +475,7 @@ const groupC: GroupCFixture[] = [];
 groupC.push({
   flag: 'p6CompletedPredecessorAtDataDate',
   label: 'C1 voltooide voorganger met einde ná de statusdatum',
-  input: importXer([
+  input: enabledOverP6('p6CompletedPredecessorAtDataDate', importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
     '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
@@ -480,7 +491,8 @@ groupC.push({
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
     '%R\tR1\tB\tA\tP1\tP1\tPR_FS\t0',
     '%E',
-  ]),
+  ])),
+  p6BuiltInOff: true,
   taskId: 'B',
   pick: axes => ({ es: axes.es }),
   on: { es: '2026-01-07T08:00' },
@@ -563,7 +575,7 @@ groupC.push({
 groupC.push({
   flag: 'p6CompletedOutOfSequenceWindow',
   label: 'C4 voltooide taak buiten volgorde',
-  input: importXer([
+  input: enabledOverP6('p6CompletedOutOfSequenceWindow', importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
     '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
@@ -584,7 +596,8 @@ groupC.push({
     '%R\tR1\tC\tP\tP1\tP1\tPR_FS\t0',
     '%R\tR2\tS\tC\tP1\tP1\tPR_FS\t0',
     '%E',
-  ]),
+  ])),
+  p6BuiltInOff: true,
   taskId: 'C',
   pick: axes => ({ es: axes.es, ef: axes.ef }),
   on: { es: '2026-01-20T08:00', ef: '2026-01-19T17:00' },
@@ -764,7 +777,19 @@ for (const fixture of groupC) {
   eq(`${label}: AAN en UIT verschillen (fixture is onderscheidend)`,
     JSON.stringify(fixture.on) !== JSON.stringify(fixture.off), true);
   const asRead = resolveConventions(input.project.schedulingProfile);
-  eq(`${label}: 1. XER-import zoals gelezen (P6-profiel) ⇒ AAN`, pick(solveAxes(input, taskId)), fixture.on);
+  if (fixture.p6BuiltInOff) {
+    // Zoals gelezen = het P6-profiel zonder afwijking op deze conventie (de per-bestand-A19 blijft) ⇒
+    // UIT; `input` draagt de conventie als afwijking aan.
+    const asImported = withProfile(input, copy => setConvention(copy, flag, false));
+    eq(`${label}: 0. ingebouwd P6-profiel ⇒ ${flag} staat uit`,
+      resolveConventions({ baseId: 'p6', id: 'p6', name: '', overrides: {} })[flag], false);
+    eq(`${label}: 0b. zoals gelezen draagt geen afwijking op ${flag}`,
+      asImported.project.schedulingProfile?.overrides?.[flag], undefined);
+    eq(`${label}: 1. XER-import zoals gelezen (P6-profiel) ⇒ UIT`, pick(solveAxes(asImported, taskId)), fixture.off);
+    eq(`${label}: 1b. P6-profiel met ${flag} als afwijking aan ⇒ AAN`, pick(solveAxes(input, taskId)), fixture.on);
+  } else {
+    eq(`${label}: 1. XER-import zoals gelezen (P6-profiel) ⇒ AAN`, pick(solveAxes(input, taskId)), fixture.on);
+  }
   eq(`${label}: 2. alleen ${flag} uit ⇒ UIT`,
     pick(solveAxes(withProfile(input, copy => setConvention(copy, flag, false)), taskId)), fixture.off);
   const onlyThis = { ...asRead };

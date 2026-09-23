@@ -69,14 +69,19 @@ Onder Open Planner Studio staan ze alle drieëntwintig uit.
 - **Voltooide taak in het statusdatumvenster** (Primavera P6) — alleen voor taken met P6-herkomst.
 - **Voltooide LOE via het actuele einde** (Primavera P6) — alleen voor taken met P6-herkomst.
 - **Niet-gestarte LOE neemt het doelvenster** (Primavera P6) — alleen voor taken met P6-herkomst.
-- **Voltooide voorganger houdt niet vast na de statusdatum** (Primavera P6) — staat het werkelijke einde van een voltooide taak ná de statusdatum, dan mogen haar opvolgers toch al op de statusdatum beginnen. De eigen datums van de voltooide taak veranderen niet.
 - **Vrije speling in de eigen kalender** (Primavera P6) — de vrije speling van een open taak over een eind-start-relatie zonder lag telt in de kalender van de taak zelf. Staat de opvolger al op voltooid terwijl de taak nog open is, dan is die speling nul.
 - **Verstreken lag van een voltooide voorganger telt niet** (Primavera P6) — aan de late kant telt van de lag na een voltooide taak alleen het deel dat op de statusdatum nog niet verstreken is.
-- **Voltooide taak buiten volgorde wacht op haar voorgangers** (Primavera P6) — is een taak al voltooid terwijl een voorganger nog loopt of nog moet beginnen, dan staat ze niet op de statusdatum maar direct ná die voorganger, en haar opvolgers schuiven mee. Onder de P6-instelling Progress Override geldt dit niet.
 - **Voltooide fysieke-voortgangstaak staat op de statusdatum** (Primavera P6) — een voltooide taak met een fysiek voortgangspercentage staat niet op haar werkelijke datums, maar als één punt op de statusdatum, of later als een voorganger die nog loopt of nog moet beginnen dat eist. Haar opvolgers rekenen vanaf dat punt.
 - **Verstreken SS-lag uit een lopende voorganger telt niet** (Primavera P6) — bij een start-start-relatie uit een taak die al gestart is, telt van de lag alleen het deel dat sinds haar werkelijke start op de statusdatum nog niet verstreken is. Is de lag al verstreken, dan mag de opvolger beginnen zodra het restwerk van de voorganger begint.
 - **Eind-eind-relatie naar een startmijlpaal bindt aan de mijlpaal zelf** (Primavera P6) — bij een eind-eind-relatie naar een startmijlpaal mag de voorganger uitlopen tot de mijlpaal zelf, niet alleen tot het begin van de mijlpaaldag. Dat verandert de late datums en de speling van die voorganger. Een eindmijlpaal verandert niet.
 - **Geplande start is geen vloer voor een lopende taak** (Primavera P6) — het resterende werk van een gestarte taak begint op de statusdatum en direct na haar voorgangers, ook als haar geplande start later ligt. Haar opvolgers schuiven mee. Voor een taak die nog niet gestart is, blijft de geplande start een ondergrens (*Geplande start als extra ondergrens*).
+
+### Standaard uit in elk profiel
+
+Twee conventies staan in elk ingebouwd profiel uit, ook onder Primavera P6. Ze zijn afgeleid uit een bestand dat niet door P6 is doorgerekend (uitvoer van het oudere Primavera P3) en veranderen niets in de bestanden die wel aantoonbaar door P6 zijn doorgerekend. Wil je ze toch gebruiken, zet ze dan aan in een eigen profiel.
+
+- **Voltooide voorganger houdt niet vast na de statusdatum** (standaard uit) — staat het werkelijke einde van een voltooide taak ná de statusdatum, dan mogen haar opvolgers toch al op de statusdatum beginnen. De eigen datums van de voltooide taak veranderen niet.
+- **Voltooide taak buiten volgorde wacht op haar voorgangers** (standaard uit) — is een taak al voltooid terwijl een voorganger nog loopt of nog moet beginnen, dan staat ze niet op de statusdatum maar direct ná die voorganger, en haar opvolgers schuiven mee. Onder de P6-instelling Progress Override geldt dit niet.
 
 ## Combinaties zonder referentiepakket
 

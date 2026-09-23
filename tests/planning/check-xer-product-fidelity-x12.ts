@@ -2182,9 +2182,14 @@ async function productBaseline(
       lateStart: '2026-01-05T08:00', lateFinish: '2026-01-02T16:00', freeFloatMinutes: 0,
     },
   });
-  // C4 AAN (het P6-profiel zoals gelezen): B's nul-restvenster begint direct ná A (A eindigt
-  // 2026-01-05 16:00 ⇒ ES 2026-01-06 08:00, EF 2026-01-05 16:00). De late kant en A veranderen niet.
-  const c4Solved = solveImported(connected).tasks;
+  // C4 AAN — sinds 2026-09-23 niet meer het P6-profiel zoals gelezen (C4 staat in elk ingebouwd profiel
+  // uit; de regel hierboven is dus ook de uitkomst zoals gelezen), maar als expliciete afwijking: B's
+  // nul-restvenster begint direct ná A (A eindigt 2026-01-05 16:00 ⇒ ES 2026-01-06 08:00, EF 2026-01-05
+  // 16:00). De late kant en A veranderen niet.
+  eq('X12 C4 staat in het P6-profiel zoals gelezen uit', resolveConventions(connected.project.schedulingProfile).p6CompletedOutOfSequenceWindow, false);
+  const c4Project = structuredClone(connected.project);
+  setConvention({ project: c4Project }, 'p6CompletedOutOfSequenceWindow', true);
+  const c4Solved = solveImported({ ...connected, project: c4Project }).tasks;
   const c4A = c4Solved.find(task => task.taskCode === 'P100');
   const c4B = c4Solved.find(task => task.taskCode === 'A100');
   eq('X12 A→FS→B(completed) met C4: B-venster ná A, late kant en A ongewijzigd', {
@@ -2250,11 +2255,15 @@ async function productBaseline(
     successor: ['2026-01-09T08:00', '2026-01-09T16:00', '2026-01-09T08:00', '2026-01-09T16:00'],
     projectEnd: '2026-01-09T16:00',
   });
-  // Met C1 aan (het P6-profiel zoals gelezen): de opvolger begint op de statusdatum, 2026-01-05 08:00
-  // (gemeten P6-gedrag, rehab-2, plan XER §9 dossier 7b-4); de weergave van A100 blijft gelijk.
+  // Met C1 aan — sinds 2026-09-23 als expliciete afwijking, want C1 staat in elk ingebouwd profiel uit
+  // (zoals gelezen geldt dus de regel hierboven): de opvolger begint op de statusdatum, 2026-01-05 08:00
+  // (gemeten in rehab-2 = P3-uitvoer, plan XER §9 dossier 7b-4); de weergave van A100 blijft gelijk.
+  eq('X12 C1 staat in het P6-profiel zoals gelezen uit', resolveConventions(one.project.schedulingProfile).p6CompletedPredecessorAtDataDate, false);
+  const c1Project = structuredClone(one.project);
+  setConvention({ project: c1Project }, 'p6CompletedPredecessorAtDataDate', true);
   const withC1: ImportResult = {
     ...displayOnlyCandidate,
-    project: structuredClone(one.project),
+    project: c1Project,
     tasks: structuredClone([oneTask, openSuccessor]),
   };
   solveDisplayCandidate(withC1);

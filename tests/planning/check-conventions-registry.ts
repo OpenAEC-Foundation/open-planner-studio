@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import type { ConventionKey, EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import {
   BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
@@ -52,10 +52,16 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const P6 = builtInConventions('p6');
   const MSP = builtInConventions('msproject');
   const OPS = builtInConventions('ops');
+  // Besluit 2026-09-23 (populatie = P6-doorgerekende orakels): C1 en C4 staan in elk ingebouwd
+  // profiel uit — op de P6-doorgerekende bestanden 0 effect, alleen rehab-2 (P3-uitvoer) droeg ze.
+  // C3 blijft aan (C5 leunt erop: uit = 640 exacte cellen minder).
+  const P6_OFF_GROUP_C: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
+    'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
+  ]);
   for (const key of CONVENTION_KEYS) {
     const mspOnly = key === 'resumeFromActualElapsed' || key === 'unstartedIgnoresStatusDate';
     // A19 is per bestand: de P6-basis is uit, de XER-lezer zet hem als afwijking.
-    eq(`09 p6.${key}`, P6[key], !mspOnly && key !== 'p6UseRemainingStartForProgress');
+    eq(`09 p6.${key}`, P6[key], !mspOnly && key !== 'p6UseRemainingStartForProgress' && !P6_OFF_GROUP_C.has(key));
     eq(`10 msproject.${key}`, MSP[key], mspOnly);
     eq(`11 ops.${key}`, OPS[key], false);
   }
@@ -151,9 +157,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
-  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C8 aan', on, [
+  // C1 en C4 volgen hun P6-waarde, en die is sinds 2026-09-23 uit.
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C2, C3 en C5–C8 aan', on, [
     'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
-    'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag',
+    'p6CompletedPhysicalAtDataDate', 'p6CompletedRemainingLag',
     'p6FinishFinishStartMilestoneLateFinish', 'p6FreeFloatOnOwnCalendar', 'p6InProgressStartLagElapsed',
     'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary',
     'p6StartedTaskIgnoresPlannedStartFloor', 'p6UseTaskPlannedStartFloor',
@@ -250,6 +257,9 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('99a een hypothetische zesde groep-B-conventie gaat NIET stil aan', legacyXerDefault(hypothetical), false);
   eq('99b een bestaande groep-B-conventie wel', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6OpenLoeTargetSpan')!), true);
   eq('99c een A-conventie niet', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6UseTaskPlannedStartFloor')!), false);
+  const P6_OFF_GROUP_C_99: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
+    'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
+  ]);
   // X12 brok 2, 3 en 4: C1–C8 gepind in een eigen set (orkestratorbesluit: oude XER-IFC's rekenen als herimport).
   same('99e gepinde X12-lijst = C1–C8', [...LEGACY_XER_ALSO_ON_X12].sort(), [
     'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6CompletedPredecessorAtDataDate',
@@ -258,9 +268,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   ]);
   for (const key of LEGACY_XER_ALSO_ON_X12) {
     const d = CONVENTIONS.find(c => c.id === key)!;
-    // Id-gepind op de P6-profielwaarde (niet een hardgecodeerde true): gelijk aan builtIn.p6, en die is aan.
+    // Id-gepind op de P6-profielwaarde (niet een hardgecodeerde true): gelijk aan builtIn.p6 — aan,
+    // behalve C1/C4 (sinds 2026-09-23 uit; een oud XER-IFC krijgt ze dus vanzelf uit).
     eq(`99f ${key} volgt de P6-profielwaarde`, legacyXerDefault(d), d.builtIn.p6);
-    eq(`99f ${key} P6-waarde is aan`, d.builtIn.p6, true);
+    eq(`99f ${key} P6-waarde volgens het besluit van 2026-09-23`, d.builtIn.p6, !P6_OFF_GROUP_C_99.has(key));
   }
   // 99h/99i: de volle migratie (legacyOptionsToProfile), niet alleen de default-helper. Een oud
   // XER-blok zonder C-sleutels krijgt het P6-profiel voor C1–C8 (geen afwijking); een expliciete
@@ -280,7 +291,17 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     const resolvedFalse = resolveConventions(explicitFalse);
     for (const key of LEGACY_XER_ALSO_ON_X12) {
       eq(`99i ${key} expliciet false ⇒ blijft false`, resolvedFalse[key], false);
-      eq(`99i ${key} expliciet false ⇒ afwijking van p6`, explicitFalse.overrides?.[key], false);
+      // Een afwijking bestaat alleen waar false van de P6-waarde verschilt; C1/C4 zijn in P6 al uit.
+      eq(`99i ${key} expliciet false ⇒ afwijking van p6 alleen waar p6 aan staat`, explicitFalse.overrides?.[key],
+        P6_OFF_GROUP_C_99.has(key) ? undefined : false);
+    }
+    // En omgekeerd: een oud XER-blok met C1/C4 expliciet AAN houdt ze aan, als afwijking van p6.
+    const explicitTrue = legacyOptionsToProfile({
+      p6Source: 'XER', p6CompletedPredecessorAtDataDate: true, p6CompletedOutOfSequenceWindow: true,
+    }).profile;
+    for (const key of P6_OFF_GROUP_C_99) {
+      eq(`99j ${key} expliciet true in oud XER-blok ⇒ aan, als afwijking`,
+        [resolveConventions(explicitTrue)[key], explicitTrue.overrides?.[key]], [true, true]);
     }
   }
   const hypotheticalC = { ...CONVENTIONS.find(d => d.group === 'C')!, id: 'p6HypothetischeZevendeC' as never, since: '2027-01-01' };

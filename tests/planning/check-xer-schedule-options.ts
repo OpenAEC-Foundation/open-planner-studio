@@ -810,8 +810,9 @@ eq('P6-profiel ≡ hand-lijst (A19 uit, per bestand als afwijking)', byKey(P6_PR
   resumeFromActualElapsed: false, unstartedIgnoresStatusDate: false,
   p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true, p6CompletedDataDateWindow: true,
   p6CompletedLoeActualFinish: true, p6OpenLoeTargetSpan: true,
-  p6CompletedPredecessorAtDataDate: true, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
-  p6CompletedOutOfSequenceWindow: true, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
+  // C1/C4 sinds 2026-09-23 uit (populatie = P6-doorgerekende orakels; alleen rehab-2 = P3 droeg ze).
+  p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
+  p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
 }));
 eq('default 7/8: P6-actuals blijven feiten in de backward-pass', P6_PROFILE.preserveActualDatesInBackwardPass, true);

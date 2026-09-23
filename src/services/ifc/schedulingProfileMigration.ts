@@ -19,8 +19,10 @@ export const LEGACY_XER_ALWAYS_ON: ReadonlySet<ConventionKey> = new Set<Conventi
 ]);
 
 /**
- * X12 naar nul, brok 2, 3 en 4 (orkestratorbesluit 2026-09-23): de groep-C-conventies C1–C8 gaan in een
- * oud XER-IFC óók aan, op hun P6-waarde — zo'n bestand rekent dan als een herimport van dezelfde XER.
+ * X12 naar nul, brok 2, 3 en 4 (orkestratorbesluit 2026-09-23): de groep-C-conventies C1–C8 krijgen in
+ * een oud XER-IFC hun P6-waarde — zo'n bestand rekent dan als een herimport van dezelfde XER. Sinds het
+ * populatiebesluit (2026-09-23, alleen P6-doorgerekende orakels) is die P6-waarde voor C1 en C4 UIT;
+ * `legacyXerDefault` geeft `d.builtIn.p6` terug, dus die twee gaan in een oud XER-IFC vanzelf uit.
  * Verantwoording: oude XER-IFC's bestaan alleen in dev-builds (de XER-lezer is nooit uitgebracht vóór
  * de rekenprofielen), en C1–C8 zijn per cel gemeten (X12 15.056 → 12.973 voor C1–C3, → 11.771 met C4,
  * → 10.947 met C5 + C6; telkens 0 slechter). Let op: C1, C3 en C4 steunen alleen op rehab-2, een

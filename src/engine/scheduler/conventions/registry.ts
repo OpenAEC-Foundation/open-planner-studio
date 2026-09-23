@@ -92,11 +92,15 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6CompletedDataDateWindow', 'B', P6_ONLY, true),                 // B3
   convention('p6CompletedLoeActualFinish', 'B', P6_ONLY, true),                // B4
   convention('p6OpenLoeTargetSpan', 'B', P6_ONLY, true),                       // B5
-  // C1–C8: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`.
-  convention('p6CompletedPredecessorAtDataDate', 'C', P6_ONLY, false, false, SINCE_X12_BROK2), // C1
+  // C1–C8: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`. C1 en C4
+  // staan sinds 2026-09-23 in elk ingebouwd profiel uit (besluit: alleen P6-doorgerekende orakels;
+  // op die populatie 0 effect, alleen rehab-2 = P3-uitvoer droeg ze). C3 blijft in P6 aan: C5 rekent
+  // de lag tussen zijn statusdatumpunt en een opvolger met rekenregel C3, en C3 uit kost 640 exacte
+  // cellen in Roads en HarbourPointe (gemeten 2026-09-23, regel A).
+  convention('p6CompletedPredecessorAtDataDate', 'C', NONE, false, false, SINCE_X12_BROK2), // C1
   convention('p6FreeFloatOnOwnCalendar', 'C', P6_ONLY, false, false, SINCE_X12_BROK2),         // C2
   convention('p6CompletedRemainingLag', 'C', P6_ONLY, false, false, SINCE_X12_BROK2),          // C3
-  convention('p6CompletedOutOfSequenceWindow', 'C', P6_ONLY, false, false, SINCE_X12_BROK3),   // C4
+  convention('p6CompletedOutOfSequenceWindow', 'C', NONE, false, false, SINCE_X12_BROK3),   // C4
   convention('p6CompletedPhysicalAtDataDate', 'C', P6_ONLY, false, false, SINCE_X12_BROK3),    // C5
   convention('p6InProgressStartLagElapsed', 'C', P6_ONLY, false, false, SINCE_X12_BROK3),      // C6
   convention('p6FinishFinishStartMilestoneLateFinish', 'C', P6_ONLY, false, false, SINCE_X12_BROK4), // C7

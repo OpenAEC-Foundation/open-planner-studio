@@ -69,14 +69,19 @@ Under Open Planner Studio all twenty-three are off.
 - **Completed task in the data-date window** (Primavera P6) — only for tasks with P6 provenance.
 - **Completed LOE via its actual finish** (Primavera P6) — only for tasks with P6 provenance.
 - **Unstarted LOE uses the target window** (Primavera P6) — only for tasks with P6 provenance.
-- **Completed predecessor does not hold past the data date** (Primavera P6) — if a completed task's actual finish lies after the data date, its successors may still start at the data date. The completed task's own dates do not change.
 - **Free float in the task's own calendar** (Primavera P6) — the free float of an open task over a finish-to-start relationship without lag counts in the task's own calendar. If the successor is already complete while the task is still open, that float is zero.
 - **Elapsed lag of a completed predecessor does not count** (Primavera P6) — on the late side, only the part of the lag after a completed task that has not yet elapsed at the data date counts.
-- **Completed out-of-sequence task waits for its predecessors** (Primavera P6) — if a task is already completed while a predecessor is still in progress or has not started, it is placed right after that predecessor instead of at the data date, and its successors move with it. This does not apply under the P6 setting Progress Override.
 - **Completed physical-progress task sits at the data date** (Primavera P6) — a completed task with physical percent complete is not shown at its actual dates, but as a single point at the data date, or later if a predecessor that is still in progress or has not started requires it. Its successors calculate from that point.
 - **Elapsed SS lag from an in-progress predecessor does not count** (Primavera P6) — for a start-to-start relationship from a task that has already started, only the part of the lag that has not yet elapsed since its actual start at the data date counts. If the lag has already elapsed, the successor may start as soon as the remaining work of the predecessor starts.
 - **Finish-to-finish relationship to a start milestone binds to the milestone itself** (Primavera P6) — with a finish-to-finish relationship to a start milestone, the predecessor may run up to the milestone itself, not only up to the start of the milestone's day. That changes the predecessor's late dates and float. A finish milestone does not change.
 - **Planned start is not a floor for a task in progress** (Primavera P6) — the remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later. Its successors move with it. For a task that has not started, the planned start remains a floor (*Planned start as an extra floor*).
+
+### Off by default in every profile
+
+Two conventions are off in every built-in profile, including Primavera P6. They were derived from a file that was not calculated by P6 (output of the older Primavera P3) and change nothing in the files that were demonstrably calculated by P6. To use them anyway, turn them on in a custom profile.
+
+- **Completed predecessor does not hold past the data date** (off by default) — if a completed task's actual finish lies after the data date, its successors may still start at the data date. The completed task's own dates do not change.
+- **Completed out-of-sequence task waits for its predecessors** (off by default) — if a task is already completed while a predecessor is still in progress or has not started, it is placed right after that predecessor instead of at the data date, and its successors move with it. This does not apply under the P6 setting Progress Override.
 
 ## Combinations without a reference package
 
