@@ -78,13 +78,13 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
-  // HERPIN 2026-09-23e (X12 naar nul, brok 4 — conventie C7 `p6StartedTaskIgnoresPlannedStartFloor`,
+  // HERPIN 2026-09-23e (X12 naar nul, brok 4 — conventie C8 `p6StartedTaskIgnoresPlannedStartFloor`,
   // brok B11): 11.608 → 11.529 (−79, 0 cellen slechter, drivingPath 417 ongewijzigd). OZB-Start-09Dec24
   // (projecten 9032 en 10096): es −18, ef −18, tf −18, ff −4 — de lopende OZ1040 start ná haar lopende
   // voorganger OZ1030 (12-24 12:00) in plaats van op haar target_start (12-30 08:00); OZ1050–OZ1130
   // schuiven mee. Roads: es −6, ef −6, tf −6, ff −3 — de lopende B3071/B2591 starten op de statusdatum.
   // Geen `restart_date` gelezen (bak 2). rehab-2 ongewijzigd (P3-orakel, telt niet als bron).
-  // HERPIN 2026-09-23d (X12 naar nul, brok 4 — conventie C6 `p6FinishFinishStartMilestoneLateFinish`,
+  // HERPIN 2026-09-23d (X12 naar nul, brok 4 — conventie C7 `p6FinishFinishStartMilestoneLateFinish`,
   // brok B08): 11.771 → 11.608 (−163, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles Roads:
   // ls −58 (sameday 129 → 71), lf −58 (sameday −9, diff −49), tf −42, ff −5 — een FF-relatie naar de
   // startmijlpaal OCEC12101 (`TT_Mile`, LF 2014-01-15 16:00) bindt aan de mijlpaal zelf, niet aan het

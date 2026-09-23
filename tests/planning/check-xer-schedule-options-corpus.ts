@@ -1071,6 +1071,12 @@ if (!root) {
     // ef 1414 → 917, ls 3353 → 3231, lf 3351 → 3229, tf 3868 → 3494, ff 303 → 88. `house` en de
     // completedProgress-rijen (chosen/counterfactual) zijn byte-identiek; bijgewerkt in het JSON-bestand:
     // `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement` en deze projectie.
+    // Herpin 2026-09-23 (X12 brok 3/4, conventies C4, C7, C8; na merge van brok 2): alleen de
+    // `xerDefaults`-rijen bewegen, alle assen omlaag of gelijk — es 887 → 455, ef 917 → 485, tf 3494 →
+    // 3196, ff 88 → 48, ls/lf gelijk. `house` en completedProgress byte-identiek. Bijgewerkt:
+    // `fidelity.xerDefaults`, de projectie, en `xerDefaultsMovement` van files[4] (1ba8cf1885491db3-1:
+    // ef 16 → 17) en files[7] (2c1dce175b9f0781-1: es 3714 → 4001, ef 3563 → 3894, tf 4395 → 4675,
+    // ff 2251 → 2268) — beweging house↔xerDefaults, geen afwijking.
     eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
       shape: causalProductEffectsShape(committed.causalProductEffects),
       measured: causalProductEffects(measured),

@@ -27,10 +27,10 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    gepinde B1–B5 uit `LEGACY_XER_ALWAYS_ON` (`src/services/ifc/schedulingProfileMigration.ts`) aan, want
    een nieuwe conventie bestond in zo'n bestand niet. De regel: een nieuwe conventie gaat voor oude
    bestanden NOOIT vanzelf aan, welke groep ook, tenzij ze met een meting expliciet in een gepinde set
-   wordt gezet — zoals C1–C4 en C6–C7 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
+   wordt gezet — zoals C1–C4 en C7–C8 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
    15.056 → 12.973 gemeten, 0 slechter). Breid `LEGACY_XER_ALWAYS_ON` nooit uit. Twee sets, twee
    betekenissen: `LEGACY_XER_ALWAYS_ON` (B1–B5) geeft `true` — die hingen vroeger letterlijk aan
-   `p6Source` —, `LEGACY_XER_ALSO_ON_X12` (C1–C4, C6–C7) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
+   `p6Source` —, `LEGACY_XER_ALSO_ON_X12` (C1–C4, C7–C8) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
    rekent als een herimport). Een expliciet gezette vlag in het oude blok wint altijd, ook `false`.
    Bewaakt door 99e–99i in `check-conventions-registry.ts` en 28/28b in
    `check-scheduling-profile-roundtrip.ts` (echte IFC-leesroute).

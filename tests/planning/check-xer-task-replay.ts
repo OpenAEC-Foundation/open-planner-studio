@@ -64,6 +64,9 @@ if (!corpusRoot) {
   // tf-cellen exact (rehab-2); de mutant maakt er daardoor ls 1559 → 1671, lf 1570 → 1682, tf 1487 →
   // 1591 en overall 1570 → 1682 kapot. Som regressed+unchanged per as ongewijzigd; es/ef/ff gelijk.
   // Dit pin was bij de brok-2-herpin (7c37b212/d6db800c) vergeten en ving de fixronde op.
+  // Herpin 2026-09-23 (X12 brok 3/4 — C4, C7, C8, na merge van brok 2): alleen tf van de negatieve
+  // kandidaat schuift, regressed 1591 → 1666 / unchanged 12086 → 12011 (som 13677 gelijk); ls/lf/es/ef/ff
+  // en `synthetic-zero-regression` ongewijzigd. Meer detectie, geen verlies.
   for (const candidate of [syntheticZeroRegressionCandidate, dropFinishMilestoneBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

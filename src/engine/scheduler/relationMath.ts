@@ -215,7 +215,7 @@ export function forwardConstraint(
   finishFinishAtStartMilestoneLateFinish = false,
 ): Date {
   const boundaryFlags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
-  // Conventie C6 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): spiegel
+  // Conventie C7 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): spiegel
   // van `backwardConstraint` — de FF-grens naar een startmijlpaal is de voorgangerfinish zelf, zonder
   // de sprong naar de werkgrens ná een dagbegin-anker.
   const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'
@@ -321,7 +321,7 @@ export function backwardConstraint(
   finishFinishAtStartMilestoneLateFinish = false,
 ): Date {
   const boundaryFlags = relationBoundaryFlags(predTask, succTask, p6ZeroDurationSuccessorAtFinish);
-  // Conventie C6 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): de
+  // Conventie C7 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): de
   // aanroeper beslist; hier alleen het effect — een FF-relatie naar een startmijlpaal bindt aan
   // diens LATE FINISH zelf, zonder de dagbegin-sprong naar de vorige werkgrens.
   const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'

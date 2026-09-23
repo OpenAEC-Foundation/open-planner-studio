@@ -146,12 +146,12 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('50 geen blob ⇒ ops zonder overrides', none.profile, builtInProfile('ops'));
   eq('51 geen blob ⇒ geen opties', none.options, undefined);
 
-  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5, C1–C4, C6 en C7 ⇒ AAN.
+  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5, C1–C4, C7 en C8 ⇒ AAN.
   const partial = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true });
   eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
-  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C4 + C6–C7 aan', on, [
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C1–C4 + C7–C8 aan', on, [
     'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
     'p6CompletedOutOfSequenceWindow', 'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag',
     'p6FinishFinishStartMilestoneLateFinish', 'p6FreeFloatOnOwnCalendar', 'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary',
@@ -250,8 +250,8 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('99b een bestaande groep-B-conventie wel', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6OpenLoeTargetSpan')!), true);
   eq('99c een A-conventie niet', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6UseTaskPlannedStartFloor')!), false);
   // X12 brok 2: C1–C3 gepind in een eigen set (orkestratorbesluit: oude XER-IFC's rekenen als herimport).
-  // Brok 3/4 (merge): C4, C6 en C7 expliciet toegevoegd, elk per cel gemeten (0 slechter).
-  same('99e gepinde X12-lijst = C1–C4 + C6–C7', [...LEGACY_XER_ALSO_ON_X12].sort(), [
+  // Brok 3/4 (merge): C4, C7 en C8 expliciet toegevoegd, elk per cel gemeten (0 slechter).
+  same('99e gepinde X12-lijst = C1–C4 + C7–C8', [...LEGACY_XER_ALSO_ON_X12].sort(), [
     'p6CompletedOutOfSequenceWindow', 'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag',
     'p6FinishFinishStartMilestoneLateFinish', 'p6FreeFloatOnOwnCalendar', 'p6StartedTaskIgnoresPlannedStartFloor',
   ]);

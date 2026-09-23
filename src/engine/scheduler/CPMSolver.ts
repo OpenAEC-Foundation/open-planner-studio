@@ -137,7 +137,7 @@ export interface CPMPlannedFloorTrace {
   targetStart: string;
   targetFinish: string;
   plannedWindowIsLater: boolean;
-  /** Of de vloer daadwerkelijk is toegepast: `plannedWindowIsLater` en niet overruled door C7
+  /** Of de vloer daadwerkelijk is toegepast: `plannedWindowIsLater` en niet overruled door C8
    *  (`p6StartedTaskIgnoresPlannedStartFloor`, lopende taak). */
   floorApplied: boolean;
   boundarySource: 'project-start' | 'relationship' | 'relationship:p6-predecessor-finish-boundary';
@@ -578,7 +578,7 @@ export class CPMSolver {
   }
 
   /**
-   * Conventie C6 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
+   * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
    * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
    * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
    * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
@@ -1836,7 +1836,7 @@ export class CPMSolver {
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
           this.seqConstraint.set(seq.id, constraintDate);
-          // Conventie C6 voorwaarts: alleen de relatiegrens voor de vrije speling, nooit de vroege
+          // Conventie C7 voorwaarts: alleen de relatiegrens voor de vrije speling, nooit de vroege
           // start van de mijlpaal (die blijft op de gewone grens; zie het docblok in `types/project.ts`).
           if (this.finishFinishAtStartMilestoneLateFinish(seq, task, this.relationEngineFor(predTask), cal)) {
             c6FloatBoundaries.push([seq.id, forwardConstraint(
@@ -1857,7 +1857,7 @@ export class CPMSolver {
           );
           if (finishFloor && (!sfFinishFloor || finishFloor > sfFinishFloor)) sfFinishFloor = finishFloor;
         }
-        // C6: een niet-bindende FF naar de startmijlpaal krijgt de grens zonder dagsprong, zodat de
+        // C7: een niet-bindende FF naar de startmijlpaal krijgt de grens zonder dagsprong, zodat de
         // vrije speling tot de mijlpaal zelf telt. Een bindende (= maximale) relatie houdt de gewone
         // grens: zij blijft driving en de vroege start verschuift niet.
         for (const [seqId, c6Boundary, normalBoundary] of c6FloatBoundaries) {
@@ -1877,7 +1877,7 @@ export class CPMSolver {
             ? plannedFloor > earlyStart
             : plannedFloor.getTime() - earlyStart.getTime() > MS_PER_DAY
               && plannedFinish.getTime() - networkFinish.getTime() > MS_PER_DAY;
-          // Conventie C7 `p6StartedTaskIgnoresPlannedStartFloor` (docblok + bron bij de sleutel in
+          // Conventie C8 `p6StartedTaskIgnoresPlannedStartFloor` (docblok + bron bij de sleutel in
           // `types/project.ts`): voor een lopende taak (werkelijke start, nog niet voltooid) is het
           // geplande venster geen vloer; haar resterende werk start op statusdatum + relatiegrens.
           const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
@@ -3363,7 +3363,7 @@ export class CPMSolver {
             const constraintFinish = backwardConstraint(
               this.relDeps, delayShiftedSuccResult, effectiveSeq, zeroRemainingPredTask, succTask,
               progressCal, succCal, this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
-              // C6 bewust NIET in deze nulrestduur-voortgangstak: ongemeten (B05-vorm, geschrapt).
+              // C7 bewust NIET in deze nulrestduur-voortgangstak: ongemeten (B05-vorm, geschrapt).
             );
             // FS/FF: `constraintFinish` is een echte late FINISH van de voorganger — de
             // nulrestduur-conversie naar een late START loopt via `nextWorkInstant` (spiegel van

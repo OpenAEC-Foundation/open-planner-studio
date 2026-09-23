@@ -303,7 +303,7 @@ export interface SchedulingOptions {
    *    koppeling naar een onvoltooide voorganger verschuift alleen onvoltooid werk.
    *  - OPS: uit (het venster op de statusdatum, het gedrag van vóór deze conventie). */
   p6CompletedOutOfSequenceWindow?: boolean;
-  /** C6 — een FF-relatie naar een STARTmijlpaal (nulduur, `milestoneKind: 'START'`; in P6 een
+  /** C7 — een FF-relatie naar een STARTmijlpaal (nulduur, `milestoneKind: 'START'`; in P6 een
    *  `TT_Mile`) bindt in de terugwaartse berekening aan de LATE FINISH van die mijlpaal zelf. Zonder
    *  deze conventie behandelt de motor een startmijlpaal als dagbegin-anker: de late finish van de
    *  FF-voorganger moet dan op de werkgrens vóór dat anker liggen (`relationMath.backwardHour`,
@@ -328,7 +328,7 @@ export interface SchedulingOptions {
    *    berekening van een FF-relatie; ongemeten, dus het gedrag van vóór deze conventie.
    *  - OPS: uit (de werkgrens vóór het dagbegin van de mijlpaal, het gedrag van vóór deze conventie). */
   p6FinishFinishStartMilestoneLateFinish?: boolean;
-  /** C7 — de geplande-startvloer van A16 (`p6UseTaskPlannedStartFloor`: `TASK.target_start_date`
+  /** C8 — de geplande-startvloer van A16 (`p6UseTaskPlannedStartFloor`: `TASK.target_start_date`
    *  als vloer zodra het geplande venster ruim ná de netwerkgrens ligt) geldt niet voor een LOPENDE
    *  taak (werkelijke start, voortgang < 100%). Haar resterende werk begint dan op de statusdatum en
    *  de relatiegrens uit haar voorgangers (`CPMSolver.forwardPass`, voortgangstak: `remStart`), en

@@ -418,8 +418,8 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 }
 
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
-// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`; brok 4: C6
-// `p6FinishFinishStartMilestoneLateFinish`, C7 `p6StartedTaskIgnoresPlannedStartFloor` ──
+// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`; brok 4: C7
+// `p6FinishFinishStartMilestoneLateFinish`, C8 `p6StartedTaskIgnoresPlannedStartFloor` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
@@ -588,15 +588,15 @@ groupC.push({
   builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-05T17:00' },
 });
 
-// C6: band 08:00–17:00 ma–vr, geen statusdatumvoortgang. Open A (1 dag, ma 5 jan) —FF0→
+// C7: band 08:00–17:00 ma–vr, geen statusdatumvoortgang. Open A (1 dag, ma 5 jan) —FF0→
 // startmijlpaal M (`TT_Mile`) —FF0→ open Z (1 dag). Een losse open X van 10 werkdagen legt het
 // projecteinde op vr 16 jan 17:00, dus Z.LF = M.LF = vr 16 jan 17:00. P6 (Roads, B08): A.LF = de
-// late finish van M zelf, vr 16 jan 17:00, dus A.LS = vr 16 jan 08:00. Zonder C6 is M een dagbegin-
+// late finish van M zelf, vr 16 jan 17:00, dus A.LS = vr 16 jan 08:00. Zonder C7 is M een dagbegin-
 // anker: A.LF = het begin van de mijlpaaldag, vr 16 jan 08:00 (werktijd-gelijk aan do 15 jan 17:00),
 // dus A.LS = do 15 jan 08:00 — één werkdag (9 u) minder totale speling. Voorwaarts: een open Y
 // (3 dagen, ma 5 – wo 7 jan) —FS0→ M zet M op do 8 jan 08:00. P6 telt de vrije speling van A tot
-// M zelf: di 6 en wo 7 jan = 2 dagen; zonder C6 vanaf de werkgrens ná het dagbegin-anker: 1 dag.
-function c6Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile', withDriver = true): ImportResult {
+// M zelf: di 6 en wo 7 jan = 2 dagen; zonder C7 vanaf de werkgrens ná het dagbegin-anker: 1 dag.
+function c7Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile', withDriver = true): ImportResult {
   return importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -625,22 +625,22 @@ function c6Fixture(milestoneType: 'TT_Mile' | 'TT_FinMile', withDriver = true): 
 }
 groupC.push({
   flag: 'p6FinishFinishStartMilestoneLateFinish',
-  label: 'C6 FF-relatie naar een startmijlpaal',
-  input: c6Fixture('TT_Mile'),
+  label: 'C7 FF-relatie naar een startmijlpaal',
+  input: c7Fixture('TT_Mile'),
   taskId: 'A',
   pick: axes => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff }),
   on: { ls: '2026-01-16T08:00', lf: '2026-01-16T17:00', tf: 9, ff: 2 },
   off: { ls: '2026-01-15T08:00', lf: '2026-01-16T08:00', tf: 8, ff: 1 },
 });
 
-// C7: band 08:00–17:00 ma–vr, statusdatum ma 12 jan 08:00, rem_target_link_flag=Y (A19: de
+// C8: band 08:00–17:00 ma–vr, statusdatum ma 12 jan 08:00, rem_target_link_flag=Y (A19: de
 // getoonde ES van een lopende taak is de start van het restwerk). Lopende Q (9 u rest) eindigt ma 12
 // jan 17:00 —FS0→ lopende T (werkelijke start ma 5 jan, 27 u gepland, 18 u rest) met een gepland
 // venster ma 19 – wo 21 jan: ruim ná de netwerkgrens (di 13 jan 08:00), dus A16 zou het als vloer
 // gebruiken. P6 (OZB, B11, OZ1030 → OZ1040): het restwerk begint direct ná de voorganger — ES di 13
-// jan 08:00, EF wo 14 jan 17:00 — en opvolger S (FS0) op do 15 jan 08:00. Zonder C7: ES ma 19 jan
+// jan 08:00, EF wo 14 jan 17:00 — en opvolger S (FS0) op do 15 jan 08:00. Zonder C8: ES ma 19 jan
 // 08:00, EF di 20 jan 17:00, S wo 21 jan.
-function c7Fixture(started: boolean): ImportResult {
+function c8Fixture(started: boolean): ImportResult {
   const task = started
     ? '%R\tT\tP1\tC1\tT100\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t27\t18\t2026-01-19 08:00\t2026-01-21 17:00\t2026-01-05 08:00\t'
     : '%R\tT\tP1\tC1\tT100\tNiet gestart\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t27\t27\t2026-01-19 08:00\t2026-01-21 17:00\t\t';
@@ -666,8 +666,8 @@ function c7Fixture(started: boolean): ImportResult {
 }
 groupC.push({
   flag: 'p6StartedTaskIgnoresPlannedStartFloor',
-  label: 'C7 geplande-startvloer niet voor een lopende taak',
-  input: c7Fixture(true),
+  label: 'C8 geplande-startvloer niet voor een lopende taak',
+  input: c8Fixture(true),
   taskId: 'T',
   pick: axes => ({ es: axes.es, ef: axes.ef }),
   on: { es: '2026-01-13T08:00', ef: '2026-01-14T17:00' },
@@ -745,45 +745,45 @@ for (const fixture of groupC) {
   eq('C4 late kant fixture: X legt het projecteinde vast', solveAxes(anchored, 'X').ef, '2026-02-11T17:00');
 }
 
-// C6, randgevallen (docblok): de startmijlpaal zelf staat met en zonder C6 gelijk (ES do 8 jan door
+// C7, randgevallen (docblok): de startmijlpaal zelf staat met en zonder C7 gelijk (ES do 8 jan door
 // Y), en een FF-relatie naar een EINDmijlpaal (`TT_FinMile`, 34× in het corpus, nu exact) verandert
 // op geen enkele as van geen enkele taak.
 {
-  const c6 = groupC.find(fixture => fixture.flag === 'p6FinishFinishStartMilestoneLateFinish')!;
+  const c7 = groupC.find(fixture => fixture.flag === 'p6FinishFinishStartMilestoneLateFinish')!;
   const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6FinishFinishStartMilestoneLateFinish', false));
-  eq('C6 fixture: Y zet de startmijlpaal op do 8 jan', solveAxes(c6.input, 'M').es, '2026-01-08T08:00');
-  eq('C6 laat de startmijlpaal zelf ongemoeid', solveAxes(c6.input, 'M'), solveAxes(off(c6.input), 'M'));
-  const finMile = c6Fixture('TT_FinMile');
-  eq('C6 fixture: de eindmijlpaal is een FINISH-mijlpaal', finMile.tasks.find(task => task.id === 'M')?.milestoneKind, 'FINISH');
-  eq('C6 raakt geen FF-relatie naar een eindmijlpaal (alle assen, alle taken)', solveAllAxes(finMile), solveAllAxes(off(finMile)));
+  eq('C7 fixture: Y zet de startmijlpaal op do 8 jan', solveAxes(c7.input, 'M').es, '2026-01-08T08:00');
+  eq('C7 laat de startmijlpaal zelf ongemoeid', solveAxes(c7.input, 'M'), solveAxes(off(c7.input), 'M'));
+  const finMile = c7Fixture('TT_FinMile');
+  eq('C7 fixture: de eindmijlpaal is een FINISH-mijlpaal', finMile.tasks.find(task => task.id === 'M')?.milestoneKind, 'FINISH');
+  eq('C7 raakt geen FF-relatie naar een eindmijlpaal (alle assen, alle taken)', solveAllAxes(finMile), solveAllAxes(off(finMile)));
 }
 
-// C6, drijvend geval (fixronde critreview): zonder Y is de FF van A de bindende relatie van M. P6-orakel
-// ontbreekt in het corpus, dus C6 mag de voorwaartse pass hier niet raken: M.es blijft de gewone
+// C7, drijvend geval (fixronde critreview): zonder Y is de FF van A de bindende relatie van M. P6-orakel
+// ontbreekt in het corpus, dus C7 mag de voorwaartse pass hier niet raken: M.es blijft de gewone
 // grens (wo 7 jan 08:00, beide snaps van `forwardHour`), en de vroege datums van alle taken zijn met
-// en zonder C6 gelijk. Mutant "C6-grens ook voor de bindende relatie" ⇒ M.es di 6 jan ⇒ rood.
+// en zonder C7 gelijk. Mutant "C7-grens ook voor de bindende relatie" ⇒ M.es di 6 jan ⇒ rood.
 {
-  const floating = c6Fixture('TT_Mile', false);
+  const floating = c7Fixture('TT_Mile', false);
   const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6FinishFinishStartMilestoneLateFinish', false));
-  eq('C6 drijvend: M.es blijft wo 7 jan 08:00', solveAxes(floating, 'M').es, '2026-01-07T08:00');
+  eq('C7 drijvend: M.es blijft wo 7 jan 08:00', solveAxes(floating, 'M').es, '2026-01-07T08:00');
   const early = (input: ImportResult) => Object.fromEntries(['A', 'M', 'Z', 'X'].map(id => {
     const axes = solveAxes(input, id);
     return [id, { es: axes.es, ef: axes.ef }];
   }));
-  eq('C6 drijvend: vroege datums van alle taken ongewijzigd', early(floating), early(off(floating)));
-  eq('C6 drijvend: de bindende FF blijft driving (ff A = 0)', solveAxes(floating, 'A').ff, solveAxes(off(floating), 'A').ff);
+  eq('C7 drijvend: vroege datums van alle taken ongewijzigd', early(floating), early(off(floating)));
+  eq('C7 drijvend: de bindende FF blijft driving (ff A = 0)', solveAxes(floating, 'A').ff, solveAxes(off(floating), 'A').ff);
 }
 
-// C7, relatiekant en randgeval (docblok): de opvolger volgt het restwerk (do 15 jan 08:00, zonder C7
-// wo 21 jan); een NIET-gestarte taak houdt de vloer van A16 — met en zonder C7 gelijk op alle assen.
+// C8, relatiekant en randgeval (docblok): de opvolger volgt het restwerk (do 15 jan 08:00, zonder C8
+// wo 21 jan); een NIET-gestarte taak houdt de vloer van A16 — met en zonder C8 gelijk op alle assen.
 {
-  const c7 = groupC.find(fixture => fixture.flag === 'p6StartedTaskIgnoresPlannedStartFloor')!;
+  const c8 = groupC.find(fixture => fixture.flag === 'p6StartedTaskIgnoresPlannedStartFloor')!;
   const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6StartedTaskIgnoresPlannedStartFloor', false));
-  eq('C7 opvolger volgt het restwerk', solveAxes(c7.input, 'S').es, '2026-01-15T08:00');
-  eq('C7 uit ⇒ opvolger ná het geplande venster', solveAxes(off(c7.input), 'S').es, '2026-01-21T08:00');
-  const unstarted = c7Fixture(false);
-  eq('C7 fixture: niet-gestarte taak staat op de vloer van A16', solveAxes(unstarted, 'T').es, '2026-01-19T08:00');
-  eq('C7 raakt geen niet-gestarte taak', solveAllAxes(unstarted), solveAllAxes(off(unstarted)));
+  eq('C8 opvolger volgt het restwerk', solveAxes(c8.input, 'S').es, '2026-01-15T08:00');
+  eq('C8 uit ⇒ opvolger ná het geplande venster', solveAxes(off(c8.input), 'S').es, '2026-01-21T08:00');
+  const unstarted = c8Fixture(false);
+  eq('C8 fixture: niet-gestarte taak staat op de vloer van A16', solveAxes(unstarted, 'T').es, '2026-01-19T08:00');
+  eq('C8 raakt geen niet-gestarte taak', solveAllAxes(unstarted), solveAllAxes(off(unstarted)));
 }
 
 // ── Groep C: randgevallen (critreview brok 2) ────────────────────────────────────────────────────
