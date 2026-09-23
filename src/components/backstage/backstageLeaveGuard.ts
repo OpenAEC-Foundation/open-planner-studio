@@ -21,6 +21,16 @@ export function setBackstageLeaveGuard(guard: BackstageLeaveGuard | null): () =>
   return () => { if (current === guard) current = null; };
 }
 
+/**
+ * Staat er een bewaker (= een afwijkende Projectinfo-draft)? Voor wegroutes die niet via een
+ * keuzedialoog kunnen lopen omdat ze een ander document activeren (Ctrl/⌘+1–9, Ctrl/⌘+N, Ctrl/⌘+O):
+ * die worden zolang geblokkeerd — de draft hoort bij het actieve document en een documentwissel
+ * zou hem stil verwerpen (of, bij terugkeer, een verouderde draft tonen).
+ */
+export function isBackstageLeaveGuardActive(): boolean {
+  return current !== null;
+}
+
 /** Voert `proceed` uit, tenzij de actieve bewaker de wegnavigatie onderschept (die roept hem dan later zelf aan). */
 export function leaveBackstageGuarded(proceed: () => void): void {
   if (current?.(proceed)) return;

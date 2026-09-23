@@ -36,7 +36,7 @@ When you open a `.xer` or `.mpp` file, you see one notification, for example "Th
 
 Choose another profile in **Project info** and click **Apply**. The schedule is recalculated right away, also when *Calculate automatically* is off. If tasks move as a result, a notification tells you how many; if nothing moves, there is no notification. The count covers ordinary tasks, not summary tasks (those follow the tasks below them). A switch is one step in *Undo*.
 
-As long as you have changed something but not applied it yet, a coloured *Changes not applied* block stays in view at the bottom, with **Discard** next to **Apply**. If you then go to another section, click **Back** or press Escape, the app first asks whether you want to apply the changes, discard them or stay.
+As long as you have changed something but not applied it yet, a coloured *Changes not applied* block stays in view at the bottom, with **Discard** next to **Apply**. If you then go to another section, click **Back**, or press Escape or F1, the app first asks whether you want to apply the changes, discard them or stay; switching to another project (Ctrl+1–9, Ctrl+N, Ctrl+O) only works once you have applied or discarded them. If the window is too narrow to show notifications next to that question, they stay dimmed behind the dialog and come back as soon as you have made a choice.
 
 Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
 

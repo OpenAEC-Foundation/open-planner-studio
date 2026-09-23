@@ -63,6 +63,29 @@ export function samePlacement(a: ToastPlacement, b: ToastPlacement): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+const MODAL_SELECTOR = '[role="dialog"][aria-modal="true"]';
+const AVOID_SELECTOR = '[data-ops-toast-avoid]';
+
+/** De elementen waar de plaatsing van afhangt — de host hangt er een `ResizeObserver` aan. */
+export function toastAvoidElements(doc: Document): HTMLElement[] {
+  return Array.from(doc.querySelectorAll<HTMLElement>(`${MODAL_SELECTOR}, ${AVOID_SELECTOR}`));
+}
+
+// Signaal voor `[data-ops-toast-avoid]`-balken die mounten/unmounten (een dialoog meldt zich al via
+// de dialoogstapel, zie `subscribeDialogStack`). Module-globaal, net als die stapel: puur UI-coördinatie.
+const layoutListeners = new Set<() => void>();
+
+/** Luistert naar het verschijnen/verdwijnen van een toast-mijdbalk. Geeft een opzegfunctie. */
+export function subscribeToastLayout(listener: () => void): () => void {
+  layoutListeners.add(listener);
+  return () => { layoutListeners.delete(listener); };
+}
+
+/** Aan te roepen door een component met een `[data-ops-toast-avoid]`-balk bij mount en unmount. */
+export function notifyToastLayoutChange(): void {
+  for (const listener of layoutListeners) listener();
+}
+
 /** Meet de huidige DOM: zichtbare modale dialoogpanelen en toast-mijdbalken. */
 export function measureToastPlacement(doc: Document, win: Window): ToastPlacement {
   const rectsOf = (selector: string): Rect[] => Array.from(doc.querySelectorAll<HTMLElement>(selector))
@@ -71,7 +94,7 @@ export function measureToastPlacement(doc: Document, win: Window): ToastPlacemen
     .map(r => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom }));
   return computeToastPlacement(
     { width: win.innerWidth, height: win.innerHeight },
-    rectsOf('[role="dialog"][aria-modal="true"]'),
-    rectsOf('[data-ops-toast-avoid]'),
+    rectsOf(MODAL_SELECTOR),
+    rectsOf(AVOID_SELECTOR),
   );
 }

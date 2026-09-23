@@ -3,46 +3,66 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { AppNotification } from '@/state/slices/types';
 import { notificationDetailText } from '@/utils/notificationDetail';
-import { measureToastPlacement, samePlacement, type ToastPlacement } from './toastPlacement';
+import { subscribeDialogStack } from '@/hooks/useDialogKeys';
+import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
+import {
+  measureToastPlacement, samePlacement, subscribeToastLayout, toastAvoidElements, type ToastPlacement,
+} from './toastPlacement';
 
 /**
  * B5 (gebruikstest rekenprofielen 24-09): houdt de stapel weg van de knoppen van een open dialoog
  * en van plakkende actiebalken — zie `toastPlacement.ts` voor de regel. Meet alleen zolang er
- * meldingen zijn: synchroon bij het verschijnen, in het frame na elke storewijziging (een dialoog
- * die opengaat) en bij resize, plus elke {@link PLACEMENT_POLL_MS} ms als vangnet voor wat daarbuiten
- * verschuift; zonder meldingen draait er niets. Nieuwe state
- * alleen als de plaatsing echt verandert. Bewust geen rAF-lus: een foutmelding blijft staan tot
- * wegklikken, en een meting per frame naast de Gantt-canvas is dan verspilde layoutwerk.
+ * meldingen zijn, en alleen op signalen — geen poll, geen store-brede subscribe:
+ *  - synchroon bij het verschijnen van de stapel (vóór de eerste paint);
+ *  - één frame na elke push/pop op de dialoogstapel (`subscribeDialogStack`; de dialoog is dan
+ *    gecommit) en na het mounten/unmounten van een mijdbalk (`subscribeToastLayout`);
+ *  - via een `ResizeObserver` op de gevonden dialoogpanelen en balken (na elke meting opnieuw
+ *    gekoppeld als de set veranderde), bv. wanneer de balk het "niet toegepast"-blok krijgt;
+ *  - bij `resize` en bij scrollen (capture: een plakkende balk verschuift mee met zijn scrollcontainer).
+ * Meerdere signalen in één frame vallen samen tot één meting; nieuwe state alleen als de plaatsing
+ * echt verandert.
  */
-const PLACEMENT_POLL_MS = 100;
-
 function useToastPlacement(active: boolean): ToastPlacement {
   const [placement, setPlacement] = useState<ToastPlacement>({ kind: 'default' });
   useLayoutEffect(() => {
     if (!active) return;
     let last: ToastPlacement | null = null;
-    const measure = () => {
+    let frame = 0;
+    let observed: HTMLElement[] = [];
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(measure);
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    const rebind = () => {
+      if (!observer) return;
+      const els = toastAvoidElements(document);
+      if (els.length === observed.length && els.every((el, i) => el === observed[i])) return;
+      observer.disconnect();
+      for (const el of els) observer.observe(el);
+      observed = els;
+    };
+    function measure() {
+      frame = 0;
       const next = measureToastPlacement(document, window);
       if (!last || !samePlacement(last, next)) {
         last = next;
         setPlacement(next);
       }
-    };
+      rebind();
+    }
     measure(); // synchroon vóór de eerste paint van de stapel
-    const timer = setInterval(measure, PLACEMENT_POLL_MS);
-    // Dialogen openen via `ui.show*`-vlaggen: meet na elke storewijziging in het volgende frame
-    // (React heeft de dialoog dan gecommit), zodat de stapel niet eerst 100 ms over de voet ligt.
-    let frame = 0;
-    const unsubscribe = useAppStore.subscribe(() => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(measure);
-    });
-    window.addEventListener('resize', measure);
+    const offStack = subscribeDialogStack(schedule);
+    const offLayout = subscribeToastLayout(schedule);
+    window.addEventListener('resize', schedule);
+    document.addEventListener('scroll', schedule, true);
     return () => {
-      clearInterval(timer);
       cancelAnimationFrame(frame);
-      unsubscribe();
-      window.removeEventListener('resize', measure);
+      observer?.disconnect();
+      offStack();
+      offLayout();
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('scroll', schedule, true);
     };
   }, [active]);
   return placement;
@@ -131,7 +151,13 @@ export function NotificationHost() {
             <button
               type="button"
               className="ops-textlink ops-toast-readmore"
-              onClick={(e) => { e.stopPropagation(); openHelpArticle(n.helpArticleId!); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // B2: wegnavigeren uit Backstage → Projectinfo loopt via de bewaker (keuzedialoog
+                // bij een niet-toegepaste draft), net als de zijbalk en het lint.
+                const articleId = n.helpArticleId!;
+                leaveBackstageGuarded(() => openHelpArticle(articleId));
+              }}
             >
               {t('notifications.readMore')}
             </button>
@@ -146,8 +172,15 @@ export function NotificationHost() {
               onClick={(e) => {
                 e.stopPropagation();
                 const action = n.action!;
-                setUI({ activeRibbonTab: 'file', backstageSection: action.section });
-                dismissNotification(n.id);
+                const go = () => {
+                  setUI({ activeRibbonTab: 'file', backstageSection: action.section });
+                  dismissNotification(n.id);
+                };
+                // B2: ook deze actie verlaat de huidige Backstage-sectie — via de bewaker; staat de
+                // gebruiker al op de doelsectie, dan valt er niets te verlaten.
+                const { ui } = useAppStore.getState();
+                if (ui.activeRibbonTab === 'file' && ui.backstageSection === action.section) go();
+                else leaveBackstageGuarded(go);
               }}
             >
               {t(n.action.labelKey)}

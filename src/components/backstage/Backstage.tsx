@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, FileText, FolderOpen, Clock, Save, SaveAll, Download,
@@ -24,6 +24,7 @@ import type { ImportLabels } from '@/services/importTypes';
 import { isAnyDialogOpen } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded, setBackstageLeaveGuard } from './backstageLeaveGuard';
 import { UnappliedChangesDialog } from './UnappliedChangesDialog';
+import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import './Backstage.css';
 
 export function Backstage() {
@@ -86,7 +87,9 @@ export function Backstage() {
   // o.a. de niet-toegepast-dialoog hieronder: Escape = Annuleren, niet óók nog Backstage sluiten).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || isAnyDialogOpen()) return;
+      // `defaultPrevented`: een open `Select`-lijst (portal) handelt Escape zelf af (lijst dicht) en
+      // roept `preventDefault` — dan mag dezelfde Escape niet óók Backstage verlaten.
+      if (e.key !== 'Escape' || e.defaultPrevented || isAnyDialogOpen()) return;
       leaveBackstageGuarded(closeBackstage);
     };
     document.addEventListener('keydown', onKey);
@@ -516,6 +519,11 @@ interface ProjectInfoSectionProps {
 function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit, onValidityChange }: ProjectInfoSectionProps) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
+  // B5: de plakkende actiebalk is een toast-mijdbalk — meld mount/unmount aan de meldingenplaatsing.
+  useLayoutEffect(() => {
+    notifyToastLayoutChange();
+    return notifyToastLayoutChange;
+  }, []);
 
   return (
     <>

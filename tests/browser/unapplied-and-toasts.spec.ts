@@ -105,6 +105,57 @@ test('B2: wegnavigeren met een niet-toegepaste wijziging vraagt Toepassen/Verwer
   await expect.poll(() => activeTab(page)).toBe('start');
 });
 
+const activeDoc = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId);
+
+test('B2: F1 en Ctrl+1 lopen niet dwars door een niet-toegepaste draft of de keuzedialoog', async ({ page, ops: _ops }) => {
+  const dialog = page.locator('[data-ops-unapplied-dialog]');
+  // Fixture: een tweede document, zodat Ctrl+1 iets te wisselen heeft (het tweede is nu actief).
+  const firstId = await activeDoc(page);
+  const secondId = await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
+  expect(secondId).not.toBe(firstId);
+  expect(await activeDoc(page)).toBe(secondId);
+
+  await toProjectInfo(page);
+  await page.locator(CONVENTION).check();
+  // Focus uit het selectievakje (in een invoerveld vuren deze sneltoetsen sowieso niet).
+  await page.locator('.backstage-title').click();
+
+  // Ctrl+1 met een niet-toegepaste draft ⇒ geblokkeerd: geen wissel, geen dialoog, draft staat.
+  await page.keyboard.press('Control+1');
+  await expect(dialog).toHaveCount(0);
+  expect(await activeDoc(page)).toBe(secondId);
+  expect(await section(page)).toBe('project-info');
+  await expect(page.locator(CONVENTION)).toBeChecked();
+
+  // F1 ⇒ de keuzedialoog (niet stil naar Help).
+  await page.keyboard.press('F1');
+  await expect(dialog).toBeVisible();
+  expect(await section(page)).toBe('project-info');
+
+  // Met de dialoog open: F1 en Ctrl+1 doen niets — geen sectiewissel, geen documentwissel.
+  await page.keyboard.press('F1');
+  await page.keyboard.press('Control+1');
+  await expect(dialog).toBeVisible();
+  expect(await section(page)).toBe('project-info');
+  expect(await activeDoc(page)).toBe(secondId);
+
+  // Annuleren ⇒ draft blijft; opnieuw F1 ⇒ Verwerpen ⇒ naar Help.
+  await dialog.locator('[data-ops-unapplied-choice="cancel"]').click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(CONVENTION)).toBeChecked();
+  await page.locator('.backstage-title').click();
+  await page.keyboard.press('F1');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('[data-ops-unapplied-choice="discard"]').click();
+  await expect.poll(() => section(page)).toBe('help');
+  expect(await conventionOverride(page)).toBeNull();
+
+  // Controle dat de test gevoelig is: zonder draft wisselt Ctrl+1 wél.
+  await page.locator('.backstage-title').click();
+  await page.keyboard.press('Control+1');
+  await expect.poll(() => activeDoc(page)).toBe(firstId);
+});
+
 /** Bedekt geen enkele melding `button`? Box-overlap én een echte hit-test in het midden van de knop. */
 async function expectNotCovered(page: Page, button: Locator): Promise<void> {
   await expect(button).toBeVisible();
@@ -186,4 +237,40 @@ test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard 
   await expectNotCovered(page, bar.getByRole('button', { name: /^(Apply|Toepassen)$/ }));
   await expectNotCovered(page, bar.locator('[data-ops-project-info-discard]'));
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/b5-04-backstage-balk.png` });
+
+  // De niet-toegepast-keuzedialoog opent vanuit lokale Backstage-state (geen storewijziging): de
+  // stapel moet toch naast die dialoog gaan (signaal: de dialoogstapel) en na Annuleren terug boven de balk.
+  await page.locator('[data-ops-backstage-back]').click();
+  const unapplied = page.locator('[data-ops-unapplied-dialog]');
+  await expect(unapplied).toBeVisible();
+  await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'side');
+  for (const choice of ['cancel', 'discard', 'apply']) {
+    await expectNotCovered(page, unapplied.locator(`[data-ops-unapplied-choice="${choice}"]`));
+  }
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/b5-05-keuzedialoog.png` });
+  await unapplied.locator('[data-ops-unapplied-choice="cancel"]').click();
+  await expect(unapplied).toHaveCount(0);
+  await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'above');
+
+  // Smal venster met de keuzedialoog open: de stapel zakt onder de backdrop (signaal: resize).
+  await page.locator('[data-ops-backstage-back]').click();
+  await expect(unapplied).toBeVisible();
+  await page.setViewportSize({ width: 520, height: 720 });
+  await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'underModal');
+  for (const choice of ['cancel', 'discard', 'apply']) {
+    await expectNotCovered(page, unapplied.locator(`[data-ops-unapplied-choice="${choice}"]`));
+  }
+  await unapplied.locator('[data-ops-unapplied-choice="cancel"]').click();
+  await page.setViewportSize({ width: 1280, height: 720 });
+});
+
+test('B2: Escape in een open keuzelijst in Backstage sluit alleen de lijst', async ({ page, ops: _ops }) => {
+  await toProjectInfo(page);
+  const trigger = page.locator('.backstage-main [aria-haspopup="listbox"]').first();
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  expect(await activeTab(page)).toBe('file');
+  expect(await section(page)).toBe('project-info');
 });

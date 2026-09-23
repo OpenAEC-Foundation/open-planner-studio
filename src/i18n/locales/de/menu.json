@@ -320,9 +320,9 @@
       "referentie": "Referenz"
     },
     "unapplied": {
-      "title": "Änderungen nicht übernommen",
-      "body": "Sie haben die Projektinfo geändert, aber noch nicht übernommen. Was möchten Sie mit diesen Änderungen tun?",
-      "marker": "Änderungen nicht übernommen — klicken Sie auf {{apply}}, um sie zu behalten.",
+      "title": "Änderungen nicht angewendet",
+      "body": "Sie haben die Projektinfo geändert, aber noch nicht angewendet. Was möchten Sie mit diesen Änderungen tun?",
+      "marker": "Änderungen nicht angewendet — klicken Sie auf {{apply}}, um sie zu behalten.",
       "discard": "Verwerfen",
       "invalid": "Das eigene Berechnungsprofil hat noch keinen Namen. Geben Sie ihm einen Namen oder verwerfen Sie die Änderungen."
     }
