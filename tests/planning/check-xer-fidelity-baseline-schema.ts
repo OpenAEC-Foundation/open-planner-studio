@@ -36,15 +36,18 @@ const EXPECTED_BASELINE_KEYS = [
 ] as const;
 // Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12: manifestuitsluiting HarbourPointe 8 taken, OZB project
 // 9033, Hotel project CR 2665): de uitgesloten taken vallen uit de X1-doelbaseline, 5.901/5.712 → 5.879/5.690.
+// Herpin 2026-09-24 (eigenaarsbesluit vraag 13: HarbourPointe EC1420 uitgesloten): 5.879/5.690 → 5.878/5.689.
 const EXPECTED_MEASURABLE = {
-  es: 5_879, ef: 5_879, ls: 5_879, lf: 5_879, tf: 5_690, ff: 5_690,
+  es: 5_878, ef: 5_878, ls: 5_878, lf: 5_878, tf: 5_689, ff: 5_689,
 } as const;
 // HERPIN 2026-09-23i (fix critreview DCP-03): alleen policytekst/datums in het manifest, populatie ongewijzigd.
 // HERPIN 2026-09-23 (eigenaarsbesluiten vraag 8/10/12): drie uitsluitingsblokken + policyzin (DCP-03 bevestigd, §1a) in het manifest;
 // orakelselectie (9 bestanden, 84 uitgesloten) ongewijzigd.
 // HERPIN 2026-09-23 datumcorrectie (integratie 3): `decision`-datums 24 → 23; alleen manifestbytes.
-const EXPECTED_MANIFEST_SHA256 = '5d6f4863a06c4879d208fdaa49907fc83f5906774085570556ba6973212986c7';
-const EXPECTED_BASELINE_SHA256 = '698c388fb4a3001b7e2eafb2335ae583d2197cd2955fc2cf0625085a5ed3e659';
+// HERPIN 2026-09-24 (eigenaarsbesluit vraag 13): HarbourPointe EC1420 in excludeTasks, `decision` + policyzin bijgewerkt;
+// orakelselectie (9 bestanden, 84 uitgesloten) ongewijzigd.
+const EXPECTED_MANIFEST_SHA256 = '88266338640d6c20f09c20f1c740c5b3d20febb526d292eb0f0fbd62caea223b';
+const EXPECTED_BASELINE_SHA256 = 'e383370309457d292620ce75febc70b5e97336a890c0790fd88907936d7349f4';
 
 const diffs: string[] = [];
 let checks = 0;

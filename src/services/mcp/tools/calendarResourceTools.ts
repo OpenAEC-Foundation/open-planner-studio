@@ -1525,7 +1525,7 @@ const PROJECT_REFUSED: Record<string, string> = {
   schedulingProfile:
     'het rekenprofiel (P6 / MS Project / OPS / eigen) is NIET via de bridge instelbaar: een wissel verschuift ' +
     'datums van het hele document. Kies het in de app onder Bestand → Projectinfo → Rekenprofiel; ' +
-    '`planner_get_project_info` toont het actieve profiel met zijn zesentwintig opgeloste conventies.',
+    '`planner_get_project_info` toont het actieve profiel met zijn zevenentwintig opgeloste conventies.',
   leveling:
     '`leveling` hoort in `project.schedulingOptions`: de nivelleerinstellingen uit het bronbestand (P6 ' +
     'SCHEDOPTIONS/RSRCLEVELLIST) worden gelezen en bewaard, maar nog NIET toegepast en zijn niet via de ' +

@@ -770,13 +770,15 @@ if (!corpusRoot) {
   // Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12, manifestuitsluiting per taak/project: HarbourPointe
   // 8 taken, OZB project 9033, Hotel project CR 2665; die taken vallen uit de meetbare orakelpopulatie, de
   // bestanden blijven orakel): C6 10.118 → 10.096, C8 5.901 → 5.879 (tf/ff 5.712 → 5.690).
+  // Herpin 2026-09-24 (eigenaarsbesluit vraag 13 "Vraag 13, ja uitsluiten": HarbourPointe EC1420 erbij in
+  // excludeTasks): C6 10.096 → 10.095, C8 5.879 → 5.878 (tf/ff 5.690 → 5.689).
   eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 9);
-  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_096);
+  eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_095);
   eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 8);
-  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 5_879);
+  eq('C8 meetbare orakeltaken na beide deduplagen', corpus.stats.uniqueOracleTasks, 5_878);
   eq('C8a één inhoudsduplicaat na byte-dedup', corpus.stats.schemaDuplicateFiles, 1);
   eq('C8b geselecteerde meetbaarheid wordt per as uit de bytes herleid', corpus.stats.selectedMeasurable, {
-    es: 5_879, ef: 5_879, ls: 5_879, lf: 5_879, tf: 5_690, ff: 5_690,
+    es: 5_878, ef: 5_878, ls: 5_878, lf: 5_878, tf: 5_689, ff: 5_689,
   });
 
   const baselinePath = join(HERE, 'xer-fidelity-baseline.json');

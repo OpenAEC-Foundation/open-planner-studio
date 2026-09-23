@@ -150,9 +150,10 @@ alleen de aantoonbaar door P6 doorgerekende bestanden (`xer-corpus-manifest.json
 rehab-2 = P3-uitvoer, de DCP-03-Baseline-kopieën = generatoruitvoer en de synthetische bestanden zijn
 `reader-only`). Binnen een orakelbestand kan een eigenaarsbesluit bovendien projecten of taken uit de
 meetlat halen (`excludeProjects`/`excludeTasks` met `decision`; sinds 2026-09-23: OZB project 9033
-(genivelleerd), Hotel project CR, 8 HarbourPointe-taken met verouderde P6-uitvoer — 41 taken, hun
+(genivelleerd), Hotel project CR, 8 HarbourPointe-taken met verouderde P6-uitvoer; sinds 2026-09-24 ook
+HarbourPointe EC1420, dat zijn datums uit die verouderde EC1430 krijgt — 42 taken, hun
 afwijkingen staan als niet-stijgende pin `excludedHidden` in het cellenbestand). Het nuldoel van plan §1
-is niet gehaald (104 zesassige afwijkingen over 8 geselecteerde entries en 18 projecten op 2026-09-23;
+is niet gehaald (76 zesassige afwijkingen over 8 geselecteerde entries en 18 projecten op 2026-09-24, na C14;
 daarvoor 15.056 op het oude, bredere orakel); mét corpus staat de suite daarom by design rood op precies die drie
 nuldoelregels. Het cellenbestand (`xer-product-fidelity-cells.json`, versie 2) is een ratchet per cel
 op emmer én afwijkingsgrootte, met een eenmalige `ratchetDebt` (14 Roads-cellen, sinds X12 brok 6 op 0) die alleen mag dalen;
@@ -162,7 +163,7 @@ Gebruikersgidsen: `public/docs/{nl,en}/gids-xer-import.md` en `datums-zoals-opge
 ### Rekenprofielen: benoemde conventies, geen formaatvlag
 
 Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (`project.schedulingProfile`,
-basis `p6 | msproject | ops` + overrides) levert zesentwintig **conventies** (`ConventionKey`, booleans);
+basis `p6 | msproject | ops` + overrides) levert zevenentwintig **conventies** (`ConventionKey`, booleans);
 `project.schedulingOptions` draagt alleen de elf **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
 (`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
@@ -176,7 +177,7 @@ De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/
 (`src/engine/scheduler/solveInput.ts`) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
 aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel voor (`ImportResult.suggestedProfileId`:
 XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe); openen meldt het profiel met een
-actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle zesentwintig opgelost plus de letterlijke afwijkingen, alleen ≠ standaardprofiel)
+actie naar Projectinfo. IFC: `OPS_SchedulingProfile` (alle zevenentwintig opgelost plus de letterlijke afwijkingen, alleen ≠ standaardprofiel)
 naast `OPS_SchedulingOptions` (opties + A22/A23 alleen als true) — door `writeIFC`/`readIFC` geschreven en
 gelezen. Eigen profielen zijn app-globale
 sjablonen (`ops-schedulingProfiles`, `services/schedulingProfiles/profileStore.ts`); een project draagt

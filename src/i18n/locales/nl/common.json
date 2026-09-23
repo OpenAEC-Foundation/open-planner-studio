@@ -1263,6 +1263,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Vroege finish niet vóór een eind-eindgrens",
       "help": "Bij een eind-eindrelatie ligt de vroege finish van de opvolger in kloktijd nooit vóór de grens die de voorganger stelt. Valt die grens in vrije tijd van de opvolger, dan wordt de finish het begin van de volgende werkperiode."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP-taken zo laat als de opvolgers toestaan",
+      "help": "Een niet-gestarte taak met de beperking 'zo laat mogelijk' eindigt op de minuut waarop haar opvolgers haar nodig hebben, opvolgers eerst, zodat een keten aaneensluit. Haar eigen geplande start telt niet; een taak zonder voorganger begint dan niet vóór de statusdatum. Geldt alleen op een urenkalender."
     }
   },
   "profiles": {

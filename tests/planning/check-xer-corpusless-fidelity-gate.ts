@@ -86,14 +86,19 @@ const EXPECTED = {
   // HERPIN 2026-09-23 datumcorrectie (integratie 3, handmatige reviewstap): de drie `decision`-datums
   // 2026-09-24 → 2026-09-23 (besluiten vielen op de avond van 23-09; de lezer weigert een toekomstige datum).
   // Alleen de manifestbytes bewegen; identiteitsset, tellingen, cellen en excludedHidden (71/23) ongewijzigd.
-  manifestRawSha256: '5d6f4863a06c4879d208fdaa49907fc83f5906774085570556ba6973212986c7',
-  baselineRawSha256: '698c388fb4a3001b7e2eafb2335ae583d2197cd2955fc2cf0625085a5ed3e659',
+  // Manifestpinnen 2026-09-24 (eigenaarsbesluit vraag 13, letterlijk "Vraag 13, ja uitsluiten", handmatige
+  // reviewstap): HarbourPointe EC1420 in excludeTasks, `decision` van HarbourPointe naar 2026-09-24 (vraag 13 +
+  // vraag 8) en de policyzin. Rollen, `included`, byte-/schemaselectie ongewijzigd; alleen het selectiecontract
+  // en de X1-doelbaseline (5.879 → 5.878 meetbaar, tf/ff 5.690 → 5.689) bewegen; tasksWithAnyMeasuredAxis
+  // 5.879 → 5.878, tasks 5.882 → 5.881.
+  manifestRawSha256: '88266338640d6c20f09c20f1c740c5b3d20febb526d292eb0f0fbd62caea223b',
+  baselineRawSha256: 'e383370309457d292620ce75febc70b5e97336a890c0790fd88907936d7349f4',
   manifestProjectionSha256: 'aaa6d53e1cc8c63d34fade5071dddce295a1e0a92111d71d80d0c5e912023c2a',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
   oracleByteUniqueSha256: '7b9f8f4cbeb3f4f95ff5d712e9bb3a6b94881eafcfa95ac30645ceac409ef30e',
   selectedFullSha256: 'dd2b9fac2918e2268873937421eb9230110f5ffeeffa4457e65f6a5d337f69ff',
   selectedSchemaSha256: '76f7b8fded1761551dbf61d68e87577e92dd71f575de01b3fb1b973b577d77a1',
-  selectedContractSha256: '7e25fa63008d62a7167a431a8e0824acc80b1cda9073ec511ad430e2a292aa28',
+  selectedContractSha256: 'ef780602cb9b6d69456a57b250c2f08041f7e16ada21ce465cf0372c7b7db9c7',
   occurrences: 93,
   included: 9,
   excluded: 84,
@@ -102,9 +107,15 @@ const EXPECTED = {
   selected: 8,
   schemaDuplicates: 1,
   projects: 18,
-  tasks: 5_882,
-  tasksWithAnyMeasuredAxis: 5_879,
-  measurable: { es: 5_879, ef: 5_879, ls: 5_879, lf: 5_879, tf: 5_690, ff: 5_690 },
+  tasks: 5_881,
+  tasksWithAnyMeasuredAxis: 5_878,
+  measurable: { es: 5_878, ef: 5_878, ls: 5_878, lf: 5_878, tf: 5_689, ff: 5_689 },
+  // HERPIN 2026-09-24 (C14 `p6AlapPositionedFromSuccessors` samen met het eigenaarsbesluit vraag 13 — HarbourPointe
+  // EC1420 uit de meetlat; regel A: measure:profiles CELLDELTA p6 nieuw=0 verslechterd=0 groter=0 verbeterd=23
+  // kleiner=9 onmeetbaar=0 onbekend=0 ongemeten=0 schuld=0 totaal=221 uitgesloten=5 teruggekeerd=0).
+  // OPS_XER_V2_WRITE=corpus + OPS_XER_CELLS_WRITE=corpus in één run, daarna OPS_XER_GATE_PINS=corpus (de
+  // manifestpinnen hierboven volgden pas daarna met de hand). X12 104 → 76 zesassig, drivingPath 145
+  // ongewijzigd; excludedHidden HarbourPointe 33 → 34 (gewijzigde identiteitsset, EC1420 zelf).
   // HERPIN 2026-09-23t (integratieronde 2 — merge van claude/x12-brok9-c2-breed op brok 8 + tolerantie +
   // manifestfix; herpinrecept met de schrijfmodi; CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0
   // schuld=0): X12 178 → 175 (ff 18 → 15), dezelfde drie Hotel-cellen 2666/143800, 2666/144004, 2666/144440.
@@ -263,16 +274,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_864, ef: 5_864, ls: 5_862, lf: 5_862, tf: 5_663, ff: 5_677 },
+    exact: { es: 5_871, ef: 5_871, ls: 5_862, lf: 5_862, tf: 5_668, ff: 5_680 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 13, ef: 14, ls: 16, lf: 15, tf: 27, ff: 13 },
+    diff: { es: 5, ef: 6, ls: 15, lf: 14, tf: 21, ff: 9 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 15, ef: 15, ls: 17, lf: 17, tf: 27, ff: 13 },
-    drivingPath: { exact: 5_737, sameday: 0, diff: 145, missing: 0, measurable: 5_882, deviations: 145 },
+    deviations: { es: 7, ef: 7, ls: 16, lf: 16, tf: 21, ff: 9 },
+    drivingPath: { exact: 5_736, sameday: 0, diff: 145, missing: 0, measurable: 5_881, deviations: 145 },
   },
-  productPayloadSha256: '8c539296a8e77a3e6e03c666747f687ca121341ad15916b433c58d87bab68987',
-  productPayloadGzipSha256: '33c8b40c837df7492cf2e265d59718d6e58cf6a456d438a2471797c086815d88',
-  productProjectProjectionSha256: 'bad3368f61ecc5f4d465e4d73d2187779c4b775a5e14224d6d01cc4b7308e53a',
+  productPayloadSha256: '86f1ef9bf02f61fca1fe163c9992cb460e80f738d616ffda913898dd87dd4e8d',
+  productPayloadGzipSha256: '3ce067eedd8a79d8cfd077b6a7810e1a7e37d0930b6081862f909c11de49ea4e',
+  productProjectProjectionSha256: '83cafdc1ef46b4656517dada530b5df83120a8b2d68c56116ebf480967a4ecfd',
   roles: {
     oracle: 9,
     'engine-input': 14,

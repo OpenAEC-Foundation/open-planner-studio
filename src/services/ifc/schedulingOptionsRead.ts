@@ -43,6 +43,7 @@ const BOOLEAN_KEYS = [
   'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
   'p6LateFinishOnOwnCalendar', 'p6ProgressOverrideIgnoresStartedSuccessor', 'p6FinishNotBeforeFinishFinishBound',
+  'p6AlapPositionedFromSuccessors',
 ] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;
@@ -237,7 +238,7 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
 }
 
 /** Het JSON-object dat de IFC-schrijver voor een profiel wegschrijft (spiegel van de sanitizer):
- *  alle zesentwintig conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
+ *  alle zevenentwintig conventies OPGELOST, zodat een bestand overal gelijk rekent, ook waar het eigen
  *  profiel ontbreekt. `name` alleen voor eigen profielen (ingebouwde nooit vertaald wegschrijven). */
 export function schedulingProfileToJson(profile: SchedulingProfile): {
   id: string; baseId: BuiltInProfileId; conventions: SchedulingConventions;

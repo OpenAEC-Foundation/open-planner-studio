@@ -2008,6 +2008,12 @@ export class CPMSolver {
           : timephasedAnchor
             ? parseInstant(timephasedAnchor)
             : this.ownAnchor(cal, task.time.scheduleStart, task);
+        // Conventie C14 `p6AlapPositionedFromSuccessors`: een niet-gestarte ALAP-wortel heeft geen
+        // eigen anker; haar vroege start is de statusdatum, en `applyAlapFromSuccessors` legt haar
+        // daarna zo laat als haar opvolgers toestaan.
+        if (this.dataDate && this.isUnstartedAlapPositionedFromSuccessors(task, cal)) {
+          earlyStart = this.snapOnOrAfter(cal, this.dataDate);
+        }
         // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken (§4.2).
         const beforeConstraint = earlyStart;
         earlyStart = this.applyForwardConstraints(task, earlyStart, null, cal);
@@ -2105,6 +2111,9 @@ export class CPMSolver {
           // geplande venster geen vloer; haar resterende werk start op statusdatum + relatiegrens.
           const startedTaskSkipsFloor = this.options.schedulingOptions?.p6StartedTaskIgnoresPlannedStartFloor === true
             && !!task.time.actualStart && task.time.completion < 1;
+          // Conventie C14 `p6AlapPositionedFromSuccessors`: voor een niet-gestarte ALAP-taak telt het
+          // eigen geplande venster niet (`applyAlapFromSuccessors` positioneert haar vanuit de opvolgers).
+          const alapSkipsFloor = this.isUnstartedAlapPositionedFromSuccessors(task, cal);
           if (
             task.p6ActivityType !== undefined
             && task.p6ExplicitTargetWindow === true
@@ -2134,14 +2143,14 @@ export class CPMSolver {
                 targetStart: plannedFloor.toISOString().slice(0, 16),
                 targetFinish: plannedFinish.toISOString().slice(0, 16),
                 plannedWindowIsLater,
-                floorApplied: plannedWindowIsLater && !startedTaskSkipsFloor,
+                floorApplied: plannedWindowIsLater && !startedTaskSkipsFloor && !alapSkipsFloor,
                 boundarySource,
                 ...(drivingSequence ? { boundarySequenceId: drivingSequence.id } : {}),
                 ...(drivingPredecessor ? { boundaryPredecessorTaskCode: drivingPredecessor.wbsCode } : {}),
               };
             }
           }
-          if (plannedWindowIsLater && !startedTaskSkipsFloor) earlyStart = plannedFloor;
+          if (plannedWindowIsLater && !startedTaskSkipsFloor && !alapSkipsFloor) earlyStart = plannedFloor;
         }
         // Vloer-afkap: wilde óók de strengste relatie de taak nog vóór het projectbegin trekken,
         // markeer dan de bindende lead(s) als afgekapt — de gebruiker moet kunnen zien dat een
@@ -3381,10 +3390,19 @@ export class CPMSolver {
     earlyDates: Map<string, { es: Date; ef: Date }>,
     lateDates: Map<string, { ls: Date; lf: Date }>,
   ): void {
+    // Conventie C14 `p6AlapPositionedFromSuccessors`: dezelfde ALAP-selectie (incl. Z9b-uitsluiting
+    // (1)); een niet-gestarte ALAP-taak op een uurkalender wordt daarna in `applyAlapFromSuccessors`
+    // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken houden de oude stap hieronder.
+    const fromSuccessors = this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true;
+    const alapTaskIds: string[] = [];
     for (const taskId of order) {
       const task = this.tasks.get(taskId);
       if (task?.constraint?.type !== 'ALAP') continue;
       if (task.manuallyScheduled) continue;   // Z9b, uitsluiting (1) — zie moduleheader hierboven.
+      if (fromSuccessors && this.isUnstartedAlapPositionedFromSuccessors(task, this.calendarFor(task))) {
+        alapTaskIds.push(taskId);
+        continue;
+      }
       const early = earlyDates.get(taskId);
       const late = lateDates.get(taskId);
       if (!early || !late) continue;
@@ -3413,6 +3431,83 @@ export class CPMSolver {
         const succTask = this.tasks.get(seq.successorId);
         if (!succTask) continue;
         if (succTask.manuallyScheduled) continue;   // Z9b, uitsluiting (2) — zie moduleheader hierboven.
+        this.seqConstraint.set(
+          seq.id,
+          forwardConstraint(
+            this.relDeps, early, task, seq, succTask, cal, this.calendarFor(succTask),
+            this.p6ZeroDurationUsesFinishBoundary(succTask, this.calendarFor(succTask)),
+          ),
+        );
+      }
+    }
+    if (fromSuccessors) this.applyAlapFromSuccessors(alapTaskIds, earlyDates, lateDates);
+  }
+
+  /** Conventie C14: valt deze taak onder de ALAP-positionering vanuit de opvolgers? Niet-gestart,
+   *  uurkalender. (Een handmatig geplande taak bereikt de aanroepers niet: `forwardPass` handelt
+   *  haar vooraf af, `applyAlap` filtert haar weg — Z9b.) */
+  private isUnstartedAlapPositionedFromSuccessors(task: Task, cal: CalendarEngine): boolean {
+    return this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true
+      && task.constraint?.type === 'ALAP' && cal.isHourMode
+      && !task.time.actualStart && task.time.completion === 0;
+  }
+
+  /**
+   * Conventie C14 `p6AlapPositionedFromSuccessors` (docblok + bron bij de sleutel in
+   * `types/project.ts`): een ALAP-taak krijgt als vroege finish de strengste grens die haar
+   * opvolgers (met hun vroege datums) via de relatiewiskunde van de achterwaartse berekening
+   * toestaan, in werktijd; zonder opvolger haar late finish. Opvolgers eerst (omgekeerde
+   * topologische volgorde), zodat een keten van ALAP-taken achter elkaar aansluit. Ondergrens: de
+   * relatiegrenzen van haar voorgangers en de statusdatum — haar eigen geplande start (A16) of
+   * eigen anker telt niet. Opvolgers bewegen niet. `alapTaskIds` staat in topologische volgorde.
+   */
+  private applyAlapFromSuccessors(
+    alapTaskIds: string[],
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+    lateDates: Map<string, { ls: Date; lf: Date }>,
+  ): void {
+    for (let i = alapTaskIds.length - 1; i >= 0; i--) {
+      const taskId = alapTaskIds[i];
+      const task = this.tasks.get(taskId);
+      if (!task) continue;
+      const cal = this.calendarFor(task);
+      const early = earlyDates.get(taskId);
+      const late = lateDates.get(taskId);
+      if (!early || !late) continue;
+      const succs = this.successors.get(taskId) || [];
+      let finish: Date | null = succs.length === 0 ? late.lf : null;
+      for (const seq of succs) {
+        const succTask = this.tasks.get(seq.successorId);
+        const succEarly = earlyDates.get(seq.successorId);
+        // Z9b (2): `forwardPass` zet nooit een `seqConstraint` naar een handmatige opvolger; zo'n
+        // relatie doet hier dus ook niet mee.
+        if (!succTask || !succEarly || !this.seqConstraint.has(seq.id)) continue;
+        const succCal = this.calendarFor(succTask);
+        const bound = backwardConstraint(
+          this.relDeps, { ls: succEarly.es, lf: succEarly.ef }, seq, task, succTask, cal, succCal,
+          this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),
+          this.finishFinishAtStartMilestoneLateFinish(seq, succTask, cal, succCal),
+        );
+        if (!finish || bound < finish) finish = bound;
+      }
+      if (!finish) continue;
+      let start = this.startFromFinish(cal, finish, task);
+      // Ondergrens: voorgangerrelaties (`seqConstraint`, voorwaarts) en de statusdatum.
+      let floor: Date | null = this.dataDate;
+      for (const seq of this.predecessors.get(taskId) || []) {
+        const c = this.seqConstraint.get(seq.id);
+        if (c && (!floor || c > floor)) floor = c;
+      }
+      if (floor && start < floor) {
+        start = this.snapOnOrAfter(cal, floor);
+        finish = this.finishFromStart(cal, start, task);
+      }
+      if (start.getTime() === early.es.getTime() && finish.getTime() === early.ef.getTime()) continue;
+      early.es = start;
+      early.ef = finish;
+      for (const seq of succs) {
+        const succTask = this.tasks.get(seq.successorId);
+        if (!succTask || !this.seqConstraint.has(seq.id)) continue;   // Z9b (2), zie hierboven.
         this.seqConstraint.set(
           seq.id,
           forwardConstraint(

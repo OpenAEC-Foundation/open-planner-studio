@@ -99,6 +99,10 @@ if (!corpusRoot) {
   // met 22 op elke zesassige as (5901 → 5879, tf/ff 5712 → 5690; overall 4810 → 4788). regressed en
   // improved op elke as gelijk (es 942, ef 950, tf 926, ff 313, overall 1091) — de mutant brak niets op de
   // uitgesloten taken, detectievermogen onveranderd.
+  // Herpin 2026-09-24 (eigenaarsbesluit vraag 13 "Vraag 13, ja uitsluiten": HarbourPointe EC1420 erbij, samen
+  // met C14 `p6AlapPositionedFromSuccessors`): taken 5882 → 5881; alleen `unchanged` daalt met 1 op elke
+  // zesassige as (5879 → 5878, tf/ff 5690 → 5689; overall 4788 → 4787). regressed en improved op elke as
+  // gelijk (es 942, ef 950, tf 926, ff 313, overall 1091) — detectievermogen onveranderd.
   for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {

@@ -3,7 +3,7 @@
  * v3, tweelagenmodel).
  *
  * Twee lagen, disjuncte sleutels:
- *  - **Conventies** (`ConventionKey`, zesentwintig booleans): regels die per planningspakket verschillen.
+ *  - **Conventies** (`ConventionKey`, zevenentwintig booleans): regels die per planningspakket verschillen.
  *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
  *  - **Projectopties** (`ProjectOptionKey`, elf sleutels): per-bestand projectinstellingen
  *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, nivelleerinstellingen als data, …). Ze blijven in `Project.schedulingOptions`.
@@ -63,6 +63,9 @@ const SINCE_X12_BROK6 = '2026-09-23';
 /** Groep C, brok 8 (Progress Override aan de late kant, FF-grens, C5-vrije speling). Nummering: C10 is
  *  bezet door de geparkeerde ALAP-conventie (plan XER §9), dus deze brok telt verder vanaf C11. */
 const SINCE_X12_BROK8 = '2026-09-23';
+/** Groep C, brok 10 (ALAP vanuit de opvolgers). Plan XER §9 noemt deze conventie "C10" (vóór 23-09
+ *  "C9"); C11–C13 waren al vergeven toen ze gebouwd werd, dus in het register heet ze C14. */
+const SINCE_X12_BROK10 = '2026-09-24';
 
 const P6_ONLY = { p6: true, msproject: false, ops: false } as const;
 const MSP_ONLY = { p6: false, msproject: true, ops: false } as const;
@@ -80,7 +83,7 @@ function convention(
 }
 
 /** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
-  *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5; daarna C1–C3 (X12 naar nul, brok 2), C4–C6 (brok 3), C7–C8 (brok 4), C9 (brok 6), C11–C12 (brok 8; C10 = geparkeerde ALAP). */
+  *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5; daarna C1–C3 (X12 naar nul, brok 2), C4–C6 (brok 3), C7–C8 (brok 4), C9 (brok 6), C11–C12 (brok 8), C14 (brok 10: de ALAP-conventie die plan XER §9 "C10" noemt). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
   // A17, B3 en B4 staan sinds 2026-09-23 in elk ingebouwd profiel uit (eigenaarsvraag §1d-7): P6: uit —
   // geen effect op P6-doorgerekende bestanden; gebouwd op rehab-2 (P3). Gemeten op de motor mét C5/C6:
@@ -116,9 +119,11 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6FinishFinishStartMilestoneLateFinish', 'C', P6_ONLY, false, false, SINCE_X12_BROK4), // C7
   convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', P6_ONLY, false, false, SINCE_X12_BROK4),  // C8
   convention('p6LateFinishOnOwnCalendar', 'C', P6_ONLY, false, false, SINCE_X12_BROK6),              // C9
-  // C10 bestaat niet in het register: dat nummer is gereserveerd voor de geparkeerde ALAP-conventie.
+  // C10 bestaat niet in het register: plan XER §9 noemde de ALAP-conventie zo; ze staat hieronder als C14.
   convention('p6ProgressOverrideIgnoresStartedSuccessor', 'C', P6_ONLY, false, false, SINCE_X12_BROK8), // C11
   convention('p6FinishNotBeforeFinishFinishBound', 'C', P6_ONLY, false, false, SINCE_X12_BROK8),        // C12
+  // C13 is geen registerconventie (brok 8: een regel binnen C5). C14 = plan XER §9 "C10".
+  convention('p6AlapPositionedFromSuccessors', 'C', P6_ONLY, false, false, SINCE_X12_BROK10),           // C14
 ];
 
 // ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
@@ -138,7 +143,7 @@ const _everyConventionNamed: Record<ConventionKey, true> = {
   p6CompletedOutOfSequenceWindow: true, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
   p6LateFinishOnOwnCalendar: true, p6ProgressOverrideIgnoresStartedSuccessor: true,
-  p6FinishNotBeforeFinishFinishBound: true,
+  p6FinishNotBeforeFinishFinishBound: true, p6AlapPositionedFromSuccessors: true,
 };
 export const CONVENTION_KEYS = Object.keys(_everyConventionNamed) as readonly ConventionKey[];
 type Overlap = Extract<ProjectOptionKey, ConventionKey>;
@@ -176,7 +181,7 @@ export function displayNameKey(id: BuiltInProfileId): string {
   return `profiles.builtIn.${id}`;
 }
 
-/** Basis + afwijkingen ⇒ alle zesentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
+/** Basis + afwijkingen ⇒ alle zevenentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
  *  Alleen bekende conventiesleutels met een boolean tellen; de rest van `overrides` wordt genegeerd. */
 export function resolveConventions(profile: SchedulingProfile | undefined): SchedulingConventions {
   const out = builtInConventions(profile?.baseId ?? 'ops');
