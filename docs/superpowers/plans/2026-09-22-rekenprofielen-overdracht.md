@@ -311,29 +311,44 @@ tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en
 
 **Sessielimiet-les (23-09):** een sessielimiet (429, reset 03:00) doodt álle lopende agents én de orkestrator; niet-gecommit werk blijft in de worktree staan. Daarom: (a) agents committen tussentijds (WIP-commit is beter dan een schone maar verloren werkboom), (b) de orkestrator zet meerdere cron-wake-ups over een langere tijd (elk uur + reserve elke 3 uur, sessiegebonden, 7 dagen), (c) bij hervatten eerst `git status`/`git log` in de worktree van de gestorven agent en dan een nieuwe agent dáár laten doorgaan.
 
-## 3. Werkvolgorde voor de opvolger (herschreven 2026-09-24 na integratieronde 2)
+## 3. Werkvolgorde voor de opvolger (herschreven 2026-09-24 ~00:30, na de besluiten 7/8/10/11/12)
 
-Stappen 1–4 van de oorspronkelijke lijst (banen A–D, integratie, verify, gebruikstest) zijn af; X12 staat
-op **175** over de P6-doorgerekende orakels (was 15.056 over het oude orakel). Wat nog telt:
+X12 staat op **104** over de P6-doorgerekende orakels met de drie uitsluitingen (was 15.056 over het
+oude orakel; 175 vóór de besluiten). Gemeten op `e3d0cd51`: NULDOEL 104, `nieuw=0 verslechterd=0
+groter=0 schuld=0`, uitgesloten 41 taken in 3 projecten. De eindreview van de etappe (Fable, twee delen)
+staat in `2026-09-24-eindreview-fable-pr169.md` — oordeel GO met B1 uitgezonderd; de PR-body van #169 is
+op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.md`). Wat nog telt:
 
-1. **Eigenaarsvragen §1d 7–12 ophalen.** Zonder die besluiten is er niets bouwbaars meer over: het
-   restant is HarbourPointe 122 (81 verouderde P6-uitvoer + 34 ALAP/C10 + 7 mijlpaalvloer n=1), OZB 38
-   (door P6 genivelleerd project 9033), Sample 12 (SF-minuut, n=1 zonder bron), Hotel 3 (ALAP-eindmijlpaal,
-   C10). Kant-en-klaar bij een "ja": vraag 7 = branch `claude/x12-vraag7-b3-b4-a17` (`b3121e2e`) mergen
-   met herpin; vraag 8/10/12 = de manifestblokken uit `scripts/README.md` "Kant-en-klaar voor de
-   eigenaarsvragen" plaatsen, `=corpus`-herpin + handmatige pins (verwacht 175 → ±104), daarna C10 ALAP
-   (brok 5 `d9973123`/brok 7 `a03db5b2` als naslag) opnieuw meten mét Hotel; vraag 11 = bevestigen of de
-   DCP-03-uitsluiting terugdraaien.
-2. **Bij elke landing dezelfde discipline:** eigen branch per agent (nooit twee worktrees op
+1. **B1 landen** (`claude/x12-ui-profielwissel-datums`, worktree `agent-x12-ui-profielwissel-datums`,
+   kop `8b9358b0` + tweede fixronde door `opus-laag-b1-landfixes-2`): reconcile ná `clearLevelingGaps`
+   in `updateTask`/`setTaskCalendar`/MCP `updateTaskFields`/`patchTaskFields`, echte mutantentellingen,
+   checks voor manual/hammock/samenvatting + store-`addTask`-seed. Na het rapport: korte her-check,
+   mergen op de etappebranch vanuit de orkestrator-worktree, lichte poorten, losgekoppelde `verify`
+   (één tegelijk, `flock /tmp/ops-heavy-suite.lock`), `measure:profiles` moet 104/0/0/0 blijven.
+2. **Eigenaarsvraag 13** (§1d): EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
+   `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
+   staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
+   EC1420 zijn onaanvaardbaar onder regel A).
+3. **UI-groepenvoorstel** (`claude/x12-ui-conventies-groepen` `9e54c952`, screenshots
+   `qa/ui-conventies-groepen/`): eigenaar kiest mergen / aanpassen / laten liggen. Bij mergen: rebase op
+   de kop, browsersuite, critreview.
+4. **Bekende gaten zonder eigenaar:** document-tabbalk/projectrail-klik bij een gewijzigde
+   Projectinfo-draft is niet bewaakt; `schedOptionsRows` in de blast-radius-pin wordt niet vergeleken;
+   DCP-03-As-Built-vangnet alleen corpusloos; `toastPlacement` meet per scroll-event (rAF-gecoalesced).
+5. **Restant 104 zonder bouwbare stap:** HarbourPointe 48 opvolgers van verouderde taken (nieuw
+   P6-bewijs nodig: het bestand opnieuw door P6 laten rekenen), 7 mijlpaalvloer (n=1), Sample 12
+   (SF-lag-0-minuut, n=1 zonder Oracle-bron; drie kleine P6-testruns beslissen het), Hotel 3
+   (ALAP-eindmijlpaal, gaat mee met C14).
+6. **Nivellering (eigen etappe):** fundament ligt (`levelingInput.ts`, `leveling`-optie, manifest
+   `leveledProjects`); harde voorwaarden en vijf eigenaarsbesluiten in
+   `2026-09-24-nivellering-etappe-onderzoek.md` §8. Pas bouwen na die besluiten.
+7. **Bij elke landing dezelfde discipline:** eigen branch per agent (nooit twee worktrees op
    `claude/rekenprofielen`), regel A per cel incl. grootte/schuld/uitsluiting, 6-stappen-herpin in
-   dezelfde commit, critreview per landing (skill `hyperkritische-review`), `measure:profiles` vóór
-   en ná, `npm run verify` één tegelijk machinebreed (flock `/tmp/ops-heavy-suite.lock`).
-3. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
+   dezelfde commit, critreview per landing (skill `hyperkritische-review`), `measure:profiles` vóór en
+   ná, `npm run verify` één tegelijk machinebreed.
+8. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
    herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
    Base van #169 pas naar `main` zetten als #109 gemerged is.
-4. **Open vervolgpunten zonder eigenaar:** `check-xer-schedule-options-corpus` `DEFAULT_KEYS` mist
-   `startToStartLagFrom` (meetgat, geen correctheidsgat); Sample SF-minuut beslisbaar met drie kleine
-   P6-testruns; `expectedFinishVariant` (blast-radius) filtert niet op uitsluitingen (gedocumenteerd).
 
 ## 4. Vaste regels (uit het geheugen van de eigenaar, hier herhaald)
 
