@@ -53,4 +53,46 @@ Gelezen: `conventions/registry.ts`, `schedulingProfileMigration.ts`, `solveInput
    zijn nu allemaal eigenaarsbesluiten; de policytekst is weer onvoorwaardelijk. Wel blijft
    `generatorEvidence` een heuristiek (alleen `.py` in dezelfde map) — dat staat er eerlijk bij.
 
-## Deel 2 — eindstand (na merge van de besluiten van 24-09): volgt.
+## Deel 2 — eindstand (gelezen op `c9a83604`, X12 104, 2026-09-24 ~00:30)
+
+*Wat er sinds deel 1 is geland: vraag 7 (A17/B3/B4 uit), de drie uitsluitingen (manifest met
+`decision`), UI B2/B5, de heropen-melding, blast-radius v11, het nivelleringsfundament. Nog niet
+geland: de B1-datumfix met invoercoherentie (tweede fixronde loopt) en het UI-groepenvoorstel
+(eigenaar). Gemeten: `measure:profiles` NULDOEL 104, `nieuw=0 verslechterd=0 groter=0 schuld=0`,
+`uitgesloten 41 taken in 3 projecten`; `verify` groen op `1c1c2f70`, keten op `e3d0cd51` loopt.*
+
+**Gezond [BEVESTIGD]:**
+- **Manifest en populatie.** De policy is weer onvoorwaardelijk; elke rolwissel citeert een
+  eigenaarsbesluit met datum; de drie uitsluitingen dragen per regel het letterlijke woord van de
+  eigenaar en een reden per taak/project; de uitgesloten afwijkingen blijven zichtbaar als
+  niet-stijgende pin (`excludedHidden` 71/23). Dat is geen pinnen met reden: niets van de motor
+  wordt "goed gerekend", er wordt alleen niet-P6-uitvoer uit de meetlat gehaald.
+- **Ratchet.** Cellen v2 met minuten, schuld 0, minuten- en schuld-digests, geen aanmaakroute meer.
+- **Vraag 7.** `legacyXerDefault` geeft voor de B-set nu `builtIn.p6` terug: een oud XER-IFC zonder
+  B3/B4 rekent ze uit, een expliciete `true` blijft een afwijking. A21 zonder B3 is inert en staat zo
+  in docblok en gids; de `backwardFloatTrace` blijft aan B3 hangen en is onder P6 leeg (gepind).
+- **Nivelleringsfundament.** Puur data; geen `enabled`-veld meer (besluit 1 open); `levelingInput.ts`
+  legt de gesloten mapping P6-kolomnaam → eigen grootheid vast en filtert hangende ids; de check voert
+  elke bak-2/4-kolomnaam als sleutel. Dat is precies de vangrail die de motoretappe nodig heeft.
+- **UI B2/B5.** Vertrekbewaking via één module-globale haak, sneltoetsen respecteren de dialoogstapel,
+  meldingen zonder poller. Sluit aan bij het bestaande `Dialog`/K8a-patroon.
+
+**Bevindingen deel 2:**
+6. [BEVESTIGD, klein] `toastPlacement` meet met `getBoundingClientRect` op elk `resize`/`scroll`
+   (capture) — bij scrollen in een groot raster is dat een layout-read per scroll-event; met rAF-
+   coalescing is het aanvaardbaar, maar het hoort in het docblok. Geen actie vóór de merge.
+7. [BEVESTIGD] Deel-1-bevinding 1 (legacyValue-docblok) is gefixt in dit deel; bevinding 3 (A21) is
+   door de vraag-7-merge gedekt; bevinding 2 (26 platte checkboxes) wacht op het UI-groepenvoorstel
+   van de eigenaar.
+8. [VERMOED, laag] De `excludedHidden`-pin telt per bestand; een motorregressie die een uitgesloten
+   cel slechter maakt terwijl een andere uitgesloten cel beter wordt, blijft onzichtbaar (netto gelijk).
+   Aanvaardbaar voor uitgesloten populatie; benoemd, geen actie.
+9. [BEVESTIGD] Het restant van 104 is volledig verklaard en niet bouwbaar zonder nieuw bewijs of
+   nieuw besluit: HarbourPointe 89 (48 opvolgers van verouderde taken, 34 ALAP achter EC1420 —
+   vraag 13, 7 mijlpaalvloer n=1), Sample 12 (SF-minuut n=1 zonder bron), Hotel 3 (ALAP-eindmijlpaal).
+
+**Oordeel Fable (voorlopig, B1 uitgezonderd): GO voor de etappe als geheel.** De motor kent geen
+bronformaat, elke P6-regel is een benoemde conventie met bron en meting, de meetlat is eerlijk
+(alleen P6-uitvoer, ratchet per cel op emmer én grootte, uitsluitingen alleen per eigenaarsbesluit),
+en de documentatie volgt de code. B1 (invoercoherentie) volgt na zijn tweede fixronde als eigen
+merge met eigen her-check.
