@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "In-progress task: early start = start of remaining work",
-      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Set per file by Primavera P6."
+      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Set per file by Primavera P6. Calculating backward over a start-to-start relationship, only the remaining duration counts."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exact constraint moment on a milestone",
@@ -1202,11 +1202,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Successor starts on the finish boundary",
-      "help": "For a finish-to-start relation without lag on a shared band boundary, the successor starts at the predecessor's finish (only relations the file marks this way)."
+      "help": "For a finish-to-start relation without lag on a shared band boundary, the successor starts at the predecessor's finish (only relations the file marks this way). Calculating backward, the successor shows its late start simply as the start of a work band."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Backward lag from a finish boundary",
-      "help": "When the backward pass subtracts a working-time lag from a finish boundary and lands exactly on a band start, it lands on the previous finish boundary."
+      "help": "When the backward pass subtracts a working-time lag from a finish boundary and lands exactly on a band start, it lands on the previous finish boundary. With a finish-to-finish relationship without lag, a late finish on a band end also stays on that finish boundary."
     },
     "p6CompletedDataDateWindow": {
       "label": "Completed task in the data-date window",

@@ -681,19 +681,27 @@ export class CPMSolver {
   }
 
   /**
-   * A19 `p6UseRemainingStartForProgress`, late kant (X12 brok 6): een LOPENDE taak met restduur 0 is voor
-   * een SS/SF-relatie achterwaarts een nulduur — haar late finish is dan de late start die de relatie
-   * toelaat, niet die start plus de volle geplande duur. Gemeten: Roads OCEC11731 (lopend, rest 0)
-   * —SS+70 h→ OCEC12121 (LS 2013-08-18 16:00): P6 LS = LF = 08-18 16:00. Een lopende taak met een
-   * rest > 0 is ongemeten (op het corpus 0 verschil) en blijft ongewijzigd. Anders ⇒ `task` zelf.
+   * A19 `p6UseRemainingStartForProgress`, late kant (X12 brok 6; docblok bij de sleutel in
+   * `types/project.ts`): de restduurregel. P6 plant een LOPENDE activiteit op haar RESTduur ("The total
+   * working time from the activity remaining start date to the remaining finish date", Oracle P6 Help,
+   * Durations Columns, https://docs.oracle.com/cd/F37125_01/p6help/en/47223.htm); achterwaarts over een
+   * SS-relatie is haar late finish dus de late start die de relatie toelaat plus de restduur, niet plus de
+   * volle geplande duur. Rest 0 ⇒ een nulduur (LS = LF). Alleen SS: SF is niet gepind. Anders ⇒ `task`.
    */
-  private zeroRemainingTaskForStartRelation(task: Task, eng: CalendarEngine): Task {
+  private remainingDurationTaskForStartRelation(task: Task, eng: CalendarEngine): Task {
     if (this.options.schedulingOptions?.p6UseRemainingStartForProgress !== true || !eng.isHourMode) return task;
     const t = task.time;
     if (t.actualStart === undefined || !(t.completion > 0 && t.completion < 1)) return task;
     if (t.durationType === 'ELAPSEDTIME' || (task.splitGaps?.length ?? 0) > 0) return task;
-    if (t.remainingMinutes !== 0 || durationMinutesOf(task, eng) === 0) return task;
-    return { ...task, isMilestone: true, milestoneKind: undefined, time: { ...t, scheduleDuration: 0, durationMinutes: 0 } };
+    const planned = durationMinutesOf(task, eng);
+    const rest = t.remainingMinutes;
+    if (rest === undefined || !(rest >= 0) || rest >= planned) return task;
+    if (rest === 0) {
+      return { ...task, isMilestone: true, milestoneKind: undefined, time: { ...t, scheduleDuration: 0, durationMinutes: 0 } };
+    }
+    return taskDurationUnit(task) === 'hours'
+      ? { ...task, time: { ...t, durationMinutes: rest } }
+      : { ...task, time: { ...t, scheduleDuration: rest / (eng.hoursPerDay * 60) } };
   }
 
   /**
@@ -1168,8 +1176,8 @@ export class CPMSolver {
       const natural = eng.subtractWorkMinutes(end, totalMinutes);
       // B1 (X12 brok 6): de late start van een opvolger op een voorgangerfinishgrens-relatie is een
       // gewone bandSTART (P6: Hotel HCSWB1Z1240 LS 03-04 08:00). De finishgrens voor de voorganger
-      // legt `relationMath` (FS-backward, `p6StartAtPredecessorFinishBoundary`) zelf; hier vroeger
-      // `prevWorkInstantBefore(natural)` — 9 ls-cellen fout, 0 goed.
+      // legt de gewone FS-backward in `relationMath` (`prevWorkInstant` op de voorgangerkalender); hier
+      // vroeger `prevWorkInstantBefore(natural)` — 9 ls-cellen fout, 0 goed.
       // Z13 (backward-spiegel van `addDurationChecked`s band-eind-wacht): voor een WORTEL-taak
       // (geen voorganger) wier eigen `ownAnchor` het rauwe band-eind-anker behoudt (zie die
       // functie), telt `addDurationChecked` de EIGEN kalenderdag van dat anker mee als volledig
@@ -3699,9 +3707,9 @@ export class CPMSolver {
         // C6, late kant: van een SS-lag uit deze LOPENDE taak telt ook achterwaarts alleen de rest-lag
         // (Roads OCEC10311 —SS+70 h→ OCEC10851: P6-LS = de LS van de opvolger). Conventie uit ⇒ `seq`.
         const lateSeq = this.inProgressStartLagSeq(task, seq, this.relDeps.lagEngine(predCal, succCal));
-        // A19, late kant: een lopende taak met restduur 0 is voor een SS/SF-grens achterwaarts een nulduur.
-        const remainingTask = (seq.type === 'START_START' || seq.type === 'START_FINISH')
-          ? this.zeroRemainingTaskForStartRelation(task, predCal) : task;
+        // A19, late kant: een lopende taak telt achterwaarts over een SS-grens alleen haar restduur.
+        const remainingTask = seq.type === 'START_START'
+          ? this.remainingDurationTaskForStartRelation(task, predCal) : task;
         const constraintDate = backwardConstraint(
           this.relDeps, delayShiftedSuccResult, lateSeq, remainingTask, succTask, predCal, succCal,
           this.p6ZeroDurationUsesFinishBoundary(succTask, succCal),

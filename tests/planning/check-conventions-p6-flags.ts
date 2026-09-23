@@ -876,6 +876,17 @@ groupC.push({
   off: { lf: '2026-01-16T16:00' },
 });
 
+// C9, bronvoorwaarde (critreview brok 6 landing 3–5): C9 snapt alleen als de OPVOLGERgrens ook ná de
+// late-zijde-constraints de late finish bepaalt. Dezelfde fixture, nu met een strakkere FNLT op M van vr 16
+// jan 12:00 — óók buiten M's werktijd (vrijdag vrij). De bound wint en blijft staan; C9 mag hem niet naar
+// do 15 jan 17:00 trekken. Mutant `true || lateFinish === successorBound` ⇒ rood.
+{
+  const input = c9Fixture();
+  input.tasks.find(task => task.id === 'M')!.constraint = { type: 'FNLT', date: '2026-01-16T12:00' };
+  eq('C9 bronvoorwaarde: een strakkere FNLT buiten de werktijd wint en wordt niet gesnapt',
+    (({ lf }) => ({ lf }))(solveAxes(input, 'M')), { lf: '2026-01-16T12:00' });
+}
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;

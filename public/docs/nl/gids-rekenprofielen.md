@@ -60,12 +60,12 @@ Onder Open Planner Studio staan ze alle vierentwintig uit.
 - **Geplande start als extra ondergrens** (Primavera P6) — zie de waarschuwing hierboven.
 - **Eindmijlpaal als grensvenster** (Primavera P6) — een eindmijlpaal mag op twee aangrenzende kalendergrenzen staan.
 - **Actuele datums exact overnemen** (Primavera P6) — geregistreerde actuele datums worden niet naar een werktijdband verschoven.
-- **Lopende taak: vroege start = begin van het restwerk** (per bestand uit Primavera P6) — de vroege start van een lopende taak is waar het resterende werk begint.
+- **Lopende taak: vroege start = begin van het restwerk** (per bestand uit Primavera P6) — de vroege start van een lopende taak is waar het resterende werk begint. Terugrekenend over een start-start-relatie telt alleen haar restduur: zonder restwerk vallen late start en late finish samen.
 - **Constraintmoment op een mijlpaal exact** (Primavera P6) — een datum-en-tijdconstraint op een mijlpaal is een exact punt.
 - **Restwerk hervat na de al verstreken duur** (Microsoft Project) — een lopende taak hervat op de actuele start plus de al verstreken duur.
 - **Niet-gestarte taken niet naar de statusdatum** (Microsoft Project) — een taak die nog niet begonnen is, schuift niet vanzelf naar de statusdatum.
-- **Opvolger start op de finishgrens** (Primavera P6) — bij relaties die het bestand zo markeert.
-- **Lag terugrekenen vanaf een finishgrens** (Primavera P6) — een lag die precies op een bandstart uitkomt, landt op de vorige finishgrens.
+- **Opvolger start op de finishgrens** (Primavera P6) — bij relaties die het bestand zo markeert. Terugrekenend toont de opvolger haar late start gewoon als begin van een werkband.
+- **Lag terugrekenen vanaf een finishgrens** (Primavera P6) — een lag die precies op een bandstart uitkomt, landt op de vorige finishgrens. Ook bij een einde-einde-relatie zonder lag blijft een late finish op een bandeinde die finishgrens.
 - **Voltooide taak in het statusdatumvenster** (Primavera P6) — alleen voor taken met P6-herkomst.
 - **Voltooide LOE via het actuele einde** (Primavera P6) — alleen voor taken met P6-herkomst.
 - **Niet-gestarte LOE neemt het doelvenster** (Primavera P6) — alleen voor taken met P6-herkomst.

@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Lopende taak: vroege start = begin van het restwerk",
-      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische actuele start. Komt per bestand uit Primavera P6."
+      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische actuele start. Komt per bestand uit Primavera P6. Terugrekenend over een begin-begin-relatie telt alleen de restduur."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Constraintmoment op een mijlpaal exact",
@@ -1202,11 +1202,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Opvolger start op de finishgrens",
-      "help": "Bij een einde-begin-relatie zonder lag op een gedeelde bandgrens begint de opvolger op de finish van de voorganger (alleen relaties die het bestand zo markeert)."
+      "help": "Bij een einde-begin-relatie zonder lag op een gedeelde bandgrens begint de opvolger op de finish van de voorganger (alleen relaties die het bestand zo markeert). Terugrekenend toont de opvolger haar late start gewoon als begin van een werkband."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Lag terugrekenen vanaf een finishgrens",
-      "help": "Trekt de terugwaartse berekening een werktijd-lag af vanaf een finishgrens en komt ze precies op een bandstart uit, dan landt ze op de vorige finishgrens."
+      "help": "Trekt de terugwaartse berekening een werktijd-lag af vanaf een finishgrens en komt ze precies op een bandstart uit, dan landt ze op de vorige finishgrens. Ook bij een einde-einde-relatie zonder lag blijft een late finish op een bandeinde die finishgrens."
     },
     "p6CompletedDataDateWindow": {
       "label": "Voltooide taak in het statusdatumvenster",

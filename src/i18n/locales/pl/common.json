@@ -1256,7 +1256,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Zadanie w toku: wczesny początek = początek pozostałej pracy",
-      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Ustawiane dla każdego pliku przez Primavera P6."
+      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Ustawiane dla każdego pliku przez Primavera P6. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Dokładny moment ograniczenia na kamieniu milowym",
@@ -1272,11 +1272,11 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Następnik zaczyna na granicy zakończenia",
-      "help": "Przy relacji koniec-początek bez opóźnienia na wspólnej granicy pasma następnik zaczyna się w chwili zakończenia poprzednika (tylko relacje oznaczone tak w pliku)."
+      "help": "Przy relacji koniec-początek bez opóźnienia na wspólnej granicy pasma następnik zaczyna się w chwili zakończenia poprzednika (tylko relacje oznaczone tak w pliku). Przy obliczaniu wstecz następnik pokazuje swój najpóźniejszy start po prostu jako początek pasma pracy."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Opóźnienie wstecz od granicy zakończenia",
-      "help": "Gdy obliczenie wstecz odejmuje opóźnienie w czasie pracy od granicy zakończenia i trafia dokładnie na początek pasma, ląduje na poprzedniej granicy zakończenia."
+      "help": "Gdy obliczenie wstecz odejmuje opóźnienie w czasie pracy od granicy zakończenia i trafia dokładnie na początek pasma, ląduje na poprzedniej granicy zakończenia. Przy relacji zakończenie-zakończenie bez opóźnienia najpóźniejsze zakończenie na końcu pasma również pozostaje na tej granicy zakończenia."
     },
     "p6CompletedDataDateWindow": {
       "label": "Zakończone zadanie w oknie daty stanu",

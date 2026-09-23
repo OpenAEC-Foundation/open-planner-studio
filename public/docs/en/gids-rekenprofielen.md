@@ -60,12 +60,12 @@ Under Open Planner Studio all twenty-four are off.
 - **Planned start as an extra floor** (Primavera P6) — see the warning above.
 - **Finish milestone as a boundary window** (Primavera P6) — a finish milestone may sit on two adjacent calendar boundaries.
 - **Keep actual dates exact** (Primavera P6) — recorded actual dates are not moved to a working-time band.
-- **In-progress task: early start = start of remaining work** (per file from Primavera P6) — the early start of an in-progress task is where the remaining work begins.
+- **In-progress task: early start = start of remaining work** (per file from Primavera P6) — the early start of an in-progress task is where the remaining work begins. Calculating backward over a start-to-start relationship, only its remaining duration counts: without remaining work, late start and late finish coincide.
 - **Exact constraint moment on a milestone** (Primavera P6) — a date-and-time constraint on a milestone is an exact point.
 - **Remaining work resumes after the elapsed duration** (Microsoft Project) — an in-progress task resumes at the actual start plus the elapsed duration.
 - **Don't move unstarted tasks to the status date** (Microsoft Project) — a task that has not started does not move to the status date by itself.
-- **Successor starts on the finish boundary** (Primavera P6) — for relations the file marks this way.
-- **Backward lag from a finish boundary** (Primavera P6) — a lag that lands exactly on a band start lands on the previous finish boundary.
+- **Successor starts on the finish boundary** (Primavera P6) — for relations the file marks this way. Calculating backward, the successor shows its late start simply as the start of a work band.
+- **Backward lag from a finish boundary** (Primavera P6) — a lag that lands exactly on a band start lands on the previous finish boundary. With a finish-to-finish relationship without lag, a late finish on a band end also stays on that finish boundary.
 - **Completed task in the data-date window** (Primavera P6) — only for tasks with P6 provenance.
 - **Completed LOE via its actual finish** (Primavera P6) — only for tasks with P6 provenance.
 - **Unstarted LOE uses the target window** (Primavera P6) — only for tasks with P6 provenance.
