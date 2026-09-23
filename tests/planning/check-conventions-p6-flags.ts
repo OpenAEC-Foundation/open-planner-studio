@@ -629,7 +629,7 @@ groupC.push({
 // niet-gestarte S. Sinds de werkelijke start is op de statusdatum 7 × 9 = 63 h werktijd verstreken,
 // dus niets van de lag blijft over: S start met A's restwerk, wo 14 jan 08:00. Zonder C6: de volle
 // lag vanaf A's restwerkstart, wo 14 jan 08:00 + 18 h = do 15 jan 17:00 ⇒ vr 16 jan 08:00.
-function c6Fixture(actualStart = '2026-01-05 08:00'): ImportResult {
+function c6Fixture(actualStart = '2026-01-05 08:00', extraTasks: string[] = [], extraRelations: string[] = []): ImportResult {
   return importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -642,9 +642,11 @@ function c6Fixture(actualStart = '2026-01-05 08:00'): ImportResult {
     '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
     `%R\tA\tP1\tC1\tRUN\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t45\t18\t2026-01-05 08:00\t2026-01-15 17:00\t${actualStart}\t`,
     '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+    ...extraTasks,
     '%T\tTASKPRED',
     '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
     '%R\tR1\tS\tA\tP1\tP1\tPR_SS\t18',
+    ...extraRelations,
     '%E',
   ]);
 }
@@ -680,6 +682,18 @@ for (const fixture of groupC) {
     plain.project.schedulingProfile = { baseId, id: baseId, name: '', overrides: {} };
     eq(`${label}: 4. ingebouwd profiel ${baseId} ⇒ UIT`, pick(solveAxes(plain, taskId)), fixture.builtInOffByBase?.[baseId] ?? fixture.builtInOff ?? fixture.off);
   }
+}
+
+// C6, de max(0)-vloer: een niet-gestarte B (18 h) —FS→ A schuift A's restwerkstart ná de statusdatum,
+// naar vr 16 jan 08:00. De lag (18 h) is sinds A's werkelijke start (63 h verstreken) volledig op, dus de
+// rest-lag is 0 en S start op A's restwerkstart. Zonder de vloer (−45 h) zou S vóór die restwerkstart
+// landen, op de statusdatumgrens wo 14 jan 08:00.
+{
+  const floor = c6Fixture('2026-01-05 08:00',
+    ['%R\tB\tP1\tC1\tPRE\tVoorganger A\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t18\t18\t2026-01-14 08:00\t2026-01-15 17:00\t\t'],
+    ['%R\tR2\tA\tB\tP1\tP1\tPR_FS\t0']);
+  eq('C6-vloer fixture: A\'s restwerkstart ligt ná de statusdatum', solveAxes(floor, 'A').es, '2026-01-16T08:00');
+  eq('C6-vloer: volledig verstreken lag ⇒ rest-lag 0, S op A\'s restwerkstart', solveAxes(floor, 'S').es, '2026-01-16T08:00');
 }
 
 // C4, relatiekant en voortgangsmodus: de opvolger S van het verschoven venster start direct erna

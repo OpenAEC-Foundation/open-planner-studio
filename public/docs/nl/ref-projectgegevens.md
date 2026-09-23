@@ -19,7 +19,7 @@ Het venster **Projectinformatie** bevat de metadata van het project plus het blo
 
 ## Rekenprofiel en reken-opties
 
-Bovenaan kies je het **Rekenprofiel**: Open Planner Studio, Primavera P6, Microsoft Project of een eigen sjabloon. Daaronder staan de achttien **Conventies van dit profiel**; zet je er één om, dan maakt Open Planner Studio een eigen kopie van het profiel. Hoe dat werkt staat in de gids **Rekenprofielen** (Backstage → Help).
+Bovenaan kies je het **Rekenprofiel**: Open Planner Studio, Primavera P6, Microsoft Project of een eigen sjabloon. Daaronder staan de eenentwintig **Conventies van dit profiel**; zet je er één om, dan maakt Open Planner Studio een eigen kopie van het profiel. Hoe dat werkt staat in de gids **Rekenprofielen** (Backstage → Help).
 
 Daaronder staan de **Reken-opties van dit project** — ze horen bij het bestand, niet bij de app, en reizen dus mee naar andere machines. **Standaardopties van dit profiel toepassen** zet ze op de standaard van het gekozen profiel. Wijzig je in dit blok iets, dan wordt de planning na **Toepassen** meteen herberekend, ook met *Automatisch berekenen* uit. Verschuiven daardoor taken, dan noemt een melding hoeveel (gewone taken, geen samenvattingstaken); verschuift er niets, dan komt er geen melding.
 

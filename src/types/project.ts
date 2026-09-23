@@ -310,10 +310,14 @@ export interface SchedulingOptions {
   /** C5 — een VOLTOOIDE activiteit met fysiek voortgangspercentage (`p6CompletePctType === 'CP_Phys'`)
    *  staat als één punt op de statusdatum: ES = EF = het RAUWE statusdatum-instant (niet gesnapt op de
    *  werktijd), of later als een voorganger dat eist — de rauwe relatiegrens (FS/FF: het einde, SS/SF:
-   *  de start van een voorganger die nog niet klaar is, plus de volle lag, met een finishgrens: niet naar
-   *  de volgende werkstart geschoven), of het punt van een voorganger die zelf zo'n punt heeft. Ook de
-   *  late kant is één punt: LS = LF = de vroegste grens die de opvolgers stellen (FS/SS: hun LS, FF/SF:
-   *  hun LF), zonder statusdatumklem; zonder opvolger het projecteinde. Van de lag tussen zo'n punt en
+   *  de start van een voorganger die nog niet klaar is, met een finishgrens: niet naar de volgende
+   *  werkstart geschoven), of het punt van een voorganger die zelf zo'n punt heeft. De lag uit een
+   *  LOPENDE voorganger is de volle lag, behalve bij SS met C6 aan: dan telt via
+   *  `inProgressStartLagSeq` alleen de rest-lag. Ook de late kant is één punt: LS = LF = de vroegste
+   *  grens die de opvolgers stellen (FS/SS: hun LS, FF/SF: hun LF), zonder statusdatumklem; een
+   *  VOLTOOIDE opvolger zonder eigen punt en zonder rest-venster (C2) telt daarbij niet mee (de
+   *  achterwaartse tak slaat die over). Zonder opvolger het projecteinde — dat steunt op slechts twee
+   *  taken (HarbourPointe EC1040/EC1050). Van de lag tussen zo'n punt en
    *  een opvolger of voorganger telt alleen het deel dat na het werkelijke einde op de statusdatum nog
    *  niet verstreken is (rekenregel C3). Poort: P6-herkomst, blad, `p6ExplicitTargetWindow`, A19
    *  (`p6UseRemainingStartForProgress`), voltooid met een werkelijk einde op of vóór de statusdatum,
@@ -333,7 +337,11 @@ export interface SchedulingOptions {
    *    statusdatum" (B3 wint waar die geldt) maakt in de meting precies dezelfde cellen goed, maar
    *    verslechtert DCP-03 As-Built: 57 voltooide CP_Drtn/DT_FixedDrtn-taken waarvan het orakel de
    *    werkelijke datums houdt (285 cellen); de variant die ook B3 vervangt verslechtert daarnaast
-   *    rehab-2 (5.340 cellen). Of As-Built door P6 is doorgerekend is niet vastgesteld.
+   *    rehab-2 (5.340 cellen). Of As-Built door P6 is doorgerekend is niet vastgesteld (herkomst
+   *    onbekend). De P6-regel zelf lijkt dus breed — op de P6-doorgerekende bestanden is smal = breed —
+   *    en CP_Phys is een beschermgrens vanwege DCP-03 As-Built, geen bewezen P6-onderscheid. Dat
+   *    onderscheid kan net zo goed in het duurtype zitten (B3 eist `DT_FixedDUR2`, As-Built is
+   *    `DT_FixedDrtn`). [VERMOED] C5 kent geen Progress-Override-poort, C4 wel; zie plan §9.
    *  - MS Project: uit. MS Project kent geen voortgangstype per activiteit; een voltooide taak houdt
    *    haar werkelijke Start en Finish.
    *  - OPS: uit (de werkelijke datums, het gedrag van vóór deze conventie). */
@@ -345,7 +353,17 @@ export interface SchedulingOptions {
    *  (`p6UseRemainingStartForProgress`, de vroege start van een lopende taak is dan haar restwerkstart);
    *  FS/FF/SF, de late kant en ELAPSEDTIME-lag ongewijzigd (ongemeten). `CPMSolver.inProgressStartLagSeq`.
    *
-   *  - P6: aan. Gemeten, niet uit de documentatie: alle niet-gestarte opvolgers met een SS+lag-relatie
+   *  - P6: aan. Bron: Oracle P6 Help "Calculate Start-to-Start lag from"
+   *    (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm). *Early Start*: "Calculates the
+   *    expired lag as the number of work periods between the actual start and the data date and
+   *    determines the successor's start date as the predecessor's remaining early start plus any
+   *    remaining lag"; *Actual Start*: "the data date plus any remaining lag". C6 is exact de
+   *    Early-Start-variant; de max(0)-vloer is gedocumenteerd ("remaining lag"). In XER is dit
+   *    `sched_lag_early_start_flag` (corpus: Y 40, N 8, leeg 2; Roads Y, DCP-03 Baseline/As-Built N).
+   *    Het deels-verstreken geval (0 < rest-lag < lag) komt in het corpus niet voor.
+   *    VERVOLGPUNT (niet gebouwd): C6 hoort een projectoptie uit `sched_lag_early_start_flag` te
+   *    worden, waarbij N = "statusdatum + rest-lag" (`xerScheduleOptions.ts`, veld nu `status: 'todo'`);
+   *    zie plan §9. Meting die dit bevestigt: alle niet-gestarte opvolgers met een SS+lag-relatie
    *    uit een lopende voorganger in het P6-doorgerekende `Roads_Project_TEC.xer` (8) starten op de
    *    restwerkstart van die voorganger zelf, niet een volle lag later: OCEC11371 (werkelijk gestart
    *    2013-02-23, restwerkstart 06-24 07:00) —SS+60 h→ OCEC11381 ES 06-24 07:00; evenzo OCEC10811

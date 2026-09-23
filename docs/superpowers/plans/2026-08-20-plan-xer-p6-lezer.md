@@ -756,6 +756,18 @@ dan P6) zijn niet onderzocht. Hoort bij een volgende brok.
   10, p6diff 8+7, HarbourPointe 7, Harbour Point DCP-03 7, sample-target 4, stack_data_center 4.
   Of die as poort wordt is een eigenaarsbesluit (§3).
 
+### Vervolgpunten X12 brok 3 (C5/C6, 2026-09-23)
+
+- **C6 als projectoptie (niet gebouwd).** Oracle P6 Help "Calculate Start-to-Start lag from"
+  (https://docs.oracle.com/cd/G18294_01/p6help/en/99348.htm) documenteert twee varianten: *Early
+  Start* (restwerkstart voorganger + rest-lag, = C6) en *Actual Start* (statusdatum + rest-lag). In
+  XER is dat `sched_lag_early_start_flag` (corpus: Y 40, N 8, leeg 2; Roads Y, DCP-03
+  Baseline/As-Built N). C6 hoort een projectoptie uit die vlag te worden, met N = "statusdatum +
+  rest-lag"; `xerScheduleOptions.ts` heeft het veld nu op `status: 'todo'`.
+- **[VERMOED] C5 zonder Progress-Override-poort.** C4 geldt niet onder Progress Override
+  (`CPMSolver.ts` bij de C4-tak), C5 kent die poort niet. Eén OZB-project heeft Progress Override;
+  niet gemeten of C5 daar anders hoort.
+
 ## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
 *Herschreven door de Claude-sessie die op 2026-09-07 de etappe overnam, 7a en laag 3 landde en de
