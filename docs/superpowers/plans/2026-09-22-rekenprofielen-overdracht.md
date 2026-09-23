@@ -74,6 +74,16 @@ afwijkingen hebben met XER".)
   groen) telt als geslaagd; `--strict` maakt hem rood.
 - `recorded-all-formats`: no-go van de review (8 punten) wordt door een fix-agent verwerkt op
   `claude/recorded-all-formats-v2`, gerebased op de PR-branch.
+- **Koerswijziging X12, 23-09 ~08:30 (na B01-onderzoek + C1–C4-toets):** het orakel van `rehab-2.xer`
+  is P3-uitvoer en de synthetische bestanden hebben geen P6-kenmerken; van de 11.771 restcellen liggen
+  er maar 1.516 in aantoonbaar door P6 doorgerekende bestanden. Daarom: (1) nieuwe brokken worden alleen
+  nog gebouwd op P6-doorgerekende bestanden (B08 Roads, B11 OZB/Roads, B09, B12, B13, B14, B15, en de
+  voltooide-taakvorm in Roads/HarbourPointe/OZB — 769 cellen); B05 is geschrapt; (2) de reeds gebouwde
+  C1/C3/C4 blijven op hun gemeten stand (ratchet gaat alleen omlaag) maar hun docblokken zeggen eerlijk
+  dat rehab-2 een P3-orakel is en dat de P6-standaardwaarde onder voorbehoud van het manifestbesluit
+  staat; hun default wordt herzien zodra de eigenaar over het orakel beslist (§1d vraag 5); (3) het
+  manifest krijgt een informatief `p6Computed`-veld en de X12-samenvatting een splitsing — rapportage,
+  geen poortwijziging; de populatie blijft eigenaarsbesluit.
 
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
@@ -103,6 +113,17 @@ afwijkingen hebben met XER".)
    calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
    registreert negatieve float zonder `plan_end_date`. Vervolgvraag in plan XER §9; `project.endDate =
    start` + `<MustFinishByDate>` in de P6-XML-export is een vervolgpunt.
+5. **Welke orakels tellen voor het nuldoel?** (23-09, uit `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`.)
+   Aantoonbaar door P6 doorgerekend (SCHEDOPTIONS-rij + `rem_late_start_date` gevuld + `driving_path_flag`
+   ergens Y): Hotel_Construction_TEC, Roads_Project_TEC, HarbourPointe, Sample_Construction_TEC, TERMINAL
+   BUILDING-AIRPORT, OZB-Start (12 projecten), DCP-03 Baseline, xernative/sample, (ashspace twijfelachtig);
+   niet: rehab-2 (P3), hb-intel en de synthetische S1–S10; onbepaalbaar: DCP-03 As-Built. Restant
+   11.771 = 8.441 rehab-2 + 1.814 niet-P6 + 1.516 P6-doorgerekend. Aanbeveling orkestrator: het
+   nuldoel definiëren over de P6-doorgerekende orakels (manifest `role`/`included`), rehab-2 en de
+   synthetische bestanden houden als lezer-/prestatietest zonder orakelrol. Consequentie: C1, C3 en
+   mogelijk C4 (en B3 zelf — de B3-vorm van voltooide taken komt alleen in rehab-2 voor; echte P6-
+   bestanden zetten ES én EF van voltooide taken op de rauwe statusdatum) zijn P3-gedrag en horen dan
+   niet als P6-standaard aan; C2 blijft (Hotel 244, Roads 11, DCP-03 1).
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
@@ -120,10 +141,11 @@ afwijkingen hebben met XER".)
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
 | X12 naar nul — brok 2: B02+B06+B03 (C1–C3) | `claude/x12-brok2-7b4` (`7c37b212`, `d6db800c`, gepusht) | **X12 15.056 → 12.973** (−2.083, 0 slechter per cel); critreview = no-go op 5 punten (migratie groep C op id pinnen; corpusloze fixtures voor C1-SS en C3 deels/niet-verstreken lag; "vijftien"→achttien; C1-commentaar/Oracle-URL; §9-dossier) — fixronde loopt (de eerste fixronde-agent stierf 23-09 ~03:00 door de sessielimiet ná de merge van `3128d215+` in brok 2 = `13826f20`, met de C3/C1-SS-fixtures half af; hervat door een nieuwe agent in dezelfde worktree `agent-a78788e689e933148`). Inzicht reviewer: 761 cellen kwamen binnen dezelfde bucket verder van P6 (B01-compensatie; met B01-tegenfeit zijn C1+C2 = +1.706/0 en C3 = +772/0) — de bucket-ratchet ziet dat niet; een grootte-ratchet is een apart besluit (§1d) |
-| X12 naar nul — brok 3: B04 out-of-sequence (+B07 CP_Phys) | `claude/x12-brok3-oos` (basis brok 2, kop `1aa63a40`, niet gepusht) | **C4 `p6CompletedOutOfSequenceWindow` geland: X12 12.973 → 11.771** (−1.202, 0 slechter, herpin in dezelfde commit). C5 `p6CompletedPhysicalAtDataDate` (B07) in aanbouw: docblok/register/lezer stonden ongecommit toen de agent door de sessielimiet stierf; hervat in worktree `agent-abb39c3cdb1144813`. Moet nog: gefixte brok-2-kop inmergen, critreview, merge in de etappebranch |
-| X12 naar nul — brok 4: B08 FF→startmijlpaal (C6) + B05 actief-rest-0 late kant (C7) | `claude/x12-brok4-ff-mijlpaal` (basis `1aa63a40` = C4; worktree `agent-x12-brok4-ff-mijlpaal`) | in aanbouw (agent gestart 23-09 ~07:40); merget ná brok 2-fix en brok 3 |
+| X12 naar nul — brok 3: B04 out-of-sequence (+B07 CP_Phys) | `claude/x12-brok3-oos` (basis brok 2, kop `1aa63a40`, niet gepusht) | **C4 `p6CompletedOutOfSequenceWindow` geland: X12 12.973 → 11.771** (−1.202, 0 slechter, herpin in dezelfde commit). C5 `p6CompletedPhysicalAtDataDate` (B07) in aanbouw: docblok/register/lezer stonden ongecommit toen de agent door de sessielimiet stierf; hervat in worktree `agent-abb39c3cdb1144813`. Aanvulling 08:30: ook de brede variant meten (álle voltooide taken op de rauwe statusdatum, zoals Roads/HarbourPointe/OZB tonen — 769 cellen), regel A kiest. Moet nog: gefixte brok-2-kop inmergen, critreview, merge in de etappebranch |
+| X12 naar nul — brok 4: B08 FF→startmijlpaal (C6) + B05 actief-rest-0 late kant (C7) | `claude/x12-brok4-ff-mijlpaal` (basis `1aa63a40` = C4; worktree `agent-x12-brok4-ff-mijlpaal`) | in aanbouw (agent gestart 23-09 ~07:40); **koers gewijzigd 08:30: B05 geschrapt (alleen rehab-2/P3), C7 = B11 restart-ES (OZB 61 + Roads 3)**; merget ná brok 2-fix en brok 3 |
 | B01-onderzoek (rehab-2, 7.516 cellen) | `claude/rekenprofielen` (`ef1eb881`, doc `2026-09-23-x12-b01-onderzoek.md`) | **klaar: vorm (b)** — rehab-2-orakel is P3-uitvoer, zie §1d vraag 1. Vervolg: C1–C4-toets buiten rehab-2 |
-| C1–C4-toets buiten rehab-2 | `claude/x12-c-toets-buiten-rehab2` (basis `1aa63a40`, worktree `agent-x12-c-toets-buiten-rehab2`) | meting gestart 23-09 ~08:00: per conventie de cellenwinst/-verlies per bestand ≠ rehab-2 |
+| C1–C4-toets buiten rehab-2 | `claude/rekenprofielen` (`2c5812ef`, doc `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`) | **klaar:** C2 gesteund (256 cellen in Hotel/Roads/DCP-03), C1/C3 alleen rehab-2, C4 gemengd (Roads kent het principe in een andere vorm: ES=EF één punt, late kant schuift mee). Zie §1c koerswijziging en §1d vraag 5 |
+| manifest `p6Computed` + X12-splitsing (rapportage) | agent-worktree op `claude/rekenprofielen` | gestart 23-09 ~08:30 (opus-laag): meetscript `scripts/xer-p6-computed`, veld per entry, samenvatting gesplitst; geen poortwijziging |
 | X12-restant-classificatie (meting) | `docs/superpowers/plans/2026-09-23-x12-restant-classificatie.md` | klaar: 28 brokken = exact 15.056 (+417 drivingPath in 4 groepen). Bouwvolgorde: B02 7b-4 (1.531) → B03 restlag (772) → B04 out-of-sequence (~676) → B07 CP_Phys (~446) → B06 FF eigen kalender (362) → B08 (210) → B05 → B15 → B09 → B11 → B12 → B13/B14. B01 (7.516) en synthetisch (1.814) = eigenaarsbesluit (§1d) |
 
 Zijbranches van agents staan in worktrees onder `/home/nozzit/open-aec/open-planner-studio/.claude/worktrees/agent-*`
