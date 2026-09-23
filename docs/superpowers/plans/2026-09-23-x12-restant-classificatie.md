@@ -184,6 +184,14 @@ B1 (`prevWorkInstant` op de voorgangerkalender), zodat HCSWB1Z1230 LF 03-03 16:0
 9 beter (Hotel ls), 0 slechter.** Van de 42 C9-cellen worden er 18 nu ook door B1 gedekt; C9 blijft
 nodig voor 24 (twaalf startmijlpalen op kalender 844).
 
+**Eindstand brok 6: 284.** HarbourPointe 124, DCP-03 Baseline 92, OZB-Start 42, Sample_Construction 12,
+Hotel 8, Roads 6 (ashspace 0). Wat in Hotel en Roads overblijft, is voor het grootste deel één vorm: een EF
+die P6 als de volgende bandstart toont (07:00/08:00) waar OPS de finishgrens ervoor laat zien.
+Voorbeelden zijn Roads OCEC9761/OCEC6681 via FF0 vanaf de startmijlpaal OCEC12101 (de voorwaartse spiegel
+van C7) en Hotel HCSWB3Z2190/HCSWB2Z6190. Daarnaast zijn er ff-cellen van 60 min (Hotel) en de
+ALAP-eindmijlpaal ATWTPR000. Omdat al die vormen op één mijlpaal of een paar taken rusten, zijn ze niet
+gebouwd.
+
 **Wat overblijft na landing 1 en 2 (308; na landing 3: 298, de FF0-rijen hieronder zijn opgelost; na
 landing 4: 293, OCEC11731 is opgelost).**
 
