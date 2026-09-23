@@ -41,6 +41,14 @@ afwijkingen hebben met XER".)
 - Niet expliciet beantwoord: (10) de projecteinde-fout (valt onder "restant omlaag") en (12) de
   weekend-klemheuristiek (blijft zoals hij staat).
 
+- **23-09, na het B01-onderzoek en de C1–C4-toets (vraag §1d-5), letterlijk: "Ja die alleen die p6 Bestände"** —
+  alleen de aantoonbaar door P6 doorgerekende bestanden tellen als orakel voor het nuldoel (kenmerken:
+  SCHEDOPTIONS-rij + `rem_late_start_date` gevuld op de open taken + `driving_path_flag` ergens Y, gemeten
+  door `scripts/xer-p6-computed.ts`). rehab-2 (P3-uitvoer), hb-intel en de synthetische S1–S10 verliezen
+  hun orakelrol in het manifest en blijven lezer-/prestatietest. Gevolg: C1/C3/C4 en B3 worden op de
+  nieuwe populatie opnieuw beoordeeld (P3-gedrag hoort niet als P6-standaard aan); §1d-vragen 1 en 2 zijn
+  hiermee beantwoord. Vragen 3 (grootte-ratchet) en 4 blijven open.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -87,7 +95,7 @@ afwijkingen hebben met XER".)
 
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
-1. **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
+1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
    `rehab-2.xer` (V3114490 e.a.) die bij P6 TF 0 hebben terwijl hun opvolgers maanden speling geven en
    drie van de zes FF > TF. Uit de relaties in het bestand volgt dat niet; kandidaten (relaties die de
    splitter weggooide; een constraint die bij een import verloren ging) zijn niet aantoonbaar. Volgens
@@ -103,7 +111,7 @@ afwijkingen hebben met XER".)
    Aanbeveling orkestrator: rehab-2 uit het P6-orakel (manifest), houden als lezer-/prestatietest.
    Gevolg: B02–B05 zijn alleen op rehab-2 gemeten; C1–C4 worden daarom apart getoetst op de andere
    corpusbestanden (agent gestart 23-09 ~08:00) vóór ze definitief landen.
-2. **Synthetische bestanden S1–S10 — 1.814 cellen** (MER-1, groupdocs, ProjectLens, gimmer/nPlan
+2. *(beantwoord 23-09, zie §1a)* **Synthetische bestanden S1–S10 — 1.814 cellen** (MER-1, groupdocs, ProjectLens, gimmer/nPlan
    GraphGen, meridianiq, p6diff, …): de orakels zijn intern tegenstrijdig of door een generator
    geschreven. Besluit nodig over hun status in `xer-corpus-manifest.json` (role/included). Samen met
    B01 is dat 62 % van het restant; zonder besluit is 0 op het volledige corpus niet te halen.
@@ -113,7 +121,7 @@ afwijkingen hebben met XER".)
    calculated based on its project's ScheduledFinishDate"), niet als Must Finish By; en OZB-Start
    registreert negatieve float zonder `plan_end_date`. Vervolgvraag in plan XER §9; `project.endDate =
    start` + `<MustFinishByDate>` in de P6-XML-export is een vervolgpunt.
-5. **Welke orakels tellen voor het nuldoel?** (23-09, uit `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`.)
+5. *(beantwoord 23-09: "alleen die P6-bestanden", zie §1a)* **Welke orakels tellen voor het nuldoel?** (23-09, uit `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`.)
    Aantoonbaar door P6 doorgerekend (SCHEDOPTIONS-rij + `rem_late_start_date` gevuld + `driving_path_flag`
    ergens Y): Hotel_Construction_TEC, Roads_Project_TEC, HarbourPointe, Sample_Construction_TEC, TERMINAL
    BUILDING-AIRPORT, OZB-Start (12 projecten), DCP-03 Baseline, xernative/sample, (ashspace twijfelachtig);
