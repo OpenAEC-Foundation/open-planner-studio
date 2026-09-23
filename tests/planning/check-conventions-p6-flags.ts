@@ -952,8 +952,10 @@ for (const fixture of groupC) {
 // C5-vangnet (critreview manifest-etappe 2026-09-23): vervangt het corpusvangnet dat DCP-03 As-Built
 // was (216 verslechteringen bij een naïeve brede B07-poort; As-Built is sinds het populatiebesluit
 // geen orakel meer). Voltooide taken met werkelijke datums vóór de statusdatum en een ANDER
-// targetvenster (wo 7 – do 8 jan), in de As-Built-vormen die niet onder B3 vallen: CP_Drtn +
-// DT_FixedDrtn, CP_Units + DT_FixedDUR2, CP_Units + DT_FixedDrtn. Onder het P6-profiel houden die hun
+// targetvenster (wo 7 – do 8 jan), in vormen die niet onder B3 vallen. As-Built zelf kent alleen
+// CP_Drtn + DT_FixedDrtn (op TT_Task, mijlpalen en LOE): dat is V1. V2 (CP_Units + DT_FixedDUR2) en V3
+// (CP_Units + DT_FixedDrtn) komen in As-Built niet voor; de casus dekt ze bewust, zodat het
+// CP_Phys-filter ook tegen CP_Units getoetst is. Onder het P6-profiel houden die hun
 // werkelijke datums (ma 5 jan 08:00 – di 6 jan 17:00); alleen de CP_Phys-tegenhanger D schuift naar
 // het statusdatumpunt (wo 14 jan 00:00). Mutant "C5-poort zonder CP_Phys-filter"
 // (`explainP6CompletedPhysicalPoint` zonder de `completePctType !== 'CP_Phys'`-regel) ⇒ V1–V3 op
@@ -1180,10 +1182,12 @@ const lateOf = (input: ImportResult, id: string) => {
     solveAxes(ss, 'B').es, '2026-01-07T10:00');
 }
 {
-  // C2, tak "voltooide opvolger": open T (1 dag vanaf ma 5 jan) —FS+0→ open S en —FS+0→ voltooide K
-  // (buiten volgorde, 2 jan). S wacht ook op X (5 dagen) en begint ma 12 jan 08:00, dus via S heeft
-  // T 4 werkdagen speling. P6 (C2): K laat geen speling ⇒ ff 0. Zonder C2 levert K niets
-  // (`preserveActualDatesInBackwardPass` wist die grens) ⇒ ff 4.
+  // C2 zonder de vroegere deeltak "voltooide opvolger ⇒ ff = 0" (verwijderd 2026-09-23: alleen in
+  // rehab-2 = P3-uitvoer gemeten, 0 cellen effect op de P6-populatie). Open T (1 dag vanaf ma 5 jan)
+  // —FS+0→ open S en —FS+0→ voltooide K (buiten volgorde, 2 jan). S wacht ook op X (5 dagen) en
+  // begint ma 12 jan 08:00, dus via S heeft T 4 werkdagen speling. K levert geen grens
+  // (`preserveActualDatesInBackwardPass` wist die), met én zonder C2 ⇒ ff 4. Komt de deeltak terug,
+  // dan wordt de eerste regel rood (ff 0).
   const withDone = importXer([
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -1205,7 +1209,7 @@ const lateOf = (input: ImportResult, id: string) => {
     '%R\tR3\tK\tT\tP1\tP1\tPR_FS\t0',
     '%E',
   ]);
-  eq('C2 voltooide opvolger: ff 0', solveAxes(withDone, 'T').ff, 0);
+  eq('C2 aan, voltooide opvolger: geen deeltak meer, ff via S = 4 werkdagen', solveAxes(withDone, 'T').ff, 4);
   eq('C2 uit: de voltooide opvolger telt niet, ff via S = 4 werkdagen',
     solveAxes(withProfile(withDone, copy => setConvention(copy, 'p6FreeFloatOnOwnCalendar', false)), 'T').ff, 4);
 }

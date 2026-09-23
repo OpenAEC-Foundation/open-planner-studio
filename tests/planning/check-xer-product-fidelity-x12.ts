@@ -34,7 +34,7 @@ import {
 import {
   CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellMagnitude, cellOracleRedLines, cellTotals, cellWriteModeProblem,
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
-  carryRatchetDebt, debtCount, CELL_DEBT_INIT_TOKEN,
+  carryRatchetDebt, debtCount, cellMinutesDigest, cellMinutesProblems, rewriteDebtPin,
   type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
@@ -80,12 +80,15 @@ interface CounterfactualReport {
  * (`xer-product-fidelity-baseline.json`, bewaakt door `check-xer-product-fidelity.ts`) — de twee
  * schema's botsten hier ooit stil onder één bestandsnaam, zie `check-xer-fidelity-baseline-schema.ts`. */
 function readProductBaseline(): ProductBaseline {
+  return readProductEnvelopeAndPayload().payload;
+}
+function readProductEnvelopeAndPayload(): { payload: ProductBaseline; cellMinutesSha256: string } {
   const raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline-v2.json'), 'utf8');
   const validated = validateProductBaselineV2(raw);
-  if (!validated.payload || validated.problems.length > 0) {
+  if (!validated.payload || !validated.envelope || validated.problems.length > 0) {
     throw new Error(`X12 productbaseline faalt gedeelde runtime-schemavalidatie: ${validated.problems.join('; ')}`);
   }
-  return validated.payload;
+  return { payload: validated.payload, cellMinutesSha256: validated.envelope.cellMinutesSha256 };
 }
 
 function eq(label: string, got: unknown, want: unknown): void {
@@ -2479,12 +2482,10 @@ const KNOWN_GOAL_LABELS = [
  *  scanner, v2-gelijkheid) blokkeren altijd. */
 function writeBlockers(mode: '1' | 'corpus' | 'init'): string[] {
   return diffs.filter(diff => !KNOWN_GOAL_LABELS.some(label => diff.startsWith(label))
-    && !(mode !== '1' && redKinds.get(diff) === 'fileset')
-    // Alleen in de eenmalige schuld-overgang (`OPS_XER_CELLS_DEBT_INIT`): grotere cellen worden schuld.
-    && redKinds.get(diff) !== 'debt-init');
+    && !(mode !== '1' && redKinds.get(diff) === 'fileset'));
 }
 
-interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable; debtInit?: boolean }
+interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable }
 
 function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink, manifestSha256: string): CellState | undefined {
   const built = tryBuildCellBaseline(cellSink, {
@@ -2523,22 +2524,28 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   // (uitsluitend de allereerste overgang; bij een merge neem je de v2-kant, zie scripts/README.md).
   const legacyRepin = parsed.legacyV1 === true && process.env.OPS_XER_CELLS_WRITE === '1' && process.env.OPS_XER_CELLS_V1_UPGRADE === '1';
   if (parsed.legacyV1 && legacyRepin) console.log(`INFO X12 ${CELL_BASELINE_FILE} is VERSIE 1 en wordt via OPS_XER_CELLS_V1_UPGRADE=1 als versie 2 herschreven (emmer-ratchet zonder grootte) — deze vlag is alleen voor de eerste overgang en mag daarna niet meer gebruikt worden`);
-  // Ratchet-schuld (orkestratorbesluit 2026-09-23, zie `fidelityCells.ts`): een versie-2-bestand zonder
-  // schuldsectie wordt alleen nog gelezen in de eenmalige overgang `OPS_XER_CELLS_DEBT_INIT`. Die vlag op
-  // een bestand dat al een schuldsectie heeft, is geweigerd: schuld kan daarna alleen dalen.
+  // Ratchet-schuld (orkestratorbesluit 2026-09-23, zie `fidelityCells.ts`): er is geen route meer die
+  // schuld aanmaakt. De eenmalige init-vlag van 23-09 is verwijderd; wie hem nog zet, krijgt een
+  // weigering in plaats van een stil genegeerde vlag. Een bestand zonder schuldsectie weigert de lezer.
   const debtInitFlag = process.env.OPS_XER_CELLS_DEBT_INIT;
-  const cellWrite = process.env.OPS_XER_CELLS_WRITE;
-  const debtInit = parsed.preDebt === true && debtInitFlag === CELL_DEBT_INIT_TOKEN && (cellWrite === '1' || cellWrite === 'corpus');
-  if (debtInitFlag !== undefined && debtInitFlag !== '' && !debtInit) {
+  if (debtInitFlag !== undefined && debtInitFlag !== '') {
     checks++;
-    diffs.push(`X12 cel-baseline: OPS_XER_CELLS_DEBT_INIT geweigerd — alleen de eenmalige overgang (waarde ${CELL_DEBT_INIT_TOKEN}, `
-      + `met OPS_XER_CELLS_WRITE=1|corpus, op een bestand zónder ratchetDebt-sectie); schuld kan daarna alleen dalen`);
+    diffs.push('X12 cel-baseline: OPS_XER_CELLS_DEBT_INIT bestaat niet meer (eenmalig gebruikt op 2026-09-23, daarna verwijderd); '
+      + 'schuld kan alleen krimpen via OPS_XER_CELLS_WRITE (scripts/README.md, verboden omwegen)');
     return undefined;
   }
-  if (debtInit) console.log(`INFO X12 ${CELL_BASELINE_FILE} heeft geen ratchetDebt-sectie; eenmalige overgang: grotere cellen worden schuld (reference = oude minuten, current = nieuwe)`);
-  if (!parsed.baseline || (parsed.problems.length > 0 && !legacyRepin && !debtInit)) {
+  if (!parsed.baseline || (parsed.problems.length > 0 && !legacyRepin)) {
     diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`);
     return undefined;
+  }
+  // Minuten-digest (critreview integratie-eindstand 2026-09-23): de gepinde grootten horen bij
+  // `cellMinutesSha256` in de v2-envelop — een met de hand opgerekte grootte versoepelt anders stil de
+  // ratchet (de meting ziet hem alleen als "kleiner"). Een ongeldige v2 meldt de hoofdtak zelf.
+  let pinnedMinutes: string | undefined;
+  try { pinnedMinutes = readProductEnvelopeAndPayload().cellMinutesSha256; } catch { pinnedMinutes = undefined; }
+  if (pinnedMinutes !== undefined && !legacyRepin) {
+    checks++;
+    for (const problem of cellMinutesProblems(parsed.baseline, pinnedMinutes)) red({ kind: 'hard', text: `X12 ${problem}` });
   }
   const delta = compareCells(parsed.baseline, built.baseline, measurable);
   // Schuld doorschuiven: blijft staan zolang de cel > reference afwijkt; nooit toevoegen.
@@ -2549,10 +2556,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
     red({ kind: 'hard', text: `X12 ratchet-schuld gestegen: ${debtCount(parsed.baseline.ratchetDebt)} → ${debtCount(built.baseline.ratchetDebt)} (schuld mag alleen dalen)` });
   }
   const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline)];
-  for (const line of lines) {
-    const kind = debtInit && line.text.startsWith('cel groter geworden') ? 'debt-init' : line.kind;
-    red({ kind, text: `X12 ${line.text}` });
-  }
+  for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
   if (lines.length === 0) {
     const totals = cellTotals(built.baseline);
     console.log(`OK  X12 cel-baseline (regel A): geen nieuwe, verslechterde of grotere cel over ${Object.keys(built.baseline.files).length} bestanden; `
@@ -2560,7 +2564,7 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
       + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : '')
       + (delta.smallerCells.length > 0 ? `; te herpinnen: ${delta.smallerCells.length} cellen kleiner` : ''));
   }
-  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable, debtInit };
+  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable };
 }
 
 /**
@@ -2620,6 +2624,11 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
   const cellMode = process.env.OPS_XER_CELLS_WRITE;
   const v2Mode = process.env.OPS_XER_V2_WRITE;
   const plans: Array<() => void> = [];
+  // cellMinutesSha256 van de v2-envelop na deze run: alleen een geaccepteerde CELLS-herpin verschuift
+  // hem. Een losse V2-herpin draagt de gepinde digest mee — anders stond stap 2 van het herpinrecept
+  // (de cellen) daarna rood op "minuten-digest ≠ v2" en was hij geblokkeerd.
+  let envelopeMinutes: string | undefined;
+  try { envelopeMinutes = readProductEnvelopeAndPayload().cellMinutesSha256; } catch { envelopeMinutes = undefined; }
   let refused = false;
   const refuse = (text: string) => { refused = true; diffs.push(text); };
   if (cellMode !== undefined && cellMode !== '' && !cells) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: de cel-meting of -baseline is ongeldig`);
@@ -2632,13 +2641,32 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
     } else if (blockers.length > 0) {
       refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: ${blockers.length} rode regel(s); eerste: ${blockers[0]!.slice(0, 300)}`);
     } else {
-      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable, { acceptLargerAsDebt: cells.debtInit === true });
+      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable);
+      // Schuldpin in de corpusloze gate: alleen herschrijven als de set kromp, en alleen vanaf een blok
+      // dat bij de gepinde set hoort (anders liepen pin en cellenbestand al uit de pas: weigeren).
+      const gatePath = join(HERE, 'check-fidelity-cells-gate.ts');
+      const pin = plan.allowed ? rewriteDebtPin(readFileSync(gatePath, 'utf8'), cells.pinned?.ratchetDebt ?? {}, plan.debt) : undefined;
+      // De minuten-digest in de v2-envelop schuift mee; de v2-payload blijft byte-gelijk.
+      let v2Envelope: { payload: ProductBaseline; cellMinutesSha256: string } | undefined;
+      try { v2Envelope = readProductEnvelopeAndPayload(); } catch { v2Envelope = undefined; }
       if (!plan.allowed) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.slice(0, 5).join('; ')}`);
+      else if (pin && 'error' in pin) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: schuldpin in check-fidelity-cells-gate.ts — ${pin.error}`);
+      else if (!v2Envelope) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: xer-product-fidelity-baseline-v2.json ongeldig (cellMinutesSha256 kan niet mee)`);
       else {
+        envelopeMinutes = cellMinutesDigest(cells.measuredCells);
         plans.push(() => {
           cells.measuredCells.ratchetDebt = plan.debt;
           atomicWrite(join(HERE, CELL_BASELINE_FILE), serializeCellBaseline(cells.measuredCells));
+          atomicWrite(join(HERE, 'xer-product-fidelity-baseline-v2.json'),
+            canonicalProductEnvelope(v2Envelope.payload, cellMinutesDigest(cells.measuredCells)));
+          if (pin && 'text' in pin && pin.removed.length > 0) {
+            atomicWrite(gatePath, pin.text);
+            for (const [file, axis, id, reference] of pin.removed) {
+              console.log(`OK  X12 ratchet-schuld ONTSCHULD: ${file.slice(0, 12)} ${axis} ${id} (reference ${reference}) — schuldpin in check-fidelity-cells-gate.ts herschreven; zet er een HERPIN-regel bij`);
+            }
+          }
           console.log(`OK  X12 ratchet-schuld na herpin: ${debtCount(plan.debt)} cel(len)`);
+          console.log(`OK  X12 cellMinutesSha256 in de v2-envelop bijgewerkt (payload ongewijzigd)`);
           console.log(`OK  X12 cel-baseline herpind (${mode}, versie 2): ${plan.delta.improvedCells.length} cellen beter, `
             + `${plan.delta.smallerCells.length} cellen kleiner, `
             + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
@@ -2653,11 +2681,13 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
       refuse('herpin van xer-product-fidelity-baseline-v2.json geweigerd: =corpus vereist een gewijzigd corpusmanifest; gebruik =1');
     } else {
       const blockers = writeBlockers(v2Mode);
-      if (blockers.length > 0) {
+      if (envelopeMinutes === undefined && !cells) {
+        refuse('herpin van xer-product-fidelity-baseline-v2.json geweigerd: geen cellMinutesSha256 (geen geldige v2 en geen cel-meting)');
+      } else if (blockers.length > 0) {
         refuse(`herpin van xer-product-fidelity-baseline-v2.json geweigerd: ${blockers.length} rode regel(s) naast het nuldoel; eerste: ${blockers[0]!.slice(0, 300)}`);
       } else {
         plans.push(() => {
-          atomicWrite(join(HERE, 'xer-product-fidelity-baseline-v2.json'), canonicalProductEnvelope(measured));
+          atomicWrite(join(HERE, 'xer-product-fidelity-baseline-v2.json'), canonicalProductEnvelope(measured, envelopeMinutes ?? cellMinutesDigest(cells!.measuredCells)));
           console.log(`OK  X12 v2-baseline herpind (${v2Mode}, atomair) uit een meting zonder blokkerende rode regel`);
         });
       }
@@ -2730,7 +2760,11 @@ else {
       process.exit(1);
     }
     process.stdout.write('RAPPORT — niet als baseline gebruiken; herpinnen uitsluitend via OPS_XER_V2_WRITE (scripts/README.md)\n');
-    process.stdout.write(canonicalProductEnvelope(measured));
+    const reportCells = tryBuildCellBaseline(cellSink, {
+      manifestSha256: measured.manifestSha256,
+      drivingPathOracle: new Map([...measurableSink].map(([key, value]) => [key, value.drivingPathOracle])),
+    });
+    process.stdout.write(canonicalProductEnvelope(measured, reportCells.baseline ? cellMinutesDigest(reportCells.baseline) : '0'.repeat(64)));
   }
   else if (REPORT === 'summary' || REPORT === 'detail' || REPORT === 'counterfactuals') {
     const entries = Object.entries(measured.files);

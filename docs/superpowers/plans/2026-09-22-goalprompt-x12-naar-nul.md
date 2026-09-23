@@ -25,8 +25,11 @@ exact was inexact wordt, geen enkele bucket verslechtert, en geen enkele cel bin
 - **Schuld alleen omlaag** (orkestratorbesluit 23-09, merge van de grootte-ratchet): 14 Roads-cellen die
   op de huidige motor groter afweken dan in de oude v2-kant staan als `ratchetDebt` in het cellenbestand
   (`reference` = oud, `current` = nieuw; `schuld=N` in de cel-deltaregel). Een schuldcel mag niet boven
-  `current` groeien; komt hij op of onder `reference`, dan vervalt de schuld. Schuld ontstaat nooit meer
-  (de eenmalige vlag weigert), dus het aantal gaat alleen omlaag. Oplossen is de eerste opdracht van de
+  `current` groeien; komt hij op of onder `reference`, dan vervalt de schuld. Schuld ontstaat nooit meer:
+  de eenmalige vlag `OPS_XER_CELLS_DEBT_INIT` is na gebruik verwijderd, een cellenbestand zonder
+  schuldsectie wordt geweigerd, en `check-fidelity-cells-gate.ts` pint een digest over de schuldset
+  (bestand, as, id, `reference`), dus de lijst kan alleen krimpen. De grootten zelf zijn tegen handwerk
+  gepind via `cellMinutesSha256` in de v2-envelop. Oplossen is de eerste opdracht van de
   volgende brok (plan XER §9, "Ratchet-schuld 2026-09-23").
 - **Grootte-clausule** (eigenaarsbesluit 23-09, "2. Invoeren"): het cellenbestand (versie 2) pint per
   inexacte cel ook de absolute afwijking `|ours − truth|` in minuten (datum-assen wandklok, tf/ff
@@ -47,7 +50,8 @@ alleen verbetert, en zoek per resterende verslechtering uit welke P6-regel daar 
 de informatie voor een fix of een conventie. Een verbetering herpin je volgens het recept in `scripts/README.md` — in
 één commit: `OPS_XER_V2_WRITE=1`, `OPS_XER_CELLS_WRITE=1`, `OPS_XER_GATE_PINS=write`, de vangrails
 groen, en dan de twee tweede-orde pins met de hand: `xer-schedoptions-blast-radius.json`
-(`check-xer-schedule-options-corpus`; `xerDefaults`-afwijkingen alleen omlaag) en
+(`check-xer-schedule-options-corpus`; bewaakt de detectie van de lezerdefaults, geen P6-getrouwheid —
+alleen herpinnen als een detectie-/populatieteller door een bewuste wijziging beweegt) en
 `xer-task-replay-public-pin.json` (`check-xer-task-replay`, o.a. `drop-p6-relation-finish-boundary`, sinds de
 populatiewijziging van 2026-09-23 de negatieve controle i.p.v. A17;
 detectievermogen, som per as gelijk) — en commit je mét het getal in het commitbericht: "X12 15.056 → 14.312 (−744, 0 slechter)".
@@ -103,4 +107,6 @@ gemeten corpusgedrag — nooit MPXJ/ProjectLibre-code overnemen; CPL mengt niet 
 - `OPS_XER_CELLS_V1_UPGRADE=1` gebruiken na het landen van `claude/x12-grootte-ratchet`, of bij een
   merge de v1-kant van het cellenbestand nemen: altijd de v2-kant plus `OPS_XER_CELLS_WRITE=1`; een
   `groter` daarna los je op in de motor of via een eigenaarsbesluit over de populatie, nooit met een
-  "accepteer grotere cellen"-modus.
+  "accepteer grotere cellen"-modus. `OPS_XER_CELLS_DEBT_INIT` was eenmalig zo'n modus (23-09) en is
+  verwijderd; de X12-check weigert hem.
+- een grootte, de schuldsectie, `cellMinutesSha256` of het schuldpin-blok met de hand bewerken.
