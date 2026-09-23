@@ -1324,7 +1324,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Najpóźniejsze zakończenie w kalendarzu zadania",
-      "help": "Jeśli najpóźniejsze zakończenie wyznaczone przez następnika w innym kalendarzu wypada poza czasem pracy zadania, staje się końcem poprzedniego okresu pracy w kalendarzu zadania."
+      "help": "Jeśli najpóźniejsze zakończenie wyznaczone przez następnika wypada poza czasem pracy zadania, staje się końcem poprzedniego okresu pracy w kalendarzu zadania."
     }
   },
   "profiles": {

@@ -1254,7 +1254,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Late finish on the task's own calendar",
-      "help": "If the late finish imposed by a successor on another calendar falls outside the task's working time, it becomes the end of the previous work period on the task's own calendar."
+      "help": "If the late finish imposed by a successor falls outside the task's working time, it becomes the end of the previous work period on the task's own calendar."
     }
   },
   "profiles": {

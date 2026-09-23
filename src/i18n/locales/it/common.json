@@ -1289,7 +1289,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Fine al più tardi sul calendario dell'attività",
-      "help": "Se la fine al più tardi imposta da un successore su un altro calendario cade fuori dall'orario di lavoro dell'attività, diventa la fine del periodo lavorativo precedente sul calendario dell'attività."
+      "help": "Se la fine al più tardi imposta da un successore cade fuori dall'orario di lavoro dell'attività, diventa la fine del periodo lavorativo precedente sul calendario dell'attività."
     }
   },
   "profiles": {

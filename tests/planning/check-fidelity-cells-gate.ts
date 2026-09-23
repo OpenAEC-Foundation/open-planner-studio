@@ -458,7 +458,6 @@ if (committed) {
   // ontstaan.
   const firstDebt = [...debtKeys][0]?.split('|') as [string, string, string] | undefined;
   eq('mutant-basis: een niet-schuldcel met grootte gevonden', plain !== undefined, true);
-  eq('mutant-basis: schuldset leeg of met een eerste schuldcel', debtKeys.size === 0 || firstDebt !== undefined, true);
   if (plain) {
     const target = plain;
     // M1: 15e schuldcel (geldige regel: wijst naar een bestaande cel, reference < current = minuten).
@@ -486,11 +485,13 @@ if (committed) {
   // M6: sectie weg ⇒ geweigerd door de lezer.
   const noSection = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(cells)), ratchetDebt: undefined }, null, 2)}\n`;
   eq('M6 cellenbestand zonder ratchetDebt-sectie ⇒ geweigerd', parseCellBaseline(noSection).problems, [CELL_PRE_DEBT_PROBLEM]);
-  // M7: schuldpin-blok in de bron met de hand bewerkt (digest laten staan, één lijstregel weg).
+  // M7: schuldpin-blok in de bron met de hand bewerkt: de derde blokregel weg. Bij een gevulde schuldset
+  // is dat de eerste lijstregel (digest blijft staan); bij de lege schuldset van nu (X12 brok 6) is het
+  // de digestregel zelf. Beide moeten rood zijn.
   const ownBlock = extractDebtPinBlock(OWN_SOURCE) ?? '';
   const blockLines = ownBlock.split('\n');
   const tamperedSource = OWN_SOURCE.replace(ownBlock, () => [...blockLines.slice(0, 2), ...blockLines.slice(3)].join('\n'));
-  eq('M7 schuldpin-lijst met de hand ingekort ⇒ rood', [tamperedSource !== OWN_SOURCE, debtPinProblems(cells.ratchetDebt, tamperedSource).length > 0], [true, true]);
+  eq('M7 schuldpin-blok met de hand ingekort ⇒ rood', [tamperedSource !== OWN_SOURCE, debtPinProblems(cells.ratchetDebt, tamperedSource).length > 0], [true, true]);
 }
 
 if (diffs.length > 0) {

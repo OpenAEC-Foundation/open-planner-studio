@@ -1254,7 +1254,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Geç bitiş, faaliyetin kendi takviminde",
-      "help": "Başka bir takvimdeki ardıl faaliyetin belirlediği geç bitiş, faaliyetin çalışma saatleri dışına düşerse, faaliyetin kendi takvimindeki önceki çalışma döneminin sonu olur."
+      "help": "Ardıl faaliyetin belirlediği geç bitiş, faaliyetin çalışma saatleri dışına düşerse, faaliyetin kendi takvimindeki önceki çalışma döneminin sonu olur."
     }
   },
   "profiles": {

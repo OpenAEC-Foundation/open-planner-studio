@@ -665,21 +665,12 @@ export class CPMSolver {
   }
 
   /**
-   * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
-   * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
-   * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
-   * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
-   * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
-   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
-   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
-   * (`milestoneKind: 'FINISH'`) valt er per definitie buiten.
-   */
-  /**
    * Conventie C9 `p6LateFinishOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
    * de late finish op de eigen kalender. Ligt de grens buiten de werktijd van de taak (niet binnen een
    * band en niet op een band-rand), dan wordt hij het einde van de vorige werkperiode. Een grens op of
-   * binnen de werktijd blijft staan. De aanroeper past dit alleen toe als een opvolger de late finish
-   * bepaalt (het projecteinde is ongemeten). Conventie uit of dagmodus ⇒ `lateFinish` zelf.
+   * binnen de werktijd blijft staan. De aanroeper past dit alleen toe als een opvolgergrens de late
+   * finish bepaalt, ook ná de late-zijde-constraints (projecteinde en een strakkere constraint/deadline
+   * zijn ongemeten). Conventie uit of dagmodus ⇒ `lateFinish` zelf.
    */
   private lateFinishOnOwnCalendar(eng: CalendarEngine, lateFinish: Date): Date {
     if (this.options.schedulingOptions?.p6LateFinishOnOwnCalendar !== true || !eng.isHourMode) return lateFinish;
@@ -689,6 +680,16 @@ export class CPMSolver {
     return Number.isNaN(snapped.getTime()) ? lateFinish : snapped;
   }
 
+  /**
+   * Conventie C7 `p6FinishFinishStartMilestoneLateFinish` (docblok + bron bij de sleutel in
+   * `types/project.ts`): bindt een FF-relatie naar een nulduur-STARTmijlpaal aan de mijlpaal zelf
+   * in plaats van aan haar dagbegin-anker — terugwaarts de late finish van de mijlpaal, voorwaarts
+   * alleen de relatiegrens voor de vrije speling van een NIET-bindende FF (de vroege start van de
+   * mijlpaal verandert nooit). Niet in de nulrestduur-voortgangstak van de terugwaartse pass.
+   * Alleen uur-modus aan beide kanten: het insluiten van uur-modus is gemeten, het uitsluiten van
+   * dagmodus niet — de poort is een bewuste beperking, geen gemeten grens. Een eindmijlpaal
+   * (`milestoneKind: 'FINISH'`) valt er per definitie buiten.
+   */
   private finishFinishAtStartMilestoneLateFinish(
     seq: Sequence, succTask: Task, predEng: CalendarEngine, succEng: CalendarEngine,
   ): boolean {
@@ -3696,9 +3697,13 @@ export class CPMSolver {
       }
 
       // Late-zijde datum-constraints + deadline (fase 2.3) als extra bovengrens.
+      const successorBound = lateFinish;
       lateFinish = this.applyBackwardBound(task, lateFinish, predCal);
-      // C9: een late finish die een opvolger op een andere kalender oplegt, op de eigen kalender.
-      if (lateFinishSource === 'successorConstraint') lateFinish = this.lateFinishOnOwnCalendar(predCal, lateFinish);
+      // C9: een opvolgergrens buiten de eigen werktijd naar het einde van de vorige werkperiode — alleen
+      // als die grens ook ná de late-zijde-constraints de late finish bepaalt.
+      if (lateFinishSource === 'successorConstraint' && lateFinish.getTime() === successorBound.getTime()) {
+        lateFinish = this.lateFinishOnOwnCalendar(predCal, lateFinish);
+      }
       if (this.p6ZeroDurationActivityUsesBoundaryPair(task, predCal)) {
         // Een opvolgergrens kan als volgende bandSTART binnenkomen. P6 toont voor deze
         // geïnverteerde nulduurvorm de complementaire finishrand; op een echt bandeinde is deze

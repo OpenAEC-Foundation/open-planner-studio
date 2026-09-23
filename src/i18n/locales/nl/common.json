@@ -1254,7 +1254,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Late finish op de eigen kalender",
-      "help": "Valt de late finish die een opvolger op een andere kalender oplegt buiten de werktijd van de taak, dan wordt hij het einde van de vorige werkperiode op de eigen kalender."
+      "help": "Valt de late finish die een opvolger oplegt buiten de werktijd van de taak, dan wordt hij het einde van de vorige werkperiode op de eigen kalender."
     }
   },
   "profiles": {

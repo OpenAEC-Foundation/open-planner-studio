@@ -1289,7 +1289,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Fin au plus tard sur le calendrier propre de l'activité",
-      "help": "Si la fin au plus tard imposée par un successeur sur un autre calendrier tombe en dehors du temps de travail de l'activité, elle devient la fin de la période de travail précédente sur le calendrier propre de l'activité."
+      "help": "Si la fin au plus tard imposée par un successeur tombe en dehors du temps de travail de l'activité, elle devient la fin de la période de travail précédente sur le calendrier propre de l'activité."
     }
   },
   "profiles": {

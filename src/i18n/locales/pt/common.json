@@ -1289,7 +1289,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Término mais tarde no calendário próprio",
-      "help": "Se o término mais tarde imposto por um sucessor noutro calendário cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
+      "help": "Se o término mais tarde imposto por um sucessor cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
     }
   },
   "profiles": {

@@ -1254,7 +1254,7 @@
     },
     "p6LateFinishOnOwnCalendar": {
       "label": "Spätestes Ende im eigenen Kalender",
-      "help": "Fällt das späteste Ende, das ein Nachfolger in einem anderen Kalender vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es zum Ende der vorherigen Arbeitsperiode im eigenen Kalender."
+      "help": "Fällt das späteste Ende, das ein Nachfolger vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es zum Ende der vorherigen Arbeitsperiode im eigenen Kalender."
     }
   },
   "profiles": {
