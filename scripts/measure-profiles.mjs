@@ -84,9 +84,11 @@ if (selected.has('p6')) {
       .replace(/^.*inexact per as /, '').replace(/;.*$/, '');
     const goal = x12.lines.find((line) => line.startsWith('XX X12 nuldoel is baseline-onafhankelijk: totaal zesassige'));
     const sixAxis = goal ? goal.replace(/^.*kreeg /, '') : (x12.exit === 0 ? '0' : '?');
+    // Rapportage-only splitsing naar p6Computed (scripts/xer-p6-computed.ts); geen invloed op het oordeel.
+    const split = (x12.lines.find((line) => line.startsWith('INFO X12 split')) ?? '').replace(/^INFO X12 split \(rapportage, geen poort\): /, '');
     record({
       profile: 'P6', part: 'X12 productfidelity (cel-poort + nuldoel)', exit: String(x12.exit),
-      counts: `zesassige afwijkingen ${sixAxis}; cellen ${perAxis || '?'}`,
+      counts: `zesassige afwijkingen ${sixAxis}${split ? ` (${split})` : ''}; cellen ${perAxis || '?'}`,
       cells: parseCellDelta(x12.lines)?.line ?? '?',
     }, verdict);
   }

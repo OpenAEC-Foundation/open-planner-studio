@@ -126,6 +126,18 @@ Maak een baseline daarom nooit langs ze heen:
 - geen cellenbestand weggooien om het met `init` opnieuw te maken;
 - `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen.
 
+## P6-doorgerekend-rapportage (corpusgebonden, niet in `verify`)
+
+- `xer-p6-computed.ts` — `node scripts/run-ts.mjs scripts/xer-p6-computed.ts [--check]` met
+  `OPS_XER_CORPUS`. Meet per manifest-entry de drie kenmerken (SCHEDOPTIONS-rij, `rem_late_start_date`
+  gevuld op open taken, `driving_path_flag` ergens Y) op de ruwe tabellen en schrijft
+  `tests/planning/xer-corpus-p6computed.json` (`p6Computed: true|false|"unknown"` + evidence). Dat
+  bestand is de enige bron voor de splitsing "P6-doorgerekend / niet / onbekend" in de X12-uitvoer en
+  in `measure:profiles`; het stuurt de populatie nooit. `--check` faalt (exit 1) als het bestand niet
+  met de meting overeenkomt. Het staat bewust naast en niet ín `xer-corpus-manifest.json`: de
+  manifest-SHA-256 is gepind in de v2- en cel-baselines. Het leest twee bak-2-kolommen, maar alleen
+  hier in `scripts/`; in `src/` blijft dat verboden (`check-xer-field-whitelist.ts`).
+
 ## Release en publicatie
 
 | script | aangeroepen door | doet |
