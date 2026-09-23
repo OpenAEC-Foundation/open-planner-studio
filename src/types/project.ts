@@ -197,23 +197,33 @@ export interface SchedulingOptions {
   // legacy-XER-blob, die naar het P6-profiel migreert); een profiel-pset van vóór 2026-09-23 die de
   // sleutel niet kent krijgt `legacyValue` = uit.
 
-  /** C1 — RETAINED LOGIC rond de statusdatum: een VOLTOOIDE voorganger houdt zijn opvolgers niet
-   *  langer vast dan de statusdatum. Ligt zijn werkelijke einde ná de statusdatum (P6 laat zo'n
-   *  actual toe; de statusdatum is het instant waarop het restwerk begint), dan geldt voor de
-   *  RELATIEGRENS naar zijn opvolgers de werkgrens vlak vóór de statusdatum als einde
-   *  (`prevWorkInstant(snapOnOrAfter(statusdatum))` op zijn voortgangskalender — dezelfde grens als
-   *  het statusdatumvenster van conventie B3). Zijn eigen weergegeven datums veranderen niet;
-   *  werkelijke einden op of vóór de statusdatum ook niet.
+  /** C1 — RETAINED LOGIC rond de statusdatum: bij een VOLTOOIDE voorganger is het relatie-EINDE
+   *  begrensd op de statusdatum. Ligt zijn werkelijke einde ná de statusdatum (P6 laat zo'n actual
+   *  toe; de statusdatum is het instant waarop het restwerk begint), dan rekenen de relaties die op
+   *  zijn einde steunen (FS, FF) vanaf de werkgrens vlak vóór de statusdatum op zijn
+   *  voortgangskalender — `prevWorkInstant(snapOnOrAfter(statusdatum))`, dezelfde grens als het
+   *  statusdatumvenster van conventie B3 (`CPMSolver.completedPredecessorRelationWindow`). Alleen het
+   *  einde wordt begrensd: relaties die op zijn START steunen (SS, SF) blijven op de werkelijke start,
+   *  ook als die ná de statusdatum ligt. Geen effect bij: conventie uit, geen statusdatum, dagmodus,
+   *  een niet-voltooide voorganger, of een werkelijk einde op/vóór die grens. Zijn eigen weergegeven
+   *  datums veranderen nooit — de begrenzing geldt alleen voor de relatie naar de opvolgers.
    *
-   *  - P6: aan. Oracle P6 Professional Help, "Using the data date": "The data date is the last
-   *    date you recorded progress in the form of actual dates …", "Activities are scheduled from
-   *    the project data date" en "Work accomplished on the data date is not included because it is
-   *    the beginning of the period" (docs.oracle.com/cd/G18296_01/client_help, `using_the_data_date`).
-   *    Onder Retained Logic rekent P6 het restwerk na de voorgangers, maar een voltooide voorganger
-   *    heeft geen restwerk: zijn voortgang ligt per definitie vóór de statusdatum. Gemeten:
-   *    `rehab-2.xer` (P6 6.0), vijf voltooide taken met `act_end_date` 2008-05-27 17:00 bij
-   *    statusdatum 2008-05-27 00:00; P6 start hun opvolgers op 05-27 08:00, niet 05-28 (plan XER §9
-   *    dossier 7b-4, classificatie brok B02; 1.301 cellen zonder B01, 0 slechter samen met C2).
+   *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (geen
+   *    SCHEDOPTIONS, `rem_late_start_date` 0/4.940, geen `driving_path_flag`; zie
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §3 en §5). De
+   *    P6-standaardwaarde staat onder voorbehoud van het eigenaarsbesluit over dat orakel. Buiten
+   *    rehab-2 verandert C1 geen enkele cel; geen P6-doorgerekend bestand in het corpus heeft een open
+   *    opvolger van een voltooide voorganger die ná de statusdatum eindigt.
+   *    Meting: vijf voltooide taken met `act_end_date` 2008-05-27 17:00 bij statusdatum 2008-05-27
+   *    00:00; het orakel start hun opvolgers op 05-27 08:00, niet 05-28 (plan XER §9 dossier 7b-4,
+   *    classificatie brok B02; 1.301 cellen zonder B01, 0 slechter samen met C2).
+   *    Geen documentatiebron voor de regel zelf. Oracle Primavera P6 Professional Help Version 24,
+   *    "Using the data date" (https://docs.oracle.com/cd/F88968_01/client_help/en_US/using_the_data_date.htm)
+   *    zegt dat de statusdatum de laatste voortgangsdatum is en dat er vanaf de statusdatum gepland
+   *    wordt, maar beschrijft NIET wat P6 doet met een werkelijk einde ná de statusdatum; P6 EPPM Help
+   *    "Invalid Progress Dates - Activities with Actual Dates After the Data Date …"
+   *    (https://docs.oracle.com/cd/F88966_01/p6help/en/46280.htm) noemt zo'n actual alleen ongeldige
+   *    voortgang. Beide zijn context, geen bewijs.
    *  - MS Project: uit. MS Project rekent een koppeling vanaf de (werkelijke) Finish van de
    *    voorganger; de statusdatum verschuift alleen onvoltooid werk via Project → Update Project →
    *    "Reschedule uncompleted work to start after". Hetzelfde MSP-gedrag ligt al vast in
@@ -233,7 +243,10 @@ export interface SchedulingOptions {
    *    (net als totale speling hier al per taak op de eigen kalender rekent). Gemeten: op P6's eigen
    *    datums is P6-FF = werkminuten tussen EF en de vroegste opvolger-ES op de taakkalender in alle
    *    362 ff-cellen met een andere opvolgerkalender (Hotel, rehab-2, Roads, DCP-03; classificatie
-   *    brok B06); samen met C1 471 ff-cellen beter, 0 slechter.
+   *    brok B06); samen met C1 471 ff-cellen beter, 0 slechter. Steun uit echte P6-uitvoer, los van
+   *    rehab-2 (dat P3-uitvoer is): Hotel_Construction_TEC +244, Roads_Project_TEC +11 en Harbour Point
+   *    DCP-03 Baseline Rev 0 +1 = 256 ff-cellen, 0 slechter — alle drie P6-doorgerekend
+   *    (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5).
    *  - MS Project: uit. Ons MPP-orakel meet alleen start en einde, niet de vrije speling; zonder
    *    meting verandert het MSP-profiel niet.
    *  - OPS: uit (relatie-vrije-speling in de kalender van de opvolger, `scheduleAnalysis`). */
@@ -243,14 +256,17 @@ export interface SchedulingOptions {
    *  het deel dat na zijn werkelijke einde op de statusdatum nog niet verstreken is:
    *  `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender (`CPMSolver`).
    *
-   *  - P6: aan. Zelfde bron als C1 ("Using the data date": voortgang ligt vóór de statusdatum, er wordt
-   *    vanaf de statusdatum gepland) — het verstreken deel van de lag is historie. Gemeten: rehab-2,
-   *    gelagde FS-relaties uit voltooide voorgangers (classificatie brok B03): volledig verstreken lag
-   *    (V3122120 → V3122070, FS+168 h, einde 04-15) ⇒ P6 trekt niets af; niet verstreken
+   *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (zie C1 en
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). De
+   *    P6-standaardwaarde staat onder voorbehoud van het eigenaarsbesluit over dat orakel. Buiten
+   *    rehab-2 verandert C3 geen enkele cel (de voltooide voorgangers met lag in Roads en
+   *    HarbourPointe zijn `CP_Phys` en vallen buiten de B3-route). Geen documentatiebron voor de
+   *    rekenregel; hij is afgelezen aan rehab-2-relaties (classificatie brok B03): volledig verstreken
+   *    lag (V3122120 → V3122070, FS+168 h, einde 04-15) ⇒ het orakel trekt niets af; niet verstreken
    *    (V3238110, einde 05-26 17:00, FS+120 h) ⇒ de volle lag; deels verstreken (V3120120, FS+168 h):
-   *    de afstand LF → opvolger-LS is gelijk aan die van P6 (die cel zelf wacht op brok B01, de LS van
-   *    de opvolger). Samen 351 cellen (ls 122, lf 122, tf 107), 0 slechter; de rest van brok B03 hangt
-   *    aan B01 of aan actieve taken met restduur 0 (buiten deze conventie).
+   *    de afstand LF → opvolger-LS is gelijk aan die van het orakel (die cel zelf wacht op brok B01,
+   *    de LS van de opvolger). Samen 351 cellen (ls 122, lf 122, tf 107), 0 slechter; de rest van brok
+   *    B03 hangt aan B01 of aan actieve taken met restduur 0 (buiten deze conventie).
    *    Alleen de B3-restvensterroute; een voltooide taak op de generieke actual-pin houdt de volle lag.
    *  - MS Project: uit. MS Project kent geen late-kant-statusdatumvenster voor voltooide taken (zie C1).
    *  - OPS: uit (de volle lag, het gedrag van vóór deze conventie). */

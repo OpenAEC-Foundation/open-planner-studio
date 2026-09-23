@@ -567,6 +567,115 @@ for (const fixture of groupC) {
   }
 }
 
+// ── Groep C: randgevallen (critreview brok 2) ────────────────────────────────────────────────────
+// Elk geval pint een bewering uit het docblok die de aan/uit-fixtures hierboven niet onderscheiden.
+// Verwachtingen volgen uit de regel, met de werkdagen uitgeteld in het commentaar.
+
+/** C3-variant: de B3-route (rem_target_link_flag=Y), band 08:00–17:00 ma–vr, statusdatum wo 14 jan
+ *  17:00, projecteinde via losse X op wo 11 feb 17:00 (dus S.LS = wo 11 feb 08:00). */
+function c3Variant(actStart: string, actEnd: string, lagHours: number): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tC3-variant\tC1\t2026-01-14 17:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tSCHEDOPTIONS',
+    '%F\tproj_id\tsched_use_project_end_date_for_float',
+    '%R\tP1\tN',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    `%R\tC\tP1\tC1\tDONE\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t9\t0\t${actStart}\t${actEnd}\t${actStart}\t${actEnd}`,
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-15 08:00\t2026-01-15 17:00\t\t',
+    '%R\tX\tP1\tC1\tLONG\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t180\t180\t2026-01-15 08:00\t2026-02-11 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    `%R\tR1\tS\tC\tP1\tP1\tPR_FS\t${lagHours}`,
+    '%E',
+  ]);
+}
+const lateOf = (input: ImportResult, id: string) => {
+  const axes = solveAxes(input, id);
+  return { ls: axes.ls, lf: axes.lf };
+};
+{
+  // C3 DEELS verstreken: einde ma 5 jan 17:00, statusdatum wo 14 jan 17:00 ⇒ 7 werkdagen (63 u)
+  // verstreken; lag 81 u (9 werkdagen) ⇒ rest 18 u = 2 werkdagen. C.LS = wo 11 feb 08:00 − 2
+  // werkdagen = ma 9 feb 08:00, LF = vr 6 feb 17:00. Volle lag (C3 uit): 9 werkdagen terug =
+  // do 29 jan 08:00, LF wo 28 jan 17:00. Mutant "alle lag weg" gaf wo 11 feb.
+  const partial = c3Variant('2026-01-05 08:00', '2026-01-05 17:00', 81);
+  eq('C3 deels verstreken: alleen de rest-lag (18 u) telt', lateOf(partial, 'C'),
+    { ls: '2026-02-09T08:00', lf: '2026-02-06T17:00' });
+  eq('C3 deels verstreken, C3 uit: de volle lag (81 u)',
+    lateOf(withProfile(partial, copy => setConvention(copy, 'p6CompletedRemainingLag', false)), 'C'),
+    { ls: '2026-01-29T08:00', lf: '2026-01-28T17:00' });
+  // C3 NIET verstreken: einde wo 14 jan 17:00 = de statusdatum ⇒ 0 u verstreken ⇒ de volle 45 u
+  // (5 werkdagen): LS wo 4 feb 08:00, LF di 3 feb 17:00 — met én zonder C3.
+  const fresh = c3Variant('2026-01-14 08:00', '2026-01-14 17:00', 45);
+  eq('C3 niet verstreken: de volle lag blijft', lateOf(fresh, 'C'), { ls: '2026-02-04T08:00', lf: '2026-02-03T17:00' });
+  eq('C3 niet verstreken, C3 uit: identiek',
+    lateOf(withProfile(fresh, copy => setConvention(copy, 'p6CompletedRemainingLag', false)), 'C'),
+    { ls: '2026-02-04T08:00', lf: '2026-02-03T17:00' });
+}
+{
+  // C1 met SS-opvolger: A voltooid, werkelijke START wo 7 jan 10:00 én einde wo 17:00, allebei ná de
+  // statusdatum (wo 7 jan 00:00). C1 begrenst alleen het EINDE; SS rekent op de start en blijft dus
+  // ongemoeid: B (SS+0) begint op A's werkelijke start, wo 10:00 — niet op de statusdatum (wo 08:00).
+  const ss = importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC1-SS\tC1\t2026-01-07 00:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    // Geplande start ma 5 jan: anders legt A's eigen planning (de enige wortel) de projectstartvloer
+    // op wo 10:00 en is de SS-grens niet meer waarneembaar.
+    '%R\tA\tP1\tC1\tA100\tVoltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t7\t0\t2026-01-05 08:00\t2026-01-05 16:00\t2026-01-07 10:00\t2026-01-07 17:00',
+    '%R\tB\tP1\tC1\tB100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-07 08:00\t2026-01-07 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP1\tP1\tPR_SS\t0',
+    '%E',
+  ]);
+  eq('C1 met SS-opvolger: de start wordt niet begrensd (B.ES = A\'s werkelijke start)',
+    solveAxes(ss, 'B').es, '2026-01-07T10:00');
+}
+{
+  // C2, tak "voltooide opvolger": open T (1 dag vanaf ma 5 jan) —FS+0→ open S en —FS+0→ voltooide K
+  // (buiten volgorde, 2 jan). S wacht ook op X (5 dagen) en begint ma 12 jan 08:00, dus via S heeft
+  // T 4 werkdagen speling. P6 (C2): K laat geen speling ⇒ ff 0. Zonder C2 levert K niets
+  // (`preserveActualDatesInBackwardPass` wist die grens) ⇒ ff 4.
+  const withDone = importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC2-voltooid\tC1\t2026-01-05 08:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tT\tP1\tC1\tT100\tTaak\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-05 08:00\t2026-01-05 17:00\t\t',
+    '%R\tX\tP1\tC1\tX100\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t45\t45\t2026-01-05 08:00\t2026-01-09 17:00\t\t',
+    '%R\tS\tP1\tC1\tS100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-12 08:00\t2026-01-12 17:00\t\t',
+    '%R\tK\tP1\tC1\tK100\tAl voltooid\tTT_Task\tDT_FixedDUR2\tTK_Complete\tCP_Drtn\t9\t0\t2026-01-02 08:00\t2026-01-02 17:00\t2026-01-02 08:00\t2026-01-02 17:00',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tT\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tS\tX\tP1\tP1\tPR_FS\t0',
+    '%R\tR3\tK\tT\tP1\tP1\tPR_FS\t0',
+    '%E',
+  ]);
+  eq('C2 voltooide opvolger: ff 0', solveAxes(withDone, 'T').ff, 0);
+  eq('C2 uit: de voltooide opvolger telt niet, ff via S = 4 werkdagen',
+    solveAxes(withProfile(withDone, copy => setConvention(copy, 'p6FreeFloatOnOwnCalendar', false)), 'T').ff, 4);
+}
+
 if (diffs.length > 0) {
   console.error(`conventions-p6-flags RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);

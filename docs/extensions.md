@@ -281,7 +281,7 @@ module.exports = {
 
 `data.getProject()` levert sinds contractversie `1.2.0` het veld `schedulingProfile`: het rekenprofiel
 van het project (`id`, `baseId` ∈ `p6`/`msproject`/`ops`, `name` — leeg bij een ingebouwd profiel —
-en `conventions`, de vijftien opgeloste conventies). Het veld is **alleen-lezen**: de app neemt het
+en `conventions`, de opgeloste conventies — sinds X12 brok 2 achttien). Het veld is **alleen-lezen**: de app neemt het
 nooit over uit wat een extensie teruggeeft. Een importer-resultaat van een extensie opent daarom altijd
 als OPS; het profiel kiest de gebruiker in Bestand → Projectinfo.
 

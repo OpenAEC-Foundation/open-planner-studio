@@ -253,7 +253,29 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     'p6CompletedPredecessorAtDataDate', 'p6CompletedRemainingLag', 'p6FreeFloatOnOwnCalendar',
   ]);
   for (const key of LEGACY_XER_ALSO_ON_X12) {
-    eq(`99f ${key} gaat aan op de P6-waarde`, legacyXerDefault(CONVENTIONS.find(d => d.id === key)!), true);
+    const d = CONVENTIONS.find(c => c.id === key)!;
+    // Id-gepind op de P6-profielwaarde (niet een hardgecodeerde true): gelijk aan builtIn.p6, en die is aan.
+    eq(`99f ${key} volgt de P6-profielwaarde`, legacyXerDefault(d), d.builtIn.p6);
+    eq(`99f ${key} P6-waarde is aan`, d.builtIn.p6, true);
+  }
+  // 99h/99i: de volle migratie (legacyOptionsToProfile), niet alleen de default-helper. Een oud
+  // XER-blok zonder C-sleutels krijgt het P6-profiel voor C1–C3 (geen afwijking); een expliciete
+  // false blijft false (een gezette vlag wint altijd) en wordt dus een afwijking van p6.
+  {
+    const absent = legacyOptionsToProfile({ p6Source: 'XER' }).profile;
+    const resolvedAbsent = resolveConventions(absent);
+    for (const key of LEGACY_XER_ALSO_ON_X12) {
+      eq(`99h ${key} afwezig in oud XER-blok ⇒ P6-profielwaarde`, resolvedAbsent[key], builtInConventions('p6')[key]);
+      eq(`99h ${key} afwezig ⇒ geen afwijking`, absent.overrides?.[key], undefined);
+    }
+    const explicitFalse = legacyOptionsToProfile({
+      p6Source: 'XER', p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: false, p6CompletedRemainingLag: false,
+    }).profile;
+    const resolvedFalse = resolveConventions(explicitFalse);
+    for (const key of LEGACY_XER_ALSO_ON_X12) {
+      eq(`99i ${key} expliciet false ⇒ blijft false`, resolvedFalse[key], false);
+      eq(`99i ${key} expliciet false ⇒ afwijking van p6`, explicitFalse.overrides?.[key], false);
+    }
   }
   const hypotheticalC = { ...CONVENTIONS.find(d => d.group === 'C')!, id: 'p6HypothetischeVierdeC' as never, since: '2027-01-01' };
   eq('99g een hypothetische vierde groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
