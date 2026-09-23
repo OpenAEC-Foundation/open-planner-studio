@@ -870,6 +870,28 @@ Genoteerd, niet gebouwd.
   maar dat is een fixture, geen orakel; of P6 een voltooide CP_Drtn-taak werkelijk op haar datums laat,
   steunt alleen op As-Built (eigenaarsvraag overdracht §1d-6).
 
+### Ratchet-schuld 2026-09-23 (merge van de grootte-ratchet; eerste opdracht van de volgende brok)
+
+De grootte-ratchet (cellenbestand versie 2) werd gemerged in de etappebranch nadat brok 2, 3 en 4 al
+geland waren. De v2-kant van de ratchetbranch was gemeten op de motor van `d4a66772` (X12 15.056); op de
+huidige motor (C1–C8, C1/C4 uit in P6, populatie = P6-doorgerekend) liggen 14 cellen in
+`Roads_Project_TEC.xer` in dezelfde emmer `diff` verder van P6 af (minuten, oud → nieuw):
+
+- voltooid (TK_Complete, CP_Phys): A15112 (`1346/85462`) ls 151.800 → 358.920, lf 137.400 → 358.920;
+  B2921 (`1346/86905`) ls 172.320 → 182.880, lf 127.680 → 182.880; B2922 (`1346/86912`) idem;
+- niet gestart (TK_NotStart, CP_Phys), tf: OCEC10851 (`86945`) 24.600 → 28.800, OCEC11701 (`86962`)
+  32.400 → 36.600, OCEC20101 (`87055`) 41.400 → 45.600, OCEC11741/11751/11762/11771/12121
+  (`87145`–`87149`) elk 4.800 → 9.000.
+
+Ze staan als `ratchetDebt` in `xer-product-fidelity-cells.json` (`reference` = oud, `current` = nieuw) en
+mogen alleen dalen (scripts/README.md). Vermoedelijke oorzaak, NIET bewezen: de late kant van C5 (een
+voltooide CP_Phys-taak staat ook laat als één punt op de vroegste opvolgergrens; A15112/B2921/B2922) en de
+B07-keten van voltooide CP_Phys-voorgangers die de late kant van niet-gestarte CP_Phys-opvolgers (de
+tf-cellen) meetrekt. Omdat de v2-kant op `d4a66772` is gemeten, kan elke motorwijziging sinds brok 2 de
+groei veroorzaakt hebben; per conventie terugrekenen (C5/C6/C7/C8 één voor één uit) is de eerste stap.
+Bekend uit overdracht §1d-3: vijf lopende CP_Phys-taken in Roads (OCEC10801/10811/11371/18391/11791) die
+sinds C7 binnen de emmer verder van P6 kwamen (oorzaak B07) — dat zijn andere taken dan deze 14.
+
 ## §10 Overdrachtsstand 2026-09-07 — herzien na de integratie (avond)
 
 *Herschreven door de Claude-sessie die op 2026-09-07 de etappe overnam, 7a en laag 3 landde en de

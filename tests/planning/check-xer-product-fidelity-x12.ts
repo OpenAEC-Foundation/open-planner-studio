@@ -32,8 +32,9 @@ import {
   type ProductEntryV2,
 } from './xerProductBaselineV2';
 import {
-  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellOracleRedLines, cellTotals, cellWriteModeProblem,
+  CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellMagnitude, cellOracleRedLines, cellTotals, cellWriteModeProblem,
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
+  carryRatchetDebt, debtCount, CELL_DEBT_INIT_TOKEN,
   type CellMeasurable, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
@@ -530,10 +531,14 @@ async function productBaseline(
     if (cellSink) {
       // `detail` bevat precies één record per (taak, as) met deviations > 0, met de emmer uit
       // dezelfde vergelijking als de tellers; `check-fidelity-cells-gate.ts` bewijst corpusloos dat
-      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen.
-      cellSink.set(fileSha256, result.detail.map(item => ({
-        axis: item.axis, id: `${item.projectId}/${item.taskId}`, bucket: item.bucket as MeasuredCell['bucket'],
-      })));
+      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen. De grootte
+      // (`|ours − truth|` in minuten, versie 2) komt uit dezelfde twee waarden; is hij vereist maar
+      // niet te bepalen, dan wordt het NaN en weigert de bouwer de meting met een nette foutregel.
+      cellSink.set(fileSha256, result.detail.map(item => {
+        const bucket = item.bucket as MeasuredCell['bucket'];
+        const minutes = cellMagnitude(item.axis, bucket, item.truth, item.ours);
+        return { axis: item.axis, id: `${item.projectId}/${item.taskId}`, bucket, minutes: minutes === undefined ? NaN : minutes };
+      }));
     }
     files[fileSha256] = {
       sha256: fileSha256, schemaFingerprint: targetEntry.schemaFingerprint ?? '',
@@ -2448,7 +2453,8 @@ async function productBaseline(
 
 /**
  * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, waarvan
- * de emmer verslechtert, of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
+ * de emmer verslechtert, die binnen dezelfde emmer sameday/diff GROTER afwijkt (grootte-ratchet,
+ * versie 2), of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
  * sameday < diff < missing; elke stap naar rechts is verslechteren. Zeven poortassen: de zes
  * X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige
  * nuldoel-getal). Verbeteringen zijn groen en worden als "te herpinnen" gemeld.
@@ -2473,10 +2479,12 @@ const KNOWN_GOAL_LABELS = [
  *  scanner, v2-gelijkheid) blokkeren altijd. */
 function writeBlockers(mode: '1' | 'corpus' | 'init'): string[] {
   return diffs.filter(diff => !KNOWN_GOAL_LABELS.some(label => diff.startsWith(label))
-    && !(mode !== '1' && redKinds.get(diff) === 'fileset'));
+    && !(mode !== '1' && redKinds.get(diff) === 'fileset')
+    // Alleen in de eenmalige schuld-overgang (`OPS_XER_CELLS_DEBT_INIT`): grotere cellen worden schuld.
+    && redKinds.get(diff) !== 'debt-init');
 }
 
-interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable }
+interface CellState { measuredCells: CellBaseline; pinned?: CellBaseline; measurable: CellMeasurable; debtInit?: boolean }
 
 function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink, manifestSha256: string): CellState | undefined {
   const built = tryBuildCellBaseline(cellSink, {
@@ -2508,18 +2516,51 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   }
   const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
   checks++;
-  if (!parsed.baseline) { diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`); return undefined; }
+  // Versie 1 (alleen emmers): in de poort rood met verwijzing naar het recept; alleen de bewuste
+  // herpin `OPS_XER_CELLS_WRITE=1` gebruikt hem nog, als emmer-ratchet zonder grootte, en schrijft
+  // daarna versie 2. Geen stille migratie.
+  // Sinds de fixronde 2026-09-23 alleen nog met de expliciete eenmalige vlag OPS_XER_CELLS_V1_UPGRADE=1
+  // (uitsluitend de allereerste overgang; bij een merge neem je de v2-kant, zie scripts/README.md).
+  const legacyRepin = parsed.legacyV1 === true && process.env.OPS_XER_CELLS_WRITE === '1' && process.env.OPS_XER_CELLS_V1_UPGRADE === '1';
+  if (parsed.legacyV1 && legacyRepin) console.log(`INFO X12 ${CELL_BASELINE_FILE} is VERSIE 1 en wordt via OPS_XER_CELLS_V1_UPGRADE=1 als versie 2 herschreven (emmer-ratchet zonder grootte) — deze vlag is alleen voor de eerste overgang en mag daarna niet meer gebruikt worden`);
+  // Ratchet-schuld (orkestratorbesluit 2026-09-23, zie `fidelityCells.ts`): een versie-2-bestand zonder
+  // schuldsectie wordt alleen nog gelezen in de eenmalige overgang `OPS_XER_CELLS_DEBT_INIT`. Die vlag op
+  // een bestand dat al een schuldsectie heeft, is geweigerd: schuld kan daarna alleen dalen.
+  const debtInitFlag = process.env.OPS_XER_CELLS_DEBT_INIT;
+  const cellWrite = process.env.OPS_XER_CELLS_WRITE;
+  const debtInit = parsed.preDebt === true && debtInitFlag === CELL_DEBT_INIT_TOKEN && (cellWrite === '1' || cellWrite === 'corpus');
+  if (debtInitFlag !== undefined && debtInitFlag !== '' && !debtInit) {
+    checks++;
+    diffs.push(`X12 cel-baseline: OPS_XER_CELLS_DEBT_INIT geweigerd — alleen de eenmalige overgang (waarde ${CELL_DEBT_INIT_TOKEN}, `
+      + `met OPS_XER_CELLS_WRITE=1|corpus, op een bestand zónder ratchetDebt-sectie); schuld kan daarna alleen dalen`);
+    return undefined;
+  }
+  if (debtInit) console.log(`INFO X12 ${CELL_BASELINE_FILE} heeft geen ratchetDebt-sectie; eenmalige overgang: grotere cellen worden schuld (reference = oude minuten, current = nieuwe)`);
+  if (!parsed.baseline || (parsed.problems.length > 0 && !legacyRepin && !debtInit)) {
+    diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`);
+    return undefined;
+  }
   const delta = compareCells(parsed.baseline, built.baseline, measurable);
+  // Schuld doorschuiven: blijft staan zolang de cel > reference afwijkt; nooit toevoegen.
+  built.baseline.ratchetDebt = carryRatchetDebt(parsed.baseline.ratchetDebt, built.baseline);
   console.log(cellDeltaLine('p6', delta, built.baseline));
+  checks++;
+  if (debtCount(built.baseline.ratchetDebt) > debtCount(parsed.baseline.ratchetDebt)) {
+    red({ kind: 'hard', text: `X12 ratchet-schuld gestegen: ${debtCount(parsed.baseline.ratchetDebt)} → ${debtCount(built.baseline.ratchetDebt)} (schuld mag alleen dalen)` });
+  }
   const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline)];
-  for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
+  for (const line of lines) {
+    const kind = debtInit && line.text.startsWith('cel groter geworden') ? 'debt-init' : line.kind;
+    red({ kind, text: `X12 ${line.text}` });
+  }
   if (lines.length === 0) {
     const totals = cellTotals(built.baseline);
-    console.log(`OK  X12 cel-baseline (regel A): geen nieuwe of verslechterde cel over ${Object.keys(built.baseline.files).length} bestanden; `
+    console.log(`OK  X12 cel-baseline (regel A): geen nieuwe, verslechterde of grotere cel over ${Object.keys(built.baseline.files).length} bestanden; `
       + `inexact per as ${CELL_AXES.map(axis => `${axis}=${totals[axis]!.total}`).join(' ')}`
-      + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : ''));
+      + (delta.improvedCells.length > 0 ? `; te herpinnen: ${delta.improvedCells.length} cellen beter` : '')
+      + (delta.smallerCells.length > 0 ? `; te herpinnen: ${delta.smallerCells.length} cellen kleiner` : ''));
   }
-  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable };
+  return { measuredCells: built.baseline, pinned: parsed.baseline, measurable, debtInit };
 }
 
 /**
@@ -2591,12 +2632,15 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
     } else if (blockers.length > 0) {
       refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: ${blockers.length} rode regel(s); eerste: ${blockers[0]!.slice(0, 300)}`);
     } else {
-      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable);
+      const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable, { acceptLargerAsDebt: cells.debtInit === true });
       if (!plan.allowed) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.slice(0, 5).join('; ')}`);
       else {
         plans.push(() => {
+          cells.measuredCells.ratchetDebt = plan.debt;
           atomicWrite(join(HERE, CELL_BASELINE_FILE), serializeCellBaseline(cells.measuredCells));
-          console.log(`OK  X12 cel-baseline herpind (${mode}): ${plan.delta.improvedCells.length} cellen beter, `
+          console.log(`OK  X12 ratchet-schuld na herpin: ${debtCount(plan.debt)} cel(len)`);
+          console.log(`OK  X12 cel-baseline herpind (${mode}, versie 2): ${plan.delta.improvedCells.length} cellen beter, `
+            + `${plan.delta.smallerCells.length} cellen kleiner, `
             + `${plan.delta.unknownFiles.length} nieuwe bestanden, ${plan.delta.unmeasuredFiles.length} vervallen bestanden`);
         });
       }

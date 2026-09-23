@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "manifestSha256": "19f16d1fd71240890b3edd089e3d84947458df141afa06caa485da3f2b878f6c",
   "axes": [
     "drivingPath",
@@ -29,204 +29,714 @@
   "files": {
     "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d": {
       "drivingPath": {
-        "1801/6000": "diff",
-        "1801/6001": "diff",
-        "1801/6002": "diff",
-        "1801/6003": "diff",
-        "1801/6004": "diff",
-        "1801/6006": "diff",
-        "1801/6007": "diff"
+        "1801/6000": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "1801/6001": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "1801/6002": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "1801/6003": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "1801/6004": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "1801/6006": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "1801/6007": {
+          "bucket": "diff",
+          "minutes": null
+        }
       },
       "ef": {
-        "1801/6000": "sameday",
-        "1801/6001": "diff",
-        "1801/6002": "diff",
-        "1801/6003": "diff",
-        "1801/6004": "diff",
-        "1801/6005": "diff",
-        "1801/6006": "diff",
-        "1801/6007": "diff",
-        "1801/6008": "diff",
-        "1801/6009": "diff",
-        "1801/6018": "diff",
-        "1801/6021": "diff",
-        "1801/6024": "diff",
-        "1801/6025": "diff",
-        "1801/6031": "diff",
-        "1801/6032": "diff",
-        "1801/6037": "diff",
-        "1801/6038": "diff",
-        "1801/6040": "diff",
-        "1801/6050": "diff",
-        "1801/6058": "diff",
-        "1801/6059": "diff"
+        "1801/6000": {
+          "bucket": "sameday",
+          "minutes": 540
+        },
+        "1801/6001": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "1801/6002": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "1801/6003": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "1801/6004": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6005": {
+          "bucket": "diff",
+          "minutes": 8640
+        },
+        "1801/6006": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6007": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "1801/6008": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6009": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6018": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6021": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6024": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6025": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6031": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6032": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6037": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6038": {
+          "bucket": "diff",
+          "minutes": 2880
+        },
+        "1801/6040": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6050": {
+          "bucket": "diff",
+          "minutes": 2880
+        },
+        "1801/6058": {
+          "bucket": "diff",
+          "minutes": 701820
+        },
+        "1801/6059": {
+          "bucket": "diff",
+          "minutes": 567900
+        }
       },
       "es": {
-        "1801/6001": "diff",
-        "1801/6002": "diff",
-        "1801/6003": "diff",
-        "1801/6004": "diff",
-        "1801/6005": "diff",
-        "1801/6006": "diff",
-        "1801/6007": "diff",
-        "1801/6008": "diff",
-        "1801/6009": "diff",
-        "1801/6018": "diff",
-        "1801/6021": "diff",
-        "1801/6024": "diff",
-        "1801/6025": "diff",
-        "1801/6031": "diff",
-        "1801/6032": "diff",
-        "1801/6037": "diff",
-        "1801/6038": "diff",
-        "1801/6040": "diff",
-        "1801/6050": "diff",
-        "1801/6059": "diff"
+        "1801/6001": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6002": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6003": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6004": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6005": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6006": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6007": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6008": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6009": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6018": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6021": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6024": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6025": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6031": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6032": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6037": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6038": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6040": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6050": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6059": {
+          "bucket": "diff",
+          "minutes": 1440
+        }
       },
       "ff": {
-        "1801/6007": "diff",
-        "1801/6008": "diff",
-        "1801/6009": "diff",
-        "1801/6018": "diff",
-        "1801/6019": "diff",
-        "1801/6021": "diff",
-        "1801/6022": "diff",
-        "1801/6024": "diff",
-        "1801/6025": "diff",
-        "1801/6031": "diff",
-        "1801/6032": "diff",
-        "1801/6033": "diff",
-        "1801/6035": "diff",
-        "1801/6036": "diff",
-        "1801/6037": "diff",
-        "1801/6038": "diff",
-        "1801/6040": "diff",
-        "1801/6050": "diff",
-        "1801/6058": "diff",
-        "1801/6059": "diff"
+        "1801/6007": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6008": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "1801/6009": {
+          "bucket": "diff",
+          "minutes": 61920
+        },
+        "1801/6018": {
+          "bucket": "diff",
+          "minutes": 85920
+        },
+        "1801/6019": {
+          "bucket": "diff",
+          "minutes": 169440
+        },
+        "1801/6021": {
+          "bucket": "diff",
+          "minutes": 84960
+        },
+        "1801/6022": {
+          "bucket": "diff",
+          "minutes": 164160
+        },
+        "1801/6024": {
+          "bucket": "diff",
+          "minutes": 41280
+        },
+        "1801/6025": {
+          "bucket": "diff",
+          "minutes": 74400
+        },
+        "1801/6031": {
+          "bucket": "diff",
+          "minutes": 72000
+        },
+        "1801/6032": {
+          "bucket": "diff",
+          "minutes": 71520
+        },
+        "1801/6033": {
+          "bucket": "diff",
+          "minutes": 72000
+        },
+        "1801/6035": {
+          "bucket": "diff",
+          "minutes": 137280
+        },
+        "1801/6036": {
+          "bucket": "diff",
+          "minutes": 137280
+        },
+        "1801/6037": {
+          "bucket": "diff",
+          "minutes": 155520
+        },
+        "1801/6038": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6040": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6050": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6058": {
+          "bucket": "diff",
+          "minutes": 42240
+        },
+        "1801/6059": {
+          "bucket": "diff",
+          "minutes": 87840
+        }
       },
       "lf": {
-        "1801/6000": "diff",
-        "1801/6024": "diff",
-        "1801/6058": "diff",
-        "1801/6059": "diff"
+        "1801/6000": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "1801/6024": {
+          "bucket": "diff",
+          "minutes": 116640
+        },
+        "1801/6058": {
+          "bucket": "diff",
+          "minutes": 881820
+        },
+        "1801/6059": {
+          "bucket": "diff",
+          "minutes": 881820
+        }
       },
       "ls": {
-        "1801/6000": "diff",
-        "1801/6024": "diff",
-        "1801/6058": "diff",
-        "1801/6059": "diff"
+        "1801/6000": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "1801/6024": {
+          "bucket": "diff",
+          "minutes": 116640
+        },
+        "1801/6058": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1801/6059": {
+          "bucket": "diff",
+          "minutes": 316800
+        }
       },
       "tf": {
-        "1801/6000": "diff",
-        "1801/6001": "diff",
-        "1801/6002": "diff",
-        "1801/6003": "diff",
-        "1801/6004": "diff",
-        "1801/6005": "diff",
-        "1801/6006": "diff",
-        "1801/6007": "diff",
-        "1801/6008": "diff",
-        "1801/6009": "diff",
-        "1801/6018": "diff",
-        "1801/6021": "diff",
-        "1801/6024": "diff",
-        "1801/6025": "diff",
-        "1801/6031": "diff",
-        "1801/6032": "diff",
-        "1801/6037": "diff",
-        "1801/6038": "diff",
-        "1801/6040": "diff",
-        "1801/6050": "diff",
-        "1801/6058": "diff",
-        "1801/6059": "diff"
+        "1801/6000": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6001": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6002": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6003": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6004": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6005": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6006": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6007": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6008": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6009": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6018": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6021": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6024": {
+          "bucket": "diff",
+          "minutes": 33600
+        },
+        "1801/6025": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6031": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6032": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6037": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6038": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6040": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6050": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "1801/6058": {
+          "bucket": "diff",
+          "minutes": 42240
+        },
+        "1801/6059": {
+          "bucket": "diff",
+          "minutes": 87840
+        }
       }
     },
     "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": {
       "drivingPath": {
-        "10093/130424": "diff",
-        "10096/130463": "diff",
-        "10096/130464": "diff",
-        "10096/130465": "diff",
-        "10096/130469": "diff",
-        "9031/120156": "diff",
-        "9031/120157": "diff",
-        "9031/120158": "diff",
-        "9031/120159": "diff",
-        "9031/120160": "diff",
-        "9031/120161": "diff",
-        "9032/120170": "diff",
-        "9032/120171": "diff",
-        "9032/120172": "diff",
-        "9032/120176": "diff",
-        "9033/120191": "diff",
-        "9033/120192": "diff",
-        "9033/120193": "diff",
-        "9033/120194": "diff",
-        "9040/120268": "diff",
-        "9040/120269": "diff",
-        "9040/120270": "diff",
-        "9040/120271": "diff",
-        "9040/120272": "diff",
-        "9040/120273": "diff",
-        "9049/120407": "diff",
-        "9049/120408": "diff",
-        "9049/120409": "diff",
-        "9049/120411": "diff"
+        "10093/130424": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "10096/130463": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "10096/130464": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "10096/130465": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "10096/130469": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9031/120156": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9031/120157": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9031/120158": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9031/120159": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9031/120160": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9031/120161": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9032/120170": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9032/120171": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9032/120172": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9032/120176": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9033/120191": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9033/120192": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9033/120193": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9033/120194": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9040/120268": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9040/120269": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9040/120270": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9040/120271": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9040/120272": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9040/120273": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9049/120407": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9049/120408": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9049/120409": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "9049/120411": {
+          "bucket": "diff",
+          "minutes": null
+        }
       },
       "ef": {
-        "9033/120189": "diff",
-        "9033/120195": "diff",
-        "9033/120196": "diff",
-        "9033/120197": "diff"
+        "9033/120189": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "9033/120195": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "9033/120196": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "9033/120197": {
+          "bucket": "diff",
+          "minutes": 1440
+        }
       },
       "es": {
-        "9033/120189": "diff",
-        "9033/120195": "diff",
-        "9033/120196": "diff",
-        "9033/120197": "diff"
+        "9033/120189": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "9033/120195": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "9033/120196": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "9033/120197": {
+          "bucket": "diff",
+          "minutes": 1440
+        }
       },
       "ff": {
-        "10093/130424": "diff",
-        "9033/120193": "diff",
-        "9033/120194": "diff"
+        "10093/130424": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "9033/120193": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "9033/120194": {
+          "bucket": "diff",
+          "minutes": 480
+        }
       },
       "lf": {
-        "10093/130424": "diff",
-        "9033/120184": "diff",
-        "9033/120185": "diff",
-        "9033/120186": "diff",
-        "9033/120187": "diff",
-        "9033/120188": "diff",
-        "9033/120190": "diff",
-        "9033/120191": "diff",
-        "9033/120194": "diff"
+        "10093/130424": {
+          "bucket": "diff",
+          "minutes": 15840
+        },
+        "9033/120184": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "9033/120185": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "9033/120186": {
+          "bucket": "diff",
+          "minutes": 15840
+        },
+        "9033/120187": {
+          "bucket": "diff",
+          "minutes": 18720
+        },
+        "9033/120188": {
+          "bucket": "diff",
+          "minutes": 25920
+        },
+        "9033/120190": {
+          "bucket": "diff",
+          "minutes": 20160
+        },
+        "9033/120191": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "9033/120194": {
+          "bucket": "diff",
+          "minutes": 1440
+        }
       },
       "ls": {
-        "10093/130424": "diff",
-        "9033/120184": "diff",
-        "9033/120185": "diff",
-        "9033/120186": "diff",
-        "9033/120187": "diff",
-        "9033/120188": "diff",
-        "9033/120190": "diff",
-        "9033/120191": "diff",
-        "9033/120194": "diff"
+        "10093/130424": {
+          "bucket": "diff",
+          "minutes": 15840
+        },
+        "9033/120184": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "9033/120185": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "9033/120186": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "9033/120187": {
+          "bucket": "diff",
+          "minutes": 18720
+        },
+        "9033/120188": {
+          "bucket": "diff",
+          "minutes": 25920
+        },
+        "9033/120190": {
+          "bucket": "diff",
+          "minutes": 23040
+        },
+        "9033/120191": {
+          "bucket": "diff",
+          "minutes": 2880
+        },
+        "9033/120194": {
+          "bucket": "diff",
+          "minutes": 1440
+        }
       },
       "tf": {
-        "10093/130424": "diff",
-        "9033/120184": "diff",
-        "9033/120185": "diff",
-        "9033/120186": "diff",
-        "9033/120187": "diff",
-        "9033/120188": "diff",
-        "9033/120189": "diff",
-        "9033/120190": "diff",
-        "9033/120191": "diff",
-        "9033/120194": "diff",
-        "9033/120195": "diff",
-        "9033/120196": "diff",
-        "9033/120197": "diff"
+        "10093/130424": {
+          "bucket": "diff",
+          "minutes": 2400
+        },
+        "9033/120184": {
+          "bucket": "diff",
+          "minutes": 3360
+        },
+        "9033/120185": {
+          "bucket": "diff",
+          "minutes": 3360
+        },
+        "9033/120186": {
+          "bucket": "diff",
+          "minutes": 3360
+        },
+        "9033/120187": {
+          "bucket": "diff",
+          "minutes": 3360
+        },
+        "9033/120188": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "9033/120189": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "9033/120190": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "9033/120191": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "9033/120194": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "9033/120195": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "9033/120196": {
+          "bucket": "diff",
+          "minutes": 480
+        },
+        "9033/120197": {
+          "bucket": "diff",
+          "minutes": 480
+        }
       }
     },
     "4d8bce790a93b9bc747abec5d99840e3e0d1ce5523e0afae3ba881762cfe2c13": {
@@ -241,364 +751,1273 @@
     "55b7e4463dcd36ba02eae072445e8fc2cc684a188e40c588b05321963a362c5e": {
       "drivingPath": {},
       "ef": {
-        "771/80996": "sameday",
-        "771/81002": "diff"
+        "771/80996": {
+          "bucket": "sameday",
+          "minutes": 1
+        },
+        "771/81002": {
+          "bucket": "diff",
+          "minutes": 961
+        }
       },
       "es": {
-        "771/80996": "sameday",
-        "771/81002": "sameday"
+        "771/80996": {
+          "bucket": "sameday",
+          "minutes": 1
+        },
+        "771/81002": {
+          "bucket": "sameday",
+          "minutes": 1
+        }
       },
       "ff": {
-        "771/80994": "diff",
-        "771/80995": "diff",
-        "771/81002": "diff"
+        "771/80994": {
+          "bucket": "diff",
+          "minutes": 1
+        },
+        "771/80995": {
+          "bucket": "diff",
+          "minutes": 1
+        },
+        "771/81002": {
+          "bucket": "diff",
+          "minutes": 1
+        }
       },
       "lf": {
-        "771/80994": "sameday",
-        "771/80995": "diff"
+        "771/80994": {
+          "bucket": "sameday",
+          "minutes": 1
+        },
+        "771/80995": {
+          "bucket": "diff",
+          "minutes": 2400
+        }
       },
       "ls": {
-        "771/80994": "diff"
+        "771/80994": {
+          "bucket": "diff",
+          "minutes": 2401
+        }
       },
       "tf": {
-        "771/80994": "diff",
-        "771/80996": "diff",
-        "771/81002": "diff"
+        "771/80994": {
+          "bucket": "diff",
+          "minutes": 1
+        },
+        "771/80996": {
+          "bucket": "diff",
+          "minutes": 1
+        },
+        "771/81002": {
+          "bucket": "diff",
+          "minutes": 1
+        }
       }
     },
     "68ce5f0bb2b534d5ba192e3ad8241025d74ae45e94209f11731d42d32f18f82b": {
       "drivingPath": {
-        "4508/101722": "diff",
-        "4508/101726": "diff",
-        "4508/101741": "diff",
-        "4508/101744": "diff",
-        "4508/101751": "diff",
-        "4508/101754": "diff",
-        "4508/101796": "diff",
-        "4508/101799": "diff",
-        "4508/101814": "diff",
-        "4508/101817": "diff"
+        "4508/101722": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101726": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101741": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101744": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101751": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101754": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101796": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101799": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101814": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4508/101817": {
+          "bucket": "diff",
+          "minutes": null
+        }
       },
       "ef": {},
       "es": {},
       "ff": {},
       "lf": {
-        "4508/101725": "diff",
-        "4508/101743": "diff",
-        "4508/101753": "diff",
-        "4508/101798": "diff"
+        "4508/101725": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "4508/101743": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "4508/101753": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "4508/101798": {
+          "bucket": "diff",
+          "minutes": 960
+        }
       },
       "ls": {},
       "tf": {}
     },
     "9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe": {
       "drivingPath": {
-        "2665/143637": "diff",
-        "2665/143638": "diff",
-        "2665/143639": "diff",
-        "2665/143640": "diff",
-        "2665/143641": "diff",
-        "2665/143642": "diff",
-        "2665/143643": "diff",
-        "2665/143644": "diff",
-        "2665/143645": "diff",
-        "2665/143646": "diff",
-        "2665/143647": "diff",
-        "2665/143648": "diff",
-        "2665/147899": "diff",
-        "2665/147900": "diff",
-        "2665/147901": "diff",
-        "2665/147902": "diff",
-        "2665/147904": "diff",
-        "2665/147905": "diff",
-        "2665/147906": "diff",
-        "2666/144380": "diff",
-        "2666/144439": "diff",
-        "2666/144440": "diff",
-        "2666/144573": "diff",
-        "2666/144574": "diff",
-        "2666/144575": "diff",
-        "2666/145217": "diff",
-        "2666/145218": "diff",
-        "2666/145221": "diff",
-        "2666/145222": "diff",
-        "2666/145223": "diff",
-        "2666/145226": "diff",
-        "2666/145227": "diff",
-        "2666/145228": "diff",
-        "2666/145232": "diff",
-        "2666/145263": "diff",
-        "2666/145304": "diff",
-        "2666/145305": "diff",
-        "2666/145309": "diff",
-        "2666/145310": "diff",
-        "2666/145313": "diff",
-        "2666/145314": "diff",
-        "2666/145315": "diff",
-        "2666/145319": "diff",
-        "2666/145393": "diff",
-        "2666/145394": "diff",
-        "2666/145398": "diff",
-        "2666/145399": "diff",
-        "2666/145402": "diff",
-        "2666/145403": "diff",
-        "2666/145404": "diff",
-        "2666/145408": "diff",
-        "2666/145483": "diff",
-        "2666/145484": "diff",
-        "2666/145488": "diff",
-        "2666/145489": "diff",
-        "2666/145492": "diff",
-        "2666/145493": "diff",
-        "2666/145494": "diff",
-        "2666/145498": "diff",
-        "2666/145573": "diff",
-        "2666/145574": "diff",
-        "2666/145578": "diff",
-        "2666/145579": "diff",
-        "2666/145582": "diff",
-        "2666/145583": "diff",
-        "2666/145584": "diff",
-        "2666/145588": "diff",
-        "2666/145726": "diff",
-        "2666/145727": "diff",
-        "2666/145731": "diff",
-        "2666/145732": "diff",
-        "2666/145735": "diff",
-        "2666/145736": "diff",
-        "2666/145737": "diff",
-        "2666/145741": "diff",
-        "2666/145879": "diff",
-        "2666/145880": "diff",
-        "2666/145881": "diff",
-        "2666/145884": "diff",
-        "2666/145885": "diff",
-        "2666/145888": "diff",
-        "2666/145889": "diff",
-        "2666/145890": "diff",
-        "2666/145894": "diff",
-        "2666/145907": "diff",
-        "2666/145934": "diff",
-        "2666/145958": "diff",
-        "2666/145986": "diff"
+        "2665/143637": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143638": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143639": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143640": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143641": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143642": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143643": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143644": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143645": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143646": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143647": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/143648": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147899": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147900": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147901": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147902": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147904": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147905": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2665/147906": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/144380": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/144439": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/144440": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/144573": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/144574": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/144575": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145217": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145218": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145221": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145222": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145223": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145226": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145227": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145228": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145232": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145263": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145304": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145305": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145309": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145310": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145313": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145314": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145315": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145319": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145393": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145394": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145398": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145399": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145402": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145403": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145404": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145408": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145483": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145484": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145488": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145489": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145492": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145493": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145494": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145498": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145573": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145574": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145578": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145579": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145582": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145583": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145584": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145588": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145726": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145727": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145731": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145732": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145735": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145736": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145737": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145741": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145879": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145880": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145881": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145884": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145885": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145888": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145889": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145890": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145894": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145907": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145934": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145958": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "2666/145986": {
+          "bucket": "diff",
+          "minutes": null
+        }
       },
       "ef": {
-        "2666/143873": "diff",
-        "2666/144083": "diff"
+        "2666/143873": {
+          "bucket": "diff",
+          "minutes": 8160
+        },
+        "2666/144083": {
+          "bucket": "diff",
+          "minutes": 3840
+        }
       },
       "es": {},
       "ff": {
-        "2666/143800": "diff",
-        "2666/144004": "diff",
-        "2666/144440": "diff"
+        "2666/143800": {
+          "bucket": "diff",
+          "minutes": 60
+        },
+        "2666/144004": {
+          "bucket": "diff",
+          "minutes": 60
+        },
+        "2666/144440": {
+          "bucket": "diff",
+          "minutes": 60
+        }
       },
       "lf": {
-        "2666/144003": "sameday",
-        "2666/144111": "sameday",
-        "2666/144224": "diff",
-        "2666/144408": "sameday",
-        "2666/144409": "sameday",
-        "2666/144435": "sameday",
-        "2666/144821": "sameday",
-        "2666/144831": "diff",
-        "2666/144898": "diff",
-        "2666/144960": "diff",
-        "2666/145595": "sameday",
-        "2666/145633": "diff",
-        "2666/145639": "diff",
-        "2666/145652": "sameday",
-        "2666/145893": "sameday",
-        "2666/145914": "diff",
-        "2666/145958": "sameday",
-        "2666/146012": "sameday",
-        "2666/146052": "diff",
-        "2666/146254": "diff",
-        "2666/146279": "diff",
-        "2666/146304": "diff",
-        "2666/146679": "diff",
-        "2666/146729": "diff",
-        "2666/146854": "diff",
-        "2666/147104": "diff",
-        "2666/147179": "diff",
-        "2666/147204": "diff",
-        "2666/147254": "diff",
-        "2666/147279": "diff",
-        "2666/147395": "diff",
-        "2666/147401": "diff",
-        "2666/147402": "diff",
-        "2666/147583": "diff",
-        "2666/147613": "sameday",
-        "2666/147615": "diff"
+        "2666/144003": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/144111": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/144224": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "2666/144408": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/144409": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/144435": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/144821": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/144831": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "2666/144898": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "2666/144960": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/145595": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/145633": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/145639": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/145652": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/145893": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/145914": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/145958": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/146012": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/146052": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146254": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146279": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146304": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146679": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146729": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146854": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147104": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147179": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147204": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147254": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147279": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147395": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/147401": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/147402": {
+          "bucket": "diff",
+          "minutes": 1440
+        },
+        "2666/147583": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "2666/147613": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/147615": {
+          "bucket": "diff",
+          "minutes": 960
+        }
       },
       "ls": {
-        "2666/144004": "diff",
-        "2666/144112": "diff",
-        "2666/144154": "diff",
-        "2666/144196": "diff",
-        "2666/144436": "diff",
-        "2666/144437": "diff",
-        "2666/144439": "diff",
-        "2666/146012": "sameday",
-        "2666/146052": "diff",
-        "2666/146069": "diff",
-        "2666/146072": "diff",
-        "2666/146254": "diff",
-        "2666/146279": "diff",
-        "2666/146304": "diff",
-        "2666/146679": "diff",
-        "2666/146729": "diff",
-        "2666/146854": "diff",
-        "2666/147104": "diff",
-        "2666/147179": "diff",
-        "2666/147204": "diff",
-        "2666/147254": "diff",
-        "2666/147279": "diff"
+        "2666/144004": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/144112": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/144154": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/144196": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/144436": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/144437": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/144439": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/146012": {
+          "bucket": "sameday",
+          "minutes": 60
+        },
+        "2666/146052": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146069": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/146072": {
+          "bucket": "diff",
+          "minutes": 900
+        },
+        "2666/146254": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146279": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146304": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146679": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146729": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/146854": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147104": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147179": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147204": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147254": {
+          "bucket": "diff",
+          "minutes": 1380
+        },
+        "2666/147279": {
+          "bucket": "diff",
+          "minutes": 1380
+        }
       },
       "tf": {
-        "2666/146012": "diff"
+        "2666/146012": {
+          "bucket": "diff",
+          "minutes": 60
+        }
       }
     },
     "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae": {
       "drivingPath": {},
       "ef": {
-        "1346/85153": "diff",
-        "1346/86736": "diff",
-        "1346/86737": "diff"
+        "1346/85153": {
+          "bucket": "diff",
+          "minutes": 3720
+        },
+        "1346/86736": {
+          "bucket": "diff",
+          "minutes": 840
+        },
+        "1346/86737": {
+          "bucket": "diff",
+          "minutes": 840
+        }
       },
       "es": {
-        "1346/86736": "diff"
+        "1346/86736": {
+          "bucket": "diff",
+          "minutes": 840
+        }
       },
       "ff": {
-        "1346/85152": "diff",
-        "1346/87054": "diff"
+        "1346/85152": {
+          "bucket": "diff",
+          "minutes": 960
+        },
+        "1346/87054": {
+          "bucket": "diff",
+          "minutes": 3000
+        }
       },
       "lf": {
-        "1346/85432": "diff",
-        "1346/85462": "diff",
-        "1346/86815": "diff",
-        "1346/86816": "diff",
-        "1346/86885": "diff",
-        "1346/86904": "diff",
-        "1346/86905": "diff",
-        "1346/86906": "diff",
-        "1346/86912": "diff",
-        "1346/86945": "diff",
-        "1346/86949": "diff",
-        "1346/86962": "diff",
-        "1346/86976": "diff",
-        "1346/86977": "diff",
-        "1346/87010": "diff",
-        "1346/87029": "diff",
-        "1346/87030": "diff",
-        "1346/87051": "diff",
-        "1346/87052": "diff",
-        "1346/87053": "diff",
-        "1346/87054": "diff",
-        "1346/87055": "diff",
-        "1346/87071": "diff",
-        "1346/87109": "diff",
-        "1346/87110": "diff",
-        "1346/87145": "diff",
-        "1346/87146": "diff",
-        "1346/87147": "diff",
-        "1346/87148": "diff",
-        "1346/87149": "diff",
-        "1346/87337": "diff"
+        "1346/85432": {
+          "bucket": "diff",
+          "minutes": 358920
+        },
+        "1346/85462": {
+          "bucket": "diff",
+          "minutes": 358920
+        },
+        "1346/86815": {
+          "bucket": "diff",
+          "minutes": 84960
+        },
+        "1346/86816": {
+          "bucket": "diff",
+          "minutes": 84960
+        },
+        "1346/86885": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "1346/86904": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86905": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86906": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86912": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86945": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "1346/86949": {
+          "bucket": "diff",
+          "minutes": 36000
+        },
+        "1346/86962": {
+          "bucket": "diff",
+          "minutes": 128160
+        },
+        "1346/86976": {
+          "bucket": "diff",
+          "minutes": 112320
+        },
+        "1346/86977": {
+          "bucket": "diff",
+          "minutes": 112320
+        },
+        "1346/87010": {
+          "bucket": "diff",
+          "minutes": 36000
+        },
+        "1346/87029": {
+          "bucket": "diff",
+          "minutes": 145440
+        },
+        "1346/87030": {
+          "bucket": "diff",
+          "minutes": 142560
+        },
+        "1346/87051": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87052": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87053": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87054": {
+          "bucket": "diff",
+          "minutes": 155520
+        },
+        "1346/87055": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87071": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87109": {
+          "bucket": "diff",
+          "minutes": 43200
+        },
+        "1346/87110": {
+          "bucket": "diff",
+          "minutes": 43200
+        },
+        "1346/87145": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87146": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87147": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87148": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87149": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87337": {
+          "bucket": "diff",
+          "minutes": 158400
+        }
       },
       "ls": {
-        "1346/85432": "diff",
-        "1346/85462": "diff",
-        "1346/86815": "diff",
-        "1346/86816": "diff",
-        "1346/86885": "diff",
-        "1346/86904": "diff",
-        "1346/86905": "diff",
-        "1346/86906": "diff",
-        "1346/86912": "diff",
-        "1346/86945": "diff",
-        "1346/86949": "diff",
-        "1346/86962": "diff",
-        "1346/86976": "diff",
-        "1346/86977": "diff",
-        "1346/87010": "diff",
-        "1346/87029": "diff",
-        "1346/87030": "diff",
-        "1346/87051": "diff",
-        "1346/87052": "diff",
-        "1346/87053": "diff",
-        "1346/87054": "diff",
-        "1346/87055": "diff",
-        "1346/87071": "diff",
-        "1346/87109": "diff",
-        "1346/87110": "diff",
-        "1346/87145": "diff",
-        "1346/87146": "diff",
-        "1346/87147": "diff",
-        "1346/87148": "diff",
-        "1346/87149": "diff",
-        "1346/87337": "diff"
+        "1346/85432": {
+          "bucket": "diff",
+          "minutes": 358920
+        },
+        "1346/85462": {
+          "bucket": "diff",
+          "minutes": 358920
+        },
+        "1346/86815": {
+          "bucket": "diff",
+          "minutes": 84960
+        },
+        "1346/86816": {
+          "bucket": "diff",
+          "minutes": 84960
+        },
+        "1346/86885": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "1346/86904": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86905": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86906": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86912": {
+          "bucket": "diff",
+          "minutes": 182880
+        },
+        "1346/86945": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "1346/86949": {
+          "bucket": "diff",
+          "minutes": 36000
+        },
+        "1346/86962": {
+          "bucket": "diff",
+          "minutes": 128160
+        },
+        "1346/86976": {
+          "bucket": "diff",
+          "minutes": 112320
+        },
+        "1346/86977": {
+          "bucket": "diff",
+          "minutes": 112320
+        },
+        "1346/87010": {
+          "bucket": "diff",
+          "minutes": 36000
+        },
+        "1346/87029": {
+          "bucket": "diff",
+          "minutes": 145440
+        },
+        "1346/87030": {
+          "bucket": "diff",
+          "minutes": 145440
+        },
+        "1346/87051": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87052": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87053": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87054": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87055": {
+          "bucket": "diff",
+          "minutes": 158400
+        },
+        "1346/87071": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87109": {
+          "bucket": "diff",
+          "minutes": 43200
+        },
+        "1346/87110": {
+          "bucket": "diff",
+          "minutes": 43200
+        },
+        "1346/87145": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87146": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87147": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87148": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87149": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "1346/87337": {
+          "bucket": "diff",
+          "minutes": 161280
+        }
       },
       "tf": {
-        "1346/85432": "diff",
-        "1346/86815": "diff",
-        "1346/86885": "diff",
-        "1346/86904": "diff",
-        "1346/86906": "diff",
-        "1346/86945": "diff",
-        "1346/86962": "diff",
-        "1346/86976": "diff",
-        "1346/87030": "diff",
-        "1346/87051": "diff",
-        "1346/87052": "diff",
-        "1346/87053": "diff",
-        "1346/87054": "diff",
-        "1346/87055": "diff",
-        "1346/87109": "diff",
-        "1346/87145": "diff",
-        "1346/87146": "diff",
-        "1346/87147": "diff",
-        "1346/87148": "diff",
-        "1346/87149": "diff",
-        "1346/87337": "diff"
+        "1346/85432": {
+          "bucket": "diff",
+          "minutes": 105360
+        },
+        "1346/86815": {
+          "bucket": "diff",
+          "minutes": 24600
+        },
+        "1346/86885": {
+          "bucket": "diff",
+          "minutes": 1800
+        },
+        "1346/86904": {
+          "bucket": "diff",
+          "minutes": 53400
+        },
+        "1346/86906": {
+          "bucket": "diff",
+          "minutes": 76200
+        },
+        "1346/86945": {
+          "bucket": "diff",
+          "minutes": 28800
+        },
+        "1346/86962": {
+          "bucket": "diff",
+          "minutes": 36600
+        },
+        "1346/86976": {
+          "bucket": "diff",
+          "minutes": 32400
+        },
+        "1346/87030": {
+          "bucket": "diff",
+          "minutes": 41400
+        },
+        "1346/87051": {
+          "bucket": "diff",
+          "minutes": 45600
+        },
+        "1346/87052": {
+          "bucket": "diff",
+          "minutes": 45600
+        },
+        "1346/87053": {
+          "bucket": "diff",
+          "minutes": 45600
+        },
+        "1346/87054": {
+          "bucket": "diff",
+          "minutes": 45600
+        },
+        "1346/87055": {
+          "bucket": "diff",
+          "minutes": 45600
+        },
+        "1346/87109": {
+          "bucket": "diff",
+          "minutes": 13200
+        },
+        "1346/87145": {
+          "bucket": "diff",
+          "minutes": 9000
+        },
+        "1346/87146": {
+          "bucket": "diff",
+          "minutes": 9000
+        },
+        "1346/87147": {
+          "bucket": "diff",
+          "minutes": 9000
+        },
+        "1346/87148": {
+          "bucket": "diff",
+          "minutes": 9000
+        },
+        "1346/87149": {
+          "bucket": "diff",
+          "minutes": 9000
+        },
+        "1346/87337": {
+          "bucket": "diff",
+          "minutes": 45600
+        }
       }
     },
     "a2f3b2469e26f19985ac801786c90edfb965a7bc194a6e57704aa845c5f8611f": {
       "drivingPath": {
-        "3211/120010": "diff",
-        "3211/120011": "diff",
-        "3211/120012": "diff",
-        "3211/120013": "diff",
-        "3211/120014": "diff",
-        "3211/120016": "diff",
-        "3211/120018": "diff",
-        "3211/120019": "diff",
-        "3211/120020": "diff",
-        "3211/120021": "diff",
-        "3211/120022": "diff",
-        "3211/120029": "diff",
-        "3211/120030": "diff",
-        "3211/120031": "diff",
-        "3211/120032": "diff",
-        "3211/120045": "diff",
-        "3211/120046": "diff",
-        "3211/120047": "diff",
-        "3211/120048": "diff",
-        "3211/120050": "diff",
-        "3211/120051": "diff",
-        "3211/120052": "diff",
-        "3211/120053": "diff",
-        "3211/120054": "diff",
-        "3211/120055": "diff",
-        "3211/120056": "diff",
-        "3211/120057": "diff",
-        "3211/120058": "diff",
-        "3211/120060": "diff",
-        "3211/120061": "diff",
-        "3211/120138": "diff",
-        "3211/120145": "diff",
-        "3211/120146": "diff",
-        "3211/120148": "diff",
-        "3211/120237": "diff"
+        "3211/120010": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120011": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120012": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120013": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120014": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120016": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120018": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120019": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120020": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120021": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120022": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120029": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120030": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120031": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120032": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120045": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120046": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120047": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120048": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120050": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120051": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120052": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120053": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120054": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120055": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120056": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120057": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120058": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120060": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120061": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120138": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120145": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120146": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120148": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "3211/120237": {
+          "bucket": "diff",
+          "minutes": null
+        }
       },
       "ef": {},
       "es": {},
@@ -609,149 +2028,608 @@
     },
     "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167": {
       "drivingPath": {
-        "4408/98155": "diff",
-        "4408/98156": "diff",
-        "4408/98157": "diff",
-        "4408/98158": "diff",
-        "4408/98159": "diff",
-        "4408/98236": "diff",
-        "4408/98237": "diff"
+        "4408/98155": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4408/98156": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4408/98157": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4408/98158": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4408/98159": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4408/98236": {
+          "bucket": "diff",
+          "minutes": null
+        },
+        "4408/98237": {
+          "bucket": "diff",
+          "minutes": null
+        }
       },
       "ef": {
-        "4408/98171": "diff",
-        "4408/98172": "diff",
-        "4408/98173": "diff",
-        "4408/98174": "diff",
-        "4408/98175": "diff",
-        "4408/98176": "diff",
-        "4408/98177": "diff",
-        "4408/98178": "diff",
-        "4408/98179": "diff",
-        "4408/98180": "diff",
-        "4408/98220": "diff",
-        "4408/98221": "diff",
-        "4408/98223": "diff",
-        "4408/98230": "diff",
-        "4408/98231": "diff",
-        "4408/98232": "diff",
-        "4408/98233": "diff",
-        "4408/98234": "diff",
-        "4408/98242": "diff",
-        "4408/98246": "diff",
-        "4408/98247": "diff"
+        "4408/98171": {
+          "bucket": "diff",
+          "minutes": 3731
+        },
+        "4408/98172": {
+          "bucket": "diff",
+          "minutes": 7211
+        },
+        "4408/98173": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98174": {
+          "bucket": "diff",
+          "minutes": 7211
+        },
+        "4408/98175": {
+          "bucket": "diff",
+          "minutes": 7211
+        },
+        "4408/98176": {
+          "bucket": "diff",
+          "minutes": 7211
+        },
+        "4408/98177": {
+          "bucket": "diff",
+          "minutes": 18731
+        },
+        "4408/98178": {
+          "bucket": "diff",
+          "minutes": 18731
+        },
+        "4408/98179": {
+          "bucket": "diff",
+          "minutes": 18731
+        },
+        "4408/98180": {
+          "bucket": "diff",
+          "minutes": 102240
+        },
+        "4408/98220": {
+          "bucket": "diff",
+          "minutes": 60480
+        },
+        "4408/98221": {
+          "bucket": "diff",
+          "minutes": 60480
+        },
+        "4408/98223": {
+          "bucket": "diff",
+          "minutes": 102240
+        },
+        "4408/98230": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98231": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "4408/98232": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98233": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98234": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98242": {
+          "bucket": "diff",
+          "minutes": 7211
+        },
+        "4408/98246": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98247": {
+          "bucket": "diff",
+          "minutes": 7211
+        }
       },
       "es": {
-        "4408/98171": "diff",
-        "4408/98172": "diff",
-        "4408/98173": "diff",
-        "4408/98174": "diff",
-        "4408/98175": "diff",
-        "4408/98176": "diff",
-        "4408/98177": "diff",
-        "4408/98178": "diff",
-        "4408/98179": "diff",
-        "4408/98180": "diff",
-        "4408/98223": "diff",
-        "4408/98231": "diff",
-        "4408/98232": "diff",
-        "4408/98233": "diff",
-        "4408/98234": "diff",
-        "4408/98242": "diff",
-        "4408/98246": "diff",
-        "4408/98247": "diff"
+        "4408/98171": {
+          "bucket": "diff",
+          "minutes": 3731
+        },
+        "4408/98172": {
+          "bucket": "diff",
+          "minutes": 3791
+        },
+        "4408/98173": {
+          "bucket": "diff",
+          "minutes": 8111
+        },
+        "4408/98174": {
+          "bucket": "diff",
+          "minutes": 8111
+        },
+        "4408/98175": {
+          "bucket": "diff",
+          "minutes": 8111
+        },
+        "4408/98176": {
+          "bucket": "diff",
+          "minutes": 5231
+        },
+        "4408/98177": {
+          "bucket": "diff",
+          "minutes": 18731
+        },
+        "4408/98178": {
+          "bucket": "diff",
+          "minutes": 8111
+        },
+        "4408/98179": {
+          "bucket": "diff",
+          "minutes": 18731
+        },
+        "4408/98180": {
+          "bucket": "diff",
+          "minutes": 102240
+        },
+        "4408/98223": {
+          "bucket": "diff",
+          "minutes": 50400
+        },
+        "4408/98231": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98232": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98233": {
+          "bucket": "diff",
+          "minutes": 12960
+        },
+        "4408/98234": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98242": {
+          "bucket": "diff",
+          "minutes": 8111
+        },
+        "4408/98246": {
+          "bucket": "diff",
+          "minutes": 8111
+        },
+        "4408/98247": {
+          "bucket": "diff",
+          "minutes": 8111
+        }
       },
       "ff": {
-        "4408/98140": "diff",
-        "4408/98179": "diff",
-        "4408/98180": "diff",
-        "4408/98222": "diff",
-        "4408/98225": "diff",
-        "4408/98234": "diff",
-        "4408/98242": "diff",
-        "4408/98243": "diff",
-        "4408/98246": "diff",
-        "4408/98247": "diff",
-        "4408/98250": "diff"
+        "4408/98140": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98179": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98180": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98222": {
+          "bucket": "diff",
+          "minutes": 12000
+        },
+        "4408/98225": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98234": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98242": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98243": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98246": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98247": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98250": {
+          "bucket": "diff",
+          "minutes": 0
+        }
       },
       "lf": {
-        "4408/98171": "diff",
-        "4408/98175": "diff",
-        "4408/98176": "diff",
-        "4408/98215": "diff",
-        "4408/98216": "diff",
-        "4408/98217": "diff",
-        "4408/98218": "diff",
-        "4408/98219": "diff",
-        "4408/98220": "diff",
-        "4408/98221": "diff",
-        "4408/98222": "diff",
-        "4408/98224": "diff",
-        "4408/98226": "diff",
-        "4408/98227": "diff",
-        "4408/98228": "diff",
-        "4408/98229": "diff",
-        "4408/98230": "diff",
-        "4408/98231": "diff",
-        "4408/98240": "diff"
+        "4408/98171": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "4408/98175": {
+          "bucket": "diff",
+          "minutes": 14400
+        },
+        "4408/98176": {
+          "bucket": "diff",
+          "minutes": 14400
+        },
+        "4408/98215": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98216": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98217": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98218": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98219": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98220": {
+          "bucket": "diff",
+          "minutes": 40320
+        },
+        "4408/98221": {
+          "bucket": "diff",
+          "minutes": 40320
+        },
+        "4408/98222": {
+          "bucket": "diff",
+          "minutes": 50400
+        },
+        "4408/98224": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98226": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98227": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98228": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98229": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98230": {
+          "bucket": "diff",
+          "minutes": 23040
+        },
+        "4408/98231": {
+          "bucket": "diff",
+          "minutes": 18720
+        },
+        "4408/98240": {
+          "bucket": "diff",
+          "minutes": 105120
+        }
       },
       "ls": {
-        "4408/98171": "diff",
-        "4408/98172": "diff",
-        "4408/98175": "diff",
-        "4408/98176": "diff",
-        "4408/98178": "diff",
-        "4408/98215": "diff",
-        "4408/98216": "diff",
-        "4408/98217": "diff",
-        "4408/98218": "diff",
-        "4408/98219": "diff",
-        "4408/98220": "diff",
-        "4408/98221": "diff",
-        "4408/98222": "diff",
-        "4408/98223": "diff",
-        "4408/98224": "diff",
-        "4408/98226": "diff",
-        "4408/98227": "diff",
-        "4408/98228": "diff",
-        "4408/98229": "diff",
-        "4408/98230": "diff",
-        "4408/98231": "diff",
-        "4408/98233": "diff",
-        "4408/98240": "diff"
+        "4408/98171": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "4408/98172": {
+          "bucket": "diff",
+          "minutes": 4320
+        },
+        "4408/98175": {
+          "bucket": "diff",
+          "minutes": 14400
+        },
+        "4408/98176": {
+          "bucket": "diff",
+          "minutes": 14400
+        },
+        "4408/98178": {
+          "bucket": "diff",
+          "minutes": 14400
+        },
+        "4408/98215": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98216": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98217": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98218": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98219": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98220": {
+          "bucket": "diff",
+          "minutes": 100800
+        },
+        "4408/98221": {
+          "bucket": "diff",
+          "minutes": 105120
+        },
+        "4408/98222": {
+          "bucket": "diff",
+          "minutes": 54720
+        },
+        "4408/98223": {
+          "bucket": "diff",
+          "minutes": 50400
+        },
+        "4408/98224": {
+          "bucket": "diff",
+          "minutes": 102240
+        },
+        "4408/98226": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98227": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98228": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98229": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98230": {
+          "bucket": "diff",
+          "minutes": 30240
+        },
+        "4408/98231": {
+          "bucket": "diff",
+          "minutes": 23040
+        },
+        "4408/98233": {
+          "bucket": "diff",
+          "minutes": 18720
+        },
+        "4408/98240": {
+          "bucket": "diff",
+          "minutes": 102240
+        }
       },
       "tf": {
-        "4408/98171": "diff",
-        "4408/98172": "diff",
-        "4408/98173": "diff",
-        "4408/98174": "diff",
-        "4408/98175": "diff",
-        "4408/98176": "diff",
-        "4408/98177": "diff",
-        "4408/98178": "diff",
-        "4408/98179": "diff",
-        "4408/98180": "diff",
-        "4408/98215": "diff",
-        "4408/98216": "diff",
-        "4408/98217": "diff",
-        "4408/98218": "diff",
-        "4408/98219": "diff",
-        "4408/98220": "diff",
-        "4408/98221": "diff",
-        "4408/98222": "diff",
-        "4408/98223": "diff",
-        "4408/98224": "diff",
-        "4408/98228": "diff",
-        "4408/98229": "diff",
-        "4408/98230": "diff",
-        "4408/98231": "diff",
-        "4408/98232": "diff",
-        "4408/98233": "diff",
-        "4408/98234": "diff",
-        "4408/98240": "diff",
-        "4408/98242": "diff",
-        "4408/98246": "diff",
-        "4408/98247": "diff",
-        "4408/98250": "diff"
+        "4408/98171": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98172": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98173": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98174": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98175": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98176": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98177": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98178": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98179": {
+          "bucket": "diff",
+          "minutes": 4331
+        },
+        "4408/98180": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98215": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98216": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98217": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98218": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98219": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98220": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98221": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98222": {
+          "bucket": "diff",
+          "minutes": 12000
+        },
+        "4408/98223": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98224": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98228": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98229": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98230": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98231": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98232": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98233": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98234": {
+          "bucket": "diff",
+          "minutes": 7200
+        },
+        "4408/98240": {
+          "bucket": "diff",
+          "minutes": 24000
+        },
+        "4408/98242": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98246": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98247": {
+          "bucket": "diff",
+          "minutes": 1451
+        },
+        "4408/98250": {
+          "bucket": "diff",
+          "minutes": 0
+        }
+      }
+    }
+  },
+  "ratchetDebt": {
+    "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae": {
+      "lf": {
+        "1346/85462": {
+          "reference": 137400,
+          "current": 358920
+        },
+        "1346/86905": {
+          "reference": 127680,
+          "current": 182880
+        },
+        "1346/86912": {
+          "reference": 127680,
+          "current": 182880
+        }
+      },
+      "ls": {
+        "1346/85462": {
+          "reference": 151800,
+          "current": 358920
+        },
+        "1346/86905": {
+          "reference": 172320,
+          "current": 182880
+        },
+        "1346/86912": {
+          "reference": 172320,
+          "current": 182880
+        }
+      },
+      "tf": {
+        "1346/86945": {
+          "reference": 24600,
+          "current": 28800
+        },
+        "1346/86962": {
+          "reference": 32400,
+          "current": 36600
+        },
+        "1346/87055": {
+          "reference": 41400,
+          "current": 45600
+        },
+        "1346/87145": {
+          "reference": 4800,
+          "current": 9000
+        },
+        "1346/87146": {
+          "reference": 4800,
+          "current": 9000
+        },
+        "1346/87147": {
+          "reference": 4800,
+          "current": 9000
+        },
+        "1346/87148": {
+          "reference": 4800,
+          "current": 9000
+        },
+        "1346/87149": {
+          "reference": 4800,
+          "current": 9000
+        }
       }
     }
   }

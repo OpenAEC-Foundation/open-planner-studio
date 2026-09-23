@@ -9,15 +9,31 @@
 //    `xer-product-fidelity-baseline-v2.json`: per entry, per as en per emmer is het aantal cellen
 //    gelijk aan de gepinde telling. Zo kan de cel-baseline op geen enkele machine stil uit de pas
 //    lopen met de tellingen.
+// 3. Grootte-ratchet (versie 2, eigenaarsbesluit 2026-09-23): de versie is gepind, elke
+//    sameday/diff-cel op de zes X12-assen draagt een grootte in minuten (missing en drivingPath
+//    `null`), een versie-1-bestand wordt geweigerd met verwijzing naar het recept, en een cel die
+//    binnen dezelfde emmer groter wordt is rood (`groter`), kleiner is "verbeterd-grootte".
+// 4. Ratchet-schuld (orkestratorbesluit 2026-09-23): het gecommitte bestand draagt precies
+//    EXPECTED_DEBT_CELLS schuldcellen; een schuldcel die verder groeit dan `current` is rood; daalt hij
+//    tot ≤ `reference` (of wordt hij exact), dan vervalt de schuld; daalt hij maar blijft hij boven
+//    `reference`, dan schuift `current` mee; schuld kan niet ontstaan buiten de eenmalige overgang op
+//    een bestand zonder schuldsectie, en de lezer weigert een schuldregel die niet klopt.
 // Assen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het
 // zesassige nuldoel-getal) — alle zeven onder dezelfde poortregels.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  buildCellBaseline, CELL_AXES, cellOracleRedLines, type CellMeta, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
+  buildCellBaseline, CELL_AXES, CELL_BASELINE_VERSION, CELL_V1_PROBLEM, cellDeltaLine, cellHasMagnitude, cellMagnitude, cellOracleRedLines,
+  type CellMeta, CELL_BASELINE_FILE, CELL_BUCKETS, cellGateFailures, cellWriteModeProblem, compareCells,
   parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline, type MeasuredCell,
+  carryRatchetDebt, debtCount, CELL_PRE_DEBT_PROBLEM,
 } from './fidelityCells';
+
+/** Ratchet-schuld van de eenmalige overgang bij de merge van de grootte-ratchet (2026-09-23): 14 cellen in
+ *  Roads_Project_TEC (plan XER §9 "Ratchet-schuld 2026-09-23"). Mag alleen DALEN: een herpin die cellen
+ *  ontschuldt, verlaagt deze pin in dezelfde commit; hoger is nooit toegestaan. */
+const EXPECTED_DEBT_CELLS = 14;
 import { validateProductBaselineV2 } from './xerProductBaselineV2';
 import { XER_FIDELITY_AXES } from './xerGroundTruth';
 
@@ -41,10 +57,10 @@ function measure(f1: MeasuredCell[], f2: MeasuredCell[] | null = []): CellBaseli
   return buildCellBaseline(map, metaFor(map.keys()));
 }
 const BASE: MeasuredCell[] = [
-  { axis: 'es', id: '1/20', bucket: 'sameday' },
-  { axis: 'es', id: '1/10', bucket: 'diff' },
-  { axis: 'tf', id: '1/10', bucket: 'diff' },
-  { axis: 'lf', id: '2/7', bucket: 'missing' },
+  { axis: 'es', id: '1/20', bucket: 'sameday', minutes: 60 },
+  { axis: 'es', id: '1/10', bucket: 'diff', minutes: 1440 },
+  { axis: 'tf', id: '1/10', bucket: 'diff', minutes: 480 },
+  { axis: 'lf', id: '2/7', bucket: 'missing', minutes: null },
 ];
 /** In de synthetische meting is elke cel meetbaar, behalve wat een test expliciet blind maakt. */
 const MEASURABLE = () => true;
@@ -60,27 +76,27 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   eq('ongewijzigde meting: niets te herpinnen', compareCells(baseline, measure(BASE), MEASURABLE).improvedCells.length, 0);
 
   // (a) één cel die exact was (1/30 op ef) wordt inexact ⇒ rood met bestand/as/id.
-  const newCell = compareCells(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'sameday' }]), MEASURABLE);
+  const newCell = compareCells(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'sameday', minutes: 30 }]), MEASURABLE);
   eq('(a) één toegevoegde inexacte cel ⇒ precies die cel rood', cellGateFailures(newCell),
     [`cel was exact, nu inexact (sameday) — regel A: ${F1} as ef id 1/30`]);
 
   // (b) verslechterde emmer — volgorde exact < sameday < diff < missing (spec §5), elke stap naar
   //     rechts is rood: sameday→diff, diff→missing en sameday→missing.
   const worse = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'diff' } : cell)), MEASURABLE);
+    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'diff', minutes: 1500 } : cell)), MEASURABLE);
   eq('(b) sameday→diff ⇒ rood', cellGateFailures(worse), [`cel verslechterd sameday→diff — regel A: ${F1} as es id 1/20`]);
   const toMissing = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell)), MEASURABLE);
+    cell.axis === 'tf' ? { ...cell, bucket: 'missing', minutes: null } : cell)), MEASURABLE);
   eq('(b) diff→missing ⇒ rood', cellGateFailures(toMissing).length, 1);
   const samedayToMissing = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'missing' } : cell)), MEASURABLE);
+    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, bucket: 'missing', minutes: null } : cell)), MEASURABLE);
   eq('(b) sameday→missing ⇒ rood', cellGateFailures(samedayToMissing),
     [`cel verslechterd sameday→missing — regel A: ${F1} as es id 1/20`]);
 
   // Per cel, niet per som: één cel beter en één cel slechter op dezelfde as blijft rood.
   const swapped = compareCells(baseline, with_(cells => [
     ...cells.filter(cell => !(cell.axis === 'es' && cell.id === '1/20')),
-    { axis: 'es', id: '1/30', bucket: 'sameday' },
+    { axis: 'es', id: '1/30', bucket: 'sameday', minutes: 60 },
   ]), MEASURABLE);
   eq('gelijke som, andere cel ⇒ toch rood', cellGateFailures(swapped).length, 1);
 
@@ -89,9 +105,15 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   eq('(c) één weggehaalde cel ⇒ geen rode regels', cellGateFailures(resolved), []);
   eq('(c) één weggehaalde cel ⇒ één te herpinnen', resolved.improvedCells, [{ file: F1, axis: 'lf', id: '2/7', was: 'missing' }]);
   const milder = compareCells(baseline, with_(cells => cells.map(cell =>
-    cell.axis === 'tf' ? { ...cell, bucket: 'sameday' } : cell)), MEASURABLE);
-  eq('(c) diff→sameday ⇒ geen rode regels', cellGateFailures(milder), []);
-  eq('(c) diff→sameday ⇒ één te herpinnen', milder.improvedCells.length, 1);
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, bucket: 'sameday', minutes: 2000 } : cell)), MEASURABLE);
+  eq('(c) diff→sameday met grotere grootte ⇒ rood (groter, emmer wint niet)', [milder.largerCells.length, milder.improvedCells.length, cellGateFailures(milder).length], [1, 0, 1]);
+  const milderSmall = compareCells(baseline, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, bucket: 'sameday', minutes: 900 } : cell)), MEASURABLE);
+  eq('(c) diff→sameday met kleinere grootte ⇒ geen rode regels', cellGateFailures(milderSmall), []);
+  eq('(c) diff→sameday met kleinere grootte ⇒ één te herpinnen', milderSmall.improvedCells.length, 1);
+  const milderSame = compareCells(baseline, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, bucket: 'sameday' } : cell)), MEASURABLE);
+  eq('(c) diff→sameday met gelijke grootte ⇒ verbeterd, niet rood', [milderSame.improvedCells.length, cellGateFailures(milderSame).length], [1, 0]);
 
   // (d) een baselinecel die exact lijkt maar niet meer meetbaar is (blinder orakel) ⇒ rood, niet "verbeterd".
   const blind = (file: string, axis: string, id: string) => !(file === F1 && axis === 'lf' && id === '2/7');
@@ -108,9 +130,9 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
 
   // Herpinnen alleen zonder rode cel.
   eq('herpin met een nieuwe inexacte cel wordt geweigerd',
-    planCellRepin(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'diff' }]), MEASURABLE).allowed, false);
+    planCellRepin(baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'diff', minutes: 2880 }]), MEASURABLE).allowed, false);
   eq('herpin met een verslechterde cel wordt geweigerd',
-    planCellRepin(baseline, with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, bucket: 'missing' } : cell)), MEASURABLE).allowed, false);
+    planCellRepin(baseline, with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, bucket: 'missing', minutes: null } : cell)), MEASURABLE).allowed, false);
   const betterMeasurement = with_(cells => cells.filter(cell => cell.axis !== 'lf'));
   eq('herpin met alleen verbeteringen mag', planCellRepin(baseline, betterMeasurement, MEASURABLE).allowed, true);
   eq('na herpin is dezelfde meting groen en niets meer te herpinnen',
@@ -122,15 +144,21 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
     checks++;
     try { measure(cells); diffs.push(`build accepteert ${label}`); } catch { /* verwacht */ }
   };
-  throws('dubbele cel', [...BASE, { axis: 'es', id: '1/10', bucket: 'diff' }]);
-  throws('emmer exact', [{ axis: 'es', id: '1/1', bucket: 'exact' as MeasuredCell['bucket'] }]);
-  throws('onbekende as', [{ axis: 'xx', id: '1/1', bucket: 'diff' }]);
-  throws('id zonder project', [{ axis: 'es', id: '11', bucket: 'diff' }]);
-  throws('__proto__ als as', [{ axis: '__proto__', id: '1/1', bucket: 'diff' }]);
+  throws('dubbele cel', [...BASE, { axis: 'es', id: '1/10', bucket: 'diff', minutes: 1440 }]);
+  throws('emmer exact', [{ axis: 'es', id: '1/1', bucket: 'exact' as MeasuredCell['bucket'], minutes: null }]);
+  throws('onbekende as', [{ axis: 'xx', id: '1/1', bucket: 'diff', minutes: 1 }]);
+  throws('id zonder project', [{ axis: 'es', id: '11', bucket: 'diff', minutes: 1 }]);
+  throws('__proto__ als as', [{ axis: '__proto__', id: '1/1', bucket: 'diff', minutes: 1 }]);
+  throws('diff zonder grootte', [{ axis: 'es', id: '1/1', bucket: 'diff', minutes: null }]);
+  throws('sameday met NaN-grootte (niet te bepalen)', [{ axis: 'ef', id: '1/1', bucket: 'sameday', minutes: NaN }]);
+  throws('negatieve grootte', [{ axis: 'tf', id: '1/1', bucket: 'diff', minutes: -5 }]);
+  throws('grootte niet op 0,001', [{ axis: 'tf', id: '1/1', bucket: 'diff', minutes: 0.00049 }]);
+  throws('missing met grootte', [{ axis: 'es', id: '1/1', bucket: 'missing', minutes: 0 }]);
+  throws('drivingPath met grootte', [{ axis: 'drivingPath', id: '1/1', bucket: 'diff', minutes: 1 }]);
 
   // Een dubbele cel binnen één project wordt een foutregel (de check maakt er een XX-regel van),
   // geen exception die als stacktrace de run afbreekt.
-  const duplicate = tryBuildCellBaseline(new Map([[F1, [...BASE, { axis: 'es', id: '1/10', bucket: 'diff' as const }]]]), metaFor([F1]));
+  const duplicate = tryBuildCellBaseline(new Map([[F1, [...BASE, { axis: 'es', id: '1/10', bucket: 'diff' as const, minutes: 1440 }]]]), metaFor([F1]));
   eq('dubbele cel ⇒ nette foutregel', duplicate.error, `dubbele cel ${F1}/es/1/10`);
   eq('geldige meting ⇒ geen foutregel', tryBuildCellBaseline(new Map([[F1, BASE]]), metaFor([F1])).error, undefined);
   eq('ontbrekende drivingPath-orakelhash ⇒ foutregel', tryBuildCellBaseline(new Map([[F1, BASE]]), metaFor([])).error !== undefined, true);
@@ -165,13 +193,19 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
     if (raw === text) diffs.push(`mutatie "${label}" veranderde de tekst niet`);
     else if (parseCellBaseline(raw).problems.length === 0) diffs.push(`lezer accepteert ${label}`);
   };
-  rejects('ongesorteerde ids', text.replace('"1/10": "diff",\n        "1/20": "sameday"', '"1/20": "sameday",\n        "1/10": "diff"'));
-  rejects('onbekende emmer', text.replace('"1/20": "sameday"', '"1/20": "exact"'));
+  const cell = (bucket: string, minutes: string) => `{\n          "bucket": "${bucket}",\n          "minutes": ${minutes}\n        }`;
+  rejects('ongesorteerde ids', text.replace(`"1/10": ${cell('diff', '1440')},\n        "1/20": ${cell('sameday', '60')}`,
+    `"1/20": ${cell('sameday', '60')},\n        "1/10": ${cell('diff', '1440')}`));
+  rejects('onbekende emmer', text.replace(`"1/20": ${cell('sameday', '60')}`, `"1/20": ${cell('exact', '60')}`));
   rejects('id in verkeerde vorm', text.replace('"1/20"', '"1 20"'));
-  rejects('niet-canonieke witruimte', text.replace('"version": 1', '"version":  1'));
+  rejects('niet-canonieke witruimte', text.replace('"version": 2', '"version":  2'));
   rejects('CRLF-einde', text.replace(/\n/g, '\r\n'));
   rejects('geen LF aan het eind', text.slice(0, -1));
-  rejects('verkeerde versie', text.replace('"version": 1', '"version": 2'));
+  rejects('verkeerde versie', text.replace('"version": 2', '"version": 3'));
+  rejects('sameday zonder grootte', text.replace(`"1/20": ${cell('sameday', '60')}`, `"1/20": ${cell('sameday', 'null')}`));
+  rejects('grootte als tekst', text.replace(`"1/20": ${cell('sameday', '60')}`, `"1/20": ${cell('sameday', '"60"')}`));
+  rejects('missing met grootte', text.replace(`"2/7": ${cell('missing', 'null')}`, `"2/7": ${cell('missing', '0')}`));
+  rejects('cel als kale emmer (versie-1-vorm in een versie-2-bestand)', text.replace(`"1/20": ${cell('sameday', '60')}`, '"1/20": "sameday"'));
   rejects('ontbrekende as', text.replace(`"ef": {},\n`, ''));
   rejects('sleutel geen sha256', text.replace(F2, 'B'.repeat(64)));
   rejects('dubbele bestandssleutel', text.replace(F2, F1));
@@ -199,14 +233,153 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
         const got = Object.values(file[axis] ?? {});
         total += got.length;
         for (const bucket of CELL_BUCKETS) {
-          if (got.filter(value => value === bucket).length !== want[bucket]) mismatches.push(`${key.slice(0, 12)}/${axis}/${bucket}`);
+          if (got.filter(value => value.bucket === bucket).length !== want[bucket]) mismatches.push(`${key.slice(0, 12)}/${axis}/${bucket}`);
         }
         if (got.length !== want.deviations) mismatches.push(`${key.slice(0, 12)}/${axis}/deviations`);
       }
     }
     eq(`${CELL_BASELINE_FILE}: per entry/as/emmer aantal cellen === v2-telling`, mismatches, []);
-    console.log(`   . ${CELL_BASELINE_FILE}: ${Object.keys(cells.files).length} entries, ${total} inexacte cellen`);
+    // Pin van de grootte-ratchet op het gecommitte bestand: versie 2, en elke sameday/diff-cel op de
+    // zes assen draagt een grootte (missing/drivingPath: null). De strikte lezer eist dit al; deze
+    // pin maakt het expliciet en telt de cellen mét grootte.
+    eq(`${CELL_BASELINE_FILE} is versie ${CELL_BASELINE_VERSION}`, cells.version, 2);
+    const sizeProblems: string[] = [];
+    let sized = 0;
+    for (const [key, file] of Object.entries(cells.files)) {
+      for (const axis of CELL_AXES) {
+        for (const [id, value] of Object.entries(file[axis] ?? {})) {
+          const wantSize = cellHasMagnitude(axis, value.bucket);
+          if (wantSize && typeof value.minutes === 'number') sized++;
+          else if (wantSize || value.minutes !== null) sizeProblems.push(`${key.slice(0, 12)}/${axis}/${id}`);
+        }
+      }
+    }
+    eq(`${CELL_BASELINE_FILE}: grootte op precies de sameday/diff-cellen van de zes assen`, sizeProblems.slice(0, 5), []);
+    console.log(`   . ${CELL_BASELINE_FILE}: ${Object.keys(cells.files).length} entries, ${total} inexacte cellen, ${sized} met grootte`);
+    // Ratchet-schuld: gepind aantal, alleen omlaag.
+    eq(`${CELL_BASELINE_FILE}: ratchet-schuld = ${EXPECTED_DEBT_CELLS} cellen (alleen dalen)`, debtCount(cells.ratchetDebt), EXPECTED_DEBT_CELLS);
   }
+}
+
+// ── 3. Grootte-ratchet (versie 2) ─────────────────────────────────────────────────────────────
+{
+  // Grootte: |ours − truth| in minuten; datum-assen in wandklok, float-assen in floatminuten.
+  eq('grootte datum-as sameday: 08:00 vs 10:30 ⇒ 150 min', cellMagnitude('es', 'sameday', '2026-03-02T08:00', '2026-03-02T10:30'), 150);
+  eq('grootte datum-as diff over maandgrens ⇒ 1440 min', cellMagnitude('lf', 'diff', '2026-03-01T17:00', '2026-02-28T17:00'), 1440);
+  eq('grootte datum-as diff over jaargrens ⇒ absolute waarde', cellMagnitude('ef', 'diff', '2025-12-31T23:00', '2026-01-01T01:00'), 120);
+  eq('grootte float-as: tf 2400 vs 1920 ⇒ 480 min', cellMagnitude('tf', 'diff', 2400, 1920), 480);
+  eq('grootte float-as: drijvende-kommaruis afgerond op 0,001', cellMagnitude('ff', 'diff', 0.1 + 0.2, 0), 0.3);
+  eq('grootte missing ⇒ null', cellMagnitude('es', 'missing', null, '2026-03-02T08:00'), null);
+  eq('grootte drivingPath ⇒ null', cellMagnitude('drivingPath', 'diff', true, false), null);
+  eq('grootte niet-canonieke minuut ⇒ niet te bepalen', cellMagnitude('es', 'diff', '2026-03-02T08:00', '2026-03-02 08:00'), undefined);
+  eq('grootte ongeldige datum ⇒ niet te bepalen', cellMagnitude('es', 'diff', '2026-02-30T08:00', '2026-03-02T08:00'), undefined);
+
+  // Bestand-in-geheugen: één cel wordt binnen dezelfde emmer groter ⇒ rood; kleiner ⇒ verbeterd-grootte.
+  const pinned = measure(BASE);
+  const pinnedText = serializeCellBaseline(pinned);
+  const reread = parseCellBaseline(pinnedText).baseline!;
+  const larger = compareCells(reread, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 1441 } : cell)), MEASURABLE);
+  eq('grootte: diff 1440→1441 ⇒ precies één groter', larger.largerCells.map(ref => [ref.axis, ref.id, ref.wasMinutes, ref.nowMinutes]), [['es', '1/10', 1440, 1441]]);
+  eq('grootte: groter ⇒ rood', cellGateFailures(larger),
+    [`cel groter geworden (diff) 1440→1441 min — regel A (grootte): ${F1} as es id 1/10`]);
+  eq('grootte: groter ⇒ herpin geweigerd', planCellRepin(reread, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 1441 } : cell)), MEASURABLE).allowed, false);
+  const largerSameday = compareCells(reread, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/20' ? { ...cell, minutes: 61 } : cell)), MEASURABLE);
+  eq('grootte: sameday 60→61 ⇒ rood', cellGateFailures(largerSameday).length, 1);
+  const smaller = compareCells(reread, with_(cells => cells.map(cell =>
+    cell.axis === 'tf' ? { ...cell, minutes: 479.5 } : cell)), MEASURABLE);
+  eq('grootte: kleiner ⇒ geen rode regels', cellGateFailures(smaller), []);
+  eq('grootte: kleiner ⇒ verbeterd-grootte, niet bucket-verbeterd',
+    [smaller.smallerCells.length, smaller.improvedCells.length, smaller.largerCells.length], [1, 0, 0]);
+  eq('grootte: kleiner ⇒ herpin mag', planCellRepin(reread, with_(cells => cells.map(cell =>
+    cell.axis === 'tf' ? { ...cell, minutes: 479.5 } : cell)), MEASURABLE).allowed, true);
+  eq('grootte: één groter en één kleiner op dezelfde as ⇒ toch rood (per cel, niet per som)',
+    cellGateFailures(compareCells(reread, with_(cells => cells.map(cell =>
+      cell.axis === 'es' ? { ...cell, minutes: cell.id === '1/10' ? 1500 : 1 } : cell)), MEASURABLE)).length, 1);
+  eq('grootte: delta-regel draagt groter= en kleiner=', cellDeltaLine('p6', smaller, pinned),
+    'CELLDELTA p6 nieuw=0 verslechterd=0 groter=0 verbeterd=0 kleiner=1 onmeetbaar=0 onbekend=0 ongemeten=0 schuld=0 totaal=4');
+
+  // Versie 1 wordt geweigerd met verwijzing naar het recept; de lezer levert de emmers wel voor de herpin.
+  const v1 = `${JSON.stringify({
+    version: 1, manifestSha256: pinned.manifestSha256, axes: [...CELL_AXES], buckets: [...CELL_BUCKETS],
+    drivingPathOracle: pinned.drivingPathOracle,
+    files: Object.fromEntries(Object.entries(pinned.files).map(([key, axes]) => [key, Object.fromEntries(Object.entries(axes)
+      .map(([axis, cells]) => [axis, Object.fromEntries(Object.entries(cells).map(([id, value]) => [id, value.bucket]))]))])),
+  }, null, 2)}
+`;
+  const legacy = parseCellBaseline(v1);
+  eq('versie 1 ⇒ geweigerd met verwijzing naar het recept', legacy.problems, [CELL_V1_PROBLEM]);
+  eq('versie-1-melding noemt OPS_XER_CELLS_WRITE=1 en het recept',
+    CELL_V1_PROBLEM.includes('OPS_XER_CELLS_WRITE=1') && CELL_V1_PROBLEM.includes('OPS_XER_CELLS_V1_UPGRADE=1') && CELL_V1_PROBLEM.includes('scripts/README.md'), true);
+  eq('versie 1 ⇒ gemarkeerd als legacy', legacy.legacyV1, true);
+  eq('versie 1 ⇒ emmers voor de herpin, zonder grootte', legacy.baseline?.files[F1]?.es, {
+    '1/10': { bucket: 'diff', minutes: null }, '1/20': { bucket: 'sameday', minutes: null },
+  });
+  eq('herpin vanaf versie 1: emmer-ratchet blijft, grootte wordt niet vergeleken',
+    [compareCells(legacy.baseline!, with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, minutes: 9999 } : cell)), MEASURABLE).largerCells.length,
+      planCellRepin(legacy.baseline, with_(cells => [...cells, { axis: 'ef', id: '1/30', bucket: 'diff', minutes: 1 }]), MEASURABLE).allowed],
+    [0, false]);
+  eq('versie 1 niet canoniek ⇒ gewoon ongeldig, geen legacy', parseCellBaseline(v1.replace('"version": 1', '"version":  1')).legacyV1, undefined);
+}
+
+// ── 4. Ratchet-schuld ─────────────────────────────────────────────────────────────────────────
+{
+  // Oude kant: es 1/10 diff 1440, tf 1/10 diff 480. De eenmalige overgang: beide groeien ⇒ schuld.
+  const old = measure(BASE);
+  const grown = with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 2000 } : cell.axis === 'tf' ? { ...cell, minutes: 900 } : cell));
+  eq('schuld: zonder overgang weigert de herpin op groter', planCellRepin(old, grown, MEASURABLE).allowed, false);
+  const init = planCellRepin(old, grown, MEASURABLE, { acceptLargerAsDebt: true });
+  eq('schuld: eenmalige overgang maakt van groter schuld (reference = oud, current = nieuw)', init.allowed ? init.debt : null, {
+    [F1]: { es: { '1/10': { reference: 1440, current: 2000 } }, tf: { '1/10': { reference: 480, current: 900 } } },
+  });
+  const withDebt: CellBaseline = { ...grown, ratchetDebt: init.allowed ? init.debt : {} };
+  const text = serializeCellBaseline(withDebt);
+  const reread = parseCellBaseline(text);
+  eq('schuld: canoniek bestand met schuld wordt geaccepteerd', [reread.problems, debtCount(reread.baseline?.ratchetDebt ?? {})], [[], 2]);
+  // Een tweede overgang op een bestand MET schuld voegt niets toe: grotere cellen blijven weigeren.
+  const growAgain = with_(cells => cells.map(cell => cell.axis === 'tf' ? { ...cell, minutes: 901 } : cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 2000 } : cell));
+  eq('schuld: acceptLargerAsDebt op een bestand met schuld ⇒ geweigerd (schuld kan niet stijgen)',
+    planCellRepin(reread.baseline!, growAgain, MEASURABLE, { acceptLargerAsDebt: true }).allowed, false);
+  // Schuldcel groeit verder dan current ⇒ rood (ratchet-referentie is current).
+  eq('schuld: groter dan current ⇒ rood', cellGateFailures(compareCells(reread.baseline!, growAgain, MEASURABLE)),
+    [`cel groter geworden (diff) 900→901 min — regel A (grootte): ${F1} as tf id 1/10`]);
+  // Daalt tot ≤ reference ⇒ schuld vervalt (kleiner, te herpinnen); daalt maar blijft > reference ⇒ current schuift mee.
+  const down = with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 1440 } : cell.axis === 'tf' ? { ...cell, minutes: 700 } : cell));
+  const downDelta = compareCells(reread.baseline!, down, MEASURABLE);
+  eq('schuld: dalende schuldcellen tellen als kleiner, niet rood', [cellGateFailures(downDelta), downDelta.smallerCells.length], [[], 2]);
+  eq('schuld: ≤ reference ⇒ ontschuld; boven reference ⇒ current schuift mee', carryRatchetDebt(reread.baseline!.ratchetDebt, down), {
+    [F1]: { tf: { '1/10': { reference: 480, current: 700 } } },
+  });
+  const downPlan = planCellRepin(reread.baseline!, down, MEASURABLE);
+  eq('schuld: herpin na daling schrijft de verkleinde schuld', downPlan.allowed ? debtCount(downPlan.debt) : -1, 1);
+  // Exact geworden (cel weg) ⇒ ontschuld en verbeterd.
+  const exact = with_(cells => cells.filter(cell => cell.axis !== 'tf')
+    .map(cell => cell.axis === 'es' && cell.id === '1/10' ? { ...cell, minutes: 2000 } : cell));
+  const exactDelta = compareCells(reread.baseline!, exact, MEASURABLE);
+  eq('schuld: exact geworden ⇒ verbeterd en ontschuld',
+    [exactDelta.improvedCells.map(ref => [ref.axis, ref.id]), debtCount(carryRatchetDebt(reread.baseline!.ratchetDebt, exact))], [[['tf', '1/10']], 1]);
+  eq('schuld: delta-regel draagt schuld=', cellDeltaLine('p6', exactDelta, { ...exact, ratchetDebt: carryRatchetDebt(reread.baseline!.ratchetDebt, exact) }).includes(' schuld=1 '), true);
+  // De lezer weigert schuld die niet klopt (met de hand bewerkt).
+  const tamper = (mutate: (value: Record<string, unknown>) => void) => {
+    const json = JSON.parse(text) as Record<string, unknown>;
+    mutate(json);
+    return parseCellBaseline(`${JSON.stringify(json, null, 2)}
+`).problems.length > 0;
+  };
+  const debtOf = (json: Record<string, unknown>) => (json.ratchetDebt as Record<string, Record<string, Record<string, { reference: number; current: number }>>>)[F1]!;
+  eq('schuld: current ≠ celminuten ⇒ geweigerd', tamper(json => { debtOf(json).tf!['1/10']!.current = 800; }), true);
+  eq('schuld: reference ≥ current ⇒ geweigerd', tamper(json => { debtOf(json).tf!['1/10']!.reference = 900; }), true);
+  eq('schuld: regel zonder bijbehorende cel ⇒ geweigerd', tamper(json => { debtOf(json).es!['1/99'] = { reference: 1, current: 2 }; }), true);
+  eq('schuld: schuld op drivingPath ⇒ geweigerd', tamper(json => { debtOf(json).drivingPath = { '1/10': { reference: 1, current: 2 } }; }), true);
+  // Een versie-2-bestand zonder schuldsectie is alleen de eenmalige overgang.
+  const preDebt = `${JSON.stringify({ ...JSON.parse(serializeCellBaseline(old)), ratchetDebt: undefined }, null, 2)}
+`;
+  const pre = parseCellBaseline(preDebt);
+  eq('schuld: v2 zonder ratchetDebt ⇒ preDebt met verwijzing naar de overgang', [pre.preDebt, pre.problems], [true, [CELL_PRE_DEBT_PROBLEM]]);
 }
 
 if (diffs.length > 0) {
@@ -214,4 +387,4 @@ if (diffs.length > 0) {
   for (const diff of diffs) console.log(`XX  ${diff}`);
   process.exit(1);
 }
-console.log(`OK  fidelity-cellen (regel A): ${checks} checks groen — poortlogica mutatiebewezen, cel-baseline canoniek en in de pas met de v2-tellingen`);
+console.log(`OK  fidelity-cellen (regel A): ${checks} checks groen — poortlogica mutatiebewezen (emmer + grootte), cel-baseline versie 2 canoniek en in de pas met de v2-tellingen`);

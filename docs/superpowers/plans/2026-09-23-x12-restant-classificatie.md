@@ -58,6 +58,13 @@ met tf exact 59, en tf leeg of afwijkend 42. Van die 42 zijn er 19 van Hotel-pro
 P6-doorgerekend, geen enkele zesassige cel). Het manifest kan niet per project uitsluiten, dus CR blijft
 meetellen; dat is een vervolgpunt.
 
+**Ratchet-schuld bij B07 (2026-09-23, merge van de grootte-ratchet).** 14 Roads-cellen staan als
+`ratchetDebt` in het cellenbestand: ze liggen op de huidige motor in de emmer `diff` verder van P6 af dan
+op de motor van `d4a66772`. Voltooid CP_Phys: A15112 ls/lf, B2921 ls/lf, B2922 ls/lf; niet gestart
+CP_Phys, tf: OCEC10851, OCEC11701, OCEC20101, OCEC11741/11751/11762/11771/12121. Vermoedelijk de late
+kant van C5 plus de B07-keten (niet bewezen). Details en minuten: plan XER §9, "Ratchet-schuld
+2026-09-23". Eerste opdracht van de volgende brok; de schuld mag alleen dalen.
+
 **Bouwvolgorde op de nieuwe populatie.** B07 is nu 69 % van het restant. Een eerdere naïeve poort voor
 B07 gaf 216 verslechteringen, allemaal in DCP-03 As-Built. As-Built hoort sinds dit besluit niet meer bij
 het orakel, dus regel A ziet die verslechteringen niet meer. Het vangnet moet dan uit een corpusloze
