@@ -41,7 +41,7 @@ const BOOLEAN_KEYS = [
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
   'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor',
-  'p6LateFinishOnOwnCalendar',
+  'p6LateFinishOnOwnCalendar', 'p6AlapPositionedFromSuccessors',
 ] as const satisfies ReadonlyArray<keyof LegacySchedulingOptions>;
 
 const LAG_CALENDARS = ['predecessor', 'successor', '24hour', 'projectDefault'] as const;

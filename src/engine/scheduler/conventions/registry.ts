@@ -58,6 +58,8 @@ const SINCE_X12_BROK3 = '2026-09-23';
 /** Groep C, brok 4 (FF naar een startmijlpaal, geplande-startvloer niet voor lopende taken). */
 const SINCE_X12_BROK4 = '2026-09-23';
 const SINCE_X12_BROK6 = '2026-09-23';
+/** Groep C, brok 7 (ALAP vanuit de opvolgers, C10). */
+const SINCE_X12_BROK7 = '2026-09-23';
 
 const P6_ONLY = { p6: true, msproject: false, ops: false } as const;
 const MSP_ONLY = { p6: false, msproject: true, ops: false } as const;
@@ -75,7 +77,7 @@ function convention(
 }
 
 /** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
-  *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5; daarna C1–C3 (X12 naar nul, brok 2), C4–C6 (brok 3), C7–C8 (brok 4), C9 (brok 6). */
+  *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5; daarna C1–C3 (X12 naar nul, brok 2), C4–C6 (brok 3), C7–C8 (brok 4), C9 (brok 6), C10 (brok 7). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('preserveActualDatesInBackwardPass', 'A', P6_ONLY, false),        // A12
   convention('clampNegativeFreeFloat', 'A', P6_ONLY, false),                   // A13
@@ -107,6 +109,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6FinishFinishStartMilestoneLateFinish', 'C', P6_ONLY, false, false, SINCE_X12_BROK4), // C7
   convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', P6_ONLY, false, false, SINCE_X12_BROK4),  // C8
   convention('p6LateFinishOnOwnCalendar', 'C', P6_ONLY, false, false, SINCE_X12_BROK6),              // C9
+  convention('p6AlapPositionedFromSuccessors', 'C', P6_ONLY, false, false, SINCE_X12_BROK7),         // C10
 ];
 
 // ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
@@ -125,7 +128,7 @@ const _everyConventionNamed: Record<ConventionKey, true> = {
   p6CompletedPredecessorAtDataDate: true, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
   p6CompletedOutOfSequenceWindow: true, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
-  p6LateFinishOnOwnCalendar: true,
+  p6LateFinishOnOwnCalendar: true, p6AlapPositionedFromSuccessors: true,
 };
 export const CONVENTION_KEYS = Object.keys(_everyConventionNamed) as readonly ConventionKey[];
 type Overlap = Extract<ProjectOptionKey, ConventionKey>;

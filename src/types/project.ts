@@ -514,6 +514,29 @@ export interface SchedulingOptions {
    *    ongemeten, dus het gedrag van vóór deze conventie.
    *  - OPS: uit (de rauwe grens, het gedrag van vóór deze conventie). */
   p6LateFinishOnOwnCalendar?: boolean;
+  /** C10 — een niet-gestarte ALAP-activiteit (`constraint.type === 'ALAP'`, P6 `CS_ALAP`) op een
+   *  uurkalender krijgt als vroege finish de strengste grens die haar opvolgers met hun VROEGE datums
+   *  via de gewone achterwaartse relatiewiskunde toestaan (zonder opvolger: haar late finish), en als
+   *  vroege start die finish min haar duur — in werktijd op de minuut, niet in hele werkdagen.
+   *  Opvolgers eerst (omgekeerde topologische volgorde), zodat een keten van ALAP-taken aaneensluit;
+   *  de opvolgers zelf bewegen niet. Ondergrens: de relatiegrenzen van haar voorgangers en de
+   *  statusdatum. Haar eigen geplande venster telt niet: een ALAP-wortel start voorwaarts op de
+   *  statusdatum, niet op haar eigen anker, en de geplande-startvloer van A16 geldt niet voor haar
+   *  (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een gestarte of voltooide ALAP-taak, of een
+   *  op een dagkalender, valt buiten deze conventie en houdt de oude stap.
+   *
+   *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": de activiteit wordt zo laat
+   *    ingepland als kan zonder haar opvolgers te vertragen, dus binnen haar vrije speling. Gemeten
+   *    (classificatiebrok B12, geparkeerd in brok 5, geland in brok 7): `HarbourPointe_AssistedLiving.xer`
+   *    (P6-doorgerekend), de ALAP-keten EC1420 (startmijlpaal zonder voorganger, target 2011-06-27
+   *    07:00) → EC1430 → EC1810 (beide ALAP) → EC2090: P6 zet EC1810 op EF 2012-03-06 16:49 = de start
+   *    van EC2090, niet achter het geplande venster van EC1420. Zonder deze conventie staat EC1420 op
+   *    haar eigen target en schuift de hele keten enkele werkdagen later.
+   *  - MS Project: uit. MS Project plant ALAP vanaf de late datums van de taak (zijn eigen
+   *    ALAP-semantiek, niet gemeten tegen ons MPP-orakel); het gedrag van vóór deze conventie.
+   *  - OPS: uit (de oude stap: de vroege datums schuiven in hele werkdagen op met de vrije speling,
+   *    in topologische volgorde, ook bij een gestarte taak). */
+  p6AlapPositionedFromSuccessors?: boolean;
 }
 
 /**
@@ -546,7 +569,8 @@ export type ConventionKey =
   | 'p6InProgressStartLagElapsed'
   | 'p6FinishFinishStartMilestoneLateFinish'
   | 'p6StartedTaskIgnoresPlannedStartFloor'
-  | 'p6LateFinishOnOwnCalendar';
+  | 'p6LateFinishOnOwnCalendar'
+  | 'p6AlapPositionedFromSuccessors';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;
