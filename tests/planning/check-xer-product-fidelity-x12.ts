@@ -2600,6 +2600,28 @@ function runWrites(cells: CellState | undefined, pinnedV2: ProductBaseline, meas
   if (!refused) for (const write of plans) write();
 }
 
+
+/** Rapportage-only (scripts/xer-p6-computed.ts): splits de zesassige afwijkingen naar
+ *  `p6Computed` uit xer-corpus-p6computed.json. Raakt geen telling, poort, baseline of ratchet. */
+function printP6ComputedSplit(files: Record<string, ProductBaselineEntry>): void {
+  const path = join(HERE, 'xer-corpus-p6computed.json');
+  const bySha = new Map<string, unknown>();
+  if (existsSync(path)) {
+    const side = JSON.parse(readFileSync(path, 'utf8')) as { files: Record<string, { sha256: string; p6Computed: unknown }> };
+    for (const entry of Object.values(side.files)) bySha.set(entry.sha256, entry.p6Computed);
+  }
+  const groups = { true: { cells: 0, entries: 0 }, false: { cells: 0, entries: 0 }, unknown: { cells: 0, entries: 0 } };
+  for (const [sha, entry] of Object.entries(files)) {
+    const value = bySha.get(sha);
+    const group = value === true ? groups.true : value === false ? groups.false : groups.unknown;
+    group.cells += totalDeviations(entry);
+    group.entries++;
+  }
+  console.log(`INFO X12 split (rapportage, geen poort): P6-doorgerekend: ${groups.true.cells} cellen in ${groups.true.entries} entries`
+    + ` / niet-P6-doorgerekend: ${groups.false.cells} (${groups.false.entries} entries)`
+    + ` / onbekend: ${groups.unknown.cells} (${groups.unknown.entries} entries)`);
+}
+
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (REPORT !== undefined && !REPORT_MODES.has(REPORT)) {
   diffs.push(`onbekende OPS_XER_FIDELITY_REPORT-modus: ${REPORT}`);
@@ -2644,8 +2666,10 @@ else {
     const identityErrors = entries.reduce((total, [, entry]) => total + entry.identityErrors.length, 0);
     const scannerErrors = entries.reduce((total, [, entry]) => total + entry.scannerErrors.length, 0);
     console.log(`MEASURE ONLY X12 productfidelity: STRICT minute-exact ${entries.length} entries; ${projects} projecten; ${tasks} taken; ${deviations} zesassige afwijkingen; ${identityErrors} identiteitsfouten; ${scannerErrors} scannerfouten`);
+    printP6ComputedSplit(measured.files);
   } else {
     const cells = evaluateCells(cellSink, measurableSink, measured.manifestSha256);
+    printP6ComputedSplit(measured.files);
     const entries = Object.entries(measured.files);
     const allGatePassed = entries.every(([, entry]) => entry.gatePassed === true);
     const allAxesZero = entries.every(([, entry]) => XER_FIDELITY_AXES
