@@ -65,8 +65,6 @@ interface SolverVariant {
 }
 
 interface DefaultMeasurement {
-  /** Aantal taakwaarden dat per blast-as verandert van de tegenvariant naar de gekozen XER-default. */
-  movement: AxisVector;
   chosenNegativeFloatTasks: number;
   counterfactualNegativeFloatTasks: number;
 }
@@ -78,7 +76,6 @@ interface MeasuredFile {
   oracleNegativeFloatTasks: number;
   deferredCode?: string;
   houseNegativeFloatTasks?: number;
-  xerDefaultsMovement?: AxisVector;
   xerDefaultsNegativeFloatTasks?: number;
   defaults?: Record<DefaultKey, DefaultMeasurement>;
 }
@@ -125,31 +122,11 @@ interface BaselineValueDelta {
   after: unknown;
 }
 
-const CAUSAL_FIDELITY_AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
-type CausalFidelityAxis = typeof CAUSAL_FIDELITY_AXES[number];
-type CausalCounterField = 'deviations' | 'measurable';
-interface CausalCounterRow {
-  branch: 'house' | 'xerDefaults' | 'retainedLogic' | 'preserveActualDates';
-  variant?: 'chosen' | 'counterfactual';
-  axis: CausalFidelityAxis;
-  deviations: number;
-  measurable: number;
-}
-interface CausalProductEffects {
-  version: 1;
-  axes: readonly CausalFidelityAxis[];
-  loeDataDate: {
-    fields: readonly CausalCounterField[];
-    rows: CausalCounterRow[];
-  };
-  completedProgress: {
-    fields: readonly CausalCounterField[];
-    rows: CausalCounterRow[];
-  };
-}
+/** De zes X12-assen van de defaults-fidelity (de struikeldraad "0 meetbaar op manifest-orakels"). */
+const FIDELITY_AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
 
 interface BlastRadiusBaseline {
-  version: 8;
+  version: 9;
   axes: readonly BlastAxis[];
   defaults: readonly DefaultKey[];
   deferredDefaults: typeof DEFERRED_DEFAULTS;
@@ -200,7 +177,8 @@ interface BlastRadiusBaseline {
   expectedFinishVariant: ExpectedFinishVariantBaseline;
   /** Historisch X7-dossier; de levende duration-type-regel staat als corpusloze mutatiefixture in X12. */
   legacyDurationTypeHistoricalDelta?: BaselineValueDelta[];
-  causalProductEffects?: CausalProductEffects;
+  /** Alleen in de meting (struikeldraad hieronder), NIET in het gecommitte bestand: op de
+   *  SCHEDOPTIONS-loze populatie staat geen manifest-orakel, dus elke teller is 0 meetbaar. */
   fidelity: {
     house: XerFidelityCounters;
     xerDefaults: XerFidelityCounters;
@@ -253,77 +231,6 @@ function productDerivedPopulation(population: BlastRadiusBaseline['population'])
     openedProjectsWithDefaults: population.openedProjectsWithDefaults,
     wiredProjectsWithDefaults: population.wiredProjectsWithDefaults,
     concreteProjectsCompared: population.concreteProjectsCompared,
-  };
-}
-
-function causalCounterRow(
-  branch: CausalCounterRow['branch'],
-  variant: CausalCounterRow['variant'],
-  axis: CausalFidelityAxis,
-  counters: XerFidelityCounters,
-): CausalCounterRow {
-  return {
-    branch,
-    ...(variant === undefined ? {} : { variant }),
-    axis,
-    deviations: counters[axis].deviations,
-    measurable: counters[axis].measurable,
-  };
-}
-
-/** Alleen vooraf benoemde branches en tellervelden; geen volledige files-/fidelity-subboom. */
-function causalProductEffects(baseline: Pick<BlastRadiusBaseline, 'fidelity'>): CausalProductEffects {
-  return {
-    version: 1,
-    axes: CAUSAL_FIDELITY_AXES,
-    loeDataDate: {
-      fields: ['deviations', 'measurable'],
-      rows: (['house', 'xerDefaults'] as const).flatMap(branch =>
-        CAUSAL_FIDELITY_AXES.map(axis => causalCounterRow(
-          branch, undefined, axis, baseline.fidelity[branch],
-        ))),
-    },
-    completedProgress: {
-      fields: ['deviations', 'measurable'],
-      rows: (['retainedLogic', 'preserveActualDates'] as const).flatMap(branch =>
-        (['chosen', 'counterfactual'] as const).flatMap(variant =>
-          CAUSAL_FIDELITY_AXES.map(axis => causalCounterRow(
-            branch, variant, axis, baseline.fidelity.defaults[branch][variant],
-          )))),
-    },
-  };
-}
-
-function causalProductEffectsShape(snapshot: CausalProductEffects | undefined): unknown {
-  const loeRows = snapshot?.loeDataDate?.rows ?? [];
-  const completedRows = snapshot?.completedProgress?.rows ?? [];
-  const rowKey = (row: CausalCounterRow): string =>
-    JSON.stringify([row.branch, row.variant ?? null, row.axis]);
-  return {
-    topKeys: Object.keys(snapshot ?? {}).sort(),
-    causeKeys: {
-      loeDataDate: Object.keys(snapshot?.loeDataDate ?? {}).sort(),
-      completedProgress: Object.keys(snapshot?.completedProgress ?? {}).sort(),
-    },
-    axes: snapshot?.axes,
-    fields: {
-      loeDataDate: snapshot?.loeDataDate?.fields,
-      completedProgress: snapshot?.completedProgress?.fields,
-    },
-    rowCounts: { loeDataDate: loeRows.length, completedProgress: completedRows.length },
-    branches: {
-      loeDataDate: [...new Set(loeRows.map(row => row.branch))].sort(),
-      completedProgress: [...new Set(completedRows.map(row => row.branch))].sort(),
-    },
-    variants: [...new Set(completedRows.map(row => row.variant).filter(Boolean))].sort(),
-    axisSets: {
-      loeDataDate: [...new Set(loeRows.map(row => row.axis))].sort(),
-      completedProgress: [...new Set(completedRows.map(row => row.axis))].sort(),
-    },
-    uniqueRows: {
-      loeDataDate: new Set(loeRows.map(rowKey)).size,
-      completedProgress: new Set(completedRows.map(rowKey)).size,
-    },
   };
 }
 
@@ -887,7 +794,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
         )[key].counterfactual,
       ));
       defaultMeasurements[key] = {
-        movement: movementProjects(counterfactual, chosen),
         chosenNegativeFloatTasks: negativeFloatTasks(chosen),
         counterfactualNegativeFloatTasks: negativeFloatTasks(counterfactual),
       };
@@ -913,14 +819,13 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       tasks: openedTruth.tasks.length,
       oracleNegativeFloatTasks,
       houseNegativeFloatTasks: negativeFloatTasks(house),
-      xerDefaultsMovement: movementProjects(house, xerDefaults),
       xerDefaultsNegativeFloatTasks: negativeFloatTasks(xerDefaults),
       defaults: defaultMeasurements,
     });
   }
 
   return {
-    version: 8,
+    version: 9,
     axes: BLAST_AXES,
     defaults: DEFAULT_KEYS,
     deferredDefaults: DEFERRED_DEFAULTS,
@@ -984,7 +889,7 @@ if (!existsSync(baselinePath)) {
 } else {
   const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
   eq('baselineversie en asvolgorde', { version: committed.version, axes: committed.axes }, {
-    version: 8,
+    version: 9,
     axes: BLAST_AXES,
   });
   eq('baseline bevat alle defaults los van elkaar', committed.defaults, DEFAULT_KEYS);
@@ -996,11 +901,19 @@ if (!existsSync(baselinePath)) {
   eq('iedere gemeten bestandregel pint iedere default als eigen gekozen/tegenvariant',
     committed.files.filter(file => file.state === 'measured').every(file =>
       JSON.stringify(Object.keys(file.defaults ?? {})) === JSON.stringify(DEFAULT_KEYS)), true);
-  eq('iedere gemeten bestandregel pint ook de gecombineerde XER-defaultset',
+  eq('iedere gemeten bestandregel draagt de gecombineerde XER-defaultset (negatieve-floattelling)',
     committed.files.filter(file => file.state === 'measured').every(file =>
-      Array.isArray(file.xerDefaultsMovement)
-      && file.xerDefaultsMovement.length === BLAST_AXES.length
-      && typeof file.xerDefaultsNegativeFloatTasks === 'number'), true);
+      typeof file.xerDefaultsNegativeFloatTasks === 'number'), true);
+  // Fixronde critreview integratie-eindstand (2026-09-23, orkestratorbesluit): de bewegingsvectoren
+  // (`files[].xerDefaultsMovement`, `files[].defaults[].movement`), de 0-projectie
+  // (`causalProductEffects`, 72× 0) en het `fidelity`-blok zijn uit de pin gehaald — ze werden niet
+  // vergeleken (mutant 0 → 99999 bleef groen) en maten P3-/generatorbestanden, geen P6-getrouwheid.
+  // Deze regel voorkomt dat ze via een `OPS_XER_SCHEDOPTIONS_REPORT=baseline`-kopie terugsluipen.
+  eq('geen dode pinnen: geen bewegingsvectoren, 0-projectie of fidelity-blok in het gecommitte bestand', {
+    top: ['causalProductEffects', 'fidelity'].filter(key => key in committed),
+    movement: committed.files.filter(file => 'xerDefaultsMovement' in file
+      || Object.values(file.defaults ?? {}).some(value => 'movement' in value)).map(file => file.id),
+  }, { top: [], movement: [] });
   eq('expectedFinishDates heeft een zelfstandige gekozen/tegenvariant-corpuspin',
     typeof committed.expectedFinishVariant === 'object'
     && Array.isArray(committed.expectedFinishVariant?.files)
@@ -1077,7 +990,10 @@ if (!root) {
     XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.map(item => item.field).sort());
 
   if (report === 'baseline') {
-    console.log(JSON.stringify(measured));
+    // Zonder `fidelity`: dat is alleen de bron van de struikeldraad hieronder, geen pin.
+    const pinned: Partial<BlastRadiusBaseline> = { ...measured };
+    delete pinned.fidelity;
+    console.log(JSON.stringify(pinned));
   } else if (existsSync(baselinePath)) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
     eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
@@ -1115,38 +1031,14 @@ if (!root) {
     // "afwijking t.o.v. P6" van een bestand zonder SCHEDOPTIONS is geen meetlat. Ze bewogen hier door C1/C4
     // uit (rehab-2 [4001, 3894, 3325, 3433, 4675, 2268, 70] → [3228, 3066, 3325, 3433, 3938, 2217, 70]).
     // Op de P6-populatie waren de xerDefaults-afwijkingen al 0 meetbaar, dus daar niets omhoog.
+    // Herpin 2026-09-23 (fixronde critreview integratie-eindstand): bewegingsvectoren, de
+    // `causalProductEffects`-projectie en `fidelity` zijn uit het gecommitte bestand gehaald (zie de
+    // structuurregel "geen dode pinnen" hierboven). Wat blijft is deze STRUIKELDRAAD: zodra er een
+    // manifest-orakel zonder SCHEDOPTIONS-rij bijkomt, wordt een van deze tellers > 0 en de regel rood —
+    // dan hoort er een echte meetlat bij, geen karakterisering.
     eq('defaults-fidelity telt alleen op manifest-orakels: 0 meetbaar (verwacht; geen orakel zonder SCHEDOPTIONS)',
-      (['house', 'xerDefaults'] as const).map(branch => CAUSAL_FIDELITY_AXES.map(axis => measured.fidelity[branch][axis].measurable)),
-      [CAUSAL_FIDELITY_AXES.map(() => 0), CAUSAL_FIDELITY_AXES.map(() => 0)]);
-    eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
-      shape: causalProductEffectsShape(committed.causalProductEffects),
-      measured: causalProductEffects(measured),
-    }, {
-      shape: {
-        topKeys: ['axes', 'completedProgress', 'loeDataDate', 'version'],
-        causeKeys: {
-          loeDataDate: ['fields', 'rows'],
-          completedProgress: ['fields', 'rows'],
-        },
-        axes: CAUSAL_FIDELITY_AXES,
-        fields: {
-          loeDataDate: ['deviations', 'measurable'],
-          completedProgress: ['deviations', 'measurable'],
-        },
-        rowCounts: { loeDataDate: 12, completedProgress: 24 },
-        branches: {
-          loeDataDate: ['house', 'xerDefaults'],
-          completedProgress: ['preserveActualDates', 'retainedLogic'],
-        },
-        variants: ['chosen', 'counterfactual'],
-        axisSets: {
-          loeDataDate: [...CAUSAL_FIDELITY_AXES].sort(),
-          completedProgress: [...CAUSAL_FIDELITY_AXES].sort(),
-        },
-        uniqueRows: { loeDataDate: 12, completedProgress: 24 },
-      },
-      measured: committed.causalProductEffects,
-    });
+      (['house', 'xerDefaults'] as const).map(branch => FIDELITY_AXES.map(axis => measured.fidelity[branch][axis].measurable)),
+      [FIDELITY_AXES.map(() => 0), FIDELITY_AXES.map(() => 0)]);
   }
 }
 

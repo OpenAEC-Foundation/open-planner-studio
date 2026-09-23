@@ -50,7 +50,8 @@ alleen verbetert, en zoek per resterende verslechtering uit welke P6-regel daar 
 de informatie voor een fix of een conventie. Een verbetering herpin je volgens het recept in `scripts/README.md` — in
 één commit: `OPS_XER_V2_WRITE=1`, `OPS_XER_CELLS_WRITE=1`, `OPS_XER_GATE_PINS=write`, de vangrails
 groen, en dan de twee tweede-orde pins met de hand: `xer-schedoptions-blast-radius.json`
-(`check-xer-schedule-options-corpus`; `xerDefaults`-afwijkingen alleen omlaag) en
+(`check-xer-schedule-options-corpus`; bewaakt de detectie van de lezerdefaults, geen P6-getrouwheid —
+alleen herpinnen als een detectie-/populatieteller door een bewuste wijziging beweegt) en
 `xer-task-replay-public-pin.json` (`check-xer-task-replay`, o.a. `drop-p6-relation-finish-boundary`, sinds de
 populatiewijziging van 2026-09-23 de negatieve controle i.p.v. A17;
 detectievermogen, som per as gelijk) — en commit je mét het getal in het commitbericht: "X12 15.056 → 14.312 (−744, 0 slechter)".
