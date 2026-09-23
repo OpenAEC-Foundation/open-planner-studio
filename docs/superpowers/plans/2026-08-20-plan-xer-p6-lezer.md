@@ -840,9 +840,26 @@ geland: +2/−1 (Hotel +1, rehab-2 +1 en −1). De patch staat in
   XER is dat `sched_lag_early_start_flag` (corpus: Y 40, N 8, leeg 2; Roads Y, DCP-03
   Baseline/As-Built N). C6 hoort een projectoptie uit die vlag te worden, met N = "statusdatum +
   rest-lag"; `xerScheduleOptions.ts` heeft het veld nu op `status: 'todo'`.
-- **[VERMOED] C5 zonder Progress-Override-poort.** C4 geldt niet onder Progress Override
-  (`CPMSolver.ts` bij de C4-tak), C5 kent die poort niet. Eén OZB-project heeft Progress Override;
-  niet gemeten of C5 daar anders hoort.
+- **[GEMETEN, afgesloten 2026-09-23] C5 zonder Progress-Override-poort.** C4 geldt niet onder
+  Progress Override (`CPMSolver.ts` bij de C4-tak), C5 kent die poort niet. Oracle P6 Help
+  (https://docs.oracle.com/cd/F88966_01/p6help/en/99348.htm): onder Progress Override negeert P6 de
+  netwerklogica voor voortgezette activiteiten — een poort zou het C5-punt dus op de rauwe statusdatum
+  laten staan en de relatiegrens uit open voorgangers negeren. Meting (Opus 5.5, branch
+  `claude/x12-c5-progress-override`, basis `24acf986`): in het hele corpus (93 `.xer`) heeft precies
+  één project `sched_progress_override=Y` — OZB-Start-09Dec24.xer project 10093 (OZB-14 2nd Update,
+  statusdatum 2024-12-23 08:00; oracle, included). **Risicokring = 0**: 10093 heeft drie voltooide
+  CP_Phys-taken (OZ1000 mijlpaal, OZ1010, OZ1020), hun enige voorgangers zijn zelf voltooid met FS+0
+  (OZ1000 → OZ1010 → OZ1020); geen enkele voltooide CP_Phys-taak heeft een open voorganger of een
+  positieve lag, dus met en zonder poort ligt elk punt op de rauwe statusdatum. P6 schrijft voor die
+  drie taken bovendien geen ES/EF weg (leeg), er is dus ook geen directe orakelcel. Tegenfeit
+  gebouwd en gemeten (poort `progressMode !== 'PROGRESS_OVERRIDE'` om de voorgangerlus in
+  `recordCompletedPhysicalPoint`): X12 192 → 192, `CELLDELTA p6 nieuw=0 verslechterd=0 groter=0
+  verbeterd=0 kleiner=0 onmeetbaar=0 onbekend=0 ongemeten=0 schuld=0 totaal=361` (exit 0, alleen de
+  drie verwachte nuldoelregels rood). Per bestand: 0 beter, 0 slechter, 0 groter. De vier inexacte
+  cellen van 10093 (één taak: ls/lf/tf/ff, plus drivingPath) zijn de late kant onder Progress
+  Override (C11, brok 8), niet C5. **Besluit: niet bouwen** — een poort zonder meetbaar effect is een
+  ongetoetste conventie (regel A/B). Heropenen zodra een PO-orakel een voltooide CP_Phys-taak met een
+  open voorganger of positieve lag bevat.
 
 ### Vervolgpunten manifest-etappe (populatie = P6-doorgerekend, critreview 2026-09-23)
 
