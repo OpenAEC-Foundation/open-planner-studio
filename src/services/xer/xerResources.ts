@@ -28,7 +28,7 @@ export interface XerResourceCatalog {
   readonly issues: readonly XerReadonly<XerResourceIssue>[];
 }
 
-function resourceInternalId(sourceId: string): string { return `xer-resource:${sourceId}`; }
+export function resourceInternalId(sourceId: string): string { return `xer-resource:${sourceId}`; }
 function roleInternalId(sourceId: string): string { return `xer-role:${sourceId}`; }
 function compareText(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
 function numberOf(tables: XerTables, row: XerRow, table: 'RSRC' | 'RSRCRATE' | 'ROLERATE', field: string): number | null {

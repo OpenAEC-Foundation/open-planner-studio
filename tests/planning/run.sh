@@ -379,6 +379,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Manifestveld leveledProjects (nivelleerfundament, xerManifestLeveling.ts): mechanisme zonder data,
+  # corpusloos — lezer (besluit per regel verplicht), geen invloed op de X1-telling, stand van het manifest.
+  XERMANIFESTLVL="$DIR/.xer-manifest-leveling.mjs"
+  if bundle_check "$DIR/check-xer-manifest-leveling.ts" "$XERMANIFESTLVL"; then
+    node "$XERMANIFESTLVL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.

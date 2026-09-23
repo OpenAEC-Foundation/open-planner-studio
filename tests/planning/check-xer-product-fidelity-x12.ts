@@ -43,6 +43,7 @@ import {
   filterTruthExclusions, parseExclusionPinBlock, readManifestExclusions, resolveExclusions, rewriteExclusionPin,
   type ResolvedExclusions, type XerExclusionRecord,
 } from './xerManifestExclusions';
+import { leveledSummary, readManifestLeveledProjects, resolveLeveledProjects } from './xerManifestLeveling';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
@@ -2888,6 +2889,26 @@ function printExclusionReport(exclusionSink: XerExclusionSink, changed: Readonly
     + (changed.size > 0 ? `; GEWIJZIGD t.o.v. de uitsluitingspin in ${changed.size} bestand(en) — herpin via =corpus` : ''));
 }
 
+/**
+ * Rapportage, geen poort en geen invloed op de telling: welke projecten volgens een eigenaarsbesluit door
+ * P6 genivelleerd zijn (`leveledProjects`, `xerManifestLeveling.ts`). Mechanisme zonder data; of die
+ * projecten straks met nivellering gemeten worden is eigenaarsbeslissing 2 (open). Een regel die geen
+ * project raakt is wel een harde fout: het manifest mag niets beweren over een project dat er niet is.
+ */
+function printLeveledReport(corpus: readonly XerCorpusFile[], manifest: XerCorpusManifest): void {
+  const leveled = readManifestLeveledProjects(manifest);
+  const files: Array<{ label: string; records: typeof leveled.records }> = [];
+  for (const [sha, records] of leveled.bySha) {
+    const file = corpus.find(candidate => hash(candidate.bytes) === sha);
+    const label = exclusionLabelFor(manifest, sha);
+    if (!file) { red({ kind: 'hard', text: `X12 leveledProjects: bestand ${label} ontbreekt in het corpus` }); continue; }
+    const resolved = resolveLeveledProjects(scanXerGroundTruth(file.bytes).projects, records);
+    for (const problem of resolved.problems) red({ kind: 'hard', text: `X12 ${label}: ${problem}` });
+    files.push({ label, records });
+  }
+  console.log(`INFO X12 nivellering (eigenaarsbesluit; rapportage, telt nergens mee): ${leveledSummary(files).line}`);
+}
+
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (REPORT !== undefined && !REPORT_MODES.has(REPORT)) {
   diffs.push(`onbekende OPS_XER_FIDELITY_REPORT-modus: ${REPORT}`);
@@ -2916,6 +2937,7 @@ else {
   const measured = await productBaseline(corpus, manifest, cellSink, measurableSink, exclusionSink, pinnedExclusions ?? []);
   const identityChanged = identityChangedFiles(exclusionSink);
   printExclusionReport(exclusionSink, exclusionChanged);
+  printLeveledReport(corpus, manifest);
   if (REPORT !== undefined && (process.env.OPS_XER_V2_WRITE || process.env.OPS_XER_CELLS_WRITE)) {
     diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
   }

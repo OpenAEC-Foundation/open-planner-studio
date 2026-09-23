@@ -6,7 +6,9 @@
  * (https://github.com/joniles/mpxj, LGPL-2.1, Jon Iles e.a.). Er is geen MPXJ-code overgenomen;
  * mapping, defaults, kolommatrix en terugvalrapportage zijn hier zelfstandig geïmplementeerd.
  */
-import type { ProgressMode, ProjectSchedulingOptions } from '@/types/project';
+import type {
+  LevelingPriorityKey, LevelingResourceSetting, LevelingSettings, ProgressMode, ProjectSchedulingOptions,
+} from '@/types/project';
 import type {
   XerScheduleOptionFallback,
   XerScheduleOptionsDiagnostic,
@@ -15,6 +17,7 @@ import type {
   XerScheduleOptionsSourceRow,
 } from '../importTypes';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
+import { resourceInternalId } from './xerResources';
 import { p6OptionDefaults } from '@/engine/scheduler/conventions/registry';
 
 export type {
@@ -47,13 +50,20 @@ export interface XerScheduleOptionsIndex {
   sourceRowIndexesByProject: ReadonlyMap<string, readonly number[]>;
   diagnosticsByProject: ReadonlyMap<string, readonly XerScheduleOptionsDiagnostic[]>;
   sourceArchive: XerScheduleOptionsSourceArchive;
+  /** Nivellering (fundament): RSRCLEVELLIST-rijen per `schedoptions_id`, in bronvolgorde. */
+  levelResourceRowsByScheduleOptionsId: ReadonlyMap<string, readonly XerRow[]>;
+  /** Alle `RSRC.rsrc_id`'s van het bestand (een lijstregel zonder resource valt zichtbaar weg). */
+  resourceSourceIds: ReadonlySet<string>;
+  /** `RSRCRATE.max_qty_per_hr` per resource, alleen als alle tariefrijen één en dezelfde waarde dragen. */
+  maxUnitsPerHourByResource: ReadonlyMap<string, number>;
 }
 
 export type XerScheduleOptionColumnDisposition =
   | { field: string; status: 'mapped'; target: string }
   | { field: string; status: 'ignored' | 'todo'; reason: string };
 
-const resourceLevelingReason = 'De CPM-solver voert geen resource-nivellering uit; er is in X5 geen veilige mapping.';
+const resourceLevelingReason = 'De CPM-solver voert geen resource-nivellering uit; het nivelleerfundament '
+  + '(`schedulingOptions.leveling`) leest deze instelling (nog) niet — alleen keep/all/prioriteit/resourcelijst.';
 
 /** Exhaustieve bestemming van de 27 kolommen uit de openbare corpus-union. */
 export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionColumnDisposition[] = [
@@ -63,14 +73,14 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
     status: 'todo',
     reason: 'OPS kan meerdere floatpaden berekenen maar heeft nog geen eindactiviteit-anker in het model.',
   },
-  { field: 'level_all_rsrc_flag', status: 'ignored', reason: resourceLevelingReason },
+  { field: 'level_all_rsrc_flag', status: 'mapped', target: 'schedulingOptions.leveling.levelAllResources' },
   { field: 'level_float_thrs_cnt', status: 'ignored', reason: resourceLevelingReason },
-  { field: 'level_keep_sched_date_flag', status: 'ignored', reason: resourceLevelingReason },
+  { field: 'level_keep_sched_date_flag', status: 'mapped', target: 'schedulingOptions.leveling.preserveScheduledDates' },
   { field: 'level_outer_assign_flag', status: 'ignored', reason: resourceLevelingReason },
   { field: 'level_outer_assign_priority', status: 'ignored', reason: resourceLevelingReason },
   { field: 'level_over_alloc_pct', status: 'ignored', reason: resourceLevelingReason },
   { field: 'level_within_float_flag', status: 'ignored', reason: resourceLevelingReason },
-  { field: 'levelprioritylist', status: 'ignored', reason: resourceLevelingReason },
+  { field: 'levelprioritylist', status: 'mapped', target: 'schedulingOptions.leveling.priority' },
   { field: 'limit_multiple_longest_path_calc', status: 'mapped', target: 'schedulingOptions.floatPaths.maxPaths' },
   { field: 'max_multiple_longest_path', status: 'mapped', target: 'schedulingOptions.floatPaths.maxPaths' },
   { field: 'proj_id', status: 'mapped', target: 'SCHEDOPTIONS-rijselectie per project' },
@@ -97,7 +107,11 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
     target: 'schedulingOptions.useProjectEndDateForFloat',
   },
   { field: 'schedhash', status: 'ignored', reason: 'Technische bronhash; geen planningssemantiek of stabiele OPS-identiteit.' },
-  { field: 'schedoptions_id', status: 'ignored', reason: 'Technische rij-identiteit; proj_id is de projectbinding.' },
+  {
+    field: 'schedoptions_id',
+    status: 'mapped',
+    target: 'RSRCLEVELLIST-koppeling (schedulingOptions.leveling.resources); proj_id is de projectbinding',
+  },
   { field: 'use_total_float', status: 'mapped', target: 'schedulingOptions.floatPaths.method (dialectalias)' },
   {
     field: 'use_total_float_multiple_longest_paths',
@@ -325,6 +339,32 @@ export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIn
     .filter(([projectId]) => !projectIds.has(projectId))
     .flatMap(([, rows]) => rows.map(item => item.sourceRowIndex));
 
+  const levelResourceRowsByScheduleOptionsId = new Map<string, XerRow[]>();
+  for (const row of tables.tables.get('RSRCLEVELLIST')?.rows ?? []) {
+    const scheduleOptionsId = row.cells.schedoptions_id?.trim() ?? '';
+    if (!scheduleOptionsId) continue;
+    levelResourceRowsByScheduleOptionsId.set(scheduleOptionsId, [
+      ...(levelResourceRowsByScheduleOptionsId.get(scheduleOptionsId) ?? []), row,
+    ]);
+  }
+  const resourceSourceIds = new Set((tables.tables.get('RSRC')?.rows ?? [])
+    .map(row => row.cells.rsrc_id?.trim() ?? '').filter(id => id !== ''));
+  const rateValues = new Map<string, Array<number | null>>();
+  for (const row of tables.tables.get('RSRCRATE')?.rows ?? []) {
+    const resourceId = row.cells.rsrc_id?.trim() ?? '';
+    if (!resourceId) continue;
+    rateValues.set(resourceId, [
+      ...(rateValues.get(resourceId) ?? []), parseXerNumber(row.cells.max_qty_per_hr ?? '', tables.numberFormat),
+    ]);
+  }
+  const maxUnitsPerHourByResource = new Map<string, number>();
+  for (const [resourceId, values] of rateValues) {
+    const first = values[0];
+    if (first !== null && first !== undefined && first >= 0 && values.every(value => value === first)) {
+      maxUnitsPerHourByResource.set(resourceId, first);
+    }
+  }
+
   return {
     numberFormat: tables.numberFormat,
     projectRowsById,
@@ -332,6 +372,87 @@ export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIn
     sourceRowIndexesByProject,
     diagnosticsByProject,
     sourceArchive: { rows: sourceRows, unmatchedScheduleOptionsRowIndexes, diagnostics },
+    levelResourceRowsByScheduleOptionsId,
+    resourceSourceIds,
+    maxUnitsPerHourByResource,
+  };
+}
+
+/** Scheidingsteken tussen de sleutels van `LevelPriorityList` (P6's DEL-DEL-regelovergang). */
+const LEVEL_PRIORITY_SEPARATOR = '\u007f\u007f';
+const LEVEL_PRIORITY_FIELD_RE = /^[A-Za-z0-9_]{1,64}$/;
+
+/**
+ * `SCHEDOPTIONS.LevelPriorityList` ⇒ prioriteitssleutels. Gemeten vormen (alle 48 corpusrijen met de
+ * kolom): `priority_type,ASC_BY_FIELD/ASC`, `priority_type,ASC` en `<veld>,/ASC`, elk afgesloten met
+ * DEL-DEL; meerdere sleutels volgen elkaar met hetzelfde scheidingsteken op. De richting staat na de
+ * laatste `/` (of, zonder `/`, direct na de komma); het tussenstuk (`ASC_BY_FIELD`) wordt niet
+ * geïnterpreteerd en blijft in het bronarchief. Een sleutel die niet in die vorm past valt zichtbaar
+ * terug (weggelaten), nooit stil.
+ */
+function levelPriorityValue(
+  row: XerRow,
+  fallbacks: XerScheduleOptionFallback[],
+): LevelingPriorityKey[] {
+  const out: LevelingPriorityKey[] = [];
+  for (const rawEntry of (row.cells.levelprioritylist ?? '').split(LEVEL_PRIORITY_SEPARATOR)) {
+    const entry = rawEntry.trim();
+    if (!entry) continue;
+    const comma = entry.indexOf(',');
+    const field = comma < 0 ? '' : entry.slice(0, comma).trim();
+    const rest = comma < 0 ? '' : entry.slice(comma + 1).trim();
+    const direction = rest.slice(rest.lastIndexOf('/') + 1).trim().toUpperCase();
+    if (LEVEL_PRIORITY_FIELD_RE.test(field) && (direction === 'ASC' || direction === 'DESC')) {
+      out.push({ field, direction });
+    } else {
+      reportFallback(fallbacks, row, 'levelprioritylist', entry, 'sleutel weggelaten');
+    }
+  }
+  return out;
+}
+
+/**
+ * Nivelleerinstellingen van één SCHEDOPTIONS-rij als DATA (`SchedulingOptions.leveling`, etappe
+ * P6-nivellering fundament). Leest uitsluitend invoerinstellingen: de drie `level_*`-kolommen hieronder,
+ * RSRCLEVELLIST (via `schedoptions_id`) en `RSRCRATE.max_qty_per_hr` — nooit opgeslagen rekenuitvoer
+ * (bak 4) en nooit een afleiding "is er genivelleerd". `enabled` is altijd false: P6 slaat niet op of
+ * er genivelleerd is; aanzetten is een gebruikerskeuze (eigenaarsbeslissing 1 open, onderzoek §2b).
+ * Draagt de rij geen van de drie kolommen en geen resourcelijst, dan `undefined` (geen blok).
+ */
+function levelingValue(
+  index: XerScheduleOptionsIndex,
+  row: XerRow,
+  fallbacks: XerScheduleOptionFallback[],
+): LevelingSettings | undefined {
+  const has = (field: string) => Object.prototype.hasOwnProperty.call(row.cells, field);
+  const preserveScheduledDates = retainedBooleanValue(row, 'level_keep_sched_date_flag', fallbacks);
+  const levelAllResources = retainedBooleanValue(row, 'level_all_rsrc_flag', fallbacks);
+  const priority = has('levelprioritylist') ? levelPriorityValue(row, fallbacks) : undefined;
+  const listRows = index.levelResourceRowsByScheduleOptionsId.get(row.cells.schedoptions_id?.trim() ?? '') ?? [];
+  const resources: LevelingResourceSetting[] = [];
+  const seen = new Set<string>();
+  for (const listRow of listRows) {
+    const sourceId = listRow.cells.rsrc_id?.trim() ?? '';
+    if (!index.resourceSourceIds.has(sourceId)) {
+      reportFallback(fallbacks, listRow, 'RSRCLEVELLIST.rsrc_id', sourceId, 'weggelaten (geen RSRC-rij)');
+      continue;
+    }
+    if (seen.has(sourceId)) continue;
+    seen.add(sourceId);
+    const maxUnitsPerHour = index.maxUnitsPerHourByResource.get(sourceId);
+    resources.push({
+      resourceId: resourceInternalId(sourceId),
+      ...(maxUnitsPerHour !== undefined ? { maxUnitsPerHour } : {}),
+    });
+  }
+  if (preserveScheduledDates === undefined && levelAllResources === undefined
+    && priority === undefined && listRows.length === 0) return undefined;
+  return {
+    enabled: false,
+    ...(preserveScheduledDates !== undefined ? { preserveScheduledDates } : {}),
+    ...(levelAllResources !== undefined ? { levelAllResources } : {}),
+    ...(priority !== undefined ? { priority } : {}),
+    ...(listRows.length > 0 ? { resources } : {}),
   };
 }
 
@@ -473,6 +594,9 @@ export function deriveXerScheduleOptions(
       maxPaths: limited ? Math.max(1, Math.floor(parsedMaximum ?? 10)) : taskCount,
     };
   }
+
+  const leveling = levelingValue(index, row, fallbacks);
+  if (leveling) schedulingOptions.leveling = leveling;
 
   return {
     source: 'schedoptions',

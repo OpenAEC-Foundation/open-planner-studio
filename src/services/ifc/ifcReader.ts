@@ -4,7 +4,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
-import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import { Project, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
@@ -260,7 +260,10 @@ export function readIFC(
   const schedulingProfile = profileAfterRead(extractSchedulingProfile(entities, entityMap), schedulingOptions);
   if (schedulingProfile) project.schedulingProfile = schedulingProfile;
   const projectOptions = optionKeysOnly(schedulingOptions);
-  if (projectOptions) project.schedulingOptions = projectOptions;
+  if (projectOptions) {
+    remapLevelingResourceIds(projectOptions, resourceGuidMap);
+    project.schedulingOptions = projectOptions;
+  }
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
@@ -2606,6 +2609,19 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
       const mapped = resourceGuidMap.get(ifcGuid(contour.resourceId));
       if (mapped) contour.resourceId = mapped;
     }
+  }
+}
+
+/**
+ * Nivellering (fundament): `schedulingOptions.leveling.resources[].resourceId` draagt de resource-id
+ * van het geschreven document; de lezer regenereert resource-ids, dus terugmappen via dezelfde
+ * GlobalId die `writeResource` uit de id afleidde (spiegel van `remapContourResourceIds`). Een id
+ * zonder resource in dit bestand blijft letterlijk staan (data, geen rekeninvoer).
+ */
+function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGuidMap: Map<string, string>): void {
+  for (const entry of options.leveling?.resources ?? []) {
+    const mapped = resourceGuidMap.get(ifcGuid(entry.resourceId));
+    if (mapped) entry.resourceId = mapped;
   }
 }
 

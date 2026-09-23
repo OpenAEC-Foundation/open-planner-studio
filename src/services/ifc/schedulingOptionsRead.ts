@@ -1,5 +1,6 @@
 import type {
-  BuiltInProfileId, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
+  BuiltInProfileId, LegacySchedulingOptions, LevelingPriorityKey, LevelingResourceSetting, LevelingSettings,
+  ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
 import {
   CONVENTIONS, diffAgainstBase, isBuiltInProfileId, isDefaultProfile, resolveConventions,
@@ -56,11 +57,57 @@ const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): value i
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** Bovengrenzen voor het nivelleerblok: een geldige P6-lijst is ruim kleiner (14 prioriteitssleutels;
+ *  resources hooguit de hele resourcepool). Groter ⇒ de overmaat valt weg, geen allocatie op
+ *  ongevalideerde lengtes. */
+export const MAX_LEVELING_PRIORITY_KEYS = 64;
+export const MAX_LEVELING_RESOURCES = 20_000;
+const MAX_LEVELING_ID_LENGTH = 256;
+const LEVELING_FIELD_RE = /^[A-Za-z0-9_]{1,64}$/;
+const LEVELING_DIRECTIONS = ['ASC', 'DESC'] as const;
+
+/**
+ * Het nivelleerblok (`SchedulingOptions.leveling`, etappe P6-nivellering fundament). Zelfde regels
+ * als de rest: onbekend of verkeerd getypeerd valt weg, niets wordt gerepareerd. `enabled` is verplicht
+ * (zonder geldige boolean vervalt het hele blok); ongeldige lijstelementen vallen los weg. Vaste
+ * sleutelvolgorde = de volgorde van de XER-lezer, zodat lezen → schrijven byte-identiek blijft.
+ */
+function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
+  if (!isRecord(value) || typeof value.enabled !== 'boolean') return undefined;
+  const out: LevelingSettings = { enabled: value.enabled };
+  if (typeof value.preserveScheduledDates === 'boolean') out.preserveScheduledDates = value.preserveScheduledDates;
+  if (typeof value.levelAllResources === 'boolean') out.levelAllResources = value.levelAllResources;
+  if (Array.isArray(value.priority)) {
+    const priority: LevelingPriorityKey[] = [];
+    for (const item of value.priority.slice(0, MAX_LEVELING_PRIORITY_KEYS)) {
+      if (isRecord(item) && typeof item.field === 'string' && LEVELING_FIELD_RE.test(item.field)
+        && oneOf(item.direction, LEVELING_DIRECTIONS)) {
+        priority.push({ field: item.field, direction: item.direction });
+      }
+    }
+    out.priority = priority;
+  }
+  if (Array.isArray(value.resources)) {
+    const resources: LevelingResourceSetting[] = [];
+    for (const item of value.resources.slice(0, MAX_LEVELING_RESOURCES)) {
+      if (!isRecord(item) || typeof item.resourceId !== 'string' || !item.resourceId
+        || item.resourceId.length > MAX_LEVELING_ID_LENGTH) continue;
+      resources.push({
+        resourceId: item.resourceId,
+        ...(isFiniteNumber(item.maxUnitsPerHour) && item.maxUnitsPerHour >= 0
+          ? { maxUnitsPerHour: item.maxUnitsPerHour } : {}),
+      });
+    }
+    out.resources = resources;
+  }
+  return out;
+}
+
 /** Compile-time: elke sleutel van `LegacySchedulingOptions` moet hieronder een tak hebben. */
 type HandledKeys =
   | (typeof BOOLEAN_KEYS)[number]
   | 'p6Source' | 'lagCalendar' | 'criticalDefinition' | 'totalFloatMode'
-  | 'nearCriticalThreshold' | 'floatPaths' | 'startToStartLagFrom';
+  | 'nearCriticalThreshold' | 'floatPaths' | 'startToStartLagFrom' | 'leveling';
 type MissingKeys = Exclude<keyof LegacySchedulingOptions, HandledKeys>;
 const _allKeysHandled: MissingKeys extends never ? true : MissingKeys = true;
 void _allKeysHandled;
@@ -95,6 +142,11 @@ export function sanitizeSchedulingOptions(input: unknown): LegacySchedulingOptio
           out.floatPaths = { enabled: value.enabled, method: value.method, maxPaths: value.maxPaths };
         }
         break;
+      case 'leveling': {
+        const leveling = sanitizeLeveling(value);
+        if (leveling) out.leveling = leveling;
+        break;
+      }
       default:
         if ((BOOLEAN_KEYS as readonly string[]).includes(key) && typeof value === 'boolean') {
           out[key as (typeof BOOLEAN_KEYS)[number]] = value;

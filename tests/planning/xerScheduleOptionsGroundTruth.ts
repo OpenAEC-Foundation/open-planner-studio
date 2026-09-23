@@ -4,7 +4,9 @@ import type {
   XerScheduleOptionsSourceArchive,
   XerScheduleOptionsSourceRow,
 } from '@/services/importTypes';
-import type { ConventionKey, ProgressMode, ProjectSchedulingOptions } from '@/types/project';
+import type {
+  ConventionKey, LevelingPriorityKey, LevelingResourceSetting, LevelingSettings, ProgressMode, ProjectSchedulingOptions,
+} from '@/types/project';
 
 export interface RawXerScheduleRow {
   line: number;
@@ -325,9 +327,76 @@ export function expectedXerScheduleOptions(
         : Math.max(1, Math.floor(context.taskCount ?? Number.MAX_SAFE_INTEGER)),
     };
   }
+  const leveling = expectedLeveling(scan, scheduleRow, fallbacks);
+  if (leveling) schedulingOptions.leveling = leveling;
   return {
     progressMode, schedulingOptions, conventions, source: 'schedoptions', retainedSource,
     fallbacks, diagnostics, sourceRowIndexes, sourceRows,
+  };
+}
+
+/** Y/N ⇒ boolean, leeg ⇒ afwezig, iets anders ⇒ zichtbare terugval "niet bewaard" (zelfde contract als
+ *  `sched_use_project_end_date_for_float`). */
+function optionalFlag(
+  row: XerScheduleOptionsSourceRow, field: string, fallbacks: XerScheduleOptionFallback[],
+): boolean | undefined {
+  const token = row.cells[field]?.trim() ?? '';
+  if (!token) return undefined;
+  if (token.toUpperCase() === 'Y') return true;
+  if (token.toUpperCase() === 'N') return false;
+  fallback(fallbacks, row, field, token, 'niet bewaard');
+  return undefined;
+}
+
+/**
+ * Nivelleerfundament (`SchedulingOptions.leveling`), onafhankelijk uit de rauwe tabellen: de drie
+ * `level_*`-instellingen, `LevelPriorityList` (sleutels gescheiden door DEL-DEL, vorm
+ * `veld,[tussenstuk/]richting`), RSRCLEVELLIST via `schedoptions_id` en `RSRCRATE.max_qty_per_hr` als
+ * alle tariefrijen van de resource één waarde dragen. `enabled` is altijd false (eigenaarsbeslissing 1).
+ */
+function expectedLeveling(
+  scan: RawXerScheduleScan, row: XerScheduleOptionsSourceRow, fallbacks: XerScheduleOptionFallback[],
+): LevelingSettings | undefined {
+  const preserveScheduledDates = optionalFlag(row, 'level_keep_sched_date_flag', fallbacks);
+  const levelAllResources = optionalFlag(row, 'level_all_rsrc_flag', fallbacks);
+  let priority: LevelingPriorityKey[] | undefined;
+  if (Object.prototype.hasOwnProperty.call(row.cells, 'levelprioritylist')) {
+    priority = [];
+    for (const piece of row.cells.levelprioritylist!.split('\x7f\x7f')) {
+      const entry = piece.trim();
+      if (entry === '') continue;
+      const match = /^([A-Za-z0-9_]{1,64}),(?:[^/]*\/)*\s*(ASC|DESC)\s*$/i.exec(entry);
+      if (match) priority.push({ field: match[1]!, direction: match[2]!.toUpperCase() as 'ASC' | 'DESC' });
+      else fallback(fallbacks, row, 'levelprioritylist', entry, 'sleutel weggelaten');
+    }
+  }
+  const scheduleOptionsId = row.cells.schedoptions_id?.trim() ?? '';
+  const listRows = scheduleOptionsId === '' ? [] : (scan.tables.get('RSRCLEVELLIST')?.rows ?? [])
+    .filter(listRow => (listRow.cells.schedoptions_id?.trim() ?? '') === scheduleOptionsId);
+  const knownResources = new Set((scan.tables.get('RSRC')?.rows ?? []).map(resource => resource.cells.rsrc_id?.trim() ?? ''));
+  const resources: LevelingResourceSetting[] = [];
+  for (const listRow of listRows) {
+    const id = listRow.cells.rsrc_id?.trim() ?? '';
+    if (id === '' || !knownResources.has(id)) {
+      fallbacks.push({ field: 'RSRCLEVELLIST.rsrc_id', token: id, fallback: 'weggelaten (geen RSRC-rij)', line: listRow.line });
+      continue;
+    }
+    if (resources.some(entry => entry.resourceId === `xer-resource:${id}`)) continue;
+    const rates = (scan.tables.get('RSRCRATE')?.rows ?? [])
+      .filter(rate => (rate.cells.rsrc_id?.trim() ?? '') === id)
+      .map(rate => rawNumber(rate.cells.max_qty_per_hr ?? ''));
+    const single = rates.length > 0 && rates[0] !== null && rates[0]! >= 0 && rates.every(rate => rate === rates[0])
+      ? rates[0]! : undefined;
+    resources.push({ resourceId: `xer-resource:${id}`, ...(single !== undefined ? { maxUnitsPerHour: single } : {}) });
+  }
+  if (preserveScheduledDates === undefined && levelAllResources === undefined && priority === undefined
+    && listRows.length === 0) return undefined;
+  return {
+    enabled: false,
+    ...(preserveScheduledDates !== undefined ? { preserveScheduledDates } : {}),
+    ...(levelAllResources !== undefined ? { levelAllResources } : {}),
+    ...(priority !== undefined ? { priority } : {}),
+    ...(listRows.length > 0 ? { resources } : {}),
   };
 }
 

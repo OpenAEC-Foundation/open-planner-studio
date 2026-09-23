@@ -9,6 +9,7 @@ import {
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { parseXerTables } from '@/services/xer/xerTables';
+import { expectedXerScheduleOptions, scanRawXerScheduleOptions } from './xerScheduleOptionsGroundTruth';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
@@ -1103,6 +1104,89 @@ eq('X5: het optieblok na lezen draagt alleen projectopties',
   eq('sched_lag_early_start_flag is een gemapte kolom (X5-status niet meer todo)',
     XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === 'sched_lag_early_start_flag'),
     { field: 'sched_lag_early_start_flag', status: 'mapped', target: 'schedulingOptions.startToStartLagFrom' });
+}
+
+// Nivelleerfundament (`SchedulingOptions.leveling`, onderzoek 2026-09-24 §7 stap 1): de instellingen als
+// DATA, nooit rekeninvoer. Mutanten: `enabled` uit `level_*` afleiden ⇒ rood ("enabled altijd false");
+// DEL-DEL niet splitsen ⇒ rood (twee sleutels); RSRCLEVELLIST op proj_id i.p.v. schedoptions_id ⇒ rood
+// (resourcelijst); ongelijke tariefrijen toch een waarde ⇒ rood (maxUnitsPerHour afwezig).
+{
+  const DEL = '\u007f\u007f';
+  const levelXer = (schedule: Record<string, string>, extra: { list?: string[][]; rates?: string[][] } = {}) => {
+    const fields = Object.keys(schedule);
+    const lines = [
+      'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+      '%T\tPROJECT', '%F\tproj_id', '%R\tP1', '%R\tP2',
+      '%T\tSCHEDOPTIONS', `%F\tschedoptions_id\tproj_id\t${fields.join('\t')}`,
+      `%R\t8\tP1\t${fields.map(field => schedule[field]).join('\t')}`,
+      `%R\t9\tP2\t${fields.map(field => schedule[field]).join('\t')}`,
+      '%T\tRSRC', '%F\trsrc_id\trsrc_name', '%R\tR1\tPM', '%R\tR2\tUitvoerder', '%R\tR3\tKraan',
+      '%T\tRSRCRATE', '%F\trsrc_rate_id\trsrc_id\tstart_date\tmax_qty_per_hr',
+      ...(extra.rates ?? []).map(row => `%R\t${row.join('\t')}`),
+      '%T\tRSRCLEVELLIST', '%F\trsrc_level_list_id\tschedoptions_id\trsrc_id',
+      ...(extra.list ?? []).map(row => `%R\t${row.join('\t')}`),
+      '%E',
+    ];
+    return new TextEncoder().encode(lines.join('\n'));
+  };
+  const leveling = (bytes: Uint8Array, projectId = 'P1') => {
+    const derived = deriveXerScheduleOptions(parseXerTables(bytes), projectId);
+    const expected = expectedXerScheduleOptions(scanRawXerScheduleOptions(bytes), projectId);
+    eq(`nivellering ${projectId}: productlezer = onafhankelijke grondwaarheid (opties + terugvallen)`,
+      { options: derived.schedulingOptions, fallbacks: derived.fallbacks },
+      { options: expected.schedulingOptions, fallbacks: expected.fallbacks });
+    return derived;
+  };
+  const ozb = levelXer(
+    { level_keep_sched_date_flag: 'N', level_all_rsrc_flag: 'N', levelprioritylist: `early_start_date,/ASC${DEL}` },
+    { list: [['1', '8', 'R1'], ['2', '9', 'R2'], ['3', '8', 'R9'], ['4', '8', 'R1'], ['5', '8', 'R3']],
+      rates: [['10', 'R1', '2024-01-01 00:00', '1'], ['11', 'R3', '2024-01-01 00:00', '2'], ['12', 'R3', '2025-01-01 00:00', '3']] },
+  );
+  const p1 = leveling(ozb, 'P1');
+  eq('nivellering: OZB-9033-vorm ⇒ keep/all uit, ES-prioriteit, eigen resourcelijst via schedoptions_id', p1.schedulingOptions.leveling, {
+    enabled: false, preserveScheduledDates: false, levelAllResources: false,
+    priority: [{ field: 'early_start_date', direction: 'ASC' }],
+    resources: [{ resourceId: 'xer-resource:R1', maxUnitsPerHour: 1 }, { resourceId: 'xer-resource:R3' }],
+  });
+  eq('nivellering: onbekende rsrc_id in RSRCLEVELLIST valt zichtbaar weg; een dubbele stil (zelfde resource)',
+    p1.fallbacks.map(item => [item.field, item.token, item.fallback]),
+    [['RSRCLEVELLIST.rsrc_id', 'R9', 'weggelaten (geen RSRC-rij)']]);
+  eq('nivellering: elk project krijgt alleen de lijst van zijn eigen SCHEDOPTIONS-rij',
+    leveling(ozb, 'P2').schedulingOptions.leveling?.resources, [{ resourceId: 'xer-resource:R2' }]);
+
+  const many = leveling(levelXer({
+    level_keep_sched_date_flag: 'Y', level_all_rsrc_flag: 'Y',
+    levelprioritylist: `priority_type,ASC_BY_FIELD/ASC${DEL}total_float_hr_cnt,/desc${DEL}task_code,DESC${DEL}kapot${DEL},/ASC${DEL}`,
+  }));
+  eq('nivellering: meerdere sleutels in bronvolgorde, met en zonder tussenstuk, richting hoofdletterongevoelig',
+    many.schedulingOptions.leveling, {
+      enabled: false, preserveScheduledDates: true, levelAllResources: true,
+      priority: [
+        { field: 'priority_type', direction: 'ASC' }, { field: 'total_float_hr_cnt', direction: 'DESC' },
+        { field: 'task_code', direction: 'DESC' },
+      ],
+    });
+  eq('nivellering: een sleutel buiten de vorm valt zichtbaar weg (nooit stil)',
+    many.fallbacks.map(item => [item.field, item.token]), [['levelprioritylist', 'kapot'], ['levelprioritylist', ',/ASC']]);
+
+  const empty = leveling(levelXer({ level_keep_sched_date_flag: '', level_all_rsrc_flag: 'X', levelprioritylist: '' }));
+  eq('nivellering: lege lijstkolom ⇒ priority [] (P6 sorteert dan op Activity ID); lege vlag afwezig; onbekende vlag terugval',
+    { leveling: empty.schedulingOptions.leveling, fallbacks: empty.fallbacks.map(item => [item.field, item.token, item.fallback]) },
+    { leveling: { enabled: false, priority: [] }, fallbacks: [['level_all_rsrc_flag', 'X', 'niet bewaard']] });
+
+  const none = leveling(levelXer({ sched_float_type: 'FT_FF' }));
+  eq('nivellering: geen enkele level_*-kolom en geen lijst ⇒ geen blok (byte-identiek aan vóór het fundament)',
+    'leveling' in none.schedulingOptions, false);
+  eq('nivellering: enabled is altijd false — ook bij de OZB-9033-vorm (eigenaarsbeslissing 1 open)',
+    [p1, many, empty].every(result => result.schedulingOptions.leveling?.enabled === false), true);
+  eq('nivellering: de drie gelezen level_*-kolommen staan als mapped in de kolomtabel',
+    ['level_keep_sched_date_flag', 'level_all_rsrc_flag', 'levelprioritylist']
+      .map(field => XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === field)?.status),
+    ['mapped', 'mapped', 'mapped']);
+  eq('nivellering: de vijf niet-gelezen level_*-kolommen blijven gemotiveerd genegeerd',
+    ['level_float_thrs_cnt', 'level_outer_assign_flag', 'level_outer_assign_priority', 'level_over_alloc_pct', 'level_within_float_flag']
+      .map(field => XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === field)?.status),
+    ['ignored', 'ignored', 'ignored', 'ignored', 'ignored']);
 }
 
 const expectedColumns = [

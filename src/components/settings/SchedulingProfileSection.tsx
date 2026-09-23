@@ -35,14 +35,15 @@ type BuiltInNameKey = 'profiles.builtIn.ops';
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
  * eigen sjablonen, of het eigen profiel van dit project), daaronder de zesentwintig conventies en zeven van de
- * tien projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
- * kritiek, meerdere speling-paden, lag-kalender, SS-lag-variant van C6). De andere drie — `useExpectedFinishDates`,
- * `useProjectEndDateForFloat` en `p6CompletedLateFromRemainingWindow` — zijn bewust NIET bewerkbaar:
+ * elf projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
+ * kritiek, meerdere speling-paden, lag-kalender, SS-lag-variant van C6). De andere vier — `useExpectedFinishDates`,
+ * `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` en het nivelleerblok `leveling`
+ * (fundament, alleen data; de UI volgt met eigenaarsbeslissing 1) — zijn bewust NIET bewerkbaar:
  * het zijn P6-bronsignalen die de XER-lezer uit SCHEDOPTIONS zet (of die aan de P6-herkomstketen van
  * B3/B4 hangen), zonder betekenis voor een project dat niet uit P6 komt. Het blok laat ze ongemoeid
  * (elke optiewijziging spreidt de bestaande opties); alleen "Standaardopties van dit profiel
  * toepassen" vervangt alle opties door `defaultOptionsFor` (onder P6 zet dat de eerste en de laatste
- * aan; `useProjectEndDateForFloat` valt dan weg, want die komt alleen uit het bestand). Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
+ * aan; `useProjectEndDateForFloat` en `leveling` vallen dan weg, want die komen alleen uit het bestand). Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
  * herberekenen, melding "N taken verschoven"). Alleen sjablonen opslaan/verwijderen gaat direct: dat
  * is app-data, geen projectdata.
  */

@@ -117,6 +117,9 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       p6CompletedLateFromRemainingWindow: false,
       startToStartLagFrom: 'actualStart',
       useProjectEndDateForFloat: true,
+      // Nivelleerfundament: de kolom `levelprioritylist` staat in de fixture ('A-RAW', geen geldige
+      // sleutel) ⇒ een leeg prioriteitsblok met zichtbare terugval (test 3); enabled nooit true.
+      leveling: { enabled: false, priority: [] },
     },
     schedulingProfile: { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } },
   },
@@ -132,6 +135,7 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       p6CompletedLateFromRemainingWindow: true,
       startToStartLagFrom: 'earlyStart',
       useProjectEndDateForFloat: false,
+      leveling: { enabled: false, priority: [] },
     },
     schedulingProfile: builtInProfile('p6'),
   },
@@ -187,7 +191,8 @@ eq('3 retained bronvlag, onbekend enumtoken en volledige bronrij blijven per pro
   {
     source: 'schedoptions',
     retainedSource: { sched_use_project_end_date_for_float: true },
-    fallbacks: [],
+    // 'A-RAW' is geen `veld,[…/]richting`-sleutel: sinds het nivelleerfundament gelezen en zichtbaar weggelaten.
+    fallbacks: [{ field: 'levelprioritylist', token: 'A-RAW', fallback: 'sleutel weggelaten', line: 12 }],
     rows: [
       {
         table: 'PROJECT', line: 8, projectId: 'P-A',
@@ -204,7 +209,7 @@ eq('3 retained bronvlag, onbekend enumtoken en volledige bronrij blijven per pro
     retainedSource: { sched_use_project_end_date_for_float: false },
     fallbacks: [{
       field: 'sched_float_type', token: 'ST_TotalFloat', fallback: 'finish', line: 13,
-    }],
+    }, { field: 'levelprioritylist', token: 'B-RAW', fallback: 'sleutel weggelaten', line: 13 }],
     rows: [
       {
         table: 'PROJECT', line: 9, projectId: 'P-B',
@@ -537,6 +542,22 @@ if (corpusRoot && existsSync(corpusRoot)) {
       sourceRows: 2,
     })));
   for (const item of settings) console.log(`.   X5-settings ${JSON.stringify(item)}`);
+  // Nivelleerfundament (onderzoek 2026-09-24 §2a): 9033 draagt de door P6 gebruikte instellingen, maar
+  // 9045/9047/9049 exact dezelfde zonder dat P6 daar nivelleerde (§2b). De lezer leest ze dus als data
+  // en zet `enabled` nergens aan; de andere acht projecten dragen de P6-dialoogdefaults.
+  const ozbLeveling = {
+    enabled: false, preserveScheduledDates: false, levelAllResources: false,
+    priority: [{ field: 'early_start_date', direction: 'ASC' }],
+    resources: [{ resourceId: 'xer-resource:6900', maxUnitsPerHour: 1 }],
+  };
+  const dialogDefaults = {
+    enabled: false, preserveScheduledDates: true, levelAllResources: true,
+    priority: [{ field: 'priority_type', direction: 'ASC' }],
+  };
+  eq('13 openbare 15-projectenmeting: nivelleerinstellingen per project als data, enabled nergens aan',
+    (publicOpened.results as XerReadResult[]).map(result => [result.project.id, result.project.schedulingOptions?.leveling]),
+    expectedProjectIds.map(projectId => [projectId,
+      ['9033', '9045', '9047', '9049'].includes(projectId) ? ozbLeveling : dialogDefaults]));
 } else {
   console.log('OK  XER-SCHEDOPTIONS-wiring: openbare 15-projectenmeting overgeslagen (OPS_XER_CORPUS)');
 }

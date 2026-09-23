@@ -297,8 +297,9 @@ function getProjectInfo(s: AppState) {
         overrides: { ...(p.schedulingProfile?.overrides ?? {}) },
         conventions: resolveConventions(p.schedulingProfile),
       },
-      // De tien projectopties letterlijk zoals het bestand ze draagt, plus de variant van C6
-      // (`startToStartLagFrom`) altijd expliciet: afwezig rekent de solver als 'earlyStart'.
+      // De elf projectopties letterlijk zoals het bestand ze draagt, plus de variant van C6
+      // (`startToStartLagFrom`) altijd expliciet: afwezig rekent de solver als 'earlyStart'. Het
+      // nivelleerblok (`leveling`) komt zo alleen-lezen mee; het heeft (nog) geen rekeneffect.
       schedulingOptions: {
         ...(p.schedulingOptions ?? {}),
         startToStartLagFrom: p.schedulingOptions?.startToStartLagFrom ?? 'earlyStart',
@@ -1051,7 +1052,10 @@ export const readTools: McpToolDef[] = [
       '`project.schedulingProfile` is het rekenprofiel met de opgeloste conventies, ' +
       '`project.schedulingOptions` de projectopties van het bestand (alleen-lezen via de bridge); ' +
       '`startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start lag from") ' +
-      'kiest de variant van conventie `p6InProgressStartLagElapsed` en staat er altijd.',
+      'kiest de variant van conventie `p6InProgressStartLagElapsed` en staat er altijd. ' +
+      '`schedulingOptions.leveling` (alleen bij een bestand dat ze draagt, bv. een P6-XER) zijn de ' +
+      'nivelleerinstellingen van het bronbestand: gelezen en bewaard, nog NIET toegepast (`enabled` is ' +
+      'een gebruikerskeuze die nog nergens effect heeft); handmatig nivelleren blijft `planner_level_resources`.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
