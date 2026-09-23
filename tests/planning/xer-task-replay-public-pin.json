@@ -1,46 +1,46 @@
 {
   "version": 1,
   "manifestEntries": 93,
-  "selectedEntries": 9,
-  "projects": 21,
-  "tasks": 5983,
+  "selectedEntries": 8,
+  "projects": 20,
+  "tasks": 5923,
   "candidates": {
     "synthetic-zero-regression": {
       "aggregate": {
         "es": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         },
         "ef": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         },
         "ls": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         },
         "lf": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         },
         "tf": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5772
+          "unchanged": 5712
         },
         "ff": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5772
+          "unchanged": 5712
         },
         "overall": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         }
       },
       "rejected": false,
@@ -52,37 +52,37 @@
         "es": {
           "improved": 0,
           "regressed": 942,
-          "unchanged": 5019
+          "unchanged": 4959
         },
         "ef": {
           "improved": 0,
           "regressed": 942,
-          "unchanged": 5019
+          "unchanged": 4959
         },
         "ls": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         },
         "lf": {
           "improved": 0,
           "regressed": 0,
-          "unchanged": 5961
+          "unchanged": 5901
         },
         "tf": {
           "improved": 0,
           "regressed": 926,
-          "unchanged": 4846
+          "unchanged": 4786
         },
         "ff": {
           "improved": 0,
           "regressed": 309,
-          "unchanged": 5463
+          "unchanged": 5403
         },
         "overall": {
           "improved": 0,
           "regressed": 1083,
-          "unchanged": 4878
+          "unchanged": 4818
         }
       },
       "rejected": true,

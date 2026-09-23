@@ -224,38 +224,6 @@
       },
       "schemaFingerprint": "96a23d026fc67de2"
     },
-    "0611f9054a4b5663": {
-      "label": "delay-analysis-toolkit/deploy/aws-package/sample/Harbour Point DCP-03 - Baseline Programme Rev 0.xer",
-      "tasks": 60,
-      "projects": 1,
-      "counters": {
-        "es": {
-          "deviations": 0,
-          "measurable": 60
-        },
-        "ef": {
-          "deviations": 0,
-          "measurable": 60
-        },
-        "ls": {
-          "deviations": 0,
-          "measurable": 60
-        },
-        "lf": {
-          "deviations": 0,
-          "measurable": 60
-        },
-        "tf": {
-          "deviations": 0,
-          "measurable": 60
-        },
-        "ff": {
-          "deviations": 0,
-          "measurable": 60
-        }
-      },
-      "schemaFingerprint": "a5df7e105f83da06"
-    },
     "a2f3b2469e26f199": {
       "label": "P6-Viewer/XER Files/TERMINAL BUILDING-AIRPORT.xer",
       "tasks": 66,
