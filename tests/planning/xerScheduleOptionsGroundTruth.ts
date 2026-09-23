@@ -203,6 +203,8 @@ export function expectedXerScheduleOptions(
     // onafhankelijke afleiding zet 'm net als de productie-afleiding standaard aan en weer uit
     // zodra `sched_progress_override=Y` blijkt (hieronder, ná de progressMode-afleiding).
     p6CompletedLateFromRemainingWindow: true,
+    // P6-standaard "Calculate Start-to-Start lag from: Early Start"; SCHEDOPTIONS N ⇒ actualStart (hieronder).
+    startToStartLagFrom: 'earlyStart',
   };
   // De opgeloste P6-conventies (hand-lijst, spec v3.1 bijlage A): alles aan behalve de twee
   // MS Project-conventies en C1/C4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 per bestand uit PROJECT.rem_target_link_flag — óók als een project
@@ -232,6 +234,8 @@ export function expectedXerScheduleOptions(
     p6FinishFinishStartMilestoneLateFinish: true,
     p6StartedTaskIgnoresPlannedStartFloor: true,
     p6LateFinishOnOwnCalendar: true,
+    p6ProgressOverrideIgnoresStartedSuccessor: true,
+  p6FinishNotBeforeFinishFinishBound: true,
   };
   if (!scheduleRow) {
     return {
@@ -253,6 +257,9 @@ export function expectedXerScheduleOptions(
   schedulingOptions.useExpectedFinishDates = bool(
     scheduleRow, 'sched_use_expect_end_flag', true, fallbacks,
   );
+  schedulingOptions.startToStartLagFrom = bool(
+    scheduleRow, 'sched_lag_early_start_flag', true, fallbacks,
+  ) ? 'earlyStart' : 'actualStart';
   const retainedToken = scheduleRow.cells.sched_use_project_end_date_for_float?.trim() ?? '';
   let retainedSource: IndependentXerScheduleExpected['retainedSource'] = {};
   if (retainedToken.toUpperCase() === 'Y') {

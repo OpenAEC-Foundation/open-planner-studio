@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "manifestSha256": "0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605",
+  "manifestSha256": "d5bb689cb8068307ad29ee6ae46d39ba61fa162a5575ff7cd81add85b6b69b1c",
   "axes": [
     "drivingPath",
     "ef",
@@ -28,10 +28,6 @@
   "files": {
     "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": {
       "drivingPath": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": null
-        },
         "10096/130463": {
           "bucket": "diff",
           "minutes": null
@@ -182,10 +178,6 @@
         }
       },
       "ff": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 1440
-        },
         "9033/120193": {
           "bucket": "diff",
           "minutes": 480
@@ -196,10 +188,6 @@
         }
       },
       "lf": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 15840
-        },
         "9033/120184": {
           "bucket": "diff",
           "minutes": 12960
@@ -234,10 +222,6 @@
         }
       },
       "ls": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 15840
-        },
         "9033/120184": {
           "bucket": "diff",
           "minutes": 12960
@@ -272,10 +256,6 @@
         }
       },
       "tf": {
-        "10093/130424": {
-          "bucket": "diff",
-          "minutes": 2400
-        },
         "9033/120184": {
           "bucket": "diff",
           "minutes": 3360
@@ -803,31 +783,9 @@
           "minutes": null
         }
       },
-      "ef": {
-        "2666/143873": {
-          "bucket": "diff",
-          "minutes": 8160
-        },
-        "2666/144083": {
-          "bucket": "diff",
-          "minutes": 3840
-        }
-      },
+      "ef": {},
       "es": {},
-      "ff": {
-        "2666/143800": {
-          "bucket": "diff",
-          "minutes": 60
-        },
-        "2666/144004": {
-          "bucket": "diff",
-          "minutes": 60
-        },
-        "2666/144440": {
-          "bucket": "diff",
-          "minutes": 60
-        }
-      },
+      "ff": {},
       "lf": {
         "2666/146012": {
           "bucket": "sameday",
@@ -849,36 +807,9 @@
     },
     "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae": {
       "drivingPath": {},
-      "ef": {
-        "1346/85153": {
-          "bucket": "diff",
-          "minutes": 3720
-        },
-        "1346/86736": {
-          "bucket": "diff",
-          "minutes": 840
-        },
-        "1346/86737": {
-          "bucket": "diff",
-          "minutes": 840
-        }
-      },
-      "es": {
-        "1346/86736": {
-          "bucket": "diff",
-          "minutes": 840
-        }
-      },
-      "ff": {
-        "1346/85152": {
-          "bucket": "diff",
-          "minutes": 960
-        },
-        "1346/87054": {
-          "bucket": "diff",
-          "minutes": 3000
-        }
-      },
+      "ef": {},
+      "es": {},
+      "ff": {},
       "lf": {},
       "ls": {},
       "tf": {}
@@ -1264,10 +1195,6 @@
         "4408/98247": {
           "bucket": "diff",
           "minutes": 1451
-        },
-        "4408/98250": {
-          "bucket": "diff",
-          "minutes": 0
         }
       },
       "lf": {
@@ -1566,10 +1493,6 @@
         "4408/98247": {
           "bucket": "diff",
           "minutes": 1451
-        },
-        "4408/98250": {
-          "bucket": "diff",
-          "minutes": 0
         }
       }
     }

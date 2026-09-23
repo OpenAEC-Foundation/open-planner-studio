@@ -18,7 +18,7 @@ Dit ontwerp haalt die keuze uit de motor. Het onderscheidt twee dingen die v1 op
 
 - **Pakketconventies** — regels die bij een *school* horen en niet per bestand verschillen: "een
   finishmijlpaal is een grensvenster", "actuals zijn exacte broninstants", "restwerk hervat op
-  actualStart + verstreken duur". Dat zijn er vierentwintig (bijlage A: groep A-conventies + B, het ontwerp telde er vijftien; sinds 2026-09-23 plus de negen van groep C). Zij vormen
+  actualStart + verstreken duur". Dat zijn er zesentwintig (bijlage A: groep A-conventies + B, het ontwerp telde er vijftien; sinds 2026-09-23 plus de elf van groep C, C1–C9, C11, C12). Zij vormen
   het **rekenprofiel**.
 - **Reken-opties van het project** — instellingen die P6 en MS Project *per project* opslaan en die de
   lezer uit het bestand haalt: lagkalender, kritiekdefinitie en -drempel, floatformule, open einden,
@@ -48,7 +48,7 @@ vervangen).
 
 ## 3. Datamodel
 
-### 3.1 De vierentwintig conventies en het register
+### 3.1 De zesentwintig conventies en het register
 
 `SchedulingOptions` (`src/types/project.ts`) blijft het opgeloste type dat de solver leest — geen
 hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelverzamelingen benoemd:
@@ -63,17 +63,21 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
-  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans. Sinds 2026-09-23 (X12 naar nul) plus groep C (9):
+  (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans. Sinds 2026-09-23 (X12 naar nul) plus groep C (11):
   `p6CompletedPredecessorAtDataDate` (C1), `p6FreeFloatOnOwnCalendar` (C2), `p6CompletedRemainingLag` (C3),
   `p6CompletedOutOfSequenceWindow` (C4), `p6CompletedPhysicalAtDataDate` (C5), `p6InProgressStartLagElapsed`
   (C6), `p6FinishFinishStartMilestoneLateFinish` (C7), `p6StartedTaskIgnoresPlannedStartFloor` (C8),
-  `p6LateFinishOnOwnCalendar` (C9) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
-  in het docblok bij de sleutel in `src/types/project.ts`. Samen 24. (Niet te verwarren met de
+  `p6LateFinishOnOwnCalendar` (C9), `p6ProgressOverrideIgnoresStartedSuccessor` (C11),
+  `p6FinishNotBeforeFinishFinishBound` (C12; C10 = de geparkeerde ALAP) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
+  in het docblok bij de sleutel in `src/types/project.ts`. Samen 26. (Niet te verwarren met de
   taakdata-inventaris C1–C5 in bijlage A.)
-- **`ProjectOptionKey`** (9): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
+- **`ProjectOptionKey`** (10): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
   `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
   `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` (A21 —
-  hangt in de motor aan de B3/B4-keten en werkt dus alleen onder een profiel met die conventies aan).
+  hangt in de motor aan de B3/B4-keten en werkt dus alleen onder een profiel met die conventies aan),
+  en sinds 2026-09-23 `startToStartLagFrom` (`earlyStart` | `actualStart`, P6 "Calculate Start-to-Start
+  lag from", uit XER `sched_lag_early_start_flag`; kiest de variant van conventie C6 en doet niets
+  zonder C6).
   Plus `project.progressMode` als apart projectveld.
 - Typen: `ProjectSchedulingOptions = Pick<SchedulingOptions, ProjectOptionKey>`,
   `SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>`, en
@@ -99,7 +103,7 @@ interface ConventionDescriptor {
 type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
 ```
 
-Ingebouwde waarden (bijlage A): **P6** = alle vierentwintig aan (ook groep C), behalve `resumeFromActualElapsed`,
+Ingebouwde waarden (bijlage A): **P6** = alle zesentwintig aan (ook groep C), behalve `resumeFromActualElapsed`,
 `unstartedIgnoresStatusDate`, `p6UseRemainingStartForProgress` (uit; per bestand als override) en de
 groep-C-conventies C1 en C4 (sinds 2026-09-23 uit: alleen door P3-uitvoer gedragen, 0 effect op de
 P6-doorgerekende orakels);
@@ -262,7 +266,7 @@ de gedeeltelijke-blob-test: `{ p6Source, p6UseTaskPlannedStartFloor }` ⇒ allee
 - **Kiezen en bewerken**: het bestaande `CalcOptionsSection` wordt het blok *Rekenprofiel en
   reken-opties* in Projectinfo (wizard: alleen de keuzelijst, die dan `defaultOptionsFor` toepast;
   dialoog én Backstage → Projectinfo: het volledige blok): bovenaan de keuzelijst
-  (P6 / MS Project / OPS / eigen sjablonen), daaronder de vierentwintig conventies (aan/uit, met uitleg) en
+  (P6 / MS Project / OPS / eigen sjablonen), daaronder de zesentwintig conventies (aan/uit, met uitleg) en
   de bestaande projectopties. `thresholdHours` wordt niet meer weggegooid bij een bewerking. Een
   conventie wijzigen op een ingebouwd profiel maakt automatisch een eigen profiel "Kopie van P6" op
   het project (hernoembaar; "opslaan als sjabloon" zet hem in de app-lijst). Géén paneel in

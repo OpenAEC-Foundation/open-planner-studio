@@ -181,6 +181,14 @@ afwijkingen hebben met XER".)
    tellen — en C10 (ALAP, −27) blijft dan vermoedelijk geblokkeerd omdat EC1420/EC1430 via diezelfde keten
    groter worden. **Consequentie:** zolang EC1430 orakel is, kan C10 niet landen. De overige 43: 34 ALAP (C10, geparkeerd op brok 5,
    alleen landbaar mét Hotel in de meting), 7 eindmijlpalen-vloer (n=1), 2 meetrest.
+   **Beslisbaar met één manifestregel (mechanisme 23-09, branch `claude/x12-manifest-uitsluiting-taak-project`):**
+   het manifest kent nu `excludeTasks` per entry (achter een `decision` "JJJJ-MM-DD eigenaarsbesluit: …").
+   Zeg ja ⇒ `crawl-xer/HarbourPointe_AssistedLiving.xer` krijgt `excludeTasks` voor project 4408, taakcodes
+   EC1430, EC1590, EC1680, EC2060, EC2170, EC2200, EC2380, EC2410 (het kant-en-klare blok staat in
+   `scripts/README.md`, "Kant-en-klaar voor de eigenaarsvragen"). Eerlijk: de 8-taken-uitsluiting neemt
+   **33 van de 81** cellen weg (de cellen óp die 8 taken, gemeten in de proef); de andere 48 zitten op
+   andere taken en blijven meetellen, en C10 (ALAP) blijft daarmee vermoedelijk geblokkeerd (niet gemeten
+   met C10 aan). De uitsluiting lost §1d-8 dus maar gedeeltelijk op.
 9. *(beantwoord door meting 24-09 — geen eigenaarsbesluit nodig, orkestratorbesluit §1c)* **Meettolerantie:**
    EC1600 (HarbourPointe, 2 cellen) wijkt 0,00002 min af — **de rest zit aan ONZE kant** (wij rekenen
    396640,00002000004 uit `totalFloat × minutesPerDay`; het orakel zegt 396640): drijvende-kommaruis in onze
@@ -193,7 +201,9 @@ afwijkingen hebben met XER".)
     als drie gewone relaties nagebootst: 42 → 6. Nivellering is geen CPM-conventie maar een aparte P6-stap.
     Besluit nodig: 9033 buiten het nuldoel (projectniveau-uitsluiting, kent het manifest nog niet), of
     P6-nivellering als eigen etappe in de meting bouwen. Aanbeveling: buiten het nuldoel, als eigen etappe
-    ná X12. — Sample_Construction (12): één SF-lag-0-relatie waar P6 het einde één minuut ná de start van
+    ná X12. **Beslisbaar met één manifestregel (mechanisme 23-09):** zeg ja ⇒
+    `crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer` krijgt `excludeProjects: [{ projId: "9033", … }]` met een
+    `decision` (blok in `scripts/README.md`); proef: −38 zesassige cellen, −4 drivingPath. — Sample_Construction (12): één SF-lag-0-relatie waar P6 het einde één minuut ná de start van
     de voorganger zet (08:01/15:59 zijn echte P6-waarden); n=1 zonder Oracle-bron ⇒ open restant
     (onderzoek 24-09 bevestigt: motorproef 192 → 186 zonder verlies, maar de regel is niet als algemeen
     P6-gedrag te onderbouwen — drie kleine P6-testruns zouden het beslissen; jouw keus: laten staan, of
@@ -208,6 +218,14 @@ afwijkingen hebben met XER".)
     P6-uitvoer. De uitsluiting staat (X12 284 → 192) en is met één manifestregel terug te draaien; de
     policytekst wordt weer onvoorwaardelijk ("elke populatiewijziging is een eigenaarsbesluit"). Eén woord
     van jou volstaat: bevestigen of terugdraaien.
+12. **Hotel project CR (2665) is niet door P6 doorgerekend** (vervolgpunt uit de manifest-etappe 23-09;
+    `xer-corpus-p6computed.json`: p6Computed false): 0 zesassige cellen, wel 19 drivingPath-cellen (diff).
+    **Beslisbaar met één manifestregel (mechanisme 23-09):** zeg ja ⇒ `crawl-xer/Hotel_Construction_TEC.xer`
+    krijgt `excludeProjects: [{ projId: "2665", … }]` met een `decision` (blok in `scripts/README.md`); proef:
+    X12 ongewijzigd, drivingPath −19. Met §1d-8 en §1d-10 samen (proef 23-09, zelfde blokken): X12 192 →
+    121, drivingPath 169 → 146, geen cel slechter of groter; herpin via de corpusgroei-route
+    (`OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus` in één run, dan de handmatige pinplekken en
+    `OPS_XER_GATE_PINS=corpus`).
 5. *(beantwoord 23-09: "alleen die P6-bestanden", zie §1a)* **Welke orakels tellen voor het nuldoel?** (23-09, uit `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`.)
    Aantoonbaar door P6 doorgerekend (SCHEDOPTIONS-rij + `rem_late_start_date` gevuld + `driving_path_flag`
    ergens Y): Hotel_Construction_TEC, Roads_Project_TEC, HarbourPointe, Sample_Construction_TEC, TERMINAL

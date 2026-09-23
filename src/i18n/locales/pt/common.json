@@ -1261,7 +1261,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Folga livre no calendário da própria tarefa",
-      "help": "A folga livre de uma tarefa em aberto numa relação término-início sem atraso é contada no calendário da própria tarefa, não no da sucessora."
+      "help": "A folga livre de uma tarefa não iniciada é contada, por relação, no calendário da própria tarefa e não no da sucessora: para término-início, início-início e término-término, também com um atraso em tempo de trabalho no calendário da predecessora. Uma tarefa iniciada apenas para término-início sem atraso."
     },
     "p6CompletedRemainingLag": {
       "label": "O atraso decorrido de uma predecessora concluída não conta",
@@ -1290,6 +1290,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Término mais tarde no calendário próprio",
       "help": "Se o término mais tarde imposto por um sucessor cair fora do horário de trabalho da atividade, passa a ser o fim do período de trabalho anterior no calendário da própria atividade."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignora também para trás um sucessor iniciado",
+      "help": "Com Progress Override, a relação com um sucessor já iniciado não conta nas datas mais tardias nem na folga livre de um predecessor que ainda não terminou."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Término mais cedo nunca antes de um limite término-término",
+      "help": "Numa relação término-término, o término mais cedo do sucessor nunca fica, em hora de relógio, antes do limite fixado pelo predecessor. Se esse limite cair em tempo não útil do sucessor, o término passa a ser o início do período de trabalho seguinte."
     }
   },
   "profiles": {

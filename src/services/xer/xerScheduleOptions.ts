@@ -76,11 +76,7 @@ export const XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS: readonly XerScheduleOptionCol
   { field: 'proj_id', status: 'mapped', target: 'SCHEDOPTIONS-rijselectie per project' },
   { field: 'sched_calendar_on_relationship_lag', status: 'mapped', target: 'schedulingOptions.lagCalendar' },
   { field: 'sched_float_type', status: 'mapped', target: 'schedulingOptions.totalFloatMode' },
-  {
-    field: 'sched_lag_early_start_flag',
-    status: 'todo',
-    reason: 'De N-semantiek raakt voortgang en actuals; X7 moet die taakvelden eerst aan de solver leveren.',
-  },
+  { field: 'sched_lag_early_start_flag', status: 'mapped', target: 'schedulingOptions.startToStartLagFrom' },
   { field: 'sched_open_critical_flag', status: 'mapped', target: 'schedulingOptions.makeOpenEndedCritical' },
   {
     field: 'sched_outer_depend_type',
@@ -126,6 +122,7 @@ export const XER_SCHEDULING_DEFAULTS = {
     makeOpenEndedCritical: P6_OPTIONS.makeOpenEndedCritical,
     useExpectedFinishDates: P6_OPTIONS.useExpectedFinishDates,
     p6CompletedLateFromRemainingWindow: P6_OPTIONS.p6CompletedLateFromRemainingWindow,
+    startToStartLagFrom: P6_OPTIONS.startToStartLagFrom,
   },
 } as const satisfies { progressMode: ProgressMode; schedulingOptions: ProjectSchedulingOptions };
 
@@ -401,6 +398,10 @@ export function deriveXerScheduleOptions(
     }, 'finish', fallbacks),
     makeOpenEndedCritical: booleanValue(row, 'sched_open_critical_flag', false, fallbacks),
     useExpectedFinishDates: booleanValue(row, 'sched_use_expect_end_flag', true, fallbacks),
+    // P6 "Calculate Start-to-Start lag from" (Oracle P6 Help 99348): Y = Early Start (P6-standaard),
+    // N = Actual Start ("statusdatum + rest-lag"). De variant van conventie C6; leeg ⇒ Early Start.
+    startToStartLagFrom: booleanValue(row, 'sched_lag_early_start_flag', true, fallbacks)
+      ? 'earlyStart' : 'actualStart',
   };
 
   const retainedProjectEndValue = retainedBooleanValue(

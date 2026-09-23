@@ -1261,7 +1261,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Marge libre dans le calendrier de la tâche",
-      "help": "La marge libre d'une tâche ouverte sur une liaison fin-début sans décalage se compte dans le calendrier de la tâche elle-même, et non dans celui du successeur."
+      "help": "La marge libre d'une tâche non commencée se compte, pour chaque liaison, dans le calendrier de la tâche elle-même et non dans celui du successeur : pour fin-début, début-début et fin-fin, y compris avec un décalage en temps de travail sur le calendrier du prédécesseur. Une tâche commencée seulement pour fin-début sans décalage."
     },
     "p6CompletedRemainingLag": {
       "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
@@ -1290,6 +1290,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Fin au plus tard sur le calendrier propre de l'activité",
       "help": "Si la fin au plus tard imposée par un successeur tombe en dehors du temps de travail de l'activité, elle devient la fin de la période de travail précédente sur le calendrier propre de l'activité."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignore aussi en arrière un successeur commencé",
+      "help": "Avec Progress Override, la relation vers un successeur déjà commencé ne compte pas dans les dates au plus tard ni dans la marge libre d'un prédécesseur non terminé."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fin au plus tôt jamais avant une limite fin-fin",
+      "help": "Avec une relation fin-fin, la fin au plus tôt du successeur n'est jamais, en heure réelle, avant la limite fixée par le prédécesseur. Si cette limite tombe hors du temps de travail du successeur, la fin devient le début de la période de travail suivante."
     }
   },
   "profiles": {

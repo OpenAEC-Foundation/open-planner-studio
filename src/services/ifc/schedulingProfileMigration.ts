@@ -40,9 +40,14 @@ export const LEGACY_XER_ALSO_ON_X12: ReadonlySet<ConventionKey> = new Set<Conven
   // C9 (X12 brok 6, 2026-09-23): per cel gemeten tegen P6, 0 slechter (X12 350 → 308). Zelfde
   // besluitlijn als C1–C8: een oud XER-IFC rekent als een herimport.
   'p6LateFinishOnOwnCalendar',
+  // C11 (X12 brok 8, 2026-09-23): per cel gemeten tegen P6, 0 slechter (X12 284 → 280). Zelfde
+  // besluitlijn als C1–C9: een oud XER-IFC rekent als een herimport.
+  'p6ProgressOverrideIgnoresStartedSuccessor',
+  // C12 (X12 brok 8, 2026-09-23): per cel gemeten tegen P6, 0 slechter (X12 280 → 273).
+  'p6FinishNotBeforeFinishFinishBound',
 ]);
 
-/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C9 op hun P6-waarde,
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5 aan, C1–C9, C11 en C12 op hun P6-waarde,
  *  al het andere uit. */
 export function legacyXerDefault(d: ConventionDescriptor): boolean {
   if (LEGACY_XER_ALWAYS_ON.has(d.id)) return true;

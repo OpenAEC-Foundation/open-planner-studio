@@ -90,9 +90,12 @@ if (selected.has('p6')) {
     const sixAxis = goal ? goal.replace(/^.*kreeg /, '') : (x12.exit === 0 ? '0' : '?');
     // Rapportage-only splitsing naar p6Computed (scripts/xer-p6-computed.ts); geen invloed op het oordeel.
     const split = (x12.lines.find((line) => line.startsWith('INFO X12 split')) ?? '').replace(/^INFO X12 split \(rapportage, geen poort[^)]*\): /, '');
+    // Manifestuitsluiting per project/taak (eigenaarsbesluit): nooit stil — het aantal staat in de tabel.
+    const excluded = (x12.lines.find((line) => line.startsWith('INFO X12 manifestuitsluiting')) ?? '').match(/uitgesloten: (\d+) taken in (\d+) projecten/);
     record({
       profile: 'P6', part: 'X12 productfidelity (cel-poort + nuldoel)', exit: String(x12.exit),
-      counts: `zesassige afwijkingen ${sixAxis}${split ? ` (${split})` : ''}; cellen ${perAxis || '?'}`,
+      counts: `zesassige afwijkingen ${sixAxis}${split ? ` (${split})` : ''}; cellen ${perAxis || '?'}; `
+        + (excluded ? `uitgesloten ${excluded[1]} taken in ${excluded[2]} projecten` : 'uitsluitingsregel ontbreekt'),
       cells: parseCellDelta(x12.lines)?.line ?? '?',
     }, verdict);
   }

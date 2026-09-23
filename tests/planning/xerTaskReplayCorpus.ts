@@ -13,6 +13,13 @@ import {
   replayXerProductBeforeOracle,
   type XerTaskReplayCandidate,
 } from './xerTaskReplayProduct';
+import {
+  exclusionTaskKey,
+  filterSolvedExclusions,
+  filterTruthExclusions,
+  readManifestExclusions,
+  resolveExclusions,
+} from './xerManifestExclusions';
 
 export const XER_TASK_REPLAY_MEMORY_MODEL = 'one-manifest-entry-and-one-project-solve-clone-at-a-time' as const;
 
@@ -147,6 +154,9 @@ export function runXerTaskReplayCorpus(options: XerTaskReplayCorpusOptions): Xer
   const labels = listXerLabels(options.corpusRoot);
   validateInventory(labels, options.manifest);
   const selected = selectedLabels(options.corpusRoot, labels, options.manifest);
+  // Uitsluiting per project/taak (eigenaarsbesluit): dezelfde populatie als X1 en X12.
+  const exclusions = readManifestExclusions(options.manifest);
+  if (exclusions.problems.length > 0) throw new Error(`task replay: manifestuitsluitingen ongeldig: ${exclusions.problems.join('; ')}`);
   const aggregate = emptyAggregate();
   let projects = 0;
   let tasks = 0;
@@ -157,16 +167,20 @@ export function runXerTaskReplayCorpus(options: XerTaskReplayCorpusOptions): Xer
     // De kandidaatroute krijgt uitsluitend productimportdata. Pas daarna wordt het oracle aan de
     // onafhankelijke classificatiekern gekoppeld.
     const product = replayXerProductBeforeOracle(bytes, options.candidate);
-    const truth = scanXerGroundTruth(bytes);
+    const fileTruth = scanXerGroundTruth(bytes);
+    const resolved = resolveExclusions(fileTruth.tasks, exclusions.bySha.get(sha256(bytes)) ?? []);
+    if (resolved.problems.length > 0) throw new Error(`task replay ${label}: ${resolved.problems.join('; ')}`);
+    const truth = filterTruthExclusions(fileTruth, resolved);
     const replay = evaluateXerTaskReplay({
       oracle: truth,
-      baseline: product.baseline,
-      counterfactual: product.counterfactual,
-      predicate: product.predicate,
+      baseline: filterSolvedExclusions(product.baseline, resolved),
+      counterfactual: filterSolvedExclusions(product.counterfactual, resolved),
+      predicate: product.predicate.filter(log => !resolved.projects.has(log.projectId)
+        && !resolved.taskKeys.has(exclusionTaskKey(log.projectId, log.sourceTaskId))),
     });
     const entry: XerTaskReplayEntryResult = {
       label,
-      schemaFingerprint: xerSchemaFingerprint(truth),
+      schemaFingerprint: xerSchemaFingerprint(fileTruth),
       projects: new Set(truth.tasks.map(task => task.projectId)).size,
       tasks: truth.tasks.length,
       projectsSolvedSequentially: product.projectsSolvedSequentially,

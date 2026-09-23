@@ -73,7 +73,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat,
     constraintInstant, snapOnOrAfter, snapOnOrBefore, modeOf,
-    backwardFloatTrace,
+    backwardFloatTrace, completedPhysicalPoints,
   } = input;
 
   const taskResults = new Map<string, CPMTaskResult>();
@@ -212,23 +212,62 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       freeFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     } else {
       // Conventie C2 `p6FreeFloatOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
-      // voor een niet-voltooide uurtaak telt een FS-nul-lag-relatie in de kalender van de TAAK zelf
-      // (werktijd tussen haar vroege einde en de vroege start van de opvolger). `sequenceFreeFloat`
+      // voor een NIET-GESTARTE uurtaak telt de relatie-vrije-speling in de kalender van de TAAK zelf,
+      // voor FS, SS en FF: van de ONGESNAPTE relatiegrens (anker ES bij SS, EF bij FS/FF, plus de lag op
+      // de eigen kalender; ook een negatieve lag, als extrapolatie) tot de vroege opvolgerdatum (ES bij
+      // FS/SS, EF bij FF); de taak-ff is het minimum over de opvolgers. Een lag ≠ 0 telt alleen mee als de
+      // lagkalender de voorganger (= deze taak) is. Een GESTARTE (niet-voltooide) taak houdt het oude C2:
+      // alleen FS met lag 0. SF, ELAPSEDTIME- en procentlags en andere lagkalenders zijn ongemeten en
+      // houden de bestaande berekening (`sequenceFreeFloat`, opvolgerkalender). `sequenceFreeFloat`
       // (en daarmee de driving-markering) blijft ongemoeid; alleen de vrije speling van de taak
       // verandert. Een relatie zonder eigen vrije speling (bv. naar een voltooide opvolger, waarvan
       // `preserveActualDatesInBackwardPass` de grens wist) levert ook hier niets. De vroegere deeltak
       // "voltooide opvolger ⇒ ff = 0" is op 2026-09-23 verwijderd: alleen in rehab-2 (P3-uitvoer)
       // gemeten, 0 cellen effect op de P6-populatie (zelfde criterium als C1/C4).
-      const ownCalendarFs0 = so?.p6FreeFloatOnOwnCalendar === true
+      const ownCalendarFreeFloat = so?.p6FreeFloatOnOwnCalendar === true
         && cal.isHourMode && taskObj.time.completion < 1;
+      const lagOnOwnCalendar = so?.lagCalendar === undefined || so.lagCalendar === 'predecessor';
+      const ownCalendarStarted = !!taskObj.time.actualStart || taskObj.time.completion > 0;
       for (const seq of succs) {
         let ff = sequenceFreeFloat[seq.id];
-        if (ownCalendarFs0 && ff !== undefined && seq.type === 'FINISH_START'
+        if (ownCalendarFreeFloat && ff !== undefined && seq.lagPercent === undefined) {
+          const lagMinutes = typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)
+            ? seq.lagMinutes
+            : (Number.isFinite(seq.lagDays) ? seq.lagDays : 0) * cal.hoursPerDay * 60;
+          const succEarly = earlyDates.get(seq.successorId);
+          const inScope = ownCalendarStarted
+            // Letterlijk het predicaat van het oude C2 (vóór brok 9), zodat gestarte taken exact gelijk blijven.
+            ? seq.type === 'FINISH_START' && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0
+            : seq.type !== 'START_FINISH' && seq.lagUnit !== 'ELAPSEDTIME' && (lagMinutes === 0 || lagOnOwnCalendar);
+          if (inScope && succEarly && tasks.has(seq.successorId)) {
+            const fromStart = seq.type === 'START_START';
+            const toFinish = seq.type === 'FINISH_FINISH';
+            const anchor = fromStart ? early.es : early.ef;
+            const bound = lagMinutes > 0 ? cal.addWorkMinutes(anchor, lagMinutes)
+              : lagMinutes < 0 ? cal.subtractWorkMinutes(anchor, -lagMinutes) : anchor;
+            ff = cal.workMinutesBetween(bound, toFinish ? succEarly.ef : succEarly.es) / (cal.hoursPerDay * 60);
+          }
+        }
+        // Conventie C12 `p6FinishNotBeforeFinishFinishBound`, vrije-spelingkant: over een FF-relatie zonder
+        // lag telt de vrije speling in de eigen kalender tot de vroege FINISH van de opvolger (die C12 op de
+        // relatiegrens kan leggen zonder haar start te verplaatsen), niet via de afgeleide startgrens.
+        // Alleen vanuit een open voorganger (docblok).
+        if (so?.p6FinishNotBeforeFinishFinishBound === true && ff !== undefined && cal.isHourMode
+          && taskObj.time.completion < 1 && seq.type === 'FINISH_FINISH'
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
           const succEarly = earlyDates.get(seq.successorId);
-          if (succEarly && tasks.has(seq.successorId)) {
-            ff = cal.workMinutesBetween(early.ef, succEarly.es) / (cal.hoursPerDay * 60);
-          }
+          if (succEarly) ff = cal.workMinutesBetween(early.ef, succEarly.ef) / (cal.hoursPerDay * 60);
+        }
+        // Conventie C5 `p6CompletedPhysicalAtDataDate`, vrije-spelingkant (X12 brok 8): een voltooide CP_Phys-
+        // opvolger met een punt heeft geen relatiegrens (de voorwaartse pas slaat haar voorgangers over), maar
+        // staat wel op één vroeg punt. Over een FS0-relatie zonder eigen grens telt de vrije speling in de
+        // eigen kalender tot dat punt, spiegel van de late kant van C5 (docblok in `types/project.ts`). Punten
+        // bestaan alleen met C5 aan (`CPMSolver.recordCompletedPhysicalPoint`); geen aparte poort nodig.
+        if (ff === undefined && cal.isHourMode && taskObj.time.completion < 1
+          && seq.type === 'FINISH_START'
+          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+          const point = completedPhysicalPoints?.get(seq.successorId);
+          if (point) ff = cal.workMinutesBetween(early.ef, point) / (cal.hoursPerDay * 60);
         }
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
       }

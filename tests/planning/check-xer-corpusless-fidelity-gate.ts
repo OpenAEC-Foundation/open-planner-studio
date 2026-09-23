@@ -64,7 +64,7 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
-  // Manifestpinnen 2026-09-24 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
+  // Manifestpinnen 2026-09-23 (populatie, tweede toepassing van het eigenaarsbesluit van 2026-09-23,
   // handmatige reviewstap): de vier byte-identieke DCP-03-Baseline-kopieën (0611f9054a4b) zijn
   // generatoruitvoer van build_programmes.py → reader-only. Orakels 13 → 9, byte-uniek 10 → 9,
   // geselecteerd 9 → 8 (schema-dedup blijft 1), 5.961 → 5.901
@@ -72,9 +72,11 @@ const EXPECTED = {
   // Manifestpinnen 2026-09-23h (fix manifest-review, handmatige reviewstap): alleen de teksten
   // veranderden — `exclusionReason` per entry naar wat gemeten is, de policy als eenmalig besluit, en een
   // `note` bij ashspace. Rollen, `included` en de selectie zijn ongewijzigd (selectiedigests gelijk).
-  manifestRawSha256: '0793e3cdde1514b5d73129ae5c457e5f3c962f68f5bd06796a915798509c8605',
+  // HERPIN 2026-09-23i (fix critreview DCP-03, handmatige reviewstap): alleen de policytekst (geen staande
+  // generatorregel, bevestiging gevraagd) en de datums 24 → 23; rollen, `included` en selectie ongewijzigd.
+  manifestRawSha256: 'd5bb689cb8068307ad29ee6ae46d39ba61fa162a5575ff7cd81add85b6b69b1c',
   baselineRawSha256: '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2',
-  manifestProjectionSha256: 'e1c31338076c0ca6dd1081ae42287854e0f41c814fa5fa837cb3f2f9488ac6ae',
+  manifestProjectionSha256: 'aaa6d53e1cc8c63d34fade5071dddce295a1e0a92111d71d80d0c5e912023c2a',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
   oracleByteUniqueSha256: '7b9f8f4cbeb3f4f95ff5d712e9bb3a6b94881eafcfa95ac30645ceac409ef30e',
   selectedFullSha256: 'dd2b9fac2918e2268873937421eb9230110f5ffeeffa4457e65f6a5d337f69ff',
@@ -91,6 +93,43 @@ const EXPECTED = {
   tasks: 5_923,
   tasksWithAnyMeasuredAxis: 5_901,
   measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23t (integratieronde 2 — merge van claude/x12-brok9-c2-breed op brok 8 + tolerantie +
+  // manifestfix; herpinrecept met de schrijfmodi; CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0
+  // schuld=0): X12 178 → 175 (ff 18 → 15), dezelfde drie Hotel-cellen 2666/143800, 2666/144004, 2666/144440.
+  // Overige cellen en drivingPath (168) byte-identiek; replay-pin van de branch (ff 313) groen.
+  // HERPIN 2026-09-23s (X12 naar nul, brok 9 — op de branch zelf, basis brok 8 vóór de reviewfixes — C2 `p6FreeFloatOnOwnCalendar` verbreed van FS0 naar alle
+  // relatietypes en WORKTIME-lags op de voorgangerslagkalender; zelfde sleutel, geen nieuwe conventie;
+  // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0 schuld=0).
+  // X12 180 → 177 (ff 19 → 16): Hotel 2666/143800 HCSWB4Z4240, 2666/144004 HCSWB2Z2240 en 2666/144440
+  // HEPSS00020, elk ff diff 60 min → exact (meetonderzoek `2026-09-24-x12-hotel-ff-60min.md`; de eerste
+  // twee alleen samen met C12). Overige cellen en drivingPath (168) byte-identiek.
+  // HERPIN 2026-09-23r (integratieronde 2 — merge van claude/x12-manifest-policy-fix): alleen de manifestbytes
+  // (policytekst/datums) veranderen ⇒ OPS_XER_V2_WRITE=corpus + OPS_XER_CELLS_WRITE=corpus; de manifestpinnen
+  // kwamen met de merge mee, dus OPS_XER_GATE_PINS=corpus weigerde en =write schreef alleen de payload-hashes.
+  // Tellers, projectprojectie en cellen (op manifestSha256 na) byte-identiek; X12 178 ongewijzigd.
+  // HERPIN 2026-09-23q (integratieronde 2 — merge van claude/x12-tolerantie-vraag9 op brok 8;
+  // MEETTOLERANTIE, geen motorwijziging, orkestratorbesluit §1c/§1d-9): tf/ff exact als het verschil op de
+  // 0,001-minuutraster naar 0 afrondt (`FLOAT_EXACT_TOLERANCE_MIN`, fidelityCore.ts). Op de branch zelf
+  // (motor vóór brok 8): X12 192 → 190, alleen HarbourPointe 4408/EC1600 (ops 396640,00002 vs P6 396640).
+  // Op de brok-8-motor (herpinrecept met de schrijfmodi, cellen: 2 beter, 0 kleiner): X12 180 → 178
+  // (tf 48 → 47, ff 19 → 18): dezelfde twee HarbourPointe-cellen 4408/98250. Overige cellen byte-identiek.
+  // HERPIN 2026-09-23p (X12 naar nul, brok 8 — C13: de vrije-spelingkant van C5
+  // `p6CompletedPhysicalAtDataDate`, motorwijziging zonder nieuwe conventie; regel A: measure:profiles
+  // VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=1 kleiner=0 schuld=0). Over een FS0-relatie naar
+  // een voltooide CP_Phys-opvolger met punt telt de vrije speling tot dat punt. X12 181 → 180 (ff 20 → 19):
+  // Roads OCEC18201 (1346/87054, diff 3000 min → exact). Overige cellen byte-identiek.
+  // HERPIN 2026-09-23o (merge van de etappebranch met DCP-03 Baseline uit het orakel, 192, in brok 8;
+  // herpinrecept opnieuw met de schrijfmodi: CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=12
+  // kleiner=0 schuld=0). X12 192 → 181 (−11 = C11 4 + C12 7; drivingPath 169 → 168).
+  // HERPIN 2026-09-23n (X12 naar nul, brok 8 — conventie C12 `p6FinishNotBeforeFinishFinishBound`,
+  // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=7
+  // kleiner=0 schuld=0; vóór de DCP-03-merge). De vroege finish ligt in kloktijd niet vóór een
+  // FF-relatiegrens; vrije speling over FF0 tot de vroege finish van de opvolger. X12 280 → 273: Roads
+  // OCEC9761/OCEC6681/A10660/A10650, Hotel HCSWB3Z2190/HCSWB2Z6190. Overige cellen byte-identiek.
+  // HERPIN 2026-09-23m (X12 naar nul, brok 8 — conventie C11 `p6ProgressOverrideIgnoresStartedSuccessor`,
+  // motorwijziging, regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=5
+  // kleiner=0 schuld=0; vóór de DCP-03-merge). Onder Progress Override telt de relatie naar een al
+  // gestarte opvolger ook achterwaarts en in de vrije speling niet. X12 284 → 280, alles OZB 10093 OZ1030.
   // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
   // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
@@ -212,16 +251,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_876, ef: 5_869, ls: 5_867, lf: 5_871, tf: 5_663, ff: 5_690 },
+    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_665, ff: 5_697 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 23, ef: 31, ls: 33, lf: 28, tf: 49, ff: 22 },
+    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 47, ff: 15 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 25, ef: 32, ls: 34, lf: 30, tf: 49, ff: 22 },
-    drivingPath: { exact: 5_754, sameday: 0, diff: 169, missing: 0, measurable: 5_923, deviations: 169 },
+    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 47, ff: 15 },
+    drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
   },
-  productPayloadSha256: '69451b8f2fa4a384c2a6bd92c6ff6c031af9745bbbdfc72df5f2d1a939690ffc',
-  productPayloadGzipSha256: '7838445e1bb78721f885792f5dade2e223fc044d65bd0b87066a6ca4da8ff64d',
-  productProjectProjectionSha256: '7811960406bc6b6a92802b1324a4cc2864c7d19473abd623cb0dfdcd17262ad2',
+  productPayloadSha256: 'bc36c61b0487782f1083fd06a0ef530778fc115bf4a00d2b4b3c95db246c7813',
+  productPayloadGzipSha256: '262ca2ba45b73702f54434fb4e846bee69bc53d1b27ca6123d6330145074262d',
+  productProjectProjectionSha256: '50c407859c5320de4c91bb6a141dfb842e111b00f051a9fc282df82e38cad3c5',
   roles: {
     oracle: 9,
     'engine-input': 14,
@@ -831,12 +870,51 @@ if (pinMode !== undefined) {
 const firstProductLabel = Object.keys(decodedProductV2.files)[0]!;
 const multiProjectLabel = Object.entries(decodedProductV2.files)
   .find(([, entry]) => entry.projectMeasurements.length >= 2)?.[0];
-const algebraProjectLabel = Object.entries(decodedProductV2.files)
-  .find(([, entry]) => entry.projectMeasurements.some((project, index) => project.counters.es.exact > 0
-    && entry.projectMeasurements.some((candidate, candidateIndex) => candidateIndex !== index
-      && candidate.counters.es.diff > 0)))?.[0];
+/**
+ * M32 zoekt zijn donor/ontvanger breed (critreview manifestuitsluiting 2026-09-23): eerder eiste hij
+ * `es.exact > 0` in het ene en `es.diff > 0` in een ander project van dezelfde entry, en na een
+ * uitsluiting (OZB 9033, Hotel/CR) bestond die combinatie niet meer. Nu: elke multi-projectentry, elke
+ * as, twee projecten p ≠ q en een paar (exact, afwijkingsemmer) — in beide richtingen — met p[van] > 0 en
+ * q[naar] > 0. De ruil p[van]−−, p[naar]++, q[naar]−−, q[van]++ houdt per project `measurable` en per
+ * entry elke som gelijk, maar breekt per project `sameday+diff+missing = deviations`. Alleen als geen enkele
+ * entry zo'n paar heeft (b.v. alle projecten exact) valt hij terug op een overdracht p[c]−−, q[c]++ van één
+ * emmer, die per project `measurable` breekt en de entrysom houdt — ook dat is telleralgebra.
+ */
+type AlgebraBucket = 'exact' | 'sameday' | 'diff' | 'missing';
+const ALGEBRA_DEVIATION_BUCKETS: readonly AlgebraBucket[] = ['sameday', 'diff', 'missing'];
+function findAlgebraMutation(files: ProductV2['files']): { label: string; axis: Axis; donor: number; receiver: number; from: AlgebraBucket; to: AlgebraBucket | undefined } | undefined {
+  const labels = Object.keys(files).sort();
+  for (const swap of [true, false]) {
+    for (const label of labels) {
+      const projects = files[label]!.projectMeasurements;
+      if (projects.length < 2) continue;
+      for (const axis of AXES) {
+        for (let donor = 0; donor < projects.length; donor++) {
+          for (let receiver = 0; receiver < projects.length; receiver++) {
+            if (donor === receiver) continue;
+            const p = projects[donor]!.counters[axis];
+            const q = projects[receiver]!.counters[axis];
+            if (swap) {
+              for (const deviation of ALGEBRA_DEVIATION_BUCKETS) {
+                for (const [from, to] of [['exact', deviation], [deviation, 'exact']] as Array<[AlgebraBucket, AlgebraBucket]>) {
+                  if (p[from] > 0 && q[to] > 0) return { label, axis, donor, receiver, from, to };
+                }
+              }
+            } else {
+              for (const from of ['exact', ...ALGEBRA_DEVIATION_BUCKETS] as AlgebraBucket[]) {
+                if (p[from] > 0) return { label, axis, donor, receiver, from, to: undefined };
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return undefined;
+}
+const algebraMutation = findAlgebraMutation(decodedProductV2.files);
 if (!multiProjectLabel) throw new Error('product-v2-mutanten vereisen minstens een multi-projectentry');
-if (!algebraProjectLabel) throw new Error('product-v2-mutanten vereisen geschikte projecttellers');
+if (!algebraMutation) throw new Error('M32 vereist een multi-projectentry met minstens één meetbare cel');
 
 type NewMutationCase = {
   id: 'M33' | 'M34' | 'M35' | 'M36' | 'M37';
@@ -964,7 +1042,7 @@ if (singleMutant !== undefined) {
   expectRejected('M2 occurrence toevoegen', addedOccurrence, oracle, replay);
 
   const changedSha = clone(manifest);
-  changedSha.files[firstLabel]!.sha256 = `0${changedSha.files[firstLabel]!.sha256.slice(1)}`;
+  changedSha.files[firstLabel]!.sha256 = `${changedSha.files[firstLabel]!.sha256.startsWith('0') ? '1' : '0'}${changedSha.files[firstLabel]!.sha256.slice(1)}`;
   expectRejected('M3 volledige SHA wijzigen', changedSha, oracle, replay);
 
   const changedRole = clone(manifest);
@@ -1055,7 +1133,7 @@ if (singleMutant !== undefined) {
     product.files[firstProductLabel]!.projectMeasurements[0]!.taskCodeExact--;
   }), manifest, oracle);
 
-  // Herpin 2026-09-24: de manifesthash begint nu zelf met '0' (0793e3…), dus de oude mutant "eerste
+  // Herpin 2026-09-23: de manifesthash begint nu zelf met '0' (0793e3…), dus de oude mutant "eerste
   // teken → 0" was een no-op; hij flipt nu het eerste teken naar een ander hexteken.
   expectProductRejected('M24 productmanifesthash drift', withMutatedProduct(productV2, product => {
     product.manifestSha256 = `${product.manifestSha256.startsWith('0') ? '1' : '0'}${product.manifestSha256.slice(1)}`;
@@ -1153,16 +1231,19 @@ if (singleMutant !== undefined) {
     product.files[firstProductLabel]!.gatePassed = !product.files[firstProductLabel]!.gatePassed;
   }), manifest, oracle);
 
-  expectProductRejected('M32 projecttelleralgebra breken met behouden entrysom', withMutatedProduct(productV2, product => {
-    const projects = product.files[algebraProjectLabel]!.projectMeasurements;
-    const donor = projects.find(project => project.counters.es.exact > 0);
-    const receiver = projects.find(project => project !== donor && project.counters.es.diff > 0);
-    if (!donor || !receiver) throw new Error('M32 vereist twee geschikte projecttellers');
-    donor.counters.es.exact--;
-    donor.counters.es.diff++;
-    receiver.counters.es.exact++;
-    receiver.counters.es.diff--;
-  }), manifest, oracle);
+  const { label: algebraLabel, axis: algebraAxis, donor: donorIndex, receiver: receiverIndex, from, to } = algebraMutation;
+  expectProductRejected(`M32 projecttelleralgebra breken met behouden entrysom (${to ? `ruil ${from}↔${to}` : `overdracht ${from}`} op ${algebraAxis})`,
+    withMutatedProduct(productV2, product => {
+      const projects = product.files[algebraLabel]!.projectMeasurements;
+      const donor = projects[donorIndex]!.counters[algebraAxis];
+      const receiver = projects[receiverIndex]!.counters[algebraAxis];
+      donor[from]--;
+      receiver[from]++;
+      if (to) {
+        donor[to]++;
+        receiver[to]--;
+      }
+    }), manifest, oracle);
 
   for (const mutation of newMutationCases) {
     const problems = mutation.run();

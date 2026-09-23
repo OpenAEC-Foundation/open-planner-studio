@@ -1226,7 +1226,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Freier Puffer im eigenen Kalender",
-      "help": "Der freie Puffer eines offenen Vorgangs über eine Ende-Anfang-Beziehung ohne Zeitabstand zählt im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers."
+      "help": "Der freie Puffer eines nicht begonnenen Vorgangs zählt je Beziehung im Kalender des Vorgangs selbst, nicht in dem des Nachfolgers: bei Ende-Anfang, Anfang-Anfang und Ende-Ende, auch mit einem Zeitabstand in Arbeitszeit im Kalender des Vorgängers. Ein begonnener Vorgang nur bei Ende-Anfang ohne Zeitabstand."
     },
     "p6CompletedRemainingLag": {
       "label": "Verstrichener Zeitabstand eines abgeschlossenen Vorgängers zählt nicht",
@@ -1255,6 +1255,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Spätestes Ende im eigenen Kalender",
       "help": "Fällt das späteste Ende, das ein Nachfolger vorgibt, außerhalb der Arbeitszeit des Vorgangs, wird es zum Ende der vorherigen Arbeitsperiode im eigenen Kalender."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignoriert einen begonnenen Nachfolger auch rückwärts",
+      "help": "Bei Progress Override zählt die Beziehung zu einem bereits begonnenen Nachfolger nicht für die späten Termine und die freie Pufferzeit eines noch nicht abgeschlossenen Vorgängers."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Früheres Ende nicht vor einer Ende-Ende-Grenze",
+      "help": "Bei einer Ende-Ende-Beziehung liegt das frühe Ende des Nachfolgers in Uhrzeit nie vor der Grenze, die der Vorgänger setzt. Fällt diese Grenze in arbeitsfreie Zeit des Nachfolgers, wird das Ende der Beginn der nächsten Arbeitsperiode."
     }
   },
   "profiles": {

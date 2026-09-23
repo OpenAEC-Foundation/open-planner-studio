@@ -1261,7 +1261,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Holgura libre en el calendario propio",
-      "help": "La holgura libre de una tarea abierta en una relación fin-inicio sin demora se cuenta en el calendario de la propia tarea, no en el del sucesor."
+      "help": "La holgura libre de una tarea no iniciada se cuenta, por relación, en el calendario de la propia tarea y no en el del sucesor: para fin-inicio, inicio-inicio y fin-fin, también con una demora en tiempo laborable en el calendario del predecesor. Una tarea iniciada solo para fin-inicio sin demora."
     },
     "p6CompletedRemainingLag": {
       "label": "La demora transcurrida de un predecesor completado no cuenta",
@@ -1290,6 +1290,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Fin tardío en el calendario propio",
       "help": "Si el fin tardío que impone un sucesor cae fuera del horario laboral de la actividad, pasa a ser el final del período de trabajo anterior en el calendario propio."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignora también hacia atrás un sucesor iniciado",
+      "help": "Con Progress Override, la relación con un sucesor ya iniciado no cuenta en las fechas tardías ni en la holgura libre de un predecesor que no ha terminado."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fin temprano nunca antes de un límite fin-fin",
+      "help": "En una relación fin-fin, el fin temprano del sucesor nunca queda, en hora de reloj, antes del límite que fija el predecesor. Si ese límite cae en tiempo no laborable del sucesor, el fin pasa a ser el inicio del siguiente periodo de trabajo."
     }
   },
   "profiles": {

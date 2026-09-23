@@ -1261,7 +1261,7 @@
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Margine libero nel calendario dell'attività",
-      "help": "Il margine libero di un'attività aperta su un legame fine-inizio senza ritardo si calcola nel calendario dell'attività stessa, non in quello del successore."
+      "help": "Il margine libero di un'attività non iniziata si calcola, per ogni legame, nel calendario dell'attività stessa e non in quello del successore: per fine-inizio, inizio-inizio e fine-fine, anche con un ritardo in tempo lavorativo sul calendario del predecessore. Un'attività iniziata solo per fine-inizio senza ritardo."
     },
     "p6CompletedRemainingLag": {
       "label": "Il ritardo trascorso di un predecessore completato non conta",
@@ -1290,6 +1290,14 @@
     "p6LateFinishOnOwnCalendar": {
       "label": "Fine al più tardi sul calendario dell'attività",
       "help": "Se la fine al più tardi imposta da un successore cade fuori dall'orario di lavoro dell'attività, diventa la fine del periodo lavorativo precedente sul calendario dell'attività."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignora anche all'indietro un successore iniziato",
+      "help": "Con Progress Override, la relazione verso un successore già iniziato non conta nelle date al più tardi né nel margine libero di un predecessore non ancora terminato."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fine anticipata mai prima di un limite fine-fine",
+      "help": "In una relazione fine-fine, la fine anticipata del successore non cade mai, in ora di orologio, prima del limite fissato dal predecessore. Se quel limite cade in tempo non lavorativo del successore, la fine diventa l'inizio del periodo di lavoro successivo."
     }
   },
   "profiles": {

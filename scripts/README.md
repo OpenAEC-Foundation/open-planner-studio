@@ -63,7 +63,7 @@ Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
 
 | onderdeel | check | oordeel |
 |---|---|---|
-| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. **Grootte-ratchet** (cellenbestand versie 2, eigenaarsbesluit 2026-09-23): elke `sameday`/`diff`-cel op de zes X12-assen draagt zijn absolute afwijking `\|ours − truth\|` in minuten (datum-assen: wandklokminuten; tf/ff: floatminuten; afgerond op 0,001; `missing` en `drivingPath` zonder grootte) — een cel die in baseline én meting dezelfde emmer `sameday`/`diff` heeft en nu GROTER afwijkt is rood (`groter`), kleiner telt apart als verbeterd-grootte (`kleiner`). De cel-deltaregel luidt `CELLDELTA p6 nieuw=… verslechterd=… groter=… verbeterd=… kleiner=… onmeetbaar=… onbekend=… ongemeten=… schuld=… totaal=…`; een regel zonder `groter=`/`kleiner=`/`schuld=` is onleesbaar en dus rood. `schuld=N` is de ratchet-schuld (zie hieronder): informatief, NULDOEL blijft mogelijk bij `groter=0`; de check zelf is rood als de schuld stijgt. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen, `groter=0 kleiner=0`); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 groter=0 onmeetbaar=0 verbeterd>0`: exit 0, maar commit alleen mét herpin v2 + cellen, zie hieronder); VERBETERD (grootte) (geen v2-afwijking, `groter=0 kleiner>0`: exit 0, maar commit alleen mét herpin van de cellen — de v2-payload en de gate-pins tellen emmers en veranderen niet; de cellenherpin werkt alleen `cellMinutesSha256` in de v2-envelop mee bij, zie *Minuten-digest* hieronder). Een cel die niet meer meetbaar is (blinder orakel) telt nooit als verbeterd maar als `onmeetbaar` en is rood; meetbaarheid en dekking per entry/as worden daarnaast apart tegen v2 vergeleken (`X12 meetbaarheid/dekking wijkt af van v2`, altijd rood). `--strict` maakt een rode nuldoelregel rood |
+| P6-profiel | `check-xer-product-fidelity-x12.ts` mét `OPS_XER_CORPUS` | cel-poort op `tests/planning/xer-product-fidelity-cells.json` over zeven poortassen: de zes X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal). Exact → inexact of een verslechterde emmer (exact < sameday < diff < missing) is rood. **Grootte-ratchet** (cellenbestand versie 2, eigenaarsbesluit 2026-09-23): elke `sameday`/`diff`-cel op de zes X12-assen draagt zijn absolute afwijking `\|ours − truth\|` in minuten (datum-assen: wandklokminuten; tf/ff: floatminuten; afgerond op 0,001 — en tf/ff tellen alleen als afwijking als hun verschil op die raster niet naar 0 afrondt: `FLOAT_EXACT_TOLERANCE_MIN` in `fidelityCore.ts`, eigenaarsbesluit in afwachting (§1d-9, branch `claude/x12-tolerantie-vraag9`); `missing` en `drivingPath` zonder grootte) — een cel die in baseline én meting dezelfde emmer `sameday`/`diff` heeft en nu GROTER afwijkt is rood (`groter`), kleiner telt apart als verbeterd-grootte (`kleiner`). De cel-deltaregel luidt `CELLDELTA p6 nieuw=… verslechterd=… groter=… verbeterd=… kleiner=… onmeetbaar=… onbekend=… ongemeten=… schuld=… totaal=…`; een regel zonder `groter=`/`kleiner=`/`schuld=` is onleesbaar en dus rood. `schuld=N` is de ratchet-schuld (zie hieronder): informatief, NULDOEL blijft mogelijk bij `groter=0`; de check zelf is rood als de schuld stijgt. Niet rood zijn alleen: GROEN (exit 0); NULDOEL (uitsluitend de drie nuldoelregels rood, cel-poort groen, `groter=0 kleiner=0`); VERBETERD (daarnaast alleen de v2-gelijkheidsregel rood en cel-delta `nieuw=0 verslechterd=0 groter=0 onmeetbaar=0 verbeterd>0`: exit 0, maar commit alleen mét herpin v2 + cellen, zie hieronder); VERBETERD (grootte) (geen v2-afwijking, `groter=0 kleiner>0`: exit 0, maar commit alleen mét herpin van de cellen — de v2-payload en de gate-pins tellen emmers en veranderen niet; de cellenherpin werkt alleen `cellMinutesSha256` in de v2-envelop mee bij, zie *Minuten-digest* hieronder). Een cel die niet meer meetbaar is (blinder orakel) telt nooit als verbeterd maar als `onmeetbaar` en is rood; meetbaarheid en dekking per entry/as worden daarnaast apart tegen v2 vergeleken (`X12 meetbaarheid/dekking wijkt af van v2`, altijd rood). `--strict` maakt een rode nuldoelregel rood |
 | MS Project-profiel | `check-mpp-fidelity.ts` | `GOAL_ZERO_DEVIATIONS` en de 216 tellingenpins; het orakel meet alleen start en einde (twee assen) en staat op nul, dus elke pin is al een cel-poort. Nul gescande bestanden is `ROOD (niet gemeten)` |
 | vangrails | `check-xer-corpusless-fidelity-gate.ts`, `check-fidelity-cells-gate.ts` | corpusloos: v2-karakterisering, cel-baseline canoniek, versie 2, grootte op precies de sameday/diff-cellen van de zes assen, in de pas met de v2-tellingen, grootten gelijk aan `cellMinutesSha256` in de v2-envelop, schuldset gelijk aan de gepinde digest; plus de synthetische ratchetbewijzen (groter ⇒ rood, kleiner ⇒ verbeterd-grootte) en mutanten op het gecommitte bestand (15e schuldcel, ingekorte/geruilde schuldlijst, schuldcel of gewone cel met de hand groter, ontbrekende schuldsectie ⇒ rood) |
 | `--full` (optioneel) | de volledige `run.sh`, zonder `OPS_XER_CORPUS` | standaard uit: draait al in `npm run verify`, en machinebreed hoort er maar één zware run tegelijk te lopen |
@@ -222,13 +222,94 @@ waarden zelf in zijn foutregel. `xer-schedoptions-blast-radius.json` telt zijn f
 alleen op manifest-orakels (zie stap 5); een rolwissel die een orakel zonder SCHEDOPTIONS oplevert, maakt
 daar de struikeldraad "0 meetbaar" rood — dat vraagt een meetlat, geen herpin.
 
-Tweede toepassing (2026-09-24, DCP-03 Baseline naar `reader-only`, zelfde besluit): dezelfde route, met
+Tweede toepassing (2026-09-23, DCP-03 Baseline naar `reader-only`, bevestiging door de eigenaar gevraagd, overdracht §1d-11): dezelfde route, met
 twee aanvullingen. `OPS_XER_GATE_PINS=corpus` werkte hier (het manifest verschilde nog van de v2-pin). In
 `check-xer-corpus.ts` staat C1 `oracleOk` (het aantal orakelentries), en in
 `xer-schedoptions-blast-radius.json` beweegt `expectedFinishVariant.fidelity` mee (die telt op
 manifest-orakels): neem die rijen over uit `OPS_XER_SCHEDOPTIONS_REPORT=baseline`. Let ook op mutant M24
 in de corpusloze vangrail: die flipt het eerste teken van de manifesthash en moet een ander teken kiezen
 als de hash zelf al met `0` begint.
+
+**Uitsluiting per project of taak** (mechanisme 2026-09-23, `tests/planning/xerManifestExclusions.ts`).
+Een orakelentry kan bij eigenaarsbesluit een deel van zichzelf uit de meetlat halen, zonder het hele bestand
+een andere rol te geven:
+
+```json
+"decision": "JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>",
+"excludeProjects": [{ "projId": "2665", "reason": "…" }],
+"excludeTasks": [{ "projId": "4408", "taskCode": "EC1430", "reason": "…" }]
+```
+
+Regels: alleen op een `role: "oracle"`/`included: true`-entry. `decision` heeft EXACT de vorm
+`JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>` (een bestaande datum, niet in de toekomst; "geen
+eigenaarsbesluit" of een vrije plaatsing van het woord glipt dus niet door); anders weigert de lezer de hele
+entry, net als bij een lege lijst, een onbekende sleutel, een reden korter dan 10 tekens, een `projId`/`taskId`
+als getal (schrijf `"12345"`), een dubbele regel of een taak onder een al uitgesloten project. Een taak noem
+je met precies één van `taskId` of `taskCode`; dezelfde taak via `taskId` én `taskCode` is een dubbel-fout,
+en een uitsluiting die geen orakeltaak raakt of een dubbelzinnige taakcode is een fout, nooit een stille
+no-op. De solve draait ongewijzigd over het hele bestand (uitgesloten taken blijven invoer voor hun
+opvolgers). **Wat filtert wel/niet:** WEL de zes assen, de cellen, drivingPath, de nuldoelregels, de
+X1-doelbaseline (`buildXerTargetBaseline`) en de task-replay; NIET de schemavingerafdruk (dedup), de ruwe
+corpusdekking (C3/C4/C4a), de X12-probes op `solvedProjects` en `expectedFinishVariant` in
+`xer-schedoptions-blast-radius.json` (telt op manifest-orakels, hele bestand). X12 print altijd een regel
+`INFO X12 manifestuitsluiting …: uitgesloten: N taken in K projecten — <label>: <project/taak> (<n> taken) —
+<reden> [<datum>]; buiten de telling: … zesassige afwijkingen, … drivingPath-cellen`, ook bij nul, en
+`measure:profiles` neemt het aantal over in zijn tellingenkolom.
+
+De lijst is gepind zoals de schuldset: een gegenereerd blok `manifest-uitsluitingspin` met
+`EXPECTED_EXCLUSIONS_SHA256` in `check-fidelity-cells-gate.ts` (corpusloos: lijst = digest, blok = lijst, geen
+cel en geen v2-project op een uitgesloten project/taak-id). Een uitsluiting wijzigen is een
+manifestwijziging, dus de corpusgroei-route hierboven: in één run
+`OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus bash tests/planning/run.sh check-xer-product-fidelity-x12.ts`.
+Alleen voor entries waarvan de opgeloste IDENTITEITSSET (uitgesloten projecten en taken) verschilt van het
+gepinde blok zijn de weggevallen cellen ("cel valt weg door een nieuwe manifestuitsluiting"), de
+drivingPath-orakelhash en de dekkingsverschuiving `fileset` in plaats van `hard` — en de dekking alleen als
+de v2-pin exact gelijk is aan de meting met de GEPINDE uitsluiting (dus precies de delta van nu ∖ was en
+was ∖ nu; elke andere verschuiving blijft `hard`). Alleen een andere reden of datum verandert de digest
+(herpin van het blok) maar niet de identiteitsset, en maakt dus niets `fileset`. De `CELLDELTA`-regel en de
+herpin-OK-regel noemen het aantal door uitsluiting weggevallen cellen (`uitgesloten=N`). De cel-herpin
+herschrijft het blok zelf (alleen via `=corpus`, en alleen vanaf een ongeschonden blok) en print per
+uitsluiting de regel `HERPIN <datum> uitsluiting: <label> — <reden>`; de corpusloze cellenpoort eist die
+regels letterlijk tussen de schuldpin en het blok. **Verborgen aantallen:** per bestand met een uitsluiting
+staan de zesassige afwijkingen en drivingPath-cellen óp de uitgesloten taken als `excludedHidden` in
+`xer-product-fidelity-cells.json` — een NIET-STIJGENDE pin (stijging = `hard`, daling = herpinnen via de
+schrijfmodi; alleen bij een gewijzigde identiteitsset `fileset`), zodat een motorregressie op een
+uitgesloten populatie niet onzichtbaar wordt. Zonder uitsluiting ontbreekt de sectie (bestand byte-gelijk).
+Daarna de vijf handmatige pinplekken hierboven (de X1-baseline, C5–C8b,
+het baselineschema, de task-replay-pin, `EXPECTED` van de corpusloze vangrail) en `OPS_XER_GATE_PINS=corpus`.
+Verboden: het blok of de digest met de hand bijwerken, of een uitsluiting laten kiezen door veldinhoud
+(een script dat taken selecteert op hun waarden) — de lijst staat letterlijk in het manifest, per regel met
+reden.
+
+**Kant-en-klaar voor de eigenaarsvragen §1d-8, §1d-10 en §1d-12 (Hotel/CR)** (overdracht rekenprofielen). Zeg ja ⇒
+deze drie entries in `tests/planning/xer-corpus-manifest.json` krijgen dit blok (datum van het besluit invullen),
+gevolgd door de route hierboven:
+
+```json
+"crawl-xer/HarbourPointe_AssistedLiving.xer": { …, "decision": "JJJJ-MM-DD eigenaarsbesluit: §1d-8, de 8 taken met verouderde P6-uitvoer uit het orakel",
+  "excludeTasks": [
+    { "projId": "4408", "taskCode": "EC1430", "reason": "P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC1590", "reason": "P6-span 696 u < opgeslagen restduur 720 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC1680", "reason": "P6-span 840 u < opgeslagen restduur 864 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2060", "reason": "P6-span 480 u < opgeslagen restduur 552 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2170", "reason": "P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2200", "reason": "P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2380", "reason": "P6-span 96 u < opgeslagen restduur 144 u (§1d-8)" },
+    { "projId": "4408", "taskCode": "EC2410", "reason": "P6-span 720 u < opgeslagen restduur 920 u (§1d-8)" }
+  ] },
+"crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer": { …, "decision": "JJJJ-MM-DD eigenaarsbesluit: §1d-10, project 9033 is door P6 genivelleerd",
+  "excludeProjects": [{ "projId": "9033", "reason": "door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)" }] },
+"crawl-xer/Hotel_Construction_TEC.xer": { …, "decision": "JJJJ-MM-DD eigenaarsbesluit: project CR (2665) niet door P6 doorgerekend",
+  "excludeProjects": [{ "projId": "2665", "reason": "project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)" }] }
+```
+
+Proef op 2026-09-23 (niet gecommit, mechanismebranch `claude/x12-manifest-uitsluiting-taak-project`): met
+precies deze drie blokken gaat X12 van 192 naar 121 zesassige afwijkingen (OZB 9033 −38 op 14 taken,
+HarbourPointe −33 op de 8 taken; Hotel/CR −0, het had er geen) en drivingPath van 169 naar 146 (Hotel/CR
+−19, OZB 9033 −4); de cel-poort meldt alleen `fileset`-regels en de nuldoelregels, en
+`OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus` herpint in één run (uitsluitingspin mee). Geen cel
+werd daarbij slechter of groter. Van de 81 HarbourPointe-cellen die het onderzoek aan de verouderde uitvoer
+toeschreef, zitten er 48 op andere taken dan de 8; die blijven meetellen.
 
 Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
 dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een
