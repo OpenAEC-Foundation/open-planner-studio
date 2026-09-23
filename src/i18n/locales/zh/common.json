@@ -1250,6 +1250,31 @@
     "applyTemplate": "从模板更新",
     "deleteTemplate": "删除模板",
     "templateDeviates": "此配置文件与模板“{{name}}”不同。",
-    "applyDefaultOptions": "应用此配置文件的默认选项"
+    "applyDefaultOptions": "应用此配置文件的默认选项",
+    "themes": {
+      "completedWork": "进度与已完成工作",
+      "relationsLag": "关系与延隔",
+      "milestones": "里程碑与 LOE 作业",
+      "float": "浮时与最晚日期",
+      "instants": "文件中的日期与时刻",
+      "msproject": "按 Microsoft Project 的进度",
+      "ownProfilesOnly": "仅用于自定义配置"
+    },
+    "ownProfilesOnlyNote": "这些规则在每个内置配置中都是关闭的，包括 Primavera P6。启用其中任何一项即成为自定义配置。",
+    "deviatingCount": "已更改：{{n}}",
+    "baseValue": "基准：{{value}}",
+    "on": "开",
+    "off": "关",
+    "resetToBase": "恢复基准",
+    "perFile": "按文件",
+    "showHelp": "“{{name}}”的说明",
+    "sourceOptions": {
+      "title": "源文件中的设置",
+      "intro": "这些计算选项来自 Primavera P6 文件（.xer）。它们参与计算，但无法在此更改。",
+      "useExpectedFinishDates": "使用预期完成日期（P6：Use Expected Finish Dates）",
+      "useProjectEndDateForFloat": "计算浮时至项目完成日期",
+      "p6CompletedLateFromRemainingWindow": "已完成任务：最晚日期从数据日期起算",
+      "needsConvention": "仅与规则“{{convention}}”一起生效，该规则当前已关闭。"
+    }
   }
 }

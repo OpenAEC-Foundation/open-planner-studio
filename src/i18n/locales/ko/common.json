@@ -1250,6 +1250,31 @@
     "applyTemplate": "템플릿에서 업데이트",
     "deleteTemplate": "템플릿 삭제",
     "templateDeviates": "이 프로필은 템플릿 “{{name}}”과(와) 다릅니다.",
-    "applyDefaultOptions": "이 프로필의 기본 옵션 적용"
+    "applyDefaultOptions": "이 프로필의 기본 옵션 적용",
+    "themes": {
+      "completedWork": "진행 및 완료된 작업",
+      "relationsLag": "관계 및 지연",
+      "milestones": "마일스톤 및 LOE 작업",
+      "float": "여유 및 늦은 날짜",
+      "instants": "파일의 날짜와 시각",
+      "msproject": "Microsoft Project 방식의 진행",
+      "ownProfilesOnly": "사용자 프로필 전용"
+    },
+    "ownProfilesOnlyNote": "이 규칙은 Primavera P6를 포함한 모든 기본 제공 프로필에서 꺼져 있습니다. 하나를 켜면 사용자 프로필이 됩니다.",
+    "deviatingCount": "변경됨: {{n}}",
+    "baseValue": "기준: {{value}}",
+    "on": "켬",
+    "off": "끔",
+    "resetToBase": "기준으로 되돌리기",
+    "perFile": "파일별",
+    "showHelp": "“{{name}}” 설명",
+    "sourceOptions": {
+      "title": "원본 파일의 설정",
+      "intro": "이 계산 옵션은 Primavera P6 파일(.xer)에서 가져온 것입니다. 계산에 사용되지만 여기에서는 변경할 수 없습니다.",
+      "useExpectedFinishDates": "예상 완료일 사용 (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "프로젝트 완료일까지 여유 계산",
+      "p6CompletedLateFromRemainingWindow": "완료된 작업: 데이터 날짜부터 늦은 날짜",
+      "needsConvention": "현재 꺼져 있는 규칙 “{{convention}}”과 함께일 때만 작동합니다."
+    }
   }
 }
