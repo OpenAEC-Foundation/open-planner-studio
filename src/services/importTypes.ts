@@ -295,6 +295,11 @@ export interface ImportResult {
   suggestedProfileId?: BuiltInProfileId;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
+  /** Herkomst van `xer`: `'xer-archive'` wanneer `readIFC` de metadata uit het meegereisde
+   *  bronarchief van een HEROPENDE IFC reconstrueert; afwezig bij een verse `readXER`. De
+   *  XER-openingsmelding (`xerImportNotice`) vuurt alleen bij een verse XER-import — heropenen uit
+   *  eigen IFC meldt niets (gebruikstest rekenprofielen 24-09, B4). */
+  xerOrigin?: 'xer-archive';
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */
   xerSourceArchive?: XerSourceArchive;
   /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */

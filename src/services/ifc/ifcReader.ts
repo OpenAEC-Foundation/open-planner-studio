@@ -297,7 +297,7 @@ export function readIFC(
     ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
-    ...(xer ? { xer } : {}),
+    ...(xer ? { xer, xerOrigin: 'xer-archive' as const } : {}),
   };
 }
 
