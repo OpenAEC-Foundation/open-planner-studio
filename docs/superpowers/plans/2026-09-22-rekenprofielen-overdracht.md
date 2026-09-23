@@ -278,20 +278,29 @@ tot ze gemerged en gepusht zijn; na merge naar `claude/rekenprofielen` pushen en
 
 **Sessielimiet-les (23-09):** een sessielimiet (429, reset 03:00) doodt álle lopende agents én de orkestrator; niet-gecommit werk blijft in de worktree staan. Daarom: (a) agents committen tussentijds (WIP-commit is beter dan een schone maar verloren werkboom), (b) de orkestrator zet meerdere cron-wake-ups over een langere tijd (elk uur + reserve elke 3 uur, sessiegebonden, 7 dagen), (c) bij hervatten eerst `git status`/`git log` in de worktree van de gestorven agent en dan een nieuwe agent dáár laten doorgaan.
 
-## 3. Werkvolgorde voor de opvolger
+## 3. Werkvolgorde voor de opvolger (herschreven 2026-09-24 na integratieronde 2)
 
-1. Reviews van baan B en cel-baseline verwerken (must-fixes), mergen in `claude/rekenprofielen`, pushen.
-2. Baan A afwachten → critreview → merge. Dan conflicten A×B oplossen (`types/project.ts`,
-   `schedulingOptionsRead.ts`), typecheck, X12 15.056 exact, mpp 216 exact.
-3. Plan van de architect verwerken (self-review), banen C (lezers, `solveInputFor`, melding, export-guard,
-   extensie-API, MCP) en D (UI, i18n 14 talen, gids, CLAUDE.md, recept, goal prompt, browser-test,
-   `verify:conventions`) starten in eigen worktrees, elk na afloop een critreview.
-4. Integratie (§10 spec stap 6): tijdelijke `legacyP6Source`-laag weg, testmigratie 106 treffers,
-   `OPS_SchedulingOptions` alleen opties + A22/A23, `npm run verify` (één tegelijk machinebreed!),
-   critreview op de hele diff, gebruikstest in de browser.
-5. Daarna X12 "naar nul" onder regel A met de goal prompt (`2026-09-22-goalprompt-x12-naar-nul.md`,
-   al geschreven): per brok restant een uitvoerder-opus-midden-agent in eigen worktree, `measure:profiles`
-   vóór elke commit, critreview per landing; herhalen tot X12 exit 0. Dit is de eindtoestand (§0).
+Stappen 1–4 van de oorspronkelijke lijst (banen A–D, integratie, verify, gebruikstest) zijn af; X12 staat
+op **175** over de P6-doorgerekende orakels (was 15.056 over het oude orakel). Wat nog telt:
+
+1. **Eigenaarsvragen §1d 7–12 ophalen.** Zonder die besluiten is er niets bouwbaars meer over: het
+   restant is HarbourPointe 122 (81 verouderde P6-uitvoer + 34 ALAP/C10 + 7 mijlpaalvloer n=1), OZB 38
+   (door P6 genivelleerd project 9033), Sample 12 (SF-minuut, n=1 zonder bron), Hotel 3 (ALAP-eindmijlpaal,
+   C10). Kant-en-klaar bij een "ja": vraag 7 = branch `claude/x12-vraag7-b3-b4-a17` (`b3121e2e`) mergen
+   met herpin; vraag 8/10/12 = de manifestblokken uit `scripts/README.md` "Kant-en-klaar voor de
+   eigenaarsvragen" plaatsen, `=corpus`-herpin + handmatige pins (verwacht 175 → ±104), daarna C10 ALAP
+   (brok 5 `d9973123`/brok 7 `a03db5b2` als naslag) opnieuw meten mét Hotel; vraag 11 = bevestigen of de
+   DCP-03-uitsluiting terugdraaien.
+2. **Bij elke landing dezelfde discipline:** eigen branch per agent (nooit twee worktrees op
+   `claude/rekenprofielen`), regel A per cel incl. grootte/schuld/uitsluiting, 6-stappen-herpin in
+   dezelfde commit, critreview per landing (skill `hyperkritische-review`), `measure:profiles` vóór
+   en ná, `npm run verify` één tegelijk machinebreed (flock `/tmp/ops-heavy-suite.lock`).
+3. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
+   herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
+   Base van #169 pas naar `main` zetten als #109 gemerged is.
+4. **Open vervolgpunten zonder eigenaar:** `check-xer-schedule-options-corpus` `DEFAULT_KEYS` mist
+   `startToStartLagFrom` (meetgat, geen correctheidsgat); Sample SF-minuut beslisbaar met drie kleine
+   P6-testruns; `expectedFinishVariant` (blast-radius) filtert niet op uitsluitingen (gedocumenteerd).
 
 ## 4. Vaste regels (uit het geheugen van de eigenaar, hier herhaald)
 
