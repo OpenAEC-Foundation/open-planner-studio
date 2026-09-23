@@ -1305,6 +1305,14 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Zadanie zakończone poza kolejnością czeka na poprzedników",
       "help": "Zakończone zadanie, którego poprzednik jeszcze się nie zakończył, dostaje swoje zerowe okno po tym poprzedniku zamiast w dacie stanu (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Zakończone zadanie z postępem fizycznym na dacie stanu",
+      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Upłynięte opóźnienie SS od trwającego poprzednika się nie liczy",
+      "help": "Przy relacji start-start od zadania, które już się rozpoczęło, liczy się tylko ta część opóźnienia, która od jego rzeczywistego startu do daty stanu jeszcze nie upłynęła."
     }
   },
   "profiles": {

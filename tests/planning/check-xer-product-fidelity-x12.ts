@@ -451,9 +451,23 @@ async function productBaseline(
         .find(task => task.taskCode === 'A10500');
       const effectiveCalendarFloat = solvedProjects.flatMap(project => project.tasks)
         .find(task => task.taskCode === 'A14610');
-      eq('publieke Roads-taak A10500 behoudt voltooide P6-actuals op middernacht', {
+      // C5 (`p6CompletedPhysicalAtDataDate`): A10500 is voltooid met CP_Phys; P6 zet haar als één punt
+      // op de rauwe statusdatum (orakel ES = EF = 2013-04-23 00:00). Het oorspronkelijke doel van deze
+      // check — voltooide P6-actuals op middernacht blijven ongesnapt — meet hieronder met C5 uit.
+      eq('publieke Roads-taak A10500 (voltooid, CP_Phys) staat als punt op de rauwe statusdatum', {
         earlyStart: publicTask?.earlyStart,
         earlyFinish: publicTask?.earlyFinish,
+      }, {
+        earlyStart: '2013-04-23T00:00',
+        earlyFinish: '2013-04-23T00:00',
+      });
+      const withoutC5 = structuredClone(imports);
+      for (const imported of withoutC5) setConvention(imported, 'p6CompletedPhysicalAtDataDate', false);
+      const actualsTask = solveProductProjects(withoutC5).flatMap(project => project.tasks)
+        .find(task => task.taskCode === 'A10500');
+      eq('publieke Roads-taak A10500 behoudt voltooide P6-actuals op middernacht (C5 uit)', {
+        earlyStart: actualsTask?.earlyStart,
+        earlyFinish: actualsTask?.earlyFinish,
       }, {
         earlyStart: '2013-01-19T00:00',
         earlyFinish: '2013-01-26T00:00',

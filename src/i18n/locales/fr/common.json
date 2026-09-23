@@ -1270,6 +1270,14 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Une tâche achevée hors séquence attend ses prédécesseurs",
       "help": "Une tâche achevée dont un prédécesseur n’est pas encore terminé reçoit sa fenêtre nulle après ce prédécesseur plutôt qu’à la date d’état (logique conservée)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Tâche terminée à avancement physique placée à la date d'état",
+      "help": "Une tâche terminée avec un pourcentage d'avancement physique apparaît comme un seul point à la date d'état, ou plus tard si un prédécesseur l'exige, au lieu de ses dates réelles."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Le décalage DD écoulé d'un prédécesseur en cours ne compte pas",
+      "help": "Pour une relation début-début depuis une tâche déjà commencée, seule la partie du décalage non encore écoulée depuis son début réel à la date d'état compte."
     }
   },
   "profiles": {

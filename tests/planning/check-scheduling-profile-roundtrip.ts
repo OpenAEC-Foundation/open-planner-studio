@@ -110,7 +110,7 @@ const CUSTOM: SchedulingProfile = {
     const match = ifc.match(/IFCTEXT\('(\{"id":"[^']*)'\)/);
     const json = (match ? JSON.parse(match[1]) : {}) as Record<string, unknown>;
     eq(`03 ${id}: geen naam voor ingebouwd profiel`, 'name' in json, false);
-    same(`04 ${id}: alle negentien conventies opgelost weggeschreven`, json.conventions, builtInConventions(id));
+    same(`04 ${id}: alle eenentwintig conventies opgelost weggeschreven`, json.conventions, builtInConventions(id));
   }
   const opsIfc = writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') }));
   ok('05 ops zonder afwijkingen: GEEN pset', !opsIfc.includes('OPS_SchedulingProfile'));

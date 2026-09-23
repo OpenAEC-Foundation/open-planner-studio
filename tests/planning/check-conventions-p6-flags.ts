@@ -36,6 +36,7 @@ import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes
 import { readXER } from '@/services/xer/xerReader';
 import type { ConventionKey, EffectiveSchedulingOptions, ProjectSchedulingOptions, SchedulingConventions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
+import type { Task } from '@/types/task';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -418,11 +419,12 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 }
 
 // ── Groep C (X12 naar nul, brok 2): C1 `p6CompletedPredecessorAtDataDate`, C2 `p6FreeFloatOnOwnCalendar`,
-// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow` ──
+// C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`, C5 `p6CompletedPhysicalAtDataDate`,
+// C6 `p6InProgressStartLagElapsed` ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
-const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow'] as const satisfies readonly ConventionKey[];
+const GROUP_C = ['p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag', 'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed'] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
 function calendarDataOn(workDays: readonly number[], bands: ReadonlyArray<readonly [string, string]>): string {
@@ -446,6 +448,8 @@ interface GroupCFixture {
   /** Uitkomst onder de ingebouwde OPS/MS Project-profielen, als die niet `off` is (C3 rekent op de
    *  B3-route; zonder B3 staat de voltooide taak op haar generieke actual-pin, met eigen duur). */
   builtInOff?: Partial<Axes>;
+  /** Als `builtInOff`, maar per ingebouwd profiel (wanneer OPS en MS Project zelf verschillen). */
+  builtInOffByBase?: Record<'ops' | 'msproject', Partial<Axes>>;
 }
 const groupC: GroupCFixture[] = [];
 
@@ -584,6 +588,79 @@ groupC.push({
   builtInOff: { es: '2026-01-05T08:00', ef: '2026-01-05T17:00' },
 });
 
+// C5: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 00:00 (buiten de werktijd), rem_target_link_flag=Y
+// (A19). Voltooide CP_Phys-taak D (DT_FixedDrtn, werkelijk ma 5 – di 6 jan) —FS0→ open S (1 dag).
+// P6: D staat als één punt op het RAUWE statusdatum-instant — ES = EF = wo 14 jan 00:00, niet gesnapt
+// op 08:00 — en haar late kant is één punt op de LS van S (wo 14 jan 08:00). Zonder C5: de werkelijke
+// datums (ma 5 jan 08:00 – di 6 jan 17:00), ook onder OPS en MS Project.
+function c5Fixture(extraTasks: string[] = [], extraRelations: string[] = []): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tC5-fixture\tC1\t2026-01-14 00:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    '%R\tD\tP1\tC1\tDONE\tVoltooid fysiek\tTT_Task\tDT_FixedDrtn\tTK_Complete\tCP_Phys\t18\t0\t2026-01-05 08:00\t2026-01-06 17:00\t2026-01-05 08:00\t2026-01-06 17:00',
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+    ...extraTasks,
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tD\tP1\tP1\tPR_FS\t0',
+    ...extraRelations,
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6CompletedPhysicalAtDataDate',
+  label: 'C5 voltooide CP_Phys-taak op de statusdatum',
+  input: c5Fixture(),
+  taskId: 'D',
+  pick: axes => ({ es: axes.es, ef: axes.ef }),
+  on: { es: '2026-01-14T00:00', ef: '2026-01-14T00:00' },
+  off: { es: '2026-01-05T08:00', ef: '2026-01-06T17:00' },
+});
+
+// C6: band 08:00–17:00 ma–vr, statusdatum wo 14 jan 00:00, rem_target_link_flag=Y (A19). Lopende A
+// (werkelijk gestart ma 5 jan 08:00, 18 h restwerk vanaf de statusdatum: wo 14 jan 08:00) —SS+18 h→
+// niet-gestarte S. Sinds de werkelijke start is op de statusdatum 7 × 9 = 63 h werktijd verstreken,
+// dus niets van de lag blijft over: S start met A's restwerk, wo 14 jan 08:00. Zonder C6: de volle
+// lag vanaf A's restwerkstart, wo 14 jan 08:00 + 18 h = do 15 jan 17:00 ⇒ vr 16 jan 08:00.
+function c6Fixture(actualStart = '2026-01-05 08:00'): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date\trem_target_link_flag',
+    '%R\tP1\tC6-fixture\tC1\t2026-01-14 00:00\t2026-01-05 08:00\t2026-03-31 17:00\tY',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
+    `%R\tA\tP1\tC1\tRUN\tLopend\tTT_Task\tDT_FixedDUR2\tTK_Active\tCP_Drtn\t45\t18\t2026-01-05 08:00\t2026-01-15 17:00\t${actualStart}\t`,
+    '%R\tS\tP1\tC1\tSUCC\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-14 08:00\t2026-01-14 17:00\t\t',
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tS\tA\tP1\tP1\tPR_SS\t18',
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6InProgressStartLagElapsed',
+  label: 'C6 verstreken SS-lag uit een lopende voorganger',
+  input: c6Fixture(),
+  taskId: 'S',
+  pick: axes => ({ es: axes.es }),
+  on: { es: '2026-01-14T08:00' },
+  off: { es: '2026-01-16T08:00' },
+  // Zonder A19 is de vroege start van A haar werkelijke start (ma 5 jan 08:00); + 18 h = di 6 jan 17:00
+  // ⇒ wo 7 jan 08:00. OPS legt een niet-gestarte taak op de statusdatum (wo 14 jan 08:00), MS Project niet.
+  builtInOffByBase: { ops: { es: '2026-01-14T08:00' }, msproject: { es: '2026-01-07T08:00' } },
+});
+
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);
 for (const fixture of groupC) {
   const { flag, label, input, taskId, pick } = fixture;
@@ -601,7 +678,7 @@ for (const fixture of groupC) {
   for (const baseId of ['ops', 'msproject'] as const) {
     const plain = structuredClone(input);
     plain.project.schedulingProfile = { baseId, id: baseId, name: '', overrides: {} };
-    eq(`${label}: 4. ingebouwd profiel ${baseId} ⇒ UIT`, pick(solveAxes(plain, taskId)), fixture.builtInOff ?? fixture.off);
+    eq(`${label}: 4. ingebouwd profiel ${baseId} ⇒ UIT`, pick(solveAxes(plain, taskId)), fixture.builtInOffByBase?.[baseId] ?? fixture.builtInOff ?? fixture.off);
   }
 }
 
@@ -652,9 +729,68 @@ for (const fixture of groupC) {
   eq('C4 late kant fixture: X legt het projecteinde vast', solveAxes(anchored, 'X').ef, '2026-02-11T17:00');
 }
 
+// C5, voorgangerskant en randgevallen. Een open voorganger P (2 dagen, wo 14 – do 15 jan 17:00) —FS→ D
+// legt het punt op zijn RAUWE relatiegrens: FS0 ⇒ do 15 jan 17:00 (niet vr 08:00); FS+4 h ⇒ vr 16 jan
+// 12:00; FS+9 h landt exact op een band-eind en blijft vr 16 jan 17:00 (niet ma 19 jan 08:00). De
+// opvolger S rekent vanaf het punt: FS0 ⇒ de eerstvolgende werkstart.
+{
+  const c5 = groupC.find(fixture => fixture.flag === 'p6CompletedPhysicalAtDataDate')!;
+  eq('C5 late kant: één punt op de LS van de opvolger',
+    (({ ls, lf }) => ({ ls, lf }))(solveAxes(c5.input, 'D')), { ls: '2026-01-14T08:00', lf: '2026-01-14T08:00' });
+  eq('C5 uit ⇒ late kant op de werkelijke datums (A12)',
+    (({ ls, lf }) => ({ ls, lf }))(solveAxes(withProfile(c5.input, copy => setConvention(copy, 'p6CompletedPhysicalAtDataDate', false)), 'D')),
+    { ls: '2026-01-05T08:00', lf: '2026-01-06T17:00' });
+  const openPred = '%R\tP\tP1\tC1\tPRED\tOpen voorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t18\t18\t2026-01-14 08:00\t2026-01-15 17:00\t\t';
+  const point = (lagHours: number) => {
+    const input = c5Fixture([openPred], [`%R\tR0\tD\tP\tP1\tP1\tPR_FS\t${lagHours}`]);
+    const d = solveAxes(input, 'D');
+    return { es: d.es, ef: d.ef, s: solveAxes(input, 'S').es };
+  };
+  eq('C5 open voorganger FS0 ⇒ punt op zijn rauwe einde', point(0),
+    { es: '2026-01-15T17:00', ef: '2026-01-15T17:00', s: '2026-01-16T08:00' });
+  eq('C5 open voorganger FS+4 h ⇒ punt na de volle lag', point(4),
+    { es: '2026-01-16T12:00', ef: '2026-01-16T12:00', s: '2026-01-16T12:00' });
+  eq('C5 lag die op een band-eind landt blijft op dat eind (rand)', point(9),
+    { es: '2026-01-16T17:00', ef: '2026-01-16T17:00', s: '2026-01-19T08:00' });
+  eq('C5 uit ⇒ werkelijke datums, ook met een open voorganger',
+    (({ es, ef }) => ({ es, ef }))(solveAxes(withProfile(c5Fixture([openPred], ['%R\tR0\tD\tP\tP1\tP1\tPR_FS\t0']),
+      copy => setConvention(copy, 'p6CompletedPhysicalAtDataDate', false)), 'D')),
+    { es: '2026-01-05T08:00', ef: '2026-01-06T17:00' });
+  // Poort (docblok): CP_Drtn valt erbuiten (dat is B3), net als suspend/resume en een werkelijk einde
+  // ná de statusdatum; zonder A19 (rem_target_link_flag) ook.
+  const gated = (mutate: (task: Task, input: ImportResult) => void) => {
+    const input = structuredClone(c5.input);
+    mutate(input.tasks.find(task => task.id === 'D')!, input);
+    return solveAxes(input, 'D').es;
+  };
+  eq('C5 poort: CP_Drtn doet niet mee', gated(task => { task.p6CompletePctType = 'CP_Drtn'; }), '2026-01-05T08:00');
+  eq('C5 poort: suspend/resume doet niet mee', gated(task => { task.p6SuspendResume = true; }), '2026-01-05T08:00');
+  eq('C5 poort: werkelijk einde ná de statusdatum doet niet mee',
+    gated(task => { task.time.actualFinish = '2026-01-14T09:00'; }), '2026-01-05T08:00');
+  eq('C5 poort: zonder A19 geen punt',
+    gated((_task, input) => setConvention(input, 'p6UseRemainingStartForProgress', false)), '2026-01-05T08:00');
+  // Zonder opvolger: de late kant is het projecteinde (HarbourPointe EC1040/EC1050).
+  const lone = c5Fixture();
+  lone.sequences = [];
+  eq('C5 zonder opvolger ⇒ late kant op het projecteinde',
+    (({ ls, lf }) => ({ ls, lf }))(solveAxes(lone, 'D')), { ls: '2026-01-14T17:00', lf: '2026-01-14T17:00' });
+}
+
+// C6, randgevallen: een deels verstreken lag (werkelijk gestart di 13 jan 08:00: 9 h verstreken, 9 h
+// over ⇒ wo 14 jan 17:00 ⇒ do 15 jan 08:00); een FS-relatie blijft ongemoeid (C6 geldt alleen voor SS).
+{
+  const partial = solveAxes(c6Fixture('2026-01-13 08:00'), 'S').es;
+  eq('C6 deels verstreken lag ⇒ alleen de rest telt', partial, '2026-01-15T08:00');
+  const fs = c6Fixture();
+  fs.sequences[0].type = 'FINISH_START';
+  eq('C6 raakt geen FS-relatie',
+    solveAxes(fs, 'S').es,
+    solveAxes(withProfile(fs, copy => setConvention(copy, 'p6InProgressStartLagElapsed', false)), 'S').es);
+}
+
 if (diffs.length > 0) {
   console.error(`conventions-p6-flags RED: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX ${diff}`);
   process.exit(1);
 }
-console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 4 groep-C-conventies, aan/uit + bron- en basisinertheid)`);
+console.log(`OK  conventions-p6-flags: ${checks} checks groen (5 groep-B- en 6 groep-C-conventies, aan/uit + bron- en basisinertheid)`);

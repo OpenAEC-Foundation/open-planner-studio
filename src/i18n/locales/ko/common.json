@@ -1200,6 +1200,14 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "순서 밖에서 완료된 작업은 선행 작업을 기다림",
       "help": "선행 작업이 아직 끝나지 않은 완료 작업은 영(0) 구간을 상태 날짜가 아니라 그 선행 작업 뒤에 둡니다(Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "물리적 진척 완료 작업은 데이터 날짜에 놓임",
+      "help": "물리적 완료율을 가진 완료된 작업은 실제 날짜 대신 데이터 날짜(선행 작업이 요구하면 그 이후)의 한 지점으로 표시됩니다."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "진행 중인 선행 작업에서 경과한 SS 지연은 계산하지 않음",
+      "help": "이미 시작된 작업에서 오는 시작-시작 관계에서는 실제 시작부터 데이터 날짜까지 아직 경과하지 않은 지연 부분만 계산됩니다."
     }
   },
   "profiles": {

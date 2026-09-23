@@ -1270,6 +1270,14 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Una tarea completada fuera de secuencia espera a sus predecesoras",
       "help": "Una tarea completada cuya predecesora aún no ha terminado recibe su ventana nula después de esa predecesora en lugar de en la fecha de estado (lógica retenida)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Tarea completada con avance físico en la fecha de estado",
+      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "El retraso CC transcurrido de un predecesor en curso no cuenta",
+      "help": "En una relación comienzo-comienzo desde una tarea ya iniciada, solo cuenta la parte del retraso que aún no ha transcurrido desde su comienzo real en la fecha de estado."
     }
   },
   "profiles": {

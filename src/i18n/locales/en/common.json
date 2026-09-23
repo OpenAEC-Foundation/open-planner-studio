@@ -1235,6 +1235,14 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Completed out-of-sequence task waits for its predecessors",
       "help": "A completed task whose predecessor is not yet finished gets its zero window after that predecessor instead of at the data date (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Completed physical-progress task sits at the data date",
+      "help": "A completed task with physical percent complete is shown as a single point at the data date, or later if a predecessor requires it, instead of at its actual dates."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Elapsed SS lag from an in-progress predecessor does not count",
+      "help": "For a start-to-start relationship from a task that has already started, only the part of the lag that has not yet elapsed since its actual start at the data date counts."
     }
   },
   "profiles": {

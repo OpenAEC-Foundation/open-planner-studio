@@ -1235,6 +1235,14 @@
     "p6CompletedOutOfSequenceWindow": {
       "label": "Sıra dışı tamamlanan görev öncüllerini bekler",
       "help": "Öncülü henüz bitmemiş tamamlanmış bir görevin sıfır penceresi, durum tarihine değil o öncülden sonraya yerleştirilir (Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Fiziksel ilerlemeli tamamlanan görev durum tarihinde durur",
+      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "Devam eden bir öncülden geçmiş BB gecikmesi sayılmaz",
+      "help": "Zaten başlamış bir görevden başla-başla ilişkisinde, gecikmenin yalnızca gerçek başlangıcından durum tarihine kadar henüz geçmemiş kısmı sayılır."
     }
   },
   "profiles": {

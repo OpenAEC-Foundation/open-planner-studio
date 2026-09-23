@@ -26,14 +26,51 @@ export interface P6CompletedWindowDecision {
   reason: P6CompletedWindowReason;
 }
 
+/**
+ * De P6-herkomstvelden die de voltooid-poorten lezen, elk precies één keer (`verify:conventions`
+ * telt elke lezing van een herkomst-datagate in de motor; B3 en C5 delen deze ene lezing).
+ */
+interface P6CompletedGateFields {
+  projectId: string | undefined;
+  taskId: string | undefined;
+  explicitTargetWindow: boolean | undefined;
+  completePctType: Task['p6CompletePctType'];
+  durationType: Task['p6DurationType'];
+  activityType: Task['p6ActivityType'];
+  suspendResume: boolean | undefined;
+}
+
+function p6CompletedGateFields(task: Task): P6CompletedGateFields {
+  return {
+    projectId: task.p6ProjectId,
+    taskId: task.p6TaskId,
+    explicitTargetWindow: task.p6ExplicitTargetWindow,
+    completePctType: task.p6CompletePctType,
+    durationType: task.p6DurationType,
+    activityType: task.p6ActivityType,
+    suspendResume: task.p6SuspendResume,
+  };
+}
+
+/** Gedeelde provenancepoort (blad, project-/taakherkomst, expliciet targetvenster), in de vaste
+ *  volgorde van B3; `null` = doorgelaten. */
+function provenanceRejection(task: Task, fields: P6CompletedGateFields): P6CompletedWindowReason | null {
+  if (!isLeafTask(task)) return 'notLeafTask';
+  if (fields.projectId === undefined || fields.projectId === '') return 'missingProjectProvenance';
+  if (fields.taskId === undefined || fields.taskId === '') return 'missingTaskProvenance';
+  if (fields.explicitTargetWindow !== true) return 'missingExplicitTargetWindow';
+  return null;
+}
+
 function mayUseSuspendResumeCompletedWindow(
   task: Task,
+  fields: P6CompletedGateFields,
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): boolean {
-  if (task.p6SuspendResume !== true) return false;
+  if (fields.suspendResume !== true) return false;
   if (task.time.completion < 1) return false;
-  if (task.p6ActivityType !== 'TT_Task') return false;
+  if (fields.activityType !== 'TT_Task') return false;
   if (dataDate === null) return false;
   if (schedulingOptions?.preserveActualDatesInBackwardPass !== true) return false;
   if (!task.time.actualFinish) return false;
@@ -95,28 +132,21 @@ export function explainP6CompletedDataDateWindowResolved(
   if (schedulingOptions.p6UseRemainingStartForProgress !== true) {
     return { eligible: false, reason: 'remainingStartOff' };
   }
-  if (!isLeafTask(task)) return { eligible: false, reason: 'notLeafTask' };
-  if (task.p6ProjectId === undefined || task.p6ProjectId === '') {
-    return { eligible: false, reason: 'missingProjectProvenance' };
-  }
-  if (task.p6TaskId === undefined || task.p6TaskId === '') {
-    return { eligible: false, reason: 'missingTaskProvenance' };
-  }
-  if (task.p6ExplicitTargetWindow !== true) {
-    return { eligible: false, reason: 'missingExplicitTargetWindow' };
-  }
-  const isPhysicalCompletion = task.p6CompletePctType === 'CP_Phys';
-  if (task.p6CompletePctType !== 'CP_Drtn' && !isPhysicalCompletion) {
+  const fields = p6CompletedGateFields(task);
+  const provenance = provenanceRejection(task, fields);
+  if (provenance !== null) return { eligible: false, reason: provenance };
+  const isPhysicalCompletion = fields.completePctType === 'CP_Phys';
+  if (fields.completePctType !== 'CP_Drtn' && !isPhysicalCompletion) {
     return { eligible: false, reason: 'wrongCompletePctType' };
   }
-  if (task.p6DurationType !== 'DT_FixedDUR2') return { eligible: false, reason: 'wrongDurationType' };
-  const validActivity = task.p6ActivityType === 'TT_Task'
-    || (!isPhysicalCompletion && task.p6ActivityType === 'TT_Rsrc');
+  if (fields.durationType !== 'DT_FixedDUR2') return { eligible: false, reason: 'wrongDurationType' };
+  const validActivity = fields.activityType === 'TT_Task'
+    || (!isPhysicalCompletion && fields.activityType === 'TT_Rsrc');
   if (!validActivity) {
     return { eligible: false, reason: 'wrongActivityType' };
   }
-  if (task.p6SuspendResume === true
-    && (isPhysicalCompletion || !mayUseSuspendResumeCompletedWindow(task, dataDate, schedulingOptions))) {
+  if (fields.suspendResume === true
+    && (isPhysicalCompletion || !mayUseSuspendResumeCompletedWindow(task, fields, dataDate, schedulingOptions))) {
     return { eligible: false, reason: 'hasSuspendResume' };
   }
   if (task.time.completion < 1) return { eligible: false, reason: 'notCompleted' };
@@ -141,4 +171,40 @@ export function usesP6CompletedDataDateWindow(
   schedulingOptions: SchedulingOptions | undefined,
 ): boolean {
   return explainP6CompletedDataDateWindow(task, dataDate, schedulingOptions).eligible;
+}
+
+/**
+ * Conventie C5 `p6CompletedPhysicalAtDataDate` (docblok + bron bij de sleutel in `types/project.ts`):
+ * mag een VOLTOOIDE CP_Phys-activiteit als één punt op de statusdatum staan? Een aparte tak naast
+ * B3 (niet een verbreding ervan): geen eis op het duurtype (DT_FixedDrtn doet mee) en naast TT_Task
+ * ook TT_Mile/TT_FinMile; suspend/resume blijft fail-closed. Vaste guardvolgorde, de eerste
+ * afwijzing is de enige reden (zelfde vorm als `explainP6CompletedDataDateWindowResolved`).
+ */
+export function explainP6CompletedPhysicalPoint(
+  task: Task,
+  dataDate: Date | null,
+  schedulingOptions: SchedulingOptions | undefined,
+): P6CompletedWindowDecision {
+  if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
+  if (schedulingOptions?.p6CompletedPhysicalAtDataDate !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
+  if (schedulingOptions.p6UseRemainingStartForProgress !== true) {
+    return { eligible: false, reason: 'remainingStartOff' };
+  }
+  const fields = p6CompletedGateFields(task);
+  const provenance = provenanceRejection(task, fields);
+  if (provenance !== null) return { eligible: false, reason: provenance };
+  if (fields.completePctType !== 'CP_Phys') return { eligible: false, reason: 'wrongCompletePctType' };
+  if (fields.activityType !== 'TT_Task' && fields.activityType !== 'TT_Mile'
+    && fields.activityType !== 'TT_FinMile') {
+    return { eligible: false, reason: 'wrongActivityType' };
+  }
+  if (fields.suspendResume === true) return { eligible: false, reason: 'hasSuspendResume' };
+  if (task.time.completion < 1) return { eligible: false, reason: 'notCompleted' };
+  const actualFinish = task.time.actualFinish ? parseInstant(task.time.actualFinish) : null;
+  if (actualFinish === null || !Number.isFinite(actualFinish.getTime()) || actualFinish > dataDate) {
+    return { eligible: false, reason: 'notCompleted' };
+  }
+  return { eligible: true, reason: 'eligible' };
 }
