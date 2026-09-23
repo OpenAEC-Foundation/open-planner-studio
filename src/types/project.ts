@@ -321,8 +321,8 @@ export interface SchedulingOptions {
    *  zelf bewegen niet. Ondergrens: de relatiegrenzen van haar voorgangers en de statusdatum. Haar
    *  eigen geplande venster telt niet: een ALAP-wortel start voorwaarts op de statusdatum, niet op
    *  haar eigen anker, en de geplande-startvloer van A16 geldt niet voor haar
-   *  (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een gestarte of voltooide ALAP-taak houdt
-   *  haar werkelijke datums. Alleen uurkalenders.
+   *  (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een gestarte of voltooide ALAP-taak, of
+   *  een op een dagkalender, valt buiten deze conventie en houdt de oude stap. Alleen uurkalenders.
    *
    *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": de activiteit wordt zo laat
    *    ingepland als kan zonder haar opvolgers te vertragen, dus binnen haar vrije speling. Gemeten

@@ -3126,14 +3126,15 @@ export class CPMSolver {
     lateDates: Map<string, { ls: Date; lf: Date }>,
   ): void {
     // Conventie C9 `p6AlapPositionedFromSuccessors`: dezelfde ALAP-selectie (incl. Z9b-uitsluiting
-    // (1)), maar de positionering gebeurt daarna in `applyAlapFromSuccessors`, opvolgers eerst.
+    // (1)); een niet-gestarte ALAP-taak op een uurkalender wordt daarna in `applyAlapFromSuccessors`
+    // gepositioneerd, opvolgers eerst. Alle andere ALAP-taken houden de oude stap hieronder.
     const fromSuccessors = this.options.schedulingOptions?.p6AlapPositionedFromSuccessors === true;
     const alapTaskIds: string[] = [];
     for (const taskId of order) {
       const task = this.tasks.get(taskId);
       if (task?.constraint?.type !== 'ALAP') continue;
       if (task.manuallyScheduled) continue;   // Z9b, uitsluiting (1) — zie moduleheader hierboven.
-      if (fromSuccessors) {
+      if (fromSuccessors && this.isUnstartedAlapPositionedFromSuccessors(task, this.calendarFor(task))) {
         alapTaskIds.push(taskId);
         continue;
       }

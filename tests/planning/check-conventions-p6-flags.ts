@@ -811,7 +811,7 @@ for (const fixture of groupC) {
 // C9, randgevallen (docblok): een ALAP-wortel met een gepland venster ná haar opvolger heeft geen
 // eigen anker (P6: EC1420, target 06-27 07:00, ES 06-24 16:49) en landt toch vóór B, dat dan op de
 // grens van C blijft (do 8 jan 12:00); zonder C9 staat A op dat venster en duwt ze B naar di 13 jan.
-// Een gestarte ALAP-taak houdt met C9 haar werkelijke start; de oude stap schoof ook die op. Een
+// Een gestarte ALAP-taak valt buiten C9 (alle assen, alle taken gelijk met en zonder C9). Een
 // keten A0 —FS0→ A (beide ALAP) sluit aaneen: A eerst (wo 7 jan 12:00), dan A0 er direct vóór
 // (EF wo 7 jan 12:00, ES di 6 jan 12:00) — opvolgers eerst, anders blijft A0 op de statusdatum.
 {
@@ -828,9 +828,7 @@ for (const fixture of groupC) {
   const a = started.tasks.find(task => task.id === 'A')!;
   a.time.actualStart = '2026-01-05T08:00';
   a.time.completion = 0.5;
-  eq('C9 gestarte ALAP-taak houdt haar werkelijke start', pickEsEf(solveAxes(started, 'A')),
-    { es: '2026-01-05T08:00', ef: '2026-01-05T17:00' });
-  eq('C9 uit ⇒ de oude stap schuift ook de gestarte taak op', solveAxes(off(started), 'A').es, '2026-01-07T08:00');
+  eq('C9 raakt geen gestarte ALAP-taak', solveAllAxes(started), solveAllAxes(off(started)));
   const chain = c9Fixture('2026-01-05 08:00', '2026-01-05 17:00');
   const a0 = structuredClone(chain.tasks.find(task => task.id === 'A')!);
   chain.tasks.unshift({ ...a0, id: 'A0', wbsCode: 'A000', name: 'Zo laat mogelijk (eerder)', p6TaskId: 'A0' });
