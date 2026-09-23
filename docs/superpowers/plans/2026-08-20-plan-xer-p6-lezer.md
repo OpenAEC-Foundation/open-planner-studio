@@ -628,10 +628,20 @@ vóór C1 toevallig exact via de opvolgerkalender, en C2 is de regel die hem ver
 **Voorbehoud orakel (toets 2026-09-23, `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` op de
 etappebranch).** Het orakel van `rehab-2.xer` is P3-uitvoer (geen SCHEDOPTIONS, `rem_late_start_date`
 0/4.940, geen `driving_path_flag`). C1 en C3 veranderen buiten rehab-2 geen enkele cel; hun P6-waarde
-"aan" staat daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). C2 staat op eigen
-benen: 256 ff-cellen in drie P6-doorgerekende bestanden (Hotel +244, Roads +11, DCP-03 BL +1), 0
-slechter. De Oracle-tekst "Using the data date" beschrijft de C1-regel (actual ná de statusdatum) niet;
-de docblokken in `src/types/project.ts` zeggen dat nu zo. De gelande stand blijft (de ratchet gaat
+"aan" staat daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). C2 staat deels op eigen
+benen: de HOOFDREGEL (vrije speling op de eigen kalender) is gesteund door 256 ff-cellen in drie
+P6-doorgerekende bestanden (Hotel +244, Roads +11, DCP-03 BL +1), 0 slechter; de DEELTAK "voltooide
+opvolger ⇒ ff = 0" niet — die is uitsluitend in rehab-2 gemeten (mutant M4 = tak weg: 12.973 →
+12.980, alle 8 cellen `ff` in rehab-2) en valt onder hetzelfde voorbehoud als C1/C3. Dat de
+hoofdregel "op de eigen kalender" rekent is bovendien interpretatie: de Oracle-zin ("View activity
+float values") zegt niets over kalenders. De Oracle-tekst "Using the data date" beschrijft de C1-regel (actual ná de statusdatum) niet;
+de docblokken in `src/types/project.ts` zeggen dat nu zo.
+
+**Open meetpunt (her-check-critreview brok 2, [VERMOED], niet bouwen).** C3 meet de verstreken lag
+altijd vanaf het werkelijke EINDE van de voorganger, ook bij SS/SF-relaties (waar de lag op de start
+steunt); de fixtures zijn alleen FS. Of P6 bij SS/SF vanaf de werkelijke start telt is ongemeten.
+Ook de C1-grenskeuze (`prevWorkInstant(snapOnOrAfter(…))` vs `snapOnOrAfter(…)`, mutant M5) is door
+geen orakel of fixture onderscheiden; zie het C1-docblok. De gelande stand blijft (de ratchet gaat
 alleen omlaag); de standaardwaarde van C1/C3 wordt pas herzien na het manifestbesluit.
 
 **Inzicht uit de critreview: 761 cellen binnen de bucket verder van P6.** De cel-ratchet kent alleen

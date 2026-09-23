@@ -71,7 +71,7 @@ Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
 Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
 uitvoer).
 
-**Herpinnen na een VERBETERD-uitslag** — vier stappen, in deze volgorde, alles in één commit:
+**Herpinnen na een VERBETERD-uitslag** — zes stappen, in deze volgorde, alles in één commit:
 
 ```bash
 export OPS_XER_CORPUS=/pad/naar/testdata-crawl
@@ -84,9 +84,27 @@ OPS_XER_GATE_PINS=write bash tests/planning/run.sh check-xer-corpusless-fidelity
 #    ...en werk de HERPIN-toelichting boven `productStrict` in dat bestand met de hand bij
 # 4. de vangrails moeten nu groen zijn
 bash tests/planning/run.sh check-xer-corpusless-fidelity-gate.ts check-fidelity-cells-gate.ts
-# 5. xer-product-fidelity-baseline-v2.json, xer-product-fidelity-cells.json en
-#    check-xer-corpusless-fidelity-gate.ts samen committen
+# 5. de tweede-orde pins (geen schrijfmodus; met de hand, zie hieronder), daarna deze twee groen
+bash tests/planning/run.sh check-xer-schedule-options-corpus.ts check-xer-task-replay.ts
+# 6. xer-product-fidelity-baseline-v2.json, xer-product-fidelity-cells.json,
+#    check-xer-corpusless-fidelity-gate.ts en de onder 5 bijgewerkte pins samen committen
 ```
+
+**Stap 5 — de tweede-orde pins** (bij brok 2 vergeten; `test:planning` mét corpus staat anders rood
+op regels BUITEN het nuldoel). Beide hebben geen schrijfmodus; herpin met de hand, met een
+`Herpin <datum> (…)`-toelichting boven de betreffende `eq` in de check:
+- `tests/planning/xer-schedoptions-blast-radius.json` (`check-xer-schedule-options-corpus.ts`).
+  `OPS_XER_SCHEDOPTIONS_REPORT=baseline bash tests/planning/run.sh check-xer-schedule-options-corpus.ts`
+  print de verse meting als JSON; neem daaruit alleen de rijen over die de regel noemt (bij brok 2:
+  `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement`, plus de projectie in de check).
+  Criterium: de `xerDefaults`-afwijkingen mogen per as alleen OMLAAG; `house` en de
+  completedProgress-rijen blijven byte-identiek. Beweegt er iets omhoog of daarbuiten ⇒ niet
+  herpinnen, uitzoeken.
+- `tests/planning/xer-task-replay-public-pin.json` (`check-xer-task-replay.ts`, o.a. de negatieve
+  kandidaat `drop-p6-finish-milestone-boundary`). Dit pint DETECTIEVERMOGEN: een mutant die meer
+  exacte cellen breekt is de verwachte richting na een verbetering. Criterium: per as blijft de som
+  `regressed + unchanged` gelijk (alleen de verdeling schuift), assen die de wijziging niet raakt
+  blijven gelijk. Een kleinere som of een detectieverlies ⇒ niet herpinnen, uitzoeken.
 
 Stap 1 en 2 eindigen zolang het nuldoel niet gehaald is met exit 1 op precies de drie
 nuldoelregels; dat is verwacht. Kijk naar de regel `OK  X12 v2-baseline herpind` resp. `OK  X12
@@ -125,6 +143,23 @@ Maak een baseline daarom nooit langs ze heen:
   het baselinebestand te schrijven;
 - geen cellenbestand weggooien om het met `init` opnieuw te maken;
 - `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen.
+
+## P6-doorgerekend-rapportage (corpusgebonden, niet in `verify`)
+
+- `xer-p6-computed.ts` — `node scripts/run-ts.mjs scripts/xer-p6-computed.ts [--check]` met
+  `OPS_XER_CORPUS`. Meet per manifest-entry de drie kenmerken (SCHEDOPTIONS-rij, `rem_late_start_date`
+  gevuld op open taken, `driving_path_flag` ergens Y) op de ruwe tabellen en schrijft
+  `tests/planning/xer-corpus-p6computed.json`. Het oordeel is per PROJECT (`projects[proj_id]:
+  { p6Computed: true|false|"unknown", schedOptions, remLateStartFilled, drivingPathFlagY }`; "unknown"
+  = geen open taken); de X12-splitsing telt per (bestand, project), en projecten zonder sidecar-regel
+  tellen apart als "niet in sidecar". Het bestandsveld `p6Computed` is alleen een samenvatting: de
+  gemeenschappelijke waarde, of `"mixed"` als projecten verschillen. `measure:profiles` draait in het
+  P6-deel `--check` mee en print de exitcode, zonder het oordeel te veranderen. Dat
+  bestand is de enige bron voor de splitsing "P6-doorgerekend / niet / onbekend" in de X12-uitvoer en
+  in `measure:profiles`; het stuurt de populatie nooit. `--check` faalt (exit 1) als het bestand niet
+  met de meting overeenkomt. Het staat bewust naast en niet ín `xer-corpus-manifest.json`: de
+  manifest-SHA-256 is gepind in de v2- en cel-baselines. Het leest twee bak-2-kolommen, maar alleen
+  hier in `scripts/`; in `src/` blijft dat verboden (`check-xer-field-whitelist.ts`).
 
 ## Release en publicatie
 
