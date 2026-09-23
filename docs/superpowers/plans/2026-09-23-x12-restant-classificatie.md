@@ -217,6 +217,7 @@ Verdeling: Hotel 58, ashspace 4, Roads 4, OZB 2, HarbourPointe 1, Sample_Constru
 - **Signatuur.** EC1420 is een startmijlpaal met `CS_ALAP`. P6-ES = 2011-06-24T16:49; OPS = 06-27 07:00 (het targetvenster).
 - **Opmerking.** HarbourPointe rekent met afwijkende minuutbanden (16:49, 10:40).
 - **Hypothese.** P6 legt ALAP-datums anders op de kalender dan de OPS-verschuiving "vrije speling = 0" (`CPMSolver`, ALAP-blok).
+- **Stand 2026-09-23.** Gebouwd als C9 `p6AlapPositionedFromSuccessors` (+27 / 0 per emmer, alles HarbourPointe), maar **geparkeerd** op `d9973123` (`claude/x12-brok5-klein`): drie cellen (EC1420 es/ef, EC1430 es) komen verder van P6 door P6's duur van EC1430 (696 i.p.v. 720 u). Dossier: plan XER §9, "C9 ALAP-positionering (geparkeerd) + duur uit toewijzingen".
 
 ### B13 · CS_MSOA (OZB): 15 cellen
 
@@ -232,6 +233,7 @@ Verdeling: Hotel 65, Roads 6, DCP-03 5, OZB 1, HarbourPointe 1.
 
 - **Signatuur.** Alleen ff fout. Het gaat om opvolgers met lag, FF of SS, vooral Hotel-FinMiles met gelagde FS-opvolgers; OPS-FF ligt 1 tot 140 uur lager.
 - **Hypothese.** Hetzelfde als B06, maar met lag erbij. Niet rekenkundig getoetst.
+- **Stand 2026-09-23.** Na C2 resteren in P6-bestanden ± 15 ff-only-cellen; de meeste hangen aan foute opvolgerdatums. C8 `p6FreeFloatLaggedRelationsOnOwnCalendar` gemeten, +2/−1 (rehab-2 −1), niet geland; patch in `docs/superpowers/plans/patches/2026-09-23-c8-p6FreeFloatLaggedRelationsOnOwnCalendar.patch`.
 
 ## 3. Synthetische bestanden: 1.814 cellen
 
