@@ -74,7 +74,9 @@ export type XerCorpusRole =
   | 'parser-fixture'
   | 'pseudo-xer'
   | 'reference-only'
-  | 'synthetic-fixture';
+  | 'synthetic-fixture'
+  /** Echt XER-bestand zonder aantoonbare P6-doorrekening (eigenaarsbesluit 2026-09-23): lezer-/prestatietest, geen orakel. */
+  | 'reader-only';
 
 export interface XerCorpusManifestEntry {
   sha256: string;

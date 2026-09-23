@@ -375,3 +375,32 @@ export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
     setConvention(imported, 'p6FinishMilestoneBoundaryWindow', false);
   },
 };
+
+/**
+ * Negatieve controle van het openbare replay-instrument op de P6-doorgerekende populatie
+ * (eigenaarsbesluit 2026-09-23): zet alleen B1 `p6RelationFinishBoundary` uit. De oudere
+ * `dropFinishMilestoneBoundaryCandidate` (A17) is op die populatie inert (0 regressies, gemeten
+ * 2026-09-23) en kan dus niet meer bewijzen dat het instrument een regressie ziet.
+ */
+export const dropRelationFinishBoundaryCandidate: XerTaskReplayCandidate = {
+  id: 'drop-p6-relation-finish-boundary',
+  replayFrom: 'source',
+  predicate: context => {
+    const source = {
+      profileId: context.schedulingProfile?.id ?? null,
+      relationFinishBoundary: context.schedulingOptions.p6RelationFinishBoundary === true,
+      activityType: context.task.p6ActivityType ?? null,
+      predecessorCount: context.incoming.length,
+      successorCount: context.outgoing.length,
+    };
+    return {
+      matched: source.profileId === 'p6' && source.relationFinishBoundary,
+      source,
+    };
+  },
+  apply: (imported, matchedTaskIds) => {
+    if (matchedTaskIds.size === 0) return;
+    if (imported.project.schedulingProfile?.baseId !== 'p6') return;
+    setConvention(imported, 'p6RelationFinishBoundary', false);
+  },
+};

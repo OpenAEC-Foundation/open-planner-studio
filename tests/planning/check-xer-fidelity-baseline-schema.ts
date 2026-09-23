@@ -28,22 +28,17 @@ import {
 } from './xerFidelityTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
+// Populatie na het eigenaarsbesluit van 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels.
 const EXPECTED_BASELINE_KEYS = [
-  '0611f9054a4b5663', '0fa5172162fbd689', '146e4c8659bad066', '1ba69d297ee9a5c6',
-  '1ba8cf1885491db3', '1d7901d68cc7063b', '2bc12241c3f8ee5b', '2c1dce175b9f0781',
-  '467ab0eb0885c4a7', '49aea658c963a005', '4d8bce790a93b9bc', '53f5cdbeb3fbd9c6',
-  '55b7e4463dcd36ba', '568c19375b4e0d67', '5d71eac4e70b0d95', '68ce5f0bb2b534d5',
-  '78325fb6445d22f5', '790b90fda837bad3', '79f6fb43bb391ed6', '816e01738f496787',
-  '9590c4cdc4efa69a', '9679599df9108bd3', '97058f720a70f623', 'a132f8c7ebb070d2',
-  'a2ef7b35c00d8cf8', 'a2f3b2469e26f199', 'a7fc367eab6c904e', 'ac4b9d677133c6ed',
-  'ad92ce52ba95b275', 'b7ef6d85acfedda1', 'b9547eb91c30af17', 'c872c9e704797d82',
-  'deabc76347eaef15', 'def489b2a803af9f',
+  '0611f9054a4b5663', '2bc12241c3f8ee5b', '4d8bce790a93b9bc', '55b7e4463dcd36ba',
+  '68ce5f0bb2b534d5', '9679599df9108bd3', 'a2ef7b35c00d8cf8', 'a2f3b2469e26f199',
+  'b9547eb91c30af17',
 ] as const;
 const EXPECTED_MEASURABLE = {
-  es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322,
+  es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772,
 } as const;
-const EXPECTED_MANIFEST_SHA256 = '6defbc4b4a71500565e5847750662060d9baca983952098dd1b334ac81d55786';
-const EXPECTED_BASELINE_SHA256 = 'a7075bd27c73cecae71403bc9b06e8ef53707b756049598c60f125dec0c28b29';
+const EXPECTED_MANIFEST_SHA256 = 'f3b74ea7f1b1c765667323b4d6bb3e0ef167b5365079bd712abc71ca8a0b2200';
+const EXPECTED_BASELINE_SHA256 = 'c945d59ac0cc7ec723ff16738a0ca54e3b194bda02f919d6885c2b2bc8a1aba0';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -195,7 +190,7 @@ function validateBaseline(v: unknown): string[] {
   const parsed: unknown = JSON.parse(raw);
   const problems = validateBaseline(parsed);
   truthy(`1 xer-fidelity-baseline.json is welgevormd (${problems.join('; ')})`, problems.length === 0);
-  eq('1a corpusloze CI pint de exacte 34-entryset',
+  eq('1a corpusloze CI pint de exacte 9-entryset',
     isPlainObject(parsed) && isPlainObject(parsed.files) ? Object.keys(parsed.files).sort() : [],
     EXPECTED_BASELINE_KEYS);
   truthy('1b elke X1-entry draagt een niet-lege schemaFingerprint',
@@ -238,11 +233,13 @@ function validateBaseline(v: unknown): string[] {
     && isPlainObject(manifest.files) && Object.keys(manifest.files).length === 93);
   if (isPlainObject(manifest) && isPlainObject(manifest.files)) {
     const entries = Object.entries(manifest.files);
-    eq('1h manifestselectie bevat 45 herkomstgeschikte orakelbestanden',
-      entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 45);
-    eq('1i manifest sluit 48 fixtures/pseudo-/invoerbestanden met reden uit',
+    // Populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
+    // orakels): 45 → 13 orakelbestanden; de 32 andere zijn `reader-only` met reden.
+    eq('1h manifestselectie bevat 13 aantoonbaar door P6 doorgerekende orakelbestanden',
+      entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 13);
+    eq('1i manifest sluit 80 fixtures/pseudo-/invoer-/lezerbestanden met reden uit',
       entries.filter(([, entry]) => isPlainObject(entry) && entry.included === false
-        && typeof entry.exclusionReason === 'string' && entry.exclusionReason.length > 0).length, 48);
+        && typeof entry.exclusionReason === 'string' && entry.exclusionReason.length > 0).length, 80);
     truthy('1j cases-import.xer is op engine-input-herkomst uitgesloten',
       isPlainObject(manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'])
         && manifest.files['cpp-cpm-engine/validation/p6-comparison/cases-import.xer'].role === 'engine-input'

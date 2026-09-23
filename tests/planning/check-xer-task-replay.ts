@@ -10,6 +10,7 @@ import {
 } from './xerTaskReplay';
 import {
   dropFinishMilestoneBoundaryCandidate,
+  dropRelationFinishBoundaryCandidate,
   replayXerProductBeforeOracle,
   syntheticZeroRegressionCandidate,
   type XerTaskReplayCandidate,
@@ -60,7 +61,11 @@ if (!corpusRoot) {
   // maken (corpusbreed ls 4791 → 3901 en lf 4781 → 3891 afwijkingen, zie
   // `xer-schedoptions-blast-radius.json`). `synthetic-zero-regression` blijft ongewijzigd op 0
   // regressies — de nulmeting is dus niet meeverschoven.
-  for (const candidate of [syntheticZeroRegressionCandidate, dropFinishMilestoneBoundaryCandidate]) {
+  // Herpin 2026-09-23 (populatiebesluit: alleen aantoonbaar door P6 doorgerekende orakels): de
+  // selectie gaat 34 → 9 entries. Op die populatie is `drop-p6-finish-milestone-boundary` (A17) inert
+  // — 0 regressies op alle assen, gemeten — en dus geen negatieve controle meer. Die rol gaat naar
+  // `drop-p6-relation-finish-boundary` (B1), die op dezelfde populatie duidelijk regressies geeft.
+  for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {
       manifestEntries: summary.manifestEntries,

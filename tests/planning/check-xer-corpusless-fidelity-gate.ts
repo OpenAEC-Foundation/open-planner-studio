@@ -5,11 +5,12 @@
  * contractdata en bewaakt drie verschillende beweringen die CI zonder corpus nog kan doen:
  *
  *  A. 93 publieke bronoccurrences met hun volledige SHA-256, rol en inclusiebesluit;
- *  B. de onafhankelijke, na byte- en schema-dedup geselecteerde 34 orakelentries;
+ *  B. de onafhankelijke, na byte- en schema-dedup geselecteerde 9 orakelentries (populatie: alleen
+ *     aantoonbaar door P6 doorgerekende bestanden, eigenaarsbesluit 2026-09-23);
  *  D. de openbare task-replay-pin die A en B kruist zonder een replay uit te voeren.
  *
  * Laag C is een compacte maar volledig uitgepakte v2-karakteriseringssnapshot: hij bewaakt de
- * 34 entries en 47 projecten, maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
+ * 9 entries en 21 projecten, maar verklaart zijn strict-nulpoort expliciet rood en ongeaccepteerd.
  * Daardoor kan corpusloze CI niet veinzen dat productfidelity nul is. `readXER`, scanner,
  * dedupbuilder, solveProject en de product-/replayadapter zijn hier daarom verboden imports.
  */
@@ -24,6 +25,7 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
 const ROLES = [
   'oracle', 'engine-input', 'parser-fixture', 'pseudo-xer', 'reference-only', 'synthetic-fixture',
+  'reader-only',
 ] as const;
 
 type Axis = (typeof AXES)[number];
@@ -60,24 +62,39 @@ type ProductV2 = ProductBaselineV2;
 type ProductEnvelope = ProductEnvelopeV2;
 
 const EXPECTED = {
-  manifestRawSha256: '6defbc4b4a71500565e5847750662060d9baca983952098dd1b334ac81d55786',
-  baselineRawSha256: 'a7075bd27c73cecae71403bc9b06e8ef53707b756049598c60f125dec0c28b29',
-  manifestProjectionSha256: 'd38022159ee17e335bb8bf8f736cb9549c8d5f9410132f9a9b4674fe6c23b56d',
+  manifestRawSha256: 'f3b74ea7f1b1c765667323b4d6bb3e0ef167b5365079bd712abc71ca8a0b2200',
+  baselineRawSha256: 'c945d59ac0cc7ec723ff16738a0ca54e3b194bda02f919d6885c2b2bc8a1aba0',
+  manifestProjectionSha256: '9254180bb5db249ade8b875d104831c6fb2fdc89f761deb55d1bf5d5b8a04812',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
-  oracleByteUniqueSha256: 'fad95534c46d31dca1d93ea634ba096fa467e101ade8f7e127fd95285d433528',
-  selectedFullSha256: '685f738809d41450c89804dcb6cdd3481610d787e99734f00534b6f1797af0a3',
-  selectedSchemaSha256: '26f635e84f858817b19d7493f4958a06113adcfbb46a2c1ba44409b99bf57f06',
-  selectedContractSha256: 'a5805cef640d38568f1dfe2b67ee17a4f5324ae488fdd1abfd33afa0e4fb3daa',
+  oracleByteUniqueSha256: '7fee48a5ef51dd3c7b9940f631a1140a57b51ee2d65e22c048e48d12d67d7d47',
+  selectedFullSha256: 'dd29b9e103709e8827f9ea159ed68bcfe7a70b141e9269bbc618ad786fa604d8',
+  selectedSchemaSha256: '357eda2c6f02bb927e405bb51d8c51b3cfe55c279a86dd9f0446531fee0f97ef',
+  selectedContractSha256: 'd710b69e540479162bd86c5702dbc4f37c2e25df0deda9b4943c570067ee5400',
   occurrences: 93,
-  included: 45,
-  excluded: 48,
+  included: 13,
+  excluded: 80,
   byteUnique: 84,
-  oracleByteUnique: 36,
-  selected: 34,
-  projects: 47,
-  tasks: 13_982,
-  tasksWithAnyMeasuredAxis: 13_959,
-  measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  oracleByteUnique: 10,
+  selected: 9,
+  schemaDuplicates: 1,
+  projects: 21,
+  tasks: 5_983,
+  tasksWithAnyMeasuredAxis: 5_961,
+  measurable: { es: 5_961, ef: 5_961, ls: 5_961, lf: 5_961, tf: 5_772, ff: 5_772 },
+  // HERPIN 2026-09-23f (POPULATIEWIJZIGING, geen motorwijziging — eigenaarsbesluit 2026-09-23 "alleen
+  // die P6-bestanden", overdracht §1a): het orakel is voortaan uitsluitend een bestand met minstens één
+  // aantoonbaar door P6 doorgerekend project (SCHEDOPTIONS + rem_late_start_date op alle open taken +
+  // driving_path_flag ergens Y; `scripts/xer-p6-computed.ts`). 32 manifestentries gaan van oracle naar
+  // reader-only (rehab-2 = P3-uitvoer, de synthetische/generatorbestanden, hb-intel, stack_data_center en
+  // de vier DCP-03 As-Built-kopieën zonder open taak). Geselecteerd: 34 → 9 entries, 47 → 21 projecten,
+  // 13.982 → 5.983 taken. X12 11.529 → 1.274 zesassig (es 271, ef 280, ls 267, lf 282, tf 120, ff 54;
+  // sameday es 2, ef 2, ls 1, lf 13); drivingPath 417 → 176. Per bestand (zesassig, ongewijzigd t.o.v.
+  // de vorige meting — alleen de noemer is kleiner): Roads 811 (es 195, ef 197, ls 178, lf 178, tf 49,
+  // ff 14), HarbourPointe 192 (36/39/39/35/32/11), OZB-Start 98 (18/18/23/23/13/3), DCP-03 Baseline 92
+  // (20/22/4/4/22/20), Hotel 64 (0/2/22/36/1/3), Sample_Construction 13 (2/2/1/2/3/3), ashspace 4
+  // (lf 4), TERMINAL 0, xernative 0. Uitgevallen: rehab-2 8.441, de niet-P6-bestanden 1.814 samen.
+  // Hotel draagt nog project CR (2665, niet P6-doorgerekend): 0 zesassige cellen, wel 19 drivingPath-
+  // cellen (diff); het manifest kan niet per project uitsluiten — vervolgpunt.
   // HERPIN 2026-09-23e (X12 naar nul, brok 4 — conventie C7 `p6StartedTaskIgnoresPlannedStartFloor`,
   // brok B11): 11.608 → 11.529 (−79, 0 cellen slechter, drivingPath 417 ongewijzigd). OZB-Start-09Dec24
   // (projecten 9032 en 10096): es −18, ef −18, tf −18, ff −4 — de lopende OZ1040 start ná haar lopende
@@ -131,23 +148,24 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 13_311, ef: 13_263, ls: 10_425, lf: 10_379, tf: 10_374, ff: 13_221 },
-    sameday: { es: 96, ef: 97, ls: 71, lf: 84, tf: 0, ff: 0 },
-    diff: { es: 524, ef: 577, ls: 3_326, lf: 3_350, tf: 3_303, ff: 101 },
+    exact: { es: 5_690, ef: 5_681, ls: 5_694, lf: 5_679, tf: 5_652, ff: 5_718 },
+    sameday: { es: 2, ef: 2, ls: 1, lf: 13, tf: 0, ff: 0 },
+    diff: { es: 269, ef: 278, ls: 266, lf: 269, tf: 120, ff: 54 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 620, ef: 674, ls: 3_397, lf: 3_434, tf: 3_303, ff: 101 },
-    drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
+    deviations: { es: 271, ef: 280, ls: 267, lf: 282, tf: 120, ff: 54 },
+    drivingPath: { exact: 5_807, sameday: 0, diff: 176, missing: 0, measurable: 5_983, deviations: 176 },
   },
-  productPayloadSha256: 'db051d1cc9321f75e506cd17e747275e7f4fd0db2236bb3b9c73ce84ef3c3f41',
-  productPayloadGzipSha256: 'f46d9c86e0fa249233897642675cc4e193d2f73d69aa50782b05fe84d6f811de',
-  productProjectProjectionSha256: '6463c53fad93d41c9a1bdb73ddcd005909e374b2718559517108387f6f94b85a',
+  productPayloadSha256: '1897606ad876cc7603307799ed2241c39ecc9c891ad302ef6740029b9438803d',
+  productPayloadGzipSha256: '6951300fbcf1526c557110d3881680e0bc8b0f2c4a92f8c254edb124c0b314eb',
+  productProjectProjectionSha256: 'ab87aabbb36816dc69d7ff2a38ffc4ec563aa57342df66317bc2c14ab4027f5d',
   roles: {
-    oracle: 45,
+    oracle: 13,
     'engine-input': 14,
     'parser-fixture': 15,
     'pseudo-xer': 13,
     'reference-only': 1,
     'synthetic-fixture': 5,
+    'reader-only': 32,
   } satisfies Record<Role, number>,
 } as const;
 
@@ -377,7 +395,7 @@ function validateOracle(raw: unknown, manifest: Manifest): { baseline: OracleBas
       measurable[axis] += counts.measurable;
     }
   }
-  equal(problems, 'orakel.tweede-dedup', includedUnique.length - seenFull.size, 2);
+  equal(problems, 'orakel.tweede-dedup', includedUnique.length - seenFull.size, EXPECTED.schemaDuplicates);
   equal(problems, 'orakel.geselecteerde-volledige-SHAs', stableHash([...seenFull].sort()), EXPECTED.selectedFullSha256);
   equal(problems, 'orakel.schemafingerprintset', stableHash(selectedProjection(baseline, manifest)
     .map(({ sha256, schemaFingerprint }) => ({ sha256, schemaFingerprint }))), EXPECTED.selectedSchemaSha256);
@@ -405,7 +423,7 @@ function validateReplay(raw: unknown, oracle: OracleBaseline): string[] {
   equal(problems, 'replay.projecten', replay.projects, oracleProjects);
   equal(problems, 'replay.TASK-rijen', replay.tasks, oracleTasks);
   const zero = replay.candidates['synthetic-zero-regression'];
-  const negative = replay.candidates['drop-p6-finish-milestone-boundary'];
+  const negative = replay.candidates['drop-p6-relation-finish-boundary'];
   if (!zero || !negative) return [...problems, 'replay: verplichte kandidaten ontbreken'];
   for (const axis of AXES) {
     const candidate = zero.aggregate?.[axis];
@@ -948,12 +966,12 @@ if (singleMutant !== undefined) {
   expectRejected('M17 replay nul kandidaat regressed 1', manifest, oracle, zeroRegressed);
 
   const negativeExitGreen = clone(replay);
-  negativeExitGreen.candidates['drop-p6-finish-milestone-boundary']!.exitCode = 0;
+  negativeExitGreen.candidates['drop-p6-relation-finish-boundary']!.exitCode = 0;
   expectRejected('M18 replay negatieve kandidaat exitcode 0', manifest, oracle, negativeExitGreen);
 
   const negativeWithoutRegression = clone(replay);
   for (const axis of AXES) {
-    negativeWithoutRegression.candidates['drop-p6-finish-milestone-boundary']!.aggregate[axis].regressed = 0;
+    negativeWithoutRegression.candidates['drop-p6-relation-finish-boundary']!.aggregate[axis].regressed = 0;
   }
   expectRejected('M19 replay negatieve kandidaat zonder regressie', manifest, oracle, negativeWithoutRegression);
 

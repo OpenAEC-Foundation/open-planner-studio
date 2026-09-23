@@ -294,7 +294,9 @@ if (!root) {
   eq('C1 volledige manifestcrawl heeft concrete parser-/rapporttellingen', aggregate, {
     files: 93,
     ok: 71,
-    oracleOk: 45,
+    // 13 sinds het populatiebesluit van 2026-09-23 (alleen P6-doorgerekende orakels; de 32 andere
+    // voormalige orakels zijn `reader-only` en worden hier nog steeds zonder fout geparseerd: ok 71).
+    oracleOk: 13,
     oracleErrors: 0,
     referenceOk: 1,
     referenceErrors: 0,
