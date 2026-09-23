@@ -71,7 +71,7 @@ Kindprocessen krijgen nooit `OPS_XER_CELLS_WRITE`, `OPS_XER_FIDELITY_REPORT` of
 Exit 1 zodra één onderdeel rood is; logs per onderdeel in een tijdelijke map (pad staat in de
 uitvoer).
 
-**Herpinnen na een VERBETERD-uitslag** — vier stappen, in deze volgorde, alles in één commit:
+**Herpinnen na een VERBETERD-uitslag** — zes stappen, in deze volgorde, alles in één commit:
 
 ```bash
 export OPS_XER_CORPUS=/pad/naar/testdata-crawl
@@ -84,9 +84,27 @@ OPS_XER_GATE_PINS=write bash tests/planning/run.sh check-xer-corpusless-fidelity
 #    ...en werk de HERPIN-toelichting boven `productStrict` in dat bestand met de hand bij
 # 4. de vangrails moeten nu groen zijn
 bash tests/planning/run.sh check-xer-corpusless-fidelity-gate.ts check-fidelity-cells-gate.ts
-# 5. xer-product-fidelity-baseline-v2.json, xer-product-fidelity-cells.json en
-#    check-xer-corpusless-fidelity-gate.ts samen committen
+# 5. de tweede-orde pins (geen schrijfmodus; met de hand, zie hieronder), daarna deze twee groen
+bash tests/planning/run.sh check-xer-schedule-options-corpus.ts check-xer-task-replay.ts
+# 6. xer-product-fidelity-baseline-v2.json, xer-product-fidelity-cells.json,
+#    check-xer-corpusless-fidelity-gate.ts en de onder 5 bijgewerkte pins samen committen
 ```
+
+**Stap 5 — de tweede-orde pins** (bij brok 2 vergeten; `test:planning` mét corpus staat anders rood
+op regels BUITEN het nuldoel). Beide hebben geen schrijfmodus; herpin met de hand, met een
+`Herpin <datum> (…)`-toelichting boven de betreffende `eq` in de check:
+- `tests/planning/xer-schedoptions-blast-radius.json` (`check-xer-schedule-options-corpus.ts`).
+  `OPS_XER_SCHEDOPTIONS_REPORT=baseline bash tests/planning/run.sh check-xer-schedule-options-corpus.ts`
+  print de verse meting als JSON; neem daaruit alleen de rijen over die de regel noemt (bij brok 2:
+  `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement`, plus de projectie in de check).
+  Criterium: de `xerDefaults`-afwijkingen mogen per as alleen OMLAAG; `house` en de
+  completedProgress-rijen blijven byte-identiek. Beweegt er iets omhoog of daarbuiten ⇒ niet
+  herpinnen, uitzoeken.
+- `tests/planning/xer-task-replay-public-pin.json` (`check-xer-task-replay.ts`, o.a. de negatieve
+  kandidaat `drop-p6-finish-milestone-boundary`). Dit pint DETECTIEVERMOGEN: een mutant die meer
+  exacte cellen breekt is de verwachte richting na een verbetering. Criterium: per as blijft de som
+  `regressed + unchanged` gelijk (alleen de verdeling schuift), assen die de wijziging niet raakt
+  blijven gelijk. Een kleinere som of een detectieverlies ⇒ niet herpinnen, uitzoeken.
 
 Stap 1 en 2 eindigen zolang het nuldoel niet gehaald is met exit 1 op precies de drie
 nuldoelregels; dat is verwacht. Kijk naar de regel `OK  X12 v2-baseline herpind` resp. `OK  X12

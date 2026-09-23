@@ -8,8 +8,10 @@
 import { CONVENTIONS, diffAgainstBase, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { ConventionKey, SchedulingProfile } from '@/types/project';
 
+// Groep C (sinds 2026-09-23) was nooit gepoort, maar bestond toen ook niet: "zonder P6-semantiek"
+// betekent daar dus ook uit (een legacy-blob zonder bronmarkering migreert ze naar uit).
 export const P6_SOURCE_GATED_CONVENTIONS: readonly ConventionKey[] =
-  CONVENTIONS.filter(c => c.gatedByP6Source).map(c => c.id);
+  CONVENTIONS.filter(c => c.gatedByP6Source || c.group === 'C').map(c => c.id);
 
 export function withoutP6Semantics(target: { project: { schedulingProfile?: SchedulingProfile } }): void {
   const current = target.project.schedulingProfile;

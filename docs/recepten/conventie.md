@@ -16,7 +16,8 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
 1. **Type.** Voeg de boolean toe aan `SchedulingOptions` (`src/types/project.ts`) met een docblok (wat,
    waar in de motor, P6/MS Project/OPS), en aan de unie `ConventionKey`. De compiler dwingt daarna
    stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
-2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep, de drie
+2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep (`A`, `B`
+   of `C`; de groep zet niets aan in oude bestanden, zie hieronder), de drie
    ingebouwde waarden, `gatedByP6Source: false` (nieuwe conventies hebben geen `p6Source`-verleden),
    `perFile` (komt de waarde per bestand uit de bron? beschrijvend; zie stap 4) en `since` = vandaag.
    `legacyValue` = het gedrag vóór vandaag (bijna altijd de OPS-waarde): dat geldt voor bestanden mét
@@ -24,7 +25,15 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    in de IFC-JSON: voeg achteraan toe. **Let op de groep:** kies je groep `B`, dan gaat de conventie
    daarmee NIET vanzelf aan in oude XER-IFC's — die migratie (`legacyOptionsToProfile`) zet alleen de
    gepinde B1–B5 uit `LEGACY_XER_ALWAYS_ON` (`src/services/ifc/schedulingProfileMigration.ts`) aan, want
-   een nieuwe conventie bestond in zo'n bestand niet. Breid die lijst nooit uit voor een nieuwe conventie.
+   een nieuwe conventie bestond in zo'n bestand niet. De regel: een nieuwe conventie gaat voor oude
+   bestanden NOOIT vanzelf aan, welke groep ook, tenzij ze met een meting expliciet in een gepinde set
+   wordt gezet — zoals C1–C3 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
+   15.056 → 12.973 gemeten, 0 slechter). Breid `LEGACY_XER_ALWAYS_ON` nooit uit. Twee sets, twee
+   betekenissen: `LEGACY_XER_ALWAYS_ON` (B1–B5) geeft `true` — die hingen vroeger letterlijk aan
+   `p6Source` —, `LEGACY_XER_ALSO_ON_X12` (C1–C3) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
+   rekent als een herimport). Een expliciet gezette vlag in het oude blok wint altijd, ook `false`.
+   Bewaakt door 99e–99i in `check-conventions-registry.ts` en 28/28b in
+   `check-scheduling-profile-roundtrip.ts` (echte IFC-leesroute).
 2a. **IFC-sanitizer.** Voeg de sleutel toe aan `BOOLEAN_KEYS` in `src/services/ifc/schedulingOptionsRead.ts`;
    anders gooit de lezer van het legacy-optieblok (`sanitizeSchedulingOptions`) hem stil weg.
 3. **Motor.** Lees uitsluitend `schedulingOptions.<id>`. Nooit het bronformaat, nooit een lezer-import:
@@ -37,8 +46,8 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
    `perFile` (op een ingebouwd id blijven alle afwijkingen letterlijk staan).
 5. **i18n**: `conventions.<id>.label` en `.help` in alle 14 `common.json`-bestanden (`npm run verify:i18n`;
    `check-conventions-registry.ts` eist per locale beide teksten en precies de registersleutels).
-6. **Gids**: één regel onder "De vijftien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
-   (pas "vijftien" aan, ook in de kop en in "Wat je hier leert").
+6. **Gids**: één regel onder "De achttien conventies" in `public/docs/{nl,en}/gids-rekenprofielen.md`
+   (pas het aantal aan, ook in de kop en in "Wat je hier leert").
 7. **Tests**: `check-conventions-registry.ts` dekt de rij vanzelf; voeg een aan/uit-fixture met een
    met de hand afgeleid verschil toe (mutatiebewijs, patroon `check-conventions-p6-flags.ts`).
 8. **Landingspoort**: `npm run measure:profiles` vóór de commit — geen exacte cel mag inexact worden

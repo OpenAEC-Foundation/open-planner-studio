@@ -3,7 +3,7 @@
  * v3, tweelagenmodel).
  *
  * Twee lagen, disjuncte sleutels:
- *  - **Conventies** (`ConventionKey`, vijftien booleans): regels die per planningspakket verschillen.
+ *  - **Conventies** (`ConventionKey`, achttien booleans): regels die per planningspakket verschillen.
  *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
  *  - **Projectopties** (`ProjectOptionKey`, negen sleutels): per-bestand projectinstellingen
  *    (lagCalendar, kritiek-definitie, TF-modus, …). Ze blijven in `Project.schedulingOptions`.
@@ -26,8 +26,11 @@ export interface ConventionDescriptor {
    *  samen met de sanitizers (die nu alleen booleans accepteren). */
   kind: 'boolean';
   builtIn: Record<BuiltInProfileId, boolean>;
-  /** Bijlage A: groep A (al benoemd in `SchedulingOptions`) of groep B (was alleen achter de XER-bronmarkering). */
-  group: 'A' | 'B';
+  /** Bijlage A: groep A (al benoemd in `SchedulingOptions`) of groep B (was alleen achter de XER-bronmarkering);
+   *  groep C: ná de rekenprofielen uit de X12-corpusmeting toegevoegd, nooit achter een bronmarkering
+   *  geweest. Een legacy-XER-blob (zonder profiel-pset) migreert naar het P6-profiel zonder
+   *  afwijkingen, dus met C aan; een profiel-pset die de sleutel niet kent krijgt `legacyValue`. */
+  group: 'A' | 'B' | 'C';
   /** De waarde die geldt wanneer een bestand MÉT `OPS_SchedulingProfile` deze sleutel niet kent (een
    *  bestand van vóór `since`). Nooit de basiswaarde. Geldt niet voor de legacy-migratie van
    *  bestanden zonder die pset — daarvoor zie `legacyOptionsToProfile`. */
@@ -48,23 +51,26 @@ export interface ConventionDescriptor {
   since: string;
 }
 
+/** Groep C: sinds de X12-corpusmeting (goal prompt "X12 naar nul", brok 2). */
+const SINCE_X12_BROK2 = '2026-09-23';
+
 const P6_ONLY = { p6: true, msproject: false, ops: false } as const;
 const MSP_ONLY = { p6: false, msproject: true, ops: false } as const;
 const NONE = { p6: false, msproject: false, ops: false } as const;
 const SINCE = '2026-09-22';
 
 function convention(
-  id: ConventionKey, group: 'A' | 'B', builtIn: Record<BuiltInProfileId, boolean>, gatedByP6Source: boolean,
-  perFile = false,
+  id: ConventionKey, group: 'A' | 'B' | 'C', builtIn: Record<BuiltInProfileId, boolean>, gatedByP6Source: boolean,
+  perFile = false, since = SINCE,
 ): ConventionDescriptor {
   return {
     id, kind: 'boolean', builtIn, group, legacyValue: builtIn.ops, gatedByP6Source, perFile,
-    labelKey: `conventions.${id}`, since: SINCE,
+    labelKey: `conventions.${id}`, since,
   };
 }
 
 /** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
- *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5. */
+ *  Bijlage-A-nummers: A12, A13, A15–A20, A22, A23, B1–B5; daarna C1–C3 (X12 naar nul, brok 2). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('preserveActualDatesInBackwardPass', 'A', P6_ONLY, false),        // A12
   convention('clampNegativeFreeFloat', 'A', P6_ONLY, false),                   // A13
@@ -82,6 +88,10 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6CompletedDataDateWindow', 'B', P6_ONLY, true),                 // B3
   convention('p6CompletedLoeActualFinish', 'B', P6_ONLY, true),                // B4
   convention('p6OpenLoeTargetSpan', 'B', P6_ONLY, true),                       // B5
+  // C1–C3: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`.
+  convention('p6CompletedPredecessorAtDataDate', 'C', P6_ONLY, false, false, SINCE_X12_BROK2), // C1
+  convention('p6FreeFloatOnOwnCalendar', 'C', P6_ONLY, false, false, SINCE_X12_BROK2),         // C2
+  convention('p6CompletedRemainingLag', 'C', P6_ONLY, false, false, SINCE_X12_BROK2),          // C3
 ];
 
 // ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
@@ -97,6 +107,7 @@ const _everyConventionNamed: Record<ConventionKey, true> = {
   resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true,
   p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true,
   p6CompletedDataDateWindow: true, p6CompletedLoeActualFinish: true, p6OpenLoeTargetSpan: true,
+  p6CompletedPredecessorAtDataDate: true, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
 };
 export const CONVENTION_KEYS = Object.keys(_everyConventionNamed) as readonly ConventionKey[];
 type Overlap = Extract<ProjectOptionKey, ConventionKey>;
@@ -134,7 +145,7 @@ export function displayNameKey(id: BuiltInProfileId): string {
   return `profiles.builtIn.${id}`;
 }
 
-/** Basis + afwijkingen ⇒ alle vijftien conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
+/** Basis + afwijkingen ⇒ alle achttien conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
  *  Alleen bekende conventiesleutels met een boolean tellen; de rest van `overrides` wordt genegeerd. */
 export function resolveConventions(profile: SchedulingProfile | undefined): SchedulingConventions {
   const out = builtInConventions(profile?.baseId ?? 'ops');

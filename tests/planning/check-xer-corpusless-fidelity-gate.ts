@@ -78,6 +78,21 @@ const EXPECTED = {
   tasks: 13_982,
   tasksWithAnyMeasuredAxis: 13_959,
   measurable: { es: 13_931, ef: 13_937, ls: 13_822, lf: 13_813, tf: 13_677, ff: 13_322 },
+  // HERPIN 2026-09-23b (X12 naar nul, brok 2 vervolg — conventie C3 `p6CompletedRemainingLag`, brok
+  // B03): 13.324 → 12.973 (−351, 0 cellen slechter, drivingPath 417 ongewijzigd). Alles rehab-2:
+  // ls −122, lf −122, tf −107 — voltooide voorgangers op de B3-restvensterroute rekenen achterwaarts
+  // alleen de lag die op de statusdatum nog niet verstreken is. De rest van B03 (772 geschat) hangt
+  // aan B01 of aan actieve taken met restduur 0. Sameday ongewijzigd.
+  // HERPIN 2026-09-23 (X12 naar nul, brok 2 — conventies C1 `p6CompletedPredecessorAtDataDate` en
+  // C2 `p6FreeFloatOnOwnCalendar`, samen geland): 15.056 → 13.324 (−1.732, 0 cellen slechter,
+  // drivingPath 417 ongewijzigd). Per bestand/as gemeten (dump per cel tegen de vorige cellen):
+  //  - rehab-2: es −497, ef −497, tf −267 (C1: opvolgers van de vijf voltooide taken met werkelijk
+  //    einde 2008-05-27 17:00 ná de statusdatum beginnen op de statusdatum; dossier 7b-4), ff −215
+  //    (C1 40, C2 175). De overige 231 tf-cellen van brok B02 wachten op brok B01 (hun LS/LF).
+  //  - Hotel ff −244, Roads ff −11, DCP-03 Baseline ff −1 (C2: vrije speling op de taakkalender).
+  //  C1 alleen gaf +1.301/−1: de ene ff-cel (rehab-2 V3248175, taak op kalender 893, opvolger op
+  //  842) was vóór C1 toevallig exact via de opvolgerkalender; C2 maakt hem weer exact, vandaar
+  //  samen landen. Sameday ongewijzigd (es 96, ef 97, ls 129, lf 93).
   // HERPIN 2026-09-07 (één herpin, volledig corpus 93/93, na het landen van 7a én 7b, laag 3 en
   // origin/main): 18.398 (v2-baseline, vóór 7b) → 17.421 (kop 1206e010, ná 7b) → 15.056 (nu).
   // Per bestand/as gemeten: ALLE beweging zit in rehab-2 (proj_id 761); de overige 33 entries zijn
@@ -98,16 +113,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 12_358, ef: 12_310, ls: 10_245, lf: 10_199, tf: 9_636, ff: 12_698 },
+    exact: { es: 12_855, ef: 12_807, ls: 10_367, lf: 10_321, tf: 10_010, ff: 13_169 },
     sameday: { es: 96, ef: 97, ls: 129, lf: 93, tf: 0, ff: 0 },
-    diff: { es: 1_477, ef: 1_530, ls: 3_448, lf: 3_521, tf: 4_041, ff: 624 },
+    diff: { es: 980, ef: 1_033, ls: 3_326, lf: 3_399, tf: 3_667, ff: 153 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 1_573, ef: 1_627, ls: 3_577, lf: 3_614, tf: 4_041, ff: 624 },
+    deviations: { es: 1_076, ef: 1_130, ls: 3_455, lf: 3_492, tf: 3_667, ff: 153 },
     drivingPath: { exact: 13_179, sameday: 0, diff: 417, missing: 0, measurable: 13_596, deviations: 417 },
   },
-  productPayloadSha256: 'ce8527748344de7f5bae3fc0c64041eff522cc939dcafa19d58c6df9c39233be',
-  productPayloadGzipSha256: 'e624e5d719c3bbb6bf02f2c69c74d07f988d39a0c9844fb492c4333e4a8cdcc2',
-  productProjectProjectionSha256: '088f059adb65fcad8e392d0e2c9f0efc522314588e60ee6936b12cc4e9487676',
+  productPayloadSha256: '89a7de4be4d9d503caee9df8a5b54ddee7f9af2e6c8da9280f7e6a678032636e',
+  productPayloadGzipSha256: 'b78531585c808b5c6b53f2ed7c912a03719880c14173b7ec6eed47bc9a0c3700',
+  productProjectProjectionSha256: 'e83064c370d57497b26ba5bcd1cc06553ab5916633a919869c3172a1092afefa',
   roles: {
     oracle: 45,
     'engine-input': 14,

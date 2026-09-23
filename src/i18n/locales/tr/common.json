@@ -1219,6 +1219,18 @@
     "p6OpenLoeTargetSpan": {
       "label": "Başlamamış LOE hedef pencereyi alır",
       "help": "Henüz başlamamış bir level-of-effort etkinliği hedef penceresini süre olarak alır (yalnızca P6 kaynaklı görevler)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Tamamlanmış öncül durum tarihinden sonra tutmaz",
+      "help": "Tamamlanmış bir öncülün gerçek bitişi durum tarihinden sonraysa, ardılları yine de durum tarihinde başlayabilir."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Serbest bolluk kendi takviminde",
+      "help": "Açık bir görevin gecikmesiz bitiş-başlangıç ilişkisindeki serbest bolluğu, ardılın değil görevin kendi takviminde hesaplanır."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Tamamlanmış öncülün geçmiş gecikmesi sayılmaz",
+      "help": "Geç tarihler tarafında, tamamlanmış bir öncülden sonraki gecikmenin yalnızca durum tarihinde henüz geçmemiş kısmı sayılır."
     }
   },
   "profiles": {

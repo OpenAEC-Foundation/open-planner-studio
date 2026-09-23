@@ -191,10 +191,100 @@ export interface SchedulingOptions {
    *  FF-uitgang neemt dat targetvenster als span (`explainOpenXerLoeTargetSpanEligibilityResolved`,
    *  `CPMSolver`'s hammocktak). P6 aan / MS Project uit / OPS uit. */
   p6OpenLoeTargetSpan?: boolean;
+
+  // ── Groep C (X12 naar nul, 2026-09-23): conventies die pas ná de rekenprofielen uit de
+  // corpusmeting kwamen. Nooit achter een bronmarkering geweest. Een P6-profiel zet ze aan (ook een
+  // legacy-XER-blob, die naar het P6-profiel migreert); een profiel-pset van vóór 2026-09-23 die de
+  // sleutel niet kent krijgt `legacyValue` = uit.
+
+  /** C1 — RETAINED LOGIC rond de statusdatum: bij een VOLTOOIDE voorganger is het relatie-EINDE
+   *  begrensd op de statusdatum. Ligt zijn werkelijke einde ná de statusdatum (P6 laat zo'n actual
+   *  toe; de statusdatum is het instant waarop het restwerk begint), dan rekenen de relaties die op
+   *  zijn einde steunen (FS, FF) vanaf de werkgrens vlak vóór de statusdatum op zijn
+   *  voortgangskalender — `prevWorkInstant(snapOnOrAfter(statusdatum))`, dezelfde grens als het
+   *  statusdatumvenster van conventie B3 (`CPMSolver.completedPredecessorRelationWindow`). Alleen het
+   *  einde wordt begrensd: relaties die op zijn START steunen (SS, SF) blijven op de werkelijke start,
+   *  ook als die ná de statusdatum ligt. Geen effect bij: conventie uit, geen statusdatum, dagmodus,
+   *  een niet-voltooide voorganger, of een werkelijk einde op/vóór die grens. Zijn eigen weergegeven
+   *  datums veranderen nooit — de begrenzing geldt alleen voor de relatie naar de opvolgers.
+   *  De GRENSKEUZE is ongemeten: `prevWorkInstant(snapOnOrAfter(statusdatum))` en de variant zonder
+   *  `prevWorkInstant` geven op het corpus (X12, 12.973) en in alle corpusloze fixtures dezelfde
+   *  uitkomst (mutant M5, critreview her-check brok 2); ook een FS-kruiskalenderfixture (opvolger op
+   *  06:00–17:00, lag in de opvolgerkalender) onderscheidt ze niet. De keuze volgt B3, niet een meting.
+   *
+   *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (geen
+   *    SCHEDOPTIONS, `rem_late_start_date` 0/4.940, geen `driving_path_flag`; zie
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §3 en §5). De
+   *    P6-standaardwaarde staat onder voorbehoud van het eigenaarsbesluit over dat orakel. Buiten
+   *    rehab-2 verandert C1 geen enkele cel; geen P6-doorgerekend bestand in het corpus heeft een open
+   *    opvolger van een voltooide voorganger die ná de statusdatum eindigt.
+   *    Meting: vijf voltooide taken met `act_end_date` 2008-05-27 17:00 bij statusdatum 2008-05-27
+   *    00:00; het orakel start hun opvolgers op 05-27 08:00, niet 05-28 (plan XER §9 dossier 7b-4,
+   *    classificatie brok B02; 1.301 cellen zonder B01, 0 slechter samen met C2).
+   *    Geen documentatiebron voor de regel zelf. Oracle Primavera P6 Professional Help Version 24,
+   *    "Using the data date" (https://docs.oracle.com/cd/F88968_01/client_help/en_US/using_the_data_date.htm)
+   *    zegt dat de statusdatum de laatste voortgangsdatum is en dat er vanaf de statusdatum gepland
+   *    wordt, maar beschrijft NIET wat P6 doet met een werkelijk einde ná de statusdatum; P6 EPPM Help
+   *    "Invalid Progress Dates - Activities with Actual Dates After the Data Date …"
+   *    (https://docs.oracle.com/cd/F88966_01/p6help/en/46280.htm) noemt zo'n actual alleen ongeldige
+   *    voortgang. Beide zijn context, geen bewijs.
+   *  - MS Project: uit. MS Project rekent een koppeling vanaf de (werkelijke) Finish van de
+   *    voorganger; de statusdatum verschuift alleen onvoltooid werk via Project → Update Project →
+   *    "Reschedule uncompleted work to start after". Hetzelfde MSP-gedrag ligt al vast in
+   *    `unstartedIgnoresStatusDate` (MSP aan).
+   *  - OPS: uit (het gedrag van vóór deze conventie: de relatie rekent vanaf het werkelijke einde). */
+  p6CompletedPredecessorAtDataDate?: boolean;
+  /** C2 — de vrije speling van een niet-voltooide taak over een FS-nul-lag-relatie telt in de
+   *  kalender van de TAAK zelf (werktijd tussen haar vroege einde en de vroege start van de
+   *  opvolger), niet in die van de opvolger. Een FS-nul-lag-relatie naar een VOLTOOIDE opvolger
+   *  (buiten volgorde) laat geen speling: P6 legt diens nul-restvenster direct achter de taak.
+   *  Alleen uurmodus, alleen FS met lag 0; andere relatietypes en voltooide taken houden de
+   *  bestaande berekening.
+   *
+   *  - P6: aan. Oracle P6 Help, "View activity float values"
+   *    (https://docs.oracle.com/cd/F88968_01/client_help/en_US/view_activity_float_values.htm, P6
+   *    Professional 24, opgehaald 2026-09-23): "The Free Float field displays the amount of time the
+   *    selected activity can be delayed without delaying the activities that immediately follow
+   *    (successor activities)." (Het eerder geciteerde "maximum number of hours or days …" staat NIET
+   *    op die pagina.) Over kalenders zegt die zin niets; "uitstel van de ACTIVITEIT, dus op haar eigen kalender" is ONZE INTERPRETATIE (naar
+   *    analogie van de totale speling, die hier al per taak op de eigen kalender rekent). Gemeten: op P6's eigen
+   *    datums is P6-FF = werkminuten tussen EF en de vroegste opvolger-ES op de taakkalender in alle
+   *    362 ff-cellen met een andere opvolgerkalender (Hotel, rehab-2, Roads, DCP-03; classificatie
+   *    brok B06); samen met C1 471 ff-cellen beter, 0 slechter. Steun uit echte P6-uitvoer, los van
+   *    rehab-2 (dat P3-uitvoer is): Hotel_Construction_TEC +244, Roads_Project_TEC +11 en Harbour Point
+   *    DCP-03 Baseline Rev 0 +1 = 256 ff-cellen, 0 slechter — alle drie P6-doorgerekend
+   *    (`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). Dat geldt voor de
+   *    HOOFDREGEL (eigen kalender). De DEELTAK "voltooide opvolger ⇒ ff = 0" is uitsluitend in
+   *    `rehab-2.xer` gemeten (P3-uitvoer; mutant M4 = die tak weg: 12.973 → 12.980, alle 8 cellen `ff`
+   *    in rehab-2) en valt dus onder hetzelfde voorbehoud als C1/C3 (eigenaarsbesluit over dat orakel).
+   *  - MS Project: uit. Ons MPP-orakel meet alleen start en einde, niet de vrije speling; zonder
+   *    meting verandert het MSP-profiel niet.
+   *  - OPS: uit (relatie-vrije-speling in de kalender van de opvolger, `scheduleAnalysis`). */
+  p6FreeFloatOnOwnCalendar?: boolean;
+  /** C3 — RETAINED LOGIC, late kant: van een positieve WORKTIME-lag uit een VOLTOOIDE voorganger
+   *  (op de statusdatum-restvensterroute, `p6CompletedLateFromRemainingWindow`) telt achterwaarts alleen
+   *  het deel dat na zijn werkelijke einde op de statusdatum nog niet verstreken is:
+   *  `max(0, lag − werktijd(werkelijk einde → statusdatum))` in de lag-kalender (`CPMSolver`).
+   *
+   *  - P6: aan — gemeten uitsluitend in `rehab-2.xer`, waarvan het orakel P3-uitvoer is (zie C1 en
+   *    `docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` §5). De
+   *    P6-standaardwaarde staat onder voorbehoud van het eigenaarsbesluit over dat orakel. Buiten
+   *    rehab-2 verandert C3 geen enkele cel (de voltooide voorgangers met lag in Roads en
+   *    HarbourPointe zijn `CP_Phys` en vallen buiten de B3-route). Geen documentatiebron voor de
+   *    rekenregel; hij is afgelezen aan rehab-2-relaties (classificatie brok B03): volledig verstreken
+   *    lag (V3122120 → V3122070, FS+168 h, einde 04-15) ⇒ het orakel trekt niets af; niet verstreken
+   *    (V3238110, einde 05-26 17:00, FS+120 h) ⇒ de volle lag; deels verstreken (V3120120, FS+168 h):
+   *    de afstand LF → opvolger-LS is gelijk aan die van het orakel (die cel zelf wacht op brok B01,
+   *    de LS van de opvolger). Samen 351 cellen (ls 122, lf 122, tf 107), 0 slechter; de rest van brok
+   *    B03 hangt aan B01 of aan actieve taken met restduur 0 (buiten deze conventie).
+   *    Alleen de B3-restvensterroute; een voltooide taak op de generieke actual-pin houdt de volle lag.
+   *  - MS Project: uit. MS Project kent geen late-kant-statusdatumvenster voor voltooide taken (zie C1).
+   *  - OPS: uit (de volle lag, het gedrag van vóór deze conventie). */
+  p6CompletedRemainingLag?: boolean;
 }
 
 /**
- * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de vijftien PAKKETCONVENTIES — regels die per
+ * Rekenprofielen (spec 2026-09-22 v3, tweelagenmodel): de achttien PAKKETCONVENTIES — regels die per
  * planningspakket verschillen en niet per bestand. Ze leven in het profiel (`Project.schedulingProfile`),
  * niet in `Project.schedulingOptions`; die draagt de per-bestand projectinstellingen. De twee
  * sleutelverzamelingen zijn disjunct (compile-time bewaakt in `conventions/registry.ts`).
@@ -214,7 +304,10 @@ export type ConventionKey =
   | 'p6BackwardLagFinishBoundary'
   | 'p6CompletedDataDateWindow'
   | 'p6CompletedLoeActualFinish'
-  | 'p6OpenLoeTargetSpan';
+  | 'p6OpenLoeTargetSpan'
+  | 'p6CompletedPredecessorAtDataDate'
+  | 'p6FreeFloatOnOwnCalendar'
+  | 'p6CompletedRemainingLag';
 
 /** De negen per-bestand projectinstellingen: alles in `SchedulingOptions` behalve de conventies. */
 export type ProjectOptionKey = Exclude<keyof SchedulingOptions, ConventionKey>;

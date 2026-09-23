@@ -1254,6 +1254,18 @@
     "p6OpenLoeTargetSpan": {
       "label": "LOE non commencée prend la fenêtre cible",
       "help": "Une activité level-of-effort non commencée prend sa fenêtre cible comme durée (uniquement les tâches d’origine P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Un prédécesseur achevé ne retient pas au-delà de la date d’état",
+      "help": "Si la fin réelle d'un prédécesseur achevé tombe après la date d’état, ses successeurs peuvent quand même commencer à la date d’état."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Marge libre dans le calendrier de la tâche",
+      "help": "La marge libre d'une tâche ouverte sur une liaison fin-début sans décalage se compte dans le calendrier de la tâche elle-même, et non dans celui du successeur."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Le décalage écoulé d’un prédécesseur achevé ne compte pas",
+      "help": "Côté dates au plus tard, seule la partie du décalage après un prédécesseur achevé qui n’est pas encore écoulée à la date d’état compte."
     }
   },
   "profiles": {

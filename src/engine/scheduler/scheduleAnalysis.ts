@@ -206,8 +206,31 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       // Uur-taak ⇒ fractionele-dag-float (§5.5); dag ⇒ integer (byte-identiek).
       freeFloat = signedFloat(early.ef, late.lf, cal, taskObj);
     } else {
+      // Conventie C2 `p6FreeFloatOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
+      // voor een niet-voltooide uurtaak telt een FS-nul-lag-relatie naar een niet-voltooide opvolger
+      // in de kalender van de TAAK zelf (werktijd tussen haar vroege einde en de vroege start van de
+      // opvolger); naar een voltooide opvolger laat ze geen speling. `sequenceFreeFloat` (en daarmee
+      // de driving-markering) blijft ongemoeid; alleen de vrije speling van de taak verandert.
+      const ownCalendarFs0 = so?.p6FreeFloatOnOwnCalendar === true
+        && cal.isHourMode && taskObj.time.completion < 1;
       for (const seq of succs) {
-        const ff = sequenceFreeFloat[seq.id];
+        let ff = sequenceFreeFloat[seq.id];
+        if (ownCalendarFs0 && seq.type === 'FINISH_START'
+          && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
+          const succEarly = earlyDates.get(seq.successorId);
+          const succTask = tasks.get(seq.successorId);
+          if (succTask && succTask.time.completion >= 1) {
+            // Open taak → VOLTOOIDE opvolger (buiten volgorde): P6 legt het nul-restvenster van
+            // die opvolger direct achter deze taak (retained logic), dus de relatie laat geen
+            // speling. Gemeten uitsluitend in rehab-2 V3124155/V3209155 (orakelwaarde uit rehab-2,
+            // P3-uitvoer: ff 0; de opvolger staat daar op de eerste werkgrens ná deze taak) — zelfde
+            // voorbehoud als C1/C3, zie het C2-docblok. Zonder conventie levert zo'n relatie niets
+            // (`preserveActualDatesInBackwardPass` wist haar grens).
+            ff = 0;
+          } else if (ff !== undefined && succEarly && succTask) {
+            ff = cal.workMinutesBetween(early.ef, succEarly.es) / (cal.hoursPerDay * 60);
+          }
+        }
         if (ff !== undefined && ff < freeFloat) freeFloat = ff;
       }
     }

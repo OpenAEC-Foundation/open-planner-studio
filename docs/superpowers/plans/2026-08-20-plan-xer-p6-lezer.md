@@ -601,7 +601,61 @@ dan meet, meet zijn eigen aannames.
 
 ### 7b-4 — forward-anker na gereconstrueerde kalenderblokken
 
-**Status:** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
+**Status:** GEBOUWD 2026-09-23 (X12 naar nul, brok 2) als conventie C1
+`p6CompletedPredecessorAtDataDate` (P6 aan / MS Project uit / OPS uit; docblok en bron in
+`src/types/project.ts`). De oorzaak was geen kalenderfout en geen `ownAnchor`-vloer: vijf voltooide
+taken (V3209120, V3227100, V3247140, V3248140, V3265140) hebben `act_end_date` 2008-05-27 17:00, ná de
+statusdatum 2008-05-27 00:00; P6 laat hun opvolgers op de statusdatum beginnen, wij deden dat pas ná
+het werkelijke einde. C1 begrenst de relatiegrens van een voltooide voorganger op de werkgrens vóór de
+statusdatum. Samen geland met C2 `p6FreeFloatOnOwnCalendar` (brok B06), omdat C1 alleen één ff-cel
+(V3248175) liet omslaan die C2 verklaart. X12 15.056 → 13.324 (−1.732, 0 slechter); de dossiertaak
+V3109400 staat nu op ES 12-04 zoals P6. De resterende LS/LF/tf-cellen van deze keten horen bij brok
+B01 (de zes TF-0-ankers). Oorspronkelijke registratie hieronder blijft als geschiedenis.
+
+**Meetuitkomst brok 2 (compleet, 2026-09-23; `npm run measure:profiles` mét corpus, herpind per
+commit volgens het recept).** Drie conventies in groep C, alle drie P6 aan / MS Project uit / OPS uit:
+
+| stap | conventie(s) | X12 zesassig | cel-delta (nieuw/slechter/beter) | per as |
+|---|---|---|---|---|
+| vóór | — | 15.056 | — | — |
+| `7c37b212` | C1 `p6CompletedPredecessorAtDataDate` + C2 `p6FreeFloatOnOwnCalendar` | 13.324 | 0 / 0 / 1.732 | es −497, ef −497, tf −267, ff −471 (rehab-2 1.476, Hotel 244, Roads 11, DCP-03 1) |
+| `d6db800c` | C3 `p6CompletedRemainingLag` | 12.973 | 0 / 0 / 351 | ls −122, lf −122, tf −107 (alles rehab-2) |
+
+Totaal −2.083, 0 cellen slechter; drivingPath (417) en MS Project (2.196 checks, GOAL_ZERO-rood 0)
+ongewijzigd. Waarom C1 en C2 samen: C1 alleen gaf +1.301/−1; die ene cel (rehab-2 V3248175, ff) was
+vóór C1 toevallig exact via de opvolgerkalender, en C2 is de regel die hem verklaart.
+
+**Voorbehoud orakel (toets 2026-09-23, `2026-09-23-x12-c1-c4-toets-buiten-rehab2.md` op de
+etappebranch).** Het orakel van `rehab-2.xer` is P3-uitvoer (geen SCHEDOPTIONS, `rem_late_start_date`
+0/4.940, geen `driving_path_flag`). C1 en C3 veranderen buiten rehab-2 geen enkele cel; hun P6-waarde
+"aan" staat daarom onder voorbehoud van het eigenaarsbesluit over dat orakel (manifest). C2 staat deels op eigen
+benen: de HOOFDREGEL (vrije speling op de eigen kalender) is gesteund door 256 ff-cellen in drie
+P6-doorgerekende bestanden (Hotel +244, Roads +11, DCP-03 BL +1), 0 slechter; de DEELTAK "voltooide
+opvolger ⇒ ff = 0" niet — die is uitsluitend in rehab-2 gemeten (mutant M4 = tak weg: 12.973 →
+12.980, alle 8 cellen `ff` in rehab-2) en valt onder hetzelfde voorbehoud als C1/C3. Dat de
+hoofdregel "op de eigen kalender" rekent is bovendien interpretatie: de Oracle-zin ("View activity
+float values") zegt niets over kalenders. De Oracle-tekst "Using the data date" beschrijft de C1-regel (actual ná de statusdatum) niet;
+de docblokken in `src/types/project.ts` zeggen dat nu zo.
+
+**Open meetpunt (her-check-critreview brok 2, [VERMOED], niet bouwen).** C3 meet de verstreken lag
+altijd vanaf het werkelijke EINDE van de voorganger, ook bij SS/SF-relaties (waar de lag op de start
+steunt); de fixtures zijn alleen FS. Of P6 bij SS/SF vanaf de werkelijke start telt is ongemeten.
+Ook de C1-grenskeuze (`prevWorkInstant(snapOnOrAfter(…))` vs `snapOnOrAfter(…)`, mutant M5) is door
+geen orakel of fixture onderscheiden; zie het C1-docblok. De gelande stand blijft (de ratchet gaat
+alleen omlaag); de standaardwaarde van C1/C3 wordt pas herzien na het manifestbesluit.
+
+**Inzicht uit de critreview: 761 cellen binnen de bucket verder van P6.** De cel-ratchet kent alleen
+de buckets exact/sameday/diff/missing. Onder C1–C3 zijn 761 cellen die al `diff` waren binnen die
+bucket VERDER van P6 komen te liggen — onzichtbaar voor de ratchet. Verklaring: compensatie met brok
+B01 (de zes TF-0-ankers aan de late kant). Met het B01-tegenfeit (meting van de reviewer; niet
+opnieuw gedraaid in de fixronde) zijn de conventies zelf zuiver: C1+C2 = +1.706 beter / 0 slechter, C3 = +772 / 0 — de 761
+cellen zijn dus B01-schuld die door een eerder toevallig compenserende fout heen zichtbaar wordt, geen
+regressie van C1–C3. Gevolg: de bucket-ratchet bewijst "geen exacte cel wordt inexact" (regel A), niet
+"geen cel komt verder van P6". Of er een extra ratchet op de afwijkingsGROOTTE per cel moet komen, is
+een open eigenaarsbesluit (overdracht rekenprofielen, open vraag 3 "Grootte-ratchet?"); tot dat besluit
+dwingt het nuldoel het vanzelf af zodra B01 landt.
+
+**Status (oud):** geregistreerd, niet gebouwd. Ontstaan bij etappe 7b (weekend-klemherstel), her-check
 2026-09-05.
 
 **Wat er staat.** Op `rehab-2.xer` verschuiven 344 ES- en 327 EF-cellen van goed naar fout
@@ -797,6 +851,8 @@ AFGELEID (uit een subagentrapport, niet zelf nagemeten), ONBEKEND.*
 ### 10.d Dossier 7b-4
 
 - **ZEKER.** Gemeten, niet gebouwd — §9 draagt de cijfers. Bouwbesluit bij de eigenaar.
+- **Bijgewerkt 2026-09-23.** Gebouwd in X12 brok 2 als C1–C3 (X12 15.056 → 12.973, 0 slechter); zie §9
+  7b-4 voor de meetuitkomst en de 761-cellen-kanttekening.
 
 ### 10.e Poorten op de kop van de branch
 

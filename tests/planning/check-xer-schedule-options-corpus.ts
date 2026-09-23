@@ -1066,6 +1066,11 @@ if (!root) {
     // opvolger-LS komt (diagnose laag 1, klasse (ii)); vóór deze etappe was hun `tf = 0`
     // degeneratie (LS = de historische actual-start), dus per ongeluk goed. Zie het baanrapport en
     // het docblok bij `p6CompletedLateFromRemainingWindow` in `types/project.ts`.
+    // Herpin 2026-09-23 (X12 brok 2, conventies C1–C3; bij de brok-2-herpin vergeten, opgevangen in
+    // de fixronde): alleen de `xerDefaults`-rijen bewegen, alle zes assen omlaag — es 1384 → 887,
+    // ef 1414 → 917, ls 3353 → 3231, lf 3351 → 3229, tf 3868 → 3494, ff 303 → 88. `house` en de
+    // completedProgress-rijen (chosen/counterfactual) zijn byte-identiek; bijgewerkt in het JSON-bestand:
+    // `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement` en deze projectie.
     eq('expliciete completed/progress/LOE/data_date-projectie bewaakt shape, keys, rijen, assen en waarden', {
       shape: causalProductEffectsShape(committed.causalProductEffects),
       measured: causalProductEffects(measured),

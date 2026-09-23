@@ -2175,29 +2175,41 @@ async function productBaseline(
       scheduleStart: '2026-01-01T08:00', scheduleFinish: '2026-01-01T16:00',
     },
   };
+  // De B3-weergaveprojectie is weergave, geen relatiebron. A100 eindigt werkelijk op 2026-01-08, ná de
+  // statusdatum (2026-01-05). Dat raakt ook conventie C1 (`p6CompletedPredecessorAtDataDate`, X12 brok
+  // 2): die laat de opvolger van een voltooide voorganger op de statusdatum beginnen, wat hier
+  // toevallig samenvalt met het B3-venster. Deze regel isoleert B3 daarom met C1 UIT; de C1-uitkomst
+  // staat eronder apart, zodat een B3-lek niet achter C1 kan wegvallen.
+  const displayOnlyProject = structuredClone(one.project);
+  setConvention({ project: displayOnlyProject }, 'p6CompletedPredecessorAtDataDate', false);
   const displayOnlyCandidate: ImportResult = {
     ...one,
+    project: displayOnlyProject,
     tasks: [oneTask, openSuccessor],
     sequences: [{
       id: 'B-FS-S', predecessorId: oneTask.id, successorId: openSuccessor.id,
       type: 'FINISH_START', lagDays: 0,
     }],
   };
-  const displayOnlyCpm = solveProject({
-    tasks: displayOnlyCandidate.tasks,
-    sequences: displayOnlyCandidate.sequences,
-    calendar: displayOnlyCandidate.calendar,
-    calendars: displayOnlyCandidate.resourceCalendars ?? [],
-    dataDate: displayOnlyCandidate.project.statusDate,
-    progressMode: displayOnlyCandidate.project.progressMode,
-    schedulingOptions: solveOptionsFor(displayOnlyCandidate.project).schedulingOptions,
-    projectStartDate: displayOnlyCandidate.project.startDate,
-    projectEndDate: displayOnlyCandidate.project.endDate,
-  });
-  if (displayOnlyCpm.error) throw new Error(`X12 display-only candidate faalde: ${displayOnlyCpm.error}`);
+  const solveDisplayCandidate = (candidate: ImportResult) => {
+    const cpm = solveProject({
+      tasks: candidate.tasks,
+      sequences: candidate.sequences,
+      calendar: candidate.calendar,
+      calendars: candidate.resourceCalendars ?? [],
+      dataDate: candidate.project.statusDate,
+      progressMode: candidate.project.progressMode,
+      schedulingOptions: solveOptionsFor(candidate.project).schedulingOptions,
+      projectStartDate: candidate.project.startDate,
+      projectEndDate: candidate.project.endDate,
+    });
+    if (cpm.error) throw new Error(`X12 display-only candidate faalde: ${cpm.error}`);
+    return cpm;
+  };
+  const displayOnlyCpm = solveDisplayCandidate(displayOnlyCandidate);
   const displayOnlyCompleted = displayOnlyCandidate.tasks.find(task => task.wbsCode === 'A100');
   const displayOnlySuccessor = displayOnlyCandidate.tasks.find(task => task.wbsCode === 'S100');
-  eq('X12 completed-weergaveprojectie beweegt open successor of projectfinish niet', {
+  eq('X12 completed-weergaveprojectie beweegt open successor of projectfinish niet (C1 uit)', {
     completedDisplay: [displayOnlyCompleted?.time.earlyStart, displayOnlyCompleted?.time.earlyFinish],
     successor: [displayOnlySuccessor?.time.earlyStart, displayOnlySuccessor?.time.earlyFinish,
       displayOnlySuccessor?.time.lateStart, displayOnlySuccessor?.time.lateFinish],
@@ -2206,6 +2218,23 @@ async function productBaseline(
     completedDisplay: ['2026-01-05T08:00', '2026-01-02T16:00'],
     successor: ['2026-01-09T08:00', '2026-01-09T16:00', '2026-01-09T08:00', '2026-01-09T16:00'],
     projectEnd: '2026-01-09T16:00',
+  });
+  // Met C1 aan (het P6-profiel zoals gelezen): de opvolger begint op de statusdatum, 2026-01-05 08:00
+  // (gemeten P6-gedrag, rehab-2, plan XER §9 dossier 7b-4); de weergave van A100 blijft gelijk.
+  const withC1: ImportResult = {
+    ...displayOnlyCandidate,
+    project: structuredClone(one.project),
+    tasks: structuredClone([oneTask, openSuccessor]),
+  };
+  solveDisplayCandidate(withC1);
+  const c1Completed = withC1.tasks.find(task => task.wbsCode === 'A100');
+  const c1Successor = withC1.tasks.find(task => task.wbsCode === 'S100');
+  eq('X12 C1: opvolger van voltooide voorganger met einde ná de statusdatum begint op de statusdatum', {
+    completedDisplay: [c1Completed?.time.earlyStart, c1Completed?.time.earlyFinish],
+    successor: [c1Successor?.time.earlyStart, c1Successor?.time.earlyFinish],
+  }, {
+    completedDisplay: ['2026-01-05T08:00', '2026-01-02T16:00'],
+    successor: ['2026-01-05T08:00', '2026-01-05T16:00'],
   });
 
   // F5: hetzelfde TaskTime-paar zonder de twee XER-provenancevoorwaarden moet het generieke

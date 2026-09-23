@@ -1289,6 +1289,18 @@
     "p6OpenLoeTargetSpan": {
       "label": "Nierozpoczęte LOE przyjmuje okno docelowe",
       "help": "Działanie level-of-effort, które jeszcze się nie rozpoczęło, przyjmuje swoje okno docelowe jako czas trwania (tylko zadania pochodzące z P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Zakończony poprzednik nie wstrzymuje po dacie stanu",
+      "help": "Jeśli rzeczywiste zakończenie zakończonego poprzednika przypada po dacie stanu, jego następniki mogą mimo to rozpocząć się w dacie stanu."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Zapas swobodny we własnym kalendarzu",
+      "help": "Zapas swobodny otwartego zadania w relacji koniec-początek bez opóźnienia liczy się w kalendarzu samego zadania, a nie następnika."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "Upłynięte opóźnienie zakończonego poprzednika nie jest liczone",
+      "help": "Po stronie terminów najpóźniejszych liczy się tylko ta część opóźnienia po zakończonym poprzedniku, która w dacie stanu jeszcze nie upłynęła."
     }
   },
   "profiles": {
