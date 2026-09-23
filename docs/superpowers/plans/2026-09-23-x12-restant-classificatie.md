@@ -2,6 +2,38 @@
 
 *Gemeten op 2026-09-23 in een eigen detached worktree `/tmp/ops-x12-meet`. De kop van `claude/rekenprofielen` was inmiddels `86d720fb`; dat is `1b45218a` plus één commit die alleen documentatie wijzigt (`git diff --stat 1b45218a 86d720fb`: 1 bestand, `docs/…overdracht.md`). De motor is dus identiek. Er is niets in de repo gewijzigd. Alle hulpscripts en tussenresultaten staan in `/tmp/x12scripts/`.*
 
+## Populatie na besluiten 24-09
+
+*Bijgewerkt op `claude/x12-uitsluitingen-besluit` (Claude Opus 5.5), basis `008f0e6e` (X12 175).* Drie
+eigenaarsbesluiten van 2026-09-24 (overdracht rekenprofielen §1a) toegepast met het mechanisme
+"uitsluiting per project of taak" (`decision` + `excludeTasks`/`excludeProjects` in
+`xer-corpus-manifest.json`): vraag 8 "ja" (HarbourPointe, de 8 taken met verouderde P6-uitvoer), vraag 10
+"uitsluiten" (OZB project 9033, door P6 genivelleerd) en vraag 12 "ja, uitsluiten" (Hotel project CR 2665,
+niet door P6 doorgerekend). De bestanden blijven orakel; de solve draait ongewijzigd over het hele bestand.
+**Uitgesloten: 41 taken in 3 projecten** (OZB 14, HarbourPointe 8, Hotel CR 19). **X12 175 → 104**
+(es 15, ef 15, ls 17, lf 17, tf 27, ff 13); drivingPath 168 → 145. Buiten de telling, als niet-stijgende
+pin `excludedHidden` in `xer-product-fidelity-cells.json`: 71 zesassige afwijkingen (OZB 38,
+HarbourPointe 33, Hotel 0) en 23 drivingPath-cellen (Hotel CR 19, OZB 4). CELLDELTA nieuw=0 verslechterd=0
+groter=0 verbeterd=0 kleiner=0, uitgesloten=94 cellen: geen cel van een niet-uitgesloten taak verschoof.
+Geselecteerd 8 entries, 20 → 18 projecten, 5.923 → 5.882 taken.
+
+| bestand | es | ef | ls | lf | tf | ff | totaal | drivingPath |
+|---|---|---|---|---|---|---|---|---|
+| HarbourPointe_AssistedLiving | 18 → 13 | 21 → 13 | 23 → 15 | 19 → 15 | 31 → 23 | 10 | **122 → 89** | 7 |
+| OZB-Start-09Dec24 | 4 → 0 | 4 → 0 | 8 → 0 | 8 → 0 | 12 → 0 | 2 → 0 | **38 → 0** | 28 → 24 |
+| Sample_Construction | 2 | 2 | 1 | 1 | 3 | 3 | **12** | 0 |
+| Hotel_Construction_TEC | 0 | 0 | 1 | 1 | 1 | 0 | **3** | 88 → 69 |
+| Roads_Project_TEC | 0 | 0 | 0 | 0 | 0 | 0 | **0** | 0 |
+| ashspace, TERMINAL, xernative | 0 | 0 | 0 | 0 | 0 | 0 | **0** | 10 / 35 / 0 |
+| **totaal** | 15 | 15 | 17 | 17 | 27 | 13 | **104** | 145 |
+
+Restant per oorzaak (104):
+- HarbourPointe 89 = 48 cellen op opvolgers van de 8 uitgesloten taken (de verouderde P6-uitvoer werkt
+  daar door; besluit vraag 8: die blijven tellen) + 34 ALAP (C10, geparkeerd) + 7 mijlpaalvloer (n=1).
+- Sample 12: SF-lag-0-minuutrest, open (`2026-09-24-x12-sample-sf-lag0.md`, geen bron).
+- Hotel 3: ALAP-eindmijlpaal (C10).
+- OZB 0: het hele restant zat in project 9033; P6-nivellering wordt een eigen etappe na het nuldoel.
+
 ## Populatie na 24-09
 
 *Bijgewerkt 2026-09-24 op `claude/x12-manifest-dcp03` (Claude Opus 5.5).* Tweede toepassing van het

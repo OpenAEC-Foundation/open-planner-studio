@@ -62,10 +62,34 @@ const EXPECTED_DEBT_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c
  *  gewijzigde lijst door `OPS_XER_CELLS_WRITE=corpus` herschreven; de poort eist dan hierboven (tussen
  *  de schuldpin en het blok) per uitsluiting letterlijk de regel die de herpin print:
  *  `HERPIN <datum> uitsluiting: <label> — <reden>`.
- *  PIN 2026-09-23 (mechanisme geland, nog geen besluit): lege lijst. */
+ *  PIN 2026-09-23 (mechanisme geland, nog geen besluit): lege lijst.
+ *  PIN 2026-09-24 (eigenaarsbesluiten vraag 8, 10 en 12, overdracht rekenprofielen §1a): 10 uitsluitingen,
+ *  41 taken in 3 projecten; X12 175 → 104 zesassig (verborgen 71: OZB 38, HarbourPointe 33, Hotel 0),
+ *  drivingPath 168 → 145 (verborgen 23: Hotel CR 19, OZB 4); CELLDELTA nieuw=0 verslechterd=0 groter=0.
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer — door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/Hotel_Construction_TEC.xer — project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 840 u < opgeslagen restduur 864 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 480 u < opgeslagen restduur 552 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 96 u < opgeslagen restduur 144 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 720 u < opgeslagen restduur 920 u (§1d-8)
+ */
 // BEGIN manifest-uitsluitingspin — herschreven door OPS_XER_CELLS_WRITE=corpus bij een gewijzigde uitsluiting; nooit met de hand
-// 0 uitsluiting(en): [bestand-sha256, soort, project, taskId, taskCode, reden, besluit]
-const EXPECTED_EXCLUSIONS_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
+// 10 uitsluiting(en): [bestand-sha256, soort, project, taskId, taskCode, reden, besluit]
+//   ["2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0","project","9033","","","door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)","2026-09-24 eigenaarsbesluit: vraag 10 (overdracht §1d-10), letterlijk \"uitsluiten\": project 9033 is door P6 genivelleerd; P6-nivellering wordt een eigen etappe na het nuldoel"]
+//   ["9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe","project","2665","","","project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)","2026-09-24 eigenaarsbesluit: vraag 12 (overdracht §1d-12), letterlijk \"ja, uitsluiten\": project CR (2665) niet door P6 doorgerekend"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1430","P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1590","P6-span 696 u < opgeslagen restduur 720 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1680","P6-span 840 u < opgeslagen restduur 864 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2060","P6-span 480 u < opgeslagen restduur 552 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2170","P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2200","P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2380","P6-span 96 u < opgeslagen restduur 144 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2410","P6-span 720 u < opgeslagen restduur 920 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
+const EXPECTED_EXCLUSIONS_SHA256 = '09c084cbdfa1c7690ff263a6ce13d50ebd97a12fade790c6805c3cfd7e15e6d7';
 // END manifest-uitsluitingspin
 import {
   EXCLUSION_PIN_BEGIN, exclusionHerpinLine, exclusionLabelFor, exclusionsDigest, extractExclusionPinBlock,

@@ -148,8 +148,12 @@ Meten gaat via het corpus (`OPS_XER_CORPUS`, plan §10.a; niet in de repo, geen 
 en corpusloos in `check-xer-corpusless-fidelity-gate.ts`. De orakelpopulatie is sinds 2026-09-23
 alleen de aantoonbaar door P6 doorgerekende bestanden (`xer-corpus-manifest.json`, eigenaarsbesluit;
 rehab-2 = P3-uitvoer, de DCP-03-Baseline-kopieën = generatoruitvoer en de synthetische bestanden zijn
-`reader-only`). Het nuldoel van plan §1 is niet gehaald (175 zesassige afwijkingen over 8 geselecteerde
-entries en 20 projecten op 2026-09-23; daarvoor 15.056 op het oude, bredere orakel); mét corpus staat de suite daarom by design rood op precies die drie
+`reader-only`). Binnen een orakelbestand kan een eigenaarsbesluit bovendien projecten of taken uit de
+meetlat halen (`excludeProjects`/`excludeTasks` met `decision`; sinds 2026-09-24: OZB project 9033
+(genivelleerd), Hotel project CR, 8 HarbourPointe-taken met verouderde P6-uitvoer — 41 taken, hun
+afwijkingen staan als niet-stijgende pin `excludedHidden` in het cellenbestand). Het nuldoel van plan §1
+is niet gehaald (104 zesassige afwijkingen over 8 geselecteerde entries en 18 projecten op 2026-09-24;
+daarvoor 15.056 op het oude, bredere orakel); mét corpus staat de suite daarom by design rood op precies die drie
 nuldoelregels. Het cellenbestand (`xer-product-fidelity-cells.json`, versie 2) is een ratchet per cel
 op emmer én afwijkingsgrootte, met een eenmalige `ratchetDebt` (14 Roads-cellen, sinds X12 brok 6 op 0) die alleen mag dalen;
 recept en verboden omwegen in `scripts/README.md`.

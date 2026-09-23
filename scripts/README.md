@@ -222,7 +222,7 @@ waarden zelf in zijn foutregel. `xer-schedoptions-blast-radius.json` telt zijn f
 alleen op manifest-orakels (zie stap 5); een rolwissel die een orakel zonder SCHEDOPTIONS oplevert, maakt
 daar de struikeldraad "0 meetbaar" rood — dat vraagt een meetlat, geen herpin.
 
-Tweede toepassing (2026-09-23, DCP-03 Baseline naar `reader-only`, bevestiging door de eigenaar gevraagd, overdracht §1d-11): dezelfde route, met
+Tweede toepassing (2026-09-23, DCP-03 Baseline naar `reader-only`, bevestigd door de eigenaar op 2026-09-24, overdracht §1a): dezelfde route, met
 twee aanvullingen. `OPS_XER_GATE_PINS=corpus` werkte hier (het manifest verschilde nog van de v2-pin). In
 `check-xer-corpus.ts` staat C1 `oracleOk` (het aantal orakelentries), en in
 `xer-schedoptions-blast-radius.json` beweegt `expectedFinishVariant.fidelity` mee (die telt op
@@ -310,6 +310,16 @@ HarbourPointe −33 op de 8 taken; Hotel/CR −0, het had er geen) en drivingPat
 `OPS_XER_V2_WRITE=corpus OPS_XER_CELLS_WRITE=corpus` herpint in één run (uitsluitingspin mee). Geen cel
 werd daarbij slechter of groter. Van de 81 HarbourPointe-cellen die het onderzoek aan de verouderde uitvoer
 toeschreef, zitten er 48 op andere taken dan de 8; die blijven meetellen.
+
+**Toegepast 2026-09-24** (eigenaarsbesluiten vraag 8 "ja", vraag 10 "uitsluiten", vraag 12 "ja, uitsluiten";
+overdracht §1a): de drie blokken staan in het manifest met `decision: "2026-09-24 eigenaarsbesluit: …"`. Vanaf
+X12 175 (na brok 8/9): 175 → 104 (OZB −38, HarbourPointe −33, Hotel/CR −0), drivingPath 168 → 145 (Hotel/CR
+−19, OZB −4); `excludedHidden` 71 zesassig / 23 drivingPath. Volgorde: eerst de handmatige manifesthashpinnen, dus
+daarna weigerde `OPS_XER_GATE_PINS=corpus` ("vereist een gewijzigd corpusmanifest") en was `=write` de modus
+voor de tellers en payloadhashes; met de hand: X1-doelbaseline, C6/C8/C8b, het baselineschema (manifest-
+en baselinehash, meetbaar), de task-replay-pin (alleen `unchanged` −22 per as) en in `EXPECTED` van de
+vangrail `manifestRawSha256`, `baselineRawSha256`, `selectedContractSha256` en `tasksWithAnyMeasuredAxis`
+(5.901 → 5.879, want die moet gelijk zijn aan replay `overall.unchanged`). Dit zijn eigenaarsbesluiten, geen regel.
 
 Een ontbrekend cellenbestand maak je alleen bewust aan met `OPS_XER_CELLS_WRITE=init`; `=1` weigert
 dan met uitleg, `init` weigert over een bestaand bestand, en `init` weigert ook zolang er een

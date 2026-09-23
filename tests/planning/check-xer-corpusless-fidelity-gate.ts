@@ -74,14 +74,23 @@ const EXPECTED = {
   // `note` bij ashspace. Rollen, `included` en de selectie zijn ongewijzigd (selectiedigests gelijk).
   // HERPIN 2026-09-23i (fix critreview DCP-03, handmatige reviewstap): alleen de policytekst (geen staande
   // generatorregel, bevestiging gevraagd) en de datums 24 → 23; rollen, `included` en selectie ongewijzigd.
-  manifestRawSha256: 'd5bb689cb8068307ad29ee6ae46d39ba61fa162a5575ff7cd81add85b6b69b1c',
-  baselineRawSha256: '7827e30b69d5efcbbbeb132bd445c81b4b2e9bbcebd269d7760286785737bdb2',
+  // Manifestpinnen 2026-09-24 (eigenaarsbesluiten vraag 8/10/12, handmatige reviewstap): drie
+  // uitsluitingsblokken (`decision` + `excludeTasks`/`excludeProjects`: HarbourPointe 8 taken, OZB project
+  // 9033, Hotel project CR 2665) en de policyzin (DCP-03 bevestigd). Rollen, `included`, byte-/schema-
+  // selectie ongewijzigd; alleen het selectiecontract (draagt de uitsluitingen) en de X1-doelbaseline
+  // (5.901 → 5.879 meetbaar, 20 → 18 projecten) bewegen; tasksWithAnyMeasuredAxis 5.901 → 5.879.
+  // HERPIN 2026-09-24 (zelfde besluiten, OPS_XER_V2_WRITE=corpus + OPS_XER_CELLS_WRITE=corpus in één run, daarna GATE_PINS=write want de
+  // manifestpinnen hierboven stonden al op het nieuwe manifest):
+  // X12 175 → 104 (HarbourPointe 122 → 89, OZB 38 → 0), drivingPath 168 → 145 (Hotel 88 → 69, OZB 28 → 24);
+  // CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=0 kleiner=0, uitgesloten=94 cellen.
+  manifestRawSha256: '31b4778adc1af79d74e6094d12ff2425773a50a872b4577b1688f29b58082fb5',
+  baselineRawSha256: '698c388fb4a3001b7e2eafb2335ae583d2197cd2955fc2cf0625085a5ed3e659',
   manifestProjectionSha256: 'aaa6d53e1cc8c63d34fade5071dddce295a1e0a92111d71d80d0c5e912023c2a',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
   oracleByteUniqueSha256: '7b9f8f4cbeb3f4f95ff5d712e9bb3a6b94881eafcfa95ac30645ceac409ef30e',
   selectedFullSha256: 'dd2b9fac2918e2268873937421eb9230110f5ffeeffa4457e65f6a5d337f69ff',
   selectedSchemaSha256: '76f7b8fded1761551dbf61d68e87577e92dd71f575de01b3fb1b973b577d77a1',
-  selectedContractSha256: 'bdd4cfcfb11c31dc6c5cb98e257976007e887f1c58e9c3a7a780ab699777a0be',
+  selectedContractSha256: '7e25fa63008d62a7167a431a8e0824acc80b1cda9073ec511ad430e2a292aa28',
   occurrences: 93,
   included: 9,
   excluded: 84,
@@ -89,10 +98,10 @@ const EXPECTED = {
   oracleByteUnique: 9,
   selected: 8,
   schemaDuplicates: 1,
-  projects: 20,
-  tasks: 5_923,
-  tasksWithAnyMeasuredAxis: 5_901,
-  measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  projects: 18,
+  tasks: 5_882,
+  tasksWithAnyMeasuredAxis: 5_879,
+  measurable: { es: 5_879, ef: 5_879, ls: 5_879, lf: 5_879, tf: 5_690, ff: 5_690 },
   // HERPIN 2026-09-23t (integratieronde 2 — merge van claude/x12-brok9-c2-breed op brok 8 + tolerantie +
   // manifestfix; herpinrecept met de schrijfmodi; CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0
   // schuld=0): X12 178 → 175 (ff 18 → 15), dezelfde drie Hotel-cellen 2666/143800, 2666/144004, 2666/144440.
@@ -251,16 +260,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_877, ef: 5_874, ls: 5_868, lf: 5_872, tf: 5_665, ff: 5_697 },
+    exact: { es: 5_864, ef: 5_864, ls: 5_862, lf: 5_862, tf: 5_663, ff: 5_677 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 22, ef: 26, ls: 32, lf: 27, tf: 47, ff: 15 },
+    diff: { es: 13, ef: 14, ls: 16, lf: 15, tf: 27, ff: 13 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 24, ef: 27, ls: 33, lf: 29, tf: 47, ff: 15 },
-    drivingPath: { exact: 5_755, sameday: 0, diff: 168, missing: 0, measurable: 5_923, deviations: 168 },
+    deviations: { es: 15, ef: 15, ls: 17, lf: 17, tf: 27, ff: 13 },
+    drivingPath: { exact: 5_737, sameday: 0, diff: 145, missing: 0, measurable: 5_882, deviations: 145 },
   },
-  productPayloadSha256: 'bc36c61b0487782f1083fd06a0ef530778fc115bf4a00d2b4b3c95db246c7813',
-  productPayloadGzipSha256: '262ca2ba45b73702f54434fb4e846bee69bc53d1b27ca6123d6330145074262d',
-  productProjectProjectionSha256: '50c407859c5320de4c91bb6a141dfb842e111b00f051a9fc282df82e38cad3c5',
+  productPayloadSha256: '51d0c51c2099bdb3061092f2497ce6d92944bb9d82c9caf60d139b6b30371e4c',
+  productPayloadGzipSha256: 'de264f8b69ebeea8f5830a9e25a37c78279480738ce83867a3ec3b7587ce70db',
+  productProjectProjectionSha256: 'bad3368f61ecc5f4d465e4d73d2187779c4b775a5e14224d6d01cc4b7308e53a',
   roles: {
     oracle: 9,
     'engine-input': 14,
