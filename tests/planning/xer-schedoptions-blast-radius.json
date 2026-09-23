@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "axes": [
     "es",
     "ef",
@@ -17,7 +17,8 @@
     "expectedFinishDates",
     "preserveActualDates",
     "clampNegativeFreeFloat",
-    "projectCriticalDefinition"
+    "projectCriticalDefinition",
+    "startToStartLagFromEarlyStart"
   ],
   "deferredDefaults": [],
   "population": {
@@ -130,6 +131,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -179,6 +184,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -219,6 +228,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -263,6 +276,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 4,
           "counterfactualNegativeFloatTasks": 4
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 4,
+          "counterfactualNegativeFloatTasks": 4
         }
       }
     },
@@ -303,6 +320,10 @@
           "counterfactualNegativeFloatTasks": 2
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 2,
+          "counterfactualNegativeFloatTasks": 2
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 2,
           "counterfactualNegativeFloatTasks": 2
         }
@@ -347,6 +368,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -389,6 +414,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 44,
           "counterfactualNegativeFloatTasks": 44
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 44,
+          "counterfactualNegativeFloatTasks": 44
         }
       }
     },
@@ -429,6 +458,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -480,6 +513,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -520,6 +557,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -564,6 +605,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -604,6 +649,10 @@
           "counterfactualNegativeFloatTasks": 1
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 1,
+          "counterfactualNegativeFloatTasks": 1
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 1,
           "counterfactualNegativeFloatTasks": 1
         }
@@ -648,6 +697,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -688,6 +741,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -732,6 +789,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -772,6 +833,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -816,6 +881,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -856,6 +925,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -900,6 +973,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -940,6 +1017,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -984,6 +1065,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1024,6 +1109,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -1068,6 +1157,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1108,6 +1201,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -1152,6 +1249,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1192,6 +1293,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -1236,6 +1341,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1276,6 +1385,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -1320,6 +1433,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1360,6 +1477,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -1404,6 +1525,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1444,6 +1569,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
@@ -1488,6 +1617,10 @@
         "projectCriticalDefinition": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
         }
       }
     },
@@ -1528,6 +1661,10 @@
           "counterfactualNegativeFloatTasks": 0
         },
         "projectCriticalDefinition": {
+          "chosenNegativeFloatTasks": 0,
+          "counterfactualNegativeFloatTasks": 0
+        },
+        "startToStartLagFromEarlyStart": {
           "chosenNegativeFloatTasks": 0,
           "counterfactualNegativeFloatTasks": 0
         }
