@@ -66,6 +66,10 @@ afwijkingen hebben met XER".)
   de 8 taken (project 4408; EC1430, EC1590, EC2380 e.a., zie `scripts/README.md` "Kant-en-klaar") worden
   per `excludeTasks` met `decision` uitgesloten; de 48 cellen op hun opvolgers blijven tellen.
 
+- **24-09, vraag 10 (OZB project 9033, door P6 genivelleerd), letterlijk: "uitsluiten"** — project 9033
+  gaat per `excludeProjects` met `decision` uit het orakel; P6-nivellering wordt een eigen etappe ná het
+  nuldoel (niet in deze meting).
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -204,7 +208,7 @@ afwijkingen hebben met XER".)
    drempel tot 1 min; datum-assen hebben nooit zo'n rest. Voorbereid op `claude/x12-tolerantie-vraag9`
    (`fcb7282a`): tf/ff exact als het verschil op het 0,001-min-raster van de cellen 0 wordt
    (`FLOAT_EXACT_TOLERANCE_MIN`, alleen float-assen, `classifyExact` blijft tekst-exact); X12 192 → 190.
-10. **OZB project 9033 (38 cellen): door P6 genivelleerd** (24-09, `2026-09-24-x12-restant-onderzoek-284.md`):
+10. *(beantwoord 24-09: "uitsluiten", zie §1a)* **OZB project 9033 (38 cellen): door P6 genivelleerd** (24-09, `2026-09-24-x12-restant-onderzoek-284.md`):
     resource PM-1 voor- én achterwaarts genivelleerd, "preserve scheduled dates" uit; met de nivelleervolgorde
     als drie gewone relaties nagebootst: 42 → 6. Nivellering is geen CPM-conventie maar een aparte P6-stap.
     Besluit nodig: 9033 buiten het nuldoel (projectniveau-uitsluiting, kent het manifest nog niet), of
