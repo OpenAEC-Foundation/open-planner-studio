@@ -57,6 +57,8 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   // C3 blijft aan (C5 leunt erop: uit = 640 exacte cellen minder).
   const P6_OFF_GROUP_C: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
+    // Eigenaarsvraag §1d-7 (2026-09-23): A17, B3 en B4 idem — 0 cellen op de P6-doorgerekende populatie.
+    'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
   ]);
   for (const key of CONVENTION_KEYS) {
     const mspOnly = key === 'resumeFromActualElapsed' || key === 'unstartedIgnoresStatusDate';
@@ -157,9 +159,9 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
-  // C1 en C4 volgen hun P6-waarde, en die is sinds 2026-09-23 uit.
-  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1–B5 + C2, C3, C5–C9, C11 en C12 aan', on, [
-    'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
+  // C1, C4, B3 en B4 volgen hun P6-waarde, en die is sinds 2026-09-23 uit.
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1, B2, B5 + C2, C3, C5–C9, C11 en C12 aan', on, [
+    'p6BackwardLagFinishBoundary',
     'p6CompletedPhysicalAtDataDate', 'p6CompletedRemainingLag',
     'p6FinishFinishStartMilestoneLateFinish', 'p6FinishNotBeforeFinishFinishBound', 'p6FreeFloatOnOwnCalendar',
     'p6InProgressStartLagElapsed', 'p6LateFinishOnOwnCalendar', 'p6OpenLoeTargetSpan', 'p6ProgressOverrideIgnoresStartedSuccessor',
@@ -206,7 +208,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   same('72 een blob mét bronmarkering en de XER-defaults ⇒ P6-profiel zonder afwijkingen',
     legacyOptionsToProfile({ p6Source: 'XER', ...XER_SCHEDULING_DEFAULTS.schedulingOptions,
       preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true, p6ZeroDurationUsesPlannedBoundary: true,
-      p6UseTaskPlannedStartFloor: true, p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
+      p6UseTaskPlannedStartFloor: true, p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: true,
       p6PreserveZeroDurationConstraintInstants: true }).profile, builtInProfile('p6'));
 }
 
@@ -256,6 +258,21 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const hypothetical = { ...CONVENTIONS.find(d => d.group === 'B')!, id: 'p6HypothetischeZesde' as never, since: '2027-01-01' };
   eq('99a een hypothetische zesde groep-B-conventie gaat NIET stil aan', legacyXerDefault(hypothetical), false);
   eq('99b een bestaande groep-B-conventie wel', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6OpenLoeTargetSpan')!), true);
+  // Eigenaarsvraag §1d-7 (2026-09-23): een afwezige B-sleutel volgt de P6-profielwaarde — B3/B4 uit,
+  // B1/B2/B5 aan. Een oud XER-IFC zonder B3/B4-sleutels rekent dus als een herimport.
+  for (const key of LEGACY_XER_ALWAYS_ON) {
+    const d = CONVENTIONS.find(c => c.id === key)!;
+    eq(`99n ${key} volgt de P6-profielwaarde`, legacyXerDefault(d), d.builtIn.p6);
+    eq(`99n ${key} P6-waarde volgens §1d-7`, d.builtIn.p6,
+      key !== 'p6CompletedDataDateWindow' && key !== 'p6CompletedLoeActualFinish');
+  }
+  {
+    const explicitOn = legacyOptionsToProfile({ p6Source: 'XER', p6CompletedDataDateWindow: true, p6CompletedLoeActualFinish: true }).profile;
+    eq('99o B3/B4 expliciet true in oud XER-blok ⇒ aan, als afwijking',
+      [resolveConventions(explicitOn).p6CompletedDataDateWindow, explicitOn.overrides?.p6CompletedDataDateWindow,
+        resolveConventions(explicitOn).p6CompletedLoeActualFinish, explicitOn.overrides?.p6CompletedLoeActualFinish],
+      [true, true, true, true]);
+  }
   eq('99c een A-conventie niet', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6UseTaskPlannedStartFloor')!), false);
   const P6_OFF_GROUP_C_99: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',

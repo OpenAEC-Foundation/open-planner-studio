@@ -808,11 +808,12 @@ const byKey = (value: object) => Object.fromEntries(Object.entries(value).sort((
 eq('P6-profiel ≡ hand-lijst (A19 uit, per bestand als afwijking)', byKey(P6_PROFILE), byKey({
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
-  p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
+  p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: true,
   p6PreserveZeroDurationConstraintInstants: true, p6UseRemainingStartForProgress: false,
   resumeFromActualElapsed: false, unstartedIgnoresStatusDate: false,
-  p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true, p6CompletedDataDateWindow: true,
-  p6CompletedLoeActualFinish: true, p6OpenLoeTargetSpan: true,
+  p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true,
+  // A17/B3/B4 sinds 2026-09-23 uit (§1d-7: 0 cellen op de P6-doorgerekende populatie; gebouwd op rehab-2 = P3).
+  p6CompletedDataDateWindow: false, p6CompletedLoeActualFinish: false, p6OpenLoeTargetSpan: true,
   // C1/C4 sinds 2026-09-23 uit (populatie = P6-doorgerekende orakels; alleen rehab-2 = P3 droeg ze).
   p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
   p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
@@ -825,7 +826,7 @@ eq('default 7/8: P6-actuals blijven feiten in de backward-pass', P6_PROFILE.pres
 eq('default 8/8: P6-vrije-float wordt niet negatief', P6_PROFILE.clampNegativeFreeFloat, true);
 eq('X12-default: geplande nulduurmijlpaalgrens is XER-brongebonden', P6_PROFILE.p6ZeroDurationUsesPlannedBoundary, true);
 eq('X12-default: geplande taakstartvloer is XER-brongebonden', P6_PROFILE.p6UseTaskPlannedStartFloor, true);
-eq('X12-default: finishmijlpaalvenster is XER-brongebonden', P6_PROFILE.p6FinishMilestoneBoundaryWindow, true);
+eq('X12-default: finishmijlpaalvenster staat sinds 2026-09-23 in het P6-profiel uit', P6_PROFILE.p6FinishMilestoneBoundaryWindow, false);
 eq('X12-default: P6-actualinstants blijven minuutexact', P6_PROFILE.p6PreserveActualInstants, true);
 eq('X12-default: nulduurmijlpaal-constraints blijven exacte broninstants', P6_PROFILE.p6PreserveZeroDurationConstraintInstants, true);
 

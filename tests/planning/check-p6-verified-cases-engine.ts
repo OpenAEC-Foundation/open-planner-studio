@@ -38,6 +38,7 @@
  * opnam. Dat is onverklaard tegenbewijs tegen de completed-late-regel en staat als zodanig in plan
  * §5 (X-O7 laag 1) en in het docblok van `p6CompletedLateFromRemainingWindow`.
  */
+import { setConvention } from './p6SemanticsOff';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -339,6 +340,10 @@ interface Measured { es?: string; ef?: string; ls?: string; lf?: string; tf: num
 
 function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: Record<string, string> } {
   const imported = activeImportResult(readXER(caseBytes(item)));
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(imported, 'p6CompletedDataDateWindow', true);
+  setConvention(imported, 'p6CompletedLoeActualFinish', true);
   const result = solveProject({
     tasks: imported.tasks,
     sequences: imported.sequences,
@@ -462,6 +467,10 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
     '%E',
   ].join('\n'));
   const imported = activeImportResult(readXER(bytes));
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(imported, 'p6CompletedDataDateWindow', true);
+  setConvention(imported, 'p6CompletedLoeActualFinish', true);
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
   const b = imported.tasks.find(task => task.id === 'B')!;
   eq('3 dezelfde topologie MET targetvenster opent de poort wél', {

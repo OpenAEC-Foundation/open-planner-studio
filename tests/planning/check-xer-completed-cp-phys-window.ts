@@ -1,4 +1,5 @@
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
+import { setConvention } from './p6SemanticsOff';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
@@ -44,6 +45,10 @@ function fixtureBytes(): Uint8Array {
 function importedFixture(): ImportResult {
   const imported = readXER(fixtureBytes());
   if (isMultiDocumentImport(imported)) throw new Error('CP_Phys-fixture moet precies één project openen');
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(imported, 'p6CompletedDataDateWindow', true);
+  setConvention(imported, 'p6CompletedLoeActualFinish', true);
   return imported;
 }
 
@@ -255,6 +260,9 @@ if (!corpusRoot) {
     }
     const imports = isMultiDocumentImport(opened) ? opened.taskProjects.map(project => project.result) : [opened];
     for (const imported of imports) {
+      // B3 staat sinds 2026-09-23 (eigenaarsvraag §1d-7) in het P6-profiel uit; deze corpusinversie
+      // toetst de populatie van de B3-vensterregel zelf, dus met B3 als afwijking aan (zoals vóór het besluit).
+      setConvention(imported, 'p6CompletedDataDateWindow', true);
       const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
       const physical = imported.tasks.filter(task => task.p6CompletePctType === 'CP_Phys');
       const sourceForm = physical.filter(task => {

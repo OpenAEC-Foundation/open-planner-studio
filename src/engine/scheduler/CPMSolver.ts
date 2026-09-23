@@ -1555,7 +1555,11 @@ export class CPMSolver {
     this.hammockNoFinishDriverIds = [];
     this.cappedTaskIds = [];
     this.plannedFloorTraceByTaskId = {};
-    // Diagnose-trace zonder rekeneffect; volgt conventie B3 als aan-schakelaar.
+    // Diagnose-trace zonder rekeneffect; volgt conventie B3 als aan-schakelaar. Sinds B3 in elk
+    // ingebouwd profiel uit is (eigenaarsvraag §1d-7) staat de trace onder P6 standaard uit; de
+    // enige lezer (`check-xer-backward-float-trace`) zet B3 als afwijking aan. Bewust niet
+    // losgekoppeld: de trace beschrijft de B3-vensterroute en `result.backwardFloatTrace` hoort
+    // afwezig te zijn als die route uit staat (gepind in diezelfde check).
     this.backwardFloatTrace = this.options.schedulingOptions?.p6CompletedDataDateWindow === true
       ? { projectEndSource: 'maxEarlyFinish', byTaskId: {} }
       : undefined;

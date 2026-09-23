@@ -11,7 +11,7 @@ import type { Task } from '@/types/task';
 import type { XerSolvedProject } from './xerFidelity';
 import type { XerReplayPredicateLog } from './xerTaskReplay';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
-import type { EffectiveSchedulingOptions } from '@/types/project';
+import type { ConventionKey, EffectiveSchedulingOptions } from '@/types/project';
 import { setConvention } from './p6SemanticsOff';
 
 export interface XerReplaySourceContext {
@@ -66,6 +66,9 @@ export interface XerReplayOptions {
   onLifecycleEvent?: (event: XerReplayLifecycleEvent) => void;
   /** Projecteer de optionele CPM backward/float-trace in de replaydiagnose; standaard inert. */
   includeBackwardFloatTrace?: boolean;
+  /** Testinstrumentatie: conventies die na het lezen als afwijking op het profiel worden gezet (bv. B3,
+   *  sinds 2026-09-23 in elk ingebouwd profiel uit, voor een fixture die de B3-regel zelf toetst). */
+  conventionOverrides?: Partial<Record<ConventionKey, boolean>>;
 }
 
 function canonicalProductMinute(value: string | undefined): string | undefined {
@@ -215,6 +218,11 @@ export function replayXerProductBeforeOracle(
   const imports = isMultiDocumentImport(opened)
     ? opened.taskProjects.map(document => document.result)
     : [opened];
+  for (const imported of imports) {
+    for (const [key, value] of Object.entries(options.conventionOverrides ?? {}) as [ConventionKey, boolean][]) {
+      setConvention(imported, key, value);
+    }
+  }
   const baseline = new Map<string, XerSolvedProject>();
   const counterfactual = new Map<string, XerSolvedProject>();
   const predicate: XerReplayPredicateLog[] = [];

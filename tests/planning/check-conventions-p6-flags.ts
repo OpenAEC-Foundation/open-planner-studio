@@ -66,9 +66,20 @@ function calendarData(bands: ReadonlyArray<readonly [string, string]>): string {
 
 const SPLIT_DAY = calendarData([['08:00', '12:00'], ['13:00', '17:00']]);
 
-function importXer(lines: string[]): ImportResult {
+/** B3 en B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit: 0 cellen effect
+ *  op de P6-doorgerekende populatie, gebouwd op rehab-2 (P3). Deze fixtures toetsen de regels zelf (en C3/C4
+ *  rekenen op de B3-route), dus de import draagt ze als expliciete afwijking aan op het P6-profiel. */
+const P6_OFF_GROUP_B: readonly ConventionKey[] = ['p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish'];
+
+function importXerAsRead(lines: string[]): ImportResult {
   const opened = readXER(new TextEncoder().encode(lines.join('\n')));
   if (isMultiDocumentImport(opened)) throw new Error('conventiefixture moet één project openen');
+  return opened;
+}
+
+function importXer(lines: string[]): ImportResult {
+  const opened = importXerAsRead(lines);
+  for (const key of P6_OFF_GROUP_B) setConvention(opened, key, true);
   return opened;
 }
 
@@ -370,7 +381,13 @@ for (const fixture of fixtures) {
     JSON.stringify(fixture.on) !== JSON.stringify(fixture.off), true);
 
   const asRead = resolveConventions(input.project.schedulingProfile);
-  eq(`${label}: 1. XER-import zoals gelezen (P6-profiel) ⇒ AAN`,
+  if ((P6_OFF_GROUP_B as readonly string[]).includes(flag)) {
+    eq(`${label}: 0. ingebouwd P6-profiel ⇒ ${flag} staat uit (§1d-7)`,
+      resolveConventions({ baseId: 'p6', id: 'p6', name: '', overrides: {} })[flag], false);
+    eq(`${label}: 0b. zoals gelezen (P6-profiel, geen afwijking) ⇒ UIT`,
+      pick(solveAxes(withProfile(input, copy => setConvention(copy, flag, false)), taskId)), fixture.off);
+  }
+  eq(`${label}: 1. XER-import (P6-profiel; B3/B4 als afwijking aan) ⇒ AAN`,
     pick(solveAxes(input, taskId)), fixture.on);
   eq(`${label}: 2. alleen ${flag} uit ⇒ UIT`,
     pick(solveAxes(withProfile(input, copy => setConvention(copy, flag, false)), taskId)), fixture.off);

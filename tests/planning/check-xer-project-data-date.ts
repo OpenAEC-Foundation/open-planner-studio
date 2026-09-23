@@ -1,4 +1,5 @@
 import { solveProject } from '@/engine/scheduler/solveProject';
+import { setConvention } from './p6SemanticsOff';
 import { explainCompletedXerLoeActualFinishEligibilityResolved } from '@/engine/scheduler/p6CompletedRouteTrace';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
@@ -22,6 +23,10 @@ function bytes(lines: readonly string[]): Uint8Array {
 function read(source: Uint8Array): XerReadResult {
   const parsed = readXER(source);
   if (isMultiDocumentImport(parsed)) throw new Error('PROJECT-data-date-fixture gaf onverwacht meerdere documenten terug');
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(parsed, 'p6CompletedDataDateWindow', true);
+  setConvention(parsed, 'p6CompletedLoeActualFinish', true);
   return parsed;
 }
 
