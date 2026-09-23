@@ -8,6 +8,8 @@
 //       volgorde (spec §5): exact < sameday < diff < missing — elke stap naar rechts is
 //       verslechteren (ook sameday→missing), elke stap naar links verbeteren;
 //   (c) verbetering (emmer → exact, of een lagere rang)                     ⇒ groen, "te herpinnen";
+//       UITZONDERING: diff→sameday met grotere minuten is rood (`groter`) — de emmer is een
+//       kalenderdaggrens, geen maat; alleen bij gelijke of kleinere minuten telt het als verbeterd;
 //   (d) een baselinecel die niet meer MEETBAAR is (het orakel heeft geen waarde meer, of de taak is
 //       weg) telt NIET als verbeterd maar als "onmeetbaar geworden"      ⇒ rood — een blinder
 //       orakel mag nooit als verbetering doorgaan;
@@ -20,12 +22,17 @@
 // Grootte (`minutes`): de absolute afwijking `|ours − truth|` in MINUTEN, voor alle zes assen
 // dezelfde eenheid — datum-assen (es/ef/ls/lf) in wandklokminuten tussen de twee canonieke
 // `YYYY-MM-DDTHH:MM`-waarden, float-assen (tf/ff) in floatminuten (beide kanten zijn al minuten),
-// afgerond op 0,001 minuut zodat drijvende-kommaruis nooit een "groter" maakt. `missing` en de
+// afgerond op 0,001 minuut zodat drijvende-kommaruis nooit een "groter" maakt. Ruis onder 0,0005 min
+// kan zo een `diff`-cel met grootte 0 opleveren (gemeten: twee cellen `4408/98250` op tf/ff): de emmer
+// komt uit de ongeafronde vergelijking, de grootte is afgerond. Onschadelijk — de emmer-ratchet houdt
+// de cel vast, en elke echte groei (≥ 0,001) is alsnog `groter`. `missing` en de
 // hele as `drivingPath` hebben geen grootte (`null`): daar bestaat geen afstand.
 //
 // Versie 1 (alleen de emmer) wordt in de poort GEWEIGERD met een verwijzing naar het recept; alleen
-// `OPS_XER_CELLS_WRITE=1` leest hem nog (als emmer-ratchet, zonder grootte) om hem als versie 2 te
-// herschrijven. Geen stille migratie: de herpin is een bewuste stap (scripts/README.md, herpinrecept).
+// `OPS_XER_CELLS_WRITE=1` mét `OPS_XER_CELLS_V1_UPGRADE=1` leest hem nog (als emmer-ratchet, zonder
+// grootte) om hem als versie 2 te herschrijven. Die vlag bestaat uitsluitend voor de allereerste
+// overgang v1→v2 en mag na het landen van claude/x12-grootte-ratchet niet meer gebruikt worden: bij een
+// merge met een v1-cellenbestand neem je altijd de v2-kant (scripts/README.md).
 //
 // Assen: de zes X12-assen (es/ef/ls/lf/tf/ff) plus `drivingPath` als zevende poort-as
 // (eigenaarsbesluit 2026-09-22: "driving path wordt de zevende poort-as"). `drivingPath` valt in
@@ -45,9 +52,9 @@ import { XER_FIDELITY_AXES } from './xerGroundTruth';
 export const CELL_BASELINE_VERSION = 2;
 /** Melding bij een versie-1-bestand (emmer zonder grootte). */
 export const CELL_V1_PROBLEM = 'versie 1 (alleen emmers, geen grootte) wordt niet meer gelezen — herschrijf hem als versie 2 met '
-  + 'OPS_XER_CELLS_WRITE=1 mét corpus (scripts/README.md, herpinrecept); nooit met de hand';
+  + 'OPS_XER_CELLS_WRITE=1 OPS_XER_CELLS_V1_UPGRADE=1 mét corpus, alleen voor de eerste overgang (scripts/README.md, herpinrecept); nooit met de hand';
 export const CELL_BASELINE_FILE = 'xer-product-fidelity-cells.json';
-/** Bovengrens vóór `JSON.parse`; de echte baseline is ±0,5 MB. */
+/** Bovengrens vóór `JSON.parse`; de echte baseline (versie 2) is ±1,39 MB. */
 export const CELL_BASELINE_MAX_CHARS = 16 * 1024 * 1024;
 
 export type CellBucket = 'sameday' | 'diff' | 'missing';
@@ -377,7 +384,15 @@ export function compareCells(baseline: CellBaseline, measured: CellBaseline, mea
         if (wasCell === undefined) { delta.newCells.push({ file, axis, id, now: nowBucket }); continue; }
         const wasBucket = wasCell.bucket;
         if (BUCKET_RANK[nowBucket] > BUCKET_RANK[wasBucket]) delta.worsenedCells.push({ file, axis, id, was: wasBucket, now: nowBucket });
-        else if (BUCKET_RANK[nowBucket] < BUCKET_RANK[wasBucket]) delta.improvedCells.push({ file, axis, id, was: wasBucket, now: nowBucket });
+        else if (BUCKET_RANK[nowBucket] < BUCKET_RANK[wasBucket]) {
+          // Betere emmer (diff→sameday) met GROTERE minuten is rood: de emmer is een kalenderdaggrens
+          // (sameday tot 1020 min, diff vanaf 840 min) en loopt niet gelijk op met de grootte; regel A
+          // zegt per cel "de absolute afwijking mag niet groter worden" (orkestratorbesluit 2026-09-23).
+          if (cellHasMagnitude(axis, nowBucket) && cellHasMagnitude(axis, wasBucket)
+            && wasCell.minutes !== null && nowCell.minutes !== null && nowCell.minutes > wasCell.minutes) {
+            delta.largerCells.push({ file, axis, id, was: wasBucket, now: nowBucket, wasMinutes: wasCell.minutes, nowMinutes: nowCell.minutes });
+          } else delta.improvedCells.push({ file, axis, id, was: wasBucket, now: nowBucket });
+        }
         else if (cellHasMagnitude(axis, nowBucket) && wasCell.minutes !== null && nowCell.minutes !== null) {
           // (e) Grootte-ratchet binnen dezelfde emmer. Een versie-1-baseline (minutes null) slaat dit over.
           const ref: CellRef = { file, axis, id, was: wasBucket, now: nowBucket, wasMinutes: wasCell.minutes, nowMinutes: nowCell.minutes };

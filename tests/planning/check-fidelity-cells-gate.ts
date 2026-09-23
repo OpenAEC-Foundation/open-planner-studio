@@ -95,9 +95,14 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   eq('(c) één weggehaalde cel ⇒ één te herpinnen', resolved.improvedCells, [{ file: F1, axis: 'lf', id: '2/7', was: 'missing' }]);
   const milder = compareCells(baseline, with_(cells => cells.map(cell =>
     cell.axis === 'es' && cell.id === '1/10' ? { ...cell, bucket: 'sameday', minutes: 2000 } : cell)), MEASURABLE);
-  eq('(c) diff→sameday ⇒ geen rode regels', cellGateFailures(milder), []);
-  eq('(c) diff→sameday ⇒ één te herpinnen', milder.improvedCells.length, 1);
-  eq('(c) diff→sameday met grotere grootte is geen "groter" (emmer wint)', milder.largerCells.length, 0);
+  eq('(c) diff→sameday met grotere grootte ⇒ rood (groter, emmer wint niet)', [milder.largerCells.length, milder.improvedCells.length, cellGateFailures(milder).length], [1, 0, 1]);
+  const milderSmall = compareCells(baseline, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, bucket: 'sameday', minutes: 900 } : cell)), MEASURABLE);
+  eq('(c) diff→sameday met kleinere grootte ⇒ geen rode regels', cellGateFailures(milderSmall), []);
+  eq('(c) diff→sameday met kleinere grootte ⇒ één te herpinnen', milderSmall.improvedCells.length, 1);
+  const milderSame = compareCells(baseline, with_(cells => cells.map(cell =>
+    cell.axis === 'es' && cell.id === '1/10' ? { ...cell, bucket: 'sameday' } : cell)), MEASURABLE);
+  eq('(c) diff→sameday met gelijke grootte ⇒ verbeterd, niet rood', [milderSame.improvedCells.length, cellGateFailures(milderSame).length], [1, 0]);
 
   // (d) een baselinecel die exact lijkt maar niet meer meetbaar is (blinder orakel) ⇒ rood, niet "verbeterd".
   const blind = (file: string, axis: string, id: string) => !(file === F1 && axis === 'lf' && id === '2/7');
@@ -294,7 +299,7 @@ const with_ = (change: (cells: MeasuredCell[]) => MeasuredCell[]) => measure(cha
   const legacy = parseCellBaseline(v1);
   eq('versie 1 ⇒ geweigerd met verwijzing naar het recept', legacy.problems, [CELL_V1_PROBLEM]);
   eq('versie-1-melding noemt OPS_XER_CELLS_WRITE=1 en het recept',
-    CELL_V1_PROBLEM.includes('OPS_XER_CELLS_WRITE=1') && CELL_V1_PROBLEM.includes('scripts/README.md'), true);
+    CELL_V1_PROBLEM.includes('OPS_XER_CELLS_WRITE=1') && CELL_V1_PROBLEM.includes('OPS_XER_CELLS_V1_UPGRADE=1') && CELL_V1_PROBLEM.includes('scripts/README.md'), true);
   eq('versie 1 ⇒ gemarkeerd als legacy', legacy.legacyV1, true);
   eq('versie 1 ⇒ emmers voor de herpin, zonder grootte', legacy.baseline?.files[F1]?.es, {
     '1/10': { bucket: 'diff', minutes: null }, '1/20': { bucket: 'sameday', minutes: null },

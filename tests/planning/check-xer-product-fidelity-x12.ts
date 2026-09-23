@@ -2447,8 +2447,10 @@ function evaluateCells(cellSink: XerCellSink, measurableSink: XerMeasurableSink,
   // Versie 1 (alleen emmers): in de poort rood met verwijzing naar het recept; alleen de bewuste
   // herpin `OPS_XER_CELLS_WRITE=1` gebruikt hem nog, als emmer-ratchet zonder grootte, en schrijft
   // daarna versie 2. Geen stille migratie.
-  const legacyRepin = parsed.legacyV1 === true && process.env.OPS_XER_CELLS_WRITE === '1';
-  if (parsed.legacyV1 && legacyRepin) console.log(`.   X12 ${CELL_BASELINE_FILE} is versie 1: emmer-ratchet zonder grootte, herpin schrijft versie 2`);
+  // Sinds de fixronde 2026-09-23 alleen nog met de expliciete eenmalige vlag OPS_XER_CELLS_V1_UPGRADE=1
+  // (uitsluitend de allereerste overgang; bij een merge neem je de v2-kant, zie scripts/README.md).
+  const legacyRepin = parsed.legacyV1 === true && process.env.OPS_XER_CELLS_WRITE === '1' && process.env.OPS_XER_CELLS_V1_UPGRADE === '1';
+  if (parsed.legacyV1 && legacyRepin) console.log(`INFO X12 ${CELL_BASELINE_FILE} is VERSIE 1 en wordt via OPS_XER_CELLS_V1_UPGRADE=1 als versie 2 herschreven (emmer-ratchet zonder grootte) — deze vlag is alleen voor de eerste overgang en mag daarna niet meer gebruikt worden`);
   if (!parsed.baseline || (parsed.problems.length > 0 && !legacyRepin)) {
     diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`);
     return undefined;

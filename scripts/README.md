@@ -106,20 +106,25 @@ kleinere cellen binnen dezelfde emmer veranderen geen enkele v2-telling of gate-
 **Versie 1 → versie 2 en merges met een versie-1-cellenbestand.** Een cellenbestand met
 `"version": 1` (alleen emmers, geen grootte) wordt door de poort en door
 `check-fidelity-cells-gate.ts` geweigerd met een melding die hierheen verwijst; er is geen stille
-migratie. Alleen `OPS_XER_CELLS_WRITE=1` leest een (canoniek) versie-1-bestand nog, als
-emmer-ratchet zonder grootte (nieuw/verslechterd/onmeetbaar blokkeren gewoon), en schrijft het als
-versie 2. Merge je een branch die zijn cellenbestand als versie 1 herpinde (een conflict in
-`tests/planning/xer-product-fidelity-cells.json` is dan zeker): neem één van beide kanten ongewijzigd
-(`git checkout --ours` of `--theirs` op dat bestand — bij voorkeur de versie-2-kant, dan blijft de
-grootte-ratchet over de merge heen gelden), bewerk de JSON nooit met de hand, en draai ná de merge
-(met de v2-baseline en gate-pins van de merge al op hun plek, stap 1 en 3 hierboven indien nodig):
+migratie. De v1-leesroute bestaat alleen nog achter een expliciete, eenmalige vlag:
+`OPS_XER_CELLS_WRITE=1 OPS_XER_CELLS_V1_UPGRADE=1` (luide `INFO`-regel). Die vlag is uitsluitend voor
+de allereerste overgang v1→v2 en mag na het landen van `claude/x12-grootte-ratchet` **niet meer
+gebruikt worden**.
+
+Merge je een branch die zijn cellenbestand als versie 1 herpinde (een conflict in
+`tests/planning/xer-product-fidelity-cells.json` is dan zeker): neem **altijd de versie-2-kant**
+(`git checkout --ours`/`--theirs`, welke van de twee v2 is), bewerk de JSON nooit met de hand, en draai
+ná de merge (met de v2-baseline en gate-pins van de merge al op hun plek, stap 1 en 3 hierboven indien
+nodig):
 
 ```bash
 OPS_XER_CELLS_WRITE=1 bash tests/planning/run.sh check-xer-product-fidelity-x12.ts
 ```
 
-Weigert die herpin op `groter`, dan maakt de gemergde motorwijziging een cel binnen zijn emmer
-slechter: dat is een echte bevinding, geen merge-artefact.
+Weigert die herpin op `groter`, dan is dat een echte bevinding, geen merge-artefact. Die los je op door
+de motor te herstellen, of doordat de betreffende cellen via een eigenaarsbesluit uit de populatie
+verdwijnen (zoals de rehab-2-cellen die met de manifest-etappe uit het orakel gaan). Er is bewust geen
+modus "accepteer grotere cellen": dat zou pinnen met reden zijn.
 
 **Corpusgroei** (een entry erbij of eraf, dus een gewijzigd `xer-corpus-manifest.json`): de
 dekkingscheck en de cel-poort staan dan rood op het gewijzigde entry-set, en `=1` weigert. Gebruik
@@ -146,7 +151,9 @@ Maak een baseline daarom nooit langs ze heen:
   omgeleid bestand is dus ongeldig en de strikte v2-lezer weigert het) en weigert rechtstreeks naar
   het baselinebestand te schrijven;
 - geen cellenbestand weggooien om het met `init` opnieuw te maken;
-- `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen.
+- `EXPECTED` in `check-xer-corpusless-fidelity-gate.ts` niet met de hand ophogen;
+- geen `OPS_XER_CELLS_V1_UPGRADE=1` meer na het landen van `claude/x12-grootte-ratchet` (en nooit de
+  v1-kant van een cellenbestand nemen bij een merge).
 
 ## P6-doorgerekend-rapportage (corpusgebonden, niet in `verify`)
 
