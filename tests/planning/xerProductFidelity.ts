@@ -1,5 +1,6 @@
 import {
   classifyExact,
+  classifyFloatMinutes,
   classifyMinuteExact,
   compareFidelityRow,
   countFidelityAxis,
@@ -183,7 +184,7 @@ export function measureXerProductFidelity(
         truth: comparable(truthTask.axes[axis]) ?? null,
       }])) as Record<XerFidelityAxis, { ours: string | undefined; truth: string | null }>, {
         es: classifyMinuteExact, ef: classifyMinuteExact, ls: classifyMinuteExact, lf: classifyMinuteExact,
-        tf: classifyExact, ff: classifyExact,
+        tf: classifyFloatMinutes, ff: classifyFloatMinutes,
       });
       for (const axis of XER_FIDELITY_AXES) {
         const one = productCounts(countFidelityAxis([row], axis));

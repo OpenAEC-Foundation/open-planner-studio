@@ -91,6 +91,10 @@ const EXPECTED = {
   tasks: 5_923,
   tasksWithAnyMeasuredAxis: 5_901,
   measurable: { es: 5_901, ef: 5_901, ls: 5_901, lf: 5_901, tf: 5_712, ff: 5_712 },
+  // HERPIN 2026-09-23m (MEETTOLERANTIE, geen motorwijziging — eigenaarsbesluit IN AFWACHTING §1d-9,
+  // branch claude/x12-tolerantie-vraag9): tf/ff exact als het verschil op de 0,001-minuutraster naar 0
+  // afrondt (`FLOAT_EXACT_TOLERANCE_MIN`, fidelityCore.ts). X12 192 → 190 (tf 49 → 48, ff 22 → 21):
+  // alleen HarbourPointe 4408/EC1600 (ops 396640,00002 vs P6 396640). Overige cellen byte-identiek.
   // HERPIN 2026-09-23l (X12 naar nul, brok 6 — B1 late kant: de finishgrens hoort bij de relatie
   // (FS-backward `prevWorkInstant` op de voorgangerkalender), de opvolger toont haar LS als bandstart;
   // regel A: measure:profiles VERBETERD, nieuw=0 verslechterd=0 groter=0 verbeterd=9 kleiner=0 schuld=0).
@@ -212,16 +216,16 @@ const EXPECTED = {
   // ls −890/lf −891/tf −358 op de OUDE kalender; op de gereconstrueerde kalender (7b) is de winst van
   // dezelfde regel groter (−969/−969/−427).
   productStrict: {
-    exact: { es: 5_876, ef: 5_869, ls: 5_867, lf: 5_871, tf: 5_663, ff: 5_690 },
+    exact: { es: 5_876, ef: 5_869, ls: 5_867, lf: 5_871, tf: 5_664, ff: 5_691 },
     sameday: { es: 2, ef: 1, ls: 1, lf: 2, tf: 0, ff: 0 },
-    diff: { es: 23, ef: 31, ls: 33, lf: 28, tf: 49, ff: 22 },
+    diff: { es: 23, ef: 31, ls: 33, lf: 28, tf: 48, ff: 21 },
     missing: { es: 0, ef: 0, ls: 0, lf: 0, tf: 0, ff: 0 },
-    deviations: { es: 25, ef: 32, ls: 34, lf: 30, tf: 49, ff: 22 },
+    deviations: { es: 25, ef: 32, ls: 34, lf: 30, tf: 48, ff: 21 },
     drivingPath: { exact: 5_754, sameday: 0, diff: 169, missing: 0, measurable: 5_923, deviations: 169 },
   },
-  productPayloadSha256: '69451b8f2fa4a384c2a6bd92c6ff6c031af9745bbbdfc72df5f2d1a939690ffc',
-  productPayloadGzipSha256: '7838445e1bb78721f885792f5dade2e223fc044d65bd0b87066a6ca4da8ff64d',
-  productProjectProjectionSha256: '7811960406bc6b6a92802b1324a4cc2864c7d19473abd623cb0dfdcd17262ad2',
+  productPayloadSha256: '8e272f7b5f95790a4de5b64e38117ed9d9e70f928b53883de3e124a225d3d18e',
+  productPayloadGzipSha256: '726102ff4f1f433fbc519f16a12d18cfdaee463870be7904b77cb4a65f4f1117',
+  productProjectProjectionSha256: '676890851256d7450bf5fd9b6cb155ea3891297d42ddcbc1b38fc4fc671789b9',
   roles: {
     oracle: 9,
     'engine-input': 14,

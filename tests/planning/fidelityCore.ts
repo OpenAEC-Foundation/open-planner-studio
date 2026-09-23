@@ -27,6 +27,30 @@ export function classifyExact(ours: string | undefined, truth: string | null): F
   return ours === truth ? 'exact' : 'diff';
 }
 
+/**
+ * Meettolerantie voor de float-assen (tf/ff, in minuten) — EIGENAARSBESLUIT IN AFWACHTING
+ * (overdracht rekenprofielen §1d-9). `classifyExact` vergelijkt canonieke strings; daardoor telt
+ * drijvende-kommaruis uit uren×60 / dagen×minutesPerDay als afwijking (gemeten 2026-09-23: precies
+ * twee cellen in het hele corpus, HarbourPointe 4408/EC1600 tf én ff, ops 396640.00002000004 tegen
+ * P6 396640). De grens is bewust GEEN nieuwe keuze maar de bestaande afrondingsgrens van de
+ * cel-baseline (`roundMinutes` in `fidelityCells.ts`, 0,001 min): een verschil dat daar op grootte
+ * 0 afrondt, is hier `exact`; alles wat een grootte ≥ 0,001 zou krijgen blijft `diff`. Zo kan er
+ * geen `diff`-cel met grootte 0 meer bestaan. Uitsluitend voor tf/ff: datum-assen zijn canonieke
+ * minuutstrings en kunnen geen sub-minuutrest dragen (gemeten: 0 waarden).
+ */
+export const FLOAT_EXACT_TOLERANCE_MIN = 0.001;
+
+/** tf/ff: exact bij tekstgelijkheid, of als beide eindige getallen zijn waarvan het verschil op de
+ *  0,001-minuutraster (`FLOAT_EXACT_TOLERANCE_MIN`) naar 0 afrondt. */
+export function classifyFloatMinutes(ours: string | undefined, truth: string | null): FidelityVerdict {
+  if (truth === null || ours === undefined) return 'missing';
+  if (ours === truth) return 'exact';
+  const a = ours.trim() === '' ? NaN : Number(ours);
+  const b = truth.trim() === '' ? NaN : Number(truth);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'diff';
+  return Math.round(Math.abs(a - b) / FLOAT_EXACT_TOLERANCE_MIN) === 0 ? 'exact' : 'diff';
+}
+
 const CANONICAL_MINUTE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 function isCanonicalMinute(value: string): boolean {

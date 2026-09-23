@@ -10,6 +10,15 @@ projecten / 5.983 taken, X12 **1.274** na die populatiewijziging (was 11.529 op 
 13.982 taken; 15.056 bij de start). Sinds 2026-09-24 (tweede toepassing: DCP-03 Baseline is generatoruitvoer)
 8 entries / 20 projecten / 5.923 taken, X12 **192**.*
 
+*Meettolerantie float-assen (overdracht §1d-9) — EIGENAARSBESLUIT IN AFWACHTING, branch
+`claude/x12-tolerantie-vraag9`, niet gemerged: tf/ff tellen als exact als `|ours − truth|` op de
+0,001-minuutraster van de cel-baseline naar 0 afrondt (`FLOAT_EXACT_TOLERANCE_MIN` in
+`tests/planning/fidelityCore.ts`); datum-assen blijven tekst-exact op de minuut. Gemeten 2026-09-23 over
+het hele corpus: precies twee cellen vallen onder die grens (HarbourPointe 4408/EC1600 tf én ff, ops
+396640,00002 tegen P6 396640 — onze float-ruis, geen P6-afronding); onder 0,01/0,1/1 min zijn het dezelfde
+twee. X12 192 → 190 als de eigenaar dit besluit neemt; zonder besluit geldt 192 en blijft de vergelijking
+tekst-exact.*
+
 ## Het doel
 
 `bash tests/planning/run.sh check-xer-product-fidelity-x12.ts` met `OPS_XER_CORPUS` geeft **exit 0**:
