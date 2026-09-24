@@ -25,8 +25,8 @@
 //     met de reden dat de waarden al zo staan.
 import type { McpContext, McpToolOk } from '../contracts';
 import type { BatchStepTool } from './batchTool';
-import { guardNonTransactional, McpStepError, runMutateTool, toolError, type MutationOutcome } from './runtime';
-import { enrichOk, freshDates, okDirect, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
+import { McpStepError, runMutateTool, toolError, type MutationOutcome } from './runtime';
+import { enrichOk, freshDates, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import { validate } from '@/state/mcpValidation';
 import { isAncestorRelation } from '@/state/relationRules';
@@ -438,11 +438,7 @@ const updateDependencies: BatchStepTool = {
     required: ['updates'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseUpdateDeps(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateDependenciesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateDeps, updateDependenciesCore),
   async handler(args, ctx) {
     const parsed = parseUpdateDeps(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -454,9 +450,7 @@ const updateDependencies: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyDepUpdates(state, parsed);
       if (pre.candidates.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateDependenciesCore(ctx, parsed));

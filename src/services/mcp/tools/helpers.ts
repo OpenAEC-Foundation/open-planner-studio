@@ -7,7 +7,7 @@
 // statisch-lege bulk zónder transactie wordt beantwoord.
 import type { AppState } from '@/state/appStore';
 import type { McpContext, McpToolAnnotations, McpToolOk, McpToolResult } from '../contracts';
-import { buildEnvelope } from './runtime';
+import { buildEnvelope, guardNonTransactional, McpStepError, type MutationOutcome } from './runtime';
 
 /** Leestool-annotaties (spec §Naamgeving): readOnly, niet-destructief, geen open wereld. `idempotentHint`
  *  is per MCP-conventie alleen zinvol op niet-readOnly tools ⇒ false. */
@@ -86,4 +86,31 @@ export function okDirect(
     ...(rejections.length > 0 ? { itemRejections: rejections } : {}),
   };
   return ok;
+}
+
+/** `okDirect` achter dezelfde guards als een muterende call (pauze → alleen-lezen → dialoog →
+ *  drift): het lege-batch-/no-op-snelpad van een muterende tool mag een gepauzeerde of gedrifte
+ *  bridge niet stil `ok` laten melden. */
+export function okDirectGuarded(
+  ctx: McpContext,
+  data: unknown,
+  rejections: { id: string; reason: string }[],
+): McpToolResult {
+  return guardNonTransactional(ctx) ?? okDirect(ctx, data, rejections);
+}
+
+/**
+ * De `batchStep` van een bulk-mutatietool (SYNC-2, zie de noot bovenin taskTools.ts): dezelfde
+ * `parse` als de handler, maar een vormfout is binnen een batch een STRUCTURELE stapfout (harde
+ * `VALIDATION`, de hele batch rolt terug) in plaats van een `toolError`; daarna de synchrone kern.
+ */
+export function parsedBatchStep<P>(
+  parse: (args: unknown, state: AppState) => P | string,
+  core: (ctx: McpContext, parsed: P) => MutationOutcome,
+): (args: unknown, ctx: McpContext) => MutationOutcome {
+  return (args, ctx) => {
+    const parsed = parse(args, ctx.app.store.getState());
+    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
+    return core(ctx, parsed);
+  };
 }

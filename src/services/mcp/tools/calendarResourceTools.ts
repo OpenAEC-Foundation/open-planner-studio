@@ -25,7 +25,7 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
+import { enrichOk, okDirect, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
@@ -928,11 +928,7 @@ const updateCalendar: BatchStepTool = {
     },
     required: ['calendars'],
   },
-  batchStep(args, ctx) {
-    const parsed = parseUpdateCalendar(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateCalendarCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateCalendar, updateCalendarCore),
   async handler(args, ctx) {
     const parsed = parseUpdateCalendar(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -944,9 +940,7 @@ const updateCalendar: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyCalendars(state, items);
       if (pre.plans.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { calendars: [], warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { calendars: [], warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
 
@@ -1218,11 +1212,7 @@ const manageAssignments: BatchStepTool = {
   },
   // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
   // dus overbodig binnen een batch (die bezit de transactie al).
-  batchStep(args, ctx) {
-    const parsed = parseAssignments(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return manageAssignmentsCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseAssignments, manageAssignmentsCore),
   async handler(args, ctx) {
     const parsedActions = parseAssignments(args);
     if (typeof parsedActions === 'string') return toolError(ctx, 'VALIDATION', parsedActions);
@@ -1233,9 +1223,7 @@ const manageAssignments: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyAssignments(state, actions);
       if (pre.plans.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(
+        return okDirectGuarded(
           ctx,
           { added: [], updated: [], moved: [], removed: [], projectEnd: projectEndInfo(state).projectEnd },
           pre.rejections,
@@ -1419,11 +1407,7 @@ const levelResources: BatchStepTool = {
       },
     },
   },
-  batchStep(args, ctx) {
-    const parsed = parseLeveling(args, ctx.app.store.getState());
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return levelResourcesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseLeveling, levelResourcesCore),
   async handler(args, ctx) {
     const parsed = parseLeveling(args, ctx.app.store.getState());
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -1498,9 +1482,7 @@ const clearLeveling: BatchStepTool = {
     // No-op-snelpad (spiegelt de store-`clearLeveling`-guard): niets te wissen ⇒ geen transactie,
     // geen undo-snapshot, geen redo-wipe.
     if (count === 0) {
-      const g = guardNonTransactional(ctx);
-      if (g) return g;
-      return okDirect(ctx, { cleared: 0, projectEnd: projectEndInfo(state).projectEnd }, []);
+      return okDirectGuarded(ctx, { cleared: 0, projectEnd: projectEndInfo(state).projectEnd }, []);
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => clearLevelingCore(ctx));
     return enrichOk(res, () => ({ cleared: count, projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd }));
@@ -1712,11 +1694,7 @@ const updateProject: BatchStepTool = {
     },
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseUpdateProject(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateProjectCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateProject, updateProjectCore),
   async handler(args, ctx) {
     const parsed = parseUpdateProject(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -1848,11 +1826,7 @@ const moveProject: BatchStepTool = {
     },
     required: ['newStartDate'],
   },
-  batchStep(args, ctx) {
-    const parsed = parseMoveProject(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return moveProjectCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseMoveProject, moveProjectCore),
   async handler(args, ctx) {
     const parsed = parseMoveProject(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -1865,9 +1839,7 @@ const moveProject: BatchStepTool = {
     }
     // No-op-snelpad: Δ=0 ⇒ `moveProject` muteert niets; dan ook geen transactie/undo-stap.
     if (delta === 0) {
-      const g = guardNonTransactional(ctx);
-      if (g) return g;
-      return okDirect(
+      return okDirectGuarded(
         ctx,
         { moved: false, deltaDays: 0, taskCount: s0.tasks.length, reason: 'de projectstart is al deze datum', projectEnd: projectEndInfo(s0).projectEnd },
         [],

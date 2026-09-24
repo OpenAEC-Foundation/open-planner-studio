@@ -33,7 +33,6 @@
 //      worden geweigerd met een boodschap die de sleutel én het alternatief noemt.
 import type { McpContext, McpToolOk } from '../contracts';
 import {
-  guardNonTransactional,
   runMutateTool,
   toolError,
   McpStepError,
@@ -41,7 +40,7 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS } from './helpers';
+import { enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
@@ -663,11 +662,7 @@ const manageResources: BatchStepTool = {
   },
   // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
   // dus overbodig binnen een batch (die bezit de transactie al).
-  batchStep(args, ctx) {
-    const parsed = parseManageResources(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return manageResourcesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseManageResources, manageResourcesCore),
   async handler(args, ctx) {
     const parsed = parseManageResources(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -679,9 +674,7 @@ const manageResources: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyResources(state, actions);
       if (pre.plans.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { ...EMPTY_DATA, warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { ...EMPTY_DATA, warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
 
@@ -722,13 +715,7 @@ const manageResources: BatchStepTool = {
           'is nu verouderd. Draai planner_level_resources opnieuw of wis hem met planner_clear_leveling.',
         );
       }
-      const { projectEnd, cappedTaskIds } = projectEndInfo(state);
-      return {
-        ...((res as McpToolOk).data as object),
-        warnings,
-        projectEnd,
-        ...(cappedTaskIds ? { cappedTaskIds } : {}),
-      };
+      return { ...((res as McpToolOk).data as object), warnings, ...projectEndInfo(state) };
     });
   },
 };

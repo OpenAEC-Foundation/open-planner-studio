@@ -32,7 +32,7 @@ import type { AppState } from '@/state/appStore';
 import type { Baseline } from '@/types/baseline';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { BatchStepTool } from './batchTool';
-import { okDirect, READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
+import { okDirect, parsedBatchStep, READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
 import {
   guardNonTransactional,
   McpStepError,
@@ -223,11 +223,7 @@ const activateBaseline: BatchStepTool = {
     required: ['baselineId'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseActivate(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return activateCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseActivate, activateCore),
   async handler(args, ctx) {
     const parsed = parseActivate(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -315,11 +311,7 @@ const renameBaseline: BatchStepTool = {
     required: ['baselineId', 'name'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseRename(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return renameCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseRename, renameCore),
   async handler(args, ctx) {
     const parsed = parseRename(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -436,11 +428,7 @@ const deleteBaseline: BatchStepTool = {
     required: ['baselineId'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseDelete(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return deleteCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseDelete, deleteCore),
   async handler(args, ctx) {
     const parsed = parseDelete(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);

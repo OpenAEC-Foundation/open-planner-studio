@@ -20,7 +20,9 @@ import {
   toolError,
   type MutationOutcome,
 } from './runtime';
-import { enrichOk, freshDates, okDirect, okEnvelope, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
+import {
+  enrichOk, freshDates, okDirectGuarded, okEnvelope, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS,
+} from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
@@ -79,11 +81,7 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 //                        herberekent aan het eind.
 // `batchStep` gooit waar de handler een `McpToolErr` teruggeeft: binnen een batch is een vormfout een
 // STRUCTURELE stapfout die de hele batch hoort terug te rollen (spec §Compositie), geen zachte weigering.
-
-/** Zet een `parseX`-foutboodschap om in de harde stapfout die de batch-loop verwacht. */
-function stepValidationError(message: string): McpStepError {
-  return new McpStepError('VALIDATION', message);
-}
+// Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
 
 // =================================================================================================
 // planner_add_tasks
@@ -250,11 +248,7 @@ const addTasks: BatchStepTool = {
     required: ['tasks'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseAddTasks(args, ctx.app.store.getState());
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return addTasksCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseAddTasks, addTasksCore),
   async handler(args, ctx) {
     const parsed = parseAddTasks(args, ctx.app.store.getState());
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -262,12 +256,10 @@ const addTasks: BatchStepTool = {
     return enrichOk(res, () => {
       const created = (res as McpToolOk).data as { created: Record<string, string> };
       const state = ctx.app.store.getState();
-      const { projectEnd, cappedTaskIds } = projectEndInfo(state);
       return {
         created: created.created,
         tasks: freshDates(state, Object.values(created.created)),
-        projectEnd,
-        ...(cappedTaskIds ? { cappedTaskIds } : {}),
+        ...projectEndInfo(state),
       };
     });
   },
@@ -437,11 +429,7 @@ const updateTasks: BatchStepTool = {
   // Géén lege-batch-snelpad nodig: dat snelpad bestaat alleen om een overbodige TRANSACTIE (snapshot +
   // redo-wipe + backup) te vermijden, en binnen een batch bezit `planner_batch` die al. Zijn er nul
   // uitvoerbare items, dan levert de kern gewoon `updated: []` met alle weigeringen.
-  batchStep(args, ctx) {
-    const parsed = parseUpdateTasks(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return updateTasksCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateTasks, updateTasksCore),
   async handler(args, ctx) {
     const parsed = parseUpdateTasks(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -462,9 +450,7 @@ const updateTasks: BatchStepTool = {
         else staticRej.push(c.rejection);
       }
       if (!anyExecutable) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(st).projectEnd }, staticRej);
+        return okDirectGuarded(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(st).projectEnd }, staticRej);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateTasksCore(ctx, updates));
@@ -560,11 +546,7 @@ const deleteTasks: BatchStepTool = {
   },
   // Zie de noot bij update_tasks: het lege-batch-snelpad is puur transactie-vermijding en dus
   // overbodig binnen een batch.
-  batchStep(args, ctx) {
-    const parsed = parseIdList(args, 'delete_tasks');
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return deleteTasksCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep((args: unknown) => parseIdList(args, 'delete_tasks'), deleteTasksCore),
   async handler(args, ctx) {
     const parsed = parseIdList(args, 'delete_tasks');
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -575,9 +557,7 @@ const deleteTasks: BatchStepTool = {
       const st = ctx.app.store.getState();
       const staticRej = validate.tasksExist(st, ids);
       if (staticRej.length === ids.length) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(
+        return okDirectGuarded(
           ctx,
           {
             deleted: [],
@@ -665,11 +645,7 @@ const moveTask: BatchStepTool = {
     required: ['id', 'newParentId'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseMoveTask(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return moveTaskCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseMoveTask, moveTaskCore),
   async handler(args, ctx) {
     const parsed = parseMoveTask(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -823,11 +799,7 @@ const addDependencies: BatchStepTool = {
     required: ['dependencies'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseAddDeps(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return addDependenciesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseAddDeps, addDependenciesCore),
   async handler(args, ctx) {
     const parsed = parseAddDeps(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -839,9 +811,7 @@ const addDependencies: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyDeps(state, deps);
       if (pre.candidates.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { added: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { added: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addDependenciesCore(ctx, deps));
@@ -892,11 +862,7 @@ const removeDependencies: BatchStepTool = {
     required: ['ids'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseIdList(args, 'remove_dependencies');
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return removeDependenciesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep((args: unknown) => parseIdList(args, 'remove_dependencies'), removeDependenciesCore),
   async handler(args, ctx) {
     const parsed = parseIdList(args, 'remove_dependencies');
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -907,10 +873,8 @@ const removeDependencies: BatchStepTool = {
       const st = ctx.app.store.getState();
       const existing = new Set(st.sequences.map((s) => s.id));
       if (!ids.some((id) => existing.has(id))) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
         const rej = ids.map((id) => ({ id, reason: `relatie '${id}' bestaat niet` }));
-        return okDirect(ctx, { removed: [], projectEnd: projectEndInfo(st).projectEnd }, rej);
+        return okDirectGuarded(ctx, { removed: [], projectEnd: projectEndInfo(st).projectEnd }, rej);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => removeDependenciesCore(ctx, ids));
@@ -1111,11 +1075,7 @@ const setTaskSplits: BatchStepTool = {
     required: ['taskId', 'interruptions'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseSetTaskSplits(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return setTaskSplitsCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseSetTaskSplits, setTaskSplitsCore),
   async handler(args, ctx) {
     const parsed = parseSetTaskSplits(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
