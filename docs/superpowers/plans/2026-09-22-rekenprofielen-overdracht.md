@@ -429,7 +429,11 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    élke taak zonder record; (2) `SourceFormat` óók geschreven buiten de modus ⇒ alleen bij `datesAsRecorded`;
    (3) gidszin "ook als je bewerkt hebt" klopt niet (datumbewerking/F5 wist `recordedDates`); (4) `SourceFormat`
    niet via de ifc-round-trip-route; (5) 16s test een toestand zonder pad; proefmerge op #169: 10 bestanden/12
-   blokken, alle beide-kanten-toevoegingen — tweede fixronde loopt (dezelfde agent, via SendMessage);
+   blokken, alle beide-kanten-toevoegingen — **tweede fixronde klaar, kop `21d495d4`** (`$` op alle zeven
+   slots voor elke taak zonder record + anker-fallback bij crashherstel; `SourceFormat` alleen in de modus,
+   9e/9f; gidstekst + 9g/9h; round-trip-route fixture/canon; 16s via echt crashherstelpad; poorten exit 0,
+   `.mpp` 216/0/0; neveneffect: snapshot in aanbodtoestand draagt geen `SourceFormat` meer); her-check loopt
+   (`opus-laag-hercheck-167`); daarna merge in de PR-branch `claude/recorded-all-formats-v2`;
    merge-instructie voor #169
    in het agentrapport (geneste `withRecordedDatesNotice(withSchedulingProfileNotice(...))`, geen
    `!notice`-blok terug); open: taak zonder enige vastlegging telt na opslaan-in-modus als vastgelegd
