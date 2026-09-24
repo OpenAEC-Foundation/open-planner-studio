@@ -37,7 +37,7 @@ export const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle;
 // 8 (Contoured) is geen vorm maar het signaal dat er `<TimephasedData>` meegaat. Sinds de
 // contour-UI-etappe (2026-09) zijn alle acht vormen een OPS-curve. Geëxporteerd zodat de reader de
-// inverse gebruikt; gelijk aan `contourEngine.ts`'s `CONTOUR_SHAPE_MSPDI_CODE` via `CURVE_TO_SHAPE`.
+// inverse gebruikt (MPXJ `WorkContour.getUniqueID() − 1`).
 export const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
   UNIFORM: 0,
   BACK_LOADED: 1,

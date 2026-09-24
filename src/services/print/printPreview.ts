@@ -838,7 +838,7 @@ export interface RenderReportResult {
   /**
    * Breedte van de linker taaktabel-zone (de "frozen" naam-/info-kolommen links van het
    * Gantt-gebied), in LOGISCHE/CSS-px — dezelfde eenheid als `width`/`height` hierboven en als de
-   * paginamaat die de PDF-laag (`miniPdf.canvasToPdfBytes`) uit `canvas.style.width` afleidt. Bewust
+   * maat die de pagineerlaag naar punten omrekent (`tileLayout.ts`, `LOGICAL_PX_TO_PT`). Bewust
    * NIET in raster/device-px (`canvas.width` = logisch × devicePixelRatio): een andere golf gebruikt
    * dit om de tabelkolom per pagina te herhalen en werkt daarbij in hetzelfde logische coördinaten-
    * stelsel als de rest van het return-object; de raster-schaal komt daar apart bij.

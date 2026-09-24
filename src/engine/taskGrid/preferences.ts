@@ -9,7 +9,6 @@ import type {
 import {
   activityCodeColumnId,
   customFieldColumnId,
-  decodeDynamicTaskColumnId,
   decodeTaskColumnIdSegment,
   encodeTaskColumnIdSegment,
   taskColumnId,
@@ -50,10 +49,6 @@ const BUILTIN_TO_COLUMN_ID = {
   isNearCritical: 'task.time.isNearCritical',
   floatPath: 'task.time.floatPath',
 } as const;
-
-const COLUMN_ID_TO_BUILTIN = new Map<string, keyof typeof BUILTIN_TO_COLUMN_ID>(
-  Object.entries(BUILTIN_TO_COLUMN_ID).map(([key, id]) => [id, key as keyof typeof BUILTIN_TO_COLUMN_ID]),
-);
 
 function column(id: string, width: number): TaskGridColumnPreference {
   return { id: taskColumnId(id), width, pinned: false };
@@ -534,27 +529,6 @@ export function resolveLayoutColumnsForProject(
     }
     return { ...columnPreference };
   });
-}
-
-export function taskColumnIdToLegacyFieldRef(
-  id: TaskColumnId,
-  fields: TaskGridProjectFields,
-): FieldRef | null {
-  const builtin = COLUMN_ID_TO_BUILTIN.get(id);
-  if (builtin) return { src: 'builtin', key: builtin };
-  if (id === 'assignment.resources') return { src: 'resource' };
-  const dynamic = decodeDynamicTaskColumnId(id);
-  if (dynamic?.kind === 'activity-code'
-    && dynamic.projectId === fields.projectId
-    && fields.activityCodeTypeIds.includes(dynamic.typeId)) {
-    return { src: 'activityCode', typeId: dynamic.typeId };
-  }
-  if (dynamic?.kind === 'custom-field'
-    && dynamic.projectId === fields.projectId
-    && fields.customFieldDefIds.includes(dynamic.defId)) {
-    return { src: 'customField', defId: dynamic.defId };
-  }
-  return null;
 }
 
 export function taskGridSurfaceForRibbonTab(activeRibbonTab: string): TaskGridSurfaceId {

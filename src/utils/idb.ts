@@ -55,21 +55,6 @@ export async function idbGetAll<T>(dbName: string, storeName: string): Promise<T
   }
 }
 
-/** Eén record op id. Bij een IDB-fout of ontbreken: undefined (stil). */
-export async function idbGet<T>(dbName: string, storeName: string, id: string): Promise<T | undefined> {
-  try {
-    const db = await openDb(dbName, storeName);
-    return await new Promise<T | undefined>((resolve, reject) => {
-      const tx = db.transaction(storeName, 'readonly');
-      const req = tx.objectStore(storeName).get(id);
-      req.onsuccess = () => resolve(req.result as T | undefined);
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
-    return undefined;
-  }
-}
-
 /** Schrijf/vervang een record (moet een `id`-veld hebben). Faalt stil.
  *  Param bewust alleen `{ id: string }` (niet `& Record<string, unknown>`): interfaces krijgen
  *  geen impliciete index-signature en zouden anders niet toewijsbaar zijn — structural typing

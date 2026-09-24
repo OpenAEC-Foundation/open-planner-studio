@@ -63,11 +63,6 @@ export function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-/** Format a Date as ISO datetime string */
-export function formatDateTime(d: Date): string {
-  return d.toISOString().replace('Z', '');
-}
-
 /**
  * Serialisatie-modus van een datum-instant (fase 2.8b, §2.4). De MODUS is de enige
  * discriminator voor de output-vorm — niet de waarde van de instant.

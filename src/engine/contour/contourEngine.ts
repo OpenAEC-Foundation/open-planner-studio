@@ -70,10 +70,8 @@ export const CONTOUR_SHAPE_VALUES: Record<ContourShape, readonly number[]> = {
   TURTLE: [0, 1.0, 1.0, 3.5, 3.5, 5.5, 5.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 5.5, 5.5, 3.5, 3.5, 1.0, 1.0],
 };
 
-/** MSPDI `<WorkContour>`-code per vorm (MPXJ `WorkContour.getUniqueID() − 1`; 8 = Contoured, geen vorm). */
-export const CONTOUR_SHAPE_MSPDI_CODE: Record<ContourShape, number> = {
-  FLAT: 0, BACK_LOADED: 1, FRONT_LOADED: 2, DOUBLE_PEAK: 3, EARLY_PEAK: 4, LATE_PEAK: 5, BELL: 6, TURTLE: 7,
-};
+/** MSPDI `<WorkContour>` 8 = Contoured: geen vorm, maar het signaal dat er `<TimephasedData>` meegaat.
+ *  De vormcodes 0–7 staan in `mspdiWriter.ts`'s `CURVE_TO_WORKCONTOUR`. */
 export const MSPDI_WORKCONTOUR_CONTOURED = 8;
 
 /** OPS-curve → tabelvorm. `UNIFORM` is FLAT. */
@@ -205,13 +203,6 @@ export function periodsSpanMinutes(periods: readonly TimephasedContourPeriod[]):
 export function periodsWorkMinutes(periods: readonly TimephasedContourPeriod[]): number {
   let sum = 0;
   for (const p of usablePeriods(periods)) sum += p.workMinutes;
-  return sum;
-}
-
-/** Aslengte die WERKT (periodes met werk), d.w.z. de spanne minus de gat-minuten. */
-export function periodsWorkingSpanMinutes(periods: readonly TimephasedContourPeriod[]): number {
-  let sum = 0;
-  for (const p of usablePeriods(periods)) if (p.workMinutes > 0) sum += p.minutes;
   return sum;
 }
 
