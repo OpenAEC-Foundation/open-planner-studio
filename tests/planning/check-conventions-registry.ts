@@ -56,6 +56,13 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   // "Alleen voor eigen profielen" is afgeleid: in elk ingebouwd profiel uit en niet per bestand (A19 valt erbuiten).
   same('08d alleen-eigen-profielen afgeleid', CONVENTIONS.filter(isOffInEveryBuiltIn).map(d => d.id),
     CONVENTIONS.filter(d => !d.perFile && BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id])).map(d => d.id));
+  // Gepind (critreview UI-groepen 24-09: 08d alleen is een tautologie): dit zijn de vijf die vandaag in geen
+  // enkel ingebouwd profiel aan staan — C1 en C4 (alleen P3-gedrag) en A17/B3/B4 (eigenaarsvraag 7).
+  // Een conventie die hier bijkomt of afvalt is een bewust besluit, geen bijvangst van een profielwijziging.
+  same('08f alleen-eigen-profielen gepind', CONVENTIONS.filter(isOffInEveryBuiltIn).map(d => d.id).sort(), [
+    'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
+    'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
+  ].sort());
   ok('08e A19 niet bij alleen-eigen-profielen', !isOffInEveryBuiltIn(CONVENTIONS.find(d => d.id === 'p6UseRemainingStartForProgress')!));
   // De ingebouwde waarden zoals besloten (modelwijziging punt 1).
   const P6 = builtInConventions('p6');
