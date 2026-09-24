@@ -922,22 +922,6 @@ function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescripto
 
 const BASELINE_MISSING = Symbol('baseline-missing');
 
-function defaultSignedWeekdaysBetween(fromIso: string, toIso: string): number {
-  const from = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`);
-  const to = new Date(`${toIso.slice(0, 10)}T00:00:00Z`);
-  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
-  const sign = from <= to ? 1 : -1;
-  let cursor = new Date(sign === 1 ? from : to);
-  const end = sign === 1 ? to : from;
-  let workdays = 0;
-  while (cursor < end) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    const day = cursor.getUTCDay();
-    if (day !== 0 && day !== 6) workdays++;
-  }
-  return sign * workdays;
-}
-
 function currentTaskDate(task: Task, field: 'start' | 'finish'): string {
   return field === 'start'
     ? task.time.earlyStart || task.time.scheduleStart
@@ -959,7 +943,9 @@ function baselineValue(
   const dateField = field === 'varianceStart' ? 'start' : 'finish';
   const from = dateField === 'start' ? baselineTask.start : baselineTask.finish;
   const to = currentTaskDate(task, dateField);
-  return (ctx.signedWorkDaysBetween ?? defaultSignedWeekdaysBetween)(from, to);
+  // Zonder kalenderroute geen eigen telling: een kale ma–vr-terugval negeerde feestdagen en de
+  // werkweek, en telde vanaf een weekenddag één werkdag te veel.
+  return ctx.signedWorkDaysBetween?.(from, to);
 }
 
 function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {

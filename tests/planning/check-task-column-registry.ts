@@ -12,6 +12,8 @@ import {
   decodeDynamicTaskColumnId,
 } from '@/engine/taskGrid/fieldIds';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { signedWorkDaysBetween } from '@/engine/variance';
 import {
   TASK_COLUMN_CATEGORY_ORDER,
   buildTaskColumnRegistry,
@@ -243,6 +245,21 @@ eq('baselineafwijking gebruikt de aangeleverde projectkalenderroute', baselineVa
 baselineStart.copy(task, ctx);
 baselineStart.autoFitText(task, ctx);
 eq('Baseline.tasks wordt exact één keer per registrybouw geïndexeerd en nooit per cel', baselineTasksReads, 1);
+
+// Er is geen kalenderloze ma–vr-terugval meer: die negeerde feestdagen en de werkweek (en telde
+// vanaf een weekenddag één te veel). Zonder kalenderroute blijft de afwijking leeg; mét de echte
+// route telt Nieuwjaar (do 1 januari) niet als werkdag tussen baseline (wo) en huidig (do).
+eq('baselineafwijking zonder kalenderroute verzint geen ma–vr-telling',
+  baselineVariance.read(task, { ...ctx, signedWorkDaysBetween: undefined }), undefined);
+const newYearEngine = new CalendarEngine({
+  id: 'cal:nieuwjaar', name: 'Nieuwjaar', description: '', workDays: [1, 2, 3, 4, 5],
+  workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+  holidays: [{ name: 'Nieuwjaar', startDate: '2026-01-01', endDate: '2026-01-01' }],
+});
+eq('baselineafwijking met de echte kalenderroute slaat de feestdag over',
+  baselineVariance.read(task, {
+    ...ctx, signedWorkDaysBetween: (from, to) => signedWorkDaysBetween(newYearEngine, from, to),
+  }), 0);
 
 const otherProjectCtx: TaskColumnContext = { ...ctx, projectId: 'ander-project' };
 const activityCode = registry.find(column => column.id === activityCodeColumnId(ctx.projectId, 'fase:1'))!;

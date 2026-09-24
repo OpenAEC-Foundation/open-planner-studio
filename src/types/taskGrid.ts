@@ -128,7 +128,8 @@ export interface TaskColumnContext {
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
-  /** De adapter levert hier de echte projectkalenderberekening voor baselineafwijkingen. */
+  /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
+   *  Ontbreekt hij, dan blijft de afwijking leeg — er is bewust geen kalenderloze terugval. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
 }
 

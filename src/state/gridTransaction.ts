@@ -13,6 +13,8 @@ import {
   type TaskAssignmentApplyIndexes,
 } from '@/engine/taskGrid/assignmentPlan';
 import { isHourCalendar } from '@/services/subdayIo';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { signedWorkDaysBetween } from '@/engine/variance';
 import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
@@ -120,6 +122,7 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     if (values) values.push(assignment);
     else assignmentsByTaskId.set(assignment.taskId, [assignment]);
   }
+  let projectEngine: CalendarEngine | undefined;
   const context: TaskColumnContext = {
     projectId: state.project.id,
     tasksById: new Map(state.tasks.map(task => [task.id, task])),
@@ -132,6 +135,10 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
       task, state.calendar, state.calendars,
     )),
+    // Zelfde projectkalenderroute als het UI-raster (FullTaskGrid); de engine pas bij gebruik.
+    signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(
+      projectEngine ??= new CalendarEngine(state.calendar), fromIso, toIso,
+    ),
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: state.project.id,
