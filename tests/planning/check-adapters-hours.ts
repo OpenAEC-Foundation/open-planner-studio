@@ -176,6 +176,22 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('P6 legacy: uurkalender behoudt de oude minutenbron', foreignP6Back?.time.durationMinutes, 960);
 }
 
+// Pre-T1-runtimedata (tests, extensies) draagt soms nog geen `durationUnit`; de legacy-regel
+// (`durationMinutes` aanwezig ⇒ uren) moet in élke writer gelden. De P6-writer las het veld rauw en
+// schreef `<Text>undefined</Text>` plus een dagtaak-duur voor zo'n urentaak.
+{
+  const legacyHour = { ...tasks[0], time: { ...tasks[0].time } };
+  delete (legacyHour.time as { durationUnit?: string }).durationUnit;
+  const p6Xml = writeP6XML(project, H8, [legacyHour], [], [], []);
+  eq('P6 legacy-eenheid: geen letterlijke undefined in de UDF', p6Xml.includes('<Text>undefined</Text>'), false);
+  const p6Back = readP6XML(p6Xml).tasks.find((task) => task.name === 'Metselen');
+  eq('P6 legacy-eenheid: urentaak komt terug als hours', p6Back?.time.durationUnit, 'hours');
+  eq('P6 legacy-eenheid: exacte minuten blijven', p6Back?.time.durationMinutes, 1200);
+  const mspBack = readMSPDI(writeMSPDI(project, H8, [legacyHour], [], [], [])).tasks.find((task) => task.name === 'Metselen');
+  eq('MSPDI legacy-eenheid: urentaak komt terug als hours', mspBack?.time.durationUnit, 'hours');
+  eq('MSPDI legacy-eenheid: exacte minuten blijven', mspBack?.time.durationMinutes, 1200);
+}
+
 // ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────
 // Onze eigen schrijver emitteert nooit een dag-component vóór de `T` (`minutesToIsoDuration` schrijft
 // altijd kaal `PT{h}H{m}M0S`); `P1DT2H0M0S` is de vorm die een ANDER tool zou kunnen schrijven. Vóór

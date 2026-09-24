@@ -13,6 +13,7 @@ import { projectFileBase } from '@/utils/documents';
 import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
 import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -305,7 +306,7 @@ export function writeP6XML(
   // Fase 2.8b (§7.2): effectieve kalender per taak → uur- vs dag-modus.
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
   const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = task.time.durationUnit === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
     return calendarId ? [calendarId] : [];
   }));
 
@@ -493,7 +494,7 @@ export function writeP6XML(
     // Fase 2.8b (§7.2): uur-taak ⇒ PlannedDuration in fractionele uren uit de minuten (geen
     // dag-afronding); dag-taak ⇒ het bestaande `dagen × hpd`-pad (byte-identiek).
     const effCal = effCalByTask.get(task.id);
-    const isHour = task.time.durationUnit === 'hours';
+    const isHour = taskDurationUnit(task) === 'hours';
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
     const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, effHpd);
     lines.push(`${indent(2)}<PlannedDuration>${plannedDur}</PlannedDuration>`);
@@ -575,7 +576,7 @@ export function writeP6XML(
     lines.push(`${indent(2)}<ProjectObjectId>1</ProjectObjectId>`);
     lines.push(`${indent(2)}<ForeignObjectId>${foreignObjectId}</ForeignObjectId>`);
     lines.push(`${indent(2)}<UDFTypeObjectId>${OPS_P6_DURATION_UNIT_UDF_OBJECT_ID}</UDFTypeObjectId>`);
-    lines.push(`${indent(2)}<Text>${task.time.durationUnit}</Text>`);
+    lines.push(`${indent(2)}<Text>${taskDurationUnit(task)}</Text>`);
     lines.push(`${indent(1)}</UDFValue>`);
   }
 
