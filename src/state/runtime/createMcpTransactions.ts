@@ -20,6 +20,8 @@ import {
   acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
   purgeResource, relocateAssignment, removeAssignment,
 } from '../assignmentMutations';
+import { applyTaskSplits, taskSplitRefusal } from '../splitMutations';
+import type { SplitPiece, SplitRefusal } from '@/engine/scheduler/splitEdit';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
@@ -381,6 +383,28 @@ function createMcpDraft(
       if (taskUpdateInvalidatesLevelingGaps(top) || timeTouched) clearLevelingGaps(task);
       s.isDirty = true;
     });
+  },
+
+  /**
+   * Snapshot/recompute-vrije variant van de store-`setTaskSplits` (issue #146), met hetzelfde
+   * lichaam (`splitMutations.ts`). Onbekend id ⇒ fout (guard-semantiek hierboven). Een inhoudelijke
+   * weigering komt, zoals bij de store-actie, terug als `SplitRefusal` zonder dat er iets geschreven
+   * is; de toollaag maakt er een VALIDATION van. Verloren MSP-sturing (laag 3/4) gaat via de actieve
+   * runtimelease (zoals `patchTaskFields`), zodat de envelop `timephasedGuidanceLost` draagt en de
+   * transactie pas bij succes één keer meldt.
+   */
+  setTaskSplits(taskId: string, pieces: SplitPiece[] | null): SplitRefusal | null {
+    let refusal: SplitRefusal | null = null;
+    store.setState((s) => {
+      const task = s.tasks.find((t) => t.id === taskId);
+      if (!task) throw new Error(`draft.setTaskSplits: onbekende taskId '${taskId}'`);
+      const hoursPerDay = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      refusal = taskSplitRefusal(task, pieces, hoursPerDay);
+      if (refusal) return;
+      if (applyTaskSplits(s, task, pieces, hoursPerDay)) recordTimephasedLoss(taskId);
+      s.isDirty = true;
+    });
+    return refusal;
   },
 
   /** Materialiseer de snapshot tegelijk met de taakmutatie; bestaande ids zijn onveranderlijk. */
