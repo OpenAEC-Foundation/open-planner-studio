@@ -60,10 +60,10 @@ export const MSP_LINK_TYPE_CODE: Record<SequenceType, number> = {
   START_START: 3,
 };
 
+/** Dagen → MSPDI-duur (`PT40H0M0S` voor 5 dagen × 8 u). Via minuten, zodat een kalender met een
+ *  halve-uursdag (3 × 7,5 u) `PT22H30M0S` schrijft en niet `PT22.5H0M0S`. */
 function durationToISO8601(days: number, hoursPerDay: number): string {
-  // MS Project uses PT format: PT40H0M0S for 5 days * 8h
-  const totalHours = days * hoursPerDay;
-  return `PT${totalHours}H0M0S`;
+  return minutesToIsoDuration(days * hoursPerDay * 60);
 }
 
 /**

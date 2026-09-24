@@ -192,6 +192,28 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI legacy-eenheid: exacte minuten blijven', mspBack?.time.durationMinutes, 1200);
 }
 
+// Een dagkalender met een halve-uursdag (7,5 u): 3 dagen = 22,5 uur. De writer schreef
+// `PT22.5H0M0S`, de reader kende geen decimalen en las 0 dagen terug.
+{
+  const shortDay: WorkCalendar = {
+    id: 'cal-75', name: 'Korte dag', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8, workEndHour: 15.5, hoursPerDay: 7.5, holidays: [],
+  };
+  const threeDays: Task = {
+    ...tasks[0], id: 't-3d', name: 'Drie dagen',
+    time: {
+      ...tasks[0].time, durationUnit: 'days', scheduleDuration: 3, durationMinutes: undefined,
+      scheduleStart: '2026-07-06', scheduleFinish: '2026-07-08', earlyStart: '2026-07-06',
+      earlyFinish: '2026-07-08', lateStart: '2026-07-06', lateFinish: '2026-07-08',
+    },
+  };
+  const xml = writeMSPDI({ ...project, calendarId: 'cal-75' }, shortDay, [threeDays], [], [], []);
+  eq('MSPDI 7,5u-dag: duur in hele uren en minuten', xml.includes('<Duration>PT22H30M0S</Duration>'), true);
+  eq('MSPDI 7,5u-dag: drie dagen komen terug', readMSPDI(xml).tasks.find((task) => task.name === 'Drie dagen')?.time.scheduleDuration, 3);
+  const legacyXml = xml.replace('<Duration>PT22H30M0S</Duration>', '<Duration>PT22.5H0M0S</Duration>');
+  eq('MSPDI 7,5u-dag: decimale uren (oude export) lezen als drie dagen', readMSPDI(legacyXml).tasks.find((task) => task.name === 'Drie dagen')?.time.scheduleDuration, 3);
+}
+
 // ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────
 // Onze eigen schrijver emitteert nooit een dag-component vóór de `T` (`minutesToIsoDuration` schrijft
 // altijd kaal `PT{h}H{m}M0S`); `P1DT2H0M0S` is de vorm die een ANDER tool zou kunnen schrijven. Vóór

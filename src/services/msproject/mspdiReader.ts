@@ -201,12 +201,13 @@ function parseMSPInstant(s: string): string {
   return formatInstant(parseInstant(s), 'hour');
 }
 
-/** ISO-8601-duur met tijdcomponent (`PT{H}H{M}M{S}S`) → minuten; `null` als er geen tijdcomponent is. */
+/** ISO-8601-duur met tijdcomponent (`PT{H}H{M}M{S}S`) → minuten; `null` als er geen tijdcomponent is.
+ *  Decimalen (`PT22.5H`) zijn toegestaan: ISO 8601 staat ze toe en oudere OPS-exports schreven ze. */
 function mspDurationMinutes(s: string): number | null {
   if (!s) return null;
-  const m = s.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  const m = s.match(/PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?/);
   if (!m || (!m[1] && !m[2] && !m[3])) return null;
-  return (parseInt(m[1] || '0', 10)) * 60 + parseInt(m[2] || '0', 10) + Math.round(parseInt(m[3] || '0', 10) / 60);
+  return Math.round(parseFloat(m[1] || '0') * 60 + parseFloat(m[2] || '0') + parseFloat(m[3] || '0') / 60);
 }
 
 /**
