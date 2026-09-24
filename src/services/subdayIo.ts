@@ -5,6 +5,7 @@ import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 // veilig kunnen bewaren — `taskDurationUnit` draagt dezelfde legacy-regel als de documentmigratie.
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { isoDayOfWeek } from '@/utils/dateUtils';
+import { modalBandHoursPerDay } from '@/engine/scheduler/CalendarEngine';
 
 /**
  * Fase 2.8b (golf 4, ontwerpdoc §7) — gedeelde sub-dag-precisie-helpers voor de IFC/P6/MSPDI-
@@ -143,31 +144,12 @@ export function canonicalizeBands(
 }
 
 /**
- * Afgeleide `hoursPerDay` uit banden (§3.2, Bevinding 8): de MODALE dagsom over de werk-weekdagen
- * (meest voorkomende Σ bandlengtes / 60), bij gelijkspel de HOOGSTE. Spiegelt
- * `CalendarEngine.computeDerivedHoursPerDay`, zodat de opgeslagen `hoursPerDay` (die de adapters
- * voor hun dag↔uur-conversie gebruiken) consistent is met wat de engine berekent.
+ * Afgeleide `hoursPerDay` uit banden (§3.2, Bevinding 8): de MODALE dagsom over de werk-weekdagen,
+ * bij gelijkspel de HOOGSTE. Dezelfde functie als de engine gebruikt (`modalBandHoursPerDay`), zodat
+ * de opgeslagen `hoursPerDay` (die de adapters voor hun dag↔uur-conversie gebruiken) per definitie
+ * gelijk is aan wat de engine berekent.
  */
-export function deriveHoursPerDay(bands: WorkTimeBands, fallback: number): number {
-  const sums: number[] = [];
-  for (let wd = 1 as 1 | 2 | 3 | 4 | 5 | 6 | 7; wd <= 7; wd = (wd + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7) {
-    const list = bands.byWeekday[wd];
-    if (!list || list.length === 0) continue;
-    sums.push(list.reduce((s, b) => s + (b.end - b.start), 0) / 60);
-  }
-  if (sums.length === 0) return fallback;
-  const freq = new Map<number, number>();
-  for (const h of sums) freq.set(h, (freq.get(h) ?? 0) + 1);
-  let best = sums[0];
-  let bestCount = 0;
-  for (const [h, c] of freq) {
-    if (c > bestCount || (c === bestCount && h > best)) {
-      best = h;
-      bestCount = c;
-    }
-  }
-  return best;
-}
+export const deriveHoursPerDay = modalBandHoursPerDay;
 
 /** De werk-weekdagen (ISO 1..7) met ≥1 band. */
 export function workDaysFromBands(bands: WorkTimeBands): number[] {

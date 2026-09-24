@@ -5,6 +5,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import type { CustomTaskType } from '@/types/taskType';
 import { flattenOrder, taskDepths } from '@/utils/wbs';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 const DELIMITER = ';';
 const BOM = '\uFEFF';
@@ -132,8 +133,8 @@ export function writeCSV(
       String(depthById.get(task.id) ?? 1),
       escapeCSV(task.name),
       task.time.scheduleDuration.toString(),
-      task.time.earlyStart || task.time.scheduleStart,
-      task.time.earlyFinish || task.time.scheduleFinish,
+      shownStart(task),
+      shownFinish(task),
       escapeCSV(predecessors),
       task.customTaskTypeId ? (customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name ?? 'USERDEFINED') : task.taskType,
       task.customTaskTypeId ?? '',
@@ -211,8 +212,8 @@ export function writeProgressSheetCSV(
       escapeCSV(task.id),
       escapeCSV(task.wbsCode),
       escapeCSV(task.name),
-      task.time.earlyStart || task.time.scheduleStart,
-      task.time.earlyFinish || task.time.scheduleFinish,
+      shownStart(task),
+      shownFinish(task),
       marked ? escapeCSV(summaryNote) : formatCompletionPercent(task.time.completion),
       marked ? escapeCSV(summaryNote) : (task.time.actualStart || ''),
       marked ? escapeCSV(summaryNote) : (task.time.actualFinish || ''),

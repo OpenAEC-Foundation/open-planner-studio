@@ -14,6 +14,7 @@ import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
 import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -473,8 +474,8 @@ export function writeP6XML(
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
     const plannedDur = isHour ? taskMinutesForWrite(task, effHpd) / 60 : durationToP6Hours(task.time.scheduleDuration, effHpd);
     lines.push(`${indent(2)}<PlannedDuration>${plannedDur}</PlannedDuration>`);
-    lines.push(`${indent(2)}<PlannedStartDate>${toXmlDateTime(task.time.earlyStart || task.time.scheduleStart)}</PlannedStartDate>`);
-    lines.push(`${indent(2)}<PlannedFinishDate>${toXmlDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</PlannedFinishDate>`);
+    lines.push(`${indent(2)}<PlannedStartDate>${toXmlDateTime(shownStart(task))}</PlannedStartDate>`);
+    lines.push(`${indent(2)}<PlannedFinishDate>${toXmlDateTime(shownFinish(task))}</PlannedFinishDate>`);
     if (task.time.completion > 0) {
       lines.push(`${indent(2)}<PhysicalPercentComplete>${Math.round(task.time.completion * 100)}</PhysicalPercentComplete>`);
     }
@@ -621,8 +622,8 @@ export function writeP6XML(
     if (actObjId === undefined || resObjId === undefined) continue;
     const task = taskById.get(a.taskId);
     const contour = task ? contourOf(task, a) : undefined;
-    const taskStartIso = task ? (task.time.earlyStart || task.time.scheduleStart) : '';
-    const taskFinishIso = task ? (task.time.earlyFinish || task.time.scheduleFinish) : '';
+    const taskStartIso = task ? shownStart(task) : '';
+    const taskFinishIso = task ? shownFinish(task) : '';
     // Spreidingsstrings (MPXJ `TimephasedHelper.write`): actual/remaining apart, en `PlannedCurve`
     // als de volledige as. Alle drie ankeren op de TAAKSTART, en de bijbehorende ankervelden
     // (`PlannedStartDate`/`RemainingStartDate`/`ActualStartDate`) worden meegeschreven — zonder

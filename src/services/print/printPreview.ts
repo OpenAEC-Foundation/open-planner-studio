@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
-import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart } from '@/utils/dateUtils';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
@@ -35,6 +35,7 @@ import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
 import { ellipsize } from '@/engine/renderer/textFit';
 import { displayDate } from '@/utils/displayDate';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -388,8 +389,8 @@ type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'cur
 
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
-  const startStr = task?.time.earlyStart || task?.time.scheduleStart;
-  const endStr = task?.time.earlyFinish || task?.time.scheduleFinish;
+  const startStr = task && shownStart(task);
+  const endStr = task && shownFinish(task);
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
@@ -943,8 +944,8 @@ export function renderReport(
   let minDate = new Date(8640000000000000);
   let maxDate = new Date(0);
   for (const t of flatTasks) {
-    const s = parseDate(t.time.earlyStart || t.time.scheduleStart);
-    const f = parseDate(t.time.earlyFinish || t.time.scheduleFinish);
+    const s = parseDate(shownStart(t));
+    const f = parseDate(shownFinish(t));
     if (s < minDate) minDate = s;
     if (f > maxDate) maxDate = f;
 
@@ -1189,14 +1190,14 @@ export function renderReport(
             let px = statusLineX!;
             const row = printRows[i];
             if (row.kind === 'task' && row.task && !row.task.isMilestone && row.task.childIds.length === 0) {
-              const s = parseDate(row.task.time.earlyStart || row.task.time.scheduleStart);
-              const f = parseDate(row.task.time.earlyFinish || row.task.time.scheduleFinish);
+              const s = parseDate(shownStart(row.task));
+              const f = parseDate(shownFinish(row.task));
               const bx1 = dateToX(s);
               const bx2 = dateToX(f) + zoom;
               const c = Math.max(0, Math.min(1, row.task.time.completion || 0));
-              const finishDay = Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate());
-              const startDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
-              const statusUtc = Date.UTC(statusDay.getUTCFullYear(), statusDay.getUTCMonth(), statusDay.getUTCDate());
+              const finishDay = utcDayStart(f).getTime();
+              const startDay = utcDayStart(s).getTime();
+              const statusUtc = utcDayStart(statusDay).getTime();
               const fullyDone = c >= 1 && finishDay <= statusUtc;
               const notStarted = c === 0 && startDay >= statusUtc;
               if (!fullyDone && !notStarted) px = clampX(bx1 + (bx2 - bx1) * c);
@@ -1282,7 +1283,7 @@ export function renderReport(
 
     if (task.isMilestone) {
       // Milestone diamond
-      const date = parseDate(task.time.earlyStart || task.time.scheduleStart);
+      const date = parseDate(shownStart(task));
       const x = dateToX(date) + zoom / 2;
       const cy = y + barHeight / 2;
       const size = barHeight * 0.45;
@@ -1318,8 +1319,8 @@ export function renderReport(
       }
     } else if (task.childIds.length > 0) {
       // Summary bracket bar
-      const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-      const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+      const start = parseDate(shownStart(task));
+      const end = parseDate(shownFinish(task));
       const rawX1 = dateToX(start);
       const rawX2 = dateToX(end) + zoom;
       // Tijdvenster: geklemd op het chartgebied; een afgekapt uiteinde krijgt geen haakje (dat zou
@@ -1360,8 +1361,8 @@ export function renderReport(
       }
     } else {
       // Normal task bar
-      const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-      const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+      const start = parseDate(shownStart(task));
+      const end = parseDate(shownFinish(task));
       const rawX1 = dateToX(start);
       const rawX2 = dateToX(end) + zoom;
       const width = Math.max(rawX2 - rawX1, 3);
@@ -2432,14 +2433,14 @@ function drawDependencies(
     const predStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
     const succFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
     if (predStart) {
-      fromX = dateToX(parseDate(pred.time.earlyStart || pred.time.scheduleStart));
+      fromX = dateToX(parseDate(shownStart(pred)));
     } else {
-      fromX = dateToX(parseDate(pred.time.earlyFinish || pred.time.scheduleFinish)) + zoom;
+      fromX = dateToX(parseDate(shownFinish(pred))) + zoom;
     }
     if (succFinish) {
-      toX = dateToX(parseDate(succ.time.earlyFinish || succ.time.scheduleFinish)) + zoom;
+      toX = dateToX(parseDate(shownFinish(succ))) + zoom;
     } else {
-      toX = dateToX(parseDate(succ.time.earlyStart || succ.time.scheduleStart));
+      toX = dateToX(parseDate(shownStart(succ)));
     }
     // dirOut = uitlooprichting bij de voorganger (weg van de balk); dirIn = aankomstkant bij de
     // opvolger: start-anker (FS/SS) komt van LINKS (−1, kop wijst naar rechts); finish-anker

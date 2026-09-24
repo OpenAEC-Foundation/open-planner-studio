@@ -23,7 +23,7 @@ import type { Task, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod
 import type { WorkCalendar } from '@/types/calendar';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { periodsToSlotWork } from '@/engine/contour/contourEngine';
-import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
+import { addCalendarDays, formatDate, utcDayStart } from '@/utils/dateUtils';
 
 export type ContourKind = TimephasedContourPeriod['kind'];
 
@@ -51,12 +51,8 @@ export function slotMinutesOf(engine: CalendarEngine): number {
   return Math.max(1, engine.hoursPerDay * 60);
 }
 
-function dayStart(d: Date): Date {
-  return parseDate(formatDate(d));
-}
-
 function hasTimeOfDay(d: Date): boolean {
-  return d.getTime() !== dayStart(d).getTime();
+  return d.getTime() !== utcDayStart(d).getTime();
 }
 
 /**
@@ -68,8 +64,8 @@ function hasTimeOfDay(d: Date): boolean {
 export function axisOffsetMinutes(engine: CalendarEngine, taskStart: Date, at: Date, inclusiveDay = false): number {
   if (engine.isHourMode) return Math.max(0, engine.workMinutesBetween(taskStart, at));
   const mpd = slotMinutesOf(engine);
-  const startDay = dayStart(taskStart);
-  const atDay = dayStart(at);
+  const startDay = utcDayStart(taskStart);
+  const atDay = utcDayStart(at);
   if (atDay.getTime() < startDay.getTime()) return 0;
   const before = engine.workDaysBetween(startDay, addCalendarDays(atDay, -1));
   const own = inclusiveDay && hasTimeOfDay(at) && engine.isWorkDay(atDay) ? 1 : 0;
@@ -227,7 +223,7 @@ export function contourPeriodsToDayItems(
       if (slots[k] > 0) { if (first < 0) first = k; last = k; }
     }
     if (first < 0) continue;
-    let day = dayStart(taskStart);
+    let day = utcDayStart(taskStart);
     let k = 0;
     let guard = 0;
     while (k <= last && guard++ < 200_000) {
@@ -245,7 +241,7 @@ export function contourPeriodsToDayItems(
 }
 
 function dayInstants(engine: CalendarEngine, calendar: WorkCalendar, day: Date): { start: Date; finish: Date } {
-  const base = dayStart(day).getTime();
+  const base = utcDayStart(day).getTime();
   if (engine.isHourMode) {
     const bands = engine.effectiveBandsOn(day);
     if (bands.length > 0) {

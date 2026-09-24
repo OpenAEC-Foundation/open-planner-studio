@@ -19,6 +19,7 @@ import { contourPeriodsToDayItems, countSplitTasksWithoutContour, minutesToMspdi
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { flattenOrder, taskDepths } from '@/utils/wbs';
 import { invertRecord } from '@/utils/collections';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -449,8 +450,8 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<Name>${escapeXml(task.name)}</Name>`);
     lines.push(`${indent(3)}<Duration>${durationTag}</Duration>`);
     lines.push(`${indent(3)}<DurationFormat>${durationFormat}</DurationFormat>`);
-    lines.push(`${indent(3)}<Start>${toXmlDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
-    lines.push(`${indent(3)}<Finish>${toXmlDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
+    lines.push(`${indent(3)}<Start>${toXmlDateTime(shownStart(task))}</Start>`);
+    lines.push(`${indent(3)}<Finish>${toXmlDateTime(shownFinish(task))}</Finish>`);
     lines.push(`${indent(3)}<WBS>${escapeXml(task.wbsCode)}</WBS>`);
     lines.push(`${indent(3)}<OutlineLevel>${depthById.get(task.id) ?? 1}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
@@ -616,10 +617,10 @@ export function writeMSPDI(
       const workHpd = task ? (effCalByTask.get(task.id)?.hoursPerDay ?? calendar.hoursPerDay) : calendar.hoursPerDay;
       // Contour-engine (2026-09): de contour van déze toewijzing (gekoppeld via `resourceId`).
       const taskContour = task ? contourOf(task, a) : undefined;
-      const dayItems = task && taskContour && (task.time.earlyStart || task.time.scheduleStart)
+      const dayItems = task && taskContour && shownStart(task)
         ? contourPeriodsToDayItems(
           engineForTask(task), resolveCalendar(task.calendarId, resourceCalendars, calendar),
-          parseInstant(task.time.earlyStart || task.time.scheduleStart), taskContour.periods,
+          parseInstant(shownStart(task)), taskContour.periods,
         )
         : [];
 
