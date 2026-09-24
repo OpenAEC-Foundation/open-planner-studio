@@ -9,6 +9,7 @@ import { AiConnectionDetailsDialog } from '@/components/dialogs/AiConnectionDeta
 import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { Popover } from '@/components/common/Popover';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
+import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 /**
  * AI-ribbontab — groep **Verbinding** (T14, spec §UI):
@@ -65,22 +66,11 @@ export function AiConnectionGroup() {
   const [showToken, setShowToken] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const { copiedKey: copied, copy } = useCopyFeedback(1500);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
   const portLocked = serverState !== 'off';
-
-  const copy = async (text: string, key: string) => {
-    if (!navigator.clipboard) return;
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      return;
-    }
-    setCopied(key);
-    setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
-  };
 
   const onPortChange = (raw: string) => {
     const n = parseInt(raw, 10);

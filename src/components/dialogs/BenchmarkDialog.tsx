@@ -10,6 +10,7 @@ import {
   type BenchmarkResult, type ProgressUpdate, type PhaseId,
 } from '@/services/benchmark/runner';
 import { formatBytes } from '@/utils/formatBytes';
+import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 /** Grootte waarboven de "kan lang duren"-waarschuwing verschijnt (audit-punt 2). */
 const LARGE_SIZE_THRESHOLD = 2500;
@@ -47,14 +48,15 @@ export function BenchmarkDialog() {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [result, setResult] = useState<BenchmarkResult | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { copiedKey, copy: copyToClipboard, markCopied, resetCopied } = useCopyFeedback(2000);
+  const copied = copiedKey !== null;
 
   const phaseLabel = (phase: PhaseId) => t(`benchmark.phase.${phase}`);
 
   const run = useCallback(async () => {
     setRunning(true);
     setResult(null);
-    setCopied(false);
+    resetCopied();
     setProgress(null);
     // Yield eerst één frame zodat de "bezig"-status rendert vóór de zware synchrone fasen.
     await new Promise((r) => setTimeout(r, 0));
@@ -70,28 +72,23 @@ export function BenchmarkDialog() {
       setRunning(false);
       setProgress(null);
     }
-  }, [size, resourceCount]);
+  }, [size, resourceCount, resetCopied]);
 
   const copy = useCallback(async () => {
     if (!result) return;
     const text = formatResultsMarkdown(result);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Klembord-API kan geblokkeerd zijn (headless/permissies): val terug op een selecteerbare
-      // textarea zodat de gebruiker handmatig kan kopiëren.
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand('copy'); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* geef op */ }
-      document.body.removeChild(ta);
-    }
-  }, [result]);
+    if (await copyToClipboard(text)) return;
+    // Klembord-API kan ontbreken of geblokkeerd zijn (headless/permissies): val terug op een
+    // selecteerbare textarea zodat de gebruiker handmatig kan kopiëren.
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); markCopied('copied'); } catch { /* geef op */ }
+    document.body.removeChild(ta);
+  }, [result, copyToClipboard, markCopied]);
 
   const pct = progress ? Math.round((progress.iteration / progress.iterations) * 100) : 0;
 

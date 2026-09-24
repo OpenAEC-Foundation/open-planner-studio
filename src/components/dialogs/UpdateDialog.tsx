@@ -12,6 +12,7 @@ import {
   type InstallKind,
   type UpdateStatus,
 } from '@/services/updater/updaterService';
+import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 // Copy-paste-commando voor handmatige .deb-installatie — alléén nog een
 // FALLBACK wanneer de in-app installatie op een .deb-systeem faalt (bijv.
@@ -44,7 +45,8 @@ export function UpdateDialog() {
   const [busy, setBusy] = useState(false);
   // Install-type bepaalt of/hoe we de update installeren (snap/deb/appimage/native).
   const [installKind, setInstallKind] = useState<InstallKind>('native');
-  const [copied, setCopied] = useState(false);
+  const { copiedKey, copy } = useCopyFeedback(2000);
+  const copied = copiedKey !== null;
 
   const close = () => setUI({ showUpdateDialog: false });
 
@@ -97,14 +99,8 @@ export function UpdateDialog() {
   };
 
   // Het .deb-installeer-commando naar het klembord kopiëren (+ korte "gekopieerd").
-  const handleCopyCommand = () => {
-    void navigator.clipboard.writeText(DEB_INSTALL_COMMAND)
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => { /* klembord niet beschikbaar — stil negeren */ });
-  };
+  // Klembord niet beschikbaar ⇒ stil negeren.
+  const handleCopyCommand = () => { void copy(DEB_INSTALL_COMMAND); };
 
   // De GitHub-release-pagina openen in de standaardbrowser.
   // KRITIEK: `@tauri-apps/plugin-shell` dynamisch + `isTauri()`-guarded.

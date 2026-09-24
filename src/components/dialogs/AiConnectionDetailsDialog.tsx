@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getTools, TOOL_PREFIX } from '@/services/mcp/toolRegistry';
+import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 /**
  * Verbindingsgegevens-dialoog voor de MCP-bridge (AI-ribbontab → groep Verbinding).
@@ -47,7 +48,7 @@ function buildSnippet(endpoint: string, token: string): string {
 export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnectionDetailsDialogProps) {
   const { t } = useTranslation('common');
   const [showToken, setShowToken] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const { copiedKey: copied, copy } = useCopyFeedback(1500);
 
   const endpoint = `http://localhost:${port}/mcp`;
   const authReal = `Authorization: Bearer ${token}`;
@@ -67,17 +68,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
   });
   const promptReal = promptFor(token);
   const promptShown = showToken ? promptReal : promptFor(MASK);
-
-  const copy = async (text: string, key: string) => {
-    if (!navigator.clipboard) return;
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      return;
-    }
-    setCopied(key);
-    setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
-  };
 
   const copyButton = (text: string, key: string) => (
     <button
