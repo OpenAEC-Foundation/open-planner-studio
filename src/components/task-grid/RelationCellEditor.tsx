@@ -197,7 +197,8 @@ export interface RelationCellEditorProps {
   onOpenExternal?: (relationId?: string) => void;
 }
 
-function controlKeyDown(event: KeyboardEvent<HTMLElement>): void {
+/** Enter/spatie op een knop of keuzelijst in een celeditor bedient dát element, niet de cel. */
+export function controlKeyDown(event: KeyboardEvent<HTMLElement>): void {
   if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
 }
 
