@@ -331,13 +331,23 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    poorten groen; losgekoppelde keten gestart 00:33 (`/tmp/ops-chain-b1-measure.log` → `MEASURE_EXIT=`,
    `/tmp/ops-chain-b1-verify.log` → `EXIT=`): verwacht 104/0/0/0 en EXIT=0. Is dat zo, dan is de etappe
    op de kop compleet op de eigenaarsvragen na; is het niet zo, dan eerst dát.
-2. **Eigenaarsvraag 13** (§1d): EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
+1b. **Keten op de B1-merge (uitslag 24-09 07:50):** `measure:profiles` MEASURE_EXIT=0, NULDOEL 104,
+   `nieuw=0 verslechterd=0 groter=0 schuld=0`, uitgesloten 41. `verify` gaf EXIT=1, maar uitsluitend de
+   18 nuldoel-XX-regels omdat het ketenscript `OPS_XER_CORPUS` óók voor `verify` had geëxporteerd —
+   scriptfout, geen regressie; corpusloze `verify` opnieuw gestart (`/tmp/ops-verify-b1-corpusloos.log`).
+   Les: een ketenscript zet de corpusvariabele alleen om `measure:profiles` heen, nooit om `verify`.
+2. **Eigenaarsvraag 13 = "ja uitsluiten" (24-09 07:50, §1a).** Landing loopt: agent
+   `opus-midden-c14-alap-land` op eigen branch `claude/x12-c14-land` (basis kop ≥ 4b619a5d): C14 uit
+   4b04925e overnemen, EC1420 in `excludeTasks` met vraag-13-decision, 6-stappen-herpin, verwacht
+   104 → ±77 met 0 groter. Daarna critreview (skill `hyperkritische-review`) en merge door de orkestrator.
+   Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
    EC1420 zijn onaanvaardbaar onder regel A).
-3. **UI-groepenvoorstel** (`claude/x12-ui-conventies-groepen` `9e54c952`, screenshots
-   `qa/ui-conventies-groepen/`): eigenaar kiest mergen / aanpassen / laten liggen. Bij mergen: rebase op
-   de kop, browsersuite, critreview.
+3. **UI-groepenvoorstel = "Mergen" (24-09 07:50, §1a).** Landing loopt: agent `opus-laag-ui-groepen-land`
+   op eigen branch `claude/x12-ui-groepen-land`: cherry-pick 9e54c952 op de kop, conflicten met B2/B5/B1/
+   fundament oplossen, vangnet voor een conventie zonder thema (C14 landt parallel), browsertests,
+   screenshots 100/125. Daarna critreview en merge door de orkestrator.
 4. **Bekende gaten zonder eigenaar:** document-tabbalk/projectrail-klik bij een gewijzigde
    Projectinfo-draft is niet bewaakt; `schedOptionsRows` in de blast-radius-pin wordt niet vergeleken;
    DCP-03-As-Built-vangnet alleen corpusloos; `toastPlacement` meet per scroll-event (rAF-gecoalesced).
