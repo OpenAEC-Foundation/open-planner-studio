@@ -346,7 +346,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `tasksWithAnyMeasuredAxis` 5879 → 5878, `excludedHidden` HarbourPointe 33 → 34 (EC1420 zelf).
    **X12 104 → 76**, `nieuw=0 verslechterd=0 groter=0 schuld=0`, uitgesloten 42 taken in 3 projecten;
    27 conventies (browsertest 26 → 27, gidsen "zevenentwintig", ALAP-alinea onder Speling nl+en).
-   Critreview loopt (`opus-laag-critreview-c14`); keten `/tmp/ops-chain-c14-{measure,verify}.log` gestart 08:19.
+   Keten: MEASURE_EXIT=0, NULDOEL 76/0/0/0, uitgesloten 42 (`/tmp/ops-chain-c14-measure.log`); verify loopt.
+   Critreview C14 (Opus 5.5) = LANDEN-MET-FIXES: (1) C14 negeert `constraint2` (ALAP + FNLT/SNET), (2)
+   uurkalender-poort/niet-gestart/statusdatum-wortel zijn corpusfits zonder P6-bron ⇒ documenteren, (3)
+   `excludedHidden` mag stijgen bij gewijzigde uitsluitingsset ⇒ bestaand-verborgen-deel apart hard pinnen,
+   (4) HERPIN-datum/decision-string chronologisch. Fixagent `opus-midden-c14-landfixes` op
+   `claude/x12-c14-landfixes`; daarna her-check + merge.
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
@@ -384,7 +389,14 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `e5717cb4`; twee verplichte fixes — opslaan ín de modus fabriceert vier assen; eigen ongewijzigd IFC
    meldt tóch `importDatesAsRecorded` — in aanbouw door `opus-midden-fix-pr167` op
    `claude/recorded-all-formats-fixes`; eigenaarsvraag: CSV/vreemd IFC met alleen Start/Finish automatisch
-   in de modus?); #169-review gestart op `e5717cb4` (`fable-critreview-pr169`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   in de modus?); #109 = LANDEN-MET-FIXES (rapport gecommit `b2935a1f`; drie blokkers: laadsolve ≠
+   F5-solve — `prepareLoadedPayload` geeft `projectEndDate` niet door, op #169 al gefixt in `ba7d86b5` maar
+   #109 merget eerst naar main; bak-2-sluiproute-grep in `check-xer-field-whitelist.ts` is een placebo (4 van
+   5 mutanten groen) ⇒ AST-poort; gids 7a-regel ≠ code; plus kleinere BEVESTIGD-punten — fixagent
+   `opus-midden-fix-pr109` op `claude/xer-etappe3-fixes` vanaf de #109-branch; eigenaarsvragen: statisch
+   anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37 corpusprojecten),
+   documentnaam Project-ID vs projectnaam, 7a achter een standaard-uit optie); #169-review gestart op
+   `e5717cb4` (`fable-critreview-pr169`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
    #109-branch van 2026-09-06) overnemen als eigen etappe. Verkenningsdossier klaar en gecommit:
    `2026-09-24-verkenning-pr101-taaktypes.md` (Opus 5.5): middelzwaar tot zwaar, 29 conflictbestanden
    waarvan 4 inhoudelijk (`taskSlice`, `resourceSlice`, `gridTransaction`, `createMcpTransactions`);
