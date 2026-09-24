@@ -10,9 +10,12 @@ export const KNOWN_GOAL_PREFIXES = [
 /** De v2-tellingenbaseline wijkt af van de meting — bij een zuivere verbetering: herpinnen. */
 export const V2_EQUALITY_PREFIX = 'XX X12 productbaseline is de verse volledige productmeting: ';
 export const CELL_OK_PREFIX = 'OK  X12 cel-baseline (regel A):';
-export const VERBETERD_STATUS = 'VERBETERD — exit 0, maar commit alleen mét herpin v2 + cellen';
+/** Een verbetering die nog niet gepind is, is ROOD (Fable-critreview PR #169, bevinding 9): per cel
+ *  geldt de pin, niet de beste ooit gemeten stand — een ongepinde verbetering kan anders later stil
+ *  terugvallen naar de oude pin. Herpinnen en opnieuw meten geeft NULDOEL/GROEN. */
+export const VERBETERD_STATUS = 'ROOD (VERBETERD zonder herpin — herpin v2 + cellen in dezelfde commit en meet opnieuw)';
 /** Alleen kleinere cellen binnen dezelfde emmer (grootte-ratchet): v2 telt emmers en blijft gelijk. */
-export const VERBETERD_GROOTTE_STATUS = 'VERBETERD (grootte) — exit 0, maar commit alleen mét herpin van de cellen';
+export const VERBETERD_GROOTTE_STATUS = 'ROOD (VERBETERD (grootte) zonder herpin — herpin de cellen en meet opnieuw)';
 
 /** Env-sleutels die een kindproces in schrijf- of rapportmodus zouden zetten. */
 export const CHILD_ENV_STRIP = [
@@ -54,16 +57,20 @@ export function parseCellDelta(lines, profile = 'p6') {
 }
 
 /**
- * Oordeel over de X12-run mét corpus. Rood is de standaard; alleen deze combinaties zijn niet rood:
+ * Oordeel over de X12-run mét corpus. Rood is de standaard; alleen GROEN en NULDOEL slagen. De twee
+ * VERBETERD-toestanden worden herkend (eigen status, eigen herpinadvies) maar zijn sinds de
+ * Fable-critreview PR #169 (bevinding 9) ook rood: regel A pint elke verbetering, zodat ze niet stil
+ * kan terugvallen. Een schrijfmodus bereikt het kindproces nooit (`childEnv`), dus een meting vergelijkt
+ * altijd met de gecommitte pin — na de herpin geeft dezelfde meting NULDOEL/GROEN.
  *  - exit 0 met groene cel-poort                                         ⇒ GROEN;
  *  - uitsluitend (een deel van) de drie nuldoelregels rood, cel-poort groen, geen nieuwe of
  *    verslechterde cel                                                    ⇒ NULDOEL (regel A gehouden);
  *  - daarnaast alleen de v2-gelijkheidsregel rood, cel-delta nieuw=0 verslechterd=0 groter=0
- *    onmeetbaar=0 verbeterd>0                                             ⇒ VERBETERD: exit 0, maar
- *    committen alleen mét herpin van v2 én cellen in dezelfde commit;
+ *    onmeetbaar=0 verbeterd>0                                             ⇒ VERBETERD (rood): herpin
+ *    v2 én cellen in dezelfde commit;
  *  - geen v2-afwijking, groter=0 en kleiner>0 (alleen de grootte-ratchet verbeterd)
- *                                                                         ⇒ VERBETERD (grootte): exit 0,
- *    maar committen alleen mét herpin van de cellen (v2 telt emmers en verandert niet).
+ *                                                                         ⇒ VERBETERD (grootte) (rood):
+ *    herpin de cellen (v2 telt emmers en verandert niet).
  * `groter>0` (een cel binnen dezelfde emmer sameday/diff groter afgeweken) is altijd ROOD.
  * Een meetbaarheids-/dekkingsafwijking t.o.v. v2 ("X12 meetbaarheid/dekking wijkt af van v2") heeft
  * een eigen prefix en is dus altijd een overige faalregel ⇒ ROOD: een blinder orakel is geen verbetering.
@@ -81,16 +88,15 @@ export function classifyP6({ exit, lines, strict = false }) {
   if (other.length > 0) return red(`${other.length} faalregel(s)`);
   if (delta.nieuw !== 0 || delta.verslechterd !== 0 || delta.onmeetbaar !== 0) return red('nieuwe, verslechterde of onmeetbaar geworden cel');
   if (delta.groter !== 0) return red('grotere cel (grootte-ratchet)');
-  const sizeOnly = { status: VERBETERD_GROOTTE_STATUS, pass: true, failures };
+  const sizeOnly = { status: VERBETERD_GROOTTE_STATUS, pass: false, failures };
+  const improved = { status: VERBETERD_STATUS, pass: false, failures };
   if (exit === 0) {
     if (failures.length > 0) return red('exit 0 met faalregels');
-    return delta.verbeterd > 0 ? { status: VERBETERD_STATUS, pass: true, failures } : delta.kleiner > 0 ? sizeOnly : { status: 'GROEN', pass: true, failures };
+    return delta.verbeterd > 0 ? improved : delta.kleiner > 0 ? sizeOnly : { status: 'GROEN', pass: true, failures };
   }
   if (goal.length > 0 && strict) return red('nuldoel, --strict');
   if (v2.length > 0) {
-    return delta.verbeterd > 0
-      ? { status: VERBETERD_STATUS, pass: true, failures }
-      : red('v2-telling wijkt af zonder verbeterde cel');
+    return delta.verbeterd > 0 ? improved : red('v2-telling wijkt af zonder verbeterde cel');
   }
   if (goal.length > 0) return delta.kleiner > 0 ? sizeOnly : { status: 'NULDOEL (regel A gehouden)', pass: true, failures };
   return red(`exit ${exit} zonder herkende faalregel`);

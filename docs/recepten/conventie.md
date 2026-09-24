@@ -39,6 +39,13 @@ Zie *Rekenprofielen* in `CLAUDE.md` en de spec `docs/superpowers/specs/2026-09-2
 3. **Motor.** Lees uitsluitend `schedulingOptions.<id>`. Nooit het bronformaat, nooit een lezer-import:
    `npm run verify:conventions` faalt anders. Een nieuwe lezing van een herkomstveld (`p6ProjectId`
    e.d.) laat de gepinde datagate-telling stijgen en maakt de poort ook rood — bespreek dat eerst.
+   De poort leest de sleutels uit het register: een sleutel op een opties-object die geen conventie of
+   projectoptie is, een niet-letterlijke sleutel (`so[k]`), een registerconventie die de motor nergens
+   leest (in een vanuit `solveProject.ts` bereikbaar bestand), `Reflect.get`/`Object.entries` e.d. op
+   een opties-object, en een ongepind herkomstveld (`p6…`/`xer…`/`mpp…`/`msp…`, bv. een kalenderveld uit
+   de lezer) zijn allemaal rood. Een conventie toevoegen zonder motorlezing kan dus niet meer. De poort
+   is syntactisch: geef het opties-object daarom nooit onder een neutrale naam aan een helper in een
+   ander bestand door en lees het nooit via `any` — dat ziet hij niet.
 4. **Lezer** (alleen bij een per-bestand-conventie): de lezer zet de bestandswaarde als override op het
    profiel, en de register-rij krijgt `perFile: true`. Het bewerkmodel leidt daaruit
    `PER_FILE_CONVENTION_KEYS` af (`src/state/schedulingProfileDraft.ts`) en draagt de waarde over bij

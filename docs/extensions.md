@@ -363,6 +363,7 @@ retained archief niet, en twee aanroepen na elkaar geven nooit hetzelfde object 
 
 Alles wat via `api.data.*`, de importer-handlers en `sdk.factory.*` de extensie in- en uitgaat, gebruikt **stabiele extensie-typen** (`ExtProject`, `ExtCalendar`, `ExtTask`, `ExtTaskTime`, `ExtSequence`, `ExtResource`, `ExtAssignment`, `ExtImportResult`; gedefinieerd in `src/extensions/extTypes.ts`). Dit is het **publieke contract** — bewust losgekoppeld van het interne domeinmodel, zodat een interne refactor jouw extensie niet breekt.
 
+- `api.data.addTask` met een niet-gestarte urentaak (`time.durationUnit: 'hours'` of `time.durationMinutes`) zonder `time.scheduleFinish`: de app leidt het geplande einde af uit start + duur op de taakkalender, net als bij een taak die de gebruiker toevoegt; een meegegeven `earlyFinish`/`lateFinish` telt dan niet (rekenuitvoer, de volgende berekening zet ze). Geef je zelf een `scheduleFinish` mee, dan wint dat. `sdk.factory.createTask` leidt niets af (geen document, geen kalender).
 - `api.data.getTasks()` (en de andere `get*`) leveren **verse, muteerbare kopieën**: je mag het teruggegeven object gerust muteren, dat raakt de store niet. Schrijf terug via `addTask`/`updateTask`/`addSequence` en roep `recalculate()` aan. (Vóór P16 waren dit Immer-*bevroren* objecten die je niet mocht muteren — die beperking is vervallen.)
 - Een importer-handler retourneert een `ExtImportResult` (bouw 'm met `sdk.factory.emptyImportResult()`); de host mapt dat intern.
 

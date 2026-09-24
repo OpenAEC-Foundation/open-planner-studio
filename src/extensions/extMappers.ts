@@ -20,6 +20,7 @@ import type { Project } from '@/types/project';
 import { resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { WorkCalendar, Holiday, WorkTimeBands, WorkingException } from '@/types/calendar';
 import type { Task, TaskTime, TaskConstraint, ExternalLink } from '@/types/task';
+import { hourInputFinishFollowsEdits } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment, AvailabilityStep } from '@/types/resource';
 import type { ImportResult } from '@/services/importTypes';
@@ -478,6 +479,37 @@ export function fromExtTaskInput(
   if (input.deadline !== undefined) out.deadline = input.deadline;
   if (input.calendarId !== undefined) out.calendarId = input.calendarId;
   if (input.notes !== undefined) out.notes = input.notes.map(copyNote);
+  return out;
+}
+
+/**
+ * `api.data.addTask`-invoer (Fable-critreview PR #169, bevinding 10): als `fromExtTaskInput`, maar een
+ * URENtaak waarvoor de extensie GEEN `scheduleFinish` meegaf krijgt ook geen einde uit de grensterugval
+ * (`fromExtTaskTime` vult `scheduleFinish`/`earlyFinish`/`lateFinish` anders met de start). Zo ziet de
+ * store-`addTask` geen "meegegeven einde" en leidt `seedNewHourTaskFinish` het einde af uit start + duur
+ * op de taakkalender — dezelfde regel als elke andere nieuwe urentaak. Een meegegeven einde wint; een
+ * dagtaak blijft byte-identiek. Niet voor `sdk.factory.createTask`: die bouwt een volledig DTO zonder
+ * document of kalender en kan dus niets afleiden.
+ *
+ * Alleen voor een taak die meebeweegt (`hourInputFinishFollowsEdits`: niet gestart, niet handmatig,
+ * geen samenvatting/hammock/P6-targetvenster) — anders zou de store het einde niet afleiden en viel het
+ * op de verse default terug. Ook een meegegeven `earlyFinish`/`lateFinish` zonder `scheduleFinish` wordt
+ * genegeerd (critreview 2e ronde): dat is rekenuitvoer die de eerstvolgende berekening toch overschrijft,
+ * en zo zijn gepland en vroegst einde vóór die berekening coherent.
+ */
+export function fromExtTaskAddInput(
+  input: Partial<ExtTask> & { name: string },
+): Partial<Task> & { name: string } {
+  const out = fromExtTaskInput(input);
+  if (!input.time || !out.time || input.time.scheduleFinish !== undefined || out.time.durationUnit !== 'hours') return out;
+  const probe = { childIds: [], status: 'NOT_STARTED', ...out, time: out.time } as Task;
+  if (!hourInputFinishFollowsEdits(probe)) return out;
+  const time: Partial<TaskTime> = { ...out.time };
+  delete time.scheduleFinish;
+  delete time.earlyFinish;
+  delete time.lateFinish;
+  // Runtime-partieel: `taskSlice.addTask` merget `partial.time` veld-voor-veld met de verse default.
+  out.time = time as TaskTime;
   return out;
 }
 

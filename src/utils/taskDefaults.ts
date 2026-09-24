@@ -81,8 +81,13 @@ export function createDefaultTaskTime(
 // Wat het einde bewust NIET herleidt (orkestratorbesluit fixronde 2: niet herleiden, wél documenteren;
 // het einde volgt bij de volgende invoerbewerking van de taak): wijzigingen aan de project- of een
 // gedeelde kalender of haar uitzonderingen (`setCalendar`, `updateCalendar`, `setProjectCalendar`),
-// splits zonder duurwijziging, de uitvoer van de nivelleerder, `moveProject`, en de resourcekalender
-// van een `.mpp`-taak (de afleiding rekent op de taakkalender). De reconcile draait ná
+// het verwijderen van een taakkalender (`resourceSlice.removeCalendar`: de taak valt terug op de
+// projectkalender, haar einde blijft staan — Fable-critreview PR #169, bevinding 10), splits zonder
+// duurwijziging, de uitvoer van de nivelleerder, `moveProject`, en de resourcekalender
+// van een `.mpp`-taak (de afleiding rekent op de taakkalender). Nieuwe taken: store-`addTask`,
+// MCP-`draft.addTask` en de extensie-API `api.data.addTask` (via `fromExtTaskAddInput`) leiden het
+// einde af met `seedNewHourTaskFinish`; `sdk.factory.createTask` is een DTO-bouwer zonder document of
+// kalender en leidt niets af (een importresultaat is bronwaarde, zoals bij een lezer). De reconcile draait ná
 // `clearLevelingGaps`, zodat nivelleergaten die dezelfde bewerking wist niet meetellen.
 
 /** De invoervelden waaruit het einde van een urentaak volgt. */

@@ -29,11 +29,19 @@ test('P6: --strict maakt de nuldoeltoestand rood', () => {
   assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 0), CELL_OK, ...GOAL], strict: true }).pass, false);
 });
 
-test('P6: zuivere verbetering (alleen v2-gelijkheid extra rood, verbeterd>0) ⇒ VERBETERD, geslaagd', () => {
+// Fable-critreview PR #169, bevinding 9: een ongepinde verbetering is ROOD — per cel geldt de pin, dus
+// een verbetering die nooit gepind wordt kan later stil terugvallen. Herkend (eigen status + advies), niet geslaagd.
+test('P6: zuivere verbetering (alleen v2-gelijkheid extra rood, verbeterd>0) ⇒ VERBETERD zonder herpin, ROOD', () => {
   const verdict = classifyP6({ exit: 1, lines: [delta(0, 0, 3), CELL_OK, ...GOAL, V2] });
   assert.equal(verdict.status, VERBETERD_STATUS);
-  assert.match(verdict.status, /exit 0, maar commit alleen mét herpin v2 \+ cellen/);
-  assert.equal(verdict.pass, true);
+  assert.match(verdict.status, /^ROOD \(VERBETERD zonder herpin — herpin v2 \+ cellen/);
+  assert.equal(verdict.pass, false);
+});
+
+test('P6: verbeterd>0 bij exit 0 (geen nuldoelregels) ⇒ ook ROOD zonder herpin', () => {
+  const verdict = classifyP6({ exit: 0, lines: [delta(0, 0, 2), CELL_OK] });
+  assert.equal(verdict.status, VERBETERD_STATUS);
+  assert.equal(verdict.pass, false);
 });
 
 test('P6: v2-afwijking zonder verbeterde cel ⇒ rood', () => {
@@ -71,10 +79,18 @@ test('P6: grootte-ratchet — een grotere cel ⇒ rood, ook naast een verbeterin
   assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 0, 0, 1, 5), CELL_OK, ...GOAL] }).pass, false);
 });
 
-test('P6: alleen kleinere cellen (geen v2-afwijking) ⇒ VERBETERD (grootte), geslaagd', () => {
+test('P6: alleen kleinere cellen (geen v2-afwijking) ⇒ VERBETERD (grootte) zonder herpin, ROOD', () => {
   const verdict = classifyP6({ exit: 1, lines: [delta(0, 0, 0, 0, 0, 4), CELL_OK, ...GOAL] });
   assert.equal(verdict.status, VERBETERD_GROOTTE_STATUS);
-  assert.equal(verdict.pass, true);
+  assert.match(verdict.status, /^ROOD \(VERBETERD \(grootte\) zonder herpin — herpin de cellen/);
+  assert.equal(verdict.pass, false);
+  const atExit0 = classifyP6({ exit: 0, lines: [delta(0, 0, 0, 0, 0, 1), CELL_OK] });
+  assert.equal(atExit0.status, VERBETERD_GROOTTE_STATUS);
+  assert.equal(atExit0.pass, false);
+});
+
+test('P6: na de herpin (verbeterd=0, kleiner=0) ⇒ weer NULDOEL, geslaagd', () => {
+  assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 0), CELL_OK, ...GOAL] }).pass, true);
 });
 
 test('P6: v2-afwijking met alleen kleinere cellen (verbeterd=0) ⇒ rood', () => {

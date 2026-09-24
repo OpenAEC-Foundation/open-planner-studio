@@ -216,5 +216,143 @@ withFixture({ 'src/utils/andere.ts': LEAK, [PIN]: '{}' }, dir => {
   ok('23a een gewone utils-module valt buiten de poort', r.status === 0, `${r.stdout}${r.stderr}`.trim());
 });
 
+// ── Fable-critreview PR #169, bevinding 4: sleutels uit het register, geen namenlijst ─────────────
+// 24–26. Zonder register in de fixture leent de poort de sleutels van deze repository.
+for (const [label, source, needle] of [
+  ['24 onbekende sleutel op schedulingOptions', 'export const f = (o: { schedulingOptions: { p6Bogus?: boolean } }) => o.schedulingOptions.p6Bogus;', "'p6Bogus'"],
+  ['24a onbekende sleutel via een getypte parameter', "import type { EffectiveSchedulingOptions } from '@/types/project';\nexport const f = (so: EffectiveSchedulingOptions | undefined) => (so as unknown as Record<string, boolean>).bogusKey;", "'bogusKey'"],
+  ['24b onbekende sleutel via een alias-variabele', 'export const f = (o: { schedulingOptions?: object }) => { const opts = o.schedulingOptions ?? {}; return (opts as { typo?: boolean }).typo; };', "'typo'"],
+  ['25 sleutel via een variabele', 'export const f = (o: { schedulingOptions: Record<string, boolean> }, k: string) => o.schedulingOptions[k];', 'niet-letterlijke sleutel'],
+  ['25a berekende destructuring', "import type { SchedulingOptions } from '@/types/project';\nexport const f = (so: SchedulingOptions, k: 'lagCalendar') => { const { [k]: v } = so; return v; };", 'berekende destructuring'],
+  ["25b onbekende sleutel via 'in'", "export const f = (o: { schedulingOptions: object }) => 'p6Nope' in o.schedulingOptions;", "'p6Nope'"],
+  ['26 ongepind herkomstveld (kalender)', 'export const f = (cal: { p6NonWorkPenaltyDates?: string[] }) => cal.p6NonWorkPenaltyDates?.length ?? 0;', "herkomstveld 'p6NonWorkPenaltyDates'"],
+  ['26a ongepind herkomstveld via string-index', "export const f = (t: Record<string, unknown>) => t['xerCalendarBlob'];", "herkomstveld 'xerCalendarBlob'"],
+] as const) {
+  withFixture({ [ENGINE]: source, [PIN]: '{}' }, dir => {
+    const r = run(dir);
+    const out = `${r.stdout}${r.stderr}`;
+    ok(`${label} ⇒ rood`, r.status !== 0 && out.includes(needle), out.trim());
+  });
+}
+// 26b. Een door de motor zelf gedeclareerde p6-naam (methode) en een registersleutel zijn geen lek.
+withFixture({
+  [ENGINE]: [
+    "import type { EffectiveSchedulingOptions } from '@/types/project';",
+    'export class S {',
+    '  constructor(private readonly so: EffectiveSchedulingOptions) {}',
+    '  private p6Helper(): boolean { return this.so.p6RelationFinishBoundary && this.so.lagCalendar !== undefined; }',
+    '  run(): boolean { return this.p6Helper(); }',
+    '}',
+  ].join('\n'),
+  [PIN]: '{}',
+}, dir => {
+  const r = run(dir);
+  ok('26b eigen p6-methode + registersleutel ⇒ groen', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+
+// 27. Met een register in de fixture: een registerconventie zonder lezing in de motor is rood.
+const REGISTRY = 'src/engine/scheduler/conventions/registry.ts';
+const TYPES = 'src/types/project.ts';
+const miniRegistry = [
+  'declare function convention(id: string, ...rest: unknown[]): unknown;',
+  "export const CONVENTIONS = [convention('aConv', 'A'), convention('bConv', 'A')];",
+].join('\n');
+const miniTypes = 'export interface SchedulingOptions { aConv?: boolean; bConv?: boolean; optX?: number }';
+/** Regel 5 telt alleen lezingen in bestanden die vanuit solveProject.ts bereikbaar zijn. */
+const SOLVER = 'src/engine/scheduler/solveProject.ts';
+withFixture({
+  [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}',
+  [SOLVER]: 'export const f = (o: { schedulingOptions: { aConv?: boolean; optX?: number } }) => o.schedulingOptions.aConv === true && o.schedulingOptions.optX === 1;',
+}, dir => {
+  const r = run(dir);
+  const out = `${r.stdout}${r.stderr}`;
+  ok('27 ongelezen registerconventie ⇒ rood', r.status !== 0 && out.includes("registerconventie 'bConv'"), out.trim());
+  ok('27a de gelezen conventie en de projectoptie zijn geen treffer', !out.includes("'aConv'") && !out.includes("'optX'"), out.trim());
+});
+withFixture({
+  [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}',
+  [SOLVER]: 'export const f = (o: { schedulingOptions: { aConv?: boolean; bConv?: boolean } }) => o.schedulingOptions.aConv === o.schedulingOptions.bConv;',
+}, dir => {
+  const r = run(dir);
+  ok('27b elke registerconventie gelezen ⇒ groen', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+// 27c. Een registersleutel van déze repository die niet in het fixtureregister staat, is onbekend.
+withFixture({
+  [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}',
+  [SOLVER]: 'export const f = (o: { schedulingOptions: { aConv?: boolean; bConv?: boolean; p6RelationFinishBoundary?: boolean } }) => o.schedulingOptions.aConv === o.schedulingOptions.bConv && o.schedulingOptions.p6RelationFinishBoundary;',
+}, dir => {
+  const r = run(dir);
+  const out = `${r.stdout}${r.stderr}`;
+  ok('27c de sleutels komen uit het register onder --root', r.status !== 0 && out.includes("'p6RelationFinishBoundary'"), out.trim());
+});
+
+
+// ── Critreview 2e ronde ───────────────────────────────────────────────────────────────────────────
+// 28. Regel 6: een gelijknamige variabele/functie elders stelt een herkomstnaam NIET vrij (review-mutant).
+for (const [label, source, needle] of [
+  ['28 gelijknamige variabele maakt een herkomstlezing niet vrij',
+    'const p6NonWorkPenaltyDates = 1;\nexport const f = (t: { p6NonWorkPenaltyDates?: number }) => (t.p6NonWorkPenaltyDates ?? 0) + p6NonWorkPenaltyDates;',
+    "herkomstveld 'p6NonWorkPenaltyDates'"],
+  ['28a klassemethode maakt dezelfde naam op een ander object niet vrij',
+    'export class S { p6Helper(): number { return 1; } }\nexport const f = (t: { p6Helper?: number }) => t.p6Helper;', "herkomstveld 'p6Helper'"],
+  ['28b object-literal-eigenschap geldt alleen voor dát object',
+    'const own = { p6Local: 1 };\nexport const f = (t: { p6Local?: number }) => own.p6Local + (t.p6Local ?? 0);', "herkomstveld 'p6Local'"],
+] as const) {
+  withFixture({ [ENGINE]: source, [PIN]: '{}' }, dir => {
+    const r = run(dir);
+    const out = `${r.stdout}${r.stderr}`;
+    ok(`${label} ⇒ rood`, r.status !== 0 && out.includes(needle), out.trim());
+  });
+}
+withFixture({
+  [ENGINE]: [
+    'const own = { p6Local: 1 };',
+    'export class S { private p6Field = 2; get p6Get(): number { return this.p6Field; } }',
+    'const s = new S();',
+    'export const f = () => own.p6Local + s.p6Get;',
+  ].join('\n'),
+  [PIN]: '{}',
+}, dir => {
+  const r = run(dir);
+  ok('28c eigen literal / this / new EigenKlasse in hetzelfde bestand ⇒ groen', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+
+// 29. Generieke lezingen en verkapte opties-typen.
+for (const [label, source, needle] of [
+  ['29 Reflect.get met onbekende sleutel', "export const f = (o: { schedulingOptions: object }) => Reflect.get(o.schedulingOptions, 'p6Nope');", "'p6Nope'"],
+  ['29a Reflect.get met variabele sleutel', 'export const f = (o: { schedulingOptions: object }, k: string) => Reflect.get(o.schedulingOptions, k);', 'via Reflect.get'],
+  ['29b Object.entries op een opties-object', 'export const f = (o: { schedulingOptions: object }) => Object.entries(o.schedulingOptions).length;', 'via Object.entries'],
+  ['29c Object.keys op een opties-object', 'export const f = (o: { schedulingOptions: object }) => Object.keys(o.schedulingOptions);', 'via Object.keys'],
+  ['29d hernoemde import-typering + as any',
+    "import type { SchedulingOptions as SO_ } from '@/types/project';\nexport const f = (so: SO_) => (so as any).bogusKey;", "'bogusKey'"],
+  ['29e import(…)-typering',
+    "export const f = (so: import('@/types/project').SchedulingOptions) => (so as any).bogusKey;", "'bogusKey'"],
+  ['29f lokale type-alias',
+    "import type { EffectiveSchedulingOptions } from '@/types/project';\ntype Opts = EffectiveSchedulingOptions | undefined;\nexport const f = (so: Opts) => (so as any)?.bogusKey;", "'bogusKey'"],
+] as const) {
+  withFixture({ [ENGINE]: source, [PIN]: '{}' }, dir => {
+    const r = run(dir);
+    const out = `${r.stdout}${r.stderr}`;
+    ok(`${label} ⇒ rood`, r.status !== 0 && out.includes(needle), out.trim());
+  });
+}
+
+// 30. Regel 5: een lezing telt alleen in een vanuit de solver bereikbaar bestand (geen `import type`).
+const DIAG = 'src/engine/scheduler/diag.ts';
+const diagSource = 'export const g = (o: { schedulingOptions: { bConv?: boolean } }) => o.schedulingOptions.bConv === true;';
+const solverReadsA = 'export const f = (o: { schedulingOptions: { aConv?: boolean } }) => o.schedulingOptions.aConv === true;';
+withFixture({ [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}', [SOLVER]: solverReadsA, [DIAG]: diagSource }, dir => {
+  const r = run(dir);
+  ok('30 conventie alleen gelezen in een onbereikbaar diagnosebestand ⇒ rood', r.status !== 0 && `${r.stdout}${r.stderr}`.includes("registerconventie 'bConv'"), `${r.stdout}${r.stderr}`.trim());
+});
+withFixture({ [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}', [SOLVER]: `import type { g } from './diag';\nexport type G = typeof g;\n${solverReadsA}`, [DIAG]: diagSource }, dir => {
+  const r = run(dir);
+  ok('30a alleen via import type bereikbaar ⇒ rood', r.status !== 0 && `${r.stdout}${r.stderr}`.includes("registerconventie 'bConv'"), `${r.stdout}${r.stderr}`.trim());
+});
+withFixture({ [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}', [SOLVER]: `import { g } from './diag';\nexport const h = g;\n${solverReadsA}`, [DIAG]: diagSource }, dir => {
+  const r = run(dir);
+  ok('30b via een echte import bereikbaar ⇒ groen', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+
 if (diffs.length === 0) console.log(`OK: conventiegrens — ${checks} checks groen`);
 else { console.log(`XX conventiegrens — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }
