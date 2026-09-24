@@ -403,7 +403,7 @@ function taskRowNames(state: AppState): string[] {
 // als F5 (`runCPM`) — óók `project.endDate` onder `useProjectEndDateForFloat`. Verwachtingen komen
 // uit F5 zelf, niet uit hard-gecodeerde datums. Mutatiebewijs: zonder `projectEndDate` in
 // `prepareLoadedPayload` resp. `ephemeralSolve` zijn LOAD-01 resp. LOAD-03 rood; LOAD-02 bewijst dat
-// de fixture het verschil kan zien.
+// de fixture het verschil kan zien. Idem voor `projectStartDate` (taken D/E, LOAD-02b).
 {
   const store = createAppStore();
   const S = () => store.getState();
@@ -411,11 +411,24 @@ function taskRowNames(state: AppState): string[] {
   const a = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-06-01', 5) });
   const b = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-06-01', 3) });
   const c = S().addTask({ name: 'C', time: createDefaultTaskTime('2026-06-01', 2) });
+  // D (wortel, geen voorganger) staat vóór de projectstart en houdt zijn eigen anker (T7 `ownAnchor`),
+  // maar zijn opvolger E wordt door de projectstart-ondergrens (`rootFloor`) op 1 juni gezet. Zonder
+  // `projectStartDate` in de laad-/bezettingssolve begint E al op 28 mei — LOAD-01/LOAD-03 rood.
+  const d = S().addTask({ name: 'D', time: createDefaultTaskTime('2026-05-26', 2) });
+  const e = S().addTask({ name: 'E', time: createDefaultTaskTime('2026-06-01', 1) });
+  S().addSequence({ predecessorId: d, successorId: e, type: 'FINISH_START', lagDays: 0 } as Omit<Sequence, 'id'>);
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 } as Omit<Sequence, 'id'>);
   // Het anker moet ná de berekende einddatum liggen, anders test de fixture niets.
   S().setProject({ endDate: '2026-06-30' });
+  // `setProject` klemt wortelankers op de projectstart (projectStartAnchorClamp); een ingelezen
+  // bestand doet dat niet, dus zetten we D's anker ná de laatste `setProject` rechtstreeks terug.
+  store.setState(state => {
+    const time = state.tasks.find(t => t.id === d)!.time;
+    time.scheduleStart = '2026-05-26';
+    time.scheduleFinish = '2026-05-27';
+  });
   S().runCPM();
-  const pick = (tasks: AppState['tasks']) => Object.fromEntries(tasks.filter(t => [a, b, c].includes(t.id)).map(t => [t.name, {
+  const pick = (tasks: AppState['tasks']) => Object.fromEntries(tasks.filter(t => [a, b, c, d, e].includes(t.id)).map(t => [t.name, {
     es: t.time.earlyStart, ef: t.time.earlyFinish, ls: t.time.lateStart, lf: t.time.lateFinish,
     tf: t.time.totalFloat, crit: t.time.isCritical,
   }]));
@@ -425,6 +438,8 @@ function taskRowNames(state: AppState): string[] {
   eq('LOAD-01 laadsolve ≡ F5-solve (ES/EF/LS/LF/TF/kritiek per taak)', pick(loaded.tasks), f5);
   eq('LOAD-02 het projecteinde-anker doet er in deze fixture toe (LF ≠ EF bij C)',
     f5.C !== undefined && f5.C.lf !== f5.C.ef, true);
+  eq('LOAD-02b de projectstart doet er in deze fixture toe (D houdt 26 mei, opvolger E pas op 1 juni)',
+    [String(f5.D?.es).slice(0, 10), String(f5.E?.es).slice(0, 10)], ['2026-05-26', '2026-06-01']);
   const solved = ephemeralSolve({
     docId: 'occ', title: '', scheduleStale: true, companyId: null, resources: [], assignments: [],
     tasks: payload.tasks, calendar: payload.calendar, calendars: payload.calendars,

@@ -384,6 +384,8 @@ export const XER_TASK_IGNORED: readonly string[] = [
 // Bekende grens (bewust): een naam die uit stukken wordt samengesteld (`'restart_' + 'date'`,
 // `restart_${x}`) of via een catalogus-iteratie wordt gelezen ziet geen statische poort; de
 // X12-non-interferentie in `check-xer-product-fidelity-x12.ts` blijft daarvoor het vangnet.
+// Evenzo glippen een voorvoegselzoektocht (`key.startsWith('restart')`), een hoofdletterwissel
+// (`'RESTART_DATE'.toLowerCase()`) en een via `String.fromCharCode` opgebouwde naam bewust door.
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 
 type AstHit = { field: string; kind: 'identifier' | 'literal'; context: string; line: number };

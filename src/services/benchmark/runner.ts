@@ -151,7 +151,10 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
     report('cpm', 1, i + 1, cpmIters);
     // Fable-critreview PR #109 bevinding 1: dezelfde projectinvoer als F5 (was: lege opties). De
     // generator zet geen statusdatum of opties, dus de meting verandert naar verwachting niet.
-    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], {
+    // Kalenderregister: de benchmarkdata kent geen kalenderlijst, alleen `data.calendar`; die geven
+    // we als register mee (net als `applyCpmResult` hieronder) — voor dit ééncalenderproject is dat
+    // wat F5 met `s.calendars` doet.
+    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [data.calendar], {
       dataDate: data.project.statusDate,
       progressMode: data.project.progressMode,
       schedulingOptions: data.project.schedulingOptions,
