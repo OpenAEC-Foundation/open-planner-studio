@@ -1,9 +1,10 @@
-import type { Task } from '@/types/task';
+import type { MilestoneKind, Task } from '@/types/task';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 // Writers moeten ook door tests/extensies aangeleverde pre-T1-objecten (zonder `durationUnit`)
 // veilig kunnen bewaren — `taskDurationUnit` draagt dezelfde legacy-regel als de documentmigratie.
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { isoDayOfWeek } from '@/utils/dateUtils';
 
 /**
  * Fase 2.8b (golf 4, ontwerpdoc §7) — gedeelde sub-dag-precisie-helpers voor de IFC/P6/MSPDI-
@@ -241,6 +242,63 @@ export function promoteHourCalendar(
   if (wd.length > 0) cal.workDays = wd;
   cal.hoursPerDay = deriveHoursPerDay(bands, cal.hoursPerDay);
   return true;
+}
+
+/**
+ * T11 (§9/O6-vervolg): geeft `milestoneKind` aan een UUR-modus-mijlpaal wanneer het opgeslagen
+ * anker EXACT op een bandgrens van de effectieve kalender ligt — de informatie die T6's solverkant
+ * (`succIsFinishMs`/`predEndsBeginOfDay` in `relationMath.ts`) nodig heeft om MS Projects eigen
+ * klokstand (bv. `…T17:00`) te herkennen i.p.v. de eerstvolgende werk-instant (`…T08:00` de
+ * volgende dag) te forceren. Gedeeld door de MPP- en de MSPDI-lezer (de MSPDI-kopie liep eerder
+ * een fix achter: de STRIKTE `> 1440` hieronder, een pariteitsregressie tussen de twee lezers).
+ *
+ * Kijkt UITSLUITEND naar de KALENDER-EIGEN weekdagbanden (`cal.workTime.byWeekday`, ná promotie
+ * door `promoteHourCalendars` — op het moment dat de lezer dit aanroept is `cal.workTime` dus al
+ * gezet voor elke uurkalender). Geen dag-specifieke holiday-/werkuitzondering-
+ * materialisatie (dat is `CalendarEngine`'s taak in de solver, buiten deze lezer se scope): een
+ * mijlpaal-anker landt per definitie nooit op een holiday (die dag heeft geen banden in
+ * `byWeekday`), en een werkende uitzondering met eigen banden is een T3-aangelegenheid — als de
+ * corpusmeting ooit een taak op zo'n dag laat zien die hierdoor ten onrechte `undefined` blijft,
+ * is dat een T13-heroverweging, geen gat in deze functie.
+ *
+ * `minuteOfDay` vergelijkt op UTC-getters (`getUTCHours`/`getUTCMinutes`) — spiegelt de rest van de
+ * engine, die overal in UTC-instants zonder DST rekent (zie `dateUtils.ts`'s moduleheader).
+ * Seconden worden genegeerd (de tijdstempels zijn minuut-precies).
+ *
+ * Bandbegin ⇒ `'START'`; bandeinde ⇒ `'FINISH'`; anders `undefined` (huidig gedrag: geen veld
+ * gezet). Een WRAP-band (`end >= 1440`, middernacht-kruisend — INCLUSIEF een band die EXACT om
+ * middernacht eindigt, bv. een ploegendienst 20:00–24:00: `resolveOneDay` bouwt zo'n band zonder
+ * clamp en `canonicalizeBands` beschouwt 'm niet als afwijkend, dus dit is een volstrekt normale
+ * vorm elders in de codebase, geen theoretisch randgeval) staat geregistreerd onder de WEEKDAG
+ * WAAROP HIJ BEGINT (§3.2 in `types/calendar.ts`) — de staart landt dus op de VOLGENDE
+ * kalenderdag; de bandeinde-check kijkt daarom ook naar de banden van GISTEREN. `b.end - 1440`
+ * is dan `0` voor een exact-om-middernacht-eindigende band, wat correct matcht met `minuteOfDay`
+ * van een 00:00-anker de dag erna (reviewbevinding: de eerdere STRIKTE `> 1440` miste precies dit
+ * geval — een band die letterlijk op middernacht eindigt in plaats van erover heen). Twee
+ * aangrenzende banden zonder pauze ertussen (bandeinde van de ene band == bandbegin van de andere,
+ * op dezelfde dag) zijn een gedegenereerd geval dat hier als `'START'` uitvalt (de bandbegin-check
+ * loopt eerst) — onschadelijk: bij een pauzeloze aaneensluiting is het gat tussen de banden nul,
+ * dus of het anker als START van de tweede band of als FINISH van de eerste wordt geclassificeerd
+ * maakt voor de datumberekening (dezelfde klokstand, geen dag-boundary-sprong) niets uit.
+ */
+export function milestoneKindAt(cal: WorkCalendar, anchor: Date): MilestoneKind | undefined {
+  const bands = cal.workTime;
+  if (!bands) return undefined;
+  const wd = isoDayOfWeek(anchor) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  const prevWd = (((wd + 5) % 7) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7; // wd - 1, gewrapt naar 1..7
+  const minuteOfDay = anchor.getUTCHours() * 60 + anchor.getUTCMinutes();
+  const todays = bands.byWeekday[wd] ?? [];
+  for (const b of todays) {
+    if (b.start === minuteOfDay) return 'START';
+  }
+  for (const b of todays) {
+    if (b.end === minuteOfDay) return 'FINISH';
+  }
+  const yesterdays = bands.byWeekday[prevWd] ?? [];
+  for (const b of yesterdays) {
+    if (b.end >= 1440 && b.end - 1440 === minuteOfDay) return 'FINISH';
+  }
+  return undefined;
 }
 
 /**

@@ -21,6 +21,7 @@ import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
 } from './ifcTaskSlots';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { groupBy } from '@/utils/collections';
 
 /** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
  *  `extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
@@ -1107,19 +1108,23 @@ function writeCrewNesting(ctx: WriteContext, resources: Resource[], ownerHistId:
   }
 }
 
-function writeAssignments(ctx: WriteContext, assignments: ResourceAssignment[], ownerHistId: number): void {
-  // Group assignments by task
-  const byTask = new Map<string, string[]>();
-  for (const a of assignments) {
-    const resRef = ref(ctx, `res_${a.resourceId}`);
-    if (resRef === '#0') continue;
-    if (!byTask.has(a.taskId)) byTask.set(a.taskId, []);
-    byTask.get(a.taskId)!.push(resRef);
-  }
+/**
+ * Toewijzingen per taak, in lijstvolgorde, zonder die waarvan de resource niet (meer) is geschreven —
+ * bv. een vergiftigd pre-fix document met resourceId null. Overslaan i.p.v. dat guidOf op een
+ * null-seed crasht en daarmee élke save/auto-save permanent blokkeert; voor gezonde documenten
+ * filtert dit niets en blijft de uitvoer byte-identiek. De volgorde bepaalt het `#index` in de
+ * property-sleutels van `writeAssignmentMeta`/`writeTimephasedMeta`, dus die groeperen via deze ene
+ * functie.
+ */
+function writtenAssignmentsByTask(ctx: WriteContext, assignments: ResourceAssignment[]): Map<string, ResourceAssignment[]> {
+  return groupBy(assignments.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0'), a => a.taskId);
+}
 
-  for (const [taskId, resRefs] of byTask) {
+function writeAssignments(ctx: WriteContext, assignments: ResourceAssignment[], ownerHistId: number): void {
+  for (const [taskId, list] of writtenAssignmentsByTask(ctx, assignments)) {
     const taskRef = ref(ctx, `task_${taskId}`);
     if (taskRef === '#0') continue;
+    const resRefs = list.map(a => ref(ctx, `res_${a.resourceId}`));
     addLine(ctx, `assign_${taskId}`,
       `IFCRELASSIGNSTOPROCESS(${ifcStr(guidOf(ctx, 'assign_' + taskId))},#${ownerHistId},$,$,(${resRefs.join(',')}),$,${taskRef},$)`);
   }
@@ -1147,19 +1152,10 @@ function writeAssignmentMeta(
   assignments: ResourceAssignment[],
   ownerHistId: number,
 ): void {
-  const byTask = new Map<string, ResourceAssignment[]>();
-  for (const a of assignments) {
-    if (!byTask.has(a.taskId)) byTask.set(a.taskId, []);
-    byTask.get(a.taskId)!.push(a);
-  }
+  const byTask = writtenAssignmentsByTask(ctx, assignments);
   for (const task of tasks) {
-    // Zelfde defensie als writeAssignments hierboven: een toewijzing waarvan de resource niet
-    // (meer) bestaat — bv. een vergiftigd pre-fix document met resourceId null — wordt
-    // overgeslagen i.p.v. dat guidOf op een null-seed crasht en daarmee élke save/auto-save
-    // permanent blokkeert. Voor gezonde documenten filtert dit niets en blijft de uitvoer
-    // byte-identiek.
-    const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
-    if (!list || list.length === 0) continue;
+    const list = byTask.get(task.id);
+    if (!list) continue;
     const props = list.map((a, index) => {
       const resGuid = guidOf(ctx, a.resourceId); // zelfde GUID als writeResource gebruikte
       const propName = `${resGuid}#${index}`; // uniek per assignment (M3)
@@ -1192,15 +1188,10 @@ function writeTimephasedMeta(
   assignments: ResourceAssignment[],
   ownerHistId: number,
 ): void {
-  const byTask = new Map<string, ResourceAssignment[]>();
-  for (const a of assignments) {
-    if (!byTask.has(a.taskId)) byTask.set(a.taskId, []);
-    byTask.get(a.taskId)!.push(a);
-  }
+  const byTask = writtenAssignmentsByTask(ctx, assignments);
   for (const task of tasks) {
-    // Zelfde defensie/filter als writeAssignmentMeta hierboven — bepaalt hetzelfde `#index`.
-    const list = byTask.get(task.id)?.filter(a => ref(ctx, `res_${a.resourceId}`) !== '#0');
-    if (!list || list.length === 0) continue;
+    const list = byTask.get(task.id);
+    if (!list) continue;
     const windows: Record<string, { workWindowStart?: string; workWindowFinish?: string; curveValues?: number[] }> = {};
     list.forEach((a, index) => {
       // Contour-engine (2026-09): `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in

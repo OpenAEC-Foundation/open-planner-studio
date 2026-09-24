@@ -1473,6 +1473,28 @@ function parseIntList(s: string): number[] {
 }
 
 /**
+ * De `IFCPROPERTYSINGLEVALUE`s van elk `OPS_Calendar`-pset dat de kalender met STEP-id `calStepId`
+ * target (`IFCRELDEFINESBYPROPERTIES` → `IFCPROPERTYSET`), één lijst per pset in bestandsvolgorde.
+ * Gedeeld door de kalender-psetlezers hieronder; elk leest zijn eigen property's en houdt zijn eigen
+ * terugval.
+ */
+function* opsCalendarPsetProps(
+  calStepId: string,
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): Generator<StepEntity[]> {
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+    yield parseRefs(pset.args[4] || '')
+      .map(r => entityMap.get(r))
+      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+  }
+}
+
+/**
  * Fase 2.8a (§8.2) — `calendar.generation`-herkomst teruglezen uit het `OPS_Calendar`-pset
  * (spiegel van `writeCalendarGenerationMeta`): zoekt de `IFCRELDEFINESBYPROPERTIES` die het
  * `IFCWORKCALENDAR` met STEP-id `calStepId` target. Golden rule/legacy (§4.3/§8.2): geen pset
@@ -1484,17 +1506,7 @@ function extractCalendarGeneration(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): CalendarGeneration | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     let ruleSetId: HolidayCountry | undefined;
     let region: string | undefined;
     let breakChoice: CalendarGeneration['breakChoice'];
@@ -1536,17 +1548,7 @@ function extractCalendarLibraryOrigin(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): LibraryOrigin | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'LibraryOrigin') continue;
       const value = parseTypedValue(prop.args[2] || '');
@@ -1580,17 +1582,7 @@ function extractCalendarHoursPerDay(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): number | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'HoursPerDay') continue;
       const value = parseTypedValue(prop.args[2] || '');
@@ -1607,14 +1599,7 @@ function extractCalendarSimpleBreak(
   entityMap: Map<string, StepEntity>,
 ): Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> {
   const result: Pick<WorkCalendar, 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'> = {};
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'number' || !Number.isInteger(value)) continue;
@@ -1633,14 +1618,8 @@ function extractCalendarHourMode(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): boolean {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-    for (const propRef of parseRefs(pset.args[4] || '')) {
-      const prop = entityMap.get(propRef);
-      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
+    for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'IsHourCalendar') continue;
       if (parseTypedValue(prop.args[2] || '') === true) return true;
     }
@@ -1665,17 +1644,7 @@ function extractWorkingExceptionStepIds(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): Set<string> | undefined {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const objectRefs = parseRefs(rel.args[4] || '');
-    if (!objectRefs.includes(calStepId)) continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
-
-    const props = parseRefs(pset.args[4] || '')
-      .map(r => entityMap.get(r))
-      .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
-
+  for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       if (stripQuotes(prop.args[0] || '') !== 'WorkingExceptionIds') continue;
       const value = parseTypedValue(prop.args[2] || '');

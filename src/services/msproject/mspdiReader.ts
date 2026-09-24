@@ -1,4 +1,4 @@
-import { Task, TaskConstraint, ConstraintType, MilestoneKind } from '@/types/task';
+import { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
 import { Project } from '@/types/project';
@@ -6,7 +6,7 @@ import { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant, parseDate, isoDayOfWeek } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant, parseDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
@@ -25,7 +25,7 @@ import {
 } from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
-  promoteHourCalendars, registerCalendarBands,
+  milestoneKindAt, promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // T4 (MSPDI-uitzonderingssemantiek, spiegel van T3) — hergebruikt T3's `buildContributions`
@@ -146,48 +146,6 @@ function getElementInt(parent: Element, tagName: string, fallback = 0): number {
 
 function getElementFloat(parent: Element, tagName: string, fallback = 0): number {
   return toFloat(getElementText(parent, tagName), fallback);
-}
-
-/** T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's `deriveMilestoneKind` (T11, `fb385191`,
- *  vervolgens `c0c2cd27` — beide niet geëxporteerd daar; dit bestand zit buiten T4's exclusieve
- *  scope om te wijzigen, dus hier lokaal herhaald): een UUR-modus-mijlpaal krijgt `milestoneKind`
- *  wanneer het opgeslagen anker exact op een bandgrens van de EFFECTIEVE (gepromoveerde) kalender
- *  ligt — bandbegin ⇒ `'START'`, bandeinde (vandaag, of gisteren over middernacht) ⇒ `'FINISH'`.
- *  Kijkt uitsluitend naar de kalender-eigen weekdagbanden (`cal.workTime.byWeekday`), geen holiday-/
- *  werkuitzondering-materialisatie (dat is `CalendarEngine`'s taak in de solver, buiten deze lezer
- *  se scope).
- *
- *  SPEC-REVIEW-FIX (should-fix, op 3dd6c3ba) — deze spiegel citeerde `fb385191` maar miste
- *  `c0c2cd27` (6 minuten later gecommit, dus vóór 3dd6c3ba al bestaand): de GISTEREN-tak gebruikte
- *  hier nog de VERVANGEN, STRIKTE `b.end > 1440` i.p.v. mppReader.ts's gecorrigeerde `b.end >= 1440`
- *  — een band die EXACT om middernacht eindigt (`end === 1440`, bv. een ploegendienst 20:00–24:00;
- *  `resolveOneDay`/`applyCalendarBody` bouwen zo'n band zonder clamp, dus een normale vorm, geen
- *  theoretisch randgeval) gaf hier `undefined` waar MPP al `'FINISH'` gaf sinds `c0c2cd27` — een
- *  pariteitsregressie tussen de twee MS-Project-lezers. Fix: `>=`; `b.end - 1440` blijft dan `0` en
- *  matcht correct met `minuteOfDay` van een 00:00-anker de dag erna. Twee aangrenzende banden zonder
- *  pauze ertussen (bandeinde van de ene band == bandbegin van de andere, op dezelfde dag) zijn een
- *  gedegenereerd geval dat hier als `'START'` uitvalt (de bandbegin-check loopt eerst) — onschadelijk:
- *  bij een pauzeloze aaneensluiting is het gat tussen de banden nul, dus of het anker als START van
- *  de tweede band of als FINISH van de eerste wordt geclassificeerd maakt voor de datumberekening
- *  niets uit. */
-function deriveMspdiMilestoneKind(cal: WorkCalendar, anchor: Date): MilestoneKind | undefined {
-  const bands = cal.workTime;
-  if (!bands) return undefined;
-  const wd = isoDayOfWeek(anchor) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
-  const prevWd = (((wd + 5) % 7) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7; // wd - 1, gewrapt naar 1..7
-  const minuteOfDay = anchor.getUTCHours() * 60 + anchor.getUTCMinutes();
-  const todays = bands.byWeekday[wd] ?? [];
-  for (const b of todays) {
-    if (b.start === minuteOfDay) return 'START';
-  }
-  for (const b of todays) {
-    if (b.end === minuteOfDay) return 'FINISH';
-  }
-  const yesterdays = bands.byWeekday[prevWd] ?? [];
-  for (const b of yesterdays) {
-    if (b.end >= 1440 && b.end - 1440 === minuteOfDay) return 'FINISH';
-  }
-  return undefined;
 }
 
 /** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6 (F5-a). */
@@ -428,7 +386,7 @@ export function readMSPDI(content: string): ImportResult {
     const isMilestone = getElementInt(te, 'Milestone') === 1;
     // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
     // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
-    // `deriveMspdiMilestoneKind`, zie die functie se docblock voor de exacte-middernacht-nuance):
+    // `milestoneKindAt`, zie die functie se docblock voor de exacte-middernacht-nuance):
     // een UUR-modus-mijlpaal krijgt `milestoneKind` wanneer het opgeslagen anker (finish, of start als
     // finish ontbreekt, exact op een bandgrens van de EFFECTIEVE (gepromoveerde) kalender ligt.
     // `finish`/`start` zijn al de juiste, per-taakmodus geparste waarden (isHour ⇒
@@ -445,7 +403,7 @@ export function readMSPDI(content: string): ImportResult {
     // `snapSuccessorEarlyStart` (CPMSolver.ts) verkeerd zou landen, exact de mppReader-bug vóór T15.
     const effCalForMilestone = calById.get(effCalId);
     const milestoneKind = isMilestone && isHour && durationMinutes === 0 && effCalForMilestone
-      ? deriveMspdiMilestoneKind(effCalForMilestone, parseInstant(finish || start))
+      ? milestoneKindAt(effCalForMilestone, parseInstant(finish || start))
       : undefined;
     const percentComplete = getElementInt(te, 'PercentComplete');
     const priority = getElementInt(te, 'Priority', 500);

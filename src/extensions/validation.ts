@@ -237,12 +237,16 @@ function parseIcon(value: unknown): ParseResult<string> {
  * expliciete, veilige compatibiliteitsdefaults voor oudere IndexedDB-records en meldt iedere
  * normalisatie. De uitkomst deelt geen arrays of objectvelden met de bron.
  */
-export function parseExtensionManifest(
-  input: unknown,
-  mode: ManifestParseMode,
-): ParseResult<ExtensionManifest> {
-  if (!isRecord(input)) return fail('manifest moet een object zijn');
+/** Een optioneel veld: afwezig blijft `undefined`, aanwezig moet `parse` doorstaan. */
+function parseOptional<T>(value: unknown, parse: (value: unknown) => ParseResult<T>): ParseResult<T | undefined> {
+  return value === undefined ? { ok: true, value: undefined, warnings: [] } : parse(value);
+}
 
+/** De identiteitsvelden die manifest en catalogusentry delen, in vaste volgorde gevalideerd (de
+ *  eerste fout wint, zodat de melding per bron stabiel blijft). */
+function parseIdentity(input: Record<string, unknown>): ParseResult<{
+  id: string; name: string; version: string; author: string; description: string; category: ExtensionCategory;
+}> {
   const id = parseExtensionId(input.id);
   if (!id.ok) return id;
   const name = parseString(input.name, 'name', EXTENSION_LIMITS.name);
@@ -251,15 +255,28 @@ export function parseExtensionManifest(
   if (!version.ok) return version;
   const author = parseString(input.author, 'author', EXTENSION_LIMITS.author);
   if (!author.ok) return author;
-  const description = parseString(
-    input.description,
-    'description',
-    EXTENSION_LIMITS.description,
-    true,
-  );
+  const description = parseString(input.description, 'description', EXTENSION_LIMITS.description, true);
   if (!description.ok) return description;
   const category = parseCategory(input.category);
   if (!category.ok) return category;
+  return {
+    ok: true,
+    value: {
+      id: id.value, name: name.value, version: version.value, author: author.value,
+      description: description.value, category: category.value,
+    },
+    warnings: [],
+  };
+}
+
+export function parseExtensionManifest(
+  input: unknown,
+  mode: ManifestParseMode,
+): ParseResult<ExtensionManifest> {
+  if (!isRecord(input)) return fail('manifest moet een object zijn');
+
+  const identity = parseIdentity(input);
+  if (!identity.ok) return identity;
   const main = parseMainPath(input.main);
   if (!main.ok) return main;
 
@@ -286,49 +303,34 @@ export function parseExtensionManifest(
     warnings.push(...parsed.warnings);
   }
 
-  let apiVersion: string | undefined;
-  if (input.apiVersion !== undefined) {
-    const parsed = parseVersion(input.apiVersion, 'apiVersion');
-    if (!parsed.ok) return parsed;
-    apiVersion = parsed.value;
-  }
+  const apiVersion = parseOptional(input.apiVersion, v => parseVersion(v, 'apiVersion'));
+  if (!apiVersion.ok) return apiVersion;
 
-  let tags: string[] | undefined;
-  if (input.tags !== undefined) {
-    const parsed = parseTags(input.tags);
-    if (!parsed.ok) return parsed;
-    tags = parsed.value;
-  }
+  const tags = parseOptional(input.tags, v => parseTags(v));
+  if (!tags.ok) return tags;
 
-  let repository: string | undefined;
-  if (input.repository !== undefined) {
-    const parsed = parseHttpUrl(input.repository, 'repository');
-    if (!parsed.ok) return parsed;
-    repository = parsed.value;
-  }
+  const repository = parseOptional(input.repository, v => parseHttpUrl(v, 'repository'));
+  if (!repository.ok) return repository;
 
-  let icon: string | undefined;
-  if (input.icon !== undefined) {
-    const parsed = parseIcon(input.icon);
-    if (!parsed.ok) return parsed;
-    icon = parsed.value;
-  }
+  const icon = parseOptional(input.icon, v => parseIcon(v));
+  if (!icon.ok) return icon;
 
+  const { id, name, version, author, description, category } = identity.value;
   const value: ExtensionManifest = {
-    id: id.value,
-    name: name.value,
-    version: version.value,
+    id,
+    name,
+    version,
     minAppVersion,
-    author: author.value,
-    description: description.value,
-    category: category.value,
+    author,
+    description,
+    category,
     main: main.value,
     permissions,
   };
-  if (apiVersion !== undefined) value.apiVersion = apiVersion;
-  if (repository !== undefined) value.repository = repository;
-  if (tags !== undefined) value.tags = tags;
-  if (icon !== undefined) value.icon = icon;
+  if (apiVersion.value !== undefined) value.apiVersion = apiVersion.value;
+  if (repository.value !== undefined) value.repository = repository.value;
+  if (tags.value !== undefined) value.tags = tags.value;
+  if (icon.value !== undefined) value.icon = icon.value;
 
   return { ok: true, value, warnings };
 }
@@ -481,23 +483,8 @@ export function manifestFromJavaScript(
 function parseCatalogEntry(input: unknown): ParseResult<CatalogEntry> {
   if (!isRecord(input)) return fail('catalogusentry moet een object zijn');
 
-  const id = parseExtensionId(input.id);
-  if (!id.ok) return id;
-  const name = parseString(input.name, 'name', EXTENSION_LIMITS.name);
-  if (!name.ok) return name;
-  const version = parseVersion(input.version, 'version');
-  if (!version.ok) return version;
-  const author = parseString(input.author, 'author', EXTENSION_LIMITS.author);
-  if (!author.ok) return author;
-  const description = parseString(
-    input.description,
-    'description',
-    EXTENSION_LIMITS.description,
-    true,
-  );
-  if (!description.ok) return description;
-  const category = parseCategory(input.category);
-  if (!category.ok) return category;
+  const identity = parseIdentity(input);
+  if (!identity.ok) return identity;
   const tags = parseTags(input.tags);
   if (!tags.ok) return tags;
   const minAppVersion = parseVersion(input.minAppVersion, 'minAppVersion');
@@ -507,12 +494,8 @@ function parseCatalogEntry(input: unknown): ParseResult<CatalogEntry> {
   const downloadUrl = parseHttpUrl(input.downloadUrl, 'downloadUrl');
   if (!downloadUrl.ok) return downloadUrl;
 
-  let apiVersion: string | undefined;
-  if (input.apiVersion !== undefined) {
-    const parsed = parseVersion(input.apiVersion, 'apiVersion');
-    if (!parsed.ok) return parsed;
-    apiVersion = parsed.value;
-  }
+  const apiVersion = parseOptional(input.apiVersion, v => parseVersion(v, 'apiVersion'));
+  if (!apiVersion.ok) return apiVersion;
 
   let sha256: string | undefined;
   if (input.sha256 !== undefined) {
@@ -522,28 +505,25 @@ function parseCatalogEntry(input: unknown): ParseResult<CatalogEntry> {
     sha256 = input.sha256;
   }
 
-  let icon: string | undefined;
-  if (input.icon !== undefined) {
-    const parsed = parseIcon(input.icon);
-    if (!parsed.ok) return parsed;
-    icon = parsed.value;
-  }
+  const icon = parseOptional(input.icon, v => parseIcon(v));
+  if (!icon.ok) return icon;
 
+  const { id, name, version, author, description, category } = identity.value;
   const value: CatalogEntry = {
-    id: id.value,
-    name: name.value,
-    version: version.value,
-    author: author.value,
-    description: description.value,
-    category: category.value,
+    id,
+    name,
+    version,
+    author,
+    description,
+    category,
     tags: tags.value,
     minAppVersion: minAppVersion.value,
     repository: repository.value,
     downloadUrl: downloadUrl.value,
   };
-  if (apiVersion !== undefined) value.apiVersion = apiVersion;
+  if (apiVersion.value !== undefined) value.apiVersion = apiVersion.value;
   if (sha256 !== undefined) value.sha256 = sha256;
-  if (icon !== undefined) value.icon = icon;
+  if (icon.value !== undefined) value.icon = icon.value;
 
   return { ok: true, value, warnings: [] };
 }
