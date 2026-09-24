@@ -32,8 +32,11 @@ import {
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
   clearLevelingGaps,
+  taskTriggerChanges,
   timephasedDurationWalksHaveFrozenWork,
+  type TaskTriggerFields,
 } from '@/utils/taskDefaults';
+import { sameValue } from '@/utils/sameValue';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { shownStart } from '@/utils/taskDates';
 import { isFiniteNumber } from '@/utils/guards';
@@ -144,8 +147,9 @@ function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: num
 /**
  * B1c-plan-2 spec §4 "Invalidatie", bedraad in de fixronde op etappe 3 (bevinding B7). De ROUTES
  * waarvan een celwrite de tijdbasis van de taak verzet — en dus een door de nivelleerder ingevoegde
- * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskUpdateInvalidatesLevelingGaps`
+ * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskTriggerChanges(...).levelingGaps`
  * (taskDefaults.ts); het grid schrijft niet via `updateTask`, dus het heeft een eigen poort nodig.
+ * Net als daar vuurt hij alleen bij een echte waardewijziging (zie `applyOneCellEdit`).
  *
  * Bewust NIET compleet gelijk aan de `scheduleStale`-lijst in `applyOneCellEdit`: `task.priority` zit
  * daar wél in (nivelleren gebruikt prioriteit als invoer) maar verzet geen enkele datum van de taak
@@ -253,6 +257,10 @@ function applyScheduleEdit(
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
       const parsed = edit.value as ParsedTaskDuration;
+      // Deze tak schrijft de drie duurvelden altijd; of dat een duurWIJZIGING is, beslist dezelfde
+      // waardevergelijking als store en MCP (`taskTriggerChanges`) — de minutenvorm hieronder
+      // vergelijkt al vóór het schrijven.
+      const before: TaskTriggerFields = { ...task, time: { ...task.time } };
       if (parsed.unit === 'hours') {
         if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
         if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
@@ -269,7 +277,9 @@ function applyScheduleEdit(
         task.time.scheduleDuration = parsed.scheduleDuration;
         task.time.durationMinutes = undefined;
       }
-      lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+      if (taskTriggerChanges(before, task).timeBase) {
+        lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+      }
       return { ok: true, value: lost };
     }
     if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
@@ -724,8 +734,11 @@ function applyOneCellEdit(
     }
   } else result = applyDynamicEdit(next, edit, environment);
   if (!result.ok) return result;
-  // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg.
-  if (LEVELING_GAP_ROUTES.has(edit.route)) clearLevelingGaps(next);
+  // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg. De ROUTE
+  // bepaalt welke velden meetellen (ongewijzigd); WANNEER is een echte waardewijziging, met dezelfde
+  // structurele vergelijking als store en MCP (`sameValue`): een celwrite die de taak niet veranderde
+  // — dezelfde waarde teruggeschreven — laat een nivelleergat staan.
+  if (LEVELING_GAP_ROUTES.has(edit.route) && !sameValue(task, next)) clearLevelingGaps(next);
   const scheduleStale = edit.route === 'task-schedule'
     || edit.route === 'task-progress'
     || edit.route === 'task-milestone'
@@ -791,6 +804,8 @@ export function planTaskCellEdits(
     scheduleStale ||= planned.value.scheduleStale;
   }
   if (constraintEdits.length > 0) {
+    // Voor de nivelleergat-poort hieronder: de taak vóór deze groep (die muteert `next` in-place).
+    const beforeGroup = cloneTaskForEdit(next);
     const constraintRank = (edit: CellEditIntent): number => {
       const id = String(edit.columnId);
       if (id === 'task.constraint.type') return 0;
@@ -814,14 +829,15 @@ export function planTaskCellEdits(
     }
     // B7 — deze twee groepen omzeilen `applyOneCellEdit` (ze worden pas ná de volledige groep
     // gecanonicaliseerd), dus de poort staat hier apart. Pas ná de validatie: een geweigerde groep
-    // laat de taak ongemoeid.
-    clearLevelingGaps(next);
+    // laat de taak ongemoeid. En net als daar alleen bij een echte waardewijziging (`sameValue`).
+    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next);
     scheduleStale = true;
   }
   if (progressEdits.length > 0) {
+    const beforeGroup = cloneTaskForEdit(next);
     const applied = applyProgressEdits(next, progressEdits, environment);
     if (!applied.ok) return applied;
-    clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
+    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
     scheduleStale = true;
   }
   return {

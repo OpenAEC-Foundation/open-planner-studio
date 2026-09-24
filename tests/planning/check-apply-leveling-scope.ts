@@ -198,7 +198,7 @@ console.log('-- apply-leveling-scope: deel 4 (motor), idempotente onderbreek-mod
 // een leveling-gat op de WERKMINUTEN-as van de taak ligt en voortgang díé as wel degelijk verzet
 // (`applyProgressInvariants` leidt er `remainingTime`/`actualStart` uit af; `CPMSolver` plant een
 // IN-PROGRESS-taak vanaf haar actuals). De invalidatie heeft nu een EIGEN, bredere triggerset
-// (`taskUpdateInvalidatesLevelingGaps`, taskDefaults.ts) met voortgang én constraints erin.
+// (`taskTriggerChanges(...).levelingGaps`, taskDefaults.ts) met voortgang én constraints erin.
 // Deze case dekt alle klassen: duur, handmatige datums, kalender, toewijzingen, VOORTGANG (de drie
 // dedicated setters én de `time`-route van `updateTask`) en CONSTRAINTS — plus twee negatieve
 // controles (alleen-importsplits blijft ongemoeid; `priority` is nivelleer-INVOER en verzet geen
@@ -221,8 +221,11 @@ console.log('-- apply-leveling-scope: deel 5, tijdbasis-bewerkingen wissen level
   eq('applyLeveling laat zijn eigen verse gaten staan', S().tasks.find(t => t.id === idFresh)?.splitGaps?.length, 2);
 
   // ── Duur wijzigen ──────────────────────────────────────────────────────────────────────────────
+  // Een ECHTE wijziging (de seed heeft de standaardduur 5): sinds de gevolgregels op waarde vuren
+  // (`taskTriggerChanges`) laat dezelfde duur terugschrijven het gat terecht staan — zie
+  // check-value-based-triggers.ts.
   const idDur = seed('F-duur');
-  S().updateTask(idDur, { time: { ...S().tasks.find(t => t.id === idDur)!.time, scheduleDuration: 5 } });
+  S().updateTask(idDur, { time: { ...S().tasks.find(t => t.id === idDur)!.time, scheduleDuration: 7 } });
   const tDur = S().tasks.find(t => t.id === idDur);
   eq('duur wijzigen wist het leveling-gat', tDur?.splitGaps?.length, 1);
   eq('en laat de importsplit staan', tDur?.splitGaps?.[0]?.source, undefined);

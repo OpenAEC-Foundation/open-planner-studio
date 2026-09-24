@@ -2,7 +2,7 @@
 // taakbewerking: `sameValue` (src/utils/sameValue.ts, structurele gelijkheid) en
 // `taskTriggerChanges` (taskDefaults.ts: welke trigger-relevante velden ECHT een andere waarde
 // kregen). Puur, zonder store. Dat de schrijfroutes er daadwerkelijk op leunen, bewijst
-// check-value-based-triggers.ts (store + taakraster) en tests/mcp/cases-taskfields.ts (MCP).
+// check-value-based-triggers.ts (store + taakraster) en tests/mcp/cases-waarde-triggers.ts (MCP).
 //
 // MOET de eerste import blijven: zie domStub.ts.
 import './domStub';
