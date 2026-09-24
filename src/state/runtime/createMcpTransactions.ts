@@ -706,6 +706,13 @@ function createMcpDraft(
         // zoals `unassignResource` (critreview baan 2 overname PR #101, bevinding 1).
         clearLevelingGaps(c.task);
       }
+      // Fable-critreview #170, bevinding 9 — tweeling van resourceSlice.ts's `removeResource`: ook
+      // Z8-venster en bevroren duur-walks, zoals `unassignResource`.
+      for (const task of new Set(captured.flatMap((c) => (c ? [c.task] : [])))) {
+        const clearedWindow = clearTimephasedWindow(task);
+        const clearedWalks = clearTimephasedDurationWalks(task);
+        if (clearedWindow || clearedWalks) recordTimephasedLoss(task.id);
+      }
       for (const task of s.tasks) {
         const idx = task.resourceIds.indexOf(id);
         if (idx >= 0) task.resourceIds.splice(idx, 1);

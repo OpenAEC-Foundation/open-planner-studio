@@ -902,6 +902,23 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   const g = mk('s-g');
   const rg = runInMcpTransaction(() => { draft.removeResource(g.r); });
   eq('s6b MCP removeResource onder de standaardregel: nivelleergat weg, importsplit blijft', [rg.ok, task(g.t).time.scheduleDuration, kinds(g.t)], [true, 4, ['import']]);
+  // Fable-critreview #170, bevinding 9: removeResource wist — net als unassignResource, dezelfde
+  // toewijzingstrigger — óók het Z8-venster en de bevroren duur-walks, met verliesmelding.
+  const walk = [{ afterMinutes: 0, minutes: 480, workMinutes: 480 }];
+  const z8 = (id: string) => useAppStore.setState((s) => {
+    const x = s.tasks.find((t) => t.id === id)!;
+    x.timephasedFinishFloor = '2026-06-05';
+    (x as unknown as { timephasedDurationWalks: unknown }).timephasedDurationWalks = walk;
+    s.ui.notifications = [];
+  });
+  const h = mk('s-h');
+  z8(h.t);
+  S().removeResource(h.r);
+  eq('s7 store removeResource: Z8-venster en walks weg, verliesmelding (zoals unassignResource)', [task(h.t).timephasedFinishFloor, (task(h.t) as unknown as { timephasedDurationWalks?: unknown }).timephasedDurationWalks, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, undefined, true]);
+  const i = mk('s-i');
+  z8(i.t);
+  const ri = runInMcpTransaction(() => { draft.removeResource(i.r); });
+  eq('s7b MCP removeResource: Z8-venster en walks weg', [ri.ok, task(i.t).timephasedFinishFloor, (task(i.t) as unknown as { timephasedDurationWalks?: unknown }).timephasedDurationWalks], [true, undefined, undefined]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

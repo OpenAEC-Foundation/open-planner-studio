@@ -122,6 +122,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   },
 
   removeResource: (id) => {
+    let lostCount = 0;
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
@@ -146,6 +147,14 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         // (critreview baan 2 overname PR #101, bevinding 1).
         clearLevelingGaps(c.task);
       }
+      // Fable-critreview #170, bevinding 9: zelfde toewijzingstrigger als `unassignResource` ⇒ ook
+      // Z8-venster en bevroren duur-walks vervallen (Z14b, F2-fixronde), met verliesmelding. Per taak
+      // één keer, ook als de resource er meerdere toewijzingen had.
+      for (const task of new Set(captured.flatMap((c) => (c ? [c.task] : [])))) {
+        const clearedWindow = clearTimephasedWindow(task);
+        const clearedWalks = clearTimephasedDurationWalks(task);
+        if (clearedWindow || clearedWalks) lostCount++;
+      }
       // Verweesde verwijzingen in task.resourceIds opruimen.
       for (const task of s.tasks) {
         const idx = task.resourceIds.indexOf(id);
@@ -157,6 +166,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       }
       runtime.finishMutation(s, { stale });
     });
+    if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },
