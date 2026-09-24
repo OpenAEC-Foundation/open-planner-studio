@@ -1,13 +1,16 @@
 /**
- * Piepklein rauw-IndexedDB-helpertje (spec §9). Generaliseert het open/get/put/getAll/delete-
- * patroon uit `src/extensions/extensionLoader.ts`. Elke database heeft één object-store met
- * `keyPath: 'id'`. ALLE toegang zit in try/catch: een IDB-fout (private-mode, quota, geblokkeerd)
- * mag de app-start nooit blokkeren — recents/recovery vallen dan stil terug op "leeg".
+ * Piepklein rauw-IndexedDB-helpertje (spec §9). Elke database heeft één object-store met
+ * `keyPath: 'id'`. ALLE toegang via de `idb*`-functies zit in try/catch: een IDB-fout (private-mode,
+ * quota, geblokkeerd) mag de app-start nooit blokkeren — recents/recovery vallen dan stil terug op
+ * "leeg". Wie fouten wél moet zien (de extensieopslag), gebruikt alleen de verbinding: `openDb`.
  */
 
 const dbPromises = new Map<string, Promise<IDBDatabase>>();
 
-function openDb(dbName: string, storeName: string): Promise<IDBDatabase> {
+/** De (gecachete) verbinding met `dbName`, met één object-store `storeName` (keyPath `id`). Een
+ *  versie-upgrade uit een andere tab of instantie sluit de verbinding; de volgende aanroep opent
+ *  opnieuw. Gooit bij een openingsfout. */
+export function openDb(dbName: string, storeName: string): Promise<IDBDatabase> {
   const cacheKey = `${dbName}::${storeName}`;
   const existing = dbPromises.get(cacheKey);
   if (existing) return existing;
