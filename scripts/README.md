@@ -30,6 +30,9 @@ poort te pakken. Zie de kop van `CLAUDE.md` en `tests/dev-server/` voor het gehe
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
 | `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
 | `verify-cycles.mjs` | `verify:cycles` | circulaire imports binnen `src/`, gemeten op de esbuild-metafile (dus ná type-erasure — `import type` geeft geen valse treffers) |
+| `verify-store-boundaries.mjs` | `verify:store-boundaries` | core-runtimefactories en storegebonden MCP-tools importeren nooit `useAppStore`/`appStoreContext` (AST, dus commentaar en strings tellen niet); `--root` laat `tests/planning/check-store-runtime-boundaries.ts` fixtures controleren |
+| `verify-gantt-boundaries.mjs` | `verify:gantt-boundaries` | de eigendomsgrenzen van Gantt-shell, coordinators, renderers en taakraster; `--root` voor `tests/planning/check-gantt-boundaries.ts` |
+| `lib/ts-imports.mjs` | de twee grenspoorten hierboven | hun gedeelde AST-steiger: bronbestanden verzamelen, parsen, `@/`-/relatieve imports naar een modulepad vertalen, runtimebindings van een importclause |
 | `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |
 | `verify-examples.ts` | `verify:examples` | de gebundelde voorbeeldprojecten laden en rekenen door zoals verwacht |
 
