@@ -554,7 +554,15 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    (Opus 5.5) = **GO** (proefmerge conflictvrij; verslag gecorrigeerd: HarbourPointe 119 = 97 afwijkend
    begroot werk bij niet-gestarte taken + 17 over budget + 5 herschattingen + 2 alleen verricht ⇒ nieuwe
    eigenaarsvraag E7: inzet uit P6 vs. begroot werk uit P6 bij dezelfde toewijzing; commentaar
-   `importedWorkFields` "restduur" → "duur" via baan 2); baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   `importedWorkFields` "restduur" → "duur" via baan 2); **baan 2 klaar, kop `5484532c`** (Opus 5.5:
+   `settleDurationAftermath(task, deps, oldWorkMinutes, finishBasis)` verplichte basis van vóór de bewerking,
+   ná contour/Z8/walks `clearLevelingGaps` → `reconcileHourInputFinish`; zeven store-paden + zeven
+   MCP-tweelingen + raster; checks 45–61 en s1–s5, mutant per pad; laden raakt de reconcile niet (61); TODO en
+   B1c-koppelpunt in `docs/TODO.md` afgevinkt; poorten exit 0, `.mpp` 216/0/0, measure 76/0/0/0; nieuw
+   gedrag: kalenderwijziging die onder een werkregel de duur van een dagtaak verandert wist de nivelleerpauze
+   (s4); `removeResource` wist pauzes alleen bij duurwijziging — inconsistentie, niet aangepast). Critreview
+   loopt (`opus-laag-critreview-pr101-baan2`); daarna eigen draft-PR voor de taaktypes-branch, gestapeld op
+   #169. baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
    gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
    krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel

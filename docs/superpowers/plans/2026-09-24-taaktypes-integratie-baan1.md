@@ -239,7 +239,7 @@ aanpast, of een resource toevoegt of weghaalt. Daarna bleef bij een taak in uren
 op de oude waarde staan, en bleef een nivelleerpauze op een verkeerde plek staan. Dat is nu op één
 plek opgelost. Elk pad (paneel, raster, AI-assistent) heeft een eigen test die rood wordt zonder de fix.
 
-Kop `claude/taaktypes-integratie`: **`6a64de67`** (gepusht; basis `5df3bff7`).
+Kop `claude/taaktypes-integratie`: **`5484532c`** (gepusht; basis `5df3bff7`). De fix zelf staat in `6a64de67`; `5484532c` is alleen de commentaarcorrectie in `workRuleMapping.ts` (`importedWorkFields`: "duur × inzet" in plaats van "restduur × inzet"), op verzoek van de orkestrator.
 
 **Oplossing.** `settleDurationAftermath(task, deps, oldWorkMinutes, finishBasis)`: de basis
 (`hourInputFinishBasis` van VÓÓR de bewerking) is een **verplichte** vierde parameter. Een aanroeper
