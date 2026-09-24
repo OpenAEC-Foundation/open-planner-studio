@@ -34,6 +34,7 @@ import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
 import { ellipsize } from '@/engine/renderer/textFit';
+import { displayDate } from '@/utils/displayDate';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -393,8 +394,9 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
   return {
     wbs: task?.wbsCode || '',
     duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale) : '',
-    start: startStr ? formatDutchDate(parseDate(startStr), options.dateNotation) : '',
-    end: endStr ? formatDutchDate(parseDate(endStr), options.dateNotation) : '',
+    // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj (ongewijzigd oud gedrag).
+    start: displayDate(startStr, options.dateNotation ?? 'dmy'),
+    end: displayDate(endStr, options.dateNotation ?? 'dmy'),
     complete: task ? formatCompletion(task.time.completion) : '',
     units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
     curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
@@ -709,23 +711,6 @@ export interface PrintOptions {
 
 interface PrintTask extends Task {
   _depth?: number;
-}
-
-/**
- * Format een datum volgens de datumnotatie-instelling (taak #53). Zelfde reorder-semantiek als
- * `displayDate` in @/utils/displayDate, maar bewust een kleine lokale kopie zodat deze pure
- * print-service niet de React/zustand-store-hook hoeft te importeren. Ontbreekt de notatie ⇒
- * dd-mm-jjjj (ongewijzigd oud gedrag).
- */
-function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const year = String(d.getUTCFullYear());
-  switch (notation) {
-    case 'mdy': return `${month}-${day}-${year}`;
-    case 'ymd': return `${year}-${month}-${day}`;
-    default:    return `${day}-${month}-${year}`;
-  }
 }
 
 /**
@@ -1866,12 +1851,10 @@ function drawProjectHeader(
   const row3Y = m.s(48);
   let row3Text = '';
   if (options.projectStartDate) {
-    const sd = parseDate(options.projectStartDate);
-    row3Text += `Start: ${formatDutchDate(sd, options.dateNotation)}`;
+    row3Text += `Start: ${displayDate(options.projectStartDate, options.dateNotation ?? 'dmy')}`;
   }
   if (options.projectEndDate) {
-    const ed = parseDate(options.projectEndDate);
-    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${formatDutchDate(ed, options.dateNotation)}`;
+    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${displayDate(options.projectEndDate, options.dateNotation ?? 'dmy')}`;
   }
   if (options.projectStartDate && options.projectEndDate) {
     const sd = parseDate(options.projectStartDate);

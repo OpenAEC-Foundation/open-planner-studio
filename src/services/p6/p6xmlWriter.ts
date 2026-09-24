@@ -338,27 +338,14 @@ export function writeP6XML(
   lines.push(`${indent(2)}<DataType>Text</DataType>`);
   lines.push(`${indent(1)}</UDFType>`);
 
-  // Calendar
-  lines.push(`${indent(1)}<Calendar>`);
-  lines.push(`${indent(2)}<ObjectId>1</ObjectId>`);
-  lines.push(`${indent(2)}<Name>${escapeXml(calendar.name)}</Name>`);
-  lines.push(`${indent(2)}<Type>Global</Type>`);
-  lines.push(`${indent(2)}<HoursPerDay>${calendar.hoursPerDay}</HoursPerDay>`);
-  lines.push(`${indent(2)}<HoursPerWeek>${calendar.hoursPerDay * calendar.workDays.length}</HoursPerWeek>`);
-  lines.push(`${indent(2)}<HoursPerMonth>${calendar.hoursPerDay * 20}</HoursPerMonth>`);
-  writeStandardWorkWeek(lines, indent, calendar, hourTaskCalendarIds.has(calendar.id));
-  writeHolidayOrExceptions(lines, indent, calendar);
-  lines.push(`${indent(1)}</Calendar>`);
-
-  // Bibliotheek-kalenders (fase 2.5/2.8a, §8.1/§8.3) — zelfde element als de projectkalender maar
-  // met Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat de eerste
-  // <Calendar> in het bestand altijd de projectkalender blijft (bestaande reader-aanname).
-  for (const cal of libraryCalendars) {
-    const objId = calObjMap.get(cal.id)!;
+  // Calendar. Bibliotheek-kalenders (fase 2.5/2.8a, §8.1/§8.3) — zelfde element als de
+  // projectkalender maar met Type="Resource" en een eigen ObjectId; komen ná de projectkalender zodat
+  // de eerste <Calendar> in het bestand altijd de projectkalender blijft (bestaande reader-aanname).
+  for (const cal of [calendar, ...libraryCalendars]) {
     lines.push(`${indent(1)}<Calendar>`);
-    lines.push(`${indent(2)}<ObjectId>${objId}</ObjectId>`);
+    lines.push(`${indent(2)}<ObjectId>${calObjMap.get(cal.id)!}</ObjectId>`);
     lines.push(`${indent(2)}<Name>${escapeXml(cal.name)}</Name>`);
-    lines.push(`${indent(2)}<Type>Resource</Type>`);
+    lines.push(`${indent(2)}<Type>${cal === calendar ? 'Global' : 'Resource'}</Type>`);
     lines.push(`${indent(2)}<HoursPerDay>${cal.hoursPerDay}</HoursPerDay>`);
     lines.push(`${indent(2)}<HoursPerWeek>${cal.hoursPerDay * cal.workDays.length}</HoursPerWeek>`);
     lines.push(`${indent(2)}<HoursPerMonth>${cal.hoursPerDay * 20}</HoursPerMonth>`);

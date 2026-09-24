@@ -1,4 +1,5 @@
 import { isRecord } from '@/utils/guards';
+import { GITHUB_REPO } from '@/services/githubRepo';
 
 /**
  * Downloadcijfers per besturingssysteem — de leeskant van de stats-pijplijn.
@@ -20,8 +21,7 @@ import { isRecord } from '@/utils/guards';
  * de tab bij een netwerkfout de laatst bekende stand toont in plaats van niets.
  */
 
-export const DOWNLOAD_STATS_URL =
-  'https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio/stats/downloads.json';
+export const DOWNLOAD_STATS_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/stats/downloads.json`;
 export const DOWNLOAD_STATS_CACHE_MS = 30 * 60 * 1000;
 export const DOWNLOAD_STATS_SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'ops-downloadStats';

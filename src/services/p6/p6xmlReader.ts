@@ -194,21 +194,8 @@ export function readP6XML(content: string): ImportResult {
     if (getElementText(calEl, 'Type') !== 'Resource') continue;
     const objId = getElementInt(calEl, 'ObjectId', -1);
     if (objId < 0) continue;
-    const cal = createDefaultCalendar();
-    // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;
-    // een uit P6 gelezen kalender is dat niet.
-    delete cal.generation;
+    const cal = readP6Calendar(calEl);
     cal.id = generateId('rescal');
-    cal.name = getElementText(calEl, 'Name') || cal.name;
-    const hpd = getElementFloat(calEl, 'HoursPerDay');
-    if (hpd > 0) cal.hoursPerDay = hpd; // authoritatief — StandardWorkWeek-uren overschrijven dit niet
-    const ww = parseP6StandardWorkWeek(calEl);
-    if (ww.workDays.length > 0) cal.workDays = ww.workDays.sort((a, b) => a - b);
-    if (ww.workStartHour !== undefined) cal.workStartHour = ww.workStartHour;
-    if (ww.workEndHour !== undefined) cal.workEndHour = ww.workEndHour;
-    registerP6Bands(cal, ww.rawByWeekday);
-    const holidays = parseP6HolidayOrExceptions(calEl);
-    if (holidays.length > 0) cal.holidays = holidays;
     calObjIdToId.set(objId, cal.id);
     resourceCalendars.push(cal);
   }
@@ -752,11 +739,14 @@ function parseProject(doc: Document): Project {
   return project;
 }
 
+/** De projectkalender is altijd de eerste <Calendar> van het bestand. */
 function parseCalendar(doc: Document): WorkCalendar {
   const calElements = getAllByLocalName(doc, 'Calendar');
-  if (calElements.length === 0) return createDefaultCalendar();
+  return calElements.length === 0 ? createDefaultCalendar() : readP6Calendar(calElements[0]);
+}
 
-  const calEl = calElements[0];
+/** Eén P6-<Calendar> → WorkCalendar (project- of resourcekalender; de id kiest de aanroeper). */
+function readP6Calendar(calEl: Element): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = getElementText(calEl, 'Name') || calendar.name;
   // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;
