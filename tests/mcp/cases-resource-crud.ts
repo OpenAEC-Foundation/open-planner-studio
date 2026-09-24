@@ -25,6 +25,7 @@
 //  15. planner_batch: dezelfde per-item-weigeringen gelden ook via een draaiboek
 //  16. schemapoort (dispatcher): onbekende TOP-LEVEL sleutel ⇒ VALIDATION vóór enige mutatie
 //  17. IFC-round-trip: elk schrijfbaar veld overleeft opslaan + herladen
+//  17b. create krijgt dezelfde automatische paletkleur als de store-actie
 //  18. tooldefinitie-vorm: prefix, description, vier annotaties, batchable + batchStep
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { resourceTools } from '@/services/mcp/tools/resourceTools';
@@ -37,6 +38,7 @@ import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contra
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 
 const store = useAppStore;
 
@@ -500,6 +502,23 @@ test('IFC-round-trip: elk schrijfbaar resourceveld overleeft opslaan + herladen'
   const zand = back.resources!.find((r) => r.name === 'Zand')!;
   assertEq(zand.unitOfMeasure, 'm3', 'unitOfMeasure overleeft');
   assertEq(zand.maxUnits, 100, 'maxUnits van het materiaal overleeft');
+});
+
+// =================================================================================================
+// 17b) kleur-default — dezelfde automatische paletkleur als de store-actie (resourceSlice.addResource)
+// =================================================================================================
+test('create: een via MCP aangemaakte resource krijgt dezelfde paletkleur als via de UI', async () => {
+  reset();
+  // Referentie: de store-actie kent de eerste vrije paletkleur toe.
+  const viaStore = store.getState().addResource({ name: 'UI', type: 'LABOR', description: '', maxUnits: 1 });
+  const storeColor = store.getState().resources.find((r) => r.id === viaStore)!.color;
+  assertEq(storeColor, nextFreePaletteColor([]), 'de store geeft de eerste vrije paletkleur');
+
+  const id = await makeResource({ name: 'MCP', type: 'LABOR' });
+  const color = store.getState().resources.find((r) => r.id === id)!.color;
+  assert(typeof color === 'string', 'de MCP-resource draagt een kleur (vóór de fix: undefined)');
+  assertEq(color, nextFreePaletteColor([{ id: viaStore, color: storeColor }]),
+    'de volgende vrije paletkleur, net als een tweede resource via de UI');
 });
 
 // =================================================================================================

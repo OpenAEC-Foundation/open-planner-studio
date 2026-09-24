@@ -2,12 +2,11 @@ import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurv
 import type { WorkCalendar } from '@/types/calendar';
 import type { TimephasedContourPeriod } from '@/types/task';
 import { generateId } from '@/utils/id';
-import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { clearTimephasedWindow, clearLevelingGaps } from '@/utils/taskDefaults';
 import {
-  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, purgeResource,
-  relocateAssignment, removeAssignment,
+  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
+  purgeResource, relocateAssignment, removeAssignment,
 } from '../assignmentMutations';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
@@ -63,11 +62,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     const id = generateId('res');
     set((s) => {
       runtime.beginUndoable(s);
-      // #21: automatische kleur bij aanmaak (B7) — eerste vrije paletkleur, tenzij de aanroeper
-      // zelf al een kleur meegaf (de resource-editor kan dat). Kleurloze resources vallen in de
-      // weergave terug op de deterministische hash — dit veld is dus puur gemak, geen vereiste.
-      const color = res.color ?? nextFreePaletteColor(s.resources);
-      s.resources.push({ ...res, id, color });
+      insertResource(s, res, id); // #21: met de automatische paletkleur als default.
       runtime.finishMutation(s);
     });
     // A6: pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).

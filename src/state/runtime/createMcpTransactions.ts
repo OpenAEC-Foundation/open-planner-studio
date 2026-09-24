@@ -17,8 +17,8 @@ import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedL
 import type { McpTransactionLease } from './storeRuntime';
 import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
 import {
-  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, purgeResource,
-  relocateAssignment, removeAssignment,
+  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, insertResource,
+  purgeResource, relocateAssignment, removeAssignment,
 } from '../assignmentMutations';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -511,7 +511,8 @@ function createMcpDraft(
   /**
    * Snapshot/recompute-vrije variant van de store-`addResource`. Retourneert het nieuwe id. De
    * eenheden-guard (§2.4) is hier — net als bij `assignResource` — een FOUT i.p.v. een stille
-   * terugval: een resource met 0/negatieve capaciteit is nooit bedoeld.
+   * terugval: een resource met 0/negatieve capaciteit is nooit bedoeld. Dezelfde paletkleur-default
+   * als de store-actie (`insertResource`); vroeger kreeg een via MCP aangemaakte resource geen kleur.
    */
   addResource(res: Omit<Resource, 'id'>): string {
     const id = generateId('res');
@@ -519,7 +520,7 @@ function createMcpDraft(
       if (!isValidUnits(res.maxUnits)) {
         throw new Error(`draft.addResource: ongeldige maxUnits ${String(res.maxUnits)} (strikt positief vereist)`);
       }
-      s.resources.push({ ...res, id });
+      insertResource(s, res, id);
       s.isDirty = true;
     });
     return id;

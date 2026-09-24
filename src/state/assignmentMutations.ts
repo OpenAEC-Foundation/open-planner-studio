@@ -1,4 +1,4 @@
-// Gedeelde muteerlichamen voor toewijzingen (resourceSlice én de MCP-draft).
+// Gedeelde muteerlichamen voor resources en toewijzingen (resourceSlice én de MCP-draft).
 //
 // Deze stonden twee keer uitgeschreven: in de slice-acties (`resourceSlice.ts`) en in hun
 // snapshot-vrije tweelingen (`runtime/createMcpTransactions.ts`). De LICHAMEN waren identiek; wat
@@ -16,6 +16,7 @@
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import { isValidUnits, type Resource, type ResourceAssignment } from '@/types/resource';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
+import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { invalidateForAssignmentChange } from '@/utils/taskDefaults';
 
 /** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. */
@@ -26,6 +27,15 @@ interface AssignmentState {
 }
 
 export type AssignmentPatch = Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>;
+
+/** Voegt een nieuwe resource toe. #21: automatische kleur bij aanmaak (B7) — de eerste vrije
+ *  paletkleur, tenzij de aanroeper zelf al een kleur meegaf (de resource-editor kan dat). Kleurloze
+ *  resources vallen in de weergave terug op de deterministische hash — dit veld is dus puur gemak,
+ *  geen vereiste. */
+export function insertResource(s: AssignmentState, res: Omit<Resource, 'id'>, id: string): void {
+  const color = res.color ?? nextFreePaletteColor(s.resources);
+  s.resources.push({ ...res, id, color });
+}
 
 /** Verwijdert resource `id`, al zijn toewijzingen, de verweesde `task.resourceIds`-verwijzingen en
  *  het ploeg-lidmaatschap van zijn leden (die vallen terug op geen ouder). `crewKey` is het ene
