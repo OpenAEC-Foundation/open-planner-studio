@@ -160,16 +160,6 @@ export function addCalendarMonths(d: Date, months: number): Date {
   return new Date(Date.UTC(y, m, Math.min(d.getUTCDate(), lastDayOfTarget)));
 }
 
-/** Format a date for display (e.g., "2 Mar 2026") using Intl */
-export function formatDisplayDate(d: Date, locale = 'en'): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
-}
-
 /** Difference in calendar days between two ISO date strings */
 export function diffDays(a: string, b: string): number {
   return diffCalendarDays(parseDate(a), parseDate(b));

@@ -4,7 +4,8 @@ import { AlertTriangle, X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog } from '@/components/common/Dialog';
 import { openFileDialog } from '@/services/fileAccess';
-import { formatDisplayDate, parseDate } from '@/utils/dateUtils';
+import { parseDate } from '@/utils/dateUtils';
+import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
 // A9: `parseProgressCsv` is de ENIGE module die van CSV weet; `sheetValues` is bestandsformaat-

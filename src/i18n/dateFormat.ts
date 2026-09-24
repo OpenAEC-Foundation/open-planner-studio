@@ -25,13 +25,3 @@ export function getLocalizedMonths(locale?: string): string[] {
 export function getLocalizedMonthsShort(locale?: string): string[] {
   return monthNames(locale, 'short');
 }
-
-export function formatLocalDate(d: Date, locale?: string): string {
-  const lng = locale || i18n.language || 'nl';
-  return new Intl.DateTimeFormat(lng, {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
-}
