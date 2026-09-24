@@ -546,7 +546,13 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    **Orkestratorbesluiten (§1c):** E6 = verhuizen (regel B: per-taak-herkomst, geen conventie; #101 verplaatste
    de lezing zelf de motor in); E3 = code volgt de spec (werkvelden alleen waar het werk afwijkt, histogram
    byte-identiek aan vandaag) — omkeerbaar als de eigenaar het nieuwe gedrag wil. Fixagent
-   `opus-midden-pr101-baan1-fixes` op dezelfde branch; daarna her-check, dan baan 2. De taaktypes-etappe
+   `opus-midden-pr101-baan1-fixes` — **klaar, kop `5df3bff7`** (E6 verhuisd: datagates terug op 6/1 zonder
+   herpin, `verify:conventions` 0, cycles 0; E3 volgens spec §4.3c/§4.4: alleen `actualWorkMinutes` zonder
+   afwijking, MSPDI-writer `<Work>` uit duur × inzet (bug gevonden), Roads 158 → 35 toewijzingen met ander
+   histogram (echte herschattingen), HarbourPointe 119 → 119; gidsverwijzing als detailtekst 14 locales
+   T4-18b/c; rastercheck 43; planningssuite volledig groen, measure 76/0/0/0, `.mpp` 216/0/0). Her-check loopt
+   (`opus-laag-hercheck-pr101-baan1`); baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
    krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
    herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
