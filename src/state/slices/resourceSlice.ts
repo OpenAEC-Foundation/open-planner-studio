@@ -11,7 +11,7 @@ import {
 } from '@/utils/taskDefaults';
 import {
   captureTriangle, commitTrianglePlan, planWorkEdit, settleAssignmentAdded, settleAssignmentRemoved,
-  captureCalendarChange, settleCalendarChange, settleDurationAftermath, settleUnitsEdit,
+  captureCalendarChange, settleCalendarChange, settleDurationAftermath, settleUnitsEdit, syncAssignmentWorkToContour,
 } from '@/engine/work/workRuleApply';
 import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
 import { captureCalendarLibraryChange, settleCalendarLibraryChange, tasksOnCalendar } from '../calendarTasks';
@@ -301,6 +301,9 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         list.push({ resourceUid: null, resourceId: a.resourceId, periods });
       }
       task.timephasedContours = list.length > 0 ? list : undefined;
+      // Fable-critreview #170, bevinding 3: de bewerkte verdeling IS het werk — een aanwezig werkveld
+      // volgt de contoursom, anders wint het oude getal bij de volgende duurwijziging.
+      syncAssignmentWorkToContour(a, periods);
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();

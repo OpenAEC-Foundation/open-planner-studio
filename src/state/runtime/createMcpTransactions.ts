@@ -32,7 +32,7 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, planWorkEdit, commitTrianglePlan,
-  captureProgressWork, settleProgressWork,
+  captureProgressWork, settleProgressWork, syncAssignmentWorkToContour,
   settleAssignmentAdded, settleAssignmentRemoved, settleCalendarChange, settleDurationAftermath, settleDurationEdit,
   settleRuleChange, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';
@@ -851,6 +851,7 @@ function createMcpDraft(
       else if (idx >= 0) list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
       else list.push({ resourceUid: null, resourceId: a.resourceId, periods });
       task.timephasedContours = list.length > 0 ? list : undefined;
+      syncAssignmentWorkToContour(a, periods); // bevinding 3 — tweeling van resourceSlice.
       s.isDirty = true;
     });
   },

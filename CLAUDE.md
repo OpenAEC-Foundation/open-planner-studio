@@ -276,7 +276,8 @@ splitsen/samenvoegen/grens/inzet), als sleepbare SVG-strook (`ContourPhaseStrip.
 dus buiten de Gantt-renderergrenzen) én als tabel; vorm-als-data, toepassen/loslaten — op het pure
 bewerkmodel `contourEdit.ts` (dagslots ↔ periodes met gat-herinvoeging; de OPSLAGvorm blijft één periode
 per werkdag) en de store-actie `resourceSlice.setAssignmentContour` (undo, `isDirty`, GEEN
-`scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur).
+`scheduleStale`: een contour raakt geen datum en maakt geen split; een 0-inzet-fase blijft binnen de duur;
+een aanwezig werkveld van de toewijzing volgt de contoursom, `syncAssignmentWorkToContour`).
 Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histogram. Regressie:
 `tests/planning/check-contour-engine.ts` en `tests/browser/contour-dialog.spec.ts`; gidsen:
 `public/docs/{nl,en}/gids-msproject-import.md` §"Gecontoureerde toewijzingen" en

@@ -645,6 +645,34 @@ export function settleProgressWork(task: Task, assignments: ResourceAssignment[]
   return changed;
 }
 
+/**
+ * Contourbewerking en opgeslagen werk (Fable-critreview PR #170, bevinding 3; spec §4.3: "staan ze
+ * allebei, dan moet de som van de `remaining`-periodes gelijk zijn aan `remainingWorkMinutes`, idem
+ * actual"). Zet de gebruiker een eigen urenverdeling (`setAssignmentContour`), dan IS die som het
+ * werk: een aanwezig restveld wordt de som van de `remaining`-periodes, een aanwezig verricht-veld de
+ * som van de `actual`-periodes. Zonder die stap bleef het oude veld staan, won het bij de volgende
+ * duurwijziging (`applyDurationEdit` rekende I = W_oud / R) en zette `reconcileContourWork` de
+ * contour stil terug naar het oude werkgetal. Afwezige velden blijven afwezig (zonder veld is de
+ * contoursom al het afgeleide werk — byte-identiek); loslaten (`null`) raakt de velden niet: de
+ * laatst bewerkte som blijft het werk. Geen duurwijziging (een contour raakt geen datum).
+ */
+export function syncAssignmentWorkToContour(
+  assignment: ResourceAssignment,
+  periods: readonly { kind?: string; workMinutes: number }[] | null,
+): boolean {
+  if (periods === null) return false;
+  let changed = false;
+  if (assignment.remainingWorkMinutes !== undefined) {
+    const rest = periods.reduce((acc, p) => acc + (p.kind === 'actual' ? 0 : p.workMinutes), 0);
+    if (Math.abs(rest - assignment.remainingWorkMinutes) > 1e-6) { assignment.remainingWorkMinutes = rest; changed = true; }
+  }
+  if (assignment.actualWorkMinutes !== undefined) {
+    const done = periods.reduce((acc, p) => acc + (p.kind === 'actual' ? p.workMinutes : 0), 0);
+    if (Math.abs(done - assignment.actualWorkMinutes) > 1e-6) { assignment.actualWorkMinutes = done; changed = true; }
+  }
+  return changed;
+}
+
 /** Eén taakraster-/MCP-batchwijziging op de toewijzingen van één taak, als reeks kernstappen. */
 export type AssignmentSettleOp =
   | { kind: 'remove'; assignmentId: string }

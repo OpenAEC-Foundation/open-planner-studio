@@ -1029,6 +1029,54 @@ console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commi
   eq('u9 dialoog verwijdert de 6-u-kalender ⇒ terug op 8 u ⇒ 4 d', [task(t2).calendarId, task(t2).time.scheduleDuration], [undefined, 4]);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houdt het werkveld coherent (spec §4.3) --');
+{
+  // Probe uit de review: FIXED_WORK 4 d, W 1920 vastgelegd; contour 4 × 240 = 960 ⇒ het restveld
+  // moet 960 worden (niet 1920 blijven); daarna duur 4 → 8 ⇒ inzet 960 / 3840 = 0,25 en de contour
+  // blijft 960 (het stale veld zette 'm vroeger via `reconcileContourWork` terug op 1920).
+  const csum = (t: string, kind?: 'actual' | 'remaining') => task(t).timephasedContours![0].periods
+    .filter((p) => kind === undefined || (p.kind === 'actual') === (kind === 'actual'))
+    .reduce((acc, p) => acc + p.workMinutes, 0);
+  const mk = (name: string, rule?: 'FIXED_WORK') => {
+    const t = S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 4) });
+    const r = labor(`r-${name}`);
+    S().assignResource(t, r, 1);
+    S().runCPM();
+    if (rule) S().setTaskWorkRule(t, rule);
+    return { t, r };
+  };
+  reset();
+  const mpd = slot();
+  const a = mk('v-a', 'FIXED_WORK');
+  eq('v0 voorwaarde: W 1920', asgOf(a.t, a.r).remainingWorkMinutes, 4 * mpd);
+  S().setAssignmentContour(asgOf(a.t, a.r).id, workDaySlotsToPeriods([240, 240, 240, 240], undefined, mpd));
+  eq('v1 contour 4 × 240: restveld volgt de contoursom (960)', [csum(a.t), asgOf(a.t, a.r).remainingWorkMinutes], [960, 960]);
+  S().updateTask(a.t, { time: { ...task(a.t).time, scheduleDuration: 8 } });
+  eq('v2 duur 4→8: inzet 0,25, contour blijft 960 (niet teruggezet naar 1920)', [asgOf(a.t, a.r).unitsPerDay, csum(a.t), asgOf(a.t, a.r).remainingWorkMinutes], [0.25, 960, 960]);
+  // Loslaten laat het werkveld staan (de bewerkte som blijft het werk).
+  S().setAssignmentContour(asgOf(a.t, a.r).id, null);
+  eq('v3 contour loslaten: restveld blijft 960', asgOf(a.t, a.r).remainingWorkMinutes, 960);
+  // MCP-tweeling.
+  const b = mk('v-b', 'FIXED_WORK');
+  const rb = runInMcpTransaction(() => { draft.setAssignmentContour(asgOf(b.t, b.r).id, workDaySlotsToPeriods([240, 240, 240, 240], undefined, mpd)); });
+  eq('v4 MCP setAssignmentContour: restveld volgt (960)', [rb.ok, asgOf(b.t, b.r).remainingWorkMinutes], [true, 960]);
+  // Zonder werkveld (standaardregel) komt er géén veld bij — byte-identiek aan vandaag.
+  const c = mk('v-c');
+  S().setAssignmentContour(asgOf(c.t, c.r).id, workDaySlotsToPeriods([240, 240, 240, 240], undefined, mpd));
+  eq('v5 zonder werkveld: geen restveld erbij', [asgOf(c.t, c.r).remainingWorkMinutes, asgOf(c.t, c.r).actualWorkMinutes], [undefined, undefined]);
+  // Staat er een verricht-veld, dan volgt dat de som van de actual-periodes.
+  const d = mk('v-d', 'FIXED_WORK');
+  useAppStore.setState((s) => { s.assignments.find((x) => x.taskId === d.t)!.actualWorkMinutes = 100; });
+  const periods = [
+    ...workDaySlotsToPeriods([mpd], undefined, mpd, 'actual'),
+    ...workDaySlotsToPeriods([0, 300, 300, 300], undefined, mpd).filter((p) => p.afterMinutes >= mpd),
+  ];
+  S().setAssignmentContour(asgOf(d.t, d.r).id, periods);
+  eq('v6 verricht-veld volgt de actual-periodes, restveld de rest', [asgOf(d.t, d.r).actualWorkMinutes, asgOf(d.t, d.r).remainingWorkMinutes], [csum(d.t, 'actual'), csum(d.t, 'remaining')]);
+  eq('v7 …met de verwachte getallen (480 / 900)', [csum(d.t, 'actual'), csum(d.t, 'remaining')], [mpd, 900]);
+}
+
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);
