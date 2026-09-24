@@ -823,6 +823,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # exact de categorieën die Intl.PluralRules opgeeft, en vuurt ze daarna nog echt af.
   I18NCHECK="$DIR/.i18n-plurals.mjs"
   if bundle_check "$DIR/check-i18n-plurals.ts" "$I18NCHECK"; then node "$I18NCHECK" || STATUS=1; fi
+  # Poort `verify-i18n-keys` (in `verify:i18n`): geen cast op een vertaalsleutel. Bewijst dat elke
+  # castvorm op t/tX/i18n.t rood wordt en `as const`, commentaar en andere functies niet.
+  I18NKEYSCHECK="$DIR/.i18n-keys.mjs"
+  if bundle_check "$DIR/check-i18n-keys.ts" "$I18NKEYSCHECK"; then node "$I18NKEYSCHECK" || STATUS=1; fi
 
   # Het "vandaag"-label in de printkopstrook. Lag vóór `drawTimelineHeader` en werd daardoor in de
   # RASTER-preview weggeschilderd, terwijl het in de VECTOR-PDF (waar alle tekst boven alle vormen

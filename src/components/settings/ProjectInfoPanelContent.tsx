@@ -475,7 +475,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                 <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.shiftPreset')}</label>
                 <Select aria-label={tCommon('calendar.worktime.shiftPreset')} value={shiftPreset}
                   onChange={v => setShiftPreset(v as ShiftPresetKey)}
-                  options={WIZARD_PRESETS.map(k => ({ value: k, label: tCommon(SHIFT_PRESET_LABEL[k] as 'calendar.shift.day') }))} />
+                  options={WIZARD_PRESETS.map(k => ({ value: k, label: tCommon(SHIFT_PRESET_LABEL[k]) }))} />
               </div>
             )}
 

@@ -28,6 +28,7 @@ poort te pakken. Zie `.claude/rules/dev-server.md` en `tests/dev-server/` voor h
 | script | npm-script | doet |
 |---|---|---|
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
+| `verify-i18n-keys.mjs` | `verify:i18n` | geen cast (`as 'a.b'`) op een vertaalsleutel in `src/`: zo'n cast zet de typecheck van die sleutel uit (`as const` mag); bewezen door `tests/planning/check-i18n-keys.ts` |
 | `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
 | `verify-cycles.mjs` | `verify:cycles` | circulaire imports binnen `src/`, gemeten op de esbuild-metafile (dus ná type-erasure — `import type` geeft geen valse treffers) |
 | `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |
