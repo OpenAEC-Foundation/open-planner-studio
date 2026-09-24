@@ -13,7 +13,7 @@ eenmalige vertaalgolf, nergens aangeroepen); die zijn verwijderd. De git-histori
 
 Deze vier horen bij elkaar en dragen de multi-worktree-isolatie: elk worktree krijgt een eigen vaste
 poort, en een tweede start in hetzelfde worktree wordt geweigerd in plaats van stilletjes een andere
-poort te pakken. Zie de kop van `CLAUDE.md` en `tests/dev-server/` voor het geheel.
+poort te pakken. Zie `.claude/rules/dev-server.md` en `tests/dev-server/` voor het geheel.
 
 | script | aangeroepen door | doet |
 |---|---|---|
