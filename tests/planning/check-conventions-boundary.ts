@@ -216,5 +216,73 @@ withFixture({ 'src/utils/andere.ts': LEAK, [PIN]: '{}' }, dir => {
   ok('23a een gewone utils-module valt buiten de poort', r.status === 0, `${r.stdout}${r.stderr}`.trim());
 });
 
+// ── Fable-critreview PR #169, bevinding 4: sleutels uit het register, geen namenlijst ─────────────
+// 24–26. Zonder register in de fixture leent de poort de sleutels van deze repository.
+for (const [label, source, needle] of [
+  ['24 onbekende sleutel op schedulingOptions', 'export const f = (o: { schedulingOptions: { p6Bogus?: boolean } }) => o.schedulingOptions.p6Bogus;', "'p6Bogus'"],
+  ['24a onbekende sleutel via een getypte parameter', "import type { EffectiveSchedulingOptions } from '@/types/project';\nexport const f = (so: EffectiveSchedulingOptions | undefined) => (so as unknown as Record<string, boolean>).bogusKey;", "'bogusKey'"],
+  ['24b onbekende sleutel via een alias-variabele', 'export const f = (o: { schedulingOptions?: object }) => { const opts = o.schedulingOptions ?? {}; return (opts as { typo?: boolean }).typo; };', "'typo'"],
+  ['25 sleutel via een variabele', 'export const f = (o: { schedulingOptions: Record<string, boolean> }, k: string) => o.schedulingOptions[k];', 'niet-letterlijke sleutel'],
+  ['25a berekende destructuring', "import type { SchedulingOptions } from '@/types/project';\nexport const f = (so: SchedulingOptions, k: 'lagCalendar') => { const { [k]: v } = so; return v; };", 'berekende destructuring'],
+  ["25b onbekende sleutel via 'in'", "export const f = (o: { schedulingOptions: object }) => 'p6Nope' in o.schedulingOptions;", "'p6Nope'"],
+  ['26 ongepind herkomstveld (kalender)', 'export const f = (cal: { p6NonWorkPenaltyDates?: string[] }) => cal.p6NonWorkPenaltyDates?.length ?? 0;', "herkomstveld 'p6NonWorkPenaltyDates'"],
+  ['26a ongepind herkomstveld via string-index', "export const f = (t: Record<string, unknown>) => t['xerCalendarBlob'];", "herkomstveld 'xerCalendarBlob'"],
+] as const) {
+  withFixture({ [ENGINE]: source, [PIN]: '{}' }, dir => {
+    const r = run(dir);
+    const out = `${r.stdout}${r.stderr}`;
+    ok(`${label} ⇒ rood`, r.status !== 0 && out.includes(needle), out.trim());
+  });
+}
+// 26b. Een door de motor zelf gedeclareerde p6-naam (methode) en een registersleutel zijn geen lek.
+withFixture({
+  [ENGINE]: [
+    "import type { EffectiveSchedulingOptions } from '@/types/project';",
+    'export class S {',
+    '  constructor(private readonly so: EffectiveSchedulingOptions) {}',
+    '  private p6Helper(): boolean { return this.so.p6RelationFinishBoundary && this.so.lagCalendar !== undefined; }',
+    '  run(): boolean { return this.p6Helper(); }',
+    '}',
+  ].join('\n'),
+  [PIN]: '{}',
+}, dir => {
+  const r = run(dir);
+  ok('26b eigen p6-methode + registersleutel ⇒ groen', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+
+// 27. Met een register in de fixture: een registerconventie zonder lezing in de motor is rood.
+const REGISTRY = 'src/engine/scheduler/conventions/registry.ts';
+const TYPES = 'src/types/project.ts';
+const miniRegistry = [
+  'declare function convention(id: string, ...rest: unknown[]): unknown;',
+  "export const CONVENTIONS = [convention('aConv', 'A'), convention('bConv', 'A')];",
+].join('\n');
+const miniTypes = 'export interface SchedulingOptions { aConv?: boolean; bConv?: boolean; optX?: number }';
+withFixture({
+  [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}',
+  [ENGINE]: 'export const f = (o: { schedulingOptions: { aConv?: boolean; optX?: number } }) => o.schedulingOptions.aConv === true && o.schedulingOptions.optX === 1;',
+}, dir => {
+  const r = run(dir);
+  const out = `${r.stdout}${r.stderr}`;
+  ok('27 ongelezen registerconventie ⇒ rood', r.status !== 0 && out.includes("registerconventie 'bConv'"), out.trim());
+  ok('27a de gelezen conventie en de projectoptie zijn geen treffer', !out.includes("'aConv'") && !out.includes("'optX'"), out.trim());
+});
+withFixture({
+  [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}',
+  [ENGINE]: 'export const f = (o: { schedulingOptions: { aConv?: boolean; bConv?: boolean } }) => o.schedulingOptions.aConv === o.schedulingOptions.bConv;',
+}, dir => {
+  const r = run(dir);
+  ok('27b elke registerconventie gelezen ⇒ groen', r.status === 0, `${r.stdout}${r.stderr}`.trim());
+});
+// 27c. Een registersleutel van déze repository die niet in het fixtureregister staat, is onbekend.
+withFixture({
+  [REGISTRY]: miniRegistry, [TYPES]: miniTypes, [PIN]: '{}',
+  [ENGINE]: 'export const f = (o: { schedulingOptions: { aConv?: boolean; bConv?: boolean; p6RelationFinishBoundary?: boolean } }) => o.schedulingOptions.aConv === o.schedulingOptions.bConv && o.schedulingOptions.p6RelationFinishBoundary;',
+}, dir => {
+  const r = run(dir);
+  const out = `${r.stdout}${r.stderr}`;
+  ok('27c de sleutels komen uit het register onder --root', r.status !== 0 && out.includes("'p6RelationFinishBoundary'"), out.trim());
+});
+
 if (diffs.length === 0) console.log(`OK: conventiegrens — ${checks} checks groen`);
 else { console.log(`XX conventiegrens — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }

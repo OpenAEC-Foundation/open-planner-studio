@@ -13,6 +13,20 @@
 //  Gescand: src/engine/** plus de motorhelpers buiten die map (`ENGINE_HELPERS`, nu
 //  src/utils/p6SuspendResume.ts: de solver roept hem aan; verhuizen zou acht importeurs raken, waarvan
 //  vier in de bestandskaart van baan C — bij de integratie opnieuw bekijken).
+//  4. De opties-sleutelgrens (Fable-critreview PR #169, bevinding 4): de sleutels komen uit het register
+//     (`convention('…')` in CONVENTIONS, src/engine/scheduler/conventions/registry.ts) plus de projectopties
+//     (de overige leden van `interface SchedulingOptions` in src/types/project.ts). Elke lezing op een
+//     opties-object — `schedulingOptions`, een variabele/parameter/klasseveld die daaruit komt of het type
+//     SchedulingOptions/EffectiveSchedulingOptions/… draagt — moet een van die sleutels zijn: een onbekende
+//     sleutel, een niet-letterlijke sleutel (`so[k]`) of een berekende destructuring is rood. De map
+//     src/engine/scheduler/conventions/ zelf (het register, dat generiek over de sleutels loopt) is vrij.
+//  5. Elke conventie uit het register wordt ergens in de motor op een opties-object gelezen; een
+//     registerconventie zonder lezing is rood (een knop die niets doet). Alleen als het register onder
+//     --root bestaat; fixtures zonder register lenen de sleutels van deze repository en slaan dit over.
+//  6. Herkomstnamen (`p6…`/`xer…`/`mpp…`/`msp…`/`mpx…` + hoofdletter) als property-lezing in de motor
+//     moeten een registersleutel, projectoptie, datagate of een binnen de motor gedeclareerde naam
+//     (functie, methode, klasseveld, variabele, object-literal-eigenschap — GEEN interface-/type-lid) zijn.
+//     Zo is een nieuw bronveld (bv. `calendar.p6NonWorkPenaltyDates`) geen gratis formaat-if meer.
 //  3. Tijdelijke allowlist (scripts/verify-conventions.allowlist.json, `{ pad: reden }`): een vermeld
 //     bestand onder src/engine/ is vrijgesteld van regel 1-namen (NIET van de import-regel). Elke reden
 //     moet `TIJDELIJK` bevatten en het bestand moet bestaan — een verouderde regel is rood, zodat de
@@ -47,6 +61,15 @@ const DATAGATES = [
   'timephasedStartAnchor', 'timephasedFinishFloor', 'timephasedDurationWalks', 'resume', 'mspTaskType',
   'p6StartAtPredecessorFinishBoundary',
 ];
+/** Typen waarvan een waarde een opties-object is (regel 4). */
+const OPTION_TYPE_NAMES = new Set([
+  'SchedulingOptions', 'EffectiveSchedulingOptions', 'ProjectSchedulingOptions', 'SchedulingConventions',
+  'LegacySchedulingOptions',
+]);
+const OPTION_TYPE_WRAPPERS = new Set(['Pick', 'Partial', 'Required', 'Readonly', 'Omit']);
+/** Herkomstnaam-patroon (regel 6). */
+const SOURCE_NAME = /^(?:p6|xer|mpp|msp|mpx)[A-Z]/;
+const CONVENTIONS_DIR = 'src/engine/scheduler/conventions/';
 /** Motorcode buiten src/engine/ die de solver direct aanroept; wordt meegescand als hij bestaat. */
 const ENGINE_HELPERS = ['src/utils/p6SuspendResume.ts'];
 
@@ -115,12 +138,114 @@ const files = [
   ...sourceFiles(resolve(root, 'src', 'engine')),
   ...ENGINE_HELPERS.map((path) => join(root, path)).filter((path) => existsSync(path)),
 ];
+const parse = (file) => ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true,
+  file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+
+// ── Regel 4/5: de sleutels uit het register en uit `interface SchedulingOptions` ──────────────────
+const registryRel = 'src/engine/scheduler/conventions/registry.ts';
+const typesRel = 'src/types/project.ts';
+const keyRoot = existsSync(join(root, registryRel)) ? root : resolve(here, '..');
+const checkUnused = keyRoot === root;
+const conventionKeys = new Set();
+const optionMembers = new Set();
+{
+  const registry = parse(join(keyRoot, registryRel));
+  const walk = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'CONVENTIONS' && node.initializer) {
+      const collect = (inner) => {
+        if (ts.isCallExpression(inner) && ts.isIdentifier(inner.expression) && inner.expression.text === 'convention'
+            && inner.arguments[0] && ts.isStringLiteralLike(inner.arguments[0])) conventionKeys.add(inner.arguments[0].text);
+        ts.forEachChild(inner, collect);
+      };
+      collect(node.initializer);
+    }
+    ts.forEachChild(node, walk);
+  };
+  walk(registry);
+  if (existsSync(join(keyRoot, typesRel))) {
+    parse(join(keyRoot, typesRel)).forEachChild((node) => {
+      if (ts.isInterfaceDeclaration(node) && node.name.text === 'SchedulingOptions') {
+        for (const member of node.members) if (member.name && ts.isIdentifier(member.name)) optionMembers.add(member.name.text);
+      }
+    });
+  }
+}
+if (conventionKeys.size === 0) violations.push(`${registryRel} — geen enkele convention('…') in CONVENTIONS gevonden`);
+const projectOptionKeys = new Set([...optionMembers].filter((key) => !conventionKeys.has(key)));
+for (const key of conventionKeys) {
+  if (optionMembers.size > 0 && !optionMembers.has(key)) {
+    violations.push(`registerconventie '${key}' ontbreekt in interface SchedulingOptions (${typesRel})`);
+  }
+}
+const OPTION_KEYS = new Set([...conventionKeys, ...projectOptionKeys]);
+const conventionReads = new Map([...conventionKeys].map((key) => [key, 0]));
+
+/** Is dit type(knoop) een opties-type (eventueel `| undefined`, of via Pick/Partial/…)? */
+function isOptionsType(typeNode) {
+  if (!typeNode) return false;
+  if (ts.isParenthesizedTypeNode(typeNode)) return isOptionsType(typeNode.type);
+  if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
+    if (OPTION_TYPE_NAMES.has(typeNode.typeName.text)) return true;
+    if (OPTION_TYPE_WRAPPERS.has(typeNode.typeName.text)) return isOptionsType(typeNode.typeArguments?.[0]);
+    return false;
+  }
+  if (ts.isUnionTypeNode(typeNode) || ts.isIntersectionTypeNode(typeNode)) {
+    const rest = typeNode.types.filter((t) => !(t.kind === ts.SyntaxKind.UndefinedKeyword
+      || (ts.isLiteralTypeNode(t) && t.literal.kind === ts.SyntaxKind.NullKeyword)));
+    return rest.length > 0 && (ts.isUnionTypeNode(typeNode) ? rest.every(isOptionsType) : rest.some(isOptionsType));
+  }
+  return false;
+}
+
+// ── Regel 6: in de motor gedeclareerde namen (geen interface-/type-leden) ─────────────────────────
+const engineDeclared = new Set();
+const parsed = new Map(files.map((file) => [file, parse(file)]));
+for (const sourceFile of parsed.values()) {
+  const walk = (node) => {
+    if ((ts.isMethodDeclaration(node) || ts.isPropertyDeclaration(node) || ts.isGetAccessorDeclaration(node)
+        || ts.isSetAccessorDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isPropertyAssignment(node)
+        || ts.isShorthandPropertyAssignment(node) || ts.isVariableDeclaration(node))
+        && node.name && ts.isIdentifier(node.name)) engineDeclared.add(node.name.text);
+    ts.forEachChild(node, walk);
+  };
+  walk(sourceFile);
+}
+const knownSourceName = (name) => OPTION_KEYS.has(name) || DATAGATES.includes(name) || engineDeclared.has(name);
+
 const allowedHits = [];
 for (const file of files) {
-  const source = readFileSync(file, 'utf8');
-  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true,
-    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const sourceFile = parsed.get(file);
   const exempt = allowed.has(own(file));
+  const optionRules = !own(file).startsWith(CONVENTIONS_DIR);
+  // Pre-pass: welke namen (variabelen, parameters, klassevelden) dragen in dit bestand een opties-object?
+  const aliases = new Set(['schedulingOptions']);
+  const strip = (expr) => {
+    let current = expr;
+    while (ts.isParenthesizedExpression(current) || ts.isNonNullExpression(current)) current = current.expression;
+    return current;
+  };
+  const isOptionsExpr = (expr) => {
+    const e = strip(expr);
+    if (ts.isIdentifier(e)) return aliases.has(e.text);
+    if (ts.isPropertyAccessExpression(e)) return aliases.has(e.name.text);
+    if (ts.isAsExpression(e) || ts.isSatisfiesExpression(e)) return isOptionsType(e.type) || isOptionsExpr(e.expression);
+    if (ts.isBinaryExpression(e) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken]
+      .includes(e.operatorToken.kind)) return isOptionsExpr(e.left);
+    return false;
+  };
+  for (let grew = true; grew;) {
+    grew = false;
+    const walk = (node) => {
+      if ((ts.isVariableDeclaration(node) || ts.isParameter(node) || ts.isPropertyDeclaration(node)
+          || ts.isPropertySignature(node)) && node.name && ts.isIdentifier(node.name) && !aliases.has(node.name.text)
+          && (isOptionsType(node.type) || (node.initializer && isOptionsExpr(node.initializer)))) {
+        aliases.add(node.name.text);
+        grew = true;
+      }
+      ts.forEachChild(node, walk);
+    };
+    walk(sourceFile);
+  }
   const report = (node, message) => violations.push(
     `${own(file)}:${sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1} — ${message}`);
   const reportName = (node, message) => {
@@ -153,6 +278,48 @@ for (const file of files) {
       if (FORBIDDEN_NAMES.has(name)) reportName(node, `'${name}' ${how} in de motor`);
       if (Object.hasOwn(counts, name)) counts[name]++;
     };
+    // Regel 4: een sleutel op een opties-object.
+    const optionKey = (name, how) => {
+      if (!optionRules) return;
+      if (name === null) {
+        report(node, `opties-object gelezen ${how} — niet te controleren; gebruik een letterlijke registersleutel`);
+      } else if (!OPTION_KEYS.has(name)) {
+        report(node, `'${name}' ${how} op een opties-object is geen registerconventie en geen projectoptie`
+          + ' (regel B: een per-profiel-verschil is een conventie in het register)');
+      } else if (conventionReads.has(name)) {
+        conventionReads.set(name, conventionReads.get(name) + 1);
+      }
+    };
+    // Regel 6: een herkomstnaam die de motor niet zelf declareert en die nergens gepind is.
+    const sourceName = (name, how) => {
+      if (SOURCE_NAME.test(name) && !FORBIDDEN_NAMES.has(name) && !knownSourceName(name)) {
+        report(node, `herkomstveld '${name}' ${how} in de motor — geen conventie, projectoptie of gepinde datagate`
+          + ' (maak er een conventie van, of zet hem na bespreking op de datagatelijst)');
+      }
+    };
+    if (ts.isPropertyAccessExpression(node)) {
+      if (isOptionsExpr(node.expression)) optionKey(node.name.text, 'als eigenschap');
+      else sourceName(node.name.text, 'als eigenschap');
+    }
+    if (ts.isElementAccessExpression(node)) {
+      const arg = node.argumentExpression;
+      const name = ts.isStringLiteralLike(arg) ? arg.text : null;
+      if (isOptionsExpr(node.expression)) optionKey(name, name === null ? 'via een niet-letterlijke sleutel' : 'via string-index');
+      else if (name !== null) sourceName(name, 'via string-index');
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.InKeyword
+        && ts.isStringLiteralLike(node.left) && isOptionsExpr(node.right)) {
+      optionKey(node.left.text, "via 'in'");
+    }
+    if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent) && !node.dotDotDotToken) {
+      const holder = node.parent.parent;
+      const fromOptions = (ts.isVariableDeclaration(holder) && holder.initializer && isOptionsExpr(holder.initializer))
+        || ((ts.isVariableDeclaration(holder) || ts.isParameter(holder)) && isOptionsType(holder.type));
+      const key = node.propertyName ?? node.name;
+      const keyName = ts.isIdentifier(key) || ts.isStringLiteralLike(key) ? key.text : null;
+      if (fromOptions) optionKey(keyName, keyName === null ? 'via berekende destructuring' : 'via destructuring');
+      else if (keyName !== null) sourceName(keyName, 'via destructuring');
+    }
     if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
       literalKey(node.argumentExpression.text, 'via string-index');
     }
@@ -169,6 +336,14 @@ for (const file of files) {
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
+}
+
+if (checkUnused) {
+  const unread = [...conventionReads].filter(([, n]) => n === 0).map(([key]) => key);
+  for (const key of unread) {
+    violations.push(`registerconventie '${key}' wordt nergens in de motor op een opties-object gelezen `
+      + '(een profielknop zonder effect — haal hem uit het register of lees hem in de motor)');
+  }
 }
 
 let baseline = null;
@@ -215,7 +390,8 @@ if (writeBaseline) {
 }
 
 if (violations.length === 0) {
-  console.log(`OK — conventiegrens bewaakt in ${files.length} motorbestanden; datagates: `
+  console.log(`OK — conventiegrens bewaakt in ${files.length} motorbestanden; ${conventionKeys.size} conventies + `
+    + `${projectOptionKeys.size} projectopties als enige opties-sleutels${checkUnused ? ', elke conventie gelezen' : ''}; datagates: `
     + DATAGATES.map((gate) => `${gate}=${counts[gate]}`).join(', '));
   if (allowNote) console.log(allowNote);
   if (toRepin.length > 0) console.log(`  te herpinnen (omlaag): ${toRepin.join(', ')} — draai met --write-baseline`);
