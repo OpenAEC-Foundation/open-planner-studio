@@ -1672,15 +1672,21 @@ const rt2 = readIFC(writeIFC(rt1));
   const taskDurationFieldSource = readFileSync(taskDurationFieldPath, 'utf8');
   const milestoneTransitionPath = join(HERE, '..', '..', 'src', 'engine', 'taskMilestoneTransition.ts');
   const milestoneTransitionSource = readFileSync(milestoneTransitionPath, 'utf8');
-  assert(!src.includes('delete time.durationMinutes'),
-    '(10d) TaskDialog.tsx mag geen `delete time.durationMinutes` meer bevatten (zou de merge-sleutel weer laten verdwijnen)');
+  // Het Opslaan van de dialoog staat sinds de taakmutaties-audit (bevindingen 4/10) in
+  // state/taskDialogSave.ts, zodat het headless testbaar is; de dialoog roept het alleen aan.
+  const dialogSavePath = join(HERE, '..', '..', 'src', 'state', 'taskDialogSave.ts');
+  const dialogSaveSource = readFileSync(dialogSavePath, 'utf8');
+  assert(!src.includes('delete time.durationMinutes') && !dialogSaveSource.includes('delete time.durationMinutes'),
+    '(10d) TaskDialog.tsx/taskDialogSave.ts mogen geen `delete time.durationMinutes` meer bevatten (zou de merge-sleutel weer laten verdwijnen)');
+  assert(src.includes('saveTaskDialog('),
+    '(10d) TaskDialog.tsx moet Opslaan aan de gedeelde saveTaskDialog (state/taskDialogSave.ts) delegeren');
   assert(src.includes('<TaskDurationField'),
     '(10d) TaskDialog.tsx moet duurmutaties aan het gedeelde TaskDurationField delegeren');
   const assignCount = (taskDurationFieldSource.match(/time\.durationMinutes = undefined;/g) ?? []).length;
   assert(assignCount === 1,
     `(10d) TaskDurationField.tsx moet de dagmodus precies 1× met \`time.durationMinutes = undefined;\` wissen — kreeg ${assignCount}`);
-  assert(src.includes('taskMilestoneTransition(editingTask, draft.isMilestone)'),
-    '(10d) TaskDialog.tsx moet de gedeelde mijlpaaltransitie gebruiken');
+  assert(dialogSaveSource.includes('taskMilestoneTransition(editingTask, draft.isMilestone)'),
+    '(10d) het dialoog-Opslaan (taskDialogSave.ts) moet de gedeelde mijlpaaltransitie gebruiken');
   assert(/durationMinutes:\s*undefined/.test(milestoneTransitionSource),
     '(10d) de gedeelde mijlpaaltransitie moet durationMinutes met een aanwezige undefined-sleutel wissen');
 

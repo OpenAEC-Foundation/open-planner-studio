@@ -372,6 +372,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # MCP-pad staat in tests/mcp/cases-auto-actual-start.ts.
   AUTOASCHECK="$DIR/.auto-actual-start-check.mjs"
   if bundle_check "$DIR/check-auto-actual-start.ts" "$AUTOASCHECK"; then node "$AUTOASCHECK" || STATUS=1; fi
+
+  # "Taak bewerken" → Opslaan (taakmutaties-audit, bevindingen 4 en 10): dezelfde voortgangsregels
+  # als het paneel (status, werkelijk einde bij 100%, resterende duur) en één undo-stap per Opslaan,
+  # via exact de draft- en opslagfuncties van de dialoog. Browserkant: tests/browser/task-dialog-save.spec.ts.
+  TDSCHECK="$DIR/.task-dialog-save.mjs"
+  if bundle_check "$DIR/check-task-dialog-save.ts" "$TDSCHECK"; then node "$TDSCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 
