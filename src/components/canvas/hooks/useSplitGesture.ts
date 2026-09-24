@@ -12,6 +12,7 @@ import {
 } from '@/engine/scheduler/splitEdit';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { readAccentColor, sizeCanvasToContainer } from './useCanvasLayer';
 
 // Monotone teller, exact als `dragSeq` in `useBarDrag`: élk splitsgebaar krijgt een UNIEKE
 // coalesce-key, zodat de reeks per-mousemove-commits één undo-stap is en twee opeenvolgende
@@ -257,19 +258,13 @@ export function useSplitGesture({
     const overlay = overlayCanvasRef.current;
     const container = containerRef.current;
     if (!overlay || !container) return;
-    const rect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    overlay.width = rect.width * dpr;
-    overlay.height = rect.height * dpr;
-    overlay.style.width = `${rect.width}px`;
-    overlay.style.height = `${rect.height}px`;
-    const ctx = overlay.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    const layer = sizeCanvasToContainer(overlay, container);
+    if (!layer) return;
+    const { ctx } = layer;
+    ctx.clearRect(0, 0, layer.width, layer.height);
     if (!state) return;
 
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
+    const accent = readAccentColor();
     const top = state.top - 4;
     const bottom = state.bottom + 4;
     if (state.dragging && state.currentX > state.anchorX) {

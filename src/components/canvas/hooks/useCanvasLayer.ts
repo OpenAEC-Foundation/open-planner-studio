@@ -5,6 +5,33 @@ export function isTimelineCanvasX(x: number, width: number): boolean {
   return x >= 0 && x < width;
 }
 
+/**
+ * Zet `canvas` op de maat van `container`: dpr-geschaalde pixelmaat, CSS-maat en een context die
+ * in CSS-pixels tekent. `null` als er geen 2D-context is. Gedeeld door de canvaslagen hieronder en
+ * de overlay-tekenaars (relatiesleep, splits-geleidelijn).
+ */
+export function sizeCanvasToContainer(
+  canvas: HTMLCanvasElement,
+  container: HTMLElement,
+): { ctx: CanvasRenderingContext2D; width: number; height: number } | null {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = container.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = `${rect.width}px`;
+  canvas.style.height = `${rect.height}px`;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(dpr, dpr);
+  return { ctx, width: rect.width, height: rect.height };
+}
+
+/** Accentkleur van het actieve thema voor overlaytekeningen (terugval: amber). */
+export function readAccentColor(): string {
+  return getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
+}
+
 // De 3× identieke dpr/resize/render-loop-boilerplate uit GanttCanvas (audit P20/B1): drie
 // canvas-lagen (primaire Gantt, secundair split-pane, histogram) deden elk exact dezelfde
 // dance — dpr-schaling, canvas-pixel/CSS-maat synchroniseren, een teken-callback, plus een
@@ -40,18 +67,8 @@ export function useCanvasLayer({
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = container.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-
-    draw(ctx, rect.width, rect.height);
+    const layer = sizeCanvasToContainer(canvas, container);
+    if (layer) draw(layer.ctx, layer.width, layer.height);
   }, [canvasRef, containerRef, draw, enabled]);
 
   // Render-op-wijziging (was: `useEffect(() => rAF(render), [render])` per laag).

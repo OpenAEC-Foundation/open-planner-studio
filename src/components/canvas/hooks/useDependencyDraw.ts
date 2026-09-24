@@ -1,6 +1,6 @@
 import { RefObject, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
-import { isTimelineCanvasX } from './useCanvasLayer';
+import { isTimelineCanvasX, readAccentColor, sizeCanvasToContainer } from './useCanvasLayer';
 
 export interface DependencyDragState {
   sourceTaskId: string;
@@ -72,18 +72,10 @@ export function useDependencyDraw({
     const container = containerRef.current;
     if (!depCanvas || !container) return;
 
-    const rect = container.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    depCanvas.width = rect.width * dpr;
-    depCanvas.height = rect.height * dpr;
-    depCanvas.style.width = `${rect.width}px`;
-    depCanvas.style.height = `${rect.height}px`;
-
-    const ctx = depCanvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    const layer = sizeCanvasToContainer(depCanvas, container);
+    if (!layer) return;
+    const { ctx } = layer;
+    ctx.clearRect(0, 0, layer.width, layer.height);
 
     if (depDragState) {
       const canvasRect = depCanvas.getBoundingClientRect();
@@ -92,7 +84,7 @@ export function useDependencyDraw({
       const endX = depDragState.currentX - canvasRect.left;
       const endY = depDragState.currentY - canvasRect.top;
 
-      const accent = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
+      const accent = readAccentColor();
       ctx.strokeStyle = accent;
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
