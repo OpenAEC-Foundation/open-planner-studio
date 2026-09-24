@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
 import type { Resource, ResourceType, AvailabilityStep } from '@/types/resource';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { formatDate } from '@/utils/dateUtils';
@@ -13,6 +13,7 @@ import { ResourceOccupancyView } from './ResourceOccupancyView';
 import { resourceDisplayColor, nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { useLiveGridNav } from './hooks/useLiveGridNav';
 import { controlKindOf, liveGridNavDirection } from '@/utils/gridNavigation';
+import { StatusBanner } from './StatusBanner';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -557,22 +558,10 @@ export function ResourcePanel() {
         <div className="flex-1 overflow-auto" ref={grid.gridRef}>
           {/* Waarschuwingsbanner (issue #64c): dit was platte cursieve tekst, maar "bewerkt de
               bibliotheek, geldt voor alle projecten, valt buiten undo" is precies het soort
-              waarschuwing dat je niet mag kunnen missen — dus een contrasterend vlak + icoon.
-              Kleuren via de semantische --warning-token + per-thema --theme-warning-text, zodat de
-              banner in alle drie de thema's leesbaar blijft. */}
-          <div
-            className="flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium"
-            style={{
-              background: 'color-mix(in srgb, var(--warning) 14%, transparent)',
-              borderColor: 'var(--warning)',
-              color: 'var(--theme-warning-text)',
-            }}
-            role="alert"
-            data-ops-company-view-hint
-          >
-            <AlertTriangle size={14} className="shrink-0" aria-hidden />
-            <span>{t('companyLibrary.companyViewHint')}</span>
-          </div>
+              waarschuwing dat je niet mag kunnen missen — dus een contrasterend vlak + icoon. */}
+          <StatusBanner tone="warning" bannerProps={{ 'data-ops-company-view-hint': true }}>
+            {t('companyLibrary.companyViewHint')}
+          </StatusBanner>
           {poolNotice && (
             <p className="flex items-center gap-1.5 px-2" style={{ color: 'var(--success)' }} data-ops-pool-assign-notice>
               <Check size={13} /> {poolNotice}
