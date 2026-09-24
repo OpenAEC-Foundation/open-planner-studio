@@ -18,7 +18,7 @@ import {
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { applyWbsNumbering, flattenOrder } from '@/utils/wbs';
+import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
   applyCompletionEdit,
   applyProgressInvariants,
@@ -757,17 +757,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `outdentTasks` lossen ditzelfde probleem op met een diepste-eerst-sortering; hier is
       // wegfilteren juist, want de groep landt op één doelpositie.
       const geselecteerd = new Set(ids.filter(id => s.tasks.some(t => t.id === id)));
-      /** Loopt de ouderketen van `id` omhoog en meldt of daar een mede-geselecteerde taak in zit.
-       *  Visited-set tegen corrupte parentId-cycli uit een kapot IFC (zoals in planTaskPlacement). */
+      // `ancestorIds` is cyclusveilig tegen corrupte parentId-cycli uit een kapot IFC.
+      const parentOf = (id: string) => s.tasks.find(t => t.id === id)?.parentId;
+      /** Zit er in de ouderketen van `id` een mede-geselecteerde taak? */
       const heeftGeselecteerdeVoorouder = (id: string): boolean => {
-        const bezocht = new Set<string>([id]);
-        let cur = s.tasks.find(t => t.id === id);
-        cur = cur?.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        while (cur && !bezocht.has(cur.id)) {
-          if (geselecteerd.has(cur.id)) return true;
-          bezocht.add(cur.id);
-          cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        }
+        for (const voorouder of ancestorIds(id, parentOf)) if (geselecteerd.has(voorouder)) return true;
         return false;
       };
       const teVerplaatsen = [...geselecteerd].filter(id => !heeftGeselecteerdeVoorouder(id));
@@ -785,13 +779,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // doet daarom HELEMAAL niets: geen snapshot, geen mutatie.
       if (target.parentId !== null) {
         const groep = new Set(gesorteerd);
-        const bezocht = new Set<string>();
-        let cur = s.tasks.find(t => t.id === target.parentId);
-        while (cur && !bezocht.has(cur.id)) {
-          if (groep.has(cur.id)) return;
-          bezocht.add(cur.id);
-          cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        }
+        if (groep.has(target.parentId)) return;
+        for (const voorouder of ancestorIds(target.parentId, parentOf)) if (groep.has(voorouder)) return;
       }
 
       // ---- 4. Eén voor één plaatsen, elk direct ná zijn voorganger -----------------------------
