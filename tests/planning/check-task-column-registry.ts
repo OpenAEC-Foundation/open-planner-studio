@@ -256,6 +256,18 @@ const newYearEngine = new CalendarEngine({
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
   holidays: [{ name: 'Nieuwjaar', startDate: '2026-01-01', endDate: '2026-01-01' }],
 });
+// Datumcellen valideren strikt en onafhankelijk van de JS-engine: `Date.parse` accepteerde in V8
+// ook een niet-bestaande dag (2026-02-31 rolde door naar 3 maart) en T24:00, WebKit weigerde die.
+const deadlineColumn = registry.find(column => column.id === 'task.deadline')!;
+const dateCellCases: readonly (readonly [string, boolean])[] = [
+  ['2026-02-28', true], ['2024-02-29', true], ['2026-01-01T23:59', true],
+  ['2026-01-01T10:00:00.123Z', true], ['2026-01-01T10:00+0100', true], ['2026-01-01T10:00+14:00', true],
+  ['2026-02-31', false], ['2025-02-29', false], ['2026-04-31', false], ['2026-13-01', false],
+  ['2026-01-01T24:00', false], ['2026-01-01T10:00+15:00', false], ['2026-01-01T10:00:00.1234', false],
+];
+for (const [text, valid] of dateCellCases) {
+  eq(`datumcel ${text} is ${valid ? 'geldig' : 'ongeldig'}`, deadlineColumn.parse!(text, task, ctx).ok, valid);
+}
 eq('baselineafwijking met de echte kalenderroute slaat de feestdag over',
   baselineVariance.read(task, {
     ...ctx, signedWorkDaysBetween: (from, to) => signedWorkDaysBetween(newYearEngine, from, to),

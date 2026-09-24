@@ -42,6 +42,7 @@ import {
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import { shownStart, shownFinish } from '@/utils/taskDates';
+import { isStrictIsoDateTime } from '@/utils/dateUtils';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -233,9 +234,9 @@ function enumValidator(values: readonly string[], optional = false): Validator {
   };
 }
 
+/** Strikt en engine-onafhankelijk: `Date.parse` accepteerde in V8 ook 2026-02-31 en T24:00. */
 function isValidIso(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(value)) return false;
-  return Number.isFinite(Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value));
+  return isStrictIsoDateTime(value, { maxFractionDigits: 3, offsetColonOptional: true });
 }
 
 const parseDate: Parser = text => {
