@@ -344,7 +344,7 @@ volgens het recept, alleen landen als geen cel slechter wordt.
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
 | baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
-| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `673aa51c`; banen 1–2 gedaan, critreviews verwerkt; open E1/E2/E4/E5/E7 |
+| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `6e448f63`, **verify groen**; banen 1–2 gedaan, critreviews verwerkt; Fable-review loopt; open E1/E2/E4/E5/E7 |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
@@ -592,7 +592,8 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    = eigenaar); gelinkt aan de thread. Keten op `673aa51c`: MEASURE_EXIT=0, verify EXIT=1 op één browsertest
    (`settings-tabs.spec.ts:76`: #101's instelling "Toon taaktypes" had een eigen sectiekop op Planning ⇒ 5 i.p.v.
    4 koppen) ⇒ gefixt `6e448f63` (instelling als gewone regel onder Urenplanning, sleutel
-   `settings.taskTypesSection` weg uit 14 locales; specs 4/4). Keten opnieuw gestart 18:43 op `6e448f63`.
+   `settings.taskTypesSection` weg uit 14 locales; specs 4/4). **Keten op `6e448f63`: MEASURE_EXIT=0 (76/0/0/0),
+   verify EXIT=0 (18:59)** — PR-body #170 bijgewerkt; Fable-critreview op #170 gestart (`fable-critreview-pr170`).
    Eigenaar bevestigd 24-09 ~18:50: #170 bevat elke commit van #101 (merge-base-check); #101 sluiten =
    eigenaar, branch blijft als naslag. baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
    gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
