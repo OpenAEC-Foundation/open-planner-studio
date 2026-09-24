@@ -40,26 +40,23 @@ import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import type { GeneratorCountry, HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@/types/calendar';
-import type { ResourceCurve } from '@/types/resource';
+import { isResourceCurve, RESOURCE_CURVES, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 
 /**
- * Toegestane verdeelcurves + de bijbehorende typewachter — exact het `isSeqType`-patroon uit T19
+ * Curve-toets (`isResourceCurve`, `types/resource.ts`) — exact het `isSeqType`-patroon uit T19
  * (`taskTools.ts`). DIT IS EEN VEILIGHEIDSGUARD, GEEN COMFORT: de dispatcher valideert `inputSchema`
  * NIET, dus de tool-laag is de enige verdediging. Een onbekende curve (een LLM die `"bell"` i.p.v.
  * `"BELL"` schrijft) belandt anders ongefilterd in de store, waarna `ResourceLoad.CURVE_POINTS[curve]`
  * `undefined` oplevert en klapt in `recomputeResourceLoad()` — en dát draait in
  * `runInMcpTransaction` BUITEN de try/catch (stap 5), dus voorbij het rollback-pad: uncaught
  * TypeError, géén McpToolResult, corrupte waarde gecommit én een undo-stap erbij. Vandaar: filteren
- * vóór de mutatie, als ZACHTE per-item-weigering.
+ * vóór de mutatie, als ZACHTE per-item-weigering — met een leesbare reden die de geldige waarden
+ * noemt (de AI kan zich direct corrigeren).
  */
-const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
-const isCurve = (v: unknown): v is ResourceCurve =>
-  typeof v === 'string' && (RESOURCE_CURVES as string[]).includes(v);
-/** Leesbare weigeringsreden die de geldige waarden noemt (de AI kan zich direct corrigeren). */
 const curveReason = (v: unknown): string =>
   `onbekende curve '${String(v)}'; geldige waarden zijn ${RESOURCE_CURVES.join(', ')} (hoofdlettergevoelig)`;
 
@@ -1038,7 +1035,7 @@ function classifyAssignments(
           rejections.push({ id: label, reason: `resource '${act.resourceId}' bestaat niet` });
           return;
         }
-        if (act.curve !== undefined && !isCurve(act.curve)) {
+        if (act.curve !== undefined && !isResourceCurve(act.curve)) {
           rejections.push({ id: label, reason: curveReason(act.curve) });
           return;
         }
@@ -1068,7 +1065,7 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: `ongeldige unitsPerDay ${String(act.unitsPerDay)} (eenheden/dag, strikt positief vereist)` });
           return;
         }
-        if (hasCurve && !isCurve(act.curve)) {
+        if (hasCurve && !isResourceCurve(act.curve)) {
           rejections.push({ id: act.assignmentId, reason: curveReason(act.curve) });
           return;
         }
@@ -1200,7 +1197,7 @@ const manageAssignments: BatchStepTool = {
             unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Eenheden per WERKDAG (1 = 100% = één persoon/stuk; 0,5 = halve dag).' },
             curve: {
               type: 'string',
-              enum: ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'],
+              enum: [...RESOURCE_CURVES],
               description: 'Verdeelcurve over de duur (de acht MS Project-/P6-vormen); weglaten = UNIFORM.',
             },
           },
