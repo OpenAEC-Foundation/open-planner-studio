@@ -624,6 +624,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MDCHECK="$DIR/.milestone-duration-render.mjs"
   if bundle_check "$DIR/check-milestone-duration-render.ts" "$MDCHECK"; then node "$MDCHECK" || STATUS=1; fi
 
+  # Voortgangslijn: de dagvergelijking tegen de statusdatum rekent op de UTC-as. Met lokale getters
+  # stulpte een uurtaak die pas op de statusdag start uit in zones vóór UTC — de tijdzone-matrix
+  # onderaan dit script (Pacific/Auckland) bewaakt dat.
+  GPLCHECK="$DIR/.gantt-progress-line.mjs"
+  if bundle_check "$DIR/check-gantt-progress-line.ts" "$GPLCHECK"; then node "$GPLCHECK" || STATUS=1; fi
+
   # U2: rasterdichtheid per zoom. De dagraster-lus tekende op elk zoomniveau een lijn per kalender-
   # dag; op jaarzoom werd het canvas daardoor een streeppatroon. Telt met de echte renderer de
   # verticale rasterlijnen bij dag-/week-/maandzoom (dagzoom moet ONGEWIJZIGD blijven).

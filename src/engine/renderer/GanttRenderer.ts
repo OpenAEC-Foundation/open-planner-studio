@@ -2,7 +2,7 @@ import { Task } from '@/types/task';
 import type { BaselineOverlay } from '@/types/baseline';
 import { Sequence } from '@/types/sequence';
 import type { ViewState, BarSplitMode, DurationDisplay } from '@/types/view';
-import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor } from '@/utils/dateUtils';
+import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart } from '@/utils/dateUtils';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
@@ -794,8 +794,9 @@ export class GanttRenderer {
         const c = Math.max(0, Math.min(1, task.time.completion || 0));
         // Dagniveau-vergelijking t.o.v. de statusdatum (ook voor uur-taken: alleen de
         // kalenderdag telt hier mee, niet het uur) — zo blijft "op de statusdatum" stabiel.
-        const finishDay = new Date(geo.end.getFullYear(), geo.end.getMonth(), geo.end.getDate());
-        const startDay = new Date(geo.start.getFullYear(), geo.start.getMonth(), geo.start.getDate());
+        // Op de UTC-as, net als `statusDay`: lokale getters maakten dit tijdzone-afhankelijk.
+        const finishDay = utcDayStart(geo.end);
+        const startDay = utcDayStart(geo.start);
         const fullyDoneByStatus = c >= 1 && finishDay <= statusDay;
         const notYetStarted = c === 0 && startDay >= statusDay;
         if (!fullyDoneByStatus && !notYetStarted) {
