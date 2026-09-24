@@ -164,9 +164,9 @@
       "source": "crawl-xer (publieke crawl)",
       "role": "oracle",
       "included": true,
-      "decision": "2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen",
+      "decision": "2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)",
       "excludeTasks": [
-        { "projId": "4408", "taskCode": "EC1420", "reason": "krijgt zijn datums uit de uitgesloten, verouderde voorganger EC1430; onder C14 anders 2 cellen groter (§1d-13)" },
+        { "projId": "4408", "taskCode": "EC1420", "reason": "krijgt zijn datums uit de uitgesloten, verouderde voorganger EC1430; onder C14 anders 2 cellen groter (§1d-13)", "decision": "2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430" },
         { "projId": "4408", "taskCode": "EC1430", "reason": "P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)" },
         { "projId": "4408", "taskCode": "EC1590", "reason": "P6-span 696 u < opgeslagen restduur 720 u (§1d-8)" },
         { "projId": "4408", "taskCode": "EC1680", "reason": "P6-span 840 u < opgeslagen restduur 864 u (§1d-8)" },

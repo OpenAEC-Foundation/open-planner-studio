@@ -14,7 +14,13 @@
  *   "decision": "2026-09-23 eigenaarsbesluit: …",
  *   "excludeProjects": [{ "projId": "2665", "reason": "…" }],
  *   "excludeTasks": [{ "projId": "9032", "taskId": "12345", "reason": "…" },
- *                    { "projId": "9032", "taskCode": "OZ1040", "reason": "…" }]
+ *                    { "projId": "9032", "taskCode": "OZ1040", "reason": "…",
+ *                      "decision": "2026-09-24 eigenaarsbesluit: …" }]
+ *
+ * Een regel mag een eigen `decision` (zelfde vorm) dragen wanneer ze uit een LATER besluit komt dan de
+ * entry (critreview C14-landing 2026-09-24, datumherkomst): de entry-`decision` noemt dan het vroegste
+ * besluit (en de latere in de tekst, chronologisch), de regel haar eigen besluitdatum. Een regel-`decision`
+ * vóór de entrydatum is een fout. Zo draagt elke uitsluiting — en haar HERPIN-regel — haar eigen datum.
  *
  * Semantiek: de solve draait ongewijzigd over het hele bestand (de uitgesloten taken blijven invoer
  * voor hun opvolgers); alleen de METING laat ze weg — de zes assen, de cellen, drivingPath, de
@@ -83,8 +89,20 @@ export function decisionProblem(decision: unknown, today: string = todayUtc()): 
   return undefined;
 }
 
-const PROJECT_KEYS = new Set(['projId', 'reason']);
-const TASK_KEYS = new Set(['projId', 'taskId', 'taskCode', 'reason']);
+const PROJECT_KEYS = new Set(['projId', 'reason', 'decision']);
+const TASK_KEYS = new Set(['projId', 'taskId', 'taskCode', 'reason', 'decision']);
+
+/** De `decision` van één regel: de eigen (later besluit) of die van de entry; `problem` bij een ongeldige. */
+function ruleDecision(at: string, item: Record<string, unknown>, entryDecision: string, today: string): { decision: string; problem?: string } {
+  if (!Object.prototype.hasOwnProperty.call(item, 'decision')) return { decision: entryDecision };
+  const own = item.decision;
+  const bad = decisionProblem(own, today);
+  if (bad !== undefined || typeof own !== 'string') return { decision: entryDecision, problem: `${at}: ${bad ?? 'decision geen tekst'}` };
+  if (own.slice(0, 10) < entryDecision.slice(0, 10)) {
+    return { decision: entryDecision, problem: `${at}: decision-datum ${own.slice(0, 10)} ligt vóór die van de entry (${entryDecision.slice(0, 10)}) — de entry noemt het vroegste besluit` };
+  }
+  return { decision: own };
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -155,11 +173,12 @@ function entryRecords(label: string, entry: XerExclusionManifestLike['files'][st
     if (!isObject(item)) { problems.push(`${at} is geen object`); continue; }
     const extra = Object.keys(item).filter(key => !PROJECT_KEYS.has(key));
     if (extra.length > 0) problems.push(`${at}: onbekende sleutel(s) ${extra.join(', ')}`);
-    const itemProblems = [identityProblem(at, 'projId', item.projId), reasonProblem(at, item.reason)]
+    const own = ruleDecision(at, item, decision, today);
+    const itemProblems = [identityProblem(at, 'projId', item.projId), reasonProblem(at, item.reason), own.problem]
       .filter((problem): problem is string => problem !== undefined);
     problems.push(...itemProblems);
     if (extra.length === 0 && itemProblems.length === 0 && nonEmpty(item.projId) && nonEmpty(item.reason)) {
-      records.push({ sha256: entry.sha256, kind: 'project', projId: item.projId, reason: item.reason, decision });
+      records.push({ sha256: entry.sha256, kind: 'project', projId: item.projId, reason: item.reason, decision: own.decision });
     }
   }
   for (const [index, item] of (tasks as unknown[]).entries()) {
@@ -167,7 +186,8 @@ function entryRecords(label: string, entry: XerExclusionManifestLike['files'][st
     if (!isObject(item)) { problems.push(`${at} is geen object`); continue; }
     const extra = Object.keys(item).filter(key => !TASK_KEYS.has(key));
     if (extra.length > 0) problems.push(`${at}: onbekende sleutel(s) ${extra.join(', ')}`);
-    const itemProblems = [identityProblem(at, 'projId', item.projId), reasonProblem(at, item.reason)]
+    const own = ruleDecision(at, item, decision, today);
+    const itemProblems = [identityProblem(at, 'projId', item.projId), reasonProblem(at, item.reason), own.problem]
       .filter((problem): problem is string => problem !== undefined);
     problems.push(...itemProblems);
     const hasId = Object.prototype.hasOwnProperty.call(item, 'taskId');
@@ -179,7 +199,7 @@ function entryRecords(label: string, entry: XerExclusionManifestLike['files'][st
       records.push({
         sha256: entry.sha256, kind: 'task', projId: item.projId,
         ...(hasId ? { taskId: item.taskId as string } : { taskCode: item.taskCode as string }),
-        reason: item.reason, decision,
+        reason: item.reason, decision: own.decision,
       });
     }
   }

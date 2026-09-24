@@ -91,7 +91,11 @@ const EXPECTED = {
   // vraag 8) en de policyzin. Rollen, `included`, byte-/schemaselectie ongewijzigd; alleen het selectiecontract
   // en de X1-doelbaseline (5.879 → 5.878 meetbaar, tf/ff 5.690 → 5.689) bewegen; tasksWithAnyMeasuredAxis
   // 5.879 → 5.878, tasks 5.882 → 5.881.
-  manifestRawSha256: '88266338640d6c20f09c20f1c740c5b3d20febb526d292eb0f0fbd62caea223b',
+  // Manifestpin 2026-09-24 datumherkomst (critreview C14-landing, bevinding 4, handmatige reviewstap):
+  // HarbourPointe-`decision` weer 2026-09-23 (vraag 8 "ja", daarna vraag 13 "Vraag 13, ja uitsluiten"), EC1420
+  // met een eigen regel-`decision` 2026-09-24. Identiteitsset, rollen, selectie en tellingen ongewijzigd; alleen
+  // de manifestbytes (en daarmee de v2-payloadhashes hieronder, via OPS_XER_GATE_PINS=corpus) bewegen.
+  manifestRawSha256: '97b33bd7207a64c75972d6be00ef313a63964b96ee57352919f584fada2eaac7',
   baselineRawSha256: 'e383370309457d292620ce75febc70b5e97336a890c0790fd88907936d7349f4',
   manifestProjectionSha256: 'aaa6d53e1cc8c63d34fade5071dddce295a1e0a92111d71d80d0c5e912023c2a',
   byteMultisetSha256: 'b48a8facd1f056a6b0f8219afb4aea46a01fda7be4df060af7cdc429bbf2fb19',
@@ -116,6 +120,10 @@ const EXPECTED = {
   // OPS_XER_V2_WRITE=corpus + OPS_XER_CELLS_WRITE=corpus in één run, daarna OPS_XER_GATE_PINS=corpus (de
   // manifestpinnen hierboven volgden pas daarna met de hand). X12 104 → 76 zesassig, drivingPath 145
   // ongewijzigd; excludedHidden HarbourPointe 33 → 34 (gewijzigde identiteitsset, EC1420 zelf).
+  // HERPIN 2026-09-24 datumherkomst (critreview C14-landing, bevinding 4): alleen de `decision`-teksten in het
+  // manifest; OPS_XER_V2_WRITE=corpus + OPS_XER_CELLS_WRITE=corpus (CELLDELTA p6 nieuw=0 verslechterd=0 groter=0
+  // verbeterd=0 kleiner=0 schuld=0 totaal=221 uitgesloten=0), daarna OPS_XER_GATE_PINS=corpus: tellingen gelijk,
+  // alleen productPayloadSha256/productPayloadGzipSha256 (de payload draagt de manifesthash) bewegen.
   // HERPIN 2026-09-23t (integratieronde 2 — merge van claude/x12-brok9-c2-breed op brok 8 + tolerantie +
   // manifestfix; herpinrecept met de schrijfmodi; CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=3 kleiner=0
   // schuld=0): X12 178 → 175 (ff 18 → 15), dezelfde drie Hotel-cellen 2666/143800, 2666/144004, 2666/144440.
@@ -281,8 +289,8 @@ const EXPECTED = {
     deviations: { es: 7, ef: 7, ls: 16, lf: 16, tf: 21, ff: 9 },
     drivingPath: { exact: 5_736, sameday: 0, diff: 145, missing: 0, measurable: 5_881, deviations: 145 },
   },
-  productPayloadSha256: '86f1ef9bf02f61fca1fe163c9992cb460e80f738d616ffda913898dd87dd4e8d',
-  productPayloadGzipSha256: '3ce067eedd8a79d8cfd077b6a7810e1a7e37d0930b6081862f909c11de49ea4e',
+  productPayloadSha256: 'cc15957a50940c682f30b64c137a55bff793d78eddfcf8abe05aa01b36a92db1',
+  productPayloadGzipSha256: '215b2163a75c56c41ba73c95cde161ce64fe99e6dfd64102ab9a0f1d23e092e1',
   productProjectProjectionSha256: '83cafdc1ef46b4656517dada530b5df83120a8b2d68c56116ebf480967a4ecfd',
   roles: {
     oracle: 9,

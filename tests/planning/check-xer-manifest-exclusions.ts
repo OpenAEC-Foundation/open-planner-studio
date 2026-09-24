@@ -18,9 +18,9 @@
  *     identiteitsfouten; een filter dat de projectgrens negeert raakt een taak in een ander project.
  */
 import {
-  buildCellBaseline, cellDeltaLine, cellGateRedLines, cellOracleRedLines, compareCells, excludedHiddenRedLines, parseCellBaseline,
+  buildCellBaseline, cellDeltaLine, cellGateRedLines, cellOracleRedLines, compareCells, excludedHiddenRedLines, hiddenCountsOn, cellRefCounts, parseCellBaseline,
   planCellRepin, serializeCellBaseline,
-  type CellExclusions, type MeasuredCell,
+  type CellExclusions, type HiddenCounts, type MeasuredCell,
 } from './fidelityCells';
 import { buildXerTargetBaseline, type XerCorpusManifest, type XerSolvedProject } from './xerFidelity';
 import { scanXerGroundTruth, XER_FIDELITY_AXES } from './xerGroundTruth';
@@ -125,6 +125,15 @@ const VALID = {
   refused('onbekende sleutel', { decision: DECISION, excludeProjects: [{ projId: 'P2', reason: 'fixture-reden-x', proj: 'P2' }] });
   refused('dubbele uitsluiting', { decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-x' }, { projId: 'P1', taskId: '2', reason: 'fixture-reden-y' }] });
   refused('taak onder een al uitgesloten project', { decision: DECISION, excludeProjects: [{ projId: 'P1', reason: 'fixture-reden-x' }], excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-y' }] });
+  // Regel-decision (critreview C14-landing 24-09, datumherkomst): een latere uitsluiting draagt haar eigen
+  // besluitdatum; de HERPIN-regel volgt die.
+  const ruled = readManifestExclusions(manifestWith({ ...VALID, excludeTasks: [{ ...VALID.excludeTasks[0], decision: '2026-09-24 eigenaarsbesluit: later' }] }), '2026-09-24');
+  eq('1i regel-decision: eigen datum per regel, entry-decision voor de rest',
+    [ruled.problems, ruled.records.map(record => record.decision.slice(0, 10)).sort()], [[], ['2026-09-23', '2026-09-24']]);
+  eq('1j HERPIN-regel draagt de datum van de regel',
+    ruled.records.map(record => exclusionHerpinLine(record, LABEL).slice(0, 17)).sort(), ['HERPIN 2026-09-23', 'HERPIN 2026-09-24']);
+  refused('regel-decision vóór de entrydatum', { ...VALID, excludeTasks: [{ ...VALID.excludeTasks[0], decision: '2026-09-22 eigenaarsbesluit: eerder' }] });
+  refused('regel-decision in een ongeldige vorm', { ...VALID, excludeProjects: [{ ...VALID.excludeProjects[0], decision: '2026-09-24 akkoord' }] });
   const twin = manifestWith(VALID);
   twin.files['mini/twin.xer'] = { sha256: SHA, source: 'fixture', role: 'oracle', included: true };
   eq('1 weigert byte-identieke orakellabels met verschillende uitsluitingen', readManifestExclusions(twin).problems.length > 0, true);
@@ -264,7 +273,62 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('5m gestegen (zelfde uitsluiting) ⇒ hard', kinds(excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 5, drivingPath: 2 } }, new Set()).lines), ['hard']);
   eq('5n drivingPath gestegen ⇒ hard', kinds(excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 1, drivingPath: 3 } }, new Set()).lines), ['hard']);
   eq('5o gedaald ⇒ geen rood, te herpinnen', [excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 3, drivingPath: 2 } }, new Set()).lines, excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 3, drivingPath: 2 } }, new Set()).lower.length], [[], 1]);
-  eq('5p gestegen door een gewijzigde uitsluitings-identiteit ⇒ fileset', kinds(excludedHiddenRedLines(pin, { [SHA]: { sixAxis: 9, drivingPath: 9 } }, new Set([SHA])).lines), ['fileset']);
+  // Bij een gewijzigde identiteit moet de uitsluitingsdelta de verschuiving VOLLEDIG verklaren (critreview
+  // C14-landing + Fable-critreview PR #169 bevinding 1, 2026-09-24); elk surplus is hard.
+  const split = (existing: HiddenCounts, newlyExcluded: HiddenCounts, excludedCells: HiddenCounts, reincludedCells: HiddenCounts = { sixAxis: 0, drivingPath: 0 }) => ({
+    existing: { [SHA]: existing }, newlyExcluded: { [SHA]: newlyExcluded }, excludedCells: { [SHA]: excludedCells }, reincludedCells: { [SHA]: reincludedCells },
+  });
+  const c = (sixAxis: number, drivingPath: number): HiddenCounts => ({ sixAxis, drivingPath });
+  const changed = new Set([SHA]);
+  eq('5p gestegen door een gewijzigde uitsluiting zonder verklarende cellen ⇒ hard',
+    kinds(excludedHiddenRedLines(pin, { [SHA]: c(9, 9) }, changed, split(c(4, 2), c(5, 7), c(0, 0))).lines), ['hard']);
+  // Vorm van HarbourPointe (C14-landing): pin 33 = de acht taken van vraag 8, EC1420 (vraag 13) erbij met
+  // 1 gepinde cel ⇒ 34, verklaard.
+  const hpPin = { [SHA]: c(33, 0) };
+  eq('5p2 nieuwe uitsluiting, verschuiving = weggevallen cellen ⇒ fileset (herpin mag)',
+    kinds(excludedHiddenRedLines(hpPin, { [SHA]: c(34, 0) }, changed, split(c(33, 0), c(1, 0), c(1, 0))).lines), ['fileset']);
+  eq('5p3 nieuwe uitsluiting, maar bestaand verborgen 33 → 34 ⇒ hard (regressie op een al uitgesloten cel)',
+    kinds(excludedHiddenRedLines(hpPin, { [SHA]: c(35, 0) }, changed, split(c(34, 0), c(1, 0), c(1, 0))).lines), ['hard']);
+  eq('5p3b bestaand verborgen 33 → 34, gemaskeerd door een verbetering op de nieuw uitgesloten taak ⇒ hard',
+    kinds(excludedHiddenRedLines(hpPin, { [SHA]: c(34, 0) }, changed, split(c(34, 0), c(0, 0), c(1, 0))).lines), ['hard']);
+  eq('5p4 verbetering elders strept een regressie op de nieuw uitgesloten taak niet weg ⇒ hard',
+    kinds(excludedHiddenRedLines(hpPin, { [SHA]: c(34, 0) }, changed, split(c(32, 0), c(2, 0), c(1, 0))).lines), ['hard']);
+  eq('5p5 gewijzigde uitsluiting zonder splitsing ⇒ hard',
+    kinds(excludedHiddenRedLines(hpPin, { [SHA]: c(34, 0) }, changed).lines), ['hard']);
+  eq('5p6 opgeheven uitsluiting: daling = teruggekeerde cellen ⇒ fileset',
+    kinds(excludedHiddenRedLines({ [SHA]: c(5, 1) }, { [SHA]: c(3, 1) }, changed, split(c(3, 1), c(0, 0), c(0, 0), c(2, 0))).lines), ['fileset']);
+  eq('5p7 opgeheven uitsluiting met een regressie op die taak (3 cellen terug, pin daalt maar 2) ⇒ hard',
+    kinds(excludedHiddenRedLines({ [SHA]: c(5, 1) }, { [SHA]: c(3, 1) }, changed, split(c(3, 1), c(0, 0), c(0, 0), c(3, 0))).lines), ['hard']);
+  // Fable-mutatie (e), corpusloos met fictieve cellen: project P2 heeft in de gepinde baseline 0 zesassige en
+  // 2 drivingPath-cellen; een regressie (+ff) op alleen P2 en tegelijk excludeProjects P2 ⇒ de cellen vallen
+  // weg als excludedCells (fileset), maar de verborgen aantallen stijgen met meer dan die 0/2 ⇒ hard.
+  const pinnedP2 = cells([
+    { axis: 'es', id: 'P1/2', bucket: 'diff', minutes: 1440 },
+    { axis: 'drivingPath', id: 'P2/10', bucket: 'diff', minutes: null },
+    { axis: 'drivingPath', id: 'P2/11', bucket: 'diff', minutes: null },
+  ]);
+  const afterP2 = cells([{ axis: 'es', id: 'P1/2', bucket: 'diff', minutes: 1440 }]);
+  const p2Excluded: CellExclusions = { now: (_file, id) => id.startsWith('P2/'), was: () => false };
+  const p2Delta = compareCells(pinnedP2, afterP2, () => true, p2Excluded);
+  const p2Split = (fresh: HiddenCounts) => ({
+    existing: { [SHA]: c(0, 0) }, newlyExcluded: { [SHA]: fresh },
+    excludedCells: cellRefCounts(p2Delta.excludedCells), reincludedCells: cellRefCounts(p2Delta.reincludedCells),
+  });
+  eq('5p8 Fable (e) fictief: weggevallen cellen op P2 = 0 zesassig / 2 drivingPath', cellRefCounts(p2Delta.excludedCells), { [SHA]: c(0, 2) });
+  eq('5p9 Fable (e) fictief: eerlijke uitsluiting van P2 (0 → 0/2) ⇒ fileset',
+    kinds(excludedHiddenRedLines(undefined, { [SHA]: c(0, 2) }, changed, p2Split(c(0, 2))).lines), ['fileset']);
+  eq('5p10 Fable (e) fictief: +ff-regressie op P2 én uitsluiting van P2 (0 → 2/2) ⇒ hard',
+    kinds(excludedHiddenRedLines(undefined, { [SHA]: c(2, 2) }, changed, p2Split(c(2, 2))).lines), ['hard']);
+  eq('5p11 Fable (e) fictief: zelfde met een bestaande pin (38/4 → 48/8, weggevallen 0/4) ⇒ hard',
+    kinds(excludedHiddenRedLines({ [SHA]: c(38, 4) }, { [SHA]: c(48, 8) }, changed,
+      { existing: { [SHA]: c(38, 4) }, newlyExcluded: { [SHA]: c(10, 4) }, excludedCells: { [SHA]: c(0, 4) }, reincludedCells: {} }).lines), ['hard']);
+  const deltas = [
+    { projectId: 'P1', taskId: '1', axis: 'es' }, { projectId: 'P1', taskId: '1', axis: 'drivingPath' },
+    { projectId: 'P1', taskId: '2', axis: 'ef' }, { projectId: 'P1', taskId: '3', axis: 'tf' },
+  ];
+  eq('5p12 hiddenCountsOn telt alleen de gevraagde taken, drivingPath apart',
+    [hiddenCountsOn(deltas, new Set(['P1/1', 'P1/2'])), hiddenCountsOn(deltas, new Set(['P1/3'])), hiddenCountsOn(deltas, new Set())],
+    [{ sixAxis: 2, drivingPath: 1 }, { sixAxis: 1, drivingPath: 0 }, { sixAxis: 0, drivingPath: 0 }]);
   eq('5q uitsluiting zonder gepinde aantallen ⇒ hard', kinds(excludedHiddenRedLines(undefined, pin, new Set()).lines), ['hard']);
   eq('5r gepinde aantallen zonder uitsluiting ⇒ hard', kinds(excludedHiddenRedLines(pin, {}, new Set()).lines), ['hard']);
   const withHidden = { ...cells([{ axis: 'es', id: 'P1/1', bucket: 'sameday', minutes: 60 }]), excludedHidden: pin };

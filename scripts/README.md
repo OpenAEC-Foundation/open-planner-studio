@@ -243,7 +243,10 @@ een andere rol te geven:
 
 Regels: alleen op een `role: "oracle"`/`included: true`-entry. `decision` heeft EXACT de vorm
 `JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>` (een bestaande datum, niet in de toekomst; "geen
-eigenaarsbesluit" of een vrije plaatsing van het woord glipt dus niet door); anders weigert de lezer de hele
+eigenaarsbesluit" of een vrije plaatsing van het woord glipt dus niet door). Komt één regel uit een LATER
+besluit, dan draagt die regel een eigen `decision` in dezelfde vorm (niet vóór de entrydatum); de entry noemt
+dan het vroegste besluit en de latere chronologisch in de tekst, en de HERPIN-regel volgt de datum van de
+regel (HarbourPointe: entry 2026-09-23 vraag 8, EC1420 2026-09-24 vraag 13). Anders weigert de lezer de hele
 entry, net als bij een lege lijst, een onbekende sleutel, een reden korter dan 10 tekens, een `projId`/`taskId`
 als getal (schrijf `"12345"`), een dubbele regel of een taak onder een al uitgesloten project. Een taak noem
 je met precies één van `taskId` of `taskCode`; dezelfde taak via `taskId` én `taskCode` is een dubbel-fout,
@@ -274,8 +277,19 @@ uitsluiting de regel `HERPIN <datum> uitsluiting: <label> — <reden>`; de corpu
 regels letterlijk tussen de schuldpin en het blok. **Verborgen aantallen:** per bestand met een uitsluiting
 staan de zesassige afwijkingen en drivingPath-cellen óp de uitgesloten taken als `excludedHidden` in
 `xer-product-fidelity-cells.json` — een NIET-STIJGENDE pin (stijging = `hard`, daling = herpinnen via de
-schrijfmodi; alleen bij een gewijzigde identiteitsset `fileset`), zodat een motorregressie op een
-uitgesloten populatie niet onzichtbaar wordt. Zonder uitsluiting ontbreekt de sectie (bestand byte-gelijk).
+schrijfmodi), zodat een motorregressie op een uitgesloten populatie niet onzichtbaar wordt. Bij een
+gewijzigde identiteitsset is een verschuiving alleen `fileset` (herpin via `=corpus`) als de
+uitsluitingsdelta haar **volledig verklaart**, apart voor de zes assen samen en drivingPath: (a) `na − voor`
+≤ de cellen die de gepinde baseline op de nieuw uitgesloten ids had (`excludedCells`) min de teruggekeerde
+cellen; (b) de **nieuw uitgesloten** taken hebben nu niet méér afwijkingen dan die gepinde cellen; (c) het
+deel op de taken die al uitgesloten waren (**bestaand verborgen**) komt niet boven de pin. Elk surplus is
+`hard`: een regressie op de zojuist uit te sluiten taken verdwijnt dan niet met de uitsluiting mee en wordt
+ook niet de nieuwe pin (critreview C14-landing en Fable-critreview PR #169 bevinding 1, 2026-09-24;
+mutatiebewijs: +1 dag ff op OZB-project 9032 plus `excludeProjects` 9032 blijft hard rood en `=corpus`
+weigert). De splitsing bestaand/nieuw leidt de X12-check per taak af uit het gepinde uitsluitingsblok, dat
+samen met deze pin herpind wordt; de opgeslagen vorm blijft één totaal per bestand. Wat dit níét vangt: een
+grotere afwijking in een cel die op een nieuw uitgesloten taak al inexact was (zelfde telling); dat blijft
+aan de review van de uitsluiting. Zonder uitsluiting ontbreekt de sectie (bestand byte-gelijk).
 Daarna de vijf handmatige pinplekken hierboven (de X1-baseline, C5–C8b,
 het baselineschema, de task-replay-pin, `EXPECTED` van de corpusloze vangrail) en `OPS_XER_GATE_PINS=corpus`.
 Verboden: het blok of de digest met de hand bijwerken, of een uitsluiting laten kiezen door veldinhoud

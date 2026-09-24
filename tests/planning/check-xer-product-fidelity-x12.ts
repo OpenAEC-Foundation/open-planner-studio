@@ -35,8 +35,8 @@ import {
   CELL_AXES, CELL_BASELINE_FILE, cellDeltaLine, cellGateRedLines, cellMagnitude, cellOracleRedLines, cellTotals, cellWriteModeProblem,
   compareCells, parseCellBaseline, planCellRepin, serializeCellBaseline, tryBuildCellBaseline, type CellBaseline,
   carryRatchetDebt, debtCount, cellMinutesDigest, cellMinutesProblems, rewriteDebtPin,
-  excludedHiddenRedLines,
-  type CellExclusions, type CellMeasurable, type ExcludedHidden, type MeasuredCell, type RedKind, type RedLine,
+  excludedHiddenRedLines, hiddenCountsOn, cellRefCounts,
+  type CellDelta, type CellExclusions, type HiddenCounts, type HiddenSplit, type CellMeasurable, type ExcludedHidden, type MeasuredCell, type RedKind, type RedLine,
 } from './fidelityCells';
 import {
   changedExclusionFiles, exclusionHerpinLine, exclusionIdentityChanged, exclusionLabelFor, exclusionSummary, extractExclusionPinBlock, filterSolvedExclusions,
@@ -375,6 +375,11 @@ interface XerExclusionState {
   wasCoverage?: Record<string, string | number>;
   hiddenSixAxis: number;
   hiddenDrivingPath: number;
+  /** Het deel van de verborgen aantallen op taken die ook in de GEPINDE uitsluiting zaten ("bestaand
+   *  verborgen", `hiddenCountsOn`): mag bij een gewijzigde identiteit niet boven de pin komen. */
+  hiddenExisting: HiddenCounts;
+  /** Het deel op de NIEUW uitgesloten taken: mag niet boven hun gepinde cellen komen (`excludedHiddenRedLines`). */
+  hiddenNew: HiddenCounts;
 }
 type XerExclusionSink = Map<string, XerExclusionState>;
 /** De gepinde uitsluitingen uit het blok in `check-fidelity-cells-gate.ts` (`undefined` = blok ongeldig). */
@@ -458,7 +463,20 @@ async function productBaseline(
         } : {}),
         hiddenSixAxis: hidden ? XER_FIDELITY_AXES.reduce((sum, axis) => sum + hidden.counters[axis].deviations - result.counters[axis].deviations, 0) : 0,
         hiddenDrivingPath: hidden ? hidden.drivingPath.deviations - result.drivingPath.deviations : 0,
+        hiddenExisting: hidden
+          ? hiddenCountsOn(hidden.detail, new Set([...excludedNow.taskKeys].filter(key => excludedWas.taskKeys.has(key))))
+          : { sixAxis: 0, drivingPath: 0 },
+        hiddenNew: hidden
+          ? hiddenCountsOn(hidden.detail, new Set([...excludedNow.taskKeys].filter(key => !excludedWas.taskKeys.has(key))))
+          : { sixAxis: 0, drivingPath: 0 },
       });
+      // De splitsing rekent per afwijkende cel; over de hele uitsluiting moet ze het totaal (verschil
+      // ongefilterd − gefilterd) exact teruggeven, anders klopt het bestaande deel ook niet.
+      if (hidden) {
+        const state = exclusionSink.get(fileSha)!;
+        eq(`X12 verborgen aantallen ${targetEntry.label}: splitsing per taak = totaal`,
+          hiddenCountsOn(hidden.detail, excludedNow.taskKeys), { sixAxis: state.hiddenSixAxis, drivingPath: state.hiddenDrivingPath });
+      }
     }
     if (REPORT === undefined && targetEntry.label === 'crawl-xer/p6diff-baseline.xer') {
       const publicTask = solvedProjects.flatMap(project => project.tasks)
@@ -2604,6 +2622,19 @@ function measuredExcludedHidden(exclusionSink: XerExclusionSink): ExcludedHidden
   return hidden;
 }
 
+/** De splitsing bestaand/nieuw uitgesloten per bestand met een uitsluiting nu, plus de uitsluitingsdelta
+ *  van de cellen (`excludedHiddenRedLines`). */
+function measuredHiddenSplit(exclusionSink: XerExclusionSink, delta: CellDelta): HiddenSplit {
+  const existing: ExcludedHidden = {};
+  const newlyExcluded: ExcludedHidden = {};
+  for (const [file, state] of exclusionSink) {
+    if (state.now.applied.length === 0) continue;
+    existing[file] = state.hiddenExisting;
+    newlyExcluded[file] = state.hiddenNew;
+  }
+  return { existing, newlyExcluded, excludedCells: cellRefCounts(delta.excludedCells), reincludedCells: cellRefCounts(delta.reincludedCells) };
+}
+
 /** Bestanden waarvan de uitsluitings-IDENTITEITSSET t.o.v. de pin veranderde (niet: alleen de reden). */
 function identityChangedFiles(exclusionSink: XerExclusionSink): Set<string> {
   return new Set([...exclusionSink].filter(([, state]) => state.identityChanged).map(([file]) => file));
@@ -2696,7 +2727,7 @@ function evaluateCells(
   if (debtCount(built.baseline.ratchetDebt) > debtCount(parsed.baseline.ratchetDebt)) {
     red({ kind: 'hard', text: `X12 ratchet-schuld gestegen: ${debtCount(parsed.baseline.ratchetDebt)} → ${debtCount(built.baseline.ratchetDebt)} (schuld mag alleen dalen)` });
   }
-  const hiddenCheck = excludedHiddenRedLines(parsed.baseline.excludedHidden, hidden, identityChanged);
+  const hiddenCheck = excludedHiddenRedLines(parsed.baseline.excludedHidden, hidden, identityChanged, measuredHiddenSplit(exclusionSink, delta));
   const lines = [...cellGateRedLines(delta), ...cellOracleRedLines(parsed.baseline, built.baseline, identityChanged), ...hiddenCheck.lines];
   for (const line of lines) red({ kind: line.kind, text: `X12 ${line.text}` });
   if (hiddenCheck.lower.length > 0) console.log(`INFO X12 verborgen aantallen (manifestuitsluiting) gedaald — te herpinnen: ${hiddenCheck.lower.join('; ')}`);

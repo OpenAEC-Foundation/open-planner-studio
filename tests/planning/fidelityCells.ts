@@ -74,8 +74,16 @@
 // manifestuitsluiting (eigenaarsbesluit, `xerManifestExclusions.ts`) het aantal zesassige afwijkingen en
 // drivingPath-cellen dat op de uitgesloten taken valt. Die tellen niet in de poort, maar een
 // motorregressie op een uitgesloten populatie mag niet onzichtbaar zijn: het getal is een
-// NIET-STIJGENDE pin (stijging = hard rood; daling = herpinnen). Alleen een gewijzigde
-// uitsluitings-identiteitsset voor dat bestand maakt een verschuiving `fileset` (`=corpus`). Het veld is
+// NIET-STIJGENDE pin (stijging = hard rood; daling = herpinnen). Bij een gewijzigde uitsluitings-
+// identiteitsset voor dat bestand is een verschuiving alleen `fileset` (`=corpus`) als de uitsluitings-
+// delta haar volledig verklaart: de stijging mag niet groter zijn dan de cellen die de GEPINDE baseline
+// op de nieuw uitgesloten taken had (min de teruggekeerde cellen), de nieuw uitgesloten taken mogen nu
+// niet méér afwijkingen hebben dan die gepinde cellen, en het deel op de taken die al uitgesloten waren
+// ("bestaand verborgen") niet méér dan de pin — anders `hard` (critreview C14-landing en Fable-critreview
+// PR #169 bevinding 1, 2026-09-24: een regressie op de zojuist uitgesloten taken verdween met de
+// uitsluiting mee en werd de nieuwe pin). De splitsing bestaand/nieuw leidt de X12-check per taak af uit
+// de gepinde uitsluitingslijst (`check-fidelity-cells-gate.ts`), die samen met deze pin herpind wordt;
+// de opgeslagen vorm blijft één totaal per bestand. Het veld is
 // optioneel en staat alleen in het bestand als er uitsluitingen zijn — zonder uitsluiting blijft het
 // cellenbestand byte-gelijk aan zijn vorm van vóór het veld.
 //
@@ -501,25 +509,84 @@ function validateExcludedHidden(hidden: unknown, files: unknown): string[] {
   return problems;
 }
 
+/** De cellen per bestand als verborgen-aantalvorm (`drivingPath` apart, de zes assen samen). */
+export function cellRefCounts(cells: readonly CellRef[]): ExcludedHidden {
+  const counts: ExcludedHidden = {};
+  for (const cell of cells) {
+    const entry = counts[cell.file] ?? (counts[cell.file] = { sixAxis: 0, drivingPath: 0 });
+    if (cell.axis === 'drivingPath') entry.drivingPath++;
+    else entry.sixAxis++;
+  }
+  return counts;
+}
+
+/** Wat de meting bij een gewijzigde uitsluitingsidentiteit naast het totaal levert (per bestand). */
+export interface HiddenSplit {
+  /** Verborgen aantallen NU op de taken die ook in de gepinde uitsluiting zaten ("bestaand verborgen"). */
+  existing: ExcludedHidden;
+  /** Verborgen aantallen NU op de nieuw uitgesloten taken. */
+  newlyExcluded: ExcludedHidden;
+  /** `delta.excludedCells`: de cellen die de GEPINDE baseline op de nieuw uitgesloten ids had. */
+  excludedCells: ExcludedHidden;
+  /** `delta.reincludedCells`: de cellen die na het opheffen van een uitsluiting weer meetellen. */
+  reincludedCells: ExcludedHidden;
+}
+
 /**
  * De niet-stijgende pin op de verborgen aantallen (zie de kop). `identityChanged` = bestanden waarvan de
- * uitsluitings-identiteitsset t.o.v. de gepinde lijst veranderde: daar is elke verschuiving `fileset`.
+ * uitsluitings-identiteitsset t.o.v. de gepinde lijst veranderde. Daar is een verschuiving alleen
+ * `fileset` als ze volledig door de uitsluitingsdelta verklaard wordt; anders `hard` (critreview C14-
+ * landing en Fable-critreview PR #169 bevinding 1, 2026-09-24 — een regressie op de zojuist uitgesloten
+ * taken verdween anders met de uitsluiting mee en werd de nieuwe pin). Drie eisen, per bestand en apart
+ * voor de zes assen samen en drivingPath:
+ *  (a) totaal: `na − voor ≤ excludedCells − reincludedCells` (surplus = regressie);
+ *  (b) nieuw uitgesloten: `newlyExcluded ≤ excludedCells` — zo kan een verbetering elders een regressie
+ *      op de nieuw uitgesloten taken niet wegstrepen;
+ *  (c) bestaand verborgen: `existing ≤ voor`.
+ * Ontbreekt de splitsing (`split`) voor zo'n bestand, dan is dat zelf hard rood.
  */
 export function excludedHiddenRedLines(
   pinned: ExcludedHidden | undefined,
   measured: ExcludedHidden,
   identityChanged: ReadonlySet<string>,
+  split?: HiddenSplit,
 ): { lines: RedLine[]; lower: string[] } {
   const lines: RedLine[] = [];
   const lower: string[] = [];
   const was = pinned ?? {};
+  const zero: HiddenCounts = { sixAxis: 0, drivingPath: 0 };
+  const pick = (map: ExcludedHidden | undefined, file: string): HiddenCounts | undefined => (map && hasOwn(map, file) ? map[file] : undefined);
+  const exceeds = (left: HiddenCounts, right: HiddenCounts) => left.sixAxis > right.sixAxis || left.drivingPath > right.drivingPath;
   for (const file of [...new Set([...Object.keys(was), ...Object.keys(measured)])].sort(codeUnitCompare)) {
     const before = hasOwn(was, file) ? was[file] : undefined;
     const after = hasOwn(measured, file) ? measured[file] : undefined;
     const text = (what: string) => `verborgen aantallen (manifestuitsluiting) ${file}: ${what}`;
     const show = (counts: HiddenCounts | undefined) => (counts ? `${counts.sixAxis} zesassig/${counts.drivingPath} drivingPath` : 'geen');
+    if (identityChanged.has(file)) {
+      const existing = pick(split?.existing, file);
+      const fresh = pick(split?.newlyExcluded, file);
+      if (!split || (after && (!existing || !fresh))) {
+        lines.push({ kind: 'hard', text: text(`gewijzigde uitsluiting zonder splitsing bestaand/nieuw uitgesloten (${show(before)} → ${show(after)})`) });
+        continue;
+      }
+      const gone = pick(split.excludedCells, file) ?? zero;
+      const back = pick(split.reincludedCells, file) ?? zero;
+      const shift = { sixAxis: (after ?? zero).sixAxis - (before ?? zero).sixAxis, drivingPath: (after ?? zero).drivingPath - (before ?? zero).drivingPath };
+      const allowed = { sixAxis: gone.sixAxis - back.sixAxis, drivingPath: gone.drivingPath - back.drivingPath };
+      const problems: string[] = [];
+      if (exceeds(shift, allowed)) {
+        problems.push(`verschuiving ${shift.sixAxis}/${shift.drivingPath} > uitsluitingsdelta ${allowed.sixAxis}/${allowed.drivingPath} (weggevallen ${show(gone)} − teruggekeerd ${show(back)})`);
+      }
+      if (fresh && exceeds(fresh, gone)) problems.push(`nieuw uitgesloten taken ${show(fresh)} > hun gepinde cellen ${show(gone)}`);
+      if (existing && before && exceeds(existing, before)) problems.push(`bestaand verborgen ${show(existing)} > pin ${show(before)}`);
+      if (problems.length > 0) {
+        lines.push({ kind: 'hard', text: text(`regressie op de uitgesloten taken, niet verklaard door de gewijzigde uitsluiting — ${problems.join('; ')}`) });
+      } else if (JSON.stringify(before) !== JSON.stringify(after)) {
+        lines.push({ kind: 'fileset', text: text(`${show(before)} → ${show(after)} door een gewijzigde uitsluiting (verklaard: weggevallen ${show(gone)}, teruggekeerd ${show(back)})`) });
+      }
+      continue;
+    }
     if (JSON.stringify(before) === JSON.stringify(after)) continue;
-    if (identityChanged.has(file)) { lines.push({ kind: 'fileset', text: text(`${show(before)} → ${show(after)} door een gewijzigde uitsluiting`) }); continue; }
     if (!before) { lines.push({ kind: 'hard', text: text(`uitsluiting zonder gepinde verborgen aantallen (nu ${show(after)})`) }); continue; }
     if (!after) { lines.push({ kind: 'hard', text: text(`gepinde verborgen aantallen (${show(before)}) zonder uitsluiting`) }); continue; }
     if (after.sixAxis > before.sixAxis || after.drivingPath > before.drivingPath) {
@@ -527,6 +594,24 @@ export function excludedHiddenRedLines(
     } else lower.push(`${file.slice(0, 12)} ${show(before)} → ${show(after)}`);
   }
   return { lines, lower };
+}
+
+/**
+ * De verborgen aantallen op een deelverzameling uitgesloten taken (`proj_id/task_id`), uit de afwijkingen
+ * van de ONGEFILTERDE meting (`XerProductTaskDelta`-vorm: één regel per afwijkende cel). Zo splitst de X12-
+ * check het totaal in "bestaand verborgen" (taken ook in de gepinde uitsluiting) en "nieuw uitgesloten".
+ */
+export function hiddenCountsOn(
+  deltas: ReadonlyArray<{ projectId: string; taskId: string; axis: string }>,
+  taskKeys: ReadonlySet<string>,
+): HiddenCounts {
+  const counts: HiddenCounts = { sixAxis: 0, drivingPath: 0 };
+  for (const delta of deltas) {
+    if (!taskKeys.has(`${delta.projectId}/${delta.taskId}`)) continue;
+    if (delta.axis === 'drivingPath') counts.drivingPath++;
+    else counts.sixAxis++;
+  }
+  return counts;
 }
 
 /** Elke schuldregel wijst naar een bestaande sameday/diff-cel met `minutes === current`, en
