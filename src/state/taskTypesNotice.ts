@@ -49,6 +49,12 @@ export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void,
 
 export function notifyTaskTypesUnlocked(notify: (n: NotifyInput) => void, docId: string): void {
   if (!claimTaskTypesNotice(docId)) return;
+  notifyTaskTypesUnlockedClaimed(notify);
+}
+
+/** Dezelfde melding zonder sessie-gate — voor een aanroeper die de claim zelf al deed
+ *  (`applyOpenedImport`, dat per geopend document claimt en één keer per bestand meldt). */
+export function notifyTaskTypesUnlockedClaimed(notify: (n: NotifyInput) => void): void {
   notify({
     severity: 'info',
     messageKey: 'notifications.taskTypesUnlocked',

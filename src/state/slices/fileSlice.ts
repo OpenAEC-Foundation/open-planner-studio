@@ -1,4 +1,4 @@
-import { notifyTaskTypesUnlocked } from '../taskTypesNotice';
+import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed } from '../taskTypesNotice';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { flattenOrder } from '@/utils/wbs';
@@ -208,6 +208,9 @@ export interface ApplyLoadedProjectOpts {
   linkedOpen?: boolean;
   /** Optionele view-start die samen met de nieuwe brondata wordt gepubliceerd (IFC-tab). */
   viewStartDate?: string;
+  /** Integratie #101 op #169: `applyOpenedImport` meldt de taaktypes-ontsluiting zelf, samen met de
+   *  bestandsmelding ("één melding per geopend bestand", rekenprofielen spec v3.1 §6 / X10). */
+  deferTaskTypesNotice?: boolean;
 }
 
 /** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids. */
@@ -412,7 +415,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
       {
         const st = get();
-        if (st.taskTypesVisible && !st.ui.showTaskTypes) notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
+        if (!opts.deferTaskTypesNotice && st.taskTypesVisible && !st.ui.showTaskTypes) {
+          notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
+        }
       }
       if (opts.recompute) {
         const cpm = activation.payload.cpmResult;
@@ -490,6 +495,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
       // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
       let datesAsRecordedOfferTotal = 0;
+      let taskTypesUnlockedDocs = 0;
       for (const result of results) {
         // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
         // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
@@ -498,7 +504,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         openedDocumentIds.push(get().activeDocumentId);
         // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
         // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
-        get().applyLoadedProject(result, opts);
+        get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
+        // Taaktypes (#101): ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
+        // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
+        if (get().taskTypesVisible && !get().ui.showTaskTypes && claimTaskTypesNotice(get().activeDocumentId)) {
+          taskTypesUnlockedDocs++;
+        }
         // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
         // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
         const shifted = get().recordedDates?.shifted ?? 0;
@@ -516,7 +527,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
         openedDocumentIds[0] ?? '',
       );
-      if (notice) get().notify(notice);
+      // Integratie #101 op #169 (voorlopig, eigenaarsvraag E4): de taaktypes-ontsluiting is een
+      // detailregel in díe ene bestandsmelding; zonder bestandsmelding (bv. MSPDI/IFC onder het
+      // ops-profiel) blijft het #101's eigen melding met gids-link.
+      if (notice && taskTypesUnlockedDocs > 0) {
+        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), { messageKey: 'notifications.taskTypesUnlocked' }] });
+      } else if (notice) {
+        get().notify(notice);
+      } else if (taskTypesUnlockedDocs > 0) {
+        notifyTaskTypesUnlockedClaimed(get().notify);
+      }
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
       const activeId = openedDocumentIds[activeIndex];

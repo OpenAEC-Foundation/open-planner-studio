@@ -297,6 +297,11 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     ?.find((d) => d.messageKey === 'notifications.xerImportDatesAsRecorded');
   eq('T4-18 …de teller is de SOM over beide documenten (1+1=2), niet per document',
     multiDetail?.params?.count, 2);
+  // Integratie #101 (taaktypes) op #169: `duration_type` ontsluit de werkregel-UI. Dat mag geen
+  // tweede toast opleveren (T4-17), maar staat als detailregel in dezelfde bestandsmelding.
+  // Mutatiebewijs: `deferTaskTypesNotice` weg in applyOpenedImport ⇒ T4-17 rood; de detailregel weg ⇒ T4-18b rood.
+  eq('T4-18b taaktypes-ontsluiting is een detailregel van diezelfde ene melding',
+    notifsAfterMulti[0]?.detailLines?.filter((d) => d.messageKey === 'notifications.taskTypesUnlocked').length, 1);
 
   // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT, ook al is
   // exact dezelfde vastlegging (`recordedTimes`) aanwezig. Bewijst dat de auto-aan-route
