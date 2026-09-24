@@ -483,6 +483,17 @@ export function writeLevelingResult(
   return roundedCount;
 }
 
+/** De "duur/datums"-trigger (Z14b; ook de kalender in `updateTask`/`draft.updateTaskFields`/
+ *  `patchTaskFields` en een splitbewerking): wis laag 3 altijd, en laag 4 alleen zodra een walk
+ *  bevroren `workMinutes` draagt (N2 — zonder die bevroren waarde wandelt laag 4 al de live duur).
+ *  Retourneert `true` als er MSP-sturing verloren ging. Welke bewerking de trigger raakt, beslist de
+ *  aanroeper (`setTaskCalendar` wist bijvoorbeeld alleen laag 3). */
+export function invalidateForTimeBaseChange(task: Task): boolean {
+  const clearedWindow = clearTimephasedWindow(task);
+  const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
+  return clearedWindow || clearedWalks;
+}
+
 /** De "toewijzingen"-trigger (zie de triggerset hierboven) voor één taak waarvan de
  *  toewijzingenset net veranderde: beide Z8-lagen ONVOORWAARDELIJK wissen (F2 — een andere resource
  *  kan een andere resourcekalender betekenen) plus de nivelleergaten (B1c-plan3 taak 3; geen

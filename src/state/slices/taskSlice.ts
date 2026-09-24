@@ -11,8 +11,7 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
-  timeUpdateTouchesTimephasedWindow,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
+  timeUpdateTouchesTimephasedWindow, invalidateForTimeBaseChange, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
@@ -434,14 +433,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
       // voor de volledige triggerset-toelichting.
+      // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee: een walk met
+      // bevroren `workMinutes` negeert een duur-/datum-/kalenderwijziging anders stilzwijgend.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
-        const clearedWindow = clearTimephasedWindow(s.tasks[idx]);
-        // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee (zie
-        // `taskDefaults.ts`'s bijgewerkte docblok): een walk met bevroren `workMinutes` negeert een
-        // duur-/datum-/kalenderwijziging anders stilzwijgend.
-        const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
-          && clearTimephasedDurationWalks(s.tasks[idx]);
-        lostTimephasedGuidance = clearedWindow || clearedWalks;
+        lostTimephasedGuidance = invalidateForTimeBaseChange(s.tasks[idx]);
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
@@ -517,10 +512,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (6) Tijdbasis-gevolgen (bevinding 1): een splitbewerking IS een tijdbasis-bewerking, óók
       // zonder duurwijziging — anders overschrijft het gelezen Z8-venster de nieuwe spanne gewoon en
       // beweegt er geen datum. Zelfde vorm als `updateTask`/`setTaskCalendar`.
-      const clearedWindow = clearTimephasedWindow(task);
-      const clearedWalks = timephasedDurationWalksHaveFrozenWork(task)
-        && clearTimephasedDurationWalks(task);
-      lostTimephasedGuidance = clearedWindow || clearedWalks;
+      lostTimephasedGuidance = invalidateForTimeBaseChange(task);
 
       // (7) Eigen finish bijwerken zodat de balk direct klopt; de echte datums komen bij F5/auto-calc,
       // zoals bij elke duurwijziging. `earlyFinish` gaat mee omdat de renderer die als eerste leest

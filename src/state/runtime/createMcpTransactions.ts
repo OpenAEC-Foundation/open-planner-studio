@@ -6,9 +6,8 @@ import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
-  buildNewTask, createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
+  buildNewTask, createDefaultTaskTime, mergeTaskTime, timeUpdateTouchesTimephasedWindow,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps, writeLevelingResult, clearLevelingOutput,
 } from '@/utils/taskDefaults';
 import { applyWbsNumbering } from '@/utils/wbs';
@@ -317,12 +316,8 @@ function createMcpDraft(
       // Z14b (eigenaarsprincipe 2026-08-18) — gedocumenteerde tweeling van taskSlice.ts's
       // `updateTask`: zelfde triggerset/uitleg in `taskDefaults.ts`.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
-        const clearedWindow = clearTimephasedWindow(s.tasks[idx]);
-        // N2 (Opus-her-check, tweede ronde) — zelfde tweeling-aanroep als taskSlice.ts's `updateTask`.
-        const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
-          && clearTimephasedDurationWalks(s.tasks[idx]);
         // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
-        if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
+        if (invalidateForTimeBaseChange(s.tasks[idx])) recordTimephasedLoss(id);
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
@@ -377,11 +372,7 @@ function createMcpDraft(
       // volledige `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.
       // `timeUpdateTouchesTimephasedWindow` (die verwacht de bredere `TaskTime`-vorm).
       if (('calendarId' in top) || timeTouched) {
-        const clearedWindow = clearTimephasedWindow(task);
-        // N2 (Opus-her-check, tweede ronde) — zelfde tweeling-aanroep als `updateTaskFields` hierboven.
-        const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
-        // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
-        if (clearedWindow || clearedWalks) recordTimephasedLoss(id);
+        if (invalidateForTimeBaseChange(task)) recordTimephasedLoss(id); // zie `updateTaskFields` hierboven.
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
       // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies). `timePatch` kent
