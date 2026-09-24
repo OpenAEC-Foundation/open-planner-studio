@@ -78,7 +78,6 @@ const OPTION_TYPE_NAMES = new Set([
 const OPTION_TYPE_WRAPPERS = new Set(['Pick', 'Partial', 'Required', 'Readonly', 'Omit']);
 /** Herkomstnaam-patroon (regel 6). */
 const SOURCE_NAME = /^(?:p6|xer|mpp|msp|mpx)[A-Z]/;
-const CONVENTIONS_DIR = 'src/engine/scheduler/conventions/';
 /** Motorcode buiten src/engine/ die de solver direct aanroept; wordt meegescand als hij bestaat. */
 const ENGINE_HELPERS = ['src/utils/p6SuspendResume.ts'];
 
@@ -244,10 +243,18 @@ function ownMembersOf(sourceFile) {
     ts.forEachChild(node, walk2);
   };
   walk2(sourceFile);
+  // `this.x` telt alleen als lid van de OMSLUITENDE klasse (her-check 24-09: alle klassen van het bestand
+  // samenvoegen liet klasse A `this.p6X` lezen zodra klasse B die naam declareerde).
+  const enclosingClassMembers = (node) => {
+    for (let n = node; n; n = n.parent) {
+      if ((ts.isClassDeclaration(n) || ts.isClassExpression(n))) return n.name ? classMembers.get(n.name.text) : memberNames(n.members);
+    }
+    return undefined;
+  };
   return (receiver, name) => {
     let r = receiver;
     while (ts.isParenthesizedExpression(r) || ts.isNonNullExpression(r)) r = r.expression;
-    if (r.kind === ts.SyntaxKind.ThisKeyword) return thisMembers.has(name);
+    if (r.kind === ts.SyntaxKind.ThisKeyword) return (enclosingClassMembers(r) ?? thisMembers).has(name) && thisMembers.has(name);
     if (ts.isIdentifier(r)) return objects.get(r.text)?.has(name) === true;
     return false;
   };
@@ -305,7 +312,8 @@ for (const file of files) {
     };
     walkTypes(sourceFile);
   }
-  const optionRules = !own(file).startsWith(CONVENTIONS_DIR);
+  // Alleen het register zelf is vrijgesteld (her-check 24-09: de hele map vrijstellen was te ruim).
+  const optionRules = own(file) !== registryRel;
   // Pre-pass: welke namen (variabelen, parameters, klassevelden) dragen in dit bestand een opties-object?
   const aliases = new Set(['schedulingOptions']);
   const strip = (expr) => {
