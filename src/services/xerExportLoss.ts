@@ -9,7 +9,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Baseline } from '@/types/baseline';
 
-export type XerLossyExportFormat = Exclude<ExportFormat, 'ifc'> | 'mpp';
+export type XerLossyExportFormat = Exclude<ExportFormat, 'ifc'>;
 export type XerExportLossCategory =
   | 'exact-source-bytes'
   | 'unknown-tables-and-fields'
@@ -26,8 +26,9 @@ export type XerExportLossCategory =
 export interface XerExportLossWarning {
   readonly code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE';
   readonly format: XerLossyExportFormat;
-  /** MPP staat hier expliciet op unsupported: OPS heeft geen native MPP-exportadapter. */
-  readonly availability: 'supported-lossy' | 'unsupported';
+  /** Er bestaat geen `.mpp`-export (de lezer is alleen-lezen); de dode `'mpp'`/`'unsupported'`-tak
+   *  is verwijderd (Fable-critreview PR #109 bevinding 12). */
+  readonly availability: 'supported-lossy';
   readonly categories: readonly XerExportLossCategory[];
 }
 
@@ -99,10 +100,9 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
 };
 
 export function xerExportTargetVerdict(
-  format: ExportFormat | 'mpp',
-): 'lossless' | 'supported-lossy' | 'unsupported' {
+  format: ExportFormat,
+): 'lossless' | 'supported-lossy' {
   if (format === 'ifc') return 'lossless';
-  if (format === 'mpp') return 'unsupported';
   return 'supported-lossy';
 }
 
@@ -267,18 +267,17 @@ function categoriesFor(
  * exportAs-return-envelope; X10 bepaalt later vertaling, dedupe, toast en Lees-meer-link.
  */
 export function detectXerExportLoss(
-  format: ExportFormat | 'mpp',
+  format: ExportFormat,
   input: XerExportLossInput,
 ): readonly XerExportLossWarning[] {
   if (format === 'ifc' || isProgressSheetFormat(format)) return [];
   if (!input.sourceArchive && !input.importMetadata) return [];
-  const target = format === 'mpp' ? 'csv' : format;
-  const categories = categoriesFor(target, input);
+  const categories = categoriesFor(format, input);
   if (categories.length === 0) return [];
   return [{
     code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE',
     format,
-    availability: format === 'mpp' ? 'unsupported' : 'supported-lossy',
+    availability: 'supported-lossy',
     categories,
   }];
 }

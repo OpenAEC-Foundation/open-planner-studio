@@ -683,6 +683,9 @@ function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unk
   return finalizeBounded({ section: 'taskSourceRowsByProject', projectId, ...envelope(paged, items) });
 }
 
+/** Bewust NIET door `finalizeBounded`/de 256 kB-responsgrens: één chunk is al ±256 kB base64, dus
+ *  rawSource is per chunk-aantal begrensd (maxLimit 8 ≈ 2,1 MB). De toolbeschrijving zegt dat
+ *  expliciet (Fable-critreview PR #109 bevinding 11). */
 function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   if (args.includeRawSource !== true) {
     throw new XerProvenanceError('VALIDATION', 'rawSource vereist `includeRawSource: true`; bronbytes kunnen namen en vrije notities bevatten.');
@@ -791,9 +794,11 @@ export const xerProvenanceTools: McpToolDef[] = [{
     '`summary` zelf en `diagnostics/documentViews`. Met opt-in gelden een lagere paginalimiet (100) en ' +
     'een cap van 200 cellen/velden per rij; zowel celWAARDEN als celNAMEN (kolomkoppen uit het ' +
     'bronbestand) zijn afgekapt en tellen mee in de responsbegroting. Elke pagina — óók summary — ' +
-    'kent een harde responsgrens (256 kB, gemeten in echte UTF-8-bytes). rawSource vereist expliciet ' +
-    '`includeRawSource:true`, geeft maximaal acht vaste base64-chunks per antwoord en meldt de ' +
-    'privacygrens. De tool gebruikt alleen retained state, muteert de store niet, voert geen CPM uit ' +
+    'kent een harde responsgrens (256 kB, gemeten in echte UTF-8-bytes), BEHALVE rawSource. ' +
+    'rawSource vereist expliciet `includeRawSource:true`, valt buiten die 256 kB-grens (één chunk is ' +
+    'al 192 KiB bron ≈ 256 kB base64) en is in plaats daarvan begrensd op maximaal acht vaste ' +
+    'base64-chunks per antwoord (tot ±2,1 MB; kies een kleinere `limit` voor kleinere antwoorden); ' +
+    'hij meldt de privacygrens. De tool gebruikt alleen retained state, muteert de store niet, voert geen CPM uit ' +
     'en ondersteunt geen schrijfpad. Niet batchable: roep hem los aan, nooit als stap in `planner_batch`.',
   kind: 'read',
   batchable: false,
