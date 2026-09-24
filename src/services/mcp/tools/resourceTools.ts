@@ -40,7 +40,9 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS } from './helpers';
+import {
+  booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
+} from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
@@ -409,7 +411,7 @@ function classifyResources(
       return;
     }
     if (item.cascade !== undefined && typeof item.cascade !== 'boolean') {
-      rejections.push({ id: item.id, reason: `\`cascade\` moet een boolean zijn (true/false), kreeg ${typeof item.cascade} '${String(item.cascade)}'` });
+      rejections.push({ id: item.id, reason: booleanArgReason(item.cascade, 'cascade') });
       return;
     }
     const target = sim.find((r) => r.id === item.id);

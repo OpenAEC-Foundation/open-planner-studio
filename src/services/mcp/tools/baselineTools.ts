@@ -32,7 +32,7 @@ import type { AppState } from '@/state/appStore';
 import type { Baseline } from '@/types/baseline';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { BatchStepTool } from './batchTool';
-import { okDirect, parsedBatchStep, READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
+import { okDirect, parsedBatchStep, READ_ANNOTATIONS, unknownArgsReason, WRITE_ANNOTATIONS } from './helpers';
 import {
   guardNonTransactional,
   McpStepError,
@@ -46,26 +46,10 @@ import {
 const LIST_HINT = "haal geldige id's op met planner_list_baselines";
 
 // ── Gedeelde vormcontrole ────────────────────────────────────────────────────────────────────────
-
-/**
- * Weiger onbekende argumentsleutels ZELF (dus niet alleen via de schemapoort in de dispatcher):
- * dezelfde reden als bij de leestools — een tool hoort correct te zijn ongeacht welk pad hem
- * aanroept, en een genegeerde sleutel is een antwoord dat plausibel lijkt maar iets anders deed dan
- * gevraagd. Retourneert een foutboodschap, of null wanneer de sleutels kloppen.
- */
-function rejectUnknownKeys(args: unknown, allowed: readonly string[], toolName: string): string | null {
-  if (args === undefined || args === null) return null;
-  if (typeof args !== 'object' || Array.isArray(args)) {
-    return `${toolName} verwacht een object met argumenten`;
-  }
-  for (const key of Object.keys(args as Record<string, unknown>)) {
-    if (allowed.includes(key)) continue;
-    return allowed.length === 0
-      ? `${toolName} neemt geen argumenten, maar kreeg \`${key}\``
-      : `onbekend argument \`${key}\` voor ${toolName}; toegestaan: ${allowed.join(', ')}`;
-  }
-  return null;
-}
+//
+// Onbekende argumentsleutels weigert elke tool ZELF (`unknownArgsReason`), niet alleen via de
+// schemapoort in de dispatcher: een genegeerde sleutel is een antwoord dat plausibel lijkt maar iets
+// anders deed dan gevraagd.
 
 /** Compacte, leesbare regel per baseline voor in een foutmelding (max 5, daarna "…"). */
 function knownBaselinesHint(s: AppState): string {
@@ -131,7 +115,7 @@ const listBaselines: McpToolDef = {
   annotations: READ_ANNOTATIONS,
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   handler(args, ctx) {
-    const bad = rejectUnknownKeys(args, [], 'planner_list_baselines');
+    const bad = unknownArgsReason(args, [], 'planner_list_baselines');
     if (bad) return toolError(ctx, 'VALIDATION', bad);
     return runReadTool(ctx, (s) => listBaselinesCore(s));
   },
@@ -148,7 +132,7 @@ const listBaselines: McpToolDef = {
 interface ActivateArgs { baselineId: string | null }
 
 function parseActivate(args: unknown): ActivateArgs | string {
-  const bad = rejectUnknownKeys(args, ['baselineId'], 'planner_activate_baseline');
+  const bad = unknownArgsReason(args, ['baselineId'], 'planner_activate_baseline');
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown };
   if (!('baselineId' in a) || a.baselineId === undefined) {
@@ -248,7 +232,7 @@ const activateBaseline: BatchStepTool = {
 interface RenameArgs { baselineId: string; name: string }
 
 function parseRename(args: unknown): RenameArgs | string {
-  const bad = rejectUnknownKeys(args, ['baselineId', 'name'], 'planner_rename_baseline');
+  const bad = unknownArgsReason(args, ['baselineId', 'name'], 'planner_rename_baseline');
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown; name?: unknown };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {
@@ -348,7 +332,7 @@ const renameBaseline: BatchStepTool = {
 interface DeleteArgs { baselineId: string }
 
 function parseDelete(args: unknown): DeleteArgs | string {
-  const bad = rejectUnknownKeys(args, ['baselineId'], 'planner_delete_baseline');
+  const bad = unknownArgsReason(args, ['baselineId'], 'planner_delete_baseline');
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {

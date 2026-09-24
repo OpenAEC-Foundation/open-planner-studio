@@ -509,8 +509,8 @@ test('analyze_delay: baseline zonder projecteinde ⇒ expliciete melding i.p.v. 
 // =================================================================================================
 // DIALOOG-GUARD op de T18-leestools — GEDEELDE implementatie (eindintegratie)
 //
-// De `readTool`-wikkel had een eigen, derde kopie van de dialoog-guard die de blokkerende vlag NIET
-// benoemde. Sinds de eindintegratie delegeert hij naar `runReadTool` in runtime.ts. Deze case pint
+// De (inmiddels verdwenen) `readTool`-wikkel had een eigen, derde kopie van de dialoog-guard die de
+// blokkerende vlag NIET benoemde. De leestools lopen nu rechtstreeks via `runReadTool`. Deze case pint
 // dat vast: een leestool weigert mét de VLAGNAAM in de fout — precies zoals de document-/bestands-
 // tools (cases-doc-file.ts §10) en de runtime-wikkels (cases-runtime.ts §2) dat al deden.
 // =================================================================================================

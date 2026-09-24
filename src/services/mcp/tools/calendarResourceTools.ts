@@ -25,7 +25,9 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
+import {
+  booleanArgReason, enrichOk, okDirect, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS,
+} from './helpers';
 import type { AppState } from '@/state/appStore';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
@@ -1321,7 +1323,7 @@ function parseLeveling(
   // terwijl de aanroeper dacht te previewen. Juist die parameter wordt in de beschrijving verkocht
   // als de veilige manier om eerst te kijken ⇒ hard weigeren.
   if (a.dryRun !== undefined && typeof a.dryRun !== 'boolean') {
-    return `\`dryRun\` moet een boolean zijn (true/false), kreeg ${typeof a.dryRun} '${String(a.dryRun)}' — ` +
+    return `${booleanArgReason(a.dryRun, 'dryRun')} — ` +
       'een niet-boolean zou stil als `false` gelden en dus een ECHTE nivellering uitvoeren';
   }
   if (a.resourceIds !== undefined) {
@@ -1782,7 +1784,7 @@ function parseMoveProject(args: unknown): { newStartDate: string; shiftBaselines
   // Zelfde patroon als `dryRun` (H8), lagere inzet: een niet-boolean gold stil als `false`, dus
   // baselines bleven staan terwijl de aanroeper dacht ze mee te verschuiven.
   if (a.shiftBaselines !== undefined && typeof a.shiftBaselines !== 'boolean') {
-    return `\`shiftBaselines\` moet een boolean zijn (true/false), kreeg ${typeof a.shiftBaselines} '${String(a.shiftBaselines)}'`;
+    return booleanArgReason(a.shiftBaselines, 'shiftBaselines');
   }
   return { newStartDate: a.newStartDate, shiftBaselines: a.shiftBaselines === true };
 }

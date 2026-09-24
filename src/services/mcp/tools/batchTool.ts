@@ -25,7 +25,7 @@
 // batch-stap moet dus een SYNCHRONE, transactie-vrije kern aanroepen. Die kern is `batchStep` op de
 // tooldefinitie (zie `BatchStepTool`): dezelfde `() => MutationOutcome`-closure die de handler binnen
 // zijn `runMutateTool` draait, maar dan los benoemd. Leestools hebben géén `batchStep` nodig — hun
-// handler IS synchroon (de `readTool`-wikkel) en wordt direct aangeroepen.
+// handler IS synchroon (`runReadTool`) en wordt direct aangeroepen.
 // Een tool die batchable heet maar geen synchrone kern aanbiedt, wordt vóór enige mutatie geweigerd
 // met een expliciete melding — nooit stil overgeslagen.
 //
@@ -257,7 +257,7 @@ export function recomputeMidBatch(ctx: McpContext): void {
 /**
  * Voer één stap SYNCHROON uit en geef zijn uitkomst terug.
  *   - Muterende tools: via de synchrone `batchStep`-kern (transactie-vrij; de batch bezit de transactie).
- *   - Leestools: via de handler, die bij een leestool synchroon is (`readTool`-wikkel). Levert die tóch
+ *   - Leestools: via de handler, die bij een leestool synchroon is (`runReadTool`). Levert die tóch
  *     een thenable, dan is dat een ontwikkelfout — weigeren i.p.v. een halve stap laten lopen (de
  *     belofte wordt afgevangen zodat er geen losse afwijzing ontsnapt).
  * Een NIET-ok resultaat van een leestool is een structurele stapfout (onbekend id, ongeldige args) en

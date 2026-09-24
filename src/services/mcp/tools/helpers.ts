@@ -114,3 +114,26 @@ export function parsedBatchStep<P>(
     return core(ctx, parsed);
   };
 }
+
+/**
+ * Reden wanneer `args` geen object is of een sleutel buiten `allowed` draagt (`additionalProperties:
+ * false`, maar als RUNTIME-poort in de tool zelf — `planner_batch` roept leestools en sommige
+ * mutatietools buiten de schemavalidatie van de dispatcher om aan). `null` ⇒ in orde. Zonder
+ * afsluitende punt; een aanroeper die volzinnen meldt, zet die er zelf achter.
+ */
+export function unknownArgsReason(args: unknown, allowed: readonly string[], toolName: string): string | null {
+  if (args === undefined || args === null) return null;
+  if (typeof args !== 'object' || Array.isArray(args)) return `${toolName} verwacht een object met argumenten`;
+  for (const key of Object.keys(args as Record<string, unknown>)) {
+    if (allowed.includes(key)) continue;
+    return allowed.length === 0
+      ? `${toolName} neemt geen argumenten, maar kreeg \`${key}\``
+      : `onbekend argument \`${key}\` voor ${toolName}; toegestaan: ${allowed.join(', ')}`;
+  }
+  return null;
+}
+
+/** De weigertekst voor een argument dat gezet is maar geen boolean (zonder afsluitende punt). */
+export function booleanArgReason(value: unknown, name: string): string {
+  return `\`${name}\` moet een boolean zijn (true/false), kreeg ${typeof value} '${String(value)}'`;
+}

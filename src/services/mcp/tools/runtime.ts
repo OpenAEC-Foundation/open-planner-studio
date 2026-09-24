@@ -223,7 +223,9 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
  * Draai een leestool. Guards: ALLEEN de dialoog-guard (een open modaal betekent dat de user midden
  * in een handmatige actie zit — óók een lezing kan dan een half-bewerkte staat zien). GEEN drift-fail
  * (leestools mogen door, spec regel 116) en GEEN pauze-/alleen-lezen-blokkade (die raken alleen
- * mutaties). Een throw uit `fn` wordt een `INTERNAL`-fout — nooit een throw naar de dispatcher.
+ * mutaties). Een `McpStepError` uit `fn` houdt zijn eigen code (VALIDATION/NOT_FOUND bij een
+ * ongeldig argument of onbekend id), net als bij `runMutateTool`; elke andere throw wordt een
+ * `INTERNAL`-fout — nooit een throw naar de dispatcher.
  */
 export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult {
   const ui = ctx.app.store.getState().ui;
@@ -235,6 +237,7 @@ export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpT
     const data = fn(ctx.app.store.getState());
     return { ok: true, envelope: buildEnvelope(ctx), data };
   } catch (e) {
+    if (e instanceof McpStepError) return toolError(ctx, e.code, e.message);
     return toolError(ctx, 'INTERNAL', e instanceof Error ? e.message : String(e));
   }
 }

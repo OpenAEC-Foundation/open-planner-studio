@@ -5,10 +5,9 @@
 // bewust COMPACT (velden die false/0/leeg zijn worden weggelaten) — deze payloads gaan als JSON over
 // de bridge en de overview/list-tools kunnen op een groot project fors worden.
 //
-// Alle tools lopen door de lokale `readTool`-wikkel: die DELEGEERT naar `runReadTool` (dialoog-guard
-// + live envelop, GEEN drift/pauze-blokkade — spec regel 116) en laat daarbovenop een tool een NETTE
-// `ToolError`-code teruggeven (VALIDATION bij een onbekend id / ontbrekende baseline) i.p.v. de
-// generieke INTERNAL die een kale throw zou opleveren.
+// Alle tools lopen door `runReadTool` (dialoog-guard + live envelop, GEEN drift/pauze-blokkade — spec
+// regel 116). Een tool gooit een `McpStepError` om een NETTE code terug te geven (VALIDATION bij een
+// ongeldig argument, NOT_FOUND bij een onbekend id) i.p.v. de generieke INTERNAL van een kale throw.
 //
 // `get_resource_histogram` roept `ensureFreshSchedule` aan (herrekent ALLEEN als stale of nog nooit
 // gerekend) en meldt in de data of het (her)berekend is; dat is de enige leestool die de store-cache
@@ -25,12 +24,12 @@
 import type { AppState } from '@/state/appStore';
 import { flattenOrder } from '@/utils/wbs';
 import { ensureFreshSchedule } from '../staleGuard';
-import { runReadTool, toolError } from './runtime';
+import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
-import type { McpContext, McpToolDef, McpToolResult, McpErrorCode } from '../contracts';
+import type { McpContext, McpToolDef } from '../contracts';
 import type { Task } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
-import { READ_ANNOTATIONS } from './helpers';
+import { booleanArgReason, READ_ANNOTATIONS, unknownArgsReason } from './helpers';
 
 function nativeDuration(task: Task): number {
   return taskDurationUnit(task) === 'hours'
@@ -48,53 +47,12 @@ import { interruptionsOf, type Interruption } from './splitFields';
 // Zelfde twee bronnen als het slot in `ResourcePanel` en de weigering in `resourceTools` — één lijst.
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 
-// ── Lokale leestool-wikkel + nette fout ──────────────────────────────────────────────────────────
-
-/** Nette, aan een code gekoppelde tool-fout die de `readTool`-wikkel op een `McpToolErr` mapt
- *  (i.p.v. de INTERNAL die een kale throw zou geven). Voor onbekende id's / ontbrekende baselines. */
-class ToolError extends Error {
-  constructor(public code: McpErrorCode, message: string) {
-    super(message);
-  }
-}
-
 /** Issue #146 — de leesbare onderbrekingen van één taak (zie `splitFields.ts`). Leeg object bij een
  *  taak zonder onderbrekingen, zodat de detailrespons van gewone taken ongewijzigd blijft. */
 function splitReadFields(task: Task, s: AppState): { interruptions?: Interruption[]; splitsEditable?: false } {
   if (!task.splitGaps || task.splitGaps.length === 0) return {};
   const { interruptions, editable } = interruptionsOf(task, s);
   return editable && interruptions ? { interruptions } : { splitsEditable: false };
-}
-
-/**
- * Draai een leestool-kern. De guards zijn NIET meer gespiegeld maar GEDELEGEERD aan `runReadTool`
- * (eindintegratie): er was een derde, private kopie van de dialoog-guard die — anders dan de
- * runtime-versie — niet BENOEMDE wélke dialoog blokkeert, en die bij een volgende wijziging aan de
- * guard-volgorde stil uit de pas zou lopen. Eén implementatie dus; deze wikkel voegt alleen nog het
- * enige toe wat `runReadTool` niet kent: een `ToolError` uit `fn` behoudt zijn EIGEN code
- * (VALIDATION bij een onbekend id / ontbrekende baseline) i.p.v. de generieke INTERNAL die een kale
- * throw oplevert.
- *
- * De `ToolError` wordt binnen de callback afgevangen en via een houder naar buiten gedragen: gooien
- * we hem door, dan maakt `runReadTool` er onherroepelijk INTERNAL van.
- */
-function readTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult {
-  // Houder i.p.v. een losse `let`: TypeScript's control-flow-analyse zou een in een callback
-  // toegewezen variabele na de aanroep nog steeds als `null` narrowen.
-  const nice: { err: ToolError | null } = { err: null };
-  const res = runReadTool(ctx, (s) => {
-    try {
-      return fn(s);
-    } catch (e) {
-      if (e instanceof ToolError) {
-        nice.err = e;
-        return undefined;
-      }
-      throw e; // elke andere throw blijft INTERNAL, afgehandeld door runReadTool
-    }
-  });
-  if (nice.err) return toolError(ctx, nice.err.code, nice.err.message);
-  return res;
 }
 
 // ── Compacte helpers ─────────────────────────────────────────────────────────────────────────────
@@ -166,35 +124,26 @@ const TASK_STATUSES = ['NOT_STARTED', 'STARTED', 'COMPLETED'];
  * dispatcher hetzelfde nog eens doet is onschadelijk.
  */
 function requireOnlyKeys(args: unknown, allowed: readonly string[], toolName: string): void {
-  if (args === undefined || args === null) return;
-  if (typeof args !== 'object' || Array.isArray(args)) {
-    throw new ToolError('VALIDATION', `${toolName} verwacht een object met argumenten.`);
-  }
-  for (const key of Object.keys(args as Record<string, unknown>)) {
-    if (allowed.includes(key)) continue;
-    throw new ToolError('VALIDATION',
-      allowed.length === 0
-        ? `${toolName} neemt geen argumenten, maar kreeg \`${key}\`.`
-        : `onbekend argument \`${key}\` voor ${toolName}; toegestaan: ${allowed.join(', ')}.`);
-  }
+  const reason = unknownArgsReason(args, allowed, toolName);
+  if (reason) throw new McpStepError('VALIDATION', `${reason}.`);
 }
 
 const PAGE_KEYS = ['limit', 'offset'] as const;
 const LIST_TASKS_KEYS = ['kritiek', 'status', 'van', 'tot', 'zonder_relaties', ...PAGE_KEYS] as const;
 const HISTOGRAM_KEYS = ['resourceIds', 'van', 'tot', 'bucket'] as const;
 
-/** Gooit een `ToolError` wanneer `v` gezet maar geen boolean is. */
+/** Gooit een `McpStepError` wanneer `v` gezet maar geen boolean is. */
 function requireBool(v: unknown, name: string): void {
   if (v !== undefined && typeof v !== 'boolean') {
-    throw new ToolError('VALIDATION', `\`${name}\` moet een boolean zijn (true/false), kreeg ${typeof v} '${String(v)}'.`);
+    throw new McpStepError('VALIDATION', `${booleanArgReason(v, name)}.`);
   }
 }
 
-/** Gooit een `ToolError` wanneer `v` gezet maar geen ISO-datum (JJJJ-MM-DD) is. */
+/** Gooit een `McpStepError` wanneer `v` gezet maar geen ISO-datum (JJJJ-MM-DD) is. */
 function requireIsoDate(v: unknown, name: string): void {
   if (v === undefined) return;
   if (typeof v !== 'string' || !ISO_DATE_ONLY.test(v)) {
-    throw new ToolError('VALIDATION', `\`${name}\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(v)}'.`);
+    throw new McpStepError('VALIDATION', `\`${name}\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(v)}'.`);
   }
 }
 
@@ -206,12 +155,12 @@ function requireIsoDate(v: unknown, name: string): void {
 function requirePageArgs(args: PageArgs): void {
   if (args.limit !== undefined) {
     if (typeof args.limit !== 'number' || !Number.isInteger(args.limit) || args.limit < 1 || args.limit > 1000) {
-      throw new ToolError('VALIDATION', `\`limit\` moet een geheel getal van 1 t/m 1000 zijn, kreeg '${String(args.limit)}'.`);
+      throw new McpStepError('VALIDATION', `\`limit\` moet een geheel getal van 1 t/m 1000 zijn, kreeg '${String(args.limit)}'.`);
     }
   }
   if (args.offset !== undefined) {
     if (typeof args.offset !== 'number' || !Number.isInteger(args.offset) || args.offset < 0) {
-      throw new ToolError('VALIDATION', `\`offset\` moet een geheel getal ≥ 0 zijn, kreeg '${String(args.offset)}'.`);
+      throw new McpStepError('VALIDATION', `\`offset\` moet een geheel getal ≥ 0 zijn, kreeg '${String(args.offset)}'.`);
     }
   }
 }
@@ -378,7 +327,7 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   requireBool(args.kritiek, 'kritiek');
   requireBool(args.zonder_relaties, 'zonder_relaties');
   if (args.status !== undefined && !TASK_STATUSES.includes(args.status as string)) {
-    throw new ToolError('VALIDATION',
+    throw new McpStepError('VALIDATION',
       `\`status\` moet één van ${TASK_STATUSES.join(', ')} zijn (hoofdlettergevoelig), kreeg '${String(args.status)}'.`);
   }
   requireIsoDate(args.van, 'van');
@@ -445,11 +394,11 @@ interface GetTaskArgs {
 function getTask(s: AppState, args: GetTaskArgs) {
   requireOnlyKeys(args, ['taskId'], 'get_task');
   if (typeof args.taskId !== 'string' || args.taskId === '') {
-    throw new ToolError('VALIDATION', 'get_task vereist een `taskId` (string).');
+    throw new McpStepError('VALIDATION', 'get_task vereist een `taskId` (string).');
   }
   const task = s.tasks.find((t) => t.id === args.taskId);
   if (!task) {
-    throw new ToolError('NOT_FOUND', `Onbekende taak-id: ${args.taskId}`);
+    throw new McpStepError('NOT_FOUND', `Onbekende taak-id: ${args.taskId}`);
   }
   const taskById = new Map(s.tasks.map((t) => [t.id, t]));
   const resById = new Map(s.resources.map((r) => [r.id, r]));
@@ -721,7 +670,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   //   - een onbekend resource-id gaf een lege reeks die leest als "geen belasting".
   requireOnlyKeys(args, HISTOGRAM_KEYS, 'get_resource_histogram');
   if (args.bucket !== undefined && args.bucket !== 'dag' && args.bucket !== 'week' && args.bucket !== 'maand') {
-    throw new ToolError('VALIDATION',
+    throw new McpStepError('VALIDATION',
       `\`bucket\` moet 'dag', 'week' of 'maand' zijn (Nederlandse waarden), kreeg '${String(args.bucket)}'.`);
   }
   requireIsoDate(args.van, 'van');
@@ -729,15 +678,15 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   let resourceIds: string[] | undefined;
   if (args.resourceIds !== undefined) {
     if (!Array.isArray(args.resourceIds)) {
-      throw new ToolError('VALIDATION', "`resourceIds` moet een array van resource-id-strings zijn.");
+      throw new McpStepError('VALIDATION', "`resourceIds` moet een array van resource-id-strings zijn.");
     }
     if (args.resourceIds.some((x) => typeof x !== 'string' || x === '')) {
-      throw new ToolError('VALIDATION', '`resourceIds` mag alleen niet-lege resource-id-strings bevatten.');
+      throw new McpStepError('VALIDATION', '`resourceIds` mag alleen niet-lege resource-id-strings bevatten.');
     }
     const known = new Set(ctx.app.store.getState().resources.map((r) => r.id));
     const unknown = (args.resourceIds as string[]).filter((id) => !known.has(id));
     if (unknown.length > 0) {
-      throw new ToolError('VALIDATION',
+      throw new McpStepError('VALIDATION',
         `onbekende resource-id(s): ${unknown.join(', ')} — haal geldige id's op met planner_list_resources.`);
     }
     resourceIds = args.resourceIds as string[];
@@ -886,7 +835,7 @@ function compareBaseline(s: AppState) {
   if (!baseline) {
     // De weigering moet naar een BESTAANDE weg wijzen: "activeer er een" was tot de komst van
     // `baselineTools.ts` een instructie zonder tool om hem uit te voeren.
-    throw new ToolError('VALIDATION',
+    throw new McpStepError('VALIDATION',
       'Geen actieve baseline. Sla er een op met planner_save_baseline, of kies een bestaande met ' +
       'planner_activate_baseline (planner_list_baselines toont welke er zijn).');
   }
@@ -927,7 +876,7 @@ function compactVarianceRow(r: VarianceRow) {
 function analyzeDelay(s: AppState) {
   const baseline = activeBaseline(s);
   if (!baseline) {
-    throw new ToolError('VALIDATION',
+    throw new McpStepError('VALIDATION',
       'Geen actieve baseline. planner_analyze_delay vereist een baseline van vóór de vertraging: ' +
       'activeer er een met planner_activate_baseline (planner_list_baselines toont welke er zijn), ' +
       'of leg er nu een vast met planner_save_baseline — die meet dan pas vanaf nu.');
@@ -989,7 +938,7 @@ export const readTools: McpToolDef[] = [
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_info'); return getProjectInfo(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_info'); return getProjectInfo(s); }),
   },
   {
     name: 'planner_get_project_overview',
@@ -1012,7 +961,7 @@ export const readTools: McpToolDef[] = [
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_overview'); return getProjectOverview(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_project_overview'); return getProjectOverview(s); }),
   },
   {
     name: 'planner_list_tasks',
@@ -1041,7 +990,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => listTasks(s, (args ?? {}) as ListTasksArgs)),
+    handler: (args, ctx) => runReadTool(ctx, (s) => listTasks(s, (args ?? {}) as ListTasksArgs)),
   },
   {
     name: 'planner_get_task',
@@ -1076,7 +1025,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => getTask(s, (args ?? {}) as GetTaskArgs)),
+    handler: (args, ctx) => runReadTool(ctx, (s) => getTask(s, (args ?? {}) as GetTaskArgs)),
   },
   {
     name: 'planner_get_critical_path',
@@ -1091,7 +1040,7 @@ export const readTools: McpToolDef[] = [
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_critical_path'); return getCriticalPath(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_critical_path'); return getCriticalPath(s); }),
   },
   {
     name: 'planner_list_resources',
@@ -1117,7 +1066,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => listResources(s, (args ?? {}) as PageArgs)),
+    handler: (args, ctx) => runReadTool(ctx, (s) => listResources(s, (args ?? {}) as PageArgs)),
   },
   {
     name: 'planner_get_resource_histogram',
@@ -1149,7 +1098,7 @@ export const readTools: McpToolDef[] = [
       additionalProperties: false,
     },
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, () => getResourceHistogram(ctx, (args ?? {}) as HistogramArgs)),
+    handler: (args, ctx) => runReadTool(ctx, () => getResourceHistogram(ctx, (args ?? {}) as HistogramArgs)),
   },
   {
     name: 'planner_get_calendars',
@@ -1169,7 +1118,7 @@ export const readTools: McpToolDef[] = [
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_calendars'); return getCalendars(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_calendars'); return getCalendars(s); }),
   },
   {
     name: 'planner_compare_baseline',
@@ -1183,7 +1132,7 @@ export const readTools: McpToolDef[] = [
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => { requireOnlyKeys(args, [], 'compare_baseline'); return compareBaseline(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'compare_baseline'); return compareBaseline(s); }),
   },
   {
     name: 'planner_analyze_delay',
@@ -1198,6 +1147,6 @@ export const readTools: McpToolDef[] = [
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => readTool(ctx, (s) => { requireOnlyKeys(args, [], 'analyze_delay'); return analyzeDelay(s); }),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'analyze_delay'); return analyzeDelay(s); }),
   },
 ];
