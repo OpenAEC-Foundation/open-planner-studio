@@ -307,7 +307,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // teller vlak eronder 'm wél meetelt — een taak met UITSLUITEND `levelingDelayElapsed` werd zo
       // stil overgeslagen (geen snapshot, geen melding), ook al zou de lus 'm wél gewist hebben.
       // B1c-plan3 taak 2: de guard telt sinds nu ook leveling-GATEN mee — dezelfde `hasLevelingOutput`
-      // als de ribbon-enable-check in `ribbonConfig.tsx`.
+      // als de ribbon-enable-check in `ribbonConfig.tsx` en `planner_clear_leveling`.
       if (!s.tasks.some(hasLevelingOutput)) return; // niets te wissen, geen snapshot
       runtime.beginUndoable(s);
       for (const task of s.tasks) {

@@ -41,6 +41,7 @@ import type { ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isFiniteNumber } from '@/utils/guards';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 
 /**
  * Toegestane verdeelcurves + de bijbehorende typewachter — exact het `isSeqType`-patroon uit T19
@@ -1460,9 +1461,15 @@ const levelResources: BatchStepTool = {
 // =================================================================================================
 // planner_clear_leveling
 // =================================================================================================
+/** Hoeveel taken nivelleeruitvoer dragen — dezelfde `hasLevelingOutput` als de no-op-guard van de
+ *  store-`clearLeveling` en de ribbonknop, dus ook uitsluitend sub-dag-precisie of pauzedagen. */
+function levelingOutputCount(state: Pick<AppState, 'tasks'>): number {
+  return state.tasks.filter(hasLevelingOutput).length;
+}
+
 /** Synchrone, transactie-vrije kern van `clear_leveling`; niets te wissen ⇒ geen mutatie. */
 function clearLevelingCore(ctx: McpContext): MutationOutcome {
-  const count = ctx.app.store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length;
+  const count = levelingOutputCount(ctx.app.store.getState());
   if (count === 0) return { data: { cleared: 0 } };
   ctx.transactions.draft.clearLeveling();
   return { data: { cleared: count } };
@@ -1487,7 +1494,7 @@ const clearLeveling: BatchStepTool = {
   },
   async handler(_args, ctx) {
     const state = ctx.app.store.getState();
-    const count = state.tasks.filter((t) => t.levelingDelay !== undefined).length;
+    const count = levelingOutputCount(state);
     // No-op-snelpad (spiegelt de store-`clearLeveling`-guard): niets te wissen ⇒ geen transactie,
     // geen undo-snapshot, geen redo-wipe.
     if (count === 0) {
