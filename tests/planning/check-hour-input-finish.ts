@@ -15,7 +15,7 @@
 // Mutatiebewijs (gemeten 2026-09-24, 34 checks; eerdere kop noemde checknummers als tellingen):
 // `reconcileHourInputFinish` altijd `false` ⇒ 15 rood (03 05 07 08 10 12 13 17 20 21 22 25–28);
 // `seedNewHourTaskFinish` leeg ⇒ 3 rood (11, 32, 33); `fromExtTaskAddInput` gelijk aan `fromExtTaskInput`
-// (de extensie-grensterugval vult het einde met de start) ⇒ 1 rood (33); oude volgorde (reconcile vóór `clearLevelingGaps`)
+// (de extensie-grensterugval vult het einde met de start) ⇒ 2 rood (33, 36); oude volgorde (reconcile vóór `clearLevelingGaps`)
 // ⇒ 4 rood (25–28); elk van de uitzonderingen handmatig gepland / hammock / samenvatting /
 // `p6ExplicitTargetWindow` / gestart weg ⇒ 1 rood (resp. 29, 30, 31, 15, 14).
 import './domStub';
@@ -261,6 +261,13 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   eq('34 extensie-addTask met eigen einde: dat einde wint', sf(c, withFinish), '2026-09-07T16:00');
   const day = api.data.addTask({ name: 'ExtD', time: ext({ scheduleStart: '2026-09-07', durationUnit: 'days', scheduleDuration: 3 }) });
   eq('35 extensie-addTask, dagtaak zonder einde: ongewijzigd (einde = start)', sf(c, day), '2026-09-07');
+  // Critreview 2e ronde: een meegegeven earlyFinish zonder scheduleFinish maakt het einde niet incoherent.
+  const early = api.data.addTask({ name: 'ExtE', time: ext({ scheduleStart: '2026-09-07T08:00', durationUnit: 'hours', durationMinutes: 180, earlyFinish: '2026-09-09T10:00' }) });
+  eq('36 extensie-addTask met alleen earlyFinish: gepland en vroegst einde beide afgeleid', [sf(c, early), ef(c, early)],
+    ['2026-09-07T11:00', '2026-09-07T11:00']);
+  // Een gestarte urentaak beweegt niet mee: dan blijft de grensterugval (einde = start), niet de verse default.
+  const started = api.data.addTask({ name: 'ExtS', status: 'IN_PROGRESS', time: ext({ scheduleStart: '2026-09-07T08:00', durationUnit: 'hours', durationMinutes: 180, actualStart: '2026-09-07T08:00' }) });
+  eq('37 extensie-addTask, gestarte urentaak zonder einde: einde = start (geen afleiding, geen default)', sf(c, started), '2026-09-07T08:00');
 }
 
 // 12. De afleiding zelf: ELAPSEDTIME telt klokminuten, duur 0 geeft de start.
