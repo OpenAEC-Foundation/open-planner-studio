@@ -174,6 +174,12 @@ van #167, `claude/recorded-all-formats-fixes`).
   xer-archief) blijft de modus. Reden: de eigenaar kreeg de vraag uitgelegd als "invoer met invoer
   vergelijken" — de bedoeling is de modus te bewaren waar het bestand rekenuitvoer draagt.
 
+- **24-09 ~11:15, PR #101 baan 1 (critreview):** E6 = verhuizen naar `src/state/`/`taskDefaults.ts` (regel
+  B: de lezing van `mspTaskType`/`p6DurationType` is per-taak-herkomst van bewaarde data, geen conventie;
+  #101 verplaatste haar zelf de motor in; datagates blijven ≤ pin). E3 = de code volgt de spec (XER zet
+  werkvelden alleen waar het werk afwijkt; histogram/nivelleerder byte-identiek aan vandaag) — omkeerbaar;
+  blijft als eigenaarsvraag staan in het dossier.
+
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
 1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
@@ -528,8 +534,19 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    (`taskTypesVisibility.ts:21`, `workRuleApply.ts:50/254`), datagate `p6DurationType` 6 → 7, `mspTaskType`
    1 → 4: mag niet omhoog zonder besluit ⇒ **eigenaarsvraag E6** (herpinnen, of de zichtbaarheids-/
    bewerklogica uit `src/engine/` verhuizen — advies: verhuizen). Verslag
-   `2026-09-24-taaktypes-integratie-baan1.md` (gecommit `550ba040`). Critreview loopt
-   (`opus-laag-critreview-pr101-baan1`); daarna baan 2 (B1-koppeling in `settleDurationAftermath`).
+   `2026-09-24-taaktypes-integratie-baan1.md` (gecommit `550ba040`). Critreview (Opus 5.5) =
+   LANDEN-MET-FIXES: merge gezond (store/MCP zelfde volgorde, niets verdwenen/dubbel, valkuilen bewezen,
+   meetlat ongewijzigd); (1) E3 klopt niet als "ongewijzigd": `importedWorkFields` zet bij elk verricht werk
+   alle drie werkvelden ⇒ `assignmentDayUnits` laag 3 i.p.v. 4 ⇒ histogram/overallocatie/nivelleerder
+   veranderen bij XER-import (Roads 110/3575 toewijzingen, HarbourPointe 119/417); (2) E6 advies (b)
+   verhuizen (`taskTypesVisibility` → `src/state/`, `contourKeepsWork`/`effectiveEffortDriven` →
+   `taskDefaults.ts`), geen conventie, niet herpinnen; (3) toewijzingspaden zonder nazorg = baan 2,
+   voorwaarde vóór #101 naar main; (4) gidslink detailregel; (5) gridcheck kalenderwissel; (6) 340 i.p.v. 338.
+   **Orkestratorbesluiten (§1c):** E6 = verhuizen (regel B: per-taak-herkomst, geen conventie; #101 verplaatste
+   de lezing zelf de motor in); E3 = code volgt de spec (werkvelden alleen waar het werk afwijkt, histogram
+   byte-identiek aan vandaag) — omkeerbaar als de eigenaar het nieuwe gedrag wil. Fixagent
+   `opus-midden-pr101-baan1-fixes` op dezelfde branch; daarna her-check, dan baan 2. De taaktypes-etappe
+   krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
    herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
    Base van #169 pas naar `main` zetten als #109 gemerged is.
