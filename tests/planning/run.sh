@@ -336,6 +336,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MACHECK="$DIR/.move-assignment-check.mjs"
   if bundle_check "$DIR/check-move-assignment.ts" "$MACHECK"; then node "$MACHECK" || STATUS=1; fi
 
+  # Toewijzingswijziging: één set gevolgregels (`invalidateForAssignmentChange`) over alle routes —
+  # store, taakraster (gridtransactie) en `removeResource`; nivelleerpauzes + laag 3/4 weg,
+  # importsplits blijven, bystanders ongemoeid.
+  AICHECK="$DIR/.assignment-invalidation-check.mjs"
+  if bundle_check "$DIR/check-assignment-invalidation.ts" "$AICHECK"; then node "$AICHECK" || STATUS=1; fi
+
   # assignResource-guard-checks (M6-conventie: onbekend/null resourceId stil weigeren; plus
   # defensieve writeIFC tegen reeds vergiftigde toewijzingen — de auto-save-crash-regressie).
   ARGCHECK="$DIR/.assign-resource-guard-check.mjs"

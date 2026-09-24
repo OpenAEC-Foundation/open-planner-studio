@@ -92,12 +92,17 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   },
 
   removeResource: (id) => {
+    // mpp-nul-data-etappe, DEEL 1 — kan meerdere taken tegelijk raken (elke taak met een toewijzing
+    // van deze resource krijgt de toewijzingen-trigger, zie `purgeResource`), dus tellen zoals
+    // `moveAssignment`/`removeCalendar`; melden buiten de producer.
+    let lostCount = 0;
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
-      purgeResource(s, id, 'unset');
+      lostCount = purgeResource(s, id, 'unset').length;
       runtime.finishMutation(s);
     });
+    if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter (§4.3).
   },

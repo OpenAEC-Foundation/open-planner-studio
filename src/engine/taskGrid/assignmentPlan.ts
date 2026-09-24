@@ -2,7 +2,7 @@ import { isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, 
 import type { Task } from '@/types/task';
 import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
-import { clearTimephasedDurationWalks, clearTimephasedWindow } from '@/utils/taskDefaults';
+import { invalidateForAssignmentChange } from '@/utils/taskDefaults';
 
 export type AssignmentPlanOperation =
   | {
@@ -263,13 +263,14 @@ export function applyTaskAssignmentPlan(
     task.resourceIds = [...resourceIds];
   }
 
+  // Dezelfde "toewijzingen"-trigger als de store en de MCP-draft (`assignmentMutations.ts`): één
+  // helper voor laag 3/4 én de nivelleergaten. Alleen bij een lidmaatschapswijziging (add/remove);
+  // een units/curve-update is — net als `updateAssignment` — geen trigger.
   const timephasedGuidanceLostTaskIds: string[] = [];
   for (const taskId of plan.membershipChangedTaskIds) {
     const task = tasksById.get(taskId);
     if (!task) continue;
-    const clearedWindow = clearTimephasedWindow(task);
-    const clearedWalks = clearTimephasedDurationWalks(task);
-    if (clearedWindow || clearedWalks) timephasedGuidanceLostTaskIds.push(taskId);
+    if (invalidateForAssignmentChange(task)) timephasedGuidanceLostTaskIds.push(taskId);
   }
   return { timephasedGuidanceLostTaskIds };
 }
