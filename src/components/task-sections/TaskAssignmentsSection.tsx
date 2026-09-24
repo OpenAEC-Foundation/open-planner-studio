@@ -11,7 +11,7 @@ import { ContourDialog } from '@/components/dialogs/ContourDialog';
 import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
 import { effectiveWorkRule, remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply';
 import { ruleProtectsWork } from '@/engine/work/workTriangle';
-import { taskTypesUnlocked } from '@/engine/work/taskTypesVisibility';
+import { taskTypesUnlocked } from '@/state/taskTypesVisibility';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 
 /** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine

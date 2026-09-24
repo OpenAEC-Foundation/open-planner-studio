@@ -1,4 +1,4 @@
-import { hasTaskTypeData } from '@/engine/work/taskTypesVisibility';
+import { hasTaskTypeData } from '@/state/taskTypesVisibility';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';

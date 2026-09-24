@@ -3,7 +3,7 @@ import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  contourKeepsWork, rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -20,7 +20,7 @@ import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds
 import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, settleCalendarChange,
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, settleCalendarChange,
   settleDurationEdit, settleRuleChange,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';

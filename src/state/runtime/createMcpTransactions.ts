@@ -7,7 +7,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  contourKeepsWork, rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
   hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
@@ -31,7 +31,7 @@ import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorC
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, contourKeepsWork, planWorkEdit, commitTrianglePlan,
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, planWorkEdit, commitTrianglePlan,
   settleAssignmentAdded, settleAssignmentRemoved, settleCalendarChange, settleDurationAftermath, settleDurationEdit,
   settleRuleChange, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';

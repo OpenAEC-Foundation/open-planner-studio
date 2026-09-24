@@ -3,8 +3,9 @@ import { Lock } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import type { Task } from '@/types/task';
 import { DEFAULT_WORK_RULE, WORK_RULES, type WorkRule } from '@/types/workRule';
-import { effectiveEffortDriven, effectiveWorkRule, workRuleApplies } from '@/engine/work/workRuleApply';
-import { taskTypesUnlocked } from '@/engine/work/taskTypesVisibility';
+import { effectiveWorkRule, workRuleApplies } from '@/engine/work/workRuleApply';
+import { effectiveEffortDriven } from '@/utils/taskDefaults';
+import { taskTypesUnlocked } from '@/state/taskTypesVisibility';
 import { Field } from './shared';
 
 /**

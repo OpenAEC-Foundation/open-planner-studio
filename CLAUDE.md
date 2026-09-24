@@ -258,7 +258,7 @@ solver en rapportage één waarheid delen — eigenaarsbesluiten 2026-09-05/06, 
 taaktypes** (`ui.showTaskTypes`, `ops-showTaskTypes`, default uit) aan staat óf het document zelf
 taaktypedata draagt (`taskTypesVisible` in `DOCUMENT_FIELDS`, afgeleid bij laden via
 `hasTaskTypeData`, met één melding per document — `taskTypesNotice.ts`); selector `taskTypesUnlocked`
-(`src/engine/work/taskTypesVisibility.ts`). Dan: `TaskWorkRuleField` in paneel en dialoog, de kolom
+(`src/state/taskTypesVisibility.ts`). Dan: `TaskWorkRuleField` in paneel en dialoog, de kolom
 **Werk (rest)** met slotjes in `TaskAssignmentsSection`, en de rasterkolommen `task.workRule` en
 `assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
 Gids: `public/docs/{nl,en}/gids-taaktypes.md`; browserspec `tests/browser/work-rule.spec.ts`. `src/services/contourIo.ts` is de adapterlaag:

@@ -65,7 +65,7 @@ export interface TaskEditPlanEnvironment {
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
   /** Taaktypes-etappe (2026-09): werkbehoud bij het herschalen van een contour, afgeleid van de
-   *  effectieve werkregel (`workRuleApply.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
+   *  effectieve werkregel (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
    *  MSP-afleiding in `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
 }

@@ -9,6 +9,31 @@ import { effHoursPerDay } from '@/utils/taskDuration';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
+import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
+import { ruleProtectsWork } from '@/engine/work/workTriangle';
+
+// ── Bewerkregels die per-taak-herkomst lezen (E6, PR #101 baan 1) ───────────────────────────────
+// Deze twee lezen `mspTaskType` — bewaarde bronherkomst van één taak — om te bepalen hoe een
+// BEWERKING uitpakt (contour herschalen, 8-B-effort-driven). Dat is geen solverinvoer en geen
+// conventie (regel B): de motor (`src/engine/`) mag geen bronformaat lezen, dus ze wonen hier, naast
+// `rescaleTaskContours`, dat de uitkomst van `contourKeepsWork` als `keepWork` krijgt.
+
+/** Bewaard MSP-vinkje voor beslispunt 8-B: alleen betekenisvol op een taak met MSP-herkomst
+ *  (`mspTaskType`); daar is "afwezig" letterlijk "niet effort-driven". Zonder herkomst ⇒ zuiver P6.
+ *  Formaatafhankelijke BEWERKREGEL (driehoek, paneel), niet iets wat de solver leest. */
+export function effectiveEffortDriven(task: Pick<Task, 'mspTaskType' | 'effortDriven'>): boolean | undefined {
+  return task.mspTaskType ? (task.effortDriven ?? false) : undefined;
+}
+
+/**
+ * Herschaalt een contour met werkbehoud onder de werkbeschermende regels (spec §6.3). Zonder eigen
+ * `workRule` geldt de oude MSP-afleiding (`mspTaskType === 'FIXED_WORK'`) náást de projectstandaard,
+ * zodat een vóór deze etappe opgeslagen MSP-import byte-identiek blijft herschalen.
+ */
+export function contourKeepsWork(task: Pick<Task, 'workRule' | 'mspTaskType'>, defaultWorkRule?: WorkRule): boolean {
+  if (task.workRule !== undefined) return ruleProtectsWork(task.workRule);
+  return task.mspTaskType === 'FIXED_WORK' || ruleProtectsWork(defaultWorkRule ?? DEFAULT_WORK_RULE);
+}
 
 /**
  * Fabrieksfunctie voor een verse {@link TaskTime}. Leeft in de utils-laag (niet in `src/types/`)

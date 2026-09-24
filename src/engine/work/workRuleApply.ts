@@ -22,12 +22,16 @@ import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { effHoursPerDay } from '@/utils/taskDuration';
+// E6 (PR #101 baan 1, orkestratorbesluit onder regel B): `contourKeepsWork` en `effectiveEffortDriven`
+// lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
+// geen conventie. Ze wonen daarom in `utils/taskDefaults.ts`, buiten `src/engine/` (verify:conventions).
 import {
-  clearTimephasedDurationWalks, clearTimephasedWindow, rescaleTaskContours, timephasedDurationWalksHaveFrozenWork,
+  clearTimephasedDurationWalks, clearTimephasedWindow, contourKeepsWork, effectiveEffortDriven, rescaleTaskContours,
+  timephasedDurationWalksHaveFrozenWork,
 } from '@/utils/taskDefaults';
 import {
   applyAssignmentAdded, applyAssignmentRemoved, applyDurationEdit, applyRuleChange, applySlotChange,
-  applyUnitsEdit, applyWorkEdit, ruleProtectsWork, type TriangleAssignment, type TriangleState,
+  applyUnitsEdit, applyWorkEdit, type TriangleAssignment, type TriangleState,
 } from '@/engine/work/workTriangle';
 
 export interface WorkRuleContext {
@@ -42,12 +46,6 @@ export interface WorkRuleContext {
 /** De regel die voor deze taak geldt: eigen veld, anders projectstandaard, anders vandaag. */
 export function effectiveWorkRule(task: Pick<Task, 'workRule'>, defaultWorkRule?: WorkRule): WorkRule {
   return task.workRule ?? defaultWorkRule ?? DEFAULT_WORK_RULE;
-}
-
-/** Bewaard MSP-vinkje voor beslispunt 8-B: alleen betekenisvol op een taak met MSP-herkomst
- *  (`mspTaskType`); daar is "afwezig" letterlijk "niet effort-driven". Zonder herkomst ⇒ zuiver P6. */
-export function effectiveEffortDriven(task: Pick<Task, 'mspTaskType' | 'effortDriven'>): boolean | undefined {
-  return task.mspTaskType ? (task.effortDriven ?? false) : undefined;
 }
 
 /** Spec §8: de regel werkt alleen op gewone bladtaken op werktijd (dag- én uurmodus). */
@@ -242,16 +240,6 @@ function reconcileContourWork(task: Task, assignments: readonly ResourceAssignme
       : c));
   }
   if (next !== contours) task.timephasedContours = next;
-}
-
-/**
- * Herschaalt een contour met werkbehoud onder de werkbeschermende regels (spec §6.3). Zonder eigen
- * `workRule` geldt de oude MSP-afleiding (`mspTaskType === 'FIXED_WORK'`) náást de projectstandaard,
- * zodat een vóór deze etappe opgeslagen MSP-import byte-identiek blijft herschalen.
- */
-export function contourKeepsWork(task: Pick<Task, 'workRule' | 'mspTaskType'>, defaultWorkRule?: WorkRule): boolean {
-  if (task.workRule !== undefined) return ruleProtectsWork(task.workRule);
-  return task.mspTaskType === 'FIXED_WORK' || ruleProtectsWork(defaultWorkRule ?? DEFAULT_WORK_RULE);
 }
 
 // ── Hoog-niveau "settle"-API voor store, raster en MCP-tweeling ─────────────────────────────────

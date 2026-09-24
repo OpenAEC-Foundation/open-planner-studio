@@ -21,10 +21,10 @@ import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
 import {
-  captureCalendarChange, captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
+  captureCalendarChange, captureTriangle, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
   settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
 } from '@/engine/work/workRuleApply';
-import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
+import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import {
   applyRelationMutationPlan,
