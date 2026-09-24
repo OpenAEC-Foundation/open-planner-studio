@@ -239,6 +239,22 @@ test('voortgang: actualFinish < actualStart ⇒ weigering', () => {
   assertEq(after, before, 'een geweigerd item mag de taak niet muteren');
 });
 
+test('voortgang: datums vergeleken als instant, niet als string (zelfde regel als store en grid)', () => {
+  // Date-only statusdatum ⇒ de hele dag telt (isActualPastStatusDate). Als string is
+  // "2026-09-01T15:00" > "2026-09-01", dus vóór de fix weigerde MCP wat de UI accepteerde.
+  store.getState().setProject({ statusDate: '2026-09-01' });
+  const sameDay = store.getState().addTask({ name: 'pg-sameday' });
+  const r1 = applyProgress(sameDay, { actualStart: '2026-09-01T15:00' }, '2026-09-01');
+  assert(r1.applied, `een actualStart op de statusdatum-dag hoort geaccepteerd te worden (${r1.applied ? '' : r1.reason})`);
+  const viaStore = store.getState().setActualStart(store.getState().addTask({ name: 'pg-sameday-ui' }), '2026-09-01T15:00');
+  assertEq(viaStore, true, 'de store-setter accepteert dezelfde waarde');
+
+  // Een finish met expliciete offset die als instant ná de start ligt, maar als string ervóór sorteert.
+  const offset = store.getState().addTask({ name: 'pg-offset' });
+  const r2 = applyProgress(offset, { actualStart: '2026-06-10T10:00+02:00', actualFinish: '2026-06-10T09:00' }, '2026-12-31');
+  assert(r2.applied, `finish 09:00Z ná start 08:00Z hoort geaccepteerd te worden (${r2.applied ? '' : r2.reason})`);
+});
+
 test('voortgang: actualFinish wissen op een 100%-taak reset ook completion', () => {
   const id = store.getState().addTask({ name: 'pg-clearfinish' });
   store.getState().setProject({ statusDate: '2026-12-31' });

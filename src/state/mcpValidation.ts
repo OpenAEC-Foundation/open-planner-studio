@@ -20,7 +20,9 @@
 
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
-import { applyProgressInvariants } from './slices/taskSlice';
+import {
+  applyProgressInvariants, isActualFinishBeforeStart, isActualPastStatusDate,
+} from '@/engine/taskMutationRules';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { isValidUnits } from '@/types/resource';
@@ -171,12 +173,13 @@ export const progress = {
     //     completion=1 hoort af te dwingen via de invarianten.
     if (update.completion !== undefined && time.completion < 1) time.actualFinish = undefined;
 
-    // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false).
+    // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
+    //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
     if (statusDate) {
-      if (update.actualStart && update.actualStart > statusDate) {
+      if (update.actualStart && isActualPastStatusDate(update.actualStart, statusDate)) {
         return { applied: false, reason: `actualStart ${update.actualStart} ligt ná de statusdatum ${statusDate}` };
       }
-      if (update.actualFinish && update.actualFinish > statusDate) {
+      if (update.actualFinish && isActualPastStatusDate(update.actualFinish, statusDate)) {
         return { applied: false, reason: `actualFinish ${update.actualFinish} ligt ná de statusdatum ${statusDate}` };
       }
     }
@@ -187,8 +190,8 @@ export const progress = {
       time.completion = 0;
     }
 
-    // (7) actualFinish >= actualStart.
-    if (time.actualStart && time.actualFinish && time.actualFinish < time.actualStart) {
+    // (7) actualFinish >= actualStart (op instantprecisie, zoals het grid).
+    if (isActualFinishBeforeStart(time)) {
       return { applied: false, reason: `actualFinish ${time.actualFinish} ligt vóór actualStart ${time.actualStart}` };
     }
 
