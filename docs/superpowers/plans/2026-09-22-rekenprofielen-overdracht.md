@@ -96,6 +96,13 @@ de modus "datums zoals opgeslagen" wordt alleen aangeboden voor formaten met ech
 XML, MSPDI, `.mpp`); CSV en vreemde IFC's openen zonder de modus en zonder melding (landt in de fixronde
 van #167, `claude/recorded-all-formats-fixes`).
 
+**2026-09-24 ~12:25, op de twee vragen uit de Fable-review van #169, letterlijk:** "a" — A19
+(`p6UseRemainingStartForProgress`) gaat in het ingebouwde P6-profiel aan en het per-bestand-mechanisme
+(`perFile`, `PER_FILE_CONVENTION_KEYS`, `withPerFileFrom`, badge "per bestand", "(aangepast)", de XER-override
+uit `rem_target_link_flag`) vervalt; de UI-branch `claude/x12-ui-a19-perfile` (51f37d33) wordt niet gemerged.
+"smal" — C5 blijft beperkt tot voltooide CP_Phys-taken; naam en gidsregel worden eerlijk ("gemeten op
+CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_Drtn-taken is.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
