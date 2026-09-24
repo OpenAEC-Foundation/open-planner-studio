@@ -7,10 +7,10 @@
 
 const dbPromises = new Map<string, Promise<IDBDatabase>>();
 
-/** De (gecachete) verbinding met `dbName`, met één object-store `storeName` (keyPath `id`). Een
- *  versie-upgrade uit een andere tab of instantie sluit de verbinding; de volgende aanroep opent
- *  opnieuw. Gooit bij een openingsfout. */
-export function openDb(dbName: string, storeName: string): Promise<IDBDatabase> {
+/** De (gecachete) verbinding met `dbName`, met één object-store `storeName` (standaard keyPath
+ *  `id`; de bibliotheek gebruikt `key`). Een versie-upgrade uit een andere tab of instantie sluit
+ *  de verbinding; de volgende aanroep opent opnieuw. Gooit bij een openingsfout. */
+export function openDb(dbName: string, storeName: string, keyPath = 'id'): Promise<IDBDatabase> {
   const cacheKey = `${dbName}::${storeName}`;
   const existing = dbPromises.get(cacheKey);
   if (existing) return existing;
@@ -19,7 +19,7 @@ export function openDb(dbName: string, storeName: string): Promise<IDBDatabase> 
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: 'id' });
+        db.createObjectStore(storeName, { keyPath });
       }
     };
     req.onsuccess = () => {

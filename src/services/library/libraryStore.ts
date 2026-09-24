@@ -8,31 +8,12 @@ import { isTauri } from '@/utils/platform';
 import type { CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary } from '@/types/library';
 import { writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
+import { openDb } from '@/utils/idb';
 
 const LIBRARY_FILE = 'ops-library.json';
 
 // ── IndexedDB (browser) ───────────────────────────────────────────────────────────────────────
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function openLibraryDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open('ops-library', 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('library')) {
-        db.createObjectStore('library', { keyPath: 'key' });
-      }
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      db.onversionchange = () => { db.close(); dbPromise = null; };
-      resolve(db);
-    };
-    req.onerror = () => { dbPromise = null; reject(req.error); };
-  });
-  return dbPromise;
-}
+const openLibraryDb = (): Promise<IDBDatabase> => openDb('ops-library', 'library', 'key');
 
 async function loadWeb(): Promise<CompanyLibrary | null> {
   if (typeof indexedDB === 'undefined') return null; // headless Node (testbatterij) = no-op.
