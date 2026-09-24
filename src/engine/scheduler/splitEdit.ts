@@ -242,16 +242,19 @@ export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
  * de voorlopige waarde niet een halve dag van de echte afwijkt.
  */
 export function splitScheduleFinish(task: Task, eng: CalendarEngine): string {
-  const startStr = task.time.scheduleStart;
-  const hasTime = startStr.includes('T');
-  const start = hasTime ? parseInstant(startStr) : parseDate(startStr);
+  const hasTime = task.time.scheduleStart.includes('T');
+  // Gerekend vanaf waar de balk STAAT (`earlyStart || scheduleStart`), niet vanaf het anker: een
+  // door een voorganger opgeschoven taak houdt haar `scheduleStart` op de projectstart, en dan
+  // sprong het balkeinde na een split terug naar die projectstart (issue #171).
+  const startStr = task.time.earlyStart || task.time.scheduleStart;
+  const start = startStr.includes('T') ? parseInstant(startStr) : parseDate(startStr);
   if (Number.isNaN(start.getTime())) return task.time.scheduleFinish; // corrupte invoer: niets verzinnen
   if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
     const minutes = splitTotalSpanMinutes(task.splitGaps, durationMinutesOf(task, eng));
     return formatInstant(eng.addWorkMinutes(start, minutes), 'hour');
   }
   const totalDays = splitTotalSpanDays(task, eng);
-  const lastDay = eng.addWorkDays(hasTime ? parseDate(formatDate(start)) : start, totalDays);
+  const lastDay = eng.addWorkDays(parseDate(formatDate(start)), totalDays);
   if (!hasTime) return formatDate(lastDay);
   const bands = eng.effectiveBandsOn(lastDay);
   const finish = new Date(lastDay.getTime());

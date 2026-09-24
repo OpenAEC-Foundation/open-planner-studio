@@ -168,7 +168,10 @@ export function useSplitGesture({
     const x = input.startClientX - canvas.getBoundingClientRect().left;
     const at = snapAt(x, hourMode);
     if (!at) return false;
-    const startIso = task.time.scheduleStart;
+    // De balk staat op `earlyStart || scheduleStart` (`GanttRenderer.barGeometry`): een taak die
+    // door een voorganger is opgeschoven houdt haar `scheduleStart`-anker op de projectstart. Vanaf
+    // dat anker meten schoof de split precies die opschuiving op (issue #171).
+    const startIso = task.time.earlyStart || task.time.scheduleStart;
     const taskStart = startIso.includes('T') ? parseInstant(startIso) : parseDate(startIso);
     const { workMinutes: offsetMinutes, inGap } = workOffsetAtDate(pieces0, taskStart, at, eng, hourMode);
     if (inGap) return false;
