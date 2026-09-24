@@ -59,6 +59,16 @@ function knownBaselinesHint(s: AppState): string {
   return `bekende baselines: ${shown.join(', ')}${rest > 0 ? ` (+${rest} meer)` : ''}`;
 }
 
+/** Weigering voor een onbekend baseline-id, met de verwijzing naar de geldige id's. */
+function unknownBaselineReason(s: AppState, baselineId: string): string {
+  return `onbekende baseline-id '${baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})`;
+}
+
+/** Weigering voor een `baselineId` die geen niet-lege string is. */
+function baselineIdShapeReason(value: unknown): string {
+  return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${value === undefined ? 'niets' : `${typeof value} '${String(value)}'`}`;
+}
+
 /** Zoek een baseline; `null` wanneer onbekend. */
 function findBaseline(s: AppState, id: string): Baseline | null {
   return s.baselines.find((b) => b.id === id) ?? null;
@@ -148,7 +158,7 @@ function parseActivate(args: unknown): ActivateArgs | string {
 /** Beschrijft wat een activatie zou doen — gedeeld door de handler (no-op-snelpad) en de kern. */
 function activatePlan(s: AppState, p: ActivateArgs): { error: string } | { changed: boolean; data: unknown } {
   if (p.baselineId !== null && !findBaseline(s, p.baselineId)) {
-    return { error: `onbekende baseline-id '${p.baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})` };
+    return { error: unknownBaselineReason(s, p.baselineId) };
   }
   const previousActiveBaselineId = s.activeBaselineId;
   const changed = previousActiveBaselineId !== p.baselineId;
@@ -236,7 +246,7 @@ function parseRename(args: unknown): RenameArgs | string {
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown; name?: unknown };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {
-    return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${a.baselineId === undefined ? 'niets' : `${typeof a.baselineId} '${String(a.baselineId)}'`}`;
+    return baselineIdShapeReason(a.baselineId);
   }
   if (typeof a.name !== 'string') {
     return `\`name\` moet een string zijn, kreeg ${a.name === undefined ? 'niets' : `${typeof a.name} '${String(a.name)}'`}`;
@@ -250,7 +260,7 @@ function parseRename(args: unknown): RenameArgs | string {
 function renamePlan(s: AppState, p: RenameArgs): { error: string } | { changed: boolean; data: unknown } {
   const b = findBaseline(s, p.baselineId);
   if (!b) {
-    return { error: `onbekende baseline-id '${p.baselineId}' — ${LIST_HINT} (${knownBaselinesHint(s)})` };
+    return { error: unknownBaselineReason(s, p.baselineId) };
   }
   const changed = b.name !== p.name;
   const duplicate = s.baselines.some((x) => x.id !== p.baselineId && x.name === p.name);
@@ -336,7 +346,7 @@ function parseDelete(args: unknown): DeleteArgs | string {
   if (bad) return bad;
   const a = (args ?? {}) as { baselineId?: unknown };
   if (typeof a.baselineId !== 'string' || a.baselineId === '') {
-    return `\`baselineId\` moet een niet-lege string zijn (${LIST_HINT}), kreeg ${a.baselineId === undefined ? 'niets' : `${typeof a.baselineId} '${String(a.baselineId)}'`}`;
+    return baselineIdShapeReason(a.baselineId);
   }
   return { baselineId: a.baselineId };
 }
@@ -345,10 +355,7 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
   const before = ctx.app.store.getState();
   const target = findBaseline(before, p.baselineId);
   if (!target) {
-    throw new McpStepError(
-      'VALIDATION',
-      `onbekende baseline-id '${p.baselineId}' — ${LIST_HINT} (${knownBaselinesHint(before)})`,
-    );
+    throw new McpStepError('VALIDATION', unknownBaselineReason(before, p.baselineId));
   }
   const wasActive = before.activeBaselineId === p.baselineId;
   const previousActiveBaselineId = before.activeBaselineId;
