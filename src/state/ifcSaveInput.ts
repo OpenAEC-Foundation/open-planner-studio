@@ -75,6 +75,9 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     // Heropen-beleid optie B: alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
     ...(src.importPristine ? { importPristine: true } : {}),
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
+    // Eigenaarsbesluit 2026-09-24 ("beperken"): de oorspronkelijke bron reist mee in
+    // OPS_ImportProvenance, zodat een heropening op de BRON poort en niet op "het is nu een IFC".
+    ...(src.recordedDates?.sourceFormat ? { recordedSourceFormat: src.recordedDates.sourceFormat } : {}),
   };
 }
 

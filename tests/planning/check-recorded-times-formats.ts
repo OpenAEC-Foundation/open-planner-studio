@@ -201,6 +201,53 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('7d een melding met een eigen datumregel (XER) ⇒ geen tweede', withRecordedDatesNotice(xer, 2, 0), xer);
 }
 
+// ── (8) Alleen bronnen met echte rekenuitvoer (eigenaarsbesluit 2026-09-24, "beperken") ─────────
+// Het ECHTE openpad. CSV vergelijkt invoer met invoer; een eigen IFC zonder bron vergelijkt onze eigen
+// oude solve met de nieuwe. Een eigen IFC dat van een MSPDI-import stamt noemt zijn bron in
+// OPS_ImportProvenance.SourceFormat en houdt de modus. Mutatiebewijs: zie de poort
+// `recordedDatesSource` (documentActivation.ts) — 'csv' toelaten ⇒ 8a/8b rood; 'ifc-own' zonder bron
+// toelaten ⇒ 8e rood; SourceFormat niet schrijven ⇒ 8c/8d (en 6d) rood.
+{
+  const S = () => useAppStore.getState();
+  const meldingen = () => S().ui.notifications.filter(n =>
+    n.messageKey === 'notifications.importDatesAsRecorded' || n.messageKey === 'notifications.importDatesAsRecordedOffer').length;
+  S().newProject();
+  const voorCsv = meldingen();
+  S().applyOpenedImport(readCSV(CSV_FIXTURE), { filePath: null, recompute: true });
+  eq('8a CSV (Start/Finish zijn invoer): geen vastlegging, geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
+  eq('8b …en geen openingsmelding', meldingen() - voorCsv, 0);
+  truthy('8a2 tegenproef: B is wél verschoven door de herberekening (anders meet 8a een vacuüm)',
+    S().tasks.find(t => t.wbsCode === '1.2')?.time.earlyStart !== '2026-03-16');
+
+  // MSPDI → een bewerking (vlag weg, modus blijft) → opslaan → heropenen: de bron reist mee, dus
+  // het aanbod blijft; zonder bron zou het eigen IFC niets meer bieden.
+  S().newProject();
+  S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
+  S().setProject({ description: 'bewerkt, zonder datumwijziging' });
+  const savedEdited = writeIFC(buildWriteIFCInput(S()));
+  truthy('8c het opgeslagen bestand noemt zijn bron (SourceFormat mspdi)', savedEdited.includes("IFCPROPERTYSINGLEVALUE('SourceFormat',$,IFCLABEL('mspdi'),$)"));
+  const reopenedEdited = readIFC(savedEdited);
+  eq('8c2 …en dat leest terug', [reopenedEdited.recordedTimesOrigin, reopenedEdited.recordedSourceFormat, reopenedEdited.importPristine], ['ifc-own', 'mspdi', false]);
+  S().newProject();
+  S().applyOpenedImport(reopenedEdited, { filePath: null, recompute: true });
+  eq('8d heropend eigen IFC met MSPDI-bron, bewerkt: het aanbod (vastlegging, modus uit)',
+    [S().recordedDates !== null, S().datesAsRecorded, S().recordedDates?.sourceFormat], [true, false, 'mspdi']);
+
+  // Een eigen IFC zonder bron: planning in deze app gemaakt, datums verschoven zonder herberekening
+  // opgeslagen (scheduleStale). Heropenen rekent door en verschuift — maar dat is onze eigen oude
+  // solve tegen de nieuwe, geen pakketuitvoer.
+  S().newProject();
+  S().applyOpenedImport(readIFC(writeIFC({ ...readMSPDI(MSPDI_FIXTURE), recordedTimes: undefined, recordedTimesOrigin: undefined })), { filePath: null, recompute: true });
+  const eigenZonderBron = writeIFC(buildWriteIFCInput(S()));
+  truthy('8e0 het eigen bestand zonder bron draagt geen SourceFormat', !eigenZonderBron.includes("'SourceFormat'"));
+  const bStart = S().tasks.find(t => t.wbsCode === '1.2')!.time.earlyStart;
+  const verschoven = eigenZonderBron.replace(new RegExp(`'${bStart}T`, 'g'), "'2026-03-23T");
+  truthy('8e1 tegenproef: de fixture verschuift B echt in het bestand', verschoven !== eigenZonderBron);
+  S().newProject();
+  S().applyOpenedImport(readIFC(verschoven), { filePath: null, recompute: true });
+  eq('8e eigen IFC zonder bron: geen vastlegging en geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
+}
+
 // ── (5-0) .mpp-kritiekgrens uit de projecteigenschappen (corpusloos) ────────────────────────────
 // CRITICAL_SLACK_LIMIT (MPXJ `ProjectPropertiesReader`: `props.getInt`, dagen). In het publieke
 // corpus staat hij overal op 0, dus de grens zelf is alleen hier en in 5f hieronder bewezen.

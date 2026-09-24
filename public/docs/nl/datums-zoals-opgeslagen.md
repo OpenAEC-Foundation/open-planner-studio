@@ -80,7 +80,7 @@ Alleen bij een Primavera `.xer`-import bewaart het projectbestand een volledige 
 oorspronkelijke bestand. Daardoor kan de app de datums van Primavera ook later nog tonen, zelfs als
 je eerst met **F5** hebt herberekend en daarna hebt opgeslagen.
 
-Bij P6 XML, MS Project XML, `.mpp`, CSV en een IFC uit een ander pakket bewaart de app zo'n kopie
+Bij P6 XML, MS Project XML, `.mpp` en een IFC uit een ander pakket bewaart de app zo'n kopie
 **niet**. Na opslaan staan de oorspronkelijke datums alleen in je projectbestand als je opslaat
 **terwijl deze weergave aanstaat**. Druk je eerst op **F5** en sla je daarna op, dan staan in het
 bestand de herberekende datums, en zijn de oorspronkelijke datums daaruit verdwenen. Heropen je dat
@@ -89,15 +89,35 @@ de oorspronkelijke datums dan toch terugzien, open dan opnieuw het oorspronkelij
 
 ## Bij het openen van een ander bestandsformaat gaat deze weergave vanzelf aan
 
-Voor elk bestand dat uit een ander pakket komt, gaat de weergave bij het openen meteen aan zodra er
-verschillen zijn — je hoeft niet eerst op **Opgeslagen datums tonen** te klikken. Dat geldt voor
-Primavera P6 (`.xer` en P6 XML), Microsoft Project (`.mpp` en MS Project XML), CSV en een
-IFC-bestand dat niet door Open Planner Studio zelf is geschreven. De app leest uit zo'n bestand de
+Voor een bestand met datums die een planningspakket zelf heeft berekend, gaat de weergave bij het
+openen meteen aan zodra er verschillen zijn — je hoeft niet eerst op **Opgeslagen datums tonen** te
+klikken. Dat geldt voor Primavera P6 (`.xer` en P6 XML) en Microsoft Project (`.mpp` en MS Project
+XML). De app leest uit zo'n bestand de
 datums die het bronpakket zelf vastlegde — waar het bestand ze draagt ook de late datums, de speling
 en het kritiek-kenmerk — en vergelijkt die met zijn eigen herberekening. Wijkt er iets af, dan zie
 je de opgeslagen datums, met de openingsmelding die het aantal afwijkende taken noemt en de vaste
 strook boven de planning. Wat het bestand niet vastlegde, blijft "Niet vastgelegd" (zie hieronder):
-een CSV met alleen start en einde wordt op die twee assen vergeleken en toont de andere vier leeg.
+een MS Project-taak met alleen een vroege start en een vroeg einde wordt op die twee assen vergeleken
+en toont de andere vier leeg.
+
+### Welke bestanden deze weergave wel en niet krijgen
+
+Alleen berekende datums zijn het vergelijken waard. Een startdatum die iemand zelf heeft ingetypt is
+invoer: daarmee vergelijken zou alleen laten zien dat de logica een andere datum geeft dan er getypt
+stond. Daarom:
+
+- **CSV** opent gewoon en wordt doorgerekend — geen weergave, geen aanbod en geen melding. De kolom
+  Start is de invoer, geen uitkomst van een berekening.
+- **Een IFC uit een ander pakket met alleen start- en einddatums** (ScheduleStart/ScheduleFinish)
+  eveneens: dat zijn ook invoerdatums.
+- **Een IFC uit een ander pakket met berekende datums** (EarlyStart/EarlyFinish in de taaktijden, zoals
+  een Primavera-export naar IFC) krijgt de weergave wél.
+- **Een projectbestand dat Open Planner Studio zelf opsloeg** krijgt de weergave alleen als het
+  bestand onthoudt uit welk pakket de datums oorspronkelijk kwamen. De app schrijft dat mee zodra je
+  een project opslaat dat uit een van de formaten hierboven is geïmporteerd — ook als je het intussen
+  hebt bewerkt. Een project dat je in de app zelf hebt gemaakt, of een ouder projectbestand zonder die
+  aantekening, krijgt de weergave nooit: daar zou de app alleen zijn eigen eerdere berekening met de
+  nieuwe vergelijken.
 
 Bij een `.xer`- of P6 XML-bestand zegt de strook "zoals Primavera hem opsloeg"; bij de andere
 formaten "zoals ze in het bestand staan", omdat de app dan niet weet uit welk pakket de datums komen.

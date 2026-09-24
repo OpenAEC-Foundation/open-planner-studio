@@ -11,7 +11,7 @@ import {
   effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
@@ -157,6 +157,7 @@ export function writeIFC(input: WriteIFCInput): string {
     xerSourceProjectId = undefined,
     importPristine = undefined,
     withheldTaskTimeFields = undefined,
+    recordedSourceFormat = undefined,
   } = input;
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
   const now = new Date().toISOString().split('.')[0];
@@ -341,7 +342,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
   writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
   // Heropen-beleid optie B: OPS_ImportProvenance-pset, alleen bij `importPristine === true`.
-  writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, ownerHistId);
+  writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -737,13 +738,23 @@ function writeImportProvenanceMeta(
   ctx: WriteContext,
   workSchedId: number,
   importPristine: boolean,
+  sourceFormat: RecordedSourceFormat | undefined,
   ownerHistId: number,
 ): void {
-  if (!importPristine) return;
-  const propId = addLine(ctx, '_ps_importprov',
-    `IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)`);
+  if (!importPristine && !sourceFormat) return;
+  const propIds: number[] = [];
+  if (importPristine) {
+    propIds.push(addLine(ctx, '_ps_importprov',
+      `IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)`));
+  }
+  // Eigenaarsbesluit 2026-09-24 ("beperken"): de oorspronkelijke bron met echte rekenuitvoer, zodat
+  // een heropening de modus alleen kent voor XER/P6 XML/MSPDI/.mpp/vreemd-IFC-met-early-slots.
+  if (sourceFormat) {
+    propIds.push(addLine(ctx, '_ps_importprov_source',
+      `IFCPROPERTYSINGLEVALUE('SourceFormat',$,IFCLABEL(${ifcStr(sourceFormat)}),$)`));
+  }
   const setId = addLine(ctx, '_pset_importprov',
-    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_importprov'))},#${ownerHistId},${ifcStr(PSET.ImportProvenance)},$,(#${propId}))`);
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_importprov'))},#${ownerHistId},${ifcStr(PSET.ImportProvenance)},$,(${propIds.map(id => `#${id}`).join(',')}))`);
   addLine(ctx, '_rel_importprov',
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_importprov'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
