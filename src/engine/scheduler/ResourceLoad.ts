@@ -16,7 +16,7 @@ import {
   CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
   slotWeightsFromValues,
 } from '@/engine/contour/contourEngine';
-import { parseDate, formatDate, addCalendarDays, getMonthStart, getWeekStart } from '@/utils/dateUtils';
+import { parseDate, formatDate, addCalendarDays, addCalendarMonths, getMonthStart, getWeekStart } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
 /** Controlepunten per curve: (t ∈ [0,1] = positie in de duur, gewicht). Lineair geïnterpoleerd
@@ -564,7 +564,7 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
       let ms = getMonthStart(parseDate(fromIso));
       let guard = 0;
       while (ms <= toDate && guard++ < 100_000) {
-        const next = getMonthStart(addCalendarDays(ms, 32));
+        const next = addCalendarMonths(ms, 1);
         windows.push({ start: formatDate(ms), end: formatDate(addCalendarDays(next, -1)) });
         ms = next;
       }

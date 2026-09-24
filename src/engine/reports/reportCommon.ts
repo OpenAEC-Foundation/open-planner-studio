@@ -7,7 +7,6 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
-import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
@@ -123,16 +122,6 @@ export function round1(n: number): number {
 /** Kalender-engines per taak, gecachet per kalender-id (zelfde resolutie als de CPM). */
 export function makeEngineCache(ctx: ReportContext): TaskEngineCache {
   return createTaskEngineCache(ctx.calendars as WorkCalendar[], ctx.calendar);
-}
-
-/** Vensterrand: `days − 1` kalenderdagen ná `fromDay` (inclusief venster van precies `days` dagen). */
-export function windowEnd(fromDay: string, days: number): string {
-  return formatDate(addCalendarDays(parseDate(fromDay), Math.max(0, days - 1)));
-}
-
-/** Vensterstart: `days − 1` kalenderdagen vóór `toDay` (inclusief). */
-export function windowStart(toDay: string, days: number): string {
-  return formatDate(addCalendarDays(parseDate(toDay), -Math.max(0, days - 1)));
 }
 
 /**

@@ -3,9 +3,9 @@ import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
   type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState,
-  remainingDays, resolvePeriodFor, round1, taskFinish, taskStart, windowEnd,
+  remainingDays, resolvePeriodFor, round1, taskFinish, taskStart,
 } from './reportCommon';
-import { type ReportingPeriod, periodDays } from './reportingPeriod';
+import { type ReportingPeriod, periodDays, windowEnd } from './reportingPeriod';
 
 /**
  * Voortgangs-/statusrapport (discussie #31, rapport 4): het periodieke "waar staan we"-overzicht
