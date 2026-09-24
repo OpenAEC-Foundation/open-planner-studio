@@ -1,6 +1,7 @@
 import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
 import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { sameValue } from '@/utils/sameValue';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clipUserGapsToWork, splitUnitMinutes } from '@/engine/scheduler/splitEdit';
@@ -342,7 +343,7 @@ const LEVELING_GAP_TIME_TRIGGERS = new Set<keyof TaskTime>([
 /** Top-level `Task`-velden die de tijdbasis van een taak verzetten (en dus haar leveling-gaten
  *  ongeldig maken). `calendarId` deelt de trigger met het Z8-venster; de twee constraints zijn
  *  leveling-gat-eigen. */
-const LEVELING_GAP_TASK_TRIGGERS: readonly (keyof Task)[] = ['calendarId', 'constraint', 'constraint2'];
+const LEVELING_GAP_TASK_TRIGGERS = ['calendarId', 'constraint', 'constraint2'] as const satisfies readonly (keyof Task)[];
 
 /** Zelfde "sleutel-aanwezigheid"-conventie als `timeUpdateTouchesTimephasedWindow`: de WAARDE hoeft
  *  niet te wijzigen, het NOEMEN van de sleutel telt. Zie het docblok bij
@@ -361,6 +362,57 @@ export function taskUpdateInvalidatesLevelingGaps(
 ): boolean {
   if (LEVELING_GAP_TASK_TRIGGERS.some((k) => k in topUpdate)) return true;
   return timeUpdateInvalidatesLevelingGaps(timeUpdate);
+}
+
+/** Welke gevolgregels een taakbewerking ECHT raakt — zie {@link taskTriggerChanges}. */
+export interface TaskTriggerChanges {
+  /** Een duur-/datumtrigger (`TIMEPHASED_WINDOW_TIME_TRIGGERS`) kreeg een andere waarde: de
+   *  duurgevolgen plus laag 3/4 ontkoppelen, `applyDurationChangeRules`. */
+  timeBase: boolean;
+  /** `calendarId` kreeg een andere waarde: laag 3 (+ bevroren laag 4) via
+   *  `invalidateForTimeBaseChange`. */
+  calendar: boolean;
+  /** Een trigger van de nivelleergat-poort (tijdbasis, voortgang, kalender, constraints — de sets
+   *  `LEVELING_GAP_TIME_TRIGGERS`/`LEVELING_GAP_TASK_TRIGGERS`) kreeg een andere waarde:
+   *  `clearLevelingGaps`. */
+  levelingGaps: boolean;
+}
+
+/** De velden die {@link taskTriggerChanges} leest; een volledige `Task` voldoet altijd. */
+export type TaskTriggerFields = Pick<Task, 'time' | (typeof LEVELING_GAP_TASK_TRIGGERS)[number]>;
+
+function timeTriggersChanged(before: TaskTime, after: TaskTime, keys: ReadonlySet<keyof TaskTime>): boolean {
+  for (const key of keys) {
+    // De eenheid op haar EFFECTIEVE waarde: een oude taak zonder `durationUnit`-sleutel krijgt die
+    // bij elke `mergeTaskTime` ingevuld, maar dezelfde afgeleide eenheid is geen wijziging.
+    const changed = key === 'durationUnit'
+      ? taskDurationUnitOfTime(before) !== taskDurationUnitOfTime(after)
+      : !sameValue(before[key], after[key]);
+    if (changed) return true;
+  }
+  return false;
+}
+
+/**
+ * WANNEER een gevolgregel vuurt — de ENE definitie voor elke schrijfroute (`taskSlice.updateTask`,
+ * de MCP-draft `updateTaskFields`/`patchTaskFields` en het taakraster): alleen als de relevante
+ * WAARDE echt verandert, vergeleken tussen de taak vóór en ná de bewerking (dus ná samenvoegen,
+ * `mergeTaskTime`). Structureel via `sameValue`: een meegestuurd-maar-gelijk object telt niet, en
+ * `undefined` is gelijk aan een afwezige sleutel. Een aanroeper die de volledige bestaande `time`
+ * of `calendarId`/`constraint` terugstuurt (het venster "Taak bewerken" doet dat altijd) verandert
+ * daarmee niets en mag dus ook geen MSP-sturing loslaten of nivelleergaten wissen.
+ *
+ * WAT een gevolgregel doet, staat bij de regels zelf (`applyDurationChangeRules`,
+ * `invalidateForTimeBaseChange`, `clearLevelingGaps`); de triggersets en hun waarom in de docblokken
+ * hierboven. Puur: `before` en `after` worden alleen gelezen (Immer-drafts mogen).
+ */
+export function taskTriggerChanges(before: TaskTriggerFields, after: TaskTriggerFields): TaskTriggerChanges {
+  const timeBase = timeTriggersChanged(before.time, after.time, TIMEPHASED_WINDOW_TIME_TRIGGERS);
+  const calendar = !sameValue(before.calendarId, after.calendarId);
+  const levelingGaps = timeBase
+    || LEVELING_GAP_TASK_TRIGGERS.some((k) => !sameValue(before[k], after[k]))
+    || timeTriggersChanged(before.time, after.time, LEVELING_GAP_TIME_TRIGGERS);
+  return { timeBase, calendar, levelingGaps };
 }
 
 /** Wist `timephasedFinishFloor`/`timephasedStartAnchor` als ze gezet zijn — idempotent, geen effect
