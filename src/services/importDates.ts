@@ -1,4 +1,4 @@
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 
 /**
  * Gedeelde datum-parse voor de import-readers (F5-a). Externe planningsbestanden dragen datums als
@@ -15,6 +15,13 @@ import { formatDate } from '@/utils/dateUtils';
 export function isoDatePrefixOrToday(s: string): string {
   if (!s) return formatDate(new Date());
   return s.substring(0, 10);
+}
+
+/** Een datetime uit MSPDI/P6 in de modus van de taak: UUR ⇒ de echte tijd-van-de-dag
+ *  (`YYYY-MM-DDTHH:mm`, §7.3), DAG ⇒ de datum-prefix. Lege invoer ⇒ vandaag, zoals hierboven. */
+export function importDateTime(s: string, hour: boolean): string {
+  if (!s) return formatDate(new Date());
+  return hour ? formatInstant(parseInstant(s), 'hour') : s.substring(0, 10);
 }
 
 /** CSV-variant: accepteert naast ISO ook `DD-MM-YYYY` / `DD/MM/YYYY`; onherkenbaar ⇒ vandaag. */

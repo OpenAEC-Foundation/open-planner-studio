@@ -6,9 +6,9 @@ import { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant, parseDate } from '@/utils/dateUtils';
+import { parseInstant, parseDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
-import { isoDatePrefixOrToday } from '@/services/importDates';
+import { importDateTime, isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
@@ -151,12 +151,6 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
 /** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6 (F5-a). */
 function parseMSPDate(s: string): string {
   return isoDatePrefixOrToday(s);
-}
-
-/** Datum uit MSPDI in UUR-modus: echte tijd-van-de-dag behouden (`parseInstant`+`formatInstant`, §7.3). */
-function parseMSPInstant(s: string): string {
-  if (!s) return formatDate(new Date());
-  return formatInstant(parseInstant(s), 'hour');
 }
 
 /** ISO-8601-duur met tijdcomponent (`PT{H}H{M}M{S}S`) → minuten; `null` als er geen tijdcomponent is.
@@ -381,8 +375,8 @@ export function readMSPDI(content: string): ImportResult {
     const duration = durationUnit === 'hours'
       ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0)
       : parseMSPDuration(durationStr, effHpd);
-    const start = isHour ? parseMSPInstant(getElementText(te, 'Start')) : parseMSPDate(getElementText(te, 'Start'));
-    const finish = isHour ? parseMSPInstant(getElementText(te, 'Finish')) : parseMSPDate(getElementText(te, 'Finish'));
+    const start = importDateTime(getElementText(te, 'Start'), isHour);
+    const finish = importDateTime(getElementText(te, 'Finish'), isHour);
     const isMilestone = getElementInt(te, 'Milestone') === 1;
     // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
     // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
@@ -417,15 +411,15 @@ export function readMSPDI(content: string): ImportResult {
     const actualStartRaw = getElementText(te, 'ActualStart');
     const actualFinishRaw = getElementText(te, 'ActualFinish');
     const remainingRaw = getElementText(te, 'RemainingDuration');
-    const actualStart = actualStartRaw ? (isHour ? parseMSPInstant(actualStartRaw) : parseMSPDate(actualStartRaw)) : undefined;
-    const actualFinish = actualFinishRaw ? (isHour ? parseMSPInstant(actualFinishRaw) : parseMSPDate(actualFinishRaw)) : undefined;
+    const actualStart = actualStartRaw ? importDateTime(actualStartRaw, isHour) : undefined;
+    const actualFinish = actualFinishRaw ? importDateTime(actualFinishRaw, isHour) : undefined;
     // RemainingDuration: uur ⇒ minuten; dag ⇒ het bestaande dag-pad.
     const remainingMinutes = durationUnit === 'hours' && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
     const remainingTime = durationUnit === 'days' && remainingRaw ? parseMSPDuration(remainingRaw, effHpd) : undefined;
 
     // Datum-constraint (fase 2.9, §6): ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint
     // (default-inert). MSPDI kent geen secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
-    const parseCstrDate = (raw: string): string => isHour ? parseMSPInstant(raw) : parseMSPDate(raw);
+    const parseCstrDate = (raw: string): string => importDateTime(raw, isHour);
     let constraint: TaskConstraint | undefined;
     const cTypeRaw = getElementText(te, 'ConstraintType');
     if (cTypeRaw) {

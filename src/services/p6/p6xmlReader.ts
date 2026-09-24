@@ -6,10 +6,10 @@ import { Project } from '@/types/project';
 import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
+import { formatDate, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { isoDatePrefixOrToday } from '@/services/importDates';
+import { importDateTime, isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
@@ -443,16 +443,15 @@ export function readP6XML(content: string): ImportResult {
     const isHour = explicitUnit ? explicitUnit === 'hours' : hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
-    const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
-    const plannedStart = isHour ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
-    const plannedFinish = isHour ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+    const plannedStart = importDateTime(plannedStartRaw, isHour);
+    const plannedFinish = importDateTime(plannedFinishRaw, isHour);
 
     // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
     const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
-    const actualStart = actualStartRaw ? (isHour ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
-    const actualFinish = actualFinishRaw ? (isHour ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
+    const actualStart = actualStartRaw ? importDateTime(actualStartRaw, isHour) : undefined;
+    const actualFinish = actualFinishRaw ? importDateTime(actualFinishRaw, isHour) : undefined;
     // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
     // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
@@ -471,7 +470,7 @@ export function readP6XML(content: string): ImportResult {
 
     // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
     // soft (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
-    const parseCstrDate = (raw: string): string => isHour ? parseP6Instant(raw) : parseP6Date(raw);
+    const parseCstrDate = (raw: string): string => importDateTime(raw, isHour);
     let constraint: TaskConstraint | undefined;
     const primCode = getElementText(actEl, 'PrimaryConstraintType');
     if (primCode) {
