@@ -435,7 +435,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    (4 commits: laadsolve = F5 incl. bezetting/distribute/benchmark met LOAD-01..03; AST-poort bak 2/2b/4 over
    heel `src/` met 7 zelftestmutanten en gepinde uitzonderingen; gids 7a "afgeleid uit corpusmateriaal";
    FF/SF-dialect, mpp-tak, CP_Phys-commentaar, rawSource; X12 15.056 vóór/ná; alle poorten exit 0);
-   critreview loopt (`opus-laag-critreview-109-fixes`); daarna merge in de #109-PR-branch
+   critreview (Opus 5.5) = LANDEN-MET-FIXES: fixes kloppen (mutanten gevangen; AST-poort 1,3 s; drie
+   omzeilingen glippen bewust door), kleine punten: benchmark geeft `[]` als kalenders, LOAD-fixture bewaakt
+   `projectStartDate` niet; de #169-merge geeft 6 conflicten met vier verplichte merge-fixes (CP_Phys-commentaar
+   overzetten, LOAD-03 via `occupancySolveInputFor`, zes AST-uitzonderingen `levelingInput.ts`, gids 7a
+   "rehab-2 = P3"); agent `opus-midden-merge-109` doet A (kleine fixes) → B (merge in de #109-PR-branch, push)
+   → C (merge #109 in #169 op `claude/x12-merge-109`); daarna merge door de orkestrator. Oorspronkelijk plan: merge in de #109-PR-branch
    `claude/file-formats-support-phase-3-a0ebe2` en vervolgens die branch mergen in `claude/rekenprofielen`
    (merge-instructie per fix in het agentrapport: #169-versies leidend voor de solve-invoer, LOAD-03 naar
    `occupancySolveInputFor`, zes AST-uitzonderingen voor `levelingInput.ts`, `p6CompletedTargetWindow.ts`
