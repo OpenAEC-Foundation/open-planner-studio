@@ -403,7 +403,8 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    uitsluitend `check-conventions-boundary` 13/13a, veroorzaakt door de orkestrator zelf (`90766884`
    versmalde de `conventions/`-vrijstelling tot `registry.ts`; de allowlist-fixture van check 13 leeft in
    die map). Hersteld in `550ba040` (vrijstelling per map terug, `this`-leden per klasse blijft); keten
-   opnieuw gestart 10:58 (`/tmp/ops-chain-final-{measure,verify}.log`).
+   opnieuw gestart 10:58: **MEASURE_EXIT=0 (76/0/0/0, uitgesloten 42) en `verify` EXIT=0 op `550ba040`**
+   (browser 173/173, 0 XX; klaar 11:12).
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
