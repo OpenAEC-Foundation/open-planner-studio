@@ -1,5 +1,6 @@
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
 import type { DocumentPayload } from './documentContract';
+import { unrecordedExportFields } from './recordedDatesSelectors';
 
 /**
  * De projectdata-velden die in een IFC-save meeschrijven — precies de round-trip-velden van het
@@ -22,7 +23,29 @@ export type IFCSaveSource = Pick<
   | 'baselines'
   | 'activeBaselineId'
 >
-  & Partial<Pick<DocumentPayload, 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'>>;
+  & Partial<Pick<DocumentPayload,
+    | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
+    | 'recordedDates' | 'datesAsRecorded'>>;
+
+/**
+ * "Datums zoals opgeslagen" (critreview PR #167, bevinding 1): in de modus draagt `task.time` op de
+ * assen die het bronbestand NIET vastlegde een weergave-terugval (`applyRecordedTimesToTasks`:
+ * `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). Zonder dit schreef de writer die
+ * terugvallen als gewone waarden weg en las een heropening ze als vastlegging — "speling 0, niet
+ * kritiek, zoals opgeslagen" over iets wat MS Project/P6/CSV nooit zei. Hier per taak de assen die de
+ * writer als `$` moet schrijven; dezelfde definitie als de CSV-/MCP-uitgang (`unrecordedExportFields`).
+ * Buiten de modus staat er onze eigen, echte berekening: dan niets achterhouden.
+ */
+function withheldFieldsFor(src: IFCSaveSource): WriteIFCInput['withheldTaskTimeFields'] {
+  const recorded = src.recordedDates;
+  if (!src.datesAsRecorded || !recorded) return undefined;
+  const out: Record<string, ReturnType<typeof unrecordedExportFields>> = {};
+  for (const [id, rec] of Object.entries(recorded.times)) {
+    const fields = unrecordedExportFields(rec);
+    if (fields.length > 0) out[id] = fields;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 /**
  * Bouw de VOLLEDIGE `writeIFC`-invoer uit de state/payload. Eén plek bepaalt welke velden
@@ -32,6 +55,7 @@ export type IFCSaveSource = Pick<
  * (de gedeelde kalender-bibliotheek) heet in de writer-invoer `resourceCalendars`.
  */
 export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
+  const withheld = withheldFieldsFor(src);
   return {
     project: src.project,
     calendar: src.calendar,
@@ -50,6 +74,7 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     xerSourceProjectId: src.xerSourceProjectId ?? undefined,
     // Heropen-beleid optie B: alleen `true` wordt geschreven (`writeImportProvenanceMeta`).
     ...(src.importPristine ? { importPristine: true } : {}),
+    ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
   };
 }
 
@@ -59,6 +84,7 @@ const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
+  'recordedDates', 'datesAsRecorded',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;

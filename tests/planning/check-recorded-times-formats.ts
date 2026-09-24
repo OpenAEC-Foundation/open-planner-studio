@@ -24,6 +24,10 @@ import { csvDateOrToday } from '@/services/importDates';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { installDOMParser } from './xmldom-shim';
+import { useAppStore } from '@/state/appStore';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { unrecordedAxes } from '@/state/recordedDatesSelectors';
+import { withRecordedDatesNotice } from '@/state/slices/fileSlice';
 
 // De P6/MSPDI-readers gebruiken de browser-`DOMParser`; in Node via dezelfde shim als
 // `check-adapters-hours.ts`.
@@ -130,6 +134,62 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('4i IFCAPPLICATION "OPS" alleen is voldoende voor "eigen bestand"', readIFC(noPsets).recordedTimesOrigin, 'ifc-own');
   const noApp = own.split('\n').filter(line => !line.includes('IFCAPPLICATION(')).join('\n');
   eq('4j een OPS_-pset alleen is óók voldoende', readIFC(noApp).recordedTimesOrigin, 'ifc-own');
+}
+
+// ── (6) Opslaan ÍN de modus + heropenen verzint geen assen (critreview PR #167, bevinding 1) ──────
+// MSPDI-taak B legt alleen het vroege paar vast. In de modus toont `task.time` op de vier andere
+// assen een terugval (late = vroeg, speling 0, niet kritiek). Vóór de fix schreef de writer die als
+// gewone waarden en las de heropening ze als vastlegging: `unrecordedAxes` 4 → 0, alle negen slots.
+// Het ECHTE open- en opslaanpad (`applyOpenedImport`, `buildWriteIFCInput`).
+{
+  const S = () => useAppStore.getState();
+  const idOf = (wbs: string) => S().tasks.find(t => t.wbsCode === wbs)!.id;
+  const meldingen = () => S().ui.notifications.filter(n =>
+    n.messageKey === 'notifications.importDatesAsRecorded' || n.messageKey === 'notifications.importDatesAsRecordedOffer').length;
+  S().newProject();
+  S().applyOpenedImport(readMSPDI(MSPDI_FIXTURE), { filePath: null, recompute: true });
+  eq('6a tegenproef: verse MSPDI-import staat in de modus, B mist vier assen',
+    [S().datesAsRecorded, unrecordedAxes(S().recordedDates?.times[idOf('1.2')])], [true, ['ls', 'lf', 'tf', 'ff']]);
+  const saved = writeIFC(buildWriteIFCInput(S()));
+  const reopened = readIFC(saved);
+  const bReopened = reopened.tasks.find(t => t.wbsCode === '1.2')!.id;
+  const aReopened = reopened.tasks.find(t => t.wbsCode === '1.1')!.id;
+  eq('6b het opgeslagen bestand draagt voor B alleen de vroege slots en de invoerslots (geen late/speling/kritiek)',
+    reopened.recordedFields?.[bReopened], ['earlyStart', 'earlyFinish', 'scheduleStart', 'scheduleFinish']);
+  eq('6c …terwijl A (volledig vastgelegd) al zijn negen slots houdt', reopened.recordedFields?.[aReopened]?.length, 9);
+  S().newProject();
+  const voorHeropen = meldingen();
+  S().applyOpenedImport(reopened, { filePath: null, recompute: true });
+  eq('6d heropend (ongewijzigd, optie B): weer in de modus', [S().datesAsRecorded, S().recordedDates?.origin], [true, 'ifc-own']);
+  eq('6e B houdt na heropenen vier assen "niet vastgelegd"', unrecordedAxes(S().recordedDates?.times[idOf('1.2')]), ['ls', 'lf', 'tf', 'ff']);
+  eq('6f A houdt zijn vastgelegde late datums en speling', S().recordedDates?.times[idOf('1.1')], {
+    start: '2026-03-02', finish: '2026-03-06', lateStart: '2026-03-09', lateFinish: '2026-03-13',
+    totalFloat: 5, freeFloat: 0, isCritical: false,
+  });
+  // Critreview PR #167, bevinding 2: heropenen van het eigen, ongewijzigde IFC gaat automatisch de
+  // modus in, maar meldt NIETS — de strook zegt het al. Vóór de fix telde de automatisch-aan-tak
+  // ongeacht herkomst.
+  eq('6g …en geeft GEEN openingsmelding (ook niet in de automatisch-aan-tak)', meldingen() - voorHeropen, 0);
+  // Buiten de modus staat onze eigen berekening: dan wordt er niets achtergehouden.
+  S().runCPM();
+  const savedOutside = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const bOutside = savedOutside.tasks.find(t => t.wbsCode === '1.2')!.id;
+  eq('6h buiten de modus opgeslagen: alle negen slots (echte CPM-uitvoer)', savedOutside.recordedFields?.[bOutside]?.length, 9);
+}
+
+// ── (7) De datumregel verdringt geen andere melding en wordt er niet door verdrongen ──────────────
+// (critreview PR #167, bevinding 3): na de merge met #169 kan er een rekenprofielmelding zijn; de
+// datumregel moet dan als detailregel mee, niet via `!notice` wegvallen.
+{
+  const profiel = { severity: 'info' as const, messageKey: 'notifications.xerImportOpened' as const, params: { count: 1 } };
+  eq('7a geen verse verschillen ⇒ melding ongewijzigd (ook undefined)', [withRecordedDatesNotice(undefined, 0, 0), withRecordedDatesNotice(profiel, 0, 0)], [undefined, profiel]);
+  eq('7b geen melding ⇒ de regel wordt zelf de melding, modus vóór aanbod', withRecordedDatesNotice(undefined, 2, 3), {
+    severity: 'info', messageKey: 'notifications.importDatesAsRecorded', params: { count: 2 }, helpArticleId: 'datums-zoals-opgeslagen',
+  });
+  eq('7c een andere melding ⇒ de regel hangt eronder als detailregel', withRecordedDatesNotice(profiel, 0, 4)?.detailLines,
+    [{ messageKey: 'notifications.importDatesAsRecordedOffer', params: { count: 4 } }]);
+  const xer = { ...profiel, detailLines: [{ messageKey: 'notifications.xerImportDatesAsRecorded' as const, params: { count: 2 } }] };
+  eq('7d een melding met een eigen datumregel (XER) ⇒ geen tweede', withRecordedDatesNotice(xer, 2, 0), xer);
 }
 
 // ── (5-0) .mpp-kritiekgrens uit de projecteigenschappen (corpusloos) ────────────────────────────
