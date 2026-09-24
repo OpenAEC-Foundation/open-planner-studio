@@ -108,7 +108,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   const lookAheadTo = periodTo > ref ? periodTo
     : mirrored ? windowEnd(ref, periodDays({ from: periodFrom, to: periodTo }) + 1)
     : periodTo;
-  const engineFor = makeEngineCache(ctx);
+  const engines = makeEngineCache(ctx);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const refDate = parseDate(ref);
 
@@ -149,7 +149,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
     if (weight <= 0) continue;
     const start = bt ? bt.start : taskStart(t);
     const finish = bt ? bt.finish : taskFinish(t);
-    const eng = engineFor(t);
+    const eng = engines.forTask(t);
     let plannedFrac: number;
     if (refDate < parseDate(start)) plannedFrac = 0;
     else if (refDate >= parseDate(finish)) plannedFrac = 1;
@@ -164,7 +164,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   const forecastFinish = cpm?.projectEnd
     ?? (all.length ? all.map(r => r.finish).sort()[all.length - 1] : undefined);
   const baselineFinish = ctx.baseline?.projectEnd;
-  const projectEngine = engineFor({ calendarId: undefined } as unknown as Task);
+  const projectEngine = engines.project;
   const finishVarianceDays = baselineFinish && forecastFinish
     ? signedWorkDays(projectEngine, baselineFinish, forecastFinish)
     : undefined;

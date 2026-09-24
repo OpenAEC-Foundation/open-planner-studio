@@ -4,9 +4,8 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
@@ -126,18 +125,9 @@ export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** Kalender-engine per taak, gecachet per kalender-id (zelfde resolutie als de CPM). */
-export function makeEngineCache(ctx: ReportContext): (t: Task) => CalendarEngine {
-  const cache = new Map<string, CalendarEngine>();
-  return (t: Task) => {
-    const key = t.calendarId ?? '';
-    let eng = cache.get(key);
-    if (!eng) {
-      eng = new CalendarEngine(calendarForEngine(resolveCalendar(t.calendarId, ctx.calendars as WorkCalendar[], ctx.calendar)));
-      cache.set(key, eng);
-    }
-    return eng;
-  };
+/** Kalender-engines per taak, gecachet per kalender-id (zelfde resolutie als de CPM). */
+export function makeEngineCache(ctx: ReportContext): TaskEngineCache {
+  return createTaskEngineCache(ctx.calendars as WorkCalendar[], ctx.calendar);
 }
 
 /** Getekend werkdag-verschil a→b (a≤b ⇒ ≥0), zelfde conventie als `variance.ts`. */

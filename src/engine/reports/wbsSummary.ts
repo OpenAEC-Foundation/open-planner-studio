@@ -54,8 +54,7 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
   const byId = new Map(ctx.tasks.map(t => [t.id, t]));
   const depths = taskDepths(ctx.tasks);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
-  const engineFor = makeEngineCache(ctx);
-  const projectEngine = engineFor({ calendarId: undefined } as unknown as Task);
+  const projectEngine = makeEngineCache(ctx).project;
 
   // Bladnakomelingen per taak, gememoiseerd en cyclusvast (een corrupte `childIds`-kring mag de
   // stack niet opblazen — `flattenOrder` verdedigt zich daar ook tegen). Iteratief, geen spread:
