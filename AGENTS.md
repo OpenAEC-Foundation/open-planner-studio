@@ -46,8 +46,10 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   `npx playwright install --with-deps --only-shell chromium`). Run the
   planning suite after touching anything in `src/engine/scheduler/`,
   `src/engine/calendar/`, or the `runCPM` action. **Judge every suite by its
-  exit code, never the tail** — `tests/planning/` prints "alles groen" even
-  when bundling fails at exit 1.
+  exit code** — intermediate lines such as "alles groen" only cover their own
+  part. `tests/planning/` ends with an `EINDOORDEEL planningssuite: GROEN/ROOD`
+  line that always matches its exit code, and a new `tests/planning/check-*.ts`
+  runs automatically (no wiring in `run.sh` needed).
 - Node 22 (see CI). Rust stable required only for `tauri:*` commands.
 - New user-visible strings go through `t(...)` in all fourteen locales;
   `npm run verify:i18n` checks that, CLDR plural categories included.
