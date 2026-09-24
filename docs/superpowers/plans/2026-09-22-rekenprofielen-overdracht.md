@@ -89,6 +89,13 @@ taken van vraag 8 (afgeleide van verouderde P6-uitvoer via EC1430); daarmee mag 
 "Mergen" — het UI-voorstel conventies-per-thema (`claude/x12-ui-conventies-groepen` 9e54c952) wordt
 gemerged, zonder aanpassingen gevraagd.
 
+**2026-09-24 ~08:50, twee ontwerpvragen uit de critreviews, letterlijk:** "1. Doen" — A19 (per bestand,
+`rem_target_link_flag`) krijgt in het profielblok geen "wijkt af"-markering en geen knop "terug naar basis";
+het label "uit bestand" blijft, in de gewone kleur; het vinkje blijft bewust te wijzigen. "2.beperken" —
+de modus "datums zoals opgeslagen" wordt alleen aangeboden voor formaten met echte rekenuitvoer (XER, P6
+XML, MSPDI, `.mpp`); CSV en vreemde IFC's openen zonder de modus en zonder melding (landt in de fixronde
+van #167, `claude/recorded-all-formats-fixes`).
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
