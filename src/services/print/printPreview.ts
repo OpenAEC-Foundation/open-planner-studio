@@ -382,7 +382,11 @@ interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
   curve: string;
 }
 
-type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'>;
+/** Wat de celteksten nodig hebben. `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop;
+ *  de render geeft gewoon zijn `PrintOptions` door, de kolommeting alleen dit ene label. */
+type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'> & {
+  labels?: Pick<NonNullable<PrintOptions['labels']>, 'daySuffix'>;
+};
 
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
@@ -391,7 +395,7 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
-    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale) : '',
+    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale, options.labels?.daySuffix) : '',
     start: startStr ? formatDutchDate(parseDate(startStr), options.dateNotation) : '',
     end: endStr ? formatDutchDate(parseDate(endStr), options.dateNotation) : '',
     complete: task ? formatCompletion(task.time.completion) : '',
@@ -737,11 +741,12 @@ function formatDutchDate(d: Date, notation: DateNotation = 'dmy'): string {
 /**
  * Duur-cel: "15d", "1,5d" in nl — hetzelfde getal en decimaalteken als de Eenh./d-cel en de
  * tabelrapporten (`formatReportNumber`; review #139 bevinding 5: één tabel, één notatie). Zonder
- * `numberLocale` de neutrale punt, op twee decimalen afgerond.
+ * `numberLocale` de neutrale punt, op twee decimalen afgerond. De dag-afkorting is dezelfde als in
+ * de projectkop (`labels.daySuffix`, bv. "15j" in fr); zonder labels 'd'.
  */
-function formatDuration(days: number, locale: string | undefined): string {
+function formatDuration(days: number, locale: string | undefined, daySuffix = 'd'): string {
   const text = formatReportNumber(days, locale);
-  return text ? `${text}d` : '—'; // niet-eindig: een streepje, geen losse eenheid
+  return text ? `${text}${daySuffix}` : '—'; // niet-eindig: een streepje, geen losse eenheid
 }
 
 /**

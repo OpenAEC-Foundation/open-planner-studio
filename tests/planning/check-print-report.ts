@@ -1035,11 +1035,13 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
     'zonder meting: een te lange kop wordt afgekapt i.p.v. over de buurkolom getekend');
 }
 
-// ── 13. Projectkop: vertaalde start-/eind-/duurlabels ─────────────────────────────────────────
+// ── 13. Projectkop en Duur-cel: vertaalde labels en dag-afkorting ────────────────────────────
 // De derde kopregel (`drawProjectHeader`) droeg hard-gecodeerd "Start:", "Eind:" en "Duur: …d",
 // dus elke niet-Nederlandse afdruk toonde "Eind:"/"Duur: 120d". De labels komen nu, net als
 // `printed`, uit `options.labels`; hier gevuld zoals ReportPanel dat doet (`report:projectStart`
 // e.d. plus de dag-afkorting `common:duration.suffixDay`). De duur zelf blijft kalenderdagen.
+// De Duur-cel van de taaktabel plakte eveneens een letterlijke 'd' achter de waarde; die volgt nu
+// dezelfde `labels.daySuffix`.
 {
   type HeaderKeys = { projectStart: string; projectEnd: string; projectDuration: string };
   const headerLabels = (report: HeaderKeys, common: { duration: { suffixDay: string } }) => ({
@@ -1078,6 +1080,27 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   const fallback = row3({ labels: undefined });
   ok(fallback === 'Start: 01-01-2026  |  End: 01-05-2026  |  Duration: 120d',
     `projectkop zonder labels: Engelse terugval (got ${JSON.stringify(fallback)})`);
+
+  // Duur-cel: dezelfde dag-afkorting als de kop. Eén taak van 5 werkdagen ⇒ precies één duurcel.
+  const T_DUR = mkTask('t-duur', 'Duurtaak', { time: mkTime({ scheduleDuration: 5 }) });
+  const durCells = (labels: PrintOptions['labels']) =>
+    record([T_DUR], [], cal, baseOptions({ labels })).texts.map(t => t.text).filter(t => /^5(d|j)$/.test(t));
+  const frCells = durCells(headerLabels(frReport, frCommon));
+  ok(JSON.stringify(frCells) === '["5j"]', `duurcel (fr): eindigt op de Franse afkorting 'j' (got ${JSON.stringify(frCells)})`);
+  const nlCells = durCells(headerLabels(nlReport, nlCommon));
+  ok(JSON.stringify(nlCells) === '["5d"]', `duurcel (nl): ongewijzigd '5d' (got ${JSON.stringify(nlCells)})`);
+  const bareCells = durCells(undefined);
+  ok(JSON.stringify(bareCells) === '["5d"]', `duurcel zonder labels: terugval 'd' (got ${JSON.stringify(bareCells)})`);
+
+  // De kolommeting leest dezelfde celtekst (`taskTableCellTexts`): een langere afkorting maakt de
+  // Duur-kolom breder, anders meet het paneel '5d' en tekent de render iets anders.
+  const durRows = buildPrintRows([T_DUR], undefined);
+  const durHeaders = { wbs: 'WBS', taskName: 'Taak', start: 'Start', end: 'Eind', duration: 'Duur', completion: 'Volt.' };
+  const meter = (text: string) => text.length * 6;
+  const plainW = measureTableColumnWidths(durRows, { showCompletion: true, tableHeaders: durHeaders }, meter).duration ?? 0;
+  const longW = measureTableColumnWidths(durRows,
+    { showCompletion: true, tableHeaders: durHeaders, labels: { daySuffix: ' dagen' } }, meter).duration ?? 0;
+  ok(longW > plainW, `kolommeting Duur volgt de dag-afkorting ('5 dagen' breder dan '5d': ${longW} vs ${plainW})`);
 }
 
 if (failures > 0) { console.log(`print-report: ${failures} faalregels`); process.exit(1); }
