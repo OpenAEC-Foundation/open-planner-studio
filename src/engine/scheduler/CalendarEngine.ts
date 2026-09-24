@@ -295,6 +295,13 @@ export class CalendarEngine {
       + this.countWorkingExceptionsAddedInRange(startIdx, lastIdx);
   }
 
+  /** Getekend werkdag-verschil van `a` naar `b`: a≤b ⇒ +stappen (`workDaysBetween − 1`), a>b ⇒
+   *  −stappen. De ene definitie achter de CPM-vrije speling, de variance- en rapportdeltas, de
+   *  baselinekolommen van het taakraster en de nivelleervoorvertoning. */
+  signedWorkDaysBetween(a: Date, b: Date): number {
+    return a <= b ? this.workDaysBetween(a, b) - 1 : -(this.workDaysBetween(b, a) - 1);
+  }
+
   /** #werk-weekdagen in het INCLUSIEVE dagindex-bereik [startIdx, lastIdx]. Volledige weken dragen
    *  elk `workDaysPerWeek` bij (elke weekdag komt precies één keer voor); de resterende dagen worden
    *  uitgeteld vanaf de weekdag van `startIdx` (consistent met de per-dag-check in de oude lus). */

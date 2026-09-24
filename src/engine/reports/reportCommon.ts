@@ -4,7 +4,6 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
@@ -128,13 +127,6 @@ export function round1(n: number): number {
 /** Kalender-engines per taak, gecachet per kalender-id (zelfde resolutie als de CPM). */
 export function makeEngineCache(ctx: ReportContext): TaskEngineCache {
   return createTaskEngineCache(ctx.calendars as WorkCalendar[], ctx.calendar);
-}
-
-/** Getekend werkdag-verschil a→b (a≤b ⇒ ≥0), zelfde conventie als `variance.ts`. */
-export function signedWorkDays(eng: CalendarEngine, aIso: string, bIso: string): number {
-  const a = parseDate(aIso);
-  const b = parseDate(bIso);
-  return a <= b ? eng.workDaysBetween(a, b) - 1 : -(eng.workDaysBetween(b, a) - 1);
 }
 
 /** Vensterrand: `days − 1` kalenderdagen ná `fromDay` (inclusief venster van precies `days` dagen). */

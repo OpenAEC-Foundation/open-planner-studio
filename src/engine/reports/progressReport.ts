@@ -1,8 +1,9 @@
 import type { Task } from '@/types/task';
 import { parseDate } from '@/utils/dateUtils';
+import { signedWorkDaysBetween } from '@/engine/variance';
 import {
   type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState,
-  remainingDays, resolvePeriodFor, round1, signedWorkDays, taskFinish, taskStart, windowEnd,
+  remainingDays, resolvePeriodFor, round1, taskFinish, taskStart, windowEnd,
 } from './reportCommon';
 import { type ReportingPeriod, periodDays } from './reportingPeriod';
 
@@ -166,7 +167,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   const baselineFinish = ctx.baseline?.projectEnd;
   const projectEngine = engines.project;
   const finishVarianceDays = baselineFinish && forecastFinish
-    ? signedWorkDays(projectEngine, baselineFinish, forecastFinish)
+    ? signedWorkDaysBetween(projectEngine, baselineFinish, forecastFinish)
     : undefined;
 
   const completedInPeriod = all.filter(r => {

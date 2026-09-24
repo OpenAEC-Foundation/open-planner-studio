@@ -898,9 +898,9 @@ export class CPMSolver {
     return eng.addWorkingDaysSigned(start, totalDur > 0 ? totalDur - 1 : 0);
   }
   /** Getekende float in eigen-kalender-WERKDAGEN (§5.5, Bevinding 1): uur ⇒ fractioneel
-   *  `workMinutesBetween / (hoursPerDay × 60)`; dag ⇒ de bestaande integer `signedWorkDays`.
+   *  `workMinutesBetween / (hoursPerDay × 60)`; dag ⇒ de integer `signedWorkDaysBetween`.
    *  ELAPSEDTIME (T8, msp-14-mutatiebewijs): `a`/`b` mogen op een niet-werkdag liggen (24/7-taak) —
-   *  `workDaysBetween`/`signedWorkDays` gaan daar stuk (spook-tf, zie `signedElapsedSpan`'s
+   *  `workDaysBetween`/`signedWorkDaysBetween` gaan daar stuk (spook-tf, zie `signedElapsedSpan`'s
    *  moduleheader in `duration.ts`), dus een ELAPSEDTIME-taak krijgt de kale klok-span i.p.v.
    *  werkdag-telling. `task` optioneel: afwezig (of WORKTIME) ⇒ exact de oude twee takken. */
   private signedFloat(a: Date, b: Date, eng: CalendarEngine, task?: Task): number {
@@ -908,7 +908,7 @@ export class CPMSolver {
     if (eng.isHourMode && (!task || isZeroDurationMilestone(task) || taskDurationUnit(task) === 'hours')) {
       return eng.workMinutesBetween(a, b) / (eng.hoursPerDay * 60);
     }
-    return this.signedWorkDays(a, b, eng);
+    return eng.signedWorkDaysBetween(a, b);
   }
 
   solve(): CPMResult {
@@ -2120,13 +2120,6 @@ export class CPMSolver {
     return out;
   }
 
-  /** Getekend werkdag-verschil in kalender `eng`: a≤b ⇒ +stappen, a>b ⇒ −stappen (negatief mogelijk). */
-  private signedWorkDays(a: Date, b: Date, eng: CalendarEngine): number {
-    return a <= b
-      ? eng.workDaysBetween(a, b) - 1
-      : -(eng.workDaysBetween(b, a) - 1);
-  }
-
   /** Constraint-instant in de kalendermodus (§4.1), of null bij afwezig/onparseerbaar (soft:
    *  negeren). Dag ⇒ `parseDate` (middernacht, byte-identiek); uur ⇒ `parseInstant` (behoudt tijd-
    *  van-de-dag). Een date-only-string op een uur-taak = middernacht ⇒ dag-verankerd: de instant-
@@ -2528,7 +2521,7 @@ export class CPMSolver {
       const succs = this.successors.get(taskId) || [];
       let ff = Infinity;
       if (succs.length === 0) {
-        ff = this.signedWorkDays(early.ef, late.lf, cal);
+        ff = cal.signedWorkDaysBetween(early.ef, late.lf);
       } else {
         for (const seq of succs) {
           const cRaw = this.seqConstraint.get(seq.id);

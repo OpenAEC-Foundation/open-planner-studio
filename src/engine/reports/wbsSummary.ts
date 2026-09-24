@@ -1,8 +1,9 @@
 import type { Task } from '@/types/task';
 import { flattenOrder } from '@/utils/wbs';
 import { parseDate } from '@/utils/dateUtils';
+import { signedWorkDaysBetween } from '@/engine/variance';
 import {
-  type ReportContext, durationDays, makeEngineCache, progressState, round1, signedWorkDays,
+  type ReportContext, durationDays, makeEngineCache, progressState, round1,
   taskDepths, taskFinish, taskStart,
 } from './reportCommon';
 
@@ -128,7 +129,7 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
         ? Math.max(0, projectEngine.workDaysBetween(parseDate(start), parseDate(finish)))
         : durationDays(ctx, t),
       completion: round1(completion * 100) / 100,
-      finishVarianceDays: bFinish ? signedWorkDays(projectEngine, bFinish, finish) : undefined,
+      finishVarianceDays: bFinish ? signedWorkDaysBetween(projectEngine, bFinish, finish) : undefined,
       minTotalFloat: leaves.length ? leaves.reduce((m, l) => Math.min(m, l.time.totalFloat), Infinity) : t.time.totalFloat,
       isCritical: leaves.some(l => l.time.isCritical),
       counts: {

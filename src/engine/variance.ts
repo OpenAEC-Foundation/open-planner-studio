@@ -29,14 +29,10 @@ export interface VarianceResult {
   projectEndDelta?: number;
 }
 
-/** Getekend werkdag-verschil tussen twee ISO-datums: a≤b ⇒ +stappen, a>b ⇒ −stappen. Spiegelt
- *  de private `signedWorkDays` van de CPMSolver zodat de deltas op werkdagen kloppen. */
+/** Getekend werkdag-verschil tussen twee ISO-datums (op dagniveau): a≤b ⇒ +stappen, a>b ⇒
+ *  −stappen — `CalendarEngine.signedWorkDaysBetween`, dezelfde telling als de CPM-speling. */
 export function signedWorkDaysBetween(cal: CalendarEngine, aIso: string, bIso: string): number {
-  const a = parseDate(aIso);
-  const b = parseDate(bIso);
-  return a <= b
-    ? cal.workDaysBetween(a, b) - 1
-    : -(cal.workDaysBetween(b, a) - 1);
+  return cal.signedWorkDaysBetween(parseDate(aIso), parseDate(bIso));
 }
 
 function statusFromDelta(deltaFinish: number): VarianceStatus {

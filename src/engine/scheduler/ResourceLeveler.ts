@@ -747,9 +747,7 @@ export function levelResources(
     const eng = engineForTask(t);
     const delta = t.time.durationType === 'ELAPSEDTIME'
       ? diffCalendarDays(from, to)
-      : to >= from
-        ? eng.workDaysBetween(from, to) - 1
-        : -(eng.workDaysBetween(to, from) - 1);
+      : eng.signedWorkDaysBetween(from, to);
     shifts[t.id] = { oldStart: cur, newStart: tr, delta };
   }
 
