@@ -50,7 +50,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, ma
     <>
       {!hideName && (
         <Field label={t('properties.name')}>
-          <Input ref={nameInputRef} value={task.name} onChange={v => onChange({ name: v })} />
+          <Input ref={nameInputRef} value={task.name} required onChange={v => onChange({ name: v })} />
         </Field>
       )}
 
@@ -61,7 +61,7 @@ export function TaskBasicFields({ task, onChange, onCalendarChange, hideName, ma
           <input value={task.wbsCode} disabled title={t('properties.wbsAutoHint')}
             className="input !text-small !leading-4 !px-2.5 !py-1.5 opacity-60 cursor-not-allowed" />
         ) : (
-          <Input value={task.wbsCode} onChange={v => onChange({ wbsCode: v })} />
+          <Input value={task.wbsCode} required onChange={v => onChange({ wbsCode: v })} />
         )}
       </Field>
 

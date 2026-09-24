@@ -14,11 +14,17 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join as joinPath, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server.browser';
 import {
   DMY_ORDER,
+  DateTextInput,
   computeSeg,
+  dateCommitValue,
+  isoToSegments,
   nextSegmentState,
   resolveDateCommit,
+  splitDateValue,
   type DateCommitMode,
   type SegState,
 } from '@/components/common/DateTextInput';
@@ -198,9 +204,76 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   }
 }
 
+// ── (g) datum-met-tijd (taken op een kalender met werktijden) ─────────────────────────────────
+// Een taak op een kalender met werktijden draagt `2027-05-13T07:00`. Het veld toonde dat als LEEG,
+// en wie er alleen doorheen tabde committe `''` — daarna rekende het hele project niet meer. Deze
+// sectie speelt het afronden na met exact de pure kern van de component (`resolveDateCommit` +
+// `dateCommitValue`) en rendert de echte component om de getoonde segmenten te lezen.
+{
+  const DT = '2027-05-13T07:00';
+  /** Rondt af zoals `finish()` in de component: welke waarde gaat er naar buiten (of `null`). */
+  const finishCommit = (seg: SegState, value: string, required = false): string | null | 'revert' | 'error' => {
+    const res = resolveDateCommit('finish', 'blur', seg, required);
+    if (res.kind === 'write') return dateCommitValue(res.iso, value);
+    return res.kind === 'revert' || res.kind === 'error' ? res.kind : null;
+  };
+  eq('g splitDateValue scheidt datum en tijd', splitDateValue(DT), { date: '2027-05-13', time: 'T07:00' });
+  eq('g splitDateValue op een kale datum', splitDateValue('2027-05-13'), { date: '2027-05-13', time: '' });
+  eq('g splitDateValue op leeg/onleesbaar', [splitDateValue(''), splitDateValue('gisteren')],
+    [{ date: '', time: '' }, { date: '', time: '' }]);
+  eq('g isoToSegments toont het datumdeel van een datum-met-tijd', isoToSegments(DT),
+    { day: '13', month: '05', year: '2027' });
+  eq('g onaangeroerd verlaten van een datum-met-tijd commit NIETS',
+    finishCommit(isoToSegments(DT), DT), null);
+  eq('g een andere datum typen zet het oorspronkelijke tijddeel terug',
+    finishCommit({ day: '17', month: '05', year: '2027' }, DT), '2027-05-17T07:00');
+  eq('g seconden in het tijddeel reizen ongewijzigd mee',
+    finishCommit({ day: '17', month: '05', year: '2027' }, '2027-05-13T07:30:00'), '2027-05-17T07:30:00');
+  eq('g een kale datum blijft een kale datum',
+    finishCommit({ day: '17', month: '05', year: '2027' }, '2027-05-13'), '2027-05-17');
+  eq('g bewust leegmaken (niet verplicht) commit "geen datum"', finishCommit(EMPTY, DT), '');
+  eq('g een onaangeroerd leeg veld commit nooit ""', finishCommit(EMPTY, ''), null);
+  eq('g een onleesbare waarde onaangeroerd verlaten commit nooit ""', finishCommit(EMPTY, 'gisteren'), null);
+
+  // De echte component: toont hij de segmenten van een datum-met-tijd?
+  const markup = renderToStaticMarkup(createElement(DateTextInput, { value: DT, onCommit: () => {} }));
+  const shown = [...markup.matchAll(/<input[^>]*\svalue="([^"]*)"/g)].map(m => m[1]);
+  eq('g de gerenderde component toont 13-05-2027 voor een datum-met-tijd', shown, ['13', '05', '2027']);
+}
+
+// ── (h) verplicht veld (startdatum, beperkingsdatum) ────────────────────────────────────────────
+// Startdatum en beperkingsdatum mogen niet leeg: het raster weigert dat met `required`; het
+// datumveld valt met `required` bij leeg afronden stil terug, net als bij incomplete invoer.
+{
+  eq('h required: leeg afronden valt terug i.p.v. "" te schrijven',
+    resolveDateCommit('finish', 'blur', EMPTY, true), { kind: 'revert' });
+  eq('h required: live-modus schrijft tijdens typen ook geen ""',
+    resolveDateCommit('typing', 'live', EMPTY, true), { kind: 'idle' });
+  eq('h required: een geldige datum gaat gewoon door',
+    resolveDateCommit('finish', 'blur', { day: '01', month: '06', year: '2030' }, true), { kind: 'write', iso: '2030-06-01' });
+  eq('h niet-required: leeg afronden blijft "geen datum"',
+    resolveDateCommit('finish', 'blur', EMPTY), { kind: 'write', iso: '' });
+  // Broncontrole: de verplichte velden dragen de vlag daadwerkelijk.
+  const kandidaten = [
+    fileURLToPath(new URL('../../src/', import.meta.url).href),
+    resolvePath(process.cwd(), 'src'),
+  ];
+  const srcRoot = kandidaten.find(p => existsSync(p)) ?? null;
+  if (srcRoot) {
+    const lees = (...deel: string[]) => readFileSync(joinPath(srcRoot, ...deel), 'utf8');
+    const telRequired = (bron: string) => (bron.match(/<DateTextInput[^>]*?\srequired[\s/>]/g) ?? []).length;
+    eq('h paneel-Start is verplicht', telRequired(lees('components', 'task-sections', 'TaskTimeFields.tsx')), 1);
+    eq('h Startdatum in Taak bewerken is verplicht', telRequired(lees('components', 'dialogs', 'TaskDialog.tsx')), 1);
+    eq('h beide beperkingsdatums zijn verplicht', telRequired(lees('components', 'task-sections', 'TaskConstraintFields.tsx')), 2);
+  }
+}
+
+// Expliciet afsluiten: de component trekt de store (en daarmee timers) mee, die het proces anders
+// open houden — zelfde patroon als de andere SSR-checks (check-task-cell-editor, check-task-grid-aria).
 if (failures > 0) {
   console.error(`\nTOTAAL: ${failures} afwijking(en)`);
-  process.exitCode = 1;
+  process.exit(1);
 } else {
   console.log('\nTOTAAL: alles groen');
+  process.exit(0);
 }

@@ -36,6 +36,8 @@ export function TaskTimeFields({ task, onChange }: {
   // naar scheduleStart als de gebruiker de waarde daadwerkelijk wijzigde t.o.v. wat getoond werd
   // (zelfde patroon als TaskDialog.tsx:145-146) — anders zou elke render/commit-cyclus het anker naar
   // de berekende datum laten meeschuiven en precies de drift veroorzaken die dat commentaar beschrijft.
+  // Start is verplicht (`required`): een leeggemaakt veld valt terug i.p.v. `''` als anker te
+  // schrijven — een lege start maakt het hele project onberekenbaar ("Ongeldige startdatum").
   const shownStart = task.time.earlyStart || task.time.scheduleStart;
 
   return (
@@ -53,7 +55,8 @@ export function TaskTimeFields({ task, onChange }: {
             ariaLabel={t('properties.start')}
             title={t('properties.scheduleStartHint')}
             value={shownStart}
-            onCommit={v => { if (v !== shownStart) updateTime('scheduleStart', v); }}
+            required
+            onCommit={v => { if (v && v !== shownStart) updateTime('scheduleStart', v); }}
           />
         </Field>
         <Field label={t('duration.label')}>
