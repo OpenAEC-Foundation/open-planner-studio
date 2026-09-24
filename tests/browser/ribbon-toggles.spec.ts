@@ -28,3 +28,16 @@ test('lint: gepersisteerde schakelaar wisselt en bewaart, UI-actieknop opent zij
     await expect(dialog).toBeHidden();
   }
 });
+
+test('lint: een keuzemenu-item (Mijlpaal → Startmijlpaal) voegt precies die mijlpaal toe', async ({ page, ops: _ops }) => {
+  const before = await page.evaluate(() => window.__OPS__!.store.getState().tasks.length);
+  await page.getByRole('button', { name: /^(Milestone|Mijlpaal) ▾$/ }).first().click();
+  await page.getByRole('button', { name: /^(Start milestone|Startmijlpaal)$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(before + 1);
+  const added = await page.evaluate(() => {
+    const tasks = window.__OPS__!.store.getState().tasks;
+    const task = tasks[tasks.length - 1];
+    return { isMilestone: task.isMilestone, milestoneKind: task.milestoneKind };
+  });
+  expect(added).toEqual({ isMilestone: true, milestoneKind: 'START' });
+});

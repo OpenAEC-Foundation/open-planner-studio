@@ -106,7 +106,7 @@ export function RibbonInlineSelect<T extends string>({ value, options, onChange,
   );
 }
 
-export function RibbonButton({ icon, label, onClick, active, disabled, primary, danger, title, itemId }: {
+interface RibbonButtonProps {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
@@ -122,8 +122,14 @@ export function RibbonButton({ icon, label, onClick, active, disabled, primary, 
    *  browsertests: de toegankelijke naam is de (taalafhankelijke) tooltip, en het zichtbare label
    *  verdwijnt in de icoon-only-standen. */
   itemId?: string;
-}) {
-  const cls = ['ribbon-btn'];
+}
+
+/** Grote en kleine lintknop delen alles behalve de `small`-klasse (en `primary` bestaat alleen groot). */
+function ribbonButton(
+  small: boolean,
+  { icon, label, onClick, active, disabled, primary, danger, title, itemId }: RibbonButtonProps,
+) {
+  const cls = small ? ['ribbon-btn', 'small'] : ['ribbon-btn'];
   if (active) cls.push('active');
   if (disabled) cls.push('disabled');
   if (primary) cls.push('primary');
@@ -131,31 +137,6 @@ export function RibbonButton({ icon, label, onClick, active, disabled, primary, 
   // Zonder eigen tooltip valt het label terug als tooltip: in de icoon-only-standen (handmatig
   // ingeklapt, of automatisch gedegradeerd) is het label verborgen en zou de knop anders volstrekt
   // naamloos zijn. Een expliciete `title` (bv. de Relatie-knop, issue #40) wint.
-  const tip = title ?? label;
-  return (
-    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick} title={tip} aria-label={tip} aria-disabled={disabled || undefined} data-ops-ribbon-item={itemId}>
-      <span className="ribbon-btn-icon">{icon}</span>
-      <span className="ribbon-btn-label">{label}</span>
-    </button>
-  );
-}
-
-export function RibbonSmallButton({ icon, label, onClick, active, disabled, danger, title, itemId }: {
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-  active?: boolean;
-  disabled?: boolean;
-  danger?: boolean;
-  title?: string;
-  /** Zie `RibbonButton`. */
-  itemId?: string;
-}) {
-  const cls = ['ribbon-btn', 'small'];
-  if (active) cls.push('active');
-  if (disabled) cls.push('disabled');
-  if (danger) cls.push('danger');
-  // Zie RibbonButton: label als terugval-tooltip, zodat een icoon-only knop nooit naamloos is.
   const tip = title ?? label;
   return (
     <button
@@ -168,6 +149,71 @@ export function RibbonSmallButton({ icon, label, onClick, active, disabled, dang
     >
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
+    </button>
+  );
+}
+
+export function RibbonButton(props: RibbonButtonProps) {
+  return ribbonButton(false, props);
+}
+
+export function RibbonSmallButton(props: Omit<RibbonButtonProps, 'primary'>) {
+  return ribbonButton(true, props);
+}
+
+/**
+ * Icoon-only trigger van een compacte lintgroep: de hele groep zit dan achter deze ene knop en een
+ * popover (Basislijnen/Voortgang, AI-verbinding).
+ */
+export function RibbonCompactTrigger({ icon, title, ariaLabel, onClick }: {
+  icon: React.ReactNode;
+  title: string;
+  ariaLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="ribbon-btn small"
+      onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
+      style={{ minWidth: 0, padding: '2px 5px', gap: 0 }}
+    >
+      <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}>{icon}</span>
+    </button>
+  );
+}
+
+type MenuItemOverflow = 'wrap' | 'nowrap' | 'ellipsis';
+
+/**
+ * Tekstregel in een lint-keuzemenu (Mijlpaal, Sjablonen, Recent, Exporteren, Resource toewijzen).
+ * `overflow` bepaalt of lange tekst doorloopt, op één regel blijft of met "…" afkapt; `fill` laat
+ * de knop naast een ander element in een flex-rij de resterende breedte nemen (sjablonen).
+ */
+export function RibbonMenuItem({ onClick, title, overflow = 'nowrap', fill = false, children }: {
+  onClick: () => void;
+  title?: string;
+  overflow?: MenuItemOverflow;
+  fill?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      className="!text-body"
+      style={{
+        ...(fill ? { flex: 1 } : { display: 'block', width: '100%' }),
+        textAlign: 'left', padding: '6px 12px', border: 'none',
+        background: 'transparent', color: 'var(--theme-text)', cursor: 'pointer',
+        ...(overflow !== 'wrap' ? { whiteSpace: 'nowrap' } : {}),
+        ...(overflow === 'ellipsis' ? { overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
+      }}
+      title={title}
+      onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
+      onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+      onClick={onClick}
+    >
+      {children}
     </button>
   );
 }

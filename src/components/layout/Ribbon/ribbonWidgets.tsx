@@ -42,7 +42,7 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
-  RibbonInlineSelect,
+  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem,
   encodeFieldRef, decodeFieldRef,
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
@@ -146,15 +146,12 @@ export function BaselinesProgressGroupContent() {
         padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,
       }}
       trigger={
-        <button
-          className="ribbon-btn small"
-          onClick={() => setOpen(o => !o)}
+        <RibbonCompactTrigger
+          icon={<Flag size={14} />}
           title={tMenu('ribbon.baselines')}
-          aria-label={tMenu('ribbon.baselines')}
-          style={{ minWidth: 0, padding: '2px 5px', gap: 0 }}
-        >
-          <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}><Flag size={14} /></span>
-        </button>
+          ariaLabel={tMenu('ribbon.baselines')}
+          onClick={() => setOpen(o => !o)}
+        />
       }
     >
       <button
@@ -222,20 +219,7 @@ export function MilestoneDropdown() {
       }
     >
       {items.map(item => (
-        <button
-          key={item.key}
-          className="!text-body"
-          style={{
-            display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
-            border: 'none', background: 'transparent',
-            color: 'var(--theme-text)', cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
-          onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-          onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-          onClick={item.onClick}
-        >
-          {item.label}
-        </button>
+        <RibbonMenuItem key={item.key} onClick={item.onClick}>{item.label}</RibbonMenuItem>
       ))}
     </Popover>
   );
@@ -419,16 +403,10 @@ export function TemplatesDropdown() {
       ) : (
         templates.map(tpl => (
           <div key={tpl.id} style={{ display: 'flex', alignItems: 'center' }}>
-            <button
-              className="!text-body"
-              style={{
-                flex: 1, textAlign: 'left', padding: '6px 12px', border: 'none',
-                background: 'transparent', color: 'var(--theme-text)', cursor: 'pointer',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}
+            <RibbonMenuItem
+              fill
+              overflow="ellipsis"
               title={tMenu('ribbon.insertTemplateHint')}
-              onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-              onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
               onClick={() => {
                 insertWbsTemplate(tpl, selectedTaskIds[0] ?? null);
                 setOpen(false);
@@ -438,7 +416,7 @@ export function TemplatesDropdown() {
               <span className="!text-caption" style={{ display: 'block', color: 'var(--theme-text-dim)', marginTop: 1 }}>
                 {tMenu('ribbon.templateMeta', { tasks: tpl.tasks.length, relations: tpl.sequences.length })}
               </span>
-            </button>
+            </RibbonMenuItem>
             <button
               style={{ padding: '0 10px', background: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
               title={tMenu('ribbon.deleteTemplate')}
@@ -487,25 +465,17 @@ export function RecentFilesDropdown() {
           // Subregel: het echte pad (Tauri) of de bestandsnaam (web-handle, geen pad beschikbaar).
           const sub = e.ref.kind === 'path' ? e.ref.path : e.name;
           return (
-            <button
+            <RibbonMenuItem
               key={e.id}
-              className="!text-body"
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '6px 12px', border: 'none',
-                background: 'transparent', color: 'var(--theme-text)',
-                cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}
+              overflow="ellipsis"
               title={sub}
-              onMouseOver={ev => (ev.currentTarget.style.background = 'var(--theme-hover)')}
-              onMouseOut={ev => (ev.currentTarget.style.background = 'transparent')}
               onClick={() => { void openRecentFile(e.id, buildImportLabels(tCommon)); setOpen(false); }}
             >
               {e.name}
               <span className="!text-caption" style={{ display: 'block', color: 'var(--theme-text-dim)', marginTop: 1 }}>
                 {sub}
               </span>
-            </button>
+            </RibbonMenuItem>
           );
         })
       )}
@@ -538,17 +508,9 @@ export function ExportDropdown() {
       }
     >
       {formats.map((f) => (
-        <button
+        <RibbonMenuItem
           key={f.format}
-          className="!text-body"
-          style={{
-            display: 'block', width: '100%', textAlign: 'left',
-            padding: '6px 12px', border: 'none',
-            background: 'transparent', color: 'var(--theme-text)',
-            cursor: 'pointer',
-          }}
-          onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-          onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+          overflow="wrap"
           onClick={() => {
             // K7: exportAs geeft sinds deze wijziging een resultaat terug. Op dit tabblad is
             // GanttCanvas gemonteerd, dus bij een cyclus (ok===false) vuurt daar al de
@@ -559,7 +521,7 @@ export function ExportDropdown() {
           }}
         >
           {f.label}
-        </button>
+        </RibbonMenuItem>
       ))}
     </Popover>
   );
@@ -681,20 +643,9 @@ export function ResourceAssignDropdown() {
               </div>
               <div style={{ height: 1, background: 'var(--theme-border)', margin: '2px 0' }} />
               {available.map(r => (
-                <button
-                  key={r.id}
-                  className="!text-body"
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px',
-                    border: 'none', background: 'transparent', color: 'var(--theme-text)',
-                    cursor: 'pointer', whiteSpace: 'nowrap',
-                  }}
-                  onMouseOver={e => (e.currentTarget.style.background = 'var(--theme-hover)')}
-                  onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => { assignResource(task!.id, r.id, units, curve); setOpen(false); }}
-                >
+                <RibbonMenuItem key={r.id} onClick={() => { assignResource(task!.id, r.id, units, curve); setOpen(false); }}>
                   {r.name || r.id}
-                </button>
+                </RibbonMenuItem>
               ))}
             </>
           )}
