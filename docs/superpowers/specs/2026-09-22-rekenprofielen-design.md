@@ -71,6 +71,8 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   `p6FinishNotBeforeFinishFinishBound` (C12), `p6AlapPositionedFromSuccessors` (C14; plan XER §9 noemt haar C10) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
   in het docblok bij de sleutel in `src/types/project.ts`. Samen 27. (Niet te verwarren met de
   taakdata-inventaris C1–C5 in bijlage A.)
+  C5 blijft smal (eigenaarsbesluit 2026-09-24): alleen voltooide CP_Phys-taken; CP_Drtn/CP_Units niet
+  gemeten (geen P6-doorgerekend bestand met voltooide CP_Drtn-taken in het corpus), meten zodra dat er is.
 - **`ProjectOptionKey`** (10): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
   `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
   `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` (A21 —

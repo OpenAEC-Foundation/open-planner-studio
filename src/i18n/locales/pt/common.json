@@ -1273,7 +1273,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Tarefa concluída com avanço físico na data de status",
-      "help": "Uma tarefa concluída com percentual de avanço físico aparece como um único ponto na data de status, ou mais tarde se um predecessor o exigir, em vez de nas suas datas reais."
+      "help": "Uma tarefa concluída com percentual de avanço físico aparece como um único ponto na data de status, ou mais tarde se um predecessor o exigir, em vez de nas suas datas reais. Medido apenas para o progresso físico; para outros tipos de progresso (padrão do P6: duração) este comportamento não foi medido e permanece desativado."
     },
     "p6InProgressStartLagElapsed": {
       "label": "O atraso II decorrido de um predecessor em andamento não conta",
