@@ -24,7 +24,7 @@
     "gen:examples": "node scripts/run-ts.mjs scripts/generate-examples.ts",
     "verify:examples": "node scripts/run-ts.mjs scripts/verify-examples.ts",
     "verify:docs": "node scripts/run-ts.mjs scripts/verify-docs.ts",
-    "verify:i18n": "node scripts/i18n-diff.mjs",
+    "verify:i18n": "node scripts/i18n-diff.mjs && node scripts/run-ts.mjs scripts/i18n-fmt.ts --check",
     "i18n:fmt": "node scripts/run-ts.mjs scripts/i18n-fmt.ts",
     "i18n:add": "node scripts/run-ts.mjs scripts/i18n-add.ts",
     "verify:release-highlights": "node scripts/release-highlights.mjs",

@@ -18,7 +18,10 @@
     "hint": "يغيّر التوزيع ساعات اليوم لهذا التعيين فقط؛ تبقى تواريخ المهمة والانقطاعات كما هي. المرحلة ذات الجهد صفر تبقى ضمن مدة المهمة.",
     "release": "تحرير التوزيع"
   },
-  "durationType": { "WORKTIME": "وقت العمل", "ELAPSEDTIME": "الوقت المنقضي" },
+  "durationType": {
+    "WORKTIME": "وقت العمل",
+    "ELAPSEDTIME": "الوقت المنقضي"
+  },
   "table": {
     "title": "الجدول",
     "wbs": "WBS",
@@ -29,14 +32,14 @@
     "type": "النوع",
     "critical": "حرج",
     "totalFloat": "الفائض الكلي",
-    "completion": "التقدم",
-    "milestone": "معلم",
-    "hoursPerDayTip": "س/يوم",
-    "mixedWarning": "تقاويم مختلطة — ساعات/يوم لكل تقويم: {{list}}. تُعرض المدة لكل مهمة بوحدتها الخاصة.",
     "freeFloat": "الفائض الحر",
     "interferingFloat": "الفائض المتداخل",
     "isNearCritical": "شبه حرج",
     "floatPath": "مسار الفائض",
+    "completion": "التقدم",
+    "milestone": "معلم",
+    "hoursPerDayTip": "س/يوم",
+    "mixedWarning": "تقاويم مختلطة — ساعات/يوم لكل تقويم: {{list}}. تُعرض المدة لكل مهمة بوحدتها الخاصة.",
     "activeDuring": "قيد التنفيذ",
     "addColumn": "إضافة عمود",
     "chooseColumn": "اختيار عمود",
@@ -47,7 +50,6 @@
   },
   "taskGrid": {
     "columns": {
-      "customTaskType": "نوع مهمة مخصص",
       "activityCodeData": "بيانات رموز الأنشطة",
       "actualDuration": "المدة الفعلية",
       "actualFinish": "النهاية الفعلية",
@@ -69,6 +71,7 @@
       "constraintType": "نوع القيد",
       "critical": "حرج",
       "customFieldData": "بيانات الحقول المخصصة",
+      "customTaskType": "نوع مهمة مخصص",
       "deadline": "الموعد النهائي",
       "description": "الوصف",
       "duration": "المدة",
@@ -120,10 +123,20 @@
       "workWindowStart": "بداية نافذة العمل"
     },
     "category": {
-      "task": "المهمة", "planning": "التخطيط", "constraints": "القيود", "relations": "العلاقات", "resources": "الموارد",
-      "progress": "التقدم", "computed": "محسوب", "baseline": "خط الأساس", "custom": "مخصص", "technical": "تقني"
+      "task": "المهمة",
+      "planning": "التخطيط",
+      "constraints": "القيود",
+      "relations": "العلاقات",
+      "resources": "الموارد",
+      "progress": "التقدم",
+      "computed": "محسوب",
+      "baseline": "خط الأساس",
+      "custom": "مخصص",
+      "technical": "تقني"
     },
-    "status": { "stale": "قديم" },
+    "status": {
+      "stale": "قديم"
+    },
     "validation": {
       "readOnly": "لا يمكن تحرير هذا العمود المحسوب.",
       "invalid": "القيمة المدخلة غير صالحة.",
@@ -219,8 +232,17 @@
       "ancestor": "لا يمكن أن تكون للمهمة علاقة مع مهمتها الموجزة."
     },
     "controls": {
-      "collapse": "طي", "expand": "توسيع", "resize": "تغيير العرض", "resizeTaskGrid": "تغيير حجم شبكة المهام", "remove": "إزالة", "pin": "تثبيت",
-      "unpin": "إلغاء التثبيت", "autoFit": "ملاءمة تلقائية", "search": "بحث", "searchResults": "نتائج البحث", "noResults": "لا توجد نتائج"
+      "collapse": "طي",
+      "expand": "توسيع",
+      "resize": "تغيير العرض",
+      "resizeTaskGrid": "تغيير حجم شبكة المهام",
+      "remove": "إزالة",
+      "pin": "تثبيت",
+      "unpin": "إلغاء التثبيت",
+      "autoFit": "ملاءمة تلقائية",
+      "search": "بحث",
+      "searchResults": "نتائج البحث",
+      "noResults": "لا توجد نتائج"
     },
     "history": {
       "addColumn": "إضافة العمود {{column}}",
@@ -277,7 +299,20 @@
     "RENOVATION": "تجديد",
     "MAINTENANCE": "صيانة",
     "USERDEFINED": "أخرى",
-    "builtinGroup": "أنواع مدمجة", "personalGroup": "أنواع مهامي", "projectGroup": "من هذا المشروع", "new": "+ نوع مهمة جديد…", "manage": "إدارة أنواع المهام…", "newTitle": "نوع مهمة جديد", "manageTitle": "إدارة أنواع المهام", "name": "الاسم", "fixed": "ثابت", "empty": "لا توجد أنواع مهام شخصية بعد.", "rename": "تحرير", "remove": "حذف", "addToMine": "أضف إلى أنواع مهامي", "confirmRemove": "هذا النوع مستخدم في المشروع المفتوح. هل تريد حذفه من أنواع مهامي؟ ستبقى نسخة المشروع."
+    "builtinGroup": "أنواع مدمجة",
+    "personalGroup": "أنواع مهامي",
+    "projectGroup": "من هذا المشروع",
+    "new": "+ نوع مهمة جديد…",
+    "manage": "إدارة أنواع المهام…",
+    "newTitle": "نوع مهمة جديد",
+    "manageTitle": "إدارة أنواع المهام",
+    "name": "الاسم",
+    "fixed": "ثابت",
+    "empty": "لا توجد أنواع مهام شخصية بعد.",
+    "rename": "تحرير",
+    "remove": "حذف",
+    "addToMine": "أضف إلى أنواع مهامي",
+    "confirmRemove": "هذا النوع مستخدم في المشروع المفتوح. هل تريد حذفه من أنواع مهامي؟ ستبقى نسخة المشروع."
   },
   "duration": {
     "label": "المدة",
@@ -332,6 +367,25 @@
     "duration": "المدة (أيام)",
     "constraint": "قيد",
     "constraintDate": "تاريخ القيد",
+    "hardPin": "إلزامي (تثبيت صارم)",
+    "hardPinTip": "فقط لـ MSO/MFO — يثبّت التاريخ بشكل صارم ويتجاوز منطق العلاقات (P6 Mandatory).",
+    "hardPinHint": "التثبيت الصارم يتجاوز العلاقات: يُثبَّت الشريط على التاريخ، حتى قبل أسلافه. المخالفة تتحول إلى فائض سالب في الاتجاه العلوي.",
+    "constraint2": "قيد ثانوي",
+    "constraint2Date": "تاريخ ثانوي",
+    "constraint2None": "(لا شيء)",
+    "constraintPair": {
+      "secondary-hard-forbidden": "لا يجوز أن يكون القيد الثانوي صارمًا (إلزاميًا).",
+      "no-secondary-with-mandatory-or-on": "لا قيد ثانوي مع MSO/MFO أو تثبيت صارم.",
+      "no-secondary-with-asap-alap": "لا قيد ثانوي مع ASAP/ALAP.",
+      "secondary-type-invalid": "يجب أن يكون النوع الثانوي حدًا (SNET/FNET/SNLT/FNLT).",
+      "secondary-same-side": "لا يجوز أن يحدّ القيدان الأساسي والثانوي نفس الجانب."
+    },
+    "hammock": "Hammock (مدة مشتقة)",
+    "hammockDerivedHint": "مدة مشتقة — الفترة بين محرِّك البداية ومحرِّك النهاية (للقراءة فقط).",
+    "startDriver": "محرِّك البداية",
+    "finishDriver": "محرِّك النهاية",
+    "hammockNoDriver": "(لا شيء)",
+    "hammockNoFinishDriver": "لا يوجد محرِّك نهاية (FF/SF) — تعود الفترة إلى طول صفري.",
     "deadline": "الموعد النهائي",
     "hasConstraint": "له قيد تاريخ",
     "deadlineMissed": "تم تجاوز الموعد النهائي",
@@ -354,6 +408,7 @@
     "lateFinish": "النهاية المتأخرة:",
     "totalFloat": "الفائض الكلي:",
     "freeFloat": "الفائض الحر:",
+    "interferingFloat": "الفائض المتداخل:",
     "criticalPath": "المسار الحرج:",
     "dependencies": "التبعيات",
     "addRelation": "إضافة علاقة",
@@ -384,31 +439,6 @@
       "contouredHint": "لهذا التعيين توزيع ساعات خاص به؛ عدّله أو حرّره عبر زر توزيع الساعات.",
       "importedCurve": "منحنى مستورد"
     },
-    "calendar": "التقويم",
-    "calendarProject": "تقويم المشروع",
-    "priority": "أولوية الموازنة",
-    "levelingDelay": "تأخير الموازنة",
-    "durationHours": "المدة (ساعات)",
-    "hardPin": "إلزامي (تثبيت صارم)",
-    "hardPinTip": "فقط لـ MSO/MFO — يثبّت التاريخ بشكل صارم ويتجاوز منطق العلاقات (P6 Mandatory).",
-    "hardPinHint": "التثبيت الصارم يتجاوز العلاقات: يُثبَّت الشريط على التاريخ، حتى قبل أسلافه. المخالفة تتحول إلى فائض سالب في الاتجاه العلوي.",
-    "constraint2": "قيد ثانوي",
-    "constraint2Date": "تاريخ ثانوي",
-    "constraint2None": "(لا شيء)",
-    "constraintPair": {
-      "secondary-hard-forbidden": "لا يجوز أن يكون القيد الثانوي صارمًا (إلزاميًا).",
-      "no-secondary-with-mandatory-or-on": "لا قيد ثانوي مع MSO/MFO أو تثبيت صارم.",
-      "no-secondary-with-asap-alap": "لا قيد ثانوي مع ASAP/ALAP.",
-      "secondary-type-invalid": "يجب أن يكون النوع الثانوي حدًا (SNET/FNET/SNLT/FNLT).",
-      "secondary-same-side": "لا يجوز أن يحدّ القيدان الأساسي والثانوي نفس الجانب."
-    },
-    "hammock": "Hammock (مدة مشتقة)",
-    "hammockDerivedHint": "مدة مشتقة — الفترة بين محرِّك البداية ومحرِّك النهاية (للقراءة فقط).",
-    "startDriver": "محرِّك البداية",
-    "finishDriver": "محرِّك النهاية",
-    "hammockNoDriver": "(لا شيء)",
-    "hammockNoFinishDriver": "لا يوجد محرِّك نهاية (FF/SF) — تعود الفترة إلى طول صفري.",
-    "interferingFloat": "الفائض المتداخل:",
     "notes": {
       "title": "ملاحظات",
       "add": "إضافة ملاحظة",
@@ -417,6 +447,11 @@
       "done": "منجز",
       "empty": "لا توجد ملاحظات بعد."
     },
+    "calendar": "التقويم",
+    "calendarProject": "تقويم المشروع",
+    "priority": "أولوية الموازنة",
+    "levelingDelay": "تأخير الموازنة",
+    "durationHours": "المدة (ساعات)",
     "splits": {
       "title": "التوقفات",
       "after": "بعد",

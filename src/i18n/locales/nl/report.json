@@ -23,7 +23,12 @@
   "showBaselineOverlay": "Baseline-overlay tonen",
   "autoFit": "Auto-fit op papier",
   "zoom": "Zoomen:",
-  "previewQuality": { "label": "Previewkwaliteit", "standard": "Standaard", "high": "Hoog", "maximum": "Maximaal" },
+  "previewQuality": {
+    "label": "Previewkwaliteit",
+    "standard": "Standaard",
+    "high": "Hoog",
+    "maximum": "Maximaal"
+  },
   "repeatHeader": "Kop op elke pagina herhalen",
   "repeatFooter": "Voet op elke pagina herhalen",
   "reportFontScaleLabel": "Lettergrootte:",
