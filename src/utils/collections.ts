@@ -12,3 +12,13 @@ export function groupBy<T, K>(items: Iterable<T>, keyOf: (item: T) => K): Map<K,
   }
   return groups;
 }
+
+/** Keer een 1-op-1 codetabel om (waarde → sleutel), zodat een lezer en schrijver één tabel delen en
+ *  niet kunnen divergeren. Bij dubbele waarden wint de laatste sleutel. Het resultaat heeft GEEN
+ *  prototype: een lezer die er onvertrouwde bestandsinhoud in opzoekt (`constructor`, `__proto__`)
+ *  krijgt `undefined`, nooit een geërfde eigenschap. */
+export function invertRecord<K extends PropertyKey, V extends PropertyKey>(record: Readonly<Record<K, V>>): Record<V, K> {
+  const inverse = Object.create(null) as Record<V, K>;
+  for (const key of Object.keys(record) as K[]) inverse[record[key]] = key;
+  return inverse;
+}

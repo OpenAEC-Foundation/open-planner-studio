@@ -20,20 +20,19 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { axisOffsetMinutes, p6SpreadToContourPeriods, splitGapsFromContours } from '@/services/contourIo';
 import {
-  OPS_P6_DURATION_UNIT_UDF_TITLE,
+  OPS_CUSTOM_TASK_TYPE_UDF_TITLE,
   P6_DAY_NAMES,
+  P6_LINK_TYPE,
   P6_NAME_TO_CURVE,
 } from './p6xmlWriter';
+import { invertRecord } from '@/utils/collections';
+import {
+  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
+} from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
   promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
-
-const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
-const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
-
-/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
-const P6_TIME_ANCHOR = '08:00:00';
 
 // De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
 // in subdayIo (F5-c/d/e). P6_NAME_TO_CURVE (P6-curvenaam → OPS-curve) komt uit p6xmlWriter, waar beide
@@ -62,34 +61,12 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
   return toFloat(getElementText(parent, tagName), fallback);
 }
 
-function parseOpsCustomTaskType(rawText: string): { id: string; name?: string } | undefined {
-  try {
-    const raw: unknown = JSON.parse(rawText);
-    if (!raw || typeof raw !== 'object'
-      || (raw as { ops?: unknown }).ops !== OPS_CUSTOM_TASK_TYPE_MARKER
-      || typeof (raw as { id?: unknown }).id !== 'string') return undefined;
-    const id = (raw as { id: string }).id.trim();
-    const name = typeof (raw as { name?: unknown }).name === 'string'
-      ? (raw as { name: string }).name.trim()
-      : '';
-    return id ? { id, ...(name ? { name } : {}) } : undefined;
-  } catch { return undefined; }
-}
-
 /** P6-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met MSPDI (F5-a). */
 function parseP6Date(s: string): string {
   return isoDatePrefixOrToday(s);
 }
 
-function p6TypeToSequenceType(type: string): SequenceType {
-  switch (type) {
-    case 'PR_FS': return 'FINISH_START';
-    case 'PR_FF': return 'FINISH_FINISH';
-    case 'PR_SS': return 'START_START';
-    case 'PR_SF': return 'START_FINISH';
-    default: return 'FINISH_START';
-  }
-}
+const SEQUENCE_TYPE_BY_P6: Partial<Record<string, SequenceType>> = invertRecord(P6_LINK_TYPE);
 
 function p6HoursToDays(hours: number, hoursPerDay: number): number {
   if (hoursPerDay <= 0) hoursPerDay = 8;
@@ -395,7 +372,7 @@ export function readP6XML(content: string): ImportResult {
     const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
     // Oracle noemt het tekstveld `Text`. `TextValue` blijft als tolerante leeskant bestaan voor
     // tijdelijke OPS-builds die vóór deze contractcorrectie zijn gemaakt.
-    const parsed = parseOpsCustomTaskType(
+    const parsed = decodeCustomTaskType(
       getElementText(udfValue, 'Text') || getElementText(udfValue, 'TextValue'),
     );
     if (foreignObjectId >= 0 && parsed && !customTaskTypeByActivityObjectId.has(foreignObjectId)) {
@@ -411,7 +388,7 @@ export function readP6XML(content: string): ImportResult {
   for (const udfType of getAllByLocalName(doc, 'UDFType')) {
     if (getElementText(udfType, 'SubjectArea') !== 'Activity') continue;
     if (getElementText(udfType, 'DataType') !== 'Text') continue;
-    if (getElementText(udfType, 'Title') !== OPS_P6_DURATION_UNIT_UDF_TITLE) continue;
+    if (getElementText(udfType, 'Title') !== OPS_DURATION_UNIT_NAME) continue;
     const objectId = getElementInt(udfType, 'ObjectId', -1);
     if (objectId >= 0) durationUnitUdfIds.add(objectId);
   }
@@ -421,7 +398,7 @@ export function readP6XML(content: string): ImportResult {
       if (!durationUnitUdfIds.has(getElementInt(udfValue, 'UDFTypeObjectId', -1))) continue;
       const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
       const value = getElementText(udfValue, 'Text');
-      if (foreignObjectId >= 0 && (value === 'days' || value === 'hours')) {
+      if (foreignObjectId >= 0 && isTaskDurationUnit(value)) {
         explicitUnitByActivityObjectId.set(foreignObjectId, value);
       }
     }
@@ -442,8 +419,8 @@ export function readP6XML(content: string): ImportResult {
     if (!cal) continue;
     const durHours = getElementFloat(actEl, 'PlannedDuration');
     const durSignal = durHours > 0 && isSubDayMinutes(Math.round(durHours * 60), cal.hoursPerDay);
-    const dateSignal = hasNonAnchorTime(getElementText(actEl, 'PlannedStartDate'), P6_TIME_ANCHOR)
-      || hasNonAnchorTime(getElementText(actEl, 'PlannedFinishDate'), P6_TIME_ANCHOR);
+    const dateSignal = hasNonAnchorTime(getElementText(actEl, 'PlannedStartDate'), DAY_TIME_ANCHOR)
+      || hasNonAnchorTime(getElementText(actEl, 'PlannedFinishDate'), DAY_TIME_ANCHOR);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
@@ -628,7 +605,7 @@ export function readP6XML(content: string): ImportResult {
       id: generateId('seq'),
       predecessorId: predId,
       successorId: succId,
-      type: p6TypeToSequenceType(p6Type),
+      type: SEQUENCE_TYPE_BY_P6[p6Type] ?? 'FINISH_START',
       lagDays: lagHourMode ? 0 : p6HoursToDays(lagHours, hoursPerDay),
     };
     if (lagHourMode) seq.lagMinutes = Math.round(lagHours * 60);

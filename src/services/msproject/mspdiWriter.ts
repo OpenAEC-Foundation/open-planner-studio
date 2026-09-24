@@ -7,8 +7,10 @@ import { Baseline, BaselineTask } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import { projectFileBase } from '@/utils/documents';
 import {
-  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
+  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -16,6 +18,7 @@ import { matchContoursToAssignments, MSPDI_WORKCONTOUR_CONTOURED } from '@/engin
 import { contourPeriodsToDayItems, countSplitTasksWithoutContour, minutesToMspdiValue } from '@/services/contourIo';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { flattenOrder, taskDepths } from '@/utils/wbs';
+import { invertRecord } from '@/utils/collections';
 
 /**
  * MSPDI kent geen native onderscheid tussen "N werkdagen" en "N werkuren" als blijvende
@@ -25,10 +28,9 @@ import { flattenOrder, taskDepths } from '@/utils/wbs';
  * OPS-naam draagt, zodat een vreemd bestand dat Text30 zelf gebruikt nooit per ongeluk matcht.
  */
 export const OPS_DURATION_UNIT_FIELD_ID = '188743760';
-export const OPS_DURATION_UNIT_FIELD_NAME = 'OPS_TaskDurationUnit';
 
-const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
-const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
+/** MSPDI-transportveld (vrije ExtendedAttribute) voor de OPS-taaktypemarker; geëxporteerd voor de reader. */
+export const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 
 // WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
 // 0=Flat, 1=BackLoaded, 2=FrontLoaded, 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle;
@@ -48,45 +50,20 @@ export const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
 
 // Inverse voor de reader (WorkContour-code → curve). Programmatisch afgeleid ⇒ kan niet
 // divergeren van de schrijfrichting. De mapping is volledig bijectief (geen asymmetrie).
-export const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = (() => {
-  const inv: Record<number, ResourceCurve> = {};
-  for (const [curve, code] of Object.entries(CURVE_TO_WORKCONTOUR) as [ResourceCurve, number][]) {
-    inv[code] = curve;
-  }
-  return inv;
-})();
+export const WORKCONTOUR_TO_CURVE: Record<number, ResourceCurve> = invertRecord(CURVE_TO_WORKCONTOUR);
 
-function escapeXML(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function formatMSPDateTime(iso: string): string {
-  if (!iso) return '';
-  // MS Project expects: 2026-03-09T08:00:00
-  if (iso.length === 10) return `${iso}T08:00:00`;
-  // Fase 2.8b (§7.3): uur-instant `YYYY-MM-DDTHH:mm` (16 tekens) → vul aan tot seconden.
-  if (iso.length === 16) return `${iso}:00`;
-  return iso;
-}
+/** MSPDI `<Type>` van een PredecessorLink (0=FF, 1=FS, 2=SF, 3=SS); de reader leest de inverse. */
+export const MSP_LINK_TYPE_CODE: Record<SequenceType, number> = {
+  FINISH_FINISH: 0,
+  FINISH_START: 1,
+  START_FINISH: 2,
+  START_START: 3,
+};
 
 function durationToISO8601(days: number, hoursPerDay: number): string {
   // MS Project uses PT format: PT40H0M0S for 5 days * 8h
   const totalHours = days * hoursPerDay;
   return `PT${totalHours}H0M0S`;
-}
-
-function sequenceTypeToMSP(type: SequenceType): number {
-  switch (type) {
-    case 'FINISH_FINISH': return 0;
-    case 'FINISH_START': return 1;
-    case 'START_FINISH': return 2;
-    case 'START_START': return 3;
-  }
 }
 
 /**
@@ -148,7 +125,7 @@ function writeCalendarBlock(
 ): void {
   lines.push(`${indent(2)}<Calendar>`);
   lines.push(`${indent(3)}<UID>${uid}</UID>`);
-  lines.push(`${indent(3)}<Name>${escapeXML(cal.name)}</Name>`);
+  lines.push(`${indent(3)}<Name>${escapeXml(cal.name)}</Name>`);
   lines.push(`${indent(3)}<IsBaseCalendar>${isBaseCalendar ? 1 : 0}</IsBaseCalendar>`);
   lines.push(`${indent(3)}<WeekDays>`);
 
@@ -203,10 +180,10 @@ function writeCalendarBlock(
       lines.push(`${indent(4)}<Exception>`);
       lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
       lines.push(`${indent(5)}<TimePeriod>`);
-      lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(h.startDate)}</FromDate>`);
-      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(holidayEndDate(h))}</ToDate>`);
+      lines.push(`${indent(6)}<FromDate>${toXmlDateTime(h.startDate)}</FromDate>`);
+      lines.push(`${indent(6)}<ToDate>${toXmlDateTime(holidayEndDate(h))}</ToDate>`);
       lines.push(`${indent(5)}</TimePeriod>`);
-      lines.push(`${indent(5)}<Name>${escapeXML(h.name)}</Name>`);
+      lines.push(`${indent(5)}<Name>${escapeXml(h.name)}</Name>`);
       lines.push(`${indent(5)}<Type>1</Type>`);
       lines.push(`${indent(5)}<DayWorking>0</DayWorking>`);
       lines.push(`${indent(4)}</Exception>`);
@@ -215,10 +192,10 @@ function writeCalendarBlock(
       lines.push(`${indent(4)}<Exception>`);
       lines.push(`${indent(5)}<EnteredByOccurrences>0</EnteredByOccurrences>`);
       lines.push(`${indent(5)}<TimePeriod>`);
-      lines.push(`${indent(6)}<FromDate>${formatMSPDateTime(we.startDate)}</FromDate>`);
-      lines.push(`${indent(6)}<ToDate>${formatMSPDateTime(we.endDate)}</ToDate>`);
+      lines.push(`${indent(6)}<FromDate>${toXmlDateTime(we.startDate)}</FromDate>`);
+      lines.push(`${indent(6)}<ToDate>${toXmlDateTime(we.endDate)}</ToDate>`);
       lines.push(`${indent(5)}</TimePeriod>`);
-      lines.push(`${indent(5)}<Name>${escapeXML(we.name)}</Name>`);
+      lines.push(`${indent(5)}<Name>${escapeXml(we.name)}</Name>`);
       lines.push(`${indent(5)}<Type>1</Type>`);
       lines.push(`${indent(5)}<DayWorking>1</DayWorking>`);
       if (we.bands && we.bands.length > 0) {
@@ -346,18 +323,18 @@ export function writeMSPDI(
   // een ander systeem en een andere gebruiker; een Nederlandse of Japanse tekst in een MSPDI-veld
   // is daar geen hulp.
   const exportName = projectFileBase(project.name);
-  lines.push(`${indent(1)}<Name>${escapeXML(exportName)}</Name>`);
-  lines.push(`${indent(1)}<Title>${escapeXML(exportName)}</Title>`);
-  lines.push(`${indent(1)}<Author>${escapeXML(project.author)}</Author>`);
-  lines.push(`${indent(1)}<Company>${escapeXML(project.company)}</Company>`);
-  lines.push(`${indent(1)}<CreationDate>${formatMSPDateTime(project.createdAt.substring(0, 10))}</CreationDate>`);
-  lines.push(`${indent(1)}<StartDate>${formatMSPDateTime(project.startDate)}</StartDate>`);
+  lines.push(`${indent(1)}<Name>${escapeXml(exportName)}</Name>`);
+  lines.push(`${indent(1)}<Title>${escapeXml(exportName)}</Title>`);
+  lines.push(`${indent(1)}<Author>${escapeXml(project.author)}</Author>`);
+  lines.push(`${indent(1)}<Company>${escapeXml(project.company)}</Company>`);
+  lines.push(`${indent(1)}<CreationDate>${toXmlDateTime(project.createdAt.substring(0, 10))}</CreationDate>`);
+  lines.push(`${indent(1)}<StartDate>${toXmlDateTime(project.startDate)}</StartDate>`);
   if (project.endDate) {
-    lines.push(`${indent(1)}<FinishDate>${formatMSPDateTime(project.endDate)}</FinishDate>`);
+    lines.push(`${indent(1)}<FinishDate>${toXmlDateTime(project.endDate)}</FinishDate>`);
   }
   // Statusdatum (fase 2.6, §9.1) — P6 data date → MSPDI <StatusDate>. Alleen wanneer gezet.
   if (project.statusDate) {
-    lines.push(`${indent(1)}<StatusDate>${formatMSPDateTime(project.statusDate)}</StatusDate>`);
+    lines.push(`${indent(1)}<StatusDate>${toXmlDateTime(project.statusDate)}</StatusDate>`);
   }
   lines.push(`${indent(1)}<ScheduleFromStart>1</ScheduleFromStart>`);
   lines.push(`${indent(1)}<MinutesPerDay>${calendar.hoursPerDay * 60}</MinutesPerDay>`);
@@ -369,8 +346,8 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<ExtendedAttributes>`);
   lines.push(`${indent(2)}<ExtendedAttribute>`);
   lines.push(`${indent(3)}<FieldID>${OPS_DURATION_UNIT_FIELD_ID}</FieldID>`);
-  lines.push(`${indent(3)}<FieldName>${OPS_DURATION_UNIT_FIELD_NAME}</FieldName>`);
-  lines.push(`${indent(3)}<Alias>${OPS_DURATION_UNIT_FIELD_NAME}</Alias>`);
+  lines.push(`${indent(3)}<FieldName>${OPS_DURATION_UNIT_NAME}</FieldName>`);
+  lines.push(`${indent(3)}<Alias>${OPS_DURATION_UNIT_NAME}</Alias>`);
   lines.push(`${indent(2)}</ExtendedAttribute>`);
   lines.push(`${indent(1)}</ExtendedAttributes>`);
 
@@ -424,7 +401,7 @@ export function writeMSPDI(
   // Fase 2.8b (§7.3): effectieve kalender per taak → uur- vs dag-modus.
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
   const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = taskDurationUnitForIo(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
     return calendarId ? [calendarId] : [];
   }));
 
@@ -449,7 +426,7 @@ export function writeMSPDI(
   lines.push(`${indent(2)}<Task>`);
   lines.push(`${indent(3)}<UID>0</UID>`);
   lines.push(`${indent(3)}<ID>0</ID>`);
-  lines.push(`${indent(3)}<Name>${escapeXML(exportName)}</Name>`);
+  lines.push(`${indent(3)}<Name>${escapeXml(exportName)}</Name>`);
   lines.push(`${indent(3)}<OutlineLevel>0</OutlineLevel>`);
   lines.push(`${indent(3)}<Summary>1</Summary>`);
   lines.push(`${indent(2)}</Task>`);
@@ -471,7 +448,7 @@ export function writeMSPDI(
     // terug als 2,33 dagen, en plande MS Project haar op 56 klokuren in plaats van 7 etmalen.
     const effCal = effCalByTask.get(task.id);
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
-    const isHourTask = taskDurationUnitForIo(task) === 'hours';
+    const isHourTask = taskDurationUnit(task) === 'hours';
     const durationTag = isHourTask
       ? minutesToIsoDuration(taskMinutesForWrite(task, effHpd))
       : durationToISO8601(task.time.scheduleDuration, effHpd);
@@ -482,12 +459,12 @@ export function writeMSPDI(
     lines.push(`${indent(2)}<Task>`);
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
-    lines.push(`${indent(3)}<Name>${escapeXML(task.name)}</Name>`);
+    lines.push(`${indent(3)}<Name>${escapeXml(task.name)}</Name>`);
     lines.push(`${indent(3)}<Duration>${durationTag}</Duration>`);
     lines.push(`${indent(3)}<DurationFormat>${durationFormat}</DurationFormat>`);
-    lines.push(`${indent(3)}<Start>${formatMSPDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
-    lines.push(`${indent(3)}<Finish>${formatMSPDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
-    lines.push(`${indent(3)}<WBS>${escapeXML(task.wbsCode)}</WBS>`);
+    lines.push(`${indent(3)}<Start>${toXmlDateTime(task.time.earlyStart || task.time.scheduleStart)}</Start>`);
+    lines.push(`${indent(3)}<Finish>${toXmlDateTime(task.time.earlyFinish || task.time.scheduleFinish)}</Finish>`);
+    lines.push(`${indent(3)}<WBS>${escapeXml(task.wbsCode)}</WBS>`);
     lines.push(`${indent(3)}<OutlineLevel>${depthById.get(task.id) ?? 1}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
@@ -498,10 +475,10 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<PercentComplete>${Math.round((task.time.completion ?? 0) * 100)}</PercentComplete>`);
     // Actuals (fase 2.6, §9.1) — alleen wanneer gezet (golden rule). RemainingDuration afgeleid.
     if (task.time.actualStart) {
-      lines.push(`${indent(3)}<ActualStart>${formatMSPDateTime(task.time.actualStart)}</ActualStart>`);
+      lines.push(`${indent(3)}<ActualStart>${toXmlDateTime(task.time.actualStart)}</ActualStart>`);
     }
     if (task.time.actualFinish) {
-      lines.push(`${indent(3)}<ActualFinish>${formatMSPDateTime(task.time.actualFinish)}</ActualFinish>`);
+      lines.push(`${indent(3)}<ActualFinish>${toXmlDateTime(task.time.actualFinish)}</ActualFinish>`);
     }
     if (isHourTask && task.time.remainingMinutes != null) {
       lines.push(`${indent(3)}<RemainingDuration>${minutesToIsoDuration(task.time.remainingMinutes)}</RemainingDuration>`);
@@ -511,11 +488,10 @@ export function writeMSPDI(
     // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg).
     lines.push(`${indent(3)}<Priority>${Number.isFinite(task.priority) ? task.priority : 500}</Priority>`);
     if (task.customTaskTypeId) {
-      const type = customTaskTypes.find(candidate => candidate.id === task.customTaskTypeId);
       // MSPDI vrije tekst-uitbreiding: vreemde clients negeren dit; OPS leest hem terug zonder
       // de native MSP Task Type (resource-inspanning) te misbruiken.
-      const value = JSON.stringify({ ops: OPS_CUSTOM_TASK_TYPE_MARKER, id: task.customTaskTypeId, ...(type ? { name: type.name } : {}) });
-      lines.push(`${indent(3)}<ExtendedAttribute><FieldID>${OPS_CUSTOM_TASK_TYPE_FIELD_ID}</FieldID><Value>${escapeXML(value)}</Value></ExtendedAttribute>`);
+      const value = encodeCustomTaskType(task.customTaskTypeId, customTaskTypes);
+      lines.push(`${indent(3)}<ExtendedAttribute><FieldID>${OPS_CUSTOM_TASK_TYPE_FIELD_ID}</FieldID><Value>${escapeXml(value)}</Value></ExtendedAttribute>`);
     }
     // Datum-constraint (fase 2.9, §6): primair als MSPDI ConstraintType/ConstraintDate. ASAP ⇒ niets
     // (golden rule). Secundair is niet uitdrukbaar (één element, gewaarschuwd hierboven). Soft MSO/MFO
@@ -526,14 +502,14 @@ export function writeMSPDI(
         lines.push(`${indent(3)}<ConstraintType>${mapped.code}</ConstraintType>`);
         // ConstraintDate vereist behalve bij 0/1 (ASAP/ALAP); ALAP (1) draagt geen datum.
         if (mapped.code !== 1 && task.constraint.date) {
-          lines.push(`${indent(3)}<ConstraintDate>${formatMSPDateTime(task.constraint.date)}</ConstraintDate>`);
+          lines.push(`${indent(3)}<ConstraintDate>${toXmlDateTime(task.constraint.date)}</ConstraintDate>`);
         }
       }
     }
     // Zachte deadline (fase 2.9, §6): MSPDI kent een native <Deadline> op de taak (verschuift balken
     // niet — begrenst total slack). Golden rule: geen deadline ⇒ geen element.
     if (task.deadline) {
-      lines.push(`${indent(3)}<Deadline>${formatMSPDateTime(task.deadline)}</Deadline>`);
+      lines.push(`${indent(3)}<Deadline>${toXmlDateTime(task.deadline)}</Deadline>`);
     }
     // Taak-kalender (fase 2.8a, §8.3): MSPDI ondersteunt taak-kalenders native via dit element —
     // effectieve UID i.p.v. het oude hardcoded 1 (projectkalender). Onbekende/verwijderde
@@ -546,15 +522,15 @@ export function writeMSPDI(
     lines.push(`${indent(4)}<Value>${isHourTask ? 'hours' : 'days'}</Value>`);
     lines.push(`${indent(3)}</ExtendedAttribute>`);
     if (task.description) {
-      lines.push(`${indent(3)}<Notes>${escapeXML(task.description)}</Notes>`);
+      lines.push(`${indent(3)}<Notes>${escapeXml(task.description)}</Notes>`);
     }
     // Baseline 0 (fase 2.6, §9.1) — Start/Finish/Duration uit de actieve OPS-baseline.
     const bt = baselineByTask.get(task.id);
     if (bt) {
       lines.push(`${indent(3)}<Baseline>`);
       lines.push(`${indent(4)}<Number>0</Number>`);
-      lines.push(`${indent(4)}<Start>${formatMSPDateTime(bt.start)}</Start>`);
-      lines.push(`${indent(4)}<Finish>${formatMSPDateTime(bt.finish)}</Finish>`);
+      lines.push(`${indent(4)}<Start>${toXmlDateTime(bt.start)}</Start>`);
+      lines.push(`${indent(4)}<Finish>${toXmlDateTime(bt.finish)}</Finish>`);
       // Critreview #159: dezelfde `effHpd` als <Duration> — anders staat naast een taakduur van 168 u een
       // baseline van 56 u en verzint MS Project 112 u afwijking.
       lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, effHpd)}</Duration>`);
@@ -570,7 +546,7 @@ export function writeMSPDI(
         const { linkLag, lagFormat } = lagFields(seq, calendar.hoursPerDay);
         lines.push(`${indent(3)}<PredecessorLink>`);
         lines.push(`${indent(4)}<PredecessorUID>${predUid}</PredecessorUID>`);
-        lines.push(`${indent(4)}<Type>${sequenceTypeToMSP(seq.type)}</Type>`);
+        lines.push(`${indent(4)}<Type>${MSP_LINK_TYPE_CODE[seq.type]}</Type>`);
         lines.push(`${indent(4)}<LinkLag>${linkLag}</LinkLag>`);
         lines.push(`${indent(4)}<LagFormat>${lagFormat}</LagFormat>`);
         lines.push(`${indent(3)}</PredecessorLink>`);
@@ -595,12 +571,12 @@ export function writeMSPDI(
     const calUid = (res.calendarId && calUidMap.get(res.calendarId)) || 1;
     lines.push(`${indent(2)}<Resource>`);
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
-    lines.push(`${indent(3)}<Name>${escapeXML(res.name)}</Name>`);
+    lines.push(`${indent(3)}<Name>${escapeXml(res.name)}</Name>`);
     // Type: 1=Work (LABOR/EQUIPMENT/CREW/SUBCONTRACTOR), 0=Material.
     lines.push(`${indent(3)}<Type>${res.type === 'MATERIAL' ? 0 : 1}</Type>`);
     lines.push(`${indent(3)}<MaxUnits>${res.maxUnits}</MaxUnits>`);
     if (res.type === 'MATERIAL' && res.unitOfMeasure) {
-      lines.push(`${indent(3)}<MaterialLabel>${escapeXML(res.unitOfMeasure)}</MaterialLabel>`);
+      lines.push(`${indent(3)}<MaterialLabel>${escapeXml(res.unitOfMeasure)}</MaterialLabel>`);
     }
     lines.push(`${indent(3)}<CalendarUID>${calUid}</CalendarUID>`);
     if (res.costPerHour !== undefined) {
@@ -680,8 +656,8 @@ export function writeMSPDI(
         lines.push(`${indent(3)}<TimephasedData>`);
         lines.push(`${indent(4)}<Type>${d.kind === 'actual' ? 2 : 1}</Type>`);
         lines.push(`${indent(4)}<UID>${uid}</UID>`);
-        lines.push(`${indent(4)}<Start>${formatMSPDateTime(formatInstant(d.start, 'hour'))}</Start>`);
-        lines.push(`${indent(4)}<Finish>${formatMSPDateTime(formatInstant(d.finish, 'hour'))}</Finish>`);
+        lines.push(`${indent(4)}<Start>${toXmlDateTime(formatInstant(d.start, 'hour'))}</Start>`);
+        lines.push(`${indent(4)}<Finish>${toXmlDateTime(formatInstant(d.finish, 'hour'))}</Finish>`);
         lines.push(`${indent(4)}<Unit>2</Unit>`);
         lines.push(`${indent(4)}<Value>${minutesToMspdiValue(d.workMinutes)}</Value>`);
         lines.push(`${indent(3)}</TimephasedData>`);

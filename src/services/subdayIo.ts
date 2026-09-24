@@ -1,6 +1,9 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
+// Writers moeten ook door tests/extensies aangeleverde pre-T1-objecten (zonder `durationUnit`)
+// veilig kunnen bewaren — `taskDurationUnit` draagt dezelfde legacy-regel als de documentmigratie.
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 /**
  * Fase 2.8b (golf 4, ontwerpdoc §7) — gedeelde sub-dag-precisie-helpers voor de IFC/P6/MSPDI-
@@ -276,14 +279,7 @@ export function hasConcreteWorkBlocks(calendar: WorkCalendar): boolean {
  */
 export function fileHasHourData(tasks: Task[], calendars: WorkCalendar[]): boolean {
   if (calendars.some(isHourCalendar)) return true;
-  return tasks.some((t) => taskDurationUnitForIo(t) === 'hours');
-}
-
-/** Zelfde deterministische legacy-regel als de documentmigratie, maar beschikbaar voor adapters.
- * Writers moeten ook door tests/extensies aangeleverde pre-T1-objecten veilig kunnen bewaren. */
-export function taskDurationUnitForIo(task: Task): 'days' | 'hours' {
-  const legacy = task.time as Task['time'] & { durationUnit?: 'days' | 'hours' };
-  return legacy.durationUnit ?? (legacy.durationMinutes != null ? 'hours' : 'days');
+  return tasks.some((t) => taskDurationUnit(t) === 'hours');
 }
 
 /**
@@ -292,6 +288,6 @@ export function taskDurationUnitForIo(task: Task): 'days' | 'hours' {
  * `durationMinutesOf` in de engine, maar zonder de engine-afhankelijkheid.
  */
 export function taskMinutesForWrite(task: Task, hoursPerDay: number): number {
-  if (taskDurationUnitForIo(task) === 'hours') return task.time.durationMinutes ?? 0;
+  if (taskDurationUnit(task) === 'hours') return task.time.durationMinutes ?? 0;
   return Math.round(task.time.scheduleDuration * hoursPerDay * 60);
 }

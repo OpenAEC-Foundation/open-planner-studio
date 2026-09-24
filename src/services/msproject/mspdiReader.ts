@@ -14,17 +14,20 @@ import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
 import {
+  MSP_LINK_TYPE_CODE,
+  OPS_CUSTOM_TASK_TYPE_FIELD_ID,
   OPS_DURATION_UNIT_FIELD_ID,
-  OPS_DURATION_UNIT_FIELD_NAME,
   WORKCONTOUR_TO_CURVE,
 } from './mspdiWriter';
+import { invertRecord } from '@/utils/collections';
+import {
+  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
+} from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
   promoteHourCalendar, registerCalendarBands,
 } from '@/services/subdayIo';
 
-const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
-const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
 // T4 (MSPDI-uitzonderingssemantiek, spiegel van T3) — hergebruikt T3's `buildContributions`
 // (record-opbouw MET budget-klem TIJDENS de opbouw, niet pas erna) en `resolveContributions`
 // (precedentie-/invariant-motor) rechtstreeks i.p.v. een tweede expansie te bouwen (plan-§T4).
@@ -64,9 +67,6 @@ import {
 } from '@/services/contourIo';
 import type { TaskTimephasedContour } from '@/types/task';
 
-/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
-const MSP_TIME_ANCHOR = '08:00:00';
-
 function taskDurationType(te: Element): 'WORKTIME' | 'ELAPSEDTIME' {
   const format = Number.parseInt(getElementText(te, 'DurationFormat'), 10);
   return [4, 6, 8, 10, 12].includes(format) ? 'ELAPSEDTIME' : 'WORKTIME';
@@ -79,7 +79,7 @@ function hasOpsDurationUnitDefinition(root: Element): boolean {
     const definitions = containers[i].getElementsByTagName('ExtendedAttribute');
     for (let j = 0; j < definitions.length; j++) {
       if (getElementText(definitions[j], 'FieldID') === OPS_DURATION_UNIT_FIELD_ID
-        && getElementText(definitions[j], 'FieldName') === OPS_DURATION_UNIT_FIELD_NAME) return true;
+        && getElementText(definitions[j], 'FieldName') === OPS_DURATION_UNIT_NAME) return true;
     }
   }
   return false;
@@ -92,7 +92,7 @@ function explicitOpsDurationUnit(te: Element, enabled: boolean): 'days' | 'hours
     if (values[i].parentElement !== te) continue;
     if (getElementText(values[i], 'FieldID') !== OPS_DURATION_UNIT_FIELD_ID) continue;
     const value = getElementText(values[i], 'Value');
-    if (value === 'days' || value === 'hours') return value;
+    if (isTaskDurationUnit(value)) return value;
   }
   return undefined;
 }
@@ -231,34 +231,21 @@ function readOpsCustomTaskType(task: Element): { id: string; name?: string } | u
   const attrs = task.getElementsByTagName('ExtendedAttribute');
   for (const attr of attrs) {
     if (attr.parentElement !== task || getElementText(attr, 'FieldID') !== OPS_CUSTOM_TASK_TYPE_FIELD_ID) continue;
-    try {
-      const raw: unknown = JSON.parse(getElementText(attr, 'Value'));
-      if (raw && typeof raw === 'object'
-        && (raw as { ops?: unknown }).ops === OPS_CUSTOM_TASK_TYPE_MARKER
-        && typeof (raw as { id?: unknown }).id === 'string') {
-        const id = (raw as { id: string }).id.trim();
-        const name = typeof (raw as { name?: unknown }).name === 'string'
-          ? (raw as { name: string }).name.trim()
-          : '';
-        if (id) return { id, ...(name ? { name } : {}) };
-      }
-    } catch { /* vreemde vrije attributen zijn geen taaktype */ }
+    // Vreemde vrije attributen zijn geen taaktype; zoek dan door naar een volgende.
+    const decoded = decodeCustomTaskType(getElementText(attr, 'Value'));
+    if (decoded) return decoded;
   }
   return undefined;
 }
+
+const SEQUENCE_TYPE_BY_MSP_CODE: Partial<Record<number, SequenceType>> = invertRecord(MSP_LINK_TYPE_CODE);
 
 /** Geëxporteerd (fase 3.8 e1, T7) zodat `mppReader.ts`'s TBkndCons-relatielezer exact dezelfde
  *  code-tabel gebruikt i.p.v. een eigen kopie — MPXJ's `RelationType.getInstance` (ConstraintFactory
  *  .java) gebruikt letterlijk dezelfde 0=FF/1=FS/2=SF/3=SS-codering met dezelfde FS-terugval voor
  *  een onbekende/buiten-bereik-waarde, dus hergebruik i.p.v. spiegelen is hier de correcte poort. */
 export function mspTypeToSequenceType(type: number): SequenceType {
-  switch (type) {
-    case 0: return 'FINISH_FINISH';
-    case 1: return 'FINISH_START';
-    case 2: return 'START_FINISH';
-    case 3: return 'START_START';
-    default: return 'FINISH_START';
-  }
+  return SEQUENCE_TYPE_BY_MSP_CODE[type] ?? 'FINISH_START';
 }
 
 /**
@@ -395,8 +382,8 @@ export function readMSPDI(content: string): ImportResult {
     if (!cal) continue;
     const durMin = mspDurationMinutes(getElementText(te, 'Duration'));
     const durSignal = durMin != null && isSubDayMinutes(durMin, cal.hoursPerDay);
-    const dateSignal = hasNonAnchorTime(getElementText(te, 'Start'), MSP_TIME_ANCHOR)
-      || hasNonAnchorTime(getElementText(te, 'Finish'), MSP_TIME_ANCHOR);
+    const dateSignal = hasNonAnchorTime(getElementText(te, 'Start'), DAY_TIME_ANCHOR)
+      || hasNonAnchorTime(getElementText(te, 'Finish'), DAY_TIME_ANCHOR);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // MSPDI valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt

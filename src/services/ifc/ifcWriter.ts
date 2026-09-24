@@ -8,7 +8,7 @@ import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } f
 import { Baseline } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import {
-  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
+  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult } from '@/services/importTypes';
@@ -20,6 +20,7 @@ import { projectFileBase } from '@/utils/documents';
 import {
   IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
 } from './ifcTaskSlots';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 /** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
  *  `extractBaselines`) baseline-taskId's — die als interne id in de OPS_Baselines-JSON staan —
@@ -209,7 +210,7 @@ export function writeIFC(input: WriteIFCInput): string {
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden, §8.2).
   const effCalByTask = effectiveCalendarByTask(tasks, calendar, resourceCalendars);
   const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = taskDurationUnitForIo(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
     return calendarId ? [calendarId] : [];
   }));
   const { calStepId: projectCalStepId, workingExceptionStepIds: projectWorkingExceptionStepIds }
@@ -248,7 +249,7 @@ export function writeIFC(input: WriteIFCInput): string {
   for (const task of tasks) {
     const effCal = effCalByTask.get(task.id);
     writeTask(
-      ctx, task, ownerHistId, project.statusDate, taskDurationUnitForIo(task) === 'hours',
+      ctx, task, ownerHistId, project.statusDate, taskDurationUnit(task) === 'hours',
       effCal?.hoursPerDay ?? calendar.hoursPerDay,
       customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name,
     );
@@ -931,7 +932,7 @@ function writeTask(
   const dt = isHour ? ifcDateTimeHour : ifcDateTime;
   // De ISO-vorm bewaart de TAAK-eenheid: P…D = werkdagen, PT…H…M = werkuren. De kalender bepaalt
   // alleen de datetime-precisie en plaatsing; een uurkalender maakt van een dagtaak geen urentaak.
-  const schedDurArg = taskDurationUnitForIo(task) === 'hours'
+  const schedDurArg = taskDurationUnit(task) === 'hours'
     ? ifcDurationHour(taskMinutesForWrite(task, effHoursPerDay))
     : ifcDuration(t.scheduleDuration);
   // Voortgang (fase 2.6, §8.1) — spec-conforme IfcTaskTime-slots (0-based arg-index in de lijst
