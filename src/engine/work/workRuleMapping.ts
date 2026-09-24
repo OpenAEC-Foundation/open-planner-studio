@@ -118,7 +118,7 @@ const WORK_EPS_MINUTES = 1;
  * "wanneer geschreven", geval (c): "bij import wanneer de bron een waarde levert die van de afleiding
  * afwijkt"; spec §4.4 XER-rij: "alleen wanneer `target_qty` afwijkt van duur × `target_qty_per_hr`").
  *
- * - Wijkt het begrote werk af van `restduur × inzet`, of het resterende werk van `begroot − verricht`,
+ * - Wijkt het begrote werk af van `duur × inzet`, of het resterende werk van `begroot − verricht`,
  *   dan gaan alle aanwezige bronwaarden mee (één consistent drietal) — het werk ÍS dan anders dan de
  *   afleiding, en de belasting hoort dat te tonen (`assignmentDayUnits` laag 3).
  * - Alleen verricht werk > 0 zonder zo'n afwijking (E3, critreview PR #101 baan 1): dan wordt
