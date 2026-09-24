@@ -243,7 +243,10 @@ een andere rol te geven:
 
 Regels: alleen op een `role: "oracle"`/`included: true`-entry. `decision` heeft EXACT de vorm
 `JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>` (een bestaande datum, niet in de toekomst; "geen
-eigenaarsbesluit" of een vrije plaatsing van het woord glipt dus niet door); anders weigert de lezer de hele
+eigenaarsbesluit" of een vrije plaatsing van het woord glipt dus niet door). Komt één regel uit een LATER
+besluit, dan draagt die regel een eigen `decision` in dezelfde vorm (niet vóór de entrydatum); de entry noemt
+dan het vroegste besluit en de latere chronologisch in de tekst, en de HERPIN-regel volgt de datum van de
+regel (HarbourPointe: entry 2026-09-23 vraag 8, EC1420 2026-09-24 vraag 13). Anders weigert de lezer de hele
 entry, net als bij een lege lijst, een onbekende sleutel, een reden korter dan 10 tekens, een `projId`/`taskId`
 als getal (schrijf `"12345"`), een dubbele regel of een taak onder een al uitgesloten project. Een taak noem
 je met precies één van `taskId` of `taskCode`; dezelfde taak via `taskId` én `taskCode` is een dubbel-fout,
@@ -270,12 +273,27 @@ was ∖ nu; elke andere verschuiving blijft `hard`). Alleen een andere reden of 
 (herpin van het blok) maar niet de identiteitsset, en maakt dus niets `fileset`. De `CELLDELTA`-regel en de
 herpin-OK-regel noemen het aantal door uitsluiting weggevallen cellen (`uitgesloten=N`). De cel-herpin
 herschrijft het blok zelf (alleen via `=corpus`, en alleen vanaf een ongeschonden blok) en print per
-uitsluiting de regel `HERPIN <datum> uitsluiting: <label> — <reden>`; de corpusloze cellenpoort eist die
-regels letterlijk tussen de schuldpin en het blok. **Verborgen aantallen:** per bestand met een uitsluiting
-staan de zesassige afwijkingen en drivingPath-cellen óp de uitgesloten taken als `excludedHidden` in
-`xer-product-fidelity-cells.json` — een NIET-STIJGENDE pin (stijging = `hard`, daling = herpinnen via de
-schrijfmodi; alleen bij een gewijzigde identiteitsset `fileset`), zodat een motorregressie op een
-uitgesloten populatie niet onzichtbaar wordt. Zonder uitsluiting ontbreekt de sectie (bestand byte-gelijk).
+uitsluiting de regel `HERPIN <herpindatum> uitsluiting (besluit <besluitdatum>): <label> — <reden>`,
+chronologisch op besluitdatum; de corpusloze cellenpoort eist per uitsluiting het deel vanaf "uitsluiting"
+letterlijk tussen de schuldpin en het blok (de herpindatum schrijft de herpin, hij hoort niet bij het record). **Verborgen aantallen:** per bestand met een uitsluiting en daarbinnen PER
+UITGESLOTEN TAAK (`proj_id/task_id`) staan de zesassige afwijkingen en drivingPath-cellen op die taak als
+`excludedHidden` in `xer-product-fidelity-cells.json` (vorm `{ "<sha256>": { "<proj>/<taak>": { "sixAxis": n,
+"drivingPath": m } } }`; taken met 0/0 staan er niet in, een bestand zonder verborgen afwijking heeft `{}`).
+Elk getal is een NIET-STIJGENDE pin per taak (stijging = `hard`, daling = herpinnen via de schrijfmodi), zodat
+een motorregressie op een uitgesloten taak niet onzichtbaar wordt; de per-taakpin telt mee in
+`cellMinutesDigest` en dus in `cellMinutesSha256` van de v2-envelop (met de hand ophogen valt op). Bij een
+gewijzigde identiteitsset geldt per taak, apart voor de zes assen samen en drivingPath: al uitgesloten ⇒ ≤ eigen
+pin; **nieuw uitgesloten** ⇒ ≤ de cellen die de gepinde baseline op die taak had (`excludedCells`); **weer
+meegeteld** ⇒ de teruggekeerde cellen ≤ de eigen pin, waarna die pin vervalt. Binnen die grenzen `fileset`
+(herpin via `=corpus`), elk surplus `hard`. Per taak en niet per bestand, omdat een bestandstotaal speelruimte
+gaf: een weer meegetelde taak zonder afwijking maakte haar deel vrij voor een regressie op een andere, nog
+uitgesloten taak (her-check 2026-09-24, M1). Aanleiding: critreview C14-landing en Fable-critreview PR #169
+bevinding 1 (2026-09-24); mutatiebewijs: +1 dag ff op OZB-project 9032 plus `excludeProjects` 9032 blijft hard
+rood en `=corpus` weigert. De overgang van het bestandstotaal naar de per-taakvorm (2026-09-24) is eenmalig
+gemeten: per bestand was de som per taak exact het oude totaal (OZB 38/4 over 14 taken, Hotel 0/19 over 19,
+HarbourPointe 34/0 over 9); er is geen leesroute voor de oude vorm. Wat dit níét vangt: een grotere afwijking
+in een cel die op een nieuw uitgesloten taak al inexact was (zelfde telling); dat blijft
+aan de review van de uitsluiting. Zonder uitsluiting ontbreekt de sectie (bestand byte-gelijk).
 Daarna de vijf handmatige pinplekken hierboven (de X1-baseline, C5–C8b,
 het baselineschema, de task-replay-pin, `EXPECTED` van de corpusloze vangrail) en `OPS_XER_GATE_PINS=corpus`.
 Verboden: het blok of de digest met de hand bijwerken, of een uitsluiting laten kiezen door veldinhoud

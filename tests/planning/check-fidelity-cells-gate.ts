@@ -26,7 +26,8 @@
 //    `xer-corpus-manifest.json` is geldig (elke uitsluiting draagt een `decision` in exact de vorm
 //    "JJJJ-MM-DD eigenaarsbesluit: <tekst>"), is gepind als digest in een gegenereerd blok
 //    (`EXPECTED_EXCLUSIONS_SHA256`, hieronder, zoals de schuldset), boven dat blok staat per uitsluiting
-//    letterlijk `HERPIN <datum> uitsluiting: <label> — <reden>`, de verborgen aantallen in het
+//    `HERPIN <herpindatum> uitsluiting (besluit <besluitdatum>): <label> — <reden>` (de poort eist alles
+//    vanaf "uitsluiting"), de verborgen aantallen (per taak) in het
 //    cellenbestand (`excludedHidden`) dekken precies de bestanden met een uitsluiting, en geen cel van
 //    het cellenbestand of project van v2 hoort bij een uitgesloten project of taak-id. Een gewijzigde
 //    lijst herpint alleen `OPS_XER_CELLS_WRITE=corpus`.
@@ -61,53 +62,59 @@ const EXPECTED_DEBT_SHA256 = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c
 /** Manifestuitsluitingen per project/taak (eigenaarsbesluiten; §6 hierboven). Het blok wordt bij een
  *  gewijzigde lijst door `OPS_XER_CELLS_WRITE=corpus` herschreven; de poort eist dan hierboven (tussen
  *  de schuldpin en het blok) per uitsluiting letterlijk de regel die de herpin print:
- *  `HERPIN <datum> uitsluiting: <label> — <reden>`.
+ *  `HERPIN <herpindatum> uitsluiting (besluit <besluitdatum>): <label> — <reden>` (de poort eist alles vanaf
+ *  "uitsluiting"; sinds 2026-09-24 chronologisch op besluitdatum).
  *  PIN 2026-09-23 (mechanisme geland, nog geen besluit): lege lijst.
  *  PIN 2026-09-23 (eigenaarsbesluiten vraag 8, 10 en 12, overdracht rekenprofielen §1a): 10 uitsluitingen,
  *  41 taken in 3 projecten; X12 175 → 104 zesassig (verborgen 71: OZB 38, HarbourPointe 33, Hotel 0),
  *  drivingPath 168 → 145 (verborgen 23: Hotel CR 19, OZB 4); CELLDELTA nieuw=0 verslechterd=0 groter=0.
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer — door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/Hotel_Construction_TEC.xer — project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 840 u < opgeslagen restduur 864 u (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 480 u < opgeslagen restduur 552 u (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 96 u < opgeslagen restduur 144 u (§1d-8)
- *  HERPIN 2026-09-23 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 720 u < opgeslagen restduur 920 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer — door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/Hotel_Construction_TEC.xer — project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 840 u < opgeslagen restduur 864 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 480 u < opgeslagen restduur 552 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 96 u < opgeslagen restduur 144 u (§1d-8)
+ *  HERPIN 2026-09-23 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 720 u < opgeslagen restduur 920 u (§1d-8)
  *  PIN 2026-09-24 (eigenaarsbesluit vraag 13, letterlijk "Vraag 13, ja uitsluiten"; samen met C14
  *  `p6AlapPositionedFromSuccessors`): 11 uitsluitingen, 42 taken in 3 projecten; HarbourPointe EC1420 erbij,
- *  `decision` van HarbourPointe draagt nu datum 2026-09-24 (vraag 13 + vraag 8). X12 104 → 76 zesassig
+ *  `decision` van HarbourPointe droeg toen datum 2026-09-24 (vraag 13 + vraag 8; sinds de datumherkomstfix
+ *  hieronder weer 2026-09-23, met een eigen regel-decision 2026-09-24 op EC1420). X12 104 → 76 zesassig
  *  (verborgen HarbourPointe 33 → 34 door de gewijzigde identiteitsset), drivingPath 145 ongewijzigd;
  *  CELLDELTA nieuw=0 verslechterd=0 groter=0 verbeterd=23 kleiner=9 schuld=0 uitgesloten=5.
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — krijgt zijn datums uit de uitgesloten, verouderde voorganger EC1430; onder C14 anders 2 cellen groter (§1d-13)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 840 u < opgeslagen restduur 864 u (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 480 u < opgeslagen restduur 552 u (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 96 u < opgeslagen restduur 144 u (§1d-8)
- *  HERPIN 2026-09-24 uitsluiting: crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 720 u < opgeslagen restduur 920 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 696 u < opgeslagen restduur 720 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 840 u < opgeslagen restduur 864 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 480 u < opgeslagen restduur 552 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 96 u < opgeslagen restduur 144 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): crawl-xer/HarbourPointe_AssistedLiving.xer — P6-span 720 u < opgeslagen restduur 920 u (§1d-8)
+ *  HERPIN 2026-09-24 uitsluiting (besluit 2026-09-24): crawl-xer/HarbourPointe_AssistedLiving.xer — krijgt zijn datums uit de uitgesloten, verouderde voorganger EC1430; onder C14 anders 2 cellen groter (§1d-13) *  PIN 2026-09-24 (her-check C14-landfixes): de verborgen aantallen in het cellenbestand staan nu PER TAAK
+ *  (`excludedHidden[sha][proj/taak]`); eenmalige, gemeten overgang met som per taak = oud totaal (OZB 38/4,
+ *  Hotel 0/19, HarbourPointe 34/0), OPS_XER_CELLS_WRITE=1, CELLDELTA nieuw=0 verslechterd=0 groter=0 schuld=0
+ *  totaal=221; `cellMinutesSha256` in de v2-envelop mee (de per-taakpin zit in de digest), payload ongewijzigd.
+ *  Uitsluitingslijst ongewijzigd; de HERPIN-regels tonen sindsdien besluit- én herpindatum, chronologisch.
  */
 // BEGIN manifest-uitsluitingspin — herschreven door OPS_XER_CELLS_WRITE=corpus bij een gewijzigde uitsluiting; nooit met de hand
 // 11 uitsluiting(en): [bestand-sha256, soort, project, taskId, taskCode, reden, besluit]
 //   ["2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0","project","9033","","","door P6 resource-genivelleerd (PM-1, vooruit en achteruit); nivellering is geen CPM-conventie (§1d-10)","2026-09-23 eigenaarsbesluit: vraag 10 (overdracht §1d-10), letterlijk \"uitsluiten\": project 9033 is door P6 genivelleerd; P6-nivellering wordt een eigen etappe na het nuldoel"]
 //   ["9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe","project","2665","","","project CR niet door P6 doorgerekend (xer-corpus-p6computed.json: p6Computed false)","2026-09-23 eigenaarsbesluit: vraag 12 (overdracht §1d-12), letterlijk \"ja, uitsluiten\": project CR (2665) niet door P6 doorgerekend"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1420","krijgt zijn datums uit de uitgesloten, verouderde voorganger EC1430; onder C14 anders 2 cellen groter (§1d-13)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1430","P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1590","P6-span 696 u < opgeslagen restduur 720 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1680","P6-span 840 u < opgeslagen restduur 864 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2060","P6-span 480 u < opgeslagen restduur 552 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2170","P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2200","P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2380","P6-span 96 u < opgeslagen restduur 144 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2410","P6-span 720 u < opgeslagen restduur 920 u (§1d-8)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430; daarvóór 2026-09-23 vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen"]
-const EXPECTED_EXCLUSIONS_SHA256 = 'a94a0b8ef49526ceef898a49aa5bf118e3725ec4de77a773269f233aa3879265';
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1420","krijgt zijn datums uit de uitgesloten, verouderde voorganger EC1430; onder C14 anders 2 cellen groter (§1d-13)","2026-09-24 eigenaarsbesluit: vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij, die zijn datums krijgt uit de uitgesloten, verouderde voorganger EC1430"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1430","P6-span 696 u < opgeslagen restduur 720 u: uitvoer verouderd t.o.v. de invoer (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1590","P6-span 696 u < opgeslagen restduur 720 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC1680","P6-span 840 u < opgeslagen restduur 864 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2060","P6-span 480 u < opgeslagen restduur 552 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2170","P6-span 1968 u < opgeslagen restduur 2208 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2200","P6-span 1944 u < opgeslagen restduur 2184 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2380","P6-span 96 u < opgeslagen restduur 144 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+//   ["b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167","task","4408","","EC2410","P6-span 720 u < opgeslagen restduur 920 u (§1d-8)","2026-09-23 eigenaarsbesluit: vraag 8 (overdracht §1d-8), letterlijk \"ja\": de 8 taken met verouderde P6-uitvoer uit het orakel; de cellen op hun opvolgers blijven tellen; daarna 2026-09-24 vraag 13 (overdracht §1d-13), letterlijk \"Vraag 13, ja uitsluiten\": EC1420 erbij (eigen decision op die regel)"]
+const EXPECTED_EXCLUSIONS_SHA256 = 'a56b585928e50e4524ef33635daa73136e3d5c6befdd08aaccac56be656559d2';
 // END manifest-uitsluitingspin
 import {
-  EXCLUSION_PIN_BEGIN, exclusionHerpinLine, exclusionLabelFor, exclusionsDigest, extractExclusionPinBlock,
+  EXCLUSION_PIN_BEGIN, exclusionHerpinCore, exclusionLabelFor, exclusionsDigest, extractExclusionPinBlock,
   parseExclusionPinBlock, readManifestExclusions, renderExclusionPinBlock,
   type XerExclusionManifestLike, type XerExclusionRecord,
 } from './xerManifestExclusions';
@@ -576,7 +583,7 @@ function exclusionHerpinProblems(records: readonly XerExclusionRecord[], manifes
   const end = source.indexOf(EXCLUSION_PIN_BEGIN);
   if (start < 0 || end < start) return ['HERPIN-gebied tussen schuldpin en uitsluitingsblok niet gevonden'];
   const region = source.slice(start, end);
-  return [...new Set(records.map(record => exclusionHerpinLine(record, exclusionLabelFor(manifest, record.sha256))))]
+  return [...new Set(records.map(record => exclusionHerpinCore(record, exclusionLabelFor(manifest, record.sha256))))]
     .filter(line => !region.includes(line))
     .map(line => `HERPIN-regel ontbreekt boven het uitsluitingsblok: ${line}`);
 }
@@ -640,7 +647,7 @@ function excludedLeftovers(records: readonly XerExclusionRecord[], cells: CellBa
   if (committed) {
     const freeSha = Object.keys(committed.cells.files).sort().find(sha => !read.records.some(record => record.sha256 === sha));
     eq('X5a het cellenbestand heeft een bestand zonder uitsluiting', freeSha !== undefined, true);
-    const hiddenMutant: CellBaseline = { ...committed.cells, excludedHidden: { ...(committed.cells.excludedHidden ?? {}), [freeSha ?? '']: { sixAxis: 0, drivingPath: 0 } } };
+    const hiddenMutant: CellBaseline = { ...committed.cells, excludedHidden: { ...(committed.cells.excludedHidden ?? {}), [freeSha ?? '']: {} } };
     eq('X5 excludedHidden op een bestand zonder uitsluiting ⇒ rood', excludedHiddenCoverageProblems(read.records, hiddenMutant).length > 0, true);
     eq('X5b uitsluiting zonder excludedHidden ⇒ rood', excludedHiddenCoverageProblems(added.records, { ...committed.cells, excludedHidden: {} }).length > 0, true);
   }

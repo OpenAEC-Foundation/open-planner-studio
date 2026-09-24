@@ -1253,6 +1253,23 @@ groupC.push({
   eq('C14 ALAP-keten sluit aaneen (A)', pickEsEf(solveAxes(chain, 'A')), { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
   eq('C14 ALAP-keten sluit aaneen (A0 direct vóór A)', pickEsEf(solveAxes(chain, 'A0')),
     { es: '2026-01-06T12:00', ef: '2026-01-07T12:00' });
+  // (e) Een secundaire constraint (`constraint2`) geldt naast ALAP (critreview C14-landing, 24-09). P6
+  // laat bij ALAP als primaire een tweede constraint toe (alleen bij SO/FO/MSO/MFO niet; Oracle P6 Help
+  // "Working with Activity Constraints"); de ALAP-positionering blijft binnen die grenzen.
+  // (e1) ALAP + FNLT wo 7 jan 17:00: de opvolger stond A toe tot do 8 jan 12:00, de FNLT niet ⇒ A eindigt
+  // wo 7 jan 17:00 (ES wo 08:00). Mutant "bovengrens weg" ⇒ rood (EF do 8 jan 12:00).
+  const fnlt = c14Fixture('2026-01-05 08:00', '2026-01-05 17:00');
+  fnlt.tasks.find(task => task.id === 'A')!.constraint2 = { type: 'FNLT', date: '2026-01-07T17:00' };
+  eq('C14 ALAP + FNLT als tweede constraint: A schuift niet over haar FNLT', pickEsEf(solveAxes(fnlt, 'A')),
+    { es: '2026-01-07T08:00', ef: '2026-01-07T17:00' });
+  // (e2) ALAP + SNET do 8 jan 08:00, opvolger B met een harde MSO wo 7 jan 08:00: de relatiegrens van B
+  // ligt vóór de SNET ⇒ de SNET wint (A op do 8 jan 08:00–17:00; de FS-relatie naar B wordt geschonden,
+  // zoals een harde pin dat doet). Mutant "ondergrens weg" ⇒ rood (A vóór wo 7 jan 08:00).
+  const snet = c14Fixture('2026-01-05 08:00', '2026-01-05 17:00');
+  snet.tasks.find(task => task.id === 'A')!.constraint2 = { type: 'SNET', date: '2026-01-08T08:00' };
+  snet.tasks.find(task => task.id === 'B')!.constraint = { type: 'MSO', date: '2026-01-07T08:00', hard: true };
+  eq('C14 ALAP + SNET als tweede constraint: de opvolger trekt A niet vóór haar SNET', pickEsEf(solveAxes(snet, 'A')),
+    { es: '2026-01-08T08:00', ef: '2026-01-08T17:00' });
 }
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);

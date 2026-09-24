@@ -46,7 +46,9 @@ const EXPECTED_MEASURABLE = {
 // HERPIN 2026-09-23 datumcorrectie (integratie 3): `decision`-datums 24 → 23; alleen manifestbytes.
 // HERPIN 2026-09-24 (eigenaarsbesluit vraag 13): HarbourPointe EC1420 in excludeTasks, `decision` + policyzin bijgewerkt;
 // orakelselectie (9 bestanden, 84 uitgesloten) ongewijzigd.
-const EXPECTED_MANIFEST_SHA256 = '88266338640d6c20f09c20f1c740c5b3d20febb526d292eb0f0fbd62caea223b';
+// HERPIN 2026-09-24 datumherkomst (critreview C14-landing, bevinding 4): HarbourPointe-`decision` weer 2026-09-23
+// (vraag 8, dan vraag 13 chronologisch), EC1420 met een eigen regel-`decision` 2026-09-24; alleen manifestbytes.
+const EXPECTED_MANIFEST_SHA256 = '97b33bd7207a64c75972d6be00ef313a63964b96ee57352919f584fada2eaac7';
 const EXPECTED_BASELINE_SHA256 = 'e383370309457d292620ce75febc70b5e97336a890c0790fd88907936d7349f4';
 
 const diffs: string[] = [];
