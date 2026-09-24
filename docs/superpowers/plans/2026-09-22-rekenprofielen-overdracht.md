@@ -376,8 +376,14 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    Critreview C14 (Opus 5.5) = LANDEN-MET-FIXES: (1) C14 negeert `constraint2` (ALAP + FNLT/SNET), (2)
    uurkalender-poort/niet-gestart/statusdatum-wortel zijn corpusfits zonder P6-bron ⇒ documenteren, (3)
    `excludedHidden` mag stijgen bij gewijzigde uitsluitingsset ⇒ bestaand-verborgen-deel apart hard pinnen,
-   (4) HERPIN-datum/decision-string chronologisch. Fixagent `opus-midden-c14-landfixes` op
-   `claude/x12-c14-landfixes`; daarna her-check + merge.
+   (4) HERPIN-datum/decision-string chronologisch. **Landfixes klaar: `claude/x12-c14-landfixes` kop
+   `faaf72cb`** (Opus 5.5: `constraint2` als boven-/ondergrens in `applyAlapFromSuccessors`, ondergrens wint
+   bij botsing (eigen keuze, Oracle-bron voor "ALAP mag een secundaire dragen"), randgeval (e) + 2 mutanten;
+   corpus: 0 ALAP-taken met `cstr_type2`; alle 46 orakel-ALAP-taken op uurkalender; drie corpusfits als
+   gemeten keuze gedocumenteerd; hidden-regel (a)+(b)+(c) per zesassig/drivingPath, checks 5p–5p11, Fable's
+   mutatie hard rood met geweigerde herpin, GEEN pin-migratie (splitsing afgeleid); `decision` per regel,
+   HERPIN met besluit- én herpindatum; measure 76/0/0/0, poorten exit 0). Her-check loopt
+   (`opus-laag-hercheck-c14`); daarna merge.
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
