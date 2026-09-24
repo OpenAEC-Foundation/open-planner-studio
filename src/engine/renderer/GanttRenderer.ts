@@ -723,15 +723,10 @@ export class GanttRenderer {
     const x = this.dateToX(parseDate(iso));
     if (x < 0 || x >= canvasWidth) return;
 
-    const ctx = this.ctx;
     const label = iso.slice(0, 10);
-    ctx.save();
-    ctx.font = this.font(10, true);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    const padX = GanttRenderer.DRAG_BADGE_PAD_X;
+    this.ctx.save();
     const h = GanttRenderer.DRAG_BADGE_H;
-    const w = ctx.measureText(label).width + padX * 2;
+    const w = this.pillWidth(label);
     let bx = x + 4;
     if (bx + w > canvasWidth - 2) bx = x - 4 - w;
     bx = Math.max(2, bx);
@@ -741,19 +736,36 @@ export class GanttRenderer {
     // rijen terwijl de lijn zelf blijft staan. In de kop staat het stil en dekt het niets af.
     const by = headerHeight - h - 2;
 
-    ctx.beginPath();
-    ctx.roundRect(bx, by, w, h, 3);
-    ctx.fillStyle = this.colors.statusDate;
-    ctx.fill();
-    // Randje in de paneelkleur: het vlakje ligt vlak naast de even accentkleurige lijn en zou er
-    // anders mee samenvloeien (zelfde overweging als bij het sleep-pilletje).
-    ctx.strokeStyle = this.colors.bg;
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // Randje (1px) in de paneelkleur: het vlakje ligt vlak naast de even accentkleurige lijn en zou
+    // er anders mee samenvloeien (zelfde overweging als bij het sleep-pilletje).
+    this.drawPill(label, bx, by, w, 3, this.colors.statusDate, 1);
+    this.ctx.restore();
+  }
 
+  /** Zet het font van de tekstpilletjes (statusdatumlabel, sleepduur) en geeft de breedte van het
+   *  pilletje rond `label`. De aanroeper heeft `ctx.save()` al gedaan. */
+  private pillWidth(label: string): number {
+    const ctx = this.ctx;
+    ctx.font = this.font(10, true);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    return ctx.measureText(label).width + GanttRenderer.DRAG_BADGE_PAD_X * 2;
+  }
+
+  /** Tekent een tekstpilletje: vlak in `fill`, een randje van `strokeWidth` in de paneelkleur en de
+   *  label in `accentOn`. Het font staat al (zie {@link pillWidth}). */
+  private drawPill(label: string, x: number, y: number, w: number, radius: number, fill: string, strokeWidth: number): void {
+    const ctx = this.ctx;
+    const h = GanttRenderer.DRAG_BADGE_H;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = this.colors.bg;
+    ctx.lineWidth = strokeWidth;
+    ctx.stroke();
     ctx.fillStyle = this.colors.accentOn;
-    ctx.fillText(label, bx + padX, by + h / 2 + 0.5);
-    ctx.restore();
+    ctx.fillText(label, x + GanttRenderer.DRAG_BADGE_PAD_X, y + h / 2 + 0.5);
   }
 
   /** Voortgangslijn (fase 2.6, §6.3): één verticale lijn op de statusdatum die per zichtbare
@@ -940,7 +952,6 @@ export class GanttRenderer {
   ): void {
     const { canvasWidth, weekStartDay, localizedMonths, localizedWeekdays } = this.opts;
     const wsd = weekStartDay ?? 'monday';
-    const ctx = this.ctx;
     const cfg = TIER_CONFIG[tier];
 
     // Issue #21 punt 5 (header-bugfix, vervolg fase 3 van werkdagen-as-ontwerp.md §4.1): onder
@@ -974,27 +985,7 @@ export class GanttRenderer {
       // Stop once we're past the right edge
       if (x1 >= canvasWidth) break;
 
-      const labelX = Math.max(x1 + 4, 4);
-      const slotWidth = x2 - Math.max(x1, 0);
-
-      // Defensive skip: if slot is too narrow OR we'd overlap the previous label. Issue #21
-      // (tier-labels-overlap-fix): daarnaast pas TEKENEN als de GEMETEN tekstbreedte ook echt
-      // vóór het einde van deze tick past (x2-2) — anders overslaan (nooit knijpen/afkappen via
-      // een fillText-maxWidth), zodat twee labels (bv. maandnamen) nooit door elkaar heen lopen.
-      // De lastDrawnRight-guard hierboven blijft als extra vangnet.
-      // U2-fixronde, bewuste afwijking van de balklabels: de tijdschaal-koppen krijgen GEEN
-      // `ellipsize`. Een tijdschaalkop is een datum-aanduiding — "ok…" of "20…" zegt niets en
-      // kost de lezer alsnog een blik; een OVERGESLAGEN kop laat de eerstvolgende passende tick
-      // (bv. de volgende maand) het bereik dragen, wat wél leesbaar is. Een taaknaam daarentegen
-      // is uniek en gedeeltelijk lezen helpt daar wel. Niet wijzigen zonder die afweging te wegen.
-      if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
-        const measured = ctx.measureText(labelText).width;
-        if (labelX + measured <= x2 - 2) {
-          ctx.fillText(labelText, labelX, yCenter);
-          lastDrawnRight = labelX + measured;
-        }
-      }
-
+      lastDrawnRight = this.drawTickLabel(labelText, x1, x2, yCenter, cfg.minLabelWidth, lastDrawnRight);
       cursor = next;
     }
   }
@@ -1017,7 +1008,6 @@ export class GanttRenderer {
     localizedWeekdays?: string[],
   ): void {
     const { canvasWidth } = this.opts;
-    const ctx = this.ctx;
 
     let idx = Math.floor(this.axis.dayIndexOf(startDate));
     const endIdx = Math.ceil(this.axis.dayIndexOf(endDate));
@@ -1036,21 +1026,42 @@ export class GanttRenderer {
       }
       if (x1 >= canvasWidth) break;
 
-      const labelX = Math.max(x1 + 4, 4);
-      const slotWidth = x2 - Math.max(x1, 0);
-
-      // Zelfde meten-vóór-tekenen-guard als drawTierLabels hierboven (issue #21,
-      // tier-labels-overlap-fix): niet knijpen/afkappen, gewoon overslaan als het niet past.
-      if (slotWidth >= cfg.minLabelWidth && labelX > lastDrawnRight + 4) {
-        const measured = ctx.measureText(labelText).width;
-        if (labelX + measured <= x2 - 2) {
-          ctx.fillText(labelText, labelX, yCenter);
-          lastDrawnRight = labelX + measured;
-        }
-      }
-
+      lastDrawnRight = this.drawTickLabel(labelText, x1, x2, yCenter, cfg.minLabelWidth, lastDrawnRight);
       idx++;
     }
+  }
+
+  /**
+   * Tijdschaalkop `labelText` in de tick [x1, x2), gedeeld door beide tier-lussen. Defensief
+   * overslaan als de tick te smal is of het label over het vorige heen zou vallen. Issue #21
+   * (tier-labels-overlap-fix): daarnaast pas TEKENEN als de GEMETEN tekstbreedte ook echt vóór het
+   * einde van deze tick past (x2-2) — anders overslaan (nooit knijpen/afkappen via een
+   * fillText-maxWidth), zodat twee labels (bv. maandnamen) nooit door elkaar heen lopen.
+   * U2-fixronde, bewuste afwijking van de balklabels: de tijdschaal-koppen krijgen GEEN
+   * `ellipsize`. Een tijdschaalkop is een datum-aanduiding — "ok…" of "20…" zegt niets en kost de
+   * lezer alsnog een blik; een OVERGESLAGEN kop laat de eerstvolgende passende tick (bv. de
+   * volgende maand) het bereik dragen, wat wél leesbaar is. Een taaknaam daarentegen is uniek en
+   * gedeeltelijk lezen helpt daar wel. Niet wijzigen zonder die afweging te wegen.
+   * Geeft de rechterrand van het laatst getekende label terug.
+   */
+  private drawTickLabel(
+    labelText: string,
+    x1: number,
+    x2: number,
+    yCenter: number,
+    minLabelWidth: number,
+    lastDrawnRight: number,
+  ): number {
+    const labelX = Math.max(x1 + 4, 4);
+    const slotWidth = x2 - Math.max(x1, 0);
+    if (slotWidth >= minLabelWidth && labelX > lastDrawnRight + 4) {
+      const measured = this.ctx.measureText(labelText).width;
+      if (labelX + measured <= x2 - 2) {
+        this.ctx.fillText(labelText, labelX, yCenter);
+        return labelX + measured;
+      }
+    }
+    return lastDrawnRight;
   }
 
   private formatTierLabel(
@@ -1153,6 +1164,23 @@ export class GanttRenderer {
    */
   private ellipsize(text: string, maxWidth: number): string {
     return ellipsize(this.ctx, text, maxWidth);
+  }
+
+  /** Taaknaam in een balk van `width` breed, afgekapt met een ellips; de clip op de balk blijft als
+   *  vangnet staan (`ellipsize` hoort er al binnen te passen). Gedeeld door taak- en hammockbalk. */
+  private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = color;
+    ctx.font = this.font(10);
+    ctx.textBaseline = 'middle';
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x1 + 4, y, width - 8, height);
+    ctx.clip();
+    // width - 10 = precies de ruimte tussen de tekststart (x1+6) en de rechter cliprand.
+    const label = this.ellipsize(name, width - 10);
+    if (label) ctx.fillText(label, x1 + 6, textY);
+    ctx.restore();
   }
 
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {
@@ -1406,17 +1434,7 @@ export class GanttRenderer {
       const underLabel = task.time.completion > 0 && progressEnd > x1 + 6
         ? compositeOver(progressColor, baseUnderLabel)
         : baseUnderLabel;
-      ctx.fillStyle = barLabelColor(underLabel);
-      ctx.font = this.font(10);
-      ctx.textBaseline = 'middle';
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x1 + 4, y, width - 8, height);
-      ctx.clip(); // blijft als vangnet staan; `ellipsize` hoort er al binnen te passen
-      // width - 10 = precies de ruimte tussen de tekststart (x1+6) en de rechter cliprand.
-      const label = this.ellipsize(task.name, width - 10);
-      if (label) ctx.fillText(label, x1 + 6, y + height / 2);
-      ctx.restore();
+      this.drawBarName(task.name, barLabelColor(underLabel), x1, y, width, height, y + height / 2);
     }
     return resourceAccentHeight;
   }
@@ -1461,18 +1479,7 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    if (width > 40) {
-      ctx.fillStyle = this.colors.text;
-      ctx.font = this.font(10);
-      ctx.textBaseline = 'middle';
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x1 + 4, y, width - 8, height);
-      ctx.clip(); // vangnet, zie drawTaskBar
-      const label = this.ellipsize(task.name, width - 10);
-      if (label) ctx.fillText(label, x1 + 6, y + height * 0.2);
-      ctx.restore();
-    }
+    if (width > 40) this.drawBarName(task.name, this.colors.text, x1, y, width, height, y + height * 0.2);
   }
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
@@ -1820,16 +1827,12 @@ export class GanttRenderer {
     // Rij weggescrold: niets tekenen (zelfde zichtbaarheidstest als drawTaskBars).
     if (barY + barHeight < headerHeight || barY > canvasHeight) return;
 
-    const ctx = this.ctx;
     const h = GanttRenderer.DRAG_BADGE_H;
     const gap = GanttRenderer.DRAG_BADGE_GAP;
     const label = this.dragDurationText(task);
 
-    ctx.save();
-    ctx.font = this.font(10, true);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    const w = ctx.measureText(label).width + GanttRenderer.DRAG_BADGE_PAD_X * 2;
+    this.ctx.save();
+    const w = this.pillWidth(label);
 
     const { x1, x2 } = this.barGeometry(task);
     let x: number;
@@ -1855,10 +1858,7 @@ export class GanttRenderer {
     // per thema correct (licht/donker oranje + wit, high-contrast geel + zwart). `colors.selected`
     // ís `--theme-accent`; deze renderer geeft die ene variabele per rol een eigen naam
     // (`selected`/`today`/`statusDate`), en dit is dezelfde bron.
-    ctx.beginPath();
-    ctx.roundRect(x, y, w, h, h / 2);
-    ctx.fillStyle = this.colors.selected;
-    ctx.fill();
+    //
     // Randje in de paneelkleur is hier FUNCTIONEEL, niet decoratief: de gesleepte balk is altijd
     // ook de GESELECTEERDE balk (mousedown selecteert hem), en die draagt een 2px selectiering in
     // exact dezelfde accentkleur. Zonder deze scheiding vloeit het pilletje aan de balkrand samen
@@ -1867,13 +1867,8 @@ export class GanttRenderer {
     // het pilletje zijn eigen vlak nauwelijks aftekent; leesbaar blijft het wel, want de witte
     // tekst en dit randje dragen het contrast. Een dikker randje (2px geprobeerd) helpt daar niet
     // zichtbaar aan en maakt het chipje alleen zwaarder, dus 1.5 gehouden.
-    ctx.strokeStyle = this.colors.bg;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = this.colors.accentOn;
-    ctx.fillText(label, x + GanttRenderer.DRAG_BADGE_PAD_X, y + h / 2 + 0.5);
-    ctx.restore();
+    this.drawPill(label, x, y, w, h / 2, this.colors.selected, 1.5);
+    this.ctx.restore();
   }
 
   // ── Relatie-routing (issue #41) ─────────────────────────────────────────────
