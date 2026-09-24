@@ -54,27 +54,27 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
 import type { CompanyPool } from '@/types/library';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
-import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import {
+  solveProject, cloneTasksForSolve, type ProjectSolveOptions,
+} from '@/engine/scheduler/solveProject';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
 /**
  * De planningsinvoer die een efemere doorrekening nodig heeft (§4.3b), bovenop wat de aggregatie
  * zelf al leest. Alleen relevant voor stale documenten; ontbreekt hij, dan valt dát document terug
  * op het vangnetgedrag (zichtbaar, niet meegeteld).
  */
-export interface OccupancySolveInput {
+export interface OccupancySolveInput extends ProjectSolveOptions {
   /** De VOLLEDIGE takenlijst van het document — bladen én verzameltaken, ook taken zonder
    *  bibliotheekboeking. Een gesnoeide lijst zou een andere planning opleveren dan `runCPM`; de
    *  bibliotheek-snit die de aggregatie gebruikt is hier dus expliciet NIET goed genoeg. */
   tasks: Task[];
   sequences: Sequence[];
-  /** `project.statusDate`/`progressMode`/`schedulingOptions` — dezelfde opties die `runCPM` aan de
-   *  solver geeft, zodat de efemere planning identiek is aan wat F5 in dat document zou opleveren. */
-  dataDate?: string;
-  progressMode?: ProgressMode;
-  schedulingOptions?: SchedulingOptions;
+  // De geërfde opties (`dataDate`/`progressMode`/`schedulingOptions`/`projectStartDate`) zijn
+  // dezelfde die `runCPM` aan de solver geeft, zodat de efemere planning identiek is aan wat F5 in
+  // dat document zou opleveren — vul ze met `cpmOptionsOf(project)`.
 }
 
 /** Eén open document, gemapt uit zijn payload-snapshot (weergavelaag levert dit aan, §4.4). */
@@ -133,19 +133,23 @@ export type OccupancyEphemeralSolve = (doc: OccupancyDocInput) => Task[] | null;
 export const ephemeralSolve: OccupancyEphemeralSolve = (doc) => {
   const input = doc.solveInput;
   if (!input) return null;
-  const tasks = cloneTasksForSolve(input.tasks);
-  const result = solveProject({
-    tasks,
-    sequences: input.sequences,
-    calendar: doc.calendar,
-    calendars: doc.calendars,
-    dataDate: input.dataDate,
-    progressMode: input.progressMode,
-    schedulingOptions: input.schedulingOptions,
-  });
+  const { tasks, result } = solveClone(input, doc.calendar, doc.calendars);
   if (result.error) return null;
   return tasks;
 };
+
+/** Reken een KLOON van `input.tasks` door met alle opties uit `input` — de ene efemere solve die
+ *  het bezettingsoverzicht en de verdeler (`distribute.ts`) delen. De invoer blijft onaangeraakt. */
+export function solveClone(
+  input: OccupancySolveInput,
+  calendar: WorkCalendar,
+  calendars: WorkCalendar[],
+): { tasks: Task[]; result: CPMResult } {
+  const { tasks: source, sequences, ...options } = input;
+  const tasks = cloneTasksForSolve(source);
+  const result = solveProject({ tasks, sequences, calendar, calendars, ...options });
+  return { tasks, result };
+}
 
 /** De boeking van één document op één poolitem. */
 export interface OccupancyDocBooking {

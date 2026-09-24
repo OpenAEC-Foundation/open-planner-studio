@@ -12,7 +12,7 @@ import {
 } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
-import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveProject, cloneTasksForSolve, solveInputOf } from '@/engine/scheduler/solveProject';
 import {
   invalidateUndoneHistoryForScopes,
   removeSessionHistoryForDocumentFromState,
@@ -568,17 +568,10 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       let next: DocumentPayload;
       try {
         const tasks = cloneTasksForSolve(payload.tasks);
-        // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
-        // draait — pariteit by construction, geen tweede implementatie (A3/M3).
-        const result = solveProject({
-          tasks,
-          sequences: payload.sequences,
-          calendar: payload.calendar,
-          calendars: payload.calendars,
-          dataDate: payload.project.statusDate,
-          progressMode: payload.project.progressMode,
-          schedulingOptions: payload.project.schedulingOptions,
-        });
+        // Exact dezelfde reken-kern (en via `solveInputOf` dezelfde opties, inclusief de
+        // projectstart-vloer) die `runCPM` op het actieve document draait — pariteit by
+        // construction, geen tweede implementatie (A3/M3).
+        const result = solveProject(solveInputOf(payload, tasks));
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
         if (result.error) continue;
