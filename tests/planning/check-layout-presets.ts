@@ -134,21 +134,32 @@ ok(!layoutMatchesView(presentation, { ...withOverlays, overlays: { ...withOverla
 // --- Handmatige wijziging zet de knop uit én ruimt zijn overige delen op (issue #173) ---
 // Manu's scenario: resourcediagram aan, dan met de hand de relatielijnen omzetten.
 const relationsFlipped: LayoutViewParts = { ...screenA, showRelations: true };
-const dropA = dropBrokenLayouts(onA.session, screenA, relationsFlipped);
+const dropA = dropBrokenLayouts(onA.session, relationsFlipped);
 ok(dropA !== null && dropA.session === undefined, 'de afgevallen knop verdwijnt uit de sessie');
 const screenDropA = screenAfter(relationsFlipped, dropA!.write);
 ok(JSON.stringify(screenDropA.group) === '[]' && screenDropA.sort.length === 1, 'groepering en sortering keren terug naar het herstelpunt');
 ok(screenDropA.showRelations === true && dropA!.write.showRelations === undefined, 'het met de hand gewijzigde deel houdt de nieuwe waarde');
-ok(dropBrokenLayouts(onA.session, screenA, { ...screenA, timeScale: 'day' }) === null, 'een wijziging aan een ongedragen deel laat de knop staan');
-ok(dropBrokenLayouts(undefined, screenA, relationsFlipped) === null, 'zonder sessie valt er niets op te ruimen');
+ok(dropBrokenLayouts(onA.session, { ...screenA, timeScale: 'day' }) === null, 'een wijziging aan een ongedragen deel laat de knop staan');
+ok(dropBrokenLayouts(undefined, relationsFlipped) === null, 'zonder sessie valt er niets op te ruimen');
 // Twee knoppen aan; alleen die waarvan een deel wijzigt valt af, de andere blijft staan.
 const groupChanged: LayoutViewParts = { ...screenAF, group: [{ field: { src: 'builtin', key: 'taskType' }, dir: 'asc' }] };
-const dropAF = dropBrokenLayouts(onF.session, screenAF, groupChanged);
+const dropAF = dropBrokenLayouts(onF.session, groupChanged);
 ok(dropAF?.session?.layouts.map(l => l.id).join() === 'f-geen', 'de niet-geraakte knop blijft aan');
 const screenDropAF = screenAfter(groupChanged, dropAF!.write);
 ok(screenDropAF.group[0]?.field.src === 'builtin' && screenDropAF.showRelations === true && screenDropAF.sort.length === 1,
   'de nieuwe groepering blijft; sortering en relatielijnen van het resourcediagram keren terug');
 ok(dropAF!.write.filter === undefined && screenDropAF.filter === null, 'het deel van de knop die aan blijft wordt niet aangeraakt');
+
+// Een sessie die ELDERS verouderde (overlays zijn app-breed: omgezet in een ander document) wordt
+// net zo opgeruimd — anders werd dat halve beeld bij de volgende klik het nieuwe herstelpunt.
+const withOverlaysOn = switchLayoutOn(undefined, current, { ...presentation, group: resourceDiagram.group });
+const screenOverlaysOn = screenAfter(current, withOverlaysOn.write);
+const elsewhere: LayoutViewParts = { ...screenOverlaysOn, overlays: { ...screenOverlaysOn.overlays, baseline: false } };
+const staleDrop = dropBrokenLayouts(withOverlaysOn.session, elsewhere);
+ok(staleDrop?.session === undefined && JSON.stringify(screenAfter(elsewhere, staleDrop!.write).group) === '[]',
+  'een elders verouderde layout: zijn groepering gaat terug, zijn sessie verdwijnt');
+const retoggle = switchLayoutOn(staleDrop!.session, screenAfter(elsewhere, staleDrop!.write), withOverlaysOn.session!.layouts[0]!);
+ok(JSON.stringify(retoggle.session!.restore.group) === '[]', 'na opruimen is het herstelpunt weer het beeld van vóór de layout');
 
 // --- Migratie (puur) ---
 const saved: SavedFilter[] = [

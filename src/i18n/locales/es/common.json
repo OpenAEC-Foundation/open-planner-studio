@@ -846,7 +846,9 @@
       "columnsNote": "Toma las columnas tal como están ahora en la tabla. Las columnas se eligen con el signo más del encabezado de la tabla.",
       "relationsShow": "Mostrar líneas de relación",
       "partOverlays": "Superposición",
-      "infoOverlays": "Líneas de relación, línea base, línea de progreso, línea de fecha de estado, acento de recurso, banda de holgura y colores de barra. Sin marcar: se quedan como están."
+      "infoOverlays": "Líneas de relación, línea base, línea de progreso, línea de fecha de estado, acento de recurso, banda de holgura y colores de barra. Sin marcar: se quedan como están.",
+      "overlaysNotStored": "Este diseño solo guarda las líneas de relación. Si cambia una superposición abajo, también guarda todas las superposiciones.",
+      "missingColorField": "Categoría: el campo no existe en este proyecto"
     },
     "presentation": {
       "hint": "Pulse Esc o F11 para salir de pantalla completa."

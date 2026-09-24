@@ -833,7 +833,9 @@
       "columnsNote": "Sütunları tabloda şu anda olduğu gibi alır. Sütunları tablo başlığındaki artı ile seçersiniz.",
       "relationsShow": "İlişki çizgilerini göster",
       "partOverlays": "Katman",
-      "infoOverlays": "İlişki çizgileri, temel plan, ilerleme çizgisi, durum tarihi çizgisi, kaynak vurgusu, bolluk bandı ve çubuk renkleri. İşaretli değilse: oldukları gibi kalırlar."
+      "infoOverlays": "İlişki çizgileri, temel plan, ilerleme çizgisi, durum tarihi çizgisi, kaynak vurgusu, bolluk bandı ve çubuk renkleri. İşaretli değilse: oldukları gibi kalırlar.",
+      "overlaysNotStored": "Bu düzen yalnızca ilişki çizgilerini kaydeder. Aşağıda bir katmanı değiştirirseniz tüm katmanları da kaydeder.",
+      "missingColorField": "Kategori: alan bu projede yok"
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

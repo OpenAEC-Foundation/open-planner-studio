@@ -29,6 +29,14 @@ test('Tabel-tab: splitsen en relatie tekenen staan uit, en een lopende modus gaa
   await expect(page.locator('[data-ops-dependency-mode]')).toHaveCount(0);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.showDependencyMode)).toBe(false);
 
+  // Het rijmenu van de tabel: "Relatie toevoegen" staat uit en zegt waarom.
+  await page.keyboard.press('Escape');
+  await page.locator('[data-grid-cell-key]').first().click({ button: 'right' });
+  const addRelation = page.locator('button[data-ops-context-disabled][title]');
+  await expect(addRelation).toHaveCount(1);
+  await expect(addRelation).toBeDisabled();
+  await expect(addRelation).toHaveAttribute('title', /Gantt/);
+
   // Terug naar de Gantt: de knoppen doen het weer.
   await page.keyboard.press('Escape');
   await page.locator('[data-ops-ribbon-tab="start"]').click();

@@ -846,7 +846,9 @@
       "columnsNote": "Reprend les colonnes telles qu’elles sont actuellement dans le tableau. Les colonnes se choisissent avec le plus dans l’en-tête du tableau.",
       "relationsShow": "Afficher les lignes de liaison",
       "partOverlays": "Superposition",
-      "infoOverlays": "Lignes de liaison, référence, ligne d’avancement, ligne de date d’état, accent ressource, bande de marge et couleurs des barres. Non coché : ces options restent telles quelles."
+      "infoOverlays": "Lignes de liaison, référence, ligne d’avancement, ligne de date d’état, accent ressource, bande de marge et couleurs des barres. Non coché : ces options restent telles quelles.",
+      "overlaysNotStored": "Cette disposition n’enregistre que les lignes de liaison. Si vous modifiez une superposition ci-dessous, elle enregistre aussi toutes les superpositions.",
+      "missingColorField": "Catégorie : champ absent de ce projet"
     },
     "presentation": {
       "hint": "Appuyez sur Échap ou F11 pour quitter le plein écran."

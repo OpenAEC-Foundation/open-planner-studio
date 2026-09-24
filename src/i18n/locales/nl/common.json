@@ -833,7 +833,9 @@
       "columnsNote": "Neemt de kolommen over zoals ze nu in de tabel staan. Kolommen kies je met het plusje in de tabelkop.",
       "relationsShow": "Relatielijnen tonen",
       "partOverlays": "Overlay",
-      "infoOverlays": "Relatielijnen, basislijn, voortgangslijn, statusdatumlijn, resource-accent, spelingsband en balkkleuren. Niet aangevinkt: die blijven zoals ze staan."
+      "infoOverlays": "Relatielijnen, basislijn, voortgangslijn, statusdatumlijn, resource-accent, spelingsband en balkkleuren. Niet aangevinkt: die blijven zoals ze staan.",
+      "overlaysNotStored": "Deze layout legt alleen de relatielijnen vast. Zet je hieronder een overlay om, dan legt hij ook alle overlays vast.",
+      "missingColorField": "Categorie: veld bestaat niet in dit project"
     },
     "presentation": {
       "hint": "Druk op Esc of F11 om volledig scherm te verlaten."

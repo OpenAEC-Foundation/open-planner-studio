@@ -111,34 +111,32 @@ export function layoutMatchesView(layout: Layout, current: LayoutViewParts): boo
 }
 
 /**
- * Een HANDMATIGE wijziging aan een gedragen deel zet de layoutknop uit (issue #173). Zonder meer
- * bleven zijn overige delen dan staan — een beeld dat niet meer de layout is en ook niet het beeld
- * van ervoor. Die overige delen gaan daarom terug naar het herstelpunt, precies zoals bij
- * uitzetten; alleen het deel dat de gebruiker zelf wijzigde houdt zijn nieuwe waarde. Delen die een
- * nog levende layout draagt blijven met rust.
+ * Ruim de layouts van de sessie op die niet meer op het scherm staan (issue #173). Een handmatige
+ * wijziging aan een gedragen deel zet de knop uit; zonder meer bleven zijn overige delen dan staan —
+ * een beeld dat niet meer de layout is en ook niet het beeld van ervoor. Hier gaan de delen die nog
+ * de WAARDE VAN DE LAYOUT tonen terug naar het herstelpunt, precies zoals bij uitzetten; een deel dat
+ * afwijkt (wat de gebruiker zelf wijzigde) blijft staan, net als delen van nog levende layouts.
  *
- * `before`/`after` = het beeld vlak voor en na de handmatige wijziging. `null` = er viel geen knop af.
+ * Bewust zonder "beeld van ervoor": dezelfde regel ruimt ook een sessie op die ELDERS verouderde —
+ * de overlays zijn app-breed, dus een overlay omzetten in document B laat een layout in document A
+ * vallen. Zonder deze opruiming werd dat halve beeld bij de volgende klik het nieuwe herstelpunt.
+ *
+ * `null` = er valt niets op te ruimen.
  */
-export function dropBrokenLayouts(
-  session: LayoutSession | undefined, before: LayoutViewParts, after: LayoutViewParts,
-): LayoutSwitch | null {
+export function dropBrokenLayouts(session: LayoutSession | undefined, current: LayoutViewParts): LayoutSwitch | null {
   if (!session) return null;
-  const liveBefore = liveSessionLayouts(session, before);
-  const liveAfter = liveSessionLayouts(session, after);
-  const broken = liveBefore.filter(layout => !liveAfter.includes(layout));
-  if (broken.length === 0) return null;
-  const keptParts = new Set(liveAfter.flatMap(layoutParts));
-  const write: Layout = { id: broken[0].id, name: broken[0].name };
-  for (const layout of broken) {
+  const live = liveSessionLayouts(session, current);
+  const stale = session.layouts.filter(layout => !live.includes(layout));
+  if (stale.length === 0) return null;
+  const keptParts = new Set(live.flatMap(layoutParts));
+  const write: Layout = { id: stale[0].id, name: stale[0].name };
+  for (const layout of stale) {
     for (const part of layoutParts(layout)) {
-      const changedByUser = partKey(part, before[part]) !== partKey(part, after[part]);
-      if (!changedByUser && !keptParts.has(part)) setPart(write, part, session.restore[part]);
+      if (keptParts.has(part) || session.restore[part] === undefined) continue;
+      if (partKey(part, layout[part]) === partKey(part, current[part])) setPart(write, part, session.restore[part]);
     }
   }
-  return {
-    session: liveAfter.length > 0 ? { layouts: liveAfter, restore: session.restore } : undefined,
-    write,
-  };
+  return { session: live.length > 0 ? { layouts: live, restore: session.restore } : undefined, write };
 }
 
 /** Beperk een volledige momentopname tot de gevraagde delen (Opslaan als… / Bijwerken). */

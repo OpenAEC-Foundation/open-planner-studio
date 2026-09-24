@@ -859,7 +859,9 @@
       "columnsNote": "Przejmuje kolumny w takiej postaci, w jakiej są teraz w tabeli. Kolumny wybiera się plusem w nagłówku tabeli.",
       "relationsShow": "Pokaż linie relacji",
       "partOverlays": "Nakładka",
-      "infoOverlays": "Linie powiązań, plan bazowy, linia postępu, linia daty stanu, akcent zasobu, pasmo zapasu i kolory pasków. Bez zaznaczenia: pozostają bez zmian."
+      "infoOverlays": "Linie powiązań, plan bazowy, linia postępu, linia daty stanu, akcent zasobu, pasmo zapasu i kolory pasków. Bez zaznaczenia: pozostają bez zmian.",
+      "overlaysNotStored": "Ten układ zapisuje tylko linie powiązań. Jeśli zmienisz poniżej nakładkę, zapisze też wszystkie nakładki.",
+      "missingColorField": "Kategoria: pole nie istnieje w tym projekcie"
     },
     "presentation": {
       "hint": "Naciśnij Esc lub F11, aby wyjść z trybu pełnoekranowego."

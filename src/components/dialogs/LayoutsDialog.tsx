@@ -87,6 +87,10 @@ export function LayoutsDialog() {
   const [icon, setIcon] = useState<string>('layout');
   const [parts, setParts] = useState<LayoutPart[]>([...LAYOUT_PARTS]);
   const [draft, setDraft] = useState<Layout>(fromScreen);
+  // Legt de layout de overlays vast? Een layout van vóór #173 droeg alleen de relatielijnen; bewerken
+  // (zelfs alleen hernoemen) mag er niet stil de overlays van het scherm van nu bij stoppen. Pas als
+  // de gebruiker hier een overlay omzet, gaan ze mee.
+  const [overlaysStored, setOverlaysStored] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +104,7 @@ export function LayoutsDialog() {
       const carried = layoutParts(target);
       const overlayRow = carried.some(part => partsOfRow('overlays').includes(part)) ? partsOfRow('overlays') : [];
       setParts([...new Set([...carried, ...overlayRow])]);
+      setOverlaysStored(target.overlays !== undefined);
       setDraft(current => ({ ...current, ...structuredClone(target) }));
     });
     return () => { cancelled = true; };
@@ -118,7 +123,10 @@ export function LayoutsDialog() {
   const setFilterRoot = (root: GroupNode) => setDraft(d => ({ ...d, filter: root.children.length === 0 ? null : root }));
 
   /** De aangevinkte delen van het concept, als layout. */
-  const build = (id: string, layoutName: string): Layout => ({ ...pickLayoutParts({ ...draft, id, name: layoutName }, parts), icon });
+  const build = (id: string, layoutName: string): Layout => ({
+    ...pickLayoutParts({ ...draft, id, name: layoutName }, overlaysStored ? parts : parts.filter(p => p !== 'overlays')),
+    icon,
+  });
 
   const save = () => {
     if (!layouts || parts.length === 0) return;
@@ -184,7 +192,10 @@ export function LayoutsDialog() {
         return null;
       case 'overlays': {
         const overlays = draft.overlays ?? currentOverlays(useAppStore.getState().ui);
-        const setOverlay = (patch: Partial<LayoutOverlays>) => setDraft(d => ({ ...d, overlays: { ...overlays, ...patch } }));
+        const setOverlay = (patch: Partial<LayoutOverlays>) => {
+          setOverlaysStored(true);
+          setDraft(d => ({ ...d, overlays: { ...overlays, ...patch } }));
+        };
         const colorOptions = [
           { value: 'critical', label: t('menu:ribbon.screenColors_critical') },
           { value: 'auto', label: t('menu:ribbon.screenColors_auto') },
@@ -194,8 +205,22 @@ export function LayoutsDialog() {
           })),
         ];
         const colorValue = encodeBarColors(overlays.barColors);
+        // Een categorieveld dat in dit project niet bestaat, blijft zichtbaar als wat het is — anders
+        // toonde de keuzelijst "kritiek pad" terwijl de layout iets anders opsloeg.
+        if (!colorOptions.some(option => option.value === colorValue)) {
+          colorOptions.push({ value: colorValue, label: t('common:view.layout.missingColorField') });
+        }
         return (
           <>
+            {!overlaysStored && (
+              <div
+                className="rounded-[8px] px-3 py-2"
+                style={{ background: 'color-mix(in srgb, var(--theme-accent, #d97706) 14%, transparent)', border: '1px solid color-mix(in srgb, var(--theme-accent, #d97706) 45%, transparent)' }}
+                data-ops-layout-overlays-not-stored="true"
+              >
+                {t('common:view.layout.overlaysNotStored')}
+              </div>
+            )}
             {/* Eén vinkje per overlay, en dat is meteen de waarde — het model dat #144 voor de
                 relatielijnen koos, nu voor de hele groep. */}
             <label className="flex items-center gap-2">
@@ -221,7 +246,7 @@ export function LayoutsDialog() {
             <label className="flex items-center gap-2">
               <span>{t('menu:ribbon.screenColors')}</span>
               <select
-                value={colorOptions.some(option => option.value === colorValue) ? colorValue : 'critical'}
+                value={colorValue}
                 onChange={e => setOverlay({ barColors: decodeBarColors(e.target.value) })}
                 className="input !text-small !leading-4 !px-1.5 !py-1"
                 style={{ width: 'auto' }}

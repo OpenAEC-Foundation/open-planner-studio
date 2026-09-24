@@ -33,9 +33,9 @@ export interface ContextMenuProps {
   onAddSubtask: () => void;
   onAddMilestone: () => void;
   onAddRelation: () => void;
-  /** Issue #174: "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt; het
-   *  taakraster op de Tabel-tab geeft hier `true` mee. */
-  addRelationDisabled?: boolean;
+  /** Issue #174: "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt. Het
+   *  taakraster zonder Gantt in beeld geeft hier de uitleg mee; aanwezig = item uitgeschakeld. */
+  addRelationDisabledReason?: string;
   onTracePath: () => void;
   onSaveTemplate: () => void;
   /** Issue #42: APARTE in-/uitklap-acties (geen toggle) — zie het commentaar bij het menu-item. */
@@ -94,7 +94,7 @@ export const CONTEXT_MENU_ITEM_CLASS =
 
 export function ContextMenu({
   x, y, task, barHit, group, traceActive, isTreeMode, calendars, canPaste, onClose,
-  onEdit, onAddSubtask, onAddMilestone, onAddRelation, addRelationDisabled, onTracePath, onSaveTemplate,
+  onEdit, onAddSubtask, onAddMilestone, onAddRelation, addRelationDisabledReason, onTracePath, onSaveTemplate,
   onCollapse, onExpand, onDelete, onAddTask,
   onInsertAbove, onInsertBelow, onIndent, onOutdent, onToggleMilestone,
   onSetCalendar, onSetProgress, onSetPriority,
@@ -187,7 +187,7 @@ export function ContextMenu({
 
           <MenuItem label={t('context.addSubtask')} onClick={() => { onAddSubtask(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <MenuItem label={t('context.addMilestone')} onClick={() => { onAddMilestone(); closeAll(); }} onEnter={() => setOpenSub(null)} />
-          <MenuItem label={t('context.addRelation')} disabled={addRelationDisabled} onClick={() => { onAddRelation(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+          <MenuItem label={t('context.addRelation')} disabled={addRelationDisabledReason !== undefined} title={addRelationDisabledReason} onClick={() => { onAddRelation(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <Separator />
 
           {isTreeMode && (
@@ -294,9 +294,11 @@ export function ContextMenu({
 }
 
 function MenuItem({
-  label, onClick, danger, checked, disabled, onEnter,
+  label, onClick, danger, checked, disabled, onEnter, title,
 }: {
   label: string;
+  /** Tooltip, bv. waarom het item uitgeschakeld is. */
+  title?: string;
   onClick: () => void;
   danger?: boolean;
   /** Toont een vinkje vóór het label — voor submenu-presets (huidige kalender/voortgang/prioriteit). */
@@ -312,6 +314,8 @@ function MenuItem({
       onClick={disabled ? undefined : onClick}
       onMouseEnter={onEnter}
       disabled={disabled}
+      title={title}
+      data-ops-context-disabled={disabled || undefined}
     >
       {checked !== undefined && (
         <span className="inline-block w-3 !text-small">{checked ? '✓' : ''}</span>

@@ -222,6 +222,7 @@ export function TaskGridSurface({
 }: TaskGridSurfaceProps) {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const { t: tMenu } = useTranslation('menu');
   const calculatedReadOnlyFallback = tTask('table.calculatedReadOnly');
   const textDirection = taskI18n.dir() === 'rtl' ? 'rtl' : 'ltr';
   const activeDocumentId = useAppStore(state => state.activeDocumentId);
@@ -1056,7 +1057,7 @@ export function TaskGridSurface({
             taskType: 'ATTENDANCE',
             parentId: contextMenu.task?.id ?? null,
           })}
-          addRelationDisabled={!ganttVisible}
+          addRelationDisabledReason={ganttVisible ? undefined : tMenu('ribbon.ganttOnlyHint')}
           onAddRelation={() => {
             if (!contextMenu.task) return;
             selectTask(contextMenu.task.id, false);

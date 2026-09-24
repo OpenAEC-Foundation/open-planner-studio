@@ -277,10 +277,60 @@ test('layoutdialoog: overlays als eigen deel, en groeperen op resourcetype', asy
   // Twee typebanden (ploeg, materieel) plus "(geen)" voor de taak zonder resource.
   await expect(page.locator('[data-grid-group-cell]')).toHaveCount(3);
 
+  // Undo van de layoutklik zet ook de (app-brede) overlays terug — één klik, één stap.
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(own).not.toHaveClass(/active/);
+  expect(await overlays()).toEqual({ baseline: false, floatBand: true });
+  expect((await viewState(page)).group).toEqual([]);
+  // Aan → uit → Ctrl+Z → uit: het herstelpunt blijft het beeld van vóór de layout.
+  await own.click();
+  await own.click();
+  expect(await overlays()).toEqual({ baseline: false, floatBand: true });
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(own).toHaveClass(/active/);
+  expect(await overlays()).toEqual({ baseline: true, floatBand: false });
+  await own.click();
+  expect((await viewState(page)).group).toEqual([]);
+  expect(await overlays()).toEqual({ baseline: false, floatBand: true });
+  await own.click();
+  await expect(own).toHaveClass(/active/);
+
   // Een overlay met de hand omzetten zet de knop uit en haalt ook de groepering weg (punt 1). De
   // overlays zijn samen één deel — het deel dat de gebruiker wijzigde — en blijven dus zoals ze nu staan.
   await page.locator('[data-ops-ribbon-item="toggleFloatBand"]').click();
   await expect(own).not.toHaveClass(/active/);
   expect((await viewState(page)).group).toEqual([]);
   expect(await overlays()).toEqual({ baseline: true, floatBand: true });
+});
+
+// Review op #173: een layout van vóór de overlays (alleen relatielijnen) hernoemen mag er niet stil de
+// overlays van het scherm van nu in vastleggen.
+test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => {
+    localStorage.setItem('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [{
+      id: 'oud', name: 'Oud', icon: 'users',
+      group: [{ field: { src: 'resource' }, dir: 'asc' }], showRelations: false,
+    }] }));
+  });
+  await page.reload();
+  await page.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.newProject();
+    s.setUI({ showWelcomeDialog: false, showTourOverlay: false, activeRibbonTab: 'start' });
+  });
+  await seedWithResources(page);
+
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await page.locator('[data-ops-layout-button="oud"] button').click({ button: 'right' });
+  await page.getByRole('button', { name: /^(Edit…|Bewerken…)$/ }).click();
+  const dialog = page.locator('[data-ops-layout-dialog]');
+  await expect(dialog.locator('[data-ops-layout-overlays-not-stored]')).toBeVisible();
+  await dialog.locator('[data-ops-layout-name]').fill('Oud, hernoemd');
+  await page.locator('[data-ops-layout-save]').click();
+  await expect(dialog).toHaveCount(0);
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
+  expect(stored[0].name).toBe('Oud, hernoemd');
+  expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'showRelations']);
 });

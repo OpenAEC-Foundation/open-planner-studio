@@ -833,7 +833,9 @@
       "columnsNote": "Übernimmt die Spalten, wie sie jetzt in der Tabelle stehen. Spalten wählen Sie mit dem Plus im Tabellenkopf.",
       "relationsShow": "Beziehungslinien anzeigen",
       "partOverlays": "Overlay",
-      "infoOverlays": "Beziehungslinien, Basisplan, Fortschrittslinie, Statusdatumslinie, Ressourcenakzent, Pufferband und Balkenfarben. Nicht angehakt: Diese bleiben, wie sie sind."
+      "infoOverlays": "Beziehungslinien, Basisplan, Fortschrittslinie, Statusdatumslinie, Ressourcenakzent, Pufferband und Balkenfarben. Nicht angehakt: Diese bleiben, wie sie sind.",
+      "overlaysNotStored": "Dieses Layout speichert nur die Beziehungslinien. Wenn Sie unten ein Overlay ändern, speichert es auch alle Overlays.",
+      "missingColorField": "Kategorie: Feld existiert in diesem Projekt nicht"
     },
     "presentation": {
       "hint": "Esc oder F11 drücken, um den Vollbildmodus zu verlassen."

@@ -113,17 +113,23 @@ vertaling van een verdwenen UI is erger dan een Engelse terugval. Ze volgen met 
 
 ## Vervolg: issue #173 (manu varkey, 2026-09-24)
 
-- **Afvallen ruimt op** (`dropBrokenLayouts`, `viewSlice.settleManualChange`). Een handmatige
-  wijziging aan een gedragen deel zette de knop uit maar liet zijn andere delen staan. Nu gaan die
-  andere delen terug naar `restore`, precies als bij uitzetten; alleen het gewijzigde deel houdt zijn
-  waarde. De melder vroeg om "standaardwaarden", en `restore` is daarvan de consistente vorm: het
+- **Afvallen ruimt op** (`dropBrokenLayouts`, `viewSlice.settleLayoutSession`). Een handmatige
+  wijziging aan een gedragen deel zette de knop uit maar liet zijn andere delen staan. Nu gaan de
+  delen die nog de layoutwaarde tonen terug naar `restore`, precies als bij uitzetten; een afwijkend
+  deel (wat de gebruiker wijzigde) blijft. Dezelfde regel ruimt een sessie op die elders verouderde
+  (overlays zijn app-breed): bij een documentwissel en vóór elke layoutklik, zodat een half beeld
+  nooit het nieuwe herstelpunt wordt. De melder vroeg om "standaardwaarden", en `restore` is daarvan de consistente vorm: het
   beeld van vóór de knop. Alleen voor de weloverwogen delen (filter, groep, sortering, relatielijnen,
   overlays): zoomen en kolombreedtes zetten de knop uit maar wissen niet ongevraagd je filter. Het
   opruimen is geen eigen undo-stap (de handmatige wijziging is dat ook niet); Ctrl+Z valt terug op
   de layoutklik.
 - **Overlay als deel** (`Layout.overlays`): baseline, voortgangslijn, statusdatumlijn,
-  resource-accent, spelingsband en balkkleuren. Dat zijn app-brede `ui`-instellingen (persisted) en
-  geen documentview, dus ze zitten niet in de view-undo. `showRelations` blijft een eigen deel voor
+  resource-accent, spelingsband en balkkleuren. Dat zijn app-brede `ui`-instellingen (persisted),
+  geen documentview; een layoutklik neemt ze op in zijn `document-view`-delta (`overlays`), zodat
+  Ctrl+Z ze terugzet. Een losse overlayknop blijft, zoals altijd, zonder undo. Het hele overlaydeel
+  telt als één deel: één overlay omzetten laat de andere staan zoals ze zijn. Een layout van vóór
+  #173 bewerken voegt de overlays pas toe als je er in de dialoog een omzet. Een balkkleur op de
+  Rapport-tab kiezen is ook een handmatige wijziging en kan dus een Gantt-layout laten afvallen. `showRelations` blijft een eigen deel voor
   bestaande layouts; in de dialoog staan beide onder één vinkje **Overlay**. Dat vervangt besluit 4
   ("een layout uit de dialoog legt de relatielijnen altijd vast"): de overlaygroep is nu opt-in,
   net als de andere delen.

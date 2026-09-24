@@ -846,7 +846,9 @@
       "columnsNote": "Riprende le colonne così come sono ora nella tabella. Le colonne si scelgono con il più nell’intestazione della tabella.",
       "relationsShow": "Mostra le linee di relazione",
       "partOverlays": "Sovrapposizione",
-      "infoOverlays": "Linee di relazione, baseline, linea di avanzamento, linea della data di stato, accento risorsa, banda di margine e colori delle barre. Non spuntato: restano come sono."
+      "infoOverlays": "Linee di relazione, baseline, linea di avanzamento, linea della data di stato, accento risorsa, banda di margine e colori delle barre. Non spuntato: restano come sono.",
+      "overlaysNotStored": "Questo layout memorizza solo le linee di relazione. Se modifichi una sovrapposizione qui sotto, memorizza anche tutte le sovrapposizioni.",
+      "missingColorField": "Categoria: campo non presente in questo progetto"
     },
     "presentation": {
       "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."
