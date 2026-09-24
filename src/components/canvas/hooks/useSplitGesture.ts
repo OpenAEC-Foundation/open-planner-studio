@@ -4,7 +4,6 @@ import type { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
-import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
 import {
   completedWorkMinutes, splitAt, splitUnitMinutes, toSplitPieces, workAxisMinutesBetween,
@@ -13,6 +12,7 @@ import {
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { readAccentColor, sizeCanvasToContainer } from './useCanvasLayer';
+import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
 
 // Monotone teller, exact als `dragSeq` in `useBarDrag`: élk splitsgebaar krijgt een UNIEKE
 // coalesce-key, zodat de reeks per-mousemove-commits één undo-stap is en twee opeenvolgende
@@ -91,10 +91,7 @@ export function useSplitGesture({
 
   /** De uur-snap van de sleep is dezelfde als die van `useBarDrag`: de actieve minor-tier, met
    *  een kwartier alleen wanneer die zoom is aangezet. In dag-modus doet dit niets. */
-  const hourSnapMinutes = Math.max(
-    enableQuarterHourZoom ? 15 : 60,
-    Math.round(TIER_CONFIG[pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor].stepDays * 1440),
-  );
+  const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
 
   /** Kalender, modus en werkduur van een taak — één bron voor start, move en hover. */
   const contextFor = useCallback((task: Task) => {
@@ -109,16 +106,10 @@ export function useSplitGesture({
     };
   }, [calendar, effectiveCalById, hourSnapMinutes]);
 
-  /** De gesnapte datum onder een canvas-x. Dag-modus: het begin van de aangeklikte dag; uur-modus:
-   *  het snap-quantum van de tijdkop. De x komt van `axis.xToDate` via de renderer, dus de
-   *  werkdagencompressie zit er al in. */
-  const snapAt = useCallback((x: number, hourMode: boolean): Date | null => {
-    const raw = axis.xToDate(x);
-    if (Number.isNaN(raw.getTime())) return null;
-    if (!hourMode) return parseDate(formatDate(raw));
-    const q = Math.max(1, hourSnapMinutes) * 60_000;
-    return new Date(Math.round(raw.getTime() / q) * q);
-  }, [axis, hourSnapMinutes]);
+  const snapAt = useCallback(
+    (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
+    [axis, hourSnapMinutes],
+  );
 
   const stop = useCallback(() => {
     frozenRef.current = null;
