@@ -271,16 +271,8 @@ test('voortgang op een summary-taak ⇒ weigering', () => {
   assertEq(after, before, 'een geweigerd item mag de summary niet muteren');
 });
 
-// =================================================================================================
-// 5) validate.milestoneDuration — hergebruik van de T3-regel (mijlpaal ⇒ duur 0)
-// =================================================================================================
-test('validate.milestoneDuration: mijlpaal met duur>0 ⇒ fout, duur 0 / geen mijlpaal ⇒ null', () => {
-  const bad = validate.milestoneDuration({ isMilestone: true, time: { scheduleDuration: 3 } as any });
-  assert(bad !== null && /duur|duration|mijlpaal|milestone/i.test(bad!), 'een mijlpaal met duur>0 hoort een reden te geven');
-  assertEq(validate.milestoneDuration({ isMilestone: true, time: { scheduleDuration: 0 } as any }), null, 'mijlpaal met duur 0 ⇒ geen fout');
-  assertEq(validate.milestoneDuration({ isMilestone: false, time: { scheduleDuration: 5 } as any }), null, 'gewone taak ⇒ geen fout');
-  assertEq(validate.milestoneDuration({ isMilestone: true }), null, 'mijlpaal zonder expliciete time ⇒ geen fout (duur wordt 0)');
-});
+// (5 — `validate.milestoneDuration` — is vervallen: de helper had geen enkele aanroeper. De
+// mijlpaal-duurregel staat in `draft.addTasks` (aanmaak, cases-draft.ts) en in `taskFields.ts`.)
 
 // =================================================================================================
 // 6) Contextfactory-vangrails: solverrollback en strikt synchrone callback

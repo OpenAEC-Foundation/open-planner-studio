@@ -106,22 +106,6 @@ export const validate = {
     }
     return { ok: true };
   },
-
-  /**
-   * Mijlpaal-duurregel (spec §Werkpakket 7): een mijlpaal is per definitie duur 0; een expliciete
-   * `time.scheduleDuration > 0` op een mijlpaal is een fout. Retourneert de reden of `null`.
-   *
-   * Dit is de CANONIEKE predicaat-vorm van de check die `draft.addTasks` (T3) bij aanmaak al inline
-   * afdwingt (mcpTransaction.ts, pre-validatie stap 3). De tool-laag (WP7 `update_tasks`) gebruikt
-   * deze helper bij WIJZIGINGEN die een taak tot mijlpaal maken of de duur zetten, zodat de regel op
-   * één plek geformuleerd staat; de inline T3-aanmaakcheck blijft bestaan (goedkope vroege fout).
-   */
-  milestoneDuration(item: { isMilestone?: boolean; time?: { scheduleDuration?: number } }): string | null {
-    if (item.isMilestone && item.time && (item.time.scheduleDuration ?? 0) > 0) {
-      return `een mijlpaal mag geen duur > 0 hebben (scheduleDuration=${item.time.scheduleDuration})`;
-    }
-    return null;
-  },
 };
 
 export const progress = {
