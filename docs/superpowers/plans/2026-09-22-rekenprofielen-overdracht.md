@@ -496,7 +496,8 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `Reflect.*`/`Object.*` rood; hernoemde/`import()`-typeringen; grens beschreven; "gelezen" alleen in de 15
    bestanden bereikbaar vanuit `solveProject.ts`, 0 ongelezen; extensie-`addTask` negeert `earlyFinish` +
    regressiefix voor niet-meebewegende urentaken; fixtures 28–30b, checks 36–37; poorten exit 0, measure
-   76/0/0/0); her-check loopt (`opus-laag-hercheck-169-midden`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   76/0/0/0); her-check (Opus 5.5) = **GO** — **gemerged in de etappebranch**, plus de twee kleine punten
+   door de orkestrator (vrijstelling alleen `registry.ts`; `this`-leden per omsluitende klasse, mutant rood); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
    #109-branch van 2026-09-06) overnemen als eigen etappe. Verkenningsdossier klaar en gecommit:
    `2026-09-24-verkenning-pr101-taaktypes.md` (Opus 5.5): middelzwaar tot zwaar, 29 conflictbestanden
    waarvan 4 inhoudelijk (`taskSlice`, `resourceSlice`, `gridTransaction`, `createMcpTransactions`);
