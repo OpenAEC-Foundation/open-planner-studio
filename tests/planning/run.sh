@@ -823,6 +823,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # exact de categorieën die Intl.PluralRules opgeeft, en vuurt ze daarna nog echt af.
   I18NCHECK="$DIR/.i18n-plurals.mjs"
   if bundle_check "$DIR/check-i18n-plurals.ts" "$I18NCHECK"; then node "$I18NCHECK" || STATUS=1; fi
+  # Kern van `npm run i18n:fmt` / `i18n:add`: opmaken verandert nooit de inhoud (op alle 56 echte
+  # locale-bestanden), nl-volgorde, meervoudsfamilies en de validatie vóór het schrijven.
+  I18NTOOLSCHECK="$DIR/.i18n-tools.mjs"
+  if bundle_check "$DIR/check-i18n-tools.ts" "$I18NTOOLSCHECK"; then node "$I18NTOOLSCHECK" || STATUS=1; fi
 
   # Het "vandaag"-label in de printkopstrook. Lag vóór `drawTimelineHeader` en werd daardoor in de
   # RASTER-preview weggeschilderd, terwijl het in de VECTOR-PDF (waar alle tekst boven alle vormen

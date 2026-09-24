@@ -28,6 +28,9 @@ poort te pakken. Zie `.claude/rules/dev-server.md` en `tests/dev-server/` voor h
 | script | npm-script | doet |
 |---|---|---|
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën |
+| `i18n-fmt.ts` | `verify:i18n` (met `--check`) en `npm run i18n:fmt` (schrijven) | de vaste opmaak van alle 56 locale-bestanden: één sleutel per regel, volgorde van `nl`, meervoudsfamilies in CLDR-volgorde |
+| `i18n-add.ts` | `npm run i18n:add` | zet één tekst (of meervoudsfamilie) in alle 14 locales tegelijk, na validatie van locales, CLDR-categorieën en `{{invulplekken}}`; `--update` wijzigt, `--after` plaatst |
+| `i18n-tools.ts` | de twee hierboven, en `tests/planning/check-i18n-tools.ts` | de pure kern (ordenen, serialiseren, valideren, plaatsen) |
 | `verify-text-roles.mjs` | `verify:text-roles` | tekstgroottes lopen uitsluitend via de zes tekstrollen (`text-caption` … `text-title` / `var(--text-…)`); keurt kale px/rem-font-sizes, `text-[Npx]`, Tailwinds eigen schaal en inline `fontSize` in `src/` af (niet in `engine/`/`services/`) |
 | `verify-cycles.mjs` | `verify:cycles` | circulaire imports binnen `src/`, gemeten op de esbuild-metafile (dus ná type-erasure — `import type` geeft geen valse treffers) |
 | `verify-docs.ts` | `verify:docs` | de in-app gidsen in `public/docs/`: manifest-dekking, weesbestanden, `docs://`/`examples://`-links, en of de inhoud binnen de mini-Markdown-subset blijft; bewaakt daarnaast dat `.claude/skills/goed-plannen/SKILL.md` byte-identiek is aan de bron `public/skills/goed-plannen/SKILL.md` |

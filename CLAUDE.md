@@ -28,12 +28,15 @@ Losse suites: `npm run test:planning`, `npm run test:library`, `npm run test:mcp
 Één batterij: `bash tests/planning/run.sh cases-<x>.json` of `bash tests/planning/run.sh check-<x>.ts`.
 
 Losse poorten (de meeste zitten in `verify`): `npm run verify:examples` (voorbeelden laden/rekenen),
-`npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen),
+`npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen + vaste opmaak),
 `npm run verify:store-boundaries` en `npm run verify:gantt-boundaries` (AST-poorten: store-, renderer-,
 viewport-, pointer- en tabelgrenzen), `npm run verify:cycles` (circulaire imports ná type-erasure),
 `npm run verify:text-roles` (alleen de zes tekstrollen), `npm run verify:release-highlights-json` (in de keten)
 en `npm run verify:release-highlights` (los: lokale updatehoogtepunten en statistieken vóór een getagde release). `npm run verify:audit` zit bewust NIET in `verify`
 (Dependabot is het meldkanaal; een advisory krijgt een eigen commit).
+
+Vertalingen: `npm run i18n:add` zet één tekst in alle 14 locales tegelijk (recept `docs/recepten/i18n-sleutel.md`),
+`npm run i18n:fmt` zet de locale-bestanden in de vaste opmaak (één sleutel per regel, volgorde van `nl`).
 
 Generatoren/hulpjes: `npm run gen:examples` (`public/examples` opnieuw), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry-run; `-- --push` publiceert), `npm run stats:downloads` (downloads per OS uit de
