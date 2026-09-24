@@ -15,6 +15,7 @@ import {
   saveShowMiniMap, loadLayouts, saveLayouts,
 } from '@/utils/settingsStore';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
+import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
@@ -718,16 +719,12 @@ export function ResourceAssignDropdown() {
 export function ScreenColorsPopoverButton() {
   const { t: tMenu } = useTranslation('menu');
   const selection = useAppStore(s => s.ui.barColorSelection);
-  const setUI = useAppStore(s => s.setUI);
   const ctx = useFieldCatalogCtx();
   const fields = barColorFieldOptions(ctx);
   const control = effectiveBarColorControl(selection, ctx);
   const [open, setOpen] = useState(false);
 
-  const updateSelection = (next: typeof selection) => {
-    setUI({ barColorSelection: next });
-    void saveBarColorSelection(next);
-  };
+  const updateSelection = (next: typeof selection) => applySetting('barColorSelection', next, saveBarColorSelection);
   const selectMode = (mode: 'critical' | 'auto' | 'category') => {
     if (mode === 'critical' || mode === 'auto') {
       updateSelection({ mode });
@@ -995,7 +992,6 @@ export function PresentationGroupContent() {
   const splitView = useAppStore(s => s.view.splitView);
   const setSplitView = useAppStore(s => s.setSplitView);
   const showMiniMap = useAppStore(s => s.ui.showMiniMap);
-  const setUI = useAppStore(s => s.setUI);
   const zoom = useAppStore(s => s.view.zoom);
   const scrollX = useAppStore(s => s.view.scrollX);
 
@@ -1003,11 +999,7 @@ export function PresentationGroupContent() {
     if (splitView) setSplitView(undefined);
     else setSplitView({ ratio: 0.5, secondaryZoom: zoom, secondaryScrollX: scrollX });
   };
-  const toggleMiniMap = () => {
-    const next = !showMiniMap;
-    setUI({ showMiniMap: next });
-    void saveShowMiniMap(next);
-  };
+  const toggleMiniMap = () => applySetting('showMiniMap', !showMiniMap, saveShowMiniMap);
 
   return (
     <RibbonButtonStack>

@@ -33,6 +33,7 @@ import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, Rep
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
+import { applySetting } from '@/components/settings/applySetting';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
@@ -239,7 +240,6 @@ export function ReportPanel() {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
-  const setUI = useAppStore(s => s.setUI);
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
@@ -1410,18 +1410,14 @@ export function ReportPanel() {
                 value={barColorSelection.mode}
                 onChange={value => {
                   if (value === 'critical' || value === 'auto') {
-                    const next = { mode: value } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
+                    applySetting('barColorSelection', { mode: value }, saveBarColorSelection);
                     return;
                   }
                   const field = barColorControl.effective.mode === 'category'
                     ? barColorControl.effective.field
                     : barColorFields[0]?.field;
                   if (!field) return;
-                  const next = { mode: 'category', field } as const;
-                  setUI({ barColorSelection: next });
-                  void saveBarColorSelection(next);
+                  applySetting('barColorSelection', { mode: 'category', field }, saveBarColorSelection);
                 }}
                 options={[
                   { value: 'critical', label: t('barColorMode_critical') },
@@ -1437,11 +1433,9 @@ export function ReportPanel() {
                   className="flex-1 min-w-0"
                   aria-label={t('barColorFieldLabel')}
                   value={encodeFieldRef(barColorControl.effective.field)}
-                  onChange={value => {
-                    const next = { mode: 'category', field: decodeFieldRef(value) } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
-                  }}
+                  onChange={value => applySetting(
+                    'barColorSelection', { mode: 'category', field: decodeFieldRef(value) }, saveBarColorSelection,
+                  )}
                   options={barColorFields.map(option => ({
                     value: encodeFieldRef(option.field),
                     label: option.label,

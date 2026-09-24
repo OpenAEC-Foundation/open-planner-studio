@@ -10,7 +10,8 @@ import { Select } from '@/components/common/Select';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
-import { applyAutoCalcCPM, applySetting, applyTheme, LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
+import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
+import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 
 // U1: drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie).

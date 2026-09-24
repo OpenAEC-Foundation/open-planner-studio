@@ -1,13 +1,13 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '@/state/appStore';
 import { LANGUAGE_LABELS, supportedLanguages, setLocale, type Locale } from '@/i18n/config';
-import type { ResolvedUITheme, UIState, UITheme } from '@/state/slices/types';
-import { saveAutoCalcCPM, saveLocale, saveTheme } from '@/utils/settingsStore';
+import type { ResolvedUITheme } from '@/state/slices/types';
+import { saveLocale } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 
 // Gedeelde bouwstenen van de instellingen-UI: `SettingsPanelContent` én de curated mini-laag van
-// de welkomstdialoog passen dezelfde instellingen live toe, met exact dezelfde opslagpatronen.
+// de welkomstdialoog passen dezelfde instellingen live toe, met exact dezelfde opslagpatronen
+// (zie ook `applySetting.ts`).
 
 /** i18n-sleutels voor de thema-namen (UI_THEMES.label is alleen een Engelse fallback). */
 export const THEME_LABEL_KEYS = {
@@ -16,21 +16,7 @@ export const THEME_LABEL_KEYS = {
   'high-contrast': 'settings.themeHighContrast',
 } as const satisfies Record<ResolvedUITheme, string>;
 
-/** Live toepassen + persisteren: het vaste recept van een instelling (eerst setUI, dan de saver). */
-export function applySetting<K extends keyof UIState>(
-  key: K,
-  value: UIState[K],
-  save: (value: UIState[K]) => unknown,
-): void {
-  useAppStore.getState().setUI({ [key]: value } as Pick<UIState, K>);
-  void save(value);
-}
-
-export const applyTheme = (theme: UITheme) => applySetting('uiTheme', theme, saveTheme);
-
-export const applyAutoCalcCPM = (checked: boolean) => applySetting('autoCalcCPM', checked, saveAutoCalcCPM);
-
-export function applyLocale(locale: Locale): void {
+function applyLocale(locale: Locale): void {
   void setLocale(locale);
   void saveLocale(locale);
 }

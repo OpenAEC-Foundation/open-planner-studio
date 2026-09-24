@@ -8,7 +8,8 @@ import { saveWelcomeSeen } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
 // Het architect-besluit (§2 van het ontwerpdocument) is een EIGEN curated mini-laag, geen
 // hergebruik van de volledige SettingsPanelContent-component — wel dezelfde losse bouwstenen.
-import { applyAutoCalcCPM, applyTheme, LanguageSelect, THEME_LABEL_KEYS } from '@/components/settings/settingControls';
+import { applyAutoCalcCPM, applyTheme } from '@/components/settings/applySetting';
+import { LanguageSelect, THEME_LABEL_KEYS } from '@/components/settings/settingControls';
 
 /**
  * Welkomstdialoog (fase 2.10, onderdeel 3, §6) — 2 stappen:

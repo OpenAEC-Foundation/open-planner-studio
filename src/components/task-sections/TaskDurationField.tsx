@@ -5,7 +5,7 @@ import { Select } from '@/components/common/Select';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { useAppStore } from '@/state/appStore';
 import { saveEnableHourPlanning } from '@/utils/settingsStore';
-import { applySetting } from '@/components/settings/settingControls';
+import { applySetting } from '@/components/settings/applySetting';
 import {
   formatTaskDurationInput,
   parseTaskDurationInput,
