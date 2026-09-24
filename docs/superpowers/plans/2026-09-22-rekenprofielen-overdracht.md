@@ -123,6 +123,10 @@ XER-etappebesluit "geen fallback" om; eigen branch vanaf de #109-PR-branch.
 terug op het netwerkeinde); eigen branch vanaf de #109-PR-branch, meting vóór/ná op #109 én op #169, herpin
 volgens het recept, alleen landen als geen cel slechter wordt.
 
+**2026-09-24 ~19:10, vraag 17 (documentnaam na XER-import), letterlijk: "projectnaam"** — de documentnaam
+wordt de projectnaam uit het XER, met het P6 Project-ID erachter tussen haakjes wanneer dat afwijkt van de
+naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -329,8 +333,8 @@ volgens het recept, alleen landen als geen cel slechter wordt.
   `claude/xer-archief-fallback` vanaf de #109-PR-branch.
 - 16. **Beantwoord 24-09 ~19:00: "eigen PR"** (§1a); agent `opus-midden-anker-projecteinde` op
   `claude/xer-anker-projecteinde` vanaf de #109-PR-branch.
-- 17. Documentnaam bij XER-import = P6 Project-ID i.p.v. projectnaam: omzetten naar projectnaam (met ID als
-  suffix)? Advies: ja, kleine UX-fix in #109.
+- 17. **Beantwoord 24-09 ~19:10: "projectnaam"** (§1a); agent `opus-laag-documentnaam-xer` op
+  `claude/xer-documentnaam` vanaf de #109-PR-branch.
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
