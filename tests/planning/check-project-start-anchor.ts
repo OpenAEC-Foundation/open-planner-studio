@@ -241,6 +241,35 @@ const hAfter = S().tasks.find(t => t.id === tH)!;
 truthy('52 uurmodus H3b: scheduleFinish is meegeschoven', hAfter.time.scheduleFinish !== finishHBefore);
 truthy('53 uurmodus H3b: scheduleFinish ligt nog steeds NÁ scheduleStart', hAfter.time.scheduleFinish > hAfter.time.scheduleStart);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 6) Uurtaak op een SCALAIRE kalender (UI-route). De standaardprojectkalender heeft géén `workTime`
+// (07:00–16:00, 8 u/dag): de CalendarEngine op de ruwe kalender staat dan in DAGmodus. De solver
+// rekent een urentaak toch in de EFFECTIEVE uurbanden (`engineForTaskCalendar` in CPMSolver.ts); de
+// klem deed dat tot deze fix niet en zette het anker op middernacht (`T00:00`) i.p.v. het eerste
+// werkmoment (07:00). Nu kiezen klem en solver de engine via dezelfde functie. Volgorde dag → uur:
+// bewijst dat de engine-cache van de klem het uur-/dagonderscheid in de sleutel draagt (anders
+// krijgt de uurtaak de dag-engine van de dagtaak ervóór). Sectie 5 (expliciete `workTime`) blijft
+// ongewijzigd groen.
+// ═══════════════════════════════════════════════════════════════════════════
+S().newProject();
+S().setProject({ startDate: '2026-06-01' });
+eq('60 voorwaarde: de standaardprojectkalender is scalair (geen workTime)', S().calendar.workTime, undefined);
+const tSd = S().addTask({ name: 'Sd', time: createDefaultTaskTime('2026-05-04', 2) });
+const tSu = S().addTask({ name: 'Su', time: createDefaultTaskTime('2026-05-04T08:00', 4, 'hours') });
+S().runCPM();
+clearAll();
+
+S().setProject({ startDate: '2026-08-17' }); // maandag
+
+const suAfter = S().tasks.find(t => t.id === tSu)!;
+eq('61 scalaire kalender, uurtaak: anker = eerste werkmoment (07:00), geen kale middernacht',
+  suAfter.time.scheduleStart, '2026-08-17T07:00');
+eq('62 klem en solver kiezen hetzelfde moment (anker = door setProject herberekende earlyStart)',
+  suAfter.time.earlyStart, suAfter.time.scheduleStart);
+eq('63 scalaire kalender, dagtaak: kale datum zonder tijd (ongewijzigd)',
+  S().tasks.find(t => t.id === tSd)?.time.scheduleStart, '2026-08-17');
+eq('64 melding telt beide geklemde ankers', N()[0]?.params, { count: 2 });
+
 // ── Afronding ────────────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  project-start-anchor: alle checks groen (${checks})`);
