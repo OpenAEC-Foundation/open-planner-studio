@@ -393,7 +393,11 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    34/0); M1/M2/M3/5o2/5p11 hard rood, mutanten per regeldeel; HERPIN `<herpindatum> uitsluiting (besluit
    <datum>)` chronologisch; measure 76/0/0/0) — **gemerged in de etappebranch door de orkestrator** na eigen
    her-check (typecheck/lint/conventions + mét corpus manifest-exclusions 117, cells-gate 141, corpusless-gate
-   57, p6-flags 299: alle exit 0). Keten measure+verify op de kop gestart.
+   57, p6-flags 299: alle exit 0). Keten op `0a19ef06`: MEASURE_EXIT=0 (76/0/0/0), **verify EXIT=1** —
+   uitsluitend `check-conventions-boundary` 13/13a, veroorzaakt door de orkestrator zelf (`90766884`
+   versmalde de `conventions/`-vrijstelling tot `registry.ts`; de allowlist-fixture van check 13 leeft in
+   die map). Hersteld in `550ba040` (vrijstelling per map terug, `this`-leden per klasse blijft); keten
+   opnieuw gestart 10:58 (`/tmp/ops-chain-final-{measure,verify}.log`).
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
@@ -514,7 +518,18 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    elk verricht werk (14.293 van 62.028 toewijzingen, 13.412 in rehab-2) i.p.v. alleen bij afwijkend werk;
    eigenaarsvragen E1–E5 in het dossier; aanbevolen: baan 1 = integratie-agent merget #101 op de #169-kop,
    baan 2 = B1-koppeling in `settleDurationAftermath` met mutatietest, dan `measure:profiles` en
-   `check-mpp-fidelity` vóór/ná. Pas starten als #169 stabiel is (keten groen, C14-critreview verwerkt).
+   `check-mpp-fidelity` vóór/ná. **Baan 1 gedaan** (eigenaar: "wanneer dit allemaal klaar is"): agent
+   `opus-midden-pr101-baan1`, branch `claude/taaktypes-integratie` kop `aa0914db` op `c2173141` (merge van
+   c5fca94a met 29 conflicten volgens het dossier; valkuil a: nivelleerpoort krijgt `updates` i.p.v. `rest`
+   (checks 41/42); valkuil b: `hourInputFinishBasis` vóór de kalenderstap (38–40); `contourKeepsWork` in
+   `buildTaskEditPlanEnvironment`; ext-API 1.3.0; vijf tekstrollen; XER-melding één per bestand met
+   taaktypes-detailregel (T4-18b, voorlopig, E4); measure 76/0/0/0, `.mpp` 216/0/0). **Rood:**
+   `verify:conventions` — vier nieuwe lezingen `mspTaskType`/`p6DurationType` in `src/engine/work/`
+   (`taskTypesVisibility.ts:21`, `workRuleApply.ts:50/254`), datagate `p6DurationType` 6 → 7, `mspTaskType`
+   1 → 4: mag niet omhoog zonder besluit ⇒ **eigenaarsvraag E6** (herpinnen, of de zichtbaarheids-/
+   bewerklogica uit `src/engine/` verhuizen — advies: verhuizen). Verslag
+   `2026-09-24-taaktypes-integratie-baan1.md` (gecommit `550ba040`). Critreview loopt
+   (`opus-laag-critreview-pr101-baan1`); daarna baan 2 (B1-koppeling in `settleDurationAftermath`).
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
    herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
    Base van #169 pas naar `main` zetten als #109 gemerged is.
