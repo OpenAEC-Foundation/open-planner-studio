@@ -14,7 +14,7 @@ import { AlertTriangle, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
-import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
+import { TaskTooltipContent, TooltipRow } from '@/components/canvas/TaskTooltipContent';
 import {
   externalAnchorSideIsCompatible,
   formatExternalLagShort,
@@ -69,35 +69,11 @@ function RelationTooltipDetails({ item }: { item: RelationCellItem }) {
   const warnings = relationWarningTexts(item, t);
   return (
     <>
-      {relationType && (
-        <div className="tooltip-row">
-          <span className="tooltip-label">{t('relations.type')}:</span>
-          <span className="tooltip-value">{relationType}</span>
-        </div>
-      )}
-      {lag && (
-        <div className="tooltip-row">
-          <span className="tooltip-label">{t('relations.lag')}:</span>
-          <span className="tooltip-value">{lag}</span>
-        </div>
-      )}
-      {item.freeFloat !== undefined && (
-        <div className="tooltip-row">
-          <span className="tooltip-label">{t('relations.freeFloat')}:</span>
-          <span className="tooltip-value">{item.freeFloat}d</span>
-        </div>
-      )}
-      {item.driving && (
-        <div className="tooltip-row">
-          <span className="tooltip-label">{t('relations.driving')}</span>
-        </div>
-      )}
-      {warnings.map(warning => (
-        <div key={warning} className="tooltip-row">
-          <span className="tooltip-label">{t('relations.warnings')}:</span>
-          <span className="tooltip-value">{warning}</span>
-        </div>
-      ))}
+      {relationType && <TooltipRow label={t('relations.type')} value={relationType} />}
+      {lag && <TooltipRow label={t('relations.lag')} value={lag} />}
+      {item.freeFloat !== undefined && <TooltipRow label={t('relations.freeFloat')} value={`${item.freeFloat}d`} />}
+      {item.driving && <TooltipRow label={t('relations.driving')} colon={false} />}
+      {warnings.map(warning => <TooltipRow key={warning} label={t('relations.warnings')} value={warning} />)}
     </>
   );
 }
@@ -109,11 +85,14 @@ function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
   return (
     <>
       <div className="tooltip-title">{external.sourceRef.taskName || external.sourceRef.taskId}</div>
-      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.projectId')}:</span><span className="tooltip-value">{external.sourceRef.projectName || external.sourceRef.projectId}</span></div>
-      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.taskId')}:</span><span className="tooltip-value">{external.sourceRef.taskId}</span></div>
-      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.anchorDate')}:</span><span className="tooltip-value">{external.anchorDate}</span></div>
-      <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.source')}:</span><span className="tooltip-value">{external.sourceMissing ? t('externalLinks.sourceMissing') : t('externalLinks.sourceAvailable')}</span></div>
-      {external.sourceRef.filePath && <div className="tooltip-row"><span className="tooltip-label">{t('externalLinks.sourceFile')}:</span><span className="tooltip-value">{external.sourceRef.filePath}</span></div>}
+      <TooltipRow label={t('externalLinks.projectId')} value={external.sourceRef.projectName || external.sourceRef.projectId} />
+      <TooltipRow label={t('externalLinks.taskId')} value={external.sourceRef.taskId} />
+      <TooltipRow label={t('externalLinks.anchorDate')} value={external.anchorDate} />
+      <TooltipRow
+        label={t('externalLinks.source')}
+        value={external.sourceMissing ? t('externalLinks.sourceMissing') : t('externalLinks.sourceAvailable')}
+      />
+      {external.sourceRef.filePath && <TooltipRow label={t('externalLinks.sourceFile')} value={external.sourceRef.filePath} />}
     </>
   );
 }
