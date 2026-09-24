@@ -35,6 +35,7 @@ import { HourDataNotice } from '@/components/layout/HourDataNotice';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 
@@ -211,7 +212,7 @@ function AppContent() {
   // NIET meer in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
   // resource-lijst dockt in de rechter-rail (zie het dock-blok hieronder) in plaats van de hele
   // werkruimte te vervangen.
-  const isFullPanel = (showResourcePanel && !resourcePanelDocked) || activeTab === 'table' || activeTab === 'ifc' || activeTab === 'report';
+  const isFullPanel = !isGanttWorkspaceVisible({ activeRibbonTab: activeTab, showResourcePanel, resourcePanelDocked });
   // Issue #46 (slot): de rechterkolom bestaat alleen zolang er minstens één railpaneel aan staat.
   // Zet de gebruiker ze allebei uit via hun lintknop, dan verdwijnt de kolom — inclusief de
   // ingeklapte strip, want er valt dan niets terug te halen.

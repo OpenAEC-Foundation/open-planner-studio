@@ -33,6 +33,9 @@ export interface ContextMenuProps {
   onAddSubtask: () => void;
   onAddMilestone: () => void;
   onAddRelation: () => void;
+  /** Issue #174: "Relatie toevoegen" zet de tekenmodus aan en die werkt alleen in de Gantt; het
+   *  taakraster op de Tabel-tab geeft hier `true` mee. */
+  addRelationDisabled?: boolean;
   onTracePath: () => void;
   onSaveTemplate: () => void;
   /** Issue #42: APARTE in-/uitklap-acties (geen toggle) — zie het commentaar bij het menu-item. */
@@ -91,7 +94,7 @@ export const CONTEXT_MENU_ITEM_CLASS =
 
 export function ContextMenu({
   x, y, task, barHit, group, traceActive, isTreeMode, calendars, canPaste, onClose,
-  onEdit, onAddSubtask, onAddMilestone, onAddRelation, onTracePath, onSaveTemplate,
+  onEdit, onAddSubtask, onAddMilestone, onAddRelation, addRelationDisabled, onTracePath, onSaveTemplate,
   onCollapse, onExpand, onDelete, onAddTask,
   onInsertAbove, onInsertBelow, onIndent, onOutdent, onToggleMilestone,
   onSetCalendar, onSetProgress, onSetPriority,
@@ -184,7 +187,7 @@ export function ContextMenu({
 
           <MenuItem label={t('context.addSubtask')} onClick={() => { onAddSubtask(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <MenuItem label={t('context.addMilestone')} onClick={() => { onAddMilestone(); closeAll(); }} onEnter={() => setOpenSub(null)} />
-          <MenuItem label={t('context.addRelation')} onClick={() => { onAddRelation(); closeAll(); }} onEnter={() => setOpenSub(null)} />
+          <MenuItem label={t('context.addRelation')} disabled={addRelationDisabled} onClick={() => { onAddRelation(); closeAll(); }} onEnter={() => setOpenSub(null)} />
           <Separator />
 
           {isTreeMode && (

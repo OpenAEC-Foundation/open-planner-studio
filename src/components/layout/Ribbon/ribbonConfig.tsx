@@ -18,6 +18,7 @@ import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import {
   saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
@@ -146,10 +147,14 @@ const splitTaskButton: RibbonButtonSpec = {
   use: () => {
     const { t } = useTranslation('menu');
     const splitMode = useAppStore(s => s.ui.showSplitMode);
+    // Issue #174: het gebaar vraagt een balk in de Gantt; op de Tabel-tab is die er niet.
+    const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
     const setUI = useAppStore(s => s.setUI);
     return {
       active: splitMode,
-      title: t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
+      disabled: !ganttVisible,
+      title: !ganttVisible ? t('ribbon.ganttOnlyHint')
+        : t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
       onClick: () => setUI({ showSplitMode: !splitMode }),
     };
   },

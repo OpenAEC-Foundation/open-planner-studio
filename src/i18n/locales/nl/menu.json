@@ -186,6 +186,7 @@
     "splitTask": "Taak splitsen",
     "splitTaskOnHint": "Splits-modus aanzetten; klik daarna op een balk waar de onderbreking begint",
     "splitTaskOffHint": "Splits-modus uitzetten",
+    "ganttOnlyHint": "Alleen beschikbaar als de Gantt in beeld is",
     "relationLinkSelected": "Geselecteerde taken koppelen",
     "relationLinkSelectedHint": "Eerste selectie wordt voorganger; tweede selectie wordt opvolger (FS, lag 0)",
     "relationSelectExactlyTwo": "Selecteer precies twee taken",

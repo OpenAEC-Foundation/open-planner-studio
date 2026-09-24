@@ -183,6 +183,7 @@
     "splitTask": "تقسيم المهمة",
     "splitTaskOnHint": "شغّل وضع التقسيم؛ ثم انقر على الشريط حيث يبدأ التوقف",
     "splitTaskOffHint": "أوقف وضع التقسيم",
+    "ganttOnlyHint": "متاح فقط عندما يكون مخطط جانت ظاهرًا",
     "relationLinkSelected": "ربط المهام المحددة",
     "relationLinkSelectedHint": "يصبح التحديد الأول سابقًا والثاني لاحقًا (إنهاء-بدء، تأخير 0)",
     "relationSelectExactlyTwo": "حدد مهمتين بالضبط",

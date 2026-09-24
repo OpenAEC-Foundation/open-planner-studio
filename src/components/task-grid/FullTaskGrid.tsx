@@ -52,6 +52,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { useAppStore } from '@/state/appStore';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
 import type { DataGridCellModel, DataGridDataRowModel } from './taskGridContext';
@@ -257,6 +258,7 @@ export function TaskGridSurface({
   const pasteTasks = useAppStore(state => state.pasteTasks);
   const taskClipboard = useAppStore(state => state.taskClipboard);
   const setUI = useAppStore(state => state.setUI);
+  const ganttVisible = useAppStore(state => isGanttWorkspaceVisible(state.ui));
   const setScroll = useAppStore(state => state.setScroll);
   const setCollapsedGroupKey = useAppStore(state => state.setCollapsedGroupKey);
   const toggleCollapse = useAppStore(state => state.toggleCollapse);
@@ -1054,6 +1056,7 @@ export function TaskGridSurface({
             taskType: 'ATTENDANCE',
             parentId: contextMenu.task?.id ?? null,
           })}
+          addRelationDisabled={!ganttVisible}
           onAddRelation={() => {
             if (!contextMenu.task) return;
             selectTask(contextMenu.task.id, false);

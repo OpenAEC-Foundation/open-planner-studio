@@ -47,6 +47,7 @@ import {
 import { useRibbonDensity } from './ribbonDensity';
 import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { createRelationWithFeedback } from '@/state/relationActions';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 
 /**
@@ -271,6 +272,8 @@ export function RelationDropdown() {
   const [refreshStatus, setRefreshStatus] = useState('');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
+  // Issue #174: tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
+  const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
   const externalRelationCount = useAppStore(s => s.tasks.reduce(
     (count, task) => count + (task.externalLinks?.length ?? 0),
     0,
@@ -290,9 +293,10 @@ export function RelationDropdown() {
     {
       key: 'draw',
       label: tMenu('ribbon.relationDraw'),
-      disabled: false,
+      disabled: !ganttVisible,
       active: dependencyMode,
-      title: tMenu(dependencyMode ? 'ribbon.relationDrawOffHint' : 'ribbon.relationDrawOnHint'),
+      title: !ganttVisible ? tMenu('ribbon.ganttOnlyHint')
+        : tMenu(dependencyMode ? 'ribbon.relationDrawOffHint' : 'ribbon.relationDrawOnHint'),
       onClick: () => {
         setUI({ showDependencyMode: !dependencyMode });
         setOpen(false);

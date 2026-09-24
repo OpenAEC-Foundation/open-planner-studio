@@ -183,6 +183,7 @@
     "splitTask": "Fractionner la tâche",
     "splitTaskOnHint": "Activer le mode fractionnement ; cliquez ensuite sur une barre là où l’interruption commence",
     "splitTaskOffHint": "Désactiver le mode fractionnement",
+    "ganttOnlyHint": "Disponible uniquement lorsque le diagramme de Gantt est visible",
     "relationLinkSelected": "Lier les tâches sélectionnées",
     "relationLinkSelectedHint": "La première sélection devient le prédécesseur et la seconde le successeur (FD, décalage 0)",
     "relationSelectExactlyTwo": "Sélectionnez exactement deux tâches",

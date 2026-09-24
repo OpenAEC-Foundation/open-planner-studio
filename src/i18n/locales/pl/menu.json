@@ -183,6 +183,7 @@
     "splitTask": "Podziel zadanie",
     "splitTaskOnHint": "Włącz tryb podziału, a następnie kliknij pasek tam, gdzie zaczyna się przerwa",
     "splitTaskOffHint": "Wyłącz tryb podziału",
+    "ganttOnlyHint": "Dostępne tylko wtedy, gdy wykres Gantta jest widoczny",
     "relationLinkSelected": "Połącz zaznaczone zadania",
     "relationLinkSelectedHint": "Pierwsze zaznaczenie będzie poprzednikiem, a drugie następnikiem (ZR, zwłoka 0)",
     "relationSelectExactlyTwo": "Zaznacz dokładnie dwa zadania",
