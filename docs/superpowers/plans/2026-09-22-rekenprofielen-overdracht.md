@@ -455,7 +455,13 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    N=0, leeg=40; Oracle noemt de vlag LinkPlannedAndAtCompletionFlag) ⇒ eigenaarsvraag; (3) per-bestand-reset
    = eigenaarsbesluit "Doen" (in aanbouw `opus-laag-a19-perfile-ui`); midden: `verify:conventions` is een
    namenlijst, `isHourMode`-poorten als formaatproxy, C5 CP_Phys corpusartefact (eigenaarsvraag), lappendeken,
-   `measure:profiles` laat VERBETERD-zonder-herpin door, docgaten B1 (`removeCalendar`, `sdk.ts`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   `measure:profiles` laat VERBETERD-zonder-herpin door, docgaten B1 (`removeCalendar`, `sdk.ts`) —
+   **gebouwd op `claude/x12-review-midden-fixes` kop `985a443f`** (Opus 5.5: `verify:conventions` leest
+   sleutels uit het register + ongelezen conventie rood + ongepinde `p6…`-reads rood, fixtures 24–27c;
+   VERBETERD ⇒ exit 1 met herpin-advies, gepind in `tests/dev-server/measure-profiles.test.mjs`;
+   extensie-`addTask` urentaak krijgt einde via `fromExtTaskAddInput`, checks 33–35; poorten exit 0,
+   measure 76/0/0/0; geen overlap met de parallelle branches); critreview loopt
+   (`opus-laag-critreview-169-midden`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
    #109-branch van 2026-09-06) overnemen als eigen etappe. Verkenningsdossier klaar en gecommit:
    `2026-09-24-verkenning-pr101-taaktypes.md` (Opus 5.5): middelzwaar tot zwaar, 29 conflictbestanden
    waarvan 4 inhoudelijk (`taskSlice`, `resourceSlice`, `gridTransaction`, `createMcpTransactions`);
