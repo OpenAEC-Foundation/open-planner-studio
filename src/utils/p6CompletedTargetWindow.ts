@@ -92,6 +92,13 @@ export function explainP6CompletedDataDateWindow(
   if (task.p6ExplicitTargetWindow !== true) {
     return { eligible: false, reason: 'missingExplicitTargetWindow' };
   }
+  // CP_Phys is hier UITSLUITEND een diagnosetak, geen beslisroute (Fable-critreview PR #109
+  // bevinding 5): een `CP_Phys`-taak wordt NOOIT `eligible` — ze eindigt altijd op een afwijzing
+  // (onderaan `wrongCompletePctType`, of eerder `notCompleted`/`wrongActivityType`/…). De
+  // tussenliggende uitzonderingen bestaan alleen zodat de GERAPPORTEERDE reden de eerste echte
+  // blokkade is in plaats van altijd `wrongCompletePctType`; die redenen zijn gepind in
+  // `tests/planning/check-xer-completed-cp-phys-window.ts`. Een CP_Phys-route openen is een
+  // eigenaarsbesluit met eigen meting, geen kwestie van de laatste `return` weghalen.
   const isPhysicalCompletion = task.p6CompletePctType === 'CP_Phys';
   if (task.p6CompletePctType !== 'CP_Drtn' && !isPhysicalCompletion) {
     return { eligible: false, reason: 'wrongCompletePctType' };
