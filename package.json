@@ -27,6 +27,7 @@
     "verify:i18n": "node scripts/i18n-diff.mjs && node scripts/run-ts.mjs scripts/i18n-fmt.ts --check",
     "i18n:fmt": "node scripts/run-ts.mjs scripts/i18n-fmt.ts",
     "i18n:add": "node scripts/run-ts.mjs scripts/i18n-add.ts",
+    "i18n:resolve": "node scripts/run-ts.mjs scripts/i18n-resolve.ts",
     "verify:release-highlights": "node scripts/release-highlights.mjs",
     "gen:release-highlights-json": "node scripts/run-ts.mjs scripts/build-release-highlights-json.ts",
     "verify:release-highlights-json": "node scripts/run-ts.mjs scripts/build-release-highlights-json.ts --check",

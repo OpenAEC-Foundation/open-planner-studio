@@ -36,7 +36,8 @@ en `npm run verify:release-highlights` (los: lokale updatehoogtepunten en statis
 (Dependabot is het meldkanaal; een advisory krijgt een eigen commit).
 
 Vertalingen: `npm run i18n:add` zet één tekst in alle 14 locales tegelijk (recept `docs/recepten/i18n-sleutel.md`),
-`npm run i18n:fmt` zet de locale-bestanden in de vaste opmaak (één sleutel per regel, volgorde van `nl`).
+`npm run i18n:fmt` zet de locale-bestanden in de vaste opmaak (één sleutel per regel, volgorde van `nl`),
+`npm run i18n:resolve` voegt ze na een `git merge` per sleutel samen — draai het óók als git geen conflict meldt.
 
 Generatoren/hulpjes: `npm run gen:examples` (`public/examples` opnieuw), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry-run; `-- --push` publiceert), `npm run stats:downloads` (downloads per OS uit de

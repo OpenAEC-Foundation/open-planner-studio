@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  LOCALES, NAMESPACES, formatLocale, keyExists, orderLike, pluralCategories, serialize, setTranslation,
+  LOCALES, NAMESPACES, formatLocale, keyExists, mergeLocale, orderLike, pluralCategories, serialize, setTranslation,
   validateTranslations, type Json, type JsonObject, type Translation,
 } from '../../scripts/i18n-tools';
 
@@ -112,6 +112,72 @@ const canon = (v: Json): Json => {
     }
   }
   eq('serialize is gewone JSON', JSON.parse(serialize({ a: 'é "q"' })), { a: 'é "q"' });
+}
+
+// ── 6. Samenvoegen per sleutel (`npm run i18n:resolve`) ───────────────────────────────────────
+{
+  const m = (b: JsonObject, o: JsonObject, t: JsonObject) => mergeLocale(b, o, t);
+  const base: JsonObject = { a: 'A', b: 'B', c: 'C' };
+
+  let r = m(base, base, { a: 'A', b: 'B', x: 'X', c: 'C' });
+  eq('alleen theirs voegt toe → erbij, na zijn voorganger', Object.keys(r.merged), ['a', 'b', 'x', 'c']);
+  r = m(base, { ...base, y: 'Y' }, base);
+  eq('alleen ours voegt toe → erbij', r.merged, { a: 'A', b: 'B', c: 'C', y: 'Y' });
+  r = m(base, { ...base, n: 'N' }, { ...base, n: 'N' });
+  eq('beide voegen hetzelfde toe → één keer, geen botsing', [r.merged, r.conflicts.length], [{ ...base, n: 'N' }, 0]);
+  r = m(base, { ...base, n: 'N1' }, { ...base, n: 'N2' });
+  eq('beide voegen anders toe → botsing, voorlopig ours', [r.merged.n, r.conflicts.map(c => c.path)], ['N1', ['n']]);
+
+  // De valkuil van git: ours verwijdert b, theirs herschikt alleen (b staat daar op een andere regel).
+  r = m(base, { a: 'A', c: 'C' }, { c: 'C', b: 'B', a: 'A' });
+  eq('ours verwijdert, theirs herschikt alleen → blijft weg', [r.merged, r.conflicts.length], [{ a: 'A', c: 'C' }, 0]);
+  r = m(base, { a: 'A', b: 'B2', c: 'C' }, { c: 'C', b: 'B', a: 'A' });
+  eq('ours wijzigt, theirs herschikt alleen → wijziging blijft', [r.merged.b, r.conflicts.length], ['B2', 0]);
+  r = m(base, base, { a: 'A', c: 'C' });
+  eq('theirs verwijdert, ours ongewijzigd → weg', r.merged, { a: 'A', c: 'C' });
+  r = m(base, { a: 'A', c: 'C' }, { ...base, b: 'B2' });
+  eq('ours verwijdert, theirs wijzigt → botsing', r.conflicts.map(c => [c.path, c.ours, c.theirs]), [['b', undefined, 'B2']]);
+  r = mergeLocale(base, { ...base, b: 'B1' }, { ...base, b: 'B2' }, { ...base, b: 'B3', c: 'C9' });
+  eq('eerder gekozen waarde wint alleen bij een botsing, die wel gemeld wordt',
+    [r.merged.b, r.merged.c, r.conflicts.map(c => c.path)], ['B3', 'C', ['b']]);
+
+  // Meervoudsfix aan de ene kant (#177-vorm), nieuwe sleutel aan de andere.
+  const pb: JsonObject = { g: { n: '{{count}} taken', z: 'Z' } };
+  r = m(pb, { g: { n: '{{count}} taken', z: 'Z', nieuw: 'N' } }, { g: { n_one: '{{count}} taak', n_other: '{{count}} taken', z: 'Z' } });
+  eq('meervoudsfamilie van theirs + nieuwe sleutel van ours', r.merged,
+    { g: { n_one: '{{count}} taak', n_other: '{{count}} taken', z: 'Z', nieuw: 'N' } });
+  eq('… zonder botsing', r.conflicts.length, 0);
+
+  r = m({}, { o: { p: 'P' } }, { o: { q: 'Q' } });
+  eq('nieuw object aan beide kanten → samengevoegd (sleutel zonder voorganger vooraan)', r.merged, { o: { q: 'Q', p: 'P' } });
+  r = m({ s: 'S' }, { s: { k: 'K' } }, { s: 'S2' });
+  eq('tekst wordt object vs tekst gewijzigd → botsing', r.conflicts.map(c => c.path), ['s']);
+
+  // Op de echte bestanden: een pure herschikking aan de overkant verandert niets, en een verwijdering
+  // of wijziging aan onze kant overleeft haar — voor alle 56 bestanden.
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'i18n', 'locales');
+  const reversed = (o: JsonObject): JsonObject => Object.fromEntries(Object.keys(o).reverse()
+    .map(k => [k, (typeof o[k] === 'object' && o[k] !== null && !Array.isArray(o[k])) ? reversed(o[k] as JsonObject) : o[k]]));
+  let bad = 0;
+  for (const ns of NAMESPACES) {
+    for (const loc of LOCALES) {
+      const x = JSON.parse(readFileSync(join(dir, loc, `${ns}.json`), 'utf8')) as JsonObject;
+      const [first, ...rest] = Object.keys(x);
+      const withoutFirst: JsonObject = Object.fromEntries(rest.map(k => [k, x[k]]));
+      const same = m(x, x, reversed(x));
+      const del = m(x, withoutFirst, reversed(x));
+      const add = m(x, { ...x, __nieuw: 'N' }, reversed(x));
+      checks++;
+      if (same.conflicts.length || del.conflicts.length || add.conflicts.length
+        || JSON.stringify(canon(same.merged)) !== JSON.stringify(canon(x))
+        || JSON.stringify(canon(del.merged)) !== JSON.stringify(canon(withoutFirst))
+        || (add.merged as JsonObject).__nieuw !== 'N' || Object.keys(add.merged).length !== Object.keys(x).length + 1) {
+        bad++;
+        diffs.push(`${loc}/${ns}.json: samenvoegen over een herschikking heen verandert de inhoud (weggehaald: ${first})`);
+      }
+    }
+  }
+  eq('alle 56 echte bestanden overleven een herschikking aan de overkant', bad, 0);
 }
 
 if (diffs.length === 0) {

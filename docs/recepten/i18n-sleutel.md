@@ -52,6 +52,26 @@ regel van ~2.600 tekens), en staat een nieuwe sleutel in elke taal op dezelfde p
 zet alles recht; `verify:i18n` draait dezelfde opmaak als controle (`--check`). Opmaken verandert nooit
 de inhoud — `tests/planning/check-i18n-tools.ts` bewijst dat op alle echte bestanden.
 
+## Mergen (`npm run i18n:resolve`)
+
+Draai na elke `git merge` waarbij aan beide kanten locale-bestanden veranderden `npm run i18n:resolve`,
+óók als git daar geen conflict meldde. Het script voegt alle 56 bestanden per sleutel samen uit de drie
+versies die git kent (merge-base, jouw kant, de andere kant), zet ze in de vaste opmaak en doet
+`git add`. Wat maar één kant toevoegde, wijzigde of verwijderde, gaat mee.
+
+Waarom niet op git vertrouwen: git vergelijkt regels. Verwijdert jouw branch een sleutel die de andere
+kant alleen verplaatste (zoals bij de eenmalige herschikking), dan voegt git "zonder conflict" samen en
+staat de sleutel er stil weer. `tests/planning/check-i18n-resolve.ts` bootst dat na met echte git.
+
+- **Merge loopt nog** (git meldde conflicten): `npm run i18n:resolve` en daarna `git commit`.
+- **Git maakte de merge-commit al**: hetzelfde commando controleert die commit. Klopt hij, dan wijzigt
+  het niets; anders staat de correctie klaar voor `git commit --amend --no-edit`.
+- **Echte botsing** (dezelfde sleutel aan beide kanten anders gewijzigd): exit 1. Het script noemt
+  per sleutel beide waarden en laat dat bestand open (voorlopig jouw waarde, niet ge-`git add`). Kies
+  de juiste waarde, doe `git add` en draai `npm run verify:i18n`.
+- **`package.json` in conflict**: los dat eerst op. Zolang daar conflictmarkeringen in staan, start
+  geen enkel npm-script.
+
 ## Wat `verify:i18n` (`scripts/i18n-diff.mjs`) doet
 
 Voor elke niet-`nl`-locale en elk namespace-bestand: verzamel alle sleutelpaden in `nl`, reken ze om
@@ -101,5 +121,6 @@ geen generieke poort die elke `t(key, { count })`-aanroep in de hele codebase vi
 | de poort: CLDR-pluralcategorieën per locale | `scripts/i18n-diff.mjs` (`npm run verify:i18n`) |
 | toevoegen/wijzigen in alle 14 locales, vaste opmaak | `scripts/i18n-add.ts` (`npm run i18n:add`), `scripts/i18n-fmt.ts` (`npm run i18n:fmt`), kern `scripts/i18n-tools.ts` |
 | test van die kern (inhoud blijft gelijk op alle echte bestanden) | `tests/planning/check-i18n-tools.ts` |
+| locale-bestanden per sleutel samenvoegen na `git merge` | `scripts/i18n-resolve.ts` (`npm run i18n:resolve`), end-to-end getest in `tests/planning/check-i18n-resolve.ts` |
 | domeincheck: taakgrid-registerlabels + echte `count`-aanroepen | `tests/planning/check-task-grid-i18n.ts` |
 | RTL-locales (`ar`, `fa`) | `RTL_LOCALES` in `src/i18n/config.ts` |

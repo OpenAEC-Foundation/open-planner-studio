@@ -1,4 +1,4 @@
-// De kern achter `npm run i18n:fmt` en `npm run i18n:add` — pure functies, zonder bestands-I/O,
+// De kern achter `npm run i18n:fmt`, `i18n:add` en `i18n:resolve` — pure functies, zonder bestands-I/O,
 // zodat tests/planning/check-i18n-tools.ts ze rechtstreeks kan toetsen.
 //
 // Waarom dit bestaat: elke zichtbare tekst moet in dezelfde wijziging in alle 14 locales (besluit
@@ -192,4 +192,73 @@ export function setTranslation(root: JsonObject, path: string, value: Translatio
   kept.slice(beforeCount).forEach(k => { rebuilt[k] = node[k]; });
   for (const k of Object.keys(node)) delete node[k];
   Object.assign(node, rebuilt);
+}
+
+/** Inhoud zonder volgorde: sleutels recursief gesorteerd, zodat een herschikking geen wijziging is. */
+function canonical(v: Json | undefined): string | undefined {
+  const sort = (x: Json): Json => {
+    if (!isObject(x)) return Array.isArray(x) ? x.map(sort) : x;
+    const out: JsonObject = {};
+    for (const k of Object.keys(x).sort()) out[k] = sort(x[k]);
+    return out;
+  };
+  return v === undefined ? undefined : JSON.stringify(sort(v));
+}
+const same = (a: Json | undefined, b: Json | undefined) => canonical(a) === canonical(b);
+
+/** Een echte botsing: dezelfde sleutel is aan beide kanten verschillend gewijzigd (undefined = weg). */
+export interface MergeConflict {
+  path: string;
+  base: Json | undefined;
+  ours: Json | undefined;
+  theirs: Json | undefined;
+}
+
+/**
+ * Drieweg-samenvoeging van één locale-object PER SLEUTEL (de kern van `npm run i18n:resolve`).
+ * Wat maar één kant wijzigde, toevoegde of verwijderde, gaat mee; wat beide kanten gelijk deden ook.
+ * Alleen een sleutel die aan beide kanten anders is gewijzigd, is een botsing: die krijgt voorlopig
+ * de waarde van `ours` en staat in `conflicts`. Volgorde en witruimte tellen niet als wijziging —
+ * daarom werkt dit wél over de eenmalige herschikking heen, waar git per regel tekst vergelijkt en
+ * dan stil fout kan gaan (een sleutel die de ene kant verwijdert en de andere alleen verplaatst,
+ * komt bij git ongemerkt terug). Sleutelvolgorde: die van `ours`, met nieuwe sleutels van `theirs`
+ * direct na hun voorganger daar (zonder voorganger: vooraan); `formatLocale` zet het resultaat
+ * daarna in de nl-volgorde. `chosen` is een eerder gemaakte keuze (de merge-commit zelf): bij een
+ * botsing wint dan die waarde in plaats van `ours` — de botsing wordt wel gemeld.
+ */
+export function mergeLocale(base: JsonObject, ours: JsonObject, theirs: JsonObject, chosen?: JsonObject): {
+  merged: JsonObject;
+  conflicts: MergeConflict[];
+} {
+  const conflicts: MergeConflict[] = [];
+  const merge = (b: JsonObject, o: JsonObject, t: JsonObject, c: JsonObject | undefined, prefix: string): JsonObject => {
+    const order = Object.keys(o);
+    const theirKeys = Object.keys(t);
+    theirKeys.forEach((k, i) => {
+      if (order.includes(k)) return;
+      let j = i - 1;
+      while (j >= 0 && !order.includes(theirKeys[j])) j--;
+      order.splice(j < 0 ? 0 : order.indexOf(theirKeys[j]) + 1, 0, k);
+    });
+    const out: JsonObject = {};
+    for (const k of order) {
+      const bv = has(b, k) ? b[k] : undefined;
+      const ov = has(o, k) ? o[k] : undefined;
+      const tv = has(t, k) ? t[k] : undefined;
+      const path = prefix ? `${prefix}.${k}` : k;
+      let v: Json | undefined;
+      const cv = c === undefined ? undefined : has(c, k) ? c[k] : undefined;
+      if (isObject(ov) && isObject(tv)) v = merge(isObject(bv) ? bv : {}, ov, tv, c === undefined ? undefined : isObject(cv) ? cv : {}, path);
+      else if (same(ov, tv)) v = ov;
+      else if (same(ov, bv)) v = tv;
+      else if (same(tv, bv)) v = ov;
+      else {
+        conflicts.push({ path, base: bv, ours: ov, theirs: tv });
+        v = c === undefined ? ov ?? tv : cv;
+      }
+      if (v !== undefined) out[k] = v;
+    }
+    return out;
+  };
+  return { merged: merge(base, ours, theirs, chosen, ''), conflicts };
 }
