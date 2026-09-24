@@ -151,6 +151,12 @@ async function seedSplit(page: Page, taskId: string, days: number[]): Promise<vo
     pieces: days.map((d, i) => ({ kind: i % 2 === 0 ? 'work' : 'gap', minutes: d * DAY, ...(i % 2 ? { source: 'user' } : {}) })),
   });
   expect(refusal).toBeNull();
+  // Het contextmenu en de hit-test lezen de GETEKENDE taak, niet de store. Wacht dus tot de Gantt de
+  // nieuwe stukken getekend heeft; anders kan een rechtsklik nét vóór de repaint vallen en een menu
+  // zonder splitsitems openen (gezien in CI op een trage runner, PR #177).
+  const workPieces = Math.ceil(days.length / 2);
+  await expect.poll(() => page.evaluate(id => window.__OPS__!.gantt.taskSegmentCount(id), taskId))
+    .toBe(workPieces);
 }
 
 async function drag(page: Page, from: { x: number; y: number }, toX: number): Promise<void> {

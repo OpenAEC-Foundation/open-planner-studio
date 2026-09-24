@@ -2226,6 +2226,16 @@ export class GanttRenderer {
     };
   }
 
+  /** Dev/browser-testnaad: hoeveel balkstukken de LAATSTE render voor deze taak tekende — 1 voor een
+   *  ongesplitste balk, `null` zonder getekende balk. Het contextmenu en de hit-test lezen de
+   *  getekende taak, niet de store; een test die splits via de store zet, wacht hierop in plaats van
+   *  te gokken dat de repaint al geweest is. */
+  getDrawnSegmentCount(taskId: string): number | null {
+    const segs = this.splitSegmentsByTask.get(taskId);
+    if (segs) return segs.length;
+    return this.getTaskBarRect(taskId) ? 1 : null;
+  }
+
   /** Hit test: get task bar bounds for a task at row index (for drag & drop).
    *
    *  Issue #146 etappe 3: `segmentIndex`/`segmentCount` zeggen op WELK stuk van een gesplitste balk
