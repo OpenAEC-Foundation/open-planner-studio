@@ -58,6 +58,12 @@ export function isZeroDurationMilestone(task: Task): boolean {
   return task.isMilestone && task.time.scheduleDuration === 0;
 }
 
+/** Rekent deze taak op de 24/7-klok (ELAPSEDTIME)? Een nulduur-mijlpaal nooit: die heeft geen eigen
+ *  duur (H3, Opus-review T15-iteratie-2 — een mijlpaal-MET-duur die ELAPSEDTIME is, wél). */
+export function isElapsedTask(task: Task): boolean {
+  return !isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME';
+}
+
 /** Minimaal contract dat een uur-bewuste kalender-engine vervult (golf 1). */
 export interface DurationCalendar {
   /** True ⇒ uur-kalender (`WorkCalendar.workTime` aanwezig); false ⇒ dag-kalender. */

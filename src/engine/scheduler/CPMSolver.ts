@@ -11,7 +11,7 @@ import {
 import {
   durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
-  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress,
+  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress, isElapsedTask,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import {
@@ -429,7 +429,7 @@ export class CPMSolver {
     // een MIJLPAAL-MET-DUUR (isMilestone=true, reële duur, T15) die ZELF ELAPSEDTIME is deze bypass
     // stil uit — precies de H1-schending hierboven (FF-relatie-schending, opvolger op een
     // zaterdag-einde geduwd) herleeft dan voor die taak, ook al is ze voor de PLANNING geen mijlpaal.
-    if (!isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME') return d;
+    if (isElapsedTask(task)) return d;
     if (eng.isHourMode && isZeroDurationMilestone(task) && task.milestoneKind === 'FINISH') {
       if (this.snapOnOrBefore(eng, d).getTime() === d.getTime()) return d;
     }
@@ -773,7 +773,7 @@ export class CPMSolver {
    *  omrekening (`Math.sign(raw) * Math.round(Math.abs(raw))`, half rondt van nul af) — reken de
    *  minuten om naar HELE werkdagen en gebruik `addWorkingDaysSigned` (de dag-modus-tegenhanger). */
   private shiftByLevelingDelay(eng: CalendarEngine, task: Task, date: Date, sign: 1 | -1): Date {
-    const taskElapsed = !isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME';
+    const taskElapsed = isElapsedTask(task);
     if (task.levelingDelayMinutes) {
       if (taskElapsed || task.levelingDelayElapsed) {
         return addElapsedMinutes(date, sign * task.levelingDelayMinutes);
@@ -859,7 +859,7 @@ export class CPMSolver {
     // i.p.v. de kale vlag — anders viel een dag-modus mijlpaal-met-duur-ELAPSEDTIME-taak hier stil
     // terug op de WORKTIME-tak (`addWorkingDaysSigned`, telt werkdagen, slaat weekend over) i.p.v.
     // de kloktijd-aftrek — exact het patroon dat msp-30 (FF+0 naar zo'n taak) blootlegde.
-    if (!isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME') {
+    if (isElapsedTask(task)) {
       return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
     }
     // `splitTotalSpanDays` geeft bij `dur===0` zelf al 0 terug (`splitTotalSpanMinutes`s
@@ -892,7 +892,7 @@ export class CPMSolver {
       return this.dayLastBandEnd(eng, lastDay) ?? lastDay;
     }
     // H3 (Opus-review T15-iteratie-2) — zelfde reden als `startFromFinish` hierboven.
-    if (!isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME') {
+    if (isElapsedTask(task)) {
       return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
     }
     const totalDur = splitTotalSpanDays(task, eng);
@@ -1132,7 +1132,7 @@ export class CPMSolver {
       // H3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — een
       // mijlpaal-met-duur (T15) die zelf ELAPSEDTIME is, is voor de PLANNING geen mijlpaal en moet
       // dus wél als "root-elapsed" behandeld worden (spiegelt `snapSuccessorEarlyStart` hierboven).
-      const s = this.rootFloor(eng, t.time.scheduleStart, !isZeroDurationMilestone(t) && t.time.durationType === 'ELAPSEDTIME');
+      const s = this.rootFloor(eng, t.time.scheduleStart, isElapsedTask(t));
       if (!projectStart || s < projectStart) projectStart = s;
     }
 
@@ -1255,7 +1255,7 @@ export class CPMSolver {
         // naar een werk-instant, ook op een elapsed taak.
         // H3 (Opus-review T15-iteratie-2): `isZeroDurationMilestone` i.p.v. de kale vlag — zelfde
         // reden als de precompute-lus hierboven (regel ~797) en `snapSuccessorEarlyStart`.
-        const rootElapsed = !isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME';
+        const rootElapsed = isElapsedTask(task);
         // Z8 (etappe "nul afwijkingen", gemeten — zie `mppReader.ts`'s `deriveTimephasedWindowsFor
         // Tasks`-moduleheader voor het corpusbewijs): een wortel-taak met een timephased-toewijzing
         // wier eigen `AssignmentField.START` buiten de TAAK-kalenderband ligt maar binnen haar EIGEN
@@ -1461,7 +1461,7 @@ export class CPMSolver {
         // corpusbestand (hash a69fec157074d056) had zonder deze snap 2 sameday-afwijkingen (onze
         // ES 04:49/03:39 tegen MSP's 08:00 op twee WORKTIME-taken met een elapsed-vertraging); met
         // de snap exact. `msp-48-z6-elapsed-delay` pint dit corpusloos.
-        const taskElapsedForSnap = !isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME';
+        const taskElapsedForSnap = isElapsedTask(task);
         if (!taskElapsedForSnap && task.levelingDelayElapsed) {
           earlyStart = this.snapOnOrAfter(cal, earlyStart);
         }
