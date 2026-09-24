@@ -413,6 +413,7 @@
   "defaultInspection": "نقطه بازرسی جدید",
   "column": {
     "resource": "منابع",
+    "resourceType": "نوع منبع",
     "activityCodeSuffix": "کد فعالیت",
     "customFieldSuffix": "فیلد سفارشی"
   },

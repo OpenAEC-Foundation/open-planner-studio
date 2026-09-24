@@ -1,7 +1,7 @@
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
-import { getNoneLabelValue } from '@/utils/noneLabel';
+import { getNoneLabelValue, getResourceTypeLabelsValue } from '@/utils/noneLabel';
 import type { Company, CompanyPool } from '@/types/library';
 import {
   applyCalendarUpdate,
@@ -135,6 +135,7 @@ function derivePayloadViewRows(payload: Readonly<DocumentPayload>): ViewRow[] {
     resources: payload.resources,
     assignments: payload.assignments,
     noneLabel: getNoneLabelValue(),
+    resourceTypeLabels: getResourceTypeLabelsValue(),
   };
   return computeViewRows(payload.tasks, opts, ctx);
 }

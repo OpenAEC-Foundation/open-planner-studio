@@ -417,6 +417,7 @@
   "defaultInspection": "Nuovo punto di ispezione",
   "column": {
     "resource": "Risorse",
+    "resourceType": "Tipo di risorsa",
     "activityCodeSuffix": "codice attività",
     "customFieldSuffix": "campo personalizzato"
   },

@@ -514,6 +514,7 @@
   "defaultInspection": "Nieuw inspectiemoment",
   "column": {
     "resource": "Resources",
+    "resourceType": "Resourcetype",
     "activityCodeSuffix": "activiteitcode",
     "customFieldSuffix": "eigen veld"
   },

@@ -1,6 +1,7 @@
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
+import { RESOURCE_TYPE_BAND_ORDER, resourceTypeRank } from '@/engine/view/filterEval';
 import { type AssignmentCurveState, assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { dayOf, taskFinish, taskStart } from './reportCommon';
 import type { ResolvedPeriod } from './reportingPeriod';
@@ -114,12 +115,9 @@ export interface RowAssignment {
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
 const NONE_BAND_KEY = encodeBandKey([NONE_RAWKEY]);
 
-/**
- * Bandvolgorde van de typen bij `groupByType`: wie het werk doet eerst, dan waarmee, dan waarvan.
- * Bewust vast en niet op vertaald label gesorteerd — zie de moduledoc. Een type dat hier zou
- * ontbreken (kan niet met het huidige enum) komt achteraan.
- */
-export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL'];
+// De vaste typevolgorde woont in de view-engine: de schermgroepering op Resourcetype (issue #173)
+// moet exact dezelfde blokvolgorde geven als dit rapport.
+export { RESOURCE_TYPE_BAND_ORDER };
 
 /** Ruwe bandsleutel van een typeband — met prefix, zodat hij nooit botst met een resource-id. */
 function typeRawKey(type: ResourceType): string {
@@ -258,10 +256,7 @@ export function computeResourceGanttRows(
   };
   if (opts.groupByType) {
     const typeOf = new Map(ctx.resources.map(r => [r.id, r.type]));
-    const rank = (type: ResourceType) => {
-      const i = RESOURCE_TYPE_BAND_ORDER.indexOf(type);
-      return i < 0 ? RESOURCE_TYPE_BAND_ORDER.length : i;
-    };
+    const rank = resourceTypeRank;
     // Typen in de vaste volgorde; binnen een type blijft de collator-volgorde van `bands`.
     const types = [...new Set(bands.map(b => typeOf.get(b.id) as ResourceType))].sort((a, b) => rank(a) - rank(b));
     for (const type of types) {

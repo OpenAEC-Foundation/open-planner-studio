@@ -409,6 +409,7 @@
   "defaultInspection": "새 검사 지점",
   "column": {
     "resource": "자원",
+    "resourceType": "자원 유형",
     "activityCodeSuffix": "작업 코드",
     "customFieldSuffix": "사용자 정의 필드"
   },

@@ -831,7 +831,9 @@
       "applyOnly": "Apply without saving",
       "infoApplyOnly": "Puts the ticked parts on screen without making a layout button. Useful for a quick, temporary filter.",
       "columnsNote": "Takes over the columns as they are in the table now. You choose columns with the plus in the table header.",
-      "relationsShow": "Show relationship lines"
+      "relationsShow": "Show relationship lines",
+      "partOverlays": "Overlay",
+      "infoOverlays": "Relationship lines, baseline, progress line, status date line, resource accent, float band and bar colors. Unticked: these stay as they are."
     },
     "presentation": {
       "hint": "Press Esc or F11 to exit full screen."

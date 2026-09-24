@@ -831,7 +831,9 @@
       "applyOnly": "Toepassen zonder opslaan",
       "infoApplyOnly": "Zet de aangevinkte onderdelen op het scherm zonder er een layoutknop van te maken. Handig voor een snel, tijdelijk filter.",
       "columnsNote": "Neemt de kolommen over zoals ze nu in de tabel staan. Kolommen kies je met het plusje in de tabelkop.",
-      "relationsShow": "Relatielijnen tonen"
+      "relationsShow": "Relatielijnen tonen",
+      "partOverlays": "Overlay",
+      "infoOverlays": "Relatielijnen, basislijn, voortgangslijn, statusdatumlijn, resource-accent, spelingsband en balkkleuren. Niet aangevinkt: die blijven zoals ze staan."
     },
     "presentation": {
       "hint": "Druk op Esc of F11 om volledig scherm te verlaten."

@@ -14,7 +14,6 @@ import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
   saveShowMiniMap, loadLayouts, saveLayouts,
 } from '@/utils/settingsStore';
-import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
@@ -25,7 +24,7 @@ import { RibbonTab, type Layout, type TimeScale } from '@/state/slices/types';
 import type { ResourceCurve } from '@/types/resource';
 import { RESOURCE_CURVES, CURVE_KEY } from '@/components/task-sections/shared';
 import { UnitsInput } from '@/components/common/UnitsInput';
-import { groupFieldList, fullFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
+import { groupFieldList, sortFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import {
   barColorFieldOptions,
@@ -722,16 +721,13 @@ export function ResourceAssignDropdown() {
 export function ScreenColorsPopoverButton() {
   const { t: tMenu } = useTranslation('menu');
   const selection = useAppStore(s => s.ui.barColorSelection);
-  const setUI = useAppStore(s => s.setUI);
+  const setOverlays = useAppStore(s => s.setOverlays);
   const ctx = useFieldCatalogCtx();
   const fields = barColorFieldOptions(ctx);
   const control = effectiveBarColorControl(selection, ctx);
   const [open, setOpen] = useState(false);
 
-  const updateSelection = (next: typeof selection) => {
-    setUI({ barColorSelection: next });
-    void saveBarColorSelection(next);
-  };
+  const updateSelection = (next: typeof selection) => setOverlays({ barColors: next });
   const selectMode = (mode: 'critical' | 'auto' | 'category') => {
     if (mode === 'critical' || mode === 'auto') {
       updateSelection({ mode });
@@ -848,7 +844,7 @@ export function SortPopoverButton() {
   const sort = useAppStore(s => s.view.sort);
   const setSort = useAppStore(s => s.setSort);
   const ctx = useFieldCatalogCtx();
-  const fields = fullFieldList(ctx);
+  const fields = sortFieldList(ctx);
   const options = fieldOptions(fields, ctx);
   const [open, setOpen] = useState(false);
 

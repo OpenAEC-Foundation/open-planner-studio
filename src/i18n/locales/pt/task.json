@@ -417,6 +417,7 @@
   "defaultInspection": "Novo ponto de inspeção",
   "column": {
     "resource": "Recursos",
+    "resourceType": "Tipo de recurso",
     "activityCodeSuffix": "código de atividade",
     "customFieldSuffix": "campo personalizado"
   },

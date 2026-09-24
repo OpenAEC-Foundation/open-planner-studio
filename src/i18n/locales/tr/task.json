@@ -413,6 +413,7 @@
   "defaultInspection": "Yeni denetim noktası",
   "column": {
     "resource": "Kaynaklar",
+    "resourceType": "Kaynak türü",
     "activityCodeSuffix": "aktivite kodu",
     "customFieldSuffix": "kullanıcı alanı"
   },

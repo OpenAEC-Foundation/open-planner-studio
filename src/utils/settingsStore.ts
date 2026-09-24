@@ -14,6 +14,7 @@ import type {
   UIFontFamily,
 } from '@/state/slices/types';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
+import type { LayoutOverlays } from '@/types/view';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import {
   legacyLayoutColumnsToTaskGridPreferences,
@@ -254,6 +255,23 @@ interface LegacyColumnConfigLike {
   width: number;
 }
 
+/**
+ * Structurele check van het overlay-deel (issue #173). Bewust zonder `barColorSettings` (dat
+ * importeert deze module): een categorieveld dat in dit project niet bestaat, vangt
+ * `effectiveBarColorSelection` bij het tekenen al op.
+ */
+function isLayoutOverlays(value: unknown): value is LayoutOverlays {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const o = value as Record<string, unknown>;
+  const flags = ['baseline', 'progressLine', 'statusDateLine', 'resourceAccent', 'floatBand'] as const;
+  if (!flags.every(flag => typeof o[flag] === 'boolean')) return false;
+  const colors = o.barColors as Record<string, unknown> | null | undefined;
+  if (!colors || typeof colors !== 'object') return false;
+  if (colors.mode === 'critical' || colors.mode === 'auto') return true;
+  const field = colors.field as Record<string, unknown> | null | undefined;
+  return colors.mode === 'category' && !!field && typeof field === 'object' && typeof field.src === 'string';
+}
+
 function baseLayout(v: unknown): Record<string, unknown> | null {
   if (!v || typeof v !== 'object') return null;
   const l = v as Record<string, unknown>;
@@ -268,6 +286,7 @@ function baseLayout(v: unknown): Record<string, unknown> | null {
     (l.timeScale === undefined || typeof l.timeScale === 'string') &&
     (l.columns === undefined || Array.isArray(l.columns)) &&
     (l.showRelations === undefined || typeof l.showRelations === 'boolean') &&
+    (l.overlays === undefined || isLayoutOverlays(l.overlays)) &&
     (l.icon === undefined || typeof l.icon === 'string')
   ) ? l : null;
 }
@@ -302,6 +321,14 @@ function normalizeLayout(v: unknown): Layout | null {
   if (l.filter !== undefined) out.filter = l.filter as Layout['filter'];
   if (l.timeScale !== undefined) out.timeScale = l.timeScale as Layout['timeScale'];
   if (l.showRelations !== undefined) out.showRelations = l.showRelations as boolean;
+  if (l.overlays !== undefined) {
+    // Vaste sleutelvolgorde en alleen de bekende sleutels, zodat vergelijken nooit op de opslag hangt.
+    const o = l.overlays as LayoutOverlays;
+    out.overlays = {
+      baseline: o.baseline, progressLine: o.progressLine, statusDateLine: o.statusDateLine,
+      resourceAccent: o.resourceAccent, floatBand: o.floatBand, barColors: o.barColors,
+    };
+  }
   if (l.icon !== undefined) out.icon = l.icon as string;
   return out;
 }

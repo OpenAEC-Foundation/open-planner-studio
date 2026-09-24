@@ -372,6 +372,8 @@ export function fieldRefToTaskColumnId(
     return id ? taskColumnId(id) : null;
   }
   if (field.src === 'resource') return taskColumnId('assignment.resources');
+  // Issue #173: resourcetype is alleen een groepeer-/sorteerveld, er bestaat geen kolom voor.
+  if (field.src === 'resourceType') return null;
   if (!projectId) return null;
   return field.src === 'activityCode'
     ? safeActivityCodeColumnId(projectId, field.typeId)

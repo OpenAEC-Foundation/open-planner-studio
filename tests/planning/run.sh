@@ -536,6 +536,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   VRKCHECK="$DIR/.view-row-key.mjs"
   if bundle_check "$DIR/check-view-row-key.ts" "$VRKCHECK"; then node "$VRKCHECK" || STATUS=1; fi
 
+  # Issue #173: groeperen/sorteren op resourcetype — de vaste typevolgorde van het rapport
+  # Resourcediagram, en geneste banden die resource en type op elkaar laten aansluiten.
+  RTVCHECK="$DIR/.resource-type-view.mjs"
+  if bundle_check "$DIR/check-resource-type-view.ts" "$RTVCHECK"; then node "$RTVCHECK" || STATUS=1; fi
+
   # Gantt-eventeigenaars (tabel-overhaul task 0): iedere actie heeft precies één actuele
   # eigenaar, zodat de DOM-gridmigratie geen dubbele canvas-/DOM-listeners achterlaat.
   GEO_CHECK="$DIR/.gantt-event-ownership.mjs"

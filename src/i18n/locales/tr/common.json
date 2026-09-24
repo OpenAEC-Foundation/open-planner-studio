@@ -831,7 +831,9 @@
       "applyOnly": "Kaydetmeden uygula",
       "infoApplyOnly": "İşaretli bölümleri düzen düğmesi oluşturmadan ekrana uygular. Hızlı, geçici bir filtre için kullanışlıdır.",
       "columnsNote": "Sütunları tabloda şu anda olduğu gibi alır. Sütunları tablo başlığındaki artı ile seçersiniz.",
-      "relationsShow": "İlişki çizgilerini göster"
+      "relationsShow": "İlişki çizgilerini göster",
+      "partOverlays": "Katman",
+      "infoOverlays": "İlişki çizgileri, temel plan, ilerleme çizgisi, durum tarihi çizgisi, kaynak vurgusu, bolluk bandı ve çubuk renkleri. İşaretli değilse: oldukları gibi kalırlar."
     },
     "presentation": {
       "hint": "Tam ekrandan çıkmak için Esc veya F11'e basın."

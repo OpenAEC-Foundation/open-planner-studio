@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { setNoneLabelValue } from '@/utils/noneLabel';
+import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
 import { appLog } from '@/services/debug/appLog';
 import { installConsentDialogAsker } from '@/extensions/consentBridge';
@@ -155,10 +155,18 @@ function AppContent() {
   // "(geen)"-bandlabel voor de gedeelde viewRows-pijplijn (fase 2.7, §4.1): de vertaalde
   // string wordt vanuit deze consument doorgegeven — de engine/store blijft i18n-vrij.
   const noneLabel = t('structure.none', { ns: 'task' });
+  // Issue #173: idem voor de bandkoppen bij groeperen op resourcetype — dezelfde sleutels als het
+  // resourcepaneel en het rapport Resourcediagram.
+  const resourceTypeLabels = useMemo(() => ({
+    LABOR: t('resource.type.labor'), CREW: t('resource.type.crew'),
+    SUBCONTRACTOR: t('resource.type.subcontractor'), EQUIPMENT: t('resource.type.equipment'),
+    MATERIAL: t('resource.type.material'),
+  }), [t]);
   useEffect(() => {
     setNoneLabelValue(noneLabel);
+    setResourceTypeLabelsValue(resourceTypeLabels);
     useAppStore.getState().recomputeViewRows();
-  }, [noneLabel]);
+  }, [noneLabel, resourceTypeLabels]);
 
   // Systeemkleurschema volgen (thema 'Systeem'): één abonnement voor de hele app.
   useSystemColorSchemeSync();

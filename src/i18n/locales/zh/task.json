@@ -409,6 +409,7 @@
   "defaultInspection": "新检查点",
   "column": {
     "resource": "资源",
+    "resourceType": "资源类型",
     "activityCodeSuffix": "活动代码",
     "customFieldSuffix": "自定义字段"
   },

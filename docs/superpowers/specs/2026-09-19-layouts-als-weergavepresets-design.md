@@ -111,6 +111,27 @@ De twaalf overige vertalingen van `ref-layouts.md` beschreven de verdwenen keuze
 verwijderd (de viewer valt terug op EN) — `verify:docs` eist gelijke kopstructuur, en een stale
 vertaling van een verdwenen UI is erger dan een Engelse terugval. Ze volgen met de maandelijkse ronde.
 
+## Vervolg: issue #173 (manu varkey, 2026-09-24)
+
+- **Afvallen ruimt op** (`dropBrokenLayouts`, `viewSlice.settleManualChange`). Een handmatige
+  wijziging aan een gedragen deel zette de knop uit maar liet zijn andere delen staan. Nu gaan die
+  andere delen terug naar `restore`, precies als bij uitzetten; alleen het gewijzigde deel houdt zijn
+  waarde. De melder vroeg om "standaardwaarden", en `restore` is daarvan de consistente vorm: het
+  beeld van vóór de knop. Alleen voor de weloverwogen delen (filter, groep, sortering, relatielijnen,
+  overlays): zoomen en kolombreedtes zetten de knop uit maar wissen niet ongevraagd je filter. Het
+  opruimen is geen eigen undo-stap (de handmatige wijziging is dat ook niet); Ctrl+Z valt terug op
+  de layoutklik.
+- **Overlay als deel** (`Layout.overlays`): baseline, voortgangslijn, statusdatumlijn,
+  resource-accent, spelingsband en balkkleuren. Dat zijn app-brede `ui`-instellingen (persisted) en
+  geen documentview, dus ze zitten niet in de view-undo. `showRelations` blijft een eigen deel voor
+  bestaande layouts; in de dialoog staan beide onder één vinkje **Overlay**. Dat vervangt besluit 4
+  ("een layout uit de dialoog legt de relatielijnen altijd vast"): de overlaygroep is nu opt-in,
+  net als de andere delen.
+- **Resourcetype** (`FieldRef { src: 'resourceType' }`) bij groeperen en sorteren, in de vaste
+  typevolgorde van het rapport (`RESOURCE_TYPE_BAND_ORDER`, nu in `filterEval.ts`). Geneste banden
+  sluiten op elkaar aan: onder de typeband Arbeid alleen de arbeidsresources. Geen filter- of
+  kleurveld (types hebben geen kleur).
+
 ## Niet gebouwd: werkdagen in de bandkop
 
 gfayat vraagt het totaal aantal werkdagen per resource. Drie definities geven drie getallen (bezette

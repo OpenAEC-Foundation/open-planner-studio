@@ -514,6 +514,7 @@
   "defaultInspection": "New inspection point",
   "column": {
     "resource": "Resources",
+    "resourceType": "Resource type",
     "activityCodeSuffix": "activity code",
     "customFieldSuffix": "custom field"
   },

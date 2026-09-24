@@ -844,7 +844,9 @@
       "applyOnly": "Applica senza salvare",
       "infoApplyOnly": "Applica allo schermo le parti selezionate senza creare un pulsante di layout. Utile per un filtro rapido e temporaneo.",
       "columnsNote": "Riprende le colonne così come sono ora nella tabella. Le colonne si scelgono con il più nell’intestazione della tabella.",
-      "relationsShow": "Mostra le linee di relazione"
+      "relationsShow": "Mostra le linee di relazione",
+      "partOverlays": "Sovrapposizione",
+      "infoOverlays": "Linee di relazione, baseline, linea di avanzamento, linea della data di stato, accento risorsa, banda di margine e colori delle barre. Non spuntato: restano come sono."
     },
     "presentation": {
       "hint": "Premi Esc o F11 per uscire dalla modalità a schermo intero."
