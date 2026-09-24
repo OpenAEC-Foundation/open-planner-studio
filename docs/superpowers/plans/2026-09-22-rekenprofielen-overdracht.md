@@ -82,6 +82,13 @@ manifest worden in integratieronde 3 op 2026-09-23 gezet.*
   C5/C6); landing `claude/x12-vraag7-b3-b4-a17` (`b3121e2e`) wordt gemerged. Kanttekening bekend: A21
   werkt alleen samen met B3.
 
+**2026-09-24 ochtend (07:50), op de vragen 13 en het UI-groepenvoorstel, letterlijk:**
+"Vraag 13, ja uitsluiten" — EC1420 (HarbourPointe) gaat óók uit de meetlat, zelfde grond als de acht
+taken van vraag 8 (afgeleide van verouderde P6-uitvoer via EC1430); daarmee mag C14 (ALAP,
+`p6AlapPositionedFromSuccessors`, naslag `origin/claude/x12-c10-alap-port` 4b04925e) landen.
+"Mergen" — het UI-voorstel conventies-per-thema (`claude/x12-ui-conventies-groepen` 9e54c952) wordt
+gemerged, zonder aanpassingen gevraagd.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
