@@ -114,6 +114,11 @@ melding"** — het project opent zónder archief, met één in-app melding (K8a-
 onbruikbaar is en wat dat betekent (geen "datums zoals opgeslagen", geen herkomst); draait het
 XER-etappebesluit "geen fallback" om; eigen branch vanaf de #109-PR-branch.
 
+**2026-09-24 ~19:00, vraag 16 (statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
+`plan_end_date`, 37 corpusprojecten), letterlijk: "eigen PR"** — de lezer verzint geen anker meer (P6 valt
+terug op het netwerkeinde); eigen branch vanaf de #109-PR-branch, meting vóór/ná op #109 én op #169, herpin
+volgens het recept, alleen landen als geen cel slechter wordt.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -318,8 +323,8 @@ XER-etappebesluit "geen fallback" om; eigen branch vanaf de #109-PR-branch.
 - 14. **Beantwoord 24-09 ~18:45: "laten"** (§1a). Regel 7a/A21 blijft zoals hij is.
 - 15. **Beantwoord 24-09 ~18:55: "openen met melding"** (§1a); agent `opus-midden-archief-fallback` op
   `claude/xer-archief-fallback` vanaf de #109-PR-branch.
-- 16. Statisch anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37
-  corpusprojecten, niet P6): eigen PR met herpin? Advies: ja, na #109.
+- 16. **Beantwoord 24-09 ~19:00: "eigen PR"** (§1a); agent `opus-midden-anker-projecteinde` op
+  `claude/xer-anker-projecteinde` vanaf de #109-PR-branch.
 - 17. Documentnaam bij XER-import = P6 Project-ID i.p.v. projectnaam: omzetten naar projectnaam (met ID als
   suffix)? Advies: ja, kleine UX-fix in #109.
 
