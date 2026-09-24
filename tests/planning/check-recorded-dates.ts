@@ -1403,14 +1403,24 @@ const offerOnly = (ifcText: string): ImportResult => ({
   eq('16q Ctrl+Z na F5: modus weer aan, vlag AAN, wel vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, true]);
   S().redo();
   eq('16r Ctrl+Y: modus weer uit, vlag nog steeds aan, vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, true]);
-  // "Toon opgeslagen datums" vanuit de AANBOD-stand met de vlag aan. Synthetisch opgezet: de
-  // aanbodstand (heropend eigen IFC mét bron, zonder vlag — sinds 2026-09-24 kent een import zonder
-  // bron geen aanbod meer) en daarna de vlag rechtstreeks aan, want elk echt pad met de vlag aan gaat
-  // meteen zelf de modus in; het gaat hier alleen om de stap die `showRecordedDates` als
-  // niet-bewerking vastlegt.
-  S().newProject();
-  S().applyLoadedProject(offerOnly(externIfc('16s')), { filePath: null, recompute: true });
-  useAppStore.setState({ importPristine: true });
+  // "Toon opgeslagen datums" vanuit de AANBOD-stand met de vlag aan. Het ECHTE pad daarheen
+  // (tweede critreview-ronde, punt 5, nagelopen): een XER-document in de modus → F5 (verlaat de
+  // modus, wist de vastlegging, laat de vlag staan — 16f) → crash → herstel met manifestvlag
+  // `datesAsRecorded: false`. Het herstelde IFC draagt de vlag én het XER-archief (dat de
+  // vastlegging opnieuw levert), en het herstel zet de modus niet aan: aanbod + vlag aan. Hier
+  // nagebootst met de #63-fixture als archiefvastlegging; de herstelroute zelf is de echte.
+  // (Via een eigen IFC zonder archief kan het sinds de SourceFormat-poort niet meer: buiten de
+  // modus wordt geen bron geschreven, dus dan is er bij herstel ook geen aanbod.)
+  {
+    const src = readIFC(externIfc('16s'));
+    const archiefTijden = captureRecordedDates(src.tasks, src.recordedFields).times;
+    const na_f5: ImportResult = {
+      ...src, recordedFields: undefined, recordedTimes: archiefTijden,
+      recordedTimesOrigin: 'xer-archive', importPristine: true,
+    };
+    S().newProject();
+    S().restoreDocuments([recoveryInputFromParsed(na_f5, { id: 'rec-16s', filePath: null, isDirty: false, datesAsRecorded: false })], 'rec-16s');
+  }
   eq('16s0 aanbodstand met vlag aan', [S().datesAsRecorded, S().recordedDates !== null, S().importPristine, S().isDirty], [false, true, true, false]);
   S().showRecordedDates();
   eq('16s "toon opgeslagen datums": modus aan, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);
