@@ -138,8 +138,6 @@ function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: num
     // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
     // (store en MCP roepen de herschaling onvoorwaardelijk aan).
     rescaleContours: Number.isFinite(hoursPerDay) && hoursPerDay > 0,
-    // TIJDELIJK (volgende commit): de afknipregel staat hier nog uit — gedrag van vóór de refactor.
-    clipUserGaps: false,
   });
 }
 

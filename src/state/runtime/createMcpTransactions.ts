@@ -315,8 +315,7 @@ function createMcpDraft(
       // zie `applyDurationChangeRules` in taskDefaults.ts. Een kalenderwissel ontkoppelt daarnaast
       // het Z8-venster (Z14b, zelfde triggerset/uitleg in `taskDefaults.ts`).
       let lost = false;
-      // TIJDELIJK (volgende commit): de afknipregel staat hier nog uit — gedrag van vóór de refactor.
-      if (timeUpdateTouchesTimephasedWindow(time)) lost = applyDurationChangeRules(s.tasks[idx], oldWorkMinutes, contourHpd, { clipUserGaps: false });
+      if (timeUpdateTouchesTimephasedWindow(time)) lost = applyDurationChangeRules(s.tasks[idx], oldWorkMinutes, contourHpd);
       if ('calendarId' in rest) lost = invalidateForTimeBaseChange(s.tasks[idx]) || lost;
       // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
       if (lost) recordTimephasedLoss(id);
@@ -372,8 +371,7 @@ function createMcpDraft(
       // `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.
       // `timeUpdateTouchesTimephasedWindow` (die verwacht de bredere `TaskTime`-vorm).
       let lost = false;
-      // TIJDELIJK (volgende commit): de afknipregel staat hier nog uit — gedrag van vóór de refactor.
-      if (timeTouched) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd, { clipUserGaps: false });
+      if (timeTouched) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
       // Z14b — een kalenderwissel ontkoppelt het Z8-venster, zie `updateTaskFields` hierboven.
       if ('calendarId' in top) lost = invalidateForTimeBaseChange(task) || lost;
       if (lost) recordTimephasedLoss(id); // zie `updateTaskFields` hierboven.

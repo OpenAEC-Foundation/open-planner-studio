@@ -637,16 +637,15 @@ export function rescaleTaskContours(
  *
  * `opts.rescaleContours: false` slaat stap 1 over (het raster doet dat bij een onbruikbare
  * uren-per-dag, zie `finishDurationEdit` in taskEditPlan.ts); stap 2 geldt dan zoals zonder contour.
- * `opts.clipUserGaps: false` slaat stap 2 over.
  */
 export function applyDurationChangeRules(
   task: Task,
   oldWorkMinutes: number,
   hoursPerDay: number,
-  opts?: { rescaleContours?: boolean; clipUserGaps?: boolean },
+  opts?: { rescaleContours?: boolean },
 ): boolean {
   const rescaled = opts?.rescaleContours !== false && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
-  if (!rescaled && opts?.clipUserGaps !== false && task.splitGaps !== undefined) {
+  if (!rescaled && task.splitGaps !== undefined) {
     const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
     if (newWorkMinutes < oldWorkMinutes - 1e-6) {
       const clipped = clipUserGapsToWork(task.splitGaps, newWorkMinutes);
