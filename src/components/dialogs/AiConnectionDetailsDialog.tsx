@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getTools, TOOL_PREFIX } from '@/services/mcp/toolRegistry';
 
 /**
@@ -124,14 +124,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-ai-connection-dialog': true }}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {t('ai.connectionDetailsTitle')}
-        </span>
-        <button onClick={onClose} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('close')}>
-          <X size={16} />
-        </button>
-      </div>
+      <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} closeAriaLabel={t('close')} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {/* Endpoint */}

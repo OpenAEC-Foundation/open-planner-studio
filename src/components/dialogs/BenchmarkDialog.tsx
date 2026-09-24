@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Gauge, Copy, Check, Play, AlertTriangle } from 'lucide-react';
+import { Gauge, Copy, Check, Play, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { TFunction } from 'i18next';
 import { BENCHMARK_SIZES, BENCHMARK_RESOURCE_COUNTS, DEFAULT_RESOURCE_COUNT } from '@/services/benchmark/generateProject';
 import {
@@ -102,15 +102,13 @@ export function BenchmarkDialog() {
       panelProps={{ 'data-ops-benchmark-dialog': true }}
     >
       {/* Kop */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-body leading-5 font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-          <Gauge size={16} />
-          {t('benchmark.title')}
-        </span>
-        <button onClick={close} disabled={running} className="p-1 hover:bg-surface-hover rounded-[8px] disabled:opacity-40" aria-label={t('close')}>
-          <X size={16} />
-        </button>
-      </div>
+      <DialogHeader
+        title={t('benchmark.title')}
+        icon={<Gauge size={16} />}
+        onClose={close}
+        closeDisabled={running}
+        closeAriaLabel={t('close')}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
         <p className="text-text-secondary">{t('benchmark.intro')}</p>

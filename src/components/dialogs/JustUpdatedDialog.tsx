@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, ArrowDown, ArrowUp, ExternalLink, Download, Library, GitBranch, ListTree, Boxes, BookOpen } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { ArrowDown, ArrowUp, ExternalLink, Download, Library, GitBranch, ListTree, Boxes, BookOpen } from 'lucide-react';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getInstallKind } from '@/services/updater/updaterService';
 import { fetchReleaseComparison, type ReleaseComparison } from '@/services/updater/releaseInfo';
 import { formatBytes } from '@/utils/formatBytes';
@@ -85,14 +85,12 @@ export function JustUpdatedDialog() {
       panelProps={{ 'data-ops-just-updated-dialog': true }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-body leading-5 font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-          {t('updates.justUpdated.title')}
-        </span>
-        <button onClick={close} aria-label={t('close')} className="p-1 hover:bg-surface-hover rounded-[8px]" title={t('close')}>
-          <X size={16} />
-        </button>
-      </div>
+      <DialogHeader
+        title={t('updates.justUpdated.title')}
+        onClose={close}
+        closeAriaLabel={t('close')}
+        closeTitle={t('close')}
+      />
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5 text-small leading-4">

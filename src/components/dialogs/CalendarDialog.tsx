@@ -1,12 +1,12 @@
 import { useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Plus, Copy, Trash2, Star } from 'lucide-react';
+import { Plus, Copy, Trash2, Star } from 'lucide-react';
 import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
 import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
 
@@ -155,14 +155,7 @@ export function CalendarDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[860px] max-h-[90vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-calendar-dialog': true, onKeyDown: commitOnInputEnter }}
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {tCommon('calendar.library.title')}
-          </span>
-          <button onClick={cancel} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={tCommon('calendar.library.title')} onClose={cancel} />
 
         <div className="flex flex-1 overflow-hidden">
           {/* Links: bibliotheek-lijst (lokale buffer) */}

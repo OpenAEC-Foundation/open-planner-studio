@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { readPoolIFC, resolveUniqueCompanyName, resolvePoolImportPreselection, classifyPoolImportIdentityHint } from '@/services/library';
 import { openFileDialog } from '@/services/fileAccess';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { CompanyPool } from '@/types/library';
 
 const TARGET_COMPANY_SELECT_ID = 'pool-import-target-company';
@@ -141,14 +141,7 @@ export function PoolImportDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-pool-import-dialog': true }}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {t('companyLibrary.importTitle')}
-        </span>
-        <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-          <X size={16} />
-        </button>
-      </div>
+      <DialogHeader title={t('companyLibrary.importTitle')} onClose={close} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         <button onClick={() => { void pick(); }} className="btn btn--sm btn--secondary self-start">
