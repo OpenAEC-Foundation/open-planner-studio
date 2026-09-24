@@ -692,6 +692,12 @@ function classifyDeps(
     if (!lag.ok) { rejections.push({ id: label, reason: lag.reason }); continue; }
     if (!byId.has(d.predecessorId)) { rejections.push({ id: label, reason: `voorganger '${d.predecessorId}' bestaat niet` }); continue; }
     if (!byId.has(d.successorId)) { rejections.push({ id: label, reason: `opvolger '${d.successorId}' bestaat niet` }); continue; }
+    // Zelfrelatie: per item zacht weigeren, net als `update_dependencies` — anders ziet de kring-
+    // check hieronder een a→a-lus en rolt de HELE call terug als harde CYCLE.
+    if (d.predecessorId === d.successorId) {
+      rejections.push({ id: label, reason: `een relatie kan taak '${d.predecessorId}' niet met zichzelf verbinden` });
+      continue;
+    }
     // Een verzameltaak-eindpunt is sinds 2026-08-15 legaal (expandSummaryRelations rekent zo'n
     // relatie door naar de onderliggende bladtaken — MS Project-semantiek). Alleen een relatie
     // tussen een taak en zijn EIGEN (voor)ouder-samenvatting blijft zinloos (directe cyclus na

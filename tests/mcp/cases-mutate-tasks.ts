@@ -253,6 +253,23 @@ test('add_dependencies: duplicaat in dezelfde call ⇒ één toegepast, één za
   assertEq(seqs.length, 1, 'store bevat precies één a→b-relatie');
 });
 
+test('add_dependencies: zelfrelatie ⇒ zachte weigering per item, de rest van de call gaat door', async () => {
+  reset();
+  const a = store.getState().addTask({ name: 'self-a' });
+  const b = store.getState().addTask({ name: 'self-b' });
+  const res = await call('planner_add_dependencies', {
+    dependencies: [
+      { predecessorId: a, successorId: a, type: 'FINISH_START' },
+      { predecessorId: a, successorId: b, type: 'FINISH_START' },
+    ],
+  }, makeCtx());
+  const data = okData(res); // vóór de fix: harde CYCLE, de hele call teruggerold
+  assertEq(data.added.length, 1, 'de geldige relatie a→b is toegevoegd');
+  const rej = (res as McpToolOk).itemRejections ?? [];
+  assertEq(rej.length, 1, 'precies één weigering: de zelfrelatie');
+  assert(/zichzelf/.test(rej[0]?.reason ?? ''), 'de reden noemt de zelfrelatie (zelfde tekst als update_dependencies)');
+});
+
 // =================================================================================================
 // 8) remove_dependencies — verwijdert op sequence-id, onbekend id zacht
 // =================================================================================================
