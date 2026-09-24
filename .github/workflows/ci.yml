@@ -100,14 +100,18 @@ jobs:
             name: planning
           - part: suites
             name: suites
-          # De browsersuite is de langste stap (~7,5 min); Playwright verdeelt de spec-bestanden
-          # over twee runners. Elke shard start zijn eigen bewaakte Vite-server.
+          # De browsersuite is de langste stap (~7,5 min in één job); Playwright verdeelt de
+          # spec-bestanden over drie runners (met twee was de langste shard 5 min 11 s, de
+          # bottleneck van de hele controle). Elke shard start zijn eigen bewaakte Vite-server.
           - part: browser
-            name: browser 1-2
-            shard: 1/2
+            name: browser 1-3
+            shard: 1/3
           - part: browser
-            name: browser 2-2
-            shard: 2/2
+            name: browser 2-3
+            shard: 2/3
+          - part: browser
+            name: browser 3-3
+            shard: 3/3
 
     steps:
       - uses: actions/checkout@v5

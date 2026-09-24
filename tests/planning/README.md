@@ -16,6 +16,10 @@ bash tests/planning/run.sh cases-relations.json check-document-contract.ts   # d
 Exit 0 = alles groen, exit 1 = afwijking (toont per geval het verschil verwacht↔actueel).
 `run.sh` bundelt `harness.ts` met esbuild (komt met Vite mee) en draait het op Node — geen extra deps.
 
+De tijdzone-matrix aan het eind (alle bundels opnieuw onder vijf tijdzones) draait de zones
+tegelijk, hoogstens zoveel als er processorkernen zijn; `OPS_TZ_JOBS=1 bash tests/planning/run.sh`
+draait ze één voor één, zoals vroeger. De uitvoer staat altijd in vaste zonevolgorde.
+
 ### Gerichte runs
 
 Zodra je één of meer bestandsnamen meegeeft — `cases-*.json` en/of `check-*.ts`, door elkaar — draait
