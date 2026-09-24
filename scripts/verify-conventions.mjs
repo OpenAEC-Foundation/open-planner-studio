@@ -17,16 +17,25 @@
 //     (`convention('…')` in CONVENTIONS, src/engine/scheduler/conventions/registry.ts) plus de projectopties
 //     (de overige leden van `interface SchedulingOptions` in src/types/project.ts). Elke lezing op een
 //     opties-object — `schedulingOptions`, een variabele/parameter/klasseveld die daaruit komt of het type
-//     SchedulingOptions/EffectiveSchedulingOptions/… draagt — moet een van die sleutels zijn: een onbekende
-//     sleutel, een niet-letterlijke sleutel (`so[k]`) of een berekende destructuring is rood. De map
-//     src/engine/scheduler/conventions/ zelf (het register, dat generiek over de sleutels loopt) is vrij.
-//  5. Elke conventie uit het register wordt ergens in de motor op een opties-object gelezen; een
-//     registerconventie zonder lezing is rood (een knop die niets doet). Alleen als het register onder
-//     --root bestaat; fixtures zonder register lenen de sleutels van deze repository en slaan dit over.
+//     SchedulingOptions/EffectiveSchedulingOptions/… draagt, ook via een hernoemde import (`as SO`), een
+//     lokale type-alias of `import('…').SchedulingOptions` — moet een van die sleutels zijn: een onbekende
+//     sleutel, een niet-letterlijke sleutel (`so[k]`), een berekende destructuring, `Reflect.get/has` met
+//     een onbekende of niet-letterlijke sleutel en `Object.keys/values/entries/getOwnPropertyNames` op
+//     een opties-object zijn rood. De map src/engine/scheduler/conventions/ zelf (het register, dat
+//     generiek over de sleutels loopt) is vrij.
+//  5. Elke conventie uit het register wordt gelezen in een bestand dat vanuit de solver bereikbaar is
+//     (importgraaf vanaf solveProject.ts, `import type` telt niet); een registerconventie zonder zo'n
+//     lezing is rood (een knop die niets doet). Alleen als het register onder --root bestaat; fixtures
+//     zonder register lenen de sleutels van deze repository en slaan dit over.
 //  6. Herkomstnamen (`p6…`/`xer…`/`mpp…`/`msp…`/`mpx…` + hoofdletter) als property-lezing in de motor
-//     moeten een registersleutel, projectoptie, datagate of een binnen de motor gedeclareerde naam
-//     (functie, methode, klasseveld, variabele, object-literal-eigenschap — GEEN interface-/type-lid) zijn.
-//     Zo is een nieuw bronveld (bv. `calendar.p6NonWorkPenaltyDates`) geen gratis formaat-if meer.
+//     moeten een registersleutel, projectoptie of datagate zijn — of een EIGEN lid in hetzelfde bestand:
+//     een klasselid gelezen op `this`, of een eigenschap van een in dat bestand gedeclareerd object-literal
+//     of `new EigenKlasse()`, gelezen op die variabele. Zo is een nieuw bronveld (bv.
+//     `calendar.p6NonWorkPenaltyDates`) geen gratis formaat-if meer.
+//  Wat deze syntactische poort NIET ziet (bewust, geen typechecker): een opties-object dat via een helper
+//  in een ANDER bestand wordt doorgegeven onder een naam die daar geen opties-naam of -type draagt; een
+//  waarde die al als `any`/onbekend type binnenkomt en daarna gelezen wordt; aliassen worden per bestand
+//  op naam bijgehouden. Voor getypte code vangt `tsc` een onbekende sleutel op een opties-type al.
 //  3. Tijdelijke allowlist (scripts/verify-conventions.allowlist.json, `{ pad: reden }`): een vermeld
 //     bestand onder src/engine/ is vrijgesteld van regel 1-namen (NIET van de import-regel). Elke reden
 //     moet `TIJDELIJK` bevatten en het bestand moet bestaan — een verouderde regel is rood, zodat de
@@ -180,13 +189,25 @@ for (const key of conventionKeys) {
 const OPTION_KEYS = new Set([...conventionKeys, ...projectOptionKeys]);
 const conventionReads = new Map([...conventionKeys].map((key) => [key, 0]));
 
+/** De opties-typenamen van het bestand dat nu gescand wordt: de letterlijke namen plus hernoemde
+ *  imports (`SchedulingOptions as SO`) en lokale type-aliassen daarvan; per bestand gezet. */
+let fileOptionTypeNames = OPTION_TYPE_NAMES;
 /** Is dit type(knoop) een opties-type (eventueel `| undefined`, of via Pick/Partial/…)? */
 function isOptionsType(typeNode) {
   if (!typeNode) return false;
   if (ts.isParenthesizedTypeNode(typeNode)) return isOptionsType(typeNode.type);
-  if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
-    if (OPTION_TYPE_NAMES.has(typeNode.typeName.text)) return true;
-    if (OPTION_TYPE_WRAPPERS.has(typeNode.typeName.text)) return isOptionsType(typeNode.typeArguments?.[0]);
+  // `import('…').SchedulingOptions`
+  if (ts.isImportTypeNode(typeNode)) {
+    const q = typeNode.qualifier;
+    const last = q && (ts.isIdentifier(q) ? q.text : ts.isQualifiedName(q) ? q.right.text : undefined);
+    return last !== undefined && OPTION_TYPE_NAMES.has(last);
+  }
+  if (ts.isTypeReferenceNode(typeNode)) {
+    const name = ts.isIdentifier(typeNode.typeName) ? typeNode.typeName.text
+      : ts.isQualifiedName(typeNode.typeName) ? typeNode.typeName.right.text : undefined;
+    if (name === undefined) return false;
+    if (fileOptionTypeNames.has(name)) return true;
+    if (OPTION_TYPE_WRAPPERS.has(name)) return isOptionsType(typeNode.typeArguments?.[0]);
     return false;
   }
   if (ts.isUnionTypeNode(typeNode) || ts.isIntersectionTypeNode(typeNode)) {
@@ -197,25 +218,93 @@ function isOptionsType(typeNode) {
   return false;
 }
 
-// ── Regel 6: in de motor gedeclareerde namen (geen interface-/type-leden) ─────────────────────────
-const engineDeclared = new Set();
+// ── Regel 6: herkomstnamen die de motor zelf declareert — alleen per bestand, alleen op `this` of op
+// een in hetzelfde bestand gedeclareerd object-literal / `new EigenKlasse()` (critreview 2e ronde: een
+// losse variabele of functie met dezelfde naam ergens in de motor stelt de naam NIET vrij).
 const parsed = new Map(files.map((file) => [file, parse(file)]));
-for (const sourceFile of parsed.values()) {
+function ownMembersOf(sourceFile) {
+  const classMembers = new Map();
+  const objects = new Map();
+  const memberNames = (members) => new Set(members.filter((m) => m.name && ts.isIdentifier(m.name)).map((m) => m.name.text));
   const walk = (node) => {
-    if ((ts.isMethodDeclaration(node) || ts.isPropertyDeclaration(node) || ts.isGetAccessorDeclaration(node)
-        || ts.isSetAccessorDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isPropertyAssignment(node)
-        || ts.isShorthandPropertyAssignment(node) || ts.isVariableDeclaration(node))
-        && node.name && ts.isIdentifier(node.name)) engineDeclared.add(node.name.text);
+    if ((ts.isClassDeclaration(node) || ts.isClassExpression(node)) && node.name) classMembers.set(node.name.text, memberNames(node.members));
     ts.forEachChild(node, walk);
   };
   walk(sourceFile);
+  const thisMembers = new Set([...classMembers.values()].flatMap((set) => [...set]));
+  const walk2 = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      let init = node.initializer;
+      while (ts.isParenthesizedExpression(init) || ts.isAsExpression(init) || ts.isSatisfiesExpression(init)) init = init.expression;
+      if (ts.isObjectLiteralExpression(init)) objects.set(node.name.text, memberNames(init.properties));
+      else if (ts.isNewExpression(init) && ts.isIdentifier(init.expression) && classMembers.has(init.expression.text)) {
+        objects.set(node.name.text, classMembers.get(init.expression.text));
+      }
+    }
+    ts.forEachChild(node, walk2);
+  };
+  walk2(sourceFile);
+  return (receiver, name) => {
+    let r = receiver;
+    while (ts.isParenthesizedExpression(r) || ts.isNonNullExpression(r)) r = r.expression;
+    if (r.kind === ts.SyntaxKind.ThisKeyword) return thisMembers.has(name);
+    if (ts.isIdentifier(r)) return objects.get(r.text)?.has(name) === true;
+    return false;
+  };
 }
-const knownSourceName = (name) => OPTION_KEYS.has(name) || DATAGATES.includes(name) || engineDeclared.has(name);
+// ── Regel 5: alleen lezingen in bestanden die vanuit de solver bereikbaar zijn tellen (importgraaf over
+// de gescande motorbestanden, vanaf solveProject.ts; `import type` telt niet mee).
+const SOLVER_ROOTS = ['src/engine/scheduler/solveProject.ts'];
+function resolveEngineImport(fromFile, specifier) {
+  let base;
+  if (specifier.startsWith('@/')) base = resolve(root, 'src', specifier.slice(2));
+  else if (specifier.startsWith('.')) base = resolve(dirname(fromFile), specifier);
+  else return undefined;
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}.mts`, join(base, 'index.ts')]) {
+    if (parsed.has(candidate)) return candidate;
+  }
+  return undefined;
+}
+const solverReachable = new Set();
+{
+  const queue = SOLVER_ROOTS.map((rel) => join(root, rel)).filter((file) => parsed.has(file));
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (solverReachable.has(file)) continue;
+    solverReachable.add(file);
+    parsed.get(file).forEachChild((node) => {
+      if ((ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) || ts.isExportDeclaration(node)) {
+        if (ts.isExportDeclaration(node) && node.isTypeOnly) return;
+        const spec = node.moduleSpecifier;
+        if (spec && ts.isStringLiteral(spec)) {
+          const target = resolveEngineImport(file, spec.text);
+          if (target && !solverReachable.has(target)) queue.push(target);
+        }
+      }
+    });
+  }
+}
+const knownSourceName = (name) => OPTION_KEYS.has(name) || DATAGATES.includes(name);
 
 const allowedHits = [];
 for (const file of files) {
   const sourceFile = parsed.get(file);
   const exempt = allowed.has(own(file));
+  const isOwnMember = ownMembersOf(sourceFile);
+  // Opties-typenamen van dit bestand: hernoemde imports en lokale type-aliassen erbij.
+  fileOptionTypeNames = new Set(OPTION_TYPE_NAMES);
+  for (let grewType = true; grewType;) {
+    grewType = false;
+    const walkTypes = (node) => {
+      if (ts.isImportSpecifier(node) && OPTION_TYPE_NAMES.has((node.propertyName ?? node.name).text)
+          && !fileOptionTypeNames.has(node.name.text)) { fileOptionTypeNames.add(node.name.text); grewType = true; }
+      if (ts.isTypeAliasDeclaration(node) && !fileOptionTypeNames.has(node.name.text) && isOptionsType(node.type)) {
+        fileOptionTypeNames.add(node.name.text); grewType = true;
+      }
+      ts.forEachChild(node, walkTypes);
+    };
+    walkTypes(sourceFile);
+  }
   const optionRules = !own(file).startsWith(CONVENTIONS_DIR);
   // Pre-pass: welke namen (variabelen, parameters, klassevelden) dragen in dit bestand een opties-object?
   const aliases = new Set(['schedulingOptions']);
@@ -286,26 +375,39 @@ for (const file of files) {
       } else if (!OPTION_KEYS.has(name)) {
         report(node, `'${name}' ${how} op een opties-object is geen registerconventie en geen projectoptie`
           + ' (regel B: een per-profiel-verschil is een conventie in het register)');
-      } else if (conventionReads.has(name)) {
+      } else if (conventionReads.has(name) && solverReachable.has(file)) {
         conventionReads.set(name, conventionReads.get(name) + 1);
       }
     };
     // Regel 6: een herkomstnaam die de motor niet zelf declareert en die nergens gepind is.
-    const sourceName = (name, how) => {
-      if (SOURCE_NAME.test(name) && !FORBIDDEN_NAMES.has(name) && !knownSourceName(name)) {
+    const sourceName = (name, how, receiver) => {
+      if (SOURCE_NAME.test(name) && !FORBIDDEN_NAMES.has(name) && !knownSourceName(name)
+          && !(receiver && isOwnMember(receiver, name))) {
         report(node, `herkomstveld '${name}' ${how} in de motor — geen conventie, projectoptie of gepinde datagate`
           + ' (maak er een conventie van, of zet hem na bespreking op de datagatelijst)');
       }
     };
     if (ts.isPropertyAccessExpression(node)) {
       if (isOptionsExpr(node.expression)) optionKey(node.name.text, 'als eigenschap');
-      else sourceName(node.name.text, 'als eigenschap');
+      else sourceName(node.name.text, 'als eigenschap', node.expression);
     }
     if (ts.isElementAccessExpression(node)) {
       const arg = node.argumentExpression;
       const name = ts.isStringLiteralLike(arg) ? arg.text : null;
       if (isOptionsExpr(node.expression)) optionKey(name, name === null ? 'via een niet-letterlijke sleutel' : 'via string-index');
-      else if (name !== null) sourceName(name, 'via string-index');
+      else if (name !== null) sourceName(name, 'via string-index', node.expression);
+    }
+    // Generieke lezingen die de sleutel verbergen: Reflect.get/has en Object.keys/values/entries/assign-bron.
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression)) {
+      const callee = `${node.expression.expression.text}.${node.expression.name.text}`;
+      const first = node.arguments[0];
+      if (['Reflect.get', 'Reflect.has', 'Reflect.getOwnPropertyDescriptor'].includes(callee) && first && isOptionsExpr(first)) {
+        const key = node.arguments[1];
+        optionKey(key && ts.isStringLiteralLike(key) ? key.text : null, `via ${callee}`);
+      } else if (['Object.keys', 'Object.values', 'Object.entries', 'Object.getOwnPropertyNames'].includes(callee)
+          && first && isOptionsExpr(first)) {
+        optionKey(null, `via ${callee}`);
+      }
     }
     if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.InKeyword
         && ts.isStringLiteralLike(node.left) && isOptionsExpr(node.right)) {
@@ -341,8 +443,8 @@ for (const file of files) {
 if (checkUnused) {
   const unread = [...conventionReads].filter(([, n]) => n === 0).map(([key]) => key);
   for (const key of unread) {
-    violations.push(`registerconventie '${key}' wordt nergens in de motor op een opties-object gelezen `
-      + '(een profielknop zonder effect — haal hem uit het register of lees hem in de motor)');
+    violations.push(`registerconventie '${key}' wordt nergens in de solver (vanuit ${SOLVER_ROOTS.join(', ')} bereikbaar) `
+      + 'op een opties-object gelezen (een profielknop zonder effect — haal hem uit het register of lees hem in de motor)');
   }
 }
 

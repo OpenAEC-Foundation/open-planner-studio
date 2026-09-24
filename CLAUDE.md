@@ -25,7 +25,7 @@ npm run verify:examples   # los: de gebundelde voorbeelden laden/rekenen door zo
 npm run verify:docs       # los: in-app gidsen — nl+en hard vereist, overige 12 talen indien aanwezig
 npm run verify:i18n       # los: ontbrekende vertaalsleutels t.o.v. nl (CLDR-pluralcategorieën meegerekend)
 npm run verify:store-boundaries # los: AST-poort — core-runtimefactories en storegebonden MCP-tools importeren nooit useAppStore/appStoreContext
-npm run verify:conventions # los: AST-poort — src/engine/ leest geen bronformaat (p6Source/readFormat/XER-bronsignalen/lezer-imports); opties-sleutels alleen uit het register (+ elke conventie gelezen); ongepinde p6…/xer…/mpp…/msp…-velden rood; herkomst-datagates gepind, alleen omlaag
+npm run verify:conventions # los: AST-poort — src/engine/ leest geen bronformaat (p6Source/readFormat/XER-bronsignalen/lezer-imports); opties-sleutels alleen uit het register (+ elke conventie gelezen in de solver); ongepinde p6…/xer…/mpp…/msp…-velden rood; herkomst-datagates gepind, alleen omlaag. Syntactisch: een opties-object via een helper in een ander bestand onder een neutrale naam, of via `any`, ziet hij niet
 npm run measure:profiles  # los: cel-baseline per rekenprofiel (regel A: geen exacte cel mag inexact worden); het P6-deel vereist OPS_XER_CORPUS
 npm run verify:release-highlights # los: controleert voor een getagde release de lokale updatehoogtepunten en statistieken
 npm run verify:gantt-boundaries # los: AST-poort voor renderer-, viewport-, pointer- en tabelgrenzen
