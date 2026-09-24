@@ -16,6 +16,13 @@ const BOUWVAK_I18N_KEY: Record<BouwvakChoice, 'none' | 'noord' | 'midden' | 'zui
   geen: 'none', noord: 'noord', midden: 'midden', zuid: 'zuid',
 };
 
+/** Keuzechip (aan/uit) van de kalenderdialoog: bouwvakkeuze hier, werkdagen in `CalendarForm`. */
+export function accentChipClass(active: boolean): string {
+  return 'px-2.5 py-1.5 rounded-[8px] border-[1.5px] transition-colors ' + (active
+    ? 'bg-accent text-white border-accent shadow-[var(--shadow-glow)]'
+    : 'bg-surface border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover');
+}
+
 /**
  * Gedeelde feestdagen-generator-velden (ontwerp §7.1/§7.2): land/regio, NL-bouwvak
  * (default GEEN — harde eis TODO.md r192-194) en een compacte preview met uitklapbare
@@ -115,12 +122,7 @@ export function CalendarGeneratorFields({
                   key={choice}
                   type="button"
                   onClick={() => onChange({ bouwvak: choice })}
-                  className={
-                    'px-2.5 py-1.5 rounded-[8px] border-[1.5px] transition-colors ' +
-                    (active
-                      ? 'bg-accent text-white border-accent shadow-[var(--shadow-glow)]'
-                      : 'bg-surface border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover')
-                  }
+                  className={accentChipClass(active)}
                 >
                   {tCommon(`calendar.generate.bouwvak.${BOUWVAK_I18N_KEY[choice]}` as 'calendar.generate.bouwvak.none')}
                 </button>

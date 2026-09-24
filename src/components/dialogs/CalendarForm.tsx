@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from 'lucide-react';
 import type { WorkCalendar, Holiday, WorkTimeBands } from '@/types/calendar';
-import { CalendarGeneratorFields } from './CalendarGeneratorFields';
+import { accentChipClass, CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { WorkTimeEditor } from './WorkTimeEditor';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { useAppStore } from '@/state/appStore';
@@ -602,12 +602,7 @@ export function CalendarForm({
               <button
                 key={day}
                 onClick={() => toggleWorkDay(day)}
-                className={
-                  'px-2.5 py-1.5 rounded-[8px] border-[1.5px] transition-colors ' +
-                  (active
-                    ? 'bg-accent text-white border-accent shadow-[var(--shadow-glow)]'
-                    : 'bg-surface border-[var(--theme-control-border)] text-text-secondary hover:bg-surface-hover')
-                }
+                className={accentChipClass(active)}
               >
                 {tMenu(`ribbon.calendarDialog.days.${day}` as 'ribbon.calendarDialog.days.1')}
               </button>
