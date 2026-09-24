@@ -24,7 +24,7 @@ import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT,
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands,
@@ -2110,26 +2110,6 @@ function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, str
       const mapped = resourceGuidMap.get(ifcGuid(contour.resourceId));
       if (mapped) contour.resourceId = mapped;
     }
-  }
-}
-
-/**
- * Fase 3 (H2) — `task.resourceIds` reconstrueren uit de assignments. Het IFC-bestand slaat de
- * taak↔resource-koppeling uitsluitend op via de `ResourceAssignment`s (IFCRELASSIGNSTOPROCESS +
- * OPS_Assignments); `resourceIds` is een afgeleide projectie daarvan en wordt NIET los in het
- * bestand bewaard (geen dubbele opslag/waarheid). Volgorde is deterministisch: eerste-zien in de
- * assignments-volgorde, met deduplicatie (één resource kan meerdere assignments op één taak hebben).
- */
-function reconstructResourceIds(tasks: Task[], assignments: ResourceAssignment[]): void {
-  const byTask = new Map<string, string[]>();
-  for (const a of assignments) {
-    let list = byTask.get(a.taskId);
-    if (!list) { list = []; byTask.set(a.taskId, list); }
-    if (!list.includes(a.resourceId)) list.push(a.resourceId);
-  }
-  for (const t of tasks) {
-    const ids = byTask.get(t.id);
-    if (ids) t.resourceIds = ids;
   }
 }
 
