@@ -168,10 +168,12 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
       if (!evaluate(filter, leaf, ctx)) continue;
       visible.add(leaf.id);
       dimmed.set(leaf.id, false);
-      let p = leaf.parentId;
-      while (p) {
-        if (!visible.has(p)) { visible.add(p); dimmed.set(p, true); }
-        p = byId.get(p)?.parentId ?? null;
+      // Stoppen bij de eerste al zichtbare ouder: die kreeg zijn hele keten al eerder mee. Dat is
+      // ook de cyclusbewaking (zoals `ancestorIds` in utils/wbs, maar zonder per blad een generator
+      // en Set — dit draait na elke mutatie): een `parentId`-kring liep hier anders eindeloos rond.
+      for (let p = leaf.parentId; p && !visible.has(p); p = byId.get(p)?.parentId ?? null) {
+        visible.add(p);
+        dimmed.set(p, true);
       }
     }
   }
