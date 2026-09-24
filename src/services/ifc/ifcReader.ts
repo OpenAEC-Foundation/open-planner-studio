@@ -575,10 +575,14 @@ function isoDurationLeadingDaysMinutes(iso: string): number {
   const neg = clean.startsWith('-');
   const tIdx = clean.indexOf('T');
   const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
-  const dayMatch = datePart.match(/(\d+)D/);
+  // Zelfde getalvorm als `parseDurationDays`: een decimale fractie mag (ISO 8601; `(\d+)` las bij
+  // `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen — audit import/export nr. 1). Het resultaat
+  // blijft een hele minuut, zoals `isoDurationToMinutes` levert.
+  const dayMatch = datePart.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
   if (!dayMatch) return 0;
-  const days = parseInt(dayMatch[1], 10);
-  return (neg ? -days : days) * MIN_PER_CALENDAR_DAY;
+  const days = parseFloat(dayMatch[1]);
+  if (!Number.isFinite(days)) return 0;
+  return Math.round((neg && days > 0 ? -days : days) * MIN_PER_CALENDAR_DAY);
 }
 
 function parseTaskType(s: string): TaskType {
