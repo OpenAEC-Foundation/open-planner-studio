@@ -630,6 +630,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GPLCHECK="$DIR/.gantt-progress-line.mjs"
   if bundle_check "$DIR/check-gantt-progress-line.ts" "$GPLCHECK"; then node "$GPLCHECK" || STATUS=1; fi
 
+  # Datums uit de app zijn UTC-instants: de feestdagen-generatiespanne en de documentminiatuur
+  # lazen ze met lokale tijd (New York: 2026-01-01 werd 2025). Betekenis zit in de tijdzone-matrix.
+  LTPCHECK="$DIR/.local-time-parsing.mjs"
+  if bundle_check "$DIR/check-local-time-parsing.ts" "$LTPCHECK"; then node "$LTPCHECK" || STATUS=1; fi
+
   # U2: rasterdichtheid per zoom. De dagraster-lus tekende op elk zoomniveau een lijn per kalender-
   # dag; op jaarzoom werd het canvas daardoor een streeppatroon. Telt met de echte renderer de
   # verticale rasterlijnen bij dag-/week-/maandzoom (dagzoom moet ONGEWIJZIGD blijven).
