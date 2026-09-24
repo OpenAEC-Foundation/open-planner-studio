@@ -17,23 +17,14 @@ import {
 } from '@/services/library/applyDistribution';
 import type { DistributionProposal } from '@/services/library/distribute';
 import {
-  invalidateUndoneHistoryForScopes,
+  invalidateDocumentRedo,
   recordSessionHistoryDeltas,
   selectUndoHistoryEvent,
-  type HistoryScopeKey,
   type SessionHistoryEvent,
 } from '../sessionHistory';
 import { snapshotOfPayload, type Snapshot } from '../snapshot';
 import { capturePayload, hydratePayload, type DocumentPayload } from '../documentContract';
 import { materializeLibraryBoundary } from '../documentActivation';
-
-function invalidateDocumentRedo(
-  state: { historyEvents: import('../sessionHistory').SessionHistoryEvent[] },
-  documentId: string,
-): void {
-  const scope: HistoryScopeKey = `document:${documentId}`;
-  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
-}
 
 /** Het history-label van een B1c-verdeling. Zelfde soort korte Nederlandse omschrijving als
  *  `gridTransaction.ts` gebruikt; labels zijn interne historie-omschrijvingen, geen UI-tekst. */
