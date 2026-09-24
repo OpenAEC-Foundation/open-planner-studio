@@ -575,6 +575,75 @@ export function carryRemainingThroughDurationEdit(task: Task, oldWorkMinutes: nu
   return true;
 }
 
+/**
+ * Voortgangsbewerking en opgeslagen werk (Fable-critreview PR #170, bevinding 1; spec §4.3/§6.5).
+ * Een voortgangsbewerking is geen duurbewerking (B1: de driehoek blijft erbuiten), maar ze verplaatst
+ * wél werk van RESTANT naar VERRICHT: de identiteit rest = begroot − verricht (P6: Remaining Units =
+ * At Completion − Actual bij elke actual, spec §2.2) moet in beide richtingen blijven gelden. Zonder
+ * deze stap bleef `remainingWorkMinutes` op de oude waarde staan terwijl `assignmentDayUnits` het
+ * verrichte deel óók uit de voortgang afleidt — het histogram telde dan dubbel (10 d, W 4800, 50 %
+ * ⇒ 15 eenheid-dagen) en de driehoek rekende daarna met het te grote restwerk.
+ *
+ * Regel per toewijzing MET een opgeslagen restveld (zonder veld verandert er niets — dan is alles
+ * afgeleid en schuift het vanzelf mee; byte-identiek):
+ *  - verricht vóór = `actualWorkMinutes` als dat er is, anders afgeleid als verrichte duur × inzet
+ *    (dezelfde afleiding als laag 3 van `assignmentDayUnits`);
+ *  - nieuw restwerk = restwerk × nieuwe restduur ÷ oude restduur (het resttempo per restdag blijft —
+ *    ook voor een niet-sturende toewijzing met W_i / I_i < R); stond de rest op 0 (heropenen na
+ *    100 %), dan is er geen tempo en wordt het totaal (verricht + rest) naar rato van de restduur
+ *    over de hele duur verdeeld;
+ *  - nieuw verricht = verricht vóór + (restwerk − nieuw restwerk): het TOTAAL blijft, er schuift
+ *    alleen werk tussen de twee velden. Het verrichte veld wordt dus geschreven, ook als het er nog
+ *    niet stond — een voortgangsboeking is verricht-werkinvoer (spec §4.3, route (b)).
+ * De contour blijft ongemoeid: haar periodes zijn de vorm en worden door een voortgangsboeking niet
+ * hertypeerd (net als vandaag); het histogram leest bij een contour laag 1, niet de velden.
+ * Poort: alleen wanneer de TOTALE duur gelijk bleef en de rest veranderde (anders is het een
+ * duurbewerking en regelt `settleDurationEdit`/`carryRemainingThroughDurationEdit` de rest).
+ * Eén definitie voor store (`setTaskProgress`/`setActualStart`/`setActualFinish`/`updateTask`/
+ * `applyProgressImport`), taakraster, MCP-`updateTaskFields` en MCP-`progress.applyProgressUpdate`.
+ */
+export interface ProgressWorkCapture {
+  restMinutes: number;
+  totalMinutes: number;
+  ctx: WorkRuleContext;
+}
+
+/** Momentopname VÓÓR een voortgangsbewerking; `null` voor een verzameltaak (afgeleide voortgang). */
+export function captureProgressWork(task: Task, deps: WorkRuleDeps): ProgressWorkCapture | null {
+  if (task.childIds.length > 0) return null;
+  const ctx = workRuleContextOf(task, deps);
+  return { restMinutes: remainingMinutesOf(task, ctx), totalMinutes: totalMinutesOf(task, ctx), ctx };
+}
+
+/** Aanroepen NÁDAT de voortgang (en `applyProgressInvariants`) op de taak staat. Retourneert de ids
+ *  van de toewijzingen waarvan de werkvelden zijn herschreven. */
+export function settleProgressWork(task: Task, assignments: ResourceAssignment[], captured: ProgressWorkCapture | null): string[] {
+  if (!captured) return [];
+  const total = totalMinutesOf(task, captured.ctx);
+  if (Math.abs(total - captured.totalMinutes) > 1e-6) return [];
+  const restAfter = remainingMinutesOf(task, captured.ctx);
+  const restBefore = captured.restMinutes;
+  if (Math.abs(restAfter - restBefore) < 1e-6) return [];
+  const changed: string[] = [];
+  for (const a of assignments) {
+    if (a.taskId !== task.id) continue;
+    const w = a.remainingWorkMinutes;
+    if (w === undefined || !Number.isFinite(w)) continue;
+    const work = Math.max(0, w);
+    const doneBefore = a.actualWorkMinutes !== undefined && Number.isFinite(a.actualWorkMinutes)
+      ? Math.max(0, a.actualWorkMinutes)
+      : Math.max(0, total - restBefore) * a.unitsPerDay;
+    const nextRest = restBefore > 1e-6
+      ? work * restAfter / restBefore
+      : (total > 0 ? (doneBefore + work) * restAfter / total : 0);
+    const nextDone = Math.max(0, doneBefore + work - nextRest);
+    a.remainingWorkMinutes = nextRest;
+    a.actualWorkMinutes = nextDone;
+    changed.push(a.id);
+  }
+  return changed;
+}
+
 /** Eén taakraster-/MCP-batchwijziging op de toewijzingen van één taak, als reeks kernstappen. */
 export type AssignmentSettleOp =
   | { kind: 'remove'; assignmentId: string }

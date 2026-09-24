@@ -20,6 +20,7 @@ import type { AssignmentSetIntent, CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
 import { hasTaskTypeData } from '@/state/taskTypesVisibility';
+import { progress as mcpProgress } from '@/state/mcpValidation';
 import { __resetTaskTypesNoticeForTests, notifyTaskTypesUnlocked } from '@/state/taskTypesNotice';
 import { SETTINGS } from '@/utils/settingsRegistry';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
@@ -895,6 +896,80 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   const g = mk('s-g');
   const rg = runInMcpTransaction(() => { draft.removeResource(g.r); });
   eq('s6b MCP removeResource onder de standaardregel: nivelleergat weg, importsplit blijft', [rg.ok, task(g.t).time.scheduleDuration, kinds(g.t)], [true, 4, ['import']]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het opgeslagen restwerk (rest = begroot − verricht) --');
+{
+  // Probe uit de review: FIXED_WORK 10 d, W 4800 vastgelegd, 50 % ⇒ W 2400 (niet 4800), histogram-som 10
+  // (niet 15), en inzet 1→2 daarna ⇒ R = 2400/960 = 2,5 → 3 d, duur 8.
+  const sum = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 1e6) / 1e6;
+  const mk = (name: string) => {
+    const t = S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 10) });
+    const r = labor(`r-${name}`);
+    S().assignResource(t, r, 1);
+    S().runCPM();
+    S().setTaskWorkRule(t, 'FIXED_WORK');
+    return { t, r };
+  };
+  const load = (t: string, r: string) => sum(assignmentDayUnits(task(t), asgOf(t, r), slot()));
+  reset();
+  const a = mk('t-a');
+  eq('t0 voorwaarde: W 4800 vastgelegd, histogram 10', [asgOf(a.t, a.r).remainingWorkMinutes, load(a.t, a.r)], [10 * slot(), 10]);
+  S().setTaskProgress(a.t, 0.5);
+  eq('t1 setTaskProgress 50 %: restwerk 2400, verricht 2400', [asgOf(a.t, a.r).remainingWorkMinutes, asgOf(a.t, a.r).actualWorkMinutes], [5 * slot(), 5 * slot()]);
+  eq('t2 …histogram-som blijft 10 (geen dubbeltelling)', load(a.t, a.r), 10);
+  S().runCPM();
+  S().updateAssignment(asgOf(a.t, a.r).id, { unitsPerDay: 2 });
+  eq('t3 inzet 1→2 daarna: duur 8 (5 gedaan + 3 rest), rest 3', [task(a.t).time.scheduleDuration, task(a.t).time.remainingTime], [8, 3]);
+  // Beide richtingen: terugdraaien naar 20 % geeft werk terug aan de rest; totaal blijft.
+  reset();
+  const b = mk('t-b');
+  S().setTaskProgress(b.t, 0.5);
+  S().setTaskProgress(b.t, 0.2);
+  eq('t4 50 % → 20 %: rest 3840, verricht 960, histogram 10', [asgOf(b.t, b.r).remainingWorkMinutes, asgOf(b.t, b.r).actualWorkMinutes, load(b.t, b.r)], [8 * slot(), 2 * slot(), 10]);
+  S().setActualFinish(b.t, '2026-06-12');
+  eq('t5 actualFinish (100 %): rest 0, verricht 4800', [asgOf(b.t, b.r).remainingWorkMinutes, asgOf(b.t, b.r).actualWorkMinutes], [0, 10 * slot()]);
+  S().setTaskProgress(b.t, 0.5);
+  eq('t6 heropenen op 50 %: totaal blijft 4800, naar rato van de restduur', [asgOf(b.t, b.r).remainingWorkMinutes, asgOf(b.t, b.r).actualWorkMinutes, load(b.t, b.r)], [5 * slot(), 5 * slot(), 10]);
+  // Niet-sturende toewijzing (W_i / I_i < R): haar eigen tempo blijft, histogram = haar eigen werk.
+  reset();
+  // Standaardregel met een importwerkveld (zoals een XER-/MSPDI-toewijzing): taak 10 d, r2 4 slots.
+  const c = { t: S().addTask({ name: 't-c', time: createDefaultTaskTime('2026-06-01', 10) }) };
+  const r2 = labor('t-c2');
+  S().assignResource(c.t, labor('t-c1'), 1);
+  S().assignResource(c.t, r2, 1);
+  useAppStore.setState((s) => { const x = s.assignments.find((q) => q.taskId === c.t && q.resourceId === r2)!; x.remainingWorkMinutes = 4 * slot(); });
+  eq('t7 voorwaarde: tweede toewijzing 4 slots werk, taak 10 d', [load(c.t, r2), task(c.t).time.scheduleDuration], [4, 10]);
+  S().setTaskProgress(c.t, 0.5);
+  eq('t8 50 %: niet-sturende toewijzing rest 2, verricht 2, histogram 4', [asgOf(c.t, r2).remainingWorkMinutes, asgOf(c.t, r2).actualWorkMinutes, load(c.t, r2)], [2 * slot(), 2 * slot(), 4]);
+  // Standaardregel zonder werkveld: byte-identiek (geen veld erbij).
+  reset();
+  const d = S().addTask({ name: 't-d', time: createDefaultTaskTime('2026-06-01', 10) });
+  const rd = labor('t-d');
+  S().assignResource(d, rd, 1);
+  const beforeD = JSON.stringify(asgOf(d, rd));
+  S().setTaskProgress(d, 0.5);
+  eq('t9 zonder werkveld: toewijzing byte-identiek na voortgang', JSON.stringify(asgOf(d, rd)), beforeD);
+  // De andere voortgangspaden: updateTask (TaskDialog/extensie), raster, MCP-progress, MCP-updateTaskFields, voortgangsimport.
+  reset();
+  const e = mk('t-e');
+  S().updateTask(e.t, { time: { ...task(e.t).time, completion: 0.5, remainingTime: 5 } });
+  eq('t10 updateTask completion 50 %: rest 2400, histogram 10', [asgOf(e.t, e.r).remainingWorkMinutes, load(e.t, e.r)], [5 * slot(), 10]);
+  const f = mk('t-f');
+  const rf = runGridMutation([{ kind: 'cell-edit', taskId: f.t, columnId: 'task.time.completion' as CellEditIntent['columnId'], route: 'task-progress', value: 0.5 }]);
+  eq('t11 rastercel completion 50 %: rest 2400, histogram 10', [rf.ok, asgOf(f.t, f.r).remainingWorkMinutes, load(f.t, f.r)], [true, 5 * slot(), 10]);
+  const g = mk('t-g');
+  useAppStore.setState((s) => { s.project.statusDate = '2026-06-30'; });
+  let pr: { applied: boolean } = { applied: false };
+  useAppStore.setState((s) => { pr = mcpProgress.applyProgressUpdate(s, g.t, { completion: 50 }, '2026-06-30'); });
+  eq('t12 MCP progress 50 %: rest 2400, histogram 10', [pr.applied, asgOf(g.t, g.r).remainingWorkMinutes, load(g.t, g.r)], [true, 5 * slot(), 10]);
+  const h = mk('t-h');
+  const rh = runInMcpTransaction(() => { draft.updateTaskFields(h.t, { time: { ...task(h.t).time, completion: 0.5, remainingTime: 5 } }); });
+  eq('t13 MCP updateTaskFields completion 50 %: rest 2400, histogram 10', [rh.ok, asgOf(h.t, h.r).remainingWorkMinutes, load(h.t, h.r)], [true, 5 * slot(), 10]);
+  const k = mk('t-k');
+  S().applyProgressImport([{ rowNumber: 2, taskId: k.t, completion: { kind: 'value', value: 0.5 } }]);
+  eq('t14 voortgangsimport 50 %: rest 2400, histogram 10', [asgOf(k.t, k.r).remainingWorkMinutes, load(k.t, k.r)], [5 * slot(), 10]);
 }
 
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);

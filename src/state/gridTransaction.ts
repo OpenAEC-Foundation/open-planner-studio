@@ -23,6 +23,7 @@ import { markScheduleStale } from './transaction';
 import {
   captureCalendarChange, captureTriangle, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
   settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
+  captureProgressWork, settleProgressWork,
 } from '@/engine/work/workRuleApply';
 import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
@@ -734,6 +735,8 @@ function applyCellEdits(
   // O(taken × toewijzingen)-kost die de bulk-plak-meting hierboven juist wegnam).
   const current = state.tasks[taskIndex];
   const triangle = captureTriangle(current, assignmentsForTask, state);
+  // Fable-critreview #170, bevinding 1: een voortgangscel verplaatst opgeslagen werk van rest naar verricht.
+  const progressWork = captureProgressWork(current, state);
   const workRuleBefore = current.workRule;
   const planned = planTaskCellEdits(current, remainingEdits, environment);
   if (!planned.ok) return planned;
@@ -743,6 +746,7 @@ function applyCellEdits(
     scheduleStale ||= planned.value.scheduleStale;
     state.tasks[taskIndex] = planned.value.task;
     settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
+    settleProgressWork(state.tasks[taskIndex], state.assignments, progressWork);
     // Taaktypes-etappe (spec §7, besluit 2): een typewissel in het raster legt — net als
     // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
     if (state.tasks[taskIndex].workRule !== workRuleBefore) {

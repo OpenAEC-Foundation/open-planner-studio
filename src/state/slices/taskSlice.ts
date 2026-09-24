@@ -21,7 +21,7 @@ import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, settleCalendarChange,
-  settleDurationEdit, settleRuleChange,
+  settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
 import type { AppSliceFactory, SiblingDirection } from './types';
@@ -461,6 +461,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR de merge —
       // een duurwijziging laat de toewijzingen hun regel volgen (`settleDurationEdit` hieronder).
       const triangle = timeUpdateTouchesTimephasedWindow(time) ? captureTriangle(s.tasks[idx], s.assignments, s) : null;
+      // Fable-critreview #170, bevinding 1: een voortgangspatch (completion/rest) verplaatst opgeslagen
+      // werk van rest naar verricht — `settleProgressWork` hieronder; een duurpatch laat hij liggen.
+      const progressWork = time ? captureProgressWork(s.tasks[idx], s) : null;
       const restBefore = [s.tasks[idx].time.remainingTime, s.tasks[idx].time.remainingMinutes];
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
@@ -480,6 +483,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         // nieuwe duur. Onder de standaardregel zonder werkvelden gebeurt er niets (byte-identiek).
         settleDurationEdit(s.tasks[idx], s.assignments, triangle);
       }
+      settleProgressWork(s.tasks[idx], s.assignments, progressWork);
       if ('workRule' in updates && s.tasks[idx].workRule !== workRule) {
         settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
         if (workRule !== undefined) s.taskTypesVisible = true; // review K3: elk schrijfpad ontsluit.
@@ -1120,6 +1124,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
+      // Fable-critreview #170, bevinding 1: voortgang verplaatst opgeslagen werk van rest naar verricht.
+      const progressWork = captureProgressWork(task, s);
       const completion = Math.max(0, Math.min(1, raw));
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
@@ -1129,6 +1135,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      settleProgressWork(task, s.assignments, progressWork);
       // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
       // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
       // eigen aanroep; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts voor het waarom.
@@ -1156,8 +1163,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // functie se toelichting voor de volledige analyse (het uur-precies-op-de-statusdatum-dag-gat).
       if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+      const progressWork = captureProgressWork(task, s); // bevinding 1 — zie `setTaskProgress`.
       task.time.actualStart = date || undefined;
       applyProgressInvariants(task, s.project.statusDate);
+      settleProgressWork(task, s.assignments, progressWork);
       clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
@@ -1175,11 +1184,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `setActualStart` hierboven, geen tweede, potentieel afdrijvende implementatie).
       if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+      const progressWork = captureProgressWork(task, s); // bevinding 1 — zie `setTaskProgress`.
       task.time.actualFinish = date || undefined;
       // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
       // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
       if (!date && task.time.completion >= 1) task.time.completion = 0;
       applyProgressInvariants(task, s.project.statusDate);
+      settleProgressWork(task, s.assignments, progressWork);
       clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
       // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
       runtime.finishMutation(s, { stale: true });
@@ -1217,7 +1228,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       for (const row of plan.rows) {
         if (row.outcome !== 'apply') continue;
         const index = s.tasks.findIndex((t) => t.id === row.taskId);
-        if (index >= 0) s.tasks[index] = row.plannedTask!;
+        if (index >= 0) {
+          // Fable-critreview #170, bevinding 1 — zelfde werkverplaatsing als `setTaskProgress`.
+          const progressWork = captureProgressWork(s.tasks[index], s);
+          s.tasks[index] = row.plannedTask!;
+          settleProgressWork(s.tasks[index], s.assignments, progressWork);
+        }
       }
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });

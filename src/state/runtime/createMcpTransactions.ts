@@ -32,6 +32,7 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import {
   captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, planWorkEdit, commitTrianglePlan,
+  captureProgressWork, settleProgressWork,
   settleAssignmentAdded, settleAssignmentRemoved, settleCalendarChange, settleDurationAftermath, settleDurationEdit,
   settleRuleChange, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';
@@ -404,6 +405,7 @@ function createMcpDraft(
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       // Taaktypes-etappe (bouwstap 4) — tweeling van taskSlice.ts's `updateTask`: momentopname vóór.
       const triangle = timeUpdateTouchesTimephasedWindow(time) ? captureTriangle(s.tasks[idx], s.assignments, s) : null;
+      const progressWork = time ? captureProgressWork(s.tasks[idx], s) : null; // bevinding 1 — tweeling
       const restBefore = [s.tasks[idx].time.remainingTime, s.tasks[idx].time.remainingMinutes];
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
@@ -415,6 +417,7 @@ function createMcpDraft(
         rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd, contourKeepsWork(s.tasks[idx], s.project.defaultWorkRule));
         settleDurationEdit(s.tasks[idx], s.assignments, triangle);
       }
+      settleProgressWork(s.tasks[idx], s.assignments, progressWork);
       if ('workRule' in updates && s.tasks[idx].workRule !== workRule) {
         settleRuleChange(s.tasks[idx], s.assignments, s, workRule);
         if (workRule !== undefined) s.taskTypesVisible = true; // review K3
