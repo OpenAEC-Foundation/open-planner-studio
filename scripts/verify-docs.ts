@@ -50,6 +50,9 @@ const LANGS = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar',
 // alleen gevalideerd wanneer ze aanwezig zijn — zo faalt de poort niet op een nieuw artikel dat nog
 // niet vertaald is, terwijl bestaande vertalingen wél volledig getoetst blijven (structuur/drift/parser).
 const SOURCE_LANGS: readonly string[] = ['nl', 'en'];
+// Vertaalronde-modus: `npm run verify:docs -- --strict-translations` maakt de structuurcheck 6d ook
+// voor de 12 vertaaltalen hard. Standaard is een achterlopende vertaling daar een waarschuwing (zie 6d).
+const STRICT_TRANSLATIONS = process.argv.includes('--strict-translations');
 
 interface Check { ok: boolean; msg: string }
 function expect(diffs: string[], ok: boolean, msg: string): Check {
@@ -501,6 +504,7 @@ function checkSkillCopy(diffs: string[]): void {
 
 function main() {
   let anyFail = false;
+  let laggingTranslations = 0;
   const globalDiffs: string[] = [];
 
   const manifest = loadManifest();
@@ -542,6 +546,7 @@ function main() {
   // 2/3/4/5/6: per artikel.
   for (const article of manifest.articles) {
     const diffs: string[] = [];
+    const warnings: string[] = [];
 
     // 1c. Bestaan van de taalbestanden. Brontalen (nl/en) zijn hard vereist; de overige talen worden
     //     alleen getoetst als het bestand er is — een nog niet vertaald nieuw artikel blokkeert de
@@ -610,28 +615,40 @@ function main() {
     //     (docs://, examples://) moeten identiek zijn. Vangt een vertaling die een sectie of interne
     //     link laat vallen/toevoegt — wat de andere checks per taal niet zien (labels/tekst mogen
     //     verschillen, structuur niet). EN is de bron van waarheid.
+    //     Hard voor NL (brontaal: nl en en worden altijd samen bijgewerkt). Voor de 12 vertaaltalen
+    //     een WAARSCHUWING: die lopen per afspraak achter tot de maandelijkse vertaalronde (de
+    //     helpviewer meldt dat de gebruiker ook), dus een nieuwe kop of link in een EN-gids mag de
+    //     poort niet rood maken. Voorheen was dit ook voor hen hard, wat de `docs-update`-skill
+    //     ("overige locales laat je met rust") tegensprak. Tijdens de vertaalronde maakt
+    //     `--strict-translations` het weer hard, zodat een vertaler geen sectie laat vallen.
     if (sources.en) {
       const enLevels = extractHeadingLevels(sources.en);
       const enLinks = extractLinkTargets(sources.en);
       for (const lang of LANGS) {
         if (lang === 'en' || !sources[lang]) continue;
+        const sink = SOURCE_LANGS.includes(lang) || STRICT_TRANSLATIONS ? diffs : warnings;
         const lLevels = extractHeadingLevels(sources[lang]);
         if (lLevels.length !== enLevels.length || lLevels.some((v, i) => v !== enLevels[i])) {
-          diffs.push(`${lang}: kop-structuur wijkt af van EN — EN heeft ${enLevels.length} koppen [${enLevels.join('')}], ${lang} heeft ${lLevels.length} [${lLevels.join('')}] (sectie mogelijk weggevallen/toegevoegd)`);
+          sink.push(`${lang}: kop-structuur wijkt af van EN — EN heeft ${enLevels.length} koppen [${enLevels.join('')}], ${lang} heeft ${lLevels.length} [${lLevels.join('')}] (sectie mogelijk weggevallen/toegevoegd)`);
         }
         const lLinks = extractLinkTargets(sources[lang]);
         if (lLinks.length !== enLinks.length || lLinks.some((v, i) => v !== enLinks[i])) {
-          diffs.push(`${lang}: link-targets wijken af van EN — EN [${enLinks.join(', ')}] vs ${lang} [${lLinks.join(', ')}]`);
+          sink.push(`${lang}: link-targets wijken af van EN — EN [${enLinks.join(', ')}] vs ${lang} [${lLinks.join(', ')}]`);
         }
       }
     }
 
     const ok = diffs.length === 0;
     if (!ok) anyFail = true;
+    laggingTranslations += warnings.length;
     console.log(`${ok ? 'OK ' : 'XX '} ${article.id}`);
     for (const d of diffs) console.log(`     - ${d}`);
+    for (const w of warnings) console.log(`     ! ${w} — loopt achter op EN, bijwerken in de vertaalronde`);
   }
 
+  if (laggingTranslations > 0) {
+    console.log(`\n! ${laggingTranslations} vertaling(en) lopen structureel achter op EN — waarschuwing, geen fout (hard met --strict-translations)`);
+  }
   console.log(`\n${manifest.articles.length} artikelen × ${LANGS.length} talen geverifieerd — ${anyFail ? 'FALEN' : 'alles groen'}`);
   process.exit(anyFail ? 1 : 0);
 }
