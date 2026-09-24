@@ -492,7 +492,8 @@ const NO_CALENDAR_CHANGE: CalendarSettle = { durationChanged: false, timephasedL
  * inhoud van haar kalender) is gewijzigd, met de momentopname van daarvóór. Alleen de slotgrootte
  * (uren per dag) telt; de restduur in dagen blijft, en de regel beslist (`applySlotChange`).
  * Uurtaken en een ongewijzigde slot ⇒ niets. Eén definitie voor store, raster, MCP, project-
- * kalender en kalenderinhoud (zes aanroepers), inclusief de nazorg:
+ * kalender, kalenderinhoud en de hele bibliotheek (`commitCalendarLibrary` = de kalenderdialoog,
+ * `removeCalendar`; via `state/calendarTasks.ts`), inclusief de nazorg:
  *  - verandert de duur ⇒ `settleDurationAftermath` met de OUDE werkminuten als referentie (contour
  *    en importsplits herschalen, Z8-venster en bevroren walks wissen);
  *  - verandert de duur NIET maar de slot wél (FIXED_DURATION_*) ⇒ alleen de contour-as herschalen:

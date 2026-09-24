@@ -240,8 +240,10 @@ verandert de slotgrootte en loopt daarna óók door de regel (`applySlotChange`/
 Vast werk/Vaste inzet ⇒ duur; Vaste duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek);
 de contour-as herschaalt daarbij van de oude naar de nieuwe werkminuten (ook zonder dagverandering),
 en een project-/kalenderwijziging die duren verandert meldt hoeveel (`notifyWorkRuleDurationsChanged`).
-Zes aanroepers delen `captureCalendarChange` → mutatie → `settleCalendarChange` (store, raster — als
-EIGEN stap vóór de rest van de paste —, MCP-tweeling, projectkalender, kalenderinhoud); de contour-
+Alle aanroepers delen `captureCalendarChange` → mutatie → `settleCalendarChange` (store, raster — als
+EIGEN stap vóór de rest van de paste —, MCP-tweeling, projectkalender, kalenderinhoud, en de hele
+bibliotheek via `captureCalendarLibraryChange`/`settleCalendarLibraryChange` in `state/calendarTasks.ts`:
+`commitCalendarLibrary` — de kalenderdialoog, dé UI-route voor uren per dag — en `removeCalendar`); de contour-
 hoogte wordt daarin tegen het werkelijke werk per toewijzing verzoend, niet tegen een regelvlag.
 Drie randpaden die de slot óók kunnen wijzigen (`setCalendar`, `resolveDeviation`, de `workTime`-
 verwijdering in de MCP-kalendertool) zijn bewust NIET bedraad — zie `docs/TODO.md`. Een

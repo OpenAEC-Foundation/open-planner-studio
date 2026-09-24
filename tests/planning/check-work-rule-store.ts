@@ -972,6 +972,63 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   eq('t14 voortgangsimport 50 %: rest 2400, histogram 10', [asgOf(k.t, k.r).remainingWorkMinutes, load(k.t, k.r)], [5 * slot(), 10]);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commitCalendarLibrary) en removeCalendar volgen K2 --');
+{
+  // Probe uit de review: FIXED_WORK 4 d à 8 u ⇒ 6-u-kalender = 6 d; dan in de DIALOOGROUTE
+  // (`CalendarDialog` → `commitCalendarLibrary`, de hele bibliotheek in één keer) 6 → 4 u ⇒ 8 d;
+  // daarna `removeCalendar` ⇒ terug op de projectkalender (8 u) ⇒ 4 d.
+  const durMsgs = () => S().ui.notifications.filter((n) => n.messageKey === 'notifications.workRuleDurationsChanged').map((n) => n.params?.count);
+  reset();
+  const six = S().addCalendar({ ...S().calendar, id: 'cal-6h-u', name: '6 uur', hoursPerDay: 6 } as never);
+  const sixId = typeof six === 'string' ? six : 'cal-6h-u';
+  const t = S().addTask({ name: 'u', time: createDefaultTaskTime('2026-06-01', 4) });
+  const r = labor('u');
+  S().assignResource(t, r, 1);
+  S().runCPM();
+  S().setTaskWorkRule(t, 'FIXED_WORK');
+  S().setTaskCalendar(t, sixId);
+  eq('u0 voorwaarde: 6-u-kalender onder Vast werk ⇒ 6 d, werk 32 u', [task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [6, 32 * 60]);
+  // Een tweede taak op de PROJECTkalender (valt terug, geen eigen calendarId) onder Vast werk.
+  const p = S().addTask({ name: 'u-p', time: createDefaultTaskTime('2026-06-01', 4) });
+  S().assignResource(p, labor('u-p'), 1);
+  S().setTaskWorkRule(p, 'FIXED_WORK');
+  // Een derde taak onder de standaardregel: duur blijft (byte-identiek aan vandaag).
+  const q = S().addTask({ name: 'u-q', time: createDefaultTaskTime('2026-06-01', 4) });
+  S().assignResource(q, labor('u-q'), 1);
+  S().setTaskCalendar(q, sixId);
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  const events0 = S().historyEvents.length;
+  const lib = S().calendars.map((c) => (c.id === sixId ? { ...c, hoursPerDay: 4 } : c));
+  S().commitCalendarLibrary(lib, S().project.calendarId);
+  eq('u1 commitCalendarLibrary 6→4 u onder Vast werk ⇒ 8 d, werk 32 u', [task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [8, 32 * 60]);
+  eq('u2 …standaardregel op dezelfde kalender: duur blijft 4', task(q).time.scheduleDuration, 4);
+  eq('u3 …taak op de ongewijzigde projectkalender blijft 4', task(p).time.scheduleDuration, 4);
+  eq('u4 …één undo-stap en melding "1 taak"', [S().historyEvents.length - events0, durMsgs()], [1, [1]]);
+  // Projectkalender in de dialoog 8 → 4 u: de taak die op de projectkalender terugvalt wordt 8 d.
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  const pid = S().project.calendarId;
+  S().commitCalendarLibrary(S().calendars.map((c) => (c.id === pid ? { ...c, hoursPerDay: 4 } : c)), pid);
+  eq('u5 projectkalender 8→4 u via de dialoog: terugvallende Vast-werk-taak 4 ⇒ 8 d', [task(p).time.scheduleDuration, durMsgs()], [8, [1]]);
+  S().commitCalendarLibrary(S().calendars.map((c) => (c.id === pid ? { ...c, hoursPerDay: 8 } : c)), pid);
+  eq('u6 …en terug naar 8 u ⇒ 4 d', task(p).time.scheduleDuration, 4);
+  // Kalender verwijderen: de taak valt terug op de projectkalender (8 u) ⇒ 32 u / 8 = 4 d.
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  S().removeCalendar(sixId);
+  eq('u7 removeCalendar (4 u → projectkalender 8 u) onder Vast werk ⇒ 4 d, werk 32 u', [task(t).calendarId, task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [undefined, 4, 32 * 60]);
+  eq('u8 …standaardregel: duur blijft 4; melding "1 taak"', [task(q).time.scheduleDuration, durMsgs()], [4, [1]]);
+  // Kalender weg via de dialoog (bibliotheek zonder die entry) — dezelfde regel.
+  reset();
+  const six2 = S().addCalendar({ ...S().calendar, id: 'cal-6h-u2', name: '6 uur', hoursPerDay: 6 } as never);
+  const six2Id = typeof six2 === 'string' ? six2 : 'cal-6h-u2';
+  const t2 = S().addTask({ name: 'u2', time: createDefaultTaskTime('2026-06-01', 4) });
+  S().assignResource(t2, labor('u2'), 1);
+  S().setTaskWorkRule(t2, 'FIXED_WORK');
+  S().setTaskCalendar(t2, six2Id);
+  S().commitCalendarLibrary(S().calendars.filter((c) => c.id !== six2Id), S().project.calendarId);
+  eq('u9 dialoog verwijdert de 6-u-kalender ⇒ terug op 8 u ⇒ 4 d', [task(t2).calendarId, task(t2).time.scheduleDuration], [undefined, 4]);
+}
+
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);

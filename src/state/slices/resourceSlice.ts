@@ -14,7 +14,7 @@ import {
   captureCalendarChange, settleCalendarChange, settleDurationAftermath, settleUnitsEdit,
 } from '@/engine/work/workRuleApply';
 import { notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
-import { tasksOnCalendar } from '../calendarTasks';
+import { captureCalendarLibraryChange, settleCalendarLibraryChange, tasksOnCalendar } from '../calendarTasks';
 import type { Task } from '@/types/task';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
@@ -476,9 +476,13 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     // `s.tasks`), dus tellen zelf op i.p.v. één losse boolean; zie `assignResource` hierboven voor
     // de discipline.
     let lostCount = 0;
+    let changed = 0;
     set((s) => {
       if (!s.calendars.some(c => c.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
+      // Fable-critreview #170, bevinding 2: K2 — de taken die van kalender wisselen (terugval op de
+      // projectkalender, of een nieuwe projectkalender) volgen hun werkregel, net als `updateCalendar`.
+      const k2 = captureCalendarLibraryChange(s);
       s.calendars = s.calendars.filter(c => c.id !== id);
       // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.
       for (const r of s.resources) {
@@ -506,8 +510,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
       }
       syncProjectCalendar(s);
+      const settled = settleCalendarLibraryChange(s, k2);
+      changed = settled.changed;
+      lostCount += settled.lost;
       runtime.finishMutation(s, { stale: true });
     });
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
   },
@@ -515,8 +523,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   commitCalendarLibrary: (calendars, projectCalendarId) => {
     // mpp-nul-data-etappe, DEEL 1 — zie `removeCalendar` hierboven.
     let lostCount = 0;
+    let changed = 0;
     set((s) => {
       runtime.beginUndoable(s);
+      // Fable-critreview #170, bevinding 2: dít is de UI-route voor uren per dag (`CalendarDialog`
+      // commit de hele bibliotheek). K2 zoals `updateCalendar`: momentopname vóór, werkregel erna.
+      const k2 = captureCalendarLibraryChange(s);
       s.calendars = calendars;
       const ids = new Set(calendars.map(c => c.id));
       // Verweesde verwijzingen opruimen (spiegelt removeCalendar, §4.3/§9.2): resources én taken
@@ -540,8 +552,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
         s.project.calendarId = calendars[0].id;
       }
       syncProjectCalendar(s);
+      const settled = settleCalendarLibraryChange(s, k2);
+      changed = settled.changed;
+      lostCount += settled.lost;
       runtime.finishMutation(s, { stale: true });
     });
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     get().recomputeResourceLoad();
   },
