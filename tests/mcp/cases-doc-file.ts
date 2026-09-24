@@ -588,7 +588,7 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
 // `readTextFile`) binnenkomen, als 'MPP14' herkend worden mét de bijbehorende notice, en — als
 // binair bronformaat — GEEN opslagdoel krijgen. Gebruikt de minimale synthetische MPP14-fixture
 // hierboven (`buildMinimalMppBytes`) i.p.v. een corpusbestand: deze suite is bewust
-// corpus-onafhankelijk (zie de suite-tabel in CLAUDE.md), en het testdoel hier is de MCP-ROUTERING,
+// corpus-onafhankelijk (zie de suite-tabel in .claude/rules/tests.md), en het testdoel hier is de MCP-ROUTERING,
 // niet de veldlaag (die heeft zijn eigen dekking in tests/planning/check-mpp-import.ts).
 test('import_schedule: .mpp gaat via het bytes-pad, wordt als MPP14 herkend mét notice, en krijgt GEEN opslagdoel', async () => {
   installFakeFs();
