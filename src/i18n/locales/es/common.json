@@ -102,6 +102,7 @@
     "mppTimephasedSteeringLost_other": "La distribución de horas de MS Project ya no controla {{count}} tareas después de esta edición; la distribución original se conserva en el archivo.",
     "readMore": "Leer más",
     "taskTypesUnlocked": "Este archivo contiene tipos de tarea (reglas de trabajo o trabajo guardado); la regla de trabajo y el trabajo restante se muestran para este documento.",
+    "taskTypesUnlockedDetail": "Este archivo contiene tipos de tarea (reglas de trabajo o trabajo guardado); la regla de trabajo y el trabajo restante se muestran para este documento. Explicación: Ayuda → «Tipos de tarea y trabajo».",
     "workRuleDurationsChanged_one": "Tras el cambio de calendario, la regla de trabajo ajustó la duración de {{count}} tarea (el trabajo se mantiene, cambiaron las horas por día).",
     "workRuleDurationsChanged_many": "Tras el cambio de calendario, la regla de trabajo ajustó la duración de {{count}} tareas (el trabajo se mantiene, cambiaron las horas por día).",
     "workRuleDurationsChanged_other": "Tras el cambio de calendario, la regla de trabajo ajustó la duración de {{count}} tareas (el trabajo se mantiene, cambiaron las horas por día).",

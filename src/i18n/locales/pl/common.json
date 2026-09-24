@@ -121,6 +121,7 @@
     "mppTimephasedSteeringLost_other": "{{count}} zadania straciło powiązanie z rozkładem godzin z MS Project po tej edycji; pierwotny rozkład pozostaje zachowany w pliku.",
     "readMore": "Dowiedz się więcej",
     "taskTypesUnlocked": "Ten plik zawiera typy zadań (reguły pracy lub zapisaną pracę); reguła pracy i pozostała praca są wyświetlane dla tego dokumentu.",
+    "taskTypesUnlockedDetail": "Ten plik zawiera typy zadań (reguły pracy lub zapisaną pracę); reguła pracy i pozostała praca są wyświetlane dla tego dokumentu. Wyjaśnienie: Pomoc → „Typy zadań i praca”.",
     "workRuleDurationsChanged_one": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadania (praca pozostaje, zmieniła się liczba godzin dziennie).",
     "workRuleDurationsChanged_few": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadań (praca pozostaje, zmieniła się liczba godzin dziennie).",
     "workRuleDurationsChanged_many": "Po zmianie kalendarza reguła pracy dostosowała czas trwania {{count}} zadań (praca pozostaje, zmieniła się liczba godzin dziennie).",

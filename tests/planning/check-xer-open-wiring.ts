@@ -7,6 +7,7 @@ import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { TASK_TYPES_HELP_ARTICLE_ID } from '@/state/taskTypesNotice';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -301,7 +302,23 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   // tweede toast opleveren (T4-17), maar staat als detailregel in dezelfde bestandsmelding.
   // Mutatiebewijs: `deferTaskTypesNotice` weg in applyOpenedImport ⇒ T4-17 rood; de detailregel weg ⇒ T4-18b rood.
   eq('T4-18b taaktypes-ontsluiting is een detailregel van diezelfde ene melding',
-    notifsAfterMulti[0]?.detailLines?.filter((d) => d.messageKey === 'notifications.taskTypesUnlocked').length, 1);
+    notifsAfterMulti[0]?.detailLines?.filter((d) => d.messageKey === 'notifications.taskTypesUnlockedDetail').length, 1);
+  // Critreview PR #101 baan 1 (gidslink): een detailregel heeft geen eigen `helpArticleId`, dus de
+  // detailtekst NOEMT de gids — in elke locale de manifesttitel van `gids-taaktypes`. Mutatiebewijs:
+  // de detailregel terug naar `taskTypesUnlocked` (tekst zonder gids) ⇒ T4-18b én T4-18c rood.
+  {
+    const manifest = JSON.parse(readFileSync(join(process.cwd(), 'public/docs/manifest.json'), 'utf8')) as
+      { articles: { id: string; title: Record<string, string> }[] };
+    const titles = manifest.articles.find((a) => a.id === TASK_TYPES_HELP_ARTICLE_ID)?.title ?? {};
+    const detailKey = notifsAfterMulti[0]?.detailLines?.find((d) => d.messageKey.startsWith('notifications.taskTypesUnlocked'))?.messageKey ?? '';
+    const missing = Object.entries(titles).filter(([locale, title]) => {
+      const common = JSON.parse(readFileSync(join(process.cwd(), `src/i18n/locales/${locale}/common.json`), 'utf8')) as
+        { notifications: Record<string, string> };
+      return !(common.notifications[detailKey.replace('notifications.', '')] ?? '').includes(title);
+    }).map(([locale]) => locale);
+    eq('T4-18c de detailregel noemt de gids "Taaktypes en werk" in alle locales (geen eigen helpArticleId)',
+      [Object.keys(titles).length, missing], [14, []]);
+  }
 
   // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT, ook al is
   // exact dezelfde vastlegging (`recordedTimes`) aanwezig. Bewijst dat de auto-aan-route

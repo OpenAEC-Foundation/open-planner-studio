@@ -529,9 +529,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       );
       // Integratie #101 op #169 (voorlopig, eigenaarsvraag E4): de taaktypes-ontsluiting is een
       // detailregel in díe ene bestandsmelding; zonder bestandsmelding (bv. MSPDI/IFC onder het
-      // ops-profiel) blijft het #101's eigen melding met gids-link.
+      // ops-profiel) blijft het #101's eigen melding met gids-link. Een detailregel draagt geen eigen
+      // `helpArticleId` (de melding heeft er één, die van het bestand/profiel), dus de detailtekst
+      // (`taskTypesUnlockedDetail`) NOEMT de gids "Taaktypes en werk" — zelfde patroon als
+      // `withSchedulingProfileNotice`, dat zijn profielregel ook als detail toevoegt.
       if (notice && taskTypesUnlockedDocs > 0) {
-        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), { messageKey: 'notifications.taskTypesUnlocked' }] });
+        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), { messageKey: 'notifications.taskTypesUnlockedDetail' }] });
       } else if (notice) {
         get().notify(notice);
       } else if (taskTypesUnlockedDocs > 0) {

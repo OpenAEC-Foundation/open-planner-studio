@@ -83,6 +83,7 @@
     "mppTimephasedSteeringLost_other": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgänge nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
     "readMore": "Mehr erfahren",
     "taskTypesUnlocked": "Diese Datei enthält Vorgangsarten (Arbeitsregeln oder gespeicherte Arbeit); Arbeitsregel und Restarbeit werden für dieses Dokument angezeigt.",
+    "taskTypesUnlockedDetail": "Diese Datei enthält Vorgangsarten (Arbeitsregeln oder gespeicherte Arbeit); Arbeitsregel und Restarbeit werden für dieses Dokument angezeigt. Erklärung: Hilfe → „Vorgangsarten und Arbeit“.",
     "workRuleDurationsChanged_one": "Nach der Kalenderänderung hat die Arbeitsregel die Dauer von {{count}} Vorgang angepasst (Arbeit bleibt, Stunden pro Tag geändert).",
     "workRuleDurationsChanged_other": "Nach der Kalenderänderung hat die Arbeitsregel die Dauer von {{count}} Vorgängen angepasst (Arbeit bleibt, Stunden pro Tag geändert).",
     "pasteSkippedReadOnly_one": "{{count}} Zelle übersprungen: Sie ist schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
