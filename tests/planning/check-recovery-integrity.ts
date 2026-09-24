@@ -171,11 +171,10 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
 // ── 8. restoreDocuments: één logisch corrupt document mag het herstel van de rest niet blokkeren ──
 // Recovery-robuustheid (docs/TODO.md): een snapshot kan `readIFC` overleven — geen truncated STEP,
 // geen structurele fout — en toch inhoudelijk corrupt zijn. Deze fixture bouwt zo'n geval RECHT-
-// STREEKS als `RecoveryDocInput` (net als check-document-contract.ts §d): een taak met een
-// zelfverwijzende `childIds` (WBS-kind = zichzelf). `applyCpmResult`'s samenvattingsrollup
-// (`updateSummary`) heeft geen cyclusbewaking — in tegenstelling tot de CPM-solver zelf, die een
-// relatiecyclus netjes als `result.error` teruggeeft — en loopt hierop vast in een onbegrensde
-// recursie (`RangeError: Maximum call stack size exceeded`). Vóór deze fix liet dat de HELE
+// STREEKS als `RecoveryDocInput` (net als check-document-contract.ts §d): een taak zonder
+// `childIds`-lijst, waarop de solve met een TypeError stukloopt. (Tot de cyclusbewaking in
+// `applyCpmResult`'s `updateSummary` was de fixture een zelfverwijzende `childIds`, die daar in een
+// onbegrensde recursie liep; die kring herstelt nu gewoon.) Vóór deze fix liet zo'n fout de HELE
 // `restoreDocuments`-aanroep gooien: ook de gezonde buurdocumenten kwamen dan niet terug.
 {
   const cal = { ...createDefaultCalendar(), id: 'cal-corrupt', name: 'Corrupt-kalender' };
@@ -200,10 +199,10 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
     id: 'rec-corrupt',
     project: mkProject('rec-corrupt', 'Corrupt document'),
     calendar: cal,
-    // Zelfverwijzende childIds: geen enkele lezer (IFC/MSPDI/P6/mpp) produceert dit, maar een
+    // Ontbrekende childIds: geen enkele lezer (IFC/MSPDI/P6/mpp) produceert dit, maar een
     // logisch beschadigde snapshot (bitrot, een handmatig geknutseld bestand) kan het wél dragen.
     tasks: [{
-      id: 'task-corrupt', name: 'Cyclische verzameltaak', parentId: null, childIds: ['task-corrupt'],
+      id: 'task-corrupt', name: 'Taak zonder kinderlijst', parentId: null, childIds: null,
       time: createDefaultTaskTime('2031-01-01', 1),
     } as unknown as Task],
     sequences: [], resources: [], assignments: [],
@@ -233,7 +232,6 @@ eq('7f null-literal → null', parseRecoveryManifest('null'), null);
   S().newProject();
   const alleCorrupt: RecoveryDocInput = { ...corrupt, id: 'rec-corrupt-2', filePath: '/tmp/rec-corrupt-2.ifc' };
   (alleCorrupt.tasks[0] as unknown as Task).id = 'task-corrupt-2';
-  (alleCorrupt.tasks[0] as unknown as Task).childIds = ['task-corrupt-2'];
   const activeIdVoor = S().activeDocumentId;
   const resultAlles = S().restoreDocuments([corrupt, alleCorrupt], 'rec-corrupt');
   eq('8h beide corrupte documenten komen terug als overgeslagen',

@@ -112,9 +112,14 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
   // Eén engine voor alle verzameltaken: de afleiding rekent per definitie in de projectkalender,
   // dus is er niets per taak te resolven en niets te cachen.
   const summaryEngine = new CalendarEngine(cals.projectCalendar);
+  // Elke verzameltaak wordt één keer opgerold (kinderen vóór ouders). Dat is ook de cyclusbewaking:
+  // een corrupte `childIds`-kring liep hier anders eindeloos rond tot de stack overliep. Een taak die
+  // (corrupt) onder twee ouders hangt, levert bij een tweede bezoek toch hetzelfde resultaat op.
+  const visited = new Set<string>();
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
-    if (!task || task.childIds.length === 0) return;
+    if (!task || task.childIds.length === 0 || visited.has(taskId)) return;
+    visited.add(taskId);
 
     for (const childId of task.childIds) updateSummary(childId);
 
