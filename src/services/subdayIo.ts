@@ -244,6 +244,24 @@ export function promoteHourCalendar(
 }
 
 /**
+ * {@link promoteHourCalendar} over alle kalenders van een bestand (ook de kalenders die geen taak
+ * raakt: afwijkende banden alleen zijn al genoeg). `entries` koppelt elke kalender aan de sleutel
+ * waaronder de lezer hem kent (id, of de kalender zelf); het resultaat zijn de sleutels van de
+ * kalenders die in uurmodus rekenen.
+ */
+export function promoteHourCalendars<K>(
+  entries: Iterable<readonly [K, WorkCalendar]>,
+  signaled: (key: K) => boolean,
+  preferCanonicalWhenEmpty: boolean,
+): Set<K> {
+  const promoted = new Set<K>();
+  for (const [key, cal] of entries) {
+    if (promoteHourCalendar(cal, getCalendarBands(cal), signaled(key), preferCanonicalWhenEmpty)) promoted.add(key);
+  }
+  return promoted;
+}
+
+/**
  * Bouw de map taak-id → effectieve kalender (§5): `task.calendarId` uit de bibliotheek, anders de
  * projectkalender. Gebruikt door de schrijvers om per taak uur- vs dag-modus te bepalen.
  */
@@ -259,6 +277,30 @@ export function effectiveCalendarByTask(
     result.set(t.id, (t.calendarId && byId.get(t.calendarId)) || projectCal);
   }
   return result;
+}
+
+/**
+ * De kalenderindeling van een XML-export (MSPDI/P6): de projectkalender krijgt nummer 1, de overige
+ * bibliotheekkalenders 2, 3, …; plus per taak de effectieve kalender en de kalenders waarop een
+ * urentaak rekent (fase 2.8b, §7.2/§7.3). `resourceCalendars` is sinds 2.8a de VOLLE bibliotheek
+ * (incl. de §4.3-gemigreerde projectkalender-entry) — die entry uitsluiten voorkomt een dubbele
+ * kalender 1.
+ */
+export function exportCalendarLayout(tasks: Task[], calendar: WorkCalendar, resourceCalendars: WorkCalendar[]): {
+  libraryCalendars: WorkCalendar[];
+  calendarNumber: Map<string, number>;
+  effCalByTask: Map<string, WorkCalendar>;
+  hourTaskCalendarIds: Set<string>;
+} {
+  const libraryCalendars = resourceCalendars.filter(c => c.id !== calendar.id);
+  const calendarNumber = new Map<string, number>([[calendar.id, 1]]);
+  libraryCalendars.forEach((cal, i) => calendarNumber.set(cal.id, i + 2));
+  const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
+  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
+    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
+    return calendarId ? [calendarId] : [];
+  }));
+  return { libraryCalendars, calendarNumber, effCalByTask, hourTaskCalendarIds };
 }
 
 /** Een kalender is uur-modus zodra `workTime` aanwezig is (§3.2). */

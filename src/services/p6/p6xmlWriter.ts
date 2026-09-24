@@ -7,7 +7,7 @@ import {
 import { contourPeriodsToP6Spread, countSplitTasksWithoutContour } from '@/services/contourIo';
 import { Project } from '@/types/project';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
-import { effectiveCalendarByTask, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
+import { exportCalendarLayout, minutesToClock, taskMinutesForWrite } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
 import { flattenOrder } from '@/utils/wbs';
@@ -293,22 +293,10 @@ export function writeP6XML(
   for (const res of resources) {
     resObjMap.set(res.id, nextResObjId++);
   }
-  // `resourceCalendars` is sinds 2.8a de VOLLE bibliotheek (incl. de §4.3-gemigreerde
-  // projectkalender-entry) — die entry uitsluiten voorkomt een dubbele ObjectId-1-kalender.
-  const libraryCalendars = resourceCalendars.filter(c => c.id !== calendar.id);
-  const calObjMap = new Map<string, number>();
-  calObjMap.set(calendar.id, 1); // projectkalender, zie hieronder <Calendar><ObjectId>1</ObjectId>
-  let nextCalObjId = 2;
-  for (const cal of libraryCalendars) {
-    calObjMap.set(cal.id, nextCalObjId++);
-  }
-
-  // Fase 2.8b (§7.2): effectieve kalender per taak → uur- vs dag-modus.
-  const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
-  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
-    return calendarId ? [calendarId] : [];
-  }));
+  // Kalender-ObjectIds: 1 = projectkalender (zie hieronder <Calendar><ObjectId>1</ObjectId>).
+  const {
+    libraryCalendars, calendarNumber: calObjMap, effCalByTask, hourTaskCalendarIds,
+  } = exportCalendarLayout(tasks, calendar, resourceCalendars);
 
   // WBS elements (parent tasks). Diepte-eerst (issue #159, vervolg): een ouder staat vóór zijn
   // kinderen en broers/zussen staan in weergavevolgorde — P6 sorteert WBS-broers op

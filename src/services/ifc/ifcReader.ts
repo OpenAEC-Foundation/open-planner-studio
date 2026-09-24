@@ -27,7 +27,7 @@ import {
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
-  isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
+  isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
@@ -699,9 +699,7 @@ function applyHourModeIFC(
   // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen. IFC kiest
   //    altijd de geregistreerde canonical zodra er info is (preferCanonicalWhenEmpty = true) — zie
   //    de F5-noot bij `promoteHourCalendar`.
-  for (const cal of [projectCal, ...resourceCalendars]) {
-    promoteHourCalendar(cal, getCalendarBands(cal), subDayCals.has(cal), true);
-  }
+  promoteHourCalendars([projectCal, ...resourceCalendars].map(cal => [cal, cal] as const), cal => subDayCals.has(cal), true);
 
   // 3. Herstel de echte tijden op taken met een uurkalender. De ISO-duurvorm die parseTaskTime al
   //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).

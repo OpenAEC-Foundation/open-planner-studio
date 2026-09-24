@@ -1164,10 +1164,6 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
     }
     const deadline = formatField(raw.deadlineTs);
 
-    let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
-    if (raw.percentComplete >= 100) status = 'COMPLETED';
-    else if (raw.percentComplete > 0) status = 'STARTED';
-
     // T11: `milestoneKind` alleen afleiden voor een UUR-modus-mijlpaal (§9/O6-vervolg — de
     // MSPDI-kant is BAAN K/T4, niet dit bestand). `raw.finishTs ?? raw.startTs` is het opgeslagen
     // anker: bij een echte mijlpaal (duur 0) zijn beide gelijk, dus de keuze is neutraal; ontbreekt
@@ -1222,7 +1218,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
       description: '',
       wbsCode: '', // wordt hieronder gezet — outline-nummering volgt pas ná de hiërarchie-opbouw
       taskType: 'CONSTRUCTION',
-      status,
+      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone: raw.isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
       priority: 500,

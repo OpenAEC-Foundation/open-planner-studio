@@ -18,7 +18,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
-import { axisOffsetMinutes, p6SpreadToContourPeriods, splitGapsFromContours } from '@/services/contourIo';
+import { attachContours, axisOffsetMinutes, collectContour, p6SpreadToContourPeriods } from '@/services/contourIo';
 import {
   OPS_CUSTOM_TASK_TYPE_UDF_TITLE,
   P6_DAY_NAMES,
@@ -30,8 +30,8 @@ import {
   DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
 } from '@/services/xmlInterchange';
 import {
-  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
-  promoteHourCalendar, registerCalendarBands,
+  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
+  promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
@@ -407,9 +407,7 @@ export function readP6XML(content: string): ImportResult {
   // Fase 2.8b (§7.2): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
   // taken. `calById` mapt zowel de projectkalender als de bibliotheek-kalenders; `effCalIdOf` geeft
   // per activity de effectieve kalender-id (CalendarObjectId 1/ontbrekend = projectkalender).
-  const calById = new Map<string, WorkCalendar>();
-  calById.set(calendar.id, calendar);
-  for (const c of resourceCalendars) calById.set(c.id, c);
+  const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOf = (calObjId: number): string => (calObjId > 1 && calObjIdToId.get(calObjId)) || calendar.id;
 
   const cSignalCalIds = new Set<string>();
@@ -425,12 +423,7 @@ export function readP6XML(content: string): ImportResult {
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
   // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
-  const hourModeCalIds = new Set<string>();
-  for (const [id, cal] of calById) {
-    if (promoteHourCalendar(cal, getCalendarBands(cal), cSignalCalIds.has(id), false)) {
-      hourModeCalIds.add(id);
-    }
-  }
+  const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
 
   for (const actEl of activityElements) {
     const objId = getElementInt(actEl, 'ObjectId', -1);
@@ -442,7 +435,6 @@ export function readP6XML(content: string): ImportResult {
     const actId = getElementText(actEl, 'Id');
     const name = getElementText(actEl, 'Name') || 'Activity';
     const p6Type = getElementText(actEl, 'Type');
-    const p6Status = getElementText(actEl, 'Status');
     const plannedDuration = getElementFloat(actEl, 'PlannedDuration');
     const plannedStartRaw = getElementText(actEl, 'PlannedStartDate');
     const plannedFinishRaw = getElementText(actEl, 'PlannedFinishDate');
@@ -488,10 +480,6 @@ export function readP6XML(content: string): ImportResult {
       : p6Type.includes('Finish') ? 'FINISH' as const
       : 'START' as const;
 
-    let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
-    if (p6Status === 'Completed' || percentComplete >= 100) status = 'COMPLETED';
-    else if (p6Status === 'In Progress' || percentComplete > 0) status = 'STARTED';
-
     const parentId = wbsObjId >= 0 ? wbsObjIdToId.get(wbsObjId) || null : null;
 
     // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
@@ -530,7 +518,7 @@ export function readP6XML(content: string): ImportResult {
       wbsCode: actId,
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
-      status,
+      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
       priority: 500,
@@ -708,22 +696,12 @@ export function readP6XML(content: string): ImportResult {
         periods = p6SpreadToContourPeriods(plannedCurveRaw, anchorOffset('PlannedStartDate'), 'remaining');
       }
       if (periods.length > 1 && periods.some(p => p.workMinutes > 0)) {
-        const list = contoursByTaskId.get(taskId) ?? [];
-        list.push({ resourceUid: null, resourceId, periods });
-        contoursByTaskId.set(taskId, list);
+        collectContour(contoursByTaskId, taskId, { resourceUid: null, resourceId, periods });
       }
     }
   }
   // Contouren + afgeleide werkonderbrekingen op de taken (zelfde afleiding als de .mpp-/MSPDI-lezer).
-  for (const [taskId, contours] of contoursByTaskId) {
-    const task = taskById.get(taskId);
-    if (!task) continue;
-    task.timephasedContours = contours;
-    if (!task.splitGaps || task.splitGaps.length === 0) {
-      const gaps = splitGapsFromContours(contours.map(c => c.periods));
-      if (gaps.length > 0) task.splitGaps = gaps;
-    }
-  }
+  attachContours(taskById, contoursByTaskId);
 
   return {
     project,

@@ -250,6 +250,7 @@
  * en doorgegeven zodat Z8 niet opnieuw hoeft te ontdekken waarom haar brug leeg blijft.
  */
 import type { TaskSplitGap } from '@/types/task';
+import { gapsBetweenWorkedSpans, intersectAssignmentGaps } from '@/services/contourIo';
 import { getShort, getInt, getDouble, getTimestamp } from './mppPrimitives';
 import {
   clampTimephasedRegularRecordCount, clampTimephasedIrregularRecordCount, clampTimephasedPlannedRecordCount,
@@ -534,46 +535,10 @@ export function shiftPeriods(periods: readonly TimephasedWorkPeriod[], shiftMinu
  * fixronde-commentaar voor de volledige motivering).
  */
 export function deriveSplitGapsFromPeriods(periods: readonly TimephasedWorkPeriod[]): TaskSplitGap[] {
-  // NUL-WERK-DETECTIE (mutatiebewijs `check-mpp-import.ts`'s Z4-sectie, punt 3): alleen periodes
-  // MET werk blijven over. Een periode met `workMinutes === 0` draagt geen extra informatie t.o.v.
-  // het GAT tussen haar buren — ze zelf overbrugt juist de discontinuïteit die anders zichtbaar zou
-  // zijn, dus laat deze filter weg en elk gat verdwijnt (de nul-periode "vult" de naad op).
-  const worked = periods
+  // NUL-WERK-DETECTIE: alleen periodes MET werk blijven over (zie `gapsBetweenWorkedSpans`).
+  return gapsBetweenWorkedSpans(periods
     .filter((p) => p.workMinutes !== 0)
-    .slice()
-    .sort((a, b) => a.elapsedWorkMinutesStart - b.elapsedWorkMinutesStart);
-
-  const gaps: TaskSplitGap[] = [];
-  for (let i = 1; i < worked.length; i++) {
-    const prevEnd = worked[i - 1].elapsedWorkMinutesEnd;
-    const nextStart = worked[i].elapsedWorkMinutesStart;
-    // MERGE-CHECK (mutatiebewijs, punt 4): STRIKT `>` — twee AANGRENZENDE werkperiodes
-    // (`nextStart === prevEnd`, bv. de naad tussen een "actual"- en een "remaining"-record die
-    // toevallig precies aansluiten) leveren GEEN kandidaat. Vervang dit door `>=` (of onvoorwaardelijk
-    // pushen) en elke aangrenzende naad levert een fantoom-`TaskSplitGap` van 0 minuten op.
-    if (nextStart > prevEnd) {
-      gaps.push({ afterMinutes: prevEnd, gapMinutes: nextStart - prevEnd });
-    }
-  }
-  return gaps;
-}
-
-/** Eén interval `[start, end)` — lokale hulpvorm voor de doorsnede hieronder, geen publiek type. */
-function intersectGapIntervals(a: readonly TaskSplitGap[], b: readonly TaskSplitGap[]): TaskSplitGap[] {
-  const result: TaskSplitGap[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < a.length && j < b.length) {
-    const aStart = a[i].afterMinutes;
-    const aEnd = aStart + a[i].gapMinutes;
-    const bStart = b[j].afterMinutes;
-    const bEnd = bStart + b[j].gapMinutes;
-    const start = Math.max(aStart, bStart);
-    const end = Math.min(aEnd, bEnd);
-    if (start < end) result.push({ afterMinutes: start, gapMinutes: end - start });
-    if (aEnd < bEnd) i++; else j++;
-  }
-  return result;
+    .map((p) => ({ start: p.elapsedWorkMinutesStart, end: p.elapsedWorkMinutesEnd })));
 }
 
 /**
@@ -588,10 +553,4 @@ function intersectGapIntervals(a: readonly TaskSplitGap[], b: readonly TaskSplit
  * doorsnede terecht naar leeg, in tegenstelling tot "geen data" dat de toewijzing had moeten
  * uitsluiten — zie moduleheader).
  */
-export function deriveTaskSplitGaps(gapsByAssignment: readonly (readonly TaskSplitGap[])[]): TaskSplitGap[] {
-  if (gapsByAssignment.length === 0) return [];
-  return gapsByAssignment.slice(1).reduce<TaskSplitGap[]>(
-    (acc, gaps) => intersectGapIntervals(acc, gaps),
-    [...gapsByAssignment[0]],
-  );
-}
+export const deriveTaskSplitGaps = intersectAssignmentGaps;

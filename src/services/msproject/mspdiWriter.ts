@@ -7,7 +7,7 @@ import { Baseline, BaselineTask } from '@/types/baseline';
 import type { CustomTaskType } from '@/types/taskType';
 import { projectFileBase } from '@/utils/documents';
 import {
-  effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
+  exportCalendarLayout, minutesToClock, minutesToIsoDuration, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { encodeCustomTaskType, escapeXml, OPS_DURATION_UNIT_NAME, toXmlDateTime } from '@/services/xmlInterchange';
@@ -388,22 +388,9 @@ export function writeMSPDI(
 
   // Calendars: UID 1 = projectkalender (basiskalender); overige bibliotheek-kalenders (fase 2.5,
   // §8.2) krijgen UID 2, 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
-  // `resourceCalendars` is sinds 2.8a de VOLLE bibliotheek (incl. de §4.3-gemigreerde
-  // projectkalender-entry) — die entry uitsluiten voorkomt een dubbele UID-1-kalender.
-  const libraryCalendars = resourceCalendars.filter(c => c.id !== calendar.id);
-  const calUidMap = new Map<string, number>();
-  calUidMap.set(calendar.id, 1);
-  let nextCalUid = 2;
-  for (const cal of libraryCalendars) {
-    calUidMap.set(cal.id, nextCalUid++);
-  }
-
-  // Fase 2.8b (§7.3): effectieve kalender per taak → uur- vs dag-modus.
-  const effCalByTask = effectiveCalendarByTask(tasks, calendar, libraryCalendars);
-  const hourTaskCalendarIds = new Set(tasks.flatMap((task) => {
-    const calendarId = taskDurationUnit(task) === 'hours' ? effCalByTask.get(task.id)?.id : undefined;
-    return calendarId ? [calendarId] : [];
-  }));
+  const {
+    libraryCalendars, calendarNumber: calUidMap, effCalByTask, hourTaskCalendarIds,
+  } = exportCalendarLayout(tasks, calendar, resourceCalendars);
 
   lines.push(`${indent(1)}<Calendars>`);
   writeCalendarBlock(lines, indent, calendar, 1, true, hourTaskCalendarIds.has(calendar.id));

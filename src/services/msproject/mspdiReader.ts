@@ -24,8 +24,8 @@ import {
   DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
 } from '@/services/xmlInterchange';
 import {
-  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
-  promoteHourCalendar, registerCalendarBands,
+  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
+  promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
 
 // T4 (MSPDI-uitzonderingssemantiek, spiegel van T3) — hergebruikt T3's `buildContributions`
@@ -63,7 +63,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { MSPDI_WORKCONTOUR_CONTOURED } from '@/engine/contour/contourEngine';
 import {
-  absoluteItemsToContourPeriods, mspdiValueToMinutes, splitGapsFromContours, type AbsoluteWorkItem,
+  absoluteItemsToContourPeriods, attachContours, collectContour, mspdiValueToMinutes, type AbsoluteWorkItem,
 } from '@/services/contourIo';
 import type { TaskTimephasedContour } from '@/types/task';
 
@@ -368,9 +368,7 @@ export function readMSPDI(content: string): ImportResult {
   // Fase 2.8b (§7.3): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
   // taken. `effCalIdOfUid` geeft per taak de effectieve kalender-id (CalendarUID 1/ontbrekend =
   // projectkalender). `taskHourById` voedt de lag-eenheid-keuze verderop.
-  const calById = new Map<string, WorkCalendar>();
-  calById.set(calendar.id, calendar);
-  for (const c of resourceCalendars) calById.set(c.id, c);
+  const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOfUid = (calUid: number): string => (calUid > 1 && calUidToId.get(calUid)) || calendar.id;
   const taskHourById = new Map<string, boolean>();
 
@@ -389,12 +387,7 @@ export function readMSPDI(content: string): ImportResult {
   }
   // MSPDI valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
   // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
-  const hourModeCalIds = new Set<string>();
-  for (const [id, cal] of calById) {
-    if (promoteHourCalendar(cal, getCalendarBands(cal), cSignalCalIds.has(id), false)) {
-      hourModeCalIds.add(id);
-    }
-  }
+  const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
 
   for (let i = 0; i < taskElements.length; i++) {
     const te = taskElements[i];
@@ -472,10 +465,6 @@ export function readMSPDI(content: string): ImportResult {
     const remainingMinutes = durationUnit === 'hours' && remainingRaw ? (mspDurationMinutes(remainingRaw) ?? undefined) : undefined;
     const remainingTime = durationUnit === 'days' && remainingRaw ? parseMSPDuration(remainingRaw, effHpd) : undefined;
 
-    let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
-    if (percentComplete >= 100) status = 'COMPLETED';
-    else if (percentComplete > 0) status = 'STARTED';
-
     // Datum-constraint (fase 2.9, §6): ConstraintType/ConstraintDate. 0/ontbrekend ⇒ geen constraint
     // (default-inert). MSPDI kent geen secundaire constraint. Datum: uur ⇒ echte tijd, dag ⇒ strip.
     const parseCstrDate = (raw: string): string => isHour ? parseMSPInstant(raw) : parseMSPDate(raw);
@@ -521,7 +510,7 @@ export function readMSPDI(content: string): ImportResult {
       wbsCode: wbs,
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
-      status,
+      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
       priority,
@@ -686,27 +675,14 @@ export function readMSPDI(content: string): ImportResult {
           );
           const hasWork = periods.some(p => p.workMinutes > 0);
           const informative = periods.length > 1 || contour === MSPDI_WORKCONTOUR_CONTOURED;
-          if (hasWork && informative) {
-            const list = contoursByTaskId.get(taskId) ?? [];
-            list.push({ resourceUid, resourceId, periods });
-            contoursByTaskId.set(taskId, list);
-          }
+          if (hasWork && informative) collectContour(contoursByTaskId, taskId, { resourceUid, resourceId, periods });
         }
       }
     }
   }
   // Contour-engine: contouren én de daaruit afgeleide werkonderbrekingen op de taken zetten —
-  // dezelfde afleiding als de .mpp-lezer (`splitGapsFromContours`), alleen voor taken die nog geen
-  // gaten dragen (MSPDI kent geen andere split-bron, dus dat is per constructie elke taak).
-  for (const [taskId, contours] of contoursByTaskId) {
-    const task = taskById.get(taskId);
-    if (!task || task.childIds.length > 0) continue;
-    task.timephasedContours = contours;
-    if (!task.splitGaps || task.splitGaps.length === 0) {
-      const gaps = splitGapsFromContours(contours.map(c => c.periods));
-      if (gaps.length > 0) task.splitGaps = gaps;
-    }
-  }
+  // dezelfde afleiding als de .mpp-lezer (MSPDI kent geen andere split-bron).
+  attachContours(taskById, contoursByTaskId);
 
   // Baseline 0 → één actieve OPS-baseline "Baseline (MSPDI)" (fase 2.6, §9.1).
   const baselines: Baseline[] = [];
