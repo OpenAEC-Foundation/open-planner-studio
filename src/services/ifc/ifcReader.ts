@@ -25,6 +25,8 @@ import {
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -180,26 +182,32 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
   if (schedulingOptions) project.schedulingOptions = schedulingOptions;
 
-  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
-  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
-  normalizeImportedProgress(tasks, project.statusDate);
-
+  // Ontbrekende ScheduleStart/-Finish (een `$`-slot, of een IFCTASK zonder IfcTaskTime) — gedeelde
+  // regel voor alle lezers (`resolveMissingScheduleDates`), vóór de voortgang-invarianten: start ⇒ de
+  // projectstart (zoals `addTask`), finish ⇒ start + duur waar eenduidig. Aanwezigheid komt uit
+  // `recordedFields` (de slot-lezer zelf zet nog de vandaag-plaatshouder).
+  const missingDates = emptyMissingScheduleDates();
+  for (const t of tasks) {
+    const present = recordedFields[t.id] ?? [];
+    if (!present.includes('scheduleStart')) missingDates.start.add(t.id);
+    if (!present.includes('scheduleFinish')) missingDates.finish.add(t.id);
+  }
   // Projectstart niet in het bestand (geen gevuld IFCWORKPLAN-slot en geen OPS_ProjectSettings,
-  // zie de ''-sentinel bij de projectbouw) ⇒ afleiden uit de vroegste taak-scheduleStart in plaats
-  // van "vandaag" te verzinnen: een verzonnen datum is geen invoer en mag dus ook niet via de
+  // zie de ''-sentinel bij de projectbouw) ⇒ het anker = de vroegste AANWEZIGE taak-scheduleStart in
+  // plaats van "vandaag" te verzinnen: een verzonnen datum is geen invoer en mag dus ook niet via de
   // T7-projectstart-vloer (`CPMSolver.rootFloor`) taken mét voorgangers naar de leesdatum tillen.
   // Pas als het bestand ook geen enkele taakstart draagt, valt hij terug op vandaag (leeg project).
   // MAAR (critreview-bevinding 1): heeft het OPS-pset het veld GEZEGD — óók als "bewust leeg" —
   // dan is leeg een uitspraak van de gebruiker en blijft hij leeg; afleiden zou de round-trip van
-  // een leeggemaakte startdatum corrumperen (writer codeert dat als NominalValue $).
-  if (!project.startDate && !projectStartRecorded.value) {
-    let earliest = '';
-    for (const t of tasks) {
-      const st = t.time?.scheduleStart;
-      if (st && (!earliest || st < earliest)) earliest = st;
-    }
-    project.startDate = earliest ? earliest.substring(0, 10) : formatDate(new Date());
-  }
+  // een leeggemaakte startdatum corrumperen (writer codeert dat als NominalValue $). Taken zonder
+  // start krijgen dan wel het afgeleide anker.
+  const startAnchor = resolveMissingScheduleDates(tasks, missingDates, project.startDate,
+    (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
+  if (!project.startDate && !projectStartRecorded.value) project.startDate = startAnchor;
+
+  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
+  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
+  normalizeImportedProgress(tasks, project.statusDate);
 
   return {
     project, calendar, tasks, sequences, resources, assignments,

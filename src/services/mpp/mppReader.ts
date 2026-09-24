@@ -137,6 +137,7 @@ import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, isoDayOfWeek, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
+import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
 import { hasNonAnchorTime, isSubDayMinutes } from '@/services/subdayIo';
@@ -711,6 +712,10 @@ export interface ReadTasksContext {
   statusDate: string | undefined;
   applicationVersion: number | null;
   calResult: CalendarReadResult;
+  /** Projectstart uit de Props (leeg/weggelaten ⇒ niet in het bestand): anker voor taken zonder
+   *  ScheduledStart (`resolveMissingScheduleDates`). Optioneel zodat bestaande testaanroepers
+   *  ongewijzigd blijven. */
+  projectStart?: string;
 }
 
 /** I2 (T5-kwaliteitsreview) — bereidt de returnvorm voor op T6/T7:
@@ -734,6 +739,9 @@ export interface ReadTasksResult {
    *  de twee rode-pad-fixtures, en de corpusbrede manual-taken-telling uit acceptatiepunt 5, naast
    *  baan M's onafhankelijke `mppGroundTruth.ts`-telling). */
   rawScans: readonly RawTaskScan[];
+  /** Projectstart-anker dat `resolveMissingScheduleDates` gebruikte (voor `readMPP` wanneer de Props
+   *  geen projectstart droegen). */
+  startAnchor: string;
 }
 
 /** Fase A — rauwe scan: alle velden die `readTasks` nodig heeft, als getal/`Date`/string, NOG GEEN
@@ -828,6 +836,7 @@ type MppTaskMode = 'AUTO_SCHEDULED' | 'MANUALLY_SCHEDULED';
 
 export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const { cfb, taskFieldMap, hoursPerDay, statusDate, applicationVersion, calResult } = ctx;
+  const missingDates = emptyMissingScheduleDates();
   const fixedMetaBytes = cfb.getStream(['   114', 'TBkndTask', 'FixedMeta']);
   const fixedDataBytes = cfb.getStream(['   114', 'TBkndTask', 'FixedData']);
   const varMetaBytes = cfb.getStream(['   114', 'TBkndTask', 'VarMeta']);
@@ -1269,6 +1278,10 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
       ...(mspTaskType ? { mspTaskType } : {}),
       ...(raw.effortDrivenRaw ? { effortDriven: true } : {}),
     };
+    // Lege ScheduledStart/-Finish ("NA"): plaatshouder hierboven (vandaag, resp. finish = start),
+    // vervangen door de gedeelde `resolveMissingScheduleDates` hieronder.
+    if (!resolvedStartTs) missingDates.start.add(task.id);
+    if (!resolvedFinishTs) missingDates.finish.add(task.id);
     records.push({ uniqueId: raw.uniqueId, id: raw.id, outlineLevel: raw.outlineLevel, storedWbs: raw.storedWbs, task });
     taskIdByUniqueId.set(raw.uniqueId, task.id);
     taskHourById.set(task.id, isHour);
@@ -1281,9 +1294,13 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   assignHierarchyAndWbs(records);
 
   const tasks = records.map((r) => r.task);
+  // Gedeelde regel vóór de voortgang-invarianten: start ⇒ projectstart (anders de vroegste aanwezige
+  // taakstart), finish ⇒ start + duur op de eigen kalender van de taak waar eenduidig.
+  const startAnchor = resolveMissingScheduleDates(tasks, missingDates, ctx.projectStart ?? '',
+    (task) => taskCalendar(task, calResult));
   normalizeImportedProgress(tasks, statusDate);
   return {
-    tasks, taskIdByUniqueId, taskHourById,
+    tasks, taskIdByUniqueId, taskHourById, startAnchor,
     rawScans: raws, // Z2 — zie ReadTasksResult se toelichting; readMPP hieronder geeft dit NIET door
   };
 }
@@ -1300,7 +1317,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
 export function parseProjectProperties(
   props: Props,
   labels: ImportLabels | undefined,
-): { project: Project; hoursPerDay: number; calendarHoursPerDayOverride: number | null } {
+): { project: Project; hoursPerDay: number; calendarHoursPerDayOverride: number | null; projectStartFromFile: boolean } {
   const titleBytes = props.getByteArray(PROPS_KEY_TITLE);
   const name = (titleBytes ? getUnicodeString(titleBytes, 0, MAX_VAR_TEXT_BYTES, 'Props title') : '') || labels?.importedProject || 'MS Project Import';
 
@@ -1352,7 +1369,10 @@ export function parseProjectProperties(
   const statusDate = statusBytes && statusBytes.length >= 4 ? getTimestamp(statusBytes, 0, 'Props statusDate') : null;
   if (statusDate) project.statusDate = formatDate(statusDate);
 
-  return { project, hoursPerDay, calendarHoursPerDayOverride: minutesPerDayValid ? hoursPerDay : null };
+  return {
+    project, hoursPerDay, calendarHoursPerDayOverride: minutesPerDayValid ? hoursPerDay : null,
+    projectStartFromFile: !!startDate,
+  };
 }
 
 /**
@@ -2223,7 +2243,7 @@ export function deriveTimephasedWindowsForTasks(
 export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult {
   const { cfb, projectProps, applicationVersion } = openMppProject(bytes);
 
-  const { project, hoursPerDay, calendarHoursPerDayOverride } = parseProjectProperties(projectProps, labels);
+  const { project, hoursPerDay, calendarHoursPerDayOverride, projectStartFromFile } = parseProjectProperties(projectProps, labels);
 
   const taskFieldMap = createTaskFieldMap(projectProps);
 
@@ -2247,9 +2267,12 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
   // mspdiReader's `taskCalendarId`-toewijzing tijdens de taken-lus) — de oude post-hoc-koppelstap
   // (`calendarUniqueIdByTaskId` → `calResult.calendarByUniqueId`-lookup ná `readTasks`) is dus
   // vervallen; `taskHourById` voedt T7's relaties (lag-eenheid-keuze, spiegelt mspdiReader).
-  const { tasks, taskIdByUniqueId, taskHourById } = readTasks({
+  const { tasks, taskIdByUniqueId, taskHourById, startAnchor } = readTasks({
     cfb, taskFieldMap, hoursPerDay, statusDate: project.statusDate, applicationVersion, calResult,
+    projectStart: projectStartFromFile ? project.startDate : '',
   });
+  // Geen projectstart in de Props ⇒ het anker (vroegste aanwezige taakstart) i.p.v. vandaag.
+  if (!projectStartFromFile) project.startDate = startAnchor;
 
   // T7: relaties/resources/assignments — compleet ImportResult, geen placeholders meer.
   const sequences = readRelations(cfb, applicationVersion, hoursPerDay, taskIdByUniqueId, taskHourById);

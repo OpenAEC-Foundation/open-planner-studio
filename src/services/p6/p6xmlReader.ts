@@ -9,7 +9,7 @@ import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { isoDatePrefixOrToday } from '@/services/importDates';
+import { emptyMissingScheduleDates, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
@@ -302,6 +302,12 @@ export function readP6XML(content: string): ImportResult {
 
   // Parse project
   const project = parseProject(doc);
+  // Ontbrekende geplande datums (gedeelde regel `resolveMissingScheduleDates`, vóór de voortgang-
+  // invarianten). Zonder <PlannedStartDate> op het project dragen ook de WBS-samenvattingen (die op
+  // de projectstart worden aangemaakt) de vandaag-plaatshouder — die tellen dan mee als ontbrekend.
+  const projEl = getAllByLocalName(doc, 'Project')[0];
+  const projectStartRaw = projEl ? getElementText(projEl, 'PlannedStartDate') : '';
+  const missingDates = emptyMissingScheduleDates();
 
   // Parse WBS elements
   const wbsElements = getAllByLocalName(doc, 'WBS');
@@ -332,6 +338,7 @@ export function readP6XML(content: string): ImportResult {
       time: createDefaultTaskTime(project.startDate, 0),
       resourceIds: [],
     });
+    if (!projectStartRaw) { missingDates.start.add(id); missingDates.finish.add(id); }
   }
 
   // Broer/zus-volgorde uit `SequenceNumber` (issue #159, vervolg — critreview PR #162: de writer
@@ -490,6 +497,8 @@ export function readP6XML(content: string): ImportResult {
     const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
     const plannedStart = isHour ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
     const plannedFinish = isHour ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+    if (!plannedStartRaw) missingDates.start.add(id);
+    if (!plannedFinishRaw) missingDates.finish.add(id);
 
     // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
@@ -601,6 +610,12 @@ export function readP6XML(content: string): ImportResult {
   // ruwe "samenvattingen eerst, dan bladen"-volgorde was precies de store-volgorde waar de MSPDI-
   // export op stukliep; de andere lezers leveren documentvolgorde (= diepte-eerst), deze nu ook.
   const tasks = [...flattenOrder([...wbsTasks, ...leafTasks])];
+
+  // Anker = projectstart uit het bestand, anders de vroegste aanwezige activiteitstart; finish uit
+  // start + duur op de effectieve kalender (P6 levert elke kalender mee, dus eenduidig voor hele
+  // werkdagen).
+  project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
+    (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);
