@@ -303,6 +303,8 @@ console.log('-- split-edit-store: opgeschoven opvolger houdt zijn balk op earlyS
   eq('#171 split geaccepteerd', refusal, null);
   const after = S().tasks.find(x => x.id === succ)!;
   eq('#171 voorlopig einde telt vanaf de balkstart', after.time.earlyFinish, '2026-06-29');
+  // Het invoerpaar scheduleStart/scheduleFinish blijft een consistent anker (11 werkdagen vanaf 1 juni).
+  eq('#171 het ankereinde blijft bij het anker', after.time.scheduleFinish, '2026-06-15');
   S().runCPM();
   eq('#171 de herberekening bevestigt hetzelfde einde', S().tasks.find(x => x.id === succ)!.time.earlyFinish, '2026-06-29');
 }

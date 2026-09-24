@@ -240,13 +240,14 @@ export function completedWorkMinutes(task: Task, hoursPerDay: number): number {
  * kalender MÉT banden zet de solver de finish op het LAATSTE band-eind van de laatste werkdag
  * (`addDurationChecked`s `dayLastBandEnd`); dat wordt hier gespiegeld via `effectiveBandsOn`, zodat
  * de voorlopige waarde niet een halve dag van de echte afwijkt.
+ *
+ * `startStr` (issue #171): standaard het anker `scheduleStart` — het invoerpaar scheduleStart/
+ * scheduleFinish blijft zo consistent. Voor het BALKeinde (`earlyFinish`) geeft de store de start
+ * mee waar de balk staat (`earlyStart || scheduleStart`): een door een voorganger opgeschoven taak
+ * houdt haar anker op de projectstart, en dan sprong het balkeinde na een split daarnaartoe terug.
  */
-export function splitScheduleFinish(task: Task, eng: CalendarEngine): string {
+export function splitScheduleFinish(task: Task, eng: CalendarEngine, startStr = task.time.scheduleStart): string {
   const hasTime = task.time.scheduleStart.includes('T');
-  // Gerekend vanaf waar de balk STAAT (`earlyStart || scheduleStart`), niet vanaf het anker: een
-  // door een voorganger opgeschoven taak houdt haar `scheduleStart` op de projectstart, en dan
-  // sprong het balkeinde na een split terug naar die projectstart (issue #171).
-  const startStr = task.time.earlyStart || task.time.scheduleStart;
   const start = startStr.includes('T') ? parseInstant(startStr) : parseDate(startStr);
   if (Number.isNaN(start.getTime())) return task.time.scheduleFinish; // corrupte invoer: niets verzinnen
   if (eng.isHourMode && taskDurationUnit(task) === 'hours') {
