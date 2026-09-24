@@ -321,11 +321,14 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
   await expect(page.locator('[data-ops-convention-group="ownProfilesOnly"] [data-ops-convention-row="p6CompletedPredecessorAtDataDate"]')).toHaveCount(1);
   await expect(page.locator('[data-ops-convention-group="msproject"] [data-ops-convention-row]')).toHaveCount(2);
 
-  // A19 komt uit het bestand: per bestand gemarkeerd, basis uit, afwijkend.
+  // A19 komt uit het bestand: label "uit bestand", basis uit, maar (eigenaarsbesluit 2026-09-24) géén
+  // afwijking: geen markering, geen resetknop, en de groep Voortgang telt hem niet mee.
   await expect(a19.locator('[data-ops-convention-per-file]')).toBeVisible();
   await expect(a19.locator('[data-ops-convention-base]')).toHaveText(/(basis|base): (uit|off)/);
-  await expect(a19).toHaveAttribute('data-ops-convention-deviates', 'true');
-  await expect(page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-group-deviating]')).toBeVisible();
+  await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).toBeChecked();
+  await expect(a19).not.toHaveAttribute('data-ops-convention-deviates', 'true');
+  await expect(a19.locator('[data-ops-convention-reset]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-group-deviating]')).toHaveCount(0);
 
   // Uitleg uitklappen en weer inklappen.
   await a19.locator('[data-ops-convention-help-toggle]').click();
@@ -333,17 +336,19 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
   await a19.locator('[data-ops-convention-help-toggle]').click();
   await expect(a19.locator('[data-ops-convention-help]')).toHaveCount(0);
 
-  // Terug naar basis: A19 uit, het profiel blijft het ingebouwde P6 (geen kopie), zonder "(aangepast)".
-  await a19.locator('[data-ops-convention-reset]').click();
-  await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).not.toBeChecked();
-  await expect(a19.locator('[data-ops-convention-reset]')).toHaveCount(0);
+  // Het profiel is het ingebouwde P6 (geen kopie). De keuzelijst toont "(aangepast)" zolang A19 in de
+  // overrides staat (`profileLabel`, check 16 in check-scheduling-profile-draft) — bewust buiten dit besluit.
   const select = page.locator('[data-ops-scheduling-profile-select]');
   await expect(select).toHaveValue('builtin:p6');
-  await expect(select.locator('option:checked')).toHaveText('Primavera P6');
+  await expect(select.locator('option:checked')).toHaveText(/^Primavera P6 \((aangepast|modified)\)$/);
 
   // Een gewone afwijking maakt een kopie en krijgt een eigen "terug naar basis".
   await page.locator('[data-ops-convention="clampNegativeFreeFloat"]').uncheck();
-  await expect(page.locator('[data-ops-convention-row="clampNegativeFreeFloat"] [data-ops-convention-reset]')).toBeVisible();
+  const reset = page.locator('[data-ops-convention-row="clampNegativeFreeFloat"] [data-ops-convention-reset]');
+  await expect(reset).toBeVisible();
+  await reset.click();
+  await expect(page.locator('[data-ops-convention="clampNegativeFreeFloat"]')).toBeChecked();
+  await expect(reset).toHaveCount(0);
 
   // De P6-opties uit het bestand staan alleen-lezen onderaan.
   await expect(page.locator('[data-ops-scheduling-source-option="useExpectedFinishDates"]')).toBeVisible();

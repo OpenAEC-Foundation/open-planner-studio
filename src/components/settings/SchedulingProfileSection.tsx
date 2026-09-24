@@ -13,7 +13,7 @@ import { generateId } from '@/utils/id';
 import { isHourCalendar } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import {
-  choiceOf, editConvention, hasValidProfileName, profileLabel, renameProfile, resetConventionToBase, selectProfile, templateRelation,
+  choiceOf, conventionDeviatesFromBase, editConvention, hasValidProfileName, profileLabel, renameProfile, resetConventionToBase, selectProfile, templateRelation,
   totalFloatModeFromUi,
   totalFloatModeToUi, withCriticalMode, withCriticalThreshold, withDefaultOptions,
   type ProfileChoice, type SchedulingSettingsDraft, type TotalFloatModeUi,
@@ -56,7 +56,7 @@ type SourceOptionKey = 'schedulingProfile.sourceOptions.useExpectedFinishDates';
 /**
  * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
  * eigen sjablonen, of het eigen profiel van dit project), daaronder de zevenentwintig conventies (per thema
- * uit het register, met de basiswaarde, "terug naar basis" en uitklapbare uitleg per regel) en zeven van de
+ * uit het register, met de basiswaarde, "terug naar basis" (niet bij een per-bestand-conventie, zie `conventionDeviatesFromBase`) en uitklapbare uitleg per regel) en zeven van de
  * elf projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
  * kritiek, meerdere speling-paden, lag-kalender, SS-lag-variant van C6). De andere vier — `useExpectedFinishDates`,
  * `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` en het nivelleerblok `leveling`
@@ -235,7 +235,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
       <div className="flex flex-col gap-2" data-ops-scheduling-conventions>
         <span className={labelCls}>{t('schedulingProfile.conventionsTitle')}</span>
         {CONVENTION_GROUPS.map(group => {
-          const deviating = group.items.filter(c => conventions[c.id] !== base[c.id]).length;
+          const deviating = group.items.filter(c => conventionDeviatesFromBase(c.id, conventions[c.id], base[c.id])).length;
           return (
             <section key={group.id} className="flex flex-col gap-1 rounded-[8px] px-2 py-1.5"
               style={{ border: '1px solid var(--theme-border-light)' }} data-ops-convention-group={group.id}>
@@ -255,7 +255,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
               )}
               {group.items.map(c => {
                 const name = t(`${c.labelKey}.label` as ConventionLabelKey);
-                const deviates = conventions[c.id] !== base[c.id];
+                const deviates = conventionDeviatesFromBase(c.id, conventions[c.id], base[c.id]);
                 const helpOpen = openHelp.has(c.id);
                 return (
                   <div key={c.id} className="flex flex-col gap-1" data-ops-convention-row={c.id}
@@ -283,7 +283,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
                       <span className="shrink-0 whitespace-nowrap text-text-secondary" data-ops-convention-base>
                         {t('schedulingProfile.baseValue', { value: base[c.id] ? t('schedulingProfile.on') : t('schedulingProfile.off') })}
                       </span>
-                      {deviates && (
+                      {deviates && !c.perFile && (
                         <button type="button" className="shrink-0 whitespace-nowrap underline text-accent"
                           onClick={() => onChange({ ...value, profile: resetConventionToBase(profile, c.id) })}
                           data-ops-convention-reset={c.id}>

@@ -133,9 +133,13 @@ eq('36b leeg kopie-id ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat'
 eq('36c ingebouwd id als kopie-id ⇒ no-op', editConvention(xerP6, 'clampNegativeFreeFloat', false, { id: 'ops', name: 'K' }) === xerP6, true);
 // "Terug naar basis" (UI-voorstel conventiegroepen): haalt één afwijking weg, zonder kopie op een ingebouwd id.
 {
-  const reset = resetConventionToBase(xerP6, 'p6UseRemainingStartForProgress');
+  const builtinDev = { ...xerP6, overrides: { ...xerP6.overrides, clampNegativeFreeFloat: false } };
+  const reset = resetConventionToBase(builtinDev, 'clampNegativeFreeFloat');
   eq('37 terug naar basis op ingebouwd houdt het id', reset?.id, xerP6.id);
-  eq('37a terug naar basis haalt de afwijking weg', reset?.overrides.p6UseRemainingStartForProgress, undefined);
+  eq('37a terug naar basis haalt de afwijking weg', reset?.overrides.clampNegativeFreeFloat, undefined);
+  // Eigenaarsbesluit 2026-09-24: een per-bestand-conventie (A19) is geen afwijking en heeft geen
+  // resetknop; het model weigert de reset daarom defensief (no-op, zelfde object).
+  eq('37e per-bestand-conventie ⇒ no-op', resetConventionToBase(xerP6, 'p6UseRemainingStartForProgress') === xerP6, true);
   eq('37b zonder afwijking ⇒ ongewijzigd', resetConventionToBase(xerP6, 'clampNegativeFreeFloat') === xerP6, true);
   eq('37c afwezig profiel ⇒ afwezig', resetConventionToBase(undefined, 'clampNegativeFreeFloat'), undefined);
   const ownReset = resetConventionToBase(own, 'clampNegativeFreeFloat');

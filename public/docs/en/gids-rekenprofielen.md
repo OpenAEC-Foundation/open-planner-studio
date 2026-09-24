@@ -56,9 +56,9 @@ With **Save as template** you keep the custom profile in the app, so you can cho
 
 ## The twenty-seven conventions
 
-Under Open Planner Studio all twenty-seven are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation. The line marked **per file** comes from your `.xer` file and stays when you switch profiles.
+Under Open Planner Studio all twenty-seven are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation. The line marked **per file** comes from your `.xer` file and stays when you switch profiles. That line does not count as a difference: it is not highlighted, is not counted in "changed" and has no **back to base**; you can still toggle its checkbox.
 
-If the difference is on a built-in profile, for example the value from the file, the profile stays the built-in profile after **back to base**; no copy is made.
+If the difference is on a built-in profile, the profile stays the built-in profile after **back to base**; no copy is made.
 
 ### Progress and completed work
 

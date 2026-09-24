@@ -56,9 +56,9 @@ Met **Opslaan als sjabloon** bewaar je het eigen profiel in de app, zodat je het
 
 ## De zevenentwintig conventies
 
-Onder Open Planner Studio staan ze alle zevenentwintig uit. In Projectinfo staan ze per onderwerp gegroepeerd, net als hieronder. Achter elke regel staat grijs de waarde van het gekozen basisprofiel ("basis: aan" of "basis: uit"). Wijkt je project daarvan af, dan is de regel gekleurd en kun je met **terug naar basis** de waarde van het profiel terugzetten. Met het pijltje vóór een regel klap je de uitleg uit. De regel met het label **per bestand** komt uit je `.xer`-bestand en blijft bij een profielwissel staan.
+Onder Open Planner Studio staan ze alle zevenentwintig uit. In Projectinfo staan ze per onderwerp gegroepeerd, net als hieronder. Achter elke regel staat grijs de waarde van het gekozen basisprofiel ("basis: aan" of "basis: uit"). Wijkt je project daarvan af, dan is de regel gekleurd en kun je met **terug naar basis** de waarde van het profiel terugzetten. Met het pijltje vóór een regel klap je de uitleg uit. De regel met het label **per bestand** komt uit je `.xer`-bestand en blijft bij een profielwissel staan. Die regel telt niet als afwijking: hij wordt niet gekleurd, telt niet mee bij "afwijkend" en heeft geen **terug naar basis**; het vinkje kun je wel gewoon omzetten.
 
-Staat de afwijking op een ingebouwd profiel, bijvoorbeeld de waarde uit het bestand, dan blijft het profiel na **terug naar basis** het ingebouwde profiel; er ontstaat geen kopie.
+Staat de afwijking op een ingebouwd profiel, dan blijft het profiel na **terug naar basis** het ingebouwde profiel; er ontstaat geen kopie.
 ### Voortgang en voltooid werk
 - **Werkelijke datums behouden in de terugwaartse berekening** (Primavera P6) — een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant.
 - **Lopende taak: vroege start = begin van het restwerk** (per bestand uit Primavera P6) — de vroege start van een lopende taak is waar het resterende werk begint. Terugrekenend over een start-start-relatie telt alleen haar restduur: zonder restwerk vallen late start en late finish samen.

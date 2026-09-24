@@ -28,6 +28,16 @@ export type ProfileChoice = `builtin:${BuiltInProfileId}` | `template:${string}`
  */
 export const PER_FILE_CONVENTION_KEYS: readonly ConventionKey[] = CONVENTIONS.filter(d => d.perFile).map(d => d.id);
 
+/**
+ * Wijkt deze conventie in de UI af van de basis? Eigenaarsbesluit 2026-09-24 ("1. Doen"): een
+ * per-bestand-conventie telt NOOIT als afwijking — geen gekleurde regel, niet in "N wijkt af", geen
+ * "terug naar basis" — want haar waarde is een eigenschap van het bestand, geen keuze tegen de school.
+ * Het vinkje blijft bewerkbaar en `overrides` blijft de waarde dragen (IFC/undo/switchProfile ongemoeid).
+ */
+export function conventionDeviatesFromBase(key: ConventionKey, value: boolean, baseValue: boolean): boolean {
+  return !PER_FILE_CONVENTION_KEYS.includes(key) && value !== baseValue;
+}
+
 export function copyProfile(p: SchedulingProfile): SchedulingProfile {
   return { baseId: p.baseId, id: p.id, name: p.name, overrides: { ...p.overrides } };
 }
@@ -110,9 +120,11 @@ export function editConvention(
 /** "Terug naar basis" voor één conventie: haal haar afwijking uit het profiel, zodat de waarde van de
  *  basis (`baseId`) weer geldt. Anders dan `editConvention` maakt dit van een ingebouwd profiel GEEN
  *  kopie: een afwijking weghalen brengt het profiel juist dichter bij de school (op een ingebouwd id
- *  is zo'n afwijking een waarde uit het bestand, bijvoorbeeld A19). Zonder afwijking: ongewijzigd. */
+ *  is zo'n afwijking bijvoorbeeld een eerdere wissel). Zonder afwijking: ongewijzigd.
+ *  Een per-bestand-conventie (`PER_FILE_CONVENTION_KEYS`, A19) is een no-op: eigenaarsbesluit 2026-09-24
+ *  — haar waarde komt uit het bestand, telt niet als afwijking en heeft geen "terug naar basis". */
 export function resetConventionToBase(current: SchedulingProfile | undefined, key: ConventionKey): SchedulingProfile | undefined {
-  if (!current || typeof current.overrides[key] !== 'boolean') return current;
+  if (!current || PER_FILE_CONVENTION_KEYS.includes(key) || typeof current.overrides[key] !== 'boolean') return current;
   const overrides = { ...current.overrides };
   delete overrides[key];
   return { ...current, overrides };
