@@ -11,6 +11,10 @@
 // Bevinding 10: één keer Opslaan gaf 2–3 undo-stappen (gewijzigde ouder, eerste gebruik van een
 // persoonlijk taaktype), en één Ctrl+Z draaide maar een deel terug. Hier: één Opslaan = één stap.
 //
+// Nasleep: mijlpaal aanzetten in dezelfde sessie als voortgang of een nieuwe startdatum. De
+// mijlpaaltransitie levert een VOLLEDIGE tijd (`...task.time` uit de store) en werd ná de
+// sessiebewerkingen toegepast, dus die overschreef de voortgang (en de start) uit de concepttaak.
+//
 // De browserkant (dubbelklik, schuif, Opslaan, Ctrl+Z) staat in tests/browser/task-dialog-save.spec.ts.
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
@@ -21,6 +25,7 @@ import {
 } from '@/state/taskDialogSave';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { addPersonalTaskType } from '@/services/taskTypes/personalTaskTypes';
+import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
@@ -201,6 +206,49 @@ function progressOf(t: Task) {
   eq('5b één undo draait type én taak terug', {
     types: f.S().customTaskTypes.length, typeId: f.task(id).customTaskTypeId ?? null, name: f.task(id).name,
   }, { types: 0, typeId: null, name: 'Taak' });
+}
+
+// ── 6. Mijlpaal aanzetten + voortgang/start in dezelfde sessie ──────────────────────────────────────
+// De dialoog zet de mijlpaalvlag via `TaskMilestoneFields`: onChange(taskMilestoneTransition(draft, true)).
+{
+  const f = fixture(['Paneel', 'Dialoog', 'Eerst voortgang', 'Nieuwe start']);
+  const [panel, dialog, progressFirst, newStart] = f.ids;
+  const statusDate = () => f.S().project.statusDate;
+  const milestoneOn = (d: Task): Task => ({ ...d, ...taskMilestoneTransition(d, true) });
+
+  // 6a. Eerst mijlpaal, dan de werkelijke datum; paneel als referentie.
+  f.S().updateTask(panel, taskMilestoneTransition(f.task(panel), true));
+  f.S().setActualFinish(panel, '2026-03-04');
+  {
+    const input = f.open(dialog);
+    const draft = draftWithActualFinish(milestoneOn(input.draft), '2026-03-04', statusDate());
+    if (!draft) throw new Error('dialoog weigerde een geldige datum');
+    f.save({ ...input, draft });
+  }
+  f.S().runCPM();
+  eq('6a mijlpaal + werkelijke datum: opgeslagen', {
+    isMilestone: f.task(dialog).isMilestone, duration: f.task(dialog).time.scheduleDuration,
+    completion: f.task(dialog).time.completion, actualFinish: f.task(dialog).time.actualFinish ?? null, status: f.task(dialog).status,
+  }, { isMilestone: true, duration: 0, completion: 1, actualFinish: '2026-03-04', status: 'COMPLETED' });
+  eq('6a mijlpaal + werkelijke datum: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
+
+  // 6b. Eerst voortgang, dan mijlpaal (de transitie op de draft neemt de voortgang mee).
+  {
+    const input = f.open(progressFirst);
+    f.save({ ...input, draft: milestoneOn(draftWithProgress(input.draft, 1, statusDate())) });
+  }
+  eq('6b voortgang, dan mijlpaal: voortgang blijft', {
+    isMilestone: f.task(progressFirst).isMilestone, completion: f.task(progressFirst).time.completion, status: f.task(progressFirst).status,
+  }, { isMilestone: true, completion: 1, status: 'COMPLETED' });
+
+  // 6c. Mijlpaal + een andere startdatum: de nieuwe start (het geplande anker) blijft.
+  {
+    const input = f.open(newStart);
+    f.save({ ...input, draft: milestoneOn(input.draft), startDate: '2026-03-09' });
+  }
+  eq('6c mijlpaal + nieuwe start: anker = nieuwe start', {
+    isMilestone: f.task(newStart).isMilestone, scheduleStart: f.task(newStart).time.scheduleStart,
+  }, { isMilestone: true, scheduleStart: '2026-03-09' });
 }
 
 if (diffs.length) {

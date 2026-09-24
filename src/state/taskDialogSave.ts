@@ -101,17 +101,21 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         durationUnit: draft.time.durationUnit,
         scheduleDuration: draft.time.scheduleDuration,
         durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
-        completion: draft.time.completion,
-        actualStart: draft.time.actualStart,
-        actualFinish: draft.time.actualFinish,
       };
+      // De mijlpaaltransitie levert een VOLLEDIGE tijd (`...editingTask.time` uit de store) met duur
+      // 0. Daarom eerst: de duur uit de transitie wint van de draftduur, maar de sessiebewerkingen
+      // hieronder (voortgang, startdatum) mogen niet door de storewaarden worden overschreven —
+      // anders verdween "mijlpaal aan + voortgang/nieuwe start" in één sessie stil.
+      const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
+      if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
+      time.completion = draft.time.completion;
+      time.actualStart = draft.time.actualStart;
+      time.actualFinish = draft.time.actualFinish;
       // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
       const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
       if (startDate !== shownStart) time.scheduleStart = startDate;
-      const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
-      if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
       const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
