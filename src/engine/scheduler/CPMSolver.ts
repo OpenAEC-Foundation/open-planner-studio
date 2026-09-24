@@ -3459,7 +3459,9 @@ export class CPMSolver {
    * toestaan, in werktijd; zonder opvolger haar late finish. Opvolgers eerst (omgekeerde
    * topologische volgorde), zodat een keten van ALAP-taken achter elkaar aansluit. Ondergrens: de
    * relatiegrenzen van haar voorgangers en de statusdatum — haar eigen geplande start (A16) of
-   * eigen anker telt niet. Opvolgers bewegen niet. `alapTaskIds` staat in topologische volgorde.
+   * eigen anker telt niet. Een secundaire constraint (`constraint2`) blijft gelden: SNLT/FNLT als
+   * bovengrens, SNET/FNET als ondergrens; de ondergrens wint (bron en corpusstand in `types/project.ts`).
+   * Opvolgers bewegen niet. `alapTaskIds` staat in topologische volgorde.
    */
   private applyAlapFromSuccessors(
     alapTaskIds: string[],
@@ -3491,13 +3493,23 @@ export class CPMSolver {
         if (!finish || bound < finish) finish = bound;
       }
       if (!finish) continue;
+      // Secundaire constraint (`constraint2`; de primaire ís ALAP). Bovengrens: SNLT/FNLT (en een
+      // zachte MSO/MFO) via dezelfde `backwardBoundOf` als `applyBackwardBound` — de ALAP-taak schuift
+      // nooit over haar eigen FNLT heen. Ondergrens hieronder: SNET/FNET via `forwardBoundOf`, net als
+      // `applyForwardConstraints`. Botsen ze, dan wint de ondergrens (vroege datums liggen nooit vóór een
+      // SNET/FNET; een overschreden FNLT wordt negatieve speling aan de late kant, zoals overal).
+      const upper = this.backwardBoundOf(task, task.constraint2, cal);
+      if (upper && finish > upper) finish = upper;
       let start = this.startFromFinish(cal, finish, task);
-      // Ondergrens: voorgangerrelaties (`seqConstraint`, voorwaarts) en de statusdatum.
+      // Ondergrens: voorgangerrelaties (`seqConstraint`, voorwaarts), de statusdatum en de secundaire
+      // SNET/FNET.
       let floor: Date | null = this.dataDate;
       for (const seq of this.predecessors.get(taskId) || []) {
         const c = this.seqConstraint.get(seq.id);
         if (c && (!floor || c > floor)) floor = c;
       }
+      const secondaryFloor = this.forwardBoundOf(task, task.constraint2, cal);
+      if (secondaryFloor && (!floor || secondaryFloor > floor)) floor = secondaryFloor;
       if (floor && start < floor) {
         start = this.snapOnOrAfter(cal, floor);
         finish = this.finishFromStart(cal, start, task);

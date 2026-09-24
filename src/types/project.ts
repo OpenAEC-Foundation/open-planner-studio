@@ -704,9 +704,23 @@ export interface SchedulingOptions {
    *  van ALAP-taken aaneensluit; de opvolgers zelf bewegen niet. Ondergrens: de relatiegrenzen van haar
    *  voorgangers en de statusdatum. Haar eigen geplande venster telt niet: een ALAP-wortel start
    *  voorwaarts op de statusdatum, niet op haar eigen anker, en de geplande-startvloer van A16 geldt niet
-   *  voor haar (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een gestarte of voltooide ALAP-taak,
-   *  of een op een dagkalender, valt buiten deze conventie en houdt de oude stap (gemeten: een voltooide
-   *  ALAP-taak, HarbourPointe EC1030, kwam anders verder van P6 te staan).
+   *  voor haar (`CPMSolver.forwardPass`, `applyAlapFromSuccessors`). Een secundaire constraint
+   *  (`constraint2`) blijft gelden: SNLT/FNLT begrenzen de vroege finish van boven, SNET/FNET de start
+   *  van onder (via `backwardBoundOf`/`forwardBoundOf`, dezelfde grenzen als de gewone passes); botsen
+   *  ze, dan wint de ondergrens. Bron: Oracle P6 Help "Working with Activity Constraints" — alleen bij
+   *  Start On/Finish On/Mandatory Start/Mandatory Finish als primaire is geen secundaire toegestaan, dus
+   *  ALAP mag er een dragen en beide gelden; hoe P6 een botsing oplost staat daar niet (eigen keuze, in
+   *  lijn met "vroege datums nooit vóór een SNET/FNET"). Corpus: 0 van de 46 ALAP-taken in de negen
+   *  orakelbestanden draagt een `cstr_type2` (gemeten 2026-09-24), dus dit deel is niet tegen P6 geijkt.
+   *
+   *  BEWUSTE, GEMETEN BEPERKINGEN — geen P6-bron, geijkt op het corpus (critreview C14-landing 24-09):
+   *  (1) alleen op een UURkalender (`cal.isHourMode`): een ALAP-taak op een dagkalender houdt stil de oude
+   *      stap in hele werkdagen — het corpus heeft geen P6-doorgerekende ALAP-taak op een dagkalender,
+   *      dus er is niets om een wijziging tegen te meten; niet veranderen zonder meting;
+   *  (2) alleen NIET-GESTARTE taken: een gestarte of voltooide ALAP-taak houdt de oude stap (gemeten: een
+   *      voltooide ALAP-taak, HarbourPointe EC1030, kwam anders verder van P6 te staan);
+   *  (3) een ALAP-WORTEL begint voorwaarts op de statusdatum, niet op haar eigen gepland venster
+   *      (gemeten: EC1420, target 2011-06-27, staat in P6 vóór haar opvolger).
    *
    *  - P6: aan. Oracle P6 Help, constraint "As Late As Possible": de activiteit wordt zo laat
    *    ingepland als kan zonder haar opvolgers te vertragen, dus binnen haar vrije speling. Gemeten

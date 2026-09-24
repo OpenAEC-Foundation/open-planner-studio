@@ -777,6 +777,14 @@ liggen op EC1420/EC1430.
 **Geland 2026-09-24** (`claude/x12-c14-land`) als C14, samen met eigenaarsbesluit vraag 13 ("Vraag 13, ja
 uitsluiten": EC1420 uit de meetlat, naast EC1430 van vraag 8): X12 104 → 76, CELLDELTA p6 nieuw=0
 verslechterd=0 groter=0 verbeterd=23 kleiner=9 schuld=0, uitgesloten 42 taken.
+**Landfixes 2026-09-24** (`claude/x12-c14-landfixes`, critreview C14-landing): (1) de secundaire
+constraint (`constraint2`) geldt nu ook bij de ALAP-positionering — SNLT/FNLT als bovengrens, SNET/FNET
+als ondergrens, de ondergrens wint; bron Oracle P6 Help "Working with Activity Constraints" (ALAP mag een
+secundaire dragen); corpus: 0 van de 46 ALAP-taken in de orakelbestanden heeft een `cstr_type2`, dus
+geen celeffect. (2) Drie **bewuste, gemeten beperkingen zonder P6-bron**, nu ook zo benoemd in docblok
+en gids: alleen uurkalenders (een ALAP-taak op een dagkalender houdt stil de oude stap; geen
+P6-doorgerekende ALAP-taak op een dagkalender in het corpus, dus geen wijziging zonder meting), alleen
+niet-gestarte taken (EC1030), en de ALAP-wortel op de statusdatum (EC1420).
 
 **De C10-regel** (`p6AlapPositionedFromSuccessors`, geparkeerd op `d9973123`,
 `claude/x12-brok5-klein`). Een niet-gestarte ALAP-taak op een uurkalender krijgt als vroege finish
