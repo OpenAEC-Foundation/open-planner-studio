@@ -1006,16 +1006,178 @@
   "ratchetDebt": {},
   "excludedHidden": {
     "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": {
-      "sixAxis": 38,
-      "drivingPath": 4
+      "9033/120184": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120185": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120186": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120187": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120188": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120189": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120190": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120191": {
+        "sixAxis": 3,
+        "drivingPath": 1
+      },
+      "9033/120192": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "9033/120193": {
+        "sixAxis": 1,
+        "drivingPath": 1
+      },
+      "9033/120194": {
+        "sixAxis": 4,
+        "drivingPath": 1
+      },
+      "9033/120195": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120196": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "9033/120197": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      }
     },
     "9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe": {
-      "sixAxis": 0,
-      "drivingPath": 19
+      "2665/143637": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143638": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143639": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143640": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143641": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143642": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143643": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143644": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143645": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143646": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143647": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/143648": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147899": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147900": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147901": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147902": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147904": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147905": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      },
+      "2665/147906": {
+        "sixAxis": 0,
+        "drivingPath": 1
+      }
     },
     "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167": {
-      "sixAxis": 34,
-      "drivingPath": 0
+      "4408/98171": {
+        "sixAxis": 4,
+        "drivingPath": 0
+      },
+      "4408/98172": {
+        "sixAxis": 2,
+        "drivingPath": 0
+      },
+      "4408/98178": {
+        "sixAxis": 3,
+        "drivingPath": 0
+      },
+      "4408/98220": {
+        "sixAxis": 4,
+        "drivingPath": 0
+      },
+      "4408/98221": {
+        "sixAxis": 4,
+        "drivingPath": 0
+      },
+      "4408/98223": {
+        "sixAxis": 4,
+        "drivingPath": 0
+      },
+      "4408/98230": {
+        "sixAxis": 4,
+        "drivingPath": 0
+      },
+      "4408/98231": {
+        "sixAxis": 5,
+        "drivingPath": 0
+      },
+      "4408/98233": {
+        "sixAxis": 4,
+        "drivingPath": 0
+      }
     }
   }
 }

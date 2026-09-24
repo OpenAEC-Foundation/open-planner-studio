@@ -426,9 +426,21 @@ export function exclusionLabelFor(manifest: XerExclusionManifestLike, sha256: st
     ?? sha256;
 }
 
-/** De HERPIN-regel die boven het pinblok moet staan voor een uitsluiting (letterlijk uit het record). */
-export function exclusionHerpinLine(record: XerExclusionRecord, label: string): string {
-  return `HERPIN ${record.decision.slice(0, 10)} uitsluiting: ${label} — ${record.reason}`;
+/** De kern van de HERPIN-regel die boven het pinblok moet staan (letterlijk uit het record): besluitdatum,
+ *  label en reden. De poort eist deze kern; de herpindatum ervoor schrijft de herpin zelf (hij hoort bij het
+ *  moment van herpinnen, niet bij het record). */
+export function exclusionHerpinCore(record: XerExclusionRecord, label: string): string {
+  return `uitsluiting (besluit ${record.decision.slice(0, 10)}): ${label} — ${record.reason}`;
+}
+
+/** De volledige HERPIN-regel: `HERPIN <herpindatum> uitsluiting (besluit <besluitdatum>): <label> — <reden>`. */
+export function exclusionHerpinLine(record: XerExclusionRecord, label: string, herpinDate: string): string {
+  return `HERPIN ${herpinDate} ${exclusionHerpinCore(record, label)}`;
+}
+
+/** Records chronologisch op besluitdatum (stabiel binnen dezelfde datum) — de volgorde van de HERPIN-regels. */
+export function byDecisionDate(records: readonly XerExclusionRecord[]): XerExclusionRecord[] {
+  return [...records].sort((a, b) => (a.decision.slice(0, 10) < b.decision.slice(0, 10) ? -1 : a.decision.slice(0, 10) > b.decision.slice(0, 10) ? 1 : 0));
 }
 
 /** Per bestands-SHA of de uitsluitingen verschillen tussen twee lijsten. */
