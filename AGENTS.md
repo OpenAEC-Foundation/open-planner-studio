@@ -14,8 +14,9 @@ npm run tauri:dev    # desktop app via scripts/tauri-dev.mjs — same per-worktr
 npm run tauri:build  # desktop installers
 npm run bump X.Y.Z   # CalVer sync (package.json + tauri.conf.json + lock; Cargo.toml stays 0.1.0)
 npm run verify       # THE gate — literally what CI, the release gate and the deploy gate run
-npm run typecheck    # tsc --noEmit over src/ AND scripts/+tests/ (tsconfig.tests.json)
+npm run typecheck    # tsc --noEmit over src/ AND scripts/+tests/ (tsconfig.tests.json); incremental, cache in node_modules/.cache/ops-tsc
 npm run lint         # eslint src — deliberately minimal, see below
+npm run lint:fast    # same lint with a cache, for iterating; can miss type-aware findings in unchanged files, so `lint` stays the gate
 npm test             # all five behavioral suites (planning, library, mcp, dev-server, browser)
 bash tests/planning/run.sh cases-<x>.json  # one data-driven battery
 bash tests/planning/run.sh check-<x>.ts    # one targeted check-*.ts battery

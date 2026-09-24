@@ -12,8 +12,9 @@ npm run tauri:dev    # Run the desktop app (Tauri 2) via scripts/tauri-dev.mjs
 npm run tauri:build  # Produce desktop installers
 npm run bump X.Y.Z   # CalVer-versie syncen (package.json + tauri.conf.json + lock; Cargo.toml blijft bewust 0.1.0)
 npm run verify       # DE poort — exact wat CI, de release-gate en de deploy-gate draaien
-npm run typecheck    # tsc --noEmit over src/ én scripts/+tests/ (tsconfig.tests.json)
+npm run typecheck    # tsc --noEmit over src/ én scripts/+tests/ (tsconfig.tests.json); incrementeel, cache in node_modules/.cache/ops-tsc
 npm run lint         # los: ESLint over src/ — promises, control-regex en harde React-hookregels
+npm run lint:fast    # los: dezelfde lint mét cache, voor tussendoor — kan type-afhankelijke fouten in ongewijzigde bestanden missen, dus `lint` blijft de poort
 npm test             # alle vijf de suites: planning, library, mcp, dev-server, browser
 npm run test:planning     # los: CPM/kalender-regressiesuite (== bash tests/planning/run.sh)
 npm run test:library      # los: bibliotheek/IFC/i18n-checks

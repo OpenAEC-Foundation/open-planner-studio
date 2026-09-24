@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
     "build": "tsc && vite build",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/ops-tsc/app.tsbuildinfo && tsc --noEmit -p tsconfig.tests.json --incremental --tsBuildInfoFile node_modules/.cache/ops-tsc/tests.tsbuildinfo",
     "lint": "eslint src",
+    "lint:fast": "eslint src --cache --cache-strategy content --cache-location node_modules/.cache/ops-eslint/",
     "test": "npm run test:planning && npm run test:library && npm run test:mcp && npm run test:dev-server && npm run test:browser",
     "test:planning": "bash tests/planning/run.sh",
     "test:library": "bash tests/library/run.sh",
