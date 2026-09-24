@@ -63,7 +63,7 @@ import {
   absoluteItemsToContourPeriods, mspdiValueToMinutes, splitGapsFromContours, type AbsoluteWorkItem,
 } from '@/services/contourIo';
 import type { TaskTimephasedContour } from '@/types/task';
-import { buildRecordedTime, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
+import { buildRecordedTime, leafRecordedTimes, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const MSP_TIME_ANCHOR = '08:00:00';
@@ -782,7 +782,11 @@ export function readMSPDI(content: string): ImportResult {
     customTaskTypes: [...customTaskTypes.values()],
     baselines,
     activeBaselineId,
-    ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'mspdi' as const } : {}),
+    // Critreview PR #167, bevinding 6: alleen bladtaken — zie `leafRecordedTimes`.
+    ...(() => {
+      const leafTimes = leafRecordedTimes(tasks, recordedTimes);
+      return Object.keys(leafTimes).length > 0 ? { recordedTimes: leafTimes, recordedTimesOrigin: 'mspdi' as const } : {};
+    })(),
   };
 }
 

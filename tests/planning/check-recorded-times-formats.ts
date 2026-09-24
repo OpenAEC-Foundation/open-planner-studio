@@ -84,6 +84,15 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('2e task.time ongewijzigd (lateStart = start, speling 0 — de bestaande vulling)', [byWbs(r, '1.1')?.time.lateStart, byWbs(r, '1.1')?.time.totalFloat], ['2026-03-02', 0]);
   const noEarly = MSPDI_FIXTURE.replace(/<EarlyStart>[^<]*<\/EarlyStart>\s*<EarlyFinish>[^<]*<\/EarlyFinish>/g, '');
   eq('2f zonder Early*: Start/Finish zijn de vastlegging', recordedOf(readMSPDI(noEarly), '1.2'), { start: '2026-03-16', finish: '2026-03-20' });
+  // Critreview PR #167, bevinding 6: MS Project schrijft EarlyStart ook op samenvattingen; die
+  // tellen niet mee in "N taken" (zoals bij XER). A wordt hier de samenvatting boven B.
+  const withSummary = MSPDI_FIXTURE
+    .replace('<Summary>0</Summary>', '<Summary>1</Summary>')
+    .replace(/(<Name>B<\/Name>[\s\S]*?)<OutlineLevel>1<\/OutlineLevel>/, '$1<OutlineLevel>2</OutlineLevel>');
+  const rs = readMSPDI(withSummary);
+  eq('2g tegenproef: A is nu de ouder van B', byWbs(rs, '1.1')?.childIds.length, 1);
+  eq('2h de samenvatting krijgt geen eigen vastlegging, het blad wel',
+    [recordedOf(rs, '1.1'), recordedOf(rs, '1.2')], [undefined, { start: '2026-03-16', finish: '2026-03-20' }]);
 }
 
 // ── (3) CSV ─────────────────────────────────────────────────────────────────────────────────────
@@ -204,7 +213,7 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
   eq('5-0d gestart: de finish slack, niet het minimum', mppTotalSlackTenths(true, 0, 4800), 4800);
   eq('5-0e gestart zónder finish slack maar mét start slack: geen speling (zoals MPXJ)', mppTotalSlackTenths(true, 0, null), null);
   eq('5-0f niet gestart: het minimum', mppTotalSlackTenths(false, 2400, 4800), 2400);
-  eq('5-0g niet gestart, één as ontbreekt: de andere', [mppTotalSlackTenths(false, null, 4800), mppTotalSlackTenths(false, 2400, null)], [4800, 2400]);
+  eq('5-0g niet gestart, één as ontbreekt: geen speling (MPXJ calculateTotalSlack geeft dan null)', [mppTotalSlackTenths(false, null, 4800), mppTotalSlackTenths(false, 2400, null)], [null, null]);
 }
 
 // ── (5) .mpp — corpus-optioneel (OPS_MPP_CRAWL, publieke MPXJ-junit-data + OzBuild) ─────────────
@@ -230,6 +239,8 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
     // Critreview op ded4d8c3, bevinding 2: MS Project (MPXJ `Task.calculateCritical`) noemt een
     // voltooide taak (werkelijk einde of 100%) NOOIT kritiek. Telling over de vastgelegde taken.
     let completedRecorded = 0, completedCritical = 0;
+    // Critreview PR #167, bevinding 6: alleen bladtaken dragen een vastlegging.
+    let summariesRecorded = 0, leavesTotal = 0;
     for (const file of files.sort()) {
       let r: ImportResult;
       try { r = readMPP(new Uint8Array(readFileSync(file))); } catch { continue; }
@@ -240,6 +251,8 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
         for (const t of r.tasks) {
           tasksTotal++;
           const rec = r.recordedTimes[t.id];
+          if (t.childIds.length > 0) { if (rec) summariesRecorded++; continue; }
+          leavesTotal++;
           if (!rec) continue;
           tasksRecorded++;
           if (rec.lateStart !== undefined && rec.lateFinish !== undefined) lateAxes++;
@@ -256,10 +269,11 @@ const recordedOf = (r: ImportResult, wbs: string): RecordedTime | undefined => {
         }
       }
     }
-    console.log(`.   recorded-times-formats .mpp: ${files.length} bestanden, ${readable} leesbaar, ${withRecorded} met vastlegging, taken ${tasksRecorded}/${tasksTotal} vastgelegd, late-assen ${lateAxes}, speling ${floatAxes}, start≠scheduleStart(NOT_STARTED) ${mismatchedStart}, finish<start ${inverted}, voltooid-en-kritiek ${completedCritical}/${completedRecorded}`);
+    console.log(`.   recorded-times-formats .mpp: ${files.length} bestanden, ${readable} leesbaar, ${withRecorded} met vastlegging, taken ${tasksRecorded}/${tasksTotal} vastgelegd (bladtaken ${leavesTotal}, samenvattingen met vastlegging ${summariesRecorded}), late-assen ${lateAxes}, speling ${floatAxes}, start≠scheduleStart(NOT_STARTED) ${mismatchedStart}, finish<start ${inverted}, voltooid-en-kritiek ${completedCritical}/${completedRecorded}`);
     truthy('5b minstens één leesbaar crawl-bestand draagt een vastlegging', withRecorded > 0);
     truthy('5c de vastgelegde vroege start valt voor niet-gestarte taken samen met MSP\'s geplande start (veldkaart-offset EARLY_START bewezen)', mismatchedStart === 0);
     truthy('5d geen enkele vastlegging eindigt vóór haar start', inverted === 0);
+    truthy(`5h geen samenvatting draagt een eigen vastlegging (${summariesRecorded})`, summariesRecorded === 0);
     // 5f: de grens werkt echt door in `readTasks` — op het eerste crawl-bestand met een NIET-
     // voltooide vastgelegde taak met positieve speling: grens 0 ⇒ niet kritiek, grens ≥ die
     // speling ⇒ kritiek; een voltooide taak blijft bij elke grens niet-kritiek.
