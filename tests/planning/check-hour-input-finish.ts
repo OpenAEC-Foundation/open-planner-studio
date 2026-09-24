@@ -305,6 +305,17 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   gap(k5);
   tx.run(() => { tx.draft.updateTaskFields(k5, { calendarId: h12 }); });
   eq('42 MCP updateTaskFields({calendarId}) wist het nivelleergat (valkuil a, MCP)', taskOf(c, k5).splitGaps ?? [], []);
+  // Critreview PR #101 baan 1 (gridcheck): het raster heeft een EIGEN, gesplitste route voor een
+  // kalenderwissel (`gridTransaction.ts`: kalenderstap `planTaskCellEdits` + `settleCalendarChange`
+  // vóór de rest van de paste). Ook daar moet het nivelleergat weg en het ingevoerde einde herleid
+  // op de nieuwe kalender. Mutatiebewijs: 'task-schedule' uit `LEVELING_GAP_ROUTES` ⇒ 43 rood (gat
+  // blijft); `reconcileGridInputFinish` overgeslagen ⇒ 10 en 43 rood (einde blijft op H8: 14:00).
+  const k6 = Sz().addTask({ name: 'K6' });
+  gap(k6);
+  const res = Sz().runGridMutation([cell(k6, 'task.calendarId', h12)]);
+  eq('43 raster: kalenderwissel via runGridMutation wist het nivelleergat en herleidt het einde',
+    [res.ok, taskOf(c, k6).calendarId === h12, taskOf(c, k6).splitGaps ?? [], sf(c, k6)],
+    [true, true, [], '2026-09-07T12:00']);
 }
 
 // 12. De afleiding zelf: ELAPSEDTIME telt klokminuten, duur 0 geeft de start.
