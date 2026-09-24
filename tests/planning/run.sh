@@ -1104,6 +1104,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
   PICSVCHECK="$DIR/.progress-import-csv.mjs"
   if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+  # CSV-lezer/-schrijver (audit import/export): "Completion (%)" via dezelfde percentageparser als de
+  # voortgangsimport, de gedeelde prioriteit-default, uur-lags in de korte lag-notatie van de app en
+  # de decimale komma waar die eenduidig is.
+  CSVIMPCHECK="$DIR/.csv-import.mjs"
+  if bundle_check "$DIR/check-csv-import.ts" "$CSVIMPCHECK"; then node "$CSVIMPCHECK" || STATUS=1; fi
 
   # Issue #27 etappe 3: de `.xlsx`-laag onder het voortgangsblad. Vier batterijen, van onder naar
   # boven: de XML-/serialdatum-primitieven, de eigen ZIP-schrijver en -lezer (inclusief de
