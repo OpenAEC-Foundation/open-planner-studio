@@ -1263,6 +1263,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Erken bitiş bir bitiş-bitiş sınırından önce olmaz",
       "help": "Bitiş-bitiş ilişkisinde ardılın erken bitişi, saat olarak öncülün koyduğu sınırdan asla önce olmaz. Bu sınır ardılın çalışma dışı zamanına denk gelirse, bitiş bir sonraki çalışma döneminin başlangıcı olur."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP görevleri ardılların izin verdiği kadar geç",
+      "help": "'Olabildiğince geç' kısıtlı, başlamamış bir görev, ardıllarının ona ihtiyaç duyduğu dakikada biter; önce ardıllar hesaplanır, böylece bir zincir kesintisiz birleşir. Kendi planlanan başlangıcı sayılmaz; öncülü olmayan bir görev bu durumda durum tarihinden önce başlamaz. Yalnızca saatlik takvimde geçerlidir."
     }
   },
   "profiles": {

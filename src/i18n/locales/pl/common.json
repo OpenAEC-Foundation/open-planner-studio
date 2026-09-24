@@ -1333,6 +1333,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Najwcześniejsze zakończenie nie przed granicą koniec-koniec",
       "help": "Przy powiązaniu koniec-koniec najwcześniejsze zakończenie następnika nigdy nie wypada w czasie zegarowym przed granicą wyznaczoną przez poprzednika. Jeśli ta granica przypada w czasie wolnym następnika, zakończeniem staje się początek następnego okresu pracy."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Zadania ALAP tak późno, jak pozwalają następniki",
+      "help": "Nierozpoczęte zadanie z ograniczeniem „najpóźniej jak to możliwe” kończy się co do minuty wtedy, gdy potrzebują go następniki, najpierw następniki, tak aby łańcuch był ciągły. Jego własny planowany początek się nie liczy; zadanie bez poprzednika nie zaczyna się wtedy przed datą stanu. Dotyczy tylko kalendarza godzinowego."
     }
   },
   "profiles": {

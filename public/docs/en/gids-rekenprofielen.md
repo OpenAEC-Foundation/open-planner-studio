@@ -8,12 +8,12 @@ Open Planner Studio schedules with one engine, but Primavera P6 and Microsoft Pr
 - Which profile an opened file gets, and why you see a notification about it.
 - How to switch profiles and what then happens to your schedule.
 - How to make a custom profile and keep it as a template.
-- What the twenty-six conventions do.
+- What the twenty-seven conventions do.
 - When a combination has no reference package.
 
 ## What a calculation profile is
 
-A profile is a set of twenty-six **conventions**: rules that belong to a scheduling package, such as "an unstarted task does not move to the status date by itself". In addition, every project has **calculation options** that differ per file, such as the lag calendar, the critical definition and the float calculation. Those options belong to the project; the profile only supplies their defaults for a new project.
+A profile is a set of twenty-seven **conventions**: rules that belong to a scheduling package, such as "an unstarted task does not move to the status date by itself". In addition, every project has **calculation options** that differ per file, such as the lag calendar, the critical definition and the float calculation. Those options belong to the project; the profile only supplies their defaults for a new project.
 
 The three built-in profiles:
 
@@ -54,9 +54,9 @@ Turn a convention on or off in the section. If the profile is built in, Open Pla
 
 With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**. **Delete template** removes the template from the app again; the project keeps its own copy.
 
-## The twenty-six conventions
+## The twenty-seven conventions
 
-Under Open Planner Studio all twenty-six are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation. The line marked **per file** comes from your `.xer` file and stays when you switch profiles.
+Under Open Planner Studio all twenty-seven are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation. The line marked **per file** comes from your `.xer` file and stays when you switch profiles.
 
 If the difference is on a built-in profile, for example the value from the file, the profile stays the built-in profile after **back to base**; no copy is made.
 
@@ -87,6 +87,7 @@ If the difference is on a built-in profile, for example the value from the file,
 - **Free float never negative** (Primavera P6) — with an unachievable late constraint, total float stays negative but free float becomes zero.
 - **Free float in the task's own calendar** (Primavera P6) — the free float of a not-started task counts per relationship in the task's own calendar, not in the successor's. This holds for finish-to-start, start-to-start and finish-to-finish, also with a working-time lag, as long as that lag runs on the predecessor's calendar. A started task counts this way only over a finish-to-start relationship without lag. Example: a task works until 17:00, its successor (start-to-start with lag) until 16:00. If the relationship boundary falls at 16:00, the successor only starts the next morning and the task has one hour of free float. Start-to-finish relationships, elapsed-time lags, percentage lags and lags on another lag calendar have not been measured and keep the ordinary calculation.
 - **Late finish on the task's own calendar** (Primavera P6) — if a successor imposes a late finish that falls outside the task's own working time (usually because that successor uses another calendar), the late finish becomes the end of the previous work period on the task's own calendar. Example: a task does not work on Fridays and its successor must start on Friday at 16:00; its late finish is then Thursday 17:00.
+- **ALAP tasks as late as the successors allow** (Primavera P6) — without this convention, an unstarted task with the *as late as possible* constraint moves by whole working days along its free float, and does not start before its own planned start. With the convention it finishes at the minute its successors need it, and a chain of such tasks closes up, as in Primavera P6. Its own planned start then does not count: a task without a predecessor starts no earlier than the status date. A started or completed task, or a task on a daily calendar, keeps the old behaviour.
 
 ### Dates and moments from the file
 
@@ -121,7 +122,7 @@ Some of the P6 conventions only act on tasks with P6 provenance, that is, from a
 
 ## Saving and exchanging
 
-The profile is saved in the IFC file, with all twenty-six values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
+The profile is saved in the IFC file, with all twenty-seven values, so the file calculates the same everywhere. A project with the default profile saves nothing extra. Older versions of Open Planner Studio do not know the profile: they only read the calculation options and the two progress conventions of Microsoft Project, and calculate a P6 project without P6 conventions.
 
 When you export to CSV, MS Project XML or P6 XML, the profile does not come along; those files open as Open Planner Studio again. For a project from a `.xer` file, the export reports that XER source information is lost; the calculation profile is part of that, but the notification does not name it separately.
 

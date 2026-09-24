@@ -1298,6 +1298,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Fin au plus tôt jamais avant une limite fin-fin",
       "help": "Avec une relation fin-fin, la fin au plus tôt du successeur n'est jamais, en heure réelle, avant la limite fixée par le prédécesseur. Si cette limite tombe hors du temps de travail du successeur, la fin devient le début de la période de travail suivante."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tâches ALAP aussi tard que les successeurs le permettent",
+      "help": "Une tâche non commencée avec la contrainte « dès que possible au plus tard » se termine à la minute où ses successeurs en ont besoin, successeurs d'abord, afin qu'une chaîne se referme. Son propre début planifié ne compte pas ; une tâche sans prédécesseur ne commence alors pas avant la date d'état. S'applique uniquement avec un calendrier horaire."
     }
   },
   "profiles": {

@@ -1263,6 +1263,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Early finish not before a finish-to-finish boundary",
       "help": "With a finish-to-finish relationship, the successor's early finish never lies before the boundary set by the predecessor in clock time. If that boundary falls in the successor's non-working time, the finish becomes the start of the next work period."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP tasks as late as the successors allow",
+      "help": "An unstarted task with the 'as late as possible' constraint finishes at the minute its successors need it, successors first, so a chain closes up. Its own planned start does not count; a task without a predecessor then starts no earlier than the status date. Applies only on an hourly calendar."
     }
   },
   "profiles": {

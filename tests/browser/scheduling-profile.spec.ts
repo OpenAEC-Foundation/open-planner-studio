@@ -301,7 +301,7 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
   await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
 });
 
-// UI-voorstel conventiegroepen: de 26 conventies staan per thema, met de basiswaarde van het profiel,
+// UI-voorstel conventiegroepen: de 27 conventies staan per thema, met de basiswaarde van het profiel,
 // "terug naar basis" bij een afwijking, "per bestand" bij A19 en een uitklapbare uitleg per regel. De
 // conventies die in elk ingebouwd profiel uit staan, staan in een eigen laatste groep; de P6-opties die
 // alleen uit het bestand komen, staan alleen-lezen onderaan (B10).
@@ -315,7 +315,7 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
   await page.getByRole('button', { name: /^(Project info|Projectinfo)$/ }).first().click();
 
   // Alle 26 regels staan er, verdeeld over de groepen; A19 onder voortgang, C1 bij "alleen eigen profielen".
-  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(26);
+  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(27);
   const a19 = page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-row="p6UseRemainingStartForProgress"]');
   await expect(a19).toHaveCount(1);
   await expect(page.locator('[data-ops-convention-group="ownProfilesOnly"] [data-ops-convention-row="p6CompletedPredecessorAtDataDate"]')).toHaveCount(1);

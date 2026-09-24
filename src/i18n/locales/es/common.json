@@ -1298,6 +1298,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Fin temprano nunca antes de un límite fin-fin",
       "help": "En una relación fin-fin, el fin temprano del sucesor nunca queda, en hora de reloj, antes del límite que fija el predecesor. Si ese límite cae en tiempo no laborable del sucesor, el fin pasa a ser el inicio del siguiente periodo de trabajo."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tareas ALAP tan tarde como permitan las sucesoras",
+      "help": "Una tarea no iniciada con la restricción «lo más tarde posible» termina en el minuto en que sus sucesoras la necesitan, primero las sucesoras, para que una cadena quede unida. Su propio inicio planificado no cuenta; una tarea sin predecesora no empieza entonces antes de la fecha de estado. Solo se aplica con un calendario por horas."
     }
   },
   "profiles": {

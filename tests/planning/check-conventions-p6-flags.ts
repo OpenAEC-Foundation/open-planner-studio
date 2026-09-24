@@ -502,8 +502,8 @@ for (const fixture of fixtures.filter(f => f.flag === 'p6CompletedDataDateWindow
 // C3 `p6CompletedRemainingLag`; brok 3: C4 `p6CompletedOutOfSequenceWindow`, C5 `p6CompletedPhysicalAtDataDate`,
 // C6 `p6InProgressStartLagElapsed`; brok 4: C7 `p6FinishFinishStartMilestoneLateFinish`, C8
 // `p6StartedTaskIgnoresPlannedStartFloor`; brok 6: C9 `p6LateFinishOnOwnCalendar`; brok 8: C11
-// `p6ProgressOverrideIgnoresStartedSuccessor`, C12 `p6FinishNotBeforeFinishFinishBound` (C10 = de geparkeerde
-// ALAP-conventie, niet in het register) ──
+// `p6ProgressOverrideIgnoresStartedSuccessor`, C12 `p6FinishNotBeforeFinishFinishBound`; brok 10: C14
+// `p6AlapPositionedFromSuccessors` (plan XER §9 noemt haar C10; C13 is geen registerconventie) ──
 // Zelfde bewijsvorm, per conventie: zoals gelezen (P6-profiel) ⇒ AAN; alleen deze conventie uit ⇒
 // UIT; OPS-basis met alleen deze conventie aan ⇒ AAN; OPS- en MS Project-profiel ⇒ UIT. De
 // verwachtingen volgen uit de regel (docblok in `types/project.ts`), niet uit de implementatie.
@@ -512,6 +512,7 @@ const GROUP_C = [
   'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
   'p6FinishFinishStartMilestoneLateFinish', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6LateFinishOnOwnCalendar',
   'p6ProgressOverrideIgnoresStartedSuccessor', 'p6FinishNotBeforeFinishFinishBound',
+  'p6AlapPositionedFromSuccessors',
 ] as const satisfies readonly ConventionKey[];
 
 /** Als `calendarData`, met een eigen set werkdagen (P6-dagnummers; 2 = maandag). */
@@ -1169,6 +1170,89 @@ groupC.push({
   eq('C12 voltooide FF-voorganger (A12 uit): gelijk aan C12 uit',
     solveAxes(a12off(donePred), 'P').ff, solveAxes(off(a12off(donePred)), 'P').ff);
   eq('C12 voltooide FF-voorganger onder P6 (A12 aan): vrije speling 0', solveAxes(donePred, 'P').ff, 0);
+}
+
+// C14 (plan XER §9 "C10"; brok 5 "C9"): band 08:00–17:00 ma–vr, statusdatum ma 5 jan 08:00. C (31 u)
+// loopt ma 5 jan 08:00 – do 8 jan 12:00 —FS0→ B (9 u), dus B begint do 8 jan 12:00. A is een ALAP-wortel
+// (9 u, CS_ALAP) —FS0→ B. P6 (HarbourPointe, B12, EC1420 → EC1430 → EC1810 → EC2090): A eindigt precies
+// waar B begint — EF do 8 jan 12:00, ES wo 7 jan 12:00 (9 werkuren terug). Zonder C14 schuift de oude
+// ALAP-stap A in hele werkdagen op haar vrije speling: ES wo 7 jan 08:00, EF wo 7 jan 17:00.
+// `withPred`: A krijgt een voorganger Q (3 u, ma 5 jan 08:00–11:00) —FS0→ A, zodat A niet meer de
+// wortel-tak maar de voorganger-tak (met de A16-vloer) doorloopt.
+function c14Fixture(alapTargetStart: string, alapTargetEnd: string, withPred = false): ImportResult {
+  return importXer([
+    'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    `%R\tC1\tWerkweek\tP1\tCA_Project\t9\t45\t${calendarData([['08:00', '17:00']])}`,
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tplan_end_date',
+    '%R\tP1\tC14-fixture\tC1\t2026-01-05 08:00\t2026-01-05 08:00\t2026-01-30 17:00',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date\tcstr_type',
+    `%R\tA\tP1\tC1\tA100\tZo laat mogelijk\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t${alapTargetStart}\t${alapTargetEnd}\t\t\tCS_ALAP`,
+    '%R\tC\tP1\tC1\tC100\tLang\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t31\t31\t2026-01-05 08:00\t2026-01-08 12:00\t\t\t',
+    '%R\tB\tP1\tC1\tB100\tOpvolger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t9\t9\t2026-01-08 12:00\t2026-01-09 12:00\t\t\t',
+    ...(withPred ? ['%R\tQ\tP1\tC1\tQ100\tVoorganger\tTT_Task\tDT_FixedDUR2\tTK_NotStart\tCP_Drtn\t3\t3\t2026-01-05 08:00\t2026-01-05 11:00\t\t\t'] : []),
+    '%T\tTASKPRED',
+    '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+    '%R\tR1\tB\tA\tP1\tP1\tPR_FS\t0',
+    '%R\tR2\tB\tC\tP1\tP1\tPR_FS\t0',
+    ...(withPred ? ['%R\tR3\tA\tQ\tP1\tP1\tPR_FS\t0'] : []),
+    '%E',
+  ]);
+}
+groupC.push({
+  flag: 'p6AlapPositionedFromSuccessors',
+  label: 'C14 ALAP zo laat als de opvolgers toestaan, in werktijd',
+  input: c14Fixture('2026-01-05 08:00', '2026-01-05 17:00'),
+  taskId: 'A',
+  pick: axes => ({ es: axes.es, ef: axes.ef }),
+  on: { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' },
+  off: { es: '2026-01-07T08:00', ef: '2026-01-07T17:00' },
+});
+
+// C14, randgevallen (docblok). Mutanten die hier rood worden (brok 5, opnieuw gedraaid in brok 10):
+// positioneringslus uit, conventiepoort in `applyAlap` uit, wortel-anker op de statusdatum weg,
+// niet-gestart-poort weg, voorwaartse (i.p.v. omgekeerde) volgorde, register P6 uit; plus in brok 10
+// de A16-vloeruitzondering weg.
+{
+  const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6AlapPositionedFromSuccessors', false));
+  const pickEsEf = (axes: Axes) => ({ es: axes.es, ef: axes.ef });
+  // (a) Een ALAP-wortel met een gepland venster ná haar opvolger heeft geen eigen anker (P6: EC1420,
+  // target 06-27 07:00, ES 06-24 16:49) en landt toch vóór B, dat dan op de grens van C blijft (do 8 jan
+  // 12:00); zonder C14 staat A op dat venster en duwt ze B naar di 13 jan.
+  const later = c14Fixture('2026-01-12 08:00', '2026-01-12 17:00');
+  eq('C14 ALAP-wortel met later gepland venster ⇒ vóór haar opvolger', pickEsEf(solveAxes(later, 'A')),
+    { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
+  eq('C14 uit ⇒ ALAP-wortel op haar eigen geplande venster', pickEsEf(solveAxes(off(later), 'A')),
+    { es: '2026-01-12T08:00', ef: '2026-01-12T17:00' });
+  eq('C14 opvolger blijft op de grens van C', solveAxes(later, 'B').es, '2026-01-08T12:00');
+  eq('C14 uit ⇒ opvolger achter het geplande venster van A', solveAxes(off(later), 'B').es, '2026-01-13T08:00');
+  // (b) Dezelfde vorm met een voorganger Q (voorganger-tak): de A16-vloer (eigen gepland venster ma 12
+  // jan) geldt niet voor een niet-gestarte ALAP-taak, dus B blijft op de grens van C en A sluit erop aan.
+  // Zonder C14 zet A16 A op haar venster en schuift B mee. Mutant "A16-vloeruitzondering weg" ⇒ rood.
+  const laterWithPred = c14Fixture('2026-01-12 08:00', '2026-01-12 17:00', true);
+  eq('C14 ALAP met voorganger en later gepland venster: A16-vloer telt niet', pickEsEf(solveAxes(laterWithPred, 'A')),
+    { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
+  eq('C14 ALAP met voorganger: opvolger blijft op de grens van C', solveAxes(laterWithPred, 'B').es, '2026-01-08T12:00');
+  eq('C14 uit ⇒ A16-vloer zet de ALAP-taak op haar venster', solveAxes(off(laterWithPred), 'A').es, '2026-01-12T08:00');
+  // (c) Een gestarte ALAP-taak valt buiten C14 (alle assen, alle taken gelijk met en zonder C14; gemeten:
+  // een voltooide ALAP-taak, HarbourPointe EC1030, kwam anders verder van P6 te staan).
+  const started = c14Fixture('2026-01-05 08:00', '2026-01-05 17:00');
+  const a = started.tasks.find(task => task.id === 'A')!;
+  a.time.actualStart = '2026-01-05T08:00';
+  a.time.completion = 0.5;
+  eq('C14 raakt geen gestarte ALAP-taak', solveAllAxes(started), solveAllAxes(off(started)));
+  // (d) Een keten A0 —FS0→ A (beide ALAP) sluit aaneen: A eerst (wo 7 jan 12:00), dan A0 er direct vóór
+  // (EF wo 7 jan 12:00, ES di 6 jan 12:00) — opvolgers eerst, anders blijft A0 op de statusdatum.
+  const chain = c14Fixture('2026-01-05 08:00', '2026-01-05 17:00');
+  const a0 = structuredClone(chain.tasks.find(task => task.id === 'A')!);
+  chain.tasks.unshift({ ...a0, id: 'A0', wbsCode: 'A000', name: 'Zo laat mogelijk (eerder)', p6TaskId: 'A0' });
+  chain.sequences.push({ id: 'R0', predecessorId: 'A0', successorId: 'A', type: 'FINISH_START', lagDays: 0, lagMinutes: 0 });
+  eq('C14 ALAP-keten sluit aaneen (A)', pickEsEf(solveAxes(chain, 'A')), { es: '2026-01-07T12:00', ef: '2026-01-08T12:00' });
+  eq('C14 ALAP-keten sluit aaneen (A0 direct vóór A)', pickEsEf(solveAxes(chain, 'A0')),
+    { es: '2026-01-06T12:00', ef: '2026-01-07T12:00' });
 }
 
 eq('inventaris: één fixture per groep-C-conventie', groupC.map(fixture => fixture.flag), [...GROUP_C]);

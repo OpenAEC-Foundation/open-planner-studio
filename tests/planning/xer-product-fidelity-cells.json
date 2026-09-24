@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "manifestSha256": "5d6f4863a06c4879d208fdaa49907fc83f5906774085570556ba6973212986c7",
+  "manifestSha256": "88266338640d6c20f09c20f1c740c5b3d20febb526d292eb0f0fbd62caea223b",
   "axes": [
     "drivingPath",
     "ef",
@@ -23,7 +23,7 @@
     "9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe": "4e3520b04fa2f96298db1023f34633c93c9fa854a1e9dcfce02a536d046a8fe7",
     "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae": "0ec75be082f40fee00007bc24a41c11bb0e297e2c7712441ee5d1b8293693121",
     "a2f3b2469e26f19985ac801786c90edfb965a7bc194a6e57704aa845c5f8611f": "8dd67461ec6bc966ff47fd1890094d65baaf6fcdc48020951d94c3cf002464ab",
-    "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167": "cb92ce44576e6e786823d0a9042aea1cf496f1588aec3a966728bb06d3d5572e"
+    "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167": "b2378db7df75afb2d9be41985be24eab901f814d0da7a25e476134c07be91a5e"
   },
   "files": {
     "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0": {
@@ -746,33 +746,13 @@
         }
       },
       "ef": {
-        "4408/98171": {
-          "bucket": "diff",
-          "minutes": 3731
-        },
-        "4408/98173": {
-          "bucket": "diff",
-          "minutes": 4331
-        },
-        "4408/98174": {
-          "bucket": "diff",
-          "minutes": 7211
-        },
-        "4408/98175": {
-          "bucket": "diff",
-          "minutes": 7211
-        },
-        "4408/98176": {
-          "bucket": "diff",
-          "minutes": 7211
-        },
         "4408/98177": {
           "bucket": "diff",
-          "minutes": 18731
+          "minutes": 14400
         },
         "4408/98179": {
           "bucket": "diff",
-          "minutes": 18731
+          "minutes": 14400
         },
         "4408/98180": {
           "bucket": "diff",
@@ -785,48 +765,16 @@
         "4408/98234": {
           "bucket": "diff",
           "minutes": 30240
-        },
-        "4408/98242": {
-          "bucket": "diff",
-          "minutes": 7211
-        },
-        "4408/98246": {
-          "bucket": "diff",
-          "minutes": 4331
-        },
-        "4408/98247": {
-          "bucket": "diff",
-          "minutes": 7211
         }
       },
       "es": {
-        "4408/98171": {
-          "bucket": "diff",
-          "minutes": 3731
-        },
-        "4408/98173": {
-          "bucket": "diff",
-          "minutes": 8111
-        },
-        "4408/98174": {
-          "bucket": "diff",
-          "minutes": 8111
-        },
-        "4408/98175": {
-          "bucket": "diff",
-          "minutes": 8111
-        },
-        "4408/98176": {
-          "bucket": "diff",
-          "minutes": 5231
-        },
         "4408/98177": {
           "bucket": "diff",
-          "minutes": 18731
+          "minutes": 14400
         },
         "4408/98179": {
           "bucket": "diff",
-          "minutes": 18731
+          "minutes": 14400
         },
         "4408/98180": {
           "bucket": "diff",
@@ -839,28 +787,12 @@
         "4408/98234": {
           "bucket": "diff",
           "minutes": 30240
-        },
-        "4408/98242": {
-          "bucket": "diff",
-          "minutes": 8111
-        },
-        "4408/98246": {
-          "bucket": "diff",
-          "minutes": 8111
-        },
-        "4408/98247": {
-          "bucket": "diff",
-          "minutes": 8111
         }
       },
       "ff": {
-        "4408/98140": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
         "4408/98179": {
           "bucket": "diff",
-          "minutes": 4331
+          "minutes": 2880
         },
         "4408/98180": {
           "bucket": "diff",
@@ -878,28 +810,12 @@
           "bucket": "diff",
           "minutes": 7200
         },
-        "4408/98242": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
         "4408/98243": {
           "bucket": "diff",
           "minutes": 24000
-        },
-        "4408/98246": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
-        "4408/98247": {
-          "bucket": "diff",
-          "minutes": 1451
         }
       },
       "lf": {
-        "4408/98171": {
-          "bucket": "diff",
-          "minutes": 4320
-        },
         "4408/98175": {
           "bucket": "diff",
           "minutes": 14400
@@ -958,10 +874,6 @@
         }
       },
       "ls": {
-        "4408/98171": {
-          "bucket": "diff",
-          "minutes": 4320
-        },
         "4408/98175": {
           "bucket": "diff",
           "minutes": 14400
@@ -1020,33 +932,21 @@
         }
       },
       "tf": {
-        "4408/98171": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
-        "4408/98173": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
-        "4408/98174": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
         "4408/98175": {
           "bucket": "diff",
-          "minutes": 4331
+          "minutes": 2880
         },
         "4408/98176": {
           "bucket": "diff",
-          "minutes": 4331
+          "minutes": 2880
         },
         "4408/98177": {
           "bucket": "diff",
-          "minutes": 4331
+          "minutes": 2880
         },
         "4408/98179": {
           "bucket": "diff",
-          "minutes": 4331
+          "minutes": 2880
         },
         "4408/98180": {
           "bucket": "diff",
@@ -1099,18 +999,6 @@
         "4408/98240": {
           "bucket": "diff",
           "minutes": 24000
-        },
-        "4408/98242": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
-        "4408/98246": {
-          "bucket": "diff",
-          "minutes": 1451
-        },
-        "4408/98247": {
-          "bucket": "diff",
-          "minutes": 1451
         }
       }
     }
@@ -1126,7 +1014,7 @@
       "drivingPath": 19
     },
     "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167": {
-      "sixAxis": 33,
+      "sixAxis": 34,
       "drivingPath": 0
     }
   }

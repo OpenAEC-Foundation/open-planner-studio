@@ -1263,6 +1263,10 @@
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Früheres Ende nicht vor einer Ende-Ende-Grenze",
       "help": "Bei einer Ende-Ende-Beziehung liegt das frühe Ende des Nachfolgers in Uhrzeit nie vor der Grenze, die der Vorgänger setzt. Fällt diese Grenze in arbeitsfreie Zeit des Nachfolgers, wird das Ende der Beginn der nächsten Arbeitsperiode."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP-Vorgänge so spät, wie die Nachfolger es zulassen",
+      "help": "Ein nicht begonnener Vorgang mit der Einschränkung 'so spät wie möglich' endet auf die Minute, zu der seine Nachfolger ihn brauchen, Nachfolger zuerst, sodass eine Kette lückenlos anschließt. Sein eigener geplanter Anfang zählt nicht; ein Vorgang ohne Vorgänger beginnt dann nicht vor dem Statusdatum. Gilt nur bei einem Stundenkalender."
     }
   },
   "profiles": {
