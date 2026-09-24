@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import { formatDate } from '@/utils/dateUtils';
+import { defaultActualFinish } from '@/engine/taskMutationRules';
 
 /**
  * Fase 2.6 — voortgang-invarianten toepassen op RAUW ingelezen taken (IFC/MSPDI/P6/CSV).
@@ -32,14 +32,16 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
       continue;
     }
 
-    // §3.2-invarianten (spiegel van applyProgressInvariants in taskSlice).
+    // §3.2-invarianten (spiegel van applyProgressInvariants, engine/taskMutationRules.ts). De
+    // AF-default is niet gespiegeld maar GEDEELD (`defaultActualFinish`): statusdatum, anders de
+    // eigen geplande finish — nooit de leesdatum (import/export-audit, bevinding 6).
     if (t.actualFinish) {
       t.completion = 1;
       if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else if (t.completion >= 1) {
       t.completion = 1;
-      t.actualFinish = statusDate || formatDate(new Date());
+      t.actualFinish = defaultActualFinish(t, statusDate);
       if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else {
