@@ -21,7 +21,8 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import {
   saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
-import type { RibbonTab } from '@/state/slices/types';
+import type { RibbonTab, UIState } from '@/state/slices/types';
+import { applySetting } from '@/components/settings/applySetting';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -104,6 +105,29 @@ export type RibbonTabConfig = RibbonGroupSpec[];
 
 // ── Gedeelde item-definities (dedup: één bron i.p.v. 4-5 kopieën) ────────────────────────────
 
+/**
+ * `use`-hook van een knop die alleen UI-state zet — meestal: een dialoog openen. Per klik een
+ * kopie van de patch: `setUI` vult zijn argument aan (de rail-invarianten), en die aanvulling mag
+ * niet in de gedeelde patch blijven hangen.
+ */
+function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
+  return function useUiAction() {
+    const setUI = useAppStore(s => s.setUI);
+    return { onClick: () => setUI({ ...patch }) };
+  };
+}
+
+type PersistedOverlayFlag =
+  'showBaselineOverlay' | 'showProgressLine' | 'showStatusDateLine' | 'showResourceAccent' | 'showFloatBand';
+
+/** `use`-hook van een gepersisteerde aan/uit-vlag: actief ⇔ aan, klikken zet om én bewaart. */
+function persistedToggle(key: PersistedOverlayFlag, save: (value: boolean) => Promise<void>): () => RibbonButtonBinding {
+  return function usePersistedToggle() {
+    const on = useAppStore(s => s.ui[key]);
+    return { active: on, onClick: () => applySetting(key, !on, save) };
+  };
+}
+
 /** Bereken/CPM-knop — voorheen 4× letterlijk gekopieerd (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
   kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
@@ -158,19 +182,13 @@ const splitTaskButton: RibbonButtonSpec = {
 /** Kalender-knop (planning + instellingen). */
 const calendarButton: RibbonButtonSpec = {
   kind: 'button', id: 'calendar', icon: <Calendar size={20} />, labelKey: 'menu:ribbon.calendar',
-  use: () => {
-    const setUI = useAppStore(s => s.setUI);
-    return { onClick: () => setUI({ showCalendarDialog: true }) };
-  },
+  use: uiAction({ showCalendarDialog: true }),
 };
 
 /** Afdrukvoorbeeld-knop (beeld + report) — opent de Rapport-tab. */
 const printPreviewButton: RibbonButtonSpec = {
   kind: 'button', id: 'printPreview', icon: <Printer size={20} />, labelKey: 'menu:ribbon.printPreview',
-  use: () => {
-    const setUI = useAppStore(s => s.setUI);
-    return { onClick: () => setUI({ activeRibbonTab: 'report' }) };
-  },
+  use: uiAction({ activeRibbonTab: 'report' }),
 };
 
 /**
@@ -244,7 +262,7 @@ const fileGroup: RibbonGroupSpec = {
       kind: 'stack', id: 'fileStack1', items: [
         {
           kind: 'small', id: 'new', icon: <FileText size={14} />, labelKey: 'menu:ribbon.new',
-          use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showNewProjectDialog: true }) }; },
+          use: uiAction({ showNewProjectDialog: true }),
         },
         {
           kind: 'small', id: 'save', icon: <Save size={14} />, labelKey: 'menu:ribbon.save',
@@ -430,7 +448,7 @@ const planningTab: RibbonTabConfig = [
       calendarButton,
       {
         kind: 'button', id: 'holidays', icon: <Clock size={20} />, labelKey: 'menu:ribbon.holidays',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showCalendarDialog: true }) }; },
+        use: uiAction({ showCalendarDialog: true }),
       },
     ],
   },
@@ -439,7 +457,7 @@ const planningTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'codesFields', icon: <Tags size={20} />, labelKey: 'menu:ribbon.codesFields',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showStructureDialog: true }) }; },
+        use: uiAction({ showStructureDialog: true }),
       },
       {
         kind: 'stack', id: 'structureStack1', items: [
@@ -562,6 +580,22 @@ const dockResourcePanelButton: RibbonButtonSpec = {
   },
 };
 
+/** `use`-hook van vorige/volgende resource in het histogram; "alle resources" telt mee in de ronde. */
+function histogramResourceStep(step: -1 | 1): () => RibbonButtonBinding {
+  return function useHistogramResourceStep() {
+    const resources = useAppStore(s => s.resources);
+    const showHistogram = useAppStore(s => s.ui.showHistogram);
+    const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
+    const setHistogramResource = useAppStore(s => s.setHistogramResource);
+    const cycle = () => {
+      const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
+      const cur = ids.findIndex(id => id === histogramResourceId);
+      setHistogramResource(ids[(cur + step + ids.length) % ids.length]);
+    };
+    return { onClick: cycle, disabled: !showHistogram || resources.length === 0 };
+  };
+}
+
 const toggleHistogramButton: RibbonButtonSpec = {
   kind: 'button', id: 'toggleHistogram', icon: <BarChart3 size={20} />, labelKey: 'menu:ribbon.toggleHistogram',
   // Aanvulling op de gedeelde binding: een schakelaar toont zijn STAND. Het omzetten zelf
@@ -589,12 +623,7 @@ const resourcesTab: RibbonTabConfig = [
         // afhankelijk van de actieve weergave. Daarom ook expliciet `resourcePanelDocked: false`
         // (zoals `openResourcePanel` hierboven): in de gedockte rail bestaat het paneel niet en is de
         // naam readonly, dus daar zou de zojuist aangevraagde resource onbenoembaar zijn.
-        use: () => {
-          const setUI = useAppStore(s => s.setUI);
-          return {
-            onClick: () => setUI({ showResourcePanel: true, resourcePanelDocked: false, pendingNewResource: true }),
-          };
-        },
+        use: uiAction({ showResourcePanel: true, resourcePanelDocked: false, pendingNewResource: true }),
       },
     ],
   },
@@ -610,33 +639,11 @@ const resourcesTab: RibbonTabConfig = [
         kind: 'stack', id: 'histogramStack', items: [
           {
             kind: 'small', id: 'prevResource', icon: <ChevronLeft size={14} />, labelKey: 'menu:ribbon.prevResource',
-            use: () => {
-              const resources = useAppStore(s => s.resources);
-              const showHistogram = useAppStore(s => s.ui.showHistogram);
-              const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
-              const setHistogramResource = useAppStore(s => s.setHistogramResource);
-              const cycle = () => {
-                const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
-                const cur = ids.findIndex(id => id === histogramResourceId);
-                setHistogramResource(ids[(cur - 1 + ids.length) % ids.length]);
-              };
-              return { onClick: cycle, disabled: !showHistogram || resources.length === 0 };
-            },
+            use: histogramResourceStep(-1),
           },
           {
             kind: 'small', id: 'nextResource', icon: <ChevronRight size={14} />, labelKey: 'menu:ribbon.nextResource',
-            use: () => {
-              const resources = useAppStore(s => s.resources);
-              const showHistogram = useAppStore(s => s.ui.showHistogram);
-              const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
-              const setHistogramResource = useAppStore(s => s.setHistogramResource);
-              const cycle = () => {
-                const ids: (string | undefined)[] = [undefined, ...resources.map(r => r.id)];
-                const cur = ids.findIndex(id => id === histogramResourceId);
-                setHistogramResource(ids[(cur + 1 + ids.length) % ids.length]);
-              };
-              return { onClick: cycle, disabled: !showHistogram || resources.length === 0 };
-            },
+            use: histogramResourceStep(1),
           },
         ],
       },
@@ -647,7 +654,7 @@ const resourcesTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'levelResources', icon: <Scale size={20} />, labelKey: 'menu:ribbon.levelResourcesDialog',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showLevelingDialog: true }) }; },
+        use: uiAction({ showLevelingDialog: true }),
       },
       {
         kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
@@ -789,27 +796,15 @@ const beeldTab: RibbonTabConfig = [
         kind: 'stack', id: 'overlaysStack', items: [
           {
             kind: 'small', id: 'toggleBaselineOverlay', icon: <LayoutGrid size={14} />, labelKey: 'menu:ribbon.toggleBaselineOverlay',
-            use: () => {
-              const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showBaselineOverlay, onClick: () => { const next = !showBaselineOverlay; setUI({ showBaselineOverlay: next }); void saveShowBaselineOverlay(next); } };
-            },
+            use: persistedToggle('showBaselineOverlay', saveShowBaselineOverlay),
           },
           {
             kind: 'small', id: 'toggleProgressLine', icon: <TrendingUp size={14} />, labelKey: 'menu:ribbon.toggleProgressLine',
-            use: () => {
-              const showProgressLine = useAppStore(s => s.ui.showProgressLine);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showProgressLine, onClick: () => { const next = !showProgressLine; setUI({ showProgressLine: next }); void saveShowProgressLine(next); } };
-            },
+            use: persistedToggle('showProgressLine', saveShowProgressLine),
           },
           {
             kind: 'small', id: 'toggleStatusDateLine', icon: <CalendarDays size={14} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
-            use: () => {
-              const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showStatusDateLine, onClick: () => { const next = !showStatusDateLine; setUI({ showStatusDateLine: next }); void saveShowStatusDateLine(next); } };
-            },
+            use: persistedToggle('showStatusDateLine', saveShowStatusDateLine),
           },
         ],
       },
@@ -820,21 +815,13 @@ const beeldTab: RibbonTabConfig = [
           { kind: 'component', id: 'screenColors', Component: ScreenColorsPopoverButton },
           {
             kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
-            use: () => {
-              const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showResourceAccent, onClick: () => { const next = !showResourceAccent; setUI({ showResourceAccent: next }); void saveShowResourceAccent(next); } };
-            },
+            use: persistedToggle('showResourceAccent', saveShowResourceAccent),
           },
           {
             // #130: de groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
             // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
             kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
-            use: () => {
-              const showFloatBand = useAppStore(s => s.ui.showFloatBand);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showFloatBand, onClick: () => { const next = !showFloatBand; setUI({ showFloatBand: next }); void saveShowFloatBand(next); } };
-            },
+            use: persistedToggle('showFloatBand', saveShowFloatBand),
           },
         ],
       },
@@ -863,11 +850,11 @@ const instellingenTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'projectInfo', icon: <Info size={20} />, labelKey: 'menu:ribbon.projectInfo',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showProjectInfoDialog: true }) }; },
+        use: uiAction({ showProjectInfoDialog: true }),
       },
       {
         kind: 'button', id: 'projectSettings', icon: <Settings size={20} />, labelKey: 'menu:ribbon.projectSettings',
-        use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showSettingsDialog: true }) }; },
+        use: uiAction({ showSettingsDialog: true }),
       },
     ],
   },
@@ -876,7 +863,7 @@ const instellingenTab: RibbonTabConfig = [
     id: 'shortcuts', labelKey: 'common:shortcuts.title',
     items: [{
       kind: 'small', id: 'shortcuts', icon: <Keyboard size={14} />, labelKey: 'common:shortcuts.title',
-      use: () => { const setUI = useAppStore(s => s.setUI); return { onClick: () => setUI({ showShortcutsDialog: true }) }; },
+      use: uiAction({ showShortcutsDialog: true }),
     }],
   },
 ];

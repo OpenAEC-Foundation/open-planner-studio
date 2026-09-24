@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { SequenceType, SEQUENCE_TYPE_OPTIONS, type Sequence } from '@/types/sequence';
 import { SequenceLagInput } from '@/components/common/SequenceLagInput';
+import { useEscapeCapture } from '@/hooks/useEscapeCapture';
 
 export interface RelationTypePopoverProps {
   /** Eindpunten van de nog niet vastgelegde relatie. */
@@ -52,16 +53,7 @@ export function RelationTypePopover({
   // standaardgedrag; Escape is expliciet annuleren en krijgt daarom een eigen capture-listener.
   useClickOutside(popoverRef, commit, true, { defer: true });
 
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      onCancel();
-    };
-    document.addEventListener('keydown', handleEscape, true);
-    return () => document.removeEventListener('keydown', handleEscape, true);
-  }, [onCancel]);
+  useEscapeCapture(onCancel);
 
   const adjustedX = Math.min(x, window.innerWidth - 220);
   const adjustedY = Math.min(y, window.innerHeight - 100);

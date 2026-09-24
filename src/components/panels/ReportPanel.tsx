@@ -16,7 +16,7 @@ import {
   barColorFieldOptions,
   effectiveBarColorControl,
 } from '@/components/viewControls/barColorFieldOptions';
-import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
+import { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import { useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import {
@@ -29,9 +29,11 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
 import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeriodField';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
+import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reports/reportFormPrimitives';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
+import { applySetting } from '@/components/settings/applySetting';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
@@ -202,6 +204,9 @@ function restorePreviewScrollAnchor(root: HTMLElement, anchor: PreviewScrollAnch
   root.scrollTop += page.getBoundingClientRect().top - rootTop - anchor.offset;
 }
 
+/** De vier aan/uit-opties van het resourcediagram, in schermvolgorde (label = `resourceGantt.<sleutel>`). */
+const RESOURCE_GANTT_TOGGLES = ['pageBreakPerResource', 'includeUnassigned', 'groupByType', 'showAssignmentColumns'] as const;
+
 export function ReportPanel() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
@@ -235,7 +240,6 @@ export function ReportPanel() {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
-  const setUI = useAppStore(s => s.setUI);
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
@@ -1290,8 +1294,7 @@ export function ReportPanel() {
         />
 
         {/* Project summary */}
-        <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
-          <h3 className="ui-card-header !text-small !leading-4 mb-2">{t('summary')}</h3>
+        <ReportOptionsCard title={t('summary')}>
           <div className="grid grid-cols-2 gap-1 text-small leading-4" data-ops-report-summary-block>
             {tableSpec ? (
               tableSpec.summary.map((item, i) => (
@@ -1358,16 +1361,14 @@ export function ReportPanel() {
               </>
             )}
           </div>
-        </div>
+        </ReportOptionsCard>
 
         {/* Report options — gedeeld door de Gantt-afdruk en het resourcediagram (issue #113). */}
         {isGanttLike && (
-        <div className="bg-surface-alt rounded-lg p-3" style={{ border: '1px solid var(--theme-border)' }}>
-          <h3 className="ui-card-header !text-small !leading-4 mb-2">{t('settings')}</h3>
+        <ReportOptionsCard title={t('settings')}>
           <div className="flex flex-col gap-2 text-small leading-4">
             {/* Company name */}
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('company', { defaultValue: 'Bedrijf:' })}</label>
+            <ReportFieldRow label={t('company', { defaultValue: 'Bedrijf:' })}>
               <input
                 type="text"
                 value={companyName}
@@ -1375,47 +1376,23 @@ export function ReportPanel() {
                 placeholder={t('companyPlaceholder', { defaultValue: 'Bedrijfsnaam' })}
                 className="input flex-1 min-w-0 !text-small !leading-4 !px-2 !py-1"
               />
-            </div>
+            </ReportFieldRow>
 
             {/* Author (read-only from project) */}
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('author', { defaultValue: 'Auteur:' })}</label>
+            <ReportFieldRow label={t('author', { defaultValue: 'Auteur:' })}>
               <span className="flex-1 min-w-0 truncate px-2 py-1 text-small leading-4 text-text-secondary">{project.author || '-'}</span>
-            </div>
+            </ReportFieldRow>
 
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('paper')}</label>
-              <Select
-                className="flex-1 min-w-0"
-                aria-label={t('paper')}
-                value={paperSize}
-                onChange={v => setPaperSize(v as 'A4' | 'A3' | 'A2' | 'A1')}
-                options={[
-                  { value: 'A4', label: 'A4' },
-                  { value: 'A3', label: 'A3' },
-                  { value: 'A2', label: 'A2' },
-                  { value: 'A1', label: 'A1' },
-                ]}
-              />
-            </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('orientation')}</label>
-              <Select
-                className="flex-1 min-w-0"
-                aria-label={t('orientation')}
-                value={orientation}
-                onChange={v => setOrientation(v as 'landscape' | 'portrait')}
-                options={[
-                  { value: 'landscape', label: t('landscape') },
-                  { value: 'portrait', label: t('portrait') },
-                ]}
-              />
-            </div>
+            <ReportFieldRow label={t('paper')}>
+              <PaperSizeSelect className="flex-1 min-w-0" value={paperSize} onChange={setPaperSize} />
+            </ReportFieldRow>
+            <ReportFieldRow label={t('orientation')}>
+              <OrientationSelect className="flex-1 min-w-0" value={orientation} onChange={setOrientation} />
+            </ReportFieldRow>
 
             {/* Lettergrootte van het rapport (issue #25 punt 4). Relatief bedoeld: bij een grotere
                 letter groeien tekst, rijen en tabel op het vel en levert de tijdlijn breedte in. */}
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('reportFontScaleLabel')}</label>
+            <ReportFieldRow label={t('reportFontScaleLabel')}>
               <Select
                 className="flex-1 min-w-0"
                 aria-label={t('reportFontScaleLabel')}
@@ -1423,29 +1400,24 @@ export function ReportPanel() {
                 onChange={v => setReportFontScale(Number(v))}
                 options={REPORT_FONT_SCALES.map(n => ({ value: String(n), label: `${n}%` }))}
               />
-            </div>
+            </ReportFieldRow>
 
             {/* Eén app-globale balkkleurkeuze voor View en Report. De veldlijst is exact Group. */}
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('barColorModeLabel')}</label>
+            <ReportFieldRow label={t('barColorModeLabel')}>
               <Select
                 className="flex-1 min-w-0"
                 aria-label={t('barColorModeLabel')}
                 value={barColorSelection.mode}
                 onChange={value => {
                   if (value === 'critical' || value === 'auto') {
-                    const next = { mode: value } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
+                    applySetting('barColorSelection', { mode: value }, saveBarColorSelection);
                     return;
                   }
                   const field = barColorControl.effective.mode === 'category'
                     ? barColorControl.effective.field
                     : barColorFields[0]?.field;
                   if (!field) return;
-                  const next = { mode: 'category', field } as const;
-                  setUI({ barColorSelection: next });
-                  void saveBarColorSelection(next);
+                  applySetting('barColorSelection', { mode: 'category', field }, saveBarColorSelection);
                 }}
                 options={[
                   { value: 'critical', label: t('barColorMode_critical') },
@@ -1453,7 +1425,7 @@ export function ReportPanel() {
                   { value: 'category', label: t('barColorMode_category') },
                 ]}
               />
-            </div>
+            </ReportFieldRow>
             {barColorSelection.mode === 'category' && barColorControl.effective.mode === 'category' && (
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-20 flex-shrink-0" aria-hidden="true" />
@@ -1461,11 +1433,9 @@ export function ReportPanel() {
                   className="flex-1 min-w-0"
                   aria-label={t('barColorFieldLabel')}
                   value={encodeFieldRef(barColorControl.effective.field)}
-                  onChange={value => {
-                    const next = { mode: 'category', field: decodeFieldRef(value) } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
-                  }}
+                  onChange={value => applySetting(
+                    'barColorSelection', { mode: 'category', field: decodeFieldRef(value) }, saveBarColorSelection,
+                  )}
                   options={barColorFields.map(option => ({
                     value: encodeFieldRef(option.field),
                     label: option.label,
@@ -1481,8 +1451,7 @@ export function ReportPanel() {
 
             {/* Statuslijn (issue #54 punt 1): letterlijk drie opties. Zonder statusdatum in het
                 project tekent geen van beide iets — de hint maakt dat zichtbaar i.p.v. stil. */}
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('statusLineLabel')}</label>
+            <ReportFieldRow label={t('statusLineLabel')}>
               <Select
                 className="flex-1 min-w-0"
                 aria-label={t('statusLineLabel')}
@@ -1494,7 +1463,7 @@ export function ReportPanel() {
                   { value: 'progress', label: t('statusLine_progress') },
                 ]}
               />
-            </div>
+            </ReportFieldRow>
             {statusLine !== 'none' && !statusDate && (
               <p className="!text-body text-amber-600 mt-0.5">{t('statusLineHint')}</p>
             )}
@@ -1503,55 +1472,22 @@ export function ReportPanel() {
                 sortering, inklapstatus). Uit (default) = de volledige takenboom, zoals altijd. Niet bij
                 het resourcediagram: daar komen de rijen per definitie niet van het scherm. */}
             {reportType === 'gantt' && (
-              <label className="flex items-center gap-2 mt-1 min-w-0">
-                <input type="checkbox" checked={followView} onChange={e => setFollowView(e.target.checked)} className="accent-accent flex-shrink-0" />
-                <span className="min-w-0">{t('followView')}</span>
-              </label>
+              <ReportCheckRow spaced checked={followView} onChange={setFollowView} label={t('followView')} />
             )}
 
             {/* Resourcediagram (issue #113): een blad per resource, en de taken zonder resource erbij. */}
             {reportType === 'resourceGantt' && (
               <>
-                <label className="flex items-center gap-2 mt-1 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={resourceGanttOptions.pageBreakPerResource}
-                    onChange={e => patchResourceGanttOptions({ pageBreakPerResource: e.target.checked })}
-                    className="accent-accent flex-shrink-0"
-                    data-ops-report-option="pageBreakPerResource"
+                {RESOURCE_GANTT_TOGGLES.map((key, i) => (
+                  <ReportCheckRow
+                    key={key}
+                    spaced={i === 0}
+                    checked={resourceGanttOptions[key]}
+                    onChange={checked => patchResourceGanttOptions({ [key]: checked })}
+                    label={t(`resourceGantt.${key}`)}
+                    inputProps={{ 'data-ops-report-option': key }}
                   />
-                  <span className="min-w-0">{t('resourceGantt.pageBreakPerResource')}</span>
-                </label>
-                <label className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={resourceGanttOptions.includeUnassigned}
-                    onChange={e => patchResourceGanttOptions({ includeUnassigned: e.target.checked })}
-                    className="accent-accent flex-shrink-0"
-                    data-ops-report-option="includeUnassigned"
-                  />
-                  <span className="min-w-0">{t('resourceGantt.includeUnassigned')}</span>
-                </label>
-                <label className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={resourceGanttOptions.groupByType}
-                    onChange={e => patchResourceGanttOptions({ groupByType: e.target.checked })}
-                    className="accent-accent flex-shrink-0"
-                    data-ops-report-option="groupByType"
-                  />
-                  <span className="min-w-0">{t('resourceGantt.groupByType')}</span>
-                </label>
-                <label className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={resourceGanttOptions.showAssignmentColumns}
-                    onChange={e => patchResourceGanttOptions({ showAssignmentColumns: e.target.checked })}
-                    className="accent-accent flex-shrink-0"
-                    data-ops-report-option="showAssignmentColumns"
-                  />
-                  <span className="min-w-0">{t('resourceGantt.showAssignmentColumns')}</span>
-                </label>
+                ))}
                 {/* Punt 3: de gedeelde rapportageperiode (issue #120) als tijdvenster van dit rapport. */}
                 <ReportingPeriodField
                   id="report-opt-resourceGanttPeriod"
@@ -1563,15 +1499,16 @@ export function ReportPanel() {
             )}
 
             {/* Auto-fit checkbox */}
-            <label className="flex items-center gap-2 mt-1 min-w-0">
-              <input type="checkbox" checked={autoFit} onChange={e => setAutoFit(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('autoFit', { defaultValue: 'Auto-fit op papier' })}</span>
-            </label>
+            <ReportCheckRow
+              spaced
+              checked={autoFit}
+              onChange={setAutoFit}
+              label={t('autoFit', { defaultValue: 'Auto-fit op papier' })}
+            />
 
             {/* Custom zoom slider (only when auto-fit is off) */}
             {!autoFit && (
-              <div className="flex items-center gap-2 min-w-0">
-                <label className="text-text-secondary w-20 flex-shrink-0">{t('zoom', { defaultValue: 'Zoom:' })}</label>
+              <ReportFieldRow label={t('zoom', { defaultValue: 'Zoom:' })}>
                 <input
                   type="range"
                   min={REPORT_MIN_ZOOM}
@@ -1581,14 +1518,13 @@ export function ReportPanel() {
                   className="flex-1 min-w-0"
                 />
                 <span className="w-8 flex-shrink-0 text-right">{customZoom}</span>
-              </div>
+              </ReportFieldRow>
             )}
 
             {/* Tijdlijn over N paginabreedtes (issue #25 punt 5). Alleen zinvol in fit-width-modus;
                 in 'actual'-modus (autoFit uit) tegelt de export sowieso al horizontaal, daarom
                 `disabled` — met een hint die dat uitlegt, zichtbaar zodra de keuze uitgeschakeld is. */}
-            <div className="flex items-center gap-2 min-w-0">
-              <label className="text-text-secondary w-20 flex-shrink-0">{t('timelineColumnsLabel')}</label>
+            <ReportFieldRow label={t('timelineColumnsLabel')}>
               <Select
                 className="flex-1 min-w-0"
                 aria-label={t('timelineColumnsLabel')}
@@ -1600,37 +1536,40 @@ export function ReportPanel() {
                   label: t('timelineColumns', { count: n }),
                 }))}
               />
-            </div>
+            </ReportFieldRow>
             {!autoFit && (
               <span className="text-text-secondary">{t('timelineColumnsHint')}</span>
             )}
 
             {/* Kop op elke pagina herhalen (issue #25 punt 1) */}
-            <label className="flex items-center gap-2 mt-1 min-w-0">
-              <input type="checkbox" checked={repeatHeader} onChange={e => setRepeatHeader(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('repeatHeader')}</span>
-            </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={repeatFooter} onChange={e => setRepeatFooter(e.target.checked)} className="accent-accent flex-shrink-0" data-ops-report-repeat-footer />
-              <span className="min-w-0">{t('repeatFooter')}</span>
-            </label>
+            <ReportCheckRow spaced checked={repeatHeader} onChange={setRepeatHeader} label={t('repeatHeader')} />
+            <ReportCheckRow
+              checked={repeatFooter}
+              onChange={setRepeatFooter}
+              label={t('repeatFooter')}
+              inputProps={{ 'data-ops-report-repeat-footer': true }}
+            />
 
-            <label className="flex items-center gap-2 mt-1 min-w-0">
-              <input type="checkbox" checked={showTaskNames} onChange={e => setShowTaskNames(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showTaskNames', { defaultValue: 'Taaknamen op staafjes' })}</span>
-            </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showCompletion} onChange={e => setShowCompletion(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showCompletion', { defaultValue: 'Voltooiing tonen' })}</span>
-            </label>
+            <ReportCheckRow
+              spaced
+              checked={showTaskNames}
+              onChange={setShowTaskNames}
+              label={t('showTaskNames', { defaultValue: 'Taaknamen op staafjes' })}
+            />
+            <ReportCheckRow
+              checked={showCompletion}
+              onChange={setShowCompletion}
+              label={t('showCompletion', { defaultValue: 'Voltooiing tonen' })}
+            />
             {/* Naamkolom: afkappen op een instelbare breedte, of meegroeien met de langste naam. */}
-            <label className="flex items-center gap-2 min-w-0">
-              <input data-ops-report-truncate-names type="checkbox" checked={truncateTaskNames} onChange={e => setTruncateTaskNames(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('truncateTaskNames')}</span>
-            </label>
+            <ReportCheckRow
+              checked={truncateTaskNames}
+              onChange={setTruncateTaskNames}
+              label={t('truncateTaskNames')}
+              inputProps={{ 'data-ops-report-truncate-names': true }}
+            />
             {truncateTaskNames ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <label className="text-text-secondary w-20 flex-shrink-0">{t('taskNameColumnWidthLabel')}</label>
+              <ReportFieldRow label={t('taskNameColumnWidthLabel')}>
                 <input
                   data-ops-report-name-column-width
                   type="range"
@@ -1642,46 +1581,35 @@ export function ReportPanel() {
                   className="flex-1 min-w-0"
                 />
                 <span className="w-8 flex-shrink-0 text-right">{taskNameColumnWidth}</span>
-              </div>
+              </ReportFieldRow>
             ) : (
               <span className="text-text-secondary">{t('taskNameColumnWidthHint')}</span>
             )}
-            <label className="flex items-center gap-2 min-w-0">
-              <input data-ops-report-baseline-overlay type="checkbox" checked={showBaselineOverlay} onChange={e => setShowBaselineOverlay(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showBaselineOverlay')}</span>
-            </label>
+            <ReportCheckRow
+              checked={showBaselineOverlay}
+              onChange={setShowBaselineOverlay}
+              label={t('showBaselineOverlay')}
+              inputProps={{ 'data-ops-report-baseline-overlay': true }}
+            />
             {/* Kritiek pad niet bij het resourcediagram — hetzelfde predicaat als de forcering in `options`. */}
             {reportTypeShowsCriticalToggle(reportType) && (
-              <label className="flex items-center gap-2 min-w-0">
-                <input type="checkbox" checked={showCritical} onChange={e => setShowCritical(e.target.checked)} className="accent-accent flex-shrink-0" />
-                <span className="min-w-0">{t('showCriticalPath')}</span>
-              </label>
+              <ReportCheckRow checked={showCritical} onChange={setShowCritical} label={t('showCriticalPath')} />
             )}
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showFloat} onChange={e => setShowFloat(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showFloat')}</span>
-            </label>
+            <ReportCheckRow checked={showFloat} onChange={setShowFloat} label={t('showFloat')} />
             {/* Relaties niet bij het resourcediagram — hetzelfde predicaat als de forcering in `options`. */}
             {reportTypeDrawsRelations(reportType) && (
-              <label className="flex items-center gap-2 min-w-0">
-                <input type="checkbox" checked={showDeps} onChange={e => setShowDeps(e.target.checked)} className="accent-accent flex-shrink-0" />
-                <span className="min-w-0">{t('showDependencies')}</span>
-              </label>
+              <ReportCheckRow checked={showDeps} onChange={setShowDeps} label={t('showDependencies')} />
             )}
-            <label className="flex items-center gap-2 min-w-0">
-              <input data-ops-report-compress-workdays type="checkbox" checked={reportCompressNonWorkdays} onChange={e => setReportCompressNonWorkdays(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{tCommon('settings.compressNonWorkdays')}</span>
-            </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showWeekends} onChange={e => setShowWeekends(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showWeekends')}</span>
-            </label>
-            <label className="flex items-center gap-2 min-w-0">
-              <input type="checkbox" checked={showLegend} onChange={e => setShowLegend(e.target.checked)} className="accent-accent flex-shrink-0" />
-              <span className="min-w-0">{t('showLegend')}</span>
-            </label>
+            <ReportCheckRow
+              checked={reportCompressNonWorkdays}
+              onChange={setReportCompressNonWorkdays}
+              label={tCommon('settings.compressNonWorkdays')}
+              inputProps={{ 'data-ops-report-compress-workdays': true }}
+            />
+            <ReportCheckRow checked={showWeekends} onChange={setShowWeekends} label={t('showWeekends')} />
+            <ReportCheckRow checked={showLegend} onChange={setShowLegend} label={t('showLegend')} />
           </div>
-        </div>
+        </ReportOptionsCard>
         )}
 
         {tableSpec && (

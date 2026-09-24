@@ -1,8 +1,7 @@
 import { useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/components/settings/ProjectInfoPanelContent';
 
 /**
@@ -39,14 +38,10 @@ export function ProjectInfoDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[90vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-project-dialog': isNew ? 'new' : 'info' }}
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {isNew ? tMenu('newProject.title') : tMenu('projectInfo.title')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader
+          title={isNew ? tMenu('newProject.title') : tMenu('projectInfo.title')}
+          onClose={close}
+        />
 
         <div className="flex-1 overflow-y-auto p-4">
           <ProjectInfoPanelContent ref={panelRef} mode={isNew ? 'wizard' : 'edit'} onDone={close} autoFocusName />

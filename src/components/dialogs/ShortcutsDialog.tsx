@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Keyboard } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo } from '@/hooks/keyboard/shortcutRegistry';
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 
@@ -63,15 +63,7 @@ export function ShortcutsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-shortcuts-dialog': true }}
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-            <Keyboard size={16} />
-            {t('shortcuts.title')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('close')}>
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={t('shortcuts.title')} icon={<Keyboard size={16} />} onClose={close} />
 
         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4 text-small leading-4">
           {CATEGORY_ORDER.map(category => {

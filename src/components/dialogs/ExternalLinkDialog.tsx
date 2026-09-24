@@ -227,7 +227,14 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
         {/* Kop */}
         <div className="flex items-center justify-between px-4" style={{ minHeight: 44, borderBottom: '1px solid var(--theme-border)' }}>
           <span className="ui-card-header flex items-center gap-2"><Link2 size={14} />{t('externalLinks.dialogTitle')}</span>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={16} /></button>
+          <button
+            onClick={onClose}
+            className="text-text-muted hover:text-text-primary"
+            aria-label={tCommon('close')}
+            title={tCommon('close')}
+          >
+            <X size={16} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">

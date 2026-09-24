@@ -19,6 +19,7 @@ import { resolveDropTarget, type DropTarget } from '@/engine/view/dropTarget';
 import { shouldPromoteToRowDrag } from '@/engine/taskGrid/rowDragIntent';
 import { ROW_DRAG_THRESHOLD } from '@/components/canvas/hooks/constants';
 import { useLatestRef } from '@/hooks/useLatestRef';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 /** Nog ONDER de drempel: alleen onthouden vanaf waar we meten. Blijft de sleep onder de drempel
  *  tot mouseup, dan gebeurt er niets en volgt de gewone klik/selectie. */
@@ -178,12 +179,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
 
     const handleMouseUp = () => setCandidate(null);
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [candidateActive, candidateRef, optionsRef, computeHover]);
 
   // Opruimen van de "net-gesleept"-vlag. Zelfde idee als in `useRowDrag`, maar met een EXTRA
@@ -262,14 +258,7 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
   }, [dragActive, dragStateRef, optionsRef, computeHover, armJustDraggedClear]);
 
   return {

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Plus, Trash2 } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Plus, Trash2 } from 'lucide-react';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import type { CustomFieldType } from '@/types/structure';
 
 const inputCls = 'input !text-small !leading-4 !px-2 !py-1 w-full';
@@ -39,14 +39,7 @@ export function StructureDialog() {
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[720px] max-h-[90vh] flex flex-col overflow-hidden"
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('structure.title')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={14} />
-          </button>
-        </div>
+        <DialogHeader title={t('structure.title')} onClose={close} closeIconSize={14} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 text-small leading-4">
           {/* Activity-code-types */}

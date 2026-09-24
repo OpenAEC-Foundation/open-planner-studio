@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate, parseInstant, formatDate, formatInstant } from '@/utils/dateUtils';
-import { pickTiers, TIER_CONFIG } from '@/engine/renderer/timelineTiers';
 import { isCompressedEffective } from '@/engine/renderer/workdayAxis';
 import { shiftByDisplayedColumns } from '@/engine/renderer/barDragMath';
 import { resolveHourBarDrag } from '@/engine/renderer/hourBarDragMath';
@@ -15,6 +14,8 @@ import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { ROW_DRAG_THRESHOLD } from './constants';
+import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 // Monotone teller: geeft élk sleep-gebaar een UNIEKE coalesce-key (`bardrag:<taskId>:<n>`). Zo vloeit
 // een reeks per-mousemove `updateTask`-commits samen tot ÉÉN undo-stap, terwijl twee opeenvolgende
@@ -161,21 +162,11 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
   // in `handleMouseMove`). Ook deze mag een effectherstart niet resetten, anders wordt dezelfde
   // verschuiving na de herstart nog een keer gecommit.
   const lastAppliedDeltaRef = useRef(0);
-  // Snap-quantum van de uur-sleep: de actieve minor-tier, met een kwartier alleen wanneer die zoom
-  // is aangezet — dezelfde formule als in het effect hieronder en in `useSplitGesture`.
-  const hourSnapMinutes = Math.max(
-    enableQuarterHourZoom ? 15 : 60,
-    Math.round(TIER_CONFIG[pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor].stepDays * 1440),
+  const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
+  const snapAt = useCallback(
+    (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
+    [axis, hourSnapMinutes],
   );
-  /** De gesnapte datum onder een canvas-x — exact `useSplitGesture.snapAt`: dag-modus het begin van
-   *  de dag, uur-modus het snap-quantum. De x loopt via de gedeelde as (compressie inbegrepen). */
-  const snapAt = useCallback((x: number, hourMode: boolean): Date | null => {
-    const raw = axis.xToDate(x);
-    if (Number.isNaN(raw.getTime())) return null;
-    if (!hourMode) return parseDate(formatDate(raw));
-    const q = Math.max(1, hourSnapMinutes) * 60_000;
-    return new Date(Math.round(raw.getTime() / q) * q);
-  }, [axis, hourSnapMinutes]);
 
   /** Bouwt de bevroren stuk-sleepcontext, of `undefined` = bestaande sleep. */
   const prepareSplitDrag = useCallback((next: DragState, canvasX: number | null): SplitDragContext | undefined => {
@@ -244,12 +235,10 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
     // past de taak-kalender in het gesleepte bereik) en verandert hier niet.
     const axisCalEngine = new CalendarEngine(calendar);
     const compressed = isCompressedEffective(axisCalEngine, compressNonWorkdays);
-    // Snap-quantum is dezelfde actieve minor-tier als de tijdkop. Op kwartierzoom is 15 minuten
-    // werkelijk bereikbaar; zonder die opt-in blijft de ondergrens één uur. Met urenplanning uit
-    // blijft de as voor nieuwe gebaren dag-granulair, maar bestaande urentaken behouden hun eigen
-    // werkminuten en worden nooit naar dagen omgezet.
-    const minorTier = pickTiers(zoom, enableQuarterHourZoom, enableHourPlanning).minor;
-    const quantumMin = Math.max(enableQuarterHourZoom ? 15 : 60, Math.round(TIER_CONFIG[minorTier].stepDays * 1440));
+    // Snap-quantum: zie `hourSnapMinutesFor`. Met urenplanning uit blijft de as voor nieuwe gebaren
+    // dag-granulair, maar bestaande urentaken behouden hun eigen werkminuten en worden nooit naar
+    // dagen omgezet.
+    const quantumMin = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
 
     const handleHourDrag = (event: MouseEvent) => {
       const canvas = canvasRef.current;
@@ -441,12 +430,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       setDragState(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [
     dragState,
     zoom,

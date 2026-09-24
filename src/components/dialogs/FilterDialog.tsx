@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { X, Trash2 } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import {
   filterFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
   type FieldCatalogCtx,
 } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
+import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { generateId } from '@/utils/id';
 import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
@@ -19,13 +20,6 @@ type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
 
 const defaultRule = (): RuleNode => ({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: '' });
 export const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
-
-function encodeField(f: FieldRef): string {
-  return JSON.stringify(f);
-}
-function decodeField(s: string): FieldRef {
-  return JSON.parse(s) as FieldRef;
-}
 
 /** Waarde-editor die zich aanpast aan het veldtype/de operator (§13.1). */
 function RuleValueEditor({
@@ -161,9 +155,9 @@ function RuleEditor({
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <select
-        value={encodeField(rule.field)}
+        value={encodeFieldRef(rule.field)}
         onChange={e => {
-          const field = decodeField(e.target.value);
+          const field = decodeFieldRef(e.target.value);
           const newKind = fieldKind(field, ctx);
           const newOps = operatorsForKind(newKind);
           onChange({ field, operator: newOps[0], value: undefined, value2: undefined });
@@ -172,7 +166,7 @@ function RuleEditor({
         style={{ width: 150, flexShrink: 0 }}
         aria-label={t('view.filter.field')}
       >
-        {options.map(({ field: f, label }) => <option key={encodeField(f)} value={encodeField(f)}>{label}</option>)}
+        {options.map(({ field: f, label }) => <option key={encodeFieldRef(f)} value={encodeFieldRef(f)}>{label}</option>)}
       </select>
       <select
         value={rule.operator}
@@ -362,14 +356,7 @@ export function FilterDialog() {
     <Dialog
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('view.filter.title')}
-          </span>
-          <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]">
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={t('view.filter.title')} onClose={close} />
 
         <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2 border border-border rounded-[8px] p-2">

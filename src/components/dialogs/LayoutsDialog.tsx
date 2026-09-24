@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { GroupEditor, defaultGroup, type GroupNode } from './FilterDialog';
 import { LevelListEditor } from '@/components/viewControls/LevelListEditor';
 import { groupFieldList, fullFieldList, filterFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
@@ -11,7 +11,7 @@ import { LAYOUT_ICON_KEYS, layoutIcon } from '@/components/viewControls/layoutIc
 import { layoutParts, pickLayoutParts } from '@/engine/view/layoutPresets';
 import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { LAYOUT_PARTS, type Layout, type LayoutPart, type TimeScale } from '@/types/view';
-import { Dialog } from '@/components/common/Dialog';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 
 /** Label- en tooltipsleutel per layoutdeel; de vijf bestaande delen hergebruiken hun eigen titel. */
@@ -154,14 +154,10 @@ export function LayoutsDialog() {
       onCancel={close}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-        <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-          {t(editing ? 'common:view.layout.editTitle' : 'common:view.layout.newTitle')}
-        </span>
-        <button onClick={close} className="p-1 hover:bg-surface-hover rounded-[8px]" aria-label={t('common:close')}>
-          <X size={16} />
-        </button>
-      </div>
+      <DialogHeader
+        title={t(editing ? 'common:view.layout.editTitle' : 'common:view.layout.newTitle')}
+        onClose={close}
+      />
 
       <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4" data-ops-layout-dialog="true">
         <label className="flex flex-col gap-1">

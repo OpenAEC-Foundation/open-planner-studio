@@ -58,20 +58,8 @@
 .ext-install-btn:hover { background: var(--theme-hover); border-color: var(--theme-accent); }
 .ext-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.ext-search {
-  padding: 6px 10px;
-  background: var(--theme-input-bg);
-  border: 1px solid var(--theme-control-border);
-  border-radius: var(--radius-md);
-  color: var(--theme-text);
-  font-size: var(--text-large);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.ext-search:focus {
-  border-color: var(--theme-accent);
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
-}
+/* Uiterlijk gedeeld met `.help-search` — zie Backstage.css. */
+.ext-search { padding: 6px 10px; }
 
 .ext-list {
   display: flex;
