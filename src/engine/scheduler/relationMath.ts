@@ -2,7 +2,7 @@ import type { Task } from '@/types/task';
 import type { Sequence, LagUnit } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import { LAG_CALENDAR } from './lagCalendar';
-import { addCalendarDays } from '@/utils/dateUtils';
+import { addCalendarDays, MS_PER_DAY } from '@/utils/dateUtils';
 import { isZeroDurationMilestone } from './duration';
 
 /**
@@ -33,7 +33,6 @@ import { isZeroDurationMilestone } from './duration';
 
 // Milliseconde-constanten (uur-pad); HOUR_SCAN = veiligheidsplafond voor de dag→uur-backward-scan.
 export const MS_PER_MIN = 60_000;
-export const MS_PER_DAY = 86_400_000;
 export const HOUR_SCAN = 400;
 
 /** De grensvlaggen die de mijlpaal-grens-semantiek (fase 2.4/§4.4) beschrijven voor één relatie.

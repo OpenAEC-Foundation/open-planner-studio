@@ -12,9 +12,9 @@
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen.
 
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseDate } from '@/utils/dateUtils';
+import { parseDate, MS_PER_DAY } from '@/utils/dateUtils';
 import { buildWorkdayAxis, buildCalendarAxis } from '@/engine/renderer/workdayAxis';
-import { MS_PER_DAY, dateToX as calendarDateToX } from '@/engine/renderer/timeAxis';
+import { dateToX as calendarDateToX } from '@/engine/renderer/timeAxis';
 import type { WorkCalendar } from '@/types/calendar';
 
 const diffs: string[] = [];

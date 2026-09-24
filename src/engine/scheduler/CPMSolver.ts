@@ -6,7 +6,7 @@ import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import {
-  parseDate, formatDate, parseInstant, type DateMode,
+  parseDate, formatDate, parseInstant, utcDayStart, type DateMode,
 } from '@/utils/dateUtils';
 import {
   durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
@@ -349,8 +349,6 @@ export class CPMSolver {
   //  UUR-kalender (`isHourMode`) activeert het minuut-native pad. Zo blijven de 290
   //  dag-cases + 23 examples ongemoeid — de constructie, niet een her-derivatie (§2.2).
   // ═══════════════════════════════════════════════════════════════════════════
-  private static readonly MS_PER_DAY = 86_400_000;
-
   /** Parse een datum-string in de kalendermodus: dag ⇒ `parseDate` (middernacht, byte-identiek),
    *  uur ⇒ `parseInstant` (behoudt tijd-van-de-dag). */
   private parseIn(eng: CalendarEngine, iso: string): Date {
@@ -441,7 +439,7 @@ export class CPMSolver {
   }
   /** UTC-middernacht van de dag die `d` bevat (voor de cross-modus-dagrand, §4.3/§5.2). */
   private startOfDay(d: Date): Date {
-    return new Date(Math.floor(d.getTime() / CPMSolver.MS_PER_DAY) * CPMSolver.MS_PER_DAY);
+    return utcDayStart(d);
   }
 
   /**
