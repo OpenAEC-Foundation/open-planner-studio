@@ -1256,7 +1256,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Zadanie w toku: wczesny początek = początek pozostałej pracy",
-      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Ustawiane dla każdego pliku przez Primavera P6. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
+      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Dokładny moment ograniczenia na kamieniu milowym",
@@ -1375,7 +1375,6 @@
     "on": "wł.",
     "off": "wył.",
     "resetToBase": "przywróć bazę",
-    "perFile": "z pliku",
     "showHelp": "Objaśnienie: „{{name}}”",
     "sourceOptions": {
       "title": "Ustawienia z pliku źródłowego",

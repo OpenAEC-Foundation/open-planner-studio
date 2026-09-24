@@ -16,10 +16,25 @@ import {
  * `LEGACY_XER_ALSO_ON_X12`: B3/B4 staan in P6 uit (0 cellen effect op P6-doorgerekende bestanden), dus
  * een oud XER-IFC zonder die sleutels rekent ze uit — als een herimport. Een expliciet gezette B3/B4
  * blijft staan (wordt dan een afwijking van p6). B1, B2 en B5 blijven aan.
+ *
+ * A19 (`p6UseRemainingStartForProgress`) staat sinds 2026-09-24 ook in deze lijst (eigenaarsbesluit
+ * "a", Fable-critreview PR #169 bevinding 2): A19 is nu aan in het P6-profiel en de XER-lezer zet
+ * hem niet meer per bestand uit `rem_target_link_flag`. Een oud XER-blok zonder A19-sleutel (de oude
+ * lezer liet hem weg bij een lege/N-vlag) rekent dus als een herimport: aan. Een expliciete `false`
+ * blijft staan en wordt een afwijking van p6. Meting: `measure:profiles` mét corpus vóór en ná het
+ * besluit identiek (NULDOEL 76, nieuw=0 verslechterd=0 groter=0 verbeterd=0 kleiner=0 schuld=0).
+ *
+ * Voor bestanden MÉT `OPS_SchedulingProfile` (niet deze migratie, maar `sanitizeSchedulingProfile`):
+ * een A19-override `true` onder basis p6 (zo schreef de oude lezer een Y-bestand weg) is nu gelijk
+ * aan de basis en telt dus nergens meer als afwijking (`diffAgainstBase` leeg, geen "(aangepast)",
+ * de groep Voortgang telt 0 afwijkend); als letterlijke override blijft hij, net als elke andere,
+ * als herkomst staan bij een profielwissel. Een expliciete A19 `false` onder p6 blijft een echte
+ * afwijking. Bewaakt in `tests/planning/check-scheduling-profile-roundtrip.ts`.
  */
 export const LEGACY_XER_ALWAYS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
   'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
   'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
+  'p6UseRemainingStartForProgress', // A19, sinds 2026-09-24 (zie hierboven)
 ]);
 
 /**
@@ -54,8 +69,8 @@ export const LEGACY_XER_ALSO_ON_X12: ReadonlySet<ConventionKey> = new Set<Conven
   'p6AlapPositionedFromSuccessors',
 ]);
 
-/** De waarde van een conventie die in een oud XER-blok ontbreekt: B1–B5, C1–C9, C11, C12 en C14 op hun P6-waarde
- *  (B3/B4 sinds 2026-09-23 uit, net als C1/C4), al het andere uit. */
+/** De waarde van een conventie die in een oud XER-blok ontbreekt: A19, B1–B5, C1–C9, C11, C12 en C14 op hun
+ *  P6-waarde (B3/B4 sinds 2026-09-23 uit, net als C1/C4; A19 sinds 2026-09-24 aan), al het andere uit. */
 export function legacyXerDefault(d: ConventionDescriptor): boolean {
   if (LEGACY_XER_ALWAYS_ON.has(d.id)) return d.builtIn.p6;
   if (LEGACY_XER_ALSO_ON_X12.has(d.id)) return d.builtIn.p6;
@@ -86,7 +101,8 @@ export function optionKeysOnly(options: LegacySchedulingOptions | undefined): Pr
  * naar profiel + projectopties (spec v3 §3.4). `legacyValue` speelt hier geen rol:
  *  - blob afwezig ⇒ `ops` zonder afwijkingen;
  *  - `p6Source: 'XER'` ⇒ basis `p6`. Per A-conventie: sleutel aanwezig ⇒ die waarde, afwezig ⇒ UIT
- *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit). Afwezige B1–B5 ⇒ hun P6-waarde (B1/B2/B5 aan,
+ *    (niet de p6-basis: vandaag rekende de solver een ontbrekende vlag als uit) — behalve A19, die sinds
+ *    2026-09-24 in `LEGACY_XER_ALWAYS_ON` staat. Afwezige A19 en B1–B5 ⇒ hun P6-waarde (B1/B2/B5 aan,
  *    B3/B4 sinds 2026-09-23 uit), afwezige C1–C9, C11 en C12 op hun P6-waarde (`LEGACY_XER_ALSO_ON_X12`). Afwijkingen = verschil met p6;
  *  - geen `p6Source` ⇒ de p6Source-gepoorte conventies (A15–A20) worden weggegooid (ze waren inert;
  *    risico 1); A12/A13/A22/A23 worden afwijkingen; basis = `msproject` als `resumeFromActualElapsed`

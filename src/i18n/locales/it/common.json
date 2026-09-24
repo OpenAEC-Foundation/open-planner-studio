@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Attività in corso: inizio anticipato = inizio del lavoro residuo",
-      "help": "L’inizio anticipato e posticipato di un’attività in corso indicano dove inizia il lavoro residuo, non l’inizio effettivo storico. Impostato per file da Primavera P6. Nel calcolo all'indietro su una relazione inizio-inizio conta solo la durata residua."
+      "help": "L’inizio anticipato e posticipato di un’attività in corso indicano dove inizia il lavoro residuo, non l’inizio effettivo storico. Nel calcolo all'indietro su una relazione inizio-inizio conta solo la durata residua."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Istante del vincolo esatto su una milestone",
@@ -1340,7 +1340,6 @@
     "on": "sì",
     "off": "no",
     "resetToBase": "torna alla base",
-    "perFile": "per file",
     "showHelp": "Spiegazione di «{{name}}»",
     "sourceOptions": {
       "title": "Impostazioni dal file di origine",

@@ -255,16 +255,26 @@ const p6MidnightActual = read([
   '%R\tT1\tP1\tC1\tA100\tVoltooid om middernacht\tTT_Task\tDT_FixedDUR\tTK_Complete\tCP_Phys\t100\t40\t0\t2026-05-04 08:00\t2026-05-08 17:00\t2026-05-03 00:00\t2026-05-10 00:00',
   '%E',
 ]);
-solveProject({
-  tasks: p6MidnightActual.tasks,
-  sequences: p6MidnightActual.sequences,
-  calendar: p6MidnightActual.calendar,
-  calendars: p6MidnightActual.resourceCalendars ?? [],
-  dataDate: p6MidnightActual.project.statusDate,
-  progressMode: p6MidnightActual.project.progressMode,
-  schedulingOptions: solveOptionsFor(p6MidnightActual.project).schedulingOptions,
-  projectStartDate: p6MidnightActual.project.startDate,
+// Sinds 2026-09-24 (eigenaarsbesluit "a") staat A19 in de P6-basis aan; daarmee werkt C5
+// (`p6CompletedPhysicalAtDataDate`, alleen samen met A19) ook op deze voltooide CP_Phys-taak en zet haar
+// als één punt op de statusdatum ma 1 jun 08:00 (3k-b). 3k toetst de minuutexacte actuals (A18), dus
+// daar staat C5 uit — zoals deze fixture tot dan (zonder rem_target_link_flag, A19 uit) rekende.
+const p6MidnightActualC5 = structuredClone(p6MidnightActual);
+setConvention(p6MidnightActual, 'p6CompletedPhysicalAtDataDate', false);
+for (const input of [p6MidnightActual, p6MidnightActualC5]) solveProject({
+  tasks: input.tasks,
+  sequences: input.sequences,
+  calendar: input.calendar,
+  calendars: input.resourceCalendars ?? [],
+  dataDate: input.project.statusDate,
+  progressMode: input.project.progressMode,
+  schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
+  projectStartDate: input.project.startDate,
 });
+eq('3k-b XER/P6 (basis, A19 + C5): voltooide CP_Phys-taak als punt op de statusdatum', {
+  earlyStart: p6MidnightActualC5.tasks[0]?.time.earlyStart,
+  earlyFinish: p6MidnightActualC5.tasks[0]?.time.earlyFinish,
+}, { earlyStart: '2026-06-01T08:00', earlyFinish: '2026-06-01T08:00' });
 eq('3k XER/P6 behoudt voltooide actual start/finish als minuutexacte broninstants', {
   earlyStart: p6MidnightActual.tasks[0]?.time.earlyStart,
   earlyFinish: p6MidnightActual.tasks[0]?.time.earlyFinish,

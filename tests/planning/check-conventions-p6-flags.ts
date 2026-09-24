@@ -1003,6 +1003,11 @@ function c11Fixture(successorStarted = true, predecessorCompleted = false): Impo
     '%E',
   ]);
   input.project.progressMode = 'PROGRESS_OVERRIDE';
+  // De handafleiding hieronder is gemaakt met A19 UIT (de fixture heeft geen rem_target_link_flag en tot
+  // 2026-09-24 was A19 in de P6-basis uit). Sinds eigenaarsbesluit "a" staat A19 in P6 aan; de fixture
+  // zet hem hier expliciet uit, zodat alle C11-verwachtingen (en de randgevallen) ongewijzigd gelden.
+  // Het geval mét A19 staat apart onder "C11 met A19 aan".
+  setConvention(input, 'p6UseRemainingStartForProgress', false);
   return input;
 }
 groupC.push({
@@ -1022,6 +1027,19 @@ groupC.push({
 
 // C11, randgevallen (docblok): alleen onder Progress Override, alleen naar een gestarte opvolger.
 {
+  // C11 met A19 aan (P6-basis sinds 2026-09-24). Met de hand: B's ES/LS beschrijven nu haar restwerk,
+  // dus A12 pint B's late start niet meer op haar werkelijke start di 6 jan; B eindigt laat op het
+  // projecteinde en start laat ná C's late start ma 19 jan 08:00. A.LF volgt dan uit C: vr 16 jan 17:00,
+  // tf = 4 — met én zonder C11. Het verschil zit in de vrije speling: met C11 telt B niet mee (ff = 2 tot
+  // C's vroege start do 15 jan 08:00); zonder C11 telt B's vroege start = haar restwerkstart ma 12 jan
+  // 08:00 vóór A's vroege einde ma 12 jan 17:00, negatief, en A13 klemt op 0.
+  {
+    const withA19 = withProfile(c11Fixture(), copy => setConvention(copy, 'p6UseRemainingStartForProgress', true));
+    eq('C11 met A19 aan: C11 aan', (({ lf, tf, ff }) => ({ lf, tf, ff }))(solveAxes(withA19, 'A')), { lf: '2026-01-16T17:00', tf: 4, ff: 2 });
+    eq('C11 met A19 aan: C11 uit ⇒ alleen de vrije speling verschilt',
+      (({ lf, tf, ff }) => ({ lf, tf, ff }))(solveAxes(withProfile(withA19, copy => setConvention(copy, 'p6ProgressOverrideIgnoresStartedSuccessor', false)), 'A')),
+      { lf: '2026-01-16T17:00', tf: 4, ff: 0 });
+  }
   const pickA = (axes: Axes) => ({ ls: axes.ls, lf: axes.lf, tf: axes.tf, ff: axes.ff });
   const off = (input: ImportResult) => withProfile(input, copy => setConvention(copy, 'p6ProgressOverrideIgnoresStartedSuccessor', false));
   // (a) Retained Logic: de relatie naar B telt gewoon; C11 aan = C11 uit. Mutant "PO-poort weg" ⇒ rood.

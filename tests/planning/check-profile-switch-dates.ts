@@ -9,16 +9,18 @@
 //
 // De fixture is de gebruikstest-XER, nagebouwd uit de beschrijving in
 // docs/superpowers/plans/2026-09-24-gebruikstest-rekenprofielen-26.md: statusdatum 2026-03-02,
-// rem_target_link_flag = Y (A19 per bestand), sched_lag_early_start_flag = N. A1 voltooid, A2 lopend,
+// rem_target_link_flag = Y (stuurt sinds 2026-09-24 niets meer; A19 staat in de P6-basis aan), sched_lag_early_start_flag = N. A1 voltooid, A2 lopend,
 // A3 en A4 niet gestart, M1 een eindmijlpaal (TT_FinMile). A1→A2 FS, A2→A4 SS 40 u, A4→M1 FS, A3→M1 FS.
-// De wissel loopt via `selectProfile`, dezelfde functie als de keuzelijst in Projectinfo (A19 blijft
-// dus staan, zoals in de UI).
+// De wissel loopt via `selectProfile`, dezelfde functie als de keuzelijst in Projectinfo.
 //
 // Verwachting met de hand afgeleid: onder OPS valt voor A4 de A16-vloer (gepland venster 09-03…20-03)
 // weg, dus A4 en M1 schuiven naar voren. A1 (voltooid) schuift sinds eigenaarsvraag 7 (2026-09-23,
 // B3 `p6CompletedDataDateWindow` in P6 uit) niet meer: het statusdatumvenster van een voltooide taak
-// is onder P6 al weg, dus P6 en OPS geven A1 dezelfde datums. A2 (A19 blijft aan) en A3 (niet gestart,
-// statusdatum) houden hun datums: 2 verschoven (vóór vraag 7 waren het er 3, met A1).
+// is onder P6 al weg, dus P6 en OPS geven A1 dezelfde datums. A3 (niet gestart, statusdatum) houdt
+// zijn datums. A2 (lopend) schuift sinds 2026-09-24 WEL: A19 staat nu in de P6-basis in plaats van als
+// per-bestand-afwijking die bij de wissel mee naar OPS ging, dus onder OPS is A19 uit en toont A2 haar
+// werkelijke start (23-02) i.p.v. de restwerkstart (02-03). Samen 3 verschoven (A2, A4, M1); tot
+// 2026-09-24 waren het er 2 (A4, M1), vóór vraag 7 3 (met A1).
 // Terug naar P6 draait dezelfde 3 terug, en ELK tijdveld van elke taak is weer byte-gelijk aan de
 // verse opening.
 //
@@ -97,7 +99,7 @@ const S = () => ctx.store.getState();
 S().applyOpenedImport(openXer(), { filePath: null, recompute: true });
 const freshProfile = JSON.stringify(S().project.schedulingProfile);
 const fresh = JSON.stringify(timesOf(S().tasks));
-eq('00 uitgangspunt: P6 met A19 uit het bestand, M1 op 27-03 17:00',
+eq('00 uitgangspunt: P6 (A19 aan in de basis), M1 op 27-03 17:00',
   [S().project.schedulingProfile?.id, m1(ctx).earlyStart, m1(ctx).earlyFinish, m1(ctx).lateFinish],
   ['p6', '2026-03-27T17:00', '2026-03-27T17:00', '2026-03-27T17:00']);
 S().runCPM();
@@ -116,22 +118,27 @@ for (const other of ['ops', 'msproject'] as const) {
   S().runCPM();
   eq(`07 ${other}: Bereken daarna verandert niets`, JSON.stringify(timesOf(S().tasks)), fresh);
 }
-// De telling uit de gebruikstest, met de hand afgeleid (kop): A4 en M1 (A1 sinds vraag 7 niet meer).
+// De telling met de hand afgeleid (kop): A2, A4 en M1 (A1 sinds vraag 7 niet meer; A2 sinds 2026-09-24 wel).
 S().undo(); S().undo(); // terug naar P6 vóór de MS Project-ronde
 const toOps = switchTo(ctx, 'ops');
-eq('08 P6 → OPS: 2 taken verschoven (A4, M1)', toOps.shifted, 2);
-// Onder OPS (A19 blijft aan, C6 en A16 uit): A2 restwerk vanaf 02-03 08:00; A4 SS 40 u (9-urige dagen)
-// ⇒ 06-03 12:00, plus 90 u ⇒ 20-03 12:00; M1 (FS) daar. Een gewoon venster, niet omgekeerd.
+eq('08 P6 → OPS: 3 taken verschoven (A2, A4, M1)', toOps.shifted, 3);
+// Onder OPS (A19, C6 en A16 uit): A2 op haar werkelijke start 23-02 08:00; A4 SS 40 u (9-urige dagen)
+// ⇒ 27-02 12:00, maar A4 is niet gestart en onder OPS begint een niet-gestarte taak niet vóór de
+// statusdatum (A23 is alleen MS Project) ⇒ 02-03 08:00, plus 90 u (10 dagen) ⇒ 13-03 17:00. A3 eindigt
+// 06-03 17:00, dus M1 (FS) op 13-03 17:00. Een gewoon venster, niet omgekeerd.
 eq('08a …en onder OPS staat M1 eerder, niet omgekeerd', [m1(ctx).earlyStart, m1(ctx).earlyFinish],
-  ['2026-03-20T12:00', '2026-03-20T12:00']);
-eq('09 OPS → P6: 2 taken terug', switchTo(ctx, 'p6').shifted, 2);
+  ['2026-03-13T17:00', '2026-03-13T17:00']);
+eq('08b onder OPS staat A2 op haar werkelijke start (A19 uit)',
+  S().tasks.find(task => task.wbsCode === 'A2')!.time.earlyStart, '2026-02-23T08:00');
+eq('09 OPS → P6: 3 taken terug', switchTo(ctx, 'p6').shifted, 3);
 
 // 3. "Gaat zo het IFC in": opslaan ná een berekening onder OPS, heropenen, terug naar P6.
 switchTo(ctx, 'ops');
 const ifc = writeIFC(buildWriteIFCInput(S()));
 const reopened = createAppStoreContext();
 reopened.store.getState().applyOpenedImport(readXerArchiveIFC(ifc), { filePath: null, recompute: true });
-eq('10 heropend IFC draagt OPS (met A19)', reopened.store.getState().project.schedulingProfile?.baseId, 'ops');
+// Sinds 2026-09-24 draagt OPS hier geen A19-afwijking meer: het is het kale standaardprofiel (afwezig ≡ ops).
+eq('10 heropend IFC draagt OPS (standaardprofiel, afwezig)', reopened.store.getState().project.schedulingProfile, undefined);
 eq('11 heropend: M1-bronvenster is het geplande venster uit het bestand',
   [m1(reopened).scheduleStart, m1(reopened).scheduleFinish], ['2026-03-27T17:00', '2026-03-27T17:00']);
 switchTo(reopened, 'p6');

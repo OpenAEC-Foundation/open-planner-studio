@@ -167,8 +167,8 @@ test('rekenprofiel: in "datums zoals opgeslagen" is Toepassen zonder wijziging e
 // Projectoptie `startToStartLagFrom` (P6 "Calculate Start-to-Start lag from", de variant van C6): een
 // XER met `sched_lag_early_start_flag` = N opent op "Werkelijke start"; de keuze is in Projectinfo met
 // echte klikken te wijzigen en landt na Toepassen in de projectopties. Onder een profiel zonder C6
-// (MS Project) of zonder A19 (`rem_target_link_flag` = Y hieronder zet A19 aan) is het veld
-// uitgeschakeld: daar doet de optie niets.
+// (MS Project) of zonder A19 (sinds 2026-09-24 aan in de P6-basis; `rem_target_link_flag` stuurt niets
+// meer) is het veld uitgeschakeld: daar doet de optie niets.
 const SS_LAG_XER = [
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR', '%F\tclndr_id\tclndr_name\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
@@ -223,8 +223,9 @@ test('rekenprofiel: de SS-lag-variant komt uit de XER en is in Projectinfo te wi
 // schreef in uur-modus `scheduleFinish` terug, en de P6-conventies lazen die uitvoer daarna als het
 // geplande bronvenster. Eindmijlpaal M1 stond dan op start 27-03, einde vóór de start, en Bereken
 // herstelde het niet. Dezelfde fixture als `tests/planning/check-profile-switch-dates.ts` (daar staat de
-// handafleiding: de wissel verschuift A4 en M1, heen én terug; A1 (voltooid) sinds eigenaarsvraag 7
-// niet meer, want B3 staat in P6 uit).
+// handafleiding: de wissel verschuift A2, A4 en M1, heen én terug; A1 (voltooid) sinds eigenaarsvraag 7
+// niet meer, want B3 staat in P6 uit; A2 (lopend) sinds 2026-09-24 wel, want A19 zit nu in de P6-basis
+// en gaat bij de wissel niet meer als afwijking mee naar OPS).
 const WORKWEEK = `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7]
   .map(n => `(0||${n}()(${n >= 2 && n <= 6 ? '(0||0(s|08:00|f|17:00)())' : ''}))`).join('')}))(0||Exceptions()())))`;
 const SWITCH_XER = [
@@ -265,7 +266,7 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
   await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
   const fresh = await times();
 
-  const shiftedToast = page.locator('.ops-toast').filter({ hasText: /zijn 2 taken verschoven|2 tasks moved/ });
+  const shiftedToast = page.locator('.ops-toast').filter({ hasText: /zijn 3 taken verschoven|3 tasks moved/ });
   // De tweede melding vouwt samen met de eerste (dedupe, "×2"); lees de telling en de herhaling uit.
   const shiftedNotice = () => page.evaluate(() => {
     const n = window.__OPS__!.store.getState().ui.notifications
@@ -279,19 +280,20 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
   };
 
-  // Heen: twee taken verschoven (A4, M1), M1 eerder (een gewoon venster).
+  // Heen: drie taken verschoven (A2, A4, M1), M1 eerder (een gewoon venster). Onder OPS is het profiel
+  // het kale standaardprofiel (afwezig ≡ ops).
   await applyProfile('builtin:ops');
-  await expect.poll(() => profileOf(page).then(p => p?.baseId)).toBe('ops');
-  await expect.poll(m1).toEqual(['2026-03-20T12:00', '2026-03-20T12:00']);
+  await expect.poll(() => profileOf(page).then(p => p?.baseId ?? 'ops')).toBe('ops');
+  await expect.poll(m1).toEqual(['2026-03-13T17:00', '2026-03-13T17:00']);
   await expect(shiftedToast).toHaveCount(1);
-  expect(await shiftedNotice()).toEqual([2, 1]);
+  expect(await shiftedNotice()).toEqual([3, 1]);
 
-  // Terug: hetzelfde profiel, dezelfde twee taken terug, en elk tijdveld gelijk aan de verse opening.
+  // Terug: hetzelfde profiel, dezelfde drie taken terug, en elk tijdveld gelijk aan de verse opening.
   await applyProfile('builtin:p6');
   await expect.poll(() => profileOf(page)).toEqual({ id: 'p6', baseId: 'p6', name: '' });
   await expect.poll(times).toBe(fresh);
   await expect(shiftedToast).toHaveCount(1);
-  expect(await shiftedNotice()).toEqual([2, 2]);
+  expect(await shiftedNotice()).toEqual([3, 2]);
 
   // Bereken verandert daarna niets meer.
   const calculate = page.locator('button.ribbon-btn').filter({ hasText: /^(Calculate|Bereken)$/ });
@@ -302,7 +304,8 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
 });
 
 // UI-voorstel conventiegroepen: de 27 conventies staan per thema, met de basiswaarde van het profiel,
-// "terug naar basis" bij een afwijking, "per bestand" bij A19 en een uitklapbare uitleg per regel. De
+// "terug naar basis" bij een afwijking en een uitklapbare uitleg per regel (het label "per bestand" bij A19
+// is op 2026-09-24 vervallen, eigenaarsbesluit "a": A19 is een gewone P6-conventie). De
 // conventies die in elk ingebouwd profiel uit staan, staan in een eigen laatste groep; de P6-opties die
 // alleen uit het bestand komen, staan alleen-lezen onderaan (B10).
 test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en uitleg', async ({ page, ops: _ops }) => {
@@ -321,11 +324,16 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
   await expect(page.locator('[data-ops-convention-group="ownProfilesOnly"] [data-ops-convention-row="p6CompletedPredecessorAtDataDate"]')).toHaveCount(1);
   await expect(page.locator('[data-ops-convention-group="msproject"] [data-ops-convention-row]')).toHaveCount(2);
 
-  // A19 komt uit het bestand: per bestand gemarkeerd, basis uit, afwijkend.
-  await expect(a19.locator('[data-ops-convention-per-file]')).toBeVisible();
-  await expect(a19.locator('[data-ops-convention-base]')).toHaveText(/(basis|base): (uit|off)/);
-  await expect(a19).toHaveAttribute('data-ops-convention-deviates', 'true');
-  await expect(page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-group-deviating]')).toBeVisible();
+  // A19 is een gewone P6-conventie: geen per-bestand-label, basis aan, niet afwijkend — ook niet met
+  // `rem_target_link_flag` = Y in het bestand. De keuzelijst toont "Primavera P6" zonder "(aangepast)".
+  await expect(page.locator('[data-ops-convention-per-file]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).toBeChecked();
+  await expect(a19.locator('[data-ops-convention-base]')).toHaveText(/(basis|base): (aan|on)/);
+  await expect(a19).not.toHaveAttribute('data-ops-convention-deviates', 'true');
+  await expect(page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-group-deviating]')).toHaveCount(0);
+  const select = page.locator('[data-ops-scheduling-profile-select]');
+  await expect(select).toHaveValue('builtin:p6');
+  await expect(select.locator('option:checked')).toHaveText('Primavera P6');
 
   // Uitleg uitklappen en weer inklappen.
   await a19.locator('[data-ops-convention-help-toggle]').click();
@@ -333,15 +341,13 @@ test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en ui
   await a19.locator('[data-ops-convention-help-toggle]').click();
   await expect(a19.locator('[data-ops-convention-help]')).toHaveCount(0);
 
-  // Terug naar basis: A19 uit, het profiel blijft het ingebouwde P6 (geen kopie), zonder "(aangepast)".
+  // Een afwijking maakt een kopie en krijgt een eigen "terug naar basis"; die zet de basiswaarde terug.
+  await page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]').uncheck();
+  await expect(a19).toHaveAttribute('data-ops-convention-deviates', 'true');
+  await expect(select).not.toHaveValue('builtin:p6');
   await a19.locator('[data-ops-convention-reset]').click();
-  await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).not.toBeChecked();
+  await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).toBeChecked();
   await expect(a19.locator('[data-ops-convention-reset]')).toHaveCount(0);
-  const select = page.locator('[data-ops-scheduling-profile-select]');
-  await expect(select).toHaveValue('builtin:p6');
-  await expect(select.locator('option:checked')).toHaveText('Primavera P6');
-
-  // Een gewone afwijking maakt een kopie en krijgt een eigen "terug naar basis".
   await page.locator('[data-ops-convention="clampNegativeFreeFloat"]').uncheck();
   await expect(page.locator('[data-ops-convention-row="clampNegativeFreeFloat"] [data-ops-convention-reset]')).toBeVisible();
 

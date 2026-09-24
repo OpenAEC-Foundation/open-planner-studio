@@ -121,6 +121,9 @@ function traceProjection(trace: CpmBackwardFloatTrace | undefined): TraceProject
 function solveTraceVariant(variant: Variant): TraceProjection {
   const imported = structuredClone(importFixture(fixtureBytes(variant)));
   setConvention(imported, 'p6FinishMilestoneBoundaryWindow', variant.finishMilestoneBoundary);
+  // Sinds 2026-09-24 (eigenaarsbesluit "a") zet rem_target_link_flag A19 niet meer: de variant stuurt
+  // A19 daarom expliciet via het profiel (de vlag in de fixture blijft alleen als diagnose).
+  setConvention(imported, 'p6UseRemainingStartForProgress', variant.remainingStart);
   const result = solveProject({
     tasks: imported.tasks,
     sequences: imported.sequences,

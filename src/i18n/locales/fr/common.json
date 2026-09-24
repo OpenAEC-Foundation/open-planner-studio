@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tâche en cours : début au plus tôt = début du travail restant",
-      "help": "Les débuts au plus tôt et au plus tard d’une tâche en cours indiquent où commence le travail restant, et non le début réel historique. Défini par fichier par Primavera P6. En calcul arrière sur une relation début-début, seule la durée restante compte."
+      "help": "Les débuts au plus tôt et au plus tard d’une tâche en cours indiquent où commence le travail restant, et non le début réel historique. En calcul arrière sur une relation début-début, seule la durée restante compte."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Instant de contrainte exact sur un jalon",
@@ -1340,7 +1340,6 @@
     "on": "activée",
     "off": "désactivée",
     "resetToBase": "revenir à la base",
-    "perFile": "par fichier",
     "showHelp": "Explication de « {{name}} »",
     "sourceOptions": {
       "title": "Paramètres du fichier source",

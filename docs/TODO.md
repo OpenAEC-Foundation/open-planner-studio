@@ -13,8 +13,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 - [ ] **Rekenprofielen / X12 (PR #169, stand 2026-09-24):** restant 76 zesassige afwijkingen op de
   P6-doorgerekende orakels — HarbourPointe-opvolgers van verouderde P6-uitvoer (nieuw P6-bewijs nodig),
-  mijlpaalvloer (n=1), Sample SF-lag-0-minuut (n=1). Eigenaarsvragen open: A19 in P6 aan en per-bestand
-  laten vallen? C5 smal/breed? Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
+  mijlpaalvloer (n=1), Sample SF-lag-0-minuut (n=1). Eigenaarsbesluiten 2026-09-24: A19 in P6 aan en
+  per-bestand vervallen ("a", branch `claude/x12-a19-basis`); C5 smal. Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
 - [ ] **P6-nivellering (motoretappe):** fundament (data) ligt; vijf eigenaarsbesluiten in
   `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §8.
 - [ ] **XER-lezer (PR #109) vervolg:** statisch anker bij `sched_use_project_end_date_for_float=Y` zonder

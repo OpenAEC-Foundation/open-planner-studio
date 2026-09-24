@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tarefa em curso: início cedo = início do trabalho restante",
-      "help": "O início cedo e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. Definido por ficheiro pelo Primavera P6. No cálculo para trás por uma relação início-início, conta apenas a duração restante."
+      "help": "O início cedo e tardio de uma tarefa em curso descrevem onde começa o trabalho restante, não o início real histórico. No cálculo para trás por uma relação início-início, conta apenas a duração restante."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restrição exato num marco",
@@ -1340,7 +1340,6 @@
     "on": "sim",
     "off": "não",
     "resetToBase": "voltar à base",
-    "perFile": "por ficheiro",
     "showHelp": "Explicação de «{{name}}»",
     "sourceOptions": {
       "title": "Definições do ficheiro de origem",

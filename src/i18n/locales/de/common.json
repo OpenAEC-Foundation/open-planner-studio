@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Laufender Vorgang: früher Start = Beginn der Restarbeit",
-      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Kommt pro Datei aus Primavera P6. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
+      "help": "Früher und später Start eines laufenden Vorgangs beschreiben, wo die Restarbeit beginnt, nicht den historischen Ist-Start. Bei der Rückwärtsrechnung über eine Anfang-Anfang-Beziehung zählt nur die Restdauer."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exakter Einschränkungszeitpunkt auf einem Meilenstein",
@@ -1305,7 +1305,6 @@
     "on": "an",
     "off": "aus",
     "resetToBase": "zurück zur Basis",
-    "perFile": "pro Datei",
     "showHelp": "Erläuterung zu „{{name}}“",
     "sourceOptions": {
       "title": "Einstellungen aus der Quelldatei",

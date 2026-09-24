@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Lopende taak: vroege start = begin van het restwerk",
-      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische werkelijke start. Komt per bestand uit Primavera P6. Terugrekenend over een start-start-relatie telt alleen de restduur."
+      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische werkelijke start. Terugrekenend over een start-start-relatie telt alleen de restduur."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Constraintmoment op een mijlpaal exact",
@@ -1305,7 +1305,6 @@
     "on": "aan",
     "off": "uit",
     "resetToBase": "terug naar basis",
-    "perFile": "per bestand",
     "showHelp": "Uitleg over „{{name}}”",
     "sourceOptions": {
       "title": "Instellingen uit het bronbestand",

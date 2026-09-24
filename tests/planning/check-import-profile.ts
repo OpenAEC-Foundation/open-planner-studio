@@ -1,13 +1,13 @@
 // Lezers stellen het bronprofiel voor (rekenprofielen, spec v3.1 §6; plan taak C3). Exit 0 = groen.
 // Alles via parseOpenedFile — dezelfde formatRegistry-naad als Bestand → Openen.
-// Verwachte profielen met de hand uit spec §6 (XER ⇒ P6 met A19 uit rem_target_link_flag als
+// Verwachte profielen met de hand uit spec §6 (XER ⇒ P6 — tot 2026-09-24 met A19 uit rem_target_link_flag als
 // afwijking; .mpp ⇒ MS Project; MSPDI/P6-XML/CSV ⇒ OPS in deze etappe). Mutatiebewijs (plan C3
 // step 4): de A19-afwijking in xerReader altijd `{}` ⇒ assertie 04 rood.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
-import { CONVENTION_KEYS, builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { CONVENTION_KEYS, builtInProfile, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { writeCSV } from '@/services/csv/csvWriter';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -50,7 +50,10 @@ eq('01 XER ⇒ p6 zonder overrides', x.project.schedulingProfile, builtInProfile
 eq('02 XER suggestedProfileId', x.suggestedProfileId, 'p6');
 eq('03 XER-opties zonder conventie of p6Source', noConventionKeys(x), []);
 const xy = single(await parseOpenedFile({ name: 'p.xer', bytes: xer('Y') }));
-eq('04 rem_target_link_flag=Y ⇒ A19 als override', xy.project.schedulingProfile?.overrides, { p6UseRemainingStartForProgress: true });
+// Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt rem_target_link_flag geen conventie meer: Y en N
+// geven allebei de kale P6-basis (A19 aan). Mutant: de override in xerReader terugzetten ⇒ 04 rood.
+eq('04 rem_target_link_flag=Y ⇒ óók p6 zonder overrides', xy.project.schedulingProfile, builtInProfile('p6'));
+eq('04a A19 aan, ongeacht de vlag', [x, xy].map(r => resolveConventions(r.project.schedulingProfile).p6UseRemainingStartForProgress), [true, true]);
 
 const project = { ...createDefaultProject(), startDate: '2026-06-01', name: 'Profiel' };
 const calendar = createDefaultCalendar();

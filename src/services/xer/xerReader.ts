@@ -972,12 +972,9 @@ function readXerProject(
       ...(statusDate ? { statusDate } : {}),
       progressMode,
       schedulingOptions,
-      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6; A19 is per bestand (PROJECT.rem_target_link_flag)
-      // en dus een afwijking op het profiel.
-      schedulingProfile: {
-        ...builtInProfile('p6'),
-        overrides: derivedSchedule.p6UseRemainingStartForProgress ? { p6UseRemainingStartForProgress: true } : {},
-      },
+      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6 zonder afwijkingen. A19 staat sinds 2026-09-24 in de
+      // P6-basis; PROJECT.rem_target_link_flag stuurt geen conventie meer (eigenaarsbesluit "a").
+      schedulingProfile: builtInProfile('p6'),
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
