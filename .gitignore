@@ -4,8 +4,9 @@ dist/
 *.local
 .DS_Store
 .claude/*
-# Deel alleen de project-specifieke skills mee; de rest van .claude/ blijft lokaal
+# Deel alleen de project-specifieke skills en rules mee; de rest van .claude/ blijft lokaal
 !.claude/skills/
+!.claude/rules/
 .claude/skills/*
 !.claude/skills/release/
 !.claude/skills/wiki/
