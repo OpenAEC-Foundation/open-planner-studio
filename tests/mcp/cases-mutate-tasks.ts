@@ -167,6 +167,16 @@ test('delete_tasks: verwijdert bestaande, onbekend id ⇒ zachte weigering', asy
   assert(!taskById(a) && !taskById(b), 'a en b zijn weg uit de store');
 });
 
+test('delete_tasks: de actieve taak wijst daarna niet naar een verwijderde taak', async () => {
+  reset();
+  const a = store.getState().addTask({ name: 'act-a' });
+  const b = store.getState().addTask({ name: 'act-b' });
+  store.getState().selectTasks([a, b], false);
+  store.setState({ activeTaskId: a });
+  okData(await call('planner_delete_tasks', { ids: [a] }, makeCtx()));
+  assertEq(store.getState().activeTaskId, b, 'terug op de eerste resterende selectie (vóór de fix: het verwijderde id)');
+});
+
 // =================================================================================================
 // 5) move_task — ouder + positie binnen de transactie
 // =================================================================================================

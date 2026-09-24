@@ -455,8 +455,9 @@ function createMcpDraft(
 
   /**
    * Snapshot/recompute-vrije variant van de store-`deleteTask`: verwijdert de taak + al haar
-   * (klein)kinderen recursief, en ruimt relaties, assignments, selectie én de `childIds`-verwijzing
-   * bij de ouder op. Onbekend id ⇒ stille no-op (zoals de store).
+   * (klein)kinderen recursief, en ruimt relaties, assignments, selectie, actieve taak én de
+   * `childIds`-verwijzing bij de ouder op (`removeTaskSubtrees`). Onbekend id ⇒ stille no-op (zoals
+   * de store).
    */
   deleteTask(id: string): void {
     store.setState((s) => {

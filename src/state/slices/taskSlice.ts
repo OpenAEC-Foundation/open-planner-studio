@@ -643,10 +643,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
-      const removeIds = removeTaskSubtrees(s, [id]);
-      if (s.activeTaskId && removeIds.has(s.activeTaskId)) {
-        s.activeTaskId = s.selectedTaskIds[0] ?? null;
-      }
+      removeTaskSubtrees(s, [id]);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });

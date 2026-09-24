@@ -119,11 +119,13 @@ interface TaskRemovalState {
   sequences: Sequence[];
   assignments: ResourceAssignment[];
   selectedTaskIds: string[];
+  activeTaskId: string | null;
 }
 
 /**
  * Verwijdert de deelbomen onder (en inclusief) `rootIds`: haalt elke wortel bij zijn ouder weg en
- * ruimt taken, relaties met een verwijderd eindpunt, toewijzingen en de selectie op. Retourneert
+ * ruimt taken, relaties met een verwijderd eindpunt, toewijzingen en de selectie op; wees de actieve
+ * taak naar een verwijderde taak, dan wordt de eerste resterende selectie actief. Retourneert
  * alle verwijderde ids. `rootIds` moeten bestaan (de aanroeper guardt, vóór zijn snapshot); een
  * wortel die zelf in de deelboom van een andere zit, is geen probleem.
  */
@@ -137,6 +139,7 @@ export function removeTaskSubtrees(s: TaskRemovalState, rootIds: readonly string
   s.sequences = s.sequences.filter(seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId));
   s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
   s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
+  if (s.activeTaskId && removeIds.has(s.activeTaskId)) s.activeTaskId = s.selectedTaskIds[0] ?? null;
   return removeIds;
 }
 
