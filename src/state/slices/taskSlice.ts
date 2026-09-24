@@ -23,7 +23,7 @@ import {
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
-import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
+import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
 import { relationVerdict } from '@/state/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
@@ -643,19 +643,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
-
-      // Remove from parent
-      detachFromParent(s.tasks, id);
-
-      // Remove child tasks recursively
-      const removeIds = new Set(collectSubtreeIds(s.tasks, id));
-
-      s.tasks = s.tasks.filter(t => !removeIds.has(t.id));
-      s.sequences = s.sequences.filter(
-        seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId)
-      );
-      s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
-      s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
+      const removeIds = removeTaskSubtrees(s, [id]);
       if (s.activeTaskId && removeIds.has(s.activeTaskId)) {
         s.activeTaskId = s.selectedTaskIds[0] ?? null;
       }
@@ -677,19 +665,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const roots = frozen.filter((id) => s.tasks.some((task) => task.id === id));
       if (roots.length === 0) return;
       runtime.beginUndoable(s);
-
-      const removeIds = new Set<string>();
-      for (const id of roots) {
-        detachFromParent(s.tasks, id);
-        for (const subtreeId of collectSubtreeIds(s.tasks, id)) removeIds.add(subtreeId);
-      }
-
-      s.tasks = s.tasks.filter((task) => !removeIds.has(task.id));
-      s.sequences = s.sequences.filter(
-        (sequence) => !removeIds.has(sequence.predecessorId) && !removeIds.has(sequence.successorId),
-      );
-      s.assignments = s.assignments.filter((assignment) => !removeIds.has(assignment.taskId));
-      s.selectedTaskIds = s.selectedTaskIds.filter((id) => !removeIds.has(id));
+      removeTaskSubtrees(s, roots);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true });
     });

@@ -1,5 +1,5 @@
 import type { AppStoreContext } from '../appStore';
-import { attachToParent, detachFromParent, collectSubtreeIds } from '@/state/taskTree';
+import { attachToParent, removeTaskSubtrees } from '@/state/taskTree';
 import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
 import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
@@ -460,19 +460,8 @@ function createMcpDraft(
    */
   deleteTask(id: string): void {
     store.setState((s) => {
-      const task = s.tasks.find((t) => t.id === id);
-      if (!task) return;
-
-      detachFromParent(s.tasks, id);
-
-      const removeIds = new Set(collectSubtreeIds(s.tasks, id));
-
-      s.tasks = s.tasks.filter((t) => !removeIds.has(t.id));
-      s.sequences = s.sequences.filter(
-        (seq) => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId),
-      );
-      s.assignments = s.assignments.filter((a) => !removeIds.has(a.taskId));
-      s.selectedTaskIds = s.selectedTaskIds.filter((sid) => !removeIds.has(sid));
+      if (!s.tasks.some((t) => t.id === id)) return;
+      removeTaskSubtrees(s, [id]);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       s.isDirty = true;
     });
