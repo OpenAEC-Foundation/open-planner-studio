@@ -166,6 +166,14 @@ van #167, `claude/recorded-all-formats-fixes`).
   orakel). Vergelijken op het 0,001-min-raster dat het cellenbestand al gebruikt is een meetcorrectie, geen
   pin: landt ná brok 8 (herpin opnieuw). De eigenaar kan dit terugdraaien (§1d-9).
 
+- **24-09 ~08:55, uitwerking van "2.beperken" (vraag van de #167-fixagent):** een vreemd IFC met echte
+  IfcTaskTime early-/late-slots (de #63-route P6 → IFC) houdt de modus "datums zoals opgeslagen"; alleen
+  een vreemd IFC met uitsluitend ScheduleStart/ScheduleFinish (laag 2) en CSV gaan uit. Een eigen OPS-IFC
+  zónder vastgelegde bronherkomst gaat óók uit (eigen oude solve vs. eigen nieuwe solve is geen
+  pakketuitvoer); mét herkomst (nieuw veld `SourceFormat` in `OPS_ImportProvenance`, of het
+  xer-archief) blijft de modus. Reden: de eigenaar kreeg de vraag uitgelegd als "invoer met invoer
+  vergelijken" — de bedoeling is de modus te bewaren waar het bestand rekenuitvoer draagt.
+
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
 1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
