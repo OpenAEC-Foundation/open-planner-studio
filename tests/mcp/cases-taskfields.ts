@@ -17,6 +17,7 @@ import { taskTools } from '@/services/mcp/tools/taskTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
 import { readTools } from '@/services/mcp/tools/readTools';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
+import { TASK_FIELD_SCHEMA_PROPERTIES } from '@/services/mcp/tools/taskFields';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
 
 const store = useAppStore;
@@ -295,6 +296,39 @@ test('durationUnit zonder duration en uren zonder werkblokken worden geweigerd z
   assert(/concrete werkblokken/.test(rejections(noBlocks)[0].reason), 'urentaak zonder blokken wordt gericht geweigerd');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'de bestaande dagidentiteit bleef behouden');
   assertEq(taskById(id)!.time.scheduleDuration, 2, 'de bestaande daghoeveelheid bleef behouden');
+});
+
+// Audit import/export nr. 1 (bijvangst): `duration` in dagen accepteert bewust een FRACTIE — de app
+// kent fractionele dagtaken (CSV-import, Tabel "1d 4u", Gantt) — maar de weigerhints beloofden
+// "hele dagen". Tekst en gedrag moeten hetzelfde zeggen; deze test pint allebei vast. De bridge rondt
+// NIET af (dat zou een ontwerpkeuze van de eigenaar zijn, geen tekstcorrectie).
+test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de teksten zeggen dat ook', async () => {
+  reset();
+  const created = okData(await call('planner_add_tasks', { tasks: [
+    { tempId: 'tmp-f', name: 'Keuring', duration: 2.5 },
+    { tempId: 'tmp-3', name: 'Drie', duration: 3 },
+  ] }));
+  const id = created.created['tmp-f'];
+  assertEq(taskById(id)!.time.scheduleDuration, 2.5, 'add_tasks bewaart 2.5 dag exact (niet afgerond)');
+  assertEq(taskById(id)!.time.durationUnit, 'days', 'het blijft een dagtaak');
+  // De schemabeschrijving belooft "een WORKTIME-dagtaak beslaat in de datums hele werkdagen (2.5 ⇒ 3)".
+  const drie = taskById(created.created['tmp-3'])!.time;
+  assertEq([taskById(id)!.time.earlyStart, taskById(id)!.time.earlyFinish], [drie.earlyStart, drie.earlyFinish],
+    '2.5 dag beslaat in de datums dezelfde 3 werkdagen als een taak van 3');
+  okData(await call('planner_update_tasks', { updates: [{ id, fields: { duration: 0.5 } }] }));
+  assertEq(taskById(id)!.time.scheduleDuration, 0.5, 'update_tasks bewaart 0.5 dag exact');
+
+  const hints = [
+    rejections(await call('planner_update_tasks', { updates: [{ id, fields: { scheduleDuration: 2.5 } }] }))[0]?.reason ?? '',
+    rejections(await call('planner_update_tasks', { updates: [{ id, fields: { time: { scheduleDuration: 2.5 } } }] }))[0]?.reason ?? '',
+  ];
+  for (const h of hints) {
+    assert(h !== '' && !/hele dagen/i.test(h), `de weigerhint belooft geen "hele dagen": ${h}`);
+    assert(/fractie/i.test(h), `de weigerhint zegt dat een fractie mag: ${h}`);
+  }
+  const desc = String((TASK_FIELD_SCHEMA_PROPERTIES.duration as { description?: unknown }).description ?? '');
+  assert(/fractie/i.test(desc) && !/hele dagen/i.test(desc), `de schemabeschrijving van \`duration\` noemt de fractie: ${desc}`);
+  assertEq(taskById(id)!.time.scheduleDuration, 0.5, 'de geweigerde pogingen veranderden niets');
 });
 
 test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet blind gemerged', async () => {

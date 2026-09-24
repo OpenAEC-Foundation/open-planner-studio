@@ -15,7 +15,9 @@
 // (`time`) zijn nooit rechtstreeks zetbaar — `duration`/`durationType` worden hier vertaald naar een
 // veld-voor-veld `TaskTimePatch` die de draft-laag individueel toepast.
 //
-// DUUR-SEMANTIEK (dag-modus): `duration` is ALTIJD in hele dagen — WERKdagen voor de default
+// DUUR-SEMANTIEK (dag-modus): `duration` is ALTIJD in dagen — een fractie (2.5) mag en wordt niet
+// afgerond (de app kent fractionele dagtaken: CSV-import, Tabel "1d 4u"; afronden zou een
+// ontwerpkeuze zijn, geen validatie) — WERKdagen voor de default
 // `durationType: 'WORKTIME'`, KALENDERdagen (24/7, geen kalenderband-toetsing) voor
 // `durationType: 'ELAPSEDTIME'` (T8, T8-review L1-correctie: eerdere versies van deze regel
 // spraken uitsluitend van "werkdagen" zonder dat onderscheid — zie `duration.ts`'s
@@ -121,8 +123,8 @@ export const TASK_FIELD_NAMES = [
 
 /** Gerichte hints voor sleutels die een agent redelijkerwijs probeert maar die hier niet horen. */
 const REJECT_HINTS: Record<string, string> = {
-  time: 'zet de duur met `duration` (hele dagen — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME) en het duurtype met `durationType` — de `time`-tak zelf is niet zetbaar (dat zou CPM-datums, floats en actuals wissen)',
-  scheduleDuration: 'gebruik `duration` (hele dagen — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME)',
+  time: 'zet de duur met `duration` (in dagen, een fractie als 2.5 mag — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME) en het duurtype met `durationType` — de `time`-tak zelf is niet zetbaar (dat zou CPM-datums, floats en actuals wissen)',
+  scheduleDuration: 'gebruik `duration` (in dagen, een fractie als 2.5 mag — werkdagen bij WORKTIME, kalenderdagen bij ELAPSEDTIME)',
   durationMinutes: 'gebruik `duration` met `durationUnit: "hours"`; de bridge berekent en bewaart de exacte minutenbron zelf',
   status: 'gebruik `progress` (voortgangspad), niet `fields.status`',
   completion: 'gebruik `progress.completion` (0–100)',
@@ -471,7 +473,8 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     minimum: 0,
     description:
       'Native taakduur in de eenheid van `durationUnit` (standaard days voor achterwaartse ' +
-      'compatibiliteit). Mijlpaal ⇒ moet 0 zijn.',
+      'compatibiliteit). In days mag een fractie (2.5); de bridge rondt die niet af, maar een ' +
+      'WORKTIME-dagtaak beslaat in de datums wel hele werkdagen (2.5 ⇒ 3). Mijlpaal ⇒ moet 0 zijn.',
   },
   durationUnit: {
     type: 'string',

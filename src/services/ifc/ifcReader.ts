@@ -521,13 +521,23 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
   // Parse ISO 8601 duration: P0Y0M5D of P5D of PT8H. Negatief kan op twee manieren voorkomen:
   // standaardconform met voorloopteken vóór de P ('-P2D', zo schrijven wij een lead) of als
   // app-interne legacy-notatie met het teken bij het getal ('P0Y0M-2D'). Beide lezen.
+  // Het getal mag een decimale fractie hebben (ISO 8601 staat die toe op de kleinste component, en
+  // onze writer schrijft een fractionele dag als `P0Y0M2.5D`). Het oude `(-?\d+)` + parseInt pakte
+  // bij `2.5D` alleen de cijfers ná de punt: 2,5 → 5, 1,25 → 25 (audit import/export nr. 1). De
+  // exponent is er alleen voor bestanden van vóór de writer-afronding (`1e-7` werd −7); een getal
+  // dat daardoor niet eindig is (`1e999`) telt als 0. Decimaalkomma bewust niet: `isoDurationToMinutes`
+  // leest die ook niet, en een van beide laten afwijken zou `PT4,5H` per pad anders lezen.
   const leadingNeg = clean.startsWith('-');
   const applySign = (n: number) => (leadingNeg && n > 0 ? -n : n);
-  const dayMatch = clean.match(/(-?\d+)D/);
-  if (dayMatch) return applySign(parseInt(dayMatch[1]));
-  const hourMatch = clean.match(/(-?\d+)H/);
+  const dayMatch = clean.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
+  if (dayMatch) {
+    const d = parseFloat(dayMatch[1]);
+    return Number.isFinite(d) ? applySign(d) : 0;
+  }
+  const hourMatch = clean.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)H/);
   if (hourMatch) {
-    const h = parseInt(hourMatch[1]);
+    const h = parseFloat(hourMatch[1]);
+    if (!Number.isFinite(h)) return 0;
     // Kale `PT{n}H` (andermans bestand) ⇒ werkdagen van de meegegeven kalender, niet van een vaste 8
     // (issue #159, vervolg — de MSPDI-lezer had dezelfde `/8` al in fase 2.8b vervangen).
     return applySign(h < 0 ? -Math.ceil(-h / hoursPerDay) : Math.ceil(h / hoursPerDay));
