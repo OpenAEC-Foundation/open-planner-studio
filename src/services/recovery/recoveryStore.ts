@@ -4,6 +4,7 @@ import {
   ownRecoveryNames, recoveryTmpSuffix,
   type RecoveryNames, type RecoveryManifest, type RecoveryManifestDoc,
 } from '@/hooks/recoveryPaths';
+import { writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 
 /** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
@@ -233,37 +234,15 @@ async function listAppDataTauri(dir: string): Promise<string[]> {
 }
 
 async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
-  const { writeTextFile, readTextFile, exists, remove, rename, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { readTextFile, exists, remove, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
 
-  /**
-   * Schrijf-en-vervang in twee stappen (bevinding K4). `writeTextFile` truncate't het doelbestand
-   * vóórdat het schrijft, dus een crash midden in de schrijfactie liet precies datgene achter
-   * waarvoor recovery bestaat: een AFGEKAPTE snapshot — en die kwam er ongemerkt doorheen, want
-   * `readIFC` gooide nooit.
-   *
-   * Een atomaire schrijf-primitief kent `plugin-fs` niet; `rename` is het beste wat er is. Die
-   * mapt op `std::fs::rename`, en binnen dezelfde map (dus gegarandeerd hetzelfde volume) is dat
-   * een atomaire vervanging op zowel POSIX als Windows. Na een crash staat er dus óf het complete
-   * oude, óf het complete nieuwe bestand — nooit een halve.
-   *
-   * Wat dit NIET afdekt: er is geen `fsync`/flush in `plugin-fs`, dus bij stroomuitval of een
-   * kernel-panic kan de rename op sommige bestandssystemen vóór de data landen. Tegen een
-   * app-crash — het scenario van deze bevinding — dekt het wel volledig.
-   */
-  const writeAtomic = async (name: string, text: string): Promise<void> => {
-    const target = await join(dir, name);
-    const tmp = await join(dir, `${name}${TMP_SUFFIX}`);
-    await writeTextFile(tmp, text);
-    try {
-      await rename(tmp, target);
-    } catch (err) {
-      try { await remove(tmp); } catch { /* al weg */ }
-      throw err;
-    }
-  };
+  // Schrijf-en-vervang (bevinding K4): een gewone `writeTextFile` liet bij een crash precies
+  // datgene achter waarvoor recovery bestaat — een AFGEKAPTE snapshot, en die kwam er ongemerkt
+  // doorheen, want `readIFC` gooide nooit. Zie `writeTextFileAtomic` voor wat dit wel/niet dekt.
+  const writeAtomic = (name: string, text: string) => writeTextFileAtomic(dir, name, text, TMP_SUFFIX);
 
   // Het manifest zoals het er NU staat, vóór we het overschrijven: dat is de enige bron waaruit
   // we weten welke snapshots van ons zijn (en of er inmiddels een andere instantie schrijft).

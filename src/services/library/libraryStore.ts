@@ -7,6 +7,7 @@
 import { isTauri } from '@/utils/platform';
 import type { CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary } from '@/types/library';
+import { writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 
 const LIBRARY_FILE = 'ops-library.json';
 
@@ -69,12 +70,13 @@ async function loadTauri(): Promise<CompanyLibrary | null> {
 }
 
 async function saveTauri(lib: CompanyLibrary): Promise<void> {
-  const { writeTextFile, mkdir } = await import('@tauri-apps/plugin-fs');
-  const { appDataDir, join } = await import('@tauri-apps/api/path');
+  const { mkdir } = await import('@tauri-apps/plugin-fs');
+  const { appDataDir } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
-  const path = await join(dir, LIBRARY_FILE);
-  await writeTextFile(path, JSON.stringify(lib));
+  // Schrijf-en-vervang: een afgekapt bestand na een crash leest `loadTauri` als corrupt, valt terug
+  // op een VERSE bibliotheek, en de eerstvolgende save overschrijft dan de hele bibliotheek.
+  await writeTextFileAtomic(dir, LIBRARY_FILE, JSON.stringify(lib));
 }
 
 // ── Publieke API ──────────────────────────────────────────────────────────────────────────────
