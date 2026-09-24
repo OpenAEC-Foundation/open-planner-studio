@@ -124,7 +124,7 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-ai-connection-dialog': true }}
     >
-      <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} closeAriaLabel={t('close')} />
+      <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {/* Endpoint */}

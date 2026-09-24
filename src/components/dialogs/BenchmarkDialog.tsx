@@ -107,7 +107,6 @@ export function BenchmarkDialog() {
         icon={<Gauge size={16} />}
         onClose={close}
         closeDisabled={running}
-        closeAriaLabel={t('close')}
       />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">

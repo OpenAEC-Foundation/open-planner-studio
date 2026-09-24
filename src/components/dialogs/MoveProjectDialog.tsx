@@ -95,7 +95,7 @@ export function MoveProjectDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-move-project-dialog': true }}
     >
-      <DialogHeader title={t('moveProject.title')} onClose={close} closeAriaLabel={t('cancel')} />
+      <DialogHeader title={t('moveProject.title')} onClose={close} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         {/* R9 — zonder geldige huidige startdatum valt er niets te berekenen. */}

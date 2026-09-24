@@ -71,7 +71,7 @@ export function WelcomeDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[480px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-welcome-dialog': true }}
     >
-        <DialogHeader title={t('welcome.title')} onClose={markSeenAndClose} closeAriaLabel={t('close')} />
+        <DialogHeader title={t('welcome.title')} onClose={markSeenAndClose} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-body leading-5">
           {step === 1 ? (

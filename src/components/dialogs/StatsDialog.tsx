@@ -25,12 +25,7 @@ export function StatsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-stats-dialog': true }}
     >
-      <DialogHeader
-        title={t('settings.statsTitle')}
-        icon={<BarChart3 size={16} />}
-        onClose={close}
-        closeAriaLabel={t('close')}
-      />
+      <DialogHeader title={t('settings.statsTitle')} icon={<BarChart3 size={16} />} onClose={close} />
       <div className="flex-1 overflow-y-auto p-4">
         <DownloadStatsSection />
       </div>

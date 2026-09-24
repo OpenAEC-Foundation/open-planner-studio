@@ -146,12 +146,7 @@ export function UpdateDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         {/* Header */}
-        <DialogHeader
-          title={t('updates.dialogTitle')}
-          onClose={close}
-          closeDisabled={isDownloading}
-          closeTitle={t('close')}
-        />
+        <DialogHeader title={t('updates.dialogTitle')} onClose={close} closeDisabled={isDownloading} />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">

@@ -43,6 +43,12 @@ function dialog(page: Page) {
   return page.locator(DIALOG);
 }
 
+/** De voetknop "Sluiten" van de resultaatstap. Het kopkruisje draagt dezelfde toegankelijke naam,
+ *  maar heeft geen tekstinhoud — daarop filteren houdt het wachten op de resultaatstap intact. */
+function footerCloseButton(page: Page) {
+  return dialog(page).getByRole('button', { name: CLOSE }).filter({ hasText: CLOSE });
+}
+
 /** Rijcontainer in de preview/dateOrder-lijsten. Tot 2026-09-11 filterde dit op de `#<rijnummer> —`
  *  KOPTEKST van de kaart; die kop is bij fix 3 (gebruikstest) vervangen door "WBS naam" — het
  *  bladrijnummer staat alleen nog als kleine hint bij rijen zonder koppeling. Elke rijkaart draagt
@@ -165,14 +171,14 @@ test('bevestigen past het blad toe en één Ctrl+Z draait het hele blad terug', 
 
   await expect(dialog(page).getByRole('button', { name: APPLY })).toBeEnabled();
   await dialog(page).getByRole('button', { name: APPLY }).click();
-  await expect(dialog(page).getByRole('button', { name: CLOSE })).toBeVisible();
+  await expect(footerCloseButton(page)).toBeVisible();
 
   const afterA = await taskTime(page, idA);
   const afterB = await taskTime(page, idB);
   expect(afterA.completion).toBe(0.4);
   expect(afterB.completion).toBe(0.7);
 
-  await dialog(page).getByRole('button', { name: CLOSE }).click();
+  await footerCloseButton(page).click();
   await expect(dialog(page)).toBeHidden();
 
   // Eén Ctrl+Z herstelt het HELE blad (twee taken), niet slechts één rij.
@@ -205,7 +211,7 @@ test('een losse rij handmatig koppelen laat hem meedraaien', async ({ page, ops:
   // wordt daadwerkelijk toegepast op de gekozen taak.
   await expect(dialog(page).getByRole('button', { name: APPLY })).toBeEnabled();
   await dialog(page).getByRole('button', { name: APPLY }).click();
-  await expect(dialog(page).getByRole('button', { name: CLOSE })).toBeVisible();
+  await expect(footerCloseButton(page)).toBeVisible();
 
   const after = await taskTime(page, idA);
   expect(after.completion).toBe(0.55);
@@ -277,7 +283,7 @@ test('de keuze werkt door in de preview', async ({ page, ops: _ops }) => {
 
   await expect(dialog(page).getByRole('button', { name: APPLY })).toBeEnabled();
   await dialog(page).getByRole('button', { name: APPLY }).click();
-  await expect(dialog(page).getByRole('button', { name: CLOSE })).toBeVisible();
+  await expect(footerCloseButton(page)).toBeVisible();
 
   const after = await taskTime(page, idA);
   expect(after.actualStart).toBe('2026-03-04');
@@ -498,7 +504,7 @@ test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', as
   await expect(rowByNumber(page, 2)).toBeVisible();
 
   await dialog(page).getByRole('button', { name: APPLY }).click();
-  await expect(dialog(page).getByRole('button', { name: CLOSE })).toBeVisible();
+  await expect(footerCloseButton(page)).toBeVisible();
 
   const after = await taskTime(page, idA);
   expect(after.completion).toBeCloseTo(0.65, 5);

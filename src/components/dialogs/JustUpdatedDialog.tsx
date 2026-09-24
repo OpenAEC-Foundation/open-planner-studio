@@ -85,12 +85,7 @@ export function JustUpdatedDialog() {
       panelProps={{ 'data-ops-just-updated-dialog': true }}
     >
       {/* Header */}
-      <DialogHeader
-        title={t('updates.justUpdated.title')}
-        onClose={close}
-        closeAriaLabel={t('close')}
-        closeTitle={t('close')}
-      />
+      <DialogHeader title={t('updates.justUpdated.title')} onClose={close} />
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5 text-small leading-4">

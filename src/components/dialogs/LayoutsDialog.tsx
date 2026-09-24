@@ -157,7 +157,6 @@ export function LayoutsDialog() {
       <DialogHeader
         title={t(editing ? 'common:view.layout.editTitle' : 'common:view.layout.newTitle')}
         onClose={close}
-        closeAriaLabel={t('common:close')}
       />
 
       <div className="flex-1 overflow-y-auto p-4 text-small leading-4 flex flex-col gap-4" data-ops-layout-dialog="true">

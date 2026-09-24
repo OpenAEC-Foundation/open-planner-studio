@@ -212,7 +212,12 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
             {resource?.name || assignment.resourceId} · {task.name}
           </span>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-surface-hover rounded-[8px]" title={tCommon('close')}>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-surface-hover rounded-[8px]"
+          aria-label={tCommon('close')}
+          title={tCommon('close')}
+        >
           <X size={16} />
         </button>
       </div>
