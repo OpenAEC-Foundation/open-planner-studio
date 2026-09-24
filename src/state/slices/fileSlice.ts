@@ -16,6 +16,8 @@ import type { Task } from '@/types/task';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
 import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
+import { refreshProjectCalendarCache } from '../syncProjectCalendar';
+import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
@@ -198,16 +200,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : current.fileHandle;
       if (!opts.linkedOpen) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
-        payload.resources = payload.resources.map((resource) => {
-          const { libraryOrigin: _discarded, ...rest } = resource;
-          return rest;
-        });
-        payload.calendars = payload.calendars.map((calendar) => {
-          const { libraryOrigin: _discarded, ...rest } = calendar;
-          return rest;
-        });
-        payload.calendar = payload.calendars.find(calendar =>
-          calendar.id === payload.project.calendarId) ?? payload.calendar;
+        stripLibraryOrigins(payload);
+        refreshProjectCalendarCache(payload);
       }
       const recorded = opts.recompute
         ? captureRecordedDates(payload.tasks, parsed.recordedFields)

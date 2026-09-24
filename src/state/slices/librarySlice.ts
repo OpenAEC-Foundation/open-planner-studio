@@ -4,9 +4,9 @@ import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
-import { loadLibrary, saveLibrary, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
+import { loadLibrary, saveLibrary, stripLibraryOrigins, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
 import { markScheduleStale } from '../transaction';
-import { syncProjectCalendar } from '../syncProjectCalendar';
+import { refreshProjectCalendarCache, syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
 import { runInScratchDocument } from '../runtime/scratchDocument';
 import {
@@ -459,9 +459,8 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       if (s.project.companyId === id) {
         s.project.companyId = undefined;
         s.project.companyName = undefined;
-        s.resources = s.resources.map((r) => r.libraryOrigin?.companyId === id ? (() => { const { libraryOrigin: _d, ...rest } = r; return rest; })() : r);
-        s.calendars = s.calendars.map((c) => c.libraryOrigin?.companyId === id ? (() => { const { libraryOrigin: _d, ...rest } = c; return rest; })() : c);
-        s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+        stripLibraryOrigins(s, id);
+        refreshProjectCalendarCache(s);
       }
       for (const d of s.documents) {
         if (!d.payload) continue;
@@ -470,13 +469,12 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         const payload = d.payload;
         if (payload.project.companyId !== id) continue;
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
-        payload.resources = payload.resources.map((r) => r.libraryOrigin?.companyId === id ? (() => { const { libraryOrigin: _d, ...rest } = r; return rest; })() : r);
-        payload.calendars = payload.calendars.map((c) => c.libraryOrigin?.companyId === id ? (() => { const { libraryOrigin: _d, ...rest } = c; return rest; })() : c);
+        stripLibraryOrigins(payload, id);
         // F1 (vloot-fixpakket, issue #19): de gedenormaliseerde projectkalender-cache van een SLAPENDE
         // payload moet de zojuist gestripte `calendars`-lijst meelopen — anders draagt de cache
         // (waar de auto-save/writer uitsluitend uit leest, zonder hydrate) nog het herkomststempel
         // van het net-verwijderde bedrijf. Spiegelt de actieve-document-tak hierboven.
-        payload.calendar = payload.calendars.find((c) => c.id === payload.project.calendarId) ?? payload.calendar;
+        refreshProjectCalendarCache(payload);
       }
     });
     persist(get);
@@ -710,9 +708,8 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       // Omkoppelen (spec §5): stempels van het VORIGE bedrijf zijn nu vreemd — strip ze zodat de
       // herkenningsstap schoon herbegint. Matches worden daarna opnieuw voorgesteld/gelinkt.
       if (isRebind) {
-        s.resources = s.resources.map((r) => r.libraryOrigin?.companyId === previous ? (() => { const { libraryOrigin: _d, ...rest } = r; return rest; })() : r);
-        s.calendars = s.calendars.map((c) => c.libraryOrigin?.companyId === previous ? (() => { const { libraryOrigin: _d, ...rest } = c; return rest; })() : c);
-        s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+        stripLibraryOrigins(s, previous);
+        refreshProjectCalendarCache(s);
       }
       // isDirty blijft onvoorwaardelijk (élke bind is een wijziging); scheduleStale blijft ongemoeid
       // (strippen van een stempel raakt geen kalenderWAARDEN, dus geen datumimpact).
@@ -1012,7 +1009,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         if (docChanged > 0) {
           if (cals.calChanged > 0) s.calendars = cals.items;
           if (ress.resChanged > 0) s.resources = ress.items;
-          s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+          refreshProjectCalendarCache(s);
           if (cals.calChanged > 0) markScheduleStale(s); // kalenderwijziging raakt datums (geen isDirty, geen runCPM)
           changed += docChanged;
         }
@@ -1039,7 +1036,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
             // `payload.calendar` de OUDE (mogelijk stale) waarde dragen terwijl de auto-save die
             // cache rechtstreeks serialiseert (geen hydrate), wat verkeerde uren in de recovery-IFC
             // oplevert. Alleen binnen deze tak (calendars daadwerkelijk gewijzigd).
-            payload.calendar = payload.calendars.find((c) => c.id === payload.project.calendarId) ?? payload.calendar;
+            refreshProjectCalendarCache(payload);
           }
           if (ress.resChanged > 0) payload.resources = ress.items;
           if (cals.calChanged > 0) markScheduleStale(payload); // zichtbaar bij switchDocument/activering
@@ -1132,7 +1129,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
           calendarLinked = true;
         }
       }
-      s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+      refreshProjectCalendarCache(s);
       // GO-NA-fix 2: een gelinkte kalender raakt datums ⇒ scheduleStale (patroon updateProjectCalendarFromLibrary).
       runtime.finishMutation(s, { stale: calendarLinked });
     });
@@ -1148,8 +1145,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       runtime.beginUndoable(s);
       s.project.companyId = undefined;
       s.project.companyName = undefined;
-      s.resources = s.resources.map((r) => { const { libraryOrigin: _d, ...rest } = r; return rest; });
-      s.calendars = s.calendars.map((c) => { const { libraryOrigin: _d, ...rest } = c; return rest; });
+      stripLibraryOrigins(s);
       s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? { ...s.calendar };
       runtime.finishMutation(s);
     });
@@ -1174,7 +1170,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
           const idx = s.calendars.findIndex((c) => c.id === ref.projectId);
           if (idx < 0 || diffCalendarVsPool(current(s.calendars[idx]), pool).status !== 'changed') return;
           s.calendars[idx] = applyCalendarUpdate(current(s.calendars[idx]), pool);
-          s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+          refreshProjectCalendarCache(s);
           // Review-fix (spec §3): kalenderwaarden gewijzigd ⇒ scheduleStale (geen isDirty, geen runCPM).
           markScheduleStale(s);
         }
@@ -1221,7 +1217,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         s.pools[companyId] = bumped;
         const newHash = computeCalendarHash(bumped.calendars[pIdx]);
         s.calendars[cIdx] = { ...item, libraryOrigin: makeOrigin(bumped, libId!, newHash) };
-        s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+        refreshProjectCalendarCache(s);
       }
       // Niet-undoable (spiegel de 'company'-tak hierboven): wis botsende redo-history expliciet. Zonder dit
       // overleeft een bestaande redo-entry het oplossen van precies één afwijking (de sibling-
@@ -1259,7 +1255,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
             const { libraryOrigin: _calDrop, ...calRest } = cal;
             s.calendars[calIdx] = calRest;
             // Gedenormaliseerde projectkalender-cache meesyncen (§9.1-patroon) als dit de projectdefault was.
-            s.calendar = s.calendars.find((c) => c.id === s.project.calendarId) ?? s.calendar;
+            refreshProjectCalendarCache(s);
           }
         }
       }
