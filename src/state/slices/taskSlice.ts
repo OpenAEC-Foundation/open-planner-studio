@@ -10,7 +10,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import {
-  createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
+  buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
   timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
@@ -334,15 +334,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         ? s.tasks.find(t => t.id === partial.position!.anchorId)
         : undefined;
       const parentId = anchorTask ? anchorTask.parentId : (partial.parentId || null);
-      // Overerving (2026-08-14): een taak met een bestaande ouder neemt diens taskType over als de
-      // aanroeper zelf geen taskType opgeeft — vóór de bouwmodus-brede default. Geldt alleen op het
-      // moment van aanmaken; indenteren/verslepen van een bestaande taak laat taskType met rust.
-      // Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
-      const inheritedTaskType = partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
-      const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
-        ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
-        : undefined;
       const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
       const defaultDurationUnit = s.ui.enableHourPlanning
         && s.project.defaultTaskDurationUnit === 'hours'
@@ -356,55 +348,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       ), partial.time);
       deriveScheduleDurationFromMinutes(initialTime, effHoursPerDay(effectiveNewTaskCalendar));
 
-      const task: Task = {
-        id,
-        name: partial.name,
-        description: partial.description || '',
-        wbsCode: partial.wbsCode || '',
-        // Bouwmodus (2026-07-13): neutraal taaktype-default in bouw-agnostische modus (USERDEFINED)
-        // i.p.v. CONSTRUCTION. Alleen de default bij aanmaken verandert; de enum blijft intact.
-        taskType: inheritedTaskType,
-        customTaskTypeId: inheritedCustomTaskTypeId,
-        status: partial.status || 'NOT_STARTED',
-        isMilestone: partial.isMilestone || false,
-        milestoneKind: partial.milestoneKind,
-        mandatory: partial.mandatory,
-        // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg) en
-        // mag niet stilzwijgend naar de default 500 vallen.
-        priority: partial.priority ?? 500,
-        parentId,
-        childIds: [],
-        // T14b (gebruikstestbevinding, ernst hoog — dataverlies): een meegegeven `partial.time` wordt
-        // veld-voor-veld gemerged met de verse default i.p.v. ongewijzigd overgenomen — anders bleef
-        // een ontbrekend veld (bv. `completion`) `undefined` tot writeIFC crashte op
-        // `time.completion.toFixed(1)`. Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
-        time: initialTime,
-        resourceIds: partial.resourceIds || [],
-        color: partial.color,
-        constraint: partial.constraint,
-        // Fase 2.9 (§3.1/§4.3): secundaire constraint doorgeven zodat de solver hem als tweede
-        // grens meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
-        constraint2: partial.constraint2,
-        // Fase 2.9 (§3.2/§4.4): hammock/LOE-vlag doorgeven zodat de solver de afgeleide-span-tak
-        // draait. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
-        isHammock: partial.isHammock,
-        // Fase 2.9 (§3.3/§4.5): externe (cross-project) dependencies doorgeven zodat de solver ze als
-        // bevroren datum-grenzen meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
-        externalLinks: partial.externalLinks,
-        deadline: partial.deadline,
-        calendarId: partial.calendarId,
-        // QA-fix (fase 2.10, onderdeel 2, bevinding 4): notes werd hier vergeten — de andere
-        // optionele velden (constraint2/isHammock/externalLinks/...) volgen wél al dit patroon.
-        notes: partial.notes,
-        // Z0 (etappe "nul afwijkingen"): typecontract-doorgifte, nog ONGEBRUIKT door de solver —
-        // zelfde patroon als isHammock/externalLinks hierboven. Afwezig ⇒ undefined ⇒
-        // byte-identiek default-document. (`levelingDelay` zelf staat hier bewust NIET: dat veld
-        // wordt uitsluitend door de nivelleerder gezet, nooit via addTask.)
-        splitGaps: partial.splitGaps,
-        manuallyScheduled: partial.manuallyScheduled,
-        levelingDelayMinutes: partial.levelingDelayMinutes,
-        levelingDelayElapsed: partial.levelingDelayElapsed,
-      };
+      // Veld-voor-veld-afleiding incl. taaktype-overerving van de ouder: één definitie met het
+      // MCP-pad (`draft.addTask`), zie `buildNewTask` in taskDefaults.ts.
+      const task = buildNewTask(partial, {
+        id, parentId, parentTask, constructionMode: s.ui.constructionMode, time: initialTime,
+      });
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
       // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt

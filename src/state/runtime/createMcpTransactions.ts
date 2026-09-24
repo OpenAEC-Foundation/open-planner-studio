@@ -6,7 +6,7 @@ import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
-  createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
+  buildNewTask, createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps, writeLevelingResult, clearLevelingOutput,
@@ -106,53 +106,13 @@ function createMcpDraft(
       if (parentId !== null && !parentTask) {
         throw new Error(`draft.addTask: onbekende parentId '${parentId}'`);
       }
-      const inheritedTaskType = partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
-      const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
-        ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
-        : undefined;
-
-      const task: Task = {
-        id,
-        name: partial.name,
-        description: partial.description || '',
-        wbsCode: partial.wbsCode || '',
-        // Overerving (2026-08-14): zie taskSlice.ts addTask — zelfde regel, MCP-pad (ook gebruikt
-        // door draft.addTasks, die top-down per item deze functie aanroept).
-        taskType: inheritedTaskType,
-        customTaskTypeId: inheritedCustomTaskTypeId,
-        status: partial.status || 'NOT_STARTED',
-        isMilestone: partial.isMilestone || false,
-        milestoneKind: partial.milestoneKind,
-        mandatory: partial.mandatory,
-        priority: partial.priority ?? 500,
-        parentId,
-        childIds: [],
-        // T14b (gebruikstestbevinding, ernst hoog — dataverlies): zie taskSlice.ts addTask — zelfde
-        // veld-voor-veld-merge, MCP-pad. Een ongemerged meegegeven `time` liet writeIFC crashen op
-        // een ontbrekend `completion` (`time.completion.toFixed(1)` in ifcTaskSlots.ts).
+      // Zelfde veld-afleiding (incl. taaktype-overerving) als de store-`addTask`: `buildNewTask`.
+      // De Z0-typecontractvelden zijn niet via de `taskFields.ts`-allowlist zetbaar (REJECT_HINTS);
+      // ze gaan alleen mee voor aanroepers die een `Partial<Task>` rechtstreeks doorgeven.
+      const task = buildNewTask(partial, {
+        id, parentId, parentTask, constructionMode: s.ui.constructionMode,
         time: mergeTaskTime(createDefaultTaskTime(now, partial.isMilestone ? 0 : 5), partial.time),
-        resourceIds: partial.resourceIds || [],
-        color: partial.color,
-        constraint: partial.constraint,
-        constraint2: partial.constraint2,
-        isHammock: partial.isHammock,
-        externalLinks: partial.externalLinks,
-        deadline: partial.deadline,
-        calendarId: partial.calendarId,
-        notes: partial.notes,
-        // Z14 (etappe "nul afwijkingen", checklist-aanvulling): de vier Z0-typecontractvelden
-        // ontbraken hier bewust (ongebruikt + MCP-zetbaarheid was nog geen besluit) — zie
-        // taskSlice.ts addTask voor dezelfde regel. Nu round-trippen ze door IFC (ifcPsets.ts), dus
-        // deze functie is weer de VOLLEDIGE veld-voor-veld-tweeling van de store-`addTask`. Geen van
-        // de vier is via `taskFields.ts`'s allowlist zetbaar (REJECT_HINTS) — dit vult alleen aan
-        // voor aanroepers die een `Partial<Task>` rechtstreeks doorgeven (bv. `draft.addTasks`-items
-        // met velden buiten de allowlist om, of toekomstig intern gebruik), zodat deze twee functies
-        // niet stil uit elkaar drijven (Z0-reviewbevinding 3).
-        splitGaps: partial.splitGaps,
-        manuallyScheduled: partial.manuallyScheduled,
-        levelingDelayMinutes: partial.levelingDelayMinutes,
-        levelingDelayElapsed: partial.levelingDelayElapsed,
-      };
+      });
 
       s.tasks.push(task);
       if (parentId) attachToParent(s.tasks, id, parentId);

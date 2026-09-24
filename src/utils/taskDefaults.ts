@@ -46,6 +46,61 @@ export function createDefaultTaskTime(
   };
 }
 
+/**
+ * De nieuwe `Task` van een aanmaakactie — de ENE veld-voor-veld-afleiding achter `taskSlice.addTask`
+ * én de MCP-`draft.addTask` (die mochten nooit stil uit elkaar drijven, Z0-reviewbevinding 3). Wat
+ * per pad verschilt geeft de aanroeper mee: het id, de (gevalideerde) ouder en de beginduur (`time`,
+ * al gemerged met `partial.time`, T14b — een ongemerged `time` liet writeIFC crashen op een
+ * ontbrekend `completion`). Plaatsing, WBS-code en undo/dirty blijven bij de aanroeper.
+ *
+ * Overerving (2026-08-14): zonder eigen `taskType` neemt een taak met een ouder diens taskType (en bij
+ * USERDEFINED diens eigen taaktype-id) over, vóór de bouwmodus-brede default (bouwmodus 2026-07-13:
+ * neutraal USERDEFINED i.p.v. CONSTRUCTION). Geldt alleen bij aanmaken; indenteren/verslepen laat
+ * taskType met rust. `priority` via `??`: 0 is geldig (laagste, levelt als eerste weg). De optionele
+ * velden (constraint2/isHammock/externalLinks, fase 2.9; notes; de Z0-typecontractvelden
+ * splitGaps/manuallyScheduled/levelingDelayMinutes/-Elapsed) gaan ongewijzigd mee: afwezig ⇒
+ * undefined ⇒ byte-identiek default-document. `levelingDelay` zelf bewust NIET: dat zet uitsluitend
+ * de nivelleerder.
+ */
+export function buildNewTask(
+  partial: Partial<Task> & { name: string },
+  opts: { id: string; parentId: string | null; parentTask: Task | undefined; constructionMode: boolean; time: TaskTime },
+): Task {
+  const { parentTask } = opts;
+  const taskType = partial.taskType || parentTask?.taskType || (opts.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
+  return {
+    id: opts.id,
+    name: partial.name,
+    description: partial.description || '',
+    wbsCode: partial.wbsCode || '',
+    taskType,
+    customTaskTypeId: taskType === 'USERDEFINED'
+      ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
+      : undefined,
+    status: partial.status || 'NOT_STARTED',
+    isMilestone: partial.isMilestone || false,
+    milestoneKind: partial.milestoneKind,
+    mandatory: partial.mandatory,
+    priority: partial.priority ?? 500,
+    parentId: opts.parentId,
+    childIds: [],
+    time: opts.time,
+    resourceIds: partial.resourceIds || [],
+    color: partial.color,
+    constraint: partial.constraint,
+    constraint2: partial.constraint2,
+    isHammock: partial.isHammock,
+    externalLinks: partial.externalLinks,
+    deadline: partial.deadline,
+    calendarId: partial.calendarId,
+    notes: partial.notes,
+    splitGaps: partial.splitGaps,
+    manuallyScheduled: partial.manuallyScheduled,
+    levelingDelayMinutes: partial.levelingDelayMinutes,
+    levelingDelayElapsed: partial.levelingDelayElapsed,
+  };
+}
+
 /** Een urentaak draagt zijn duur in `durationMinutes`; leid `scheduleDuration` (werkdagen) daaruit af
  *  met de uren/dag van zijn kalender (0 bij een kalender zonder uren). No-op voor een dagentaak. */
 export function deriveScheduleDurationFromMinutes(time: TaskTime, hoursPerDay: number): void {
