@@ -7,7 +7,7 @@
 // statisch-lege bulk zónder transactie wordt beantwoord.
 import type { AppState } from '@/state/appStore';
 import type { McpContext, McpToolAnnotations, McpToolOk, McpToolResult } from '../contracts';
-import { buildEnvelope, guardNonTransactional, McpStepError, type MutationOutcome } from './runtime';
+import { contextEnvelope, guardNonTransactional, McpStepError, type MutationOutcome } from './runtime';
 
 /** Leestool-annotaties (spec §Naamgeving): readOnly, niet-destructief, geen open wereld. `idempotentHint`
  *  is per MCP-conventie alleen zinvol op niet-readOnly tools ⇒ false. */
@@ -38,12 +38,7 @@ export const WRITE_ANNOTATIONS: McpToolAnnotations = {
 export const TEMP_ID_PATTERN = /^tmp[-_]/;
 
 /** Envelop voor niet-transactionele antwoorden: store-envelop + de context-vlaggen. */
-export function okEnvelope(ctx: McpContext) {
-  const env = buildEnvelope(ctx);
-  env.paused = ctx.paused;
-  env.readOnly = ctx.readOnly;
-  return env;
-}
+export const okEnvelope = contextEnvelope;
 
 /** Herrekende datums per taak (ná de eind-runCPM uit de store gelezen). */
 export function freshDates(state: AppState, ids: string[]): { id: string; earlyStart: string; earlyFinish: string }[] {

@@ -124,6 +124,15 @@ function blockingDialogName(ui: UIState): string | null {
   return null;
 }
 
+/** De dialoog-guard die lees- én muterende tools delen: `DIALOG_OPEN` mét de naam van de blokkerende
+ *  vlag, of `null`. `action` maakt de zin af ("… voordat de AI <action>."). */
+function dialogGuard(ctx: McpContext, action: string): McpToolErr | null {
+  const ui = ctx.app.store.getState().ui;
+  if (!hasBlockingDialogOpen(ui)) return null;
+  const name = blockingDialogName(ui) ?? 'een dialoog';
+  return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI ${action}.`);
+}
+
 // --- Stap-fout ----------------------------------------------------------------------------------
 
 /**
@@ -144,17 +153,23 @@ export class McpStepError extends Error {
 
 // --- Fout-helpers -------------------------------------------------------------------------------
 
-/**
- * Een `McpToolErr` met de live envelop, waarvan `paused`/`readOnly` uit `ctx` worden overschreven —
- * zodat een foutrespons de veiligheidsvlaggen toont zoals de wrapper ze bij binnenkomst zag (de
- * guards evalueren immers tegen `ctx`). Alle guard-/foutpaden lopen hierlangs; de succes-envelop
- * gebruikt bewust de LIVE `buildEnvelope(ctx)` (respons-moment, zie de comment daar).
- */
-export function toolError(ctx: McpContext, code: McpErrorCode, message: string): McpToolErr {
+/** De live envelop, waarvan `paused`/`readOnly` uit `ctx` worden overschreven — de
+ *  veiligheidsvlaggen zoals de wrapper ze bij binnenkomst zag (de guards evalueren immers tegen
+ *  `ctx`). Voor foutresponsen en niet-transactionele antwoorden (`okEnvelope` in helpers.ts). */
+export function contextEnvelope(ctx: McpContext): McpEnvelope {
   const envelope = buildEnvelope(ctx);
   envelope.paused = ctx.paused;
   envelope.readOnly = ctx.readOnly;
-  return { ok: false, code, error: message, envelope };
+  return envelope;
+}
+
+/**
+ * Een `McpToolErr` met de `contextEnvelope`. Alle guard-/foutpaden lopen hierlangs; de succes-envelop
+ * van een transactie gebruikt bewust de LIVE `buildEnvelope(ctx)` (respons-moment, zie de comment
+ * daar).
+ */
+export function toolError(ctx: McpContext, code: McpErrorCode, message: string): McpToolErr {
+  return { ok: false, code, error: message, envelope: contextEnvelope(ctx) };
 }
 
 /**
@@ -165,7 +180,7 @@ export function toolError(ctx: McpContext, code: McpErrorCode, message: string):
  * `McpStepError` — die omzeilt deze heuristiek. (Getypeerde transactie-foutcodes voor het niet-
  * McpStepError-pad zijn een genoteerde follow-up, buiten T17-scope.)
  */
-function mapTransactionError(message: string): McpErrorCode {
+export function mapTransactionError(message: string): McpErrorCode {
   return /circular dependency|kringverwijzing|\bkring\b|cyclus|\bcycle\b/i.test(message) ? 'CYCLE' : 'VALIDATION';
 }
 
@@ -189,12 +204,7 @@ export function preBackupGuards(ctx: McpContext): McpToolErr | null {
   if (ctx.readOnly) {
     return toolError(ctx, 'READ_ONLY', 'De AI-bridge staat in alleen-lezen-modus; muterende tools zijn geweigerd zolang die actief is.');
   }
-  const ui = ctx.app.store.getState().ui;
-  if (hasBlockingDialogOpen(ui)) {
-    const name = blockingDialogName(ui) ?? 'een dialoog';
-    return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI wijzigingen maakt.`);
-  }
-  return null;
+  return dialogGuard(ctx, 'wijzigingen maakt');
 }
 
 /**
@@ -228,11 +238,8 @@ function driftGuard(ctx: McpContext): McpToolErr | null {
  * `INTERNAL`-fout — nooit een throw naar de dispatcher.
  */
 export function runReadTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult {
-  const ui = ctx.app.store.getState().ui;
-  if (hasBlockingDialogOpen(ui)) {
-    const name = blockingDialogName(ui) ?? 'een dialoog';
-    return toolError(ctx, 'DIALOG_OPEN', `Er staat een dialoog open (${name}); sluit die eerst voordat de AI de planning leest.`);
-  }
+  const blocked = dialogGuard(ctx, 'de planning leest');
+  if (blocked) return blocked;
   try {
     const data = fn(ctx.app.store.getState());
     return { ok: true, envelope: buildEnvelope(ctx), data };
