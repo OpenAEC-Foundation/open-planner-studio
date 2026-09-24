@@ -149,7 +149,15 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   let lastResult: CPMResult | null = null;
   for (let i = 0; i < cpmIters; i++) {
     report('cpm', 1, i + 1, cpmIters);
-    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], {});
+    // Fable-critreview PR #109 bevinding 1: dezelfde projectinvoer als F5 (was: lege opties). De
+    // generator zet geen statusdatum of opties, dus de meting verandert naar verwachting niet.
+    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], {
+      dataDate: data.project.statusDate,
+      progressMode: data.project.progressMode,
+      schedulingOptions: data.project.schedulingOptions,
+      projectStartDate: data.project.startDate,
+      projectEndDate: data.project.endDate,
+    });
     const t0 = performance.now();
     lastResult = solver.solve();
     cpmSamples.push(performance.now() - t0);

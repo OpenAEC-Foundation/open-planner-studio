@@ -75,6 +75,10 @@ export interface OccupancySolveInput {
   dataDate?: string;
   progressMode?: ProgressMode;
   schedulingOptions?: SchedulingOptions;
+  /** `project.startDate`/`project.endDate` — idem als `runCPM` (Fable-critreview PR #109
+   *  bevinding 1): de projectstart-vloer en het projecteinde-anker (`useProjectEndDateForFloat`). */
+  projectStartDate?: string;
+  projectEndDate?: string;
 }
 
 /** Eén open document, gemapt uit zijn payload-snapshot (weergavelaag levert dit aan, §4.4). */
@@ -142,6 +146,8 @@ export const ephemeralSolve: OccupancyEphemeralSolve = (doc) => {
     dataDate: input.dataDate,
     progressMode: input.progressMode,
     schedulingOptions: input.schedulingOptions,
+    projectStartDate: input.projectStartDate,
+    projectEndDate: input.projectEndDate,
   });
   if (result.error) return null;
   return tasks;
