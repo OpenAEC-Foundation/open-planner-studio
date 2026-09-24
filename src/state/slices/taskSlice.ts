@@ -1,7 +1,7 @@
 import { Task, type ExternalLink, type TaskSplitGap } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import {
-  adoptLevelingGaps, canSplitTask, clipUserGapsToWork, fromSplitPieces, splitScheduleFinish,
+  adoptLevelingGaps, canSplitTask, fromSplitPieces, splitScheduleFinish,
   type SplitPiece, type SplitRefusal,
 } from '@/engine/scheduler/splitEdit';
 import { buildEditedContourPeriods, contourDaySlots } from '@/engine/contour/contourEdit';
@@ -13,7 +13,7 @@ import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
   timeUpdateTouchesTimephasedWindow, invalidateForTimeBaseChange, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
+  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf, applyDurationChangeRules,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
@@ -413,30 +413,21 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
-      // Contour-engine (2026-09): een duurwijziging herschaalt de contour (én de importsplits)
-      // proportioneel — de verdeling reist mee met de bewerking i.p.v. te verouderen. Zie
-      // `taskDefaults.ts`'s `rescaleTaskContours`. Kalender-/datumwijzigingen raken de as niet.
-      const rescaled = timeUpdateTouchesTimephasedWindow(time)
-        && rescaleTaskContours(s.tasks[idx], oldWorkMinutes, contourHpd);
-      // Issue #146: zonder contour is er niets dat de gaten meeschaalt, dus een duurKRIMP kan een
-      // gebruikersgat op of voorbij het nieuwe werktotaal laten liggen. De lijst is dan niet meer
-      // wélgevormd en de taak wordt voor splits stilzwijgend ALLEEN-LEZEN — erger dan het gat laten
-      // vervallen. Importgaten en nivelleergaten blijven bij hun eigen levenscyclus.
-      if (timeUpdateTouchesTimephasedWindow(time) && !rescaled) {
-        const newWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
-        if (newWorkMinutes < oldWorkMinutes - 1e-6) {
-          const clipped = clipUserGapsToWork(s.tasks[idx].splitGaps, newWorkMinutes);
-          s.tasks[idx].splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
-        }
+      // Duur-/datumwijziging: contour meeschalen, gebruikersgaten afknippen (issue #146), laag 3/4
+      // ontkoppelen en nivelleergaten wissen — de gevolgregels die dit pad deelt met het taakraster en
+      // de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts. Een kale datumwijziging telt
+      // hier mee (sleutel-aanwezigheid, `timeUpdateTouchesTimephasedWindow`); de werkduur blijft dan
+      // gelijk, dus meeschalen en afknippen doen niets.
+      if (timeUpdateTouchesTimephasedWindow(time)) {
+        lostTimephasedGuidance = applyDurationChangeRules(s.tasks[idx], oldWorkMinutes, contourHpd);
       }
-      // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
-      // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
-      // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
-      // voor de volledige triggerset-toelichting.
+      // Z14b (eigenaarsprincipe 2026-08-18) — ook een kalenderwissel ontkoppelt het GELEZEN Z8-venster
+      // van de motor; de rauwe bron (`timephasedContours`) blijft staan. Zie `taskDefaults.ts`'s
+      // `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow` voor de volledige triggerset.
       // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee: een walk met
-      // bevroren `workMinutes` negeert een duur-/datum-/kalenderwijziging anders stilzwijgend.
-      if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
-        lostTimephasedGuidance = invalidateForTimeBaseChange(s.tasks[idx]);
+      // bevroren `workMinutes` negeert een wijziging anders stilzwijgend.
+      if ('calendarId' in rest) {
+        lostTimephasedGuidance = invalidateForTimeBaseChange(s.tasks[idx]) || lostTimephasedGuidance;
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
@@ -446,7 +437,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // afgeleide nivelleeruitvoer op een as die de gebruiker zelf zojuist heeft verzet.
       // EIGEN POORT sinds de fixronde op etappe 3 (bevinding B7): de triggerset is BREDER dan die van
       // het Z8-venster hierboven — voortgang en constraints horen erbij. Zie
-      // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
+      // `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts. (Bij een duur-/datumwijziging deed
+      // `applyDurationChangeRules` dit al; dan is deze aanroep een no-op.)
       if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
       // Datum-rakende mutatie (duur/start/constraint/mijlpaal → planning verouderd tot F5, A6).
       runtime.finishMutation(s, { stale: true });

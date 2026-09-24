@@ -28,11 +28,11 @@ import {
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import {
+  applyDurationChangeRules,
   clearTimephasedDurationWalks,
   clearTimephasedWindow,
   clearLevelingGaps,
   timephasedDurationWalksHaveFrozenWork,
-  rescaleTaskContours,
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { shownStart } from '@/utils/taskDates';
@@ -128,12 +128,19 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   return null;
 }
 
-/** Contour-engine (2026-09): duurwijziging in het grid herschaalt de contour — tweeling van
- *  `taskSlice.updateTask`/`createMcpTransactions.updateTaskFields`, zie `taskDefaults.ts`'s
- *  `rescaleTaskContours`. `oldWorkMinutes` is vóór de mutatie vastgelegd door `applyScheduleEdit`. */
+/** Een duurwijziging in het raster (duur-, eenheid- en mijlpaalcel): dezelfde gevolgregels als
+ *  `taskSlice.updateTask` en de MCP-draft, zie `applyDurationChangeRules` in taskDefaults.ts.
+ *  `oldWorkMinutes` legt de aanroeper vóór de mutatie vast, met dezelfde `hoursPerDay`. Het raster
+ *  meet met `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom), store en
+ *  MCP met de scalar `hoursPerDay` van de taakkalender. */
 function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
-  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
-  return clearScheduleGuidance(task, true);
+  return applyDurationChangeRules(task, oldWorkMinutes, hoursPerDay, {
+    // Eigen afwijking van het raster: de contour alleen herschalen bij een bruikbare uren-per-dag
+    // (store en MCP roepen de herschaling onvoorwaardelijk aan).
+    rescaleContours: Number.isFinite(hoursPerDay) && hoursPerDay > 0,
+    // TIJDELIJK (volgende commit): de afknipregel staat hier nog uit — gedrag van vóór de refactor.
+    clipUserGaps: false,
+  });
 }
 
 /**
@@ -305,9 +312,11 @@ function applyScheduleEdit(
 function applyMilestoneEdit(
   task: Task,
   edit: CellEditIntent,
+  environment: TaskEditPlanEnvironment,
 ): GridResult<boolean, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let scheduleChanged = false;
+  const oldWorkMinutes = taskWorkMinutes(task.time, environment.effectiveHoursPerDay);
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
@@ -333,7 +342,12 @@ function applyMilestoneEdit(
   } else {
     return failure('plannerNotAvailable', edit);
   }
-  return { ok: true, value: scheduleChanged ? clearScheduleGuidance(task, true) : false };
+  // Mijlpaal aan ⇒ duur 0: een duurwijziging, dus dezelfde gevolgregels als de duurcel. (Uitzetten
+  // verzint geen duur, zie `taskMilestoneTransition`, en raakt de tijdbasis dan niet.)
+  return {
+    ok: true,
+    value: scheduleChanged ? finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay) : false,
+  };
 }
 
 function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefined): void {
@@ -697,7 +711,7 @@ function applyOneCellEdit(
     result = scheduleResult;
     if (scheduleResult.ok) timephasedGuidanceLost = scheduleResult.value;
   } else if (edit.route === 'task-milestone') {
-    const milestoneResult = applyMilestoneEdit(next, edit);
+    const milestoneResult = applyMilestoneEdit(next, edit, environment);
     result = milestoneResult;
     if (milestoneResult.ok) timephasedGuidanceLost = milestoneResult.value;
   } else if (edit.route === 'task-progress') result = applyProgressEdit(next, edit, environment);

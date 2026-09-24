@@ -3,7 +3,7 @@ import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { splitUnitMinutes } from '@/engine/scheduler/splitEdit';
+import { clipUserGapsToWork, splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
@@ -604,4 +604,56 @@ export function rescaleTaskContours(
     if (gaps !== undefined) task.splitGaps = gaps;
   }
   return true;
+}
+
+// ── De gevolgregels van een duurwijziging (issue #146-vervolg) ───────────────────────────────────
+
+/**
+ * Wat een DUURWIJZIGING met de rest van de taak doet — de ENE definitie achter de drie schrijfroutes:
+ * `taskSlice.updateTask` (eigenschappenpaneel, dialoog, Gantt, extensies), het taakraster
+ * (`taskEditPlan.ts`: duur-, eenheid- en mijlpaalcel) en de MCP-draft (`createMcpTransactions.ts`:
+ * `patchTaskFields`/`updateTaskFields`). Die routes SCHRIJVEN elk op hun eigen manier (Immer-draft,
+ * losse taakkopie in een gridtransactie, MCP-draft met rollback), en dat mag zo blijven; de
+ * GEVOLGEN staan alleen hier. Ze stonden eerder drie keer uitgeschreven ("tweelingen"), en toen de
+ * splits-functie erbij kwam kreeg alleen `updateTask` de afknipregel — zie stap 2.
+ *
+ * Aan te roepen NÁ de duurmutatie, met de werkduur van VÓÓR de mutatie (`taskWorkMinutesOf`) en de
+ * uren-per-dag waarmee die werd gemeten. De volgorde is betekenisvol:
+ *  1. contour én importsplits proportioneel meeschalen (`rescaleTaskContours`);
+ *  2. is er niets herschaald en KRIMPT het werk, dan vervallen gebruikersgaten op of voorbij het
+ *     nieuwe werktotaal (`clipUserGapsToWork`, issue #146). Zonder contour schaalt niets de gaten
+ *     mee; bleef zo'n gat liggen, dan was de lijst niet meer wélgevormd en werd de taak voor splits
+ *     stilzwijgend ALLEEN-LEZEN — erger dan het gat laten vervallen. Importgaten en nivelleergaten
+ *     volgen hun eigen levenscyclus. Staat vóór stap 4: de aspositie van een gebruikersgat telt de
+ *     nivelleergaten ervóór mee (H1-as, `splitWalk.ts`);
+ *  3. laag 3 (en laag 4 met bevroren werk) ontkoppelen (`invalidateForTimeBaseChange`, Z14b/N2);
+ *  4. nivelleergaten wissen (`clearLevelingGaps`, B1c-plan3 taak 3) — importsplits blijven brondata.
+ * Bij een gelijke werkduur doen stap 1 en 2 niets; stap 3 en 4 zijn idempotent.
+ *
+ * Retourneert `true` als er MSP-sturing verloren ging (voor de eenmalige melding, zie
+ * `invalidateForTimeBaseChange`). WANNEER iets als duurwijziging telt (sleutel-aanwezigheid of een
+ * echte waardewijziging) en wat een kalender-, datum-, constraint- of voortgangswijziging daarnaast
+ * doet, beslist de aanroeper.
+ *
+ * `opts.rescaleContours: false` slaat stap 1 over (het raster doet dat bij een onbruikbare
+ * uren-per-dag, zie `finishDurationEdit` in taskEditPlan.ts); stap 2 geldt dan zoals zonder contour.
+ * `opts.clipUserGaps: false` slaat stap 2 over.
+ */
+export function applyDurationChangeRules(
+  task: Task,
+  oldWorkMinutes: number,
+  hoursPerDay: number,
+  opts?: { rescaleContours?: boolean; clipUserGaps?: boolean },
+): boolean {
+  const rescaled = opts?.rescaleContours !== false && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
+  if (!rescaled && opts?.clipUserGaps !== false && task.splitGaps !== undefined) {
+    const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
+    if (newWorkMinutes < oldWorkMinutes - 1e-6) {
+      const clipped = clipUserGapsToWork(task.splitGaps, newWorkMinutes);
+      task.splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
+    }
+  }
+  const lost = invalidateForTimeBaseChange(task);
+  clearLevelingGaps(task);
+  return lost;
 }
