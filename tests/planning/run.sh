@@ -1101,6 +1101,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SUMDUR="$DIR/.summary-duration.mjs"
   if bundle_check "$DIR/check-summary-duration.ts" "$SUMDUR"; then node "$SUMDUR" || STATUS=1; fi
 
+  # Voortgang en status van een verzameltaak: altijd afgeleid uit de bladen (gewogen, gelijk aan het
+  # WBS-rapport), met de uitzonderingen van de datum-rollup, en alleen-lezen in paneel/raster/setters.
+  SUMPROG="$DIR/.summary-progress.mjs"
+  if bundle_check "$DIR/check-summary-progress.ts" "$SUMPROG"; then node "$SUMPROG" || STATUS=1; fi
+
   # Datums zoals opgeslagen (issue #63) — de pure laag: aanwezigheidsregistratie, verschiltelling,
   # reconstructie. Betreden/verlaten en de undo-keten volgen later (aparte taak, hangt de store/UI
   # eraan). Draait mee in de tijdzone-matrix — de reconstructie rekent met datums, dus

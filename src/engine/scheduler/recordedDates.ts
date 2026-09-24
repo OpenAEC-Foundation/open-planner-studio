@@ -1,4 +1,4 @@
-import type { Task, TaskTimeComputed, TaskTimeInput } from '@/types/task';
+import type { Task, TaskStatus, TaskTimeComputed, TaskTimeInput } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult, CPMTaskResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
@@ -31,6 +31,11 @@ export interface RecordedTime {
   totalFloat?: number;
   freeFloat?: number;
   isCritical?: boolean;
+  /** Alleen op een VERZAMELTAAK: haar opgeslagen voortgang en status. Buiten de modus leidt de
+   *  rollup (`applyCpmResult`) die af uit de bladen; ín de modus toont de fase — net als haar
+   *  datums — wat het bestand zei. Voor een blad bestaat dit niet: diens voortgang raakt de solve
+   *  niet aan. */
+  summaryProgress?: { completion: number; status: TaskStatus };
 }
 
 // Drift-anker (kwaliteitsreview MOET 3): elk CPM-veld in `TaskTimeComputed` moet ook hier een plek
@@ -131,6 +136,9 @@ export function captureRecordedDates(
       totalFloat: has.has('totalFloat') ? t.totalFloat : undefined,
       freeFloat: has.has('freeFloat') ? t.freeFloat : undefined,
       isCritical: has.has('isCritical') ? t.isCritical : undefined,
+      ...(task.childIds.length > 0
+        ? { summaryProgress: { completion: t.completion, status: task.status } }
+        : {}),
     };
   }
   return { times, total: Object.keys(times).length };

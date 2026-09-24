@@ -147,7 +147,8 @@
       "unknownTask": "参照先のタスクは存在しません。",
       "unrepresentableSummaryRelation": "サマリータスクとの関係はここでは編集できません。",
       "self": "タスクは自分自身に依存できません。",
-      "ancestor": "タスクは自身のサマリータスクと関係を持てません。"
+      "ancestor": "タスクは自身のサマリータスクと関係を持てません。",
+      "summaryProgress": "サマリータスクの進捗はサブタスクから算出されるため、ここでは変更できません。"
     },
     "controls": {
       "collapse": "折りたたむ", "expand": "展開", "resize": "幅を変更", "resizeTaskGrid": "タスクグリッドのサイズを変更", "remove": "削除", "pin": "固定",
@@ -256,7 +257,8 @@
       "actualStart": "実績開始",
       "actualFinish": "実績終了",
       "actualDate": "実績日",
-      "remaining": "残り（稼働日）"
+      "remaining": "残り（稼働日）",
+      "summaryDerived": "サブタスクから算出されます。進捗はサブタスクで変更してください。計算（F5）後にサマリータスクへ反映されます。"
     },
     "cpmResult": "CPM 結果",
     "earlyStart": "最早開始：",

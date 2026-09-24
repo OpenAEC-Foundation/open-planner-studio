@@ -226,7 +226,8 @@
       "unknownTask": "De verwezen taak bestaat niet.",
       "unrepresentableSummaryRelation": "Een relatie met een samenvattende taak kan hier niet worden bewerkt.",
       "self": "Een taak kan niet van zichzelf afhangen.",
-      "ancestor": "Een taak kan geen relatie hebben met zijn eigen samenvattende taak."
+      "ancestor": "Een taak kan geen relatie hebben met zijn eigen samenvattende taak.",
+      "summaryProgress": "De voortgang van een samenvattende taak wordt afgeleid uit de onderliggende taken en kan hier niet worden gewijzigd."
     },
     "controls": {
       "collapse": "Inklappen",
@@ -380,7 +381,8 @@
       "actualStart": "Werkelijke start",
       "actualFinish": "Werkelijke einde",
       "actualDate": "Werkelijke datum",
-      "remaining": "Resterend (werkdagen)"
+      "remaining": "Resterend (werkdagen)",
+      "summaryDerived": "Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5)."
     },
     "cpmResult": "CPM Resultaat",
     "earlyStart": "Vroegste start:",

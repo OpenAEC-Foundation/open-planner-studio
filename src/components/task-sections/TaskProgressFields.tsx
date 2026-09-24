@@ -21,6 +21,11 @@ let progressSeq = 0;
  * drie EXPLICIETE setter-props i.p.v. de generieke `onChange`: het paneel geeft de echte
  * store-acties door (instant-apply, ongewijzigd); de dialoog geeft lokale equivalenten door die op
  * de eigen draft werken (zelfde §3.2-gedrag, maar pas gecommit op Save — zie `TaskDialog.tsx`).
+ *
+ * VERZAMELTAAK (fase): alles in deze sectie is alleen-lezen. Haar voortgang en status worden bij
+ * elke berekening afgeleid uit de bladtaken (`applyCpmResult`, dezelfde gewogen formule als het
+ * WBS-rapport); `setTaskProgress`/`setActualStart`/`setActualFinish` weigeren een verzameltaak, net
+ * als MCP en de voortgangsimport. De sectie toont dan de afgeleide waarde plus een uitleg.
  */
 export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSetActualFinish }: {
   task: Task;
@@ -32,9 +37,15 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   const { t: tCommon } = useTranslation('common');
   const [actualError, setActualError] = useState(false);
   const dragKey = useRef<string | undefined>(undefined);
+  const derived = task.childIds.length > 0;
 
   return (
     <>
+      {derived && (
+        <span className="!text-small text-text-secondary" data-ops-summary-progress-note>
+          {t('properties.progress.summaryDerived')}
+        </span>
+      )}
       <Field label={t('properties.completion')}>
         <div className="flex items-center gap-2">
           <input
@@ -45,8 +56,9 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             onPointerDown={() => { dragKey.current = `progress:${task.id}:${++progressSeq}`; }}
             onPointerUp={() => { dragKey.current = undefined; }}
             onChange={e => onSetProgress(parseInt(e.target.value) / 100, dragKey.current ? { coalesceKey: dragKey.current } : undefined)}
+            disabled={derived}
             data-ops-progress-slider
-            className="flex-1 accent-accent"
+            className={`flex-1 accent-accent${derived ? ' opacity-60' : ''}`}
           />
           <span className="w-8 text-right">{Math.round(task.time.completion * 100)}%</span>
         </div>
@@ -60,6 +72,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
+            disabled={derived}
             onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
           />
         </Field>
@@ -71,6 +84,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
+                disabled={derived}
                 onCommit={v => { setActualError(!onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` })); }}
               />
             </Field>
@@ -79,6 +93,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
+                disabled={derived}
                 onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
               />
             </Field>

@@ -4,6 +4,7 @@ import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './duration';
 import { CalendarEngine } from './CalendarEngine';
+import { descendantLeaves, summaryProgressOf, taskWorkDays } from './summaryProgress';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -116,6 +117,18 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
   // een corrupte `childIds`-kring liep hier anders eindeloos rond tot de stack overliep. Een taak die
   // (corrupt) onder twee ouders hangt, levert bij een tweede bezoek toch hetzelfde resultaat op.
   const visited = new Set<string>();
+  // Voortgangsrollup: bladnakomelingen en hun gewicht (werkdagen) één keer per taak, want een blad
+  // telt mee in álle verzameltaken boven hem.
+  const leafCache = new Map<string, Task[]>();
+  const workDaysCache = new Map<string, number>();
+  const workDaysOf = (leaf: Task): number => {
+    let d = workDaysCache.get(leaf.id);
+    if (d === undefined) {
+      d = taskWorkDays(leaf, cals.projectCalendar, cals.calendars);
+      workDaysCache.set(leaf.id, d);
+    }
+    return d;
+  };
   const updateSummary = (taskId: string): void => {
     const task = byId.get(taskId);
     if (!task || task.childIds.length === 0 || visited.has(taskId)) return;
@@ -198,6 +211,20 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
       // manual-fase mag haar bestandswaarde niet kwijtraken aan een afleiding die de
       // fidelity-poort (die alleen start/finish meet) niet zou zien.
       applyDerivedSummaryDuration(task, summaryEngine);
+
+      // Voortgang en status: afgeleid uit de bladen, met de gewogen formule die het WBS-rapport
+      // altijd al gebruikte (`summaryProgressOf`, één definitie voor beide). Zonder dit lazen Tabel,
+      // Gantt-tooltip, PDF en MCP de opgeslagen fasewaarde — 0% "Niet gestart", of een bevroren
+      // MSP-importwaarde — terwijl het WBS-rapport 100% zei. Eigen voortgang op een fase bestaat niet
+      // (MCP, voortgangsimport, paneel en raster weigeren hem), dus hier gaat niets verloren.
+      // Dezelfde uitzonderingen als de datums: de `manuallyScheduled`-tak hierboven keert eerder
+      // terug (de fase houdt haar opgeslagen voortgang), en "datums zoals opgeslagen" zet de
+      // bestandswaarde terug via `showRecordedDates` (`RecordedTime.summaryProgress`).
+      // Werkelijke datums en restduur van de fase worden bewust NIET opgerold: die velden zijn in
+      // paneel en raster alleen-lezen, maar een rollup ervan raakt exports en de verplaats-telling.
+      const progress = summaryProgressOf(descendantLeaves(task, byId, leafCache), workDaysOf);
+      task.time.completion = progress.completion;
+      task.status = progress.status;
     }
   };
 

@@ -41,6 +41,14 @@ Imposti il progresso in tre posti, tutti con lo stesso effetto:
 
 Le date effettive non possono mai essere successive alla data di stato — prova a inserirne una successiva e l'app la rifiuta con un errore. Questo è un limite deliberato: un "fatto" (qualcosa che è effettivamente successo) non può, per definizione, trovarsi nel futuro rispetto al momento in cui stai registrando il progresso.
 
+### Progresso di una fase
+
+Una fase — un'attività con attività sotto di sé — non ha un progresso proprio. La sua **percentuale di completamento** e il suo **stato** vengono derivati dalle attività sottostanti a ogni calcolo (**F5** o **Calcola**). La percentuale è ponderata per durata: un'attività di dieci giorni lavorativi conta il doppio di una di cinque. È esattamente il numero che mostra il **Riepilogo WBS** nella scheda **Rapporto**, e quello che vedono la Tabella, il suggerimento, il PDF e l'assistente IA. Lo stato segue: **Completata** appena tutte le attività sottostanti sono finite, **In corso** appena una è iniziata, altrimenti **Non iniziata**.
+
+Per questo non puoi inserire tu stesso il progresso di una fase. Nel pannello delle proprietà e nella finestra di dialogo attività, il cursore e le date effettive di una fase sono disattivati, e nella **Tabella** le colonne di avanzamento di una riga di fase sono di sola lettura. Scegli **Avanzamento** nel menu contestuale su una fase e tutte le attività sottostanti ricevono quella percentuale; dopo il calcolo successivo la fase segue da sola.
+
+Due eccezioni seguono la stessa regola delle date di una fase. Una fase pianificata manualmente da un file MS Project (`.mpp`) conserva il progresso salvato nel file. E finché visualizzi le [date come registrate](docs://datums-zoals-opgeslagen), una fase mostra il progresso del file; appena ricalcoli, torna a essere derivato.
+
 ## La data di stato
 
 La **data di stato** (gruppo della barra multifunzione **Baseline e progresso** sulla scheda Pianificazione, campo **Data di stato**) segna "oggi" all'interno della pianificazione — il momento a cui hai registrato il progresso. Una volta impostata, fa due cose contemporaneamente:

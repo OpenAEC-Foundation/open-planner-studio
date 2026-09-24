@@ -70,6 +70,8 @@ export interface TaskGridAdapterCell {
   copyText: string;
   editText: string;
   readOnly: boolean;
+  /** Vertaalsleutel die uitlegt waaróm deze cel alleen-lezen is (uit `descriptor.readOnlyReason`). */
+  readOnlyMessageKey?: string;
   stale?: boolean;
   statusText?: string;
   /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt (issue #89). */
@@ -355,6 +357,8 @@ export function createTaskGridAdapter(
     const readOnly = typeof descriptor.readOnly === 'function'
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
+    const readOnlyReason = readOnly ? descriptor.readOnlyReason?.(task, context) : undefined;
+    const refusedReadOnly = readOnlyReason ? failure(readOnlyReason, rowKey, columnId, task.id) : undefined;
     const stale = context.scheduleStale
       && (descriptor.category === 'computed' || descriptor.scheduleDerived === true);
     const enumOption = descriptor.valueKind === 'enum'
@@ -392,6 +396,7 @@ export function createTaskGridAdapter(
             ? copyGridEditorValue(descriptor, task, context, domain.dateNotation, booleanLabels)
             : descriptor.copy(task, context)),
       readOnly,
+      readOnlyMessageKey: refusedReadOnly && !refusedReadOnly.ok ? refusedReadOnly.errors[0]?.messageKey : undefined,
       stale: stale || undefined,
       statusText: stale ? 'taskGrid.status.stale' : undefined,
       title: title && title !== '—' ? title : undefined,
@@ -417,7 +422,7 @@ export function createTaskGridAdapter(
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
     if (readOnly || !descriptor.parse || !descriptor.planWrite) {
-      return failure('readOnly', rowKey, columnId, task.id, text);
+      return failure((readOnly && descriptor.readOnlyReason?.(task, context)) || 'readOnly', rowKey, columnId, task.id, text);
     }
     const booleanLabels = domain.booleanLabels;
     const parsed = domain.dateNotation || booleanLabels
@@ -443,7 +448,7 @@ export function createTaskGridAdapter(
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
     if (readOnly || !descriptor.planWrite) {
-      return failure('readOnly', rowKey, columnId, task.id, inputValue);
+      return failure((readOnly && descriptor.readOnlyReason?.(task, context)) || 'readOnly', rowKey, columnId, task.id, inputValue);
     }
     let value = inputValue;
     if (descriptor.validate) {

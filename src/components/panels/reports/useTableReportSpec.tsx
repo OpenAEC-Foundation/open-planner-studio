@@ -54,13 +54,14 @@ function useReportContext(): { ctx: ReportContext; stale: boolean } {
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const statusDate = useAppStore(s => s.project.statusDate);
   const stale = useAppStore(s => s.scheduleStale);
+  const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
   const today = formatDate(new Date());
   const ctx = useMemo<ReportContext>(() => ({
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
     baseline: activeBaselineId ? baselines.find(b => b.id === activeBaselineId) ?? null : null,
-    statusDate, today,
-  }), [tasks, sequences, resources, assignments, calendar, calendars, cpmResult, baselines, activeBaselineId, statusDate, today]);
+    statusDate, today, datesAsRecorded,
+  }), [tasks, sequences, resources, assignments, calendar, calendars, cpmResult, baselines, activeBaselineId, statusDate, today, datesAsRecorded]);
   return { ctx, stale };
 }
 

@@ -41,6 +41,14 @@ Sie setzen Fortschritt an drei Stellen, alle mit derselben Wirkung:
 
 Ist-Termine können nie nach dem Statusdatum liegen — versuchen Sie, einen späteren einzugeben, weist die App ihn mit einem Fehler zurück. Das ist eine bewusste Grenze: Eine „Tatsache" (etwas, das tatsächlich passiert ist) kann per Definition nicht in der Zukunft liegen relativ zum Zeitpunkt, an dem Sie Fortschritt erfassen.
 
+### Fortschritt einer Phase
+
+Eine Phase — eine Aufgabe mit Aufgaben darunter — hat keinen eigenen Fortschritt. Ihr **Fortschritt (%)** und ihr **Status** werden bei jeder Berechnung (**F5** oder **Berechnen**) aus den Aufgaben darunter abgeleitet. Der Prozentsatz ist nach Dauer gewichtet: Eine Aufgabe mit zehn Arbeitstagen zählt doppelt so viel wie eine mit fünf. Es ist genau die Zahl, die auch die **PSP-Zusammenfassung** im Tab **Bericht** zeigt, und die Tabelle, Tooltip, PDF und KI-Assistent zu sehen bekommen. Der Status läuft mit: **Abgeschlossen**, sobald alle Aufgaben darunter fertig sind, **In Bearbeitung**, sobald eine begonnen hat, sonst **Nicht begonnen**.
+
+Deshalb können Sie den Fortschritt einer Phase nicht selbst eingeben. Im Eigenschaftenbereich und im Aufgabendialog sind der Schieberegler und die Ist-Termine einer Phase deaktiviert, und in der **Tabelle** sind die Fortschrittsspalten einer Phasenzeile schreibgeschützt. Wählen Sie im Kontextmenü **Fortschritt** auf einer Phase, erhalten alle Aufgaben darunter diesen Prozentsatz; nach der nächsten Berechnung folgt die Phase von selbst.
+
+Zwei Ausnahmen folgen derselben Regel wie die Termine einer Phase. Eine manuell geplante Phase aus einer MS-Project-Datei (`.mpp`) behält den in der Datei gespeicherten Fortschritt. Und solange Sie die [Termine wie gespeichert](docs://datums-zoals-opgeslagen) ansehen, zeigt eine Phase den Fortschritt aus der Datei; sobald Sie neu berechnen, ist er wieder abgeleitet.
+
 ## Das Statusdatum
 
 Das **Statusdatum** (Menübandgruppe **Baselines & Fortschritt** auf der Registerkarte Planung, Feld **Statusdatum**) markiert das „Heute" innerhalb des Terminplans — den Zeitpunkt, für den Sie Fortschritt erfasst haben. Sobald es gesetzt ist, macht es zwei Dinge zugleich:

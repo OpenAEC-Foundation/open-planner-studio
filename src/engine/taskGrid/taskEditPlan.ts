@@ -688,6 +688,7 @@ function applyOneCellEdit(
   const expected = expectedRoute(id);
   if (!expected) return failure('plannerNotAvailable', edit);
   if (expected !== edit.route) return failure('routeMismatch', edit);
+  if (edit.route === 'task-progress' && task.childIds.length > 0) return failure('summaryProgress', edit);
   const next = cloneTaskForEdit(task);
   let result: GridResult<unknown, readonly CellValidationError[]>;
   let timephasedGuidanceLost = false;
@@ -807,6 +808,10 @@ export function planTaskCellEdits(
     scheduleStale = true;
   }
   if (progressEdits.length > 0) {
+    // Een verzameltaak draagt geen eigen voortgang: de rollup in `applyCpmResult` leidt die af uit de
+    // bladen. Deze poort geldt voor élke route die hier langs komt (raster, plakken, voortgangsimport),
+    // net als de weigering in MCP (`mcpValidation`) en in `setTaskProgress`.
+    if (task.childIds.length > 0) return failure('summaryProgress', progressEdits[0]);
     const applied = applyProgressEdits(next, progressEdits, environment);
     if (!applied.ok) return applied;
     clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.

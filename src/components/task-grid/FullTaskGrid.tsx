@@ -486,17 +486,24 @@ export function TaskGridSurface({
     }
   }, [adapter.rowMetaByKey, applySelection, editing?.cell, finishEditing, onPlainTaskClick, rowIndex, selection, tasksById, visibleColumnIds]);
 
+  // Een kolom die per taak alleen-lezen is (bv. voortgang op een verzameltaak) zegt waaróm;
+  // anders de algemene "berekende kolom"-melding.
+  const readOnlyMessage = useCallback((cell: GridCellAddress): string => {
+    const messageKey = adapter.getCell(cell.rowKey, cell.columnId)?.readOnlyMessageKey;
+    return messageKey ? tTask(messageKey, { defaultValue: calculatedReadOnlyFallback }) : calculatedReadOnlyFallback;
+  }, [adapter, calculatedReadOnlyFallback, tTask]);
+
   const startEdit = useCallback((cell: GridCellAddress, replacement?: string) => {
     const model = adapter.getCell(cell.rowKey, cell.columnId);
     if (!model || model.readOnly) {
-      setSurfaceError(calculatedReadOnlyFallback);
+      setSurfaceError(readOnlyMessage(cell));
       return;
     }
     setEditing(replacement === undefined
       ? { documentId: activeDocumentId, cell }
       : { documentId: activeDocumentId, cell, replacement });
     setSurfaceError(null);
-  }, [activeDocumentId, adapter, calculatedReadOnlyFallback]);
+  }, [activeDocumentId, adapter, readOnlyMessage]);
 
   // Issue #89: elke validatiecode heeft een vertaling in `taskGrid.validation.*`; ontbreekt hij
   // toch (nieuwe code zonder tekst), dan valt de melding terug op een VERTAALDE algemene tekst in
@@ -545,7 +552,7 @@ export function TaskGridSurface({
       return;
     }
     if (command.kind === 'readonly') {
-      setSurfaceError(calculatedReadOnlyFallback);
+      setSurfaceError(readOnlyMessage(command.cell));
       return;
     }
     if (command.kind === 'clear-cells') {
@@ -579,7 +586,7 @@ export function TaskGridSurface({
       setSelection(updateGridSelection(createEmptyGridSelection(), cell, createTaskGridRowIndex(useAppStore.getState().viewRows), visibleColumnIds, 'replace'));
       setEditing({ documentId: activeDocumentId, cell, replacement: '' });
     }
-  }, [activeDocumentId, adapter.rowMetaByKey, applySelection, calculatedReadOnlyFallback, clipboardEnvironment, finishEditing, onPlainTaskClick, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, tasksById, validationMessage, visibleColumnIds]);
+  }, [activeDocumentId, adapter.rowMetaByKey, applySelection, clipboardEnvironment, finishEditing, onPlainTaskClick, readOnlyMessage, rowIndex, runGridMutation, selectTask, selection, startEdit, tTask, tasksById, validationMessage, visibleColumnIds]);
 
   const { startRowDrag, dragState } = useTableRowDrag({
     rows: viewRows,

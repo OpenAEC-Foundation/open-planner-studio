@@ -522,8 +522,8 @@ function applyCellEdits(
   // Aanbeveling 4 (onafhankelijke eindreview): deze set is met de hand onderhouden, niet uit de
   // registry afgeleid (`readOnly` is een ondoorzichtige `(task, ctx) => boolean`, geen
   // gestructureerde afhankelijkheidslijst). Twee stilzwijgende aannames die daarbij horen:
-  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock, durationUnit en
-  //     scheduleDuration childIds.length —
+  // (1) `task.childIds` staat hier bewust NIET in, ook al lezen isHammock, durationUnit,
+  //     scheduleDuration en de zes voortgangskolommen (verzameltaak ⇒ alleen-lezen) childIds.length —
   //     childIds is nooit los via een cel-paste schrijfbaar (readonlyColumn, geen parse/planWrite),
   //     dus er is structureel geen CellEditIntent-route die childIds binnen dezelfde transactie
   //     kan veranderen; (2) `ctx.assignmentsByTaskId` staat hier ook NIET in, ook al zijn
@@ -595,7 +595,8 @@ function applyCellEdits(
         }
         if (!jointlyWritable) {
           if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
-          return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+          const reason = descriptor.readOnlyReason?.(task, runtime.context) ?? 'readOnly';
+          return { ok: false, errors: [validationError(reason, edit, edit.value)] };
         }
         continue;
       }
@@ -616,7 +617,8 @@ function applyCellEdits(
       }
       if (!jointlyWritable) {
         if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
-        return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+        const reason = descriptor.readOnlyReason?.(task, runtime.context) ?? 'readOnly';
+        return { ok: false, errors: [validationError(reason, edit, edit.value)] };
       }
     }
   }

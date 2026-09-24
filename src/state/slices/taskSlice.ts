@@ -98,10 +98,14 @@ export interface TaskSlice {
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
   /** Voortgang (fase 2.6): zet completion (0..1), dwingt de §3.2-invarianten af (auto-actualStart bij
-   *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is. */
-  setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => void;
+   *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is.
+   *  Retourneert false op een VERZAMELTAAK: haar voortgang wordt afgeleid uit de bladen
+   *  (`applyCpmResult`), dus geweigerd, geen mutatie en geen undo-stap — net als MCP en de
+   *  voortgangsimport. Een onbekende taak is een stille no-op (`true`). */
+  setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => boolean;
   /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
-   *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). `opts.coalesceKey` voegt
+   *  statusdatum ligt, of op een verzameltaak (zie `setTaskProgress`) — geweigerd, geen mutatie
+   *  (de UI toont een toast; op een verzameltaak is het veld al uitgeschakeld). `opts.coalesceKey` voegt
    *  de per-toetsaanslag-commits van het LIVE-committerende datumveld tot één undo-stap samen. */
   setActualStart: (taskId: string, date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
   /** Werkelijke einde (fase 2.6): zet completion=1 + status COMPLETED. undefined = wissen.
@@ -302,6 +306,8 @@ function applyActualDate(
 ): boolean {
   const task = s.tasks.find((t) => t.id === taskId);
   if (!task) return true;
+  // Een verzameltaak draagt geen eigen voortgang (zie `setTaskProgress`).
+  if (task.childIds.length > 0) return false;
   if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
   task.time[field] = date || undefined;
@@ -1033,9 +1039,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   setTaskProgress: (taskId, raw, opts) => {
+    let accepted = true;
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
+      // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af
+      // uit de bladen. Weigeren vóór `beginUndoable`, dus zonder snapshot (transaction.ts-patroon).
+      if (task.childIds.length > 0) { accepted = false; return; }
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
       // §3.2: % > 0 ⇒ gestart (auto actualStart), teruggedraaid onder 100% ⇒ actualFinish vervalt.
       applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)));
@@ -1052,6 +1062,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
+    return accepted;
   },
 
   setActualStart: (taskId, date, opts) => {

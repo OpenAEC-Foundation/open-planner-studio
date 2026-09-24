@@ -145,6 +145,9 @@ export interface TaskColumnDescriptor {
   scheduleDerived?: boolean;
   available(ctx: TaskColumnContext): boolean;
   readOnly: boolean | ((task: Task, ctx: TaskColumnContext) => boolean);
+  /** Waarom `readOnly` voor deze taak geldt, als validatiecode (`taskGrid.validation.<code>`);
+   *  ontbreekt hij, dan geldt de generieke `readOnly`-melding. */
+  readOnlyReason?: (task: Task, ctx: TaskColumnContext) => string | undefined;
   read(task: Task, ctx: TaskColumnContext): unknown;
   format(value: unknown, task: Task, ctx: TaskColumnContext): string;
   copy(task: Task, ctx: TaskColumnContext): string;

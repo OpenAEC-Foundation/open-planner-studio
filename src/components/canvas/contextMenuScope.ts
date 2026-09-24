@@ -3,6 +3,7 @@ import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import type { Task } from '@/types/task';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -103,10 +104,27 @@ export const contextMenuBulk = {
     appTaskBulkActions.applyToTaskIds(ids, (state, id) => state.setTaskCalendar(id, calendarId));
   },
 
+  /**
+   * "Voortgang" over de reikwijdte. Een verzameltaak draagt geen eigen voortgang (de rollup in
+   * `applyCpmResult` leidt die af, `setTaskProgress` weigert haar), dus staat er een fase in de
+   * reikwijdte, dan krijgen haar BLADtaken het percentage — precies de bladen waaruit de fase haar
+   * voortgang afleidt (`descendantLeaves`) — en de fase zelf wordt overgeslagen. Eén vast percentage
+   * op alle bladen geeft na F5 precies dat percentage op de fase. Dubbelingen (fase én kind
+   * geselecteerd) vallen weg; het geheel blijft één undo-stap.
+   */
   setProgress(taskId: string, completion: number): void {
+    const { tasks } = useAppStore.getState();
+    const byId = new Map(tasks.map((t) => [t.id, t]));
+    const ids = new Set<string>();
+    for (const id of contextMenuOutlineScope(taskId)) {
+      const task = byId.get(id);
+      if (!task) continue;
+      if (task.childIds.length === 0) ids.add(task.id);
+      else for (const leaf of descendantLeaves(task, byId)) ids.add(leaf.id);
+    }
     appTaskBulkActions.applyToTaskIds(
-      contextMenuOutlineScope(taskId),
-      (state, id) => state.setTaskProgress(id, completion),
+      [...ids],
+      (state, id) => { state.setTaskProgress(id, completion); },
     );
   },
 
