@@ -39,7 +39,7 @@ import {
 } from './taskFields';
 import type { SequenceType } from '@/types/sequence';
 import type { Task } from '@/types/task';
-import { isAncestorRelation } from '@/state/relationRules';
+import { isAncestorRelation, relationKey } from '@/state/relationRules';
 // De relatie-NOTATIE (type-aliassen, lag-vormen, schema-fragmenten) woont in de gedeelde veldlaag
 // `sequenceFields.ts` — één implementatie voor `add_dependencies` hier, `update_dependencies` in
 // `dependencyTools.ts` en de leeskant in `readTools.ts`. Zie de kop van dat bestand.
@@ -50,6 +50,7 @@ import {
   lagPatchOf,
   parseLag,
   normalizeSeqType,
+  selfRelationReason,
   SEQ_TYPE_SCHEMA,
   unknownTypeReason,
   type ParsedLag,
@@ -674,7 +675,7 @@ function classifyDeps(
 } {
   const rejections: { id: string; reason: string }[] = [];
   const candidates: { predecessorId: string; successorId: string; type: SequenceType; lag: ParsedLag }[] = [];
-  const seen = new Set(st.sequences.map((s) => `${s.predecessorId}|${s.successorId}|${s.type}`));
+  const seen = new Set(st.sequences.map(relationKey));
   // Eén Map ipv. `st.tasks.some(...)` per dep: `st.tasks` is hier een gewone (niet-draft) array, dus
   // een Map bouwen kost geen Immer-proxy-overhead en scheelt bij N deps N× een lineaire scan.
   const byId = new Map(st.tasks.map((t) => [t.id, t]));
@@ -695,7 +696,7 @@ function classifyDeps(
     // Zelfrelatie: per item zacht weigeren, net als `update_dependencies` — anders ziet de kring-
     // check hieronder een a→a-lus en rolt de HELE call terug als harde CYCLE.
     if (d.predecessorId === d.successorId) {
-      rejections.push({ id: label, reason: `een relatie kan taak '${d.predecessorId}' niet met zichzelf verbinden` });
+      rejections.push({ id: label, reason: selfRelationReason(d.predecessorId) });
       continue;
     }
     // Een verzameltaak-eindpunt is sinds 2026-08-15 legaal (expandSummaryRelations rekent zo'n
@@ -706,7 +707,7 @@ function classifyDeps(
       rejections.push({ id: label, reason: ANCESTOR_RELATION_REJECTION });
       continue;
     }
-    const key = `${d.predecessorId}|${d.successorId}|${type}`;
+    const key = relationKey({ predecessorId: d.predecessorId, successorId: d.successorId, type });
     if (seen.has(key)) { rejections.push({ id: label, reason: 'relatie bestond al' }); continue; }
     seen.add(key);
     candidates.push({ predecessorId: d.predecessorId, successorId: d.successorId, type, lag: lag.value });
