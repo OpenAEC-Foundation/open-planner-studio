@@ -386,7 +386,14 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    LANDEN-MET-FIXES: opgeheven uitsluiting kan regressie op nog-uitgesloten taak verbergen (M1: pin 10 = X 7 +
    Y 3, Y terug met 0, X 7 → 10 ⇒ geen rode regel) ⇒ derde ronde: verborgen telling PER TAAK pinnen (v2-envelop
    in dezelfde commit), HERPIN-regels chronologisch met besluit- én herpindatum; proefmerges met de etappekop,
-   `x12-merge-109` en `x12-review-midden-fixes` conflictvrij. Derde ronde loopt (dezelfde agent).
+   `x12-merge-109` en `x12-review-midden-fixes` conflictvrij. Derde ronde klaar (`2f2bcefe`: `excludedHidden`
+   per uitgesloten taak `{sha: {proj/task: {sixAxis, drivingPath}}}`, in `cellMinutesDigest`; regel per taak
+   (bestaand ≤ eigen pin, nieuw ≤ gepinde cellen, terugkerend ≤ pin dan pin weg, nergens-uitgesloten = fout);
+   migratie eenmalig met tijdelijke code, per-bestand-som = oud totaal (OZB 38/4, Hotel 0/19, HarbourPointe
+   34/0); M1/M2/M3/5o2/5p11 hard rood, mutanten per regeldeel; HERPIN `<herpindatum> uitsluiting (besluit
+   <datum>)` chronologisch; measure 76/0/0/0) — **gemerged in de etappebranch door de orkestrator** na eigen
+   her-check (typecheck/lint/conventions + mét corpus manifest-exclusions 117, cells-gate 141, corpusless-gate
+   57, p6-flags 299: alle exit 0). Keten measure+verify op de kop gestart.
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
