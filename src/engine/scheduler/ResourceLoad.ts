@@ -3,6 +3,7 @@
 // functie die zowel het histogram als, straks, de nivelleerder voedt) en `computeResourceLoad`
 // (dag-granulaire belasting/capaciteit/overallocatie over alle resources+toewijzingen).
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { groupBy } from '@/utils/collections';
 import type { Task, TaskTimephasedContour } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
@@ -164,12 +165,7 @@ export function assignmentDayUnits(
 export function contourLookup(
   assignments: readonly ResourceAssignment[],
 ): (task: Task, assignment: ResourceAssignment) => TaskTimephasedContour | null {
-  const byTask = new Map<string, ResourceAssignment[]>();
-  for (const a of assignments) {
-    let list = byTask.get(a.taskId);
-    if (!list) { list = []; byTask.set(a.taskId, list); }
-    list.push(a);
-  }
+  const byTask = groupBy(assignments, a => a.taskId);
   const cache = new Map<string, Map<string, TaskTimephasedContour>>();
   return (task, assignment) => {
     if (!task.timephasedContours || task.timephasedContours.length === 0) return null;

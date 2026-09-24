@@ -5,6 +5,7 @@
 import type { Task } from '@/types/task';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
 
 /** Gedeelde context voor filter/groep/sort/kolom-resolutie (§4.1). */
@@ -40,12 +41,7 @@ const indexCache = new WeakMap<ViewContext, ViewIndexes>();
 function indexesFor(ctx: ViewContext): ViewIndexes {
   const hit = indexCache.get(ctx);
   if (hit) return hit;
-  const assignmentsByTask = new Map<string, ResourceAssignment[]>();
-  for (const a of ctx.assignments) {
-    const list = assignmentsByTask.get(a.taskId);
-    if (list) list.push(a);
-    else assignmentsByTask.set(a.taskId, [a]);
-  }
+  const assignmentsByTask = groupBy(ctx.assignments, a => a.taskId);
   const resourceById = new Map<string, Resource>();
   // `!has` en niet kaal `set`: `Map.set` houdt bij een dubbele id de LAATSTE, terwijl de
   // `find()` die dit verving de EERSTE koos. Onbereikbaar met de huidige id-generatie, maar deze
