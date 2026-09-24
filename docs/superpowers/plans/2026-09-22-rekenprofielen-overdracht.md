@@ -413,9 +413,16 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    wat nu gemaakt is in etappe. Alle drie de prs." ⇒ (a) Fable-reviewers gestart op #109 en #167
    (rapporten `2026-09-24-fable-critreview-pr{109,167}.md`); #167 = LANDEN-MET-FIXES (rapport gecommit
    `e5717cb4`; twee verplichte fixes — opslaan ín de modus fabriceert vier assen; eigen ongewijzigd IFC
-   meldt tóch `importDatesAsRecorded` — in aanbouw door `opus-midden-fix-pr167` op
-   `claude/recorded-all-formats-fixes`; eigenaarsvraag: CSV/vreemd IFC met alleen Start/Finish automatisch
-   in de modus?); #109 = LANDEN-MET-FIXES (rapport gecommit `b2935a1f`; drie blokkers: laadsolve ≠
+   meldt tóch `importDatesAsRecorded` — **gebouwd door `opus-midden-fix-pr167`, kop `b7677f82` op
+   `claude/recorded-all-formats-fixes`** (3 commits: `$` voor niet-vastgelegde assen via
+   `withheldTaskTimeFields` + `recordedDates`/`datesAsRecorded` in `IFC_SAVE_KEYS`; alleen verse imports
+   tellen, `withRecordedDatesNotice` als detailregel; bladtaken-vastlegging MSPDI/.mpp, `.mpp`-slack null;
+   "beperken" als poort `recordedDatesSource` met nieuw pset-veld `SourceFormat` in `OPS_ImportProvenance`,
+   checks per geval rood zonder poort, gidsen nl+en + `gids-import-export` 14 talen; poorten exit 0,
+   `.mpp` 216 pins 0/0); critreview loopt (`opus-laag-critreview-167-fixes`); merge-instructie voor #169
+   in het agentrapport (geneste `withRecordedDatesNotice(withSchedulingProfileNotice(...))`, geen
+   `!notice`-blok terug); open: taak zonder enige vastlegging telt na opslaan-in-modus als vastgelegd
+   (buiten scope), 16s synthetisch; eigenaarsvraag beantwoord "beperken", V1/V2 in §1c); #109 = LANDEN-MET-FIXES (rapport gecommit `b2935a1f`; drie blokkers: laadsolve ≠
    F5-solve — `prepareLoadedPayload` geeft `projectEndDate` niet door, op #169 al gefixt in `ba7d86b5` maar
    #109 merget eerst naar main; bak-2-sluiproute-grep in `check-xer-field-whitelist.ts` is een placebo (4 van
    5 mutanten groen) ⇒ AST-poort; gids 7a-regel ≠ code; plus kleinere BEVESTIGD-punten — fixagent
