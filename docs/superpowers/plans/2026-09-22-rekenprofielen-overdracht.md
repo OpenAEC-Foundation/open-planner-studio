@@ -102,8 +102,12 @@ van #167, `claude/recorded-all-formats-fixes`).
 uit `rem_target_link_flag`) vervalt; de UI-branch `claude/x12-ui-a19-perfile` (51f37d33) wordt niet gemerged.
 "smal" — C5 blijft beperkt tot voltooide CP_Phys-taken; naam en gidsregel worden eerlijk ("gemeten op
 CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_Drtn-taken is.
-*Uitvoering:* C5-docs gemerged (`393cf74d`, branch `claude/x12-c5-smal-docs`); A19 in aanbouw op
-`claude/x12-a19-basis` (`opus-midden-a19-basis`, regel A hard: stopt bij één cel slechter).
+*Uitvoering:* C5-docs gemerged (`393cf74d`, branch `claude/x12-c5-smal-docs`); A19 gebouwd op
+`claude/x12-a19-basis` kop `9498648b` (Opus 5.5): measure vóór/ná identiek (76, 0/0/0, cellen per as gelijk),
+blast-radius `xerDefaultsNegativeFloatTasks` omlaag in zes niet-P6-bestanden; A19 in `LEGACY_XER_ALWAYS_ON`,
+A19-01..06; B1-wissel P6→OPS nu 3 verschoven (A19 reist niet meer mee); fixtures zonder vlag expliciet;
+open punt: `docs/TODO.md` r.860 (casus 08 A/10 B) als mogelijk tegenbewijs. Critreview loopt
+(`opus-laag-critreview-a19-basis`); daarna merge + keten.
 
 **2026-09-24 ~18:45, vraag 14 (regel 7a / A21 achter een zichtbare optie?), letterlijk: "laten"** — A21 blijft
 zoals hij is: alleen actief als optie A21 aan staat én B3 aan staat (B3 staat in het P6-profiel uit), gids
