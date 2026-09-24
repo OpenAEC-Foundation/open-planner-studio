@@ -8,8 +8,9 @@ import { formatDate } from '@/utils/dateUtils';
 import {
   buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
-  writeLevelingResult, clearLevelingOutput, applyDurationChangeRules, type TaskTriggerFields,
+  writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
 } from '@/utils/taskDefaults';
+import { sameValue } from '@/utils/sameValue';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { assignInsertedWbsCodes } from '../insertedBranch';
 import { syncProjectCalendar } from '../syncProjectCalendar';
@@ -309,6 +310,9 @@ function createMcpDraft(
       const task = s.tasks[idx];
       const { time, ...rest } = updates;
       const next = mergeTaskUpdate(task, updates);
+      // Per saldo niets gewijzigd ⇒ no-op, net als taskSlice.ts's `updateTask`: geen mutatie, geen
+      // gevolgregel en geen `isDirty`. (De undo-stap en de herberekening zijn van de transactie.)
+      if (sameValue(task, next)) return;
       // WANNEER de gevolgregels vuren: op een ECHT gewijzigde waarde, niet op een meegestuurde
       // sleutel — dezelfde poort als taskSlice.ts's `updateTask`, zie `taskTriggerChanges`.
       const changes = taskTriggerChanges(task, next);
@@ -361,22 +365,28 @@ function createMcpDraft(
       const task = s.tasks[idx];
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
-      // De trigger-relevante velden vóór de patch, als losse kopie: `timePatch` muteert `task.time`
-      // in-place, `top` vervangt alleen top-level waarden (de oude referenties blijven leesbaar).
-      const before: TaskTriggerFields = { ...task, time: { ...task.time } };
-      Object.assign(task, top);
+      // De taak zoals de patch haar achterlaat, eerst op een kopie (muteert niets): `top` overschrijft
+      // top-level waarden, `timePatch` zet losse `time`-sleutels (`clearDurationMinutes` verwijdert
+      // de sleutel — `delete`, niet `= undefined`, voor de IFC-round-trip).
+      const next: Task = { ...task, ...top };
+      const time = { ...next.time };
       if (timePatch) {
-        if (timePatch.scheduleDuration !== undefined) task.time.scheduleDuration = timePatch.scheduleDuration;
-        if (timePatch.durationUnit !== undefined) task.time.durationUnit = timePatch.durationUnit;
-        if (timePatch.durationMinutes !== undefined) task.time.durationMinutes = timePatch.durationMinutes;
-        if (timePatch.durationType !== undefined) task.time.durationType = timePatch.durationType;
-        if (timePatch.clearDurationMinutes) delete task.time.durationMinutes;
+        if (timePatch.scheduleDuration !== undefined) time.scheduleDuration = timePatch.scheduleDuration;
+        if (timePatch.durationUnit !== undefined) time.durationUnit = timePatch.durationUnit;
+        if (timePatch.durationMinutes !== undefined) time.durationMinutes = timePatch.durationMinutes;
+        if (timePatch.durationType !== undefined) time.durationType = timePatch.durationType;
+        if (timePatch.clearDurationMinutes) delete time.durationMinutes;
       }
+      next.time = time;
+      // Per saldo niets gewijzigd ⇒ no-op, zie `updateTaskFields` hierboven (geen `isDirty`).
+      if (sameValue(task, next)) return;
       // WANNEER de gevolgregels vuren: op een ECHT gewijzigde waarde, niet op een meegestuurde
       // sleutel — dezelfde poort als `updateTaskFields` hierboven en taskSlice.ts's `updateTask`, zie
       // `taskTriggerChanges`. `planner_update_tasks` met exact de huidige duur laat de MSP-sturing
       // dus staan.
-      const changes = taskTriggerChanges(before, task);
+      const changes = taskTriggerChanges(task, next);
+      Object.assign(task, top);
+      if (timePatch) task.time = time;
       // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
       // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
       let lost = false;

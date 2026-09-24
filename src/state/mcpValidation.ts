@@ -24,6 +24,7 @@ import {
   applyProgressInvariants, isActualFinishBeforeStart, isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
+import { sameValue } from '@/utils/sameValue';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { isValidUnits } from '@/types/resource';
 
@@ -212,6 +213,10 @@ export const progress = {
 
     // (10) invarianten + COMMIT naar de draft.
     applyProgressInvariants(scratch, statusDate);
+    // Per saldo niets gewijzigd (bv. dezelfde completion nog eens) ⇒ niets committen en vooral de
+    // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
+    // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.
+    if (sameValue(task, scratch)) return { applied: true };
     Object.assign(task.time, scratch.time);
     task.status = scratch.status;
     // B1c-plan-2 spec §4 "Invalidatie", vierde klasse (voortgang) — bedraad in de fixronde op

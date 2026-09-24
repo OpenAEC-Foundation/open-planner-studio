@@ -8,6 +8,7 @@
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
+import { mcpTransactions } from '@/state/mcpTransaction';
 import type { McpContext } from '@/services/mcp/contracts';
 import type { TaskSplitGap } from '@/types/task';
 
@@ -122,6 +123,73 @@ test('planner_batch: dezelfde duur via een batchstap laat de sturing staan', asy
   assertEq(res.envelope.timephasedGuidanceLost, undefined, 'geen timephasedGuidanceLost via de batch');
   assertEq(steeringOf(id).floor, '2026-06-05T17:00', 'laag 3 blijft');
   assertEq(task(id).splitGaps, [IMPORT_SPLIT, LEVELING_GAP], 'gaten blijven');
+});
+
+// --- Per saldo niets gewijzigd ⇒ ook het document niet ------------------------------------------
+// De omvattende transactie herrekent altijd (eind-`runCPM`) en legt die herberekening vast als één
+// "MCP-bewerking" — ook een lege `run(() => undefined)` doet dat, en verlaat "datums zoals opgeslagen".
+// Dat is transactieniveau en hier niet gepind. Wat wél van de draft komt: `isDirty`. Die hoort, net
+// als bij de store-`updateTask` (#186), alleen bij een ECHTE wijziging.
+const cleanDoc = (): void => { store.setState((s) => { s.isDirty = false; }); };
+
+test('planner_update_tasks met alleen de huidige waarden laat het document ongewijzigd', async () => {
+  const id = await freshTask('laag3');
+  S().runCPM(); // de ingezette gaten doorrekenen, zodat "taak onveranderd" alleen de bewerking meet
+  const payloads: Record<string, unknown>[] = [
+    { duration: 5 },
+    { name: 'Metselwerk' },
+    { constraint: { date: '2026-06-01', type: 'SNET' } },
+    { duration: 5, name: 'Metselwerk', constraint: { type: 'SNET', date: '2026-06-01' } },
+  ];
+  for (const fields of payloads) {
+    cleanDoc();
+    const before = JSON.stringify(task(id));
+    const res = okResult(await rpc('planner_update_tasks', { updates: [{ id, fields }] }));
+    assertEq(res.data.updated, [id], `${JSON.stringify(fields)}: het item telt als verwerkt`);
+    assertEq(S().isDirty, false, `${JSON.stringify(fields)}: document niet gewijzigd`);
+    assertEq(JSON.stringify(task(id)), before, `${JSON.stringify(fields)}: taak onveranderd`);
+  }
+  // Controle: een echte wijziging maakt het document wél gewijzigd.
+  cleanDoc();
+  okResult(await rpc('planner_update_tasks', { updates: [{ id, fields: { name: 'Metselwerk 1e verdieping' } }] }));
+  assertEq(S().isDirty, true, 'echte naamwijziging: document gewijzigd');
+});
+
+test('draft.updateTaskFields met de huidige waarden: geen isDirty; een echte wijziging wel', () => {
+  S().newProject();
+  const id = S().addTask({ name: 'Draft-taak' });
+  cleanDoc();
+  const t = task(id);
+  const res = mcpTransactions.run(() => {
+    mcpTransactions.draft.updateTaskFields(id, { name: t.name, time: { ...t.time } });
+  });
+  assert(res.ok, 'transactie hoort te slagen');
+  assertEq(S().isDirty, false, 'updateTaskFields met de huidige naam en tijd: document niet gewijzigd');
+  const changed = mcpTransactions.run(() => { mcpTransactions.draft.updateTaskFields(id, { name: 'Andere naam' }); });
+  assert(changed.ok, 'transactie hoort te slagen');
+  assertEq(S().isDirty, true, 'updateTaskFields met een nieuwe naam: document gewijzigd');
+});
+
+test('progress met de huidige waarde laat het nivelleergat staan; een andere waarde wist het', async () => {
+  const id = await freshTask('laag3');
+  store.setState((s) => { s.project.statusDate = '2026-06-03'; });
+  okResult(await rpc('planner_update_tasks', { updates: [{ id, progress: { completion: 50 } }] }));
+  store.setState((s) => { s.tasks.find((x) => x.id === id)!.splitGaps = [IMPORT_SPLIT, LEVELING_GAP]; });
+  S().runCPM(); // zie hierboven
+  const actualStart = task(id).time.actualStart;
+  assert(!!actualStart, 'opzet: 50% met afgeleide actualStart');
+
+  for (const progress of [{ completion: 50 }, { actualStart }, { completion: 50, actualStart }]) {
+    const before = JSON.stringify(task(id));
+    const res = okResult(await rpc('planner_update_tasks', { updates: [{ id, progress }] }));
+    assertEq(res.data.updated, [id], `${JSON.stringify(progress)}: het item telt als verwerkt`);
+    assertEq(task(id).splitGaps, [IMPORT_SPLIT, LEVELING_GAP], `${JSON.stringify(progress)}: nivelleergat blijft`);
+    assertEq(JSON.stringify(task(id)), before, `${JSON.stringify(progress)}: taak onveranderd`);
+  }
+
+  okResult(await rpc('planner_update_tasks', { updates: [{ id, progress: { completion: 60 } }] }));
+  assertEq(task(id).time.completion, 0.6, 'echte voortgang: 60%');
+  assertEq(task(id).splitGaps, [IMPORT_SPLIT], 'echte voortgang: nivelleergat gewist, importsplit blijft');
 });
 
 await run();
