@@ -454,6 +454,20 @@ function compareCodePoints(left: string, right: string): number {
   return a.length - b.length;
 }
 
+/**
+ * Projectnaam (eigenaarsbesluit 2026-09-24): `PROJECT.proj_name` als het bestand die kolom heeft,
+ * anders de naam van de WBS-wortel van dit project — de PROJWBS-rij waarvan de ouder niet tot het
+ * project behoort (P6's projectknoop). Alleen bij precies één wortel; anders '' (dan blijft het ID).
+ * Leest uitsluitend al gewhiteliste kolommen (PROJECT.proj_name, PROJWBS.wbs_id/parent_wbs_id/wbs_name).
+ */
+export function xerProjectName(projectRow: XerRow, wbsRows: readonly XerRow[]): string {
+  const direct = (projectRow.cells.proj_name ?? '').trim();
+  if (direct) return direct;
+  const ids = new Set(wbsRows.map(row => row.cells.wbs_id));
+  const roots = wbsRows.filter(row => !row.cells.parent_wbs_id || !ids.has(row.cells.parent_wbs_id));
+  return roots.length === 1 ? (roots[0].cells.wbs_name ?? '').trim() : '';
+}
+
 function stableWbsRows(rows: readonly XerRow[], projectId: string): XerRow[] {
   return rows
     .filter(row => row.cells.proj_id === projectId)
@@ -956,7 +970,7 @@ function readXerProject(
   return {
     project: {
       id: projectId,
-      name: projectRow.cells.proj_short_name || projectId,
+      name: xerProjectName(projectRow, wbsRows) || projectRow.cells.proj_short_name || projectId,
       description: '',
       startDate: projectStart,
       endDate: projectEnd,
