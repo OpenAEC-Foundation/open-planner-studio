@@ -9,7 +9,7 @@ paths:
   - "docs/library.md"
 ---
 
-<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud ongewijzigd overgenomen; "hierboven"/"hieronder" verwijst naar de oude volgorde van CLAUDE.md. -->
+<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud overgenomen; kruisverwijzingen wijzen naar het betreffende rules-bestand. -->
 
 ### Resourcebibliotheken
 
@@ -32,6 +32,6 @@ als grens — dubbelbezetting tussen projecten, die geen los project kan zien. D
 Een niet-actief geopend document met een stale planning wordt **efemeer** doorgerekend — `solveProject`
 op een kloon van zijn taken, alleen voor deze weergave, zonder de payload aan te raken — tenzij
 **Automatisch berekenen** aanstaat, in welk geval het overzicht die documenten meteen écht bijwerkt
-(zie *State* hierboven). De weergave ziet uitsluitend documenten die in déze app-instantie open staan;
+(zie `.claude/rules/state.md`). De weergave ziet uitsluitend documenten die in déze app-instantie open staan;
 geen sync tussen machines of vensters (zie `docs/library.md` en de in-app gids
 `public/docs/{nl,en}/gids-bezettingsoverzicht.md`).

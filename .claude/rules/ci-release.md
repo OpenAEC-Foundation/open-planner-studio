@@ -13,11 +13,11 @@ paths:
   - "package.json"
 ---
 
-<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud ongewijzigd overgenomen; "hierboven"/"hieronder" verwijst naar de oude volgorde van CLAUDE.md. -->
+<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud overgenomen; kruisverwijzingen wijzen naar het betreffende rules-bestand. -->
 
 # CI, auto-update en releases
 
-CI (`.github/workflows/`): `ci.yml` draait `npm run verify` plus `tauri build --no-bundle` op Ubuntu/Windows/macOS; `live.yml` deployt de browserbuild (`dist/`) naar `open-planner-studio.open-aec.com` bij elke push naar `main` — de webbuild is een echte productie-deploy, geen dev-target — achter dezelfde `verify`-gate; `release.yml` bouwt installers op `v*`-tags achter diezelfde gate plus een controle dat de tag overeenkomt met de gebumpte versie, en `snap.yml` volgt daarna via `workflow_run` (zie *Auto-update & releases* hieronder). Een rode suite blokkeert dus zowel de deploy als de release; draai `npm run verify` lokaal vóór je pusht. `verify:audit` zit sinds 2026-09-03 bewust **niet** meer in die keten: een nieuw gepubliceerd advisory zette anders élke push en deploy rood, ook een die de dependency niet raakt (gemeten: de releasecommit van v2026.9.0 op `browserslist`). Dependabot security alerts staan aan op de repository en zijn het meldkanaal; een advisory wordt in een eigen commit opgelost, `npm run verify:audit` blijft daarvoor als los commando bestaan.
+CI (`.github/workflows/`): `ci.yml` draait `npm run verify` plus `tauri build --no-bundle` op Ubuntu/Windows/macOS; `live.yml` deployt de browserbuild (`dist/`) naar `open-planner-studio.open-aec.com` bij elke push naar `main` — de webbuild is een echte productie-deploy, geen dev-target — achter dezelfde `verify`-gate; `release.yml` bouwt installers op `v*`-tags achter diezelfde gate plus een controle dat de tag overeenkomt met de gebumpte versie, en `snap.yml` volgt daarna via `workflow_run` (zie *Auto-update & releases* verderop in dit bestand). Een rode suite blokkeert dus zowel de deploy als de release; draai `npm run verify` lokaal vóór je pusht. `verify:audit` zit sinds 2026-09-03 bewust **niet** meer in die keten: een nieuw gepubliceerd advisory zette anders élke push en deploy rood, ook een die de dependency niet raakt (gemeten: de releasecommit van v2026.9.0 op `browserslist`). Dependabot security alerts staan aan op de repository en zijn het meldkanaal; een advisory wordt in een eigen commit opgelost, `npm run verify:audit` blijft daarvoor als los commando bestaan.
 
 ## Auto-update & releases
 

@@ -6,14 +6,14 @@ paths:
   - "scripts/README.md"
 ---
 
-<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud ongewijzigd overgenomen; "hierboven"/"hieronder" verwijst naar de oude volgorde van CLAUDE.md. -->
+<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud overgenomen; kruisverwijzingen wijzen naar het betreffende rules-bestand. -->
 
 ## Docs
 
 - [PLAN.md](PLAN.md) — large project plan, source of truth for the **roadmap**. ⚠️ Alleen voor de roadmap: §4 "Mappenstructuur" is vervallen (de ontwerpfase-boom is verwijderd, er staat alleen een verwijzing). Voor de werkelijke structuur: dit bestand en `AGENTS.md`.
 - [docs/TODO.md](docs/TODO.md) — lopende to-do-lijst met dingen die nog gedaan moeten worden.
 - [docs/ifc-round-trip.md](docs/ifc-round-trip.md) — **hoe je een veld toevoegt dat een opslaan/laden overleeft.** IFC is het native formaat, dus domeindata die niet round-trippt is bij het volgende openen weg; dit is de route langs writer, reader, fixture en canon-tabel, plus waar de compiler je tegenhoudt.
-- [docs/recepten/](docs/recepten/) — dezelfde receptvorm als hierboven voor vijf andere terugkerende klussen: een nieuwe `planner_*`-MCP-tool, een nieuwe instelling, een nieuwe vertaalsleutel, een nieuw ribbontabblad en een tekstgrootte kiezen/toevoegen, plus een nieuwe in-app gids.
+- [docs/recepten/](docs/recepten/) — dezelfde receptvorm als `docs/ifc-round-trip.md` voor vijf andere terugkerende klussen: een nieuwe `planner_*`-MCP-tool, een nieuwe instelling, een nieuwe vertaalsleutel, een nieuw ribbontabblad en een tekstgrootte kiezen/toevoegen, plus een nieuwe in-app gids.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — per **uitgebrachte** versie de uitgebreide beschrijving (Engels). Wordt alleen tijdens een release bijgewerkt (zie de `release`-skill) — geen `Ongepubliceerd`-kop, geen commit-dump.
 - [docs/self-test-harness.md](docs/self-test-harness.md) — how Claude drives the app to self-test changes. Tier 1 (default): Playwright MCP (`.mcp.json`) + the dev-only `window.__OPS__` hook (installed by `src/utils/devBridge.ts`: store, log-bus, `extensions.*`) against the **browser** dev build (`npm run dev` — de poort wordt per worktree toegewezen en gestempeld in `.claude/launch.json`, dus lees hem uit de dev-server-uitvoer in plaats van 3007 aan te nemen) — assert via store state, not canvas pixels. Tier 2 (opt-in): `tauri-driver` for the real desktop window.
 - [docs/superpowers/](docs/superpowers/) — ontwerp- en implementatiedocs (specs, plannen en een handvol losse stukken). **Begin bij [docs/superpowers/README.md](docs/superpowers/README.md)**; die zegt per document wat de status is en waarom er niet blind gearchiveerd wordt (er wijzen ~50 commentaarregels in `src/`/`tests/` naar deze bestanden). Hier stond een handmatige opsomming van "actieve" onderwerpen die niet meer klopte — op het actieve programma en enkele nog-niet-uitgevoerde stukken na gaan alle specs/plannen over opgeleverde functionaliteit, en de afvinkvakjes in de plannen zijn nooit bijgehouden. Lees ze als *waarom het zo is*, niet als *wat er is*.

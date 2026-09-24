@@ -7,7 +7,7 @@ paths:
   - "src/components/task-sections/TaskTimephasedNotice.tsx"
 ---
 
-<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud ongewijzigd overgenomen; "hierboven"/"hieronder" verwijst naar de oude volgorde van CLAUDE.md. -->
+<!-- Verplaatst uit CLAUDE.md (2026-09): laadt alleen wanneer Claude een bestand leest dat op `paths` past. Inhoud overgenomen; kruisverwijzingen wijzen naar het betreffende rules-bestand. -->
 
 ### De `.mpp`-lezer is een eigen CFB/OLE2-implementatie, alleen-lezen
 
@@ -21,7 +21,7 @@ parser (`cfb.ts`) plus een MPP14-fieldmap-laag (`fieldMap14.ts`, `mppContainer.t
 CSV/MSPDI/P6-XML/IFC — via `src/services/formatRegistry.ts` (`READ_FORMATS`, één registry voor alle
 open-dispatches en de exportlijst) achter een dynamic import geladen, zodat de CFB/fieldmap-code
 buiten de hoofdbundel blijft. De import is **alleen-lezen**: er is geen `.mpp`-schrijfpad, opslaan
-gaat altijd via IFC (zie hierboven); oudere `.mpp`-versies (MPP8/9/12) en wachtwoord-versleutelde
+gaat altijd via IFC (zie `.claude/rules/tauri-ifc.md`); oudere `.mpp`-versies (MPP8/9/12) en wachtwoord-versleutelde
 bestanden worden herkend maar geweigerd met een duidelijke foutmelding.
 
 Datumgetrouwheid tegen MS Project zelf wordt bewaakt door `tests/planning/check-mpp-fidelity.ts`
