@@ -556,6 +556,13 @@ function applyProgressEdits(
   const desiredStatus = statusEdit?.value as TaskStatus | undefined;
   let desiredActualStart = actualStartEdit ? (actualStartEdit.value as string | undefined) || undefined : task.time.actualStart;
   let desiredActualFinish = actualFinishEdit ? (actualFinishEdit.value as string | undefined) || undefined : task.time.actualFinish;
+  // Een gewiste Actual Finish heropent een voltooide taak, net als bij een enkele celwrite — tenzij
+  // dezelfde rij zelf een voortgang of status opgeeft. Anders zette `applyProgressInvariants` de
+  // einddatum bij completion 1 meteen terug en deed het wissen niets.
+  if (actualFinishEdit && !desiredActualFinish && desiredCompletion === undefined
+    && desiredStatus === undefined && task.time.completion >= 1) {
+    desiredCompletion = 0;
+  }
   // Niet meegeschreven actuals zijn geen expliciete gewenste invoer. Een completion/status-write
   // moet ze in een brede paste precies zo kunnen canonicaliseren als bij een enkelvoudige edit.
   if (!actualFinishEdit && ((desiredCompletion !== undefined && desiredCompletion < 1)
