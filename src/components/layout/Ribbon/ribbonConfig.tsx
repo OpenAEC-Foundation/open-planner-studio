@@ -18,6 +18,7 @@ import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 import {
   saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
 } from '@/utils/settingsStore';
@@ -659,11 +660,7 @@ const resourcesTab: RibbonTabConfig = [
           // wissen" grijs op een `.mpp`-project met uitsluitend sub-dag-precisie (`levelingDelayMinutes`/
           // `levelingDelayElapsed`) én op een project dat alleen ingevoegde pauzedagen draagt
           // (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
-          const hasLeveling = useAppStore(s => s.tasks.some(t =>
-            t.levelingDelay !== undefined
-            || t.levelingDelayMinutes !== undefined
-            || t.levelingDelayElapsed !== undefined
-            || (t.splitGaps ?? []).some(g => g.source === 'leveling')));
+          const hasLeveling = useAppStore(s => s.tasks.some(hasLevelingOutput));
           return { onClick: () => clearLeveling(), disabled: !hasLeveling };
         },
       },

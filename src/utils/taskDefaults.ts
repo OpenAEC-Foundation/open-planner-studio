@@ -2,6 +2,7 @@ import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
 import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
@@ -354,6 +355,69 @@ export function clearLevelingGaps(task: Task): boolean {
   if (kept.length === gaps.length) return false;
   task.splitGaps = kept.length > 0 ? kept : undefined;
   return true;
+}
+
+// ── Nivelleeruitvoer (B1c-plan-2/-plan3, M10) ────────────────────────────────────────────────────
+
+/** Draagt `task` uitvoer van een nivellering: een vertraging — ook UITSLUITEND sub-dag-precisie
+ *  (`levelingDelayMinutes`/`levelingDelayElapsed`, uit een `.mpp`) — of een ingevoegde pauzedag
+ *  (`splitGaps` met `source: 'leveling'`)? De ENE definitie achter de no-op-guard van
+ *  `clearLeveling` en de ribbonknop "Nivellering wissen": een knop die inschakelt terwijl de actie
+ *  een no-op is, of andersom, is precies de bug die B1c-plan3 taak 2 repareerde. */
+export function hasLevelingOutput(task: Task): boolean {
+  return task.levelingDelay !== undefined
+    || task.levelingDelayMinutes !== undefined
+    || task.levelingDelayElapsed !== undefined
+    || (task.splitGaps ?? []).some(g => g.source === 'leveling');
+}
+
+/** Wist de sub-dag-velden die `CPMSolver.shiftByLevelingDelay` VÓÓR `levelingDelay` leest (M10:
+ *  een achtergebleven waarde zou een nieuwe delay stil overrulen). `true` ⇒ er ging werkelijk
+ *  sub-dag-precisie verloren — de aanroeper telt dat voor `notifyLevelingDelayRounded`. */
+function dropSubDayLevelingDelay(task: Task): boolean {
+  const rounded = task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined;
+  task.levelingDelayMinutes = undefined;
+  task.levelingDelayElapsed = undefined;
+  return rounded;
+}
+
+/** Wist alle nivelleeruitvoer van `task` ("Nivellering wissen"): de vertraging, de sub-dag-velden
+ *  en de nivelleergaten — importsplits zijn brondata en blijven staan. Retourneert zoals
+ *  {@link dropSubDayLevelingDelay} of er sub-dag-precisie verloren ging. */
+export function clearLevelingOutput(task: Task): boolean {
+  task.levelingDelay = undefined;
+  const rounded = dropSubDayLevelingDelay(task);
+  clearLevelingGaps(task);
+  return rounded;
+}
+
+/**
+ * Schrijft een nivelleervoorstel op de taken — de ENE implementatie achter `scheduleSlice`'s
+ * `applyLeveling` en de MCP-`draft.applyLeveling` (die twee mochten nooit uit elkaar lopen).
+ * Idempotent: elke taak binnen de scope krijgt eerst haar delay uit `write.delays` (of geen), verliest
+ * haar sub-dag-velden (M10) en krijgt `write.gaps[id]` als VOLLEDIGE gatenlijst (importsplits
+ * inbegrepen); staat ze niet in `write.gaps`, dan gaan alleen de nivelleergaten van een vorige
+ * nivellering weg. `scopeTaskIds` (B1c-plan3 taak 2): taken erbuiten zijn vaste last waarop het
+ * voorstel gerekend heeft en blijven ongemoeid; afwezig ⇒ alle taken. Retourneert het aantal taken
+ * dat sub-dag-precisie verloor (voor de eenmalige melding).
+ */
+export function writeLevelingResult(
+  tasks: Task[],
+  write: Pick<LevelingResult, 'delays' | 'gaps'>,
+  scopeTaskIds?: string[],
+): number {
+  const scope = scopeTaskIds ? new Set(scopeTaskIds) : null;
+  let roundedCount = 0;
+  for (const task of tasks) {
+    if (scope && !scope.has(task.id)) continue;
+    const d = write.delays[task.id];
+    task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
+    if (dropSubDayLevelingDelay(task)) roundedCount++;
+    const g = write.gaps[task.id];
+    if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
+    else clearLevelingGaps(task);
+  }
+  return roundedCount;
 }
 
 /** De "toewijzingen"-trigger (zie de triggerset hierboven) voor één taak waarvan de

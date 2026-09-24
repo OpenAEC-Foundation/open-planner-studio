@@ -9,7 +9,7 @@ import {
   createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
-  taskUpdateInvalidatesLevelingGaps,
+  taskUpdateInvalidatesLevelingGaps, writeLevelingResult, clearLevelingOutput,
 } from '@/utils/taskDefaults';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
@@ -699,27 +699,14 @@ function createMcpDraft(
    *
    * B1c-plan3 taak 2 — zelfde twee uitbreidingen als de store-variant: `write` is nu
    * `Pick<LevelingResult, 'delays' | 'gaps'>` (een volle `LevelingResult` blijft toewijsbaar) met een
-   * optionele `opts.scopeTaskIds` die het resetten tot de gescopete taken beperkt, en `write.gaps`
-   * wordt geschreven/idempotent teruggedraaid via `clearLevelingGaps` — deze twee mogen NOOIT uit
-   * elkaar lopen met `scheduleSlice.ts`'s `applyLeveling`.
+   * optionele `opts.scopeTaskIds` die het resetten tot de gescopete taken beperkt. Het schrijven zelf
+   * deelt deze variant met `scheduleSlice.ts`'s `applyLeveling` via `writeLevelingResult`
+   * (taskDefaults.ts), zodat de twee niet uit elkaar kunnen lopen.
    */
   applyLeveling(write: Pick<LevelingResult, 'delays' | 'gaps'>, opts?: { scopeTaskIds?: string[] }): void {
     let roundedCount = 0;
     store.setState((s) => {
-      const scope = opts?.scopeTaskIds ? new Set(opts.scopeTaskIds) : null;
-      for (const task of s.tasks) {
-        if (scope && !scope.has(task.id)) continue;
-        const d = write.delays[task.id];
-        task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
-        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
-          roundedCount++;
-        }
-        task.levelingDelayMinutes = undefined;
-        task.levelingDelayElapsed = undefined;
-        const g = write.gaps[task.id];
-        if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
-        else clearLevelingGaps(task);
-      }
+      roundedCount = writeLevelingResult(s.tasks, write, opts?.scopeTaskIds);
       s.isDirty = true;
     });
     if (roundedCount > 0) {
@@ -728,22 +715,15 @@ function createMcpDraft(
     }
   },
 
-  /** Snapshot/recompute-vrije variant van de store-`clearLeveling`: zet alle `levelingDelay` terug op
-   *  undefined en wist de leveling-gaten. GEEN eigen `runCPM` (de transactie herrekent). M10: zelfde
-   *  sub-dag-strip + melding als `applyLeveling` hierboven — zie dat docblok voor de "notify buiten
-   *  setState"-motivering. B1c-plan3 taak 2: zelfde `clearLevelingGaps`-uitbreiding als de
-   *  store-variant. */
+  /** Snapshot/recompute-vrije variant van de store-`clearLeveling`: wist per taak alle
+   *  nivelleeruitvoer via dezelfde `clearLevelingOutput`. GEEN eigen `runCPM` (de transactie
+   *  herrekent). M10: zelfde melding als `applyLeveling` hierboven — zie dat docblok voor de "notify
+   *  buiten setState"-motivering. */
   clearLeveling(): void {
     let roundedCount = 0;
     store.setState((s) => {
       for (const task of s.tasks) {
-        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
-          roundedCount++;
-        }
-        task.levelingDelay = undefined;
-        task.levelingDelayMinutes = undefined;
-        task.levelingDelayElapsed = undefined;
-        clearLevelingGaps(task);
+        if (clearLevelingOutput(task)) roundedCount++;
       }
       s.isDirty = true;
     });
