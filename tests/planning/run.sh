@@ -371,6 +371,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # (`normalizeImportedProgress`), via de echte CSV-/IFC-/MSPDI-lezer en de store-open-actie.
   IPDCHECK="$DIR/.import-progress-default.mjs"
   if bundle_check "$DIR/check-import-progress-default.ts" "$IPDCHECK"; then node "$IPDCHECK" || STATUS=1; fi
+  # Idem, vervolg: lege IFC-datumslots (`$`) worden geen "vandaag" (rekenslots ⇒ eigen geplande
+  # datum, WORKPLAN-einde ⇒ leeg, feestdag zonder datum ⇒ geen feestdag).
+  IEDSCHECK="$DIR/.ifc-empty-date-slots.mjs"
+  if bundle_check "$DIR/check-ifc-empty-date-slots.ts" "$IEDSCHECK"; then node "$IEDSCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 

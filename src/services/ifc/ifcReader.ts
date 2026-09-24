@@ -145,6 +145,7 @@ export function readIFC(content: string, labels: ImportLabels = {}): ImportResul
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid (byte-identiek).
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
+  fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   // Fase 3 (H2): task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
   // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
@@ -641,7 +642,9 @@ function extractProject(
     // check-recorded-dates 9A/9B; het lege-slot-geval: critreview-bevinding 4). `parseDateFromIFC`
     // wordt bewust alleen op een niet-lege slottekst losgelaten — op '' levert hij zelf "vandaag".
     startDate: wp && ifcSlotText(wp.args[12]) ? parseDateFromIFC(wp.args[12]) : '',
-    endDate: wp ? parseDateFromIFC(wp.args[13] || '') : '',
+    // Zelfde regel voor FinishTime: een leeg slot is "geen einde", niet vandaag (import/export-audit,
+    // vervolg op bevinding 6). Het OPS_ProjectSettings-pset wint hierna nog steeds als het er is.
+    endDate: wp && ifcSlotText(wp.args[13]) ? parseDateFromIFC(wp.args[13]) : '',
     calendarId: 'cal-default',
     // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
     // extractStructure als het bestand ze draagt (oude bestanden ⇒ deze default blijft staan).
@@ -951,6 +954,40 @@ function extractTaskTypeMeta(
     }
     return definitions;
   } catch { return []; }
+}
+
+/** Datumbereik van een IfcWorkTime-uitzondering (Start-/FinishDate, allebei optioneel in IFC 4.3):
+ *  één lege kant neemt de andere over (één dag), beide leeg ⇒ `null` (geen uitzondering). */
+function workTimeDateRange(wt: StepEntity): { startDate: string; endDate: string } | null {
+  const start = optDate(wt.args[4]);
+  const end = optDate(wt.args[5]);
+  if (!start && !end) return null;
+  return { startDate: start ?? end!, endDate: end ?? start! };
+}
+
+/**
+ * Lege rekenslots (Early/Late Start/Finish = `$`) krijgen de EIGEN geplande datum van de taak in
+ * plaats van de "vandaag"-terugval van `parseDateFromIFC` (import/export-audit, vervolg op
+ * bevinding 6). Het laden rekent ze toch opnieuw uit en "datums zoals opgeslagen" leest hun
+ * aanwezigheid uit `recordedFields`, maar vóór die solve lezen o.a. `normalizeImportedProgress`
+ * (AS/AF-default van een voltooide taak) en slapende herstelde documenten deze waarden — die zagen
+ * dan de leesdatum. Zelfde keuze als de CSV-lezer (early/late = start/finish). Ná
+ * `applyHourModeIFC`, zodat een uurtaak de uur-precieze Schedule-datum overneemt. Een IFCTASK zonder
+ * IfcTaskTime blijft ongemoeid (daar komt alles uit `createDefaultTaskTime`).
+ */
+function fillEmptyComputedDateSlots(
+  tasks: Task[],
+  taskTimeEntities: Map<string, StepEntity>,
+  recordedFields: Record<string, RecordedFieldKey[]>,
+): void {
+  for (const t of tasks) {
+    if (!taskTimeEntities.has(t.id)) continue;
+    const present = new Set(recordedFields[t.id] ?? []);
+    if (!present.has('earlyStart')) t.time.earlyStart = t.time.scheduleStart;
+    if (!present.has('earlyFinish')) t.time.earlyFinish = t.time.scheduleFinish;
+    if (!present.has('lateStart')) t.time.lateStart = t.time.scheduleStart;
+    if (!present.has('lateFinish')) t.time.lateFinish = t.time.scheduleFinish;
+  }
 }
 
 /** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,
@@ -1788,11 +1825,14 @@ function buildCalendarFromEntity(
   for (const ref of exceptionRefs) {
     const wt = entityMap.get(ref);
     if (!wt || wt.type !== 'IFCWORKTIME') continue;
+    // Start-/FinishDate zijn OPTIONEEL in IfcWorkTime. Een leeg slot mag geen "vandaag" worden (dat
+    // verzon een feestdag op de leesdatum): één datum ⇒ die ene dag, geen datum ⇒ geen uitzondering.
+    const range = workTimeDateRange(wt);
+    if (!range) continue;
     if (!workingExceptionIds?.has(ref)) {
       holidays.push({
         name: stripQuotes(wt.args[0] || '') || 'Feestdag',
-        startDate: parseDateFromIFC(wt.args[4] || ''),
-        endDate: parseDateFromIFC(wt.args[5] || ''),
+        ...range,
       });
       continue;
     }
@@ -1820,8 +1860,7 @@ function buildCalendarFromEntity(
     }
     workingExceptions.push({
       name: stripQuotes(wt.args[0] || '') || 'Werkende uitzondering',
-      startDate: parseDateFromIFC(wt.args[4] || ''),
-      endDate: parseDateFromIFC(wt.args[5] || ''),
+      ...range,
       ...(bands.length > 0 ? { bands } : {}),
     });
   }
