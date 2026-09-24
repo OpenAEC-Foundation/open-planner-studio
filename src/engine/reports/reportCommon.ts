@@ -8,7 +8,7 @@ import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
-import { shownStart, shownFinish } from '@/utils/taskDates';
+import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
 /**
@@ -163,9 +163,7 @@ export function resolvePeriodFor(ctx: ReportContext, period: ReportingPeriod): R
 }
 
 /** Interval-overlap op dagniveau (inclusieve grenzen) — dezelfde test als het "Actief tussen"-filter. */
-export function overlapsWindow(t: Task, fromDay: string, toDay: string): boolean {
-  return dayOf(shownStart(t)) <= toDay && dayOf(shownFinish(t)) >= fromDay;
-}
+export { shownSpanOverlapsDays as overlapsWindow };
 
 /**
  * Namen van de toegewezen resources per taak, in toewijzingsvolgorde en ontdubbeld — één index
