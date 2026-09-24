@@ -35,6 +35,12 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import type * as TS from 'typescript';
+// De TypeScript-compiler als runtime-dependency, NIET gebundeld: run.sh bundelt naar ESM en
+// typescript.js is CommonJS met dynamische `require('fs')`. `createRequire` laat Node hem vanaf de
+// bundelplek (tests/planning/) uit de gewone node_modules laden, zoals scripts/verify-*.mjs doen.
+const ts = createRequire(import.meta.url)('typescript') as typeof TS;
 
 const diffs: string[] = [];
 let checks = 0;
@@ -361,6 +367,165 @@ export const XER_TASK_IGNORED: readonly string[] = [
           existsSync(entry.file) && entry.exact.test(readFileSync(entry.file, 'utf8')));
       }
     }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// AST-poort over bak 2, bak 2b en bak 4 (Fable-critreview PR #109 bevinding 3). De regex-scan
+// hierboven blijft als extra laag, maar is met vier van vijf triviale schrijfwijzen te omzeilen
+// (alias `const c = row.cells; c.restart_date`, optional chaining `row.cells?.restart_date`, een
+// variabele sleutel `const k = 'restart_date'; row.cells[k]` en een template-literal
+// ``row.cells[`restart_date`]``). Deze poort kijkt daarom niet naar LEESVORMEN maar naar de NAAM:
+// in heel `src/` mag geen identifier (property-access — ook `?.` —, destructurering, object-
+// sleutel, typeveld) en geen string-/template-literal (ook als heel woord binnen een langere
+// literal) een verboden kolomnaam dragen, behalve op precies de gepinde plekken hieronder.
+// Commentaar is geen AST-knoop, dus documentatie over deze kolommen blijft vrij.
+//
+// Bekende grens (bewust): een naam die uit stukken wordt samengesteld (`'restart_' + 'date'`,
+// `restart_${x}`) of via een catalogus-iteratie wordt gelezen ziet geen statische poort; de
+// X12-non-interferentie in `check-xer-product-fidelity-x12.ts` blijft daarvoor het vangnet.
+// Evenzo glippen een voorvoegselzoektocht (`key.startsWith('restart')`), een hoofdletterwissel
+// (`'RESTART_DATE'.toLowerCase()`) en een via `String.fromCharCode` opgebouwde naam bewust door.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+type AstHit = { field: string; kind: 'identifier' | 'literal'; context: string; line: number };
+
+/** Alle AST-treffers van `fields` in één bronbestand; `context` beschrijft de omringende vorm
+ *  zodat een uitzondering op vorm én plek gepind kan worden in plaats van op bestand alleen. */
+function astFieldHits(fileName: string, text: string, fields: readonly string[]): AstHit[] {
+  const kind = fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, kind);
+  const fieldSet = new Set(fields);
+  const wordPatterns = fields.map(field => ({ field, re: new RegExp(`(?<![A-Za-z0-9_])${field}(?![A-Za-z0-9_])`) }));
+  const hits: AstHit[] = [];
+  const lineOf = (node: TS.Node) => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+  const contextOf = (node: TS.Node): string => {
+    // Voor property-access: de ontvanger als tekst (`projectRow.cells`), zodat de uitzondering
+    // alleen die ene tabelrij dekt. Voor een literal in een catalogus: de naam van de variabele
+    // (en, binnen een objectcatalogus, de sleutel) waar de array-literal onder hangt.
+    const parent = node.parent;
+    if (parent && ts.isPropertyAccessExpression(parent) && parent.name === node) {
+      return `access:${parent.expression.getText(source)}`;
+    }
+    if (parent && ts.isArrayLiteralExpression(parent)) {
+      const path: string[] = [];
+      let cur: TS.Node | undefined = parent.parent;
+      while (cur && !ts.isSourceFile(cur)) {
+        if (ts.isPropertyAssignment(cur)) path.unshift(cur.name.getText(source));
+        if (ts.isVariableDeclaration(cur)) { path.unshift(cur.name.getText(source)); break; }
+        if (ts.isBlock(cur) || ts.isFunctionLike(cur)) break;
+        cur = cur.parent;
+      }
+      return `catalog:${path.join('.')}`;
+    }
+    return `other:${ts.SyntaxKind[parent?.kind ?? ts.SyntaxKind.Unknown]}`;
+  };
+  const visit = (node: TS.Node): void => {
+    if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) {
+      if (fieldSet.has(node.text)) hits.push({ field: node.text, kind: 'identifier', context: contextOf(node), line: lineOf(node) });
+    } else if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      for (const { field, re } of wordPatterns) {
+        if (re.test(node.text)) hits.push({ field, kind: 'literal', context: contextOf(node), line: lineOf(node) });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return hits;
+}
+
+{
+  const kandidaten = [
+    fileURLToPath(new URL('../../src/', import.meta.url).href),
+    resolvePath(process.cwd(), 'src'),
+  ];
+  const srcRoot = kandidaten.find((p) => existsSync(p)) ?? null;
+  truthy('AST-poort vindt src/', srcRoot !== null);
+
+  // Zelftest eerst (fixture-broncode, NIET in src/): de vijf mutanten uit de critreview moeten
+  // elk een treffer geven, anders bewijst de poort alleen wat hij zelf kiest. Plus twee negatieve
+  // controles: commentaar en een langere naam die de kolomnaam alleen als deelstring draagt.
+  const mutanten: ReadonlyArray<[string, string]> = [
+    ['alias', 'const c = row.cells; const rd = c.restart_date;'],
+    ['optional chaining', 'const rd = row.cells?.restart_date;'],
+    ['variabele sleutel', "const k = 'restart_date'; const rd = row.cells[k];"],
+    ['template-literal', 'const rd = row.cells[`restart_date`];'],
+    ['string-literal-index', "const rd = row.cells['restart_date'];"],
+    ['destructurering', 'const { restart_date: rd } = row.cells;'],
+    ['template met interpolatie', 'const rd = row.cells[`restart_date${suffix}`];'],
+  ];
+  for (const [naam, code] of mutanten) {
+    truthy(`AST-poort herkent de mutant "${naam}"`,
+      astFieldHits('mutant.ts', code, XER_TASK_FORBIDDEN).some(hit => hit.field === 'restart_date'));
+  }
+  truthy('AST-poort negeert commentaar',
+    astFieldHits('comment.ts', '// row.cells.restart_date\n/* row.cells.plan_end_date */ const x = 1;', XER_TASK_FORBIDDEN).length === 0);
+  truthy('AST-poort negeert een langere naam die de kolomnaam als deelstring draagt',
+    astFieldHits('substr.ts', "const x = row.cells.old_restart_date_x; const y = 'my_restart_date';", ['restart_date']).length === 0);
+
+  if (srcRoot) {
+    const files: string[] = [];
+    const loop = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) loop(full);
+        else if (/\.(?:ts|tsx|mts)$/.test(entry.name)) files.push(full);
+      }
+    };
+    loop(srcRoot);
+    truthy('AST-poort leest een plausibel aantal bestanden in src/', files.length > 100);
+
+    const rel = (file: string) => file.slice(srcRoot.length).split('\\').join('/');
+    const verboden = [...XER_TASK_FORBIDDEN, ...XER_TASK_EXTERNAL_DEPENDENCY_PROXY];
+    // Gepinde uitzonderingen: bestand + veld + exacte context + exact aantal. Een uitzondering die
+    // niet (meer) precies zo voorkomt is óók rood — dode of verbrede uitzonderingen vallen op.
+    type Uitzondering = { file: string; field: string; context: string; count: number; waarom: string };
+    const uitzonderingen: Uitzondering[] = [
+      { file: 'services/xer/xerReader.ts', field: 'plan_end_date', context: 'access:projectRow.cells', count: 1,
+        waarom: 'PROJECT-tabel (niet TASK): het geplande projecteinde voor useProjectEndDateForFloat, X5' },
+      { file: 'services/xer/xerScheduleOptions.ts', field: 'critical_drtn_hr_cnt', context: 'access:row.cells', count: 1,
+        waarom: 'SCHEDOPTIONS-tabel: de kritiek-drempel in uren, X5' },
+      { file: 'services/xer/xerTables.ts', field: 'plan_end_date', context: 'catalog:XER_KNOWN_FIELDS_BY_TABLE.PROJECT', count: 1,
+        waarom: 'bekende-veldencatalogus van de PROJECT-tabel' },
+      { file: 'services/xer/xerTables.ts', field: 'critical_drtn_hr_cnt', context: 'catalog:XER_KNOWN_FIELDS_BY_TABLE.PROJECT', count: 1,
+        waarom: 'bekende-veldencatalogus van de PROJECT-tabel' },
+      { file: 'services/xer/xerTables.ts', field: 'critical_drtn_hr_cnt', context: 'catalog:XER_DECIMAL_FIELDS', count: 1,
+        waarom: 'getalformaatclassificatie over alle tabellen, geen celtoegang' },
+      { file: 'services/xer/xerTables.ts', field: 'act_drtn_hr_cnt', context: 'catalog:XER_DECIMAL_FIELDS', count: 1,
+        waarom: 'getalformaatclassificatie over alle tabellen, geen celtoegang' },
+      { file: 'services/xer/xerTables.ts', field: 'old_remain_drtn_hr_cnt', context: 'catalog:XER_DECIMAL_FIELDS', count: 1,
+        waarom: 'getalformaatclassificatie over alle tabellen, geen celtoegang' },
+      { file: 'services/xer/xerTables.ts', field: 'total_float_hr_cnt', context: 'catalog:XER_DECIMAL_FIELDS', count: 1,
+        waarom: 'bak 4, getalformaatclassificatie over alle tabellen, geen celtoegang' },
+      { file: 'services/xer/xerTables.ts', field: 'free_float_hr_cnt', context: 'catalog:XER_DECIMAL_FIELDS', count: 1,
+        waarom: 'bak 4, getalformaatclassificatie over alle tabellen, geen celtoegang' },
+    ];
+    const bak4Eigenaar = 'services/xer/xerRecordedTimes.ts';
+    const gezien = new Map<Uitzondering, number>();
+    const overtreders: string[] = [];
+    for (const file of files) {
+      const path = rel(file);
+      const text = readFileSync(file, 'utf8');
+      const velden = path === bak4Eigenaar ? verboden : [...verboden, ...XER_TASK_RECORDED_OUTPUT];
+      for (const hit of astFieldHits(file, text, velden)) {
+        const u = uitzonderingen.find(x => x.file === path && x.field === hit.field && x.context === hit.context);
+        if (u) { gezien.set(u, (gezien.get(u) ?? 0) + 1); continue; }
+        overtreders.push(`${hit.field} (${hit.kind}, ${hit.context}) in ${path}:${hit.line}`);
+      }
+    }
+    checks++;
+    if (overtreders.length > 0) {
+      diffs.push(`AST-poort: verboden P6-kolomnamen (bak 2/2b, of bak 4 buiten xerRecordedTimes.ts) in src/ — ${overtreders.join('; ')}`);
+    }
+    for (const u of uitzonderingen) {
+      truthy(`AST-poort: uitzondering ${u.field} @ ${u.file} (${u.context}) komt precies ${u.count}× voor (${u.waarom}), kreeg ${gezien.get(u) ?? 0}`,
+        (gezien.get(u) ?? 0) === u.count);
+    }
+    // De bak-4-eigenaar moet de zes kolommen ook echt dragen, anders is de vrijstelling dood.
+    const eigenaar = join(srcRoot, bak4Eigenaar);
+    truthy('AST-poort: xerRecordedTimes.ts draagt alle zes bak-4-kolommen',
+      existsSync(eigenaar) && XER_TASK_RECORDED_OUTPUT.every(field =>
+        astFieldHits(eigenaar, readFileSync(eigenaar, 'utf8'), [field]).length > 0));
   }
 }
 

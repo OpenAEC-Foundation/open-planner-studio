@@ -464,6 +464,11 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   assertEq(second.chunks[0].index, 8, 'chunk-index');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, limit: 9 }).code, 'VALIDATION', 'geen onbeperkte base64');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: false }).code, 'VALIDATION', 'false is geen opt-in');
+  // Fable-critreview PR #109 bevinding 11: bij echte chunkgrootte is één base64-chunk al 256 KiB,
+  // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
+  // toolbeschrijving mag rawSource daar niet onder scharen.
+  assert(Math.ceil(first.chunkSizeBytes / 3) * 4 * 8 > 256 * 1024, 'volle rawSource-pagina > 256 kB bij echte chunkgrootte');
+  assert(/BEHALVE rawSource/.test(getTool(TOOL)?.description ?? ''), 'beschrijving zondert rawSource uit van de 256 kB-grens');
 });
 
 test('invalid args worden runtime geweigerd zonder storemutatie', () => {

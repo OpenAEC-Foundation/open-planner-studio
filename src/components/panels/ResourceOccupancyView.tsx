@@ -279,6 +279,8 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
             dataDate: payload.project.statusDate,
             progressMode: payload.project.progressMode,
             schedulingOptions: payload.project.schedulingOptions,
+            projectStartDate: payload.project.startDate,
+            projectEndDate: payload.project.endDate,
           },
         }),
       };

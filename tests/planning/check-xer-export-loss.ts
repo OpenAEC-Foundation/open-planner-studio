@@ -547,9 +547,12 @@ expect('Backstage en ribbon roepen beide uitsluitend de centrale exportAs-funnel
   && !ribbonSource.includes('notifications.xerExportLoss'));
 
 expect('alle werkelijk succesvolle exportpaden schreven uitvoer', captures.length >= 18 && captures.every(Boolean));
-expect('MPP heeft geen misleidende exportadapter en blijft expliciet unsupported',
-  !EXPORT_FORMATS.some(item => (item.format as string) === 'mpp')
-  && xerExportTargetVerdict('mpp') === 'unsupported');
+// Fable-critreview PR #109 bevinding 12: er is geen `.mpp`-export, dus ook geen `'mpp'`-tak in de
+// verliesgids meer. De `@ts-expect-error` pint dat op typeniveau (typecheck faalt zodra 'mpp' terugkomt).
+expect('MPP heeft geen misleidende exportadapter',
+  !EXPORT_FORMATS.some(item => (item.format as string) === 'mpp'));
+// @ts-expect-error — 'mpp' is geen exportformaat
+void (() => xerExportTargetVerdict('mpp'));
 
 if (failures.length === 0) {
   console.log(`OK  xer-export-loss: alle checks groen (${checks})`);
