@@ -16,7 +16,10 @@ import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { McpTransactionLease } from './storeRuntime';
 import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
-import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
+import {
+  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, purgeResource,
+  relocateAssignment, removeAssignment,
+} from '../assignmentMutations';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
@@ -576,17 +579,8 @@ function createMcpDraft(
       report.affectedTaskIds = [...new Set(doomed.map((a) => String(a.taskId)))];
       report.orphanedCrewMemberIds = s.resources.filter((r) => r.parentId === id).map((r) => String(r.id));
 
-      s.resources = s.resources.filter((r) => r.id !== id);
-      s.assignments = s.assignments.filter((a) => a.resourceId !== id);
-      for (const task of s.tasks) {
-        const idx = task.resourceIds.indexOf(id);
-        if (idx >= 0) task.resourceIds.splice(idx, 1);
-      }
-      // Ploeg-lidmaatschap opruimen: leden van een verwijderde CREW vallen terug op geen ouder.
-      // `delete` i.p.v. `= undefined` — zie de noot bij updateResource (IFC-round-trip).
-      for (const r of s.resources) {
-        if (r.parentId === id) delete r.parentId;
-      }
+      // Ploeglid-`parentId` via `delete` i.p.v. `= undefined` — zie de noot bij updateResource.
+      purgeResource(s, id, 'delete');
       s.isDirty = true;
     });
     return report;
@@ -608,19 +602,8 @@ function createMcpDraft(
       if (!isValidUnits(unitsPerDay)) {
         throw new Error(`draft.assignResource: ongeldige unitsPerDay ${String(unitsPerDay)} (strikt positief vereist)`);
       }
-      s.assignments.push({ id, taskId, resourceId, unitsPerDay, curve });
-      if (!task.resourceIds.includes(resourceId)) task.resourceIds.push(resourceId);
-      // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
-      // van de triggerset (plan: "duur, datums, kalender, toewijzingen"): een andere resource kan
-      // een andere resourcekalender betekenen, precies de Z8-laag-4-discriminator — dus BEIDE
-      // lagen wissen. Zie taskDefaults.ts.
-      const clearedWindow = clearTimephasedWindow(task);
-      const clearedWalks = clearTimephasedDurationWalks(task);
-      // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
-      if (clearedWindow || clearedWalks) recordTimephasedLoss(taskId);
-      // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
-      // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
-      clearLevelingGaps(task);
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`); verlies via de lease.
+      if (insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve })) recordTimephasedLoss(taskId);
       s.isDirty = true;
     });
     return id;
@@ -635,14 +618,9 @@ function createMcpDraft(
     store.setState((s) => {
       const idx = s.assignments.findIndex((a) => a.id === assignmentId);
       if (idx < 0) throw new Error(`draft.updateAssignment: onbekende assignmentId '${assignmentId}'`);
-      let patch = updates;
-      if ('unitsPerDay' in patch && !isValidUnits(patch.unitsPerDay)) {
-        patch = { ...patch };
-        delete patch.unitsPerDay;
-      }
-      if (Object.keys(patch).length === 0) return;
-      Object.assign(s.assignments[idx], patch);
-      if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
+      const patch = acceptedAssignmentPatch(updates);
+      if (!patch) return;
+      applyAssignmentPatch(s.assignments[idx], patch);
       s.isDirty = true;
     });
   },
@@ -658,14 +636,9 @@ function createMcpDraft(
       if (!a) throw new Error(`draft.setAssignmentContour: onbekende assignmentId '${assignmentId}'`);
       const task = s.tasks.find((t) => t.id === a.taskId);
       if (!task) throw new Error(`draft.setAssignmentContour: toewijzing '${assignmentId}' zonder taak`);
-      const siblings = s.assignments.filter((x) => x.taskId === a.taskId);
-      const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignmentId);
-      if (periods === null && idx < 0) return;
-      const list = task.timephasedContours ? [...task.timephasedContours] : [];
-      if (periods === null) list.splice(idx, 1);
-      else if (idx >= 0) list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
-      else list.push({ resourceUid: null, resourceId: a.resourceId, periods });
-      task.timephasedContours = list.length > 0 ? list : undefined;
+      const edit = contoursAfterEdit(s, task, a, periods);
+      if (!edit) return;
+      task.timephasedContours = edit.contours;
       s.isDirty = true;
     });
   },
@@ -692,36 +665,7 @@ function createMcpDraft(
         throw new Error(`draft.moveAssignment: resource '${assignment.resourceId}' is al toegewezen aan taak '${newTaskId}'`);
       }
 
-      const oldTaskId = assignment.taskId;
-      assignment.taskId = newTaskId;
-
-      const stillOnOld = s.assignments.some(
-        (a) => a.taskId === oldTaskId && a.resourceId === assignment.resourceId,
-      );
-      if (!stillOnOld) {
-        const oldTask = s.tasks.find((t) => t.id === oldTaskId);
-        const idx = oldTask?.resourceIds.indexOf(assignment.resourceId) ?? -1;
-        if (oldTask && idx >= 0) oldTask.resourceIds.splice(idx, 1);
-      }
-      if (!newTask.resourceIds.includes(assignment.resourceId)) {
-        newTask.resourceIds.push(assignment.resourceId);
-      }
-      // Z14b (F2-fixronde) — "toewijzingen"-trigger raakt BEIDE taken, BEIDE lagen (zie
-      // assignResource hierboven).
-      const oldTask = s.tasks.find((t) => t.id === oldTaskId);
-      if (oldTask) {
-        const clearedOldWindow = clearTimephasedWindow(oldTask);
-        const clearedOldWalks = clearTimephasedDurationWalks(oldTask);
-        if (clearedOldWindow || clearedOldWalks) recordTimephasedLoss(oldTaskId);
-        // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
-        clearLevelingGaps(oldTask);
-      }
-      const clearedNewWindow = clearTimephasedWindow(newTask);
-      const clearedNewWalks = clearTimephasedDurationWalks(newTask);
-      // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
-      if (clearedNewWindow || clearedNewWalks) recordTimephasedLoss(newTaskId);
-      // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
-      clearLevelingGaps(newTask);
+      for (const lostTaskId of relocateAssignment(s, assignment, newTask)) recordTimephasedLoss(lostTaskId);
       s.isDirty = true;
     });
   },
@@ -735,25 +679,7 @@ function createMcpDraft(
     store.setState((s) => {
       const removed = s.assignments.find((a) => a.id === assignmentId);
       if (!removed) throw new Error(`draft.unassignResource: onbekende assignmentId '${assignmentId}'`);
-      s.assignments = s.assignments.filter((a) => a.id !== assignmentId);
-      const stillAssigned = s.assignments.some(
-        (a) => a.taskId === removed.taskId && a.resourceId === removed.resourceId,
-      );
-      if (!stillAssigned) {
-        const task = s.tasks.find((t) => t.id === removed.taskId);
-        const idx = task?.resourceIds.indexOf(removed.resourceId) ?? -1;
-        if (task && idx >= 0) task.resourceIds.splice(idx, 1);
-      }
-      // Z14b (F2-fixronde) — "toewijzingen"-trigger, beide lagen (zie assignResource hierboven).
-      const removedTask = s.tasks.find((t) => t.id === removed.taskId);
-      if (removedTask) {
-        const clearedWindow = clearTimephasedWindow(removedTask);
-        const clearedWalks = clearTimephasedDurationWalks(removedTask);
-        // mpp-nul-data-etappe, DEEL 1 — zie `updateTaskFields` hierboven.
-        if (clearedWindow || clearedWalks) recordTimephasedLoss(removedTask.id);
-        // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
-        clearLevelingGaps(removedTask);
-      }
+      if (removeAssignment(s, removed)) recordTimephasedLoss(removed.taskId);
       s.isDirty = true;
     });
   },

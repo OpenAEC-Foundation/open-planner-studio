@@ -356,6 +356,18 @@ export function clearLevelingGaps(task: Task): boolean {
   return true;
 }
 
+/** De "toewijzingen"-trigger (zie de triggerset hierboven) voor één taak waarvan de
+ *  toewijzingenset net veranderde: beide Z8-lagen ONVOORWAARDELIJK wissen (F2 — een andere resource
+ *  kan een andere resourcekalender betekenen) plus de nivelleergaten (B1c-plan3 taak 3; geen
+ *  melding, app-eigen afgeleide uitvoer). Retourneert `true` als er MSP-sturing verloren ging —
+ *  alleen daarvoor meldt de aanroeper (mpp-nul-data-etappe, DEEL 1). */
+export function invalidateForAssignmentChange(task: Task): boolean {
+  const clearedWindow = clearTimephasedWindow(task);
+  const clearedWalks = clearTimephasedDurationWalks(task);
+  clearLevelingGaps(task);
+  return clearedWindow || clearedWalks;
+}
+
 /** OPTIONEEL — TRUE zodra de taak nog ACTIEVE Z8-sturing draagt (laag 3 en/of laag 4): een gezet
  *  `timephasedFinishFloor`/`timephasedStartAnchor` (laag 3) of een niet-lege
  *  `timephasedDurationWalks` (laag 4). Bedoeld voor de eigenschappenpaneel-markering (mpp-nul-data-

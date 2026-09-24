@@ -1,11 +1,14 @@
 import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { TimephasedContourPeriod } from '@/types/task';
-import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { generateId } from '@/utils/id';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
-import { clearTimephasedWindow, clearTimephasedDurationWalks, clearLevelingGaps } from '@/utils/taskDefaults';
+import { clearTimephasedWindow, clearLevelingGaps } from '@/utils/taskDefaults';
+import {
+  acceptedAssignmentPatch, applyAssignmentPatch, contoursAfterEdit, insertAssignment, purgeResource,
+  relocateAssignment, removeAssignment,
+} from '../assignmentMutations';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 
@@ -97,17 +100,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
-      s.resources = s.resources.filter(r => r.id !== id);
-      s.assignments = s.assignments.filter(a => a.resourceId !== id);
-      // Verweesde verwijzingen in task.resourceIds opruimen.
-      for (const task of s.tasks) {
-        const idx = task.resourceIds.indexOf(id);
-        if (idx >= 0) task.resourceIds.splice(idx, 1);
-      }
-      // Ploeg-lidmaatschap opruimen: leden van een verwijderde CREW vallen terug op geen ouder.
-      for (const r of s.resources) {
-        if (r.parentId === id) r.parentId = undefined;
-      }
+      purgeResource(s, id, 'unset');
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
@@ -134,23 +127,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (s.assignments.some(a => a.taskId === taskId && a.resourceId === resourceId)) return;
 
       runtime.beginUndoable(s);
-
+      // Het lichaam (en de invalidatie van MSP-sturing en nivelleergaten) deelt deze actie met
+      // `createMcpTransactions.ts`'s `draft.assignResource`, zie `assignmentMutations.ts`.
       const id = generateId('asgn');
-      s.assignments.push({ id, taskId, resourceId, unitsPerDay, curve });
-      if (!task.resourceIds.includes(resourceId)) {
-        task.resourceIds.push(resourceId);
-      }
-      // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
-      // van de edit-time-invalidatie-triggerset (zie `taskDefaults.ts`'s `clearTimephasedWindow`/
-      // `clearTimephasedDurationWalks`): een andere resource kan een andere resourcekalender
-      // betekenen, precies de Z8-laag-4-discriminator — dus BEIDE lagen wissen, niet alleen het
-      // laag-3-venster. `mcpTransaction.ts`'s `assignResource` is de gedocumenteerde tweeling.
-      const clearedWindow = clearTimephasedWindow(task);
-      const clearedWalks = clearTimephasedDurationWalks(task);
-      lostTimephasedGuidance = clearedWindow || clearedWalks;
-      // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `taskSlice.ts`'s `updateTask` voor de
-      // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
-      clearLevelingGaps(task);
+      lostTimephasedGuidance = insertAssignment(s, task, { id, taskId, resourceId, unitsPerDay, curve });
       runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -162,20 +142,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const idx = s.assignments.findIndex(a => a.id === assignmentId);
       if (idx < 0) return;
-      // Weigeren-met-behoud (bevinding 1): een ongeldige eenheden/dag-invoer wordt genegeerd,
-      // een gelijktijdige curve-wijziging gaat wel door.
-      let patch = updates;
-      if ('unitsPerDay' in patch && !isValidUnits(patch.unitsPerDay)) {
-        patch = { ...patch };
-        delete patch.unitsPerDay;
-      }
-      if (Object.keys(patch).length === 0) return;
+      const patch = acceptedAssignmentPatch(updates);
+      if (!patch) return;
       runtime.beginUndoable(s);
-      Object.assign(s.assignments[idx], patch);
-      // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
-      // geïmporteerde 21-punts curve (`curveValues`, P6/MSPDI) — anders zou het histogram de oude
-      // P6-vorm blijven tonen terwijl de dropdown de nieuwe keuze laat zien.
-      if ('curve' in patch) delete s.assignments[idx].curveValues;
+      applyAssignmentPatch(s.assignments[idx], patch);
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
@@ -188,21 +158,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!a) return;
       const task = s.tasks.find(t => t.id === a.taskId);
       if (!task) return;
-      const siblings = s.assignments.filter(x => x.taskId === a.taskId);
-      const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignmentId);
-      if (periods === null && idx < 0) return;
+      const edit = contoursAfterEdit(s, task, a, periods);
+      if (!edit) return;
       runtime.beginUndoable(s);
-      const list = task.timephasedContours ? [...task.timephasedContours] : [];
-      if (periods === null) {
-        list.splice(idx, 1);
-      } else if (idx >= 0) {
-        list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
-      } else {
-        // `resourceUid: null`: geen MS Project-herkomst — dit is een eigen verdeling van de gebruiker
-        // (`TaskTimephasedNotice` leest dat onderscheid).
-        list.push({ resourceUid: null, resourceId: a.resourceId, periods });
-      }
-      task.timephasedContours = list.length > 0 ? list : undefined;
+      task.timephasedContours = edit.contours;
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
@@ -216,27 +175,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!removed) return;
 
       runtime.beginUndoable(s);
-
-      s.assignments = s.assignments.filter(a => a.id !== assignmentId);
-      // task.resourceIds alleen opschonen als er geen andere toewijzing van
-      // dezelfde resource aan dezelfde taak meer bestaat.
-      const stillAssigned = s.assignments.some(
-        a => a.taskId === removed.taskId && a.resourceId === removed.resourceId,
-      );
-      if (!stillAssigned) {
-        const task = s.tasks.find(t => t.id === removed.taskId);
-        const idx = task?.resourceIds.indexOf(removed.resourceId) ?? -1;
-        if (task && idx >= 0) task.resourceIds.splice(idx, 1);
-      }
-      // Z14b (F2-fixronde) — "toewijzingen"-trigger, beide lagen (zie assignResource hierboven).
-      const removedTask = s.tasks.find(t => t.id === removed.taskId);
-      if (removedTask) {
-        const clearedWindow = clearTimephasedWindow(removedTask);
-        const clearedWalks = clearTimephasedDurationWalks(removedTask);
-        lostTimephasedGuidance = clearedWindow || clearedWalks;
-        // B1c-plan3 taak 3 — zie `assignResource` hierboven.
-        clearLevelingGaps(removedTask);
-      }
+      lostTimephasedGuidance = removeAssignment(s, removed);
       runtime.finishMutation(s);
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -263,39 +202,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (alreadyOnTarget) return;
 
       runtime.beginUndoable(s);
-
-      const oldTaskId = assignment.taskId;
-      assignment.taskId = newTaskId;
-
-      // task.resourceIds bijwerken op de OUDE taak (verwijderen als geen andere toewijzing van
-      // dezelfde resource meer resteert — spiegelt unassignResource) en de NIEUWE taak (toevoegen
-      // als nog niet aanwezig — spiegelt assignResource).
-      const stillOnOld = s.assignments.some(
-        a => a.taskId === oldTaskId && a.resourceId === assignment.resourceId
-      );
-      if (!stillOnOld) {
-        const oldTask = s.tasks.find(t => t.id === oldTaskId);
-        const idx = oldTask?.resourceIds.indexOf(assignment.resourceId) ?? -1;
-        if (oldTask && idx >= 0) oldTask.resourceIds.splice(idx, 1);
-      }
-      if (!newTask.resourceIds.includes(assignment.resourceId)) {
-        newTask.resourceIds.push(assignment.resourceId);
-      }
-      // Z14b (F2-fixronde) — "toewijzingen"-trigger raakt BEIDE taken, BEIDE lagen (zie
-      // assignResource hierboven).
-      const oldTaskForWindow = s.tasks.find(t => t.id === oldTaskId);
-      if (oldTaskForWindow) {
-        const clearedOldWindow = clearTimephasedWindow(oldTaskForWindow);
-        const clearedOldWalks = clearTimephasedDurationWalks(oldTaskForWindow);
-        if (clearedOldWindow || clearedOldWalks) lostCount++;
-        // B1c-plan3 taak 3 — zie `assignResource` hierboven.
-        clearLevelingGaps(oldTaskForWindow);
-      }
-      const clearedNewWindow = clearTimephasedWindow(newTask);
-      const clearedNewWalks = clearTimephasedDurationWalks(newTask);
-      if (clearedNewWindow || clearedNewWalks) lostCount++;
-      // B1c-plan3 taak 3 — zie `assignResource` hierboven.
-      clearLevelingGaps(newTask);
+      lostCount = relocateAssignment(s, assignment, newTask).length;
       runtime.finishMutation(s);
       moved = true;
     });
@@ -353,8 +260,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
           // via een ander pad (rechtstreekse mutatie i.p.v. de dedicated actie). Zonder deze
           // aanroep bleef een bevroren Z8-venster staan terwijl de taak-kalender onder 'm wegviel.
           if (clearTimephasedWindow(t)) lostCount++;
-          // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `assignResource` hierboven voor de
-          // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
+          // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `clearLevelingGaps` in taskDefaults.ts
+          // (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
           clearLevelingGaps(t);
         }
       }
@@ -391,7 +298,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
           t.calendarId = undefined;
           // Z14b (F3-fixronde) — zelfde reden als removeCalendar hierboven.
           if (clearTimephasedWindow(t)) lostCount++;
-          // B1c-plan3 taak 3 — zie `assignResource` hierboven.
+          // B1c-plan3 taak 3 — zie removeCalendar hierboven.
           clearLevelingGaps(t);
         }
       }
