@@ -22,6 +22,19 @@ export function parseDate(iso: string): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
+/** Milliseconden per kalenderdag op de UTC-instant-as (de engine kent geen DST, zie `parseInstant`). */
+export const MS_PER_DAY = 86_400_000;
+
+/** UTC-middernacht van de dag waarin `d` valt. Tijdzone-onafhankelijk; een Invalid Date blijft invalid. */
+export function utcDayStart(d: Date): Date {
+  return new Date(utcDayIndex(d.getTime()) * MS_PER_DAY);
+}
+
+/** Dagnummer op de UTC-as (dagen sinds 1970-01-01) van een instant in milliseconden. */
+export function utcDayIndex(ms: number): number {
+  return Math.floor(ms / MS_PER_DAY);
+}
+
 /** Twee cijfers zonder `padStart` — deze helper draait per dag per taak per toewijzing. */
 const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
 

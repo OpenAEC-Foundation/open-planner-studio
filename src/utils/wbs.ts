@@ -140,3 +140,16 @@ export function taskDepths(tasks: readonly Task[]): Map<string, number> {
   }
   return depth;
 }
+
+/**
+ * De voorouders van taak `id` (ouder, grootouder, …), opgezocht via `parentOf`. Veilig tegen een
+ * `parentId`-cyclus uit een corrupt of geïmporteerd bestand: elke taak wordt hooguit één keer
+ * opgeleverd, dus de wandeling eindigt altijd. `id` zelf wordt niet opgeleverd.
+ */
+export function* ancestorIds(id: string, parentOf: (id: string) => string | null | undefined): Generator<string> {
+  const seen = new Set<string>([id]);
+  for (let p = parentOf(id); p && !seen.has(p); p = parentOf(p)) {
+    seen.add(p);
+    yield p;
+  }
+}
