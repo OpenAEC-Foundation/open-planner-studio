@@ -102,6 +102,8 @@ van #167, `claude/recorded-all-formats-fixes`).
 uit `rem_target_link_flag`) vervalt; de UI-branch `claude/x12-ui-a19-perfile` (51f37d33) wordt niet gemerged.
 "smal" — C5 blijft beperkt tot voltooide CP_Phys-taken; naam en gidsregel worden eerlijk ("gemeten op
 CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_Drtn-taken is.
+*Uitvoering:* C5-docs gemerged (`393cf74d`, branch `claude/x12-c5-smal-docs`); A19 in aanbouw op
+`claude/x12-a19-basis` (`opus-midden-a19-basis`, regel A hard: stopt bij één cel slechter).
 
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
