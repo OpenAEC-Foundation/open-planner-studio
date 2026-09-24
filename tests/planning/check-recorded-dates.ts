@@ -478,17 +478,20 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7n a meldt uitsluitend het schedule-paar (geen early-slots)', rtScheduleOnly.recordedFields?.[aIdS], ['scheduleStart', 'scheduleFinish']);
   eq('7o b meldt uitsluitend het schedule-paar', rtScheduleOnly.recordedFields?.[bIdS], ['scheduleStart', 'scheduleFinish']);
 
-  // Door de ECHTE store: detectie moet aanslaan ÉN de vastgelegde start/finish moeten uit de
-  // SCHEDULE-laag komen (er is geen early-laag om op terug te vallen).
+  // De pure laag kent de schedule-laag nog (de #63-laagkeuze, sectie 1)…
+  const pureS = captureRecordedDates(rtScheduleOnly.tasks, rtScheduleOnly.recordedFields);
+  eq('7p pure laag: de schedule-laag levert nog steeds een vastlegging (tegenproef voor 7q)', [pureS.total, pureS.times[bIdS]?.start], [2, '2026-03-16']);
+  // …maar eigenaarsbesluit 2026-09-24 ("beperken", afbakening orkestrator): een VREEMD IFC met
+  // uitsluitend ScheduleStart/ScheduleFinish vergelijkt invoer met invoer ⇒ geen vastlegging, geen
+  // modus, geen aanbod. MUTATIEBEWIJS: `scheduleLayer: true` voor 'ifc' in `recordedDatesSource` ⇒
+  // 7q/7r ROOD.
   S().newProject();
   S().applyLoadedProject(readIFC(EXTERN_SCHEDULE_ONLY), { filePath: null, recompute: true });
-
-  truthy('7p schedule-only: afwijking gedetecteerd', S().recordedDates !== null);
-  eq('7q schedule-only: shifted telt de verschoven taak (b)', S().recordedDates?.shifted, 1);
-  eq('7r schedule-only: total telt alle vastgelegde taken (a + b)', S().recordedDates?.total, 2);
-  const bIdSAfterLoad = S().tasks.find(t => t.wbsCode === '1.2')!.id;
-  eq('7s schedule-only: vastgelegde start van b komt uit de schedule-laag', S().recordedDates?.times[bIdSAfterLoad]?.start, '2026-03-16');
-  eq('7t schedule-only: vastgelegde finish van b komt uit de schedule-laag', S().recordedDates?.times[bIdSAfterLoad]?.finish, '2026-03-20');
+  eq('7q vreemd IFC met alleen ScheduleStart/-Finish: geen vastlegging en geen modus', [S().recordedDates, S().datesAsRecorded], [null, false]);
+  // Tegenproef in dezelfde sectie: het vreemde IFC mét echte early-slots houdt de #63-route.
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('7r')), { filePath: null, recompute: true });
+  eq('7r vreemd IFC mét early-slots: vastlegging en modus (de #63-route blijft)', [S().recordedDates?.total, S().datesAsRecorded], [2, true]);
 }
 
 // ── (7B) Standaard-aan bij het laden — bron-orakel (XER-etappeplan §3.5, taak T4) ─────────────
@@ -540,8 +543,8 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   S().newProject();
   S().applyLoadedProject(asUnknownOrigin, { filePath: null, recompute: true });
   eq('7ad zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', S().datesAsRecorded, false);
-  truthy('7ae …maar het aanbod verschijnt nog gewoon (recordedDates gevuld)', S().recordedDates !== null);
-  eq('7af …met dezelfde teller', S().recordedDates?.shifted, 1);
+  // Eigenaarsbesluit 2026-09-24 ("beperken"): zonder herkomst ook geen aanbod meer.
+  eq('7ae …en er is ook geen aanbod (geen bron met echte rekenuitvoer)', S().recordedDates, null);
 
   // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive' — een
   // heropende IFC met XER-archief (T5) — biedt de modus alleen AAN, net als 'xer-archive' zonder
@@ -570,20 +573,35 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
   eq('7aj2 "xer-archive" + ongewijzigd sinds import ⇒ automatisch AAN (optie B)', S().datesAsRecorded, true);
   eq('7aj3 …en de payload draagt de vlag', S().importPristine, true);
 
-  // Elk ander formaat gedraagt zich als XER (eigenaarsbesluit 2026-09-09): verse import ⇒ aan.
-  for (const origin of ['p6xml', 'mspdi', 'mpp', 'csv', 'ifc'] as const) {
+  // De formaten met echte rekenuitvoer gedragen zich als XER (eigenaarsbesluit 2026-09-09): verse
+  // import ⇒ aan. ('ifc' draagt hier een orakel, dus laag 0 — de laag-2-uitsluiting staat in 7q.)
+  for (const origin of ['p6xml', 'mspdi', 'mpp', 'ifc'] as const) {
     S().newProject();
     S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: origin }, { filePath: null, recompute: true });
     eq(`7aj4 verse import met herkomst "${origin}" ⇒ automatisch AAN`, S().datesAsRecorded, true);
     eq(`7aj5 …en een verse import is per definitie ongewijzigd sinds import (${origin})`, S().importPristine, true);
+    eq(`7aj5b …en de vastlegging onthoudt de bron (${origin})`, S().recordedDates?.sourceFormat, origin);
   }
-  // 'ifc-own' zonder vlag: alleen aanbod (zoals 'xer-archive'); mét vlag: aan.
+  // Eigenaarsbesluit 2026-09-24 ("beperken"): CSV vergelijkt invoer met invoer ⇒ niets.
+  // MUTATIEBEWIJS: 'csv' in `recordedDatesSource` toelaten ⇒ 7aj4c ROOD.
+  S().newProject();
+  S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'csv' }, { filePath: null, recompute: true });
+  eq('7aj4c CSV: geen vastlegging, geen modus, geen aanbod', [S().recordedDates, S().datesAsRecorded], [null, false]);
+  // 'ifc-own' ZONDER bron (orkestratorbesluit 2026-09-24): onze eigen oude solve tegen de nieuwe ⇒
+  // niets, ook met de vlag. MET bron: zonder vlag alleen aanbod, mét vlag aan.
+  // MUTATIEBEWIJS: 'ifc-own' zonder `recordedSourceFormat` toelaten ⇒ 7aj6/7aj6b ROOD.
   S().newProject();
   S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'ifc-own' }, { filePath: null, recompute: true });
-  eq('7aj6 heropend eigen IFC zonder vlag biedt alleen aan', [S().datesAsRecorded, S().recordedDates !== null, S().importPristine], [false, true, false]);
+  eq('7aj6 heropend eigen IFC zonder bron: niets', [S().datesAsRecorded, S().recordedDates], [false, null]);
   S().newProject();
   S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'ifc-own', importPristine: true }, { filePath: null, recompute: true });
-  eq('7aj7 heropend eigen IFC mét vlag ⇒ automatisch AAN', S().datesAsRecorded, true);
+  eq('7aj6b …ook niet met de vlag "ongewijzigd sinds import"', [S().datesAsRecorded, S().recordedDates], [false, null]);
+  S().newProject();
+  S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'ifc-own', recordedSourceFormat: 'mspdi' }, { filePath: null, recompute: true });
+  eq('7aj6c heropend eigen IFC mét bron, zonder vlag: alleen aanbod', [S().datesAsRecorded, S().recordedDates !== null, S().importPristine], [false, true, false]);
+  S().newProject();
+  S().applyLoadedProject({ ...asUnknownOrigin, recordedTimesOrigin: 'ifc-own', recordedSourceFormat: 'mspdi', importPristine: true }, { filePath: null, recompute: true });
+  eq('7aj7 heropend eigen IFC mét bron en vlag ⇒ automatisch AAN', S().datesAsRecorded, true);
 }
 
 // ── (7C) Crashherstel raakt de #63-route NIET ────────────────────────────────────────────────
@@ -611,7 +629,12 @@ const earlyStartOf = (id: string) => S().tasks.find((t) => t.id === id)!.time.ea
  * expliciet nagebootst door de herkomst te wissen — het geval van een importer zonder stempel.
  * De inhoud van de vastlegging is exact dezelfde als bij het echte openen.
  */
-const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), recordedTimesOrigin: undefined });
+// Eigenaarsbesluit 2026-09-24 ("beperken"): een importer zonder herkomst krijgt geen aanbod meer. Het
+// ECHTE productpad naar de aanbodstand is een bewerkt, heropend eigen IFC waarvan de bron bekend is
+// (OPS_ImportProvenance.SourceFormat) — dat simuleren we hier op de gedeelde #63-fixture.
+const offerOnly = (ifcText: string): ImportResult => ({
+  ...readIFC(ifcText), recordedTimesOrigin: 'ifc-own', recordedSourceFormat: 'ifc', importPristine: false,
+});
 
 // ── (8) showRecordedDates — de modus betreden (Taak 5) ────────────────────────
 // Zelfde fixture als (7): één FS-relatie waarvan de opgeslagen datums niet uit de logica volgen
@@ -1380,11 +1403,24 @@ const offerOnly = (ifcText: string): ImportResult => ({ ...readIFC(ifcText), rec
   eq('16q Ctrl+Z na F5: modus weer aan, vlag AAN, wel vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, true]);
   S().redo();
   eq('16r Ctrl+Y: modus weer uit, vlag nog steeds aan, vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [false, true, true]);
-  // "Toon opgeslagen datums" vanuit de AANBOD-stand met de vlag aan. Synthetisch opgezet (een
-  // ImportResult zonder herkomst mét expliciete vlag), omdat een verse import meteen zelf de modus
-  // in gaat; het gaat hier alleen om de stap die `showRecordedDates` als niet-bewerking vastlegt.
-  S().newProject();
-  S().applyLoadedProject({ ...readIFC(externIfc('16s')), recordedTimesOrigin: undefined, importPristine: true }, { filePath: null, recompute: true });
+  // "Toon opgeslagen datums" vanuit de AANBOD-stand met de vlag aan. Het ECHTE pad daarheen
+  // (tweede critreview-ronde, punt 5, nagelopen): een XER-document in de modus → F5 (verlaat de
+  // modus, wist de vastlegging, laat de vlag staan — 16f) → crash → herstel met manifestvlag
+  // `datesAsRecorded: false`. Het herstelde IFC draagt de vlag én het XER-archief (dat de
+  // vastlegging opnieuw levert), en het herstel zet de modus niet aan: aanbod + vlag aan. Hier
+  // nagebootst met de #63-fixture als archiefvastlegging; de herstelroute zelf is de echte.
+  // (Via een eigen IFC zonder archief kan het sinds de SourceFormat-poort niet meer: buiten de
+  // modus wordt geen bron geschreven, dus dan is er bij herstel ook geen aanbod.)
+  {
+    const src = readIFC(externIfc('16s'));
+    const archiefTijden = captureRecordedDates(src.tasks, src.recordedFields).times;
+    const na_f5: ImportResult = {
+      ...src, recordedFields: undefined, recordedTimes: archiefTijden,
+      recordedTimesOrigin: 'xer-archive', importPristine: true,
+    };
+    S().newProject();
+    S().restoreDocuments([recoveryInputFromParsed(na_f5, { id: 'rec-16s', filePath: null, isDirty: false, datesAsRecorded: false })], 'rec-16s');
+  }
   eq('16s0 aanbodstand met vlag aan', [S().datesAsRecorded, S().recordedDates !== null, S().importPristine, S().isDirty], [false, true, true, false]);
   S().showRecordedDates();
   eq('16s "toon opgeslagen datums": modus aan, vlag aan, niet vuil', [S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false]);

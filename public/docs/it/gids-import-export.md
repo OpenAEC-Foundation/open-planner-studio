@@ -108,7 +108,7 @@ riesportare verso MS Project passa per MSPDI XML. Vedi la guida
 [Aprire MS Project (.mpp)](docs://gids-msproject-import) per sapere cosa viene incluso e quali sono i
 limiti.
 
-Ogni file importato porta le date che il programma di origine ha calcolato da sé — per Primavera e MS Project anche le date al più tardi e gli scorrimenti, per CSV ciò che contengono le colonne. Se il ricalcolo di Open Planner Studio se ne discosta, il file si apre nella vista **date come salvate**: vedi prima ciò che diceva il programma di origine, con una notifica, e solo dopo il ricalcolo il nostro risultato. Vedi [Date come salvate](docs://datums-zoals-opgeslagen).
+Un file di Primavera o MS Project porta le date che quel programma ha calcolato da sé, comprese le date al più tardi e gli scorrimenti. Un file CSV contiene solo dati di input e viene semplicemente ricalcolato. Se il ricalcolo di Open Planner Studio se ne discosta, il file si apre nella vista **date come salvate**: vedi prima ciò che diceva il programma di origine, con una notifica, e solo dopo il ricalcolo il nostro risultato. Vedi [Date come salvate](docs://datums-zoals-opgeslagen).
 
 Un file `.xer` è il formato di scambio di Primavera P6. Viene importato direttamente e, dopo la modifica, salvato come IFC; vedi [Aprire Primavera P6 (.xer)](docs://gids-xer-import).
 

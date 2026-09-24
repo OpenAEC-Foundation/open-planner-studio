@@ -8,7 +8,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
-import type { RecordedTime } from '@/engine/scheduler/recordedDates';
+import type { RecordedDatesState, RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
@@ -215,6 +215,8 @@ export interface ImportLabels {
 
 /** Zie `ImportResult.recordedTimesOrigin`. */
 export type RecordedTimesOrigin = 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'mpp' | 'csv' | 'ifc' | 'ifc-own';
+/** Zie `ImportResult.recordedSourceFormat` en `RecordedDatesState.sourceFormat`. */
+export type RecordedSourceFormat = NonNullable<RecordedDatesState['sourceFormat']>;
 
 export interface ImportResult {
   // Kernvelden — door elk formaat geleverd.
@@ -291,7 +293,11 @@ export interface ImportResult {
    *    bewerkt (`importPristine`, hieronder); anders uitsluitend het AANBOD — een intussen
    *    bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend de oude brondatums
    *    tonen.
-   *  - `undefined`: geen herkomst (bv. een extensie-importer) ⇒ alleen aanbod.
+   *  - `undefined`: geen herkomst (bv. een extensie-importer).
+   *  BEPERKT door het eigenaarsbesluit 2026-09-24 ("beperken"): alleen een bron met echte
+   *  rekenuitvoer krijgt de modus, het aanbod of de melding — zie de ene poort
+   *  `recordedDatesSource` (`src/state/documentActivation.ts`). 'csv', `undefined`, een 'ifc' met
+   *  alleen ScheduleStart/-Finish en een 'ifc-own' zonder `recordedSourceFormat` vallen erbuiten.
    *  `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`) is de enige plek die op dit
    *  onderscheid let; `recordedDatesNoticeText.ts` kiest er alleen de WOORDKEUZE op. */
   recordedTimesOrigin?: RecordedTimesOrigin;
@@ -302,6 +308,10 @@ export interface ImportResult {
    *  een gok), en irrelevant voor een verse import (die is per definitie ongewijzigd — zie
    *  `payloadFromImport`). Elke mutator wist de vlag via `markDocumentEdited`. */
   importPristine?: boolean;
+  /** Eigenaarsbesluit 2026-09-24 ("beperken"): de OORSPRONKELIJKE bron van de vastlegging in een
+   *  EIGEN IFC — alleen gevuld door `readIFC` uit `OPS_ImportProvenance.SourceFormat`. Een eigen IFC
+   *  zonder deze uitspraak vergelijkt onze eigen oude solve met de nieuwe en krijgt geen modus. */
+  recordedSourceFormat?: RecordedSourceFormat;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */

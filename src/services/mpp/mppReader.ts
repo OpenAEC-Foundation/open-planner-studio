@@ -156,7 +156,7 @@ import {
 import { readCalendars, promoteCalendarsForHourMode, type CalendarReadResult } from './mppCalendars';
 import { MAX_VAR_TEXT_BYTES, clampRemainingDurationTenths, clampManualDurationTenths, clampLevelingDelayTenths } from './limits';
 import { readRelations, readResources, readAssignments, readAssignmentTimephasedRaw } from './mppEntities';
-import { buildRecordedTime, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
+import { buildRecordedTime, leafRecordedTimes, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import {
   decodeRegularTimephasedWork, decodePlannedRegularTimephasedWork,
   deriveSplitGapsFromPeriods, deriveTaskSplitGaps, shiftPeriods, hasAnyTimephasedData,
@@ -181,12 +181,14 @@ const MAX_CRITICAL_SLACK_LIMIT_DAYS = 36500;
  * Totale speling (tienden van een minuut) zoals MPXJ hem voor een `.mpp` afleidt — MPP14 slaat geen
  * eigen TOTAL_SLACK op. Gestarte taak ⇒ de finish slack (ontbreekt die, dan GEEN speling: de start
  * slack van een gestarte taak zegt niets — MPXJ geeft dan niets). Anders het minimum van beide;
- * ontbreekt er één, dan de andere (ongewijzigd t.o.v. ded4d8c3). `null` = niet vastgelegd.
+ * ontbreekt er één, dan GEEN speling — exact MPXJ `MicrosoftSlackCalculator.calculateTotalSlack`
+ * (`startSlack == null` of `finishSlack == null` ⇒ `null`; critreview PR #167, bevinding 5: de oude
+ * terugval "dan de andere" beweerde een speling die MPXJ niet afleidt). `null` = niet vastgelegd.
  */
 export function mppTotalSlackTenths(started: boolean, startSlack: number | null, finishSlack: number | null): number | null {
   if (started) return finishSlack;
-  if (startSlack !== null && finishSlack !== null) return Math.min(startSlack, finishSlack);
-  return finishSlack ?? startSlack;
+  if (startSlack === null || finishSlack === null) return null;
+  return Math.min(startSlack, finishSlack);
 }
 
 /** De kritiekgrens (dagen) uit de projecteigenschappen; ontbrekend of onzinnig ⇒ 0. */
@@ -2471,6 +2473,10 @@ export function readMPP(bytes: Uint8Array, labels?: ImportLabels): ImportResult 
     // `parsed.sourceScheduleNotes?.total` kan volstaan en geen aparte "0 gevonden"-staat hoeft te
     // onderscheiden.
     ...(scheduleNotes.total > 0 ? { sourceScheduleNotes: scheduleNotes } : {}),
-    ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'mpp' as const } : {}),
+    // Critreview PR #167, bevinding 6: alleen bladtaken — zie `leafRecordedTimes`.
+    ...(() => {
+      const leafTimes = leafRecordedTimes(tasks, recordedTimes);
+      return Object.keys(leafTimes).length > 0 ? { recordedTimes: leafTimes, recordedTimesOrigin: 'mpp' as const } : {};
+    })(),
   };
 }
