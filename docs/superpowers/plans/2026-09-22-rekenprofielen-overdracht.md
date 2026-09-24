@@ -466,8 +466,11 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    sleutels uit het register + ongelezen conventie rood + ongepinde `p6…`-reads rood, fixtures 24–27c;
    VERBETERD ⇒ exit 1 met herpin-advies, gepind in `tests/dev-server/measure-profiles.test.mjs`;
    extensie-`addTask` urentaak krijgt einde via `fromExtTaskAddInput`, checks 33–35; poorten exit 0,
-   measure 76/0/0/0; geen overlap met de parallelle branches); critreview loopt
-   (`opus-laag-critreview-169-midden`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   measure 76/0/0/0; geen overlap met de parallelle branches); critreview (Opus 5.5) = LANDEN-MET-FIXES:
+   regel 6 met één gedeclareerde naam te omzeilen, vier doorglip-routes (alias over bestandsgrens, `Reflect.get`,
+   `Object.entries`, `as any` op hernoemde/`import("…")`-typering) nergens beschreven, "elke conventie gelezen"
+   telt diagnosebestanden mee; geen vals-positieven, 0,78 s, proefmerge conflictvrij — tweede fixronde loopt
+   (dezelfde agent, via SendMessage); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
    #109-branch van 2026-09-06) overnemen als eigen etappe. Verkenningsdossier klaar en gecommit:
    `2026-09-24-verkenning-pr101-taaktypes.md` (Opus 5.5): middelzwaar tot zwaar, 29 conflictbestanden
    waarvan 4 inhoudelijk (`taskSlice`, `resourceSlice`, `gridTransaction`, `createMcpTransactions`);
