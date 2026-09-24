@@ -1238,7 +1238,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Completed physical-progress task sits at the data date",
-      "help": "A completed task with physical percent complete is shown as a single point at the data date, or later if a predecessor requires it, instead of at its actual dates."
+      "help": "A completed task with physical percent complete is shown as a single point at the data date, or later if a predecessor requires it, instead of at its actual dates. Only measured for physical percent complete; for other percent complete types (P6 default: duration) this behaviour has not been measured and stays off."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Elapsed SS lag from an in-progress predecessor does not count",

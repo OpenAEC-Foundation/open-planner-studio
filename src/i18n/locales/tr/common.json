@@ -1238,7 +1238,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Fiziksel ilerlemeli tamamlanan görev durum tarihinde durur",
-      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir."
+      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir. Yalnızca fiziksel ilerleme için ölçülmüştür; diğer ilerleme türleri için (P6 varsayılanı: süre) bu davranış ölçülmemiştir ve kapalı kalır."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Devam eden bir öncülden geçmiş BB gecikmesi sayılmaz",

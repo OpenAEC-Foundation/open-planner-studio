@@ -1273,7 +1273,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Tarea completada con avance físico en la fecha de estado",
-      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales."
+      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales. Solo medido para el avance físico; para otros tipos de avance (predeterminado en P6: duración) este comportamiento no se ha medido y permanece desactivado."
     },
     "p6InProgressStartLagElapsed": {
       "label": "El retraso CC transcurrido de un predecesor en curso no cuenta",
