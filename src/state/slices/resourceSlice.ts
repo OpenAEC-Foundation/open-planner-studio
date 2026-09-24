@@ -7,7 +7,7 @@ import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import {
   clearTimephasedWindow, clearTimephasedDurationWalks, clearLevelingGaps, taskCalendarHoursPerDay,
-  taskWorkMinutesOf,
+  taskWorkMinutesOf, hourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import {
   captureTriangle, commitTrianglePlan, planWorkEdit, settleAssignmentAdded, settleAssignmentRemoved,
@@ -130,7 +130,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const doomed = s.assignments.filter(a => a.resourceId === id);
       const captured = doomed.map(a => {
         const task = s.tasks.find(t => t.id === a.taskId);
-        return task ? { task, assignmentId: a.id, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: workMinutesBefore(s, task) } : null;
+        return task ? { task, assignmentId: a.id, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: workMinutesBefore(s, task), finishBasis: hourInputFinishBasis(task) } : null;
       });
       s.resources = s.resources.filter(r => r.id !== id);
       s.assignments = s.assignments.filter(a => a.resourceId !== id);
@@ -138,7 +138,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       for (const c of captured) {
         if (!c) continue;
         if (settleAssignmentRemoved(c.task, s.assignments, c.triangle, c.assignmentId).durationChanged) {
-          settleDurationAftermath(c.task, s, c.oldWorkMinutes);
+          settleDurationAftermath(c.task, s, c.oldWorkMinutes, c.finishBasis);
           stale = true;
         }
       }
@@ -181,6 +181,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // Taaktypes-etappe (spec §5 rij 4, beslispunt 8-B): momentopname ZONDER de nieuwe toewijzing.
       const triangle = captureTriangle(task, s.assignments, s);
       const oldWorkMinutes = workMinutesBefore(s, task);
+      const finishBasis = hourInputFinishBasis(task); // B1: basis van het ingevoerde einde VÓÓR de driehoek.
       const id = generateId('asgn');
       const added: ResourceAssignment = { id, taskId, resourceId, unitsPerDay, curve };
       s.assignments.push(added);
@@ -190,7 +191,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // Onder FIXED_WORK/FIXED_RATE (zonder MSP-`effortDriven: false`) blijft het restwerk staan en
       // wordt de restduur korter; onder de standaardregel verandert niets (byte-identiek).
       const settled = settleAssignmentAdded(task, s.assignments, triangle, added);
-      if (settled.durationChanged) settleDurationAftermath(task, s, oldWorkMinutes);
+      if (settled.durationChanged) settleDurationAftermath(task, s, oldWorkMinutes, finishBasis);
       // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
       // van de edit-time-invalidatie-triggerset (zie `taskDefaults.ts`'s `clearTimephasedWindow`/
       // `clearTimephasedDurationWalks`): een andere resource kan een andere resourcekalender
@@ -229,7 +230,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       // wordt eerst geschreven, daarna volgen werk en/of restduur de regel van de taak.
       const task = s.tasks.find(t => t.id === s.assignments[idx].taskId);
       const unitsEdit = task && typeof patch.unitsPerDay === 'number' && patch.unitsPerDay !== s.assignments[idx].unitsPerDay
-        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: workMinutesBefore(s, task) }
+        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: workMinutesBefore(s, task), finishBasis: hourInputFinishBasis(task) }
         : null;
       Object.assign(s.assignments[idx], patch);
       // Contour-engine (2026-09): een bewuste curvekeuze van de gebruiker vervangt de exacte
@@ -240,7 +241,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (unitsEdit) {
         const settled = settleUnitsEdit(unitsEdit.task, s.assignments, unitsEdit.triangle, assignmentId, s.assignments[idx].unitsPerDay);
         if (settled.durationChanged) {
-          lostTimephasedGuidance = settleDurationAftermath(unitsEdit.task, s, unitsEdit.oldWorkMinutes);
+          lostTimephasedGuidance = settleDurationAftermath(unitsEdit.task, s, unitsEdit.oldWorkMinutes, unitsEdit.finishBasis);
           stale = true;
         }
       }
@@ -260,13 +261,14 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!task) return;
       if (typeof remainingWorkMinutes !== 'number' || !Number.isFinite(remainingWorkMinutes) || remainingWorkMinutes <= 0) return;
       const oldWorkMinutes = workMinutesBefore(s, task);
+      const finishBasis = hourInputFinishBasis(task); // B1: vóór `commitTrianglePlan`.
       // Eerst plannen (puur), dan pas de snapshot: een weigering laat geen lege undo-stap achter.
       const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
       if (!plan) return;
       runtime.beginUndoable(s);
       const settled = commitTrianglePlan(task, s.assignments, plan);
       s.taskTypesVisible = true; // spec §7: documentontsluiting.
-      if (settled.durationChanged) lostTimephasedGuidance = settleDurationAftermath(task, s, oldWorkMinutes);
+      if (settled.durationChanged) lostTimephasedGuidance = settleDurationAftermath(task, s, oldWorkMinutes, finishBasis);
       runtime.finishMutation(s, { stale: settled.durationChanged });
     });
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
@@ -313,11 +315,12 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const triangleTask = s.tasks.find(t => t.id === removed.taskId);
       const triangle = triangleTask ? captureTriangle(triangleTask, s.assignments, s) : null;
       const oldWorkMinutes = triangleTask ? workMinutesBefore(s, triangleTask) : 0;
+      const finishBasis = triangleTask ? hourInputFinishBasis(triangleTask) : null;
       s.assignments = s.assignments.filter(a => a.id !== assignmentId);
       let stale = false;
       if (triangleTask) {
         const settled = settleAssignmentRemoved(triangleTask, s.assignments, triangle, assignmentId);
-        if (settled.durationChanged) { settleDurationAftermath(triangleTask, s, oldWorkMinutes); stale = true; }
+        if (settled.durationChanged && finishBasis) { settleDurationAftermath(triangleTask, s, oldWorkMinutes, finishBasis); stale = true; }
       }
       // task.resourceIds alleen opschonen als er geen andere toewijzing van
       // dezelfde resource aan dezelfde taak meer bestaat.
@@ -371,16 +374,18 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const oldTaskForTriangle = s.tasks.find(t => t.id === oldTaskId);
       const oldTriangle = oldTaskForTriangle ? captureTriangle(oldTaskForTriangle, s.assignments, s) : null;
       const oldWorkOld = oldTaskForTriangle ? workMinutesBefore(s, oldTaskForTriangle) : 0;
+      const oldFinishBasis = oldTaskForTriangle ? hourInputFinishBasis(oldTaskForTriangle) : null;
       const newTriangle = captureTriangle(newTask, s.assignments, s);
       const oldWorkNew = workMinutesBefore(s, newTask);
+      const newFinishBasis = hourInputFinishBasis(newTask);
       assignment.taskId = newTaskId;
       let stale = false;
-      if (oldTaskForTriangle && settleAssignmentRemoved(oldTaskForTriangle, s.assignments, oldTriangle, assignmentId).durationChanged) {
-        settleDurationAftermath(oldTaskForTriangle, s, oldWorkOld);
+      if (oldTaskForTriangle && oldFinishBasis && settleAssignmentRemoved(oldTaskForTriangle, s.assignments, oldTriangle, assignmentId).durationChanged) {
+        settleDurationAftermath(oldTaskForTriangle, s, oldWorkOld, oldFinishBasis);
         stale = true;
       }
       if (settleAssignmentAdded(newTask, s.assignments, newTriangle, assignment).durationChanged) {
-        settleDurationAftermath(newTask, s, oldWorkNew);
+        settleDurationAftermath(newTask, s, oldWorkNew, newFinishBasis);
         stale = true;
       }
 

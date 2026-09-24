@@ -10,7 +10,7 @@ import {
   contourKeepsWork, rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
-  hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
+  hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish, type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
@@ -114,8 +114,9 @@ function createMcpDraft(
     s: { calendars: WorkCalendar[]; calendar: WorkCalendar; project: Pick<Project, 'defaultWorkRule'>; resources: Resource[] },
     task: Task,
     oldWorkMinutes: number,
+    finishBasis: HourInputFinishBasis,
   ): void => {
-    if (settleDurationAftermath(task, s, oldWorkMinutes)) recordTimephasedLoss(task.id);
+    if (settleDurationAftermath(task, s, oldWorkMinutes, finishBasis)) recordTimephasedLoss(task.id);
   };
 
   const rawDraft = {
@@ -689,13 +690,13 @@ function createMcpDraft(
       // `removeResource`: elke verdwijnende toewijzing is een "resource eraf" voor haar taak.
       const captured = doomed.map((a) => {
         const task = s.tasks.find((t) => t.id === a.taskId);
-        return task ? { task, assignmentId: a.id, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)) } : null;
+        return task ? { task, assignmentId: a.id, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)), finishBasis: hourInputFinishBasis(task) } : null;
       });
       s.resources = s.resources.filter((r) => r.id !== id);
       s.assignments = s.assignments.filter((a) => a.resourceId !== id);
       for (const c of captured) {
         if (c && settleAssignmentRemoved(c.task, s.assignments, c.triangle, c.assignmentId).durationChanged) {
-          afterTriangleDurationChange(s, c.task, c.oldWorkMinutes);
+          afterTriangleDurationChange(s, c.task, c.oldWorkMinutes, c.finishBasis);
         }
       }
       for (const task of s.tasks) {
@@ -731,11 +732,12 @@ function createMcpDraft(
       // Taaktypes-etappe (spec §5 rij 4) — tweeling van resourceSlice.ts's `assignResource`.
       const triangle = captureTriangle(task, s.assignments, s);
       const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const finishBasis = hourInputFinishBasis(task); // B1: basis VÓÓR de driehoek.
       const added: ResourceAssignment = { id, taskId, resourceId, unitsPerDay, curve };
       s.assignments.push(added);
       if (!task.resourceIds.includes(resourceId)) task.resourceIds.push(resourceId);
       if (settleAssignmentAdded(task, s.assignments, triangle, added).durationChanged) {
-        afterTriangleDurationChange(s, task, oldWorkMinutes);
+        afterTriangleDurationChange(s, task, oldWorkMinutes, finishBasis);
       }
       // Z14b (eigenaarsprincipe 2026-08-18, F2-fixronde) — "toewijzingen" is expliciet onderdeel
       // van de triggerset (plan: "duur, datums, kalender, toewijzingen"): een andere resource kan
@@ -771,13 +773,13 @@ function createMcpDraft(
       // Taaktypes-etappe (spec §5 rij 2) — tweeling van resourceSlice.ts's `updateAssignment`.
       const task = s.tasks.find((t) => t.id === s.assignments[idx].taskId);
       const unitsEdit = task && typeof patch.unitsPerDay === 'number' && patch.unitsPerDay !== s.assignments[idx].unitsPerDay
-        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)) }
+        ? { task, triangle: captureTriangle(task, s.assignments, s), oldWorkMinutes: taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar)), finishBasis: hourInputFinishBasis(task) }
         : null;
       Object.assign(s.assignments[idx], patch);
       if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
       if (unitsEdit) {
         const settled = settleUnitsEdit(unitsEdit.task, s.assignments, unitsEdit.triangle, assignmentId, s.assignments[idx].unitsPerDay);
-        if (settled.durationChanged) afterTriangleDurationChange(s, unitsEdit.task, unitsEdit.oldWorkMinutes);
+        if (settled.durationChanged) afterTriangleDurationChange(s, unitsEdit.task, unitsEdit.oldWorkMinutes, unitsEdit.finishBasis);
       }
       s.isDirty = true;
     });
@@ -796,11 +798,12 @@ function createMcpDraft(
       const task = s.tasks.find((t) => t.id === a.taskId);
       if (!task) throw new Error(`draft.setAssignmentWork: toewijzing '${assignmentId}' zonder taak`);
       const oldWorkMinutes = taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
+      const finishBasis = hourInputFinishBasis(task); // B1: vóór `commitTrianglePlan`.
       const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
       if (!plan) {
         throw new Error(`draft.setAssignmentWork: werk ${String(remainingWorkMinutes)} geweigerd (strikt positief vereist; de werkregel geldt niet op mijlpalen, hangmatten, samenvattingen of ELAPSEDTIME-taken)`);
       }
-      if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes);
+      if (commitTrianglePlan(task, s.assignments, plan).durationChanged) afterTriangleDurationChange(s, task, oldWorkMinutes, finishBasis);
       s.taskTypesVisible = true; // review K3
       s.isDirty = true;
     });
@@ -873,14 +876,16 @@ function createMcpDraft(
       const oldTaskForTriangle = s.tasks.find((t) => t.id === oldTaskId);
       const oldTriangle = oldTaskForTriangle ? captureTriangle(oldTaskForTriangle, s.assignments, s) : null;
       const oldWorkOld = oldTaskForTriangle ? taskWorkMinutesOf(oldTaskForTriangle, taskCalendarHoursPerDay(oldTaskForTriangle, s.calendars, s.calendar)) : 0;
+      const oldFinishBasis = oldTaskForTriangle ? hourInputFinishBasis(oldTaskForTriangle) : null;
       const newTriangle = captureTriangle(newTask, s.assignments, s);
       const oldWorkNew = taskWorkMinutesOf(newTask, taskCalendarHoursPerDay(newTask, s.calendars, s.calendar));
+      const newFinishBasis = hourInputFinishBasis(newTask);
       assignment.taskId = newTaskId;
-      if (oldTaskForTriangle && settleAssignmentRemoved(oldTaskForTriangle, s.assignments, oldTriangle, assignmentId).durationChanged) {
-        afterTriangleDurationChange(s, oldTaskForTriangle, oldWorkOld);
+      if (oldTaskForTriangle && oldFinishBasis && settleAssignmentRemoved(oldTaskForTriangle, s.assignments, oldTriangle, assignmentId).durationChanged) {
+        afterTriangleDurationChange(s, oldTaskForTriangle, oldWorkOld, oldFinishBasis);
       }
       if (settleAssignmentAdded(newTask, s.assignments, newTriangle, assignment).durationChanged) {
-        afterTriangleDurationChange(s, newTask, oldWorkNew);
+        afterTriangleDurationChange(s, newTask, oldWorkNew, newFinishBasis);
       }
 
       const stillOnOld = s.assignments.some(
@@ -927,9 +932,10 @@ function createMcpDraft(
       const triangleTask = s.tasks.find((t) => t.id === removed.taskId);
       const triangle = triangleTask ? captureTriangle(triangleTask, s.assignments, s) : null;
       const oldWorkMinutes = triangleTask ? taskWorkMinutesOf(triangleTask, taskCalendarHoursPerDay(triangleTask, s.calendars, s.calendar)) : 0;
+      const finishBasis = triangleTask ? hourInputFinishBasis(triangleTask) : null;
       s.assignments = s.assignments.filter((a) => a.id !== assignmentId);
-      if (triangleTask && settleAssignmentRemoved(triangleTask, s.assignments, triangle, assignmentId).durationChanged) {
-        afterTriangleDurationChange(s, triangleTask, oldWorkMinutes);
+      if (triangleTask && finishBasis && settleAssignmentRemoved(triangleTask, s.assignments, triangle, assignmentId).durationChanged) {
+        afterTriangleDurationChange(s, triangleTask, oldWorkMinutes, finishBasis);
       }
       const stillAssigned = s.assignments.some(
         (a) => a.taskId === removed.taskId && a.resourceId === removed.resourceId,

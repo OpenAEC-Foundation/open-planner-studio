@@ -26,8 +26,9 @@ import { effHoursPerDay } from '@/utils/taskDuration';
 // lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
 // geen conventie. Ze wonen daarom in `utils/taskDefaults.ts`, buiten `src/engine/` (verify:conventions).
 import {
-  clearTimephasedDurationWalks, clearTimephasedWindow, contourKeepsWork, effectiveEffortDriven, rescaleTaskContours,
-  timephasedDurationWalksHaveFrozenWork,
+  clearLevelingGaps, clearTimephasedDurationWalks, clearTimephasedWindow, contourKeepsWork, effectiveEffortDriven,
+  hourInputFinishBasis, reconcileHourInputFinish, rescaleTaskContours, timephasedDurationWalksHaveFrozenWork,
+  type HourInputFinishBasis,
 } from '@/utils/taskDefaults';
 import {
   applyAssignmentAdded, applyAssignmentRemoved, applyDurationEdit, applyRuleChange, applySlotChange,
@@ -276,13 +277,19 @@ export interface CapturedTriangle {
   /** Totale werkminuten van de taak op het moment van de momentopname — de poort van
    *  `settleDurationEdit` (reviewbevinding B1: alleen een DUURwijziging is een duurbewerking). */
   totalMinutes: number;
+  /** De basis van het ingevoerde einde (`hourInputFinishBasis`) op het moment van de momentopname —
+   *  voor `settleDurationAftermath` wanneer de driehoek de duur verandert. */
+  finishBasis: HourInputFinishBasis;
 }
 
 /** Stap 1 als momentopname VÓÓR een mutatie; `null` wanneer de regel niet op deze taak werkt. */
 export function captureTriangle(task: Task, assignments: readonly ResourceAssignment[], deps: WorkRuleDeps): CapturedTriangle | null {
   if (!workRuleApplies(task)) return null;
   const ctx = workRuleContextOf(task, deps);
-  return { state: triangleStateOf(task, assignments, ctx), ctx, totalMinutes: totalMinutesOf(task, ctx) };
+  return {
+    state: triangleStateOf(task, assignments, ctx), ctx, totalMinutes: totalMinutesOf(task, ctx),
+    finishBasis: hourInputFinishBasis(task),
+  };
 }
 
 const NO_CHANGE: TriangleWriteBack = { durationChanged: false, changedAssignmentIds: [] };
@@ -412,25 +419,37 @@ export function settleRuleChange(
 
 /**
  * Nazorg wanneer de werkdriehoek de TAAKduur verandert (inzet/werk/resource erbij-eraf onder
- * FIXED_WORK/FIXED_RATE) — dezelfde als bij een duurbewerking in `taskSlice.updateTask`: contour én
- * importsplits herschalen (werkbehoud volgens de regel), Z8-venster en bevroren duur-walks wissen.
- * Eén definitie voor store, raster en MCP (reviewbevinding K5). Retourneert of er timephased-
- * sturing verloren ging (⇒ de aanroeper meldt). `scheduleStale` en de snapshot blijven aan de
+ * FIXED_WORK/FIXED_RATE, of een kalenderwissel) — dezelfde als bij een duurbewerking in
+ * `taskSlice.updateTask`, in dezelfde volgorde: contour én importsplits herschalen (werkbehoud
+ * volgens de regel), Z8-venster en bevroren duur-walks wissen, dan de nivelleergaten wissen
+ * (`clearLevelingGaps`: een duurwijziging verzet de werkminuten-as waar ze op liggen) en pas
+ * DAARNA het ingevoerde einde van een niet-gestarte urentaak herleiden (`reconcileHourInputFinish`,
+ * B1: de solve schrijft `scheduleFinish` niet meer terug, dus elke invoerbewerking die de duur
+ * verandert moet dat zelf doen — en ná `clearLevelingGaps`, anders telt het einde gewiste gaten mee).
+ *
+ * `finishBasis` is `hourInputFinishBasis(task)` van VÓÓR de bewerking (vóór `applyTriangleResult`
+ * of de kalenderwissel) — met een basis van ná de bewerking ziet de reconcile "geen invoer-
+ * wijziging" en blijft het einde oud. Leg hem vast naast `oldWorkMinutes`, of gebruik
+ * `CapturedTriangle.finishBasis`/`CalendarCapture.finishBasis`.
+ *
+ * Eén definitie voor store, raster en MCP (reviewbevinding K5; baan 2 van de overname van PR #101,
+ * dossier 2026-09-24 §3a). Retourneert of er timephased-sturing verloren ging (⇒ de aanroeper
+ * meldt); het wissen van nivelleergaten telt daar bewust niet in mee (app-eigen afgeleide uitvoer,
+ * geen importverlies — zie `taskSlice.updateTask`). `scheduleStale` en de snapshot blijven aan de
  * aanroeper.
  */
-export function settleDurationAftermath(task: Task, deps: WorkRuleDeps, oldWorkMinutes: number): boolean {
-  // TODO(taaktypes-integratie baan 2 — B1 × werkdriehoek, dossier 2026-09-24 §3a): een duur uit de
-  // driehoek moet hier óók (1) de basis van het ingevoerde einde vastleggen vóór de driehoekstap
-  // (`hourInputFinishBasis`, dus een kleine API-wijziging: vóór `applyTriangleResult`), (2) de
-  // nivelleergaten wissen (`clearLevelingGaps`) en (3) daarna `reconcileHourInputFinish` draaien —
-  // anders houdt een niet-gestarte urentaak onder Vast werk/Vaste inzet na een inzet-/werk-/
-  // resourcebewerking een oud `scheduleFinish`, en blijven nivelleergaten op een verzette as staan
-  // (updateAssignment/setAssignmentWork en het assignment-set-pad van het raster/MCP). Baan 1 laat
-  // dit bewust ongemoeid; het B1c-koppelpunt uit `docs/TODO.md` hoort hier.
+export function settleDurationAftermath(
+  task: Task,
+  deps: WorkRuleDeps,
+  oldWorkMinutes: number,
+  finishBasis: HourInputFinishBasis,
+): boolean {
   const hpd = workRuleContextOf(task, deps).hoursPerDay;
   rescaleTaskContours(task, oldWorkMinutes, hpd, contourKeepsWork(task, deps.project.defaultWorkRule));
   const clearedWindow = clearTimephasedWindow(task);
   const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
+  clearLevelingGaps(task);
+  reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, deps.calendars as WorkCalendar[], deps.calendar));
   return clearedWindow || clearedWalks;
 }
 
@@ -444,10 +463,18 @@ export interface CalendarCapture {
   /** `taskWorkMinutes` in de oude slot — ook voor taken waar de regel niet op werkt (dan blijft de
    *  contour-as met rust; zie `settleCalendarChange`). */
   oldWorkMinutes: number;
+  /** De basis van het ingevoerde einde VÓÓR de wissel (`settleDurationAftermath`). Uurtaken slaat
+   *  `settleCalendarChange` over, dus hier is de reconcile in de praktijk een no-op; de basis staat er
+   *  voor het contract (nooit een basis van ná de bewerking). */
+  finishBasis: HourInputFinishBasis;
 }
 
 export function captureCalendarChange(task: Task, assignments: readonly ResourceAssignment[], deps: WorkRuleDeps): CalendarCapture {
-  return { triangle: captureTriangle(task, assignments, deps), oldWorkMinutes: totalMinutesOf(task, workRuleContextOf(task, deps)) };
+  return {
+    triangle: captureTriangle(task, assignments, deps),
+    oldWorkMinutes: totalMinutesOf(task, workRuleContextOf(task, deps)),
+    finishBasis: hourInputFinishBasis(task),
+  };
 }
 
 export interface CalendarSettle {
@@ -505,7 +532,7 @@ export function settleCalendarChange(
     const written = applyTriangleResult(task, assignments, beforeInNewSlot, result.state, ctx);
     if (written.durationChanged) {
       durationChanged = true;
-      timephasedLost = settleDurationAftermath(task, deps, slotWorkMinutes);
+      timephasedLost = settleDurationAftermath(task, deps, slotWorkMinutes, captured.finishBasis);
     }
   }
   reconcileContourWork(task, assignments, assignments.filter((a) => a.taskId === task.id).map((a) => a.id));

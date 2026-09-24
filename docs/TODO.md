@@ -425,13 +425,12 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       `restoreDocuments` andere laadmeldingen krijgt.
 - [ ] **Werkinvoer ≤ 0 in het paneel weigert stil** (review K6a): rode rand via `aria-invalid`, geen
       melding — zelfde conventie als de inzetinvoer (`isValidUnits`).
-- [ ] **B1c-koppelpunt (`origin/t3code/b1c-etappe3`, gezien 2026-09-05):** die branch wist bij elke
-      as-verzettende bewerking de nivelleergaten (`clearLevelingGaps`, B1c-plan3 taak 3). Een duur die
-      uit de werkdriehoek komt (`afterTriangleDurationChange` in `resourceSlice.ts`/
-      `createMcpTransactions.ts`, en het assignment-set-pad in `gridTransaction.ts` — sinds de
-      reviewronde één plek: `workRuleApply.ts`'s `settleDurationAftermath`) hoort dat ná de merge
-      óók te doen — één regel toe te voegen op de kant die als tweede merget. Geen inhoudelijke overlap
-      verder: B1c raakt inzet noch werk (besluit 7 blijft).
+- [x] **B1c-koppelpunt — gedaan 2026-09-24 (baan 2 van de overname van PR #101).** Een duur uit de
+      werkdriehoek (inzet/werk/resource erbij-eraf onder Vast werk/Vaste inzet — store, raster, MCP)
+      loopt door `workRuleApply.ts`'s `settleDurationAftermath`, en die wist nu ook de nivelleergaten
+      (`clearLevelingGaps`) en herleidt daarna het ingevoerde einde van een niet-gestarte urentaak
+      (`reconcileHourInputFinish`, B1) — met de basis van vóór de bewerking als verplichte parameter.
+      Regressie: `check-hour-input-finish.ts` §17 en `check-work-rule-store.ts` (s).
 
 - [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
       het menu, bewaard `effortDriven` stuurt alleen de twee MSP-afwijkende cellen); 9 = drie optionele

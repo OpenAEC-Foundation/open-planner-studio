@@ -97,6 +97,17 @@ export function createDefaultTaskTime(
 // de taak zelf. Nooit vanuit de solve, en alleen voor een urentaak — een dagtaak blijft byte-identiek
 // (daar volgde het einde ook vóór B1 de solve niet).
 //
+// Paden die het einde WEL herleiden: `taskSlice.updateTask`/`setTaskCalendar`, de MCP-tweelingen
+// `updateTaskFields`/`patchTaskFields`, het taakraster (`taskEditPlan.ts`, ook de gesplitste
+// kalenderroute in `gridTransaction.ts`), en — sinds baan 2 van de overname van PR #101 — elke duur
+// die uit de WERKDRIEHOEK komt: inzet, werk of resource erbij/eraf onder Vast werk/Vaste inzet
+// (`resourceSlice` `updateAssignment`/`setAssignmentWork`/`assignResource`/`unassignResource`/
+// `moveAssignment`/`removeResource`, het assignment-set-pad van het raster, en de MCP-toewijzingen
+// achter `planner_manage_assignments`/`planner_manage_resources`). Die komen allemaal samen in
+// `workRuleApply.ts`'s `settleDurationAftermath`, die de basis van VÓÓR de bewerking als verplichte
+// parameter krijgt en in dezelfde volgorde als `updateTask` eerst `clearLevelingGaps` en dan
+// `reconcileHourInputFinish` draait. Laden (`applyOpenedImport`) loopt daar nooit doorheen.
+//
 // Wat NIET meebeweegt (zie `hourInputFinishFollowsEdits`): een gestarte of voltooide taak (het geplande
 // einde is dan geschiedenis, zoals in P6), een taak met een expliciet P6-targetvenster uit de XER
 // (`p6ExplicitTargetWindow`: dat venster mag planningsruimte bevatten en is bronwaarde), een handmatig

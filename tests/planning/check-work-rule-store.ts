@@ -845,6 +845,49 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   eq('r23 (G4) setProjectCalendar: venster weg én verliesmelding', [task(z3.t).timephasedFinishFloor, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, true]);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist de nivelleergaten (dagtaken, kalenderpad) --');
+{
+  // De urentaak-kant (ingevoerd einde) staat in check-hour-input-finish.ts §17; hier de dagtaak en de
+  // paden die alleen dagtaken raken (kalenderwissel/-inhoud: `settleCalendarChange` slaat uurtaken over).
+  const gap = (id: string) => useAppStore.setState((s) => {
+    s.tasks.find((t) => t.id === id)!.splitGaps = [{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' }, { afterMinutes: 960, gapMinutes: 480 }];
+  });
+  const kinds = (id: string) => (task(id).splitGaps ?? []).map((g) => g.source ?? 'import');
+  const mk = (name: string, rule?: 'FIXED_WORK') => {
+    const t = S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 4) });
+    const r = labor(`r-${name}`);
+    S().assignResource(t, r, 1);
+    S().runCPM();
+    if (rule) S().setTaskWorkRule(t, rule);
+    gap(t);
+    return { t, r };
+  };
+  reset();
+  const a = mk('s-a', 'FIXED_WORK');
+  S().updateAssignment(asgOf(a.t, a.r).id, { unitsPerDay: 2 });
+  eq('s1 dagtaak Vast werk, inzet 1→2: duur 2, nivelleergat weg, importsplit blijft', [task(a.t).time.scheduleDuration, kinds(a.t)], [2, ['import']]);
+  const b = mk('s-b');
+  S().updateAssignment(asgOf(b.t, b.r).id, { unitsPerDay: 2 });
+  eq('s2 standaardregel, inzet 1→2: duur blijft, nivelleergat blijft (byte-identiek)', [task(b.t).time.scheduleDuration, kinds(b.t)], [4, ['leveling', 'import']]);
+  const c = mk('s-c', 'FIXED_WORK');
+  const rc = runInMcpTransaction(() => { draft.setAssignmentWork(asgOf(c.t, c.r).id, 8 * slot()); });
+  eq('s3 MCP setAssignmentWork 4→8 slots: duur 8, nivelleergat weg', [rc.ok, task(c.t).time.scheduleDuration, kinds(c.t)], [true, 8, ['import']]);
+  // Kalenderinhoud (updateCalendar): de werkregel verandert de duur ⇒ zelfde nazorg ⇒ gat weg.
+  const six = S().addCalendar({ ...S().calendar, id: 'cal-6h-s', name: '6 uur', hoursPerDay: 8 } as never);
+  const sixId = typeof six === 'string' ? six : 'cal-6h-s';
+  const d = mk('s-d', 'FIXED_WORK');
+  S().setTaskCalendar(d.t, sixId); // zelfde slot (8 u): geen duurwijziging, maar de wissel zelf wist het gat al
+  gap(d.t);
+  S().updateCalendar(sixId, { hoursPerDay: 4 });
+  eq('s4 updateCalendar 8→4 u onder Vast werk: duur 8, nivelleergat weg (duur uit de regel)', [task(d.t).time.scheduleDuration, kinds(d.t)], [8, ['import']]);
+  const e = mk('s-e');
+  S().setTaskCalendar(e.t, sixId);
+  gap(e.t);
+  S().updateCalendar(sixId, { hoursPerDay: 2 });
+  eq('s5 updateCalendar onder de standaardregel: duur blijft, nivelleergat blijft (geen duur uit de driehoek)', [task(e.t).time.scheduleDuration, kinds(e.t)], [4, ['leveling', 'import']]);
+}
+
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX ${d}`);

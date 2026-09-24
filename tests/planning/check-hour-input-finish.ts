@@ -18,6 +18,12 @@
 // (de extensie-grensterugval vult het einde met de start) ⇒ 2 rood (33, 36); oude volgorde (reconcile vóór `clearLevelingGaps`)
 // ⇒ 4 rood (25–28); elk van de uitzonderingen handmatig gepland / hammock / samenvatting /
 // `p6ExplicitTargetWindow` / gestart weg ⇒ 1 rood (resp. 29, 30, 31, 15, 14).
+// Baan 2 (§17, de werkdriehoek; gemeten 2026-09-24, 63 checks): in `settleDurationAftermath` de reconcile
+// weg, `clearLevelingGaps` weg, beide weg, de volgorde omgedraaid, of de basis van NÁ de bewerking ⇒ elk
+// 45–58 rood (14). Per pad de basis van ná de bewerking ⇒ precies dat pad rood: store updateAssignment 45,
+// setAssignmentWork 46, assignResource 47, unassignResource 48, removeResource 49, moveAssignment (oud of
+// nieuw) 50; raster 51+52; MCP updateAssignment 53, setAssignmentWork 54, assignResource 55,
+// unassignResource 56, removeResource 57, moveAssignment (oud of nieuw) 58.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
@@ -30,7 +36,7 @@ import { createDefaultTaskTime, hourTaskInputFinish } from '@/utils/taskDefaults
 import { createExtensionApi } from '@/extensions/extensionApi';
 import type { ExtTaskTime } from '@/extensions/extTypes';
 import type { WorkCalendar } from '@/types/calendar';
-import type { CellEditIntent } from '@/types/taskGrid';
+import type { AssignmentSetIntent, CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 
 /** Partiële tijd-update (mergeTaskTime vult de rest aan, zoals bij de extensie-API). */
@@ -316,6 +322,127 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   eq('43 raster: kalenderwissel via runGridMutation wist het nivelleergat en herleidt het einde',
     [res.ok, taskOf(c, k6).calendarId === h12, taskOf(c, k6).splitGaps ?? [], sf(c, k6)],
     [true, true, [], '2026-09-07T12:00']);
+}
+
+// 17. Baan 2 van de overname van PR #101 — B1 × de werkdriehoek (dossier 2026-09-24 §3a). Onder Vast
+// werk verandert de duur van een urentaak ook via inzet, werk en resource erbij/eraf; die paden lopen
+// buiten `updateTask` om (resourceSlice, het assignment-set-pad van het raster, de MCP-toewijzingen) en
+// komen samen in `settleDurationAftermath`. Daar moet het ingevoerde einde herleid worden (basis van
+// VÓÓR de bewerking) en het nivelleergat verdwijnen (de duur verzet de werkminuten-as).
+// Opzet: urentaak 8 u vanaf ma 08:00 (einde 17:00), één arbeidsresource à 1, Vast werk (werk 480 min
+// vastgelegd), plus een nivelleergat van 16 u na 2 u. Inzet 1→2 ⇒ 4 u ⇒ einde 12:00.
+{
+  const mk = (c: Ctx, name: string, extra = 0) => {
+    const Sx = c.store.getState;
+    const id = Sx().addTask({ name, time: part({ durationUnit: 'hours', durationMinutes: 480, scheduleDuration: 1 }) });
+    const res = [0, ...Array.from({ length: extra }, (_, i) => i + 1)].map((i) => {
+      const r = Sx().addResource({ name: `${name}-r${i}`, type: 'LABOR', description: '', maxUnits: 4 });
+      Sx().assignResource(id, r, 1);
+      return r;
+    });
+    Sx().setTaskWorkRule(id, 'FIXED_WORK');
+    c.store.setState((s) => { s.tasks.find(k => k.id === id)!.splitGaps = [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }]; });
+    return { id, res, asg: (r: string) => Sx().assignments.find(a => a.taskId === id && a.resourceId === r)! };
+  };
+  const view = (c: Ctx, id: string) => [taskOf(c, id).time.durationMinutes, sf(c, id), taskOf(c, id).splitGaps ?? []];
+  const c = freshContext();
+  const Sx = c.store.getState;
+  const tx = createMcpTransactions(c);
+  const pre = mk(c, 'pre');
+  eq('44 voorwaarde: 8 u vanaf ma 08:00 ⇒ einde 17:00, werk 480 vastgelegd, nivelleergat gezet',
+    [sf(c, pre.id), pre.asg(pre.res[0]).remainingWorkMinutes, (taskOf(c, pre.id).splitGaps ?? []).length], ['2026-09-07T17:00', 480, 1]);
+
+  // Store.
+  const s1 = mk(c, 's1');
+  Sx().updateAssignment(s1.asg(s1.res[0]).id, { unitsPerDay: 2 });
+  eq('45 store updateAssignment inzet 1→2: duur 4 u, einde 12:00, nivelleergat weg', view(c, s1.id), [240, '2026-09-07T12:00', []]);
+  const s2 = mk(c, 's2');
+  Sx().setAssignmentWork(s2.asg(s2.res[0]).id, 240);
+  eq('46 store setAssignmentWork 480→240: duur 4 u, einde 12:00, nivelleergat weg', view(c, s2.id), [240, '2026-09-07T12:00', []]);
+  const s3 = mk(c, 's3');
+  const s3r = Sx().addResource({ name: 's3-extra', type: 'LABOR', description: '', maxUnits: 1 });
+  Sx().assignResource(s3.id, s3r, 1);
+  eq('47 store assignResource tweede resource: duur 4 u, einde 12:00', view(c, s3.id), [240, '2026-09-07T12:00', []]);
+  const s4 = mk(c, 's4', 1);
+  Sx().unassignResource(s4.asg(s4.res[1]).id);
+  eq('48 store unassignResource (2 → 1 resource, werk 960 blijft): duur 16 u, einde di 17:00', view(c, s4.id), [960, '2026-09-08T17:00', []]);
+  const s5 = mk(c, 's5', 1);
+  Sx().removeResource(s5.res[1]);
+  eq('49 store removeResource: duur 16 u, einde di 17:00, nivelleergat weg', view(c, s5.id), [960, '2026-09-08T17:00', []]);
+  const s6a = mk(c, 's6a', 1);
+  const s6b = mk(c, 's6b');
+  Sx().moveAssignment(s6a.asg(s6a.res[1]).id, s6b.id);
+  eq('50 store moveAssignment: oude taak 16 u (einde di 17:00), nieuwe taak 4 u (einde 12:00)',
+    [view(c, s6a.id), view(c, s6b.id)], [[960, '2026-09-08T17:00', []], [240, '2026-09-07T12:00', []]]);
+
+  // Raster (assignment-set-pad van `gridTransaction.ts`).
+  const g1 = mk(c, 'g1');
+  const g1Res = Sx().runGridMutation([{ kind: 'assignment-set', taskId: g1.id, columnId: 'assignment.unitsPerDay' as AssignmentSetIntent['columnId'],
+    tokens: [{ resourceId: g1.res[0], assignmentId: g1.asg(g1.res[0]).id, unitsPerDay: 2 }] }]);
+  eq('51 raster inzet 1→2: duur 4 u, einde 12:00, nivelleergat weg', [g1Res.ok, ...view(c, g1.id)], [true, 240, '2026-09-07T12:00', []]);
+  const g2 = mk(c, 'g2');
+  const g2Res = Sx().runGridMutation([{ kind: 'assignment-set', taskId: g2.id, columnId: 'assignment.remainingWork' as AssignmentSetIntent['columnId'],
+    tokens: [{ resourceId: g2.res[0], assignmentId: g2.asg(g2.res[0]).id, unitsPerDay: 1, remainingWorkMinutes: 240 }] }]);
+  eq('52 raster Resterend werk 480→240: duur 4 u, einde 12:00, nivelleergat weg', [g2Res.ok, ...view(c, g2.id)], [true, 240, '2026-09-07T12:00', []]);
+
+  // MCP-tweeling (`createMcpTransactions.ts`, `planner_manage_assignments`).
+  const m1 = mk(c, 'm1');
+  tx.run(() => { tx.draft.updateAssignment(m1.asg(m1.res[0]).id, { unitsPerDay: 2 }); });
+  eq('53 MCP updateAssignment inzet 1→2: duur 4 u, einde 12:00, nivelleergat weg', view(c, m1.id), [240, '2026-09-07T12:00', []]);
+  const m2 = mk(c, 'm2');
+  tx.run(() => { tx.draft.setAssignmentWork(m2.asg(m2.res[0]).id, 240); });
+  eq('54 MCP setAssignmentWork 480→240: duur 4 u, einde 12:00, nivelleergat weg', view(c, m2.id), [240, '2026-09-07T12:00', []]);
+  const m3 = mk(c, 'm3');
+  const m3r = Sx().addResource({ name: 'm3-extra', type: 'LABOR', description: '', maxUnits: 1 });
+  tx.run(() => { tx.draft.assignResource(m3.id, m3r, 1); });
+  eq('55 MCP assignResource tweede resource: duur 4 u, einde 12:00', view(c, m3.id), [240, '2026-09-07T12:00', []]);
+  const m4 = mk(c, 'm4', 1);
+  tx.run(() => { tx.draft.unassignResource(m4.asg(m4.res[1]).id); });
+  eq('56 MCP unassignResource: duur 16 u, einde di 17:00, nivelleergat weg', view(c, m4.id), [960, '2026-09-08T17:00', []]);
+  const m5 = mk(c, 'm5', 1);
+  tx.run(() => { tx.draft.removeResource(m5.res[1]); });
+  eq('57 MCP removeResource: duur 16 u, einde di 17:00, nivelleergat weg', view(c, m5.id), [960, '2026-09-08T17:00', []]);
+  const m6a = mk(c, 'm6a', 1);
+  const m6b = mk(c, 'm6b');
+  tx.run(() => { tx.draft.moveAssignment(m6a.asg(m6a.res[1]).id, m6b.id); });
+  eq('58 MCP moveAssignment: oude taak 16 u (einde di 17:00), nieuwe taak 4 u (einde 12:00)',
+    [view(c, m6a.id), view(c, m6b.id)], [[960, '2026-09-08T17:00', []], [240, '2026-09-07T12:00', []]]);
+
+  // Wat NIET meebeweegt: een gestarte urentaak houdt haar geplande einde (hourInputFinishFollowsEdits),
+  // en de standaardregel (Vaste duur en inzet) verandert de duur niet, dus ook het einde niet.
+  const st = mk(c, 'st');
+  Sx().updateTask(st.id, { status: 'STARTED', time: part({ actualStart: '2026-09-07T08:00', completion: 0.25 }) });
+  const stFinish = sf(c, st.id);
+  Sx().updateAssignment(st.asg(st.res[0]).id, { unitsPerDay: 2 });
+  eq('59 gestarte urentaak: duur uit de driehoek verandert, het geplande einde blijft staan',
+    [taskOf(c, st.id).time.durationMinutes !== 480, sf(c, st.id)], [true, stFinish]);
+  const dflt = Sx().addTask({ name: 'dflt', time: part({ durationUnit: 'hours', durationMinutes: 480, scheduleDuration: 1 }) });
+  const dr = Sx().addResource({ name: 'dflt-r', type: 'LABOR', description: '', maxUnits: 4 });
+  Sx().assignResource(dflt, dr, 1);
+  Sx().updateAssignment(Sx().assignments.find(a => a.taskId === dflt)!.id, { unitsPerDay: 2 });
+  eq('60 standaardregel: inzet 1→2 laat duur én einde staan (byte-identiek)', [taskOf(c, dflt).time.durationMinutes, sf(c, dflt)], [480, '2026-09-07T17:00']);
+}
+
+// 18. Laden raakt de koppeling niet: `applyOpenedImport` loopt niet door `settleDurationAftermath`,
+// dus een geopend bestand houdt zijn einde uit het bestand — ook een urentaak onder Vast werk waarvan
+// het einde niet bij start + duur past. Bewijs dat de reconcile alleen bij gebruikersbewerkingen draait
+// (en dat `.mpp`-fidelity en `measure:profiles` dus niet kunnen bewegen).
+{
+  const c = freshContext();
+  const Sx = c.store.getState;
+  const id = Sx().addTask({ name: 'Bron', time: part({ durationUnit: 'hours', durationMinutes: 480, scheduleDuration: 1 }) });
+  const r = Sx().addResource({ name: 'bron-r', type: 'LABOR', description: '', maxUnits: 4 });
+  Sx().assignResource(id, r, 1);
+  Sx().setTaskWorkRule(id, 'FIXED_WORK');
+  // Een "bronwaarde"-einde dat niet bij start + duur past (zoals een lezer het uit het bestand zet).
+  c.store.setState((s) => { s.tasks.find(k => k.id === id)!.time.scheduleFinish = '2026-09-09T10:00'; });
+  const ifc = writeIFC(buildWriteIFCInput(Sx()));
+  const imported = readIFC(ifc);
+  const c2 = freshContext();
+  c2.store.getState().applyOpenedImport(imported, { filePath: null, recompute: true });
+  const opened = c2.store.getState().tasks.find(k => k.name === 'Bron')!;
+  eq('61 applyOpenedImport: het einde uit het bestand blijft staan (geen reconcile bij laden)',
+    [opened.workRule, opened.time.scheduleFinish], ['FIXED_WORK', '2026-09-09T10:00']);
 }
 
 // 12. De afleiding zelf: ELAPSEDTIME telt klokminuten, duur 0 geeft de start.

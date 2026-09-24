@@ -370,6 +370,7 @@ function applyAssignmentSet(
   const task = tasksById.get(intent.taskId);
   const triangle = task ? captureTriangle(task, assignmentsForTask, state) : null;
   const oldWorkMinutes = task ? taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, state.calendars, state.calendar)) : 0;
+  // B1: de basis van het ingevoerde einde VÓÓR plan en driehoek (`triangle.finishBasis`, zelfde moment).
   // `applyTaskAssignmentPlan` muteert de draftobjecten in-place; de oude inzet dus vóóraf vastleggen.
   const unitsBefore = new Map(assignmentsForTask.map(a => [a.id, a.unitsPerDay] as const));
   const applied = applyTaskAssignmentPlan(
@@ -414,7 +415,7 @@ function applyAssignmentSet(
     if (durationChanged) {
       // Zelfde nazorg als een duurbewerking (`settleDurationAftermath`: contour, importsplits, Z8-
       // venster én bevroren duur-walks — reviewbevinding K5).
-      const lost = settleDurationAftermath(task, state, oldWorkMinutes);
+      const lost = settleDurationAftermath(task, state, oldWorkMinutes, triangle.finishBasis);
       if (lost && !lostTaskIds.includes(task.id)) lostTaskIds = [...lostTaskIds, task.id];
       if (state.datesAsRecorded) {
         state.datesAsRecorded = false;
