@@ -74,7 +74,8 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 - **Tekst:** altijd via `t(...)`, nooit hardgecodeerd. Tekstgroottes alleen via de zes rollen
   (`text-caption`…`text-title`); `text-xs`/`text-sm` bestaan niet meer en doen stil niets.
 - **Instellingen:** `localStorage` onder `ops-`-sleutels (`@tauri-apps/plugin-store` is ongebruikt); declaratief
-  via `settingsRegistry.ts`; elke instelling op alle drie de plekken via `SettingsPanelContent`.
+  via `settingsRegistry.ts`. Een instelling in `SettingsPanelContent` staat vanzelf op alle drie de plekken
+  (⚙, Instellingen-tab, Backstage); een onthouden weergavekeuze via een lintknop of slepen hoort daar niet.
 - **Auto-save** (crashherstel) is gethrottled op 10 s — bewust throttle, geen debounce.
 - **`immer` staat exact vastgepind op `11.1.4` (geen `^`) — zet de caret niet terug.** Immer zit direct onder
   undo/redo, snapshot-sharing en auto-freeze; vanaf 11.1.8 breekt ook de build (typering van `current`/`original`,
