@@ -8,6 +8,7 @@ import type { Task } from '@/types/task';
 import type { DocumentPayload } from '@/state/documentContract';
 import {
   computeLibraryOccupancy,
+  occupancySolveInputOf,
   type OccupancyDocInput,
   type OccupancyRow,
 } from '@/services/library/occupancy';
@@ -273,15 +274,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         // een andere planning opleveren dan F5 in dat document. Referenties, geen kopieën — de
         // kosten vallen pas bij een daadwerkelijke solve, en die kloont zelf. Voor het actieve
         // document laten we hem bewust weg: daar wordt nooit gesolved (zie hierboven).
-        ...(isActive ? {} : {
-          solveInput: {
-            tasks: payload.tasks,
-            sequences: payload.sequences,
-            dataDate: payload.project.statusDate,
-            progressMode: payload.project.progressMode,
-            schedulingOptions: payload.project.schedulingOptions,
-          },
-        }),
+        ...(isActive ? {} : { solveInput: occupancySolveInputOf(payload) }),
       };
     });
     const result = computeLibraryOccupancy(companyId, pool, inputs);

@@ -11,7 +11,10 @@
 // tests/planning/check-move-assignment.ts): het TERUGSCHRIJFBESLUIT van §4.3b woont in een
 // store-actie (`recalculateStaleSleepingDocuments` in `documentSlice`) en die is alleen zinvol te
 // testen tegen echte payloads in de documentregistry. Cases 1–16 blijven puur.
-import { computeLibraryOccupancy, ephemeralSolve } from '@/services/library/occupancy';
+import { computeLibraryOccupancy, ephemeralSolve, occupancySolveInputOf } from '@/services/library/occupancy';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { OccupancyDocInput, OccupancyEphemeralSolve } from '@/services/library/occupancy';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
@@ -965,6 +968,23 @@ let afterPayload: DocumentPayload | null = null;
   const herrekend = sleeping(slaperId)?.tasks.find(t => t.id === sb)?.time.earlyStart;
   assert(herrekend === start,
     `case 24b: de slapende doorrekening geeft dezelfde B-start als runCPM (kreeg ${herrekend}, verwacht ${start})`);
+
+  // 24c/d: het bezettingsoverzicht bouwt de efemere invoer uit de payload. Die liet
+  // `projectStartDate` weg (alleen statusDate/progressMode/schedulingOptions), waardoor 24a in de
+  // echte weergave nooit gold. De invoer komt nu uit `occupancySolveInputOf`, en de weergave moet
+  // die ook gebruiken.
+  const project = { ...createDefaultProject(), startDate: start };
+  const viaPayload: OccupancyDocInput = {
+    ...doc('ps-doc2', { scheduleStale: true, tasks: [a, b, c] }),
+    solveInput: occupancySolveInputOf({ tasks: [a, b, c], sequences: [lead], project }),
+  };
+  const bViaPayload = ephemeralSolve(viaPayload)?.find(t => t.id === 'ps-b')?.time.earlyStart;
+  assert(bViaPayload === start,
+    `case 24c: invoer uit een payload draagt de projectstart-vloer mee (kreeg ${bViaPayload})`);
+  const viewSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..',
+    'src', 'components', 'panels', 'ResourceOccupancyView.tsx'), 'utf8');
+  assert(viewSrc.includes('solveInput: occupancySolveInputOf(payload)'),
+    'case 24d: ResourceOccupancyView bouwt solveInput via occupancySolveInputOf');
 }
 
 console.log(`occupancy: ${checks - fails}/${checks} groen`);

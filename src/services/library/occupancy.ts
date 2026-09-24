@@ -57,7 +57,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { CompanyPool } from '@/types/library';
 import { computeResourceLoad, maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import {
-  solveProject, cloneTasksForSolve, type ProjectSolveOptions,
+  solveProject, cloneTasksForSolve, cpmOptionsOf, type ProjectSolveOptions,
 } from '@/engine/scheduler/solveProject';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 
@@ -74,7 +74,15 @@ export interface OccupancySolveInput extends ProjectSolveOptions {
   sequences: Sequence[];
   // De geërfde opties (`dataDate`/`progressMode`/`schedulingOptions`/`projectStartDate`) zijn
   // dezelfde die `runCPM` aan de solver geeft, zodat de efemere planning identiek is aan wat F5 in
-  // dat document zou opleveren — vul ze met `cpmOptionsOf(project)`.
+  // dat document zou opleveren — bouw hem dus met `occupancySolveInputOf`.
+}
+
+/** De efemere solve-invoer van een document(payload): de volledige takenlijst en relaties plus
+ *  exact de opties die `runCPM` meegeeft (`cpmOptionsOf`), óók de projectstart-vloer. */
+export function occupancySolveInputOf(
+  doc: { tasks: Task[]; sequences: Sequence[]; project: Parameters<typeof cpmOptionsOf>[0] },
+): OccupancySolveInput {
+  return { tasks: doc.tasks, sequences: doc.sequences, ...cpmOptionsOf(doc.project) };
 }
 
 /** Eén open document, gemapt uit zijn payload-snapshot (weergavelaag levert dit aan, §4.4). */
