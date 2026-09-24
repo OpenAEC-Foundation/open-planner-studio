@@ -334,7 +334,10 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
 1b. **Keten op de B1-merge (uitslag 24-09 07:50):** `measure:profiles` MEASURE_EXIT=0, NULDOEL 104,
    `nieuw=0 verslechterd=0 groter=0 schuld=0`, uitgesloten 41. `verify` gaf EXIT=1, maar uitsluitend de
    18 nuldoel-XX-regels omdat het ketenscript `OPS_XER_CORPUS` óók voor `verify` had geëxporteerd —
-   scriptfout, geen regressie; corpusloze `verify` opnieuw gestart (`/tmp/ops-verify-b1-corpusloos.log`).
+   scriptfout, geen regressie. Corpusloze `verify` daarna EXIT=1 op precies één browsertest: de B1-test
+   in `scheduling-profile.spec.ts` verwachtte nog "3 taken verschoven" (zelfde vraag-7-effect als de
+   planningscheck) — bijgewerkt naar 2 (`fe5683c6`, spec los groen 4/4). Volledige corpusloze `verify` op
+   de kop nog te draaien ná de merges van UI-groepen en C14.
    Les: een ketenscript zet de corpusvariabele alleen om `measure:profiles` heen, nooit om `verify`.
 2. **Eigenaarsvraag 13 = "ja uitsluiten" (24-09 07:50, §1a).** Landing loopt: agent
    `opus-midden-c14-alap-land` op eigen branch `claude/x12-c14-land` (basis kop ≥ 4b619a5d): C14 uit
@@ -344,10 +347,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
    EC1420 zijn onaanvaardbaar onder regel A).
-3. **UI-groepenvoorstel = "Mergen" (24-09 07:50, §1a).** Landing loopt: agent `opus-laag-ui-groepen-land`
-   op eigen branch `claude/x12-ui-groepen-land`: cherry-pick 9e54c952 op de kop, conflicten met B2/B5/B1/
-   fundament oplossen, vangnet voor een conventie zonder thema (C14 landt parallel), browsertests,
-   screenshots 100/125. Daarna critreview en merge door de orkestrator.
+3. **UI-groepenvoorstel = "Mergen" (24-09 07:50, §1a).** Landing klaar: `claude/x12-ui-groepen-land`
+   kop `f5c93385` (Opus 5.5): vijf conflicten inhoudelijk opgelost (register met `theme`-argument, A17/B3/B4
+   weer NONE ⇒ groep "Alleen voor eigen profielen" telt 5), vangnetten voor een conventie zonder thema
+   (verplicht `theme`-argument, check 08b in `check-conventions-registry`, browsertest telt rijen: 26 ⇒ 27
+   bij C14), screenshots 100/125 zonder afgekapte labels. Critreview loopt (`opus-laag-critreview-ui-groepen`);
+   daarna merge door de orkestrator, vóór C14 (C14 krijgt bij zijn merge een thema).
 4. **Bekende gaten zonder eigenaar:** document-tabbalk/projectrail-klik bij een gewijzigde
    Projectinfo-draft is niet bewaakt; `schedOptionsRows` in de blast-radius-pin wordt niet vergeleken;
    DCP-03-As-Built-vangnet alleen corpusloos; `toastPlacement` meet per scroll-event (rAF-gecoalesced).
@@ -362,7 +367,15 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `claude/rekenprofielen`), regel A per cel incl. grootte/schuld/uitsluiting, 6-stappen-herpin in
    dezelfde commit, critreview per landing (skill `hyperkritische-review`), `measure:profiles` vóór en
    ná, `npm run verify` één tegelijk machinebreed.
-8. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
+8. **Eigenaarsopdracht 24-09 07:55 (letterlijk, §1a-vervolg):** "Wanneer dit allemaal klaar is dan hebben
+   we nog flink wat tokens over. Ik wil dat jij dan het contour engine/taaktypes pr overneemt op dezelfde
+   manier als je met de Xer etappe hebt gedaan. Draai trouwens een fable hyper kritische subagent op alles
+   wat nu gemaakt is in etappe. Alle drie de prs." ⇒ (a) Fable-reviewers gestart op #109 en #167
+   (rapporten `2026-09-24-fable-critreview-pr{109,167}.md`); #169 volgt zodra UI-groepen en C14 gemerged
+   zijn; (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   #109-branch van 2026-09-06) overnemen als eigen etappe: verkenning, rebase/merge op de #169-kop,
+   critreviews, gebruikstest, X12/`.mpp`-poorten ongewijzigd (regel A).
+9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
    herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
    Base van #169 pas naar `main` zetten als #109 gemerged is.
 
