@@ -150,8 +150,11 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   let lastResult: CPMResult | null = null;
   for (let i = 0; i < cpmIters; i++) {
     report('cpm', 1, i + 1, cpmIters);
-    // Rekenprofielen C5: dezelfde projectinvoer als F5 (was: lege opties).
-    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], solveOptionsFor(data.project));
+    // Rekenprofielen C5: dezelfde projectinvoer als F5 (was: lege opties). Kalenderregister: de
+    // benchmarkdata kent geen kalenderlijst, alleen `data.calendar`; die geven we als register mee
+    // (net als `applyCpmResult` hieronder) — voor dit ééncalenderproject is dat wat F5 met
+    // `s.calendars` doet (Fable-critreview PR #109).
+    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [data.calendar], solveOptionsFor(data.project));
     const t0 = performance.now();
     lastResult = solver.solve();
     cpmSamples.push(performance.now() - t0);

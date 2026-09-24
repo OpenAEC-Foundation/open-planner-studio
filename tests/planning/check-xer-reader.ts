@@ -674,6 +674,20 @@ eq('27 WBS-sortering is hostonafhankelijk onder sv-SE',
 eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
   sortedWbsUnderLocale('en-US', ['z', 'root', 'umlaut']), expectedWbsOrder);
 
+// Fable-critreview PR #109 bevinding 9: de kale dialecttokens dekken alle vier relatietypen. Dezelfde
+// fixture met `ff`/`SF` in plaats van `PR_FF`/`PR_SF` geeft exact dezelfde relaties en géén
+// relatie-terugval (zonder de fix: beide FS + twee `relation`-fallbacks).
+{
+  const bare = read(fixture.map(line => line
+    .replace('\tP1\tP1\tPR_FF\t', '\tP1\tP1\tff\t')
+    .replace('\tP1\tP1\tPR_SF\t', '\tP1\tP1\tSF\t')));
+  const shape = (r: XerReadResult) => r.sequences.map(seq => [seq.predecessorId, seq.successorId, seq.type]);
+  eq('29 kale FF/SF geven dezelfde relaties als PR_FF/PR_SF', shape(bare), shape(result));
+  eq('30 kale FF/SF vallen niet terug op FS',
+    bare.xer.enumFallbacks.filter(item => item.family === 'relation').length,
+    result.xer.enumFallbacks.filter(item => item.family === 'relation').length);
+}
+
 if (diffs.length > 0) {
   console.error(`XER-reader: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(`XX  ${diff}`);

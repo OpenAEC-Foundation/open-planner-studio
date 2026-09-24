@@ -427,8 +427,12 @@ function relationTypeOf(
     PR_SS: { sequence: 'START_START', source: 'SS' },
     PR_FF: { sequence: 'FINISH_FINISH', source: 'FF' },
     PR_SF: { sequence: 'START_FINISH', source: 'SF' },
+    // Kale dialecttokens (pseudo-XER-exporteurs): alle vier, niet alleen FS/SS (Fable-critreview
+    // PR #109 bevinding 9 — een kaal `FF` viel eerder op de FS-terugval).
     FS: { sequence: 'FINISH_START', source: 'FS' },
     SS: { sequence: 'START_START', source: 'SS' },
+    FF: { sequence: 'FINISH_FINISH', source: 'FF' },
+    SF: { sequence: 'START_FINISH', source: 'SF' },
   };
   const known = mapping[token];
   if (known) return known;

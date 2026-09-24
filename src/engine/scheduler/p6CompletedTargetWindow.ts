@@ -135,6 +135,15 @@ export function explainP6CompletedDataDateWindowResolved(
   const fields = p6CompletedGateFields(task);
   const provenance = provenanceRejection(task, fields);
   if (provenance !== null) return { eligible: false, reason: provenance };
+  // CP_Phys is hier UITSLUITEND een diagnosetak, geen beslisroute (Fable-critreview PR #109
+  // bevinding 5): een `CP_Phys`-taak wordt NOOIT `eligible` — ze eindigt altijd op een afwijzing
+  // (onderaan `wrongCompletePctType`, of eerder `notCompleted`/`wrongActivityType`/…). De
+  // tussenliggende uitzonderingen bestaan alleen zodat de GERAPPORTEERDE reden de eerste echte
+  // blokkade is in plaats van altijd `wrongCompletePctType`; die redenen zijn gepind in
+  // `tests/planning/check-xer-completed-cp-phys-window.ts`. Een CP_Phys-route openen is een
+  // eigenaarsbesluit met eigen meting, geen kwestie van de laatste `return` weghalen. Het
+  // CP_Phys-punt op de statusdatum (conventie C5) is een aparte tak, `explainP6CompletedPhysicalPoint`
+  // hieronder — geen verbreding van dit venster.
   const isPhysicalCompletion = fields.completePctType === 'CP_Phys';
   if (fields.completePctType !== 'CP_Drtn' && !isPhysicalCompletion) {
     return { eligible: false, reason: 'wrongCompletePctType' };
