@@ -29,6 +29,8 @@ import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtree
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
+import type { AppState } from '../appStore';
+import type { StoreRuntime } from '../runtime/storeRuntime';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { buildTaskEditPlanEnvironment } from '../gridTransaction';
@@ -283,6 +285,36 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
  */
 // Compatibele export voor bestaande MCP-aanroepers; de ene implementatie leeft in taskEditPlan.
 export { applyProgressInvariants };
+
+/**
+ * De gedeelde kern van `setActualStart`/`setActualFinish` (fase 2.6), binnen hun producer. `false`
+ * ⇒ geweigerd: actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST),
+ * zonder snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v.
+ * rauwe ISO-strings (het uur-precies-op-de-statusdatum-dag-gat). Een onbekende taak is een stille
+ * no-op (`true`, zoals voorheen).
+ */
+function applyActualDate(
+  runtime: StoreRuntime,
+  s: AppState,
+  taskId: string,
+  field: 'actualStart' | 'actualFinish',
+  date: string | undefined,
+  opts: { coalesceKey?: string } | undefined,
+): boolean {
+  const task = s.tasks.find((t) => t.id === taskId);
+  if (!task) return true;
+  if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
+  runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+  task.time[field] = date || undefined;
+  // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default de
+  // invariant meteen een nieuw actualFinish en is wissen onmogelijk).
+  if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
+  applyProgressInvariants(task, s.project.statusDate);
+  clearLevelingGaps(task); // B7 — zie `setTaskProgress`.
+  // H1 (Opus-review T15-iteratie-2) — elke voortgangsmutatie is datum-beïnvloedend, zie `setTaskProgress`.
+  runtime.finishMutation(s, { stale: true });
+  return true;
+}
 
 export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
   tasks: [],
@@ -1084,45 +1116,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
   setActualStart: (taskId, date, opts) => {
     let accepted = true;
-    set((s) => {
-      const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) return;
-      // Actuals liggen nooit ná de statusdatum: weigeren i.p.v. stil klemmen (§3.2, BESLIST).
-      // Weigering pusht GÉÉN snapshot (return vóór beginUndoable) — ongewijzigd gedrag.
-      //
-      // T16-veeglijst-fix (was: BEKENDE BEPERKING, B4-nasleep, Opus-her-check T15-fixronde) —
-      // `isActualPastStatusDate` vergelijkt nu geparste instanten i.p.v. rauwe ISO-strings, zie die
-      // functie se toelichting voor de volledige analyse (het uur-precies-op-de-statusdatum-dag-gat).
-      if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
-      runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
-      task.time.actualStart = date || undefined;
-      applyProgressInvariants(task, s.project.statusDate);
-      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
-      // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
-      runtime.finishMutation(s, { stale: true });
-    });
+    set((s) => { accepted = applyActualDate(runtime, s, taskId, 'actualStart', date, opts); });
     get().recomputeViewRows();
     return accepted;
   },
 
   setActualFinish: (taskId, date, opts) => {
     let accepted = true;
-    set((s) => {
-      const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) return;
-      // T16-veeglijst-fix — zie `isActualPastStatusDate` se toelichting (zelfde functie als
-      // `setActualStart` hierboven, geen tweede, potentieel afdrijvende implementatie).
-      if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
-      runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
-      task.time.actualFinish = date || undefined;
-      // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
-      // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
-      if (!date && task.time.completion >= 1) task.time.completion = 0;
-      applyProgressInvariants(task, s.project.statusDate);
-      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
-      // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
-      runtime.finishMutation(s, { stale: true });
-    });
+    set((s) => { accepted = applyActualDate(runtime, s, taskId, 'actualFinish', date, opts); });
     get().recomputeViewRows();
     return accepted;
   },
