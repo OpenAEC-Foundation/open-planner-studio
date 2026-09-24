@@ -1,5 +1,6 @@
 import { RefObject, useEffect, useState } from 'react';
 import { BOX_SELECT_THRESHOLD } from './constants';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 // Map-style drag-to-pan (Optie 3 / 'drag' scroll mode). Captures the pointer
 // origin and the scroll offsets at grab time; movement is applied as a delta.
@@ -54,12 +55,7 @@ export function usePan({ setScroll, justBoxSelectedRef }: UsePanOptions) {
       setPanState(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [panState, setScroll, justBoxSelectedRef]);
 
   return { panState, startPan: setPanState, active: !!panState };

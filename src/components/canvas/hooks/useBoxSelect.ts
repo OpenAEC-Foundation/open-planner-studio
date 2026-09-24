@@ -1,6 +1,7 @@
 import { RefObject, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { BOX_SELECT_THRESHOLD } from './constants';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 /** Fase 2.10 golf 4: sleep vanaf lege achtergrond, nog ONDER de drempel — nog geen kader, alleen
  *  bijhouden vanaf waar we moeten meten. Wordt bij overschrijding gepromoveerd tot BoxSelectState;
@@ -57,12 +58,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
 
     const handleMouseUp = () => setBoxSelectCandidate(null);
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [boxSelectCandidate]);
 
   // Box-selection golf 4b: het gepromoveerde kader. Rij-intersectie via de gedeelde hit-test
@@ -120,14 +116,7 @@ export function useBoxSelect({ canvasRef, rendererRef, selectTasks, deselectAll,
       window.addEventListener('click', () => { justBoxSelectedRef.current = false; }, { once: true });
     }
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
   }, [boxSelectState, canvasRef, rendererRef, selectTasks, deselectAll, justBoxSelectedRef]);
 
   return {

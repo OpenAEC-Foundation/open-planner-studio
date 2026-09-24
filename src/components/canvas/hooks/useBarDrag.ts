@@ -15,6 +15,7 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { ROW_DRAG_THRESHOLD } from './constants';
 import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 // Monotone teller: geeft élk sleep-gebaar een UNIEKE coalesce-key (`bardrag:<taskId>:<n>`). Zo vloeit
 // een reeks per-mousemove `updateTask`-commits samen tot ÉÉN undo-stap, terwijl twee opeenvolgende
@@ -429,12 +430,7 @@ export function useBarDrag({ zoom, enableQuarterHourZoom, enableHourPlanning, ca
       setDragState(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [
     dragState,
     zoom,

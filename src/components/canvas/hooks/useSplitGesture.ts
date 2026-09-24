@@ -13,6 +13,7 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { readAccentColor, sizeCanvasToContainer } from './useCanvasLayer';
 import { hourSnapMinutesFor, snapTimelineDate } from './timelineSnap';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 // Monotone teller, exact als `dragSeq` in `useBarDrag`: élk splitsgebaar krijgt een UNIEKE
 // coalesce-key, zodat de reeks per-mousemove-commits één undo-stap is en twee opeenvolgende
@@ -231,14 +232,7 @@ export function useSplitGesture({
       stop();
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown });
   }, [state?.dragging, canvasRef, axis, snapAt, setTaskSplits, undo, stop]);
 
   // Geleidelijn op het gedeelde overlay-canvas — dezelfde laag waarop `useDependencyDraw` zijn

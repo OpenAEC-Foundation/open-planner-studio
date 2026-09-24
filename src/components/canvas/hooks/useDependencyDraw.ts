@@ -1,6 +1,7 @@
 import { RefObject, useEffect, useState } from 'react';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { isTimelineCanvasX, readAccentColor, sizeCanvasToContainer } from './useCanvasLayer';
+import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
 export interface DependencyDragState {
   sourceTaskId: string;
@@ -58,12 +59,7 @@ export function useDependencyDraw({
       setDepDragState(null);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
   }, [depDragState, canvasRef, rendererRef, onRelationDrawn]);
 
   // Draw temporary dependency line on overlay canvas
