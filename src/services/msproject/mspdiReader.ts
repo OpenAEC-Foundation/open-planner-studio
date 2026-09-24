@@ -16,6 +16,8 @@ import type { CustomTaskType } from '@/types/taskType';
 import {
   OPS_DURATION_UNIT_FIELD_ID,
   OPS_DURATION_UNIT_FIELD_NAME,
+  OPS_MILESTONE_KIND_FIELD_ID,
+  OPS_MILESTONE_KIND_FIELD_NAME,
   WORKCONTOUR_TO_CURVE,
 } from './mspdiWriter';
 import {
@@ -72,29 +74,44 @@ function taskDurationType(te: Element): 'WORKTIME' | 'ELAPSEDTIME' {
   return [4, 6, 8, 10, 12].includes(format) ? 'ELAPSEDTIME' : 'WORKTIME';
 }
 
-function hasOpsDurationUnitDefinition(root: Element): boolean {
+/** Draagt de projectkop een OPS-definitie met exact dit FieldID én deze OPS-naam? Alleen dan zijn de
+ *  taakwaarden van dat veld een OPS-marker (duureenheid, soort mijlpaal); een vreemd bestand dat
+ *  hetzelfde Text-veld zelf gebruikt, matcht zo nooit per ongeluk. */
+function hasOpsFieldDefinition(root: Element, fieldId: string, fieldName: string): boolean {
   const containers = root.getElementsByTagName('ExtendedAttributes');
   for (let i = 0; i < containers.length; i++) {
     if (containers[i].parentElement !== root) continue;
     const definitions = containers[i].getElementsByTagName('ExtendedAttribute');
     for (let j = 0; j < definitions.length; j++) {
-      if (getElementText(definitions[j], 'FieldID') === OPS_DURATION_UNIT_FIELD_ID
-        && getElementText(definitions[j], 'FieldName') === OPS_DURATION_UNIT_FIELD_NAME) return true;
+      if (getElementText(definitions[j], 'FieldID') === fieldId
+        && getElementText(definitions[j], 'FieldName') === fieldName) return true;
     }
   }
   return false;
 }
 
-function explicitOpsDurationUnit(te: Element, enabled: boolean): 'days' | 'hours' | undefined {
-  if (!enabled) return undefined;
+/** De eerste geldige waarde (uit `allowed`) van het OPS-taakveld `fieldId` op deze taak (direct-kind
+ *  `<ExtendedAttribute>`), of `undefined`. */
+function opsTaskFieldValue<T extends string>(te: Element, fieldId: string, allowed: readonly T[]): T | undefined {
   const values = te.getElementsByTagName('ExtendedAttribute');
   for (let i = 0; i < values.length; i++) {
     if (values[i].parentElement !== te) continue;
-    if (getElementText(values[i], 'FieldID') !== OPS_DURATION_UNIT_FIELD_ID) continue;
+    if (getElementText(values[i], 'FieldID') !== fieldId) continue;
     const value = getElementText(values[i], 'Value');
-    if (value === 'days' || value === 'hours') return value;
+    if ((allowed as readonly string[]).includes(value)) return value as T;
   }
   return undefined;
+}
+
+function explicitOpsDurationUnit(te: Element, enabled: boolean): 'days' | 'hours' | undefined {
+  return enabled ? opsTaskFieldValue(te, OPS_DURATION_UNIT_FIELD_ID, ['days', 'hours'] as const) : undefined;
+}
+
+/** Soort mijlpaal uit de OPS-marker (zie `OPS_MILESTONE_KIND_FIELD_ID`): START/FINISH, `'AUTO'` voor
+ *  een expliciet automatische mijlpaal, `undefined` als er geen (geldige) marker is — dan beslist de
+ *  bestaande afleiding, precies zoals voor een bestand van MS Project zelf. */
+function explicitOpsMilestoneKind(te: Element, enabled: boolean): MilestoneKind | 'AUTO' | undefined {
+  return enabled ? opsTaskFieldValue(te, OPS_MILESTONE_KIND_FIELD_ID, ['START', 'FINISH', 'AUTO'] as const) : undefined;
 }
 
 /**
@@ -289,7 +306,8 @@ export function readMSPDI(content: string): ImportResult {
   }
 
   const root = doc.documentElement;
-  const opsDurationUnitMarkerEnabled = hasOpsDurationUnitDefinition(root);
+  const opsDurationUnitMarkerEnabled = hasOpsFieldDefinition(root, OPS_DURATION_UNIT_FIELD_ID, OPS_DURATION_UNIT_FIELD_NAME);
+  const opsMilestoneKindMarkerEnabled = hasOpsFieldDefinition(root, OPS_MILESTONE_KIND_FIELD_ID, OPS_MILESTONE_KIND_FIELD_NAME);
 
   // Parse project
   const project = parseProject(root);
@@ -462,10 +480,17 @@ export function readMSPDI(content: string): ImportResult {
     // uur-modus-duur (regel ~360, `0` bij een echte mijlpaal) — zónder de `=== 0`-guard zou een taak
     // met `Milestone=1` én een reële duur alsnog een `milestoneKind` krijgen die haar opvolger via
     // `snapSuccessorEarlyStart` (CPMSolver.ts) verkeerd zou landen, exact de mppReader-bug vóór T15.
+    //
+    // Een door OPS geschreven bestand draagt de soort expliciet (`OPS_MilestoneKind`, import/export-
+    // audit 2026-09, bevinding 7) — die marker wint, ook in dagmodus en ook als hij "AUTO" zegt. Zonder
+    // marker (MS Project zelf, of een oudere OPS-export) blijft de afleiding hieronder ongewijzigd.
     const effCalForMilestone = calById.get(effCalId);
-    const milestoneKind = isMilestone && isHour && durationMinutes === 0 && effCalForMilestone
-      ? deriveMspdiMilestoneKind(effCalForMilestone, parseInstant(finish || start))
-      : undefined;
+    const opsMilestoneKind = isMilestone ? explicitOpsMilestoneKind(te, opsMilestoneKindMarkerEnabled) : undefined;
+    const milestoneKind = opsMilestoneKind !== undefined
+      ? (opsMilestoneKind === 'AUTO' ? undefined : opsMilestoneKind)
+      : isMilestone && isHour && durationMinutes === 0 && effCalForMilestone
+        ? deriveMspdiMilestoneKind(effCalForMilestone, parseInstant(finish || start))
+        : undefined;
     const percentComplete = getElementInt(te, 'PercentComplete');
     const priority = getElementInt(te, 'Priority', 500);
     const description = getElementText(te, 'Notes');
@@ -597,7 +622,15 @@ export function readMSPDI(content: string): ImportResult {
   // Resolve sequences. LagFormat (subset van MSPDI DurationFormat): 19/20 = (elapsed) procent
   // met LinkLag in tienden van een procent; 4/6/8/10/12 = elapsed duren (24/7); rest = werktijd
   // in tienden van minuten (bestaand pad).
+  //
+  // Elapsed MINUTEN/UREN (4 = "emin", 6 = "ehr") zijn een uur-lag: minuut-exact `lagMinutes` +
+  // ELAPSEDTIME, ongeacht de modus van de opvolger (import/export-audit 2026-09, bevinding 4 — de
+  // elapsed-dag-afronding maakte van "12 ehr" 24 uur en van "8 ehr" 0). In een dagproject rekent de
+  // CPM zo'n lag zelf af op hele kalenderdagen (`resolveEffectiveLagDays`, factor 24), dus de
+  // dagplanning is gelijk aan de oude afronding hier; de waarde zelf (en een terugexport) blijft
+  // exact. Elapsed dagen/weken/maanden (8/10/12) blijven hele elapsed dagen, zoals voorheen.
   const ELAPSED_DURATION_FORMATS = new Set([4, 6, 8, 10, 12]);
+  const ELAPSED_SUBDAY_FORMATS = new Set([4, 6]);
   const sequences: Sequence[] = [];
   for (const link of pendingLinks) {
     const predId = uidToId.get(link.predUid);
@@ -612,6 +645,10 @@ export function readMSPDI(content: string): ImportResult {
     if (link.lagFormat === 19 || link.lagFormat === 20) {
       seq.lagPercent = link.lag / 10;
       if (link.lagFormat === 20) seq.lagUnit = 'ELAPSEDTIME';
+    } else if (ELAPSED_SUBDAY_FORMATS.has(link.lagFormat)) {
+      // LinkLag is al in tienden van (klok)minuten.
+      seq.lagMinutes = Math.round(link.lag / 10);
+      seq.lagUnit = 'ELAPSEDTIME';
     } else if (ELAPSED_DURATION_FORMATS.has(link.lagFormat)) {
       seq.lagDays = Math.round(link.lag / 10 / 60 / 24);
       seq.lagUnit = 'ELAPSEDTIME';

@@ -32,7 +32,7 @@
 import { isTauri } from '@/utils/platform';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { isActivePristine } from '@/state/slices/fileSlice';
-import { parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
+import { detectXmlFlavor, parseOpenedFile, readFormatForFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { extensionOf } from '@/utils/filePath';
 import type { ImportResult } from '@/services/importTypes';
@@ -152,16 +152,15 @@ export function checkScope(home: string, input: string): ScopeCheck {
 
 // --- Formaatherkenning ---------------------------------------------------------------------------
 
-/** Leesbaar formaatlabel op basis van de extensie (de XML-variant wordt op inhoud gesnifft).
+/** Leesbaar formaatlabel op basis van de extensie (de XML-variant volgt het root-element via
+ *  `detectXmlFlavor` — dezelfde beslissing als de lezerkeuze in `formatRegistry`, nooit vrije tekst).
  *  `MPP14` (T8): de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
  *  alleen-lezen native lezer, zie `src/services/mpp/`). */
 function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' {
   const ext = extensionOf(path);
   if (ext === 'csv') return 'CSV';
   if (ext === 'mpp') return 'MPP14';
-  if (ext === 'xml') {
-    return content.includes('APIBusinessObjects') || content.includes('Primavera') ? 'P6-XML' : 'MSPDI-XML';
-  }
+  if (ext === 'xml') return detectXmlFlavor(content) === 'p6' ? 'P6-XML' : 'MSPDI-XML';
   return 'IFC';
 }
 

@@ -485,18 +485,23 @@ export function readP6XML(content: string): ImportResult {
     const effCalId = effCalIdOf(calObjId);
     const explicitUnit = explicitUnitByActivityObjectId.get(objId);
     const isHour = explicitUnit ? explicitUnit === 'hours' : hourModeCalIds.has(effCalId);
+    // Datumprecisie volgt de KALENDER, niet de duureenheid — zoals mspdiReader en de IFC-lezer: een
+    // dagtaak op een urenkalender blijft een dagtaak (eenheid uit de OPS-marker), maar haar datums
+    // houden hun echte tijd. Import/export-audit 2026-09, bevinding 8: met `isHour` hier verloor zo'n
+    // taak de tijd van al haar datums, ook de actuals (AF 16:00 werd de dag zonder tijd).
+    const hourDates = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
     const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
-    const plannedStart = isHour ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
-    const plannedFinish = isHour ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+    const plannedStart = hourDates ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
+    const plannedFinish = hourDates ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
 
     // Actuals (fase 2.6, §9.2) — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
     const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
-    const actualStart = actualStartRaw ? (isHour ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
-    const actualFinish = actualFinishRaw ? (isHour ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
+    const actualStart = actualStartRaw ? (hourDates ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
+    const actualFinish = actualFinishRaw ? (hourDates ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
     // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
     // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
@@ -519,7 +524,7 @@ export function readP6XML(content: string): ImportResult {
 
     // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
     // soft (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
-    const parseCstrDate = (raw: string): string => isHour ? parseP6Instant(raw) : parseP6Date(raw);
+    const parseCstrDate = (raw: string): string => hourDates ? parseP6Instant(raw) : parseP6Date(raw);
     let constraint: TaskConstraint | undefined;
     const primCode = getElementText(actEl, 'PrimaryConstraintType');
     if (primCode) {

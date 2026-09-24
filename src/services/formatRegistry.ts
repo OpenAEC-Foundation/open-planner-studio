@@ -31,17 +31,74 @@ export interface ReadFormat {
   read(input: FormatInput, labels?: ImportLabels): Promise<ImportResult>;
 }
 
+/** Het root-element van een XML-document: lokale naam (zonder prefix) en de namespace die voor dat
+ *  prefix (of de default) op het element zelf gedeclareerd is. Leest alleen de proloog (BOM, XML-
+ *  declaratie, commentaar, DOCTYPE) en de start-tag — geen DOM, zodat de MCP-laag (label) en de
+ *  registry (lezerkeuze) hetzelfde goedkope antwoord krijgen. `null` als er geen start-tag is. */
+function xmlRootElement(content: string): { localName: string; namespace: string } | null {
+  let i = content.charCodeAt(0) === 0xfeff ? 1 : 0;
+  for (;;) {
+    while (i < content.length && /\s/.test(content[i])) i++;
+    if (content.startsWith('<?', i)) {
+      const end = content.indexOf('?>', i + 2);
+      if (end < 0) return null;
+      i = end + 2;
+    } else if (content.startsWith('<!--', i)) {
+      const end = content.indexOf('-->', i + 4);
+      if (end < 0) return null;
+      i = end + 3;
+    } else if (content.startsWith('<!', i)) {
+      // <!DOCTYPE …> — eventueel met interne subset `[ … ]`.
+      const bracket = content.indexOf('[', i);
+      const close = content.indexOf('>', i);
+      if (close < 0) return null;
+      const end = bracket >= 0 && bracket < close ? content.indexOf(']>', bracket) : close - 1;
+      if (end < 0) return null;
+      i = end + 2;
+    } else {
+      break;
+    }
+  }
+  // Sticky (`y`) vanaf `i`: geen kopie van een document van vele MB's.
+  const startTag = /<([A-Za-z_][\w.-]*)(?::([A-Za-z_][\w.-]*))?((?:\s+[^\s=>/]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/?>/y;
+  startTag.lastIndex = i;
+  const tag = startTag.exec(content);
+  if (!tag) return null;
+  const prefix = tag[2] ? tag[1] : '';
+  const localName = tag[2] ?? tag[1];
+  const nsAttr = prefix ? `xmlns:${prefix}` : 'xmlns';
+  let namespace = '';
+  for (const m of tag[3].matchAll(/([^\s=]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+    if (m[1] === nsAttr) namespace = m[2] ?? m[3] ?? '';
+  }
+  return { localName, namespace };
+}
+
+/** Welke XML-planning dit is, op basis van het ROOT-ELEMENT en zijn namespace — nooit op vrije
+ *  tekst (import/export-audit 2026-09, bevinding 3: `content.includes('Primavera')` stuurde een
+ *  MS Project-XML met "Primavera" in een project- of taaknaam naar de P6-lezer, die er zonder fout
+ *  een leeg project "P6 Import" van maakte). Primavera P6-XML heeft altijd de root
+ *  `APIBusinessObjects` (namespace `http://xmlns.oracle.com/Primavera/…`); MSPDI heeft de root
+ *  `Project` in de MS Project-namespace (`http://schemas.microsoft.com/project`) — een `Project`
+ *  zonder namespace blijft MSPDI, zoals voorheen. Eén beslissing voor de registry (lezerkeuze) en
+ *  de MCP-import (`formatOf`-label), zodat die twee nooit uit elkaar kunnen lopen. */
+export function detectXmlFlavor(content: string): 'p6' | 'mspdi' | null {
+  const root = xmlRootElement(content);
+  if (!root) return null;
+  if (root.localName === 'APIBusinessObjects' || root.namespace.startsWith('http://xmlns.oracle.com/Primavera')) return 'p6';
+  if (root.localName === 'Project' && (root.namespace === '' || root.namespace.startsWith('http://schemas.microsoft.com/project'))) return 'mspdi';
+  return null;
+}
+
 /** Interne subdispatch voor de xml-entry van `READ_FORMATS`: kies de juiste XML-reader op basis
- *  van inhoudsmarkers (P6 vóór MS Project). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
+ *  van het root-element (`detectXmlFlavor`). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
  *  te parsen. Niet geëxporteerd (T1-restpunt): geen afnemer buiten deze module — de enige
  *  aanroeper is de xml-entry hieronder. */
 function parseProjectXml(content: string): ImportResult {
-  const isP6 = content.includes('APIBusinessObjects') || content.includes('Primavera');
-  const isMsProject =
-    content.includes('schemas.microsoft.com/project') || content.includes('<Project');
-  if (isP6) return readP6XML(content);
-  if (isMsProject) return readMSPDI(content);
-  throw new Error('Onbekend XML-formaat: geen MS Project- of Primavera-markers gevonden');
+  const flavor = detectXmlFlavor(content);
+  if (flavor === 'p6') return readP6XML(content);
+  if (flavor === 'mspdi') return readMSPDI(content);
+  throw new Error('Onbekend XML-formaat: het root-element is geen MS Project- (Project) of Primavera P6-planning (APIBusinessObjects)');
 }
 
 /** Default-formaat bij een onbekende extensie (bestaand gedrag: de else-tak van alle vijf
