@@ -2,9 +2,11 @@ import { validateConstraintPair } from '@/engine/scheduler/constraintValidation'
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
+  applyCompletionEdit,
   applyProgressInvariants,
   assignTaskActivityCode,
   assignTaskCustomField,
+  fillMissingActualStart,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
@@ -35,7 +37,6 @@ import {
   rescaleTaskContours,
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
-import { shownStart } from '@/utils/taskDates';
 import { isFiniteNumber } from '@/utils/guards';
 
 const TASK_TYPES: readonly TaskType[] = [
@@ -344,7 +345,7 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   } else if (status === 'STARTED') {
     if (task.time.completion >= 1) task.time.completion = 0;
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= shownStart(task);
+    fillMissingActualStart(task.time, statusDate);
   } else {
     task.time.completion = 1;
   }
@@ -388,11 +389,9 @@ function applyProgressEdit(
     applyStatus(task, edit.value as TaskStatus, environment.statusDate);
   } else if (id === 'task.time.completion') {
     if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
-    task.time.completion = edit.value;
-    if (edit.value > 0 && !task.time.actualStart) {
-      task.time.actualStart = shownStart(task);
-    }
-    if (edit.value < 1) task.time.actualFinish = undefined;
+    // Zelfde regel als store (`setTaskProgress`) en MCP: een afgeleide werkelijke start valt
+    // nooit ná het werkelijke einde (100% met een statusdatum vóór de geplande start).
+    applyCompletionEdit(task.time, edit.value, environment.statusDate);
     applyProgressInvariants(task, environment.statusDate);
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
@@ -425,11 +424,11 @@ function applyProgressEdit(
     }
     if (remaining) writeRemaining(task, edit.value, environment);
     else task.time.actualDuration = edit.value / (hoursPerDay * 60);
-    task.time.completion = completionFromDuration(task, edit.value, remaining, environment);
-    if (task.time.completion > 0 && !task.time.actualStart) {
-      task.time.actualStart = shownStart(task);
-    }
-    if (task.time.completion < 1) task.time.actualFinish = undefined;
+    applyCompletionEdit(
+      task.time,
+      completionFromDuration(task, edit.value, remaining, environment),
+      environment.statusDate,
+    );
     applyProgressInvariants(task, environment.statusDate);
     if (remaining) writeRemaining(task, edit.value, environment);
   } else {
@@ -609,17 +608,18 @@ function applyProgressEdits(
   if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
   if (desiredCompletion !== undefined) {
     task.time.completion = desiredCompletion;
-    if (desiredCompletion > 0 && !task.time.actualStart) {
-      task.time.actualStart = shownStart(task);
-    }
     if (desiredCompletion < 1 && !actualFinishEdit) task.time.actualFinish = undefined;
+    // Pas ná het vastleggen van het einde: een afgeleide werkelijke start valt nooit ná het
+    // (opgegeven of straks afgeleide) werkelijke einde — zelfde uitkomst als het enkele-celpad.
+    // Een in deze rij opgegeven Actual Start staat er dan al en blijft ongemoeid.
+    if (desiredCompletion > 0) fillMissingActualStart(task.time, environment.statusDate);
   }
   if (desiredStatus === 'NOT_STARTED') {
     task.time.actualStart = undefined;
     task.time.actualFinish = undefined;
   } else if (desiredStatus === 'STARTED') {
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= shownStart(task);
+    fillMissingActualStart(task.time, environment.statusDate);
   }
   applyProgressInvariants(task, environment.statusDate);
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);

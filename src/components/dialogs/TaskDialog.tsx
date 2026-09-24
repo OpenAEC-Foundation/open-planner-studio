@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { applyCompletionEdit } from '@/engine/taskMutationRules';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -306,11 +307,10 @@ export function TaskDialog() {
           <TaskProgressFields
             task={draft}
             onSetProgress={raw => setDraft(d => {
-              const completion = Math.max(0, Math.min(1, raw));
-              const time = { ...d.time, completion };
-              // Spiegelt taskSlice.setTaskProgress (§3.2), maar op de draft — commit pas op Save.
-              if (completion > 0 && !time.actualStart) time.actualStart = time.earlyStart || time.scheduleStart;
-              if (completion < 1) time.actualFinish = undefined;
+              const time = { ...d.time };
+              // Dezelfde regel als taskSlice.setTaskProgress (§3.2), maar op de draft — commit pas op
+              // Save. Een afgeleide werkelijke start valt ook hier nooit ná het werkelijke einde.
+              applyCompletionEdit(time, Math.max(0, Math.min(1, raw)), project.statusDate);
               return { ...d, time };
             })}
             onSetActualStart={date => {
