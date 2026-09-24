@@ -145,7 +145,16 @@ taakkalender):
 
 De critreview mat 110 resp. 119 (andere meetopzet); het beeld is hetzelfde. Wat overblijft is een
 echte afwijking: een relatieve tolerantie van 1 % (dossieradvies) verandert op beide bestanden niets
-(nagemeten, niet ingebouwd). HarbourPointe heeft structureel herschat restwerk; dat hoort op laag 3.
+(nagemeten, niet ingebouwd). **Correctie her-check (Opus 5.5, 24-09):** HarbourPointe heeft géén
+"structureel herschat restwerk". De lezer op het echte bestand geeft 121 toewijzingen met werkveld: 97 bij
+niet-gestarte taken waar `target_qty ≠ duur × target_qty_per_hr` en `remain_qty = target_qty` (bv. EC2370:
+336 u × 0,2679/u = 90 u, `target_qty` 30; EC2240: 1272 u × 0,2358 = 300 u, `target_qty` 100) — geen
+herschatting maar afwijkend begroot werk; 17 bij voltooide taken over budget (bv. EC1090 verricht 495 u
+tegen begroot 480 u); 5 echte herschattingen op lopende taken (bv. 76517: begroot 240, verricht 215,
+restant 20 i.p.v. 25); 2 alleen verricht (laag 4). Laag 3 is er volgens spec §4.4 terecht (P6's
+`target_qty` is de waarheid), maar bij die 97 blijft `unitsPerDay × duur` (90 u) oneens met het opgeslagen
+werk (30 u): het histogram toont 30 u terwijl de inzetkolom iets anders suggereert — vermoedelijk een
+afwijkende resourcekalender, niet uitgezocht. **Eigenaarsvraag E7** (zie §Eigenaarsvragen).
 
 *Terugdraaien als de eigenaar toch "ook bij verricht werk" wil (E3 blijft eigenaarsvraag):* in
 `importedWorkFields` de regel `if (!plannedDeviates && !remainingDeviates) return actualPresent ?
@@ -195,6 +204,12 @@ Daarnaast nog uit te zoeken: de volgorde in `taskEditPlan.ts` (Δ-rest vóór re
 
 ## Eigenaarsvragen, concreter gemaakt
 
+- **E7 (uit de her-check baan 1):** bij 97 niet-gestarte HarbourPointe-toewijzingen wijkt P6's begrote werk
+  (`target_qty`) af van duur × inzet. Het histogram volgt het begrote werk (laag 3), de inzetkolom toont de
+  P6-inzet. Wat moet de gebruiker zien: de inzet uit P6 (en het werk als afgeleide), het werk uit P6 (en de
+  inzet als afgeleide), of beide met een markering "wijkt af"? Advies: beide tonen, werk leidend voor het
+  histogram (zoals nu), en de oorzaak (resourcekalender?) eerst meten vóór een keuze.
+
 - **E1 (gedrag van importen):** ongewijzigd. De browserspec `work-rule` laat het gedrag zien. Nog
   gebruikstest nodig.
 - **E2 (P6-XML-labels):** na de merge staat de labelwissel van #101 op #169
@@ -216,3 +231,73 @@ Daarnaast nog uit te zoeken: de volgorde in `taskEditPlan.ts` (Δ-rest vóór re
   `src/services/`)? Advies: herpinnen met een eigenaarsbesluit, want het is bewerksemantiek en geen
   solverinvoer, en de solver leest nog altijd niets van #101. Tot dat besluit blijft `npm run verify`
   rood op deze ene check.
+
+## Baan 2 — de B1-koppeling (Claude Opus 5.5, `uitvoerder-opus-midden`, 2026-09-24)
+
+Kort: onder Vast werk en Vaste inzet kan de duur van een taak ook veranderen doordat je inzet of werk
+aanpast, of een resource toevoegt of weghaalt. Daarna bleef bij een taak in uren het ingevoerde einde
+op de oude waarde staan, en bleef een nivelleerpauze op een verkeerde plek staan. Dat is nu op één
+plek opgelost. Elk pad (paneel, raster, AI-assistent) heeft een eigen test die rood wordt zonder de fix.
+
+Kop `claude/taaktypes-integratie`: **`6a64de67`** (gepusht; basis `5df3bff7`).
+
+**Oplossing.** `settleDurationAftermath(task, deps, oldWorkMinutes, finishBasis)`: de basis
+(`hourInputFinishBasis` van VÓÓR de bewerking) is een **verplichte** vierde parameter. Een aanroeper
+die hem vergeet, compileert dus niet. Na contour/Z8/walks volgen `clearLevelingGaps` en daarna
+`reconcileHourInputFinish` op de effectieve taakkalender, in dezelfde volgorde als `updateTask`. De
+basis staat daarnaast in `CapturedTriangle.finishBasis` (raster) en `CalendarCapture.finishBasis`.
+De TODO in de code en het B1c-koppelpunt in `docs/TODO.md` zijn afgevinkt.
+
+**Inventaris: alle paden waar de driehoek de duur zet.**
+- Store (`resourceSlice`): `removeResource`, `assignResource`, `updateAssignment`,
+  `setAssignmentWork`, `unassignResource`, `moveAssignment` (oude en nieuwe taak). Dat zijn 7
+  aanroepen; elk legt de basis vast naast `oldWorkMinutes`, vóór de mutatie.
+- MCP (`createMcpTransactions`, via `afterTriangleDurationChange`): dezelfde 7 tweelingen. Een
+  grep op beide bestanden geeft regel voor regel dezelfde structuur. De tools erachter zijn
+  `planner_manage_assignments` en `planner_manage_resources`.
+- Raster (`gridTransaction.applyAssignmentSet`): inzet/resources via `settleAssignmentPlan` en de kolom
+  Resterend werk via `settleWorkEdit`. Beide gebruiken `triangle.finishBasis` van vóór het plan.
+- Kalender (`settleCalendarChange`, zes aanroepers): slaat uurtaken over, dus de reconcile is daar een
+  no-op. **Wel nieuw gedrag:** verandert de werkregel bij een kalender(inhoud)wissel de duur van een
+  dagtaak, dan vervalt nu ook het nivelleergat (check s4). Bij `setTaskCalendar`/`updateTask` gebeurde
+  dat al; bij `updateCalendar`/`setProjectCalendar` is het nieuw. Dit volgt uit "duurwijziging ⇒ gat
+  weg". Bij een kalenderwissel zonder duurwijziging (standaardregel, s5) blijft het gat staan, zoals
+  voorheen.
+- Extensie-API `data.*`: heeft geen schrijfpad voor toewijzingen (alleen `getAssignments`).
+  `updateTask({workRule})` loopt via `settleRuleChange`, die de duur niet verandert. Er valt dus niets
+  te koppelen.
+- `taskSlice.updateTask`/MCP `updateTask*`: een duur via `settleDurationEdit` loopt niet door
+  `settleDurationAftermath`. Die paden hadden de reconcile en `clearLevelingGaps` al.
+
+**Mutatieproef** (`check-hour-input-finish.ts` §17, checks 44–60; 63 checks in totaal):
+- In `settleDurationAftermath` gaat 45–58 rood (14 checks) bij elk van deze ingrepen: koppeling weg,
+  alleen de reconcile weg, alleen `clearLevelingGaps` weg, de volgorde omgedraaid, of de basis van ná
+  de bewerking.
+- Per pad de basis van ná de bewerking ⇒ precies dat pad rood:
+  - store: updateAssignment 45, setAssignmentWork 46, assignResource 47, unassignResource 48,
+    removeResource 49, moveAssignment (oud of nieuw) 50;
+  - raster: 51 en 52;
+  - MCP: updateAssignment 53, setAssignmentWork 54, assignResource 55, unassignResource 56,
+    removeResource 57, moveAssignment (oud of nieuw) 58.
+- 59 (gestarte urentaak houdt haar einde) en 60 (standaardregel byte-identiek) zijn tegenproeven.
+- §18, check 61: `applyOpenedImport` (IFC-rondgang, `recompute: true`) laat een incoherent bron-einde
+  van een Vast-werk-urentaak staan. Laden loopt dus niet door de koppeling.
+- `check-work-rule-store.ts` (s1–s5): zonder `clearLevelingGaps` gaan s1, s3 en s4 rood; s2 en s5
+  zijn de tegenproeven.
+
+**Poorten (exitcode), allemaal 0:**
+- typecheck, lint, verify:conventions, verify:cycles, verify:docs, verify:i18n;
+- `bash tests/planning/run.sh` corpusloos;
+- `npm run test:mcp` (42/0);
+- mét corpus `check-mpp-fidelity`: 216 ongewijzigd / 0 verbeterd / 0 verslechterd, 2196 checks;
+- `flock … npm run measure:profiles`: P6 76 zesassige afwijkingen, cel-delta overal 0, "regel A
+  gehouden". De P6-regel eindigt bewust met exit 1: het nuldoel is by design niet gehaald;
+- browserspecs `work-rule` + `contour-dialog` (4/4).
+
+**Docs.** Het docblok in `taskDefaults.ts` heeft een lijst van paden die het einde WEL herleiden,
+inclusief de werkdriehoek. De gidsen `gids-taaktypes` (nieuw punt onder "Wat u moet weten") en
+`gids-rekenprofielen` ("… of als de werkregel de duur verandert …") zijn bijgewerkt in nl en en.
+
+**Voor de orkestrator.** `removeResource` wist nivelleergaten alleen als de duur verandert. Zonder
+duurwijziging gebeurde dat al niet vóór deze baan (assign/unassign/move wissen ze wél altijd). Dit
+bestond al en valt buiten de opdracht; het is niet aangepast.

@@ -550,8 +550,11 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    herpin, `verify:conventions` 0, cycles 0; E3 volgens spec §4.3c/§4.4: alleen `actualWorkMinutes` zonder
    afwijking, MSPDI-writer `<Work>` uit duur × inzet (bug gevonden), Roads 158 → 35 toewijzingen met ander
    histogram (echte herschattingen), HarbourPointe 119 → 119; gidsverwijzing als detailtekst 14 locales
-   T4-18b/c; rastercheck 43; planningssuite volledig groen, measure 76/0/0/0, `.mpp` 216/0/0). Her-check loopt
-   (`opus-laag-hercheck-pr101-baan1`); baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   T4-18b/c; rastercheck 43; planningssuite volledig groen, measure 76/0/0/0, `.mpp` 216/0/0). Her-check
+   (Opus 5.5) = **GO** (proefmerge conflictvrij; verslag gecorrigeerd: HarbourPointe 119 = 97 afwijkend
+   begroot werk bij niet-gestarte taken + 17 over budget + 5 herschattingen + 2 alleen verricht ⇒ nieuwe
+   eigenaarsvraag E7: inzet uit P6 vs. begroot werk uit P6 bij dezelfde toewijzing; commentaar
+   `importedWorkFields` "restduur" → "duur" via baan 2); baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
    gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
    krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
