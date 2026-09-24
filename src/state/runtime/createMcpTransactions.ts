@@ -27,7 +27,7 @@ import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurv
 import type { Project } from '@/types/project';
 import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { applyProjectPatch } from '../projectPatch';
 import { isThenable } from '@/utils/guards';
 
 export type McpTransactionResult<T> =
@@ -729,9 +729,9 @@ function createMcpDraft(
    * T7-review H1: dit AI-bewerkmoment hoort zich IDENTIEK te gedragen als de UI-variant
    * (`projectSlice.setProject`) — vóór deze fix deed dit alleen `Object.assign`, dus een LATERE
    * `startDate` liet een verouderd wortel-anker via de AI stil vóór het officiële projectbegin
-   * hangen (headless bewezen: geen klem, geen melding). Dezelfde gedeelde `clampProjectStartAnchors`
-   * (`engine/scheduler/projectStartAnchorClamp.ts`) als de UI-kant — één definitie, geen tweede die
-   * kan afdrijven. GEEN eigen `runCPM`/melding hier: de gebonden transactierun herrekent precies
+   * hangen (headless bewezen: geen klem, geen melding). Dezelfde gedeelde `applyProjectPatch`
+   * (`state/projectPatch.ts`) als de UI-kant — één definitie, geen tweede die kan afdrijven. GEEN
+   * eigen `runCPM`/melding hier: de gebonden transactierun herrekent precies
    * één keer aan het eind (stap 5); het AANTAL geklemde ankers gaat terug naar de AANROEPER (i.p.v.
    * naar het UI-meldingenkanaal, dat de MCP-bridge niet gebruikt) zodat `planner_update_project` het
    * in zijn tool-resultaat kan melden.
@@ -739,15 +739,7 @@ function createMcpDraft(
   setProject(updates: Partial<Project>): number {
     let clampedAnchors = 0;
     store.setState((s) => {
-      const prevStartDate = s.project.startDate;
-      Object.assign(s.project, updates);
-      s.project.modifiedAt = new Date().toISOString();
-      if (typeof updates.startDate === 'string') {
-        clampedAnchors = clampProjectStartAnchors({
-          tasks: s.tasks, sequences: s.sequences, calendar: s.calendar, calendars: s.calendars,
-          prevStartDate, nextStartDate: updates.startDate,
-        });
-      }
+      clampedAnchors = applyProjectPatch(s, updates);
       s.isDirty = true;
     });
     return clampedAnchors;
