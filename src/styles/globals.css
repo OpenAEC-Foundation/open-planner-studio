@@ -2310,11 +2310,3 @@ input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
-/* Ongebruikt: niets in src/ zet `.table-cell-cursor` nog. De klasse markeerde de cel met de
-   toetsenbordcursor in de vroegere takentabel (issue #26); het gedeelde taakraster (`GridCell`)
-   markeert zijn actieve cel met `.task-grid-cell[data-grid-active="true"]`, eerder in dit bestand. */
-.table-cell-cursor {
-  text-decoration: underline dotted var(--theme-text-dim);
-  text-underline-offset: 3px;
-}
