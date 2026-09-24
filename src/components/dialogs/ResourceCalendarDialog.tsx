@@ -64,19 +64,15 @@ export function ResourceCalendarDialog({
 
   const handleApply = () => {
     if (simpleBreakInvalid) return;
+    // Een nieuwe kalender gaat zonder id de bibliotheek in; die kent zelf een id toe.
+    const { id: _unused, ...rest } = draft;
+    void _unused;
     if (poolCompanyId) {
-      if (existing) {
-        updatePoolCalendar(poolCompanyId, existing.id, draft);
-      } else {
-        const { id: _unused, ...rest } = draft;
-        void _unused;
-        addPoolCalendar(poolCompanyId, rest);
-      }
+      if (existing) updatePoolCalendar(poolCompanyId, existing.id, draft);
+      else addPoolCalendar(poolCompanyId, rest);
     } else if (existing) {
       updateCalendar(existing.id, draft);
     } else {
-      const { id: _unused, ...rest } = draft;
-      void _unused;
       addCalendar(rest);
     }
     onClose();
