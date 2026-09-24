@@ -34,6 +34,7 @@ import { taskRelations } from '@/engine/taskGrid/relationIndex';
 import {
   createEmptyGridSelection,
   reconcileGridSelection,
+  sameCellAddress,
   syncActiveCellToPublishedTask,
   updateGridSelection,
   type GridCellAddress,
@@ -107,10 +108,6 @@ function useElementSize() {
     return () => observer.disconnect();
   }, []);
   return { ref, size };
-}
-
-function sameCell(left: GridCellAddress | null, right: GridCellAddress | null): boolean {
-  return left?.rowKey === right?.rowKey && left?.columnId === right?.columnId;
 }
 
 /** Breedte die de subtaak-plus (Gantt-takenlijst) in de naamkolom inneemt: 18px knop + 4px gap. */
@@ -478,7 +475,7 @@ export function TaskGridSurface({
     event: Pick<ReactPointerEvent<HTMLDivElement>, 'button' | 'shiftKey' | 'ctrlKey' | 'metaKey'>,
   ) => {
     if (event.button !== 0) return;
-    if (!sameCell(editing?.cell ?? null, cell) && !finishEditing()) return;
+    if (!sameCellAddress(editing?.cell ?? null, cell) && !finishEditing()) return;
     const gesture = event.shiftKey ? 'extend' : event.ctrlKey || event.metaKey ? 'toggle-task' : 'replace';
     const next = updateGridSelection(selection, cell, rowIndex, visibleColumnIds, gesture);
     if (next !== selection) applySelection(next);
@@ -743,7 +740,7 @@ export function TaskGridSurface({
         </span>
       );
     };
-    if (editing?.documentId === activeDocumentId && sameCell(editing.cell, cell)) {
+    if (editing?.documentId === activeDocumentId && sameCellAddress(editing.cell, cell)) {
       const editor = (
           <TaskCellEditor
             key={`${cell.rowKey}\u0000${cell.columnId}`}

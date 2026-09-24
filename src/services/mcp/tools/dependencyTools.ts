@@ -26,7 +26,7 @@
 import type { McpContext, McpToolOk } from '../contracts';
 import type { BatchStepTool } from './batchTool';
 import { guardNonTransactional, McpStepError, runMutateTool, toolError, type MutationOutcome } from './runtime';
-import { enrichOk, freshDates, okDirect, projectEndInfo } from './helpers';
+import { enrichOk, freshDates, okDirect, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import { validate } from '@/state/mcpValidation';
 import { isAncestorRelation } from '@/state/relationRules';
@@ -43,8 +43,6 @@ import {
   unknownTypeReason,
 } from './sequenceFields';
 import type { Sequence, SequenceType } from '@/types/sequence';
-
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
 /** De ENIGE sleutels die een update-item mag dragen. Alles daarbuiten wordt bij naam geweigerd. */
 const ITEM_KEYS = ['seqId', 'type', 'lag', 'predecessorId', 'successorId'];
@@ -411,7 +409,7 @@ const updateDependencies: BatchStepTool = {
     'verschil (`changes`), de herrekende datums van de geraakte taken en het nieuwe projecteinde.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {

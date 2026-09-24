@@ -7,7 +7,7 @@ import type { Task } from '@/types/task';
 import type {
   FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
 } from '@/state/slices/types';
-import { evaluate, resolveField, resourceNames, type FieldValue, type ViewContext } from './filterEval';
+import { asNum, evaluate, resolveField, resourceNames, type FieldValue, type ViewContext } from './filterEval';
 
 export type { ViewContext } from './filterEval';
 
@@ -58,12 +58,6 @@ export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): 
 }
 
 // --- Vergelijken (sort + bandvolgorde) ---
-
-function asNum(v: unknown): number | undefined {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
-  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
-  return undefined;
-}
 
 /** Getallen numeriek, datums/strings lexicografisch, undefined/leeg altijd laatst. */
 function cmpValues(a: FieldValue, b: FieldValue): number {

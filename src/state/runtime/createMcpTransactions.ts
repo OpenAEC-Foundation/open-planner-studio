@@ -19,11 +19,12 @@ import type { DurationType, Task, TimephasedContourPeriod } from '@/types/task';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { isThenable } from '@/utils/guards';
 
 export type McpTransactionResult<T> =
   | { ok: true; value: T; timephasedGuidanceLost: number }
@@ -35,12 +36,6 @@ type Synchronous<T> = T extends PromiseLike<unknown> ? never : T;
 export interface McpTransactions {
   run<T>(fn: () => Synchronous<T>): McpTransactionResult<T>;
   draft: McpDraft;
-}
-
-function isThenable(value: unknown): value is PromiseLike<unknown> {
-  return (typeof value === 'object' && value !== null) || typeof value === 'function'
-    ? typeof (value as { then?: unknown }).then === 'function'
-    : false;
 }
 
 // =================================================================================================
@@ -64,12 +59,6 @@ function isThenable(value: unknown): value is PromiseLike<unknown> {
 // schoon terugrolt ({ ok: false, error }); de tool-laag (T4+) vangt 'm en rapporteert per item.
 // Rijkere validatie (bv. leaf-only-pre-checks) hoort in T4 — deze throws zijn de laatste vangrail.
 // =================================================================================================
-
-/** Geldige capaciteit/eenheden (spiegelt `isValidUnits` in resourceSlice, daar niet geëxporteerd):
- *  strikt positief en eindig. 0/negatief/NaN is nooit een geldige toewijzing. */
-function isValidUnits(n: unknown): n is number {
-  return typeof n === 'number' && Number.isFinite(n) && n > 0;
-}
 
 /**
  * Eén item van een `draft.addTasks`-bulk (spec §Werkpakket 2). Alle velden die `draft.addTask`

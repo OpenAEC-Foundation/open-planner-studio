@@ -41,14 +41,13 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, projectEndInfo } from './helpers';
+import { enrichOk, okDirect, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
-
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+import { isFiniteNumber } from '@/utils/guards';
 
 type Rejection = { id: string; reason: string };
 type StoreState = AppState;
@@ -79,11 +78,7 @@ const ALLOWED_KEYS: Record<string, string[]> = {
   delete: ['action', 'id', 'cascade'],
 };
 
-/** Gereserveerde batch-syntax voor `tempId` (spiegelt `TEMP_ID_PATTERN` in batchTool.ts). */
-const TEMP_ID_PATTERN = /^tmp[-_]/;
-
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
  * Een geparste veldpatch. Een sleutel MET waarde `undefined` betekent WISSEN (de aanroeper gaf
@@ -590,7 +585,7 @@ const manageResources: BatchStepTool = {
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {

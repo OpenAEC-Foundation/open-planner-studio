@@ -1,3 +1,5 @@
+import { isRecord } from '@/utils/guards';
+
 /**
  * Downloadcijfers per besturingssysteem — de leeskant van de stats-pijplijn.
  *
@@ -55,10 +57,6 @@ export interface DownloadStats {
 }
 
 export type ParseResult = { ok: true; value: DownloadStats } | { ok: false; error: string };
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
 function num(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0;

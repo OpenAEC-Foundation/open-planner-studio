@@ -260,9 +260,6 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   };
 }
 
-// Back-compat re-export: bestaande importeurs (BenchmarkDialog) halen `formatBytes` hier vandaan.
-export { formatBytes };
-
 /** Engelse detail-tekst per fase, opgebouwd uit de gestructureerde velden (audit-punt 1) — geen
  *  hardgecodeerde runner-strings meer. De dialoog rendert dezelfde data via `t(...)`; deze functie
  *  is bewust i18n-vrij Engels zodat de export universeel deelbaar is. */
@@ -278,7 +275,8 @@ export function phaseDetailEnglish(phase: PhaseId, r: BenchmarkResult): string {
   }
 }
 
-const fmtMs = (v: number) => (Number.isNaN(v) ? '—' : v.toFixed(2));
+/** ms-weergave: NaN (bv. render niet beschikbaar) toont een streepje i.p.v. "NaN"/"0.00". */
+export const fmtMs = (v: number) => (Number.isNaN(v) ? '—' : v.toFixed(2));
 
 /**
  * Resultaten als Markdown-tekst — handig om aan een AI of een issue te plakken. Bewust i18n-vrij

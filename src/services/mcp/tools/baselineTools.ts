@@ -32,7 +32,7 @@ import type { AppState } from '@/state/appStore';
 import type { Baseline } from '@/types/baseline';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { BatchStepTool } from './batchTool';
-import { okDirect } from './helpers';
+import { okDirect, READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
 import {
   guardNonTransactional,
   McpStepError,
@@ -41,11 +41,6 @@ import {
   toolError,
   type MutationOutcome,
 } from './runtime';
-
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
-
-/** Leestool-annotaties, gelijk aan die van `readTools.ts`. */
-const READ_ANNOT = { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
 /** Standaardverwijzing in elke weigering: waar haalt de agent geldige id's vandaan? */
 const LIST_HINT = "haal geldige id's op met planner_list_baselines";
@@ -133,7 +128,7 @@ const listBaselines: McpToolDef = {
     'dan zegt `hint` welke tool dat verhelpt.',
   kind: 'read',
   batchable: true,
-  annotations: { ...READ_ANNOT },
+  annotations: READ_ANNOTATIONS,
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   handler(args, ctx) {
     const bad = rejectUnknownKeys(args, [], 'planner_list_baselines');
@@ -216,7 +211,7 @@ const activateBaseline: BatchStepTool = {
   kind: 'mutate',
   batchable: true,
   // Idempotent: dezelfde baseline nogmaals activeren levert dezelfde toestand op.
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -310,7 +305,7 @@ const renameBaseline: BatchStepTool = {
     'als `warning` gemeld.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -432,7 +427,7 @@ const deleteBaseline: BatchStepTool = {
     'van planner_compare_baseline en planner_analyze_delay.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {

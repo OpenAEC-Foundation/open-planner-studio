@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { basename } from '@/utils/filePath';
 import {
   documentTitle, documentColor, documentCode, buildStats, buildThumbnail,
   untitledOrdinals, displayDocumentTitle,
@@ -40,7 +41,7 @@ export function useDocumentCards(): DocumentCard[] {
 
   return useMemo(() => {
     const untitled = t('project.untitled');
-    const fileBase = (p: string | null) => (p ? p.split(/[\\/]/).pop() || p : null);
+    const fileBase = (p: string | null) => (p ? basename(p) : null);
 
     // Rauwe titels eerst, zodat naamloze documenten onderling een volgnummer kunnen krijgen: twee
     // lege tabbladen (bv. na dupliceren van een naamloos project) heetten anders allebei

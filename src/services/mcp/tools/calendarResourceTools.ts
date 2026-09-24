@@ -25,7 +25,7 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, projectEndInfo } from './helpers';
+import { enrichOk, okDirect, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
@@ -40,8 +40,7 @@ import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@
 import type { ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
-
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+import { isFiniteNumber } from '@/utils/guards';
 
 /**
  * Toegestane verdeelcurves + de bijbehorende typewachter — exact het `isSeqType`-patroon uit T19
@@ -142,8 +141,6 @@ const CAL_READONLY_KEYS: string[] = ['isProjectDefault', 'usedByTasks', 'usedByR
 const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 // ── H5 — DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ──────────────────────────────────────────────────
 //
@@ -835,7 +832,7 @@ const updateCalendar: BatchStepTool = {
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1190,7 +1187,7 @@ const manageAssignments: BatchStepTool = {
     '`itemRejections`; de geldige items blijven gewoon staan.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1399,7 +1396,7 @@ const levelResources: BatchStepTool = {
     'De nivellering reset zichzelf eerst volledig, dus opnieuw draaien stapelt niet.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1483,7 +1480,7 @@ const clearLeveling: BatchStepTool = {
   // GEEN destructiveHint: spec r65 zet die annotatie op een GESLOTEN lijst (delete_tasks,
   // remove_dependencies, import_schedule, update_calendar). Nivellerings-vertragingen zijn afgeleide,
   // herberekenbare waarden — ze wissen vernietigt geen ingevoerde data.
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: { type: 'object', properties: {} },
   batchStep(_args, ctx) {
     return clearLevelingCore(ctx);
@@ -1683,7 +1680,7 @@ const updateProject: BatchStepTool = {
     'berekende datums bij de eerstvolgende herberekening verschuiven.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1835,7 +1832,7 @@ const moveProject: BatchStepTool = {
     '(een baseline bestaat om afwijking te meten); met `shiftBaselines: true` schuiven ze mee.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -1915,7 +1912,7 @@ const saveBaseline: McpToolDef = {
     'bewuste nulmeting te zijn. Zonder `name` krijgt de baseline een oplopende standaardnaam.',
   kind: 'mutate',
   batchable: false,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: { name: { type: 'string', description: 'Naam van de baseline; weglaten = "Baseline N".' } },

@@ -126,7 +126,7 @@ function strOf(v: FieldValue): string {
 }
 
 /** Numerieke waarde als beide zijden als getal te lezen zijn, anders undefined. */
-function asNum(v: unknown): number | undefined {
+export function asNum(v: unknown): number | undefined {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
   if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
   return undefined;

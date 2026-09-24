@@ -1,4 +1,4 @@
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { TimephasedContourPeriod } from '@/types/task';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
@@ -50,12 +50,6 @@ export interface ResourceSlice {
    *  projectkalender. Eén undo-snapshot voor de hele dialoogsessie. */
   commitCalendarLibrary: (calendars: WorkCalendar[], projectCalendarId: string) => void;
 }
-
-/** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
- *  nooit zinvol (een resource die 0 eenheden kan leveren, of een toewijzing van 0/dag). Fracties
- *  blijven toegestaan (materiaal-max.eenheden, halve-dag-toewijzingen). */
-const isValidUnits = (n: unknown): n is number =>
-  typeof n === 'number' && Number.isFinite(n) && n > 0;
 
 export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => (set, get) => ({
   resources: [],

@@ -12,6 +12,7 @@
  */
 import type { Draw2D } from './draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
+import { ellipsize } from '@/engine/renderer/textFit';
 
 export type PdfTableAlign = 'left' | 'right' | 'center';
 
@@ -97,25 +98,6 @@ const SECTION_HEADING_HEIGHT = 30;
 const SECTION_GAP = 14;
 const SUMMARY_COLUMN_WIDTH = 260;
 
-/**
- * Kort `text` in met een ellipsis zodat het binnen `maxWidth` past (zelfde binaire-zoek-strategie
- * als `fitText` in `printPreview.ts`, hier lokaal gehouden om deze module zelfstandig te houden).
- */
-function fitText(d2d: Draw2D, text: string, maxWidth: number): string {
-  if (maxWidth <= 0) return '';
-  if (d2d.measureText(text).width <= maxWidth) return text;
-  const ellipsis = '…';
-  let lo = 0;
-  let hi = text.length;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (d2d.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
-    else hi = mid - 1;
-  }
-  if (lo === 0) return d2d.measureText(ellipsis).width <= maxWidth ? ellipsis : '';
-  return text.slice(0, lo) + ellipsis;
-}
-
 /** Meet tekst op een letter (CSS-fontstring) — het paneel levert dit vanuit een canvas. */
 export type MeasureText = (text: string, font: string) => number;
 
@@ -180,7 +162,7 @@ function drawTable<Row>(
   for (const col of columns) {
     d2d.textAlign = col.align;
     const avail = col.width - 2 * CELL_PAD_X;
-    d2d.fillText(fitText(d2d, col.header, avail), cellX(col.align, x, col.width), headerMidY);
+    d2d.fillText(ellipsize(d2d, col.header, avail), cellX(col.align, x, col.width), headerMidY);
     x += col.width;
   }
   d2d.strokeStyle = COLORS.headerBorder;
@@ -213,7 +195,7 @@ function drawTable<Row>(
         d2d.textBaseline = 'middle';
         const indent = col.align === 'left' ? Math.max(0, col.indent?.(row) ?? 0) : 0;
         const avail = col.width - 2 * CELL_PAD_X - indent;
-        d2d.fillText(fitText(d2d, col.text(row), avail), cellX(col.align, cx, col.width) + indent, midY);
+        d2d.fillText(ellipsize(d2d, col.text(row), avail), cellX(col.align, cx, col.width) + indent, midY);
         cx += col.width;
       }
       d2d.strokeStyle = COLORS.rowBorder;
@@ -318,14 +300,14 @@ export function makeSectionedRenderReport(
       d2d.fillStyle = COLORS.textMuted;
       d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
       d2d.textBaseline = 'middle';
-      d2d.fillText(fitText(d2d, spec.subtitle, width), 0, y + SUBTITLE_HEIGHT / 2);
+      d2d.fillText(ellipsize(d2d, spec.subtitle, width), 0, y + SUBTITLE_HEIGHT / 2);
       y += SUBTITLE_HEIGHT;
     }
     for (const note of notes) {
       d2d.fillStyle = COLORS.note;
       d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
       d2d.textBaseline = 'middle';
-      d2d.fillText(fitText(d2d, note, width), 0, y + SUBTITLE_HEIGHT / 2);
+      d2d.fillText(ellipsize(d2d, note, width), 0, y + SUBTITLE_HEIGHT / 2);
       y += SUBTITLE_HEIGHT;
     }
 
@@ -340,12 +322,12 @@ export function makeSectionedRenderReport(
         d2d.textAlign = 'left';
         d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
         d2d.fillStyle = COLORS.textMuted;
-        const label = fitText(d2d, item.label, colW * 0.6);
+        const label = ellipsize(d2d, item.label, colW * 0.6);
         d2d.fillText(label, x, midY);
         const labelW = d2d.measureText(label).width + CELL_PAD_X;
         d2d.font = `bold ${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
         d2d.fillStyle = item.color ?? COLORS.text;
-        d2d.fillText(fitText(d2d, item.value, colW - labelW - CELL_PAD_X), x + labelW, midY);
+        d2d.fillText(ellipsize(d2d, item.value, colW - labelW - CELL_PAD_X), x + labelW, midY);
       });
       y += summaryH;
     }
@@ -358,7 +340,7 @@ export function makeSectionedRenderReport(
         d2d.font = `bold ${HEADER_FONT_SIZE + 1}px ${FONT_FAMILY}`;
         d2d.textAlign = 'left';
         d2d.textBaseline = 'middle';
-        d2d.fillText(fitText(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
+        d2d.fillText(ellipsize(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
         y += SECTION_HEADING_HEIGHT;
       }
       // Een sectiekop mag niet los onderaan een pagina blijven staan: de breekpositie vóór de kop

@@ -23,6 +23,7 @@ import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
+import { ellipsize } from './textFit';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -1142,35 +1143,14 @@ export class GanttRenderer {
   }
 
   /**
-   * U2 — kapt `text` met een echte ellips af zodat het binnen `maxWidth` past.
+   * U2 — kapt `text` met een echte ellips af zodat het binnen `maxWidth` past (zie `ellipsize`).
    *
    * Waarom niet `fillText(text, x, y, maxWidth)`: die KNIJPT de glyphs horizontaal samen; een lange
    * taaknaam wordt dan onleesbaar smal in plaats van kort. Waarom niet alleen `clip()`: dat snijdt
-   * hard af, midden in een letter ("Sheet pil") zonder enig teken dat er meer stond. Binaire zoek
-   * over `measureText` (O(log n) metingen per label) geeft de langste prefix die met "…" past.
-   * `''` betekent: zelfs de ellips past niet — dan hoort er niets getekend te worden.
-   * LET OP: de aanroeper moet `ctx.font` al gezet hebben; `measureText` hangt daarvan af.
+   * hard af, midden in een letter ("Sheet pil") zonder enig teken dat er meer stond.
    */
   private ellipsize(text: string, maxWidth: number): string {
-    const ctx = this.ctx;
-    if (maxWidth <= 0) return '';
-    if (ctx.measureText(text).width <= maxWidth) return text;
-    const dots = '…';
-    if (ctx.measureText(dots).width > maxWidth) return '';
-    // U2-fixronde: knippen op TEKEN-grens, niet op UTF-16-code-unit. `slice` kan een surrogaatpaar
-    // halveren — een emoji of een CJK-extensieteken wordt dan een losse vervangingsglyph (U+FFFD)
-    // vlak vóór de ellips. `Array.from` splitst op code points; gekozen boven `Intl.Segmenter`
-    // omdat die (a) niet overal in de canvas-testomgeving bestaat en (b) per aanroep een object
-    // kost, terwijl code points het probleem dat we hier hebben — kapotte glyphs — al oplossen.
-    const chars = Array.from(text);
-    let lo = 0;
-    let hi = chars.length;
-    while (lo < hi) {
-      const mid = Math.ceil((lo + hi) / 2);
-      if (ctx.measureText(chars.slice(0, mid).join('') + dots).width <= maxWidth) lo = mid;
-      else hi = mid - 1;
-    }
-    return chars.slice(0, lo).join('') + dots;
+    return ellipsize(this.ctx, text, maxWidth);
   }
 
   private drawTaskBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): number {

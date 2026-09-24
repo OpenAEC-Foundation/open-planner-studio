@@ -6,9 +6,10 @@ import { Dialog } from '@/components/common/Dialog';
 import type { TFunction } from 'i18next';
 import { BENCHMARK_SIZES, BENCHMARK_RESOURCE_COUNTS, DEFAULT_RESOURCE_COUNT } from '@/services/benchmark/generateProject';
 import {
-  runBenchmark, formatResultsMarkdown, formatBytes,
+  runBenchmark, formatResultsMarkdown, fmtMs,
   type BenchmarkResult, type ProgressUpdate, type PhaseId,
 } from '@/services/benchmark/runner';
+import { formatBytes } from '@/utils/formatBytes';
 
 /** Grootte waarboven de "kan lang duren"-waarschuwing verschijnt (audit-punt 2). */
 const LARGE_SIZE_THRESHOLD = 2500;
@@ -29,9 +30,6 @@ function phaseDetail(phase: PhaseId, r: BenchmarkResult, t: TFunction): string {
       : t('benchmark.renderUnavailable');
   }
 }
-
-/** ms-weergave: NaN (bv. render niet beschikbaar) toont een streepje i.p.v. "NaN"/"0.00". */
-const fmtMs = (v: number) => (Number.isNaN(v) ? '—' : v.toFixed(2));
 
 /**
  * Ingebouwde benchmark-tool (pakket S). Kiest een planningsgrootte, draait een meetreeks over vijf

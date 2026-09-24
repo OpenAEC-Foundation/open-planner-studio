@@ -155,7 +155,7 @@ export function normalizeTaskGridColumnPreferences(
   ];
 }
 
-function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
+export function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
   return columns.map(columnPreference => ({ ...columnPreference }));
 }
 

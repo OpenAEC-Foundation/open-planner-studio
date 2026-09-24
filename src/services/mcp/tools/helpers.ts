@@ -6,8 +6,36 @@
 // resultaat ná de transactie wordt verrijkt met verse, herrekende store-waarden, en hoe een
 // statisch-lege bulk zónder transactie wordt beantwoord.
 import type { AppState } from '@/state/appStore';
-import type { McpContext, McpToolOk, McpToolResult } from '../contracts';
+import type { McpContext, McpToolAnnotations, McpToolOk, McpToolResult } from '../contracts';
 import { buildEnvelope } from './runtime';
+
+/** Leestool-annotaties (spec §Naamgeving): readOnly, niet-destructief, geen open wereld. `idempotentHint`
+ *  is per MCP-conventie alleen zinvol op niet-readOnly tools ⇒ false. */
+export const READ_ANNOTATIONS: McpToolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+};
+
+/** Basis voor een muterende tool binnen de app; per tool te verfijnen met `destructiveHint`/`idempotentHint`. */
+export const WRITE_ANNOTATIONS: McpToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: false,
+};
+
+/**
+ * GERESERVEERDE TEMP-ID-SYNTAX. Binnen een batch moet elke tempId met `tmp-` of `tmp_` beginnen.
+ * Alleen strings die aan dit patroon voldoen ÉN als tempId geregistreerd zijn, worden in de args van
+ * latere stappen vervangen. Zonder zo'n gereserveerd naamruimtetje is elke vrije tekst een potentieel
+ * doelwit: een `add_tasks` met `tempId:'Fundering'` maakte van een latere `name:'Fundering'` stil het
+ * interne taak-id (reviewbevinding I1, met probe bewezen). Een `created`-map met een tempId die niet
+ * aan het patroon voldoet, laat de batch LUID falen — nooit stil half toepassen. Tools die zelf
+ * tempId's aannemen (`planner_manage_resources`) valideren tegen hetzelfde patroon.
+ */
+export const TEMP_ID_PATTERN = /^tmp[-_]/;
 
 /** Envelop voor niet-transactionele antwoorden: store-envelop + de context-vlaggen. */
 export function okEnvelope(ctx: McpContext) {

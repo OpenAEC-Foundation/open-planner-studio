@@ -1,7 +1,5 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
-import { ensureExtension, extensionOf } from '@/utils/filePath';
-
-const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
+import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 
 export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');

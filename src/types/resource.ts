@@ -1,5 +1,12 @@
 import type { LibraryOrigin } from '@/types/library';
 
+/** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
+ *  nooit zinvol (een resource die 0 eenheden kan leveren, of een toewijzing van 0/dag). Fracties
+ *  blijven toegestaan (materiaal-max.eenheden, halve-dag-toewijzingen). */
+export function isValidUnits(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0;
+}
+
 export type ResourceType = 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW';
 
 export interface AvailabilityStep {

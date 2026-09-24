@@ -8,6 +8,7 @@ import type {
   ParseResult,
   ReadyStoredExtension,
 } from './types';
+import { isRecord } from '@/utils/guards';
 
 export type ManifestParseMode = 'fresh' | 'stored-legacy';
 
@@ -50,10 +51,6 @@ const RESERVED_IDS = new Set(['__proto__', 'prototype', 'constructor']);
 
 function fail<T>(error: string): ParseResult<T> {
   return { ok: false, error };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

@@ -20,7 +20,7 @@ import {
   toolError,
   type MutationOutcome,
 } from './runtime';
-import { enrichOk, freshDates, okDirect, okEnvelope, projectEndInfo } from './helpers';
+import { enrichOk, freshDates, okDirect, okEnvelope, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
@@ -59,8 +59,6 @@ import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
-
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
 // De gedeelde post-transactie-helpers (okEnvelope/freshDates/projectEndInfo/enrichOk/okDirect) staan
 // sinds T20 in `./helpers.ts` — dezelfde conventie geldt voor de kalender-/resource-tools.
@@ -219,7 +217,7 @@ const addTasks: BatchStepTool = {
     'herrekende earlyStart/earlyFinish per aangemaakte taak en het projecteinde.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -395,7 +393,7 @@ const updateTasks: BatchStepTool = {
     'weigeringen verschijnen (bijv. `fields` geweigerd maar `progress` toegepast) — bewuste granulariteit.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -553,7 +551,7 @@ const deleteTasks: BatchStepTool = {
     'call verdween telt als succes. Een id dat nooit bestond wordt per item zacht geweigerd.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: { ids: { type: 'array', minItems: 1, items: { type: 'string' } } },
@@ -656,7 +654,7 @@ const moveTask: BatchStepTool = {
     'eigen afstammeling plaatsen is een harde fout.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -801,7 +799,7 @@ const addDependencies: BatchStepTool = {
     'dat verliest het id en levert twee undo-stappen op.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
@@ -887,7 +885,7 @@ const removeDependencies: BatchStepTool = {
     'Gebruik planner_update_dependencies — verwijderen en opnieuw toevoegen is daarvoor niet de route.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: { ids: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'Sequence-id\'s.' } },
@@ -970,7 +968,7 @@ const undo: McpToolDef = {
     'wat-als-werk: gebruik duplicate_document, niet undo.',
   kind: 'other',
   batchable: false,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   handler: (_args, ctx): McpToolResult => historyStep(ctx, 'undo'),
 };
@@ -985,7 +983,7 @@ const redo: McpToolDef = {
     'wijziging wist alleen botsende redo-scopes.',
   kind: 'other',
   batchable: false,
-  annotations: { ...STD_ANNOT },
+  annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   handler: (_args, ctx): McpToolResult => historyStep(ctx, 'redo'),
 };
@@ -1005,7 +1003,7 @@ const runCpm: McpToolDef = {
     'gebruiker het effect van je wijzigingen meldt.',
   kind: 'other',
   batchable: false,
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   handler(_args, ctx): McpToolResult {
     const g = guardNonTransactional(ctx);
@@ -1090,7 +1088,7 @@ const setTaskSplits: BatchStepTool = {
     'geschreven. Leesvorm: planner_get_task geeft dezelfde `interruptions` terug.',
   kind: 'mutate',
   batchable: true,
-  annotations: { ...STD_ANNOT, idempotentHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {

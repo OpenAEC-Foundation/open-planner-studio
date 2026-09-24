@@ -17,6 +17,7 @@ import {
   taskRelations,
   type TaskRelationIndex,
 } from '@/engine/taskGrid/relationIndex';
+import { hasOwn, isRecord } from '@/utils/guards';
 
 export interface RelationTokenSource {
   index: number;
@@ -46,14 +47,6 @@ export interface ParsedExternalRelationToken extends ParsedRelationTokenBase {
 }
 
 export type ParsedRelationToken = ParsedInternalRelationToken | ParsedExternalRelationToken;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasOwn(value: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
 
 function isExternalLag(value: unknown): boolean {
   if (!isRecord(value)) return false;

@@ -27,9 +27,10 @@ import { flattenOrder } from '@/utils/wbs';
 import { ensureFreshSchedule } from '../staleGuard';
 import { runReadTool, toolError } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
-import type { McpContext, McpToolDef, McpToolResult, McpErrorCode, McpToolAnnotations } from '../contracts';
+import type { McpContext, McpToolDef, McpToolResult, McpErrorCode } from '../contracts';
 import type { Task } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { READ_ANNOTATIONS } from './helpers';
 
 function nativeDuration(task: Task): number {
   return taskDurationUnit(task) === 'hours'
@@ -95,15 +96,6 @@ function readTool(ctx: McpContext, fn: (s: AppState) => unknown): McpToolResult 
   if (nice.err) return toolError(ctx, nice.err.code, nice.err.message);
   return res;
 }
-
-/** Leestool-annotaties (spec §Naamgeving): readOnly, niet-destructief, geen open wereld. `idempotentHint`
- *  is per MCP-conventie alleen zinvol op niet-readOnly tools ⇒ false. */
-const READ_ANNOTATIONS: McpToolAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: false,
-  openWorldHint: false,
-};
 
 // ── Compacte helpers ─────────────────────────────────────────────────────────────────────────────
 

@@ -55,6 +55,8 @@ import { runMutateTool, toolError, McpStepError, type MutationOutcome } from './
 import type {
   ActivityEntry, McpContext, McpToolDef, McpToolResult, McpErrorCode,
 } from '../contracts';
+import { isRecord, isThenable } from '@/utils/guards';
+import { TEMP_ID_PATTERN } from './helpers';
 
 /** Harde bovengrens op het aantal stappen (spec §Compositie). */
 export const MAX_BATCH_STEPS = 100;
@@ -141,14 +143,6 @@ const LEVEL_TOOL = 'planner_level_resources';
 
 // ── Hulpjes ──────────────────────────────────────────────────────────────────────────────────────
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isThenable(v: unknown): v is Promise<unknown> {
-  return typeof (v as { then?: unknown } | null)?.then === 'function';
-}
-
 /** Compacte JSON voor het activiteitenlog; onserialiseerbare of enorme payloads worden afgekapt. */
 function compactJson(value: unknown): string {
   let s: string;
@@ -164,16 +158,6 @@ function compactJson(value: unknown): string {
 function classify(message: string): McpErrorCode {
   return /circular dependency|kringverwijzing|\bkring\b|cyclus|\bcycle\b/i.test(message) ? 'CYCLE' : 'VALIDATION';
 }
-
-/**
- * GERESERVEERDE TEMP-ID-SYNTAX. Binnen een batch moet elke tempId met `tmp-` of `tmp_` beginnen.
- * Alleen strings die aan dit patroon voldoen ÉN als tempId geregistreerd zijn, worden in de args van
- * latere stappen vervangen. Zonder zo'n gereserveerd naamruimtetje is elke vrije tekst een potentieel
- * doelwit: een `add_tasks` met `tempId:'Fundering'` maakte van een latere `name:'Fundering'` stil het
- * interne taak-id (reviewbevinding I1, met probe bewezen). Een `created`-map met een tempId die niet
- * aan het patroon voldoet, laat de batch LUID falen — nooit stil half toepassen.
- */
-const TEMP_ID_PATTERN = /^tmp[-_]/;
 
 /**
  * Sleutels waaronder NOOIT herschreven wordt: vrije tekst van de gebruiker. De uitsluiting geldt voor
@@ -203,7 +187,7 @@ function resolveTempIds(value: unknown, map: Map<string, string>, deniedBranch =
     return map.get(value) ?? value;
   }
   if (Array.isArray(value)) return value.map((v) => resolveTempIds(v, map, deniedBranch));
-  if (isPlainObject(value)) {
+  if (isRecord(value)) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
       out[k] = resolveTempIds(v, map, deniedBranch || NO_REWRITE_KEYS.has(k));
@@ -220,8 +204,8 @@ function resolveTempIds(value: unknown, map: Map<string, string>, deniedBranch =
  * tekst kunnen raken. Dus: luide `VALIDATION` ⇒ de hele batch rolt terug.
  */
 function collectCreated(data: unknown, map: Map<string, string>, stepNr: number): void {
-  const created = isPlainObject(data) ? data.created : undefined;
-  if (!isPlainObject(created)) return;
+  const created = isRecord(data) ? data.created : undefined;
+  if (!isRecord(created)) return;
   for (const [tempId, realId] of Object.entries(created)) {
     if (typeof realId !== 'string') continue;
     if (!TEMP_ID_PATTERN.test(tempId)) {
@@ -396,7 +380,7 @@ export function executeSteps(
 
 /** Valideer de args-vorm. Retourneert de stappen, of een foutboodschap (string). */
 function parseSteps(args: unknown): ParsedStep[] | string {
-  const raw = isPlainObject(args) ? args.steps : undefined;
+  const raw = isRecord(args) ? args.steps : undefined;
   if (!Array.isArray(raw)) return 'planner_batch vereist een `steps`-array met minstens één stap';
   if (raw.length === 0) return 'planner_batch vereist een niet-lege `steps`-array';
   if (raw.length > MAX_BATCH_STEPS) {
@@ -405,10 +389,10 @@ function parseSteps(args: unknown): ParsedStep[] | string {
   const steps: ParsedStep[] = [];
   for (let i = 0; i < raw.length; i++) {
     const s: unknown = raw[i];
-    if (!isPlainObject(s) || typeof s.tool !== 'string' || s.tool === '') {
+    if (!isRecord(s) || typeof s.tool !== 'string' || s.tool === '') {
       return `stap ${i + 1}: elke stap vereist een string-veld \`tool\``;
     }
-    if (s.args !== undefined && !isPlainObject(s.args)) {
+    if (s.args !== undefined && !isRecord(s.args)) {
       return `stap ${i + 1}: \`args\` moet een object zijn (of weggelaten worden)`;
     }
     steps.push({ tool: s.tool, args: s.args });

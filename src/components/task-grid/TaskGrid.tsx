@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   addTaskGridColumn,
+  cloneColumns,
   moveTaskGridColumn,
   removeTaskGridColumn,
   resizeTaskGridColumn,
@@ -74,10 +75,6 @@ function sameColumns(
       && column.width === candidate.width
       && column.pinned === candidate.pinned;
   });
-}
-
-function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
-  return columns.map(column => ({ ...column }));
 }
 
 export function TaskGrid({

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Play, Square, Circle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { isTauri } from '@/utils/platform';
 import { startMcpServer, stopMcpServer } from '@/services/mcp/server';
 import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
@@ -19,8 +20,6 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
  * secundaire statuskolom valt weg — net zoals de afgeleide zoom-tekst in `TimeScaleGroupContent`.
  * De volledige statusinformatie blijft beschikbaar als tooltip op de knop.
  */
-
-const isTauri = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /** Statuskleur per bridge-toestand — gedeeld met het statusbalk-dotje (zelfde semantiek). */
 export const AI_STATUS_COLOR: Record<McpServerStatus['state'], string> = {

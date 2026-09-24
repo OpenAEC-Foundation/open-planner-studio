@@ -23,6 +23,7 @@ import type { Task } from '@/types/task';
 import { applyProgressInvariants } from './slices/taskSlice';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
+import { isValidUnits } from '@/types/resource';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
  *  tool-laag). */
@@ -41,12 +42,6 @@ export type ProgressResult = { applied: true } | { applied: false; reason: strin
 /** Minimale vorm die de validatiehelpers uit de (draft-)state lezen. `AppState` voldoet hieraan; een
  *  Immer-draft van `AppState` structureel ook. */
 type ReadableState = Pick<AppState, 'tasks' | 'sequences' | 'assignments'>;
-
-/** Geldige capaciteit/eenheden (spiegelt `isValidUnits` in resourceSlice + mcpTransaction): strikt
- *  positief en eindig. 0/negatief/NaN is nooit een geldige toewijzing. */
-function isValidUnits(n: unknown): n is number {
-  return typeof n === 'number' && Number.isFinite(n) && n > 0;
-}
 
 export const validate = {
   /**

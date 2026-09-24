@@ -33,6 +33,7 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
+import { ellipsize } from '@/engine/renderer/textFit';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -92,7 +93,7 @@ const BAR_LABEL_PAD_LEFT = 4;
 // zes kolommen nu op de inhoud die dít rapport toont ({@link measureTableColumnWidths}) —
 // dezelfde route als de naam- en de curvekolom al liepen — en is `w` alleen nog de terugval.
 // `max` = tweemaal de terugval: genoeg voor elke vertaalde kop en een diepe WBS-code, en nog
-// steeds een harde grens zodat één absurde waarde de tijdlijn niet opeet (daar kapt `fitText` af).
+// steeds een harde grens zodat één absurde waarde de tijdlijn niet opeet (daar kapt `ellipsize` af).
 // De naamkolom staat hier bewust NIET: die breedte is instelbaar (zie `PrintOptions.taskNameColumnWidth`).
 const COL = {
   wbs:       { w: 50, max: 100 },
@@ -748,7 +749,7 @@ function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
     const candidate = line ? `${line} ${word}` : word;
     if (d2d.measureText(candidate).width <= maxWidth) { line = candidate; continue; }
     if (line) lines.push(line);
-    line = d2d.measureText(word).width <= maxWidth ? word : fitText(d2d, word, maxWidth);
+    line = d2d.measureText(word).width <= maxWidth ? word : ellipsize(d2d, word, maxWidth);
   }
   if (line) lines.push(line);
   return lines.length > 0 ? lines : [''];
@@ -757,28 +758,6 @@ function wrapWords(d2d: Draw2D, text: string, maxWidth: number): string[] {
 /** Format completion as "75%" */
 function formatCompletion(completion: number): string {
   return `${Math.round(completion * 100)}%`;
-}
-
-/**
- * Kort `text` in met een ellipsis ('…') zodat het binnen `maxWidth` (in dezelfde px-eenheid als
- * `d2d.measureText`, d.w.z. de logische/CSS-px van de huidige transform) past. Verwacht dat
- * `d2d.font` al is ingesteld. Geeft '' terug als er geen ruimte is. Wordt gebruikt om tekst nooit
- * over een kolomrand/canvasrand te laten lopen (klachten 4 en 7).
- */
-function fitText(d2d: Draw2D, text: string, maxWidth: number): string {
-  if (maxWidth <= 0) return '';
-  if (d2d.measureText(text).width <= maxWidth) return text;
-  const ellipsis = '…';
-  // Binaire zoektocht naar de langste prefix die met ellipsis nog past.
-  let lo = 0;
-  let hi = text.length;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (d2d.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
-    else hi = mid - 1;
-  }
-  if (lo === 0) return d2d.measureText(ellipsis).width <= maxWidth ? ellipsis : '';
-  return text.slice(0, lo) + ellipsis;
 }
 
 /**
@@ -858,9 +837,9 @@ function drawBarLabel(
   } else if (textWidth <= leftAvail) {
     fillLabelText(d2d, name, leftEnd, y, 'right', color);
   } else if (rightAvail >= leftAvail) {
-    fillLabelText(d2d, fitText(d2d, name, rightAvail), rightStart, y, 'left', color);
+    fillLabelText(d2d, ellipsize(d2d, name, rightAvail), rightStart, y, 'left', color);
   } else {
-    fillLabelText(d2d, fitText(d2d, name, leftAvail), leftEnd, y, 'right', color);
+    fillLabelText(d2d, ellipsize(d2d, name, leftAvail), leftEnd, y, 'right', color);
   }
 }
 
@@ -1863,7 +1842,7 @@ function drawProjectHeader(
   d2d.textBaseline = 'middle';
   d2d.textAlign = 'left';
   const nameMaxW = (canvasWidth - pad - brandWidth - m.s(12)) - pad;
-  d2d.fillText(fitText(d2d, projectName, nameMaxW), pad, m.s(16));
+  d2d.fillText(ellipsize(d2d, projectName, nameMaxW), pad, m.s(16));
 
   // Row 2: Company | Author | Print date | Version
   d2d.font = m.font(9);
@@ -1881,7 +1860,7 @@ function drawProjectHeader(
   if (authorLabel) row2Text += (row2Text ? '  |  ' : '') + authorLabel;
   row2Text += (row2Text ? '  |  ' : '') + `${options.labels?.printed ?? 'Printed:'} ${printDate}`;
 
-  d2d.fillText(fitText(d2d, row2Text, rowMaxW), pad, row2Y);
+  d2d.fillText(ellipsize(d2d, row2Text, rowMaxW), pad, row2Y);
 
   // Row 3: Project dates and duration
   const row3Y = m.s(48);
@@ -1901,7 +1880,7 @@ function drawProjectHeader(
     row3Text += `  |  Duur: ${dur}d`;
   }
 
-  d2d.fillText(fitText(d2d, row3Text, rowMaxW), pad, row3Y);
+  d2d.fillText(ellipsize(d2d, row3Text, rowMaxW), pad, row3Y);
 
   d2d.textAlign = 'left';
   d2d.textBaseline = 'alphabetic';
@@ -2196,7 +2175,7 @@ function drawTimelineHeader(
   // binnen zijn kolom en raakt de scheidingslijn niet. Datacellen houden hun marge wél: daar staan
   // rechts uitgelijnde getallen die anders tegen de lijn aan plakken.
   const headerText = (key: keyof TableHeaderLabels, col: { w: number }, pad = 0) =>
-    fitText(d2d, headerLabel(th, key), col.w - pad);
+    ellipsize(d2d, headerLabel(th, key), col.w - pad);
   d2d.fillText(headerText('wbs', cols.wbs), cols.wbs.x + cols.wbs.w / 2, headerY);
 
   d2d.textAlign = 'left';
@@ -2285,7 +2264,7 @@ function drawTaskTable(
       d2d.textBaseline = 'middle';
       const nameX = cols.name.x + cellPad + indent;
       const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
-      d2d.fillText(fitText(d2d, groupBandLabel(row), nameAvail), nameX, textY);
+      d2d.fillText(ellipsize(d2d, groupBandLabel(row), nameAvail), nameX, textY);
       // Een band groepeert alleen: geen WBS/duur/datums.
       d2d.textAlign = 'left';
       d2d.textBaseline = 'alphabetic';
@@ -2296,7 +2275,7 @@ function drawTaskTable(
     const cells = taskTableCellTexts(row, options);
     // Elke datacel krijgt de kolombreedte minus de marge aan beide zijden; wat daar niet in past
     // wordt afgekapt in plaats van over de buurkolom te lopen (de naam- en curvecel deden dat al).
-    const cellText = (text: string, col: { w: number }) => fitText(d2d, text, col.w - 2 * cellPad);
+    const cellText = (text: string, col: { w: number }) => ellipsize(d2d, text, col.w - 2 * cellPad);
     const depth = row.depth;
     // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
@@ -2317,7 +2296,7 @@ function drawTaskTable(
     // Spiegelbeeld van `measureTaskNameColumnWidth`: wijzig je deze som, wijzig dan ook die.
     const nameX = cols.name.x + cellPad + indent;
     const nameAvail = cols.name.x + cols.name.w - m.s(NAME_RIGHT_PAD) - nameX;
-    d2d.fillText(fitText(d2d, task.name, nameAvail), nameX, textY);
+    d2d.fillText(ellipsize(d2d, task.name, nameAvail), nameX, textY);
 
     // Toewijzingskolommen (resourcediagram): eenheden rechts uitgelijnd, de curve links en afgekort.
     if (cols.units && cols.curve && row.assignment) {

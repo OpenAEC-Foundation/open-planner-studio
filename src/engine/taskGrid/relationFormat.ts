@@ -1,4 +1,6 @@
 import type { ExternalLink, ExternalSourceRef } from '@/types/task';
+import { hasOwn, isRecord } from '@/utils/guards';
+import { trimNumber } from '@/utils/durationFormat';
 
 export type ExternalDirection = ExternalLink['direction'];
 export type ExternalRelationType = ExternalLink['relType'];
@@ -181,10 +183,6 @@ export function sourceProjectKeyFor(sourceRef: ExternalSourceRef, origin: Extern
   return externalSourcePathKey(sourceRef.filePath) ?? `id-only:${origin.ownerTaskId}:${origin.linkId}`;
 }
 
-function trimNumber(value: number): string {
-  return String(Number(value.toFixed(2)));
-}
-
 export function parseExternalLagInput(input: string): ExternalLag | null {
   const normalized = input.trim().toLowerCase().replace(/\s+/g, '');
   if (!normalized) return { lagDays: 0 };
@@ -212,7 +210,7 @@ export function formatExternalLagShort(lag: ExternalLagFields): string {
   const canonical = canonicalLag(lag);
   if (canonical.lagMinutes !== undefined) {
     const hours = canonical.lagMinutes / 60;
-    return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours)}u`;
+    return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours, 2)}u`;
   }
   const days = canonical.lagDays ?? 0;
   return days === 0 ? '' : `${days > 0 ? '+' : ''}${days}d`;
@@ -329,14 +327,6 @@ export function formatExternalRelationVisible(link: ExternalLink): string {
   return `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(canonicalLag(link))}`;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasOwn(record: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
-}
-
 function validString(value: unknown, maxLength: number, allowEmpty = false): value is string {
   return typeof value === 'string'
     && value.length <= maxLength
@@ -381,12 +371,12 @@ function hasExactKeys(record: Record<string, unknown>, expected: readonly string
 function parsePayload(json: string): ExternalRelationClipboardV1 | null {
   let value: unknown;
   try { value = JSON.parse(json); } catch { return null; }
-  if (!isPlainRecord(value)) return null;
+  if (!isRecord(value)) return null;
   const lagKey = hasOwn(value, 'lagMinutes') ? 'lagMinutes' : 'lagDays';
   if (!hasExactKeys(value, [
     'v', 'origin', 'sourceProjectKey', 'sourceRef', 'relType', lagKey, 'anchorDate', 'sourceMissing',
   ])) return null;
-  if (value.v !== 1 || !isPlainRecord(value.origin) || !isPlainRecord(value.sourceRef)) return null;
+  if (value.v !== 1 || !isRecord(value.origin) || !isRecord(value.sourceRef)) return null;
   if (!hasExactKeys(value.origin, ['ownerTaskId', 'direction', 'linkId'])) return null;
   if (!validString(value.origin.ownerTaskId, MAX_ID_LENGTH)
     || (value.origin.direction !== 'predecessor' && value.origin.direction !== 'successor')

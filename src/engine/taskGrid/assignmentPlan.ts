@@ -1,4 +1,4 @@
-import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
 import { clearTimephasedDurationWalks, clearTimephasedWindow } from '@/utils/taskDefaults';
@@ -74,10 +74,6 @@ function failure(
   };
 }
 
-function validUnits(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
 /**
  * Vergelijkt één volledige gewenste tokenverzameling met de bestaande assignments van de taak.
  * De planner muteert niets en genereert geen ids; de geïsoleerde gridtransactie doet dat pas bij
@@ -125,7 +121,7 @@ export function planTaskAssignmentSet({
     if (typeof token.resourceId !== 'string' || !resourceIndex.has(token.resourceId)) {
       return failure('assignmentResourceNotFound', taskId, token);
     }
-    if (!validUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
+    if (!isValidUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) {
       return failure('assignmentCurve', taskId, token);
     }

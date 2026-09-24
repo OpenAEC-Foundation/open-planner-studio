@@ -740,7 +740,7 @@ export class PdfVectorDraw2D implements Draw2D {
   measureText(text: string): { width: number } {
     const { bold, size } = parseFont(this.font);
     // Complex pad: dezelfde shaping-pijplijn als `fillText` → som van de run-breedtes (multi-font),
-    // zodat `fitText`-afkapping/`drawBarLabel`/paginering exact op de emissie aansluiten.
+    // zodat `ellipsize`-afkapping/`drawBarLabel`/paginering exact op de emissie aansluiten.
     if (this.shapingFonts && this.hasRtlText(text)) {
       return { width: this.shapeComplex(text, bold, size).width };
     }
