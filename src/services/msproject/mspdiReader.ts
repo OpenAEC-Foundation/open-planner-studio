@@ -7,7 +7,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, parseDate } from '@/utils/dateUtils';
-import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
+import { normalizeImportedProgress, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
@@ -641,6 +641,7 @@ export function readMSPDI(content: string): ImportResult {
   // Contour-engine: contouren én de daaruit afgeleide werkonderbrekingen op de taken zetten —
   // dezelfde afleiding als de .mpp-lezer (MSPDI kent geen andere split-bron).
   attachContours(taskById, contoursByTaskId);
+  reconstructResourceIds(tasks, assignments);
 
   // Baseline 0 → één actieve OPS-baseline "Baseline (MSPDI)" (fase 2.6, §9.1).
   const baselines: Baseline[] = [];

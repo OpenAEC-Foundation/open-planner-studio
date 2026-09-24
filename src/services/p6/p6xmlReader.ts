@@ -7,7 +7,7 @@ import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
 import { isoDatePrefixOrToday } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
@@ -689,6 +689,7 @@ export function readP6XML(content: string): ImportResult {
   }
   // Contouren + afgeleide werkonderbrekingen op de taken (zelfde afleiding als de .mpp-/MSPDI-lezer).
   attachContours(taskById, contoursByTaskId);
+  reconstructResourceIds(tasks, assignments);
 
   return {
     project,

@@ -124,10 +124,14 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 {
   const p = readP6XML(writeP6XML(project, H8, tasks, sequences, resources, assignments, lib));
   roundTrip('P6', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
+  // `task.resourceIds` is een projectie van de toewijzingen; elke lezer met toewijzingen moet hem
+  // vullen (de P6- en MSPDI-lezer lieten hem leeg, de IFC- en MPP-lezer niet).
+  eq('P6 resourceIds uit de toewijzingen', p.tasks.find(t => t.name === 'Metselen')?.resourceIds, p.assignments.map(a => a.resourceId));
 }
 {
   const p = readMSPDI(writeMSPDI(project, H8, tasks, sequences, resources, assignments, lib));
   roundTrip('MSPDI', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
+  eq('MSPDI resourceIds uit de toewijzingen', p.tasks.find(t => t.name === 'Metselen')?.resourceIds, p.assignments.map(a => a.resourceId));
 }
 
 // Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
