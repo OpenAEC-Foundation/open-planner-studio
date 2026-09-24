@@ -7,7 +7,7 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
-import { shownStart, shownFinish } from '@/utils/taskDates';
+import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 
 /** Gedeelde context voor filter/groep/sort/kolom-resolutie (§4.1). */
 export interface ViewContext {
@@ -188,14 +188,13 @@ export function applyOperator(
  * (start ≤ tot ÉN finish ≥ van). Dit past niet in de generieke resolver: die levert per veld één
  * scalar die de operator tegen `value`/`value2` legt, terwijl deze check start ÉN finish
  * tegelijk nodig heeft. Vandaar de special-case hier in plaats van een uitbreiding van
- * `resolveField`/`applyOperator`. ISO-datums vergelijken lexicografisch correct (zie `cmp`).
+ * `resolveField`/`applyOperator`. Vergeleken op dagniveau (`shownSpanOverlapsDays`, dezelfde test
+ * als de rapportvensters), zodat een uurtaak die op de tot-dag begint meetelt.
  */
 function evaluateActiveDuring(task: Task, value?: string | number | boolean | string[], value2?: string | number): boolean {
   if (typeof value !== 'string' || typeof value2 !== 'string') return false;
-  const start = shownStart(task);
-  const finish = shownFinish(task);
-  if (!start || !finish) return false;
-  return start <= value2 && finish >= value;
+  if (!shownStart(task) || !shownFinish(task)) return false;
+  return shownSpanOverlapsDays(task, value, value2);
 }
 
 /**
