@@ -2,6 +2,7 @@ import type { Task } from '@/types/task';
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate } from '@/utils/dateUtils';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /**
  * Variance-berekening (fase 2.6): vergelijkt de huidige (CPM-)datums met een actieve baseline.
@@ -64,8 +65,8 @@ export function computeVariance(
   const rows: VarianceRow[] = [];
 
   for (const t of leaves) {
-    const currentStart = t.time.earlyStart || t.time.scheduleStart;
-    const currentFinish = t.time.earlyFinish || t.time.scheduleFinish;
+    const currentStart = shownStart(t);
+    const currentFinish = shownFinish(t);
     const bt = baseMap.get(t.id);
     if (!bt) {
       rows.push({

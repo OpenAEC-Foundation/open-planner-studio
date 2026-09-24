@@ -8,6 +8,7 @@ import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/
 import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
 /**
@@ -74,13 +75,8 @@ export function referenceDayOf(statusDate: string | undefined, today: string): {
   return { day: dayOf(today), statusDateMissing: true };
 }
 
-export function taskStart(t: Task): string {
-  return t.time.earlyStart || t.time.scheduleStart;
-}
-
-export function taskFinish(t: Task): string {
-  return t.time.earlyFinish || t.time.scheduleFinish;
-}
+/** De getoonde datums (CPM, anders opgeslagen) onder de namen die de rapportmodules gebruiken. */
+export { shownStart as taskStart, shownFinish as taskFinish };
 
 /**
  * Voortgangsstaat van een taak. Voltooid zodra completion 1, status COMPLETED of een werkelijk
@@ -147,8 +143,8 @@ export function projectSpan(tasks: readonly Task[]): ResolvedPeriod | undefined 
   let from: string | undefined;
   let to: string | undefined;
   for (const t of tasks) {
-    const s = dayOf(taskStart(t));
-    const f = dayOf(taskFinish(t));
+    const s = dayOf(shownStart(t));
+    const f = dayOf(shownFinish(t));
     if (!s || !f) continue;
     if (!from || s < from) from = s;
     if (!to || f > to) to = f;
@@ -168,7 +164,7 @@ export function resolvePeriodFor(ctx: ReportContext, period: ReportingPeriod): R
 
 /** Interval-overlap op dagniveau (inclusieve grenzen) — dezelfde test als het "Actief tussen"-filter. */
 export function overlapsWindow(t: Task, fromDay: string, toDay: string): boolean {
-  return dayOf(taskStart(t)) <= toDay && dayOf(taskFinish(t)) >= fromDay;
+  return dayOf(shownStart(t)) <= toDay && dayOf(shownFinish(t)) >= fromDay;
 }
 
 /**

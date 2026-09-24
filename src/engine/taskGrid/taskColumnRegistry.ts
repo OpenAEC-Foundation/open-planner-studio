@@ -41,6 +41,7 @@ import {
   parseTaskDurationInput,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -922,12 +923,6 @@ function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescripto
 
 const BASELINE_MISSING = Symbol('baseline-missing');
 
-function currentTaskDate(task: Task, field: 'start' | 'finish'): string {
-  return field === 'start'
-    ? task.time.earlyStart || task.time.scheduleStart
-    : task.time.earlyFinish || task.time.scheduleFinish;
-}
-
 function baselineValue(
   field: BaselineTaskColumnField,
   baselineTask: BaselineTask,
@@ -942,7 +937,7 @@ function baselineValue(
   if (field === 'varianceDuration') return task.time.scheduleDuration - baselineTask.duration;
   const dateField = field === 'varianceStart' ? 'start' : 'finish';
   const from = dateField === 'start' ? baselineTask.start : baselineTask.finish;
-  const to = currentTaskDate(task, dateField);
+  const to = dateField === 'start' ? shownStart(task) : shownFinish(task);
   // Zonder kalenderroute geen eigen telling: een kale ma–vr-terugval negeerde feestdagen en de
   // werkweek, en telde vanaf een weekenddag één werkdag te veel.
   return ctx.signedWorkDaysBetween?.(from, to);

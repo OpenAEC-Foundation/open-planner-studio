@@ -7,6 +7,7 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /** Gedeelde context voor filter/groep/sort/kolom-resolutie (§4.1). */
 export interface ViewContext {
@@ -90,8 +91,8 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
         case 'name': return task.name;
         case 'wbsCode': return task.wbsCode;
         case 'duration': return task.time.scheduleDuration;
-        case 'start': return task.time.earlyStart || task.time.scheduleStart;
-        case 'finish': return task.time.earlyFinish || task.time.scheduleFinish;
+        case 'start': return shownStart(task);
+        case 'finish': return shownFinish(task);
         case 'totalFloat': return task.time.totalFloat;
         case 'isCritical': return task.time.isCritical;
         case 'completion': return task.time.completion;
@@ -191,8 +192,8 @@ export function applyOperator(
  */
 function evaluateActiveDuring(task: Task, value?: string | number | boolean | string[], value2?: string | number): boolean {
   if (typeof value !== 'string' || typeof value2 !== 'string') return false;
-  const start = task.time.earlyStart || task.time.scheduleStart;
-  const finish = task.time.earlyFinish || task.time.scheduleFinish;
+  const start = shownStart(task);
+  const finish = shownFinish(task);
   if (!start || !finish) return false;
   return start <= value2 && finish >= value;
 }

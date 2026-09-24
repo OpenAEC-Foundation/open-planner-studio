@@ -35,6 +35,7 @@ import {
   rescaleTaskContours,
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { shownStart } from '@/utils/taskDates';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -346,7 +347,7 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   } else if (status === 'STARTED') {
     if (task.time.completion >= 1) task.time.completion = 0;
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= task.time.earlyStart || task.time.scheduleStart;
+    task.time.actualStart ||= shownStart(task);
   } else {
     task.time.completion = 1;
   }
@@ -392,7 +393,7 @@ function applyProgressEdit(
     if (!finite(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
     task.time.completion = edit.value;
     if (edit.value > 0 && !task.time.actualStart) {
-      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      task.time.actualStart = shownStart(task);
     }
     if (edit.value < 1) task.time.actualFinish = undefined;
     applyProgressInvariants(task, environment.statusDate);
@@ -429,7 +430,7 @@ function applyProgressEdit(
     else task.time.actualDuration = edit.value / (hoursPerDay * 60);
     task.time.completion = completionFromDuration(task, edit.value, remaining, environment);
     if (task.time.completion > 0 && !task.time.actualStart) {
-      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      task.time.actualStart = shownStart(task);
     }
     if (task.time.completion < 1) task.time.actualFinish = undefined;
     applyProgressInvariants(task, environment.statusDate);
@@ -612,7 +613,7 @@ function applyProgressEdits(
   if (desiredCompletion !== undefined) {
     task.time.completion = desiredCompletion;
     if (desiredCompletion > 0 && !task.time.actualStart) {
-      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      task.time.actualStart = shownStart(task);
     }
     if (desiredCompletion < 1 && !actualFinishEdit) task.time.actualFinish = undefined;
   }
@@ -621,7 +622,7 @@ function applyProgressEdits(
     task.time.actualFinish = undefined;
   } else if (desiredStatus === 'STARTED') {
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= task.time.earlyStart || task.time.scheduleStart;
+    task.time.actualStart ||= shownStart(task);
   }
   applyProgressInvariants(task, environment.statusDate);
   if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);

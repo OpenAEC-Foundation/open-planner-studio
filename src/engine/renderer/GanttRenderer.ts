@@ -24,6 +24,7 @@ import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -357,8 +358,8 @@ export class GanttRenderer {
     // zwart. Terugval: de ontbrekende kant leent van de andere kant; ontbreken beide, dan één
     // dag-cel op de viewstart (zichtbaar, maar zonder datums geen sleep/resize — getTaskBarBounds
     // weigert zulke taken).
-    const rawStart = task.time.earlyStart || task.time.scheduleStart || '';
-    const rawEnd = task.time.earlyFinish || task.time.scheduleFinish || '';
+    const rawStart = shownStart(task) || '';
+    const rawEnd = shownFinish(task) || '';
     const startStr = rawStart || rawEnd;
     const endStr = rawEnd || rawStart;
     if (!startStr) {
@@ -1522,8 +1523,7 @@ export class GanttRenderer {
    *  'mijlpaal met start maar zonder finish is niet relatie-sleepbaar', docs/TODO.md). Bewust géén
    *  `barGeometry`-hergebruik: die geeft een `[x1,x2)`-balkbreedte, geen enkel ruitmidden. */
   private milestoneAnchorX(task: Task): number | null {
-    const startStr = task.time.earlyStart || task.time.scheduleStart
-      || task.time.earlyFinish || task.time.scheduleFinish;
+    const startStr = shownStart(task) || shownFinish(task);
     if (!startStr) return null;
     const hourMode = startStr.includes('T');
     const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
@@ -1679,8 +1679,8 @@ export class GanttRenderer {
 
     const c = task.constraint;
     if (c && c.type !== 'ASAP' && c.type !== 'ALAP') {
-      const start = parseDate(task.time.earlyStart || task.time.scheduleStart);
-      const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+      const start = parseDate(shownStart(task));
+      const end = parseDate(shownFinish(task));
       const startSide = c.type === 'SNET' || c.type === 'SNLT' || c.type === 'MSO';
       const px = startSide ? this.dateToX(start) : this.dateToX(end) + this.opts.view.zoom;
       if (px >= chartLeft && px <= this.opts.canvasWidth) {
@@ -1746,7 +1746,7 @@ export class GanttRenderer {
     if (!notes || !notes.some(n => !n.done)) return;
     const ctx = this.ctx;
     const chartLeft = 0;
-    const end = parseDate(task.time.earlyFinish || task.time.scheduleFinish);
+    const end = parseDate(shownFinish(task));
     const px = this.dateToX(end) + this.opts.view.zoom;
     if (px < chartLeft || px > this.opts.canvasWidth) return;
     ctx.fillStyle = this.colors.textSecondary;
@@ -1780,8 +1780,8 @@ export class GanttRenderer {
     const sfx = this.opts.durationSuffixes ?? DEFAULT_DURATION_SUFFIXES;
     // `|| ''`: zelfde datumloos-guard als barGeometry (een gesleepte taak hóórt datums te hebben,
     // maar `.includes` op undefined zou het hele frame laten crashen).
-    const startStr = task.time.earlyStart || task.time.scheduleStart || '';
-    const endStr = task.time.earlyFinish || task.time.scheduleFinish || '';
+    const startStr = shownStart(task) || '';
+    const endStr = shownFinish(task) || '';
     const hourMode = startStr.includes('T') || endStr.includes('T');
     if (hourMode) {
       const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
@@ -2072,14 +2072,14 @@ export class GanttRenderer {
       const predStart = seq.type === 'START_START' || seq.type === 'START_FINISH';
       const succFinish = seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH';
       if (predStart) {
-        fromX = this.dateToX(parseDate(pred.time.earlyStart || pred.time.scheduleStart));
+        fromX = this.dateToX(parseDate(shownStart(pred)));
       } else {
-        fromX = this.dateToX(parseDate(pred.time.earlyFinish || pred.time.scheduleFinish)) + this.opts.view.zoom;
+        fromX = this.dateToX(parseDate(shownFinish(pred))) + this.opts.view.zoom;
       }
       if (succFinish) {
-        toX = this.dateToX(parseDate(succ.time.earlyFinish || succ.time.scheduleFinish)) + this.opts.view.zoom;
+        toX = this.dateToX(parseDate(shownFinish(succ))) + this.opts.view.zoom;
       } else {
-        toX = this.dateToX(parseDate(succ.time.earlyStart || succ.time.scheduleStart));
+        toX = this.dateToX(parseDate(shownStart(succ)));
       }
       // dirOut = uitloop WEG van de voorgangerbalk; dirIn = aankomstkant bij de opvolger:
       // start-anker (FS/SS) komt van links (kop wijst naar rechts); finish-anker (FF/SF) van rechts.
@@ -2192,7 +2192,7 @@ export class GanttRenderer {
     if (row?.kind !== 'task') return null;
     const task = row.task;
     if (task.childIds.length > 0 || isZeroDurationMilestone(task)) return null;
-    if (!(task.time.earlyStart || task.time.scheduleStart) || !(task.time.earlyFinish || task.time.scheduleFinish)) {
+    if (!shownStart(task) || !shownFinish(task)) {
       return null;
     }
 
@@ -2228,7 +2228,7 @@ export class GanttRenderer {
     // Datumloos-guard (TODO 2026-07-28): barGeometry tekent voor zo'n taak een terugval-stub op de
     // viewstart, maar die mag geen sleep/resize armen — de drag-hooks zouden met undefined
     // originalStart/originalFinish rekenen.
-    if (!(task.time.earlyStart || task.time.scheduleStart) || !(task.time.earlyFinish || task.time.scheduleFinish)) {
+    if (!shownStart(task) || !shownFinish(task)) {
       return null;
     }
     const edgeZone = 6; // pixels for edge detection
@@ -2317,8 +2317,8 @@ export class GanttRenderer {
     const task = this.getTaskAtY(canvasY);
     if (!task) return null;
 
-    const hasStart = !!(task.time.earlyStart || task.time.scheduleStart);
-    const hasFinish = !!(task.time.earlyFinish || task.time.scheduleFinish);
+    const hasStart = !!shownStart(task);
+    const hasFinish = !!shownFinish(task);
 
     // Randgeval (docs/TODO.md): een mijlpaal met precies ÉÉN kant (alleen start, of — symmetrisch —
     // alleen finish) — bv. handmatig gezet vóórdat runCPM() gedraaid heeft. `drawMilestone` tekent
