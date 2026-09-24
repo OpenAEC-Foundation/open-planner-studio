@@ -211,8 +211,29 @@ export function planRecoveryClear(
   return [...out];
 }
 
+/** Tekst plus wijzigingstijd van één snapshot; faalt `stat`, dan blijft de mtime `null`. */
+async function readSnapshotTauri(path: string): Promise<{ ifc: string; mtime: Date | null }> {
+  const { readTextFile, stat } = await import('@tauri-apps/plugin-fs');
+  const ifc = await readTextFile(path);
+  let mtime: Date | null = null;
+  try { mtime = (await stat(path)).mtime; } catch { /* geen mtime — laat null */ }
+  return { ifc, mtime };
+}
+
+/** De bestandsnamen in de appDataDir; een mislukte scan logt en geeft een lege lijst — het opruimen
+ *  valt dan terug op wat het manifest noemt. */
+async function listAppDataTauri(dir: string): Promise<string[]> {
+  const { readDir } = await import('@tauri-apps/plugin-fs');
+  try {
+    return (await readDir(dir)).map((e) => e.name).filter((n): n is string => !!n);
+  } catch (err) {
+    console.error('Recovery: kon de appDataDir niet doorlopen bij het opruimen:', err);
+    return [];
+  }
+}
+
 async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<void> {
-  const { writeTextFile, readDir, readTextFile, exists, remove, rename, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { writeTextFile, readTextFile, exists, remove, rename, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
@@ -262,13 +283,7 @@ async function saveTauri(activeId: string, docs: RecoveryDocContent[]): Promise<
     keep.push(name);
   }
 
-  let listing: string[] = [];
-  try {
-    listing = (await readDir(dir)).map((e) => e.name).filter((n): n is string => !!n);
-  } catch (err) {
-    console.error('Recovery: kon de appDataDir niet doorlopen bij het opruimen:', err);
-  }
-
+  const listing = await listAppDataTauri(dir);
   const plan = planRecoveryCleanup({
     listing, prev, self: instanceId, keep,
     ownWritten: [...ownWritten], adopted: [...adoptedIfc], names,
@@ -327,7 +342,7 @@ export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
  * niet meer; `isDirty` staat op `true`, wat voor een crashsnapshot per definitie klopt.
  */
 async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
-  const { readDir, readTextFile, stat } = await import('@tauri-apps/plugin-fs');
+  const { readDir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   const docs: LoadedRecoveryDoc[] = [];
@@ -340,10 +355,7 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
     const id = name ? names.snapshotDocId(name) : null;
     if (!name || !id) continue;
     try {
-      const path = await join(dir, name);
-      const ifc = await readTextFile(path);
-      let mtime: Date | null = null;
-      try { mtime = (await stat(path)).mtime; } catch { /* geen mtime — laat null */ }
+      const { ifc, mtime } = await readSnapshotTauri(await join(dir, name));
       docs.push({ id, ifc, filePath: null, isDirty: true, mtime });
     } catch (err) {
       console.error('Recovery: kon gescande snapshot niet lezen:', name, err);
@@ -353,7 +365,7 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
 }
 
 async function loadTauri(): Promise<LoadedRecovery> {
-  const { readTextFile, exists, stat } = await import('@tauri-apps/plugin-fs');
+  const { readTextFile, exists } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   const manifestPath = await join(dir, manifestName);
@@ -369,10 +381,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
       const docs: LoadedRecoveryDoc[] = [];
       for (const d of manifest.documents) {
         try {
-          const ifcPath = await join(dir, d.ifc);
-          const ifc = await readTextFile(ifcPath);
-          let mtime: Date | null = null;
-          try { mtime = (await stat(ifcPath)).mtime; } catch { /* geen mtime — laat null */ }
+          const { ifc, mtime } = await readSnapshotTauri(await join(dir, d.ifc));
           docs.push({ id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true, mtime });
         } catch (err) {
           console.error('Recovery: kon documentsnapshot niet lezen:', d.id, err);
@@ -394,9 +403,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
   // Terugval: oude losse <base>.ifc (één document).
   const legacyPath = await join(dir, legacyFile);
   if (await exists(legacyPath)) {
-    const ifc = await readTextFile(legacyPath);
-    let mtime: Date | null = null;
-    try { mtime = (await stat(legacyPath)).mtime; } catch { /* geen mtime */ }
+    const { ifc, mtime } = await readSnapshotTauri(legacyPath);
     return { activeDocumentId: 'legacy', docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true, mtime }] };
   }
 
@@ -404,7 +411,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
 }
 
 async function clearTauri(): Promise<void> {
-  const { exists, readTextFile, remove, readDir } = await import('@tauri-apps/plugin-fs');
+  const { exists, readTextFile, remove } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
 
@@ -415,14 +422,7 @@ async function clearTauri(): Promise<void> {
     catch { /* onleesbaar manifest — de directory-scan hieronder ruimt alsnog op */ }
   }
 
-  let listing: string[] = [];
-  try {
-    listing = (await readDir(dir)).map((e) => e.name).filter((n): n is string => !!n);
-  } catch (err) {
-    console.error('Recovery: kon de appDataDir niet doorlopen bij het opruimen:', err);
-  }
-
-  for (const name of planRecoveryClear(listing, manifest, names)) {
+  for (const name of planRecoveryClear(await listAppDataTauri(dir), manifest, names)) {
     try { await remove(await join(dir, name)); } catch { /* al weg */ }
     ownWritten.delete(name);
     adoptedIfc.delete(name);
