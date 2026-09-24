@@ -44,6 +44,7 @@
 import type { TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType } from '@/types/task';
 import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
 import { splitDayPattern } from '@/engine/scheduler/splitWalk';
+import { isFiniteNumber } from '@/utils/guards';
 
 // ── 21-punts contourtabellen ────────────────────────────────────────────────────────────────────
 //
@@ -457,7 +458,7 @@ export function taskWorkMinutes(
   time: { durationUnit?: 'days' | 'hours'; durationMinutes?: number; scheduleDuration: number },
   hoursPerDay: number,
 ): number {
-  if (time.durationUnit === 'hours' && typeof time.durationMinutes === 'number' && Number.isFinite(time.durationMinutes)) {
+  if (time.durationUnit === 'hours' && isFiniteNumber(time.durationMinutes)) {
     return Math.max(0, time.durationMinutes);
   }
   return Math.max(0, time.scheduleDuration) * Math.max(0, hoursPerDay) * 60;

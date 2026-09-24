@@ -43,6 +43,7 @@ import {
 } from '@/utils/taskDurationInput';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
+import { isFiniteNumber } from '@/utils/guards';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -256,13 +257,13 @@ const parsePercentage: Parser = text => {
   return Number.isFinite(value) ? success(value / 100) : failure('percentage', text);
 };
 const validatePercentage: Validator = value =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+  isFiniteNumber(value) && value >= 0 && value <= 1
     ? success(value)
     : failure('percentage', value);
 
 function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
   const supplied = ctx.effectiveHoursPerDay?.(task);
-  if (typeof supplied === 'number' && Number.isFinite(supplied) && supplied > 0) return supplied;
+  if (isFiniteNumber(supplied) && supplied > 0) return supplied;
   const minutes = task.time.durationMinutes;
   if (minutes !== undefined && task.time.scheduleDuration > 0) {
     const derived = minutes / task.time.scheduleDuration / 60;
@@ -307,7 +308,7 @@ const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
 };
 const validateScheduledTaskDuration: Validator = value =>
   isParsedTaskDuration(value)
-    || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    || (isFiniteNumber(value) && value >= 0)
     ? success(value)
     : failure('duration', value);
 

@@ -1,5 +1,5 @@
 import type { ExternalLink, ExternalSourceRef } from '@/types/task';
-import { hasOwn, isRecord } from '@/utils/guards';
+import { hasOwn, isRecord, isFiniteNumber } from '@/utils/guards';
 import { trimNumber } from '@/utils/durationFormat';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 
@@ -198,10 +198,10 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
 }
 
 function canonicalLag(lag: ExternalLagFields): ExternalLag {
-  if (typeof lag.lagMinutes === 'number' && Number.isFinite(lag.lagMinutes) && lag.lagMinutes !== 0) {
+  if (isFiniteNumber(lag.lagMinutes) && lag.lagMinutes !== 0) {
     return { lagMinutes: Math.round(lag.lagMinutes) };
   }
-  if (typeof lag.lagDays === 'number' && Number.isFinite(lag.lagDays)) {
+  if (isFiniteNumber(lag.lagDays)) {
     return { lagDays: Math.round(lag.lagDays) };
   }
   return { lagDays: 0 };

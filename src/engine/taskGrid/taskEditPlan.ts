@@ -36,6 +36,7 @@ import {
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { shownStart } from '@/utils/taskDates';
+import { isFiniteNumber } from '@/utils/guards';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -95,10 +96,6 @@ function cloneTaskForEdit(task: Task): Task {
     constraint: task.constraint ? { ...task.constraint } : undefined,
     constraint2: task.constraint2 ? { ...task.constraint2 } : undefined,
   };
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function optionalString(value: unknown): value is string | undefined {
@@ -191,7 +188,7 @@ function applyTaskField(
     task.customTaskTypeId = edit.value;
     if (edit.value !== undefined) task.taskType = 'USERDEFINED';
   } else if (id === 'task.priority') {
-    if (!finite(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
+    if (!isFiniteNumber(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
       return failure('range', edit);
     }
     task.priority = edit.value;
@@ -253,7 +250,7 @@ function applyScheduleEdit(
       const parsed = edit.value as ParsedTaskDuration;
       if (parsed.unit === 'hours') {
         if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
-        if (!finite(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
+        if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
         if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
           return failure('calendarHours', edit);
         }
@@ -261,7 +258,7 @@ function applyScheduleEdit(
         task.time.durationMinutes = parsed.durationMinutes;
         task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
       } else {
-        if (!finite(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
+        if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
           || parsed.scheduleDuration < 0) return failure('duration', edit);
         task.time.durationUnit = 'days';
         task.time.scheduleDuration = parsed.scheduleDuration;
@@ -270,7 +267,7 @@ function applyScheduleEdit(
       lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
       return { ok: true, value: lost };
     }
-    if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
+    if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
@@ -390,7 +387,7 @@ function applyProgressEdit(
     }
     applyStatus(task, edit.value as TaskStatus, environment.statusDate);
   } else if (id === 'task.time.completion') {
-    if (!finite(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
+    if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
     task.time.completion = edit.value;
     if (edit.value > 0 && !task.time.actualStart) {
       task.time.actualStart = shownStart(task);
@@ -414,7 +411,7 @@ function applyProgressEdit(
     }
     applyProgressInvariants(task, environment.statusDate);
   } else if (id === 'task.time.actualDuration' || id === 'task.time.remainingTime') {
-    if (edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+    if (edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
     const hoursPerDay = environment.effectiveHoursPerDay;
@@ -521,7 +518,7 @@ function applyProgressEdits(
 
   if (statusEdit && (typeof statusEdit.value !== 'string'
     || !TASK_STATUSES.includes(statusEdit.value as TaskStatus))) return failure('enum', statusEdit);
-  if (completionEdit && (!finite(completionEdit.value)
+  if (completionEdit && (!isFiniteNumber(completionEdit.value)
     || completionEdit.value < 0 || completionEdit.value > 1)) return failure('percentage', completionEdit);
   for (const edit of [actualStartEdit, actualFinishEdit]) {
     if (!edit) continue;
@@ -531,7 +528,7 @@ function applyProgressEdits(
     }
   }
   for (const edit of [actualDurationEdit, remainingEdit]) {
-    if (edit && edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+    if (edit && edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
   }
@@ -665,8 +662,8 @@ function validCustomFieldValue(def: CustomFieldDef, value: unknown): boolean {
   if (value === undefined) return true;
   if (def.type === 'text' || def.type === 'date') return typeof value === 'string';
   if (def.type === 'boolean') return typeof value === 'boolean';
-  if (def.type === 'integer') return finite(value) && Number.isInteger(value);
-  return finite(value);
+  if (def.type === 'integer') return isFiniteNumber(value) && Number.isInteger(value);
+  return isFiniteNumber(value);
 }
 
 /**

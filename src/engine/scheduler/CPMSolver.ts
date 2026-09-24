@@ -17,6 +17,7 @@ import { computeScheduleResults } from './scheduleAnalysis';
 import {
   forwardConstraint, forwardFinishFloor, backwardConstraint, MS_PER_MIN, type RelationDeps,
 } from './relationMath';
+import { isFiniteNumber } from '@/utils/guards';
 
 export interface CPMResult {
   tasks: Map<string, CPMTaskResult>;
@@ -127,7 +128,7 @@ export function snapWorkInstantOnOrAfter(eng: CalendarEngine, from: Date): Date 
  * uitgedrukt worden. Zonder de factor (UI-aanroepers) is de functie byte-identiek aan vóór 2.10.
  */
 export function resolveEffectiveLagDays(seq: Sequence, predTask: Task, hoursPerDay?: number): number {
-  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+  if (isFiniteNumber(seq.lagPercent)) {
     const predDur = isZeroDurationMilestone(predTask) ? 0 : predTask.time.scheduleDuration;
     return Math.round((predDur * seq.lagPercent) / 100);
   }
@@ -141,7 +142,7 @@ export function resolveEffectiveLagDays(seq: Sequence, predTask: Task, hoursPerD
   // naar boven op 1 dag) en blijft zo byte-identiek.
   if (
     days === 0 && typeof hoursPerDay === 'number' && hoursPerDay > 0 &&
-    typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0
+    isFiniteNumber(seq.lagMinutes) && seq.lagMinutes !== 0
   ) {
     const raw = seq.lagMinutes / (hoursPerDay * 60);
     return Math.sign(raw) * Math.round(Math.abs(raw));
@@ -795,17 +796,17 @@ export class CPMSolver {
   /** WORKTIME-lag in MINUTEN in de voorganger-kalender (§5.2): procent ⇒ uit `durationMinutesOf(pred)`;
    *  `lagMinutes` ⇒ bron; anders `lagDays × pred-hoursPerDay × 60` (naakt getal = werkdagen). */
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
-    if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    if (isFiniteNumber(seq.lagPercent)) {
       const predMin = isZeroDurationMilestone(predTask) ? 0 : durationMinutesOf(predTask, predEng);
       return Math.round((predMin * seq.lagPercent) / 100);
     }
-    if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) return seq.lagMinutes;
+    if (isFiniteNumber(seq.lagMinutes)) return seq.lagMinutes;
     const days = Number.isFinite(seq.lagDays) ? seq.lagDays : 0;
     return days * predEng.hoursPerDay * 60;
   }
   /** ELAPSEDTIME-lag in KLOK-minuten (24/7, §5.2): `lagMinutes` ⇒ bron; anders (procent/)dagen × 24 × 60. */
   private resolveElapsedMinutes(seq: Sequence, predTask: Task): number {
-    if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) return seq.lagMinutes;
+    if (isFiniteNumber(seq.lagMinutes)) return seq.lagMinutes;
     return resolveEffectiveLagDays(seq, predTask) * 24 * 60;
   }
   /** Verschuif `base` met de relatie-lag in de VOORGANGER-engine (`LAG_CALENDAR='predecessor'`, §5.2).
@@ -2342,13 +2343,13 @@ export class CPMSolver {
   /** Externe-link-lag in MINUTEN (uur-modus, §4.5): `lagMinutes` ⇒ bron; anders `lagDays × hoursPerDay ×
    *  60` (naakt getal = werkdagen — dezelfde conventie als de Sequence-lag, 2.8b §3.3). */
   private externalLagMinutes(link: ExternalLink, eng: CalendarEngine): number {
-    if (typeof link.lagMinutes === 'number' && Number.isFinite(link.lagMinutes)) return link.lagMinutes;
-    const days = typeof link.lagDays === 'number' && Number.isFinite(link.lagDays) ? link.lagDays : 0;
+    if (isFiniteNumber(link.lagMinutes)) return link.lagMinutes;
+    const days = isFiniteNumber(link.lagDays) ? link.lagDays : 0;
     return days * eng.hoursPerDay * 60;
   }
   /** Externe-link-lag in DAGEN (dag-modus). Afwezig ⇒ 0. */
   private externalLagDays(link: ExternalLink): number {
-    return typeof link.lagDays === 'number' && Number.isFinite(link.lagDays) ? link.lagDays : 0;
+    return isFiniteNumber(link.lagDays) ? link.lagDays : 0;
   }
 
   /**

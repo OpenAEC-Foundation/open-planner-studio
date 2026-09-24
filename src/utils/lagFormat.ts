@@ -1,5 +1,6 @@
 import type { Sequence } from '@/types/sequence';
 import { trimNumber } from '@/utils/durationFormat';
+import { isFiniteNumber } from '@/utils/guards';
 
 /** De velden die de lag-notatie samen dragen (fase F1: uren erbij naast dagen/procent). */
 type LagFields = Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>;
@@ -17,10 +18,10 @@ type LagFields = Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinut
  */
 export function formatLagShort(seq: LagFields): string {
   const e = seq.lagUnit === 'ELAPSEDTIME' ? 'e' : '';
-  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+  if (isFiniteNumber(seq.lagPercent)) {
     return `${seq.lagPercent >= 0 ? '+' : ''}${seq.lagPercent}${e}%`;
   }
-  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes) && seq.lagMinutes !== 0) {
+  if (isFiniteNumber(seq.lagMinutes) && seq.lagMinutes !== 0) {
     const hours = seq.lagMinutes / 60;
     return `${hours >= 0 ? '+' : ''}${trimNumber(hours, 2)}${e}u`;
   }
