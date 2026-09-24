@@ -375,5 +375,19 @@ export function applyRestoredRecordedMode(
   // `totalFloat ?? 0` reisden gewoon naar CSV en `planner_get_task`, afhankelijk van welk tabblad
   // bij de crash toevallig actief was. Nu betekent "in de modus" op beide herstelpaden hetzelfde.
   payload.recordedDates = { ...recorded, origin: parsed.recordedTimesOrigin, sourceFormat };
+  // Tweede critreview-ronde, bevinding 1: opslaan in de modus schrijft voor een taak ZONDER
+  // vastlegging `$` op de vroege/late slots (ze kwamen uit een verworpen solve). De lezer maakt van
+  // een `$`-datum "vandaag"; een slapend hersteld document wordt niet doorgerekend, dus zonder dit
+  // stond zo'n taak op vandaag. Terugval: het eigen anker (ScheduleStart/-Finish, invoer) — geen
+  // bewering over het bestand, alleen een plausibele plaats tot de eerste herberekening.
+  for (const task of payload.tasks) {
+    if (recorded.times[task.id]) continue;
+    const present = parsed.recordedFields?.[task.id];
+    if (!present || present.includes('earlyStart') || present.includes('earlyFinish')) continue;
+    task.time.earlyStart = task.time.scheduleStart;
+    task.time.earlyFinish = task.time.scheduleFinish;
+    task.time.lateStart = task.time.scheduleStart;
+    task.time.lateFinish = task.time.scheduleFinish;
+  }
   enterRecordedDatesMode(payload, recorded.times);
 }

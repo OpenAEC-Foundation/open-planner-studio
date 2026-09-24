@@ -56,9 +56,11 @@ export interface TaskTimeWriteCtx {
   withheld?: ReadonlySet<WithheldTaskTimeField>;
 }
 
-/** De vijf rekenslots die in de modus "datums zoals opgeslagen" een terugval kunnen dragen — exact
- *  de optionele assen van `RecordedTime` (early/start-einde zijn daar verplicht). */
-export type WithheldTaskTimeField = 'lateStart' | 'lateFinish' | 'totalFloat' | 'freeFloat' | 'isCritical';
+/** De zeven rekenslots die in de modus "datums zoals opgeslagen" geen vastlegging kunnen dragen: de
+ *  vijf optionele assen van `RecordedTime` (terugval op een vastgelegde taak) en, voor een taak
+ *  zónder vastlegging, ook de vroege datums (die komen dan uit een verworpen solve). */
+export type WithheldTaskTimeField =
+  | 'earlyStart' | 'earlyFinish' | 'lateStart' | 'lateFinish' | 'totalFloat' | 'freeFloat' | 'isCritical';
 
 /** `$` voor een achtergehouden slot, anders de gewone formattering. */
 const unlessWithheld = (w: TaskTimeWriteCtx, key: WithheldTaskTimeField, value: () => string): string =>
@@ -119,12 +121,12 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
   },
   {
     key: 'earlyStart',
-    write: (w) => w.dt(w.task.time.earlyStart),
+    write: (w) => unlessWithheld(w, 'earlyStart', () => w.dt(w.task.time.earlyStart)),
     read: (t, arg, p) => { t.earlyStart = p.parseDate(arg); },
   },
   {
     key: 'earlyFinish',
-    write: (w) => w.dt(w.task.time.earlyFinish),
+    write: (w) => unlessWithheld(w, 'earlyFinish', () => w.dt(w.task.time.earlyFinish)),
     read: (t, arg, p) => { t.earlyFinish = p.parseDate(arg); },
   },
   {

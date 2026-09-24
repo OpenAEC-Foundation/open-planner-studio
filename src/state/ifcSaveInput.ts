@@ -1,4 +1,5 @@
 import type { WriteIFCInput } from '@/services/ifc/ifcWriter';
+import type { WithheldTaskTimeField } from '@/services/ifc/ifcTaskSlots';
 import type { DocumentPayload } from './documentContract';
 import { unrecordedExportFields } from './recordedDatesSelectors';
 
@@ -35,14 +36,24 @@ export type IFCSaveSource = Pick<
  * kritiek, zoals opgeslagen" over iets wat MS Project/P6/CSV nooit zei. Hier per taak de assen die de
  * writer als `$` moet schrijven; dezelfde definitie als de CSV-/MCP-uitgang (`unrecordedExportFields`).
  * Buiten de modus staat er onze eigen, echte berekening: dan niets achterhouden.
+ *
+ * Tweede critreview-ronde, bevinding 1: een taak ZONDER vastlegging (niet in het bronbestand, of een
+ * samenvatting die in de modus uit haar kinderen oprolt) draagt in de modus de datums van een solve
+ * die de modus juist verwierp. Die werden gewoon geschreven, en een heropening als eigen IFC mét
+ * bron las ze als vastlegging ("2 vastgelegd ⇒ na heropenen 3"). Voor zo'n taak dus álle zeven
+ * rekenslots `$`, de vroege datums inbegrepen. ScheduleStart/-Finish (invoer) blijven staan.
  */
+const ALL_COMPUTED_SLOTS: readonly WithheldTaskTimeField[] = [
+  'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'totalFloat', 'freeFloat', 'isCritical',
+];
 function withheldFieldsFor(src: IFCSaveSource): WriteIFCInput['withheldTaskTimeFields'] {
   const recorded = src.recordedDates;
   if (!src.datesAsRecorded || !recorded) return undefined;
-  const out: Record<string, ReturnType<typeof unrecordedExportFields>> = {};
-  for (const [id, rec] of Object.entries(recorded.times)) {
-    const fields = unrecordedExportFields(rec);
-    if (fields.length > 0) out[id] = fields;
+  const out: Record<string, readonly WithheldTaskTimeField[]> = {};
+  for (const task of src.tasks) {
+    const rec = recorded.times[task.id];
+    const fields = rec ? unrecordedExportFields(rec) : ALL_COMPUTED_SLOTS;
+    if (fields.length > 0) out[task.id] = fields;
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -77,7 +88,11 @@ export function buildWriteIFCInput(src: IFCSaveSource): WriteIFCInput {
     ...(withheld ? { withheldTaskTimeFields: withheld } : {}),
     // Eigenaarsbesluit 2026-09-24 ("beperken"): de oorspronkelijke bron reist mee in
     // OPS_ImportProvenance, zodat een heropening op de BRON poort en niet op "het is nu een IFC".
-    ...(src.recordedDates?.sourceFormat ? { recordedSourceFormat: src.recordedDates.sourceFormat } : {}),
+    // Tweede critreview-ronde, bevinding 2: ALLEEN in de modus. Buiten de modus (aanbodstand) staat
+    // onze eigen solve in het bestand; een bron noemen zou bij heropenen onze oude solve met de
+    // nieuwe laten vergelijken en dat "MS Project-datums" noemen — precies wat "beperken" verbiedt.
+    ...(src.datesAsRecorded && src.recordedDates?.sourceFormat
+      ? { recordedSourceFormat: src.recordedDates.sourceFormat } : {}),
   };
 }
 
