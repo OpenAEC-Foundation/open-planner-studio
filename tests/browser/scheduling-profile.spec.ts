@@ -222,7 +222,8 @@ test('rekenprofiel: de SS-lag-variant komt uit de XER en is in Projectinfo te wi
 // schreef in uur-modus `scheduleFinish` terug, en de P6-conventies lazen die uitvoer daarna als het
 // geplande bronvenster. Eindmijlpaal M1 stond dan op start 27-03, einde vóór de start, en Bereken
 // herstelde het niet. Dezelfde fixture als `tests/planning/check-profile-switch-dates.ts` (daar staat de
-// handafleiding: de wissel verschuift A1, A4 en M1, heen én terug).
+// handafleiding: de wissel verschuift A4 en M1, heen én terug; A1 (voltooid) sinds eigenaarsvraag 7
+// niet meer, want B3 staat in P6 uit).
 const WORKWEEK = `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7]
   .map(n => `(0||${n}()(${n >= 2 && n <= 6 ? '(0||0(s|08:00|f|17:00)())' : ''}))`).join('')}))(0||Exceptions()())))`;
 const SWITCH_XER = [
@@ -263,7 +264,7 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
   await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
   const fresh = await times();
 
-  const shiftedToast = page.locator('.ops-toast').filter({ hasText: /zijn 3 taken verschoven|3 tasks moved/ });
+  const shiftedToast = page.locator('.ops-toast').filter({ hasText: /zijn 2 taken verschoven|2 tasks moved/ });
   // De tweede melding vouwt samen met de eerste (dedupe, "×2"); lees de telling en de herhaling uit.
   const shiftedNotice = () => page.evaluate(() => {
     const n = window.__OPS__!.store.getState().ui.notifications
@@ -277,19 +278,19 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
     await page.getByRole('button', { name: /^(Apply|Toepassen)$/ }).click();
   };
 
-  // Heen: drie taken verschoven, M1 eerder (een gewoon venster).
+  // Heen: twee taken verschoven (A4, M1), M1 eerder (een gewoon venster).
   await applyProfile('builtin:ops');
   await expect.poll(() => profileOf(page).then(p => p?.baseId)).toBe('ops');
   await expect.poll(m1).toEqual(['2026-03-20T12:00', '2026-03-20T12:00']);
   await expect(shiftedToast).toHaveCount(1);
-  expect(await shiftedNotice()).toEqual([3, 1]);
+  expect(await shiftedNotice()).toEqual([2, 1]);
 
-  // Terug: hetzelfde profiel, dezelfde drie taken terug, en elk tijdveld gelijk aan de verse opening.
+  // Terug: hetzelfde profiel, dezelfde twee taken terug, en elk tijdveld gelijk aan de verse opening.
   await applyProfile('builtin:p6');
   await expect.poll(() => profileOf(page)).toEqual({ id: 'p6', baseId: 'p6', name: '' });
   await expect.poll(times).toBe(fresh);
   await expect(shiftedToast).toHaveCount(1);
-  expect(await shiftedNotice()).toEqual([3, 2]);
+  expect(await shiftedNotice()).toEqual([2, 2]);
 
   // Bereken verandert daarna niets meer.
   const calculate = page.locator('button.ribbon-btn').filter({ hasText: /^(Calculate|Bereken)$/ });
