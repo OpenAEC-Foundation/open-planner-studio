@@ -381,7 +381,7 @@ export class CPMSolver {
    *  kalenderdag (bv. 20:00 op een werkdag waarvan de laatste band om 17:00 eindigt) laat
    *  `snapOnOrAfter` naar de EERSTVOLGENDE werk-instant snappen — die valt per definitie op een
    *  ANDERE kalenderdag (`nextWorkInstant` heeft op de eigen dag niets meer te vinden). De
-   *  `startOfDay`-gelijkheidstoets hierboven verwerpt die snap dan ook, en de functie geeft het
+   *  `utcDayStart`-gelijkheidstoets hierboven verwerpt die snap dan ook, en de functie geeft het
    *  RAUWE `d` terug (20:00 blijft 20:00) — géén werk-instant, maar wél de dag die MSP zelf opsloeg.
    *  Dit is een CONSERVATIEVE, maar ONGETOETSTE extrapolatie van dezelfde dag-behoudende regel die
    *  B4 wél corpusbreed verifieerde (geen gemeten corpusbestand draagt een `actualStart`/
@@ -389,7 +389,7 @@ export class CPMSolver {
    *  derde snapregel zonder bewijs. */
   private snapActualForward(eng: CalendarEngine, d: Date): Date {
     const snapped = this.snapOnOrAfter(eng, d);
-    return this.startOfDay(snapped).getTime() === this.startOfDay(d).getTime() ? snapped : d;
+    return utcDayStart(snapped).getTime() === utcDayStart(d).getTime() ? snapped : d;
   }
   /** Snap op-of-vóór (achterwaarts): dag ⇒ `prevWorkDay`, uur ⇒ `prevWorkInstant`. */
   private snapOnOrBefore(eng: CalendarEngine, d: Date): Date {
@@ -437,10 +437,6 @@ export class CPMSolver {
   }
   private modeOf(eng: CalendarEngine): DateMode {
     return eng.isHourMode ? 'hour' : 'day';
-  }
-  /** UTC-middernacht van de dag die `d` bevat (voor de cross-modus-dagrand, §4.3/§5.2). */
-  private startOfDay(d: Date): Date {
-    return utcDayStart(d);
   }
 
   /**
@@ -541,7 +537,7 @@ export class CPMSolver {
     if (!eng.isHourMode) return false;
     const bands = eng.effectiveBandsOn(d);
     if (bands.length === 0) return false;
-    const lastBandEndMs = this.startOfDay(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN;
+    const lastBandEndMs = utcDayStart(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN;
     return d.getTime() === lastBandEndMs;
   }
 
@@ -559,7 +555,7 @@ export class CPMSolver {
   private dayFirstBandStart(eng: CalendarEngine, d: Date): Date | null {
     const bands = eng.effectiveBandsOn(d);
     if (bands.length === 0) return null;
-    return new Date(this.startOfDay(d).getTime() + bands[0].start * MS_PER_MIN);
+    return new Date(utcDayStart(d).getTime() + bands[0].start * MS_PER_MIN);
   }
 
   /** Het LAATSTE band-EIND op `d`'s eigen kalenderdag (Z13, backward-spiegel van `dayFirstBandStart`
@@ -568,7 +564,7 @@ export class CPMSolver {
   private dayLastBandEnd(eng: CalendarEngine, d: Date): Date | null {
     const bands = eng.effectiveBandsOn(d);
     if (bands.length === 0) return null;
-    return new Date(this.startOfDay(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN);
+    return new Date(utcDayStart(d).getTime() + bands[bands.length - 1].end * MS_PER_MIN);
   }
 
   /** De mode-bewuste primitieven die de relatie-wiskunde (`relationMath.ts`, audit P15) injectief
@@ -586,7 +582,7 @@ export class CPMSolver {
     snapOnOrBefore: (eng, d) => this.snapOnOrBefore(eng, d),
     snapStrictAfter: (eng, d) => this.snapStrictAfter(eng, d),
     snapStrictBefore: (eng, d) => this.snapStrictBefore(eng, d),
-    startOfDay: (d) => this.startOfDay(d),
+    startOfDay: utcDayStart,
   };
 
   /** Vroege finish = start ⊕ duur (§5.1). Mijlpaal ⇒ 0; ELAPSEDTIME ⇒ kale 24/7-klokoptelling
@@ -651,7 +647,7 @@ export class CPMSolver {
       // dus dat pad blijft byte-identiek.
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
-      const dayResult = eng.addWorkDaysChecked(this.startOfDay(start), totalDays);
+      const dayResult = eng.addWorkDaysChecked(utcDayStart(start), totalDays);
       return {
         date: this.dayLastBandEnd(eng, dayResult.date) ?? dayResult.date,
         capped: dayResult.capped,
@@ -748,7 +744,7 @@ export class CPMSolver {
       // elke gesplitste dag-taak die op een uur-kalender staat. Gatloos ⇒ byte-identiek.
       const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return new Date(end.getTime());
-      const firstDay = eng.subtractWorkDays(this.startOfDay(end), totalDays);
+      const firstDay = eng.subtractWorkDays(utcDayStart(end), totalDays);
       return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
     const totalDays = splitTotalSpanDays(task, eng);
@@ -852,7 +848,7 @@ export class CPMSolver {
       if (task.time.durationType === 'ELAPSEDTIME') return subtractElapsedMinutes(finish, elapsedMinutesOf(task, eng));
       const totalDays = task.time.scheduleDuration;
       if (totalDays <= 0) return new Date(finish.getTime());
-      const firstDay = eng.subtractWorkDays(this.startOfDay(finish), totalDays);
+      const firstDay = eng.subtractWorkDays(utcDayStart(finish), totalDays);
       return this.dayFirstBandStart(eng, firstDay) ?? firstDay;
     }
     // H3 (Opus-review T15-iteratie-2, herbevestigd via msp-30-mutatiebewijs): `isZeroDurationMilestone`
@@ -888,7 +884,7 @@ export class CPMSolver {
       if (task.time.durationType === 'ELAPSEDTIME') return addElapsedMinutes(start, elapsedMinutesOf(task, eng));
       const totalDays = task.time.scheduleDuration;
       if (totalDays <= 0) return new Date(start.getTime());
-      const lastDay = eng.addWorkDaysChecked(this.startOfDay(start), totalDays).date;
+      const lastDay = eng.addWorkDaysChecked(utcDayStart(start), totalDays).date;
       return this.dayLastBandEnd(eng, lastDay) ?? lastDay;
     }
     // H3 (Opus-review T15-iteratie-2) — zelfde reden als `startFromFinish` hierboven.

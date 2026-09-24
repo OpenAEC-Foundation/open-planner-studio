@@ -54,10 +54,6 @@ export function dayOf(iso: string): string {
   return iso.slice(0, 10);
 }
 
-export function leafTasks(tasks: readonly Task[]): Task[] {
-  return tasks.filter(t => t.childIds.length === 0);
-}
-
 /** Activiteiten: bladtaken zonder hammocks (een LOE-taak volgt anderen en is zelf geen werk). */
 export function activityTasks(tasks: readonly Task[]): Task[] {
   return tasks.filter(t => t.childIds.length === 0 && !t.isHammock);
