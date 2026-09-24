@@ -96,6 +96,18 @@ export function scalarBreakIssue(
   return undefined;
 }
 
+/** `scalarBreakIssue` voor de werkdag en het eenvoudige pauzepatroon van een (concept)kalender. */
+export function calendarScalarBreakIssue(
+  calendar: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>,
+): ScalarBreakIssue | undefined {
+  return scalarBreakIssue(
+    calendar.workStartHour * 60,
+    calendar.workEndHour * 60,
+    calendar.simpleBreakStartMinute,
+    calendar.simpleBreakDurationMinutes,
+  );
+}
+
 /** Netto uren die het expliciete pauzepatroon oplevert; `undefined` betekent ongeldig/legacy. */
 export function simpleBreakNetHours(calendar: WorkCalendar): number | undefined {
   if (calendar.simpleBreakStartMinute === undefined && calendar.simpleBreakDurationMinutes === undefined) {

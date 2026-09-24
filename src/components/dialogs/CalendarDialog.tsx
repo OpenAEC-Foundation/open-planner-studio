@@ -8,7 +8,7 @@ import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
-import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
+import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
 
 /**
  * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1; buffer-herziening fase 2.8b): links een lijst van
@@ -51,12 +51,8 @@ export function CalendarDialog() {
   }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
-  const simpleBreakInvalid = scalarTimeTextInvalid || localCalendars.some((calendar) => scalarBreakIssue(
-    calendar.workStartHour * 60,
-    calendar.workEndHour * 60,
-    calendar.simpleBreakStartMinute,
-    calendar.simpleBreakDurationMinutes,
-  ) !== undefined);
+  const simpleBreakInvalid = scalarTimeTextInvalid
+    || localCalendars.some((calendar) => calendarScalarBreakIssue(calendar) !== undefined);
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
 
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).

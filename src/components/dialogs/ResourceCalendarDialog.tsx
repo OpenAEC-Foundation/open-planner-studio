@@ -7,7 +7,7 @@ import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { CalendarForm } from './CalendarForm';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
-import { scalarBreakIssue } from '@/utils/effectiveWorkTime';
+import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
 
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
@@ -55,12 +55,7 @@ export function ResourceCalendarDialog({
   );
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
-  const simpleBreakInvalid = scalarTimeTextInvalid || scalarBreakIssue(
-    draft.workStartHour * 60,
-    draft.workEndHour * 60,
-    draft.simpleBreakStartMinute,
-    draft.simpleBreakDurationMinutes,
-  ) !== undefined;
+  const simpleBreakInvalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined;
 
   const handleApply = () => {
     if (simpleBreakInvalid) return;
