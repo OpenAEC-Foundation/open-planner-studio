@@ -86,7 +86,16 @@
     "pasteSkippedReadOnly_other": "Skipped {{count}} cells: they are read-only (for example an auto-numbered WBS code or a calculated column).",
     "librarySaveFailed": "Library could not be saved",
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
-    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays."
+    "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays.",
+    "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
+    "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
+    "xerArchiveUnusableConsequence": "The schedule and all project data from the IFC are complete. What is missing: the dates as Primavera stored them and the source provenance for AI and extensions. Saving writes the file without the archive; import the original .xer again to get the archive back.",
+    "xerArchiveReasonSchemaVersion": "Reason: the archive has an unknown schema version or layout (a newer or different writer).",
+    "xerArchiveReasonHashMismatch": "Reason: the checksum does not match the source bytes — the archive is damaged.",
+    "xerArchiveReasonTruncated": "Reason: the archive is truncated — part of the source bytes is missing.",
+    "xerArchiveReasonBytesMissing": "Reason: the source bytes themselves are missing — another IFC program probably rewrote the file.",
+    "xerArchiveReasonMetadataInvalid": "Reason: the source bytes are intact, but the data derived from them is unusable.",
+    "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly)."
   },
   "yes": "Yes",
   "no": "No",

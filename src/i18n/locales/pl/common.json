@@ -128,7 +128,16 @@
     "levelingDelayRoundedToWorkdays_one": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadania do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
-    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
+    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
+    "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",
+    "xerArchiveUnusableConsequence": "Harmonogram i wszystkie dane projektu z IFC są kompletne. Brakuje: dat w postaci zapisanej przez Primaverę oraz pochodzenia źródła dla AI i rozszerzeń. Zapis tworzy plik bez archiwum; zaimportuj ponownie oryginalny plik .xer, aby odzyskać archiwum.",
+    "xerArchiveReasonSchemaVersion": "Powód: archiwum ma nieznaną wersję schematu lub układ (nowszy lub inny program zapisujący).",
+    "xerArchiveReasonHashMismatch": "Powód: suma kontrolna nie pasuje do bajtów źródłowych — archiwum jest uszkodzone.",
+    "xerArchiveReasonTruncated": "Powód: archiwum jest obcięte — brakuje części bajtów źródłowych.",
+    "xerArchiveReasonBytesMissing": "Powód: brakuje samych bajtów źródłowych — prawdopodobnie inny program IFC przepisał plik.",
+    "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
+    "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana)."
   },
   "yes": "Tak",
   "no": "Nie",

@@ -38,11 +38,11 @@ Gebruik `currentColor` voor `fill`/`stroke` zodat het icoon met het thema meekle
 | `ribbon` | **hard** — ontbreekt ⇒ `api.ui.addRibbonButton` gooit | Een knop in de ribbon plaatsen. |
 | `backstage` | **warn** (overgangsregime) — ontbreekt ⇒ `api.importers.*` werkt nog, maar logt een waarschuwing | Een importer registreren (verschijnt in Bestand → Importeren). |
 | `pdf-fonts` | **hard** — ontbreekt ⇒ `api.pdfFonts.register` gooit | Een font-provider registreren voor de vector-PDF-export (bv. CJK-glyf-bytes). |
-| `importSource` | **hard, default-deny** — ontbreekt ⇒ `api.data.getImportSourceInfo`/`getImportSourceChunk`/`getImportSourceCatalogPage` gooien vóórdat er ook maar één byte gelezen wordt | De **volledige oorspronkelijke bronbytes** van een geïmporteerd bestand (vandaag: XER) lezen, inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Zie de aparte paragraaf verderop. |
+| `importSource` | **hard, default-deny** — ontbreekt ⇒ `api.data.getImportSourceInfo`/`getImportSourceIssue`/`getImportSourceChunk`/`getImportSourceCatalogPage` gooien vóórdat er ook maar één byte gelezen wordt | De **volledige oorspronkelijke bronbytes** van een geïmporteerd bestand (vandaag: XER) lezen, inclusief velden die de importlaag bewust niet in het projectmodel materialiseert. Zie de aparte paragraaf verderop. |
 | `filesystem` | informatief | Geen API-oppervlak; puur getoonde intentie bij installatie — **geen** sandbox-garantie (extensie-code heeft technisch gewoon toegang). |
 | `network` | informatief | Idem — getoonde intentie, geen technische grens. |
 
-`data.*` is verder **kern-API** — behalve de drie `getImportSource*`-methoden hierboven — net als
+`data.*` is verder **kern-API** — behalve de vier `getImportSource*`-methoden hierboven — net als
 `settings.*`, `assets.*` en `ui.showNotification`: altijd beschikbaar, geen permissie nodig.
 
 De afdwinging is gecentraliseerd in `src/extensions/permissions.ts` (één tabel pad → permissie).
@@ -219,7 +219,7 @@ module.exports = {
 | Onderdeel | Functies |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
+| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permissie `importSource`, zie hieronder), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permissie `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permissie `ribbon`), `showNotification(msg, type?)` |
 | `api.settings` | `get(key, default)`, `set(key, value)` — per extensie geprefixt in localStorage |
@@ -282,10 +282,11 @@ module.exports = {
 Naast de gemapte `data.*`-DTO's (afgeleid, genormaliseerd, altijd beschikbaar) kan een extensie met
 de permissie `importSource` ook bij de **oorspronkelijke, ongewijzigde brondata** van het huidige
 document — vandaag alleen voor een geopend `.xer`-bestand (Primavera P6). Zonder deze permissie
-gooien alle drie de methoden vóórdat er ook maar één byte gelezen wordt; er lekt dus niets via een
+gooien alle vier de methoden vóórdat er ook maar één byte gelezen wordt; er lekt dus niets via een
 gedeeltelijke aanroep of een foutpad. Deze drie methoden bestaan sinds contractversie `1.1.0` (zie
 *Twee versievelden, twee vragen* hierboven) — declareer `"apiVersion": "1.1"` of hoger in je
-manifest als je erop rekent; een host ouder dan 1.1 kent de methoden simpelweg niet.
+manifest als je erop rekent; een host ouder dan 1.1 kent de methoden simpelweg niet. De vierde,
+`getImportSourceIssue()`, bestaat sinds `1.2.0` (declareer `"apiVersion": "1.2"`).
 
 **Waarom een aparte permissie en geen kern-API.** De rest van `api.data.*` levert het interne
 projectmodel: taken, kalender, relaties — precies wat de importer ervan gemaakt heeft. De
@@ -309,6 +310,13 @@ if (info) {
   diagnostiek-tellingen, het importrapport, de schedule-options-herkomst en catalogustellingen).
   Geen record-inhoud. **`null`** wanneer het actieve document geen retained XER-bron heeft (elk
   niet-XER-document, of een XER-document van vóór deze functie).
+- **`getImportSourceIssue()`** → `ExtImportSourceIssue | null`. `null`, tenzij het document een
+  XER-bronarchief **had** dat bij het openen onbruikbaar bleek en is weggelaten (eigenaarsbesluit
+  2026-09-24, "openen met melding": een corrupt of door andere IFC-software herschreven archief
+  gijzelt het project niet meer). Dan `{ code }` met `code` ∈ `schema-version` | `hash-mismatch` |
+  `truncated` | `bytes-missing` | `metadata-invalid` | `structure`. Zo onderscheid je "nooit een
+  XER-bron" van "bron verloren bij openen"; `getImportSourceInfo()` is in beide gevallen `null`.
+  Alleen de code, geen technische reden (die bevat bestandsgestuurde namen).
 - **`getImportSourceChunk(index)`** → `Uint8Array | null`. Eén losse, verse kopie van een stuk van
   de oorspronkelijke bestandsbytes (`archive.chunkSize`/`archive.chunkCount` uit `getImportSourceInfo()`
   geven de indeling). Concateneer alle chunks 0..`chunkCount - 1` in volgorde om de **exacte**

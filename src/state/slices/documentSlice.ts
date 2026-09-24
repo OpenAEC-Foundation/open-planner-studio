@@ -34,6 +34,7 @@ import {
   type DocumentActivationMaterialization,
 } from '../documentActivation';
 import { sameIFCSource, type IFCSaveSource } from '../ifcSaveInput';
+import { withXerArchiveIssueNotice } from '../xerArchiveIssueNotice';
 
 // Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
 // (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
@@ -406,6 +407,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
+      // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —
+      // de reden reist dus mee, anders zegt MCP/de extensie-API voor de kopie "nooit een XER-bron".
+      xerArchiveIssue: src.xerArchiveIssue,
     };
     const activation = materializeLibraryBoundary({
       payload: copy, companies: source.companies, pools: source.pools, mode: 'silent-switch',
@@ -678,6 +682,13 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         dedupeKey: 'cpm-error',
       });
     }
+    // Eigenaarsbesluit 2026-09-24 ("openen met melding"): ook een herstelsnapshot waarvan het
+    // XER-bronarchief onbruikbaar was, komt terug zónder archief — met één melding voor de hele
+    // herstelbatch (alleen de daadwerkelijk herstelde documenten).
+    const archiveNotice = withXerArchiveIssueNotice(undefined, sharedDocs
+      .filter(d => !skippedIds.includes(d.id))
+      .map(d => d.xerArchiveIssue));
+    if (archiveNotice) get().notify(archiveNotice);
     runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
       hasError: !!cpm?.error,
       error: cpm?.error ?? null,

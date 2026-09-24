@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
+import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { buildImportLabels } from '@/i18n/importLabels';
 
@@ -52,6 +53,9 @@ export function IFCPanel() {
         // `loadState` rekent zelf door en publiceert de viewstart in dezelfde ene publicatie.
         loadState(data, { viewStartDate: data.project.startDate });
         setDirty(false);
+        // Eigenaarsbesluit 2026-09-24: een onbruikbaar XER-bronarchief is weggelaten — nooit stil.
+        const archiveNotice = withXerArchiveIssueNotice(undefined, [data.xerArchiveIssue]);
+        if (archiveNotice) notify(archiveNotice);
       } catch (err) {
         // Bevinding K8: alert() (de énige in de hele repo) vervangen door het gecentraliseerde kanaal.
         notify({

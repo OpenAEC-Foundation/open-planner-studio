@@ -107,7 +107,16 @@
     "librarySaveFailed": "No se pudo guardar la biblioteca",
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
-    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
+    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
+    "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",
+    "xerArchiveUnusableConsequence": "La planificación y todos los datos del proyecto del IFC están completos. Lo que falta: las fechas tal como las guardó Primavera y la procedencia de origen para la IA y las extensiones. Al guardar, el fichero se escribe sin el archivo; vuelva a importar el .xer original para recuperarlo.",
+    "xerArchiveReasonSchemaVersion": "Motivo: el archivo tiene una versión de esquema o un formato desconocidos (un escritor más reciente o distinto).",
+    "xerArchiveReasonHashMismatch": "Motivo: la suma de comprobación no coincide con los bytes de origen: el archivo está dañado.",
+    "xerArchiveReasonTruncated": "Motivo: el archivo está truncado: falta parte de los bytes de origen.",
+    "xerArchiveReasonBytesMissing": "Motivo: faltan los propios bytes de origen; probablemente otro programa IFC reescribió el fichero.",
+    "xerArchiveReasonMetadataInvalid": "Motivo: los bytes de origen están intactos, pero los datos derivados de ellos no se pueden usar.",
+    "xerArchiveReasonStructure": "Motivo: la estructura del archivo en el IFC no es correcta (duplicada, reordenada o mal vinculada)."
   },
   "yes": "Sí",
   "no": "No",
