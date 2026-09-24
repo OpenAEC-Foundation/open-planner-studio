@@ -73,6 +73,9 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 - **Instellingen:** `localStorage` onder `ops-`-sleutels (`@tauri-apps/plugin-store` is ongebruikt); declaratief
   via `settingsRegistry.ts`; elke instelling op alle drie de plekken via `SettingsPanelContent`.
 - **Auto-save** (crashherstel) is gethrottled op 10 s — bewust throttle, geen debounce.
+- **`immer` staat exact vastgepind op `11.1.4` (geen `^`) — zet de caret niet terug.** Immer zit direct onder
+  undo/redo, snapshot-sharing en auto-freeze; vanaf 11.1.8 breekt ook de build (typering van `current`/`original`,
+  zie `src/state/immerDraft.ts`). Bumpen is een bewuste, apart gereviewde wijziging.
 - Path alias `@/` → `src/`; gebruik hem consequent.
 
 ## Feiten die `verify:docs` hier bewaakt
