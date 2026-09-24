@@ -2,25 +2,18 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
-import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
-import { UITheme, ResolvedUITheme, UI_THEMES } from '@/state/slices/types';
+import { UITheme, UI_THEMES } from '@/state/slices/types';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
-import { saveLocale, saveTheme, saveAutoCalcCPM, saveWelcomeSeen } from '@/utils/settingsStore';
+import { saveWelcomeSeen } from '@/utils/settingsStore';
 import { Select } from '@/components/common/Select';
-
-// i18n-sleutels voor de thema-namen — zelfde subset als SettingsPanelContent.tsx (THEME_LABEL_KEYS),
-// hier lokaal gedupliceerd i.p.v. geïmporteerd: het architect-besluit (§2 van het ontwerpdocument)
-// is een EIGEN curated mini-laag, geen hergebruik van de volledige SettingsPanelContent-component.
-const THEME_LABEL_KEYS = {
-  'dark':          'settings.themeDark',
-  'light':         'settings.themeLight',
-  'high-contrast': 'settings.themeHighContrast',
-} as const satisfies Record<ResolvedUITheme, string>;
+// Het architect-besluit (§2 van het ontwerpdocument) is een EIGEN curated mini-laag, geen
+// hergebruik van de volledige SettingsPanelContent-component — wel dezelfde losse bouwstenen.
+import { applyAutoCalcCPM, applyTheme, LanguageSelect, THEME_LABEL_KEYS } from '@/components/settings/settingControls';
 
 /**
  * Welkomstdialoog (fase 2.10, onderdeel 3, §6) — 2 stappen:
  *  1. Korte begroeting + curated mini-laag (taal/thema/auto-bereken) die RECHTSTREEKS dezelfde
- *     `applyTheme`/`applyLocale`/`autoCalcCPM`-opslagpatronen aanroept als `SettingsPanelContent`
+ *     `applyTheme`/`applyLocale`/`applyAutoCalcCPM` (settingControls) aanroept als `SettingsPanelContent`
  *     (architect-besluit 1: geen embedded component, geen eigen opslagsleutel — wijzigingen zijn
  *     dus meteen zichtbaar/identiek in tandwiel/ribbon/backstage-settings).
  *  2. "Rondleiding starten?" met Start/Overslaan.
@@ -29,7 +22,7 @@ const THEME_LABEL_KEYS = {
  * de vlag betekent "gezien", niet "tour afgerond" (architect-besluit 4).
  */
 export function WelcomeDialog() {
-  const { t, i18n } = useTranslation('common');
+  const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
   // Zelfde tweetrapsvorm als in de settings-UI: de keuzelijst toont wat er getekend wordt en gaat
@@ -42,21 +35,6 @@ export function WelcomeDialog() {
   const markSeenAndClose = () => {
     void saveWelcomeSeen(true);
     setUI({ showWelcomeDialog: false });
-  };
-
-  const applyTheme = (theme: UITheme) => {
-    setUI({ uiTheme: theme });
-    void saveTheme(theme);
-  };
-
-  const applyLocale = (locale: Locale) => {
-    void setLocale(locale);
-    void saveLocale(locale);
-  };
-
-  const applyAutoCalcCPM = (checked: boolean) => {
-    setUI({ autoCalcCPM: checked });
-    void saveAutoCalcCPM(checked);
   };
 
   const startTour = () => {
@@ -85,17 +63,7 @@ export function WelcomeDialog() {
 
                 <div>
                   <label className="block mb-1 text-small leading-4 text-text-secondary">{t('settings.language')}</label>
-                  <Select
-                    aria-label={t('settings.language')}
-                    value={i18n.language}
-                    onChange={v => applyLocale(v as Locale)}
-                    options={[...supportedLanguages]
-                      .sort((a, b) => LANGUAGE_LABELS[a][0].localeCompare(LANGUAGE_LABELS[b][0]))
-                      .map(code => {
-                        const [short, label] = LANGUAGE_LABELS[code];
-                        return { value: code, label: `${short} — ${label}` };
-                      })}
-                  />
+                  <LanguageSelect />
                 </div>
 
                 <div>

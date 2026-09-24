@@ -5,6 +5,7 @@ import { Select } from '@/components/common/Select';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
 import { useAppStore } from '@/state/appStore';
 import { saveEnableHourPlanning } from '@/utils/settingsStore';
+import { applySetting } from '@/components/settings/settingControls';
 import {
   formatTaskDurationInput,
   parseTaskDurationInput,
@@ -33,7 +34,6 @@ export function TaskDurationField({ task, calendar, onChange }: {
   const { t } = useTranslation('task');
   const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
   const allowMixedDayHour = useAppStore((s) => s.ui.allowMixedDayHour);
-  const setUI = useAppStore((s) => s.setUI);
   const seed = formatTaskDurationInput(task);
   const [value, setValue] = useState(seed);
   const [message, setMessage] = useState<string | null>(null);
@@ -118,8 +118,7 @@ export function TaskDurationField({ task, calendar, onChange }: {
   };
 
   const enableHours = () => {
-    setUI({ enableHourPlanning: true });
-    void saveEnableHourPlanning(true);
+    applySetting('enableHourPlanning', true, saveEnableHourPlanning);
     setMessage(null);
   };
 
