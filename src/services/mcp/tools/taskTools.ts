@@ -57,6 +57,7 @@ import {
 } from './sequenceFields';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
+import { ancestorIds } from '@/utils/wbs';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -618,12 +619,12 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
     if (!st.tasks.some((t) => t.id === newParentId)) {
       throw new McpStepError('NOT_FOUND', `nieuwe ouder '${newParentId}' bestaat niet`);
     }
-    // Cykel-preventie: newParentId mag niet id zelf of een afstammeling van id zijn.
-    let cur = st.tasks.find((t) => t.id === newParentId);
-    while (cur) {
-      if (cur.id === id) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
-      cur = cur.parentId ? st.tasks.find((t) => t.id === cur!.parentId) : undefined;
-    }
+    // Cykel-preventie: newParentId mag niet id zelf of een afstammeling van id zijn. `ancestorIds`
+    // is cyclusveilig: een corrupte parentId-cyclus elders in de boom liet deze wandeling hangen.
+    const parentById = new Map(st.tasks.map((t) => [t.id, t.parentId]));
+    const ownDescendant = newParentId === id
+      || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
+    if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
   ctx.app.store.getState().moveTask(id, newParentId, position);
   return { data: { moved: id } };

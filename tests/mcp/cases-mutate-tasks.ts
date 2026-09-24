@@ -205,6 +205,24 @@ test('move_task: taak onder zichzelf/afstammeling ⇒ harde VALIDATION-fout, sto
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'store onaangeroerd');
 });
 
+test('move_task: een corrupte parentId-cyclus elders in de boom laat de guard niet hangen', async () => {
+  reset();
+  const a = store.getState().addTask({ name: 'mv-a' });
+  const x = store.getState().addTask({ name: 'mv-x' });
+  const y = store.getState().addTask({ name: 'mv-y' });
+  // Corrupt bestand (bv. een IFC-import zonder cyclusguard): X en Y wijzen via parentId naar elkaar.
+  store.setState((s) => {
+    s.tasks.find((t) => t.id === x)!.parentId = y;
+    s.tasks.find((t) => t.id === y)!.parentId = x;
+  });
+  // Vóór de fix liep de voorouderwandeling vanaf X eindeloos rond (X → Y → X → …).
+  const res = await call('planner_move_task', { id: a, newParentId: x }, makeCtx());
+  assert(res.ok || res.code !== 'INTERNAL', 'de call eindigt met een gewoon resultaat');
+  // En een echte eigen-afstammeling blijft geweigerd, ook met de cyclus in de buurt.
+  const res2 = await call('planner_move_task', { id: x, newParentId: y }, makeCtx());
+  assert(!res2.ok && res2.code === 'VALIDATION', 'X onder Y (Y hangt al onder X) hoort VALIDATION te geven');
+});
+
 // =================================================================================================
 // 6) add_dependencies — kring ⇒ harde CYCLE + rollback (store byte-identiek)
 // =================================================================================================
