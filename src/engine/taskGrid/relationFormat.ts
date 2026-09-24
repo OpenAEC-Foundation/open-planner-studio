@@ -1,6 +1,7 @@
 import type { ExternalLink, ExternalSourceRef } from '@/types/task';
 import { hasOwn, isRecord } from '@/utils/guards';
 import { trimNumber } from '@/utils/durationFormat';
+import { isStrictIsoDateTime } from '@/utils/dateUtils';
 
 export type ExternalDirection = ExternalLink['direction'];
 export type ExternalRelationType = ExternalLink['relType'];
@@ -338,29 +339,7 @@ function validString(value: unknown, maxLength: number, allowEmpty = false): val
 }
 
 function validIsoAnchor(value: string): boolean {
-  if (value.length > MAX_DATE_LENGTH) return false;
-  const match = value.match(
-    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(?:Z|([+-])(\d{2}):(\d{2}))?)?$/,
-  );
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (month < 1 || month > 12) return false;
-  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
-  if (day < 1 || day > daysInMonth) return false;
-  if (match[4] === undefined) return true;
-  const hour = Number(match[4]);
-  const minute = Number(match[5]);
-  const second = match[6] === undefined ? 0 : Number(match[6]);
-  if (hour > 23 || minute > 59 || second > 59) return false;
-  if (match[8] !== undefined) {
-    const offsetHour = Number(match[9]);
-    const offsetMinute = Number(match[10]);
-    if (offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return false;
-  }
-  return true;
+  return value.length <= MAX_DATE_LENGTH && isStrictIsoDateTime(value, { maxFractionDigits: 9 });
 }
 
 function hasExactKeys(record: Record<string, unknown>, expected: readonly string[]): boolean {
