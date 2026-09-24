@@ -425,10 +425,8 @@ export function SettingsPanelContent() {
                   <span>{t('settings.allowMixedDayHour')}</span>
                 </label>
               )}
-            </div>
-            <div className="settings-section">
-              <h3>{t('settings.taskTypesSection')}</h3>
-              <label className="settings-checkbox-row">
+              {/* #101: taaktypes tonen — geen eigen sectiekop, hoort bij de uren-/eenhedenplanning. */}
+              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
                 <input
                   type="checkbox"
                   checked={showTaskTypes}
