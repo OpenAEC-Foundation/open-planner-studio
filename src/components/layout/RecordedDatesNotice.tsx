@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CircleDot, X } from 'lucide-react';
+import { AlertTriangle, CircleDot } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { NoticeStrip } from './NoticeStrip';
 
 /**
  * Strook voor "datums zoals opgeslagen" (issue #63). Naar het model van `DependencyModeNotice`
@@ -28,53 +29,31 @@ export function RecordedDatesNotice() {
 
   if (datesAsRecorded) {
     return (
-      <div
-        className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
-        style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
+      <NoticeStrip
+        icon={CircleDot}
+        text={t('recordedDates.active')}
+        actionLabel={t('recordedDates.recalculate')}
+        onAction={() => runCPM()}
         role="status"
-        data-ops-recorded-dates-active
-      >
-        <CircleDot size={14} className="shrink-0 text-accent" />
-        <span className="flex-1">{t('recordedDates.active')}</span>
-        <button
-          onClick={() => runCPM()}
-          className="btn btn--sm btn--primary"
-          data-ops-recorded-dates-recalculate
-        >
-          {t('recordedDates.recalculate')}
-        </button>
-      </div>
+        stripProps={{ 'data-ops-recorded-dates-active': true }}
+        actionProps={{ 'data-ops-recorded-dates-recalculate': true }}
+      />
     );
   }
 
   if (!recordedDates) return null;
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
-      style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
+    <NoticeStrip
+      icon={AlertTriangle}
+      text={t('recordedDates.offer', { count: recordedDates.shifted, total: recordedDates.total })}
+      actionLabel={t('recordedDates.show')}
+      onAction={() => showRecordedDates()}
+      onDismiss={() => dismissRecordedDates()}
       role="status"
-      data-ops-recorded-dates-offer
-    >
-      <AlertTriangle size={14} className="shrink-0 text-accent" />
-      <span className="flex-1">
-        {t('recordedDates.offer', { count: recordedDates.shifted, total: recordedDates.total })}
-      </span>
-      <button
-        onClick={() => showRecordedDates()}
-        className="btn btn--sm btn--primary"
-        data-ops-recorded-dates-show
-      >
-        {t('recordedDates.show')}
-      </button>
-      <button
-        onClick={() => dismissRecordedDates()}
-        className="p-1 hover:bg-surface-hover rounded-[8px] text-text-secondary"
-        title={t('close')}
-        data-ops-recorded-dates-dismiss
-      >
-        <X size={14} />
-      </button>
-    </div>
+      stripProps={{ 'data-ops-recorded-dates-offer': true }}
+      actionProps={{ 'data-ops-recorded-dates-show': true }}
+      dismissProps={{ 'data-ops-recorded-dates-dismiss': true }}
+    />
   );
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Scissors } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { NoticeStrip } from './NoticeStrip';
 
 /**
  * Modus-strook voor de splits-modus (issue #146, etappe 2).
@@ -17,20 +18,13 @@ export function SplitModeNotice() {
   if (!active) return null;
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
-      style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
-      data-ops-split-mode
-    >
-      <Scissors size={14} className="shrink-0 text-accent" />
-      <span className="flex-1">{t('view.splitModeHint')}</span>
-      <button
-        onClick={() => setUI({ showSplitMode: false })}
-        className="btn btn--sm btn--primary"
-        data-ops-split-mode-stop
-      >
-        {t('view.splitModeStop')}
-      </button>
-    </div>
+    <NoticeStrip
+      icon={Scissors}
+      text={t('view.splitModeHint')}
+      actionLabel={t('view.splitModeStop')}
+      onAction={() => setUI({ showSplitMode: false })}
+      stripProps={{ 'data-ops-split-mode': true }}
+      actionProps={{ 'data-ops-split-mode-stop': true }}
+    />
   );
 }
