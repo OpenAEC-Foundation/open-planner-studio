@@ -12,12 +12,11 @@ import {
 } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
-import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveProject, cloneTasksForSolve, solveInputOf } from '@/engine/scheduler/solveProject';
 import {
-  invalidateUndoneHistoryForScopes,
+  invalidateDocumentRedo,
   removeSessionHistoryForDocumentFromState,
   replaceSessionHistoryState,
-  type HistoryScopeKey,
 } from '../sessionHistory';
 import {
   materializeLibraryBoundary,
@@ -84,11 +83,6 @@ function publishActivation(s: AppState, activation: DocumentActivationMaterializ
   s.resourceLoadResult = activation.resourceLoadResult;
   s.ui.showLibraryLinkDialog = activation.signals.showLibraryLinkDialog;
   s.ui.libraryRefreshNotice = activation.signals.libraryRefreshNotice;
-}
-
-function invalidateActivationRedo(s: AppState, documentId: string): void {
-  const scope: HistoryScopeKey = `document:${documentId}`;
-  s.historyEvents = invalidateUndoneHistoryForScopes(s.historyEvents, new Set([scope]));
 }
 
 /** Lichtgewicht weergave voor consumenten (bv. een toekomstige FileTabBar). */
@@ -335,7 +329,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (inc) inc.payload = null;
       s.activeDocumentId = id;
       resetDocumentScopedUI(s);
-      if (activation.invalidateRedoScope) invalidateActivationRedo(s, id);
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, id);
       publishActivation(s, activation);
     });
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
@@ -390,7 +384,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (n) n.payload = null;
       s.activeDocumentId = neighbor.id;
       resetDocumentScopedUI(s);
-      if (activation.invalidateRedoScope) invalidateActivationRedo(s, neighbor.id);
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, neighbor.id);
       publishActivation(s, activation);
     });
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
@@ -525,7 +519,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         }));
       s.activeDocumentId = activeDoc.id;
       resetDocumentScopedUI(s);
-      if (activation2.invalidateRedoScope) invalidateActivationRedo(s, activeDoc.id);
+      if (activation2.invalidateRedoScope) invalidateDocumentRedo(s, activeDoc.id);
       publishActivation(s, activation2);
     });
     // De solve gebeurde al op de geïsoleerde actieve payload. Herstel nu alleen dezelfde zichtbare
@@ -568,17 +562,10 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       let next: DocumentPayload;
       try {
         const tasks = cloneTasksForSolve(payload.tasks);
-        // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
-        // draait — pariteit by construction, geen tweede implementatie (A3/M3).
-        const result = solveProject({
-          tasks,
-          sequences: payload.sequences,
-          calendar: payload.calendar,
-          calendars: payload.calendars,
-          dataDate: payload.project.statusDate,
-          progressMode: payload.project.progressMode,
-          schedulingOptions: payload.project.schedulingOptions,
-        });
+        // Exact dezelfde reken-kern (en via `solveInputOf` dezelfde opties, inclusief de
+        // projectstart-vloer) die `runCPM` op het actieve document draait — pariteit by
+        // construction, geen tweede implementatie (A3/M3).
+        const result = solveProject(solveInputOf(payload, tasks));
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
         if (result.error) continue;

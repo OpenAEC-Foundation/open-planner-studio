@@ -18,7 +18,7 @@
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type { ProgressMode, Project, SchedulingOptions } from '@/types/project';
 import { CPMSolver, type CPMResult } from './CPMSolver';
 import { applyCpmResult } from './applyCpmResult';
 import { expandSummaryRelations, foldSyntheticSequenceIds } from './expandSummaryRelations';
@@ -47,6 +47,35 @@ export interface SolveProjectInput {
    *  zónder voorganger — die start op zijn eigen, ingelezen `scheduleStart` (`ownAnchor`), ook als
    *  die vóór de projectstart ligt; "een ingelezen anker wordt nooit door de vloer overruled". */
   projectStartDate?: string;
+}
+
+/** De projectgebonden reken-opties van een doorrekening — dezelfde vier velden als `CPMOptions`. */
+export type ProjectSolveOptions = Pick<SolveProjectInput, 'dataDate' | 'progressMode' | 'schedulingOptions' | 'projectStartDate'>;
+
+/**
+ * De reken-opties uit een project: statusdatum, voortgangsmodus, reken-opties en de projectstart als
+ * vloer (gebruikstest-bevinding 2026-08: zonder die vloer kon een taak met een verouderde
+ * `scheduleStart` vóór het projectbegin blijven doorlopen). Eén plek i.p.v. elke aanroeper die ze
+ * met de hand uit `project` plukt — en er daarbij één vergeet.
+ */
+export function cpmOptionsOf(
+  project: Pick<Project, 'statusDate' | 'progressMode' | 'schedulingOptions' | 'startDate'>,
+): ProjectSolveOptions {
+  return {
+    dataDate: project.statusDate,
+    progressMode: project.progressMode,
+    schedulingOptions: project.schedulingOptions,
+    projectStartDate: project.startDate,
+  };
+}
+
+/** De volledige `solveProject`-invoer voor een document (live state of payload), met `tasks` als de
+ *  lijst die gemuteerd mag worden — de draft zelf, of een `cloneTasksForSolve`-kloon. */
+export function solveInputOf(
+  doc: { sequences: Sequence[]; calendar: WorkCalendar; calendars: WorkCalendar[]; project: Parameters<typeof cpmOptionsOf>[0] },
+  tasks: Task[],
+): SolveProjectInput {
+  return { tasks, sequences: doc.sequences, calendar: doc.calendar, calendars: doc.calendars, ...cpmOptionsOf(doc.project) };
 }
 
 /**

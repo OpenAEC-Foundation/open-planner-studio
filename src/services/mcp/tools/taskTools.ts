@@ -20,7 +20,9 @@ import {
   toolError,
   type MutationOutcome,
 } from './runtime';
-import { enrichOk, freshDates, okDirect, okEnvelope, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
+import {
+  enrichOk, freshDates, okDirectGuarded, okEnvelope, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS,
+} from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { BulkTaskItem } from '@/state/runtime/createMcpTransactions';
 import { validate, progress } from '@/state/mcpValidation';
@@ -37,7 +39,7 @@ import {
 } from './taskFields';
 import type { SequenceType } from '@/types/sequence';
 import type { Task } from '@/types/task';
-import { isAncestorRelation } from '@/state/relationRules';
+import { isAncestorRelation, relationKey } from '@/state/relationRules';
 // De relatie-NOTATIE (type-aliassen, lag-vormen, schema-fragmenten) woont in de gedeelde veldlaag
 // `sequenceFields.ts` — één implementatie voor `add_dependencies` hier, `update_dependencies` in
 // `dependencyTools.ts` en de leeskant in `readTools.ts`. Zie de kop van dat bestand.
@@ -48,14 +50,18 @@ import {
   lagPatchOf,
   parseLag,
   normalizeSeqType,
+  selfRelationReason,
   SEQ_TYPE_SCHEMA,
   unknownTypeReason,
   type ParsedLag,
 } from './sequenceFields';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
+import { ancestorIds } from '@/utils/wbs';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
-import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
@@ -79,11 +85,7 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 //                        herberekent aan het eind.
 // `batchStep` gooit waar de handler een `McpToolErr` teruggeeft: binnen een batch is een vormfout een
 // STRUCTURELE stapfout die de hele batch hoort terug te rollen (spec §Compositie), geen zachte weigering.
-
-/** Zet een `parseX`-foutboodschap om in de harde stapfout die de batch-loop verwacht. */
-function stepValidationError(message: string): McpStepError {
-  return new McpStepError('VALIDATION', message);
-}
+// Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
 
 // =================================================================================================
 // planner_add_tasks
@@ -103,9 +105,9 @@ function fieldContext(
     customTaskTypes: s.customTaskTypes,
     durationCalendar: (requestedId) => {
       const id = requestedId === undefined ? task?.calendarId : requestedId ?? undefined;
-      const calendar = id ? (s.calendars.find((c) => c.id === id) ?? s.calendar) : s.calendar;
+      const calendar = resolveCalendar(id, s.calendars, s.calendar);
       return {
-        hoursPerDay: calendar.workTime ? deriveHoursPerDay(calendar.workTime, calendar.hoursPerDay) : calendar.hoursPerDay,
+        hoursPerDay: effHoursPerDay(calendar),
         hasWorkBlocks: hasConcreteWorkBlocks(calendar),
       };
     },
@@ -250,11 +252,7 @@ const addTasks: BatchStepTool = {
     required: ['tasks'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseAddTasks(args, ctx.app.store.getState());
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return addTasksCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseAddTasks, addTasksCore),
   async handler(args, ctx) {
     const parsed = parseAddTasks(args, ctx.app.store.getState());
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -262,12 +260,10 @@ const addTasks: BatchStepTool = {
     return enrichOk(res, () => {
       const created = (res as McpToolOk).data as { created: Record<string, string> };
       const state = ctx.app.store.getState();
-      const { projectEnd, cappedTaskIds } = projectEndInfo(state);
       return {
         created: created.created,
         tasks: freshDates(state, Object.values(created.created)),
-        projectEnd,
-        ...(cappedTaskIds ? { cappedTaskIds } : {}),
+        ...projectEndInfo(state),
       };
     });
   },
@@ -437,11 +433,7 @@ const updateTasks: BatchStepTool = {
   // Géén lege-batch-snelpad nodig: dat snelpad bestaat alleen om een overbodige TRANSACTIE (snapshot +
   // redo-wipe + backup) te vermijden, en binnen een batch bezit `planner_batch` die al. Zijn er nul
   // uitvoerbare items, dan levert de kern gewoon `updated: []` met alle weigeringen.
-  batchStep(args, ctx) {
-    const parsed = parseUpdateTasks(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return updateTasksCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateTasks, updateTasksCore),
   async handler(args, ctx) {
     const parsed = parseUpdateTasks(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -462,9 +454,7 @@ const updateTasks: BatchStepTool = {
         else staticRej.push(c.rejection);
       }
       if (!anyExecutable) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(st).projectEnd }, staticRej);
+        return okDirectGuarded(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(st).projectEnd }, staticRej);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateTasksCore(ctx, updates));
@@ -560,11 +550,7 @@ const deleteTasks: BatchStepTool = {
   },
   // Zie de noot bij update_tasks: het lege-batch-snelpad is puur transactie-vermijding en dus
   // overbodig binnen een batch.
-  batchStep(args, ctx) {
-    const parsed = parseIdList(args, 'delete_tasks');
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return deleteTasksCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep((args: unknown) => parseIdList(args, 'delete_tasks'), deleteTasksCore),
   async handler(args, ctx) {
     const parsed = parseIdList(args, 'delete_tasks');
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -575,9 +561,7 @@ const deleteTasks: BatchStepTool = {
       const st = ctx.app.store.getState();
       const staticRej = validate.tasksExist(st, ids);
       if (staticRej.length === ids.length) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(
+        return okDirectGuarded(
           ctx,
           {
             deleted: [],
@@ -635,12 +619,12 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
     if (!st.tasks.some((t) => t.id === newParentId)) {
       throw new McpStepError('NOT_FOUND', `nieuwe ouder '${newParentId}' bestaat niet`);
     }
-    // Cykel-preventie: newParentId mag niet id zelf of een afstammeling van id zijn.
-    let cur = st.tasks.find((t) => t.id === newParentId);
-    while (cur) {
-      if (cur.id === id) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
-      cur = cur.parentId ? st.tasks.find((t) => t.id === cur!.parentId) : undefined;
-    }
+    // Cykel-preventie: newParentId mag niet id zelf of een afstammeling van id zijn. `ancestorIds`
+    // is cyclusveilig: een corrupte parentId-cyclus elders in de boom liet deze wandeling hangen.
+    const parentById = new Map(st.tasks.map((t) => [t.id, t.parentId]));
+    const ownDescendant = newParentId === id
+      || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
+    if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
   ctx.app.store.getState().moveTask(id, newParentId, position);
   return { data: { moved: id } };
@@ -665,11 +649,7 @@ const moveTask: BatchStepTool = {
     required: ['id', 'newParentId'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseMoveTask(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return moveTaskCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseMoveTask, moveTaskCore),
   async handler(args, ctx) {
     const parsed = parseMoveTask(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -696,7 +676,7 @@ function classifyDeps(
 } {
   const rejections: { id: string; reason: string }[] = [];
   const candidates: { predecessorId: string; successorId: string; type: SequenceType; lag: ParsedLag }[] = [];
-  const seen = new Set(st.sequences.map((s) => `${s.predecessorId}|${s.successorId}|${s.type}`));
+  const seen = new Set(st.sequences.map(relationKey));
   // Eén Map ipv. `st.tasks.some(...)` per dep: `st.tasks` is hier een gewone (niet-draft) array, dus
   // een Map bouwen kost geen Immer-proxy-overhead en scheelt bij N deps N× een lineaire scan.
   const byId = new Map(st.tasks.map((t) => [t.id, t]));
@@ -714,6 +694,12 @@ function classifyDeps(
     if (!lag.ok) { rejections.push({ id: label, reason: lag.reason }); continue; }
     if (!byId.has(d.predecessorId)) { rejections.push({ id: label, reason: `voorganger '${d.predecessorId}' bestaat niet` }); continue; }
     if (!byId.has(d.successorId)) { rejections.push({ id: label, reason: `opvolger '${d.successorId}' bestaat niet` }); continue; }
+    // Zelfrelatie: per item zacht weigeren, net als `update_dependencies` — anders ziet de kring-
+    // check hieronder een a→a-lus en rolt de HELE call terug als harde CYCLE.
+    if (d.predecessorId === d.successorId) {
+      rejections.push({ id: label, reason: selfRelationReason(d.predecessorId) });
+      continue;
+    }
     // Een verzameltaak-eindpunt is sinds 2026-08-15 legaal (expandSummaryRelations rekent zo'n
     // relatie door naar de onderliggende bladtaken — MS Project-semantiek). Alleen een relatie
     // tussen een taak en zijn EIGEN (voor)ouder-samenvatting blijft zinloos (directe cyclus na
@@ -722,7 +708,7 @@ function classifyDeps(
       rejections.push({ id: label, reason: ANCESTOR_RELATION_REJECTION });
       continue;
     }
-    const key = `${d.predecessorId}|${d.successorId}|${type}`;
+    const key = relationKey({ predecessorId: d.predecessorId, successorId: d.successorId, type });
     if (seen.has(key)) { rejections.push({ id: label, reason: 'relatie bestond al' }); continue; }
     seen.add(key);
     candidates.push({ predecessorId: d.predecessorId, successorId: d.successorId, type, lag: lag.value });
@@ -823,11 +809,7 @@ const addDependencies: BatchStepTool = {
     required: ['dependencies'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseAddDeps(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return addDependenciesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseAddDeps, addDependenciesCore),
   async handler(args, ctx) {
     const parsed = parseAddDeps(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -839,9 +821,7 @@ const addDependencies: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyDeps(state, deps);
       if (pre.candidates.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { added: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { added: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addDependenciesCore(ctx, deps));
@@ -892,11 +872,7 @@ const removeDependencies: BatchStepTool = {
     required: ['ids'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseIdList(args, 'remove_dependencies');
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return removeDependenciesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep((args: unknown) => parseIdList(args, 'remove_dependencies'), removeDependenciesCore),
   async handler(args, ctx) {
     const parsed = parseIdList(args, 'remove_dependencies');
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -907,10 +883,8 @@ const removeDependencies: BatchStepTool = {
       const st = ctx.app.store.getState();
       const existing = new Set(st.sequences.map((s) => s.id));
       if (!ids.some((id) => existing.has(id))) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
         const rej = ids.map((id) => ({ id, reason: `relatie '${id}' bestaat niet` }));
-        return okDirect(ctx, { removed: [], projectEnd: projectEndInfo(st).projectEnd }, rej);
+        return okDirectGuarded(ctx, { removed: [], projectEnd: projectEndInfo(st).projectEnd }, rej);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => removeDependenciesCore(ctx, ids));
@@ -1111,11 +1085,7 @@ const setTaskSplits: BatchStepTool = {
     required: ['taskId', 'interruptions'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseSetTaskSplits(args);
-    if (typeof parsed === 'string') throw stepValidationError(parsed);
-    return setTaskSplitsCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseSetTaskSplits, setTaskSplitsCore),
   async handler(args, ctx) {
     const parsed = parseSetTaskSplits(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);

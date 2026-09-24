@@ -25,7 +25,7 @@
 // batch-stap moet dus een SYNCHRONE, transactie-vrije kern aanroepen. Die kern is `batchStep` op de
 // tooldefinitie (zie `BatchStepTool`): dezelfde `() => MutationOutcome`-closure die de handler binnen
 // zijn `runMutateTool` draait, maar dan los benoemd. Leestools hebben géén `batchStep` nodig — hun
-// handler IS synchroon (de `readTool`-wikkel) en wordt direct aangeroepen.
+// handler IS synchroon (`runReadTool`) en wordt direct aangeroepen.
 // Een tool die batchable heet maar geen synchrone kern aanbiedt, wordt vóór enige mutatie geweigerd
 // met een expliciete melding — nooit stil overgeslagen.
 //
@@ -51,9 +51,9 @@
 // (incl. deze) en zou een import-cyclus opleveren — zie de kop van toolIndex.ts.
 import { getTool } from '../toolIndex';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from '../schemaValidate';
-import { runMutateTool, toolError, McpStepError, type MutationOutcome } from './runtime';
+import { mapTransactionError, runMutateTool, toolError, McpStepError, type MutationOutcome } from './runtime';
 import type {
-  ActivityEntry, McpContext, McpToolDef, McpToolResult, McpErrorCode,
+  ActivityEntry, McpContext, McpToolDef, McpToolResult,
 } from '../contracts';
 import { isRecord, isThenable } from '@/utils/guards';
 import { TEMP_ID_PATTERN } from './helpers';
@@ -154,11 +154,6 @@ function compactJson(value: unknown): string {
   return s.length > MAX_JSON_CHARS ? `${s.slice(0, MAX_JSON_CHARS)}…(afgekapt)` : s;
 }
 
-/** Classificeer een kale foutstring (spiegelt `mapTransactionError` in runtime.ts). */
-function classify(message: string): McpErrorCode {
-  return /circular dependency|kringverwijzing|\bkring\b|cyclus|\bcycle\b/i.test(message) ? 'CYCLE' : 'VALIDATION';
-}
-
 /**
  * Sleutels waaronder NOOIT herschreven wordt: vrije tekst van de gebruiker. De uitsluiting geldt voor
  * de hele subboom onder zo'n sleutel (`fields: { name: … }`, `tasks: [{ name: … }]`), want alles
@@ -249,7 +244,7 @@ export function recomputeMidBatch(ctx: McpContext): void {
   ctx.app.store.getState().recomputeViewRows();
   ctx.app.store.getState().recomputeResourceLoad();
   const err = ctx.app.store.getState().cpmResult?.error;
-  if (err) throw new McpStepError(classify(err), `tussentijdse herberekening faalde: ${err}`);
+  if (err) throw new McpStepError(mapTransactionError(err), `tussentijdse herberekening faalde: ${err}`);
 }
 
 // ── Stap-dispatch ────────────────────────────────────────────────────────────────────────────────
@@ -257,7 +252,7 @@ export function recomputeMidBatch(ctx: McpContext): void {
 /**
  * Voer één stap SYNCHROON uit en geef zijn uitkomst terug.
  *   - Muterende tools: via de synchrone `batchStep`-kern (transactie-vrij; de batch bezit de transactie).
- *   - Leestools: via de handler, die bij een leestool synchroon is (`readTool`-wikkel). Levert die tóch
+ *   - Leestools: via de handler, die bij een leestool synchroon is (`runReadTool`). Levert die tóch
  *     een thenable, dan is dat een ontwikkelfout — weigeren i.p.v. een halve stap laten lopen (de
  *     belofte wordt afgevangen zodat er geen losse afwijzing ontsnapt).
  * Een NIET-ok resultaat van een leestool is een structurele stapfout (onbekend id, ongeldige args) en

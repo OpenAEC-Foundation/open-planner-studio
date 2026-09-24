@@ -2,11 +2,11 @@ import { createSnapshot, type Snapshot } from '../snapshot';
 import { currentAppState } from '../immerDraft';
 import {
   MAX_SESSION_HISTORY_EVENTS_PER_SCOPE,
-  recordSessionHistoryDeltas,
+  recordDocumentDataHistoryDelta,
   type SessionHistoryEvent,
 } from '../sessionHistory';
 import type { AppState } from '../appStore';
-import { markScheduleStale } from '../scheduleStale';
+import { markDateMutation } from '../scheduleStale';
 import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
@@ -187,12 +187,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         return state.historyEvents.find(event => event.id === coalesce?.eventId) ?? null;
       }
 
-      const event = recordSessionHistoryDeltas(state, pending.label, [{
-        kind: 'document-data',
-        documentId: pending.documentId,
-        before: pending.before,
-        after,
-      }]);
+      const event = recordDocumentDataHistoryDelta(state, pending.label, pending.documentId, pending.before, after);
       coalesce = pending.coalesceKey && event
         ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
         : null;
@@ -201,11 +196,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     finishMutation(state, opts) {
       state.isDirty = true;
-      if (opts?.stale && state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      if (opts?.stale) markScheduleStale(state);
+      if (opts?.stale) markDateMutation(state);
       runtime.finishUndoable(state);
     },
 
@@ -236,9 +227,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     recordDocumentDataHistory(state, before, documentId, label = 'Wijziging') {
       const after = snapshotOfCurrentState(state);
       if (snapshotsEqual(before, after)) return null;
-      return recordSessionHistoryDeltas(state, label, [{
-        kind: 'document-data', documentId, before, after,
-      }]);
+      return recordDocumentDataHistoryDelta(state, label, documentId, before, after);
     },
 
     resetUndoCoalescing() {

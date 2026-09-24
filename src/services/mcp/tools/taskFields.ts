@@ -37,6 +37,7 @@ import type {
 import { TASK_TYPES } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
 import { isRecord } from '@/utils/guards';
+import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 
 // --- Patch-vorm ----------------------------------------------------------------------------------
 
@@ -297,14 +298,12 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       return { ok: false, reason: '`customTaskType` vereist taskType USERDEFINED (of laat taskType weg)' };
     }
     const candidate = { id: value.id.trim(), name: value.name.trim() };
-    const existing = ctx.customTaskTypes.find(type => type.id === candidate.id);
-    if (existing && existing.name !== candidate.name) {
-      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${existing.name}'` };
+    const { sameId, sameNameOtherId } = customTaskTypeClashes(ctx.customTaskTypes, candidate);
+    if (sameId && sameId.name !== candidate.name) {
+      return { ok: false, reason: `customTaskType-id '${candidate.id}' bestaat al met projectsnapshot '${sameId.name}'` };
     }
-    const sameName = ctx.customTaskTypes.find(type => type.id !== candidate.id
-      && type.name.localeCompare(candidate.name, undefined, { sensitivity: 'accent' }) === 0);
-    if (sameName) {
-      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameName.id}'` };
+    if (sameNameOtherId) {
+      return { ok: false, reason: `customTaskType-naam '${candidate.name}' bestaat al met id '${sameNameOtherId.id}'` };
     }
     customTaskType = candidate;
     top.taskType = 'USERDEFINED';

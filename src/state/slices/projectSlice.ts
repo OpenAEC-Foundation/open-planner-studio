@@ -2,7 +2,7 @@ import type { Project, ProgressMode } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { createDefaultTaskTime, deriveScheduleDurationFromMinutes } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -13,7 +13,7 @@ import { diffDays } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { applyProjectPatch } from '../projectPatch';
 import {
   computeMoveDelta, computeMoveImpact, computeHolidayGaps, shiftIso, shiftTask,
   shiftProjectDates, shiftResource, shiftBaseline,
@@ -24,7 +24,7 @@ import { freshPayload, hydratePayload } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
-import { deriveHoursPerDay } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
@@ -183,32 +183,10 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // geen undo-stap, geen `modifiedAt`-bump, geen isDirty.
       if (!projectChanges(s.project, updates)) return;
       runtime.beginUndoable(s);
-      const prevStartDate = s.project.startDate;
-      Object.assign(s.project, updates);
-      s.project.modifiedAt = new Date().toISOString();
-      // T7b: de projectstart-vloer verhuisde UIT de solver (CPMSolver is sinds T7 MSP-getrouw — een
-      // ingelezen anker wordt nooit meer door de vloer overruled, zie `CPMSolver.ownAnchor`) NAAR
-      // HIER, het bewerkmoment. Alléén hier bestaat het intentiesignaal "de gebruiker heeft zojuist
-      // zelf de projectstart verzet": in de solver hebben een VEROUDERD in-app-anker (bv. een taak
-      // met een start die dateert van vóór deze wijziging) en een aantoonbaar-eerder MS-Project-
-      // anker (uit een `.mpp`-import) EXACT dezelfde vorm — wortel-taak, `scheduleStart` vóór
-      // `project.startDate`, geen constraint — dus kon de solver ze niet uit elkaar houden
-      // (architect-analyse, T7-escalatie). GEEN Δ-verschuiving van de rest van de planning; wie
-      // alles wil opschuiven gebruikt `moveProject` ("Project verplaatsen"), dat hierboven al
-      // expliciet ELK taakanker meeneemt. Geïmporteerde bestanden raken dit pad NIET: `loadState`/
-      // `applyLoadedProject` (fileSlice.ts) lopen nooit door `setProject` — ze hydrateren de
-      // payload rechtstreeks via het documentcontract — dus importgetrouwheid (T7) en deze
-      // bewerkbescherming staan volledig los van elkaar, precies de scheiding die het
-      // orkestratorbesluit vroeg. De klem-mechaniek zelf (snap/scheduleFinish/constraint-check/
-      // hammock-skip) is UITBESTEED aan `clampProjectStartAnchors` (`engine/scheduler/
-      // projectStartAnchorClamp.ts`) — gedeeld met `mcpTransaction.ts`'s `draft.setProject` zodat
-      // de UI en de AI-assistent zich identiek gedragen (T7-review H1).
-      if ('startDate' in updates && typeof updates.startDate === 'string') {
-        clampedAnchors = clampProjectStartAnchors({
-          tasks: s.tasks, sequences: s.sequences, calendar: s.calendar, calendars: s.calendars,
-          prevStartDate, nextStartDate: updates.startDate,
-        });
-      }
+      // T7b: merge + `modifiedAt` + de projectstart-vloer op het bewerkmoment (verouderde wortel-
+      // ankers klemmen) — gedeeld met `draft.setProject`, zie `applyProjectPatch` (projectPatch.ts)
+      // voor het waarom. Wie de hele planning wil opschuiven gebruikt `moveProject` hieronder.
+      clampedAnchors = applyProjectPatch(s, updates);
       // Alleen de projectstart raakt de planning (anker van de forward pass); naam/auteur niet (A6).
       runtime.finishMutation(s, { stale: 'startDate' in updates });
     });
@@ -480,16 +458,10 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       const payload = freshPayload();
       payload.project = proj;
       payload.calendar = opts.calendar;
-      const phaseHoursPerDay = opts.calendar.workTime
-        ? deriveHoursPerDay(opts.calendar.workTime, opts.calendar.hoursPerDay)
-        : opts.calendar.hoursPerDay;
+      const phaseHoursPerDay = effHoursPerDay(opts.calendar);
       payload.tasks = opts.phaseNames.map((name, i) => {
         const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit);
-        if (time.durationUnit === 'hours') {
-          time.scheduleDuration = phaseHoursPerDay > 0
-            ? (time.durationMinutes ?? 0) / (phaseHoursPerDay * 60)
-            : 0;
-        }
+        deriveScheduleDurationFromMinutes(time, phaseHoursPerDay);
         return {
           id: generateId('task'),
           name,

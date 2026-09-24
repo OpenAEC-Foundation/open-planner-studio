@@ -167,6 +167,16 @@ test('delete_tasks: verwijdert bestaande, onbekend id ⇒ zachte weigering', asy
   assert(!taskById(a) && !taskById(b), 'a en b zijn weg uit de store');
 });
 
+test('delete_tasks: de actieve taak wijst daarna niet naar een verwijderde taak', async () => {
+  reset();
+  const a = store.getState().addTask({ name: 'act-a' });
+  const b = store.getState().addTask({ name: 'act-b' });
+  store.getState().selectTasks([a, b], false);
+  store.setState({ activeTaskId: a });
+  okData(await call('planner_delete_tasks', { ids: [a] }, makeCtx()));
+  assertEq(store.getState().activeTaskId, b, 'terug op de eerste resterende selectie (vóór de fix: het verwijderde id)');
+});
+
 // =================================================================================================
 // 5) move_task — ouder + positie binnen de transactie
 // =================================================================================================
@@ -193,6 +203,24 @@ test('move_task: taak onder zichzelf/afstammeling ⇒ harde VALIDATION-fout, sto
   assert(!res.ok, 'P onder zijn kind hoort te falen');
   assert(!res.ok && res.code === 'VALIDATION', 'code VALIDATION');
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'store onaangeroerd');
+});
+
+test('move_task: een corrupte parentId-cyclus elders in de boom laat de guard niet hangen', async () => {
+  reset();
+  const a = store.getState().addTask({ name: 'mv-a' });
+  const x = store.getState().addTask({ name: 'mv-x' });
+  const y = store.getState().addTask({ name: 'mv-y' });
+  // Corrupt bestand (bv. een IFC-import zonder cyclusguard): X en Y wijzen via parentId naar elkaar.
+  store.setState((s) => {
+    s.tasks.find((t) => t.id === x)!.parentId = y;
+    s.tasks.find((t) => t.id === y)!.parentId = x;
+  });
+  // Vóór de fix liep de voorouderwandeling vanaf X eindeloos rond (X → Y → X → …).
+  const res = await call('planner_move_task', { id: a, newParentId: x }, makeCtx());
+  assert(res.ok || res.code !== 'INTERNAL', 'de call eindigt met een gewoon resultaat');
+  // En een echte eigen-afstammeling blijft geweigerd, ook met de cyclus in de buurt.
+  const res2 = await call('planner_move_task', { id: x, newParentId: y }, makeCtx());
+  assert(!res2.ok && res2.code === 'VALIDATION', 'X onder Y (Y hangt al onder X) hoort VALIDATION te geven');
 });
 
 // =================================================================================================
@@ -241,6 +269,23 @@ test('add_dependencies: duplicaat in dezelfde call ⇒ één toegepast, één za
     'de reden noemt dat de relatie al bestond');
   const seqs = store.getState().sequences.filter((s) => s.predecessorId === a && s.successorId === b);
   assertEq(seqs.length, 1, 'store bevat precies één a→b-relatie');
+});
+
+test('add_dependencies: zelfrelatie ⇒ zachte weigering per item, de rest van de call gaat door', async () => {
+  reset();
+  const a = store.getState().addTask({ name: 'self-a' });
+  const b = store.getState().addTask({ name: 'self-b' });
+  const res = await call('planner_add_dependencies', {
+    dependencies: [
+      { predecessorId: a, successorId: a, type: 'FINISH_START' },
+      { predecessorId: a, successorId: b, type: 'FINISH_START' },
+    ],
+  }, makeCtx());
+  const data = okData(res); // vóór de fix: harde CYCLE, de hele call teruggerold
+  assertEq(data.added.length, 1, 'de geldige relatie a→b is toegevoegd');
+  const rej = (res as McpToolOk).itemRejections ?? [];
+  assertEq(rej.length, 1, 'precies één weigering: de zelfrelatie');
+  assert(/zichzelf/.test(rej[0]?.reason ?? ''), 'de reden noemt de zelfrelatie (zelfde tekst als update_dependencies)');
 });
 
 // =================================================================================================

@@ -16,6 +16,8 @@ import type { Task } from '@/types/task';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { hydratePayload, payloadFromImport } from '../documentContract';
 import { materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
+import { refreshProjectCalendarCache } from '../syncProjectCalendar';
+import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { captureRecordedDates, countShiftedTasks } from '@/engine/scheduler/recordedDates';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
@@ -25,19 +27,7 @@ import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import type { ImportLabelT } from '@/i18n/importLabels';
-import {
-  invalidateUndoneHistoryForScopes,
-  removeSessionHistoryForDocumentFromState,
-  type HistoryScopeKey, type SessionHistoryEvent,
-} from '../sessionHistory';
-
-function invalidateDocumentRedo(
-  state: { historyEvents: SessionHistoryEvent[] },
-  documentId: string,
-): void {
-  const scope: HistoryScopeKey = `document:${documentId}`;
-  state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
-}
+import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -186,6 +176,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     });
   };
 
+  /** Na een geslaagde opslaan-als-dialoog: het nieuwe opslagdoel vastleggen, `isDirty` alleen wissen
+   *  als er tijdens de dialoog niets gewijzigd is (`state` = de momentopname vóór de eerste await,
+   *  K8b — anders houdt de gebruiker terecht zijn sluitwaarschuwing), en recents + melding. */
+  const adoptSaveAsTarget = async (state: AppState, outcome: SaveOutcome) => {
+    const unchanged = sameIFCSource(state, get());
+    set((s) => {
+      s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
+      s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
+      if (unchanged) s.isDirty = false;
+    });
+    await pushRecent(outcome.ref, outcome.name);
+    noticeIfDownloaded(outcome);
+  };
+
   return {
     applyLoadedProject: (parsed, opts) => {
       const current = get();
@@ -198,16 +202,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       payload.fileHandle = opts.fileHandle !== undefined ? opts.fileHandle : current.fileHandle;
       if (!opts.linkedOpen) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
-        payload.resources = payload.resources.map((resource) => {
-          const { libraryOrigin: _discarded, ...rest } = resource;
-          return rest;
-        });
-        payload.calendars = payload.calendars.map((calendar) => {
-          const { libraryOrigin: _discarded, ...rest } = calendar;
-          return rest;
-        });
-        payload.calendar = payload.calendars.find(calendar =>
-          calendar.id === payload.project.calendarId) ?? payload.calendar;
+        stripLibraryOrigins(payload);
+        refreshProjectCalendarCache(payload);
       }
       const recorded = opts.recompute
         ? captureRecordedDates(payload.tasks, parsed.recordedFields)
@@ -371,17 +367,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           [{ name: 'IFC Files', extensions: ['ifc'] }],
         );
         if (!outcome) return;
-        // Opnieuw buiten de producer bepalen of er tijdens de dialoog iets gewijzigd is.
-        const unchanged = sameIFCSource(state, get());
-        set((s) => {
-          s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-          s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-          // Alleen "opgeslagen" als er tijdens de dialoog niets gewijzigd is; anders blijft het
-          // document terecht gewijzigd en houdt de gebruiker zijn sluitwaarschuwing.
-          if (unchanged) s.isDirty = false;
-        });
-        await pushRecent(outcome.ref, outcome.name);
-        noticeIfDownloaded(outcome);
+        await adoptSaveAsTarget(state, outcome);
       } catch (err) {
         console.error('Save failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });
@@ -403,14 +389,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           [{ name: 'IFC Files', extensions: ['ifc'] }],
         );
         if (!outcome) return;
-        const unchanged = sameIFCSource(state, get());
-        set((s) => {
-          s.filePath = outcome.ref?.kind === 'path' ? outcome.ref.path : outcome.name;
-          s.fileHandle = outcome.ref?.kind === 'handle' ? outcome.ref.handle : null;
-          if (unchanged) s.isDirty = false;
-        });
-        await pushRecent(outcome.ref, outcome.name);
-        noticeIfDownloaded(outcome);
+        await adoptSaveAsTarget(state, outcome);
       } catch (err) {
         console.error('Save As failed:', err);
         get().notify({ severity: 'error', messageKey: 'notifications.saveFailed', detail: (err as Error).message });

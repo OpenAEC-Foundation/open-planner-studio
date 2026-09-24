@@ -1,5 +1,6 @@
 import type { ActivityCodeType, ActivityCodeValue, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { assignTaskActivityCode, assignTaskCustomField } from '@/engine/taskMutationRules';
+import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import type { CustomTaskType } from '@/types/taskType';
 import { generateId } from '@/utils/id';
 import type { AppSliceFactory } from './types';
@@ -45,11 +46,8 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
     set((s) => {
       const id = type.id.trim();
       const name = type.name.trim();
-      const existing = s.customTaskTypes.find(x => x.id === id);
-      const sameName = s.customTaskTypes.find(x => x.name.localeCompare(
-        name, undefined, { sensitivity: 'accent' },
-      ) === 0);
-      if (existing || sameName || !id || !name) return;
+      const { sameId, sameNameOtherId } = customTaskTypeClashes(s.customTaskTypes, { id, name });
+      if (sameId || sameNameOtherId || !id || !name) return;
       runtime.beginUndoable(s);
       s.customTaskTypes.push({ id, name });
       runtime.finishMutation(s);

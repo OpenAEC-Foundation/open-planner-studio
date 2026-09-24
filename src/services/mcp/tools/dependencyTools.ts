@@ -25,11 +25,11 @@
 //     met de reden dat de waarden al zo staan.
 import type { McpContext, McpToolOk } from '../contracts';
 import type { BatchStepTool } from './batchTool';
-import { guardNonTransactional, McpStepError, runMutateTool, toolError, type MutationOutcome } from './runtime';
-import { enrichOk, freshDates, okDirect, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
+import { McpStepError, runMutateTool, toolError, type MutationOutcome } from './runtime';
+import { enrichOk, freshDates, okDirectGuarded, parsedBatchStep, projectEndInfo, WRITE_ANNOTATIONS } from './helpers';
 import type { AppState } from '@/state/appStore';
 import { validate } from '@/state/mcpValidation';
-import { isAncestorRelation } from '@/state/relationRules';
+import { isAncestorRelation, relationKey } from '@/state/relationRules';
 import {
   ANCESTOR_RELATION_REJECTION,
   LAG_DOC,
@@ -38,6 +38,7 @@ import {
   lagReport,
   normalizeSeqType,
   parseLag,
+  selfRelationReason,
   seqAbbrev,
   SEQ_TYPE_SCHEMA,
   unknownTypeReason,
@@ -96,11 +97,6 @@ function fieldsOf(seq: Sequence): SeqFields {
     ...(seq.lagPercent !== undefined ? { lagPercent: seq.lagPercent } : {}),
     ...(seq.lagMinutes !== undefined ? { lagMinutes: seq.lagMinutes } : {}),
   };
-}
-
-/** Dedup-sleutel: één relatie per (voorganger, opvolger, type) — dezelfde regel als `addSequence`. */
-function tripleKey(f: SeqFields): string {
-  return `${f.predecessorId}|${f.successorId}|${f.type}`;
 }
 
 /**
@@ -211,7 +207,7 @@ function classifyDepUpdates(
     }
     if (bad) { rejections.push({ id: seqId, reason: bad }); continue; }
     if (nextPred === nextSucc) {
-      rejections.push({ id: seqId, reason: `een relatie kan taak '${nextPred}' niet met zichzelf verbinden` });
+      rejections.push({ id: seqId, reason: selfRelationReason(nextPred) });
       continue;
     }
     // Voorouder-relatie als NIEUW eindpunt-paar (eigenaarsbesluit 2026-08-15): verhangen náár een
@@ -289,10 +285,10 @@ function classifyDepUpdates(
     // Eén relatie per (voorganger, opvolger, type) — dezelfde regel die `addSequence` hanteert. Een
     // TYPE-wijziging (of een verlegd eindpunt) kan een bestaande relatie dubbelen; dat mag niet stil
     // gebeuren, want de store-`updateSequence` negeert zo'n botsing zonder een woord te zeggen.
-    const key = tripleKey(next);
+    const key = relationKey(next);
     let clash: string | null = null;
     for (const [otherId, f] of projected) {
-      if (otherId !== seqId && tripleKey(f) === key) { clash = otherId; break; }
+      if (otherId !== seqId && relationKey(f) === key) { clash = otherId; break; }
     }
     if (clash) {
       rejections.push({
@@ -438,11 +434,7 @@ const updateDependencies: BatchStepTool = {
     required: ['updates'],
     additionalProperties: false,
   },
-  batchStep(args, ctx) {
-    const parsed = parseUpdateDeps(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return updateDependenciesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseUpdateDeps, updateDependenciesCore),
   async handler(args, ctx) {
     const parsed = parseUpdateDeps(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -454,9 +446,7 @@ const updateDependencies: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyDepUpdates(state, parsed);
       if (pre.candidates.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { updated: [], tasks: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => updateDependenciesCore(ctx, parsed));

@@ -10,24 +10,28 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import {
-  createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
-  clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
+  buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
+  timeUpdateTouchesTimephasedWindow, invalidateForTimeBaseChange, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
+import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
+  applyCompletionEdit,
   applyProgressInvariants,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
-import { detachFromParent, attachToParent, isSelfOrDescendant, collectSubtreeIds, siblingIds } from '@/state/taskTree';
-import { relationVerdict } from '@/state/relationRules';
+import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
+import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
-import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import type { AppState } from '../appStore';
+import type { StoreRuntime } from '../runtime/storeRuntime';
+import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { buildTaskEditPlanEnvironment } from '../gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import { buildProgressImportPlan } from '@/services/progressImport';
@@ -281,6 +285,36 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
 // Compatibele export voor bestaande MCP-aanroepers; de ene implementatie leeft in taskEditPlan.
 export { applyProgressInvariants };
 
+/**
+ * De gedeelde kern van `setActualStart`/`setActualFinish` (fase 2.6), binnen hun producer. `false`
+ * ⇒ geweigerd: actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST),
+ * zonder snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v.
+ * rauwe ISO-strings (het uur-precies-op-de-statusdatum-dag-gat). Een onbekende taak is een stille
+ * no-op (`true`, zoals voorheen).
+ */
+function applyActualDate(
+  runtime: StoreRuntime,
+  s: AppState,
+  taskId: string,
+  field: 'actualStart' | 'actualFinish',
+  date: string | undefined,
+  opts: { coalesceKey?: string } | undefined,
+): boolean {
+  const task = s.tasks.find((t) => t.id === taskId);
+  if (!task) return true;
+  if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
+  runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
+  task.time[field] = date || undefined;
+  // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default de
+  // invariant meteen een nieuw actualFinish en is wissen onmogelijk).
+  if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
+  applyProgressInvariants(task, s.project.statusDate);
+  clearLevelingGaps(task); // B7 — zie `setTaskProgress`.
+  // H1 (Opus-review T15-iteratie-2) — elke voortgangsmutatie is datum-beïnvloedend, zie `setTaskProgress`.
+  runtime.finishMutation(s, { stale: true });
+  return true;
+}
+
 export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, get) => ({
   tasks: [],
 
@@ -299,18 +333,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         ? s.tasks.find(t => t.id === partial.position!.anchorId)
         : undefined;
       const parentId = anchorTask ? anchorTask.parentId : (partial.parentId || null);
-      // Overerving (2026-08-14): een taak met een bestaande ouder neemt diens taskType over als de
-      // aanroeper zelf geen taskType opgeeft — vóór de bouwmodus-brede default. Geldt alleen op het
-      // moment van aanmaken; indenteren/verslepen van een bestaande taak laat taskType met rust.
-      // Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
       const parentTask = parentId ? s.tasks.find(t => t.id === parentId) : undefined;
-      const inheritedTaskType = partial.taskType || parentTask?.taskType || (s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
-      const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
-        ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
-        : undefined;
-      const effectiveNewTaskCalendar = partial.calendarId
-        ? (s.calendars.find(calendar => calendar.id === partial.calendarId) ?? s.calendar)
-        : s.calendar;
+      const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
       const defaultDurationUnit = s.ui.enableHourPlanning
         && s.project.defaultTaskDurationUnit === 'hours'
         && hasConcreteWorkBlocks(effectiveNewTaskCalendar)
@@ -321,64 +345,13 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         partial.isMilestone ? 0 : 5,
         defaultDurationUnit,
       ), partial.time);
-      if (initialTime.durationUnit === 'hours') {
-        const hoursPerDay = effectiveNewTaskCalendar.workTime
-          ? deriveHoursPerDay(effectiveNewTaskCalendar.workTime, effectiveNewTaskCalendar.hoursPerDay)
-          : effectiveNewTaskCalendar.hoursPerDay;
-        initialTime.scheduleDuration = hoursPerDay > 0
-          ? (initialTime.durationMinutes ?? 0) / (hoursPerDay * 60)
-          : 0;
-      }
+      deriveScheduleDurationFromMinutes(initialTime, effHoursPerDay(effectiveNewTaskCalendar));
 
-      const task: Task = {
-        id,
-        name: partial.name,
-        description: partial.description || '',
-        wbsCode: partial.wbsCode || '',
-        // Bouwmodus (2026-07-13): neutraal taaktype-default in bouw-agnostische modus (USERDEFINED)
-        // i.p.v. CONSTRUCTION. Alleen de default bij aanmaken verandert; de enum blijft intact.
-        taskType: inheritedTaskType,
-        customTaskTypeId: inheritedCustomTaskTypeId,
-        status: partial.status || 'NOT_STARTED',
-        isMilestone: partial.isMilestone || false,
-        milestoneKind: partial.milestoneKind,
-        mandatory: partial.mandatory,
-        // ?? i.p.v. || : priority 0 is een geldige waarde (laagste, levelt als eerste weg) en
-        // mag niet stilzwijgend naar de default 500 vallen.
-        priority: partial.priority ?? 500,
-        parentId,
-        childIds: [],
-        // T14b (gebruikstestbevinding, ernst hoog — dataverlies): een meegegeven `partial.time` wordt
-        // veld-voor-veld gemerged met de verse default i.p.v. ongewijzigd overgenomen — anders bleef
-        // een ontbrekend veld (bv. `completion`) `undefined` tot writeIFC crashte op
-        // `time.completion.toFixed(1)`. Zelfde regel in het MCP-pad: zie mcpTransaction.ts draft.addTask.
-        time: initialTime,
-        resourceIds: partial.resourceIds || [],
-        color: partial.color,
-        constraint: partial.constraint,
-        // Fase 2.9 (§3.1/§4.3): secundaire constraint doorgeven zodat de solver hem als tweede
-        // grens meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
-        constraint2: partial.constraint2,
-        // Fase 2.9 (§3.2/§4.4): hammock/LOE-vlag doorgeven zodat de solver de afgeleide-span-tak
-        // draait. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
-        isHammock: partial.isHammock,
-        // Fase 2.9 (§3.3/§4.5): externe (cross-project) dependencies doorgeven zodat de solver ze als
-        // bevroren datum-grenzen meerekent. Afwezig ⇒ undefined ⇒ byte-identiek default-document.
-        externalLinks: partial.externalLinks,
-        deadline: partial.deadline,
-        calendarId: partial.calendarId,
-        // QA-fix (fase 2.10, onderdeel 2, bevinding 4): notes werd hier vergeten — de andere
-        // optionele velden (constraint2/isHammock/externalLinks/...) volgen wél al dit patroon.
-        notes: partial.notes,
-        // Z0 (etappe "nul afwijkingen"): typecontract-doorgifte, nog ONGEBRUIKT door de solver —
-        // zelfde patroon als isHammock/externalLinks hierboven. Afwezig ⇒ undefined ⇒
-        // byte-identiek default-document. (`levelingDelay` zelf staat hier bewust NIET: dat veld
-        // wordt uitsluitend door de nivelleerder gezet, nooit via addTask.)
-        splitGaps: partial.splitGaps,
-        manuallyScheduled: partial.manuallyScheduled,
-        levelingDelayMinutes: partial.levelingDelayMinutes,
-        levelingDelayElapsed: partial.levelingDelayElapsed,
-      };
+      // Veld-voor-veld-afleiding incl. taaktype-overerving van de ouder: één definitie met het
+      // MCP-pad (`draft.addTask`), zie `buildNewTask` in taskDefaults.ts.
+      const task = buildNewTask(partial, {
+        id, parentId, parentTask, constructionMode: s.ui.constructionMode, time: initialTime,
+      });
 
       // Zonder `position` (of een onbekende anker): exact het bestaande gedrag — achteraan.
       // Mét een geldige anker: vlak vóór/ná de anker inserten, zowel in de rauwe array (bepaalt
@@ -409,14 +382,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         }
       }
 
-      // WBS-code: bij auto-nummering de hele boom bijwerken; anders alleen deze taak een
-      // afgeleide code geven wanneer de aanroeper er geen meegaf (lege codes breken de
-      // CSV/MSP-export en -herimport, die op dotted codes koppelen).
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else if (!partial.wbsCode) {
-        task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
-      }
+      // WBS-code: bij auto-nummering de hele boom; anders alleen een afgeleide code wanneer de
+      // aanroeper er zelf geen meegaf.
+      if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
       runtime.finishMutation(s, { stale: true }); // nieuwe taak (A6): planning verouderd tot F5.
     });
@@ -465,14 +433,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
       // voor de volledige triggerset-toelichting.
+      // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee: een walk met
+      // bevroren `workMinutes` negeert een duur-/datum-/kalenderwijziging anders stilzwijgend.
       if (('calendarId' in rest) || timeUpdateTouchesTimephasedWindow(time)) {
-        const clearedWindow = clearTimephasedWindow(s.tasks[idx]);
-        // N2 (Opus-her-check, tweede ronde) — laag 4 stroomt NIET altijd live mee (zie
-        // `taskDefaults.ts`'s bijgewerkte docblok): een walk met bevroren `workMinutes` negeert een
-        // duur-/datum-/kalenderwijziging anders stilzwijgend.
-        const clearedWalks = timephasedDurationWalksHaveFrozenWork(s.tasks[idx])
-          && clearTimephasedDurationWalks(s.tasks[idx]);
-        lostTimephasedGuidance = clearedWindow || clearedWalks;
+        lostTimephasedGuidance = invalidateForTimeBaseChange(s.tasks[idx]);
       }
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
       // maakt ook een door de nivelleerder ingevoegde pauzedag ongeldig — het gat ligt dan op een
@@ -548,10 +512,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (6) Tijdbasis-gevolgen (bevinding 1): een splitbewerking IS een tijdbasis-bewerking, óók
       // zonder duurwijziging — anders overschrijft het gelezen Z8-venster de nieuwe spanne gewoon en
       // beweegt er geen datum. Zelfde vorm als `updateTask`/`setTaskCalendar`.
-      const clearedWindow = clearTimephasedWindow(task);
-      const clearedWalks = timephasedDurationWalksHaveFrozenWork(task)
-        && clearTimephasedDurationWalks(task);
-      lostTimephasedGuidance = clearedWindow || clearedWalks;
+      lostTimephasedGuidance = invalidateForTimeBaseChange(task);
 
       // (7) Eigen finish bijwerken zodat de balk direct klopt; de echte datums komen bij F5/auto-calc,
       // zoals bij elke duurwijziging. `earlyFinish` gaat mee omdat de renderer die als eerste leest
@@ -643,22 +604,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find(t => t.id === id);
       if (!task) return; // onbekend id: geen snapshot, geen loze undo-stap.
       runtime.beginUndoable(s);
-
-      // Remove from parent
-      detachFromParent(s.tasks, id);
-
-      // Remove child tasks recursively
-      const removeIds = new Set(collectSubtreeIds(s.tasks, id));
-
-      s.tasks = s.tasks.filter(t => !removeIds.has(t.id));
-      s.sequences = s.sequences.filter(
-        seq => !removeIds.has(seq.predecessorId) && !removeIds.has(seq.successorId)
-      );
-      s.assignments = s.assignments.filter(a => !removeIds.has(a.taskId));
-      s.selectedTaskIds = s.selectedTaskIds.filter(sid => !removeIds.has(sid));
-      if (s.activeTaskId && removeIds.has(s.activeTaskId)) {
-        s.activeTaskId = s.selectedTaskIds[0] ?? null;
-      }
+      removeTaskSubtrees(s, [id]);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
@@ -677,19 +623,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const roots = frozen.filter((id) => s.tasks.some((task) => task.id === id));
       if (roots.length === 0) return;
       runtime.beginUndoable(s);
-
-      const removeIds = new Set<string>();
-      for (const id of roots) {
-        detachFromParent(s.tasks, id);
-        for (const subtreeId of collectSubtreeIds(s.tasks, id)) removeIds.add(subtreeId);
-      }
-
-      s.tasks = s.tasks.filter((task) => !removeIds.has(task.id));
-      s.sequences = s.sequences.filter(
-        (sequence) => !removeIds.has(sequence.predecessorId) && !removeIds.has(sequence.successorId),
-      );
-      s.assignments = s.assignments.filter((assignment) => !removeIds.has(assignment.taskId));
-      s.selectedTaskIds = s.selectedTaskIds.filter((id) => !removeIds.has(id));
+      removeTaskSubtrees(s, roots);
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true });
     });
@@ -795,17 +729,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `outdentTasks` lossen ditzelfde probleem op met een diepste-eerst-sortering; hier is
       // wegfilteren juist, want de groep landt op één doelpositie.
       const geselecteerd = new Set(ids.filter(id => s.tasks.some(t => t.id === id)));
-      /** Loopt de ouderketen van `id` omhoog en meldt of daar een mede-geselecteerde taak in zit.
-       *  Visited-set tegen corrupte parentId-cycli uit een kapot IFC (zoals in planTaskPlacement). */
+      // `ancestorIds` is cyclusveilig tegen corrupte parentId-cycli uit een kapot IFC.
+      const parentOf = (id: string) => s.tasks.find(t => t.id === id)?.parentId;
+      /** Zit er in de ouderketen van `id` een mede-geselecteerde taak? */
       const heeftGeselecteerdeVoorouder = (id: string): boolean => {
-        const bezocht = new Set<string>([id]);
-        let cur = s.tasks.find(t => t.id === id);
-        cur = cur?.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        while (cur && !bezocht.has(cur.id)) {
-          if (geselecteerd.has(cur.id)) return true;
-          bezocht.add(cur.id);
-          cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        }
+        for (const voorouder of ancestorIds(id, parentOf)) if (geselecteerd.has(voorouder)) return true;
         return false;
       };
       const teVerplaatsen = [...geselecteerd].filter(id => !heeftGeselecteerdeVoorouder(id));
@@ -823,13 +751,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // doet daarom HELEMAAL niets: geen snapshot, geen mutatie.
       if (target.parentId !== null) {
         const groep = new Set(gesorteerd);
-        const bezocht = new Set<string>();
-        let cur = s.tasks.find(t => t.id === target.parentId);
-        while (cur && !bezocht.has(cur.id)) {
-          if (groep.has(cur.id)) return;
-          bezocht.add(cur.id);
-          cur = cur.parentId ? s.tasks.find(t => t.id === cur!.parentId) : undefined;
-        }
+        if (groep.has(target.parentId)) return;
+        for (const voorouder of ancestorIds(target.parentId, parentOf)) if (groep.has(voorouder)) return;
       }
 
       // ---- 4. Eén voor één plaatsen, elk direct ná zijn voorganger -----------------------------
@@ -1092,33 +1015,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const parent = s.tasks.find(t => t.id === parentId);
         if (parent) parent.childIds.push(newRootId);
       }
-      // `relationVerdict.ts` is de bron van de regel, niet alleen de reguliere add-route
-      // (`addSequence`): een sjabloon is app-niveau data uit `localStorage` (zie
-      // `utils/wbsTemplates.ts`) en kan dus, net als een tak uit het klembord, relaties
-      // dragen die nooit via die route zijn aangemaakt. De lookup wijst al naar `s.tasks`
-      // MÉT de zojuist ingevoegde taken (nieuwe ids, ouderrelaties uit de lus hierboven).
-      const lookup = (tid: string) => s.tasks.find(t2 => t2.id === tid);
-      for (const q of template.sequences) {
-        const candidate = {
-          ...q,
-          predecessorId: idMap.get(q.predecessorId)!,
-          successorId: idMap.get(q.successorId)!,
-        };
-        if (!relationVerdict(lookup, s.sequences, candidate).ok) { skippedRelations++; continue; }
-        s.sequences.push({ ...candidate, id: generateId('seq') });
-      }
-
-      // WBS-codes: auto ⇒ hele boom; anders alleen de ingevoegde tak afleiden.
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else {
-        const codes = deriveWbsCodes(s.tasks);
-        for (const id of idMap.values()) {
-          const task = s.tasks.find(t2 => t2.id === id);
-          const code = codes.get(id);
-          if (task && code !== undefined) task.wbsCode = code;
-        }
-      }
+      // Een sjabloon is app-niveau data uit `localStorage` (zie `utils/wbsTemplates.ts`) en kan
+      // dus, net als een tak uit het klembord, relaties dragen die de relatieregels weigeren.
+      skippedRelations = insertRemappedRelations(s, template.sequences, idMap);
+      assignInsertedWbsCodes(s, idMap.values());
 
       if (newRootId) {
         s.selectedTaskIds = [newRootId];
@@ -1127,16 +1027,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
-    if (skippedRelations > 0) {
-      // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet
-      // (zelfde precedent als `setProject` in projectSlice.ts).
-      get().notify({
-        severity: 'info',
-        messageKey: 'notifications.relationsSkippedOnInsert',
-        params: { count: skippedRelations },
-        dedupeKey: 'relations-skipped-on-insert-template',
-      });
-    }
+    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
+    notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-insert-template');
     return newRootId;
   },
 
@@ -1145,14 +1037,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
-      const completion = Math.max(0, Math.min(1, raw));
-      task.time.completion = completion;
-      // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
-      if (completion > 0 && !task.time.actualStart) {
-        task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
-      }
-      // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
-      if (completion < 1) task.time.actualFinish = undefined;
+      // §3.2: % > 0 ⇒ gestart (auto actualStart), teruggedraaid onder 100% ⇒ actualFinish vervalt.
+      applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)));
       applyProgressInvariants(task, s.project.statusDate);
       // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
       // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
@@ -1170,45 +1056,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
   setActualStart: (taskId, date, opts) => {
     let accepted = true;
-    set((s) => {
-      const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) return;
-      // Actuals liggen nooit ná de statusdatum: weigeren i.p.v. stil klemmen (§3.2, BESLIST).
-      // Weigering pusht GÉÉN snapshot (return vóór beginUndoable) — ongewijzigd gedrag.
-      //
-      // T16-veeglijst-fix (was: BEKENDE BEPERKING, B4-nasleep, Opus-her-check T15-fixronde) —
-      // `isActualPastStatusDate` vergelijkt nu geparste instanten i.p.v. rauwe ISO-strings, zie die
-      // functie se toelichting voor de volledige analyse (het uur-precies-op-de-statusdatum-dag-gat).
-      if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
-      runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
-      task.time.actualStart = date || undefined;
-      applyProgressInvariants(task, s.project.statusDate);
-      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
-      // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
-      runtime.finishMutation(s, { stale: true });
-    });
+    set((s) => { accepted = applyActualDate(runtime, s, taskId, 'actualStart', date, opts); });
     get().recomputeViewRows();
     return accepted;
   },
 
   setActualFinish: (taskId, date, opts) => {
     let accepted = true;
-    set((s) => {
-      const task = s.tasks.find((t) => t.id === taskId);
-      if (!task) return;
-      // T16-veeglijst-fix — zie `isActualPastStatusDate` se toelichting (zelfde functie als
-      // `setActualStart` hierboven, geen tweede, potentieel afdrijvende implementatie).
-      if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) { accepted = false; return; }
-      runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
-      task.time.actualFinish = date || undefined;
-      // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default
-      // de invariant meteen een nieuw actualFinish en is wissen onmogelijk).
-      if (!date && task.time.completion >= 1) task.time.completion = 0;
-      applyProgressInvariants(task, s.project.statusDate);
-      clearLevelingGaps(task); // B7 — zie `setTaskProgress` hierboven.
-      // H1 (Opus-review T15-iteratie-2) — zie de toelichting bij `setTaskProgress` hierboven.
-      runtime.finishMutation(s, { stale: true });
-    });
+    set((s) => { accepted = applyActualDate(runtime, s, taskId, 'actualFinish', date, opts); });
     get().recomputeViewRows();
     return accepted;
   },

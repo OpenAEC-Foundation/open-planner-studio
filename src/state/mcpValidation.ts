@@ -20,7 +20,9 @@
 
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
-import { applyProgressInvariants } from './slices/taskSlice';
+import {
+  applyProgressInvariants, isActualFinishBeforeStart, isActualPastStatusDate,
+} from '@/engine/taskMutationRules';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { isValidUnits } from '@/types/resource';
@@ -106,22 +108,6 @@ export const validate = {
     }
     return { ok: true };
   },
-
-  /**
-   * Mijlpaal-duurregel (spec §Werkpakket 7): een mijlpaal is per definitie duur 0; een expliciete
-   * `time.scheduleDuration > 0` op een mijlpaal is een fout. Retourneert de reden of `null`.
-   *
-   * Dit is de CANONIEKE predicaat-vorm van de check die `draft.addTasks` (T3) bij aanmaak al inline
-   * afdwingt (mcpTransaction.ts, pre-validatie stap 3). De tool-laag (WP7 `update_tasks`) gebruikt
-   * deze helper bij WIJZIGINGEN die een taak tot mijlpaal maken of de duur zetten, zodat de regel op
-   * één plek geformuleerd staat; de inline T3-aanmaakcheck blijft bestaan (goedkope vroege fout).
-   */
-  milestoneDuration(item: { isMilestone?: boolean; time?: { scheduleDuration?: number } }): string | null {
-    if (item.isMilestone && item.time && (item.time.scheduleDuration ?? 0) > 0) {
-      return `een mijlpaal mag geen duur > 0 hebben (scheduleDuration=${item.time.scheduleDuration})`;
-    }
-    return null;
-  },
 };
 
 export const progress = {
@@ -187,12 +173,13 @@ export const progress = {
     //     completion=1 hoort af te dwingen via de invarianten.
     if (update.completion !== undefined && time.completion < 1) time.actualFinish = undefined;
 
-    // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false).
+    // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
+    //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
     if (statusDate) {
-      if (update.actualStart && update.actualStart > statusDate) {
+      if (update.actualStart && isActualPastStatusDate(update.actualStart, statusDate)) {
         return { applied: false, reason: `actualStart ${update.actualStart} ligt ná de statusdatum ${statusDate}` };
       }
-      if (update.actualFinish && update.actualFinish > statusDate) {
+      if (update.actualFinish && isActualPastStatusDate(update.actualFinish, statusDate)) {
         return { applied: false, reason: `actualFinish ${update.actualFinish} ligt ná de statusdatum ${statusDate}` };
       }
     }
@@ -203,8 +190,8 @@ export const progress = {
       time.completion = 0;
     }
 
-    // (7) actualFinish >= actualStart.
-    if (time.actualStart && time.actualFinish && time.actualFinish < time.actualStart) {
+    // (7) actualFinish >= actualStart (op instantprecisie, zoals het grid).
+    if (isActualFinishBeforeStart(time)) {
       return { applied: false, reason: `actualFinish ${time.actualFinish} ligt vóór actualStart ${time.actualStart}` };
     }
 

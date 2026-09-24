@@ -2,6 +2,7 @@ import { parseDate, formatDate, addBusinessDays } from '@/utils/dateUtils';
 import type { Task, TaskDurationUnit, TaskTime } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
@@ -43,6 +44,68 @@ export function createDefaultTaskTime(
     isCritical: false,
     completion: 0,
   };
+}
+
+/**
+ * De nieuwe `Task` van een aanmaakactie — de ENE veld-voor-veld-afleiding achter `taskSlice.addTask`
+ * én de MCP-`draft.addTask` (die mochten nooit stil uit elkaar drijven, Z0-reviewbevinding 3). Wat
+ * per pad verschilt geeft de aanroeper mee: het id, de (gevalideerde) ouder en de beginduur (`time`,
+ * al gemerged met `partial.time`, T14b — een ongemerged `time` liet writeIFC crashen op een
+ * ontbrekend `completion`). Plaatsing, WBS-code en undo/dirty blijven bij de aanroeper.
+ *
+ * Overerving (2026-08-14): zonder eigen `taskType` neemt een taak met een ouder diens taskType (en bij
+ * USERDEFINED diens eigen taaktype-id) over, vóór de bouwmodus-brede default (bouwmodus 2026-07-13:
+ * neutraal USERDEFINED i.p.v. CONSTRUCTION). Geldt alleen bij aanmaken; indenteren/verslepen laat
+ * taskType met rust. `priority` via `??`: 0 is geldig (laagste, levelt als eerste weg). De optionele
+ * velden (constraint2/isHammock/externalLinks, fase 2.9; notes; de Z0-typecontractvelden
+ * splitGaps/manuallyScheduled/levelingDelayMinutes/-Elapsed) gaan ongewijzigd mee: afwezig ⇒
+ * undefined ⇒ byte-identiek default-document. `levelingDelay` zelf bewust NIET: dat zet uitsluitend
+ * de nivelleerder.
+ */
+export function buildNewTask(
+  partial: Partial<Task> & { name: string },
+  opts: { id: string; parentId: string | null; parentTask: Task | undefined; constructionMode: boolean; time: TaskTime },
+): Task {
+  const { parentTask } = opts;
+  const taskType = partial.taskType || parentTask?.taskType || (opts.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED');
+  return {
+    id: opts.id,
+    name: partial.name,
+    description: partial.description || '',
+    wbsCode: partial.wbsCode || '',
+    taskType,
+    customTaskTypeId: taskType === 'USERDEFINED'
+      ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
+      : undefined,
+    status: partial.status || 'NOT_STARTED',
+    isMilestone: partial.isMilestone || false,
+    milestoneKind: partial.milestoneKind,
+    mandatory: partial.mandatory,
+    priority: partial.priority ?? 500,
+    parentId: opts.parentId,
+    childIds: [],
+    time: opts.time,
+    resourceIds: partial.resourceIds || [],
+    color: partial.color,
+    constraint: partial.constraint,
+    constraint2: partial.constraint2,
+    isHammock: partial.isHammock,
+    externalLinks: partial.externalLinks,
+    deadline: partial.deadline,
+    calendarId: partial.calendarId,
+    notes: partial.notes,
+    splitGaps: partial.splitGaps,
+    manuallyScheduled: partial.manuallyScheduled,
+    levelingDelayMinutes: partial.levelingDelayMinutes,
+    levelingDelayElapsed: partial.levelingDelayElapsed,
+  };
+}
+
+/** Een urentaak draagt zijn duur in `durationMinutes`; leid `scheduleDuration` (werkdagen) daaruit af
+ *  met de uren/dag van zijn kalender (0 bij een kalender zonder uren). No-op voor een dagentaak. */
+export function deriveScheduleDurationFromMinutes(time: TaskTime, hoursPerDay: number): void {
+  if (time.durationUnit !== 'hours') return;
+  time.scheduleDuration = hoursPerDay > 0 ? (time.durationMinutes ?? 0) / (hoursPerDay * 60) : 0;
 }
 
 /**
@@ -354,6 +417,93 @@ export function clearLevelingGaps(task: Task): boolean {
   if (kept.length === gaps.length) return false;
   task.splitGaps = kept.length > 0 ? kept : undefined;
   return true;
+}
+
+// ── Nivelleeruitvoer (B1c-plan-2/-plan3, M10) ────────────────────────────────────────────────────
+
+/** Draagt `task` uitvoer van een nivellering: een vertraging — ook UITSLUITEND sub-dag-precisie
+ *  (`levelingDelayMinutes`/`levelingDelayElapsed`, uit een `.mpp`) — of een ingevoegde pauzedag
+ *  (`splitGaps` met `source: 'leveling'`)? De ENE definitie achter de no-op-guard van
+ *  `clearLeveling`, de ribbonknop "Nivellering wissen" en `planner_clear_leveling`: een knop die
+ *  inschakelt terwijl de actie een no-op is, of andersom, is precies de bug die B1c-plan3 taak 2
+ *  repareerde. */
+export function hasLevelingOutput(task: Task): boolean {
+  return task.levelingDelay !== undefined
+    || task.levelingDelayMinutes !== undefined
+    || task.levelingDelayElapsed !== undefined
+    || (task.splitGaps ?? []).some(g => g.source === 'leveling');
+}
+
+/** Wist de sub-dag-velden die `CPMSolver.shiftByLevelingDelay` VÓÓR `levelingDelay` leest (M10:
+ *  een achtergebleven waarde zou een nieuwe delay stil overrulen). `true` ⇒ er ging werkelijk
+ *  sub-dag-precisie verloren — de aanroeper telt dat voor `notifyLevelingDelayRounded`. */
+function dropSubDayLevelingDelay(task: Task): boolean {
+  const rounded = task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined;
+  task.levelingDelayMinutes = undefined;
+  task.levelingDelayElapsed = undefined;
+  return rounded;
+}
+
+/** Wist alle nivelleeruitvoer van `task` ("Nivellering wissen"): de vertraging, de sub-dag-velden
+ *  en de nivelleergaten — importsplits zijn brondata en blijven staan. Retourneert zoals
+ *  {@link dropSubDayLevelingDelay} of er sub-dag-precisie verloren ging. */
+export function clearLevelingOutput(task: Task): boolean {
+  task.levelingDelay = undefined;
+  const rounded = dropSubDayLevelingDelay(task);
+  clearLevelingGaps(task);
+  return rounded;
+}
+
+/**
+ * Schrijft een nivelleervoorstel op de taken — de ENE implementatie achter `scheduleSlice`'s
+ * `applyLeveling` en de MCP-`draft.applyLeveling` (die twee mochten nooit uit elkaar lopen).
+ * Idempotent: elke taak binnen de scope krijgt eerst haar delay uit `write.delays` (of geen), verliest
+ * haar sub-dag-velden (M10) en krijgt `write.gaps[id]` als VOLLEDIGE gatenlijst (importsplits
+ * inbegrepen); staat ze niet in `write.gaps`, dan gaan alleen de nivelleergaten van een vorige
+ * nivellering weg. `scopeTaskIds` (B1c-plan3 taak 2): taken erbuiten zijn vaste last waarop het
+ * voorstel gerekend heeft en blijven ongemoeid; afwezig ⇒ alle taken. Retourneert het aantal taken
+ * dat sub-dag-precisie verloor (voor de eenmalige melding).
+ */
+export function writeLevelingResult(
+  tasks: Task[],
+  write: Pick<LevelingResult, 'delays' | 'gaps'>,
+  scopeTaskIds?: string[],
+): number {
+  const scope = scopeTaskIds ? new Set(scopeTaskIds) : null;
+  let roundedCount = 0;
+  for (const task of tasks) {
+    if (scope && !scope.has(task.id)) continue;
+    const d = write.delays[task.id];
+    task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
+    if (dropSubDayLevelingDelay(task)) roundedCount++;
+    const g = write.gaps[task.id];
+    if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
+    else clearLevelingGaps(task);
+  }
+  return roundedCount;
+}
+
+/** De "duur/datums"-trigger (Z14b; ook de kalender in `updateTask`/`draft.updateTaskFields`/
+ *  `patchTaskFields` en een splitbewerking): wis laag 3 altijd, en laag 4 alleen zodra een walk
+ *  bevroren `workMinutes` draagt (N2 — zonder die bevroren waarde wandelt laag 4 al de live duur).
+ *  Retourneert `true` als er MSP-sturing verloren ging. Welke bewerking de trigger raakt, beslist de
+ *  aanroeper (`setTaskCalendar` wist bijvoorbeeld alleen laag 3). */
+export function invalidateForTimeBaseChange(task: Task): boolean {
+  const clearedWindow = clearTimephasedWindow(task);
+  const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
+  return clearedWindow || clearedWalks;
+}
+
+/** De "toewijzingen"-trigger (zie de triggerset hierboven) voor één taak waarvan de
+ *  toewijzingenset net veranderde: beide Z8-lagen ONVOORWAARDELIJK wissen (F2 — een andere resource
+ *  kan een andere resourcekalender betekenen) plus de nivelleergaten (B1c-plan3 taak 3; geen
+ *  melding, app-eigen afgeleide uitvoer). Retourneert `true` als er MSP-sturing verloren ging —
+ *  alleen daarvoor meldt de aanroeper (mpp-nul-data-etappe, DEEL 1). */
+export function invalidateForAssignmentChange(task: Task): boolean {
+  const clearedWindow = clearTimephasedWindow(task);
+  const clearedWalks = clearTimephasedDurationWalks(task);
+  clearLevelingGaps(task);
+  return clearedWindow || clearedWalks;
 }
 
 /** OPTIONEEL — TRUE zodra de taak nog ACTIEVE Z8-sturing draagt (laag 3 en/of laag 4): een gezet

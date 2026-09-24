@@ -1,5 +1,5 @@
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
-import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
+import { cloneTasksForSolve, solveInputOf, solveProject } from '@/engine/scheduler/solveProject';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
 import { getNoneLabelValue } from '@/utils/noneLabel';
 import type { Company, CompanyPool } from '@/types/library';
@@ -187,16 +187,7 @@ export function prepareLoadedPayload(
   if (!options.recompute || payload.cpmResult !== null) return payload;
 
   payload.tasks = cloneTasksForSolve(payload.tasks);
-  payload.cpmResult = solveProject({
-    tasks: payload.tasks,
-    sequences: payload.sequences,
-    calendar: payload.calendar,
-    calendars: payload.calendars,
-    dataDate: payload.project.statusDate,
-    progressMode: payload.project.progressMode,
-    schedulingOptions: payload.project.schedulingOptions,
-    projectStartDate: payload.project.startDate,
-  });
+  payload.cpmResult = solveProject(solveInputOf(payload, payload.tasks));
   payload.scheduleStale = false;
   return payload;
 }

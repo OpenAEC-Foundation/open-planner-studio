@@ -49,6 +49,16 @@ export interface Resource {
 
 export type ResourceCurve = 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
 
+/** Alle `ResourceCurve`-waarden, in de vaste weergavevolgorde (keuzelijsten, schema-enum, meldingen). */
+export const RESOURCE_CURVES: readonly ResourceCurve[] = [
+  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
+];
+
+/** Is `v` een geldige `ResourceCurve` (hoofdlettergevoelig)? */
+export function isResourceCurve(v: unknown): v is ResourceCurve {
+  return typeof v === 'string' && (RESOURCE_CURVES as readonly string[]).includes(v);
+}
+
 export interface ResourceAssignment {
   id: string;
   taskId: string;
