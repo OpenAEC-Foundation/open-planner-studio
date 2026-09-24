@@ -270,6 +270,43 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   eq('37 extensie-addTask, gestarte urentaak zonder einde: einde = start (geen afleiding, geen default)', sf(c, started), '2026-09-07T08:00');
 }
 
+// 16. Integratie PR #101 (taaktypes) op #169 — de twee valkuilen uit het verkenningsdossier
+// (2026-09-24 §3a). #101 haalt `calendarId` uit `rest` en zet een eigen K2-kalenderstap vóór de merge.
+// (a) de nivelleergaten-poort kreeg `rest` ⇒ een kalenderwissel via updateTask/updateTaskFields liet
+//     een nivelleergat staan; (b) de basis van het ingevoerde einde werd pas ná die kalenderstap
+//     vastgelegd ⇒ de wissel zat al in de sleutel en het einde bleef op de oude kalender staan.
+// Mutatiebewijs (gemeten bij de integratie): `taskUpdateInvalidatesLevelingGaps(rest, time)` terug in
+// taskSlice/MCP ⇒ 41 en 42 rood; `hourInputFinishBasis` ná de kalenderstap (store + beide MCP-paden)
+// ⇒ 38, 39, 40 en 41 rood (41 controleert ook het einde).
+{
+  const c = freshContext();
+  const Sz = c.store.getState;
+  Sz().addCalendar({ ...H12 });
+  const h12 = Sz().calendars.find(k => k.name === 'H12')!.id;
+  const tx = createMcpTransactions(c);
+  const k1 = Sz().addTask({ name: 'K1' });
+  Sz().updateTask(k1, { calendarId: h12 });
+  eq('38 updateTask({calendarId}) op een urentaak: einde volgt de nieuwe kalender (5 u vanaf 07:00)', sf(c, k1), '2026-09-07T12:00');
+  const k2 = Sz().addTask({ name: 'K2' });
+  tx.run(() => { tx.draft.updateTaskFields(k2, { calendarId: h12 }); });
+  eq('39 MCP updateTaskFields({calendarId}): einde volgt de nieuwe kalender', sf(c, k2), '2026-09-07T12:00');
+  const k3 = Sz().addTask({ name: 'K3' });
+  tx.run(() => { tx.draft.patchTaskFields(k3, { calendarId: h12 }); });
+  eq('40 MCP patchTaskFields({calendarId}): einde volgt de nieuwe kalender', sf(c, k3), '2026-09-07T12:00');
+  const gap = (id: string) => c.store.setState((s) => {
+    s.tasks.find(k => k.id === id)!.splitGaps = [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }];
+  });
+  const k4 = Sz().addTask({ name: 'K4' });
+  gap(k4);
+  Sz().updateTask(k4, { calendarId: h12 });
+  eq('41 updateTask({calendarId}) wist het nivelleergat (valkuil a, store)', [taskOf(c, k4).splitGaps ?? [], sf(c, k4)],
+    [[], '2026-09-07T12:00']);
+  const k5 = Sz().addTask({ name: 'K5' });
+  gap(k5);
+  tx.run(() => { tx.draft.updateTaskFields(k5, { calendarId: h12 }); });
+  eq('42 MCP updateTaskFields({calendarId}) wist het nivelleergat (valkuil a, MCP)', taskOf(c, k5).splitGaps ?? [], []);
+}
+
 // 12. De afleiding zelf: ELAPSEDTIME telt klokminuten, duur 0 geeft de start.
 eq('23 ELAPSEDTIME: 30 u klok vanaf vr 16:00', hourTaskInputFinish(
   { scheduleStart: '2026-09-11T16:00', durationMinutes: 1800, durationType: 'ELAPSEDTIME' }, H8), '2026-09-12T22:00');
