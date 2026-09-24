@@ -36,7 +36,7 @@ npm run verify
 
 That is literally the same command that CI, the release gate and the deploy gate
 run — one definition, in `package.json`. If it is green locally, it is green in
-CI. Ten steps, run in this order:
+CI. The steps, in this order:
 
 | component | what |
 |---|---|
