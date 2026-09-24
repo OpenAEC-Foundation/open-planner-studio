@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import { defaultActualFinish } from '@/engine/taskMutationRules';
+import { defaultActualFinish, defaultActualStart } from '@/engine/taskMutationRules';
 
 /**
  * Fase 2.6 — voortgang-invarianten toepassen op RAUW ingelezen taken (IFC/MSPDI/P6/CSV).
@@ -41,8 +41,10 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
       task.status = 'COMPLETED';
     } else if (t.completion >= 1) {
       t.completion = 1;
+      // Zelfde volgorde en regels als de store (`setTaskProgress`): eerst de impliciete start (de
+      // eigen geplande start, niet AS = AF — anders krimpt de voltooide balk), dan de AF-default.
+      if (!t.actualStart) t.actualStart = defaultActualStart(t);
       t.actualFinish = defaultActualFinish(t, statusDate);
-      if (!t.actualStart) t.actualStart = t.actualFinish;
       task.status = 'COMPLETED';
     } else {
       // In progress: actualStart gezet óf completion > 0 (impliciete start dekt het

@@ -31,6 +31,19 @@ export function defaultActualFinish(
   return statusDate || time.earlyFinish || time.scheduleFinish;
 }
 
+/**
+ * Impliciete werkelijke start (§3.2, MSP-conventie "% invullen ⇒ gestart"): de eigen geplande start
+ * (berekend, anders gepland). Eén regel voor de store-paden die voortgang zonder `actualStart` zetten
+ * (`setTaskProgress`, de Tabel, MCP-validatie) én voor de lezers bij een VOLTOOIDE taak zonder
+ * werkelijke start (`normalizeImportedProgress`). Zonder die gedeelde regel kreeg een ingelezen taak op
+ * 100 % zonder actuals AS = AF en kromp de voltooide balk tot zijn laatste dag (import/export-audit,
+ * vervolg op bevinding 6). Een LOPENDE taak zonder actualStart krijgt bij import bewust géén start
+ * (solver-vangnet §4.2 tak 2b).
+ */
+export function defaultActualStart(time: Pick<TaskTime, 'earlyStart' | 'scheduleStart'>): string {
+  return time.earlyStart || time.scheduleStart;
+}
+
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
 export function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
   const time = task.time;

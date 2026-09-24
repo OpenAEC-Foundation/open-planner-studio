@@ -22,6 +22,7 @@ import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import { applyProgressInvariants } from './slices/taskSlice';
 import { clearLevelingGaps } from '@/utils/taskDefaults';
+import { defaultActualStart } from '@/engine/taskMutationRules';
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 
 /** Per-item-fout: het aangesproken id + een leesbare reden (voor de per-item-rapportage van de
@@ -141,7 +142,7 @@ export const progress = {
    *   1. range-validatie `completion` 0–100 — buiten bereik ⇒ weigering, GEEN klem (i.t.t. de
    *      store-`setTaskProgress`, die naar [0,1] klemt);
    *   2. conversie 0–100 ⇒ 0–1;
-   *   3. `completion > 0` zonder `actualStart` ⇒ `actualStart` afleiden (`earlyStart || scheduleStart`);
+   *   3. `completion > 0` zonder `actualStart` ⇒ `actualStart` afleiden (`defaultActualStart`);
    *   4. `completion < 1` ⇒ een verouderd `actualFinish` wissen;
    *   5. een OPGEGEVEN `actualStart`/`actualFinish` ná de statusdatum ⇒ weigering (spiegel van het
    *      bestaande `accepted=false`-gedrag van de setters);
@@ -182,7 +183,7 @@ export const progress = {
 
     // (3) completion > 0 zonder actualStart ⇒ actualStart afleiden (MSP-conventie: % ⇒ gestart).
     if (time.completion > 0 && !time.actualStart) {
-      time.actualStart = time.earlyStart || time.scheduleStart;
+      time.actualStart = defaultActualStart(time);
     }
 
     // (4) completion < 1 ⇒ een verouderd actualFinish wissen — maar ALLEEN wanneer completion

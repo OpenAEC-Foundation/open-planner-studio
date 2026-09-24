@@ -54,6 +54,8 @@ function open(parsed: ImportResult, name: string): void {
 }
 
 // ── 1. Eén regel: store-invariant en import-normalisatie geven dezelfde AF-default ─────────────
+// (De AS-default loopt in de store via de setters vóór `applyProgressInvariants` — die pariteit
+// toetsen sectie 2 en 3 via de echte store-actie `setTaskProgress`.)
 {
   const make = (earlyFinish: string): Task => ({
     id: 'x', name: 'X', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -68,7 +70,6 @@ function open(parsed: ImportResult, name: string): void {
       normalizeImportedProgress([imported], statusDate);
       const tag = `1 [statusDate=${statusDate ?? '-'}, earlyFinish=${earlyFinish || '-'}]`;
       eq(`${tag} import-AF === store-AF`, imported.time.actualFinish, store.time.actualFinish);
-      eq(`${tag} import-AS === store-AS`, imported.time.actualStart, store.time.actualStart);
       eq(`${tag} import-status === store-status`, imported.status, store.status);
       eq(`${tag} import-remainingTime === store-remainingTime`, imported.time.remainingTime, store.time.remainingTime);
       eq(`${tag} AF = statusdatum ‖ earlyFinish ‖ scheduleFinish`,
@@ -89,11 +90,14 @@ function open(parsed: ImportResult, name: string): void {
   eq('2a CSV: 100 % zonder AF ⇒ AF = eigen geplande finish', a.time.actualFinish, '2015-01-09');
   ok(`2b CSV: AF is niet "vandaag" (${a.time.actualFinish})`, !a.time.actualFinish?.startsWith(THIS_YEAR));
   eq('2c CSV: status COMPLETED', a.status, 'COMPLETED');
+  eq('2c2 CSV: 100 % zonder AS ⇒ AS = eigen geplande start (zoals setTaskProgress)', a.time.actualStart, '2015-01-05');
 
   open(parsed, 'spreadsheet.csv');
   const b = byName(S().tasks, 'B');
   eq('2d CSV → Openen: opvolger B start direct ná A, niet ná vandaag', b.time.earlyStart, '2015-01-12');
   eq('2e CSV → Openen: A blijft op zijn geplande finish', byName(S().tasks, 'A').time.actualFinish, '2015-01-09');
+  eq('2f CSV → Openen: de voltooide balk krimpt niet (A start nog op 2015-01-05)',
+    byName(S().tasks, 'A').time.earlyStart, '2015-01-05');
 }
 
 // ── 3. Eigen IFC (100 % zonder AF, zoals updateTask/extensie-API hem achterlaat) en MSPDI ───────
@@ -120,21 +124,29 @@ function open(parsed: ImportResult, name: string): void {
   // Referentie: wat de store zelf zou kiezen voor dezelfde taak (setTaskProgress → applyProgressInvariants).
   S().setTaskProgress(idA, 1);
   const storeAF = byName(S().tasks, 'A').time.actualFinish;
+  const storeAS = byName(S().tasks, 'A').time.actualStart;
   eq('3 store: setTaskProgress(1) zonder statusdatum ⇒ AF = geplande finish', storeAF, plannedFinish);
+  eq('3 store: setTaskProgress(1) zonder AS ⇒ AS = geplande start', storeAS, '2015-01-05');
 
   const fromIfc = byName(readIFC(ifc).tasks, 'A');
   eq('3a IFC-lezer: AF === store-AF (geplande finish)', fromIfc.time.actualFinish, storeAF);
   ok(`3b IFC-lezer: AF is niet "vandaag" (${fromIfc.time.actualFinish})`, !fromIfc.time.actualFinish?.startsWith(THIS_YEAR));
+  eq('3b2 IFC-lezer: AS === store-AS (geplande start)', fromIfc.time.actualStart, storeAS);
 
   const fromMspdi = byName(readMSPDI(mspdi).tasks, 'A');
   eq('3c MSPDI-lezer: AF === store-AF (geplande finish)', fromMspdi.time.actualFinish, storeAF);
   ok(`3d MSPDI-lezer: AF is niet "vandaag" (${fromMspdi.time.actualFinish})`, !fromMspdi.time.actualFinish?.startsWith(THIS_YEAR));
+  eq('3d2 MSPDI-lezer: AS === store-AS (geplande start)', fromMspdi.time.actualStart, storeAS);
 
   open(readIFC(ifc), 'eigen.ifc');
   eq('3e IFC → Openen: opvolger B start direct ná A, niet ná vandaag', byName(S().tasks, 'B').time.earlyStart, '2015-01-12');
   eq('3f IFC → Openen: A eindigt op zijn geplande finish, niet vandaag', byName(S().tasks, 'A').time.earlyFinish, '2015-01-09');
   eq('3g IFC → Openen: opvolger B eindigt waar het bestand hem had', byName(S().tasks, 'B').time.earlyFinish, '2015-01-16');
   eq('3h IFC → Openen: document ongewijzigd', S().isDirty, false);
+  eq('3i IFC → Openen: de voltooide balk krimpt niet (A start nog op 2015-01-05)',
+    byName(S().tasks, 'A').time.earlyStart, '2015-01-05');
+  eq('3j IFC → Openen: herberekening verschuift geen taak t.o.v. het bestand (geen "datums zoals opgeslagen"-aanbod)',
+    S().recordedDates?.shifted ?? 0, 0);
 }
 
 // ── 4. Bewuste afwijking blijft: import zet STARTED bij completion > 0 zonder actualStart ────────
