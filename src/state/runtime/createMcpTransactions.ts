@@ -28,6 +28,7 @@ import type { Project } from '@/types/project';
 import type { CustomTaskType } from '@/types/taskType';
 import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { applyProjectPatch } from '../projectPatch';
+import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
 import { isThenable } from '@/utils/guards';
 
 export type McpTransactionResult<T> =
@@ -396,15 +397,12 @@ function createMcpDraft(
     store.setState((s) => {
       const normalized = { id: type.id.trim(), name: type.name.trim() };
       if (!normalized.id || !normalized.name) throw new Error('draft.ensureCustomTaskType: id en naam mogen niet leeg zijn');
-      const existing = s.customTaskTypes.find(candidate => candidate.id === normalized.id);
-      if (existing) {
-        if (existing.name !== normalized.name) throw new Error(`draft.ensureCustomTaskType: id '${normalized.id}' heeft al naam '${existing.name}'`);
+      const { sameId, sameNameOtherId } = customTaskTypeClashes(s.customTaskTypes, normalized);
+      if (sameId) {
+        if (sameId.name !== normalized.name) throw new Error(`draft.ensureCustomTaskType: id '${normalized.id}' heeft al naam '${sameId.name}'`);
         return;
       }
-      const sameName = s.customTaskTypes.find(candidate => candidate.name.localeCompare(
-        normalized.name, undefined, { sensitivity: 'accent' },
-      ) === 0);
-      if (sameName) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameName.id}'`);
+      if (sameNameOtherId) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameNameOtherId.id}'`);
       s.customTaskTypes.push(normalized);
       s.isDirty = true;
     });
