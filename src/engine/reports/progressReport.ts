@@ -1,8 +1,7 @@
-import type { Task } from '@/types/task';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
-  type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState,
+  type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState, scheduleSlip,
   remainingDays, resolvePeriodFor, round1, taskFinish, taskStart,
 } from './reportCommon';
 import { type ReportingPeriod, periodDays, windowEnd } from './reportingPeriod';
@@ -93,13 +92,6 @@ export interface ProgressReportResult {
   critical: ProgressRow[];
 }
 
-function overdueOf(t: Task, state: ProgressState, refDay: string): ProgressRow['overdue'] {
-  if (state === 'complete') return undefined;
-  if (dayOf(taskFinish(t)) < refDay) return 'finish';
-  if (state === 'notStarted' && dayOf(taskStart(t)) < refDay) return 'start';
-  return undefined;
-}
-
 export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOptions): ProgressReportResult {
   const { from: periodFrom, to: periodTo, refDay: ref, statusDateMissing } = resolvePeriodFor(ctx, opts.period);
   // Vooruitkijken vanaf de statusdatum: tot het periode-einde als dat erná ligt; een "afgelopen …"-
@@ -123,7 +115,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   for (const t of leaves) {
     const bt = baseMap.get(t.id);
     const state = progressState(t);
-    const overdue = overdueOf(t, state, ref);
+    const overdue = scheduleSlip(t, state, ref);
     const status: ProgressRowStatus = overdue === 'finish' ? 'overdueFinish' : overdue === 'start' ? 'overdueStart' : state;
     rows.set(t.id, {
       taskId: t.id,

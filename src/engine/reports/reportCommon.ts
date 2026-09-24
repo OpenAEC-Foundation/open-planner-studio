@@ -89,6 +89,16 @@ export function progressState(t: Task): ProgressState {
   return 'notStarted';
 }
 
+/** Achterstand t.o.v. de referentiedag, op dagniveau: `finish` als een onvoltooide taak vóór `refDay`
+ *  had moeten eindigen, anders `start` als een niet-gestarte taak vóór `refDay` had moeten beginnen.
+ *  Eén definitie voor look-ahead, voortgang en resourcetoewijzingen. */
+export function scheduleSlip(t: Task, state: ProgressState, refDay: string): 'finish' | 'start' | undefined {
+  if (state === 'complete') return undefined;
+  if (dayOf(shownFinish(t)) < refDay) return 'finish';
+  if (state === 'notStarted' && dayOf(shownStart(t)) < refDay) return 'start';
+  return undefined;
+}
+
 /** Duur van een taak in werkdagen op haar eigen kalender (uur-taken: minuten ÷ uren per dag). */
 export function durationDays(ctx: ReportContext, t: Task): number {
   const cal = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
