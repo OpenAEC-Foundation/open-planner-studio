@@ -70,17 +70,28 @@ export function TitleBar() {
     return () => clearInterval(id);
   }, []);
 
+  // De opruimfunctie moet uit het effect zélf komen: een `return` binnen de async IIFE bereikte
+  // React nooit, waardoor de onResized-listener bleef hangen. `disposed` vangt een unmount op die
+  // valt vóórdat de dynamische import of de listen-registratie klaar is.
   useEffect(() => {
     if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
     void (async () => {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      if (disposed) return;
       const appWindow = getCurrentWindow();
       void appWindow.isMaximized().then(setMaximized);
-      const unlisten = appWindow.onResized(() => {
+      const stop = await appWindow.onResized(() => {
         void appWindow.isMaximized().then(setMaximized);
       });
-      return () => { void unlisten.then(fn => fn()); };
+      if (disposed) stop();
+      else unlisten = stop;
     })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
   }, []);
 
   const handleMinimize = useCallback(async () => {
