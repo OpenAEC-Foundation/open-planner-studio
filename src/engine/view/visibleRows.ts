@@ -210,8 +210,8 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   }
 
   // Stap 2' — boommodus (§4.2 stap 2, else-tak): behoud de WBS-boom. Ingeklapte nakomelingen tellen
-  // als "gezien" (recursie gaat door, maar emit niet), zodat het wees-vangnet ze niet oppikt — exact
-  // het `hidden`-vlag-patroon van de bestaande flatTasks (TableEditor.tsx:73-90).
+  // als "gezien" (recursie gaat door, maar emit niet: de `hidden`-vlag), zodat het wees-vangnet ze
+  // niet oppikt.
   const rows: ViewRow[] = [];
   const seen = new Set<string>();
   const emit = (task: Task, depth: number, hidden: boolean) => {

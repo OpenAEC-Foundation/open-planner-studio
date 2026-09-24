@@ -25,13 +25,15 @@ export type FieldValue = string | number | boolean | string[] | undefined;
 /**
  * Indexen op een `ViewContext`, lui gebouwd en gecachet op de context-INSTANTIE (K-item 36).
  *
- * Waarom een WeakMap en geen extra velden op `ViewContext`: de context wordt op drie plekken
- * opgebouwd (`viewSlice.buildViewInput`, `TableEditor`, de benchmark-runner) en die zouden alle
+ * Waarom een WeakMap en geen extra velden op `ViewContext`: de context wordt in `src/` op drie
+ * plekken opgebouwd (`viewRowInputs` in `state/viewRows.ts`, `derivePayloadViewRows` in
+ * `state/documentActivation.ts`, de benchmark-runner; daarnaast in testfixtures) en die zouden alle
  * drie de indexen moeten vullen — precies het soort met-de-hand-bijhouden dat elders in dit
- * traject is opgeruimd. De cache is veilig omdat élke bouwplek een VERS objectliteraal maakt
- * (viewSlice per recompute, TableEditor via een `useMemo` op de array-identiteiten) en Immer bij
- * elke wijziging nieuwe arrays teruggeeft: een gewijzigde `assignments` betekent dus altijd een
- * nieuwe context en daarmee een nieuwe index. Een WeakMap laat de oude bovendien vanzelf vallen.
+ * traject is opgeruimd. De cache is veilig omdat élke bouwplek per aanroep een VERS objectliteraal
+ * maakt en niemand een context over een mutatie heen vasthoudt (de UI bouwt er zelf geen: taakraster
+ * en Gantt lezen de kant-en-klare `viewRows` uit de store). Een gewijzigde `assignments` betekent
+ * dus altijd een nieuwe context en daarmee een nieuwe index. Een WeakMap laat de oude bovendien
+ * vanzelf vallen.
  */
 interface ViewIndexes {
   assignmentsByTask: Map<string, ResourceAssignment[]>;

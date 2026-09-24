@@ -2311,10 +2311,9 @@ input[type="checkbox"]:disabled {
   cursor: not-allowed;
 }
 
-/* Cel met de toetsenbordcursor in de TableEditor (issue #26). Bewust ONOPVALLEND: geen vlak, geen
-   rand, geen accentkleur — het gevulde accentvlak van hiervoor domineerde de tabel. Sinds één klik
-   meteen bewerkt is deze toestand ook zeldzaam (alleen na Escape of pijltjesnavigatie), dus een
-   stippellijntje onder de tekst is genoeg als aanwijzing waar de volgende toets landt. */
+/* Ongebruikt: niets in src/ zet `.table-cell-cursor` nog. De klasse markeerde de cel met de
+   toetsenbordcursor in de vroegere takentabel (issue #26); het gedeelde taakraster (`GridCell`)
+   markeert zijn actieve cel met `.task-grid-cell[data-grid-active="true"]`, eerder in dit bestand. */
 .table-cell-cursor {
   text-decoration: underline dotted var(--theme-text-dim);
   text-underline-offset: 3px;

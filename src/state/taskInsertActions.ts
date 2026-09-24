@@ -104,9 +104,11 @@ export function insertAnchorForScope(ids: string[], where: InsertWhere): string 
  * groepering op taaktype en een selectie in de band LOGISTIC landde Insert de nieuwe taak zichtbaar
  * in de band CONSTRUCTION.
  *
- * Dit is exact dezelfde poort die in-/uitspringen (`shortcutRegistry`, ribbon) en het doorlopend
- * invoeren in de tabel (`TableEditor.navigateCell`) al hanteren — één regel voor alle
- * structuurmutaties, zodat er geen route overblijft die het stiekem tóch doet.
+ * Dit is exact dezelfde poort (`isTreeMode`) die in-/uitspringen (`COMMANDS.indent`/`outdent` in
+ * `state/commands.ts`, gedeeld door sneltoets en lint) en de rijsleep in het taakraster
+ * (`useTableRowDrag`, `enabled` in `FullTaskGrid.tsx`) al hanteren; de Insert-toets van dat raster
+ * loopt via `insertTaskRelativeToScope` hieronder en passeert deze poort dus zelf — één regel voor
+ * alle structuurmutaties, zodat er geen route overblijft die het stiekem tóch doet.
  */
 export function canInsertRelative(): boolean {
   return isTreeMode(useAppStore.getState().view);

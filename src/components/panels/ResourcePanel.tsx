@@ -280,8 +280,8 @@ export function ResourcePanel() {
 
   // Rasternavigatie (#48, tweede verzoek van de melder): Enter/Shift+Enter en ↑/↓ tussen de rijen,
   // en Enter op de LAATSTE rij opent een nieuwe (concept-)rij. De rekensom en het toetsbeleid komen
-  // uit `@/utils/gridNavigation` — dezelfde definitie die de takentabel gebruikt; alleen de
-  // cursor-mechaniek verschilt (DOM-focus hier, React-state daar). Geldt in BEIDE weergaven: de
+  // uit `@/utils/gridNavigation`, de pure kern voor live rasters; het taakraster heeft een eigen
+  // toetsbeleid (`resolveTaskGridCommand`) met React-state als cursor. Geldt in BEIDE weergaven: de
   // rij-id's hieronder volgen de tabel die daadwerkelijk gerenderd wordt.
   const gridRowIds = useMemo(() => {
     const base = (inPoolView && pool ? pool.resources : resources).map(r => r.id);

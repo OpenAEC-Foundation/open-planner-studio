@@ -29,11 +29,16 @@ function plainView(tasks: readonly Task[]): readonly Task[] {
 }
 
 /**
- * Weergavevolgorde van taken, exact zoals TableEditor en GanttRenderer flattenen:
- * wortels in array-volgorde, kinderen per ouder in array-volgorde, diepte-eerst;
- * wezen (ouder onvindbaar) achteraan op rootniveau. Dit is de canonieke
- * sibling-volgorde en daarmee de bron van waarheid voor WBS-nummering —
- * `childIds`-volgorde wordt door de renderers genegeerd en telt hier dus ook niet.
+ * Boomvolgorde van taken uit de rauwe array: wortels in array-volgorde, kinderen per
+ * ouder in array-volgorde, diepte-eerst; wezen (ouder onvindbaar) achteraan op
+ * rootniveau. Dit is de canonieke sibling-volgorde en daarmee de bron van waarheid
+ * voor WBS-nummering; `childIds`-volgorde telt hier niet.
+ *
+ * Taakraster en Gantt flattenen niet zelf: ze tonen dezelfde `viewRows` uit
+ * `computeViewRows` (engine/view/visibleRows.ts). Die neemt in boommodus de wortels
+ * ook in array-volgorde, maar de kinderen in `childIds`-volgorde; de store-acties
+ * houden beide volgordes synchroon (het dubbele-volgorde-principe, zie `moveTask`
+ * in taskSlice.ts).
  *
  * Krijgt deze functie een Immer-draft, dan leest hij via {@link plainView} en zijn de teruggegeven
  * taken dus PLAIN kopieën, geen drafts. Vandaar `readonly Task[]`: schrijven naar het resultaat zou
