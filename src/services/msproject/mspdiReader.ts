@@ -15,6 +15,7 @@ import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
 import {
   OPS_DURATION_UNIT_FIELD_ID,
+  OPS_DURATION_UNIT_LEGACY_FIELD_ID,
   OPS_DURATION_UNIT_FIELD_NAME,
   OPS_MILESTONE_KIND_FIELD_ID,
   OPS_MILESTONE_KIND_FIELD_NAME,
@@ -103,8 +104,17 @@ function opsTaskFieldValue<T extends string>(te: Element, fieldId: string, allow
   return undefined;
 }
 
-function explicitOpsDurationUnit(te: Element, enabled: boolean): 'days' | 'hours' | undefined {
-  return enabled ? opsTaskFieldValue(te, OPS_DURATION_UNIT_FIELD_ID, ['days', 'hours'] as const) : undefined;
+/** Het FieldID waarop dit bestand de OPS-duureenheid draagt: Text30 (huidig), of het oude Flag9-ID
+ *  van eerdere OPS-exports (zie `OPS_DURATION_UNIT_FIELD_ID`); `null` zonder OPS-definitie. */
+function opsDurationUnitFieldId(root: Element): string | null {
+  for (const id of [OPS_DURATION_UNIT_FIELD_ID, OPS_DURATION_UNIT_LEGACY_FIELD_ID]) {
+    if (hasOpsFieldDefinition(root, id, OPS_DURATION_UNIT_FIELD_NAME)) return id;
+  }
+  return null;
+}
+
+function explicitOpsDurationUnit(te: Element, fieldId: string | null): 'days' | 'hours' | undefined {
+  return fieldId ? opsTaskFieldValue(te, fieldId, ['days', 'hours'] as const) : undefined;
 }
 
 /** Soort mijlpaal uit de OPS-marker (zie `OPS_MILESTONE_KIND_FIELD_ID`): START/FINISH, `'AUTO'` voor
@@ -119,8 +129,8 @@ function explicitOpsMilestoneKind(te: Element, enabled: boolean): MilestoneKind 
  * MSPDI een presentatieformaat en mag een bestaand uurproject dus niet stil herinterpreteren. Een
  * vreemd of legacy bestand zonder marker volgt exact de pre-T1-regel: uurkalender => minutenbron.
  */
-function taskDurationUnit(te: Element, hourCalendar: boolean, opsMarkerEnabled: boolean): 'days' | 'hours' {
-  return explicitOpsDurationUnit(te, opsMarkerEnabled) ?? (hourCalendar ? 'hours' : 'days');
+function taskDurationUnit(te: Element, hourCalendar: boolean, opsMarkerFieldId: string | null): 'days' | 'hours' {
+  return explicitOpsDurationUnit(te, opsMarkerFieldId) ?? (hourCalendar ? 'hours' : 'days');
 }
 
 /** SPEC-REVIEW-FIX (blokkerend, op 3dd6c3ba) — bovengrens op het aantal `<Calendar>`-elementen dat
@@ -306,7 +316,7 @@ export function readMSPDI(content: string): ImportResult {
   }
 
   const root = doc.documentElement;
-  const opsDurationUnitMarkerEnabled = hasOpsFieldDefinition(root, OPS_DURATION_UNIT_FIELD_ID, OPS_DURATION_UNIT_FIELD_NAME);
+  const durationUnitMarkerFieldId = opsDurationUnitFieldId(root);
   const opsMilestoneKindMarkerEnabled = hasOpsFieldDefinition(root, OPS_MILESTONE_KIND_FIELD_ID, OPS_MILESTONE_KIND_FIELD_NAME);
 
   // Parse project
@@ -455,7 +465,7 @@ export function readMSPDI(content: string): ImportResult {
 
     const durationStr = getElementText(te, 'Duration');
     // Duur: uur ⇒ minuten (bron van waarheid, geen afronding, §7.3); dag ⇒ het bestaande dag-pad.
-    const durationUnit = taskDurationUnit(te, isHour, opsDurationUnitMarkerEnabled);
+    const durationUnit = taskDurationUnit(te, isHour, durationUnitMarkerFieldId);
     const durationMinutes = durationUnit === 'hours' ? (mspDurationMinutes(durationStr) ?? 0) : undefined;
     const duration = durationUnit === 'hours'
       ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0)

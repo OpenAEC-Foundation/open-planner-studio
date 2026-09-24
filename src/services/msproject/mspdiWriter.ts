@@ -23,8 +23,15 @@ import { flattenOrder, taskDepths } from '@/utils/wbs';
  * één namespaced custom task field als expliciete round-tripmarker. Text30 is bewust gekozen als
  * transportveld; de reader accepteert de waarde uitsluitend wanneer de projectdefinitie exact deze
  * OPS-naam draagt, zodat een vreemd bestand dat Text30 zelf gebruikt nooit per ongeluk matcht.
+ *
+ * Text30 = 0x0B400000 + 336 = 188744016 (MPXJ `MPPTaskField`: FIELD_ARRAY[336] = TEXT30; MSPDI-
+ * FieldID = TASK_FIELD_BASE | index, `FieldTypeHelper.getFieldID`). Eerdere OPS-versies schreven
+ * 188743760 = index 80 = Flag9 — een ja/nee-veld met tekst "days"/"hours" erin. Nieuw schrijven gaat
+ * naar Text30; de lezer accepteert het oude ID nog (`OPS_DURATION_UNIT_LEGACY_FIELD_ID`) zodat
+ * eerder geëxporteerde bestanden hun duureenheid houden.
  */
-export const OPS_DURATION_UNIT_FIELD_ID = '188743760';
+export const OPS_DURATION_UNIT_FIELD_ID = '188744016';
+export const OPS_DURATION_UNIT_LEGACY_FIELD_ID = '188743760';
 export const OPS_DURATION_UNIT_FIELD_NAME = 'OPS_TaskDurationUnit';
 
 /**

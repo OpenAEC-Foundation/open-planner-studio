@@ -324,6 +324,38 @@ async function main(): Promise<void> {
       { unit: 'hours', dur: 0.5, S: '2026-07-08T08:00', F: '2026-07-08T12:00', AS: undefined, AF: undefined });
   }
 
+  // ════ Bijvangst: OPS_TaskDurationUnit op het echte Text30-veld ══════════════════════════════
+  // Het transportveld heette "Text30" maar schreef FieldID 188743760 = 0x0B400000 + 80 = Flag9
+  // (MPXJ `MPPTaskField`: FIELD_ARRAY[80] = FLAG9, [336] = TEXT30 ⇒ 188744016). Nieuw schrijven ⇒
+  // Text30; lezen accepteert óók het oude ID, zodat eerdere OPS-exports hun eenheid houden.
+  {
+    const cal = H8();
+    const daySeed = mkHour('du-d', 'Twee werkdagen', '1', '2026-07-06T08:00', '2026-07-07T16:00', 960);
+    const dayOnBands: Task = { ...daySeed, time: { ...daySeed.time, durationUnit: 'days', scheduleDuration: 2, durationMinutes: undefined } };
+    const hourTask = mkHour('du-h', 'Metselen', '2', '2026-07-08T08:00', '2026-07-08T12:00', 240);
+    const xml = writeMSPDI(proj('Eenheid', cal.id, '2026-07-06'), cal, [dayOnBands, hourTask], [], [], []);
+    const defIds = [...xml.matchAll(/<ExtendedAttribute>\s*<FieldID>(\d+)<\/FieldID>\s*<FieldName>OPS_TaskDurationUnit<\/FieldName>/g)].map(m => m[1]);
+    eq('duureenheid-veld: definitie op Text30 (188744016)', defIds, ['188744016']);
+    assert(!xml.includes('188743760'), 'duureenheid-veld: het Flag9-ID 188743760 wordt niet meer geschreven');
+    const allDefIds = [...xml.matchAll(/<ExtendedAttribute>\s*<FieldID>(\d+)<\/FieldID>\s*<FieldName>/g)].map(m => m[1]);
+    eq('duureenheid-veld: geen botsing met OPS_MilestoneKind (Text29) — unieke definitie-IDs', new Set(allDefIds).size, allDefIds.length);
+    const unitOf = (r: ImportResult, n: string) => { const t = byName(r, n)?.time; return t && [t.durationUnit, t.scheduleDuration, t.durationMinutes]; };
+    const back = readMSPDI(xml);
+    eq('duureenheid-veld: round-trip dagtaak op urenkalender', unitOf(back, 'Twee werkdagen'), ['days', 2, undefined]);
+    eq('duureenheid-veld: round-trip urentaak', unitOf(back, 'Metselen'), ['hours', 0.5, 240]);
+    // Een eerdere OPS-export (definitie én taakwaarden op het oude ID).
+    const legacy = xml.split('188744016').join('188743760');
+    assert(legacy !== xml && !legacy.includes('188744016'), 'setup: oud bestand draagt alleen het oude ID');
+    const legacyBack = readMSPDI(legacy);
+    eq('duureenheid-veld: oud OPS-bestand (188743760) houdt dagtaak', unitOf(legacyBack, 'Twee werkdagen'), ['days', 2, undefined]);
+    eq('duureenheid-veld: oud OPS-bestand (188743760) houdt urentaak', unitOf(legacyBack, 'Metselen'), ['hours', 0.5, 240]);
+    // Bestand zonder OPS-definitie (MS Project zelf): kalenderregel, ongewijzigd.
+    for (const [label, src] of [['nieuw', xml], ['oud', legacy]] as const) {
+      const foreign = readMSPDI(src.replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, ''));
+      eq(`duureenheid-veld: zonder OPS-definitie (${label} ID) volgt de uurkalender`, unitOf(foreign, 'Twee werkdagen'), ['hours', 2, 960]);
+    }
+  }
+
   if (fails === 0) {
     console.log(`OK  xml-adapter-fidelity: alle checks groen (${checks})`);
     process.exit(0);
