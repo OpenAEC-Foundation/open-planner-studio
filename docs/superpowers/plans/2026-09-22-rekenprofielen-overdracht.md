@@ -390,8 +390,13 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    gemerged vóór C14; check 08d was een tautologie ⇒ 08f pint de vijf "alleen eigen profielen" (C1, C4,
    A17, B3, B4). **Open ontwerpvraag uit de critreview (voor de eigenaar):** A19 (per bestand, uit
    `rem_target_link_flag`) staat als afwijking op het ingebouwde P6-profiel en toont daardoor "wijkt af"
-   met een knop "terug naar basis" die bestandsdata wist; voorstel: bij `perFile` geen resetknop en de
-   afwijking meten tegen de bestandswaarde. Eveneens in de diff (buiten het onderwerp, wel gedekt): blok
+   met een knop "terug naar basis" die bestandsdata wist — **eigenaar 24-09: "Doen"; gebouwd op
+   `claude/x12-ui-a19-perfile` kop `51f37d33`** (Opus 5.5: `conventionDeviatesFromBase` telt `perFile` nooit
+   als afwijking, `resetConventionToBase` no-op op per-bestand (check 37e, mutant rood), geen resetknop,
+   browsertest + gids nl+en; poorten exit 0; screenshot door de orkestrator bekeken: regel in gewone kleur,
+   label PER FILE, "base: off", geen knop; open: keuzelijst toont nog "(aangepast)" via `profileLabel`/check 16).
+   **NIET gemerged**: wacht op eigenaarsvraag A19-basis (Fable-review #169 bevinding 2) — bij "A" (A19 in P6
+   aan, per-bestand laten vallen) vervalt deze branch; bij "B" mergen na een korte her-check. Eveneens in de diff (buiten het onderwerp, wel gedekt): blok
    "opties uit het bronbestand" (B10) en zichtbaar blok i.p.v. tooltip bij de SS-lag-optie (B8).
 4. **Bekende gaten zonder eigenaar:** document-tabbalk/projectrail-klik bij een gewijzigde
    Projectinfo-draft is niet bewaakt; `schedOptionsRows` in de blast-radius-pin wordt niet vergeleken;
