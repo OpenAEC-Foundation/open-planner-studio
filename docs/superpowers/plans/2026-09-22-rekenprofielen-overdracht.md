@@ -109,6 +109,11 @@ CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_
 zoals hij is: alleen actief als optie A21 aan staat én B3 aan staat (B3 staat in het P6-profiel uit), gids
 eerlijk, geen extra instelling.
 
+**2026-09-24 ~18:55, vraag 15 (corrupt of herschreven bronarchief in een IFC), letterlijk: "openen met
+melding"** — het project opent zónder archief, met één in-app melding (K8a-kanaal) dat het bronarchief
+onbruikbaar is en wat dat betekent (geen "datums zoals opgeslagen", geen herkomst); draait het
+XER-etappebesluit "geen fallback" om; eigen branch vanaf de #109-PR-branch.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -311,8 +316,8 @@ eerlijk, geen extra instelling.
 
 **Nieuwe eigenaarsvragen uit de reviews van 24-09 (nog niet gesteld; stellen ná A19-basis en C5):**
 - 14. **Beantwoord 24-09 ~18:45: "laten"** (§1a). Regel 7a/A21 blijft zoals hij is.
-- 15. Corrupt of door andere IFC-software herschreven bronarchief: project openen zónder archief met een
-  melding (draait "geen fallback" om), of blijven weigeren? Advies: openen met melding, in een eigen PR.
+- 15. **Beantwoord 24-09 ~18:55: "openen met melding"** (§1a); agent `opus-midden-archief-fallback` op
+  `claude/xer-archief-fallback` vanaf de #109-PR-branch.
 - 16. Statisch anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37
   corpusprojecten, niet P6): eigen PR met herpin? Advies: ja, na #109.
 - 17. Documentnaam bij XER-import = P6 Project-ID i.p.v. projectnaam: omzetten naar projectnaam (met ID als
