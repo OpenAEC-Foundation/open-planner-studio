@@ -284,7 +284,8 @@
     "dialogTitle": "بازیابی کار ذخیره‌نشده",
     "explanation": "Open Planner Studio به‌طور عادی بسته نشد. اسناد زیر تغییرات ذخیره‌نشده‌ای داشتند که قابل بازیابی هستند:",
     "timeLabel": "ذخیره شد",
-    "taskCount": "{{count}} وظیفه",
+    "taskCount_one": "{{count}} وظیفه",
+    "taskCount_other": "{{count}} وظیفه",
     "restore": "بازیابی",
     "dontRestore": "بازیابی نشود"
   },
@@ -587,7 +588,8 @@
     },
     "histogram": {
       "allResources": "همه منابع",
-      "overallocatedTooltip": "{{count}} وظیفه در {{date}} مشارکت دارند",
+      "overallocatedTooltip_one": "{{count}} وظیفه در {{date}} مشارکت دارد",
+      "overallocatedTooltip_other": "{{count}} وظیفه در {{date}} مشارکت دارند",
       "overallocatedNonWorkingDay": "طبق تقویم «{{calendar}}» در این روز کار نمی‌کند",
       "noData": "برای نمایش بار کاری، دوباره محاسبه کنید (F5)",
       "noResources": "هنوز منبعی وجود ندارد",

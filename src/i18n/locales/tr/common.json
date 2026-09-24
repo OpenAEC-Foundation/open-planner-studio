@@ -284,7 +284,8 @@
     "dialogTitle": "Kaydedilmemiş çalışmayı geri yükle",
     "explanation": "Open Planner Studio normal şekilde kapanmadı. Aşağıdaki belgelerde geri yüklenebilecek kaydedilmemiş değişiklikler vardı:",
     "timeLabel": "Kaydedildi",
-    "taskCount": "{{count}} görev",
+    "taskCount_one": "{{count}} görev",
+    "taskCount_other": "{{count}} görev",
     "restore": "Geri yükle",
     "dontRestore": "Geri yükleme"
   },
@@ -587,7 +588,8 @@
     },
     "histogram": {
       "allResources": "Tüm kaynaklar",
-      "overallocatedTooltip": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
+      "overallocatedTooltip_one": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
+      "overallocatedTooltip_other": "{{date}} tarihinde {{count}} görev katkıda bulunuyor",
       "overallocatedNonWorkingDay": "Bu gün \"{{calendar}}\" takvimine göre çalışmıyor",
       "noData": "Yükü göstermek için yeniden hesaplayın (F5)",
       "noResources": "Henüz kaynak yok",

@@ -147,7 +147,7 @@
     "levelResourcesDialog": "평준화…",
     "clearLeveling": "평준화 지우기",
     "overallocationIndicator": "과다 할당",
-    "overallocationCount": "자원 {{count}}개",
+    "overallocationCount_other": "자원 {{count}}개",
     "overallocationNone": "없음",
     "baselines": "기준선 및 진행",
     "saveBaseline": "기준선 저장…",
@@ -263,7 +263,7 @@
   "status": {
     "tasks": "작업:",
     "milestones": "마일스톤:",
-    "criticalPath": "크리티컬 패스: {{count}}개 작업, {{duration}} 근무일",
+    "criticalPath_other": "크리티컬 패스: {{count}}개 작업, {{duration}} 근무일",
     "end": "종료:",
     "selection": "선택: {{count}}개 작업",
     "scale": "척도:",

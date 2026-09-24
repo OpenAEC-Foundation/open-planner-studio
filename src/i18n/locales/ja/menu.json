@@ -147,7 +147,7 @@
     "levelResourcesDialog": "山崩し…",
     "clearLeveling": "山崩しを解除",
     "overallocationIndicator": "山積み（超過割り当て）",
-    "overallocationCount": "{{count}} 件のリソース",
+    "overallocationCount_other": "{{count}} 件のリソース",
     "overallocationNone": "なし",
     "baselines": "ベースラインと進捗",
     "saveBaseline": "ベースラインを保存…",
@@ -263,7 +263,7 @@
   "status": {
     "tasks": "タスク：",
     "milestones": "マイルストーン：",
-    "criticalPath": "クリティカルパス：{{count}} タスク、{{duration}} 稼働日",
+    "criticalPath_other": "クリティカルパス：{{count}} タスク、{{duration}} 稼働日",
     "end": "終了：",
     "selection": "選択：{{count}} タスク",
     "scale": "スケール：",

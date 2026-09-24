@@ -276,7 +276,7 @@
     "dialogTitle": "未保存の作業を復元",
     "explanation": "Open Planner Studio が正常に終了しませんでした。以下のドキュメントには復元可能な未保存の変更があります：",
     "timeLabel": "保存日時",
-    "taskCount": "{{count}} 件のタスク",
+    "taskCount_other": "{{count}} 件のタスク",
     "restore": "復元",
     "dontRestore": "復元しない"
   },
@@ -577,7 +577,7 @@
     },
     "histogram": {
       "allResources": "すべてのリソース",
-      "overallocatedTooltip": "{{date}} に {{count}} 件のタスクが関与",
+      "overallocatedTooltip_other": "{{date}} に {{count}} 件のタスクが関与",
       "overallocatedNonWorkingDay": "カレンダー「{{calendar}}」によりこの日は稼働しません",
       "noData": "再計算 (F5) して負荷を表示",
       "noResources": "リソースがまだありません",

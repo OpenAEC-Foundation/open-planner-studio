@@ -284,7 +284,8 @@
     "dialogTitle": "Nicht gespeicherte Arbeit wiederherstellen",
     "explanation": "Open Planner Studio wurde nicht normal beendet. Die folgenden Dokumente enthielten nicht gespeicherte Änderungen, die wiederhergestellt werden können:",
     "timeLabel": "Gespeichert",
-    "taskCount": "{{count}} Aufgaben",
+    "taskCount_one": "{{count}} Aufgabe",
+    "taskCount_other": "{{count}} Aufgaben",
     "restore": "Wiederherstellen",
     "dontRestore": "Nicht wiederherstellen"
   },
@@ -587,7 +588,8 @@
     },
     "histogram": {
       "allResources": "Alle Ressourcen",
-      "overallocatedTooltip": "{{count}} Aufgaben tragen bei am {{date}}",
+      "overallocatedTooltip_one": "{{count}} Aufgabe trägt bei am {{date}}",
+      "overallocatedTooltip_other": "{{count}} Aufgaben tragen bei am {{date}}",
       "overallocatedNonWorkingDay": "Arbeitet an diesem Tag laut Kalender „{{calendar}}“ nicht",
       "noData": "Neu berechnen (F5), um die Auslastung anzuzeigen",
       "noResources": "Noch keine Ressourcen",
