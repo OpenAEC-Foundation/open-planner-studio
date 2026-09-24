@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
@@ -63,8 +64,8 @@ export function TaskDialog() {
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
-  // `startDate` toont bewust de berekende `earlyStart` (consistent met tabel/Gantt), niet
-  // de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
+  // `startDate` toont bewust de berekende `earlyStart` (consistent met de Tabel-kolom Start en de
+  // Gantt), niet de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
   // daadwerkelijk wijzigde"-commit-regel in `handleSave` leest daarom `editingTask.time` (vers uit de
   // store) i.p.v. `draft.time`, zodat een eventuele CPM-herberekening tijdens het open staan van de
   // dialoog niet wordt teruggedraaid door een verouderde draft-snapshot.
@@ -93,8 +94,9 @@ export function TaskDialog() {
 
     if (editingTask) {
       setDraft({ ...editingTask, time: { ...editingTask.time } });
-      // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
-      setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
+      // Toon de berekende start (consistent met de Tabel-kolom Start en de Gantt); scheduleStart
+      // is de geplande anker.
+      setStartDate(shownStart(editingTask));
     } else {
       setDraft(blankDraft(project.startDate, constructionMode, newTaskUnit));
       setStartDate(project.startDate);
@@ -139,8 +141,8 @@ export function TaskDialog() {
       // scheduleStart (de geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
-      const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      if (startDate !== shownStart) time.scheduleStart = startDate;
+      const anchor = startAnchorAfterEdit(editingTask, startDate);
+      if (anchor !== undefined) time.scheduleStart = anchor;
       const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);

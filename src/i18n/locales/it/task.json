@@ -47,6 +47,8 @@
   },
   "taskGrid": {
     "columns": {
+      "start": "Inizio",
+      "finish": "Fine",
       "customTaskType": "Tipo di attività personalizzato",
       "activityCodeData":"Dati dei codici attività","actualDuration":"Durata effettiva","actualFinish":"Fine effettiva","actualStart":"Inizio effettivo","assignedResources":"Risorse assegnate","assignmentCurve":"Curva di assegnazione","assignmentId":"ID assegnazione","assignmentResourceId":"ID risorsa dell’assegnazione","assignmentTaskId":"ID attività dell’assegnazione","assignmentUnits":"Unità di assegnazione al giorno","calendar":"Calendario","childIds":"ID attività figlie","color":"Colore","completion":"Avanzamento","constraint2Date":"Data vincolo secondario","constraint2Type":"Tipo vincolo secondario","constraintDate":"Data vincolo","constraintHard":"Vincolo rigido","constraintType":"Tipo vincolo","critical":"Critica","customFieldData":"Dati dei campi personalizzati","deadline":"Scadenza","description":"Descrizione","duration":"Durata","durationMinutes":"Durata (minuti)","durationType":"Tipo di durata","earlyFinish":"Fine anticipata","earlyStart":"Inizio anticipato","effortDriven":"Basata sull’impegno","externalRelationData":"Dati delle relazioni esterne","floatPath":"Percorso margine","freeFloat":"Margine libero","hammock":"Hammock (durata derivata)","interferingFloat":"Margine interferente","internalRelationData":"Dati delle relazioni interne","lateFinish":"Fine posticipata","lateStart":"Inizio posticipato","levelingDelay":"Ritardo di livellamento","levelingDelayElapsed":"Ritardo di livellamento trascorso","levelingDelayMinutes":"Ritardo di livellamento (minuti)","mandatoryMilestone":"Cardine obbligatorio","manuallyScheduled":"Pianificata manualmente","milestone":"Cardine","milestoneKind":"Tipo di cardine","mspTaskType":"Tipo attività Microsoft Project","name":"Nome attività","nearCritical":"Quasi critica","noteData":"Dati delle note","notes":"Note","parentId":"ID attività padre","priority":"Priorità di livellamento","remainingMinutes":"Rimanente (minuti)","remainingTime":"Rimanente (giorni lavorativi)","resourceIds":"ID risorse","resume":"Data di ripresa","scheduleFinish":"Fine pianificata","scheduleStart":"Inizio pianificato","splitGaps":"Interruzioni","status":"Stato","stop":"Data di arresto","taskId":"ID attività","taskType":"Tipo attività","timephasedContours":"Profili rapportati alla scala cronologica","timephasedDurationWalks":"Segmenti di durata cronologici","timephasedFinishFloor":"Limite inferiore fine cronologica","timephasedStartAnchor":"Ancoraggio inizio cronologico","totalFloat":"Margine totale","wbs":"Struttura di scomposizione del lavoro (WBS)","workWindowFinish":"Fine finestra di lavoro","workWindowStart":"Inizio finestra di lavoro"
     },
@@ -57,6 +59,10 @@
     "status": { "stale": "obsoleto" },
     "validation": {
       "readOnly": "Questa colonna calcolata non può essere modificata.",
+      "scheduleFinishNotManual": "La fine pianificata vale solo per un’attività pianificata manualmente. Modifica la fine tramite la colonna Fine o la durata.",
+      "finishFromDuration": "Per questa attività la fine deriva dall’inizio e dalla durata. Modifica l’inizio o la durata.",
+      "finishBeforeStart": "La fine è precedente all’inizio.",
+      "finishIsActual": "Questa attività è completata; la sua fine è la fine effettiva. Modificala tramite l’avanzamento.",
       "invalid": "Il valore inserito non è valido.",
       "relationToken": "Usa, ad esempio, 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Aggiungi un’attività esterna tramite Relazione → Aggiungi relazione esterna…",

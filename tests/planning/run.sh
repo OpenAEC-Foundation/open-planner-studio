@@ -456,6 +456,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-task-cell-editor.ts" "$TGCELLEDITORCHECK"; then node "$TGCELLEDITORCHECK" || STATUS=1; fi
   TGEDITORSCHECK="$DIR/.task-grid-editors.mjs"
   if bundle_check "$DIR/check-task-grid-editors.ts" "$TGEDITORSCHECK"; then node "$TGEDITORSCHECK" || STATUS=1; fi
+  # Audit "weergaven" bevinding 2: Tabel-kolommen Start/Einde tonen de datums van de Gantt-balk en
+  # bewerken verzet alleen iets bij een echte wijziging; "Gepland einde" is geen dode invoer meer.
+  TGSHOWNDATESCHECK="$DIR/.table-shown-dates.mjs"
+  if bundle_check "$DIR/check-table-shown-dates.ts" "$TGSHOWNDATESCHECK"; then node "$TGSHOWNDATESCHECK" || STATUS=1; fi
   # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
   # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
   # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.

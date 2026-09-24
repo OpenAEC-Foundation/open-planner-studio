@@ -15,6 +15,17 @@ export function shownFinish(task: Task): string {
 }
 
 /**
+ * Het nieuwe startanker na een bewerking van de GETOONDE start (eigenschappenpaneel, Taak bewerken,
+ * Tabel-kolom Start): de invoer, maar alleen als die echt afwijkt van `shownStart`. Gelijk ⇒
+ * `undefined` en het anker blijft staan. Anders legde elke commit van een ongewijzigd veld de
+ * berekende start vast als nieuw anker — precies de drift die `applyCpmResult` ("BEWUST GEEN
+ * scheduleStart-ANKER-drift") voorkomt.
+ */
+export function startAnchorAfterEdit(task: Task, value: string): string | undefined {
+  return value !== shownStart(task) ? value : undefined;
+}
+
+/**
  * Overlapt de getoonde spanne van `task` het venster [fromDay, toDay]? De klassieke intervaltest
  * (start ≤ tot én einde ≥ van) met inclusieve grenzen, op DAGniveau: als tekst is
  * "2026-06-10T08:00" groter dan "2026-06-10", maar een uurtaak die op de tot-dag begint telt mee.

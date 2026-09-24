@@ -127,6 +127,8 @@ const VALIDATION_CODE_PATTERNS = [
   new RegExp(`\\b(?:${helperAlternation})\\([^,?]{0,160}?\\?\\s*'([a-zA-Z]+)'\\s*:\\s*'([a-zA-Z]+)'`, 'g'),
   /\bcode:\s*'([a-zA-Z]+)'/g,
   /taskGrid\.validation\.([a-zA-Z]+)/g,
+  // Kolomeigen weigerreden van een alleen-lezen cel (`readOnlyReason`, audit "weergaven" bev. 2).
+  /\breadOnlyReason:[^\n]*?'([a-zA-Z]+)'/g,
 ];
 const validationSources = new Map(VALIDATION_SOURCE_FILES.map(file => (
   [file, fs.readFileSync(path.join(root, file), 'utf8')] as const

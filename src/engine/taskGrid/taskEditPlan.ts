@@ -22,7 +22,7 @@ import type {
   CellValidationError,
   GridResult,
 } from '@/types/taskGrid';
-import { parseInstant } from '@/utils/dateUtils';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 import {
   proposeTaskDurationConversion,
   type ParsedTaskDuration,
@@ -35,7 +35,10 @@ import {
   rescaleTaskContours,
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
-import { shownStart } from '@/utils/taskDates';
+import { shownFinish, shownStart, startAnchorAfterEdit } from '@/utils/taskDates';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFiniteNumber } from '@/utils/guards';
 
 const TASK_TYPES: readonly TaskType[] = [
@@ -118,6 +121,7 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   if (columnId.startsWith('task.constraint') || columnId === 'task.deadline') return 'task-constraint';
   if (columnId === 'task.isHammock') return 'task-hammock';
   if (columnId === 'task.calendarId' || columnId.startsWith('task.time.schedule')
+    || columnId === 'task.time.start' || columnId === 'task.time.finish'
     || columnId === 'task.time.durationType' || columnId === 'task.time.durationUnit') return 'task-schedule';
   if (columnId === 'task.name' || columnId === 'task.description' || columnId === 'task.wbsCode'
     || columnId === 'task.taskType' || columnId === 'task.customTaskTypeId'
@@ -208,6 +212,61 @@ function applyTaskField(
   return { ok: true, value: undefined };
 }
 
+/** Zet een expliciete duur (dagen of werkminuten) met alle bijeffecten van een duurwijziging —
+ *  de ene weg voor de Duur-kolom en voor een nieuw Einde van een automatisch geplande taak. */
+function applyParsedDuration(
+  task: Task,
+  parsed: ParsedTaskDuration,
+  edit: CellEditIntent,
+  environment: TaskEditPlanEnvironment,
+  oldWorkMinutes: number,
+): GridResult<boolean, readonly CellValidationError[]> {
+  if (parsed.unit === 'hours') {
+    if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
+    if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
+    if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
+      return failure('calendarHours', edit);
+    }
+    task.time.durationUnit = 'hours';
+    task.time.durationMinutes = parsed.durationMinutes;
+    task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
+  } else {
+    if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
+      || parsed.scheduleDuration < 0) return failure('duration', edit);
+    task.time.durationUnit = 'days';
+    task.time.scheduleDuration = parsed.scheduleDuration;
+    task.time.durationMinutes = undefined;
+  }
+  return { ok: true, value: finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay) };
+}
+
+/**
+ * De duur waarmee een automatisch geplande taak op `finish` eindigt, gerekend vanaf de GETOONDE
+ * start: de omkering van `CPMSolver.addDuration`, dezelfde telling als de rechterrand-sleep in de
+ * Gantt (`useBarDrag`). Dagtaak: inclusieve werkdagen (`workDaysBetween`, minimaal één). Urentaak:
+ * werkminuten in de effectieve uurbanden van de taakkalender (`calendarForEngine`, zoals de solver).
+ * De eenheid van de taak blijft wat hij was.
+ */
+function durationForShownFinish(
+  task: Task,
+  finish: string,
+  calendar: WorkCalendar,
+): { ok: true; value: ParsedTaskDuration } | { ok: false; code: string } {
+  if (task.time.durationUnit === 'hours') {
+    const engine = new CalendarEngine(calendarForEngine(calendar));
+    if (!engine.isHourMode) return { ok: false, code: 'calendarHours' };
+    const start = parseInstant(shownStart(task));
+    const end = parseInstant(finish);
+    if (!(end.getTime() > start.getTime())) return { ok: false, code: 'finishBeforeStart' };
+    return { ok: true, value: { unit: 'hours', durationMinutes: engine.workMinutesBetween(start, end), explicitUnit: true } };
+  }
+  const start = parseDate(shownStart(task).slice(0, 10));
+  const end = parseDate(finish.slice(0, 10));
+  if (!(end.getTime() >= start.getTime())) return { ok: false, code: 'finishBeforeStart' };
+  const days = new CalendarEngine(calendar).workDaysBetween(start, end);
+  return { ok: true, value: { unit: 'days', scheduleDuration: Math.max(1, days), explicitUnit: true } };
+}
+
 function applyScheduleEdit(
   task: Task,
   edit: CellEditIntent,
@@ -247,25 +306,7 @@ function applyScheduleEdit(
     lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
-      const parsed = edit.value as ParsedTaskDuration;
-      if (parsed.unit === 'hours') {
-        if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
-        if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
-        if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
-          return failure('calendarHours', edit);
-        }
-        task.time.durationUnit = 'hours';
-        task.time.durationMinutes = parsed.durationMinutes;
-        task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
-      } else {
-        if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
-          || parsed.scheduleDuration < 0) return failure('duration', edit);
-        task.time.durationUnit = 'days';
-        task.time.scheduleDuration = parsed.scheduleDuration;
-        task.time.durationMinutes = undefined;
-      }
-      lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
-      return { ok: true, value: lost };
+      return applyParsedDuration(task, edit.value as ParsedTaskDuration, edit, environment, oldWorkMinutes);
     }
     if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
@@ -279,6 +320,40 @@ function applyScheduleEdit(
       else delete task.time.durationMinutes;
       lost = finishDurationEdit(task, oldWorkMinutes, hoursPerDay);
     }
+  } else if (id === 'task.time.start') {
+    // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — het anker
+    // verschuift alleen bij een echte wijziging (`startAnchorAfterEdit`).
+    if (!optionalString(edit.value)) return failure('date', edit);
+    if (edit.value === undefined) return failure('required', edit);
+    const anchor = startAnchorAfterEdit(task, edit.value);
+    if (anchor !== undefined && task.time.scheduleStart !== anchor) {
+      task.time.scheduleStart = anchor;
+      lost = clearScheduleGuidance(task, true);
+    }
+  } else if (id === 'task.time.finish') {
+    if (!optionalString(edit.value)) return failure('date', edit);
+    if (edit.value === undefined) return failure('required', edit);
+    // Ongewijzigd teruggetypt: niets verzetten (geen duur afronden, geen tijdfasering wissen).
+    if (edit.value === shownFinish(task)) return { ok: true, value: false };
+    if (edit.value.slice(0, 10) < shownStart(task).slice(0, 10)) return failure('finishBeforeStart', edit);
+    if (task.manuallyScheduled === true) {
+      // Een handmatig geplande taak eindigt op haar ingevoerde einde (`CPMSolver.forwardPass`).
+      if (task.time.scheduleFinish !== edit.value) {
+        task.time.scheduleFinish = edit.value;
+        lost = clearScheduleGuidance(task, true);
+      }
+      return { ok: true, value: lost };
+    }
+    // Automatisch gepland: het einde volgt uit start + duur, dus een nieuw einde is een nieuwe duur.
+    // Het ingevoerde einde (`scheduleFinish`) blijft bewust ongemoeid: dat is invoer, geen afgeleide
+    // van de berekende planning.
+    if (isPinnedComplete(task.time)) return failure('finishIsActual', edit);
+    if (isZeroDurationMilestone(task) || task.time.durationType === 'ELAPSEDTIME'
+      || (task.splitGaps?.length ?? 0) > 0) return failure('finishFromDuration', edit);
+    if (!environment.effectiveCalendar) return failure('calendarNotFound', edit);
+    const duration = durationForShownFinish(task, edit.value, environment.effectiveCalendar);
+    if (!duration.ok) return failure(duration.code, edit);
+    return applyParsedDuration(task, duration.value, edit, environment, oldWorkMinutes);
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     const key = id === 'task.time.scheduleStart' ? 'scheduleStart' : 'scheduleFinish';

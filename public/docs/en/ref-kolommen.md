@@ -19,6 +19,10 @@ One row per column, with:
 
 Below the chosen columns sits the **Available fields** list: every field that is not yet a column. Clicking one adds it as a column. Besides the standard fields you will find the analysis fields **Milestone**, **Free Float**, **Interfering Float**, **Near Critical** and **Float Path**, plus **Resources** and the project's activity codes and custom fields. The three float fields and Float Path only get values after a calculation with the matching scheduling options — see [Critical path & advanced analysis](docs://gids-kritiek-pad-analyse).
 
+**Start** and **Finish** (in the default set) show the same dates as the bar in the Gantt: the calculated schedule, and before the first calculation the entered dates. Type a different date in Start and it becomes the scheduled start. A different Finish changes the duration of an automatically scheduled task; for a manually scheduled task it becomes the scheduled finish. Then press **F5** to recalculate. Typing the same date back changes nothing.
+
+The fields **Scheduled start** and **Scheduled finish** show the entered dates themselves, even when the calculation moves the task. Scheduled finish can only be edited for a manually scheduled task: for other tasks the start and duration determine the finish. Start and Finish of an automatically scheduled summary task follow from its subtasks and cannot be edited.
+
 ## Reset to default
 
 **Reset to default** restores the standard column set; extra added fields move back to the available-fields list.

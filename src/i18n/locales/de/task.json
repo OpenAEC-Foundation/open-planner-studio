@@ -47,6 +47,8 @@
   },
   "taskGrid": {
     "columns": {
+      "start": "Anfang",
+      "finish": "Ende",
       "customTaskType": "Benutzerdefinierter Aufgabentyp",
       "activityCodeData": "Aktivitätscodedaten", "actualDuration": "Tatsächliche Dauer", "actualFinish": "Tatsächliches Ende", "actualStart": "Tatsächlicher Anfang",
       "assignedResources": "Zugewiesene Ressourcen", "assignmentCurve": "Zuordnungskurve", "assignmentId": "Zuordnungs-ID", "assignmentResourceId": "Ressourcen-ID der Zuordnung", "assignmentTaskId": "Aufgaben-ID der Zuordnung", "assignmentUnits": "Zuordnungseinheiten pro Tag",
@@ -70,6 +72,10 @@
     "status": { "stale": "veraltet" },
     "validation": {
       "readOnly": "Diese berechnete Spalte kann nicht bearbeitet werden.",
+      "scheduleFinishNotManual": "Das geplante Ende gilt nur für einen manuell geplanten Vorgang. Ändern Sie das Ende über die Spalte Ende oder über die Dauer.",
+      "finishFromDuration": "Bei diesem Vorgang ergibt sich das Ende aus Anfang und Dauer. Ändern Sie den Anfang oder die Dauer.",
+      "finishBeforeStart": "Das Ende liegt vor dem Anfang.",
+      "finishIsActual": "Dieser Vorgang ist abgeschlossen; sein Ende ist das Ist-Ende. Ändern Sie es über den Fortschritt.",
       "invalid": "Der eingegebene Wert ist ungültig.",
       "relationToken": "Verwenden Sie zum Beispiel 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Fügen Sie eine externe Aufgabe über Beziehung → Externe Beziehung hinzufügen… hinzu.",

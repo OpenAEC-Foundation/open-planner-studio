@@ -18,6 +18,7 @@ import {
   TASK_COLUMN_CATEGORY_ORDER,
   buildTaskColumnRegistry,
   canonicalGridJson,
+  readOnlyValidationCode,
 } from '@/engine/taskGrid/taskColumnRegistry';
 
 const diffs: string[] = [];
@@ -446,8 +447,10 @@ for (const column of registry) {
       if (validated?.ok) {
         const planned = column.planWrite?.(validated.value, task, ctx);
         if (isReadOnly(column)) {
+          // De weigercode is `readOnly`, of de kolomeigen reden (bv. Gepland einde van een
+          // automatisch geplande taak: `scheduleFinishNotManual`).
           ok(`${column.id}: conditioneel read-only plant geen intent`,
-            planned?.ok === false && planned.errors[0]?.code === 'readOnly');
+            planned?.ok === false && planned.errors[0]?.code === readOnlyValidationCode(column, task, ctx));
         } else {
           ok(`${column.id}: writer plant minstens één echte intent`, !!planned?.ok && planned.value.length > 0);
         }

@@ -47,6 +47,8 @@
   },
   "taskGrid": {
     "columns": {
+      "start": "Inicio",
+      "finish": "Fin",
       "customTaskType": "Tipo de tarea personalizado",
       "activityCodeData": "Datos de códigos de actividad", "actualDuration": "Duración real", "actualFinish": "Fin real", "actualStart": "Inicio real",
       "assignedResources": "Recursos asignados", "assignmentCurve": "Curva de asignación", "assignmentId": "Id. de asignación", "assignmentResourceId": "Id. de recurso de la asignación", "assignmentTaskId": "Id. de tarea de la asignación", "assignmentUnits": "Unidades de asignación por día",
@@ -70,6 +72,10 @@
     "status": { "stale": "obsoleto" },
     "validation": {
       "readOnly": "Esta columna calculada no se puede editar.",
+      "scheduleFinishNotManual": "El fin programado solo se aplica a una tarea programada manualmente. Cambie el fin mediante la columna Fin o la duración.",
+      "finishFromDuration": "En esta tarea, el fin se deriva del inicio y la duración. Cambie el inicio o la duración.",
+      "finishBeforeStart": "El fin es anterior al inicio.",
+      "finishIsActual": "Esta tarea está completada; su fin es el fin real. Cámbielo mediante el progreso.",
       "invalid": "El valor introducido no es válido.",
       "relationToken": "Use, por ejemplo, 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Añada una tarea externa mediante Relación → Añadir relación externa…",
