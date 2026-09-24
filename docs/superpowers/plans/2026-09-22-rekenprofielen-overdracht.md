@@ -361,7 +361,7 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `tasksWithAnyMeasuredAxis` 5879 → 5878, `excludedHidden` HarbourPointe 33 → 34 (EC1420 zelf).
    **X12 104 → 76**, `nieuw=0 verslechterd=0 groter=0 schuld=0`, uitgesloten 42 taken in 3 projecten;
    27 conventies (browsertest 26 → 27, gidsen "zevenentwintig", ALAP-alinea onder Speling nl+en).
-   Keten: MEASURE_EXIT=0, NULDOEL 76/0/0/0, uitgesloten 42 (`/tmp/ops-chain-c14-measure.log`); verify loopt.
+   Keten op `e5717cb4`: MEASURE_EXIT=0, NULDOEL 76/0/0/0, uitgesloten 42; **`verify` EXIT=0** (browser 173/173).
    Critreview C14 (Opus 5.5) = LANDEN-MET-FIXES: (1) C14 negeert `constraint2` (ALAP + FNLT/SNET), (2)
    uurkalender-poort/niet-gestart/statusdatum-wortel zijn corpusfits zonder P6-bron ⇒ documenteren, (3)
    `excludedHidden` mag stijgen bij gewijzigde uitsluitingsset ⇒ bestaand-verborgen-deel apart hard pinnen,
@@ -411,7 +411,14 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `opus-midden-fix-pr109` op `claude/xer-etappe3-fixes` vanaf de #109-branch; eigenaarsvragen: statisch
    anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37 corpusprojecten),
    documentnaam Project-ID vs projectnaam, 7a achter een standaard-uit optie); #169-review gestart op
-   `e5717cb4` (`fable-critreview-pr169`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   `e5717cb4` (`fable-critreview-pr169`) = **LANDEN-MET-FIXES** (rapport gecommit `693b0c99`): (1) meetlat
+   bespeelbaar op het moment van een uitsluiting (mutatie 9032 +1 dag ff + `excludeProjects` ⇒ groen) ⇒
+   hidden-delta per as exact = `delta.excludedCells`, surplus hard — ondergebracht bij `opus-midden-c14-landfixes`
+   fix 3; (2) A19 "per bestand" hangt aan `rem_target_link_flag` zonder aangetoonde relatie (corpus: Y=62,
+   N=0, leeg=40; Oracle noemt de vlag LinkPlannedAndAtCompletionFlag) ⇒ eigenaarsvraag; (3) per-bestand-reset
+   = eigenaarsbesluit "Doen" (in aanbouw `opus-laag-a19-perfile-ui`); midden: `verify:conventions` is een
+   namenlijst, `isHourMode`-poorten als formaatproxy, C5 CP_Phys corpusartefact (eigenaarsvraag), lappendeken,
+   `measure:profiles` laat VERBETERD-zonder-herpin door, docgaten B1 (`removeCalendar`, `sdk.ts`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
    #109-branch van 2026-09-06) overnemen als eigen etappe. Verkenningsdossier klaar en gecommit:
    `2026-09-24-verkenning-pr101-taaktypes.md` (Opus 5.5): middelzwaar tot zwaar, 29 conflictbestanden
    waarvan 4 inhoudelijk (`taskSlice`, `resourceSlice`, `gridTransaction`, `createMcpTransactions`);
