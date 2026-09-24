@@ -11,7 +11,8 @@ import {
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps, writeLevelingResult, clearLevelingOutput,
 } from '@/utils/taskDefaults';
-import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
+import { applyWbsNumbering } from '@/utils/wbs';
+import { assignInsertedWbsCodes } from '../insertedBranch';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import type { McpTransactionLease } from './storeRuntime';
@@ -156,13 +157,9 @@ function createMcpDraft(
       s.tasks.push(task);
       if (parentId) attachToParent(s.tasks, id, parentId);
 
-      // WBS: auto-nummering ⇒ hele boom; anders alleen deze taak een afgeleide code geven wanneer de
-      // aanroeper er geen meegaf (lege codes breken de CSV/MSP-koppeling).
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else if (!partial.wbsCode) {
-        task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
-      }
+      // WBS: auto-nummering ⇒ hele boom; anders alleen een afgeleide code wanneer de aanroeper er
+      // zelf geen meegaf (zelfde regel als de store-`addTask`).
+      if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
       s.isDirty = true;
     });

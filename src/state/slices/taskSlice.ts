@@ -17,14 +17,14 @@ import {
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
-import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
+import { applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
   applyProgressInvariants,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
-import { relationVerdict } from '@/state/relationRules';
+import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
@@ -409,14 +409,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         }
       }
 
-      // WBS-code: bij auto-nummering de hele boom bijwerken; anders alleen deze taak een
-      // afgeleide code geven wanneer de aanroeper er geen meegaf (lege codes breken de
-      // CSV/MSP-export en -herimport, die op dotted codes koppelen).
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else if (!partial.wbsCode) {
-        task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
-      }
+      // WBS-code: bij auto-nummering de hele boom; anders alleen een afgeleide code wanneer de
+      // aanroeper er zelf geen meegaf.
+      if (s.project.wbsAutoNumber || !partial.wbsCode) assignInsertedWbsCodes(s, [id]);
 
       runtime.finishMutation(s, { stale: true }); // nieuwe taak (A6): planning verouderd tot F5.
     });
@@ -1065,33 +1060,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         const parent = s.tasks.find(t => t.id === parentId);
         if (parent) parent.childIds.push(newRootId);
       }
-      // `relationVerdict.ts` is de bron van de regel, niet alleen de reguliere add-route
-      // (`addSequence`): een sjabloon is app-niveau data uit `localStorage` (zie
-      // `utils/wbsTemplates.ts`) en kan dus, net als een tak uit het klembord, relaties
-      // dragen die nooit via die route zijn aangemaakt. De lookup wijst al naar `s.tasks`
-      // MÉT de zojuist ingevoegde taken (nieuwe ids, ouderrelaties uit de lus hierboven).
-      const lookup = (tid: string) => s.tasks.find(t2 => t2.id === tid);
-      for (const q of template.sequences) {
-        const candidate = {
-          ...q,
-          predecessorId: idMap.get(q.predecessorId)!,
-          successorId: idMap.get(q.successorId)!,
-        };
-        if (!relationVerdict(lookup, s.sequences, candidate).ok) { skippedRelations++; continue; }
-        s.sequences.push({ ...candidate, id: generateId('seq') });
-      }
-
-      // WBS-codes: auto ⇒ hele boom; anders alleen de ingevoegde tak afleiden.
-      if (s.project.wbsAutoNumber) {
-        applyWbsNumbering(s.tasks);
-      } else {
-        const codes = deriveWbsCodes(s.tasks);
-        for (const id of idMap.values()) {
-          const task = s.tasks.find(t2 => t2.id === id);
-          const code = codes.get(id);
-          if (task && code !== undefined) task.wbsCode = code;
-        }
-      }
+      // Een sjabloon is app-niveau data uit `localStorage` (zie `utils/wbsTemplates.ts`) en kan
+      // dus, net als een tak uit het klembord, relaties dragen die de relatieregels weigeren.
+      skippedRelations = insertRemappedRelations(s, template.sequences, idMap);
+      assignInsertedWbsCodes(s, idMap.values());
 
       if (newRootId) {
         s.selectedTaskIds = [newRootId];
@@ -1100,16 +1072,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: true }); // ingevoegd WBS-sjabloon (A6): planning verouderd tot F5.
     });
     get().recomputeViewRows();
-    if (skippedRelations > 0) {
-      // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet
-      // (zelfde precedent als `setProject` in projectSlice.ts).
-      get().notify({
-        severity: 'info',
-        messageKey: 'notifications.relationsSkippedOnInsert',
-        params: { count: skippedRelations },
-        dedupeKey: 'relations-skipped-on-insert-template',
-      });
-    }
+    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
+    notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-insert-template');
     return newRootId;
   },
 
