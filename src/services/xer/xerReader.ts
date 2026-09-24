@@ -829,8 +829,13 @@ function readXerProject(
   // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
   // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the historical
   // task-derived project range remains byte-identical for XER and every other format.
-  const projectEnd = schedulingOptions.useProjectEndDateForFloat && sourceProjectEnd
-    ? sourceProjectEnd
+  // Y zonder plan_end_date (eigenaarsbesluit 2026-09-24, Fable-critreview PR #109 bevinding 2):
+  // de optie blijft aan — dat is wat het bestand zegt — maar de lezer verzint geen anker meer uit
+  // het maximum van de geplande taakeinden. Het projecteinde blijft leeg en de solver rekent de late
+  // pass vanaf het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By" doet
+  // (`withEffectiveProjectEndAnchor` in CPMSolver).
+  const projectEnd = schedulingOptions.useProjectEndDateForFloat
+    ? sourceProjectEnd ?? ''
     : taskDerivedProjectEnd;
   const statusDate = projectStatusDate(tables, projectRow, projectHourMode);
 

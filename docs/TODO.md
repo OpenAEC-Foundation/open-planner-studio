@@ -803,8 +803,12 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
   blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
   enige bewaking — per as, niet per cel.
-- [ ] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
-  zonder `plan_end_date`** (her-review 7a, 2026-09-07; `xerReader.ts` `taskDerivedProjectEnd =
+- [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
+  zonder `plan_end_date`** — opgelost 2026-09-24 (eigenaarsbesluit "eigen PR", Fable-critreview
+  PR #109 bevinding 2): de lezer laat `project.endDate` dan leeg in plaats van een anker te
+  verzinnen, de optie blijft aan, en `withEffectiveProjectEndAnchor` (CPMSolver) laat de solver
+  exact op het netwerkeinde rekenen; corpusloos bewaakt in `check-xer-reader.ts` 13c–13g.
+  Oorspronkelijke registratie: (her-review 7a, 2026-09-07; `xerReader.ts` `taskDerivedProjectEnd =
   finishes[last] ?? projectStart`). Op de echte P6-export van de dertien casussen
   (`cases-import.xer`: geen enkele `target_end_date`, geen `plan_end_date`) verankert de hele late
   zijde daardoor op de start: 77/160 P6-cellen zoals gelezen, 156/160 met de optie uit. Gepind in
