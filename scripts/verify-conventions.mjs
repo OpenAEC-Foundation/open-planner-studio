@@ -150,6 +150,7 @@ const parse = (file) => ts.createSourceFile(file, readFileSync(file, 'utf8'), ts
   file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
 
 // ── Regel 4/5: de sleutels uit het register en uit `interface SchedulingOptions` ──────────────────
+const CONVENTIONS_DIR = 'src/engine/scheduler/conventions/';
 const registryRel = 'src/engine/scheduler/conventions/registry.ts';
 const typesRel = 'src/types/project.ts';
 const keyRoot = existsSync(join(root, registryRel)) ? root : resolve(here, '..');
@@ -312,8 +313,9 @@ for (const file of files) {
     };
     walkTypes(sourceFile);
   }
-  // Alleen het register zelf is vrijgesteld (her-check 24-09: de hele map vrijstellen was te ruim).
-  const optionRules = own(file) !== registryRel;
+  // De map conventions/ is vrijgesteld van de optiesleutelregels (het register en de tijdelijke
+  // allowlist-bestanden uit check-conventions-boundary 13 leven daar); de naamregels gelden er wél.
+  const optionRules = !own(file).startsWith(CONVENTIONS_DIR);
   // Pre-pass: welke namen (variabelen, parameters, klassevelden) dragen in dit bestand een opties-object?
   const aliases = new Set(['schedulingOptions']);
   const strip = (expr) => {
