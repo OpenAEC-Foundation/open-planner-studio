@@ -211,6 +211,14 @@ naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn
   werkvelden alleen waar het werk afwijkt; histogram/nivelleerder byte-identiek aan vandaag) — omkeerbaar;
   blijft als eigenaarsvraag staan in het dossier.
 
+- **24-09 ~19:40, Fable-review #170 (LANDEN-MET-FIXES):** E8 en E10 worden gebouwd volgens het Fable-advies
+  als orkestratorbesluit (omkeerbaar): een voortgangsboeking verplaatst rest → verricht naar rato van de
+  restduur (P6: Remaining = At Completion − Actual), en een contourbewerking schrijft het restveld. Ook
+  gebouwd: kalenderdialoog/`removeCalendar` door `settleCalendarChange` (K2, gids-belofte), laag 3 bij
+  `curveValues`, `removeResource` wist ook Z8/walks. NIET gebouwd (eigenaar): E9 (FIXED_RATE-drift, F5
+  terugdraaien?), E3/E7 (per-toewijzing-spannes: beslispunt 10), E4 (stil ontsluiten bij alleen afgeleide
+  regel?), E5 (UI-vorm: volgt de memory-regel gekleurde blokken in een UI-baan). E2 dicht.
+
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
 1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
@@ -348,7 +356,7 @@ naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
 | baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
-| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `6e448f63`, **verify groen**; banen 1–2 gedaan, critreviews verwerkt; Fable-review loopt; E2 afgehandeld (labelwissel juist, MPXJ bevestigt; `2026-09-24-e2-p6xml-durationtype.md`); open E1/E4/E5/E7 |
+| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `6e448f63`, **verify groen**; banen 1–2 gedaan, critreviews verwerkt; Fable-review = LANDEN-MET-FIXES (rapport `8d4f21f6`; fixagent `opus-midden-pr170-fable-fixes` loopt); E2 afgehandeld (labelwissel juist, MPXJ bevestigt; `2026-09-24-e2-p6xml-durationtype.md`); open E1/E4/E5/E7 |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
