@@ -2,7 +2,7 @@ import type { Project, ProgressMode } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { createDefaultTaskTime, deriveScheduleDurationFromMinutes } from '@/utils/taskDefaults';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -24,7 +24,7 @@ import { freshPayload, hydratePayload } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
-import { deriveHoursPerDay } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
 import { createDefaultProject } from '../defaults';
@@ -480,16 +480,10 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       const payload = freshPayload();
       payload.project = proj;
       payload.calendar = opts.calendar;
-      const phaseHoursPerDay = opts.calendar.workTime
-        ? deriveHoursPerDay(opts.calendar.workTime, opts.calendar.hoursPerDay)
-        : opts.calendar.hoursPerDay;
+      const phaseHoursPerDay = effHoursPerDay(opts.calendar);
       payload.tasks = opts.phaseNames.map((name, i) => {
         const time = createDefaultTaskTime(proj.startDate, 5, proj.defaultTaskDurationUnit);
-        if (time.durationUnit === 'hours') {
-          time.scheduleDuration = phaseHoursPerDay > 0
-            ? (time.durationMinutes ?? 0) / (phaseHoursPerDay * 60)
-            : 0;
-        }
+        deriveScheduleDurationFromMinutes(time, phaseHoursPerDay);
         return {
           id: generateId('task'),
           name,

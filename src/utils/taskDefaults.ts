@@ -46,6 +46,13 @@ export function createDefaultTaskTime(
   };
 }
 
+/** Een urentaak draagt zijn duur in `durationMinutes`; leid `scheduleDuration` (werkdagen) daaruit af
+ *  met de uren/dag van zijn kalender (0 bij een kalender zonder uren). No-op voor een dagentaak. */
+export function deriveScheduleDurationFromMinutes(time: TaskTime, hoursPerDay: number): void {
+  if (time.durationUnit !== 'hours') return;
+  time.scheduleDuration = hoursPerDay > 0 ? (time.durationMinutes ?? 0) / (hoursPerDay * 60) : 0;
+}
+
 /**
  * T14b (gebruikstestbevinding, ernst hoog): `addTask` accepteert een meegegeven `partial.time` als
  * TYPE `TaskTime` (volledig), maar callers buiten de TS-typechecker (de extensie-sandbox draait

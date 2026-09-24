@@ -57,7 +57,9 @@ import {
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
-import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
@@ -101,9 +103,9 @@ function fieldContext(
     customTaskTypes: s.customTaskTypes,
     durationCalendar: (requestedId) => {
       const id = requestedId === undefined ? task?.calendarId : requestedId ?? undefined;
-      const calendar = id ? (s.calendars.find((c) => c.id === id) ?? s.calendar) : s.calendar;
+      const calendar = resolveCalendar(id, s.calendars, s.calendar);
       return {
-        hoursPerDay: calendar.workTime ? deriveHoursPerDay(calendar.workTime, calendar.hoursPerDay) : calendar.hoursPerDay,
+        hoursPerDay: effHoursPerDay(calendar),
         hasWorkBlocks: hasConcreteWorkBlocks(calendar),
       };
     },

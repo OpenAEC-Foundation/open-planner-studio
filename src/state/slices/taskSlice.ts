@@ -10,7 +10,8 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import {
-  createDefaultTaskTime, mergeTaskTime, clearTimephasedWindow, timeUpdateTouchesTimephasedWindow,
+  createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
+  timeUpdateTouchesTimephasedWindow,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
@@ -27,7 +28,8 @@ import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtree
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
-import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { buildTaskEditPlanEnvironment } from '../gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import { buildProgressImportPlan } from '@/services/progressImport';
@@ -308,9 +310,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const inheritedCustomTaskTypeId = inheritedTaskType === 'USERDEFINED'
         ? (partial.customTaskTypeId ?? (partial.taskType === undefined ? parentTask?.customTaskTypeId : undefined))
         : undefined;
-      const effectiveNewTaskCalendar = partial.calendarId
-        ? (s.calendars.find(calendar => calendar.id === partial.calendarId) ?? s.calendar)
-        : s.calendar;
+      const effectiveNewTaskCalendar = resolveCalendar(partial.calendarId, s.calendars, s.calendar);
       const defaultDurationUnit = s.ui.enableHourPlanning
         && s.project.defaultTaskDurationUnit === 'hours'
         && hasConcreteWorkBlocks(effectiveNewTaskCalendar)
@@ -321,14 +321,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         partial.isMilestone ? 0 : 5,
         defaultDurationUnit,
       ), partial.time);
-      if (initialTime.durationUnit === 'hours') {
-        const hoursPerDay = effectiveNewTaskCalendar.workTime
-          ? deriveHoursPerDay(effectiveNewTaskCalendar.workTime, effectiveNewTaskCalendar.hoursPerDay)
-          : effectiveNewTaskCalendar.hoursPerDay;
-        initialTime.scheduleDuration = hoursPerDay > 0
-          ? (initialTime.durationMinutes ?? 0) / (hoursPerDay * 60)
-          : 0;
-      }
+      deriveScheduleDurationFromMinutes(initialTime, effHoursPerDay(effectiveNewTaskCalendar));
 
       const task: Task = {
         id,

@@ -37,6 +37,7 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import type { GeneratorCountry, HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { ResourceCurve } from '@/types/resource';
@@ -640,9 +641,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
           holidayCount: cal.holidays.length,
           holidaysFrom,
           mode: createdMode,
-          hoursPerDayEffective: created.workTime
-            ? deriveHoursPerDay(created.workTime, created.hoursPerDay)
-            : created.hoursPerDay,
+          hoursPerDayEffective: effHoursPerDay(created),
           ...(created.shift ? { shift: created.shift } : {}),
           ...(ignoredFields.length > 0 ? { ignoredFields } : {}),
         });
@@ -736,9 +735,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         ...(beforeMode !== afterMode
           ? { modeChangedFrom: beforeMode, taskDurationsPreserved: true }
           : {}),
-        hoursPerDayEffective: updated.workTime
-          ? deriveHoursPerDay(updated.workTime, updated.hoursPerDay)
-          : updated.hoursPerDay,
+        hoursPerDayEffective: effHoursPerDay(updated),
         ...(updated.shift ? { shift: updated.shift } : {}),
         ...(ignoredFields.length > 0 ? { ignoredFields } : {}),
       });

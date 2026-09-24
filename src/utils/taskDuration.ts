@@ -5,6 +5,7 @@ import { isHourCalendar, deriveHoursPerDay } from '@/services/subdayIo';
 import { formatDuration, type DurationUnit, type DurationSuffixes } from '@/utils/durationFormat';
 import type { DurationDisplay } from '@/types/view';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 
 /**
  * Bouw de vertaalde duur-suffixen uit de i18n-`t` (common-namespace). Licht adapter-laagje zodat de PURE
@@ -22,13 +23,14 @@ export function durationSuffixesFrom(t: TFunction<'common'>): DurationSuffixes {
  * engine-instantie kunnen gebruiken.
  */
 
-/** Effectieve kalender van een taak (§5): eigen `calendarId` uit de bibliotheek, anders de projectkalender. */
+/** Effectieve kalender van een taak (§5): eigen `calendarId` uit de bibliotheek, anders de
+ *  projectkalender — `resolveCalendar` met de argumenten in UI-volgorde. */
 export function effectiveCalendarOf(
   task: Task,
   projectCal: WorkCalendar,
   library: WorkCalendar[],
 ): WorkCalendar {
-  return (task.calendarId ? library.find((c) => c.id === task.calendarId) : undefined) || projectCal;
+  return resolveCalendar(task.calendarId, library, projectCal);
 }
 
 /**
