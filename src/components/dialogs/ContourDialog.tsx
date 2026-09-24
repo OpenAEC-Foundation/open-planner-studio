@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -18,6 +18,7 @@ import {
 import { parseDate } from '@/utils/dateUtils';
 import { useLiveGridNav } from '@/components/panels/hooks/useLiveGridNav';
 import { ContourPhaseStrip } from './ContourPhaseStrip';
+import { useEscapeCapture } from '@/hooks/useEscapeCapture';
 
 /** Kolomsleutels van de fasentabel in weergavevolgorde — de bewerkbare cellen voor de rasternavigatie. */
 const PHASE_GRID_FIELDS = ['days', 'units'] as const;
@@ -116,20 +117,10 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     setUnitsText(next.map(p => fmtNum(p.unitsPerDay)));
   };
 
-  // Escape sluit ALLEEN dit venster. Capture-fase + `stopImmediatePropagation`, zoals `ConfirmDialog`:
-  // de globale Escape-sneltoets (`edit.deselect`, `shortcutRegistry.ts`) heeft geen dialooggrendel
-  // en zou anders — met de focus op een knop i.p.v. een invoerveld — de taak deselecteren en daarmee
-  // het eigenschappenpaneel (en dit venster) onder de gebruiker wegtrekken.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      onClose();
-    };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+  // Escape sluit ALLEEN dit venster: de globale Escape-sneltoets zou anders — met de focus op een
+  // knop i.p.v. een invoerveld — de taak deselecteren en daarmee het eigenschappenpaneel (en dit
+  // venster) onder de gebruiker wegtrekken.
+  useEscapeCapture(onClose);
 
   const grid = useLiveGridNav<PhaseGridField>({
     rowIds: phases.map((_, i) => String(i)),
