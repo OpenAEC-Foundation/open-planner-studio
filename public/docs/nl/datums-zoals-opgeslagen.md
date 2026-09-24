@@ -113,11 +113,13 @@ stond. Daarom:
 - **Een IFC uit een ander pakket met berekende datums** (EarlyStart/EarlyFinish in de taaktijden, zoals
   een Primavera-export naar IFC) krijgt de weergave wél.
 - **Een projectbestand dat Open Planner Studio zelf opsloeg** krijgt de weergave alleen als het
-  bestand onthoudt uit welk pakket de datums oorspronkelijk kwamen. De app schrijft dat mee zodra je
-  een project opslaat dat uit een van de formaten hierboven is geïmporteerd — ook als je het intussen
-  hebt bewerkt. Een project dat je in de app zelf hebt gemaakt, of een ouder projectbestand zonder die
-  aantekening, krijgt de weergave nooit: daar zou de app alleen zijn eigen eerdere berekening met de
-  nieuwe vergelijken.
+  bestand onthoudt uit welk pakket de datums oorspronkelijk kwamen. De app schrijft dat alleen mee
+  als je opslaat **terwijl deze weergave aanstaat** — dus zolang je geen datums wijzigt of
+  herberekent. Een bewerking die geen datums raakt, zoals de projectomschrijving wijzigen, mag wel.
+  Wijzig je een duur, een relatie of een kalender, of druk je op **F5**, dan staat in het bestand
+  voortaan onze eigen berekening en vervalt die aantekening. Een project dat je in de app zelf hebt
+  gemaakt, of een ouder projectbestand zonder die aantekening, krijgt de weergave nooit: daar zou de
+  app alleen zijn eigen eerdere berekening met de nieuwe vergelijken.
 
 Bij een `.xer`- of P6 XML-bestand zegt de strook "zoals Primavera hem opsloeg"; bij de andere
 formaten "zoals ze in het bestand staan", omdat de app dan niet weet uit welk pakket de datums komen.
@@ -137,7 +139,9 @@ formaten hangt het ervan af of de weergave nog aanstond toen je opsloeg. Een bew
 raakt (een duur, een relatie, een kalender) verlaat de weergave, dus wat je daarna opslaat zijn
 herberekende datums en valt er bij het heropenen niets meer aan te bieden. Een bewerking die geen
 datums raakt, zoals de projectomschrijving wijzigen, laat de weergave aan; sla je dan op, dan blijven
-de oorspronkelijke datums in het bestand en krijg je ze bij het heropenen wél aangeboden.
+de oorspronkelijke datums in het bestand en krijg je ze bij het heropenen wél aangeboden. Sla je
+daarna op zonder eerst **Opgeslagen datums tonen** te kiezen, dan staat de doorgerekende planning in
+het bestand en is er bij het volgende heropenen niets meer aan te bieden.
 
 De taken die in deze weergave zitten, zijn ook te herkennen in de tabel — kolom **Herkomst (opgeslagen
 datums)** — en met een badge in het eigenschappenpaneel van de geselecteerde taak. **F5** en het

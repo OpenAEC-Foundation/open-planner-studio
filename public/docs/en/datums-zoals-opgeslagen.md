@@ -107,10 +107,13 @@ it would only show that the logic gives a different date than was typed. Therefo
 - **An IFC from another package with calculated dates** (EarlyStart/EarlyFinish in the task times,
   such as a Primavera export to IFC) does get the view.
 - **A project file Open Planner Studio saved itself** only gets the view if the file remembers which
-  package the dates originally came from. The app writes that along as soon as you save a project
-  imported from one of the formats above — even if you have edited it in the meantime. A project you
-  created in the app itself, or an older project file without that note, never gets the view: there
-  the app would only compare its own earlier calculation with the new one.
+  package the dates originally came from. The app only writes that along when you save **while this
+  view is on** — so as long as you do not change dates or recalculate. An edit that does not affect
+  dates, such as changing the project description, is fine. Change a duration, a relationship or a
+  calendar, or press **F5**, and the file holds our own calculation from then on and the note is
+  dropped. A project you created in the app itself, or an older project file without that note,
+  never gets the view: there the app would only compare its own earlier calculation with the new
+  one.
 
 For a `.xer` or P6 XML file the notice says "as Primavera recorded them"; for the other formats "as
 recorded in the file", because the app then does not know which package the dates came from.
@@ -129,7 +132,8 @@ other formats it depends on whether the view was still on when you saved. An edi
 a relationship, a calendar) leaves the view, so what you save afterwards are recalculated dates and
 reopening has nothing left to offer. An edit that does not affect dates, such as changing the project
 description, keeps the view on; save then, and the original dates stay in the file and reopening
-does offer them.
+does offer them. Save again afterwards without first choosing **Show recorded dates**, and the file
+holds the recalculated schedule; the next reopen has nothing left to offer.
 
 Tasks inside this view are also recognisable in the table — column **Recorded-dates source** — and
 with a badge in the properties panel of the selected task. **F5** and editing a task leave this view
