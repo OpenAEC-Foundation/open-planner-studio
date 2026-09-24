@@ -162,11 +162,10 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   });
 });
 
-test('Taak bewerken: één keer Opslaan (naam, ouder, nieuw taaktype, voortgang) is één Ctrl+Z', async ({ page, ops }) => {
-  // Los, al bestaand punt in TaskTypeField (niet het onderwerp hier): kiest de dialoogdraft een
-  // persoonlijk type dat nog niet in het project staat, dan staat dezelfde optiewaarde twee keer in
-  // de lijst (persoonlijk + de "onbekend type"-terugval) en waarschuwt React over dubbele keys.
-  ops.acceptError('Encountered two children with the same key');
+test('Taak bewerken: één keer Opslaan (naam, ouder, nieuw taaktype, voortgang) is één Ctrl+Z', async ({ page, ops: _ops }) => {
+  // Kiest de dialoogdraft een persoonlijk type dat nog niet in het project staat, dan mag de
+  // taaktypekiezer dat type maar één keer tonen (de fixture faalt op elke consolefout, dus ook op
+  // React's waarschuwing over dubbele keys).
   const [phaseId, taskId] = await seedTenDayTasks(page, ['Fase', 'Taak']);
   const before = await readTask(page, taskId);
 
