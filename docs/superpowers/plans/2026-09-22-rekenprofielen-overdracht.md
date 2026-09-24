@@ -290,6 +290,17 @@ van #167, `claude/recorded-all-formats-fixes`).
    bestanden zetten ES én EF van voltooide taken op de rauwe statusdatum) zijn P3-gedrag en horen dan
    niet als P6-standaard aan; C2 blijft (Hotel 244, Roads 11, DCP-03 1).
 
+**Nieuwe eigenaarsvragen uit de reviews van 24-09 (nog niet gesteld; stellen ná A19-basis en C5):**
+- 14. Regel 7a (`p6CompletedLateFromRemainingWindow`, correlationeel, tegengesproken door het enige directe
+  P6-bewijs): achter een zichtbare standaard-uit optie, of aan laten met de eerlijke gidstekst? Advies: aan
+  laten met gidstekst (A21 is zonder B3 al inert; zie eindreview deel 1 bevinding 3).
+- 15. Corrupt of door andere IFC-software herschreven bronarchief: project openen zónder archief met een
+  melding (draait "geen fallback" om), of blijven weigeren? Advies: openen met melding, in een eigen PR.
+- 16. Statisch anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37
+  corpusprojecten, niet P6): eigen PR met herpin? Advies: ja, na #109.
+- 17. Documentnaam bij XER-import = P6 Project-ID i.p.v. projectnaam: omzetten naar projectnaam (met ID als
+  suffix)? Advies: ja, kleine UX-fix in #109.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
@@ -408,7 +419,16 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    F5-solve — `prepareLoadedPayload` geeft `projectEndDate` niet door, op #169 al gefixt in `ba7d86b5` maar
    #109 merget eerst naar main; bak-2-sluiproute-grep in `check-xer-field-whitelist.ts` is een placebo (4 van
    5 mutanten groen) ⇒ AST-poort; gids 7a-regel ≠ code; plus kleinere BEVESTIGD-punten — fixagent
-   `opus-midden-fix-pr109` op `claude/xer-etappe3-fixes` vanaf de #109-branch; eigenaarsvragen: statisch
+   `opus-midden-fix-pr109` op `claude/xer-etappe3-fixes` vanaf de #109-branch — **klaar, kop `32849caf`**
+   (4 commits: laadsolve = F5 incl. bezetting/distribute/benchmark met LOAD-01..03; AST-poort bak 2/2b/4 over
+   heel `src/` met 7 zelftestmutanten en gepinde uitzonderingen; gids 7a "afgeleid uit corpusmateriaal";
+   FF/SF-dialect, mpp-tak, CP_Phys-commentaar, rawSource; X12 15.056 vóór/ná; alle poorten exit 0);
+   critreview loopt (`opus-laag-critreview-109-fixes`); daarna merge in de #109-PR-branch
+   `claude/file-formats-support-phase-3-a0ebe2` en vervolgens die branch mergen in `claude/rekenprofielen`
+   (merge-instructie per fix in het agentrapport: #169-versies leidend voor de solve-invoer, LOAD-03 naar
+   `occupancySolveInputFor`, zes AST-uitzonderingen voor `levelingInput.ts`, `p6CompletedTargetWindow.ts`
+   verplaatst); niet gedaan (eigen PR): corrupt bronarchief-fallback, tokenizer-regeleinde;
+   releasenotitie-regel in het agentrapport; eigenaarsvragen: statisch
    anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37 corpusprojecten),
    documentnaam Project-ID vs projectnaam, 7a achter een standaard-uit optie); #169-review gestart op
    `e5717cb4` (`fable-critreview-pr169`) = **LANDEN-MET-FIXES** (rapport gecommit `693b0c99`): (1) meetlat
