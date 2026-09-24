@@ -319,6 +319,7 @@ van #167, `claude/recorded-all-formats-fixes`).
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
 | baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
+| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `673aa51c`; banen 1–2 gedaan, critreviews verwerkt; open E1/E2/E4/E5/E7 |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
@@ -560,9 +561,11 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    MCP-tweelingen + raster; checks 45–61 en s1–s5, mutant per pad; laden raakt de reconcile niet (61); TODO en
    B1c-koppelpunt in `docs/TODO.md` afgevinkt; poorten exit 0, `.mpp` 216/0/0, measure 76/0/0/0; nieuw
    gedrag: kalenderwijziging die onder een werkregel de duur van een dagtaak verandert wist de nivelleerpauze
-   (s4); `removeResource` wist pauzes alleen bij duurwijziging — inconsistentie, niet aangepast). Critreview
-   loopt (`opus-laag-critreview-pr101-baan2`); daarna eigen draft-PR voor de taaktypes-branch, gestapeld op
-   #169. baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   (s4)). Critreview (Opus 5.5) = LANDEN-MET-FIXES ⇒ fixronde `673aa51c`: `removeResource` wist pauzes
+   onvoorwaardelijk (s6/s6b), crashherstel-bewijs check 62 (`prepareLoadedPayload` zonder reconcile/clear).
+   **Draft-PR #170** geopend (`claude/taaktypes-integratie` → base `claude/rekenprofielen`; vervangt #101, sluiten
+   = eigenaar); gelinkt aan de thread. Keten measure+verify op `673aa51c` gestart in de agent-worktree
+   (`/tmp/ops-chain-taaktypes-{measure,verify}.log`). baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
    gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
    krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel

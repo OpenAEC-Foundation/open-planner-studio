@@ -298,6 +298,14 @@ De TODO in de code en het B1c-koppelpunt in `docs/TODO.md` zijn afgevinkt.
 inclusief de werkdriehoek. De gidsen `gids-taaktypes` (nieuw punt onder "Wat u moet weten") en
 `gids-rekenprofielen` ("… of als de werkregel de duur verandert …") zijn bijgewerkt in nl en en.
 
-**Voor de orkestrator.** `removeResource` wist nivelleergaten alleen als de duur verandert. Zonder
-duurwijziging gebeurde dat al niet vóór deze baan (assign/unassign/move wissen ze wél altijd). Dit
-bestond al en valt buiten de opdracht; het is niet aangepast.
+**Critreviewfixes baan 2 (kop `673aa51c`, gepusht).**
+- Bevinding 1: `removeResource` (store en MCP) wist de nivelleerpauze nu onvoorwaardelijk per
+  getroffen taak, net als `unassignResource`. Check s6 (store) en s6b (MCP) draaien onder de
+  standaardregel, dus zonder duurwijziging. Mutatieproef: fix weg in `resourceSlice` ⇒ s6 rood; fix
+  weg in `createMcpTransactions` ⇒ s6b rood.
+- Bevinding 2: crashherstel (`recoveryInputFromParsed` → `restoreDocuments` → `payloadFromInput` →
+  `prepareLoadedPayload`) loopt niet door `settleDurationAftermath`. Check 62 doet een
+  herstelrondgang van een Vast-werk-urentaak met een incoherent einde en een nivelleergat; beide
+  blijven staan. Mutatieproef in `prepareLoadedPayload`: een reconcile ⇒ 61 en 62 rood; een
+  `clearLevelingGaps` ⇒ 62 rood.
+- Poorten, allemaal exit 0: typecheck, lint, `tests/planning/run.sh` corpusloos, `test:mcp` (42/0).
