@@ -695,9 +695,13 @@ function createMcpDraft(
       s.resources = s.resources.filter((r) => r.id !== id);
       s.assignments = s.assignments.filter((a) => a.resourceId !== id);
       for (const c of captured) {
-        if (c && settleAssignmentRemoved(c.task, s.assignments, c.triangle, c.assignmentId).durationChanged) {
+        if (!c) continue;
+        if (settleAssignmentRemoved(c.task, s.assignments, c.triangle, c.assignmentId).durationChanged) {
           afterTriangleDurationChange(s, c.task, c.oldWorkMinutes, c.finishBasis);
         }
+        // B1c-plan3 taak 3 — tweeling van resourceSlice.ts's `removeResource`: onvoorwaardelijk,
+        // zoals `unassignResource` (critreview baan 2 overname PR #101, bevinding 1).
+        clearLevelingGaps(c.task);
       }
       for (const task of s.tasks) {
         const idx = task.resourceIds.indexOf(id);

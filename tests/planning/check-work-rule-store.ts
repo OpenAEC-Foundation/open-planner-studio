@@ -886,6 +886,15 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   gap(e.t);
   S().updateCalendar(sixId, { hoursPerDay: 2 });
   eq('s5 updateCalendar onder de standaardregel: duur blijft, nivelleergat blijft (geen duur uit de driehoek)', [task(e.t).time.scheduleDuration, kinds(e.t)], [4, ['leveling', 'import']]);
+  // Critreview baan 2, bevinding 1: resource weghalen = die toewijzing weghalen ⇒ de nivelleerpauze
+  // vervalt ONVOORWAARDELIJK, ook onder de standaardregel (geen duurwijziging) — zoals unassignResource.
+  const f = mk('s-f');
+  const fr = asgOf(f.t, f.r).resourceId;
+  S().removeResource(fr);
+  eq('s6 store removeResource onder de standaardregel: duur blijft, nivelleergat weg, importsplit blijft', [task(f.t).time.scheduleDuration, kinds(f.t)], [4, ['import']]);
+  const g = mk('s-g');
+  const rg = runInMcpTransaction(() => { draft.removeResource(g.r); });
+  eq('s6b MCP removeResource onder de standaardregel: nivelleergat weg, importsplit blijft', [rg.ok, task(g.t).time.scheduleDuration, kinds(g.t)], [true, 4, ['import']]);
 }
 
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);

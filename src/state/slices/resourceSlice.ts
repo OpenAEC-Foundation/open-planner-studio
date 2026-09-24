@@ -141,6 +141,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
           settleDurationAftermath(c.task, s, c.oldWorkMinutes, c.finishBasis);
           stale = true;
         }
+        // B1c-plan3 taak 3 — een resource weghalen is per taak hetzelfde als die toewijzing weghalen
+        // (`unassignResource`): de nivelleerpauze vervalt ONVOORWAARDELIJK, ook zonder duurwijziging
+        // (critreview baan 2 overname PR #101, bevinding 1).
+        clearLevelingGaps(c.task);
       }
       // Verweesde verwijzingen in task.resourceIds opruimen.
       for (const task of s.tasks) {

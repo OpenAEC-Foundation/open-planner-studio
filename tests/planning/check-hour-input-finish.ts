@@ -24,6 +24,8 @@
 // setAssignmentWork 46, assignResource 47, unassignResource 48, removeResource 49, moveAssignment (oud of
 // nieuw) 50; raster 51+52; MCP updateAssignment 53, setAssignmentWork 54, assignResource 55,
 // unassignResource 56, removeResource 57, moveAssignment (oud of nieuw) 58.
+// §18 (laden raakt de koppeling niet): een reconcile in `prepareLoadedPayload` ⇒ 61 en 62 rood; een
+// `clearLevelingGaps` daar ⇒ 62 rood (crashherstel, `restoreDocuments`).
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
@@ -32,6 +34,7 @@ import { planTaskCellEdit, planTaskCellEdits } from '@/engine/taskGrid/taskEditP
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { recoveryInputFromParsed } from '@/state/documentContract';
 import { createDefaultTaskTime, hourTaskInputFinish } from '@/utils/taskDefaults';
 import { createExtensionApi } from '@/extensions/extensionApi';
 import type { ExtTaskTime } from '@/extensions/extTypes';
@@ -443,6 +446,19 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   const opened = c2.store.getState().tasks.find(k => k.name === 'Bron')!;
   eq('61 applyOpenedImport: het einde uit het bestand blijft staan (geen reconcile bij laden)',
     [opened.workRule, opened.time.scheduleFinish], ['FIXED_WORK', '2026-09-09T10:00']);
+
+  // 62 — crashherstel (critreview baan 2, bevinding 2): `recoveryInputFromParsed` → `restoreDocuments`
+  // (`payloadFromInput` → `prepareLoadedPayload`, met solve) loopt evenmin door de koppeling. Dezelfde
+  // taak, nu mét een nivelleergat: na de herstel-rondgang staan einde én gat er nog precies zo.
+  c.store.setState((s) => { s.tasks.find(k => k.id === id)!.splitGaps = [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }]; });
+  const snap = readIFC(writeIFC(buildWriteIFCInput(Sx())));
+  const c3 = freshContext();
+  const rr = c3.store.getState().restoreDocuments(
+    [recoveryInputFromParsed(snap, { id: 'rec-b2', filePath: null, isDirty: true, datesAsRecorded: false })], 'rec-b2');
+  const rec = c3.store.getState().tasks.find(k => k.name === 'Bron')!;
+  eq('62 crashherstel (restoreDocuments): einde uit de snapshot en nivelleergat blijven ongemoeid',
+    [rr.skippedIds, rec.workRule, rec.time.scheduleFinish, rec.splitGaps ?? []],
+    [[], 'FIXED_WORK', '2026-09-09T10:00', [{ afterMinutes: 120, gapMinutes: 960, source: 'leveling' }]]);
 }
 
 // 12. De afleiding zelf: ELAPSEDTIME telt klokminuten, duur 0 geeft de start.
