@@ -5,7 +5,9 @@
 
 import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
 import type { ViewRow } from '@/engine/view/visibleRows';
+import type { Task } from '@/types/task';
 import { readMiniMapPalette, type MiniMapPalette } from './themePalette';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 export interface MiniMapOptions {
   rows: ViewRow[];
@@ -25,20 +27,28 @@ export interface MiniMapOptions {
 
 interface Span { startDay: number; endDay: number; span: number }
 
+/** Startdag en (exclusieve) einddag van een taak t.o.v. `origin`; null zonder start. Een taak
+ *  zonder einde beslaat zijn startdag. */
+function taskDays(task: Task, origin: Date): { startDay: number; endDay: number } | null {
+  const s = shownStart(task);
+  if (!s) return null;
+  const f = shownFinish(task) || s;
+  return {
+    startDay: diffCalendarDays(origin, parseDate(s)),
+    endDay: diffCalendarDays(origin, parseDate(f)) + 1,
+  };
+}
+
 /** Projectperiode (min start .. max finish) in dagen t.o.v. originDate. */
 function projectSpan(rows: ViewRow[], originDate: string): Span | null {
   let min = Infinity;
   let max = -Infinity;
   const origin = parseDate(originDate);
   for (const row of rows) {
-    if (row.kind !== 'task') continue;
-    const s = row.task.time.earlyStart || row.task.time.scheduleStart;
-    const f = row.task.time.earlyFinish || row.task.time.scheduleFinish || s;
-    if (!s) continue;
-    const sd = diffCalendarDays(origin, parseDate(s));
-    const fd = f ? diffCalendarDays(origin, parseDate(f)) + 1 : sd + 1;
-    if (sd < min) min = sd;
-    if (fd > max) max = fd;
+    const days = row.kind === 'task' ? taskDays(row.task, origin) : null;
+    if (!days) continue;
+    if (days.startDay < min) min = days.startDay;
+    if (days.endDay > max) max = days.endDay;
   }
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null;
   return { startDay: min, endDay: max, span: max - min };
@@ -68,7 +78,7 @@ export class MiniMapRenderer {
   }
 
   render(): void {
-    const { canvasWidth, canvasHeight, rows, scrollX, zoom, chartWidth } = this.opts;
+    const { canvasWidth, canvasHeight, rows } = this.opts;
     const ctx = this.ctx;
     const colors = this.opts.palette ?? readMiniMapPalette();
 
@@ -79,35 +89,27 @@ export class MiniMapRenderer {
       // Alle rijen gecomprimeerd op de striphoogte; 1 fillRect per taakrij (§11.1).
       const taskRowCount = rows.length;
       const miniRowH = taskRowCount > 0 ? canvasHeight / taskRowCount : canvasHeight;
+      const origin = parseDate(this.opts.originDate);
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         if (row.kind !== 'task') continue;
-        const s = row.task.time.earlyStart || row.task.time.scheduleStart;
-        if (!s) continue;
-        const f = row.task.time.earlyFinish || row.task.time.scheduleFinish || s;
-        const origin = parseDate(this.opts.originDate);
-        const x0 = this.dayToMiniX(diffCalendarDays(origin, parseDate(s)));
-        const x1 = this.dayToMiniX(diffCalendarDays(origin, parseDate(f)) + 1);
+        const days = taskDays(row.task, origin);
+        if (!days) continue;
+        const x0 = this.dayToMiniX(days.startDay);
+        const x1 = this.dayToMiniX(days.endDay);
         const y = i * miniRowH;
         ctx.fillStyle = row.task.time.isCritical ? colors.critical : colors.bar;
         ctx.fillRect(x0, y, Math.max(1, x1 - x0), Math.max(1, miniRowH - 1));
       }
 
       // Viewport-kader: het huidige hoofdvenster (breedte = zichtbare dagen / totale dagen).
-      if (zoom > 0 && chartWidth > 0) {
-        const leftDay = scrollX / zoom;
-        const visibleDays = chartWidth / zoom;
-        // Geklemd op de strip zelf (issue #30): buiten-project scrollen of verder uitzoomen dan
-        // de projectperiode zelf gaf hiervoor een kader dat buiten canvasWidth viel — onzichtbaar
-        // in de canvas (die clipt toch al aan zijn eigen randen), maar wél een kader dat nooit
-        // netjes tegen de rechterrand paste zodra visibleDays > span.span.
-        const fw = Math.min(canvasWidth, Math.max(6, (visibleDays / this.span.span) * canvasWidth));
-        const fx = Math.max(0, Math.min(this.dayToMiniX(leftDay), canvasWidth - fw));
+      const frame = this.frameBounds();
+      if (frame) {
         ctx.strokeStyle = colors.frame;
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(fx + 0.75, 0.75, fw - 1.5, canvasHeight - 1.5);
+        ctx.strokeRect(frame.x + 0.75, 0.75, frame.w - 1.5, canvasHeight - 1.5);
         ctx.fillStyle = colors.frame + '14';
-        ctx.fillRect(fx, 0, fw, canvasHeight);
+        ctx.fillRect(frame.x, 0, frame.w, canvasHeight);
       }
     }
 
@@ -120,7 +122,11 @@ export class MiniMapRenderer {
     ctx.stroke();
   }
 
-  /** Grenzen van het viewport-kader op de strip (voor sleep-hit-testing) — zelfde klemming als render(). */
+  /** Grenzen van het viewport-kader op de strip — getekend door render() en gebruikt voor de
+   *  sleep-hit-testing. Geklemd op de strip zelf (issue #30): buiten-project scrollen of verder
+   *  uitzoomen dan de projectperiode gaf anders een kader dat buiten canvasWidth viel — onzichtbaar
+   *  (de canvas clipt aan zijn eigen randen), maar nooit netjes tegen de rechterrand zodra de
+   *  zichtbare dagen de projectperiode overtreffen. */
   frameBounds(): { x: number; w: number } | null {
     if (!this.span || this.opts.zoom <= 0 || this.opts.chartWidth <= 0) return null;
     const { canvasWidth } = this.opts;
