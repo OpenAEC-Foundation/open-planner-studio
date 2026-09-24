@@ -678,12 +678,15 @@ export function readMSPDI(content: string): ImportResult {
 }
 
 function parseProject(root: Element): Project {
+  // Een ontbrekende FinishDate blijft leeg (de writer laat hem weg voor een project zonder
+  // einddatum); `parseMSPDate` zou er de datum van vandaag van maken.
+  const finishRaw = getElementText(root, 'FinishDate');
   const project: Project = {
     id: generateId('proj'),
     name: getElementText(root, 'Name') || getElementText(root, 'Title') || 'MS Project Import',
     description: '',
     startDate: parseMSPDate(getElementText(root, 'StartDate')),
-    endDate: parseMSPDate(getElementText(root, 'FinishDate')),
+    endDate: finishRaw ? parseMSPDate(finishRaw) : '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),

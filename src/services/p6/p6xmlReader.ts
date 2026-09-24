@@ -722,12 +722,15 @@ function parseProject(doc: Document): Project {
     };
   }
 
+  // MustFinishByDate is in P6 een optionele eis, geen berekend einde: ontbreekt hij, dan blijft de
+  // einddatum leeg (zoals de writer hem voor een project zonder einddatum weglaat).
+  const mustFinishRaw = getElementText(projEl, 'MustFinishByDate');
   const project: Project = {
     id: generateId('proj'),
     name: getElementText(projEl, 'Name') || 'P6 Import',
     description: getElementText(projEl, 'Description'),
     startDate: parseP6Date(getElementText(projEl, 'PlannedStartDate')),
-    endDate: parseP6Date(getElementText(projEl, 'MustFinishByDate')),
+    endDate: mustFinishRaw ? parseP6Date(mustFinishRaw) : '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),

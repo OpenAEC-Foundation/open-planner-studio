@@ -196,6 +196,16 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI legacy-eenheid: exacte minuten blijven', mspBack?.time.durationMinutes, 1200);
 }
 
+// Een project zonder einddatum (een leeg veld is geldig: de gebruiker vult het zelf in) mag na
+// export/import geen einddatum "vandaag" krijgen; de writers laten het element dan weg.
+{
+  const open = { ...project, endDate: '' };
+  eq('MSPDI project zonder einddatum blijft leeg', readMSPDI(writeMSPDI(open, H8, tasks, [], [], [])).project.endDate, '');
+  eq('P6 project zonder einddatum blijft leeg', readP6XML(writeP6XML(open, H8, tasks, [], [], [])).project.endDate, '');
+  eq('MSPDI project mét einddatum blijft', readMSPDI(writeMSPDI(project, H8, tasks, [], [], [])).project.endDate, '2026-07-31');
+  eq('P6 project mét einddatum blijft', readP6XML(writeP6XML(project, H8, tasks, [], [], [])).project.endDate, '2026-07-31');
+}
+
 // Een dagkalender met een halve-uursdag (7,5 u): 3 dagen = 22,5 uur. De writer schreef
 // `PT22.5H0M0S`, de reader kende geen decimalen en las 0 dagen terug.
 {
