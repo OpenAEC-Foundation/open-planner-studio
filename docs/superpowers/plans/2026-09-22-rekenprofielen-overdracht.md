@@ -424,7 +424,13 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    tellen, `withRecordedDatesNotice` als detailregel; bladtaken-vastlegging MSPDI/.mpp, `.mpp`-slack null;
    "beperken" als poort `recordedDatesSource` met nieuw pset-veld `SourceFormat` in `OPS_ImportProvenance`,
    checks per geval rood zonder poort, gidsen nl+en + `gids-import-export` 14 talen; poorten exit 0,
-   `.mpp` 216 pins 0/0); critreview loopt (`opus-laag-critreview-167-fixes`); merge-instructie voor #169
+   `.mpp` 216 pins 0/0); critreview (Opus 5.5) = LANDEN-MET-FIXES: (1) taken zonder vastlegging komen na
+   opslaan-in-modus + heropenen als vastgelegd terug (MSPDI-probe 2 ⇒ 3) ⇒ `$` op alle zeven slots voor
+   élke taak zonder record; (2) `SourceFormat` óók geschreven buiten de modus ⇒ alleen bij `datesAsRecorded`;
+   (3) gidszin "ook als je bewerkt hebt" klopt niet (datumbewerking/F5 wist `recordedDates`); (4) `SourceFormat`
+   niet via de ifc-round-trip-route; (5) 16s test een toestand zonder pad; proefmerge op #169: 10 bestanden/12
+   blokken, alle beide-kanten-toevoegingen — tweede fixronde loopt (dezelfde agent, via SendMessage);
+   merge-instructie voor #169
    in het agentrapport (geneste `withRecordedDatesNotice(withSchedulingProfileNotice(...))`, geen
    `!notice`-blok terug); open: taak zonder enige vastlegging telt na opslaan-in-modus als vastgelegd
    (buiten scope), 16s synthetisch; eigenaarsvraag beantwoord "beperken", V1/V2 in §1c); #109 = LANDEN-MET-FIXES (rapport gecommit `b2935a1f`; drie blokkers: laadsolve ≠
