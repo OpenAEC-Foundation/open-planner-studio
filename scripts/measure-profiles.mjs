@@ -17,7 +17,7 @@
 //   --only=p6|msp|vangrails  draait alleen dat onderdeel (voor gerichte runs en de scripttest).
 //
 // Het oordeel per onderdeel staat in `measure-profiles-status.mjs` (rood is de standaard; zie daar
-// voor de drie niet-rode X12-toestanden GROEN, NULDOEL en VERBETERD). `--strict` maakt ook een nog
+// voor de twee niet-rode X12-toestanden GROEN en NULDOEL — VERBETERD zonder herpin is rood, zie daar). `--strict` maakt ook een nog
 // rode nuldoelregel rood. Kindprocessen krijgen nooit OPS_XER_CELLS_WRITE, OPS_XER_FIDELITY_REPORT of
 // OPS_MPP_FIDELITY_REPORT (noch OPS_XER_V2_WRITE / OPS_XER_GATE_PINS) mee: een meting schrijft of herformatteert nooit per ongeluk iets.
 //
@@ -145,14 +145,14 @@ for (const [index, cells] of table.entries()) {
 console.log('\nHet MS Project-orakel meet alleen start en einde (twee assen). Het P6-orakel meet zes assen plus '
   + 'drivingPath als zevende poort-as (cel-ratchet; niet in het zesassige nuldoel-getal).');
 if (!FULL) console.log('De volledige corpusloze suite is niet gedraaid (alleen met --full; hij draait al in `npm run verify`).');
-if (rows.some((row) => row.status.startsWith('VERBETERD (grootte)'))) {
-  console.log('VERBETERD (grootte) is exit 0, maar commit alleen mét herpin van de cellen: OPS_XER_CELLS_WRITE=1 '
+if (rows.some((row) => row.status.includes('VERBETERD (grootte)'))) {
+  console.log('VERBETERD (grootte) is rood tot de cellen herpind zijn: OPS_XER_CELLS_WRITE=1 '
     + '(v2 en de gate-pins tellen emmers en veranderen niet), daarna de vangrails tot groen — recept in scripts/README.md.');
-} else if (rows.some((row) => row.status.startsWith('VERBETERD'))) {
-  console.log('VERBETERD is exit 0, maar commit alleen mét herpin, in deze volgorde en in één commit: '
+} else if (rows.some((row) => row.status.includes('VERBETERD'))) {
+  console.log('VERBETERD is rood tot er herpind is, in deze volgorde en in één commit: '
     + '(1) OPS_XER_V2_WRITE=1, (2) OPS_XER_CELLS_WRITE=1, (3) OPS_XER_GATE_PINS=write op '
     + 'check-xer-corpusless-fidelity-gate.ts plus de HERPIN-toelichting in EXPECTED, (4) de vangrails '
-    + 'draaien tot groen — recept in scripts/README.md.');
+    + 'draaien tot groen, en daarna measure:profiles opnieuw — recept in scripts/README.md.');
 }
 const scope = only ? ' (GERICHTE RUN — niet alle vangrails gedraaid)' : '';
 console.log(red ? `UITSLAG${scope}: ROOD — minstens één onderdeel rood` : `UITSLAG${scope}: regel A gehouden onder elk gemeten profiel`);
