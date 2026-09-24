@@ -46,7 +46,7 @@ export type FieldRef =
   | { src: 'customField'; defId: string }      // waarde = task.customFields[defId]
   | { src: 'resource' };                        // afgeleide waarde = namen van toegewezen resources
 
-/** Kolomconfiguratie op de HTML-TableEditor (§2.2). Volgorde = arrayvolgorde. */
+/** Kolomconfiguratie op de Tabel-weergave (FullTaskGrid, §2.2). Volgorde = arrayvolgorde. */
 export interface ColumnConfig {
   field: FieldRef;
   visible: boolean;

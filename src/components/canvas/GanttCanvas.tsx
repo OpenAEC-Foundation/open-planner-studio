@@ -177,7 +177,7 @@ export function GanttCanvas({
   const modifierMap = useAppStore(s => s.ui.modifierMap);
   const traceMode = useAppStore(s => s.ui.traceMode);
   const cpmResult = useAppStore(s => s.cpmResult);
-  // DE gedeelde zichtbare-rijenlijst (fase 2.7, §4.3): zelfde store-veld als TableEditor.
+  // DE gedeelde zichtbare-rijenlijst (fase 2.7, §4.3): zelfde store-veld als FullTaskGrid.
   const viewRows = useAppStore(s => s.viewRows);
   const setCollapsedGroupKey = useAppStore(s => s.setCollapsedGroupKey);
   const splitView = useAppStore(s => s.view.splitView);

@@ -1060,7 +1060,7 @@ export function TimeScaleGroupContent() {
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
   const setUI = useAppStore(s => s.setUI);
-  // Precies de conditie waaronder App.tsx de TableEditor mount.
+  // Precies de conditie waaronder App.tsx de volledige Tabel-weergave (FullTaskGrid) mount.
   const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table' && !s.ui.showResourcePanel);
   return {
     title: tMenu(tableVisible ? 'ribbon.columnsHintTable' : 'ribbon.columnsHintGoToTable'),

@@ -49,7 +49,7 @@ const viewportFile = withoutExtension(resolve(
 ));
 const ganttCanvasFile = resolve(root, 'src/components/canvas/GanttCanvas.tsx');
 const ganttRendererFile = resolve(root, 'src/engine/renderer/GanttRenderer.ts');
-const tableEditorFile = resolve(root, 'src/components/panels/TableEditor.tsx');
+const tableSurfaceFile = resolve(root, 'src/components/task-grid/FullTaskGrid.tsx');
 const ganttRendererModule = withoutExtension(resolve(root, 'src/engine/renderer/GanttRenderer.ts'));
 const histogramRendererModule = withoutExtension(resolve(root, 'src/engine/renderer/HistogramRenderer.ts'));
 const ganttOptionsModule = withoutExtension(resolve(root, 'src/components/canvas/ganttRenderOptions.ts'));
@@ -166,10 +166,10 @@ if (existsSync(ganttRendererFile)) {
   }
 }
 
-if (existsSync(tableEditorFile)) {
-  const sourceFile = parse(tableEditorFile);
+if (existsSync(tableSurfaceFile)) {
+  const sourceFile = parse(tableSurfaceFile);
   for (const imported of imports(sourceFile)) {
-    const module = normalizedModule(tableEditorFile, imported.specifier);
+    const module = normalizedModule(tableSurfaceFile, imported.specifier);
     const isRenderer = module.startsWith(`${withoutExtension(resolve(root, 'src/engine/renderer'))}/`);
     const isCoordinator = module.startsWith(
       `${withoutExtension(resolve(root, 'src/components/canvas/hooks'))}/useGantt`,
@@ -178,8 +178,8 @@ if (existsSync(tableEditorFile)) {
       'src/components/canvas/hooks/ganttCoordinatorTypes.ts',
     ));
     if (isRenderer || isCoordinator) {
-      report(tableEditorFile, sourceFile, imported.statement,
-        `TableEditor mag Gantt-afhankelijkheid '${imported.specifier}' niet importeren`);
+      report(tableSurfaceFile, sourceFile, imported.statement,
+        `De Tabel-weergave (FullTaskGrid) mag Gantt-afhankelijkheid '${imported.specifier}' niet importeren`);
     }
   }
 }

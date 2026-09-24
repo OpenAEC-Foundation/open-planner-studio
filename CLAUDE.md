@@ -44,7 +44,7 @@ Er is geen vitest/jest; `tsc` is de statische hoofdcheck — draai `npm run type
 | `tests/library/` | bibliotheek, pool-IFC, vijandige IFC-invoer, i18n-meervouden | `run.sh` |
 | `tests/mcp/` | de MCP-tools headless tegen de echte store | `run.sh` |
 | `tests/dev-server/` | poortallocatie en flock-races van de dev-server | `node:test` + `integration.sh` |
-| `tests/browser/` | echte muis-, toets-, wheel- en DOM-handelingen voor Gantt, documenten, TableEditor, dialogen en panelen; state-/paintasserties via de dev-only brug | Playwright Chromium headless shell |
+| `tests/browser/` | echte muis-, toets-, wheel- en DOM-handelingen voor Gantt, documenten, de Tabel-weergave, dialogen en panelen; state-/paintasserties via de dev-only brug | Playwright Chromium headless shell |
 
 Installeer de browser en Linux-systeemafhankelijkheden eenmalig met
 `npx playwright install --with-deps --only-shell chromium`. `npm run test:browser` reserveert daarna
@@ -142,7 +142,7 @@ Dagenlijst via `ResourceLoad.ts`'s `taskWorkDayIsos` — dezelfde als het histog
 
 ### Rendering: Gantt-tijdlijn in Canvas 2D, taakraster in de DOM
 
-De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/renderer/` (`GanttRenderer`): balken, relaties, tijdschaal en hit-testing horen daar. De taakrijen links van de tijdlijn zijn juist het gedeelde DOM-raster `FullTaskGrid`, via `GanttTaskGrid`; het volledige lint-tabblad **Tabel** gebruikt dezelfde kern. `TableEditor` is alleen nog een compatibiliteitsexport naar `FullTaskGrid` en heeft geen eigen structurele verantwoordelijkheid. React beheert daarnaast de omringende chrome, panelen en dialogen.
+De Gantt-tijdlijn wordt imperatief op een `<canvas>` getekend via `src/engine/renderer/` (`GanttRenderer`): balken, relaties, tijdschaal en hit-testing horen daar. De taakrijen links van de tijdlijn zijn juist het gedeelde DOM-raster `FullTaskGrid`, via `GanttTaskGrid`; het volledige lint-tabblad **Tabel** gebruikt dezelfde kern. React beheert daarnaast de omringende chrome, panelen en dialogen.
 
 **Taken splitsen (issue #146)** is één bewerkmodel met drie oppervlakken. `src/engine/scheduler/splitEdit.ts` (puur) vertaalt `Task.splitGaps` (de H1-as, waar elk gat meetelt in de positie van het volgende — zie `splitWalk.ts`) naar STUKKEN werk/pauze/werk en terug, en bevat alle bewerkingen (`splitAt`, `setGapLength`, `setWorkLength`, `removeGap`) plus `canSplitTask`; geen oppervlak rekent zelf op `afterMinutes`/`gapMinutes`. De ENE schrijfweg is `taskSlice.setTaskSplits` (undo met `coalesceKey` per sleepgebaar, `markScheduleStale`, contour verhuist mee, eigen `scheduleFinish` direct bijgewerkt). Oppervlakken: de splits-modus (`ui.showSplitMode`, knop **Taak splitsen**) met `useSplitGesture` en het stuk-/randslepen in `useBarDrag` in de Gantt, de sectie `TaskSplitsSection` in het eigenschappenpaneel, en de MCP-tool `planner_set_task_splits` (`splitFields.ts`). Een gebruikersgat draagt `source: 'user'`; bewerken adopteert nivelleergaten van die taak. Een niet-wélgevormde gatenlijst (overlap, gat op/voorbij het werktotaal) is **alleen-lezen** — nooit stil normaliseren, alleen opheffen. MSPDI/P6 kennen een split alleen als contour: zonder contour meldt de export het verlies (`exportSplitsLostNotice`).
 

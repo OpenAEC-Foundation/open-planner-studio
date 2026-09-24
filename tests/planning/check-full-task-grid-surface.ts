@@ -13,7 +13,6 @@ function ok(label: string, condition: boolean): void {
 
 const app = read('src/App.tsx');
 const fullGridPath = path.join(root, 'src/components/task-grid/FullTaskGrid.tsx');
-const tableEditor = read('src/components/panels/TableEditor.tsx');
 const ribbonConfig = read('src/components/layout/Ribbon/ribbonConfig.tsx');
 const englishTaskLocale = read('src/i18n/locales/en/task.json');
 const dutchTaskLocale = read('src/i18n/locales/nl/task.json');
@@ -85,8 +84,8 @@ ok('Het eigenschappenpaneel volgt de actieve taak, ook binnen een meervoudige se
     && !/selectedTaskIds\.length\s*>\s*1/.test(propertiesPanel)
     && /tasks\.find\(t\s*=>\s*t\.id\s*===\s*activeTaskId\)/.test(propertiesPanel));
 
-ok('TableEditor bevat geen parallelle interne celrenderer meer',
-  !/function FieldCell|const renderCell\s*=|const renderColumnCell\s*=/.test(tableEditor));
+ok('De compatibiliteitsexport TableEditor is weg; de Tabel-weergave is FullTaskGrid zelf',
+  !fs.existsSync(path.join(root, 'src/components/panels/TableEditor.tsx')));
 ok('De Tabel-tab toont de gedeelde voorganger- en opvolgerknoppen',
   /const tableTab[\s\S]*traceGroup[\s\S]*tableColumnsGroup/.test(ribbonConfig));
 ok('Engels en Nederlands bevatten de nieuwe tabelbediening en kolomcategorieen', (() => {
