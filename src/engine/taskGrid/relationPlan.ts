@@ -1,6 +1,7 @@
 import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import {
+  exclusiveExternalLag,
   externalAnchorSideIsCompatible,
   sourceProjectKeyFor,
   type ExternalDirection,
@@ -229,7 +230,7 @@ function canonicalExternal(link: ExternalLink): string {
     id: link.id,
     direction: link.direction,
     relType: link.relType,
-    ...(link.lagMinutes !== undefined ? { lagMinutes: link.lagMinutes } : { lagDays: link.lagDays ?? 0 }),
+    ...exclusiveExternalLag(link),
     anchorDate: link.anchorDate,
     sourceRef: link.sourceRef,
     sourceMissing: link.sourceMissing,
@@ -474,9 +475,7 @@ function planRelationSetCore(
       link: {
         direction: input.direction,
         relType: external.relType,
-        ...(external.lag.lagMinutes !== undefined
-          ? { lagMinutes: external.lag.lagMinutes }
-          : { lagDays: external.lag.lagDays }),
+        ...exclusiveExternalLag(external.lag),
         anchorDate: external.anchorDate,
         sourceRef: external.sourceRef,
         sourceMissing: external.sourceMissing,

@@ -197,6 +197,13 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
   return suffix === 'u' || suffix === 'h' ? { lagMinutes: storedValue } : { lagDays: storedValue };
 }
 
+/** De lag van een externe relatie is óf minuten óf dagen, nooit beide: minuten winnen zodra ze
+ *  gezet zijn (ook 0), anders de dagen (standaard 0). Let op: `canonicalLag` hieronder, voor de
+ *  WEERGAVE, behandelt 0 minuten juist als afwezig en rondt af. */
+export function exclusiveExternalLag(lag: ExternalLagFields): ExternalLag {
+  return lag.lagMinutes !== undefined ? { lagMinutes: lag.lagMinutes } : { lagDays: lag.lagDays ?? 0 };
+}
+
 function canonicalLag(lag: ExternalLagFields): ExternalLag {
   if (isFiniteNumber(lag.lagMinutes) && lag.lagMinutes !== 0) {
     return { lagMinutes: Math.round(lag.lagMinutes) };
@@ -294,9 +301,7 @@ function orderedPayload(payload: ExternalRelationClipboardV1): ExternalRelationC
     sourceProjectKey: payload.sourceProjectKey,
     sourceRef: orderedSourceRef(payload.sourceRef),
     relType: payload.relType,
-    ...(payload.lagMinutes !== undefined
-      ? { lagMinutes: payload.lagMinutes }
-      : { lagDays: payload.lagDays ?? 0 }),
+    ...exclusiveExternalLag(payload),
     anchorDate: payload.anchorDate,
     sourceMissing: payload.sourceMissing,
   };
@@ -430,9 +435,7 @@ export function parseExternalRelationClipboard(
   if (!externalAnchorSideIsCompatible(payload.origin.direction, payload.relType, target.direction, relType)) {
     return failure('externalAnchorSideChanged', 'Deze type- of richtingwijziging vereist een nieuw bronanker.');
   }
-  const copiedLag = payload.lagMinutes !== undefined
-    ? { lagMinutes: payload.lagMinutes }
-    : { lagDays: payload.lagDays ?? 0 };
+  const copiedLag = exclusiveExternalLag(payload);
   return {
     ok: true,
     value: {
