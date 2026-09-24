@@ -139,7 +139,8 @@ dode-link-check — alles groen). De daadwerkelijke `-- --push` = publiceren en 
 wijzigingen die iets claimen dat er nu in staat: nieuwe/gewijzigde npm-scripts, nieuwe of
 hernoemde `src/services/`- of `state/slices/`-modules, nieuwe Tauri-plugins/commands, gewijzigde
 architectuurpatronen (bv. file-I/O-pad, IFC-roundtrip, ribbon/backstage-structuur), nieuwe i18n-
-namespaces/locales, of een gewijzigde release-/CI-procedure. Werk `CLAUDE.md` bij waar het
+namespaces/locales, of een gewijzigde release-/CI-procedure. Werk `CLAUDE.md` (alleen de kern; houd
+hem onder ~150 regels) of het passende `.claude/rules/<onderdeel>.md` (diepgang) bij waar het
 achterloopt; laat het onaangeroerd als er niets architecturaal relevants is veranderd sinds de
 vorige release. Kan gecombineerd worden met de doc-subagent uit stap 5 (zelfde soort werk,
 zelfde soort dubbelcheck-tegen-de-commits), of los.
