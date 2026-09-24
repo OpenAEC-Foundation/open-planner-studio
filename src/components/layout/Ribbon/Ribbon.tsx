@@ -8,6 +8,7 @@ import { RibbonTabContent } from './RibbonTabContent';
 import { ExtensionRibbonGroups } from './ribbonWidgets';
 import { RibbonDensity, RibbonDensityContext } from './ribbonDensity';
 import './Ribbon.css';
+import { applySetting } from '@/components/settings/applySetting';
 
 /* ------------------------------------------------------------------------------------------------
  * Automatische inpassing (Office-lintpatroon): zoveel mogelijk labels, per knop degraderen
@@ -292,11 +293,7 @@ export function Ribbon() {
             className="ribbon-collapse-toggle"
             title={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
             aria-label={tMenu(ribbonCompact ? 'ribbon.expandRibbon' : 'ribbon.collapseRibbon')}
-            onClick={() => {
-              const next = !ribbonCompact;
-              setUI({ ribbonCompact: next });
-              void saveRibbonCompact(next);
-            }}
+            onClick={() => applySetting('ribbonCompact', !ribbonCompact, saveRibbonCompact)}
           >
             {ribbonCompact ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           </button>
