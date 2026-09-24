@@ -456,7 +456,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    `projectStartDate` niet; de #169-merge geeft 6 conflicten met vier verplichte merge-fixes (CP_Phys-commentaar
    overzetten, LOAD-03 via `occupancySolveInputFor`, zes AST-uitzonderingen `levelingInput.ts`, gids 7a
    "rehab-2 = P3"); agent `opus-midden-merge-109` doet A (kleine fixes) → B (merge in de #109-PR-branch, push)
-   → C (merge #109 in #169 op `claude/x12-merge-109`); daarna merge door de orkestrator. Oorspronkelijk plan: merge in de #109-PR-branch
+   → C — **klaar en gemerged**: A `0fe1b53c` (benchmark `[data.calendar]`, LOAD-02b met taak vóór projectstart,
+   grensblok AST-poort), B `3297c51c` = merge in de #109-PR-branch (gepusht; PR-body #109 heeft de fixronde +
+   releasenotitie), C `5a1ca18f` op `claude/x12-merge-109` → gemerged in de etappebranch als `1d31aee3` (zes
+   conflicten, #169-kant leidend; vier merge-fixes; NB gids 7a: de regel hangt aan A21 én B3, en B3 staat in
+   het ingebouwde P6-profiel uit — dus onder P6 inert tenzij eigen profiel; measure 76/0/0/0, poorten exit 0).
+   Oorspronkelijk plan: merge in de #109-PR-branch
    `claude/file-formats-support-phase-3-a0ebe2` en vervolgens die branch mergen in `claude/rekenprofielen`
    (merge-instructie per fix in het agentrapport: #169-versies leidend voor de solve-invoer, LOAD-03 naar
    `occupancySolveInputFor`, zes AST-uitzonderingen voor `levelingInput.ts`, `p6CompletedTargetWindow.ts`
