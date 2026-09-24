@@ -575,8 +575,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    (s4)). Critreview (Opus 5.5) = LANDEN-MET-FIXES ⇒ fixronde `673aa51c`: `removeResource` wist pauzes
    onvoorwaardelijk (s6/s6b), crashherstel-bewijs check 62 (`prepareLoadedPayload` zonder reconcile/clear).
    **Draft-PR #170** geopend (`claude/taaktypes-integratie` → base `claude/rekenprofielen`; vervangt #101, sluiten
-   = eigenaar); gelinkt aan de thread. Keten measure+verify op `673aa51c` gestart in de agent-worktree
-   (`/tmp/ops-chain-taaktypes-{measure,verify}.log`). baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   = eigenaar); gelinkt aan de thread. Keten op `673aa51c`: MEASURE_EXIT=0, verify EXIT=1 op één browsertest
+   (`settings-tabs.spec.ts:76`: #101's instelling "Toon taaktypes" had een eigen sectiekop op Planning ⇒ 5 i.p.v.
+   4 koppen) ⇒ gefixt `6e448f63` (instelling als gewone regel onder Urenplanning, sleutel
+   `settings.taskTypesSection` weg uit 14 locales; specs 4/4). Keten opnieuw gestart 18:43 op `6e448f63`.
+   Eigenaar bevestigd 24-09 ~18:50: #170 bevat elke commit van #101 (merge-base-check); #101 sluiten =
+   eigenaar, branch blijft als naslag. baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
    gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
    krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
