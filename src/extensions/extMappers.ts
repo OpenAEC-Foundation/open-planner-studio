@@ -482,6 +482,29 @@ export function fromExtTaskInput(
 }
 
 /**
+ * `api.data.addTask`-invoer (Fable-critreview PR #169, bevinding 10): als `fromExtTaskInput`, maar een
+ * URENtaak waarvoor de extensie GEEN `scheduleFinish` meegaf krijgt ook geen einde uit de grensterugval
+ * (`fromExtTaskTime` vult `scheduleFinish`/`earlyFinish`/`lateFinish` anders met de start). Zo ziet de
+ * store-`addTask` geen "meegegeven einde" en leidt `seedNewHourTaskFinish` het einde af uit start + duur
+ * op de taakkalender — dezelfde regel als elke andere nieuwe urentaak. Een meegegeven einde wint; een
+ * dagtaak blijft byte-identiek. Niet voor `sdk.factory.createTask`: die bouwt een volledig DTO zonder
+ * document of kalender en kan dus niets afleiden.
+ */
+export function fromExtTaskAddInput(
+  input: Partial<ExtTask> & { name: string },
+): Partial<Task> & { name: string } {
+  const out = fromExtTaskInput(input);
+  if (!input.time || !out.time || input.time.scheduleFinish !== undefined || out.time.durationUnit !== 'hours') return out;
+  const time: Partial<TaskTime> = { ...out.time };
+  delete time.scheduleFinish;
+  if (input.time.earlyFinish === undefined) delete time.earlyFinish;
+  if (input.time.lateFinish === undefined) delete time.lateFinish;
+  // Runtime-partieel: `taskSlice.addTask` merget `partial.time` veld-voor-veld met de verse default.
+  out.time = time as TaskTime;
+  return out;
+}
+
+/**
  * T14b-vervolg (extensie-rand, UPDATE-pad): `fromExtTaskTime` (hierboven) is bedoeld voor `addTask` —
  * een ontbrekend verplicht veld krijgt daar een GENERIEKE default (vandaag/0/false), want er is nog
  * geen bestaande taak om uit te putten. Voor `api.data.updateTask` is dat verkeerd: zou
