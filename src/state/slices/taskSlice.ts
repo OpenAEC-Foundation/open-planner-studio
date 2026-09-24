@@ -20,6 +20,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
+  applyCompletionEdit,
   applyProgressInvariants,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
@@ -1075,14 +1076,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
-      const completion = Math.max(0, Math.min(1, raw));
-      task.time.completion = completion;
-      // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
-      if (completion > 0 && !task.time.actualStart) {
-        task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
-      }
-      // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
-      if (completion < 1) task.time.actualFinish = undefined;
+      // §3.2: % > 0 ⇒ gestart (auto actualStart), teruggedraaid onder 100% ⇒ actualFinish vervalt.
+      applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)));
       applyProgressInvariants(task, s.project.statusDate);
       // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
       // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun

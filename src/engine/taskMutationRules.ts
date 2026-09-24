@@ -1,5 +1,5 @@
 import type { CustomFieldValue } from '@/types/structure';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 
 /**
@@ -11,6 +11,22 @@ export function isActualPastStatusDate(dateIso: string, statusDateIso: string): 
     return parseDate(dateIso).getTime() > parseDate(statusDateIso).getTime();
   }
   return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
+}
+
+/** Werkelijk einde vóór werkelijke start? Op instantprecisie (`parseInstant`), niet als ruwe
+ *  string: een date-only waarde en een datetime op dezelfde dag vergelijken anders verkeerd. */
+export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | 'actualFinish'>): boolean {
+  return !!time.actualStart && !!time.actualFinish
+    && parseInstant(time.actualFinish).getTime() < parseInstant(time.actualStart).getTime();
+}
+
+/** Een nieuw voltooiingspercentage (0..1) zetten volgens de MSP-conventie: > 0 zonder werkelijke
+ *  start ⇒ die afleiden (% ⇒ gestart), < 1 ⇒ een verouderd werkelijk einde vervalt. Daarna hoort de
+ *  aanroeper `applyProgressInvariants` te draaien. */
+export function applyCompletionEdit(time: TaskTime, completion: number): void {
+  time.completion = completion;
+  if (completion > 0 && !time.actualStart) time.actualStart = time.earlyStart || time.scheduleStart;
+  if (completion < 1) time.actualFinish = undefined;
 }
 
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
