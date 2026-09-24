@@ -1,4 +1,4 @@
-import { addCalendarDays } from '@/utils/dateUtils';
+import { addCalendarDays, getMonthStart, getWeekStartFor, utcDayStart } from '@/utils/dateUtils';
 import type { TimeScale } from '@/types/view';
 
 /**
@@ -160,20 +160,11 @@ export function snapToTickStart(date: Date, tier: TimelineTier, weekStartDay: 'm
       return new Date(Date.UTC(date.getUTCFullYear(), Math.floor(m / 3) * 3, 1));
     }
     case 'month':
-      return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-    case 'week': {
-      const r = new Date(date.getTime());
-      const dow = r.getUTCDay();           // 0=Sun..6=Sat
-      const offset = weekStartDay === 'sunday' ? dow : (dow === 0 ? 6 : dow - 1);
-      r.setUTCDate(r.getUTCDate() - offset);
-      r.setUTCHours(0, 0, 0, 0);
-      return r;
-    }
-    case 'day': {
-      const r = new Date(date.getTime());
-      r.setUTCHours(0, 0, 0, 0);
-      return r;
-    }
+      return getMonthStart(date);
+    case 'week':
+      return utcDayStart(getWeekStartFor(date, weekStartDay));
+    case 'day':
+      return utcDayStart(date);
     case 'hour': {
       const r = new Date(date.getTime());
       r.setUTCMinutes(0, 0, 0);

@@ -1,4 +1,16 @@
-import type { Task, TaskSplitGap } from '@/types/task';
+import type { Task, TaskSplitGap, TaskTime } from '@/types/task';
+
+/** VOLTOOID zoals `CPMSolver.forwardPass` hem vastpint (tak 1): werkelijk einde én completion 1.
+ *  Nivelleerder en resourcebelasting moeten exact dezelfde grens trekken. */
+export function isPinnedComplete(time: TaskTime): time is TaskTime & { actualFinish: string } {
+  return !!time.actualFinish && time.completion >= 1;
+}
+
+/** IN UITVOERING zoals `CPMSolver.forwardPass` hem vastpint (tak 2): gestart (werkelijke start of
+ *  voortgang) en nog niet voltooid. */
+export function isPinnedInProgress(time: TaskTime): boolean {
+  return (!!time.actualStart || time.completion > 0) && time.completion < 1;
+}
 
 /** Expliciete eenheid met deterministische leesmigratie voor oudere runtime-data. */
 export function taskDurationUnit(task: Task): 'days' | 'hours' {
@@ -44,6 +56,12 @@ export function taskDurationUnit(task: Task): 'days' | 'hours' {
  */
 export function isZeroDurationMilestone(task: Task): boolean {
   return task.isMilestone && task.time.scheduleDuration === 0;
+}
+
+/** Rekent deze taak op de 24/7-klok (ELAPSEDTIME)? Een nulduur-mijlpaal nooit: die heeft geen eigen
+ *  duur (H3, Opus-review T15-iteratie-2 — een mijlpaal-MET-duur die ELAPSEDTIME is, wél). */
+export function isElapsedTask(task: Task): boolean {
+  return !isZeroDurationMilestone(task) && task.time.durationType === 'ELAPSEDTIME';
 }
 
 /** Minimaal contract dat een uur-bewuste kalender-engine vervult (golf 1). */
@@ -192,12 +210,12 @@ export function subtractElapsedMinutes(end: Date, minutes: number): Date {
 
 /**
  * Getekend KLOK-span van `a` naar `b`, in eigen-kalender-DAGEN (fractioneel mogelijk) — de
- * ELAPSEDTIME-tegenhanger van `CPMSolver.signedWorkDays`/`workMinutesBetween÷(hoursPerDay×60)`
+ * ELAPSEDTIME-tegenhanger van `CalendarEngine.signedWorkDaysBetween`/`workMinutesBetween÷(hoursPerDay×60)`
  * voor float-rekenwerk (§5.5).
  *
  * BEVINDING (T8, msp-14-mutatiebewijs): een ELAPSEDTIME-taak mag zijn ES/EF op een NIET-werkdag
  * hebben (dat is het hele punt van 24/7) — iets wat een WORKTIME-taak per constructie nooit
- * overkomt. `signedWorkDays`s `workDaysBetween(a,a) − 1` gaat daarop STUK: op een niet-werkdag
+ * overkomt. `signedWorkDaysBetween`s `workDaysBetween(a,a) − 1` gaat daarop STUK: op een niet-werkdag
  * telt `workDaysBetween` 0 werkdagen, dus een taak met LS=ES/LF=EF (geen enkele speling-oorzaak)
  * kreeg tóch tf=−1 — spookspeling, puur omdat de klassieke WORKTIME-tel-conventie (inclusieve
  * werkdag-telling) een niet-werkdag niet kan representeren. Deze functie rekent daarom met de
@@ -211,7 +229,7 @@ export function subtractElapsedMinutes(end: Date, minutes: number): Date {
  *
  * EENHEDENBESLUIT (T8-review M1, orkestratorbesluit — 2026-08-17, herformulering T8-hercheck 2):
  * een ELAPSEDTIME-taak rapporteert `tf`/`ff` dus in KALENDERdagen, ONGEMARKEERD naast WORKTIME-
- * taken in dezelfde `tf`/`ff`-velden (die in WERKdagen rekenen, `signedWorkDays`). Onderzocht vóór
+ * taken in dezelfde `tf`/`ff`-velden (die in WERKdagen rekenen, `signedWorkDaysBetween`). Onderzocht vóór
  * dit besluit: de lokale MPXJ-broncheckout onder `testdata-crawl/mpxj` bevat alleen de
  * `SlackCalculator`-INTERFACE (`org.mpxj.SlackCalculator`), zonder een MSP-implementatie (`org.
  * mpxj.cpm.MicrosoftSlackCalculator` — de klasse die MS Projects "Total Slack" daadwerkelijk

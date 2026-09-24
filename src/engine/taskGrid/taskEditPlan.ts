@@ -35,6 +35,8 @@ import {
   rescaleTaskContours,
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { shownStart } from '@/utils/taskDates';
+import { isFiniteNumber } from '@/utils/guards';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -94,10 +96,6 @@ function cloneTaskForEdit(task: Task): Task {
     constraint: task.constraint ? { ...task.constraint } : undefined,
     constraint2: task.constraint2 ? { ...task.constraint2 } : undefined,
   };
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function optionalString(value: unknown): value is string | undefined {
@@ -190,7 +188,7 @@ function applyTaskField(
     task.customTaskTypeId = edit.value;
     if (edit.value !== undefined) task.taskType = 'USERDEFINED';
   } else if (id === 'task.priority') {
-    if (!finite(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
+    if (!isFiniteNumber(edit.value) || !Number.isInteger(edit.value) || edit.value < 0 || edit.value > 1000) {
       return failure('range', edit);
     }
     task.priority = edit.value;
@@ -252,7 +250,7 @@ function applyScheduleEdit(
       const parsed = edit.value as ParsedTaskDuration;
       if (parsed.unit === 'hours') {
         if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
-        if (!finite(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
+        if (!isFiniteNumber(parsed.durationMinutes) || parsed.durationMinutes < 0) return failure('duration', edit);
         if (!Number.isFinite(environment.effectiveHoursPerDay) || environment.effectiveHoursPerDay <= 0) {
           return failure('calendarHours', edit);
         }
@@ -260,7 +258,7 @@ function applyScheduleEdit(
         task.time.durationMinutes = parsed.durationMinutes;
         task.time.scheduleDuration = parsed.durationMinutes / (environment.effectiveHoursPerDay * 60);
       } else {
-        if (!finite(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
+        if (!isFiniteNumber(parsed.scheduleDuration) || !Number.isInteger(parsed.scheduleDuration)
           || parsed.scheduleDuration < 0) return failure('duration', edit);
         task.time.durationUnit = 'days';
         task.time.scheduleDuration = parsed.scheduleDuration;
@@ -269,7 +267,7 @@ function applyScheduleEdit(
       lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
       return { ok: true, value: lost };
     }
-    if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
+    if (!isFiniteNumber(edit.value) || edit.value < 0) return failure('duration', edit);
     if (task.isHammock) return failure('readOnly', edit);
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
@@ -346,11 +344,35 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   } else if (status === 'STARTED') {
     if (task.time.completion >= 1) task.time.completion = 0;
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= task.time.earlyStart || task.time.scheduleStart;
+    task.time.actualStart ||= shownStart(task);
   } else {
     task.time.completion = 1;
   }
   applyProgressInvariants(task, statusDate);
+}
+
+/** Voortgang die een ingevoerde actuele (`remaining` onwaar) of resterende duur in minuten
+ *  impliceert, op de as van de taak: minuten in uurmodus, werkdagen anders. Zonder duur (of met een
+ *  onbruikbaar totaal) telt de taak als voltooid. */
+function completionFromDuration(
+  task: Task,
+  minutes: number,
+  remaining: boolean,
+  environment: TaskEditPlanEnvironment,
+): number {
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  const total = environment.hourMode
+    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
+    : task.time.scheduleDuration;
+  if (!(total > 0)) return 1;
+  const own = (environment.hourMode ? minutes : minutes / (hoursPerDay * 60)) / total;
+  return Math.max(0, Math.min(1, remaining ? 1 - own : own));
+}
+
+/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen in uurmodus. */
+function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
+  task.time.remainingTime = minutes === undefined ? undefined : minutes / (environment.effectiveHoursPerDay * 60);
+  task.time.remainingMinutes = environment.hourMode && minutes !== undefined ? minutes : undefined;
 }
 
 function applyProgressEdit(
@@ -365,10 +387,10 @@ function applyProgressEdit(
     }
     applyStatus(task, edit.value as TaskStatus, environment.statusDate);
   } else if (id === 'task.time.completion') {
-    if (!finite(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
+    if (!isFiniteNumber(edit.value) || edit.value < 0 || edit.value > 1) return failure('percentage', edit);
     task.time.completion = edit.value;
     if (edit.value > 0 && !task.time.actualStart) {
-      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      task.time.actualStart = shownStart(task);
     }
     if (edit.value < 1) task.time.actualFinish = undefined;
     applyProgressInvariants(task, environment.statusDate);
@@ -389,43 +411,27 @@ function applyProgressEdit(
     }
     applyProgressInvariants(task, environment.statusDate);
   } else if (id === 'task.time.actualDuration' || id === 'task.time.remainingTime') {
-    if (edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+    if (edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
+    const remaining = id === 'task.time.remainingTime';
     if (edit.value === undefined) {
-      if (id === 'task.time.actualDuration') task.time.actualDuration = undefined;
-      else {
-        task.time.remainingTime = undefined;
-        task.time.remainingMinutes = undefined;
-      }
+      if (remaining) writeRemaining(task, undefined, environment);
+      else task.time.actualDuration = undefined;
       applyProgressInvariants(task, environment.statusDate);
       return { ok: true, value: undefined };
     }
-    const days = edit.value / (hoursPerDay * 60);
-    const total = environment.hourMode
-      ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
-      : task.time.scheduleDuration;
-    const ownValue = environment.hourMode ? edit.value : days;
-    if (id === 'task.time.actualDuration') {
-      task.time.actualDuration = days;
-      task.time.completion = total > 0 ? Math.max(0, Math.min(1, ownValue / total)) : 1;
-    } else {
-      task.time.remainingTime = days;
-      if (environment.hourMode) task.time.remainingMinutes = edit.value;
-      else task.time.remainingMinutes = undefined;
-      task.time.completion = total > 0 ? Math.max(0, Math.min(1, 1 - ownValue / total)) : 1;
-    }
+    if (remaining) writeRemaining(task, edit.value, environment);
+    else task.time.actualDuration = edit.value / (hoursPerDay * 60);
+    task.time.completion = completionFromDuration(task, edit.value, remaining, environment);
     if (task.time.completion > 0 && !task.time.actualStart) {
-      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      task.time.actualStart = shownStart(task);
     }
     if (task.time.completion < 1) task.time.actualFinish = undefined;
     applyProgressInvariants(task, environment.statusDate);
-    if (id === 'task.time.remainingTime') {
-      task.time.remainingTime = days;
-      if (environment.hourMode) task.time.remainingMinutes = edit.value;
-    }
+    if (remaining) writeRemaining(task, edit.value, environment);
   } else {
     return failure('plannerNotAvailable', edit);
   }
@@ -512,7 +518,7 @@ function applyProgressEdits(
 
   if (statusEdit && (typeof statusEdit.value !== 'string'
     || !TASK_STATUSES.includes(statusEdit.value as TaskStatus))) return failure('enum', statusEdit);
-  if (completionEdit && (!finite(completionEdit.value)
+  if (completionEdit && (!isFiniteNumber(completionEdit.value)
     || completionEdit.value < 0 || completionEdit.value > 1)) return failure('percentage', completionEdit);
   for (const edit of [actualStartEdit, actualFinishEdit]) {
     if (!edit) continue;
@@ -522,7 +528,7 @@ function applyProgressEdits(
     }
   }
   for (const edit of [actualDurationEdit, remainingEdit]) {
-    if (edit && edit.value !== undefined && (!finite(edit.value) || edit.value < 0)) {
+    if (edit && edit.value !== undefined && (!isFiniteNumber(edit.value) || edit.value < 0)) {
       return failure('duration', edit);
     }
   }
@@ -531,20 +537,13 @@ function applyProgressEdits(
     return failure('calendarHours', actualDurationEdit ?? remainingEdit ?? first);
   }
 
-  const hoursPerDay = environment.effectiveHoursPerDay;
-  const total = environment.hourMode
-    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
-    : task.time.scheduleDuration;
-  const toDays = (value: number): number => value / (hoursPerDay * 60);
   let desiredCompletion = completionEdit ? completionEdit.value as number : undefined;
   const derivedCompletions: number[] = [];
   if (actualDurationEdit?.value !== undefined) {
-    const own = environment.hourMode ? actualDurationEdit.value as number : toDays(actualDurationEdit.value as number);
-    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, own / total)) : 1);
+    derivedCompletions.push(completionFromDuration(task, actualDurationEdit.value as number, false, environment));
   }
   if (remainingEdit?.value !== undefined) {
-    const own = environment.hourMode ? remainingEdit.value as number : toDays(remainingEdit.value as number);
-    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, 1 - own / total)) : 1);
+    derivedCompletions.push(completionFromDuration(task, remainingEdit.value as number, true, environment));
   }
   if (derivedCompletions.some(value => Math.abs(value - derivedCompletions[0]!) > 1e-9)
     || (desiredCompletion !== undefined
@@ -556,6 +555,13 @@ function applyProgressEdits(
   const desiredStatus = statusEdit?.value as TaskStatus | undefined;
   let desiredActualStart = actualStartEdit ? (actualStartEdit.value as string | undefined) || undefined : task.time.actualStart;
   let desiredActualFinish = actualFinishEdit ? (actualFinishEdit.value as string | undefined) || undefined : task.time.actualFinish;
+  // Een gewiste Actual Finish heropent een voltooide taak, net als bij een enkele celwrite — tenzij
+  // dezelfde rij zelf een voortgang of status opgeeft. Anders zette `applyProgressInvariants` de
+  // einddatum bij completion 1 meteen terug en deed het wissen niets.
+  if (actualFinishEdit && !desiredActualFinish && desiredCompletion === undefined
+    && desiredStatus === undefined && task.time.completion >= 1) {
+    desiredCompletion = 0;
+  }
   // Niet meegeschreven actuals zijn geen expliciete gewenste invoer. Een completion/status-write
   // moet ze in een brede paste precies zo kunnen canonicaliseren als bij een enkelvoudige edit.
   if (!actualFinishEdit && ((desiredCompletion !== undefined && desiredCompletion < 1)
@@ -596,22 +602,15 @@ function applyProgressEdits(
   if (actualDurationEdit) {
     task.time.actualDuration = actualDurationEdit.value === undefined
       ? undefined
-      : toDays(actualDurationEdit.value as number);
+      : (actualDurationEdit.value as number) / (environment.effectiveHoursPerDay * 60);
   }
-  if (remainingEdit) {
-    task.time.remainingTime = remainingEdit.value === undefined
-      ? undefined
-      : toDays(remainingEdit.value as number);
-    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
-      ? remainingEdit.value as number
-      : undefined;
-  }
+  if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
   if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
   if (desiredCompletion !== undefined) {
     task.time.completion = desiredCompletion;
     if (desiredCompletion > 0 && !task.time.actualStart) {
-      task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+      task.time.actualStart = shownStart(task);
     }
     if (desiredCompletion < 1 && !actualFinishEdit) task.time.actualFinish = undefined;
   }
@@ -620,17 +619,10 @@ function applyProgressEdits(
     task.time.actualFinish = undefined;
   } else if (desiredStatus === 'STARTED') {
     task.time.actualFinish = undefined;
-    task.time.actualStart ||= task.time.earlyStart || task.time.scheduleStart;
+    task.time.actualStart ||= shownStart(task);
   }
   applyProgressInvariants(task, environment.statusDate);
-  if (remainingEdit) {
-    task.time.remainingTime = remainingEdit.value === undefined
-      ? undefined
-      : toDays(remainingEdit.value as number);
-    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
-      ? remainingEdit.value as number
-      : undefined;
-  }
+  if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (desiredStatus !== undefined && task.status !== desiredStatus) {
     return failure('conflictingProgressInputs', statusEdit!);
   }
@@ -670,8 +662,8 @@ function validCustomFieldValue(def: CustomFieldDef, value: unknown): boolean {
   if (value === undefined) return true;
   if (def.type === 'text' || def.type === 'date') return typeof value === 'string';
   if (def.type === 'boolean') return typeof value === 'boolean';
-  if (def.type === 'integer') return finite(value) && Number.isInteger(value);
-  return finite(value);
+  if (def.type === 'integer') return isFiniteNumber(value) && Number.isInteger(value);
+  return isFiniteNumber(value);
 }
 
 /**

@@ -22,6 +22,7 @@
 import './domStub';
 import { formatDate, parseDate } from '@/utils/dateUtils';
 import { formatGridDate, parseGridDate } from '@/engine/taskGrid/editors';
+import { formatDisplayDate, getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 
 /** De implementatie van vóór de herschrijving, letterlijk. Dit is het orakel. */
 function oudFormatDate(d: Date): string {
@@ -132,6 +133,24 @@ eq('7f niet-schrikkeljaar wordt geweigerd', parseGridDate('02/29/2026', 'mdy'), 
 eq('7g ISO formatteert terug naar persoonlijke mdy-notatie', formatGridDate('2026-12-31', 'mdy'), '12-31-2026');
 eq('7h persoonlijke dmy-roundtrip bewaart dezelfde ISO-dag',
   parseGridDate(formatGridDate('2024-02-29', 'dmy'), 'dmy'), '2024-02-29');
+
+// ── 8. Maandnamen en weergavedatums (i18n/dateFormat): altijd Gregoriaans, Latijnse cijfers ──────
+// Net als het maandlabel van de rapporten (`makeMonthLabeler`, check-reports). Zonder de
+// unicode-extensies gaf `Intl` in het Perzisch Solar-Hijri: "دی" als naam van januari in de
+// Gantt-kop, en "۱۰ شهریور ۱۴۰۵" voor 1 september 2026.
+{
+  const nonLatinDigits = /[۰-۹٠-٩]/;
+  const sep1 = new Date(Date.UTC(2026, 8, 1));
+  eq('8a fa: januari is de Gregoriaanse maandnaam', getLocalizedMonths('fa')[0], 'ژانویه');
+  eq('8b fa: twaalf verschillende maandnamen', new Set(getLocalizedMonths('fa')).size, 12);
+  eq('8c fa: korte maandnamen zijn ook Gregoriaans', getLocalizedMonthsShort('fa')[8],
+    new Intl.DateTimeFormat('fa-u-ca-gregory', { month: 'short', timeZone: 'UTC' }).format(sep1));
+  eq('8d fa: weergavedatum in het Gregoriaanse jaar', formatDisplayDate(sep1, 'fa').includes('2026'), true);
+  eq('8e fa: weergavedatum met Latijnse cijfers', nonLatinDigits.test(formatDisplayDate(sep1, 'fa')), false);
+  eq('8f ar: weergavedatum met Latijnse cijfers', nonLatinDigits.test(formatDisplayDate(sep1, 'ar')), false);
+  eq('8g nl: maandnaam ongewijzigd', getLocalizedMonths('nl')[0], 'januari');
+  eq('8h nl: weergavedatum ongewijzigd', formatDisplayDate(sep1, 'nl'), '1 sep 2026');
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

@@ -1,4 +1,5 @@
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
+import { ISO_WEEK_DAYS } from '@/utils/weekDays';
 
 /**
  * Puur, effectief werktijdmodel voor uurprecisie.
@@ -8,7 +9,6 @@ import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
  * werkdag te vormen. Deze helper materialiseert die bands uitsluitend in het geheugen;
  * hij verandert nooit de kalender die de gebruiker heeft opgeslagen.
  */
-const WEEKDAY_KEYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const NOON = 12 * 60;
 
 export function seedScalarBands(
@@ -55,17 +55,22 @@ export function seedScalarWorkTime(
   simpleBreakStartMinute?: number,
   simpleBreakDurationMinutes?: number,
 ): WorkTimeBands {
-  const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
-  const bands = seedScalarBands(
+  return makeBands(workDays, seedScalarBands(
     workStartHour * 60,
     workEndHour * 60,
     hoursPerDay,
     simpleBreakStartMinute,
     simpleBreakDurationMinutes,
-  );
-  for (const weekday of workDays) {
-    if (WEEKDAY_KEYS.includes(weekday as typeof WEEKDAY_KEYS[number])) {
-      byWeekday[weekday as typeof WEEKDAY_KEYS[number]] = bands.map((band) => ({ ...band }));
+  ));
+}
+
+/** Weekbanden met een kopie van dezelfde `bands` op elk van de opgegeven ISO-weekdagen; andere
+ *  waarden dan 1–7 vallen weg en de overige weekdagen blijven leeg. */
+export function makeBands(days: readonly number[], bands: readonly { start: number; end: number }[]): WorkTimeBands {
+  const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
+  for (const weekday of days) {
+    if (ISO_WEEK_DAYS.includes(weekday as typeof ISO_WEEK_DAYS[number])) {
+      byWeekday[weekday as typeof ISO_WEEK_DAYS[number]] = bands.map((band) => ({ ...band }));
     }
   }
   return { byWeekday };
@@ -110,7 +115,7 @@ export function simpleBreakNetHours(calendar: WorkCalendar): number | undefined 
 }
 
 function hasAnyBands(bands: WorkTimeBands): boolean {
-  return WEEKDAY_KEYS.some((weekday) => bands.byWeekday[weekday].some(
+  return ISO_WEEK_DAYS.some((weekday) => bands.byWeekday[weekday].some(
     (band) => Number.isFinite(band.start) && Number.isFinite(band.end) && band.end > band.start,
   ));
 }

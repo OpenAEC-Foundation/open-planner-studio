@@ -41,6 +41,9 @@ import {
   parseTaskDurationInput,
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
+import { shownStart, shownFinish } from '@/utils/taskDates';
+import { isStrictIsoDateTime } from '@/utils/dateUtils';
+import { isFiniteNumber } from '@/utils/guards';
 
 export const TASK_COLUMN_CATEGORY_ORDER: readonly TaskColumnCategory[] = [
   'task', 'planning', 'constraints', 'relations', 'resources',
@@ -232,9 +235,9 @@ function enumValidator(values: readonly string[], optional = false): Validator {
   };
 }
 
+/** Strikt en engine-onafhankelijk: `Date.parse` accepteerde in V8 ook 2026-02-31 en T24:00. */
 function isValidIso(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(value)) return false;
-  return Number.isFinite(Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value));
+  return isStrictIsoDateTime(value, { maxFractionDigits: 3, offsetColonOptional: true });
 }
 
 const parseDate: Parser = text => {
@@ -254,13 +257,13 @@ const parsePercentage: Parser = text => {
   return Number.isFinite(value) ? success(value / 100) : failure('percentage', text);
 };
 const validatePercentage: Validator = value =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
+  isFiniteNumber(value) && value >= 0 && value <= 1
     ? success(value)
     : failure('percentage', value);
 
 function effectiveHoursPerDay(task: Task, ctx: TaskColumnContext): number {
   const supplied = ctx.effectiveHoursPerDay?.(task);
-  if (typeof supplied === 'number' && Number.isFinite(supplied) && supplied > 0) return supplied;
+  if (isFiniteNumber(supplied) && supplied > 0) return supplied;
   const minutes = task.time.durationMinutes;
   if (minutes !== undefined && task.time.scheduleDuration > 0) {
     const derived = minutes / task.time.scheduleDuration / 60;
@@ -305,7 +308,7 @@ const parseScheduledTaskDuration: Parser = (text, task, ctx) => {
 };
 const validateScheduledTaskDuration: Validator = value =>
   isParsedTaskDuration(value)
-    || (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    || (isFiniteNumber(value) && value >= 0)
     ? success(value)
     : failure('duration', value);
 
@@ -922,28 +925,6 @@ function customFieldColumns(input: TaskColumnRegistryInput): TaskColumnDescripto
 
 const BASELINE_MISSING = Symbol('baseline-missing');
 
-function defaultSignedWeekdaysBetween(fromIso: string, toIso: string): number {
-  const from = new Date(`${fromIso.slice(0, 10)}T00:00:00Z`);
-  const to = new Date(`${toIso.slice(0, 10)}T00:00:00Z`);
-  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
-  const sign = from <= to ? 1 : -1;
-  let cursor = new Date(sign === 1 ? from : to);
-  const end = sign === 1 ? to : from;
-  let workdays = 0;
-  while (cursor < end) {
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    const day = cursor.getUTCDay();
-    if (day !== 0 && day !== 6) workdays++;
-  }
-  return sign * workdays;
-}
-
-function currentTaskDate(task: Task, field: 'start' | 'finish'): string {
-  return field === 'start'
-    ? task.time.earlyStart || task.time.scheduleStart
-    : task.time.earlyFinish || task.time.scheduleFinish;
-}
-
 function baselineValue(
   field: BaselineTaskColumnField,
   baselineTask: BaselineTask,
@@ -958,8 +939,10 @@ function baselineValue(
   if (field === 'varianceDuration') return task.time.scheduleDuration - baselineTask.duration;
   const dateField = field === 'varianceStart' ? 'start' : 'finish';
   const from = dateField === 'start' ? baselineTask.start : baselineTask.finish;
-  const to = currentTaskDate(task, dateField);
-  return (ctx.signedWorkDaysBetween ?? defaultSignedWeekdaysBetween)(from, to);
+  const to = dateField === 'start' ? shownStart(task) : shownFinish(task);
+  // Zonder kalenderroute geen eigen telling: een kale ma–vr-terugval negeerde feestdagen en de
+  // werkweek, en telde vanaf een weekenddag één werkdag te veel.
+  return ctx.signedWorkDaysBetween?.(from, to);
 }
 
 function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[] {

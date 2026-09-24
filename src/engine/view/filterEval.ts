@@ -5,7 +5,9 @@
 import type { Task } from '@/types/task';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
+import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 
 /** Gedeelde context voor filter/groep/sort/kolom-resolutie (§4.1). */
 export interface ViewContext {
@@ -40,12 +42,7 @@ const indexCache = new WeakMap<ViewContext, ViewIndexes>();
 function indexesFor(ctx: ViewContext): ViewIndexes {
   const hit = indexCache.get(ctx);
   if (hit) return hit;
-  const assignmentsByTask = new Map<string, ResourceAssignment[]>();
-  for (const a of ctx.assignments) {
-    const list = assignmentsByTask.get(a.taskId);
-    if (list) list.push(a);
-    else assignmentsByTask.set(a.taskId, [a]);
-  }
+  const assignmentsByTask = groupBy(ctx.assignments, a => a.taskId);
   const resourceById = new Map<string, Resource>();
   // `!has` en niet kaal `set`: `Map.set` houdt bij een dubbele id de LAATSTE, terwijl de
   // `find()` die dit verving de EERSTE koos. Onbereikbaar met de huidige id-generatie, maar deze
@@ -94,8 +91,8 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
         case 'name': return task.name;
         case 'wbsCode': return task.wbsCode;
         case 'duration': return task.time.scheduleDuration;
-        case 'start': return task.time.earlyStart || task.time.scheduleStart;
-        case 'finish': return task.time.earlyFinish || task.time.scheduleFinish;
+        case 'start': return shownStart(task);
+        case 'finish': return shownFinish(task);
         case 'totalFloat': return task.time.totalFloat;
         case 'isCritical': return task.time.isCritical;
         case 'completion': return task.time.completion;
@@ -191,14 +188,13 @@ export function applyOperator(
  * (start ≤ tot ÉN finish ≥ van). Dit past niet in de generieke resolver: die levert per veld één
  * scalar die de operator tegen `value`/`value2` legt, terwijl deze check start ÉN finish
  * tegelijk nodig heeft. Vandaar de special-case hier in plaats van een uitbreiding van
- * `resolveField`/`applyOperator`. ISO-datums vergelijken lexicografisch correct (zie `cmp`).
+ * `resolveField`/`applyOperator`. Vergeleken op dagniveau (`shownSpanOverlapsDays`, dezelfde test
+ * als de rapportvensters), zodat een uurtaak die op de tot-dag begint meetelt.
  */
 function evaluateActiveDuring(task: Task, value?: string | number | boolean | string[], value2?: string | number): boolean {
   if (typeof value !== 'string' || typeof value2 !== 'string') return false;
-  const start = task.time.earlyStart || task.time.scheduleStart;
-  const finish = task.time.earlyFinish || task.time.scheduleFinish;
-  if (!start || !finish) return false;
-  return start <= value2 && finish >= value;
+  if (!shownStart(task) || !shownFinish(task)) return false;
+  return shownSpanOverlapsDays(task, value, value2);
 }
 
 /**

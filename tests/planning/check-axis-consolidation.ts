@@ -30,8 +30,8 @@ g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer, gridDensityForZoom } from '@/engine/renderer/GanttRenderer';
-import { dateToX, xToDate, xToDayOffset, MS_PER_DAY } from '@/engine/renderer/timeAxis';
-import { addCalendarDays, diffCalendarDays, parseDate } from '@/utils/dateUtils';
+import { dateToX, xToDate, xToDayOffset } from '@/engine/renderer/timeAxis';
+import { addCalendarDays, diffCalendarDays, parseDate, MS_PER_DAY } from '@/utils/dateUtils';
 import fs from 'node:fs';
 import path from 'node:path';
 

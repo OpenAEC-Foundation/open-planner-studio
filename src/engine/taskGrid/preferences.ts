@@ -14,6 +14,7 @@ import {
   encodeTaskColumnIdSegment,
   taskColumnId,
 } from '@/engine/taskGrid/fieldIds';
+import { isFiniteNumber } from '@/utils/guards';
 
 export const TASK_GRID_COLUMN_MIN_WIDTH = 40;
 /** Alleen een corruptiegrens. Auto-fit heeft later zijn eigen UX-grens van 480 px. */
@@ -301,7 +302,7 @@ export async function computeTaskGridAutoFitWidth(
 }
 
 export function normalizeTaskGridScrollX(raw: unknown): number | null {
-  return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : null;
+  return isFiniteNumber(raw) ? Math.max(0, Math.round(raw)) : null;
 }
 
 function normalizeSurface(raw: unknown, fallback: TaskGridSurfacePreferences): TaskGridSurfacePreferences {

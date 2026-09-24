@@ -8,6 +8,7 @@
 // `easterSunday` (Meeus/Jones/Butcher) verhuisde hierheen uit `scripts/gen-core.ts`; die importeert
 // hem nu vandaan zodat app én voorbeeld-generator één bron delen.
 import type { Holiday } from '@/types/calendar';
+import { addCalendarDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 
 export type HolidayCountry = 'NL' | 'DE' | 'BE' | 'FR' | 'UK' | 'AT' | 'CH';
 
@@ -46,15 +47,11 @@ export interface RegionalBreakTable {
   }>;
 }
 
-// ── Datum-helpers (UTC, jaar-onafhankelijk) ──────────────────────────────────────────────────
+// ── Datum-helpers (UTC, jaar-onafhankelijk; de rest komt uit dateUtils) ─────────────────────
 const utc = (y: number, month1: number, day: number) => new Date(Date.UTC(y, month1 - 1, day));
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
-/** ISO-weekdag 1=ma … 7=zo. */
-const dow = (d: Date): number => ((d.getUTCDay() + 6) % 7) + 1;
-const oneDay = (name: string, d: Date): Holiday => ({ name, startDate: iso(d), endDate: iso(d) });
+const oneDay = (name: string, d: Date): Holiday => ({ name, startDate: formatDate(d), endDate: formatDate(d) });
 const range = (name: string, start: Date, days: number): Holiday =>
-  ({ name, startDate: iso(start), endDate: iso(addDays(start, Math.max(1, days) - 1)) });
+  ({ name, startDate: formatDate(start), endDate: formatDate(addCalendarDays(start, Math.max(1, days) - 1)) });
 
 /** Paaszondag (Meeus/Jones/Butcher, Gregoriaans). Verhuisd uit scripts/gen-core.ts. */
 export function easterSunday(y: number): Date {
@@ -75,19 +72,19 @@ function nthWeekday(y: number, month1: number, weekday: number, nth: 1 | 2 | 3 |
   if (nth === 'last') {
     // laatste dag van de maand terug naar de gevraagde weekdag
     let d = utc(y, month1 + 1, 1);
-    d = addDays(d, -1);
-    while (dow(d) !== weekday) d = addDays(d, -1);
+    d = addCalendarDays(d, -1);
+    while (isoDayOfWeek(d) !== weekday) d = addCalendarDays(d, -1);
     return d;
   }
   let d = utc(y, month1, 1);
-  while (dow(d) !== weekday) d = addDays(d, 1);
-  return addDays(d, (nth - 1) * 7);
+  while (isoDayOfWeek(d) !== weekday) d = addCalendarDays(d, 1);
+  return addCalendarDays(d, (nth - 1) * 7);
 }
 
 /** De laatste `weekday` strikt vóór `month/day` (Buß- und Bettag: woensdag vóór 23 nov). */
 function weekdayBefore(y: number, month1: number, day: number, weekday: number): Date {
-  let d = addDays(utc(y, month1, day), -1);
-  while (dow(d) !== weekday) d = addDays(d, -1);
+  let d = addCalendarDays(utc(y, month1, day), -1);
+  while (isoDayOfWeek(d) !== weekday) d = addCalendarDays(d, -1);
   return d;
 }
 
@@ -99,16 +96,16 @@ function materialize(def: HolidayDef, y: number): Holiday | null {
       let d = utc(y, r.month, r.day);
       if (r.substitute === 'nl-kingsday') {
         // Koningsdag 27/4; op zondag → 26/4.
-        if (dow(d) === 7) d = utc(y, 4, 26);
+        if (isoDayOfWeek(d) === 7) d = utc(y, 4, 26);
       } else if (r.substitute === 'uk-monday') {
         // Weekend → eerstvolgende maandag (New Year / Christmas Day, single-day).
-        if (dow(d) === 6) d = addDays(d, 2);
-        else if (dow(d) === 7) d = addDays(d, 1);
+        if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, 2);
+        else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
       }
       return range(def.name, d, r.days ?? 1);
     }
     case 'easter':
-      return range(def.name, addDays(easterSunday(y), r.offset), r.days ?? 1);
+      return range(def.name, addCalendarDays(easterSunday(y), r.offset), r.days ?? 1);
     case 'nth-weekday':
       return oneDay(def.name, nthWeekday(y, r.month, r.weekday, r.nth));
     case 'weekday-before':
@@ -122,7 +119,7 @@ function materialize(def: HolidayDef, y: number): Holiday | null {
  * beïnvloeden. Landelijk (alle UK-regio's).
  */
 function ukChristmasBoxing(y: number): Holiday[] {
-  const cdow = dow(utc(y, 12, 25));
+  const cdow = isoDayOfWeek(utc(y, 12, 25));
   let xmas = utc(y, 12, 25);
   let boxing = utc(y, 12, 26);
   if (cdow === 6) { xmas = utc(y, 12, 27); boxing = utc(y, 12, 28); }        // za/zo → ma/di
@@ -330,9 +327,9 @@ function bouwvakApprox(year: number, weekOffset: number): { start: string; end: 
   // vaste ±1-week-stagger rond dezelfde basisperiode, wat voor jaren buiten de tabel hierboven een
   // grove benadering is, geen matched-aan-de-echte-rotatie voorspelling.
   let d = utc(year, 7, 1);
-  while (dow(d) !== 1) d = addDays(d, 1);   // 1e maandag
-  d = addDays(d, 21 + weekOffset * 7);      // 4e maandag (+/- regio-offset)
-  return { start: iso(d), end: iso(addDays(d, 18)) }; // ma week1 → vr week3
+  while (isoDayOfWeek(d) !== 1) d = addCalendarDays(d, 1);   // 1e maandag
+  d = addCalendarDays(d, 21 + weekOffset * 7);      // 4e maandag (+/- regio-offset)
+  return { start: formatDate(d), end: formatDate(addCalendarDays(d, 18)) }; // ma week1 → vr week3
 }
 
 export const NL_BOUWVAK: RegionalBreakTable = {

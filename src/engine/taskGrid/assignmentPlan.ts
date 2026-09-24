@@ -1,5 +1,6 @@
 import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
 import { clearTimephasedDurationWalks, clearTimephasedWindow } from '@/utils/taskDefaults';
 
@@ -191,15 +192,12 @@ export function applyTaskAssignmentPlan(
 ): AppliedTaskAssignmentPlan {
   let applyIndexes = indexes;
   if (!applyIndexes) {
-    const assignmentsByTaskId = new Map<string, ResourceAssignment[]>();
+    const assignmentsByTaskId = groupBy(state.assignments, assignment => assignment.taskId);
     const assignmentsById = new Map<string, ResourceAssignment>();
     const usedAssignmentIds = new Set<string>();
     for (const assignment of state.assignments) {
       assignmentsById.set(assignment.id, assignment);
       usedAssignmentIds.add(assignment.id);
-      const current = assignmentsByTaskId.get(assignment.taskId);
-      if (current) current.push(assignment);
-      else assignmentsByTaskId.set(assignment.taskId, [assignment]);
     }
     applyIndexes = {
       assignmentsByTaskId,

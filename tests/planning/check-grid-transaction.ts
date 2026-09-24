@@ -909,6 +909,13 @@ function observed(state: AppState): unknown {
   eq('Kritieke commit bevat exact één storeproducer', (commitSource.match(/\bset\s*\(/g) ?? []).length, 1);
   eq('Kritieke commit controleert document vóór de producer',
     commitSource.indexOf('activeDocumentId') < commitSource.indexOf('set(state =>'), true);
+
+  // De kolomcontext van de transactie krijgt dezelfde projectkalenderroute als het UI-raster. Zonder
+  // die route viel de registry vroeger terug op een kale ma–vr-telling (zie check-task-column-registry).
+  const runtimeStart = source.indexOf('function buildGridColumnRuntime(');
+  const runtimeSource = source.slice(runtimeStart, source.indexOf('\n}\n', runtimeStart));
+  eq('Transactiekolomcontext levert de echte werkdagdelta mee',
+    runtimeStart >= 0 && /signedWorkDaysBetween: \(fromIso, toIso\) => signedWorkDaysBetween\(/.test(runtimeSource), true);
 }
 
 // Aanbeveling 4 (onafhankelijke eindreview): CONTROLLER_COLUMN_IDS in gridTransaction.ts is een

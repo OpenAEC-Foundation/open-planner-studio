@@ -47,6 +47,8 @@ import { resolveCalendar } from './resolveCalendar';
 import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import { assignmentDayUnits, contourLookup, maxUnitsOn, enumerateWorkDays } from './ResourceLoad';
 import { enumerateTaskWorkDays, splitGapsFromWorkDayBlocks } from './splitWalk';
+import { createTaskEngineCache } from './taskEngineCache';
+import { isPinnedComplete, isPinnedInProgress } from './duration';
 import { parseDate, formatDate, addCalendarDays, diffCalendarDays } from '@/utils/dateUtils';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 
@@ -200,8 +202,6 @@ export function levelResources(
   // Optioneel + default `{}` ⇒ byte-identiek voor elke aanroeper die niets doorgeeft.
   cpmOptions: CPMOptions = {},
 ): LevelingResult {
-  const projEngine = new CalendarEngine(calendarForEngine(projectCalendar));
-
   // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
   const renewable = resources.filter(r => r.type !== 'MATERIAL');
   const selectedResources = options.resourceIds
@@ -218,29 +218,15 @@ export function levelResources(
     )));
   }
 
-  // Kalender-engine voor de TAAKkalender (B1c-W0.2/W0.3) — spiegelt `ResourceLoad.ts`s
-  // `engineForTask`/`CPMSolver.calendarFor` EXACT: dezelfde bron (`task.calendarId`), dezelfde
-  // fallback (geen/onbekende id ⇒ projectkalender). Gecachet per calendarId, gedeeld door zowel de
-  // boeking (`bookDemandAt`) als de delay-meting hieronder — vóór deze fix rekenden die twee
-  // (en de lastlezer) stilzwijgend op VERSCHILLENDE kalenders (zie het commitbericht van ec4004db).
-  const taskEngineCache = new Map<string, CalendarEngine>();
-  const engineForTask = (task: Task): CalendarEngine => {
-    const key = task.calendarId ?? '';
-    let eng = taskEngineCache.get(key);
-    if (!eng) {
-      eng = key === ''
-        ? projEngine
-        : new CalendarEngine(calendarForEngine(
-          resolveCalendar(task.calendarId, resourceCalendars, projectCalendar),
-        ));
-      taskEngineCache.set(key, eng);
-    }
-    return eng;
-  };
+  // Kalender-engine voor de TAAKkalender (B1c-W0.2/W0.3) — dezelfde `createTaskEngineCache` als
+  // de resourcebelasting, gedeeld door zowel de boeking (`bookDemandAt`) als de delay-meting
+  // hieronder — vóór deze fix rekenden die twee (en de lastlezer) stilzwijgend op VERSCHILLENDE
+  // kalenders (zie het commitbericht van ec4004db).
+  const { forTask: engineForTask } = createTaskEngineCache(resourceCalendars, projectCalendar);
 
   // Kandidaat-as (C1/C2, kwaliteitsronde taak 4): WAAR een taak mag STARTEN volgt nu dezelfde as als
   // waarmee de delay verderop gemeten wordt — niet langer onvoorwaardelijk de projectkalender. Voor
-  // een taak zonder eigen `calendarId` is `engineForTask` === `projEngine`, dus dit is byte-identiek
+  // een taak zonder eigen `calendarId` is `engineForTask` de projectengine, dus dit is byte-identiek
   // voor elke bestaande case zonder taak-`calendarId` (de 25 cases in `cases-resource-leveling.json`
   // zetten er geen één). ELAPSEDTIME kent geen werkdagbegrip — daar is ELKE kalenderdag een geldige
   // kandidaat, spiegelt `CPMSolver.shiftByLevelingDelay`s `addElapsedMinutes`-tak (evenmin een
@@ -410,16 +396,14 @@ export function levelResources(
   // positie — zie `fixedLoadIds` hieronder — dus `shiftDays` is hier in de praktijk 0, maar de
   // vertaalde vorm wordt bewust hergebruikt i.p.v. een aparte kale variant: één formule, geen tweede
   // die stil kan afdrijven.
-  const isCompletedTask = (task: Task): boolean => task.time.completion >= 1 && !!task.time.actualFinish;
-  // IN UITVOERING (eindpoortronde W0, slot — W1): spiegelt CPMSolver.forwardPass's TWEEDE
-  // voortgangs-conditie EXACT (~regel 1458: `(t.actualStart || t.completion > 0) && t.completion <
-  // 1`) — díe tak plant, net als de VOLTOOID-tak, onvoorwaardelijk op actualStart/restwerk en eindigt
+  const isCompletedTask = (task: Task): boolean => isPinnedComplete(task.time);
+  // IN UITVOERING (eindpoortronde W0, slot — W1): dezelfde `isPinnedInProgress` als de TWEEDE
+  // voortgangs-conditie van CPMSolver.forwardPass — díe tak plant, net als de VOLTOOID-tak, onvoorwaardelijk op actualStart/restwerk en eindigt
   // ook in een `continue` die `levelingDelay` nooit raadpleegt (regel ~1843-1844: `results.set(...);
   // continue;`). Een taak in uitvoering is dus EVENZEER onverplaatsbaar voor de leveler — reviewer-
   // probe M: zonder deze uitbreiding kreeg zo'n taak nog een stille no-op-delay (CPM negeert 'm
   // toch), bleef ze op haar werkelijke datum staan, en herleefde het conflict stil.
-  const isInProgressTask = (task: Task): boolean =>
-    (!!task.time.actualStart || task.time.completion > 0) && task.time.completion < 1;
+  const isInProgressTask = (task: Task): boolean => isPinnedInProgress(task.time);
   // BREED (voor `fixedLoadIds` hieronder): VOLTOOID ÓF IN UITVOERING — beide takken in
   // `CPMSolver.forwardPass` negeren `levelingDelay`, dus beide horen NOOIT een delay te krijgen en
   // WEL als vaste last te boeken.
@@ -762,9 +746,7 @@ export function levelResources(
     const eng = engineForTask(t);
     const delta = t.time.durationType === 'ELAPSEDTIME'
       ? diffCalendarDays(from, to)
-      : to >= from
-        ? eng.workDaysBetween(from, to) - 1
-        : -(eng.workDaysBetween(to, from) - 1);
+      : eng.signedWorkDaysBetween(from, to);
     shifts[t.id] = { oldStart: cur, newStart: tr, delta };
   }
 
@@ -778,7 +760,7 @@ export function levelResources(
     gaps: gapsOut,
   };
 
-  // --- lokale helpers (sluiten over booked/demandByTask/capacityOf/projEngine) ---
+  // --- lokale helpers (sluiten over booked/demandByTask/capacityOf) ---
 
   /** Scan vanaf PF dag-voor-dag naar de eerste kandidaat waarop elke benodigde resource genoeg
    *  restcapaciteit heeft voor de volle (split-/taakkalender-bewuste) dagvraag. `ls` != null

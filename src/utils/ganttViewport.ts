@@ -174,7 +174,7 @@ export function computeEffectiveViewStart(
 ): string {
   let earliest = parseDate(viewStartDate);
   for (const task of tasks) {
-    const start = task.time.earlyStart || task.time.scheduleStart || task.time.lateStart;
+    const start = resolveTaskStart(task.time);
     if (start) {
       const d = parseDate(start);
       if (d.getTime() < earliest.getTime()) earliest = d;

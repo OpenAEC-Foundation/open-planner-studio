@@ -4,6 +4,7 @@ import { copyGridEditorValue, parseGridEditorText, type TaskGridBooleanLabels } 
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { groupBy } from '@/utils/collections';
 import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
@@ -211,18 +212,6 @@ function alignForDescriptor(descriptor: TaskColumnDescriptor): TaskGridAdapterCo
   return undefined;
 }
 
-function buildAssignmentsByTaskId(
-  assignments: readonly ResourceAssignment[],
-): ReadonlyMap<string, readonly ResourceAssignment[]> {
-  const result = new Map<string, ResourceAssignment[]>();
-  for (const assignment of assignments) {
-    const current = result.get(assignment.taskId);
-    if (current) current.push(assignment);
-    else result.set(assignment.taskId, [assignment]);
-  }
-  return result;
-}
-
 /** Bouwt uitsluitend het dure, selectie-onafhankelijke domeindeel van de gridadapter. */
 export function createTaskGridAdapterDomain(
   input: CreateTaskGridAdapterDomainInput,
@@ -231,7 +220,7 @@ export function createTaskGridAdapterDomain(
     projectId: input.projectId,
     tasksById: new Map(input.tasks.map(task => [task.id, task] as const)),
     relationIndex: buildTaskRelationIndex(input.tasks, input.sequences, input.cpmResult),
-    assignmentsByTaskId: buildAssignmentsByTaskId(input.assignments),
+    assignmentsByTaskId: groupBy(input.assignments, assignment => assignment.taskId),
     resourcesById: new Map(input.resources.map(resource => [resource.id, resource] as const)),
     baselinesById: new Map(input.baselines.map(baseline => [baseline.id, baseline] as const)),
     scheduleStale: input.scheduleStale,
