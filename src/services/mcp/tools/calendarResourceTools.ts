@@ -40,7 +40,7 @@ import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import type { GeneratorCountry, HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { CalendarGeneration, Holiday, WorkCalendar, WorkTimeBands } from '@/types/calendar';
-import { isResourceCurve, RESOURCE_CURVES, type ResourceCurve } from '@/types/resource';
+import { isResourceCurve, isValidUnits, RESOURCE_CURVES, type ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isFiniteNumber } from '@/utils/guards';
@@ -1061,7 +1061,7 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: 'geen `unitsPerDay` of `curve` opgegeven' });
           return;
         }
-        if (hasUnits && !(typeof act.unitsPerDay === 'number' && Number.isFinite(act.unitsPerDay) && act.unitsPerDay > 0)) {
+        if (hasUnits && !isValidUnits(act.unitsPerDay)) {
           rejections.push({ id: act.assignmentId, reason: `ongeldige unitsPerDay ${String(act.unitsPerDay)} (eenheden/dag, strikt positief vereist)` });
           return;
         }
