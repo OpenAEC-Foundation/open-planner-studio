@@ -654,6 +654,10 @@ export function ReportPanel() {
       today: t('today', { defaultValue: 'Vandaag' }),
       statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
       progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
+      projectStart: t('projectStart'),
+      projectEnd: t('projectEnd'),
+      projectDuration: t('projectDuration'),
+      daySuffix: tCommon('duration.suffixDay'),
     },
     localizedMonths: getLocalizedMonths(locale),
     localizedMonthsShort: getLocalizedMonthsShort(locale),
@@ -705,7 +709,7 @@ export function ReportPanel() {
     autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
-    reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
+    reportTaskTypeLabels, tTask, tCommon, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update

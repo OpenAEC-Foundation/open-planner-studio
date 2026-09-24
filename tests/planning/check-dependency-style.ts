@@ -147,6 +147,8 @@ function labelsOf(over: Partial<Record<string, string>> = {}): NonNullable<Print
     legend: { ...j.legend, ...over },
     tableHeaders: j.tableHeaders,
     today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
+    // Projectkop: hier niet onder test (zie check-print-report §13); 'd' = de nl/en-dag-afkorting.
+    projectStart: j.projectStart, projectEnd: j.projectEnd, projectDuration: j.projectDuration, daySuffix: 'd',
   };
 }
 

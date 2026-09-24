@@ -33,6 +33,13 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 
+import nlReport from '@/i18n/locales/nl/report.json';
+import enReport from '@/i18n/locales/en/report.json';
+import frReport from '@/i18n/locales/fr/report.json';
+import nlCommon from '@/i18n/locales/nl/common.json';
+import enCommon from '@/i18n/locales/en/common.json';
+import frCommon from '@/i18n/locales/fr/common.json';
+
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
@@ -1026,6 +1033,51 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   }));
   ok(clippedHead.texts.some(t => t.text.endsWith('…') && 'Czas trwania'.startsWith(t.text.slice(0, -1))),
     'zonder meting: een te lange kop wordt afgekapt i.p.v. over de buurkolom getekend');
+}
+
+// ── 13. Projectkop: vertaalde start-/eind-/duurlabels ─────────────────────────────────────────
+// De derde kopregel (`drawProjectHeader`) droeg hard-gecodeerd "Start:", "Eind:" en "Duur: …d",
+// dus elke niet-Nederlandse afdruk toonde "Eind:"/"Duur: 120d". De labels komen nu, net als
+// `printed`, uit `options.labels`; hier gevuld zoals ReportPanel dat doet (`report:projectStart`
+// e.d. plus de dag-afkorting `common:duration.suffixDay`). De duur zelf blijft kalenderdagen.
+{
+  type HeaderKeys = { projectStart: string; projectEnd: string; projectDuration: string };
+  const headerLabels = (report: HeaderKeys, common: { duration: { suffixDay: string } }) => ({
+    ...baseOptions().labels!,
+    projectStart: report.projectStart,
+    projectEnd: report.projectEnd,
+    projectDuration: report.projectDuration,
+    daySuffix: common.duration.suffixDay,
+  });
+  // Projectdatums bewust anders dan de taakdatums (05-01-2026), zodat alleen kopregel 3 ze draagt.
+  // 01-01 → 01-05-2026 = 31 + 28 + 31 + 30 = 120 kalenderdagen.
+  const dates = { projectStartDate: '2026-01-01', projectEndDate: '2026-05-01' };
+  const row3 = (over: Partial<PrintOptions>) => {
+    const hits = record([T_NORM], [], cal, baseOptions({ ...dates, ...over })).texts
+      .filter(t => t.text.includes('01-01-2026'));
+    ok(hits.length === 1, `projectkop: precies één tekst met de projectstart (got ${JSON.stringify(hits.map(t => t.text))})`);
+    return hits[0]?.text ?? '';
+  };
+
+  const en = row3({ labels: headerLabels(enReport, enCommon) });
+  ok(en === 'Start: 01-01-2026  |  End: 01-05-2026  |  Duration: 120d',
+    `projectkop (en): Engelse labels uit de vertaling (got ${JSON.stringify(en)})`);
+  ok(!/Eind:|Duur:/.test(en), `projectkop (en): geen Nederlands "Eind:"/"Duur:" meer (got ${JSON.stringify(en)})`);
+
+  // Frans: eigen labels én een eigen dag-afkorting ('j') — bewijst dat ook de eenheid uit de labels komt.
+  const fr = row3({ labels: headerLabels(frReport, frCommon) });
+  ok(fr === 'Début : 01-01-2026  |  Fin : 01-05-2026  |  Durée : 120j',
+    `projectkop (fr): Franse labels en dag-afkorting (got ${JSON.stringify(fr)})`);
+
+  // Nederlands blijft byte-identiek aan de oude hard-gecodeerde kop.
+  const nl = row3({ labels: headerLabels(nlReport, nlCommon) });
+  ok(nl === 'Start: 01-01-2026  |  Eind: 01-05-2026  |  Duur: 120d',
+    `projectkop (nl): ongewijzigd t.o.v. de oude kop (got ${JSON.stringify(nl)})`);
+
+  // Zonder labels: Engelse terugval, net als `printed` ('Printed:').
+  const fallback = row3({ labels: undefined });
+  ok(fallback === 'Start: 01-01-2026  |  End: 01-05-2026  |  Duration: 120d',
+    `projectkop zonder labels: Engelse terugval (got ${JSON.stringify(fallback)})`);
 }
 
 if (failures > 0) { console.log(`print-report: ${failures} faalregels`); process.exit(1); }

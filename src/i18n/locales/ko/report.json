@@ -37,6 +37,9 @@
   "exportPDF": "PDF 내보내기",
   "noTasks": "표시할 작업이 없습니다",
   "printed": "인쇄일:",
+  "projectStart": "시작:",
+  "projectEnd": "종료:",
+  "projectDuration": "기간:",
   "today": "오늘",
   "previewPageLimit_other": "… 외 {{count}}페이지 — 전체 문서를 보려면 내보내세요",
   "legend": {

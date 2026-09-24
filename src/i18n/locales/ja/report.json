@@ -37,6 +37,9 @@
   "exportPDF": "PDF エクスポート",
   "noTasks": "表示するタスクがありません",
   "printed": "印刷日：",
+  "projectStart": "開始：",
+  "projectEnd": "終了：",
+  "projectDuration": "期間：",
   "today": "今日",
   "previewPageLimit_other": "… 他 {{count}} ページ — 完全な文書はエクスポートしてください",
   "legend": {

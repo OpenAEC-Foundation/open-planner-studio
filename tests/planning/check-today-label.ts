@@ -113,6 +113,8 @@ function labelsOf(loc: string): NonNullable<PrintOptions['labels']> {
     legend: j.legend,
     tableHeaders: j.tableHeaders,
     today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
+    // Projectkop: hier niet onder test (zie check-print-report §13); 'd' = de nl/en-dag-afkorting.
+    projectStart: j.projectStart, projectEnd: j.projectEnd, projectDuration: j.projectDuration, daySuffix: 'd',
   };
 }
 

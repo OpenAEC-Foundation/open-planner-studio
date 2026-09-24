@@ -577,6 +577,13 @@ export interface PrintOptions {
     statusDate: string;
     /** Eigen label voor de voortgangslijn; dezelfde datum krijgt daarmee geen onjuiste statusnaam. */
     progressDate?: string;
+    /** Labels van de derde projectkopregel (`report:projectStart`/`projectEnd`/`projectDuration`),
+     *  inclusief dubbele punt — net als `printed`, zodat elke taal haar eigen interpunctie kiest. */
+    projectStart: string;
+    projectEnd: string;
+    projectDuration: string;
+    /** Dag-afkorting achter de projectduur; dezelfde als overal in de app (`common:duration.suffixDay`). */
+    daySuffix: string;
   };
   localizedMonths?: string[];
   localizedMonthsShort?: string[];
@@ -1883,22 +1890,24 @@ function drawProjectHeader(
 
   d2d.fillText(fitText(d2d, row2Text, rowMaxW), pad, row2Y);
 
-  // Row 3: Project dates and duration
+  // Row 3: Project dates and duration — labels vertaald via `options.labels`, zonder labels Engels
+  // (zelfde terugval als `printed` hierboven).
   const row3Y = m.s(48);
+  const labels = options.labels;
   let row3Text = '';
   if (options.projectStartDate) {
     const sd = parseDate(options.projectStartDate);
-    row3Text += `Start: ${formatDutchDate(sd, options.dateNotation)}`;
+    row3Text += `${labels?.projectStart ?? 'Start:'} ${formatDutchDate(sd, options.dateNotation)}`;
   }
   if (options.projectEndDate) {
     const ed = parseDate(options.projectEndDate);
-    row3Text += (row3Text ? '  |  ' : '') + `Eind: ${formatDutchDate(ed, options.dateNotation)}`;
+    row3Text += (row3Text ? '  |  ' : '') + `${labels?.projectEnd ?? 'End:'} ${formatDutchDate(ed, options.dateNotation)}`;
   }
   if (options.projectStartDate && options.projectEndDate) {
     const sd = parseDate(options.projectStartDate);
     const ed = parseDate(options.projectEndDate);
     const dur = diffCalendarDays(sd, ed);
-    row3Text += `  |  Duur: ${dur}d`;
+    row3Text += `  |  ${labels?.projectDuration ?? 'Duration:'} ${dur}${labels?.daySuffix ?? 'd'}`;
   }
 
   d2d.fillText(fitText(d2d, row3Text, rowMaxW), pad, row3Y);
