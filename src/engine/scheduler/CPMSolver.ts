@@ -11,7 +11,7 @@ import {
 import {
   durationMinutesOf, elapsedMinutesOf, addElapsedMinutes, subtractElapsedMinutes,
   signedElapsedSpan, isZeroDurationMilestone, splitTotalSpanMinutes, splitTotalSpanDays,
-  taskDurationUnit, writeDerivedSpan,
+  taskDurationUnit, writeDerivedSpan, isPinnedComplete, isPinnedInProgress,
 } from './duration';
 import { computeScheduleResults } from './scheduleAnalysis';
 import {
@@ -1494,7 +1494,7 @@ export class CPMSolver {
       }
       {
         const t = task.time;
-        if (t.actualFinish && t.completion >= 1) {
+        if (isPinnedComplete(t)) {
           // (1) VOLTOOID: volledig gepind op actuals — geen forward-drift voorbij actualFinish.
           // B4 (Opus-her-check T15-fixronde): `snapActualForward` i.p.v. een kale parse — snapt
           // BINNEN dezelfde dag (bv. 07:00 → 08:00), maar verplaatst nooit naar een andere dag (bv.
@@ -1532,7 +1532,7 @@ export class CPMSolver {
           results.set(taskId, { es, ef });
           continue;
         }
-        if ((t.actualStart || t.completion > 0) && t.completion < 1) {
+        if (isPinnedInProgress(t)) {
           // (2) IN PROGRESS — actualStart (store-route) óf impliciete actualStart = de gewone
           //     forward-pass-earlyStart (2b, vangnet voor rauwe legacy/externe data).
           // M1 (Opus-review T15-iteratie-2): niet langer achter `dataDate &&` — een taak die

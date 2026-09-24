@@ -12,6 +12,7 @@ import { CalendarEngine } from './CalendarEngine';
 import { resolveCalendar } from './resolveCalendar';
 import { enumerateTaskWorkDays } from './splitWalk';
 import { createTaskEngineCache } from './taskEngineCache';
+import { isPinnedComplete } from './duration';
 import {
   CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, matchContoursToAssignments, periodsToWorkDaySlots,
   slotWeightsFromValues,
@@ -192,7 +193,7 @@ export function contourLookup(
  *    `earlyStart`, pauzedagen van de splits overgeslagen.
  */
 export function taskWorkDayIsos(task: Task, taskEngine: CalendarEngine, durationDays: number): string[] {
-  return task.time.durationType === 'ELAPSEDTIME' || (task.time.completion >= 1 && task.time.actualFinish)
+  return task.time.durationType === 'ELAPSEDTIME' || isPinnedComplete(task.time)
     ? enumerateWorkDays(taskEngine, task.time.earlyStart, task.time.earlyFinish)
     : enumerateTaskWorkDays(task.splitGaps, taskEngine, task.time.earlyStart, durationDays);
 }

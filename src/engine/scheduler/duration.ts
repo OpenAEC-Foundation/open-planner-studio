@@ -1,4 +1,16 @@
-import type { Task, TaskSplitGap } from '@/types/task';
+import type { Task, TaskSplitGap, TaskTime } from '@/types/task';
+
+/** VOLTOOID zoals `CPMSolver.forwardPass` hem vastpint (tak 1): werkelijk einde én completion 1.
+ *  Nivelleerder en resourcebelasting moeten exact dezelfde grens trekken. */
+export function isPinnedComplete(time: TaskTime): time is TaskTime & { actualFinish: string } {
+  return !!time.actualFinish && time.completion >= 1;
+}
+
+/** IN UITVOERING zoals `CPMSolver.forwardPass` hem vastpint (tak 2): gestart (werkelijke start of
+ *  voortgang) en nog niet voltooid. */
+export function isPinnedInProgress(time: TaskTime): boolean {
+  return (!!time.actualStart || time.completion > 0) && time.completion < 1;
+}
 
 /** Expliciete eenheid met deterministische leesmigratie voor oudere runtime-data. */
 export function taskDurationUnit(task: Task): 'days' | 'hours' {
