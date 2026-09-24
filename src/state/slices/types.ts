@@ -242,7 +242,13 @@ export type NotificationMessageKey =
   // Rekenprofielen (spec v3.1 §6): "dit project rekent als …" bij openen (param `profile`, een
   // merknaam) en — voor baan D — de telling "N taken verschoven" na een profielwissel (`count`).
   | 'notifications.schedulingProfileApplied'
-  | 'notifications.schedulingProfileShifted';
+  | 'notifications.schedulingProfileShifted'
+  // Taaktypes-etappe (spec §7): het geladen bestand draagt taaktypedata terwijl "Toon taaktypes"
+  // uit staat — de werkregel-UI is voor dit document ontsloten; zie `src/state/taskTypesNotice.ts`.
+  | 'notifications.taskTypesUnlocked'
+  // Eigenaarsbesluit 2026-09-05 (K2): een kalenderwissel loopt door de werkregel; wanneer dat de
+  // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
+  | 'notifications.workRuleDurationsChanged';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
@@ -412,6 +418,10 @@ export interface UIState {
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums (taak #53); opslag blijft ISO
   // --- Fase 2.8b: urenplanning-instellingen (§6.8); ontbrekende sleutel ⇒ default (geen reset) ---
   enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
+  /** persisted (`ops-showTaskTypes`, taaktypes-etappe spec §7) — toon de werkregel (taaktype) en het
+   *  resterende werk per toewijzing in paneel, dialoog en raster. Default UIT; een document dat al
+   *  taaktypedata draagt ontsluit de weergave voor zichzelf (`taskTypesVisible`, DOCUMENT_FIELDS). */
+  showTaskTypes: boolean;
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')

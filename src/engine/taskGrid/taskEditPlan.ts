@@ -1,3 +1,5 @@
+import { WORK_RULES, type WorkRule } from '@/types/workRule';
+import { carryRemainingThroughDurationEdit } from '@/engine/work/workRuleApply';
 import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -62,6 +64,10 @@ export interface TaskEditPlanEnvironment {
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
+  /** Taaktypes-etappe (2026-09): werkbehoud bij het herschalen van een contour, afgeleid van de
+   *  effectieve werkregel (`workRuleApply.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
+   *  MSP-afleiding in `rescaleTaskContours`. */
+  contourKeepsWork?: boolean;
 }
 
 export interface PlannedTaskEdit {
@@ -128,7 +134,7 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
   if (columnId === 'task.name' || columnId === 'task.description' || columnId === 'task.wbsCode'
     || columnId === 'task.taskType' || columnId === 'task.customTaskTypeId'
     || columnId === 'task.priority' || columnId === 'task.color'
-    || columnId === 'task.notes') {
+    || columnId === 'task.notes' || columnId === 'task.workRule') {
     return 'task-field';
   }
   return null;
@@ -137,8 +143,13 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
 /** Contour-engine (2026-09): duurwijziging in het grid herschaalt de contour — tweeling van
  *  `taskSlice.updateTask`/`createMcpTransactions.updateTaskFields`, zie `taskDefaults.ts`'s
  *  `rescaleTaskContours`. `oldWorkMinutes` is vóór de mutatie vastgelegd door `applyScheduleEdit`. */
-function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
-  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) rescaleTaskContours(task, oldWorkMinutes, hoursPerDay);
+function finishDurationEdit(task: Task, oldWorkMinutes: number, environment: TaskEditPlanEnvironment): boolean {
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  if (Number.isFinite(hoursPerDay) && hoursPerDay > 0) {
+    // Eigenaarsbesluit 2026-09-05: een expliciete restduur schuift mee met de duurwijziging.
+    carryRemainingThroughDurationEdit(task, oldWorkMinutes, hoursPerDay);
+    rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, environment.contourKeepsWork);
+  }
   return clearScheduleGuidance(task, true);
 }
 
@@ -211,6 +222,12 @@ function applyTaskField(
   } else if (id === 'task.color') {
     if (!optionalString(edit.value)) return failure('color', edit);
     task.color = edit.value;
+  } else if (id === 'task.workRule') {
+    // Taaktypes-etappe (spec §7): het VELD; de driehoekstap (restwerk vastleggen onder een
+    // werkbeschermende regel) doet `gridTransaction.ts` ná het plan, met de toewijzingen erbij.
+    if (edit.value === undefined || edit.value === '') delete task.workRule;
+    else if (typeof edit.value === 'string' && (WORK_RULES as readonly string[]).includes(edit.value)) task.workRule = edit.value as WorkRule;
+    else return failure('enum', edit);
   } else if (id === 'task.notes') {
     if (typeof edit.value !== 'string') return failure('text', edit);
     if ((task.notes?.length ?? 0) > 1) return failure('readOnly', edit);
@@ -260,7 +277,7 @@ function applyScheduleEdit(
       task.time.durationMinutes = minutes;
       task.time.scheduleDuration = minutes / (environment.effectiveHoursPerDay * 60);
     }
-    lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+    lost = finishDurationEdit(task, oldWorkMinutes, environment);
   } else if (id === 'task.time.scheduleDuration') {
     if (edit.value && typeof edit.value === 'object' && 'unit' in edit.value) {
       const parsed = edit.value as ParsedTaskDuration;
@@ -280,7 +297,7 @@ function applyScheduleEdit(
         task.time.scheduleDuration = parsed.scheduleDuration;
         task.time.durationMinutes = undefined;
       }
-      lost = finishDurationEdit(task, oldWorkMinutes, environment.effectiveHoursPerDay);
+      lost = finishDurationEdit(task, oldWorkMinutes, environment);
       return { ok: true, value: lost };
     }
     if (!finite(edit.value) || edit.value < 0) return failure('duration', edit);
@@ -293,7 +310,7 @@ function applyScheduleEdit(
       task.time.scheduleDuration = days;
       if (environment.hourMode) task.time.durationMinutes = edit.value;
       else delete task.time.durationMinutes;
-      lost = finishDurationEdit(task, oldWorkMinutes, hoursPerDay);
+      lost = finishDurationEdit(task, oldWorkMinutes, environment);
     }
   } else if (id === 'task.time.scheduleStart' || id === 'task.time.scheduleFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);

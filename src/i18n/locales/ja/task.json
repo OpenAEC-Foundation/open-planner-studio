@@ -48,7 +48,7 @@
   "taskGrid": {
     "columns": {
       "customTaskType": "カスタムタスクタイプ",
-      "activityCodeData":"アクティビティコードデータ","actualDuration":"実績期間","actualFinish":"実績終了日","actualStart":"実績開始日","assignedResources":"割り当て済みリソース","assignmentCurve":"割り当て曲線","assignmentId":"割り当て ID","assignmentResourceId":"割り当てリソース ID","assignmentTaskId":"割り当てタスク ID","assignmentUnits":"1日あたりの割り当て単位","calendar":"カレンダー","childIds":"子タスク ID","color":"色","completion":"進捗","constraint2Date":"第2制約日","constraint2Type":"第2制約タイプ","constraintDate":"制約日","constraintHard":"強制制約","constraintType":"制約タイプ","critical":"クリティカル","customFieldData":"カスタムフィールドデータ","deadline":"期限","description":"説明","duration":"期間","durationMinutes":"期間（分）","durationType":"期間タイプ","earlyFinish":"最早終了日","earlyStart":"最早開始日","effortDriven":"作業時間主導","explicitSummary":"明示的なサマリータスク","externalRelationData":"外部依存関係データ","floatPath":"余裕パス","freeFloat":"自由余裕","hammock":"ハンモック（派生期間）","interferingFloat":"干渉余裕","internalRelationData":"内部依存関係データ","lateFinish":"最遅終了日","lateStart":"最遅開始日","levelingDelay":"平準化遅延","levelingDelayElapsed":"経過時間による平準化遅延","levelingDelayMinutes":"平準化遅延（分）","mandatoryMilestone":"必須マイルストーン","manuallyScheduled":"手動スケジュール","milestone":"マイルストーン","milestoneKind":"マイルストーンタイプ","mspTaskType":"Microsoft Project タスクタイプ","name":"タスク名","nearCritical":"準クリティカル","noteData":"メモデータ","notes":"メモ","p6Provenance":"Primavera P6 の出所","parentId":"親タスク ID","priority":"平準化優先度","recordedSource":"出所（記録済みの日付）","remainingMinutes":"残り（分）","remainingTime":"残り（稼働日）","resourceIds":"リソース ID","resume":"再開日","scheduleFinish":"予定終了日","scheduleStart":"予定開始日","splitGaps":"中断期間","status":"状態","stop":"停止日","taskId":"タスク ID","taskType":"タスクタイプ","timephasedContours":"タイムフェーズ輪郭","timephasedDurationWalks":"タイムフェーズ期間セグメント","timephasedFinishFloor":"タイムフェーズ終了下限","timephasedStartAnchor":"タイムフェーズ開始アンカー","totalFloat":"総余裕","wbs":"作業分解構成（WBS）","workWindowFinish":"作業枠の終了","workWindowStart":"作業枠の開始"
+      "activityCodeData":"アクティビティコードデータ","actualDuration":"実績期間","actualFinish":"実績終了日","actualStart":"実績開始日","assignedResources":"割り当て済みリソース","assignmentActualWork":"実績作業（時間）","assignmentCurve":"割り当て曲線","assignmentId":"割り当て ID","assignmentPlannedWork":"計画作業（時間）","assignmentRemainingWork":"残作業（時間）","assignmentResourceId":"割り当てリソース ID","assignmentTaskId":"割り当てタスク ID","assignmentUnits":"1日あたりの割り当て単位","calendar":"カレンダー","childIds":"子タスク ID","color":"色","completion":"進捗","constraint2Date":"第2制約日","constraint2Type":"第2制約タイプ","constraintDate":"制約日","constraintHard":"強制制約","constraintType":"制約タイプ","critical":"クリティカル","customFieldData":"カスタムフィールドデータ","deadline":"期限","description":"説明","duration":"期間","durationMinutes":"期間（分）","durationType":"期間タイプ","earlyFinish":"最早終了日","earlyStart":"最早開始日","effortDriven":"作業時間主導","explicitSummary":"明示的なサマリータスク","externalRelationData":"外部依存関係データ","floatPath":"余裕パス","freeFloat":"自由余裕","hammock":"ハンモック（派生期間）","interferingFloat":"干渉余裕","internalRelationData":"内部依存関係データ","lateFinish":"最遅終了日","lateStart":"最遅開始日","levelingDelay":"平準化遅延","levelingDelayElapsed":"経過時間による平準化遅延","levelingDelayMinutes":"平準化遅延（分）","mandatoryMilestone":"必須マイルストーン","manuallyScheduled":"手動スケジュール","milestone":"マイルストーン","milestoneKind":"マイルストーンタイプ","mspTaskType":"Microsoft Project タスクタイプ","name":"タスク名","nearCritical":"準クリティカル","noteData":"メモデータ","notes":"メモ","p6Provenance":"Primavera P6 の出所","parentId":"親タスク ID","priority":"平準化優先度","recordedSource":"出所（記録済みの日付）","remainingMinutes":"残り（分）","remainingTime":"残り（稼働日）","resourceIds":"リソース ID","resume":"再開日","scheduleFinish":"予定終了日","scheduleStart":"予定開始日","splitGaps":"中断期間","status":"状態","stop":"停止日","taskId":"タスク ID","taskType":"タスクタイプ","timephasedContours":"タイムフェーズ輪郭","timephasedDurationWalks":"タイムフェーズ期間セグメント","timephasedFinishFloor":"タイムフェーズ終了下限","timephasedStartAnchor":"タイムフェーズ開始アンカー","totalFloat":"総余裕","wbs":"作業分解構成（WBS）","workRule":"作業ルール","workWindowFinish":"作業枠の終了","workWindowStart":"作業枠の開始"
     },
     "category": {
       "task": "タスク", "planning": "計画", "constraints": "制約", "relations": "依存関係", "resources": "リソース",
@@ -56,6 +56,7 @@
     },
     "status": { "stale": "古い" },
     "validation": {
+      "assignmentWork": "残作業を 0 より大きい数値（時間）で入力してください（名前: 時間; …）。",
       "readOnly": "この計算列は編集できません。",
       "invalid": "入力した値は無効です。",
       "relationToken": "例: 1.2 FS+2d のように入力してください。",
@@ -224,6 +225,22 @@
     "durationTotalHours": "合計時間",
     "hourCalendarHint": "時間入力には時間カレンダー（稼働時間）が必要です。"
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "固定期間・固定単位",
+    "FIXED_DURATION_WORK": "固定期間・固定作業",
+    "FIXED_WORK": "固定作業",
+    "FIXED_RATE": "固定単位",
+    "label": "作業ルール",
+    "projectDefault": "プロジェクトの既定（{{rule}}）",
+    "protects": "保護：{{what}}",
+    "protectsFIXED_DURATION_RATE": "期間と単位（作業が追従）",
+    "protectsFIXED_DURATION_WORK": "期間と作業（単位が追従）",
+    "protectsFIXED_WORK": "作業（期間は単位に追従）",
+    "protectsFIXED_RATE": "単位（期間は作業に追従）",
+    "mspEffortDriven": "MS Project より：実効作業駆動",
+    "mspNotEffortDriven": "MS Project より：実効作業駆動ではない",
+    "none": "プロジェクトの既定"
+  },
   "properties": {
     "task": "タスク",
     "deleteTask": "タスクを削除",
@@ -297,7 +314,10 @@
       "contour": "時間配分…",
       "contoured": "輪郭",
       "contouredHint": "この割り当てには独自の時間配分があります。「時間配分」ボタンで編集または解除してください。",
-      "importedCurve": "インポートされた曲線"
+      "importedCurve": "インポートされた曲線",
+      "work": "作業（残）",
+      "workHint": "残作業（時間）。期間と単位のどちらが変わるかは作業ルールが決めます。",
+      "locked": "作業ルール {{rule}} により保護"
     },
     "calendar": "カレンダー",
     "calendarProject": "プロジェクトカレンダー",

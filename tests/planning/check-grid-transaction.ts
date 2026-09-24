@@ -949,6 +949,9 @@ function observed(state: AppState): unknown {
     [
       'task.constraint.hard', 'task.isHammock', 'task.mandatory', 'task.milestoneKind',
       'task.notes', 'task.time.durationUnit', 'task.time.scheduleDuration', 'task.wbsCode',
+      // Taaktypes-etappe (2026-09-05): `task.workRule` leest alleen isMilestone/isHammock (controllers)
+      // en childIds (nooit cel-schrijfbaar) — gecertificeerd, zelfde klasse als scheduleDuration.
+      'task.workRule',
     ].sort());
   for (const controllerId of controllerIdsInSource) {
     ok(`Controllerveld ${controllerId} bestaat als echte, via cell-edit schrijfbare kolom`,

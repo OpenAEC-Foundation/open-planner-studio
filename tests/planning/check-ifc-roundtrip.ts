@@ -270,6 +270,9 @@ const TM = {
   ] satisfies TaskTimephasedContour[],
   // Z14b — MSP's eigen task-type/effort-driven-vlag (eigenaarsbesluit 2026-08-18, punt 1).
   mspTaskType: 'FIXED_WORK', effortDriven: true,
+  // Taaktypes-etappe (spec §4.1): de neutrale werkregel (`OPS_WorkRule`) — bewust een ANDERE waarde
+  // dan wat uit mspTaskType zou volgen, zodat de round-trip het eigen veld bewijst.
+  workRule: 'FIXED_DURATION_WORK',
   // X0/X7 (XER-etappeplan, 2026-08-20) — duration/activity blijven tot X9 zonder IFC-pset;
   // de vijf X7-firewall-/bronvelden hieronder round-trippen al wel exact via OPS_P6Progress.
   p6DurationType: 'DT_FixedDUR2', p6ActivityType: 'TT_Rsrc',
@@ -367,6 +370,9 @@ const A1 = {
   workWindowStart: '2026-07-06', workWindowFinish: '2026-07-08',
   // Contour-engine (2026-09): exacte 21-punts curve (P6/MSPDI) reist in hetzelfde JSON-pset mee.
   curveValues: [0, 1.3, 2.5, 3.8, 5.1, 7.6, 10.1, 7.6, 5.1, 3.8, 2.5, 2.5, 2.5, 3.8, 5.1, 7.6, 10.1, 7.6, 5.1, 3.8, 2.5],
+  // Taaktypes-etappe (spec §4.3): drie werkvelden in minuten, onderscheidend (begroot ≠ verricht + rest,
+  // zodat een writer die één veld uit de andere afleidt niet stil goedgekeurd wordt).
+  plannedWorkMinutes: 9600, actualWorkMinutes: 4800, remainingWorkMinutes: 7200,
 } satisfies Required<ResourceAssignment>;
 const assignments: ResourceAssignment[] = [
   A1,
@@ -408,6 +414,7 @@ const project = {
   author: 'Ir. Testz', company: 'Bouw BV',                                       // (a) gaps
   wbsAutoNumber: true, statusDate: '2026-07-25', progressMode: 'PROGRESS_OVERRIDE',
   defaultTaskDurationUnit: 'days',
+  defaultWorkRule: 'FIXED_RATE', // taaktypes-etappe: OPS_ProjectSettings/DefaultWorkRule
   companyId: 'c-fixture', companyName: 'Fixture Bouw BV',
   schedulingOptions: SCHED_OPTS,
   // Rekenprofiel (C2): een EIGEN profiel op p6-basis met twee afwijkingen (één uit, één per-bestand
@@ -594,6 +601,8 @@ const TASK_CANON = {
   timephasedContours: KEEP,
   // Z14b — MSP's eigen task-type/effort-driven-vlag (`OPS_MspTaskType`), puur data, geen verwijzing.
   mspTaskType: KEEP, effortDriven: KEEP,
+  // Taaktypes-etappe — de neutrale werkregel (`OPS_WorkRule`), puur data, geen verwijzing.
+  workRule: KEEP,
   // X9 — dezelfde smalle OPS_P6Progress-Pset bewaart ook de twee P6-taaktypen; puur brondata,
   // nooit solverinvoer.
   p6DurationType: KEEP,
@@ -661,6 +670,8 @@ const ASSIGNMENT_CANON = {
   workWindowStart: KEEP, workWindowFinish: KEEP,
   // Contour-engine (2026-09): `curveValues` in hetzelfde `OPS_Timephased`-pset — echte KEEP.
   curveValues: KEEP,
+  // Taaktypes-etappe (spec §4.3): de drie werkvelden in hetzelfde JSON-blob — echte KEEP.
+  plannedWorkMinutes: KEEP, actualWorkMinutes: KEEP, remainingWorkMinutes: KEEP,
 } satisfies CanonSpec<ResourceAssignment>;
 
 const PROJECT_CANON = {
@@ -686,6 +697,7 @@ const PROJECT_CANON = {
   // Rekenprofielen C2: OPS_SchedulingProfile round-tript via writeIFC/readIFC.
   schedulingProfile: KEEP,
   defaultTaskDurationUnit: KEEP,
+  defaultWorkRule: KEEP, // taaktypes-etappe: OPS_ProjectSettings/DefaultWorkRule
   // B1.1: bedrijfsbinding round-trippt via OPS_CompanyBinding.
   companyId: KEEP, companyName: KEEP,
 } satisfies CanonSpec<Project>;

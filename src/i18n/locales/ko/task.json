@@ -48,7 +48,7 @@
   "taskGrid": {
     "columns": {
       "customTaskType": "사용자 지정 작업 유형",
-      "activityCodeData":"활동 코드 데이터","actualDuration":"실제 기간","actualFinish":"실제 완료","actualStart":"실제 시작","assignedResources":"배정된 리소스","assignmentCurve":"배정 곡선","assignmentId":"배정 ID","assignmentResourceId":"배정 리소스 ID","assignmentTaskId":"배정 작업 ID","assignmentUnits":"일일 배정 단위","calendar":"달력","childIds":"하위 작업 ID","color":"색상","completion":"진행률","constraint2Date":"보조 제약 날짜","constraint2Type":"보조 제약 유형","constraintDate":"제약 날짜","constraintHard":"강제 제약","constraintType":"제약 유형","critical":"주공정","customFieldData":"사용자 지정 필드 데이터","deadline":"기한","description":"설명","duration":"기간","durationMinutes":"기간(분)","durationType":"기간 유형","earlyFinish":"빠른 완료","earlyStart":"빠른 시작","effortDriven":"작업량 기준","explicitSummary":"명시적 요약 작업","externalRelationData":"외부 관계 데이터","floatPath":"여유 경로","freeFloat":"자유 여유","hammock":"해먹(파생 기간)","interferingFloat":"간섭 여유","internalRelationData":"내부 관계 데이터","lateFinish":"늦은 완료","lateStart":"늦은 시작","levelingDelay":"평준화 지연","levelingDelayElapsed":"경과 평준화 지연","levelingDelayMinutes":"평준화 지연(분)","mandatoryMilestone":"필수 마일스톤","manuallyScheduled":"수동 일정","milestone":"마일스톤","milestoneKind":"마일스톤 유형","mspTaskType":"Microsoft Project 작업 유형","name":"작업 이름","nearCritical":"준주공정","noteData":"메모 데이터","notes":"메모","p6Provenance":"Primavera P6 출처","parentId":"상위 작업 ID","priority":"평준화 우선순위","recordedSource":"출처(기록된 날짜)","remainingMinutes":"남음(분)","remainingTime":"남음(근무일)","resourceIds":"리소스 ID","resume":"재개 날짜","scheduleFinish":"예정 완료","scheduleStart":"예정 시작","splitGaps":"중단 구간","status":"상태","stop":"중지 날짜","taskId":"작업 ID","taskType":"작업 유형","timephasedContours":"시간대별 분포","timephasedDurationWalks":"시간대별 기간 구간","timephasedFinishFloor":"시간대별 완료 하한","timephasedStartAnchor":"시간대별 시작 기준점","totalFloat":"총 여유","wbs":"작업 분류 체계(WBS)","workWindowFinish":"작업 창 종료","workWindowStart":"작업 창 시작"
+      "activityCodeData":"활동 코드 데이터","actualDuration":"실제 기간","actualFinish":"실제 완료","actualStart":"실제 시작","assignedResources":"배정된 리소스","assignmentActualWork":"실제 작업(시간)","assignmentCurve":"배정 곡선","assignmentId":"배정 ID","assignmentPlannedWork":"계획 작업(시간)","assignmentRemainingWork":"잔여 작업(시간)","assignmentResourceId":"배정 리소스 ID","assignmentTaskId":"배정 작업 ID","assignmentUnits":"일일 배정 단위","calendar":"달력","childIds":"하위 작업 ID","color":"색상","completion":"진행률","constraint2Date":"보조 제약 날짜","constraint2Type":"보조 제약 유형","constraintDate":"제약 날짜","constraintHard":"강제 제약","constraintType":"제약 유형","critical":"주공정","customFieldData":"사용자 지정 필드 데이터","deadline":"기한","description":"설명","duration":"기간","durationMinutes":"기간(분)","durationType":"기간 유형","earlyFinish":"빠른 완료","earlyStart":"빠른 시작","effortDriven":"작업량 기준","explicitSummary":"명시적 요약 작업","externalRelationData":"외부 관계 데이터","floatPath":"여유 경로","freeFloat":"자유 여유","hammock":"해먹(파생 기간)","interferingFloat":"간섭 여유","internalRelationData":"내부 관계 데이터","lateFinish":"늦은 완료","lateStart":"늦은 시작","levelingDelay":"평준화 지연","levelingDelayElapsed":"경과 평준화 지연","levelingDelayMinutes":"평준화 지연(분)","mandatoryMilestone":"필수 마일스톤","manuallyScheduled":"수동 일정","milestone":"마일스톤","milestoneKind":"마일스톤 유형","mspTaskType":"Microsoft Project 작업 유형","name":"작업 이름","nearCritical":"준주공정","noteData":"메모 데이터","notes":"메모","p6Provenance":"Primavera P6 출처","parentId":"상위 작업 ID","priority":"평준화 우선순위","recordedSource":"출처(기록된 날짜)","remainingMinutes":"남음(분)","remainingTime":"남음(근무일)","resourceIds":"리소스 ID","resume":"재개 날짜","scheduleFinish":"예정 완료","scheduleStart":"예정 시작","splitGaps":"중단 구간","status":"상태","stop":"중지 날짜","taskId":"작업 ID","taskType":"작업 유형","timephasedContours":"시간대별 분포","timephasedDurationWalks":"시간대별 기간 구간","timephasedFinishFloor":"시간대별 완료 하한","timephasedStartAnchor":"시간대별 시작 기준점","totalFloat":"총 여유","wbs":"작업 분류 체계(WBS)","workRule":"작업 규칙","workWindowFinish":"작업 창 종료","workWindowStart":"작업 창 시작"
     },
     "category": {
       "task": "작업", "planning": "계획", "constraints": "제약 조건", "relations": "관계", "resources": "리소스",
@@ -56,6 +56,7 @@
     },
     "status": { "stale": "오래됨" },
     "validation": {
+      "assignmentWork": "남은 작업량을 0보다 큰 숫자(시간)로 입력하세요(이름: 시간; …).",
       "readOnly": "이 계산 열은 편집할 수 없습니다.",
       "invalid": "입력한 값이 올바르지 않습니다.",
       "relationToken": "예: 1.2 FS+2d 형식으로 입력하세요.",
@@ -224,6 +225,22 @@
     "durationTotalHours": "총 시간",
     "hourCalendarHint": "시간 입력에는 시간 달력(근무 시간)이 필요합니다."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "고정 기간 및 단위",
+    "FIXED_DURATION_WORK": "고정 기간 및 작업량",
+    "FIXED_WORK": "고정 작업량",
+    "FIXED_RATE": "고정 단위",
+    "label": "작업 규칙",
+    "projectDefault": "프로젝트 기본값({{rule}})",
+    "protects": "보호됨: {{what}}",
+    "protectsFIXED_DURATION_RATE": "기간과 단위(작업량이 따라감)",
+    "protectsFIXED_DURATION_WORK": "기간과 작업량(단위가 따라감)",
+    "protectsFIXED_WORK": "작업량(기간이 단위를 따름)",
+    "protectsFIXED_RATE": "단위(기간이 작업량을 따름)",
+    "mspEffortDriven": "MS Project에서: 작업량 기준",
+    "mspNotEffortDriven": "MS Project에서: 작업량 기준 아님",
+    "none": "프로젝트 기본값"
+  },
   "properties": {
     "task": "작업",
     "deleteTask": "작업 삭제",
@@ -297,7 +314,10 @@
       "contour": "시간 분배…",
       "contoured": "윤곽",
       "contouredHint": "이 배정에는 고유한 시간 분배가 있습니다. 시간 분배 버튼으로 편집하거나 해제하세요.",
-      "importedCurve": "가져온 곡선"
+      "importedCurve": "가져온 곡선",
+      "work": "작업량(남음)",
+      "workHint": "남은 작업량(시간). 기간과 단위 중 무엇이 변하는지는 작업 규칙이 결정합니다.",
+      "locked": "작업 규칙 {{rule}}에 의해 보호됨"
     },
     "calendar": "달력",
     "calendarProject": "프로젝트 달력",

@@ -85,7 +85,7 @@ function keys<T>() {
 
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
-  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
+  'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'defaultWorkRule', 'schedulingOptions',
   'schedulingProfile',
 ] as const);
 
@@ -111,6 +111,8 @@ const EXT_TASK_KEYS = keys<ExtTask>()([
   'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'manuallyScheduled',
   'mspTaskType', 'effortDriven', 'timephasedContours',
   'timephasedFinishFloor', 'timephasedStartAnchor', 'timephasedDurationWalks',
+  // taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel
+  'workRule',
   // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde behandeling als de
   // .mpp-velden hierboven.
   'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
@@ -128,6 +130,8 @@ const EXT_RESOURCE_KEYS = keys<ExtResource>()([
 
 const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
   'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
+  // taaktypes-etappe (spec §4.3): de drie optionele werkvelden
+  'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
 ] as const);
 
 // ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
@@ -222,6 +226,7 @@ const VOL_TASK = {
   manuallyScheduled: true,
   mspTaskType: 'FIXED_WORK',
   effortDriven: true,
+  workRule: 'FIXED_RATE',
   // X0 (XER-etappeplan): drie nieuwe .xer-importvelden, allemaal gevuld — zelfde volgorde-eis als
   // de .mpp-velden hierboven (de round-trip-check vergelijkt via JSON.stringify).
   p6DurationType: 'DT_FixedDUR2',
@@ -261,6 +266,7 @@ const VOL_PROJECT = {
   author: 'Auteur', company: 'Bedrijf',
   wbsAutoNumber: true, statusDate: '2026-06-01', progressMode: 'PROGRESS_OVERRIDE',
   defaultTaskDurationUnit: 'days',
+  defaultWorkRule: 'FIXED_DURATION_WORK',
   schedulingOptions: {
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath', threshold: -1 },
@@ -340,7 +346,8 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
     [exposed.schedulingProfile?.id, exposed.schedulingProfile?.conventions.p6RelationFinishBoundary], ['p6', true]);
   eq('C8-02 OPS-project toont het ops-profiel', toExtProject({ ...VOL_PROJECT, schedulingProfile: undefined }).schedulingProfile?.id, 'ops');
   eq('C8-03 fromExtProject neemt NOOIT een profiel over (extensie-import ⇒ OPS)', fromExtProject(exposed).schedulingProfile, undefined);
-  eq('C8-04 contractversie 1.2.0', EXTENSION_API_VERSION, '1.2.0');
+  // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0.
+  eq('C8-04 contractversie 1.3.0 (1.2.0 profiel + 1.3.0 taaktypes)', EXTENSION_API_VERSION, '1.3.0');
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
   eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],
@@ -435,6 +442,7 @@ const VOL_ASSIGNMENT = {
   id: 'a1', taskId: 't1', resourceId: 'r1', unitsPerDay: 0.5, curve: 'BELL',
   workWindowStart: '2026-06-01T08:00', workWindowFinish: '2026-06-10T17:00',
   curveValues: [0, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
+  plannedWorkMinutes: 4800, actualWorkMinutes: 1200, remainingWorkMinutes: 3000,
 } satisfies Required<ResourceAssignment>;
 
 // ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────

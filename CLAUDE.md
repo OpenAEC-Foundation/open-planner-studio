@@ -211,12 +211,57 @@ die histogram, overallocatie, nivelleerder (`ResourceLeveler.ts`) en bezettingso
 (1) een opgeslagen contour (gekoppeld aan de toewijzing via `TaskTimephasedContour.resourceId`,
 `matchContoursToAssignments`) ⇒ data, zonder de hele-eenheden-afronding; (2) `ResourceAssignment.
 curveValues` (de exacte 21-punts P6-/MSPDI-curve, `CONTOUR_SHAPE_VALUES`-vorm) ⇒ eveneens data;
-(3) anders de bestaande `distributeUnits`-formule, byte-identiek. De engine raakt **geen taakdatum**:
+(3) opgeslagen werk (`ResourceAssignment.remainingWorkMinutes` [+ `actualWorkMinutes`], taaktypes-
+etappe) ⇒ als data met de curvevorm over de duur gespreid; (4) anders de bestaande `distributeUnits`-
+formule, byte-identiek. De engine raakt **geen taakdatum**:
 de CPM-datums van een import blijven bij laag 3/4 van de Z8-beslistabel en `splitGaps` — de
 fidelity-poort bewaakt dat. Een duurwijziging (`taskSlice.updateTask`, `createMcpTransactions`,
 `taskEditPlan`) herschaalt de contour én de importsplits proportioneel via `taskDefaults.ts`'s
-`rescaleTaskContours` (actuals blijven, `mspTaskType === 'FIXED_WORK'` houdt het werk vast); een
-datum-/kalender-/toewijzingswijziging raakt de as niet. `src/services/contourIo.ts` is de adapterlaag:
+`rescaleTaskContours` (actuals blijven; werkbehoud volgt de effectieve werkregel via
+`workRuleApply.ts`'s `contourKeepsWork` — zonder eigen `workRule` geldt nog `mspTaskType ===
+'FIXED_WORK'`); een datum-/kalender-/toewijzingswijziging raakt de as niet. **Werkregels
+(taaktypes-etappe, spec `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md`, in
+aanbouw):** `Task.workRule` ∈ FIXED_DURATION_RATE (standaard, het gedrag van vandaag) |
+FIXED_DURATION_WORK | FIXED_WORK | FIXED_RATE, anders `Project.defaultWorkRule`. De pure kern
+`src/engine/work/workTriangle.ts` werkt op de RESTERENDE toestand (werk = restduur × inzet; W en I
+opgeslagen, R afgeleid en naar boven afgerond op hele dagen/minuten); de brug
+`src/engine/work/workRuleApply.ts` (`captureTriangle` vóór de mutatie → `settle…` erna) is op vier
+plekken bedraad: `taskSlice.updateTask`/`setTaskWorkRule`, `resourceSlice.assignResource`/
+`updateAssignment`/`unassignResource`/`moveAssignment`/`removeResource`/`setAssignmentWork`,
+`gridTransaction.ts` en de MCP-tweeling in `createMcpTransactions.ts`. Een duur die uit de driehoek
+komt (inzet/werk/resource erbij-eraf onder FIXED_WORK/FIXED_RATE) zet `scheduleStale` en loopt door
+`settleDurationAftermath` (contour + importsplits herschalen, Z8-venster en bevroren walks wissen),
+precies als een duurbewerking; op een gestarte taak wordt de rest dan expliciet geschreven
+(`remainingTime`/`remainingMinutes`) zodat niets drift. Een voortgangsbewerking is géén duurbewerking
+(de poort is de totale werkduur). Verandert het restwerk van een toewijzing mét contour, dan zakt de
+contourhoogte mee (`reconcileContourWork`, "vorm blijft, hoogte zakt"). Materiaalresources sturen
+de duur nooit. Een **kalenderwissel** (taak-/projectkalender of andere uren per dag in een kalender)
+verandert de slotgrootte en loopt daarna óók door de regel (`applySlotChange`/`settleCalendarChange`:
+Vast werk/Vaste inzet ⇒ duur; Vaste duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek);
+de contour-as herschaalt daarbij van de oude naar de nieuwe werkminuten (ook zonder dagverandering),
+en een project-/kalenderwijziging die duren verandert meldt hoeveel (`notifyWorkRuleDurationsChanged`).
+Zes aanroepers delen `captureCalendarChange` → mutatie → `settleCalendarChange` (store, raster — als
+EIGEN stap vóór de rest van de paste —, MCP-tweeling, projectkalender, kalenderinhoud); de contour-
+hoogte wordt daarin tegen het werkelijke werk per toewijzing verzoend, niet tegen een regelvlag.
+Drie randpaden die de slot óók kunnen wijzigen (`setCalendar`, `resolveDeviation`, de `workTime`-
+verwijdering in de MCP-kalendertool) zijn bewust NIET bedraad — zie `docs/TODO.md`. Een
+duurbewerking op een taak met EXPLICIETE restduur schuift die rest mee met Δ, geklemd op 0
+(`carryRemainingThroughDurationEdit`). Schrijft de brug de rest expliciet — Δ-regel of kalenderwissel
+op een gestarte taak — dan volgt `completion` daaruit als 1 − rest ÷ duur (`syncCompletionToRemaining`,
+dezelfde formule als een restbewerking in het raster; eigenaarsbesluit 2026-09-06), zodat Gantt-balk,
+solver en rapportage één waarheid delen — eigenaarsbesluiten 2026-09-05/06, spec §6.4/§6.5, meetlat
+32–36. Regressie: `tests/planning/check-work-triangle.ts` (kern + meetlat
+`work-triangle-cases.json`), `check-work-rule-mapping.ts` (MSP/P6/XER-vertaling) en
+`check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
+`fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`
+`defaultWorkRule` (`tests/mcp/cases-work-rule.ts`). UI: zichtbaar wanneer de instelling **Toon
+taaktypes** (`ui.showTaskTypes`, `ops-showTaskTypes`, default uit) aan staat óf het document zelf
+taaktypedata draagt (`taskTypesVisible` in `DOCUMENT_FIELDS`, afgeleid bij laden via
+`hasTaskTypeData`, met één melding per document — `taskTypesNotice.ts`); selector `taskTypesUnlocked`
+(`src/engine/work/taskTypesVisibility.ts`). Dan: `TaskWorkRuleField` in paneel en dialoog, de kolom
+**Werk (rest)** met slotjes in `TaskAssignmentsSection`, en de rasterkolommen `task.workRule` en
+`assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
+Gids: `public/docs/{nl,en}/gids-taaktypes.md`; browserspec `tests/browser/work-rule.spec.ts`. `src/services/contourIo.ts` is de adapterlaag:
 MSPDI `<TimephasedData>` (Type 1/2, per werkdag) en P6 `<ResourceCurve>` + `<ResourceCurveObjectId>`
 + de `PlannedCurve`/`RemainingCurve`/`ActualCurve`-spreidingsstrings (`"werkuren:periodeuren;…"`,
 MPXJ `TimephasedHelper`) round-trippen daar doorheen — let op: P6's `<PlannedCurve>` is dus GEEN

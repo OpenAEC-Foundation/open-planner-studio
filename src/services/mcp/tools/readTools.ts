@@ -288,6 +288,7 @@ function getProjectInfo(s: AppState) {
       company: p.company,
       ...(p.statusDate ? { statusDate: p.statusDate } : {}),
       ...(p.progressMode ? { progressMode: p.progressMode } : {}),
+      ...(p.defaultWorkRule ? { defaultWorkRule: p.defaultWorkRule } : {}),
       // Rekenprofielen (plan C9): altijd expliciet, ook een OPS-project; `conventions` is de opgeloste
       // set waarmee de solver rekent, `overrides` de letterlijke afwijkingen van de basis.
       schedulingProfile: {
@@ -501,6 +502,10 @@ function getTask(s: AppState, args: GetTaskArgs) {
       resourceName: resById.get(a.resourceId)?.name ?? null,
       unitsPerDay: a.unitsPerDay,
       curve: a.curve ?? 'UNIFORM',
+      // Taaktypes-etappe (spec §4.3): de drie werkvelden, alleen wanneer gezet (afwezig ⇒ afgeleid).
+      ...(a.plannedWorkMinutes !== undefined ? { plannedWorkMinutes: a.plannedWorkMinutes } : {}),
+      ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
+      ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
     }));
 
   const predecessors = s.sequences
@@ -564,6 +569,8 @@ function getTask(s: AppState, args: GetTaskArgs) {
     ...(task.mspTaskType ? { mspTaskType: task.mspTaskType } : {}),
     ...(task.effortDriven ? { effortDriven: true } : {}),
     ...(task.timephasedContours && task.timephasedContours.length > 0 ? { timephasedContours: task.timephasedContours } : {}),
+    // Taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel, leesbaar zodra gezet.
+    ...(task.workRule ? { workRule: task.workRule } : {}),
     ...(task.p6DurationType !== undefined ? { p6DurationType: task.p6DurationType } : {}),
     ...(task.p6ActivityType !== undefined ? { p6ActivityType: task.p6ActivityType } : {}),
     ...(task.p6ProjectId !== undefined ? { p6ProjectId: task.p6ProjectId } : {}),

@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
-import { BarChart3, Trash2 } from 'lucide-react';
+import { BarChart3, Lock, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
+import { matchContoursToAssignments } from '@/engine/contour/contourEngine';
+import { effectiveWorkRule, remainingMinutesOf, workRuleApplies } from '@/engine/work/workRuleApply';
+import { ruleProtectsWork } from '@/engine/work/workTriangle';
+import { taskTypesUnlocked } from '@/engine/work/taskTypesVisibility';
+import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 
 /** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine
  *  (2026-09): een opgeslagen contour (de dropdown is dan uitgeschakeld — loslaten gaat via het
@@ -16,6 +21,43 @@ import { ContourDialog } from '@/components/dialogs/ContourDialog';
  *  `resourceSlice.updateAssignment`). */
 const CONTOURED = '__contoured';
 const IMPORTED_CURVE = '__importedCurve';
+
+/**
+ * Taaktypes-etappe (review K5): werkinvoer in uren die pas op Enter/blur commit — anders zou elke
+ * toetsaanslag ("6" op weg naar "64") een eigen driehoekstap, undo-stap en contour-/venster-nazorg
+ * afvuren. Ongeldig (≤ 0 of geen getal) ⇒ rode rand, geen commit, terug naar de getoonde waarde.
+ */
+function WorkHoursInput({ value, onCommit, ariaLabel, title, className }: {
+  value: number; onCommit: (hours: number) => void; ariaLabel: string; title: string; className: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(value);
+  const parsed = parseFloat(shown.replace(',', '.'));
+  const invalid = draft !== null && !(Number.isFinite(parsed) && parsed > 0);
+  const commit = () => {
+    if (draft !== null && Number.isFinite(parsed) && parsed > 0 && parsed !== value) onCommit(parsed);
+    setDraft(null);
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); (e.target as HTMLInputElement).blur(); }
+    if (e.key === 'Escape') { setDraft(null); (e.target as HTMLInputElement).blur(); }
+  };
+  return (
+    <input
+      type="number"
+      min="0"
+      step="any"
+      value={shown}
+      title={title}
+      aria-label={ariaLabel}
+      aria-invalid={invalid}
+      className={className}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={onKeyDown}
+    />
+  );
+}
 
 /**
  * Toewijzingen (fase 2.5, §6.3 + fase 2.10 item 4 "verplaats naar…") — sectie 10 uit
@@ -34,6 +76,12 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const updateAssignment = useAppStore(s => s.updateAssignment);
   const unassignResource = useAppStore(s => s.unassignResource);
   const moveAssignment = useAppStore(s => s.moveAssignment);
+  // Taaktypes-etappe (spec §7): kolom "Werk (rest)" + slotjes op de beschermde hoek(en).
+  const setAssignmentWork = useAppStore(s => s.setAssignmentWork);
+  const unlocked = useAppStore(s => taskTypesUnlocked(s));
+  const defaultWorkRule = useAppStore(s => s.project.defaultWorkRule);
+  const calendars = useAppStore(s => s.calendars);
+  const projectCalendar = useAppStore(s => s.calendar);
   const [contourAssignmentId, setContourAssignmentId] = useState<string | null>(null);
 
   const task = tasks.find(t => t.id === taskId);
@@ -43,9 +91,28 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
   // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
   const contouredIds = contouredAssignmentIds(task, taskAssignments);
+  // Taaktypes (#101): de gekoppelde contour zelf, voor het restwerk uit de `remaining`-periodes.
+  const contourOf = matchContoursToAssignments(task.timephasedContours, taskAssignments);
   const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
   const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
+  const rule = effectiveWorkRule(task, defaultWorkRule);
+  const unitsProtected = rule === 'FIXED_DURATION_RATE' || rule === 'FIXED_RATE';
+  const workProtected = ruleProtectsWork(rule);
+  // Review K4: de werkkolom alleen waar de regel werkt (geen hangmat/ELAPSEDTIME — de kern zou stil weigeren).
+  const showWork = unlocked && workRuleApplies(task);
+  const hoursPerDay = taskCalendarHoursPerDay(task, calendars, projectCalendar);
+  /** Resterend werk in uren: opgeslagen, anders de som van de `remaining`-periodes van een contour
+   *  (spec §4.3, review K6b), anders afgeleid als restduur × inzet. */
+  const remainingHoursOf = (assignmentId: string, unitsPerDay: number, stored: number | undefined): number => {
+    const contour = contourOf.get(assignmentId);
+    const contourRemaining = contour
+      ? contour.periods.reduce((sum, p) => sum + (p.kind === 'actual' ? 0 : p.workMinutes), 0)
+      : undefined;
+    const minutes = stored ?? contourRemaining ?? remainingMinutesOf(task, { hoursPerDay }) * unitsPerDay;
+    return Math.round((minutes / 60) * 100) / 100;
+  };
+  const lockTitle = t('properties.assignments.locked', { rule: t(`workRule.${rule}`) });
 
   /** Kandidaat-doeltaken voor "verplaats naar…" (item 4): leaf-taken zonder deze resource, exclusief
    *  de huidige taak zelf. */
@@ -69,6 +136,18 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
           {taskAssignments.length === 0 && (
             <span className="!text-small text-text-secondary">{t('properties.assignments.empty')}</span>
           )}
+          {showWork && taskAssignments.length > 0 && (
+            <div className="flex items-center gap-1 text-caption uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }} data-ops-assignment-header>
+              <span className="flex-1" />
+              <span className="w-14 flex items-center justify-end gap-0.5" title={unitsProtected ? lockTitle : undefined} data-ops-assignment-lock-units={unitsProtected ? 'locked' : 'free'}>
+                {unitsProtected && <Lock size={9} />}{t('properties.assignments.unitsPerDay')}
+              </span>
+              <span className="w-14 flex items-center justify-end gap-0.5" title={workProtected ? lockTitle : t('properties.assignments.workHint')} data-ops-assignment-lock-work={workProtected ? 'locked' : 'free'}>
+                {workProtected && <Lock size={9} />}{t('properties.assignments.work')}
+              </span>
+              <span className="w-24" />
+            </div>
+          )}
           {taskAssignments.map(a => {
             const res = resources.find(r => r.id === a.resourceId);
             const candidates = moveCandidates(a.resourceId);
@@ -82,10 +161,23 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                 <UnitsInput
                   value={a.unitsPerDay}
                   title={t('properties.assignments.unitsPerDay')}
-                  ariaLabel={t('properties.assignments.unitsPerDay')}
+                  ariaLabel={`${t('properties.assignments.unitsPerDay')} — ${res?.name ?? a.resourceId}`}
                   onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
                   className="input !text-small !px-1 !py-0.5 !w-14 text-right"
                 />
+                {showWork && (res?.type === 'MATERIAL' ? (
+                  <span className="w-14 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
+                ) : (
+                  <span data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
+                    <WorkHoursInput
+                      value={remainingHoursOf(a.id, a.unitsPerDay, a.remainingWorkMinutes)}
+                      title={t('properties.assignments.workHint')}
+                      ariaLabel={`${t('properties.assignments.work')} — ${res?.name ?? a.resourceId}`}
+                      onCommit={hours => setAssignmentWork(a.id, Math.round(hours * 60))}
+                      className="input !text-small !px-1 !py-0.5 !w-14 text-right"
+                    />
+                  </span>
+                ))}
                 <select
                   value={curveValue}
                   disabled={contoured}

@@ -171,6 +171,7 @@ export function toExtProject(p: Project): ExtProject {
     statusDate: p.statusDate,
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
+    defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
     // Rekenprofielen C8 (contract 1.2.0): het opgeloste profiel, alleen-lezen.
     schedulingProfile: {
@@ -198,6 +199,7 @@ export function fromExtProject(p: ExtProject): Project {
     statusDate: p.statusDate,
     progressMode: p.progressMode,
     defaultTaskDurationUnit: p.defaultTaskDurationUnit,
+    defaultWorkRule: p.defaultWorkRule,
     schedulingOptions: p.schedulingOptions ? publicSchedulingOptions(p.schedulingOptions) : undefined,
     // Bewust géén `schedulingProfile`: een extensie-import rekent als OPS (spec v3.1 §7).
   };
@@ -351,6 +353,7 @@ export function toExtTask(t: Task, customTaskType?: { id: string; name: string }
     // create-/update-paden (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts` REJECT_HINTS).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    workRule: t.workRule,
     // X0/X12: P6/XER-herkomst is READ-ONLY voor extensies. `toExtTask` toont de bronvelden voor
     // analyse; `fromExtTask` hieronder accepteert ze bewust niet als generieke invoer.
     p6DurationType: t.p6DurationType,
@@ -408,6 +411,7 @@ export function fromExtTask(t: ExtTask): Task {
     // (`fromExtTaskInput`, extensie-API) blijven hier bewust buiten (leeskant-alleen-besluit F5).
     mspTaskType: t.mspTaskType,
     effortDriven: t.effortDriven,
+    workRule: t.workRule,
     // X12-herreview: de zeven P6/XER-velden zijn bronprovenance, geen publieke generieke invoer.
     // De native XER-reader en het IFC-round-trippad materialiseren ze rechtstreeks op `Task`;
     // een ongetypeerde extensiepayload mag via deze mapper geen P6-solverroute activeren.
@@ -713,6 +717,9 @@ export function toExtAssignment(a: ResourceAssignment): ExtAssignment {
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
     curveValues: a.curveValues ? [...a.curveValues] : undefined,
+    plannedWorkMinutes: a.plannedWorkMinutes,
+    actualWorkMinutes: a.actualWorkMinutes,
+    remainingWorkMinutes: a.remainingWorkMinutes,
   };
 }
 
@@ -726,6 +733,9 @@ export function fromExtAssignment(a: ExtAssignment): ResourceAssignment {
     workWindowStart: a.workWindowStart,
     workWindowFinish: a.workWindowFinish,
     curveValues: a.curveValues ? [...a.curveValues] : undefined,
+    plannedWorkMinutes: a.plannedWorkMinutes,
+    actualWorkMinutes: a.actualWorkMinutes,
+    remainingWorkMinutes: a.remainingWorkMinutes,
   };
 }
 

@@ -175,6 +175,9 @@ export interface TaskTimephasedContour {
  */
 export type MspTaskType = 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
 
+/** Taaktypes-etappe (ontwerp 2026-09-04 §4.1): de neutrale werkregel, zie `@/types/workRule`. */
+export type { WorkRule } from '@/types/workRule';
+
 /**
  * P6's eigen "Duration Type" (XER `TASK.duration_type` — Primavera "Duration Type" op de
  * activiteit: stuurt hoe P6 zelf duur/eenheden/snelheid aan elkaar koppelt bij een bewerking).
@@ -499,6 +502,14 @@ export interface Task {
    *  Afwezig/false ⇒ byte-identiek. Round-tript via `OPS_MspTaskType` (`ifcPsets.ts`, zelfde pset
    *  als `mspTaskType` — het is hetzelfde MSP-taaktypeconcept-paar). */
   effortDriven?: boolean;
+  /** OPTIONEEL — de WERKREGEL van deze taak (taaktypes-etappe, ontwerp 2026-09-04 §4.1): welke
+   *  hoeken van werk = duur × inzet beschermd zijn bij een bewerking (`WorkRule`, neutraal tussen
+   *  MSP en P6). Afwezig ⇒ `Project.defaultWorkRule`, en als die ook ontbreekt FIXED_DURATION_RATE
+   *  (het gedrag van vandaag, byte-identiek). Bij import AFGELEID uit `mspTaskType`+`effortDriven`
+   *  resp. het P6-duurtype (spec §4.2) en apart bewaard, zodat een latere typewissel de herkomst
+   *  niet vernietigt. Geen enkele solverstap leest dit; alleen de bewerkingslaag
+   *  (`src/engine/work/workTriangle.ts`). Round-tript via `OPS_WorkRule` (`ifcPsets.ts`). */
+  workRule?: import('@/types/workRule').WorkRule;
   /** OPTIONEEL — P6's eigen Duration Type bij .xer-import (zie `P6DurationType`). VELD-ALS-SIGNAAL,
    *  eigen opgeslagen veld NAAST `mspTaskType` — géén hergebruik: de twee bronformaten kennen elk
    *  hun eigen taaktypeconcept met een andere waardenverzameling en een andere reken-relatie (MSP:

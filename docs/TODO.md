@@ -385,6 +385,77 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Bewerken-meetlat tegen MS Project.** De herschalingsregel (proportioneel, actuals blijven,
       FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
       gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
+
+### Taaktypes / opgeslagen werk — in aanbouw (spec 2026-09-04, bouw 2026-09-05)
+
+> Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
+> spec van 2026-08-18). Bouwt op de branch `claude/contour-engine-planner-mnrsy3` (PR #101), die
+> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–7 staan erin; 8 (afronding docs)
+> volgt — zie spec §10 voor de stand per stap. De gids `gids-taaktypes` bestaat in nl+en; de
+> twaalf vertalingen volgen in de maandelijkse ronde.
+> Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
+
+- [x] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` — besloten
+      2026-09-05:** de rest schuift mee met Δ, geklemd op 0; `completion` volgt daaruit (besluit
+      2026-09-06, optie a — `syncCompletionToRemaining`; `carryRemainingThroughDurationEdit`,
+      store/raster/MCP). Bron: Microsoft [M5].
+- [x] **Kalenderwissel op een taak met vastgelegd werk (K2) — besloten 2026-09-05:** een kalenderwissel
+      verandert de slotgrootte en daarna beslist de werkregel (Vast werk/Vaste inzet ⇒ duur; Vaste
+      duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek). Gebouwd (spec §6.4, meetlat
+      32–34, `settleCalendarChange`); melding bij een project-/kalenderwijziging die duren verandert.
+- [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
+      en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen
+      op een taak met ingevoerde resterende duur" en noteert de uren.
+- [ ] **K2 niet bedraad op drie randpaden (review G9, 2026-09-05):** `projectSlice.setCalendar`
+      (vervangt de hele projectkalender; geen UI-aanroeper meer, wel API-oppervlak),
+      `librarySlice.resolveDeviation(ref, 'company')` (neemt poolwaarden incl. `hoursPerDay` over) en
+      de `workTime`-verwijdering ná `draft.updateCalendar` in `calendarResourceTools.ts` wijzigen de
+      slot buiten `settleCalendarChange` om. Bedraden zodra een van die paden weer een UI-ingang
+      krijgt; tot dan volgt de werkregel daar niet. Daarnaast (G10): `updateCalendar`/
+      `setProjectCalendar` wissen het Z8-venster alleen wanneer de regel de duur wijzigt, terwijl
+      `setTaskCalendar` dat bij elke kalenderwissel doet — zelfde trigger, ander gedrag.
+- [x] **`completion` ↔ expliciete rest (review F4) — besloten 2026-09-06, optie a:** zodra de brug de
+      rest expliciet schrijft (Δ-regel én kalenderwissel) wordt `completion` herrekend als
+      1 − rest ÷ duur, dezelfde formule als een restbewerking in het raster; Gantt-balk, solver en
+      rapportage delen daarmee één waarheid (spec §6.5, laatste punt; `syncCompletionToRemaining`).
+- [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
+      `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
+      waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.
+      Bewust gelaten: herstel is dezelfde gebruiker in (meestal) dezelfde sessie. Meenemen zodra
+      `restoreDocuments` andere laadmeldingen krijgt.
+- [ ] **Werkinvoer ≤ 0 in het paneel weigert stil** (review K6a): rode rand via `aria-invalid`, geen
+      melding — zelfde conventie als de inzetinvoer (`isValidUnits`).
+- [ ] **B1c-koppelpunt (`origin/t3code/b1c-etappe3`, gezien 2026-09-05):** die branch wist bij elke
+      as-verzettende bewerking de nivelleergaten (`clearLevelingGaps`, B1c-plan3 taak 3). Een duur die
+      uit de werkdriehoek komt (`afterTriangleDurationChange` in `resourceSlice.ts`/
+      `createMcpTransactions.ts`, en het assignment-set-pad in `gridTransaction.ts` — sinds de
+      reviewronde één plek: `workRuleApply.ts`'s `settleDurationAftermath`) hoort dat ná de merge
+      óók te doen — één regel toe te voegen op de kant die als tweede merget. Geen inhoudelijke overlap
+      verder: B1c raakt inzet noch werk (besluit 7 blijft).
+
+- [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
+      het menu, bewaard `effortDriven` stuurt alleen de twee MSP-afwijkende cellen); 9 = drie optionele
+      werkvelden per toewijzing; 10 = de vereenvoudiging "elke toewijzing loopt over de hele restduur"
+      is voor deze etappe geaccepteerd — zie het vervolgpunt hieronder.
+- [ ] **Per-toewijzing-spanne (vervolg op beslispunt 10).** MS Project en P6 laten de ene resource op
+      een taak eerder klaar zijn dan de andere; OPS laat elke toewijzing over de hele restduur lopen
+      (spec §6.2: verhoog je op een vast-werk-taak de inzet van één resource, dan wordt de taak korter
+      en gaat de ándere resource dunner over die kortere duur in plaats van eerder klaar te zijn).
+      `ResourceAssignment.workWindowStart/Finish` bestaat al, round-tript door IFC
+      (`OPS_TimephasedWindow`) en het extensiecontract, maar geen lezer vult het en geen solverstap
+      leest het. Activeren raakt `assignmentDayUnits` (histogram/nivelleerder/bezetting), de
+      renderer (balk per toewijzing?) en de MSPDI-/P6-exports (per-assignment start/finish).
+- [ ] **MSP-meetlat: 36 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
+      tot dan draagt elke case `evidence: 'documented' | 'reasoned' | 'decided'` in `work-triangle-cases.json`.
+- [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt
+      hoe vaak beslispunt 8 in de praktijk speelt. Het corpus is niet in de repo.
+- [ ] **Nivelleerder-optie "inzet verlagen bij vast werk"** (eigenaarsbesluit 7-B, 2026-09-04) als
+      geavanceerde optie naast het verschuiven; de verdeler raakt nu nooit inzet of werk.
+- [ ] **% werk gereed** (MSP % Work Complete) naast de duurgebaseerde `completion`.
+- [ ] **Projectstandaard-werkregel in de UI** (projectwizard/projectinfo); het veld bestaat sinds
+      bouwstap 1 en is via `planner_update_project` (`defaultWorkRule`) zetbaar; de gids noemt dat.
+- [ ] **P6-optie "preserve existing assignments"** bij resource erbij: OPS volgt altijd de
+      synchronisatietabel ("recalculate"); de preserve-variant is een instelling voor later.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.

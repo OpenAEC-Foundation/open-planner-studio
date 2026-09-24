@@ -19,6 +19,7 @@ import { TaskProgressFields } from '@/components/task-sections/TaskProgressField
 import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
 import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
+import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
@@ -45,6 +46,7 @@ export function TaskDialog() {
   const setUI = useAppStore(s => s.setUI);
   const addTask = useAppStore(s => s.addTask);
   const updateTask = useAppStore(s => s.updateTask);
+  const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const moveTask = useAppStore(s => s.moveTask);
   const project = useAppStore(s => s.project);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
@@ -69,6 +71,7 @@ export function TaskDialog() {
   // store) i.p.v. `draft.time`, zodat een eventuele CPM-herberekening tijdens het open staan van de
   // dialoog niet wordt teruggedraaid door een verouderde draft-snapshot.
   const [startDate, setStartDate] = useState('');
+  const initialDurationRef = useRef<{ unit: 'days' | 'hours'; scheduleDuration: number; durationMinutes?: number } | null>(null);
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +96,9 @@ export function TaskDialog() {
 
     if (editingTask) {
       setDraft({ ...editingTask, time: { ...editingTask.time } });
+      initialDurationRef.current = {
+        unit: editingTask.time.durationUnit, scheduleDuration: editingTask.time.scheduleDuration, durationMinutes: editingTask.time.durationMinutes,
+      };
       // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
       setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
     } else {
@@ -127,11 +133,21 @@ export function TaskDialog() {
       // teruggedraaid. Voortgangs-velden (completion/actualStart/actualFinish) komen WEL uit de
       // draft — dat zijn de enige `time`-subvelden die deze dialoog-sessie zelf muteert buiten de
       // hieronder-berekende schedule-ankervelden.
+      // Review B4 (taaktypes): de duur ALLEEN uit de draft wanneer de gebruiker hem in deze sessie
+      // wijzigde — anders zou Opslaan een duur die de werkdriehoek intussen via de toewijzingssectie
+      // veranderde stil terugdraaien.
+      const initial = initialDurationRef.current;
+      const durationTouched = !initial
+        || draft.time.durationUnit !== initial.unit
+        || draft.time.scheduleDuration !== initial.scheduleDuration
+        || draft.time.durationMinutes !== initial.durationMinutes;
       const time = {
         ...editingTask.time,
-        durationUnit: draft.time.durationUnit,
-        scheduleDuration: draft.time.scheduleDuration,
-        durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+        ...(durationTouched ? {
+          durationUnit: draft.time.durationUnit,
+          scheduleDuration: draft.time.scheduleDuration,
+          durationMinutes: draft.time.durationUnit === 'hours' ? draft.time.durationMinutes : undefined,
+        } : {}),
         completion: draft.time.completion,
         actualStart: draft.time.actualStart,
         actualFinish: draft.time.actualFinish,
@@ -178,6 +194,7 @@ export function TaskDialog() {
         wbsCode: draft.wbsCode,
         taskType: draft.taskType,
         customTaskTypeId: draft.customTaskTypeId,
+        workRule: draft.workRule,
         isMilestone: draft.isMilestone,
         parentId: draft.parentId || null,
         calendarId: draft.calendarId,
@@ -296,6 +313,18 @@ export function TaskDialog() {
               <TaskDurationField task={draft} calendar={effCal} onChange={onChange} />
             </Field>
           </div>
+          {/* Taaktypes-etappe (spec §7): zelfde veld als het paneel; commit op Opslaan via `workRule`
+              in de updateTask-/addTask-patch (de store legt het werk vast, K1). */}
+          <TaskWorkRuleField
+            task={draft}
+            onChange={patch => {
+              // Review B4: op een bestaande taak direct committen (zoals de toewijzingssectie, die óók
+              // rechtstreeks op de store werkt) zodat werk/inzet in dezelfde dialoog met de gekozen
+              // regel rekenen; de draft spiegelt. Een nieuwe taak houdt 'm in de draft tot Opslaan.
+              onChange(patch);
+              if (editingTask) setTaskWorkRule(editingTask.id, patch.workRule);
+            }}
+          />
 
           <TaskHammockFields task={draft} onChange={onChange} />
 

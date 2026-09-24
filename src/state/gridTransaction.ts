@@ -20,6 +20,11 @@ import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markScheduleStale } from './transaction';
+import {
+  captureCalendarChange, captureTriangle, contourKeepsWork, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
+  settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
+} from '@/engine/work/workRuleApply';
+import { taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import {
   applyRelationMutationPlan,
@@ -132,6 +137,9 @@ function buildGridColumnRuntime(state: Readonly<AppState>): GridColumnRuntime {
     resourcesById: new Map(state.resources.map(resource => [resource.id, resource])),
     baselinesById: new Map(state.baselines.map(baseline => [baseline.id, baseline])),
     scheduleStale: state.scheduleStale,
+    // Taaktypes-etappe (spec §7): dezelfde ontsluiting als `FullTaskGrid` — anders weigert de
+    // gridtransactie een Werkregel-cel die de kolomkiezer wél toont.
+    taskTypesUnlocked: state.ui.showTaskTypes || state.taskTypesVisible,
     wbsAutoNumber: state.project.wbsAutoNumber === true,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(
       task, state.calendar, state.calendars,
@@ -322,7 +330,8 @@ function applyAssignmentSet(
   const columnId = String(intent.columnId);
   if (columnId !== 'assignment.resources'
     && columnId !== 'assignment.unitsPerDay'
-    && columnId !== 'assignment.curve') {
+    && columnId !== 'assignment.curve'
+    && columnId !== 'assignment.remainingWork') {
     return { ok: false, errors: [validationError('plannerNotAvailable', intent, intent.tokens)] };
   }
   let tokens = intent.tokens;
@@ -356,12 +365,65 @@ function applyAssignmentSet(
     resourcesById,
   });
   if (!planned.ok) return planned;
-  return {
-    ok: true,
-    value: applyTaskAssignmentPlan(
-      state, planned.value, () => generateId('asgn'), applyIndexes,
-    ),
-  };
+  // Taaktypes-etappe (2026-09, bouwstap 4): momentopname van de werkdriehoek VÓÓR het plan; ná het
+  // plan volgen inzet/werk/restduur de regel van de taak (spec §5 rijen 2/4/5), in één terugschrijf.
+  const task = tasksById.get(intent.taskId);
+  const triangle = task ? captureTriangle(task, assignmentsForTask, state) : null;
+  const oldWorkMinutes = task ? taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, state.calendars, state.calendar)) : 0;
+  // `applyTaskAssignmentPlan` muteert de draftobjecten in-place; de oude inzet dus vóóraf vastleggen.
+  const unitsBefore = new Map(assignmentsForTask.map(a => [a.id, a.unitsPerDay] as const));
+  const applied = applyTaskAssignmentPlan(
+    state, planned.value, () => generateId('asgn'), applyIndexes,
+  );
+  let lostTaskIds = applied.timephasedGuidanceLostTaskIds;
+  if (task && triangle) {
+    const ops: AssignmentSettleOp[] = [];
+    for (const op of planned.value.operations) {
+      if (op.kind === 'remove') ops.push({ kind: 'remove', assignmentId: op.assignmentId });
+      else if (op.kind === 'update') {
+        const before = unitsBefore.get(op.assignmentId);
+        if (before !== undefined && before !== op.unitsPerDay) ops.push({ kind: 'update', assignmentId: op.assignmentId, unitsPerDay: op.unitsPerDay });
+      } else {
+        const added = (applyIndexes.assignmentsByTaskId.get(op.taskId) ?? []).find(a => a.resourceId === op.resourceId);
+        if (added) ops.push({ kind: 'add', assignmentId: added.id, unitsPerDay: added.unitsPerDay, resourceId: added.resourceId });
+      }
+    }
+    const settled = settleAssignmentPlan(task, state.assignments, triangle, ops);
+    let durationChanged = settled.durationChanged;
+    // Taaktypes-etappe (spec §7): de kolom "Resterend werk" — per toewijzing één werkbewerking door
+    // de driehoek (`settleWorkEdit`), ná het (hier lege) plan.
+    if (columnId === 'assignment.remainingWork') {
+      const byId = new Map(assignmentsForTask.map(a => [a.id, a] as const));
+      const byResource = new Map(assignmentsForTask.map(a => [a.resourceId, a] as const));
+      // Review B2: vergelijk met wat de cel TOONDE (opgeslagen, anders afgeleid als restduur × inzet)
+      // — een niet-bewerkte toewijzing mag haar afgeleide getal niet als expliciet werk krijgen.
+      const shownRemaining = remainingMinutesOf(task, { hoursPerDay: taskCalendarHoursPerDay(task, state.calendars, state.calendar) });
+      for (const token of intent.tokens) {
+        const current = (token.assignmentId ? byId.get(token.assignmentId) : undefined) ?? byResource.get(token.resourceId);
+        const w = token.remainingWorkMinutes;
+        if (!current || typeof w !== 'number' || !Number.isFinite(w) || w <= 0) continue;
+        const shown = current.remainingWorkMinutes ?? shownRemaining * current.unitsPerDay;
+        if (Math.abs(shown - w) < 1) continue;
+        const live = state.assignments.find(a => a.id === current.id);
+        if (!live) continue;
+        const result = settleWorkEdit(task, state.assignments, state, live.id, w);
+        if (result?.durationChanged) durationChanged = true;
+        if (result) state.taskTypesVisible = true;
+      }
+    }
+    if (durationChanged) {
+      // Zelfde nazorg als een duurbewerking (`settleDurationAftermath`: contour, importsplits, Z8-
+      // venster én bevroren duur-walks — reviewbevinding K5).
+      const lost = settleDurationAftermath(task, state, oldWorkMinutes);
+      if (lost && !lostTaskIds.includes(task.id)) lostTaskIds = [...lostTaskIds, task.id];
+      if (state.datesAsRecorded) {
+        state.datesAsRecorded = false;
+        state.recordedDates = null;
+      }
+      markScheduleStale(state);
+    }
+  }
+  return { ok: true, value: { timephasedGuidanceLostTaskIds: lostTaskIds } };
 }
 
 function applyRelationSet(
@@ -433,6 +495,10 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
+    // Taaktypes-etappe (#101, integratie op #169): werkbehoud bij de contourherschaling volgt de
+    // effectieve werkregel. Hier in de gedeelde bouwer, zodat óók de voortgangsimport (#27) en de
+    // store-`planTaskCellEdits`-paden hem krijgen — niet alleen de rastercelbewerking.
+    contourKeepsWork: contourKeepsWork(task, state.project.defaultWorkRule),
   };
 }
 
@@ -450,6 +516,9 @@ function applyCellEdits(
   // clipboard.ts en `pasteIntentPresent` in prepareGridMutation hieronder). Een enkele celedit of
   // Delete/Backspace (via `planTaskGridClear`) behoudt de bestaande harde weigering.
   skipReadOnlyCells: boolean,
+  // Taaktypes-etappe (2026-09): de toewijzingen van deze taak (uit de callerindex, O(1)), voor de
+  // werkdriehoek bij een duurbewerking.
+  assignmentsForTask: readonly AppState['assignments'][number][] = [],
 ): GridResult<{ timephasedGuidanceLost: boolean; skippedReadOnlyCount: number }, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
@@ -633,21 +702,63 @@ function applyCellEdits(
     ? validatedEdits.filter(edit => !skippedConditionalEdits.has(edit))
     : validatedEdits;
 
-  const planned = planTaskCellEdits(task, finalEdits, environment);
+  // K2 (eigenaarsbesluit 2026-09-05, reviewbevinding F1): een kalenderwissel in de cel is een EIGEN
+  // stap vóór de rest van de paste — zelfde volgorde als `taskSlice.updateTask`. De slotgrootte
+  // verandert en de werkregel beslist wat meebeweegt (`settleCalendarChange`); een duur in dezelfde
+  // paste wordt daarná gepland, tegen een verse momentopname in de nieuwe slot. (Het environment is
+  // al met de geplakte kalender gebouwd, dus het duurplan rekent in de juiste slot.) Een `else` tussen
+  // de twee stappen gooide de geplakte duur weg.
+  let changed = false;
+  let timephasedGuidanceLost = false;
+  let scheduleStale = false;
+  const calendarEdits = finalEdits.filter(edit => String(edit.columnId) === 'task.calendarId');
+  if (calendarEdits.length > 0) {
+    const before = captureCalendarChange(task, assignmentsForTask, state);
+    const plannedCalendar = planTaskCellEdits(task, calendarEdits, environment);
+    if (!plannedCalendar.ok) return plannedCalendar;
+    if (plannedCalendar.value.changed) {
+      changed = true;
+      timephasedGuidanceLost ||= plannedCalendar.value.timephasedGuidanceLost;
+      scheduleStale ||= plannedCalendar.value.scheduleStale;
+      state.tasks[taskIndex] = plannedCalendar.value.task;
+      timephasedGuidanceLost ||= settleCalendarChange(state.tasks[taskIndex], state.assignments, before, state).timephasedLost;
+    }
+  }
+  const remainingEdits = calendarEdits.length > 0 ? finalEdits.filter(edit => !calendarEdits.includes(edit)) : finalEdits;
+  // Taaktypes-etappe (spec §5 rij 1): momentopname VÓÓR het plan; een gewijzigde duur laat de
+  // toewijzingen daarna hun regel volgen (`settleDurationEdit`) — onder de standaardregel zonder
+  // werkvelden verandert er niets.
+  // `assignmentsForTask` blijft ná de kalenderstap geldig: die muteert velden op dezelfde draft-
+  // objecten en voegt niets toe of weg (reviewronde G3: een `state.assignments.filter` hier was de
+  // O(taken × toewijzingen)-kost die de bulk-plak-meting hierboven juist wegnam).
+  const current = state.tasks[taskIndex];
+  const triangle = captureTriangle(current, assignmentsForTask, state);
+  const workRuleBefore = current.workRule;
+  const planned = planTaskCellEdits(current, remainingEdits, environment);
   if (!planned.ok) return planned;
   if (planned.value.changed) {
+    changed = true;
+    timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
+    scheduleStale ||= planned.value.scheduleStale;
     state.tasks[taskIndex] = planned.value.task;
-    if (planned.value.scheduleStale) {
-      if (state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      markScheduleStale(state);
+    settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
+    // Taaktypes-etappe (spec §7, besluit 2): een typewissel in het raster legt — net als
+    // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
+    if (state.tasks[taskIndex].workRule !== workRuleBefore) {
+      settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule);
+      state.taskTypesVisible = true;
     }
+  }
+  if (changed && scheduleStale) {
+    if (state.datesAsRecorded) {
+      state.datesAsRecorded = false;
+      state.recordedDates = null;
+    }
+    markScheduleStale(state);
   }
   return {
     ok: true,
-    value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost, skippedReadOnlyCount },
+    value: { timephasedGuidanceLost, skippedReadOnlyCount },
   };
 }
 
@@ -717,7 +828,10 @@ export function prepareGridMutation(
         if (appliedCellTaskIds.has(write.taskId)) continue;
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
-        const applied = applyCellEdits(draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells);
+        const applied = applyCellEdits(
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells,
+          draftAssignmentsByTaskId.get(write.taskId) ?? [],
+        );
         if (!applied.ok) errors.push(...applied.errors);
         else {
           const currentTaskIndex = draftTaskIndexById.get(write.taskId);
