@@ -353,6 +353,30 @@ function applyStatus(task: Task, status: TaskStatus, statusDate: string | undefi
   applyProgressInvariants(task, statusDate);
 }
 
+/** Voortgang die een ingevoerde actuele (`remaining` onwaar) of resterende duur in minuten
+ *  impliceert, op de as van de taak: minuten in uurmodus, werkdagen anders. Zonder duur (of met een
+ *  onbruikbaar totaal) telt de taak als voltooid. */
+function completionFromDuration(
+  task: Task,
+  minutes: number,
+  remaining: boolean,
+  environment: TaskEditPlanEnvironment,
+): number {
+  const hoursPerDay = environment.effectiveHoursPerDay;
+  const total = environment.hourMode
+    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
+    : task.time.scheduleDuration;
+  if (!(total > 0)) return 1;
+  const own = (environment.hourMode ? minutes : minutes / (hoursPerDay * 60)) / total;
+  return Math.max(0, Math.min(1, remaining ? 1 - own : own));
+}
+
+/** Een ingevoerde resterende duur (minuten, of gewist) in dagen; `remainingMinutes` alleen in uurmodus. */
+function writeRemaining(task: Task, minutes: number | undefined, environment: TaskEditPlanEnvironment): void {
+  task.time.remainingTime = minutes === undefined ? undefined : minutes / (environment.effectiveHoursPerDay * 60);
+  task.time.remainingMinutes = environment.hourMode && minutes !== undefined ? minutes : undefined;
+}
+
 function applyProgressEdit(
   task: Task,
   edit: CellEditIntent,
@@ -394,38 +418,22 @@ function applyProgressEdit(
     }
     const hoursPerDay = environment.effectiveHoursPerDay;
     if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return failure('calendarHours', edit);
+    const remaining = id === 'task.time.remainingTime';
     if (edit.value === undefined) {
-      if (id === 'task.time.actualDuration') task.time.actualDuration = undefined;
-      else {
-        task.time.remainingTime = undefined;
-        task.time.remainingMinutes = undefined;
-      }
+      if (remaining) writeRemaining(task, undefined, environment);
+      else task.time.actualDuration = undefined;
       applyProgressInvariants(task, environment.statusDate);
       return { ok: true, value: undefined };
     }
-    const days = edit.value / (hoursPerDay * 60);
-    const total = environment.hourMode
-      ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
-      : task.time.scheduleDuration;
-    const ownValue = environment.hourMode ? edit.value : days;
-    if (id === 'task.time.actualDuration') {
-      task.time.actualDuration = days;
-      task.time.completion = total > 0 ? Math.max(0, Math.min(1, ownValue / total)) : 1;
-    } else {
-      task.time.remainingTime = days;
-      if (environment.hourMode) task.time.remainingMinutes = edit.value;
-      else task.time.remainingMinutes = undefined;
-      task.time.completion = total > 0 ? Math.max(0, Math.min(1, 1 - ownValue / total)) : 1;
-    }
+    if (remaining) writeRemaining(task, edit.value, environment);
+    else task.time.actualDuration = edit.value / (hoursPerDay * 60);
+    task.time.completion = completionFromDuration(task, edit.value, remaining, environment);
     if (task.time.completion > 0 && !task.time.actualStart) {
       task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
     }
     if (task.time.completion < 1) task.time.actualFinish = undefined;
     applyProgressInvariants(task, environment.statusDate);
-    if (id === 'task.time.remainingTime') {
-      task.time.remainingTime = days;
-      if (environment.hourMode) task.time.remainingMinutes = edit.value;
-    }
+    if (remaining) writeRemaining(task, edit.value, environment);
   } else {
     return failure('plannerNotAvailable', edit);
   }
@@ -531,20 +539,13 @@ function applyProgressEdits(
     return failure('calendarHours', actualDurationEdit ?? remainingEdit ?? first);
   }
 
-  const hoursPerDay = environment.effectiveHoursPerDay;
-  const total = environment.hourMode
-    ? task.time.durationMinutes ?? task.time.scheduleDuration * hoursPerDay * 60
-    : task.time.scheduleDuration;
-  const toDays = (value: number): number => value / (hoursPerDay * 60);
   let desiredCompletion = completionEdit ? completionEdit.value as number : undefined;
   const derivedCompletions: number[] = [];
   if (actualDurationEdit?.value !== undefined) {
-    const own = environment.hourMode ? actualDurationEdit.value as number : toDays(actualDurationEdit.value as number);
-    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, own / total)) : 1);
+    derivedCompletions.push(completionFromDuration(task, actualDurationEdit.value as number, false, environment));
   }
   if (remainingEdit?.value !== undefined) {
-    const own = environment.hourMode ? remainingEdit.value as number : toDays(remainingEdit.value as number);
-    derivedCompletions.push(total > 0 ? Math.max(0, Math.min(1, 1 - own / total)) : 1);
+    derivedCompletions.push(completionFromDuration(task, remainingEdit.value as number, true, environment));
   }
   if (derivedCompletions.some(value => Math.abs(value - derivedCompletions[0]!) > 1e-9)
     || (desiredCompletion !== undefined
@@ -603,16 +604,9 @@ function applyProgressEdits(
   if (actualDurationEdit) {
     task.time.actualDuration = actualDurationEdit.value === undefined
       ? undefined
-      : toDays(actualDurationEdit.value as number);
+      : (actualDurationEdit.value as number) / (environment.effectiveHoursPerDay * 60);
   }
-  if (remainingEdit) {
-    task.time.remainingTime = remainingEdit.value === undefined
-      ? undefined
-      : toDays(remainingEdit.value as number);
-    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
-      ? remainingEdit.value as number
-      : undefined;
-  }
+  if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (actualStartEdit) task.time.actualStart = desiredActualStart;
   if (actualFinishEdit) task.time.actualFinish = desiredActualFinish;
   if (desiredCompletion !== undefined) {
@@ -630,14 +624,7 @@ function applyProgressEdits(
     task.time.actualStart ||= task.time.earlyStart || task.time.scheduleStart;
   }
   applyProgressInvariants(task, environment.statusDate);
-  if (remainingEdit) {
-    task.time.remainingTime = remainingEdit.value === undefined
-      ? undefined
-      : toDays(remainingEdit.value as number);
-    task.time.remainingMinutes = environment.hourMode && remainingEdit.value !== undefined
-      ? remainingEdit.value as number
-      : undefined;
-  }
+  if (remainingEdit) writeRemaining(task, remainingEdit.value as number | undefined, environment);
   if (desiredStatus !== undefined && task.status !== desiredStatus) {
     return failure('conflictingProgressInputs', statusEdit!);
   }
