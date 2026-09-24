@@ -16,7 +16,7 @@
 //      waarschuwt op h4+, tabellen, blockquotes, horizontale lijnen, genest/ingesprongen
 //      lijst-items, voetnoten, reference-style links, raw HTML-tags (buiten inline-code) en
 //      linkschema's anders dan docs:///examples://.
-//   7/8. Machinaal controleerbare beweringen in CLAUDE.md/AGENTS.md/README.md/CONTRIBUTING.md.
+//   7/8. Machinaal controleerbare beweringen in CLAUDE.md (+ .claude/rules/)/AGENTS.md/README.md/CONTRIBUTING.md.
 //   9. De agent-skill `goed-plannen` staat byte-identiek in `public/skills/` (bron, uitgeleverd)
 //      en `.claude/skills/` (waar Claude Code hem leest) — geen symlink, want Windows-CI.
 //   6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, NL≉EN
@@ -192,6 +192,20 @@ function checkTranslationDrift(id: string, lang: string, translated: string, enS
   }
 }
 
+/** De padgebonden Claude-rules (`.claude/rules/*.md`): de diepgang die uit CLAUDE.md is verhuisd
+ *  zodat CLAUDE.md zelf klein blijft. Ze hoeven de "moet genoemd worden"-beweringen van Poort 7 niet
+ *  te herhalen, maar wát ze beweren mag niet wegdrijven — daarom lezen 7c (dode `npm run`), 7e (het
+ *  toolaantal) en 8d (`localhost:3007`) ze mee. */
+function readClaudeRules(): Record<string, string> {
+  const dir = join(ROOT, '.claude', 'rules');
+  const out: Record<string, string> = {};
+  if (!existsSync(dir)) return out;
+  for (const file of readdirSync(dir)) {
+    if (file.endsWith('.md')) out[`.claude/rules/${file}`] = readFileSync(join(dir, file), 'utf8');
+  }
+  return out;
+}
+
 /**
  * Poort 7 — machinaal controleerbare beweringen in CLAUDE.md.
  *
@@ -253,10 +267,13 @@ function checkAgentDocs(diffs: string[]): void {
   if (undocumented.length) {
     diffs.push(`package.json-scripts die CLAUDE.md niet noemt: ${undocumented.join(', ')}`);
   }
-  const referenced = [...claude.matchAll(/npm run ([a-z][\w:-]*)/g)].map((m) => m[1]);
-  const dangling = [...new Set(referenced)].filter((s) => !(s in pkg.scripts));
-  if (dangling.length) {
-    diffs.push(`CLAUDE.md verwijst naar npm-scripts die niet bestaan: ${dangling.join(', ')}`);
+  const rules = readClaudeRules();
+  for (const [name, text] of Object.entries({ 'CLAUDE.md': claude, ...rules })) {
+    const referenced = [...text.matchAll(/npm run ([a-z][\w:-]*)/g)].map((m) => m[1]);
+    const dangling = [...new Set(referenced)].filter((s) => !(s in pkg.scripts));
+    if (dangling.length) {
+      diffs.push(`${name} verwijst naar npm-scripts die niet bestaan: ${dangling.join(', ')}`);
+    }
   }
 
   // 7d. De locale-lijst. CLAUDE.md somt de talen op in één backtick-span; die span wordt hier
@@ -307,6 +324,12 @@ function checkAgentDocs(diffs: string[]): void {
     diffs.push('CLAUDE.md-check: geen "De N `planner_*`-tools"-bewering gevonden (is de zin herschreven?)');
   } else if (Number(claimed[1]) !== toolNames.size) {
     diffs.push(`CLAUDE.md zegt ${claimed[1]} \`planner_*\`-tools, maar src/services/mcp/tools/ definieert er ${toolNames.size}`);
+  }
+  for (const [name, text] of Object.entries(rules)) {
+    const ruleClaim = text.match(/De (\d+)\s*\n?`planner_\*`-tools/);
+    if (ruleClaim && Number(ruleClaim[1]) !== toolNames.size) {
+      diffs.push(`${name} zegt ${ruleClaim[1]} \`planner_*\`-tools, maar src/services/mcp/tools/ definieert er ${toolNames.size}`);
+    }
   }
 }
 
@@ -452,7 +475,7 @@ function checkSupportingDocs(diffs: string[], manifestArticleCount: number): voi
   //     (scripts/dev-port.mjs), niet altijd 3007 — "localhost:3007" hardcoderen is dus altijd fout,
   //     ook in CLAUDE.md en de handmatig onderhouden wiki-bronpagina's (`docs/wiki/*.md`, die via
   //     `npm run publish:wiki` naar de publieke GitHub-wiki gaan).
-  for (const [name, text] of Object.entries({ ...files, 'CLAUDE.md': claude, ...wikiFiles })) {
+  for (const [name, text] of Object.entries({ ...files, 'CLAUDE.md': claude, ...readClaudeRules(), ...wikiFiles })) {
     if (text.includes('localhost:3007')) {
       diffs.push(`${name} hardcodeert "localhost:3007" — de dev-poort is per worktree vast toegewezen (3007–3106); lees hem uit de dev-server-uitvoer of .claude/launch.json`);
     }

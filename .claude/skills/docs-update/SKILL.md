@@ -79,7 +79,7 @@ het gebied te benoemen en gebruik dat als scope.
 | Rapport / print / PDF | `gids-rapporten-printen` |
 | Herstel / auto-save / bestands-I/O | `ref-herstellen`, `gids-import-export` |
 | Extensie-API | `docs/extensions.md`, `ref-extensies`, `docs/wiki/Extensions-Authoring.md` |
-| Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `CLAUDE.md`, `AGENTS.md` |
+| Architectuur: slice, service, engine, npm-script, Tauri-plugin, poort | `CLAUDE.md` (alleen de kern), `.claude/rules/<onderdeel>.md` (diepgang), `AGENTS.md` |
 | Roadmap-item af | `docs/TODO.md` (item eruit — afgerond werk staat in de historie); `PLAN.md` alleen als de roadmap zélf schuift |
 | Testsuite / self-test-harness | `tests/planning/README.md`, `docs/self-test-harness.md`, `AGENTS.md` |
 | Zichtbaar voor de buitenwereld (feature, installatie, download) | `docs/wiki/Features.md`, `Installation.md`, `README.md` |

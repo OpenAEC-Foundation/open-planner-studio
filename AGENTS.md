@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Compact guide for AI agents working in this repo. The canonical deep-dive is
-[`CLAUDE.md`](CLAUDE.md) — read it before non-trivial work. This file captures
+[`CLAUDE.md`](CLAUDE.md) plus the per-area files in `.claude/rules/` — read them before non-trivial work. This file captures
 only what an agent would otherwise get wrong.
 
 ## Commands
@@ -186,7 +186,7 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   canvas pixels; it must never perform the tested user action itself.
 - The app also exposes its own **MCP bridge** with 40 `planner_*` tools
   (`src/services/mcp/`) — the real AI-assistant surface, Tauri-only, gated
-  behind `ui.aiMode` (see CLAUDE.md's *AI-assistent (MCP-bridge)* section).
+  behind `ui.aiMode` (see `.claude/rules/mcp.md`).
   Not a dev-only test hook and not a substitute for the two mechanisms above.
 - Full detail, including the committed `tests/browser/` regression suite:
   [`docs/self-test-harness.md`](docs/self-test-harness.md).

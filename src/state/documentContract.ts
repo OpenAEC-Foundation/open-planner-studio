@@ -271,10 +271,10 @@ type AppGlobalKey =
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
   | 'historyEvents' | 'nextHistorySequence'
-  // Extensies: app-niveau data, geen projectdata (zie CLAUDE.md, *Extensiesysteem*).
+  // Extensies: app-niveau data, geen projectdata (zie .claude/rules/extensions.md).
   | 'installedExtensions' | 'quarantinedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
   | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
-  // Resourcebibliotheek: app-globaal, net als extensies (zie CLAUDE.md, *Resourcebibliotheken*).
+  // Resourcebibliotheek: app-globaal, net als extensies (zie .claude/rules/library.md).
   | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
   // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen.
   | 'taskGridSurfaces' | 'recentTaskColumns';
