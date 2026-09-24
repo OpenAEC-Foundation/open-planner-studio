@@ -114,11 +114,21 @@ export function workRuleFromXerDurationType(token: string | null | undefined): W
 const WORK_EPS_MINUTES = 1;
 
 /**
- * "Afwezig ⇒ afgeleid" bij import (spec §4.3, geval c; de afspraak met de XER-sessie): de drie
- * werkvelden worden alleen gezet wanneer de bron iets zegt dat de afleiding niet al zegt —
- * verricht werk > 0, begroot werk dat van `restduur × inzet` afwijkt, of resterend werk dat van
- * `begroot − verricht` afwijkt. Anders blijft alles afwezig en is de import byte-identiek aan
- * vandaag. Zodra één veld nodig is, gaan alle aanwezige bronwaarden mee (één consistent drietal).
+ * "Afwezig ⇒ afgeleid" bij import (spec §4.3 "De regel afwezig ⇒ afgeleid zoals nu", kolom
+ * "wanneer geschreven", geval (c): "bij import wanneer de bron een waarde levert die van de afleiding
+ * afwijkt"; spec §4.4 XER-rij: "alleen wanneer `target_qty` afwijkt van duur × `target_qty_per_hr`").
+ *
+ * - Wijkt het begrote werk af van `restduur × inzet`, of het resterende werk van `begroot − verricht`,
+ *   dan gaan alle aanwezige bronwaarden mee (één consistent drietal) — het werk ÍS dan anders dan de
+ *   afleiding, en de belasting hoort dat te tonen (`assignmentDayUnits` laag 3).
+ * - Alleen verricht werk > 0 zonder zo'n afwijking (E3, critreview PR #101 baan 1): dan wordt
+ *   uitsluitend `actualWorkMinutes` bewaard — verricht werk is een feit dat de afleiding niet kent —
+ *   maar `plannedWorkMinutes`/`remainingWorkMinutes` blijven afwezig, want ze zeggen niets dat
+ *   `duur × inzet` niet al zegt. Zo blijft `assignmentDayUnits` op laag 4 (de formule) en is het
+ *   histogram/overallocatie/nivelleerder byte-identiek aan vóór de taaktypes-etappe. (Vóór deze fix
+ *   ging bij élk verricht werk het hele drietal mee: Roads 110/3575 en HarbourPointe 119/417
+ *   toewijzingen op laag 3.)
+ * - Niets van dat alles ⇒ alles afwezig; byte-identiek aan vandaag.
  * Niet-eindige of negatieve bronwaarden gelden als afwezig.
  */
 export function importedWorkFields(
@@ -134,9 +144,10 @@ export function importedWorkFields(
   const derived = Number.isFinite(derivedWorkMinutes) && derivedWorkMinutes >= 0 ? derivedWorkMinutes : 0;
   const plannedDeviates = planned !== undefined && Math.abs(planned - derived) > WORK_EPS_MINUTES;
   const actualPresent = actual !== undefined && actual > WORK_EPS_MINUTES;
-  const expectedRemaining = planned !== undefined ? planned - (actual ?? 0) : derived;
+  // Het verwachte restant is begroot − verricht, met de afleiding als begroot wanneer de bron hem mist.
+  const expectedRemaining = (planned ?? derived) - (actual ?? 0);
   const remainingDeviates = remaining !== undefined && Math.abs(remaining - expectedRemaining) > WORK_EPS_MINUTES;
-  if (!plannedDeviates && !actualPresent && !remainingDeviates) return {};
+  if (!plannedDeviates && !remainingDeviates) return actualPresent ? { actualWorkMinutes: actual } : {};
   return {
     ...(planned !== undefined ? { plannedWorkMinutes: planned } : {}),
     ...(actual !== undefined ? { actualWorkMinutes: actual } : {}),

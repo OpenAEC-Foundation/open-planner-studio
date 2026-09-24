@@ -704,9 +704,12 @@ export function writeMSPDI(
       // Werk: het opgeslagen begrote werk als dat er is; anders bij een contour de SOM van de
       // dagverdeling (de echte werkinhoud), anders duur × units.
       const contourWorkMinutes = dayItems.reduce((n, d) => n + d.workMinutes, 0);
+      // Zonder `remainingWorkMinutes` is het restant afgeleid (spec §4.3), dus dan ook het totaal:
+      // alléén verricht werk (E3: een import zonder afwijking bewaart alleen dat) mag `<Work>` niet
+      // tot het verrichte deel laten krimpen.
       const plannedWork = a.plannedWorkMinutes
-        ?? (a.actualWorkMinutes !== undefined || a.remainingWorkMinutes !== undefined
-          ? (a.actualWorkMinutes ?? 0) + (a.remainingWorkMinutes ?? 0)
+        ?? (a.remainingWorkMinutes !== undefined
+          ? (a.actualWorkMinutes ?? 0) + a.remainingWorkMinutes
           : undefined);
       lines.push(`${indent(3)}<Work>${plannedWork !== undefined
         ? minutesToMspdiValue(plannedWork)
