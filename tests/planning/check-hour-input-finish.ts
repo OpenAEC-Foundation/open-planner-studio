@@ -266,7 +266,7 @@ const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent 
   eq('36 extensie-addTask met alleen earlyFinish: gepland en vroegst einde beide afgeleid', [sf(c, early), ef(c, early)],
     ['2026-09-07T11:00', '2026-09-07T11:00']);
   // Een gestarte urentaak beweegt niet mee: dan blijft de grensterugval (einde = start), niet de verse default.
-  const started = api.data.addTask({ name: 'ExtS', status: 'IN_PROGRESS', time: ext({ scheduleStart: '2026-09-07T08:00', durationUnit: 'hours', durationMinutes: 180, actualStart: '2026-09-07T08:00' }) });
+  const started = api.data.addTask({ name: 'ExtS', status: 'STARTED', time: ext({ scheduleStart: '2026-09-07T08:00', durationUnit: 'hours', durationMinutes: 180, actualStart: '2026-09-07T08:00' }) });
   eq('37 extensie-addTask, gestarte urentaak zonder einde: einde = start (geen afleiding, geen default)', sf(c, started), '2026-09-07T08:00');
 }
 
