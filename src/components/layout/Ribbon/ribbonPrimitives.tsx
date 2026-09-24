@@ -1,6 +1,5 @@
 import { useState, useId } from 'react';
 import { Popover } from '@/components/common/Popover';
-import type { FieldRef } from '@/state/slices/types';
 
 /**
  * Gedeelde ribbon-primitives (audit P18). Vroeger stonden deze onderdelen als lokale
@@ -9,12 +8,7 @@ import type { FieldRef } from '@/state/slices/types';
  * dezelfde bouwstenen delen. Markup/CSS-klassen zijn ONgewijzigd — Ribbon.css blijft kloppen.
  */
 
-export function encodeFieldRef(f: FieldRef): string {
-  return JSON.stringify(f);
-}
-export function decodeFieldRef(s: string): FieldRef {
-  return JSON.parse(s) as FieldRef;
-}
+export { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 
 export function RibbonDropdown<T extends string>({ value, options, onChange }: {
   value: T;

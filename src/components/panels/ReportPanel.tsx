@@ -16,7 +16,7 @@ import {
   barColorFieldOptions,
   effectiveBarColorControl,
 } from '@/components/viewControls/barColorFieldOptions';
-import { encodeFieldRef, decodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
+import { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import { useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import {
