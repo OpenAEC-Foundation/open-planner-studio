@@ -382,8 +382,11 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    corpus: 0 ALAP-taken met `cstr_type2`; alle 46 orakel-ALAP-taken op uurkalender; drie corpusfits als
    gemeten keuze gedocumenteerd; hidden-regel (a)+(b)+(c) per zesassig/drivingPath, checks 5p–5p11, Fable's
    mutatie hard rood met geweigerde herpin, GEEN pin-migratie (splitsing afgeleid); `decision` per regel,
-   HERPIN met besluit- én herpindatum; measure 76/0/0/0, poorten exit 0). Her-check loopt
-   (`opus-laag-hercheck-c14`); daarna merge.
+   HERPIN met besluit- én herpindatum; measure 76/0/0/0, poorten exit 0). Her-check (Opus 5.5) =
+   LANDEN-MET-FIXES: opgeheven uitsluiting kan regressie op nog-uitgesloten taak verbergen (M1: pin 10 = X 7 +
+   Y 3, Y terug met 0, X 7 → 10 ⇒ geen rode regel) ⇒ derde ronde: verborgen telling PER TAAK pinnen (v2-envelop
+   in dezelfde commit), HERPIN-regels chronologisch met besluit- én herpindatum; proefmerges met de etappekop,
+   `x12-merge-109` en `x12-review-midden-fixes` conflictvrij. Derde ronde loopt (dezelfde agent).
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
@@ -438,8 +441,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    blokken, alle beide-kanten-toevoegingen — **tweede fixronde klaar, kop `21d495d4`** (`$` op alle zeven
    slots voor elke taak zonder record + anker-fallback bij crashherstel; `SourceFormat` alleen in de modus,
    9e/9f; gidstekst + 9g/9h; round-trip-route fixture/canon; 16s via echt crashherstelpad; poorten exit 0,
-   `.mpp` 216/0/0; neveneffect: snapshot in aanbodtoestand draagt geen `SourceFormat` meer); her-check loopt
-   (`opus-laag-hercheck-167`); daarna merge in de PR-branch `claude/recorded-all-formats-v2`;
+   `.mpp` 216/0/0; neveneffect: snapshot in aanbodtoestand draagt geen `SourceFormat` meer); her-check
+   (Opus 5.5) = landen zonder verdere codefix (neveneffect bewust laten, als bekende beperking in de PR-body;
+   merge naar #169 later: 10 conflicten, instructie: geneste `withRecordedDatesNotice(withSchedulingProfileNotice(...))`,
+   lezers/psets beide kanten, `createMcpTransactions` `reconcileHourInputFinish` van HEAD + `markDocumentEdited(s)`
+   i.p.v. `s.isDirty = true`) — **gemerged in de PR-branch `claude/recorded-all-formats-v2` als `5ae5bd14`**,
+   gepusht, PR-body #167 bijgewerkt; #167 blijft een eigen PR ná #109 (niet in #169 gemerged);
    merge-instructie voor #169
    in het agentrapport (geneste `withRecordedDatesNotice(withSchedulingProfileNotice(...))`, geen
    `!notice`-blok terug); open: taak zonder enige vastlegging telt na opslaan-in-modus als vastgelegd
