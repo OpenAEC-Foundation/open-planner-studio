@@ -49,6 +49,7 @@ import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource'
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isFiniteNumber } from '@/utils/guards';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 
 type Rejection = { id: string; reason: string };
 type StoreState = AppState;
@@ -704,14 +705,17 @@ const manageResources: BatchStepTool = {
           `(${orphaned.join(', ')}); hun \`parentId\` staat nu leeg.`,
         );
       }
-      // Nivellering: `levelingDelay` staat op de TAKEN en blijft na een capaciteits-/kalender-/
-      // toewijzingswijziging gewoon staan — de eind-`runCPM` rekent die oude vertraging dus door op
-      // een gewijzigde capaciteit. Dat is geen fout, maar het mag niet stil blijven.
+      // Nivellering: de nivelleeruitvoer (vertraging, ook sub-dag-precisie uit een `.mpp`, en
+      // ingevoegde pauzedagen) staat op de TAKEN en blijft na een capaciteits-/kalender-/
+      // toewijzingswijziging gewoon staan — de eind-`runCPM` rekent die oude nivellering dus door op
+      // een gewijzigde capaciteit. Dat is geen fout, maar het mag niet stil blijven. "Staat er
+      // nivellering op?" is de ENE gedeelde definitie `hasLevelingOutput` (`utils/taskDefaults.ts`),
+      // dezelfde als achter "Nivellering wissen" — geen eigen, smallere controle hier.
       const capacityTouched =
         totalRemoved > 0 ||
         data.updated.some((u) => u.changedFields.some((f) => f === 'maxUnits' || f === 'availabilitySteps' || f === 'calendarId'));
       const state = ctx.app.store.getState();
-      if (capacityTouched && state.tasks.some((t) => t.levelingDelay !== undefined)) {
+      if (capacityTouched && state.tasks.some(hasLevelingOutput)) {
         warnings.push(
           'Er staat een TOEGEPASTE nivellering op deze planning; die is berekend op de OUDE capaciteit en ' +
           'is nu verouderd. Draai planner_level_resources opnieuw of wis hem met planner_clear_leveling.',
