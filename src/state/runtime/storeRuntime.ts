@@ -6,7 +6,7 @@ import {
   type SessionHistoryEvent,
 } from '../sessionHistory';
 import type { AppState } from '../appStore';
-import { markScheduleStale } from '../scheduleStale';
+import { markDateMutation } from '../scheduleStale';
 import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
@@ -201,11 +201,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     finishMutation(state, opts) {
       state.isDirty = true;
-      if (opts?.stale && state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      if (opts?.stale) markScheduleStale(state);
+      if (opts?.stale) markDateMutation(state);
       runtime.finishUndoable(state);
     },
 

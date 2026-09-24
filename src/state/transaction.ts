@@ -7,4 +7,4 @@ export {
   type McpTransactionLease,
   type StoreRuntime,
 } from './runtime/storeRuntime';
-export { markScheduleStale } from './scheduleStale';
+export { markDateMutation, markScheduleStale } from './scheduleStale';

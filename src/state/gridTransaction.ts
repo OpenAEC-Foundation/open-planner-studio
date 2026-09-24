@@ -17,7 +17,7 @@ import { effectiveCalendarOf, effHoursPerDay } from '@/utils/taskDuration';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
-import { markScheduleStale } from './transaction';
+import { markDateMutation, snapshotsEqual } from './transaction';
 import { generateId } from '@/utils/id';
 import {
   applyRelationMutationPlan,
@@ -25,6 +25,7 @@ import {
   planRelationSet,
   planRelationSetInBatch,
   validateFinalRelationGraph,
+  type RelationTokenError,
 } from '@/engine/taskGrid/relationPlan';
 import type { AppState } from './appStore';
 import type { AppSlice, DeferredNotification } from './slices/types';
@@ -354,6 +355,21 @@ function applyAssignmentSet(
   };
 }
 
+/** Relatieplanner-fouten als celvalidatiefouten; `taskId` alleen wanneer de fout bij één eigenaar
+ *  hoort (de eindgraafcontrole is taakoverstijgend en draagt er bewust geen). */
+function relationCellErrors(errors: readonly RelationTokenError[], taskId?: string): CellValidationError[] {
+  return errors.map(error => ({
+    code: error.code,
+    messageKey: error.messageKey,
+    ...(taskId !== undefined ? { taskId } : {}),
+    tokenIndex: error.tokenIndex,
+    start: error.start,
+    end: error.end,
+    cycle: error.cycle,
+    value: error.value,
+  }));
+}
+
 function applyRelationSet(
   state: AppState,
   intent: RelationSetIntent,
@@ -371,32 +387,12 @@ function applyRelationSet(
     tokens: intent.value,
     relationIndex,
   });
-  if (!planned.ok) {
-    return {
-      ok: false,
-      errors: planned.errors.map(error => ({
-        code: error.code,
-        messageKey: error.messageKey,
-        taskId: intent.taskId,
-        tokenIndex: error.tokenIndex,
-        start: error.start,
-        end: error.end,
-        cycle: error.cycle,
-        value: error.value,
-      })),
-    };
-  }
+  if (!planned.ok) return { ok: false, errors: relationCellErrors(planned.errors, intent.taskId) };
   applyRelationMutationPlan(state, planned.value, {
     sequenceId: () => generateId('seq'),
     externalLinkId: () => generateId('extlink'),
   });
-  if (planned.value.changed) {
-    if (state.datesAsRecorded) {
-      state.datesAsRecorded = false;
-      state.recordedDates = null;
-    }
-    markScheduleStale(state);
-  }
+  if (planned.value.changed) markDateMutation(state);
   return { ok: true, value: { changed: planned.value.changed } };
 }
 
@@ -626,25 +622,12 @@ function applyCellEdits(
   if (!planned.ok) return planned;
   if (planned.value.changed) {
     state.tasks[taskIndex] = planned.value.task;
-    if (planned.value.scheduleStale) {
-      if (state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      markScheduleStale(state);
-    }
+    if (planned.value.scheduleStale) markDateMutation(state);
   }
   return {
     ok: true,
     value: { timephasedGuidanceLost: planned.value.timephasedGuidanceLost, skippedReadOnlyCount },
   };
-}
-
-function snapshotsShareAllFields(left: Snapshot, right: Snapshot): boolean {
-  for (const key of Object.keys(left) as (keyof Snapshot)[]) {
-    if (left[key] !== right[key]) return false;
-  }
-  return true;
 }
 
 export function prepareGridMutation(
@@ -746,17 +729,7 @@ export function prepareGridMutation(
     }
     if (errors.length === 0 && appliedRelationWrites.length > 0) {
       const finalGraph = validateFinalRelationGraph({ tasks: draft.tasks, sequences: draft.sequences });
-      if (!finalGraph.ok) {
-        errors.push(...finalGraph.errors.map(error => ({
-          code: error.code,
-          messageKey: error.messageKey,
-          tokenIndex: error.tokenIndex,
-          start: error.start,
-          end: error.end,
-          cycle: error.cycle,
-          value: error.value,
-        })));
-      }
+      if (!finalGraph.ok) errors.push(...relationCellErrors(finalGraph.errors));
     }
     if (errors.length === 0 && appliedRelationWrites.length > 1) {
       const finalRelationIndex = buildTaskRelationIndex(draft.tasks, draft.sequences, draft.cpmResult);
@@ -771,16 +744,7 @@ export function prepareGridMutation(
           relationIndex: finalRelationIndex,
         });
         if (!replay.ok) {
-          errors.push(...replay.errors.map(error => ({
-            code: error.code,
-            messageKey: error.messageKey,
-            taskId: write.taskId,
-            tokenIndex: error.tokenIndex,
-            start: error.start,
-            end: error.end,
-            cycle: error.cycle,
-            value: error.value,
-          })));
+          errors.push(...relationCellErrors(replay.errors, write.taskId));
         } else if (replay.value.changed) {
           errors.push(validationError('relationSetConflict', { taskId: write.taskId }, {
             direction: write.direction,
@@ -854,10 +818,10 @@ function commitPreparedAgainstStore(
   }
   // Alleen de rechtstreeks geëxporteerde test-/diagnosenaad kan tussen prepare en commit worden
   // vastgehouden. De normale wrapper is synchroon en slaat deze onnodige hotpathcheck over.
-  if (requireFreshBefore && !snapshotsShareAllFields(createSnapshot(get()), prepared.before)) {
+  if (requireFreshBefore && !snapshotsEqual(createSnapshot(get()), prepared.before)) {
     return { ok: false, errors: [{ code: 'stateChanged', message: 'De documentdata is na prepare gewijzigd' }] };
   }
-  const changed = !snapshotsShareAllFields(prepared.before, prepared.after);
+  const changed = !snapshotsEqual(prepared.before, prepared.after);
   if (changed) {
     try {
       set(state => {
