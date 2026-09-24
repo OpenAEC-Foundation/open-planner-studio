@@ -11,7 +11,7 @@ import { DateTextInput } from '@/components/common/DateTextInput';
  * cirkelvormige afhankelijkheid geven zodra het paneel zelf secties uit deze map importeert.
  */
 
-export const RESOURCE_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
+export { RESOURCE_CURVES } from '@/types/resource';
 
 /** ResourceCurve → i18n-key in de common-namespace (resource.curve.*). `as const` houdt de
  *  literal-keytypes zodat de getypeerde `t(...)` ze accepteert. */

@@ -3,7 +3,7 @@ import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { Sequence, SequenceType } from '@/types/sequence';
-import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve } from '@/types/resource';
+import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
 import { Project, SchedulingOptions } from '@/types/project';
 import { WorkCalendar, Holiday, CalendarGeneration, WorkingException } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -33,8 +33,6 @@ import {
 // IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
 // zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
 // registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
-
-const VALID_CURVES: ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 
 interface StepEntity {
   id: string; // STEP entity ID (may include letters, e.g. "300T")
@@ -2036,7 +2034,7 @@ function extractAssignments(
         if (typeof value !== 'string') continue;
         const [unitsRaw, curveRaw] = value.split('|');
         const unitsPerDay = parseFloat(unitsRaw);
-        const curve = VALID_CURVES.includes(curveRaw as ResourceCurve) ? (curveRaw as ResourceCurve) : undefined;
+        const curve = isResourceCurve(curveRaw) ? curveRaw : undefined;
         const meta: AssignmentMeta = { unitsPerDay: Number.isFinite(unitsPerDay) ? unitsPerDay : 1, curve };
         // `#` komt nooit voor in een IFC-GlobalId (charset [0-9A-Za-z_$]), dus een
         // `GUID#N`-match is eenduidig nieuw formaat; al het andere is legacy kale-GUID.

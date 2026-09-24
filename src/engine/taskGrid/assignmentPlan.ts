@@ -1,12 +1,8 @@
-import { isValidUnits, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
 import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
 import { clearTimephasedDurationWalks, clearTimephasedWindow } from '@/utils/taskDefaults';
-
-const RESOURCE_CURVES: readonly ResourceCurve[] = [
-  'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
-];
 
 export type AssignmentPlanOperation =
   | {

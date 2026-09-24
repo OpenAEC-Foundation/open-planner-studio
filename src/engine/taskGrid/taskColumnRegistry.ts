@@ -1,5 +1,5 @@
 import type { Baseline, BaselineTask } from '@/types/baseline';
-import type { ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { RESOURCE_CURVES, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type { ConstraintType, MilestoneKind, Task, TaskStatus, TaskType } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
@@ -326,7 +326,6 @@ const TASK_TYPES: readonly TaskType[] = [
 const TASK_STATUSES: readonly TaskStatus[] = ['NOT_STARTED', 'STARTED', 'COMPLETED'];
 const MILESTONE_KINDS: readonly MilestoneKind[] = ['START', 'FINISH'];
 const CONSTRAINT_TYPES: readonly ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
-const RESOURCE_CURVES: readonly ResourceCurve[] = ['UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE'];
 const RESOURCE_CURVE_LABEL_KEYS: Readonly<Record<ResourceCurve, string>> = {
   UNIFORM: 'resource.curve.uniform',
   FRONT_LOADED: 'resource.curve.frontLoaded',
