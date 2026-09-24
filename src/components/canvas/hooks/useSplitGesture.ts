@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { holdAutoCalc } from '@/state/editHold';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
@@ -188,6 +189,10 @@ export function useSplitGesture({
     });
     return true;
   }, [canvasRef, rendererRef, axis, getTask, contextFor, snapAt]);
+
+  // Automatisch berekenen wacht tot het gebaar af is (zie `useBarDrag`).
+  const dragging = !!state?.dragging;
+  useEffect(() => (dragging ? holdAutoCalc() : undefined), [dragging]);
 
   useEffect(() => {
     if (!state?.dragging) return;
