@@ -484,8 +484,12 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    measure 76/0/0/0; geen overlap met de parallelle branches); critreview (Opus 5.5) = LANDEN-MET-FIXES:
    regel 6 met één gedeclareerde naam te omzeilen, vier doorglip-routes (alias over bestandsgrens, `Reflect.get`,
    `Object.entries`, `as any` op hernoemde/`import("…")`-typering) nergens beschreven, "elke conventie gelezen"
-   telt diagnosebestanden mee; geen vals-positieven, 0,78 s, proefmerge conflictvrij — tweede fixronde loopt
-   (dezelfde agent, via SendMessage); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
+   telt diagnosebestanden mee; geen vals-positieven, 0,78 s, proefmerge conflictvrij — **tweede fixronde klaar,
+   kop `a76eff32`** (regel 6: eigen naam = klasse-lid op `this` of literal/`new` in hetzelfde bestand;
+   `Reflect.*`/`Object.*` rood; hernoemde/`import()`-typeringen; grens beschreven; "gelezen" alleen in de 15
+   bestanden bereikbaar vanuit `solveProject.ts`, 0 ongelezen; extensie-`addTask` negeert `earlyFinish` +
+   regressiefix voor niet-meebewegende urentaken; fixtures 28–30b, checks 36–37; poorten exit 0, measure
+   76/0/0/0); her-check loopt (`opus-laag-hercheck-169-midden`); (b) daarna PR #101 (`claude/contour-engine-planner-mnrsy3`, taaktypes/werkregels, gestapeld op de
    #109-branch van 2026-09-06) overnemen als eigen etappe. Verkenningsdossier klaar en gecommit:
    `2026-09-24-verkenning-pr101-taaktypes.md` (Opus 5.5): middelzwaar tot zwaar, 29 conflictbestanden
    waarvan 4 inhoudelijk (`taskSlice`, `resourceSlice`, `gridTransaction`, `createMcpTransactions`);
