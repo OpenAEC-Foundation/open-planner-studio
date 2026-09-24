@@ -128,7 +128,8 @@ function largestRemainderRound(values: number[], targetSum: number, unitsPerDay:
  *      de aanroeper enumereert daarom `Math.max(durationDays, units.length)` werkdagen — het TOTAAL
  *      blijft behouden (dezelfde garantie als het earlyFinish-besluit hieronder).
  *   2. `ResourceAssignment.curveValues` (exacte 21-punts P6-/MSPDI-curve): `slotWeightsFromValues`
- *      × (unitsPerDay × duur) — ook data-achtig, dus eveneens zonder de formule-afronding.
+ *      × (unitsPerDay × duur) — ook data-achtig, dus eveneens zonder de formule-afronding. Staat er
+ *      óók opgeslagen werk (laag 3), dan levert de curve de VORM en het werk het TOTAAL.
  *   3. OPGESLAGEN WERK (taaktypes-etappe 2026-09, spec §4.3/§6.5): staat er een
  *      `remainingWorkMinutes` (uit een import die van duur × inzet afweek, of vastgelegd door een
  *      werkbeschermende regel), dan is verricht + resterend werk het totaal en wordt dát — als
@@ -157,20 +158,28 @@ export function assignmentDayUnits(
     const slotWork = periodsToWorkDaySlots(resolved.periods, task.splitGaps, slotMinutes, 0);
     if (slotWork.length > 0) return slotWork.map((w) => w / slotMinutes);
   }
-  if (assignment.curveValues && durationDays > 0) {
-    const weights = slotWeightsFromValues(assignment.curveValues, durationDays);
-    const total = assignment.unitsPerDay * durationDays;
-    return weights.map((w) => w * total);
-  }
-  if (assignment.remainingWorkMinutes !== undefined && Number.isFinite(assignment.remainingWorkMinutes) && durationDays > 0) {
-    // Het VERRICHTE deel: `actualWorkMinutes` als de bron 'm gaf, anders afgeleid als verrichte
-    // duur × inzet (reviewbevinding B3: de werkdriehoek schrijft alleen `remainingWorkMinutes`, en
-    // een typewissel op een half gedane taak mag de belasting niet halveren — besluit 2).
+  const storedWork = assignment.remainingWorkMinutes !== undefined && Number.isFinite(assignment.remainingWorkMinutes) && durationDays > 0;
+  // Het te verdelen TOTAAL bij opgeslagen werk (laag 3): verricht + resterend. Het VERRICHTE deel:
+  // `actualWorkMinutes` als de bron 'm gaf, anders afgeleid als verrichte duur × inzet
+  // (reviewbevinding B3: de werkdriehoek schrijft alleen `remainingWorkMinutes`, en een typewissel
+  // op een half gedane taak mag de belasting niet halveren — besluit 2).
+  const storedTotalUnits = (): number => {
     const slotMinutes = Math.max(1, mpd);
     const doneUnits = assignment.actualWorkMinutes !== undefined
       ? Math.max(0, assignment.actualWorkMinutes) / slotMinutes
       : Math.max(0, durationDays - remainingDaysOf(task, slotMinutes)) * assignment.unitsPerDay;
-    const totalUnits = Math.max(0, assignment.remainingWorkMinutes) / slotMinutes + doneUnits;
+    return Math.max(0, assignment.remainingWorkMinutes!) / slotMinutes + doneUnits;
+  };
+  if (assignment.curveValues && durationDays > 0) {
+    // Vorm en totaal zijn orthogonaal (Fable-critreview #170, bevinding 7): de 21-punts curve levert
+    // de VORM, opgeslagen werk — als dat er is — het TOTAAL (vorm-als-data, werk als schaal).
+    // Zonder werkveld blijft het totaal inzet × duur (byte-identiek).
+    const weights = slotWeightsFromValues(assignment.curveValues, durationDays);
+    const total = storedWork ? storedTotalUnits() : assignment.unitsPerDay * durationDays;
+    return weights.map((w) => w * total);
+  }
+  if (storedWork) {
+    const totalUnits = storedTotalUnits();
     const weights = slotWeightsFromValues(CONTOUR_SHAPE_VALUES[CURVE_TO_SHAPE[assignment.curve ?? 'UNIFORM']], durationDays);
     return weights.map((w) => w * totalUnits);
   }

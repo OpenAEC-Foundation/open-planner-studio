@@ -275,6 +275,12 @@ console.log('-- (g) assignmentDayUnits: opgeslagen werk als vierde bron --');
   const front = assignmentDayUnits(t, { ...base, remainingWorkMinutes: 960, curve: 'FRONT_LOADED' }, 480);
   ok('g3 vooraan belast: eerste dag > laatste dag, som 2', front[0] > front[3] && near(front.reduce((s, v) => s + v, 0), 2));
   eq('g4 verricht + resterend telt samen', r3(assignmentDayUnits(t, { ...base, remainingWorkMinutes: 480, actualWorkMinutes: 480 }, 480)), [0.5, 0.5, 0.5, 0.5]);
+  // Fable-critreview #170, bevinding 7: een P6-/MSPDI-curve (`curveValues`) is de VORM, opgeslagen werk het
+  // TOTAAL — vroeger won de curve en boekte zij inzet × duur (4) i.p.v. het werk (2).
+  const curve = Array.from({ length: 21 }, (_, i) => (i < 10 ? 10 : 0));
+  const withCurve = assignmentDayUnits(t, { ...base, curveValues: curve, remainingWorkMinutes: 960 }, 480);
+  eq('g5 curveValues + restwerk 2 slots: som 2 (werk is het totaal)', Math.round(withCurve.reduce((s, v) => s + v, 0) * 1e6) / 1e6, 2);
+  eq('g6 …en de curvevorm blijft (vorm gelijk aan de curve zonder werkveld, geschaald ×0,5)', r3(withCurve), r3(assignmentDayUnits(t, { ...base, curveValues: curve }, 480).map((v) => v * 0.5)));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
