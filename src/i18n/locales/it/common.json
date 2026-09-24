@@ -1320,6 +1320,31 @@
     "applyTemplate": "Aggiorna dal modello",
     "deleteTemplate": "Elimina modello",
     "templateDeviates": "Questo profilo differisce dal modello «{{name}}».",
-    "applyDefaultOptions": "Applica le opzioni predefinite di questo profilo"
+    "applyDefaultOptions": "Applica le opzioni predefinite di questo profilo",
+    "themes": {
+      "completedWork": "Avanzamento e lavoro completato",
+      "relationsLag": "Relazioni e ritardo",
+      "milestones": "Milestone e attività LOE",
+      "float": "Margine e date più tarde",
+      "instants": "Date e istanti dal file",
+      "msproject": "Avanzamento come in Microsoft Project",
+      "ownProfilesOnly": "Solo per profili personalizzati"
+    },
+    "ownProfilesOnlyNote": "Queste convenzioni sono disattivate in ogni profilo integrato, anche in Primavera P6. Attivandone una si crea un profilo personalizzato.",
+    "deviatingCount": "modificate: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "sì",
+    "off": "no",
+    "resetToBase": "torna alla base",
+    "perFile": "per file",
+    "showHelp": "Spiegazione di «{{name}}»",
+    "sourceOptions": {
+      "title": "Impostazioni dal file di origine",
+      "intro": "Queste opzioni di calcolo provengono da un file Primavera P6 (.xer). Vengono usate nel calcolo ma qui non sono modificabili.",
+      "useExpectedFinishDates": "Usa date di fine previste (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calcola il margine fino alla data di fine progetto",
+      "p6CompletedLateFromRemainingWindow": "Attività completata: date più tarde dalla data di stato",
+      "needsConvention": "Funziona solo insieme alla convenzione «{{convention}}», ora disattivata."
+    }
   }
 }

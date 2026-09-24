@@ -1285,6 +1285,31 @@
     "applyTemplate": "Şablondan güncelle",
     "deleteTemplate": "Şablonu sil",
     "templateDeviates": "Bu profil “{{name}}” şablonundan farklı.",
-    "applyDefaultOptions": "Bu profilin varsayılan seçeneklerini uygula"
+    "applyDefaultOptions": "Bu profilin varsayılan seçeneklerini uygula",
+    "themes": {
+      "completedWork": "İlerleme ve tamamlanan iş",
+      "relationsLag": "İlişkiler ve gecikme",
+      "milestones": "Kilometre taşları ve LOE etkinlikleri",
+      "float": "Bolluk ve geç tarihler",
+      "instants": "Dosyadaki tarihler ve anlar",
+      "msproject": "Microsoft Project gibi ilerleme",
+      "ownProfilesOnly": "Yalnızca özel profiller için"
+    },
+    "ownProfilesOnlyNote": "Bu kurallar Primavera P6 dahil her yerleşik profilde kapalıdır. Birini açarsanız özel bir profil oluşur.",
+    "deviatingCount": "değişen: {{n}}",
+    "baseValue": "temel: {{value}}",
+    "on": "açık",
+    "off": "kapalı",
+    "resetToBase": "temele dön",
+    "perFile": "dosya başına",
+    "showHelp": "“{{name}}” açıklaması",
+    "sourceOptions": {
+      "title": "Kaynak dosyadaki ayarlar",
+      "intro": "Bu hesaplama seçenekleri bir Primavera P6 dosyasından (.xer) gelir. Hesaplamada kullanılır ancak burada değiştirilemez.",
+      "useExpectedFinishDates": "Beklenen bitiş tarihlerini kullan (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Bolluğu proje bitiş tarihine kadar hesapla",
+      "p6CompletedLateFromRemainingWindow": "Tamamlanan görev: durum tarihinden itibaren geç tarihler",
+      "needsConvention": "Yalnızca şu anda kapalı olan “{{convention}}” kuralıyla birlikte çalışır."
+    }
   }
 }

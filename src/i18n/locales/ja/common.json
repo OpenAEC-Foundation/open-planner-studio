@@ -1250,6 +1250,31 @@
     "applyTemplate": "テンプレートから更新",
     "deleteTemplate": "テンプレートを削除",
     "templateDeviates": "このプロファイルはテンプレート「{{name}}」と異なります。",
-    "applyDefaultOptions": "このプロファイルの既定オプションを適用"
+    "applyDefaultOptions": "このプロファイルの既定オプションを適用",
+    "themes": {
+      "completedWork": "進捗と完了済みの作業",
+      "relationsLag": "関係とラグ",
+      "milestones": "マイルストーンと LOE 作業",
+      "float": "フロートと遅い日付",
+      "instants": "ファイルの日付と時刻",
+      "msproject": "Microsoft Project と同じ進捗",
+      "ownProfilesOnly": "カスタムプロファイル専用"
+    },
+    "ownProfilesOnlyNote": "これらの規則は Primavera P6 を含むすべての組み込みプロファイルでオフです。どれかをオンにするとカスタムプロファイルになります。",
+    "deviatingCount": "変更：{{n}}",
+    "baseValue": "基準：{{value}}",
+    "on": "オン",
+    "off": "オフ",
+    "resetToBase": "基準に戻す",
+    "perFile": "ファイルごと",
+    "showHelp": "「{{name}}」の説明",
+    "sourceOptions": {
+      "title": "ソースファイルの設定",
+      "intro": "これらの計算オプションは Primavera P6 ファイル（.xer）から取り込まれます。計算には使われますが、ここでは変更できません。",
+      "useExpectedFinishDates": "予定終了日を使用（P6: Use Expected Finish Dates）",
+      "useProjectEndDateForFloat": "プロジェクト終了日までのフロートを計算",
+      "p6CompletedLateFromRemainingWindow": "完了タスク：データ日付からの遅い日付",
+      "needsConvention": "現在オフの規則「{{convention}}」と組み合わせたときのみ有効です。"
+    }
   }
 }

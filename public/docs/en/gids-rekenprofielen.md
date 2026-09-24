@@ -56,31 +56,50 @@ With **Save as template** you keep the custom profile in the app, so you can cho
 
 ## The twenty-six conventions
 
-Under Open Planner Studio all twenty-six are off.
+Under Open Planner Studio all twenty-six are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation. The line marked **per file** comes from your `.xer` file and stays when you switch profiles.
+
+If the difference is on a built-in profile, for example the value from the file, the profile stays the built-in profile after **back to base**; no copy is made.
+
+### Progress and completed work
 
 - **Keep actual dates in the backward pass** (Primavera P6) — a started or completed task keeps its recorded dates on the late side too.
-- **Free float never negative** (Primavera P6) — with an unachievable late constraint, total float stays negative but free float becomes zero.
-- **Milestone follows the planned calendar boundary** (Primavera P6) — a zero-duration milestone stays on the calendar boundary the file planned.
-- **Planned start as an extra floor** (Primavera P6) — see the warning above.
-- **Keep actual dates exact** (Primavera P6) — recorded actual dates are not moved to a working-time band.
 - **In-progress task: early start = start of remaining work** (per file from Primavera P6) — the early start of an in-progress task is where the remaining work begins. Calculating backward over a start-to-start relationship, only its remaining duration counts: without remaining work, late start and late finish coincide.
-- **Exact constraint moment on a milestone** (Primavera P6) — a date-and-time constraint on a milestone is an exact point.
-- **Remaining work resumes after the elapsed duration** (Microsoft Project) — an in-progress task resumes at the actual start plus the elapsed duration.
-- **Don't move unstarted tasks to the status date** (Microsoft Project) — a task that has not started does not move to the status date by itself.
+- **Completed physical-progress task sits at the data date** (Primavera P6) — a completed task with physical percent complete is not shown at its actual dates, but as a single point at the data date, or later if a predecessor that is still in progress or has not started requires it. Its successors calculate from that point, and the free float of a predecessor that is not finished counts up to that point.
+- **Planned start is not a floor for a task in progress** (Primavera P6) — the remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later. Its successors move with it. For a task that has not started, the planned start remains a floor (*Planned start as an extra floor*).
+- **Progress Override ignores a started successor on the late side too** (Primavera P6) — only when the project uses the progress setting *Progress Override*. If a successor has already started while its predecessor is still in progress, the schedule already ignores that relationship when calculating forward. With this convention it also does not count in the predecessor's late dates and free float. Without it, the predecessor can get negative float, while Primavera P6 gives it float up to its other successors.
+
+### Relationships and lag
+
 - **Successor starts on the finish boundary** (Primavera P6) — for relations the file marks this way. Calculating backward, the successor shows its late start simply as the start of a work band.
 - **Backward lag from a finish boundary** (Primavera P6) — a lag that lands exactly on a band start lands on the previous finish boundary. With a finish-to-finish relationship without lag, a late finish on a band end also stays on that finish boundary.
-- **Unstarted LOE uses the target window** (Primavera P6) — only for tasks with P6 provenance.
-- **Free float in the task's own calendar** (Primavera P6) — the free float of a not-started task counts per relationship in the task's own calendar, not in the successor's. This holds for finish-to-start, start-to-start and finish-to-finish, also with a working-time lag, as long as that lag runs on the predecessor's calendar. A started task counts this way only over a finish-to-start relationship without lag. Example: a task works until 17:00, its successor (start-to-start with lag) until 16:00. If the relationship boundary falls at 16:00, the successor only starts the next morning and the task has one hour of free float. Start-to-finish relationships, elapsed-time lags, percentage lags and lags on another lag calendar have not been measured and keep the ordinary calculation.
 - **Elapsed lag of a completed predecessor does not count** (Primavera P6) — only the part of the lag after a completed task that has not yet elapsed at the data date counts. This applies on the late side, and also going forward: when a completed task sits at the data date (or directly after a predecessor that is not finished yet), its successor starts after the rest of the lag. Turning it off makes 640 dates and floats that are exact today wrong in the measured Primavera P6 files, and 56 that already deviate deviate further.
-- **Completed physical-progress task sits at the data date** (Primavera P6) — a completed task with physical percent complete is not shown at its actual dates, but as a single point at the data date, or later if a predecessor that is still in progress or has not started requires it. Its successors calculate from that point, and the free float of a predecessor that is not finished counts up to that point.
 - **Elapsed SS lag from an in-progress predecessor does not count** (Primavera P6) — for a start-to-start relationship from a task that has already started, only the part of the lag that has not yet elapsed since its actual start at the data date counts. If the lag has already elapsed, the successor may start as soon as the remaining work of the predecessor starts. Where the remaining lag is counted from is chosen with the calculation option **Calculate SS lag from an in-progress predecessor from**: *Early start* (the P6 default: the start of the predecessor's remaining work) or *Actual start* (the data date, even when the predecessor's remaining work starts later). A `.xer` file takes that choice from the P6 setting *Calculate Start-to-Start lag from*. With this convention off, the option has no effect.
-- **Finish-to-finish relationship to a start milestone binds to the milestone itself** (Primavera P6) — with a finish-to-finish relationship to a start milestone, the predecessor may run up to the milestone itself, not only up to the start of the milestone's day. That changes the predecessor's late dates and float. A finish milestone does not change.
-- **Planned start is not a floor for a task in progress** (Primavera P6) — the remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later. Its successors move with it. For a task that has not started, the planned start remains a floor (*Planned start as an extra floor*).
-- **Late finish on the task's own calendar** (Primavera P6) — if a successor imposes a late finish that falls outside the task's own working time (usually because that successor uses another calendar), the late finish becomes the end of the previous work period on the task's own calendar. Example: a task does not work on Fridays and its successor must start on Friday at 16:00; its late finish is then Thursday 17:00.
-- **Progress Override ignores a started successor on the late side too** (Primavera P6) — only when the project uses the progress setting *Progress Override*. If a successor has already started while its predecessor is still in progress, the schedule already ignores that relationship when calculating forward. With this convention it also does not count in the predecessor's late dates and free float. Without it, the predecessor can get negative float, while Primavera P6 gives it float up to its other successors.
 - **Early finish not before a finish-to-finish boundary** (Primavera P6) — with a finish-to-finish relationship, the successor may only finish once the predecessor has finished. If that moment falls in the successor's non-working time, Open Planner Studio without this convention shows the end of the work period before it (the same working time, but too early on the clock). With the convention, the early finish becomes the start of the next work period, as in Primavera P6. The free float over such a relationship then counts up to the successor's early finish.
 
-### Off by default in every profile
+### Milestones and LOE activities
+
+- **Milestone follows the planned calendar boundary** (Primavera P6) — a zero-duration milestone stays on the calendar boundary the file planned.
+- **Unstarted LOE uses the target window** (Primavera P6) — only for tasks with P6 provenance.
+- **Finish-to-finish relationship to a start milestone binds to the milestone itself** (Primavera P6) — with a finish-to-finish relationship to a start milestone, the predecessor may run up to the milestone itself, not only up to the start of the milestone's day. That changes the predecessor's late dates and float. A finish milestone does not change.
+
+### Float and late dates
+
+- **Free float never negative** (Primavera P6) — with an unachievable late constraint, total float stays negative but free float becomes zero.
+- **Free float in the task's own calendar** (Primavera P6) — the free float of a not-started task counts per relationship in the task's own calendar, not in the successor's. This holds for finish-to-start, start-to-start and finish-to-finish, also with a working-time lag, as long as that lag runs on the predecessor's calendar. A started task counts this way only over a finish-to-start relationship without lag. Example: a task works until 17:00, its successor (start-to-start with lag) until 16:00. If the relationship boundary falls at 16:00, the successor only starts the next morning and the task has one hour of free float. Start-to-finish relationships, elapsed-time lags, percentage lags and lags on another lag calendar have not been measured and keep the ordinary calculation.
+- **Late finish on the task's own calendar** (Primavera P6) — if a successor imposes a late finish that falls outside the task's own working time (usually because that successor uses another calendar), the late finish becomes the end of the previous work period on the task's own calendar. Example: a task does not work on Fridays and its successor must start on Friday at 16:00; its late finish is then Thursday 17:00.
+
+### Dates and moments from the file
+
+- **Planned start as an extra floor** (Primavera P6) — see the warning above.
+- **Keep actual dates exact** (Primavera P6) — recorded actual dates are not moved to a working-time band.
+- **Exact constraint moment on a milestone** (Primavera P6) — a date-and-time constraint on a milestone is an exact point.
+
+### Progress as in Microsoft Project
+
+- **Remaining work resumes after the elapsed duration** (Microsoft Project) — an in-progress task resumes at the actual start plus the elapsed duration.
+- **Don't move unstarted tasks to the status date** (Microsoft Project) — a task that has not started does not move to the status date by itself.
+
+### Custom profiles only
 
 Five conventions are off in every built-in profile, including Primavera P6. They were derived from a file that was not calculated by P6 (output of the older Primavera P3) and change nothing in the files that were demonstrably calculated by P6. To use them anyway, turn them on in a custom profile.
 
@@ -91,6 +110,10 @@ Five conventions are off in every built-in profile, including Primavera P6. They
 - **Completed LOE via its actual finish** (off by default) — only for tasks with P6 provenance.
 
 Files from Primavera P6 also carry a project setting that takes the late dates of a completed task from the remaining window. It only works together with **Completed task in the data-date window**, so under the built-in Primavera P6 profile it has no effect. If you turn that convention on in a custom profile, the setting counts again.
+
+## Settings from the source file
+
+A project from a `.xer` file carries three calculation options that only come from Primavera P6: *Use expected finish dates*, *Calculate float up to the project finish date* and *Completed task: late dates from the data date*. They are used in the calculation, but you cannot change them. They are shown read-only in a blue block at the bottom, so you can see why two projects with the same profile may calculate differently. The last one only works together with the convention *Completed task in the data-date window*; if that is off, the block says so.
 
 ## Combinations without a reference package
 

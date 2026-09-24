@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ConventionKey, EffectiveSchedulingOptions, LegacySchedulingOptions, ProjectSchedulingOptions, SchedulingOptions, SchedulingProfile } from '@/types/project';
 import {
-  BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isConventionKey, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
+  BUILT_IN_PROFILE_IDS, CONVENTIONS, CONVENTION_KEYS, CONVENTION_THEMES, isOffInEveryBuiltIn, builtInConventions, builtInProfile, defaultOptionsFor, diffAgainstBase, effectiveSchedulingOptions, isConventionKey, isDefaultProfile, legacyConventions, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
 import { optionKeysOnly, legacyOptionsToProfile, legacyOptionsBlobFor, LEGACY_XER_ALWAYS_ON, LEGACY_XER_ALSO_ON_X12, legacyXerDefault } from '@/services/ifc/schedulingProfileMigration';
 import { XER_SCHEDULING_DEFAULTS } from '@/services/xer/xerScheduleOptions';
@@ -47,7 +47,16 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     eq(`06 ${d.id}: legacyValue == OPS-waarde`, d.legacyValue, d.builtIn.ops);
     ok(`07 ${d.id}: labelKey onder conventions.`, d.labelKey === `conventions.${d.id}`);
     ok(`08 ${d.id}: since is een ISO-datum`, /^\d{4}-\d{2}-\d{2}$/.test(d.since));
+    // Thema (beschrijvend, alleen UI/gids): elke conventie staat onder precies één bekend thema.
+    ok(`08b ${d.id}: thema bekend`, (CONVENTION_THEMES as readonly string[]).includes(d.theme));
   }
+  // De MS Project-conventies staan onder hun eigen thema, en dat thema bevat niets anders.
+  same('08c thema msproject == de MS Project-conventies', CONVENTIONS.filter(d => d.theme === 'msproject').map(d => d.id),
+    CONVENTIONS.filter(d => d.builtIn.msproject).map(d => d.id));
+  // "Alleen voor eigen profielen" is afgeleid: in elk ingebouwd profiel uit en niet per bestand (A19 valt erbuiten).
+  same('08d alleen-eigen-profielen afgeleid', CONVENTIONS.filter(isOffInEveryBuiltIn).map(d => d.id),
+    CONVENTIONS.filter(d => !d.perFile && BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id])).map(d => d.id));
+  ok('08e A19 niet bij alleen-eigen-profielen', !isOffInEveryBuiltIn(CONVENTIONS.find(d => d.id === 'p6UseRemainingStartForProgress')!));
   // De ingebouwde waarden zoals besloten (modelwijziging punt 1).
   const P6 = builtInConventions('p6');
   const MSP = builtInConventions('msproject');
@@ -353,11 +362,14 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
       conventions?: Record<string, { label?: unknown; help?: unknown }>;
       profiles?: { builtIn?: Record<string, unknown>; modified?: unknown; copyOf?: unknown };
       notifications?: { schedulingProfileApplied?: unknown; schedulingProfileShifted_other?: unknown; actions?: { openProjectInfo?: unknown } };
-      schedulingProfile?: { title?: unknown };
+      schedulingProfile?: { title?: unknown; themes?: Record<string, unknown> };
     };
     for (const c of CONVENTIONS) {
       eq(`i18n ${locale} ${c.labelKey}.label`, typeof common.conventions?.[c.id]?.label, 'string');
       eq(`i18n ${locale} ${c.labelKey}.help`, typeof common.conventions?.[c.id]?.help, 'string');
+    }
+    for (const theme of [...CONVENTION_THEMES, 'ownProfilesOnly']) {
+      eq(`i18n ${locale} schedulingProfile.themes.${theme}`, typeof common.schedulingProfile?.themes?.[theme], 'string');
     }
     for (const id of BUILT_IN_PROFILE_IDS) eq(`i18n ${locale} profiles.builtIn.${id}`, typeof common.profiles?.builtIn?.[id], 'string');
     eq(`i18n ${locale} profiles.modified`, typeof common.profiles?.modified, 'string');

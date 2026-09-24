@@ -1161,7 +1161,7 @@
   },
   "conventions": {
     "preserveActualDatesInBackwardPass": {
-      "label": "Actuele datums behouden in de terugwaartse berekening",
+      "label": "Werkelijke datums behouden in de terugwaartse berekening",
       "help": "Een gestarte of voltooide taak houdt haar geregistreerde datums ook aan de late kant; een voltooide opvolger trekt een open voorganger niet terug in het verleden."
     },
     "clampNegativeFreeFloat": {
@@ -1181,12 +1181,12 @@
       "help": "Een eindmijlpaal mag op twee aangrenzende kalendergrenzen staan: vroege start aan het begin van een band, vroeg einde aan het einde van de vorige band."
     },
     "p6PreserveActualInstants": {
-      "label": "Actuele datums exact overnemen",
-      "help": "Geregistreerde actuele start- en einddatums worden niet naar een werktijdband verschoven."
+      "label": "Werkelijke datums exact overnemen",
+      "help": "Geregistreerde werkelijke start- en einddatums worden niet naar een werktijdband verschoven."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Lopende taak: vroege start = begin van het restwerk",
-      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische actuele start. Komt per bestand uit Primavera P6. Terugrekenend over een begin-begin-relatie telt alleen de restduur."
+      "help": "De vroege en late start van een lopende taak beschrijven waar het resterende werk begint, niet de historische werkelijke start. Komt per bestand uit Primavera P6. Terugrekenend over een start-start-relatie telt alleen de restduur."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Constraintmoment op een mijlpaal exact",
@@ -1194,7 +1194,7 @@
     },
     "resumeFromActualElapsed": {
       "label": "Restwerk hervat na de al verstreken duur",
-      "help": "Een lopende taak hervat haar restwerk op de actuele start plus de al verstreken duur, niet op de statusdatum."
+      "help": "Een lopende taak hervat haar restwerk op de werkelijke start plus de al verstreken duur, niet op de statusdatum."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Niet-gestarte taken niet naar de statusdatum",
@@ -1202,19 +1202,19 @@
     },
     "p6RelationFinishBoundary": {
       "label": "Opvolger start op de finishgrens",
-      "help": "Bij een einde-begin-relatie zonder lag op een gedeelde bandgrens begint de opvolger op de finish van de voorganger (alleen relaties die het bestand zo markeert). Terugrekenend toont de opvolger haar late start gewoon als begin van een werkband."
+      "help": "Bij een eind-start-relatie zonder lag op een gedeelde bandgrens begint de opvolger op de finish van de voorganger (alleen relaties die het bestand zo markeert). Terugrekenend toont de opvolger haar late start gewoon als begin van een werkband."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Lag terugrekenen vanaf een finishgrens",
-      "help": "Trekt de terugwaartse berekening een werktijd-lag af vanaf een finishgrens en komt ze precies op een bandstart uit, dan landt ze op de vorige finishgrens. Ook bij een einde-einde-relatie zonder lag blijft een late finish op een bandeinde die finishgrens."
+      "help": "Trekt de terugwaartse berekening een werktijd-lag af vanaf een finishgrens en komt ze precies op een bandstart uit, dan landt ze op de vorige finishgrens. Ook bij een eind-eind-relatie zonder lag blijft een late finish op een bandeinde die finishgrens."
     },
     "p6CompletedDataDateWindow": {
       "label": "Voltooide taak in het statusdatumvenster",
       "help": "Een voltooide taak krijgt vroege datums in het venster van de statusdatum, en haar einde telt mee voor het projecteinde (alleen taken met P6-herkomst)."
     },
     "p6CompletedLoeActualFinish": {
-      "label": "Voltooide LOE via het actuele einde",
-      "help": "Een voltooide level-of-effort-activiteit met alleen een begin-begin-ingang volgt de route via haar actuele einde (alleen taken met P6-herkomst)."
+      "label": "Voltooide LOE via het werkelijke einde",
+      "help": "Een voltooide level-of-effort-activiteit met alleen een start-start-ingang volgt de route via haar werkelijke einde (alleen taken met P6-herkomst)."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Niet-gestarte LOE neemt het doelvenster",
@@ -1234,7 +1234,7 @@
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Voltooide taak buiten volgorde wacht op haar voorgangers",
-      "help": "Een voltooide taak waarvan een voorganger nog niet klaar is, krijgt haar nulvenster ná die voorganger in plaats van op de statusdatum (Retained Logic)."
+      "help": "Een voltooide taak waarvan een voorganger nog niet klaar is, krijgt haar nulvenster ná die voorganger in plaats van op de statusdatum (P6: Retained Logic)."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Voltooide fysieke-voortgangstaak staat op de statusdatum",
@@ -1261,8 +1261,8 @@
       "help": "Onder Progress Override telt de relatie naar een opvolger die al gestart is niet mee in de late datums en de vrije speling van een voorganger die nog niet klaar is."
     },
     "p6FinishNotBeforeFinishFinishBound": {
-      "label": "Vroege finish niet vóór een eind-eindgrens",
-      "help": "Bij een eind-eindrelatie ligt de vroege finish van de opvolger in kloktijd nooit vóór de grens die de voorganger stelt. Valt die grens in vrije tijd van de opvolger, dan wordt de finish het begin van de volgende werkperiode."
+      "label": "Vroege finish niet vóór een eind-eind-grens",
+      "help": "Bij een eind-eind-relatie ligt de vroege finish van de opvolger in kloktijd nooit vóór de grens die de voorganger stelt. Valt die grens in vrije tijd van de opvolger, dan wordt de finish het begin van de volgende werkperiode."
     }
   },
   "profiles": {
@@ -1285,6 +1285,31 @@
     "applyTemplate": "Bijwerken vanuit sjabloon",
     "deleteTemplate": "Sjabloon verwijderen",
     "templateDeviates": "Dit profiel wijkt af van het sjabloon “{{name}}”.",
-    "applyDefaultOptions": "Standaardopties van dit profiel toepassen"
+    "applyDefaultOptions": "Standaardopties van dit profiel toepassen",
+    "themes": {
+      "completedWork": "Voortgang en voltooid werk",
+      "relationsLag": "Relaties en lag",
+      "milestones": "Mijlpalen en LOE-activiteiten",
+      "float": "Speling en late datums",
+      "instants": "Datums en tijdstippen uit het bestand",
+      "msproject": "Voortgang zoals Microsoft Project",
+      "ownProfilesOnly": "Alleen voor eigen profielen"
+    },
+    "ownProfilesOnlyNote": "Deze conventies staan in elk ingebouwd profiel uit, ook onder Primavera P6. Zet je er een aan, dan wordt het een eigen profiel.",
+    "deviatingCount": "afwijkend: {{n}}",
+    "baseValue": "basis: {{value}}",
+    "on": "aan",
+    "off": "uit",
+    "resetToBase": "terug naar basis",
+    "perFile": "per bestand",
+    "showHelp": "Uitleg over „{{name}}”",
+    "sourceOptions": {
+      "title": "Instellingen uit het bronbestand",
+      "intro": "Deze reken-opties komen uit een Primavera P6-bestand (.xer). Ze rekenen mee, maar zijn hier niet te wijzigen.",
+      "useExpectedFinishDates": "Verwachte einddatums gebruiken (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Speling rekenen tot de einddatum van het project",
+      "p6CompletedLateFromRemainingWindow": "Voltooide taak: late datums vanaf de statusdatum",
+      "needsConvention": "Werkt alleen samen met de conventie „{{convention}}”, die nu uit staat."
+    }
   }
 }

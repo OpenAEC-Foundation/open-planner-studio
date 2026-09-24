@@ -1320,6 +1320,31 @@
     "applyTemplate": "Mettre à jour depuis le modèle",
     "deleteTemplate": "Supprimer le modèle",
     "templateDeviates": "Ce profil diffère du modèle « {{name}} ».",
-    "applyDefaultOptions": "Appliquer les options par défaut de ce profil"
+    "applyDefaultOptions": "Appliquer les options par défaut de ce profil",
+    "themes": {
+      "completedWork": "Avancement et travail terminé",
+      "relationsLag": "Liens et décalage",
+      "milestones": "Jalons et activités LOE",
+      "float": "Marge et dates au plus tard",
+      "instants": "Dates et instants du fichier",
+      "msproject": "Avancement comme dans Microsoft Project",
+      "ownProfilesOnly": "Profils personnalisés uniquement"
+    },
+    "ownProfilesOnlyNote": "Ces conventions sont désactivées dans chaque profil intégré, y compris Primavera P6. En activer une crée un profil personnalisé.",
+    "deviatingCount": "modifiées : {{n}}",
+    "baseValue": "base : {{value}}",
+    "on": "activée",
+    "off": "désactivée",
+    "resetToBase": "revenir à la base",
+    "perFile": "par fichier",
+    "showHelp": "Explication de « {{name}} »",
+    "sourceOptions": {
+      "title": "Paramètres du fichier source",
+      "intro": "Ces options de calcul proviennent d’un fichier Primavera P6 (.xer). Elles sont prises en compte dans le calcul mais ne sont pas modifiables ici.",
+      "useExpectedFinishDates": "Utiliser les dates de fin prévues (P6 : Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calculer la marge jusqu’à la date de fin du projet",
+      "p6CompletedLateFromRemainingWindow": "Tâche terminée : dates au plus tard à partir de la date d’état",
+      "needsConvention": "Ne fonctionne qu’avec la convention « {{convention}} », actuellement désactivée."
+    }
   }
 }

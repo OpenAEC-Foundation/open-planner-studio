@@ -1355,6 +1355,31 @@
     "applyTemplate": "Aktualizuj z szablonu",
     "deleteTemplate": "Usuń szablon",
     "templateDeviates": "Ten profil różni się od szablonu „{{name}}”.",
-    "applyDefaultOptions": "Zastosuj domyślne opcje tego profilu"
+    "applyDefaultOptions": "Zastosuj domyślne opcje tego profilu",
+    "themes": {
+      "completedWork": "Postęp i ukończona praca",
+      "relationsLag": "Powiązania i opóźnienie",
+      "milestones": "Kamienie milowe i działania LOE",
+      "float": "Zapas i późne terminy",
+      "instants": "Daty i chwile z pliku",
+      "msproject": "Postęp jak w Microsoft Project",
+      "ownProfilesOnly": "Tylko dla własnych profili"
+    },
+    "ownProfilesOnlyNote": "Te konwencje są wyłączone w każdym wbudowanym profilu, także w Primavera P6. Włączenie którejś tworzy własny profil.",
+    "deviatingCount": "zmienione: {{n}}",
+    "baseValue": "bazowo: {{value}}",
+    "on": "wł.",
+    "off": "wył.",
+    "resetToBase": "przywróć bazę",
+    "perFile": "z pliku",
+    "showHelp": "Objaśnienie: „{{name}}”",
+    "sourceOptions": {
+      "title": "Ustawienia z pliku źródłowego",
+      "intro": "Te opcje obliczeń pochodzą z pliku Primavera P6 (.xer). Są uwzględniane w obliczeniach, ale nie można ich tu zmienić.",
+      "useExpectedFinishDates": "Używaj oczekiwanych dat zakończenia (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Licz zapas do daty zakończenia projektu",
+      "p6CompletedLateFromRemainingWindow": "Ukończone zadanie: późne terminy od daty stanu",
+      "needsConvention": "Działa tylko razem z konwencją „{{convention}}”, która jest teraz wyłączona."
+    }
   }
 }

@@ -208,8 +208,9 @@ test('rekenprofiel: de SS-lag-variant komt uit de XER en is in Projectinfo te wi
   await page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]').uncheck();
   await expect(page.locator('[data-ops-convention="p6InProgressStartLagElapsed"]')).toBeChecked();
   await expect(ssLag).toBeDisabled();
-  const a19Label = (await page.locator('label:has([data-ops-convention="p6UseRemainingStartForProgress"])').innerText()).trim();
-  await expect(ssLag.locator('xpath=ancestor::div[@title][1]')).toHaveAttribute('title', new RegExp(a19Label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  // De reden staat zichtbaar in een blok onder het veld (gebruikstest B8), niet alleen in een tooltip.
+  const a19Label = (await page.locator('[data-ops-convention-row="p6UseRemainingStartForProgress"] [data-ops-convention-label]').innerText()).trim();
+  await expect(page.locator('[data-ops-ss-lag-needs-convention]')).toContainText(a19Label);
   await page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]').check();
   await expect(ssLag).toBeEnabled();
 
@@ -298,4 +299,52 @@ test('rekenprofiel: P6 → OPS → P6 geeft dezelfde datums terug, ook na Bereke
   await calculate.click();
   expect(await times()).toBe(fresh);
   await expect.poll(m1).toEqual(['2026-03-27T17:00', '2026-03-27T17:00']);
+});
+
+// UI-voorstel conventiegroepen: de 26 conventies staan per thema, met de basiswaarde van het profiel,
+// "terug naar basis" bij een afwijking, "per bestand" bij A19 en een uitklapbare uitleg per regel. De
+// conventies die in elk ingebouwd profiel uit staan, staan in een eigen laatste groep; de P6-opties die
+// alleen uit het bestand komen, staan alleen-lezen onderaan (B10).
+test('rekenprofiel: conventies per thema met basiswaarde, terug naar basis en uitleg', async ({ page, ops: _ops }) => {
+  const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
+  const chooser = page.waitForEvent('filechooser');
+  await openButton.click();
+  await (await chooser).setFiles({ name: 'groepen.xer', mimeType: 'application/octet-stream', buffer: Buffer.from(SS_LAG_XER) });
+  await expect.poll(() => profileOf(page)).toEqual({ id: 'p6', baseId: 'p6', name: '' });
+  await page.getByRole('button', { name: /^(File|Bestand)$/ }).first().click();
+  await page.getByRole('button', { name: /^(Project info|Projectinfo)$/ }).first().click();
+
+  // Alle 26 regels staan er, verdeeld over de groepen; A19 onder voortgang, C1 bij "alleen eigen profielen".
+  await expect(page.locator('[data-ops-convention-row]')).toHaveCount(26);
+  const a19 = page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-row="p6UseRemainingStartForProgress"]');
+  await expect(a19).toHaveCount(1);
+  await expect(page.locator('[data-ops-convention-group="ownProfilesOnly"] [data-ops-convention-row="p6CompletedPredecessorAtDataDate"]')).toHaveCount(1);
+  await expect(page.locator('[data-ops-convention-group="msproject"] [data-ops-convention-row]')).toHaveCount(2);
+
+  // A19 komt uit het bestand: per bestand gemarkeerd, basis uit, afwijkend.
+  await expect(a19.locator('[data-ops-convention-per-file]')).toBeVisible();
+  await expect(a19.locator('[data-ops-convention-base]')).toHaveText(/(basis|base): (uit|off)/);
+  await expect(a19).toHaveAttribute('data-ops-convention-deviates', 'true');
+  await expect(page.locator('[data-ops-convention-group="completedWork"] [data-ops-convention-group-deviating]')).toBeVisible();
+
+  // Uitleg uitklappen en weer inklappen.
+  await a19.locator('[data-ops-convention-help-toggle]').click();
+  await expect(a19.locator('[data-ops-convention-help]')).toBeVisible();
+  await a19.locator('[data-ops-convention-help-toggle]').click();
+  await expect(a19.locator('[data-ops-convention-help]')).toHaveCount(0);
+
+  // Terug naar basis: A19 uit, het profiel blijft het ingebouwde P6 (geen kopie), zonder "(aangepast)".
+  await a19.locator('[data-ops-convention-reset]').click();
+  await expect(page.locator('[data-ops-convention="p6UseRemainingStartForProgress"]')).not.toBeChecked();
+  await expect(a19.locator('[data-ops-convention-reset]')).toHaveCount(0);
+  const select = page.locator('[data-ops-scheduling-profile-select]');
+  await expect(select).toHaveValue('builtin:p6');
+  await expect(select.locator('option:checked')).toHaveText('Primavera P6');
+
+  // Een gewone afwijking maakt een kopie en krijgt een eigen "terug naar basis".
+  await page.locator('[data-ops-convention="clampNegativeFreeFloat"]').uncheck();
+  await expect(page.locator('[data-ops-convention-row="clampNegativeFreeFloat"] [data-ops-convention-reset]')).toBeVisible();
+
+  // De P6-opties uit het bestand staan alleen-lezen onderaan.
+  await expect(page.locator('[data-ops-scheduling-source-option="useExpectedFinishDates"]')).toBeVisible();
 });
