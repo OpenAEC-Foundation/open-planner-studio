@@ -105,6 +105,10 @@ CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_
 *Uitvoering:* C5-docs gemerged (`393cf74d`, branch `claude/x12-c5-smal-docs`); A19 in aanbouw op
 `claude/x12-a19-basis` (`opus-midden-a19-basis`, regel A hard: stopt bij één cel slechter).
 
+**2026-09-24 ~18:45, vraag 14 (regel 7a / A21 achter een zichtbare optie?), letterlijk: "laten"** — A21 blijft
+zoals hij is: alleen actief als optie A21 aan staat én B3 aan staat (B3 staat in het P6-profiel uit), gids
+eerlijk, geen extra instelling.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -306,9 +310,7 @@ CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_
    niet als P6-standaard aan; C2 blijft (Hotel 244, Roads 11, DCP-03 1).
 
 **Nieuwe eigenaarsvragen uit de reviews van 24-09 (nog niet gesteld; stellen ná A19-basis en C5):**
-- 14. Regel 7a (`p6CompletedLateFromRemainingWindow`, correlationeel, tegengesproken door het enige directe
-  P6-bewijs): achter een zichtbare standaard-uit optie, of aan laten met de eerlijke gidstekst? Advies: aan
-  laten met gidstekst (A21 is zonder B3 al inert; zie eindreview deel 1 bevinding 3).
+- 14. **Beantwoord 24-09 ~18:45: "laten"** (§1a). Regel 7a/A21 blijft zoals hij is.
 - 15. Corrupt of door andere IFC-software herschreven bronarchief: project openen zónder archief met een
   melding (draait "geen fallback" om), of blijven weigeren? Advies: openen met melding, in een eigen PR.
 - 16. Statisch anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37
