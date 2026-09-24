@@ -15,7 +15,7 @@ de auto-save-interval en "De N `planner_*`-tools". -->
 npm run dev          # browser-dev; vaste poort per worktree (3007–3106), weigert dubbelstart
 npm run tauri:dev    # desktopapp, zelfde poorttoewijzing
 npm run build        # tsc && vite build → dist/
-npm run verify       # DE poort — letterlijk wat CI, release-gate en deploy-gate draaien
+npm run verify       # DE poort — dezelfde stappen als CI (parallel verdeeld), release- en deploy-gate
 npm run typecheck    # tsc over src/ én scripts/+tests/ — gebruik dit, niet alleen build
 npm run lint         # bewust minimale ESLint (promises, control-regex, React-hooks)
 npm test             # alle vijf de suites

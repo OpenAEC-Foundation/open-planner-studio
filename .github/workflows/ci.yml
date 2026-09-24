@@ -80,9 +80,34 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build -- --no-bundle
 
-  test:
+  # De `verify`-poort in parallelle delen. `scripts/verify-parts.mjs` leest de stappen RECHTSTREEKS
+  # uit `npm run verify` in package.json en deelt ze alleen in; een stap die daar niet is ingedeeld
+  # valt vanzelf in `static`, en het `static`-deel controleert dat deze matrix elk deel draait. Zo
+  # blijft package.json de ene definitie (de reden dat hier eerst bewust één commando stond), terwijl
+  # de wandkloktijd de langste job wordt in plaats van de som. release.yml en live.yml draaien
+  # `npm run verify` nog in één keer: daar weegt wachttijd niet, en één commando is daar het eenvoudigst.
+  verify:
+    name: verify (${{ matrix.name }})
     timeout-minutes: 20
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: static
+            name: static
+          - part: planning
+            name: planning
+          - part: suites
+            name: suites
+          # De browsersuite is de langste stap (~7,5 min); Playwright verdeelt de spec-bestanden
+          # over twee runners. Elke shard start zijn eigen bewaakte Vite-server.
+          - part: browser
+            name: browser 1-2
+            shard: 1/2
+          - part: browser
+            name: browser 2-2
+            shard: 2/2
 
     steps:
       - uses: actions/checkout@v5
@@ -97,25 +122,36 @@ jobs:
         run: npm ci
 
       - name: Install Playwright Chromium
+        if: matrix.part == 'browser'
         run: npx playwright install --with-deps --only-shell chromium
 
-      # `npm run verify` = typecheck (src én scripts/tests, bevinding K10b) +
-      # alle vijf de testsuites + verify:examples + verify:docs. Bewust ÉÉN
-      # commando in plaats van de losse stappen die hier stonden: dezelfde
-      # regel staat in de gate van release.yml en live.yml, en die drie liepen
-      # anders uit elkaar zodra er een suite bijkomt. Wat er precies in zit
-      # staat in package.json — één plek. Welke suite faalde blijkt uit de log:
-      # elke suite print zijn eigen kop en telling.
-      - name: Verify (typecheck, testsuites, examples, docs)
-        run: npm run verify
+      - name: Check that this matrix runs every verify part
+        if: matrix.part == 'static'
+        run: node scripts/verify-parts.mjs --check-ci .github/workflows/ci.yml
+
+      - name: Verify (${{ matrix.name }})
+        run: node scripts/verify-parts.mjs ${{ matrix.part }} ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
 
       - name: Upload Playwright failure artifacts
-        if: failure()
+        if: failure() && matrix.part == 'browser'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-ci-${{ github.job }}-${{ github.run_attempt }}
+          name: playwright-ci-${{ matrix.part }}-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: |
             playwright-report/
             test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  # Houdt de bestaande checknaam `test` (waar een verplichte-check-instelling op kan staan) en is
+  # alleen groen als élk verify-deel groen is — ook bij een overgeslagen of afgebroken deel rood.
+  test:
+    if: always()
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: All verify parts green
+        run: |
+          echo "verify: ${{ needs.verify.result }}"
+          test "${{ needs.verify.result }}" = "success"
