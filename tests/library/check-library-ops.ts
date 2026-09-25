@@ -4,7 +4,7 @@ import {
   bumpPool, isPoolNewer, makeOrigin, findCopyByOrigin,
   copyCalendarToProject, copyResourceToProject,
   diffCalendarVsPool, diffResourceVsPool, applyResourceUpdate, applyCalendarUpdate,
-  computeCalendarHash, computeResourceHash,
+  computeCalendarHash, computeResourceHash, CALENDAR_DIFF_FIELDS, diffKey,
   normalizeName, matchByName,
   classifyCalendarOnOpen, classifyResourceOnOpen,
   resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, resolvePoolImportPreselection,
@@ -352,6 +352,108 @@ const genId = (prefix: string) => `${prefix}-gen-${++n}`;
   // hash-loos (B1-bestand) met afwijkende pool ⇒ veilige kant (deviated).
   const legacy: WorkCalendar = { ...src, id: 'x', libraryOrigin: { companyId: p.companyId, libraryItemId: src.id, poolVersion: 1 } };
   assert(classifyCalendarOnOpen(legacy, bumped) === 'deviated', 'classify: hash-loos + afwijkend ⇒ deviated (veilig)');
+}
+
+// --- Audit resources-kalenders R2: pauze en werkende uitzonderingen volgen de bibliotheek ---
+// Voorheen misten `simpleBreakStartMinute`, `simpleBreakDurationMinutes` en `workingExceptions` in
+// CALENDAR_DIFF_FIELDS: verversen, diff, hash en "bestandswaarde naar de bibliotheek" lieten ze
+// liggen, en de kopie heette "in sync" terwijl de engine er iets anders mee plande.
+{
+  // Uitputtende indeling van de WorkCalendar-sleutels (zelfde vorm als FIELD_ROLE in
+  // tests/mcp/cases-kalender-roundtrip.ts): een nieuw kalenderveld is hier een compileerfout, en dan
+  // moet iemand beslissen of de bibliotheek hem volgt.
+  const ROLE: Record<keyof WorkCalendar, 'identiteit' | 'inhoud'> = {
+    id: 'identiteit',
+    libraryOrigin: 'identiteit',
+    name: 'inhoud',
+    description: 'inhoud',
+    workDays: 'inhoud',
+    workStartHour: 'inhoud',
+    workEndHour: 'inhoud',
+    hoursPerDay: 'inhoud',
+    simpleBreakStartMinute: 'inhoud',
+    simpleBreakDurationMinutes: 'inhoud',
+    holidays: 'inhoud',
+    generation: 'inhoud',
+    workTime: 'inhoud',
+    shift: 'inhoud',
+    workingExceptions: 'inhoud',
+  };
+  const inhoud = (Object.keys(ROLE) as (keyof WorkCalendar)[]).filter((k) => ROLE[k] === 'inhoud').sort();
+  assert(JSON.stringify([...CALENDAR_DIFF_FIELDS].sort()) === JSON.stringify(inhoud),
+    `R2: CALENDAR_DIFF_FIELDS dekt precies alle inhoudsvelden (kreeg ${JSON.stringify([...CALENDAR_DIFF_FIELDS].sort())})`);
+
+  const p = pool();
+  const WE = [{ name: 'Inhaalzaterdag', startDate: '2026-06-06', endDate: '2026-06-06' }];
+  const poolCal: WorkCalendar = { ...cal('pc1', 'Ploegkalender'), simpleBreakStartMinute: 750, simpleBreakDurationMinutes: 30, workingExceptions: WE };
+  const copy: WorkCalendar = { ...cal('local-c', 'Ploegkalender'), simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60, libraryOrigin: makeOrigin(p, 'pc1') };
+  const withPool: CompanyPool = { ...p, calendars: [poolCal] };
+  const d = diffCalendarVsPool(copy, withPool);
+  const changed = d.status === 'changed' ? d.fields.map((f) => f.field).sort() : [];
+  assert(JSON.stringify(changed) === JSON.stringify(['simpleBreakDurationMinutes', 'simpleBreakStartMinute', 'workingExceptions']),
+    `R2: diff ziet pauze en werkende uitzonderingen (kreeg ${JSON.stringify(changed)})`);
+  const updated = applyCalendarUpdate(copy, withPool);
+  assert(updated.simpleBreakStartMinute === 750 && updated.simpleBreakDurationMinutes === 30,
+    'R2: applyCalendarUpdate neemt het pauzepatroon van de bibliotheek over');
+  assert(JSON.stringify(updated.workingExceptions) === JSON.stringify(WE), 'R2: applyCalendarUpdate neemt de werkende uitzonderingen over');
+  assert(diffCalendarVsPool(updated, withPool).status === 'up-to-date', 'R2: na verversen is de kopie up-to-date');
+  assert(computeCalendarHash({ ...poolCal, simpleBreakStartMinute: 780 }) !== computeCalendarHash(poolCal),
+    'R2: een verschoven pauze (zelfde duur) verandert de hash');
+  assert(computeCalendarHash({ ...poolCal, workingExceptions: undefined }) !== computeCalendarHash(poolCal),
+    'R2: werkende uitzonderingen tellen mee in de hash');
+}
+
+// --- R2, hash-migratie: bestaande syncedHash-stempels blijven herkend ---
+// De stempel round-tript via IFC, dus elke opgeslagen kopie draagt een hash over de tien velden van
+// vóór R2 (de "v1-vorm"). Werd de hash simpelweg over de langere lijst berekend, dan week die voor
+// ELKE kopie af: bij de volgende poolwijziging 'deviated' in plaats van 'behind', en het stille
+// verversen stopte overal. `legacyHash` is het oude algoritme letterlijk.
+{
+  const V1 = ['name', 'description', 'workDays', 'workStartHour', 'workEndHour', 'hoursPerDay',
+    'holidays', 'generation', 'workTime', 'shift'] as const;
+  const legacyHash = (c: WorkCalendar): string => JSON.stringify(V1.map((f) => diffKey(c[f])));
+
+  const p = pool();
+  const src = p.calendars[0];
+  // (1) Zonder pauzevelden/uitzonderingen (de gewone kalender): byte-identiek aan de oude hash.
+  assert(computeCalendarHash(src) === legacyHash(src), 'R2-migratie: kalender zonder pauzevelden ⇒ hash byte-identiek aan de oude');
+  assert(computeCalendarHash({ ...src, simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined }) === legacyHash(src),
+    'R2-migratie: pauzesleutels met waarde undefined (zoals CalendarForm ze wist) tellen als afwezig');
+
+  // (2) Oude stempel, kopie zonder pauze; de bibliotheek wijzigt een v1-veld ⇒ behind.
+  const oldCopy: WorkCalendar = { ...src, id: 'x', libraryOrigin: makeOrigin(p, src.id, legacyHash(src)) };
+  const poolV1Change = bumpPool({ ...p, calendars: [{ ...src, workEndHour: 17, hoursPerDay: 9 }] });
+  assert(classifyCalendarOnOpen(oldCopy, poolV1Change) === 'behind', 'R2-migratie: oude stempel, ongewijzigde kopie, poolwijziging (werkdag) ⇒ behind');
+  // (3) … de bibliotheek krijgt een pauze ⇒ ook behind (een kopie zonder pauze had er nooit een).
+  const poolGetsBreak = bumpPool({ ...p, calendars: [{ ...src, simpleBreakStartMinute: 750, simpleBreakDurationMinutes: 30 }] });
+  assert(classifyCalendarOnOpen(oldCopy, poolGetsBreak) === 'behind', 'R2-migratie: oude stempel, kopie zonder pauze, pool krijgt een pauze ⇒ behind');
+  const refreshed = applyCalendarUpdate(oldCopy, poolGetsBreak);
+  assert(refreshed.simpleBreakStartMinute === 750 && diffCalendarVsPool(refreshed, poolGetsBreak).status === 'up-to-date',
+    'R2-migratie: het verversen brengt de pauze mee');
+  assert(refreshed.libraryOrigin?.syncedHash === computeCalendarHash(refreshed), 'R2-migratie: na verversen draagt de kopie een stempel in de nieuwe vorm');
+
+  // (4) Oude stempel op een kopie MÉT pauze gelijk aan de bibliotheek; poolwijziging op een v1-veld ⇒ behind.
+  const srcBrk: WorkCalendar = { ...src, simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 60 };
+  const pBrk: CompanyPool = { ...p, calendars: [srcBrk] };
+  const oldBrkCopy: WorkCalendar = { ...srcBrk, id: 'x', libraryOrigin: makeOrigin(pBrk, src.id, legacyHash(srcBrk)) };
+  assert(classifyCalendarOnOpen(oldBrkCopy, pBrk) === 'in-sync', 'R2-migratie: oude stempel, kopie met pauze gelijk aan de pool ⇒ in-sync');
+  const pBrkV1Change = bumpPool({ ...pBrk, calendars: [{ ...srcBrk, name: 'Ploegkalender 2026' }] });
+  assert(classifyCalendarOnOpen(oldBrkCopy, pBrkV1Change) === 'behind', 'R2-migratie: oude stempel, kopie met pauze gelijk aan de pool, poolwijziging (naam) ⇒ behind');
+  // Negatieve controle: een lokaal bewerkt v1-veld blijft deviated, ook met de oude stempel.
+  assert(classifyCalendarOnOpen({ ...oldBrkCopy, workStartHour: 6 }, pBrkV1Change) === 'deviated',
+    'R2-migratie: oude stempel, lokaal bewerkte werkdag ⇒ deviated');
+
+  // (5) BEWUSTE GRENS. Oude stempel op een kopie waarvan de pauze afwijkt van de bibliotheek: de oude
+  // stempel dekt de pauze niet, dus of de bibliotheek of het bestand hem veranderde is niet te zeggen
+  // ⇒ veilige kant (zoals een stempel zonder hash): deviated — gevraagd, nooit stil overschreven.
+  const pBrkMoved = bumpPool({ ...pBrk, calendars: [{ ...srcBrk, simpleBreakStartMinute: 750 }] });
+  assert(classifyCalendarOnOpen(oldBrkCopy, pBrkMoved) === 'deviated', 'R2-migratie: oude stempel, pauze wijkt af van de pool ⇒ deviated (niet te bewijzen onbewerkt)');
+
+  // (6) Nieuwe stempel (kopie met pauze): een pauzewijziging in de pool ⇒ behind; een lokale ⇒ deviated.
+  const newBrkCopy: WorkCalendar = { ...srcBrk, id: 'x', libraryOrigin: makeOrigin(pBrk, src.id, computeCalendarHash(srcBrk)) };
+  assert(classifyCalendarOnOpen(newBrkCopy, pBrkMoved) === 'behind', 'R2: nieuwe stempel, pauze in de pool verschoven ⇒ behind');
+  assert(classifyCalendarOnOpen({ ...newBrkCopy, simpleBreakDurationMinutes: 45 }, pBrkMoved) === 'deviated',
+    'R2: nieuwe stempel, pauzeduur lokaal bewerkt ⇒ deviated');
 }
 
 // --- Afwijkingsclassificatie bij openen — resource-wrapper-spiegel (spec §3, GO-NA-FIX 3) ---
