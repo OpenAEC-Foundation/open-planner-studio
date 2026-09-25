@@ -1054,6 +1054,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   AUTOCALCCHECK="$DIR/.auto-calc-cpm.mjs"
   if bundle_check "$DIR/check-auto-calc-cpm.ts" "$AUTOCALCCHECK"; then node "$AUTOCALCCHECK" || STATUS=1; fi
 
+  # Solverfouten in de UI-taal (review taakmutaties, bijvangst B): elke guard levert een code +
+  # parameters naast de ongewijzigde vaste tekst (MCP/extensies), en elke code heeft in alle
+  # veertien talen een tekst met de juiste placeholder.
+  SCHEDERRCHECK="$DIR/.schedule-errors.mjs"
+  if bundle_check "$DIR/check-schedule-errors.ts" "$SCHEDERRCHECK"; then node "$SCHEDERRCHECK" || STATUS=1; fi
+
   # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.
   T1DURCHECK="$DIR/.task-duration-unit.mjs"

@@ -41,6 +41,8 @@ import type { VarianceRow } from '@/engine/variance';
 import type { PdfTableColumn } from '@/services/pdf/pdfTable';
 import type { TFunction } from 'i18next';
 import { buildBaselineOverlay } from '@/types/baseline';
+import type { CPMResult } from '@/engine/scheduler/CPMSolver';
+import { scheduleErrorText } from '@/i18n/scheduleErrors';
 
 /** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
  * bouwt de kolomspec buiten React-render-tijd op in `handleExportPDF`). */
@@ -294,7 +296,8 @@ export function ReportPanel() {
   const [paperSize, setPaperSize] = useState<'A4' | 'A3' | 'A2' | 'A1'>(DEFAULT_REPORT_SETTINGS.paperSize);
   // K7: reden waarom de laatste export-poging is afgebroken (vandaag alleen een CPM-cyclus).
   // Tussenstand — bevinding K8 (prioriteitsitem 18) trekt dit samen tot één toast in uiSlice.
-  const [exportError, setExportError] = useState<string | null>(null);
+  // Het CPM-resultaat met de fout, niet de tekst: vertaald bij het tonen, dus ook na een taalwissel.
+  const [exportError, setExportError] = useState<Pick<CPMResult, 'error' | 'errorInfo'> | null>(null);
   const [orientation, setOrientation] = useState<'landscape' | 'portrait'>(DEFAULT_REPORT_SETTINGS.orientation);
   // Bewust NIET persistent: de bedrijfsnaam komt uit het PROJECT (`project.company`). Zie de
   // toelichting bovenin `src/utils/reportSettings.ts` — globaal bewaren zou het bedrijf van het ene
@@ -1015,13 +1018,13 @@ export function ReportPanel() {
     // K7: bij een cyclus afbreken zónder te exporteren. De cpmResult.error-check staat hier los van
     // de stale-vlag omdat runCPM `scheduleStale` vóór de solve al op false zet; een guard op alleen
     // die vlag zou stil met oude task.time-waarden exporteren.
-    const cpmError = useAppStore.getState().cpmResult?.error;
-    if (cpmError) {
+    const cpm = useAppStore.getState().cpmResult;
+    if (cpm?.error) {
       // Zichtbaar maken is hier NIET optioneel: op het Rapport-tabblad is `GanttCanvas` niet
       // gemonteerd, dus de bestaande cyclus-toast vuurt hier niet en de knop zou anders gewoon
-      // niets doen — precies het stille falen dat bevinding K8 aanklaagt. `cpmResult.error` is
-      // al een vertaalde string, dus dit vraagt geen nieuwe i18n-sleutels.
-      setExportError(cpmError);
+      // niets doen — precies het stille falen dat bevinding K8 aanklaagt. De reden komt als code +
+      // parameters uit de solver en wordt bij het tonen vertaald (`scheduleErrorText`).
+      setExportError({ error: cpm.error, errorInfo: cpm.errorInfo });
       return;
     }
     setExportError(null);
@@ -1635,7 +1638,7 @@ export function ReportPanel() {
           </button>
           {exportError && (
             <div className="text-small leading-4" style={{ color: 'var(--error)' }} role="alert">
-              {exportError}
+              {scheduleErrorText(exportError, tCommon)}
             </div>
           )}
         </div>

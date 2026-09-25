@@ -44,6 +44,14 @@
     "levelingDelayRoundedToWorkdays_one": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} task to whole workdays.",
     "levelingDelayRoundedToWorkdays_other": "Leveling rounds MS Project's minute-precise leveling delay for {{count}} tasks to whole workdays."
   },
+  "scheduleErrors": {
+    "cycle": "Circular dependency between tasks: {{path}}",
+    "noWorkingDays": "The calendar has no working days set",
+    "invalidDayDuration": "Invalid duration in days for task '{{task}}'",
+    "invalidHourDuration": "Invalid duration in hours for task '{{task}}'",
+    "hourTaskWithoutWorkHours": "Hour task '{{task}}' has no valid working hours in its calendar",
+    "invalidStartDate": "Invalid start date for task '{{task}}'"
+  },
   "yes": "Yes",
   "no": "No",
   "days": "d",

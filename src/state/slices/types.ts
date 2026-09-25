@@ -21,6 +21,7 @@ import type {
   GroupLevel, SortLevel, Layout, LayoutSession, LayoutViewParts, SplitViewState, ViewState,
 } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
+import type { ScheduleErrorKey } from '@/i18n/scheduleErrors';
 export type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
   BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
@@ -217,6 +218,11 @@ export interface AppNotification {
   params?: Record<string, string | number>;
   /** Rauwe technische tekst (`err.message`) — BEWUST onvertaald. */
   detail?: string;
+  /** Vertaalbare detailregel (namespace `common`) met `detailParams`; heeft voorrang op `detail`.
+   *  Voor solverfouten, die als code + parameters komen (`src/i18n/scheduleErrors.ts`) zodat ze in
+   *  de UI-taal verschijnen en bij een taalwissel meevertalen. */
+  detailKey?: ScheduleErrorKey;
+  detailParams?: Record<string, string | number>;
   /** Samenvouw-sleutel: een tweede melding met dezelfde sleutel wordt één regel met een teller. */
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */

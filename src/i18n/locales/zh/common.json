@@ -36,6 +36,14 @@
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"
   },
+  "scheduleErrors": {
+    "cycle": "任务之间存在循环依赖：{{path}}",
+    "noWorkingDays": "日历中未设置工作日",
+    "invalidDayDuration": "任务“{{task}}”的天数工期无效",
+    "invalidHourDuration": "任务“{{task}}”的小时工期无效",
+    "hourTaskWithoutWorkHours": "小时任务“{{task}}”的日历中没有有效的工作时间",
+    "invalidStartDate": "任务“{{task}}”的开始日期无效"
+  },
   "yes": "是",
   "no": "否",
   "days": "天",

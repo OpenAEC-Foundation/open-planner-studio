@@ -52,6 +52,14 @@
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières."
   },
+  "scheduleErrors": {
+    "cycle": "Dépendance circulaire entre les tâches : {{path}}",
+    "noWorkingDays": "Aucun jour ouvré n'est défini dans le calendrier",
+    "invalidDayDuration": "Durée en jours non valide pour la tâche '{{task}}'",
+    "invalidHourDuration": "Durée en heures non valide pour la tâche '{{task}}'",
+    "hourTaskWithoutWorkHours": "La tâche en heures '{{task}}' n'a pas d'horaires de travail valides dans son calendrier",
+    "invalidStartDate": "Date de début non valide pour la tâche '{{task}}'"
+  },
   "yes": "Oui",
   "no": "Non",
   "days": "j",

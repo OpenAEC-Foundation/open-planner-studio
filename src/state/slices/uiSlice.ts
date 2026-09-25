@@ -314,6 +314,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           existing.messageKey = n.messageKey;
           existing.params = n.params;
           existing.detail = n.detail;
+          existing.detailKey = n.detailKey;
+          existing.detailParams = n.detailParams;
           return;
         }
       }

@@ -44,6 +44,14 @@
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
     "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
   },
+  "scheduleErrors": {
+    "cycle": "Kringverwijzing tussen taken: {{path}}",
+    "noWorkingDays": "De kalender heeft geen werkdagen ingesteld",
+    "invalidDayDuration": "Ongeldige duur in dagen voor taak '{{task}}'",
+    "invalidHourDuration": "Ongeldige duur in uren voor taak '{{task}}'",
+    "hourTaskWithoutWorkHours": "Urentaak '{{task}}' heeft geen geldige werktijden in zijn kalender",
+    "invalidStartDate": "Ongeldige startdatum voor taak '{{task}}'"
+  },
   "yes": "Ja",
   "no": "Nee",
   "days": "d",

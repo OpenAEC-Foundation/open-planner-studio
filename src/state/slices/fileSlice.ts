@@ -28,6 +28,8 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { invalidateDocumentRedo, removeSessionHistoryForDocumentFromState } from '../sessionHistory';
+import { scheduleFailedNotice } from '../scheduleErrorNotice';
+import type { ScheduleErrorInfo } from '@/engine/scheduler/CPMSolver';
 
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
@@ -82,9 +84,11 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
 }
 
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
- *  opslaan-dialoog en de CPM-cyclusfout (`cpmResult.error`) als boodschap meegegeven, zodat de
- *  aanroeper die kan tonen i.p.v. stilletjes niets te doen. */
-export type ExportResult = { ok: true } | { ok: false; error: string };
+ *  opslaan-dialoog en de CPM-fout (`cpmResult.error` + `errorInfo`) meegegeven, zodat de aanroeper
+ *  die kan tonen i.p.v. stilletjes niets te doen — vertaald via `scheduleErrorText`. */
+export type ExportResult =
+  | { ok: true }
+  | { ok: false; error: string; errorInfo?: ScheduleErrorInfo };
 
 /** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
  *  geparsed project"-implementatie (audit P5/F6). Elke variant (de drie open-paden + `loadState`)
@@ -235,14 +239,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       });
       if (opts.recompute) {
         const cpm = activation.payload.cpmResult;
-        if (cpm?.error) {
-          get().notify({
-            severity: 'error',
-            messageKey: 'notifications.scheduleFailed',
-            detail: cpm.error,
-            dedupeKey: 'cpm-error',
-          });
-        }
+        const failed = scheduleFailedNotice(cpm);
+        if (failed) get().notify(failed);
         runtime.emitHostEvent(HOST_EVENTS.scheduleCalculated, {
           hasError: !!cpm?.error,
           error: cpm?.error ?? null,
@@ -407,8 +405,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // zou de export in dat geval wél met verouderde datums doorlaten. De guard staat vóór de
       // eerste await (saveFileDialog), zodat er niets half gebeurt.
       if (get().scheduleStale) get().runCPM();
-      const cpmError = get().cpmResult?.error;
-      if (cpmError) return { ok: false, error: cpmError };
+      const cpmFailure = get().cpmResult;
+      if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
 
       const state = get();
 
@@ -537,8 +535,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Zelfde K7-guard als `exportAs`: dit pad schrijft óók de CPM-uitvoer weg, dus een stale of
       // cyclische planning mag hier evenmin stil worden geëxporteerd.
       if (get().scheduleStale) get().runCPM();
-      const cpmError = get().cpmResult?.error;
-      if (cpmError) return { ok: false, error: cpmError };
+      const cpmFailure = get().cpmResult;
+      if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
 
       const state = get();
       // 1. Het project zelf (bevat altijd al alle gebruikte items — kernprincipe §1).

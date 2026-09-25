@@ -36,6 +36,14 @@
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다."
   },
+  "scheduleErrors": {
+    "cycle": "작업 간 순환 종속성: {{path}}",
+    "noWorkingDays": "달력에 근무일이 설정되어 있지 않습니다",
+    "invalidDayDuration": "작업 '{{task}}'의 일 단위 기간이 올바르지 않습니다",
+    "invalidHourDuration": "작업 '{{task}}'의 시간 단위 기간이 올바르지 않습니다",
+    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다",
+    "invalidStartDate": "작업 '{{task}}'의 시작일이 올바르지 않습니다"
+  },
   "yes": "예",
   "no": "아니오",
   "days": "일",

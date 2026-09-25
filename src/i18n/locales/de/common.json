@@ -44,6 +44,14 @@
     "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
     "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage."
   },
+  "scheduleErrors": {
+    "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",
+    "noWorkingDays": "Im Kalender sind keine Arbeitstage festgelegt",
+    "invalidDayDuration": "Ungültige Dauer in Tagen für Aufgabe '{{task}}'",
+    "invalidHourDuration": "Ungültige Dauer in Stunden für Aufgabe '{{task}}'",
+    "hourTaskWithoutWorkHours": "Stundenaufgabe '{{task}}' hat in ihrem Kalender keine gültigen Arbeitszeiten",
+    "invalidStartDate": "Ungültiges Startdatum für Aufgabe '{{task}}'"
+  },
   "yes": "Ja",
   "no": "Nein",
   "days": "T",

@@ -56,7 +56,10 @@ export function NotificationHost() {
             {t(n.messageKey, { ...n.params })}
             {n.count > 1 && <span className="ops-toast-count">{`×${n.count}`}</span>}
           </div>
-          {n.detail && <div className="ops-toast-detail">{n.detail}</div>}
+          {/* Een vertaalbare reden (solverfout als code + parameters) gaat vóór de rauwe tekst. */}
+          {n.detailKey
+            ? <div className="ops-toast-detail">{t(n.detailKey, { ...n.detailParams })}</div>
+            : n.detail && <div className="ops-toast-detail">{n.detail}</div>}
           {n.helpArticleId && (
             // mpp-nul-data-etappe, "lees meer"-eigenaarseis: hergebruikt de bestaande Backstage →
             // Help-navigatie (`openHelpArticle`), geen nieuw linkmechanisme. `stopPropagation` zodat

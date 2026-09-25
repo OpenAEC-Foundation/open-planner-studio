@@ -1,7 +1,7 @@
 import type { Task, ConstraintType } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource } from '@/types/resource';
-import type { CPMResult } from './CPMSolver';
+import type { CPMResult, ScheduleErrorInfo } from './CPMSolver';
 import type { ResourceLoadResult } from './ResourceLoad';
 
 /**
@@ -44,6 +44,8 @@ export type ScheduleWarningTarget =
 /** Kind-specifieke feiten voor de omschrijving. ISO-datums onbewerkt; de UI formatteert. */
 export interface ScheduleWarningFacts {
   message?: string;
+  /** `scheduleError`: dezelfde fout als code + parameters; de UI vertaalt hem (`scheduleErrorText`). */
+  errorInfo?: ScheduleErrorInfo;
   deadline?: string;
   finish?: string;
   constraintType?: ConstraintType;
@@ -157,7 +159,7 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
       push({
         id: 'scheduleError:project', kind: 'scheduleError', severity: 'error',
         target: { type: 'project', taskIds },
-        facts: { message: cpmResult.error },
+        facts: { message: cpmResult.error, ...(cpmResult.errorInfo ? { errorInfo: cpmResult.errorInfo } : {}) },
       }, 0);
     }
 

@@ -60,6 +60,14 @@
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
   },
+  "scheduleErrors": {
+    "cycle": "Zależność cykliczna między zadaniami: {{path}}",
+    "noWorkingDays": "W kalendarzu nie ustawiono dni roboczych",
+    "invalidDayDuration": "Nieprawidłowy czas trwania w dniach dla zadania '{{task}}'",
+    "invalidHourDuration": "Nieprawidłowy czas trwania w godzinach dla zadania '{{task}}'",
+    "hourTaskWithoutWorkHours": "Zadanie godzinowe '{{task}}' nie ma prawidłowych godzin pracy w swoim kalendarzu",
+    "invalidStartDate": "Nieprawidłowa data rozpoczęcia dla zadania '{{task}}'"
+  },
   "yes": "Tak",
   "no": "Nie",
   "days": "d",

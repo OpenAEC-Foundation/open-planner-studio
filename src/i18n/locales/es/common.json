@@ -52,6 +52,14 @@
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
     "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
   },
+  "scheduleErrors": {
+    "cycle": "Dependencia circular entre tareas: {{path}}",
+    "noWorkingDays": "El calendario no tiene días laborables configurados",
+    "invalidDayDuration": "Duración en días no válida para la tarea '{{task}}'",
+    "invalidHourDuration": "Duración en horas no válida para la tarea '{{task}}'",
+    "hourTaskWithoutWorkHours": "La tarea horaria '{{task}}' no tiene un horario laboral válido en su calendario",
+    "invalidStartDate": "Fecha de inicio no válida para la tarea '{{task}}'"
+  },
   "yes": "Sí",
   "no": "No",
   "days": "d",

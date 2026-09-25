@@ -36,6 +36,14 @@
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
   },
+  "scheduleErrors": {
+    "cycle": "タスク間に循環依存があります: {{path}}",
+    "noWorkingDays": "カレンダーに稼働日が設定されていません",
+    "invalidDayDuration": "タスク「{{task}}」の日単位の期間が無効です",
+    "invalidHourDuration": "タスク「{{task}}」の時間単位の期間が無効です",
+    "hourTaskWithoutWorkHours": "時間タスク「{{task}}」のカレンダーに有効な稼働時間がありません",
+    "invalidStartDate": "タスク「{{task}}」の開始日が無効です"
+  },
   "yes": "はい",
   "no": "いいえ",
   "days": "日",
