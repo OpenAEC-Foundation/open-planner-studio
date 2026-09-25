@@ -482,6 +482,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GFCHECK="$DIR/.gantt-float-cull.mjs"
   if bundle_check "$DIR/check-gantt-float-cull.ts" "$GFCHECK"; then node "$GFCHECK" || STATUS=1; fi
 
+  # Spelingsband = "Laatste einde" (audit weergaven, bevinding 4): de band was totalFloat
+  # (werkdagen) × px per kalenderdag en stopte over een weekend dagen te vroeg (in urenmodus schoot
+  # hij door). Scherm, afdruk en het afdrukbereik lezen de rand nu uit één helper (`floatBandEnd`);
+  # deze batterij meet de echte renderer en de echte afdruk tegen `lateFinish`.
+  FBECHECK="$DIR/.float-band-end.mjs"
+  if bundle_check "$DIR/check-float-band-end.ts" "$FBECHECK"; then node "$FBECHECK" || STATUS=1; fi
+
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
   # renderer-batterijen bouwen die opties met de hand op en staan dus stroomafwaarts van dit

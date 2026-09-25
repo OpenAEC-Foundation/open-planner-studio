@@ -24,7 +24,7 @@ import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
-import { shownStart, shownFinish } from '@/utils/taskDates';
+import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -1197,9 +1197,11 @@ export class GanttRenderer {
     // berekend en zijn nooit breder dan `[x1,x2]`, dus "volledig buiten beeld" op de volle extent
     // impliceert hetzelfde voor elk segment (`check-gantt-float-cull.ts` bewaakt dit).
     // #130: staat de band uit, dan is zijn breedte 0 — de cull-test valt dan terug op de balk zelf.
-    const floatWidth = this.opts.showFloatBand !== false && task.time.totalFloat > 0 && !task.time.isCritical
-      ? task.time.totalFloat * this.opts.view.zoom
-      : 0;
+    // De band eindigt op "Laatste einde" (`floatBandEnd`, dezelfde helper als de afdruk), niet op
+    // x2 + totalFloat × zoom: dat waren werkdagen maal pixels per kalenderdag, en over een weekend
+    // stopte de band dan dagen te vroeg (`check-float-band-end.ts`).
+    const bandEnd = this.opts.showFloatBand !== false ? floatBandEnd(task) : null;
+    const floatWidth = bandEnd ? Math.max(0, this.dateToX(bandEnd) - x2) : 0;
     if (x2 + floatWidth < 0 || x1 > this.opts.canvasWidth) return 0;
 
     const width = Math.max(x2 - x1, 4);

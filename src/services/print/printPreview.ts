@@ -35,7 +35,7 @@ import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
 import { ellipsize } from '@/engine/renderer/textFit';
 import { displayDate } from '@/utils/displayDate';
-import { shownStart, shownFinish } from '@/utils/taskDates';
+import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -949,10 +949,13 @@ export function renderReport(
     if (s < minDate) minDate = s;
     if (f > maxDate) maxDate = f;
 
-    // Include float in date range
-    if (options.showFloat && t.time.totalFloat > 0) {
-      const floatEnd = addCalendarDays(f, t.time.totalFloat);
-      if (floatEnd > maxDate) maxDate = floatEnd;
+    // Include float in date range: de laatste dag van de spelingsband (= "Laatste einde"), met
+    // dezelfde helper als de tekening hieronder — `f` is net als `maxDate` de BEGINdag van de
+    // laatste getekende dag, de helper geeft het exclusieve einde.
+    const bandEnd = options.showFloat ? floatBandEnd(t, true) : null;
+    if (bandEnd) {
+      const lastBandDay = addCalendarDays(bandEnd, -1);
+      if (lastBandDay > maxDate) maxDate = lastBandDay;
     }
   }
 
@@ -1457,9 +1460,11 @@ export function renderReport(
         }
       }
 
-      // Float indicator
-      const floatEndX = clampX(rawX2 + task.time.totalFloat * zoom);
-      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical && floatEndX > x2) {
+      // Float indicator — tot het einde van "Laatste einde" (`floatBandEnd`, dezelfde helper als
+      // het scherm en het datumbereik hierboven), op dagniveau zoals de balk zelf.
+      const bandEnd = options.showFloat ? floatBandEnd(task, true) : null;
+      const floatEndX = bandEnd ? clampX(dateToX(bandEnd)) : x2;
+      if (bandEnd && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
         d2d.roundRect(x2, y + barHeight * 0.2, floatEndX - x2, barHeight * 0.6, 2);
         d2d.fill();
@@ -1467,8 +1472,7 @@ export function renderReport(
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
-        const barRightX = hasFloat ? Math.max(x2, floatEndX) : x2;
+        const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
         barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
       }
     }
