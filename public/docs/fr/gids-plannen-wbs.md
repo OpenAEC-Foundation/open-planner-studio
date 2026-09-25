@@ -105,7 +105,9 @@ Une fois créés, vous attribuez un code d'activité ou remplissez un champ pers
 
 ### Grouper par codes et champs
 
-Les codes d'activité et les champs personnalisés deviennent vraiment payants une fois que vous groupez par leur biais : allez sur l'onglet du ruban **Affichage**, ouvrez **Grouper** et choisissez le code d'activité ou le champ personnalisé selon lequel regrouper sous **Champ**. Le tableau des tâches affiche alors des en-têtes de groupe au lieu de l'arborescence WBS — pratique pour voir, par exemple, toutes les tâches par unité ou par discipline regroupées, indépendamment du phasage. Vous pouvez configurer jusqu'à deux niveaux de regroupement à la fois (par exemple d'abord par unité, puis par discipline).
+Les codes d'activité et les champs personnalisés deviennent vraiment payants une fois que vous groupez par leur biais. Le tableau des tâches affiche alors des en-têtes de groupe au lieu de l'arborescence WBS — pratique pour voir, par exemple, toutes les tâches par unité ou par discipline regroupées, indépendamment du phasage. Vous pouvez configurer jusqu'à deux niveaux de regroupement à la fois (par exemple d'abord par unité, puis par discipline).
+
+Un regroupement se configure avec un layout. Allez sur l'onglet du ruban **Affichage**, groupe de ruban **Layout**, et cliquez sur **Nouveau layout**. Dans la fenêtre, sous **Grouper**, cliquez sur **+ niveau** et choisissez dans la liste le code d'activité ou le champ personnalisé. **Enregistrer** en fait un bouton de layout : un clic active le regroupement, un second clic le désactive. **Appliquer sans enregistrer** affiche le regroupement tout de suite, sans bouton. Ce qu'un bouton de layout enregistre d'autre est expliqué dans [Enregistrer et charger des layouts](docs://ref-layouts).
 
 ## Notes : une liste de contrôle par tâche
 

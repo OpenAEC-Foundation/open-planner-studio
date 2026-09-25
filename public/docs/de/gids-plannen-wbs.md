@@ -87,7 +87,9 @@ Sobald sie erstellt sind, weisen Sie einen Aufgabencode zu oder füllen ein benu
 
 ### Gruppieren nach Codes und Feldern
 
-Aufgabencodes und benutzerdefinierte Felder zahlen sich richtig aus, sobald Sie danach gruppieren: Gehen Sie zur Menüband-Registerkarte **Ansicht**, öffnen Sie **Gruppieren…** und wählen Sie den Aufgabencode oder das benutzerdefinierte Feld, nach dem gruppiert werden soll, unter **Feld**. Die Aufgabentabelle zeigt dann Gruppenkopfzeilen statt des WBS-Baums — praktisch, um beispielsweise alle Aufgaben pro Einheit oder pro Disziplin zusammen zu sehen, phasenübergreifend. Sie können bis zu zwei Gruppierungsebenen zugleich einrichten (zum Beispiel zuerst nach Einheit, dann nach Disziplin).
+Aufgabencodes und benutzerdefinierte Felder zahlen sich richtig aus, sobald Sie danach gruppieren. Die Aufgabentabelle zeigt dann Gruppenkopfzeilen statt des WBS-Baums — praktisch, um beispielsweise alle Aufgaben pro Einheit oder pro Disziplin zusammen zu sehen, phasenübergreifend. Sie können bis zu zwei Gruppierungsebenen zugleich einrichten (zum Beispiel zuerst nach Einheit, dann nach Disziplin).
+
+Eine Gruppierung richten Sie mit einem Layout ein. Gehen Sie zur Menüband-Registerkarte **Ansicht**, Menübandgruppe **Layout**, und klicken Sie auf **Neues Layout**. Klicken Sie im Fenster unter **Gruppieren** auf **+ Ebene** und wählen Sie in der Liste den Aufgabencode oder das benutzerdefinierte Feld. **Speichern** macht daraus eine Layout-Schaltfläche: Ein Klick schaltet die Gruppierung ein, ein weiterer Klick wieder aus. **Anwenden ohne Speichern** zeigt die Gruppierung sofort an, ohne Schaltfläche. Was eine Layout-Schaltfläche sonst noch festhält, steht in [Layouts speichern und laden](docs://ref-layouts).
 
 ## Notizen: eine Checkliste pro Aufgabe
 

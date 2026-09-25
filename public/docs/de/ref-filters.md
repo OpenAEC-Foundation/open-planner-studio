@@ -4,7 +4,7 @@ Das Fenster **Filter** steuert, welche Aufgaben sichtbar sind — im Gantt und a
 
 ## Öffnen
 
-**Ansicht** → Menübandgruppe **Anzeige** → **Filter…**. Die Schaltfläche bleibt hervorgehoben, solange ein Filter aktiv ist. **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters schließt, ohne anzuwenden.
+Einen Filter richten Sie im Layout-Fenster ein: **Ansicht** → Menübandgruppe **Layout** → **Neues Layout**, aktivieren Sie **Filter** und bauen Sie darunter die Regeln auf. **Speichern** macht daraus eine Layout-Schaltfläche, **Anwenden ohne Speichern** zeigt den Filter nur vorübergehend an. Das separate Filterfenster, das unten beschrieben wird, gehört zu den klassischen Ansichtsschaltflächen: **Ansicht** → Menübandgruppe **Anzeige** → **Filter…**, nur sichtbar, wenn Sie diese Schaltflächen über **Einstellungen** → **Erweitert** → **Legacy-Funktionen** einschalten. Die Regeln selbst funktionieren an beiden Stellen gleich. Die Schaltfläche bleibt hervorgehoben, solange ein Filter aktiv ist. Haben Sie noch keine gespeicherten Filter, öffnet sie direkt das Filterfenster. Andernfalls öffnet ihr Pfeil auch Ihre gespeicherten Filter; eine Auswahl wendet den Filter sofort an, und **Löschen** schaltet den aktiven Filter aus. **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters schließt, ohne anzuwenden.
 
 ## Gruppen: alle oder eine
 

@@ -4,9 +4,9 @@
 // ontbrekende vertalingen, die alleen het stuk na de laatste punt houdt. Een naam die de gebruiker
 // zelf gaf, is geen vertaalsleutel.
 //
-// Echte events: de kiezer opent met de plus in de tabelkop, een groep klapt open met een klik en een
-// klik op een veld zet het als kolom. `__OPS__` zet alleen de fixture (velden, codes, baseline) en
-// leest state.
+// Echte events: de kiezer opent met de plus in de tabelkop, een groep klapt open met een klik, een
+// klik op een veld zet het als kolom, en in het layoutvenster wordt een groepeerniveau met klikken en
+// een keuzelijst ingesteld. `__OPS__` zet alleen de fixture (velden, codes, baseline) en leest state.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -95,3 +95,31 @@ test('eigen namen met een punt: kolomkiezer, zoeken en kolomkop tonen de naam le
     .toHaveText('Blok v.o.');
 });
 
+test('gids-plannen-wbs: groeperen op een code via Beeld → Layout → Nieuwe layout, met de naam zoals gegeven', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => { localStorage.removeItem('ops-taskGridLayouts'); });
+  await seedUserFields(page);
+
+  // Standaard staat er op Beeld geen losse knop Groeperen… (die hoort bij de klassieke knoppen).
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await expect(page.getByRole('button', { name: /^(Group…|Groeperen…)$/ })).toHaveCount(0);
+
+  // Lintgroep Layout → Nieuwe layout; onder Groeperen "+ niveau" en in de keuzelijst de code.
+  await page.getByRole('button', { name: /^(New layout|Nieuwe layout)$/ }).click();
+  const dialog = page.locator('[data-ops-layout-dialog]');
+  await dialog.locator('[data-ops-layout-name]').fill('Per locatie');
+  const groupRow = dialog.locator('[data-ops-layout-part-row="group"]');
+  await expect(groupRow.locator('[data-ops-layout-part="group"]')).toBeChecked();
+  await groupRow.getByRole('button', { name: /^(\+ level|\+ niveau)$/ }).click();
+  const field = groupRow.getByRole('combobox', { name: /^(Field|Veld)$/ });
+  await expect(field.locator('option', { hasText: CODE_NAME })).toHaveCount(1);
+  await field.selectOption({ label: CODE_NAME });
+  await page.locator('[data-ops-layout-save]').click();
+  await expect(dialog).toHaveCount(0);
+
+  // De nieuwe layoutknop zet de groepering aan en weer uit.
+  const own = page.locator('[data-ops-layout-button]').filter({ hasText: 'Per locatie' }).locator('button');
+  await own.click();
+  await expect(page.locator('[data-grid-group-cell] .task-grid-group-label')).toHaveText(['N.1 — Noordvleugel', 'Z.2']);
+  await own.click();
+  await expect(page.locator('[data-grid-group-cell]')).toHaveCount(0);
+});
