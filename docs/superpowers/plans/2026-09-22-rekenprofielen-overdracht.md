@@ -272,6 +272,20 @@ vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
   de groep Overlay; kandidaat voor de eindvraag aan de eigenaar. Groep A wordt pas na #169/#170 op main
   bijgewerkt met `main`, dan één verify + measure, dan één groeps-PR.
 
+- **25-09 ~23:05, groep B (#172 + 16 fix-PR's op `claude/integratie-groep-b` 74487a70, lichte poorten +
+  planningssuite groen; twee fixcommits: #201×#203 fasevoortgang bij Opslaan uit de store; #203-regels
+  hersteld).** Overlap met #170 — orkestratorbesluiten voor de latere merge van `main` (mét #170) in groep B,
+  volgens het voorstel van de integratie-agent: (1) duurgevolgregels: `settleDurationAftermath` (#170) leidend,
+  met #185's afknippen van gebruikersgaten erin en #186's waardepoort ervoor; `finishDurationEdit` in de
+  #170-vorm (hele omgeving); (2) toewijzingen: #184's `assignmentMutations.ts` leidend als plek, #170's
+  werkregel daarin, `invalidateForAssignmentChange` erachter; (3) taakdialoog: #201's `taskDialogSave.ts`
+  leidend voor de logica (duurregel + `setTaskWorkRule` erin), #170's `historyMark`/squash/revert leidend voor
+  de undo-grens (één squash over de batch; #186 "OK zonder wijziging doet niets" blijft); (4) `historySlice`:
+  #170 overnemen; (5) voortgangssetters: groep B's `commitProgressEdit`-route leidend, #170's
+  `captureProgressWork`/`settleProgressWork` erbinnen ná de no-op-check; (6) `taskEditPlan`: groep B's
+  functies houden, #170's aanroepen erin, ook voor #202's Einde-pad via `finishDurationEdit`. Geen van deze
+  zes is een visiebotsing; het zijn plek-keuzes.
+
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
 1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
