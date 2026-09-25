@@ -14,6 +14,12 @@ import { resolveExtensionConsent } from '@/extensions/consentBridge';
  * extensie is hiertoe beperkt" en daarmee een garantie suggereren die er niet is — erger dan geen
  * dialoog. De declaratie staat er wél, expliciet gelabeld als *voorgenomen* gebruik.
  *
+ * Eén nuance sinds de XER-etappe (eindreview bevinding 9): `importSource` is de enige permissie met
+ * een echte privacybetekenis — hij geeft de rauwe bronbytes van elk geïmporteerd bestand vrij en is
+ * op de ondersteunde API wél hard afgedwongen (default-deny, `permissions.ts`). Dat maakt hem geen
+ * sandbox-grens (dezelfde realm blijft), maar het is wel het enige chipje dat een gebruiker moet
+ * kunnen lezen zonder de broncode te kennen; daarom krijgt het als enige een vertaalde toelichting.
+ *
  * De vraag gaat over één ding: dit is code van iemand anders, met dezelfde rechten als de app.
  * Daarom staan er drie dingen die je nodig hebt om te beslissen — wie het schreef, waar het vandaan
  * komt (en of die download geverifieerd is), en wat dat concreet betekent op dit platform.
@@ -106,6 +112,11 @@ export function ExtensionConsentDialog() {
               </span>
             ))}
           </div>
+          {pending.declared.includes('importSource') && (
+            <p className="text-text-secondary mt-1" data-ops-ext-consent-import-source>
+              {t('extConsent.permImportSource')}
+            </p>
+          )}
         </div>
       </div>
 

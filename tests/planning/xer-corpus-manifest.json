@@ -1,0 +1,612 @@
+{
+  "version": 1,
+  "policy": "Alle 93 openbare .xer-bestanden zijn op volledig bytehash en herkomst geclassificeerd. Alleen role=oracle/included=true stuurt de fidelitybaseline; veldinhoud kiest nooit zelf de populatie.",
+  "files": {
+    "cpp-cpm-engine/validation/p6-comparison/cases-import.xer": {
+      "sha256": "df264eb25ca8dc0e6e29d5ba5ba4a4e370f9126aecb99ab48e9fd4383f0287b7",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Door het referentieraamwerk gegenereerde invoer voor P6; geen door P6 opgeslagen rekenuitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/01-small-clean-baseline/case.xer": {
+      "sha256": "6e9806e13077f34f4bf657624b057036593584dc33da770bba5ec2b67895ed58",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/02-large-1000-activities/case.xer": {
+      "sha256": "db916c26851161de898b1bda017ea283dac718004b6fe00fa1d9cb0fb3f40b98",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/03-multiple-calendars/case.xer": {
+      "sha256": "2f9acbc1e2a31a05038e84f077b694508864b0f37a1b53f6f3e1aad0543377c6",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/04-constraints-heavy/case.xer": {
+      "sha256": "c40637c54fcb2cf07188826fffd3db96418b4f96714af62d1a2156d109a2633d",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/05-in-progress/case.xer": {
+      "sha256": "0438811fad839eba93e5146da5713c349885d9f6c9e1fd7d4e8785b2060d9e4a",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/06-fully-completed/case.xer": {
+      "sha256": "9f60b7600e82820cb7132d2cc69831cd2c8de7ef6d0d5e9969f6e810a443be45",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/07-negative-float/case.xer": {
+      "sha256": "2ea1ec822c891bf6437398389736796162dd0b9457dcf71de576827a362c5eab",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/08-disconnected-fragments/case.xer": {
+      "sha256": "18d5e22eb93bf43029dde4af63fdc204522d65edf8e81719051506f94709500e",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/09-corrupt-xer/case.xer": {
+      "sha256": "cedb29f9d52661aa1403af6af7234d1551483acf007b40206638cfba75232378",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/10-out-of-sequence-progress/case.xer": {
+      "sha256": "3ecc0ffd36c458ff7432bfd2340a20ee29e2c7ccb220040c6f7b0e43b8d9f254",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/11-no-logic/case.xer": {
+      "sha256": "c4ae28545d2b2bad5ed7ca9ac8ced1aed7747b8db7a268f6e4a9cae1d5e5c61d",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/12-milestone-heavy/case.xer": {
+      "sha256": "2a71ac9c5dce26dde68ff2c9f5b751a1c73416504d926e9bfa1328b66f388fbc",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "cpp-cpm-engine/validation/xer-corpus/cases/13-large-1000-dag-branching/case.xer": {
+      "sha256": "65bb212d3bf44c5d3e14e9f3aae97d2a058e44056a21cd1227e91d3f769eee82",
+      "source": "cpp-cpm-engine@c279a5c4ff204ba763a6f9726aa6383574b50475",
+      "role": "engine-input",
+      "included": false,
+      "exclusionReason": "Gegenereerde parser-/engine-invoerfixture zonder onafhankelijke P6-uitvoer."
+    },
+    "crawl-xer/all-relation-types.xer": {
+      "sha256": "b851e91222c491682fb777b953eb659ee938cf5609829130d2e2baaaa2239253",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/CRONOGRAMA_MACRO_SLNR_brazil.xer": {
+      "sha256": "bd3aefb87cfa0532de36b3972bd7dc4a5c7eb6f156b1b8e4af90e43ebf479ea4",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "reference-only",
+      "included": false,
+      "exclusionReason": "Publiek referentiebestand zonder parseerbare P6-orakelcel op de zes poortassen."
+    },
+    "crawl-xer/cycle-schedule.xer": {
+      "sha256": "95c66b76f33604f388121db78894b6de134c6bee125d59ca798995cee82ddde7",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/DataCenter_Project.xer": {
+      "sha256": "c897dc5e2644749bac0b3a3a85cd637dff6027a0ccb7bf1b680680cfe69c6d7d",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/droid_skeleton_fmt-1455.xer": {
+      "sha256": "ec911df4152b92b66372deee8df75cd497b3492067143446a5a77b8bb1e25cbc",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/ecm-sample-schedule.xer": {
+      "sha256": "fb0b4545e60190dacf353550e0496b343a590527dad2175c022d1a6179a8521b",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/eh_P6Workshops/OZB-Start-09Dec24.xer": {
+      "sha256": "2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/gimmer-crag-mountain-refuge.xer": {
+      "sha256": "9590c4cdc4efa69a231b66ac509611d17f31605599ee7abde02a197f5e8b1e6e",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/HarbourPointe_AssistedLiving.xer": {
+      "sha256": "b9547eb91c30af1750933a64409d8b2a4a2c1dbe4c0be276a04ab150c8a50167",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/hb-intel_Project_Schedule.xer": {
+      "sha256": "ad92ce52ba95b27539a4c0ba0c44e2a6b755ec2c15c3066009694c7430846684",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/Hospital_GW_Programme.bound.xer": {
+      "sha256": "0fa5172162fbd6895f88042d0277a8fbc46c9c82badbcbae333d3423dd208c86",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/Hospital_GW_Programme.xer": {
+      "sha256": "fc74bdab8629d9e81e5c7e58900ea4632b4525f63cca9fa546d4f17605936de6",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/Hotel_Construction_TEC.xer": {
+      "sha256": "9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/kedular-empty-schedule.xer": {
+      "sha256": "f0af54006bc07b8731794e4b69ddad6be9ed6b0777961cd01c1cbcf3ce9dae53",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-field-mismatch.xer": {
+      "sha256": "4d39fc3daf2d2859aa06feb73ee66c52def843a0f4fb1589783e970f56be33e3",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-minimal-valid.xer": {
+      "sha256": "b72a879f6282cc6193bb0d13e2671843cafbb1d1edb5546ec7a99f4744037262",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-missing-calendar.xer": {
+      "sha256": "11d8c34fff8cf0b8db69348813001638c81fa1db2d2f22c0006c2d5090500477",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-missing-taskpred.xer": {
+      "sha256": "9f2964425c0e295bfc3a62ba0c860d9be5a6167a5494427007a42ecce5df6cc6",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-multi-project.xer": {
+      "sha256": "32524ea41f8bb4cba3de26d12e589bb1cd750a61e4b8e5863b89108d085b7b09",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-no-terminator.xer": {
+      "sha256": "98f079b267688de209d20d8156026111f7a045cb67f3457e277a3d29a4fd9c04",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/kedular-unknown-tables.xer": {
+      "sha256": "c1ccf20436ba38b5846d0ac6b104551d97281093effaa40a9eb6222728fb8ee3",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "Gerichte XER-parserfixture; herkomst is testopbouw, niet een P6-capture."
+    },
+    "crawl-xer/MER-1-2026_epc.xer": {
+      "sha256": "49aea658c963a0054e97716aa608fb31798f1616c6039c1a379e6023717e660e",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/p6_torture_test_v1.xer": {
+      "sha256": "2a7732b5b99de2a5f40aab40e0af52757fbe68e5d4eda404a9a060fdc1be1140",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "synthetic-fixture",
+      "included": false,
+      "exclusionReason": "Expliciete torture-testfixture; geen onafhankelijke P6-capture."
+    },
+    "crawl-xer/p6diff-baseline.xer": {
+      "sha256": "568c19375b4e0d674c75e6aea023c98772fb33e6896755f866e4641a56197300",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/p6diff-revised.xer": {
+      "sha256": "97058f720a70f62399c92f7f84ffb4a29b936baf95c6a2e339e3cc4a222f318c",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/p6xer-basic.xer": {
+      "sha256": "18edce1bd5bd7a50a97e7dda260cb09270afc0fab3649b6d54867a4e9bd1c26b",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/p6xer-comprehensive.xer": {
+      "sha256": "ade09ae6394d5d6b954748eab08338855c73097b6a1e46238b256049c701a4d6",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/p6xer-empty_tables.xer": {
+      "sha256": "29c7647a5d05da5e30e5c8319201cabc1ba7fa8a14a2455aec9ecaa0a9a675ce",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/p6xer-encodings.xer": {
+      "sha256": "f94dc80e72dc337eec1c6e3ca22d5e315361c0f33089d4d6bbd29dd8d60f2807",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/p6xer-malformed.xer": {
+      "sha256": "5fed5cba18bca4d1c7254e0b10fa020813393de3e34acd9ead89bf4f88320315",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/p6xer-mixed_endings.xer": {
+      "sha256": "dceb95f4d97f48f2a6092859dc019ca64debfaf6fe82a8827a1010a3b9032db8",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer/Roads_Project_TEC.xer": {
+      "sha256": "a2ef7b35c00d8cf8ba75230d71d69b96130f7f689495e86a4cf5f8fcd34431ae",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/Sample_Construction_TEC.xer": {
+      "sha256": "55b7e4463dcd36ba02eae072445e8fc2cc684a188e40c588b05321963a362c5e",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/stack_data_center_baseline.xer": {
+      "sha256": "1ba69d297ee9a5c65c644e7373dc414aa334c996b74800c4688aea7e3681eebf",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer/submitlog-baseline-taskpred.xer": {
+      "sha256": "a303595f1def90620cb7da693e7217f364dd66bbc3b3775de5ae93106fa504e4",
+      "source": "crawl-xer (publieke crawl)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Formaat-/robuustheidsfixture of niet-canonieke XER; geen P6-uitvoerorakel."
+    },
+    "crawl-xer-extra/ashspace-primeveraxereditor/sample.xer": {
+      "sha256": "68ce5f0bb2b534d5ba192e3ad8241025d74ae45e94209f11731d42d32f18f82b",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/clause-epc/MER-1-2026_update_2026-05-01.xer": {
+      "sha256": "5d71eac4e70b0d95365d5637d0e79874686f7332d1e90a939c28124260d79f47",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/eq-proof/schedule.xer": {
+      "sha256": "233486f70f5a4ee98c6fcac046515148b28b4256e5d61466146324359c6b888a",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "synthetic-fixture",
+      "included": false,
+      "exclusionReason": "Volgens crawl-xer-extra/MANIFEST.md een kleine edge-/handgetypte fixture."
+    },
+    "crawl-xer-extra/groupdocs-conversion/sample.xer": {
+      "sha256": "b7ef6d85acfedda1a8d3a77391592587d3ca3088013b896d03fd129b23d83834",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer": {
+      "sha256": "2c1dce175b9f078111a48dc13fd1777f5fbd4cd7ab6623e647e7437330c60b7f",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/meridianiq/demo-sample.xer": {
+      "sha256": "146e4c8659bad066b298988613dec178ce63f3a2c35415937b3d70a8f8ef8158",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/meridianiq/sample_update2.xer": {
+      "sha256": "53f5cdbeb3fbd9c6cb252a48c2ad9206f1f2ab44215372f83199df3a90803ffd",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/p6difftool/sample-target.xer": {
+      "sha256": "c872c9e704797d829205f3c5486e7c4cd5aec729143a63fbcf8b0ec8e8864a3c",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/pda-platform/simple_project.xer": {
+      "sha256": "8c82d244fb59e3439ba34e44ff7989f6b490344cdee3493ab7caacdce3038270",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "synthetic-fixture",
+      "included": false,
+      "exclusionReason": "Volgens crawl-xer-extra/MANIFEST.md een kleine edge-/handgetypte fixture."
+    },
+    "crawl-xer-extra/planning-risk-intelligent/sample_schedule.xer": {
+      "sha256": "1ba8cf1885491db3c19ebffc85fbd33935345ef9effb386a8da33226e665f9ab",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/polittdj-schedule-manipulation/commercial_construction.xer": {
+      "sha256": "3daf749da5d4cd8909a33da2ea07f8c84cfdb62edfe4ce31d32152ffe152367d",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "synthetic-fixture",
+      "included": false,
+      "exclusionReason": "Volgens crawl-xer-extra/MANIFEST.md handmatig opgebouwde synthetische fixture."
+    },
+    "crawl-xer-extra/schedulevisualiser/Sample_Project.xer": {
+      "sha256": "deabc76347eaef15727f430951a8a1b957dd5ab0251dc4500e15c817a8e030b8",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "crawl-xer-extra/xernative/sample.xer": {
+      "sha256": "4d8bce790a93b9bc747abec5d99840e3e0d1ce5523e0afae3ba881762cfe2c13",
+      "source": "crawl-xer-extra/MANIFEST.md",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
+      "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
+      "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
+      "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
+      "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revA.xer": {
+      "sha256": "79f6fb43bb391ed609f164e6dc5d38d329b634467bc6a7b06cbf3d8a351c8078",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revB.xer": {
+      "sha256": "def489b2a803af9f939b964b80e8fd9b2dc8143df280ad2a3088d91d4d6cdac3",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/deploy/aws-package/sample/revisions/revC.xer": {
+      "sha256": "a7fc367eab6c904e6659a8206b9a162df132824c630e6175665c8a63f054104b",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
+      "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
+      "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - As-Built Programme Rev 12.xer": {
+      "sha256": "816e01738f4967872980ce3fed0c2bfd8c09f78197b7de1beea5ca98e094aeae",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/programmes/harbour_point_dcp03/Harbour Point DCP-03 - Baseline Programme Rev 0.xer": {
+      "sha256": "0611f9054a4b566340dd53181b96d66907f4ac8faa0ef1395ec338be9f83b96d",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/revisions/revA.xer": {
+      "sha256": "79f6fb43bb391ed609f164e6dc5d38d329b634467bc6a7b06cbf3d8a351c8078",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/revisions/revB.xer": {
+      "sha256": "def489b2a803af9f939b964b80e8fd9b2dc8143df280ad2a3088d91d4d6cdac3",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "delay-analysis-toolkit/sample/revisions/revC.xer": {
+      "sha256": "a7fc367eab6c904e6659a8206b9a162df132824c630e6175665c8a63f054104b",
+      "source": "delay-analysis-toolkit@ecab947b1bde0cf0709aa508fad37a680ad818c4",
+      "role": "oracle",
+      "included": true
+    },
+    "mpxj/junit/data/assignment/resource-rates-test.xer": {
+      "sha256": "7298574bb32ac3068b07b427a35cd2834308d2fcb0e2ac74fea4e013e738c62e",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "mpxj/junit/data/calendar/invalid/invalid-8.4.xer": {
+      "sha256": "85f8c7d681b15daf755ba1d568eb09ebcdd529a16c20045e6db6c2937899f54b",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "mpxj/junit/data/generated/task-percentcomplete/percent-complete-8.4.xer": {
+      "sha256": "71e56568075852d00507ff5506d5c055912ce0ba0982b97b8ace6269f794d10a",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "mpxj/junit/data/PredecessorCalendar.xer": {
+      "sha256": "46f3c1c68552429cf32191ebc8f48d12f52e517481b6fb588ad1955937c5cd1d",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "mpxj/junit/data/ProjectDefaultCalendar.xer": {
+      "sha256": "e48eb3a53b7e8f40a5a87af8e983e9932c298baeb572e3a901b3961f997674ef",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "mpxj/junit/data/SuccessorCalendar.xer": {
+      "sha256": "ab420cc573be248ef7ef344f77b204176c3263fceb45c27866276929bf1e59e2",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "mpxj/junit/data/TwentyFourHourCalendar.xer": {
+      "sha256": "9b91bf5bfcc0df4f6a2fec8867a923af7758058c224a9772a728e8d2ba0f0fc5",
+      "source": "mpxj@68d36e96f301483fd16a2928638587fdfb3a9af3",
+      "role": "parser-fixture",
+      "included": false,
+      "exclusionReason": "MPXJ-junitfixture; nuttig voor parsergedrag maar geen onafhankelijk corpusorakel."
+    },
+    "P6-Viewer/XER Files/Hotel Project.xer": {
+      "sha256": "d2c413088afed805b30b7628c91be8aca870f7d4daf00eb12a547d69913d8352",
+      "source": "P6-Viewer@c32dc4c46502adf8d8338ed1abac119aedf21f75",
+      "role": "oracle",
+      "included": true
+    },
+    "P6-Viewer/XER Files/sample.xer": {
+      "sha256": "1d7901d68cc7063b59dcedacc3eeae8d2c89178516421c09ae38ff523429e3af",
+      "source": "P6-Viewer@c32dc4c46502adf8d8338ed1abac119aedf21f75",
+      "role": "oracle",
+      "included": true
+    },
+    "P6-Viewer/XER Files/TERMINAL BUILDING-AIRPORT.xer": {
+      "sha256": "a2f3b2469e26f19985ac801786c90edfb965a7bc194a6e57704aa845c5f8611f",
+      "source": "P6-Viewer@c32dc4c46502adf8d8338ed1abac119aedf21f75",
+      "role": "oracle",
+      "included": true
+    },
+    "p6flow/fixtures/synthetic_v2212.xer": {
+      "sha256": "1d7bd29d2c157bdd9abad5723f84edab1f8cd925cdf3003aff181b597431a948",
+      "source": "p6flow@637c12ec610aefda957b3964f993804176d2c9bd",
+      "role": "synthetic-fixture",
+      "included": false,
+      "exclusionReason": "Door p6flow/scripts/make_synthetic_fixture.py gegenereerd."
+    },
+    "pmxml-samples/testXer.xer": {
+      "sha256": "b8bc3cb30463c99c2255c5bd243888ac2706b7f6a1bfe31e242407a24f002dcf",
+      "source": "pmxml-samples (publieke voorbeeldset)",
+      "role": "pseudo-xer",
+      "included": false,
+      "exclusionReason": "Voorbeeldbestand met lege project-/taakidentiteit; niet geschikt als exact uitlijnbaar P6-orakel."
+    },
+    "ProjectLens/docs/demo/northstar-baseline.xer": {
+      "sha256": "467ab0eb0885c4a78f7101abd512bf34a6fe6e85770b49d1bee855633a4d4a73",
+      "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
+      "role": "oracle",
+      "included": true
+    },
+    "ProjectLens/docs/demo/northstar-current.xer": {
+      "sha256": "a132f8c7ebb070d29936b8852c6dca772ebb547c0ade91c17c96425e37e63818",
+      "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
+      "role": "oracle",
+      "included": true
+    },
+    "ProjectLens/docs/demo/northstar-previous.xer": {
+      "sha256": "ac4b9d677133c6edcd6129050f32233e77c9d62ef06c7caac0dbf1da0d1e43ab",
+      "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
+      "role": "oracle",
+      "included": true
+    },
+    "ProjectLens/docs/demo/riverside-current.xer": {
+      "sha256": "790b90fda837bad342658bf2c712cf6c39ab6adcd812e67edf93cda1c7eb362f",
+      "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
+      "role": "oracle",
+      "included": true
+    },
+    "ProjectLens/docs/demo/riverside-previous.xer": {
+      "sha256": "78325fb6445d22f5949bf05c1e0afe3e14b72efc9cc9480800eab4bf2b0a1056",
+      "source": "ProjectLens@fe3338212eaa5acd7876a1a42d028a6bb11d5f8b",
+      "role": "oracle",
+      "included": true
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { AppNotification } from '@/state/slices/types';
+import { notificationDetailText } from '@/utils/notificationDetail';
 
 /**
  * NotificationHost — de gecentraliseerde gebruikersmeldingen (bevinding K8).
@@ -57,6 +58,11 @@ export function NotificationHost() {
             {n.count > 1 && <span className="ops-toast-count">{`×${n.count}`}</span>}
           </div>
           {n.detail && <div className="ops-toast-detail">{n.detail}</div>}
+          {n.detailLines?.map((line, index) => (
+            <div className="ops-toast-detail" key={`${line.messageKey}-${index}`}>
+              {notificationDetailText(t, line)}
+            </div>
+          ))}
           {n.helpArticleId && (
             // mpp-nul-data-etappe, "lees meer"-eigenaarseis: hergebruikt de bestaande Backstage →
             // Help-navigatie (`openHelpArticle`), geen nieuw linkmechanisme. `stopPropagation` zodat

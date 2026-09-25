@@ -643,7 +643,7 @@ export class CalendarEngine {
 
   /** Laatste band-eind ≤ `tMs` (of strikt < bij `strict`), in ms. Dag-scan achteruit; stopt zodra
    *  geen eerdere dag het beste resultaat nog kan verbeteren (max mogelijke eind = dagstart+2880m). */
-  private prevBandEndBound(tMs: number, strict: boolean): number {
+  private prevBandEndBound(tMs: number, strict: boolean): number | null {
     let best = Number.NEGATIVE_INFINITY;
     let dayMs = this.dayStartMsOf(tMs);
     let scan = 0;
@@ -657,7 +657,7 @@ export class CalendarEngine {
       dayMs -= CalendarEngine.MS_PER_DAY;
       scan++;
     }
-    return best === Number.NEGATIVE_INFINITY ? tMs : best;
+    return best === Number.NEGATIVE_INFINITY ? null : best;
   }
 
   // ── Instant-vinders (§4.1) ─────────────────────────────────────────────────
@@ -684,21 +684,66 @@ export class CalendarEngine {
   prevWorkInstant(t: Date): Date {
     const tMs = t.getTime();
     if (this.findContaining(tMs, true)) return new Date(tMs);
-    return new Date(this.prevBandEndBound(tMs, false));
+    return new Date(this.prevBandEndBound(tMs, false) ?? tMs);
+  }
+
+  /** Begrensde variant voor aanroepers die "geen band gevonden" semantisch moeten onderscheiden
+   *  van de bestaande best-effort-terugval op `t`. Dezelfde MAX_SCAN-zoektocht, nooit een tweede lus. */
+  prevWorkInstantOrNull(t: Date): Date | null {
+    const tMs = t.getTime();
+    if (this.findContaining(tMs, true)) return new Date(tMs);
+    const found = this.prevBandEndBound(tMs, false);
+    return found === null ? null : new Date(found);
   }
 
   /** Het laatste band-eind STRIKT < t (§4.1). */
   prevWorkInstantBefore(t: Date): Date {
-    return new Date(this.prevBandEndBound(t.getTime(), true));
+    const tMs = t.getTime();
+    return new Date(this.prevBandEndBound(tMs, true) ?? tMs);
   }
 
   // ── Minuut-lussen (§4.2) ───────────────────────────────────────────────────
+  //
+  // SNAP-REGEL OP NIET-WERK-INSTANTS — waarom `addWorkMinutes` en `subtractWorkMinutes` elkaars
+  // exacte spiegel zijn, en waar die spiegel schijnbaar (maar niet werkelijk) breekt.
+  //
+  // Beide lussen normaliseren hun aangrijpingspunt eerst naar een werk-instant, elk IN DE RICHTING
+  // VAN DE EIGEN WANDELING: `addWorkMinutes` gebruikt `nextWorkInstant` (vooruit), en
+  // `subtractWorkMinutes` gebruikt `prevWorkInstant` (achteruit). Daaruit volgen drie regels die je
+  // moet kennen vóór je hier iets aanraakt:
+  //
+  //  1. Voor elk WERK-instant `t` geldt `subtractWorkMinutes(addWorkMinutes(t, n), n) === t` op de
+  //     milliseconde. Dat is geen toevallige eigenschap maar de invariant waarop de backward-pass
+  //     van de solver leunt: `LS..LF` moet exact evenveel werktijd overspannen als `ES..EF`.
+  //  2. Voor een `t` die GEEN werk-instant is (midden in een weekend, een feestdag of een
+  //     aaneengesloten vrij blok van dagen) is er geen ronde-reis-identiteit, en dat is correct:
+  //     `add` snapt naar de eerstvolgende bandstart, `sub` naar het laatste band-eind ervóór. De
+  //     twee snappunten liggen per definitie aan weerszijden van hetzelfde gat. Een aanroeper die
+  //     een niet-werk-instant aanlevert vraagt om een richtingsafhankelijk antwoord en krijgt het.
+  //  3. Op een BANDGRENS zijn twee verschillende instants hetzelfde punt op de werk-as: het eind van
+  //     de ene band en het begin van de volgende hebben nul werkminuten tussen zich. `sub` levert
+  //     daarom een bandstart waar `add` een band-eind levert, zónder dat er werktijd verschilt. De
+  //     juiste gelijkheidstest tussen twee posities op de werk-as is `workMinutesBetween(a, b) === 0`,
+  //     NIET `a.getTime() === b.getTime()`.
+  //
+  // Er is in dit bestand GEEN brongebonden uitzondering meer op die drie regels. Tot etappe 7b-2
+  // droeg deze klasse een `subtractP6XerProjectedWorkMinutes`-projectie achter `p6Source === 'XER'`
+  // die de achterwaartse wandeling bewust asymmetrisch maakte; die is verwijderd nadat de
+  // XER-decoder de werkelijk bedoelde vrije dagen kon reconstrueren en de projectie op elk
+  // penaltydragend corpusbestand nul cellen bleek te verklaren (zie `xerCalendarData.ts`).
+  // `tests/planning/check-calendar-mirror.ts` pint deze drie regels vast, over een aaneengesloten
+  // niet-werkblok van tien dagen, in dag-modus en in uur-modus met 1, 2 en 3 banden per dag.
 
   /** Tel `minutes` werkminuten op vanaf `startInstant` (§4.2): verbruik over opeenvolgende banden,
    *  spring bij een bandgrens naar de volgende bandstart. Een verbruik dat exact op een band-eind
    *  landt geeft die eindgrens terug (legitiem finish-moment). `minutes ≤ 0` ⇒ start ongewijzigd
    *  (spiegelt `addWorkDays`' `≤0`-tak, voor mijlpalen). */
   addWorkMinutes(startInstant: Date, minutes: number): Date {
+    return this.addPhysicalWorkMinutes(startInstant, minutes);
+  }
+
+  /** De fysieke bandwandeling. */
+  private addPhysicalWorkMinutes(startInstant: Date, minutes: number): Date {
     if (minutes <= 0) return new Date(startInstant.getTime());
     let remaining = Math.min(minutes, CalendarEngine.MAX_MINUTES);
     let curMs = this.nextWorkInstant(startInstant).getTime();
@@ -722,6 +767,11 @@ export class CalendarEngine {
   /** Trek `minutes` werkminuten af van `endInstant` (spiegel van `addWorkMinutes`, §4.2/§5.2). Een
    *  landing exact op een bandstart is legitiem (rand `(start,end]`). */
   subtractWorkMinutes(endInstant: Date, minutes: number): Date {
+    return this.subtractPhysicalWorkMinutes(endInstant, minutes);
+  }
+
+  /** De fysieke achterwaartse bandwandeling. */
+  private subtractPhysicalWorkMinutes(endInstant: Date, minutes: number): Date {
     if (minutes <= 0) return new Date(endInstant.getTime());
     let remaining = Math.min(minutes, CalendarEngine.MAX_MINUTES);
     let curMs = this.prevWorkInstant(endInstant).getTime();
@@ -745,6 +795,11 @@ export class CalendarEngine {
   /** Getekende werkminuten in `[a,b)` (§5.5, voor vrije speling). Positief als b>a, negatief als
    *  b<a, 0 als gelijk. */
   workMinutesBetween(a: Date, b: Date): number {
+    return this.physicalWorkMinutesBetween(a, b);
+  }
+
+  /** Fysieke bandminuten in `[a,b)`. */
+  private physicalWorkMinutesBetween(a: Date, b: Date): number {
     const aMs = a.getTime();
     const bMs = b.getTime();
     if (aMs === bMs) return 0;

@@ -103,6 +103,8 @@ para o MS Project passa pelo MSPDI XML. Veja o guia
 [Abrir o MS Project (.mpp)](docs://gids-msproject-import) para saber o que é trazido e quais são as
 limitações.
 
+Um ficheiro `.xer` é o formato de intercâmbio do Primavera P6. É importado diretamente e, depois de editado, guardado como IFC; consulte [Abrir o Primavera P6 (.xer)](docs://gids-xer-import).
+
 ## Importadores de extensões
 
 Além dos formatos fixos acima, as extensões instaladas podem adicionar os seus próprios importadores — por exemplo para um

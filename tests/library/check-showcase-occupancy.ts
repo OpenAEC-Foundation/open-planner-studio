@@ -52,12 +52,14 @@ const S = () => useAppStore.getState();
 const EX_DIR = join(process.cwd(), 'public', 'examples');
 
 // ── Opzet: drie documenten, elk geladen + gekoppeld + doorgerekend zoals de app het doet ────────
-SLUGS.forEach((slug, i) => {
+// `openExampleFromString` is sinds de XER-etappe async (een eigen IFC kan een XER-archief dragen
+// dat gereconstrueerd wordt); zonder `await` liep de koppeling hieronder vóór de load uit.
+for (const [i, slug] of SLUGS.entries()) {
   if (i > 0) S().newDocument();
-  S().openExampleFromString(readFileSync(join(EX_DIR, `${slug}.ifc`), 'utf8'), slug);
+  await S().openExampleFromString(readFileSync(join(EX_DIR, `${slug}.ifc`), 'utf8'), slug);
   applyDemoLibraryToShowcaseProject();
   S().runCPM();
-});
+}
 
 const state = S();
 const pool = state.pools[DEMO_COMPANY_ID];
