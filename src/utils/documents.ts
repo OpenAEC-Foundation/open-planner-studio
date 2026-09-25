@@ -1,6 +1,7 @@
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { xerDocumentName } from '@/utils/xerDocumentName';
 
 /**
  * Afgeleide identiteit + statistieken per geopend document, voor de
@@ -37,11 +38,17 @@ export function documentCode(title: string): string {
 }
 
 /** Afgeleide titel: bestandsnaam zonder extensie, anders de projectnaam. */
-export function documentTitle(filePath: string | null, projectName: string): string {
+export function documentTitle(
+  filePath: string | null,
+  projectName: string,
+  xerProjectCode?: string | null,
+): string {
   if (filePath) {
     const base = filePath.split(/[\\/]/).pop() || filePath;
     return base.replace(/\.[^.]+$/, '');
   }
+  // XER-import zonder opslagdoel: "Projectnaam (P6 Project-ID)" — zie `xerDocumentName`.
+  if (xerProjectCode) return xerDocumentName(projectName, xerProjectCode);
   return projectName || '';
 }
 

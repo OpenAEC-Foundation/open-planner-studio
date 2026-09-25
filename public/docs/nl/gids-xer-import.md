@@ -13,7 +13,7 @@ Een `.xer`-bestand is het uitwisselingsformaat van Primavera P6. Open Planner St
 
 ## Openen en documenten
 
-Open een `.xer`-bestand via **Bestand → Openen** of **Ctrl+O**. Eén export kan meerdere P6-projecten bevatten. Open Planner Studio opent ieder niet-leeg huidig project als een afzonderlijk document; het document met de meeste activiteiten wordt actief. Lege projecten krijgen geen zinloos tabblad.
+Open een `.xer`-bestand via **Bestand → Openen** of **Ctrl+O**. Eén export kan meerdere P6-projecten bevatten. Open Planner Studio opent ieder niet-leeg huidig project als een afzonderlijk document; het document met de meeste activiteiten wordt actief. Lege projecten krijgen geen zinloos tabblad. Elk document heet naar de P6-projectnaam met het P6 Project-ID erachter, bijvoorbeeld "HarbourPointe Assisted Living (4408)"; heeft het project geen naam, dan zie je alleen het ID.
 
 Na één bestandsactie verschijnt één informatieve melding, ook wanneer er veel documenten openen. Die melding noemt de werkelijk gevonden en geopende projecten, lege projecten, baselines en eventuele terugvallen. Bij een volgende XER-bestandsactie krijg je opnieuw één eigen melding.
 

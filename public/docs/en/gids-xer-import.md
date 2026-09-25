@@ -13,7 +13,7 @@ A `.xer` file is Primavera P6's exchange format. Open Planner Studio can open it
 
 ## Opening and documents
 
-Open a `.xer` file through **File → Open** or **Ctrl+O**. One export can contain several P6 projects. Open Planner Studio opens every non-empty current project as a separate document; the document with the most activities becomes active. Empty projects do not create a pointless tab.
+Open a `.xer` file through **File → Open** or **Ctrl+O**. One export can contain several P6 projects. Open Planner Studio opens every non-empty current project as a separate document; the document with the most activities becomes active. Empty projects do not create a pointless tab. Each document is named after the P6 project name followed by the P6 Project ID, for example "HarbourPointe Assisted Living (4408)"; a project without a name shows only its ID.
 
 After one file action, one informational notification appears, even when many documents open. It reports the actual projects found and opened, empty projects, baselines and any fallbacks. A later XER file action receives its own notification.
 
