@@ -19,7 +19,7 @@ import { contourKeepsWork, createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { AssignmentSetIntent, CellEditIntent } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { ResourceAssignment } from '@/types/resource';
-import { hasTaskTypeData } from '@/state/taskTypesVisibility';
+import { hasTaskTypeData, taskTypesNeedNotice } from '@/state/taskTypesVisibility';
 import { progress as mcpProgress } from '@/state/mcpValidation';
 import { __resetTaskTypesNoticeForTests, notifyTaskTypesUnlocked } from '@/state/taskTypesNotice';
 import { SETTINGS } from '@/utils/settingsRegistry';
@@ -463,6 +463,17 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
     hasTaskTypeData([], [{ remainingWorkMinutes: 60 }]),
     hasTaskTypeData([], [], { defaultWorkRule: 'FIXED_RATE' }),
   ], [true, true, true, true, true]);
+  // E4 (orkestratorbesluit 25-09): ontsluiten meldt alleen bij opgeslagen werk, een projectstandaard
+  // of een eigen regel; een regel die uit het importveld volgt ontsluit stil.
+  eq('n2b taskTypesNeedNotice: afgeleide regel stil, werk/standaard/eigen regel melden', [
+    taskTypesNeedNotice([{ p6DurationType: 'DT_FixedQty', workRule: 'FIXED_WORK' }], []),
+    taskTypesNeedNotice([{ mspTaskType: 'FIXED_UNITS', workRule: 'FIXED_RATE' }], []),
+    taskTypesNeedNotice([{ mspTaskType: 'FIXED_UNITS' }], []),
+    taskTypesNeedNotice([{ mspTaskType: 'FIXED_UNITS', workRule: 'FIXED_WORK' }], []),
+    taskTypesNeedNotice([{ workRule: 'FIXED_WORK' }], []),
+    taskTypesNeedNotice([], [{ remainingWorkMinutes: 60 }]),
+    taskTypesNeedNotice([], [], { defaultWorkRule: 'FIXED_RATE' }),
+  ], [false, false, false, true, true, true, true]);
   ok('n3 instelling showTaskTypes staat in het register', SETTINGS.some((d) => d.key === 'showTaskTypes' && d.field === 'showTaskTypes'));
   reset();
   eq('n4 vers document: niet ontsloten, instelling uit', [S().taskTypesVisible, S().ui.showTaskTypes], [false, false]);

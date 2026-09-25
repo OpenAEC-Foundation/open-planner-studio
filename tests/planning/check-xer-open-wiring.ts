@@ -298,26 +298,34 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     ?.find((d) => d.messageKey === 'notifications.xerImportDatesAsRecorded');
   eq('T4-18 …de teller is de SOM over beide documenten (1+1=2), niet per document',
     multiDetail?.params?.count, 2);
-  // Integratie #101 (taaktypes) op #169: `duration_type` ontsluit de werkregel-UI. Dat mag geen
-  // tweede toast opleveren (T4-17), maar staat als detailregel in dezelfde bestandsmelding.
-  // Mutatiebewijs: `deferTaskTypesNotice` weg in applyOpenedImport ⇒ T4-17 rood; de detailregel weg ⇒ T4-18b rood.
-  eq('T4-18b taaktypes-ontsluiting is een detailregel van diezelfde ene melding',
-    notifsAfterMulti[0]?.detailLines?.filter((d) => d.messageKey === 'notifications.taskTypesUnlockedDetail').length, 1);
-  // Critreview PR #101 baan 1 (gidslink): een detailregel heeft geen eigen `helpArticleId`, dus de
-  // detailtekst NOEMT de gids — in elke locale de manifesttitel van `gids-taaktypes`. Mutatiebewijs:
-  // de detailregel terug naar `taskTypesUnlocked` (tekst zonder gids) ⇒ T4-18b én T4-18c rood.
+  // Integratie #101 (taaktypes) op #169 + E4 (orkestratorbesluit 25-09, gebruikstest #170 G3):
+  // `duration_type` ontsluit de werkregel-UI, maar een regel die de lezer ALLEEN uit dat importveld
+  // afleidde ontsluit STIL — geen detailregel. Mutatiebewijs: `taskTypesNeedNotice` weg uit
+  // applyOpenedImport (terug naar alleen `taskTypesVisible`) ⇒ T4-18b rood.
+  eq('T4-18b afgeleide regel alleen: document ontsloten, maar géén taaktypes-detailregel',
+    [
+      openedDocs.every((d) => d.payload.taskTypesVisible),
+      notifsAfterMulti[0]?.detailLines?.filter((d) => d.messageKey === 'notifications.taskTypesUnlockedDetail').length ?? 0,
+    ],
+    [true, 0]);
+  // …met opgeslagen werk op een toewijzing wél: één detailregel in diezelfde ene melding (geen extra
+  // toast), met een EIGEN gidslink naar `gids-taaktypes` terwijl de melding zelf naar het
+  // bestand/profiel linkt (G3). Mutatiebewijs: `TASK_TYPES_DETAIL_LINE` terug naar een kale
+  // `{ messageKey }` ⇒ T4-18c rood.
   {
-    const manifest = JSON.parse(readFileSync(join(process.cwd(), 'public/docs/manifest.json'), 'utf8')) as
-      { articles: { id: string; title: Record<string, string> }[] };
-    const titles = manifest.articles.find((a) => a.id === TASK_TYPES_HELP_ARTICLE_ID)?.title ?? {};
-    const detailKey = notifsAfterMulti[0]?.detailLines?.find((d) => d.messageKey.startsWith('notifications.taskTypesUnlocked'))?.messageKey ?? '';
-    const missing = Object.entries(titles).filter(([locale, title]) => {
-      const common = JSON.parse(readFileSync(join(process.cwd(), `src/i18n/locales/${locale}/common.json`), 'utf8')) as
-        { notifications: Record<string, string> };
-      return !(common.notifications[detailKey.replace('notifications.', '')] ?? '').includes(title);
-    }).map(([locale]) => locale);
-    eq('T4-18c de detailregel noemt de gids "Taaktypes en werk" in alle locales (geen eigen helpArticleId)',
-      [Object.keys(titles).length, missing], [14, []]);
+    const withWork = await parseOpenedFile({ name: 't4-werk.xer', bytes: new TextEncoder().encode(restXerBytes('PW', 'TW', 'AW')) });
+    if (isMultiDocumentImport(withWork)) throw new Error('T4-werkfixture moet enkelproject zijn');
+    const taskId = withWork.tasks[0]!.id;
+    withWork.resources = [...withWork.resources, { id: 't4-res', name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 }];
+    withWork.assignments = [...withWork.assignments, { id: 't4-asg', taskId, resourceId: 't4-res', unitsPerDay: 1, remainingWorkMinutes: 600 }];
+    useAppStore.getState().newDocument();
+    const before = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
+    useAppStore.getState().applyOpenedImport(withWork, { filePath: null, recompute: true });
+    const fresh = useAppStore.getState().ui.notifications.filter((n) => !before.has(n.id));
+    const line = fresh[0]?.detailLines?.find((d) => d.messageKey === 'notifications.taskTypesUnlockedDetail');
+    eq('T4-18c opgeslagen werk ⇒ één melding met één taaktypes-detailregel met eigen gidslink',
+      [fresh.length, line?.helpArticleId, line?.linkKey, fresh[0]?.helpArticleId !== TASK_TYPES_HELP_ARTICLE_ID],
+      [1, TASK_TYPES_HELP_ARTICLE_ID, 'notifications.workRulesReadMore', true]);
   }
 
   // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT, ook al is

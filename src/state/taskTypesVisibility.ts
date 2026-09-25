@@ -10,6 +10,7 @@
 import type { Project } from '@/types/project';
 import type { ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
+import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
 
 /** Draagt dit document taaktypedata die de gebruiker hoort te kunnen zien? */
 export function hasTaskTypeData(
@@ -21,6 +22,31 @@ export function hasTaskTypeData(
   if (tasks.some((t) => t.workRule !== undefined || t.mspTaskType !== undefined || t.p6DurationType !== undefined)) return true;
   return assignments.some((a) =>
     a.plannedWorkMinutes !== undefined || a.actualWorkMinutes !== undefined || a.remainingWorkMinutes !== undefined);
+}
+
+/**
+ * E4 (orkestratorbesluit 25-09, gebruikstest #170 G3): moet het ontsluiten GEMELD worden? Alleen
+ * wanneer het bestand iets draagt dat de gebruiker moet weten — opgeslagen werk op een toewijzing,
+ * een projectstandaard, of een eigen werkregel (een regel die níét uit het importveld van de taak
+ * volgt, zoals een in OPS gekozen regel in een IFC). Een regel die `deriveImportedWorkRules` alleen
+ * uit `mspTaskType`/`p6DurationType` afleidde, ontsluit STIL: elke `.mpp`/XER draagt die, en een
+ * melding erover zegt niets wat de gebruiker in het paneel niet al ziet.
+ */
+export function taskTypesNeedNotice(
+  tasks: readonly Pick<Task, 'workRule' | 'mspTaskType' | 'effortDriven' | 'p6DurationType'>[],
+  assignments: readonly Pick<ResourceAssignment, 'plannedWorkMinutes' | 'actualWorkMinutes' | 'remainingWorkMinutes'>[],
+  project?: Pick<Project, 'defaultWorkRule'>,
+): boolean {
+  if (project?.defaultWorkRule !== undefined) return true;
+  if (assignments.some((a) =>
+    a.plannedWorkMinutes !== undefined || a.actualWorkMinutes !== undefined || a.remainingWorkMinutes !== undefined)) return true;
+  return tasks.some((t) => {
+    if (t.workRule === undefined) return false;
+    const derived = t.mspTaskType
+      ? workRuleFromMsp(t.mspTaskType, t.effortDriven)
+      : workRuleFromXerDurationType(t.p6DurationType);
+    return derived !== t.workRule;
+  });
 }
 
 /** De ene selector voor de UI: instelling óf documentontsluiting. */

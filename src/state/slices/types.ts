@@ -247,6 +247,7 @@ export type NotificationMessageKey =
   // uit staat — de werkregel-UI is voor dit document ontsloten; zie `src/state/taskTypesNotice.ts`.
   | 'notifications.taskTypesUnlocked'
   | 'notifications.taskTypesUnlockedDetail'
+  | 'notifications.workRulesReadMore'
   // Eigenaarsbesluit 2026-09-05 (K2): een kalenderwissel loopt door de werkregel; wanneer dat de
   // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
   | 'notifications.workRuleDurationsChanged';
@@ -267,6 +268,12 @@ export interface NotificationAction {
 export interface NotificationDetailLine {
   messageKey: NotificationMessageKey;
   params?: Record<string, string | number>;
+  /** Optioneel een EIGEN gidslink voor deze regel (gebruikstest #170, G3): de melding zelf linkt
+   *  naar het artikel van het bestand/profiel; een samengevoegde regel over een ander onderwerp
+   *  (werkregels) krijgt zo een eigen, aanklikbare link in plaats van een gidsnaam in de tekst.
+   *  Label = `linkKey` (standaard `notifications.readMore`). */
+  helpArticleId?: string;
+  linkKey?: NotificationMessageKey;
 }
 
 export interface AppNotification {

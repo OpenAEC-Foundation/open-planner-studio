@@ -1,4 +1,4 @@
-import type { NotifyInput } from './slices/types';
+import type { NotificationDetailLine, NotifyInput } from './slices/types';
 
 /**
  * Taaktypes-etappe (spec §7, "automatische ontsluiting"): één informatieve melding per document
@@ -46,6 +46,14 @@ export function notifyWorkRuleDurationsChanged(notify: (n: NotifyInput) => void,
     helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
   });
 }
+
+/** De detailregel in de ene bestandsmelding (.mpp/XER): eigen gidslink naar `gids-taaktypes`
+ *  (gebruikstest #170, G3 — de melding zelf linkt naar het bestand/rekenprofiel). */
+export const TASK_TYPES_DETAIL_LINE: NotificationDetailLine = {
+  messageKey: 'notifications.taskTypesUnlockedDetail',
+  helpArticleId: TASK_TYPES_HELP_ARTICLE_ID,
+  linkKey: 'notifications.workRulesReadMore',
+};
 
 export function notifyTaskTypesUnlocked(notify: (n: NotifyInput) => void, docId: string): void {
   if (!claimTaskTypesNotice(docId)) return;

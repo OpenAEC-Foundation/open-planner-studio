@@ -1,4 +1,5 @@
-import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed } from '../taskTypesNotice';
+import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
+import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { flattenOrder } from '@/utils/wbs';
@@ -415,7 +416,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
       {
         const st = get();
-        if (!opts.deferTaskTypesNotice && st.taskTypesVisible && !st.ui.showTaskTypes) {
+        // E4: alleen een AFGELEIDE regel (uit mspTaskType/p6DurationType) ontsluit stil.
+        if (!opts.deferTaskTypesNotice && st.taskTypesVisible && !st.ui.showTaskTypes
+          && taskTypesNeedNotice(st.tasks, st.assignments, st.project)) {
           notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
         }
       }
@@ -507,7 +510,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
         // Taaktypes (#101): ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
         // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
-        if (get().taskTypesVisible && !get().ui.showTaskTypes && claimTaskTypesNotice(get().activeDocumentId)) {
+        // E4 (orkestratorbesluit 25-09): alleen melden bij opgeslagen werk, een projectstandaard of
+        // een eigen regel; een regel die de lezer alleen uit het importveld afleidde ontsluit stil.
+        const cur = get();
+        if (cur.taskTypesVisible && !cur.ui.showTaskTypes
+          && taskTypesNeedNotice(cur.tasks, cur.assignments, cur.project)
+          && claimTaskTypesNotice(cur.activeDocumentId)) {
           taskTypesUnlockedDocs++;
         }
         // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
@@ -527,14 +535,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
         openedDocumentIds[0] ?? '',
       );
-      // Integratie #101 op #169 (voorlopig, eigenaarsvraag E4): de taaktypes-ontsluiting is een
-      // detailregel in díe ene bestandsmelding; zonder bestandsmelding (bv. MSPDI/IFC onder het
-      // ops-profiel) blijft het #101's eigen melding met gids-link. Een detailregel draagt geen eigen
-      // `helpArticleId` (de melding heeft er één, die van het bestand/profiel), dus de detailtekst
-      // (`taskTypesUnlockedDetail`) NOEMT de gids "Taaktypes en werk" — zelfde patroon als
-      // `withSchedulingProfileNotice`, dat zijn profielregel ook als detail toevoegt.
+      // Integratie #101 op #169 + E4 (orkestratorbesluit 25-09): de taaktypes-melding is een
+      // detailregel in díe ene bestandsmelding — geen extra toast — met een EIGEN gidslink naar
+      // `gids-taaktypes` (`TASK_TYPES_DETAIL_LINE`; gebruikstest G3: de "Lees meer" van de melding
+      // zelf gaat naar het bestand/rekenprofiel). Zonder bestandsmelding (bv. MSPDI/IFC onder het
+      // ops-profiel) blijft het #101's eigen melding met gids-link.
       if (notice && taskTypesUnlockedDocs > 0) {
-        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), { messageKey: 'notifications.taskTypesUnlockedDetail' }] });
+        get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
       } else if (notice) {
         get().notify(notice);
       } else if (taskTypesUnlockedDocs > 0) {
