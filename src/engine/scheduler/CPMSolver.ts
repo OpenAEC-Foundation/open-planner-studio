@@ -172,8 +172,29 @@ export interface CPMOptions {
    *  volledige motivatie. */
   projectStartDate?: string;
   /** Geconfigureerde projecteinddatum. Alleen actief wanneer de brongebonden
-   *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. */
+   *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. Leeg of
+   *  onparseerbaar mét de optie ⇒ exact het netwerkeinde (zie `withEffectiveProjectEndAnchor`). */
   projectEndDate?: string;
+}
+
+/**
+ * `useProjectEndDateForFloat` zonder bruikbare projecteinddatum is een no-op: de late pass
+ * verankert dan op het netwerkeinde, max(EF) — precies wat P6 doet wanneer "Must Finish By" leeg
+ * is (Oracle P6 Help, *Schedule Options → Compute Total Float As / Calculate float based on finish
+ * date of*: zonder projecteinddatum is het laatste (vroege) activiteiteneinde de basis). Eigenaars-
+ * besluit 2026-09-24 ("eigen PR"; Fable-critreview PR #109 bevinding 2).
+ *
+ * De optie stuurt naast het anker zelf nog drie takken (de open-finishmijlpaalgrens hier en in
+ * `scheduleAnalysis`, en de FF=0-klem van een eindmijlpaal). Zonder datum mogen die níét anders
+ * lopen dan met de optie uit, anders is "netwerkeinde" alleen op het anker waar. Daarom normaliseert
+ * de solver op één plek: optie aan + geen geldige datum ⇒ de optie geldt als uit. Met een geldige
+ * datum of met de optie uit blijft `options` hetzelfde object (byte-identiek).
+ */
+export function withEffectiveProjectEndAnchor(options: CPMOptions): CPMOptions {
+  const so = options.schedulingOptions;
+  if (so?.useProjectEndDateForFloat !== true) return options;
+  if (!isNaN(parseInstant(options.projectEndDate ?? '').getTime())) return options;
+  return { ...options, schedulingOptions: { ...so, useProjectEndDateForFloat: false } };
 }
 
 /**
@@ -436,7 +457,7 @@ export class CPMSolver {
     this.registry = registry;
     this.projectEngine = new CalendarEngine(projectCalendar);
     this.engineCache.set(projectCalendar.id, this.projectEngine);
-    this.options = options;
+    this.options = withEffectiveProjectEndAnchor(options);
     this.successors = new Map();
     this.predecessors = new Map();
 

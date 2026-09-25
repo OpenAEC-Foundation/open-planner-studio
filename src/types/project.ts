@@ -133,10 +133,15 @@ export interface SchedulingOptions {
   p6PreserveZeroDurationConstraintInstants?: boolean;
   /** XER/P6: gebruik PROJECT.plan_end_date als late-pass-anker wanneer
    *  SCHEDOPTIONS.sched_use_project_end_date_for_float=Y. De datum zelf blijft project.endDate;
-   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit. Zonder
-   *  plan_end_date valt de lezer terug op het taak-afgeleide einde (max target_end_date); heeft het
-   *  bestand ook geen enkele target_end_date, dan zet de lezer de vlag gerapporteerd uit (X12-brok 1,
-   *  plan XER §9) zodat de solver op max(EF) verankert zoals P6 zonder Must Finish By. */
+   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit.
+   *  Zonder `plan_end_date` vult de lezer géén verzonnen einde in (eigenaarsbesluit 2026-09-24 "eigen
+   *  PR", Fable-critreview PR #109 bevinding 2): `project.endDate` blijft leeg, de vlag blijft aan als
+   *  het bestand `Y` zegt, en `withEffectiveProjectEndAnchor` (CPMSolver) laat de solver dan exact op
+   *  het netwerkeinde, max(EF), rekenen alsof de vlag uit staat — zoals P6 zonder "Must Finish By".
+   *  Heeft het bestand ook geen enkele `target_end_date`, dan zet de lezer de vlag bovendien
+   *  gerapporteerd uit (X12-brok 1, plan XER §9). Gemeten: op de #169-kop 0 cellen verschil; op de
+   *  oude #109-basis maskeerde het verzonnen anker een fout aan de vroege kant (149 cellen), daarom
+   *  landt dit ná de rekenprofielen. */
   useProjectEndDateForFloat?: boolean;
   /** Near-critical-drempel in werkdagen (fractioneel in uur-modus). Default undefined ⇒ feature uit. */
   nearCriticalThreshold?: number;

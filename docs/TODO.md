@@ -818,14 +818,17 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
   enige bewaking — per as, niet per cel.
 - [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
-  zonder `plan_end_date`** (her-review 7a, 2026-09-07). Opgelost in X12-brok 1 (2026-09-23,
-  branch `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen
-  enkele `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit
-  (`hasUsableProjectEnd`, terugvalmelding, bron-`Y` blijft in `retainedSource`). `cases-import.xer`
-  zoals gelezen 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`). Blastradius
-  op het corpus: 16 van de 39 `Y`-rijen (13× cases-import, 3 taakloze OZB-projecten); X12 15.056
-  ongewijzigd, 0 cellen slechter. De 20 `Y`-rijen mét taakeinden houden het taak-afgeleide einde —
-  zie plan XER §9 voor de open vraag daarover.
+  zonder `plan_end_date`** — in twee stappen opgelost. (1) X12-brok 1 (2026-09-23, branch
+  `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen enkele
+  `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit (`hasUsableProjectEnd`,
+  terugvalmelding); `cases-import.xer` 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`).
+  (2) Eigenaarsbesluit 2026-09-24 "eigen PR" (Fable-critreview PR #109 bevinding 2), gemerged in de
+  rekenprofielen-etappe 2026-09-25: bij `Y` zonder `plan_end_date` laat de lezer `project.endDate` leeg in
+  plaats van het taak-afgeleide einde te verzinnen, de optie blijft aan, en `withEffectiveProjectEndAnchor`
+  (CPMSolver) laat de solver exact op het netwerkeinde rekenen; corpusloos bewaakt in `check-xer-reader.ts`
+  13c–13g. Meting: op de #169-kop 0 cellen verschil (76/0/0/0); op de oude #109-basis 149 cellen slechter
+  omdat het verzonnen anker daar een fout aan de vroege kant maskeerde — daarom niet los op #109 geland.
+  Oorspronkelijke registratie: her-review 7a, 2026-09-07.
 - [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
   etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
   die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
