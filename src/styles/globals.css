@@ -551,11 +551,20 @@
  * buur. Smaller gemaakt (4px totaal i.p.v. 8px) zodat er meer ruimte overblijft voor herordenen; de
  * greep blijft een gangbare resize-hitbox (vergelijkbaar met Excel/Sheets, die ook een paar pixels
  * breed zijn, geen 8).
+ *
+ * RTL (ar/fa): de kolomkop-bediening volgt het RASTER, niet de tekst. Het raster is in elke taal ltr
+ * (`DataGridCore` pint `direction: ltr`: WBS links, pijl-rechts gaat een kolom naar rechts, de strook
+ * voor het plusje zit rechts); alleen koptekst en celinhoud volgen de taal (`dir={textDirection}`).
+ * Daarom staan deze greep, de invoegstreep, het minteken en het plusje met FYSIEK `left`/`right` en
+ * niet met `inset-inline-*`. Die volgden in ar/fa de rtl-kop (of de rtl-shell) en belandden links:
+ * het plusje over de WBS-kop, deze greep op de linkergrens terwijl slepen de RECHTERgrens verschuift
+ * (`before + clientX − startX`), de invoegstreep aan de andere kant dan waar de kolom landt. In ltr
+ * is `inset-inline-end` gelijk aan `right`, daar verandert niets. Spec: table-column-rtl.spec.ts.
  */
 .task-grid-resize-handle {
   position: absolute;
   inset-block: 0;
-  inset-inline-end: -2px;
+  right: -2px;
   z-index: 2;
   width: 4px;
   padding: 0;
@@ -592,18 +601,21 @@
   background: var(--theme-accent);
 }
 
+/* Fysiek, zoals de breedtegreep: `resolveColumnDropTarget` noemt de linkerhelft "ervoor" en de
+ * kolom landt dan links van zijn doel, ook in ar/fa. */
 .task-grid-column-header[data-grid-drop-before="true"]::before {
-  inset-inline-start: -1px;
+  left: -1px;
 }
 
 .task-grid-column-header[data-grid-drop-after="true"]::after {
-  inset-inline-end: -1px;
+  right: -1px;
 }
 
+/* Fysiek rechts, naast de breedtegreep, in elke taal (zie `.task-grid-resize-handle`). */
 .task-grid-remove-column {
   position: absolute;
   inset-block-start: 50%;
-  inset-inline-end: 7px;
+  right: 7px;
   width: 17px;
   height: 17px;
   display: grid;
@@ -629,11 +641,14 @@
   outline: none;
 }
 
+/* Fysiek rechts: daar eindigen de kolommen en daar reserveren kop en body de strook
+ * (`padding-inline-end` binnen het ltr-raster). De shell zelf erft in ar/fa rtl; met
+ * `inset-inline-end` stond het plusje daar links, over de WBS-kop (zie `.task-grid-resize-handle`). */
 .task-grid-column-chooser-anchor {
   position: absolute;
   z-index: calc(var(--z-sticky) + 1);
   inset-block-start: 0;
-  inset-inline-end: 0;
+  right: 0;
   width: var(--task-grid-chooser-strip, 32px);
   height: var(--task-grid-header-height);
   display: flex;
