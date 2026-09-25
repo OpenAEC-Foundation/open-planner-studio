@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type KeyboardEvent } from 'react';
+import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, X, Check, Unlink2, Library } from 'lucide-react';
@@ -14,6 +14,7 @@ import { resourceDisplayColor, nextFreePaletteColor } from '@/engine/renderer/re
 import { useLiveGridNav } from './hooks/useLiveGridNav';
 import { controlKindOf, liveGridNavDirection } from '@/utils/gridNavigation';
 import { StatusBanner } from './StatusBanner';
+import { CommitColorInput } from '@/components/common/CommitInput';
 
 const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
 
@@ -1353,42 +1354,5 @@ function AvailabilityStepsEditor({ steps, onChange }: {
         <Plus size={12} /> {t('resource.availabilityStepsEditor.addStep')}
       </button>
     </div>
-  );
-}
-
-/**
- * Kleurkiezer die pas bij het KIEZEN committeert. React's `onChange` is op een `<input type="color">`
- * het native `input`-event, dat de browser tijdens het slepen in de kiezer per tussenkleur vuurt;
- * rechtstreeks naar de store gaf dat één undo-stap per tussenkleur (en in de Bibliotheekweergave één
- * poolversie + bibliotheekopslag per stap, vgl. F6 in `ResourceRow`). Het native `change`-event komt
- * één keer per gekozen kleur. Tussentijds toont het veld de sleepkleur uit een lokale draft (zelfde
- * patroon als de naam-/eenheiddrafts in `ResourceRow`), die een externe wijziging (undo) volgt.
- */
-function CommitColorInput({ value, onCommit, label, className }: {
-  value: string;
-  onCommit: (color: string) => void;
-  label: string;
-  className?: string;
-}) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => { setDraft(value); }, [value]);
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const commit = () => { if (el.value.toLowerCase() !== value.toLowerCase()) onCommit(el.value); };
-    el.addEventListener('change', commit);
-    return () => el.removeEventListener('change', commit);
-  }, [value, onCommit]);
-  return (
-    <input
-      ref={ref}
-      type="color"
-      aria-label={label}
-      title={label}
-      value={draft}
-      onChange={e => setDraft(e.target.value)}
-      className={className}
-    />
   );
 }
