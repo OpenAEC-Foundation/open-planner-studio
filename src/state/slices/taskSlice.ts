@@ -1,18 +1,11 @@
-import { Task, type ExternalLink, type TaskSplitGap } from '@/types/task';
-import { taskDurationUnit } from '@/engine/scheduler/duration';
-import {
-  adoptLevelingGaps, canSplitTask, fromSplitPieces, splitScheduleFinish,
-  type SplitPiece, type SplitRefusal,
-} from '@/engine/scheduler/splitEdit';
-import { buildEditedContourPeriods, contourDaySlots } from '@/engine/contour/contourEdit';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { Task, type ExternalLink } from '@/types/task';
+import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { calendarForEngine } from '@/utils/effectiveWorkTime';
-import { isSummaryTask } from '@/engine/scheduler/relationRules';
+import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
 import {
   buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, mergeTaskTime, clearTimephasedWindow,
   mergeTaskUpdate, taskTriggerChanges, invalidateForTimeBaseChange, clearLevelingGaps,
-  rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf, applyDurationChangeRules,
+  taskCalendarHoursPerDay, taskWorkMinutesOf, applyDurationChangeRules,
 } from '@/utils/taskDefaults';
 import { sameValue } from '@/utils/sameValue';
 import { generateId } from '@/utils/id';
@@ -512,66 +505,19 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (1) Weigeren — vóór élke draftmutatie, dus geen snapshot en geen halve state.
       const task = s.tasks.find(t => t.id === taskId);
       // Onbekend id: er valt hier niets te bewerken. Bewust dezelfde reden als een niet-bewerkbare
-      // split i.p.v. een extra enum-lid — de aanroepers (paneel, Gantt, MCP) lossen het taak-id
+      // split i.p.v. een extra enum-lid — de aanroepers (paneel, Gantt) lossen het taak-id
       // sowieso zelf op vóór ze hier komen.
       if (!task) { refusal = 'not-editable'; return; }
       const hoursPerDay = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
-      if (pieces !== null) {
-        const reason = canSplitTask(task, hoursPerDay, isSummaryTask(task));
-        if (reason) { refusal = reason; return; }
-      }
+      refusal = taskSplitRefusal(task, pieces, hoursPerDay);
+      if (refusal) return;
 
       // (2) Undo-snapshot; `opts` draagt de coalesceKey van één sleepgebaar.
       runtime.beginUndoable(s, opts);
 
-      // (3) De oude werkduur — nodig vóór de duur eronder verschuift.
-      const oldWorkMinutes = taskWorkMinutesOf(task, hoursPerDay);
-      const slotMinutes = Math.max(1, hoursPerDay * 60);
-
-      // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is stap 5 van spec §2
-      // (adoptieregel): wat de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan —
-      // "Nivellering wissen" haalt niets meer weg van een taak die hij zelf heeft ingedeeld.
-      const { gaps, totalWorkMinutes } = pieces === null
-        ? { gaps: [] as TaskSplitGap[], totalWorkMinutes: oldWorkMinutes }
-        : fromSplitPieces(adoptLevelingGaps(pieces), task.splitGaps);
-      if (Math.abs(totalWorkMinutes - oldWorkMinutes) > 1e-6) {
-        task.time.scheduleDuration = totalWorkMinutes / slotMinutes;
-        if (taskDurationUnit(task) === 'hours') task.time.durationMinutes = totalWorkMinutes;
-        // `keepGaps`: de gatenlijst hierboven is al op de NIEUWE werkduur gerekend — nog een keer
-        // laten schalen zou dubbel zijn (spec §2 stap 3).
-        rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, { keepGaps: true });
-      }
-
-      // (5) Contour meeverhuizen: dagslots lezen met de OUDE gaten (de as waarop het profiel nu
-      // staat), terugschrijven met de NIEUWE — zo blijft het werk per WERKdag ongewijzigd terwijl de
-      // pauzedagen verschuiven. Verricht werk (`kind: 'actual'`) blijft ongemoeid; dat regelt
-      // `buildEditedContourPeriods` zelf.
-      const oldSlots = (task.timephasedContours ?? [])
-        .map(contour => contourDaySlots(contour.periods, task.splitGaps, slotMinutes).remaining);
-      task.splitGaps = gaps.length > 0 ? gaps : undefined;
-      if (task.timephasedContours && task.timephasedContours.length > 0) {
-        task.timephasedContours = task.timephasedContours.map((contour, index) => ({
-          ...contour,
-          periods: buildEditedContourPeriods(
-            contour.periods, oldSlots[index] ?? [], task.splitGaps, slotMinutes,
-          ),
-        }));
-      }
-
-      // (6) Tijdbasis-gevolgen (bevinding 1): een splitbewerking IS een tijdbasis-bewerking, óók
-      // zonder duurwijziging — anders overschrijft het gelezen Z8-venster de nieuwe spanne gewoon en
-      // beweegt er geen datum. Zelfde vorm als `updateTask`/`setTaskCalendar`.
-      lostTimephasedGuidance = invalidateForTimeBaseChange(task);
-
-      // (7) Eigen finish bijwerken zodat de balk direct klopt; de echte datums komen bij F5/auto-calc,
-      // zoals bij elke duurwijziging. `earlyFinish` gaat mee omdat de renderer die als eerste leest
-      // (`earlyFinish || scheduleFinish`) — dezelfde tweeslag als `useBarDrag`s dag-resize.
-      const engine = new CalendarEngine(calendarForEngine(
-        resolveCalendar(task.calendarId, s.calendars, s.calendar),
-      ));
-      const finish = splitScheduleFinish(task, engine);
-      task.time.scheduleFinish = finish;
-      task.time.earlyFinish = finish;
+      // (3)–(7) Het gedeelde lichaam (`splitMutations.ts`, ook de MCP-draft): gaten, werkduur,
+      // contour, tijdbasis-gevolgen en de eigen finish.
+      lostTimephasedGuidance = applyTaskSplits(s, task, pieces, hoursPerDay);
 
       // (8) `markScheduleStale` via `finishMutation` — nooit de vlag rechtstreeks (issue #63).
       runtime.finishMutation(s, { stale: true });

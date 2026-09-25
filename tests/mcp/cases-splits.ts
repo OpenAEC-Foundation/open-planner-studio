@@ -343,4 +343,87 @@ test('mijlpaal aanzetten via planner_update_tasks (duur 0) laat, net als updateT
   assertEq(task.splitGaps ?? null, reference, 'zelfde uitkomst als updateTask');
 });
 
+// -------------------------------------------------------------------------------------------------
+// Verloren MS Project-sturing in de envelop (`timephasedGuidanceLost`). Een split is een tijdbasis-
+// bewerking (`invalidateForTimeBaseChange`): laag 3/4 gaat eraf. Dat hoort — net als bij een
+// duurwijziging via `planner_update_tasks` (cases-taskfields.ts, sectie D) — op de MCP-lease te
+// landen, zodat de envelop het meldt, los én binnen `planner_batch`. De in-app melding blijft één.
+// -------------------------------------------------------------------------------------------------
+
+/** Laag-3-sturing (het gelezen Z8-venster) rechtstreeks zetten; via de tools is dat read-only. */
+function seedTimephasedWindow(id: string): void {
+  store.setState((s) => {
+    const t = s.tasks.find((x) => x.id === id)!;
+    t.timephasedFinishFloor = '2026-06-12T17:00';
+    t.timephasedStartAnchor = '2026-06-01T08:00';
+  });
+}
+
+const lostOf = (res: any) => (res && res.ok ? res.envelope.timephasedGuidanceLost : 'n/a');
+const noticeKeys = () => S().ui.notifications.map(n => n.messageKey);
+
+/** `freshTask` + schone meldingenlijst (`newProject` wist al de eenmalige-per-document-gate). */
+async function freshTaskWithoutNotices(item: Record<string, unknown>): Promise<string> {
+  const id = await freshTask(item);
+  store.setState((s) => { s.ui.notifications = []; });
+  return id;
+}
+
+test('sturing: split op een taak met laag-3-sturing ⇒ envelope.timephasedGuidanceLost = 1, één melding', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  seedTimephasedWindow(id);
+  const res = await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] });
+  okData(res);
+  assertEq(S().tasks.find(t => t.id === id)?.timephasedFinishFloor, undefined, 'opzet: laag 3 is écht gewist');
+  assertEq(lostOf(res), 1, 'envelope.timephasedGuidanceLost');
+  assertEq(noticeKeys(), ['notifications.mppTimephasedSteeringLost'], 'precies één K8a-melding, geen dubbele');
+});
+
+test('sturing: split op een taak ZONDER sturing ⇒ het envelopveld is afwezig, geen melding', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  const res = await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] });
+  okData(res);
+  assert(res.ok && !('timephasedGuidanceLost' in res.envelope), `veld afwezig (kreeg: ${JSON.stringify(res.envelope)})`);
+  assertEq(noticeKeys(), [], 'geen melding zonder een écht verlies');
+});
+
+test('sturing: planner_batch met een split-stap op een taak met laag-3-sturing ⇒ timephasedGuidanceLost = 1', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  seedTimephasedWindow(id);
+  const res = await rpc('planner_batch', {
+    steps: [{ tool: 'planner_set_task_splits', args: { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] } }],
+  });
+  const data = okData(res);
+  assertEq(data.steps.map((s: any) => s.status), ['uitgevoerd'], 'de stap liep');
+  assertEq(lostOf(res), 1, 'envelope.timephasedGuidanceLost via planner_batch');
+  assertEq(noticeKeys(), ['notifications.mppTimephasedSteeringLost'], 'precies één K8a-melding, geen dubbele');
+});
+
+test('sturing: planner_batch met een split-stap ZONDER sturing ⇒ het envelopveld is afwezig', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  const res = await rpc('planner_batch', {
+    steps: [{ tool: 'planner_set_task_splits', args: { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] } }],
+  });
+  okData(res);
+  assert(res.ok && !('timephasedGuidanceLost' in res.envelope), `veld afwezig (kreeg: ${JSON.stringify(res.envelope)})`);
+  assertEq(noticeKeys(), [], 'geen melding');
+});
+
+test('sturing: een teruggerolde batch meldt niets en verbruikt de eenmalige melding niet', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  seedTimephasedWindow(id);
+  const failed = await rpc('planner_batch', {
+    steps: [
+      { tool: 'planner_set_task_splits', args: { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] } },
+      { tool: 'planner_set_task_splits', args: { taskId: 'bestaat-niet', interruptions: [] } },
+    ],
+  });
+  assert(failed.ok === false, 'de tweede stap laat de batch falen');
+  assertEq(S().tasks.find(t => t.id === id)?.timephasedFinishFloor, '2026-06-12T17:00', 'laag 3 is teruggezet');
+  assertEq(noticeKeys(), [], 'geen melding van de teruggedraaide poging');
+  const res = await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] });
+  assertEq(lostOf(res), 1, 'envelope.timephasedGuidanceLost bij de geslaagde poging');
+  assertEq(noticeKeys(), ['notifications.mppTimephasedSteeringLost'], 'de melding komt alsnog, precies één keer');
+});
+
 await run();

@@ -1023,13 +1023,14 @@ function planSplitsFor(
   return plan.ok ? plan : { ok: false, code: 'VALIDATION', reason: plan.reason };
 }
 
-/** Synchrone kern: schrijft via de store-actie `setTaskSplits` van de documentcontext. Binnen de
- *  MCP-lease slaat die actie haar eigen undo-snapshot over; de omvattende transactie bezit de ene
- *  undo-stap en de eindherberekening — dezelfde regel als `planner_update_tasks`. */
+/** Synchrone kern: schrijft via het draft-primitief `setTaskSplits` (zelfde lichaam als de
+ *  store-actie, `splitMutations.ts`). De omvattende transactie bezit de ene undo-stap en de
+ *  eindherberekening, en verloren MSP-sturing landt op de lease (envelop `timephasedGuidanceLost`)
+ *  — dezelfde regel als `planner_update_tasks`. */
 function setTaskSplitsCore(ctx: McpContext, p: { taskId: string; interruptions: unknown[] }): MutationOutcome {
   const plan = planSplitsFor(ctx.app.store.getState(), p);
   if (!plan.ok) throw new McpStepError(plan.code, plan.reason);
-  const refusal = ctx.app.store.getState().setTaskSplits(p.taskId, plan.pieces);
+  const refusal = ctx.transactions.draft.setTaskSplits(p.taskId, plan.pieces);
   if (refusal) throw new McpStepError('VALIDATION', `taak '${p.taskId}': onderbreken geweigerd (${refusal})`);
   return { data: splitsReport(ctx.app.store.getState(), p.taskId) };
 }
