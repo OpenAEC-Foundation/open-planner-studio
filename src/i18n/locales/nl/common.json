@@ -77,6 +77,8 @@
     "relationsSkippedOnInsert_other": "{{count}} relaties zijn niet aangemaakt: ongeldige koppeling (bijv. een taak aan zijn eigen (voor)ouder-samenvattingstaak, of een duplicaat).",
     "mppSourceScheduleNotes_one": "Dit MS Project-bestand bevat {{count}} taak met een onderbroken, genivelleerde of resource-gedreven planning. Die wordt als zodanig ingelezen en getoond.",
     "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
+    "exportSplitsLost_one": "{{count}} taak met onderbrekingen is zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
+    "exportSplitsLost_other": "{{count}} taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
     "projectStartAnchorsClamped_one": "Projectstart verzet: {{count}} taakanker zonder voorganger of constraint is meegeschoven naar de nieuwe startdatum.",
     "projectStartAnchorsClamped_other": "Projectstart verzet: {{count}} taakankers zonder voorganger of constraint zijn meegeschoven naar de nieuwe startdatum.",
     "mppTimephasedSteeringLost_one": "Het datumvenster uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
@@ -132,6 +134,8 @@
     "priorityNormal": "Normaal",
     "priorityHigh": "Hoog",
     "startRelationHere": "Relatie leggen vanaf hier",
+    "removeSplitGap": "Onderbreking opheffen",
+    "removeAllSplitGaps": "Alle onderbrekingen opheffen",
     "paste": "Plakken",
     "zoomReset": "Zoom herstellen",
     "fitToProject": "Passend maken op project",
@@ -883,7 +887,9 @@
       "secondary": "Secundair"
     },
     "dependencyModeHint": "Relatiemodus: sleep in de Gantt van de ene balk naar de andere om een relatie te leggen. Esc stopt.",
-    "dependencyModeStop": "Stoppen"
+    "dependencyModeStop": "Stoppen",
+    "splitModeHint": "Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.",
+    "splitModeStop": "Stoppen"
   },
   "dateInput": {
     "placeholder": "dd-mm-jjjj",

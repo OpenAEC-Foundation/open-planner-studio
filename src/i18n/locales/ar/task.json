@@ -422,6 +422,18 @@
       "remove": "إزالة",
       "done": "منجز",
       "empty": "لا توجد ملاحظات بعد."
+    },
+    "splits": {
+      "title": "التوقفات",
+      "after": "بعد",
+      "pause": "توقف",
+      "add": "إضافة توقف",
+      "remove": "حذف التوقف",
+      "readOnly": "هذه التوقفات مصدرها الملف الأصلي بصيغة لا يمكن تحريرها هنا.",
+      "removeAll": "إزالة كل التوقفات",
+      "leveling": "التسوية",
+      "unitDays": "أيام عمل",
+      "unitHours": "ساعات"
     }
   },
   "relations": {
@@ -539,5 +551,32 @@
     "edit": "تحرير العلاقة الخارجية…",
     "refreshSource": "تحديث المصدر",
     "deleteRelation": "حذف العلاقة"
+  },
+  "split": {
+    "gapDays_zero": "بدون توقف",
+    "gapDays_one": "توقف يوم عمل واحد",
+    "gapDays_two": "توقف يومَي عمل",
+    "gapDays_few": "توقف {{count}} أيام عمل",
+    "gapDays_many": "توقف {{count}} يوم عمل",
+    "gapDays_other": "توقف {{count}} من أيام العمل",
+    "gapHours_zero": "بدون توقف",
+    "gapHours_one": "توقف ساعة واحدة",
+    "gapHours_two": "توقف ساعتين",
+    "gapHours_few": "توقف {{count}} ساعات",
+    "gapHours_many": "توقف {{count}} ساعة",
+    "gapHours_other": "توقف {{count}} من الساعات",
+    "pieceDays_zero": "المقطع: {{count}} يوم عمل",
+    "pieceDays_one": "المقطع: يوم عمل واحد",
+    "pieceDays_two": "المقطع: يوما عمل",
+    "pieceDays_few": "المقطع: {{count}} أيام عمل",
+    "pieceDays_many": "المقطع: {{count}} يوم عمل",
+    "pieceDays_other": "المقطع: {{count}} من أيام العمل",
+    "pieceHours_zero": "المقطع: {{count}} ساعة",
+    "pieceHours_one": "المقطع: ساعة واحدة",
+    "pieceHours_two": "المقطع: ساعتان",
+    "pieceHours_few": "المقطع: {{count}} ساعات",
+    "pieceHours_many": "المقطع: {{count}} ساعة",
+    "pieceHours_other": "المقطع: {{count}} من الساعات",
+    "merged": "دمج"
   }
 }

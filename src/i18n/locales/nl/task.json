@@ -439,7 +439,19 @@
     "calendarProject": "Projectkalender",
     "priority": "Nivelleer-prioriteit",
     "levelingDelay": "Nivelleer-vertraging",
-    "durationHours": "Duur (uren)"
+    "durationHours": "Duur (uren)",
+    "splits": {
+      "title": "Onderbrekingen",
+      "after": "na",
+      "pause": "pauze",
+      "add": "Onderbreking toevoegen",
+      "remove": "Onderbreking verwijderen",
+      "readOnly": "Deze onderbrekingen komen uit het bronbestand in een vorm die hier niet bewerkt kan worden.",
+      "removeAll": "Alle onderbrekingen opheffen",
+      "leveling": "nivellering",
+      "unitDays": "werkdagen",
+      "unitHours": "uren"
+    }
   },
   "relations": {
     "predecessor": "Voorganger",
@@ -556,5 +568,16 @@
     "edit": "Externe relatie bewerken…",
     "refreshSource": "Bron vernieuwen",
     "deleteRelation": "Relatie verwijderen"
+  },
+  "split": {
+    "gapDays_one": "{{count}} werkdag pauze",
+    "gapDays_other": "{{count}} werkdagen pauze",
+    "gapHours_one": "{{count}} uur pauze",
+    "gapHours_other": "{{count}} uur pauze",
+    "pieceDays_one": "Stuk: {{count}} werkdag",
+    "pieceDays_other": "Stuk: {{count}} werkdagen",
+    "pieceHours_one": "Stuk: {{count}} uur",
+    "pieceHours_other": "Stuk: {{count}} uur",
+    "merged": "Samenvoegen"
   }
 }

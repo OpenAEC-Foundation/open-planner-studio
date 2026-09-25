@@ -3,6 +3,7 @@ import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { flattenOrder } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
+import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
@@ -167,6 +168,21 @@ export { type ExportFormat };
  */
 export function exportGoesToRecents(format: ExportFormat): boolean {
   return format !== 'progress-csv' && format !== 'progress-xlsx';
+}
+
+/**
+ * Issue #146 (spec, verwerkte critreview bevinding 5): MS Project en P6 kennen een onderbreking
+ * alleen als urenverdeling van een toewijzing, dus een onderbroken taak ZONDER contour komt daar
+ * zonder onderbreking aan. Dat mag niet alleen in de console staan: na een geslaagde MSPDI-/P6-export
+ * meldt `exportAs` het aantal via het K8a-kanaal — als `info`, net als de andere verliesmeldingen
+ * (`timephasedLossNotice.ts`): de export zelf is geslaagd, het kanaal kent geen aparte waarschuwing. De telling is dezelfde als die van de writers
+ * (`countSplitTasksWithoutContour`). Los geëxporteerd, net als `exportGoesToRecents`, zodat
+ * `tests/planning/check-export-guard.ts` de regel zonder bestandsdialoog kan toetsen.
+ */
+export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Task[]): NotifyInput | null {
+  if (format !== 'mspdi' && format !== 'p6') return null;
+  const count = countSplitTasksWithoutContour(tasks);
+  return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
 }
 
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
@@ -734,6 +750,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
         });
       }
+      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
+      const splitsLost = exportSplitsLostNotice(format, state.tasks);
+      if (splitsLost) get().notify(splitsLost);
       return { ok: true, warnings };
     },
 

@@ -106,7 +106,7 @@ export function RibbonInlineSelect<T extends string>({ value, options, onChange,
   );
 }
 
-export function RibbonButton({ icon, label, onClick, active, disabled, primary, danger, title }: {
+export function RibbonButton({ icon, label, onClick, active, disabled, primary, danger, title, itemId }: {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
@@ -118,6 +118,10 @@ export function RibbonButton({ icon, label, onClick, active, disabled, primary, 
    *  de Relatie-knop afhankelijk van de selectie iets anders doet. Puur een `title`-attribuut:
    *  geen enkel effect op de vormgeving van het lint. */
   title?: string;
+  /** Spec-id van het lintitem als `data-ops-ribbon-item`. Stabiel aanknopingspunt voor de
+   *  browsertests: de toegankelijke naam is de (taalafhankelijke) tooltip, en het zichtbare label
+   *  verdwijnt in de icoon-only-standen. */
+  itemId?: string;
 }) {
   const cls = ['ribbon-btn'];
   if (active) cls.push('active');
@@ -129,14 +133,14 @@ export function RibbonButton({ icon, label, onClick, active, disabled, primary, 
   // naamloos zijn. Een expliciete `title` (bv. de Relatie-knop, issue #40) wint.
   const tip = title ?? label;
   return (
-    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick} title={tip} aria-label={tip} aria-disabled={disabled || undefined}>
+    <button className={cls.join(' ')} onClick={disabled ? undefined : onClick} title={tip} aria-label={tip} aria-disabled={disabled || undefined} data-ops-ribbon-item={itemId}>
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>
     </button>
   );
 }
 
-export function RibbonSmallButton({ icon, label, onClick, active, disabled, danger, title }: {
+export function RibbonSmallButton({ icon, label, onClick, active, disabled, danger, title, itemId }: {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
@@ -144,6 +148,8 @@ export function RibbonSmallButton({ icon, label, onClick, active, disabled, dang
   disabled?: boolean;
   danger?: boolean;
   title?: string;
+  /** Zie `RibbonButton`. */
+  itemId?: string;
 }) {
   const cls = ['ribbon-btn', 'small'];
   if (active) cls.push('active');
@@ -158,6 +164,7 @@ export function RibbonSmallButton({ icon, label, onClick, active, disabled, dang
       title={tip}
       aria-label={tip}
       aria-disabled={disabled || undefined}
+      data-ops-ribbon-item={itemId}
     >
       <span className="ribbon-btn-icon">{icon}</span>
       <span className="ribbon-btn-label">{label}</span>

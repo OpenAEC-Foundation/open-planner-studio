@@ -77,6 +77,8 @@
     "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "mppSourceScheduleNotes_one": "This MS Project file contains {{count}} task with a split, leveled, or resource-driven schedule. It is imported and shown as such.",
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
+    "exportSplitsLost_one": "{{count}} task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.",
+    "exportSplitsLost_other": "{{count}} tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.",
     "projectStartAnchorsClamped_one": "Project start moved: {{count}} task anchor without a predecessor or constraint was shifted to the new start date.",
     "projectStartAnchorsClamped_other": "Project start moved: {{count}} task anchors without a predecessor or constraint were shifted to the new start date.",
     "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
@@ -132,6 +134,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "High",
     "startRelationHere": "Start relation from here",
+    "removeSplitGap": "Remove break",
+    "removeAllSplitGaps": "Remove all breaks",
     "paste": "Paste",
     "zoomReset": "Reset zoom",
     "fitToProject": "Fit to project",
@@ -883,7 +887,9 @@
       "secondary": "Secondary"
     },
     "dependencyModeHint": "Link mode: drag from one bar to another in the Gantt to create a relation. Press Esc to stop.",
-    "dependencyModeStop": "Stop"
+    "dependencyModeStop": "Stop",
+    "splitModeHint": "Click a bar on the day the break starts and drag right for its length. Press Esc to stop.",
+    "splitModeStop": "Stop"
   },
   "dateInput": {
     "placeholder": "dd-mm-yyyy",

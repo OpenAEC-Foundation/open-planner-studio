@@ -60,6 +60,7 @@
     "summaryRelationsDropped": "{{total}} 件の関係が計算に含められませんでした。先行タスク列と後続タスク列を確認してください。",
     "relationsSkippedOnInsert_other": "{{count}} 件の関係を作成しませんでした。リンクが無効です（例：タスクが自身の（上位）サマリータスクにリンクしている、または重複している）。",
     "mppSourceScheduleNotes_other": "この MS Project ファイルには、分割・平準化・リソース主導で計画されたタスクが {{count}} 件含まれています。そのまま読み込まれ、表示されます。",
+    "exportSplitsLost_other": "中断のあるタスク {{count}} 件は中断なしでエクスポートされました。MS Project/P6 では中断を作業配分としてしか扱えません。",
     "projectStartAnchorsClamped_other": "プロジェクト開始日を変更しました。先行タスクも制約もないタスクの起点 {{count}} 件を新しい開始日に合わせて移動しました。",
     "mppTimephasedSteeringLost_other": "この編集の後、MS Project の時間配分はもう {{count}} 件のタスクを制御していません。元の配分はファイルに保存されたままです。",
     "readMore": "詳細を見る",
@@ -111,6 +112,8 @@
     "priorityNormal": "標準",
     "priorityHigh": "高",
     "startRelationHere": "ここから関係を開始",
+    "removeSplitGap": "中断を解除",
+    "removeAllSplitGaps": "すべての中断を解除",
     "paste": "貼り付け",
     "zoomReset": "ズームをリセット",
     "fitToProject": "プロジェクトに合わせる",
@@ -857,7 +860,9 @@
       "secondary": "セカンダリ"
     },
     "dependencyModeHint": "リンクモード: ガントチャートでバーから別のバーへドラッグすると関係を作成します。Esc で終了します。",
-    "dependencyModeStop": "終了"
+    "dependencyModeStop": "終了",
+    "splitModeHint": "中断が始まる日のバーをクリックし、右へドラッグして長さを決めます。Esc で終了します。",
+    "splitModeStop": "終了"
   },
   "dateInput": {
     "placeholder": "日-月-年",
