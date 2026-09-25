@@ -23,6 +23,8 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { writeP6XML } from '@/services/p6/p6xmlWriter';
+import { readP6XML } from '@/services/p6/p6xmlReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { ImportResult } from '@/services/importTypes';
@@ -162,6 +164,50 @@ function open(parsed: ImportResult, name: string): void {
   eq('4a import: completion 0,5 zonder AS ⇒ STARTED', half.status, 'STARTED');
   eq('4b import: geen verzonnen actualStart', half.time.actualStart, undefined);
   eq('4c import: geen actualFinish', half.time.actualFinish, undefined);
+}
+
+// ── 5. 100 % zonder actuals, geplande start ná de statusdatum: AS nooit ná AF ─────────────────────
+// De impliciete start (`defaultActualStart`: geplande start 2015-01-12) en het afgeleide einde
+// (`defaultActualFinish`: statusdatum 2015-01-07) gaven samen AS ná AF, via elke lezer die de
+// statusdatum uit het bestand doorgeeft (IFC, MSPDI, P6, MPP; CSV kent geen statusdatum). Zelfde regel
+// als de store: `orderActualsAfterDerivedFinish` (engine/actualDatesOrder.ts).
+{
+  S().newProject();
+  S().setProject({ startDate: '2015-01-05', statusDate: '2015-01-07' });
+  const idF = S().addTask({ name: 'F', time: createDefaultTaskTime('2015-01-12', 5) });
+  S().runCPM();
+  S().updateTask(idF, { time: { ...byName(S().tasks, 'F').time, completion: 1 } });
+  ok('5 setup: F staat op 100 % zonder actuals, geplande start ná de statusdatum',
+    byName(S().tasks, 'F').time.completion === 1 && !byName(S().tasks, 'F').time.actualStart
+    && byName(S().tasks, 'F').time.earlyStart === '2015-01-12');
+  const s = S();
+  const routes: [string, ImportResult][] = [
+    ['IFC', readIFC(writeIFC(buildWriteIFCInput(s)))],
+    ['MSPDI', readMSPDI(writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars))],
+    ['P6', readP6XML(writeP6XML(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars))],
+  ];
+  for (const [label, parsed] of routes) {
+    const f = byName(parsed.tasks, 'F').time;
+    eq(`5 ${label}-lezer: AS = AF = statusdatum (geen AS ná AF)`,
+      { actualStart: f.actualStart, actualFinish: f.actualFinish },
+      { actualStart: '2015-01-07', actualFinish: '2015-01-07' });
+  }
+  open(routes[0][1], 'statusdatum.ifc');
+  const opened = byName(S().tasks, 'F').time;
+  ok(`5 IFC → Openen: AS niet ná AF (${opened.actualStart} / ${opened.actualFinish})`,
+    !!opened.actualStart && !!opened.actualFinish && opened.actualStart <= opened.actualFinish);
+
+  // Zonder statusdatum: een vastgelegde start ná de (verouderde) geplande finish blijft staan; het
+  // afgeleide einde schuift mee.
+  const late: Task = {
+    id: 'l', name: 'L', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: { ...createDefaultTaskTime('2015-01-05', 3), completion: 1, actualStart: '2015-01-14' },
+  };
+  normalizeImportedProgress([late], undefined);
+  eq('5 zonder statusdatum: vastgelegde AS blijft, AF niet ervóór',
+    { actualStart: late.time.actualStart, actualFinish: late.time.actualFinish },
+    { actualStart: '2015-01-14', actualFinish: '2015-01-14' });
 }
 
 if (diffs.length === 0) {
