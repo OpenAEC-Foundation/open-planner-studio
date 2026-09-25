@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { useAppStore } from '@/state/appStore';
-import { durationSuffixesFrom, effectiveCalendarOf, formatTaskDurationDisplay } from '@/utils/taskDuration';
+import { durationSuffixesFrom, effectiveCalendarOf, formatTaskDurationDisplay, formatWorkDaysText } from '@/utils/taskDuration';
 import { Task } from '@/types/task';
 
 /**
@@ -31,19 +31,21 @@ export function TooltipRow({ label, value, valueClassName = 'tooltip-value', col
  * de positionering (`HoverTooltip`) blijft aan de aanroeper.
  */
 export function TaskTooltipContent({ task }: { task: Task }) {
-  const { t: tTask } = useTranslation('task');
+  const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const projectCalendar = useAppStore((s) => s.calendar);
   const calendars = useAppStore((s) => s.calendars);
   const durationDisplay = useAppStore((s) => s.ui.durationDisplay);
   const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
   const dd = useDisplayDate();
+  const suffixes = durationSuffixesFrom(tCommon);
   const duration = formatTaskDurationDisplay(
     task,
     effectiveCalendarOf(task, projectCalendar, calendars),
     durationDisplay,
     enableHourPlanning,
-    durationSuffixesFrom(tCommon),
+    suffixes,
+    i18n.language,
   );
   // Tooltip-datums volgen de datumnotatie-instelling (taak #53); leeg → '-'.
   const formatTooltipDate = (dateStr: string) => (dateStr ? dd.date(dateStr) : '-');
@@ -61,7 +63,11 @@ export function TaskTooltipContent({ task }: { task: Task }) {
         value={task.time.isCritical ? tCommon('yes') : tCommon('no')}
         valueClassName={task.time.isCritical ? 'tooltip-critical-yes' : 'tooltip-value'}
       />
-      <TooltipRow label={tTask('properties.totalFloat')} value={`${task.time.totalFloat}d`} colon={false} />
+      <TooltipRow
+        label={tTask('properties.totalFloat')}
+        value={formatWorkDaysText(task.time.totalFloat, { suffixes, locale: i18n.language })}
+        colon={false}
+      />
     </>
   );
 }

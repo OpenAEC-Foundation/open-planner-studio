@@ -19,6 +19,7 @@ import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { MiniMap } from './MiniMap';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { finishInstant } from '@/utils/taskDates';
 import { splitPanePrimaryWidthCss } from '@/utils/ganttViewport';
 import { effectiveCalendarByTask } from '@/services/subdayIo';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
@@ -373,7 +374,8 @@ export function GanttCanvas({
     if (usableWidth <= 0) return;
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
-    const finish = hourMode ? parseInstant(finishString) : parseDate(finishString);
+    // Zelfde eindregel als `GanttRenderer.barGeometry` (einde zonder tijd in een uur-balk = einde van die dag).
+    const finish = hourMode ? finishInstant(finishString) : parseDate(finishString);
     // De gedeelde as is ook bij werkdagencompressie de renderbron. Tel scrollX er weer bij op
     // om van scherm- naar contentcoördinaten terug te gaan, waarna de zichtbaarheidstest exact
     // dezelfde positie gebruikt als de getekende balk.

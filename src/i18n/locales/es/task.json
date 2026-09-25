@@ -60,7 +60,7 @@
       "lateFinish": "Fin tardío", "lateStart": "Inicio tardío", "levelingDelay": "Retraso de redistribución", "levelingDelayElapsed": "Retraso de redistribución transcurrido", "levelingDelayMinutes": "Retraso de redistribución (minutos)",
       "mandatoryMilestone": "Hito obligatorio", "manuallyScheduled": "Programada manualmente", "milestone": "Hito", "milestoneKind": "Tipo de hito", "mspTaskType": "Tipo de tarea de Microsoft Project",
       "name": "Nombre de tarea", "nearCritical": "Casi crítica", "noteData": "Datos de notas", "notes": "Notas", "parentId": "Id. de tarea principal", "priority": "Prioridad de redistribución",
-      "remainingMinutes": "Restante (minutos)", "remainingTime": "Restante (días laborables)", "resourceIds": "Id. de recursos", "resume": "Fecha de reanudación",
+      "remainingMinutes": "Restante (minutos)", "remainingTime": "Restante", "resourceIds": "Id. de recursos", "resume": "Fecha de reanudación",
       "scheduleFinish": "Fin programado", "scheduleStart": "Inicio programado", "splitGaps": "Interrupciones", "status": "Estado", "stop": "Fecha de detención", "taskId": "Id. de tarea", "taskType": "Tipo de tarea",
       "timephasedContours": "Contornos por fases temporales", "timephasedDurationWalks": "Segmentos de duración por fases temporales", "timephasedFinishFloor": "Límite inferior de fin por fases temporales", "timephasedStartAnchor": "Anclaje de inicio por fases temporales",
       "totalFloat": "Holgura total", "wbs": "Estructura de desglose del trabajo (EDT)", "workWindowFinish": "Fin de ventana de trabajo", "workWindowStart": "Inicio de ventana de trabajo"
@@ -284,7 +284,7 @@
       "actualStart": "Inicio real",
       "actualFinish": "Fin real",
       "actualDate": "Fecha real",
-      "remaining": "Restante (días laborables)",
+      "remaining": "Restante",
       "summaryDerived": "Derivado de las subtareas: cambie el progreso allí. La tarea de resumen se actualiza tras calcular (F5)."
     },
     "cpmResult": "Resultado CPM",

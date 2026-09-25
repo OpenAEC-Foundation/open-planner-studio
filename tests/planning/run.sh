@@ -505,6 +505,36 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   GFCHECK="$DIR/.gantt-float-cull.mjs"
   if bundle_check "$DIR/check-gantt-float-cull.ts" "$GFCHECK"; then node "$GFCHECK" || STATUS=1; fi
 
+  # Spelingsband = "Laatste einde" (audit weergaven, bevinding 4): de band was totalFloat
+  # (werkdagen) × px per kalenderdag en stopte over een weekend dagen te vroeg (in urenmodus schoot
+  # hij door). Scherm, afdruk en het afdrukbereik lezen de rand nu uit één helper (`floatBandEnd`);
+  # deze batterij meet de echte renderer en de echte afdruk tegen `lateFinish`.
+  FBECHECK="$DIR/.float-band-end.mjs"
+  if bundle_check "$DIR/check-float-band-end.ts" "$FBECHECK"; then node "$FBECHECK" || STATUS=1; fi
+
+  # Mijlpalen-overzicht: "Kritiek" = de solverdefinitie `isCritical` (drempel, langste pad, voltooid
+  # nooit kritiek), niet een eigen `tf <= 0` (audit weergaven, bevinding 9). De te-laat-regel blijft.
+  MRSCHECK="$DIR/.milestone-report-status.mjs"
+  if bundle_check "$DIR/check-milestone-report-status.ts" "$MRSCHECK"; then node "$MRSCHECK" || STATUS=1; fi
+
+  # Fase met een dag- en een urenkind (audit weergaven, bevinding 10): het fase-einde werd als
+  # STRING-max opgerold ("…T13:00" > "…"), dus korter dan het dagkind. Nu als tijdstip met de
+  # balkregel (`finishInstant`), in de rollup, de Gantt-balk en de afgeleide faseduur.
+  SMFCHECK="$DIR/.summary-mixed-finish.mjs"
+  if bundle_check "$DIR/check-summary-mixed-finish.ts" "$SMFCHECK"; then node "$SMFCHECK" || STATUS=1; fi
+
+  # Eén duur-celtekst (audit weergaven, bevinding 7): taakraster, Gantt-afdruk en tooltip toonden
+  # "Duur" elk anders (afdruk altijd dagen: 5h → "0,56d"; raster negeerde Duurweergave). Nu één
+  # formatter met taakeenheid, Duurweergave en decimaalteken; de afdrukkolom meet dezelfde tekst.
+  DCTCHECK="$DIR/.duration-cell-text.mjs"
+  if bundle_check "$DIR/check-duration-cell-text.ts" "$DCTCHECK"; then node "$DCTCHECK" || STATUS=1; fi
+
+  # Speling, restduur en baselineduur (audit weergaven, bevinding 8): ruwe floats met een punt
+  # ("1.6666666666666667"), TS en VS verschillend afgerond, en de restduur van een urentaak als "0".
+  # Nu één opmaak (twee decimalen, decimaalteken van de taal, eenheid); restduur van urentaken in uren.
+  FRTCHECK="$DIR/.float-remaining-text.mjs"
+  if bundle_check "$DIR/check-float-remaining-text.ts" "$FRTCHECK"; then node "$FRTCHECK" || STATUS=1; fi
+
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
   # renderer-batterijen bouwen die opties met de hand op en staan dus stroomafwaarts van dit

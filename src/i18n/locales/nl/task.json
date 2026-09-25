@@ -100,7 +100,7 @@
       "parentId": "Bovenliggende taak-id",
       "priority": "Nivelleerprioriteit",
       "remainingMinutes": "Resterend (minuten)",
-      "remainingTime": "Resterend (werkdagen)",
+      "remainingTime": "Resterend",
       "resourceIds": "Resource-id’s",
       "resume": "Hervattingsdatum",
       "scheduleFinish": "Gepland einde",
@@ -387,7 +387,7 @@
       "actualStart": "Werkelijke start",
       "actualFinish": "Werkelijke einde",
       "actualDate": "Werkelijke datum",
-      "remaining": "Resterend (werkdagen)",
+      "remaining": "Resterend",
       "summaryDerived": "Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5)."
     },
     "cpmResult": "CPM Resultaat",

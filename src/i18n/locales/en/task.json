@@ -100,7 +100,7 @@
       "parentId": "Parent task ID",
       "priority": "Leveling priority",
       "remainingMinutes": "Remaining (minutes)",
-      "remainingTime": "Remaining (work days)",
+      "remainingTime": "Remaining",
       "resourceIds": "Resource IDs",
       "resume": "Resume date",
       "scheduleFinish": "Scheduled finish",
@@ -387,7 +387,7 @@
       "actualStart": "Actual start",
       "actualFinish": "Actual finish",
       "actualDate": "Actual date",
-      "remaining": "Remaining (work days)",
+      "remaining": "Remaining",
       "summaryDerived": "Derived from the subtasks: change progress there. The summary task follows after calculating (F5)."
     },
     "cpmResult": "CPM Result",

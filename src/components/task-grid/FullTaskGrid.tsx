@@ -237,6 +237,7 @@ export function TaskGridSurface({
   const viewRows = useAppStore(state => state.viewRows);
   const view = useAppStore(state => state.view);
   const dateNotation = useAppStore(state => state.ui.dateNotation);
+  const durationDisplay = useAppStore(state => state.ui.durationDisplay);
   const uiFontScale = useAppStore(state => state.ui.uiFontScale);
   const traceMode = useAppStore(state => state.ui.traceMode);
   const showColumnsDialog = useAppStore(state => state.ui.showColumnsDialog);
@@ -334,6 +335,9 @@ export function TaskGridSurface({
     wbsAutoNumber: project.wbsAutoNumber === true,
     dateNotation,
     calendarOptions,
+    // Duur-kolom en speling: dezelfde Duurweergave en hetzelfde decimaalteken als tooltip en afdruk.
+    durationDisplay,
+    numberLocale: taskI18n.language,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
     labelForColumn: labelKey => resolveColumnLabel(
@@ -347,8 +351,8 @@ export function TaskGridSurface({
     textDirection,
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
-    cpmResult, customFieldDefs, customTaskTypes, dateNotation, project.id, project.wbsAutoNumber, resources,
-    scheduleStale, sequences, tCommon, tTask, tasks, textDirection,
+    cpmResult, customFieldDefs, customTaskTypes, dateNotation, durationDisplay, project.id, project.wbsAutoNumber,
+    resources, scheduleStale, sequences, tCommon, tTask, taskI18n.language, tasks, textDirection,
   ]);
   const adapter = useMemo(() => createTaskGridAdapter({
     surfaceId,

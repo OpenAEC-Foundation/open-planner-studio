@@ -42,6 +42,9 @@ import {
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import { shownStart, shownFinish } from '@/utils/taskDates';
+import {
+  formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
+} from '@/utils/taskDuration';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
 
@@ -325,11 +328,35 @@ const validateScheduledTaskDuration: Validator = value =>
     ? success(value)
     : failure('duration', value);
 
-function scheduledTaskDurationText(task: Task, ctx?: TaskColumnContext): string {
-  const suffixKey = task.time.durationUnit === 'hours' ? 'duration.suffixHour' : 'duration.suffixDay';
-  const fallback = task.time.durationUnit === 'hours' ? 'h' : 'd';
-  const suffix = ctx?.labelForText?.(suffixKey) ?? fallback;
-  return `${formatTaskDurationInput(task)}${suffix}`;
+/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2d", "1.5h"), zodat
+ *  plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}. */
+function scheduledTaskDurationText(task: Task): string {
+  return `${formatTaskDurationInput(task)}${task.time.durationUnit === 'hours' ? 'h' : 'd'}`;
+}
+
+/** De vertaalde duur-afkortingen en weergave-instellingen van het raster, voor de gedeelde formatter. */
+function gridDurationFormat(ctx: TaskColumnContext): DurationTextFormat {
+  const label = (key: string, fallback: string) => ctx.labelForText?.(key) ?? fallback;
+  return {
+    display: ctx.durationDisplay,
+    suffixes: {
+      day: label('duration.suffixDay', 'd'),
+      hour: label('duration.suffixHour', 'h'),
+      minute: label('duration.suffixMinute', 'm'),
+    },
+    locale: ctx.numberLocale,
+  };
+}
+
+/** Weergavetekst van de Duur-kolom: dezelfde formatter als tooltip en Gantt-afdruk (audit weergaven 7). */
+function durationCellText(task: Task, ctx: TaskColumnContext): string {
+  return formatTaskDurationText(task, effectiveHoursPerDay(task, ctx), gridDurationFormat(ctx));
+}
+
+/** Een aantal werkdagen (speling, baselineduur): dezelfde opmaak als paneel en tooltip — twee
+ *  decimalen, het decimaalteken van de taal en de dag-eenheid (audit weergaven, bevinding 8). */
+function workDaysCellText(value: unknown, ctx: TaskColumnContext): string {
+  return isFiniteNumber(value) ? formatWorkDaysText(value, gridDurationFormat(ctx)) : '—';
 }
 
 const TASK_TYPES: readonly TaskType[] = [
@@ -665,7 +692,7 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => scheduledTaskDurationText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel, afdruk en MCP
     // (`shownStart`/`shownFinish`). Het zijn berekende waarden (`scheduleDerived`: verouderd-
@@ -685,16 +712,16 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.earlyFinish', labelKey: 'taskGrid.columns.earlyFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyFinish }),
     readonlyColumn({ id: 'task.time.lateStart', labelKey: 'taskGrid.columns.lateStart', category: 'computed', valueKind: 'datetime', read: task => task.time.lateStart }),
     readonlyColumn({ id: 'task.time.lateFinish', labelKey: 'taskGrid.columns.lateFinish', category: 'computed', valueKind: 'datetime', read: task => task.time.lateFinish }),
-    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat }),
-    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat }),
+    readonlyColumn({ id: 'task.time.freeFloat', labelKey: 'taskGrid.columns.freeFloat', category: 'computed', valueKind: 'duration', read: task => task.time.freeFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
+    readonlyColumn({ id: 'task.time.totalFloat', labelKey: 'taskGrid.columns.totalFloat', category: 'computed', valueKind: 'duration', read: task => task.time.totalFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isCritical', labelKey: 'taskGrid.columns.critical', category: 'computed', valueKind: 'boolean', read: task => task.time.isCritical }),
-    readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat }),
+    readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
     editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
-    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.remainingTime, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.remainingTime, format: (_value, task, ctx) => formatRemainingDurationText(task, gridDurationFormat(ctx)), parse: parseTaskDuration, validate: validateOptionalDuration }),
     readonlyColumn({ id: 'task.time.remainingMinutes', labelKey: 'taskGrid.columns.remainingMinutes', category: 'technical', valueKind: 'number', read: task => task.time.remainingMinutes }),
     editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', route: 'task-progress', read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
   ];
@@ -1007,7 +1034,11 @@ function baselineColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[]
           const snapshot = taskIndex.get(task.id);
           return snapshot ? baselineValue(fieldName, snapshot, task, ctx) : BASELINE_MISSING;
         },
-        format: value => value === BASELINE_MISSING ? '—' : formatScalar(value),
+        // Baselineduur en -duurafwijking zijn werkdagen (fractioneel bij urentaken): dezelfde
+        // opmaak als speling en restduur. De overige baselinevelden houden hun eigen weergave.
+        format: (value, _task, ctx) => value === BASELINE_MISSING ? '—'
+          : fieldName === 'duration' || fieldName === 'varianceDuration' ? workDaysCellText(value, ctx)
+            : formatScalar(value),
         tooltip: (value, _task, ctx) => value === BASELINE_MISSING
           ? ctx.labelForText?.('taskGrid.summary.baselineMissing') ?? null
           : null,

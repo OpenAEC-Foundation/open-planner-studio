@@ -3,7 +3,7 @@ import { Sequence } from '@/types/sequence';
 import { WorkCalendar } from '@/types/calendar';
 import { parseDate, formatDate, addCalendarDays, getWeekNumberFor, diffCalendarDays, isoDayOfWeek, utcDayStart } from '@/utils/dateUtils';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import type { DateNotation } from '@/types/view';
+import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
@@ -35,7 +35,9 @@ import { formatReportNumber } from '@/utils/reportNumber';
 import type { BaselineOverlay } from '@/types/baseline';
 import { ellipsize } from '@/engine/renderer/textFit';
 import { displayDate } from '@/utils/displayDate';
-import { shownStart, shownFinish } from '@/utils/taskDates';
+import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
+import { effectiveCalendarOf, effHoursPerDay, formatTaskDurationText } from '@/utils/taskDuration';
+import type { DurationSuffixes } from '@/utils/durationFormat';
 
 // BASISmaten bij rapport-lettergrootte 100%. Niets tekent hier nog rechtstreeks mee: alle
 // tekenhelpers rekenen met de geschaalde varianten uit {@link ReportMetrics}/{@link makeMetrics}.
@@ -385,7 +387,24 @@ interface TaskTableCellTexts extends Record<AutoColumnKey, string> {
   curve: string;
 }
 
-type CellTextOptions = Pick<PrintOptions, 'dateNotation' | 'numberLocale' | 'curveLabels'>;
+type CellTextOptions = Pick<PrintOptions,
+  'dateNotation' | 'numberLocale' | 'curveLabels' | 'durationDisplay' | 'durationSuffixes' | 'calendars'> & {
+  /** De projectkalender: terugval voor de effectieve taakkalender van de Duur-kolom. Afwezig ⇒ 8 u/dag
+   *  (dan zijn alleen de omrekeningen tussen dagen en uren een schatting; de eigen eenheid niet). */
+  calendar?: WorkCalendar;
+};
+
+/** De Duur-cel: dezelfde tekst als taakraster en tooltip (`formatTaskDurationText`). */
+function durationCellText(task: Task, options: CellTextOptions): string {
+  const hoursPerDay = options.calendar
+    ? effHoursPerDay(effectiveCalendarOf(task, options.calendar, options.calendars ?? []))
+    : 8;
+  return formatTaskDurationText(task, hoursPerDay, {
+    display: options.durationDisplay,
+    suffixes: options.durationSuffixes,
+    locale: options.numberLocale,
+  });
+}
 
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
@@ -394,7 +413,7 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
   const assignment = row.assignment;
   return {
     wbs: task?.wbsCode || '',
-    duration: task ? formatDuration(task.time.scheduleDuration, options.numberLocale) : '',
+    duration: task ? durationCellText(task, options) : '',
     // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj (ongewijzigd oud gedrag).
     start: displayDate(startStr, options.dateNotation ?? 'dmy'),
     end: displayDate(endStr, options.dateNotation ?? 'dmy'),
@@ -648,6 +667,16 @@ export interface PrintOptions {
   /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
   numberLocale?: string;
   /**
+   * De instelling Duurweergave voor de Duur-kolom — dezelfde tekst als taakraster en tooltip
+   * (`formatTaskDurationText`, audit weergaven 7). Afwezig ⇒ `'auto'`: de eigen taakeenheid, dus een
+   * urentaak van 5h staat als "5h" en niet meer als "0,56d".
+   */
+  durationDisplay?: DurationDisplay;
+  /** Vertaalde duur-afkortingen (`durationSuffixesFrom`) — print heeft geen `t()`; afwezig ⇒ d/h/m. */
+  durationSuffixes?: DurationSuffixes;
+  /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom. */
+  calendars?: WorkCalendar[];
+  /**
    * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
    * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
    * kopstroken en tabelbreedte schalen mee, de tijdlijn-zoom niet — zie de uitgebreide afleiding
@@ -712,16 +741,6 @@ export interface PrintOptions {
 
 interface PrintTask extends Task {
   _depth?: number;
-}
-
-/**
- * Duur-cel: "15d", "1,5d" in nl — hetzelfde getal en decimaalteken als de Eenh./d-cel en de
- * tabelrapporten (`formatReportNumber`; review #139 bevinding 5: één tabel, één notatie). Zonder
- * `numberLocale` de neutrale punt, op twee decimalen afgerond.
- */
-function formatDuration(days: number, locale: string | undefined): string {
-  const text = formatReportNumber(days, locale);
-  return text ? `${text}d` : '—'; // niet-eindig: een streepje, geen losse eenheid
 }
 
 /**
@@ -949,10 +968,13 @@ export function renderReport(
     if (s < minDate) minDate = s;
     if (f > maxDate) maxDate = f;
 
-    // Include float in date range
-    if (options.showFloat && t.time.totalFloat > 0) {
-      const floatEnd = addCalendarDays(f, t.time.totalFloat);
-      if (floatEnd > maxDate) maxDate = floatEnd;
+    // Include float in date range: de laatste dag van de spelingsband (= "Laatste einde"), met
+    // dezelfde helper als de tekening hieronder — `f` is net als `maxDate` de BEGINdag van de
+    // laatste getekende dag, de helper geeft het exclusieve einde.
+    const bandEnd = options.showFloat ? floatBandEnd(t, true) : null;
+    if (bandEnd) {
+      const lastBandDay = addCalendarDays(bandEnd, -1);
+      if (lastBandDay > maxDate) maxDate = lastBandDay;
     }
   }
 
@@ -1457,9 +1479,11 @@ export function renderReport(
         }
       }
 
-      // Float indicator
-      const floatEndX = clampX(rawX2 + task.time.totalFloat * zoom);
-      if (options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical && floatEndX > x2) {
+      // Float indicator — tot het einde van "Laatste einde" (`floatBandEnd`, dezelfde helper als
+      // het scherm en het datumbereik hierboven), op dagniveau zoals de balk zelf.
+      const bandEnd = options.showFloat ? floatBandEnd(task, true) : null;
+      const floatEndX = bandEnd ? clampX(dateToX(bandEnd)) : x2;
+      if (bandEnd && floatEndX > x2) {
         d2d.fillStyle = PRINT_COLORS.float + '40';
         d2d.roundRect(x2, y + barHeight * 0.2, floatEndX - x2, barHeight * 0.6, 2);
         d2d.fill();
@@ -1467,8 +1491,7 @@ export function renderReport(
 
       // Task name label (rechts van de balk + eventuele speling; valt terug naar links/ellipsis bij de rand)
       if (options.showTaskNames) {
-        const hasFloat = options.showFloat && task.time.totalFloat > 0 && !task.time.isCritical;
-        const barRightX = hasFloat ? Math.max(x2, floatEndX) : x2;
+        const barRightX = bandEnd ? Math.max(x2, floatEndX) : x2;
         barLabelJobs.push({ name: task.name, barRightX, barLeftX: x1, y: y + barHeight / 2 + m.s(3), bold: false });
       }
     }
@@ -1554,7 +1577,7 @@ export function renderReport(
   );
 
   // ---- TASK TABLE ----
-  drawTaskTable(d2d, m, printRows, canvasHeight, cols, options);
+  drawTaskTable(d2d, m, printRows, canvasHeight, cols, { ...options, calendar });
 
   // ---- FOOTER ----
   drawFooter(d2d, m, canvasWidth, canvasHeight, projectName, options, printRows);
@@ -2208,7 +2231,7 @@ function drawTaskTable(
   printRows: PrintRow[],
   canvasHeight: number,
   cols: ColPositions,
-  options: PrintOptions,
+  options: PrintOptions & CellTextOptions,
 ) {
   const chartBottom = canvasHeight - m.footerHeight;
   // Cel-padding: schaalt mee met de kolombreedtes, anders vreet een grotere letter de padding op.

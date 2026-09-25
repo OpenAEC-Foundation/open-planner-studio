@@ -102,7 +102,7 @@
       "parentId": "معرّف المهمة الأصلية",
       "priority": "أولوية تسوية الموارد",
       "remainingMinutes": "المتبقي (بالدقائق)",
-      "remainingTime": "المتبقي (أيام عمل)",
+      "remainingTime": "المتبقي",
       "resourceIds": "معرّفات الموارد",
       "resume": "تاريخ الاستئناف",
       "scheduleFinish": "النهاية المجدولة",
@@ -352,7 +352,7 @@
       "actualStart": "البداية الفعلية",
       "actualFinish": "النهاية الفعلية",
       "actualDate": "التاريخ الفعلي",
-      "remaining": "المتبقي (أيام عمل)",
+      "remaining": "المتبقي",
       "summaryDerived": "مشتق من المهام الفرعية: غيّر التقدم هناك. تتبعه المهمة الموجزة بعد الحساب (F5)."
     },
     "cpmResult": "نتيجة CPM",

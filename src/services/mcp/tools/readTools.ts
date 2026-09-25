@@ -29,6 +29,8 @@ import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { Task } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
+import { shownSpanOverlapsDays } from '@/utils/taskDates';
 import { booleanArgReason, READ_ANNOTATIONS, unknownArgsReason } from './helpers';
 
 function nativeDuration(task: Task): number {
@@ -216,7 +218,9 @@ function getProjectInfo(s: AppState) {
   const leaves = tasks.filter((t) => t.childIds.length === 0);
   const summaries = tasks.filter((t) => t.childIds.length > 0);
   const milestones = tasks.filter((t) => t.isMilestone);
-  const criticalCount = tasks.filter((t) => t.time.isCritical).length;
+  // Alleen bladtaken: een verzameltaak draagt een opgerolde kritiek-vlag maar is geen activiteit.
+  // Dezelfde teller als de statusbalk en het Rapportpaneel (audit weergaven, bevinding 5).
+  const criticalCount = countCriticalActivities(tasks);
   const p = s.project;
   return {
     project: {
@@ -343,14 +347,14 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     const st = args.status;
     filtered = filtered.filter((t) => t.status === st);
   }
-  // Datumvenster: overlap van [earlyStart, earlyFinish] met [van, tot] (ISO-string-vergelijking).
-  if (typeof args.van === 'string') {
-    const van = args.van;
-    filtered = filtered.filter((t) => (t.time.earlyFinish || t.time.scheduleFinish) >= van);
-  }
-  if (typeof args.tot === 'string') {
-    const tot = args.tot;
-    filtered = filtered.filter((t) => (t.time.earlyStart || t.time.scheduleStart) <= tot);
+  // Datumvenster: overlap van de getoonde spanne met [van, tot], op DAGniveau — dezelfde gedeelde
+  // test als het filter "Actief tussen" en de rapportvensters. Een ruwe stringvergelijking miste een
+  // urentaak die op de tot-dag begint: als tekst is "2026-06-03T08:00" groter dan "2026-06-03"
+  // (audit weergaven, bevinding 6). Een open kant van het venster begrenst niets.
+  if (typeof args.van === 'string' || typeof args.tot === 'string') {
+    const van = typeof args.van === 'string' ? args.van : '0000-01-01';
+    const tot = typeof args.tot === 'string' ? args.tot : '9999-12-31';
+    filtered = filtered.filter((t) => shownSpanOverlapsDays(t, van, tot));
   }
   // Wees-detectie: alléén LEAF-taken die in geen enkele relatie voorkomen. Verzameltaken hebben per
   // definitie geen relaties en zijn dus geen "wezen" — die worden hier bewust uitgesloten.
@@ -927,7 +931,9 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_project_info',
     description:
       'Projectmetadata + statistieken: taak-/relatie-/resource-/toewijzingsaantallen, mijlpalen, ' +
-      'kritieke-taak-aantal, statusdatum, projecteinde/-duur, `scheduleStale` (planning verouderd?), ' +
+      'kritieke-taak-aantal (`criticalTasks`: alleen bladtaken/activiteiten, zoals de statusbalk — ' +
+      'verzameltaken met een opgerolde kritiek-vlag tellen niet mee), statusdatum, projecteinde/-duur, ' +
+      '`scheduleStale` (planning verouderd?), ' +
       'en een kalender-samenvatting. Goede eerste call om een project te leren kennen. ' +
       'LET OP bij `project.statusDate`: dat is niet zomaar een peildatum-label maar de DATA DATE uit ' +
       'P6/MSP, en die stuurt de berekening. Werk met completion 0 kan niet vóór die datum starten en ' +
@@ -967,8 +973,11 @@ export const readTools: McpToolDef[] = [
     name: 'planner_list_tasks',
     description:
       'Gepagineerde taaklijst met filters. Filters (alle optioneel, gecombineerd via EN): ' +
-      '`kritiek` (bool), `status` (NOT_STARTED|STARTED|COMPLETED), `van`/`tot` (ISO-datumvenster: ' +
-      'taken die met [van,tot] overlappen), `zonder_relaties` (bool — wees-detectie: alléén ' +
+      '`kritiek` (bool — let op: ook verzameltaken/fasen dragen een van hun kinderen opgerolde ' +
+      'kritiek-vlag en tellen hier mee; zulke rijen hebben `summary: true`, dus `total` kan hoger zijn ' +
+      'dan `criticalTasks` uit get_project_info), `status` (NOT_STARTED|STARTED|COMPLETED), `van`/`tot` ' +
+      '(ISO-datumvenster: taken die met [van,tot] overlappen, per dag en met beide grenzen inclusief — ' +
+      'ook een urentaak die op de tot-dag begint), `zonder_relaties` (bool — wees-detectie: alléén ' +
       'LEAF-taken die in geen enkele relatie voorkomen; verzameltaken worden uitgesloten). ' +
       'Paginering: `limit` (geheel getal 1..1000, default 50), `offset` (≥ 0); retourneert `total`, ' +
       '`has_more`, `next_offset`. Elk filter wordt STRIKT gevalideerd: een verkeerd getypeerde of ' +
