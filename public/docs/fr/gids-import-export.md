@@ -1,4 +1,4 @@
-# Im-/export
+# Import & export
 
 Open Planner Studio stocke par défaut un projet au format IFC — pas de fichier de projet séparé à côté. Mais parfois, un planning doit aussi exister en dehors de l'application : dans Primavera P6, dans Microsoft Project, ou comme tableau plat pour un tableur. Ce guide explique ce que signifie réellement « IFC est le format natif », ce que chaque format d'export emporte et n'emporte pas, et où se trouvent l'import/l'export dans l'application.
 

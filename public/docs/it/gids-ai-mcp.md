@@ -108,5 +108,5 @@ Un assistente che conosce gli strumenti può comunque costruire un programma inu
 ## Per saperne di più
 
 - [Baseline e avanzamento](docs://gids-baselines-voortgang) — cosa fa la data di stato alla tua pianificazione. Bene saperlo prima di lasciarla impostare a un assistente: non è solo una data di riferimento, sposta in avanti anche il lavoro non ancora iniziato.
-- [Im- ed esportazione](docs://gids-import-export) — come si relazionano tra loro IFC, CSV, MS Project e P6.
+- [Importazione/esportazione](docs://gids-import-export) — come si relazionano tra loro IFC, CSV, MS Project e P6.
 - [Impostazioni](docs://ref-instellingen) — tutte le impostazioni in un unico posto, compresi i due interruttori IA.
