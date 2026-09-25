@@ -254,7 +254,8 @@
       "unpinColumn": "Unpin column {{column}}",
       "moveColumn": "Move column {{column}}",
       "resizeColumn": "Resize column {{column}}",
-      "autoFitColumn": "Auto-fit column {{column}}"
+      "autoFitColumn": "Auto-fit column {{column}}",
+      "resetColumns": "Reset column layout to default"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} activity code assignment",

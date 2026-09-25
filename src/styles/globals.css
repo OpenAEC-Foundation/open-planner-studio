@@ -712,7 +712,8 @@
 }
 
 .task-grid-column-chooser-item,
-.task-grid-column-chooser-category {
+.task-grid-column-chooser-category,
+.task-grid-column-chooser-reset {
   width: 100%;
   min-height: 28px;
   display: flex;
@@ -730,12 +731,15 @@
 .task-grid-column-chooser-item:hover:not(:disabled),
 .task-grid-column-chooser-item:focus-visible,
 .task-grid-column-chooser-category:hover,
-.task-grid-column-chooser-category:focus-visible {
+.task-grid-column-chooser-category:focus-visible,
+.task-grid-column-chooser-reset:hover:not(:disabled),
+.task-grid-column-chooser-reset:focus-visible {
   background: var(--theme-hover);
   outline: none;
 }
 
-.task-grid-column-chooser-item:disabled {
+.task-grid-column-chooser-item:disabled,
+.task-grid-column-chooser-reset:disabled {
   color: var(--theme-text-muted);
   cursor: default;
 }
@@ -796,6 +800,13 @@
 .task-grid-column-chooser-empty {
   padding: 6px 7px;
   color: var(--theme-text-muted);
+}
+
+/* "Herstel standaard": los van de veldenlijst, onderaan de kiezer. */
+.task-grid-column-chooser-footer {
+  margin-block-start: 5px;
+  padding-block-start: 4px;
+  border-block-start: 1px solid var(--theme-border-light);
 }
 
 .task-grid-editor-host {

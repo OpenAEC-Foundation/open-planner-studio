@@ -54,6 +54,7 @@ const TASK_GRID_KEYS = [
   'taskGrid.history.moveColumn',
   'taskGrid.history.resizeColumn',
   'taskGrid.history.autoFitColumn',
+  'taskGrid.history.resetColumns',
   'taskGrid.summary.baselineMissing',
   'properties.assignments.unitsPerDay',
   'properties.assignments.curve',
@@ -244,6 +245,8 @@ for (const key of [
   'resource.curve.bell',
   'resource.curve.earlyPeak',
   'resource.curve.latePeak',
+  // "Herstel standaard" onderaan de kolomkiezer.
+  'view.columns.resetDefault',
 ] as const) {
   for (const locale of LOCALES) {
     const value = at(commonByLocale.get(locale), key);
@@ -255,6 +258,7 @@ const english = taskByLocale.get('en')!;
 for (const key of [
   'taskGrid.history.addColumn',
   'taskGrid.history.autoFitColumn',
+  'taskGrid.history.resetColumns',
   'taskGrid.summary.baselineMissing',
   'relations.jumpTask',
   'relations.removeExternal',

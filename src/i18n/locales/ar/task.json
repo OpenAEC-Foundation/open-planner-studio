@@ -235,7 +235,8 @@
       "unpinColumn": "إلغاء تثبيت العمود {{column}}",
       "moveColumn": "نقل العمود {{column}}",
       "resizeColumn": "تغيير عرض العمود {{column}}",
-      "autoFitColumn": "ملاءمة العمود {{column}} تلقائيًا"
+      "autoFitColumn": "ملاءمة العمود {{column}} تلقائيًا",
+      "resetColumns": "إعادة تعيين تخطيط الأعمدة إلى الافتراضي"
     },
     "summary": {
       "activityCodeAssignments_zero": "{{count}} تعيينات لرموز الأنشطة",

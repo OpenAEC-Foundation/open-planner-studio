@@ -166,7 +166,8 @@
       "unpinColumn": "Desafixar a coluna {{column}}",
       "moveColumn": "Mover a coluna {{column}}",
       "resizeColumn": "Redimensionar a coluna {{column}}",
-      "autoFitColumn": "Ajustar automaticamente a coluna {{column}}"
+      "autoFitColumn": "Ajustar automaticamente a coluna {{column}}",
+      "resetColumns": "Repor a disposição predefinida das colunas"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} atribuição de código de atividade",

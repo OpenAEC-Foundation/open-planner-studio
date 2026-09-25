@@ -21,7 +21,7 @@ Seçilen sütunların altında **Kullanılabilir alanlar** listesi bulunur: hen�
 
 ## Varsayılana sıfırla
 
-**Varsayılana sıfırla**, standart sütun setini geri yükler; ekstra eklenen alanlar kullanılabilir-alanlar listesine geri döner.
+**Varsayılana sıfırla** düğmesi sütun seçicinin en altındadır (tablo başlığının sağındaki artı veya **Tablo** sekmesi → **Sütunlar…**). Tek tıklama o tablonun sütunlarını varsayılan düzene geri döndürür: hangi sütunların gösterildiği, sıraları ve genişlikleri ile sabitlenmiş sütunlar. Sonradan eklenen alanlar tablodan kalkar ve listede seçilebilir kalır. Bir güncellemeden sonra yeni varsayılan düzeni de böyle alırsınız, örneğin **Planlanan başlangıç** ve **Planlanan bitiş** yerine **Başlangıç** ve **Bitiş**: daha önce kaydedilmiş kendi düzeniniz kendiliğinden değişmez. Bu tek bir işlemdir, bu yüzden **Ctrl+Z** kendi düzeninizi geri getirir. Tablo zaten varsayılan düzendeyse düğme devre dışıdır.
 
 Sütun seti kaydedilmiş bir layout'un parçasıdır — bkz. [Layout kaydetme & yükleme](docs://ref-layouts).
 

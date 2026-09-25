@@ -21,7 +21,7 @@ Sous les colonnes choisies se trouve la liste **Champs disponibles** : tout cham
 
 ## Réinitialiser par défaut
 
-**Réinitialiser par défaut** restaure le jeu de colonnes standard ; les champs supplémentaires ajoutés retournent dans la liste des champs disponibles.
+**Réinitialiser par défaut** se trouve en bas du sélecteur de colonnes (le plus à droite de l'en-tête du tableau, ou l'onglet **Tableau** → **Colonnes…**). Un clic rétablit la disposition par défaut des colonnes de ce tableau : quelles colonnes sont affichées, leur ordre et leur largeur, et les colonnes épinglées. Les champs ajoutés en plus quittent le tableau et restent disponibles dans la liste. C'est aussi ainsi que vous obtenez la nouvelle disposition par défaut après une mise à jour, par exemple **Début** et **Fin** au lieu de **Début planifié** et **Fin planifiée** : une disposition personnelle enregistrée auparavant ne change pas d'elle-même. C'est une seule action, donc **Ctrl+Z** rétablit votre propre disposition. Si le tableau utilise déjà la disposition par défaut, le bouton est désactivé.
 
 Le jeu de colonnes fait partie d'un layout enregistré — voir [Enregistrer et charger des layouts](docs://ref-layouts).
 

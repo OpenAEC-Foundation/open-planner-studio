@@ -21,7 +21,7 @@ Unter den gewählten Spalten sitzt die Liste **Verfügbare Felder**: jedes Feld,
 
 ## Auf Standard zurücksetzen
 
-**Auf Standard zurücksetzen** stellt den Standard-Spaltensatz wieder her; zusätzlich hinzugefügte Felder wandern zurück in die Liste verfügbarer Felder.
+**Auf Standard zurücksetzen** steht unten in der Spaltenauswahl (das Plus rechts im Tabellenkopf oder die Registerkarte **Tabelle** → **Spalten…**). Ein Klick setzt die Spalten dieser Tabelle auf die Standardanordnung zurück: welche Spalten angezeigt werden, ihre Reihenfolge und Breite sowie angeheftete Spalten. Zusätzlich hinzugefügte Felder verschwinden aus der Tabelle und bleiben in der Liste wählbar. So erhalten Sie nach einem Update auch den neuen Standard, zum Beispiel **Anfang** und **Ende** statt **Geplanter Anfang** und **Geplantes Ende**: eine früher gespeicherte eigene Anordnung ändert sich nicht von selbst. Es ist ein einziger Schritt, daher stellt **Ctrl+Z** Ihre eigene Anordnung wieder her. Verwendet die Tabelle bereits den Standard, ist die Schaltfläche deaktiviert.
 
 Der Spaltensatz ist Teil eines gespeicherten Layouts — siehe [Layouts speichern und laden](docs://ref-layouts).
 

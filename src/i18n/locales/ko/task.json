@@ -166,7 +166,8 @@
       "unpinColumn": "{{column}} 열 고정 해제",
       "moveColumn": "{{column}} 열 이동",
       "resizeColumn": "{{column}} 열 너비 변경",
-      "autoFitColumn": "{{column}} 열 자동 맞춤"
+      "autoFitColumn": "{{column}} 열 자동 맞춤",
+      "resetColumns": "열 레이아웃을 기본값으로 재설정"
     },
     "summary": {
       "activityCodeAssignments_other": "활동 코드 할당 {{count}}개",

@@ -179,7 +179,8 @@
       "unpinColumn": "Desfijar la columna {{column}}",
       "moveColumn": "Mover la columna {{column}}",
       "resizeColumn": "Cambiar el ancho de la columna {{column}}",
-      "autoFitColumn": "Autoajustar la columna {{column}}"
+      "autoFitColumn": "Autoajustar la columna {{column}}",
+      "resetColumns": "Restablecer la disposición de columnas predeterminada"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} asignación de código de actividad",

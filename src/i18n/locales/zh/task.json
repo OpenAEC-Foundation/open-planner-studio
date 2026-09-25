@@ -166,7 +166,8 @@
       "unpinColumn": "取消固定列 {{column}}",
       "moveColumn": "移动列 {{column}}",
       "resizeColumn": "调整列 {{column}} 的宽度",
-      "autoFitColumn": "自动调整列 {{column}}"
+      "autoFitColumn": "自动调整列 {{column}}",
+      "resetColumns": "将列布局恢复为默认"
     },
     "summary": {
       "activityCodeAssignments_other": "{{count}} 个活动代码分配",

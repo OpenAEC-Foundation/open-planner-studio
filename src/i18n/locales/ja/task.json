@@ -166,7 +166,8 @@
       "unpinColumn": "列 {{column}} の固定を解除",
       "moveColumn": "列 {{column}} を移動",
       "resizeColumn": "列 {{column}} の幅を変更",
-      "autoFitColumn": "列 {{column}} を自動調整"
+      "autoFitColumn": "列 {{column}} を自動調整",
+      "resetColumns": "列のレイアウトを既定値に戻す"
     },
     "summary": {
       "activityCodeAssignments_other": "アクティビティコード割り当て {{count}} 件",

@@ -7,7 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, Plus, RotateCcw, Search } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { TASK_COLUMN_CATEGORY_ORDER } from '@/engine/taskGrid/taskColumnRegistry';
 import { recentAvailableTaskColumnIds } from '@/engine/taskGrid/preferences';
@@ -80,6 +80,8 @@ export interface ColumnChooserLabels {
   searchResults: string;
   noSearchResults: string;
   category: (category: TaskColumnCategory) => string;
+  /** Knop onderaan de kiezer die de kolomindeling van dit oppervlak op de standaard zet. */
+  resetDefault: string;
 }
 
 export interface ColumnChooserProps {
@@ -89,6 +91,10 @@ export interface ColumnChooserProps {
   labels: ColumnChooserLabels;
   beforeOpen?: () => boolean;
   onChoose: (option: TaskGridColumnOption) => boolean;
+  /** "Herstel standaard": één handeling; geeft false terug als er niets gewijzigd is. */
+  onReset: () => boolean;
+  /** De indeling is al exact de standaard: er is niets te herstellen. */
+  resetDisabled: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -124,6 +130,8 @@ export function ColumnChooser({
   labels,
   beforeOpen,
   onChoose,
+  onReset,
+  resetDisabled,
   open: controlledOpen,
   onOpenChange,
 }: ColumnChooserProps) {
@@ -213,6 +221,13 @@ export function ColumnChooser({
 
   const choose = (item: ColumnChooserItem) => {
     if (item.disabled || !onChoose(item)) return;
+    close(true);
+  };
+
+  // Net als na het toevoegen van een kolom sluit de kiezer na de ene handeling; de tabel erachter
+  // toont direct de standaardindeling.
+  const reset = () => {
+    if (!onReset()) return;
     close(true);
   };
 
@@ -307,6 +322,17 @@ export function ColumnChooser({
               </section>
             );
           })}
+        </div>
+        <div className="task-grid-column-chooser-footer">
+          <button
+            type="button"
+            className="task-grid-column-chooser-reset"
+            disabled={resetDisabled}
+            onClick={reset}
+          >
+            <RotateCcw size={13} aria-hidden="true" />
+            <span>{labels.resetDefault}</span>
+          </button>
         </div>
       </div>,
       document.body,

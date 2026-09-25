@@ -177,6 +177,7 @@ const labels: TaskGridLabels = {
     searchResults: 'Zoekresultaten',
     noSearchResults: 'Geen velden gevonden',
     category: category => category,
+    resetDefault: 'Herstel standaard',
   },
   history: {
     addColumn: label => `Kolom ${label} toegevoegd`,
@@ -186,12 +187,14 @@ const labels: TaskGridLabels = {
     moveColumn: label => `Kolom ${label} verplaatst`,
     resizeColumn: label => `Kolom ${label} verbreed`,
     autoFitColumn: label => `Kolom ${label} automatisch verbreed`,
+    resetColumns: 'Kolomindeling op standaard gezet',
   },
 };
 const commonGridProps = {
   surfaceId: 'full-task-grid' as const,
   recentColumnIds: [] as const,
   availableColumns: options,
+  defaultColumns: [] as const,
   labels,
   rows: [{
     kind: 'group' as const,

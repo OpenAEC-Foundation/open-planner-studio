@@ -166,7 +166,8 @@
       "unpinColumn": "Sblocca la colonna {{column}}",
       "moveColumn": "Sposta la colonna {{column}}",
       "resizeColumn": "Ridimensiona la colonna {{column}}",
-      "autoFitColumn": "Adatta automaticamente la colonna {{column}}"
+      "autoFitColumn": "Adatta automaticamente la colonna {{column}}",
+      "resetColumns": "Ripristina la disposizione predefinita delle colonne"
     },
     "summary": {
       "activityCodeAssignments_one": "{{count}} assegnazione di codice attività",

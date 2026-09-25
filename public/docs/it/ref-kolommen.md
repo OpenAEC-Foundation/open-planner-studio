@@ -21,7 +21,7 @@ Sotto le colonne scelte si trova l'elenco **Campi disponibili**: ogni campo che 
 
 ## Ripristina predefiniti
 
-**Ripristina predefiniti** ripristina il set di colonne standard; i campi aggiuntivi aggiunti tornano nell'elenco dei campi disponibili.
+**Ripristina predefiniti** si trova in fondo al selettore delle colonne (il più a destra dell'intestazione della tabella, oppure la scheda **Tabella** → **Colonne…**). Un clic riporta le colonne di quella tabella alla disposizione predefinita: quali colonne sono mostrate, il loro ordine e la larghezza, e le colonne bloccate. I campi aggiunti in più escono dalla tabella e restano disponibili nell'elenco. È anche il modo per ottenere la nuova disposizione predefinita dopo un aggiornamento, per esempio **Inizio** e **Fine** al posto di **Inizio pianificato** e **Fine pianificata**: una disposizione personale salvata in precedenza non cambia da sola. È un'unica azione, quindi **Ctrl+Z** ripristina la tua disposizione. Se la tabella usa già la disposizione predefinita, il pulsante è disattivato.
 
 Il set di colonne fa parte di un layout salvato — vedi [Salvare e caricare i layout](docs://ref-layouts).
 

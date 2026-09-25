@@ -6,6 +6,7 @@ import {
   TASK_GRID_COLUMN_MAX_WIDTH,
   TASK_GRID_COLUMN_MIN_WIDTH,
   createDefaultTaskGridPreferences,
+  defaultTaskGridSurfaceColumns,
   legacyDocumentColumnsToTaskGridPreferences,
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -77,6 +78,19 @@ eq('Beide oppervlakken starten zonder horizontale scroll', {
   gantt: defaults.surfaces['gantt-task-grid'].scrollX,
   table: defaults.surfaces['full-task-grid'].scrollX,
 }, { gantt: 0, table: 0 });
+
+// "Herstel standaard" in de kolomkiezer gebruikt exact dezelfde standaard als de eerste start,
+// per oppervlak en inclusief de projectgebonden velden van het actieve project.
+const resetFields = { projectId: 'project:1', activityCodeTypeIds: ['fase:1'], customFieldDefIds: ['cf:1'] };
+eq('Herstel standaard (Tabel) = de startstandaard van de Tabel',
+  defaultTaskGridSurfaceColumns('full-task-grid', resetFields), defaults.surfaces['full-task-grid'].columns);
+eq('Herstel standaard (Gantt-takenlijst) = de startstandaard van de takenlijst',
+  defaultTaskGridSurfaceColumns('gantt-task-grid', resetFields), defaults.surfaces['gantt-task-grid'].columns);
+const resetCopy = defaultTaskGridSurfaceColumns('full-task-grid', resetFields);
+resetCopy[0].width = 999;
+resetCopy.pop();
+eq('Herstel standaard levert elke keer een verse kopie',
+  defaultTaskGridSurfaceColumns('full-task-grid', resetFields), defaults.surfaces['full-task-grid'].columns);
 
 const normalized = normalizePersistedTaskGridPreferences({
   version: 1,
