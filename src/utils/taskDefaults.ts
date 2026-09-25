@@ -459,9 +459,10 @@ export function clearLevelingGaps(task: Task): boolean {
 /** Draagt `task` uitvoer van een nivellering: een vertraging — ook UITSLUITEND sub-dag-precisie
  *  (`levelingDelayMinutes`/`levelingDelayElapsed`, uit een `.mpp`) — of een ingevoegde pauzedag
  *  (`splitGaps` met `source: 'leveling'`)? De ENE definitie achter de no-op-guard van
- *  `clearLeveling`, de ribbonknop "Nivellering wissen" en `planner_clear_leveling`: een knop die
- *  inschakelt terwijl de actie een no-op is, of andersom, is precies de bug die B1c-plan3 taak 2
- *  repareerde. */
+ *  `clearLeveling`, de ribbonknop "Nivellering wissen", `planner_clear_leveling` en de
+ *  verouderde-nivellering-waarschuwing van `planner_manage_resources` na een capaciteitswijziging
+ *  (`resourceTools.ts`): een knop die inschakelt terwijl de actie een no-op is, of andersom, is
+ *  precies de bug die B1c-plan3 taak 2 repareerde. */
 export function hasLevelingOutput(task: Task): boolean {
   return task.levelingDelay !== undefined
     || task.levelingDelayMinutes !== undefined
