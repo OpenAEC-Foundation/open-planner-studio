@@ -38,4 +38,4 @@ In the grid the *Work rule* (list) and *Remaining work* (`name: hours; name: hou
 - Every edit is one undo step.
 - In the **task dialog** the work rule, work and assignments apply at once, so they calculate with each other inside the dialog. *Cancel* rolls them back; *Save* is one undo step together with the rest of the dialog.
 - The project default work rule (for tasks without their own choice) can be set through the AI assistant; a UI for it will follow.
-- Milestones, summary tasks, hammocks and elapsed-time tasks have no work rule.
+- Milestones, summary tasks, hammocks and elapsed-time tasks have no work rule; in the grid the *Work rule* column stays empty for milestones, summary tasks and hammocks.

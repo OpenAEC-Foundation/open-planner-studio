@@ -38,4 +38,4 @@ In het raster werken de kolommen *Werkregel* (keuzelijst) en *Resterend werk* (`
 - Elke bewerking is één stap ongedaan te maken.
 - In de **taakdialoog** gelden werkregel, werk en toewijzingen meteen, zodat ze in de dialoog met elkaar rekenen. *Annuleren* draait ze terug; *Opslaan* is samen met de rest van de dialoog één stap ongedaan maken.
 - De projectstandaard-werkregel (voor taken zonder eigen keuze) is via de AI-assistent te zetten; een UI daarvoor volgt.
-- Mijlpalen, verzameltaken, hangmatten en taken op doorlooptijd hebben geen werkregel.
+- Mijlpalen, verzameltaken, hangmatten en taken op doorlooptijd hebben geen werkregel; in het raster blijft de kolom *Werkregel* bij mijlpalen, verzameltaken en hangmatten leeg.

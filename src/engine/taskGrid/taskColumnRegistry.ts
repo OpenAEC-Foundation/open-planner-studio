@@ -741,8 +741,10 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     // naar de projectstandaard. De driehoekstap zit in `gridTransaction.ts` (na het plan). `readOnly`
     // leest UITSLUITEND de gecertificeerde controllers (isMilestone/isHammock) + childIds — zie
     // `check-grid-transaction.ts` "Aanbeveling 4"; een ELAPSEDTIME-taak mag de regel dragen, de
-    // driehoek negeert 'm daar (`workRuleApplies`).
-    editableColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('workRule', WORK_RULES, true), route: 'task-field', available: ctx => ctx.taskTypesUnlocked === true, read: task => task.workRule, readOnly: task => task.isMilestone || task.childIds.length > 0 || task.isHammock === true, parse: enumParser(WORK_RULES, true), validate: enumValidator(WORK_RULES, true) }),
+    // driehoek negeert 'm daar (`workRuleApplies`). Gebruikstest #170 (G8): op mijlpaal/verzameltaak/
+    // hangmat blijft de cel LEEG — een import (deriveImportedWorkRules) zet daar wel een regel, maar
+    // die werkt er niet (gids: "hebben geen werkregel").
+    editableColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('workRule', WORK_RULES, true), route: 'task-field', available: ctx => ctx.taskTypesUnlocked === true, read: task => (task.isMilestone || task.childIds.length > 0 || task.isHammock === true ? undefined : task.workRule), readOnly: task => task.isMilestone || task.childIds.length > 0 || task.isHammock === true, parse: enumParser(WORK_RULES, true), validate: enumValidator(WORK_RULES, true) }),
     // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
     // round-trippen. Ze zijn puur provenance (geen solverinvoer deze etappe), dus één readonly
     // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.

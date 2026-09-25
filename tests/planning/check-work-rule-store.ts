@@ -493,6 +493,15 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
     workCol.available({ ...ctxBase, taskTypesUnlocked: true }), workCol.available(ctxBase),
   ], [true, false, true, false]);
   eq('n7 Werkregel is bewerkbaar met de vier waarden + projectstandaard', workRuleCol.editorOptions?.map((o) => o.value), ['', 'FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE']);
+  // Gebruikstest #170, G8: een geïmporteerde regel op mijlpaal/verzameltaak/hangmat toont het raster
+  // LEEG (die taken hebben geen werkregel); een bladtaak toont hem gewoon.
+  {
+    const base = task(t);
+    const shown = (patch: Partial<typeof base>) => workRuleCol.read({ ...base, workRule: 'FIXED_RATE', ...patch }, ctxBase as never);
+    eq('n7b rastercel Werkregel leeg op mijlpaal, verzameltaak en hangmat; gevuld op een bladtaak', [
+      shown({ isMilestone: true }), shown({ childIds: ['x'] }), shown({ isHammock: true }), shown({}),
+    ], [undefined, undefined, undefined, 'FIXED_RATE']);
+  }
   // Raster: typewissel via de cel legt het werk vast (zelfde als setTaskWorkRule), terug naar '' wist.
   S().setTaskWorkRule(t, undefined);
   useAppStore.setState((s) => { const a = s.assignments.find((x) => x.taskId === t)!; delete a.remainingWorkMinutes; });
