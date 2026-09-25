@@ -39,7 +39,7 @@ const DIALOG_ROWS = LAYOUT_PARTS.filter(part => part !== 'showRelations');
 const partsOfRow = (row: LayoutPart): LayoutPart[] => (row === 'overlays' ? ['showRelations', 'overlays'] : [row]);
 
 /** Aan/uit-overlays in lintvolgorde (Beeld → Basislijnen & voortgang), met hun lintlabel. */
-const OVERLAY_FLAGS: { key: Exclude<keyof LayoutOverlays, 'barColors'>; label: string }[] = [
+const OVERLAY_FLAGS: { key: Exclude<keyof LayoutOverlays, 'barColors'>; label: LayoutKey }[] = [
   { key: 'baseline', label: 'menu:ribbon.toggleBaselineOverlay' },
   { key: 'progressLine', label: 'menu:ribbon.toggleProgressLine' },
   { key: 'statusDateLine', label: 'menu:ribbon.toggleStatusDateLine' },
@@ -243,7 +243,7 @@ export function LayoutsDialog() {
                   onChange={e => setOverlay({ [flag.key]: e.target.checked })}
                   data-ops-layout-overlay={flag.key}
                 />
-                <span>{t(flag.label as 'menu:ribbon.toggleFloatBand')}</span>
+                <span>{t(flag.label)}</span>
               </label>
             ))}
             <label className="flex items-center gap-2">
