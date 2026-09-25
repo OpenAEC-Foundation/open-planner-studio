@@ -220,6 +220,11 @@ export interface ResourceLoadResult {
   overallocatedDays: Record<string, string[]>;
   /** resourceId → ISO-datum → reden, uitsluitend voor de datums in `overallocatedDays`. */
   overallocatedReasons: Record<string, Record<string, OverallocationReason>>;
+  /** resourceId → belaste werkuren: per toewijzing de geboekte eenheden × de uren per dag van de
+   *  TAAKkalender (dezelfde engine als de dagverdeling hierboven, de contourdialoog en `<Work>` in de
+   *  MSPDI-export). De kostenkolom van het resourcepaneel rekent hiermee (uren × tarief); vroeger nam
+   *  die de uren per dag van de projectkalender en week zo af bij een taak op een eigen kalender. */
+  hours: Record<string, number>;
 }
 
 /**
@@ -311,6 +316,7 @@ export function computeResourceLoad(
   const capacity: Record<string, DailyLoad> = {};
   const overallocatedDays: Record<string, string[]> = {};
   const overallocatedReasons: Record<string, Record<string, OverallocationReason>> = {};
+  const hours: Record<string, number> = {};
   // resourceId → ISO-datums die GEEN werkdag zijn op de RESOURCE-kalender. Bijgehouden naast
   // `capacity` (punt 4) zodat de redenbepaling (punt 6) niet op `capacity === 0` hoeft te gokken —
   // een 0-stap in `availabilitySteps` op een echte werkdag is ook capaciteit 0, maar géén
@@ -343,10 +349,14 @@ export function computeResourceLoad(
 
     if (!load[a.resourceId]) load[a.resourceId] = {};
     const bucket = load[a.resourceId];
+    let units = 0;
     for (let i = 0; i < days.length && i < workDayIsos.length; i++) {
       const iso = workDayIsos[i];
       bucket[iso] = (bucket[iso] ?? 0) + days[i];
+      units += days[i];
     }
+    // Uren van precies de geboekte eenheden, op de uren per dag van de taakkalender.
+    hours[a.resourceId] = (hours[a.resourceId] ?? 0) + units * taskEngine.hoursPerDay;
   }
 
   // 4. Capaciteit — alleen op de dagen waar ook belasting bestaat (zie DailyLoad-doc hierboven).
@@ -397,7 +407,7 @@ export function computeResourceLoad(
     }
   }
 
-  return { load, capacity, overallocatedDays, overallocatedReasons };
+  return { load, capacity, overallocatedDays, overallocatedReasons, hours };
 }
 
 /**

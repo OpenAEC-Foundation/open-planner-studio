@@ -704,6 +704,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RESLOADREASONSCHECK="$DIR/.resource-load-reasons.mjs"
   if bundle_check "$DIR/check-resource-load-reasons.ts" "$RESLOADREASONSCHECK"; then node "$RESLOADREASONSCHECK" || STATUS=1; fi
 
+  # Audit resources-kalenders R6: `computeResourceLoad` levert per resource de belaste UREN mee
+  # (eenheden × uren/dag van de TAAKkalender), en de kolom "Totaal" van het resourcepaneel rekent
+  # uren × tarief — gelijk aan de contourdialoog en `<Work>` in de MSPDI-export. Voorheen nam het
+  # paneel de uren/dag van de projectkalender (10-uurstaak: 40 u i.p.v. 50 u).
+  RESCOSTHOURSCHECK="$DIR/.resource-cost-hours.mjs"
+  if bundle_check "$DIR/check-resource-cost-hours.ts" "$RESCOSTHOURSCHECK"; then node "$RESCOSTHOURSCHECK" || STATUS=1; fi
+
   # B1c-W0.2/W0.3: `ResourceLeveler.ts` boekt (`bookDemandAt`) en meet de delay-eenheid nu ook op de
   # TAAKkalender, split-bewust — het derde (en laatste) gat naast de renderer (W0.4/W0.1) en
   # `computeResourceLoad` (W0.1).

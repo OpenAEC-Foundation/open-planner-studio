@@ -164,7 +164,6 @@ export function ResourcePanel() {
   const resourceCalendars = useAppStore(s => s.calendars);
   const assignments = useAppStore(s => s.assignments);
   const resourceLoadResult = useAppStore(s => s.resourceLoadResult);
-  const hoursPerDay = useAppStore(s => s.calendar.hoursPerDay);
   const addResource = useAppStore(s => s.addResource);
   const updateResource = useAppStore(s => s.updateResource);
   const removeResource = useAppStore(s => s.removeResource);
@@ -399,20 +398,21 @@ export function ResourcePanel() {
     [i18n.language],
   );
 
-  // Kosten-totaal per resource (bevinding 8): Σ belaste eenheden × uren/dag × tarief.
-  // uren = eenheden × hoursPerDay van de projectkalender; undefined = "—" (geen tarief of belasting).
-  // Puur een PROJECT-grootheid (leunt op resourceLoadResult/hoursPerDay van dit project) — de pool
-  // heeft hier bewust geen equivalent (zie "Totaal" hieronder).
+  // Kosten-totaal per resource (bevinding 8): belaste uren × tarief. De uren komen uit de belasting
+  // zelf (`resourceLoadResult.hours`: per toewijzing de eenheden × uren/dag van de TAAKkalender),
+  // dezelfde bron als de contourdialoog en `<Work>` in de MSPDI-export. Vroeger rekende deze kolom
+  // met de uren/dag van de projectkalender en gaf zo bij een taak op een 10-uurskalender 40 u i.p.v.
+  // 50 u (audit resources-kalenders R6). undefined = "—" (geen tarief of belasting).
+  // Puur een PROJECT-grootheid (leunt op resourceLoadResult van dit project) — de pool heeft hier
+  // bewust geen equivalent (zie "Totaal" hieronder).
   const costByResource = useMemo(() => {
     const map: Record<string, number | undefined> = {};
     for (const r of resources) {
-      const load = resourceLoadResult?.load[r.id];
-      if (!load || r.costPerHour == null) { map[r.id] = undefined; continue; }
-      const totalUnits = Object.values(load).reduce((a, b) => a + b, 0);
-      map[r.id] = totalUnits * hoursPerDay * r.costPerHour;
+      const hours = resourceLoadResult?.hours[r.id];
+      map[r.id] = hours === undefined || r.costPerHour == null ? undefined : hours * r.costPerHour;
     }
     return map;
-  }, [resources, resourceLoadResult, hoursPerDay]);
+  }, [resources, resourceLoadResult]);
 
   const grandTotal = useMemo(() => {
     const vals = Object.values(costByResource).filter((v): v is number => v !== undefined);
@@ -978,7 +978,7 @@ function ResourceRow({
           )}
         </td>
         {costLabel !== undefined && (
-          <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')}>
+          <td className="px-2 py-1 text-right tabular-nums" title={t('resource.totalHint')} data-ops-resource-total={resource.id}>
             {costLabel}
           </td>
         )}

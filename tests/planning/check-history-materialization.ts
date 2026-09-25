@@ -60,6 +60,7 @@ const poison: ResourceLoadResult = {
   capacity: { fout: { '1900-01-01': 0 } },
   overallocatedDays: { fout: ['1900-01-01'] },
   overallocatedReasons: { fout: { '1900-01-01': 'over-capacity' } },
+  hours: {},
 };
 store.setState(state => {
   state.tasks = [];

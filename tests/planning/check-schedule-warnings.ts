@@ -108,6 +108,7 @@ S().runCPM();
       [rxMix]: { '2026-09-08': 'over-capacity', '2026-09-09': 'non-working-day', '2026-09-10': 'non-working-day' },
       [rxNone]: { '2026-09-08': 'over-capacity' },
     },
+    hours: {},
   };
   const w = collectScheduleWarnings({
     tasks: s.tasks, sequences: s.sequences, resources: s.resources,
