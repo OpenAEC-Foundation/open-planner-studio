@@ -325,3 +325,79 @@ inclusief de werkdriehoek. De gidsen `gids-taaktypes` (nieuw punt onder "Wat u m
   blijven staan. Mutatieproef in `prepareLoadedPayload`: een reconcile ⇒ 61 en 62 rood; een
   `clearLevelingGaps` ⇒ 62 rood.
 - Poorten, allemaal exit 0: typecheck, lint, `tests/planning/run.sh` corpusloos, `test:mcp` (42/0).
+
+## Fable-reviewfixes (Claude Opus 5.5, `uitvoerder-opus-midden`, 2026-09-24/25; kop `ee96e5e9`, gepusht)
+
+In gewone woorden: de drie gaten uit de Fable-critreview zijn dicht. Voortgang boeken verschuift nu
+werk van "nog te doen" naar "gedaan", zodat het histogram niet meer dubbel telt. De kalenderdialoog
+laat de werkregel meebeslissen als je de uren per dag wijzigt. En een zelf bewerkte urenverdeling
+wordt niet meer stil teruggedraaid. Twee kleinere punten zijn meegenomen; de ontwerpvragen E8/E9/E10
+blijven voor de eigenaar.
+
+Alle cases staan in `tests/planning/check-work-rule-store.ts`; elke case was rood zonder de fix.
+
+- **Bevinding 1 — voortgang onderhoudt het restwerk (`30483cfc`).** `captureProgressWork`/
+  `settleProgressWork` in `workRuleApply.ts`. Per toewijzing mét restveld wordt het nieuwe restwerk
+  restwerk × nieuwe restduur ÷ oude restduur. Het verrichte werk wordt verricht-vóór plus het
+  verschoven deel; het totaal blijft gelijk. Werkt in beide richtingen. Bij heropenen na 100 % wordt
+  het totaal naar rato van de restduur verdeeld. Zonder werkveld blijft alles byte-identiek, en de
+  contour blijft ongemoeid. Bedraad op alle voortgangspaden: `setTaskProgress`, `setActualStart`/`Finish`,
+  `updateTask`, `applyProgressImport`, het raster, MCP `updateTaskFields` en MCP
+  `progress.applyProgressUpdate`. Cases t0–t14; de reviewprobe (W 4800 → 50 %) geeft nu W 2400,
+  histogram 10, en na inzet 1→2 een duur van 8 met rest 3.
+  - Mutatieproef: zonder de fix 12 rood. Schakel je één pad uit, dan valt precies de eigen case om
+    (mcpValidation ⇒ t12, raster ⇒ t11, MCP-draft ⇒ t13).
+  - Afwijking van spec §6.5 ("heropenen laat de velden staan"): de identiteit geldt nu in beide
+    richtingen, zoals de opdracht vraagt.
+- **Bevinding 2 — kalenderdialoog en `removeCalendar` volgen K2 (`ef40c195`).**
+  `captureCalendarLibraryChange`/`settleCalendarLibraryChange` in `state/calendarTasks.ts` nemen een
+  momentopname van alle taken, met toewijzingen per taak voorgegroepeerd, en roepen daarna per taak
+  `settleCalendarChange` aan (één definitie, F3). Een melding "N taken" loopt via
+  `notifyWorkRuleDurationsChanged`. Dit dekt ook taken die op de projectkalender terugvallen.
+  CLAUDE.md en het docblok zijn bijgewerkt. Cases u0–u9 lopen via `commitCalendarLibrary`, de route
+  van de dialoog.
+  - Mutatieproef: zonder de fix 6 rood (6 d in plaats van 8, geen melding, de terugvallende taak blijft 4).
+  - Blijft open: G9 (`setCalendar`, `resolveDeviation`, `workTime`-verwijdering).
+- **Bevinding 3 — contourbewerking houdt het werkveld coherent (`3ec18f93`).**
+  `syncAssignmentWorkToContour`: een aanwezig restveld wordt gelijk aan de som van de
+  remaining-periodes, een aanwezig verricht-veld aan de som van de actual-periodes. Afwezige velden
+  blijven afwezig; loslaten laat de velden staan. Gebouwd in store en MCP-draft. Cases v0–v7; de
+  probe 960/1920 geeft nu inzet 0,25 en een contour van 960.
+  - Mutatieproef: zonder de fix 5 rood.
+- **Bevinding 7 — curve plus werk (`7f336548`).** Keuze: vorm-als-data met werk als schaal.
+  `curveValues` levert de vorm, opgeslagen werk (verricht + rest) het totaal. Zonder werkveld blijft
+  het byte-identiek. Waarom: vorm en totaal zijn orthogonaal, en laag 3 is al "werk als data". Zou de
+  curve winnen, dan boekt een XER-toewijzing met curve inzet × duur in plaats van haar werk. Cases g5/g6.
+  - Mutatieproef: som 4 in plaats van 2.
+- **Bevinding 9a — `removeResource` wist ook het Z8-venster en de walks (`ee96e5e9`).** Store en MCP,
+  per geraakte taak, met verliesmelding, net als `unassignResource`. Cases s7/s7b.
+  - Mutatieproef: beide rood.
+- **Bevinding 9, `<EffortDriven>`-volgorde — niet gebouwd.** Het deel van de VERMOED dat we konden
+  controleren klopt: volgens de `propOrder` van MPXJ (`mspdi/schema/Project.java`, Task) hoort
+  EffortDriven ná `ResumeValid`, en dus ná Start/Finish/Duration/Work. De writer zet hem direct na
+  DurationFormat. Maar Start/Finish/WBS staan al vóór #170 buiten de schemavolgorde, en de writer
+  wijkt dus overal af. Of MS Project strikt is, is niet gemeten. Eén element verplaatsen maakt het
+  document niet schemageldig, dus de VERMOED ("MS Project struikelt") is niet bevestigd.
+- **Niet gebouwd (eigenaar):** bevinding 4 (E9), bevinding 5 (E7, diagnose hierboven gecorrigeerd) en
+  bevinding 8 (E6).
+
+**Poorten (exitcode, kop `ee96e5e9`).** Deze stonden allemaal op 0:
+
+- typecheck en lint
+- alle tien `verify:*` los: examples, docs, i18n, release-highlights(-json), store-boundaries,
+  conventions, gantt-boundaries, cycles, text-roles
+- `tests/planning/run.sh` corpusloos, onder flock
+- `test:mcp` (42/0) en `test:library`
+- browser `work-rule` + `contour-dialog` + `calendar-dialog`: 9 passed
+- mét corpus `check-mpp-fidelity`: 216 ongewijzigd / 0 / 0, 2196 checks
+- `measure:profiles`: P6 76 afwijkingen, cel-delta overal 0, uitgesloten 42 taken; MSP groen. De
+  exit 1 van p6-x12 is de bekende nuldoel-rood.
+
+**Voor de eigenaar.**
+
+- **E8** is hiermee beslist in de adviesrichting: voortgang verplaatst rest naar verricht, naar rato
+  van de restduur. Wel te bevestigen: de afwijking van spec §6.5 bij heropenen, en dat het
+  verricht-veld nu ook wordt geschreven waar het ontbrak.
+- **E9** (FIXED_RATE-anker, F5 terugdraaien) is open en ongebouwd.
+- **E10** is gebouwd volgens het advies (de contour schrijft het restveld). Te bevestigen, of om te
+  keren naar "werkveld wint + waarschuwing".
