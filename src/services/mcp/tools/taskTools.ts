@@ -384,6 +384,9 @@ const updateTasks: BatchStepTool = {
     'geweigerd `fields`-blok laat de taak volledig ONGEWIJZIGD (nooit een halve merge). ' +
     'Voortgang > 0 leidt de actualStart af; actuals ná de ' +
     'projectstatusdatum of buiten 0–100 worden per item zacht geweigerd — geldige items blijven staan. ' +
+    'Een VERZAMELTAAK (fase) heeft geen eigen voortgang: haar completion, status, actualStart (vroegste ' +
+    'van de bladtaken) en actualFinish (laatste, pas als alle bladtaken klaar zijn) worden bij elke ' +
+    'herberekening afgeleid, dus `progress` op een fase wordt zacht geweigerd — zet het op de bladtaken. ' +
     'Hefboom-tip: hypothetische uitloop = duur of SNET-constraint (via `fields`); geregistreerde voortgang ' +
     '= actuals mét statusdatum (via `progress`). Merk op: één taak-id kan tegelijk in `updated` én in de ' +
     'weigeringen verschijnen (bijv. `fields` geweigerd maar `progress` toegepast) — bewuste granulariteit.',

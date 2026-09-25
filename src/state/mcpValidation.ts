@@ -207,7 +207,7 @@ export const progress = {
 
     // (9) voortgang op een verzameltaak (heeft kinderen) ⇒ weigering.
     if (task.childIds.length > 0) {
-      return { applied: false, reason: `taak '${taskId}' is een verzameltaak (heeft kinderen); voortgang wordt afgeleid uit de kinderen, niet direct gezet` };
+      return { applied: false, reason: `taak '${taskId}' is een verzameltaak (heeft kinderen); voortgang, status en werkelijke datums worden afgeleid uit de bladtaken eronder, niet direct gezet — zet de voortgang op die bladtaken` };
     }
 
     // (10) invarianten + COMMIT naar de draft.
