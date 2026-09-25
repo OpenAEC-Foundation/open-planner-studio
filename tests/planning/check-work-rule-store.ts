@@ -1118,6 +1118,30 @@ console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houd
   S().setAssignmentContour(asgOf(d.t, d.r).id, periods);
   eq('v6 verricht-veld volgt de actual-periodes, restveld de rest', [asgOf(d.t, d.r).actualWorkMinutes, asgOf(d.t, d.r).remainingWorkMinutes], [csum(d.t, 'actual'), csum(d.t, 'remaining')]);
   eq('v7 …met de verwachte getallen (480 / 900)', [csum(d.t, 'actual'), csum(d.t, 'remaining')], [mpd, 900]);
+  // Her-check Fable-fixes (punt 8): een EERSTE urenverdeling op een gestarte taak (nog geen
+  // actual-periodes; de dialoog vult de hele belasting als remaining) laat het verrichte werk staan.
+  // Mutatiebewijs: de tak `!hasActualPeriods` weg in `syncAssignmentWorkToContour` ⇒ v8 rood
+  // (verricht 0, rest 4800) en v9 rood.
+  const first = (days: number, completion: number) => {
+    const t = S().addTask({ name: `v-first-${days}`, time: createDefaultTaskTime('2026-06-01', days) });
+    const r = labor(`r-v-first-${days}`);
+    S().assignResource(t, r, 1);
+    S().runCPM();
+    S().setTaskWorkRule(t, 'FIXED_WORK');
+    S().setTaskProgress(t, completion);
+    const before = { actual: asgOf(t, r).actualWorkMinutes, rest: asgOf(t, r).remainingWorkMinutes };
+    S().setAssignmentContour(asgOf(t, r).id, workDaySlotsToPeriods(Array(days).fill(mpd), undefined, mpd));
+    return { before, after: { actual: asgOf(t, r).actualWorkMinutes, rest: asgOf(t, r).remainingWorkMinutes } };
+  };
+  const f10 = first(10, 0.5);
+  eq('v8 50 % geboekt, eerste verdeling toepassen ⇒ verricht blijft 2400, rest 2400',
+    [f10.before.actual, f10.after.actual, f10.after.rest], [5 * mpd, 5 * mpd, 5 * mpd]);
+  // Niet-ronde duur × percentage (7 d, 33 %): de dagafronding in de voortgang mag het totaal niet
+  // laten lekken — verricht blijft, rest = totaal − verricht, samen 7 slots.
+  const f7 = first(7, 0.33);
+  eq('v9 7 d, 33 %: verricht onveranderd, verricht + rest = 7 slots',
+    [f7.after.actual === f7.before.actual, (f7.after.actual ?? 0) + (f7.after.rest ?? 0), f7.before.rest === f7.after.rest],
+    [true, 7 * mpd, true]);
 }
 
 console.log(`\n${checks} checks, ${diffs.length} afwijking(en)`);

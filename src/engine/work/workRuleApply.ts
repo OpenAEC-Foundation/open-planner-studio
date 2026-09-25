@@ -662,6 +662,20 @@ export function syncAssignmentWorkToContour(
 ): boolean {
   if (periods === null) return false;
   let changed = false;
+  // Her-check Fable-fixes (punt 8): een EERSTE urenverdeling op een gestarte taak heeft nog geen
+  // `actual`-periodes — `ContourDialog` vult een nieuwe verdeling met de hele belasting en
+  // `buildEditedContourPeriods` neemt alleen bestaande actual-periodes over. Dan is de contoursom
+  // het TOTAAL: het verricht-veld blijft staan en de rest = som − verricht (geklemd op 0). Zonder
+  // deze tak werd verricht 0 en rest het hele totaal, en verdubbelde Vast werk de restduur.
+  const hasActualPeriods = periods.some((p) => p.kind === 'actual');
+  if (!hasActualPeriods && assignment.actualWorkMinutes !== undefined && assignment.actualWorkMinutes > 0) {
+    if (assignment.remainingWorkMinutes !== undefined) {
+      const total = periods.reduce((acc, p) => acc + p.workMinutes, 0);
+      const rest = Math.max(0, total - assignment.actualWorkMinutes);
+      if (Math.abs(rest - assignment.remainingWorkMinutes) > 1e-6) { assignment.remainingWorkMinutes = rest; changed = true; }
+    }
+    return changed;
+  }
   if (assignment.remainingWorkMinutes !== undefined) {
     const rest = periods.reduce((acc, p) => acc + (p.kind === 'actual' ? 0 : p.workMinutes), 0);
     if (Math.abs(rest - assignment.remainingWorkMinutes) > 1e-6) { assignment.remainingWorkMinutes = rest; changed = true; }
