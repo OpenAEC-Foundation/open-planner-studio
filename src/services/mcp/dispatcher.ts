@@ -167,7 +167,7 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
       // terugrolt, en de handlers maken er een `itemRejections`-regel van. De poort is daarom STRIKT
       // op het bovenste niveau (onbekende top-level sleutels, `required`, scalairen, en van arrays de
       // buitenkant: array-zijn, `minItems`, elementtype) en laat de BINNENKANT van array-items aan de
-      // tool. Enige uitzondering: `ATOMIC_ITEM_TOOLS` (vandaag alleen `planner_add_tasks`), wiens
+      // tool. Enige uitzondering: `ATOMIC_ITEM_TOOLS` (`planner_add_tasks`, `planner_set_task_splits`), wier
       // contract per definitie alles-of-niets is. Zie de DIEPTE-REGEL in `schemaValidate.ts`.
       const schemaError = validateToolArgs(def.inputSchema, msg.params?.arguments, {
         deepArrayItems: ATOMIC_ITEM_TOOLS.has(def.name),

@@ -343,6 +343,18 @@
       "remove": "Usuń",
       "done": "Gotowe",
       "empty": "Brak notatek."
+    },
+    "splits": {
+      "title": "Przerwy",
+      "after": "po",
+      "pause": "przerwa",
+      "add": "Dodaj przerwę",
+      "remove": "Usuń przerwę",
+      "readOnly": "Te przerwy pochodzą z pliku źródłowego w postaci, której nie można tutaj edytować.",
+      "removeAll": "Usuń wszystkie przerwy",
+      "leveling": "bilansowanie",
+      "unitDays": "dni robocze",
+      "unitHours": "godziny"
     }
   },
   "relations": {
@@ -460,5 +472,24 @@
     "edit": "Edytuj relację zewnętrzną…",
     "refreshSource": "Odśwież źródło",
     "deleteRelation": "Usuń relację"
+  },
+  "split": {
+    "gapDays_one": "{{count}} dzień roboczy przerwy",
+    "gapDays_few": "{{count}} dni robocze przerwy",
+    "gapDays_many": "{{count}} dni roboczych przerwy",
+    "gapDays_other": "{{count}} dnia roboczego przerwy",
+    "gapHours_one": "{{count}} godzina przerwy",
+    "gapHours_few": "{{count}} godziny przerwy",
+    "gapHours_many": "{{count}} godzin przerwy",
+    "gapHours_other": "{{count}} godziny przerwy",
+    "pieceDays_one": "Odcinek: {{count}} dzień roboczy",
+    "pieceDays_few": "Odcinek: {{count}} dni robocze",
+    "pieceDays_many": "Odcinek: {{count}} dni roboczych",
+    "pieceDays_other": "Odcinek: {{count}} dnia roboczego",
+    "pieceHours_one": "Odcinek: {{count}} godzina",
+    "pieceHours_few": "Odcinek: {{count}} godziny",
+    "pieceHours_many": "Odcinek: {{count}} godzin",
+    "pieceHours_other": "Odcinek: {{count}} godziny",
+    "merged": "Scal"
   }
 }

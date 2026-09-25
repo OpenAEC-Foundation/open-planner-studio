@@ -30,11 +30,11 @@ Categories: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other
 | `ribbon` | **hard** — missing ⇒ `api.ui.addRibbonButton` throws | Add a button to the ribbon. |
 | `backstage` | **warn** — missing ⇒ `api.importers.*` still works, but logs a warning | Register an importer (appears under File → Import). |
 | `pdf-fonts` | **hard** — missing ⇒ `api.pdfFonts.register` throws | Register a font provider for the vector PDF export (e.g. CJK glyph bytes). |
-| `importSource` | **hard, default-deny** — missing ⇒ `api.data.getImportSourceInfo`/`getImportSourceChunk`/`getImportSourceCatalogPage` throw before a single byte is read | Read the **full original source bytes** of an imported file (today: XER), including fields the import layer deliberately never materializes into the project model. See the section below. |
+| `importSource` | **hard, default-deny** — missing ⇒ `api.data.getImportSourceInfo`/`getImportSourceIssue`/`getImportSourceChunk`/`getImportSourceCatalogPage` throw before a single byte is read | Read the **full original source bytes** of an imported file (today: XER), including fields the import layer deliberately never materializes into the project model. See the section below. |
 | `filesystem` | informational | No API surface; a declared intent shown at install time — **no** sandbox guarantee. |
 | `network` | informational | Likewise — declared intent, not a technical boundary. |
 
-`data.*` is otherwise **core API** — except for the three `getImportSource*` methods above — same
+`data.*` is otherwise **core API** — except for the four `getImportSource*` methods above — same
 as `settings.*`, `assets.*` and `ui.showNotification`: always available, no permission required.
 Enforcement is centralized in `src/extensions/permissions.ts`. `minAppVersion` is also enforced: on
 an older app the extension refuses to activate. Unknown permissions are filtered out with a warning
@@ -77,7 +77,7 @@ module.exports = {
 | Area | Functions |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceChunk/getImportSourceCatalogPage` (permission `importSource`, see below), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
+| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permission `importSource`, see below), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permission `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permission `ribbon`), `showNotification(msg, type?)` |
 | `api.settings` | `get(key, default)`, `set(key, value)` — prefixed per extension in localStorage |
@@ -142,6 +142,12 @@ if (info) {
   `sha256`/`byteLength`/`chunkCount`, number formatting, diagnostics counts, the import report, the
   schedule-options provenance and catalog counts). No record contents. **`null`** when the active
   document has no retained XER source (any non-XER document).
+- **`getImportSourceIssue()`** (since contract version `1.2.0`) → `null`, unless the document **had**
+  an XER source archive that turned out unusable when the file was opened and was left out (a
+  corrupt archive, or one rewritten by other IFC software, no longer blocks the project from
+  opening). Then `{ code }` with `code` ∈ `schema-version` | `hash-mismatch` | `truncated` |
+  `bytes-missing` | `metadata-invalid` | `structure`. This tells "never an XER source" apart from
+  "source lost on open"; `getImportSourceInfo()` is `null` in both cases.
 - **`getImportSourceChunk(index)`** → a fresh copy of one piece of the original file bytes.
   Concatenate all chunks `0..chunkCount - 1` in order to reconstruct the **exact** original bytes —
   compare against the `sha256` from `getImportSourceInfo()` to confirm. An invalid index throws a

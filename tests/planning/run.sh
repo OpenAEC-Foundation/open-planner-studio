@@ -587,6 +587,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   IFCXERARCHIVECHECK="$DIR/.ifc-xer-archive-container.mjs"
   if bundle_check "$DIR/check-ifc-xer-archive-container.ts" "$IFCXERARCHIVECHECK"; then node "$IFCXERARCHIVECHECK" || STATUS=1; fi
 
+  # Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief gijzelt het
+  # project niet meer. Echt beschadigde fixture door productie-ingang, store, melding, documentwissel,
+  # opslaan en crashherstel.
+  XERARCHIVEFALLBACKCHECK="$DIR/.xer-archive-fallback.mjs"
+  if bundle_check "$DIR/check-xer-archive-fallback.ts" "$XERARCHIVEFALLBACKCHECK"; then node "$XERARCHIVEFALLBACKCHECK" || STATUS=1; fi
+
   # P0: corpusloze, onafhankelijke bronretentiepoort over import, edit/CPM, undo/redo,
   # documentwissel/-kopie, recovery en IFC. De STEP-envelope wordt zonder product-reader gecheckt.
   XERSOURCERETENTIONCHECK="$DIR/.xer-source-retention.mjs"
@@ -1065,6 +1071,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SPLITWALKCHECK="$DIR/.split-walk.mjs"
   if bundle_check "$DIR/check-split-walk.ts" "$SPLITWALKCHECK"; then node "$SPLITWALKCHECK" || STATUS=1; fi
 
+  SPLITEDITCHECK="$DIR/.check-split-edit.mjs"
+  if bundle_check "$DIR/check-split-edit.ts" "$SPLITEDITCHECK"; then node "$SPLITEDITCHECK" || STATUS=1; fi
+
+  # Issue #146: de STORE-kant van gebruikerssplits — de solver-fix voor een dag-taak op een
+  # bandenkalender en `setTaskSplits` als tijdbasis-bewerking (undo/coalescing, contour, Z8, klip).
+  SPLITEDITSTORECHECK="$DIR/.check-split-edit-store.mjs"
+  if bundle_check "$DIR/check-split-edit-store.ts" "$SPLITEDITSTORECHECK"; then node "$SPLITEDITSTORECHECK" || STATUS=1; fi
+
+  # Issue #146 etappe 5: rooktests voor de oppervlakken die de splits-critreview niet naliep —
+  # print/PDF, WBS-/voortgangsrapport, verzameltaak-rollup en baseline/variance met een gebruikerssplit.
+  SPLITSMOKECHECK="$DIR/.check-split-smoke.mjs"
+  if bundle_check "$DIR/check-split-smoke.ts" "$SPLITSMOKECHECK"; then node "$SPLITSMOKECHECK" || STATUS=1; fi
+
   # B1c-W0.1: `computeResourceLoad`/`computeHistogramReport` volgen nu de ECHTE werkdagen van een
   # taak — splitGaps-pauzedagen overgeslagen, mapping op de TAAKkalender i.p.v. onvoorwaardelijk de
   # projectkalender (via `enumerateTaskWorkDays`/`splitWalk.ts`).
@@ -1536,6 +1555,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECMARKCHECK="$DIR/.check-recorded-dates-mark.mjs"
   if bundle_check "$DIR/check-recorded-dates-mark.ts" "$RECMARKCHECK"; then node "$RECMARKCHECK" || STATUS=1; fi
 
+  # Eigenaarsbesluit 2026-09-09 — "datums zoals opgeslagen" voor ÁLLE formaten: de lezers van
+  # P6 XML/MSPDI/CSV (en corpus-optioneel .mpp) leveren het bak-4-kanaal, en de IFC-herkomst
+  # ('ifc' vs 'ifc-own' + OPS_ImportProvenance) stuurt het heropen-beleid (optie B).
+  RECFORMATS="$DIR/.check-recorded-times-formats.mjs"
+  if bundle_check "$DIR/check-recorded-times-formats.ts" "$RECFORMATS"; then node "$RECFORMATS" || STATUS=1; fi
+  # Bak 4 differentieel (critreview ded4d8c3, bevinding 7): de vier lezers AAN vs vastlegging UIT
+  # (bronmatig uitgeschakeld, eigen esbuild-bundel) ⇒ importresultaat byte-identiek.
+  RECBAK4="$DIR/.check-recorded-bak4-differential.mjs"
+  if bundle_check "$DIR/check-recorded-bak4-differential.ts" "$RECBAK4"; then node "$RECBAK4" || STATUS=1; fi
   # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
   # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
   PICHECK="$DIR/.progress-import.mjs"

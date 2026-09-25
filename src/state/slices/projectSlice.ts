@@ -27,7 +27,7 @@ import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import type { XerImportMetadata } from '@/services/importTypes';
+import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // K-item 27: de fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
 // documentContract/snapshot). Hier alleen doorgegeven, zodat bestaande importers ongemoeid blijven.
@@ -99,6 +99,11 @@ export interface ProjectSlice {
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
+  /** Zie `DocumentPayload.importPristine` (heropen-beleid optie B). */
+  importPristine: boolean;
+  /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
+   *  DOCUMENT_FIELDS; nooit IFC). `null` = er was geen archief óf het was bruikbaar. */
+  xerArchiveIssue: XerArchiveIssue | null;
   setProject: (project: Partial<Project>) => void;
   /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
@@ -188,6 +193,8 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   xerImportMetadata: null,
   xerSourceArchive: null,
   xerSourceProjectId: null,
+  importPristine: false,
+  xerArchiveIssue: null,
 
   setProject: (updates) => {
     // T7b (plan-§9/O2-vervolg, orkestratorbesluit 2026-08-15 — optie B, ná escalatie T7 + de

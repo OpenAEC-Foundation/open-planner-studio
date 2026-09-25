@@ -57,7 +57,7 @@ getypecheckt. Die klasse fout kan nu niet meer optreden.)
 - Deze suite print zijn faalregels **ingesprongen**: elk `check-*.ts`-bestand gebruikt
   `console.log(\`   XX ${msg}\`)` (drie spaties vóór `XX`), niet `console.log('XX ...')` aan het
   regelbegin zoals `tests/planning/`. Een `grep -c '^XX'` geeft hier dus **misleidend 0** terwijl
-  de suite rood staat (gemeten 2026-07-28, zie ook `CLAUDE.md`). Gebruik `grep -c 'XX '` als je
+  de suite rood staat (gemeten 2026-07-28, zie ook `CLAUDE.md` en `.claude/rules/tests.md`). Gebruik `grep -c 'XX '` als je
   toch wilt tellen, en laat de exitcode altijd het oordeel vellen.
 - De tsc-compile-afdwinging faalt los van de losse checks: een rode `tsc`-regel bovenin de uitvoer
   betekent een fixture/type-gat, geen kapotte testlogica.

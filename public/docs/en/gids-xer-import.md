@@ -10,10 +10,11 @@ A `.xer` file is Primavera P6's exchange format. Open Planner Studio can open it
 - How text encoding and P6 number notation are determined safely.
 - What happens when the recalculation deviates from the dates Primavera itself had already recorded.
 - What saving as IFC means and which P6 features do not yet have their own scheduling model.
+- What happens when the retained XER source archive in an IFC file is damaged.
 
 ## Opening and documents
 
-Open a `.xer` file through **File → Open** or **Ctrl+O**. One export can contain several P6 projects. Open Planner Studio opens every non-empty current project as a separate document; the document with the most activities becomes active. Empty projects do not create a pointless tab.
+Open a `.xer` file through **File → Open** or **Ctrl+O**. One export can contain several P6 projects. Open Planner Studio opens every non-empty current project as a separate document; the document with the most activities becomes active. Empty projects do not create a pointless tab. Each document is named after the P6 project name followed by the P6 Project ID, for example "HarbourPointe Assisted Living (4408)"; a project without a name shows only its ID.
 
 After one file action, one informational notification appears, even when many documents open. It reports the actual projects found and opened, empty projects, baselines and any fallbacks. A later XER file action receives its own notification.
 
@@ -80,9 +81,10 @@ other format. The recalculation itself never uses Primavera's recorded dates as 
 along as separate, read-only source data and are used only to show what the file said, never to drive
 what the app calculates. Saving as IFC stores Primavera's recorded dates in
 the project file — including which axes the source file left unrecorded. Opening that IFC file again
-does not switch this view back on by itself: you get the notice with a **Show recorded dates** button
-and decide for yourself. That way a schedule you have edited and saved in the meantime can never come
-back on screen with the old dates unasked.
+only switches this view back on by itself as long as you have not edited the project since the
+import (recalculating and saving do not count as editing). Once you have edited, you get the notice
+with a **Show recorded dates** button and decide for yourself. That way a schedule you have changed
+in the meantime can never come back on screen with the old dates unasked.
 
 See [Dates as recorded](docs://datums-zoals-opgeslagen) for the full explanation of this view,
 including what you do and don't see while it is active and how to leave it manually.
@@ -94,6 +96,20 @@ An XER import is an **import**, not an XER editor or XER exporter. When you save
 That retained source data has a cost with large files. The complete original `.xer` file travels along in the project file and in every crash-recovery snapshot, without an upper bound. Measured on the largest test file (a 17.7 MB `.xer` with over 2,000 activities): the IFC project file becomes about 50 MB, saving takes tens of seconds, and crash recovery rewrites that file every ten seconds while you edit. With an export containing many projects this multiplies: every opened document carries its own copy. For most schedules you will not notice; if you work with an export of tens of megabytes, expect slow saves and a large project folder.
 
 For exchange with Primavera, use the existing **Primavera P6 XML** export. It is a different format with its own limits; see [Import/export](docs://gids-import-export). Keep the IFC file as well when you want to reopen an edited project later.
+
+### When the source archive is unusable
+
+The retained XER source archive in the IFC file is checked every time you open it: the checksum of the bytes, the schema version, completeness and structure. If something is wrong, the project still opens, but **without** the source archive. You get one notification with the reason. This happens, for example, when:
+
+- another IFC program saved the file and dropped the large archive values or reordered the properties;
+- the file was truncated or damaged along the way, so the checksum no longer matches;
+- the archive was written by a newer or different version that this version does not know.
+
+What stays: the complete schedule from the IFC. Tasks, relationships, calendars, resources, progress, baselines, the calculation profile (including your own deviations) and the scheduling options are all stored in the IFC itself and load and calculate as usual. The project therefore calculates with the same profile as before it was saved.
+
+What is missing: everything that comes from the archive itself. That is the **dates as recorded** view (the dates Primavera calculated itself), the source provenance for the AI assistant and the source route for extensions. The AI assistant and extensions do not see "no XER source", but that there was an archive that turned out unusable when the file was opened, with the reason.
+
+What you can do: open the original `.xer` file again. That gives you a new document with its source archive. Edits you already made in the IFC are not in that new document. Note: if you save the IFC without the archive, Open Planner Studio writes the file without it. The damaged archive is not written back, and the notification no longer appears the next time you open the file.
 
 ## Limits that stay visible
 

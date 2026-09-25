@@ -46,10 +46,10 @@
 //     allowlist met PER-ITEM-weigering (`taskFields.ts`, `parseProgress`, `parseLag`, de kalender-/
 //     resource-tools). Zo blijft één rot item één `itemRejections`-regel.
 //   * UITZONDERING — `ATOMIC_ITEM_TOOLS`. Een tool wier contract per definitie ALLES-OF-NIETS is,
-//     kent geen per-item-weigering; daar is een harde VALIDATION juist correct. Vandaag is dat
-//     alleen `planner_add_tasks`: zijn contract is de VOLLEDIGE tempId→realId-map, dus een half
-//     geslaagde call is voor de aanroeper onbruikbaar (dat is ook nu al zijn gedrag — een onbekend
-//     veld in één item laat de hele call falen).
+//     kent geen per-item-weigering; daar is een harde VALIDATION juist correct. Vandaag zijn dat
+//     `planner_add_tasks` — zijn contract is de VOLLEDIGE tempId→realId-map, dus een half geslaagde
+//     call is voor de aanroeper onbruikbaar (een onbekend veld in één item laat de hele call falen) —
+//     en `planner_set_task_splits`, dat de hele onderbrekingenlijst van één taak vervangt.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Trefwoorden die deze validator daadwerkelijk afdwingt (de rest wordt genegeerd). */
@@ -76,7 +76,7 @@ const DOC_KEYWORDS: readonly string[] = ['description', 'title', 'examples', 'de
  * moet) de schemapoort óók de binnenkant van array-items hard afkeuren. Zie de DIEPTE-REGEL boven.
  * Voeg hier alleen een tool aan toe die aantoonbaar geen `itemRejections` kan teruggeven.
  */
-export const ATOMIC_ITEM_TOOLS: ReadonlySet<string> = new Set(['planner_add_tasks']);
+export const ATOMIC_ITEM_TOOLS: ReadonlySet<string> = new Set(['planner_add_tasks', 'planner_set_task_splits']);
 
 type Json = unknown;
 

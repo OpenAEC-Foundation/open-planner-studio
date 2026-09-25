@@ -1,6 +1,7 @@
 // X9-compactopslag — corpusloze contracttest voor een zelfstandig, uit ruwe bytes herbouwd archief.
 import { isMultiDocumentImport } from '@/services/importTypes';
-import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { archiveDropped } from './xerArchiveFallbackAssert';
+import type { XerArchiveIssueCode } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
@@ -136,16 +137,10 @@ const legacyBase = writeIFC({ ...alpha, xer: undefined, xerSourceArchive: undefi
 const legacyIfc = appendLegacyExpandedContainer(legacyBase, archive, 'P-A');
 const parsedLegacy = readIFC(legacyIfc);
 
-const rejectsCompact = (candidate: string, fragment: string): boolean => {
-  try {
-    readIFC(candidate);
-    return false;
-  } catch (error) {
-    return error instanceof IfcParseError
-      && error.reason === 'xer-source-archive'
-      && error.message.includes(fragment);
-  }
-};
+// Eigenaarsbesluit 2026-09-24 ("openen met melding"): een ongeldig compact archief laat het project
+// openen en valt zelf weg — met het verplichte `xerArchiveIssue` (vroeger: IfcParseError).
+const rejectsCompact = (candidate: string, fragment: string, code?: XerArchiveIssueCode): boolean =>
+  archiveDropped(() => readIFC(candidate), { fragment, code }).ok;
 
 expect('1 schrijver markeert uitsluitend schema-2 compacte bronreconstructie',
   compactIfc.includes("IFCPROPERTYSINGLEVALUE('SchemaVersion',$,IFCINTEGER(2),$)")
@@ -189,10 +184,10 @@ expect('8 schema-1 uitgebreide X9-container blijft achterwaarts leesbaar',
   && parsedLegacy.xerSourceProjectId === 'P-A'
   && JSON.stringify(parsedLegacy.xerSourceArchive.diagnostics) === JSON.stringify(archive.diagnostics)
   && JSON.stringify(parsedLegacy.xerSourceArchive.readModel) === JSON.stringify(archive.readModel));
-expect('9 gewijzigde bronhash blijft fail-closed getypeerd geweigerd',
-  rejectsCompact(compactIfc.replace(archive.sha256, `0${archive.sha256.slice(1)}`), 'Sha256'));
-expect('10 onbekende compacte formaatmarkering blijft fail-closed getypeerd geweigerd',
-  rejectsCompact(compactIfc.replace('raw-source-reconstruction-v1', 'raw-source-reconstruction-x'), 'StorageFormat'));
+expect('9 gewijzigde bronhash: archief fail-closed weg, project opent, signaal hash-mismatch',
+  rejectsCompact(compactIfc.replace(archive.sha256, `0${archive.sha256.slice(1)}`), 'Sha256', 'hash-mismatch'));
+expect('10 onbekende compacte formaatmarkering: archief fail-closed weg, signaal schema-version',
+  rejectsCompact(compactIfc.replace('raw-source-reconstruction-v1', 'raw-source-reconstruction-x'), 'StorageFormat', 'schema-version'));
 expect('11 schema-2-uitvoer houdt de originele bron ongewijzigd na een gewone IFC-ronde',
   parsedCompact.xerSourceArchive !== undefined
   && sha256Hex(decodeXerSourceArchive(parsedCompact.xerSourceArchive)) === sha256Hex(source));

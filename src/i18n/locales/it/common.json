@@ -70,6 +70,12 @@
     "xerImportDatesAsRecordedOffer_one": "{{count}} attività differisce dalle date registrate nel file — puoi mostrarle.",
     "xerImportDatesAsRecordedOffer_many": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
     "xerImportDatesAsRecordedOffer_other": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
+    "importDatesAsRecorded_one": "{{count}} attività mostra le date come registrate nel file (non ricalcolate).",
+    "importDatesAsRecorded_many": "{{count}} attività mostrano le date come registrate nel file (non ricalcolate).",
+    "importDatesAsRecorded_other": "{{count}} attività mostrano le date come registrate nel file (non ricalcolate).",
+    "importDatesAsRecordedOffer_one": "{{count}} attività differisce dalle date registrate nel file — puoi mostrarle.",
+    "importDatesAsRecordedOffer_many": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
+    "importDatesAsRecordedOffer_other": "{{count}} attività differiscono dalle date registrate nel file — puoi mostrarle.",
     "xerExportLoss": "L’esportazione in {{format}} perde informazioni di origine XER.",
     "mppLegacy": "Questo file .mpp utilizza un formato precedente (Project 2007 o versioni precedenti). Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
     "mppEncrypted": "Questo file .mpp è protetto da password. Esportalo da MS Project come XML (File → Salva con nome → XML) e apri quel file.",
@@ -94,6 +100,9 @@
     "mppSourceScheduleNotes_one": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Viene importata e mostrata così com'è.",
     "mppSourceScheduleNotes_many": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
     "mppSourceScheduleNotes_other": "Questo file di MS Project contiene {{count}} attività con una pianificazione suddivisa, livellata o guidata dalle risorse. Vengono importate e mostrate così come sono.",
+    "exportSplitsLost_one": "{{count}} attività con interruzioni è stata esportata senza le sue interruzioni: MS Project/P6 le conoscono solo come distribuzione del lavoro.",
+    "exportSplitsLost_many": "{{count}} attività con interruzioni sono state esportate senza le loro interruzioni: MS Project/P6 le conoscono solo come distribuzione del lavoro.",
+    "exportSplitsLost_other": "{{count}} attività con interruzioni sono state esportate senza le loro interruzioni: MS Project/P6 le conoscono solo come distribuzione del lavoro.",
     "projectStartAnchorsClamped_one": "Inizio del progetto spostato: {{count}} ancoraggio di attività senza predecessore né vincolo è stato spostato alla nuova data di inizio.",
     "projectStartAnchorsClamped_many": "Inizio del progetto spostato: {{count}} ancoraggi di attività senza predecessore né vincolo sono stati spostati alla nuova data di inizio.",
     "projectStartAnchorsClamped_other": "Inizio del progetto spostato: {{count}} ancoraggi di attività senza predecessore né vincolo sono stati spostati alla nuova data di inizio.",
@@ -114,7 +123,16 @@
     "schedulingProfileShifted_other": "Dopo l’applicazione sono state spostate {{count}} attività.",
     "actions": {
       "openProjectInfo": "Apri profilo di calcolo"
-    }
+    },
+    "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
+    "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",
+    "xerArchiveUnusableConsequence": "Il programma, il profilo di calcolo e tutti i dati di progetto dell'IFC sono completi. Mancano: le date così come Primavera le ha salvate e la provenienza della sorgente per l'IA e le estensioni. Il salvataggio scrive il file senza l'archivio; importa di nuovo il .xer originale per recuperarlo.",
+    "xerArchiveReasonSchemaVersion": "Motivo: l'archivio ha una versione di schema o un formato sconosciuti (scrittore più recente o diverso).",
+    "xerArchiveReasonHashMismatch": "Motivo: il checksum non corrisponde ai byte sorgente: l'archivio è danneggiato.",
+    "xerArchiveReasonTruncated": "Motivo: l'archivio è troncato: manca una parte dei byte sorgente.",
+    "xerArchiveReasonBytesMissing": "Motivo: mancano i byte sorgente stessi; probabilmente un altro programma IFC ha riscritto il file.",
+    "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
+    "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato)."
   },
   "yes": "Sì",
   "no": "No",
@@ -160,6 +178,8 @@
     "priorityNormal": "Normale",
     "priorityHigh": "Alta",
     "startRelationHere": "Avvia relazione da qui",
+    "removeSplitGap": "Rimuovi la pausa",
+    "removeAllSplitGaps": "Rimuovi tutte le pause",
     "paste": "Incolla",
     "zoomReset": "Reimposta zoom",
     "fitToProject": "Adatta al progetto",
@@ -916,7 +936,9 @@
       "secondary": "Secondaria"
     },
     "dependencyModeHint": "Modalità collegamento: trascina da una barra all'altra nel Gantt per creare una relazione. Esc per uscire.",
-    "dependencyModeStop": "Esci"
+    "dependencyModeStop": "Esci",
+    "splitModeHint": "Fai clic su una barra nel giorno in cui inizia l'interruzione e trascina verso destra per la durata. Esc per uscire.",
+    "splitModeStop": "Esci"
   },
   "dateInput": {
     "placeholder": "gg-mm-aaaa",

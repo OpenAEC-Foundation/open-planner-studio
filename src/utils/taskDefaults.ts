@@ -5,6 +5,7 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { addElapsedMinutes, splitTotalSpanMinutes } from '@/engine/scheduler/duration';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
+import { splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
@@ -555,8 +556,18 @@ export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
  * Bewust GEEN aanroep bij een kalender- of datumverschuiving: de as is offset-gebaseerd
  * (shift-invariant, zie `TaskSplitGap`'s docblok), dus een verplaatsing kost geen herschaling, en
  * een taakkalenderwissel verandert de werkminuten-duur van de taak niet.
+ *
+ * `opts.keepGaps` (issue #146): sla de `rescaleSplitGaps`-stap over. `taskSlice.setTaskSplits`
+ * schrijft de gatenlijst in dezelfde bewerking ZELF — die komt rechtstreeks uit het stukkenmodel en
+ * is dus al op de nieuwe werkduur gerekend. Zonder deze vlag zou hij hier een tweede keer geschaald
+ * worden (dubbele schaling, spec §2 stap 3).
  */
-export function rescaleTaskContours(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
+export function rescaleTaskContours(
+  task: Task,
+  oldWorkMinutes: number,
+  hoursPerDay: number,
+  opts?: { keepGaps?: boolean },
+): boolean {
   const contours = task.timephasedContours;
   if (!contours || contours.length === 0) return false;
   const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
@@ -572,7 +583,12 @@ export function rescaleTaskContours(task: Task, oldWorkMinutes: number, hoursPer
     ...c,
     periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, task.mspTaskType),
   }));
-  const gaps = rescaleSplitGaps(task.splitGaps, reference.periods, oldWorkMinutes, newWorkMinutes);
-  if (gaps !== undefined) task.splitGaps = gaps;
+  if (!opts?.keepGaps) {
+    const gaps = rescaleSplitGaps(
+      task.splitGaps, reference.periods, oldWorkMinutes, newWorkMinutes,
+      splitUnitMinutes(task, hoursPerDay),
+    );
+    if (gaps !== undefined) task.splitGaps = gaps;
+  }
   return true;
 }

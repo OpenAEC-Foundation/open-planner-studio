@@ -10,6 +10,9 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { xerDocumentName, xerProjectCode } from '@/utils/xerDocumentName';
+import { documentTitle, documentFileBase } from '@/utils/documents';
+import { readFileSync } from 'node:fs';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -86,7 +89,7 @@ eq('1 PROJECT-identiteit, statusdatum, projectkalender en header-valuta', {
   currency: result.xer.defaultCurrencyCode,
 }, {
   id: 'P1',
-  name: 'Brugrenovatie',
+  name: 'Brug',
   statusDate: '2026-04-02T09:30',
   calendarId: 'C1',
   currency: 'EUR',
@@ -797,6 +800,95 @@ eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
   eq('30 kale FF/SF vallen niet terug op FS',
     bare.xer.enumFallbacks.filter(item => item.family === 'relation').length,
     result.xer.enumFallbacks.filter(item => item.family === 'relation').length);
+}
+
+// Eigenaarsbesluit 2026-09-24 "projectnaam": documentnaam = "Projectnaam (P6 Project-ID)";
+// project.name blijft de kale naam (PROJECT.proj_name, anders de WBS-wortel), zonder ID.
+{
+  eq('31 helper: naam ≠ ID ⇒ "Naam (ID)"', xerDocumentName('HarbourPointe Assisted Living', '4408'),
+    'HarbourPointe Assisted Living (4408)');
+  eq('32 helper: naam = ID ⇒ ID', xerDocumentName('4408', '4408'), '4408');
+  eq('33 helper: lege naam ⇒ ID', xerDocumentName('', '4408'), '4408');
+  eq('34 enkelproject: project.name = WBS-wortel, geen ID', result.project.name, 'Brug');
+  eq('35 enkelproject: ID in metadata', xerProjectCode(result.xer), 'Brugrenovatie');
+  eq('36 documenttitel zonder opslagdoel', documentTitle(null, result.project.name, xerProjectCode(result.xer)),
+    'Brug (Brugrenovatie)');
+  eq('37 documenttitel met bestandspad blijft bestandsnaam',
+    documentTitle('/x/plan.ifc', result.project.name, xerProjectCode(result.xer)), 'plan');
+  eq('38 niet-XER (geen code) ongewijzigd', documentTitle(null, 'Brug'), 'Brug');
+
+  const two = readXER(bytes([
+    'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tDag\t\tCA_Base\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tproj_name\tclndr_id\tplan_start_date',
+    '%R\tP1\t4408\tHarbourPointe Assisted Living\tC1\t2026-04-06 08:00',
+    '%R\tP2\tSAME\t\tC1\t2026-04-06 08:00',
+    '%T\tPROJWBS',
+    '%F\twbs_id\tproj_id\tparent_wbs_id\tseq_num\twbs_short_name\twbs_name',
+    '%R\tW2\tP2\tEPS\t10\tSAME\tSAME',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\twbs_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\t\tC1\tA1\tEen\tTT_Task\tTK_NotStart\t8\t8\t2026-04-06 08:00\t2026-04-06 16:00',
+    '%R\tT2\tP2\tW2\tC1\tB1\tTwee\tTT_Task\tTK_NotStart\t8\t8\t2026-04-06 08:00\t2026-04-06 16:00',
+    '%E',
+  ]));
+  if (!isMultiDocumentImport(two)) {
+    eq('39 twee projecten ⇒ meervoudige import', false, true);
+  } else {
+    const titles = two.results.map(r => documentTitle(null, r.project.name, xerProjectCode(r.xer)));
+    eq('39 meerdere projecten: per document eigen naam', titles, ['HarbourPointe Assisted Living (4408)', 'SAME']);
+    eq('40 meerdere projecten: project.name zonder ID', two.results.map(r => r.project.name),
+      ['HarbourPointe Assisted Living', 'SAME']);
+  }
+
+  const rt = readIFC(writeIFC(result));
+  eq('41 IFC-roundtrip: naam en ID blijven afleidbaar', documentTitle(null, rt.project.name, xerProjectCode(rt.xer)),
+    'Brug (Brugrenovatie)');
+
+  const withBaseline = readXER(bytes([
+    'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
+    '%T\tCALENDAR',
+    '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+    '%R\tC1\tDag\t\tCA_Base\t8\t40\t',
+    '%T\tPROJECT',
+    '%F\tproj_id\tproj_short_name\tproj_name\tclndr_id\tplan_start_date\tsum_base_proj_id',
+    '%R\tP1\t4408\tHarbourPointe\tC1\t2026-04-06 08:00\tPB',
+    '%R\tPB\t4408-B\tHarbourPointe nulmeting\tC1\t2026-04-06 08:00\t',
+    '%T\tTASK',
+    '%F\ttask_id\tproj_id\twbs_id\tclndr_id\ttask_code\ttask_name\ttask_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
+    '%R\tT1\tP1\t\tC1\tA1\tEen\tTT_Task\tTK_NotStart\t8\t8\t2026-04-06 08:00\t2026-04-06 16:00',
+    '%R\tTB\tPB\t\tC1\tA1\tEen\tTT_Task\tTK_NotStart\t8\t8\t2026-04-06 08:00\t2026-04-06 16:00',
+    '%E',
+  ]));
+  const docs = isMultiDocumentImport(withBaseline) ? withBaseline.results : [withBaseline];
+  eq('42 baseline: één document, titel volgt het huidige project',
+    docs.map(r => documentTitle(null, r.project.name, xerProjectCode(r.xer))), ['HarbourPointe (4408)']);
+  eq('43 baseline: baselinenaam = projectnaam van de bron, zonder ID',
+    docs[0].baselines?.map(b => b.name), ['HarbourPointe nulmeting']);
+
+  // Critreview documentnaam (a): "Opslaan als"/opslaan/exporteren stelt dezelfde naam voor als de
+  // tab, zodat tab en titelbalk na het opslaan (dan afgeleid van de bestandsnaam) gelijk blijven.
+  eq('44 bestandsnaambasis XER = documentnaam', documentFileBase(result.project.name, xerProjectCode(result.xer)),
+    'Brug (Brugrenovatie)');
+  eq('45 bestandsnaambasis na opslaan = zelfde tabtitel',
+    documentTitle(`/x/${documentFileBase(result.project.name, xerProjectCode(result.xer))}.ifc`, result.project.name,
+      xerProjectCode(result.xer)),
+    documentTitle(null, result.project.name, xerProjectCode(result.xer)));
+  eq('46 bestandsnaambasis niet-XER ongewijzigd', documentFileBase('Brug'), 'Brug');
+  const fileSliceSrc = readFileSync(new URL('../../src/state/slices/fileSlice.ts', import.meta.url), 'utf8');
+  eq('47 fileSlice: geen kale projectFileBase(project.name) als opslaanvoorstel',
+    /projectFileBase\(\s*state\.project\.name/.test(fileSliceSrc) || !/suggestedFileBase\(state\)/.test(fileSliceSrc)
+      || !/documentFileBase\(s\.project\.name,\s*xerProjectCode\(s\.xerImportMetadata\)\)/.test(fileSliceSrc),
+    false);
+  // Critreview documentnaam (b): het bezettingsoverzicht leidt de titel af zoals de tabbalk (met ID-code).
+  const occupancySrc = readFileSync(new URL('../../src/components/panels/ResourceOccupancyView.tsx', import.meta.url), 'utf8');
+  eq('48 bezettingsoverzicht: documentTitle krijgt de XER-code mee',
+    /documentTitle\(payload\.filePath,\s*payload\.project\.name,\s*xerProjectCode\(payload\.xerImportMetadata\)\)/.test(occupancySrc)
+      && /xerImportMetadata: activeXerImportMetadata/.test(occupancySrc),
+    true);
 }
 
 if (diffs.length > 0) {

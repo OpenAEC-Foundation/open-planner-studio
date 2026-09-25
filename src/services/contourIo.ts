@@ -19,13 +19,24 @@
 // periodelengte: 2 = dagen; `Value` = ISO-8601-duur `PT{H}H{M}M{S}S`). Bron voor de P6-vorm: MPXJ
 // `TimephasedHelper` — `"werkuren:periode-uren;…"`, aaneengesloten vanaf een anker (`PlannedStartDate`
 // resp. `ActualStartDate`/`RemainingStartDate`), elke periode gemeten in WERKuren van de kalender.
-import type { TaskSplitGap, TimephasedContourPeriod } from '@/types/task';
+import type { Task, TaskSplitGap, TimephasedContourPeriod } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { periodsToSlotWork } from '@/engine/contour/contourEngine';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
 
 export type ContourKind = TimephasedContourPeriod['kind'];
+
+/**
+ * Aantal taken waarvan de onderbrekingen bij een MSPDI-/P6-export VERLOREN gaan (issue #146): beide
+ * formaten kennen een onderbreking alleen als werkverdeling van een toewijzing, en zonder contour is
+ * er geen verdeling om te schrijven. Eén telling voor beide writers (console) én voor
+ * `fileSlice.exportAs` (de gebruikersmelding) — anders kan de melding iets anders zeggen dan de writer doet.
+ */
+export function countSplitTasksWithoutContour(tasks: readonly Task[]): number {
+  return tasks.filter(t => t.splitGaps && t.splitGaps.length > 0
+    && !(t.timephasedContours && t.timephasedContours.length > 0)).length;
+}
 
 /** Eén absoluut werkvak zoals MSPDI het draagt: begin- en eindinstant plus het werk erin. */
 export interface AbsoluteWorkItem {

@@ -26,7 +26,9 @@
  *  6. MUTATIEBEWIJS: één gewijzigde orakelcel in de bron verplaatst de vastlegging over de hele
  *     keten heen WÉL, maar het `cpmResult` ná `runCPM` GEEN millimeter.
  *  7. Hardening: de sha256-poort op het archief geldt ook voor de vastlegging — een gemanipuleerde
- *     archiefchunk wordt geweigerd in plaats van stil een andere vastlegging op te leveren.
+ *     archiefchunk levert NOOIT stil een andere vastlegging op: sinds het eigenaarsbesluit van
+ *     2026-09-24 ("openen met melding") valt het hele archief (en dus élke vastlegging) weg, met
+ *     een `hash-mismatch`-signaal, terwijl het project zelf gewoon opent.
  *
  * Deze check leest de ECHTE productiebeslissing (`payload.datesAsRecorded` +
  * `payload.recordedDates`) rechtstreeks van de store af — geen losse `modeVerdict`-spiegeling meer
@@ -35,6 +37,7 @@
  * `restoredMode`, plus `applyRestoredRecordedMode` voor slapende documenten). Rechtstreeks aflezen
  * toetst dus de werkelijke bedrading, niet een kopie ervan.
  */
+import { archiveDropped } from './xerArchiveFallbackAssert';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
@@ -242,26 +245,51 @@ eq('3b in de modus opgeslagen IFC draagt de HEROPEN-herkomst', reopenedInMode.re
 expect('3c de twee opslagvormen verschillen echt (anders bewijst 3a niets)',
   ifcInMode !== ifcOutsideMode);
 
-// ── 4. Heropen-beleid: dezelfde vastlegging, maar NOOIT automatisch weer aan ──────────────────
-// Orkestratorbesluit (2026-09-05): een heropende IFC met XER-archief krijgt NOOIT de automatische
-// modus, ongeacht of het bestand ín of buiten de modus werd opgeslagen — alleen een VERSE
-// XER-import (sectie 1) doet dat. Anders zou een sindsdien bewerkte en opgeslagen planning bij
-// heropenen stilzwijgend P6's oude datums tonen.
+// ── 4. Heropen-beleid OPTIE B (eigenaarsbesluit 2026-09-09): automatisch aan zolang ongewijzigd ──
+// Een heropende IFC met XER-archief gaat automatisch de modus in zolang het document sinds de
+// import NIET is bewerkt — het bestand zegt dat zelf via `OPS_ImportProvenance`
+// (`importPristine`). Opslaan en herberekenen (F5, `runCPM`) zijn geen bewerking; een echte
+// mutator (hier `updateTask`) wist de vlag, en dan biedt de heropening alleen nog aan — een
+// sindsdien bewerkte en opgeslagen planning toont bij heropenen nooit stilzwijgend P6's oude
+// datums. Vervangt het orkestratorbesluit van 2026-09-05 ("nooit automatisch weer aan").
+expect('4z voorwaarde: de verse import is "ongewijzigd sinds import" en runCPM raakt dat niet',
+  basePayload.importPristine === true && outsidePayload.importPristine === true);
+expect('4y het buiten de modus opgeslagen IFC draagt de vlag als pset',
+  ifcOutsideMode.includes("'OPS_ImportProvenance'") && reopenedOutside.importPristine === true);
 store().newProject();
 store().applyOpenedImport(reopenedOutside, {
   filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
 });
 const reopenedOutsidePayload = store().getOpenDocumentPayloads()[0]!.payload;
-expect('4a heropenen van een buiten-de-modus opgeslagen IFC biedt de modus alleen aan',
-  reopenedOutsidePayload.datesAsRecorded === false && reopenedOutsidePayload.recordedDates !== null);
+expect('4a heropenen van een ongewijzigd, buiten-de-modus opgeslagen IFC gaat automatisch de modus in (optie B)',
+  reopenedOutsidePayload.datesAsRecorded === true && reopenedOutsidePayload.recordedDates !== null
+  && reopenedOutsidePayload.importPristine === true);
 
 store().newProject();
 store().applyOpenedImport(reopenedInMode, {
   filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
 });
 const reopenedInModePayload = store().getOpenDocumentPayloads()[0]!.payload;
-expect('4b heropenen van een ín-de-modus opgeslagen IFC biedt de modus OOK alleen aan (geen stille terugval naar aan)',
-  reopenedInModePayload.datesAsRecorded === false && reopenedInModePayload.recordedDates !== null);
+expect('4b heropenen van een ongewijzigd, ín-de-modus opgeslagen IFC gaat óók automatisch de modus in',
+  reopenedInModePayload.datesAsRecorded === true && reopenedInModePayload.recordedDates !== null);
+
+// Bewerken wist de vlag: daarna alleen nog het aanbod, ook al is de vastlegging identiek.
+store().updateTask(store().tasks[0]!.id, { name: 'Bewerkt na import' });
+const editedPayload = store().getOpenDocumentPayloads()[0]!.payload;
+expect('4e één bewerking wist "ongewijzigd sinds import"', editedPayload.importPristine === false && editedPayload.isDirty === true);
+const ifcEdited = writeIFC(buildWriteIFCInput(editedPayload));
+expect('4f het bewerkte bestand draagt het pset niet meer', !ifcEdited.includes("'OPS_ImportProvenance'"));
+const reopenedEdited = readXerArchiveIFC(ifcEdited);
+store().newProject();
+store().applyOpenedImport(reopenedEdited, {
+  filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: false,
+});
+const reopenedEditedPayload = store().getOpenDocumentPayloads()[0]!.payload;
+expect('4g heropenen van een bewerkt IFC biedt de modus alleen aan (nooit stil de oude P6-datums)',
+  reopenedEditedPayload.datesAsRecorded === false && reopenedEditedPayload.recordedDates !== null
+  && reopenedEditedPayload.importPristine === false);
+eq('4h de vastlegging zelf is daarbij onveranderd (zelfde herkomst en zesassige inhoud)',
+  [reopenedEdited.recordedTimesOrigin, reopenedEdited.recordedTimes], ['xer-archive', originalTimes]);
 eq('4c beide heropeningen komen op hetzelfde aantal verschoven taken uit als de oorspronkelijke import',
   modeSummary(reopenedInModePayload).shifted, modeSummary(basePayload).shifted);
 eq('4d ... en dat geldt ook voor de buiten-de-modus-heropening',
@@ -273,8 +301,8 @@ const ifcWithoutArchive = writeIFC({
   xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
 });
 const reopenedPlain = readXerArchiveIFC(ifcWithoutArchive);
-expect('5a IFC zonder XER-archief levert geen recordedTimes en geen herkomst',
-  reopenedPlain.recordedTimes === undefined && reopenedPlain.recordedTimesOrigin === undefined);
+expect('5a IFC zonder XER-archief levert geen recordedTimes; de herkomst is dan het eigen-IFC-spoor ("ifc-own", heropening)',
+  reopenedPlain.recordedTimes === undefined && reopenedPlain.recordedTimesOrigin === 'ifc-own');
 expect('5b de bestaande #63-IFC-route (recordedFields) werkt daar onveranderd',
   captureRecordedDates(reopenedPlain.tasks, reopenedPlain.recordedFields).total === reopenedPlain.tasks.length);
 
@@ -456,16 +484,15 @@ eq('7d het cpmResult ná runCPM is byte-gelijk — de gemuteerde P6-uitvoer raak
 
 // ── 8. Hardening: de sha256-poort dekt ook de vastlegging ────────────────────────────────────
 // Manipuleer één base64-teken van de eerste archiefchunk. De reconstructie mag dan NIET stil een
-// andere vastlegging opleveren, maar moet de hele lezing weigeren.
+// andere vastlegging opleveren: het archief valt weg (geen `recordedTimes`), met hash-mismatch.
 const chunkMatch = /IFCPROPERTYSINGLEVALUE\('ByteChunk000000',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\)/.exec(ifcOutsideMode);
 expect('8a de fixture-IFC draagt een leesbare archiefchunk', chunkMatch !== null);
 if (chunkMatch) {
   const chunk = chunkMatch[1]!;
   const flipped = (chunk[0] === 'A' ? 'B' : 'A') + chunk.slice(1);
   const tampered = ifcOutsideMode.replace(`IFCTEXT('${chunk}')`, `IFCTEXT('${flipped}')`);
-  let threw = false;
-  try { readXerArchiveIFC(tampered); } catch { threw = true; }
-  expect('8b een gemanipuleerde archiefchunk wordt geweigerd i.p.v. stil anders gelezen', threw);
+  const verdict = archiveDropped(() => readXerArchiveIFC(tampered), { code: 'hash-mismatch' });
+  expect(`8b een gemanipuleerde archiefchunk levert geen vastlegging meer op (archief weg, hash-mismatch) i.p.v. stil anders gelezen${verdict.ok ? '' : ` — ${verdict.why}`}`, verdict.ok);
 }
 
 // ── 9. Meerprojecten-XER: elk document krijgt de vastlegging van ZIJN EIGEN project ──────────

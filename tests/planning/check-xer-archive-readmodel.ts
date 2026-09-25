@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
-import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { archiveDropped } from './xerArchiveFallbackAssert';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';
 import {
@@ -255,41 +255,45 @@ const ifcWithMetadataBytes = (encoded: Uint8Array) => {
 };
 const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) =>
   ifcWithMetadataBytes(new TextEncoder().encode(JSON.stringify(metadataPayload)));
+// Eigenaarsbesluit 2026-09-24 ("openen met melding"): elk correct gehasht maar inhoudelijk ongeldig
+// leesmodel liet `readIFC` vroeger GOOIEN (IfcParseError 'xer-source-archive'). Nu opent het project
+// en valt het archief weg met een verplicht `metadata-invalid`-signaal dat de specifieke
+// validatorregel noemt — de strengheid van de validator zelf is ongewijzigd, alleen de gevolgen niet.
+const metadataDropFailures: string[] = [];
+const droppedMetadata = (content: string, fragment?: string): boolean => {
+  const verdict = archiveDropped(() => readIFC(content), { code: 'metadata-invalid', fragment });
+  if (!verdict.ok) metadataDropFailures.push(verdict.why);
+  return verdict.ok;
+};
 const legacySelectorPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 const legacyTaskRows = (legacySelectorPayload.readModel as Record<string, unknown>)
   .taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
 delete legacyTaskRows['P-A'];
-let legacySelectorAccepted = true;
-try { readIFC(ifcWithMetadataPayload(legacySelectorPayload)); }
-catch { legacySelectorAccepted = false; }
+// Sinds de archief-terugval gooit `readIFC` hier nooit meer; "geaccepteerd" betekent nu: het
+// archief overleeft ÉN er is geen issue-signaal.
+const legacySelectorRead = readIFC(ifcWithMetadataPayload(legacySelectorPayload));
+const legacySelectorAccepted = legacySelectorRead.xerSourceArchive !== undefined
+  && legacySelectorRead.xerArchiveIssue === undefined;
 truthy('6c volledig ontbrekende legacy-TASK-groep blijft een geldige verliesvrije archiefgrens', legacySelectorAccepted);
 const presentEmptyTaskGroupPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 const presentEmptyTaskRows = (presentEmptyTaskGroupPayload.readModel as Record<string, unknown>)
   .taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
 presentEmptyTaskRows['P-A'] = [];
-let presentEmptyTaskGroupRejection: unknown;
-try { readIFC(ifcWithMetadataPayload(presentEmptyTaskGroupPayload)); }
-catch (error) { presentEmptyTaskGroupRejection = error; }
-truthy('6d aanwezige maar lege TASK-groep blijft hard gebonden en wordt specifiek geweigerd',
-  presentEmptyTaskGroupRejection instanceof IfcParseError
-  && presentEmptyTaskGroupRejection.reason === 'xer-source-archive'
-  && presentEmptyTaskGroupRejection.message.includes('ontbrekende TASK-identiteit'));
+const presentEmptyTaskGroupRejection = droppedMetadata(ifcWithMetadataPayload(presentEmptyTaskGroupPayload), 'ontbrekende TASK-identiteit');
+truthy('6d aanwezige maar lege TASK-groep blijft hard gebonden: specifieke regel, archief weg mét signaal',
+  presentEmptyTaskGroupRejection);
 const byProject = ((payload.diagnostics as Record<string, unknown>).documentViews) as Record<string, Record<string, unknown>>;
 byProject['P-A']!.calendarIssues = [{
   code: 'XER_CALENDAR_RECOVERED', calendarId: 'C', line: 1, reason: 'fixture', resolution: 'BROKEN',
 }];
-let hostileTyped = false;
-try { readIFC(ifcWithMetadataPayload(payload)); }
-catch (error) { hostileTyped = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
-truthy('7 hostile nested diagnostic-enum wordt totaal en getypeerd geweigerd', hostileTyped);
+const hostileTyped = droppedMetadata(ifcWithMetadataPayload(payload));
+truthy('7 hostile nested diagnostic-enum: archief totaal weg mét metadata-invalid-signaal', hostileTyped);
 
 const hostileNumberPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 const hostileNumberFormat = ((hostileNumberPayload.readModel as Record<string, unknown>).numberFormat) as Record<string, unknown>;
 hostileNumberFormat.decimal = ';';
-let hostileNumberTyped = false;
-try { readIFC(ifcWithMetadataPayload(hostileNumberPayload)); }
-catch (error) { hostileNumberTyped = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
-truthy('7a hostile CURRTYPE-numberFormatvorm wordt getypeerd geweigerd', hostileNumberTyped);
+const hostileNumberTyped = droppedMetadata(ifcWithMetadataPayload(hostileNumberPayload));
+truthy('7a hostile CURRTYPE-numberFormatvorm: archief weg mét metadata-invalid-signaal', hostileNumberTyped);
 
 const reviewerCorruptions: readonly [string, (candidate: Record<string, unknown>) => void][] = [
   ['X6 resourceobject [42]', candidate => {
@@ -309,10 +313,8 @@ const reviewerCorruptions: readonly [string, (candidate: Record<string, unknown>
 for (const [label, mutate] of reviewerCorruptions) {
   const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
   mutate(candidate);
-  let rejected = false;
-  try { readIFC(ifcWithMetadataPayload(candidate)); }
-  catch (error) { rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
-  truthy(`7b reviewerpayload ${label} wordt ondanks correcte hash getypeerd geweigerd`, rejected);
+  const rejected = droppedMetadata(ifcWithMetadataPayload(candidate));
+  truthy(`7b reviewerpayload ${label} laat ondanks correcte hash het archief vallen mét signaal`, rejected);
 }
 
 const relationCorruptions: readonly [string, (candidate: Record<string, unknown>) => void][] = [
@@ -482,10 +484,8 @@ const relationCorruptions: readonly [string, (candidate: Record<string, unknown>
 for (const [label, mutate] of relationCorruptions) {
   const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
   mutate(candidate);
-  let rejected = false;
-  try { readIFC(ifcWithMetadataPayload(candidate)); }
-  catch (error) { rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
-  truthy(`7c relationele reviewerpayload ${label} wordt met coherente chunks getypeerd geweigerd`, rejected);
+  const rejected = droppedMetadata(ifcWithMetadataPayload(candidate));
+  truthy(`7c relationele reviewerpayload ${label} laat met coherente chunks het archief vallen mét signaal`, rejected);
 }
 
 const assignmentSkipCorruptions: readonly [string, string, (candidate: Record<string, unknown>) => void][] = [
@@ -563,13 +563,9 @@ const assignmentSkipCorruptions: readonly [string, string, (candidate: Record<st
 for (const [label, expectedRule, mutate] of assignmentSkipCorruptions) {
   const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
   mutate(candidate);
-  let rejection: unknown;
-  try { readIFC(ifcWithMetadataPayload(candidate)); }
-  catch (error) { rejection = error; }
+  const rejection = droppedMetadata(ifcWithMetadataPayload(candidate), expectedRule);
   truthy(`7d ${label} raakt de specifieke getypeerde assignmentregel`,
-    rejection instanceof IfcParseError
-    && rejection.reason === 'xer-source-archive'
-    && rejection.message.includes(expectedRule));
+    rejection);
 }
 
 const staleResourceSkipPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
@@ -594,13 +590,9 @@ const staleResourceSkipPayload = JSON.parse(new TextDecoder().decode(diagnosticB
   (rawRow.cells as Record<string, unknown>).rsrc_id = 'R-1';
   assignment.entity = { kind: 'RESOURCE', sourceId: 'R-1', internalId: 'xer-resource:R-1' };
 }
-let staleResourceSkipRejection: unknown;
-try { readIFC(ifcWithMetadataPayload(staleResourceSkipPayload)); }
-catch (error) { staleResourceSkipRejection = error; }
+const staleResourceSkipRejection = droppedMetadata(ifcWithMetadataPayload(staleResourceSkipPayload), 'TASKRSRC-skipdiagnostiek');
 truthy('7d A9 canonieke resource bestaat weer maar de oude RESOURCE_MISSING-diagnose blijft specifiek rood',
-  staleResourceSkipRejection instanceof IfcParseError
-  && staleResourceSkipRejection.reason === 'xer-source-archive'
-  && staleResourceSkipRejection.message.includes('TASKRSRC-skipdiagnostiek'));
+  staleResourceSkipRejection);
 
 const missingResourceWithoutIssuePayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 {
@@ -621,13 +613,9 @@ const missingResourceWithoutIssuePayload = JSON.parse(new TextDecoder().decode(d
   (rawRow.cells as Record<string, unknown>).rsrc_id = 'R-GHOST';
   assignment.entity = { kind: 'RESOURCE', sourceId: 'R-GHOST', internalId: 'xer-resource:R-GHOST' };
 }
-let missingResourceWithoutIssueRejection: unknown;
-try { readIFC(ifcWithMetadataPayload(missingResourceWithoutIssuePayload)); }
-catch (error) { missingResourceWithoutIssueRejection = error; }
+const missingResourceWithoutIssueRejection = droppedMetadata(ifcWithMetadataPayload(missingResourceWithoutIssuePayload), 'TASKRSRC-skipdiagnostiek');
 truthy('7d A10 canonieke resource ontbreekt nu maar zonder skipdiagnose wordt specifiek rood',
-  missingResourceWithoutIssueRejection instanceof IfcParseError
-  && missingResourceWithoutIssueRejection.reason === 'xer-source-archive'
-  && missingResourceWithoutIssueRejection.message.includes('TASKRSRC-skipdiagnostiek'));
+  missingResourceWithoutIssueRejection);
 
 const remoteGhostPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
 {
@@ -641,13 +629,9 @@ const remoteGhostPayload = JSON.parse(new TextDecoder().decode(diagnosticBytes))
     (link.successor as Record<string, unknown>).taskId = 'T-B-GHOST';
   }
 }
-let remoteGhostRejection: unknown;
-try { readIFC(ifcWithMetadataPayload(remoteGhostPayload)); }
-catch (error) { remoteGhostRejection = error; }
+const remoteGhostRejection = droppedMetadata(ifcWithMetadataPayload(remoteGhostPayload), 'ontbrekend extern TASK-eindpunt');
 truthy('7e A5 coherente externe ghost-taak in een open TASK-project raakt de specifieke endpointregel',
-  remoteGhostRejection instanceof IfcParseError
-  && remoteGhostRejection.reason === 'xer-source-archive'
-  && remoteGhostRejection.message.includes('ontbrekend extern TASK-eindpunt'));
+  remoteGhostRejection);
 
 const taskGroupCorruptions: readonly [string, string, (candidate: Record<string, unknown>) => void][] = [
   ['aanwezige TASK-groep is coherent naar een ghost-identiteit gewijzigd',
@@ -667,13 +651,9 @@ const taskGroupCorruptions: readonly [string, string, (candidate: Record<string,
 for (const [label, expectedRule, mutate] of taskGroupCorruptions) {
   const candidate = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
   mutate(candidate);
-  let rejection: unknown;
-  try { readIFC(ifcWithMetadataPayload(candidate)); }
-  catch (error) { rejection = error; }
+  const rejection = droppedMetadata(ifcWithMetadataPayload(candidate), expectedRule);
   truthy(`7f ${label} raakt de specifieke TASK-bronregel`,
-    rejection instanceof IfcParseError
-    && rejection.reason === 'xer-source-archive'
-    && rejection.message.includes(expectedRule));
+    rejection);
 }
 
 const invalidUtf8Payload = JSON.parse(new TextDecoder().decode(diagnosticBytes)) as Record<string, unknown>;
@@ -689,10 +669,8 @@ truthy('7g niet-fatale controlemeter toont dat 0xff als U+FFFD geldige JSON zou 
     return decoded.includes('\ufffdUR') && JSON.parse(decoded) !== null;
   } catch { return false; }
 })());
-let invalidUtf8Rejected = false;
-try { readIFC(ifcWithMetadataBytes(invalidUtf8)); }
-catch (error) { invalidUtf8Rejected = error instanceof IfcParseError && error.reason === 'xer-source-archive'; }
-truthy('7h correct gehashte diagnostics met ongeldige UTF-8 wordt getypeerd geweigerd', invalidUtf8Rejected);
+const invalidUtf8Rejected = droppedMetadata(ifcWithMetadataBytes(invalidUtf8));
+truthy('7h FOUTCODE metadata-invalid: correct gehashte diagnostics met ongeldige UTF-8 (onparseerbaar) ⇒ archief weg mét signaal', invalidUtf8Rejected);
 
 const toUtf16 = (text: string, endian: 'le' | 'be') => {
   const bytes = new Uint8Array(2 + text.length * 2);
@@ -796,6 +774,7 @@ if (missingSelectorArchive && recoveredInputs[0]) {
 }
 truthy('10b recovery weigert een ontbrekende selectorview hard en getypeerd', missingSelectorRejected);
 
+for (const why of metadataDropFailures) failures.push(`terugval: ${why}`);
 if (failures.length === 0) {
   console.log(`OK  xer-archive-readmodel: alle checks groen (${checks})`);
   process.exit(0);

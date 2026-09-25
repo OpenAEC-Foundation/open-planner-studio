@@ -43,6 +43,7 @@ import {
   unknownTypeReason,
 } from './sequenceFields';
 import type { Sequence, SequenceType } from '@/types/sequence';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -364,7 +365,7 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
         if (c.next.lagMinutes === undefined) delete seq.lagMinutes;
         else seq.lagMinutes = c.next.lagMinutes;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
 
