@@ -13,7 +13,7 @@ npm run tauri:dev    # desktop app via scripts/tauri-dev.mjs — same per-worktr
                       # (scripts/dev-port.mjs, lane 3007-3106), stamped in .claude/launch.json
 npm run tauri:build  # desktop installers
 npm run bump X.Y.Z   # CalVer sync (package.json + tauri.conf.json + lock; Cargo.toml stays 0.1.0)
-npm run verify       # THE gate — literally what CI, the release gate and the deploy gate run
+npm run verify       # THE gate — the same steps CI runs (split in parallel), plus the release and deploy gates
 npm run typecheck    # tsc --noEmit over src/ AND scripts/+tests/ (tsconfig.tests.json); incremental, cache in node_modules/.cache/ops-tsc
 npm run lint         # eslint src — deliberately minimal, see below
 npm run lint:fast    # same lint with a cache, for iterating; can miss type-aware findings in unchanged files, so `lint` stays the gate
@@ -32,8 +32,9 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   the main static gate; `import/no-cycle` is deliberately not in the ESLint
   config either, because `verify:cycles` covers it better (post-type-erasure
   graph, no false positives on `import type`).
-- **`npm run verify` is one definition, in `package.json`** — ci.yml, the
-  release gate and the deploy gate all run that single line, so what passes
+- **`npm run verify` is one definition, in `package.json`** — the release and
+  deploy gates run that line; ci.yml runs the same steps in parallel jobs via
+  `scripts/verify-parts.mjs`, which reads them from that definition — so what passes
   locally is exactly what passes in CI. The steps, in this order:
   `typecheck` → `lint` → `test` (all five suites) → `verify:examples` →
   `verify:docs` → `verify:i18n` → `verify:release-highlights-json` →

@@ -1608,31 +1608,65 @@ fi
 #                     suite staat hij op +0, dus alleen deze zone betrapt fouten die pas buiten
 #                     de zomer (wintertijd = −1) zichtbaar worden.
 # Alleen bij een volledige run — met een losse batterij als argument is dit onnodige looptijd.
+#
+# Parallel sinds 2026-09 (besluit werkwijze 4c): de matrix was ~70% van de looptijd van deze suite
+# (gemeten 173 van 243 s). Elke zone draait in een eigen achtergrondproces, hoogstens OPS_TZ_JOBS
+# tegelijk (standaard het aantal kernen, maximaal vijf; OPS_TZ_JOBS=1 = één zone tegelijk, zoals
+# voorheen). Dat kan veilig: de twee checks die bestanden schrijven doen dat in een eigen
+# mkdtemp-map, geen check opent een poort, en de twee zware performance-poorten staan al buiten de
+# matrix. De tijdgevoelige checks (o.a. de 100-ms-grenzen in grid-nav/task-grid-selection en de
+# tijdslimieten van de .mpp-lezer) bleven groen met vijf zones tegelijk (8 checks × 5 zones × 3
+# rondes). De uitvoer blijft in vaste zonevolgorde, ook als een latere zone eerder klaar is.
 if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   echo ""
   echo "── Tijdzone-matrix (herdraait de gebouwde bundels onder andere TZ) ──"
-  for TZONE in UTC America/New_York Pacific/Midway Pacific/Auckland Atlantic/Azores; do
-    TZ_STATUS=0
-    TZ_LOG=""
-    # $OUT alleen meenemen als de harness gebouwd is; anders draaien we een niet-bestaand bestand.
-    MATRIX=("${BUNDLES[@]}")
-    [ "$HARNESS_OK" -eq 1 ] && MATRIX+=("$OUT")
-    for BUNDLE in "${MATRIX[@]}"; do
-      if [ "$BUNDLE" = "$OUT" ]; then
-        BUNDLE_OUT="$(TZ="$TZONE" node "$OUT" "${FILES[@]}" 2>&1)" || TZ_STATUS=1
+  ZONES=(UTC America/New_York Pacific/Midway Pacific/Auckland Atlantic/Azores)
+  TZ_JOBS="${OPS_TZ_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}"
+  if ! [[ "$TZ_JOBS" =~ ^[1-9][0-9]*$ ]]; then TZ_JOBS=1; fi
+  if [ "$TZ_JOBS" -gt "${#ZONES[@]}" ]; then TZ_JOBS="${#ZONES[@]}"; fi
+  # $OUT alleen meenemen als de harness gebouwd is; anders draaien we een niet-bestaand bestand.
+  MATRIX=("${BUNDLES[@]}")
+  [ "$HARNESS_OK" -eq 1 ] && MATRIX+=("$OUT")
+  TZ_DIR="$(mktemp -d)"
+  run_zone () {
+    local zone="$1" log="$2" st=0 bundle
+    for bundle in "${MATRIX[@]}"; do
+      echo "--- $(basename "$bundle") ---" >> "$log"
+      if [ "$bundle" = "$OUT" ]; then
+        TZ="$zone" node "$OUT" "${FILES[@]}" >> "$log" 2>&1 || st=1
       else
-        BUNDLE_OUT="$(TZ="$TZONE" node "$BUNDLE" 2>&1)" || TZ_STATUS=1
+        TZ="$zone" node "$bundle" >> "$log" 2>&1 || st=1
       fi
-      TZ_LOG+="--- $(basename "$BUNDLE") ---"$'\n'"$BUNDLE_OUT"$'\n'
     done
-    if [ "$TZ_STATUS" -eq 0 ]; then
-      echo "TZ $TZONE: groen"
+    return "$st"
+  }
+  declare -A ZONE_PID=() ZONE_RC=()
+  RUNNING=()
+  for i in "${!ZONES[@]}"; do
+    # Vol? Wacht dan eerst op de oudste lopende zone.
+    if [ "${#RUNNING[@]}" -ge "$TZ_JOBS" ]; then
+      oldest="${RUNNING[0]}"
+      RUNNING=("${RUNNING[@]:1}")
+      if wait "${ZONE_PID[$oldest]}"; then ZONE_RC[$oldest]=0; else ZONE_RC[$oldest]=1; fi
+    fi
+    : > "$TZ_DIR/$i.log"
+    run_zone "${ZONES[$i]}" "$TZ_DIR/$i.log" &
+    ZONE_PID[$i]=$!
+    RUNNING+=("$i")
+  done
+  for i in "${RUNNING[@]}"; do
+    if wait "${ZONE_PID[$i]}"; then ZONE_RC[$i]=0; else ZONE_RC[$i]=1; fi
+  done
+  for i in "${!ZONES[@]}"; do
+    if [ "${ZONE_RC[$i]}" -eq 0 ]; then
+      echo "TZ ${ZONES[$i]}: groen"
     else
-      echo "TZ $TZONE: ROOD — volledige uitvoer volgt"
-      printf '%s\n' "$TZ_LOG"
+      echo "TZ ${ZONES[$i]}: ROOD — volledige uitvoer volgt"
+      cat "$TZ_DIR/$i.log"
       STATUS=1
     fi
   done
+  rm -rf "$TZ_DIR"
 fi
 
 # ── Waarschuwing bij een gerichte run ───────────────────────────────────────────────────────
