@@ -1490,6 +1490,18 @@ const clearLeveling: BatchStepTool = {
 // =================================================================================================
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
+/** Datumvorm van `update_project`: `JJJJ-MM-DD`, en met `allowTime` ook `JJJJ-MM-DDTHH:mm` (de
+ *  store-vorm van een uur-instant; alleen de statusdatum mag een tijd dragen, uurplanning). De datum
+ *  moet bestaan (geen 31 februari). Vroeger liet een prefix-regex alles door wat met een datum begon
+ *  — ook een tijd of een willekeurige staart — terwijl de melding alleen `JJJJ-MM-DD` noemde. */
+function isProjectDateValue(v: unknown, allowTime: boolean): v is string {
+  if (typeof v !== 'string') return false;
+  const m = /^(\d{4}-\d{2}-\d{2})(T\d{2}:\d{2})?$/.exec(v);
+  if (!m || (m[2] && !allowTime)) return false;
+  const d = new Date(`${m[1]}${m[2] ?? 'T00:00'}:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, v.length) === v;
+}
+
 /** Elke sleutel die `update_project` KENT — de allowlist waartegen onbekende sleutels afketsen. */
 const PROJECT_KEYS = [
   'name', 'description', 'author', 'company', 'startDate', 'endDate', 'statusDate', 'progressMode',
@@ -1543,8 +1555,8 @@ function parseUpdateProject(
     }
   }
   if (a.startDate !== undefined) {
-    if (typeof a.startDate !== 'string' || !ISO_DATE.test(a.startDate)) {
-      return '`startDate` moet een ISO-datum zijn (JJJJ-MM-DD)';
+    if (!isProjectDateValue(a.startDate, false)) {
+      return '`startDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD, zonder tijd)';
     }
     updates.startDate = a.startDate;
   }
@@ -1554,8 +1566,8 @@ function parseUpdateProject(
   // `moveProject` laat '' bewust '' en de exporteurs slaan het veld dan over) — géén `null`, want
   // het veld is in het type een verplichte string.
   if (a.endDate !== undefined) {
-    if (typeof a.endDate !== 'string' || (a.endDate !== '' && !ISO_DATE.test(a.endDate))) {
-      return '`endDate` moet een ISO-datum zijn (JJJJ-MM-DD) of een lege string om hem te wissen';
+    if (a.endDate !== '' && !isProjectDateValue(a.endDate, false)) {
+      return '`endDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD, zonder tijd) of een lege string om hem te wissen';
     }
     updates.endDate = a.endDate;
   }
@@ -1579,8 +1591,9 @@ function parseUpdateProject(
   if (a.statusDate !== undefined) {
     if (a.statusDate === null || a.statusDate === '') {
       clearStatusDate = true;
-    } else if (typeof a.statusDate !== 'string' || !ISO_DATE.test(a.statusDate)) {
-      return '`statusDate` moet een ISO-datum zijn (JJJJ-MM-DD) of null';
+    } else if (!isProjectDateValue(a.statusDate, true)) {
+      return '`statusDate` moet een bestaande ISO-datum zijn (JJJJ-MM-DD) of, bij uurplanning, een ' +
+        'datum-tijd tot op de minuut (JJJJ-MM-DDTHH:mm); null of een lege string wist hem';
     } else {
       updates.statusDate = a.statusDate;
     }
@@ -1678,7 +1691,8 @@ const updateProject: BatchStepTool = {
       statusDate: {
         type: ['string', 'null'],
         description:
-          'ISO-datum (JJJJ-MM-DD) of null om te wissen. Dit is de DATA DATE: niet-gestart werk ' +
+          'ISO-datum (JJJJ-MM-DD) — bij uurplanning mag een tijd tot op de minuut (JJJJ-MM-DDTHH:mm) — ' +
+          'of null om te wissen. Dit is de DATA DATE: niet-gestart werk ' +
           '(completion 0) wordt naar deze datum vooruitgeschoven, dus het zetten ervan verschuift ' +
           'ook zonder enige voortgang de hele planning en het projecteinde.',
       },
