@@ -10,7 +10,7 @@ The **Calendars** window manages the project's calendar library: the list of all
 
 ## Applying and cancelling
 
-All edits — including new/duplicate/delete — happen in a working copy. **Apply** (or **Enter**) writes everything at once and recalculates the schedule; **Cancel**, **Esc**, the close cross or a click outside the window discards all changes.
+All edits — including new/duplicate/delete — happen in a working copy. **Apply** writes everything at once, recalculates the schedule and closes the window; **Enter** in a text field such as the name does the same but keeps the window open. If nothing has changed, **Apply** and **Enter** do nothing: the document stays unmodified and the schedule is not recalculated. **Cancel**, **Esc**, the close cross or a click outside the window discards every change that has not yet been committed with **Apply** or **Enter**.
 
 ## Library (left column)
 

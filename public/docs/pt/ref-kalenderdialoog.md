@@ -10,7 +10,7 @@ A janela **Calendários** gere a biblioteca de calendários do projeto: a lista 
 
 ## Aplicar e cancelar
 
-Todas as edições — incluindo novo/duplicar/eliminar — acontecem numa cópia de trabalho. **Aplicar** (ou **Enter**) escreve tudo de uma vez e recalcula o cronograma; **Cancelar**, **Esc**, a cruz de fecho ou um clique fora da janela descarta todas as alterações.
+Todas as edições — incluindo novo/duplicar/eliminar — acontecem numa cópia de trabalho. **Aplicar** escreve tudo de uma vez, recalcula o cronograma e fecha a janela; **Enter** num campo de texto como o nome faz o mesmo, mas mantém a janela aberta. Se nada mudou, **Aplicar** e **Enter** não fazem nada: o documento fica inalterado e o cronograma não é recalculado. **Cancelar**, **Esc**, a cruz de fecho ou um clique fora da janela descarta todas as alterações que ainda não foram confirmadas com **Aplicar** ou **Enter**.
 
 ## Biblioteca (coluna esquerda)
 

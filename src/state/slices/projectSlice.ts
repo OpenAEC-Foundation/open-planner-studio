@@ -9,6 +9,7 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import { generateId } from '@/utils/id';
+import { sameValue } from '@/utils/sameValue';
 import { diffDays } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -136,18 +137,6 @@ export interface ProjectSlice {
     baselines?: Baseline[];
     activeBaselineId?: string | null;
   }, opts?: { viewStartDate?: string }) => void;
-}
-
-/**
- * Structurele gelijkheid voor de no-op-guards hieronder (pakket H). Scalars via `===`, objecten
- * (bv. `schedulingOptions`, een hele `WorkCalendar`) via een JSON-vergelijking — Immer-drafts
- * serialiseren gewoon mee. Sleutelvolgorde telt mee: een gelijke-maar-anders-geordende kopie wordt
- * als "gewijzigd" gezien, wat hooguit één extra undo-stap kost en nooit tot verkeerde state leidt.
- */
-function sameValue(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 /**

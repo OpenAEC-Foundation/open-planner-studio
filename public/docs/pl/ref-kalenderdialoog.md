@@ -10,7 +10,7 @@ Okno **Kalendarze** zarządza biblioteką kalendarzy projektu: listą wszystkich
 
 ## Zastosowanie i anulowanie
 
-Wszystkie edycje — w tym nowy/duplikat/usuń — odbywają się w kopii roboczej. **Zastosuj** (albo **Enter**) zapisuje wszystko naraz i przelicza harmonogram; **Anuluj**, **Esc**, krzyżyk zamykający albo kliknięcie poza oknem odrzuca wszystkie zmiany.
+Wszystkie edycje — w tym nowy/duplikat/usuń — odbywają się w kopii roboczej. **Zastosuj** zapisuje wszystko naraz, przelicza harmonogram i zamyka okno; **Enter** w polu tekstowym, takim jak nazwa, robi to samo, ale pozostawia okno otwarte. Jeśli nic się nie zmieniło, **Zastosuj** i **Enter** nic nie robią: dokument pozostaje niezmieniony, a harmonogram nie jest przeliczany. **Anuluj**, **Esc**, krzyżyk zamykający albo kliknięcie poza oknem odrzuca wszystkie zmiany, które nie zostały jeszcze zatwierdzone przez **Zastosuj** lub **Enter**.
 
 ## Biblioteka (lewa kolumna)
 

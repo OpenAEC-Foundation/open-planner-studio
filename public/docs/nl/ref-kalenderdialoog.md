@@ -10,7 +10,7 @@ Het venster **Kalenders** beheert de kalenderbibliotheek van het project: links 
 
 ## Toepassen en annuleren
 
-Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkkopie. **Toepassen** (of **Enter**) schrijft alles in één keer weg en herberekent de planning; **Annuleren**, **Esc**, het kruisje of een klik buiten het venster gooit álle wijzigingen weg.
+Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkkopie. **Toepassen** schrijft alles in één keer weg, herberekent de planning en sluit het venster; **Enter** in een tekstveld zoals de naam doet hetzelfde, maar laat het venster open. Is er niets gewijzigd, dan doen **Toepassen** en **Enter** niets: het document blijft ongewijzigd en de planning wordt niet herberekend. **Annuleren**, **Esc**, het kruisje of een klik buiten het venster gooit alle wijzigingen weg die nog niet met **Toepassen** of **Enter** zijn vastgelegd.
 
 ## Bibliotheek (linkerkolom)
 

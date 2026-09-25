@@ -10,7 +10,7 @@
 
 ## Uygulama ve iptal etme
 
-Tüm düzenlemeler — yeni/çoğalt/sil dahil — bir çalışma kopyasında gerçekleşir. **Uygula** (veya **Enter**) her şeyi tek seferde yazar ve planı yeniden hesaplar; **İptal**, **Esc**, kapatma çarpısı veya pencerenin dışına bir tıklama tüm değişiklikleri atar.
+Tüm düzenlemeler — yeni/çoğalt/sil dahil — bir çalışma kopyasında gerçekleşir. **Uygula** her şeyi tek seferde yazar, planı yeniden hesaplar ve pencereyi kapatır; ad gibi bir metin alanında **Enter** aynısını yapar ama pencereyi açık bırakır. Hiçbir şey değişmediyse **Uygula** ve **Enter** hiçbir şey yapmaz: belge değiştirilmemiş kalır ve plan yeniden hesaplanmaz. **İptal**, **Esc**, kapatma çarpısı veya pencerenin dışına bir tıklama, henüz **Uygula** veya **Enter** ile kaydedilmemiş tüm değişiklikleri atar.
 
 ## Kütüphane (sol sütun)
 

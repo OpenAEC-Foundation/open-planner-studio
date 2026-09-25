@@ -10,7 +10,7 @@ La ventana **Calendarios** gestiona la biblioteca de calendarios del proyecto: l
 
 ## Aplicar y cancelar
 
-Todas las ediciones — incluidas nuevo/duplicar/eliminar — ocurren en una copia de trabajo. **Aplicar** (o **Intro**) escribe todo de una vez y recalcula la planificación; **Cancelar**, **Esc**, la cruz de cierre o un clic fuera de la ventana descarta todos los cambios.
+Todas las ediciones — incluidas nuevo/duplicar/eliminar — ocurren en una copia de trabajo. **Aplicar** escribe todo de una vez, recalcula la planificación y cierra la ventana; **Intro** en un campo de texto como el nombre hace lo mismo pero deja la ventana abierta. Si no ha cambiado nada, **Aplicar** e **Intro** no hacen nada: el documento sigue sin modificar y la planificación no se recalcula. **Cancelar**, **Esc**, la cruz de cierre o un clic fuera de la ventana descarta todos los cambios que aún no se hayan confirmado con **Aplicar** o **Intro**.
 
 ## Biblioteca (columna izquierda)
 

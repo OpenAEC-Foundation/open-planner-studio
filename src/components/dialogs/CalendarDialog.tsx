@@ -18,9 +18,11 @@ import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
  * BUFFER-MODEL (fase 2.8b-bugfix): álle bewerkingen — nieuw/dupliceren/verwijderen/projectdefault
  * én de veld-edits in het formulier — muteren UITSLUITEND een lokale kopie van de bibliotheek. De
  * store wordt pas op "Toepassen" in één keer bijgewerkt (`commitCalendarLibrary`). Zo draaien
- * "Annuleren"/Esc/kruisje/klik-buiten ALLE in de dialoog gemaakte wijzigingen terug door simpelweg
- * te sluiten (er is niets naar de store gecommit). Dit vervangt het oude live-commit-gedrag, waarin
- * "Annuleren" niets deed omdat de wijzigingen al in de store zaten.
+ * "Annuleren"/Esc/kruisje/klik-buiten de in de dialoog gemaakte wijzigingen terug door simpelweg
+ * te sluiten. Dit vervangt het oude live-commit-gedrag, waarin "Annuleren" niets deed omdat de
+ * wijzigingen al in de store zaten. Uitzondering, bewust: Enter in een tekstveld commit de buffer
+ * tussentijds zonder te sluiten (`commitOnInputEnter`); Annuleren gooit daarna alleen weg wat sinds
+ * die Enter is gewijzigd. Een commit zonder wijziging is in de store een no-op.
  */
 export function CalendarDialog() {
   const { t: tMenu } = useTranslation('menu');
@@ -60,13 +62,15 @@ export function CalendarDialog() {
 
   // Lege einddatums zijn in de editor bewust toegestaan: bij opslag worden zij canoniek dezelfde
   // dag als de startdatum. Zo blijft het domeinmodel en alle bestaande readers/schrijvers eenduidig.
+  // Is er per saldo niets veranderd, dan commit de store niets (geen undo-stap, document blijft
+  // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
+  // document in de modus "datums zoals opgeslagen" (#63) alsnog herberekenen.
   const commit = () => {
     const calendars = localCalendars.map(calendar => ({
       ...calendar,
       holidays: calendar.holidays.map(holiday => ({ ...holiday, endDate: holidayEndDate(holiday) })),
     }));
-    commitCalendarLibrary(calendars, localProjectId);
-    runCPM();
+    if (commitCalendarLibrary(calendars, localProjectId)) runCPM();
   };
 
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
@@ -226,8 +230,8 @@ export function CalendarDialog() {
           </div>
         </div>
 
-        {/* Dialoog-footer: Annuleren draait alle in de dialoog gemaakte wijzigingen terug (niets is
-            gecommit) en sluit; Toepassen commit de hele buffer in één keer + herberekent. */}
+        {/* Dialoog-footer: Annuleren draait alle nog niet gecommitte wijzigingen terug en sluit;
+            Toepassen commit de hele buffer in één keer + herberekent (niets gewijzigd ⇒ no-op). */}
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
             {tCommon('cancel')}

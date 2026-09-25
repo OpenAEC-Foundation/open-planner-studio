@@ -3,6 +3,7 @@ import type { AppSliceFactory, NotifyInput } from './types';
 import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
+import { sameValue } from '@/utils/sameValue';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
 import { loadLibrary, saveLibrary, stripLibraryOrigins, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
 import { markScheduleStale } from '../transaction';
@@ -599,13 +600,21 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   updatePoolCalendar: (companyId, calendarId, updates) => {
+    let changed = false;
     set((s) => {
       const pool = s.pools[companyId];
       const idx = pool?.calendars.findIndex(c => c.id === calendarId) ?? -1;
       if (!pool || idx < 0) return;
+      // No-op-guard (spiegelt `updateCalendar`): de kalendereditor in de Bibliotheekweergave stuurt
+      // bij Toepassen de hele draft. Ongewijzigd ⇒ geen poolversie-bump, geen opslag en geen
+      // verversing (die wist onvoorwaardelijk de redo-geschiedenis van elk gekoppeld document).
+      const currentCal = pool.calendars[idx] as unknown as Record<string, unknown>;
+      if (Object.entries(updates).every(([k, v]) => sameValue(currentCal[k], v))) return;
       Object.assign(pool.calendars[idx], updates);
       s.pools[companyId] = bumpPool(pool);
+      changed = true;
     });
+    if (!changed) return;
     persist(get);
     get().refreshAllDocumentsFromPool(companyId);
   },

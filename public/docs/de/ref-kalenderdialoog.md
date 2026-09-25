@@ -10,7 +10,7 @@ Das Fenster **Kalender** verwaltet die Kalenderbibliothek des Projekts: links di
 
 ## Anwenden und Abbrechen
 
-Alle Bearbeitungen — einschließlich Neu/Duplizieren/Löschen — erfolgen in einer Arbeitskopie. **Anwenden** (oder **Enter**) schreibt alles zugleich und berechnet den Terminplan neu; **Abbrechen**, **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters verwirft alle Änderungen.
+Alle Bearbeitungen — einschließlich Neu/Duplizieren/Löschen — erfolgen in einer Arbeitskopie. **Anwenden** schreibt alles zugleich, berechnet den Terminplan neu und schließt das Fenster; **Enter** in einem Textfeld wie dem Namen tut dasselbe, lässt das Fenster aber geöffnet. Wurde nichts geändert, bewirken **Anwenden** und **Enter** nichts: Das Dokument bleibt unverändert und der Terminplan wird nicht neu berechnet. **Abbrechen**, **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters verwirft alle Änderungen, die noch nicht mit **Anwenden** oder **Enter** übernommen wurden.
 
 ## Bibliothek (linke Spalte)
 

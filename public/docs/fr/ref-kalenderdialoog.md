@@ -10,7 +10,7 @@ La fenêtre **Calendriers** gère la bibliothèque de calendriers du projet : la
 
 ## Appliquer et annuler
 
-Toutes les modifications — y compris nouveau/dupliquer/supprimer — se font dans une copie de travail. **Appliquer** (ou **Entrée**) écrit tout d'un coup et recalcule le planning ; **Annuler**, **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre abandonne toutes les modifications.
+Toutes les modifications — y compris nouveau/dupliquer/supprimer — se font dans une copie de travail. **Appliquer** écrit tout d'un coup, recalcule le planning et ferme la fenêtre ; **Entrée** dans un champ de texte comme le nom fait de même mais laisse la fenêtre ouverte. Si rien n'a changé, **Appliquer** et **Entrée** ne font rien : le document reste inchangé et le planning n'est pas recalculé. **Annuler**, **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre abandonne toutes les modifications qui n'ont pas encore été validées avec **Appliquer** ou **Entrée**.
 
 ## Bibliothèque (colonne de gauche)
 

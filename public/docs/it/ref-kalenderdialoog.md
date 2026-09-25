@@ -10,7 +10,7 @@ La finestra **Calendari** gestisce la libreria dei calendari del progetto: l'ele
 
 ## Applicare e annullare
 
-Tutte le modifiche — comprese nuovo/duplica/elimina — avvengono in una copia di lavoro. **Applica** (o **Invio**) scrive tutto in una volta e ricalcola la pianificazione; **Annulla**, **Esc**, la crocetta di chiusura o un clic fuori dalla finestra scarta tutte le modifiche.
+Tutte le modifiche — comprese nuovo/duplica/elimina — avvengono in una copia di lavoro. **Applica** scrive tutto in una volta, ricalcola la pianificazione e chiude la finestra; **Invio** in un campo di testo come il nome fa lo stesso ma lascia la finestra aperta. Se non è cambiato nulla, **Applica** e **Invio** non fanno nulla: il documento resta invariato e la pianificazione non viene ricalcolata. **Annulla**, **Esc**, la crocetta di chiusura o un clic fuori dalla finestra scarta tutte le modifiche non ancora confermate con **Applica** o **Invio**.
 
 ## Libreria (colonna sinistra)
 
