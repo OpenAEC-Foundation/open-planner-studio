@@ -25,6 +25,7 @@ import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { solveProject } from '@/engine/scheduler/solveProject';
+import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import { installDOMParser } from './xmldom-shim';
 
 installDOMParser();
@@ -311,6 +312,79 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const ifcDay = writeIFC({ project: { ...project, statusDate: '2026-07-06' }, calendar: H8, tasks: [running], sequences: [], resources: [], assignments: [] });
   assert(ifcDay.includes("IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE('2026-07-06'),$)"), 'statusdatum zonder tijd: blijft IFCDATE');
   eq('statusdatum zonder tijd: blijft date-only', readIFC(ifcDay).project.statusDate, '2026-07-06');
+}
+
+// ── Restduur van een urentaak round-trippt in minuten (G4) ───────────────────────────────────
+// Vóór de fix rondde de store de restduur van een urentaak op hele dagen, zonder minuten: 5 u op
+// 40 % ⇒ 0. MSPDI en P6 exporteerden `RemainingDuration` 0 en na openen plande de solver de taak af
+// op de statusdatum (EF 08:00 i.p.v. 11:00); IFC schreef `P0Y0M0D`. Nu schrijven alle drie 3 u en
+// komt dezelfde restduur (minuten + werkdagfractie) terug. Een taak die weer op 0 % staat houdt haar
+// volle duur als restduur (IFC las die als `ceil(5 u / 8)` = 1 dag). Een oud IFC-bestand (`P0Y0M0D`)
+// blijft leesbaar en krijgt de restduur uit de voortgang. Dagtaken houden hele werkdagen.
+// Statusdatum zonder tijd: de MSPDI- en P6-lezer houden alleen de datum van een statusdatum (los
+// punt, niet dit onderwerp), en de EF-vergelijking moet over de restduur gaan.
+{
+  const projS: Project = { ...project, statusDate: '2026-07-06' };
+  // Voortgang zoals de schuif hem zet: % plus werkelijke start, daarna de gedeelde invarianten.
+  const withProgress = (t: Task, completion: number): Task => {
+    t.time.completion = completion;
+    t.time.actualStart = completion > 0 ? t.time.scheduleStart : undefined;
+    applyProgressInvariants(t, projS.statusDate);
+    return t;
+  };
+  const lopend = withProgress(mk('t-rest', 'Lopend', '1', '2026-07-06T08:00', '2026-07-06T13:00', 300), 0.4);
+  const terug = withProgress(withProgress(mk('t-terug', 'Teruggezet', '2', '2026-07-06T08:00', '2026-07-06T13:00', 300), 0.4), 0);
+  const dag = mk('t-dag', 'Dagtaak', '3', '2026-07-06', '2026-07-10', 0);
+  dag.time = { ...dag.time, durationUnit: 'days', durationMinutes: undefined, scheduleDuration: 5 };
+  withProgress(dag, 0.3);
+  const rest = (t: Task | undefined) => [t?.time.remainingMinutes, t?.time.remainingTime];
+  eq('restduur: voorwaarde urentaak 5 u op 40 %', rest(lopend), [180, 0.375]);
+  eq('restduur: voorwaarde teruggezette urentaak', rest(terug), [300, 0.625]);
+  eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 4]);
+  const efOf = (tk: Task[], cal: WorkCalendar, statusDate: string | undefined): string | undefined => {
+    solveProject({ tasks: tk, sequences: [], calendar: cal, calendars: [], dataDate: statusDate, projectStartDate: projS.startDate });
+    return tk.find(t => t.name === 'Lopend')?.time.earlyFinish;
+  };
+  const efBefore = efOf(structuredClone([lopend, terug, dag]), H8, projS.statusDate);
+  eq('restduur: voorwaarde EF lopende urentaak (08:00 + 3 u)', efBefore, '2026-07-06T11:00');
+
+  const input = { project: projS, calendar: H8, tasks: [lopend, terug, dag], sequences: [], resources: [], assignments: [] };
+  const ifc = writeIFC(input);
+  const restSlot = (text: string, name: string) =>
+    new RegExp(`IFCTASKTIME\\('${name} Time'.*,('[^']*'|\\$),[0-9.]+\\);`).exec(text)?.[1];
+  eq('restduur IFC: geschreven slot urentaak', restSlot(ifc, 'Lopend'), "'PT3H0M0S'");
+  eq('restduur IFC: geschreven slot dagtaak', restSlot(ifc, 'Dagtaak'), "'P0Y0M4D'");
+  const mspdi = writeMSPDI(projS, H8, [lopend, terug, dag], [], [], [], []);
+  const p6 = writeP6XML(projS, H8, [lopend, terug, dag], [], [], [], []);
+  const remXml = (xml: string, name: string) =>
+    new RegExp(`<Name>${name}</Name>[\\s\\S]*?<RemainingDuration>([^<]*)</RemainingDuration>`).exec(xml)?.[1];
+  eq('restduur MSPDI: geschreven urentaak', remXml(mspdi, 'Lopend'), 'PT3H0M0S');
+  eq('restduur MSPDI: geschreven teruggezette urentaak', remXml(mspdi, 'Teruggezet'), 'PT5H0M0S');
+  eq('restduur MSPDI: geschreven dagtaak', remXml(mspdi, 'Dagtaak'), 'PT32H0M0S');
+  eq('restduur P6: geschreven urentaak (uren)', remXml(p6, 'Lopend'), '3');
+  eq('restduur P6: geschreven teruggezette urentaak (uren)', remXml(p6, 'Teruggezet'), '5');
+  eq('restduur P6: geschreven dagtaak (uren)', remXml(p6, 'Dagtaak'), '32');
+
+  for (const [label, back] of [
+    ['IFC', readIFC(ifc)], ['MSPDI', readMSPDI(mspdi)], ['P6', readP6XML(p6)],
+  ] as const) {
+    const byName = (n: string) => back.tasks.find(t => t.name === n);
+    eq(`restduur ${label}: urentaak terug`, rest(byName('Lopend')), [180, 0.375]);
+    eq(`restduur ${label}: teruggezette urentaak terug (minuten)`, byName('Teruggezet')?.time.remainingMinutes, 300);
+    eq(`restduur ${label}: dagtaak terug`, rest(byName('Dagtaak')), [undefined, 4]);
+    eq(`restduur ${label}: EF lopende urentaak na opslaan + openen`, efOf(back.tasks, back.calendar, back.project.statusDate), efBefore);
+  }
+  eq('restduur IFC: teruggezette urentaak terug (werkdagfractie)', readIFC(ifc).tasks.find(t => t.name === 'Teruggezet')?.time.remainingTime, 0.625);
+  // Tweede ronde: opnieuw schrijven levert hetzelfde bestand (geen drift).
+  const again = readIFC(ifc);
+  eq('restduur IFC: tweede keer opslaan identiek slot', restSlot(writeIFC({ ...input, tasks: again.tasks, calendar: again.calendar }), 'Lopend'), "'PT3H0M0S'");
+
+  // Oud bestand: onze eigen export van vóór de fix schreef de afgeronde dag-restduur.
+  const legacy = ifc.replace(/(IFCTASKTIME\('Lopend Time'.*,)'PT3H0M0S'(,[0-9.]+\);)/, "$1'P0Y0M0D'$2");
+  assert(legacy !== ifc, 'restduur: oud-bestand-fixture bevat de oude restduurvorm');
+  const old = readIFC(legacy);
+  eq('restduur IFC oud bestand: restduur uit de voortgang', rest(old.tasks.find(t => t.name === 'Lopend')), [180, 0.375]);
+  eq('restduur IFC oud bestand: EF ongewijzigd', efOf(old.tasks, old.calendar, old.project.statusDate), efBefore);
 }
 
 // ── Dag-bestand-discriminator (geen uur-lek + identieke leaf-schedule) ──────

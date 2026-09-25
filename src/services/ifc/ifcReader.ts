@@ -25,6 +25,7 @@ import {
   type RecordedFieldKey, type TaskTimeReadHelpers,
 } from './ifcTaskSlots';
 import { normalizeImportedProgress, reconstructResourceIds } from '@/services/importNormalize';
+import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands,
@@ -719,6 +720,7 @@ function applyHourModeIFC(
       if (t.time.durationUnit === 'hours' && t.time.durationMinutes != null && effCal.hoursPerDay > 0) {
         t.time.scheduleDuration = t.time.durationMinutes / (effCal.hoursPerDay * 60);
       }
+      if (t.time.durationUnit === 'hours') readRemainingMinutes(t, taskTimeEntities.get(t.id));
       continue;
     }
     const e = taskTimeEntities.get(t.id);
@@ -745,9 +747,21 @@ function applyHourModeIFC(
     const lf = toHour(e.args[TASKTIME_SLOT.lateFinish]); if (lf) t.time.lateFinish = lf;
     const as = toHour(e.args[TASKTIME_SLOT.actualStart]); if (as) t.time.actualStart = as;
     const af = toHour(e.args[TASKTIME_SLOT.actualFinish]); if (af) t.time.actualFinish = af;
-    const remMin = isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.remainingTime] || ''));
-    if (remMin != null) t.time.remainingMinutes = remMin;
+    readRemainingMinutes(t, e);
   }
+}
+
+/**
+ * Restduur-minuten uit een `PT…`-RemainingTime-slot. Bij een urentaak krijgt `remainingTime` dezelfde
+ * werkdagfractie als de store haar geeft (`hourRemainingDays`, de vorm van `scheduleDuration`): de
+ * `parseDurationDays`-lezing van `PT5H` is `ceil(5 / uren per dag)` hele dagen, en een taak zonder
+ * voortgang komt niet langs `normalizeImportedProgress`, dus die waarde bleef anders staan (G4).
+ */
+function readRemainingMinutes(t: Task, e: StepEntity | undefined): void {
+  const remMin = e ? isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.remainingTime] || '')) : null;
+  if (remMin == null) return;
+  t.time.remainingMinutes = remMin;
+  if (t.time.durationUnit === 'hours') t.time.remainingTime = hourRemainingDays(t.time, remMin);
 }
 
 /**

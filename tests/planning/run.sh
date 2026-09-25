@@ -365,6 +365,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # "vandaag" — en dat scheduleStale altijd gezet wordt, ook zonder statusdatum.
   TSCHECK="$DIR/.task-slice-check.mjs"
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
+  # Restduur in de eigen eenheid van de taak (G4): een urentaak houdt haar restduur in minuten plus
+  # een onafgeronde werkdagfractie, via één regel voor paneel, raster, MCP en de lezers.
+  RDCHECK="$DIR/.remaining-duration-check.mjs"
+  if bundle_check "$DIR/check-remaining-duration.ts" "$RDCHECK"; then node "$RDCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 
