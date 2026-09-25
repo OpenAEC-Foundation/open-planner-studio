@@ -28,6 +28,8 @@ Losse suites: `npm run test:planning`, `npm run test:library`, `npm run test:mcp
 `npm run test:browser:x11` draait lokaal headed en vereist `OPS_XER_CORPUS` + een desktopdisplay; hij vervangt
 de corpusloze CI-poort niet.
 Één batterij: `bash tests/planning/run.sh cases-<x>.json` of `bash tests/planning/run.sh check-<x>.ts`.
+Nieuwe `check-*.ts`/`cases-*.json`: kopieer een bestaande `if bundle_check`-regel in `tests/planning/run.sh`
+(grep op een buurcheck) resp. vul `EXPECTED_BATTERIES` aan — lees run.sh (~1,2k regels) niet in z'n geheel.
 
 Losse poorten (de meeste zitten in `verify`): `npm run verify:examples` (voorbeelden laden/rekenen),
 `npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen),
@@ -66,9 +68,15 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
   anders overleeft hij geen documentwissel, undo, crashherstel of opslaan.
 - **Eén Zustand+Immer-store uit slices** (`src/state/appStore.ts`); slices typen tegen de volledige `AppState`.
   Core-runtimefactories en storegebonden MCP-tools importeren nooit `useAppStore`/`appStoreContext`.
+  UI-/dialoogvlaggen: type in `UIState` (`slices/types.ts`), actie in `uiSlice.ts`; blijvende instellingen in
+  `src/utils/settingsRegistry.ts`.
 - **Plannen is handmatig, niet reactief.** `runCPM` → `solveProject()`; roep het aan na het muteren van taken,
   relaties of kalender. Zet `scheduleStale` altijd via `markScheduleStale` (`state/transaction.ts`), nooit direct.
+  `CPMSolver.ts` (~2,7k regels): grep de methode, niet heel lezen. Terugschrijven: `applyCpmResult.ts`;
+  relaties/lag: `relationMath.ts`.
 - **Gantt-tijdlijn = Canvas 2D** (`src/engine/renderer/`), het taakraster = DOM (`FullTaskGrid`).
+  Geometrie: rij↔y `GanttRenderer.getRowAtY/getTaskAtY`, datum↔x `dateToX` in `timeAxis.ts` (werkdagen-as:
+  `workdayAxis.ts`); interactie in `src/components/canvas/hooks/`.
 - **Meldingen lopen via één kanaal** uit de store — geen `alert()` of losse toasts.
 - **Tekst:** altijd via `t(...)`, nooit hardgecodeerd. Tekstgroottes alleen via de zes rollen
   (`text-caption`…`text-title`); `text-xs`/`text-sm` bestaan niet meer en doen stil niets.
