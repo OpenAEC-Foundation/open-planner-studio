@@ -1688,7 +1688,11 @@ function buildCalendarFromEntity(
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
   // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
-  calendar.description = ifcSlotText(cal.args[3]) || calendar.description;
+  // Bewust GEEN terugval op de omschrijving van `createDefaultCalendar()`: `$` is een lege
+  // omschrijving (zoals bij project, taak en resource), geen "onbekend". Die terugval maakte van een
+  // bewust lege omschrijving na heropenen de standaardtekst van déze machine (Bouwmodus-afhankelijk),
+  // zodat een bibliotheekkopie onterecht "wijkt af" werd.
+  calendar.description = ifcSlotText(cal.args[3]);
   Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
 
   // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
