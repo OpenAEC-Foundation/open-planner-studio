@@ -1105,15 +1105,16 @@ export const readTools: McpToolDef[] = [
     description:
       'Alle kalenders: de UNIE van de projectkalender-cache en de bibliotheek (gededupt op id), elk ' +
       'met `isProjectDefault`, gebruikt-door-tellingen (taken/resources) én de VOLLEDIGE ' +
-      'WorkCalendar-definitie (werkdagen, werkuren, `workTime`-uurbanden, `shift`, `holidays`, ' +
-      '`generation`). Een kalenderobject hieruit is LETTERLIJK terug te schrijven met ' +
+      'WorkCalendar-definitie (werkdagen, werkuren, pauzepatroon `simpleBreakStartMinute`/' +
+      '`simpleBreakDurationMinutes`, `workTime`-uurbanden, `shift`, `holidays`, `workingExceptions`, ' +
+      '`generation`, en bij een bibliotheekkopie `libraryOrigin`). Een kalenderobject hieruit is LETTERLIJK terug te schrijven met ' +
       'planner_update_calendar en zo in een ANDER document te herbouwen — kalender-id\'s zijn ' +
       'per-document, dus gebruik daar `create: true` (het echte nieuwe id komt terug in de respons) en ' +
       'hang taken eraan met `update_tasks.calendarId`. Wil je de PROJECTkalender van een ander document ' +
       'gelijkmaken, schrijf de velden dan op het id uit de `projectDefaultId` van dát document: WELKE ' +
       'kalender de projectdefault IS kan de bridge niet wisselen (dat doe je in de app). De afgeleide ' +
-      'velden `isProjectDefault`/`usedByTasks`/`usedByResources` mogen bij het terugschrijven meekomen ' +
-      'maar doen daar niets.',
+      'velden `isProjectDefault`/`usedByTasks`/`usedByResources` en de bibliotheekstempel `libraryOrigin` ' +
+      'mogen bij het terugschrijven meekomen maar doen daar niets.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

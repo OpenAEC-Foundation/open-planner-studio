@@ -18,7 +18,9 @@ import {
   materializeHolidays, computeGenerateSpan, DEFAULT_GEN_PARAMS, type HolidayGenParams,
 } from '@/engine/calendar/generateCalendarHolidays';
 import { orderedWeekDays } from '@/utils/weekDays';
-import { calendarScalarBreakIssue, scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
+import {
+  calendarScalarBreakIssue, legacySimpleBreakDurationMinutes, scalarBreakIssue, simpleBreakPatch,
+} from '@/utils/effectiveWorkTime';
 import { holidayIssue } from '@/utils/holidayRange';
 
 function minutesToTime(value: number): string {
@@ -164,9 +166,7 @@ export function CalendarForm({
   // Oude scalar-kalenders hebben nog geen velden, maar hun zichtbare waarden moeten het bestaande
   // gedrag verklaren: 07:00–16:00 / 8 uur toont daarom de afgeleide 12:00 / 60 min, terwijl
   // 08:00–16:00 / 8 uur terecht 0 minuten toont.
-  const inferredSimpleBreakDuration = Math.max(0, Math.round(
-    (draft.workEndHour - draft.workStartHour - draft.hoursPerDay) * 60,
-  ));
+  const inferredSimpleBreakDuration = legacySimpleBreakDurationMinutes(draft);
   const [workStartText, setWorkStartText] = useState(() => minutesToTime(draft.workStartHour * 60));
   const [workEndText, setWorkEndText] = useState(() => minutesToTime(draft.workEndHour * 60));
   const [simpleBreakStartText, setSimpleBreakStartText] = useState(() =>
@@ -341,25 +341,11 @@ export function CalendarForm({
 
   // Het eenvoudige patroon is geen tweede engineformule: de netto uren worden alleen als
   // gebruikersfeedback uit hetzelfde effectieve-worktime-model afgeleid. Expliciete weekbanden
-  // blijven volledig buiten dit pad en dus absoluut leidend.
+  // blijven volledig buiten dit pad en dus absoluut leidend. Een oude scalar heeft een impliciete
+  // pauze om haar bestaande netto-uren te verklaren; zodra de gebruiker één van de vier
+  // scalarbedieningen wijzigt, wordt die veilig expliciet. Eén definitie met MCP: `simpleBreakPatch`.
   const patchSimpleBreak = (patch: Partial<WorkCalendar>) => {
-    // Een oude scalar heeft een impliciete pauze om haar bestaande netto-uren te verklaren. Zodra
-    // de gebruiker één van die vier scalarbedieningen wijzigt, wordt die bestaande semantiek veilig
-    // expliciet: anders zouden Start/Einde een oud handmatig hoursPerDay-veld als verborgen bron
-    // behouden en zou de readout niet werkelijk afgeleid zijn.
-    const changesScalarTime = patch.workStartHour !== undefined
-      || patch.workEndHour !== undefined
-      || patch.simpleBreakStartMinute !== undefined
-      || patch.simpleBreakDurationMinutes !== undefined;
-    const materializedLegacyDuration = changesScalarTime && draft.simpleBreakDurationMinutes === undefined
-      ? {
-          simpleBreakStartMinute: draft.simpleBreakStartMinute ?? 12 * 60,
-          simpleBreakDurationMinutes: inferredSimpleBreakDuration,
-        }
-      : {};
-    const next = { ...draft, ...materializedLegacyDuration, ...patch };
-    const netHours = simpleBreakNetHours(next);
-    onChange({ ...materializedLegacyDuration, ...patch, ...(netHours !== undefined ? { hoursPerDay: netHours } : {}) });
+    onChange(simpleBreakPatch(draft, patch));
   };
 
   const setScalarTimeIssue = (field: ScalarTimeField, issue?: ScalarTimeIssue) => {
