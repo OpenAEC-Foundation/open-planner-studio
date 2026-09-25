@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type KeyboardEvent } from 'react';
+import { useCallback, useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Copy, Trash2, Star, AlertTriangle } from 'lucide-react';
@@ -44,6 +44,9 @@ export function CalendarDialog() {
   const [localProjectId, setLocalProjectId] = useState<string>(project.calendarId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
+  // Enter in een invoerveld vraagt een tussentijdse commit aan; hij draait pas ná de render van die
+  // toetsaanslag (zie `commitOnInputEnter` en het layout-effect hieronder).
+  const [enterCommitRequested, setEnterCommitRequested] = useState(false);
 
   // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente §4.3-
   // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
@@ -72,9 +75,9 @@ export function CalendarDialog() {
   // Is er per saldo niets veranderd, dan commit de store niets (geen undo-stap, document blijft
   // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
   // document in de modus "datums zoals opgeslagen" (#63) alsnog herberekenen.
-  const commit = () => {
+  const commit = useCallback(() => {
     if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM();
-  };
+  }, [commitCalendarLibrary, localCalendars, localProjectId, runCPM]);
 
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
@@ -86,6 +89,14 @@ export function CalendarDialog() {
   // Alleen gewone enkelregelige invoervelden in déze dialoog gebruiken Enter als "opslaan en
   // open blijven". Knoppen, selects, checkboxen en invoervelden die de toets al zelf afhandelen
   // houden hun eigen native betekenis; andere dialogs gebruiken nog steeds hun bestaande contract.
+  //
+  // Deze handler commit NIET zelf. Een datumveld (`DateTextInput`) rondt bij Enter eerst zichzelf af
+  // (`onCommit` ⇒ setState in deze buffer) en laat de toets dan doorbubbelen naar hier — binnen
+  // dezelfde React-dispatch, dus deze closure ziet `localCalendars` nog van vóór die toetsaanslag.
+  // Direct committen legde daardoor de buffer zonder de net getypte datum vast. Daarom vragen we
+  // de commit aan en voert het layout-effect hieronder hem uit zodra React de updates van deze
+  // toetsaanslag heeft toegepast (discrete event: synchroon, vóór de volgende invoer). Dezelfde
+  // reden waarom `useDialogKeys` zijn `onConfirm` via een ref leest.
   const commitOnInputEnter = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return;
     const target = event.target;
@@ -101,10 +112,16 @@ export function CalendarDialog() {
     if (!(target instanceof HTMLInputElement) || target.disabled) return;
     event.preventDefault();
     event.stopPropagation();
-    // Zelfde poort als de knop Toepassen: nooit een ongeldige buffer tussentijds wegschrijven.
-    if (invalid) return;
-    commit();
+    setEnterCommitRequested(true);
   };
+
+  // Uitvoering van de aangevraagde Enter-commit, met de buffer en `invalid` van ná de toetsaanslag.
+  // Zelfde poort als de knop Toepassen: nooit een ongeldige buffer tussentijds wegschrijven.
+  useLayoutEffect(() => {
+    if (!enterCommitRequested) return;
+    setEnterCommitRequested(false);
+    if (!invalid) commit();
+  }, [enterCommitRequested, invalid, commit]);
 
   // Zelfde fabriek als "+ Resourcekalender" in de resourcerij en MCP `create` (createNewCalendar).
   const handleNew = () => {

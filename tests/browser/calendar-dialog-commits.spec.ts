@@ -296,3 +296,35 @@ test('"+ Resource calendar" in de Bibliotheekweergave: pas bij Toepassen aangema
   expect(createdId).toBeTruthy();
   expect(after.resourceCalendarId).toBe(createdId);
 });
+
+// ── Enter in een datumveld: eerst het veld, dan de dialoogbuffer ─────────────────────────────────
+// `DateTextInput` commit bij Enter zichzelf (onCommit) en laat de toets doorbubbelen. De tussentijdse
+// Enter-commit van de kalenderdialoog moet dus de buffer MÉT die datum vastleggen, niet die van vóór
+// de toetsaanslag.
+
+test('kalenderdialoog: datum typen + Enter in het datumveld legt precies die datum vast', async ({ page, ops: _ops }) => {
+  const dialog = await openCalendarDialog(page);
+  await dialog.locator('button').filter({ hasText: 'Add holiday' }).click();
+  const from = dialog.getByRole('group', { name: 'From' }).last();
+  const until = dialog.getByRole('group', { name: 'Until' }).last();
+  const name = from.locator('xpath=ancestor::div[contains(@class,"grid-cols")][1]').locator('input').first();
+  await name.fill('Bouwvak');
+  await fillDate(from, '20', '07', '2026');
+
+  // Tot typen en in het jaarsegment op Enter drukken — geen Tab, geen klik elders.
+  await until.getByLabel('day', { exact: true }).fill('07');
+  await until.getByLabel('month', { exact: true }).fill('08');
+  await until.getByLabel('year', { exact: true }).fill('2026');
+  await until.getByLabel('year', { exact: true }).press('Enter');
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => storedHolidays(page)).toEqual([{ name: 'Bouwvak', startDate: '2026-07-20', endDate: '2026-08-07' }]);
+
+  // Ook een bestaande datum wijzigen + Enter gaat meteen mee: eerst Tot, dan Van (elk geldig).
+  await until.getByLabel('year', { exact: true }).fill('2027');
+  await until.getByLabel('year', { exact: true }).press('Enter');
+  await expect.poll(() => storedHolidays(page)).toEqual([{ name: 'Bouwvak', startDate: '2026-07-20', endDate: '2027-08-07' }]);
+  await from.getByLabel('year', { exact: true }).fill('2027');
+  await from.getByLabel('year', { exact: true }).press('Enter');
+  await expect.poll(() => storedHolidays(page)).toEqual([{ name: 'Bouwvak', startDate: '2027-07-20', endDate: '2027-08-07' }]);
+  await dialog.locator('[data-ops-cal-cancel]').click();
+});
