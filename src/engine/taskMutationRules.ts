@@ -1,6 +1,7 @@
 import type { CustomFieldValue } from '@/types/structure';
 import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 
 /**
  * Vergelijkt een actual met de statusdatum op dezelfde precisie als de bestaande taaksetters.
@@ -39,16 +40,8 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
   } else if (time.completion >= 1) {
     time.actualFinish = statusDate || time.earlyFinish || time.scheduleFinish;
     if (!time.actualStart) time.actualStart = time.actualFinish;
-    else if (isActualFinishBeforeStart(time)) {
-      // Het einde is hier AFGELEID en mag niet vóór de start liggen. Die start is vaak zelf afgeleid
-      // (de geplande start, via `applyCompletionEdit`/raster/MCP) en ligt ná de statusdatum bij een
-      // taak die volgens de planning nog moest beginnen, of bij een verouderde berekening (mijlpaal
-      // op 100 % vóór F5 gaf AS 06-17 / AF 06-10). Mét statusdatum is het einde die datum en bestaat
-      // een werkelijke datum erna niet (§3.2): de start schuift terug. Zonder statusdatum is het
-      // einde een (mogelijk verouderde) geplande finish: een vastgelegde start blijft, het einde volgt.
-      if (statusDate) time.actualStart = time.actualFinish;
-      else time.actualFinish = time.actualStart;
-    }
+    // Afgeleid einde vóór een (vaak zelf afgeleide) start: zelfde regel als de lezers.
+    orderActualsAfterDerivedFinish(time, statusDate);
     task.status = 'COMPLETED';
   } else if (time.actualStart) {
     task.status = 'STARTED';
