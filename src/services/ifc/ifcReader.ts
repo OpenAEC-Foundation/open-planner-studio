@@ -513,6 +513,15 @@ function parseDateFromIFC(s: string): string {
   return clean.substring(0, 10);
 }
 
+/** `OPS_ProjectSettings.StatusDate` → `project.statusDate`. Zonder tijd ⇒ `YYYY-MM-DD`; mét tijd ⇒
+ *  de store-vorm van een uur-instant (`YYYY-MM-DDTHH:mm`, zoals de uur-slots in `applyHourModeIFC`). */
+function statusDateFromIFC(v: string): string {
+  const day = v.substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return day;
+  const instant = parseInstant(v);
+  return Number.isNaN(instant.getTime()) ? day : formatInstant(instant, 'hour');
+}
+
 function parseDurationDays(s: string, hoursPerDay: number): number {
   if (!s || s === '$') return 0;
   const clean = stripQuotes(s);
@@ -1230,8 +1239,10 @@ function extractStructure(
         } else if (name === 'DefaultTaskDurationUnit') {
           if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
         } else if (name === 'StatusDate') {
-          // Fase 2.6 (§8.2): P6 data date → project.statusDate.
-          if (typeof v === 'string' && v) project.statusDate = v.substring(0, 10);
+          // Fase 2.6 (§8.2): P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft
+          // behouden: IFCDATETIME, én bestanden van vóór die writer-keuze die de tijd in IFCDATE zetten
+          // (spiegel van writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`, zoals altijd.
+          if (typeof v === 'string' && v) project.statusDate = statusDateFromIFC(v);
         } else if (name === 'ProgressMode') {
           // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;

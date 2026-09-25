@@ -412,8 +412,15 @@ function writeStructure(
       `IFCPROPERTYSINGLEVALUE('DefaultTaskDurationUnit',$,IFCLABEL(${ifcStr(project.defaultTaskDurationUnit)}),$)`));
   }
   if (project.statusDate) {
+    // Datum ⇒ IFCDATE (byte-identiek aan vroeger). Mét tijd (uur-modus, `YYYY-MM-DDTHH:mm`) ⇒
+    // IFCDATETIME met seconden: IfcDate kent geen tijd, en de reader kapte de waarde vroeger daarop
+    // af — na opslaan + openen stond de statusdatum op middernacht.
+    const sd = project.statusDate;
+    const typed = sd.length > 10
+      ? `IFCDATETIME(${ifcStr(sd.length === 16 ? `${sd}:00` : sd)})`
+      : `IFCDATE(${ifcStr(sd)})`;
     projSettingProps.push(addLine(ctx, '_ps_statusdate',
-      `IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE(${ifcStr(project.statusDate)}),$)`));
+      `IFCPROPERTYSINGLEVALUE('StatusDate',$,${typed},$)`));
   }
   // ProgressMode alleen als afwijkend van de default RETAINED_LOGIC (golden rule §8.2).
   if (project.progressMode && project.progressMode !== 'RETAINED_LOGIC') {
