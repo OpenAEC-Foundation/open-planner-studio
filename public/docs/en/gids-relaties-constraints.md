@@ -39,6 +39,12 @@ contains such a relation anyway — for example from Primavera P6 or MS Project,
 it's preserved and carried through unchanged on save, but it doesn't count in the calculation: the
 task grid's relation-warning column flags it as *not included*.
 
+Such a relation can also appear when you move a task: if you indent a task under its own
+predecessor or successor, drag it there, or pick that task as its parent task, the move simply goes
+ahead. The existing relation is kept but no longer counts from then on, and a notification tells you
+how many relations that affects. A kept relation like that doesn't block the task grid: you can
+still edit the other relations, as well as the type and lag of the kept relation itself.
+
 ## Lag and lead
 
 A relation doesn't have to be zero: a **lag** (positive) adds wait time between predecessor and successor, a **lead** (negative, entered as a negative number) lets the successor start earlier — a deliberate overlap. The lag field (**Lag**, in the properties panel and in the predecessor/successor cell editor) accepts a short notation:

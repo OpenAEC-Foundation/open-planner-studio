@@ -1,5 +1,5 @@
-import { detectCycleInEdges } from '@/engine/scheduler/graphWalk';
-import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { detectCycleInEdges, detectIntroducedCycle } from '@/engine/scheduler/graphWalk';
+import { expandSummaryRelations, type ExpandSummaryRelationsResult } from '@/engine/scheduler/expandSummaryRelations';
 import {
   exclusiveExternalLag,
   externalAnchorSideIsCompatible,
@@ -351,21 +351,26 @@ function oldExternalKey(ownerTaskId: string, link: ExternalLink): string {
   });
 }
 
-/**
- * Valideert één uiteindelijke interne relatietoestand. Deze grens wordt zowel door de publieke
- * enkel-celplanner als éénmaal na alle relationele writes van een atomaire paste gebruikt.
- */
-export function validateFinalRelationGraph(input: {
+/** Een interne relatiegraaf: de taken (voor structuur en summary-expansie) plus de relaties. */
+export interface RelationGraph {
   tasks: readonly Task[];
   sequences: readonly Sequence[];
-}): GridResult<void, readonly RelationTokenError[]> {
-  const errors: RelationTokenError[] = [];
-  const tasksById = new Map(input.tasks.map(task => [task.id, task] as const));
+}
+
+/**
+ * Structuur- en duplicaatfouten van één graaf, per sleutel die zegt WAT er mis is (reden + relatie-
+ * id + eindpunten, resp. de set dubbele relaties). Zo ziet de eindcontrole of een fout er vóór de
+ * bewerking al was.
+ */
+function structuralGraphErrors(graph: RelationGraph): Map<string, RelationTokenError> {
+  const errors = new Map<string, RelationTokenError>();
+  const tasksById = new Map(graph.tasks.map(task => [task.id, task] as const));
   const seenExact = new Map<string, Sequence[]>();
-  for (const sequence of input.sequences) {
+  for (const sequence of graph.sequences) {
     const structure = relationStructureVerdict(id => tasksById.get(id), sequence);
     if (!structure.ok) {
-      errors.push(globalError(structure.reason === 'unknown-task' ? 'unknownTask' : structure.reason, sequence.id));
+      const code = structure.reason === 'unknown-task' ? 'unknownTask' : structure.reason;
+      errors.set(`${code}\0${sequence.id}\0${internalEndpointKey(sequence)}`, globalError(code, sequence.id));
       continue;
     }
     const key = internalExactKey(sequence);
@@ -374,18 +379,56 @@ export function validateFinalRelationGraph(input: {
     else seenExact.set(key, [sequence]);
   }
   for (const duplicates of seenExact.values()) {
-    if (duplicates.length > 1) errors.push(globalError('duplicate', duplicates.map(sequence => sequence.id)));
+    if (duplicates.length < 2) continue;
+    const ids = duplicates.map(sequence => sequence.id);
+    errors.set(`duplicate\0${[...ids].sort().join('\0')}`, globalError('duplicate', ids));
   }
-  if (errors.length > 0) return { ok: false, errors };
+  return errors;
+}
+
+/**
+ * Valideert één uiteindelijke interne relatietoestand. Deze grens wordt zowel door de publieke
+ * enkel-celplanner als éénmaal na alle relationele writes van een atomaire paste gebruikt.
+ *
+ * Alleen fouten die de bewerking zelf TOEVOEGT tellen: de eindgraaf wordt gelegd naast `before`,
+ * de graaf van vóór de bewerking (audit taakmutaties, bevinding 3). Een bewust bewaarde relatie
+ * tussen een taak en zijn eigen fase (uit een import, of doordat verhangen haar zo maakte) of een
+ * al bestaande kring blokkeerde anders ELKE relatiecel in het document — ook tussen taken die er
+ * niets mee te maken hebben, met een melding over "de eigen samenvattende taak". Herstellen (een
+ * bestaande kring of voorouder-relatie wegnemen) blijft vanzelf toegestaan: dat voegt niets toe.
+ *
+ * Kosten: zonder fouten in de eindgraaf is dit exact de oude controle; de graaf van vóór wordt
+ * alleen doorgerekend als de eindgraaf een fout bevat.
+ */
+export function validateFinalRelationGraph(input: RelationGraph & {
+  /** De graaf van vóór de bewerking. */
+  before: RelationGraph;
+}): GridResult<void, readonly RelationTokenError[]> {
+  const structural = structuralGraphErrors(input);
+  if (structural.size > 0) {
+    const existing = structuralGraphErrors(input.before);
+    const introduced = [...structural].filter(([key]) => !existing.has(key)).map(([, error]) => error);
+    if (introduced.length > 0) return { ok: false, errors: introduced };
+  }
 
   const expanded = expandSummaryRelations(input.tasks, input.sequences);
+  let expandedBefore: ExpandSummaryRelationsResult | undefined;
+  const beforeExpansion = () => {
+    expandedBefore ??= expandSummaryRelations(input.before.tasks, input.before.sequences);
+    return expandedBefore;
+  };
   if (expanded.droppedSequenceIds.length > 0) {
-    errors.push(globalError('unrepresentableSummaryRelation', expanded.droppedSequenceIds));
-  } else {
-    const cycle = detectCycleInEdges(expanded.sequences);
-    if (cycle) errors.push(globalError('cycle', cycle, cycle));
+    const droppedBefore = new Set(beforeExpansion().droppedSequenceIds);
+    const introduced = expanded.droppedSequenceIds.filter(id => !droppedBefore.has(id));
+    if (introduced.length > 0) {
+      return { ok: false, errors: [globalError('unrepresentableSummaryRelation', introduced)] };
+    }
   }
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: undefined };
+  if (detectCycleInEdges(expanded.sequences)) {
+    const cycle = detectIntroducedCycle(beforeExpansion().sequences, expanded.sequences);
+    if (cycle) return { ok: false, errors: [globalError('cycle', cycle, cycle)] };
+  }
+  return { ok: true, value: undefined };
 }
 
 function planRelationSetCore(
@@ -406,6 +449,22 @@ function planRelationSetCore(
 
   const desiredInternal: DesiredInternal[] = [];
   const desiredExternal: DesiredExternal[] = [];
+  let relationIndex = input.relationIndex;
+  const readRelationIndex = (): TaskRelationIndex => {
+    relationIndex ??= buildTaskRelationIndex(input.tasks, input.sequences);
+    return relationIndex;
+  };
+  let endpointsInCell: Set<string> | undefined;
+  /** Eindpunten van de interne relaties die nu al in deze cel staan; pas opgebouwd als nodig. */
+  const existingEndpointsInCell = (): ReadonlySet<string> => {
+    if (!endpointsInCell) {
+      endpointsInCell = new Set();
+      for (const entry of taskRelations(readRelationIndex(), input.ownerTaskId, input.direction)) {
+        if (entry.kind === 'internal') endpointsInCell.add(internalEndpointKey(entry.sequence));
+      }
+    }
+    return endpointsInCell;
+  };
   for (const token of input.tokens) {
     if (token.kind === 'internal') {
       const metadataTask = token.taskId ? tasksById.get(token.taskId) : undefined;
@@ -433,7 +492,13 @@ function planRelationSetCore(
       const structure = relationStructureVerdict(
         id => tasksById.get(id), { predecessorId, successorId },
       );
-      if (!structure.ok) {
+      // Een relatie die al in deze cel stond, is geen nieuwe voorouder-relatie: een bewust bewaarde
+      // (geïmporteerde of door verhangen ontstane) relatie blijft bewerkbaar, zoals MCP
+      // `update_dependencies` dat ook toestaat. Een extra relatie tussen hetzelfde paar komt als
+      // nieuwe relatie alsnog in de eindgraafcontrole terecht.
+      const keptAncestor = !structure.ok && structure.reason === 'ancestor'
+        && existingEndpointsInCell().has(internalEndpointKey({ predecessorId, successorId }));
+      if (!structure.ok && !keptAncestor) {
         errors.push(tokenError(token, structure.reason === 'unknown-task' ? 'unknownTask' : structure.reason));
         continue;
       }
@@ -490,10 +555,9 @@ function planRelationSetCore(
   ), errors);
   if (errors.length > 0) return { ok: false, errors };
 
-  const relationIndex = input.relationIndex ?? buildTaskRelationIndex(input.tasks, input.sequences);
   const oldInternal: Sequence[] = [];
   const oldExternal: ExternalLink[] = [];
-  for (const entry of taskRelations(relationIndex, input.ownerTaskId, input.direction)) {
+  for (const entry of taskRelations(readRelationIndex(), input.ownerTaskId, input.direction)) {
     if (entry.kind === 'internal') oldInternal.push(entry.sequence);
     else oldExternal.push(entry.link);
   }
@@ -583,7 +647,9 @@ function planRelationSetCore(
   finalSequences.push(...finalDesiredSequences);
 
   if (validateFinalGraph) {
-    const validated = validateFinalRelationGraph({ tasks: input.tasks, sequences: finalSequences });
+    const validated = validateFinalRelationGraph({
+      tasks: input.tasks, sequences: finalSequences, before: { tasks: input.tasks, sequences: input.sequences },
+    });
     if (!validated.ok) return validated;
   }
 

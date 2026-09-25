@@ -11,10 +11,19 @@ import './domStub';
 //      kring vooraf, over de geëxpandeerde bladgraaf (een samenvattingseindpunt telt mee), en ALLEEN
 //      voor de kring die de nieuwe relatie zelf sluit: een al bestaande kring elders (bv. uit een
 //      import) blokkeert geen onschuldige relatie.
+//   2. HIËRARCHIE (bevinding 3). Een bestaande relatie kan door verhangen (inspringen, rij slepen,
+//      ouder kiezen in "Taak bewerken", MCP move_task) een relatie tussen een taak en zijn eigen
+//      (voor)ouder worden. Die telt dan niet meer mee — bewust bewaard, zoals bij een import — maar
+//      dat gebeurde stil, en daarna weigerde het taakraster ELKE relatiebewerking in het document
+//      (ook tussen ongerelateerde taken) met de tekst "eigen samenvattende taak". Nu meldt het
+//      verhangen hoeveel relaties niet meer meetellen, en telt het raster alleen de fouten die de
+//      bewerking zelf toevoegt.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
+import { runGridMutation } from '@/state/gridTransaction';
 import { createRelationDraftWithFeedback, createRelationWithFeedback } from '@/state/relationActions';
+import type { RelationSetIntent } from '@/types/taskGrid';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -134,6 +143,102 @@ function clearNotes(): void {
     key: 'notifications.relationCycle', params: { cycle: 'D → X → C → D' },
   });
 }
+
+// ── Hulpjes voor de rastercellen ─────────────────────────────────────────────────────────────
+const wbs = (id: string) => S().tasks.find(t => t.id === id)!.wbsCode;
+/** Zet de voorgangerscel van `taskId` via de echte gridtransactie; 'ok' of de foutcodes. */
+function gridPredecessors(taskId: string, tokens: readonly { id: string; lag?: string }[]): string {
+  const intent: RelationSetIntent = {
+    kind: 'relation-set', taskId, direction: 'predecessor',
+    value: tokens.map((token, index) => ({
+      kind: 'internal', wbsCode: wbs(token.id), relType: 'FS', lagText: token.lag ?? '',
+      source: { index, start: index * 10, end: index * 10 + 5, text: `${wbs(token.id)} FS${token.lag ?? ''}` },
+    })),
+  };
+  const result = S().runGridMutation([intent]);
+  return result.ok ? 'ok' : result.errors.map(error => error.code).join(',');
+}
+const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relationsExcludedByHierarchy');
+
+// ── 4. Inspringen onder de eigen voorganger (rapport S2): melding + raster blijft bruikbaar ────
+{
+  fresh();
+  const a = S().addTask({ name: 'Grondwerk' });
+  const b = S().addTask({ name: 'Fundering' });
+  const x = S().addTask({ name: 'Steigerbouw' });
+  const y = S().addTask({ name: 'Dakwerk' });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  S().runCPM();
+  clearNotes();
+  S().indentTasks([b]);
+  eq('4.1 opzet: Fundering hangt onder Grondwerk', S().tasks.find(t => t.id === b)!.parentId, a);
+  eq('4.2 de relatie blijft bewaard (niet stil weggegooid)', pairs(), ['Grondwerk→Fundering']);
+  eq('4.3 inspringen meldt dat één relatie niet meer meetelt', hierarchyNotes(), [{
+    key: 'notifications.relationsExcludedByHierarchy', params: { count: 1 },
+  }]);
+
+  // Het raster: een voorganger tussen twee taken die er niets mee te maken hebben.
+  eq('4.4 raster: Steigerbouw als voorganger van Dakwerk mag', gridPredecessors(y, [{ id: x }]), 'ok');
+  eq('4.5 en staat er', pairs().includes('Steigerbouw→Dakwerk'), true);
+  // De cel van Fundering zelf: de bestaande voorouder-relatie blijft staan terwijl er een bij komt,
+  // en haar lag is nog te wijzigen (zoals MCP update_dependencies dat al toestond).
+  eq('4.6 raster: cel met de bestaande voorouder-relatie plus een nieuwe', gridPredecessors(b, [{ id: a }, { id: x }]), 'ok');
+  eq('4.7 raster: lag van de bestaande voorouder-relatie wijzigen', gridPredecessors(b, [{ id: a, lag: '+2d' }, { id: x }]), 'ok');
+  eq('4.8 de voorouder-relatie is dezelfde relatie gebleven, nu met lag', S().sequences
+    .filter(q => q.predecessorId === a && q.successorId === b).map(q => q.lagDays), [2]);
+  // Een NIEUWE voorouder-relatie blijft geweigerd.
+  const c = S().addTask({ name: 'Uitzetten', parentId: a });
+  eq('4.9 raster: nieuwe relatie naar de eigen fase blijft geweigerd', gridPredecessors(c, [{ id: a }]), 'ancestor');
+}
+
+// ── 5. Een al bestaande kring blokkeert het raster niet meer; een nieuwe wel ──────────────────
+{
+  fresh();
+  const x = S().addTask({ name: 'X' });
+  const y = S().addTask({ name: 'Y' });
+  const c = S().addTask({ name: 'C' });
+  const d = S().addTask({ name: 'D' });
+  useAppStore.setState(state => {
+    state.sequences.push(
+      { id: 'imp-xy', predecessorId: x, successorId: y, type: 'FINISH_START', lagDays: 0 },
+      { id: 'imp-yx', predecessorId: y, successorId: x, type: 'FINISH_START', lagDays: 0 },
+    );
+  });
+  eq('5.1 raster: C als voorganger van D (los van de kring) mag', gridPredecessors(d, [{ id: c }]), 'ok');
+  eq('5.2 raster: D als voorganger van C sluit een nieuwe kring', gridPredecessors(c, [{ id: d }]), 'cycle');
+  eq('5.3 raster: de bestaande kring herstellen (cel leegmaken) mag', gridPredecessors(x, []), 'ok');
+  eq('5.4 daarna geen kring meer', pairs().sort(), ['C→D', 'X→Y']);
+}
+
+// ── 6. Ook rij slepen en "Taak bewerken" (moveTask) melden het; een gewone verhanging niet ─────
+{
+  fresh();
+  const a = S().addTask({ name: 'A' });
+  const b = S().addTask({ name: 'B' });
+  const los = S().addTask({ name: 'Los' });
+  S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+  clearNotes();
+  S().indentTasks([los]); // Los onder B: raakt geen relatie
+  eq('6.1 verhangen zonder gevolgen voor relaties meldt niets', hierarchyNotes(), []);
+  S().outdentTasks([los]);
+
+  S().moveTaskTo(b, { parentId: a, childIndex: 0 });
+  eq('6.2 rij slepen (moveTaskTo) meldt het', hierarchyNotes().map(n => n.params), [{ count: 1 }]);
+  S().undo();
+  clearNotes();
+  S().moveTasksTo([b], { parentId: a, childIndex: 0 });
+  eq('6.3 selectie slepen (moveTasksTo) meldt het', hierarchyNotes().map(n => n.params), [{ count: 1 }]);
+  S().undo();
+  clearNotes();
+  S().moveTask(a, b); // "Bovenliggende taak" in Taak bewerken / MCP move_task: A onder B
+  eq('6.4 ouder kiezen (moveTask) meldt het, ook als de voorganger onder de opvolger gaat', hierarchyNotes().map(n => n.params), [{ count: 1 }]);
+  clearNotes();
+  S().moveTask(los, b); // B was al samenvatting van A; de relatie telde al niet mee
+  eq('6.5 een relatie die al niet meetelde, wordt niet opnieuw gemeld', hierarchyNotes(), []);
+}
+
+// Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.
+ok('runGridMutation-export bestaat', typeof runGridMutation === 'function');
 
 if (diffs.length > 0) {
   console.log(`XX  relation-routes: ${diffs.length} afwijking(en) van ${checks}`);

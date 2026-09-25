@@ -735,7 +735,10 @@ export function prepareGridMutation(
       }
     }
     if (errors.length === 0 && appliedRelationWrites.length > 0) {
-      const finalGraph = validateFinalRelationGraph({ tasks: draft.tasks, sequences: draft.sequences });
+      // Alleen fouten die deze mutatie toevoegt: `state` is de graaf van vóór de transactie.
+      const finalGraph = validateFinalRelationGraph({
+        tasks: draft.tasks, sequences: draft.sequences, before: { tasks: state.tasks, sequences: state.sequences },
+      });
       if (!finalGraph.ok) errors.push(...relationCellErrors(finalGraph.errors));
     }
     if (errors.length === 0 && appliedRelationWrites.length > 1) {

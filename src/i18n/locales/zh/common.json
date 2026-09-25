@@ -26,6 +26,7 @@
     "relationDuplicate": "该关系已存在",
     "relationAncestorEndpoint": "不允许在任务与其自身的（上级）汇总任务之间建立关系。",
     "relationCycle": "此关系会在计划中形成循环（{{cycle}}），因此未创建。",
+    "relationsExcludedByHierarchy_other": "移动后，有 {{count}} 个关系将任务与其自身的上级汇总任务相连；这些关系不再参与计算。",
     "summaryRelationsDropped": "{{total}} 个关系未能计入计算。请检查前置任务和后续任务列。",
     "relationsSkippedOnInsert_other": "有 {{count}} 个关系未创建：链接无效（例如任务链接到其自身的（祖）父级摘要任务，或重复关系）。",
     "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",

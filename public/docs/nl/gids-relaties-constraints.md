@@ -39,6 +39,12 @@ bestand toch zo'n relatie — bijvoorbeeld uit Primavera P6 of MS Project, die d
 blijft hij bewaard en gaat hij bij het opslaan gewoon weer mee, maar hij telt niet mee in de
 berekening: de relatiewaarschuwingenkolom in de taakgrid markeert hem als *niet meegerekend*.
 
+Zo'n relatie kan ook ontstaan als je een taak verhangt: spring je een taak in onder zijn eigen
+voorganger of opvolger, sleep je hem daaronder, of kies je die taak als bovenliggende taak, dan gaat
+dat gewoon door. De bestaande relatie blijft bewaard, maar telt vanaf dan niet meer mee; een melding
+vertelt hoeveel relaties dat zijn. Zo'n bewaarde relatie houdt de taakgrid niet tegen: je kunt de
+andere relaties gewoon blijven bewerken, en ook type en lag van de bewaarde relatie zelf.
+
 ## Lag en lead
 
 Een relatie hoeft niet op nul te staan: een **lag** (positief) voegt wachttijd toe tussen voorganger en opvolger, een **lead** (negatief, uitgedrukt als een negatief getal) laat de opvolger juist eerder beginnen — een bewuste overlap. Het lag-veld (**Lag**, in het eigenschappenpaneel en in de editor van een voorganger-/opvolgercel) accepteert een korte notatie:
