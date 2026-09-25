@@ -60,6 +60,17 @@ precision of a **leveling delay**, **task splits**, and **resume/stop** resumpti
 doesn't fit. The raw Start/Finish dates of a manually scheduled task do stay put; only the fact
 that they're manual is lost.
 
+Predecessors use the same short notation as the lag field (see the **Relations & constraints**
+guide): `+3d` (working days), `+3ed` (calendar days), `+2u` and `+2eu` (working and calendar hours;
+`h` is also accepted when opening) and `+50%`. That way a lag in hours comes along too, for instance
+from an MS Project file. When you **open** a CSV, a column with `%` in its header (such as
+*Completion (%)*) is always a percentage — `1` means 1 %, exactly as in **Update progress from a
+spreadsheet**; only a header without `%` may also hold a fraction between 0 and 1. A decimal comma
+(`2,5` days, `33,4` %) is read in a CSV that uses `;` as its separator, and in a CSV that uses `,`
+when the cell is quoted. A number like `"1,250"` in such a comma file could mean either 1.25 or
+1250; where both readings are possible the import doesn't guess: the column gets its default value
+instead and the developer console reports the cell.
+
 ### MS Project XML (MSPDI)
 
 MSPDI is considerably richer than CSV: resources, assignments (including their loading curve),

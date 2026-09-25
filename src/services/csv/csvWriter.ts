@@ -6,6 +6,7 @@ import { Project } from '@/types/project';
 import { WorkCalendar } from '@/types/calendar';
 import type { CustomTaskType } from '@/types/taskType';
 import { flattenOrder, taskDepths } from '@/utils/wbs';
+import { formatLagShort } from '@/utils/lagFormat';
 
 const DELIMITER = ';';
 const BOM = '\uFEFF';
@@ -26,8 +27,6 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
   }
 }
 
-// MS Project-notatie, symmetrisch met parsePredecessorString in csvReader:
-// d = werkdagen, ed = kalenderdagen (elapsed), % = procent van voorgangerduur, e% = elapsed-procent.
 /**
  * Completion (%) — besluit 2026-09-05 (gebruikstest): terug naar HELE procenten, geen decimalen.
  * De tussentijdse fixronde (N-B) liet dit tot 4 decimalen schrijven om "100 op 99,5% is stil een
@@ -42,15 +41,6 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
  */
 export function formatCompletionPercent(completion: number): string {
   return String(Math.round(completion * 100));
-}
-
-function formatLag(seq: Sequence): string {
-  const e = seq.lagUnit === 'ELAPSEDTIME' ? 'e' : '';
-  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
-    return `${seq.lagPercent >= 0 ? '+' : ''}${seq.lagPercent}${e}%`;
-  }
-  if (seq.lagDays === 0) return '';
-  return `${seq.lagDays > 0 ? '+' : ''}${seq.lagDays}${e}d`;
 }
 
 export function writeCSV(
@@ -103,7 +93,12 @@ export function writeCSV(
     const predTask = taskByIdMap.get(seq.predecessorId);
     if (!predTask) continue;
     const abbrev = sequenceTypeToAbbrev(seq.type);
-    const lag = formatLag(seq);
+    // De korte lag-notatie van de app (MS Project-stijl, symmetrisch met `parseLagInput`, waarmee
+    // `readCSV` hem terugleest): d = werkdagen, ed = kalenderdagen, u/eu = (elapsed) uren,
+    // % / e% = procent van de voorgangerduur. Audit import/export (bevinding 4): de eigen kopie
+    // hiervan kende geen `lagMinutes`, dus elke uur-lag — en in een uurproject óók elke dag-lag,
+    // die daar in minuten staat — verdween stil uit de export.
+    const lag = formatLagShort(seq);
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
       predMap.set(seq.successorId, []);

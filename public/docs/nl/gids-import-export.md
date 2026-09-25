@@ -61,6 +61,17 @@ hervattingsdata uit een `.mpp`-import — CSV heeft alleen plaats voor Start/Ein
 dus die extra informatie past er sowieso niet in. De rauwe Start/Einde-datums van een handmatig
 geplande taak blijven wél gewoon staan; alleen het feit dát ze handmatig zijn, gaat verloren.
 
+De voorgangers staan in dezelfde korte notatie als het lag-veld (zie de gids **Relaties &
+constraints**): `+3d` (werkdagen), `+3ed` (kalenderdagen), `+2u` en `+2eu` (werk- en kalenderuren;
+bij het openen mag ook `h`) en `+50%`. Zo gaat ook een lag in uren mee, bijvoorbeeld uit een MS
+Project-bestand. Bij het **openen** van een CSV is een kolom met `%` in de kop (zoals *Completion
+(%)*) altijd een percentage — `1` is 1 %, precies zoals bij **Voortgang bijwerken uit een blad**;
+alleen een kop zonder `%` mag ook een fractie tussen 0 en 1 bevatten. Een decimale komma (`2,5`
+dagen, `33,4` %) wordt gelezen in een CSV met `;` als scheidingsteken, en in een CSV met `,` wanneer
+de cel tussen aanhalingstekens staat. Een getal als `"1,250"` in zo'n komma-bestand kan zowel 1,25
+als 1250 betekenen; waar beide lezingen mogelijk zijn, raadt de import niet: de kolom krijgt dan
+zijn standaardwaarde en de ontwikkelaarsconsole meldt de cel.
+
 ### MS Project XML (MSPDI)
 
 MSPDI is aanzienlijk rijker dan CSV: resources, toewijzingen (inclusief belastingscurve), kalenders
