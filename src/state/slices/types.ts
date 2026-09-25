@@ -241,7 +241,20 @@ export type NotificationMessageKey =
   | 'notifications.levelingDelayRoundedToWorkdays'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
-  | 'notifications.exportSplitsLost';
+  | 'notifications.exportSplitsLost'
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is bij het
+  // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
+  // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
+  // de melding als detail in een bestaande bestandsmelding landt.
+  | 'notifications.xerArchiveUnusable'
+  | 'notifications.xerArchiveUnusableLine'
+  | 'notifications.xerArchiveUnusableConsequence'
+  | 'notifications.xerArchiveReasonSchemaVersion'
+  | 'notifications.xerArchiveReasonHashMismatch'
+  | 'notifications.xerArchiveReasonTruncated'
+  | 'notifications.xerArchiveReasonBytesMissing'
+  | 'notifications.xerArchiveReasonMetadataInvalid'
+  | 'notifications.xerArchiveReasonStructure';
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */

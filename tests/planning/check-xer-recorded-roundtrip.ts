@@ -26,7 +26,9 @@
  *  6. MUTATIEBEWIJS: één gewijzigde orakelcel in de bron verplaatst de vastlegging over de hele
  *     keten heen WÉL, maar het `cpmResult` ná `runCPM` GEEN millimeter.
  *  7. Hardening: de sha256-poort op het archief geldt ook voor de vastlegging — een gemanipuleerde
- *     archiefchunk wordt geweigerd in plaats van stil een andere vastlegging op te leveren.
+ *     archiefchunk levert NOOIT stil een andere vastlegging op: sinds het eigenaarsbesluit van
+ *     2026-09-24 ("openen met melding") valt het hele archief (en dus élke vastlegging) weg, met
+ *     een `hash-mismatch`-signaal, terwijl het project zelf gewoon opent.
  *
  * Deze check leest de ECHTE productiebeslissing (`payload.datesAsRecorded` +
  * `payload.recordedDates`) rechtstreeks van de store af — geen losse `modeVerdict`-spiegeling meer
@@ -35,6 +37,7 @@
  * `restoredMode`, plus `applyRestoredRecordedMode` voor slapende documenten). Rechtstreeks aflezen
  * toetst dus de werkelijke bedrading, niet een kopie ervan.
  */
+import { archiveDropped } from './xerArchiveFallbackAssert';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
 import type { RecordedTime } from '@/engine/scheduler/recordedDates';
@@ -456,16 +459,15 @@ eq('7d het cpmResult ná runCPM is byte-gelijk — de gemuteerde P6-uitvoer raak
 
 // ── 8. Hardening: de sha256-poort dekt ook de vastlegging ────────────────────────────────────
 // Manipuleer één base64-teken van de eerste archiefchunk. De reconstructie mag dan NIET stil een
-// andere vastlegging opleveren, maar moet de hele lezing weigeren.
+// andere vastlegging opleveren: het archief valt weg (geen `recordedTimes`), met hash-mismatch.
 const chunkMatch = /IFCPROPERTYSINGLEVALUE\('ByteChunk000000',\$,IFCTEXT\('([A-Za-z0-9+/=]+)'\)/.exec(ifcOutsideMode);
 expect('8a de fixture-IFC draagt een leesbare archiefchunk', chunkMatch !== null);
 if (chunkMatch) {
   const chunk = chunkMatch[1]!;
   const flipped = (chunk[0] === 'A' ? 'B' : 'A') + chunk.slice(1);
   const tampered = ifcOutsideMode.replace(`IFCTEXT('${chunk}')`, `IFCTEXT('${flipped}')`);
-  let threw = false;
-  try { readXerArchiveIFC(tampered); } catch { threw = true; }
-  expect('8b een gemanipuleerde archiefchunk wordt geweigerd i.p.v. stil anders gelezen', threw);
+  const verdict = archiveDropped(() => readXerArchiveIFC(tampered), { code: 'hash-mismatch' });
+  expect(`8b een gemanipuleerde archiefchunk levert geen vastlegging meer op (archief weg, hash-mismatch) i.p.v. stil anders gelezen${verdict.ok ? '' : ` — ${verdict.why}`}`, verdict.ok);
 }
 
 // ── 9. Meerprojecten-XER: elk document krijgt de vastlegging van ZIJN EIGEN project ──────────

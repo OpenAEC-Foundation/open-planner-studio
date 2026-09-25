@@ -468,9 +468,27 @@ function projectIds(archive: XerSourceArchive): string[] {
   return Array.from(ids).sort();
 }
 
+/** Eigenaarsbesluit 2026-09-24 ("openen met melding"): onderscheid "nooit een XER-bron" van "er
+ *  WAS een archief, maar het was bij het openen onbruikbaar". De code komt uit de gesloten unie
+ *  `XerArchiveIssueCode` en is dus veilig letterlijk te tonen; de technische `detail` bevat
+ *  bestandsgestuurde namen en blijft daarom buiten deze tool. */
+function missingArchiveNote(state: AppState): string {
+  const issue = state.xerArchiveIssue;
+  return issue
+    ? `Geen archief (onbruikbaar bij openen: ${issue.code}). Het IFC droeg een XER-bronarchief dat ` +
+      'niet valideerde en daarom is weggelaten; de planning komt volledig uit het IFC. ' +
+      'Importeer de originele .xer opnieuw om de bronherkomst terug te krijgen.'
+    : 'Er is voor dit document geen retained XER-bronarchief beschikbaar.';
+}
+
 function requireArchive(state: AppState): XerSourceArchive {
   if (!state.xerSourceArchive) {
-    throw new XerProvenanceError('NOT_FOUND', 'Het actieve document bevat geen retained XER-bron.');
+    throw new XerProvenanceError(
+      'NOT_FOUND',
+      state.xerArchiveIssue
+        ? missingArchiveNote(state)
+        : 'Het actieve document bevat geen retained XER-bron.',
+    );
   }
   return state.xerSourceArchive;
 }
@@ -498,7 +516,9 @@ function summary(state: AppState, archive: XerSourceArchive | null): unknown {
       false,
       budget,
     ) as Record<string, unknown>;
-    sanitized.note = 'Er is voor dit document geen retained XER-bronarchief beschikbaar.';
+    sanitized.note = missingArchiveNote(state);
+    // Statisch, na het saneren (net als `note`): `code` is een gesloten enum, geen bronstring.
+    sanitized.archiveIssue = state.xerArchiveIssue ? { code: state.xerArchiveIssue.code } : null;
     return finalizeBounded(sanitized);
   }
   const readModel = archive.readModel;
@@ -795,7 +815,10 @@ export const xerProvenanceTools: McpToolDef[] = [{
     'al 192 KiB bron ≈ 256 kB base64) en is in plaats daarvan begrensd op maximaal acht vaste ' +
     'base64-chunks per antwoord (tot ±2,1 MB; kies een kleinere `limit` voor kleinere antwoorden); ' +
     'hij meldt de privacygrens. De tool gebruikt alleen retained state, muteert de store niet, voert geen CPM uit ' +
-    'en ondersteunt geen schrijfpad. Niet batchable: roep hem los aan, nooit als stap in `planner_batch`.',
+    'en ondersteunt geen schrijfpad. Zonder archief meldt summary `sourcePresent:false` met ' +
+    '`archiveIssue` (`null`, of `{ code }` wanneer een aanwezig archief bij het openen onbruikbaar was ' +
+    'en is weggelaten — codes: schema-version, hash-mismatch, truncated, bytes-missing, ' +
+    'metadata-invalid, structure). Niet batchable: roep hem los aan, nooit als stap in `planner_batch`.',
   kind: 'read',
   batchable: false,
   inputSchema,

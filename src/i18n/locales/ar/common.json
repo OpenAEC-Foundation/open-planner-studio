@@ -176,7 +176,16 @@
     "levelingDelayRoundedToWorkdays_two": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمتين إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_few": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهام إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
-    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة."
+    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة.",
+    "xerArchiveUnusable": "أرشيف مصدر XER في هذا الملف غير صالح للاستخدام وتم استبعاده؛ أما المشروع نفسه فقد فُتح بالكامل.",
+    "xerArchiveUnusableLine": "كان أرشيف مصدر XER في هذا الملف غير صالح للاستخدام وتم استبعاده.",
+    "xerArchiveUnusableConsequence": "الجدول الزمني وجميع بيانات المشروع من IFC كاملة. ما ينقص: التواريخ كما حفظها Primavera، ومصدر المنشأ للذكاء الاصطناعي والإضافات. يكتب الحفظ الملف دون الأرشيف؛ استورد ملف ‎.xer الأصلي مرة أخرى لاستعادة الأرشيف.",
+    "xerArchiveReasonSchemaVersion": "السبب: للأرشيف إصدار مخطط أو تنسيق غير معروف (برنامج كتابة أحدث أو مختلف).",
+    "xerArchiveReasonHashMismatch": "السبب: المجموع الاختباري لا يطابق بايتات المصدر — الأرشيف تالف.",
+    "xerArchiveReasonTruncated": "السبب: الأرشيف مقطوع — جزء من بايتات المصدر مفقود.",
+    "xerArchiveReasonBytesMissing": "السبب: بايتات المصدر نفسها مفقودة — على الأرجح أعاد برنامج IFC آخر كتابة الملف.",
+    "xerArchiveReasonMetadataInvalid": "السبب: بايتات المصدر سليمة، لكن البيانات المشتقة منها غير صالحة للاستخدام.",
+    "xerArchiveReasonStructure": "السبب: بنية الأرشيف داخل IFC غير صحيحة (مكررة أو معاد ترتيبها أو مرتبطة بشكل خاطئ)."
   },
   "yes": "نعم",
   "no": "لا",

@@ -5,6 +5,7 @@ import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { XER_IMPORT_HELP_ARTICLE_ID, withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -62,8 +63,9 @@ export function isActivePristine(s: AppState): boolean {
   );
 }
 
-/** De in-app gids achter de ene bestandsbrede XER-openingsmelding. */
-export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
+// De in-app gids achter de XER-meldingen woont sinds de archief-terugval (2026-09-24) in de
+// bladmodule `xerArchiveIssueNotice.ts`; hier her-exporteren voor bestaande importeurs.
+export { XER_IMPORT_HELP_ARTICLE_ID };
 
 /**
  * Vorm één gebruikerszichtbaar verslag uit uitsluitend de feiten die de XER-lezer bestandsbreed
@@ -522,7 +524,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
       // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
-      const notice = xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal);
+      // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is
+      // weggelaten door `readIFC`; dat meldt zich als detailregels in de bestandsmelding als die er
+      // is, anders als eigen melding. Nooit stil — zie `withXerArchiveIssueNotice`.
+      const notice = withXerArchiveIssueNotice(
+        xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+        results.map(result => result.xerArchiveIssue),
+      );
       if (notice) get().notify(notice);
 
       const activeIndex = isMultiDocumentImport(parsed) ? parsed.activeDocumentIndex : 0;
@@ -1016,6 +1024,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           fit: true,
           hourDataNotice: true,
         });
+        const archiveNotice = withXerArchiveIssueNotice(undefined, [parsed.xerArchiveIssue]);
+        if (archiveNotice) get().notify(archiveNotice);
       } catch (err) {
         console.error(`Failed to open example "${name}":`, err);
         // `params: { name }` achterwege gelaten: de bestaande `notifications.openFailed`-string

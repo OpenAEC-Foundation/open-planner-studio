@@ -88,7 +88,16 @@
     "pasteSkippedReadOnly_other": "{{count}} Zellen übersprungen: Sie sind schreibgeschützt (z. B. ein automatisch nummerierter PSP-Code oder eine berechnete Spalte).",
     "librarySaveFailed": "Bibliothek konnte nicht gespeichert werden",
     "levelingDelayRoundedToWorkdays_one": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgang auf ganze Arbeitstage.",
-    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage."
+    "levelingDelayRoundedToWorkdays_other": "Der Ressourcenabgleich rundet die minutengenaue Abgleichverzögerung aus MS Project für {{count}} Vorgänge auf ganze Arbeitstage.",
+    "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
+    "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",
+    "xerArchiveUnusableConsequence": "Terminplan und alle Projektdaten aus der IFC sind vollständig. Es fehlen: die Termine, wie Primavera sie gespeichert hat, und die Quellherkunft für KI und Erweiterungen. Beim Speichern wird die Datei ohne Archiv geschrieben; importieren Sie die ursprüngliche .xer erneut, um das Archiv zurückzubekommen.",
+    "xerArchiveReasonSchemaVersion": "Grund: Das Archiv hat eine unbekannte Schemaversion oder ein unbekanntes Format (neuerer oder anderer Schreiber).",
+    "xerArchiveReasonHashMismatch": "Grund: Die Prüfsumme passt nicht zu den Quellbytes — das Archiv ist beschädigt.",
+    "xerArchiveReasonTruncated": "Grund: Das Archiv ist abgeschnitten — ein Teil der Quellbytes fehlt.",
+    "xerArchiveReasonBytesMissing": "Grund: Die Quellbytes selbst fehlen — vermutlich hat ein anderes IFC-Programm die Datei neu geschrieben.",
+    "xerArchiveReasonMetadataInvalid": "Grund: Die Quellbytes sind intakt, aber die daraus abgeleiteten Daten sind unbrauchbar.",
+    "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft)."
   },
   "yes": "Ja",
   "no": "Nein",

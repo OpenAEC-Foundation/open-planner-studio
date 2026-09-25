@@ -110,7 +110,16 @@
     "librarySaveFailed": "La bibliothèque n'a pas pu être enregistrée",
     "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
-    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières."
+    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "xerArchiveUnusable": "L'archive source XER de ce fichier est inutilisable et a été omise ; le projet lui-même s'est ouvert en entier.",
+    "xerArchiveUnusableLine": "L'archive source XER de ce fichier était inutilisable et a été omise.",
+    "xerArchiveUnusableConsequence": "Le planning et toutes les données de projet de l'IFC sont complets. Ce qui manque : les dates telles que Primavera les a enregistrées et la provenance source pour l'IA et les extensions. L'enregistrement écrit le fichier sans l'archive ; importez à nouveau le .xer d'origine pour récupérer l'archive.",
+    "xerArchiveReasonSchemaVersion": "Raison : l'archive a une version de schéma ou une structure inconnue (rédacteur plus récent ou différent).",
+    "xerArchiveReasonHashMismatch": "Raison : la somme de contrôle ne correspond pas aux octets source — l'archive est endommagée.",
+    "xerArchiveReasonTruncated": "Raison : l'archive est tronquée — une partie des octets source manque.",
+    "xerArchiveReasonBytesMissing": "Raison : les octets source eux-mêmes manquent — un autre logiciel IFC a probablement réécrit le fichier.",
+    "xerArchiveReasonMetadataInvalid": "Raison : les octets source sont intacts, mais les données qui en sont dérivées sont inutilisables.",
+    "xerArchiveReasonStructure": "Raison : la structure de l'archive dans l'IFC est incorrecte (dupliquée, réordonnée ou mal rattachée)."
   },
   "yes": "Oui",
   "no": "Non",

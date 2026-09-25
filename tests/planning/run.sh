@@ -548,6 +548,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   IFCXERARCHIVECHECK="$DIR/.ifc-xer-archive-container.mjs"
   if bundle_check "$DIR/check-ifc-xer-archive-container.ts" "$IFCXERARCHIVECHECK"; then node "$IFCXERARCHIVECHECK" || STATUS=1; fi
 
+  # Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief gijzelt het
+  # project niet meer. Echt beschadigde fixture door productie-ingang, store, melding, documentwissel,
+  # opslaan en crashherstel.
+  XERARCHIVEFALLBACKCHECK="$DIR/.xer-archive-fallback.mjs"
+  if bundle_check "$DIR/check-xer-archive-fallback.ts" "$XERARCHIVEFALLBACKCHECK"; then node "$XERARCHIVEFALLBACKCHECK" || STATUS=1; fi
+
   # P0: corpusloze, onafhankelijke bronretentiepoort over import, edit/CPM, undo/redo,
   # documentwissel/-kopie, recovery en IFC. De STEP-envelope wordt zonder product-reader gecheckt.
   XERSOURCERETENTIONCHECK="$DIR/.xer-source-retention.mjs"

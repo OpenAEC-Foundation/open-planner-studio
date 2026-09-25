@@ -66,7 +66,16 @@
     "readMore": "詳細を見る",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
-    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
+    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
+    "xerArchiveUnusable": "このファイルの XER ソースアーカイブは使用できないため除外しました。プロジェクト自体はすべて開かれています。",
+    "xerArchiveUnusableLine": "このファイルの XER ソースアーカイブは使用できなかったため除外しました。",
+    "xerArchiveUnusableConsequence": "IFC のスケジュールとすべてのプロジェクトデータは完全です。欠けているのは、Primavera が保存したとおりの日付と、AI および拡張機能向けのソース来歴です。保存するとアーカイブなしでファイルが書き込まれます。アーカイブを戻すには元の .xer を再度インポートしてください。",
+    "xerArchiveReasonSchemaVersion": "理由: アーカイブのスキーマバージョンまたは形式が不明です（より新しい、または別の書き込みツール）。",
+    "xerArchiveReasonHashMismatch": "理由: チェックサムがソースバイトと一致しません。アーカイブが破損しています。",
+    "xerArchiveReasonTruncated": "理由: アーカイブが途中で切れています。ソースバイトの一部がありません。",
+    "xerArchiveReasonBytesMissing": "理由: ソースバイト自体がありません。別の IFC プログラムがファイルを書き換えた可能性があります。",
+    "xerArchiveReasonMetadataInvalid": "理由: ソースバイトは無傷ですが、そこから導出したデータが使用できません。",
+    "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。"
   },
   "yes": "はい",
   "no": "いいえ",

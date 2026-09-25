@@ -110,7 +110,16 @@
     "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
+    "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",
+    "xerArchiveUnusableConsequence": "Il programma e tutti i dati di progetto dell'IFC sono completi. Mancano: le date così come Primavera le ha salvate e la provenienza della sorgente per l'IA e le estensioni. Il salvataggio scrive il file senza l'archivio; importa di nuovo il .xer originale per recuperarlo.",
+    "xerArchiveReasonSchemaVersion": "Motivo: l'archivio ha una versione di schema o un formato sconosciuti (scrittore più recente o diverso).",
+    "xerArchiveReasonHashMismatch": "Motivo: il checksum non corrisponde ai byte sorgente: l'archivio è danneggiato.",
+    "xerArchiveReasonTruncated": "Motivo: l'archivio è troncato: manca una parte dei byte sorgente.",
+    "xerArchiveReasonBytesMissing": "Motivo: mancano i byte sorgente stessi; probabilmente un altro programma IFC ha riscritto il file.",
+    "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
+    "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato)."
   },
   "yes": "Sì",
   "no": "No",

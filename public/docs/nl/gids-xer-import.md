@@ -10,6 +10,7 @@ Een `.xer`-bestand is het uitwisselingsformaat van Primavera P6. Open Planner St
 - Hoe tekencodering en de P6-getalnotatie veilig worden bepaald.
 - Wat er gebeurt als de herberekening afwijkt van de datums die Primavera zelf al had opgeslagen.
 - Wat opslaan als IFC betekent en welke P6-functies nog geen eigen rekenmodel hebben.
+- Wat er gebeurt als het bewaarde XER-bronarchief in een IFC-bestand beschadigd is.
 
 ## Openen en documenten
 
@@ -85,6 +86,20 @@ Een XER-import is een **import**, geen XER-editor of XER-exporter. Wanneer je da
 Die bewaarde brondata heeft een prijs bij grote bestanden. Het volledige oorspronkelijke `.xer`-bestand reist mee in het projectbestand én in elke crashherstel-snapshot, zonder bovengrens. Gemeten op het grootste testbestand (een `.xer` van 17,7 MB met ruim 2.000 activiteiten): het IFC-projectbestand wordt ongeveer 50 MB, opslaan duurt tientallen seconden en het crashherstel schrijft dat bestand elke tien seconden opnieuw zolang je bewerkt. Bij een export met veel projecten vermenigvuldigt dat: elk geopend document draagt zijn eigen kopie. Voor de meeste planningen merk je hier niets van; werk je met een export van tientallen megabytes, houd dan rekening met een traag opslaan en een grote projectmap.
 
 Voor uitwisseling naar Primavera bestaat de bestaande **Primavera P6 XML**-export. Dat is een ander formaat met eigen beperkingen; zie [Im-/export](docs://gids-import-export). Bewaar daarom altijd ook het IFC-bestand wanneer je een bewerkt project later opnieuw wilt openen.
+
+### Als het bronarchief onbruikbaar is
+
+Het bewaarde XER-bronarchief in het IFC-bestand wordt bij elk openen gecontroleerd: op de controlesom van de bytes, de schemaversie, de volledigheid en de opbouw. Klopt daar iets niet, dan opent het project gewoon, maar **zonder** bronarchief. Je krijgt dan één melding met de reden. Dat gebeurt bijvoorbeeld als:
+
+- een ander IFC-programma het bestand heeft opgeslagen en daarbij de grote archiefwaarden liet vallen of de eigenschappen herschikte;
+- het bestand onderweg is afgekapt of beschadigd, zodat de controlesom niet meer klopt;
+- het archief door een nieuwere of andere versie is geschreven die deze versie niet kent.
+
+Wat blijft: de volledige planning uit het IFC. Taken, relaties, kalenders, resources, voortgang, baselines en de reken-opties staan allemaal in het IFC zelf en worden normaal geladen en doorgerekend.
+
+Wat ontbreekt: alles wat uit het archief zelf komt. Dat zijn de weergave **datums zoals opgeslagen** (de datums die Primavera zelf berekende), de bronherkomst voor de AI-assistent en de bronroute voor extensies. De AI-assistent en extensies zien dan niet "geen XER-bron", maar dat er een archief was dat bij het openen onbruikbaar bleek, met de reden.
+
+Wat je kunt doen: open het oorspronkelijke `.xer`-bestand opnieuw. Dan krijg je een nieuw document mét bronarchief. Heb je in het IFC al bewerkingen gedaan, dan staan die niet in dat nieuwe document. Let op: sla je het IFC zonder archief op, dan schrijft Open Planner Studio het bestand zonder archief. Het beschadigde archief wordt niet meegeschreven, en bij een volgend openen verschijnt de melding niet meer.
 
 ## Grenzen die zichtbaar blijven
 
