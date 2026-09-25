@@ -33,7 +33,8 @@ function near(label: string, actual: number | undefined, expected: number | unde
     if (actual !== expected) diffs.push(`${label}: kreeg ${String(actual)}, verwacht ${String(expected)}`);
     return;
   }
-  if (Math.abs(actual - expected) > tol) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected}`);
+  // `!(… <= tol)` i.p.v. `> tol`: NaN (een afwezig veld als `undefined / 60`) moet rood zijn, niet stil groen.
+  if (!(Math.abs(actual - expected) <= tol)) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected}`);
 }
 
 // ── (a) de meetlat als data ─────────────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ for (const c of file.cases) {
   if (rejected) { diffs.push(`${c.id}: onverwacht geweigerd (${rejected})`); continue; }
   assertExpect(c.id, state, c.expect);
 }
-ok('meetlat: precies de nummers 1…36 uit spec §9 aanwezig (32–36: kalenderwissel, eigenaarsbesluit 2026-09-05 + reviewronde F5/F11)', JSON.stringify([...new Set(file.cases.map((c) => c.nr))].sort((a, b) => a - b)) === JSON.stringify(Array.from({ length: 36 }, (_, i) => i + 1)));
+ok('meetlat: precies de nummers 1…36 uit spec §9 aanwezig (32–36: kalenderwissel, eigenaarsbesluit 2026-09-05 + reviewronde F5/F11; F5 teruggedraaid door E9 25-09)', JSON.stringify([...new Set(file.cases.map((c) => c.nr))].sort((a, b) => a - b)) === JSON.stringify(Array.from({ length: 36 }, (_, i) => i + 1)));
 ok('meetlat: geen enkele case is al gemeten (measured) — anders hoort de spec bijgewerkt', (evidenceCount.measured ?? 0) === 0);
 
 // ── (b) eigenschappen ───────────────────────────────────────────────────────────────────────────
@@ -275,13 +276,31 @@ const sansFlag = (r: TriangleResult): string => JSON.stringify(r.ok ? { ...r.sta
   const nanUnits: TriangleState = { ...base, rule: 'FIXED_WORK', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }, { id: 'x', unitsPerDay: Number.NaN, drivesDuration: true }] };
   ok('NaN-inzet in de invoer: resource erbij geweigerd, niet stil NaN-werk', !applyAssignmentAdded(nanUnits, { id: 'c', unitsPerDay: 1 }).ok);
 }
-// FIXED_RATE: een inzetwijziging schrijft géén werkveld (§4.3) — ook niet bij afronding; het werk
-// blijft afgeleid R × I en volgt de afgeronde R.
+// FIXED_RATE (E9 25-09, draait F5 terug): een inzetwijziging legt het werk van de bewerkte toewijzing
+// vast — ook bij afronding. Het veld houdt het exacte W (40 u), niet R × I van de afgeronde R (43,2 u).
 {
   const s: TriangleState = { ...base, rule: 'FIXED_RATE', assignments: [{ id: 'a', unitsPerDay: 1, drivesDuration: true }] };
   const r = applyUnitsEdit(s, 'a', 0.6);
-  ok('FIXED_RATE: inzet → 0,6 ⇒ R = 9 d, werkveld afwezig, afgeleid 43,2 u', r.ok && r.state.remainingMinutes === 4320
-    && r.state.assignments[0].remainingWorkMinutes === undefined && Math.abs(remainingWorkOf(r.state.assignments[0], 4320) - 2592) < 1e-9);
+  ok('FIXED_RATE: inzet → 0,6 ⇒ R = 9 d (40 ÷ 4,8 = 8,33), werkveld 40 u vastgelegd', r.ok && r.state.remainingMinutes === 4320
+    && r.state.assignments[0].remainingWorkMinutes === 2400);
+  // Heen en terug, en een reeks heen-en-weer: nooit oplopen (regel 3).
+  let st: TriangleState = s;
+  for (const u of [0.3, 1, 0.6, 1, 0.7, 1]) { const x = applyUnitsEdit(st, 'a', u); if (x.ok) st = x.state; }
+  ok('FIXED_RATE: inzet 1 → 0,3 → 1 → 0,6 → 1 → 0,7 → 1 ⇒ weer 5 d, werk 40 u', st.remainingMinutes === 2400 && st.assignments[0].remainingWorkMinutes === 2400);
+  let sl: TriangleState = s;
+  for (const h of [6, 8, 7, 8, 5, 8]) { const x = applySlotChange(sl, h * 60, (sl.remainingMinutes / sl.slotMinutes) * h * 60); if (x.ok) sl = x.state; }
+  ok('FIXED_RATE: kalender 8 → 6 → 8 → 7 → 8 → 5 → 8 u ⇒ weer 5 d, werk 40 u', sl.remainingMinutes === 2400 && sl.slotMinutes === 480 && sl.assignments[0].remainingWorkMinutes === 2400);
+}
+// Bekende afwijking van MS Project (beslispunt 10, geen per-toewijzingsspanne): onder FIXED_RATE met
+// TWEE toewijzingen volgt de niet-bewerkte toewijzing de langere duur met afgeleid werk (§6.2), dus
+// heen en terug op de ene blijft op de langere duur hangen. MSP houdt b's 20 u en geeft b een eigen,
+// kortere spanne; OPS kent die spanne niet. Deze pin maakt een toekomstige wijziging zichtbaar.
+{
+  const s: TriangleState = { ...base, rule: 'FIXED_RATE' };
+  const r1 = applyUnitsEdit(s, 'a', 0.5);
+  const r2 = r1.ok ? applyUnitsEdit(r1.state, 'a', 1) : r1;
+  ok('FIXED_RATE, twee toewijzingen: a 1 → 0,5 → 1 ⇒ 10 d (b afgeleid 40 u) — bekende afwijking, MSP: 5 d', r2.ok && r2.state.remainingMinutes === 4800
+    && r2.state.assignments[1].remainingWorkMinutes === undefined);
 }
 // Afronding: naar boven, nooit onder één slot; uurmodus op hele minuten.
 near('afronding: 2,5 d → 3 d', roundUpRemaining(1200, base), 1440, 0);

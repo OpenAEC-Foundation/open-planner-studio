@@ -26,6 +26,9 @@
 // "Afwezig ⇒ afgeleid": een toewijzing zonder `remainingWorkMinutes` heeft werk R × I. Een regel
 // die werk beschermt legt dat werk vast (schrijft het veld) op het moment dat ze het nodig heeft;
 // een regel die de inzet beschermt laat een afwezig veld afwezig (byte-identiek gedrag van vandaag).
+// Uitzondering sinds E9 (25-09): FIXED_RATE herleidt bij een inzet- of slotwissel de duur UIT het
+// werk van de bewerkte toewijzing en legt dat werk dan ook vast — anders rekent de volgende bewerking
+// terug uit de afgeronde R (regel 3). De ándere toewijzingen volgen nog steeds `followRule`.
 import type { WorkRule } from '@/types/workRule';
 
 export interface TriangleAssignment {
@@ -225,16 +228,14 @@ export function applyUnitsEdit(state: TriangleState, assignmentId: string, newUn
     };
     return validated({ ...state, assignments: replaceAt(state.assignments, idx, edited) });
   }
-  // Duur herleid uit W_oud / I'. FIXED_WORK legt W_oud vast (§4.3 a); FIXED_RATE beschermt de inzet
-  // en schrijft géén veld: het werk van deze toewijzing blijft afgeleid (R' × I'), zodat een
-  // afgeronde R niet een opgeslagen W achterlaat die van R × I afwijkt.
+  // Duur herleid uit W_oud / I'. Zowel FIXED_WORK als FIXED_RATE leggen W_oud vast (§4.3 a): zo rekent
+  // een volgende bewerking uit het exacte W en niet terug uit de afgeronde R (regel 3). Onder
+  // FIXED_RATE is dat MS Projects Fixed Units, dat Work per toewijzing altijd bewaart — inzet heen en
+  // terug geeft daar de oude duur (E9 25-09, Fable-review bevinding 4; draait F5 terug).
   const workBefore = remainingWorkOf(target, state.remainingMinutes);
-  const probe: TriangleAssignment = { ...target, unitsPerDay: newUnitsPerDay, remainingWorkMinutes: workBefore };
-  const R = derivedRemaining(state, replaceAt(state.assignments, idx, probe));
-  const edited: TriangleAssignment = ruleProtectsWork(state.rule)
-    ? probe
-    : { ...target, unitsPerDay: newUnitsPerDay };
+  const edited: TriangleAssignment = { ...target, unitsPerDay: newUnitsPerDay, remainingWorkMinutes: workBefore };
   const withEdit = replaceAt(state.assignments, idx, edited);
+  const R = derivedRemaining(state, withEdit);
   const assignments = followRule(state, withEdit, R, new Set([assignmentId]));
   return validated({ ...state, remainingMinutes: R, assignments });
 }
@@ -369,10 +370,11 @@ export function applyRuleChange(state: TriangleState, rule: WorkRule): TriangleR
  *  - FIXED_WORK / FIXED_RATE: werk en inzet blijven, R = max_i(W_i / I_i) in de nieuwe slot (naar
  *    boven op hele dagen) — minder uren per dag maakt de taak langer.
  * Uurtaken hebben geen slotafhankelijke duur; de aanroeper (brug) roept dit dan niet aan.
- * Twee bewuste afwijkingen van `applyDurationEdit` (reviewronde 2026-09-05, F5/F6):
- *  - FIXED_RATE schrijft — net als `applyUnitsEdit` — géén werkveld: het anker dient alleen als
- *    rekeninvoer voor R, zodat een naar boven afgeronde R niet een opgeslagen W achterlaat die van
- *    R × I afwijkt (§4.3: afwezig blijft afwezig);
+ * FIXED_WORK én FIXED_RATE leggen het anker vast als werkveld (regel 3: heen en terug van 8 naar 6
+ * en weer 8 u/dag geeft de oude duur, zoals MS Project dat Work bewaart). Tot 25-09 schreef FIXED_RATE
+ * hier géén veld (F5); dat liet de duur bij heen-en-weer oplopen (5 → 7 → 6 d) en is teruggedraaid
+ * (E9, Fable-review bevinding 4).
+ * Eén bewuste afwijking van `applyDurationEdit` (reviewronde 2026-09-05, F6):
  *  - beslispunt 8-B (`effortDriven`) speelt hier niet: die uitzondering geldt een DUURbewerking in
  *    dagen, en een slotwissel verandert de restduur in dagen juist niet. Een MSP-import met
  *    Fixed Duration + effort-driven krijgt dus bij een kalenderwissel de P6-lezing (inzet = W / R').
@@ -397,9 +399,8 @@ export function applySlotChange(state: TriangleState, newSlotMinutes: number, ne
     return validated({ ...next, assignments });
   }
   const R = derivedRemaining(next, anchored);
-  // FIXED_WORK legt het anker vast (werkbeschermend, §4.3 a); FIXED_RATE houdt de toewijzingen zoals
-  // ze waren (zie de docblok: geen veld dat er niet was).
-  return validated({ ...next, remainingMinutes: R, assignments: ruleProtectsWork(state.rule) ? anchored : [...state.assignments] });
+  // FIXED_WORK en FIXED_RATE leggen het anker vast (§4.3 a, regel 3; zie de docblok).
+  return validated({ ...next, remainingMinutes: R, assignments: anchored });
 }
 
 function replaceAt(list: readonly TriangleAssignment[], idx: number, item: TriangleAssignment): TriangleAssignment[] {

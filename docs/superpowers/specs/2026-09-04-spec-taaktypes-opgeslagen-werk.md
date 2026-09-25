@@ -238,6 +238,23 @@ het ontwerp kiest de vereenvoudiging "elke toewijzing loopt over de hele restduu
 legt de per-toewijzing-spanne in de TODO. Dat wijkt af van MSP en P6, waar toewijzingen een eigen
 spanne hebben. Gekozen: accepteren, mét de TODO-notitie.
 
+### 3.4 Teruggedraaid op 2026-09-25 (orkestratorbesluit E9, Fable-review bevinding 4)
+
+**F5 (reviewronde 2026-09-05) — "FIXED_RATE schrijft bij een inzet- of slotwissel géén werkveld" —
+is teruggedraaid 25-09 (orkestratorbesluit E9, Fable-review bevinding 4).** F5 liet de volgende
+bewerking terugrekenen uit de afgeronde R, precies wat regel 3 (§5) en §6.1 verbieden: inzet
+1 → 0,3 → 1 op een taak van 5 d gaf 5 → 17 → **6** d, uren per dag 8 → 6 → 8 gaf 5 → 7 → **6** d.
+MS Project bewaart Work per toewijzing altijd, ongeacht het taaktype, en geeft heen en terug de oude
+duur; FIXED_RATE is bovendien de regel die elke `.mpp`/MSPDI-taak met MSP's fabrieksinstelling Fixed
+Units krijgt. Nu: FIXED_RATE herleidt bij een inzet- of slotwissel D = ⌈W ÷ (I × slot)⌉ uit het werk
+van de bewerkte toewijzing en legt dat werk vast (het veld wordt geschreven, zoals onder FIXED_WORK).
+De zorg uit F5 — een opgeslagen W die van R × I afwijkt — is juist de bedoeling van regel 3
+(het histogram spreidt het opgeslagen werk, §6.1). Meetlat: wt-02 en wt-35 herzien, wt-02b en wt-35b
+(heen en terug) nieuw. Wat blijft afwijken van MSP: met **twee of meer** toewijzingen volgt de niet
+bewerkte toewijzing de langere duur met afgeleid werk (§6.2, beslispunt 10 — zonder
+per-toewijzing-spanne kan OPS haar eigen werk én inzet niet tegelijk vasthouden), dus heen en terug op
+de ene blijft daar op de langere duur staan; gepind in `check-work-triangle.ts` (b).
+
 ## 4. Datamodel
 
 ### 4.1 De werkregel per taak
@@ -327,7 +344,7 @@ export interface ResourceAssignment {
 
 | veld | afwezig ⇒ | wanneer geschreven |
 |---|---|---|
-| `remainingWorkMinutes` | restduur van de taak (werkdagen × `hoursPerDay × 60`, of `remainingMinutes` in uurmodus) × `unitsPerDay`; met een contour: de som van de `remaining`-periodes | (a) door een bewerking onder een werkbeschermende regel (§5), (b) bij een expliciete werkinvoer van de gebruiker, (c) bij import wanneer de bron een waarde levert die van de afleiding afwijkt |
+| `remainingWorkMinutes` | restduur van de taak (werkdagen × `hoursPerDay × 60`, of `remainingMinutes` in uurmodus) × `unitsPerDay`; met een contour: de som van de `remaining`-periodes | (a) door een bewerking onder een werkbeschermende regel (§5), en onder FIXED_RATE door een inzet- of slotwissel op de bewerkte toewijzing (§3.4), (b) bij een expliciete werkinvoer van de gebruiker, (c) bij import wanneer de bron een waarde levert die van de afleiding afwijkt |
 | `actualWorkMinutes` | som van de `actual`-periodes van de contour; zonder contour 0 | (b), (c); nooit door een planningsbewerking (verricht werk is een feit) |
 | `plannedWorkMinutes` | `actual + remaining` | (b), (c), en bij een typewissel naar een werkbeschermende regel (besluit 2: "vastleggen zoals het is") |
 
@@ -431,7 +448,8 @@ eerste toewijzing zet het werk).
   R. Regel: onder de werkbeschermende regels zijn **W en I opgeslagen en is R afgeleid**; elke
   volgende bewerking (case 31) rekent uit de exacte W en I en nooit terug uit de afgeronde R, zodat
   herhaald bewerken niet drift. Onder de inzetbeschermende regels blijft W = R × I met de hele-dagen-R
-  die de gebruiker zelf koos — het gedrag van vandaag.
+  die de gebruiker zelf koos — het gedrag van vandaag. Uitzondering: FIXED_RATE herleidt bij een
+  inzet- of slotwissel R uit W en legt W dan vast (§3.4, sinds 25-09), zodat ook daar niets drift.
 - **Uurtaken**: R in hele minuten, naar boven; W exact.
 - I wordt op twee decimalen opgeslagen zoals nu in de UI (ZEKER `isValidUnits`-guard: > 0).
 
@@ -489,9 +507,9 @@ Duration = Work ÷ (Units × Hours per day) en houdt onder Fixed Work het werk v
 kalenderwerkdag — de vertaling naar OPS-werkdagen is beredeneerd, niet gemeten.
 
 Vier randregels (reviewronde 2026-09-05, F3–F6; alle BEREDENEERD):
-- FIXED_RATE legt bij de slotwissel — net als bij een inzetbewerking (§4.3) — géén werkveld vast:
-  het anker is rekeninvoer voor R, en een afgerond R laat dan geen opgeslagen W achter die van
-  R × I afwijkt (meetlat 35). Meerdere toewijzingen: R = max(W_i / I_i) (meetlat 36).
+- FIXED_RATE legt bij de slotwissel — net als bij een inzetbewerking — het anker vast als werkveld,
+  zodat 8 → 6 → 8 u/dag de oude duur teruggeeft (meetlat 35/35b). Tot 25-09 schreef FIXED_RATE hier
+  géén veld (F5); dat is teruggedraaid (§3.4). Meerdere toewijzingen: R = max(W_i / I_i) (meetlat 36).
 - Beslispunt 8-B (`effortDriven`) speelt bij een slotwissel niet: die uitzondering geldt een
   DUURbewerking in dagen, en de slotwissel laat de dagen juist staan. Een MSP-import met Fixed
   Duration + effort-driven krijgt hier dus de P6-lezing (inzet = W / R'), anders dan MSP zelf zou
@@ -629,7 +647,7 @@ werkresource op inzet 1,0 ⇒ werk 40 uur, niets verricht.
 | nr | regel | bewerking | verwacht | bewijs |
 |---|---|---|---|---|
 | 1 | FIXED_RATE | duur → 10 d | werk 80 u, inzet 1,0 | documented [M1] |
-| 2 | FIXED_RATE | inzet → 0,5 | duur 10 d, werk 40 u | documented |
+| 2 | FIXED_RATE | inzet → 0,5 | duur 10 d, werk 40 u (vastgelegd, §3.4); heen en terug 1 → 0,3 → 1 ⇒ 17 d ⇒ 5 d (wt-02b) | documented; wt-02b reasoned (afronding) |
 | 3 | FIXED_RATE | werk → 80 u | duur 10 d | documented |
 | 4 | FIXED_RATE | tweede resource 1,0 erbij | duur 2,5 d in MSP; OPS: 3 d met halve laatste dag, werk 20 + 20 u | documented [M2] + reasoned (§6.1) |
 | 5 | FIXED_RATE + `effortDriven:false` | tweede resource erbij | duur 5 d, werk 40 + 40 u | documented [M2] (beslispunt 8) |
@@ -662,7 +680,7 @@ werkresource op inzet 1,0 ⇒ werk 40 uur, niets verricht.
 | 32 | FIXED_WORK, 4 d op 8 u/dag, één resource 1,0 (32 u) | taakkalender → 6 u/dag | werk 32 u, inzet 1,0, R = 32/6 = 5,33 ⇒ 6 d | reasoned (K2; [M2]/[M4] documented voor "werk vast, duur herrekend", OPS-dagen beredeneerd) |
 | 33 | FIXED_DURATION_WORK, 4 d op 8 u/dag, één resource 1,0 (32 u) | taakkalender → 6 u/dag | R = 4 d, werk 32 u, inzet 32/24 = 1,33 | reasoned (K2; [P1] Units/Time = Remaining Units / Remaining Duration) |
 | 34 | FIXED_DURATION_RATE, 4 d op 8 u/dag, resource a 1,0 met veld 32 u, resource b 1,0 zonder veld | taakkalender → 6 u/dag | R = 4 d, inzet 1,0; a wordt 24 u, b blijft veldloos (afgeleid 24 u) | reasoned (K2; het gedrag van vandaag) |
-| 35 | FIXED_RATE, 4 d op 8 u/dag, één resource 1,0 zonder veld | taakkalender → 6 u/dag | R = ⌈32/6⌉ = 6 d, inzet 1,0, GEEN werkveld (afgeleid 36 u) | reasoned (F5; §4.3 afwezig blijft afwezig) |
+| 35 | FIXED_RATE, 4 d op 8 u/dag, één resource 1,0 zonder veld | taakkalender → 6 u/dag | R = ⌈32/6⌉ = 6 d, inzet 1,0, werkveld 32 u vastgelegd; heen en terug 8 → 6 → 8 op 5 d ⇒ 7 d ⇒ 5 d (wt-35b) | reasoned (E9 25-09, §3.4; tot dan F5: geen veld, afgeleid 36 u) |
 | 36 | FIXED_WORK, 4 d op 8 u/dag, resource a 1,0 (32 u) + resource b 0,5 (8 u) | taakkalender → 6 u/dag | R = max(32/1, 8/0,5) = 32 u ÷ 6 = 5,33 ⇒ 6 d; beide werkvelden blijven | reasoned (F11; §6.2) |
 
 Deze lijst (36 bewerkingen) gaat ook naar `docs/TODO.md` als "MSP-meetlat", zodat de eerstvolgende persoon met
