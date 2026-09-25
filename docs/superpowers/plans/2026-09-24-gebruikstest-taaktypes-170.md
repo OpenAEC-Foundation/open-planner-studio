@@ -186,3 +186,82 @@ Niet getest (Tauri-only).
 2. Markeer opgeslagen werk dat afwijkt van inzet × duur in de werkcel, met een klein oranje afwijkingsteken, en zet in het paneel onder de tabel een gekleurd blok: "2 toewijzingen hebben opgeslagen werk dat afwijkt van inzet × duur (30 u in plaats van 90 u). Het histogram volgt het opgeslagen werk." Met een actie **"Werk gelijkzetten aan inzet × duur"** en een actie **"Inzet afleiden uit werk"** (0,089).
 3. Ontwerp het niet zo dat de inzet stil wordt aangepast bij import: de P6-inzet is brondata, en dan zegt de inzetkolom iets anders dan P6.
 4. Toon inzet met twee decimalen en een decimale komma volgens de locale.
+
+## UI-fixronde (25-09)
+
+De toewijzingstabel toont nu bij EC2370 weer bij elke regel de resourcenaam, ook op 125 %, en het slotje op de inzetkolom is zichtbaar. De twee Painter-regels met 30 u krijgen een oranje waarschuwingsteken. Als je dat aanwijst, zie je beide getallen en dat het histogram het opgeslagen werk volgt. De taakdialoog gedraagt zich nu als een dialoog: Annuleren draait werkregel, werk en toewijzingen terug, en Opslaan is één stap ongedaan maken. De instelling heet "Toon werkregels en werk" en staat nu onder Berekenen, met één zin uitleg in een gekleurd blok.
+
+- **Stand:** `claude/taaktypes-integratie` @ `85812af8` (gepusht). Hij bouwt voort op `ee96e5e9` en voegt 8 commits toe, één per punt.
+- **Model:** Claude Opus 5.5 (uitvoerder-opus-midden).
+- **Screenshots:** `qa/pr170-ui/` op 100 % en 125 % (donker) en op 100 % licht. Het script is `shots.mjs`.
+  - `01` is de XER-melding bij openen.
+  - `02` is EC2370 met de toewijzingen.
+  - `03` is het werkregelblok.
+  - `04` is de instelling.
+
+### Per punt: wat er gebouwd is en welke proef rood werd zonder de fix
+
+- **G1 (`62ba046f`):** elke toewijzing staat nu over twee regels.
+  - Bovenaan staan de naam (volle breedte, afgekapt met title) en de prullenbak. Daaronder staan inzet, werk, curve, urenverdeling en verplaatsen. Curve en verplaatsen krimpen mee.
+  - Het slotje is een eigen `shrink-0`-icoon.
+  - Gemeten bij EC2370: naambreedte 242 px (100 %) en 236 px (125 %), slotje 9×9 px.
+  - Browsertest `toewijzingstabel … (100 %)/(125 %)`. Met de oude component werden beide rood op "Metselploeg Noord hidden".
+- **G3/E4 (`4638a335`):**
+  - `taskTypesNeedNotice`: een regel die alleen uit `mspTaskType`/`p6DurationType` volgt, ontsluit stil. Er komt alleen een melding bij opgeslagen werk, een projectstandaard of een eigen regel.
+  - Is er wel een melding, dan blijft het één detailregel in de ene bestandsmelding, dus geen extra toast. Die regel heeft nu een eigen link "Werkregels uitgelegd" naar `gids-taaktypes` (`NotificationDetailLine.helpArticleId`/`linkKey`).
+  - Bij HarbourPointe blijft het bij één toast plus de twee bestaande gele balken (`01-…png`). Een gewone `.mpp` met alleen afgeleide regels opent nu zonder taaktypes-regel.
+  - Mutatieproeven:
+    - de voorwaarde weg uit `applyOpenedImport` ⇒ T4-18b rood;
+    - de detailregel zonder link ⇒ T4-18c rood;
+    - de oude `NotificationHost` ⇒ de browsertest "bestandsmelding" rood.
+- **G5/G7 (`8b62b400`):**
+  - De dialoog laat de relationele secties direct op de store werken (review B4), maar bij openen legt hij `historyMark` vast.
+  - Annuleren, Esc en X roepen `revertHistorySince` aan: undo tot het beginpunt, zonder redo-rest.
+  - Opslaan roept `squashHistorySince` aan: één undo-stap "Taak bewerken".
+  - Opslaan patcht alleen wat verschilt (`taskPatchChanges`), dus Opslaan zonder wijziging geeft geen lege stap meer.
+  - Mutatieproef: de oude `TaskDialog` ⇒ de browsertest rood (regel, inzet en werk blijven staan na Annuleren).
+- **E5/G6 (`8f6645d0`):**
+  - De instelling is hernoemd in 14 locales en verplaatst naar Berekenen, zonder eigen kop. De tabs-test telt nog steeds 4 koppen.
+  - Nieuw blokpatroon `.ops-note`: neutraal vlak, accentbalk (inset 3px) en icoon in kleur, tekstrol small.
+  - In het paneel staan "Beschermd: …" en het MS Project-vinkje samen in één amber blok.
+  - Mutatieproef: de oude componenten ⇒ de browsertest "gekleurd blok" rood.
+  - Spanning met de memory-regel "uitleg achter een info-icoon, blok voor een toestand": ik heb het orkestratorbesluit "gekleurd blok" gevolgd.
+- **G2 (`2e8ee709`):**
+  - De MSP-kolom heet nu "MS Project-taaktype (import)" (14 locales).
+  - De gids heet "Werkregels en werk": in het manifest in alle 14 titels, in de kop voor nl en en.
+  - De werkregelkolom heette al "Werkregel".
+  - "Eigen taaktype" (`customTaskType`, de classificatie) is bewust niet hernoemd.
+  - Mutatieproef: de oude `task.json` ⇒ de browsertest "kolomkiezer" rood.
+- **E7 (`f6b56bbe`):**
+  - Opgeslagen werk dat meer dan 1 % afwijkt van inzet × restduur krijgt een oranje ⚠ naast de werkcel. De title noemt beide getallen en het histogramgedrag.
+  - De inzet wordt niet aangepast. Een toewijzing met een contour krijgt geen markering.
+  - Gids nl+en: nieuwe alinea "Werk uit P6 of MS Project kan afwijken…". Een eigen spanne per toewijzing komt later. Ook de E4-meldregel en het G5-dialooggedrag staan erin.
+  - Bij EC2370 zie je nu precies op de twee Painter-regels `30/90`.
+  - Mutatieproef: de component van vóór de commit ⇒ de browsertest "werkcel" rood.
+- **G8 (`c3e95dbe`):**
+  - De rasterkolom Werkregel leest leeg op mijlpaal, verzameltaak en hangmat. Taken op doorlooptijd blijven zoals ze waren, want de regel mag daar staan en de driehoek negeert hem.
+  - Check n7b; de mutatieproef (`read: task => task.workRule`) ⇒ rood.
+- **G10 (alleen onderzocht, niet gebouwd):** het Start-veld is leeg bij een urentaak na F5. Dat komt niet uit #170.
+  - `DateTextInput.isoToSegments` accepteert alleen `YYYY-MM-DD`. Een urentaak krijgt na het rekenen een `earlyStart`/`scheduleStart` met tijd (`…T00:00`), en dan is het veld leeg.
+  - `TaskTimeFields.tsx` en `DateTextInput.tsx` zijn identiek aan de merge-base `c11754cf` met `origin/claude/rekenprofielen`. In `src/engine/scheduler/` wijzigt deze branch alleen `ResourceLoad.ts`.
+  - Ook te zien in `03-…png` bij EC2370, dat 336 u in uren draagt.
+- **Punt 8, uit de her-check (`85812af8`):**
+  - `syncAssignmentWorkToContour` laat bij een eerste urenverdeling zonder actual-periodes het verrichte werk staan, en zet de rest op contoursom − verricht (geklemd op 0).
+  - Checks: v8 (10 d, 50 % ⇒ 2400/2400) en v9 (7 d, 33 %: verricht onveranderd, samen 7 slots).
+  - Mutatieproef: de tak uit ⇒ v8 rood met `[2400,0,4800]`, v9 rood.
+
+### Poorten (op exitcode, alle 0)
+
+- `typecheck` en `lint`.
+- De losse `verify:*`: examples, docs, i18n, release-highlights-json, store-boundaries, conventions, gantt-boundaries, cycles en text-roles.
+- `bash tests/planning/run.sh` zonder corpus: exit 0, 0 XX-regels, tijdzonematrix groen.
+- `test:mcp`: 42/0.
+- `test:library`: exit 0.
+- Browserspecs `work-rule` (10 tests, 7 nieuw), `contour-dialog`, `settings-tabs`, `scheduling-profile`, `text-roles`, `unapplied-and-toasts`, `help-panel` en `table-presentation`: 31 passed. Alles liep achter `flock`.
+
+### Wat ik zag en wat bleef liggen
+
+- **Inzetcel:** 0,26785714 staat nog als "0.26" op 100 % en als afgekapt "0.267" op 125 %, met een punt in de Nederlandse UI. Dat is een bestaand punt (UnitsInput), niet aangeraakt.
+- **Afgekapte keuzelijsten:** op 125 % lezen curve en verplaatsen als "Unif…"/"Verp…". De title staat erop. Beter wordt het met een ⋯-menu voor verplaatsen, maar dat heb ik niet gebouwd.
+- **Kopregel:** de kop "WERK (REST)" breekt over twee regels en staat boven de tweede regel van elke toewijzing, niet boven de naam.
+- **Aantekening met BOM:** EC2370 heeft een aantekening "ï»¿", een BOM-rest uit de XER-lezer. Dat staat los van #170.
