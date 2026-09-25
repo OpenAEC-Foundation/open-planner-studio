@@ -340,7 +340,7 @@
       "work": "Arbeit (Rest)",
       "workHint": "Restarbeit in Stunden; die Arbeitsregel bestimmt, ob Dauer oder Einheiten sich bewegen.",
       "workDeviates": "Weicht von Einheiten × Dauer ab",
-      "workDeviatesHint": "Gespeicherte Arbeit {{stored}} h weicht von Einheiten × Dauer ({{derived}} h) ab. Das Histogramm folgt der gespeicherten Arbeit über die gesamte Vorgangsdauer; die Einheiten bleiben wie in der Datei.",
+      "workDeviatesHint": "Gespeicherte Arbeit {{stored}} h weicht von Einheiten × Restdauer ({{derived}} h) ab. Das Histogramm folgt der gespeicherten Arbeit über die gesamte Vorgangsdauer; die Einheiten bleiben wie in der Datei.",
       "locked": "Durch die Arbeitsregel {{rule}} geschützt"
     },
     "calendar": "Kalender",
