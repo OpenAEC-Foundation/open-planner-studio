@@ -234,8 +234,9 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
     if (value === undefined || value !== resolved[d.id]) continue;
     // A19-achterdeur (critreview x12-a19-basis): de oude XER-lezer schreef A19 per bestand als
     // letterlijke override `true` onder p6 weg. Sinds A19 in de p6-basis aan staat is dat géén
-    // afwijking en geen herkomst — anders zet een wissel P6 → OPS A19 onder OPS aan.
-    if (d.id === 'p6UseRemainingStartForProgress' && baseId === 'p6' && value === builtInConventions('p6')[d.id]) continue;
+    // afwijking en geen herkomst — anders zet een wissel P6 → OPS A19 onder OPS aan. Alleen het
+    // ingebouwde p6-id: de oude lezer schreef nooit een eigen profiel.
+    if (d.id === 'p6UseRemainingStartForProgress' && id === 'p6' && value === builtInConventions('p6')[d.id]) continue;
     overrides[d.id] = value;
   }
   // Registervolgorde, zodat lezen → schrijven byte-identiek blijft.
