@@ -92,7 +92,7 @@
       "manuallyScheduled": "مجدول يدويًا",
       "milestone": "معلم",
       "milestoneKind": "نوع المعلم",
-      "mspTaskType": "نوع مهمة Microsoft Project",
+      "mspTaskType": "نوع مهمة MS Project (استيراد)",
       "name": "اسم المهمة",
       "nearCritical": "شبه حرج",
       "noteData": "بيانات الملاحظات",

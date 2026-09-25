@@ -1,4 +1,4 @@
-# Task types and work: fixed duration, fixed work or fixed units
+# Work rules and work: fixed duration, fixed work or fixed units
 
 A task with resources has three numbers that belong together: the **remaining duration** (how many working days are left), the **units** per resource (units per working day, 1 = one person full-time) and the **work** (hours). Work = remaining duration × units. Change one of them and another must move. Which one moves is decided by the task's **work rule** — MS Project calls it the *task type* plus *effort-driven*, Primavera P6 the *duration type*.
 

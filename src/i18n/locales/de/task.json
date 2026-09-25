@@ -56,7 +56,7 @@
       "earlyFinish": "Frühestes Ende", "earlyStart": "Frühester Anfang", "effortDriven": "Aufwandsgesteuert", "explicitSummary": "Expliziter Sammelvorgang", "externalRelationData": "Daten externer Beziehungen",
       "floatPath": "Pufferpfad", "freeFloat": "Freier Puffer", "hammock": "Hammock (abgeleitete Dauer)", "interferingFloat": "Störender Puffer", "internalRelationData": "Daten interner Beziehungen",
       "lateFinish": "Spätestes Ende", "lateStart": "Spätester Anfang", "levelingDelay": "Kapazitätsabgleichsverzögerung", "levelingDelayElapsed": "Verstrichene Abgleichsverzögerung", "levelingDelayMinutes": "Abgleichsverzögerung (Minuten)",
-      "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "Microsoft-Project-Aufgabentyp",
+      "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "MS-Project-Vorgangsart (Import)",
       "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "p6Provenance": "Primavera-P6-Herkunft", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
       "recordedSource": "Herkunft (gespeicherte Termine)",
       "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend (Arbeitstage)", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",

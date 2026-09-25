@@ -265,3 +265,20 @@ test('instelling en paneel: werkregel-toelichting in een gekleurd blok, instelli
   // Geen los grijs bijschrift direct onder het vinkje.
   expect(await row.evaluate(el => el.nextElementSibling?.classList.contains('scrollzoom-hint') ?? false)).toBe(false);
 });
+
+// Gebruikstest #170, G2: "taaktype" betekende drie dingen. De werkregelkolom heet Werkregel en is
+// op die naam te vinden; de bewaarde MS Project-waarde heet "MS Project-taaktype (import)".
+test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet "(import)"', async ({ page, ops: _ops }) => {
+  await seedAssignedTask(page);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const shell = page.locator('[data-task-grid-surface-id="full-task-grid"] .task-grid-shell');
+  await shell.locator('.task-grid-add-column').click();
+  const search = page.locator('.task-grid-column-chooser-search input');
+  await expect(search).toBeVisible();
+  const nl = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl');
+  const results = page.locator('section[aria-label]').filter({ has: page.locator('.task-grid-column-chooser-section-label') }).last();
+  await search.fill(nl ? 'werkregel' : 'work rule');
+  await expect(results.getByText(nl ? 'Werkregel' : 'Work rule', { exact: true })).toBeVisible();
+  await search.fill(nl ? 'taaktype' : 'task type');
+  await expect(results.getByText(nl ? 'MS Project-taaktype (import)' : 'MS Project task type (import)', { exact: true })).toBeVisible();
+});

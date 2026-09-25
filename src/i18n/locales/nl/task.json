@@ -93,7 +93,7 @@
       "manuallyScheduled": "Handmatig gepland",
       "milestone": "Mijlpaal",
       "milestoneKind": "Soort mijlpaal",
-      "mspTaskType": "Microsoft Project-taaktype",
+      "mspTaskType": "MS Project-taaktype (import)",
       "name": "Taaknaam",
       "nearCritical": "Bijna kritiek",
       "noteData": "Aantekeningendata",

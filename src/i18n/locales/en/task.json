@@ -93,7 +93,7 @@
       "manuallyScheduled": "Manually scheduled",
       "milestone": "Milestone",
       "milestoneKind": "Milestone type",
-      "mspTaskType": "Microsoft Project task type",
+      "mspTaskType": "MS Project task type (import)",
       "name": "Task name",
       "nearCritical": "Near critical",
       "noteData": "Note data",

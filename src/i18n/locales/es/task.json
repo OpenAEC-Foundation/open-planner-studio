@@ -56,7 +56,7 @@
       "earlyFinish": "Fin temprano", "earlyStart": "Inicio temprano", "effortDriven": "Condicionada por el esfuerzo", "explicitSummary": "Tarea de resumen explícita", "externalRelationData": "Datos de relaciones externas",
       "floatPath": "Ruta de holgura", "freeFloat": "Holgura libre", "hammock": "Hamaca (duración derivada)", "interferingFloat": "Holgura interferente", "internalRelationData": "Datos de relaciones internas",
       "lateFinish": "Fin tardío", "lateStart": "Inicio tardío", "levelingDelay": "Retraso de redistribución", "levelingDelayElapsed": "Retraso de redistribución transcurrido", "levelingDelayMinutes": "Retraso de redistribución (minutos)",
-      "mandatoryMilestone": "Hito obligatorio", "manuallyScheduled": "Programada manualmente", "milestone": "Hito", "milestoneKind": "Tipo de hito", "mspTaskType": "Tipo de tarea de Microsoft Project",
+      "mandatoryMilestone": "Hito obligatorio", "manuallyScheduled": "Programada manualmente", "milestone": "Hito", "milestoneKind": "Tipo de hito", "mspTaskType": "Tipo de tarea de MS Project (importación)",
       "name": "Nombre de tarea", "nearCritical": "Casi crítica", "noteData": "Datos de notas", "notes": "Notas", "p6Provenance": "Procedencia de Primavera P6", "parentId": "Id. de tarea principal", "priority": "Prioridad de redistribución",
       "recordedSource": "Origen (fechas registradas)",
       "remainingMinutes": "Restante (minutos)", "remainingTime": "Restante (días laborables)", "resourceIds": "Id. de recursos", "resume": "Fecha de reanudación",

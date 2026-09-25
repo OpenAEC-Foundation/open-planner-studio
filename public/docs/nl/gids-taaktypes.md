@@ -1,4 +1,4 @@
-# Taaktypes en werk: vaste duur, vast werk of vaste inzet
+# Werkregels en werk: vaste duur, vast werk of vaste inzet
 
 Een taak met resources heeft drie getallen die bij elkaar horen: de **restduur** (hoeveel werkdagen er nog zijn), de **inzet** per resource (eenheden per werkdag, 1 = één persoon voltijds) en het **werk** (uren). Werk = restduur × inzet. Verandert er één, dan moet een ander getal meebewegen. Welk getal dat is, bepaalt de **werkregel** van de taak — in MS Project heet dat het *taaktype* plus *effort-driven*, in Primavera P6 het *duration type*.
 
