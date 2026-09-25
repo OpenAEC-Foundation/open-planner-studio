@@ -261,6 +261,17 @@ vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
   werkregels en werk", gekleurd blok i.p.v. formule-bijschrift (memory-regel), geen losse sectiekop tenzij
   de tabs-test het toestaat; **E8/E10** zoals eerder (rest ↔ verricht bij voortgang; contour schrijft rest).
 
+- **25-09 ~22:40, groep A (13 main-PR's op `claude/integratie-groep-a` 612d8287, lichte poorten + planningssuite
+  groen):** drie botsingen beslist als orkestrator: (1) #200 ↔ #109 open-functie: `openAsDocument` is een dunne
+  laag op `applyOpenedImport` (gekoppeld laden, `saveTargetFor`), ook voor `planner_import_schedule` en
+  meerdere XER-documenten — gedragswijziging: AI-import van een IFC laadt nu gekoppeld (dat wás de bug);
+  (2) #200 ↔ #109/#167 lege datumslots: lege Early/Late-slots krijgen het eigen plan i.p.v. "vandaag",
+  "datums zoals opgeslagen" leest `recordedFields` en telt gevulde slots niet als vastgelegd — houden, met
+  `check-recorded-times-formats`/X12 als poort op de eindintegratie; (3) #189 ↔ eigenaarsbesluit #144
+  (relatielijnen altijd in een layout): #189 (later, eigen PR van de eigenaar) gevolgd — relatielijnen horen bij
+  de groep Overlay; kandidaat voor de eindvraag aan de eigenaar. Groep A wordt pas na #169/#170 op main
+  bijgewerkt met `main`, dan één verify + measure, dan één groeps-PR.
+
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
 1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
