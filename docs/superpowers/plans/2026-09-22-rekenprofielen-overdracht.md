@@ -447,6 +447,17 @@ draaide vermoedelijk `ln -s` met de verkeerde cwd) — alle agent-worktrees link
 i.p.v. in de huidige map door te werken. Volgende stap: `claude/rekenprofielen` mergen in
 `claude/taaktypes-integratie` (a949a5eb) + keten, dan #170 base main, merge.
 
+**25-09 ~23:55 — #170 gesynchroniseerd en ready:** `claude/taaktypes-integratie` 1239092e (rekenprofielen-kop
+39b36be3 erin: CLAUDE.md-wijzer + `.claude/rules/taaktypes.md` en `contour.md`; `settleDurationAftermath` knipt
+ook gebruikersgaten (#146); extensie-`data.*` via `batch.withTransaction` (case 5), testtitel, documentwissel-case;
+verify EXIT 0 (browser 197), measure 76/0/0/0, `.mpp` 216/0/0; PR-body bijgewerkt); base → `main`, ready.
+**Incident 2:** de #169-sync-commit c703724d had de `node_modules`-symlink getrackt (`.gitignore` dekte alleen
+`node_modules/`, geen symlink) — uit de index gehaald in `6f38d1d7` op `claude/rekenprofielen`, `.gitignore`
+dekt nu ook `node_modules`; #170 had hem al zelf verwijderd; `main` en groep A/B zijn schoon. Elke push naar
+`claude/rekenprofielen` annuleert de lopende CI-run van #169 — vandaar geen docs-pushes tot de merge.
+Open restpunt uit de her-check: `data.recalculate` in de modus "datums zoals opgeslagen" kan tijdens een open
+dialoog nog de sessiestempel krijgen (bewust niet in een batch gezet).
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
