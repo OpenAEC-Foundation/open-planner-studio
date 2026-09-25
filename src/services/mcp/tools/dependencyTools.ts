@@ -440,8 +440,8 @@ const updateDependencies: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const before = new Map(ctx.app.store.getState().sequences.map((s) => [s.id, fieldsOf(s)]));
     // Lege-batch-snelpad (zelfde reden als bij de andere bulk-tools): levert de statische
-    // classificatie nul kandidaten, dan mag er géén transactie draaien — die zou een spurious
-    // undo-snapshot pushen en de redo-stack van de gebruiker wissen voor een AI-no-op.
+    // classificatie nul kandidaten, dan hoeft er géén transactie (en AI-backup) te draaien. Een
+    // wijziging-loze transactie legt sinds G5 ook zelf geen undo-stap vast (zie `okDirect`).
     {
       const state = ctx.app.store.getState();
       const pre = classifyDepUpdates(state, parsed);

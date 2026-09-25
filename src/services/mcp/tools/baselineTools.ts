@@ -20,9 +20,9 @@
 // als `batchStep` binnen `planner_batch`, met exact ÉÉN implementatie van de mutatie.
 //
 // NOOIT `ok` ZONDER EFFECT — en ook nooit een spurious undo-stap. Een activatie/hernoeming die
-// niets verandert (al actief, zelfde naam) gaat NIET door `runInMcpTransaction`: dat zou een
-// undo-snapshot pushen en de redo-stack van de gebruiker wissen voor een AI-no-op. Zo'n call komt
-// terug via `okDirect` met `changed: false` en een reden — geslaagd én eerlijk.
+// niets verandert (al actief, zelfde naam) gaat NIET door `runInMcpTransaction` (geen AI-backup
+// voor een no-op; de transactie zelf legt sinds G5 ook geen undo-stap vast zonder datawijziging).
+// Zo'n call komt terug via `okDirect` met `changed: false` en een reden — geslaagd én eerlijk.
 //
 // VERSHEID SPEELT HIER GEEN ROL. Anders dan `save_baseline` (die een SNAPSHOT van de planning maakt
 // en daarom `ensureFreshSchedule()` nodig heeft) raken deze vier tools alleen metadata: welke

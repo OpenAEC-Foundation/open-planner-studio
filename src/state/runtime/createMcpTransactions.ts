@@ -1,4 +1,4 @@
-import type { AppStoreContext } from '../appStore';
+import type { AppState, AppStoreContext } from '../appStore';
 import { attachToParent, isSelfOrDescendant, removeTaskSubtrees, reparentTask } from '@/state/taskTree';
 import {
   applyPhaseTransitions, describePhaseRefusal, describePhaseTransitions, firstChildGains, planPhaseTransitions,
@@ -812,12 +812,17 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       // dus er kan tijdens dit venster geen onafhankelijke gebruikersmelding tussendoor komen.
       const prevNotifications = initial.ui.notifications;
 
+      /** Het document terug op de stand van vóór de callback — gedeeld door rollback en no-op. */
+      const restoreDocument = (state: AppState): void => {
+        restoreSnapshot(state, snapshot);
+        state.viewRows = previousViewRows;
+        state.resourceLoadResult = previousResourceLoad;
+        state.isDirty = previousDirty;
+      };
+
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
-          restoreSnapshot(state, snapshot);
-          state.viewRows = previousViewRows;
-          state.resourceLoadResult = previousResourceLoad;
-          state.isDirty = previousDirty;
+          restoreDocument(state);
           replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
         });
@@ -832,20 +837,36 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
         if (isThenable(value)) {
           throw new Error('MCP-transactiecallback moet strikt synchroon zijn en mag geen Promise/thenable retourneren');
         }
-        // Wijzigde de callback projectdata? Gemeten VÓÓR de eindherberekening: `runCPM` alléén maakt
-        // een document nooit dirty. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook de
-        // toollaag-producers die geen draft-primitief gebruiken (het voortgangspad van
+        // Wijzigde de callback per saldo projectdata? Gemeten VÓÓR de eindherberekening: `runCPM`
+        // alléén is nooit een wijziging. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook
+        // de toollaag-producers die geen draft-primitief gebruiken (het voortgangspad van
         // `update_tasks` zette zo nooit `isDirty`, dus sluiten vroeg niet om op te slaan en de
-        // crashherstel-auto-save sloeg de wijziging over).
+        // crashherstel-auto-save sloeg de wijziging over). Dezelfde meting beslist over de undo-stap
+        // (G5, hieronder).
         dataChanged = documentDataChanged(snapshot, createSnapshot(store.getState()));
 
         // De volledige eindherberekening blijft binnen dezelfde lease. Dat onderdrukt ook de
-        // modus-verlaat-snapshot van "datums zoals opgeslagen".
-        store.getState().runCPM();
-        store.getState().recomputeViewRows();
-        store.getState().recomputeResourceLoad();
+        // modus-verlaat-snapshot van "datums zoals opgeslagen". Zonder datawijziging valt er niets
+        // te herrekenen.
+        if (dataChanged) {
+          store.getState().runCPM();
+          store.getState().recomputeViewRows();
+          store.getState().recomputeResourceLoad();
+        }
       } catch (error) {
         return rollback(error instanceof Error ? error.message : String(error));
+      }
+
+      // G5 — per saldo niets gewijzigd ⇒ er is niets gebeurd, dezelfde regel als de no-op-guards van
+      // de UI-routes. Dus geen undo-stap (die zou ook de redo-stapel van de gebruiker wissen), en
+      // `cpmResult`, `scheduleStale`, "datums zoals opgeslagen" en `isDirty` blijven zoals ze waren:
+      // ook wat de callback daar onderweg aan veranderde (een tussentijdse herberekening in een
+      // batch, een draftprimitief dat `isDirty` zet, een nieuw object met dezelfde inhoud) gaat terug.
+      // De historie en de meldingen blijven staan: die raakt een no-op niet.
+      if (!dataChanged) {
+        store.setState(restoreDocument);
+        runtime.resetUndoCoalescing();
+        return { ok: true, value, timephasedGuidanceLost: 0 };
       }
 
       const cpm = store.getState().cpmResult;
@@ -854,7 +875,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       runtime.resetUndoCoalescing();
       store.setState((state) => {
         runtime.recordDocumentDataHistory(state, snapshot, documentId, 'MCP-bewerking');
-        if (dataChanged) state.isDirty = true;
+        state.isDirty = true;
       });
       const lostCount = runtime.countMcpTimephasedLoss(lease);
       if (lostCount > 0) {

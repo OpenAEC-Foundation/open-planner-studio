@@ -995,8 +995,10 @@ const redo: McpToolDef = {
 const runCpm: McpToolDef = {
   name: 'planner_run_cpm',
   description:
-    'Vraag de PLANNINGSUITKOMST op. Wijzigingen via de tools zijn al doorgerekend — elke mutatie draait ' +
-    'aan het eind zelf `runCPM` — dus je hoeft dit NIET aan te roepen om te verversen. Deze tool herberekent ' +
+    'Vraag de PLANNINGSUITKOMST op. Wijzigingen via de tools zijn al doorgerekend — elke mutatie die iets ' +
+    'wijzigt draait aan het eind zelf `runCPM` — dus je hoeft dit NIET aan te roepen om te verversen. Een ' +
+    'call die niets wijzigt rekent ook niets door: `scheduleStale` in de envelop zegt of de datums actueel ' +
+    'zijn. Deze tool herberekent ' +
     'idempotent (kritieke-pad-methode + kalender, wist `scheduleStale`) en geeft het projecteinde, de ' +
     'projectduur (werkdagen) en een kritieke-pad-samenvatting terug: precies de cijfers waarmee je de ' +
     'gebruiker het effect van je wijzigingen meldt.',
