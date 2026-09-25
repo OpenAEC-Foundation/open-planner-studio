@@ -269,12 +269,14 @@ function createMcpDraft(
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`addSequence`: dezelfde regels als de store-actie,
-   * uit `relationRules.ts` (dedup op predecessor+successor+type — meerdere relatietypes tussen
-   * hetzelfde paar blijven toegestaan — plus self/onbekende-taak/verzameltaak-eindpunt). Dit was een
-   * handgeschreven kopie van alleen de dedup-regel; die kopie is precies waarom validatie in de
-   * slice-actie de MCP-laag zou overslaan. Retourneert het nieuwe id, of `null` wanneer de relatie is
-   * geweigerd.
+   * Snapshot/recompute-vrije variant van de store-`addSequence`: dezelfde lokale regels als de
+   * store-actie, uit `relationRules.ts` (`relationVerdict`: dedup op predecessor+successor+type —
+   * meerdere relatietypes tussen hetzelfde paar blijven toegestaan — plus self/onbekende-taak/
+   * voorouder-eindpunt). Dit was een handgeschreven kopie van alleen de dedup-regel; die kopie is
+   * precies waarom validatie in de slice-actie de MCP-laag zou overslaan. De kringtoets van de
+   * store-route (`relationAddVerdict`) zit hier bewust niet: de MCP-tools toetsen een kring vooraf
+   * over de hele batch (`validate.noCycle`) en de eindberekening van de transactie rolt een kring
+   * alsnog terug. Retourneert het nieuwe id, of `null` wanneer de relatie is geweigerd.
    */
   addSequence(seq: Omit<Sequence, 'id'>): string | null {
     const id = generateId('seq');
