@@ -494,6 +494,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   MRSCHECK="$DIR/.milestone-report-status.mjs"
   if bundle_check "$DIR/check-milestone-report-status.ts" "$MRSCHECK"; then node "$MRSCHECK" || STATUS=1; fi
 
+  # Fase met een dag- en een urenkind (audit weergaven, bevinding 10): het fase-einde werd als
+  # STRING-max opgerold ("…T13:00" > "…"), dus korter dan het dagkind. Nu als tijdstip met de
+  # balkregel (`finishInstant`), in de rollup, de Gantt-balk en de afgeleide faseduur.
+  SMFCHECK="$DIR/.summary-mixed-finish.mjs"
+  if bundle_check "$DIR/check-summary-mixed-finish.ts" "$SMFCHECK"; then node "$SMFCHECK" || STATUS=1; fi
+
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
   # renderer-batterijen bouwen die opties met de hand op en staan dus stroomafwaarts van dit

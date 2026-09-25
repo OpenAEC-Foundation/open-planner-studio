@@ -22,6 +22,7 @@ import {
 import { resolveWheelFunction } from '@/utils/ganttWheel';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { finishInstant } from '@/utils/taskDates';
 import {
   HISTOGRAM_MAX_HEIGHT,
   HISTOGRAM_MIN_HEIGHT,
@@ -228,7 +229,8 @@ export function useGanttViewportCoordinator(
     }
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
-    const finish = hourMode ? parseInstant(finishString) : parseDate(finishString);
+    // Zelfde eindregel als `GanttRenderer.barGeometry` (einde zonder tijd in een uur-balk = einde van die dag).
+    const finish = hourMode ? finishInstant(finishString) : parseDate(finishString);
     // `sharedAxis` bevat de actuele scrollX. Tel hem eerst terug op om contentcoördinaten te
     // krijgen; de resulterende eenheden zijn kalenderdagen op de gewone as en werkdagen onder
     // "Show only working days". Zo rekent de focusroute exact in dezelfde eenheden als de

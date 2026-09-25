@@ -39,6 +39,28 @@ export function finishInstant(iso: string): Date {
 }
 
 /**
+ * Het LAATSTE van een reeks einden, vergeleken als tijdstip met {@link finishInstant} — de rollup
+ * van een verzameltaak (`applyCpmResult`). Als tekst sorteert "2026-06-05T13:00" ná "2026-06-05",
+ * terwijl een dagkind dat op 05-06 eindigt pas om middernacht klaar is; de fase eindigde dan om
+ * 13:00, korter dan haar eigen kind. Bij hetzelfde tijdstip wint de tekstueel grootste vorm (het
+ * oude gedrag). Lege of onleesbare waarden tellen niet mee; zijn er geen andere, dan de tekstuele max.
+ */
+export function latestFinish(values: readonly string[]): string {
+  let best = '';
+  let bestMs = -Infinity;
+  for (const value of values) {
+    if (!value) continue;
+    const ms = finishInstant(value).getTime();
+    if (Number.isNaN(ms)) continue;
+    if (ms > bestMs || (ms === bestMs && value > best)) {
+      best = value;
+      bestMs = ms;
+    }
+  }
+  return best || [...values].sort().pop() || '';
+}
+
+/**
  * Waar de spelingsband van een taak eindigt: op het einde van "Laatste einde" (`lateFinish`),
  * met de balkregel van {@link finishInstant}. `null` = geen band (geen positieve speling, kritiek,
  * of nog geen late datum). Eén bron voor de scherm-Gantt, de afdruk en het datumbereik van de

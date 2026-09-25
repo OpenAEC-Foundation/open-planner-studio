@@ -4,6 +4,7 @@ import type { CPMResult } from './CPMSolver';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { taskDurationUnit, writeDerivedSpan, isZeroDurationMilestone } from './duration';
 import { CalendarEngine } from './CalendarEngine';
+import { finishInstant, latestFinish } from '@/utils/taskDates';
 
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
@@ -65,7 +66,10 @@ function applyDerivedSummaryDuration(task: Task, engine: CalendarEngine): void {
   // levert `workDaysBetween` 0 op, en duur 0 maakt van de rij visueel een mijlpaal.
   if (!task.time.earlyStart || !task.time.earlyFinish) return;
   const es = parseInstant(task.time.earlyStart);
-  const ef = parseInstant(task.time.earlyFinish);
+  // Een einde zonder tijd (een dagkind wint de rollup) loopt in een UUR-projectkalender tot het
+  // einde van die dag (`finishInstant`), niet tot middernacht aan het begin ervan. In dagmodus telt
+  // `workDaysBetween` beide kalenderdagen inclusief, dus daar blijft het de dagstart.
+  const ef = engine.isHourMode ? finishInstant(task.time.earlyFinish) : parseInstant(task.time.earlyFinish);
   if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
   writeDerivedSpan(task, es, ef, engine);
 }
@@ -172,19 +176,21 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     }
 
     if (children.length > 0) {
+      // Starts mogen als tekst: een datum zonder tijd (middernacht) sorteert vóór dezelfde dag mét
+      // tijd, en dat klopt ook als tijdstip. Einden NIET: "…-05T13:00" sorteert ná "…-05", terwijl
+      // een dagkind pas aan het einde van die dag klaar is — dus als tijdstip (`latestFinish`, de
+      // balkregel van `finishInstant`; audit weergaven, bevinding 10). Zelfde voor de late einden.
       const starts = children.map(c => c.time.earlyStart).sort();
-      const finishes = children.map(c => c.time.earlyFinish).sort();
       task.time.earlyStart = starts[0];
-      task.time.earlyFinish = finishes[finishes.length - 1];
+      task.time.earlyFinish = latestFinish(children.map(c => c.time.earlyFinish));
       task.time.isCritical = children.some(c => c.time.isCritical);
 
       // Ook de LATE datums en speling oprollen — anders bleven die op de
       // createDefaultTaskTime-defaults staan (lf=es, tf=0) en schreef o.a. ifcWriter misleidende
       // fase-speling weg (een niet-kritieke fase met "tf=0").
       const lateStarts = children.map(c => c.time.lateStart).sort();
-      const lateFinishes = children.map(c => c.time.lateFinish).sort();
       task.time.lateStart = lateStarts[0];
-      task.time.lateFinish = lateFinishes[lateFinishes.length - 1];
+      task.time.lateFinish = latestFinish(children.map(c => c.time.lateFinish));
       // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
       task.time.totalFloat = Math.min(...children.map(c => c.time.totalFloat));
       task.time.freeFloat = Math.min(...children.map(c => c.time.freeFloat));

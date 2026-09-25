@@ -24,7 +24,7 @@ import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
 import { computeSplitSegments } from './splitBarGeometry';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
-import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
+import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
 
 export interface GanttRenderOptions {
   /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
@@ -369,7 +369,11 @@ export class GanttRenderer {
     }
     const hourMode = startStr.includes('T') || endStr.includes('T');
     const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-    const end = hourMode ? parseInstant(endStr) : parseDate(endStr);
+    // Uur-balk: het einde als tijdstip met de rollupregel (`finishInstant`) — een einde ZONDER tijd
+    // (een fase met een uren-start en een dagkind als laatste) loopt tot het einde van die dag, niet
+    // tot middernacht aan het begin ervan (audit weergaven, bevinding 10). Voor een einde mét tijd
+    // is dat gewoon `parseInstant`.
+    const end = hourMode ? finishInstant(endStr) : parseDate(endStr);
     const x1 = this.dateToX(start);
     const x2 = hourMode ? this.dateToX(end) : this.dateToX(end) + this.opts.view.zoom;
     return { x1, x2, hourMode, start, end };
