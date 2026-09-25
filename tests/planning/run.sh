@@ -406,6 +406,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   PRCHECK="$DIR/.paste-references.mjs"
   if bundle_check "$DIR/check-paste-references.ts" "$PRCHECK"; then node "$PRCHECK" || STATUS=1; fi
 
+  # Structuurovergangen met toewijzingen (audit taakmutaties §6): "wordt mijlpaal" weigert in
+  # store/paneel/contextmenu/raster; "wordt fase" verhuist de toewijzing naar de eerste nieuwe
+  # subtaak (of weigert) via inspringen, verhangen, slepen, subtaak en sjabloon — één undo-stap.
+  STCHECK="$DIR/.structural-transition.mjs"
+  if bundle_check "$DIR/check-structural-transition.ts" "$STCHECK"; then node "$STCHECK" || STATUS=1; fi
+
   # Rasternavigatie (issue #48): de gedeelde kern onder de takentabel én de resourcetabel. Bewaakt
   # het RANDgedrag (buur aan de rand = null, niet klemmen — daar hangt "Enter op de laatste rij maakt
   # een nieuwe rij" aan) en het TOETSbeleid in een live raster: ↑/↓ mogen alleen in een tekstveld

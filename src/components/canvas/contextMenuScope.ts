@@ -2,7 +2,8 @@ import { useAppStore } from '@/state/appStore';
 import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import type { Task } from '@/types/task';
-import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusal, taskMilestoneTransition, type MilestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusalNotices } from '@/state/structuralTransition';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -84,13 +85,28 @@ export const contextMenuBulk = {
    */
   toggleMilestone(task: Task): void {
     const isMilestone = !task.isMilestone;
+    // Wordt mijlpaal (audit §6): taken die de gedeelde regel weigert (fase, of toewijzingen) doen
+    // niet mee; de rest van de reikwijdte wel, in één undo-stap. Eén melding per reden.
+    const { tasks, assignments } = useAppStore.getState();
+    const refused: { name: string; refusal: MilestoneRefusal }[] = [];
+    const scope = contextMenuOutlineScope(task.id).filter((id) => {
+      const current = tasks.find(candidate => candidate.id === id);
+      if (!isMilestone || !current || current.isMilestone) return true;
+      const refusal = milestoneRefusal({
+        hasChildren: current.childIds.length > 0,
+        hasAssignments: assignments.some(a => a.taskId === id),
+      });
+      if (refusal) refused.push({ name: current.name, refusal });
+      return !refusal;
+    });
     appTaskBulkActions.applyToTaskIds(
-      contextMenuOutlineScope(task.id),
+      scope,
       (state, id) => {
         const current = state.tasks.find(candidate => candidate.id === id);
         if (current) state.updateTask(id, taskMilestoneTransition(current, isMilestone));
       },
     );
+    for (const notice of milestoneRefusalNotices(refused)) useAppStore.getState().notify(notice);
   },
 
   setCalendar(taskId: string, calendarId: string | undefined): void {

@@ -35,7 +35,14 @@
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
-    "referencesClearedOnPaste_other": "有 {{count}} 个引用在此文档中不存在，已被清除（来自源文档的任务日历、自定义任务类型、活动代码或自定义字段）。"
+    "referencesClearedOnPaste_other": "有 {{count}} 个引用在此文档中不存在，已被清除（来自源文档的任务日历、自定义任务类型、活动代码或自定义字段）。",
+    "milestoneRefusedAssignments_other": "{{count}} 个任务有资源分配，无法变为里程碑。请先移除这些分配。",
+    "milestoneRefusedSummary_other": "{{count}} 个任务是带子任务的摘要任务，无法变为里程碑。",
+    "assignmentsMovedToSubtask_other": "{{count}} 个分配（{{resources}}）已从“{{phase}}”移至新子任务“{{child}}”：摘要任务本身不承载分配。",
+    "assignmentsMovedToSubtasks_other": "{{count}} 个任务变成了摘要任务；它们的分配已分别移至各自的第一个新子任务。",
+    "milestoneClearedOnPhase_other": "{{count}} 个里程碑现在有子任务，已变成摘要任务；已移除里程碑标记。",
+    "phaseRefusedNoAssignableChild": "“{{phase}}”无法变成摘要任务：它的分配无处可去，因为新子任务都不能承载分配（里程碑或摘要任务）。未做任何更改。",
+    "phaseRefusedDuplicateResource": "“{{phase}}”无法变成摘要任务：{{resource}} 的分配无法移至新子任务“{{child}}”，因为它已有 {{resource}}。未做任何更改。"
   },
   "yes": "是",
   "no": "否",

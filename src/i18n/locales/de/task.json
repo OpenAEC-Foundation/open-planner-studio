@@ -98,6 +98,7 @@
       "hourPlanningDisabled": "Die Stundenplanung ist in den Einstellungen ausgeschaltet.",
       "durationConversionNotExact": "Diese Dauer lässt sich nicht exakt in die andere Einheit umrechnen.",
       "milestoneRequired": "Dieses Feld gilt nur für Meilensteine.",
+      "milestoneUnavailable": "Eine Sammelaufgabe mit Unteraufgaben kann kein Meilenstein werden.",
       "actualAfterStatusDate": "Das Ist-Datum liegt nach dem Statusdatum.",
       "actualFinishBeforeStart": "Das Ist-Ende liegt vor dem Ist-Beginn.",
       "conflictingProgressInputs": "Diese Fortschrittswerte widersprechen sich.",

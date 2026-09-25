@@ -48,7 +48,7 @@ There are three places where you manage an assignment — they operate on the sa
 2. **Task dialog** — the same **Assignments** section, in the **Edit task** window.
 3. **Ribbon** — **Resources** tab, **Assignment** ribbon group, the **Assign ▾** button. This button is only active when exactly one non-milestone, non-summary task is selected; the dropdown lets you set **units/day** and **curve** first and then lists the not-yet-assigned resources below — click a name to complete an assignment in one go.
 
-Milestones and summary tasks cannot carry resources (they have no duration of their own to load) — both places show an explanation instead of the assignment form.
+Milestones and summary tasks cannot carry resources (they have no duration of their own to load) — both places show an explanation instead of the assignment form. That is also why a task with assignments cannot become a milestone, and why its assignments move to the first new subtask when it gets subtasks; see the Planning & WBS guide.
 
 ### Moving an assignment
 

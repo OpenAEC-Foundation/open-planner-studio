@@ -38,6 +38,7 @@ import { TASK_TYPES } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
 import { isRecord } from '@/utils/guards';
 import { customTaskTypeClashes } from '@/services/taskTypes/customTaskTypeRules';
+import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import {
   validateConstraintPair,
   withPrimaryConstraint,
@@ -341,8 +342,10 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   if ('isMilestone' in raw) {
     if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` moet een boolean zijn' };
     if (raw.isMilestone) {
-      if (ctx.hasChildren) return { ok: false, reason: 'een verzameltaak (met kinderen) kan geen mijlpaal worden' };
-      if (ctx.hasAssignments) return { ok: false, reason: 'een taak met resource-toewijzingen kan geen mijlpaal worden; verwijder eerst de toewijzingen' };
+      // Dezelfde "wordt mijlpaal"-regel als paneel, dialoog, contextmenu, store en raster.
+      const refusal = milestoneRefusal(ctx);
+      if (refusal === 'summary') return { ok: false, reason: 'een verzameltaak (met kinderen) kan geen mijlpaal worden' };
+      if (refusal === 'assignments') return { ok: false, reason: 'een taak met resource-toewijzingen kan geen mijlpaal worden; verwijder eerst de toewijzingen' };
       // Mijlpaal ⇒ duur 0 (en géén achtergebleven minutenduur), spiegelt TaskDialog/TaskMilestoneFields.
       time.scheduleDuration = 0;
       time.durationUnit = 'days';

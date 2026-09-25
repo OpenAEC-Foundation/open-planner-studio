@@ -55,6 +55,7 @@ import {
   unknownTypeReason,
   type ParsedLag,
 } from './sequenceFields';
+import type { PhaseTransitionReport } from '@/state/structuralTransition';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds } from '@/utils/wbs';
@@ -86,6 +87,14 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 // `batchStep` gooit waar de handler een `McpToolErr` teruggeeft: binnen een batch is een vormfout een
 // STRUCTURELE stapfout die de hele batch hoort terug te rollen (spec §Compositie), geen zachte weigering.
 // Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
+
+/** "Wordt fase" (audit taakmutaties §6) — gedeeld door add_tasks en move_task. */
+const PHASE_TRANSITION_DOC =
+  'Krijgt een bestaande taak met resource-toewijzingen hierdoor haar EERSTE subtaak (ze wordt een fase), dan ' +
+  'verhuizen die toewijzingen naar de eerste nieuwe subtaak die ze mag dragen (geen mijlpaal of fase); een ' +
+  'mijlpaal die zo een fase wordt verliest zijn mijlpaalvlag. Het antwoord meldt dat in `phaseTransitions`. ' +
+  'Kan het niet schoon (geen geschikte subtaak, of die heeft dezelfde resource al), dan faalt de hele call ' +
+  '(VALIDATION) en verandert er niets.';
 
 // =================================================================================================
 // planner_add_tasks
@@ -200,8 +209,14 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
       ...(time ? { time } : {}),
     };
   });
-  const map = ctx.transactions.draft.addTasks(bulk);
-  return { data: { created: Object.fromEntries(map) } };
+  const phaseTransitions: PhaseTransitionReport[] = [];
+  const map = ctx.transactions.draft.addTasks(bulk, phaseTransitions);
+  return {
+    data: {
+      created: Object.fromEntries(map),
+      ...(phaseTransitions.length > 0 ? { phaseTransitions } : {}),
+    },
+  };
 }
 
 const addTasks: BatchStepTool = {
@@ -216,8 +231,8 @@ const addTasks: BatchStepTool = {
     'Geef de DUUR direct mee met `duration` en desgewenst `durationUnit` (`days`/`hours`; zonder duur krijgt een taak de ' +
     'standaard 5 werkdagen). Een mijlpaal (`isMilestone`) heeft per definitie duur 0 — `duration` > 0 ' +
     'is daar een fout. ' + TASK_FIELDS_DOC + ' Bij add_tasks is een onbekende sleutel een HARDE fout ' +
-    '(de hele call faalt), niet een per-item-weigering. Retourneert de volledige tempId→realId-map, de ' +
-    'herrekende earlyStart/earlyFinish per aangemaakte taak en het projecteinde.',
+    '(de hele call faalt), niet een per-item-weigering. ' + PHASE_TRANSITION_DOC + ' Retourneert de volledige ' +
+    'tempId→realId-map, de herrekende earlyStart/earlyFinish per aangemaakte taak en het projecteinde.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -259,11 +274,12 @@ const addTasks: BatchStepTool = {
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => addTasksCore(ctx, parsed));
     return enrichOk(res, () => {
-      const created = (res as McpToolOk).data as { created: Record<string, string> };
+      const core = (res as McpToolOk).data as { created: Record<string, string>; phaseTransitions?: PhaseTransitionReport[] };
       const state = ctx.app.store.getState();
       return {
-        created: created.created,
-        tasks: freshDates(state, Object.values(created.created)),
+        created: core.created,
+        ...(core.phaseTransitions ? { phaseTransitions: core.phaseTransitions } : {}),
+        tasks: freshDates(state, Object.values(core.created)),
         ...projectEndInfo(state),
       };
     });
@@ -587,8 +603,9 @@ const deleteTasks: BatchStepTool = {
 };
 
 // =================================================================================================
-// planner_move_task — roept de slice-actie `moveTask` DIRECT binnen de transactie aan; de
-// suppressievlag dekt de `beginUndoable`, de trailing `recomputeViewRows` is redundant maar onschadelijk.
+// planner_move_task — via `draft.moveTask`: dezelfde verhanging als de slice-actie `moveTask`
+// (`reparentTask`) plus de gedeelde "wordt fase"-regel, maar zonder UI-melding (audit taakmutaties
+// §6); een verhuisde toewijzing staat als `phaseTransitions` in het antwoord.
 // =================================================================================================
 /** Vormvalidatie van `move_task`; string = foutboodschap. */
 function parseMoveTask(args: unknown): { id: string; newParentId: string | null; position?: number } | string {
@@ -627,8 +644,8 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
       || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
     if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
-  ctx.app.store.getState().moveTask(id, newParentId, position);
-  return { data: { moved: id } };
+  const phaseTransitions = ctx.transactions.draft.moveTask(id, newParentId, position);
+  return { data: { moved: id, ...(phaseTransitions.length > 0 ? { phaseTransitions } : {}) } };
 }
 
 const moveTask: BatchStepTool = {
@@ -636,7 +653,7 @@ const moveTask: BatchStepTool = {
   description:
     'Verplaats een taak naar een nieuwe ouder (`newParentId: null` = wortel) en optioneel een `position` ' +
     '(invoeg-index binnen de ouder; klemt stil naar [0, aantal siblings]). Een taak onder zichzelf of een ' +
-    'eigen afstammeling plaatsen is een harde fout.',
+    'eigen afstammeling plaatsen is een harde fout. ' + PHASE_TRANSITION_DOC,
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -657,6 +674,7 @@ const moveTask: BatchStepTool = {
     const id = parsed.id;
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => moveTaskCore(ctx, parsed));
     return enrichOk(res, () => ({
+      ...((res as McpToolOk).data as { moved: string; phaseTransitions?: PhaseTransitionReport[] }),
       moved: id,
       tasks: freshDates(ctx.app.store.getState(), [id]),
       projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,

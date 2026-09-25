@@ -1,5 +1,5 @@
 import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
-import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
   applyProgressInvariants,
@@ -311,6 +311,11 @@ function applyMilestoneEdit(
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
+      // Gedeelde "wordt mijlpaal"-regel (audit §6): een fase wordt geen ruit. Toewijzingen toetst
+      // het raster na afloop over de hele transactie (`planTaskAssignmentSet`), daarom hier `false`.
+      if (edit.value && milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments: false })) {
+        return failure('milestoneUnavailable', edit);
+      }
       const transition = taskMilestoneTransition(task, edit.value);
       scheduleChanged = transition.time !== undefined
         && (task.time.scheduleDuration !== transition.time.scheduleDuration

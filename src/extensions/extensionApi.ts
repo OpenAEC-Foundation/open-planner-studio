@@ -120,12 +120,22 @@ export function createExtensionApi(
       getResources: () => document.store.getState().resources.map(toExtResource),
       getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
       addTask: (task) => {
+        // De store-`addTask` weigert (met melding, `''` als id) een mijlpaal als eerste kind van een
+        // taak met toewijzingen: die toewijzingen zouden nergens heen kunnen (audit §6). Een
+        // extensie krijgt dan een fout in plaats van een id dat niet bestaat.
+        const added = (id: string): string => {
+          if (!id) {
+            throw new Error(`Extensie "${extensionId}": taak '${task.name}' niet toegevoegd — de ouder heeft `
+              + 'toewijzingen die niet naar deze nieuwe subtaak kunnen (zie de melding in de app)');
+          }
+          return id;
+        };
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
-        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
+        if (!materialize) return added(document.store.getState().addTask(fromExtTaskInput(task)));
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           document.store.getState().ensureProjectTaskType(materialize);
-          return document.store.getState().addTask(fromExtTaskInput(task));
+          return added(document.store.getState().addTask(fromExtTaskInput(task)));
         });
       },
       updateTask: (id, updates) => {

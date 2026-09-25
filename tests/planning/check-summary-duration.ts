@@ -170,11 +170,14 @@ function parentWithChild(days: number): { parent: string; child: string } {
 // `isZeroDurationMilestone` stuurt de ruit-tekening in `GanttRenderer`; een afgeleide duur zou die
 // markering stil in een balk veranderen. MS Project staat "markeer als mijlpaal" op een
 // samenvattingstaak gewoon toe, dus dit is geen onmogelijke toestand.
+// Sinds audit taakmutaties §6 maken de GEBRUIKERSroutes zo'n taak niet meer (een mijlpaal die
+// kinderen krijgt verliest zijn vlag; een fase wordt geen mijlpaal), maar een import kan hem nog
+// steeds aanleveren. Daarom hier als fixture, zoals een ingelezen bestand hem neerzet.
 {
   reset();
-  const parent = S().addTask({ name: 'Fase', isMilestone: true });
-  const child = S().addTask({ name: 'Kind' });
-  S().indentTasks([child]);
+  const parent = S().addTask({ name: 'Fase' });
+  const child = S().addTask({ name: 'Kind', parentId: parent });
+  useAppStore.setState((s) => { s.tasks.find(t => t.id === parent)!.isMilestone = true; });
   setTime(child, { scheduleDuration: 10 });
   setTime(parent, { scheduleDuration: 0 });
   S().runCPM();

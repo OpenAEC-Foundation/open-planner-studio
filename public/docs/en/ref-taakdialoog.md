@@ -29,7 +29,7 @@ A checklist per task: each row has a **done checkbox**, a text box and a remove 
 
 ## Milestone
 
-- **Milestone** — ticking it sets the duration to 0 and shows the diamond instead of a bar.
+- **Milestone** — ticking it sets the duration to 0 and shows the diamond instead of a bar. Not possible on a summary task or a task with resource assignments; a notification explains why.
 - **Milestone kind** — **Automatic**, **Start milestone** or **Finish milestone**.
 - **Mandatory (contractual)** — marks the milestone as contractual.
 

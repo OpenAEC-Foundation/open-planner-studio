@@ -48,7 +48,7 @@ Er zijn drie plekken waar je een toewijzing beheert — ze werken op dezelfde on
 2. **Taakdialoog** — dezelfde sectie **Toewijzingen**, in het venster **Taak bewerken**.
 3. **Lint** — tabblad **Resources**, lintgroep **Toewijzing**, knop **Toewijzen ▾**. Deze knop is alleen actief als precies één niet-mijlpaal-, niet-samenvattende taak geselecteerd is; het uitklapmenu laat je eerst **eenheden/dag** en **curve** instellen en toont daaronder de nog-niet-toegewezen resources — klik een naam aan om in één keer een complete toewijzing te maken.
 
-Mijlpalen en samenvattende taken kunnen geen resources dragen (ze hebben geen eigen duur om te belasten) — beide plekken tonen dat met een uitleg in plaats van het toewijzingsformulier.
+Mijlpalen en samenvattende taken kunnen geen resources dragen (ze hebben geen eigen duur om te belasten) — beide plekken tonen dat met een uitleg in plaats van het toewijzingsformulier. Een taak met toewijzingen kan daarom ook geen mijlpaal worden, en krijgt ze subtaken, dan verhuizen haar toewijzingen naar de eerste nieuwe subtaak, zie de gids Plannen & WBS.
 
 ### Een toewijzing verplaatsen
 

@@ -85,6 +85,7 @@
       "hourPlanningDisabled": "设置中已关闭按小时计划。",
       "durationConversionNotExact": "此工期无法精确换算为另一单位。",
       "milestoneRequired": "此字段仅适用于里程碑。",
+      "milestoneUnavailable": "带子任务的摘要任务无法变为里程碑。",
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
       "conflictingProgressInputs": "这些进度值相互矛盾。",

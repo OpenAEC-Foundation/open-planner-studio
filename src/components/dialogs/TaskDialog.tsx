@@ -3,7 +3,8 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusal, taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -141,6 +142,20 @@ export function TaskDialog() {
       // en de drift na herberekenen herintroduceren.
       const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
       if (startDate !== shownStart) time.scheduleStart = startDate;
+      // Wordt mijlpaal (audit §6): het vinkje weigert al in het concept (`TaskMilestoneFields`); dit
+      // vangt de toewijzing die intussen via de relationele sectie van deze dialoog is toegevoegd.
+      // Weigeren houdt de dialoog open met de rest van het concept intact.
+      if (draft.isMilestone && !editingTask.isMilestone) {
+        const store = useAppStore.getState();
+        const refusal = milestoneRefusal({
+          hasChildren: editingTask.childIds.length > 0,
+          hasAssignments: store.assignments.some(a => a.taskId === editingTask.id),
+        });
+        if (refusal) {
+          for (const notice of milestoneRefusalNotices([{ name: editingTask.name, refusal }])) store.notify(notice);
+          return;
+        }
+      }
       const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);

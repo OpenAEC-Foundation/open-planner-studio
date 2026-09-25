@@ -35,7 +35,14 @@
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
     "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
-    "referencesClearedOnPaste_other": "この文書に存在しない参照 {{count}} 件をクリアしました（元の文書のタスクカレンダー、カスタムタスク種別、アクティビティコード、カスタムフィールド）。"
+    "referencesClearedOnPaste_other": "この文書に存在しない参照 {{count}} 件をクリアしました（元の文書のタスクカレンダー、カスタムタスク種別、アクティビティコード、カスタムフィールド）。",
+    "milestoneRefusedAssignments_other": "リソースの割り当てがあるタスク {{count}} 件はマイルストーンにできません。先に割り当てを削除してください。",
+    "milestoneRefusedSummary_other": "サブタスクを持つサマリータスク {{count}} 件はマイルストーンにできません。",
+    "assignmentsMovedToSubtask_other": "{{count}} 件の割り当て（{{resources}}）を「{{phase}}」から新しいサブタスク「{{child}}」に移動しました。サマリータスク自体は割り当てを持ちません。",
+    "assignmentsMovedToSubtasks_other": "{{count}} 件のタスクがサマリータスクになりました。それぞれの割り当ては最初の新しいサブタスクに移動しました。",
+    "milestoneClearedOnPhase_other": "{{count}} 件のマイルストーンにサブタスクができ、サマリータスクになりました。マイルストーンの指定を解除しました。",
+    "phaseRefusedNoAssignableChild": "「{{phase}}」はサマリータスクにできません。新しいサブタスクはどれも割り当てを持てない（マイルストーンまたはサマリータスク）ため、その割り当ての移動先がありません。何も変更していません。",
+    "phaseRefusedDuplicateResource": "「{{phase}}」はサマリータスクにできません。新しいサブタスク「{{child}}」には既に {{resource}} が割り当てられているため、{{resource}} の割り当てを移動できません。何も変更していません。"
   },
   "yes": "はい",
   "no": "いいえ",
