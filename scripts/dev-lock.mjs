@@ -18,11 +18,17 @@ function pidAlive(pid) {
   catch (e) { return e.code === 'EPERM'; } // bestaat wel, maar geen permissie
 }
 
+/** Ruwe inhoud van het slot; null als het niet te lezen is (weg, geen rechten). */
+function readText(lockPath) {
+  try { return readFileSync(lockPath, 'utf8'); } catch { return null; }
+}
+
+function parseHolder(raw) {
+  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
 function readHolder(lockPath) {
-  try {
-    const raw = readFileSync(lockPath, 'utf8');
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  return parseHolder(readText(lockPath));
 }
 
 function sameHolder(a, b) {
@@ -35,6 +41,12 @@ function statOrNull(path) {
 
 function sameFile(a, b) {
   return Boolean(a && b && a.dev === b.dev && a.ino === b.ino);
+}
+
+/** Dezelfde inode, en sinds `before` niet beschreven (grootte en mtime gelijk). */
+function unchangedFile(path, before) {
+  const after = statOrNull(path);
+  return sameFile(after, before) && after.size === before.size && after.mtimeMs === before.mtimeMs;
 }
 
 /**
@@ -68,7 +80,7 @@ function fillOwnLock(lockPath, fd, payload, write, close) {
 
 function removeOwnLock(lockPath, own) {
   // Zonder fstat (faalt in de praktijk niet) is het pad vrijwel zeker nog van ons:
-  // we maakten het net aan en een leeg slot wordt niet gestolen.
+  // we maakten het net aan en een leeg slot wordt pas na emptyAgeMs gestolen.
   if (own && !sameFile(statOrNull(lockPath), own)) return;
   try { unlinkSync(lockPath); } catch { /* al weg */ }
 }
@@ -86,15 +98,26 @@ function removeOwnLock(lockPath, own) {
  * `link` (nooit overschrijven) i.p.v. het te klobberen. Een naïeve `unlink`+`open`
  * zou een net-gewonnen vers slot kunnen wegvegen → meerdere winnaars.
  *
- * Een leeg/half-geschreven slot (null holder) geldt als levend → niet stelen.
- * Daarom ruimt de maker zijn slot zelf op als schrijven of sluiten faalt
- * (fillOwnLock); anders blokkeert een leeg slot iedereen voorgoed.
+ * Een leeg/half-geschreven slot (null holder) geldt als levend → niet stelen,
+ * TENZIJ zijn mtime ouder is dan `emptyAgeMs`. Een levende maker schrijft direct
+ * na open('wx') en ruimt bij een schrijffout zijn slot zelf op (fillOwnLock), dus
+ * een leeg slot van een levend proces bestaat maar microseconden. Een ouder leeg
+ * slot komt van een proces dat tussen open en schrijven stierf (of van oudere
+ * code die bij een schrijffout niet opruimde). Dat geldt voor élk slot, ook bij
+ * allowAgeSteal=false: die regel beschermt een trage allocator mét pid in het
+ * slot, en een leeg slot identificeert geen allocator. Stelen gaat via dezelfde
+ * claim-en-verifieer; de verificatie eist dezelfde inode, nog steeds onbeschreven
+ * (grootte en mtime gelijk) en byte voor byte dezelfde inhoud.
  *
  * `write`/`close`/`now` zijn injecteerbaar voor tests.
  */
 export function acquireLock(lockPath, opts = {}) {
   const {
     allowAgeSteal = false, ageMs = 60000,
+    // Ruim boven de microseconden tussen open en schrijven, en onder de 15 s die
+    // withAllocLock wacht: wie achter een achtergebleven leeg slot wacht, komt er
+    // in dezelfde poging nog langs.
+    emptyAgeMs = 10000,
     timeoutMs = 15000, sleepMs = 50,
     extra = {}, now = Date.now,
     write = writeSync, close = closeSync,
@@ -111,10 +134,15 @@ export function acquireLock(lockPath, opts = {}) {
       fillOwnLock(lockPath, fd, JSON.stringify({ pid: process.pid, startedAt: now(), ...extra }), write, close);
       return () => { try { unlinkSync(lockPath); } catch { /* al weg */ } };
     }
-    const h = readHolder(lockPath); // null → behandel als levend
+    const raw = readText(lockPath);
+    const h = parseHolder(raw); // null → leeg/half/weg/onleesbaar: levend, behalve hieronder
     const dead = h && typeof h.pid === 'number' && !pidAlive(h.pid);
     const aged = allowAgeSteal && h && typeof h.startedAt === 'number' && (now() - h.startedAt) > ageMs;
-    if (dead || aged) {
+    // Alleen een slot dat we WEL lazen en leeg of half bleek; een onleesbaar slot (rechten)
+    // bewijst niets. Stat NA het lezen: een slot dat daartussen vervangen werd, is vers.
+    const emptySnap = raw !== null && h === null ? statOrNull(lockPath) : null;
+    const orphanEmpty = emptySnap !== null && (now() - emptySnap.mtimeMs) > emptyAgeMs;
+    if (dead || aged || orphanEmpty) {
       const mine = `${lockPath}.steal.${process.pid}.${stealSeq++}`;
       try {
         renameSync(lockPath, mine); // atomair; slechts één steler verplaatst de inode
@@ -122,12 +150,15 @@ export function acquireLock(lockPath, opts = {}) {
         if (e2.code === 'ENOENT') continue; // andere steler/creator was ons voor
         throw e2;
       }
-      const grabbed = readHolder(mine);
-      if (sameHolder(grabbed, h)) {
-        try { unlinkSync(mine); } catch { /* al weg */ } // exact de dode holder → weggooien
+      const exact = orphanEmpty
+        ? unchangedFile(mine, emptySnap) && readText(mine) === raw
+        : sameHolder(readHolder(mine), h);
+      if (exact) {
+        try { unlinkSync(mine); } catch { /* al weg */ } // exact het beoordeelde slot → weggooien
       } else {
-        // Refresh-race: we grepen een ánder (mogelijk levend) slot. Zet het terug
-        // zónder een intussen vers-gemaakt slot te overschrijven (link faalt op EEXIST).
+        // Refresh-race: we grepen een ánder (mogelijk levend) slot, of het lege slot
+        // werd intussen alsnog gevuld. Zet het terug zónder een intussen vers-gemaakt
+        // slot te overschrijven (link faalt op EEXIST).
         try { linkSync(mine, lockPath); } catch { /* slot al opnieuw geclaimd */ }
         try { unlinkSync(mine); } catch { /* al weg */ }
       }

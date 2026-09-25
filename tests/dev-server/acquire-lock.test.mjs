@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  mkdtempSync, writeFileSync, writeSync, existsSync, readFileSync, renameSync, rmSync,
+  mkdirSync, mkdtempSync, writeFileSync, writeSync, existsSync, readFileSync, renameSync, rmSync, utimesSync,
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -108,5 +108,67 @@ test('opruimen na een schrijffout raakt nooit een ANDER slot op hetzelfde pad', 
   };
   assert.throws(() => acquireLock(p, { timeoutMs: 0, write }), { code: 'ENOSPC' });
   assert.equal(readFileSync(p, 'utf8'), ander, 'het slot van de ander staat er nog');
+  rmSync(join(p, '..'), { recursive: true, force: true });
+});
+
+// ── Achtergebleven leeg slot (houder crashte tussen open en schrijven) ──────
+// Een levende houder schrijft direct na open('wx'); een leeg of half slot bestaat
+// dus alleen microseconden. Is het ouder dan emptyAgeMs (mtime), dan is de maker
+// dood of gecrasht: stelen, met dezelfde claim-en-verifieer als bij een dode pid.
+function backdate(p, seconds) {
+  const t = new Date(Date.now() - seconds * 1000);
+  utimesSync(p, t, t);
+}
+test('een LEEG slot ouder dan emptyAgeMs wordt gestolen', () => {
+  const p = lockPath();
+  writeFileSync(p, '');
+  backdate(p, 60);
+  const release = acquireLock(p, { timeoutMs: 500 });
+  assert.equal(JSON.parse(readFileSync(p, 'utf8')).pid, process.pid);
+  release();
+  rmSync(join(p, '..'), { recursive: true, force: true });
+});
+test('een HALF geschreven slot ouder dan emptyAgeMs wordt gestolen, ook zonder allowAgeSteal', () => {
+  const p = lockPath();
+  writeFileSync(p, '{"pid":12');
+  backdate(p, 60);
+  const release = acquireLock(p, { allowAgeSteal: false, timeoutMs: 500 });
+  assert.equal(JSON.parse(readFileSync(p, 'utf8')).pid, process.pid);
+  release();
+  rmSync(join(p, '..'), { recursive: true, force: true });
+});
+test('een leeg slot jonger dan emptyAgeMs blijft levend (steelt niet)', () => {
+  const p = lockPath();
+  writeFileSync(p, '');
+  backdate(p, 5);
+  assert.throws(() => acquireLock(p, { emptyAgeMs: 10000, timeoutMs: 150, sleepMs: 25 }), /vastgehouden/);
+  assert.equal(readFileSync(p, 'utf8'), '');
+  rmSync(join(p, '..'), { recursive: true, force: true });
+});
+test('een ONLEESBAAR oud slot is geen leeg slot en wordt niet gestolen', () => {
+  const p = lockPath();
+  // Een map op het slotpad: bestaat, heeft een oude mtime, maar is niet te lezen, net als
+  // een slot zonder leesrechten (dat laatste is als root niet na te bootsen).
+  mkdirSync(p);
+  backdate(p, 60);
+  assert.throws(() => acquireLock(p, { timeoutMs: 150, sleepMs: 25 }), /vastgehouden/);
+  assert.ok(existsSync(p), 'het onleesbare slot staat er nog');
+  rmSync(join(p, '..'), { recursive: true, force: true });
+});
+test('een oud leeg slot dat tijdens het stelen alsnog gevuld wordt, wordt teruggezet', () => {
+  const p = lockPath();
+  writeFileSync(p, '');
+  backdate(p, 60);
+  const levend = JSON.stringify({ pid: process.pid, startedAt: Date.now() });
+  let calls = 0;
+  const now = () => {
+    // Aanroep 1 = deadline, aanroep 2 = de leeftijdstoets van het lege slot. Precies
+    // daartussen schrijft de (trage maar levende) maker alsnog zijn houder in dezelfde
+    // inode. De steler moet dat bij het verifiëren zien en het slot terugzetten.
+    if (++calls === 2) writeFileSync(p, levend);
+    return Date.now();
+  };
+  assert.throws(() => acquireLock(p, { now, timeoutMs: 150, sleepMs: 25 }), /vastgehouden door levende/);
+  assert.equal(readFileSync(p, 'utf8'), levend, 'het gevulde slot is niet weggegooid');
   rmSync(join(p, '..'), { recursive: true, force: true });
 });
