@@ -682,6 +682,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # isMilestone bewust NIET.
   AHCHECK="$DIR/.adapters-hierarchy-rest.mjs"
   if bundle_check "$DIR/check-adapters-hierarchy-rest.ts" "$AHCHECK"; then node "$AHCHECK" || STATUS=1; fi
+  # Import/export-audit 2026-09 (bevindingen 3/4/7/8): XML-formaatherkenning op root-element i.p.v.
+  # vrije tekst ("Primavera"), elapsed-uur-lag in MSPDI (writer + lezer), soort mijlpaal via een
+  # OPS-ExtendedAttribute in MSPDI, en P6-datumprecisie volgens de kalender i.p.v. de duureenheid.
+  XACHECK="$DIR/.xml-adapter-fidelity.mjs"
+  if bundle_check "$DIR/check-xml-adapter-fidelity.ts" "$XACHECK"; then node "$XACHECK" || STATUS=1; fi
   # Contour-engine (2026-09): engine-kern, lastlezer-integratie, herschaling bij bewerken en de
   # native MSPDI-/P6-/IFC-round-trip van contouren en 21-punts-curves.
   CECHECK="$DIR/.check-contour-engine.mjs"
