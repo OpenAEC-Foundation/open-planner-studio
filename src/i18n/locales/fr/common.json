@@ -50,7 +50,10 @@
     "librarySaveFailed": "La bibliothèque n'a pas pu être enregistrée",
     "levelingDelayRoundedToWorkdays_one": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâche à des journées de travail entières.",
     "levelingDelayRoundedToWorkdays_many": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
-    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières."
+    "levelingDelayRoundedToWorkdays_other": "Le nivellement arrondit le délai de nivellement de MS Project, précis à la minute, pour {{count}} tâches à des journées de travail entières.",
+    "referencesClearedOnPaste_one": "{{count}} référence n'existait pas dans ce document et a été effacée (un calendrier de tâche, type de tâche personnalisé, code d'activité ou champ personnalisé du document source).",
+    "referencesClearedOnPaste_many": "{{count}} références n'existaient pas dans ce document et ont été effacées (calendriers de tâche, types de tâche personnalisés, codes d'activité ou champs personnalisés du document source).",
+    "referencesClearedOnPaste_other": "{{count}} références n'existaient pas dans ce document et ont été effacées (calendriers de tâche, types de tâche personnalisés, codes d'activité ou champs personnalisés du document source)."
   },
   "yes": "Oui",
   "no": "Non",

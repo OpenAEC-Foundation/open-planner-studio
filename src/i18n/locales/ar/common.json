@@ -74,7 +74,13 @@
     "levelingDelayRoundedToWorkdays_two": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمتين إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_few": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهام إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
-    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة."
+    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة.",
+    "referencesClearedOnPaste_zero": "لم يُمسح أي مرجع.",
+    "referencesClearedOnPaste_one": "مرجع واحد لم يكن موجودًا في هذا المستند وتم مسحه (تقويم مهمة أو نوع مهمة مخصص أو رمز نشاط أو حقل مخصص من المستند المصدر).",
+    "referencesClearedOnPaste_two": "مرجعان لم يكونا موجودين في هذا المستند وتم مسحهما (تقاويم مهام أو أنواع مهام مخصصة أو رموز أنشطة أو حقول مخصصة من المستند المصدر).",
+    "referencesClearedOnPaste_few": "{{count}} مراجع لم تكن موجودة في هذا المستند وتم مسحها (تقاويم مهام أو أنواع مهام مخصصة أو رموز أنشطة أو حقول مخصصة من المستند المصدر).",
+    "referencesClearedOnPaste_many": "{{count}} مرجعًا لم تكن موجودة في هذا المستند وتم مسحها (تقاويم مهام أو أنواع مهام مخصصة أو رموز أنشطة أو حقول مخصصة من المستند المصدر).",
+    "referencesClearedOnPaste_other": "{{count}} من المراجع لم تكن موجودة في هذا المستند وتم مسحها (تقاويم مهام أو أنواع مهام مخصصة أو رموز أنشطة أو حقول مخصصة من المستند المصدر)."
   },
   "yes": "نعم",
   "no": "لا",

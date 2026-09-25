@@ -400,6 +400,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   CMSCHECK="$DIR/.context-menu-scope.mjs"
   if bundle_check "$DIR/check-context-menu-scope.ts" "$CMSCHECK"; then node "$CMSCHECK" || STATUS=1; fi
 
+  # Plakken in een ander document (audit taakmutaties §8): kalender-, taaktype-, activity code- en
+  # gebruikersveldverwijzingen die in het doeldocument niet bestaan worden leeggemaakt, met één
+  # melding; binnen hetzelfde document blijft alles staan.
+  PRCHECK="$DIR/.paste-references.mjs"
+  if bundle_check "$DIR/check-paste-references.ts" "$PRCHECK"; then node "$PRCHECK" || STATUS=1; fi
+
   # Rasternavigatie (issue #48): de gedeelde kern onder de takentabel én de resourcetabel. Bewaakt
   # het RANDgedrag (buur aan de rand = null, niet klemmen — daar hangt "Enter op de laatste rij maakt
   # een nieuwe rij" aan) en het TOETSbeleid in een live raster: ↑/↓ mogen alleen in een tekstveld

@@ -193,6 +193,9 @@ export type NotificationMessageKey =
   | 'notifications.relationAncestorEndpoint'
   | 'notifications.summaryRelationsDropped'
   | 'notifications.relationsSkippedOnInsert'
+  // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
+  // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
+  | 'notifications.referencesClearedOnPaste'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
   | 'notifications.mppSourceScheduleNotes'

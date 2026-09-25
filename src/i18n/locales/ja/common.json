@@ -34,7 +34,8 @@
     "readMore": "詳細を見る",
     "pasteSkippedReadOnly_other": "{{count}} 件の読み取り専用セルをスキップしました（例：自動採番の WBS コードや計算列など）。",
     "librarySaveFailed": "ライブラリを保存できませんでした",
-    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。"
+    "levelingDelayRoundedToWorkdays_other": "山崩しは、MS Project の分単位の山崩し遅延（タスク {{count}} 件分）を整数の稼働日に丸めます。",
+    "referencesClearedOnPaste_other": "この文書に存在しない参照 {{count}} 件をクリアしました（元の文書のタスクカレンダー、カスタムタスク種別、アクティビティコード、カスタムフィールド）。"
   },
   "yes": "はい",
   "no": "いいえ",

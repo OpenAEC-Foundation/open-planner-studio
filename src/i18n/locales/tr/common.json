@@ -42,7 +42,9 @@
     "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
-    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar."
+    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
+    "referencesClearedOnPaste_one": "{{count}} başvuru bu belgede yoktu ve temizlendi (kaynak belgeden bir görev takvimi, özel görev türü, aktivite kodu veya kullanıcı alanı).",
+    "referencesClearedOnPaste_other": "{{count}} başvuru bu belgede yoktu ve temizlendi (kaynak belgeden görev takvimleri, özel görev türleri, aktivite kodları veya kullanıcı alanları)."
   },
   "yes": "Evet",
   "no": "Hayır",

@@ -50,7 +50,10 @@
     "librarySaveFailed": "Impossibile salvare la libreria",
     "levelingDelayRoundedToWorkdays_one": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
     "levelingDelayRoundedToWorkdays_many": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
-    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere."
+    "levelingDelayRoundedToWorkdays_other": "Il livellamento arrotonda il ritardo di livellamento di MS Project, preciso al minuto, per {{count}} attività a giornate lavorative intere.",
+    "referencesClearedOnPaste_one": "{{count}} riferimento non esisteva in questo documento ed è stato cancellato (un calendario attività, tipo di attività personalizzato, codice attività o campo personalizzato del documento di origine).",
+    "referencesClearedOnPaste_many": "{{count}} riferimenti non esistevano in questo documento e sono stati cancellati (calendari attività, tipi di attività personalizzati, codici attività o campi personalizzati del documento di origine).",
+    "referencesClearedOnPaste_other": "{{count}} riferimenti non esistevano in questo documento e sono stati cancellati (calendari attività, tipi di attività personalizzati, codici attività o campi personalizzati del documento di origine)."
   },
   "yes": "Sì",
   "no": "No",

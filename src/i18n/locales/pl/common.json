@@ -58,7 +58,11 @@
     "levelingDelayRoundedToWorkdays_one": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadania do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_few": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
     "levelingDelayRoundedToWorkdays_many": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
-    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych."
+    "levelingDelayRoundedToWorkdays_other": "Bilansowanie zaokrągla dokładne co do minuty opóźnienie bilansowania z MS Project dla {{count}} zadań do pełnych dni roboczych.",
+    "referencesClearedOnPaste_one": "{{count}} odwołanie nie istniało w tym dokumencie i zostało wyczyszczone (kalendarz zadania, własny typ zadania, kod zadania lub pole użytkownika z dokumentu źródłowego).",
+    "referencesClearedOnPaste_few": "{{count}} odwołania nie istniały w tym dokumencie i zostały wyczyszczone (kalendarze zadań, własne typy zadań, kody zadań lub pola użytkownika z dokumentu źródłowego).",
+    "referencesClearedOnPaste_many": "{{count}} odwołań nie istniało w tym dokumencie i zostało wyczyszczonych (kalendarze zadań, własne typy zadań, kody zadań lub pola użytkownika z dokumentu źródłowego).",
+    "referencesClearedOnPaste_other": "{{count}} odwołania nie istniało w tym dokumencie i zostało wyczyszczone (kalendarze zadań, własne typy zadań, kody zadań lub pola użytkownika z dokumentu źródłowego)."
   },
   "yes": "Tak",
   "no": "Nie",

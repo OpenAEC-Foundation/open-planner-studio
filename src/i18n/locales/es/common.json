@@ -50,7 +50,10 @@
     "librarySaveFailed": "No se pudo guardar la biblioteca",
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
-    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos."
+    "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "referencesClearedOnPaste_one": "{{count}} referencia no existía en este documento y se ha borrado (un calendario de tarea, tipo de tarea personalizado, código de actividad o campo personalizado del documento de origen).",
+    "referencesClearedOnPaste_many": "{{count}} referencias no existían en este documento y se han borrado (calendarios de tarea, tipos de tarea personalizados, códigos de actividad o campos personalizados del documento de origen).",
+    "referencesClearedOnPaste_other": "{{count}} referencias no existían en este documento y se han borrado (calendarios de tarea, tipos de tarea personalizados, códigos de actividad o campos personalizados del documento de origen)."
   },
   "yes": "Sí",
   "no": "No",

@@ -42,7 +42,9 @@
     "pasteSkippedReadOnly_other": "{{count}} سلول رد شد: فقط‌خواندنی هستند (مثلاً کد WBS شماره‌گذاری‌شده خودکار یا یک ستون محاسبه‌شده).",
     "librarySaveFailed": "ذخیره‌سازی کتابخانه ناموفق بود",
     "levelingDelayRoundedToWorkdays_one": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
-    "levelingDelayRoundedToWorkdays_other": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند."
+    "levelingDelayRoundedToWorkdays_other": "تسطیح، تأخیر تسطیح دقیق‌به‌دقیقهٔ MS Project را برای {{count}} وظیفه به روزهای کاری کامل گرد می‌کند.",
+    "referencesClearedOnPaste_one": "{{count}} ارجاع در این سند وجود نداشت و پاک شد (تقویم وظیفه، نوع وظیفهٔ سفارشی، کد فعالیت یا فیلد سفارشی از سند مبدأ).",
+    "referencesClearedOnPaste_other": "{{count}} ارجاع در این سند وجود نداشت و پاک شد (تقویم‌های وظیفه، انواع وظیفهٔ سفارشی، کدهای فعالیت یا فیلدهای سفارشی از سند مبدأ)."
   },
   "yes": "بله",
   "no": "خیر",
