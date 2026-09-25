@@ -118,6 +118,40 @@ export function snapWorkInstantOnOrAfter(eng: CalendarEngine, from: Date): Date 
 }
 
 /**
+ * DE kalenderkeuze voor de engine waarin `task` rekent, op de al opgeloste kalender `cal` (de
+ * taakkalender via `resolveCalendar`, of bij een resourcekalender-wandeling die van de resource).
+ * Top-level EXPORT met dezelfde reden als `snapWorkInstantOnOrAfter` hierboven: de solver
+ * (`calendarFor` en de wandelingen, via de instance-tunnel `engineForCal`) én
+ * `projectStartAnchorClamp.ts` (de T7b-klem) gebruiken deze ene functie, zodat de klem een anker
+ * in exact de engine snapt waarin de solver het daarna leest.
+ *
+ * Regel: een URENtaak (`taskDurationUnit(task) === 'hours'`) rekent in de EFFECTIEVE uurbanden van
+ * `cal` (`calendarWithEffectiveWorkTime`). Een scalaire kalender zonder `workTime` — zoals de
+ * standaardprojectkalender — krijgt die banden alléén in deze afgeleide engine; valt er niets af te
+ * leiden, dan blijft het `cal` zelf. Een DAGtaak rekent in `cal` zelf. De persistente kalender en
+ * alle dagtaken blijven dus ongewijzigd daggranulair.
+ *
+ * `cache` is van de aanroeper (vers per berekening). De sleutel draagt het uur-/dagonderscheid
+ * (`<id>` tegenover `<id>\0effective-hour`), zodat een uur- en een dagengine op dezelfde kalender
+ * elkaar nooit lekken; de effectieve kalender wordt pas bij een cache-miss afgeleid.
+ */
+export function engineForTaskCalendar(
+  cache: Map<string, CalendarEngine>,
+  cal: WorkCalendar,
+  task: Task,
+): CalendarEngine {
+  const effectiveHourBands = taskDurationUnit(task) === 'hours';
+  const key = effectiveHourBands ? `${cal.id}\u0000effective-hour` : cal.id;
+  let e = cache.get(key);
+  if (!e) {
+    const engineCalendar = effectiveHourBands ? calendarWithEffectiveWorkTime(cal) : cal;
+    e = new CalendarEngine(engineCalendar ?? cal);
+    cache.set(key, e);
+  }
+  return e;
+}
+
+/**
  * Effectieve lag in dagen van een relatie: procent-lag wordt uit de ACTUELE voorgangerduur
  * opgelost (MSP-semantiek, afgerond op hele dagen), anders geldt lagDays. Gedeeld met de UI
  * (relatietabel-waarschuwingen) zodat er één definitie bestaat.
@@ -321,27 +355,17 @@ export class CPMSolver {
   }
 
   /**
-   * Engine voor een concrete kalender. Voor een urentaak materialiseren we een eventueel scalar
-   * model alléén in deze afgeleide engine; de persistente kalender en alle dagtaken blijven
-   * ongewijzigd daggranulair. De afzonderlijke cache-sleutel voorkomt een moduslek tussen beide.
+   * Engine voor `task` op een concrete kalender. Instance-tunnel naar de gedeelde
+   * `engineForTaskCalendar` (top-level, zie daar de uur-/dagregel en de cache-sleutel) op deze
+   * solver-cache — die de constructor al met de projectengine onder `projectCal.id` vult.
    */
-  private engineForCal(cal: WorkCalendar, effectiveHourBands = false): CalendarEngine {
-    const key = effectiveHourBands ? `${cal.id}\u0000effective-hour` : cal.id;
-    let e = this.engineCache.get(key);
-    if (!e) {
-      const engineCalendar = effectiveHourBands ? calendarWithEffectiveWorkTime(cal) : cal;
-      e = new CalendarEngine(engineCalendar ?? cal);
-      this.engineCache.set(key, e);
-    }
-    return e;
+  private engineForCal(cal: WorkCalendar, task: Task): CalendarEngine {
+    return engineForTaskCalendar(this.engineCache, cal, task);
   }
 
   /** De kalender-engine waarin de duur/constraints/float van `task` rekenen (§5.2). */
   private calendarFor(task: Task): CalendarEngine {
-    return this.engineForCal(
-      resolveCalendar(task.calendarId, this.registry, this.projectCal),
-      taskDurationUnit(task) === 'hours',
-    );
+    return this.engineForCal(resolveCalendar(task.calendarId, this.registry, this.projectCal), task);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1485,7 +1509,7 @@ export class CPMSolver {
       if (task.timephasedDurationWalks && task.timephasedDurationWalks.length === 1) {
         const candidate = this.engineForCal(
           resolveCalendar(task.timephasedDurationWalks[0].resourceCalendarId, this.registry, this.projectCal),
-          taskDurationUnit(task) === 'hours',
+          task,
         );
         if (candidate.isHourMode) progressCal = candidate;
       }
@@ -2217,7 +2241,7 @@ export class CPMSolver {
       if (durMin != null) {
         for (const walk of task.timephasedDurationWalks) {
           const resCal = resolveCalendar(walk.resourceCalendarId, this.registry, this.projectCal);
-          const resEng = this.engineForCal(resCal, taskDurationUnit(task) === 'hours');
+          const resEng = this.engineForCal(resCal, task);
           if (!resEng.isHourMode) continue;
           // Z19-apportionering: `workMinutes` (alleen gezet bij >1 toewijzing) wint van de volle
           // taakduur — zie het docblok hierboven.

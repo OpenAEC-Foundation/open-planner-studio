@@ -149,6 +149,49 @@ test('M4 — een uurtaak later diezelfde kalenderdag (ná de eerste werkband) wo
     'anker ná de eerste werkband van de nieuwe startdatum zelf — niets te klemmen');
 });
 
+// Uurtaak op een SCALAIRE kalender (geen `workTime`, zoals de standaardprojectkalender: 07:00–16:00,
+// 8 u/dag). De solver rekent een urentaak in de EFFECTIEVE uurbanden van zo'n kalender
+// (`engineForTaskCalendar`); de klem bouwde zijn engine tot deze fix op de RUWE kalender (dagmodus)
+// en zette het anker dus op middernacht (`T00:00`) i.p.v. het eerste werkmoment. Sinds de fix kiezen
+// klem en solver de engine via dezelfde functie. Taakvolgorde uur → dag bewijst tegelijk dat de
+// engine-cache van de klem het uur-/dagonderscheid in de sleutel draagt (anders lekt de uur-engine
+// naar de dagtaak).
+test('uurtaak op de scalaire standaardkalender klemt naar het eerste werkmoment (07:00) — dezelfde keuze als de solver', async () => {
+  versProject();
+  assertEq(S().calendar.workTime, undefined, 'voorwaarde: de standaardprojectkalender is scalair (geen workTime)');
+  const u = S().addTask({ name: 'U', time: createDefaultTaskTime('2026-05-04T08:00', 4, 'hours') });
+  const d = S().addTask({ name: 'D', time: createDefaultTaskTime('2026-05-04', 2) });
+  S().runCPM();
+
+  const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
+
+  const uNa = S().tasks.find((t) => t.id === u)!;
+  assertEq(uNa.time.scheduleStart, '2026-08-17T07:00',
+    'uurtaak-anker = eerste werkmoment van de effectieve uurbanden, geen middernacht');
+  assertEq(uNa.time.earlyStart, uNa.time.scheduleStart,
+    'klem en solver kiezen hetzelfde moment (anker = door de transactie herberekende vroegste start)');
+  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-08-17',
+    'dagtaak op dezelfde kalender: kale datum zonder tijd, zoals vóór de fix');
+  assertEq(data.anchorsClamped, 2, 'beide wortel-ankers tellen mee');
+});
+
+test('uurtaak op een scalaire BIBLIOTHEEKkalender (task.calendarId) klemt naar diens eerste werkmoment', async () => {
+  versProject();
+  const vroeg = S().addCalendar({
+    ...S().calendar, name: 'Vroege ploeg', workStartHour: 6, workEndHour: 15, hoursPerDay: 8, workTime: undefined,
+  });
+  const d = S().addTask({ name: 'D', time: createDefaultTaskTime('2026-05-04', 2), calendarId: vroeg });
+  const u = S().addTask({ name: 'U', time: createDefaultTaskTime('2026-05-04T08:00', 4, 'hours'), calendarId: vroeg });
+  S().runCPM();
+
+  await callOk('planner_update_project', { startDate: '2026-08-17' });
+
+  const uNa = S().tasks.find((t) => t.id === u)!;
+  assertEq(uNa.time.scheduleStart, '2026-08-17T06:00', 'de taak-eigen kalender bepaalt het werkmoment (06:00)');
+  assertEq(uNa.time.earlyStart, uNa.time.scheduleStart, 'klem en solver kiezen hetzelfde moment');
+  assertEq(S().tasks.find((t) => t.id === d)!.time.scheduleStart, '2026-08-17', 'dagtaak op die kalender blijft een kale datum');
+});
+
 test('batch-pad: de klem werkt óók door `planner_batch`, en het aantal komt mee in de stap-data', async () => {
   versProject();
   S().addTask({ name: 'A', time: createDefaultTaskTime('2026-05-01', 5) });
