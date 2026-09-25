@@ -46,7 +46,9 @@ import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/Resourc
 import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
-import { calendarScalarBreakIssue, simpleBreakPatch, type ScalarBreakIssue } from '@/utils/effectiveWorkTime';
+import {
+  calendarScalarBreakIssue, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
+} from '@/utils/effectiveWorkTime';
 
 /**
  * Curve-toets (`isResourceCurve`, `types/resource.ts`) — exact het `isSeqType`-patroon uit T19
@@ -544,7 +546,7 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
         continue;
       }
       const existing = s.calendars.find((c) => c.id === item.id) ?? s.calendar;
-      const badBreak = mergedBreakReason(item, existing);
+      const badBreak = mergedBreakReason(item, existing) ?? netHoursReason(item, existing);
       if (badBreak) {
         rejections.push({ id: item.id, reason: badBreak });
         continue;
@@ -553,7 +555,8 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
       continue;
     }
     if (item.create === true) {
-      const badBreak = mergedBreakReason(item, newCalendarBase(item));
+      const base = newCalendarBase(item);
+      const badBreak = mergedBreakReason(item, base) ?? netHoursReason(item, base);
       if (badBreak) {
         rejections.push({ id: item.id, reason: badBreak });
         continue;
@@ -610,6 +613,71 @@ function mergedBreakReason(item: CalendarItem, existing: CalendarBase): string |
   return issue ? scalarBreakReason(issue, merged) : null;
 }
 
+/** Uren leesbaar in een reden, zoals de dialoog ze toont (twee decimalen): 8, 8.5, 8.33. */
+function hoursLabel(hours: number): string {
+  return String(Math.round(hours * 100) / 100);
+}
+
+/**
+ * NETTO UREN OP EEN KALENDER MET PAUZE (ronde 3, G1 — "MCP doet wat de kalenderdialoog doet"). In de
+ * dialoog is "Netto-uren per dag" een niet-bewerkbare afleiding uit werkdag − pauze
+ * (`simpleBreakPatch` → `simpleBreakNetHours`); een losse opgave bestaat daar niet. Geeft dit item een
+ * `hoursPerDay` mee voor een DAG-kalender die (na samenvoegen) een pauzepatroon heeft, dan moet die
+ * dus gelijk zijn aan werkdag − pauze. Afwijkend ⇒ zachte weigering met de velden die de AI wél moet
+ * wijzigen (vroeger won de opgave stil: de respons zei 6, de engine rekende 8). Gelijk ⇒ geen
+ * bezwaar; `calendarFieldPatch` neemt dan de afgeleide waarde, dus een gelijke opgave is een no-op.
+ *
+ * "Gelijk" is gelijk op de MINUUT: werkdag en pauze zijn hele minuten, en de dialoog toont twee
+ * decimalen (8,33 voor 8 u 20 min), wat hoogstens 0,3 min afwijkt.
+ *
+ * Buiten dit besluit, ongewijzigd: een legacy-kalender zonder pauzevelden (daar is `hoursPerDay` de
+ * opgave en leidt de engine juist de impliciete pauze eruit af) en een uurkalender (banden leidend).
+ */
+function netHoursReason(item: CalendarItem, existing: CalendarBase): string | null {
+  if (item.hoursPerDay === undefined) return null;
+  const merged: CalendarBase = { ...existing, ...calendarFieldPatch(item, existing) };
+  if (item.workTime === null) delete merged.workTime;
+  if (merged.workTime !== undefined) return null;
+  if (merged.simpleBreakStartMinute === undefined && merged.simpleBreakDurationMinutes === undefined) return null;
+  const net = simpleBreakNetHours(merged);
+  if (net === undefined) {
+    // Alleen bij oude/externe data met een ongeldige pauze (een item dat werkdag of pauze raakt, is
+    // al door `mergedBreakReason` getoetst). De dialoog laat dan ook niets toepassen.
+    const issue = calendarScalarBreakIssue(merged);
+    return `${issue ? scalarBreakReason(issue, merged) : 'het pauzepatroon is ongeldig'}; de netto uren ` +
+      '(`hoursPerDay`) volgen uit werkdag min pauze, dus herstel eerst de pauze ' +
+      '(`simpleBreakStartMinute`/`simpleBreakDurationMinutes`) of de werkdag (`workStartHour`/`workEndHour`)';
+  }
+  if (Math.abs(item.hoursPerDay - net) * 60 < 0.5) return null;
+
+  const start = merged.workStartHour * 60;
+  const end = merged.workEndHour * 60;
+  const pause = merged.simpleBreakDurationMinutes ?? 0;
+  const wanted = item.hoursPerDay * 60;
+  // Twee concrete uitwegen, alleen als ze zelf geldig zijn: de werkdag later/eerder laten eindigen, of
+  // de pauze aanpassen (begin en pauzebegin gelijk).
+  const examples: string[] = [];
+  if (Number.isInteger(wanted)) {
+    const altEnd = start + wanted + pause;
+    // Alleen als het label (twee decimalen) exact die minuut is: 15.25 wel, 15.33 (= 15:19,8) niet.
+    const endLabel = hoursLabel(altEnd / 60);
+    if (altEnd > start && altEnd <= MIN_PER_DAY && Math.abs(Number(endLabel) * 60 - altEnd) < 1e-6
+      && !calendarScalarBreakIssue({ ...merged, workEndHour: altEnd / 60 })) {
+      examples.push(`\`workEndHour: ${endLabel}\``);
+    }
+    const altPause = end - start - wanted;
+    if (altPause >= 0 && !calendarScalarBreakIssue({ ...merged, simpleBreakDurationMinutes: altPause })) {
+      examples.push(`\`simpleBreakDurationMinutes: ${altPause}\``);
+    }
+  }
+  return `\`hoursPerDay\` ${hoursLabel(item.hoursPerDay)} klopt niet met deze kalender: met een pauze zijn de netto ` +
+    'uren AFGELEID uit werkdag min pauze, zoals de niet-bewerkbare "Netto-uren per dag" in de kalenderdialoog — ' +
+    `hier ${clockLabel(start)}–${clockLabel(end)} met ${pause} min pauze = ${hoursLabel(net)} u netto. Laat \`hoursPerDay\` ` +
+    'weg, of wijzig de werkdag (`workStartHour`/`workEndHour`, in UREN) of de pauzeduur ' +
+    `(\`simpleBreakDurationMinutes\`, in MINUTEN) zodat werkdag min pauze ${hoursLabel(item.hoursPerDay)} u wordt` +
+    (examples.length > 0 ? ` (bijv. ${examples.join(' of ')})` : '');
+}
+
 /** De scalaire (niet-holiday) velden van een item als `Partial<WorkCalendar>`. `existing` levert de
  *  fallback voor de afgeleide `hoursPerDay` (bij `create` de basis uit `newCalendarBase`). */
 function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial<WorkCalendar> {
@@ -644,8 +712,6 @@ function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial
   // respons) 8 terwijl de engine 9 rekent. Niet op een UURkalender (daar zijn de banden leidend en
   // leidt de banden-tak hierboven `hoursPerDay` af). Werkdag wijzigen op een legacy-kalender zonder
   // pauzevelden blijft zoals het was.
-  // ONTWERPVRAAG, bewust ongemoeid: geeft het item `hoursPerDay` zelf mee, dan wint die opgave — wat
-  // een los gezet `hoursPerDay` op een kalender met pauze moet betekenen is nog niet besloten.
   const touchesBreak = item.simpleBreakStartMinute !== undefined || item.simpleBreakDurationMinutes !== undefined;
   const touchesDay = item.workStartHour !== undefined || item.workEndHour !== undefined;
   const hasExplicitBreak = existing.simpleBreakStartMinute !== undefined || existing.simpleBreakDurationMinutes !== undefined;
@@ -656,7 +722,14 @@ function calendarFieldPatch(item: CalendarItem, existing: CalendarBase): Partial
       if (patch[k] !== undefined) scalar[k] = patch[k];
     }
     Object.assign(patch, simpleBreakPatch(existing, scalar));
-    if (item.hoursPerDay !== undefined) patch.hoursPerDay = item.hoursPerDay;
+  }
+  // Een meegegeven `hoursPerDay` op een DAG-kalender met pauzepatroon is geen opgave maar een
+  // afleiding, net als in de dialoog: `netHoursReason` heeft een afwijkende waarde al geweigerd, dus
+  // wat hier aankomt is gelijk en geldt de exacte afgeleide waarde (no-op). Legacy zonder pauzevelden:
+  // `simpleBreakNetHours` geeft `undefined` en de opgave blijft staan.
+  if (item.hoursPerDay !== undefined && !hourCalendar) {
+    const net = simpleBreakNetHours({ ...existing, ...patch });
+    if (net !== undefined) patch.hoursPerDay = net;
   }
   return patch;
 }
@@ -948,10 +1021,14 @@ const updateCalendar: BatchStepTool = {
     '`simpleBreakStartMinute`/`simpleBreakDurationMinutes` (minuten) en `workingExceptions` (werkende dagen, ' +
     'vervangt de lijst exact). De afgeleide leesvelden `isProjectDefault`/`usedByTasks`/`usedByResources` en ' +
     'de bibliotheekstempel `libraryOrigin` mogen mee maar doen niets; de respons meldt ze als `ignoredFields`. ' +
-    'PAUZE: raak je de pauze, of begin/einde van een kalender met een pauze, dan wordt `hoursPerDay` ' +
-    'afgeleid uit werkdag min pauze (zoals de kalenderdialoog); een pauze buiten de werkdag of over de hele ' +
-    'dag wordt zacht geweigerd. Gebruik `generate` (land/regio/bouwvak) óf `generation` (herkomst van meegestuurde ' +
-    'dagen), nooit allebei — `generate` DRAAIT de generator over de projectspanne van DIT document, ' +
+    'PAUZE: op een DAG-kalender met een pauze is `hoursPerDay` AFGELEID uit werkdag min pauze, net als de ' +
+    'niet-bewerkbare "Netto-uren per dag" in de kalenderdialoog. Raak je de pauze of begin/einde, dan volgt ' +
+    '`hoursPerDay` vanzelf. Meer of minder netto uren wil zeggen: wijzig `workStartHour`/`workEndHour` of ' +
+    '`simpleBreakDurationMinutes`. Een meegegeven `hoursPerDay` die niet klopt met werkdag min pauze (op de ' +
+    'minuut) wordt zacht geweigerd met de velden die je wél moet wijzigen; een gelijke waarde (zoals in een ' +
+    'letterlijke lezing) doet niets. Zonder pauzevelden (een legacy-kalender) blijft `hoursPerDay` gewoon te ' +
+    'zetten. Een pauze buiten de werkdag of over de hele dag wordt zacht geweigerd. ' +
+    'Gebruik `generate` (land/regio/bouwvak) óf `generation` (herkomst van meegestuurde dagen), nooit allebei — `generate` DRAAIT de generator over de projectspanne van DIT document, ' +
     '`generation` schrijft alleen de herkomst. ' +
     'UUR- VS DAG-KALENDER: `workTime` maakt er een UUR-kalender van (`null` zet hem terug op DAG). ' +
     'Een kalenderwijziging verandert NOOIT de gekozen eenheid of native hoeveelheid van een taak. ' +
@@ -994,7 +1071,11 @@ const updateCalendar: BatchStepTool = {
             },
             workStartHour: { type: 'number', description: 'Begin werkdag in UREN (0–24), bijv. 7.' },
             workEndHour: { type: 'number', description: 'Einde werkdag in UREN (0–24), bijv. 16.' },
-            hoursPerDay: { type: 'number', description: 'Netto werkuren per werkdag (UREN), bijv. 8.' },
+            hoursPerDay: {
+              type: 'number',
+              description: 'Netto werkuren per werkdag (UREN), bijv. 8. Op een DAG-kalender MET pauze afgeleid (werkdag min pauze): ' +
+                'een afwijkende waarde wordt zacht geweigerd, een gelijke doet niets — wijzig daar de werkdag of de pauzeduur.',
+            },
             simpleBreakStartMinute: {
               type: 'integer', minimum: 0, maximum: 1439,
               description: 'Begin van de pauze op een DAG-kalender, in MINUTEN vanaf middernacht (12:30 = 750). Leesveld van get_calendars. De netto uren (`hoursPerDay`) worden eruit afgeleid, zoals in de kalenderdialoog.',

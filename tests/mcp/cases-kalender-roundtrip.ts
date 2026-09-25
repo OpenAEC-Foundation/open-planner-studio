@@ -12,10 +12,15 @@
 //      (netto uren uit werkdag + pauze, legacy-pauze eerst expliciet) en dezelfde validatie
 //      (`calendarScalarBreakIssue`, `holidayIssue`, bandvorm) — ongeldig ⇒ zachte weigering;
 //   3. `libraryOrigin` mag mee maar wordt genegeerd en gemeld (`ignoredFields`);
-//   4. hetzelfde via `planner_batch` (schemapoort).
-// Bewust NIET beslist (ontwerpvraag): wat een los meegegeven `hoursPerDay` op een kalender met
-// pauze betekent — dat gedrag is ongemoeid gelaten en wordt hier niet vastgepind.
+//   4. hetzelfde via `planner_batch` (schemapoort);
+//   5. NETTO UREN OP EEN KALENDER MET PAUZE (resources-kalenders REVIEW §3, ronde 3 / G1): MCP doet
+//      wat de kalenderdialoog doet. Daar is "Netto-uren per dag" een niet-bewerkbare afleiding uit
+//      werkdag − pauze (`simpleBreakPatch`/`simpleBreakNetHours`). Een `hoursPerDay` die daar niet mee
+//      klopt wordt zacht geweigerd met de velden die de AI wél moet wijzigen; een gelijke waarde is
+//      een no-op. Een legacy-kalender zonder pauzevelden valt buiten dit besluit: daar blijft
+//      `hoursPerDay` de opgave (de engine leidt zijn impliciete pauze eruit af).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
@@ -272,6 +277,115 @@ test('letterlijke lezing met pauze en werkende uitzondering via planner_batch', 
   const copy = calById(payload.data.steps[0].data.calendars[0].id);
   assertEq({ start: copy.simpleBreakStartMinute, duration: copy.simpleBreakDurationMinutes, hpd: copy.hoursPerDay, we: copy.workingExceptions },
     { start: 750, duration: 30, hpd: 8.5, we: src.workingExceptions }, 'pauze en werkende uitzondering overgekomen');
+});
+
+// =================================================================================================
+// 5) NETTO UREN OP EEN KALENDER MET PAUZE — afgeleid, zoals in de kalenderdialoog
+// =================================================================================================
+/** Projectkalender 07:00–16:00 met een expliciete pauze, zoals de dialoog hem opslaat. */
+function projectCalendarWithBreak(breakStart: number, breakMinutes: number): string {
+  reset();
+  const projId = S().project.calendarId;
+  S().ensureProjectCalendarInLibrary();
+  S().updateCalendar(projId, {
+    simpleBreakStartMinute: breakStart, simpleBreakDurationMinutes: breakMinutes,
+    hoursPerDay: (9 * 60 - breakMinutes) / 60,
+  });
+  // Verse planning, zoals de kalenderdialoog hem na Toepassen achterlaat.
+  S().runCPM();
+  return projId;
+}
+
+const undoDepth = (): number => historyDepthsForActiveScope(S()).undoDepth;
+
+test('los hoursPerDay dat niet klopt met werkdag − pauze ⇒ zachte weigering die de te wijzigen velden noemt', async () => {
+  const projId = projectCalendarWithBreak(750, 60);
+  const before = JSON.stringify(calById(projId));
+  const depth = undoDepth();
+  const res = await call('planner_update_calendar', { calendars: [{ id: projId, hoursPerDay: 6 }] });
+  const rej = rejections(res);
+  assertEq(rej.length, 1, 'precies één weigering (review r3c-c: de opgave won stil, respons 6 tegen engine 8)');
+  for (const field of ['hoursPerDay', 'workStartHour', 'workEndHour', 'simpleBreakDurationMinutes']) {
+    assert(rej[0].reason.includes(`\`${field}\``), `de reden noemt \`${field}\`: ${rej[0].reason}`);
+  }
+  assert(/\b8\b/.test(rej[0].reason), `de reden noemt de afgeleide 8 u: ${rej[0].reason}`);
+  assertEq(JSON.stringify(calById(projId)), before, 'kalender onaangeroerd');
+  assertEq(undoDepth(), depth, 'geen undo-stap');
+  assertEq({ veld: calById(projId).hoursPerDay, engine: engineHoursPerDay(calById(projId)) }, { veld: 8, engine: 8 },
+    'veld en engine blijven gelijk');
+});
+
+test('hoursPerDay op een kalender met een ONGELDIGE opgeslagen pauze ⇒ weigering: eerst de pauze herstellen', async () => {
+  // Oude/externe data: pauze 15:00–17:00 valt buiten 07:00–16:00 (de dialoog laat dit niet toepassen).
+  const projId = projectCalendarWithBreak(750, 60);
+  S().updateCalendar(projId, { simpleBreakStartMinute: 900, simpleBreakDurationMinutes: 120 });
+  const before = JSON.stringify(calById(projId));
+  const res = await call('planner_update_calendar', { calendars: [{ id: projId, hoursPerDay: 8 }] });
+  const rej = rejections(res);
+  assertEq(rej.length, 1, 'geweigerd');
+  assert(/binnen de werkdag/.test(rej[0].reason) && /herstel eerst de pauze/.test(rej[0].reason),
+    `de reden noemt de ongeldige pauze en wat te doen: ${rej[0].reason}`);
+  assertEq(JSON.stringify(calById(projId)), before, 'kalender onaangeroerd');
+});
+
+test('gelijke hoursPerDay (ook op twee decimalen, zoals de dialoog hem toont) ⇒ no-op', async () => {
+  // 07:00–16:00 met 40 min pauze = 500 min = 8,333… u netto.
+  const projId = projectCalendarWithBreak(750, 40);
+  const before = JSON.stringify(calById(projId));
+  // Geen undo-assertie: elke uitgevoerde MCP-mutatie telt nu een stap, ook een waarde-identieke
+  // (de transactie herberekent en `cpmResult` krijgt een nieuwe referentie) — los van dit besluit.
+  for (const hoursPerDay of [500 / 60, 8.33]) {
+    const res = await call('planner_update_calendar', { calendars: [{ id: projId, hoursPerDay }] });
+    assertEq(rejections(res), [], `hoursPerDay ${hoursPerDay} is gelijk aan werkdag − pauze: geen weigering`);
+    assertEq(okData(res).calendars[0].hoursPerDayEffective, 500 / 60, `respons voor ${hoursPerDay}: de afgeleide waarde`);
+    assertEq(JSON.stringify(calById(projId)), before, `kalender onaangeroerd na ${hoursPerDay}`);
+  }
+});
+
+test('werkdag en hoursPerDay samen: afwijkend ⇒ weigering, kloppend ⇒ toegepast', async () => {
+  const projId = projectCalendarWithBreak(720, 60);
+  const before = JSON.stringify(calById(projId));
+  // Een AI die "tot 17:00" zet en de oude 8 u meestuurt: werkdag − pauze wordt 9 u.
+  let res = await call('planner_update_calendar', { calendars: [{ id: projId, workEndHour: 17, hoursPerDay: 8 }] });
+  let rej = rejections(res);
+  assertEq(rej.length, 1, 'afwijkende opgave geweigerd (anders zegt het veld 8 en rekent de engine 9)');
+  assert(rej[0].reason.includes('9'), `de reden noemt de afgeleide 9 u: ${rej[0].reason}`);
+  assertEq(JSON.stringify(calById(projId)), before, 'kalender onaangeroerd: ook workEndHour is niet toegepast');
+  res = await call('planner_update_calendar', { calendars: [{ id: projId, workEndHour: 17, hoursPerDay: 9 }] });
+  rej = rejections(res);
+  assertEq(rej, [], 'kloppende opgave geaccepteerd');
+  const cal = calById(projId);
+  assertEq({ end: cal.workEndHour, veld: cal.hoursPerDay, engine: engineHoursPerDay(cal), respons: okData(res).calendars[0].hoursPerDayEffective },
+    { end: 17, veld: 9, engine: 9, respons: 9 }, 'werkdag toegepast; veld, engine en respons zeggen 9');
+});
+
+test('aanmaken met pauze en afwijkende hoursPerDay ⇒ weigering, niets aangemaakt', async () => {
+  reset();
+  const count = S().calendars.length;
+  const item = {
+    id: 'kantoor', create: true, name: 'Kantoor', workStartHour: 8, workEndHour: 17,
+    simpleBreakStartMinute: 750, simpleBreakDurationMinutes: 30,
+  };
+  let res = await call('planner_update_calendar', { calendars: [{ ...item, hoursPerDay: 8 }] });
+  const rej = rejections(res);
+  assertEq(rej.length, 1, '8 u klopt niet met 08:00–17:00 min 30 min pauze (8,5 u)');
+  assert(rej[0].reason.includes('8.5') || rej[0].reason.includes('8,5'), `de reden noemt de afgeleide 8,5 u: ${rej[0].reason}`);
+  assertEq(S().calendars.length, count, 'niets aangemaakt');
+  res = await call('planner_update_calendar', { calendars: [item] });
+  assertEq(rejections(res), [], 'zonder hoursPerDay geaccepteerd');
+  const created = calById(okData(res).calendars[0].id);
+  assertEq({ veld: created.hoursPerDay, engine: engineHoursPerDay(created) }, { veld: 8.5, engine: 8.5 }, 'netto uren afgeleid');
+});
+
+test('legacy-kalender zonder pauzevelden: hoursPerDay blijft de opgave (buiten dit besluit)', async () => {
+  reset();
+  const projId = S().project.calendarId;
+  S().ensureProjectCalendarInLibrary();
+  const res = await call('planner_update_calendar', { calendars: [{ id: projId, hoursPerDay: 7.5 }] });
+  assertEq(rejections(res), [], 'geaccepteerd');
+  const cal = calById(projId);
+  assertEq({ start: cal.simpleBreakStartMinute, duration: cal.simpleBreakDurationMinutes, veld: cal.hoursPerDay, engine: engineHoursPerDay(cal) },
+    { start: undefined, duration: undefined, veld: 7.5, engine: 7.5 }, 'geen pauzevelden erbij; engine volgt de opgave');
 });
 
 await run();
