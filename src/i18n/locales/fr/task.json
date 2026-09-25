@@ -153,7 +153,8 @@
       "unknownTask": "La tâche référencée n'existe pas.",
       "unrepresentableSummaryRelation": "Un lien avec une tâche récapitulative ne peut pas être modifié ici.",
       "self": "Une tâche ne peut pas dépendre d'elle-même.",
-      "ancestor": "Une tâche ne peut pas avoir de lien avec sa propre tâche récapitulative."
+      "ancestor": "Une tâche ne peut pas avoir de lien avec sa propre tâche récapitulative.",
+      "summaryProgress": "L'avancement d'une tâche récapitulative est dérivé de ses sous-tâches et ne peut pas être modifié ici."
     },
     "controls": {
       "collapse": "Réduire", "expand": "Développer", "resize": "Modifier la largeur", "resizeTaskGrid": "Redimensionner la grille des tâches", "remove": "Supprimer", "pin": "Épingler",
@@ -270,7 +271,8 @@
       "actualStart": "Début réel",
       "actualFinish": "Fin réelle",
       "actualDate": "Date réelle",
-      "remaining": "Restant (jours ouvrés)"
+      "remaining": "Restant (jours ouvrés)",
+      "summaryDerived": "Dérivé des sous-tâches : modifiez l'avancement à ce niveau. La tâche récapitulative suit après le calcul (F5)."
     },
     "cpmResult": "Résultat CPM",
     "earlyStart": "Début au plus tôt :",

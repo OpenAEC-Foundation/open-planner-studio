@@ -960,6 +960,10 @@ function observed(state: AppState): unknown {
       // `isHammock` (controller); Gepland einde leest alleen `manuallyScheduled`. Geen nieuwe
       // controller nodig: `manuallyScheduled` is nooit via een cel-edit schrijfbaar (pin hieronder).
       'task.time.finish', 'task.time.scheduleFinish', 'task.time.start',
+      // Voortgang op een verzameltaak is alleen-lezen (`SUMMARY_PROGRESS_READ_ONLY`). Gecertificeerd:
+      // die zes lezen uitsluitend `task.childIds` — aanname 1 hieronder — dus geen nieuw controllerveld.
+      'task.status', 'task.time.actualStart', 'task.time.actualFinish', 'task.time.actualDuration',
+      'task.time.remainingTime', 'task.time.completion',
     ].sort());
   const manuallyScheduledDescriptor = byId.get('task.manuallyScheduled');
   ok('task.manuallyScheduled is nooit los via een paste schrijfbaar (geen parse-functie)',
@@ -969,8 +973,8 @@ function observed(state: AppState): unknown {
       byId.has(controllerId) && typeof byId.get(controllerId)?.parse === 'function');
   }
 
-  // Stilzwijgende aanname 1 (task.childIds): de conditionele readOnly-functies van isHammock e.a.
-  // lezen task.childIds.length, maar childIds staat NOOIT in CONTROLLER_COLUMN_IDS. Dat is veilig
+  // Stilzwijgende aanname 1 (task.childIds): de conditionele readOnly-functies van isHammock, de
+  // duurkolommen en de zes voortgangskolommen lezen task.childIds.length, maar childIds staat NOOIT in CONTROLLER_COLUMN_IDS. Dat is veilig
   // omdat childIds nooit los via een cel-paste schrijfbaar is (readonlyColumn, geen parse/
   // planWrite) — er bestaat structureel geen CellEditIntent-route die childIds binnen dezelfde
   // transactie kan veranderen, dus de aanname "childIds blijft constant tijdens één paste" hoeft

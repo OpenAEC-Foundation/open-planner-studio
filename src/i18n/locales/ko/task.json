@@ -153,7 +153,8 @@
       "unknownTask": "참조된 작업이 존재하지 않습니다.",
       "unrepresentableSummaryRelation": "요약 작업과의 관계는 여기서 편집할 수 없습니다.",
       "self": "작업은 자기 자신에 의존할 수 없습니다.",
-      "ancestor": "작업은 자신의 요약 작업과 관계를 가질 수 없습니다."
+      "ancestor": "작업은 자신의 요약 작업과 관계를 가질 수 없습니다.",
+      "summaryProgress": "요약 작업의 진행률은 하위 작업에서 산출되므로 여기에서 변경할 수 없습니다."
     },
     "controls": {
       "collapse": "접기", "expand": "펼치기", "resize": "너비 변경", "resizeTaskGrid": "작업 그리드 크기 조정", "remove": "제거", "pin": "고정",
@@ -262,7 +263,8 @@
       "actualStart": "실제 시작",
       "actualFinish": "실제 종료",
       "actualDate": "실제 날짜",
-      "remaining": "남은 기간 (근무일)"
+      "remaining": "남은 기간 (근무일)",
+      "summaryDerived": "하위 작업에서 산출됩니다. 진행률은 하위 작업에서 변경하세요. 계산(F5) 후 요약 작업에 반영됩니다."
     },
     "cpmResult": "CPM 결과",
     "earlyStart": "빠른 시작:",

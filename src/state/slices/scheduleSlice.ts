@@ -192,6 +192,12 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         task.time.totalFloat = rec.totalFloat ?? 0;
         task.time.freeFloat = rec.freeFloat ?? 0;
         task.time.isCritical = rec.isCritical ?? false;
+        // Een verzameltaak toont in de modus ook haar opgeslagen voortgang: de solve bij het laden
+        // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.
+        if (rec.summaryProgress) {
+          task.time.completion = rec.summaryProgress.completion;
+          task.status = rec.summaryProgress.status;
+        }
         // De analyse-afleidingen komen uit de zojuist weggegooide solve en zouden een planning
         // beschrijven die niet meer op het scherm staat. `applyCpmResult` hanteert dezelfde regel
         // voor uitgezette opties: afwezig ⇒ het veld wordt gewist.

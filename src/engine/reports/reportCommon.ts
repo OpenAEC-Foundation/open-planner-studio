@@ -5,9 +5,10 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
-import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
+import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
+import { progressState, taskWorkDays, type ProgressState } from '@/engine/scheduler/summaryProgress';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
 /**
@@ -45,9 +46,10 @@ export interface ReportContext {
   statusDate?: string;
   /** "Vandaag" als ISO-dag — injecteerbaar zodat de tests deterministisch zijn. */
   today: string;
+  /** "Datums zoals opgeslagen" (issue #63) staat aan: verzameltaken tonen dan hun opgeslagen
+   *  voortgang, net als hun opgeslagen datums (zie `isSummaryProgressDerived`). */
+  datesAsRecorded?: boolean;
 }
-
-export type ProgressState = 'notStarted' | 'inProgress' | 'complete';
 
 /** Alleen de dag-component van een ISO-datum(tijd): vergelijkbaar als string. */
 export function dayOf(iso: string): string {
@@ -73,17 +75,10 @@ export function referenceDayOf(statusDate: string | undefined, today: string): {
 /** De getoonde datums (CPM, anders opgeslagen) onder de namen die de rapportmodules gebruiken. */
 export { shownStart as taskStart, shownFinish as taskFinish };
 
-/**
- * Voortgangsstaat van een taak. Voltooid zodra completion 1, status COMPLETED of een werkelijk
- * einde; gestart zodra completion > 0, status STARTED of een werkelijke start. De volgorde is
- * bewust "meest afgeronde wint": een taak met actualFinish maar completion 0.9 (importruis) telt
- * als voltooid — het gezondheidsrapport meldt zo'n inconsistentie apart.
- */
-export function progressState(t: Task): ProgressState {
-  if (t.time.completion >= 1 || t.status === 'COMPLETED' || !!t.time.actualFinish) return 'complete';
-  if (t.time.completion > 0 || t.status === 'STARTED' || !!t.time.actualStart) return 'inProgress';
-  return 'notStarted';
-}
+/** Voortgangsstaat van een taak — sinds de verzameltaak-voortgangsrollup gedeeld met
+ *  `applyCpmResult` en daarom in `engine/scheduler/summaryProgress.ts`; hier heruitgevoerd zodat de
+ *  rapportmodules hun vaste importpad houden. */
+export { progressState, type ProgressState };
 
 /** Achterstand t.o.v. de referentiedag, op dagniveau: `finish` als een onvoltooide taak vóór `refDay`
  *  had moeten eindigen, anders `start` als een niet-gestarte taak vóór `refDay` had moeten beginnen.
@@ -95,12 +90,10 @@ export function scheduleSlip(t: Task, state: ProgressState, refDay: string): 'fi
   return undefined;
 }
 
-/** Duur van een taak in werkdagen op haar eigen kalender (uur-taken: minuten ÷ uren per dag). */
+/** Duur van een taak in werkdagen op haar eigen kalender (uur-taken: minuten ÷ uren per dag). Eén
+ *  definitie met het gewicht van de verzameltaak-voortgang (`taskWorkDays`, summaryProgress.ts). */
 export function durationDays(ctx: ReportContext, t: Task): number {
-  const cal = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
-  const minPerDay = effHoursPerDay(cal) * 60;
-  if (minPerDay <= 0) return t.time.scheduleDuration;
-  return round1(taskDurationMinutes(t, cal) / minPerDay);
+  return taskWorkDays(t, ctx.calendar, ctx.calendars);
 }
 
 /**

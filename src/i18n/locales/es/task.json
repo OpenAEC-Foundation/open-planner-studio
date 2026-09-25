@@ -166,7 +166,8 @@
       "unknownTask": "La tarea referenciada no existe.",
       "unrepresentableSummaryRelation": "Una relación con una tarea de resumen no se puede editar aquí.",
       "self": "Una tarea no puede depender de sí misma.",
-      "ancestor": "Una tarea no puede tener una relación con su propia tarea de resumen."
+      "ancestor": "Una tarea no puede tener una relación con su propia tarea de resumen.",
+      "summaryProgress": "El progreso de una tarea de resumen se deriva de sus subtareas y no se puede cambiar aquí."
     },
     "controls": {
       "collapse": "Contraer", "expand": "Expandir", "resize": "Cambiar ancho", "resizeTaskGrid": "Cambiar el tamaño de la cuadrícula de tareas", "remove": "Quitar", "pin": "Fijar",
@@ -283,7 +284,8 @@
       "actualStart": "Inicio real",
       "actualFinish": "Fin real",
       "actualDate": "Fecha real",
-      "remaining": "Restante (días laborables)"
+      "remaining": "Restante (días laborables)",
+      "summaryDerived": "Derivado de las subtareas: cambie el progreso allí. La tarea de resumen se actualiza tras calcular (F5)."
     },
     "cpmResult": "Resultado CPM",
     "earlyStart": "Inicio temprano:",

@@ -153,7 +153,8 @@
       "unknownTask": "Başvurulan görev mevcut değil.",
       "unrepresentableSummaryRelation": "Özet görevle olan bir ilişki burada düzenlenemez.",
       "self": "Bir görev kendisine bağımlı olamaz.",
-      "ancestor": "Bir görev kendi özet göreviyle ilişki kuramaz."
+      "ancestor": "Bir görev kendi özet göreviyle ilişki kuramaz.",
+      "summaryProgress": "Özet görevin ilerlemesi alt görevlerinden türetilir ve burada değiştirilemez."
     },
     "controls": {
       "collapse": "Daralt", "expand": "Genişlet", "resize": "Genişliği değiştir", "resizeTaskGrid": "Görev ızgarasını yeniden boyutlandır", "remove": "Kaldır", "pin": "Sabitle",
@@ -266,7 +267,8 @@
       "actualStart": "Gerçek başlangıç",
       "actualFinish": "Gerçek bitiş",
       "actualDate": "Gerçek tarih",
-      "remaining": "Kalan (iş günü)"
+      "remaining": "Kalan (iş günü)",
+      "summaryDerived": "Alt görevlerden türetilir: ilerlemeyi orada değiştirin. Özet görev hesaplamadan (F5) sonra güncellenir."
     },
     "cpmResult": "CPM Sonucu",
     "earlyStart": "Erken başlangıç:",

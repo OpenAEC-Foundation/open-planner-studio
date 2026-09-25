@@ -41,6 +41,14 @@ Voortgang zet je op drie plekken, elk met hetzelfde effect:
 
 Werkelijke datums kunnen nooit ná de statusdatum liggen — vul je toch een latere datum in, dan wijst de app dat af met een foutmelding. Dat is een bewuste grens: een "feit" (wat er echt is gebeurd) kan per definitie niet in de toekomst liggen ten opzichte van het moment waarop je de planning bijwerkt.
 
+### Voortgang van een fase
+
+Een fase — een taak met taken eronder — heeft geen eigen voortgang. Haar **percentage voltooid** en haar **status** worden bij elke berekening (**F5** of **Bereken**) afgeleid uit de taken eronder. Het percentage is gewogen naar duur: een taak van tien werkdagen telt twee keer zo zwaar als een taak van vijf. Het is precies het getal dat ook de **WBS-samenvatting** op het tabblad **Rapport** toont, en dat de Tabel, de tooltip, de PDF en de AI-assistent te zien krijgen. De status loopt mee: **Voltooid** zodra alle taken eronder klaar zijn, **Bezig** zodra er één is begonnen, anders **Niet gestart**.
+
+Daarom kun je de voortgang van een fase niet zelf invullen. In het eigenschappenpaneel en de taakdialoog staan de schuifregelaar en de werkelijke datums van een fase uitgeschakeld, en in de **Tabel** zijn de voortgangskolommen van een faserij alleen-lezen. Kies je in het contextmenu **Voortgang** op een fase, dan krijgen alle taken eronder dat percentage; na de volgende berekening staat de fase er vanzelf op.
+
+Twee uitzonderingen volgen dezelfde regel als de datums van een fase. Een handmatig geplande fase uit een MS Project-bestand (`.mpp`) houdt de voortgang die in het bestand stond. En zolang je de [datums zoals opgeslagen](docs://datums-zoals-opgeslagen) bekijkt, toont een fase de voortgang uit het bestand; zodra je opnieuw berekent, is hij weer afgeleid.
+
 ## De statusdatum
 
 De **statusdatum** (lintgroep **Baselines & voortgang** op het tabblad Planning, veld **Statusdatum**) markeert "vandaag" binnen de planning — het moment waarop je de voortgang hebt vastgelegd. Zodra hij gezet is, doet hij twee dingen tegelijk:

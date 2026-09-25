@@ -153,7 +153,8 @@
       "unknownTask": "Zadanie, do którego się odwołano, nie istnieje.",
       "unrepresentableSummaryRelation": "Relacji z zadaniem sumarycznym nie można tutaj edytować.",
       "self": "Zadanie nie może zależeć od samego siebie.",
-      "ancestor": "Zadanie nie może mieć relacji z własnym zadaniem sumarycznym."
+      "ancestor": "Zadanie nie może mieć relacji z własnym zadaniem sumarycznym.",
+      "summaryProgress": "Postęp zadania sumarycznego jest wyliczany z jego podzadań i nie można go tutaj zmienić."
     },
     "controls": {
       "collapse": "Zwiń", "expand": "Rozwiń", "resize": "Zmień szerokość", "resizeTaskGrid": "Zmień rozmiar siatki zadań", "remove": "Usuń", "pin": "Przypnij",
@@ -274,7 +275,8 @@
       "actualStart": "Rzeczywisty początek",
       "actualFinish": "Rzeczywisty koniec",
       "actualDate": "Rzeczywista data",
-      "remaining": "Pozostało (dni robocze)"
+      "remaining": "Pozostało (dni robocze)",
+      "summaryDerived": "Wyliczane z podzadań: zmień postęp tam. Zadanie sumaryczne zaktualizuje się po przeliczeniu (F5)."
     },
     "cpmResult": "Wynik CPM",
     "earlyStart": "Wczesny początek:",

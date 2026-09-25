@@ -153,7 +153,8 @@
       "unknownTask": "引用的任务不存在。",
       "unrepresentableSummaryRelation": "与摘要任务的关系无法在此编辑。",
       "self": "任务不能依赖自身。",
-      "ancestor": "任务不能与其自身的摘要任务建立关系。"
+      "ancestor": "任务不能与其自身的摘要任务建立关系。",
+      "summaryProgress": "摘要任务的进度由其子任务推导得出，无法在此处修改。"
     },
     "controls": {
       "collapse": "折叠", "expand": "展开", "resize": "更改宽度", "resizeTaskGrid": "调整任务网格大小", "remove": "移除", "pin": "固定",
@@ -262,7 +263,8 @@
       "actualStart": "实际开始",
       "actualFinish": "实际完成",
       "actualDate": "实际日期",
-      "remaining": "剩余（工作日）"
+      "remaining": "剩余（工作日）",
+      "summaryDerived": "由子任务推导得出：请在子任务中修改进度。计算（F5）后摘要任务随之更新。"
     },
     "cpmResult": "CPM 结果",
     "earlyStart": "最早开始：",

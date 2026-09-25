@@ -166,7 +166,8 @@
       "unknownTask": "Der referenzierte Vorgang existiert nicht.",
       "unrepresentableSummaryRelation": "Eine Beziehung mit einem Sammelvorgang kann hier nicht bearbeitet werden.",
       "self": "Ein Vorgang kann nicht von sich selbst abhängen.",
-      "ancestor": "Ein Vorgang kann keine Beziehung zu seinem eigenen Sammelvorgang haben."
+      "ancestor": "Ein Vorgang kann keine Beziehung zu seinem eigenen Sammelvorgang haben.",
+      "summaryProgress": "Der Fortschritt eines Sammelvorgangs wird aus seinen Teilvorgängen abgeleitet und kann hier nicht geändert werden."
     },
     "controls": {
       "collapse": "Einklappen", "expand": "Ausklappen", "resize": "Breite ändern", "resizeTaskGrid": "Aufgabenraster skalieren", "remove": "Entfernen", "pin": "Anheften",
@@ -279,7 +280,8 @@
       "actualStart": "Ist-Anfang",
       "actualFinish": "Ist-Ende",
       "actualDate": "Ist-Datum",
-      "remaining": "Restdauer (Arbeitstage)"
+      "remaining": "Restdauer (Arbeitstage)",
+      "summaryDerived": "Aus den Teilvorgängen abgeleitet: Ändern Sie den Fortschritt dort. Der Sammelvorgang folgt nach dem Berechnen (F5)."
     },
     "cpmResult": "CPM-Ergebnis",
     "earlyStart": "Frühester Anfang:",
