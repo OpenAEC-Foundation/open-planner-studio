@@ -14,7 +14,7 @@ Toutes les modifications — y compris nouveau/dupliquer/supprimer — se font d
 
 ## Bibliothèque (colonne de gauche)
 
-- **Liste** — tous les calendriers ; l'étoile marque le **Calendrier du projet** (celui par défaut pour les tâches sans calendrier propre).
+- **Liste** — tous les calendriers ; l'étoile marque le **Calendrier du projet** (celui par défaut pour les tâches sans calendrier propre). Un signe d'avertissement signale un calendrier contenant une saisie non valide.
 - **+** — **Nouveau calendrier**.
 - **Dupliquer** — copie du calendrier sélectionné.
 - **Supprimer** — impossible pour le dernier calendrier ; supprimer le calendrier par défaut du projet en fait un autre le nouveau par défaut.
@@ -47,4 +47,4 @@ Génère la liste des jours fériés de manière automatisée sur toute la péri
 
 ## Jours fériés
 
-La liste elle-même : par ligne, **Description**, **Du**, **Au** et un bouton de suppression ; **Ajouter un jour férié** crée une nouvelle ligne. Les périodes de plusieurs jours (congés du bâtiment, arrêt pour gel) sont simplement une ligne avec une plage Du–Au plus longue.
+La liste elle-même : par ligne, **Description**, **Du**, **Au** et un bouton de suppression ; **Ajouter un jour férié** crée une nouvelle ligne. Les périodes de plusieurs jours (congés du bâtiment, arrêt pour gel) sont simplement une ligne avec une plage Du–Au plus longue. Un champ **Au** vide signifie un jour férié d'une seule journée. Si **Du** manque, ou si **Au** précède **Du**, la ligne est marquée en rouge avec une explication et **Appliquer** et **Entrée** restent bloqués jusqu'à ce que vous la corrigiez.

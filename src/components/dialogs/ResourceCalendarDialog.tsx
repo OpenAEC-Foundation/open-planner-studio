@@ -8,6 +8,7 @@ import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays'
 import { CalendarForm } from './CalendarForm';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
+import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
 
 /**
  * Resource-kalender-editor (fase 2.5, §3.4) — hergebruikt `CalendarForm`, net als de
@@ -55,18 +56,23 @@ export function ResourceCalendarDialog({
   );
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
 
-  const simpleBreakInvalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined;
+  // Dezelfde poort als de kalenderdialoog: ongeldige pauze of een ongeldige feestdagregel
+  // (`holidayIssue`, gedeeld met MCP) blokkeert Toepassen.
+  const invalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined
+    || calendarHasHolidayIssue(draft);
 
   const handleApply = () => {
-    if (simpleBreakInvalid) return;
+    if (invalid) return;
+    // Zelfde opslagvorm als de kalenderdialoog: een lege einddatum wordt een eendaagse feestdag.
+    const saved = withCanonicalHolidayEnds(draft);
     // Een nieuwe kalender gaat zonder id de bibliotheek in; die kent zelf een id toe.
-    const { id: _unused, ...rest } = draft;
+    const { id: _unused, ...rest } = saved;
     void _unused;
     if (poolCompanyId) {
-      if (existing) updatePoolCalendar(poolCompanyId, existing.id, draft);
+      if (existing) updatePoolCalendar(poolCompanyId, existing.id, saved);
       else addPoolCalendar(poolCompanyId, rest);
     } else if (existing) {
-      updateCalendar(existing.id, draft);
+      updateCalendar(existing.id, saved);
     } else {
       addCalendar(rest);
     }
@@ -92,7 +98,7 @@ export function ResourceCalendarDialog({
           <button onClick={onClose} className="btn btn--sm btn--secondary">
             {tCommon('cancel')}
           </button>
-          <button onClick={handleApply} disabled={simpleBreakInvalid} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
+          <button onClick={handleApply} disabled={invalid} className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40">
             {tCommon('apply')}
           </button>
         </div>

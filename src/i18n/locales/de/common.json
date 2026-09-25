@@ -664,7 +664,8 @@
       "project": "Projektkalender",
       "new": "Neuer Kalender",
       "duplicate": "Duplizieren",
-      "setDefault": "Als Projektstandard festlegen"
+      "setDefault": "Als Projektstandard festlegen",
+      "invalid": "Dieser Kalender enthält ungültige Eingaben"
     },
     "generate": {
       "button": "Feiertage generieren…",
@@ -725,6 +726,11 @@
         "outsideWorkingDay": "Die Pause muss vollständig innerhalb des Arbeitstags liegen.",
         "consumesWorkingDay": "Die Pause darf nicht den ganzen Arbeitstag einnehmen."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Geben Sie ein gültiges Anfangsdatum ein.",
+      "invalidEnd": "Geben Sie ein gültiges Enddatum ein oder lassen Sie es für einen einzelnen Tag leer.",
+      "endBeforeStart": "Das Enddatum liegt vor dem Anfangsdatum."
     },
     "worktime": {
       "section": "Arbeitszeiten",

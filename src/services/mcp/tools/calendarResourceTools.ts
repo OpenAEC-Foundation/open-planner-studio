@@ -45,6 +45,7 @@ import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
+import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
 
 /**
  * Curve-toets (`isResourceCurve`, `types/resource.ts`) — exact het `isSeqType`-patroon uit T19
@@ -141,7 +142,6 @@ const CAL_READONLY_KEYS: string[] = ['isProjectDefault', 'usedByTasks', 'usedByR
 /** Het ECHTE domein van `generate.country` (holidays.ts + generateCalendarHolidays.ts). */
 const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
-const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 // ── H5 — DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ──────────────────────────────────────────────────
 //
@@ -181,7 +181,9 @@ function clockLabel(min: number): string {
   return `${hh}:${mm}${wrapped ? ' (volgende dag)' : ''}`;
 }
 
-/** Vormvalidatie van een feestdagenlijst (gedeeld door `rawHolidays` en `holidays`). */
+/** Vormvalidatie van een feestdagenlijst (gedeeld door `rawHolidays` en `holidays`). De leesvorm eist
+ *  een expliciete `endDate`; of de regel bruikbaar is (einde niet vóór begin) is dezelfde regel als
+ *  in de kalenderdialogen (`holidayIssue`). */
 function holidayListReason(list: unknown, field: string): string | null {
   if (!Array.isArray(list)) return `\`${field}\` moet een array zijn`;
   for (const h of list as unknown[]) {
@@ -193,7 +195,7 @@ function holidayListReason(list: unknown, field: string): string | null {
         return `\`${field}.${k}\` moet een ISO-datum zijn (JJJJ-MM-DD), kreeg '${String(hh[k])}'`;
       }
     }
-    if ((hh.endDate as string) < (hh.startDate as string)) {
+    if (holidayIssue({ startDate: hh.startDate as string, endDate: hh.endDate as string }) === 'endBeforeStart') {
       return `\`${field}\`: endDate '${String(hh.endDate)}' ligt vóór startDate '${String(hh.startDate)}'`;
     }
   }

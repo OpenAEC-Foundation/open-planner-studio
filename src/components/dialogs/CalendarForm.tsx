@@ -19,6 +19,7 @@ import {
 } from '@/engine/calendar/generateCalendarHolidays';
 import { orderedWeekDays } from '@/utils/weekDays';
 import { calendarScalarBreakIssue, scalarBreakIssue, simpleBreakNetHours } from '@/utils/effectiveWorkTime';
+import { holidayIssue } from '@/utils/holidayRange';
 
 function minutesToTime(value: number): string {
   const totalMinutes = Math.round(value);
@@ -38,6 +39,9 @@ function timeToMinutes(value: string): number | undefined {
 }
 
 const TIME_STEP_MINUTES = 15;
+
+/** Rode rand voor een ongeldige feestdagdatum; `DateTextInput` legt `style` op de omrande groep. */
+const INVALID_DATE_STYLE = { borderColor: 'var(--error)' } as const;
 
 type ScalarTimeField = 'workStart' | 'workEnd' | 'breakStart' | 'breakDuration';
 type ScalarTimeIssue = 'invalidWorkStart' | 'invalidWorkEnd' | 'invalidWorkTimeOrder' | 'invalidStart' | 'invalidDuration' | 'outsideWorkingDay' | 'consumesWorkingDay';
@@ -869,34 +873,50 @@ export function CalendarForm({
               <span>{tMenu('ribbon.calendarDialog.until')}</span>
               <span />
             </div>
-            {draft.holidays.map((h, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
-                <input
-                  value={h.name}
-                  onChange={e => updateHoliday(i, { name: e.target.value })}
-                  className={inputCls}
-                />
-                <DateTextInput
-                  value={h.startDate}
-                  onCommit={v => updateHoliday(i, { startDate: v })}
-                  className={inputCls}
-                  ariaLabel={tMenu('ribbon.calendarDialog.from')}
-                />
-                <DateTextInput
-                  value={h.endDate}
-                  onCommit={v => updateHoliday(i, { endDate: v })}
-                  className={inputCls}
-                  ariaLabel={tMenu('ribbon.calendarDialog.until')}
-                />
-                <button
-                  onClick={() => removeHoliday(i)}
-                  className="p-1.5 hover:bg-surface-hover rounded-[8px] text-text-secondary"
-                  title={tCommon('delete')}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+            {draft.holidays.map((h, i) => {
+              // Dezelfde regel als MCP (`holidayIssue`): een regel zonder geldige Van of met Tot vóór
+              // Van telt in de engine stil als nul dagen. Markeer hem; de aanroeper blokkeert Toepassen.
+              const issue = holidayIssue(h);
+              const startInvalid = issue === 'invalidStart' || issue === 'endBeforeStart';
+              const endInvalid = issue === 'invalidEnd' || issue === 'endBeforeStart';
+              return (
+                <div key={i} className="flex flex-col gap-1" data-ops-holiday-row={i} data-ops-holiday-invalid={issue}>
+                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
+                    <input
+                      value={h.name}
+                      onChange={e => updateHoliday(i, { name: e.target.value })}
+                      className={inputCls}
+                    />
+                    <DateTextInput
+                      value={h.startDate}
+                      onCommit={v => updateHoliday(i, { startDate: v })}
+                      className={inputCls}
+                      style={startInvalid ? INVALID_DATE_STYLE : undefined}
+                      ariaLabel={tMenu('ribbon.calendarDialog.from')}
+                    />
+                    <DateTextInput
+                      value={h.endDate}
+                      onCommit={v => updateHoliday(i, { endDate: v })}
+                      className={inputCls}
+                      style={endInvalid ? INVALID_DATE_STYLE : undefined}
+                      ariaLabel={tMenu('ribbon.calendarDialog.until')}
+                    />
+                    <button
+                      onClick={() => removeHoliday(i)}
+                      className="p-1.5 hover:bg-surface-hover rounded-[8px] text-text-secondary"
+                      title={tCommon('delete')}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {issue && (
+                    <p className="!text-body text-red-600" role="alert" data-ops-holiday-error>
+                      {tCommon(`calendar.holidayErrors.${issue}` as const)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

@@ -14,7 +14,7 @@ Wszystkie edycje — w tym nowy/duplikat/usuń — odbywają się w kopii robocz
 
 ## Biblioteka (lewa kolumna)
 
-- **Lista** — wszystkie kalendarze; gwiazdka oznacza **Kalendarz projektu** (domyślny dla zadań bez własnego kalendarza).
+- **Lista** — wszystkie kalendarze; gwiazdka oznacza **Kalendarz projektu** (domyślny dla zadań bez własnego kalendarza). Znak ostrzegawczy oznacza kalendarz z nieprawidłowymi danymi.
 - **+** — **Nowy kalendarz**.
 - **Duplikuj** — kopia zaznaczonego kalendarza.
 - **Usuń** — niemożliwe dla ostatniego kalendarza; usunięcie domyślnego kalendarza projektu czyni innym kalendarz domyślnym.
@@ -47,4 +47,4 @@ Generuje listę dni wolnych na podstawie reguł dla całego okresu projektu:
 
 ## Dni wolne
 
-Sama lista: dla każdego wiersza **Opis**, **Od**, **Do** i przycisk usuwania; **Dodaj dzień wolny** tworzy nowy wiersz. Wielodniowe okresy (urlop budowlany, przerwa mrozowa) to po prostu wiersz z dłuższym przedziałem Od–Do.
+Sama lista: dla każdego wiersza **Opis**, **Od**, **Do** i przycisk usuwania; **Dodaj dzień wolny** tworzy nowy wiersz. Wielodniowe okresy (urlop budowlany, przerwa mrozowa) to po prostu wiersz z dłuższym przedziałem Od–Do. Puste pole **Do** oznacza jednodniowy dzień wolny. Jeśli brakuje **Od** albo **Do** wypada przed **Od**, wiersz zostaje oznaczony na czerwono z wyjaśnieniem, a **Zastosuj** i **Enter** pozostają zablokowane, dopóki go nie poprawisz.

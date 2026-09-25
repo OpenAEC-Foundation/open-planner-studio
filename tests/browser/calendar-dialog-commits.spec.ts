@@ -96,3 +96,83 @@ test('resourcekalenderdialoog: Toepassen zonder wijziging is een no-op', async (
   await expect(dialog).toBeHidden();
   expect(await observe(page)).toEqual(before);
 });
+
+// ── Bevinding 5: feestdag met einde vóór begin ──────────────────────────────────────────────────
+
+async function fillDate(group: ReturnType<Page['locator']>, day: string, month: string, year: string) {
+  await group.getByLabel('day', { exact: true }).fill(day);
+  await group.getByLabel('month', { exact: true }).fill(month);
+  await group.getByLabel('year', { exact: true }).fill(year);
+  await group.getByLabel('year', { exact: true }).press('Tab');
+}
+
+const storedHolidays = (page: Page) => page.evaluate(() =>
+  window.__OPS__!.store.getState().calendar.holidays.filter(h => h.name === 'Bouwvak'));
+
+test('kalenderdialoog: feestdag met Tot vóór Van wordt gemarkeerd en blokkeert Toepassen en Enter', async ({ page, ops: _ops }) => {
+  const dialog = await openCalendarDialog(page);
+  const apply = dialog.locator('[data-ops-cal-apply]');
+  await dialog.locator('button').filter({ hasText: 'Add holiday' }).click();
+  const from = dialog.getByRole('group', { name: 'From' }).last();
+  const until = dialog.getByRole('group', { name: 'Until' }).last();
+  const name = from.locator('xpath=ancestor::div[contains(@class,"grid-cols")][1]').locator('input').first();
+  await name.fill('Bouwvak');
+  await fillDate(from, '17', '07', '2026');
+  await fillDate(until, '13', '07', '2026');
+
+  // Enter in het naamveld commit de buffer tussentijds — maar niet zolang er een ongeldige regel is.
+  await name.press('Enter');
+  await expect(dialog).toBeVisible();
+  expect(await storedHolidays(page)).toEqual([]);
+  await expect(apply).toBeDisabled();
+
+  const invalidRow = dialog.locator('[data-ops-holiday-invalid]');
+  await expect(invalidRow).toHaveCount(1);
+  await expect(invalidRow).toHaveAttribute('data-ops-holiday-invalid', 'endBeforeStart');
+  await expect(dialog.locator('[data-ops-holiday-error]')).toHaveText('The end date is before the start date.');
+
+  // In de lijst links is de kalender gemarkeerd, ook als je een andere kiest.
+  await dialog.locator('button[title="New calendar"]').click();
+  await expect(dialog.locator('[data-ops-calendar-row-invalid]')).toHaveCount(1);
+  await expect(apply).toBeDisabled();
+  await dialog.locator('[data-ops-calendar-row-invalid]').click();
+
+  // Corrigeren ⇒ markering weg, Toepassen werkt en bewaart het goede bereik.
+  await fillDate(dialog.getByRole('group', { name: 'Until' }).last(), '24', '07', '2026');
+  await expect(invalidRow).toHaveCount(0);
+  await expect(dialog.locator('[data-ops-calendar-row-invalid]')).toHaveCount(0);
+  await expect(apply).toBeEnabled();
+  await apply.click();
+  await expect(dialog).toBeHidden();
+  expect(await storedHolidays(page)).toEqual([{ name: 'Bouwvak', startDate: '2026-07-17', endDate: '2026-07-24' }]);
+});
+
+test('resourcekalenderdialoog: een al opgeslagen omgekeerde feestdag wordt gemarkeerd en blokkeert Toepassen', async ({ page, ops: _ops }) => {
+  // Fixture: zoals de dialoog zo'n regel vóór deze fix stil bewaarde.
+  const calendarId = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const { id: _ignored, ...calendar } = structuredClone(s.calendar);
+    void _ignored;
+    const id = s.addCalendar({
+      ...calendar, name: 'Ploegkalender',
+      holidays: [{ name: 'Bouwvak', startDate: '2027-07-19', endDate: '2026-08-07' }],
+    });
+    s.addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1, calendarId: id });
+    window.__OPS__!.store.getState().setUI({
+      activeRibbonTab: 'resources', showResourcePanel: true, resourcePanelDocked: false, resourcesView: 'project',
+    });
+    return id;
+  });
+  const row = page.getByRole('row', { name: /Ploeg/ });
+  await row.getByRole('button', { name: 'Edit…' }).click();
+  const dialog = page.getByRole('dialog');
+  const apply = dialog.getByRole('button', { name: 'Apply' });
+  await expect(apply).toBeDisabled();
+  await expect(dialog.locator('[data-ops-holiday-invalid="endBeforeStart"]')).toHaveCount(1);
+  await fillDate(dialog.getByRole('group', { name: 'Until' }).last(), '06', '08', '2027');
+  await expect(dialog.locator('[data-ops-holiday-invalid]')).toHaveCount(0);
+  await apply.click();
+  await expect(dialog).toBeHidden();
+  expect(await page.evaluate((id) => window.__OPS__!.store.getState().calendars.find(c => c.id === id)!.holidays, calendarId))
+    .toEqual([{ name: 'Bouwvak', startDate: '2027-07-19', endDate: '2027-08-06' }]);
+});

@@ -664,7 +664,8 @@
       "project": "Proje takvimi",
       "new": "Yeni takvim",
       "duplicate": "Çoğalt",
-      "setDefault": "Proje varsayılanı olarak ayarla"
+      "setDefault": "Proje varsayılanı olarak ayarla",
+      "invalid": "Bu takvim geçersiz giriş içeriyor"
     },
     "generate": {
       "button": "Tatilleri oluştur…",
@@ -725,6 +726,11 @@
         "outsideWorkingDay": "Mola çalışma günü içinde olmalıdır.",
         "consumesWorkingDay": "Mola tüm çalışma gününü kaplayamaz."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Geçerli bir başlangıç tarihi girin.",
+      "invalidEnd": "Geçerli bir bitiş tarihi girin veya tek bir gün için boş bırakın.",
+      "endBeforeStart": "Bitiş tarihi başlangıç tarihinden önce."
     },
     "worktime": {
       "section": "Çalışma saatleri",

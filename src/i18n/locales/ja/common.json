@@ -651,7 +651,8 @@
       "project": "プロジェクトカレンダー",
       "new": "新規カレンダー",
       "duplicate": "複製",
-      "setDefault": "プロジェクトの既定に設定"
+      "setDefault": "プロジェクトの既定に設定",
+      "invalid": "このカレンダーには無効な入力があります"
     },
     "generate": {
       "button": "祝日を生成…",
@@ -712,6 +713,11 @@
         "outsideWorkingDay": "休憩は設定した勤務日の範囲内でなければなりません。",
         "consumesWorkingDay": "休憩が勤務日全体を占めることはできません。"
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "有効な開始日を入力してください。",
+      "invalidEnd": "有効な終了日を入力するか、1日だけの場合は空欄のままにしてください。",
+      "endBeforeStart": "終了日が開始日より前になっています。"
     },
     "worktime": {
       "section": "稼働時間",

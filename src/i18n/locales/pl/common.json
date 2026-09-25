@@ -690,7 +690,8 @@
       "project": "Kalendarz projektu",
       "new": "Nowy kalendarz",
       "duplicate": "Duplikuj",
-      "setDefault": "Ustaw jako domyślny dla projektu"
+      "setDefault": "Ustaw jako domyślny dla projektu",
+      "invalid": "Ten kalendarz zawiera nieprawidłowe dane"
     },
     "generate": {
       "button": "Generuj święta…",
@@ -751,6 +752,11 @@
         "outsideWorkingDay": "Przerwa musi mieścić się w dniu pracy.",
         "consumesWorkingDay": "Przerwa nie może zajmować całego dnia pracy."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Wpisz prawidłową datę początkową.",
+      "invalidEnd": "Wpisz prawidłową datę końcową albo pozostaw ją pustą dla jednego dnia.",
+      "endBeforeStart": "Data końcowa jest wcześniejsza niż data początkowa."
     },
     "worktime": {
       "section": "Godziny pracy",

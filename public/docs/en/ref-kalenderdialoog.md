@@ -14,7 +14,7 @@ All edits — including new/duplicate/delete — happen in a working copy. **App
 
 ## Library (left column)
 
-- **List** — all calendars; the star marks the **Project calendar** (the default for tasks without their own calendar).
+- **List** — all calendars; the star marks the **Project calendar** (the default for tasks without their own calendar). A warning sign marks a calendar with invalid input.
 - **+** — **New calendar**.
 - **Duplicate** — copy of the selected calendar.
 - **Delete** — not possible for the last calendar; deleting the project default makes another calendar the default.
@@ -49,4 +49,4 @@ Generates the holiday list rule-based across the project period:
 
 ## Holidays
 
-The list itself: per row **Description**, **From**, **Until** and a remove button; **Add holiday** creates a new row. Multi-day periods (construction holiday, frost delay) are simply a row with a longer From–Until span.
+The list itself: per row **Description**, **From**, **Until** and a remove button; **Add holiday** creates a new row. Multi-day periods (construction holiday, frost delay) are simply a row with a longer From–Until span. An empty **Until** means a single-day holiday. If **From** is missing, or **Until** is before **From**, the row is marked in red with an explanation and **Apply** and **Enter** stay blocked until you correct it.

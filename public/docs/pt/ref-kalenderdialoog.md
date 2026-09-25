@@ -14,7 +14,7 @@ Todas as edições — incluindo novo/duplicar/eliminar — acontecem numa cópi
 
 ## Biblioteca (coluna esquerda)
 
-- **Lista** — todos os calendários; a estrela assinala o **Calendário do projeto** (a predefinição para tarefas sem calendário próprio).
+- **Lista** — todos os calendários; a estrela assinala o **Calendário do projeto** (a predefinição para tarefas sem calendário próprio). Um sinal de aviso marca um calendário com dados inválidos.
 - **+** — **Novo calendário**.
 - **Duplicar** — cópia do calendário selecionado.
 - **Eliminar** — não é possível para o último calendário; eliminar a predefinição do projeto torna outro calendário na predefinição.
@@ -47,4 +47,4 @@ Gera a lista de feriados com base em regras ao longo do período do projeto:
 
 ## Feriados
 
-A própria lista: por linha **Descrição**, **De**, **Até** e um botão de remover; **Adicionar feriado** cria uma nova linha. Períodos de vários dias (férias da construção, paragem de inverno) são simplesmente uma linha com um intervalo De–Até mais longo.
+A própria lista: por linha **Descrição**, **De**, **Até** e um botão de remover; **Adicionar feriado** cria uma nova linha. Períodos de vários dias (férias da construção, paragem de inverno) são simplesmente uma linha com um intervalo De–Até mais longo. Um **Até** vazio significa um feriado de um só dia. Se faltar **De**, ou se **Até** for anterior a **De**, a linha é marcada a vermelho com uma explicação e **Aplicar** e **Enter** ficam bloqueados até a corrigir.

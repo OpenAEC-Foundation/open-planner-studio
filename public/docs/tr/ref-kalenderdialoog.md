@@ -14,7 +14,7 @@ Tüm düzenlemeler — yeni/çoğalt/sil dahil — bir çalışma kopyasında ge
 
 ## Kütüphane (sol sütun)
 
-- **Liste** — tüm takvimler; yıldız **Proje takvimi**ni işaretler (kendi takvimi olmayan görevler için varsayılan).
+- **Liste** — tüm takvimler; yıldız **Proje takvimi**ni işaretler (kendi takvimi olmayan görevler için varsayılan). Bir uyarı işareti, geçersiz giriş içeren bir takvimi belirtir.
 - **+** — **Yeni takvim**.
 - **Çoğalt** — seçili takvimin bir kopyası.
 - **Sil** — son takvim için mümkün değildir; proje varsayılanını silmek başka bir takvimi varsayılan yapar.
@@ -47,4 +47,4 @@ Tatil listesini proje dönemi boyunca kural bazlı olarak oluşturur:
 
 ## Tatiller
 
-Listenin kendisi: satır başına **Açıklama**, **Başlangıç**, **Bitiş** ve bir kaldırma düğmesi; **Tatil ekle** yeni bir satır oluşturur. Çok günlük dönemler (inşaat tatili, don gecikmesi) basitçe daha uzun bir Başlangıç-Bitiş aralığına sahip bir satırdır.
+Listenin kendisi: satır başına **Açıklama**, **Başlangıç**, **Bitiş** ve bir kaldırma düğmesi; **Tatil ekle** yeni bir satır oluşturur. Çok günlük dönemler (inşaat tatili, don gecikmesi) basitçe daha uzun bir Başlangıç-Bitiş aralığına sahip bir satırdır. Boş bir **Bitiş** tek günlük bir tatil demektir. **Başlangıç** eksikse veya **Bitiş** **Başlangıç** tarihinden önceyse satır bir açıklamayla kırmızı işaretlenir ve siz düzeltene kadar **Uygula** ve **Enter** engelli kalır.

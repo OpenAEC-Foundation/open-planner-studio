@@ -14,7 +14,7 @@ Todas las ediciones — incluidas nuevo/duplicar/eliminar — ocurren en una cop
 
 ## Biblioteca (columna izquierda)
 
-- **Lista** — todos los calendarios; la estrella marca el **Calendario del proyecto** (el predeterminado para tareas sin calendario propio).
+- **Lista** — todos los calendarios; la estrella marca el **Calendario del proyecto** (el predeterminado para tareas sin calendario propio). Un signo de advertencia marca un calendario con datos no válidos.
 - **+** — **Nuevo calendario**.
 - **Duplicar** — copia del calendario seleccionado.
 - **Eliminar** — no es posible para el último calendario; eliminar el predeterminado del proyecto hace que otro calendario pase a ser el predeterminado.
@@ -47,4 +47,4 @@ Genera la lista de festivos basada en reglas a lo largo del período del proyect
 
 ## Festivos
 
-La lista en sí: por fila **Descripción**, **Desde**, **Hasta** y un botón de eliminar; **Añadir festivo** crea una nueva fila. Los períodos de varios días (vacaciones de construcción, parada por heladas) son simplemente una fila con un intervalo Desde–Hasta más largo.
+La lista en sí: por fila **Descripción**, **Desde**, **Hasta** y un botón de eliminar; **Añadir festivo** crea una nueva fila. Los períodos de varios días (vacaciones de construcción, parada por heladas) son simplemente una fila con un intervalo Desde–Hasta más largo. Un **Hasta** vacío significa un festivo de un solo día. Si falta **Desde**, o **Hasta** es anterior a **Desde**, la fila se marca en rojo con una explicación y **Aplicar** e **Intro** quedan bloqueados hasta que la corrija.

@@ -14,7 +14,7 @@ Alle Bearbeitungen — einschließlich Neu/Duplizieren/Löschen — erfolgen in 
 
 ## Bibliothek (linke Spalte)
 
-- **Liste** — alle Kalender; der Stern markiert den **Projektkalender** (der Standard für Aufgaben ohne eigenen Kalender).
+- **Liste** — alle Kalender; der Stern markiert den **Projektkalender** (der Standard für Aufgaben ohne eigenen Kalender). Ein Warnzeichen markiert einen Kalender mit ungültigen Eingaben.
 - **+** — **Neuer Kalender**.
 - **Duplizieren** — Kopie des ausgewählten Kalenders.
 - **Löschen** — beim letzten Kalender nicht möglich; das Löschen des Projektstandards macht einen anderen Kalender zum Standard.
@@ -47,4 +47,4 @@ Generiert die Feiertags-Liste regelbasiert über den Projektzeitraum:
 
 ## Feiertage
 
-Die Liste selbst: pro Zeile **Beschreibung**, **Von**, **Bis** und eine Entfernen-Schaltfläche; **Feiertag hinzufügen** erstellt eine neue Zeile. Mehrzeiträume (Bauferien, Frostverzögerung) sind einfach eine Zeile mit einer längeren Von–Bis-Spanne.
+Die Liste selbst: pro Zeile **Beschreibung**, **Von**, **Bis** und eine Entfernen-Schaltfläche; **Feiertag hinzufügen** erstellt eine neue Zeile. Mehrzeiträume (Bauferien, Frostverzögerung) sind einfach eine Zeile mit einer längeren Von–Bis-Spanne. Ein leeres **Bis** bedeutet einen eintägigen Feiertag. Fehlt **Von** oder liegt **Bis** vor **Von**, wird die Zeile rot markiert und erklärt, und **Anwenden** sowie **Enter** bleiben gesperrt, bis Sie sie korrigieren.

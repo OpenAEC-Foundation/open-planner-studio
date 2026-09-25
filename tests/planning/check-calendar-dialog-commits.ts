@@ -7,11 +7,19 @@
 // `ResourceCalendarDialog` stuurt de hele draft naar `updateCalendar`. Zonder guard werd het document
 // "gewijzigd", kwam er een lege undo-stap bij en verliet een document de modus "datums zoals
 // opgeslagen" (issue #63).
+//
+// Bevinding 5 — een feestdag met einde vóór begin (of zonder geldige begindatum) werd in het formulier
+// stil bewaard en telde in de engine als nul dagen, terwijl MCP hem weigerde. Eén regel
+// (`holidayIssue`) voor formulier, beide dialogen en MCP.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
 import { externIfc } from '../fixtures/recordedDatesIfc';
+import { calendarHasHolidayIssue, holidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { parseDate } from '@/utils/dateUtils';
 
 const failures: string[] = [];
 let checks = 0;
@@ -154,6 +162,30 @@ function dialogCommit(store: Store, calendars: WorkCalendar[], projectCalendarId
     store.getState().pools[cid].poolVersion, versionBefore);
   store.getState().updatePoolCalendar(cid, poolCalId, { ...structuredClone(poolCal), workEndHour: 17 });
   equal('4G een echte wijziging bumpt wél', store.getState().pools[cid].poolVersion, versionBefore + 1);
+}
+
+// ── 5A: de gedeelde feestdagregel ───────────────────────────────────────────────────────────────
+{
+  equal('5A geldig bereik', holidayIssue({ startDate: '2026-07-13', endDate: '2026-07-17' }), undefined);
+  equal('5A lege einddatum = eendaags, geldig', holidayIssue({ startDate: '2026-07-13', endDate: '' }), undefined);
+  equal('5A einde vóór begin', holidayIssue({ startDate: '2026-07-17', endDate: '2026-07-13' }), 'endBeforeStart');
+  equal('5A jaar doorgeschoven op alleen Van (review-scenario)',
+    holidayIssue({ startDate: '2027-07-19', endDate: '2026-08-07' }), 'endBeforeStart');
+  equal('5A lege begindatum', holidayIssue({ startDate: '', endDate: '2026-07-17' }), 'invalidStart');
+  equal('5A onleesbare einddatum', holidayIssue({ startDate: '2026-07-13', endDate: '17-07-2026' }), 'invalidEnd');
+  const cal = { ...createDefaultCalendar(), holidays: [{ name: 'Bouwvak', startDate: '2026-07-17', endDate: '2026-07-13' }] };
+  equal('5A kalender met zo\'n regel is ongeldig', calendarHasHolidayIssue(cal), true);
+  // Waarom het ertoe doet: de engine telt de omgekeerde regel stil als nul dagen.
+  equal('5A engine: omgekeerde regel maakt 15-07 géén vrije dag',
+    new CalendarEngine({ ...cal, workDays: [1, 2, 3, 4, 5] }).isWorkDay(parseDate('2026-07-15')), true);
+}
+
+// ── 5B: beide dialogen schrijven dezelfde vorm weg ──────────────────────────────────────────────
+{
+  const cal = { ...createDefaultCalendar(), holidays: [{ name: 'Koningsdag', startDate: '2026-04-27', endDate: '' }] };
+  equal('5B lege einddatum wordt bij opslaan de begindatum', withCanonicalHolidayEnds(cal).holidays,
+    [{ name: 'Koningsdag', startDate: '2026-04-27', endDate: '2026-04-27' }]);
+  equal('5B origineel ongemoeid', cal.holidays[0].endDate, '');
 }
 
 if (failures.length > 0) {

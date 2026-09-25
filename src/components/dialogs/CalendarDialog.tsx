@@ -1,14 +1,20 @@
 import { useLayoutEffect, useState, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Plus, Copy, Trash2, Star } from 'lucide-react';
-import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
+import { Plus, Copy, Trash2, Star, AlertTriangle } from 'lucide-react';
+import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { CalendarForm } from './CalendarForm';
 import { calendarScalarBreakIssue } from '@/utils/effectiveWorkTime';
+import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
+
+/** Kan deze bufferkalender zo niet worden opgeslagen? Ongeldige pauze of een ongeldige feestdagregel
+ *  (zelfde regels als het formulier toont; MCP deelt `holidayIssue`). */
+const calendarInvalid = (calendar: WorkCalendar): boolean =>
+  calendarScalarBreakIssue(calendar) !== undefined || calendarHasHolidayIssue(calendar);
 
 /**
  * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1; buffer-herziening fase 2.8b): links een lijst van
@@ -53,8 +59,9 @@ export function CalendarDialog() {
   }, [ensureProjectCalendarInLibrary]);
 
   const selected = localCalendars.find(c => c.id === selectedId) ?? null;
-  const simpleBreakInvalid = scalarTimeTextInvalid
-    || localCalendars.some((calendar) => calendarScalarBreakIssue(calendar) !== undefined);
+  // Ongeldige invoer in ÉÉN van de bufferkalenders blokkeert Toepassen én Enter: de commit schrijft
+  // altijd de hele bibliotheek. De lijst links markeert welke kalender het is.
+  const invalid = scalarTimeTextInvalid || localCalendars.some(calendarInvalid);
   const projectYearSpan = computeGenerateSpan(project.startDate, project.endDate || undefined);
 
   // Annuleren = sluiten zonder te committen (buffer wordt weggegooid ⇒ alle wijzigingen terug).
@@ -66,16 +73,12 @@ export function CalendarDialog() {
   // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
   // document in de modus "datums zoals opgeslagen" (#63) alsnog herberekenen.
   const commit = () => {
-    const calendars = localCalendars.map(calendar => ({
-      ...calendar,
-      holidays: calendar.holidays.map(holiday => ({ ...holiday, endDate: holidayEndDate(holiday) })),
-    }));
-    if (commitCalendarLibrary(calendars, localProjectId)) runCPM();
+    if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM();
   };
 
   // Toepassen = de hele buffer in één keer naar de store + herberekenen + sluiten.
   const confirm = () => {
-    if (simpleBreakInvalid) return;
+    if (invalid) return;
     commit();
     setUI({ showCalendarDialog: false });
   };
@@ -98,6 +101,8 @@ export function CalendarDialog() {
     if (!(target instanceof HTMLInputElement) || target.disabled) return;
     event.preventDefault();
     event.stopPropagation();
+    // Zelfde poort als de knop Toepassen: nooit een ongeldige buffer tussentijds wegschrijven.
+    if (invalid) return;
     commit();
   };
 
@@ -176,6 +181,12 @@ export function CalendarDialog() {
                   >
                     {isDefault && <Star size={11} className="shrink-0 text-accent" fill="currentColor" />}
                     <span className="truncate flex-1">{cal.name || tCommon('calendar.library.new')}</span>
+                    {calendarInvalid(cal) && (
+                      <span role="img" className="shrink-0 text-red-600" title={tCommon('calendar.library.invalid')}
+                        aria-label={tCommon('calendar.library.invalid')} data-ops-calendar-row-invalid>
+                        <AlertTriangle size={11} aria-hidden="true" />
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -236,7 +247,7 @@ export function CalendarDialog() {
           <button onClick={cancel} className="btn btn--sm btn--secondary" data-ops-cal-cancel>
             {tCommon('cancel')}
           </button>
-          <button onClick={confirm} disabled={simpleBreakInvalid}
+          <button onClick={confirm} disabled={invalid}
             className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] disabled:opacity-40" data-ops-cal-apply>
             {tCommon('apply')}
           </button>

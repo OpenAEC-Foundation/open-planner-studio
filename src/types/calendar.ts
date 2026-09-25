@@ -89,6 +89,6 @@ export interface Holiday {
 }
 
 /** Een lege einddatum uit de kalenderdialoog is een eendaagse feestdag. */
-export function holidayEndDate(holiday: Holiday): string {
+export function holidayEndDate(holiday: Pick<Holiday, 'startDate' | 'endDate'>): string {
   return holiday.endDate || holiday.startDate;
 }

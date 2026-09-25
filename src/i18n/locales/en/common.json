@@ -664,7 +664,8 @@
       "project": "Project calendar",
       "new": "New calendar",
       "duplicate": "Duplicate",
-      "setDefault": "Set as project default"
+      "setDefault": "Set as project default",
+      "invalid": "This calendar contains invalid input"
     },
     "generate": {
       "button": "Generate holidays…",
@@ -725,6 +726,11 @@
         "outsideWorkingDay": "The break must fall entirely within the configured working day.",
         "consumesWorkingDay": "The break cannot take up the whole working day."
       }
+    },
+    "holidayErrors": {
+      "invalidStart": "Enter a valid start date.",
+      "invalidEnd": "Enter a valid end date, or leave it empty for a single day.",
+      "endBeforeStart": "The end date is before the start date."
     },
     "worktime": {
       "section": "Working times",

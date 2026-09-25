@@ -14,7 +14,7 @@ Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkko
 
 ## Bibliotheek (linkerkolom)
 
-- **Lijst** — alle kalenders; de ster markeert de **Projectkalender** (de standaard voor taken zonder eigen kalender).
+- **Lijst** — alle kalenders; de ster markeert de **Projectkalender** (de standaard voor taken zonder eigen kalender). Een waarschuwingsteken markeert een kalender met ongeldige invoer.
 - **+** — **Nieuwe kalender**.
 - **Dupliceren** — kopie van de geselecteerde kalender.
 - **Verwijderen** — kan niet bij de laatste kalender; verwijder je de projectdefault, dan wordt een andere kalender de default.
@@ -49,4 +49,4 @@ Genereert de feestdagenlijst regelgebaseerd over de projectperiode:
 
 ## Feestdagen
 
-De lijst zelf: per regel **Omschrijving**, **Van**, **Tot** en een verwijderknop; **Feestdag toevoegen** maakt een nieuwe regel. Meerdaagse periodes (bouwvak, vorstverlet) zijn gewoon een regel met een langere Van–Tot-spanne.
+De lijst zelf: per regel **Omschrijving**, **Van**, **Tot** en een verwijderknop; **Feestdag toevoegen** maakt een nieuwe regel. Meerdaagse periodes (bouwvak, vorstverlet) zijn gewoon een regel met een langere Van–Tot-spanne. Een lege **Tot** betekent een eendaagse feestdag. Ontbreekt **Van**, of ligt **Tot** vóór **Van**, dan wordt de regel rood gemarkeerd met een uitleg en blijven **Toepassen** en **Enter** geblokkeerd tot je hem corrigeert.

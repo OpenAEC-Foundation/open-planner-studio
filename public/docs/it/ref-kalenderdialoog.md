@@ -14,7 +14,7 @@ Tutte le modifiche — comprese nuovo/duplica/elimina — avvengono in una copia
 
 ## Libreria (colonna sinistra)
 
-- **Elenco** — tutti i calendari; la stella contrassegna il **Calendario del progetto** (il predefinito per le attività senza un proprio calendario).
+- **Elenco** — tutti i calendari; la stella contrassegna il **Calendario del progetto** (il predefinito per le attività senza un proprio calendario). Un segnale di avviso indica un calendario con dati non validi.
 - **+** — **Nuovo calendario**.
 - **Duplica** — copia del calendario selezionato.
 - **Elimina** — non possibile per l'ultimo calendario; eliminando il predefinito del progetto un altro calendario diventa il predefinito.
@@ -47,4 +47,4 @@ Genera l'elenco delle festività in base a regole sull'intero periodo del proget
 
 ## Festività
 
-L'elenco vero e proprio: per ogni riga **Descrizione**, **Da**, **A** e un pulsante di rimozione; **Aggiungi festività** crea una nuova riga. I periodi pluri-giornalieri (ferie edili, sospensione per gelo) sono semplicemente una riga con un intervallo Da–A più lungo.
+L'elenco vero e proprio: per ogni riga **Descrizione**, **Da**, **A** e un pulsante di rimozione; **Aggiungi festività** crea una nuova riga. I periodi pluri-giornalieri (ferie edili, sospensione per gelo) sono semplicemente una riga con un intervallo Da–A più lungo. Un campo **A** vuoto indica una festività di un solo giorno. Se manca **Da**, oppure **A** precede **Da**, la riga viene evidenziata in rosso con una spiegazione e **Applica** e **Invio** restano bloccati finché non la correggi.
