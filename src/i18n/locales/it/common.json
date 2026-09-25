@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Chiudi notifica",
+    "taskEditRevertBlocked": "Una modifica dell'assistente IA o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività precedenti non sono state annullate e restano come passaggi normali in Annulla.",
     "openFailed": "Apertura del file non riuscita",
     "xerInvalidInput": "L’importazione XER richiede i byte originali del file.",
     "xerInvalidFile": "Questo file XER non è valido o supportato.",

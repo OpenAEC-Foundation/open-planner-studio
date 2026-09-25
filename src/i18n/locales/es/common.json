@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Cerrar notificación",
+    "taskEditRevertBlocked": "Un cambio del asistente de IA o de una extensión se produjo entremedias. Las modificaciones de la tarea anteriores no se revirtieron y quedan como pasos normales en Deshacer.",
     "openFailed": "No se pudo abrir el archivo",
     "xerInvalidInput": "La importación XER requiere los bytes originales del archivo.",
     "xerInvalidFile": "Este archivo XER no es válido o compatible.",

@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "关闭通知",
+    "taskEditRevertBlocked": "AI 助手或扩展在此期间进行了更改。此前的任务修改未被还原，仍作为普通步骤保留在“撤销”中。",
     "openFailed": "打开文件失败",
     "xerInvalidInput": "导入 XER 需要原始文件字节。",
     "xerInvalidFile": "这不是有效或受支持的 XER 文件。",

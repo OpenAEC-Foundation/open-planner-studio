@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Close notification",
+    "taskEditRevertBlocked": "A change by the AI assistant or an extension came in between. The task edits made before it were not reverted and remain as ordinary steps under Undo.",
     "openFailed": "Failed to open file",
     "xerInvalidInput": "XER import requires the original file bytes.",
     "xerInvalidFile": "This is not a valid or supported XER file.",

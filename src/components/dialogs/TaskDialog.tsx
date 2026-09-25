@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
+import type { HistorySessionMark } from '@/state/slices/historySlice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -95,8 +96,9 @@ export function TaskDialog() {
   // initialiseren; alleen openen of naar een andere taak wisselen begint een nieuwe sessie.
   const initializedSessionRef = useRef<string | null>(null);
   // G5 (gebruikstest #170): begin van deze bewerksessie in de sessiehistorie.
-  const historyMarkRef = useRef<number | null>(null);
+  const historyMarkRef = useRef<HistorySessionMark | null>(null);
   const historyMark = useAppStore(s => s.historyMark);
+  const endHistorySession = useAppStore(s => s.endHistorySession);
   const revertHistorySince = useAppStore(s => s.revertHistorySince);
   const squashHistorySince = useAppStore(s => s.squashHistorySince);
 
@@ -107,6 +109,8 @@ export function TaskDialog() {
   useEffect(() => {
     if (!showTaskDialog) {
       initializedSessionRef.current = null;
+      // Dicht op een andere manier dan Opslaan/Annuleren: de sessie sluiten, de historie laten staan.
+      if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
       historyMarkRef.current = null;
       return;
     }
@@ -114,6 +118,7 @@ export function TaskDialog() {
     const sessionKey = editingTaskId ? `task:${editingTaskId}` : 'new-task';
     if (initializedSessionRef.current === sessionKey) return;
     initializedSessionRef.current = sessionKey;
+    if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
     historyMarkRef.current = editingTaskId ? historyMark() : null;
 
     if (editingTask) {
@@ -128,7 +133,7 @@ export function TaskDialog() {
       setStartDate(project.startDate);
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit, historyMark]);
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit, historyMark, endHistorySession]);
 
   useEffect(() => {
     if (!showTaskDialog) return;

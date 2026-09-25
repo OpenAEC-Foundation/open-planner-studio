@@ -39,6 +39,13 @@ export interface SessionHistoryEvent {
   label: string;
   state: 'applied' | 'undone';
   deltas: readonly [SessionHistoryDelta, ...SessionHistoryDelta[]];
+  /**
+   * PR #170-hercheck: herkomst binnen een BEWERKSESSIE (de taakdialoog, `historyMark`). Alleen de
+   * interactieve UI-route (`finishUndoable` buiten batch en MCP-lease) stempelt hem; een MCP-,
+   * batch- of extensie-event dat tijdens de open dialoog landt blijft ongestempeld, zodat
+   * `revertHistorySince`/`squashHistorySince` het nooit meenemen.
+   */
+  sessionKey?: string;
 }
 
 export type HistoryTargetSide = 'before' | 'after';
@@ -344,6 +351,7 @@ export function recordSessionHistoryDeltas(
   state: AppState,
   label: string,
   deltas: readonly SessionHistoryDelta[],
+  sessionKey?: string,
 ): SessionHistoryEvent | null {
   if (deltas.length === 0) return null;
   const sequence = state.nextHistorySequence;
@@ -356,6 +364,7 @@ export function recordSessionHistoryDeltas(
     label: label.trim() || 'Wijziging',
     state: 'applied',
     deltas: deltas as [SessionHistoryDelta, ...SessionHistoryDelta[]],
+    ...(sessionKey ? { sessionKey } : {}),
   };
   state.historyEvents = appendSessionHistoryEvent(state.historyEvents, event);
   state.nextHistorySequence = sequence + 1;

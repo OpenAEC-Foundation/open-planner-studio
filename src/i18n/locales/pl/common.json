@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Zamknij powiadomienie",
+    "taskEditRevertBlocked": "W międzyczasie pojawiła się zmiana asystenta AI lub rozszerzenia. Wcześniejsze zmiany zadania nie zostały cofnięte i pozostają jako zwykłe kroki w Cofnij.",
     "openFailed": "Nie udało się otworzyć pliku",
     "xerInvalidInput": "Import XER wymaga oryginalnych bajtów pliku.",
     "xerInvalidFile": "Ten plik XER jest nieprawidłowy lub nieobsługiwany.",

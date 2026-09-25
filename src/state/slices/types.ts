@@ -233,6 +233,7 @@ export type NotificationMessageKey =
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
+  | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de

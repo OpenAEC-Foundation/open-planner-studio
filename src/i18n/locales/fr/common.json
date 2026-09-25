@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Fermer la notification",
+    "taskEditRevertBlocked": "Une modification de l'assistant IA ou d'une extension est intervenue entre-temps. Les modifications de tâche antérieures n'ont pas été annulées et restent des étapes ordinaires sous Annuler.",
     "openFailed": "Échec de l'ouverture du fichier",
     "xerInvalidInput": "L’import XER nécessite les octets d’origine du fichier.",
     "xerInvalidFile": "Ce fichier XER n’est pas valide ou pris en charge.",

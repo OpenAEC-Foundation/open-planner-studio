@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Fechar notificação",
+    "taskEditRevertBlocked": "Uma alteração do assistente de IA ou de uma extensão ocorreu entretanto. As alterações da tarefa anteriores não foram revertidas e permanecem como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o arquivo",
     "xerInvalidInput": "A importação XER requer os bytes originais do arquivo.",
     "xerInvalidFile": "Este não é um arquivo XER válido ou compatível.",

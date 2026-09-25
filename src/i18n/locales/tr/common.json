@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Bildirimi kapat",
+    "taskEditRevertBlocked": "Bu arada yapay zekâ asistanından veya bir uzantıdan bir değişiklik geldi. Ondan önceki görev düzenlemeleri geri alınmadı ve Geri Al altında normal adımlar olarak kalıyor.",
     "openFailed": "Dosya açılamadı",
     "xerInvalidInput": "XER içe aktarma işlemi özgün dosya baytlarını gerektirir.",
     "xerInvalidFile": "Bu, geçerli veya desteklenen bir XER dosyası değil.",

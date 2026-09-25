@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Benachrichtigung schließen",
+    "taskEditRevertBlocked": "Eine Änderung des KI-Assistenten oder einer Erweiterung kam dazwischen. Die vorher vorgenommenen Aufgabenänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter Rückgängig.",
     "openFailed": "Datei konnte nicht geöffnet werden",
     "xerInvalidInput": "Der XER-Import benötigt die ursprünglichen Dateibytes.",
     "xerInvalidFile": "Dies ist keine gültige oder unterstützte XER-Datei.",

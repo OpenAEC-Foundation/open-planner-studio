@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "通知を閉じる",
+    "taskEditRevertBlocked": "その間に AI アシスタントまたは拡張機能による変更がありました。それ以前のタスクの編集は元に戻されず、「元に戻す」の通常のステップとして残っています。",
     "openFailed": "ファイルを開けませんでした",
     "xerInvalidInput": "XER のインポートには元のファイルバイトが必要です。",
     "xerInvalidFile": "これは有効または対応済みの XER ファイルではありません。",

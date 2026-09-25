@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "Melding sluiten",
+    "taskEditRevertBlocked": "Een wijziging van de AI-assistent of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
     "xerInvalidInput": "XER-import vereist de oorspronkelijke bestandsbytes.",
     "xerInvalidFile": "Dit bestand is geen geldig of ondersteund XER-bestand.",

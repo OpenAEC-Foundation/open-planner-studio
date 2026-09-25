@@ -10,6 +10,7 @@
   },
   "notifications": {
     "dismiss": "알림 닫기",
+    "taskEditRevertBlocked": "그 사이에 AI 도우미 또는 확장 프로그램의 변경이 있었습니다. 그 이전의 작업 편집은 되돌려지지 않았으며 실행 취소의 일반 단계로 남아 있습니다.",
     "openFailed": "파일을 열 수 없습니다",
     "xerInvalidInput": "XER 가져오기는 원본 파일 바이트가 필요합니다.",
     "xerInvalidFile": "유효하거나 지원되는 XER 파일이 아닙니다.",

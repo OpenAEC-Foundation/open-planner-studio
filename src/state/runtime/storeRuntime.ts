@@ -53,6 +53,14 @@ export interface StoreRuntime {
     label?: string,
   ): SessionHistoryEvent | null;
   resetUndoCoalescing(): void;
+  /**
+   * PR #170-hercheck: open een bewerksessie (de taakdialoog). Zolang hij open staat krijgt elk
+   * event dat via de interactieve route (`finishUndoable`, dus buiten batch en MCP-lease) ontstaat
+   * `sessionKey` = de teruggegeven sleutel. Een nieuwe sessie vervangt een vergeten oude.
+   */
+  openHistorySession(): string;
+  /** Sluit de sessie met deze sleutel; idempotent, en een andere (nieuwere) sessie blijft open. */
+  endHistorySession(key: string): void;
   isBatchActive(): boolean;
   enterBatch(): void;
   exitBatch(): void;
@@ -110,6 +118,8 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
   let coalesce: CoalesceMarker | null = null;
   let batchDepth = 0;
   let activeMcpLease: ActiveMcpLease | null = null;
+  let activeHistorySession: string | null = null;
+  let historySessionCounter = 0;
   // B1c-plan3 taak 4 (spec §6a): monotone, per-context mutatieteller — zie het docblok bij
   // `StoreRuntime.mutationSeq`.
   let mutationSeq = 0;
@@ -192,7 +202,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         documentId: pending.documentId,
         before: pending.before,
         after,
-      }]);
+      }], activeHistorySession ?? undefined);
       coalesce = pending.coalesceKey && event
         ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
         : null;
@@ -243,6 +253,16 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     resetUndoCoalescing() {
       coalesce = null;
+    },
+
+    openHistorySession() {
+      historySessionCounter++;
+      activeHistorySession = `history-session-${historySessionCounter}`;
+      return activeHistorySession;
+    },
+
+    endHistorySession(key) {
+      if (activeHistorySession === key) activeHistorySession = null;
     },
 
     isBatchActive() {
