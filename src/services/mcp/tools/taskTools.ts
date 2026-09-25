@@ -58,6 +58,9 @@ import { formatDate } from '@/utils/dateUtils';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { markDocumentEdited } from '@/state/documentEdited';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+import type { SplitPiece } from '@/engine/scheduler/splitEdit';
+import { interruptionsOf, planTaskSplits } from './splitFields';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -1026,6 +1029,119 @@ const runCpm: McpToolDef = {
 };
 
 /** Alle T19-tools als vlakke module-array (registreer via één regel in toolRegistry.MODULES). */
+// =================================================================================================
+// planner_set_task_splits (issue #146)
+// =================================================================================================
+/** Vormvalidatie van `set_task_splits`; string = foutboodschap. De inhoud van `interruptions` keurt
+ *  `planTaskSplits` (die kent de taak, en dus de eenheid). */
+function parseSetTaskSplits(args: unknown): { taskId: string; interruptions: unknown[] } | string {
+  const a = (args ?? {}) as { taskId?: unknown; interruptions?: unknown };
+  if (typeof a.taskId !== 'string' || a.taskId === '') return 'set_task_splits vereist een `taskId`';
+  if (!Array.isArray(a.interruptions)) return 'set_task_splits vereist een `interruptions`-array (leeg = alle onderbrekingen opheffen)';
+  return { taskId: a.taskId, interruptions: a.interruptions };
+}
+
+/** Het stukkenplan tegen de LIVE state: onbekende taak ⇒ NOT_FOUND, elke andere weigering ⇒
+ *  VALIDATION (alles-of-niets; `planTaskSplits` noemt het item-index). */
+function planSplitsFor(
+  st: AppState,
+  p: { taskId: string; interruptions: unknown[] },
+): { ok: true; pieces: SplitPiece[] | null } | { ok: false; code: 'NOT_FOUND' | 'VALIDATION'; reason: string } {
+  const task = st.tasks.find((t) => t.id === p.taskId);
+  if (!task) return { ok: false, code: 'NOT_FOUND', reason: `taak '${p.taskId}' bestaat niet` };
+  const plan = planTaskSplits(task, p.interruptions, st);
+  return plan.ok ? plan : { ok: false, code: 'VALIDATION', reason: plan.reason };
+}
+
+/** Synchrone kern: schrijft via de store-actie `setTaskSplits` van de documentcontext. Binnen de
+ *  MCP-lease slaat die actie haar eigen undo-snapshot over; de omvattende transactie bezit de ene
+ *  undo-stap en de eindherberekening — dezelfde regel als `planner_update_tasks`. */
+function setTaskSplitsCore(ctx: McpContext, p: { taskId: string; interruptions: unknown[] }): MutationOutcome {
+  const plan = planSplitsFor(ctx.app.store.getState(), p);
+  if (!plan.ok) throw new McpStepError(plan.code, plan.reason);
+  const refusal = ctx.app.store.getState().setTaskSplits(p.taskId, plan.pieces);
+  if (refusal) throw new McpStepError('VALIDATION', `taak '${p.taskId}': onderbreken geweigerd (${refusal})`);
+  return { data: splitsReport(ctx.app.store.getState(), p.taskId) };
+}
+
+function splitsReport(st: AppState, taskId: string) {
+  const task = st.tasks.find((t) => t.id === taskId);
+  if (!task) return { taskId };
+  const { interruptions } = interruptionsOf(task, st);
+  return {
+    taskId,
+    interruptions: interruptions ?? [],
+    durationUnit: taskDurationUnit(task),
+    scheduleDuration: task.time.scheduleDuration,
+  };
+}
+
+const setTaskSplits: BatchStepTool = {
+  name: 'planner_set_task_splits',
+  description:
+    'Zet de ONDERBREKINGEN van één taak (werk dat wordt opgeschort en later hervat, bijv. twee projecten ' +
+    'die elkaar afwisselen) — liever dan de taak in losse taken op te knippen. `interruptions` vervangt ' +
+    'de hele lijst; een LEGE lijst heft alle onderbrekingen op. Posities staan op de WERK-as, zonder ' +
+    'pauzes: `afterWorkDays: 5` = na vijf werkdagen werk vanaf de taakstart, `pauseDays: 3` = drie ' +
+    'werkdagen stilstand. Een uur-taak (`durationUnit: "hours"`) gebruikt `afterWorkHours`/`pauseHours`; ' +
+    'de eenheid volgt de taak en dag- en uursleutels mengen wordt geweigerd. Alleen hele eenheden, geen ' +
+    'stille afronding. De werkduur blijft gelijk; de taak wordt langer met de pauzes. Niet splitsbaar: ' +
+    'mijlpalen, verzameltaken, hammocks, ELAPSEDTIME-taken, handmatig geplande taken, taken korter dan ' +
+    'twee eenheden, en niet-bewerkbare importsplits (die kun je alleen opheffen). Een positie in al ' +
+    'verricht werk wordt geweigerd. Alles-of-niets: één fout item ⇒ foutantwoord met de index, niets ' +
+    'geschreven. Leesvorm: planner_get_task geeft dezelfde `interruptions` terug.',
+  kind: 'mutate',
+  batchable: true,
+  annotations: { ...STD_ANNOT, idempotentHint: true },
+  inputSchema: {
+    type: 'object',
+    properties: {
+      taskId: { type: 'string' },
+      interruptions: {
+        type: 'array',
+        description: 'De volledige nieuwe lijst onderbrekingen (leeg = alles opheffen), in willekeurige volgorde.',
+        items: {
+          type: 'object',
+          properties: {
+            afterWorkDays: { type: 'number', minimum: 0, description: 'Werkdagen werk vóór de onderbreking (dag-taak).' },
+            afterWorkHours: { type: 'number', minimum: 0, description: 'Werkuren werk vóór de onderbreking (uur-taak).' },
+            pauseDays: { type: 'number', minimum: 0, description: 'Lengte van de onderbreking in werkdagen (dag-taak).' },
+            pauseHours: { type: 'number', minimum: 0, description: 'Lengte van de onderbreking in werkuren (uur-taak).' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['taskId', 'interruptions'],
+    additionalProperties: false,
+  },
+  batchStep(args, ctx) {
+    const parsed = parseSetTaskSplits(args);
+    if (typeof parsed === 'string') throw stepValidationError(parsed);
+    return setTaskSplitsCore(ctx, parsed);
+  },
+  async handler(args, ctx) {
+    const parsed = parseSetTaskSplits(args);
+    if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
+    // Statisch vooraf keuren: een geweigerd plan hoort geen AI-backup of transactie te starten.
+    // De guards (pauze/alleen-lezen/dialoog/drift) gaan vóór: een geblokkeerde bridge verklapt
+    // niets, en een gedrift document wordt niet eerst tegen de verkeerde taken gekeurd.
+    const pre = guardNonTransactional(ctx);
+    if (pre) return pre;
+    const plan = planSplitsFor(ctx.app.store.getState(), parsed);
+    if (!plan.ok) return toolError(ctx, plan.code, plan.reason);
+    const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => setTaskSplitsCore(ctx, parsed));
+    return enrichOk(res, () => {
+      const state = ctx.app.store.getState();
+      return {
+        ...splitsReport(state, parsed.taskId),
+        tasks: freshDates(state, [parsed.taskId]),
+        projectEnd: projectEndInfo(state).projectEnd,
+      };
+    });
+  },
+};
+
 export const taskTools: McpToolDef[] = [
   addTasks,
   updateTasks,
@@ -1036,4 +1152,5 @@ export const taskTools: McpToolDef[] = [
   undo,
   redo,
   runCpm,
+  setTaskSplits,
 ];

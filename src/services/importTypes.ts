@@ -318,6 +318,46 @@ export interface ImportResult {
   xerSourceArchive?: XerSourceArchive;
   /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */
   xerSourceProjectId?: string;
+  /**
+   * Alleen `readIFC`: het IFC droeg XER-archiefsporen (`OPS_XerSourceArchive` en/of
+   * `OPS_XerDocument`), maar het archief was onbruikbaar en is daarom WEGGELATEN — zie
+   * {@link XerArchiveIssue}. Aanwezig ⇔ er waren sporen én `xerSourceArchive`/`xerSourceProjectId`/
+   * `xer`/`recordedTimes` ontbreken. Nooit IFC-invoer en nooit geschreven (niet in `IFC_SAVE_KEYS`).
+   */
+  xerArchiveIssue?: XerArchiveIssue;
+}
+
+/**
+ * Waarom een aanwezig XER-bronarchief bij het openen van een IFC onbruikbaar was (eigenaarsbesluit
+ * 2026-09-24, "openen met melding"). Het archief is een sidecar, geen fundament: het project zelf
+ * (taken, relaties, kalenders, resources, reken-opties) komt volledig uit het IFC en opent gewoon;
+ * alleen het archief — en alles wat daaruit leest — valt weg. Dit signaal is verplicht: een archief
+ * dat stil verdwijnt zou de gebruiker laten denken dat het bestand nooit een XER-bron had.
+ *
+ *  - `schema-version`   — onbekende `SchemaVersion`, `Format` of `StorageFormat` (nieuwere of vreemde schrijver).
+ *  - `hash-mismatch`    — de SHA-256 past niet bij de bytes (of de selector wijst naar een ander archief).
+ *  - `truncated`        — het archief is afgeknot: chunks ontbreken deels of hebben de verkeerde lengte.
+ *  - `bytes-missing`    — archiefsporen aanwezig, maar de bronbytes zelf zijn weg (typisch: herschreven
+ *                         door andere IFC-software die de grote properties of de archief-pset liet vallen).
+ *  - `metadata-invalid` — de bytes kloppen, maar de afgeleide metadata/het leesmodel is onbruikbaar.
+ *  - `structure`        — de pset-structuur klopt niet (dubbel, herordend, verkeerd gekoppeld, velden weg).
+ */
+export type XerArchiveIssueCode =
+  | 'schema-version'
+  | 'hash-mismatch'
+  | 'truncated'
+  | 'bytes-missing'
+  | 'metadata-invalid'
+  | 'structure';
+
+export const XER_ARCHIVE_ISSUE_CODES: readonly XerArchiveIssueCode[] = [
+  'schema-version', 'hash-mismatch', 'truncated', 'bytes-missing', 'metadata-invalid', 'structure',
+];
+
+export interface XerArchiveIssue {
+  readonly code: XerArchiveIssueCode;
+  /** Technische, BEWUST onvertaalde reden uit de validator (zoals `IfcParseError.message` vroeger). */
+  readonly detail: string;
 }
 
 /**

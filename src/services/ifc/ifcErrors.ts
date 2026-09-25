@@ -21,7 +21,11 @@ export type IfcParseErrorReason =
    *  grens valt er niets te parsen; stil een leeg project teruggeven zou het bestand van de
    *  gebruiker onder een leeg document begraven (het pad blijft immers gekoppeld). */
   | 'no-data-section'
-  /** Aanwezig XER-bronarchief is structureel of cryptografisch corrupt — geen legacy fallback. */
+  /** UITSLUITEND een aanroepercontractfout: een compact (schema-2) XER-bronarchief via de lage
+   *  synchrone `readIFC`-ingang, die de lazy XER-reader bewust niet laadt. Een corrupt of door andere
+   *  software herschreven archief is sinds het eigenaarsbesluit van 2026-09-24 ("openen met
+   *  melding") GEEN leesfout meer: het project opent zonder archief en `ImportResult.xerArchiveIssue`
+   *  draagt de reden (zie `readXerArchiveOrIssue` in `ifcReader.ts`). */
   | 'xer-source-archive';
 
 export class IfcParseError extends Error {

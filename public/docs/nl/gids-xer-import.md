@@ -10,10 +10,11 @@ Een `.xer`-bestand is het uitwisselingsformaat van Primavera P6. Open Planner St
 - Hoe tekencodering en de P6-getalnotatie veilig worden bepaald.
 - Wat er gebeurt als de herberekening afwijkt van de datums die Primavera zelf al had opgeslagen.
 - Wat opslaan als IFC betekent en welke P6-functies nog geen eigen rekenmodel hebben.
+- Wat er gebeurt als het bewaarde XER-bronarchief in een IFC-bestand beschadigd is.
 
 ## Openen en documenten
 
-Open een `.xer`-bestand via **Bestand → Openen** of **Ctrl+O**. Eén export kan meerdere P6-projecten bevatten. Open Planner Studio opent ieder niet-leeg huidig project als een afzonderlijk document; het document met de meeste activiteiten wordt actief. Lege projecten krijgen geen zinloos tabblad.
+Open een `.xer`-bestand via **Bestand → Openen** of **Ctrl+O**. Eén export kan meerdere P6-projecten bevatten. Open Planner Studio opent ieder niet-leeg huidig project als een afzonderlijk document; het document met de meeste activiteiten wordt actief. Lege projecten krijgen geen zinloos tabblad. Elk document heet naar de P6-projectnaam met het P6 Project-ID erachter, bijvoorbeeld "HarbourPointe Assisted Living (4408)"; heeft het project geen naam, dan zie je alleen het ID.
 
 Na één bestandsactie verschijnt één informatieve melding, ook wanneer er veel documenten openen. Die melding noemt de werkelijk gevonden en geopende projecten, lege projecten, baselines en eventuele terugvallen. Bij een volgende XER-bestandsactie krijg je opnieuw één eigen melding.
 
@@ -37,9 +38,11 @@ De rauwe P6-brongegevens die Open Planner Studio leest, blijven onderdeel van he
 
 ## Voltooide activiteiten krijgen echte speling
 
-Primavera zet een voltooide activiteit voor zijn hele berekening neer als een taak met nul restwerk op de statusdatum — ook aan de late kant. Open Planner Studio doet dat sinds september 2026 na, maar uitsluitend voor projecten die uit een `.xer`-bestand komen. Gevolg: een voltooide activiteit toont voortaan een echte totale speling in plaats van altijd nul, en ze legt net als elke andere taak druk op haar eigen voorgangers. Dat is geen wijziging van je gegevens: de werkelijke start- en einddatums blijven staan zoals ze in het bestand stonden.
+Sinds september 2026 geeft Open Planner Studio een voltooide activiteit uit een `.xer`-bestand een late kant alsof ze een taak met nul restwerk op de statusdatum is. Gevolg: zo'n activiteit toont een echte totale speling in plaats van altijd nul, en ze legt net als elke andere taak druk op haar eigen voorgangers. Dat is geen wijziging van je gegevens: de werkelijke start- en einddatums blijven staan zoals ze in het bestand stonden.
 
-De regel geldt alleen waar het bronbestand hem ondersteunt: activiteiten van het type "vaste duur en eenheden" met een voortgangspercentage op duurbasis, een vastgelegd geplande venster, en een project dat resterend werk aan het plan koppelt. Verklaart het bestand bovendien dat het met *progress override* gerekend is in plaats van *retained logic*, dan blijft het oude gedrag staan. Projecten uit IFC, MS Project of Primavera P6 XML veranderen niet.
+Wees je bewust van wat deze regel wél en níét is. Hij is **afgeleid uit corpusmateriaal**: hij verklaart de datums die in één groot voorbeeldbestand waren vastgelegd, maar hij is **niet bevestigd door documentatie van Primavera**. Het enige directe testgeval dat in P6 zelf is doorgerekend spreekt de regel zelfs tegen zodra hij daar van toepassing zou zijn; dat hij daar niet aanslaat komt door de strenge voorwaarden hieronder, niet doordat hij daar klopt. Zie hem dus als een benadering die op vergelijkbare bestanden de opgeslagen P6-datums beter volgt, niet als een nagebootst P6-mechanisme. Wil je zien wat Primavera zelf vastlegde, gebruik dan de weergave **datums zoals opgeslagen** (hieronder).
+
+De regel is alleen actief onder precies deze bronvoorwaarden: activiteiten van het type "vaste duur en eenheden" met een voortgangspercentage op duurbasis, een vastgelegd geplande venster, en een project dat resterend werk aan het plan koppelt. Verklaart het bestand bovendien dat het met *progress override* gerekend is in plaats van *retained logic*, dan blijft het oude gedrag staan. Projecten uit IFC, MS Project of Primavera P6 XML veranderen niet.
 
 ## Tekencodering en getallen
 
@@ -85,6 +88,20 @@ Een XER-import is een **import**, geen XER-editor of XER-exporter. Wanneer je da
 Die bewaarde brondata heeft een prijs bij grote bestanden. Het volledige oorspronkelijke `.xer`-bestand reist mee in het projectbestand én in elke crashherstel-snapshot, zonder bovengrens. Gemeten op het grootste testbestand (een `.xer` van 17,7 MB met ruim 2.000 activiteiten): het IFC-projectbestand wordt ongeveer 50 MB, opslaan duurt tientallen seconden en het crashherstel schrijft dat bestand elke tien seconden opnieuw zolang je bewerkt. Bij een export met veel projecten vermenigvuldigt dat: elk geopend document draagt zijn eigen kopie. Voor de meeste planningen merk je hier niets van; werk je met een export van tientallen megabytes, houd dan rekening met een traag opslaan en een grote projectmap.
 
 Voor uitwisseling naar Primavera bestaat de bestaande **Primavera P6 XML**-export. Dat is een ander formaat met eigen beperkingen; zie [Im-/export](docs://gids-import-export). Bewaar daarom altijd ook het IFC-bestand wanneer je een bewerkt project later opnieuw wilt openen.
+
+### Als het bronarchief onbruikbaar is
+
+Het bewaarde XER-bronarchief in het IFC-bestand wordt bij elk openen gecontroleerd: op de controlesom van de bytes, de schemaversie, de volledigheid en de opbouw. Klopt daar iets niet, dan opent het project gewoon, maar **zonder** bronarchief. Je krijgt dan één melding met de reden. Dat gebeurt bijvoorbeeld als:
+
+- een ander IFC-programma het bestand heeft opgeslagen en daarbij de grote archiefwaarden liet vallen of de eigenschappen herschikte;
+- het bestand onderweg is afgekapt of beschadigd, zodat de controlesom niet meer klopt;
+- het archief door een nieuwere of andere versie is geschreven die deze versie niet kent.
+
+Wat blijft: de volledige planning uit het IFC. Taken, relaties, kalenders, resources, voortgang, baselines en de reken-opties staan allemaal in het IFC zelf en worden normaal geladen en doorgerekend.
+
+Wat ontbreekt: alles wat uit het archief zelf komt. Dat zijn de weergave **datums zoals opgeslagen** (de datums die Primavera zelf berekende), de bronherkomst voor de AI-assistent en de bronroute voor extensies. De AI-assistent en extensies zien dan niet "geen XER-bron", maar dat er een archief was dat bij het openen onbruikbaar bleek, met de reden.
+
+Wat je kunt doen: open het oorspronkelijke `.xer`-bestand opnieuw. Dan krijg je een nieuw document mét bronarchief. Heb je in het IFC al bewerkingen gedaan, dan staan die niet in dat nieuwe document. Let op: sla je het IFC zonder archief op, dan schrijft Open Planner Studio het bestand zonder archief. Het beschadigde archief wordt niet meegeschreven, en bij een volgend openen verschijnt de melding niet meer.
 
 ## Grenzen die zichtbaar blijven
 

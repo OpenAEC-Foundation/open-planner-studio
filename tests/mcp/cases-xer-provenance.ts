@@ -464,6 +464,11 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   assertEq(second.chunks[0].index, 8, 'chunk-index');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, limit: 9 }).code, 'VALIDATION', 'geen onbeperkte base64');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: false }).code, 'VALIDATION', 'false is geen opt-in');
+  // Fable-critreview PR #109 bevinding 11: bij echte chunkgrootte is één base64-chunk al 256 KiB,
+  // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
+  // toolbeschrijving mag rawSource daar niet onder scharen.
+  assert(Math.ceil(first.chunkSizeBytes / 3) * 4 * 8 > 256 * 1024, 'volle rawSource-pagina > 256 kB bij echte chunkgrootte');
+  assert(/BEHALVE rawSource/.test(getTool(TOOL)?.description ?? ''), 'beschrijving zondert rawSource uit van de 256 kB-grens');
 });
 
 test('invalid args worden runtime geweigerd zonder storemutatie', () => {
@@ -515,6 +520,26 @@ test('no-XER document: veilige summary meldt afwezigheid, inhoudsectie geeft NOT
   const data = ok(TOOL);
   assertEq(data.sourcePresent, false, 'geen XER-bron');
   assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resources' }).code, 'NOT_FOUND', 'catalogus zonder bron');
+});
+
+test('archief onbruikbaar bij openen: summary zegt "geen archief (onbruikbaar bij openen: <code>)", niet "nooit een XER-bron"', () => {
+  reset();
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): readIFC liet het archief vallen en zette
+  // `xerArchiveIssue`. De tool moet dat onderscheiden van een document dat nooit een XER-bron had.
+  const neverData = ok(TOOL);
+  assertEq(neverData.archiveIssue, null, 'geen issue zonder weggelaten archief');
+  useAppStore.setState((state) => {
+    state.xerArchiveIssue = { code: 'bytes-missing', detail: "Ongeldig OPS_XerSourceArchive: property 'geheim' ontbreekt" };
+  });
+  const data = ok(TOOL);
+  assertEq(data.sourcePresent, false, 'nog steeds geen bron');
+  assertEq(JSON.stringify(data.archiveIssue), JSON.stringify({ code: 'bytes-missing' }), 'alleen de gesloten code, geen technische detail');
+  assert(String(data.note).startsWith('Geen archief (onbruikbaar bij openen: bytes-missing).'), `note noemt de code: ${data.note}`);
+  assert(!JSON.stringify(data).includes('geheim'), 'bestandsgestuurde validatortekst lekt niet');
+  const missing = err(TOOL, { section: 'resourceCatalog', collection: 'resources' });
+  assertEq(missing.code, 'NOT_FOUND', 'inhoudsectie blijft NOT_FOUND');
+  assert(missing.error.includes('onbruikbaar bij openen: bytes-missing'), `NOT_FOUND noemt de reden: ${missing.error}`);
+  useAppStore.setState((state) => { state.xerArchiveIssue = null; });
 });
 
 test('P3 (R9): sourcePresent:false loopt ook door de poort — currentProjectId afgekapt', () => {

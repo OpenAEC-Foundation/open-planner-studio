@@ -157,6 +157,12 @@
     "mppSourceScheduleNotes_few": "يحتوي ملف MS Project هذا على {{count}} مهام ذات جدولة مجزأة أو مسواة أو موجهة بالموارد. تُستورد وتُعرض كما هي.",
     "mppSourceScheduleNotes_many": "يحتوي ملف MS Project هذا على {{count}} مهمة ذات جدولة مجزأة أو مسواة أو موجهة بالموارد. تُستورد وتُعرض كما هي.",
     "mppSourceScheduleNotes_other": "يحتوي ملف MS Project هذا على {{count}} من المهام ذات الجدولة المجزأة أو المسواة أو الموجهة بالموارد. تُستورد وتُعرض كما هي.",
+    "exportSplitsLost_zero": "لم تُصدَّر أي مهمة ذات انقطاعات بدون انقطاعاتها.",
+    "exportSplitsLost_one": "صُدِّرت مهمة واحدة ذات انقطاعات بدون انقطاعاتها: لا يعرف MS Project/P6 الانقطاعات إلا كتوزيع للعمل.",
+    "exportSplitsLost_two": "صُدِّرت مهمتان ذواتا انقطاعات بدون انقطاعاتهما: لا يعرف MS Project/P6 الانقطاعات إلا كتوزيع للعمل.",
+    "exportSplitsLost_few": "صُدِّرت {{count}} مهام ذات انقطاعات بدون انقطاعاتها: لا يعرف MS Project/P6 الانقطاعات إلا كتوزيع للعمل.",
+    "exportSplitsLost_many": "صُدِّرت {{count}} مهمة ذات انقطاعات بدون انقطاعاتها: لا يعرف MS Project/P6 الانقطاعات إلا كتوزيع للعمل.",
+    "exportSplitsLost_other": "صُدِّرت {{count}} من المهام ذات الانقطاعات بدون انقطاعاتها: لا يعرف MS Project/P6 الانقطاعات إلا كتوزيع للعمل.",
     "projectStartAnchorsClamped_zero": "لم يتم نقل أي مرساة مهمة إلى تاريخ بدء المشروع الجديد.",
     "projectStartAnchorsClamped_one": "تغيّر تاريخ بدء المشروع: تم نقل مرساة مهمة واحدة بدون سابقة أو قيد إلى تاريخ البدء الجديد.",
     "projectStartAnchorsClamped_two": "تغيّر تاريخ بدء المشروع: تم نقل مرساتَي مهمة بدون سابقة أو قيد إلى تاريخ البدء الجديد.",
@@ -182,7 +188,16 @@
     "levelingDelayRoundedToWorkdays_two": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لمهمتين إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_few": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهام إلى أيام عمل كاملة.",
     "levelingDelayRoundedToWorkdays_many": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} مهمة إلى أيام عمل كاملة.",
-    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة."
+    "levelingDelayRoundedToWorkdays_other": "توازن الموارد مهلة موازنة MS Project الدقيقة بالدقيقة لـ {{count}} من المهام إلى أيام عمل كاملة.",
+    "xerArchiveUnusable": "أرشيف مصدر XER في هذا الملف غير صالح للاستخدام وتم استبعاده؛ أما المشروع نفسه فقد فُتح بالكامل.",
+    "xerArchiveUnusableLine": "كان أرشيف مصدر XER في هذا الملف غير صالح للاستخدام وتم استبعاده.",
+    "xerArchiveUnusableConsequence": "الجدول الزمني وجميع بيانات المشروع من IFC كاملة. ما ينقص: التواريخ كما حفظها Primavera، ومصدر المنشأ للذكاء الاصطناعي والإضافات. يكتب الحفظ الملف دون الأرشيف؛ استورد ملف ‎.xer الأصلي مرة أخرى لاستعادة الأرشيف.",
+    "xerArchiveReasonSchemaVersion": "السبب: للأرشيف إصدار مخطط أو تنسيق غير معروف (برنامج كتابة أحدث أو مختلف).",
+    "xerArchiveReasonHashMismatch": "السبب: المجموع الاختباري لا يطابق بايتات المصدر — الأرشيف تالف.",
+    "xerArchiveReasonTruncated": "السبب: الأرشيف مقطوع — جزء من بايتات المصدر مفقود.",
+    "xerArchiveReasonBytesMissing": "السبب: بايتات المصدر نفسها مفقودة — على الأرجح أعاد برنامج IFC آخر كتابة الملف.",
+    "xerArchiveReasonMetadataInvalid": "السبب: بايتات المصدر سليمة، لكن البيانات المشتقة منها غير صالحة للاستخدام.",
+    "xerArchiveReasonStructure": "السبب: بنية الأرشيف داخل IFC غير صحيحة (مكررة أو معاد ترتيبها أو مرتبطة بشكل خاطئ)."
   },
   "yes": "نعم",
   "no": "لا",
@@ -228,6 +243,8 @@
     "priorityNormal": "عادية",
     "priorityHigh": "مرتفعة",
     "startRelationHere": "بدء علاقة من هنا",
+    "removeSplitGap": "إزالة التوقف",
+    "removeAllSplitGaps": "إزالة كل التوقفات",
     "paste": "لصق",
     "zoomReset": "إعادة ضبط التكبير",
     "fitToProject": "ملاءمة للمشروع",
@@ -999,7 +1016,9 @@
       "secondary": "ثانوي"
     },
     "dependencyModeHint": "وضع الربط: اسحب من شريط إلى آخر في مخطط جانت لإنشاء علاقة. اضغط Esc للإيقاف.",
-    "dependencyModeStop": "إيقاف"
+    "dependencyModeStop": "إيقاف",
+    "splitModeHint": "انقر على الشريط في اليوم الذي يبدأ فيه التوقف واسحب إلى اليمين لتحديد طوله. اضغط Esc للإيقاف.",
+    "splitModeStop": "إيقاف"
   },
   "dateInput": {
     "placeholder": "يوم-شهر-سنة",

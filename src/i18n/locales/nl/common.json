@@ -81,6 +81,8 @@
     "relationsSkippedOnInsert_other": "{{count}} relaties zijn niet aangemaakt: ongeldige koppeling (bijv. een taak aan zijn eigen (voor)ouder-samenvattingstaak, of een duplicaat).",
     "mppSourceScheduleNotes_one": "Dit MS Project-bestand bevat {{count}} taak met een onderbroken, genivelleerde of resource-gedreven planning. Die wordt als zodanig ingelezen en getoond.",
     "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
+    "exportSplitsLost_one": "{{count}} taak met onderbrekingen is zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
+    "exportSplitsLost_other": "{{count}} taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
     "projectStartAnchorsClamped_one": "Projectstart verzet: {{count}} taakanker zonder voorganger of constraint is meegeschoven naar de nieuwe startdatum.",
     "projectStartAnchorsClamped_other": "Projectstart verzet: {{count}} taakankers zonder voorganger of constraint zijn meegeschoven naar de nieuwe startdatum.",
     "mppTimephasedSteeringLost_one": "Het datumvenster uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
@@ -90,7 +92,16 @@
     "pasteSkippedReadOnly_other": "{{count}} cellen overgeslagen: ze zijn read-only (bijvoorbeeld een automatisch genummerde WBS-code of een berekende kolom).",
     "librarySaveFailed": "Bibliotheek kon niet worden opgeslagen",
     "levelingDelayRoundedToWorkdays_one": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taak af op hele werkdagen.",
-    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen."
+    "levelingDelayRoundedToWorkdays_other": "Nivelleren rondt de minuutprecieze nivelleervertraging van MS Project van {{count}} taken af op hele werkdagen.",
+    "xerArchiveUnusable": "Het XER-bronarchief in dit bestand is onbruikbaar en weggelaten; het project zelf is volledig geopend.",
+    "xerArchiveUnusableLine": "Het XER-bronarchief in dit bestand was onbruikbaar en is weggelaten.",
+    "xerArchiveUnusableConsequence": "De planning en alle projectdata uit het IFC zijn compleet. Wat ontbreekt: de datums zoals Primavera ze opsloeg en de bronherkomst voor AI en extensies. Opslaan schrijft het bestand zonder archief; importeer de originele .xer opnieuw om het archief terug te krijgen.",
+    "xerArchiveReasonSchemaVersion": "Reden: het archief heeft een onbekende schemaversie of indeling (nieuwere of andere schrijver).",
+    "xerArchiveReasonHashMismatch": "Reden: de controlesom past niet bij de bronbytes — het archief is beschadigd.",
+    "xerArchiveReasonTruncated": "Reden: het archief is afgeknot — een deel van de bronbytes ontbreekt.",
+    "xerArchiveReasonBytesMissing": "Reden: de bronbytes zelf ontbreken — waarschijnlijk heeft een ander IFC-programma het bestand herschreven.",
+    "xerArchiveReasonMetadataInvalid": "Reden: de bronbytes kloppen, maar de daaruit afgeleide gegevens zijn onbruikbaar.",
+    "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld)."
   },
   "yes": "Ja",
   "no": "Nee",
@@ -136,6 +147,8 @@
     "priorityNormal": "Normaal",
     "priorityHigh": "Hoog",
     "startRelationHere": "Relatie leggen vanaf hier",
+    "removeSplitGap": "Onderbreking opheffen",
+    "removeAllSplitGaps": "Alle onderbrekingen opheffen",
     "paste": "Plakken",
     "zoomReset": "Zoom herstellen",
     "fitToProject": "Passend maken op project",
@@ -887,7 +900,9 @@
       "secondary": "Secundair"
     },
     "dependencyModeHint": "Relatiemodus: sleep in de Gantt van de ene balk naar de andere om een relatie te leggen. Esc stopt.",
-    "dependencyModeStop": "Stoppen"
+    "dependencyModeStop": "Stoppen",
+    "splitModeHint": "Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.",
+    "splitModeStop": "Stoppen"
   },
   "dateInput": {
     "placeholder": "dd-mm-jjjj",

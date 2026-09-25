@@ -10,7 +10,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
 import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
-import type { XerImportMetadata } from '@/services/importTypes';
+import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
@@ -95,6 +95,11 @@ export interface DocumentPayload {
    *  bewerkt document niet weer "ongewijzigd" (conservatief — nooit een gok richting automatisch
    *  aan). */
   importPristine: boolean;
+  /** Eigenaarsbesluit 2026-09-24 ("openen met melding"): het XER-bronarchief was bij het openen
+   *  onbruikbaar en is weggelaten. SESSIE-ONLY: rijdt mee door documentwissel (anders zou MCP/de
+   *  extensie-API na een tabwissel weer "nooit een XER-bron" zeggen), maar staat bewust NIET in
+   *  `IFC_SAVE_KEYS` en niet in undo — er is niets om terug te schrijven, het archief is weg. */
+  xerArchiveIssue: XerArchiveIssue | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -258,6 +263,7 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
+  field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -300,10 +306,10 @@ type AppGlobalKey =
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
   | 'historyEvents' | 'nextHistorySequence'
-  // Extensies: app-niveau data, geen projectdata (zie CLAUDE.md, *Extensiesysteem*).
+  // Extensies: app-niveau data, geen projectdata (zie .claude/rules/extensions.md).
   | 'installedExtensions' | 'quarantinedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
   | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
-  // Resourcebibliotheek: app-globaal, net als extensies (zie CLAUDE.md, *Resourcebibliotheken*).
+  // Resourcebibliotheek: app-globaal, net als extensies (zie .claude/rules/library.md).
   | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
   // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen.
   | 'taskGridSurfaces' | 'recentTaskColumns';
@@ -444,6 +450,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
     // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
     importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
+    xerArchiveIssue: parsed.xerArchiveIssue ?? null,
     filePath,
     isDirty: false,
   };

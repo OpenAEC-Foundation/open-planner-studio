@@ -69,6 +69,7 @@ export function createDefaultUI(): UIState {
     showTaskDialog: false,
     editingTaskId: null,
     showDependencyMode: false,
+    showSplitMode: false,
     showProjectSettings: false,
     showProjectInfoDialog: false,
     leftPanelWidth: 350,
@@ -198,6 +199,11 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       if ((updates as { activeRibbonTab?: unknown }).activeRibbonTab === 'relations') {
         (updates as Partial<UIState>).activeRibbonTab = 'table';
       }
+      // Issue #146: relatiemodus en splits-modus kapen allebei de sleep vanaf een balk, dus ze
+      // sluiten elkaar uit. Hier afgedwongen en niet in de twee lintknoppen: elke aanroeper (lint,
+      // sneltoets, extensie, testbrug) mag de ene aanzetten zonder de andere te kennen.
+      if (updates.showSplitMode === true) (updates as Partial<UIState>).showDependencyMode = false;
+      else if (updates.showDependencyMode === true) (updates as Partial<UIState>).showSplitMode = false;
       // Als debugTerminalEnabled uitgezet wordt, forceer de terminal dicht.
       if (updates.debugTerminalEnabled === false) {
         (updates as Partial<UIState>).debugTerminalOpen = false;

@@ -81,6 +81,8 @@
     "relationsSkippedOnInsert_other": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
     "mppSourceScheduleNotes_one": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "mppSourceScheduleNotes_other": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
+    "exportSplitsLost_one": "Kesintili {{count}} görev kesintileri olmadan dışa aktarıldı: MS Project/P6 bunları yalnızca iş dağılımı olarak tanır.",
+    "exportSplitsLost_other": "Kesintili {{count}} görev kesintileri olmadan dışa aktarıldı: MS Project/P6 bunları yalnızca iş dağılımı olarak tanır.",
     "projectStartAnchorsClamped_one": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "projectStartAnchorsClamped_other": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "mppTimephasedSteeringLost_one": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
@@ -90,7 +92,16 @@
     "pasteSkippedReadOnly_other": "{{count}} hücre atlandı: salt okunur (örneğin otomatik numaralandırılmış bir İYS kodu veya hesaplanan bir sütun).",
     "librarySaveFailed": "Kitaplık kaydedilemedi",
     "levelingDelayRoundedToWorkdays_one": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
-    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar."
+    "levelingDelayRoundedToWorkdays_other": "Kaynak dengeleme, MS Project'ten gelen dakika hassasiyetindeki dengeleme gecikmesini {{count}} görev için tam iş gününe yuvarlar.",
+    "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
+    "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",
+    "xerArchiveUnusableConsequence": "IFC'deki çizelge ve tüm proje verileri eksiksiz. Eksik olanlar: Primavera'nın kaydettiği haliyle tarihler ve yapay zekâ ile uzantılar için kaynak kökeni. Kaydetme dosyayı arşiv olmadan yazar; arşivi geri almak için orijinal .xer dosyasını yeniden içe aktarın.",
+    "xerArchiveReasonSchemaVersion": "Neden: arşivin şema sürümü veya düzeni bilinmiyor (daha yeni ya da farklı bir yazıcı).",
+    "xerArchiveReasonHashMismatch": "Neden: sağlama toplamı kaynak baytlarıyla eşleşmiyor — arşiv hasarlı.",
+    "xerArchiveReasonTruncated": "Neden: arşiv kesilmiş — kaynak baytlarının bir kısmı eksik.",
+    "xerArchiveReasonBytesMissing": "Neden: kaynak baytlarının kendisi eksik — dosyayı muhtemelen başka bir IFC programı yeniden yazdı.",
+    "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
+    "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış)."
   },
   "yes": "Evet",
   "no": "Hayır",
@@ -136,6 +147,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Yüksek",
     "startRelationHere": "İlişkiyi buradan başlat",
+    "removeSplitGap": "Kesintiyi kaldır",
+    "removeAllSplitGaps": "Tüm kesintileri kaldır",
     "paste": "Yapıştır",
     "zoomReset": "Yakınlaştırmayı sıfırla",
     "fitToProject": "Projeye sığdır",
@@ -887,7 +900,9 @@
       "secondary": "İkincil"
     },
     "dependencyModeHint": "Bağlantı modu: Gantt'ta bir çubuktan diğerine sürükleyerek ilişki oluşturun. Durdurmak için Esc.",
-    "dependencyModeStop": "Durdur"
+    "dependencyModeStop": "Durdur",
+    "splitModeHint": "Kesintinin başladığı günde çubuğa tıklayın ve uzunluğu için sağa sürükleyin. Durdurmak için Esc.",
+    "splitModeStop": "Durdur"
   },
   "dateInput": {
     "placeholder": "gg-aa-yyyy",

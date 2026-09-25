@@ -242,7 +242,23 @@ export type NotificationMessageKey =
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
-  | 'notifications.levelingDelayRoundedToWorkdays';
+  | 'notifications.levelingDelayRoundedToWorkdays'
+  // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
+  // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
+  | 'notifications.exportSplitsLost'
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is bij het
+  // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
+  // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
+  // de melding als detail in een bestaande bestandsmelding landt.
+  | 'notifications.xerArchiveUnusable'
+  | 'notifications.xerArchiveUnusableLine'
+  | 'notifications.xerArchiveUnusableConsequence'
+  | 'notifications.xerArchiveReasonSchemaVersion'
+  | 'notifications.xerArchiveReasonHashMismatch'
+  | 'notifications.xerArchiveReasonTruncated'
+  | 'notifications.xerArchiveReasonBytesMissing'
+  | 'notifications.xerArchiveReasonMetadataInvalid'
+  | 'notifications.xerArchiveReasonStructure';
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
@@ -291,6 +307,12 @@ export interface UIState {
    *  NB: het vroegere `dependencySourceId` is bewust weg — dat veld werd alleen geschreven en
    *  nergens gelezen (dezelfde bevinding als de dode modus zelf). */
   showDependencyMode: boolean;
+  /** Splits-modus (issue #146, etappe 2): dezelfde vorm als de relatiemodus hierboven. Staat hij
+   *  aan, dan begint een sleep vanaf een balk een ONDERBREKING: klikken op de dag waar de pauze
+   *  begint, naar rechts slepen voor de lengte. Gelezen door `GanttCanvas` (mousedown-hittest +
+   *  cursor) en door `SplitModeNotice`; Escape en de lint-knop zetten hem uit. De twee modi sluiten
+   *  elkaar uit — `setUI` dwingt dat af, want beide kapen dezelfde sleep vanaf een balk. */
+  showSplitMode: boolean;
   showProjectSettings: boolean;
   showProjectInfoDialog: boolean;
   leftPanelWidth: number;

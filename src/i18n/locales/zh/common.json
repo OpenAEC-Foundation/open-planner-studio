@@ -62,12 +62,22 @@
     "summaryRelationsDropped": "{{total}} 个关系未能计入计算。请检查前置任务和后续任务列。",
     "relationsSkippedOnInsert_other": "有 {{count}} 个关系未创建：链接无效（例如任务链接到其自身的（祖）父级摘要任务，或重复关系）。",
     "mppSourceScheduleNotes_other": "此 MS Project 文件中有 {{count}} 项任务的计划被拆分、资源平衡或按资源驱动调整过。系统会按原样导入并显示。",
+    "exportSplitsLost_other": "{{count}} 个带中断的任务在导出时未包含中断：MS Project/P6 只能以工时分布的形式识别中断。",
     "projectStartAnchorsClamped_other": "项目开始日期已更改：{{count}} 个没有前置任务或限制的任务起点已移至新的开始日期。",
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
     "readMore": "了解更多",
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
-    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。"
+    "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
+    "xerArchiveUnusable": "此文件中的 XER 源存档不可用，已被略去；项目本身已完整打开。",
+    "xerArchiveUnusableLine": "此文件中的 XER 源存档不可用，已被略去。",
+    "xerArchiveUnusableConsequence": "IFC 中的进度计划和所有项目数据均完整。缺少的是：Primavera 保存时的日期，以及供 AI 和扩展使用的源出处。保存时将不带存档写入文件；重新导入原始 .xer 即可找回存档。",
+    "xerArchiveReasonSchemaVersion": "原因：存档的架构版本或格式未知（较新或不同的写入程序）。",
+    "xerArchiveReasonHashMismatch": "原因：校验和与源字节不符——存档已损坏。",
+    "xerArchiveReasonTruncated": "原因：存档被截断——部分源字节缺失。",
+    "xerArchiveReasonBytesMissing": "原因：源字节本身缺失——很可能是其他 IFC 程序重写了该文件。",
+    "xerArchiveReasonMetadataInvalid": "原因：源字节完好，但由此派生的数据不可用。",
+    "xerArchiveReasonStructure": "原因：存档在 IFC 中的结构不正确（重复、重新排序或关联错误）。"
   },
   "yes": "是",
   "no": "否",
@@ -113,6 +123,8 @@
     "priorityNormal": "普通",
     "priorityHigh": "高",
     "startRelationHere": "从此处开始建立关系",
+    "removeSplitGap": "取消中断",
+    "removeAllSplitGaps": "取消所有中断",
     "paste": "粘贴",
     "zoomReset": "重置缩放",
     "fitToProject": "适应项目",
@@ -859,7 +871,9 @@
       "secondary": "次要"
     },
     "dependencyModeHint": "链接模式：在甘特图中从一个条形拖到另一个条形即可创建关系。按 Esc 退出。",
-    "dependencyModeStop": "退出"
+    "dependencyModeStop": "退出",
+    "splitModeHint": "在甘特条上点击中断开始的那一天，然后向右拖动设定长度。按 Esc 退出。",
+    "splitModeStop": "退出"
   },
   "dateInput": {
     "placeholder": "日-月-年",

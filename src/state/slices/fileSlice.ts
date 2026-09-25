@@ -3,7 +3,9 @@ import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { flattenOrder } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
+import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { XER_IMPORT_HELP_ARTICLE_ID, withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
@@ -17,7 +19,8 @@ import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayl
 import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
-import { projectFileBase } from '@/utils/documents';
+import { documentFileBase } from '@/utils/documents';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
@@ -42,6 +45,14 @@ function invalidateDocumentRedo(
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
  *  Geëxporteerd omdat de MCP-tool `planner_import_schedule` exact hetzelfde laadpatroon
  *  moet volgen (spec §Bestands-tools) — één definitie, geen tweede die kan afdrijven. */
+/**
+ * Voorgestelde bestandsnaambasis voor opslaan/exporteren: bij een XER-document "Projectnaam
+ * (P6 Project-ID)", zodat tab en titelbalk na het opslaan dezelfde naam houden (vraag 17).
+ */
+export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetadata'>): string {
+  return documentFileBase(s.project.name, xerProjectCode(s.xerImportMetadata));
+}
+
 export function isActivePristine(s: AppState): boolean {
   return (
     s.tasks.length === 0 &&
@@ -52,8 +63,9 @@ export function isActivePristine(s: AppState): boolean {
   );
 }
 
-/** De in-app gids achter de ene bestandsbrede XER-openingsmelding. */
-export const XER_IMPORT_HELP_ARTICLE_ID = 'gids-xer-import';
+// De in-app gids achter de XER-meldingen woont sinds de archief-terugval (2026-09-24) in de
+// bladmodule `xerArchiveIssueNotice.ts`; hier her-exporteren voor bestaande importeurs.
+export { XER_IMPORT_HELP_ARTICLE_ID };
 /** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
 
@@ -203,6 +215,21 @@ export { type ExportFormat };
  */
 export function exportGoesToRecents(format: ExportFormat): boolean {
   return format !== 'progress-csv' && format !== 'progress-xlsx';
+}
+
+/**
+ * Issue #146 (spec, verwerkte critreview bevinding 5): MS Project en P6 kennen een onderbreking
+ * alleen als urenverdeling van een toewijzing, dus een onderbroken taak ZONDER contour komt daar
+ * zonder onderbreking aan. Dat mag niet alleen in de console staan: na een geslaagde MSPDI-/P6-export
+ * meldt `exportAs` het aantal via het K8a-kanaal — als `info`, net als de andere verliesmeldingen
+ * (`timephasedLossNotice.ts`): de export zelf is geslaagd, het kanaal kent geen aparte waarschuwing. De telling is dezelfde als die van de writers
+ * (`countSplitTasksWithoutContour`). Los geëxporteerd, net als `exportGoesToRecents`, zodat
+ * `tests/planning/check-export-guard.ts` de regel zonder bestandsdialoog kan toetsen.
+ */
+export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Task[]): NotifyInput | null {
+  if (format !== 'mspdi' && format !== 'p6') return null;
+  const count = countSplitTasksWithoutContour(tasks);
+  return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
 }
 
 /** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
@@ -366,7 +393,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const outcome = await saveFileDialog(
-        `${projectFileBase(state.project.name)}.ifc`,
+        `${suggestedFileBase(state)}.ifc`,
         content,
         [{ name: 'IFC Files', extensions: ['ifc'] }],
       );
@@ -551,10 +578,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // opgeslagen" — formaatneutraal verwoord (de strook kiest zelf de Primavera-tekst voor P6 XML).
       // `withRecordedDatesNotice` hangt die regel aan een al bestaande melding in plaats van hem via
       // `!notice` te laten verdringen (zie de helper).
-      const notice = withRecordedDatesNotice(
-        xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
-        freshShiftedTotal,
-        freshOfferTotal,
+      // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is
+      // weggelaten door `readIFC`; dat meldt zich als detailregels in de bestandsmelding als die er
+      // is, anders als eigen melding. Nooit stil — zie `withXerArchiveIssueNotice`. Die laag is de
+      // buitenste, zodat de archiefregels ook onder een datumregel-only-melding komen te staan.
+      const notice = withXerArchiveIssueNotice(
+        withRecordedDatesNotice(
+          xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+          freshShiftedTotal,
+          freshOfferTotal,
+        ),
+        results.map(result => result.xerArchiveIssue),
       );
       if (notice) get().notify(notice);
 
@@ -617,7 +651,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       try {
         const outcome = await saveFileDialog(
-          state.filePath ?? `${projectFileBase(state.project.name)}.ifc`,
+          state.filePath ?? `${suggestedFileBase(state)}.ifc`,
           content,
           [{ name: 'IFC Files', extensions: ['ifc'] }],
         );
@@ -700,7 +734,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
           break;
         }
         case 'progress-csv': {
@@ -728,7 +762,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
-          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
           break;
         }
         case 'csv':
@@ -770,7 +804,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
       }
 
-      const defaultName = nameOverride ?? `${projectFileBase(state.project.name)}.${ext}`;
+      const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // E7: beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
       const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
         ? { preferDownloads: true, mime }
@@ -792,6 +826,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
         });
       }
+      // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
+      const splitsLost = exportSplitsLostNotice(format, state.tasks);
+      if (splitsLost) get().notify(splitsLost);
       return { ok: true, warnings };
     },
 
@@ -805,7 +842,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const state = get();
       // 1. Het project zelf (bevat altijd al alle gebruikte items — kernprincipe §1).
       const projectContent = writeIFC(buildWriteIFCInput(state));
-      const base = projectFileBase(state.project.name);
+      const base = suggestedFileBase(state);
       const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
       if (!outcome) return { ok: true, warnings: [] }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);
@@ -1046,6 +1083,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           fit: true,
           hourDataNotice: true,
         });
+        const archiveNotice = withXerArchiveIssueNotice(undefined, [parsed.xerArchiveIssue]);
+        if (archiveNotice) get().notify(archiveNotice);
       } catch (err) {
         console.error(`Failed to open example "${name}":`, err);
         // `params: { name }` achterwege gelaten: de bestaande `notifications.openFailed`-string

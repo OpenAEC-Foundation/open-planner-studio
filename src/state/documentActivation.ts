@@ -206,6 +206,10 @@ export function prepareLoadedPayload(
     progressMode: payload.project.progressMode,
     schedulingOptions: payload.project.schedulingOptions,
     projectStartDate: payload.project.startDate,
+    // Fable-critreview PR #109 bevinding 1 (benoemde gedragswijziging): dezelfde projectinvoer als
+    // F5 (`runCPM`), óók het projecteinde — anders rekent een XER-document met
+    // `useProjectEndDateForFloat` bij openen een andere late kant/speling/kritiek pad dan na F5.
+    projectEndDate: payload.project.endDate,
   });
   payload.scheduleStale = false;
   return payload;

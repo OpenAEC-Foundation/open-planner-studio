@@ -78,6 +78,7 @@ export const API_PERMISSIONS: Record<string, PermissionCheck | null> = {
 
   // Read-only XER-bronroute — hard, DEFAULT-DENY (P1-privacyfix; zie de uitleg hierboven).
   'data.getImportSourceInfo': { perm: 'importSource', mode: 'throw' },
+  'data.getImportSourceIssue': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceChunk': { perm: 'importSource', mode: 'throw' },
   'data.getImportSourceCatalogPage': { perm: 'importSource', mode: 'throw' },
 

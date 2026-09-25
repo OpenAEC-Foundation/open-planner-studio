@@ -426,8 +426,12 @@ function relationTypeOf(
     PR_SS: { sequence: 'START_START', source: 'SS' },
     PR_FF: { sequence: 'FINISH_FINISH', source: 'FF' },
     PR_SF: { sequence: 'START_FINISH', source: 'SF' },
+    // Kale dialecttokens (pseudo-XER-exporteurs): alle vier, niet alleen FS/SS (Fable-critreview
+    // PR #109 bevinding 9 — een kaal `FF` viel eerder op de FS-terugval).
     FS: { sequence: 'FINISH_START', source: 'FS' },
     SS: { sequence: 'START_START', source: 'SS' },
+    FF: { sequence: 'FINISH_FINISH', source: 'FF' },
+    SF: { sequence: 'START_FINISH', source: 'SF' },
   };
   const known = mapping[token];
   if (known) return known;
@@ -448,6 +452,20 @@ function compareCodePoints(left: string, right: string): number {
     if (a[index] !== b[index]) return a[index] - b[index];
   }
   return a.length - b.length;
+}
+
+/**
+ * Projectnaam (eigenaarsbesluit 2026-09-24): `PROJECT.proj_name` als het bestand die kolom heeft,
+ * anders de naam van de WBS-wortel van dit project — de PROJWBS-rij waarvan de ouder niet tot het
+ * project behoort (P6's projectknoop). Alleen bij precies één wortel; anders '' (dan blijft het ID).
+ * Leest uitsluitend al gewhiteliste kolommen (PROJECT.proj_name, PROJWBS.wbs_id/parent_wbs_id/wbs_name).
+ */
+export function xerProjectName(projectRow: XerRow, wbsRows: readonly XerRow[]): string {
+  const direct = (projectRow.cells.proj_name ?? '').trim();
+  if (direct) return direct;
+  const ids = new Set(wbsRows.map(row => row.cells.wbs_id));
+  const roots = wbsRows.filter(row => !row.cells.parent_wbs_id || !ids.has(row.cells.parent_wbs_id));
+  return roots.length === 1 ? (roots[0].cells.wbs_name ?? '').trim() : '';
 }
 
 function stableWbsRows(rows: readonly XerRow[], projectId: string): XerRow[] {
@@ -952,7 +970,7 @@ function readXerProject(
   return {
     project: {
       id: projectId,
-      name: projectRow.cells.proj_short_name || projectId,
+      name: xerProjectName(projectRow, wbsRows) || projectRow.cells.proj_short_name || projectId,
       description: '',
       startDate: projectStart,
       endDate: projectEnd,
