@@ -7,7 +7,7 @@ A task with resources has three numbers that belong together: the **remaining du
 By default Open Planner Studio keeps duration and units and lets the work follow — exactly how the app has always scheduled. The work rule and the remaining work are then hidden.
 
 - **Setting**: turn on *Show work rules and work* under Settings → Planning → Calculation (⚙, the Settings tab or Backstage → Settings). The work rule then appears in the properties panel and the task dialog, the *Work (rem.)* column in the assignment table, and the *Work rule* and *Remaining work* columns in the grid's column picker.
-- **Automatic**: when you open a file that already contains task types (an `.mpp`, MSPDI, P6 or XER file with task types, or a work rule set earlier in this app), those controls are shown for that document regardless of the setting. The app tells you once.
+- **Automatic**: when you open a file that already contains task types (an `.mpp`, MSPDI, P6 or XER file with task types, or a work rule set earlier in this app), those controls are shown for that document regardless of the setting. If the file carries stored work per assignment or a work rule of its own, the app tells you once, with a link to this guide; a work rule that only follows from the MS Project or P6 task type is shown silently.
 
 ## The four work rules
 
@@ -22,6 +22,8 @@ Switching the rule alone changes no number. Below the list the panel says in pla
 
 In the assignment table the *Work (rem.)* column shows the remaining work in hours: stored work from the file, or otherwise remaining duration × units. Type a new number and the work rule decides what moves: under *Fixed work* or *Fixed units* the task gets longer or shorter (the schedule is then stale until you recalculate), under the two fixed-duration rules the units change. Material resources never drive the duration.
 
+Work from P6 or MS Project can differ from units × duration, for example when a resource in P6 is on the task for only part of it. Such a work cell gets an orange warning sign; point at it to see both numbers. The histogram follows the stored work, spread over the whole task duration; the units stay as the file gave them. A span of its own per assignment (work only in that part of the task) comes in a later version.
+
 In the grid the *Work rule* (list) and *Remaining work* (`name: hours; name: hours`) columns work the same way, also when pasting across several tasks.
 
 ## Good to know
@@ -34,5 +36,6 @@ In the grid the *Work rule* (list) and *Remaining work* (`name: hours; name: hou
 - A **duration change on a started task** keeps the completed part (every progress entry records the remaining duration): what you add to or take from the duration goes to the remaining duration (never below zero). The percent complete is then recomputed as completed divided by the new duration, so the progress bar and the remaining duration agree. The same happens when a calendar change alters the duration of a started task.
 - The MS Project *effort-driven* flag only counts on a task that came from an MS Project file; there "not filled in" literally means *not effort-driven*. On a task from P6 or from Open Planner Studio itself the flag plays no part. This is an **editing rule**: it only decides what moves along when you change duration, units or work, or add a resource. Calculating the schedule (F5) never reads it, and it is separate from the scheduling profile.
 - Every edit is one undo step.
+- In the **task dialog** the work rule, work and assignments apply at once, so they calculate with each other inside the dialog. *Cancel* rolls them back; *Save* is one undo step together with the rest of the dialog.
 - The project default work rule (for tasks without their own choice) can be set through the AI assistant; a UI for it will follow.
 - Milestones, summary tasks, hammocks and elapsed-time tasks have no work rule.

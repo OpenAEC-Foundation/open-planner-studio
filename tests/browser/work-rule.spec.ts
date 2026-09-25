@@ -282,3 +282,34 @@ test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet 
   await search.fill(nl ? 'taaktype' : 'task type');
   await expect(results.getByText(nl ? 'MS Project-taaktype (import)' : 'MS Project task type (import)', { exact: true })).toBeVisible();
 });
+
+// E7 (orkestratorbesluit 25-09, gebruikstest #170 G4): opgeslagen werk dat afwijkt van inzet × duur
+// (P6-toewijzing met een eigen spanne, EC2370: 30 u naast 90 u) krijgt in de werkcel een markering
+// met beide getallen; de inzet wordt niet stil aangepast. Fixture: het werkveld zoals de XER-lezer
+// het zet (via de brug); gelijk aan inzet × duur ⇒ geen markering.
+test('werkcel: opgeslagen werk dat afwijkt van inzet × duur is gemarkeerd, inzet blijft', async ({ page, ops: _ops }) => {
+  const { taskId } = await seedAssignedTask(page);
+  await page.evaluate((id) => {
+    const store = window.__OPS__!.store;
+    const s = store.getState();
+    const painter = s.addResource({ name: 'Schilder', type: 'LABOR', description: '', maxUnits: 2 });
+    s.assignResource(id, painter, 1);
+    store.setState((draft: { assignments: { taskId: string; resourceId: string; remainingWorkMinutes?: number }[] }) => {
+      for (const a of draft.assignments) {
+        if (a.taskId !== id) continue;
+        a.remainingWorkMinutes = a.resourceId === painter ? 10 * 60 : 32 * 60;
+      }
+    });
+  }, taskId);
+  const rows = page.locator('[data-ops-assignment-row]');
+  await expect(rows).toHaveCount(2);
+  const painterRow = rows.filter({ hasText: 'Schilder' });
+  const crewRow = rows.filter({ hasText: 'Metselploeg' });
+  const mark = painterRow.locator('[data-ops-assignment-work-deviates]');
+  await expect(mark).toBeVisible();
+  await expect(mark).toHaveAttribute('data-ops-assignment-work-deviates', '10/32');
+  await expect(mark).toHaveAttribute('title', /10.*32/);
+  await expect(crewRow.locator('[data-ops-assignment-work-deviates]')).toHaveCount(0);
+  const units = await page.evaluate((id) => window.__OPS__!.store.getState().assignments.filter(a => a.taskId === id).map(a => a.unitsPerDay), taskId);
+  expect(units).toEqual([1, 1]);
+});

@@ -317,6 +317,8 @@
       "importedCurve": "导入的曲线",
       "work": "工时（剩余）",
       "workHint": "剩余工时（小时）；工作规则决定工期或单位随之变化。",
+      "workDeviates": "与单位 × 工期不一致",
+      "workDeviatesHint": "已保存的工时 {{stored}} 小时与单位 × 工期（{{derived}} 小时）不一致。直方图按整个任务工期分布已保存的工时；单位保持文件中的值。",
       "locked": "受工作规则 {{rule}} 保护"
     },
     "calendar": "日历",

@@ -329,6 +329,8 @@
       "importedCurve": "Zaimportowana krzywa",
       "work": "Praca (pozost.)",
       "workHint": "Pozostała praca w godzinach; reguła pracy decyduje, czy zmienia się czas trwania, czy jednostki.",
+      "workDeviates": "Różni się od jednostek × czasu trwania",
+      "workDeviatesHint": "Zapisana praca {{stored}} h różni się od jednostek × czasu trwania ({{derived}} h). Histogram podąża za zapisaną pracą przez cały czas trwania zadania; jednostki pozostają takie jak w pliku.",
       "locked": "Chronione przez regułę pracy {{rule}}"
     },
     "calendar": "Kalendarz",

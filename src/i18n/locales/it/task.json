@@ -325,6 +325,8 @@
       "importedCurve": "Curva importata",
       "work": "Lavoro (rim.)",
       "workHint": "Lavoro rimanente in ore; la regola di lavoro decide se si muove la durata o le unità.",
+      "workDeviates": "Diverge da unità × durata",
+      "workDeviatesHint": "Il lavoro salvato {{stored}} h diverge da unità × durata ({{derived}} h). L’istogramma segue il lavoro salvato su tutta la durata dell’attività; le unità restano quelle del file.",
       "locked": "Protetto dalla regola di lavoro {{rule}}"
     },
     "calendar": "Calendario",

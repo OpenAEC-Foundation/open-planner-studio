@@ -449,6 +449,8 @@
       "importedCurve": "Geïmporteerde curve",
       "work": "Werk (rest)",
       "workHint": "Resterend werk in uren; de werkregel bepaalt of de duur of de inzet meebeweegt.",
+      "workDeviates": "Wijkt af van inzet × duur",
+      "workDeviatesHint": "Opgeslagen werk {{stored}} u wijkt af van inzet × duur ({{derived}} u). Het histogram volgt het opgeslagen werk over de hele taakduur; de inzet blijft zoals het bestand hem gaf.",
       "locked": "Beschermd door de werkregel {{rule}}"
     },
     "notes": {

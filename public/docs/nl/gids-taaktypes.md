@@ -7,7 +7,7 @@ Een taak met resources heeft drie getallen die bij elkaar horen: de **restduur**
 Standaard houdt Open Planner Studio duur en inzet vast en volgt het werk — precies zoals de app altijd al plande. De werkregel en het resterende werk worden dan niet getoond.
 
 - **Instelling**: zet *Toon werkregels en werk* aan onder Instellingen → Planning → Berekenen (⚙, het tabblad Instellingen of Backstage → Instellingen). Dan verschijnen de werkregel in het eigenschappenpaneel en de taakdialoog, de kolom *Werk (rest)* in de toewijzingstabel en de kolommen *Werkregel* en *Resterend werk* in de kolomkiezer van het raster.
-- **Automatisch**: opent u een bestand dat al taaktypes bevat (een `.mpp`, MSPDI-, P6- of XER-bestand met taaktypes, of een eerder in deze app gezette werkregel), dan zijn die bedieningselementen voor dát document zichtbaar, ongeacht de instelling. De app meldt dat één keer.
+- **Automatisch**: opent u een bestand dat al taaktypes bevat (een `.mpp`, MSPDI-, P6- of XER-bestand met taaktypes, of een eerder in deze app gezette werkregel), dan zijn die bedieningselementen voor dát document zichtbaar, ongeacht de instelling. Draagt het bestand opgeslagen werk per toewijzing of een eigen werkregel, dan meldt de app dat één keer, met een link naar deze gids; een werkregel die alleen uit het taaktype van MS Project of P6 volgt, wordt stil getoond.
 
 ## De vier werkregels
 
@@ -22,6 +22,8 @@ Alleen de regel wisselen verandert geen enkel getal. Onder de keuzelijst staat i
 
 In de toewijzingstabel toont de kolom *Werk (rest)* het resterende werk in uren: opgeslagen werk uit het bestand, of anders restduur × inzet. Typ een nieuw getal en de werkregel bepaalt wat meebeweegt: onder *Vast werk* of *Vaste inzet* wordt de taak langer of korter (de planning is dan verouderd tot u opnieuw berekent), onder de twee vaste-duur-regels verandert de inzet. Materiaalresources tellen niet mee voor de duur.
 
+Werk uit P6 of MS Project kan afwijken van inzet × duur, bijvoorbeeld wanneer een resource in P6 maar een deel van de taak op de taak staat. Zo'n werkcel krijgt een oranje waarschuwingsteken; wijs het aan om beide getallen te zien. Het histogram volgt het opgeslagen werk, verdeeld over de hele taakduur; de inzet blijft zoals het bestand hem gaf. Een eigen spanne per toewijzing (werk alleen in dat deel van de taak) komt in een latere versie.
+
 In het raster werken de kolommen *Werkregel* (keuzelijst) en *Resterend werk* (`naam: uren; naam: uren`) op dezelfde manier, ook bij plakken over meerdere taken.
 
 ## Wat u moet weten
@@ -34,5 +36,6 @@ In het raster werken de kolommen *Werkregel* (keuzelijst) en *Resterend werk* (`
 - Een **duurwijziging op een gestarte taak** laat het verrichte deel staan (elke voortgangsinvoer legt de resterende duur vast): wat u aan de duur toevoegt of afhaalt, komt bij de resterende duur (nooit onder nul). Het percentage gereed wordt daarna opnieuw berekend als verricht gedeeld door de nieuwe duur, zodat de voortgangsbalk en de resterende duur hetzelfde zeggen. Hetzelfde gebeurt wanneer een kalenderwijziging de duur van een gestarte taak verandert.
 - Het MS Project-vinkje *effort-driven* telt alleen op een taak die uit een MS Project-bestand komt; daar betekent "niet ingevuld" letterlijk *niet effort-driven*. Op een taak uit P6 of uit Open Planner Studio zelf speelt het vinkje geen rol. Dit is een **bewerkregel**: het bepaalt alleen wat er meebeweegt als u duur, inzet of werk wijzigt of een resource toevoegt. Het rekenen van de planning (F5) leest het nooit, en het staat los van het rekenprofiel.
 - Elke bewerking is één stap ongedaan te maken.
+- In de **taakdialoog** gelden werkregel, werk en toewijzingen meteen, zodat ze in de dialoog met elkaar rekenen. *Annuleren* draait ze terug; *Opslaan* is samen met de rest van de dialoog één stap ongedaan maken.
 - De projectstandaard-werkregel (voor taken zonder eigen keuze) is via de AI-assistent te zetten; een UI daarvoor volgt.
 - Mijlpalen, verzameltaken, hangmatten en taken op doorlooptijd hebben geen werkregel.

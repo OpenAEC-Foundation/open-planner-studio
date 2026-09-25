@@ -449,6 +449,8 @@
       "importedCurve": "Imported curve",
       "work": "Work (rem.)",
       "workHint": "Remaining work in hours; the work rule decides whether duration or units move.",
+      "workDeviates": "Differs from units × duration",
+      "workDeviatesHint": "Stored work {{stored}} h differs from units × duration ({{derived}} h). The histogram follows the stored work across the whole task duration; the units stay as the file gave them.",
       "locked": "Protected by the work rule {{rule}}"
     },
     "calendar": "Calendar",

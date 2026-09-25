@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
-import { BarChart3, Lock, Trash2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, Lock, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -113,6 +113,17 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
     return Math.round((minutes / 60) * 100) / 100;
   };
   const lockTitle = t('properties.assignments.locked', { rule: t(`workRule.${rule}`) });
+  /** E7 (orkestratorbesluit 25-09, "uitsmeren nu, spanne later"): opgeslagen werk dat afwijkt van
+   *  inzet × restduur (bv. een P6-toewijzing met een eigen spanne binnen de taak) krijgt een
+   *  markering — géén stille aanpassing van de inzet (brondata). Niet bij een contour: die
+   *  vormt de inzet per dag zelf. Tolerantie 1 % (en minstens een minuut) tegen afronding. */
+  const workDeviation = (assignmentId: string, unitsPerDay: number, stored: number | undefined): { stored: number; derived: number } | null => {
+    if (stored === undefined || contourOf.has(assignmentId)) return null;
+    const derived = remainingMinutesOf(task, { hoursPerDay }) * unitsPerDay;
+    if (Math.abs(stored - derived) <= Math.max(1, 0.01 * Math.max(stored, derived))) return null;
+    const hours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
+    return { stored: hours(stored), derived: hours(derived) };
+  };
 
   /** Kandidaat-doeltaken voor "verplaats naar…" (item 4): leaf-taken zonder deze resource, exclusief
    *  de huidige taak zelf. */
@@ -178,7 +189,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                   {showWork && (res?.type === 'MATERIAL' ? (
                     <span className="w-14 shrink-0 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
                   ) : (
-                    <span className="shrink-0" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
+                    <span className="shrink-0 flex items-center gap-0.5" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
                       <WorkHoursInput
                         value={remainingHoursOf(a.id, a.unitsPerDay, a.remainingWorkMinutes)}
                         title={t('properties.assignments.workHint')}
@@ -186,6 +197,21 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                         onCommit={hours => setAssignmentWork(a.id, Math.round(hours * 60))}
                         className="input !text-small !px-1 !py-0.5 !w-14 text-right"
                       />
+                      {(() => {
+                        const deviation = workDeviation(a.id, a.unitsPerDay, a.remainingWorkMinutes);
+                        return deviation && (
+                          <span
+                            className="shrink-0 inline-flex items-center"
+                            style={{ color: 'var(--theme-warning-text)' }}
+                            title={t('properties.assignments.workDeviatesHint', deviation)}
+                            aria-label={t('properties.assignments.workDeviates')}
+                            role="img"
+                            data-ops-assignment-work-deviates={`${deviation.stored}/${deviation.derived}`}
+                          >
+                            <AlertTriangle size={11} aria-hidden />
+                          </span>
+                        );
+                      })()}
                     </span>
                   ))}
                   <select

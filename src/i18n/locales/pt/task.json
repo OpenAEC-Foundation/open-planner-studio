@@ -325,6 +325,8 @@
       "importedCurve": "Curva importada",
       "work": "Trabalho (rest.)",
       "workHint": "Trabalho restante em horas; a regra de trabalho decide se a duração ou as unidades se movem.",
+      "workDeviates": "Difere de unidades × duração",
+      "workDeviatesHint": "O trabalho guardado {{stored}} h difere de unidades × duração ({{derived}} h). O histograma segue o trabalho guardado ao longo de toda a tarefa; as unidades ficam como o ficheiro as deu.",
       "locked": "Protegido pela regra de trabalho {{rule}}"
     },
     "calendar": "Calendário",

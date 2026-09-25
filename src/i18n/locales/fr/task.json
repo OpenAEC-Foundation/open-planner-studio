@@ -325,6 +325,8 @@
       "importedCurve": "Courbe importée",
       "work": "Travail (rest.)",
       "workHint": "Travail restant en heures ; la règle de travail décide si la durée ou les unités bougent.",
+      "workDeviates": "Diffère de unités × durée",
+      "workDeviatesHint": "Le travail enregistré {{stored}} h diffère de unités × durée ({{derived}} h). L’histogramme suit le travail enregistré sur toute la durée de la tâche ; les unités restent celles du fichier.",
       "locked": "Protégé par la règle de travail {{rule}}"
     },
     "calendar": "Calendrier",
