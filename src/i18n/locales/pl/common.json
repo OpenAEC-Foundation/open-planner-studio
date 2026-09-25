@@ -773,11 +773,7 @@
     "structureLockedHint": "Niedostępne podczas filtrowania/grupowania/sortowania",
     "columns": {
       "title": "Kolumny",
-      "visible": "Widoczna",
-      "width": "Szerokość",
-      "resetDefault": "Przywróć domyślne",
-      "available": "Dostępne pola",
-      "scopeHint": "Te kolumny dotyczą widoku Tabela. Lista zadań obok wykresu Gantta zawsze pokazuje WBS, nazwę i czas trwania."
+      "resetDefault": "Przywróć domyślne"
     },
     "filter": {
       "title": "Filtr",

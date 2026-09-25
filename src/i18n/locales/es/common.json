@@ -760,11 +760,7 @@
     "structureLockedHint": "No disponible mientras se filtra/agrupa/ordena",
     "columns": {
       "title": "Columnas",
-      "visible": "Visible",
-      "width": "Ancho",
-      "resetDefault": "Restablecer valores predeterminados",
-      "available": "Campos disponibles",
-      "scopeHint": "Estas columnas se aplican a la vista Tabla. La lista de tareas junto al Gantt siempre muestra EDT, nombre y duración."
+      "resetDefault": "Restablecer valores predeterminados"
     },
     "filter": {
       "title": "Filtro",

@@ -734,11 +734,7 @@
     "structureLockedHint": "フィルター/グループ化/並べ替え中は使用できません",
     "columns": {
       "title": "列",
-      "visible": "表示",
-      "width": "幅",
-      "resetDefault": "既定値に戻す",
-      "available": "利用可能なフィールド",
-      "scopeHint": "これらの列はテーブル ビューに適用されます。ガント横のタスク一覧は常に WBS・タスク名・期間を表示します。"
+      "resetDefault": "既定値に戻す"
     },
     "filter": {
       "title": "フィルター",

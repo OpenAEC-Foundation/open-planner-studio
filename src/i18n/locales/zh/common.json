@@ -734,11 +734,7 @@
     "structureLockedHint": "筛选/分组/排序时不可用",
     "columns": {
       "title": "列",
-      "visible": "可见",
-      "width": "宽度",
-      "resetDefault": "恢复默认",
-      "available": "可用字段",
-      "scopeHint": "这些列适用于“表格”视图。甘特图旁边的任务列表始终显示 WBS、任务名称和工期。"
+      "resetDefault": "恢复默认"
     },
     "filter": {
       "title": "筛选",

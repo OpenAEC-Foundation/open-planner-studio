@@ -747,11 +747,7 @@
     "structureLockedHint": "Niet beschikbaar tijdens filteren/groeperen/sorteren",
     "columns": {
       "title": "Kolommen",
-      "visible": "Zichtbaar",
-      "width": "Breedte",
-      "resetDefault": "Herstel standaard",
-      "available": "Beschikbare velden",
-      "scopeHint": "Deze kolommen gelden voor de Tabel-weergave. De takenlijst naast de Gantt toont altijd WBS, taaknaam en duur."
+      "resetDefault": "Herstel standaard"
     },
     "filter": {
       "title": "Filteren",
