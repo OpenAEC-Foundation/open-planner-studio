@@ -111,14 +111,19 @@ check_batteries () {
 check_batteries
 
 # ── Check-scriptinventaris ──────────────────────────────────────────────────────────────────
-# Een `check-*.ts`-bestand dat op schijf staat maar door GEEN ENKELE `if bundle_check
-# "$DIR/check-..."`-regel wordt aangeroepen, draait in een volledige run stilzwijgend niet mee —
-# geen foutmelding, gewoon een lager totaal (zo werd `check-tauri-refresh-evidence.ts` wees:
-# bestond, typechecte mee via tsconfig.check.json, maar was door geen `bundle_check`-regel
-# aangesloten — gevonden 2026-09, inmiddels bedraad). Iedere `check-*.ts` moet daarom OFWEL
-# aangeroepen worden, OFWEL expliciet met reden op CHECK_SCRIPT_ALLOWLIST staan — naar het model
-# van EXPECTED_BATTERIES/check_batteries hierboven, maar dan voor de losse check-scripts i.p.v.
-# de cases-*.json-batterijen.
+# Een nieuwe `check-*.ts` draait vanzelf mee: je hoeft hem NIET in dit script te bedraden. Elke
+# `check-*.ts` die door geen enkele `if bundle_check "$DIR/check-..."`-regel wordt aangeroepen en
+# niet op CHECK_SCRIPT_ALLOWLIST staat, bundelt en draait de volledige run automatisch (zie
+# "Automatisch meegenomen checks" onderaan het volledige-run-blok), inclusief de tijdzone-matrix.
+# Een eigen `bundle_check`-regel is alleen nog nodig voor een check die iets bijzonders vraagt:
+# een omgevingsvariabele, een vaste plek in de volgorde, of juist NIET in de tijdzone-matrix.
+#
+# Voorheen was bedraden verplicht en faalde deze inventaris rood op een onbedrade check (nadat
+# `check-tauri-refresh-evidence.ts` stil wees was geraakt: hij bestond, typechecte mee, maar draaide
+# nergens). Automatisch meenemen dicht datzelfde gat zonder dat elke nieuwe test dit script raakt.
+# CHECK_SCRIPT_ALLOWLIST is daarmee de lijst van checks die bewust NIET meedraaien — een
+# handmatige of bewust rode check, met een regel die uitlegt waarom, plus een verwijzing naar de
+# bijbehorende docs/TODO.md-notitie.
 CHECK_SCRIPT_ALLOWLIST=(
   # (Een bewust handmatige/rode check hoort hier met een regel die uitlegt waarom, plus een
   # verwijzing naar de bijbehorende docs/TODO.md-notitie.)
@@ -133,8 +138,9 @@ CHECK_SCRIPT_ALLOWLIST=(
   check-xer-resource-catalog-types.ts
 )
 
+AUTO_CHECK_SCRIPTS=()
 check_check_scripts () {
-  local f base missing=() allow
+  local f base allow
   local -A wired=() allowed=()
   for base in $(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
       | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true); do
@@ -146,16 +152,13 @@ check_check_scripts () {
   for f in "$DIR"/check-*.ts; do
     base="$(basename "$f")"
     if [ -z "${wired[$base]:-}" ] && [ -z "${allowed[$base]:-}" ]; then
-      missing+=("$base")
+      AUTO_CHECK_SCRIPTS+=("$base")
     fi
   done
-  if [ "${#missing[@]}" -gt 0 ]; then
-    echo "XX  check-scriptinventaris: ${#missing[@]} bestand(en) niet aangeroepen en niet op de allowlist: ${missing[*]}"
-    echo "    (nieuwe/vergeten check-*.ts? bedraad 'm met 'if bundle_check ...; then ...; fi', of zet 'm"
-    echo "    met een reden op CHECK_SCRIPT_ALLOWLIST bovenin dit script — nooit stilzwijgend een rode check bedraden)"
-    STATUS=1
+  if [ "${#AUTO_CHECK_SCRIPTS[@]}" -gt 0 ]; then
+    echo "OK  check-scriptinventaris: ${#AUTO_CHECK_SCRIPTS[@]} check(s) zonder eigen regel draaien automatisch mee: ${AUTO_CHECK_SCRIPTS[*]}"
   else
-    echo "OK  check-scriptinventaris: alle check-*.ts-bestanden aangesloten of op de allowlist"
+    echo "OK  check-scriptinventaris: alle check-*.ts-bestanden hebben een eigen regel of staan op de allowlist"
   fi
 }
 check_check_scripts
@@ -1506,6 +1509,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   if bundle_check "$DIR/check-progress-xlsx-writer.ts" "$PXLSXWCHECK"; then node "$PXLSXWCHECK" || STATUS=1; fi
   PIXLSXCHECK="$DIR/.progress-import-xlsx.mjs"
   if bundle_check "$DIR/check-progress-import-xlsx.ts" "$PIXLSXCHECK"; then node "$PIXLSXCHECK" || STATUS=1; fi
+
+  # ── Automatisch meegenomen checks ──────────────────────────────────────────────────────────
+  # Elke check-*.ts zonder eigen `bundle_check`-regel hierboven (zie de check-scriptinventaris
+  # bovenin). Zelfde mechanisme als een gerichte run: bundelen, draaien, en via `bundle_check`
+  # vanzelf in BUNDLES, dus ook in de tijdzone-matrix.
+  for name in "${AUTO_CHECK_SCRIPTS[@]}"; do
+    out="$DIR/.${name%.ts}.mjs"
+    if bundle_check "$DIR/$name" "$out"; then node "$out" || STATUS=1; fi
+  done
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────
@@ -1605,9 +1617,11 @@ fi
 #     twee van het totaal af terwijl er maar één overgeslagen werd, en een check-bestand dat wel
 #     op schijf staat maar niet via een `bundle_check`-regel is aangesloten (een wees, zie de
 #     check-scriptinventaris hierboven) telde toch mee als "gedraaid" zodra je 'm als argument gaf.
+#     Sinds checks zonder eigen regel automatisch meedraaien, telt AUTO_CHECK_SCRIPTS hier mee:
+#     het totaal is precies wat een volledige run draait (alles behalve CHECK_SCRIPT_ALLOWLIST).
 if [ "$RUN_HOLIDAYS" -eq 0 ]; then
-  mapfile -t WIRED_CHECK_NAMES < <(grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
-    | grep -oE 'check-[A-Za-z0-9_-]+\.ts' | sort -u || true)
+  mapfile -t WIRED_CHECK_NAMES < <( { grep -E '^[[:space:]]*if bundle_check "\$DIR/check-' "${BASH_SOURCE[0]}" \
+    | grep -oE 'check-[A-Za-z0-9_-]+\.ts'; printf '%s\n' "${AUTO_CHECK_SCRIPTS[@]}"; } | grep . | sort -u || true)
   TOTAL_CHECK_SCRIPTS="${#WIRED_CHECK_NAMES[@]}"
   declare -A REQUESTED_CHECK_NAMES=()
   for n in "${CHECK_NAMES[@]}"; do REQUESTED_CHECK_NAMES[$n]=1; done
@@ -1627,4 +1641,13 @@ if [ "$RUN_HOLIDAYS" -eq 0 ]; then
   echo "############################################################################"
 fi
 
+# ── Eindoordeel ─────────────────────────────────────────────────────────────────────────────
+# Eén regel die altijd klopt met de exitcode. Tussenregels als "(alles groen)" of "TZ …: groen"
+# gaan elk maar over hun eigen deel; deze regel gaat over de hele run.
+echo ""
+if [ "$STATUS" -eq 0 ]; then
+  echo "EINDOORDEEL planningssuite: GROEN (exit 0)"
+else
+  echo "EINDOORDEEL planningssuite: ROOD (exit $STATUS) — zoek hierboven naar regels met 'XX' of 'ROOD'"
+fi
 exit "$STATUS"

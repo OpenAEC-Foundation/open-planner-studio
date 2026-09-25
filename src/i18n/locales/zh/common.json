@@ -317,7 +317,7 @@
     "dialogTitle": "恢复未保存的工作",
     "explanation": "Open Planner Studio 未正常关闭。以下文档存在可恢复的未保存更改：",
     "timeLabel": "保存时间",
-    "taskCount": "{{count}} 个任务",
+    "taskCount_other": "{{count}} 个任务",
     "restore": "恢复",
     "dontRestore": "不恢复"
   },
@@ -618,7 +618,7 @@
     },
     "histogram": {
       "allResources": "所有资源",
-      "overallocatedTooltip": "{{count}} 个任务在 {{date}} 有负荷",
+      "overallocatedTooltip_other": "{{count}} 个任务在 {{date}} 有负荷",
       "overallocatedNonWorkingDay": "根据日历“{{calendar}}”，该资源这天不工作",
       "noData": "重新计算 (F5) 以显示负荷",
       "noResources": "尚无资源",

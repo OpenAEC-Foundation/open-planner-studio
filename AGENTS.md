@@ -14,8 +14,9 @@ npm run tauri:dev    # desktop app via scripts/tauri-dev.mjs — same per-worktr
 npm run tauri:build  # desktop installers
 npm run bump X.Y.Z   # CalVer sync (package.json + tauri.conf.json + lock; Cargo.toml stays 0.1.0)
 npm run verify       # THE gate — literally what CI, the release gate and the deploy gate run
-npm run typecheck    # tsc --noEmit over src/ AND scripts/+tests/ (tsconfig.tests.json)
+npm run typecheck    # tsc --noEmit over src/ AND scripts/+tests/ (tsconfig.tests.json); incremental, cache in node_modules/.cache/ops-tsc
 npm run lint         # eslint src — deliberately minimal, see below
+npm run lint:fast    # same lint with a cache, for iterating; can miss type-aware findings in unchanged files, so `lint` stays the gate
 npm test             # all five behavioral suites (planning, library, mcp, dev-server, browser)
 bash tests/planning/run.sh cases-<x>.json  # one data-driven battery
 bash tests/planning/run.sh check-<x>.ts    # one targeted check-*.ts battery
@@ -33,7 +34,7 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   graph, no false positives on `import type`).
 - **`npm run verify` is one definition, in `package.json`** — ci.yml, the
   release gate and the deploy gate all run that single line, so what passes
-  locally is exactly what passes in CI. Eleven steps, run in this order:
+  locally is exactly what passes in CI. The steps, in this order:
   `typecheck` → `lint` → `test` (all five suites) → `verify:examples` →
   `verify:docs` → `verify:i18n` → `verify:release-highlights-json` →
   `verify:store-boundaries` → `verify:gantt-boundaries` → `verify:cycles` →
@@ -46,8 +47,10 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   `npx playwright install --with-deps --only-shell chromium`). Run the
   planning suite after touching anything in `src/engine/scheduler/`,
   `src/engine/calendar/`, or the `runCPM` action. **Judge every suite by its
-  exit code, never the tail** — `tests/planning/` prints "alles groen" even
-  when bundling fails at exit 1.
+  exit code** — intermediate lines such as "alles groen" only cover their own
+  part. `tests/planning/` ends with an `EINDOORDEEL planningssuite: GROEN/ROOD`
+  line that always matches its exit code, and a new `tests/planning/check-*.ts`
+  runs automatically (no wiring in `run.sh` needed).
 - Node 22 (see CI). Rust stable required only for `tauri:*` commands.
 - New user-visible strings go through `t(...)` in all fourteen locales;
   `npm run verify:i18n` checks that, CLDR plural categories included.
@@ -181,7 +184,7 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   store (`getState`/`setState`/`subscribe`), the log-bus, `extensions.*`, and
   observer-only Canvas/Gantt geometry. Prefer asserting via store state over
   canvas pixels; it must never perform the tested user action itself.
-- The app also exposes its own **MCP bridge** with 42 `planner_*` tools
+- The app also exposes its own **MCP bridge** with the `planner_*` tools
   (`src/services/mcp/`) — the real AI-assistant surface, Tauri-only, gated
   behind `ui.aiMode` (see `.claude/rules/mcp.md`).
   Not a dev-only test hook and not a substitute for the two mechanisms above.

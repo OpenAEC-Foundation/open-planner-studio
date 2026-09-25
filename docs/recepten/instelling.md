@@ -30,9 +30,16 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
 3. **Schrijf een `saveX`-wrapper** in `src/utils/settingsStore.ts` als er nog geen bestaat — een
    dunne functie die `setSetting(key, value)` aanroept. Bestaat de sleutel al (je hergebruikt een
    bestaand veld), dan is deze stap overbodig.
-4. **Zet de UI op alle drie de plekken.** Elke instelling die een gebruiker moet kunnen wijzigen,
-   hoort op **alle drie** te verschijnen — niet als drie losse implementaties, maar als drie
-   aanroeppunten van hetzelfde gedeelde component `src/components/settings/SettingsPanelContent.tsx`:
+4. **Zet de UI op de juiste plek.** Er zijn twee soorten onthouden waarden:
+   - een **instelling** (taal, thema, datumnotatie, …) hoort in het instellingenpaneel, en verschijnt
+     daarmee op **alle drie** de plekken — niet als drie losse implementaties, maar als drie
+     aanroeppunten van hetzelfde gedeelde component `src/components/settings/SettingsPanelContent.tsx`
+     (zie de tabel hieronder);
+   - een **weergavekeuze** die je in het werk zelf aan- of uitzet — een lintknop (spelingsband,
+     histogram, voortgangslijn) of iets dat je sleept (paneelbreedte, histogramhoogte) — krijgt
+     óók een descriptor en `saveX`, maar houdt zijn eigen bediening en komt níét in het paneel.
+
+   Voor een paneelinstelling:
 
    | plek | hoe hij daar komt |
    |---|---|
@@ -82,7 +89,8 @@ daadwerkelijk op de drie UI-plekken verschijnt. Concreet onbewaakt:
   dus de botsing zit op `field`, niet op `key`; laatste wint in de `for`-lus).
 
 Dit is dus mensenwerk: controleer bij een review of de descriptor, de `saveX`-aanroep vanuit de UI, en
-de zichtbare UI in `SettingsPanelContent` alle drie aanwezig zijn.
+de zichtbare bediening (in `SettingsPanelContent`, of bij een weergavekeuze de lintknop of sleepgreep)
+alle drie aanwezig zijn.
 
 ## Waar het echt staat
 

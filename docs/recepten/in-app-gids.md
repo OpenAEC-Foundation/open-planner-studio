@@ -28,7 +28,9 @@ ooit achter, dan heeft de code gelijk.
    viewer.
 3. **Schrijf het artikel** in minstens `public/docs/nl/<id>.md` én `public/docs/en/<id>.md` — dat zijn
    de twee harde brontalen. De overige twaalf (`public/docs/<taal>/<id>.md`) zijn optioneel en worden
-   alleen gevalideerd wanneer ze bestaan.
+   alleen gevalideerd wanneer ze bestaan. Loopt de kop- of linkstructuur van zo'n vertaling achter op
+   EN, dan geeft `verify:docs` een waarschuwing en geen fout; de vertaalronde draait
+   `npm run verify:docs -- --strict-translations`, dat het wél hard maakt.
 4. **Blijf binnen de miniMarkdown-subset** (zie hieronder) — anders rendert de viewer het artikel niet
    zoals bedoeld, of `verify:docs` waarschuwt.
 5. **Draai `npm run verify:docs`.**

@@ -147,7 +147,7 @@
     "levelResourcesDialog": "平衡…",
     "clearLeveling": "清除平衡",
     "overallocationIndicator": "超额分配",
-    "overallocationCount": "{{count}} 个资源",
+    "overallocationCount_other": "{{count}} 个资源",
     "overallocationNone": "无",
     "baselines": "基线与进度",
     "saveBaseline": "保存基线…",
@@ -263,7 +263,7 @@
   "status": {
     "tasks": "任务：",
     "milestones": "里程碑：",
-    "criticalPath": "关键路径：{{count}} 个任务，{{duration}} 个工作日",
+    "criticalPath_other": "关键路径：{{count}} 个任务，{{duration}} 个工作日",
     "end": "结束：",
     "selection": "选择：{{count}} 个任务",
     "scale": "刻度：",

@@ -1,10 +1,10 @@
 /**
  * Ribbon-groep Baselines & Progress — layoutcontract.
  *
- * De drie baseline-/voortgangsregels vormen de linker RibbonButtonStack; balkkleuren,
- * resource-accent en de spelingsband (#130) vormen de middelste. Beide zitten VOL, dus de schakelaar
- * voor relatielijnen (#144) staat in een eigen derde stack. Elke stack rendert zijn kinderen onder
- * elkaar (maximaal drie per stack binnen de vaste linthoogte), zonder naast elkaar te staan.
+ * Elke stack rendert zijn kinderen onder elkaar (maximaal drie per stack binnen de vaste
+ * linthoogte), zonder naast elkaar te staan. De baseline-/voortgangsregels delen één stack, en
+ * balkkleuren en resource-accent staan onder elkaar. Welke stack precies welke overige knop draagt
+ * (spelingsband #130, relatielijnen #144) ligt bewust NIET vast: dat is indeling, geen contract.
  */
 // De ribbon-config laadt i18n, dat bij module-initialisatie de documentrichting zet. De test leest
 // alleen declaratieve config en heeft dus geen DOM nodig, behalve deze minimale Node-shim.
@@ -24,37 +24,44 @@ const eq = (label: string, got: unknown, want: unknown) => {
 
 const overlays = RIBBON_TABS.beeld.find(group => group.id === 'overlays');
 eq('Baselines & Progress-groep bestaat', !!overlays, true);
-eq('Baselines & Progress bestaat uit drie verticale stacks', overlays?.items.length, 3);
-eq(
-  'Baselines & Progress houdt de drie stacks in leesvolgorde',
-  overlays?.items.map(item => item.id),
-  ['overlaysStack', 'colorAccentStack', 'relationsStack'],
-);
 
-const overlayStack = overlays?.items[0];
-const colorAccentStack = overlays?.items[1];
-eq('Baselines & Progress eerste item is de overlay-stack', overlayStack?.kind, 'stack');
+// Invarianten i.p.v. een vastgepinde indeling: een nieuwe knop in een stack met ruimte, of een
+// extra stack, mag deze test niet breken (voorheen moest elke toevoeging hier handmatig mee, zie
+// #130). Wat wél vast ligt: alles staat in verticale stacks binnen de linthoogte, de bestaande
+// knoppen blijven bestaan, en de paren die bij elkaar horen staan onder elkaar in één stack.
+const items = overlays?.items ?? [];
+const stackOf = (id: string) =>
+  items.find(item => item.kind === 'stack' && item.items.some(child => child.id === id));
+const idsIn = (id: string) => {
+  const stack = stackOf(id);
+  return stack?.kind === 'stack' ? stack.items.map(child => child.id) : [];
+};
+
+for (const item of items) {
+  eq(`Item ${item.id} is een verticale stack (niets naast elkaar)`, item.kind, 'stack');
+  eq(`Stack ${item.id} past binnen de vaste linthoogte (max drie)`, item.kind === 'stack' && item.items.length <= 3, true);
+}
+
+const allIds = items.flatMap(item => (item.kind === 'stack' ? item.items.map(child => child.id) : [item.id]));
+eq('Geen knop staat twee keer in de groep', new Set(allIds).size, allIds.length);
+for (const id of [
+  'toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine',
+  'screenColors', 'toggleResourceAccent', 'toggleFloatBand', 'toggleRelations',
+]) {
+  eq(`Knop ${id} staat in Baselines & Progress`, allIds.includes(id), true);
+}
+
+const overlayIds = idsIn('toggleBaselineOverlay');
 eq(
-  'De overlay-stack houdt de drie bestaande regels in leesvolgorde',
-  overlayStack?.kind === 'stack' ? overlayStack.items.map(item => item.id) : [],
+  'Baseline-, voortgangs- en statusdatumlijn staan in één stack, in leesvolgorde',
+  overlayIds.filter(id => ['toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine'].includes(id)),
   ['toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine'],
 );
-eq('Baselines & Progress tweede item is de kleurstack', colorAccentStack?.kind, 'stack');
 eq(
-  'Balkkleuren, resource-accent en spelingsband staan onder elkaar',
-  colorAccentStack?.kind === 'stack' ? colorAccentStack.items.map(item => item.id) : [],
-  ['screenColors', 'toggleResourceAccent', 'toggleFloatBand'],
+  'Balkkleuren en resource-accent staan onder elkaar in dezelfde stack',
+  idsIn('screenColors').includes('toggleResourceAccent'),
+  true,
 );
-
-const relationsStack = overlays?.items[2];
-eq(
-  'Relatielijnen staat in een eigen stack en overvult de kleurstack niet',
-  relationsStack?.kind === 'stack' ? relationsStack.items.map(item => item.id) : [],
-  ['toggleRelations'],
-);
-for (const stack of overlays?.items ?? []) {
-  eq(`Stack ${stack.id} past binnen de vaste linthoogte (max drie)`, stack.kind === 'stack' && stack.items.length <= 3, true);
-}
 
 if (diffs.length === 0) {
   console.log(`OK  ribbon-overlays: alle checks groen (${checks})`);

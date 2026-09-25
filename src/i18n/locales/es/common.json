@@ -361,7 +361,9 @@
     "dialogTitle": "Restaurar trabajo no guardado",
     "explanation": "Open Planner Studio no se cerró correctamente. Los siguientes documentos tenían cambios sin guardar que se pueden restaurar:",
     "timeLabel": "Guardado",
-    "taskCount": "{{count}} tareas",
+    "taskCount_one": "{{count}} tarea",
+    "taskCount_many": "{{count}} tareas",
+    "taskCount_other": "{{count}} tareas",
     "restore": "Restaurar",
     "dontRestore": "No restaurar"
   },
@@ -666,7 +668,9 @@
     },
     "histogram": {
       "allResources": "Todos los recursos",
-      "overallocatedTooltip": "{{count}} tareas contribuyen el {{date}}",
+      "overallocatedTooltip_one": "{{count}} tarea contribuye el {{date}}",
+      "overallocatedTooltip_many": "{{count}} tareas contribuyen el {{date}}",
+      "overallocatedTooltip_other": "{{count}} tareas contribuyen el {{date}}",
       "overallocatedNonWorkingDay": "No trabaja este día según el calendario «{{calendar}}»",
       "noData": "Recalcula (F5) para mostrar la carga",
       "noResources": "Aún no hay recursos",

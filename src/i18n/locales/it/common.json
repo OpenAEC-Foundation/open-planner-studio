@@ -361,7 +361,9 @@
     "dialogTitle": "Ripristina lavoro non salvato",
     "explanation": "Open Planner Studio non si è chiuso normalmente. I seguenti documenti presentavano modifiche non salvate che possono essere ripristinate:",
     "timeLabel": "Salvato",
-    "taskCount": "{{count}} attività",
+    "taskCount_one": "{{count}} attività",
+    "taskCount_many": "{{count}} attività",
+    "taskCount_other": "{{count}} attività",
     "restore": "Ripristina",
     "dontRestore": "Non ripristinare"
   },
@@ -666,7 +668,9 @@
     },
     "histogram": {
       "allResources": "Tutte le risorse",
-      "overallocatedTooltip": "{{count}} attività contribuiscono il {{date}}",
+      "overallocatedTooltip_one": "{{count}} attività contribuisce il {{date}}",
+      "overallocatedTooltip_many": "{{count}} attività contribuiscono il {{date}}",
+      "overallocatedTooltip_other": "{{count}} attività contribuiscono il {{date}}",
       "overallocatedNonWorkingDay": "Non lavora in questo giorno secondo il calendario \"{{calendar}}\"",
       "noData": "Ricalcola (F5) per mostrare il carico",
       "noResources": "Ancora nessuna risorsa",

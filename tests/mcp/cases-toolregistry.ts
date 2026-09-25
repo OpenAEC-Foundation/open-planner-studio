@@ -6,9 +6,10 @@
 // en omgekeerd dat er geen geregistreerde tool bestaat zonder zo'n bron-literal, met EXACT gelijke
 // namen. Zonder deze poort compileert een vergeten regel in `MODULES` (`toolRegistry.ts`) gewoon:
 // het tool-bestand exporteert zijn array keurig, TypeScript ziet niets fout, en de tool verdwijnt
-// stilzwijgend uit `tools/list` — precies het gat dat `cases-schemavalidatie.ts` (dat tegen een
-// hardgecodeerd aantal van 39 test) niet dicht: dat bestand bewijst dat de AL geregistreerde set
-// intern consistent is, niet dat er niets aan die set ontbreekt.
+// stilzwijgend uit `tools/list` — precies het gat dat `cases-schemavalidatie.ts` niet dicht: dat
+// bestand bewijst dat de AL geregistreerde set intern consistent is, niet dat er niets aan die set
+// ontbreekt. Daarom is dit bestand ook de enige plek die de volledigheid bewaakt: de andere MCP-tests
+// noemen bewust geen vast aantal tools meer, zodat een nieuwe tool geen tellers elders laat breken.
 //
 // Let op het onderscheid met Poort 7e in `scripts/verify-docs.ts`: die telt `planner_*`-literals in
 // dezelfde map en vergelijkt alleen het GETAL met de "N `planner_*`-tools"-bewering in CLAUDE.md.

@@ -16,8 +16,9 @@ npm run dev          # browser-dev; vaste poort per worktree (3007–3106), weig
 npm run tauri:dev    # desktopapp, zelfde poorttoewijzing
 npm run build        # tsc && vite build → dist/
 npm run verify       # DE poort — letterlijk wat CI, release-gate en deploy-gate draaien
-npm run typecheck    # tsc over src/ én scripts/+tests/ — gebruik dit, niet alleen build
+npm run typecheck    # tsc over src/ én scripts/+tests/ — gebruik dit, niet alleen build (incrementeel)
 npm run lint         # bewust minimale ESLint (promises, control-regex, React-hooks)
+npm run lint:fast    # zelfde lint mét cache, voor tussendoor; `lint` blijft de poort
 npm test             # alle vijf de suites
 npm run tauri:build  # installers
 npm run bump X.Y.Z   # CalVer-versie syncen (Cargo.toml blijft bewust 0.1.0)
@@ -45,8 +46,10 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 
 ## Valkuilen bij testen
 
-- **Beoordeel elke suite op de exitcode, nooit op de tail.** `tests/planning/` print "alles groen" ook bij exit 1
-  (bundelen faalt). `grep '^XX'` werkt alleen daar; `tests/library/` print faalregels ingesprongen.
+- **Beoordeel elke suite op de exitcode.** Tussenregels als "alles groen" gaan alleen over hun eigen deel;
+  `tests/planning/` sluit af met `EINDOORDEEL planningssuite: GROEN/ROOD`, gelijk aan de exitcode.
+  `grep '^XX'` werkt alleen daar; `tests/library/` print faalregels ingesprongen.
+- Een nieuwe `tests/planning/check-*.ts` draait vanzelf mee (ook in de tijdzone-matrix); geen regel in `run.sh` nodig.
 - Er is geen vitest/jest. `tsc --strict` (`noUnusedLocals`/`noUnusedParameters`) is de statische hoofdcheck.
 - Draai de planningssuite na elke wijziging aan planningscode; draai `npm run verify` vóór je pusht —
   een rode suite blokkeert zowel deploy als release.
@@ -81,7 +84,8 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 - **Tekst:** altijd via `t(...)`, nooit hardgecodeerd. Tekstgroottes alleen via de zes rollen
   (`text-caption`…`text-title`); `text-xs`/`text-sm` bestaan niet meer en doen stil niets.
 - **Instellingen:** `localStorage` onder `ops-`-sleutels (`@tauri-apps/plugin-store` is ongebruikt); declaratief
-  via `settingsRegistry.ts`; elke instelling op alle drie de plekken via `SettingsPanelContent`.
+  via `settingsRegistry.ts`. Een instelling in `SettingsPanelContent` staat vanzelf op alle drie de plekken
+  (⚙, Instellingen-tab, Backstage); een onthouden weergavekeuze via een lintknop of slepen hoort daar niet.
 - **Auto-save** (crashherstel) is gethrottled op 10 s — bewust throttle, geen debounce.
 - **`immer` staat exact vastgepind op `11.1.4` (geen `^`) — zet de caret niet terug.** Immer zit direct onder
   undo/redo, snapshot-sharing en auto-freeze; vanaf 11.1.8 breekt ook de build (typering van `current`/`original`,

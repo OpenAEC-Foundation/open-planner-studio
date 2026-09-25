@@ -383,7 +383,10 @@
     "dialogTitle": "Przywróć niezapisaną pracę",
     "explanation": "Open Planner Studio nie zostało zamknięte poprawnie. Poniższe dokumenty miały niezapisane zmiany, które można przywrócić:",
     "timeLabel": "Zapisano",
-    "taskCount": "Zadania: {{count}}",
+    "taskCount_one": "{{count}} zadanie",
+    "taskCount_few": "{{count}} zadania",
+    "taskCount_many": "{{count}} zadań",
+    "taskCount_other": "{{count}} zadania",
     "restore": "Przywróć",
     "dontRestore": "Nie przywracaj"
   },
@@ -690,7 +693,10 @@
     },
     "histogram": {
       "allResources": "Wszystkie zasoby",
-      "overallocatedTooltip": "{{count}} zadań ma udział w dniu {{date}}",
+      "overallocatedTooltip_one": "{{count}} zadanie ma udział w dniu {{date}}",
+      "overallocatedTooltip_few": "{{count}} zadania mają udział w dniu {{date}}",
+      "overallocatedTooltip_many": "{{count}} zadań ma udział w dniu {{date}}",
+      "overallocatedTooltip_other": "{{count}} zadania ma udział w dniu {{date}}",
       "overallocatedNonWorkingDay": "Nie pracuje w tym dniu według kalendarza „{{calendar}}”",
       "noData": "Przelicz (F5), aby pokazać obciążenie",
       "noResources": "Brak zasobów",

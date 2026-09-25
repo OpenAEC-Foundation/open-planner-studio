@@ -339,7 +339,8 @@
     "dialogTitle": "Restore unsaved work",
     "explanation": "Open Planner Studio did not close normally. The following documents had unsaved changes that can be restored:",
     "timeLabel": "Saved",
-    "taskCount": "{{count}} tasks",
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
     "restore": "Restore",
     "dontRestore": "Don't restore"
   },
@@ -642,7 +643,8 @@
     },
     "histogram": {
       "allResources": "All resources",
-      "overallocatedTooltip": "{{count}} tasks contribute on {{date}}",
+      "overallocatedTooltip_one": "{{count}} task contributes on {{date}}",
+      "overallocatedTooltip_other": "{{count}} tasks contribute on {{date}}",
       "overallocatedNonWorkingDay": "Does not work this day per calendar \"{{calendar}}\"",
       "noData": "Recalculate (F5) to show the load",
       "noResources": "No resources yet",

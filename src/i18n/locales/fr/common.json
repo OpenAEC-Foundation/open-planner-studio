@@ -361,7 +361,9 @@
     "dialogTitle": "Restaurer le travail non enregistré",
     "explanation": "Open Planner Studio ne s'est pas fermé normalement. Les documents suivants comportaient des modifications non enregistrées qui peuvent être restaurées :",
     "timeLabel": "Enregistré",
-    "taskCount": "{{count}} tâches",
+    "taskCount_one": "{{count}} tâche",
+    "taskCount_many": "{{count}} tâches",
+    "taskCount_other": "{{count}} tâches",
     "restore": "Restaurer",
     "dontRestore": "Ne pas restaurer"
   },
@@ -666,7 +668,9 @@
     },
     "histogram": {
       "allResources": "Toutes les ressources",
-      "overallocatedTooltip": "{{count}} tâches contribuent le {{date}}",
+      "overallocatedTooltip_one": "{{count}} tâche contribue le {{date}}",
+      "overallocatedTooltip_many": "{{count}} tâches contribuent le {{date}}",
+      "overallocatedTooltip_other": "{{count}} tâches contribuent le {{date}}",
       "overallocatedNonWorkingDay": "Ne travaille pas ce jour selon le calendrier « {{calendar}} »",
       "noData": "Recalculer (F5) pour afficher la charge",
       "noResources": "Aucune ressource pour l’instant",
