@@ -29,8 +29,9 @@ Losse suites: `npm run test:planning`, `npm run test:library`, `npm run test:mcp
 `npm run test:browser:x11` draait lokaal headed en vereist `OPS_XER_CORPUS` + een desktopdisplay; hij vervangt
 de corpusloze CI-poort niet.
 Één batterij: `bash tests/planning/run.sh cases-<x>.json` of `bash tests/planning/run.sh check-<x>.ts`.
-Nieuwe `check-*.ts`/`cases-*.json`: kopieer een bestaande `if bundle_check`-regel in `tests/planning/run.sh`
-(grep op een buurcheck) resp. vul `EXPECTED_BATTERIES` aan — lees run.sh (~1,2k regels) niet in z'n geheel.
+Nieuwe `check-*.ts` draait vanzelf mee (ook in de tijdzone-matrix); een eigen `if bundle_check`-regel in
+`tests/planning/run.sh` alleen bij een omgevingsvariabele, vaste volgorde of zonder matrix (grep op een buurcheck).
+Nieuwe `cases-*.json`: vul `EXPECTED_BATTERIES` aan — lees run.sh (~1,7k regels) niet in z'n geheel.
 
 Losse poorten (de meeste zitten in `verify`): `npm run verify:examples` (voorbeelden laden/rekenen),
 `npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen + geen cast op een sleutel + vaste opmaak),
