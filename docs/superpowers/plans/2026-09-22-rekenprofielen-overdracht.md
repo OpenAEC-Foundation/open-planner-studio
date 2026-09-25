@@ -144,9 +144,17 @@ het aan het eind vragen na dat je al het andere gedaan hebt. probere zoveel moge
 de elegantste oplossing" ⇒ 35 open PR's (stand 18:10): 14 op `main` (#172, #177, #180, #182, #189–#195, #199,
 #200, #204), de #172-stapel (`claude/busy-cerf-w6by88`: #178, #179, #181→#201, #183, #184, #185→#186→#197,
 #187, #188, #196, #198, #202, #203, #205), en de etappestapel #109 (nu CONFLICTING met main) → #167/#169 → #170.
-Volgorde: eerst alles wat dicht bij `main` staat via één integratiebranch (conflicten daar oplossen, één
-`verify`), dan per PR naar `main` in stapelvolgorde; daarna de etappestapel op de nieuwe `main` herbaseren
-(conflicten inhoudelijk oplossen, `verify` per laag) en mergen #109 → #167 → #169 → #170. Echt tegengestelde
+**Volgorde (orkestratorbesluit 25-09 ~18:20, in lijn met het eerdere eigenaarsbesluit van 24-09 dat in de
+PR-teksten van #172/#184/#185/#201 staat: "wacht tot de keten #109 → #169 → #170 op `main` staat"):**
+(1) de etappestapel eerst — #109 (met de drie XER-fixes: archief-fallback, anker, documentnaam; `main`
+erin gemerged, conflict met #176 opgelost; `verify`) → #167 (op de nieuwe #109) → #169 (A19-landfixes erin;
+`main` erin) → #170 (Fable-fixes, UI-fixronde, E9); elk pas na een groene `verify` en de CI van de vorige
+laag; (2) daarna de losse `main`-PR's, klein en dicht bij `main`: #190, #177, #191, #192, #193, #199, #195,
+#194, #200, #189, #204, #180 (CI parallel), #182 (i18n-tooling, hervormt locale-bestanden — als laatste van
+deze groep); (3) dan #172 en zijn stapel in afhankelijkheidsvolgorde: #172 → #178, #179, #181 → #201, #183,
+#184, #185 → #186 → #197, #187, #188, #196, #198, #202, #203, #205 — elk eerst `main` erin (conflicten met de
+etappe inhoudelijk oplossen: #185/#184 gevolgregels ↔ `settleDurationAftermath`, #201 ↔ G5), lichte poorten,
+en per stapel één `verify`. Echt tegengestelde
 besluiten (o.a. #185/#184 gevolgregels vs. #170 `settleDurationAftermath`, #201 dialoog-undo vs. #170 G5,
 #200 "geen vandaag" vs. #167 `$`-slots, #194 lezerfixes vs. #167/#170) worden per geval beslist en in §1c
 vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
