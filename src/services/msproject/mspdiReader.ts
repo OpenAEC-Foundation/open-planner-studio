@@ -21,7 +21,7 @@ import {
 } from './mspdiWriter';
 import { invertRecord } from '@/utils/collections';
 import {
-  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
+  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME, statusDateFromXml,
 } from '@/services/xmlInterchange';
 import {
   canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
@@ -687,9 +687,10 @@ function parseProject(root: Element): Project {
     author: getElementText(root, 'Author'),
     company: getElementText(root, 'Company'),
   };
-  // Statusdatum (fase 2.6, §9.1) → project.statusDate. Alleen wanneer aanwezig.
+  // Statusdatum (fase 2.6, §9.1) → project.statusDate. Alleen wanneer aanwezig; de tijd blijft
+  // (uur-modus), het dag-anker betekent "geen tijd" — gedeeld met P6 (`statusDateFromXml`).
   const statusDateRaw = getElementText(root, 'StatusDate');
-  if (statusDateRaw) project.statusDate = parseMSPDate(statusDateRaw);
+  if (statusDateRaw) project.statusDate = statusDateFromXml(statusDateRaw);
   // Scheduling-options (fase 2.9, §6): CriticalSlackLimit → criticalDefinition.threshold (dagen,
   // mode 'totalFloat'). Alleen wanneer het element aanwezig is (spiegel van de writer). threshold 0
   // is de default (tf≤0) en dus inert. De overige opties zitten niet in MSPDI (alleen via IFC).

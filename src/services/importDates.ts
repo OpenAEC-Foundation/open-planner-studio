@@ -8,7 +8,8 @@ import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
  * MSPDI (`parseMSPDate`) en P6 (`parseP6Date`) waren byte-identiek en importeren dit rechtstreeks.
  * CSV heeft een extra `DD-MM-YYYY`/`DD/MM/YYYY`-tak (`csvDateOrToday`). De IFC-reader deelt dit
  * BEWUST niet: die moet eerst de STEP-quoting én de `$`-null-conventie afhandelen en heeft afwijkende
- * lege-invoer-semantiek — zie de noot bij `parseDateFromIFC` in ifcReader.
+ * lege-invoer-semantiek — zie de noot bij `parseDateFromIFC` in ifcReader. De statusdatum
+ * (`importStatusDate`) deelt de IFC-reader wél: die krijgt de waarde al ontdaan van de STEP-typering.
  */
 
 /** ISO-datum-prefix (`YYYY-MM-DD`) uit een datetime-string; lege invoer ⇒ vandaag. */
@@ -22,6 +23,18 @@ export function isoDatePrefixOrToday(s: string): string {
 export function importDateTime(s: string, hour: boolean): string {
   if (!s) return formatDate(new Date());
   return hour ? formatInstant(parseInstant(s), 'hour') : s.substring(0, 10);
+}
+
+/** Statusdatum uit een bestand → `project.statusDate`, voor élke lezer die hem kent (IFC, MSPDI, P6).
+ *  Zonder tijd ⇒ `YYYY-MM-DD`; mét tijd ⇒ de store-vorm van een uur-instant (`YYYY-MM-DDTHH:mm`),
+ *  ongeacht de modus van de taken: de tijd staat in het bestand en de engine gebruikt hem op een
+ *  uur-projectkalender. Een onleesbare tijd ⇒ de datum. Het XML-dag-anker (een datum zonder tijd die
+ *  MSPDI/P6 als `T08:00:00` moeten schrijven) vangt `statusDateFromXml` vóór deze functie af. */
+export function importStatusDate(v: string): string {
+  const day = v.substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return day;
+  const instant = parseInstant(v);
+  return Number.isNaN(instant.getTime()) ? day : formatInstant(instant, 'hour');
 }
 
 /** CSV-variant: accepteert naast ISO ook `DD-MM-YYYY` / `DD/MM/YYYY`; onherkenbaar ⇒ vandaag. */

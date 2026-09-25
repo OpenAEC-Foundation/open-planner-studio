@@ -312,6 +312,42 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const ifcDay = writeIFC({ project: { ...project, statusDate: '2026-07-06' }, calendar: H8, tasks: [running], sequences: [], resources: [], assignments: [] });
   assert(ifcDay.includes("IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE('2026-07-06'),$)"), 'statusdatum zonder tijd: blijft IFCDATE');
   eq('statusdatum zonder tijd: blijft date-only', readIFC(ifcDay).project.statusDate, '2026-07-06');
+
+  // ── Zelfde regel voor MSPDI (<StatusDate>) en P6 (<DataDate>) — bijvondst G4 ──
+  // De schrijvers zetten de tijd al in het bestand (`toXmlDateTime`: `…T10:00:00`), maar beide lezers
+  // kapten op de datum af: na opslaan + openen hetzelfde EF-verschil als bij IFC. Een datum zonder tijd
+  // schrijven ze als het dag-anker `T08:00:00`; die moet exact `YYYY-MM-DD` terugkomen. De schrijvers
+  // zijn niet gewijzigd, dus dit zijn ook de vormen van bestaande bestanden.
+  const xmlFormats: [string, string, (p: Project) => string, (xml: string) => { project: Project; tasks: Task[]; calendar: WorkCalendar }][] = [
+    ['MSPDI', 'StatusDate', p => writeMSPDI(p, H8, [structuredClone(running)], [], [], []), readMSPDI],
+    ['P6', 'DataDate', p => writeP6XML(p, H8, [structuredClone(running)], [], [], []), readP6XML],
+  ];
+  for (const [fmt, tag, write, read] of xmlFormats) {
+    const xml = write(projS);
+    assert(xml.includes(`<${tag}>2026-07-06T10:00:00</${tag}>`), `${fmt} statusdatum-tijd: tijd staat in het bestand, kreeg ${new RegExp(`<${tag}>[^<]*`).exec(xml)?.[0]}`);
+    const xmlBack = read(xml);
+    eq(`${fmt} statusdatum-tijd: komt mét tijd terug`, xmlBack.project.statusDate, '2026-07-06T10:00');
+    eq(`${fmt} statusdatum-tijd: EF lopende urentaak na opslaan + openen`, efAfterSolve(xmlBack.tasks, xmlBack.calendar, xmlBack.project.statusDate), efBefore);
+
+    const xmlDay = write({ ...project, statusDate: '2026-07-06' });
+    assert(xmlDay.includes(`<${tag}>2026-07-06T08:00:00</${tag}>`), `${fmt} statusdatum zonder tijd: dag-anker in het bestand`);
+    eq(`${fmt} statusdatum zonder tijd: blijft date-only`, read(xmlDay).project.statusDate, '2026-07-06');
+
+    // Een echte tijd uit een ander programma blijft ook staan (MS Project bewaart de statusdatum op 17:00).
+    eq(`${fmt} statusdatum-tijd van buiten: 17:00 blijft`, read(xml.replace('2026-07-06T10:00:00', '2026-07-06T17:00:00')).project.statusDate, '2026-07-06T17:00');
+    // Onleesbare tijd ⇒ de datum, geen crash (vijandige invoer).
+    eq(`${fmt} statusdatum met onleesbare tijd: datum`, read(xml.replace('2026-07-06T10:00:00', '2026-07-06T99:00:00')).project.statusDate, '2026-07-06');
+
+    // Grens van het formaat: een statusdatum op PRECIES 08:00 is in het bestand niet te onderscheiden
+    // van het dag-anker en komt date-only terug. Op een kalender waarvan de werktijd om 08:00 begint
+    // (H8) rekent dat identiek: middernacht snapt naar dezelfde eerste werkminuut.
+    const xml0800 = write({ ...project, statusDate: '2026-07-06T08:00' });
+    const back0800 = read(xml0800);
+    eq(`${fmt} statusdatum 08:00: komt als dag-anker date-only terug`, back0800.project.statusDate, '2026-07-06');
+    eq(`${fmt} statusdatum 08:00: EF op H8 ongewijzigd`,
+      efAfterSolve(back0800.tasks, back0800.calendar, back0800.project.statusDate),
+      efAfterSolve([structuredClone(running)], H8, '2026-07-06T08:00'));
+  }
 }
 
 // ── Restduur van een urentaak round-trippt in minuten (G4) ───────────────────────────────────
