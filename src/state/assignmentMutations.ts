@@ -40,19 +40,31 @@ export function insertResource(s: AssignmentState, res: Omit<Resource, 'id'>, id
 /** Verwijdert resource `id`, al zijn toewijzingen, de verweesde `task.resourceIds`-verwijzingen en
  *  het ploeg-lidmaatschap van zijn leden (die vallen terug op geen ouder). `crewKey` is het ene
  *  verschil tussen de twee paden: de slice zet `parentId = undefined`, de MCP-draft haalt de sleutel
- *  weg (`delete`, zoals de rest van de draft voor een schoon IFC-object). */
-export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' | 'delete'): void {
+ *  weg (`delete`, zoals de rest van de draft voor een schoon IFC-object).
+ *
+ *  Elke taak die daarbij een toewijzing kwijtraakt, krijgt dezelfde "toewijzingen"-trigger als
+ *  `removeAssignment` (`invalidateForAssignmentChange`: laag 3/4 en de nivelleergaten) — anders
+ *  bleef hier nivelleer- en MSP-sturing staan die bij de verdwenen toewijzing hoorde. Taken met
+ *  alleen een verweesde `resourceIds`-verwijzing (zonder toewijzing) houden hun toewijzingenset en
+ *  blijven dus ongemoeid. Geeft, zoals `relocateAssignment`, de ids terug van de taken die
+ *  MSP-sturing verloren (in takenvolgorde). */
+export function purgeResource(s: AssignmentState, id: string, crewKey: 'unset' | 'delete'): string[] {
+  const affectedTaskIds = new Set<string>();
+  for (const a of s.assignments) if (a.resourceId === id) affectedTaskIds.add(a.taskId);
   s.resources = s.resources.filter(r => r.id !== id);
   s.assignments = s.assignments.filter(a => a.resourceId !== id);
+  const lost: string[] = [];
   for (const task of s.tasks) {
     const idx = task.resourceIds.indexOf(id);
     if (idx >= 0) task.resourceIds.splice(idx, 1);
+    if (affectedTaskIds.has(task.id) && invalidateForAssignmentChange(task)) lost.push(task.id);
   }
   for (const r of s.resources) {
     if (r.parentId !== id) continue;
     if (crewKey === 'delete') delete r.parentId;
     else r.parentId = undefined;
   }
+  return lost;
 }
 
 /** Haalt `resourceId` uit `task.resourceIds`, maar alleen als er op die taak geen andere

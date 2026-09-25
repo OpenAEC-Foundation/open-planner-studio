@@ -517,7 +517,9 @@ function createMcpDraft(
       report.orphanedCrewMemberIds = s.resources.filter((r) => r.parentId === id).map((r) => String(r.id));
 
       // Ploeglid-`parentId` via `delete` i.p.v. `= undefined` — zie de noot bij updateResource.
-      purgeResource(s, id, 'delete');
+      // Zelfde lichaam als de store-actie (`assignmentMutations.ts`), inclusief de toewijzingen-
+      // trigger per geraakte taak; verlies via de lease, zoals `unassignResource` hieronder.
+      for (const lostTaskId of purgeResource(s, id, 'delete')) recordTimephasedLoss(lostTaskId);
       s.isDirty = true;
     });
     return report;
