@@ -444,6 +444,10 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       (`OPS_TimephasedWindow`) en het extensiecontract, maar geen lezer vult het en geen solverstap
       leest het. Activeren raakt `assignmentDayUnits` (histogram/nivelleerder/bezetting), de
       renderer (balk per toewijzing?) en de MSPDI-/P6-exports (per-assignment start/finish).
+      Zichtbaar gevolg sinds E9 (25-09): onder *Vaste inzet* komt inzet heen en terug op één
+      toewijzing weer op de oude duur uit, maar met twee of meer toewijzingen niet — de andere volgt
+      de langere duur met afgeleid werk (MSP houdt haar werk en geeft haar een kortere spanne).
+      Gepind in `check-work-triangle.ts` (b); spec §3.4.
 - [ ] **MSP-meetlat: 36 bewerkingen** (spec §9) meten in MS Project (en P6) zodra iemand het heeft;
       tot dan draagt elke case `evidence: 'documented' | 'reasoned' | 'decided'` in `work-triangle-cases.json`.
 - [ ] **Telling `mspTaskType × effortDriven` over de `OPS_MPP_CRAWL`-set** (216 bestanden): bepaalt

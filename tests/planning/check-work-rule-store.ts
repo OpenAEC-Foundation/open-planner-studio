@@ -800,10 +800,19 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().setTaskCalendar(f4.t, undefined);
   eq('r12 (F4) terug naar 8 u: duur 10, rest 5, completion weer 0,5, werk 40 u', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, task(f4.t).time.completion, asgOf(f4.t, f4.r).remainingWorkMinutes], [10, 5, 0.5, 40 * 60]);
 
-  // (F5) FIXED_RATE via setTaskCalendar: duur volgt, maar er komt géén werkveld.
+  // (E9 25-09, draait F5 terug) FIXED_RATE via setTaskCalendar: duur volgt en het werk (32 u) wordt het
+  // vastgelegde anker, zodat terug naar 8 u weer 4 d geeft (MSP bewaart Work; Fable-review bevinding 4).
   const f5 = mkTask('r-f5', 4, 'FIXED_RATE');
   S().setTaskCalendar(f5.t, six);
-  eq('r13 (F5) FIXED_RATE 8→6 u: duur 6, inzet 1, werkveld blijft afwezig', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).unitsPerDay, asgOf(f5.t, f5.r).remainingWorkMinutes], [6, 1, undefined]);
+  eq('r13 (E9) FIXED_RATE 8→6 u: duur 6 (32 ÷ 6 = 5,33), inzet 1, werk 32 u vastgelegd', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).unitsPerDay, asgOf(f5.t, f5.r).remainingWorkMinutes], [6, 1, 32 * 60]);
+  S().setTaskCalendar(f5.t, undefined);
+  eq('r13b (E9) FIXED_RATE terug naar 8 u: weer 4 d, werk 32 u (vóór E9: 5 d)', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).remainingWorkMinutes], [4, 32 * 60]);
+  // Inzet heen en terug via de store-actie (Fable-review P1): 5 d, I 1 → 0,3 → 1 ⇒ 17 d ⇒ 5 d (vóór E9: 6 d).
+  const f5u = mkTask('r-f5u', 5, 'FIXED_RATE');
+  S().updateAssignment(asgOf(f5u.t, f5u.r).id, { unitsPerDay: 0.3 });
+  eq('r13c (E9) FIXED_RATE inzet 1 → 0,3: 17 d, werk 40 u vastgelegd', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [17, 40 * 60]);
+  S().updateAssignment(asgOf(f5u.t, f5u.r).id, { unitsPerDay: 1 });
+  eq('r13d (E9) FIXED_RATE inzet terug naar 1: weer 5 d', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [5, 40 * 60]);
 
   // (F7) Δ-rest geldt ook op een ELAPSEDTIME-taak (duur-identiteit, geen driehoeksregel); niet op een mijlpaal.
   const f7 = S().addTask({ name: 'r-f7', time: { ...createDefaultTaskTime('2026-06-01', 10), durationType: 'ELAPSEDTIME' } });
