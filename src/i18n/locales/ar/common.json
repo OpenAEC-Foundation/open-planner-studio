@@ -30,6 +30,7 @@
     "relationCreated": "تم إنشاء العلاقة: من {{predecessor}} إلى {{successor}}",
     "relationDuplicate": "هذه العلاقة موجودة بالفعل",
     "relationAncestorEndpoint": "لا يُسمح بعلاقة بين مهمة ومهمتها الموجزة الأصلية (الأب أو الجد).",
+    "relationCycle": "ستؤدي هذه العلاقة إلى إنشاء دورة في الجدول ({{cycle}})، لذلك لم يتم إنشاؤها.",
     "summaryRelationsDropped": "تعذر إدراج {{total}} علاقة في الحساب. راجع عمودي المهام السابقة واللاحقة.",
     "relationsSkippedOnInsert_zero": "لم يتم تخطي أي علاقة.",
     "relationsSkippedOnInsert_one": "لم يتم إنشاء علاقة واحدة: رابط غير صالح (مثل مهمة مرتبطة بمهمتها التجميعية الأصل، أو علاقة مكررة).",

@@ -191,6 +191,9 @@ export type NotificationMessageKey =
   | 'notifications.relationCreated'
   | 'notifications.relationDuplicate'
   | 'notifications.relationAncestorEndpoint'
+  // Audit taakmutaties, bevinding 2: de store-route weigert een relatie die een kring sluit (zoals
+  // raster en MCP al deden). Parameter `cycle`: de taaknamen van de kring, "A → B → A".
+  | 'notifications.relationCycle'
   | 'notifications.summaryRelationsDropped'
   | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'

@@ -89,9 +89,12 @@ test('stale met kringverwijzing ⇒ {recomputed:true} + error gezet, geen throw'
   cleanProject();
   const a = S().addTask({ name: 'A', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 3) });
   const b = S().addTask({ name: 'B', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 3) });
-  // Cyclus: A→B én B→A. addSequence zet scheduleStale.
+  // Cyclus: A→B én B→A. addSequence zet scheduleStale. De store-route weigert de kring zelf vooraf
+  // (tests/planning/check-relation-routes.ts); B→A komt dus binnen zoals een importer hem schrijft.
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
-  S().addSequence({ predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  useAppStore.setState((s) => {
+    s.sequences.push({ id: 'seq-kring', predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
+  });
   assertEq(S().scheduleStale, true, 'precondition: stale na relatie-toevoeging');
 
   let out;

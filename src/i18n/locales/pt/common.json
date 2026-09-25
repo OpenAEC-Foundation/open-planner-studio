@@ -27,6 +27,7 @@
     "relationCreated": "Relação criada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Essa relação já existe",
     "relationAncestorEndpoint": "Não é permitida uma relação entre uma tarefa e a sua própria tarefa de resumo ancestral.",
+    "relationCycle": "Esta relação criaria um ciclo no planeamento ({{cycle}}) e não foi criada.",
     "summaryRelationsDropped": "{{total}} relação(ões) não puderam ser incluídas. Verifique as colunas Predecessoras e Sucessoras.",
     "relationsSkippedOnInsert_one": "{{count}} relação não foi criada: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
     "relationsSkippedOnInsert_many": "{{count}} relações não foram criadas: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",

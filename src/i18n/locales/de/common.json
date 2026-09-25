@@ -26,6 +26,7 @@
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
+    "relationCycle": "Diese Beziehung würde einen Zyklus im Terminplan erzeugen ({{cycle}}) und wurde nicht erstellt.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
     "relationsSkippedOnInsert_one": "{{count}} Beziehung wurde nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",

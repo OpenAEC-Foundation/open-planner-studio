@@ -226,7 +226,10 @@ module.exports = {
 
 `addSequence` retourneert `string | null`: het nieuwe relatie-id, of **`null`** wanneer de relatie
 geweigerd is — een duplicaat (zelfde voorganger + opvolger + type), een zelfrelatie, een onbekende
-taak, of een **samenvattingstaak** (een taak met subtaken) als voorganger of opvolger. Controleer
+taak, een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak, of een relatie die een
+**kring** zou sluiten (ook via de bladtaken van een samenvattingstaak). Een gewone samenvattingstaak
+als voorganger of opvolger is toegestaan: de berekening rekent zo'n relatie door naar de
+onderliggende taken. Controleer
 het resultaat dus op `null` in plaats van aan te nemen dat elke aanroep slaagt. Dit retourtype is
 strikt correcter dan het oude gedrag: bij een geweigerd duplicaat gaf `addSequence` voorheen ook al
 gewoon een `string` terug — een id dat nergens naar verwees, omdat de relatie zelf nooit is

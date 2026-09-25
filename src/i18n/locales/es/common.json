@@ -27,6 +27,7 @@
     "relationCreated": "Relación creada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Esa relación ya existe",
     "relationAncestorEndpoint": "No se permite una relación entre una tarea y su propia tarea de resumen antecesora.",
+    "relationCycle": "Esta relación crearía un ciclo en la planificación ({{cycle}}) y no se ha creado.",
     "summaryRelationsDropped": "{{total}} relación(es) no se pudieron incluir en el cálculo. Revise las columnas Predecesores y Sucesores.",
     "relationsSkippedOnInsert_one": "No se creó {{count}} relación: vínculo no válido (por ejemplo, una tarea vinculada a su propia tarea de resumen superior, o un duplicado).",
     "relationsSkippedOnInsert_many": "No se crearon {{count}} relaciones: vínculo no válido (por ejemplo, una tarea vinculada a su propia tarea de resumen superior, o un duplicado).",

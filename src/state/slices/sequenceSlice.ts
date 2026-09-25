@@ -1,15 +1,15 @@
 import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
-import { relationVerdict } from '../relationRules';
+import { relationAddVerdict } from '../relationRules';
 import type { AppSliceFactory } from './types';
 
 export interface SequenceSlice {
   sequences: Sequence[];
   /** Retourneert het nieuwe id, of `null` wanneer de relatie geweigerd is (duplicaat, zelfrelatie,
-   *  onbekende taak, of een taak gekoppeld aan zijn eigen (voor)ouder-samenvatting — zie
-   *  `relationRules.ts`). Een gewoon verzameltaak-eindpunt is sinds 2026-08-15 GEEN weigergrond
-   *  meer: `runCPM`/`solveProject` rekenen zo'n relatie via `expandSummaryRelations` door naar de
-   *  onderliggende bladtaken. */
+   *  onbekende taak, een taak gekoppeld aan zijn eigen (voor)ouder-samenvatting, of een relatie die
+   *  een kring zou sluiten — zie `relationAddVerdict` in `relationRules.ts`). Een gewoon
+   *  verzameltaak-eindpunt is sinds 2026-08-15 GEEN weigergrond meer: `runCPM`/`solveProject`
+   *  rekenen zo'n relatie via `expandSummaryRelations` door naar de onderliggende bladtaken. */
   addSequence: (seq: Omit<Sequence, 'id'>) => string | null;
   /** Wijzig type/lag van een bestaande relatie. Geeft false terug wanneer de wijziging een
    *  duplicaat (zelfde voorganger+opvolger+type) zou opleveren en daarom genegeerd is. */
@@ -17,23 +17,23 @@ export interface SequenceSlice {
   removeSequence: (id: string) => void;
 }
 
-export const createSequenceSlice: AppSliceFactory<SequenceSlice> = (runtime) => (set) => ({
+export const createSequenceSlice: AppSliceFactory<SequenceSlice> = (runtime) => (set, get) => ({
   sequences: [],
 
   addSequence: (seq) => {
+    // Alle regels (dedup, zelfrelatie, onbekende taak, voorouder-eindpunt, kring) staan in
+    // relationRules.ts — één bron, gedeeld met de meldingswrapper (`relationActions.ts`). Getoetst
+    // tegen de bevroren state vóór de producer: de kringtoets loopt over de hele relatiegraaf en
+    // hoeft niet door Immer-proxies te lezen.
+    const current = get();
+    if (!relationAddVerdict(current.tasks, current.sequences, seq).ok) return null; // geen snapshot, geen loze undo-stap (R3).
     const id = generateId('seq');
-    let accepted = false;
     set((s) => {
-      // Alle regels (dedup, zelfrelatie, onbekende taak, verzameltaak-eindpunt) staan in
-      // relationRules.ts — één bron, gedeeld met mcpTransaction en de meldingswrapper.
-      const lookup = (tid: string) => s.tasks.find((t) => t.id === tid);
-      if (!relationVerdict(lookup, s.sequences, seq).ok) return; // geen snapshot, geen loze undo-stap (R3).
       runtime.beginUndoable(s); // snapshot pas ná de guard, vóór de mutatie (zie transaction.ts).
       s.sequences.push({ ...seq, id });
       runtime.finishMutation(s, { stale: true }); // nieuwe relatie (A6): planning verouderd tot F5.
-      accepted = true;
     });
-    return accepted ? id : null;
+    return id;
   },
 
   updateSequence: (id, patch) => {

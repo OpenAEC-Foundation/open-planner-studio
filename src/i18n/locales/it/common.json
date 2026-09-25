@@ -27,6 +27,7 @@
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
+    "relationCycle": "Questa relazione creerebbe un ciclo nella pianificazione ({{cycle}}) e non è stata creata.",
     "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse. Controlla le colonne Predecessori e Successori.",
     "relationsSkippedOnInsert_one": "{{count}} relazione non è stata creata: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",
     "relationsSkippedOnInsert_many": "{{count}} relazioni non sono state create: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",

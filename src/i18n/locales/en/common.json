@@ -26,6 +26,7 @@
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
+    "relationCycle": "This relation would create a cycle in the schedule ({{cycle}}) and was not created.",
     "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation. Check the Predecessors and Successors columns.",
     "relationsSkippedOnInsert_one": "{{count}} relation was not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",

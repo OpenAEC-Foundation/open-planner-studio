@@ -26,6 +26,7 @@
     "relationCreated": "İlişki oluşturuldu: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Bu ilişki zaten var",
     "relationAncestorEndpoint": "Bir görev ile kendi üst özet görevi arasında ilişki kurulmasına izin verilmez.",
+    "relationCycle": "Bu ilişki programda bir döngü oluşturur ({{cycle}}); ilişki oluşturulmadı.",
     "summaryRelationsDropped": "{{total}} ilişki hesaplamaya dahil edilemedi. Öncüller ve Ardıllar sütunlarını kontrol edin.",
     "relationsSkippedOnInsert_one": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
     "relationsSkippedOnInsert_other": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",

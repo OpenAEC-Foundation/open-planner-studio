@@ -28,6 +28,7 @@
     "relationCreated": "Utworzono relację: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Taka relacja już istnieje",
     "relationAncestorEndpoint": "Relacja między zadaniem a jego własnym nadrzędnym zadaniem sumarycznym jest niedozwolona.",
+    "relationCycle": "Ta relacja utworzyłaby cykl w harmonogramie ({{cycle}}) i nie została utworzona.",
     "summaryRelationsDropped": "Nie udało się uwzględnić {{total}} relacji. Sprawdź kolumny Poprzedniki i Następniki.",
     "relationsSkippedOnInsert_one": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",
     "relationsSkippedOnInsert_few": "Nie utworzono {{count}} relacji: nieprawidłowe powiązanie (np. zadanie połączone z własnym zadaniem nadrzędnym lub duplikat).",
