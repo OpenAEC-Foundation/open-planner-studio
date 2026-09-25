@@ -737,6 +737,20 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # "vandaag" — en dat scheduleStale altijd gezet wordt, ook zonder statusdatum.
   TSCHECK="$DIR/.task-slice-check.mjs"
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
+
+  # Import/export-audit bevinding 6: dezelfde AF-default ("100 % zonder werkelijk einde" ⇒
+  # statusdatum, anders de eigen geplande finish — nooit vandaag) in de store én in elke lezer
+  # (`normalizeImportedProgress`), via de echte CSV-/IFC-/MSPDI-lezer en de store-open-actie.
+  IPDCHECK="$DIR/.import-progress-default.mjs"
+  if bundle_check "$DIR/check-import-progress-default.ts" "$IPDCHECK"; then node "$IPDCHECK" || STATUS=1; fi
+  # Idem, vervolg: lege IFC-datumslots (`$`) worden geen "vandaag" (rekenslots ⇒ eigen geplande
+  # datum, WORKPLAN-einde ⇒ leeg, feestdag zonder datum ⇒ geen feestdag).
+  IEDSCHECK="$DIR/.ifc-empty-date-slots.mjs"
+  if bundle_check "$DIR/check-ifc-empty-date-slots.ts" "$IEDSCHECK"; then node "$IEDSCHECK" || STATUS=1; fi
+  # Idem: een ontbrekende geplande start (alle lezers) ⇒ projectstart, ontbrekende finish ⇒ start +
+  # duur waar eenduidig — één gedeelde regel (`resolveMissingScheduleDates`), per lezer getoetst.
+  IMSDCHECK="$DIR/.import-missing-schedule-dates.mjs"
+  if bundle_check "$DIR/check-import-missing-schedule-dates.ts" "$IMSDCHECK"; then node "$IMSDCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 

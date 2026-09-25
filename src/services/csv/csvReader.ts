@@ -3,9 +3,8 @@ import { Sequence, SequenceType } from '@/types/sequence';
 import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
 import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
-import { csvDateOrToday } from '@/services/importDates';
+import { csvDate, csvDateOrToday, emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { DEFAULT_PRIORITY } from '@/services/ifc/ifcConstants';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { LAG_UNIT_SUFFIXES, parseLagInput } from '@/utils/lagFormat';
@@ -20,6 +19,10 @@ interface ParsedRow {
   duration: number;
   start: string;
   finish: string;
+  /** Lege/onleesbare Start- of Finish-cel: `start`/`finish` dragen dan de vandaag-plaatshouder, die
+   *  `resolveMissingScheduleDates` vervangt (projectstart / start + duur). */
+  startMissing: boolean;
+  finishMissing: boolean;
   predecessors: string;
   taskType: string;
   customTaskTypeId: string;
@@ -267,6 +270,8 @@ export function readCSV(content: string): ImportResult {
       duration: numberOr(get('duration', '5'), 5),
       start: parseDate(get('start')),
       finish: parseDate(get('finish')),
+      startMissing: csvDate(get('start')) === undefined,
+      finishMissing: csvDate(get('finish')) === undefined,
       predecessors: get('predecessors'),
       taskType: get('taskType', 'CONSTRUCTION'),
       customTaskTypeId: get('customTaskTypeId').trim(),
@@ -306,8 +311,11 @@ export function readCSV(content: string): ImportResult {
   };
 
   const duplicateWbs = new Set<string>();
+  const missing = emptyMissingScheduleDates();
   for (const row of rows) {
     const id = generateId('task');
+    if (row.startMissing) missing.start.add(id);
+    if (row.finishMissing) missing.finish.add(id);
     if (wbsToId.has(row.wbs)) duplicateWbs.add(row.wbs);
     wbsToId.set(row.wbs, id);
 
@@ -371,6 +379,12 @@ export function readCSV(content: string): ImportResult {
     });
   }
 
+  // Ontbrekende Start/Finish (gedeelde regel, vóór de voortgang-invarianten): CSV draagt geen
+  // projectstart, dus het anker is de vroegste aanwezige taakstart; het document krijgt de
+  // standaardkalender, dus start + duur is op díe kalender eenduidig.
+  const calendar = createDefaultCalendar();
+  const projectStart = resolveMissingScheduleDates(tasks, missing, '', () => calendar);
+
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6). CSV kent geen statusdatum.
   normalizeImportedProgress(tasks, undefined);
 
@@ -423,14 +437,13 @@ export function readCSV(content: string): ImportResult {
   }
 
   // Build project
-  const allStarts = tasks.map(t => t.time.scheduleStart).filter(Boolean).sort();
   const allFinishes = tasks.map(t => t.time.scheduleFinish).filter(Boolean).sort();
 
   const project: Project = {
     id: generateId('proj'),
     name: 'CSV Import',
     description: '',
-    startDate: allStarts[0] || formatDate(new Date()),
+    startDate: projectStart,
     endDate: allFinishes[allFinishes.length - 1] || '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
@@ -441,7 +454,7 @@ export function readCSV(content: string): ImportResult {
 
   return {
     project,
-    calendar: createDefaultCalendar(),
+    calendar,
     tasks,
     sequences,
     resources: [],

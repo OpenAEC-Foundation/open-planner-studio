@@ -21,6 +21,7 @@ import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
   applyProgressInvariants,
+  defaultActualStart,
   isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
@@ -1166,7 +1167,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       task.time.completion = completion;
       // §3.2: completion>0 zonder actualStart ⇒ auto actualStart (MSP-conventie: % ⇒ gestart).
       if (completion > 0 && !task.time.actualStart) {
-        task.time.actualStart = task.time.earlyStart || task.time.scheduleStart;
+        task.time.actualStart = defaultActualStart(task.time);
       }
       // Voortgang teruggedraaid onder 100% ⇒ een verouderd actualFinish laten vallen.
       if (completion < 1) task.time.actualFinish = undefined;

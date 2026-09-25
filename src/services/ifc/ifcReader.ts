@@ -37,6 +37,8 @@ import {
   type XerSourceReconstruction,
 } from '@/services/xerSourceArchive';
 import { sanitizeSchedulingOptions } from '@/services/ifc/schedulingOptionsRead';
+import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import {
   canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isoDurationToMinutes,
   isSubDayMinutes, promoteHourCalendar, registerCalendarBands,
@@ -225,6 +227,7 @@ export function readIFC(
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
   // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid (byte-identiek).
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
+  fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
   // Fase 3 (H2): task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
   // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
@@ -260,26 +263,32 @@ export function readIFC(
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
   if (schedulingOptions) project.schedulingOptions = schedulingOptions;
 
-  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
-  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
-  normalizeImportedProgress(tasks, project.statusDate);
-
+  // Ontbrekende ScheduleStart/-Finish (een `$`-slot, of een IFCTASK zonder IfcTaskTime) — gedeelde
+  // regel voor alle lezers (`resolveMissingScheduleDates`), vóór de voortgang-invarianten: start ⇒ de
+  // projectstart (zoals `addTask`), finish ⇒ start + duur waar eenduidig. Aanwezigheid komt uit
+  // `recordedFields` (de slot-lezer zelf zet nog de vandaag-plaatshouder).
+  const missingDates = emptyMissingScheduleDates();
+  for (const t of tasks) {
+    const present = recordedFields[t.id] ?? [];
+    if (!present.includes('scheduleStart')) missingDates.start.add(t.id);
+    if (!present.includes('scheduleFinish')) missingDates.finish.add(t.id);
+  }
   // Projectstart niet in het bestand (geen gevuld IFCWORKPLAN-slot en geen OPS_ProjectSettings,
-  // zie de ''-sentinel bij de projectbouw) ⇒ afleiden uit de vroegste taak-scheduleStart in plaats
-  // van "vandaag" te verzinnen: een verzonnen datum is geen invoer en mag dus ook niet via de
+  // zie de ''-sentinel bij de projectbouw) ⇒ het anker = de vroegste AANWEZIGE taak-scheduleStart in
+  // plaats van "vandaag" te verzinnen: een verzonnen datum is geen invoer en mag dus ook niet via de
   // T7-projectstart-vloer (`CPMSolver.rootFloor`) taken mét voorgangers naar de leesdatum tillen.
   // Pas als het bestand ook geen enkele taakstart draagt, valt hij terug op vandaag (leeg project).
   // MAAR (critreview-bevinding 1): heeft het OPS-pset het veld GEZEGD — óók als "bewust leeg" —
   // dan is leeg een uitspraak van de gebruiker en blijft hij leeg; afleiden zou de round-trip van
-  // een leeggemaakte startdatum corrumperen (writer codeert dat als NominalValue $).
-  if (!project.startDate && !projectStartRecorded.value) {
-    let earliest = '';
-    for (const t of tasks) {
-      const st = t.time?.scheduleStart;
-      if (st && (!earliest || st < earliest)) earliest = st;
-    }
-    project.startDate = earliest ? earliest.substring(0, 10) : formatDate(new Date());
-  }
+  // een leeggemaakte startdatum corrumperen (writer codeert dat als NominalValue $). Taken zonder
+  // start krijgen dan wel het afgeleide anker.
+  const startAnchor = resolveMissingScheduleDates(tasks, missingDates, project.startDate,
+    (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
+  if (!project.startDate && !projectStartRecorded.value) project.startDate = startAnchor;
+
+  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
+  // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
+  normalizeImportedProgress(tasks, project.statusDate);
 
   return {
     project, calendar, tasks, sequences, resources, assignments,
@@ -1079,7 +1088,9 @@ function extractProject(
     // check-recorded-dates 9A/9B; het lege-slot-geval: critreview-bevinding 4). `parseDateFromIFC`
     // wordt bewust alleen op een niet-lege slottekst losgelaten — op '' levert hij zelf "vandaag".
     startDate: wp && ifcSlotText(wp.args[12]) ? parseDateFromIFC(wp.args[12]) : '',
-    endDate: wp ? parseDateFromIFC(wp.args[13] || '') : '',
+    // Zelfde regel voor FinishTime: een leeg slot is "geen einde", niet vandaag (import/export-audit,
+    // vervolg op bevinding 6). Het OPS_ProjectSettings-pset wint hierna nog steeds als het er is.
+    endDate: wp && ifcSlotText(wp.args[13]) ? parseDateFromIFC(wp.args[13]) : '',
     calendarId: 'cal-default',
     // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
     // extractStructure als het bestand ze draagt (oude bestanden ⇒ deze default blijft staan).
@@ -1389,6 +1400,40 @@ function extractTaskTypeMeta(
     }
     return definitions;
   } catch { return []; }
+}
+
+/** Datumbereik van een IfcWorkTime-uitzondering (Start-/FinishDate, allebei optioneel in IFC 4.3):
+ *  één lege kant neemt de andere over (één dag), beide leeg ⇒ `null` (geen uitzondering). */
+function workTimeDateRange(wt: StepEntity): { startDate: string; endDate: string } | null {
+  const start = optDate(wt.args[4]);
+  const end = optDate(wt.args[5]);
+  if (!start && !end) return null;
+  return { startDate: start ?? end!, endDate: end ?? start! };
+}
+
+/**
+ * Lege rekenslots (Early/Late Start/Finish = `$`) krijgen de EIGEN geplande datum van de taak in
+ * plaats van de "vandaag"-terugval van `parseDateFromIFC` (import/export-audit, vervolg op
+ * bevinding 6). Het laden rekent ze toch opnieuw uit en "datums zoals opgeslagen" leest hun
+ * aanwezigheid uit `recordedFields`, maar vóór die solve lezen o.a. `normalizeImportedProgress`
+ * (AS/AF-default van een voltooide taak) en slapende herstelde documenten deze waarden — die zagen
+ * dan de leesdatum. Zelfde keuze als de CSV-lezer (early/late = start/finish). Ná
+ * `applyHourModeIFC`, zodat een uurtaak de uur-precieze Schedule-datum overneemt. Een IFCTASK zonder
+ * IfcTaskTime blijft ongemoeid (daar komt alles uit `createDefaultTaskTime`).
+ */
+function fillEmptyComputedDateSlots(
+  tasks: Task[],
+  taskTimeEntities: Map<string, StepEntity>,
+  recordedFields: Record<string, RecordedFieldKey[]>,
+): void {
+  for (const t of tasks) {
+    if (!taskTimeEntities.has(t.id)) continue;
+    const present = new Set(recordedFields[t.id] ?? []);
+    if (!present.has('earlyStart')) t.time.earlyStart = t.time.scheduleStart;
+    if (!present.has('earlyFinish')) t.time.earlyFinish = t.time.scheduleFinish;
+    if (!present.has('lateStart')) t.time.lateStart = t.time.scheduleStart;
+    if (!present.has('lateFinish')) t.time.lateFinish = t.time.scheduleFinish;
+  }
 }
 
 /** Optionele datum/duur uit een IfcTaskTime-slot: `$`/leeg ⇒ undefined (geen "vandaag"-fallback,
@@ -2341,11 +2386,14 @@ function buildCalendarFromEntity(
   for (const ref of exceptionRefs) {
     const wt = entityMap.get(ref);
     if (!wt || wt.type !== 'IFCWORKTIME') continue;
+    // Start-/FinishDate zijn OPTIONEEL in IfcWorkTime. Een leeg slot mag geen "vandaag" worden (dat
+    // verzon een feestdag op de leesdatum): één datum ⇒ die ene dag, geen datum ⇒ geen uitzondering.
+    const range = workTimeDateRange(wt);
+    if (!range) continue;
     if (!workingExceptionIds?.has(ref)) {
       holidays.push({
         name: stripQuotes(wt.args[0] || '') || 'Feestdag',
-        startDate: parseDateFromIFC(wt.args[4] || ''),
-        endDate: parseDateFromIFC(wt.args[5] || ''),
+        ...range,
       });
       continue;
     }
@@ -2373,8 +2421,7 @@ function buildCalendarFromEntity(
     }
     workingExceptions.push({
       name: stripQuotes(wt.args[0] || '') || 'Werkende uitzondering',
-      startDate: parseDateFromIFC(wt.args[4] || ''),
-      endDate: parseDateFromIFC(wt.args[5] || ''),
+      ...range,
       ...(bands.length > 0 ? { bands } : {}),
     });
   }

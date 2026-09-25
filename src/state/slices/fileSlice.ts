@@ -41,10 +41,6 @@ function invalidateDocumentRedo(
   state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
 }
 
-/** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
- *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
- *  Geëxporteerd omdat de MCP-tool `planner_import_schedule` exact hetzelfde laadpatroon
- *  moet volgen (spec §Bestands-tools) — één definitie, geen tweede die kan afdrijven. */
 /**
  * Voorgestelde bestandsnaambasis voor opslaan/exporteren: bij een XER-document "Projectnaam
  * (P6 Project-ID)", zodat tab en titelbalk na het opslaan dezelfde naam houden (vraag 17).
@@ -53,6 +49,10 @@ export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetada
   return documentFileBase(s.project.name, xerProjectCode(s.xerImportMetadata));
 }
 
+/** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
+ *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
+ *  Eén definitie, geen tweede die kan afdrijven: élk echt open-pad (ook de MCP-tool
+ *  `planner_import_schedule`, spec §Bestands-tools) gebruikt hem via `openAsDocument`. */
 export function isActivePristine(s: AppState): boolean {
   return (
     s.tasks.length === 0 &&
@@ -221,9 +221,10 @@ export interface ApplyLoadedProjectOpts {
   fit?: boolean;
   /** Uur-data-melding (§6.8) berekenen en zetten. Open-paden: true; loadState: false. */
   hourDataNotice?: boolean;
-  /** True = een echt open-pad (openFile/openRecentFile): behoud bedrijfsbinding + stempels en draai
-   *  de grens-1-check. False (default) = een volledig-vervangende load (loadState: IFCPanel/MenuBar/
-   *  extensie-import): laad LOS — strip companyId/companyName + alle libraryOrigin-stempels (spec §5).
+  /** True = een echt open-pad (`openAsDocument`: openFile/openRecentFile/MCP-import): behoud
+   *  bedrijfsbinding + stempels en draai de grens-1-check. False (default) = een volledig-
+   *  vervangende load (loadState: IFCPanel/MenuBar/extensie-import): laad LOS — strip
+   *  companyId/companyName + alle libraryOrigin-stempels (spec §5).
    *  (Crash-herstel loopt NIET door applyLoadedProject maar via `restoreDocuments`, dat de opgeslagen —
    *  dus gekoppelde — staat exact herstelt en de grens-1-check apart draait, Taak 11.) */
   linkedOpen?: boolean;
@@ -231,7 +232,16 @@ export interface ApplyLoadedProjectOpts {
   viewStartDate?: string;
 }
 
-/** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids. */
+/** Herkomst van een echt geopend bestand (`openAsDocument`): de bestandsnaam (bepaalt via de
+ *  formatRegistry of het bronformaat een opslagdoel mag worden) en de herbruikbare ref — een
+ *  Tauri-pad of een FSA-handle, `null` bij de download-/input-terugval. */
+export interface OpenedFileSource {
+  name: string;
+  ref: FileRef | null;
+}
+
+/** Feitelijke uitkomst van de centrale opennaad; gebruikt door DevBridge en MCP voor eerlijke ids.
+ *  `reusedActiveTab`: heeft de open-actie het lege, ongewijzigde actieve tabblad hergebruikt? */
 export interface AppliedOpenedImport {
   documentIds: string[];
   activeDocumentId: string;
@@ -280,6 +290,17 @@ export interface FileSlice {
    * applyLoadedProject-pad als IFC/CSV/MSPDI/MPP/P6XML.
    */
   applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => AppliedOpenedImport;
+  /** DE open-semantiek van élk echt open-pad — Bestand → Openen, Recente bestanden en de AI-import
+   *  (`planner_import_schedule`) — op één plek, zodat geen aanroeper een deel kan vergeten
+   *  (import/export-audit, bevinding 2: de MCP-tool schreef zijn eigen opts-object en vergat
+   *  `linkedOpen`, waardoor Ctrl+S de bibliotheekkoppeling uit het bronbestand wiste). Leidt het
+   *  opslagdoel af (`saveTargetFor`: alleen een `canBeSaveTarget`-formaat krijgt er een) en laadt
+   *  via `applyOpenedImport` (pristine tabblad hergebruiken of nieuwe documenten, ook de
+   *  meervoudige XER-vorm) GEKOPPELD (`linkedOpen: true`: bibliotheekbinding + herkomststempels
+   *  blijven, de open-grens draait), met doorrekenen, fitten en de uur-melding. Bewust NIET
+   *  hierdoor: de losse loads (`loadState`: IFCPanel, extensie-import, devBridge) en
+   *  voorbeeldprojecten — die laden los (B1.1 Taak 20). */
+  openAsDocument: (parsed: OpenedImport, source: OpenedFileSource) => AppliedOpenedImport;
 }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
@@ -543,34 +564,41 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       };
     },
 
+    openAsDocument: (parsed, source) => {
+      // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: via `canBeSaveTarget` op
+      // de registry-entry i.p.v. een `id === 'ifc'`-vergelijking hier). Opslaan schrijft altijd
+      // IFC-TEKST, dus élk ANDER bronformaat (csv/xml/mpp/xer — niet uitsluitend binaire formaten)
+      // zou bij een naïeve toewijzing zijn eigen bronbestand met IFC-inhoud laten overschrijven
+      // door de eerstvolgende Ctrl+S. "Opslaan" wordt dan "opslaan-als".
+      const target = saveTargetFor(readFormatForFile(source.name), source.ref, source.name);
+
+      // Gedeelde load-implementatie (`applyOpenedImport`: pristine tabblad of nieuwe documenten);
+      // open-pad-semantiek: opslagdoel zetten, GEKOPPELD laden (opslagdoel en `linkedOpen` horen
+      // bij elkaar: wie naar het bronbestand terugschrijft, moet ook alles laden wat erin stond),
+      // direct doorrekenen + fitten en de uur-melding evalueren.
+      return get().applyOpenedImport(parsed, {
+        filePath: target.filePath,
+        fileHandle: target.fileHandle,
+        recompute: true,
+        fit: true,
+        hourDataNotice: true,
+        linkedOpen: true,
+      });
+    },
+
     openFile: async (labels) => {
       try {
         const opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
         if (!opened) return;
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
 
-        // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: via `canBeSaveTarget` op
-        // de registry-entry i.p.v. een `id === 'ifc'`-vergelijking hier). Opslaan schrijft altijd
-        // IFC-TEKST, dus élk ANDER bronformaat (csv/xml/mpp — niet uitsluitend binaire formaten)
-        // zou bij een naïeve toewijzing zijn eigen bronbestand met IFC-inhoud laten overschrijven
-        // door de eerstvolgende Ctrl+S. "Opslaan" wordt dan "opslaan-als". Zelfde vlag als de
-        // MCP-kant (`fileTools.ts` leest óók `canBeSaveTarget`).
-        const target = saveTargetFor(readFormatForFile(opened.name), opened.ref, opened.name);
-
-        // De centrale naad splitst alleen een expliciete multi-import; enkelvoudige formaten
-        // volgen byte-identiek hetzelfde laadpad, inclusief pristine-tab-hergebruik.
-        get().applyOpenedImport(parsed, {
-          filePath: target.filePath,
-          fileHandle: target.fileHandle,
-          recompute: true,
-          fit: true,
-          hourDataNotice: true,
-          linkedOpen: true,
-        });
+        // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),
+        // ook voor de meervoudige XER-vorm.
+        get().openAsDocument(parsed, { name: opened.name, ref: opened.ref });
 
         // Recents: elke herbruikbare ref (Tauri-pad óf Chromium-handle) — óók bij een niet-IFC
         // bronformaat: heropenen via recents moet blijven werken, alleen het OPSLAGDOEL wordt niet
-        // gezet (zie `target` hierboven).
+        // gezet (zie `saveTargetFor` in `openAsDocument`).
         await pushRecent(opened.ref, opened.name);
       } catch (err) {
         console.error('Failed to open file:', err);
@@ -963,10 +991,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     openRecentFile: async (id: string, labels) => {
       const entry = get().recentFiles.find((e) => e.id === id);
       if (!entry) return;
-      // T8-spec-review (F2): ÉÉN keer opzoeken, twee keer gebruikt — `kind` voor de lees-tak
-      // (bytes vs tekst), `id` voor de opslagdoel-guard hieronder (F4).
-      const readFormat = readFormatForFile(entry.name);
-      const isBinary = readFormat.kind === 'binary';
+      // `kind` bepaalt de lees-tak (bytes vs tekst); de opslagdoel-guard (T8-spec-review F4) zit
+      // sinds bevinding 2 van de import/export-audit in `openAsDocument`.
+      const isBinary = readFormatForFile(entry.name).kind === 'binary';
       const content = isBinary ? null : await readFromRef(entry.ref);
       const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
       // Bij een binair formaat is `content` altijd null (niet gelezen) — dan telt uitsluitend
@@ -983,22 +1010,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           labels,
         );
 
-        // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: `saveTargetFor` — zie
-        // openFile voor de volledige toelichting). `readFormat` is hierboven al opgezocht (F2).
-        const target = saveTargetFor(readFormat, entry.ref, entry.name);
-
-        // Zelfde open-pad-semantiek als openFile (zie daar), ook voor meervoudige XER-import.
-        get().applyOpenedImport(parsed, {
-          filePath: target.filePath,
-          fileHandle: target.fileHandle,
-          recompute: true,
-          fit: true,
-          hourDataNotice: true,
-          linkedOpen: true,
-        });
+        // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`) en gekoppeld
+        // laden komen uit de ene gedeelde actie, ook voor de meervoudige XER-vorm.
+        get().openAsDocument(parsed, { name: entry.name, ref: entry.ref });
 
         // MRU verversen: het net-geopende bestand naar boven (óók bij een niet-IFC bronformaat —
-        // alleen het opslagdoel blijft leeg, zie `target` hierboven).
+        // alleen het opslagdoel blijft leeg, zie `saveTargetFor` in `openAsDocument`).
         await pushRecent(entry.ref, entry.name);
       } catch (err) {
         console.error('Failed to open recent file:', err);

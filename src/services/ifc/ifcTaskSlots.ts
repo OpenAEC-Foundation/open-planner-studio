@@ -54,7 +54,9 @@ export interface TaskTimeWriteCtx {
 /** STEP-parse-helpers die de reader aan de IFCTASKTIME-read-descriptors doorgeeft. Ze wonen in
  *  ifcReader (STEP-specifieke `$`/quote-semantiek); injectie houdt dit bestand cyclusvrij. */
 export interface TaskTimeReadHelpers {
-  /** parseDateFromIFC(arg || '') — `$`/leeg/afwezig ⇒ vandaag (bestaande semantiek). */
+  /** parseDateFromIFC(arg || '') — `$`/leeg/afwezig ⇒ vandaag (bestaande semantiek); lege
+   *  rekenslots (Early/Late) krijgen daarna in ifcReader `fillEmptyComputedDateSlots` de eigen
+   *  geplande datum. */
   parseDate: (arg: string | undefined) => string;
   /** parseDurationDays(arg || '') — `$`/leeg ⇒ 0. */
   parseDur: (arg: string | undefined) => number;

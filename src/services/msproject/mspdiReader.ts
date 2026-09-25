@@ -8,7 +8,7 @@ import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant, parseDate, isoDayOfWeek } from '@/utils/dateUtils';
 import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
-import { isoDatePrefixOrToday } from '@/services/importDates';
+import { emptyMissingScheduleDates, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { descendantText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
@@ -321,6 +321,8 @@ export function readMSPDI(content: string): ImportResult {
 
   // Parse project
   const project = parseProject(root);
+  const projectStartRaw = getElementText(root, 'StartDate');
+  const missingDates = emptyMissingScheduleDates();
   // T4: één gedeeld `HolidayBudget` over ALLE kalenders in dit document (projectkalender + elke
   // resourcekalender) — zie `applyCalendarBody`'s toelichting (spiegelt mppCalendars.ts's C1-
   // discipline, `MAX_TOTAL_HOLIDAY_SLOTS`).
@@ -470,8 +472,13 @@ export function readMSPDI(content: string): ImportResult {
     const duration = durationUnit === 'hours'
       ? (effHpd > 0 ? durationMinutes! / (effHpd * 60) : 0)
       : parseMSPDuration(durationStr, effHpd);
-    const start = isHour ? parseMSPInstant(getElementText(te, 'Start')) : parseMSPDate(getElementText(te, 'Start'));
-    const finish = isHour ? parseMSPInstant(getElementText(te, 'Finish')) : parseMSPDate(getElementText(te, 'Finish'));
+    const startRaw = getElementText(te, 'Start');
+    const finishRaw = getElementText(te, 'Finish');
+    const start = isHour ? parseMSPInstant(startRaw) : parseMSPDate(startRaw);
+    const finish = isHour ? parseMSPInstant(finishRaw) : parseMSPDate(finishRaw);
+    // Ontbrekende Start/Finish: plaatshouder hierboven, vervangen door `resolveMissingScheduleDates`.
+    if (!startRaw) missingDates.start.add(id);
+    if (!finishRaw) missingDates.finish.add(id);
     const isMilestone = getElementInt(te, 'Milestone') === 1;
     // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
     // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
@@ -783,6 +790,12 @@ export function readMSPDI(content: string): ImportResult {
     });
     activeBaselineId = id;
   }
+
+  // Ontbrekende Start/Finish (gedeelde regel, vóór de voortgang-invarianten): anker = de projectstart
+  // uit het bestand, anders de vroegste aanwezige taakstart; finish uit start + duur op de effectieve
+  // kalender van de taak (MSPDI levert elke kalender mee, dus eenduidig voor hele werkdagen).
+  project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
+    (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);

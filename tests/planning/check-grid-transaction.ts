@@ -577,6 +577,29 @@ function observed(state: AppState): unknown {
       actualFinish: task.time.actualFinish,
     });
   }
+  // Import/export-audit (vervolg bevinding 6): één status-cel "voltooid" op een taak zonder
+  // actualStart via de echte gridtransactie ⇒ AS = de eigen geplande start, precies wat
+  // setTaskProgress(1) op een identieke taak geeft; de voltooide balk krimpt niet tot één dag.
+  {
+    reset();
+    S().setProject({ startDate: '2026-01-05' });
+    const viaGrid = S().addTask({ name: 'Status-cel voltooid', time: { scheduleStart: '2026-01-05', scheduleDuration: 5 } as never });
+    const viaStore = S().addTask({ name: 'setTaskProgress voltooid', time: { scheduleStart: '2026-01-05', scheduleDuration: 5 } as never });
+    // Eerst rekenen, dán de statusdatum (anders tilt de data-date-vloer de onbegonnen taak naar ná 10-01).
+    S().runCPM();
+    useAppStore.setState(state => { state.project.statusDate = '2026-01-10'; });
+    const plannedStart = S().tasks.find(candidate => candidate.id === viaGrid)!.time.earlyStart;
+    const result = runGridMutation([cellEdit(viaGrid, 'task.status', 'task-progress', 'COMPLETED')]);
+    S().setTaskProgress(viaStore, 1);
+    const grid = S().tasks.find(candidate => candidate.id === viaGrid)!;
+    const store = S().tasks.find(candidate => candidate.id === viaStore)!;
+    eq('Opzet: geplande start ligt vóór de statusdatum', plannedStart, '2026-01-05');
+    eq('Status-cel voltooid zonder actualStart ⇒ AS = geplande start',
+      { ok: result.ok, actualStart: grid.time.actualStart }, { ok: true, actualStart: plannedStart });
+    eq('Status-cel voltooid geeft dezelfde actuals als setTaskProgress(1)',
+      [grid.time.actualStart, grid.time.actualFinish], [store.time.actualStart, store.time.actualFinish]);
+  }
+
   eq('Consistente afgeronde voortgang is volgorde-onafhankelijk', completedOutcomes, [
     completedOutcomes[0], completedOutcomes[0],
   ]);
