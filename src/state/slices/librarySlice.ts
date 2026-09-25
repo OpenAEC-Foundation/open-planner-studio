@@ -1,4 +1,4 @@
-import { current } from 'immer';
+import { castDraft, current } from 'immer';
 import type { AppSliceFactory, NotifyInput } from './types';
 import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
@@ -1345,7 +1345,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         for (const r of sleepingResults) {
           const entry = s.documents.find((d) => d.id === r.docId);
           if (!entry || entry.payload === null) continue;
-          entry.payload = r.after;
+          // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen (zie
+          // `documentSlice` voor dezelfde reden).
+          entry.payload = castDraft(r.after);
           const event = recordSessionHistoryDeltas(s, DISTRIBUTION_HISTORY_LABEL, [{
             kind: 'document-data',
             documentId: r.docId,

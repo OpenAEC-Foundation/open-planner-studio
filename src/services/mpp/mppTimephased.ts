@@ -173,7 +173,7 @@
  * SAMENVATTINGSTAKEN (Z4-fixronde, punt 4 — gratis geborgd uit de MPXJ-bron): `Task.java`'s
  * `calculateWorkSplits` begint met `if (getSummary()) return Collections.emptyList();` — "In MS
  * Project, summary tasks do not show splits" (letterlijke code-commentaar, hier vertaald, niet
- * gekopieerd). `mppReader.ts`'s koppelcode filtert daarom `task.childIds.length > 0` uit vóórdat ze
+ * gekopieerd). `mppReader.ts`'s koppelcode filtert daarom semantische samenvattingen uit vóórdat ze
  * `Task.splitGaps` zet — spiegelt exact deze MPXJ-regel, niet een eigen aanname.
  *
  * TAAK-AS, NIET TOEWIJZINGS-AS (Z4-fixronde, punt 2+3 — CORRECTIE): een eerdere versie van deze

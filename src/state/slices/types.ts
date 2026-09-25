@@ -195,6 +195,42 @@ export type NotificationMessageKey =
   | 'notifications.relationsSkippedOnInsert'
   | 'notifications.mppLegacy'
   | 'notifications.mppEncrypted'
+  | 'notifications.xerInvalidInput'
+  | 'notifications.xerInvalidFile'
+  | 'notifications.xerInvalidEncoding'
+  | 'notifications.xerDuplicateTable'
+  | 'notifications.xerMissingRequiredColumns'
+  | 'notifications.xerMissingRequiredValue'
+  | 'notifications.xerAmbiguousDecimal'
+  | 'notifications.xerInvalidNumberFormat'
+  | 'notifications.xerInvalidNumber'
+  | 'notifications.xerSingleProjectRequired'
+  | 'notifications.xerEmptyProject'
+  | 'notifications.xerDuplicateId'
+  | 'notifications.xerAmbiguousLocalRelation'
+  | 'notifications.xerDanglingLocalRelation'
+  | 'notifications.xerEnumFallback'
+  | 'notifications.xerImportOpened'
+  | 'notifications.xerImportProjectsSeen'
+  | 'notifications.xerImportEmptyProjectsSkipped'
+  | 'notifications.xerImportBaselineProjectsExcluded'
+  | 'notifications.xerImportBaselinesMaterialized'
+  | 'notifications.xerImportDanglingBaselineReferences'
+  | 'notifications.xerImportBaselineFallback'
+  | 'notifications.xerImportExternalLinks'
+  | 'notifications.xerImportEncoding'
+  | 'notifications.xerImportParserIssues'
+  | 'notifications.xerImportCalendarIssues'
+  | 'notifications.xerImportNumberIssues'
+  | 'notifications.xerImportEnumFallbacks'
+  | 'notifications.xerImportUnsupportedSemantics'
+  // XER-etappeplan §3.7 (taak T4, X-O7 laag 3): "datums zoals opgeslagen" staat standaard aan zodra
+  // een geopend XER-document restverschillen heeft. Meervoud, `count` = som van
+  // `recordedDates.shifted` over alle documenten van dit bestand (één regel, ook bij twaalf
+  // projecten — zie `xerImportNotice`/`applyOpenedImport`).
+  | 'notifications.xerImportDatesAsRecorded'
+  | 'notifications.xerImportDatesAsRecordedOffer'
+  | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.mppTimephasedSteeringLost'
@@ -205,7 +241,27 @@ export type NotificationMessageKey =
   | 'notifications.levelingDelayRoundedToWorkdays'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
-  | 'notifications.exportSplitsLost';
+  | 'notifications.exportSplitsLost'
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is bij het
+  // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
+  // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
+  // de melding als detail in een bestaande bestandsmelding landt.
+  | 'notifications.xerArchiveUnusable'
+  | 'notifications.xerArchiveUnusableLine'
+  | 'notifications.xerArchiveUnusableConsequence'
+  | 'notifications.xerArchiveReasonSchemaVersion'
+  | 'notifications.xerArchiveReasonHashMismatch'
+  | 'notifications.xerArchiveReasonTruncated'
+  | 'notifications.xerArchiveReasonBytesMissing'
+  | 'notifications.xerArchiveReasonMetadataInvalid'
+  | 'notifications.xerArchiveReasonStructure';
+
+/** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
+ * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
+export interface NotificationDetailLine {
+  messageKey: NotificationMessageKey;
+  params?: Record<string, string | number>;
+}
 
 export interface AppNotification {
   /** Stabiele id — uitsluitend voor de React-key en voor `dismissNotification`. */
@@ -217,6 +273,8 @@ export interface AppNotification {
   params?: Record<string, string | number>;
   /** Rauwe technische tekst (`err.message`) — BEWUST onvertaald. */
   detail?: string;
+  /** Optionele, vertaalde feiten onder de hoofdboodschap (X10: één XER-bestandsverslag). */
+  detailLines?: NotificationDetailLine[];
   /** Samenvouw-sleutel: een tweede melding met dezelfde sleutel wordt één regel met een teller. */
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */

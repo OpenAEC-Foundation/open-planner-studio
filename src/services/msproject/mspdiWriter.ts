@@ -9,6 +9,7 @@ import { projectFileBase } from '@/utils/documents';
 import {
   effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 import { effectiveWorkTimeBands, calendarForEngine } from '@/utils/effectiveWorkTime';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -485,7 +486,7 @@ export function writeMSPDI(
   for (let i = 0; i < tasks.length; i++) {
     const task = tasks[i];
     const uid = i + 1;
-    const isSummary = task.childIds.length > 0;
+    const isSummary = isSummaryTask(task);
     // Issue #159: een samenvattingstaak is nooit een mijlpaal, ook niet met duur 0 (een bestand van
     // vóór #145, of een IFC met `$`-duur op de samenvatting). MS Project rekent haar duur uit de
     // kinderen; `Milestone=1` maakte er anders een ruit van zonder duur.

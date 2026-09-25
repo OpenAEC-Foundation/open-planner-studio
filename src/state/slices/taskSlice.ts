@@ -17,6 +17,7 @@ import {
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
+import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
   applyProgressInvariants,
@@ -348,6 +349,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
         priority: partial.priority ?? 500,
         parentId,
         childIds: [],
+        isSummary: partial.isSummary,
         // T14b (gebruikstestbevinding, ernst hoog — dataverlies): een meegegeven `partial.time` wordt
         // veld-voor-veld gemerged met de verse default i.p.v. ongewijzigd overgenomen — anders bleef
         // een ontbrekend veld (bv. `completion`) `undefined` tot writeIFC crashte op
@@ -461,6 +463,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
           s.tasks[idx].splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
         }
       }
+      reconcileP6SuspendResume(s.tasks[idx]);
       // Z14b (eigenaarsprincipe 2026-08-18) — een inhoudelijke bewerking (duur/datums/kalender)
       // ontkoppelt het GELEZEN Z8-venster van de motor; de rauwe bron (`timephasedContours`) blijft
       // staan. Zie `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`
