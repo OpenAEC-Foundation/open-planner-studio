@@ -705,6 +705,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SPLITEDITSTORECHECK="$DIR/.check-split-edit-store.mjs"
   if bundle_check "$DIR/check-split-edit-store.ts" "$SPLITEDITSTORECHECK"; then node "$SPLITEDITSTORECHECK" || STATUS=1; fi
 
+  # Issue #146-vervolg: een duurwijziging heeft langs store (`updateTask`) en taakraster (echte
+  # gridtransactie: duurcel in beide invoervormen, mijlpaalcel) dezelfde gevolgen — gebruikersgaten
+  # voorbij het nieuwe werktotaal vervallen, de taak blijft splitsbaar. MCP: tests/mcp/cases-splits.ts.
+  DURATIONROUTESCHECK="$DIR/.check-duration-change-routes.mjs"
+  if bundle_check "$DIR/check-duration-change-routes.ts" "$DURATIONROUTESCHECK"; then node "$DURATIONROUTESCHECK" || STATUS=1; fi
+
   # Issue #146 etappe 5: rooktests voor de oppervlakken die de splits-critreview niet naliep —
   # print/PDF, WBS-/voortgangsrapport, verzameltaak-rollup en baseline/variance met een gebruikerssplit.
   SPLITSMOKECHECK="$DIR/.check-split-smoke.mjs"
