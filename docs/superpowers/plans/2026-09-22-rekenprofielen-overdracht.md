@@ -424,6 +424,15 @@ weigeringsreden voor de splits-UI/MCP, geen solvertak) — geaccepteerd als uitz
 oplossing later: die check uit `src/engine/` verhuizen (TODO). De agent merget nu ook `origin/main` (#167)
 erin vóór de eindpoorten.
 
+**25-09 ~22:50 — #169 gesynchroniseerd en ready:** `claude/x12-sync-109b` 9495ae9c (#109 + main/#167 erin; alle
+poorten groen, verify EXIT 0 browser 186, measure 76/0/0/0; CLAUDE.md → rules-structuur) gemerged in
+`claude/rekenprofielen` als `21ff5e66`, gepusht; PR #169 base → `main`, ready; CI loopt ⇒ merge `--admin` zodra
+groen. **Incident 22:41:** `node_modules` in de orkestrator-worktree werd een zelfverwijzende symlink (een agent
+draaide vermoedelijk `ln -s` met de verkeerde cwd) — alle agent-worktrees linkten erop; hersteld met `npm ci`
+(208 pakketten, 3 s). Les: agents krijgen voortaan de instructie om bij een mislukte `worktree add` te STOPPEN
+i.p.v. in de huidige map door te werken. Volgende stap: `claude/rekenprofielen` mergen in
+`claude/taaktypes-integratie` (a949a5eb) + keten, dan #170 base main, merge.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
