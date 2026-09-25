@@ -87,7 +87,7 @@ Zasób może być na **Kalendarzu projektu** (domyślnie) albo na własnym kalen
 
 Włącz histogram przez grupę wstążki **Histogram** na karcie **Zasoby** (przycisk **Histogram**). Pod wykresem Gantta na tej samej osi czasu pojawia się pasek: słupki na dzień, z częścią powyżej linii zdolności pokazaną na czerwono.
 
-Po lewej stronie słupków, nad kolumną tabeli zadań, znajduje się **selektor zasobów**: lista z „Wszystkie zasoby" na górze i każdym zasobem poniżej, każdy z czerwoną kropką, jeśli ten zasób jest gdziekolwiek nadmiernie przydzielony. Kliknij nazwę, aby przybliżyć widok do jednego zasobu — histogram przeskalowuje się wtedy tylko do jego obciążenia i zdolności. Kliknij z powrotem na „Wszystkie zasoby", aby ponownie zobaczyć sumę wszystkich zasobów. Oprócz klikania, możesz też przechodzić przez zasoby przyciskami **Poprzedni**/**Następny** w grupie wstążki **Histogram**, bez dotykania samego selektora.
+Pod tabelą zadań, obok słupków, znajduje się **selektor zasobów**: lista z „Wszystkie zasoby" na górze i każdym zasobem poniżej, każdy z czerwoną kropką, jeśli ten zasób jest gdziekolwiek nadmiernie przydzielony. Kliknij nazwę, aby przybliżyć widok do jednego zasobu — histogram przeskalowuje się wtedy tylko do jego obciążenia i zdolności. Kliknij z powrotem na „Wszystkie zasoby", aby ponownie zobaczyć sumę wszystkich zasobów. Oprócz klikania, możesz też przechodzić przez zasoby przyciskami **Poprzedni**/**Następny** w grupie wstążki **Histogram**, bez dotykania samego selektora.
 
 Kliknij przeciążony słupek, a podpowiedź pokaże, ile zadań przyczynia się do obciążenia tego dnia, z pierwszymi kilkoma nazwami zadań — przydatne, aby szybko zobaczyć, która kombinacja zadań powoduje nadmierne przydzielenie, bez ręcznego sprawdzania każdego przydziału.
 

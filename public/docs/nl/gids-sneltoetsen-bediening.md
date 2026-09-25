@@ -64,7 +64,7 @@ en **↓** de volgende zichtbare taak. De selectie, het eigenschappenpaneel en d
 volgen direct mee. Ingeklapte, weggefilterde of buiten de huidige sortering vallende taken worden
 niet bezocht: je doorloopt precies de lijst die op dat moment zichtbaar is.
 
-Klik in de **resourcekiezer** links in het histogram om dat oppervlak actief te maken. Daar lopen
+Klik in de **resourcekiezer** van het histogram (onder de takentabel) om dat oppervlak actief te maken. Daar lopen
 **↑** en **↓** door dezelfde lijst: eerst **Alle resources**, daarna iedere projectresource. Zo kun
 je de belasting van resources snel vergelijken zonder telkens een naam aan te klikken. Aan het begin
 of einde blijft de huidige selectie staan. Pijltjes met Ctrl, Alt, Shift of ⌘ behouden hun bestaande
