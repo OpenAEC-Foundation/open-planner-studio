@@ -118,3 +118,46 @@ test('instelling uit en document zonder taaktypes: geen werkregel-UI; een gezett
   await expect(page.locator('[data-ops-work-rule]')).toBeVisible();
   await expect(page.locator('[data-ops-work-rule]')).toHaveValue('FIXED_RATE');
 });
+
+// Gebruikstest #170, G1: met de kolom "Werk (rest)" en een "Verplaats naar…"-keuzelijst (vanaf
+// twee resources en een tweede taak) werd de naamkolom 0 px breed en verdween het slotje op de
+// inzetkolom. De naam moet op 100 % én 125 % zichtbaar blijven, het slotje ook.
+for (const scale of [100, 125]) {
+  test(`toewijzingstabel: resourcenaam en slotje blijven zichtbaar met werkkolom bij ≥ 2 resources (${scale} %)`, async ({ page, ops: _ops }) => {
+    const [taskId] = await seedProject(page, [
+      { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
+      { name: 'Voegwerk', start: '2026-09-11', finish: '2026-09-14', durationDays: 2 },
+    ]);
+    await page.evaluate(({ id, scale }) => {
+      const s = window.__OPS__!.store.getState();
+      const a = s.addResource({ name: 'Metselploeg Noord', type: 'LABOR', description: '', maxUnits: 2 });
+      const b = s.addResource({ name: 'Opperman', type: 'LABOR', description: '', maxUnits: 2 });
+      s.assignResource(id, a, 1);
+      s.assignResource(id, b, 1);
+      s.runCPM();
+      s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false, showTaskTypes: true, uiFontScale: scale });
+      s.selectTask(id);
+    }, { id: taskId, scale });
+
+    const rows = page.locator('[data-ops-assignment-row]');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first().locator('[data-ops-assignment-move]')).toBeVisible();
+    await expect(rows.first().locator('[data-ops-assignment-work] input')).toBeVisible();
+    for (const [i, name] of [[0, 'Metselploeg Noord'], [1, 'Opperman']] as const) {
+      const nameCell = rows.nth(i).getByText(name, { exact: true });
+      await expect(nameCell).toBeVisible();
+      const box = (await nameCell.boundingBox())!;
+      expect(box.width).toBeGreaterThan(40);
+    }
+    // Het slotje op de inzetkolom (projectstandaard = vaste duur en inzet) heeft echte breedte.
+    const lock = page.locator('[data-ops-assignment-lock-units="locked"] svg');
+    await expect(lock).toBeVisible();
+    expect((await lock.boundingBox())!.width).toBeGreaterThan(4);
+    // De verwijderknop valt niet uit het paneel.
+    const trash = rows.first().locator('[data-ops-assignment-remove]');
+    await expect(trash).toBeVisible();
+    const panel = (await page.locator('[data-ops-rail]').first().boundingBox())!;
+    const tb = (await trash.boundingBox())!;
+    expect(tb.x + tb.width).toBeLessThanOrEqual(panel.x + panel.width + 0.5);
+  });
+}
