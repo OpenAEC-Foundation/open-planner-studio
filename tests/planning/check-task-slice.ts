@@ -20,7 +20,10 @@ import { useAppStore } from '@/state/appStore';
 import {
   createDefaultTaskTime, taskHasActiveTimephasedSteering, taskHasTimephasedContours,
 } from '@/utils/taskDefaults';
+import { runGridMutation } from '@/state/gridTransaction';
+import { progress } from '@/state/mcpValidation';
 import type { Task } from '@/types/task';
+import type { CellEditIntent } from '@/types/taskGrid';
 
 const S = () => useAppStore.getState();
 
@@ -131,6 +134,75 @@ ok(
 // 4 van de 16 checks sloegen rood uit ("2026-07-06T08:00" > "2026-07-06" is lexicografisch waar, de
 // langere string wint), exact de beweringen 1/2/3 hierboven (het gefixte gat). Teruggezet naar de
 // fix: weer 16/16 groen.
+
+// ── Bijvondst: 100 % zonder werkelijke datums ⇒ de werkelijke start ligt nooit ná het werkelijke einde.
+// De impliciete start is de geplande start (paneel/contextmenu `setTaskProgress`, rastercel, MCP), het
+// afgeleide einde de statusdatum. Lag de geplande start ná de statusdatum — een verouderde berekening
+// (mijlpaal op 100 % vóór F5: AS 06-17, AF 06-10) of een taak die volgens de verse planning pas na
+// de statusdatum begint — dan kwam AS ná AF te liggen. Eén regel in `applyProgressInvariants`, dus
+// hier elke route die erlangs loopt. Zonder statusdatum blijft een vastgelegde start staan.
+{
+  const setup = () => {
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-10' });
+    const a = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-06-01', 5) });
+    const m = S().addTask({ name: 'M', isMilestone: true });
+    const l = S().addTask({ name: 'L', time: createDefaultTaskTime('2026-06-01', 10) });
+    const f = S().addTask({ name: 'F', time: createDefaultTaskTime('2026-06-01', 3) });
+    S().addSequence({ predecessorId: a, successorId: m, type: 'FINISH_START', lagDays: 0 });
+    S().addSequence({ predecessorId: l, successorId: f, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    S().setActualStart(a, '2026-06-01');
+    S().setActualFinish(a, '2026-06-05');
+    S().setActualStart(l, '2026-06-01');
+    S().setTaskProgress(l, 0.3);
+    return { m, f };
+  };
+  const actuals = (time: { actualStart?: string; actualFinish?: string }) => `AS ${time.actualStart} / AF ${time.actualFinish}`;
+  const inOrder = (time: { actualStart?: string; actualFinish?: string }) =>
+    !!time.actualStart && !!time.actualFinish && time.actualStart <= time.actualFinish;
+
+  // Paneel/contextmenu: mijlpaal op 100 % vóór de herberekening (verouderde ES ná de statusdatum).
+  let ids = setup();
+  const staleStart = task(ids.m)!.time.earlyStart;
+  ok(`mijlpaal-100-verouderd: voorwaarde — verouderde ES (${staleStart}) ligt ná de statusdatum`, staleStart > '2026-06-10');
+  S().setTaskProgress(ids.m, 1);
+  ok(`mijlpaal-100-verouderd: AS niet ná AF (${actuals(task(ids.m)!.time)})`, inOrder(task(ids.m)!.time));
+  ok(`mijlpaal-100-verouderd: AS = AF = statusdatum (${actuals(task(ids.m)!.time)})`,
+    task(ids.m)!.time.actualStart === '2026-06-10' && task(ids.m)!.time.actualFinish === '2026-06-10');
+
+  // Paneel/contextmenu: taak die volgens de VERSE planning ná de statusdatum begint.
+  ids = setup();
+  S().runCPM();
+  ok(`toekomstige-taak-100: voorwaarde — verse ES (${task(ids.f)!.time.earlyStart}) ná de statusdatum`, task(ids.f)!.time.earlyStart > '2026-06-10');
+  S().setTaskProgress(ids.f, 1);
+  ok(`toekomstige-taak-100 (setTaskProgress): AS = AF = statusdatum (${actuals(task(ids.f)!.time)})`,
+    task(ids.f)!.time.actualStart === '2026-06-10' && task(ids.f)!.time.actualFinish === '2026-06-10');
+
+  // Raster: completion-cel 100 %.
+  ids = setup();
+  S().runCPM();
+  const grid = runGridMutation([{ kind: 'cell-edit', taskId: ids.f, columnId: 'task.time.completion' as CellEditIntent['columnId'], route: 'task-progress', value: 1 }]);
+  ok(`toekomstige-taak-100 (rastercel): geaccepteerd en AS niet ná AF (${grid.ok}, ${actuals(task(ids.f)!.time)})`, grid.ok && inOrder(task(ids.f)!.time));
+
+  // MCP (`planner_set_progress`-kern).
+  const mcpDraft = { tasks: structuredClone(S().tasks) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
+  const mcpTask = (mcpDraft.tasks as Task[]).find(t => t.name === 'F')!;
+  mcpTask.time.completion = 0; mcpTask.time.actualStart = undefined; mcpTask.time.actualFinish = undefined;
+  const mcp = progress.applyProgressUpdate(mcpDraft, mcpTask.id, { completion: 100 }, '2026-06-10');
+  ok(`toekomstige-taak-100 (MCP): toegepast en AS niet ná AF (${mcp.applied}, ${actuals(mcpTask.time)})`, mcp.applied && inOrder(mcpTask.time));
+
+  // Zonder statusdatum: een vastgelegde start ná een verouderde geplande finish blijft staan; het
+  // afgeleide einde schuift mee (niet andersom).
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const late = S().addTask({ name: 'Laat', time: createDefaultTaskTime('2026-06-01', 3) });
+  S().runCPM();
+  S().setActualStart(late, '2026-06-08');
+  S().setTaskProgress(late, 1);
+  ok(`zonder-statusdatum-100: vastgelegde AS blijft, AF niet ervóór (${actuals(task(late)!.time)})`,
+    task(late)!.time.actualStart === '2026-06-08' && inOrder(task(late)!.time));
+}
 
 // ── Z14b (eigenaarsprincipe 2026-08-18) — edit-time-invalidatie van het GELEZEN Z8-venster.
 // `timephasedFinishFloor`/`timephasedStartAnchor` moeten wijken zodra een gebruiker duur/datums of
