@@ -73,7 +73,9 @@ als platte, niet-klikbare tekst — bewust geen externe netwerkaanroepen vanuit 
    niet mee.
 6. Basishygiëne: geen dubbele koppen binnen één artikel, geen lege bestanden, en een NL≉EN-heuristiek
    (meer dan 60% woordelijk identieke niet-lege regels tussen `nl` en `en` ⇒ vermoedelijk vergeten te
-   vertalen).
+   vertalen). Daarnaast mag een vertaling (niet `nl`/`en`) de `nl`- of `en`-titel of -h1 van een
+   artikel niet letterlijk overnemen als h1, als manifest-titel of als tekst van een `docs://`-link
+   naar dat artikel; een naam die in `nl` én `en` gelijk is ("Filters") telt niet mee.
 
 **Wat het NIET blokkeert:** een ontbrekend artikel in een taal buiten `nl`/`en` (dat artikel bestaat
 dan simpelweg niet — de viewer valt terug op Engels), en inhoudelijke juistheid/leesbaarheid — dat
