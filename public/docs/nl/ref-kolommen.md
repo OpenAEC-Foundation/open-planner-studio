@@ -1,33 +1,52 @@
 # Kolommen kiezen
 
-Het venster **Kolommen** bepaalt welke kolommen het Tabel-tabblad toont, in welke volgorde en hoe breed. (De taaktabel links van de Gantt heeft vaste kolommen: WBS, Taaknaam en Duur.)
+De **Tabel** (tabblad **Tabel**) en de takenlijst naast de Gantt hebben elk hun eigen kolommen. Je past ze aan in de tabel zelf: het plusje in de tabelkop opent de kolomkiezer, en in de kolomkop verplaats je een kolom, maak je hem breder of smaller, zet je hem vast of verwijder je hem. Elke wijziging werkt meteen; er is geen OK-stap.
 
-## Openen
+Standaard toont de takenlijst naast de Gantt **WBS**, **Taaknaam** en **Duur**. De Tabel toont daarnaast **Start**, **Einde**, **Taaktype**, **Kritiek**, **Totale speling** en **Voortgang**, plus de activity codes en eigen velden van het project.
 
-Het plusje rechts in de tabelkop, of tabblad **Tabel** → **Kolommen…**. (De knop **Beeld** → lintgroep **Weergave** → **Kolommen…** hoort bij de klassieke weergaveknoppen — zie de gids Layouts.) Elke wijziging wordt direct toegepast — er is geen aparte OK-stap; **Sluiten**, **Esc**, het kruisje of een klik buiten het venster sluit het venster.
+## De kolomkiezer openen
 
-## Gekozen kolommen
+- Het plusje rechts in de tabelkop. De Tabel en de takenlijst naast de Gantt hebben elk een eigen plusje, dat alleen zijn eigen tabel aanpast.
+- Tabblad **Tabel** → **Kolommen…** opent de kolomkiezer van de Tabel.
+- Staan de klassieke weergaveknoppen aan (**Instellingen** → tab **Geavanceerd** → **Legacy-functies** → **Klassieke weergaveknoppen tonen**), dan doet **Beeld** → lintgroep **Weergave** → **Kolommen…** hetzelfde: de knop gaat naar het tabblad Tabel en opent daar de kolomkiezer.
 
-Per kolom een rij met:
+**Esc**, een klik buiten de kiezer of nog een klik op het plusje sluit de kiezer.
 
-- **Sleepgreep** — versleep de rij om de kolomvolgorde te wijzigen.
-- **Zichtbaar** — uitvinken verbergt de kolom zonder hem uit de lijst te verwijderen.
-- **Naam** — het veldlabel zoals de tabel het toont.
-- **Breedte** — in pixels (minimaal 40).
+## Een kolom toevoegen
 
-## Beschikbare velden
+De kolomkiezer **Kolom kiezen** bevat, van boven naar onder:
 
-Onder de gekozen kolommen staat de lijst **Beschikbare velden**: elk veld dat nog géén kolom is. Aanklikken voegt het als kolom toe. Naast de standaardvelden staan hier onder andere de analysevelden **Mijlpaal**, **Vrije speling**, **Interfererende speling**, **Bijna kritiek** en **Speling-pad**, plus **Resources** en de activity codes en eigen velden van het project. De drie speling-velden en Speling-pad krijgen pas waarden na een berekening met de bijbehorende reken-opties — zie [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse).
+- **Laatst gebruikt** — velden die je onlangs met de kiezer hebt toegevoegd. Dit blok verschijnt zodra je een kolom hebt toegevoegd.
+- Het zoekveld **Zoeken** — typ een deel van een veldnaam; de **Zoekresultaten** komen uit alle groepen.
+- De velden per groep: **Taak**, **Planning**, **Beperkingen**, **Relaties**, **Resources**, **Voortgang**, **Berekend**, **Baseline**, **Aangepast** en **Technisch**. Een klik op een groep klapt hem open; het getal erachter is het aantal velden in die groep.
+- Onderaan de knop **Herstel standaard** (zie hieronder).
 
-**Start** en **Einde** (in de standaardindeling) tonen dezelfde datums als de balk in de Gantt: de berekende planning, en vóór de eerste berekening de ingevoerde datums. Typ je bij Start een andere datum, dan wordt die de geplande start. Een ander Einde past bij een automatisch geplande taak de duur aan; bij een handmatig geplande taak wordt het het geplande einde. Druk daarna op **F5** om opnieuw te berekenen. Typ je dezelfde datum terug, dan verandert er niets.
+Klik op een veld om het als laatste kolom toe te voegen; de kiezer sluit dan. Een veld dat al een kolom is, staat aangevinkt en kun je niet nog eens kiezen. De activity codes en eigen velden van het project staan onder **Aangepast**, de velden van je baselines onder **Baseline**.
+
+Onder **Berekend** staan onder andere de analysevelden **Vrije speling**, **Interfererende speling**, **Bijna kritiek** en **Spelingpad**. Ze krijgen pas waarden na een berekening (**F5**), en **Bijna kritiek** en **Spelingpad** alleen als de bijbehorende reken-optie aanstaat — zie [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse).
+
+## Kolommen aanpassen in de kolomkop
+
+- **Verplaatsen** — sleep een kolomkop naar een andere plek. Vastgezette kolommen blijven bij elkaar vooraan; een losse kolom verplaats je alleen tussen de losse kolommen.
+- **Breedte** — sleep de rechterrand van een kolomkop (40 tot 480 pixels). Een dubbelklik op die rand maakt de kolom passend voor de kop en de langste waarde. Met het toetsenbord: zet de focus op de rand en gebruik pijl links en pijl rechts, met **Shift** voor grotere stappen.
+- **Verwijderen** — het minteken dat in de kolomkop verschijnt als je erover beweegt. Het veld blijft kiesbaar in de kolomkiezer.
+- **Rechtsklik** op een kolomkop geeft **Vastzetten** (of **Losmaken**), **Automatisch passend maken** en **Verwijderen**. Een vastgezette kolom schuift naar voren, bij de andere vastgezette kolommen, en blijft in beeld als je de tabel horizontaal scrolt (zolang de vastgezette kolommen samen in de tabel passen).
+
+## Start, Einde en de geplande datums
+
+**Start** en **Einde** (in de standaardindeling van de Tabel) tonen dezelfde datums als de balk in de Gantt: de berekende planning, en vóór de eerste berekening de ingevoerde datums. Typ je bij Start een andere datum, dan wordt die de geplande start. Een ander Einde past bij een automatisch geplande taak de duur aan; bij een handmatig geplande taak wordt het het geplande einde. Druk daarna op **F5** om opnieuw te berekenen. Typ je dezelfde datum terug, dan verandert er niets.
 
 De velden **Geplande start** en **Gepland einde** tonen de ingevoerde datums zelf, ook als de berekening de taak verschuift. Gepland einde is alleen te bewerken bij een handmatig geplande taak: bij andere taken bepalen start en duur het einde. Start en Einde van een automatisch geplande verzameltaak volgen uit de onderliggende taken en zijn niet te bewerken.
 
 ## Herstel standaard
 
-**Herstel standaard** staat onderaan de kolomkiezer (het plusje rechts in de tabelkop, of tabblad **Tabel** → **Kolommen…**). Eén klik zet de kolommen van die tabel terug naar de standaardindeling: welke kolommen er staan, hun volgorde en breedte, en vastgezette kolommen. Extra toegevoegde velden verdwijnen uit de tabel en blijven kiesbaar in de lijst. Zo krijg je na een update ook de nieuwe standaard, bijvoorbeeld **Start** en **Einde** in plaats van **Geplande start** en **Gepland einde**: een eigen, eerder bewaarde indeling verandert niet vanzelf. Het is één handeling, dus **Ctrl+Z** zet je eigen indeling terug. Staat de tabel al op de standaard, dan is de knop uitgeschakeld.
+**Herstel standaard** staat onderaan de kolomkiezer. Eén klik zet de kolommen van die tabel terug naar de standaardindeling: welke kolommen er staan, hun volgorde en breedte, en vastgezette kolommen. Extra toegevoegde velden verdwijnen uit de tabel en blijven kiesbaar in de kiezer. Zo krijg je na een update ook de nieuwe standaard, bijvoorbeeld **Start** en **Einde** in plaats van **Geplande start** en **Gepland einde**: een eigen, eerder bewaarde indeling verandert niet vanzelf. Staat de tabel al op de standaard, dan is de knop uitgeschakeld.
 
-De kolommenset maakt deel uit van een opgeslagen layout — zie [Layouts opslaan/laden](docs://ref-layouts).
+## Bewaren, ongedaan maken en layouts
+
+De kolomindeling is een persoonlijke voorkeur op dit apparaat: hij geldt voor al je projecten en staat niet in het projectbestand. Elke kolomhandeling — toevoegen, verwijderen, verplaatsen, verbreden, vastzetten of **Herstel standaard** — is één stap die je met **Ctrl+Z** ongedaan maakt.
+
+Een layout kan ook de kolommen vastleggen. Hij neemt de indeling over van de tabel die je ziet als je de layout maakt, en zet die bij een klik op de layoutknop in de tabel die dan in beeld is: op het tabblad Tabel de Tabel, op de andere tabbladen de takenlijst naast de Gantt. Zie [Layouts opslaan/laden](docs://ref-layouts).
 
 ## Verder lezen
 
