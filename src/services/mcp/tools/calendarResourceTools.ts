@@ -1088,6 +1088,13 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: `doeltaak '${act.taskId}' is een mijlpaal/verzameltaak; die dragen geen resources` });
           return;
         }
+        // Move naar de taak waar hij (gesimuleerd) al staat: de dubbelcheck hieronder sluit `cur`
+        // zelf uit en zou dit doorlaten, waarna `draft.moveAssignment` gooit en de HELE call
+        // terugrolt. Net als een dubbele `add` dus zacht weigeren — alleen dit item vervalt.
+        if (cur.taskId === act.taskId) {
+          rejections.push({ id: act.assignmentId, reason: `toewijzing '${act.assignmentId}' staat al op taak '${act.taskId}' (resource '${cur.resourceId}'); verplaatsen naar dezelfde taak verandert niets` });
+          return;
+        }
         if (sim.some((x) => x.id !== cur.id && x.taskId === act.taskId && x.resourceId === cur.resourceId)) {
           rejections.push({ id: act.assignmentId, reason: `resource '${cur.resourceId}' is al toegewezen aan taak '${act.taskId}' (verplaatsen zou de last dubbel tellen)` });
           return;
