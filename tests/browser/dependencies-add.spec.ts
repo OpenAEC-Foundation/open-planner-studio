@@ -88,3 +88,47 @@ test('conceptrij: muiskeuze met richting Opvolger, en een duplicaat wordt geweig
   await expect(page.locator('[data-ops-dependency-draft]')).toHaveCount(0);
   await expect.poll(() => state(page).then(s => s.sequences.length)).toBe(1);
 });
+
+// Audit taakmutaties, bevinding 9: het lag-veld commit bij elke blur. Alleen in- en uittabben
+// maakte het document gewijzigd ("Unsaved"), zette de herbereken-hint aan en gaf een loze undo-stap.
+// Nu is een commit zonder werkelijke wijziging een no-op, zoals in het raster en via MCP.
+test('lag-veld: in- en uittabben zonder wijziging raakt het document niet', async ({ page, ops: _ops }) => {
+  const [grondwerk, fundering] = await seedProject(page, [
+    { name: 'Grondwerk', start: '2026-09-07', finish: '2026-09-18' },
+    { name: 'Fundering', start: '2026-09-21', finish: '2026-10-02' },
+  ]);
+  await page.evaluate(({ from, to }) => {
+    const store = window.__OPS__!.store;
+    const s = store.getState();
+    s.addSequence({ predecessorId: from, successorId: to, type: 'FINISH_START', lagDays: 2 });
+    s.runCPM();
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+    s.selectTask(to);
+    store.setState({ isDirty: false });
+  }, { from: grondwerk, to: fundering });
+  const documentState = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { isDirty: s.isDirty, stale: s.scheduleStale };
+  });
+  const before = await state(page);
+  expect(await documentState()).toEqual({ isDirty: false, stale: false });
+
+  const lag = page.locator('.dependency-lag-field').first();
+  await expect(lag).toHaveValue('+2d');
+  await lag.click();
+  await page.keyboard.press('Tab');
+  await lag.click();
+  await page.keyboard.press('Tab');
+
+  expect(await documentState()).toEqual({ isDirty: false, stale: false });
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
+  expect((await state(page)).sequences).toEqual(before.sequences);
+
+  // Een echte wijziging blijft gewoon één undo-stap.
+  await lag.click();
+  await lag.fill('3d');
+  await page.keyboard.press('Tab');
+  await expect.poll(() => state(page).then(s => s.sequences.map(q => q.lagDays))).toEqual([3]);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
+  expect(await documentState()).toEqual({ isDirty: true, stale: true });
+});
