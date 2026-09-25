@@ -8,7 +8,8 @@ import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { xerDocumentName, xerProjectCode } from '@/utils/xerDocumentName';
-import { documentTitle } from '@/utils/documents';
+import { documentTitle, documentFileBase } from '@/utils/documents';
+import { readFileSync } from 'node:fs';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -750,6 +751,27 @@ eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
     docs.map(r => documentTitle(null, r.project.name, xerProjectCode(r.xer))), ['HarbourPointe (4408)']);
   eq('43 baseline: baselinenaam = projectnaam van de bron, zonder ID',
     docs[0].baselines?.map(b => b.name), ['HarbourPointe nulmeting']);
+
+  // Critreview documentnaam (a): "Opslaan als"/opslaan/exporteren stelt dezelfde naam voor als de
+  // tab, zodat tab en titelbalk na het opslaan (dan afgeleid van de bestandsnaam) gelijk blijven.
+  eq('44 bestandsnaambasis XER = documentnaam', documentFileBase(result.project.name, xerProjectCode(result.xer)),
+    'Brug (Brugrenovatie)');
+  eq('45 bestandsnaambasis na opslaan = zelfde tabtitel',
+    documentTitle(`/x/${documentFileBase(result.project.name, xerProjectCode(result.xer))}.ifc`, result.project.name,
+      xerProjectCode(result.xer)),
+    documentTitle(null, result.project.name, xerProjectCode(result.xer)));
+  eq('46 bestandsnaambasis niet-XER ongewijzigd', documentFileBase('Brug'), 'Brug');
+  const fileSliceSrc = readFileSync(new URL('../../src/state/slices/fileSlice.ts', import.meta.url), 'utf8');
+  eq('47 fileSlice: geen kale projectFileBase(project.name) als opslaanvoorstel',
+    /projectFileBase\(\s*state\.project\.name/.test(fileSliceSrc) || !/suggestedFileBase\(state\)/.test(fileSliceSrc)
+      || !/documentFileBase\(s\.project\.name,\s*xerProjectCode\(s\.xerImportMetadata\)\)/.test(fileSliceSrc),
+    false);
+  // Critreview documentnaam (b): het bezettingsoverzicht leidt de titel af zoals de tabbalk (met ID-code).
+  const occupancySrc = readFileSync(new URL('../../src/components/panels/ResourceOccupancyView.tsx', import.meta.url), 'utf8');
+  eq('48 bezettingsoverzicht: documentTitle krijgt de XER-code mee',
+    /documentTitle\(payload\.filePath,\s*payload\.project\.name,\s*xerProjectCode\(payload\.xerImportMetadata\)\)/.test(occupancySrc)
+      && /xerImportMetadata: activeXerImportMetadata/.test(occupancySrc),
+    true);
 }
 
 if (diffs.length > 0) {

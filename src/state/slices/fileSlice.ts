@@ -18,7 +18,8 @@ import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayl
 import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { fileHasHourData } from '@/services/subdayIo';
-import { projectFileBase } from '@/utils/documents';
+import { documentFileBase } from '@/utils/documents';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
@@ -43,6 +44,14 @@ function invalidateDocumentRedo(
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
  *  Geëxporteerd omdat de MCP-tool `planner_import_schedule` exact hetzelfde laadpatroon
  *  moet volgen (spec §Bestands-tools) — één definitie, geen tweede die kan afdrijven. */
+/**
+ * Voorgestelde bestandsnaambasis voor opslaan/exporteren: bij een XER-document "Projectnaam
+ * (P6 Project-ID)", zodat tab en titelbalk na het opslaan dezelfde naam houden (vraag 17).
+ */
+export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetadata'>): string {
+  return documentFileBase(s.project.name, xerProjectCode(s.xerImportMetadata));
+}
+
 export function isActivePristine(s: AppState): boolean {
   return (
     s.tasks.length === 0 &&
@@ -346,7 +355,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const outcome = await saveFileDialog(
-        `${projectFileBase(state.project.name)}.ifc`,
+        `${suggestedFileBase(state)}.ifc`,
         content,
         [{ name: 'IFC Files', extensions: ['ifc'] }],
       );
@@ -575,7 +584,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       try {
         const outcome = await saveFileDialog(
-          state.filePath ?? `${projectFileBase(state.project.name)}.ifc`,
+          state.filePath ?? `${suggestedFileBase(state)}.ifc`,
           content,
           [{ name: 'IFC Files', extensions: ['ifc'] }],
         );
@@ -658,7 +667,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
           break;
         }
         case 'progress-csv': {
@@ -686,7 +695,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           );
           ext = 'csv';
           filters = [{ name: 'CSV Files', extensions: ['csv'] }];
-          nameOverride = `${projectFileBase(state.project.name)}-voortgang.${ext}`;
+          nameOverride = `${suggestedFileBase(state)}-voortgang.${ext}`;
           break;
         }
         case 'csv':
@@ -728,7 +737,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
       }
 
-      const defaultName = nameOverride ?? `${projectFileBase(state.project.name)}.${ext}`;
+      const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // E7: beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
       const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
         ? { preferDownloads: true, mime }
@@ -766,7 +775,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const state = get();
       // 1. Het project zelf (bevat altijd al alle gebruikte items — kernprincipe §1).
       const projectContent = writeIFC(buildWriteIFCInput(state));
-      const base = projectFileBase(state.project.name);
+      const base = suggestedFileBase(state);
       const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
       if (!outcome) return { ok: true, warnings: [] }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);

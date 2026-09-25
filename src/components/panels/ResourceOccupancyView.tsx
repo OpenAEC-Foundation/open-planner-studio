@@ -12,6 +12,7 @@ import {
   type OccupancyRow,
 } from '@/services/library/occupancy';
 import { documentTitle, untitledOrdinals, displayDocumentTitle, DOC_PALETTE } from '@/utils/documents';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
 
@@ -30,6 +31,7 @@ type OccupancyPayload = Pick<
   DocumentPayload,
   | 'project'
   | 'filePath'
+  | 'xerImportMetadata'
   | 'resources'
   | 'assignments'
   | 'tasks'
@@ -158,6 +160,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const documents = useAppStore(s => s.documents);
   const activeProject = useAppStore(s => s.project);
   const activeFilePath = useAppStore(s => s.filePath);
+  const activeXerImportMetadata = useAppStore(s => s.xerImportMetadata);
   const activeResources = useAppStore(s => s.resources);
   const activeAssignments = useAppStore(s => s.assignments);
   const activeTasks = useAppStore(s => s.tasks);
@@ -178,6 +181,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const activeOccupancyPayload = useMemo<OccupancyPayload>(() => ({
     project: activeProject,
     filePath: activeFilePath,
+    xerImportMetadata: activeXerImportMetadata,
     resources: activeResources,
     assignments: activeAssignments,
     tasks: activeTasks,
@@ -186,7 +190,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     calendars: activeCalendars,
     scheduleStale: activeScheduleStale,
   }), [
-    activeProject, activeFilePath, activeResources, activeAssignments, activeTasks, activeSequences,
+    activeProject, activeFilePath, activeXerImportMetadata, activeResources, activeAssignments, activeTasks, activeSequences,
     activeCalendar, activeCalendars, activeScheduleStale,
   ]);
 
@@ -240,7 +244,8 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     const payloads = openDocumentPayloads;
     // Zelfde titel-afleiding als de tabbladen: rauwe titels eerst, dan volgnummers voor naamloze
     // documenten, dan het vertaalde label eromheen (zie `getOpenDocuments`/`useDocumentCards`).
-    const rawTitles = payloads.map(({ payload }) => documentTitle(payload.filePath, payload.project.name));
+    const rawTitles = payloads.map(({ payload }) =>
+      documentTitle(payload.filePath, payload.project.name, xerProjectCode(payload.xerImportMetadata)));
     const ordinals = untitledOrdinals(rawTitles);
     const inputs: OccupancyDocInput[] = payloads.map(({ id, payload }, i) => {
       // Perf-poort (TODO na de critreview van v2026.8.0): het ACTIEVE document wordt hier NIET

@@ -70,6 +70,16 @@ export function projectFileBase(projectName: string): string {
 }
 
 /**
+ * Voorgestelde bestandsnaambasis bij opslaan/"Opslaan als"/exporteren: dezelfde naam als de tab en
+ * de titelbalk vóór het opslaan. Bij een XER-document is dat "Projectnaam (P6 Project-ID)"
+ * (`xerDocumentName`), zodat tab en titelbalk ná het opslaan — dan afgeleid van de bestandsnaam —
+ * dezelfde naam houden. Zonder XER-code gelijk aan `projectFileBase(projectName)`.
+ */
+export function documentFileBase(projectName: string, xerProjectCode?: string | null): string {
+  return projectFileBase(xerProjectCode ? xerDocumentName(projectName, xerProjectCode) : projectName);
+}
+
+/**
  * Volgnummers om NAAMLOZE documenten onderling te onderscheiden.
  *
  * Invoer: de rauwe titels (`documentTitle(...)`) van álle open documenten, in tabvolgorde. Uitvoer:
