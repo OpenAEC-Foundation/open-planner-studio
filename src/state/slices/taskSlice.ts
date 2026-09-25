@@ -104,7 +104,10 @@ export interface TaskSlice {
   /** Voeg een WBS-sjabloon in onder een ouder (null = rootniveau); geeft de nieuwe root-id terug. */
   insertWbsTemplate: (template: WbsTemplate, parentId: string | null) => string | null;
   /** Voortgang (fase 2.6): zet completion (0..1), dwingt de §3.2-invarianten af (auto-actualStart bij
-   *  completion>0, remainingTime afgeleid, status). scheduleStale alleen als er een statusdatum is. */
+   *  completion>0, remainingTime afgeleid, status). Een echte wijziging maakt de planning altijd
+   *  stale; verandert de taak per saldo niet, dan is het een no-op (geen undo-stap, geen `isDirty`,
+   *  niet stale, nivelleergaten blijven) — geldt ook voor de twee actual-setters hieronder, zie
+   *  `commitProgressEdit`. */
   setTaskProgress: (taskId: string, completion: number, opts?: { coalesceKey?: string }) => void;
   /** Werkelijke start (fase 2.6). undefined = wissen. Retourneert false als de datum ná de
    *  statusdatum ligt (geweigerd, geen mutatie — de UI toont een toast). `opts.coalesceKey` voegt
@@ -292,11 +295,57 @@ function applyTaskPlacement(tasks: Task[], id: string, plan: TaskPlacement): voi
 export { applyProgressInvariants };
 
 /**
+ * De ene commit van de drie voortgangssetters (`setTaskProgress`/`setActualStart`/`setActualFinish`,
+ * fase 2.6), binnen hun producer en ná hun eigen guards. `edit` is de setter-specifieke bewerking op
+ * de taak (in de praktijk alleen `time`); daarna volgen altijd de §3.2-invarianten (`applyProgressInvariants`).
+ *
+ * Verandert de bewerking per saldo niets aan de taak, dan is ze een no-op — dezelfde regel als
+ * `updateTask`: geen snapshot, geen gevolgregel (`clearLevelingGaps`), geen `isDirty`, geen stale
+ * (en dus ook niet uit "datums zoals opgeslagen"). Het contextmenu zet de voortgang op de hele
+ * selectie, ook op taken die al op die waarde staan; en een slider of datumveld meldt dezelfde
+ * waarde soms nog eens. Beslist op de UITKOMST, niet op de invoer: een 50%-taak zonder `actualStart`
+ * opnieuw op 50% zetten vult die start in, en dát is wel een wijziging. Een no-op raakt ook de
+ * undo-coalescing niet aan, dus een lopende slider-sleep blijft één stap.
+ *
+ * Eerst proef op een kopie (`time` is plat, `status` een scalar op de kopie zelf, dus de proef lekt
+ * niet in de draft); pas bij een echte wijziging draait dezelfde bewerking op de draft, in dezelfde
+ * volgorde als vóór deze guard.
+ */
+function commitProgressEdit(
+  runtime: StoreRuntime,
+  s: AppState,
+  task: Task,
+  edit: (target: Task) => void,
+  opts: { coalesceKey?: string } | undefined,
+): void {
+  const statusDate = s.project.statusDate;
+  const apply = (target: Task): void => {
+    edit(target);
+    applyProgressInvariants(target, statusDate);
+  };
+  const probe: Task = { ...task, time: { ...task.time } };
+  apply(probe);
+  if (sameValue(task, probe)) return;
+  runtime.beginUndoable(s, opts); // `opts` = coalesceKey (slider-sleep / per-toetsaanslag-commits = 1 stap).
+  apply(task);
+  // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
+  // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze setters hebben hun eigen
+  // aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor het waarom.
+  clearLevelingGaps(task);
+  // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
+  // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
+  // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
+  // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
+  // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
+  runtime.finishMutation(s, { stale: true });
+}
+
+/**
  * De gedeelde kern van `setActualStart`/`setActualFinish` (fase 2.6), binnen hun producer. `false`
  * ⇒ geweigerd: actuals liggen nooit ná de statusdatum — weigeren i.p.v. stil klemmen (§3.2, BESLIST),
  * zonder snapshot. T16-veeglijst-fix: `isActualPastStatusDate` vergelijkt geparste instanten i.p.v.
  * rauwe ISO-strings (het uur-precies-op-de-statusdatum-dag-gat). Een onbekende taak is een stille
- * no-op (`true`, zoals voorheen).
+ * no-op (`true`, zoals voorheen); dezelfde datum nog eens ook (`true`, zie `commitProgressEdit`).
  */
 function applyActualDate(
   runtime: StoreRuntime,
@@ -309,12 +358,8 @@ function applyActualDate(
   const task = s.tasks.find((t) => t.id === taskId);
   if (!task) return true;
   if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
-  runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
   // Zetten/wissen + invarianten; gedeeld met de velden in "Taak bewerken" (state/taskDialogSave.ts).
-  applyActualDateEdit(task, field, date, s.project.statusDate);
-  clearLevelingGaps(task); // B7 — zie `setTaskProgress`.
-  // H1 (Opus-review T15-iteratie-2) — elke voortgangsmutatie is datum-beïnvloedend, zie `setTaskProgress`.
-  runtime.finishMutation(s, { stale: true });
+  commitProgressEdit(runtime, s, task, (target) => applyActualDateEdit(target, field, date, s.project.statusDate), opts);
   return true;
 }
 
@@ -1041,21 +1086,10 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     set((s) => {
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
-      runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
       // §3.2: % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
-      // onder 100% ⇒ actualFinish vervalt.
-      applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)), s.project.statusDate);
-      applyProgressInvariants(task, s.project.statusDate);
-      // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
-      // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
-      // eigen aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor het waarom.
-      clearLevelingGaps(task);
-      // H1 (Opus-review T15-iteratie-2): ALTIJD stale — sinds `applyProgressInvariants`'s
-      // completion===1-tak niet meer op een statusdatum leunt (die pint nu altijd op actuals/eigen
-      // finish, zie de toelichting daar) én de IN-PROGRESS-tak in CPMSolver (M1) evenmin, is elke
-      // voortgangsmutatie datum-beïnvloedend, met of zonder statusdatum. Het oude commentaar
-      // ("alleen datum-beïnvloedend mét statusdatum") was juist tot vóór die fixes.
-      runtime.finishMutation(s, { stale: true });
+      // onder 100% ⇒ actualFinish vervalt. Snapshot, nivelleergaten, stale en de no-op-regel: zie
+      // `commitProgressEdit`.
+      commitProgressEdit(runtime, s, task, (target) => applyCompletionEdit(target.time, Math.max(0, Math.min(1, raw)), s.project.statusDate), opts);
     });
     get().recomputeViewRows();
   },
