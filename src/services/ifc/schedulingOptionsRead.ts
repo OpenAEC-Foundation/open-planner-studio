@@ -3,7 +3,7 @@ import type {
   ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
 import {
-  CONVENTIONS, diffAgainstBase, isBuiltInProfileId, isDefaultProfile, resolveConventions,
+  CONVENTIONS, builtInConventions, diffAgainstBase, isBuiltInProfileId, isDefaultProfile, resolveConventions,
 } from '@/engine/scheduler/conventions/registry';
 import { optionKeysOnly, legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
 
@@ -231,7 +231,12 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
   const literal = literalOverrides(input.overrides);
   for (const d of CONVENTIONS) {
     const value = literal[d.id];
-    if (value !== undefined && value === resolved[d.id]) overrides[d.id] = value;
+    if (value === undefined || value !== resolved[d.id]) continue;
+    // A19-achterdeur (critreview x12-a19-basis): de oude XER-lezer schreef A19 per bestand als
+    // letterlijke override `true` onder p6 weg. Sinds A19 in de p6-basis aan staat is dat géén
+    // afwijking en geen herkomst — anders zet een wissel P6 → OPS A19 onder OPS aan.
+    if (d.id === 'p6UseRemainingStartForProgress' && baseId === 'p6' && value === builtInConventions('p6')[d.id]) continue;
+    overrides[d.id] = value;
   }
   // Registervolgorde, zodat lezen → schrijven byte-identiek blijft.
   return { baseId, id, name, overrides: literalOverrides(overrides) };

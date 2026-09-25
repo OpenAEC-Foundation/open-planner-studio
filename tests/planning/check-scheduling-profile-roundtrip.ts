@@ -410,6 +410,20 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   same('A19-05b …en dus geen afwijking', legacyOptionsToProfile({ p6Source: 'XER' }).profile.overrides.p6UseRemainingStartForProgress, undefined);
   eq('A19-06 legacy XER-blok met expliciete A19 false ⇒ afwijking uit',
     legacyOptionsToProfile({ p6Source: 'XER', p6UseRemainingStartForProgress: false }).profile.overrides.p6UseRemainingStartForProgress, false);
+  // Achterdeur (critreview x12-a19-basis): de oude letterlijke A19-override mag niet als herkomst
+  // blijven staan, anders zet een wissel P6 → OPS A19 onder OPS aan. Mutatie: de A19-uitzondering in
+  // sanitizeSchedulingProfile weghalen ⇒ A19-07, A19-08, A19-09 en A19-10 rood.
+  same('A19-07 oude Y-override: na heropenen geen letterlijke afwijking meer', reread?.overrides, {});
+  eq('A19-08 oude Y-override → heropenen → wissel naar OPS ⇒ A19 uit',
+    resolveConventions(switchProfile(reread, 'ops')).p6UseRemainingStartForProgress, false);
+  // Crashherstel: de snapshot gaat via buildWriteIFCInput (auto-save) en terug via readIFC.
+  const rbase = freshPayload();
+  const recovered = readIFC(writeIFC(buildWriteIFCInput({
+    ...rbase, project: { ...rbase.project, schedulingProfile: p6WithOldOverride },
+  }))).project.schedulingProfile;
+  same('A19-09 crashherstel met oude Y-override: overrides leeg', recovered?.overrides, {});
+  eq('A19-10 crashherstel → wissel naar OPS ⇒ A19 uit',
+    resolveConventions(switchProfile(recovered, 'ops')).p6UseRemainingStartForProgress, false);
 }
 
 if (diffs.length > 0) {

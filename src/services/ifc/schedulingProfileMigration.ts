@@ -27,8 +27,8 @@ import {
  * Voor bestanden MÉT `OPS_SchedulingProfile` (niet deze migratie, maar `sanitizeSchedulingProfile`):
  * een A19-override `true` onder basis p6 (zo schreef de oude lezer een Y-bestand weg) is nu gelijk
  * aan de basis en telt dus nergens meer als afwijking (`diffAgainstBase` leeg, geen "(aangepast)",
- * de groep Voortgang telt 0 afwijkend); als letterlijke override blijft hij, net als elke andere,
- * als herkomst staan bij een profielwissel. Een expliciete A19 `false` onder p6 blijft een echte
+ * de groep Voortgang telt 0 afwijkend) en de sanitizer laat die letterlijke override bij het lezen
+ * vervallen — anders zou een wissel P6 → OPS A19 onder OPS aanzetten (critreview x12-a19-basis). Een expliciete A19 `false` onder p6 blijft een echte
  * afwijking. Bewaakt in `tests/planning/check-scheduling-profile-roundtrip.ts`.
  */
 export const LEGACY_XER_ALWAYS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>([

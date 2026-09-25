@@ -857,8 +857,10 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] **`lagCalendar` is sinds X5 effectief voor élk formaat** (eindreview bevinding 5): een
   bestaand document waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen plant na de
   volgende release anders. Regel in de releasenotities van die versie; eventueel migratienoot.
-- [ ] **XER: `rem_target_link_flag=Y` maakt de vroege start van een bezig zijnde taak de reststart**
-  waar P6 de werkelijke start opneemt (casus 08 A, casus 10 B: ES én LS, vier cellen). Zie plan §9.
+- [ ] **XER: A19 (P6-basis) geeft de reststart waar de verified cases 08 A / 10 B de werkelijke
+  start tonen** ('A'-datum = Start-kolom; ES én LS, vier cellen). Nog te checken: welk veld de
+  vergelijking eigenlijk hoort te gebruiken (werkelijke start versus reststart) vóór er een oorzaak
+  wordt aangewezen. Zie plan §9.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde
