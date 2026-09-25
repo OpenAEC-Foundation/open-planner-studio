@@ -379,15 +379,18 @@ vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
 
 **Nieuwe eigenaarsvragen uit de reviews van 24-09 (nog niet gesteld; stellen ná A19-basis en C5):**
 - 14. **Beantwoord 24-09 ~18:45: "laten"** (§1a). Regel 7a/A21 blijft zoals hij is.
-- 15. **Beantwoord 24-09 ~18:55: "openen met melding"** (§1a); agent `opus-midden-archief-fallback` op
-  `claude/xer-archief-fallback` vanaf de #109-PR-branch.
+- 15. **Beantwoord 24-09 ~18:55: "openen met melding"** (§1a) — gebouwd op `claude/xer-archief-fallback` 33038cec
+  (`xerArchiveIssue` met zes codes, `withXerArchiveIssueNotice`, MCP/extensie-API 1.2.0, fixture `xer-archief-herschreven.ifc`,
+  M1–M5 rood, X12 15.056); critreview loopt (`opus-laag-critreview-archief-fallback`).
 - 16. **Beantwoord 24-09 ~19:00: "eigen PR"** (§1a) — gebouwd op `claude/xer-anker-projecteinde` f89f1bcb;
   **regel A gebroken op #109** (15.056 → 15.154, 149 cellen slechter in OZB 9032/9033/9049/10096: het verzonnen
   anker maskeerde daar een fout aan de vroege kant van #109) maar **0 cellen verschil op #169** ⇒ orkestrator-
   besluit 25-09: geland op de rekenprofielen-kop (merge, twee tekstconflicten, testhulpje op `solveOptionsFor`;
   check-xer-reader 52, schedule-options-corpus 56, p6-verified-cases 18 groen), NIET op #109.
-- 17. **Beantwoord 24-09 ~19:10: "projectnaam"** (§1a); agent `opus-laag-documentnaam-xer` op
-  `claude/xer-documentnaam` vanaf de #109-PR-branch.
+- 17. **Beantwoord 24-09 ~19:10: "projectnaam"** (§1a) — gebouwd op `claude/xer-documentnaam` 2946f724
+  (`xerProjectName`: `proj_name` → WBS-wortel → ID; `xerDocumentName(naam, id)`; `documentTitle` derde argument;
+  13 checks, X12 15.056, whitelist 334); critreview loopt (`opus-laag-critreview-documentnaam`); daarna merge in de
+  #109-PR-branch samen met archief-fallback (33038cec, critreview loopt) en de main-sync (`claude/xer-etappe3-main-sync`).
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
