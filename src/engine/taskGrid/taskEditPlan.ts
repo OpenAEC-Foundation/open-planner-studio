@@ -1,4 +1,4 @@
-import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
+import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { decodeDynamicTaskColumnId } from '@/engine/taskGrid/fieldIds';
 import {
@@ -452,15 +452,14 @@ function nextConstraintType(
     task.constraint2 = value === undefined
       ? undefined
       : { type: value, date: task.constraint2?.date ?? task.time.scheduleStart };
-  } else if (value === 'ASAP' || value === undefined) {
-    task.constraint = undefined;
-    task.constraint2 = undefined;
-  } else if (value === 'ALAP') {
-    task.constraint = { type: value };
-    task.constraint2 = undefined;
   } else {
+    // Gedeelde canonicalisatie met paneel en MCP (`withPrimaryConstraint`): ASAP/leeg wist beide,
+    // ALAP wist de secundaire; de paartoets volgt in `applyConstraintEdit`.
     const hard = value === 'MSO' || value === 'MFO' ? task.constraint?.hard : undefined;
-    task.constraint = { type: value, date: task.constraint?.date ?? task.time.scheduleStart, hard };
+    const next = value === undefined
+      ? undefined
+      : { type: value, date: task.constraint?.date ?? task.time.scheduleStart, hard };
+    Object.assign(task, withPrimaryConstraint(next, task.constraint2));
   }
   return { ok: true, value: undefined };
 }

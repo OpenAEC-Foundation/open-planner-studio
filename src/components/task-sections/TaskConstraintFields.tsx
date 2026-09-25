@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Task, ConstraintType } from '@/types/task';
-import { validateConstraintPair } from '@/engine/scheduler/constraintValidation';
+import { validateConstraintPair, withPrimaryConstraint } from '@/engine/scheduler/constraintValidation';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
 
@@ -37,10 +37,14 @@ export function TaskConstraintFields({ task, onChange }: {
           value={task.constraint?.type ?? 'ASAP'}
           onChange={e => {
             const type = e.target.value as ConstraintType;
-            if (type === 'ASAP') onChange({ constraint: undefined, constraint2: undefined });
-            else if (type === 'ALAP') onChange({ constraint: { type }, constraint2: undefined });
-            // Bij een niet-MSO/MFO-primair vervalt de harde pin (hard alleen zinvol op MSO/MFO).
-            else onChange({ constraint: { type, date: task.constraint?.date ?? task.time.scheduleStart, hard: (type === 'MSO' || type === 'MFO') ? task.constraint?.hard : undefined } });
+            // Gedeelde canonicalisatie met raster en MCP (`withPrimaryConstraint`): ASAP wist
+            // beide constraints, ALAP de secundaire. Bij een niet-MSO/MFO-primair vervalt de harde
+            // pin (hard alleen zinvol op MSO/MFO).
+            const hard = (type === 'MSO' || type === 'MFO') ? task.constraint?.hard : undefined;
+            onChange(withPrimaryConstraint(
+              { type, date: task.constraint?.date ?? task.time.scheduleStart, hard },
+              task.constraint2,
+            ));
           }}
           className="input !text-small !leading-4 !px-2.5 !py-1.5"
         >

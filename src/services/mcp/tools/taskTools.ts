@@ -99,6 +99,7 @@ function fieldContext(
     currentIsMilestone: task?.isMilestone ?? false,
     hasChildren: (task?.childIds.length ?? 0) > 0,
     hasAssignments: task ? s.assignments.some((a) => a.taskId === task.id) : false,
+    currentConstraint2: task?.constraint2,
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.
     calendarExists: (id: string) => s.calendars.some((c) => c.id === id) || id === s.calendar.id,
