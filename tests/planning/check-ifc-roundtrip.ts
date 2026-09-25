@@ -60,7 +60,8 @@
 //   afwijking geven): niet-taak-id's regenereren (→ natuurlijke sleutels), project.calendarId→'cal-default',
 //   ASAP-constraint niet geschreven, shift FIRST→undefined,
 //   lagUnit WORKTIME→undefined, curve UNIFORM→undefined, progressMode RETAINED_LOGIC→undefined,
-//   dag-duren integer, priority 500 niet geschreven.
+//   priority 500 niet geschreven. (Dag-duren zijn in deze fixture heel; fractionele dag-duren
+//   round-trippen sinds audit import/export nr. 1 ook, zie blok (18).)
 //   M3 (eindreview T16c, GEDICHT): `completion` rondde vóór deze fix af op 1 decimaal (10%-stappen;
 //   ≥0,955 werd zelfs "1.0" = 100%, een stille VOLTOOID-gedragswisseling in CPMSolver.ts) — nu
 //   2 decimalen (1%-stappen, MSP se eigen PercentComplete-granulariteit). Deze fixture se eigen
@@ -2238,6 +2239,142 @@ const hasP6BoundarySequence = (input: ImportResult) =>
 
   const taskNoGaps: Task = { ...TX, splitGaps: undefined };
   assert(clearLevelingGaps(taskNoGaps) === false, '(17b) geen splitGaps ⇒ no-op, false');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// (18) Fractionele dag-duren (audit import/export nr. 1, ernst hoog). De writer schreef een
+//      fractionele dag letterlijk (`'P0Y0M2.5D'`), maar `parseDurationDays` las met `/(-?\d+)D/` +
+//      `parseInt` en pakte zo alleen de cijfers NA de punt: 2,5 → 5, 0,5 → 5, 1,25 → 25. Float-ruis
+//      en exponent-notatie werden onzin (0.30000000000000004 → 3·10¹⁶, 1e-7 → −7). Bereikbaar via een
+//      CSV met halve dagen, de eigen CSV-export van een uurtaak, de Tabel ("1d 4u") en de AI-bridge —
+//      en via crashherstel, dat ook writeIFC → readIFC doet. De hoofd-fixture hierboven kiest bewust
+//      hele dagen; dit blok dekt de fractionele kant, plus de lees-gevallen die alleen een vreemd of
+//      ouder bestand bevat (het `H`-pad, beide negatief-notaties, een oude exponent).
+{
+  const mkFrac = (id: string, dur: number, extra: Partial<TaskTime> = {}): Task => ({
+    id, name: `FR-${id}`, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: { ...plainTime('2026-09-01', '2026-09-03', dur), ...extra },
+  });
+  const frTasks: Task[] = [
+    mkFrac('2_5', 2.5),
+    mkFrac('0_5', 0.5),
+    mkFrac('1_25', 1.25),
+    // Tabel-route: werkelijke duur "1d 4u" op een 8-uursdag = 1,5 dag. (RemainingTime loopt ook door
+    // deze codec, maar de import leidt hem altijd opnieuw af uit completion — `normalizeImportedProgress`,
+    // bewust op hele dagen — dus die is hier geen round-trip-getuige.)
+    mkFrac('act', 2, { actualStart: '2026-09-01', actualDuration: 1.5, completion: 0.25 }),
+    mkFrac('ruis', 0.1 + 0.2), // 0.30000000000000004
+    mkFrac('ruis3a', 2.9999999999999996),
+    mkFrac('ruis3b', 3.0000000000000004),
+    mkFrac('klein', 1e-7),
+    // Speling is afgeleid, maar gaat door dezelfde codec: negatief én fractioneel (uurtaken).
+    mkFrac('spel', 2, { totalFloat: -1.5, freeFloat: 0.25 }),
+  ];
+  const frSeqs: Sequence[] = [
+    { id: 'fr-s1', predecessorId: '2_5', successorId: '0_5', type: 'FINISH_START', lagDays: 0.5 },
+    { id: 'fr-s2', predecessorId: '0_5', successorId: '1_25', type: 'FINISH_START', lagDays: -1.5 },
+  ];
+  const input18: ImportResult = {
+    ...fixture, tasks: [...fixture.tasks, ...frTasks], sequences: [...fixture.sequences, ...frSeqs],
+  };
+  const ifc18 = writeIFC(input18);
+  const rt18 = readIFC(ifc18);
+  const frTime = (r: ImportResult, id: string): TaskTime | undefined => r.tasks.find(t => t.name === `FR-${id}`)?.time;
+  const b = (id: string) => frTime(rt18, id);
+
+  // (18a) De writer schrijft de fractie als gewoon decimaal getal.
+  for (const lit of ["'P0Y0M2.5D'", "'P0Y0M0.5D'", "'P0Y0M1.25D'", "'P0Y0M1.5D'"]) {
+    assert(ifc18.includes(lit), `(18a) writer emitteert ${lit} letterlijk`);
+  }
+
+  // (18b) De duur komt EXACT terug (was 5 / 5 / 25).
+  assert(b('2_5')?.scheduleDuration === 2.5, `(18b) 2,5 dag round-trippt als 2,5 (was 5) — kreeg ${b('2_5')?.scheduleDuration}`);
+  assert(b('0_5')?.scheduleDuration === 0.5, `(18b) 0,5 dag round-trippt als 0,5 (was 5) — kreeg ${b('0_5')?.scheduleDuration}`);
+  assert(b('1_25')?.scheduleDuration === 1.25, `(18b) 1,25 dag round-trippt als 1,25 (was 25) — kreeg ${b('1_25')?.scheduleDuration}`);
+
+  // (18c) Voortgang: ActualDuration gaat door dezelfde codec.
+  assert(b('act')?.actualDuration === 1.5, `(18c) actualDuration 1,5 round-trippt (was 5) — kreeg ${b('act')?.actualDuration}`);
+
+  // (18d) Float-ruis en een waarde onder de precisie worden afgerond geschreven, niet als ruis of
+  //       exponent — en lezen dus terug als de bedoelde waarde.
+  assert(b('ruis')?.scheduleDuration === 0.3, `(18d) 0.1+0.2 komt terug als 0,3 (was 3·10¹⁶) — kreeg ${b('ruis')?.scheduleDuration}`);
+  assert(b('ruis3a')?.scheduleDuration === 3, `(18d) 2.9999999999999996 komt terug als 3 — kreeg ${b('ruis3a')?.scheduleDuration}`);
+  assert(b('ruis3b')?.scheduleDuration === 3, `(18d) 3.0000000000000004 komt terug als 3 (was 4) — kreeg ${b('ruis3b')?.scheduleDuration}`);
+  assert(b('klein')?.scheduleDuration === 0, `(18d) 1e-7 dag komt terug als 0 (was −7) — kreeg ${b('klein')?.scheduleDuration}`);
+  const dayLits = ifc18.match(/'-?P[\dYMeE.+-]*D'/g) ?? [];
+  const bad = dayLits.filter(l => !/^'-?P(?:0Y0M)?-?\d+(?:\.\d{1,6})?D'$/.test(l));
+  assert(dayLits.length > 0 && bad.length === 0,
+    `(18d) elke dag-duur in het bestand is een kaal decimaal (≤ 6 decimalen, geen exponent) — afwijkend: ${JSON.stringify(bad)}`);
+
+  // (18e) Speling: negatief en fractioneel.
+  assert(b('spel')?.totalFloat === -1.5, `(18e) totalFloat −1,5 round-trippt — kreeg ${b('spel')?.totalFloat}`);
+  assert(b('spel')?.freeFloat === 0.25, `(18e) freeFloat 0,25 round-trippt — kreeg ${b('spel')?.freeFloat}`);
+
+  // (18f) Een fractionele dag-lag (de AI-bridge accepteert "+0.5d") en een fractionele lead ('-P1.5D').
+  const idName = new Map(rt18.tasks.map(t => [t.id, t.name]));
+  const lagOf = (p: string, s: string) => rt18.sequences.find(q => idName.get(q.predecessorId) === `FR-${p}` && idName.get(q.successorId) === `FR-${s}`)?.lagDays;
+  assert(lagOf('2_5', '0_5') === 0.5, `(18f) lag 0,5 dag round-trippt (was 5) — kreeg ${lagOf('2_5', '0_5')}`);
+  assert(lagOf('0_5', '1_25') === -1.5, `(18f) lead −1,5 dag round-trippt via '-P1.5D' (was −5) — kreeg ${lagOf('0_5', '1_25')}`);
+
+  // (18g) Idempotentie: een tweede ronde verschuift niets meer.
+  const rt18b = readIFC(writeIFC(rt18));
+  const keys = ['scheduleDuration', 'actualDuration', 'remainingTime', 'totalFloat', 'freeFloat'] as const;
+  for (const t of frTasks) {
+    const id = t.id;
+    const one = keys.map(k => frTime(rt18, id)?.[k]);
+    const two = keys.map(k => frTime(rt18b, id)?.[k]);
+    assert(JSON.stringify(one) === JSON.stringify(two), `(18g) ${id}: tweede round-trip identiek — ${JSON.stringify(one)} vs ${JSON.stringify(two)}`);
+  }
+
+  // (18h) Hele dagen blijven byte-identiek aan vóór deze fix: de hoofd-fixture (alleen hele dagen)
+  //       levert uitsluitend gehele dag-duren, in exact de oude vorm.
+  const ifcWhole = writeIFC(fixture);
+  const wholeLits = ifcWhole.match(/'-?P[\dYMeE.+-]*D'/g) ?? [];
+  assert(wholeLits.length > 0 && wholeLits.every(l => /^'-?P(?:0Y0M)?\d+D'$/.test(l)),
+    `(18h) hele dagen: alleen gehele dag-literals — kreeg ${JSON.stringify([...new Set(wholeLits)])}`);
+  assert(ifcWhole.includes("'P0Y0M5D'") && ifcWhole.includes("'P0Y0M3D'") && ifcWhole.includes("IFCDURATION('P2D')"),
+    '(18h) hele dagen: P0Y0M5D / P0Y0M3D / P2D-lag ongewijzigd');
+
+  // (18i) Lees-gevallen uit een vreemd of ouder bestand, via de speling-slot (die de uur-modus-
+  //       post-pass niet herberekent, zodat we zuiver `parseDurationDays` zien). Geen kalender in het
+  //       bestand ⇒ de standaard 8 u/dag.
+  const cases: [string, number, string][] = [
+    ["'PT12.5H'", 2, 'decimale uren: ceil(12,5/8) = 2 (was ceil(5/8) = 1)'],
+    ["'-PT12.5H'", -2, 'negatieve decimale uren met voorloopteken (was −1)'],
+    ["'-P2.5D'", -2.5, 'lead met ISO-voorloopteken (was −5)'],
+    ["'P0Y0M-2.5D'", -2.5, 'legacy-notatie met het teken bij het getal (was −5)'],
+    ["'P0Y0M1e-7D'", 1e-7, 'exponent uit een bestand van vóór de writer-afronding (was −7)'],
+    ["'P0Y0M3D'", 3, 'hele dag (ongewijzigd)'],
+    ["'-P2D'", -2, 'hele lead (ongewijzigd)'],
+    ["'PT16H'", 2, 'hele uren (ongewijzigd)'],
+  ];
+  const lines18: string[] = [];
+  cases.forEach(([lit], i) => {
+    const tt = new Array<string>(IFC_TASKTIME_SLOTS.length).fill('$');
+    tt[TASKTIME_SLOT.durationType] = '.WORKTIME.';
+    tt[TASKTIME_SLOT.scheduleDuration] = "'P1D'";
+    tt[TASKTIME_SLOT.scheduleStart] = "'2026-03-02'";
+    tt[TASKTIME_SLOT.scheduleFinish] = "'2026-03-02'";
+    tt[TASKTIME_SLOT.totalFloat] = lit;
+    const tk = new Array<string>(IFC_TASK_SLOTS.length).fill('$');
+    tk[TASK_SLOT.globalId] = `'gT${i}'`;
+    tk[TASK_SLOT.name] = `'P${i}'`;
+    tk[TASK_SLOT.identification] = `'${i + 1}'`;
+    tk[TASK_SLOT.isMilestone] = '.F.';
+    tk[TASK_SLOT.taskTime] = `#${100 + i}`;
+    tk[TASK_SLOT.predefinedType] = '.CONSTRUCTION.';
+    lines18.push(`#${100 + i}=IFCTASKTIME(${tt.join(',')});`, `#${200 + i}=IFCTASK(${tk.join(',')});`);
+  });
+  const extern18 = readIFC([
+    'ISO-10303-21;', 'HEADER;', "FILE_NAME('x.ifc','2031-01-01T07:00:00',('A'),('B'),'x','y','');",
+    'ENDSEC;', 'DATA;', "#1=IFCPROJECT('gP',$,'Extern',$,$,$,$,$,$);", ...lines18, 'ENDSEC;', 'END-ISO-10303-21;',
+  ].join('\n'));
+  assert(extern18.calendar.hoursPerDay === 8, `(18i) opzet: standaardkalender van 8 u/dag — kreeg ${extern18.calendar.hoursPerDay}`);
+  cases.forEach(([lit, want, why], i) => {
+    const got = extern18.tasks.find(t => t.name === `P${i}`)?.time.totalFloat;
+    assert(got === want, `(18i) ${lit} → ${want}: ${why} — kreeg ${got}`);
+  });
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
