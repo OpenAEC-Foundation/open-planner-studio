@@ -5,6 +5,7 @@
 import { test, assert, assertEq, run } from './harness';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
+import { createExtensionApi } from '@/extensions/extensionApi';
 
 function setup(): { ctx: AppStoreContext; a: string; b: string } {
   const ctx = createAppStoreContext();
@@ -97,6 +98,42 @@ test('historyMark breekt coalescing af (punt 2)', () => {
   ctx.store.getState().updateTask(a, { name: 'A-dialoog' }, { coalesceKey: 'edit:name' });
   ctx.store.getState().revertHistorySince(mark);
   assertEq(nameOf(ctx, a), 'A-voor', 'alleen de dialoogbewerking hoort terug te gaan');
+});
+
+test('Annuleren: een extensie-data.*-mutatie tussendoor blijft staan (her-check punt 1)', () => {
+  const { ctx, a, b } = setup();
+  const api = createExtensionApi('dialog-session-test', [], undefined, ctx, {
+    app: ctx, showNotification: () => {},
+  });
+  const mark = ctx.store.getState().historyMark();
+  api.data.updateTask(b, { name: 'B-ext' });
+  const c = api.data.addTask({ name: 'C-ext' });
+  api.data.addSequence({ predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 });
+  ctx.store.getState().updateTask(a, { name: 'A-dialoog' });
+  ctx.store.getState().revertHistorySince(mark);
+  assertEq(nameOf(ctx, a), 'A', 'dialoogwijziging hoort teruggedraaid');
+  assertEq(nameOf(ctx, b), 'B-ext', 'de extensie-hernoeming hoort te blijven');
+  assertEq(nameOf(ctx, c), 'C-ext', 'de extensie-taak hoort te blijven');
+  assertEq(ctx.store.getState().sequences.length, 1, 'de extensie-relatie hoort te blijven');
+  assert(!ctx.store.getState().historyEvents.some(e => e.sessionKey !== undefined), 'extensie-events zijn nooit gestempeld');
+});
+
+test('Documentwissel (MCP-route newDocument/switchDocument) sluit de taakdialoog (her-check punt 3)', () => {
+  // `TaskDialog.tsx` sluit zijn bewerksessie (`endHistorySession`) in het effect op
+  // `showTaskDialog === false`; dat werkt alleen als elke documentwissel de vlag ook echt laat vallen
+  // (`resetDocumentScopedUI`). De MCP-tools `planner_new_document`/`planner_switch_document` roepen
+  // precies deze twee store-acties aan.
+  const { ctx, a } = setup();
+  const origin = ctx.store.getState().activeDocumentId;
+  const open = () => ctx.store.setState(s => { s.ui.showTaskDialog = true; s.ui.editingTaskId = a; });
+  open();
+  ctx.store.getState().newDocument();
+  assertEq([ctx.store.getState().ui.showTaskDialog, ctx.store.getState().ui.editingTaskId], [false, null],
+    'newDocument sluit de dialoog');
+  open();
+  ctx.store.getState().switchDocument(origin);
+  assertEq([ctx.store.getState().ui.showTaskDialog, ctx.store.getState().ui.editingTaskId], [false, null],
+    'switchDocument sluit de dialoog');
 });
 
 await run();

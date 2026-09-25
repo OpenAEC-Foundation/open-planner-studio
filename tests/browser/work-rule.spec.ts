@@ -316,11 +316,11 @@ test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet 
   await expect(results.getByText(nl ? 'MS Project-taaktype (import)' : 'MS Project task type (import)', { exact: true })).toBeVisible();
 });
 
-// E7 (orkestratorbesluit 25-09, gebruikstest #170 G4): opgeslagen werk dat afwijkt van inzet × duur
+// E7 (orkestratorbesluit 25-09, gebruikstest #170 G4): opgeslagen werk dat afwijkt van inzet × resterende duur
 // (P6-toewijzing met een eigen spanne, EC2370: 30 u naast 90 u) krijgt in de werkcel een markering
 // met beide getallen; de inzet wordt niet stil aangepast. Fixture: het werkveld zoals de XER-lezer
-// het zet (via de brug); gelijk aan inzet × duur ⇒ geen markering.
-test('werkcel: opgeslagen werk dat afwijkt van inzet × duur is gemarkeerd, inzet blijft', async ({ page, ops: _ops }) => {
+// het zet (via de brug); gelijk aan inzet × resterende duur ⇒ geen markering.
+test('werkcel: opgeslagen werk dat afwijkt van inzet × resterende duur is gemarkeerd, inzet blijft', async ({ page, ops: _ops }) => {
   const { taskId } = await seedAssignedTask(page);
   await page.evaluate((id) => {
     const store = window.__OPS__!.store;
