@@ -100,7 +100,7 @@
       "parentId": "Parent task ID",
       "priority": "Leveling priority",
       "remainingMinutes": "Remaining (minutes)",
-      "remainingTime": "Remaining (work days)",
+      "remainingTime": "Remaining",
       "resourceIds": "Resource IDs",
       "resume": "Resume date",
       "scheduleFinish": "Scheduled finish",
@@ -380,7 +380,7 @@
       "actualStart": "Actual start",
       "actualFinish": "Actual finish",
       "actualDate": "Actual date",
-      "remaining": "Remaining (work days)"
+      "remaining": "Remaining"
     },
     "cpmResult": "CPM Result",
     "earlyStart": "Early start:",

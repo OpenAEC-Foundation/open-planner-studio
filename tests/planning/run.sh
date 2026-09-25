@@ -506,6 +506,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DCTCHECK="$DIR/.duration-cell-text.mjs"
   if bundle_check "$DIR/check-duration-cell-text.ts" "$DCTCHECK"; then node "$DCTCHECK" || STATUS=1; fi
 
+  # Speling, restduur en baselineduur (audit weergaven, bevinding 8): ruwe floats met een punt
+  # ("1.6666666666666667"), TS en VS verschillend afgerond, en de restduur van een urentaak als "0".
+  # Nu één opmaak (twee decimalen, decimaalteken van de taal, eenheid); restduur van urentaken in uren.
+  FRTCHECK="$DIR/.float-remaining-text.mjs"
+  if bundle_check "$DIR/check-float-remaining-text.ts" "$FRTCHECK"; then node "$FRTCHECK" || STATUS=1; fi
+
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
   # renderer-batterijen bouwen die opties met de hand op en staan dus stroomafwaarts van dit

@@ -58,7 +58,7 @@
       "lateFinish": "Spätestes Ende", "lateStart": "Spätester Anfang", "levelingDelay": "Kapazitätsabgleichsverzögerung", "levelingDelayElapsed": "Verstrichene Abgleichsverzögerung", "levelingDelayMinutes": "Abgleichsverzögerung (Minuten)",
       "mandatoryMilestone": "Verbindlicher Meilenstein", "manuallyScheduled": "Manuell geplant", "milestone": "Meilenstein", "milestoneKind": "Meilensteintyp", "mspTaskType": "Microsoft-Project-Aufgabentyp",
       "name": "Aufgabenname", "nearCritical": "Nahezu kritisch", "noteData": "Notizdaten", "notes": "Notizen", "parentId": "ID der übergeordneten Aufgabe", "priority": "Abgleichspriorität",
-      "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend (Arbeitstage)", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
+      "remainingMinutes": "Verbleibend (Minuten)", "remainingTime": "Verbleibend", "resourceIds": "Ressourcen-IDs", "resume": "Fortsetzungsdatum",
       "scheduleFinish": "Geplantes Ende", "scheduleStart": "Geplanter Anfang", "splitGaps": "Unterbrechungen", "status": "Status", "stop": "Stoppdatum", "taskId": "Aufgaben-ID", "taskType": "Aufgabentyp",
       "timephasedContours": "Zeitphasenverläufe", "timephasedDurationWalks": "Zeitphasen-Dauersegmente", "timephasedFinishFloor": "Untergrenze des Zeitphasenendes", "timephasedStartAnchor": "Anker des Zeitphasenanfangs",
       "totalFloat": "Gesamtpuffer", "wbs": "Projektstrukturplan (PSP)", "workWindowFinish": "Ende des Arbeitsfensters", "workWindowStart": "Anfang des Arbeitsfensters"
@@ -273,7 +273,7 @@
       "actualStart": "Ist-Anfang",
       "actualFinish": "Ist-Ende",
       "actualDate": "Ist-Datum",
-      "remaining": "Restdauer (Arbeitstage)"
+      "remaining": "Restdauer"
     },
     "cpmResult": "CPM-Ergebnis",
     "earlyStart": "Frühester Anfang:",

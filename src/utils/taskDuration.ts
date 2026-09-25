@@ -119,6 +119,29 @@ export function formatTaskDurationText(task: Task, hoursPerDay: number, fmt?: Du
 }
 
 /**
+ * De resterende duur van een urentaak in MINUTEN — dezelfde bron als de planning (`CPMSolver`,
+ * IN-PROGRESS-tak): `remainingMinutes` als die er is, anders duur × (1 − voortgang). Voltooid ⇒ 0.
+ * `remainingTime` is voor een urentaak onbruikbaar als weergave: `applyProgressInvariants` rondt hem
+ * op HELE dagen af, dus een taak van 5h op 40% stond als "0" terwijl er 3 uur werk openstaat.
+ */
+export function remainingTaskMinutes(task: Task): number {
+  if (task.time.completion >= 1 || task.time.actualFinish) return 0;
+  return Math.max(0, task.time.remainingMinutes
+    ?? Math.round((task.time.durationMinutes ?? 0) * (1 - task.time.completion)));
+}
+
+/**
+ * Restduur als weergavetekst (paneel "Resterend", rasterkolom "Resterende duur"): een urentaak in
+ * uren/minuten ({@link remainingTaskMinutes}), een dagtaak in werkdagen met dezelfde getalopmaak als
+ * speling en duur ({@link formatWorkDaysText}). De eenheid staat in de waarde, niet in het label.
+ */
+export function formatRemainingDurationText(task: Task, fmt?: DurationTextFormat): string {
+  if (taskDurationUnit(task) === 'hours') return hoursText(remainingTaskMinutes(task), 1, suffixesOf(fmt));
+  const days = task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion));
+  return formatWorkDaysText(days, fmt);
+}
+
+/**
  * Geformatteerde duur voor tabellen/panelen/tooltips (§6.5) op basis van de effectieve kalender:
  * {@link formatTaskDurationText} met de uren per dag van `cal`. `enableHourPlanning` doet bewust
  * niets meer — de blijvende taakeenheid blijft ook zichtbaar als de schakelaar uit staat.

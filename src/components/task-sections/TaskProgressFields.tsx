@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { Field } from './shared';
+import { durationSuffixesFrom, formatRemainingDurationText } from '@/utils/taskDuration';
 
 // Uniek per slider-gebaar: coalesceKey per pointer-sleep ⇒ één undo-stap i.p.v. één per stap.
 let progressSeq = 0;
@@ -28,7 +29,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   onSetActualStart: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
   onSetActualFinish: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
 }) {
-  const { t } = useTranslation('task');
+  const { t, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const [actualError, setActualError] = useState(false);
   const dragKey = useRef<string | undefined>(undefined);
@@ -84,8 +85,9 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             </Field>
           </div>
           <Field label={t('properties.progress.remaining')}>
+            {/* Urentaak in uren/minuten, dagtaak in werkdagen — dezelfde tekst als de rasterkolom. */}
             <input
-              value={task.time.remainingTime ?? Math.round(task.time.scheduleDuration * (1 - task.time.completion))}
+              value={formatRemainingDurationText(task, { suffixes: durationSuffixesFrom(tCommon), locale: i18n.language })}
               disabled
               className="input !text-small !leading-4 !px-2.5 !py-1.5 opacity-60"
             />

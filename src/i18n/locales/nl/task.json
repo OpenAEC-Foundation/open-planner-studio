@@ -100,7 +100,7 @@
       "parentId": "Bovenliggende taak-id",
       "priority": "Nivelleerprioriteit",
       "remainingMinutes": "Resterend (minuten)",
-      "remainingTime": "Resterend (werkdagen)",
+      "remainingTime": "Resterend",
       "resourceIds": "Resource-id’s",
       "resume": "Hervattingsdatum",
       "scheduleFinish": "Gepland einde",
@@ -380,7 +380,7 @@
       "actualStart": "Werkelijke start",
       "actualFinish": "Werkelijke einde",
       "actualDate": "Werkelijke datum",
-      "remaining": "Resterend (werkdagen)"
+      "remaining": "Resterend"
     },
     "cpmResult": "CPM Resultaat",
     "earlyStart": "Vroegste start:",
