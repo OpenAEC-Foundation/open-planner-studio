@@ -232,6 +232,14 @@ strikt correcter dan het oude gedrag: bij een geweigerd duplicaat gaf `addSequen
 gewoon een `string` terug — een id dat nergens naar verwees, omdat de relatie zelf nooit is
 toegevoegd.
 
+Een taak onder een andere ouder hangen doe je met `updateTask(id, { parentId })`. Dat is geen kaal
+veld maar een **verplaatsing**, dezelfde als rij-slepen in de app: de taak komt achteraan bij de
+nieuwe ouder (`null` = wortel) en de kindlijsten van oude en nieuwe ouder worden bijgewerkt. Een
+**onbekende ouder**, of een ouder die de taak zelf of een eigen afstammeling is (een kring), **gooit
+een fout** vóór er iets gewijzigd is — ook de overige velden uit dezelfde aanroep worden dan niet
+toegepast. Dezelfde ouder terugschrijven (bijvoorbeeld een ongewijzigd object uit `getTasks()`)
+verplaatst niets. `addTask({ ..., parentId })` weigert een onbekende ouder op dezelfde manier.
+
 Belangrijk: na het muteren van taken/relaties zelf `api.data.recalculate()` aanroepen — het schema wordt niet reactief herberekend. `loadProject()` doet dat automatisch.
 
 **Muteer je meer dan een handvol dingen in een lus, wikkel dat dan in `api.data.batch()`.** Elke

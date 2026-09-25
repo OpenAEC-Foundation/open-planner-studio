@@ -989,6 +989,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   EXTVALIDATIONCHECK="$DIR/.extvalidation.mjs"
   if bundle_check "$DIR/check-extension-validation.ts" "$EXTVALIDATIONCHECK"; then node "$EXTVALIDATIONCHECK" || STATUS=1; fi
 
+  # Ouderwijziging via de extensie-API. `api.data.updateTask(id, { parentId })` zette de ouder
+  # voorheen rauw: `kind.parentId` wees naar de ouder, maar diens `childIds` bleef leeg (na runCPM
+  # geen samenvattingstaak), en een onbekende ouder of een kring werd aangenomen. Nu een
+  # verplaatsing via `moveTaskTo` en een fout bij een onbekende ouder of kring.
+  EXTPARENTCHECK="$DIR/.extparent.mjs"
+  if bundle_check "$DIR/check-ext-parent.ts" "$EXTPARENTCHECK"; then node "$EXTPARENTCHECK" || STATUS=1; fi
+
   # Scherm <-> print (K-item 39). De afdruk beantwoordde drie vragen zelf die de renderer al
   # beantwoordt — weeknummer, weekgrens en welke dagen vrij zijn — en was op alle drie afgedreven.
   # Een project met zaterdag als werkdag of "week begint op zondag" kreeg op papier iets anders dan

@@ -171,7 +171,14 @@ export interface ExtensionApi {
     getSequences(): ExtSequence[];
     getResources(): ExtResource[];
     getAssignments(): ExtAssignment[];
+    /** Een `parentId` moet een bestaande taak zijn; een onbekende ouder gooit een fout. */
     addTask(task: Partial<ExtTask> & { name: string }): string;
+    /**
+     * Een gewijzigde `parentId` wordt uitgevoerd als verplaatsing (achteraan bij de nieuwe ouder,
+     * `null` = wortel), met de kindlijsten van oude en nieuwe ouder bijgewerkt. Een onbekende ouder
+     * of een ouder die de taak zelf of een eigen afstammeling is, gooit een fout vóór er iets
+     * gewijzigd is. Een onbekend taak-id blijft een stille no-op.
+     */
     updateTask(id: string, updates: Partial<ExtTask>): void;
     /** Retourneert het nieuwe relatie-id, of `null` wanneer de relatie geweigerd is. */
     addSequence(seq: Omit<ExtSequence, 'id'>): string | null;
