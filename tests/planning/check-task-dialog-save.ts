@@ -251,6 +251,28 @@ function progressOf(t: Task) {
   }, { isMilestone: true, scheduleStart: '2026-03-09' });
 }
 
+// ── 7. Verzameltaak (#201 × #203): Opslaan schrijft geen verouderde fasevoortgang terug ─────────────
+// De voortgang van een fase is sinds #203 afgeleid uit de bladtaken en in de dialoog uitgeschakeld.
+// De draft is een momentopname van bij het openen; rekent de planning tussendoor opnieuw (blad naar
+// 100%), dan mag Opslaan van alleen een naamswijziging de fase niet terugzetten naar 0%.
+{
+  const f = fixture(['Fase']);
+  const [phase] = f.ids;
+  const leaf = f.S().addTask({ name: 'Blad', parentId: phase });
+  const current = f.task(leaf);
+  f.S().updateTask(leaf, { time: { ...current.time, scheduleStart: '2026-03-02', scheduleDuration: 5 } });
+  f.S().runCPM();
+  eq('7.0 uitgangspositie: fase op 0%', f.task(phase).time.completion, 0);
+  const input = f.open(phase);
+  f.S().setTaskProgress(leaf, 1);
+  f.S().runCPM();
+  eq('7.1 rollup: fase op 100% na het blad', f.task(phase).time.completion, 1);
+  f.save({ ...input, draft: { ...input.draft, name: 'Fase (hernoemd)' } });
+  eq('7.2 Opslaan met verouderde draft: naam gewijzigd, fasevoortgang blijft de afgeleide', {
+    name: f.task(phase).name, completion: f.task(phase).time.completion,
+  }, { name: 'Fase (hernoemd)', completion: 1 });
+}
+
 if (diffs.length) {
   console.log(`XX check-task-dialog-save: ${diffs.length}/${checks} afwijkingen`);
   for (const d of diffs) console.log(`   ${d}`);

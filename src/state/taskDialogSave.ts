@@ -109,9 +109,18 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // anders verdween "mijlpaal aan + voortgang/nieuwe start" in één sessie stil.
       const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
       if (milestoneTransition.time) Object.assign(time, milestoneTransition.time);
-      time.completion = draft.time.completion;
-      time.actualStart = draft.time.actualStart;
-      time.actualFinish = draft.time.actualFinish;
+      // Een verzameltaak draagt geen eigen voortgang (#203): haar waarden komen uit de rollup en de
+      // velden zijn in de dialoog uitgeschakeld. De draft is een momentopname van bij het openen;
+      // een herberekening tussendoor mag Opslaan niet met die verouderde waarde overschrijven.
+      if (editingTask.childIds.length === 0) {
+        time.completion = draft.time.completion;
+        time.actualStart = draft.time.actualStart;
+        time.actualFinish = draft.time.actualFinish;
+      } else {
+        time.completion = editingTask.time.completion;
+        time.actualStart = editingTask.time.actualStart;
+        time.actualFinish = editingTask.time.actualFinish;
+      }
       // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
