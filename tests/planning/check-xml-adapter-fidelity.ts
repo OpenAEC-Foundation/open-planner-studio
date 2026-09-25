@@ -28,7 +28,7 @@ import type { Task, MilestoneKind } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 import type { Project } from '@/types/project';
-import type { ImportResult } from '@/services/importTypes';
+import { activeImportResult, type ImportResult } from '@/services/importTypes';
 import { installDOMParser } from './xmldom-shim';
 
 installDOMParser();
@@ -114,20 +114,20 @@ async function main(): Promise<void> {
       mkDay('x2', 'Planning overzetten naar Primavera', '2', '2027-03-08', '2027-03-12', 5),
     ];
     const mspdi = writeMSPDI(proj('Residencial Primavera', cal.id, '2027-03-01'), cal, tasks, [seq('xs', 'x1', 'x2')], [], []);
-    const back = await parseOpenedFile({ name: 'export.xml', text: mspdi });
+    const back = activeImportResult(await parseOpenedFile({ name: 'export.xml', text: mspdi }));
     eq('#3 MSPDI met "Primavera" in project- en taaknaam: alle taken terug', back.tasks.map(t => t.name), ['Fundering', 'Planning overzetten naar Primavera']);
     eq('#3 MSPDI met "Primavera": projectnaam blijft (geen "P6 Import")', back.project.name, 'Residencial Primavera');
     eq('#3 MSPDI met "Primavera": relatie blijft', back.sequences.length, 1);
 
     // Contrast: een echte P6-export (root APIBusinessObjects) gaat nog steeds naar de P6-lezer.
     const p6 = writeP6XML(proj('Kantoor', cal.id, '2027-03-01'), cal, tasks, [seq('xs', 'x1', 'x2')], [], []);
-    const p6Back = await parseOpenedFile({ name: 'export.xml', text: p6 });
+    const p6Back = activeImportResult(await parseOpenedFile({ name: 'export.xml', text: p6 }));
     eq('#3 P6-export blijft P6: alle taken terug', p6Back.tasks.filter(t => t.childIds.length === 0).map(t => t.name).sort(), ['Fundering', 'Planning overzetten naar Primavera']);
     eq('#3 P6-export blijft P6: projectnaam', p6Back.project.name, 'Kantoor');
 
     // Proloog vóór het root-element (BOM, commentaar) mag de herkenning niet breken.
     const withProlog = '\uFEFF' + mspdi.replace('<Project ', '<!-- geëxporteerd <Project> APIBusinessObjects Primavera -->\n<Project ');
-    const prologBack = await parseOpenedFile({ name: 'export.xml', text: withProlog });
+    const prologBack = activeImportResult(await parseOpenedFile({ name: 'export.xml', text: withProlog }));
     eq('#3 MSPDI met BOM + commentaar vóór de root: alle taken terug', prologBack.tasks.length, 2);
 
     // Een onbekend XML-document met "Primavera" in de vrije tekst is géén P6: fout i.p.v. stil een
