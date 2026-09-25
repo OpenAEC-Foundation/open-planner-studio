@@ -26,6 +26,7 @@ import {
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import { detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds } from '@/state/taskTree';
 import { assignInsertedWbsCodes, insertRemappedRelations, notifyRelationsSkipped } from '@/state/insertedBranch';
+import { watchAncestorRelations } from '@/state/hierarchyRelationNotice';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory, SiblingDirection } from './types';
 import type { AppState } from '../appStore';
@@ -631,6 +632,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   },
 
   moveTask: (id, newParentId, position) => {
+    // Verhangen kan een bestaande relatie tot voorouder-relatie maken: niet weigeren, wel melden.
+    const reportAncestorRelations = watchAncestorRelations(get());
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return;
@@ -694,10 +697,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
+    reportAncestorRelations(get());
     get().recomputeViewRows();
   },
 
   moveTaskTo: (id, target) => {
+    const reportAncestorRelations = watchAncestorRelations(get()); // zie `moveTask`
     set((s) => {
       const task = s.tasks.find(t => t.id === id);
       if (!task) return;
@@ -718,10 +723,12 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // verschuiven, dat herberekent alleen F5/runCPM. De taak zelf (`task.time`) blijft ongemoeid.
       runtime.finishMutation(s, { stale: plan.parentId !== oldParentId });
     });
+    reportAncestorRelations(get());
     get().recomputeViewRows();
   },
 
   moveTasksTo: (ids, target) => {
+    const reportAncestorRelations = watchAncestorRelations(get()); // zie `moveTask`
     set((s) => {
       // ---- 1. Onbekende ids weg, en afstammelingen van een mede-geselecteerde taak weg ----------
       // Een kind verhuist automatisch mee met zijn ouder (de subboom hangt aan `parentId`), dus
@@ -812,10 +819,14 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       runtime.finishMutation(s, { stale: reparented });
       // De selectie blijft bewust ongemoeid: de gebruiker heeft na de sleep nog dezelfde taken vast.
     });
+    reportAncestorRelations(get());
     get().recomputeViewRows();
   },
 
   indentTasks: (ids) => {
+    // Inspringen onder de eigen voorganger/opvolger maakt de relatie een voorouder-relatie; zie
+    // `moveTask`. (Uitspringen kan dat niet: de taak hing al onder diezelfde voorouders.)
+    const reportAncestorRelations = watchAncestorRelations(get());
     set((s) => {
       // Kandidaat-ouder = de voorgaande sibling in de weergavevolgorde (flattenOrder).
       // Geen voorgaande sibling => no-op voor die taak. De subboom lift mee via parentId.
@@ -855,6 +866,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       runtime.finishMutation(s, { stale: true }); // datum-rakende mutatie (A6): planning verouderd tot F5.
     });
+    reportAncestorRelations(get());
     get().recomputeViewRows();
   },
 

@@ -142,7 +142,11 @@ S().newProject();
 const c1 = S().addTask({ name: 'C1' });
 const c2 = S().addTask({ name: 'C2' });
 S().addSequence({ predecessorId: c1, successorId: c2, type: 'FINISH_START', lagDays: 0 });
-S().addSequence({ predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
+// De store-route weigert een kring vooraf (check-relation-routes.ts); een kring komt nog wel binnen
+// zoals een importer hem schrijft: rechtstreeks in `sequences`.
+useAppStore.setState(s => {
+  s.sequences.push({ id: 'seq-kring', predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
+});
 S().runCPM();
 truthy('31 opzet: de solver meldt een cyclus', !!S().cpmResult?.error);
 eq('32 runCPM heeft precies één melding gepusht', N().length, 1);

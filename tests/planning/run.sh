@@ -773,6 +773,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RELRULES="$DIR/.relrules.mjs"
   if bundle_check "$DIR/check-relation-rules.ts" "$RELRULES"; then node "$RELRULES" || STATUS=1; fi
 
+  # Relaties over de routes heen (audit taakmutaties): een kring wordt in de store-route net als in
+  # raster en MCP vooraf geweigerd, en alleen de kring die de nieuwe relatie zelf sluit telt.
+  RELROUTES="$DIR/.relation-routes.mjs"
+  if bundle_check "$DIR/check-relation-routes.ts" "$RELROUTES"; then node "$RELROUTES" || STATUS=1; fi
+
   # Pijlrouting (issue #41): relatielijnen worden vóór de balken getekend, dus alles wat onder een
   # balk door loopt is onzichtbaar. De vaste elleboog `fromX+8` lag bij SS midden ín de voorganger-
   # balk en liep bij krappe/achterwaartse relaties dwars door de OPVOLGERbalk (incl. pijlkop).

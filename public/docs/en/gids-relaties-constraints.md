@@ -39,6 +39,12 @@ contains such a relation anyway — for example from Primavera P6 or MS Project,
 it's preserved and carried through unchanged on save, but it doesn't count in the calculation: the
 task grid's relation-warning column flags it as *not included*.
 
+Such a relation can also appear when you move a task: if you indent a task under its own
+predecessor or successor, drag it there, or pick that task as its parent task, the move simply goes
+ahead. The existing relation is kept but no longer counts from then on, and a notification tells you
+how many relations that affects. A kept relation like that doesn't block the task grid: you can
+still edit the other relations, as well as the type and lag of the kept relation itself.
+
 ## Lag and lead
 
 A relation doesn't have to be zero: a **lag** (positive) adds wait time between predecessor and successor, a **lead** (negative, entered as a negative number) lets the successor start earlier — a deliberate overlap. The lag field (**Lag**, in the properties panel and in the predecessor/successor cell editor) accepts a short notation:
@@ -58,7 +64,9 @@ There are four ways to create a relation, depending on where you're already work
 2. **Selection + button**: select the predecessor first, hold Ctrl/Cmd and select the successor next (in that order). With exactly two tasks selected this way, choose **Relation → Link selected tasks** on the **Start**, **Planning**, or **Table** ribbon tab. This immediately creates an FS relation with lag 0. Open its token in the task grid afterwards if you need another type or lag.
 3. **Directly in the task grid**: add the **Predecessors** or **Successors** column via the plus button. Open a cell to search by WBS/task name and set FS/SS/FF/SF plus lag. Existing relation tokens can be opened to edit or remove them; related free float, driving state, and warnings are available as separate columns. Predecessors and successors each have their own color in these columns; a driving relation gets a stronger tint of that same color, plus bold.
 
-4. **In the properties panel**: the **Dependencies** section has an **Add relation** button. It opens a draft row inside the same list — no separate window. First pick the direction (**Predecessor** or **Successor**, seen from the selected task), then type part of the WBS code or task name in the search field and pick a task with the mouse or with the arrow keys plus **Enter**. Set the type and the lag, then confirm with the check mark (or press **Enter** again). **Esc** discards the draft row without changing anything. If the relation is refused — because it already exists, for instance, or because both endpoints sit in the same parent-child chain — a notification explains why and the draft row stays open so you can correct your choice.
+4. **In the properties panel**: the **Dependencies** section has an **Add relation** button. It opens a draft row inside the same list — no separate window. First pick the direction (**Predecessor** or **Successor**, seen from the selected task), then type part of the WBS code or task name in the search field and pick a task with the mouse or with the arrow keys plus **Enter**. Set the type and the lag, then confirm with the check mark (or press **Enter** again). **Esc** discards the draft row without changing anything. If the relation is refused — because it already exists, for instance, because both endpoints sit in the same parent-child chain, or because it would close a cycle — a notification explains why and the draft row stays open so you can correct your choice.
+
+Whichever way you choose: a relation that would close a **cycle** is not created. That is the case when the successor already comes before the predecessor through other relations, even when that path runs through a task inside a summary task. Such a cycle would make the whole calculation fail. When you drag, use the button, or use the properties panel, the notification names the tasks in the cycle, so you can see which existing relation to reverse or remove first.
 
 The **Driving** column shows, after a calculation, which relation actually determines the successor's start or finish date — for a task with multiple predecessors, that isn't necessarily the relation you created most recently, but the one with the latest (driving) date.
 
