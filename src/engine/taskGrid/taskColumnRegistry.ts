@@ -202,6 +202,18 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
   };
 }
 
+/**
+ * Voortgang op een VERZAMELTAAK is alleen-lezen: de rollup in `applyCpmResult` leidt completion en
+ * status af uit de bladen, en MCP, voortgangsimport en `setTaskProgress` weigeren eigen voortgang
+ * op een fase al. Geldt voor alle zes voortgangskolommen (route `task-progress`); `taskEditPlan`
+ * weigert dezelfde route op een verzameltaak nog eens, voor plakken en import. Conditioneel (per
+ * taak), dus plakken over een blok mét faserijen slaat die cellen netjes over (`gridTransaction`).
+ */
+const SUMMARY_PROGRESS_READ_ONLY = {
+  readOnly: (task: Task) => task.childIds.length > 0,
+  readOnlyReason: (task: Task) => (task.childIds.length > 0 ? 'summaryProgress' : undefined),
+} as const;
+
 const parseText: Parser = text => success(text);
 const parseOptionalText: Parser = text => success(text.trim() === '' ? undefined : text);
 const validateAny: Validator = value => success(value);
@@ -613,7 +625,7 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
       parse: enumParser(customTaskTypeIds, true),
       validate: enumValidator(customTaskTypeIds, true),
     }),
-    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskStatus', TASK_STATUSES), route: 'task-progress', read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
+    editableColumn({ id: 'task.status', labelKey: 'taskGrid.columns.status', category: 'progress', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('taskStatus', TASK_STATUSES), route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.status, parse: enumParser(TASK_STATUSES), validate: enumValidator(TASK_STATUSES) }),
     editableColumn({ id: 'task.isMilestone', labelKey: 'taskGrid.columns.milestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
     editableColumn({ id: 'task.milestoneKind', labelKey: 'taskGrid.columns.milestoneKind', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('milestoneKind', MILESTONE_KINDS, true), route: 'task-milestone', read: task => task.milestoneKind, readOnly: task => !task.isMilestone, parse: enumParser(MILESTONE_KINDS, true), validate: enumValidator(MILESTONE_KINDS, true) }),
     editableColumn({ id: 'task.mandatory', labelKey: 'taskGrid.columns.mandatoryMilestone', category: 'planning', valueKind: 'boolean', editorKind: 'boolean', route: 'task-milestone', read: task => task.mandatory, readOnly: task => !task.isMilestone, parse: parseBoolean, validate: validateBoolean }),
@@ -718,12 +730,12 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
-    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
-    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', read: task => task.time.remainingTime, format: (_value, task, ctx) => formatRemainingDurationText(task, gridDurationFormat(ctx)), parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.actualStart', labelKey: 'taskGrid.columns.actualStart', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualStart, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualFinish', labelKey: 'taskGrid.columns.actualFinish', category: 'progress', valueKind: 'datetime', editorKind: 'datetime', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.actualDuration', labelKey: 'taskGrid.columns.actualDuration', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.actualDuration, parse: parseTaskDuration, validate: validateOptionalDuration }),
+    editableColumn({ id: 'task.time.remainingTime', labelKey: 'taskGrid.columns.remainingTime', category: 'progress', valueKind: 'duration', editorKind: 'duration', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.remainingTime, format: (_value, task, ctx) => formatRemainingDurationText(task, gridDurationFormat(ctx)), parse: parseTaskDuration, validate: validateOptionalDuration }),
     readonlyColumn({ id: 'task.time.remainingMinutes', labelKey: 'taskGrid.columns.remainingMinutes', category: 'technical', valueKind: 'number', read: task => task.time.remainingMinutes }),
-    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', route: 'task-progress', read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
+    editableColumn({ id: 'task.time.completion', labelKey: 'taskGrid.columns.completion', category: 'progress', valueKind: 'number', editorKind: 'percentage', route: 'task-progress', ...SUMMARY_PROGRESS_READ_ONLY, read: task => task.time.completion, format: value => typeof value === 'number' ? `${Math.round(value * 10000) / 100}%` : '—', copy: task => `${Math.round(task.time.completion * 10000) / 100}%`, parse: parsePercentage, validate: validatePercentage }),
   ];
 }
 
