@@ -365,6 +365,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # "vandaag" — en dat scheduleStale altijd gezet wordt, ook zonder statusdatum.
   TSCHECK="$DIR/.task-slice-check.mjs"
   if bundle_check "$DIR/check-task-slice.ts" "$TSCHECK"; then node "$TSCHECK" || STATUS=1; fi
+
+  # Een automatisch ingevulde werkelijke start valt nooit ná het werkelijke einde (critreview
+  # claim 9): taakraster enkel/meer, store `setTaskProgress` en de dialoog-draft, dag- én uurtaak,
+  # plus het blok van 3 rijen × (naam, 100%) dat vóór de fix als geheel werd geweigerd. Het
+  # MCP-pad staat in tests/mcp/cases-auto-actual-start.ts.
+  AUTOASCHECK="$DIR/.auto-actual-start-check.mjs"
+  if bundle_check "$DIR/check-auto-actual-start.ts" "$AUTOASCHECK"; then node "$AUTOASCHECK" || STATUS=1; fi
   EXTEDITCHECK="$DIR/.external-link-edit.mjs"
   if bundle_check "$DIR/check-external-link-edit.ts" "$EXTEDITCHECK"; then node "$EXTEDITCHECK" || STATUS=1; fi
 

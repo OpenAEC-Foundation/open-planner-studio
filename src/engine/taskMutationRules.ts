@@ -20,13 +20,49 @@ export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | '
     && parseInstant(time.actualFinish).getTime() < parseInstant(time.actualStart).getTime();
 }
 
-/** Een nieuw voltooiingspercentage (0..1) zetten volgens de MSP-conventie: > 0 zonder werkelijke
- *  start ⇒ die afleiden (% ⇒ gestart), < 1 ⇒ een verouderd werkelijk einde vervalt. Daarna hoort de
- *  aanroeper `applyProgressInvariants` te draaien. */
-export function applyCompletionEdit(time: TaskTime, completion: number): void {
+/** Het werkelijke einde dat `applyProgressInvariants` afleidt voor een 100%-taak zonder opgegeven
+ *  einde: de statusdatum, anders de eigen geplande finish (nooit "vandaag", zie check-task-slice.ts).
+ *  Eén bron, zodat `fillMissingActualStart` precies het einde voorspelt dat de invariant straks zet. */
+function derivedActualFinish(time: TaskTime, statusDate: string | undefined): string {
+  return statusDate || time.earlyFinish || time.scheduleFinish;
+}
+
+/**
+ * Vult een ONTBREKENDE werkelijke start automatisch in met de getoonde start (`earlyStart`, anders
+ * `scheduleStart` — dezelfde keuze als `shownStart`), maar nooit later dan het werkelijke einde:
+ * ligt die start ná het einde, dan wordt de werkelijke start gelijk aan het einde. Dat is dezelfde
+ * uitkomst als `applyProgressInvariants` bij een opgegeven einde zonder start (het enkele-celpad in
+ * de tabel). Zonder deze klem gaf bv. 100% zetten met een statusdatum vóór de geplande start een
+ * werkelijke start ná het werkelijke einde (= de statusdatum).
+ *
+ * "Het einde" is het al gezette `actualFinish`, of — staat de taak op 100% zonder einde — het einde
+ * dat `applyProgressInvariants` daarna afleidt (`derivedActualFinish`). Roep dit dus aan NÁ het
+ * vastleggen van `completion` en het wissen van een verouderd einde, en vóór de invarianten.
+ * Vergelijken gaat met `isActualFinishBeforeStart` (instantprecisie): date-only waarden vallen op
+ * UTC-middernacht, dus dagtaken vergelijken per dag en een uurtaak krijgt exact het einde-instant.
+ *
+ * Een aanwezige werkelijke start — door gebruiker of AI opgegeven, of eerder gezet — blijft altijd
+ * ongemoeid; een ongeldig opgegeven paar hoort de aanroeper te weigeren, niet stil te klemmen.
+ */
+export function fillMissingActualStart(time: TaskTime, statusDate: string | undefined): void {
+  if (time.actualStart) return;
+  const start = time.earlyStart || time.scheduleStart;
+  const finish = time.actualFinish
+    || (time.completion >= 1 ? derivedActualFinish(time, statusDate) : undefined);
+  time.actualStart = finish && isActualFinishBeforeStart({ actualStart: start, actualFinish: finish })
+    ? finish
+    : start;
+}
+
+/** Een nieuw voltooiingspercentage (0..1) zetten volgens de MSP-conventie: < 1 ⇒ een verouderd
+ *  werkelijk einde vervalt, > 0 zonder werkelijke start ⇒ die afleiden (% ⇒ gestart, via
+ *  `fillMissingActualStart`, dus nooit ná het werkelijke einde). In die volgorde: de klem moet het
+ *  einde zien dat na deze bewerking overblijft. Daarna hoort de aanroeper `applyProgressInvariants`
+ *  te draaien, met dezelfde `statusDate`. */
+export function applyCompletionEdit(time: TaskTime, completion: number, statusDate: string | undefined): void {
   time.completion = completion;
-  if (completion > 0 && !time.actualStart) time.actualStart = time.earlyStart || time.scheduleStart;
   if (completion < 1) time.actualFinish = undefined;
+  if (completion > 0) fillMissingActualStart(time, statusDate);
 }
 
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
@@ -37,7 +73,7 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.completion >= 1) {
-    time.actualFinish = statusDate || time.earlyFinish || time.scheduleFinish;
+    time.actualFinish = derivedActualFinish(time, statusDate);
     if (!time.actualStart) time.actualStart = time.actualFinish;
     task.status = 'COMPLETED';
   } else if (time.actualStart) {

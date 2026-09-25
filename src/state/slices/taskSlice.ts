@@ -1037,8 +1037,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const task = s.tasks.find((t) => t.id === taskId);
       if (!task) return;
       runtime.beginUndoable(s, opts); // `opts` = coalesceKey (bv. slider-sleep = 1 stap).
-      // §3.2: % > 0 ⇒ gestart (auto actualStart), teruggedraaid onder 100% ⇒ actualFinish vervalt.
-      applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)));
+      // §3.2: % > 0 ⇒ gestart (auto actualStart, nooit ná het werkelijke einde), teruggedraaid
+      // onder 100% ⇒ actualFinish vervalt.
+      applyCompletionEdit(task.time, Math.max(0, Math.min(1, raw)), s.project.statusDate);
       applyProgressInvariants(task, s.project.statusDate);
       // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
       // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze drie setters hebben hun
