@@ -489,6 +489,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   FBECHECK="$DIR/.float-band-end.mjs"
   if bundle_check "$DIR/check-float-band-end.ts" "$FBECHECK"; then node "$FBECHECK" || STATUS=1; fi
 
+  # Mijlpalen-overzicht: "Kritiek" = de solverdefinitie `isCritical` (drempel, langste pad, voltooid
+  # nooit kritiek), niet een eigen `tf <= 0` (audit weergaven, bevinding 9). De te-laat-regel blijft.
+  MRSCHECK="$DIR/.milestone-report-status.mjs"
+  if bundle_check "$DIR/check-milestone-report-status.ts" "$MRSCHECK"; then node "$MRSCHECK" || STATUS=1; fi
+
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
   # renderer-batterijen bouwen die opties met de hand op en staan dus stroomafwaarts van dit
