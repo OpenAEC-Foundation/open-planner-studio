@@ -131,6 +131,14 @@ export function createExtensionApi(
           ? toExtImportSourceInfo(state.xerSourceArchive, state.xerImportMetadata, state.xerSourceProjectId)
           : null;
       },
+      getImportSourceIssue: () => {
+        const state = document.store.getState();
+        // Alleen als er GEEN archief is: een bruikbaar archief heeft per definitie geen issue, en
+        // een verse kopie van de code (geen referentie naar store-state).
+        return !state.xerSourceArchive && state.xerArchiveIssue
+          ? { code: state.xerArchiveIssue.code }
+          : null;
+      },
       getImportSourceChunk: (index) => {
         const archive = document.store.getState().xerSourceArchive;
         return archive ? getExtImportSourceChunk(archive, index) : null;

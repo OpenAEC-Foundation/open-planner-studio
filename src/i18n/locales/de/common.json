@@ -77,6 +77,8 @@
     "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "mppSourceScheduleNotes_one": "Diese MS-Project-Datei enthält {{count}} Vorgang mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Er wird so eingelesen und angezeigt.",
     "mppSourceScheduleNotes_other": "Diese MS-Project-Datei enthält {{count}} Vorgänge mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Sie werden so eingelesen und angezeigt.",
+    "exportSplitsLost_one": "{{count}} Vorgang mit Unterbrechungen wurde ohne seine Unterbrechungen exportiert: MS Project/P6 kennen diese nur als Arbeitsverteilung.",
+    "exportSplitsLost_other": "{{count}} Vorgänge mit Unterbrechungen wurden ohne ihre Unterbrechungen exportiert: MS Project/P6 kennen diese nur als Arbeitsverteilung.",
     "projectStartAnchorsClamped_one": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurde auf das neue Startdatum verschoben.",
     "projectStartAnchorsClamped_other": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurden auf das neue Startdatum verschoben.",
     "mppTimephasedSteeringLost_one": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgang nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
@@ -92,7 +94,16 @@
     "schedulingProfileShifted_other": "Nach dem Anwenden wurden {{count}} Vorgänge verschoben.",
     "actions": {
       "openProjectInfo": "Berechnungsprofil öffnen"
-    }
+    },
+    "xerArchiveUnusable": "Das XER-Quellarchiv in dieser Datei ist unbrauchbar und wurde weggelassen; das Projekt selbst wurde vollständig geöffnet.",
+    "xerArchiveUnusableLine": "Das XER-Quellarchiv in dieser Datei war unbrauchbar und wurde weggelassen.",
+    "xerArchiveUnusableConsequence": "Terminplan, Berechnungsprofil und alle Projektdaten aus der IFC sind vollständig. Es fehlen: die Termine, wie Primavera sie gespeichert hat, und die Quellherkunft für KI und Erweiterungen. Beim Speichern wird die Datei ohne Archiv geschrieben; importieren Sie die ursprüngliche .xer erneut, um das Archiv zurückzubekommen.",
+    "xerArchiveReasonSchemaVersion": "Grund: Das Archiv hat eine unbekannte Schemaversion oder ein unbekanntes Format (neuerer oder anderer Schreiber).",
+    "xerArchiveReasonHashMismatch": "Grund: Die Prüfsumme passt nicht zu den Quellbytes — das Archiv ist beschädigt.",
+    "xerArchiveReasonTruncated": "Grund: Das Archiv ist abgeschnitten — ein Teil der Quellbytes fehlt.",
+    "xerArchiveReasonBytesMissing": "Grund: Die Quellbytes selbst fehlen — vermutlich hat ein anderes IFC-Programm die Datei neu geschrieben.",
+    "xerArchiveReasonMetadataInvalid": "Grund: Die Quellbytes sind intakt, aber die daraus abgeleiteten Daten sind unbrauchbar.",
+    "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft)."
   },
   "yes": "Ja",
   "no": "Nein",
@@ -138,6 +149,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Hoch",
     "startRelationHere": "Beziehung von hier aus starten",
+    "removeSplitGap": "Unterbrechung aufheben",
+    "removeAllSplitGaps": "Alle Unterbrechungen aufheben",
     "paste": "Einfügen",
     "zoomReset": "Zoom zurücksetzen",
     "fitToProject": "An Projekt anpassen",
@@ -889,7 +902,9 @@
       "secondary": "Sekundär"
     },
     "dependencyModeHint": "Verknüpfungsmodus: Im Gantt von einem Balken zum anderen ziehen, um eine Beziehung zu erstellen. Esc beendet.",
-    "dependencyModeStop": "Beenden"
+    "dependencyModeStop": "Beenden",
+    "splitModeHint": "Klicken Sie auf einen Balken an dem Tag, an dem die Unterbrechung beginnt, und ziehen Sie nach rechts für die Länge. Esc beendet.",
+    "splitModeStop": "Beenden"
   },
   "dateInput": {
     "placeholder": "TT-MM-JJJJ",

@@ -94,6 +94,9 @@
     "mppSourceScheduleNotes_one": "Este arquivo do MS Project contém {{count}} tarefa com um cronograma dividido, nivelado ou controlado por recursos. Ela é importada e exibida como está.",
     "mppSourceScheduleNotes_many": "Este arquivo do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
     "mppSourceScheduleNotes_other": "Este arquivo do MS Project contém {{count}} tarefas com um cronograma dividido, nivelado ou controlado por recursos. Elas são importadas e exibidas como estão.",
+    "exportSplitsLost_one": "{{count}} tarefa com interrupções foi exportada sem as suas interrupções: o MS Project/P6 só as conhece como distribuição do trabalho.",
+    "exportSplitsLost_many": "{{count}} tarefas com interrupções foram exportadas sem as suas interrupções: o MS Project/P6 só as conhece como distribuição do trabalho.",
+    "exportSplitsLost_other": "{{count}} tarefas com interrupções foram exportadas sem as suas interrupções: o MS Project/P6 só as conhece como distribuição do trabalho.",
     "projectStartAnchorsClamped_one": "Início do projeto alterado: {{count}} âncora de tarefa sem predecessora nem restrição foi movida para a nova data de início.",
     "projectStartAnchorsClamped_many": "Início do projeto alterado: {{count}} âncoras de tarefa sem predecessora nem restrição foram movidas para a nova data de início.",
     "projectStartAnchorsClamped_other": "Início do projeto alterado: {{count}} âncoras de tarefa sem predecessora nem restrição foram movidas para a nova data de início.",
@@ -114,7 +117,16 @@
     "schedulingProfileShifted_other": "Após aplicar, {{count}} tarefas foram deslocadas.",
     "actions": {
       "openProjectInfo": "Abrir perfil de cálculo"
-    }
+    },
+    "xerArchiveUnusable": "O arquivo de origem XER deste ficheiro é inutilizável e foi omitido; o projeto em si foi aberto por completo.",
+    "xerArchiveUnusableLine": "O arquivo de origem XER deste ficheiro era inutilizável e foi omitido.",
+    "xerArchiveUnusableConsequence": "O cronograma, o perfil de cálculo e todos os dados do projeto do IFC estão completos. O que falta: as datas tal como o Primavera as guardou e a proveniência de origem para a IA e as extensões. Guardar escreve o ficheiro sem o arquivo; importe novamente o .xer original para recuperar o arquivo.",
+    "xerArchiveReasonSchemaVersion": "Motivo: o arquivo tem uma versão de esquema ou um formato desconhecidos (um escritor mais recente ou diferente).",
+    "xerArchiveReasonHashMismatch": "Motivo: a soma de verificação não corresponde aos bytes de origem — o arquivo está danificado.",
+    "xerArchiveReasonTruncated": "Motivo: o arquivo está truncado — falta parte dos bytes de origem.",
+    "xerArchiveReasonBytesMissing": "Motivo: faltam os próprios bytes de origem — provavelmente outro programa IFC reescreveu o ficheiro.",
+    "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
+    "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada)."
   },
   "yes": "Sim",
   "no": "Não",
@@ -160,6 +172,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Alta",
     "startRelationHere": "Iniciar relação a partir daqui",
+    "removeSplitGap": "Remover a pausa",
+    "removeAllSplitGaps": "Remover todas as pausas",
     "paste": "Colar",
     "zoomReset": "Repor zoom",
     "fitToProject": "Ajustar ao projeto",
@@ -916,7 +930,9 @@
       "secondary": "Secundário"
     },
     "dependencyModeHint": "Modo de ligação: arraste de uma barra para outra no Gantt para criar uma relação. Esc para sair.",
-    "dependencyModeStop": "Sair"
+    "dependencyModeStop": "Sair",
+    "splitModeHint": "Clique numa barra no dia em que a interrupção começa e arraste para a direita para definir a duração. Esc para sair.",
+    "splitModeStop": "Sair"
   },
   "dateInput": {
     "placeholder": "dd-mm-aaaa",

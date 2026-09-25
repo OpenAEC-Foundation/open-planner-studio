@@ -1001,13 +1001,28 @@ export function levelResources(
     return true;
   }
 
+  /** Heeft de gebruiker deze taak ZELF al onderbroken (issue #146, splits-spec bevinding 8)? De
+   *  scatter-as kent bestaande gaten niet: ze kiest losse werkdagen alsof de taak aaneengesloten is
+   *  en stapelt haar eigen `'leveling'`-gaten blind bovenop de indeling die de gebruiker net
+   *  gemaakt heeft. Zo'n taak wordt daarom alleen als GEHEEL uitgesteld, nooit opgeknipt.
+   *
+   *  Bewust alleen `'user'` en niet "elk niet-`'leveling'`-gat": een IMPORTsplit (geen `source`) is
+   *  brondata van een ander programma, geen keuze van déze gebruiker — `check-leveler-splitmode.ts`
+   *  geval 4 pint dat bestaande gedrag vast (bronsplit blijft staan, leveling-gat komt erbij). */
+  // Function DECLARATION, geen `const`: `splitEligible` hieronder is zelf gehoist en wordt vanuit
+  // `findSlot` aangeroepen vóórdat deze regel in de closure-opbouw bereikt is.
+  function hasOwnGaps(task: Task): boolean {
+    return (task.splitGaps ?? []).some(g => g.source === 'user');
+  }
+
   /** Mag deze taak leveling-gaten krijgen (B1c-plan-2 taak 9)? Zie de v1-grens bij
    *  `LevelingOptions.allowSplits` (verbreed 2026-08-31: `durationUnit` speelt geen rol meer — dag-
    *  én uur-modus komen in aanmerking, mits WORKTIME en niet-gestart). */
   function splitEligible(task: Task): boolean {
     return options.allowSplits === true
       && task.time.durationType === 'WORKTIME'
-      && task.time.completion === 0;
+      && task.time.completion === 0
+      && !hasOwnGaps(task);
   }
 
   /** Past curve-index `i` van deze taak op dag `iso`? Zelfde twee toetsen als `fits` (projectinzet

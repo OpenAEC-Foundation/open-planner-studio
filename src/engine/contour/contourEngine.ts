@@ -385,24 +385,44 @@ export function rescaleContourForDuration(
   });
 }
 
-/** Dezelfde herschaling voor `Task.splitGaps` (alleen IMPORTsplits — gaten zonder `source`;
- *  nivelleergaten hebben hun eigen levenscyclus, `clearLevelingGaps`). `anchor`/`factor` komen uit
- *  het contourprofiel van dezelfde taak (`rescaleFactor`) zodat CPM-gaten en lastlezer-gaten niet
- *  uit elkaar lopen. Zonder profiel (geen contour) blijft de lijst onaangeraakt. */
+/** Dezelfde herschaling voor `Task.splitGaps` (alleen IMPORTsplits — gaten zonder `source` — en
+ *  GEBRUIKERSsplits; nivelleergaten hebben hun eigen levenscyclus, `clearLevelingGaps`).
+ *  `anchor`/`factor` komen uit het contourprofiel van dezelfde taak (`rescaleFactor`) zodat
+ *  CPM-gaten en lastlezer-gaten niet uit elkaar lopen. Zonder profiel (geen contour) blijft de
+ *  lijst onaangeraakt.
+ *
+ *  `unitMinutes` (issue #146, spec §2 slotalinea): een `source: 'user'`-gat is door de gebruiker
+ *  zélf op een hele eenheid gezet (dag-modus: een werkdag). Fractioneel herschalen zou het naar een
+ *  ándere dag of — bij een forse krimp — naar 0 laten ronden in `splitWalk`s dag-afronding, waarmee
+ *  zijn eigen onderbreking stil verdwijnt. Daarom wordt zo'n gat ná de herschaling teruggesnapt op
+ *  een veelvoud van `unitMinutes` (absoluut op de as, dezelfde grid als `splitDayPattern`), met
+ *  minimaal één eenheid pauze. Importgaten blijven bewust fractioneel: die zijn brondata en mogen
+ *  hun sub-dag-precisie niet verliezen. Geen `unitMinutes` ⇒ byte-identiek aan vóór #146. */
 export function rescaleSplitGaps(
   gaps: readonly TaskSplitGap[] | undefined,
   periods: readonly TimephasedContourPeriod[],
   oldWorkMinutes: number,
   newWorkMinutes: number,
+  unitMinutes?: number,
 ): TaskSplitGap[] | undefined {
   if (!gaps || gaps.length === 0) return gaps ? [...gaps] : gaps;
   const factorInfo = rescaleFactor(periods, oldWorkMinutes, newWorkMinutes);
   if (!factorInfo) return gaps.map((g) => ({ ...g }));
   const { anchor, factor } = factorInfo;
+  const unit = unitMinutes !== undefined && unitMinutes > 0 ? unitMinutes : 0;
   return gaps.map((g) => {
     if (g.source === 'leveling' || !Number.isFinite(g.afterMinutes) || !Number.isFinite(g.gapMinutes)) return { ...g };
     if (g.afterMinutes < anchor) return { ...g }; // gat in het reeds verrichte deel — blijft staan
-    return { ...g, afterMinutes: anchor + (g.afterMinutes - anchor) * factor, gapMinutes: g.gapMinutes * factor };
+    const after = anchor + (g.afterMinutes - anchor) * factor;
+    const gapMinutes = g.gapMinutes * factor;
+    if (g.source === 'user' && unit > 0) {
+      return {
+        ...g,
+        afterMinutes: Math.round(after / unit) * unit,
+        gapMinutes: Math.max(unit, Math.round(gapMinutes / unit) * unit),
+      };
+    }
+    return { ...g, afterMinutes: after, gapMinutes };
   });
 }
 

@@ -45,7 +45,7 @@ function makeCtx(over: McpContextOverrides = {}): McpContext {
  */
 const EXPECTED_TOOLS = {
   read: 11,          // T18/T18b + retained XER-provenance — leestools
-  taskMutate: 6,     // T19 — add/update/delete_tasks, move_task, add/remove_dependencies
+  taskMutate: 7,     // T19 — add/update/delete_tasks, move_task, add/remove_dependencies; #146 set_task_splits
   dependency: 1,     // dependencyTools — update_dependencies (bestaande relatie wijzigen)
   taskOther: 3,      // T19 — undo, redo, run_cpm
   calResMutate: 7,   // T20 — update_calendar, manage_assignments, level_resources, clear_leveling,
@@ -57,9 +57,9 @@ const EXPECTED_TOOLS = {
   guide: 1,          // D2b — get_planning_guide (gids + agent-skill, geen projectdata)
   batch: 1,          // T22 — planner_batch
 };
-const EXPECTED_TOTAL = Object.values(EXPECTED_TOOLS).reduce((a, b) => a + b, 0); // = 40
+const EXPECTED_TOTAL = Object.values(EXPECTED_TOOLS).reduce((a, b) => a + b, 0); // = 42
 
-test('tools/list levert exact de verwachte toolstelling (40) via de dispatcher', async () => {
+test('tools/list levert exact de verwachte toolstelling (42) via de dispatcher', async () => {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
     makeCtx(),

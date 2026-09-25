@@ -363,7 +363,7 @@ test('registratie: registerToolModules([taskTools]) ⇒ tools/list draagt prefix
   const msg = JSON.parse(raw);
   const tools: any[] = msg.result.tools;
   assertEq(tools.length, taskTools.length, 'alle T19-tools verschijnen in tools/list');
-  assert(tools.length === 9, 'de negen T19-tools (add/update/delete/move/add_dep/remove_dep/undo/redo/run_cpm)');
+  assert(tools.length === 10, 'de negen T19-tools (add/update/delete/move/add_dep/remove_dep/undo/redo/run_cpm) + set_task_splits (#146)');
   for (const t of tools) {
     assert(typeof t.name === 'string' && t.name.startsWith('planner_'), `prefix op ${t.name}`);
     assert(typeof t.description === 'string' && t.description.trim().length > 0, `description op ${t.name}`);

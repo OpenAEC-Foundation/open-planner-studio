@@ -252,6 +252,37 @@ console.log('-- leveler-splitmode: importsplit blijft, leveling-gat komt erbij (
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Geval 5 (issue #146, spec-bevinding 8): een taak die de GEBRUIKER zelf heeft onderbroken wordt
+// NIET opgeknipt. De scatter-as kent bestaande gaten niet — hij kiest losse werkdagen alsof de taak
+// aaneengesloten is en stapelt zijn eigen `'leveling'`-gaten blind bovenop het gebruikersgat, wat
+// de indeling oplevert die de gebruiker juist nét zelf heeft gemaakt. Uitstellen als GEHEEL
+// (`levelingDelay`) blijft gewoon toegestaan; alleen het opknippen valt weg.
+//
+// AFBAKENING: het predicaat kijkt uitsluitend naar `source === 'user'`. Een IMPORTsplit (geen
+// `source`) blokkeert de scatter bewust NIET — geval 4 hierboven pint dat gedrag al vast (bronsplit
+// blijft staan, leveling-gat komt erbij), en die is geen gebruikerskeuze die de nivelleerder moet
+// respecteren maar brondata van een ander programma.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- leveler-splitmode: eigen onderbreking ⇒ niet opknippen (geval 5) --');
+{
+  const blk8 = blocker('x8', 'r-split8');
+  const USER_GAP = { afterMinutes: 480, gapMinutes: 480, source: 'user' as const };
+  const taskU = task('u8', '2026-06-01', '2026-06-02', 2, {
+    priority: 100, deadline: '2026-06-02',
+    splitGaps: [USER_GAP],
+  });
+  const resource8 = res('r-split8', 1);
+  const assignments8 = [blk8.a, assign('u8-r', 'u8', 'r-split8', 1)];
+  const r8 = levelResources(
+    [blk8.t, taskU], [], [resource8], assignments8, PROJECT_CAL, [], stubCpmResult('2026-06-04'),
+    { constrainToFloat: false, overrunCeilingDays: CEILING, allowSplits: true }, legacyCpmOptions(),
+  );
+  eq('eigen onderbreking ⇒ geen enkel leveling-gat',
+    (r8.gaps['u8'] ?? []).filter(g => g.source === 'leveling').length, 0);
+  eq('en het gebruikersgat zelf is ongewijzigd', taskU.splitGaps, [USER_GAP]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // B1c-plan3 taak 1: scatter-randen (bevindingen 12, 11, 7 uit de eindkeuring van etappe 2).
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- B1c-plan3 taak 1: scatter-randen --');

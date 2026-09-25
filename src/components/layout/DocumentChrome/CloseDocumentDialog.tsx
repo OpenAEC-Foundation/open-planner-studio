@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import { documentTitle } from '@/utils/documents';
 import { CloseDocumentDialogControl } from './CloseDocumentDialogControl';
 import {
@@ -25,6 +26,7 @@ export function CloseDocumentDialog() {
   const documents = useAppStore((s) => s.documents);
   const project = useAppStore((s) => s.project);
   const filePath = useAppStore((s) => s.filePath);
+  const activeXerCode = useAppStore((s) => xerProjectCode(s.xerImportMetadata));
   const setUI = useAppStore((s) => s.setUI);
   const closeDocument = useAppStore((s) => s.closeDocument);
   const switchDocument = useAppStore((s) => s.switchDocument);
@@ -52,7 +54,8 @@ export function CloseDocumentDialog() {
   const entry = documents.find((d) => d.id === pendingId);
   const proj = pendingId === activeId ? project : entry?.payload?.project;
   const fp = pendingId === activeId ? filePath : entry?.payload?.filePath ?? null;
-  const name = documentTitle(fp, proj?.name ?? '') || t('project.untitled');
+  const code = pendingId === activeId ? activeXerCode : xerProjectCode(entry?.payload?.xerImportMetadata);
+  const name = documentTitle(fp, proj?.name ?? '', code) || t('project.untitled');
 
   const restoreOpenerFocus = () => {
     const opener = openerRef.current;

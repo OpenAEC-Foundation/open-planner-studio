@@ -308,9 +308,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
       contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
       `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
-- [ ] **Splitsen/handmatig plannen als bewerkfunctie (UI).** Deze etappe levert lezen, rekenen,
-      tekenen en round-trip; slepen om te splitsen, split-handles in de Gantt en split ongedaan maken
-      zijn een aparte etappe (plan §1.4/O2, orkestratorbesluit akkoord 2026-08-17).
+- [x] **Splitsen als bewerkfunctie (UI).** *(opgeleverd 2026-09, issue #146: splits-modus en
+      stukken/randen slepen in de Gantt, sectie Onderbrekingen in het eigenschappenpaneel,
+      `planner_set_task_splits`; spec `docs/superpowers/specs/2026-09-19-taken-splitsen-bewerken-design.md`,
+      gids `gids-taken-splitsen`.)* Handmatig plannen (`manuallyScheduled`) als bewerkfunctie blijft
+      buiten scope, net als het bewerken van niet-wélgevormde importsplits (alleen-lezen, alleen opheffen).
+- [ ] **Native MSPDI-/P6-schrijven van een split zonder urenverdeling.** Een onderbroken taak zonder
+      contour gaat nu zonder onderbrekingen naar MSPDI/P6 (de export meldt het aantal via
+      `exportSplitsLostNotice`). Vervolg: de pauzes als `<TimephasedData>`-/spreidingsvorm van de
+      toewijzingen schrijven, of — bij een taak zonder toewijzing — een verantwoorde alternatieve vorm
+      kiezen. CSV verliest onderbrekingen eveneens, en meldt dat nog niet.
+- [ ] **Nivelleerder blind over importsplits.** Een taak met een `'user'`-gat wordt niet meer
+      opgeknipt (issue #146), maar een IMPORTsplit (geen `source`) mag de scatter-as nog overstapelen
+      — vastgelegd als bestaand gedrag in `check-leveler-splitmode.ts` geval 4. Gaten-bewust opknippen
+      is een eigen etappe.
 - [ ] **Float-spiegel onvolledig bij deeldag-duren (Z13-hercheck R2).** `subDuration`s band-eind-
       float-spiegel klopt voor hele-dag-duren maar niet voor een deeldag-duur op een deeldag-kalender
       (12u-taak op een 8u-dag: gemeten `tf` 1,5 waar `LF−EF` 2,5 hoort — één werkdag te weinig).

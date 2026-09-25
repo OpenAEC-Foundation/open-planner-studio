@@ -31,9 +31,32 @@ publiceren.
 - De OZB-corpusfixture opent en herstelt twaalf niet-lege documenten. Eén edit herschrijft daarvan
   slechts één IFC-snapshot. De rehab-fixture herstelt haar bronbytes checksum-exact.
 
+- **Een onbruikbaar archief gijzelt het project niet** (eigenaarsbesluit 2026-09-24, "openen met
+  melding"; draait het XER-etappebesluit "geen legacy fallback" bewust om). Valideert een aanwezig
+  archief niet — schemaversie, SHA-256, ontbrekende of afgeknotte chunks, onparseerbare metadata,
+  pset-structuur, of een selector zonder archief-pset — dan levert `readIFC` het document ZONDER
+  `xerSourceArchive`/`xerSourceProjectId`/`xer`/`recordedTimes` en MET een verplicht
+  `ImportResult.xerArchiveIssue` (`{ code, detail }`, codes `schema-version`, `hash-mismatch`,
+  `truncated`, `bytes-missing`, `metadata-invalid`, `structure`). Nooit een stille terugval: waren
+  er archiefsporen (`OPS_XerSourceArchive` of `OPS_XerDocument`) en ontbreekt het archief, dan is
+  het signaal er. Openen én crashherstel tonen één in-app melding (K8a-kanaal, "Lees meer" naar
+  `gids-xer-import`); het signaal leeft per document in `DOCUMENT_FIELDS` (`xerArchiveIssue`, rol
+  `none`), overleeft documentwissel en -kopie, maar staat bewust NIET in `IFC_SAVE_KEYS`: een
+  opgeslagen bestand draagt geen archiefsporen meer, en heropenen is dus stil. MCP
+  (`planner_inspect_xer_provenance`: `archiveIssue: { code }`) en de extensie-API
+  (`data.getImportSourceIssue()`, permissie `importSource`) melden "geen archief (onbruikbaar bij
+  openen: <code>)" in plaats van "geen XER-bron". Enige uitzondering die WEL gooit: een compact
+  archief via de lage synchrone `readIFC` zonder reconstructor — dat is een aanroeperscontractfout,
+  geen bestandseigenschap (`IfcParseError` `'xer-source-archive'`). Herstel voor de gebruiker: de
+  originele `.xer` opnieuw importeren.
+
 Deze grenzen worden afgedwongen door `check-recovery-delta.ts`,
 `measure-xer-recovery-write-amplification.ts`, `check-recovery-isolation.ts`,
-`check-xer-archive-cold-read.ts` en `check-xer-archive-recovery-corpus.ts`.
+`check-xer-archive-cold-read.ts`, `check-xer-archive-recovery-corpus.ts` en — voor de
+archief-terugval — `check-ifc-xer-archive-container.ts` (per foutcode één case),
+`check-xer-archive-readmodel.ts`, `check-xer-archive-compact.ts` en
+`check-xer-archive-fallback.ts` (echt beschadigde fixture `fixtures/xer-archief-herschreven.ifc`
+door productie-ingang, store, melding, documentwissel, opslaan en crashherstel).
 
 ## Informatieve schaalmeting
 

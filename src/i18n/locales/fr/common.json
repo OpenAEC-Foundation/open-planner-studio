@@ -94,6 +94,9 @@
     "mppSourceScheduleNotes_one": "Ce fichier MS Project contient {{count}} tâche à la planification fractionnée, lissée ou pilotée par les ressources. Elle est importée et affichée telle quelle.",
     "mppSourceScheduleNotes_many": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
     "mppSourceScheduleNotes_other": "Ce fichier MS Project contient {{count}} tâches à la planification fractionnée, lissée ou pilotée par les ressources. Elles sont importées et affichées telles quelles.",
+    "exportSplitsLost_one": "{{count}} tâche avec interruptions a été exportée sans ses interruptions : MS Project/P6 ne les connaissent que comme répartition du travail.",
+    "exportSplitsLost_many": "{{count}} tâches avec interruptions ont été exportées sans leurs interruptions : MS Project/P6 ne les connaissent que comme répartition du travail.",
+    "exportSplitsLost_other": "{{count}} tâches avec interruptions ont été exportées sans leurs interruptions : MS Project/P6 ne les connaissent que comme répartition du travail.",
     "projectStartAnchorsClamped_one": "Début de projet déplacé : {{count}} ancre de tâche sans prédécesseur ni contrainte a été déplacée vers la nouvelle date de début.",
     "projectStartAnchorsClamped_many": "Début de projet déplacé : {{count}} ancres de tâche sans prédécesseur ni contrainte ont été déplacées vers la nouvelle date de début.",
     "projectStartAnchorsClamped_other": "Début de projet déplacé : {{count}} ancres de tâche sans prédécesseur ni contrainte ont été déplacées vers la nouvelle date de début.",
@@ -114,7 +117,16 @@
     "schedulingProfileShifted_other": "Après application, {{count}} tâches ont été déplacées.",
     "actions": {
       "openProjectInfo": "Ouvrir le profil de calcul"
-    }
+    },
+    "xerArchiveUnusable": "L'archive source XER de ce fichier est inutilisable et a été omise ; le projet lui-même s'est ouvert en entier.",
+    "xerArchiveUnusableLine": "L'archive source XER de ce fichier était inutilisable et a été omise.",
+    "xerArchiveUnusableConsequence": "Le planning, le profil de calcul et toutes les données de projet de l'IFC sont complets. Ce qui manque : les dates telles que Primavera les a enregistrées et la provenance source pour l'IA et les extensions. L'enregistrement écrit le fichier sans l'archive ; importez à nouveau le .xer d'origine pour récupérer l'archive.",
+    "xerArchiveReasonSchemaVersion": "Raison : l'archive a une version de schéma ou une structure inconnue (rédacteur plus récent ou différent).",
+    "xerArchiveReasonHashMismatch": "Raison : la somme de contrôle ne correspond pas aux octets source — l'archive est endommagée.",
+    "xerArchiveReasonTruncated": "Raison : l'archive est tronquée — une partie des octets source manque.",
+    "xerArchiveReasonBytesMissing": "Raison : les octets source eux-mêmes manquent — un autre logiciel IFC a probablement réécrit le fichier.",
+    "xerArchiveReasonMetadataInvalid": "Raison : les octets source sont intacts, mais les données qui en sont dérivées sont inutilisables.",
+    "xerArchiveReasonStructure": "Raison : la structure de l'archive dans l'IFC est incorrecte (dupliquée, réordonnée ou mal rattachée)."
   },
   "yes": "Oui",
   "no": "Non",
@@ -160,6 +172,8 @@
     "priorityNormal": "Normale",
     "priorityHigh": "Haute",
     "startRelationHere": "Démarrer une relation à partir d'ici",
+    "removeSplitGap": "Supprimer la pause",
+    "removeAllSplitGaps": "Supprimer toutes les pauses",
     "paste": "Coller",
     "zoomReset": "Réinitialiser le zoom",
     "fitToProject": "Ajuster au projet",
@@ -916,7 +930,9 @@
       "secondary": "Secondaire"
     },
     "dependencyModeHint": "Mode lien : faites glisser d'une barre à l'autre dans le Gantt pour créer une relation. Échap pour arrêter.",
-    "dependencyModeStop": "Arrêter"
+    "dependencyModeStop": "Arrêter",
+    "splitModeHint": "Cliquez sur une barre au jour où l’interruption commence et faites glisser vers la droite pour en définir la longueur. Échap pour arrêter.",
+    "splitModeStop": "Arrêter"
   },
   "dateInput": {
     "placeholder": "jj-mm-aaaa",

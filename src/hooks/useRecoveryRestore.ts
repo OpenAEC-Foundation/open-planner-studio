@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { documentTitle } from '@/utils/documents';
+import { xerProjectCode } from '@/utils/xerDocumentName';
 import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
 import { loadRecovery, clearRecovery } from '@/services/recovery/recoveryStore';
@@ -82,7 +83,7 @@ export function useRecoveryRestore(): RecoveryRestore {
             }));
             entries.push({
               id: d.id,
-              name: documentTitle(d.filePath, parsed.project.name),
+              name: documentTitle(d.filePath, parsed.project.name, xerProjectCode(parsed.xer)),
               filePath: d.filePath,
               taskCount: parsed.tasks.length,
               mtime: d.mtime,

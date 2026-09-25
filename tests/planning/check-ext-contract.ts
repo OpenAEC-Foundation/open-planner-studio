@@ -747,12 +747,14 @@ for (const [naam, ext, bron, sleutels] of [
       throwsWithout(() => apiNoPerm.data.getImportSourceInfo()),
       throwsWithout(() => apiNoPerm.data.getImportSourceChunk(0)),
       throwsWithout(() => apiNoPerm.data.getImportSourceCatalogPage('taskSourceRows')),
-    ], [true, true, true]);
+      throwsWithout(() => apiNoPerm.data.getImportSourceIssue()),
+    ], [true, true, true, true]);
     eq('P1a een ONgerelateerde permissie (ribbon/events) geeft geen toegang tot importSource', [
       throwsWithout(() => apiOtherPerm.data.getImportSourceInfo()),
       throwsWithout(() => apiOtherPerm.data.getImportSourceChunk(0)),
       throwsWithout(() => apiOtherPerm.data.getImportSourceCatalogPage('taskSourceRows')),
-    ], [true, true, true]);
+      throwsWithout(() => apiOtherPerm.data.getImportSourceIssue()),
+    ], [true, true, true, true]);
     apiNoPerm._cleanup();
     apiOtherPerm._cleanup();
   }
@@ -767,6 +769,14 @@ for (const [naam, ext, bron, sleutels] of [
     sanitizeManifestPermissions(['importSource', 'ribbon'], 'x'), ['importSource', 'ribbon']);
 
   eq('37 een niet-XER-document geeft geen broninfo', api.data.getImportSourceInfo(), null);
+  eq('37b een niet-XER-document heeft ook geen archief-issue', api.data.getImportSourceIssue(), null);
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een weggelaten, onbruikbaar archief is
+  // onderscheidbaar van "nooit een XER-bron" — info blijft null, de issue-route noemt de reden.
+  useAppStore.setState({ xerArchiveIssue: { code: 'hash-mismatch', detail: 'Ongeldig OPS_XerSourceArchive: test' } });
+  eq('37c weggelaten archief: info null, issue geeft alleen de code (geen technische detail)', {
+    info: api.data.getImportSourceInfo(), issue: api.data.getImportSourceIssue(),
+  }, { info: null, issue: { code: 'hash-mismatch' } });
+  useAppStore.setState({ xerArchiveIssue: null });
   eq('37a chunk- en catalogusroute geven zonder XER null', [
     api.data.getImportSourceChunk(0), api.data.getImportSourceCatalogPage('taskSourceRows'),
   ], [null, null]);
@@ -880,7 +890,7 @@ for (const [naam, ext, bron, sleutels] of [
   }, { raw: { total: 1, id: 'TYPE' }, normalized: { total: 1, id: 'TYPE' } });
   eq('43a bronroute bevat geen generiek bron-writepad', Object.keys(api.data)
     .filter(key => key.toLowerCase().includes('importsource')).sort(), [
-      'getImportSourceCatalogPage', 'getImportSourceChunk', 'getImportSourceInfo',
+      'getImportSourceCatalogPage', 'getImportSourceChunk', 'getImportSourceInfo', 'getImportSourceIssue',
     ]);
 
   let invalidRange = false;

@@ -216,7 +216,7 @@ export function splitDayPattern(
 export function splitGapsFromWorkDayBlocks(
   blocks: Array<{ work: number; gap: number }>,
   minutesPerDay: number,
-  source?: 'leveling',
+  source?: 'leveling' | 'user',
 ): TaskSplitGap[] {
   const mpd = Math.max(1, minutesPerDay);
   const gaps: TaskSplitGap[] = [];
