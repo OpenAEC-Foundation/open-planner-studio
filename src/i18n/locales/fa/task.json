@@ -335,6 +335,18 @@
       "remove": "حذف",
       "done": "انجام‌شده",
       "empty": "هنوز یادداشتی نیست."
+    },
+    "splits": {
+      "title": "وقفه‌ها",
+      "after": "پس از",
+      "pause": "وقفه",
+      "add": "افزودن وقفه",
+      "remove": "حذف وقفه",
+      "readOnly": "این وقفه‌ها از فایل منبع آمده‌اند و در قالبی هستند که اینجا قابل ویرایش نیست.",
+      "removeAll": "حذف همه وقفه‌ها",
+      "leveling": "تسطیح",
+      "unitDays": "روز کاری",
+      "unitHours": "ساعت"
     }
   },
   "relations": {
@@ -452,5 +464,16 @@
     "edit": "ویرایش رابطه خارجی…",
     "refreshSource": "به‌روزرسانی منبع",
     "deleteRelation": "حذف رابطه"
+  },
+  "split": {
+    "gapDays_one": "{{count}} روز کاری وقفه",
+    "gapDays_other": "{{count}} روز کاری وقفه",
+    "gapHours_one": "{{count}} ساعت وقفه",
+    "gapHours_other": "{{count}} ساعت وقفه",
+    "pieceDays_one": "بخش: {{count}} روز کاری",
+    "pieceDays_other": "بخش: {{count}} روز کاری",
+    "pieceHours_one": "بخش: {{count}} ساعت",
+    "pieceHours_other": "بخش: {{count}} ساعت",
+    "merged": "ادغام"
   }
 }

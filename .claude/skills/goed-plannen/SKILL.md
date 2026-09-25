@@ -52,7 +52,9 @@ Controleer de namen en schema's daar of via `tools/list` — raad ze nooit.
    kalender uitgedrukt.
 3. **WBS en taken** — `planner_add_tasks` (fasen en subtaken kunnen in één aanroep),
    `planner_update_tasks` voor duur en velden, `planner_move_task` voor structuur,
-   `planner_delete_tasks` voor opruimen. Geef een samenvattende taak nooit een eigen duur.
+   `planner_delete_tasks` voor opruimen. Geef een samenvattende taak nooit een eigen duur. Wordt
+   werk opgeschort en later hervat, zet dan een onderbreking in de taak met
+   `planner_set_task_splits` — geen losse taken.
 4. **Relaties** — `planner_add_dependencies`, `planner_update_dependencies`,
    `planner_remove_dependencies`. Elke taak minstens één voorganger en één opvolger, behalve de
    eerste taak en de laatste mijlpaal.

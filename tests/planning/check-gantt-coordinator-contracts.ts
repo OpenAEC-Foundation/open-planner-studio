@@ -89,11 +89,11 @@ ok('rendererhost benoemt renderRevision', /interface GanttRendererHostInput[\s\S
 ok('viewport benoemt effectieve view en gedeelde as', /interface GanttViewportCoordinatorOutput[\s\S]*?effectiveView: ViewState;[\s\S]*?sharedAxis: GanttAxis;/.test(source));
 ok('pointeroutput benoemt overlays en popovers', /interface GanttPointerCoordinatorOutput[\s\S]*?overlays: GanttGestureOverlays;[\s\S]*?relationPopover:/.test(source));
 ok('GanttCanvas start geen gesturehooks rechtstreeks',
-  !/\.(?:startBarDrag|startPan|startBoxSelect|startRowDrag|startDepDraw)\(/.test(canvasSource));
+  !/\.(?:startBarDrag|startPan|startBoxSelect|startRowDrag|startDepDraw|startSplitGesture)\(/.test(canvasSource));
 ok('pointercoördinator bezit precies één mousedown-dispatcher',
   (pointerSource.match(/const onMouseDown\s*=\s*useCallback/g) ?? []).length === 1);
-ok('pointercoördinator gebruikt alle vier gerichte tijdlijngebaren',
-  ['startBarDrag', 'startPan', 'startBoxSelect', 'startDepDraw']
+ok('pointercoördinator gebruikt alle vijf gerichte tijdlijngebaren',
+  ['startBarDrag', 'startPan', 'startBoxSelect', 'startDepDraw', 'startSplitGesture']
     .every(name => pointerSource.includes(`.${name}(`)));
 ok('pointercoördinator bezit geen rijverplaatsing uit de DOM-tabel',
   !pointerSource.includes('startRowDrag') && !pointerSource.includes('useRowDrag'));

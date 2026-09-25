@@ -15,6 +15,7 @@ import { TaskDeadlineField } from '@/components/task-sections/TaskDeadlineField'
 import { TaskProgressFields } from '@/components/task-sections/TaskProgressFields';
 import { TaskCpmResultSection } from '@/components/task-sections/TaskCpmResultSection';
 import { TaskDependenciesSection } from '@/components/task-sections/TaskDependenciesSection';
+import { TaskSplitsSection } from '@/components/task-sections/TaskSplitsSection';
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 
@@ -123,6 +124,8 @@ export function TaskPropertiesPanel() {
       <TaskCpmResultSection taskId={task.id} />
 
       <TaskDependenciesSection taskId={task.id} />
+
+      <TaskSplitsSection taskId={task.id} />
 
       <TaskAssignmentsSection taskId={task.id} />
 

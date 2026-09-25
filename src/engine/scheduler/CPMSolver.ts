@@ -859,7 +859,12 @@ export class CPMSolver {
       return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
     }
     if (eng.isHourMode) {
-      const totalDays = task.time.scheduleDuration;
+      // Z7-nalevering (splits-spec bevinding 2a): een DAG-taak op een kalender MÉT banden liep hier
+      // op de kale `scheduleDuration` en negeerde `splitGaps` — de enige van de vier volledige-duur-
+      // aangrijpingspunten die de gaten-as oversloeg. `splitTotalSpanDays` geeft voor een gatloze
+      // taak `durationDaysOf` = `scheduleDuration` RAUW terug (geen deel-dan-vermenigvuldig-rondje),
+      // dus dat pad blijft byte-identiek.
+      const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return { date: new Date(start.getTime()), capped: false };
       const dayResult = eng.addWorkDaysChecked(this.startOfDay(start), totalDays);
       return {
@@ -959,7 +964,10 @@ export class CPMSolver {
       return natural;
     }
     if (eng.isHourMode) {
-      const totalDays = task.time.scheduleDuration;
+      // Spiegel van `addDurationChecked`s dag-taak-op-bandenkalender-tak (splits-spec bevinding 2a):
+      // zonder dezelfde gaten-bewuste aftrek wijkt LS−ES af van LF−EF en ontstaat er spookfloat op
+      // elke gesplitste dag-taak die op een uur-kalender staat. Gatloos ⇒ byte-identiek.
+      const totalDays = splitTotalSpanDays(task, eng);
       if (totalDays <= 0) return new Date(end.getTime());
       const firstDay = eng.subtractWorkDays(this.startOfDay(end), totalDays);
       return this.dayFirstBandStart(eng, firstDay) ?? firstDay;

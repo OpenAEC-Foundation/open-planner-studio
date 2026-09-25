@@ -77,6 +77,8 @@
     "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "mppSourceScheduleNotes_one": "Diese MS-Project-Datei enthält {{count}} Vorgang mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Er wird so eingelesen und angezeigt.",
     "mppSourceScheduleNotes_other": "Diese MS-Project-Datei enthält {{count}} Vorgänge mit unterbrochener, geglätteter oder ressourcengesteuerter Terminierung. Sie werden so eingelesen und angezeigt.",
+    "exportSplitsLost_one": "{{count}} Vorgang mit Unterbrechungen wurde ohne seine Unterbrechungen exportiert: MS Project/P6 kennen diese nur als Arbeitsverteilung.",
+    "exportSplitsLost_other": "{{count}} Vorgänge mit Unterbrechungen wurden ohne ihre Unterbrechungen exportiert: MS Project/P6 kennen diese nur als Arbeitsverteilung.",
     "projectStartAnchorsClamped_one": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurde auf das neue Startdatum verschoben.",
     "projectStartAnchorsClamped_other": "Projektstart verschoben: {{count}} Vorgangsanker ohne Vorgänger oder Einschränkung wurden auf das neue Startdatum verschoben.",
     "mppTimephasedSteeringLost_one": "Die Stundenverteilung aus MS Project steuert {{count}} Vorgang nach dieser Bearbeitung nicht mehr; die ursprüngliche Verteilung bleibt in der Datei erhalten.",
@@ -132,6 +134,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Hoch",
     "startRelationHere": "Beziehung von hier aus starten",
+    "removeSplitGap": "Unterbrechung aufheben",
+    "removeAllSplitGaps": "Alle Unterbrechungen aufheben",
     "paste": "Einfügen",
     "zoomReset": "Zoom zurücksetzen",
     "fitToProject": "An Projekt anpassen",
@@ -883,7 +887,9 @@
       "secondary": "Sekundär"
     },
     "dependencyModeHint": "Verknüpfungsmodus: Im Gantt von einem Balken zum anderen ziehen, um eine Beziehung zu erstellen. Esc beendet.",
-    "dependencyModeStop": "Beenden"
+    "dependencyModeStop": "Beenden",
+    "splitModeHint": "Klicken Sie auf einen Balken an dem Tag, an dem die Unterbrechung beginnt, und ziehen Sie nach rechts für die Länge. Esc beendet.",
+    "splitModeStop": "Beenden"
   },
   "dateInput": {
     "placeholder": "TT-MM-JJJJ",

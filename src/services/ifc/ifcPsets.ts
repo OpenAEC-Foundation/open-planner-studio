@@ -354,12 +354,12 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
             && typeof (g as TaskSplitGap).afterMinutes === 'number'
             && typeof (g as TaskSplitGap).gapMinutes === 'number';
           if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidGap)) {
-            // B1c-plan-2 taak 7: `source` is een GESLOTEN verzameling (alleen `'leveling'`). Een
-            // onbekende waarde (handgemaakt/vijandig IFC) wordt WEGGELATEN — het gat zelf blijft
-            // staan, zelfde conservatieve lat als de corrupte-JSON-catch hieronder: liever een gat
-            // zonder herkomst dan een geweigerde load.
-            task.splitGaps = parsed.map(g => g.source === 'leveling'
-              ? { afterMinutes: g.afterMinutes, gapMinutes: g.gapMinutes, source: 'leveling' as const }
+            // B1c-plan-2 taak 7 + issue #146: `source` is een GESLOTEN verzameling (`'leveling'`
+            // en `'user'`). Een onbekende waarde (handgemaakt/vijandig IFC) wordt WEGGELATEN — het
+            // gat zelf blijft staan, zelfde conservatieve lat als de corrupte-JSON-catch hieronder:
+            // liever een gat zonder herkomst dan een geweigerde load.
+            task.splitGaps = parsed.map(g => g.source === 'leveling' || g.source === 'user'
+              ? { afterMinutes: g.afterMinutes, gapMinutes: g.gapMinutes, source: g.source }
               : { afterMinutes: g.afterMinutes, gapMinutes: g.gapMinutes });
           }
         } catch { /* corrupte JSON: negeren i.p.v. de load te breken. */ }
