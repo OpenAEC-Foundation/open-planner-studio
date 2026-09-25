@@ -162,6 +162,39 @@ for (const scale of [100, 125]) {
   });
 }
 
+// Her-check #170, punt 3: op 125 % toonde het inzetveld "0.267" afgekapt. De kolom schaalt nu met
+// de tekstrol mee (breedte in `--text-small`), en de title draagt de volledige waarde.
+test('toewijzingstabel: inzet 0.267 past volledig in het veld op 125 % en staat in de title', async ({ page, ops: _ops }) => {
+  const [taskId] = await seedProject(page, [
+    { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
+  ]);
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    const a = s.addResource({ name: 'Metselploeg', type: 'LABOR', description: '', maxUnits: 2 });
+    s.assignResource(id, a, 1);
+    const asg = window.__OPS__!.store.getState().assignments.find(x => x.taskId === id)!;
+    s.updateAssignment(asg.id, { unitsPerDay: 0.267 });
+    s.runCPM();
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false, showTaskTypes: true, uiFontScale: 125 });
+    s.selectTask(id);
+  }, taskId);
+  const input = page.locator('[data-ops-assignment-row]').first().locator('input').first();
+  await expect(input).toHaveValue('0.267');
+  await expect(input).toHaveAttribute('title', /0\.267/);
+  const fit = await input.evaluate((el: HTMLInputElement) => {
+    const cs = getComputedStyle(el);
+    const ctx = document.createElement('canvas').getContext('2d')!;
+    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const text = ctx.measureText(el.value).width;
+    const content = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    return { text, content };
+  });
+  // Chromium reserveert in een `type="number"` altijd ruimte voor de (onzichtbare) spinknop, ook
+  // zonder hover — gemeten ±15 px; dáárdoor viel de "7" weg terwijl de tekst zelf wel paste.
+  const SPIN_BUTTON_PX = 15;
+  expect(fit.text + SPIN_BUTTON_PX).toBeLessThanOrEqual(fit.content);
+});
+
 // Gebruikstest #170, G3: de taaktypes-detailregel in de bestandsmelding (.mpp/XER) heeft een EIGEN
 // gidslink naar "Werkregels en werk"; de "Lees meer" van de melding zelf blijft naar het
 // bestand/rekenprofiel wijzen. Fixture: de melding zoals `applyOpenedImport` hem samenstelt.

@@ -152,10 +152,10 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
             // werk, curve, acties); het slotje is een eigen `shrink-0`-icoon naast een kop die mag
             // afbreken, zodat "EENH./DAG" het nooit tot 0 px wegdrukt.
             <div className="flex items-end gap-1 text-caption leading-3 uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }} data-ops-assignment-header>
-              <span className="w-14 shrink-0 flex items-end justify-end gap-0.5" title={unitsProtected ? lockTitle : undefined} data-ops-assignment-lock-units={unitsProtected ? 'locked' : 'free'}>
+              <span className="w-[calc(var(--text-small)*5)] shrink-0 flex items-end justify-end gap-0.5" title={unitsProtected ? lockTitle : undefined} data-ops-assignment-lock-units={unitsProtected ? 'locked' : 'free'}>
                 {unitsProtected && <Lock size={9} className="shrink-0" />}<span className="min-w-0 text-right">{t('properties.assignments.unitsPerDay')}</span>
               </span>
-              <span className="w-14 shrink-0 flex items-end justify-end gap-0.5" title={workProtected ? lockTitle : t('properties.assignments.workHint')} data-ops-assignment-lock-work={workProtected ? 'locked' : 'free'}>
+              <span className="w-[calc(var(--text-small)*5)] shrink-0 flex items-end justify-end gap-0.5" title={workProtected ? lockTitle : t('properties.assignments.workHint')} data-ops-assignment-lock-work={workProtected ? 'locked' : 'free'}>
                 {workProtected && <Lock size={9} className="shrink-0" />}<span className="min-w-0 text-right">{t('properties.assignments.work')}</span>
               </span>
               <span className="flex-1" />
@@ -181,13 +181,13 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                 <div className="flex items-center gap-1 min-w-0">
                   <UnitsInput
                     value={a.unitsPerDay}
-                    title={t('properties.assignments.unitsPerDay')}
+                    title={`${t('properties.assignments.unitsPerDay')}: ${a.unitsPerDay}`}
                     ariaLabel={`${t('properties.assignments.unitsPerDay')} — ${res?.name ?? a.resourceId}`}
                     onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
-                    className="input !text-small !px-1 !py-0.5 !w-14 shrink-0 text-right"
+                    className="input !text-small !px-1 !py-0.5 !w-[calc(var(--text-small)*5)] shrink-0 text-right"
                   />
                   {showWork && (res?.type === 'MATERIAL' ? (
-                    <span className="w-14 shrink-0 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
+                    <span className="w-[calc(var(--text-small)*5)] shrink-0 text-right text-text-secondary" data-ops-assignment-work="material">—</span>
                   ) : (
                     <span className="shrink-0 flex items-center gap-0.5" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
                       <WorkHoursInput
@@ -195,7 +195,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                         title={t('properties.assignments.workHint')}
                         ariaLabel={`${t('properties.assignments.work')} — ${res?.name ?? a.resourceId}`}
                         onCommit={hours => setAssignmentWork(a.id, Math.round(hours * 60))}
-                        className="input !text-small !px-1 !py-0.5 !w-14 text-right"
+                        className="input !text-small !px-1 !py-0.5 !w-[calc(var(--text-small)*5)] text-right"
                       />
                       {(() => {
                         const deviation = workDeviation(a.id, a.unitsPerDay, a.remainingWorkMinutes);
