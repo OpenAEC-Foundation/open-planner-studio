@@ -153,8 +153,18 @@ herschatting maar afwijkend begroot werk; 17 bij voltooide taken over budget (bv
 tegen begroot 480 u); 5 echte herschattingen op lopende taken (bv. 76517: begroot 240, verricht 215,
 restant 20 i.p.v. 25); 2 alleen verricht (laag 4). Laag 3 is er volgens spec §4.4 terecht (P6's
 `target_qty` is de waarheid), maar bij die 97 blijft `unitsPerDay × duur` (90 u) oneens met het opgeslagen
-werk (30 u): het histogram toont 30 u terwijl de inzetkolom iets anders suggereert — vermoedelijk een
-afwijkende resourcekalender, niet uitgezocht. **Eigenaarsvraag E7** (zie §Eigenaarsvragen).
+werk (30 u): het histogram toont 30 u terwijl de inzetkolom iets anders suggereert. ~~vermoedelijk een
+afwijkende resourcekalender, niet uitgezocht~~ **Gecorrigeerd na de Fable-critreview (bevinding 5,
+BEVESTIGD):** geen resourcekalender en geen afwijkend begroot werk. Alle 97 zijn **per-toewijzing-spannes**:
+`TASKRSRC.target_start_date/target_end_date` wijkt af van de activiteitsspanne, en `target_qty` klopt
+precies met díé spanne × inzet. Voorbeeld EC2370 (336 u, `DT_FixedDrtn`): de Painter (rsrc 6878) staat er
+twee keer op, 03-04→23-04 en 13-05→03-06, elk 112 u × 0,2679 = 30 u; de zeven andere resources lopen de
+hele 336 u (90 u). Alle acht op dezelfde kalender 5829 (8 u/dag). `importedWorkFields` vergelijkt tegen
+taakduur × inzet en ziet dus 30 ≠ 90. Dit is precies wat beslispunt 10 (spec §6.2: geen duur per
+toewijzing) bewust uitstelde. Gevolg nu: het histogram spreidt 30 u vlak over 42 dagen (0,71 u/dag) waar
+P6 2,14 u/dag over 14 dagen toont; vóór #170 stond er 2,14 u/dag over 42 dagen. Beide fout. Roads' 35
+toewijzingen met restveld zijn wél echte P6-herschattingen op gestarte of voltooide activiteiten; daar
+klopt laag 3. **Eigenaarsvraag E7** (zie §Eigenaarsvragen).
 
 *Terugdraaien als de eigenaar toch "ook bij verricht werk" wil (E3 blijft eigenaarsvraag):* in
 `importedWorkFields` de regel `if (!plannedDeviates && !remainingDeviates) return actualPresent ?
@@ -207,8 +217,14 @@ Daarnaast nog uit te zoeken: de volgorde in `taskEditPlan.ts` (Δ-rest vóór re
 - **E7 (uit de her-check baan 1):** bij 97 niet-gestarte HarbourPointe-toewijzingen wijkt P6's begrote werk
   (`target_qty`) af van duur × inzet. Het histogram volgt het begrote werk (laag 3), de inzetkolom toont de
   P6-inzet. Wat moet de gebruiker zien: de inzet uit P6 (en het werk als afgeleide), het werk uit P6 (en de
-  inzet als afgeleide), of beide met een markering "wijkt af"? Advies: beide tonen, werk leidend voor het
-  histogram (zoals nu), en de oorzaak (resourcekalender?) eerst meten vóór een keuze.
+  inzet als afgeleide), of beide met een markering "wijkt af"? ~~Advies: beide tonen, werk leidend voor het
+  histogram (zoals nu), en de oorzaak (resourcekalender?) eerst meten vóór een keuze.~~
+  **Gecorrigeerd (Fable-critreview bevinding 5):** de oorzaak is gemeten. Het zijn per-toewijzing-spannes
+  (`TASKRSRC.target_start/end` ≠ activiteit, alle op dezelfde 8-u-kalender), dus beslispunt 10. Keuze
+  voor de eigenaar: (a) geen werkvelden zetten zolang de toewijzingsspanne van de activiteit afwijkt
+  (histogram byte-identiek aan vóór #170, intensiteit goed, totaal fout), of (b) beter:
+  `target_start/end` in de bestaande `workWindowStart/Finish` lezen (veld bestaat en round-tript, niemand
+  vult het) en laag 3 daarbinnen laten spreiden. Een tolerantie van 1 % verandert niets (97 blijft 97).
 
 - **E1 (gedrag van importen):** ongewijzigd. De browserspec `work-rule` laat het gedrag zien. Nog
   gebruikstest nodig.

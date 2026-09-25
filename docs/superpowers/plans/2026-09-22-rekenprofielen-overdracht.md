@@ -127,6 +127,17 @@ volgens het recept, alleen landen als geen cel slechter wordt.
 wordt de projectnaam uit het XER, met het P6 Project-ID erachter tussen haakjes wanneer dat afwijkt van de
 naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn.
 
+**2026-09-25 ~17:30 (na de maandlimiet-onderbreking van 24-09 ~20:30), letterlijk:** "doe alles wat je nog
+nodig is om het af te maken, wanneer deze hele etappe af is ga jij alle openstaasnde PRS mergen. wanneer
+alles in main zit zal ik een visuele check van je werk doen." ⇒ (1) de orkestrator maakt de etappe af
+(open fixrondes, her-checks, verify per kop) en neemt de resterende ontwerpvragen (E7, E9, E4, E5) als
+orkestratorbesluit volgens de reviewadviezen — omkeerbaar bij de visuele check; (2) daarna merget de
+orkestrator zélf alle open PR's naar `main` in stapelvolgorde #109 → #167 → #169 → #170, elk pas na een
+groene `verify` op de gemergde stand (uitzondering op de vaste regel "nooit naar main; eigenaar merget",
+alleen voor deze etappe en op dit uitdrukkelijke verzoek); een push naar `main` is een productie-deploy
+(`live.yml`), dus de keten is: mergen, CI afwachten, dan de volgende; (3) de eigenaar doet de visuele check
+op `main`. Nog steeds géén release/tag.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
