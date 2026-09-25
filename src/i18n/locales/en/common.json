@@ -219,7 +219,7 @@
     "aiAutostartHint": "Brings the MCP bridge live as soon as the app starts, so an AI client can connect without you opening the AI tab first. Desktop app only.",
     "legacySection": "Legacy features",
     "classicViewControls": "Show classic view buttons",
-    "classicViewControlsHint": "Puts the separate Columns, Filter, Group and Sort buttons back on the View tab. Their function now lives in the layout buttons and the layout dialog."
+    "classicViewControlsHint": "Puts the separate Columns, Filter, Group and Sort buttons back on the View tab. You now choose columns with the plus in the table header or via Table → Columns…; filtering, grouping and sorting live in the layout buttons and the layout dialog."
   },
   "ai": {
     "start": "Start bridge",

@@ -227,7 +227,7 @@
     "aiAutostartHint": "Activa el puente MCP nada más iniciar la aplicación, para que un cliente de IA pueda conectarse sin que abras antes la pestaña IA. Solo en la aplicación de escritorio.",
     "legacySection": "Funciones heredadas",
     "classicViewControls": "Mostrar los botones de vista clásicos",
-    "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Su función está ahora en los botones de diseño y en el cuadro de diseños."
+    "classicViewControlsHint": "Devuelve los botones separados Columnas, Filtro, Agrupar y Ordenar a la pestaña Vista. Las columnas se eligen ahora con el signo más del encabezado de la tabla o en Tabla → Columnas…; filtrar, agrupar y ordenar están en los botones de diseño y en el cuadro de diseños."
   },
   "ai": {
     "start": "Iniciar puente",

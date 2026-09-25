@@ -227,7 +227,7 @@
     "aiAutostartHint": "Active la passerelle MCP dès le démarrage de l'application, afin qu'un client IA puisse se connecter sans que vous ouvriez d'abord l'onglet IA. Application de bureau uniquement.",
     "legacySection": "Fonctions héritées",
     "classicViewControls": "Afficher les boutons d’affichage classiques",
-    "classicViewControlsHint": "Remet les boutons séparés Colonnes, Filtre, Grouper et Trier dans l’onglet Affichage. Leur fonction se trouve désormais dans les boutons de layout et la boîte de dialogue des layouts."
+    "classicViewControlsHint": "Remet les boutons séparés Colonnes, Filtre, Grouper et Trier dans l’onglet Affichage. Les colonnes se choisissent désormais avec le plus dans l’en-tête du tableau ou via Tableau → Colonnes… ; le filtrage, le regroupement et le tri se trouvent dans les boutons de layout et la boîte de dialogue des layouts."
   },
   "ai": {
     "start": "Démarrer le pont",

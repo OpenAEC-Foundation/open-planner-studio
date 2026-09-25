@@ -211,7 +211,7 @@
     "aiAutostartHint": "应用启动时立即启用 MCP 桥接，AI 客户端无需你先打开 AI 选项卡即可连接。仅限桌面应用。",
     "legacySection": "旧版功能",
     "classicViewControls": "显示经典视图按钮",
-    "classicViewControlsHint": "将单独的“列”“筛选”“分组”和“排序”按钮放回“视图”选项卡。它们的功能现在位于布局按钮和布局对话框中。"
+    "classicViewControlsHint": "将单独的“列”“筛选”“分组”和“排序”按钮放回“视图”选项卡。现在通过表头中的加号或“表格 → 列…”选择列；筛选、分组和排序位于布局按钮和布局对话框中。"
   },
   "ai": {
     "start": "启动桥接",

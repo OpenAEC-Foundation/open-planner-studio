@@ -219,7 +219,7 @@
     "aiAutostartHint": "Aktiviert die MCP-Bridge direkt beim Start der App, sodass ein KI-Client sich verbinden kann, ohne dass Sie zuerst den KI-Tab öffnen. Nur in der Desktop-App.",
     "legacySection": "Legacy-Funktionen",
     "classicViewControls": "Klassische Ansichtsschaltflächen anzeigen",
-    "classicViewControlsHint": "Bringt die einzelnen Schaltflächen Spalten, Filter, Gruppieren und Sortieren zurück auf die Registerkarte Ansicht. Ihre Funktion steckt jetzt in den Layout-Schaltflächen und im Layout-Dialog."
+    "classicViewControlsHint": "Bringt die einzelnen Schaltflächen Spalten, Filter, Gruppieren und Sortieren zurück auf die Registerkarte Ansicht. Spalten wählen Sie jetzt mit dem Plus im Tabellenkopf oder über Tabelle → Spalten…; Filtern, Gruppieren und Sortieren stecken in den Layout-Schaltflächen und im Layout-Dialog."
   },
   "ai": {
     "start": "Bridge starten",

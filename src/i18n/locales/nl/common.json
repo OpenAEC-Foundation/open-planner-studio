@@ -219,7 +219,7 @@
     "aiAutostartHint": "Zet de MCP-bridge meteen live bij het opstarten van de app, zodat een AI-client kan koppelen zonder dat je eerst het AI-tabblad opent. Alleen in de desktop-app.",
     "legacySection": "Legacy-functies",
     "classicViewControls": "Klassieke weergaveknoppen tonen",
-    "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Hun functie zit nu in de layoutknoppen en de layoutdialoog."
+    "classicViewControlsHint": "Zet de losse knoppen Kolommen, Filter, Groeperen en Sorteren terug op het tabblad Beeld. Kolommen kies je nu met het plusje in de tabelkop of via Tabel → Kolommen…; filteren, groeperen en sorteren zitten in de layoutknoppen en de layoutdialoog."
   },
   "ai": {
     "start": "Bridge starten",
