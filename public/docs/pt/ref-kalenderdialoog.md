@@ -15,7 +15,7 @@ Todas as edições — incluindo novo/duplicar/eliminar — acontecem numa cópi
 ## Biblioteca (coluna esquerda)
 
 - **Lista** — todos os calendários; a estrela assinala o **Calendário do projeto** (a predefinição para tarefas sem calendário próprio). Um sinal de aviso marca um calendário com dados inválidos.
-- **+** — **Novo calendário**.
+- **+** — **Novo calendário**, com a mesma predefinição que **+ Calendário do recurso** no painel de recursos e que um projeto novo: seg–sex 07:00–16:00 e, com o **Modo construção** ativo, os feriados neerlandeses. Se não quiser nenhum, escolha **Gerar feriados…** → **Sem feriados**.
 - **Duplicar** — cópia do calendário selecionado.
 - **Eliminar** — não é possível para o último calendário; eliminar a predefinição do projeto torna outro calendário na predefinição.
 - **Definir como padrão do projeto** — torna o calendário selecionado no calendário do projeto (botão acima do formulário).

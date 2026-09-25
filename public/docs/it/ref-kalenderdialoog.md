@@ -15,7 +15,7 @@ Tutte le modifiche — comprese nuovo/duplica/elimina — avvengono in una copia
 ## Libreria (colonna sinistra)
 
 - **Elenco** — tutti i calendari; la stella contrassegna il **Calendario del progetto** (il predefinito per le attività senza un proprio calendario). Un segnale di avviso indica un calendario con dati non validi.
-- **+** — **Nuovo calendario**.
+- **+** — **Nuovo calendario**, con la stessa impostazione predefinita di **+ Calendario risorsa** nel pannello risorse e di un nuovo progetto: lun–ven 07:00–16:00 e, con la **Modalità cantiere** attiva, le festività olandesi. Se non ne vuoi, scegli **Genera festività…** → **Nessuna festività**.
 - **Duplica** — copia del calendario selezionato.
 - **Elimina** — non possibile per l'ultimo calendario; eliminando il predefinito del progetto un altro calendario diventa il predefinito.
 - **Imposta come predefinito del progetto** — rende il calendario selezionato il calendario del progetto (pulsante sopra il modulo).

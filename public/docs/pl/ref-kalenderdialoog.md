@@ -15,7 +15,7 @@ Wszystkie edycje — w tym nowy/duplikat/usuń — odbywają się w kopii robocz
 ## Biblioteka (lewa kolumna)
 
 - **Lista** — wszystkie kalendarze; gwiazdka oznacza **Kalendarz projektu** (domyślny dla zadań bez własnego kalendarza). Znak ostrzegawczy oznacza kalendarz z nieprawidłowymi danymi.
-- **+** — **Nowy kalendarz**.
+- **+** — **Nowy kalendarz**, z tymi samymi ustawieniami domyślnymi co **+ Kalendarz zasobu** w panelu zasobów i co nowy projekt: pon.–pt. 07:00–16:00 oraz, przy włączonym **Trybie budowlanym**, holenderskie święta. Jeśli nie chcesz żadnych, wybierz **Generuj święta…** → **Bez świąt**.
 - **Duplikuj** — kopia zaznaczonego kalendarza.
 - **Usuń** — niemożliwe dla ostatniego kalendarza; usunięcie domyślnego kalendarza projektu czyni innym kalendarz domyślnym.
 - **Ustaw jako domyślny dla projektu** — czyni zaznaczony kalendarz kalendarzem projektu (przycisk nad formularzem).

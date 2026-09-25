@@ -10,8 +10,8 @@ Das Fenster **Ressourcenkalender** bearbeitet den eigenen Kalender einer einzeln
 ## Unterschiede zum Kalender-Dialog
 
 - **Ein Kalender zugleich** — keine Bibliotheksliste links, kein Projektstandard-Stern; nur das Formular.
-- **Anwenden** speichert den Kalender; **Abbrechen**, **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters verwirft die Änderungen.
-- **Keine automatische Neuberechnung** — ein Ressourcenkalender ändert nicht die CPM-Termine; er zählt zur Auslastung (Histogramm) und zum Abgleich, die Sie selbst mit F5 beziehungsweise **Abgleichen…** erneut laufen lassen.
+- **Anwenden** speichert den Kalender; **Abbrechen**, **Esc**, das Schließen-Kreuz oder ein Klick außerhalb des Fensters verwirft die Änderungen. Ein neuer Kalender über **+ Ressourcenkalender** in der Auswahlliste entsteht erst mit **Anwenden** und wird dann sofort mit der Ressource verknüpft (zusammen ein Schritt für Rückgängig); nach **Abbrechen** bleibt nichts zurück. Er beginnt mit demselben Standard wie **+** im Kalenderdialog.
+- **Keine automatische Neuberechnung** — **Anwenden** berechnet den Terminplan nicht neu. In seiner Rolle als Ressourcenkalender ändert ein Kalender die CPM-Termine nicht; er zählt zur Auslastung (Histogramm) und zum Abgleich, die Sie selbst mit F5 beziehungsweise **Abgleichen…** erneut laufen lassen. Die Auswahlliste bietet jedoch alle Kalender des Projekts an: Bearbeiten Sie hier einen Kalender, der auch der Projektkalender oder ein Vorgangskalender ist, ändert sich der Terminplan sehr wohl. Er wird dann als veraltet markiert, und F5 berechnet ihn neu.
 
 ## Felder
 

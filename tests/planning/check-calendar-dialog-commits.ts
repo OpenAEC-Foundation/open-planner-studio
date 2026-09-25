@@ -11,6 +11,9 @@
 // Bevinding 5 — een feestdag met einde vóór begin (of zonder geldige begindatum) werd in het formulier
 // stil bewaard en telde in de engine als nul dagen, terwijl MCP hem weigerde. Eén regel
 // (`holidayIssue`) voor formulier, beide dialogen en MCP.
+//
+// Bevinding 7 — "+" in de kalenderdialoog gaf een kalender zonder feestdagen, "+ Resourcekalender"
+// (en MCP `create`) de app-standaard. Eén fabriek: `createNewCalendar`.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -18,7 +21,7 @@ import { holidayEndDate, type WorkCalendar } from '@/types/calendar';
 import { externIfc } from '../fixtures/recordedDatesIfc';
 import { calendarHasHolidayIssue, holidayIssue, withCanonicalHolidayEnds } from '@/utils/holidayRange';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createDefaultCalendar, createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { parseDate } from '@/utils/dateUtils';
 
 const failures: string[] = [];
@@ -186,6 +189,21 @@ function dialogCommit(store: Store, calendars: WorkCalendar[], projectCalendarId
   equal('5B lege einddatum wordt bij opslaan de begindatum', withCanonicalHolidayEnds(cal).holidays,
     [{ name: 'Koningsdag', startDate: '2026-04-27', endDate: '2026-04-27' }]);
   equal('5B origineel ongemoeid', cal.holidays[0].endDate, '');
+}
+
+// ── 7A: één fabriek voor een nieuwe kalender ────────────────────────────────────────────────────
+{
+  const created = createNewCalendar('Ploeg 4-daags');
+  const { id: _id, ...standard } = createDefaultCalendar();
+  void _id;
+  equal('7A geen id (de bibliotheek kent er een toe)', 'id' in created, false);
+  equal('7A naam zoals opgegeven', created.name, 'Ploeg 4-daags');
+  equal('7A verder exact de app-standaard (werktijden, feestdagen, herkomst)',
+    { ...created, name: standard.name }, standard);
+  // In de headless omgeving staat bouwmodus op zijn standaard (aan): dus met de NL-feestdagen.
+  equal('7A bouwmodus-standaard ⇒ NL-feestdagen met herkomst', {
+    some: created.holidays.length > 0, ruleSet: created.generation?.ruleSetId,
+  }, { some: true, ruleSet: 'NL' });
 }
 
 if (failures.length > 0) {

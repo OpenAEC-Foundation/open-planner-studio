@@ -3,7 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Plus, Copy, Trash2, Star, AlertTriangle } from 'lucide-react';
 import type { WorkCalendar } from '@/types/calendar';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
@@ -106,14 +106,9 @@ export function CalendarDialog() {
     commit();
   };
 
+  // Zelfde fabriek als "+ Resourcekalender" in de resourcerij en MCP `create` (createNewCalendar).
   const handleNew = () => {
-    const cal: WorkCalendar = {
-      ...createDefaultCalendar(),
-      id: generateId('cal'),
-      name: tCommon('calendar.library.new'),
-      holidays: [],
-      generation: undefined,
-    };
+    const cal: WorkCalendar = { ...createNewCalendar(tCommon('calendar.library.new')), id: generateId('cal') };
     setLocalCalendars(cs => [...cs, cal]);
     setSelectedId(cal.id);
   };

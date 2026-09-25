@@ -15,7 +15,7 @@ Tüm düzenlemeler — yeni/çoğalt/sil dahil — bir çalışma kopyasında ge
 ## Kütüphane (sol sütun)
 
 - **Liste** — tüm takvimler; yıldız **Proje takvimi**ni işaretler (kendi takvimi olmayan görevler için varsayılan). Bir uyarı işareti, geçersiz giriş içeren bir takvimi belirtir.
-- **+** — **Yeni takvim**.
+- **+** — **Yeni takvim**, kaynak panelindeki **+ Kaynak takvimi** ve yeni bir proje ile aynı varsayılanla: Pzt–Cum 07:00–16:00 ve **İnşaat modu** açıkken Hollanda resmî tatilleri. Hiç istemiyorsanız **Tatilleri oluştur…** → **Tatil yok** seçin.
 - **Çoğalt** — seçili takvimin bir kopyası.
 - **Sil** — son takvim için mümkün değildir; proje varsayılanını silmek başka bir takvimi varsayılan yapar.
 - **Proje varsayılanı olarak ayarla** — seçili takvimi proje takvimi yapar (formun üzerindeki düğme).

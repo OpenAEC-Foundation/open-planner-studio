@@ -15,7 +15,7 @@ All edits — including new/duplicate/delete — happen in a working copy. **App
 ## Library (left column)
 
 - **List** — all calendars; the star marks the **Project calendar** (the default for tasks without their own calendar). A warning sign marks a calendar with invalid input.
-- **+** — **New calendar**.
+- **+** — **New calendar**, with the same default as **+ Resource calendar** in the resource panel and as a new project: Mon–Fri 07:00–16:00 and, with **Construction mode** on, the Dutch public holidays. If you want none, choose **Generate holidays…** → **No holidays**.
 - **Duplicate** — copy of the selected calendar.
 - **Delete** — not possible for the last calendar; deleting the project default makes another calendar the default.
 - **Set as project default** — makes the selected calendar the project calendar (button above the form).

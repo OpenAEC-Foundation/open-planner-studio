@@ -15,7 +15,7 @@ Toutes les modifications — y compris nouveau/dupliquer/supprimer — se font d
 ## Bibliothèque (colonne de gauche)
 
 - **Liste** — tous les calendriers ; l'étoile marque le **Calendrier du projet** (celui par défaut pour les tâches sans calendrier propre). Un signe d'avertissement signale un calendrier contenant une saisie non valide.
-- **+** — **Nouveau calendrier**.
+- **+** — **Nouveau calendrier**, avec la même valeur par défaut que **+ Calendrier de la ressource** dans le panneau des ressources et qu'un nouveau projet : lun.–ven. 07:00–16:00 et, avec le **Mode construction** activé, les jours fériés néerlandais. Si vous n'en voulez pas, choisissez **Générer les jours fériés…** → **Aucun jour férié**.
 - **Dupliquer** — copie du calendrier sélectionné.
 - **Supprimer** — impossible pour le dernier calendrier ; supprimer le calendrier par défaut du projet en fait un autre le nouveau par défaut.
 - **Définir comme calendrier par défaut du projet** — fait du calendrier sélectionné le calendrier du projet (bouton au-dessus du formulaire).

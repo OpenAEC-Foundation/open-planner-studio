@@ -15,7 +15,7 @@ Todas las ediciones — incluidas nuevo/duplicar/eliminar — ocurren en una cop
 ## Biblioteca (columna izquierda)
 
 - **Lista** — todos los calendarios; la estrella marca el **Calendario del proyecto** (el predeterminado para tareas sin calendario propio). Un signo de advertencia marca un calendario con datos no válidos.
-- **+** — **Nuevo calendario**.
+- **+** — **Nuevo calendario**, con el mismo valor predeterminado que **+ Calendario del recurso** en el panel de recursos y que un proyecto nuevo: lun–vie 07:00–16:00 y, con el **Modo construcción** activado, los festivos neerlandeses. Si no quiere ninguno, elija **Generar festivos…** → **Sin festivos**.
 - **Duplicar** — copia del calendario seleccionado.
 - **Eliminar** — no es posible para el último calendario; eliminar el predeterminado del proyecto hace que otro calendario pase a ser el predeterminado.
 - **Establecer como predeterminado del proyecto** — convierte el calendario seleccionado en el calendario del proyecto (botón encima del formulario).

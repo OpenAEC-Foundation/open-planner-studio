@@ -33,7 +33,7 @@ import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
 import { resolveCalendarHolidays } from '../calendarGenerate';
 import { ensureFreshSchedule } from '../staleGuard';
-import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
 import { deriveHoursPerDay, workDaysFromBands } from '@/services/subdayIo';
@@ -592,12 +592,12 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       const ignoredFields = CAL_READONLY_KEYS.filter((k) => k in (item as unknown as Record<string, unknown>));
 
       if (plan.mode === 'create') {
-        // Basis = de app-default (ma-vr 07-16); de opgegeven velden overschrijven hem. Het id van
-        // de default wordt weggegooid: draft.addCalendar genereert een vers, document-lokaal id.
-        const { id: _ignored, ...base } = createDefaultCalendar();
+        // Basis = de gedeelde fabriek voor een nieuwe kalender (app-default ma-vr 07-16, dezelfde
+        // als "+" in de kalenderdialoog en de resourcerij); de opgegeven velden overschrijven hem.
+        // Zonder id: draft.addCalendar genereert een vers, document-lokaal id.
+        const base = createNewCalendar(item.name ?? 'Nieuwe kalender');
         const cal: Omit<WorkCalendar, 'id'> = {
           ...base,
-          name: item.name ?? 'Nieuwe kalender',
           ...calendarFieldPatch(item, base),
         };
         // Een verse kalender erft de dag-vorm van de app-default; een expliciete `workTime: null`
@@ -623,7 +623,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
         if (item.generation === null) delete cal.generation;
         else if (item.generation !== undefined) cal.generation = { ...item.generation };
         const newId = ctx.transactions.draft.addCalendar(cal);
-        // M7 — MAAK DE GEËRFDE FEESTDAGEN ZICHTBAAR. De basis is `createDefaultCalendar()`, en die
+        // M7 — MAAK DE GEËRFDE FEESTDAGEN ZICHTBAAR. De basis is `createNewCalendar()`, en die
         // levert in bouwmodus (de default) een VOLLEDIGE NL-feestdagenset mét `generation`. Een
         // agent die "een lege kalender" aanmaakt kreeg dus stilzwijgend ~30 NL-feestdagen mee,
         // zonder dat één respons of beschrijving dat noemde. De herkomst staat nu per rij; de

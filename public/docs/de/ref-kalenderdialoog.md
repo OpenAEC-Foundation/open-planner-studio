@@ -15,7 +15,7 @@ Alle Bearbeitungen — einschließlich Neu/Duplizieren/Löschen — erfolgen in 
 ## Bibliothek (linke Spalte)
 
 - **Liste** — alle Kalender; der Stern markiert den **Projektkalender** (der Standard für Aufgaben ohne eigenen Kalender). Ein Warnzeichen markiert einen Kalender mit ungültigen Eingaben.
-- **+** — **Neuer Kalender**.
+- **+** — **Neuer Kalender**, mit demselben Standard wie **+ Ressourcenkalender** im Ressourcenbereich und wie ein neues Projekt: Mo–Fr 07:00–16:00 und, bei eingeschaltetem **Baumodus**, die niederländischen Feiertage. Möchten Sie keine, wählen Sie **Feiertage generieren…** → **Keine Feiertage**.
 - **Duplizieren** — Kopie des ausgewählten Kalenders.
 - **Löschen** — beim letzten Kalender nicht möglich; das Löschen des Projektstandards macht einen anderen Kalender zum Standard.
 - **Als Projektstandard festlegen** — macht den ausgewählten Kalender zum Projektkalender (Schaltfläche über dem Formular).

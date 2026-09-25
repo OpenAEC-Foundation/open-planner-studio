@@ -15,7 +15,7 @@ Alle bewerkingen — ook nieuw/dupliceren/verwijderen — gebeuren in een werkko
 ## Bibliotheek (linkerkolom)
 
 - **Lijst** — alle kalenders; de ster markeert de **Projectkalender** (de standaard voor taken zonder eigen kalender). Een waarschuwingsteken markeert een kalender met ongeldige invoer.
-- **+** — **Nieuwe kalender**.
+- **+** — **Nieuwe kalender**, met dezelfde standaard als **+ Resourcekalender** in het resourcepaneel en als een nieuw project: ma–vr 07:00–16:00 en, met **Bouwmodus** aan, de Nederlandse feestdagen. Wil je er geen, kies dan **Feestdagen genereren…** → **Geen feestdagen**.
 - **Dupliceren** — kopie van de geselecteerde kalender.
 - **Verwijderen** — kan niet bij de laatste kalender; verwijder je de projectdefault, dan wordt een andere kalender de default.
 - **Als projectdefault** — maakt de geselecteerde kalender de projectkalender (knop boven het formulier).

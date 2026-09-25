@@ -10,8 +10,8 @@ La fenêtre **Calendrier de la ressource** modifie le calendrier propre d'une se
 ## Différences par rapport à la boîte de dialogue de calendrier
 
 - **Un seul calendrier à la fois** — pas de liste de bibliothèque à gauche, pas d'étoile de calendrier par défaut du projet ; juste le formulaire.
-- **Appliquer** enregistre le calendrier ; **Annuler**, **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre abandonne les modifications.
-- **Pas de recalcul automatique** — un calendrier de ressource ne change pas les dates CPM ; il compte pour la charge (histogramme) et le nivellement, que vous relancez vous-même respectivement avec F5 ou **Niveler…**.
+- **Appliquer** enregistre le calendrier ; **Annuler**, **Échap**, la croix de fermeture ou un clic en dehors de la fenêtre abandonne les modifications. Un nouveau calendrier créé avec **+ Calendrier de la ressource** dans la liste déroulante n'existe qu'après **Appliquer** et est alors aussitôt lié à la ressource (ensemble, une seule étape d'annulation) ; après **Annuler**, rien ne subsiste. Il part de la même valeur par défaut que **+** dans la boîte de dialogue des calendriers.
+- **Pas de recalcul automatique** — **Appliquer** ne recalcule pas le planning. Dans son rôle de calendrier de ressource, un calendrier ne change pas les dates CPM ; il compte pour la charge (histogramme) et le nivellement, que vous relancez vous-même respectivement avec F5 ou **Niveler…**. La liste déroulante propose toutefois tous les calendriers du projet : si vous modifiez ici un calendrier qui est aussi le calendrier du projet ou celui d'une tâche, le planning change bel et bien. Il est alors marqué comme obsolète et F5 le recalcule.
 
 ## Champs
 
