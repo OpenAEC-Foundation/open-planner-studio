@@ -391,6 +391,16 @@ vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
   (`xerProjectName`: `proj_name` → WBS-wortel → ID; `xerDocumentName(naam, id)`; `documentTitle` derde argument;
   13 checks, X12 15.056, whitelist 334); critreview = GO op de merge na (corpus: 13 `proj_name`, 76 WBS-wortel, 10 ID; 'Opslaan als'-basis en bezettingsoverzicht als kleine fixes) ⇒ in de #109-landing (`opus-midden-109-landing`: main-sync + documentnaam + archief in de PR-branch, verify, PR-body).
 
+**Stand 25-09 ~19:50 (merge-keten):** #109-PR-branch klaar op `389ddc06` (main-sync + documentnaam + archief-fallback
+met critreview-fixes; `verify` EXIT 0; X12 15.056; PR-body bijgewerkt, oude "niet mergen"-blok weg, PR op ready).
+Branchbescherming op `main` eist 1 review met code-owner en groene checks; de orkestrator merget na groene CI met
+`--admin` (eigenaarsopdracht 25-09; `enforce_admins` staat uit). Parallel: `opus-midden-167-sync` (nieuwe #109 in
+#167 op `claude/recorded-all-formats-sync`), `opus-midden-169-sync-109` (nieuwe #109 in #169 op
+`claude/x12-sync-109b`, CLAUDE.md → rules-structuur van main), etappe-keten op `f058c659`
+(`/tmp/ops-chain-etappe2-*`), taaktypes-keten op `4ed84fbd` (`/tmp/ops-chain-taaktypes2-*`; E9 gemerged, UI-ronde
+`85812af8` — orkestrator bekeek screenshots: namen zichtbaar, waarschuwingsteken, instelling in blok — her-check
+`opus-laag-hercheck-pr170-ui` loopt).
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
