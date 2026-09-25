@@ -1,4 +1,4 @@
-import { buildTaskColumnRegistry, readOnlyValidationCode } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskColumnRegistry, readOnlyValidationCode, taskColumnLabel } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { copyGridEditorValue, parseGridEditorText, type TaskGridBooleanLabels } from '@/engine/taskGrid/editors';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -113,6 +113,7 @@ export interface CreateTaskGridAdapterDomainInput {
   customTaskTypes?: readonly CustomTaskType[];
   scheduleStale: boolean;
   wbsAutoNumber: boolean;
+  /** Vertaalt de vertaalsleutel van een kolomkop. Krijgt nooit een naam van de gebruiker. */
   labelForColumn: (labelKey: string) => string;
   labelForBoolean?: (value: boolean) => string;
   labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
@@ -255,7 +256,7 @@ export function createTaskGridAdapterDomain(
   const descriptorsById = new Map(descriptors.map(descriptor => [descriptor.id, descriptor] as const));
   const availableColumns = descriptors.map<TaskGridAdapterColumn>(descriptor => ({
     id: descriptor.id,
-    label: input.labelForColumn(descriptor.labelKey),
+    label: taskColumnLabel(descriptor, input.labelForColumn),
     category: descriptor.category,
     defaultWidth: descriptor.defaultWidth,
     align: alignForDescriptor(descriptor),

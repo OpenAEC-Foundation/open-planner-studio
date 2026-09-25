@@ -163,13 +163,10 @@ function humanizeTaskGridKey(labelKey: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** Vertaalt de sleutel van een kolomkop, met een leesbare terugval als een vertaling ontbreekt. Krijgt
+ *  alleen vertaalsleutels: namen die de gebruiker gaf (codes, eigen velden, baselines) zet
+ *  `taskColumnLabel` letterlijk in de kop, zodat ze nooit door `t()` of `humanizeTaskGridKey` gaan. */
 function resolveColumnLabel(labelKey: string, translate: (key: string) => string): string {
-  const dynamicSeparator = labelKey.indexOf(' — ');
-  if (dynamicSeparator > 0) {
-    const prefix = labelKey.slice(0, dynamicSeparator);
-    const fieldKey = labelKey.slice(dynamicSeparator + 3);
-    return `${prefix} — ${resolveColumnLabel(fieldKey, translate)}`;
-  }
   const direct = translate(labelKey);
   if (direct !== labelKey) return direct;
   const alias = COLUMN_LABEL_ALIASES[labelKey];
