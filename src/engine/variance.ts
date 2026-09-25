@@ -1,4 +1,5 @@
 import type { Task } from '@/types/task';
+import { isLeafTask } from '@/utils/taskHierarchy';
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseDate } from '@/utils/dateUtils';
@@ -60,7 +61,7 @@ export function computeVariance(
 ): VarianceResult {
   if (!baseline) return { rows: [] };
 
-  const leaves = tasks.filter((t) => t.childIds.length === 0);
+  const leaves = tasks.filter(isLeafTask);
   const baseMap = new Map<string, BaselineTask>();
   for (const bt of baseline.tasks) baseMap.set(bt.taskId, bt);
   const currentIds = new Set(leaves.map((t) => t.id));

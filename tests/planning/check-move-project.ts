@@ -296,6 +296,56 @@ S().redo();
 eq('134 redo verschuift opnieuw, inclusief de projectdatum', S().project.startDate, '2026-06-22');
 eq('135 redo herstelt het taakanker', S().tasks.find(t => t.id === tA)?.time.scheduleStart, '2026-06-22');
 
+// --- X7/Hooke: actieve P6 Expected Finish volgt exact hetzelfde expliciete shift-verdict. ---
+// Dit is bewust een echte store-actie (niet alleen een shiftIso-unitcheck): met de projectoptie aan
+// leest de solver p6ExpectedFinish als absoluut P6-bronanker. Een projectverschuiving die het veld
+// laat staan, laat de aansluitende runCPM dus opnieuw naar de OUDE datum terugsturen.
+S().newProject();
+S().setProject({
+  startDate: '2026-08-03',
+  schedulingOptions: { useExpectedFinishDates: true },
+});
+const expectedDateTask = S().addTask({
+  name: 'P6 verwacht einde dag', status: 'STARTED',
+  time: {
+    ...createDefaultTaskTime('2026-08-03', 8), actualStart: '2026-08-03',
+    actualDuration: 2, remainingTime: 6, completion: 0.25,
+  },
+});
+const expectedHourTask = S().addTask({
+  name: 'P6 verwacht einde uur', status: 'STARTED',
+  time: {
+    ...createDefaultTaskTime('2026-08-03T09:45', 8), actualStart: '2026-08-03T09:45',
+    actualDuration: 2, remainingTime: 6, completion: 0.25,
+  },
+});
+const expectedAbsentTask = S().addTask({
+  name: 'Geen P6 verwacht einde',
+  time: createDefaultTaskTime('2026-08-03', 1),
+});
+// `addTask` accepteert bewust alleen de gebruikersvelden uit zijn create-contract; XER-herkomst en
+// custom-fieldwaarden landen via de algemene update-/importpaden. Gebruik hier dus dat echte pad.
+S().updateTask(expectedDateTask, {
+  p6ProjectId: 'P1', p6TaskId: 'ED', p6ExpectedFinish: '2026-08-12',
+});
+S().updateTask(expectedHourTask, {
+  p6ProjectId: 'P1', p6TaskId: 'EH', p6ExpectedFinish: '2026-08-12T13:15',
+});
+S().updateTask(expectedAbsentTask, {
+  p6ProjectId: 'P1', p6TaskId: 'EA', customFields: { 'cf-date': '2026-08-12' },
+});
+S().runCPM();
+const expectedMove = S().moveProject('2026-08-10');
+eq('136 X7 Expected Finish-regressie gebruikt een echte projectverschuiving', expectedMove.moved, true);
+eq('137 X7 actieve date-only p6ExpectedFinish schuift vormbehoudend mee',
+  S().tasks.find(t => t.id === expectedDateTask)?.p6ExpectedFinish, '2026-08-19');
+eq('138 X7 actieve uur-p6ExpectedFinish schuift mee met minuut exact behouden',
+  S().tasks.find(t => t.id === expectedHourTask)?.p6ExpectedFinish, '2026-08-19T13:15');
+eq('139 X7 afwezige p6ExpectedFinish blijft afwezig (niet invullen of wissen)',
+  S().tasks.find(t => t.id === expectedAbsentTask)?.p6ExpectedFinish, undefined);
+eq('139b bestaand keep-beleid blijft staan: date-customfield schuift niet mee',
+  S().tasks.find(t => t.id === expectedAbsentTask)?.customFields?.['cf-date'], '2026-08-12');
+
 // --- R3: leeg project — de actie moet slagen en de preview mag geen epoch-datum tonen ---
 S().newProject();
 S().setProject({ startDate: '2026-06-01' });

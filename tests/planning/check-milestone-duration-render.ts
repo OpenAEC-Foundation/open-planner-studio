@@ -55,7 +55,15 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; roundRects: RRect[]; texts:
 }
 
 // ── Scenario: een taak met echte duur, een mijlpaal-met-duur, en een ECHTE mijlpaal ──
+// Weekend-flake (gemeten op main): zowel `project.startDate` als `view.viewStartDate` defaulten op
+// "vandaag" (`defaults.ts`). Op een zaterdag/zondag schuift de solver de taak naar de eerstvolgende
+// werkdag (maandag) terwijl het view-origin op het weekend blijft staan — de balk verschuift dan
+// pixels naar rechts terwijl de hittest hieronder op een vaste x = TTW + 20 prikt. Vaste maandag
+// (in de stijl van de andere fixtures in dit bestand, bv. check-bar-colors.ts's '2026-01-05') maakt
+// de fixture dag-onafhankelijk: project- én view-start liggen op dezelfde, altijd-werkende dag.
+const FIXED_MONDAY = '2026-01-05';
 S().newProject();
+S().setProject({ startDate: FIXED_MONDAY });
 S().addTask({ name: 'Gewoon' });
 S().runCPM();
 
@@ -127,7 +135,7 @@ const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
 const st = S();
 // viewStartDate expliciet gelijk aan FIXED_START (zie hierboven) — anders blijft dit veld op de
 // ongeschoven "vandaag" van newProject() staan en raken viewport en balk uit elkaar op een
-// weekend-"vandaag".
+// weekend-"vandaag". (Dezelfde maandag als FIXED_MONDAY hierboven, waarop de projectstart staat.)
 const view = { ...st.view, scrollX: 0, scrollY: 0, viewStartDate: FIXED_START };
 
 const { ctx, roundRects } = makeCtx();

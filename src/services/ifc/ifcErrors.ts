@@ -20,7 +20,13 @@ export type IfcParseErrorReason =
   /** Kop én sluitmarkering aanwezig, maar er is geen `DATA;`-sectiegrens te vinden. Zonder die
    *  grens valt er niets te parsen; stil een leeg project teruggeven zou het bestand van de
    *  gebruiker onder een leeg document begraven (het pad blijft immers gekoppeld). */
-  | 'no-data-section';
+  | 'no-data-section'
+  /** UITSLUITEND een aanroepercontractfout: een compact (schema-2) XER-bronarchief via de lage
+   *  synchrone `readIFC`-ingang, die de lazy XER-reader bewust niet laadt. Een corrupt of door andere
+   *  software herschreven archief is sinds het eigenaarsbesluit van 2026-09-24 ("openen met
+   *  melding") GEEN leesfout meer: het project opent zonder archief en `ImportResult.xerArchiveIssue`
+   *  draagt de reden (zie `readXerArchiveOrIssue` in `ifcReader.ts`). */
+  | 'xer-source-archive';
 
 export class IfcParseError extends Error {
   readonly reason: IfcParseErrorReason;
