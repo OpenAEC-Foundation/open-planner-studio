@@ -232,6 +232,14 @@ strikt correcter dan het oude gedrag: bij een geweigerd duplicaat gaf `addSequen
 gewoon een `string` terug — een id dat nergens naar verwees, omdat de relatie zelf nooit is
 toegevoegd.
 
+`resourceIds` op een taak is **geen schrijfbaar veld**: het is een afgeleide van de toewijzingen
+(`getAssignments()`), en alleen een toewijzing geeft belasting en overleeft opslaan. `updateTask`
+negeert een `resourceIds` die gelijk is aan de huidige waarde (bijvoorbeeld een ongewijzigd object uit
+`getTasks()`; de volgorde telt niet) en `addTask` accepteert alleen `[]`. Een andere waarde **gooit een
+fout** vóór er iets gewijzigd is — ook de overige velden uit dezelfde aanroep worden dan niet toegepast.
+Toewijzingen zet een extensie mee via `loadProject(result)` (`result.assignments`); losse
+toewijzingsmutaties kent de API niet.
+
 Belangrijk: na het muteren van taken/relaties zelf `api.data.recalculate()` aanroepen — het schema wordt niet reactief herberekend. `loadProject()` doet dat automatisch.
 
 **Muteer je meer dan een handvol dingen in een lus, wikkel dat dan in `api.data.batch()`.** Elke

@@ -87,6 +87,31 @@ export function createExtensionApi(
     return { id, name };
   };
 
+  /**
+   * `resourceIds` van een taak is een AFGELEIDE van de toewijzingen (`assignResource` houdt hem bij,
+   * de lezers reconstrueren hem uit de toewijzingen en hij wordt niet los opgeslagen). Voorheen ging
+   * het veld rauw via `fromExtTaskInput`/`fromExtTaskUpdates` de store in: de taak leek toegewezen,
+   * maar er was geen toewijzing, dus geen belasting, en na opslaan was het weg. MCP weigert het veld
+   * ook. Zelfde vorm als de ouderwijziging (#183, `parentId`): gelijk aan de huidige waarde — een
+   * ongewijzigd `getTasks()`-object, of `[]` bij een nieuwe taak — wordt genegeerd; een andere waarde
+   * gooit een fout vóór er iets gewijzigd is, met de route die wél toewijst. De volgorde telt niet
+   * (het is een verzameling).
+   */
+  const assertResourceIdsUnchanged = (
+    taskLabel: string,
+    current: readonly string[],
+    requested: readonly string[] | undefined,
+  ): void => {
+    if (requested === undefined) return;
+    const a = [...requested].sort();
+    const b = [...current].sort();
+    if (a.length === b.length && a.every((id, i) => id === b[i])) return;
+    throw new Error(
+      `Extensie "${extensionId}": \`resourceIds\` van ${taskLabel} volgt uit de toewijzingen en is niet los te zetten; ` +
+      'toewijzingen lees je met data.getAssignments() en zet je mee via data.loadProject({ ..., assignments }) — of de gebruiker wijst toe in de app',
+    );
+  };
+
   const settingsPrefix = `ops-ext:${extensionId}:`;
 
   const api: ExtensionApi = {
@@ -120,29 +145,39 @@ export function createExtensionApi(
       getResources: () => document.store.getState().resources.map(toExtResource),
       getAssignments: () => document.store.getState().assignments.map(toExtAssignment),
       addTask: (task) => {
-        const materialize = customTaskTypeToMaterialize(task.customTaskType);
-        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(task));
+        // Een nieuwe taak heeft nog geen toewijzingen: alleen `[]` (bv. uit de SDK-taakfabriek) mag mee.
+        const { resourceIds: requestedResourceIds, ...input } = task;
+        assertResourceIdsUnchanged('een nieuwe taak', [], requestedResourceIds);
+        const materialize = customTaskTypeToMaterialize(input.customTaskType);
+        if (!materialize) return document.store.getState().addTask(fromExtTaskInput(input));
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           document.store.getState().ensureProjectTaskType(materialize);
-          return document.store.getState().addTask(fromExtTaskInput(task));
+          return document.store.getState().addTask(fromExtTaskInput(input));
         });
       },
       updateTask: (id, updates) => {
+        // `resourceIds` nooit mee in de veldpatch: afgeleid van de toewijzingen (zie
+        // `assertResourceIdsUnchanged`).
+        const { resourceIds: requestedResourceIds, ...fieldUpdates } = updates;
         // Bestaand API-gedrag voor een onbekend taak-id is een stille no-op; materialiseer in dat
         // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
-        if (!document.store.getState().tasks.some(task => task.id === id)) {
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+        const current = document.store.getState().tasks.find(task => task.id === id);
+        if (!current) {
+          document.store.getState().updateTask(id, fromExtTaskUpdates(fieldUpdates));
           return;
         }
-        const materialize = customTaskTypeToMaterialize(updates.customTaskType);
+        assertResourceIdsUnchanged(`taak '${id}'`, current.resourceIds, requestedResourceIds);
+        const materialize = customTaskTypeToMaterialize(fieldUpdates.customTaskType);
+        const patch = fromExtTaskUpdates(fieldUpdates);
         if (!materialize) {
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          // Niets over (bv. alleen een ongewijzigde `resourceIds`): geen lege undo-stap.
+          if (Object.keys(patch).length > 0) document.store.getState().updateTask(id, patch);
           return;
         }
         batch.withTransaction(() => {
           document.store.getState().ensureProjectTaskType(materialize);
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          document.store.getState().updateTask(id, patch);
         });
       },
       addSequence: (seq) => document.store.getState().addSequence(fromExtSequenceInput(seq)),

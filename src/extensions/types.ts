@@ -171,7 +171,13 @@ export interface ExtensionApi {
     getSequences(): ExtSequence[];
     getResources(): ExtResource[];
     getAssignments(): ExtAssignment[];
+    /** `resourceIds` volgt uit de toewijzingen: alleen `[]` mag mee; een andere waarde gooit een fout. */
     addTask(task: Partial<ExtTask> & { name: string }): string;
+    /**
+     * `resourceIds` volgt uit de toewijzingen en is niet los te zetten: gelijk aan de huidige waarde
+     * (bv. een ongewijzigd `getTasks()`-object; volgorde telt niet) wordt genegeerd, een andere waarde
+     * gooit een fout vóór er iets gewijzigd is. Een onbekend taak-id blijft een stille no-op.
+     */
     updateTask(id: string, updates: Partial<ExtTask>): void;
     /** Retourneert het nieuwe relatie-id, of `null` wanneer de relatie geweigerd is. */
     addSequence(seq: Omit<ExtSequence, 'id'>): string | null;

@@ -964,6 +964,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   EXTCHECK="$DIR/.extcontract.mjs"
   if bundle_check "$DIR/check-ext-contract.ts" "$EXTCHECK"; then node "$EXTCHECK" || STATUS=1; fi
 
+  # `resourceIds` via de extensie-API (audit resources-kalenders R8). `addTask`/`updateTask` schreven
+  # het veld rauw: de taak leek toegewezen, maar zonder toewijzing (geen belasting, weg na opslaan).
+  # Nu: gelijk aan de huidige waarde ⇒ genegeerd; anders een fout met de route die wél toewijst.
+  EXTRESIDSCHECK="$DIR/.extresourceids.mjs"
+  if bundle_check "$DIR/check-ext-resourceids.ts" "$EXTRESIDSCHECK"; then node "$EXTRESIDSCHECK" || STATUS=1; fi
+
   # Extensie-integriteit en -afscherming (K-item 38, pragmatische helft). Een catalogusentry met
   # sha256 wordt geverifieerd en bij verschil geweigerd; de rauwe host-globals worden in de
   # extensie-scope geschaduwd. De batterij toont OOK expliciet aan dat dat laatste geen sandbox is —
