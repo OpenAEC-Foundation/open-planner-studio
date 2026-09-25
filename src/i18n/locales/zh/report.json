@@ -23,7 +23,12 @@
   "showBaselineOverlay": "显示基线叠加层",
   "autoFit": "自动适配纸张",
   "zoom": "缩放：",
-  "previewQuality": { "label": "预览质量", "standard": "标准", "high": "高", "maximum": "最高" },
+  "previewQuality": {
+    "label": "预览质量",
+    "standard": "标准",
+    "high": "高",
+    "maximum": "最高"
+  },
   "repeatHeader": "在每页重复页眉",
   "repeatFooter": "在每页重复页脚",
   "reportFontScaleLabel": "字号：",

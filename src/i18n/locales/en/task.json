@@ -18,7 +18,10 @@
     "hint": "The distribution only changes the hours per day of this assignment; task dates and splits stay as they are. A phase with effort 0 stays within the task duration.",
     "release": "Release distribution"
   },
-  "durationType": { "WORKTIME": "Work time", "ELAPSEDTIME": "Elapsed time" },
+  "durationType": {
+    "WORKTIME": "Work time",
+    "ELAPSEDTIME": "Elapsed time"
+  },
   "table": {
     "title": "Table",
     "wbs": "WBS",
@@ -427,11 +430,6 @@
       "contouredHint": "This assignment has its own hour distribution; edit or release it via the Hour distribution button.",
       "importedCurve": "Imported curve"
     },
-    "calendar": "Calendar",
-    "calendarProject": "Project calendar",
-    "priority": "Leveling priority",
-    "levelingDelay": "Leveling delay",
-    "durationHours": "Duration (hours)",
     "notes": {
       "title": "Notes",
       "add": "Add note",
@@ -440,6 +438,11 @@
       "done": "Done",
       "empty": "No notes yet."
     },
+    "calendar": "Calendar",
+    "calendarProject": "Project calendar",
+    "priority": "Leveling priority",
+    "levelingDelay": "Leveling delay",
+    "durationHours": "Duration (hours)",
     "splits": {
       "title": "Breaks",
       "after": "after",

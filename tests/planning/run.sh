@@ -1224,6 +1224,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # castvorm op t/tX/i18n.t rood wordt en `as const`, commentaar en andere functies niet.
   I18NKEYSCHECK="$DIR/.i18n-keys.mjs"
   if bundle_check "$DIR/check-i18n-keys.ts" "$I18NKEYSCHECK"; then node "$I18NKEYSCHECK" || STATUS=1; fi
+  # Kern van `npm run i18n:fmt` / `i18n:add`: opmaken verandert nooit de inhoud (op alle 56 echte
+  # locale-bestanden), nl-volgorde, meervoudsfamilies en de validatie vóór het schrijven.
+  I18NTOOLSCHECK="$DIR/.i18n-tools.mjs"
+  if bundle_check "$DIR/check-i18n-tools.ts" "$I18NTOOLSCHECK"; then node "$I18NTOOLSCHECK" || STATUS=1; fi
+  # `npm run i18n:resolve` end-to-end in een wegwerp-git-repo: git brengt een verwijderde sleutel
+  # stil terug wanneer de overkant hem alleen verplaatste; het script herstelt dat (tijdens én na de
+  # merge-commit), laat een echte botsing open en weigert buiten een merge.
+  I18NRESOLVECHECK="$DIR/.i18n-resolve.mjs"
+  if bundle_check "$DIR/check-i18n-resolve.ts" "$I18NRESOLVECHECK"; then node "$I18NRESOLVECHECK" || STATUS=1; fi
 
   # Het "vandaag"-label in de printkopstrook. Lag vóór `drawTimelineHeader` en werd daardoor in de
   # RASTER-preview weggeschilderd, terwijl het in de VECTOR-PDF (waar alle tekst boven alle vormen
