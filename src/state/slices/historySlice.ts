@@ -4,6 +4,7 @@ import {
   recordSessionHistoryDeltas,
   selectRedoHistoryEvent,
   selectUndoHistoryEvent,
+  type DocumentDataHistoryDelta,
   type SessionHistoryDelta,
   type SessionHistoryEvent,
 } from '../sessionHistory';
@@ -22,6 +23,22 @@ export interface HistorySlice {
   recordSessionHistoryEvent: (label: string, deltas: readonly SessionHistoryDelta[]) => void;
   undo: () => void;
   redo: () => void;
+  /**
+   * Gebruikstest #170, G5: een BEWERKSESSIE (de taakdialoog) die relationele secties direct op de
+   * store laat werken (toewijzingen, werkregel, werk) — `historyMark` legt het begin vast (de
+   * volgende sequence), `revertHistorySince` draait bij Annuleren alles sinds dat punt terug en
+   * laat er geen redo van achter, `squashHistorySince` maakt er bij Opslaan één undo-stap van.
+   * Beide raken alleen events die uitsluitend documentdata van het ACTIEVE document dragen; komt
+   * er iets anders tussen (grid-voorkeur, ander document, een undone event), dan stopt de actie
+   * daar in plaats van half te knippen.
+   */
+  historyMark: () => number;
+  revertHistorySince: (mark: number) => void;
+  squashHistorySince: (mark: number, label: string) => void;
+}
+
+function isActiveDocumentDataEvent(event: SessionHistoryEvent, documentId: string): boolean {
+  return event.deltas.every(delta => delta.kind === 'document-data' && delta.documentId === documentId);
 }
 
 function persistedGridPreferences(state: Readonly<AppState>): PersistedTaskGridPreferencesV1 {
@@ -100,4 +117,48 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
 
   undo: () => applyHistoryEvent(runtime, set, get, 'undo'),
   redo: () => applyHistoryEvent(runtime, set, get, 'redo'),
+
+  historyMark: () => get().nextHistorySequence,
+
+  revertHistorySince: (mark) => {
+    const documentId = get().activeDocumentId;
+    // Undo zolang het nieuwste toepasbare event binnen de sessie valt en alleen dit document raakt.
+    for (;;) {
+      const current = get();
+      const event = selectUndoHistoryEvent(current.historyEvents, current.activeDocumentId);
+      if (!event || event.sequence < mark || !isActiveDocumentDataEvent(event, documentId)) break;
+      applyHistoryEvent(runtime, set, get, 'undo');
+      if (get().historyEvents.find(item => item.id === event.id)?.state !== 'undone') break;
+    }
+    // Annuleren is geen undo: de teruggedraaide sessiestappen horen niet als redo terug te komen.
+    set({
+      historyEvents: get().historyEvents.filter(event =>
+        !(event.sequence >= mark && event.state === 'undone' && isActiveDocumentDataEvent(event, documentId))),
+    });
+    runtime.resetUndoCoalescing();
+  },
+
+  squashHistorySince: (mark, label) => {
+    const current = get();
+    const documentId = current.activeDocumentId;
+    const session = current.historyEvents
+      .filter(event => event.sequence >= mark)
+      .sort((left, right) => left.sequence - right.sequence);
+    if (session.length < 2) return;
+    if (!session.every(event => event.state === 'applied' && isActiveDocumentDataEvent(event, documentId))) return;
+    const first = session[0].deltas[0] as DocumentDataHistoryDelta;
+    const last = session[session.length - 1].deltas[0] as DocumentDataHistoryDelta;
+    const merged: SessionHistoryEvent = {
+      ...session[0],
+      label,
+      deltas: [{ kind: 'document-data', documentId, before: first.before, after: last.after }],
+    };
+    const dropped = new Set(session.slice(1).map(event => event.id));
+    set({
+      historyEvents: current.historyEvents
+        .filter(event => !dropped.has(event.id))
+        .map(event => (event.id === merged.id ? merged : event)),
+    });
+    runtime.resetUndoCoalescing();
+  },
 });

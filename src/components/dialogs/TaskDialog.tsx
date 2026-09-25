@@ -36,6 +36,21 @@ function blankDraft(startDate: string, constructionMode: boolean, durationUnit: 
   };
 }
 
+/** G7: verschilt de patch van de taak? `time` veld voor veld (een nieuw object met dezelfde waarden
+ *  is geen wijziging); de rest per referentie — de draft deelt ongewijzigde objecten met de taak. */
+function taskPatchChanges(task: Task, patch: Partial<Task>): boolean {
+  for (const key of Object.keys(patch) as (keyof Task)[]) {
+    if (key === 'time') {
+      const next = patch.time!;
+      const keys = new Set([...Object.keys(task.time), ...Object.keys(next)]) as Set<keyof Task['time']>;
+      for (const k of keys) if (!Object.is(task.time[k], next[k])) return true;
+      continue;
+    }
+    if (!Object.is(task[key], patch[key])) return true;
+  }
+  return false;
+}
+
 export function TaskDialog() {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -79,6 +94,11 @@ export function TaskDialog() {
   // (zoals resourcetoewijzingen). Een storemutatie mag de nog niet opgeslagen draft nooit opnieuw
   // initialiseren; alleen openen of naar een andere taak wisselen begint een nieuwe sessie.
   const initializedSessionRef = useRef<string | null>(null);
+  // G5 (gebruikstest #170): begin van deze bewerksessie in de sessiehistorie.
+  const historyMarkRef = useRef<number | null>(null);
+  const historyMark = useAppStore(s => s.historyMark);
+  const revertHistorySince = useAppStore(s => s.revertHistorySince);
+  const squashHistorySince = useAppStore(s => s.squashHistorySince);
 
   // Effectieve kalender volgt de kalender-dropdown live; de gedeelde duurbediening gebruikt hem
   // alleen voor plaatsing en exacte conversievoorstellen, nooit om de taakeenheid af te leiden.
@@ -87,12 +107,14 @@ export function TaskDialog() {
   useEffect(() => {
     if (!showTaskDialog) {
       initializedSessionRef.current = null;
+      historyMarkRef.current = null;
       return;
     }
 
     const sessionKey = editingTaskId ? `task:${editingTaskId}` : 'new-task';
     if (initializedSessionRef.current === sessionKey) return;
     initializedSessionRef.current = sessionKey;
+    historyMarkRef.current = editingTaskId ? historyMark() : null;
 
     if (editingTask) {
       setDraft({ ...editingTask, time: { ...editingTask.time } });
@@ -106,7 +128,7 @@ export function TaskDialog() {
       setStartDate(project.startDate);
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit]);
+  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit, historyMark]);
 
   useEffect(() => {
     if (!showTaskDialog) return;
@@ -161,7 +183,7 @@ export function TaskDialog() {
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);
       }
-      updateTask(editingTask.id, {
+      const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,
         wbsCode: draft.wbsCode,
@@ -177,7 +199,10 @@ export function TaskDialog() {
         deadline: draft.deadline,
         notes: draft.notes,
         time,
-      });
+      };
+      // Gebruikstest #170, G7: Opslaan zonder échte wijziging schreef toch een (lege) undo-stap,
+      // want een nieuw `time`-object is voor de snapshot een wijziging. Alleen patchen wat verschilt.
+      if (taskPatchChanges(editingTask, patch)) updateTask(editingTask.id, patch);
       // QA-fix P1 (fase 2.10, onderdeel 2): een gewijzigde ouder gaat via `moveTask` — die
       // synchroniseert childIds op ZOWEL de oude als de nieuwe ouder en weigert cykels (een
       // summary onder zijn eigen kind hangen). `updateTask` is een kale Object.assign zonder die
@@ -217,10 +242,16 @@ export function TaskDialog() {
       });
     }
 
+    // G5: alles wat deze sessie direct op de store deed (werkregel, toewijzingen, werk, relaties)
+    // plus de patch hierboven is één undo-stap.
+    if (historyMarkRef.current !== null) squashHistorySince(historyMarkRef.current, 'Taak bewerken');
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
   const handleClose = () => {
+    // Gebruikstest #170, G5: de relationele secties (werkregel, toewijzingen, werk, relaties)
+    // committen direct zodat ze in de dialoog met elkaar rekenen; Annuleren draait ze terug.
+    if (historyMarkRef.current !== null) revertHistorySince(historyMarkRef.current);
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 

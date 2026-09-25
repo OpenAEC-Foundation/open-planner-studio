@@ -188,3 +188,55 @@ test('bestandsmelding: de werkregel-detailregel opent de werkregelgids, niet de 
   await expect(active).toHaveCount(1);
   expect(Object.values(titles)).toContain((await active.textContent())?.trim());
 });
+
+// Gebruikstest #170, G5/G7: de taakdialoog commit werkregel, werk en toewijzingen direct (zodat ze
+// in de dialoog met elkaar rekenen), maar Annuleren draait ze terug — zonder redo-rest — en Opslaan
+// maakt er één undo-stap van; Opslaan zonder wijziging voegt geen lege undo-stap toe.
+function historyCount(page: Page): Promise<number> {
+  return page.evaluate(() => window.__OPS__!.store.getState().historyEvents.length);
+}
+
+test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één undo-stap', async ({ page, ops: _ops }) => {
+  const { taskId } = await seedAssignedTask(page);
+  const baseline = await historyCount(page);
+  const open = async () => {
+    await page.evaluate((id) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), taskId);
+    const dialog = page.locator('[data-ops-task-dialog] [role="dialog"], [role="dialog"]').last();
+    await expect(dialog.locator('[data-ops-work-rule]')).toBeVisible();
+    return dialog;
+  };
+
+  // Annuleren: regel + werk (inzet volgt) worden teruggedraaid.
+  let dialog = await open();
+  await dialog.locator('[data-ops-work-rule]').selectOption('FIXED_DURATION_WORK');
+  const work = dialog.locator('[data-ops-assignment-work] input');
+  await work.fill('64');
+  await work.press('Enter');
+  let st = await taskState(page, taskId);
+  expect([st.workRule, st.units, st.duration]).toEqual(['FIXED_DURATION_WORK', 2, 4]);
+  await dialog.locator('[data-ops-task-cancel]').click();
+  await expect(page.locator('[data-ops-work-rule]').first()).toBeVisible();
+  st = await taskState(page, taskId);
+  expect([st.workRule, st.units, st.work, st.duration]).toEqual([undefined, 1, undefined, 4]);
+  expect(await historyCount(page)).toBe(baseline);
+
+  // Opslaan zonder wijziging: geen lege undo-stap (G7).
+  dialog = await open();
+  await dialog.locator('[data-ops-task-save]').click();
+  expect(await historyCount(page)).toBe(baseline);
+
+  // Opslaan met regel + werk + naam: één Ctrl+Z haalt alles terug.
+  dialog = await open();
+  await dialog.locator('[data-ops-work-rule]').selectOption('FIXED_DURATION_WORK');
+  await dialog.locator('[data-ops-assignment-work] input').fill('64');
+  await dialog.locator('[data-ops-assignment-work] input').press('Enter');
+  await dialog.locator('input').first().fill('Metselwerk gevel');
+  await dialog.locator('[data-ops-task-save]').click();
+  st = await taskState(page, taskId);
+  expect([st.workRule, st.units]).toEqual(['FIXED_DURATION_WORK', 2]);
+  expect(await historyCount(page)).toBe(baseline + 1);
+  await page.keyboard.press('Control+z');
+  st = await taskState(page, taskId);
+  const name = await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.name, taskId);
+  expect([st.workRule, st.units, st.work, name]).toEqual([undefined, 1, undefined, 'Metselwerk']);
+});
