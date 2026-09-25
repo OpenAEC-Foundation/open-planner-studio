@@ -557,6 +557,13 @@
  * greep blijft een gangbare resize-hitbox (vergelijkbaar met Excel/Sheets, die ook een paar pixels
  * breed zijn, geen 8).
  *
+ * Die 4 px zijn ook echt pakbaar, ook het deel dat over de volgende kop hangt. Daarvoor krijgt een
+ * gewone kolomkop GEEN eigen laag (`columnHeaderZIndex` in DataGridHeader): met `z-index: 5` op
+ * elke kop lag de volgende kop (later in de DOM, zelfde laag) over dat deel en was de greep
+ * feitelijk 3 px (ltr) of 2 px (rtl, waar de kolomlijn aan de andere kant van de kop zit). Nu ligt
+ * de greep (z 2) in de laag van de kopregel, boven alle gewone koppen; vastgezette koppen houden
+ * een eigen laag boven de wegscrollende koppen, aflopend naar rechts.
+ *
  * RTL (ar/fa): de kolomkop-bediening volgt het RASTER, niet de tekst. Het raster is in elke taal ltr
  * (`DataGridCore` pint `direction: ltr`: WBS links, pijl-rechts gaat een kolom naar rechts, de strook
  * voor het plusje zit rechts); alleen koptekst en celinhoud volgen de taal (`dir={textDirection}`).

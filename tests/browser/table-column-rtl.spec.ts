@@ -65,6 +65,41 @@ async function open(page: Page, surface: Surface, locale: LocaleCase): Promise<v
 }
 
 for (const locale of LOCALE_CASES) {
+  // Vastgezette koppen krijgen een eigen laag boven de rest (ze blijven staan als je horizontaal
+  // scrolt). Ook tussen twee vastgezette koppen is de greep over zijn volle 4 px pakbaar.
+  test(`${locale.code} full-task-grid: greep tussen twee vastgezette kolommen over de volle 4 px`, async ({ page, ops: _ops }) => {
+    const surface: Surface = 'full-task-grid';
+    await seedProject(page, [
+      { name: 'Ruwbouw', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    ]);
+    await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+    for (const id of ['task.wbsCode', 'task.name']) {
+      await header(page, surface, id).click({ button: 'right' });
+      await page.getByRole('menu').getByRole('menuitem', { name: /^(Pin|Vastzetten)$/ }).click();
+      await expect(header(page, surface, id)).toHaveAttribute('data-grid-pinned', 'true');
+    }
+    await chooseLocale(page, locale);
+    expect((await headerIds(page, surface)).slice(0, 2)).toEqual(['task.wbsCode', 'task.name']);
+
+    for (const id of ['task.wbsCode', 'task.name']) {
+      const handle = header(page, surface, id).locator('.task-grid-resize-handle');
+      const grip = await box(handle);
+      const y = centerY(grip);
+      for (let px = Math.round(grip.left); px < Math.round(grip.right); px++) {
+        await page.mouse.move(px, y);
+        await expect(handle, `${id} greeppixel x=${px}`).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      }
+      // En een echte sleep vanaf de buitenste pixel verbreedt de kolom.
+      const widthBefore = (await widthOf(page, surface, id))!;
+      const x = Math.round(grip.right) - 1;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + 30, y, { steps: 5 });
+      await page.mouse.up();
+      await expect.poll(() => widthOf(page, surface, id)).toBe(widthBefore + 30);
+    }
+  });
+
   for (const surface of SURFACES) {
     test(`${locale.code} ${surface}: plusje rechts in zijn strook, niet over een kolomkop`, async ({ page, ops: _ops }) => {
       await open(page, surface, locale);
@@ -113,12 +148,20 @@ for (const locale of LOCALE_CASES) {
       // De rand zit op de grens die bij verbreden verschuift: rechts, zoals in ltr.
       expect(Math.abs(centerX(handleBefore) - before.right)).toBeLessThanOrEqual(2);
 
-      // Verbreden: sleep de rand 40 px naar rechts. De linkergrens blijft staan, de rechtergrens
-      // schuift 40 px mee en ligt daarna weer onder de muis. Vastpakken gebeurt in het zichtbare deel
-      // van de 4px-greep, 1 px binnen de eigen kolom: de helft voorbij de grens ligt onder de
-      // volgende kop (later in de DOM, zelfde z-index), in elke taal.
-      const x = handleBefore.left + 1;
+      // De greep is over zijn volle 4 px pakbaar, ook het deel voorbij de kolomgrens dat over de
+      // volgende kop hangt: op elke pixelkolom toont een echte muisbeweging de hoverkleur van de
+      // greep. Eerst lag dat deel onder de volgende kop (eigen laag per kop, later in de DOM): 3 px
+      // pakbaar in ltr, 2 in rtl. Hele coördinaten: Chromium rondt het muispunt af, x + 0,5 valt
+      // al in de volgende pixel.
       const y = centerY(handleBefore);
+      for (let px = Math.round(handleBefore.left); px < Math.round(handleBefore.right); px++) {
+        await page.mouse.move(px, y);
+        await expect(handle, `greeppixel x=${px}`).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      }
+
+      // Verbreden: pak de rand precies op de kolomgrens en sleep hem 40 px naar rechts. De
+      // linkergrens blijft staan, de rechtergrens schuift 40 px mee en ligt daarna weer onder de muis.
+      const x = before.right;
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.mouse.move(x + 20, y, { steps: 4 });
@@ -131,9 +174,10 @@ for (const locale of LOCALE_CASES) {
       expect(Math.abs(centerX(await box(handle)) - (x + 40))).toBeLessThanOrEqual(2);
       expect((await state(page)).undoDepth).toBe(depth + 1);
 
-      // Versmallen: 30 px terug naar links, de rand volgt weer.
+      // Versmallen: pak de buitenste greeppixel (over de volgende kop) en sleep 30 px terug naar
+      // links; de rand volgt weer.
       const handleWide = await box(handle);
-      const xWide = handleWide.left + 1;
+      const xWide = Math.round(handleWide.right) - 1;
       await page.mouse.move(xWide, y);
       await page.mouse.down();
       await page.mouse.move(xWide - 30, y, { steps: 6 });
