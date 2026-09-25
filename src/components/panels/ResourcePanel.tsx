@@ -769,21 +769,38 @@ function ResourceRow({
   // volledige bibliotheekschrijfacties opleveren voor het typen van tien letters. Tekstvelden
   // (naam/eenheid) committeren daarom op blur/Enter, net als de bedrijfsnaam-draft in
   // `LibrarySection.tsx` (zelfde patroon: lokale draft, resync op externe wijziging, commit alleen bij
-  // een echt verschil). Numerieke/select-velden (max.eenheden via `UnitsInput`, type, kalender) blijven
-  // bewust WEL direct: het zijn korte, atomaire wijzigingen (een paar cijfers, of één discrete keuze),
-  // geen aanhoudende vrije tekst-compositie — de marginale pool-bump-kost daarvan is verwaarloosbaar
-  // vergeleken met een meerdere-woorden-lange naam, en `UnitsInput` doet dit al overal (ook in de
-  // Projectweergave) zo. Alleen relevant voor `isPool`; de Projectweergave-tak van elke cel hieronder
-  // (locked ? static : direct invoerveld) is ongewijzigd.
+  // een echt verschil). Max.eenheden (`UnitsInput`), type en kalender blijven bewust WEL direct: korte,
+  // atomaire wijzigingen (een paar cijfers, of één discrete keuze).
+  //
+  // Audit resources-kalenders R9: de Projectweergave schreef naam, tarief en eenheid wél per
+  // toetsaanslag (`updateResource` → één undo-stap per letter; Ctrl+Z haalde één teken weg, en
+  // alles-selecteren + Backspace zette een lege naam in de store en de undo-geschiedenis). Beide
+  // weergaven lopen nu door dezelfde drafts hieronder: één commit bij het verlaten van het veld, dus
+  // één undo-stap. Een lege naam wordt nooit gecommit — het veld valt terug op de huidige naam (de
+  // AI-route weigert een lege naam ook). Het tarief volgt hetzelfde pad: leeg = geen tarief, een
+  // ongeldig getal valt terug.
   const [nameDraft, setNameDraft] = useState(resource.name);
   useEffect(() => { setNameDraft(resource.name); }, [resource.id, resource.name]);
-  const commitNameDraft = () => { if (nameDraft !== resource.name) onPatch({ name: nameDraft }); };
+  const commitNameDraft = () => {
+    if (nameDraft.trim() === '') { setNameDraft(resource.name); return; }
+    if (nameDraft !== resource.name) onPatch({ name: nameDraft });
+  };
 
   const [unitDraft, setUnitDraft] = useState(resource.unitOfMeasure ?? '');
   useEffect(() => { setUnitDraft(resource.unitOfMeasure ?? ''); }, [resource.id, resource.unitOfMeasure]);
   const commitUnitDraft = () => {
     const v = unitDraft || undefined;
     if (v !== resource.unitOfMeasure) onPatch({ unitOfMeasure: v });
+  };
+
+  const rateText = resource.costPerHour == null ? '' : String(resource.costPerHour);
+  const [rateDraft, setRateDraft] = useState(rateText);
+  useEffect(() => { setRateDraft(rateText); }, [resource.id, rateText]);
+  const commitRateDraft = () => {
+    const raw = rateDraft.trim();
+    const next = raw === '' ? undefined : parseFloat(raw);
+    if (next !== undefined && !Number.isFinite(next)) { setRateDraft(rateText); return; }
+    if (next !== resource.costPerHour) onPatch({ costPerHour: next });
   };
 
   return (
@@ -808,25 +825,17 @@ function ResourceRow({
         </td>
         <td className="px-2 py-1">
           <div className="flex items-center gap-1 min-w-0">
-            {isPool ? (
+            {locked ? (
+              <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
+                {resource.name || '—'}
+              </span>
+            ) : (
               <input
                 value={nameDraft}
                 onChange={e => setNameDraft(e.target.value)}
                 onBlur={commitNameDraft}
                 // Enter/↑/↓ verplaatsen de cursor (#48); de focuswissel blurt dit veld en dat is
                 // precies wat de draft committeert — daarom hier geen eigen Enter-blur meer.
-                {...cellProps(resource.id, 'name')}
-                className={cellInput}
-                placeholder={t('resource.name')}
-              />
-            ) : locked ? (
-              <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
-                {resource.name || '—'}
-              </span>
-            ) : (
-              <input
-                value={resource.name}
-                onChange={e => onPatch({ name: e.target.value })}
                 {...cellProps(resource.id, 'name')}
                 className={cellInput}
                 placeholder={t('resource.name')}
@@ -965,13 +974,9 @@ function ResourceRow({
               type="number"
               min={0}
               step="any"
-              value={resource.costPerHour ?? ''}
-              onChange={e => {
-                const raw = e.target.value;
-                if (raw === '') { onPatch({ costPerHour: undefined }); return; }
-                const n = parseFloat(raw);
-                if (Number.isFinite(n)) onPatch({ costPerHour: n });
-              }}
+              value={rateDraft}
+              onChange={e => setRateDraft(e.target.value)}
+              onBlur={commitRateDraft}
               {...cellProps(resource.id, 'cost')}
               className={cellInput + ' text-right'}
             />
@@ -983,25 +988,16 @@ function ResourceRow({
           </td>
         )}
         <td className="px-2 py-1">
-          {isPool ? (
-            <input
-              value={unitDraft}
-              disabled={!isMaterial}
-              onChange={e => setUnitDraft(e.target.value)}
-              onBlur={commitUnitDraft}
-              {...cellProps(resource.id, 'unit')}
-              className={cellInput + ' disabled:opacity-30'}
-              title={isMaterial ? undefined : t('resource.unitOnlyMaterial')}
-            />
-          ) : locked ? (
+          {locked ? (
             <span className={cellStatic} title={t('resource.inheritedFieldHint')}>
               {isMaterial ? (resource.unitOfMeasure || '—') : '—'}
             </span>
           ) : (
             <input
-              value={resource.unitOfMeasure ?? ''}
+              value={unitDraft}
               disabled={!isMaterial}
-              onChange={e => onPatch({ unitOfMeasure: e.target.value || undefined })}
+              onChange={e => setUnitDraft(e.target.value)}
+              onBlur={commitUnitDraft}
               {...cellProps(resource.id, 'unit')}
               className={cellInput + ' disabled:opacity-30'}
               title={isMaterial ? undefined : t('resource.unitOnlyMaterial')}
