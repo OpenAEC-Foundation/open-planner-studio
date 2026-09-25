@@ -1324,7 +1324,8 @@ button.task-grid-relation-reference {
   --theme-text-muted: #7C8492;
   --theme-hover: rgba(255, 255, 255, 0.06);
   --theme-active: #D97706;
-  --theme-active-border: #EA580C;
+  /* Gelijk aan de vulling: een roodoranje rand (#EA580C) om een amber knop las als een rode ring. */
+  --theme-active-border: #D97706;
   --theme-warning-text: #F59E0B;
   --theme-grid-weekend: rgba(255, 255, 255, 0.035);
   /* Om-en-om weekband bij gecomprimeerde as (issue #21 punt 2): dekt hele weken (5+ kolommen
