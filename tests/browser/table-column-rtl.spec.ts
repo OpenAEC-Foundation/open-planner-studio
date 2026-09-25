@@ -12,16 +12,10 @@
 // instellingenvenster (de taalkeuze zelf is een klik), en leest state.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
+import { box, centerX, centerY, chooseLocale, LOCALE_CASES, type LocaleCase } from './fixtures/locale';
 
 type Surface = 'full-task-grid' | 'gantt-task-grid';
-interface Box { left: number; right: number; top: number; bottom: number }
 
-const LOCALES = [
-  { code: 'ar', option: /العربية/, rtl: true },
-  { code: 'fa', option: /فارسی/, rtl: true },
-  { code: 'nl', option: /Nederlands/, rtl: false },
-  { code: 'en', option: /English/, rtl: false },
-] as const;
 const SURFACES: readonly Surface[] = ['full-task-grid', 'gantt-task-grid'];
 
 /** Breedte van de afsluitende strook waarin het plusje staat (`--task-grid-chooser-strip`). */
@@ -34,16 +28,6 @@ function shell(page: Page, surface: Surface): Locator {
 function header(page: Page, surface: Surface, columnId: string): Locator {
   return shell(page, surface).locator(`[role="columnheader"][data-grid-column-id="${columnId}"]`);
 }
-
-async function box(locator: Locator): Promise<Box> {
-  return locator.evaluate(element => {
-    const { left, right, top, bottom } = element.getBoundingClientRect();
-    return { left, right, top, bottom };
-  });
-}
-
-const centerX = (rect: Box) => (rect.left + rect.right) / 2;
-const centerY = (rect: Box) => (rect.top + rect.bottom) / 2;
 
 async function headerIds(page: Page, surface: Surface): Promise<string[]> {
   return shell(page, surface).locator('[role="columnheader"][data-grid-column-id]').evaluateAll(
@@ -68,18 +52,7 @@ async function dropLineX(target: Locator, pseudo: '::before' | '::after'): Promi
   }, pseudo);
 }
 
-/** Taal kiezen zoals een gebruiker dat doet: Instellingen → Taal → optie. */
-async function chooseLocale(page: Page, locale: typeof LOCALES[number]): Promise<void> {
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
-  await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
-  await page.getByRole('option', { name: locale.option }).click();
-  await expect(page.locator('html')).toHaveAttribute('lang', locale.code);
-  await expect(page.locator('html')).toHaveAttribute('dir', locale.rtl ? 'rtl' : 'ltr');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-}
-
-async function open(page: Page, surface: Surface, locale: typeof LOCALES[number]): Promise<void> {
+async function open(page: Page, surface: Surface, locale: LocaleCase): Promise<void> {
   await seedProject(page, [
     { name: 'Ruwbouw', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Afbouw', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
@@ -91,7 +64,7 @@ async function open(page: Page, surface: Surface, locale: typeof LOCALES[number]
   await expect(shell(page, surface).locator('[role="grid"]')).toBeVisible();
 }
 
-for (const locale of LOCALES) {
+for (const locale of LOCALE_CASES) {
   for (const surface of SURFACES) {
     test(`${locale.code} ${surface}: plusje rechts in zijn strook, niet over een kolomkop`, async ({ page, ops: _ops }) => {
       await open(page, surface, locale);

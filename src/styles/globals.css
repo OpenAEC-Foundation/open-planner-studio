@@ -337,8 +337,13 @@
   justify-self: end;
   position: relative;
   /* De volledige 5px-grijpzone ligt aan de Gantt-kant. Gecentreerd op de paneelgrens bedekte deze
-   * anders 2,5px van de 8px brede verticale tabelscrollbar. */
-  transform: translateX(100%);
+   * anders 2,5px van de 8px brede verticale tabelscrollbar.
+   * Logisch, niet fysiek: in ar/fa spiegelt de werkruimte (de takenlijst staat dan RECHTS van de
+   * Gantt) en valt het einde van kolom 1 op de LINKERrand van de lijst. Een negatieve
+   * `margin-inline-end` ter breedte van de zone schuift hem in beide richtingen voorbij dat einde,
+   * de Gantt in. De eerdere `transform: translateX(100%)` duwde altijd naar rechts en legde de zone
+   * in ar/fa 5px BINNEN de lijst, over de WBS-kolom. In ltr is de box identiek. Spec: splitter.spec.ts. */
+  margin-inline-end: -5px;
   z-index: 6;
   width: 5px;
   min-width: 5px;
