@@ -1238,7 +1238,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Voltooide fysieke-voortgangstaak staat op de statusdatum",
-      "help": "Een voltooide taak met fysiek voortgangspercentage staat als één punt op de statusdatum, of later als een voorganger dat eist, in plaats van op haar werkelijke datums."
+      "help": "Een voltooide taak met fysiek voortgangspercentage staat als één punt op de statusdatum, of later als een voorganger dat eist, in plaats van op haar werkelijke datums. Alleen gemeten voor fysieke voortgang; voor andere voortgangstypen (P6-standaard: duur) is dit gedrag niet gemeten en blijft het uit."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Verstreken SS-lag uit een lopende voorganger telt niet",

@@ -102,6 +102,41 @@ van #167, `claude/recorded-all-formats-fixes`).
 uit `rem_target_link_flag`) vervalt; de UI-branch `claude/x12-ui-a19-perfile` (51f37d33) wordt niet gemerged.
 "smal" — C5 blijft beperkt tot voltooide CP_Phys-taken; naam en gidsregel worden eerlijk ("gemeten op
 CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_Drtn-taken is.
+*Uitvoering:* C5-docs gemerged (`393cf74d`, branch `claude/x12-c5-smal-docs`); A19 gebouwd op
+`claude/x12-a19-basis` kop `9498648b` (Opus 5.5): measure vóór/ná identiek (76, 0/0/0, cellen per as gelijk),
+blast-radius `xerDefaultsNegativeFloatTasks` omlaag in zes niet-P6-bestanden; A19 in `LEGACY_XER_ALWAYS_ON`,
+A19-01..06; B1-wissel P6→OPS nu 3 verschoven (A19 reist niet meer mee); fixtures zonder vlag expliciet;
+open punt: `docs/TODO.md` r.860 (casus 08 A/10 B) als mogelijk tegenbewijs. Critreview loopt
+(`opus-laag-critreview-a19-basis`); daarna merge + keten.
+
+**2026-09-24 ~18:45, vraag 14 (regel 7a / A21 achter een zichtbare optie?), letterlijk: "laten"** — A21 blijft
+zoals hij is: alleen actief als optie A21 aan staat én B3 aan staat (B3 staat in het P6-profiel uit), gids
+eerlijk, geen extra instelling.
+
+**2026-09-24 ~18:55, vraag 15 (corrupt of herschreven bronarchief in een IFC), letterlijk: "openen met
+melding"** — het project opent zónder archief, met één in-app melding (K8a-kanaal) dat het bronarchief
+onbruikbaar is en wat dat betekent (geen "datums zoals opgeslagen", geen herkomst); draait het
+XER-etappebesluit "geen fallback" om; eigen branch vanaf de #109-PR-branch.
+
+**2026-09-24 ~19:00, vraag 16 (statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
+`plan_end_date`, 37 corpusprojecten), letterlijk: "eigen PR"** — de lezer verzint geen anker meer (P6 valt
+terug op het netwerkeinde); eigen branch vanaf de #109-PR-branch, meting vóór/ná op #109 én op #169, herpin
+volgens het recept, alleen landen als geen cel slechter wordt.
+
+**2026-09-24 ~19:10, vraag 17 (documentnaam na XER-import), letterlijk: "projectnaam"** — de documentnaam
+wordt de projectnaam uit het XER, met het P6 Project-ID erachter tussen haakjes wanneer dat afwijkt van de
+naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn.
+
+**2026-09-25 ~17:30 (na de maandlimiet-onderbreking van 24-09 ~20:30), letterlijk:** "doe alles wat je nog
+nodig is om het af te maken, wanneer deze hele etappe af is ga jij alle openstaasnde PRS mergen. wanneer
+alles in main zit zal ik een visuele check van je werk doen." ⇒ (1) de orkestrator maakt de etappe af
+(open fixrondes, her-checks, verify per kop) en neemt de resterende ontwerpvragen (E7, E9, E4, E5) als
+orkestratorbesluit volgens de reviewadviezen — omkeerbaar bij de visuele check; (2) daarna merget de
+orkestrator zélf alle open PR's naar `main` in stapelvolgorde #109 → #167 → #169 → #170, elk pas na een
+groene `verify` op de gemergde stand (uitzondering op de vaste regel "nooit naar main; eigenaar merget",
+alleen voor deze etappe en op dit uitdrukkelijke verzoek); een push naar `main` is een productie-deploy
+(`live.yml`), dus de keten is: mergen, CI afwachten, dan de volgende; (3) de eigenaar doet de visuele check
+op `main`. Nog steeds géén release/tag.
 
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
@@ -186,6 +221,24 @@ CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_
   #101 verplaatste haar zelf de motor in; datagates blijven ≤ pin). E3 = de code volgt de spec (XER zet
   werkvelden alleen waar het werk afwijkt; histogram/nivelleerder byte-identiek aan vandaag) — omkeerbaar;
   blijft als eigenaarsvraag staan in het dossier.
+
+- **24-09 ~19:40, Fable-review #170 (LANDEN-MET-FIXES):** E8 en E10 worden gebouwd volgens het Fable-advies
+  als orkestratorbesluit (omkeerbaar): een voortgangsboeking verplaatst rest → verricht naar rato van de
+  restduur (P6: Remaining = At Completion − Actual), en een contourbewerking schrijft het restveld. Ook
+  gebouwd: kalenderdialoog/`removeCalendar` door `settleCalendarChange` (K2, gids-belofte), laag 3 bij
+  `curveValues`, `removeResource` wist ook Z8/walks. NIET gebouwd (eigenaar): E9 (FIXED_RATE-drift, F5
+  terugdraaien?), E3/E7 (per-toewijzing-spannes: beslispunt 10), E4 (stil ontsluiten bij alleen afgeleide
+  regel?), E5 (UI-vorm: volgt de memory-regel gekleurde blokken in een UI-baan). E2 dicht.
+
+- **25-09 ~17:45, op de eigenaarsopdracht "doe alles wat nodig is om het af te maken":** de resterende
+  ontwerpvragen van #170 als orkestratorbesluit, volgens de reviewadviezen en omkeerbaar bij de visuele
+  check: **E7** = "uitsmeren nu, spanne later" (totaal klopt, verdeling over de hele taak; eerlijke gidsregel;
+  per-toewijzing-spanne als eigen baan ná #170; G1 eerst fixen); **E9** = F5 terugdraaien alleen als een
+  agent het klein en gemeten (44-cases-meetlat + `.mpp` 216/0/0) kan doen, anders documenteren als bekende
+  afwijking van MSP; **E4** = stil ontsluiten wanneer de enige bron een afgeleide regel is, melden alleen bij
+  opgeslagen werkvelden of een eigen regel uit IFC, met eigen gidslink; **E5** = instelling heet "Toon
+  werkregels en werk", gekleurd blok i.p.v. formule-bijschrift (memory-regel), geen losse sectiekop tenzij
+  de tabs-test het toestaat; **E8/E10** zoals eerder (rest ↔ verricht bij voortgang; contour schrijft rest).
 
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
@@ -304,15 +357,13 @@ CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_
    niet als P6-standaard aan; C2 blijft (Hotel 244, Roads 11, DCP-03 1).
 
 **Nieuwe eigenaarsvragen uit de reviews van 24-09 (nog niet gesteld; stellen ná A19-basis en C5):**
-- 14. Regel 7a (`p6CompletedLateFromRemainingWindow`, correlationeel, tegengesproken door het enige directe
-  P6-bewijs): achter een zichtbare standaard-uit optie, of aan laten met de eerlijke gidstekst? Advies: aan
-  laten met gidstekst (A21 is zonder B3 al inert; zie eindreview deel 1 bevinding 3).
-- 15. Corrupt of door andere IFC-software herschreven bronarchief: project openen zónder archief met een
-  melding (draait "geen fallback" om), of blijven weigeren? Advies: openen met melding, in een eigen PR.
-- 16. Statisch anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37
-  corpusprojecten, niet P6): eigen PR met herpin? Advies: ja, na #109.
-- 17. Documentnaam bij XER-import = P6 Project-ID i.p.v. projectnaam: omzetten naar projectnaam (met ID als
-  suffix)? Advies: ja, kleine UX-fix in #109.
+- 14. **Beantwoord 24-09 ~18:45: "laten"** (§1a). Regel 7a/A21 blijft zoals hij is.
+- 15. **Beantwoord 24-09 ~18:55: "openen met melding"** (§1a); agent `opus-midden-archief-fallback` op
+  `claude/xer-archief-fallback` vanaf de #109-PR-branch.
+- 16. **Beantwoord 24-09 ~19:00: "eigen PR"** (§1a); agent `opus-midden-anker-projecteinde` op
+  `claude/xer-anker-projecteinde` vanaf de #109-PR-branch.
+- 17. **Beantwoord 24-09 ~19:10: "projectnaam"** (§1a); agent `opus-laag-documentnaam-xer` op
+  `claude/xer-documentnaam` vanaf de #109-PR-branch.
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
@@ -326,7 +377,7 @@ CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
 | baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
-| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `673aa51c`; banen 1–2 gedaan, critreviews verwerkt; open E1/E2/E4/E5/E7 |
+| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `6e448f63`, **verify groen**; banen 1–2 gedaan, critreviews verwerkt; Fable-review = LANDEN-MET-FIXES (rapport `8d4f21f6`; fixagent `opus-midden-pr170-fable-fixes` loopt, hervat na procesherstart 19:45); gebruikstest E1 gedaan (`a979d3d4`, screenshots `qa/gebruikstest-170/`): rekenkern klopt, **G1 naamkolom van de toewijzingstabel 0 px bij >1 resource (orkestrator zelf gezien op `05b-ec2370-paneel.png`)**, G2 drie betekenissen "taaktype", G3 Lees-meer-link naar verkeerde gids, G4 EC2370 tegenspraak zonder uitleg, G5 taakdialoog past toe vóór Opslaan ⇒ UI-fixronde ná de Fable-fixes op dezelfde branch; E2 afgehandeld (labelwissel juist, MPXJ bevestigt; `2026-09-24-e2-p6xml-durationtype.md`); open E1/E4/E5/E7 |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
@@ -571,8 +622,13 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    (s4)). Critreview (Opus 5.5) = LANDEN-MET-FIXES ⇒ fixronde `673aa51c`: `removeResource` wist pauzes
    onvoorwaardelijk (s6/s6b), crashherstel-bewijs check 62 (`prepareLoadedPayload` zonder reconcile/clear).
    **Draft-PR #170** geopend (`claude/taaktypes-integratie` → base `claude/rekenprofielen`; vervangt #101, sluiten
-   = eigenaar); gelinkt aan de thread. Keten measure+verify op `673aa51c` gestart in de agent-worktree
-   (`/tmp/ops-chain-taaktypes-{measure,verify}.log`). baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   = eigenaar); gelinkt aan de thread. Keten op `673aa51c`: MEASURE_EXIT=0, verify EXIT=1 op één browsertest
+   (`settings-tabs.spec.ts:76`: #101's instelling "Toon taaktypes" had een eigen sectiekop op Planning ⇒ 5 i.p.v.
+   4 koppen) ⇒ gefixt `6e448f63` (instelling als gewone regel onder Urenplanning, sleutel
+   `settings.taskTypesSection` weg uit 14 locales; specs 4/4). **Keten op `6e448f63`: MEASURE_EXIT=0 (76/0/0/0),
+   verify EXIT=0 (18:59)** — PR-body #170 bijgewerkt; Fable-critreview op #170 gestart (`fable-critreview-pr170`).
+   Eigenaar bevestigd 24-09 ~18:50: #170 bevat elke commit van #101 (merge-base-check); #101 sluiten =
+   eigenaar, branch blijft als naslag. baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
    gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
    krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel

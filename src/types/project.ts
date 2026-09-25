@@ -512,6 +512,11 @@ export interface SchedulingOptions {
    *    en CP_Phys is een beschermgrens vanwege DCP-03 As-Built, geen bewezen P6-onderscheid. Dat
    *    onderscheid kan net zo goed in het duurtype zitten (B3 eist `DT_FixedDUR2`, As-Built is
    *    `DT_FixedDrtn`). [VERMOED] C5 kent geen Progress-Override-poort, C4 wel; zie plan §9.
+   *    Voorbehoud (eigenaarsbesluit 2026-09-24, "smal"): gemeten op CP_Phys; CP_Drtn/CP_Units NIET
+   *    gemeten — het corpus bevat geen P6-doorgerekend bestand met voltooide CP_Drtn-taken (élke voltooide
+   *    orakeltaak is CP_Phys: Roads 157, HarbourPointe 18, OZB 17; Hotel/Sample/ashspace 0), en P6's
+   *    standaard is CP_Drtn. De poort blijft daarom smal; meten zodra zo'n bestand er is. Gepind in
+   *    `check-conventions-p6-flags.ts` ("C5 poort: CP_Drtn doet niet mee" en de As-Built-casus V1–V3).
    *    Vrije-spelingkant (X12 brok 8, 2026-09-23; `scheduleAnalysis.computeScheduleResults`): een punt heeft
    *    geen relatiegrens naar zijn voorgangers, dus over een FS0-relatie naar een punt telt de vrije speling
    *    van de voorganger in haar eigen kalender tot dat punt (niet de terugval 0). Gemeten: in de

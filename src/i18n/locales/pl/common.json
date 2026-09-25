@@ -1308,7 +1308,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Zakończone zadanie z postępem fizycznym na dacie stanu",
-      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach."
+      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach. Zmierzone tylko dla postępu fizycznego; dla innych typów postępu (domyślnie w P6: czas trwania) to zachowanie nie zostało zmierzone i pozostaje wyłączone."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Upłynięte opóźnienie SS od trwającego poprzednika się nie liczy",

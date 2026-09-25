@@ -1273,7 +1273,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Attività completata ad avanzamento fisico sulla data di stato",
-      "help": "Un'attività completata con percentuale di avanzamento fisico appare come un unico punto sulla data di stato, o più tardi se un predecessore lo richiede, invece che sulle sue date effettive."
+      "help": "Un'attività completata con percentuale di avanzamento fisico appare come un unico punto sulla data di stato, o più tardi se un predecessore lo richiede, invece che sulle sue date effettive. Misurato solo per l'avanzamento fisico; per gli altri tipi di avanzamento (predefinito in P6: durata) questo comportamento non è stato misurato e resta disattivato."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Il ritardo II trascorso di un predecessore in corso non conta",

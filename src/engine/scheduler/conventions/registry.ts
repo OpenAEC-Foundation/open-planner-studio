@@ -131,7 +131,7 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6FreeFloatOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK2),                  // C2 vrije speling per kalender
   convention('p6CompletedRemainingLag', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK2),            // C3 de LAG na een voltooide voorganger (naast C6)
   convention('p6CompletedOutOfSequenceWindow', 'C', 'completedWork', NONE, false, SINCE_X12_BROK3),       // C4 voltooide taak buiten volgorde
-  convention('p6CompletedPhysicalAtDataDate', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK3),     // C5 voltooide fysieke-voortgangstaak
+  convention('p6CompletedPhysicalAtDataDate', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK3),     // C5 voltooide fysieke-voortgangstaak; alleen CP_Phys gemeten (besluit 24-09 smal)
   convention('p6InProgressStartLagElapsed', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK3),        // C6 de start-startlag uit een lopende voorganger
   convention('p6FinishFinishStartMilestoneLateFinish', 'C', 'milestones', P6_ONLY, false, SINCE_X12_BROK4), // C7 eind-eindrelatie naar een startmijlpaal: het doel is de mijlpaal
   convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK4), // C8 lopende taak (tegenhanger van A16)
