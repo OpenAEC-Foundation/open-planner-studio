@@ -37,6 +37,9 @@
   "exportPDF": "导出 PDF",
   "noTasks": "没有可显示的任务",
   "printed": "打印时间：",
+  "projectStart": "开始：",
+  "projectEnd": "结束：",
+  "projectDuration": "工期：",
   "today": "今天",
   "previewPageLimit_other": "… 还有 {{count}} 页 — 导出以查看完整文档",
   "legend": {

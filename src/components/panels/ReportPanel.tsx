@@ -561,6 +561,9 @@ export function ReportPanel() {
   }), [t]);
 
   const assignmentColumns = reportType === 'resourceGantt' && resourceGanttOptions.showAssignmentColumns;
+  // Dag-afkorting achter de duur (projectkop én Duur-cel), dezelfde als in de taakgrid. Eén waarde
+  // voor meting en render, zodat de gemeten Duur-kolom past op wat er getekend wordt.
+  const daySuffix = tCommon('duration.suffixDay');
 
   // De zes overgebleven datakolommen (WBS, Duur, Start, Einde, Volt., Eenh./d) schalen mee met wat
   // dít rapport toont, net als de naam- en curvekolom hierboven. Ze stonden vast, en dat hield niet:
@@ -579,12 +582,12 @@ export function ReportPanel() {
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
       setColumnWidths(measureTableColumnWidths(
         rows,
-        { showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders },
+        { showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders, labels: { daySuffix } },
         (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
       ));
     });
     return () => { cancelled = true; };
-  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders]);
+  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders, daySuffix]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -668,6 +671,10 @@ export function ReportPanel() {
       today: t('today', { defaultValue: 'Vandaag' }),
       statusDate: t('statusDateLabel', { defaultValue: 'Statusdatum' }),
       progressDate: t('progressDateLabel', { defaultValue: 'Voortgangsdatum' }),
+      projectStart: t('projectStart'),
+      projectEnd: t('projectEnd'),
+      projectDuration: t('projectDuration'),
+      daySuffix,
     },
     localizedMonths: getLocalizedMonths(locale),
     localizedMonthsShort: getLocalizedMonthsShort(locale),
@@ -719,7 +726,7 @@ export function ReportPanel() {
     autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
     project.endDate, project.author, dateNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
-    reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
+    reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
