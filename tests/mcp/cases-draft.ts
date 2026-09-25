@@ -322,7 +322,7 @@ test('timephased-verliesteller en melding horen uitsluitend bij de actieve B-lea
 
 // --- 9) Z14b — edit-time-invalidatie van het GELEZEN Z8-venster (eigenaarsprincipe 2026-08-18) ----
 // Gedocumenteerde tweeling van taskSlice.ts's `updateTask`/`setTaskCalendar` (zie
-// `taskDefaults.ts`'s `clearTimephasedWindow`/`timeUpdateTouchesTimephasedWindow`): een
+// `taskDefaults.ts`'s `clearTimephasedWindow`/`taskTriggerChanges`): een
 // inhoudelijke bewerking (duur/datums/kalender/toewijzingen) wist `timephasedFinishFloor`/
 // `timephasedStartAnchor`, maar NOOIT de rauwe bron `timephasedContours`.
 const seedWindow = (id: string) => {

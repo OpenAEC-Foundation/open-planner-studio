@@ -6,9 +6,9 @@ import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import {
-  buildNewTask, createDefaultTaskTime, mergeTaskTime, timeUpdateTouchesTimephasedWindow,
+  buildNewTask, createDefaultTaskTime, mergeTaskTime, mergeTaskUpdate, taskTriggerChanges,
   taskCalendarHoursPerDay, taskWorkMinutesOf, invalidateForTimeBaseChange, clearLevelingGaps,
-  taskUpdateInvalidatesLevelingGaps, writeLevelingResult, clearLevelingOutput, applyDurationChangeRules,
+  writeLevelingResult, clearLevelingOutput, applyDurationChangeRules, type TaskTriggerFields,
 } from '@/utils/taskDefaults';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { assignInsertedWbsCodes } from '../insertedBranch';
@@ -306,17 +306,22 @@ function createMcpDraft(
     store.setState((s) => {
       const idx = s.tasks.findIndex((t) => t.id === id);
       if (idx < 0) return;
+      const task = s.tasks[idx];
       const { time, ...rest } = updates;
-      const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
-      const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
-      Object.assign(s.tasks[idx], rest);
-      if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
+      const next = mergeTaskUpdate(task, updates);
+      // WANNEER de gevolgregels vuren: op een ECHT gewijzigde waarde, niet op een meegestuurde
+      // sleutel — dezelfde poort als taskSlice.ts's `updateTask`, zie `taskTriggerChanges`.
+      const changes = taskTriggerChanges(task, next);
+      const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
+      const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      Object.assign(task, rest);
+      if (time) task.time = next.time;
       // Duur-/datumwijziging: dezelfde gevolgregels als taskSlice.ts's `updateTask` en het taakraster,
       // zie `applyDurationChangeRules` in taskDefaults.ts. Een kalenderwissel ontkoppelt daarnaast
       // het Z8-venster (Z14b, zelfde triggerset/uitleg in `taskDefaults.ts`).
       let lost = false;
-      if (timeUpdateTouchesTimephasedWindow(time)) lost = applyDurationChangeRules(s.tasks[idx], oldWorkMinutes, contourHpd);
-      if ('calendarId' in rest) lost = invalidateForTimeBaseChange(s.tasks[idx]) || lost;
+      if (changes.timeBase) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
+      if (changes.calendar) lost = invalidateForTimeBaseChange(task) || lost;
       // mpp-nul-data-etappe, DEEL 1 — meld alleen bij een ECHT verlies via de actieve runtimelease.
       if (lost) recordTimephasedLoss(id);
       // B1c-plan3 taak 3 (spec §4, "Invalidatie"): een bewerking die de tijdbasis van de taak verzet,
@@ -326,8 +331,8 @@ function createMcpDraft(
       // is dit geen verlies van gebruikersdata uit een importbestand maar het opruimen van app-eigen
       // afgeleide nivelleeruitvoer op een as die de aanroeper zelf zojuist heeft verzet.
       // EIGEN, BREDERE poort sinds de fixronde op etappe 3 (bevinding B7) — gedocumenteerde tweeling
-      // van taskSlice.ts's `updateTask`; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
-      if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
+      // van taskSlice.ts's `updateTask`; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts.
+      if (changes.levelingGaps) clearLevelingGaps(task);
       s.isDirty = true;
     });
   },
@@ -356,30 +361,34 @@ function createMcpDraft(
       const task = s.tasks[idx];
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      // De trigger-relevante velden vóór de patch, als losse kopie: `timePatch` muteert `task.time`
+      // in-place, `top` vervangt alleen top-level waarden (de oude referenties blijven leesbaar).
+      const before: TaskTriggerFields = { ...task, time: { ...task.time } };
       Object.assign(task, top);
-      let timeTouched = false;
       if (timePatch) {
-        if (timePatch.scheduleDuration !== undefined) { task.time.scheduleDuration = timePatch.scheduleDuration; timeTouched = true; }
-        if (timePatch.durationUnit !== undefined) { task.time.durationUnit = timePatch.durationUnit; timeTouched = true; }
-        if (timePatch.durationMinutes !== undefined) { task.time.durationMinutes = timePatch.durationMinutes; timeTouched = true; }
-        if (timePatch.durationType !== undefined) { task.time.durationType = timePatch.durationType; timeTouched = true; }
-        if (timePatch.clearDurationMinutes) { delete task.time.durationMinutes; timeTouched = true; }
+        if (timePatch.scheduleDuration !== undefined) task.time.scheduleDuration = timePatch.scheduleDuration;
+        if (timePatch.durationUnit !== undefined) task.time.durationUnit = timePatch.durationUnit;
+        if (timePatch.durationMinutes !== undefined) task.time.durationMinutes = timePatch.durationMinutes;
+        if (timePatch.durationType !== undefined) task.time.durationType = timePatch.durationType;
+        if (timePatch.clearDurationMinutes) delete task.time.durationMinutes;
       }
+      // WANNEER de gevolgregels vuren: op een ECHT gewijzigde waarde, niet op een meegestuurde
+      // sleutel — dezelfde poort als `updateTaskFields` hierboven en taskSlice.ts's `updateTask`, zie
+      // `taskTriggerChanges`. `planner_update_tasks` met exact de huidige duur laat de MSP-sturing
+      // dus staan.
+      const changes = taskTriggerChanges(before, task);
       // Duurwijziging: dezelfde gevolgregels als `updateTaskFields` hierboven, zie
       // `applyDurationChangeRules` in taskDefaults.ts (inclusief het wissen van de nivelleergaten, B7).
-      // `timePatch` heeft een eigen, smallere vorm (allowlist-gedreven) dan een volledige
-      // `Partial<TaskTime>`, dus hier direct de sleutel-aanwezigheid bijhouden i.p.v.
-      // `timeUpdateTouchesTimephasedWindow` (die verwacht de bredere `TaskTime`-vorm).
       let lost = false;
-      if (timeTouched) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
+      if (changes.timeBase) lost = applyDurationChangeRules(task, oldWorkMinutes, contourHpd);
       // Z14b — een kalenderwissel ontkoppelt het Z8-venster, zie `updateTaskFields` hierboven.
-      if ('calendarId' in top) lost = invalidateForTimeBaseChange(task) || lost;
+      if (changes.calendar) lost = invalidateForTimeBaseChange(task) || lost;
       if (lost) recordTimephasedLoss(id); // zie `updateTaskFields` hierboven.
       // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
       // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies). `timePatch` kent
       // geen voortgangsvelden; de `time`-kant zat al in `applyDurationChangeRules`, de top-level
-      // triggers (`calendarId`, `constraint`, `constraint2`) lopen via de gedeelde poort (B7).
-      if (taskUpdateInvalidatesLevelingGaps(top)) clearLevelingGaps(task);
+      // triggers (`calendarId`, `constraint`, `constraint2`) lopen via dezelfde poort (B7).
+      if (changes.levelingGaps) clearLevelingGaps(task);
       s.isDirty = true;
     });
   },

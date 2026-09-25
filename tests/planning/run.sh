@@ -711,6 +711,17 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DURATIONROUTESCHECK="$DIR/.check-duration-change-routes.mjs"
   if bundle_check "$DIR/check-duration-change-routes.ts" "$DURATIONROUTESCHECK"; then node "$DURATIONROUTESCHECK" || STATUS=1; fi
 
+  # WANNEER een gevolgregel vuurt: `sameValue` + `taskTriggerChanges` (taskDefaults.ts), de ENE
+  # wijzigingsdetectie op waarde (niet op sleutel-aanwezigheid) achter elke schrijfroute.
+  TRIGGERCHANGESCHECK="$DIR/.check-task-trigger-changes.mjs"
+  if bundle_check "$DIR/check-task-trigger-changes.ts" "$TRIGGERCHANGESCHECK"; then node "$TRIGGERCHANGESCHECK" || STATUS=1; fi
+
+  # …en dat de routes er echt op leunen: "Taak bewerken" → OK zonder wijziging (exact de payload van
+  # TaskDialog.handleSave) laat MSP-sturing, nivelleergaten, undo en isDirty ongemoeid; het taakraster
+  # wist bij een ongewijzigde celwaarde niets. MCP: tests/mcp/cases-waarde-triggers.ts.
+  VALUETRIGGERSCHECK="$DIR/.check-value-based-triggers.mjs"
+  if bundle_check "$DIR/check-value-based-triggers.ts" "$VALUETRIGGERSCHECK"; then node "$VALUETRIGGERSCHECK" || STATUS=1; fi
+
   # Issue #146 etappe 5: rooktests voor de oppervlakken die de splits-critreview niet naliep —
   # print/PDF, WBS-/voortgangsrapport, verzameltaak-rollup en baseline/variance met een gebruikerssplit.
   SPLITSMOKECHECK="$DIR/.check-split-smoke.mjs"
