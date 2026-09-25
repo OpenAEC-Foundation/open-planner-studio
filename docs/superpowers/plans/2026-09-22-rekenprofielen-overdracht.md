@@ -230,6 +230,16 @@ op `main`. Nog steeds géén release/tag.
   terugdraaien?), E3/E7 (per-toewijzing-spannes: beslispunt 10), E4 (stil ontsluiten bij alleen afgeleide
   regel?), E5 (UI-vorm: volgt de memory-regel gekleurde blokken in een UI-baan). E2 dicht.
 
+- **25-09 ~17:45, op de eigenaarsopdracht "doe alles wat nodig is om het af te maken":** de resterende
+  ontwerpvragen van #170 als orkestratorbesluit, volgens de reviewadviezen en omkeerbaar bij de visuele
+  check: **E7** = "uitsmeren nu, spanne later" (totaal klopt, verdeling over de hele taak; eerlijke gidsregel;
+  per-toewijzing-spanne als eigen baan ná #170; G1 eerst fixen); **E9** = F5 terugdraaien alleen als een
+  agent het klein en gemeten (44-cases-meetlat + `.mpp` 216/0/0) kan doen, anders documenteren als bekende
+  afwijking van MSP; **E4** = stil ontsluiten wanneer de enige bron een afgeleide regel is, melden alleen bij
+  opgeslagen werkvelden of een eigen regel uit IFC, met eigen gidslink; **E5** = instelling heet "Toon
+  werkregels en werk", gekleurd blok i.p.v. formule-bijschrift (memory-regel), geen losse sectiekop tenzij
+  de tabs-test het toestaat; **E8/E10** zoals eerder (rest ↔ verricht bij voortgang; contour schrijft rest).
+
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
 1. *(beantwoord 23-09, zie §1a laatste besluit)* **B01 — 7.516 van de 15.056 cellen** (de helft van het X12-restant) zitten op zes taken in
