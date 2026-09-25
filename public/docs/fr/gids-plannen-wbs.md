@@ -101,7 +101,7 @@ Les plannings de plus grande taille ont rapidement besoin de dimensions supplém
 - Les **codes d'activité** sont des dimensions librement définissables (par exemple « Localisation » ou « Discipline ») avec une liste de valeurs — chaque valeur a un **Code**, une **Description** et une **Couleur**. Une tâche peut avoir au plus une valeur par type de code. Utilisez **Ajouter un type de code** pour démarrer une nouvelle dimension, et **Ajouter une valeur** pour constituer les valeurs possibles.
 - Les **champs personnalisés** sont des champs typés de votre choix — **Texte**, **Nombre**, **Nombre entier**, **Coût**, **Date** ou **Oui/non** — qui apparaissent comme colonne dans le tableau des tâches et peuvent être renseignés par tâche. Pensez à un champ « Entrepreneur » (texte) ou « Permis reçu » (oui/non).
 
-Une fois créés, vous attribuez un code d'activité ou remplissez un champ personnalisé via les colonnes du tableau des tâches (rendez-les d'abord visibles via **Affichage → Colonnes…** si nécessaire) ou via le panneau des propriétés de la tâche.
+Une fois créés, vous attribuez un code d'activité ou remplissez un champ personnalisé via les colonnes du tableau des tâches ou via le panneau des propriétés de la tâche. Si la colonne n'est pas encore dans le tableau, ajoutez-la avec le plus à droite de l'en-tête du tableau : le sélecteur de colonnes présente les codes d'activité et les champs personnalisés sous **Personnalisé** — voir [Choisir les colonnes](docs://ref-kolommen).
 
 ### Grouper par codes et champs
 

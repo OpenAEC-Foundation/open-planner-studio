@@ -210,7 +210,8 @@ zegt hoeveel hij mag uitlopen zonder zijn eerstvolgende opvolger in beweging te 
 is de speling die niemands einddatum raakt maar wel iemand in de weg zit — nuttig als je met
 onderaannemers werkt die je niet twee keer kunt verzetten.
 
-Zet die kolommen erbij in de taaktabel — via **Beeld → Kolommen…** — en let op drie signalen. Een
+Zet die kolommen erbij in de taaktabel — met het plusje rechts in de tabelkop, onder **Berekend** in
+de kolomkiezer ([Kolommen kiezen](docs://ref-kolommen)) — en let op drie signalen. Een
 taak met een paar dagen speling is geen veilige taak maar een bijna-kritieke taak; zet de
 bijna-kritiek-drempel aan en je ziet ze in één kleur. Een taak met extreem veel speling — meer dan
 ongeveer twee maanden, in schedule-reviews geteld als 44 werkdagen — is bijna altijd een taak

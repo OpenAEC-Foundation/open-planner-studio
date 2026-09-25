@@ -19,7 +19,7 @@ Segui con [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartem
 
 Premi **F5** (o il pulsante **Calcola**) per eseguire la pianificazione. La barra di stato in fondo mostra allora, ad esempio, "Percorso critico: N attività, M giorni lavorativi" — il numero di attività sul percorso critico e la durata totale. Nel diagramma di Gantt, le attività critiche ottengono un colore di barra proprio (rosso): attività senza margine, dove ogni giorno di ritardo posticipa direttamente la data di fine del progetto.
 
-Fai doppio clic su un'attività e guarda nella sezione **Risultato CPM** per i numeri esatti: **Inizio anticipato**, **Fine anticipata**, **Inizio posticipato**, **Fine posticipata**, **Margine totale**, **Margine libero** e (dove applicabile) **Margine interferente**, più se l'attività è sul **Percorso critico**. Vuoi questi campi come colonne nella tabella delle attività? **Vista → Colonne…** e selezionali.
+Fai doppio clic su un'attività e guarda nella sezione **Risultato CPM** per i numeri esatti: **Inizio anticipato**, **Fine anticipata**, **Inizio posticipato**, **Fine posticipata**, **Margine totale**, **Margine libero** e (dove applicabile) **Margine interferente**, più se l'attività è sul **Percorso critico**. Vuoi questi campi come colonne nella tabella delle attività? Fai clic sul più a destra nell'intestazione della tabella e sceglili nel selettore delle colonne sotto **Calcolato**, uno alla volta; un campo che è già una colonna è spuntato. Vedi [Scelta delle colonne](docs://ref-kolommen).
 
 ### Margine totale, libero e interferente
 

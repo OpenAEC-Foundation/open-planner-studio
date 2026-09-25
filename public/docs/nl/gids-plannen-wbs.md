@@ -135,7 +135,7 @@ Grotere planningen hebben al snel behoefte aan extra dimensies die niet in de WB
 - **Activity codes** zijn vrij definieerbare dimensies (bijvoorbeeld "Locatie" of "Discipline") met een lijst waarden — elke waarde heeft een **Code**, een **Omschrijving** en een **Kleur**. Een taak kan per codetype maximaal één waarde hebben. Gebruik **Codetype toevoegen** om een nieuwe dimensie te starten, en **Waarde toevoegen** om de mogelijke waarden op te bouwen.
 - **Gebruikersvelden** zijn getypeerde eigen velden — **Tekst**, **Getal**, **Geheel getal**, **Kosten**, **Datum** of **Ja/nee** — die als kolom in de taaktabel verschijnen en per taak in te vullen zijn. Denk aan een veld "Aannemer" (tekst) of "Vergunning binnen" (ja/nee).
 
-Eenmaal aangemaakt, wijs je een activity code of vul je een gebruikersveld in via de kolommen in de taaktabel (zet ze eventueel eerst zichtbaar via **Beeld → Kolommen…**) of via het eigenschappenpaneel van de taak.
+Eenmaal aangemaakt, wijs je een activity code of vul je een gebruikersveld in via de kolommen in de taaktabel of via het eigenschappenpaneel van de taak. Staat de kolom nog niet in de tabel, voeg hem dan toe met het plusje rechts in de tabelkop: de kolomkiezer toont de activity codes en gebruikersvelden onder **Aangepast** — zie [Kolommen kiezen](docs://ref-kolommen).
 
 ### Groeperen op codes en velden
 

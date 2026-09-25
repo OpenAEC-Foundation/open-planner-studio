@@ -19,7 +19,7 @@ Bu kılavuzdaki neredeyse her konuyu gösteren üç paralel kuleli büyük, "her
 
 Planı çalıştırmak için **F5**'e (veya **Hesapla** düğmesine) basın. Durum çubuğu altta daha sonra örneğin "Kritik yol: N görev, M iş günü" gösterir — kritik yoldaki görev sayısı ve toplam süre. Gantt şemasında, kritik görevler kendi (kırmızı) çubuk rengini alır: bolluğu olmayan, her gecikme gününün doğrudan projenin bitiş tarihini geciktirdiği görevler.
 
-Bir göreve çift tıklayın ve tam sayılar için **CPM Sonucu** bölümüne bakın: **Erken başlangıç**, **Erken bitiş**, **Geç başlangıç**, **Geç bitiş**, **Toplam bolluk**, **Serbest bolluk** ve (uygunsa) **Müdahale bolluğu**, artı görevin **Kritik yol** üzerinde olup olmadığı. Bu alanları görev tablosunda sütun olarak mı istiyorsunuz? **Görünüm → Sütunlar…** ve onları işaretleyin.
+Bir göreve çift tıklayın ve tam sayılar için **CPM Sonucu** bölümüne bakın: **Erken başlangıç**, **Erken bitiş**, **Geç başlangıç**, **Geç bitiş**, **Toplam bolluk**, **Serbest bolluk** ve (uygunsa) **Müdahale bolluğu**, artı görevin **Kritik yol** üzerinde olup olmadığı. Bu alanları görev tablosunda sütun olarak mı istiyorsunuz? Tablo başlığının sağındaki artıya tıklayın ve sütun seçicide **Hesaplanan** altından her seferinde birini seçin; zaten sütun olan bir alan işaretlidir. Bkz. [Sütun seçimi](docs://ref-kolommen).
 
 ### Toplam, serbest ve müdahale bolluğu
 

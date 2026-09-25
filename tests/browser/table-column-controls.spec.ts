@@ -6,6 +6,10 @@
 // toevoegen, en in de kolomkop verplaatsen, verbreden, passend maken, vastzetten en verwijderen, elk
 // als één stap voor Ctrl+Z. De `__OPS__`-brug zet alleen de planning en de legacy-instelling, en leest
 // state. "Herstel standaard" staat in table-column-reset.spec.ts.
+//
+// De laatste test hoort bij de andere gidsen (quick-start, gids-kritiek-pad-analyse, gids-plannen-wbs,
+// gids-goed-plannen). Die stuurden naar Beeld → Kolommen… om velden "aan te vinken", een knop die er
+// standaard niet is. Nu verwijzen ze naar het plusje in de tabelkop; de test loopt die route na.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
 
@@ -286,4 +290,85 @@ test('takenlijst naast de Gantt: eigen plus en eigen kolommen; het lint opent de
   // Een klik buiten de kiezer sluit hem.
   await header(page, 'full-task-grid', 'task.wbsCode').click();
   await expect(chooser).toHaveCount(0);
+});
+
+/** Klapt een groep van de open kolomkiezer open (als hij nog dicht is) en geeft de groepssectie terug. */
+async function openCategory(chooser: Locator, label: 'Calculated' | 'Custom'): Promise<Locator> {
+  const section = chooser.locator('.task-grid-column-chooser-categories > section')
+    .nth(CATEGORIES.findIndex(category => category.test(label)));
+  const button = section.locator('.task-grid-column-chooser-category');
+  if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  return section;
+}
+
+test('andere gidsen: velden als kolom toevoegen met het plusje, onder Berekend en Aangepast', async ({ page, ops: _ops }) => {
+  await seedProject(page, [{ name: 'Ruwbouw', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 }]);
+  // Fixture: een activity code en een gebruikersveld, zoals het venster Codes & velden ze aanmaakt.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.addActivityCodeType('Discipline');
+    s.addCustomField('Aannemer', 'text');
+  });
+
+  // De oude route bestaat standaard niet: op Beeld staat geen groep Weergave met Kolommen….
+  await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
+  await expect(page.locator('.ribbon-display-grid')).toHaveCount(0);
+  await expect(page.locator('.ribbon-content button', { hasText: /^(Columns…|Kolommen…)$/ })).toHaveCount(0);
+
+  // quick-start: in de takenlijst naast de Gantt komen Kritiek en Totale speling erbij via het plusje,
+  // onder Berekend, één veld per keer (de kiezer sluit na elke keuze). Elke keuze is één stap.
+  const surface = 'gantt-task-grid';
+  const plus = shell(page, surface).locator('.task-grid-add-column');
+  const chooser = page.getByRole('dialog', { name: CHOOSER });
+  await expect(shell(page, surface).locator('[role="grid"]')).toBeVisible();
+  expect(await headerIds(page, surface)).toEqual(GANTT_DEFAULT_IDS);
+  let depth = await undoDepth(page);
+  await plus.click();
+  await (await openCategory(chooser, 'Calculated'))
+    .getByRole('menuitemcheckbox', { name: /^(Critical|Kritiek)$/ }).click();
+  await expect(chooser).toHaveCount(0);
+  await expect.poll(() => headerIds(page, surface)).toEqual([...GANTT_DEFAULT_IDS, 'task.time.isCritical']);
+  expect(await undoDepth(page)).toBe(++depth);
+  await plus.click();
+  await (await openCategory(chooser, 'Calculated'))
+    .getByRole('menuitemcheckbox', { name: /^(Total float|Totale speling)$/ }).click();
+  await expect(chooser).toHaveCount(0);
+  const withFloat = [...GANTT_DEFAULT_IDS, 'task.time.isCritical', 'task.time.totalFloat'];
+  await expect.poll(() => headerIds(page, surface)).toEqual(withFloat);
+  expect(await undoDepth(page)).toBe(++depth);
+
+  // gids-kritiek-pad-analyse: de velden uit CPM Resultaat staan allemaal onder Berekend; een veld dat
+  // al een kolom is, staat aangevinkt.
+  await plus.click();
+  const calculated = await openCategory(chooser, 'Calculated');
+  for (const [name, checked] of [
+    [/^(Early start|Vroegste start)$/, 'false'],
+    [/^(Early finish|Vroegste einde)$/, 'false'],
+    [/^(Late start|Laatste start)$/, 'false'],
+    [/^(Late finish|Laatste einde)$/, 'false'],
+    [/^(Free float|Vrije speling)$/, 'false'],
+    [/^(Interfering float|Interfererende speling)$/, 'false'],
+    [/^(Total float|Totale speling)$/, 'true'],
+    [/^(Critical|Kritiek)$/, 'true'],
+  ] as const) {
+    await expect(calculated.getByRole('menuitemcheckbox', { name })).toHaveAttribute('aria-checked', checked);
+  }
+
+  // gids-plannen-wbs: activity codes en gebruikersvelden staan onder Aangepast; één klik zet er een
+  // als kolom in de tabel.
+  const custom = await openCategory(chooser, 'Custom');
+  await expect(custom.getByRole('menuitemcheckbox', { name: 'Discipline', exact: true }))
+    .toHaveAttribute('aria-checked', 'false');
+  await custom.getByRole('menuitemcheckbox', { name: 'Aannemer', exact: true }).click();
+  await expect(chooser).toHaveCount(0);
+  await expect.poll(async () => (await headerIds(page, surface)).length).toBe(withFloat.length + 1);
+  const ids = await headerIds(page, surface);
+  expect(ids.slice(0, -1)).toEqual(withFloat);
+  expect(ids[ids.length - 1]).toMatch(/^custom-field:/);
+  expect(await undoDepth(page)).toBe(++depth);
+
+  // quick-start: op het tabblad Tabel staan Kritiek en Totale speling standaard al in de tabel.
+  await openTable(page);
+  expect(await headerIds(page, 'full-task-grid')).toEqual(TABLE_DEFAULT_IDS);
 });

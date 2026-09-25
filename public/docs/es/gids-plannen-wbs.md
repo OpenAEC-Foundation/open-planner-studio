@@ -100,7 +100,7 @@ Las planificaciones más grandes necesitan pronto dimensiones adicionales que no
 - Los **códigos de actividad** son dimensiones libremente definibles (por ejemplo "Ubicación" o "Disciplina") con una lista de valores — cada valor tiene un **Código**, una **Descripción** y un **Color**. Una tarea puede tener como máximo un valor por tipo de código. Use **Añadir tipo de código** para iniciar una nueva dimensión, y **Añadir valor** para construir los valores posibles.
 - Los **campos personalizados** son campos propios tipados — **Texto**, **Número**, **Número entero**, **Coste**, **Fecha** o **Sí/no** — que aparecen como columna en la tabla de tareas y se pueden rellenar por tarea. Piense en un campo "Contratista" (texto) o "Permiso recibido" (sí/no).
 
-Una vez creados, asigna un código de actividad o rellena un campo personalizado mediante las columnas de la tabla de tareas (hágalas visibles primero mediante **Vista → Columnas…** si es necesario) o mediante el panel de propiedades de la tarea.
+Una vez creados, asigna un código de actividad o rellena un campo personalizado mediante las columnas de la tabla de tareas o mediante el panel de propiedades de la tarea. Si la columna aún no está en la tabla, añádala con el signo más a la derecha del encabezado de la tabla: el selector de columnas muestra los códigos de actividad y los campos personalizados en **Personalizado** — vea [Elegir columnas](docs://ref-kolommen).
 
 ### Agrupar por códigos y campos
 

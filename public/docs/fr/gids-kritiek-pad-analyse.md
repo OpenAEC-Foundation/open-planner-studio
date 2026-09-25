@@ -19,7 +19,7 @@ Suivez [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartement
 
 Appuyez sur **F5** (ou le bouton **Calculer**) pour exécuter le planning. La barre d'état en bas affiche alors, par exemple, « Chemin critique : N tâches, M jours ouvrés » — le nombre de tâches sur le chemin critique et la durée totale. Dans le diagramme de Gantt, les tâches critiques reçoivent leur propre couleur de barre (rouge) : des tâches sans marge, où chaque jour de retard repousse directement la date de fin du projet.
 
-Double-cliquez sur une tâche et regardez dans la section **Résultat CPM** pour les chiffres exacts : **Début au plus tôt**, **Fin au plus tôt**, **Début au plus tard**, **Fin au plus tard**, **Marge totale**, **Marge libre** et (le cas échéant) **Marge interférente**, ainsi que si la tâche est sur le **Chemin critique**. Vous voulez ces champs comme colonnes dans le tableau des tâches ? **Affichage → Colonnes…** et cochez-les.
+Double-cliquez sur une tâche et regardez dans la section **Résultat CPM** pour les chiffres exacts : **Début au plus tôt**, **Fin au plus tôt**, **Début au plus tard**, **Fin au plus tard**, **Marge totale**, **Marge libre** et (le cas échéant) **Marge interférente**, ainsi que si la tâche est sur le **Chemin critique**. Vous voulez ces champs comme colonnes dans le tableau des tâches ? Cliquez sur le plus à droite de l'en-tête du tableau et choisissez-les dans le sélecteur de colonnes sous **Calculé**, un à la fois ; un champ qui est déjà une colonne est coché. Voir [Choisir les colonnes](docs://ref-kolommen).
 
 ### Marge totale, libre et interférente
 

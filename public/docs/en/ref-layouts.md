@@ -40,4 +40,4 @@ Filters you saved in an earlier version now sit on the ribbon as layout buttons 
 
 ## The classic view buttons
 
-The separate **Columns…**, **Filter…**, **Group…** and **Sort…** buttons on the View tab have been replaced by the layout buttons and the layout window. If you want them back, switch them on via **Settings** → **Advanced** tab → **Legacy features**.
+The separate **Filter…**, **Group…** and **Sort…** buttons on the View tab have been replaced by the layout buttons and the layout window, the separate **Columns…** button by the plus in the table header and **Table** → **Columns…**. If you want the separate buttons back, switch them on via **Settings** → **Advanced** tab → **Legacy features**.

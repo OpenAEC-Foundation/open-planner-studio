@@ -83,7 +83,7 @@ Większe harmonogramy szybko potrzebują dodatkowych wymiarów, które nie miesz
 - **Kody zadań** to swobodnie definiowalne wymiary (na przykład „Lokalizacja" lub „Branża") z listą wartości — każda wartość ma **Kod**, **Opis** i **Kolor**. Zadanie może mieć co najwyżej jedną wartość na typ kodu. Użyj **Dodaj typ kodu**, aby rozpocząć nowy wymiar, i **Dodaj wartość**, aby budować możliwe wartości.
 - **Pola użytkownika** to Twoje własne, typowane pola — **Tekst**, **Liczba**, **Liczba całkowita**, **Koszt**, **Data** lub **Tak/nie** — które pojawiają się jako kolumna w tabeli zadań i można je wypełnić dla każdego zadania osobno. Pomyśl o polu „Wykonawca" (tekst) albo „Pozwolenie otrzymane" (tak/nie).
 
-Po utworzeniu przypisujesz kod zadania lub wypełniasz pole użytkownika przez kolumny w tabeli zadań (w razie potrzeby uwidocznij je najpierw przez **Widok → Kolumny…**) albo przez panel właściwości zadania.
+Po utworzeniu przypisujesz kod zadania lub wypełniasz pole użytkownika przez kolumny w tabeli zadań albo przez panel właściwości zadania. Jeśli kolumny nie ma jeszcze w tabeli, dodaj ją plusem po prawej stronie nagłówka tabeli: selektor kolumn pokazuje kody zadań i pola użytkownika w grupie **Niestandardowe** — zobacz [Wybór kolumn](docs://ref-kolommen).
 
 ### Grupowanie według kodów i pól
 

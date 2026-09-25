@@ -130,7 +130,7 @@ Larger schedules quickly need extra dimensions that don't fit the WBS: which uni
 - **Activity codes** are freely definable dimensions (for example "Location" or "Discipline") with a list of values — each value has a **Code**, a **Description** and a **Colour**. A task can have at most one value per code type. Use **Add code type** to start a new dimension, and **Add value** to build up the possible values.
 - **Custom fields** are typed fields of your own — **Text**, **Number**, **Integer**, **Cost**, **Date** or **Yes/No** — that appear as a column in the task table and can be filled in per task. Think of a field "Contractor" (text) or "Permit received" (yes/no).
 
-Once created, you assign an activity code or fill in a custom field via the columns in the task table (make them visible first via **View → Columns…** if needed) or via the task's properties panel.
+Once created, you assign an activity code or fill in a custom field via the columns in the task table or via the task's properties panel. If the column is not in the table yet, add it with the plus at the right of the table header: the column chooser lists the activity codes and custom fields under **Custom** — see [Choosing columns](docs://ref-kolommen).
 
 ### Grouping by codes and fields
 
