@@ -155,28 +155,67 @@ test('De Vaart-preview houdt vaste pagina-geometrie en een stabiel scrollanker',
 
   // Ook een gejaagde reeks mag de browser niet naar de kwaliteitsknop of de eerste pagina trekken.
   // De knop staat daarom buiten de eigenlijke paginascroller; alleen het raster wordt vervangen.
+  //
+  // "Gejaagd" = elke wissel valt binnen de rustperiode van de preview (100 ms debounce) na de
+  // vorige. Voorheen hing dat af van het kliktempo van de testmachine: onder belasting duurde één
+  // wissel 90-420 ms, en dan rondt een tussengeneratie terecht een pagina af; het aantal Blob-URL's
+  // volgde dat tempo (gemeten 0 tot 7 bij dezelfde code) in plaats van het gedrag. Daarom loopt de
+  // paginaklok hier virtueel: de vijf klikken zijn echt, maar ertussen verstrijkt precies 50 ms. Zo
+  // meet de test gedrag: tijdens de reeks rondt geen enkele generatie een paint af (ook geen
+  // weggegooide), en daarna plaatst alleen de laatste generatie pagina's.
   const anchorBeforeRapidQuality = await firstVisibleAnchor(page);
-  const urlsBeforeRapidQuality = await page.evaluate(() => (
+  const generationBeforeRapidQuality = Number((await previewGeometry(page)).visible[0].generation);
+  await viewport.evaluate(node => {
+    const placed = new Set<number>();
+    const record = (element: Element) => {
+      if (element instanceof HTMLImageElement && element.dataset.previewGeneration) {
+        placed.add(Number(element.dataset.previewGeneration));
+      }
+    };
+    new MutationObserver(records => {
+      for (const mutation of records) {
+        if (mutation.type === 'attributes') record(mutation.target as Element);
+        for (const added of mutation.addedNodes) {
+          if (!(added instanceof Element)) continue;
+          record(added);
+          added.querySelectorAll('img').forEach(record);
+        }
+      }
+    }).observe(node, { subtree: true, childList: true, attributes: true, attributeFilter: ['src', 'data-preview-generation'] });
+    Object.defineProperty(window, '__opsPreviewGenerationsPlaced', { configurable: true, get: () => [...placed] });
+  });
+  const urlsCreated = () => page.evaluate(() => (
     (window as unknown as { __opsPreviewUrlsCreated: number }).__opsPreviewUrlsCreated
   ));
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 1_000);
   await chooseQuality(page, /^(Standard|Standaard)$/);
-  await chooseQuality(page, /^(Maximum|Maximaal)$/);
-  await chooseQuality(page, /^(Standard|Standaard)$/);
-  await chooseQuality(page, /^(Maximum|Maximaal)$/);
-  await chooseQuality(page, /^(High|Hoog)$/);
+  // Na de eerste wissel is de vorige generatie vrijgegeven; wat daarna nog een URL maakt, hoort bij
+  // de reeks zelf.
+  const urlsAfterFirstRapidQuality = await urlsCreated();
+  for (const name of [/^(Maximum|Maximaal)$/, /^(Standard|Standaard)$/, /^(Maximum|Maximaal)$/, /^(High|Hoog)$/]) {
+    await page.clock.runFor(50);
+    await chooseQuality(page, name);
+  }
+  // Vijf gebruikerswissels binnen de rustperiode leveren door generatie-annulering en de debounce
+  // geen enkele paint op. Regressie voor de oude ~5,36 s-reeks, waarin elke wissel volledig rasterde.
+  expect(await urlsCreated()).toBe(urlsAfterFirstRapidQuality);
+  await page.clock.resume();
   await expect.poll(async () => {
     const current = await previewGeometry(page);
-    return current.visible.every(pageInfo => pageInfo.hasImage && pageInfo.quality === 'high');
+    return current.visible.every(pageInfo => pageInfo.hasImage && pageInfo.quality === 'high'
+      && Number(pageInfo.generation) > generationBeforeRapidQuality);
   }, { timeout: 15_000 }).toBe(true);
+  const finalRapidGeneration = Number((await previewGeometry(page)).visible[0].generation);
+  // Alleen de laatste generatie plaatste pagina's (de vorige mocht nog een lopende pagina afmaken).
+  const placedGenerations = await page.evaluate(() => (
+    (window as unknown as { __opsPreviewGenerationsPlaced: number[] }).__opsPreviewGenerationsPlaced
+  ));
+  expect(placedGenerations.filter(generation => generation !== generationBeforeRapidQuality))
+    .toEqual([finalRapidGeneration]);
   const anchorAfterRapidQuality = await firstVisibleAnchor(page);
   expect(anchorAfterRapidQuality.index).toBe(anchorBeforeRapidQuality.index);
   expect(Math.abs(anchorAfterRapidQuality.relativeTop - anchorBeforeRapidQuality.relativeTop)).toBeLessThanOrEqual(2);
-  const urlsAfterRapidQuality = await page.evaluate(() => (
-    (window as unknown as { __opsPreviewUrlsCreated: number }).__opsPreviewUrlsCreated
-  ));
-  // Vijf gebruikerswissels horen door generatie-annulering en de korte rustperiode niet vijf
-  // complete paints op te leveren. Dit is een deterministische regressie voor de oude ~5,36 s-reeks.
-  expect(urlsAfterRapidQuality - urlsBeforeRapidQuality).toBeLessThanOrEqual(3);
 
   // Een echte rapportoptie start een nieuwe generatie. De zichtbare pagina blijft gevuld en dezelfde
   // geometrie/positie houden; een oude async callback mag niet meer over de nieuwe generatie heen.
