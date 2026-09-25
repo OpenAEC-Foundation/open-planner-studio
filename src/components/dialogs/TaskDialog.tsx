@@ -140,11 +140,19 @@ export function TaskDialog() {
       overlayProps={{ 'data-ops-task-dialog': true }}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[620px] max-h-[85vh] overflow-hidden flex flex-col"
     >
+        {/* Eigen kop i.p.v. DialogHeader: die rendert de titel als <span> (en krapper/lichter), dit
+            is een <h2> — overstappen kost de kopsemantiek. Het kruisje draagt wél dezelfde naam +
+            tooltip als DialogHeader (net als ContourDialog). */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-body leading-5 font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
             {editingTask ? t('dialog.editTitle') : t('dialog.newTitle')}
           </h2>
-          <button onClick={handleClose} className="p-1 hover:bg-surface-hover rounded-[8px]">
+          <button
+            onClick={handleClose}
+            className="p-1 hover:bg-surface-hover rounded-[8px]"
+            aria-label={tCommon('close')}
+            title={tCommon('close')}
+          >
             <X size={16} />
           </button>
         </div>
