@@ -183,6 +183,7 @@
     "splitTask": "작업 분할",
     "splitTaskOnHint": "분할 모드를 켠 다음 중단이 시작되는 위치에서 막대를 클릭합니다",
     "splitTaskOffHint": "분할 모드 끄기",
+    "ganttOnlyHint": "간트 차트가 표시될 때만 사용할 수 있습니다",
     "relationLinkSelected": "선택한 작업 연결",
     "relationLinkSelectedHint": "첫 번째 선택은 선행 작업, 두 번째 선택은 후속 작업이 됩니다(종료-시작, 지연 0)",
     "relationSelectExactlyTwo": "작업을 정확히 두 개 선택하세요",

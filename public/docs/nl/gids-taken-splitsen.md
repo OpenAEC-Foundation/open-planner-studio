@@ -22,7 +22,7 @@ Een onderbreking verandert de werkduur niet. Een taak van 10 werkdagen met een p
 
 ## Een onderbreking maken in de Gantt
 
-1. Klik in het lint op **Taak splitsen** (tabblad Start, Planning of Tabel). De splits-modus staat nu aan en er verschijnt een korte uitleg met een knop **Stoppen**.
+1. Klik in het lint op **Taak splitsen** (tabblad Start of Planning). De splits-modus staat nu aan en er verschijnt een korte uitleg met een knop **Stoppen**. Op het tabblad Tabel staat de knop uit, want daar is geen Gantt om op te klikken; wissel je tijdens de modus naar de Tabel, dan gaat de modus uit.
 2. Wijs op de balk de dag aan waarop de pauze moet beginnen. Een verticale lijn toont de dag.
 3. Klik en sleep naar rechts voor de lengte van de pauze. Een label toont hoeveel werkdagen pauze het wordt. Loslaten zonder te slepen maakt een pauze van één werkdag (of één uur bij een uurtaak).
 4. De modus blijft aan, zodat je meteen nog een onderbreking kunt maken. Druk op **Esc** of klik opnieuw op **Taak splitsen** om te stoppen.

@@ -19,6 +19,8 @@ export interface FieldCatalogCtx {
   /** Vertaalde taskType-labels (uit task:taskType.*), voor het taskType-select-veld. */
   taskTypeLabels: Record<string, string>;
   resourceLabel: string; // t('column.resource')
+  /** Issue #173: label van het groepeer-/sorteerveld Resourcetype (t('column.resourceType')). */
+  resourceTypeLabel?: string;
   /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata (§6.2), bv. "activiteitcode". */
   activityCodeSuffix: string; // t('column.activityCodeSuffix')
   /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata (§6.2), bv. "eigen veld". */
@@ -50,6 +52,7 @@ function fieldKey(field: FieldRef): string {
     case 'activityCode': return `activityCode:${field.typeId}`;
     case 'customField': return `customField:${field.defId}`;
     case 'resource': return 'resource';
+    case 'resourceType': return 'resourceType';
   }
 }
 
@@ -68,6 +71,14 @@ export function fullFieldList(ctx: FieldCatalogCtx): FieldRef[] {
 }
 
 /**
+ * Sorteer-veldenlijst: `fullFieldList` plus Resourcetype (issue #173). Resourcetype staat bewust niet
+ * in de filterlijst: het is een afgeleide indeling voor groeperen en sorteren, geen filterwaarde.
+ */
+export function sortFieldList(ctx: FieldCatalogCtx): FieldRef[] {
+  return [...fullFieldList(ctx), { src: 'resourceType' }];
+}
+
+/**
  * Filter-veldenlijst: `fullFieldList` plus de filter-only synthetische velden (§?). Gebruikt door
  * `FilterDialog` i.p.v. `fullFieldList` zelf, precies om `activeDuring` weg te houden bij de
  * sorteer-popover (die `fullFieldList` rechtstreeks gebruikt).
@@ -79,7 +90,9 @@ export function filterFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   ];
 }
 
-/** Groepeerbare veldenlijst (§7.4): WBS, taskType, activity codes, custom fields, resource. */
+/** Groepeerbare veldenlijst (§7.4): WBS, taskType, activity codes, custom fields, resource en
+ *  resourcetype. Twee niveaus Resourcetype → Resource geven de indeling van het rapport
+ *  Resourcediagram (issue #173). */
 export function groupFieldList(
   ctx: {
     activityCodeTypes: ReadonlyArray<ActivityCodeType>;
@@ -91,6 +104,7 @@ export function groupFieldList(
     ...ctx.activityCodeTypes.map((t): FieldRef => ({ src: 'activityCode', typeId: t.id })),
     ...ctx.customFieldDefs.map((d): FieldRef => ({ src: 'customField', defId: d.id })),
     { src: 'resource' },
+    { src: 'resourceType' },
   ];
 }
 
@@ -100,6 +114,7 @@ export function fieldLabel(field: FieldRef, ctx: FieldCatalogCtx): string {
     case 'activityCode': return ctx.activityCodeTypes.find(t => t.id === field.typeId)?.name ?? field.typeId;
     case 'customField': return ctx.customFieldDefs.find(d => d.id === field.defId)?.name ?? field.defId;
     case 'resource': return ctx.resourceLabel;
+    case 'resourceType': return ctx.resourceTypeLabel ?? 'resourceType';
   }
 }
 

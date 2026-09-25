@@ -413,6 +413,7 @@
   "defaultInspection": "新しい検査ポイント",
   "column": {
     "resource": "リソース",
+    "resourceType": "リソースの種類",
     "activityCodeSuffix": "アクティビティコード",
     "customFieldSuffix": "カスタムフィールド"
   },

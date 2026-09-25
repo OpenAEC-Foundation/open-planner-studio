@@ -184,6 +184,7 @@
     "splitTask": "Vorgang teilen",
     "splitTaskOnHint": "Teilungsmodus einschalten; klicken Sie danach auf einen Balken dort, wo die Unterbrechung beginnt",
     "splitTaskOffHint": "Teilungsmodus ausschalten",
+    "ganttOnlyHint": "Nur verfügbar, wenn das Gantt-Diagramm sichtbar ist",
     "relationLinkSelected": "Ausgewählte Vorgänge verknüpfen",
     "relationLinkSelectedHint": "Die erste Auswahl wird Vorgänger, die zweite Nachfolger (EA, Zeitabstand 0)",
     "relationSelectExactlyTwo": "Genau zwei Vorgänge auswählen",

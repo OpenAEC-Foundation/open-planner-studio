@@ -4,7 +4,7 @@
 // Ontwerp: docs/superpowers/specs/2026-09-19-layouts-als-weergavepresets-design.md
 
 import { LAYOUT_PARTS } from '@/types/view';
-import type { Layout, LayoutPart, LayoutSession, LayoutViewParts, SavedFilter } from '@/types/view';
+import type { Layout, LayoutOverlays, LayoutPart, LayoutSession, LayoutViewParts, SavedFilter } from '@/types/view';
 
 export type { LayoutViewParts } from '@/types/view';
 
@@ -35,6 +35,7 @@ export function applyLayoutParts(current: LayoutViewParts, layout: Layout): Layo
     sort: layout.sort !== undefined ? layout.sort : current.sort,
     timeScale: layout.timeScale !== undefined ? layout.timeScale : current.timeScale,
     showRelations: layout.showRelations !== undefined ? layout.showRelations : current.showRelations,
+    overlays: layout.overlays !== undefined ? { ...layout.overlays } : current.overlays,
   };
 }
 
@@ -89,11 +90,53 @@ export function switchLayoutOff(
   return { session: rest.length > 0 ? { layouts: rest, restore: session.restore } : undefined, write };
 }
 
+/**
+ * Vergelijkbare vorm van één deel. De overlays zijn een object dat uit twee bronnen komt (de
+ * opgeslagen layout en de losse `ui`-vlaggen): hun sleutelvolgorde ligt hier vast, zodat een andere
+ * volgorde in de opslag nooit een knop laat uitvallen.
+ */
+function partKey(part: LayoutPart, value: unknown): string {
+  if (part === 'overlays' && value && typeof value === 'object') {
+    const o = value as LayoutOverlays;
+    return JSON.stringify([o.baseline, o.progressLine, o.statusDateLine, o.resourceAccent, o.floatBand, o.barColors]);
+  }
+  return JSON.stringify(value);
+}
+
 /** Komen ALLE gedragen delen overeen met het scherm? Een layout zonder delen matcht nooit. */
 export function layoutMatchesView(layout: Layout, current: LayoutViewParts): boolean {
   const parts = layoutParts(layout);
   if (parts.length === 0) return false;
-  return parts.every(part => JSON.stringify(layout[part]) === JSON.stringify(current[part]));
+  return parts.every(part => partKey(part, layout[part]) === partKey(part, current[part]));
+}
+
+/**
+ * Ruim de layouts van de sessie op die niet meer op het scherm staan (issue #173). Een handmatige
+ * wijziging aan een gedragen deel zet de knop uit; zonder meer bleven zijn overige delen dan staan —
+ * een beeld dat niet meer de layout is en ook niet het beeld van ervoor. Hier gaan de delen die nog
+ * de WAARDE VAN DE LAYOUT tonen terug naar het herstelpunt, precies zoals bij uitzetten; een deel dat
+ * afwijkt (wat de gebruiker zelf wijzigde) blijft staan, net als delen van nog levende layouts.
+ *
+ * Bewust zonder "beeld van ervoor": dezelfde regel ruimt ook een sessie op die ELDERS verouderde —
+ * de overlays zijn app-breed, dus een overlay omzetten in document B laat een layout in document A
+ * vallen. Zonder deze opruiming werd dat halve beeld bij de volgende klik het nieuwe herstelpunt.
+ *
+ * `null` = er valt niets op te ruimen.
+ */
+export function dropBrokenLayouts(session: LayoutSession | undefined, current: LayoutViewParts): LayoutSwitch | null {
+  if (!session) return null;
+  const live = liveSessionLayouts(session, current);
+  const stale = session.layouts.filter(layout => !live.includes(layout));
+  if (stale.length === 0) return null;
+  const keptParts = new Set(live.flatMap(layoutParts));
+  const write: Layout = { id: stale[0].id, name: stale[0].name };
+  for (const layout of stale) {
+    for (const part of layoutParts(layout)) {
+      if (keptParts.has(part) || session.restore[part] === undefined) continue;
+      if (partKey(part, layout[part]) === partKey(part, current[part])) setPart(write, part, session.restore[part]);
+    }
+  }
+  return { session: live.length > 0 ? { layouts: live, restore: session.restore } : undefined, write };
 }
 
 /** Beperk een volledige momentopname tot de gevraagde delen (Opslaan als… / Bijwerken). */

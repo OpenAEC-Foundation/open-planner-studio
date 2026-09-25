@@ -185,6 +185,7 @@
     "splitTask": "Dividir tarea",
     "splitTaskOnHint": "Activar el modo división; después haga clic en una barra donde empieza la interrupción",
     "splitTaskOffHint": "Desactivar el modo división",
+    "ganttOnlyHint": "Solo disponible cuando el diagrama de Gantt está visible",
     "relationLinkSelected": "Vincular tareas seleccionadas",
     "relationLinkSelectedHint": "La primera selección será la predecesora y la segunda la sucesora (FC, desfase 0)",
     "relationSelectExactlyTwo": "Seleccione exactamente dos tareas",

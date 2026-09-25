@@ -425,6 +425,7 @@
   "defaultInspection": "Nowy punkt inspekcji",
   "column": {
     "resource": "Zasoby",
+    "resourceType": "Typ zasobu",
     "activityCodeSuffix": "kod zadania",
     "customFieldSuffix": "pole użytkownika"
   },

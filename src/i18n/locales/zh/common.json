@@ -859,7 +859,11 @@
       "applyOnly": "应用但不保存",
       "infoApplyOnly": "将勾选的部分应用到屏幕，但不创建布局按钮。适合快速的临时筛选。",
       "columnsNote": "采用表格中当前的列。通过表头的加号选择列。",
-      "relationsShow": "显示关系线"
+      "relationsShow": "显示关系线",
+      "partOverlays": "叠加层",
+      "infoOverlays": "关系线、基线、进度线、状态日期线、资源强调、浮动时间带和条形颜色。未勾选：保持现状。",
+      "overlaysNotStored": "此布局只保存关系线。如果在下方更改某个叠加层，它也会保存所有叠加层。",
+      "missingColorField": "类别：此项目中不存在该字段"
     },
     "presentation": {
       "hint": "按 Esc 或 F11 退出全屏模式。"

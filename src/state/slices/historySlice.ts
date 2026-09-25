@@ -12,6 +12,8 @@ import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import type { AppState } from '../appStore';
 import type { StoreRuntime } from '../runtime/storeRuntime';
 import type { AppSlice, AppSliceFactory } from './types';
+import { overlaysToUi } from '../layoutView';
+import { persistOverlays } from '../overlaySettings';
 
 export interface HistorySlice {
   /** App-globale, niet-gepersisteerde chronologie over alle geopende documenten en gridsurfaces. */
@@ -73,6 +75,7 @@ function applyHistoryEvent(
         state.resourceLoadResult = target.resourceLoadResult;
       } else if (target.kind === 'document-view') {
         Object.assign(state.view, target.view);
+        if (target.overlays) Object.assign(state.ui, overlaysToUi(target.overlays));
         state.viewRows = target.viewRows;
       } else {
         state.taskGridSurfaces[target.surface] = {
@@ -84,6 +87,9 @@ function applyHistoryEvent(
     stored.state = direction === 'undo' ? 'undone' : 'applied';
   });
   persistGridWhenNeeded(get(), event);
+  for (const target of targets) {
+    if (target.kind === 'document-view' && target.overlays) persistOverlays(target.overlays);
+  }
 }
 
 export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (set, get) => ({

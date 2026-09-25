@@ -917,7 +917,11 @@
       "applyOnly": "Aplicar sem guardar",
       "infoApplyOnly": "Coloca as partes marcadas no ecrã sem criar um botão de layout. Útil para um filtro rápido e temporário.",
       "columnsNote": "Assume as colunas tal como estão agora na tabela. As colunas escolhem-se com o mais no cabeçalho da tabela.",
-      "relationsShow": "Mostrar linhas de relação"
+      "relationsShow": "Mostrar linhas de relação",
+      "partOverlays": "Sobreposição",
+      "infoOverlays": "Linhas de relação, linha de base, linha de progresso, linha da data de estado, destaque de recurso, faixa de folga e cores das barras. Desmarcado: ficam como estão.",
+      "overlaysNotStored": "Este layout guarda apenas as linhas de relação. Se alterar uma sobreposição abaixo, também guarda todas as sobreposições.",
+      "missingColorField": "Categoria: o campo não existe neste projeto"
     },
     "presentation": {
       "hint": "Prima Esc ou F11 para sair do ecrã inteiro."

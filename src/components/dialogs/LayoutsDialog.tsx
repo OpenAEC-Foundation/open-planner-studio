@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Info } from 'lucide-react';
 import { GroupEditor, defaultGroup, type GroupNode } from './FilterDialog';
 import { LevelListEditor } from '@/components/viewControls/LevelListEditor';
-import { groupFieldList, fullFieldList, filterFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
+import { groupFieldList, sortFieldList, filterFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import { snapshotLayout } from '@/components/viewControls/layoutSnapshot';
 import { LAYOUT_ICON_KEYS, layoutIcon } from '@/components/viewControls/layoutIcons';
@@ -14,6 +14,11 @@ import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { LAYOUT_PARTS, type Layout, type LayoutPart, type TimeScale } from '@/types/view';
 import { Dialog } from '@/components/common/Dialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
+import { currentOverlays } from '@/state/layoutView';
+import { barColorFieldOptions } from '@/components/viewControls/barColorFieldOptions';
+import { decodeFieldRef, encodeFieldRef } from '@/components/layout/Ribbon/ribbonPrimitives';
+import type { LayoutOverlays } from '@/types/view';
+import type { BarColorSelection } from '@/types/barColor';
 
 /** Label- en tooltipsleutel per layoutdeel; de vijf bestaande delen hergebruiken hun eigen titel. */
 type LayoutKey = ParseKeys<['common', 'menu']>;
@@ -25,7 +30,31 @@ const PART_KEYS: Record<LayoutPart, { label: LayoutKey; info: LayoutKey }> = {
   sort: { label: 'common:view.sort.title', info: 'common:view.layout.infoSort' },
   timeScale: { label: 'menu:ribbon.timeScale', info: 'common:view.layout.infoTimeScale' },
   showRelations: { label: 'common:view.layout.partRelations', info: 'common:view.layout.infoRelations' },
+  overlays: { label: 'common:view.layout.partOverlays', info: 'common:view.layout.infoOverlays' },
 };
+
+/** De rijen van de dialoog. De relatielijnen staan sinds issue #173 onder de kop Overlay: in de data
+ *  blijven ze een eigen deel (bestaande layouts), in de dialoog legt het vinkje Overlay beide vast. */
+const DIALOG_ROWS = LAYOUT_PARTS.filter(part => part !== 'showRelations');
+const partsOfRow = (row: LayoutPart): LayoutPart[] => (row === 'overlays' ? ['showRelations', 'overlays'] : [row]);
+
+/** Aan/uit-overlays in lintvolgorde (Beeld → Basislijnen & voortgang), met hun lintlabel. */
+const OVERLAY_FLAGS: { key: Exclude<keyof LayoutOverlays, 'barColors'>; label: string }[] = [
+  { key: 'baseline', label: 'menu:ribbon.toggleBaselineOverlay' },
+  { key: 'progressLine', label: 'menu:ribbon.toggleProgressLine' },
+  { key: 'statusDateLine', label: 'menu:ribbon.toggleStatusDateLine' },
+  { key: 'resourceAccent', label: 'menu:ribbon.toggleResourceAccent' },
+  { key: 'floatBand', label: 'menu:ribbon.toggleFloatBand' },
+];
+
+/** Eén keuzelijst voor de balkkleur: `critical`, `auto`, of `category:<veld>`. */
+function encodeBarColors(selection: BarColorSelection): string {
+  return selection.mode === 'category' ? `category:${encodeFieldRef(selection.field)}` : selection.mode;
+}
+function decodeBarColors(value: string): BarColorSelection {
+  if (value === 'critical' || value === 'auto') return { mode: value };
+  return { mode: 'category', field: decodeFieldRef(value.slice('category:'.length)) };
+}
 
 /**
  * Layoutdialoog (issue #144): maakt een nieuwe layoutknop of bewerkt een bestaande
@@ -49,16 +78,22 @@ export function LayoutsDialog() {
 
   const ctx = useFieldCatalogCtx();
   const groupOptions = useMemo(() => fieldOptions(groupFieldList(ctx), ctx), [ctx]);
-  const sortOptions = useMemo(() => fieldOptions(fullFieldList(ctx), ctx), [ctx]);
+  const sortOptions = useMemo(() => fieldOptions(sortFieldList(ctx), ctx), [ctx]);
   const filterFields = useMemo(() => filterFieldList(ctx), [ctx]);
+  const barColorFields = useMemo(() => barColorFieldOptions(ctx), [ctx]);
 
   // Het concept begint als het huidige scherm; bij bewerken winnen de opgeslagen delen.
-  const fromScreen = () => snapshotLayout(view, columns, '');
+  // De overlays zijn app-brede `ui`-velden; alleen gelezen op het moment dat het concept wordt gevuld.
+  const fromScreen = () => snapshotLayout(view, columns, currentOverlays(useAppStore.getState().ui), '');
   const [layouts, setLayouts] = useState<Layout[] | null>(null);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<string>('layout');
   const [parts, setParts] = useState<LayoutPart[]>([...LAYOUT_PARTS]);
   const [draft, setDraft] = useState<Layout>(fromScreen);
+  // Legt de layout de overlays vast? Een layout van vóór #173 droeg alleen de relatielijnen; bewerken
+  // (zelfs alleen hernoemen) mag er niet stil de overlays van het scherm van nu bij stoppen. Pas als
+  // de gebruiker hier een overlay omzet, gaan ze mee.
+  const [overlaysStored, setOverlaysStored] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +104,10 @@ export function LayoutsDialog() {
       if (!target) return;
       setName(target.name);
       setIcon(target.icon ?? 'layout');
-      setParts([...new Set([...layoutParts(target), 'showRelations' as LayoutPart])]);
+      const carried = layoutParts(target);
+      const overlayRow = carried.some(part => partsOfRow('overlays').includes(part)) ? partsOfRow('overlays') : [];
+      setParts([...new Set([...carried, ...overlayRow])]);
+      setOverlaysStored(target.overlays !== undefined);
       setDraft(current => ({ ...current, ...structuredClone(target) }));
     });
     return () => { cancelled = true; };
@@ -78,14 +116,20 @@ export function LayoutsDialog() {
   const target = useMemo(() => layouts?.find(l => l.id === targetId), [layouts, targetId]);
   const editing = target !== undefined;
 
-  const togglePart = (part: LayoutPart) => {
-    setParts(current => (current.includes(part) ? current.filter(p => p !== part) : [...current, part]));
+  const togglePart = (row: LayoutPart) => {
+    const rowParts = partsOfRow(row);
+    setParts(current => (current.includes(row)
+      ? current.filter(p => !rowParts.includes(p))
+      : [...new Set([...current, ...rowParts])]));
   };
   const filterRoot: GroupNode = draft.filter && draft.filter.kind === 'group' ? draft.filter : defaultGroup();
   const setFilterRoot = (root: GroupNode) => setDraft(d => ({ ...d, filter: root.children.length === 0 ? null : root }));
 
   /** De aangevinkte delen van het concept, als layout. */
-  const build = (id: string, layoutName: string): Layout => ({ ...pickLayoutParts({ ...draft, id, name: layoutName }, parts), icon });
+  const build = (id: string, layoutName: string): Layout => ({
+    ...pickLayoutParts({ ...draft, id, name: layoutName }, overlaysStored ? parts : parts.filter(p => p !== 'overlays')),
+    icon,
+  });
 
   const save = () => {
     if (!layouts || parts.length === 0) return;
@@ -149,6 +193,75 @@ export function LayoutsDialog() {
         );
       case 'showRelations':
         return null;
+      case 'overlays': {
+        const overlays = draft.overlays ?? currentOverlays(useAppStore.getState().ui);
+        const setOverlay = (patch: Partial<LayoutOverlays>) => {
+          setOverlaysStored(true);
+          setDraft(d => ({ ...d, overlays: { ...overlays, ...patch } }));
+        };
+        const colorOptions = [
+          { value: 'critical', label: t('menu:ribbon.screenColors_critical') },
+          { value: 'auto', label: t('menu:ribbon.screenColors_auto') },
+          ...barColorFields.map(option => ({
+            value: `category:${encodeFieldRef(option.field)}`,
+            label: `${t('menu:ribbon.screenColors_category')}: ${option.label}`,
+          })),
+        ];
+        const colorValue = encodeBarColors(overlays.barColors);
+        // Een categorieveld dat in dit project niet bestaat, blijft zichtbaar als wat het is — anders
+        // toonde de keuzelijst "kritiek pad" terwijl de layout iets anders opsloeg.
+        if (!colorOptions.some(option => option.value === colorValue)) {
+          colorOptions.push({ value: colorValue, label: t('common:view.layout.missingColorField') });
+        }
+        return (
+          <>
+            {!overlaysStored && (
+              <div
+                className="rounded-[8px] px-3 py-2"
+                style={{ background: 'color-mix(in srgb, var(--theme-accent, #d97706) 14%, transparent)', border: '1px solid color-mix(in srgb, var(--theme-accent, #d97706) 45%, transparent)' }}
+                data-ops-layout-overlays-not-stored="true"
+              >
+                {t('common:view.layout.overlaysNotStored')}
+              </div>
+            )}
+            {/* Eén vinkje per overlay, en dat is meteen de waarde — het model dat #144 voor de
+                relatielijnen koos, nu voor de hele groep. */}
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={draft.showRelations ?? true}
+                onChange={e => setDraft(d => ({ ...d, showRelations: e.target.checked }))}
+                data-ops-layout-relations="true"
+              />
+              <span>{t('common:view.layout.relationsShow')}</span>
+            </label>
+            {OVERLAY_FLAGS.map(flag => (
+              <label key={flag.key} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={overlays[flag.key]}
+                  onChange={e => setOverlay({ [flag.key]: e.target.checked })}
+                  data-ops-layout-overlay={flag.key}
+                />
+                <span>{t(flag.label as 'menu:ribbon.toggleFloatBand')}</span>
+              </label>
+            ))}
+            <label className="flex items-center gap-2">
+              <span>{t('menu:ribbon.screenColors')}</span>
+              <select
+                value={colorValue}
+                onChange={e => setOverlay({ barColors: decodeBarColors(e.target.value) })}
+                className="input !text-small !leading-4 !px-1.5 !py-1"
+                style={{ width: 'auto' }}
+                aria-label={t('menu:ribbon.screenColors')}
+                data-ops-layout-bar-colors="true"
+              >
+                {colorOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+          </>
+        );
+      }
     }
   };
 
@@ -220,34 +333,19 @@ export function LayoutsDialog() {
             {t('common:view.layout.partsHint')}
           </div>
           <div className="flex flex-col">
-            {LAYOUT_PARTS.map(part => (
+            {DIALOG_ROWS.map(part => (
               <div key={part} className="flex flex-col gap-2 py-2 border-b border-border-light" data-ops-layout-part-row={part}>
-                {part === 'showRelations' ? (
-                  // Eén vinkje, en dat is meteen de waarde (eigenaarsbesluit): een layout uit deze
-                  // dialoog legt de relatielijnen altijd vast.
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.showRelations ?? true}
-                      onChange={e => setDraft(d => ({ ...d, showRelations: e.target.checked }))}
-                      data-ops-layout-relations="true"
-                    />
-                    <span className="flex-1 font-semibold">{t('common:view.layout.relationsShow')}</span>
-                    {info(PART_KEYS[part].info)}
-                  </label>
-                ) : (
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={parts.includes(part)}
-                      onChange={() => togglePart(part)}
-                      data-ops-layout-part={part}
-                    />
-                    <span className="flex-1 font-semibold">{t(PART_KEYS[part].label)}</span>
-                    {info(PART_KEYS[part].info)}
-                  </label>
-                )}
-                {part !== 'showRelations' && parts.includes(part) && (
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={parts.includes(part)}
+                    onChange={() => togglePart(part)}
+                    data-ops-layout-part={part}
+                  />
+                  <span className="flex-1 font-semibold">{t(PART_KEYS[part].label)}</span>
+                  {info(PART_KEYS[part].info)}
+                </label>
+                {parts.includes(part) && (
                   <div className="flex flex-col gap-1.5" style={{ paddingInlineStart: 24 }}>{partEditor(part)}</div>
                 )}
               </div>

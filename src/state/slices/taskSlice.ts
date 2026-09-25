@@ -577,9 +577,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       const engine = new CalendarEngine(calendarForEngine(
         resolveCalendar(task.calendarId, s.calendars, s.calendar),
       ));
-      const finish = splitScheduleFinish(task, engine);
-      task.time.scheduleFinish = finish;
-      task.time.earlyFinish = finish;
+      task.time.scheduleFinish = splitScheduleFinish(task, engine);
+      // Issue #171: het balkeinde vanaf waar de balk staat, niet vanaf het anker.
+      task.time.earlyFinish = splitScheduleFinish(task, engine, task.time.earlyStart || task.time.scheduleStart);
 
       // (8) `markScheduleStale` via `finishMutation` — nooit de vlag rechtstreeks (issue #63).
       runtime.finishMutation(s, { stale: true });

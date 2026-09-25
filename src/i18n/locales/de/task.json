@@ -431,6 +431,7 @@
   "defaultInspection": "Neuer Prüfpunkt",
   "column": {
     "resource": "Ressourcen",
+    "resourceType": "Ressourcentyp",
     "activityCodeSuffix": "Aufgabencode",
     "customFieldSuffix": "Benutzerdefiniertes Feld"
   },

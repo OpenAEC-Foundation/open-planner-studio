@@ -504,6 +504,7 @@
   "defaultInspection": "نقطة فحص جديدة",
   "column": {
     "resource": "الموارد",
+    "resourceType": "نوع المورد",
     "activityCodeSuffix": "رمز النشاط",
     "customFieldSuffix": "حقل مخصص"
   },

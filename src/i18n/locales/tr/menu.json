@@ -184,6 +184,7 @@
     "splitTask": "Görevi böl",
     "splitTaskOnHint": "Bölme modunu açın, ardından kesintinin başladığı yerde çubuğa tıklayın",
     "splitTaskOffHint": "Bölme modunu kapat",
+    "ganttOnlyHint": "Yalnızca Gantt şeması görünürken kullanılabilir",
     "relationLinkSelected": "Seçili görevleri bağla",
     "relationLinkSelectedHint": "İlk seçim öncül, ikinci seçim ardıl olur (BŞ, gecikme 0)",
     "relationSelectExactlyTwo": "Tam olarak iki görev seçin",

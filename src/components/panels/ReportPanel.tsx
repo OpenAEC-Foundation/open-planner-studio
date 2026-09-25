@@ -31,7 +31,6 @@ import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeri
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
-import { saveBarColorSelection } from '@/utils/barColorSettings';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
@@ -236,7 +235,6 @@ export function ReportPanel() {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
-  const setUI = useAppStore(s => s.setUI);
   // "Datums zoals opgeslagen" (issue #63; eindreview XER-etappe bevinding 6): de tabelrapporten dragen
   // de melding in hun spec (`useTableReportSpec`); Gantt, mijlpalen en afwijkingen krijgen 'm hier,
   // boven het voorbeeld — dezelfde tekst, zodat geen enkel rapport nullen toont zonder te zeggen dat
@@ -250,6 +248,7 @@ export function ReportPanel() {
       {t('tableReports.recordedDatesNote')}
     </div>
   ) : null;
+  const setOverlays = useAppStore(s => s.setOverlays);
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
   const barColorControl = effectiveBarColorControl(barColorSelection, fieldCtx);
@@ -1456,8 +1455,7 @@ export function ReportPanel() {
                 onChange={value => {
                   if (value === 'critical' || value === 'auto') {
                     const next = { mode: value } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
+                    setOverlays({ barColors: next });
                     return;
                   }
                   const field = barColorControl.effective.mode === 'category'
@@ -1465,8 +1463,7 @@ export function ReportPanel() {
                     : barColorFields[0]?.field;
                   if (!field) return;
                   const next = { mode: 'category', field } as const;
-                  setUI({ barColorSelection: next });
-                  void saveBarColorSelection(next);
+                  setOverlays({ barColors: next });
                 }}
                 options={[
                   { value: 'critical', label: t('barColorMode_critical') },
@@ -1484,8 +1481,7 @@ export function ReportPanel() {
                   value={encodeFieldRef(barColorControl.effective.field)}
                   onChange={value => {
                     const next = { mode: 'category', field: decodeFieldRef(value) } as const;
-                    setUI({ barColorSelection: next });
-                    void saveBarColorSelection(next);
+                    setOverlays({ barColors: next });
                   }}
                   options={barColorFields.map(option => ({
                     value: encodeFieldRef(option.field),

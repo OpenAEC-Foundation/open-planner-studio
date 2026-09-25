@@ -5,6 +5,7 @@ import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 
 export interface UiSlice {
   ui: UIState;
@@ -204,6 +205,17 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       // sneltoets, extensie, testbrug) mag de ene aanzetten zonder de andere te kennen.
       if (updates.showSplitMode === true) (updates as Partial<UIState>).showDependencyMode = false;
       else if (updates.showDependencyMode === true) (updates as Partial<UIState>).showSplitMode = false;
+      // Issue #174: beide modi werken alleen op een balk in de Gantt. Verdwijnt de Gantt uit de
+      // werkruimte (Tabel, IFC, Rapport, volledig resourcepaneel), dan gaan ze uit — anders bleef
+      // de modusstrook staan boven een weergave waarin het gebaar niets kan.
+      if (!isGanttWorkspaceVisible({
+        activeRibbonTab: updates.activeRibbonTab ?? s.ui.activeRibbonTab,
+        showResourcePanel: updates.showResourcePanel ?? s.ui.showResourcePanel,
+        resourcePanelDocked: updates.resourcePanelDocked ?? s.ui.resourcePanelDocked,
+      })) {
+        (updates as Partial<UIState>).showSplitMode = false;
+        (updates as Partial<UIState>).showDependencyMode = false;
+      }
       // Als debugTerminalEnabled uitgezet wordt, forceer de terminal dicht.
       if (updates.debugTerminalEnabled === false) {
         (updates as Partial<UIState>).debugTerminalOpen = false;

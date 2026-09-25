@@ -27,6 +27,7 @@ export function useFieldCatalogCtx(): FieldCatalogCtx {
     },
     taskTypeLabels,
     resourceLabel: tTask('column.resource'),
+    resourceTypeLabel: tTask('column.resourceType'),
     activityCodeSuffix: tTask('column.activityCodeSuffix'),
     customFieldSuffix: tTask('column.customFieldSuffix'),
   }), [activityCodeTypes, customFieldDefs, resources, taskTypeLabels, tTask]);
