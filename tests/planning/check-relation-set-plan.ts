@@ -189,6 +189,52 @@ const baseTasks = [A, B, C, D];
   eq('summary-expansie onthult en weigert bladcyclus', errorsOf(result), ['cycle']);
 }
 
+// Alleen fouten die de bewerking zelf TOEVOEGT tellen (audit taakmutaties, bevinding 3). Een bewust
+// bewaarde voorouder-relatie of kring (uit een import, of na verhangen) mag geen ongerelateerde cel
+// blokkeren — de eindgraaf wordt tegen de graaf van vóór de bewerking gelegd.
+{
+  const phase = task('P', '5', { childIds: ['K'] });
+  const kid = task('K', '5.1', { parentId: 'P' });
+  const tasks = [...baseTasks, phase, kid];
+  const keptAncestor = [seq('pk', 'P', 'K')];
+  const unrelated = planRelationSet({
+    tasks, sequences: keptAncestor, ownerTaskId: 'B', direction: 'predecessor', tokens: [internal('1.1')],
+  });
+  eq('bestaande voorouder-relatie blokkeert een ongerelateerde cel niet', errorsOf(unrelated), []);
+  const ownCell = planRelationSet({
+    tasks, sequences: keptAncestor, ownerTaskId: 'K', direction: 'predecessor',
+    tokens: [internal('5', 'FS', '2d'), internal('1.1')],
+  });
+  eq('de cel met de bestaande voorouder-relatie blijft bewerkbaar (lag + extra relatie)', errorsOf(ownCell), []);
+  eq('… en de voorouder-relatie houdt haar id', ownCell.ok ? ownCell.value.sequenceUpdates.map(u => u.id) : null, ['pk']);
+  const extraType = planRelationSet({
+    tasks, sequences: keptAncestor, ownerTaskId: 'K', direction: 'predecessor',
+    tokens: [internal('5'), internal('5', 'SS')],
+  });
+  eq('een TWEEDE relatie naar de eigen fase erbij blijft geweigerd', errorsOf(extraType), ['ancestor']);
+
+  const keptCycle = [seq('ab', 'A', 'B'), seq('ba', 'B', 'A')];
+  const besideCycle = planRelationSet({
+    tasks: baseTasks, sequences: keptCycle, ownerTaskId: 'D', direction: 'predecessor', tokens: [internal('1.3')],
+  });
+  eq('bestaande kring blokkeert een relatie ernaast niet', errorsOf(besideCycle), []);
+  const intoNewCycle = planRelationSet({
+    tasks: baseTasks, sequences: [...keptCycle, seq('cd', 'C', 'D')], ownerTaskId: 'C', direction: 'predecessor',
+    tokens: [internal('1.4')],
+  });
+  eq('een nieuwe kring naast de bestaande blijft geweigerd', errorsOf(intoNewCycle), ['cycle']);
+  const cycleThroughOld = planRelationSet({
+    tasks: baseTasks, sequences: keptCycle, ownerTaskId: 'A', direction: 'predecessor',
+    tokens: [internal('1.2'), internal('1.3')],
+  });
+  eq('een relatie die niets aan de bestaande kring toevoegt mag', errorsOf(cycleThroughOld), []);
+  const cycleIntoOld = planRelationSet({
+    tasks: baseTasks, sequences: [...keptCycle, seq('bc', 'B', 'C')], ownerTaskId: 'A', direction: 'predecessor',
+    tokens: [internal('1.2'), internal('1.3')],
+  });
+  eq('een nieuwe kring door de bestaande heen wordt geweigerd', errorsOf(cycleIntoOld), ['cycle']);
+}
+
 function externalToken(
   ownerTaskId: string,
   targetOwnerTaskId: string,

@@ -142,12 +142,20 @@ S().newProject();
 const c1 = S().addTask({ name: 'C1' });
 const c2 = S().addTask({ name: 'C2' });
 S().addSequence({ predecessorId: c1, successorId: c2, type: 'FINISH_START', lagDays: 0 });
-S().addSequence({ predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
+// De store-route weigert een kring vooraf (check-relation-routes.ts); een kring komt nog wel binnen
+// zoals een importer hem schrijft: rechtstreeks in `sequences`.
+useAppStore.setState(s => {
+  s.sequences.push({ id: 'seq-kring', predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
+});
 S().runCPM();
 truthy('31 opzet: de solver meldt een cyclus', !!S().cpmResult?.error);
 eq('32 runCPM heeft precies één melding gepusht', N().length, 1);
 eq('33 de melding is een fout', N()[0]?.severity, 'error');
-eq('34 het rauwe solver-bericht zit in detail', N()[0]?.detail, S().cpmResult?.error);
+// Bijvangst B (review taakmutaties): de reden gaat mee als vertaalbare sleutel + parameters, niet als
+// de vaste solvertekst (die was deels Engels, deels Nederlands, ongeacht de UI-taal).
+eq('34 de solverreden zit als sleutel + parameters in de melding',
+  [N()[0]?.detailKey, N()[0]?.detailParams?.path, N()[0]?.detail],
+  ['scheduleErrors.cycle', (S().cpmResult?.errorInfo?.cycleNames ?? []).join(' → '), undefined]);
 truthy('35 de melding is vertaalbaar (draagt een sleutel, geen kant-en-klare zin)',
   N()[0]?.messageKey.startsWith('notifications.'));
 

@@ -4,7 +4,7 @@ import {
   applyPhaseTransitions, describePhaseRefusal, describePhaseTransitions, firstChildGains, planPhaseTransitions,
   type PhaseTransitionReport,
 } from '../structuralTransition';
-import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
+import { createSnapshot, documentDataChanged, restoreSnapshot, type Snapshot } from '../snapshot';
 import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
@@ -321,12 +321,14 @@ function createMcpDraft(
   },
 
   /**
-   * Snapshot/recompute-vrije variant van de store-`addSequence`: dezelfde regels als de store-actie,
-   * uit `relationRules.ts` (dedup op predecessor+successor+type — meerdere relatietypes tussen
-   * hetzelfde paar blijven toegestaan — plus self/onbekende-taak/verzameltaak-eindpunt). Dit was een
-   * handgeschreven kopie van alleen de dedup-regel; die kopie is precies waarom validatie in de
-   * slice-actie de MCP-laag zou overslaan. Retourneert het nieuwe id, of `null` wanneer de relatie is
-   * geweigerd.
+   * Snapshot/recompute-vrije variant van de store-`addSequence`: dezelfde lokale regels als de
+   * store-actie, uit `relationRules.ts` (`relationVerdict`: dedup op predecessor+successor+type —
+   * meerdere relatietypes tussen hetzelfde paar blijven toegestaan — plus self/onbekende-taak/
+   * voorouder-eindpunt). Dit was een handgeschreven kopie van alleen de dedup-regel; die kopie is
+   * precies waarom validatie in de slice-actie de MCP-laag zou overslaan. De kringtoets van de
+   * store-route (`relationAddVerdict`) zit hier bewust niet: de MCP-tools toetsen een kring vooraf
+   * over de hele batch (`validate.noCycle`) en de eindberekening van de transactie rolt een kring
+   * alsnog terug. Retourneert het nieuwe id, of `null` wanneer de relatie is geweigerd.
    */
   addSequence(seq: Omit<Sequence, 'id'>): string | null {
     const id = generateId('seq');
@@ -824,11 +826,18 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       };
 
       let value: T;
+      let dataChanged = false;
       try {
         value = fn() as T;
         if (isThenable(value)) {
           throw new Error('MCP-transactiecallback moet strikt synchroon zijn en mag geen Promise/thenable retourneren');
         }
+        // Wijzigde de callback projectdata? Gemeten VÓÓR de eindherberekening: `runCPM` alléén maakt
+        // een document nooit dirty. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook de
+        // toollaag-producers die geen draft-primitief gebruiken (het voortgangspad van
+        // `update_tasks` zette zo nooit `isDirty`, dus sluiten vroeg niet om op te slaan en de
+        // crashherstel-auto-save sloeg de wijziging over).
+        dataChanged = documentDataChanged(snapshot, createSnapshot(store.getState()));
 
         // De volledige eindherberekening blijft binnen dezelfde lease. Dat onderdrukt ook de
         // modus-verlaat-snapshot van "datums zoals opgeslagen".
@@ -845,6 +854,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       runtime.resetUndoCoalescing();
       store.setState((state) => {
         runtime.recordDocumentDataHistory(state, snapshot, documentId, 'MCP-bewerking');
+        if (dataChanged) state.isDirty = true;
       });
       const lostCount = runtime.countMcpTimephasedLoss(lease);
       if (lostCount > 0) {

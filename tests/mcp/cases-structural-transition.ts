@@ -64,6 +64,16 @@ test('move_task onder een taak met toewijzing: toewijzing verhuist, antwoord mel
   assertEq([task(N).parentId, S().assignments.find(a => a.id === assignmentId)?.taskId], [null, L], 'één undo zet alles terug');
 });
 
+test('move_task via draft.moveTask houdt de relatiemelding van #207 (relatie wordt voorouder-relatie)', async () => {
+  const { L, N } = seed();
+  S().addSequence({ predecessorId: L, successorId: N, type: 'FINISH_START', lagDays: 0 });
+  store.setState((s) => { s.ui.notifications = []; });
+  const res = await rpc('planner_move_task', { id: N, newParentId: L });
+  assertEq(res.isError ?? false, false, 'de call slaagt');
+  assertEq(S().ui.notifications.map(n => [n.messageKey, n.params]),
+    [['notifications.relationsExcludedByHierarchy', { count: 1 }]], 'de relatiemelding blijft, de verhuizing staat in het antwoord');
+});
+
 test('add_tasks met parentId: de eerste nieuwe subtaak die toewijzingen mag dragen krijgt ze', async () => {
   const { L, R } = seed();
   const res = await rpc('planner_add_tasks', { tasks: [

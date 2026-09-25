@@ -21,6 +21,7 @@ import type {
   GroupLevel, SortLevel, Layout, LayoutSession, LayoutViewParts, SplitViewState, ViewState,
 } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
+import type { ScheduleErrorKey } from '@/i18n/scheduleErrors';
 export type {
   TimeScale, DateNotation, DurationDisplay, BarSplitMode,
   BuiltinFieldKey, FieldRef, ColumnConfig, FilterOperator, FilterNode, SavedFilter,
@@ -191,6 +192,12 @@ export type NotificationMessageKey =
   | 'notifications.relationCreated'
   | 'notifications.relationDuplicate'
   | 'notifications.relationAncestorEndpoint'
+  // Audit taakmutaties, bevinding 2: de store-route weigert een relatie die een kring sluit (zoals
+  // raster en MCP al deden). Parameter `cycle`: de taaknamen van de kring, "A → B → A".
+  | 'notifications.relationCycle'
+  // Audit taakmutaties, bevinding 3: verhangen maakte een bestaande relatie tot voorouder-relatie
+  // (telt niet meer mee) zonder enig signaal — zie `hierarchyRelationNotice.ts`. Meervoud, `count`.
+  | 'notifications.relationsExcludedByHierarchy'
   | 'notifications.summaryRelationsDropped'
   | 'notifications.relationsSkippedOnInsert'
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
@@ -230,6 +237,11 @@ export interface AppNotification {
   params?: Record<string, string | number>;
   /** Rauwe technische tekst (`err.message`) — BEWUST onvertaald. */
   detail?: string;
+  /** Vertaalbare detailregel (namespace `common`) met `detailParams`; heeft voorrang op `detail`.
+   *  Voor solverfouten, die als code + parameters komen (`src/i18n/scheduleErrors.ts`) zodat ze in
+   *  de UI-taal verschijnen en bij een taalwissel meevertalen. */
+  detailKey?: ScheduleErrorKey;
+  detailParams?: Record<string, string | number>;
   /** Samenvouw-sleutel: een tweede melding met dezelfde sleutel wordt één regel met een teller. */
   dedupeKey?: string;
   /** Aantal samengevouwen voorkomens; 1 bij de eerste. */

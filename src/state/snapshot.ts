@@ -192,6 +192,19 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
   };
 }
 
+/**
+ * Verschilt de PROJECTDATA (de `'data'`-rol van `DOCUMENT_FIELDS`) tussen twee snapshots? Per
+ * referentie, zoals `snapshotsEqual`: Immer levert bij elke echte mutatie een nieuw object op. De
+ * afgeleide velden (`cpmResult`, `scheduleStale`, …) tellen bewust niet mee — een herberekening
+ * alléén maakt een document niet gewijzigd (de `runCPM`-invariant). De MCP-transactie leidt hier
+ * `isDirty` uit af op haar ene commit-plek (`createMcpTransactions` → `run`).
+ */
+export function documentDataChanged(before: Snapshot, after: Snapshot): boolean {
+  const b = before as unknown as Record<string, unknown>;
+  const a = after as unknown as Record<string, unknown>;
+  return DOCUMENT_FIELDS.some((f) => f.snapshot === 'data' && !Object.is(b[f.key], a[f.key]));
+}
+
 /** Herstel een snapshot in de live state (gedeeld door undo én redo). Zet de snapshot-velden terug
  *  (key-gedreven — inclusief het volledige `project`, pakket H), zet de kalender-cache gelijk en
  *  markeert het document als gewijzigd.

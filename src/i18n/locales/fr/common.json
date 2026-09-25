@@ -27,6 +27,10 @@
     "relationCreated": "Relation créée : {{predecessor}} → {{successor}}",
     "relationDuplicate": "Cette relation existe déjà",
     "relationAncestorEndpoint": "Une relation entre une tâche et sa propre tâche récapitulative parente (ou ancêtre) n'est pas autorisée.",
+    "relationCycle": "Cette relation créerait un cycle dans la planification ({{cycle}}) et n'a pas été créée.",
+    "relationsExcludedByHierarchy_one": "Après le déplacement, {{count}} relation relie une tâche à sa propre tâche récapitulative parente ; elle n'est plus prise en compte dans le calcul.",
+    "relationsExcludedByHierarchy_many": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
+    "relationsExcludedByHierarchy_other": "Après le déplacement, {{count}} relations relient une tâche à sa propre tâche récapitulative parente ; elles ne sont plus prises en compte dans le calcul.",
     "summaryRelationsDropped": "{{total}} relation(s) n'ont pas pu être prises en compte. Vérifiez les colonnes Prédécesseurs et Successeurs.",
     "relationsSkippedOnInsert_one": "{{count}} relation n'a pas été créée : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
     "relationsSkippedOnInsert_many": "{{count}} relations n'ont pas été créées : lien invalide (par exemple une tâche liée à sa propre tâche récapitulative parente, ou un doublon).",
@@ -71,6 +75,14 @@
     "milestoneClearedOnPhase_other": "{{count}} jalons ont maintenant des sous-tâches et sont devenus des tâches récapitulatives ; l'indicateur de jalon a été retiré.",
     "phaseRefusedNoAssignableChild": "« {{phase}} » ne peut pas devenir une tâche récapitulative : ses affectations ne peuvent aller nulle part, car aucune des nouvelles sous-tâches ne peut porter d'affectations (un jalon ou une tâche récapitulative). Rien n'a été modifié.",
     "phaseRefusedDuplicateResource": "« {{phase}} » ne peut pas devenir une tâche récapitulative : l'affectation de {{resource}} ne peut pas aller vers la nouvelle sous-tâche « {{child}} », qui a déjà {{resource}}. Rien n'a été modifié."
+  },
+  "scheduleErrors": {
+    "cycle": "Dépendance circulaire entre les tâches : {{path}}",
+    "noWorkingDays": "Aucun jour ouvré n'est défini dans le calendrier",
+    "invalidDayDuration": "Durée en jours non valide pour la tâche '{{task}}'",
+    "invalidHourDuration": "Durée en heures non valide pour la tâche '{{task}}'",
+    "hourTaskWithoutWorkHours": "La tâche en heures '{{task}}' n'a pas d'horaires de travail valides dans son calendrier",
+    "invalidStartDate": "Date de début non valide pour la tâche '{{task}}'"
   },
   "yes": "Oui",
   "no": "Non",

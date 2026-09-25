@@ -56,6 +56,7 @@ import {
   type ParsedLag,
 } from './sequenceFields';
 import type { PhaseTransitionReport } from '@/state/structuralTransition';
+import { watchAncestorRelations } from '@/state/hierarchyRelationNotice';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds } from '@/utils/wbs';
@@ -644,7 +645,12 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
       || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
     if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
+  // Dezelfde relatiemelding als de store-`moveTask` (audit taakmutaties §3): een bestaande relatie die
+  // hierdoor een voorouder-relatie wordt, telt niet meer mee. Rolt de transactie terug, dan gaat de
+  // melding mee terug (de run herstelt de meldingen van vóór de call).
+  const reportAncestorRelations = watchAncestorRelations(ctx.app.store.getState());
   const phaseTransitions = ctx.transactions.draft.moveTask(id, newParentId, position);
+  reportAncestorRelations(ctx.app.store.getState());
   return { data: { moved: id, ...(phaseTransitions.length > 0 ? { phaseTransitions } : {}) } };
 }
 

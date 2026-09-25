@@ -205,6 +205,40 @@ test('Gantt relationpopover Escape annuleert zonder relatie, undo-stap of meldin
     .toBe(notificationsBefore);
 });
 
+// Audit taakmutaties, bevinding 2: een Shift-sleep die een kring sluit meldde "Relatie aangemaakt"
+// en pas F5 liep vast op "Circular dependency". Raster en MCP weigerden dat al vooraf; nu ook de
+// store-route waar de Gantt op uitkomt, met een melding die de kring noemt.
+test('Gantt Shift-sleep die een kring sluit wordt geweigerd met een kringmelding', async ({ page, ops: _ops }) => {
+  const [firstId, secondId] = await seedProject(page, [
+    { name: 'Kring voor', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
+    { name: 'Kring na', start: '2026-09-21', finish: '2026-09-25', durationDays: 5 },
+  ]);
+  await page.evaluate(({ first, second }) => {
+    const s = window.__OPS__!.store.getState();
+    s.addSequence({ predecessorId: first, successorId: second, type: 'FINISH_START', lagDays: 0 });
+    s.runCPM();
+  }, { first: firstId, second: secondId });
+  await showRelationBars(page, [firstId, secondId]);
+  const before = await state(page);
+  const source = await barPoint(page, secondId);
+  const target = await barPoint(page, firstId);
+
+  await page.keyboard.down('Shift');
+  await page.mouse.move(source.x, source.y);
+  await page.mouse.down();
+  await page.mouse.move(target.x, target.y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect(page.getByRole('combobox')).toBeVisible();
+  await page.getByRole('button', { name: 'File', exact: true }).click();
+
+  await expect(page.locator('.ops-toast', { hasText: 'Kring na → Kring voor → Kring na' })).toBeVisible();
+  await expect(page.locator('.ops-toast', { hasText: /Relation created|Relatie aangemaakt/ })).toHaveCount(0);
+  const after = await state(page);
+  expect(after.sequences).toEqual(before.sequences);
+  expect(after.undoDepth).toBe(before.undoDepth);
+});
+
 test('Gantt relationpopover bewaart gekozen type en lag als één relatie', async ({ page, ops: _ops }) => {
   const [sourceId, targetId] = await seedProject(page, [
     { name: 'Bewaren bron', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },

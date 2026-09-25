@@ -785,6 +785,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RELRULES="$DIR/.relrules.mjs"
   if bundle_check "$DIR/check-relation-rules.ts" "$RELRULES"; then node "$RELRULES" || STATUS=1; fi
 
+  # Relaties over de routes heen (audit taakmutaties): een kring wordt in de store-route net als in
+  # raster en MCP vooraf geweigerd, en alleen de kring die de nieuwe relatie zelf sluit telt.
+  RELROUTES="$DIR/.relation-routes.mjs"
+  if bundle_check "$DIR/check-relation-routes.ts" "$RELROUTES"; then node "$RELROUTES" || STATUS=1; fi
+
   # Pijlrouting (issue #41): relatielijnen worden vóór de balken getekend, dus alles wat onder een
   # balk door loopt is onzichtbaar. De vaste elleboog `fromX+8` lag bij SS midden ín de voorganger-
   # balk en liep bij krappe/achterwaartse relaties dwars door de OPVOLGERbalk (incl. pijlkop).
@@ -1058,6 +1063,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # in het documentcontract, dan verdwijnt een opslaanfout bij een tabwissel of een Ctrl+Z.
   NOTIFCHECK="$DIR/.notifications.mjs"
   if bundle_check "$DIR/check-notifications.ts" "$NOTIFCHECK"; then node "$NOTIFCHECK" || STATUS=1; fi
+
+  # Automatisch berekenen + rekenfout (review taakmutaties, bijvangst A): een mislukte berekening
+  # mocht geen herbereken-lus starten via haar eigen melding (~10 solves/s, teller ×42 in 3 s).
+  # Echte rem (failedSolveGate) op een geïsoleerde storecontext; pas een echte invoerwijziging
+  # rekent opnieuw. De hook zelf met echte timers: tests/browser/auto-calc-stale.spec.ts.
+  AUTOCALCCHECK="$DIR/.auto-calc-cpm.mjs"
+  if bundle_check "$DIR/check-auto-calc-cpm.ts" "$AUTOCALCCHECK"; then node "$AUTOCALCCHECK" || STATUS=1; fi
+
+  # Solverfouten in de UI-taal (review taakmutaties, bijvangst B): elke guard levert een code +
+  # parameters naast de ongewijzigde vaste tekst (MCP/extensies), en elke code heeft in alle
+  # veertien talen een tekst met de juiste placeholder.
+  SCHEDERRCHECK="$DIR/.schedule-errors.mjs"
+  if bundle_check "$DIR/check-schedule-errors.ts" "$SCHEDERRCHECK"; then node "$SCHEDERRCHECK" || STATUS=1; fi
 
   # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.

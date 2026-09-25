@@ -27,6 +27,10 @@
     "relationCreated": "Relação criada: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Essa relação já existe",
     "relationAncestorEndpoint": "Não é permitida uma relação entre uma tarefa e a sua própria tarefa de resumo ancestral.",
+    "relationCycle": "Esta relação criaria um ciclo no planeamento ({{cycle}}) e não foi criada.",
+    "relationsExcludedByHierarchy_one": "Após a mudança, {{count}} relação liga uma tarefa à sua própria tarefa de resumo ancestral; deixa de contar no cálculo.",
+    "relationsExcludedByHierarchy_many": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",
+    "relationsExcludedByHierarchy_other": "Após a mudança, {{count}} relações ligam uma tarefa à sua própria tarefa de resumo ancestral; deixam de contar no cálculo.",
     "summaryRelationsDropped": "{{total}} relação(ões) não puderam ser incluídas. Verifique as colunas Predecessoras e Sucessoras.",
     "relationsSkippedOnInsert_one": "{{count}} relação não foi criada: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
     "relationsSkippedOnInsert_many": "{{count}} relações não foram criadas: vínculo inválido (por exemplo, uma tarefa ligada à sua própria tarefa de resumo superior, ou uma duplicata).",
@@ -71,6 +75,14 @@
     "milestoneClearedOnPhase_other": "{{count}} marcos têm agora subtarefas e tornaram-se tarefas de resumo; a marcação de marco foi removida.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» não pode tornar-se uma tarefa de resumo: as suas atribuições não têm para onde ir, porque nenhuma das novas subtarefas pode ter atribuições (um marco ou uma tarefa de resumo). Nada foi alterado.",
     "phaseRefusedDuplicateResource": "«{{phase}}» não pode tornar-se uma tarefa de resumo: a atribuição de {{resource}} não pode passar para a nova subtarefa «{{child}}», porque esta já tem {{resource}}. Nada foi alterado."
+  },
+  "scheduleErrors": {
+    "cycle": "Dependência circular entre tarefas: {{path}}",
+    "noWorkingDays": "O calendário não tem dias úteis definidos",
+    "invalidDayDuration": "Duração em dias inválida para a tarefa '{{task}}'",
+    "invalidHourDuration": "Duração em horas inválida para a tarefa '{{task}}'",
+    "hourTaskWithoutWorkHours": "A tarefa horária '{{task}}' não tem horário de trabalho válido no seu calendário",
+    "invalidStartDate": "Data de início inválida para a tarefa '{{task}}'"
   },
   "yes": "Sim",
   "no": "Não",

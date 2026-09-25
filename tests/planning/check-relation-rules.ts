@@ -188,7 +188,10 @@ ok('addSequence staat een MIJLPAAL als voorganger toe (regressie-anker, ongewijz
 ok('mijlpaal-relatie staat echt in de store',
   S().sequences.some((e) => e.id === msId && e.predecessorId === mp && e.successorId === los));
 
-const msSuccId = S().addSequence({ predecessorId: los, successorId: mp, type: FS, lagDays: 0 });
+// Een ANDERE voorganger dan `los`: Mijlpaal→Los bestaat al, dus Los→Mijlpaal zou een kring sluiten
+// en wordt sinds de kringtoets in de store-route terecht geweigerd (check-relation-routes.ts).
+const los2 = S().addTask({ name: 'Los 2' });
+const msSuccId = S().addSequence({ predecessorId: los2, successorId: mp, type: FS, lagDays: 0 });
 ok('addSequence staat een MIJLPAAL als opvolger toe (regressie-anker, ongewijzigd)', msSuccId !== null);
 
 const kindId = S().addSequence({ predecessorId: kind, successorId: los, type: FS, lagDays: 0 });

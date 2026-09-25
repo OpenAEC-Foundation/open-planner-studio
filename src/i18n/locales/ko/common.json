@@ -25,6 +25,8 @@
     "relationCreated": "관계를 만들었습니다: {{predecessor}} → {{successor}}",
     "relationDuplicate": "이 관계는 이미 있습니다",
     "relationAncestorEndpoint": "작업과 자신의 (조상) 요약 작업 간의 관계는 허용되지 않습니다.",
+    "relationCycle": "이 관계는 일정에 순환 관계를 만들기 때문에({{cycle}}) 생성되지 않았습니다.",
+    "relationsExcludedByHierarchy_other": "이동 후 관계 {{count}}개가 작업을 자신의 상위 요약 작업에 연결합니다. 이 관계는 더 이상 계산에 포함되지 않습니다.",
     "summaryRelationsDropped": "{{total}}개의 관계를 계산에 포함할 수 없었습니다. 선행 작업과 후속 작업 열을 확인하세요.",
     "relationsSkippedOnInsert_other": "관계 {{count}}개를 만들지 않았습니다. 잘못된 연결입니다(예: 작업이 자신의 상위 요약 작업에 연결되었거나 중복된 관계).",
     "mppSourceScheduleNotes_other": "이 MS Project 파일에는 분할되었거나 평준화되었거나 리소스 기반으로 조정된 작업이 {{count}}개 포함되어 있습니다. 있는 그대로 가져와 표시됩니다.",
@@ -43,6 +45,14 @@
     "milestoneClearedOnPhase_other": "마일스톤 {{count}}개에 이제 하위 작업이 있어 요약 작업이 되었습니다. 마일스톤 표시를 해제했습니다.",
     "phaseRefusedNoAssignableChild": "'{{phase}}'은(는) 요약 작업이 될 수 없습니다. 새 하위 작업 중 할당을 가질 수 있는 작업이 없어(마일스톤 또는 요약 작업) 할당을 옮길 곳이 없습니다. 아무것도 변경하지 않았습니다.",
     "phaseRefusedDuplicateResource": "'{{phase}}'은(는) 요약 작업이 될 수 없습니다. 새 하위 작업 '{{child}}'에 이미 {{resource}}이(가) 있어 {{resource}} 할당을 옮길 수 없습니다. 아무것도 변경하지 않았습니다."
+  },
+  "scheduleErrors": {
+    "cycle": "작업 간 순환 종속성: {{path}}",
+    "noWorkingDays": "달력에 근무일이 설정되어 있지 않습니다",
+    "invalidDayDuration": "작업 '{{task}}'의 일 단위 기간이 올바르지 않습니다",
+    "invalidHourDuration": "작업 '{{task}}'의 시간 단위 기간이 올바르지 않습니다",
+    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다",
+    "invalidStartDate": "작업 '{{task}}'의 시작일이 올바르지 않습니다"
   },
   "yes": "예",
   "no": "아니오",

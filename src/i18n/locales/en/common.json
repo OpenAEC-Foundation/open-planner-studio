@@ -26,6 +26,9 @@
     "relationCreated": "Relation created: {{predecessor}} → {{successor}}",
     "relationDuplicate": "That relation already exists",
     "relationAncestorEndpoint": "A relation between a task and its own (grand)parent summary task is not allowed.",
+    "relationCycle": "This relation would create a cycle in the schedule ({{cycle}}) and was not created.",
+    "relationsExcludedByHierarchy_one": "After the move, {{count}} relation links a task to its own summary task; it no longer counts in the calculation.",
+    "relationsExcludedByHierarchy_other": "After the move, {{count}} relations link a task to its own summary task; they no longer count in the calculation.",
     "summaryRelationsDropped": "{{total}} relation(s) could not be included in the calculation. Check the Predecessors and Successors columns.",
     "relationsSkippedOnInsert_one": "{{count}} relation was not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
@@ -57,6 +60,14 @@
     "milestoneClearedOnPhase_other": "{{count}} milestones now have subtasks and have become summary tasks; the milestone flag was removed.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' cannot become a summary task: its assignments have nowhere to go, because none of the new subtasks can carry assignments (a milestone or summary task). Nothing was changed.",
     "phaseRefusedDuplicateResource": "'{{phase}}' cannot become a summary task: the assignment of {{resource}} cannot move to the new subtask '{{child}}', because it already has {{resource}}. Nothing was changed."
+  },
+  "scheduleErrors": {
+    "cycle": "Circular dependency between tasks: {{path}}",
+    "noWorkingDays": "The calendar has no working days set",
+    "invalidDayDuration": "Invalid duration in days for task '{{task}}'",
+    "invalidHourDuration": "Invalid duration in hours for task '{{task}}'",
+    "hourTaskWithoutWorkHours": "Hour task '{{task}}' has no valid working hours in its calendar",
+    "invalidStartDate": "Invalid start date for task '{{task}}'"
   },
   "yes": "Yes",
   "no": "No",

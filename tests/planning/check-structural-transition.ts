@@ -249,6 +249,25 @@ for (const route of routes) {
   eq('D melding', noticesSince(mark), [['notifications.milestoneClearedOnPhase', { count: 1, phase: 'Oplevering' }]]);
 }
 
+// ── E. Samen met de relatiemelding van #207 (verhangen maakt een relatie tot voorouder-relatie) ───
+// Inspringen onder de eigen voorganger doet beide tegelijk: de toewijzing verhuist én de relatie
+// L → N telt niet meer mee. Beide meldingen, en toch één undo-stap die alles terugzet.
+{
+  const { L, N, assignmentId } = leafWithAssignment();
+  S().addSequence({ predecessorId: L, successorId: N, type: 'FINISH_START', lagDays: 0 });
+  useAppStore.setState((s) => { s.ui.notifications = []; });
+  const before = undoDepth();
+  S().indentTasks([N]);
+  eq('E verhuizing én relatiemelding', S().ui.notifications.map(n => n.messageKey), [
+    'notifications.assignmentsMovedToSubtask',
+    'notifications.relationsExcludedByHierarchy',
+  ]);
+  eq('E één undo-stap', undoDepth(), before + 1);
+  S().undo();
+  eq('E één Ctrl+Z zet structuur en toewijzing terug',
+    [task(N).parentId, S().assignments.find(a => a.id === assignmentId)?.taskId, S().sequences.length], [null, L, 1]);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  structural-transition: alle checks groen (${checks})`);
   process.exit(0);

@@ -124,7 +124,12 @@ console.log('-- apply-distribution: geval 2b, een vastgelopen slapende write --'
   const idC2 = S().addTask({ name: 'C2' });
   assert(S().addSequence({ predecessorId: idC1, successorId: idC2, type: 'FINISH_START', lagDays: 0 }) !== null,
     'geval 2b opzet: relatie C1→C2 aangemaakt');
-  assert(S().addSequence({ predecessorId: idC2, successorId: idC1, type: 'FINISH_START', lagDays: 0 }) !== null,
+  // De store-route weigert een kring vooraf (tests/planning/check-relation-routes.ts); een kring komt
+  // nog wel binnen zoals een importer hem schrijft: rechtstreeks in `sequences`.
+  store.setState(s => {
+    s.sequences.push({ id: 'seq-kring', predecessorId: idC2, successorId: idC1, type: 'FINISH_START', lagDays: 0 });
+  });
+  assert(S().sequences.some(q => q.predecessorId === idC2 && q.successorId === idC1),
     'geval 2b opzet: en de tegenrelatie C2→C1 (de cyclus)');
   S().switchDocument(activeDocId);
 

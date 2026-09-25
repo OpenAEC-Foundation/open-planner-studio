@@ -26,6 +26,9 @@
     "relationCreated": "Beziehung erstellt: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Diese Beziehung besteht bereits",
     "relationAncestorEndpoint": "Eine Beziehung zwischen einer Aufgabe und ihrer eigenen übergeordneten Sammelaufgabe ist nicht zulässig.",
+    "relationCycle": "Diese Beziehung würde einen Zyklus im Terminplan erzeugen ({{cycle}}) und wurde nicht erstellt.",
+    "relationsExcludedByHierarchy_one": "Nach dem Verschieben verbindet {{count}} Beziehung eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließt nicht mehr in die Berechnung ein.",
+    "relationsExcludedByHierarchy_other": "Nach dem Verschieben verbinden {{count}} Beziehungen eine Aufgabe mit ihrer eigenen übergeordneten Sammelaufgabe; sie fließen nicht mehr in die Berechnung ein.",
     "summaryRelationsDropped": "{{total}} Beziehung(en) konnten nicht einbezogen werden. Prüfen Sie die Vorgänger- und Nachfolgerspalten.",
     "relationsSkippedOnInsert_one": "{{count}} Beziehung wurde nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
     "relationsSkippedOnInsert_other": "{{count}} Beziehungen wurden nicht erstellt: ungültige Verknüpfung (z. B. ein Vorgang mit seinem eigenen (Groß-)Sammelvorgang oder ein Duplikat).",
@@ -57,6 +60,14 @@
     "milestoneClearedOnPhase_other": "{{count}} Meilensteine haben jetzt Unteraufgaben und sind zu Sammelaufgaben geworden; die Meilensteinmarkierung wurde entfernt.",
     "phaseRefusedNoAssignableChild": "„{{phase}}“ kann keine Sammelaufgabe werden: Ihre Zuweisungen können nirgendwohin, weil keine der neuen Unteraufgaben Zuweisungen tragen kann (ein Meilenstein oder eine Sammelaufgabe). Es wurde nichts geändert.",
     "phaseRefusedDuplicateResource": "„{{phase}}“ kann keine Sammelaufgabe werden: Die Zuweisung von {{resource}} kann nicht zur neuen Unteraufgabe „{{child}}“, weil diese {{resource}} bereits hat. Es wurde nichts geändert."
+  },
+  "scheduleErrors": {
+    "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",
+    "noWorkingDays": "Im Kalender sind keine Arbeitstage festgelegt",
+    "invalidDayDuration": "Ungültige Dauer in Tagen für Aufgabe '{{task}}'",
+    "invalidHourDuration": "Ungültige Dauer in Stunden für Aufgabe '{{task}}'",
+    "hourTaskWithoutWorkHours": "Stundenaufgabe '{{task}}' hat in ihrem Kalender keine gültigen Arbeitszeiten",
+    "invalidStartDate": "Ungültiges Startdatum für Aufgabe '{{task}}'"
   },
   "yes": "Ja",
   "no": "Nein",

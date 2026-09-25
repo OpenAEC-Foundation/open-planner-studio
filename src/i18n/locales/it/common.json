@@ -27,6 +27,10 @@
     "relationCreated": "Relazione creata: {{predecessor}} → {{successor}}",
     "relationDuplicate": "Questa relazione esiste già",
     "relationAncestorEndpoint": "Una relazione tra un'attività e la propria attività di riepilogo antenata non è consentita.",
+    "relationCycle": "Questa relazione creerebbe un ciclo nella pianificazione ({{cycle}}) e non è stata creata.",
+    "relationsExcludedByHierarchy_one": "Dopo lo spostamento, {{count}} relazione collega un'attività alla propria attività di riepilogo antenata; non viene più considerata nel calcolo.",
+    "relationsExcludedByHierarchy_many": "Dopo lo spostamento, {{count}} relazioni collegano un'attività alla propria attività di riepilogo antenata; non vengono più considerate nel calcolo.",
+    "relationsExcludedByHierarchy_other": "Dopo lo spostamento, {{count}} relazioni collegano un'attività alla propria attività di riepilogo antenata; non vengono più considerate nel calcolo.",
     "summaryRelationsDropped": "{{total}} relazione/i non hanno potuto essere incluse. Controlla le colonne Predecessori e Successori.",
     "relationsSkippedOnInsert_one": "{{count}} relazione non è stata creata: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",
     "relationsSkippedOnInsert_many": "{{count}} relazioni non sono state create: collegamento non valido (ad esempio un'attività collegata alla propria attività di riepilogo superiore, o un duplicato).",
@@ -71,6 +75,14 @@
     "milestoneClearedOnPhase_other": "{{count}} traguardi ora hanno sottoattività e sono diventati attività di riepilogo; il contrassegno di traguardo è stato rimosso.",
     "phaseRefusedNoAssignableChild": "«{{phase}}» non può diventare un'attività di riepilogo: le sue assegnazioni non hanno dove andare, perché nessuna delle nuove sottoattività può portare assegnazioni (un traguardo o un'attività di riepilogo). Non è stato modificato nulla.",
     "phaseRefusedDuplicateResource": "«{{phase}}» non può diventare un'attività di riepilogo: l'assegnazione di {{resource}} non può passare alla nuova sottoattività «{{child}}», che ha già {{resource}}. Non è stato modificato nulla."
+  },
+  "scheduleErrors": {
+    "cycle": "Dipendenza circolare tra attività: {{path}}",
+    "noWorkingDays": "Nel calendario non sono impostati giorni lavorativi",
+    "invalidDayDuration": "Durata in giorni non valida per l'attività '{{task}}'",
+    "invalidHourDuration": "Durata in ore non valida per l'attività '{{task}}'",
+    "hourTaskWithoutWorkHours": "L'attività in ore '{{task}}' non ha orari di lavoro validi nel suo calendario",
+    "invalidStartDate": "Data di inizio non valida per l'attività '{{task}}'"
   },
   "yes": "Sì",
   "no": "No",
