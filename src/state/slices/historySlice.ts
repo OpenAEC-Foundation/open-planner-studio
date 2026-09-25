@@ -31,7 +31,8 @@ export interface HistorySlice {
   /**
    * Gebruikstest #170, G5: een BEWERKSESSIE (de taakdialoog) die relationele secties direct op de
    * store laat werken (toewijzingen, werkregel, werk) — `historyMark` opent de sessie (runtime-
-   * sleutel + begin-sequence), `revertHistorySince` draait bij Annuleren de events van DEZE
+   * sleutel + begin-sequence, en breekt undo-coalescing af zodat de eerste dialoogbewerking nooit
+   * bij een ouder event aanschuift), `revertHistorySince` draait bij Annuleren de events van DEZE
    * sessie terug zonder redo, `squashHistorySince` maakt er bij Opslaan één undo-stap van.
    *
    * Alleen events met de `sessionKey` van de sessie tellen (PR #170-hercheck): een MCP-, batch- of
@@ -142,6 +143,7 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
   redo: () => applyHistoryEvent(runtime, set, get, 'redo'),
 
   historyMark: () => {
+    runtime.resetUndoCoalescing();
     return { sequence: get().nextHistorySequence, sessionKey: runtime.openHistorySession() };
   },
 

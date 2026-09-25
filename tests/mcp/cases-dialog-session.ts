@@ -1,4 +1,4 @@
-// PR #170-hercheck, punt 1 — de bewerksessie van de taakdialoog (`historyMark` /
+// PR #170-hercheck, punt 1 en 2 — de bewerksessie van de taakdialoog (`historyMark` /
 // `revertHistorySince` / `squashHistorySince`) raakt uitsluitend haar EIGEN events. Een MCP-mutatie
 // die tijdens de open dialoog landt blijft bij Annuleren staan en houdt bij Opslaan een eigen
 // undo-stap. Headless tegen een echte, geïsoleerde storecontext.
@@ -88,6 +88,15 @@ test('Opslaan: MCP tussen dialoogbewerkingen splitst, maar voegt nooit samen', (
   assertEq([nameOf(ctx, a), nameOf(ctx, b)], ['A-2', 'B-ai'], 'undo 1: tweede dialoogreeks');
   ctx.store.getState().undo();
   assertEq([nameOf(ctx, a), nameOf(ctx, b)], ['A-2', 'B'], 'undo 2: alleen de MCP-stap');
+});
+
+test('historyMark breekt coalescing af (punt 2)', () => {
+  const { ctx, a } = setup();
+  ctx.store.getState().updateTask(a, { name: 'A-voor' }, { coalesceKey: 'edit:name' });
+  const mark = ctx.store.getState().historyMark();
+  ctx.store.getState().updateTask(a, { name: 'A-dialoog' }, { coalesceKey: 'edit:name' });
+  ctx.store.getState().revertHistorySince(mark);
+  assertEq(nameOf(ctx, a), 'A-voor', 'alleen de dialoogbewerking hoort terug te gaan');
 });
 
 await run();
