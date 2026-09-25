@@ -6,6 +6,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
   draftWithActualFinish, draftWithActualStart, draftWithProgress, saveTaskDialog,
 } from '@/state/taskDialogSave';
+import { shownStart } from '@/utils/taskDates';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { X } from 'lucide-react';
@@ -59,8 +60,8 @@ export function TaskDialog() {
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
-  // `startDate` toont bewust de berekende `earlyStart` (consistent met tabel/Gantt), niet
-  // de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
+  // `startDate` toont bewust de berekende `earlyStart` (consistent met de Tabel-kolom Start en de
+  // Gantt), niet de ruwe `scheduleStart` — de subtiele "alleen scheduleStart aanpassen als de gebruiker die
   // daadwerkelijk wijzigde"-commit-regel in `handleSave` leest daarom `editingTask.time` (vers uit de
   // store) i.p.v. `draft.time`, zodat een eventuele CPM-herberekening tijdens het open staan van de
   // dialoog niet wordt teruggedraaid door een verouderde draft-snapshot.
@@ -89,8 +90,9 @@ export function TaskDialog() {
 
     if (editingTask) {
       setDraft({ ...editingTask, time: { ...editingTask.time } });
-      // Toon de berekende start (consistent met tabel/Gantt); scheduleStart is de geplande anker.
-      setStartDate(editingTask.time.earlyStart || editingTask.time.scheduleStart);
+      // Toon de berekende start (consistent met de Tabel-kolom Start en de Gantt); scheduleStart
+      // is de geplande anker.
+      setStartDate(shownStart(editingTask));
     } else {
       setDraft(blankDraft(project.startDate, constructionMode, newTaskUnit));
       setStartDate(project.startDate);

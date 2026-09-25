@@ -1,4 +1,4 @@
-import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskColumnRegistry, readOnlyValidationCode } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { copyGridEditorValue, parseGridEditorText, type TaskGridBooleanLabels } from '@/engine/taskGrid/editors';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -70,6 +70,9 @@ export interface TaskGridAdapterCell {
   copyText: string;
   editText: string;
   readOnly: boolean;
+  /** Vertaalsleutel die uitlegt waarom de cel alleen-lezen is (`taskGrid.validation.<code>`), alleen
+   *  wanneer de kolom een eigen reden heeft; anders valt de UI terug op "berekende kolom". */
+  readOnlyReason?: string;
   stale?: boolean;
   statusText?: string;
   /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt (issue #89). */
@@ -355,6 +358,10 @@ export function createTaskGridAdapter(
     const readOnly = typeof descriptor.readOnly === 'function'
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
+    // Dezelfde weigering die `planEdit` zou geven, maar alleen als de kolom een eigen reden heeft.
+    const readOnlyRefusal = readOnly && descriptor.readOnlyReason
+      ? failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id)
+      : undefined;
     const stale = context.scheduleStale
       && (descriptor.category === 'computed' || descriptor.scheduleDerived === true);
     const enumOption = descriptor.valueKind === 'enum'
@@ -392,6 +399,7 @@ export function createTaskGridAdapter(
             ? copyGridEditorValue(descriptor, task, context, domain.dateNotation, booleanLabels)
             : descriptor.copy(task, context)),
       readOnly,
+      readOnlyReason: readOnlyRefusal && !readOnlyRefusal.ok ? readOnlyRefusal.errors[0]?.messageKey : undefined,
       stale: stale || undefined,
       statusText: stale ? 'taskGrid.status.stale' : undefined,
       title: title && title !== '—' ? title : undefined,
@@ -417,7 +425,7 @@ export function createTaskGridAdapter(
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
     if (readOnly || !descriptor.parse || !descriptor.planWrite) {
-      return failure('readOnly', rowKey, columnId, task.id, text);
+      return failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id, text);
     }
     const booleanLabels = domain.booleanLabels;
     const parsed = domain.dateNotation || booleanLabels
@@ -443,7 +451,7 @@ export function createTaskGridAdapter(
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
     if (readOnly || !descriptor.planWrite) {
-      return failure('readOnly', rowKey, columnId, task.id, inputValue);
+      return failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id, inputValue);
     }
     let value = inputValue;
     if (descriptor.validate) {

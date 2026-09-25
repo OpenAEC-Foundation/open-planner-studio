@@ -2,7 +2,7 @@ import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
-import { buildTaskColumnRegistry, canonicalGridJson } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskColumnRegistry, canonicalGridJson, readOnlyValidationCode } from '@/engine/taskGrid/taskColumnRegistry';
 import {
   planTaskCellEdits,
   type TaskEditPlanEnvironment,
@@ -595,7 +595,7 @@ function applyCellEdits(
         }
         if (!jointlyWritable) {
           if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
-          return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+          return { ok: false, errors: [validationError(readOnlyValidationCode(descriptor, task, runtime.context), edit, edit.value)] };
         }
         continue;
       }
@@ -616,7 +616,7 @@ function applyCellEdits(
       }
       if (!jointlyWritable) {
         if (skipReadOnlyCells) { skippedConditionalEdits.add(edit); passFoundNewSkip = true; continue; }
-        return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
+        return { ok: false, errors: [validationError(readOnlyValidationCode(descriptor, task, runtime.context), edit, edit.value)] };
       }
     }
   }

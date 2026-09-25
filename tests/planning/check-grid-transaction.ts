@@ -956,7 +956,14 @@ function observed(state: AppState): unknown {
     [
       'task.constraint.hard', 'task.isHammock', 'task.mandatory', 'task.milestoneKind',
       'task.notes', 'task.time.durationUnit', 'task.time.scheduleDuration', 'task.wbsCode',
+      // Audit "weergaven" bevinding 2: Start/Einde lezen `manuallyScheduled`, `childIds` en
+      // `isHammock` (controller); Gepland einde leest alleen `manuallyScheduled`. Geen nieuwe
+      // controller nodig: `manuallyScheduled` is nooit via een cel-edit schrijfbaar (pin hieronder).
+      'task.time.finish', 'task.time.scheduleFinish', 'task.time.start',
     ].sort());
+  const manuallyScheduledDescriptor = byId.get('task.manuallyScheduled');
+  ok('task.manuallyScheduled is nooit los via een paste schrijfbaar (geen parse-functie)',
+    manuallyScheduledDescriptor !== undefined && typeof manuallyScheduledDescriptor.parse !== 'function');
   for (const controllerId of controllerIdsInSource) {
     ok(`Controllerveld ${controllerId} bestaat als echte, via cell-edit schrijfbare kolom`,
       byId.has(controllerId) && typeof byId.get(controllerId)?.parse === 'function');

@@ -4,6 +4,7 @@ import {
   applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { startAnchorAfterEdit } from '@/utils/taskDates';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
 import type { Task } from '@/types/task';
 
@@ -114,8 +115,8 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // scheduleStart (het geplande anker) alléén bijwerken als de gebruiker de startdatum
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
-      const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      if (startDate !== shownStart) time.scheduleStart = startDate;
+      const anchor = startAnchorAfterEdit(editingTask, startDate);
+      if (anchor !== undefined) time.scheduleStart = anchor;
       const patch: Partial<Task> = {
         name: draft.name,
         description: draft.description,

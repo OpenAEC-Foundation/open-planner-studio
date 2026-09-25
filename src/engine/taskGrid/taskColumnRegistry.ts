@@ -84,6 +84,7 @@ interface EditableColumnConfig extends Omit<ReadonlyColumnConfig, 'copy'> {
   editorKind: Exclude<EditorKind, 'none'>;
   editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   readOnly?: (task: Task, ctx: TaskColumnContext) => boolean;
+  readOnlyReason?: (task: Task, ctx: TaskColumnContext) => string | undefined;
   route?: CellEditRoute;
   parse: Parser;
   validate: Validator;
@@ -153,6 +154,16 @@ function readonlyColumn(config: ReadonlyColumnConfig): TaskColumnDescriptor {
   };
 }
 
+/** De validatiecode voor een weigering van een alleen-lezen cel: de kolomeigen reden, anders de
+ *  algemene `readOnly`. Eén bron voor de adapter, de transactielaag en de celeditor. */
+export function readOnlyValidationCode(
+  descriptor: Pick<TaskColumnDescriptor, 'readOnlyReason'>,
+  task: Task,
+  ctx: TaskColumnContext,
+): string {
+  return descriptor.readOnlyReason?.(task, ctx) ?? 'readOnly';
+}
+
 function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
   const id = typeof config.id === 'string' ? taskColumnId(config.id) : config.id;
   const format = config.format ?? ((value: unknown) => formatScalar(value));
@@ -161,7 +172,7 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     kind: 'cell-edit', taskId: task.id, columnId: id, route: config.route ?? 'task-field', value,
   }]));
   const planWrite: Writer = (value, task, ctx) => config.readOnly?.(task, ctx)
-    ? failure('readOnly', value)
+    ? failure(readOnlyValidationCode(config, task, ctx), value)
     : rawPlanWrite(value, task, ctx);
   return {
     id,
@@ -171,8 +182,10 @@ function editableColumn(config: EditableColumnConfig): TaskColumnDescriptor {
     editorKind: config.editorKind,
     editorOptions: config.editorOptions,
     defaultWidth: config.defaultWidth ?? 140,
+    scheduleDerived: config.scheduleDerived,
     available: config.available ?? (() => true),
     readOnly: config.readOnly ?? false,
+    readOnlyReason: config.readOnlyReason,
     read: config.read,
     format,
     copy,
@@ -643,14 +656,29 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
   return columns;
 }
 
+/** Datums die uit andere taken volgen: een automatisch geplande verzameltaak of hangmat. */
+function derivedDatesTask(task: Task): boolean {
+  return task.manuallyScheduled !== true && (task.childIds.length > 0 || task.isHammock === true);
+}
+
 function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
     editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => scheduledTaskDurationText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
+    // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel, afdruk en MCP
+    // (`shownStart`/`shownFinish`). Het zijn berekende waarden (`scheduleDerived`: verouderd-
+    // markering tot F5); bewerken verzet alleen iets bij een echte wijziging, zie
+    // `applyScheduleEdit`. De datums van een automatisch geplande verzameltaak of hangmat volgen uit
+    // andere taken — een invoer daar zou na F5 niets doen, dus alleen-lezen.
+    editableColumn({ id: 'task.time.start', labelKey: 'taskGrid.columns.start', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownStart(task), readOnly: derivedDatesTask, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.finish', labelKey: 'taskGrid.columns.finish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownFinish(task), readOnly: derivedDatesTask, parse: parseDate, validate: validateDate }),
+    // Geplande start/einde: de invoerankers zelf, kiesbaar voor wie ze wil zien. De solver leest
+    // `scheduleFinish` alleen bij een handmatig geplande taak (`CPMSolver.forwardPass`); bij elke
+    // andere taak zou een bewerking stil niets doen, dus daar alleen-lezen mét reden.
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
-    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),
+    editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, readOnly: task => task.manuallyScheduled !== true, readOnlyReason: task => task.manuallyScheduled !== true ? 'scheduleFinishNotManual' : undefined, parse: parseDate, validate: validateDate }),
     readonlyColumn({ id: 'task.time.resume', labelKey: 'taskGrid.columns.resume', category: 'progress', valueKind: 'datetime', read: task => task.time.resume }),
     readonlyColumn({ id: 'task.time.stop', labelKey: 'taskGrid.columns.stop', category: 'progress', valueKind: 'datetime', read: task => task.time.stop }),
     readonlyColumn({ id: 'task.time.earlyStart', labelKey: 'taskGrid.columns.earlyStart', category: 'computed', valueKind: 'datetime', read: task => task.time.earlyStart }),

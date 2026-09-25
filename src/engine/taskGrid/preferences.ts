@@ -37,8 +37,11 @@ const BUILTIN_TO_COLUMN_ID = {
   wbsCode: 'task.wbsCode',
   name: 'task.name',
   duration: 'task.time.scheduleDuration',
-  start: 'task.time.scheduleStart',
-  finish: 'task.time.scheduleFinish',
+  // De oude builtin-velden `start`/`finish` betekenden de GETOONDE datums (`resolveField` in
+  // `engine/view/filterEval.ts`: `shownStart`/`shownFinish`), dus migreren ze naar Start/Einde en
+  // niet naar de invoerankers Geplande start/einde.
+  start: 'task.time.start',
+  finish: 'task.time.finish',
   totalFloat: 'task.time.totalFloat',
   isCritical: 'task.time.isCritical',
   completion: 'task.time.completion',
@@ -78,8 +81,10 @@ export function createDefaultTaskGridPreferences(
     column('task.wbsCode', 60),
     column('task.name', 240),
     column('task.time.scheduleDuration', 60),
-    column('task.time.scheduleStart', 100),
-    column('task.time.scheduleFinish', 100),
+    // De getoonde datums (zelfde bron als de Gantt-balk), niet de invoerankers "Geplande
+    // start/einde" — die blijven kiesbaar. Audit "weergaven" bevinding 2.
+    column('task.time.start', 100),
+    column('task.time.finish', 100),
     column('task.taskType', 80),
     column('task.time.isCritical', 50),
     column('task.time.totalFloat', 50),
