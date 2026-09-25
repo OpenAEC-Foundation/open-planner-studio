@@ -1024,6 +1024,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECCHECK="$DIR/.recovery-integrity.mjs"
   if bundle_check "$DIR/check-recovery-integrity.ts" "$RECCHECK"; then node "$RECCHECK" || STATUS=1; fi
 
+  # Opslaan over een projectbestand van de gebruiker (Tauri): plugin-fs truncate't eerst, dus een
+  # volle schijf of crash midden in de write kapte het bestand af. Deze batterij bewijst de
+  # schrijf-en-vervang-route tegen een nep-fs met exact die semantiek, plus de terugvallen (scope,
+  # geweigerde rename, links) en dat elke Tauri-schrijfroute naar een gebruikersbestand erdoor loopt.
+  UFWCHECK="$DIR/.user-file-write.mjs"
+  if bundle_check "$DIR/check-user-file-write.ts" "$UFWCHECK"; then node "$UFWCHECK" || STATUS=1; fi
+
   # S2: werkelijk automatisch opslaan is nadrukkelijk geen crashherstel. De controller bewaakt
   # het bestaande schrijfdoel, single-flight, nieuwste-run en de dirty-race zonder browser/Tauri-I/O.
   AACHECK="$DIR/.actual-autosave.mjs"
