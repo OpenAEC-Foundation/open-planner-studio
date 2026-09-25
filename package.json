@@ -26,7 +26,7 @@
     "gen:examples": "node scripts/run-ts.mjs scripts/generate-examples.ts",
     "verify:examples": "node scripts/run-ts.mjs scripts/verify-examples.ts",
     "verify:docs": "node scripts/run-ts.mjs scripts/verify-docs.ts",
-    "verify:i18n": "node scripts/i18n-diff.mjs",
+    "verify:i18n": "node scripts/i18n-diff.mjs && node scripts/verify-i18n-keys.mjs",
     "verify:release-highlights": "node scripts/release-highlights.mjs",
     "gen:release-highlights-json": "node scripts/run-ts.mjs scripts/build-release-highlights-json.ts",
     "verify:release-highlights-json": "node scripts/run-ts.mjs scripts/build-release-highlights-json.ts --check",

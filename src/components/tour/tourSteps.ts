@@ -1,3 +1,4 @@
+import type { ParseKeys } from 'i18next';
 import { useAppStore } from '@/state/appStore';
 
 export interface TourStep {
@@ -5,8 +6,8 @@ export interface TourStep {
    *  attribuut zetten: Ribbon.tsx, App.tsx, GanttCanvas.tsx, Backstage.tsx). Geen CSS-selector —
    *  `TourOverlay` bouwt zelf `[data-tour-anchor="<anchor>"]`. */
   anchor: string;
-  titleKey: string;
-  bodyKey: string;
+  titleKey: ParseKeys<'common'>;
+  bodyKey: ParseKeys<'common'>;
   /** Voorbereiding vóór het meten van het anker: dezelfde `setUI(...)`-aanroepen die de Ribbon-
    *  knoppen/Backstage-navigatie zelf al gebruiken (zie ontwerpdocument §4/§6). */
   prepare: () => void;

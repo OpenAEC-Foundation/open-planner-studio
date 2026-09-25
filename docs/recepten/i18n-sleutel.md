@@ -45,6 +45,23 @@ een letterlijke sleutelvergelijking:
   zodra er ergens een sleutel ontbreekt (`npm run verify:i18n`, onderdeel van `npm run verify`).
   `--json` blijft rapportagemodus (exit 0) voor doorsluizen naar tooling.
 
+## Een samengestelde sleutel: geen `as`
+
+De typecheck controleert elke sleutel die je aan `t(...)` geeft tegen de nl-bronbestanden
+(`src/i18n/types.d.ts`), ook een samengestelde zoals ``t(`taskType.${type}`)``, zolang het variabele
+deel een vaste set waarden heeft (een union-type). Een cast als ``t(`…${x}` as 'a.b')`` of
+`t(tabel[k] as 'a.b')` zet die controle uit: een ontbrekende vertaling valt dan pas op als de gebruiker
+Engels of de kale sleutel ziet. `verify:i18n` weigert zo'n cast daarom (`scripts/verify-i18n-keys.mjs`;
+`as const` mag wel).
+
+Geef in plaats daarvan de bron het sleuteltype:
+
+- een tabel: `const LABEL = { … } as const satisfies Record<Soort, ParseKeys<'common'>>;`
+- een veld in een type: `titleKey: ParseKeys<'common'>` (sleutels uit meer namespaces:
+  `ParseKeys<['common', 'menu']>`, met `useTranslation(['common', 'menu'])` bij de aanroep).
+
+`ParseKeys` komt uit `i18next` (`import type { ParseKeys } from 'i18next'`).
+
 ## De valkuil: een kale `t(key, { count })` wordt niet automatisch een pluralfamilie
 
 `i18n-diff.mjs` leidt zijn "moet-hebben"-verzameling af uit sleutels die in `nl` AL de

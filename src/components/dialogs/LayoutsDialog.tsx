@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
+import type { ParseKeys } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { X, Info } from 'lucide-react';
 import { GroupEditor, defaultGroup, type GroupNode } from './FilterDialog';
@@ -15,7 +16,9 @@ import { Dialog } from '@/components/common/Dialog';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 
 /** Label- en tooltipsleutel per layoutdeel; de vijf bestaande delen hergebruiken hun eigen titel. */
-const PART_KEYS: Record<LayoutPart, { label: string; info: string }> = {
+type LayoutKey = ParseKeys<['common', 'menu']>;
+
+const PART_KEYS: Record<LayoutPart, { label: LayoutKey; info: LayoutKey }> = {
   columns: { label: 'common:view.columns.title', info: 'common:view.layout.infoColumns' },
   filter: { label: 'common:view.filter.title', info: 'common:view.layout.infoFilter' },
   group: { label: 'common:view.group.title', info: 'common:view.layout.infoGroup' },
@@ -99,10 +102,10 @@ export function LayoutsDialog() {
     close();
   };
 
-  const info = (key: string) => (
+  const info = (key: LayoutKey) => (
     <span
-      title={t(key as 'common:view.layout.infoRelations')}
-      aria-label={t(key as 'common:view.layout.infoRelations')}
+      title={t(key)}
+      aria-label={t(key)}
       data-tooltip-instant="true"
       style={{ color: 'var(--theme-text-dim)', display: 'inline-flex' }}
     >
@@ -141,7 +144,7 @@ export function LayoutsDialog() {
             style={{ alignSelf: 'flex-start' }}
             aria-label={t('menu:ribbon.timeScale')}
           >
-            {timeScales.map(scale => <option key={scale} value={scale}>{t(`menu:ribbon.${scale}` as 'menu:ribbon.week')}</option>)}
+            {timeScales.map(scale => <option key={scale} value={scale}>{t(`menu:ribbon.${scale}`)}</option>)}
           </select>
         );
       case 'showRelations':
@@ -240,7 +243,7 @@ export function LayoutsDialog() {
                       onChange={() => togglePart(part)}
                       data-ops-layout-part={part}
                     />
-                    <span className="flex-1 font-semibold">{t(PART_KEYS[part].label as 'common:view.layout.partRelations')}</span>
+                    <span className="flex-1 font-semibold">{t(PART_KEYS[part].label)}</span>
                     {info(PART_KEYS[part].info)}
                   </label>
                 )}

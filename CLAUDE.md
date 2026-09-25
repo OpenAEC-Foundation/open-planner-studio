@@ -33,7 +33,7 @@ Nieuwe `check-*.ts`/`cases-*.json`: kopieer een bestaande `if bundle_check`-rege
 (grep op een buurcheck) resp. vul `EXPECTED_BATTERIES` aan — lees run.sh (~1,2k regels) niet in z'n geheel.
 
 Losse poorten (de meeste zitten in `verify`): `npm run verify:examples` (voorbeelden laden/rekenen),
-`npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen),
+`npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen + geen cast op een sleutel),
 `npm run verify:store-boundaries` en `npm run verify:gantt-boundaries` (AST-poorten: store-, renderer-,
 viewport-, pointer- en tabelgrenzen), `npm run verify:cycles` (circulaire imports ná type-erasure),
 `npm run verify:text-roles` (alleen de zes tekstrollen), `npm run verify:release-highlights-json` (in de keten)
