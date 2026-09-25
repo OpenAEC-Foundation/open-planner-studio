@@ -121,7 +121,8 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       // sleutel) ⇒ een leeg prioriteitsblok met zichtbare terugval (test 3); geen aan/uit-veld.
       leveling: { priority: [] },
     },
-    schedulingProfile: { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } },
+    // Sinds 2026-09-24 (eigenaarsbesluit "a") geen A19-override meer uit rem_target_link_flag = Y.
+    schedulingProfile: builtInProfile('p6'),
   },
   {
     id: 'P-B',
@@ -165,7 +166,8 @@ eq('2a onafhankelijke SCHEDOPTIONS-grondwaarheid combineert PROJECT en SCHEDOPTI
     },
     {
       projectId: 'P-B',
-      useRemainingStartForProgress: false,
+      // rem_target_link_flag = N stuurt sinds 2026-09-24 niets meer: A19 volgt de P6-basis (aan).
+      useRemainingStartForProgress: true,
       useProjectEndDateForFloat: false,
       retainedSource: { sched_use_project_end_date_for_float: false },
     },

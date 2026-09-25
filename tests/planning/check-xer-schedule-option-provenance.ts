@@ -2,7 +2,7 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
-import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { builtInProfile, resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 const failures: string[] = [];
 let checks = 0;
@@ -128,21 +128,24 @@ equal('geen SCHEDOPTIONS-rij is herkenbaar als XER-defaults met PROJECT-signaal 
     projectSignal: 'N',
     scheduleRows: [],
   });
-equal('PROJECT-afleiding Y/N raakt uitsluitend de toegestane XER-progressievlag', [
+// Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt rem_target_link_flag geen conventie meer: A19 staat
+// in de P6-basis aan, ongeacht Y/N. De vlag blijft alleen als diagnose (projectSignal, fallback).
+equal('PROJECT-signaal Y/N stuurt A19 niet meer (P6-basis: aan)', [
   resolveConventions(noRowY.project.schedulingProfile).p6UseRemainingStartForProgress,
   resolveConventions(noRowN.project.schedulingProfile).p6UseRemainingStartForProgress,
-], [true, false]);
+  noRowY.project.schedulingProfile, noRowN.project.schedulingProfile,
+], [true, true, builtInProfile('p6'), builtInProfile('p6')]);
 
 const invalidProjectSignal = opened(bytes(xerLines(undefined, 'MAYBE', '2099-01-01 00:00', '999')));
-equal('onbekend PROJECT-signaal valt fail-closed terug met een fallbackdiagnose', {
+equal('onbekend PROJECT-signaal geeft een fallbackdiagnose en stuurt niets', {
   source: invalidProjectSignal.xer.scheduleOptions.source,
   useRemainingStartForProgress:
     resolveConventions(invalidProjectSignal.project.schedulingProfile).p6UseRemainingStartForProgress,
   fallbacks: invalidProjectSignal.xer.scheduleOptions.fallbacks,
 }, {
   source: 'xer-defaults',
-  useRemainingStartForProgress: false,
-  fallbacks: [{ field: 'rem_target_link_flag', token: 'MAYBE', fallback: 'false', line: 7 }],
+  useRemainingStartForProgress: true,
+  fallbacks: [{ field: 'rem_target_link_flag', token: 'MAYBE', fallback: 'niet gebruikt', line: 7 }],
 });
 
 equal('unieke finish-float-rij is expliciet schedoptions-provenance', scheduleMetadata(finishRow), {

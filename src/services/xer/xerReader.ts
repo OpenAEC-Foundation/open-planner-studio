@@ -457,6 +457,20 @@ function compareCodePoints(left: string, right: string): number {
   return a.length - b.length;
 }
 
+/**
+ * Projectnaam (eigenaarsbesluit 2026-09-24): `PROJECT.proj_name` als het bestand die kolom heeft,
+ * anders de naam van de WBS-wortel van dit project — de PROJWBS-rij waarvan de ouder niet tot het
+ * project behoort (P6's projectknoop). Alleen bij precies één wortel; anders '' (dan blijft het ID).
+ * Leest uitsluitend al gewhiteliste kolommen (PROJECT.proj_name, PROJWBS.wbs_id/parent_wbs_id/wbs_name).
+ */
+export function xerProjectName(projectRow: XerRow, wbsRows: readonly XerRow[]): string {
+  const direct = (projectRow.cells.proj_name ?? '').trim();
+  if (direct) return direct;
+  const ids = new Set(wbsRows.map(row => row.cells.wbs_id));
+  const roots = wbsRows.filter(row => !row.cells.parent_wbs_id || !ids.has(row.cells.parent_wbs_id));
+  return roots.length === 1 ? (roots[0].cells.wbs_name ?? '').trim() : '';
+}
+
 function stableWbsRows(rows: readonly XerRow[], projectId: string): XerRow[] {
   return rows
     .filter(row => row.cells.proj_id === projectId)
@@ -835,8 +849,13 @@ function readXerProject(
   // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
   // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the historical
   // task-derived project range remains byte-identical for XER and every other format.
-  const projectEnd = schedulingOptions.useProjectEndDateForFloat && sourceProjectEnd
-    ? sourceProjectEnd
+  // Y zonder plan_end_date (eigenaarsbesluit 2026-09-24, Fable-critreview PR #109 bevinding 2):
+  // de optie blijft aan — dat is wat het bestand zegt — maar de lezer verzint geen anker meer uit
+  // het maximum van de geplande taakeinden. Het projecteinde blijft leeg en de solver rekent de late
+  // pass vanaf het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By" doet
+  // (`withEffectiveProjectEndAnchor` in CPMSolver).
+  const projectEnd = schedulingOptions.useProjectEndDateForFloat
+    ? sourceProjectEnd ?? ''
     : taskDerivedProjectEnd;
   const statusDate = projectStatusDate(tables, projectRow, projectHourMode);
 
@@ -968,7 +987,7 @@ function readXerProject(
   return {
     project: {
       id: projectId,
-      name: projectRow.cells.proj_short_name || projectId,
+      name: xerProjectName(projectRow, wbsRows) || projectRow.cells.proj_short_name || projectId,
       description: '',
       startDate: projectStart,
       endDate: projectEnd,
@@ -980,12 +999,9 @@ function readXerProject(
       ...(statusDate ? { statusDate } : {}),
       progressMode,
       schedulingOptions,
-      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6; A19 is per bestand (PROJECT.rem_target_link_flag)
-      // en dus een afwijking op het profiel.
-      schedulingProfile: {
-        ...builtInProfile('p6'),
-        overrides: derivedSchedule.p6UseRemainingStartForProgress ? { p6UseRemainingStartForProgress: true } : {},
-      },
+      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6 zonder afwijkingen. A19 staat sinds 2026-09-24 in de
+      // P6-basis; PROJECT.rem_target_link_flag stuurt geen conventie meer (eigenaarsbesluit "a").
+      schedulingProfile: builtInProfile('p6'),
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),

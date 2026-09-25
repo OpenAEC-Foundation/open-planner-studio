@@ -258,6 +258,21 @@ export const TaskFieldId = {
    *  geen `mapMpp14`-override (zelfde "de rest heeft sowieso geen override"-clausule als de andere
    *  velden hier, corpus-geverifieerd: geen van de gemeten bestanden wijkt af van deze offset). */
   Type: 128,
+  /** "Datums zoals opgeslagen" voor `.mpp` (eigenaarsbesluit 2026-09-09) — MSP's EIGEN
+   *  rekenuitvoer, uitsluitend als apart weergavekanaal (`ImportResult.recordedTimes`), nooit
+   *  solverinvoer. Letterlijk uit `FieldMap14.getDefaultTaskData()`:
+   *  `EARLY_START (FIXED_DATA, 0, 106, 37)`, `EARLY_FINISH (0, 8, 38)`, `LATE_START (0, 12, 39)`,
+   *  `LATE_FINISH (0, 110, 40)`, `FREE_SLACK (0, 24, 21)`, `START_SLACK (0, 28, 438)`,
+   *  `FINISH_SLACK (0, 32, 439)`. TOTAL_SLACK heeft in MPP14 GEEN eigen opslagveld (MPXJ
+   *  `TaskField.TOTAL_SLACK(DataType.DURATION)` zonder FieldItem); de lezer neemt het minimum van
+   *  start- en finish-slack, MS Project's eigen definitie van Total Slack. */
+  EarlyStart: 37,
+  EarlyFinish: 38,
+  LateStart: 39,
+  LateFinish: 40,
+  FreeSlack: 21,
+  StartSlack: 438,
+  FinishSlack: 439,
 } as const;
 
 /** Letterlijk uit `FieldMap14.getDefaultTaskData()` — alleen de entries voor `TaskFieldId`
@@ -298,6 +313,14 @@ const DEFAULT_TASK_FIELDS: Readonly<Record<number, FieldEntry>> = {
   // `TaskFieldId.Resume`/`.Stop`-toelichtingen hierboven.
   [TaskFieldId.Resume]: { location: 'fixed', fixedOffset: 20 },
   [TaskFieldId.Stop]: { location: 'fixed', fixedOffset: 16 },
+  // "Datums zoals opgeslagen" — zie de toelichting bij `TaskFieldId.EarlyStart`.
+  [TaskFieldId.EarlyStart]: { location: 'fixed', fixedOffset: 106 },
+  [TaskFieldId.EarlyFinish]: { location: 'fixed', fixedOffset: 8 },
+  [TaskFieldId.LateStart]: { location: 'fixed', fixedOffset: 12 },
+  [TaskFieldId.LateFinish]: { location: 'fixed', fixedOffset: 110 },
+  [TaskFieldId.FreeSlack]: { location: 'fixed', fixedOffset: 24 },
+  [TaskFieldId.StartSlack]: { location: 'fixed', fixedOffset: 28 },
+  [TaskFieldId.FinishSlack]: { location: 'fixed', fixedOffset: 32 },
   // Z14b — letterlijke offset uit `FieldMap14.getDefaultTaskData()`, zie `TaskFieldId.Type`'s
   // toelichting hierboven.
   [TaskFieldId.Type]: { location: 'fixed', fixedOffset: 94 },

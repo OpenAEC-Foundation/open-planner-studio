@@ -71,6 +71,12 @@
     "xerImportDatesAsRecordedOffer_one": "{{count}} tarea difiere de las fechas registradas en el archivo — puedes mostrarlas.",
     "xerImportDatesAsRecordedOffer_many": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
     "xerImportDatesAsRecordedOffer_other": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
+    "importDatesAsRecorded_one": "{{count}} tarea muestra las fechas tal como están registradas en el archivo (sin recalcular).",
+    "importDatesAsRecorded_many": "{{count}} tareas muestran las fechas tal como están registradas en el archivo (sin recalcular).",
+    "importDatesAsRecorded_other": "{{count}} tareas muestran las fechas tal como están registradas en el archivo (sin recalcular).",
+    "importDatesAsRecordedOffer_one": "{{count}} tarea difiere de las fechas registradas en el archivo — puedes mostrarlas.",
+    "importDatesAsRecordedOffer_many": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
+    "importDatesAsRecordedOffer_other": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
     "xerExportLoss": "Al exportar a {{format}} se pierde información de origen XER.",
     "mppLegacy": "Este archivo .mpp usa un formato antiguo (Project 2007 o anterior). Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
     "mppEncrypted": "Este archivo .mpp está protegido con contraseña. Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
@@ -95,6 +101,9 @@
     "mppSourceScheduleNotes_one": "Este archivo de MS Project contiene {{count}} tarea con una planificación dividida, nivelada o determinada por recursos. Se importa y se muestra tal cual.",
     "mppSourceScheduleNotes_many": "Este archivo de MS Project contiene {{count}} tareas con una planificación dividida, nivelada o determinada por recursos. Se importan y se muestran tal cual.",
     "mppSourceScheduleNotes_other": "Este archivo de MS Project contiene {{count}} tareas con una planificación dividida, nivelada o determinada por recursos. Se importan y se muestran tal cual.",
+    "exportSplitsLost_one": "{{count}} tarea con interrupciones se ha exportado sin sus interrupciones: MS Project/P6 solo las conocen como distribución del trabajo.",
+    "exportSplitsLost_many": "{{count}} tareas con interrupciones se han exportado sin sus interrupciones: MS Project/P6 solo las conocen como distribución del trabajo.",
+    "exportSplitsLost_other": "{{count}} tareas con interrupciones se han exportado sin sus interrupciones: MS Project/P6 solo las conocen como distribución del trabajo.",
     "projectStartAnchorsClamped_one": "Inicio del proyecto movido: se desplazó {{count}} ancla de tarea sin predecesora ni restricción a la nueva fecha de inicio.",
     "projectStartAnchorsClamped_many": "Inicio del proyecto movido: se desplazaron {{count}} anclas de tarea sin predecesora ni restricción a la nueva fecha de inicio.",
     "projectStartAnchorsClamped_other": "Inicio del proyecto movido: se desplazaron {{count}} anclas de tarea sin predecesora ni restricción a la nueva fecha de inicio.",
@@ -121,7 +130,16 @@
     "schedulingProfileShifted_other": "Tras aplicar, se movieron {{count}} tareas.",
     "actions": {
       "openProjectInfo": "Abrir perfil de cálculo"
-    }
+    },
+    "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
+    "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",
+    "xerArchiveUnusableConsequence": "La planificación, el perfil de cálculo y todos los datos del proyecto del IFC están completos. Lo que falta: las fechas tal como las guardó Primavera y la procedencia de origen para la IA y las extensiones. Al guardar, el fichero se escribe sin el archivo; vuelva a importar el .xer original para recuperarlo.",
+    "xerArchiveReasonSchemaVersion": "Motivo: el archivo tiene una versión de esquema o un formato desconocidos (un escritor más reciente o distinto).",
+    "xerArchiveReasonHashMismatch": "Motivo: la suma de comprobación no coincide con los bytes de origen: el archivo está dañado.",
+    "xerArchiveReasonTruncated": "Motivo: el archivo está truncado: falta parte de los bytes de origen.",
+    "xerArchiveReasonBytesMissing": "Motivo: faltan los propios bytes de origen; probablemente otro programa IFC reescribió el fichero.",
+    "xerArchiveReasonMetadataInvalid": "Motivo: los bytes de origen están intactos, pero los datos derivados de ellos no se pueden usar.",
+    "xerArchiveReasonStructure": "Motivo: la estructura del archivo en el IFC no es correcta (duplicada, reordenada o mal vinculada)."
   },
   "yes": "Sí",
   "no": "No",
@@ -167,6 +185,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Alta",
     "startRelationHere": "Iniciar relación desde aquí",
+    "removeSplitGap": "Quitar la pausa",
+    "removeAllSplitGaps": "Quitar todas las pausas",
     "paste": "Pegar",
     "zoomReset": "Restablecer zoom",
     "fitToProject": "Ajustar al proyecto",
@@ -925,7 +945,9 @@
       "secondary": "Secundario"
     },
     "dependencyModeHint": "Modo enlace: arrastre de una barra a otra en el Gantt para crear una relación. Esc para detener.",
-    "dependencyModeStop": "Detener"
+    "dependencyModeStop": "Detener",
+    "splitModeHint": "Haga clic en una barra en el día en que empieza la interrupción y arrastre a la derecha para su duración. Esc para detener.",
+    "splitModeStop": "Detener"
   },
   "dateInput": {
     "placeholder": "dd-mm-aaaa",
@@ -1230,7 +1252,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tarea en curso: inicio temprano = inicio del trabajo restante",
-      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. Lo define cada archivo de Primavera P6. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
+      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restricción exacto en un hito",
@@ -1282,7 +1304,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Tarea completada con avance físico en la fecha de estado",
-      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales."
+      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales. Solo medido para el avance físico; para otros tipos de avance (predeterminado en P6: duración) este comportamiento no se ha medido y permanece desactivado."
     },
     "p6InProgressStartLagElapsed": {
       "label": "El retraso CC transcurrido de un predecesor en curso no cuenta",
@@ -1349,7 +1371,6 @@
     "on": "sí",
     "off": "no",
     "resetToBase": "volver a la base",
-    "perFile": "por archivo",
     "showHelp": "Explicación de «{{name}}»",
     "sourceOptions": {
       "title": "Ajustes del archivo de origen",

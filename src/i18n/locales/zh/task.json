@@ -353,6 +353,18 @@
       "remove": "删除",
       "done": "已完成",
       "empty": "暂无备注。"
+    },
+    "splits": {
+      "title": "中断",
+      "after": "之后",
+      "pause": "暂停",
+      "add": "添加中断",
+      "remove": "删除中断",
+      "readOnly": "这些中断来自源文件，其格式无法在此编辑。",
+      "removeAll": "取消所有中断",
+      "leveling": "资源平衡",
+      "unitDays": "工作日",
+      "unitHours": "小时"
     }
   },
   "relations": {
@@ -470,5 +482,12 @@
     "edit": "编辑外部关系…",
     "refreshSource": "刷新源",
     "deleteRelation": "删除关系"
+  },
+  "split": {
+    "gapDays_other": "中断 {{count}} 个工作日",
+    "gapHours_other": "中断 {{count}} 小时",
+    "pieceDays_other": "片段：{{count}} 个工作日",
+    "pieceHours_other": "片段：{{count}} 小时",
+    "merged": "合并"
   }
 }

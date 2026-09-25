@@ -361,6 +361,18 @@
       "remove": "Remover",
       "done": "Concluído",
       "empty": "Ainda sem notas."
+    },
+    "splits": {
+      "title": "Pausas",
+      "after": "após",
+      "pause": "pausa",
+      "add": "Adicionar pausa",
+      "remove": "Remover a pausa",
+      "readOnly": "Estas pausas vêm do ficheiro de origem numa forma que não pode ser editada aqui.",
+      "removeAll": "Remover todas as pausas",
+      "leveling": "nivelamento",
+      "unitDays": "dias úteis",
+      "unitHours": "horas"
     }
   },
   "relations": {
@@ -478,5 +490,20 @@
     "edit": "Editar relação externa…",
     "refreshSource": "Atualizar origem",
     "deleteRelation": "Eliminar relação"
+  },
+  "split": {
+    "gapDays_one": "{{count}} dia útil de pausa",
+    "gapDays_many": "{{count}} dias úteis de pausa",
+    "gapDays_other": "{{count}} dias úteis de pausa",
+    "gapHours_one": "{{count}} hora de pausa",
+    "gapHours_many": "{{count}} horas de pausa",
+    "gapHours_other": "{{count}} horas de pausa",
+    "pieceDays_one": "Trecho: {{count}} dia útil",
+    "pieceDays_many": "Trecho: {{count}} dias úteis",
+    "pieceDays_other": "Trecho: {{count}} dias úteis",
+    "pieceHours_one": "Trecho: {{count}} hora",
+    "pieceHours_many": "Trecho: {{count}} horas",
+    "pieceHours_other": "Trecho: {{count}} horas",
+    "merged": "Juntar"
   }
 }

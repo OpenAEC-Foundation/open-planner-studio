@@ -57,6 +57,10 @@
     "xerImportDatesAsRecorded_other": "{{count}} tasks show the dates as Primavera recorded them (not recalculated).",
     "xerImportDatesAsRecordedOffer_one": "{{count}} task differs from the dates in the file — you can show them.",
     "xerImportDatesAsRecordedOffer_other": "{{count}} tasks differ from the dates in the file — you can show them.",
+    "importDatesAsRecorded_one": "{{count}} task shows the dates as recorded in the file (not recalculated).",
+    "importDatesAsRecorded_other": "{{count}} tasks show the dates as recorded in the file (not recalculated).",
+    "importDatesAsRecordedOffer_one": "{{count}} task differs from the dates in the file — you can show them.",
+    "importDatesAsRecordedOffer_other": "{{count}} tasks differ from the dates in the file — you can show them.",
     "xerExportLoss": "Exporting to {{format}} loses XER source information.",
     "mppLegacy": "This .mpp file uses an older format (Project 2007 or earlier). In MS Project, export it as XML (File → Save As → XML) and open that file.",
     "mppEncrypted": "This .mpp file is password-protected. In MS Project, export it as XML (File → Save As → XML) and open that file.",
@@ -78,6 +82,8 @@
     "relationsSkippedOnInsert_other": "{{count}} relations were not created: invalid link (for example a task linked to its own (grand)parent summary task, or a duplicate).",
     "mppSourceScheduleNotes_one": "This MS Project file contains {{count}} task with a split, leveled, or resource-driven schedule. It is imported and shown as such.",
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
+    "exportSplitsLost_one": "{{count}} task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.",
+    "exportSplitsLost_other": "{{count}} tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.",
     "projectStartAnchorsClamped_one": "Project start moved: {{count}} task anchor without a predecessor or constraint was shifted to the new start date.",
     "projectStartAnchorsClamped_other": "Project start moved: {{count}} task anchors without a predecessor or constraint were shifted to the new start date.",
     "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
@@ -98,7 +104,16 @@
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
       "openProjectInfo": "Open calculation profile"
-    }
+    },
+    "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
+    "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",
+    "xerArchiveUnusableConsequence": "The schedule, the calculation profile and all project data from the IFC are complete. What is missing: the dates as Primavera stored them and the source provenance for AI and extensions. Saving writes the file without the archive; import the original .xer again to get the archive back.",
+    "xerArchiveReasonSchemaVersion": "Reason: the archive has an unknown schema version or layout (a newer or different writer).",
+    "xerArchiveReasonHashMismatch": "Reason: the checksum does not match the source bytes — the archive is damaged.",
+    "xerArchiveReasonTruncated": "Reason: the archive is truncated — part of the source bytes is missing.",
+    "xerArchiveReasonBytesMissing": "Reason: the source bytes themselves are missing — another IFC program probably rewrote the file.",
+    "xerArchiveReasonMetadataInvalid": "Reason: the source bytes are intact, but the data derived from them is unusable.",
+    "xerArchiveReasonStructure": "Reason: the archive's structure in the IFC is wrong (duplicated, reordered or attached incorrectly)."
   },
   "yes": "Yes",
   "no": "No",
@@ -144,6 +159,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "High",
     "startRelationHere": "Start relation from here",
+    "removeSplitGap": "Remove break",
+    "removeAllSplitGaps": "Remove all breaks",
     "paste": "Paste",
     "zoomReset": "Reset zoom",
     "fitToProject": "Fit to project",
@@ -897,7 +914,9 @@
       "secondary": "Secondary"
     },
     "dependencyModeHint": "Link mode: drag from one bar to another in the Gantt to create a relation. Press Esc to stop.",
-    "dependencyModeStop": "Stop"
+    "dependencyModeStop": "Stop",
+    "splitModeHint": "Click a bar on the day the break starts and drag right for its length. Press Esc to stop.",
+    "splitModeStop": "Stop"
   },
   "dateInput": {
     "placeholder": "dd-mm-yyyy",
@@ -1194,7 +1213,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "In-progress task: early start = start of remaining work",
-      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Set per file by Primavera P6. Calculating backward over a start-to-start relationship, only the remaining duration counts."
+      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Calculating backward over a start-to-start relationship, only the remaining duration counts."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exact constraint moment on a milestone",
@@ -1246,7 +1265,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Completed physical-progress task sits at the data date",
-      "help": "A completed task with physical percent complete is shown as a single point at the data date, or later if a predecessor requires it, instead of at its actual dates."
+      "help": "A completed task with physical percent complete is shown as a single point at the data date, or later if a predecessor requires it, instead of at its actual dates. Only measured for physical percent complete; for other percent complete types (P6 default: duration) this behaviour has not been measured and stays off."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Elapsed SS lag from an in-progress predecessor does not count",
@@ -1313,7 +1332,6 @@
     "on": "on",
     "off": "off",
     "resetToBase": "back to base",
-    "perFile": "per file",
     "showHelp": "Explanation of “{{name}}”",
     "sourceOptions": {
       "title": "Settings from the source file",

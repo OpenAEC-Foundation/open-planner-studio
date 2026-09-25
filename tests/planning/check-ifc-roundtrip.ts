@@ -238,11 +238,13 @@ const TM = {
   levelingDelayMinutes: 45, levelingDelayElapsed: true,
   // B1c-plan-2 taak 7: het herkomstveld op een werkonderbreking. Twee gaten in ÉÉN taak — het
   // eerste (bestaand fixture-gegeven) zonder `source` (importsplit — byte-identiek gedrag), het
-  // tweede MET `source: 'leveling'` (een door de verdeler ingevoegde pauzedag) — zodat de gewone
-  // whole-fixture round-trip hierboven BEIDE vormen in één keer bewijst.
+  // tweede MET `source: 'leveling'` (een door de verdeler ingevoegde pauzedag), het derde MET
+  // `source: 'user'` (issue #146: een door de gebruiker gemaakte onderbreking) — zodat de gewone
+  // whole-fixture round-trip hierboven ALLE DRIE de vormen in één keer bewijst.
   splitGaps: [
     { afterMinutes: 120, gapMinutes: 60 } satisfies TaskSplitGap,
     { afterMinutes: 480, gapMinutes: 480, source: 'leveling' } satisfies TaskSplitGap,
+    { afterMinutes: 1440, gapMinutes: 480, source: 'user' } satisfies TaskSplitGap,
   ],
   manuallyScheduled: true,
   // Z14b: het Z8-venster round-trippt nu écht via `OPS_TimephasedWindow` (zie TASK_CANON hieronder
@@ -439,6 +441,10 @@ export const fixture: ImportResult = {
   project, calendar: projCal, tasks, sequences, resources, assignments,
   resourceCalendars: [projCal, libCal], // projCal-entry wordt door de writer eruit gefilterd (b)
   activityCodeTypes, customFieldDefs, baselines, activeBaselineId: 'bl-1',
+  // OPS_ImportProvenance (heropen-beleid optie B + eigenaarsbesluit 2026-09-24 "beperken"). Beide
+  // onderscheidend: de defaults zijn `false`/afwezig, en een writer die niets schrijft valt zo op.
+  importPristine: true,
+  recordedSourceFormat: 'mspdi',
 };
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -779,6 +785,9 @@ function canon(r: ImportResult): Any {
     baselines: [...(r.baselines ?? [])].map(b => canonize(BASELINE_CANON, b, k))
       .sort((a, b) => String(a.id).localeCompare(String(b.id))),
     activeBaselineId: r.activeBaselineId ?? null,
+    // Heropen-herkomst uit OPS_ImportProvenance; een eigen IFC zonder pset leest als false/afwezig.
+    importPristine: r.importPristine ?? false,
+    recordedSourceFormat: r.recordedSourceFormat ?? null,
   };
 }
 
@@ -2275,6 +2284,18 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     `(17a) een onbekende source-waarde wordt WEGGELATEN (gesloten verzameling) — kreeg ${JSON.stringify(tm17?.splitGaps?.[0].source)}`);
   assert(tm17?.splitGaps?.[0].afterMinutes === 120 && tm17?.splitGaps?.[0].gapMinutes === 60,
     `(17a) afterMinutes/gapMinutes blijven ongemoeid — kreeg ${JSON.stringify(tm17?.splitGaps?.[0])}`);
+
+  // (17c) Issue #146: de derde bekende herkomst, `'user'` (een door de gebruiker gemaakte
+  // onderbreking), overleeft schrijven+lezen ongeschonden — expliciet naast de whole-fixture-
+  // vergelijking, zodat een regressie hier bij naam genoemd wordt.
+  const rt17c = readIFC(writeIFC(fixture));
+  const tm17c = rt17c.tasks.find(t => t.wbsCode === '1.1'); // TM
+  assert(tm17c?.splitGaps?.length === 3,
+    `(17c) alle drie de gaten komen terug — kreeg ${JSON.stringify(tm17c?.splitGaps)}`);
+  assert(tm17c?.splitGaps?.[2].source === 'user',
+    `(17c) source 'user' round-trippt — kreeg ${JSON.stringify(tm17c?.splitGaps?.[2])}`);
+  assert(tm17c?.splitGaps?.[2].afterMinutes === 1440 && tm17c?.splitGaps?.[2].gapMinutes === 480,
+    `(17c) afterMinutes/gapMinutes van het gebruikersgat blijven ongemoeid — kreeg ${JSON.stringify(tm17c?.splitGaps?.[2])}`);
 
   // (17b) `clearLevelingGaps` (taskDefaults.ts): wist uitsluitend gaten met source 'leveling', laat
   // importsplits staan, en geeft `true` terug precies wanneer er iets gewist is (zelfde contract als

@@ -381,6 +381,51 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
     sanitizeSchedulingProfile({ id: 'ops', baseId: 'ops', conventions: builtInConventions('ops') }), builtInProfile('ops'));
 }
 
+// ── A19 in de P6-basis (eigenaarsbesluit 2026-09-24 "a") ─────────────────────────────────────────
+// De oude XER-lezer schreef een Y-bestand als p6 + override {A19: true} weg; een leeg/N-bestand als
+// kale p6 (A19 uit). Nu is A19 AAN in de P6-basis. Verwachtingen met de hand:
+//  - override true onder p6 ⇒ geen afwijking meer (resolved gelijk aan de basis, diff leeg);
+//  - expliciete false onder p6 ⇒ blijft een echte afwijking;
+//  - oud pset-bestand (vóór A19 aan) met conventions.A19 = false: de oude lezer liet A19 uit bij een
+//    leeg/N-bestand. Zo'n bestand rekende zonder A19; dat blijft een afwijking (bestandswaarde wint);
+//  - legacy XER-blok zonder A19-sleutel ⇒ A19 op de P6-waarde (aan), expliciete false blijft staan.
+// Mutatiebewijs (gemeten 2026-09-24): A19 uit LEGACY_XER_ALWAYS_ON halen ⇒ 25, A19-05 en A19-05b rood;
+// A19 in het register terug op NONE ⇒ A19-02, A19-03, A19-05 en A19-06 rood.
+{
+  const p6WithOldOverride: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
+  const reread = readIFC(writeIFC(fixture({ schedulingProfile: p6WithOldOverride }))).project.schedulingProfile;
+  eq('A19-01 oude Y-override: A19 aan na heropenen', resolveConventions(reread).p6UseRemainingStartForProgress, true);
+  same('A19-02 oude Y-override: rekent als de kale P6-basis (geen semantische afwijking)',
+    resolveConventions(reread), builtInConventions('p6'));
+  const oldBlankPset = sanitizeSchedulingProfile({
+    id: 'p6', baseId: 'p6', conventions: { ...builtInConventions('p6'), p6UseRemainingStartForProgress: false },
+  });
+  same('A19-03 oud leeg/N-pset (conventions.A19 = false): expliciete afwijking blijft',
+    oldBlankPset?.overrides, { p6UseRemainingStartForProgress: false });
+  const explicitOff: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: false } };
+  same('A19-04 expliciete A19 uit onder p6: round-trip als afwijking',
+    readIFC(writeIFC(fixture({ schedulingProfile: explicitOff }))).project.schedulingProfile, explicitOff);
+  eq('A19-05 legacy XER-blok zonder A19-sleutel ⇒ A19 aan (P6-waarde, als een herimport)',
+    resolveConventions(legacyOptionsToProfile({ p6Source: 'XER' }).profile).p6UseRemainingStartForProgress, true);
+  same('A19-05b …en dus geen afwijking', legacyOptionsToProfile({ p6Source: 'XER' }).profile.overrides.p6UseRemainingStartForProgress, undefined);
+  eq('A19-06 legacy XER-blok met expliciete A19 false ⇒ afwijking uit',
+    legacyOptionsToProfile({ p6Source: 'XER', p6UseRemainingStartForProgress: false }).profile.overrides.p6UseRemainingStartForProgress, false);
+  // Achterdeur (critreview x12-a19-basis): de oude letterlijke A19-override mag niet als herkomst
+  // blijven staan, anders zet een wissel P6 → OPS A19 onder OPS aan. Mutatie: de A19-uitzondering in
+  // sanitizeSchedulingProfile weghalen ⇒ A19-07, A19-08, A19-09 en A19-10 rood.
+  same('A19-07 oude Y-override: na heropenen geen letterlijke afwijking meer', reread?.overrides, {});
+  eq('A19-08 oude Y-override → heropenen → wissel naar OPS ⇒ A19 uit',
+    resolveConventions(switchProfile(reread, 'ops')).p6UseRemainingStartForProgress, false);
+  // Crashherstel: de snapshot gaat via buildWriteIFCInput (auto-save) en terug via readIFC.
+  const rbase = freshPayload();
+  const recovered = readIFC(writeIFC(buildWriteIFCInput({
+    ...rbase, project: { ...rbase.project, schedulingProfile: p6WithOldOverride },
+  }))).project.schedulingProfile;
+  same('A19-09 crashherstel met oude Y-override: overrides leeg', recovered?.overrides, {});
+  eq('A19-10 crashherstel → wissel naar OPS ⇒ A19 uit',
+    resolveConventions(switchProfile(recovered, 'ops')).p6UseRemainingStartForProgress, false);
+}
+
 if (diffs.length > 0) {
   for (const d of diffs) console.log(`XX  ${d}`);
   console.log(`XX  scheduling-profile-roundtrip: ${diffs.length} van ${checks} checks rood`);

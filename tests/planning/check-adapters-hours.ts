@@ -866,7 +866,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     for (const [label, warns] of [['MSPDI', wM], ['P6', wP]] as const) {
       assert(!warns.some(w => w.includes('handmatig gepland')), `Z14-contrast ${label}: geen manuallyScheduled-warn zonder data, kreeg [${warns.join(' | ')}]`);
       assert(!warns.some(w => w.includes('sub-dag-nivelleervertraging')), `Z14-contrast ${label}: geen levelingDelayMinutes-warn zonder data, kreeg [${warns.join(' | ')}]`);
-      assert(!warns.some(w => w.includes('TimephasedData') || w.includes('gesplitste taak')), `Z14-contrast ${label}: geen splits/timephased-warn zonder data, kreeg [${warns.join(' | ')}]`);
+      assert(!warns.some(w => w.includes('TimephasedData') || w.includes('onderbroken taak')), `Z14-contrast ${label}: geen splits/timephased-warn zonder data, kreeg [${warns.join(' | ')}]`);
       assert(!warns.some(w => w.includes('resume/stop')), `Z14-contrast ${label}: geen resume/stop-warn zonder data, kreeg [${warns.join(' | ')}]`);
     }
   }
@@ -879,13 +879,13 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(wM.some(w => w.includes('MSPDI-export: 1 taak/taken met sub-dag-nivelleervertraging')), `Z14 MSPDI levelingDelayMinutes-warn: kreeg [${wM.join(' | ')}]`);
     // Contour-engine (2026-09): contouren gaan native mee als <TimephasedData>; alleen een gesplitste
     // taak ZONDER contourdata warnt nog (de rijke taak hier draagt splits maar geen contour).
-    assert(wM.some(w => w.includes('MSPDI-export: 1 gesplitste taak/taken zonder contourdata')), `Z14 MSPDI splits/timephased-warn: kreeg [${wM.join(' | ')}]`);
+    assert(wM.some(w => w.includes('MSPDI-export: 1 onderbroken taak/taken zonder urenverdeling')), `Z14 MSPDI splits/timephased-warn: kreeg [${wM.join(' | ')}]`);
     assert(wM.some(w => w.includes('MSPDI-export: 1 taak/taken met resume/stop')), `Z14 MSPDI resume/stop-warn: kreeg [${wM.join(' | ')}]`);
 
     const { warns: wP } = withWarnings(() => writeP6XML(projZ, H8, zTasks, [], [], zAssignments, []));
     assert(wP.some(w => w.includes('P6-export: 1 handmatig geplande taak/taken')), `Z14 P6 manuallyScheduled-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met sub-dag-nivelleervertraging')), `Z14 P6 levelingDelayMinutes-warn: kreeg [${wP.join(' | ')}]`);
-    assert(wP.some(w => w.includes('P6-export: 1 gesplitste taak/taken zonder contourdata')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
+    assert(wP.some(w => w.includes('P6-export: 1 onderbroken taak/taken zonder urenverdeling')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met resume/stop')), `Z14 P6 resume/stop-warn: kreeg [${wP.join(' | ')}]`);
 
     // CSV: vaste 17 kolommen (16 + 'Outline Level', issue #159), geen warn — de rijke taak mag de

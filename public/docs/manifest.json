@@ -64,6 +64,27 @@
       "cluster": "relaties-constraints"
     },
     {
+      "id": "gids-taken-splitsen",
+      "title": {
+        "nl": "Taken splitsen",
+        "en": "Splitting tasks",
+        "de": "Vorgänge unterbrechen",
+        "fr": "Fractionner des tâches",
+        "es": "Dividir tareas",
+        "zh": "拆分任务",
+        "it": "Suddividere le attività",
+        "pt": "Dividir tarefas",
+        "pl": "Dzielenie zadań",
+        "tr": "Görevleri bölme",
+        "ar": "تقسيم المهام",
+        "ja": "タスクの分割",
+        "ko": "작업 분할",
+        "fa": "تقسیم کارها"
+      },
+      "layer": "gidsen",
+      "cluster": "taken-splitsen"
+    },
+    {
       "id": "gids-kalenders-uren",
       "title": {
         "nl": "Kalenders, werkdagen & werkuren",

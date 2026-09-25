@@ -209,8 +209,8 @@ export function expectedXerScheduleOptions(
     startToStartLagFrom: 'earlyStart',
   };
   // De opgeloste P6-conventies (hand-lijst, spec v3.1 bijlage A): alles aan behalve de twee
-  // MS Project-conventies en C1/C4/A17/B3/B4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 per bestand uit PROJECT.rem_target_link_flag — óók als een project
-  // geen SCHEDOPTIONS-rij heeft. Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
+  // MS Project-conventies en C1/C4/A17/B3/B4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 sinds
+  // 2026-09-24 gewoon aan (eigenaarsbesluit "a"; PROJECT.rem_target_link_flag stuurt niets meer). Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
   const conventions: Record<ConventionKey, boolean> = {
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
@@ -218,7 +218,7 @@ export function expectedXerScheduleOptions(
     p6UseTaskPlannedStartFloor: true,
     p6FinishMilestoneBoundaryWindow: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
     p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y',
+    p6UseRemainingStartForProgress: true,
     p6PreserveZeroDurationConstraintInstants: true,
     resumeFromActualElapsed: false,
     unstartedIgnoresStatusDate: false,

@@ -21,6 +21,7 @@ import type { Task } from '@/types/task';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { clipUserGapsToWork } from '@/engine/scheduler/splitEdit';
 import { effHoursPerDay } from '@/utils/taskDuration';
 // E6 (PR #101 baan 1, orkestratorbesluit onder regel B): `contourKeepsWork` en `effectiveEffortDriven`
 // lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
@@ -445,7 +446,17 @@ export function settleDurationAftermath(
   finishBasis: HourInputFinishBasis,
 ): boolean {
   const hpd = workRuleContextOf(task, deps).hoursPerDay;
-  rescaleTaskContours(task, oldWorkMinutes, hpd, contourKeepsWork(task, deps.project.defaultWorkRule));
+  const rescaled = rescaleTaskContours(task, oldWorkMinutes, hpd, contourKeepsWork(task, deps.project.defaultWorkRule));
+  // Issue #146 (tweeling van `taskSlice.updateTask`): zonder contour schaalt niets de gaten mee, dus
+  // een duurKRIMP uit de driehoek mag geen gebruikersgat op of voorbij het nieuwe werktotaal laten
+  // liggen — anders is de taak voor splits stil alleen-lezen.
+  if (!rescaled) {
+    const newWorkMinutes = taskWorkMinutes(task.time, hpd);
+    if (newWorkMinutes < oldWorkMinutes - 1e-6) {
+      const clipped = clipUserGapsToWork(task.splitGaps, newWorkMinutes);
+      task.splitGaps = clipped && clipped.length > 0 ? clipped : undefined;
+    }
+  }
   const clearedWindow = clearTimephasedWindow(task);
   const clearedWalks = timephasedDurationWalksHaveFrozenWork(task) && clearTimephasedDurationWalks(task);
   clearLevelingGaps(task);

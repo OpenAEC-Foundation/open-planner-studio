@@ -148,7 +148,7 @@ const REJECT_HINTS: Record<string, string> = {
   // isHammock hierboven). splitGaps/levelingDelayMinutes/levelingDelayElapsed volgen dezelfde
   // "vrije-vorm-bak, geen leestool-tegenhanger"-redenering als levelingDelay (zie de klasse-toelichting
   // bovenaan dit bestand).
-  splitGaps: 'werkonderbrekingen (splits) zijn via de bridge niet zetbaar (offset-gebaseerd, afgeleid uit een .mpp-import, geen agent-invoervorm)',
+  splitGaps: 'werkonderbrekingen (splits) zet je met planner_set_task_splits (`interruptions` op de werk-as: afterWorkDays/pauseDays of afterWorkHours/pauseHours), niet via `fields`',
   manuallyScheduled: 'handmatig plannen is via de bridge niet zetbaar (de datums blijven dan RAUW staan, ongeacht kalender/relaties/`duration`)',
   levelingDelayMinutes: 'sub-dag-nivelleervertraging is via de bridge niet zetbaar (geen leestool-tegenhanger, zie `levelingDelay`)',
   levelingDelayElapsed: 'sub-dag-nivelleervertraging is via de bridge niet zetbaar (geen leestool-tegenhanger, zie `levelingDelay`)',

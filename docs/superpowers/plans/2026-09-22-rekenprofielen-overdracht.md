@@ -96,6 +96,69 @@ de modus "datums zoals opgeslagen" wordt alleen aangeboden voor formaten met ech
 XML, MSPDI, `.mpp`); CSV en vreemde IFC's openen zonder de modus en zonder melding (landt in de fixronde
 van #167, `claude/recorded-all-formats-fixes`).
 
+**2026-09-24 ~12:25, op de twee vragen uit de Fable-review van #169, letterlijk:** "a" — A19
+(`p6UseRemainingStartForProgress`) gaat in het ingebouwde P6-profiel aan en het per-bestand-mechanisme
+(`perFile`, `PER_FILE_CONVENTION_KEYS`, `withPerFileFrom`, badge "per bestand", "(aangepast)", de XER-override
+uit `rem_target_link_flag`) vervalt; de UI-branch `claude/x12-ui-a19-perfile` (51f37d33) wordt niet gemerged.
+"smal" — C5 blijft beperkt tot voltooide CP_Phys-taken; naam en gidsregel worden eerlijk ("gemeten op
+CP_Phys; CP_Drtn niet gemeten"), meten zodra er een P6-bestand met voltooide CP_Drtn-taken is.
+*Uitvoering:* C5-docs gemerged (`393cf74d`); **A19 gemerged `f058c659`** (landfixes 7e32d32d: oude A19-override `true` onder ingebouwd p6 vervalt bij lezen, A19-07..10; TODO r.860; conflicten met C5-docs opgelost; roundtrip 130, registry 1587 groen); keten anker+A19 gestart (`/tmp/ops-chain-etappe2-*.log`). Eerder: A19 gebouwd op
+`claude/x12-a19-basis` kop `9498648b` (Opus 5.5): measure vóór/ná identiek (76, 0/0/0, cellen per as gelijk),
+blast-radius `xerDefaultsNegativeFloatTasks` omlaag in zes niet-P6-bestanden; A19 in `LEGACY_XER_ALWAYS_ON`,
+A19-01..06; B1-wissel P6→OPS nu 3 verschoven (A19 reist niet meer mee); fixtures zonder vlag expliciet;
+open punt: `docs/TODO.md` r.860 (casus 08 A/10 B) als mogelijk tegenbewijs. Critreview loopt
+(`opus-laag-critreview-a19-basis`); daarna merge + keten.
+
+**2026-09-24 ~18:45, vraag 14 (regel 7a / A21 achter een zichtbare optie?), letterlijk: "laten"** — A21 blijft
+zoals hij is: alleen actief als optie A21 aan staat én B3 aan staat (B3 staat in het P6-profiel uit), gids
+eerlijk, geen extra instelling.
+
+**2026-09-24 ~18:55, vraag 15 (corrupt of herschreven bronarchief in een IFC), letterlijk: "openen met
+melding"** — het project opent zónder archief, met één in-app melding (K8a-kanaal) dat het bronarchief
+onbruikbaar is en wat dat betekent (geen "datums zoals opgeslagen", geen herkomst); draait het
+XER-etappebesluit "geen fallback" om; eigen branch vanaf de #109-PR-branch.
+
+**2026-09-24 ~19:00, vraag 16 (statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
+`plan_end_date`, 37 corpusprojecten), letterlijk: "eigen PR"** — de lezer verzint geen anker meer (P6 valt
+terug op het netwerkeinde); eigen branch vanaf de #109-PR-branch, meting vóór/ná op #109 én op #169, herpin
+volgens het recept, alleen landen als geen cel slechter wordt.
+
+**2026-09-24 ~19:10, vraag 17 (documentnaam na XER-import), letterlijk: "projectnaam"** — de documentnaam
+wordt de projectnaam uit het XER, met het P6 Project-ID erachter tussen haakjes wanneer dat afwijkt van de
+naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn.
+
+**2026-09-25 ~17:30 (na de maandlimiet-onderbreking van 24-09 ~20:30), letterlijk:** "doe alles wat je nog
+nodig is om het af te maken, wanneer deze hele etappe af is ga jij alle openstaasnde PRS mergen. wanneer
+alles in main zit zal ik een visuele check van je werk doen." ⇒ (1) de orkestrator maakt de etappe af
+(open fixrondes, her-checks, verify per kop) en neemt de resterende ontwerpvragen (E7, E9, E4, E5) als
+orkestratorbesluit volgens de reviewadviezen — omkeerbaar bij de visuele check; (2) daarna merget de
+orkestrator zélf alle open PR's naar `main` in stapelvolgorde #109 → #167 → #169 → #170, elk pas na een
+groene `verify` op de gemergde stand (uitzondering op de vaste regel "nooit naar main; eigenaar merget",
+alleen voor deze etappe en op dit uitdrukkelijke verzoek); een push naar `main` is een productie-deploy
+(`live.yml`), dus de keten is: mergen, CI afwachten, dan de volgende; (3) de eigenaar doet de visuele check
+op `main`. Nog steeds géén release/tag.
+
+**2026-09-25 ~18:10, letterlijk:** "je mag alle openstaande PRs mergen, allemaal. dus ook die niet door jou
+zijn gemaakt. vind de juiste volgorde. wanneer er echt tegengestelde visies en besluiten zijn gevonden, mag je
+het aan het eind vragen na dat je al het andere gedaan hebt. probere zoveel mogelijk zelf te beslissen, kies
+de elegantste oplossing" ⇒ 35 open PR's (stand 18:10): 14 op `main` (#172, #177, #180, #182, #189–#195, #199,
+#200, #204), de #172-stapel (`claude/busy-cerf-w6by88`: #178, #179, #181→#201, #183, #184, #185→#186→#197,
+#187, #188, #196, #198, #202, #203, #205), en de etappestapel #109 (nu CONFLICTING met main) → #167/#169 → #170.
+**Volgorde (orkestratorbesluit 25-09 ~18:20, in lijn met het eerdere eigenaarsbesluit van 24-09 dat in de
+PR-teksten van #172/#184/#185/#201 staat: "wacht tot de keten #109 → #169 → #170 op `main` staat"):**
+(1) de etappestapel eerst — #109 (met de drie XER-fixes: archief-fallback, anker, documentnaam; `main`
+erin gemerged, conflict met #176 opgelost; `verify`) → #167 (op de nieuwe #109) → #169 (A19-landfixes erin;
+`main` erin) → #170 (Fable-fixes, UI-fixronde, E9); elk pas na een groene `verify` en de CI van de vorige
+laag; (2) daarna de losse `main`-PR's, klein en dicht bij `main`: #190, #177, #191, #192, #193, #199, #195,
+#194, #200, #189, #204, #180 (CI parallel), #182 (i18n-tooling, hervormt locale-bestanden — als laatste van
+deze groep); (3) dan #172 en zijn stapel in afhankelijkheidsvolgorde: #172 → #178, #179, #181 → #201, #183,
+#184, #185 → #186 → #197, #187, #188, #196, #198, #202, #203, #205 — elk eerst `main` erin (conflicten met de
+etappe inhoudelijk oplossen: #185/#184 gevolgregels ↔ `settleDurationAftermath`, #201 ↔ G5), lichte poorten,
+en per stapel één `verify`. Echt tegengestelde
+besluiten (o.a. #185/#184 gevolgregels vs. #170 `settleDurationAftermath`, #201 dialoog-undo vs. #170 G5,
+#200 "geen vandaag" vs. #167 `$`-slots, #194 lezerfixes vs. #167/#170) worden per geval beslist en in §1c
+vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
@@ -173,6 +236,41 @@ van #167, `claude/recorded-all-formats-fixes`).
   pakketuitvoer); mét herkomst (nieuw veld `SourceFormat` in `OPS_ImportProvenance`, of het
   xer-archief) blijft de modus. Reden: de eigenaar kreeg de vraag uitgelegd als "invoer met invoer
   vergelijken" — de bedoeling is de modus te bewaren waar het bestand rekenuitvoer draagt.
+
+- **24-09 ~11:15, PR #101 baan 1 (critreview):** E6 = verhuizen naar `src/state/`/`taskDefaults.ts` (regel
+  B: de lezing van `mspTaskType`/`p6DurationType` is per-taak-herkomst van bewaarde data, geen conventie;
+  #101 verplaatste haar zelf de motor in; datagates blijven ≤ pin). E3 = de code volgt de spec (XER zet
+  werkvelden alleen waar het werk afwijkt; histogram/nivelleerder byte-identiek aan vandaag) — omkeerbaar;
+  blijft als eigenaarsvraag staan in het dossier.
+
+- **24-09 ~19:40, Fable-review #170 (LANDEN-MET-FIXES):** E8 en E10 worden gebouwd volgens het Fable-advies
+  als orkestratorbesluit (omkeerbaar): een voortgangsboeking verplaatst rest → verricht naar rato van de
+  restduur (P6: Remaining = At Completion − Actual), en een contourbewerking schrijft het restveld. Ook
+  gebouwd: kalenderdialoog/`removeCalendar` door `settleCalendarChange` (K2, gids-belofte), laag 3 bij
+  `curveValues`, `removeResource` wist ook Z8/walks. NIET gebouwd (eigenaar): E9 (FIXED_RATE-drift, F5
+  terugdraaien?), E3/E7 (per-toewijzing-spannes: beslispunt 10), E4 (stil ontsluiten bij alleen afgeleide
+  regel?), E5 (UI-vorm: volgt de memory-regel gekleurde blokken in een UI-baan). E2 dicht.
+
+- **25-09 ~17:45, op de eigenaarsopdracht "doe alles wat nodig is om het af te maken":** de resterende
+  ontwerpvragen van #170 als orkestratorbesluit, volgens de reviewadviezen en omkeerbaar bij de visuele
+  check: **E7** = "uitsmeren nu, spanne later" (totaal klopt, verdeling over de hele taak; eerlijke gidsregel;
+  per-toewijzing-spanne als eigen baan ná #170; G1 eerst fixen); **E9** = F5 terugdraaien alleen als een
+  agent het klein en gemeten (44-cases-meetlat + `.mpp` 216/0/0) kan doen, anders documenteren als bekende
+  afwijking van MSP; **E4** = stil ontsluiten wanneer de enige bron een afgeleide regel is, melden alleen bij
+  opgeslagen werkvelden of een eigen regel uit IFC, met eigen gidslink; **E5** = instelling heet "Toon
+  werkregels en werk", gekleurd blok i.p.v. formule-bijschrift (memory-regel), geen losse sectiekop tenzij
+  de tabs-test het toestaat; **E8/E10** zoals eerder (rest ↔ verricht bij voortgang; contour schrijft rest).
+
+- **25-09 ~22:40, groep A (13 main-PR's op `claude/integratie-groep-a` 612d8287, lichte poorten + planningssuite
+  groen):** drie botsingen beslist als orkestrator: (1) #200 ↔ #109 open-functie: `openAsDocument` is een dunne
+  laag op `applyOpenedImport` (gekoppeld laden, `saveTargetFor`), ook voor `planner_import_schedule` en
+  meerdere XER-documenten — gedragswijziging: AI-import van een IFC laadt nu gekoppeld (dat wás de bug);
+  (2) #200 ↔ #109/#167 lege datumslots: lege Early/Late-slots krijgen het eigen plan i.p.v. "vandaag",
+  "datums zoals opgeslagen" leest `recordedFields` en telt gevulde slots niet als vastgelegd — houden, met
+  `check-recorded-times-formats`/X12 als poort op de eindintegratie; (3) #189 ↔ eigenaarsbesluit #144
+  (relatielijnen altijd in een layout): #189 (later, eigen PR van de eigenaar) gevolgd — relatielijnen horen bij
+  de groep Overlay; kandidaat voor de eindvraag aan de eigenaar. Groep A wordt pas na #169/#170 op main
+  bijgewerkt met `main`, dan één verify + measure, dan één groeps-PR.
 
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
@@ -291,15 +389,49 @@ van #167, `claude/recorded-all-formats-fixes`).
    niet als P6-standaard aan; C2 blijft (Hotel 244, Roads 11, DCP-03 1).
 
 **Nieuwe eigenaarsvragen uit de reviews van 24-09 (nog niet gesteld; stellen ná A19-basis en C5):**
-- 14. Regel 7a (`p6CompletedLateFromRemainingWindow`, correlationeel, tegengesproken door het enige directe
-  P6-bewijs): achter een zichtbare standaard-uit optie, of aan laten met de eerlijke gidstekst? Advies: aan
-  laten met gidstekst (A21 is zonder B3 al inert; zie eindreview deel 1 bevinding 3).
-- 15. Corrupt of door andere IFC-software herschreven bronarchief: project openen zónder archief met een
-  melding (draait "geen fallback" om), of blijven weigeren? Advies: openen met melding, in een eigen PR.
-- 16. Statisch anker bij `sched_use_project_end_date_for_float=Y` zonder `plan_end_date` (37
-  corpusprojecten, niet P6): eigen PR met herpin? Advies: ja, na #109.
-- 17. Documentnaam bij XER-import = P6 Project-ID i.p.v. projectnaam: omzetten naar projectnaam (met ID als
-  suffix)? Advies: ja, kleine UX-fix in #109.
+- 14. **Beantwoord 24-09 ~18:45: "laten"** (§1a). Regel 7a/A21 blijft zoals hij is.
+- 15. **Beantwoord 24-09 ~18:55: "openen met melding"** (§1a) — gebouwd op `claude/xer-archief-fallback` 33038cec
+  (`xerArchiveIssue` met zes codes, `withXerArchiveIssueNotice`, MCP/extensie-API 1.2.0, fixture `xer-archief-herschreven.ifc`,
+  M1–M5 rood, X12 15.056); critreview = LANDEN-MET-FIXES (selector-ontbreekt-case, `detail` afkappen, API-versie 1.2.0 beide uitbreidingen, merge-instructie: conflicten in `ifcReader`/`fileSlice`/`types.ts`/14×common.json) ⇒ in de #109-landing (`opus-midden-109-landing`).
+- 16. **Beantwoord 24-09 ~19:00: "eigen PR"** (§1a) — gebouwd op `claude/xer-anker-projecteinde` f89f1bcb;
+  **regel A gebroken op #109** (15.056 → 15.154, 149 cellen slechter in OZB 9032/9033/9049/10096: het verzonnen
+  anker maskeerde daar een fout aan de vroege kant van #109) maar **0 cellen verschil op #169** ⇒ orkestrator-
+  besluit 25-09: geland op de rekenprofielen-kop (merge, twee tekstconflicten, testhulpje op `solveOptionsFor`;
+  check-xer-reader 52, schedule-options-corpus 56, p6-verified-cases 18 groen), NIET op #109.
+- 17. **Beantwoord 24-09 ~19:10: "projectnaam"** (§1a) — gebouwd op `claude/xer-documentnaam` 2946f724
+  (`xerProjectName`: `proj_name` → WBS-wortel → ID; `xerDocumentName(naam, id)`; `documentTitle` derde argument;
+  13 checks, X12 15.056, whitelist 334); critreview = GO op de merge na (corpus: 13 `proj_name`, 76 WBS-wortel, 10 ID; 'Opslaan als'-basis en bezettingsoverzicht als kleine fixes) ⇒ in de #109-landing (`opus-midden-109-landing`: main-sync + documentnaam + archief in de PR-branch, verify, PR-body).
+
+**25-09 ~22:05 — #167 klaar voor merge:** sync-branch (3ad1d2ae, verify EXIT 0, browser 177, `.mpp` 216/0/0, X12 15.056; #167-tekst naar `.claude/rules/state.md`, `xerArchiveFallbackAssert` keurt alleen `'xer-archive'` af) fast-forward in `claude/recorded-all-formats-v2`, base → `main`, ready; CI groen (test + 3 builds + CodeQL) ⇒ **#167 GEMERGED naar `main` 22:12 (`gh pr merge --merge --admin`)**; main-CI/deploy loopt.
+
+**25-09 20:00 — #109 GEMERGED naar `main` (`1d8f2df6`, `gh pr merge --merge --admin` na groene CI op `389ddc06`: test + 3 builds + CodeQL pass); main-CI én Deploy site op `main` groen (19:57).** Taaktypes-keten op `4ed84fbd`: MEASURE_EXIT=0, verify EXIT=0 (kop #170 groen). Procesherstart ~21:30: sync-agents #167 (`claude/recorded-all-formats-sync` 3ad1d2ae lokaal) en #169 (`claude/x12-sync-109b` c703724d lokaal) hervat. Her-check UI-ronde #170 (Opus 5.5) = LANDEN-MET-FIXES: Annuleren/Opslaan in de taakdialoog raken ook tussendoor gelande MCP-events (`revertHistorySince`/`squashHistorySince`), `historyMark` reset de coalescing niet, inzetveld afgekapt op 125 %, E7-hint zegt "duur" i.p.v. "resterende duur" ⇒ fixagent `opus-midden-pr170-dialog-undo-fixes` — **klaar `a949a5eb`** (bewerksessie met `sessionKey` op history-events via `finishUndoable` buiten batch/MCP-lease; Annuleren stopt bij het eerste vreemde event met melding; Opslaan voegt alleen aaneengesloten sessie-events samen; `historyMark` reset coalescing; kolommen schalen met `--text-small` + tooltip; hint "resterende duur"; `tests/mcp/cases-dialog-session.ts` 4 cases; mcp 43, browser 13; her-check loopt `opus-laag-hercheck-170-dialog`). Groep A (13 main-PR's) wordt alvast geïntegreerd op `claude/integratie-groep-a` (`opus-midden-groep-a-integratie`, lichte poorten; verify pas na de etappestapel). Etappe-keten op `f058c659`: MEASURE_EXIT=0 (76/0/0/0), verify EXIT=0 (browser 173/173). Taaktypes-keten op `4ed84fbd`: MEASURE_EXIT=0, verify loopt.
+
+**Stand 25-09 ~19:50 (merge-keten):** #109-PR-branch klaar op `389ddc06` (main-sync + documentnaam + archief-fallback
+met critreview-fixes; `verify` EXIT 0; X12 15.056; PR-body bijgewerkt, oude "niet mergen"-blok weg, PR op ready).
+Branchbescherming op `main` eist 1 review met code-owner en groene checks; de orkestrator merget na groene CI met
+`--admin` (eigenaarsopdracht 25-09; `enforce_admins` staat uit). Parallel: `opus-midden-167-sync` (nieuwe #109 in
+#167 op `claude/recorded-all-formats-sync`), `opus-midden-169-sync-109` (nieuwe #109 in #169 op
+`claude/x12-sync-109b`, CLAUDE.md → rules-structuur van main), etappe-keten op `f058c659`
+(`/tmp/ops-chain-etappe2-*`), taaktypes-keten op `4ed84fbd` (`/tmp/ops-chain-taaktypes2-*`; E9 gemerged, UI-ronde
+`85812af8` — orkestrator bekeek screenshots: namen zichtbaar, waarschuwingsteken, instelling in blok — her-check
+`opus-laag-hercheck-pr170-ui` loopt).
+
+**25-09 ~22:20 — #169-sync tussenstand:** `claude/x12-sync-109b` c703724d (#109 389ddc06 erin; CLAUDE.md naar de
+rules-structuur van main: `.claude/rules/rekenprofielen.md` nieuw, `xer.md` uitgebreid; alle poorten groen incl.
+verify EXIT 0 (browser 184) en measure 76/0/0/0). **Orkestratorbesluit:** de datagate `manuallyScheduled` in
+`scripts/verify-conventions.datagates.json` gaat 7 → 8 door `canSplitTask` uit main #146 (`splitEdit.ts:216`,
+weigeringsreden voor de splits-UI/MCP, geen solvertak) — geaccepteerd als uitzondering met deze reden; nette
+oplossing later: die check uit `src/engine/` verhuizen (TODO). De agent merget nu ook `origin/main` (#167)
+erin vóór de eindpoorten.
+
+**25-09 ~22:50 — #169 gesynchroniseerd en ready:** `claude/x12-sync-109b` 9495ae9c (#109 + main/#167 erin; alle
+poorten groen, verify EXIT 0 browser 186, measure 76/0/0/0; CLAUDE.md → rules-structuur) gemerged in
+`claude/rekenprofielen` als `21ff5e66`, gepusht; PR #169 base → `main`, ready; CI loopt ⇒ merge `--admin` zodra
+groen. **Incident 22:41:** `node_modules` in de orkestrator-worktree werd een zelfverwijzende symlink (een agent
+draaide vermoedelijk `ln -s` met de verkeerde cwd) — alle agent-worktrees linkten erop; hersteld met `npm ci`
+(208 pakketten, 3 s). Les: agents krijgen voortaan de instructie om bij een mislukte `worktree add` te STOPPEN
+i.p.v. in de huidige map door te werken. Volgende stap: `claude/rekenprofielen` mergen in
+`claude/taaktypes-integratie` (a949a5eb) + keten, dan #170 base main, merge.
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
@@ -313,6 +445,7 @@ van #167, `claude/recorded-all-formats-fixes`).
 | uitvoeringsplan | `claude/rekenprofielen` | klaar: `2026-09-22-plan-rekenprofielen.md` (`66bb8ccc`, stand-noot `be4f4206`); 31 taken; C10 (MSPDI ⇒ MS Project) geblokkeerd tot eigenaarsbesluit |
 | baan C: M1.3–M1.5 + C1–C9 | `claude/rekenprofielen-baan-c` | GO (`dcbb0f6a`); **gemerged** (`29f55cc0`): X12 15.056 + cellen 0/0/0, lezerprofielen/solver-invoer/roundtrip/contract groen. Voor de PR-tekst: C5 geldt bij elk openen en crashherstel (releasenotitie); export-guard-gat `.mpp`→MSPDI; R8-markeringen en X12-testnaam r.~1178 (aanbevolen) |
 | baan D (deel 1 + 2 + fixes) | `claude/rekenprofielen-baan-d` | GO; alles **gemerged** (`1fe5dfc8` + fixes `39418571`: wizard-profiel in createNewProject, migratie groep B gepind, lege naam, dode code, docs, dedupe-action, zichtbare drempeleenheid) |
+| taaktypes-overname (#101 → #170) | `claude/taaktypes-integratie` | draft-PR #170 gestapeld op #169, kop `6e448f63`, **verify groen**; banen 1–2 gedaan, critreviews verwerkt; Fable-review = LANDEN-MET-FIXES (rapport `8d4f21f6`; fixagent `opus-midden-pr170-fable-fixes` loopt, hervat na procesherstart 19:45); gebruikstest E1 gedaan (`a979d3d4`, screenshots `qa/gebruikstest-170/`): rekenkern klopt, **G1 naamkolom van de toewijzingstabel 0 px bij >1 resource (orkestrator zelf gezien op `05b-ec2370-paneel.png`)**, G2 drie betekenissen "taaktype", G3 Lees-meer-link naar verkeerde gids, G4 EC2370 tegenspraak zonder uitleg, G5 taakdialoog past toe vóór Opslaan; **Fable-fixes klaar `ee96e5e9`** (restwerk bij voortgang in alle paden, kalenderdialoog/`removeCalendar` K2 via `calendarTasks.ts`, `syncAssignmentWorkToContour`, curve = vorm + werk = schaal, `removeResource` Z8/walks; `<EffortDriven>`-volgorde niet gebouwd — writer stond al buiten de XSD-volgorde; poorten exit 0, `.mpp` 216/0/0, measure 76/0/0/0); her-check loopt (`opus-laag-hercheck-pr170-fable-fixes`); UI-fixronde loopt op dezelfde branch (`opus-midden-pr170-ui-fixes`: G1/G3/G5/E4/E5/G2/E7-markering); **E9 gebouwd** op `claude/taaktypes-e9` 99682d14 (FIXED_RATE bewaart werk zoals MSP, +16/−15 in workTriangle, cases wt-02/02b/35/35b, `near()`-NaN-bug gefixt, spec §3.4 F5 teruggedraaid, `.mpp` 216/0/0, measure 76/0/0/0; MSP-verschil bij ≥2 resources = beslispunt 10) — mergen in `claude/taaktypes-integratie` ná de UI-ronde; her-check Fable-fixes = LANDEN-MET-FIXES (eerste urenverdeling op gestarte taak wist verricht werk ⇒ naar de UI-agent als punt 8); E2 afgehandeld (labelwissel juist, MPXJ bevestigt; `2026-09-24-e2-p6xml-durationtype.md`); open E1/E4/E5/E7 |
 | recorded-all-formats | `claude/recorded-all-formats-v2` | **draft-PR #167**, gestapeld op de PR-branch van #109; `npm run verify` groen (`eda674a9`); merget ná #109 (base dan naar main) |
 
 | X12 naar nul — brok 1: projecteinde-fout | `claude/x12-brok1-projecteinde` (`d879c32b`) | GO; **gemerged** in de etappebranch. Vervolg (plan §9): commentaar over de P6-vlag corrigeren (Oracle: multi-project-optie op ScheduledFinishDate), `project.endDate = start` + `<MustFinishByDate>` in P6-XML-export |
@@ -397,7 +530,8 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    uitsluitend `check-conventions-boundary` 13/13a, veroorzaakt door de orkestrator zelf (`90766884`
    versmalde de `conventions/`-vrijstelling tot `registry.ts`; de allowlist-fixture van check 13 leeft in
    die map). Hersteld in `550ba040` (vrijstelling per map terug, `this`-leden per klasse blijft); keten
-   opnieuw gestart 10:58 (`/tmp/ops-chain-final-{measure,verify}.log`).
+   opnieuw gestart 10:58: **MEASURE_EXIT=0 (76/0/0/0, uitgesloten 42) en `verify` EXIT=0 op `550ba040`**
+   (browser 173/173, 0 XX; klaar 11:12).
    Oorspronkelijke stap: EC1420 óók uitsluiten? Bij "ja": C14 ALAP landen vanaf
    `origin/claude/x12-c10-alap-port` (`4b04925e`, op de nieuwe basis herbouwen: register/migratie/i18n/gids
    staan erin), verwacht 104 → ±77 met 0 groter; bij "nee" blijft C14 als naslagbranch (2 groter-cellen op
@@ -528,8 +662,43 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
    (`taskTypesVisibility.ts:21`, `workRuleApply.ts:50/254`), datagate `p6DurationType` 6 → 7, `mspTaskType`
    1 → 4: mag niet omhoog zonder besluit ⇒ **eigenaarsvraag E6** (herpinnen, of de zichtbaarheids-/
    bewerklogica uit `src/engine/` verhuizen — advies: verhuizen). Verslag
-   `2026-09-24-taaktypes-integratie-baan1.md` (gecommit `550ba040`). Critreview loopt
-   (`opus-laag-critreview-pr101-baan1`); daarna baan 2 (B1-koppeling in `settleDurationAftermath`).
+   `2026-09-24-taaktypes-integratie-baan1.md` (gecommit `550ba040`). Critreview (Opus 5.5) =
+   LANDEN-MET-FIXES: merge gezond (store/MCP zelfde volgorde, niets verdwenen/dubbel, valkuilen bewezen,
+   meetlat ongewijzigd); (1) E3 klopt niet als "ongewijzigd": `importedWorkFields` zet bij elk verricht werk
+   alle drie werkvelden ⇒ `assignmentDayUnits` laag 3 i.p.v. 4 ⇒ histogram/overallocatie/nivelleerder
+   veranderen bij XER-import (Roads 110/3575 toewijzingen, HarbourPointe 119/417); (2) E6 advies (b)
+   verhuizen (`taskTypesVisibility` → `src/state/`, `contourKeepsWork`/`effectiveEffortDriven` →
+   `taskDefaults.ts`), geen conventie, niet herpinnen; (3) toewijzingspaden zonder nazorg = baan 2,
+   voorwaarde vóór #101 naar main; (4) gidslink detailregel; (5) gridcheck kalenderwissel; (6) 340 i.p.v. 338.
+   **Orkestratorbesluiten (§1c):** E6 = verhuizen (regel B: per-taak-herkomst, geen conventie; #101 verplaatste
+   de lezing zelf de motor in); E3 = code volgt de spec (werkvelden alleen waar het werk afwijkt, histogram
+   byte-identiek aan vandaag) — omkeerbaar als de eigenaar het nieuwe gedrag wil. Fixagent
+   `opus-midden-pr101-baan1-fixes` — **klaar, kop `5df3bff7`** (E6 verhuisd: datagates terug op 6/1 zonder
+   herpin, `verify:conventions` 0, cycles 0; E3 volgens spec §4.3c/§4.4: alleen `actualWorkMinutes` zonder
+   afwijking, MSPDI-writer `<Work>` uit duur × inzet (bug gevonden), Roads 158 → 35 toewijzingen met ander
+   histogram (echte herschattingen), HarbourPointe 119 → 119; gidsverwijzing als detailtekst 14 locales
+   T4-18b/c; rastercheck 43; planningssuite volledig groen, measure 76/0/0/0, `.mpp` 216/0/0). Her-check
+   (Opus 5.5) = **GO** (proefmerge conflictvrij; verslag gecorrigeerd: HarbourPointe 119 = 97 afwijkend
+   begroot werk bij niet-gestarte taken + 17 over budget + 5 herschattingen + 2 alleen verricht ⇒ nieuwe
+   eigenaarsvraag E7: inzet uit P6 vs. begroot werk uit P6 bij dezelfde toewijzing; commentaar
+   `importedWorkFields` "restduur" → "duur" via baan 2); **baan 2 klaar, kop `5484532c`** (Opus 5.5:
+   `settleDurationAftermath(task, deps, oldWorkMinutes, finishBasis)` verplichte basis van vóór de bewerking,
+   ná contour/Z8/walks `clearLevelingGaps` → `reconcileHourInputFinish`; zeven store-paden + zeven
+   MCP-tweelingen + raster; checks 45–61 en s1–s5, mutant per pad; laden raakt de reconcile niet (61); TODO en
+   B1c-koppelpunt in `docs/TODO.md` afgevinkt; poorten exit 0, `.mpp` 216/0/0, measure 76/0/0/0; nieuw
+   gedrag: kalenderwijziging die onder een werkregel de duur van een dagtaak verandert wist de nivelleerpauze
+   (s4)). Critreview (Opus 5.5) = LANDEN-MET-FIXES ⇒ fixronde `673aa51c`: `removeResource` wist pauzes
+   onvoorwaardelijk (s6/s6b), crashherstel-bewijs check 62 (`prepareLoadedPayload` zonder reconcile/clear).
+   **Draft-PR #170** geopend (`claude/taaktypes-integratie` → base `claude/rekenprofielen`; vervangt #101, sluiten
+   = eigenaar); gelinkt aan de thread. Keten op `673aa51c`: MEASURE_EXIT=0, verify EXIT=1 op één browsertest
+   (`settings-tabs.spec.ts:76`: #101's instelling "Toon taaktypes" had een eigen sectiekop op Planning ⇒ 5 i.p.v.
+   4 koppen) ⇒ gefixt `6e448f63` (instelling als gewone regel onder Urenplanning, sleutel
+   `settings.taskTypesSection` weg uit 14 locales; specs 4/4). **Keten op `6e448f63`: MEASURE_EXIT=0 (76/0/0/0),
+   verify EXIT=0 (18:59)** — PR-body #170 bijgewerkt; Fable-critreview op #170 gestart (`fable-critreview-pr170`).
+   Eigenaar bevestigd 24-09 ~18:50: #170 bevat elke commit van #101 (merge-base-check); #101 sluiten =
+   eigenaar, branch blijft als naslag. baan 2 (B1-koppeling `settleDurationAftermath` + toewijzingspaden)
+   gestart parallel (`opus-midden-pr101-baan2`, zelfde branch). De taaktypes-etappe
+   krijgt een eigen PR (`claude/taaktypes-integratie`, gestapeld op #169), niet in `claude/rekenprofielen`.
 9. **PR-keten:** #109 (XER-etappe) blijft draft tot X12 op nul staat of de eigenaar het nuldoel
    herdefinieert; #169 (deze etappe, gestapeld op #109) daarna; #167 (recorded-all-formats) ná #109.
    Base van #169 pas naar `main` zetten als #109 gemerged is.

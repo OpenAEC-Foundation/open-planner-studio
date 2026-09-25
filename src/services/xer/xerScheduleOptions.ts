@@ -32,9 +32,6 @@ export interface XerScheduleOptionsResult extends XerScheduleOptionsMetadata {
   progressMode: ProgressMode;
   /** Alleen projectopties (rekenprofielen C3); de conventies komen uit het P6-profiel. */
   schedulingOptions: ProjectSchedulingOptions;
-  /** A19 per bestand uit `PROJECT.rem_target_link_flag`. Geen projectoptie maar een afwijking op het
-   *  P6-profiel (de P6-basis heeft hem uit); `xerReader` zet hem als override. */
-  p6UseRemainingStartForProgress: boolean;
 }
 
 interface IndexedSourceRow {
@@ -205,17 +202,18 @@ function retainedBooleanValue(
   return undefined;
 }
 
-function projectRemainingStartValue(
+/** `PROJECT.rem_target_link_flag` stuurt sinds 2026-09-24 GEEN conventie meer (eigenaarsbesluit "a",
+ *  Fable-critreview PR #169 bevinding 2): A19 staat gewoon aan in het P6-profiel. De vlag wordt nog
+ *  alleen als diagnose gelezen: een onbekend token komt als fallback in de metadata, Y/N/leeg niet.
+ *  [VERMOED · hoog] In P6 heet het veld `LinkPlannedAndAtCompletionFlag` ("Link Budget and At
+ *  Completion for not started activities") — een eenheden-/kostenkoppeling, geen datumregel. */
+function reportRemainingTargetLinkFlag(
   row: XerRow | undefined,
   fallbacks: XerScheduleOptionFallback[],
-): boolean {
-  if (!row) return false;
-  const token = row.cells.rem_target_link_flag?.trim() ?? '';
-  if (!token) return false;
-  if (token.toUpperCase() === 'Y') return true;
-  if (token.toUpperCase() === 'N') return false;
-  reportFallback(fallbacks, row, 'rem_target_link_flag', token, 'false');
-  return false;
+): void {
+  const token = row?.cells.rem_target_link_flag?.trim() ?? '';
+  if (!token || token.toUpperCase() === 'Y' || token.toUpperCase() === 'N') return;
+  reportFallback(fallbacks, row!, 'rem_target_link_flag', token, 'niet gebruikt');
 }
 
 /** "Aantoonbaar retained logic" voor de completed-late-klem: geen declaratie (P6-default) of
@@ -493,11 +491,8 @@ export function deriveXerScheduleOptions(
   const defaults = freshDefaults();
   const projectRow = index.projectRowsById.get(projectId)?.row;
   const fallbacks: XerScheduleOptionFallback[] = [];
-  // PROJECT.rem_target_link_flag is het documentgedragen P6-signaal dat remaining en target
-  // gekoppeld blijven. Alleen dan beschrijven de XER Early/Late Start-assen bij een lopende taak
-  // het resterende werkvenster; ontbrekend/N behoudt de historische Actual Start. De afleiding
-  // gebruikt uitsluitend PROJECT-invoer en nooit early/late/float-orakelcellen.
-  const p6UseRemainingStartForProgress = projectRemainingStartValue(projectRow, fallbacks);
+  // PROJECT.rem_target_link_flag: alleen diagnose, stuurt niets (zie `reportRemainingTargetLinkFlag`).
+  reportRemainingTargetLinkFlag(projectRow, fallbacks);
   const sourceRowIndexes = [...(index.sourceRowIndexesByProject.get(projectId) ?? [])];
   const retainedRows = sourceRowIndexes.map(rowIndex => index.sourceArchive.rows[rowIndex]);
   const diagnostics = [...(index.diagnosticsByProject.get(projectId) ?? [])];
@@ -514,7 +509,6 @@ export function deriveXerScheduleOptions(
       source: 'xer-defaults',
       progressMode: defaults.progressMode,
       schedulingOptions: defaults.schedulingOptions,
-      p6UseRemainingStartForProgress,
       retainedSource: {},
       fallbacks,
       diagnostics,
@@ -625,7 +619,6 @@ export function deriveXerScheduleOptions(
     source: 'schedoptions',
     progressMode,
     schedulingOptions,
-    p6UseRemainingStartForProgress,
     retainedSource,
     fallbacks,
     diagnostics,

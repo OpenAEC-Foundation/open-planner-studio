@@ -1,6 +1,7 @@
 import type { Task } from '@/types/task';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
+import { xerDocumentName } from '@/utils/xerDocumentName';
 
 /**
  * Afgeleide identiteit + statistieken per geopend document, voor de
@@ -37,11 +38,17 @@ export function documentCode(title: string): string {
 }
 
 /** Afgeleide titel: bestandsnaam zonder extensie, anders de projectnaam. */
-export function documentTitle(filePath: string | null, projectName: string): string {
+export function documentTitle(
+  filePath: string | null,
+  projectName: string,
+  xerProjectCode?: string | null,
+): string {
   if (filePath) {
     const base = filePath.split(/[\\/]/).pop() || filePath;
     return base.replace(/\.[^.]+$/, '');
   }
+  // XER-import zonder opslagdoel: "Projectnaam (P6 Project-ID)" — zie `xerDocumentName`.
+  if (xerProjectCode) return xerDocumentName(projectName, xerProjectCode);
   return projectName || '';
 }
 
@@ -60,6 +67,16 @@ export function documentTitle(filePath: string | null, projectName: string): str
 export const DEFAULT_PROJECT_FILE_BASE = 'project';
 export function projectFileBase(projectName: string): string {
   return (projectName ?? '').trim() || DEFAULT_PROJECT_FILE_BASE;
+}
+
+/**
+ * Voorgestelde bestandsnaambasis bij opslaan/"Opslaan als"/exporteren: dezelfde naam als de tab en
+ * de titelbalk vóór het opslaan. Bij een XER-document is dat "Projectnaam (P6 Project-ID)"
+ * (`xerDocumentName`), zodat tab en titelbalk ná het opslaan — dan afgeleid van de bestandsnaam —
+ * dezelfde naam houden. Zonder XER-code gelijk aan `projectFileBase(projectName)`.
+ */
+export function documentFileBase(projectName: string, xerProjectCode?: string | null): string {
+  return projectFileBase(xerProjectCode ? xerDocumentName(projectName, xerProjectCode) : projectName);
 }
 
 /**

@@ -357,6 +357,18 @@
       "remove": "Kaldır",
       "done": "Tamamlandı",
       "empty": "Henüz not yok."
+    },
+    "splits": {
+      "title": "Kesintiler",
+      "after": "sonra",
+      "pause": "ara",
+      "add": "Kesinti ekle",
+      "remove": "Kesintiyi kaldır",
+      "readOnly": "Bu kesintiler kaynak dosyadan burada düzenlenemeyen bir biçimde geliyor.",
+      "removeAll": "Tüm kesintileri kaldır",
+      "leveling": "dengeleme",
+      "unitDays": "iş günü",
+      "unitHours": "saat"
     }
   },
   "relations": {
@@ -474,5 +486,16 @@
     "edit": "Dış ilişkiyi düzenle…",
     "refreshSource": "Kaynağı yenile",
     "deleteRelation": "İlişkiyi sil"
+  },
+  "split": {
+    "gapDays_one": "{{count}} iş günü kesinti",
+    "gapDays_other": "{{count}} iş günü kesinti",
+    "gapHours_one": "{{count}} saat kesinti",
+    "gapHours_other": "{{count}} saat kesinti",
+    "pieceDays_one": "Parça: {{count}} iş günü",
+    "pieceDays_other": "Parça: {{count}} iş günü",
+    "pieceHours_one": "Parça: {{count}} saat",
+    "pieceHours_other": "Parça: {{count}} saat",
+    "merged": "Birleştir"
   }
 }

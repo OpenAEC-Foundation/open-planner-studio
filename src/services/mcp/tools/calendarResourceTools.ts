@@ -43,6 +43,7 @@ import type { ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -725,7 +726,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
           // `draft.updateCalendar` synct zelf, maar deze extra producer maakt een nieuw
           // entry-object en zou de cache anders op het oude object laten wijzen.
           syncProjectCalendar(s);
-          s.isDirty = true;
+          markDocumentEdited(s);
         });
       }
 
@@ -1714,7 +1715,7 @@ function updateProjectCore(
       if (p.clearProgressMode) delete s.project.progressMode;
       if (p.clearDefaultWorkRule) delete s.project.defaultWorkRule;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
   return {

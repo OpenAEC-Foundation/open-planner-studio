@@ -353,6 +353,18 @@
       "remove": "削除",
       "done": "完了",
       "empty": "メモはまだありません。"
+    },
+    "splits": {
+      "title": "中断",
+      "after": "後",
+      "pause": "休止",
+      "add": "中断を追加",
+      "remove": "中断を削除",
+      "readOnly": "これらの中断は元のファイルに由来し、ここでは編集できない形式です。",
+      "removeAll": "すべての中断を解除",
+      "leveling": "平準化",
+      "unitDays": "稼働日",
+      "unitHours": "時間"
     }
   },
   "relations": {
@@ -470,5 +482,12 @@
     "edit": "外部依存関係を編集…",
     "refreshSource": "ソースを更新",
     "deleteRelation": "依存関係を削除"
+  },
+  "split": {
+    "gapDays_other": "{{count}} 稼働日の中断",
+    "gapHours_other": "{{count}} 時間の中断",
+    "pieceDays_other": "区間: {{count}} 稼働日",
+    "pieceHours_other": "区間: {{count}} 時間",
+    "merged": "結合"
   }
 }

@@ -73,7 +73,8 @@ kanten:
 
 `PSET` bovenin datzelfde bestand is de enige plek waar `OPS_`-namen staan — óók die van de psets die
 géén descriptor hebben (`OPS_ProjectSettings`, `OPS_Resource`, `OPS_Assignments`, `OPS_Calendar`,
-`OPS_CustomFields`, `OPS_ActivityCodes`, `OPS_Baselines`, `OPS_SchedulingOptions`, …). Die laatste
+`OPS_CustomFields`, `OPS_ActivityCodes`, `OPS_Baselines`, `OPS_SchedulingOptions`,
+`OPS_ImportProvenance`, …). Die laatste
 hebben een afwijkende vorm — per resource, per kalender, of één blob op het schedule — en delen
 alleen de naam. Schrijf een nieuwe naam dus in `PSET`, nooit als losse string in de writer.
 

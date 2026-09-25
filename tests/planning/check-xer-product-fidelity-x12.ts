@@ -45,7 +45,7 @@ import {
 } from './xerManifestExclusions';
 import { leveledSummary, readManifestLeveledProjects, resolveLeveledProjects } from './xerManifestLeveling';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
-import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { builtInProfile, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import { setConvention, withoutP6Semantics } from './p6SemanticsOff';
 import { p6SemanticsOff } from './p6SemanticsOff';
 
@@ -1512,13 +1512,20 @@ async function productBaseline(
   const unlinked = readXER(unlinkedBytes);
   if (isMultiDocumentImport(unlinked)) throw new Error('X12 actual-starttegenvoorbeeld moet enkelproject zijn');
   const unlinkedTask = solveImported(unlinked).tasks.find(candidate => candidate.taskCode === 'A100');
-  eq('X12 zonder resterend-doelkoppeling blijft de zichtbare Actual Start ongewijzigd', {
+  // Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt rem_target_link_flag = N niets meer: A19 staat in de
+  // P6-basis aan, dus ook dit bestand rekent met de restwerkstart. Pas met A19 expliciet uit blijft de
+  // zichtbare Actual Start staan.
+  eq('X12 rem_target_link_flag = N stuurt A19 niet meer: restwerkstart', {
     sourceFlag: resolveConventions(unlinked.project.schedulingProfile).p6UseRemainingStartForProgress,
     earlyStart: unlinkedTask?.earlyStart,
   }, {
-    sourceFlag: false,
-    earlyStart: '2026-01-06T08:00',
+    sourceFlag: true,
+    earlyStart: '2026-01-12T08:00',
   });
+  const a19Off = structuredClone(unlinked);
+  a19Off.project.schedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: false } };
+  eq('X12 met A19 uit blijft de zichtbare Actual Start ongewijzigd',
+    solveImported(a19Off).tasks.find(candidate => candidate.taskCode === 'A100')?.earlyStart, '2026-01-06T08:00');
 }
 
 // Afzonderlijke auditgrensprobe. De oude gecombineerde completed-chainfixture had ongeldige
@@ -2172,9 +2179,12 @@ async function productBaseline(
     assignmentCount: 2,
     axes: [oneResult?.earlyStart, oneResult?.earlyFinish, oneResult?.lateStart, oneResult?.lateFinish],
   });
-  eq('X12 F3 active XER-taak behoudt bestaande actual-startsemantiek', {
+  // Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt de N-vlag van deze fixture A19 niet meer uit: de
+  // lopende taak start op haar restwerkstart = de statusdatum ma 5 jan 08:00 (gelijk aan de opgeslagen
+  // early_start_date-orakelcel), niet op haar werkelijke start wo 7 jan.
+  eq('X12 F3 active XER-taak: vroege start = restwerkstart op de statusdatum (A19 in de P6-basis)', {
     earlyStart: activeResult?.earlyStart,
-  }, { earlyStart: '2026-01-07T08:00' });
+  }, { earlyStart: '2026-01-05T08:00' });
   eq('X12 F4 completed milestone valt buiten completed-taskbronsemantiek', {
     earlyStart: milestoneResult?.earlyStart, earlyFinish: milestoneResult?.earlyFinish,
     lateStart: milestoneResult?.lateStart, lateFinish: milestoneResult?.lateFinish,
@@ -2491,14 +2501,19 @@ async function productBaseline(
   eq('X12 expected-finishketen pinnt per bronrij alle zes productassen voor vlag uit en aan', {
     off: axes(off), on: axes(on),
   }, {
+    // Herpin 2026-09-24 (eigenaarsbesluit "a", A19 in de P6-basis aan; deze fixture heeft geen
+    // rem_target_link_flag en rekende tot dan zonder A19): B's vroege start is nu haar restwerkstart op
+    // de statusdatum di 6 jan 08:00 (gelijk aan de opgeslagen early_start_date-orakelcel) i.p.v. haar
+    // werkelijke start ma 5 jan. Met de vlag aan is de late start LF ma 12 jan 17:00 min de restduur
+    // 16 u (9-urige dagen): vr 9 jan 10:00. De overige assen blijven.
     off: [
       ['A', 'A100', '2026-01-05T08:00', '2026-01-05T17:00', '2026-01-05T08:00', '2026-01-05T17:00', 0, 0],
-      ['B', 'B100', '2026-01-05T08:00', '2026-01-07T15:00', '2026-01-05T08:00', '2026-01-07T15:00', 0, 0],
+      ['B', 'B100', '2026-01-06T08:00', '2026-01-07T15:00', '2026-01-06T08:00', '2026-01-07T15:00', 0, 0],
       ['C', 'C100', '2026-01-07T15:00', '2026-01-08T14:00', '2026-01-07T15:00', '2026-01-08T14:00', 0, 0],
     ],
     on: [
       ['A', 'A100', '2026-01-05T08:00', '2026-01-05T17:00', '2026-01-05T08:00', '2026-01-05T17:00', 0, 0],
-      ['B', 'B100', '2026-01-05T08:00', '2026-01-12T17:00', '2026-01-05T08:00', '2026-01-12T17:00', 0, 0],
+      ['B', 'B100', '2026-01-06T08:00', '2026-01-12T17:00', '2026-01-09T10:00', '2026-01-12T17:00', 0, 0],
       ['C', 'C100', '2026-01-13T08:00', '2026-01-13T16:00', '2026-01-13T08:00', '2026-01-13T16:00', 0, 0],
     ],
   });

@@ -338,8 +338,9 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   useAppStore.getState().newDocument();
   useAppStore.getState().applyLoadedProject(singleWithoutOrigin, { filePath: null, recompute: true });
   eq('T4-19 zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', useAppStore.getState().datesAsRecorded, false);
-  ok('T4-20 …maar het aanbod verschijnt nog gewoon (recordedDates gevuld)', useAppStore.getState().recordedDates !== null);
-  eq('T4-21 …met dezelfde teller als de aan-route', useAppStore.getState().recordedDates?.shifted, 1);
+  // Eigenaarsbesluit 2026-09-24 ("beperken"): zonder herkomst ook geen aanbod meer — alleen een
+  // bron met echte rekenuitvoer (XER/P6 XML/MSPDI/.mpp, of een eigen IFC dat die bron noemt).
+  eq('T4-20 …en er is ook geen aanbod (geen herkomst ⇒ geen vastlegging)', useAppStore.getState().recordedDates, null);
 
   // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05, taak T5): 'xer-archive' —
   // wat `readIFC`'s XER-archiefreconstructie zet voor een HEROPENDE IFC — biedt de modus alleen

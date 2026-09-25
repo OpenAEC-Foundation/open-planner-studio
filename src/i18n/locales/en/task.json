@@ -465,6 +465,18 @@
       "remove": "Remove",
       "done": "Done",
       "empty": "No notes yet."
+    },
+    "splits": {
+      "title": "Breaks",
+      "after": "after",
+      "pause": "pause",
+      "add": "Add break",
+      "remove": "Remove break",
+      "readOnly": "These breaks come from the source file in a form that cannot be edited here.",
+      "removeAll": "Remove all breaks",
+      "leveling": "leveling",
+      "unitDays": "work days",
+      "unitHours": "hours"
     }
   },
   "relations": {
@@ -582,5 +594,16 @@
     "edit": "Edit external relationship…",
     "refreshSource": "Refresh source",
     "deleteRelation": "Delete relationship"
+  },
+  "split": {
+    "gapDays_one": "{{count}} workday break",
+    "gapDays_other": "{{count}} workdays break",
+    "gapHours_one": "{{count}} hour break",
+    "gapHours_other": "{{count}} hours break",
+    "pieceDays_one": "Piece: {{count}} workday",
+    "pieceDays_other": "Piece: {{count}} workdays",
+    "pieceHours_one": "Piece: {{count}} hour",
+    "pieceHours_other": "Piece: {{count}} hours",
+    "merged": "Merge"
   }
 }

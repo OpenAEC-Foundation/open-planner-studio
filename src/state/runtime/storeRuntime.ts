@@ -7,6 +7,7 @@ import {
 } from '../sessionHistory';
 import type { AppState } from '../appStore';
 import { markScheduleStale } from '../scheduleStale';
+import { markDocumentEdited } from '@/state/documentEdited';
 import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 
 /** Bestaande publieke naam; de grens wordt per session-historyscope afgedwongen. */
@@ -33,6 +34,8 @@ interface PendingDocumentMutation {
   label: string;
   coalesceKey: string | null;
   depth: number;
+  /** Er liep binnen deze open mutatie een `finishMutation` (= een echte bewerking). */
+  edited: boolean;
 }
 
 interface CoalesceMarker {
@@ -43,7 +46,9 @@ interface CoalesceMarker {
 
 export interface StoreRuntime {
   beginUndoable(state: AppState, opts?: { coalesceKey?: string; label?: string }): void;
-  finishUndoable(state: AppState): SessionHistoryEvent | null;
+  /** `nonEdit: true` ⇒ het event is geen bewerking (zie `SessionHistoryDelta.nonEdit`), tenzij er
+   *  binnen dezelfde open mutatie tóch een `finishMutation` liep. */
+  finishUndoable(state: AppState, opts?: { nonEdit?: true }): SessionHistoryEvent | null;
   finishMutation(state: AppState, opts?: { stale?: boolean }): void;
   refreshLatestDocumentDataHistoryAfter(state: AppState): boolean;
   recordDocumentDataHistory(
@@ -173,13 +178,15 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         label: opts?.label?.trim() || opts?.coalesceKey || 'Wijziging',
         coalesceKey: opts?.coalesceKey ?? null,
         depth: 1,
+        edited: false,
       });
     },
 
-    finishUndoable(state) {
+    finishUndoable(state, opts) {
       const draftKey = state as object;
       const pending = pendingByDraft.get(draftKey);
       if (!pending) return null;
+      const nonEdit = opts?.nonEdit === true && !pending.edited;
       if (pending.depth > 1) {
         pending.depth--;
         return null;
@@ -202,6 +209,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
         documentId: pending.documentId,
         before: pending.before,
         after,
+        ...(nonEdit ? { nonEdit: true as const } : {}),
       }], activeHistorySession ?? undefined);
       coalesce = pending.coalesceKey && event
         ? { key: pending.coalesceKey, eventId: event.id, documentId: pending.documentId }
@@ -210,7 +218,9 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     },
 
     finishMutation(state, opts) {
-      state.isDirty = true;
+      const pending = pendingByDraft.get(state as object);
+      if (pending) pending.edited = true;
+      markDocumentEdited(state);
       if (opts?.stale && state.datesAsRecorded) {
         state.datesAsRecorded = false;
         state.recordedDates = null;

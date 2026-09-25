@@ -125,8 +125,11 @@ export interface TaskSplitGap {
    *  nieuwe nivellering, gewist door "nivellering wissen"/"alles terugdraaien"
    *  (`clearLevelingGaps`, `taskDefaults.ts`), en gewist zodra de tijdbasis van de taak wijzigt (een
    *  gat op een verouderde as is geen planning maar ruis — de WIRING van die laatste invalidatie is
-   *  etappe 3). Afwezig ⇒ byte-identiek voor elk bestaand bestand. */
-  source?: 'leveling';
+   *  etappe 3). Afwezig ⇒ byte-identiek voor elk bestaand bestand. `'user'` = door de gebruiker
+   *  gemaakt of bewerkt (eigenschappenpaneel/Gantt/MCP, issue #146): wordt NOOIT door de
+   *  nivelleerder of "nivellering wissen" aangeraakt, en `rescaleSplitGaps` snapt zo'n gat bij een
+   *  duurwijziging op de eenheid van de taak (hele werkdag, of een uur bij een urentaak). */
+  source?: 'leveling' | 'user';
 }
 
 /**

@@ -136,6 +136,7 @@ const gestureStarts = new Set([
   'startBoxSelect',
   'startRowDrag',
   'startDepDraw',
+  'startSplitGesture',
 ]);
 
 for (const file of sourceFiles(componentsRoot)) {

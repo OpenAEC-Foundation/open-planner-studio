@@ -1,11 +1,11 @@
 // Bewerkmodel van het rekenprofielblok (rekenprofielen, spec v3.1 §3.2/§6; plan taak D2). Exit 0 = groen.
 // Verwachtingen met de hand afgeleid uit de spec en het register (geen gekopieerde uitvoer).
 import {
-  PER_FILE_CONVENTION_KEYS, choiceOf, selectProfile, editConvention, renameProfile, resetConventionToBase, profileLabel, templateRelation,
+  choiceOf, selectProfile, editConvention, renameProfile, resetConventionToBase, profileLabel, templateRelation,
   totalFloatModeToUi, totalFloatModeFromUi, withCriticalMode, withCriticalThreshold, withDefaultOptions, sameSettings,
   hasValidProfileName,
 } from '@/state/schedulingProfileDraft';
-import { CONVENTIONS, builtInProfile, defaultOptionsFor, resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { builtInProfile, defaultOptionsFor, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { SchedulingProfile } from '@/types/project';
 
 const diffs: string[] = [];
@@ -14,7 +14,9 @@ const eq = (label: string, got: unknown, want: unknown) => {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
-const xerP6: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
+// Een ingebouwd P6-profiel met een afwijking op A19 (zo leest een pset van vóór 2026-09-24 van een
+// leeg/N-bestand: A19 uit, terwijl de P6-basis nu aan is).
+const xerP6: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: false } };
 const own: SchedulingProfile = { baseId: 'p6', id: 'prof-own', name: 'Eigen', overrides: { clampNegativeFreeFloat: false } };
 const copy = { id: 'prof-new', name: 'Kopie van Primavera P6' };
 
@@ -23,13 +25,13 @@ eq('02 keuzewaarde sjabloon', choiceOf(own, [own]), 'template:prof-own');
 eq('03 keuzewaarde los eigen profiel', choiceOf(own, []), 'current');
 eq('04 afwezig = ops', choiceOf(undefined, []), 'builtin:ops');
 eq('05 wissel bewaart overrides op een ingebouwd id letterlijk (spec §3.2)', selectProfile(xerP6, 'builtin:msproject', []),
-  { baseId: 'msproject', id: 'msproject', name: '', overrides: { p6UseRemainingStartForProgress: true } });
-eq('06 wissel vanaf een eigen profiel zonder bestandswaarde = kale basis', selectProfile(own, 'builtin:p6', []), builtInProfile('p6'));
+  { baseId: 'msproject', id: 'msproject', name: '', overrides: { p6UseRemainingStartForProgress: false } });
+eq('06 wissel vanaf een eigen profiel = kale basis', selectProfile(own, 'builtin:p6', []), builtInProfile('p6'));
 eq('07 wissel naar schone ops = afwezig', selectProfile(builtInProfile('p6'), 'builtin:ops', []), undefined);
 const fromTemplate = selectProfile(undefined, 'template:prof-own', [own]);
 eq('08 sjabloon wordt gekopieerd (eigen kopie op het project)', [fromTemplate, fromTemplate === own], [own, false]);
 eq('09 conventie wijzigen op ingebouwd ⇒ eigen kopie', editConvention(xerP6, 'clampNegativeFreeFloat', false, copy),
-  { baseId: 'p6', id: 'prof-new', name: 'Kopie van Primavera P6', overrides: { clampNegativeFreeFloat: false, p6UseRemainingStartForProgress: true } });
+  { baseId: 'p6', id: 'prof-new', name: 'Kopie van Primavera P6', overrides: { clampNegativeFreeFloat: false, p6UseRemainingStartForProgress: false } });
 eq('10 conventie wijzigen op eigen profiel houdt het id', editConvention(own, 'p6OpenLoeTargetSpan', false, copy)?.id, 'prof-own');
 eq('11 terug naar de basiswaarde haalt de override weg', editConvention(own, 'clampNegativeFreeFloat', true, copy)?.overrides, {});
 eq('12 ongewijzigde waarde = no-op (zelfde object)', editConvention(own, 'clampNegativeFreeFloat', false, copy) === own, true);
@@ -49,7 +51,7 @@ eq('14 ingebouwd is niet hernoembaar', renameProfile(xerP6, 'Nee'), xerP6);
 eq('15 een eigen profiel mag tijdelijk leeg zijn', renameProfile(own, '   ')?.name, '');
 eq('15a leeg of alleen spaties is geen geldige naam', [hasValidProfileName(renameProfile(own, '')), hasValidProfileName({ ...own, name: '  ' })], [false, false]);
 eq('15b ingebouwd en een echte naam zijn geldig', [hasValidProfileName(undefined), hasValidProfileName(xerP6), hasValidProfileName(own)], [true, true, true]);
-eq('16 label ingebouwd met bestandsoverride = aangepast', profileLabel(xerP6), { kind: 'builtIn', baseId: 'p6', modified: true });
+eq('16 label ingebouwd met afwijking = aangepast', profileLabel(xerP6), { kind: 'builtIn', baseId: 'p6', modified: true });
 eq('17 label eigen profiel', profileLabel(own), { kind: 'custom', name: 'Eigen' });
 eq('18 sjabloonrelatie', [templateRelation(own, []), templateRelation(own, [own]),
   templateRelation({ ...own, overrides: {} }, [own])], ['none', 'same', 'deviates']);
@@ -79,19 +81,17 @@ eq('24 sameSettings negeert sleutelvolgorde en normaliseert ops',
 eq('24a sameSettings ziet een echte optiewijziging', sameSettings({ profile: undefined, options: { lagCalendar: 'successor' } },
   { profile: undefined, options: { lagCalendar: 'predecessor' } }), false);
 
-// ── Open punt uit M1 (orkestrator, 2026-09-22 22:40): een wissel VANAF een eigen profiel verliest via
-// `switchProfile` alle afwijkingen, dus ook de bestandswaarde A19 (`rem_target_link_flag`). Het
-// bewerkmodel draagt de per-bestand-conventies zelf over.
-eq('25 per-bestand-conventies = het register (perFile)', PER_FILE_CONVENTION_KEYS, CONVENTIONS.filter(d => d.perFile).map(d => d.id));
-// Een "Kopie van P6" ná een handmatige wijziging op een XER-project draagt A19 uit het bestand.
+// ── Geen per-bestand-conventies meer (eigenaarsbesluit 2026-09-24 "a") ───────────────────────────
+// Tot 2026-09-24 droeg het bewerkmodel A19 (uit `rem_target_link_flag`) bij elke wissel over, ook
+// vanaf een eigen profiel en bij een sjabloonkeuze. Nu is A19 een gewone P6-conventie (aan in P6):
+// een wissel vanaf een eigen profiel levert de kale basis, een sjabloonkeuze exact het sjabloon.
 const ownFromXer = editConvention(xerP6, 'clampNegativeFreeFloat', false, copy);
-eq('26 eigen kopie → P6: A19 uit het bestand blijft, de handmatige wijziging niet', selectProfile(ownFromXer, 'builtin:p6', []),
-  { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } });
-eq('27 eigen kopie → MS Project: A19 blijft als afwijking', selectProfile(ownFromXer, 'builtin:msproject', []),
-  { ...builtInProfile('msproject'), overrides: { p6UseRemainingStartForProgress: true } });
-eq('28 eigen kopie → OPS: A19 blijft, dus niet het standaardprofiel', selectProfile(ownFromXer, 'builtin:ops', []),
-  { ...builtInProfile('ops'), overrides: { p6UseRemainingStartForProgress: true } });
-eq('29 heen en terug: P6 (aangepast) → kopie → P6 = het origineel', selectProfile(ownFromXer, 'builtin:p6', []), xerP6);
+eq('26 eigen kopie → P6: kale basis (geen overdracht meer)', selectProfile(ownFromXer, 'builtin:p6', []), builtInProfile('p6'));
+eq('27 eigen kopie → MS Project: kale basis', selectProfile(ownFromXer, 'builtin:msproject', []), builtInProfile('msproject'));
+eq('28 eigen kopie → OPS: het standaardprofiel (afwezig)', selectProfile(ownFromXer, 'builtin:ops', []), undefined);
+eq('29 A19 in de kale P6-basis aan', resolveConventions(builtInProfile('p6')).p6UseRemainingStartForProgress, true);
+eq('29a een oude A19-override true onder P6 is geen afwijking meer (geen "(aangepast)")',
+  profileLabel({ ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } }), { kind: 'builtIn', baseId: 'p6', modified: false });
 
 // ── "(aangepast)" volgt `diffAgainstBase`, niet het aantal sleutels in `overrides` ──────────────────
 // Een sleutel gelijk aan de basis (kan na een wissel of uit oudere state blijven staan) is geen afwijking.
@@ -100,15 +100,13 @@ eq('30 override gelijk aan de basis ⇒ niet aangepast',
 eq('31 afwezig profiel = OPS, niet aangepast', profileLabel(undefined), { kind: 'builtIn', baseId: 'ops', modified: false });
 
 // ── Critreview D deel 1 (orkestrator) ────────────────────────────────────────────────────────────
-// Punt 1: ook een sjabloonkeuze draagt de per-bestand-waarde (A19) van het huidige profiel over; het
-// sjabloon zelf beschrijft de school, dus de relatie blijft 'same'.
+// Punt 1 (vervallen 2026-09-24): een sjabloonkeuze levert exact het sjabloon, ook op een project met
+// een A19-afwijking.
 const templateOnXer = selectProfile(xerP6, 'template:prof-own', [own]);
-eq('32 sjabloonkeuze op een XER-project houdt A19 uit het bestand', templateOnXer,
-  { baseId: 'p6', id: 'prof-own', name: 'Eigen', overrides: { clampNegativeFreeFloat: false, p6UseRemainingStartForProgress: true } });
-eq('33 …en telt dan niet als afwijking van het sjabloon', templateRelation(templateOnXer, [own]), 'same');
-const templateWithA19: SchedulingProfile = { ...own, overrides: { ...own.overrides, p6UseRemainingStartForProgress: true } };
-eq('33a sjabloon met A19 op een project zonder: de bestandswaarde (uit) wint',
-  selectProfile(undefined, 'template:prof-own', [templateWithA19])?.overrides, { clampNegativeFreeFloat: false });
+eq('32 sjabloonkeuze = exact het sjabloon', templateOnXer, own);
+eq('33 …en de relatie is same', templateRelation(templateOnXer, [own]), 'same');
+const templateWithA19Off: SchedulingProfile = { ...own, overrides: { ...own.overrides, p6UseRemainingStartForProgress: false } };
+eq('33a sjabloonrelatie telt A19 gewoon mee', templateRelation(own, [templateWithA19Off]), 'deviates');
 
 // Punt 3: P6 → OPS → P6 houdt afwijkingen letterlijk, ook als ze onder OPS gelijk aan de basis zijn.
 const p6NoClamp: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };

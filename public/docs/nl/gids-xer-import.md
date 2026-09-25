@@ -10,10 +10,11 @@ Een `.xer`-bestand is het uitwisselingsformaat van Primavera P6. Open Planner St
 - Hoe tekencodering en de P6-getalnotatie veilig worden bepaald.
 - Wat er gebeurt als de herberekening afwijkt van de datums die Primavera zelf al had opgeslagen.
 - Wat opslaan als IFC betekent en welke P6-functies nog geen eigen rekenmodel hebben.
+- Wat er gebeurt als het bewaarde XER-bronarchief in een IFC-bestand beschadigd is.
 
 ## Openen en documenten
 
-Open een `.xer`-bestand via **Bestand → Openen** of **Ctrl+O**. Eén export kan meerdere P6-projecten bevatten. Open Planner Studio opent ieder niet-leeg huidig project als een afzonderlijk document; het document met de meeste activiteiten wordt actief. Lege projecten krijgen geen zinloos tabblad.
+Open een `.xer`-bestand via **Bestand → Openen** of **Ctrl+O**. Eén export kan meerdere P6-projecten bevatten. Open Planner Studio opent ieder niet-leeg huidig project als een afzonderlijk document; het document met de meeste activiteiten wordt actief. Lege projecten krijgen geen zinloos tabblad. Elk document heet naar de P6-projectnaam met het P6 Project-ID erachter, bijvoorbeeld "HarbourPointe Assisted Living (4408)"; heeft het project geen naam, dan zie je alleen het ID.
 
 Na één bestandsactie verschijnt één informatieve melding, ook wanneer er veel documenten openen. Die melding noemt de werkelijk gevonden en geopende projecten, lege projecten, baselines en eventuele terugvallen. Bij een volgende XER-bestandsactie krijg je opnieuw één eigen melding.
 
@@ -34,6 +35,8 @@ De import leest onder meer:
 - **Activity codes, UDF's en notities**, inclusief hun bronstructuur en koppelingen aan activiteiten.
 
 Eén kalenderregel verdient een aparte vermelding. Sommige P6-exports klemmen een aaneengesloten vrij blok op de ma–vr-as: een vrije zaterdag staat dan als dubbel record op de vrijdag ervóór, een vrije zondag op de maandag erná. Ziet de lezer dat patroon op een kalender die op zaterdag of zondag wél werkt, dan maakt hij die weekenddag alsnog vrij. Zo'n gereconstrueerde dag staat niet als record in het bestand; hij heet in de kalender "Calendar exception (weekend reconstruction)" en telt mee in de kalenderbevindingen van de openingsmelding, zodat je altijd kunt zien dát de app hier iets heeft afgeleid. De regel is afgeleid uit één bestand en slaat alleen aan bij een meerdaags blok met bewijs op het record zelf; op een gewone ma–vr-kalender verandert er niets.
+
+Ook de P6-optie **bereken totale speling ten opzichte van het projecteinde** komt mee. Heeft het project een *Must Finish By*-datum, dan wordt dat het projecteinde in Projectinfo en rekent de app de laatste datums en de speling vanaf die datum terug. Staat de optie aan maar ontbreekt die datum, dan doet de app wat Primavera dan doet: hij rekent terug vanaf het werkelijke einde van het netwerk, de laatste vroege einddatum. Het projecteinde in Projectinfo blijft in dat geval leeg; de app vult het niet meer zelf in met de laatste geplande einddatum uit het bestand. Eerder gebeurde dat wel, en dan kregen na een bewerking vrijwel alle activiteiten negatieve speling. Vul je zelf een projecteinde in, dan rekent de app vanaf die datum.
 
 De rauwe P6-brongegevens die Open Planner Studio leest, blijven onderdeel van het document. Ze reizen mee door tabwissels, undo, herstel en opslaan. Dat is iets anders dan beloven dat iedere P6-functie al een gelijkwaardig bewerk- of rekenmodel heeft: waar zo'n motor ontbreekt, bewaren we de brondata in plaats van haar stil weg te gooien.
 
@@ -79,9 +82,11 @@ door — precies zoals bij elk ander formaat. De herberekening zelf gebruikt Pri
 datums nooit als invoer: ze reizen als aparte, alleen-lezen brondata mee en worden uitsluitend gebruikt
 om te tonen wat het bestand zei, nooit om te sturen wat de app berekent. Sla je op als IFC, dan gaan Primavera's
 opgeslagen datums mee het projectbestand in — inclusief welke assen het bronbestand niet vastlegde.
-Bij het openen van dat IFC-bestand zet de app deze weergave niet uit zichzelf weer aan: je krijgt de
-melding met een knop **Opgeslagen datums tonen** en kiest zelf. Zo kan een planning die je intussen
-hebt bewerkt en opgeslagen nooit ongevraagd weer met de oude datums op het scherm komen.
+Open je dat IFC-bestand later opnieuw, dan gaat de weergave alleen vanzelf weer aan zolang je het
+project sinds de import niet hebt bewerkt (herberekenen en opslaan tellen niet als bewerking). Heb je
+wel bewerkt, dan krijg je de melding met een knop **Opgeslagen datums tonen** en kies je zelf. Zo kan
+een planning die je intussen hebt veranderd nooit ongevraagd weer met de oude datums op het scherm
+komen.
 
 Zie [Datums zoals opgeslagen](docs://datums-zoals-opgeslagen) voor de volledige uitleg van deze
 weergave, inclusief wat je wel en niet ziet zolang hij actief is en hoe je er handmatig weer uit stapt.
@@ -94,6 +99,20 @@ Die bewaarde brondata heeft een prijs bij grote bestanden. Het volledige oorspro
 
 Voor uitwisseling naar Primavera bestaat de bestaande **Primavera P6 XML**-export. Dat is een ander formaat met eigen beperkingen; zie [Im-/export](docs://gids-import-export). Bewaar daarom altijd ook het IFC-bestand wanneer je een bewerkt project later opnieuw wilt openen.
 
+### Als het bronarchief onbruikbaar is
+
+Het bewaarde XER-bronarchief in het IFC-bestand wordt bij elk openen gecontroleerd: op de controlesom van de bytes, de schemaversie, de volledigheid en de opbouw. Klopt daar iets niet, dan opent het project gewoon, maar **zonder** bronarchief. Je krijgt dan één melding met de reden. Dat gebeurt bijvoorbeeld als:
+
+- een ander IFC-programma het bestand heeft opgeslagen en daarbij de grote archiefwaarden liet vallen of de eigenschappen herschikte;
+- het bestand onderweg is afgekapt of beschadigd, zodat de controlesom niet meer klopt;
+- het archief door een nieuwere of andere versie is geschreven die deze versie niet kent.
+
+Wat blijft: de volledige planning uit het IFC. Taken, relaties, kalenders, resources, voortgang, baselines, het rekenprofiel (inclusief je eigen afwijkingen) en de reken-opties staan allemaal in het IFC zelf en worden normaal geladen en doorgerekend. Het project rekent dus met hetzelfde profiel als vóór het opslaan.
+
+Wat ontbreekt: alles wat uit het archief zelf komt. Dat zijn de weergave **datums zoals opgeslagen** (de datums die Primavera zelf berekende), de bronherkomst voor de AI-assistent en de bronroute voor extensies. De AI-assistent en extensies zien dan niet "geen XER-bron", maar dat er een archief was dat bij het openen onbruikbaar bleek, met de reden.
+
+Wat je kunt doen: open het oorspronkelijke `.xer`-bestand opnieuw. Dan krijg je een nieuw document mét bronarchief. Heb je in het IFC al bewerkingen gedaan, dan staan die niet in dat nieuwe document. Let op: sla je het IFC zonder archief op, dan schrijft Open Planner Studio het bestand zonder archief. Het beschadigde archief wordt niet meegeschreven, en bij een volgend openen verschijnt de melding niet meer.
+
 ## Grenzen die zichtbaar blijven
 
 Een paar P6-begrippen zijn al opgeslagen, maar hebben nog geen volledig gelijkwaardig rekenmodel:
@@ -102,7 +121,6 @@ Een paar P6-begrippen zijn al opgeslagen, maar hebben nog geen volledig gelijkwa
 - Een P6-resourcecurve met 21 punten wordt als bronverdeling bewaard. Een herkenbare vorm kan voor het histogram naar de dichtstbijzijnde ingebouwde curve worden vertaald, maar de oorspronkelijke 21-puntsvorm wordt na een bewerking nog niet opnieuw berekend.
 - **Nivelleerinstellingen** uit P6 (bewaren van geplande datums, welke resources, de prioriteitslijst) worden gelezen en in het projectbestand bewaard, maar nog niet toegepast: de app nivelleert bij het berekenen niet automatisch.
 - De bestaande **P6 XML**-lezer en deze XER-lezer hebben nog niet dezelfde volledige veldendekking. XER kan daarom gegevens bevatten die P6 XML in de app nog niet leest of schrijft.
-- **Projecteinde als spelingsanker zonder einddatum.** Staat in het bestand de P6-optie "bereken totale speling ten opzichte van het projecteinde" aan, maar heeft het project géén *Must Finish By*-datum en geen enkele activiteit een geplande einddatum, dan valt het projecteinde in de app terug op de projectstart. Alle laatste datums verankeren dan daarop en vrijwel elke activiteit toont negatieve speling en staat kritiek. In het testmateriaal komt die combinatie voor in P6-exports van kleine, kaal aangemaakte projecten. De vroege datums en de weergave **datums zoals opgeslagen** kloppen wél; alleen de herberekende late kant is dan niet bruikbaar, en er is nog geen schakelaar om de optie uit te zetten. Dit staat als bekende fout geregistreerd.
 
 Deze grenzen verwijderen geen brongegevens uit het IFC-projectbestand. Als XER-specifieke brondata aanwezig is en je exporteert naar CSV, MS Project XML of Primavera P6 XML, past die broninformatie niet volledig in het doelformaat. Na een geslaagde export verschijnt daarom één informatieve melding met een link naar deze gids. Annuleer je de export of mislukt het opslaan, dan verschijnt die melding niet. De export naar IFC bewaart de XER-brondata; de andere exports nemen alleen de gegevens mee die hun eigen formaat ondersteunt. Het oorspronkelijke `.xer`-bestand wordt niet overschreven.
 

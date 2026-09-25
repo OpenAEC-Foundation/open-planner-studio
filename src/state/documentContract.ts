@@ -10,8 +10,8 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import type { ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import type { Baseline } from '@/types/baseline';
-import type { ImportResult } from '@/services/importTypes';
-import type { XerImportMetadata } from '@/services/importTypes';
+import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
+import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
@@ -93,6 +93,18 @@ export interface DocumentPayload {
    *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
    *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
   taskTypesVisible: boolean;
+  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). `true`
+   *  vanaf een verse import tot de eerste bewerking (`markDocumentEdited`); opslaan wist hem niet.
+   *  Round-tript via `OPS_ImportProvenance` (alleen als `true`), zodat een heropend eigen IFC
+   *  weet of het automatisch in "datums zoals opgeslagen" mag. Geen undo-rol: undo maakt een
+   *  bewerkt document niet weer "ongewijzigd" (conservatief — nooit een gok richting automatisch
+   *  aan). */
+  importPristine: boolean;
+  /** Eigenaarsbesluit 2026-09-24 ("openen met melding"): het XER-bronarchief was bij het openen
+   *  onbruikbaar en is weggelaten. SESSIE-ONLY: rijdt mee door documentwissel (anders zou MCP/de
+   *  extensie-API na een tabwissel weer "nooit een XER-bron" zeggen), maar staat bewust NIET in
+   *  `IFC_SAVE_KEYS` en niet in undo — er is niets om terug te schrijven, het archief is weg. */
+  xerArchiveIssue: XerArchiveIssue | null;
 }
 
 /** Per-document projectdata + metadata om bij crash-recovery te herstellen.
@@ -257,6 +269,8 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
   // Taaktypes-etappe (spec §7): sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
+  field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
+  field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
 ];
 
 // Compile-time volledigheidscheck: elke DocumentPayload-key MOET in DOCUMENT_FIELDS staan. Voeg je
@@ -299,10 +313,10 @@ type AppGlobalKey =
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
   | 'historyEvents' | 'nextHistorySequence'
-  // Extensies: app-niveau data, geen projectdata (zie CLAUDE.md, *Extensiesysteem*).
+  // Extensies: app-niveau data, geen projectdata (zie .claude/rules/extensions.md).
   | 'installedExtensions' | 'quarantinedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
   | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
-  // Resourcebibliotheek: app-globaal, net als extensies (zie CLAUDE.md, *Resourcebibliotheken*).
+  // Resourcebibliotheek: app-globaal, net als extensies (zie .claude/rules/library.md).
   | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
   // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen.
   | 'taskGridSurfaces' | 'recentTaskColumns';
@@ -440,7 +454,20 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
     // Taaktypes-etappe (spec §7): het geladen bestand ontsluit de werkregel-UI voor zichzelf.
     taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
+    // Heropen-beleid optie B: een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
+    // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
+    // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder
+    // herkomst (extensie-importer) `false`: nooit een gok richting automatisch aan.
+    importPristine: parsed.importPristine ?? isFreshImportOrigin(parsed.recordedTimesOrigin),
+    xerArchiveIssue: parsed.xerArchiveIssue ?? null,
     filePath,
     isDirty: false,
   };
+}
+
+/** Zie `ImportResult.recordedTimesOrigin`: verse import (automatisch aan bij afwijkingen) versus
+ *  heropening van een eigen IFC (alleen automatisch aan zolang `importPristine`). Eén definitie,
+ *  gedeeld door `payloadFromImport` en `applyRecordedDatesOnLoad`. */
+export function isFreshImportOrigin(origin: RecordedTimesOrigin | undefined): boolean {
+  return origin === 'xer' || origin === 'p6xml' || origin === 'mspdi' || origin === 'mpp' || origin === 'csv' || origin === 'ifc';
 }

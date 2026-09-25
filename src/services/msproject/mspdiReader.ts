@@ -65,6 +65,7 @@ import {
 import type { TaskTimephasedContour } from '@/types/task';
 import { importedWorkFields, mspTaskTypeFromCode } from '@/engine/work/workRuleMapping';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
+import { buildRecordedTime, leafRecordedTimes, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 /** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
 const MSP_TIME_ANCHOR = '08:00:00';
@@ -370,6 +371,8 @@ export function readMSPDI(content: string): ImportResult {
   // Parse tasks
   const taskElements = root.getElementsByTagName('Task');
   const tasks: Task[] = [];
+  /** Zie de toelichting bij de vastlegging in de taaklus. */
+  const recordedTimes: Record<string, RecordedTime> = {};
   const customTaskTypes = new Map<string, CustomTaskType>();
   const uidToId = new Map<number, string>();
   const uidToWbs = new Map<number, string>();
@@ -455,6 +458,34 @@ export function readMSPDI(content: string): ImportResult {
       : parseMSPDuration(durationStr, effHpd);
     const start = isHour ? parseMSPInstant(getElementText(te, 'Start')) : parseMSPDate(getElementText(te, 'Start'));
     const finish = isHour ? parseMSPInstant(getElementText(te, 'Finish')) : parseMSPDate(getElementText(te, 'Finish'));
+
+    // "Datums zoals opgeslagen" voor MSPDI (eigenaarsbesluit 2026-09-09): MS Project's EIGEN
+    // rekenuitvoer — `EarlyStart`/`EarlyFinish` (terugval `Start`/`Finish`), `LateStart`/
+    // `LateFinish`, `TotalSlack`/`FreeSlack` (tienden van een minuut) en `Critical` (0/1) — als
+    // apart kanaal (`ImportResult.recordedTimes`), nooit solverinvoer; `task.time` hieronder blijft
+    // byte-identiek. Ontbrekende assen ontbreken.
+    {
+      const recordedDate = (raw: string): string | undefined =>
+        raw ? (isHour ? parseMSPInstant(raw) : parseMSPDate(raw)) : undefined;
+      const slackDays = (raw: string): number | undefined => {
+        if (!raw) return undefined;
+        const tenths = Number.parseFloat(raw);
+        return Number.isFinite(tenths) ? recordedFloatDays(tenths / 10, effHpd * 60) : undefined;
+      };
+      const criticalRaw = getElementText(te, 'Critical');
+      const earlyStartRaw = getElementText(te, 'EarlyStart');
+      const earlyFinishRaw = getElementText(te, 'EarlyFinish');
+      const recorded = buildRecordedTime({
+        start: earlyStartRaw ? recordedDate(earlyStartRaw) : (getElementText(te, 'Start') ? start : undefined),
+        finish: earlyFinishRaw ? recordedDate(earlyFinishRaw) : (getElementText(te, 'Finish') ? finish : undefined),
+        lateStart: recordedDate(getElementText(te, 'LateStart')),
+        lateFinish: recordedDate(getElementText(te, 'LateFinish')),
+        totalFloat: slackDays(getElementText(te, 'TotalSlack')),
+        freeFloat: slackDays(getElementText(te, 'FreeSlack')),
+        isCritical: criticalRaw === '1' ? true : criticalRaw === '0' ? false : undefined,
+      });
+      if (recorded) recordedTimes[id] = recorded;
+    }
     const isMilestone = getElementInt(te, 'Milestone') === 1;
     // T4 (§9/O6-vervolg) — MSPDI-spiegel van mppReader.ts's T11-afleiding (`fb385191` + de
     // her-reviewfix `c0c2cd27`, niet geëxporteerd daar, dus hier lokaal herhaald in
@@ -778,6 +809,11 @@ export function readMSPDI(content: string): ImportResult {
     activeBaselineId,
     // Rekenprofielen (spec v3.1 §6): MSPDI opent in deze etappe als OPS (C10 wacht op een besluit).
     suggestedProfileId: 'ops',
+    // Critreview PR #167, bevinding 6: alleen bladtaken — zie `leafRecordedTimes`.
+    ...(() => {
+      const leafTimes = leafRecordedTimes(tasks, recordedTimes);
+      return Object.keys(leafTimes).length > 0 ? { recordedTimes: leafTimes, recordedTimesOrigin: 'mspdi' as const } : {};
+    })(),
   };
 }
 

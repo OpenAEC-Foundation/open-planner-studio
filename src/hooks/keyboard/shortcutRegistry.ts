@@ -281,7 +281,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     run: (store) => {
       store.deselectAll();
       store.setUI({
-        showTaskDialog: false, editingTaskId: null, showDependencyMode: false,
+        showTaskDialog: false, editingTaskId: null, showDependencyMode: false, showSplitMode: false,
         showProjectOverview: false, pendingCloseDocId: null, traceMode: 'off',
       });
     },

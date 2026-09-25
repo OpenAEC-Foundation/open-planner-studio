@@ -108,11 +108,18 @@ export interface SchedulingOptions {
   p6PreserveActualInstants?: boolean;
   /** XER/P6 bewaart Actual Start als historie, maar de zesassige Early/Late Start van een lopende
    *  activiteit beschrijft de start van het resterende werk (`max(statusdatum, relatiegrens)`).
-   *  Alleen het XER-importpad zet deze bronvlag; andere formaten blijven hun bestaande zichtbare
+   *  Onder het MS Project- en OPS-profiel blijven lopende taken hun bestaande zichtbare
    *  actual-startvenster gebruiken.
    *  A19 — conventie (spec v3); sinds rekenprofielen baan B is de vlag zelf de conventie, zonder
-   *  bronpoort. P6 uit (standaard; de XER-lezer zet hem per bestand als override uit
-   *  `rem_target_link_flag`) / MS Project uit / OPS uit.
+   *  bronpoort. P6 AAN / MS Project uit / OPS uit — sinds 2026-09-24 (eigenaarsbesluit "a",
+   *  Fable-critreview PR #169 bevinding 2): in de zeven P6-doorgerekende bestanden hebben alle 60
+   *  lopende taken `early_start_date == restart_date`, 0× `== act_start_date`. Tot dan was de P6-basis
+   *  uit en zette de XER-lezer A19 per bestand aan bij `PROJECT.rem_target_link_flag` = Y; die koppeling
+   *  was nooit getoetst (corpus: Y = 62, N = 0, leeg = 40 projecten, alle lege zonder P6-uitvoer) en is
+   *  vervallen: de lezer leest de vlag alleen nog als diagnose. [VERMOED · hoog, Oracle-doc niet
+   *  geraadpleegd] het P6-veld is `LinkPlannedAndAtCompletionFlag`, een eenheden-/kostenkoppeling en
+   *  geen datumregel. Of een P6-bestand dat écht anders rekent bestaat, is onbekend: er is geen
+   *  P6-doorgerekend bestand met N.
    *  Late kant (X12 brok 6, 2026-09-23) — de restduurregel: P6 plant een lopende activiteit op haar
    *  RESTduur ("The total working time from the activity remaining start date to the remaining finish
    *  date", Oracle P6 Help, Durations Columns, https://docs.oracle.com/cd/F37125_01/p6help/en/47223.htm).
@@ -123,8 +130,9 @@ export interface SchedulingOptions {
    *  OCEC11731 (lopend, rest 0) —SS+70 h→ OCEC12121 (LS 08-18 16:00) ⇒ P6 LS = LF = 08-18 16:00, met het
    *  CP_Phys-punt OCEC11721 ervóór (5 cellen, 0 slechter, X12 298 → 293). De 7 andere lopende
    *  SS-voorgangers in het corpus hebben rest = gepland en onderscheiden de varianten niet. SF valt er
-   *  bewust buiten (geen enkel geval, niet gepind). [VERMOED] dat de regel alleen onder
-   *  `rem_target_link_flag`=N (A19 aan) geldt: de koppeling aan deze vlag is ongetoetst. */
+   *  bewust buiten (geen enkel geval, niet gepind). Het ene bewijsbestand heeft
+   *  `rem_target_link_flag` = Y; of de regel ook bij een andere waarde van die vlag geldt, is ongetoetst
+   *  (er is geen P6-doorgerekend bestand met N). */
   p6UseRemainingStartForProgress?: boolean;
   /** XER/P6: een datetime-SNLT/MSO/FNLT/MFO op een nulduurmijlpaal is een exact bronpunt,
    *  ook wanneer dat punt de inclusieve start van een werkband is. Default uit.
@@ -133,10 +141,15 @@ export interface SchedulingOptions {
   p6PreserveZeroDurationConstraintInstants?: boolean;
   /** XER/P6: gebruik PROJECT.plan_end_date als late-pass-anker wanneer
    *  SCHEDOPTIONS.sched_use_project_end_date_for_float=Y. De datum zelf blijft project.endDate;
-   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit. Zonder
-   *  plan_end_date valt de lezer terug op het taak-afgeleide einde (max target_end_date); heeft het
-   *  bestand ook geen enkele target_end_date, dan zet de lezer de vlag gerapporteerd uit (X12-brok 1,
-   *  plan XER §9) zodat de solver op max(EF) verankert zoals P6 zonder Must Finish By. */
+   *  deze vlag bepaalt uitsluitend of de solver hem voor float gebruikt. Default uit.
+   *  Zonder `plan_end_date` vult de lezer géén verzonnen einde in (eigenaarsbesluit 2026-09-24 "eigen
+   *  PR", Fable-critreview PR #109 bevinding 2): `project.endDate` blijft leeg, de vlag blijft aan als
+   *  het bestand `Y` zegt, en `withEffectiveProjectEndAnchor` (CPMSolver) laat de solver dan exact op
+   *  het netwerkeinde, max(EF), rekenen alsof de vlag uit staat — zoals P6 zonder "Must Finish By".
+   *  Heeft het bestand ook geen enkele `target_end_date`, dan zet de lezer de vlag bovendien
+   *  gerapporteerd uit (X12-brok 1, plan XER §9). Gemeten: op de #169-kop 0 cellen verschil; op de
+   *  oude #109-basis maskeerde het verzonnen anker een fout aan de vroege kant (149 cellen), daarom
+   *  landt dit ná de rekenprofielen. */
   useProjectEndDateForFloat?: boolean;
   /** Near-critical-drempel in werkdagen (fractioneel in uur-modus). Default undefined ⇒ feature uit. */
   nearCriticalThreshold?: number;
@@ -504,6 +517,11 @@ export interface SchedulingOptions {
    *    en CP_Phys is een beschermgrens vanwege DCP-03 As-Built, geen bewezen P6-onderscheid. Dat
    *    onderscheid kan net zo goed in het duurtype zitten (B3 eist `DT_FixedDUR2`, As-Built is
    *    `DT_FixedDrtn`). [VERMOED] C5 kent geen Progress-Override-poort, C4 wel; zie plan §9.
+   *    Voorbehoud (eigenaarsbesluit 2026-09-24, "smal"): gemeten op CP_Phys; CP_Drtn/CP_Units NIET
+   *    gemeten — het corpus bevat geen P6-doorgerekend bestand met voltooide CP_Drtn-taken (élke voltooide
+   *    orakeltaak is CP_Phys: Roads 157, HarbourPointe 18, OZB 17; Hotel/Sample/ashspace 0), en P6's
+   *    standaard is CP_Drtn. De poort blijft daarom smal; meten zodra zo'n bestand er is. Gepind in
+   *    `check-conventions-p6-flags.ts` ("C5 poort: CP_Drtn doet niet mee" en de As-Built-casus V1–V3).
    *    Vrije-spelingkant (X12 brok 8, 2026-09-23; `scheduleAnalysis.computeScheduleResults`): een punt heeft
    *    geen relatiegrens naar zijn voorgangers, dus over een FS0-relatie naar een punt telt de vrije speling
    *    van de voorganger in haar eigen kalender tot dat punt (niet de terugval 0). Gemeten: in de

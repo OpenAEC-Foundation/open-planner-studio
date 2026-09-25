@@ -60,12 +60,6 @@ export interface ConventionDescriptor {
   /** Was deze conventie vóór de rekenprofielen alleen actief onder de XER-bronmarkering? Zo ja, dan
    *  was een losse vlag zonder die markering inert en gooit de legacy-migratie hem weg (risico 1). */
   gatedByP6Source: boolean;
-  /** BESCHRIJVEND: komt de waarde per BESTAND uit de bron (A19 uit `rem_target_link_flag`), niet uit
-   *  de school? Het register is hiervoor de ene bron; het bewerkmodel (`PER_FILE_CONVENTION_KEYS` in
-   *  `state/schedulingProfileDraft.ts`) leidt er zijn lijst uit af en draagt zulke waarden bij elke
-   *  profielwissel over. `switchProfile` beslist hier bewust NIET op (baan A misbruikte het veld
-   *  daarvoor; op een ingebouwd id blijven alle afwijkingen letterlijk staan, ongeacht dit veld). */
-  perFile: boolean;
   /** i18n-sleutel (namespace common): `<labelKey>.label` / `<labelKey>.help`. De vertalingen komen
    *  met het profielpaneel; deze baan legt alleen de sleutelnaam vast. */
   labelKey: string;
@@ -94,10 +88,10 @@ const SINCE = '2026-09-22';
 
 function convention(
   id: ConventionKey, group: 'A' | 'B' | 'C', theme: ConventionTheme, builtIn: Record<BuiltInProfileId, boolean>,
-  gatedByP6Source: boolean, perFile = false, since = SINCE,
+  gatedByP6Source: boolean, since = SINCE,
 ): ConventionDescriptor {
   return {
-    id, kind: 'boolean', builtIn, group, theme, legacyValue: builtIn.ops, gatedByP6Source, perFile,
+    id, kind: 'boolean', builtIn, group, theme, legacyValue: builtIn.ops, gatedByP6Source,
     labelKey: `conventions.${id}`, since,
   };
 }
@@ -116,8 +110,10 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   convention('p6UseTaskPlannedStartFloor', 'A', 'instants', P6_ONLY, true),                    // A16 de geplande start uit het bestand blijft als ondergrens staan
   convention('p6FinishMilestoneBoundaryWindow', 'A', 'milestones', NONE, true),                // A17 (P6: uit) eindmijlpaal op twee grenzen
   convention('p6PreserveActualInstants', 'A', 'instants', P6_ONLY, true),                      // A18 werkelijke tijdstippen letterlijk, niet naar een band
-  // A19: per bestand (`rem_target_link_flag`); de P6-basis is uit, de XER-lezer zet hem als override.
-  convention('p6UseRemainingStartForProgress', 'A', 'completedWork', NONE, true, true),        // A19 (per bestand) vroege start van een lopende taak = restwerk
+  // A19: sinds 2026-09-24 gewoon aan in P6 (eigenaarsbesluit "a", Fable-critreview PR #169 bevinding 2):
+  // in alle P6-doorgerekende bestanden heeft elke lopende taak early_start == restart_date. Het
+  // per-bestand-mechanisme uit `rem_target_link_flag` is vervallen (die koppeling was nooit getoetst).
+  convention('p6UseRemainingStartForProgress', 'A', 'completedWork', P6_ONLY, true),           // A19 vroege start van een lopende taak = restwerk
   convention('p6PreserveZeroDurationConstraintInstants', 'A', 'instants', P6_ONLY, true),      // A20 constraintmoment exact; tijdstip boven mijlpaal: de regel gaat over het moment
   convention('resumeFromActualElapsed', 'A', 'msproject', MSP_ONLY, false),                    // A22 MS Project-voortgang
   convention('unstartedIgnoresStatusDate', 'A', 'msproject', MSP_ONLY, false),                 // A23 MS Project-voortgang
@@ -131,20 +127,20 @@ export const CONVENTIONS: readonly ConventionDescriptor[] = [
   // op die populatie 0 effect, alleen rehab-2 = P3-uitvoer droeg ze). C3 blijft in P6 aan: C5 rekent
   // de lag tussen zijn statusdatumpunt en een opvolger met rekenregel C3, en C3 uit kost 640 exacte
   // cellen in Roads (503) en HarbourPointe (137), gemeten 2026-09-23 (regel A).
-  convention('p6CompletedPredecessorAtDataDate', 'C', 'completedWork', NONE, false, false, SINCE_X12_BROK2),     // C1 voltooide voorganger na de statusdatum
-  convention('p6FreeFloatOnOwnCalendar', 'C', 'float', P6_ONLY, false, false, SINCE_X12_BROK2),                  // C2 vrije speling per kalender
-  convention('p6CompletedRemainingLag', 'C', 'relationsLag', P6_ONLY, false, false, SINCE_X12_BROK2),            // C3 de LAG na een voltooide voorganger (naast C6)
-  convention('p6CompletedOutOfSequenceWindow', 'C', 'completedWork', NONE, false, false, SINCE_X12_BROK3),       // C4 voltooide taak buiten volgorde
-  convention('p6CompletedPhysicalAtDataDate', 'C', 'completedWork', P6_ONLY, false, false, SINCE_X12_BROK3),     // C5 voltooide fysieke-voortgangstaak
-  convention('p6InProgressStartLagElapsed', 'C', 'relationsLag', P6_ONLY, false, false, SINCE_X12_BROK3),        // C6 de start-startlag uit een lopende voorganger
-  convention('p6FinishFinishStartMilestoneLateFinish', 'C', 'milestones', P6_ONLY, false, false, SINCE_X12_BROK4), // C7 eind-eindrelatie naar een startmijlpaal: het doel is de mijlpaal
-  convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', 'completedWork', P6_ONLY, false, false, SINCE_X12_BROK4), // C8 lopende taak (tegenhanger van A16)
-  convention('p6LateFinishOnOwnCalendar', 'C', 'float', P6_ONLY, false, false, SINCE_X12_BROK6),                 // C9 late finish ⇒ de speling
+  convention('p6CompletedPredecessorAtDataDate', 'C', 'completedWork', NONE, false, SINCE_X12_BROK2),     // C1 voltooide voorganger na de statusdatum
+  convention('p6FreeFloatOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK2),                  // C2 vrije speling per kalender
+  convention('p6CompletedRemainingLag', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK2),            // C3 de LAG na een voltooide voorganger (naast C6)
+  convention('p6CompletedOutOfSequenceWindow', 'C', 'completedWork', NONE, false, SINCE_X12_BROK3),       // C4 voltooide taak buiten volgorde
+  convention('p6CompletedPhysicalAtDataDate', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK3),     // C5 voltooide fysieke-voortgangstaak; alleen CP_Phys gemeten (besluit 24-09 smal)
+  convention('p6InProgressStartLagElapsed', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK3),        // C6 de start-startlag uit een lopende voorganger
+  convention('p6FinishFinishStartMilestoneLateFinish', 'C', 'milestones', P6_ONLY, false, SINCE_X12_BROK4), // C7 eind-eindrelatie naar een startmijlpaal: het doel is de mijlpaal
+  convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK4), // C8 lopende taak (tegenhanger van A16)
+  convention('p6LateFinishOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK6),                 // C9 late finish ⇒ de speling
   // C10 bestaat niet in het register: plan XER §9 noemde de ALAP-conventie zo; ze staat hieronder als C14.
-  convention('p6ProgressOverrideIgnoresStartedSuccessor', 'C', 'completedWork', P6_ONLY, false, false, SINCE_X12_BROK8), // C11 voortgangsinstelling Progress Override
-  convention('p6FinishNotBeforeFinishFinishBound', 'C', 'relationsLag', P6_ONLY, false, false, SINCE_X12_BROK8),        // C12 eind-eindgrens
+  convention('p6ProgressOverrideIgnoresStartedSuccessor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK8), // C11 voortgangsinstelling Progress Override
+  convention('p6FinishNotBeforeFinishFinishBound', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK8),        // C12 eind-eindgrens
   // C13 is geen registerconventie (brok 8: een regel binnen C5). C14 = plan XER §9 "C10".
-  convention('p6AlapPositionedFromSuccessors', 'C', 'float', P6_ONLY, false, false, SINCE_X12_BROK10),      // C14 ALAP-taak zo laat als de opvolgers toestaan
+  convention('p6AlapPositionedFromSuccessors', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK10),      // C14 ALAP-taak zo laat als de opvolgers toestaan
 ];
 
 // ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
@@ -171,11 +167,11 @@ type Overlap = Extract<ProjectOptionKey, ConventionKey>;
 const _disjoint: [Overlap] extends [never] ? true : Overlap = true;
 void _disjoint;
 
-/** Staat de conventie in ÉLK ingebouwd profiel uit (en komt ze niet per bestand)? Dan is ze alleen in een
+/** Staat de conventie in ÉLK ingebouwd profiel uit? Dan is ze alleen in een
  *  eigen profiel aan te zetten; de UI zet ze in een aparte laatste groep. Afgeleid, dus een besluit dat
  *  een conventie in het P6-profiel uitzet (vraag 7) verplaatst haar vanzelf. */
 export const isOffInEveryBuiltIn = (d: ConventionDescriptor): boolean =>
-  !d.perFile && BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id]);
+  BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id]);
 
 const CONVENTION_KEY_SET: ReadonlySet<string> = new Set(CONVENTION_KEYS);
 export const isConventionKey = (key: string): key is ConventionKey => CONVENTION_KEY_SET.has(key);

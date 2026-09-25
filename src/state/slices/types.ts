@@ -230,6 +230,10 @@ export type NotificationMessageKey =
   // projecten — zie `xerImportNotice`/`applyOpenedImport`).
   | 'notifications.xerImportDatesAsRecorded'
   | 'notifications.xerImportDatesAsRecordedOffer'
+  // Eigenaarsbesluit 2026-09-09 ("elk formaat zoals XER"): dezelfde twee regels, formaatneutraal,
+  // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
+  | 'notifications.importDatesAsRecorded'
+  | 'notifications.importDatesAsRecordedOffer'
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
@@ -251,7 +255,23 @@ export type NotificationMessageKey =
   | 'notifications.workRulesReadMore'
   // Eigenaarsbesluit 2026-09-05 (K2): een kalenderwissel loopt door de werkregel; wanneer dat de
   // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
-  | 'notifications.workRuleDurationsChanged';
+  | 'notifications.workRuleDurationsChanged'
+  // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
+  // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
+  | 'notifications.exportSplitsLost'
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is bij het
+  // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
+  // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
+  // de melding als detail in een bestaande bestandsmelding landt.
+  | 'notifications.xerArchiveUnusable'
+  | 'notifications.xerArchiveUnusableLine'
+  | 'notifications.xerArchiveUnusableConsequence'
+  | 'notifications.xerArchiveReasonSchemaVersion'
+  | 'notifications.xerArchiveReasonHashMismatch'
+  | 'notifications.xerArchiveReasonTruncated'
+  | 'notifications.xerArchiveReasonBytesMissing'
+  | 'notifications.xerArchiveReasonMetadataInvalid'
+  | 'notifications.xerArchiveReasonStructure';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
@@ -319,6 +339,12 @@ export interface UIState {
    *  NB: het vroegere `dependencySourceId` is bewust weg — dat veld werd alleen geschreven en
    *  nergens gelezen (dezelfde bevinding als de dode modus zelf). */
   showDependencyMode: boolean;
+  /** Splits-modus (issue #146, etappe 2): dezelfde vorm als de relatiemodus hierboven. Staat hij
+   *  aan, dan begint een sleep vanaf een balk een ONDERBREKING: klikken op de dag waar de pauze
+   *  begint, naar rechts slepen voor de lengte. Gelezen door `GanttCanvas` (mousedown-hittest +
+   *  cursor) en door `SplitModeNotice`; Escape en de lint-knop zetten hem uit. De twee modi sluiten
+   *  elkaar uit — `setUI` dwingt dat af, want beide kapen dezelfde sleep vanaf een balk. */
+  showSplitMode: boolean;
   showProjectSettings: boolean;
   showProjectInfoDialog: boolean;
   leftPanelWidth: number;

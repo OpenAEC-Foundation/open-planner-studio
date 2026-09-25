@@ -57,6 +57,10 @@
     "xerImportDatesAsRecorded_other": "{{count}} görev, Primavera'nın kaydettiği tarihleri gösteriyor (yeniden hesaplanmadı).",
     "xerImportDatesAsRecordedOffer_one": "{{count}} görev, dosyada kayıtlı tarihlerden farklı — bunları gösterebilirsiniz.",
     "xerImportDatesAsRecordedOffer_other": "{{count}} görev, dosyada kayıtlı tarihlerden farklı — bunları gösterebilirsiniz.",
+    "importDatesAsRecorded_one": "{{count}} görev, dosyada kayıtlı tarihleri gösteriyor (yeniden hesaplanmadı).",
+    "importDatesAsRecorded_other": "{{count}} görev, dosyada kayıtlı tarihleri gösteriyor (yeniden hesaplanmadı).",
+    "importDatesAsRecordedOffer_one": "{{count}} görev, dosyada kayıtlı tarihlerden farklı — bunları gösterebilirsiniz.",
+    "importDatesAsRecordedOffer_other": "{{count}} görev, dosyada kayıtlı tarihlerden farklı — bunları gösterebilirsiniz.",
     "xerExportLoss": "{{format}} biçimine dışa aktarma XER kaynak bilgilerini kaybeder.",
     "mppLegacy": "Bu .mpp dosyası eski bir biçim kullanıyor (Project 2007 veya daha eski). MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
     "mppEncrypted": "Bu .mpp dosyası parola ile korunuyor. MS Project'te XML olarak dışa aktarın (Dosya → Farklı Kaydet → XML) ve o dosyayı açın.",
@@ -78,6 +82,8 @@
     "relationsSkippedOnInsert_other": "{{count}} ilişki oluşturulmadı: geçersiz bağlantı (örneğin bir görevin kendi üst özet görevine bağlanması veya yinelenen bir ilişki).",
     "mppSourceScheduleNotes_one": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
     "mppSourceScheduleNotes_other": "Bu MS Project dosyası, bölünmüş, dengelenmiş veya kaynak odaklı planlanmış {{count}} görev içeriyor. Böyle içe aktarılır ve gösterilir.",
+    "exportSplitsLost_one": "Kesintili {{count}} görev kesintileri olmadan dışa aktarıldı: MS Project/P6 bunları yalnızca iş dağılımı olarak tanır.",
+    "exportSplitsLost_other": "Kesintili {{count}} görev kesintileri olmadan dışa aktarıldı: MS Project/P6 bunları yalnızca iş dağılımı olarak tanır.",
     "projectStartAnchorsClamped_one": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "projectStartAnchorsClamped_other": "Proje başlangıcı taşındı: öncülü veya kısıtlaması olmayan {{count}} görev çıpası yeni başlangıç tarihine kaydırıldı.",
     "mppTimephasedSteeringLost_one": "MS Project'ten gelen saat dağılımı bu düzenlemeden sonra {{count}} görevi artık yönlendirmiyor; özgün dağılım dosyada saklı kalıyor.",
@@ -98,7 +104,16 @@
     "schedulingProfileShifted_other": "Uygulamadan sonra {{count}} görev kaydı.",
     "actions": {
       "openProjectInfo": "Hesaplama profilini aç"
-    }
+    },
+    "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
+    "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",
+    "xerArchiveUnusableConsequence": "IFC'deki çizelge, hesaplama profili ve tüm proje verileri eksiksiz. Eksik olanlar: Primavera'nın kaydettiği haliyle tarihler ve yapay zekâ ile uzantılar için kaynak kökeni. Kaydetme dosyayı arşiv olmadan yazar; arşivi geri almak için orijinal .xer dosyasını yeniden içe aktarın.",
+    "xerArchiveReasonSchemaVersion": "Neden: arşivin şema sürümü veya düzeni bilinmiyor (daha yeni ya da farklı bir yazıcı).",
+    "xerArchiveReasonHashMismatch": "Neden: sağlama toplamı kaynak baytlarıyla eşleşmiyor — arşiv hasarlı.",
+    "xerArchiveReasonTruncated": "Neden: arşiv kesilmiş — kaynak baytlarının bir kısmı eksik.",
+    "xerArchiveReasonBytesMissing": "Neden: kaynak baytlarının kendisi eksik — dosyayı muhtemelen başka bir IFC programı yeniden yazdı.",
+    "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
+    "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış)."
   },
   "yes": "Evet",
   "no": "Hayır",
@@ -144,6 +159,8 @@
     "priorityNormal": "Normal",
     "priorityHigh": "Yüksek",
     "startRelationHere": "İlişkiyi buradan başlat",
+    "removeSplitGap": "Kesintiyi kaldır",
+    "removeAllSplitGaps": "Tüm kesintileri kaldır",
     "paste": "Yapıştır",
     "zoomReset": "Yakınlaştırmayı sıfırla",
     "fitToProject": "Projeye sığdır",
@@ -897,7 +914,9 @@
       "secondary": "İkincil"
     },
     "dependencyModeHint": "Bağlantı modu: Gantt'ta bir çubuktan diğerine sürükleyerek ilişki oluşturun. Durdurmak için Esc.",
-    "dependencyModeStop": "Durdur"
+    "dependencyModeStop": "Durdur",
+    "splitModeHint": "Kesintinin başladığı günde çubuğa tıklayın ve uzunluğu için sağa sürükleyin. Durdurmak için Esc.",
+    "splitModeStop": "Durdur"
   },
   "dateInput": {
     "placeholder": "gg-aa-yyyy",
@@ -1194,7 +1213,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Devam eden görev: erken başlangıç = kalan işin başlangıcı",
-      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Primavera P6 tarafından dosya başına belirlenir. Başlangıç-başlangıç ilişkisi üzerinden geriye hesaplamada yalnızca kalan süre sayılır."
+      "help": "Devam eden bir görevin erken ve geç başlangıcı, geçmişteki gerçek başlangıcı değil, kalan işin nerede başladığını gösterir. Başlangıç-başlangıç ilişkisi üzerinden geriye hesaplamada yalnızca kalan süre sayılır."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Kilometre taşında kesin kısıt anı",
@@ -1246,7 +1265,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Fiziksel ilerlemeli tamamlanan görev durum tarihinde durur",
-      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir."
+      "help": "Fiziksel tamamlanma yüzdesine sahip tamamlanmış bir görev, gerçek tarihleri yerine durum tarihinde ya da bir öncül gerektiriyorsa daha sonra tek bir nokta olarak gösterilir. Yalnızca fiziksel ilerleme için ölçülmüştür; diğer ilerleme türleri için (P6 varsayılanı: süre) bu davranış ölçülmemiştir ve kapalı kalır."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Devam eden bir öncülden geçmiş BB gecikmesi sayılmaz",
@@ -1313,7 +1332,6 @@
     "on": "açık",
     "off": "kapalı",
     "resetToBase": "temele dön",
-    "perFile": "dosya başına",
     "showHelp": "“{{name}}” açıklaması",
     "sourceOptions": {
       "title": "Kaynak dosyadaki ayarlar",

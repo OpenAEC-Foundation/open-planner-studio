@@ -6,6 +6,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { addElapsedMinutes, splitTotalSpanMinutes } from '@/engine/scheduler/duration';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay } from '@/utils/taskDuration';
+import { splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
   rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
 } from '@/engine/contour/contourEngine';
@@ -596,6 +597,11 @@ export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
  * SLOT verandert (uren per dag) is sinds K2 (2026-09-05) wél een aanroeper — via
  * `workRuleApply.ts`'s `settleCalendarChange`: dezelfde dagen zijn dan een andere hoeveelheid
  * werkminuten, en de as leeft op werkminuten.
+ *
+ * `opts.keepGaps` (issue #146): sla de `rescaleSplitGaps`-stap over. `taskSlice.setTaskSplits`
+ * schrijft de gatenlijst in dezelfde bewerking ZELF — die komt rechtstreeks uit het stukkenmodel en
+ * is dus al op de nieuwe werkduur gerekend. Zonder deze vlag zou hij hier een tweede keer geschaald
+ * worden (dubbele schaling, spec §2 stap 3).
  */
 export function rescaleTaskContours(
   task: Task,
@@ -605,6 +611,7 @@ export function rescaleTaskContours(
   // `contourKeepsWork`), niet langer alleen een MSP-herkomstvinkje. Zonder argument geldt de oude
   // afleiding, zodat elke bestaande aanroeper byte-identiek blijft.
   keepWork: boolean = task.mspTaskType === 'FIXED_WORK',
+  opts?: { keepGaps?: boolean },
 ): boolean {
   const contours = task.timephasedContours;
   if (!contours || contours.length === 0) return false;
@@ -621,7 +628,12 @@ export function rescaleTaskContours(
     ...c,
     periods: rescaleContourForDuration(c.periods, oldWorkMinutes, newWorkMinutes, keepWork ? 'FIXED_WORK' : undefined),
   }));
-  const gaps = rescaleSplitGaps(task.splitGaps, reference.periods, oldWorkMinutes, newWorkMinutes);
-  if (gaps !== undefined) task.splitGaps = gaps;
+  if (!opts?.keepGaps) {
+    const gaps = rescaleSplitGaps(
+      task.splitGaps, reference.periods, oldWorkMinutes, newWorkMinutes,
+      splitUnitMinutes(task, hoursPerDay),
+    );
+    if (gaps !== undefined) task.splitGaps = gaps;
+  }
   return true;
 }

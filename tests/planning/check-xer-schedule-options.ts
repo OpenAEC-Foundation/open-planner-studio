@@ -39,13 +39,11 @@ function deriveXerScheduleOptions(
   return deriveIndexedXerScheduleOptions(indexXerScheduleOptions(tables), projectId, context);
 }
 
-/** Rekenprofielen C4: een afgeleid XER-resultaat draagt alleen projectopties (+ A19 als zuster). Zo
- *  rekent een XER-project: het P6-profiel met A19 als afwijking — exact wat `xerReader` zet. */
-function xerProfileOf(result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
-  return {
-    ...builtInProfile('p6'),
-    overrides: result.p6UseRemainingStartForProgress ? { p6UseRemainingStartForProgress: true } : {},
-  };
+/** Rekenprofielen C4: een afgeleid XER-resultaat draagt alleen projectopties. Zo rekent een
+ *  XER-project: het kale P6-profiel — exact wat `xerReader` zet (sinds 2026-09-24 geen A19-override
+ *  meer uit `rem_target_link_flag`, eigenaarsbesluit "a"). */
+function xerProfileOf(_result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
+  return builtInProfile('p6');
 }
 function xerEffective(result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
   return effectiveSchedulingOptions({ schedulingProfile: xerProfileOf(result), schedulingOptions: result.schedulingOptions });
@@ -766,7 +764,6 @@ eq('expliciete XER-defaultset is brongebonden en compleet', legacyResult(without
     p6CompletedLateFromRemainingWindow: true,
     startToStartLagFrom: 'earlyStart',
   },
-  p6UseRemainingStartForProgress: false,
   retainedSource: {},
   fallbacks: [],
   sourceRows: [{
@@ -806,11 +803,11 @@ eq('default 6/8: verwachte einddatums als bewaard bronbeleid (solverconsumptie v
 // hieronder is een hand-lijst (spec v3.1 bijlage A), niet uit het register afgeleid.
 const P6_PROFILE = resolveConventions(builtInProfile('p6'));
 const byKey = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
-eq('P6-profiel ≡ hand-lijst (A19 uit, per bestand als afwijking)', byKey(P6_PROFILE), byKey({
+eq('P6-profiel ≡ hand-lijst (A19 aan sinds 2026-09-24)', byKey(P6_PROFILE), byKey({
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
   p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: true,
-  p6PreserveZeroDurationConstraintInstants: true, p6UseRemainingStartForProgress: false,
+  p6PreserveZeroDurationConstraintInstants: true, p6UseRemainingStartForProgress: true,
   resumeFromActualElapsed: false, unstartedIgnoresStatusDate: false,
   p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true,
   // A17/B3/B4 sinds 2026-09-23 uit (§1d-7: 0 cellen op de P6-doorgerekende populatie; gebouwd op rehab-2 = P3).
@@ -926,7 +923,6 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
     useProjectEndDateForFloat: false,
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 3 },
   },
-  p6UseRemainingStartForProgress: false,
   retainedSource: { sched_use_project_end_date_for_float: false },
   fallbacks: [],
   sourceRows: [

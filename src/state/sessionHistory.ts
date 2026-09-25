@@ -17,7 +17,16 @@ export type ViewLayoutHistoryState = Pick<
 >;
 
 export type SessionHistoryDelta =
-  | { kind: 'document-data'; documentId: string; before: Snapshot; after: Snapshot }
+  | {
+      kind: 'document-data';
+      documentId: string;
+      before: Snapshot;
+      after: Snapshot;
+      /** Het event was GEEN bewerking (F5 of "toon opgeslagen datums" in de modus): undo/redo ervan
+       *  laat `isDirty` en `importPristine` staan (critreview op ded4d8c3, bevinding 3). Afwezig ⇒
+       *  een gewone bewerking, en undo/redo markeert het document als bewerkt. */
+      nonEdit?: true;
+    }
   | {
       kind: 'document-view';
       documentId: string;
@@ -63,6 +72,8 @@ export type MaterializedHistoryTarget =
       viewRows: ViewRow[];
       resourceLoadResult: ResourceLoadResult | null;
       isDirty: true;
+      /** `false` alleen voor een `nonEdit`-delta: dan wist het toepassen "ongewijzigd sinds import" niet. */
+      clearImportPristine: boolean;
     }
   | {
       kind: 'document-view';
@@ -123,6 +134,7 @@ export function materializeHistoryTarget(
         isolated.calendars,
       ),
       isDirty: true,
+      clearImportPristine: delta.nonEdit !== true,
     };
   }
 

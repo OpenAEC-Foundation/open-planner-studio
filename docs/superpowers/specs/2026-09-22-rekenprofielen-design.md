@@ -56,11 +56,12 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
 - **`ConventionKey`** (15): `preserveActualDatesInBackwardPass` (A12), `clampNegativeFreeFloat` (A13),
   `p6ZeroDurationUsesPlannedBoundary` (A15), `p6UseTaskPlannedStartFloor` (A16),
   `p6FinishMilestoneBoundaryWindow` (A17), `p6PreserveActualInstants` (A18),
-  `p6UseRemainingStartForProgress` (A19 — P6-semantiek voor de ES/LS van een lopende taak; de waarde
-  komt per bestand uit `rem_target_link_flag`, dus de XER-lezer zet hem als **override** op het
-  profiel — een per-bestand-conventie (`perFile`) die bij élke wissel, ook naar MS Project of OPS,
-  letterlijk blijft staan (besluit orkestrator 2026-09-22, overdracht §1c); alleen een bestand zonder
-  die vlag rekent er niet mee), `p6PreserveZeroDurationConstraintInstants` (A20),
+  `p6UseRemainingStartForProgress` (A19 — P6-semantiek voor de ES/LS van een lopende taak; sinds
+  2026-09-24 gewoon aan in het P6-profiel, eigenaarsbesluit "a" na Fable-critreview PR #169 bevinding 2.
+  Tot dan kwam de waarde per bestand uit `rem_target_link_flag` als **override** (`perFile`); die
+  koppeling was nooit getoetst — alle 60 lopende taken in de P6-doorgerekende bestanden hebben
+  `early_start == restart_date`, en het corpus kent geen P6-doorgerekend bestand met N — en is met het
+  hele per-bestand-mechanisme vervallen), `p6PreserveZeroDurationConstraintInstants` (A20),
   `resumeFromActualElapsed` (A22), `unstartedIgnoresStatusDate` (A23), en nieuw voor groep B: `p6RelationFinishBoundary` (B1),
   `p6BackwardLagFinishBoundary` (B2), `p6CompletedDataDateWindow` (B3), `p6CompletedLoeActualFinish`
   (B4), `p6OpenLoeTargetSpan` (B5). Allemaal booleans. Sinds 2026-09-23 (X12 naar nul) plus groep C (12):
@@ -71,6 +72,8 @@ hernoeming van honderd callsites. Binnen dat type worden twee disjuncte sleutelv
   `p6FinishNotBeforeFinishFinishBound` (C12), `p6AlapPositionedFromSuccessors` (C14; plan XER §9 noemt haar C10) — nooit achter `p6Source` geweest; regel, meting en bron per conventie
   in het docblok bij de sleutel in `src/types/project.ts`. Samen 27. (Niet te verwarren met de
   taakdata-inventaris C1–C5 in bijlage A.)
+  C5 blijft smal (eigenaarsbesluit 2026-09-24): alleen voltooide CP_Phys-taken; CP_Drtn/CP_Units niet
+  gemeten (geen P6-doorgerekend bestand met voltooide CP_Drtn-taken in het corpus), meten zodra dat er is.
 - **`ProjectOptionKey`** (10): `lagCalendar`, `criticalDefinition` (mode + threshold + thresholdHours),
   `totalFloatMode`, `makeOpenEndedCritical`, `nearCriticalThreshold`, `floatPaths`,
   `useExpectedFinishDates`, `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` (A21 —
@@ -104,7 +107,7 @@ type SchedulingConventions = Required<Pick<SchedulingOptions, ConventionKey>>;
 ```
 
 Ingebouwde waarden (bijlage A): **P6** = alle zevenentwintig aan (ook groep C), behalve `resumeFromActualElapsed`,
-`unstartedIgnoresStatusDate`, `p6UseRemainingStartForProgress` (uit; per bestand als override) en de
+`unstartedIgnoresStatusDate` en de
 groep-C-conventies C1 en C4 (sinds 2026-09-23 uit: alleen door P3-uitvoer gedragen, 0 effect op de
 P6-doorgerekende orakels);
 **MS Project** = alleen `resumeFromActualElapsed` en `unstartedIgnoresStatusDate` aan; **OPS** = alles
@@ -158,8 +161,8 @@ interface SchedulingProfile {
   UI biedt "bijwerken vanuit sjabloon" en "sjabloon bijwerken vanuit dit project". Matching op `id`,
   nooit op naam.
 - **Overrides bij een wissel.** Een profielwissel vervangt `baseId` en `id`, maar bewaart de overrides
-  op een ingebouwd id **letterlijk** — die zijn per definitie uit het bestand of de migratie (A19 uit
-  `rem_target_link_flag`), want een handmatige wijziging maakt een kopie — zo geeft P6 → MS Project → P6 weer
+  op een ingebouwd id **letterlijk** — die zijn per definitie uit de migratie (tot 2026-09-24 ook A19
+  uit `rem_target_link_flag`), want een handmatige wijziging maakt een kopie — zo geeft P6 → MS Project → P6 weer
   exact het resultaat van vlak na het openen. Een ingebouwd id mét overrides verschijnt in de
   keuzelijst als "P6 (aangepast)" en is géén kopie: pas een handmatige wijziging van een conventie
   maakt "Kopie van P6".
@@ -403,7 +406,7 @@ round-tript via `OPS_SchedulingOptions`; UI-CO = `CalcOptionsSection.tsx`.*
 | A16 | Geplande start als extra vloer (elke taak met voorganger) | CPM | `p6UseTaskPlannedStartFloor` (achter p6Source) | P6 aan / MSP uit / OPS uit | RT, geen UI — **risico bij aanzetten buiten P6** |
 | A17 | TT_FinMile als grensvenster (drie deelgedragingen) | CPM, SA | `p6FinishMilestoneBoundaryWindow` (achter p6Source) + `milestoneKind` | P6 aan / MSP uit / OPS uit | RT, geen UI |
 | A18 | Actuals als exacte broninstants | CPM | `p6PreserveActualInstants` (achter p6Source) + `p6ProjectId` | P6 aan / MSP uit / OPS uit | RT, geen UI |
-| A19 | Lopende taak: ES/LS = begin restwerk (poort voor B3/B4) | CPM | `p6UseRemainingStartForProgress` (achter p6Source) | P6 **per bestand** `rem_target_link_flag` / MSP uit / OPS uit | RT, geen UI |
+| A19 | Lopende taak: ES/LS = begin restwerk (poort voor B3/B4) | CPM | `p6UseRemainingStartForProgress` (achter p6Source) | P6 aan (sinds 2026-09-24; daarvoor per bestand uit `rem_target_link_flag`) / MSP uit / OPS uit | RT, geen UI |
 | A20 | Datetime-constraint op nulduurmijlpaal exact (backward) | CPM `backwardBoundOf` | `p6PreserveZeroDurationConstraintInstants` (achter p6Source) | P6 aan / MSP uit / OPS uit | RT, geen UI |
 | A21 | Voltooide activiteit krijgt echte totale speling | CPM, SA, CRT | `p6CompletedLateFromRemainingWindow` + p6Source + A12 + B3 | P6 aan (uit bij niet-retained; bewijs correlationeel) / MSP uit / OPS uit | RT, geen UI |
 | A22 | Restwerk hervat op actualStart + verstreken duur | CPM | `resumeFromActualElapsed` | P6 uit / MSP aan (**alleen `.mpp`**) / OPS uit | RT, geen UI |

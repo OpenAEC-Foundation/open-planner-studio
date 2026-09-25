@@ -1020,6 +1020,12 @@ if (!root) {
     // v10 (hercheck 2026-09-23): `files[]` — incl. `xerDefaultsNegativeFloatTasks` en
     // `defaults[*].chosen/counterfactualNegativeFloatTasks` — werd alleen op vorm gecontroleerd
     // (mutant 99999 bleef groen). Nu per bestand exact tegen de meting.
+    // Herpin 2026-09-24 (eigenaarsbesluit "a": A19 aan in de P6-basis, `rem_target_link_flag` stuurt niets
+    // meer): alleen `files[].xerDefaultsNegativeFloatTasks` beweegt, in zes bestanden en alleen omlaag —
+    // 146e4c86-1 1 → 0, 1d7901d6-1 1 → 0, 49aea658-1 19 → 8, 53f5cdbe-1 1 → 0, 5d71eac4-1 24 → 13,
+    // 97058f72-1 5 → 0. Dit zijn projecten zonder P6-uitvoer die tot dan zonder A19 rekenden (lege vlag);
+    // een lopende taak op haar historische werkelijke start gaf daar negatieve speling. Detectie- en
+    // populatietellers en de defaults-fidelity (0 meetbaar) ongewijzigd; measure:profiles vóór/ná identiek.
     const measuredById = new Map(measured.files.map(file => [file.id, file]));
     for (const file of committed.files) {
       eq(`files[${file.id}] (state, taken, negatieve-floattellingen per defaultset) exact als gemeten`,

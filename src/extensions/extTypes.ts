@@ -565,6 +565,17 @@ export interface ExtImportSourceCatalogCounts {
   };
 }
 
+/**
+ * Waarom `getImportSourceInfo()` `null` geeft terwijl het document WEL een XER-bron had: het
+ * IFC droeg een XER-bronarchief dat bij het openen niet valideerde en daarom is weggelaten
+ * (eigenaarsbesluit 2026-09-24, "openen met melding"). Het project zelf is volledig; alleen de
+ * bronroute ontbreekt. Spiegelt `XerArchiveIssue` in `src/services/importTypes.ts` — alleen de code:
+ * de technische reden bevat bestandsgestuurde namen en hoort niet in het publieke contract.
+ */
+export interface ExtImportSourceIssue {
+  code: 'schema-version' | 'hash-mismatch' | 'truncated' | 'bytes-missing' | 'metadata-invalid' | 'structure';
+}
+
 /** Read-only XER-bronroute. Samenvatting en cataloguspagina's zijn verse DTO-kopieën; voor exact
  * herstel gebruikt een extensie `getImportSourceChunk` met de digest uit `archive`. */
 export interface ExtImportSourceInfo {

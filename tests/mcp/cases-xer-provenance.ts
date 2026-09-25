@@ -522,6 +522,26 @@ test('no-XER document: veilige summary meldt afwezigheid, inhoudsectie geeft NOT
   assertEq(err(TOOL, { section: 'resourceCatalog', collection: 'resources' }).code, 'NOT_FOUND', 'catalogus zonder bron');
 });
 
+test('archief onbruikbaar bij openen: summary zegt "geen archief (onbruikbaar bij openen: <code>)", niet "nooit een XER-bron"', () => {
+  reset();
+  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): readIFC liet het archief vallen en zette
+  // `xerArchiveIssue`. De tool moet dat onderscheiden van een document dat nooit een XER-bron had.
+  const neverData = ok(TOOL);
+  assertEq(neverData.archiveIssue, null, 'geen issue zonder weggelaten archief');
+  useAppStore.setState((state) => {
+    state.xerArchiveIssue = { code: 'bytes-missing', detail: "Ongeldig OPS_XerSourceArchive: property 'geheim' ontbreekt" };
+  });
+  const data = ok(TOOL);
+  assertEq(data.sourcePresent, false, 'nog steeds geen bron');
+  assertEq(JSON.stringify(data.archiveIssue), JSON.stringify({ code: 'bytes-missing' }), 'alleen de gesloten code, geen technische detail');
+  assert(String(data.note).startsWith('Geen archief (onbruikbaar bij openen: bytes-missing).'), `note noemt de code: ${data.note}`);
+  assert(!JSON.stringify(data).includes('geheim'), 'bestandsgestuurde validatortekst lekt niet');
+  const missing = err(TOOL, { section: 'resourceCatalog', collection: 'resources' });
+  assertEq(missing.code, 'NOT_FOUND', 'inhoudsectie blijft NOT_FOUND');
+  assert(missing.error.includes('onbruikbaar bij openen: bytes-missing'), `NOT_FOUND noemt de reden: ${missing.error}`);
+  useAppStore.setState((state) => { state.xerArchiveIssue = null; });
+});
+
 test('P3 (R9): sourcePresent:false loopt ook door de poort — currentProjectId afgekapt', () => {
   reset();
   // `xerSourceProjectId` is GEEN statische tekst — het is een documentveld dat uit het bestand komt

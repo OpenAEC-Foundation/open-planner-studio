@@ -85,6 +85,14 @@
     "xerImportDatesAsRecordedOffer_few": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
     "xerImportDatesAsRecordedOffer_many": "{{count}} zadań różni się od dat zapisanych w pliku — możesz je pokazać.",
     "xerImportDatesAsRecordedOffer_other": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecorded_one": "{{count}} zadanie pokazuje daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecorded_few": "{{count}} zadania pokazują daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecorded_many": "{{count}} zadań pokazuje daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecorded_other": "{{count}} zadania pokazują daty tak, jak zapisano je w pliku (bez ponownego przeliczenia).",
+    "importDatesAsRecordedOffer_one": "{{count}} zadanie różni się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecordedOffer_few": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecordedOffer_many": "{{count}} zadań różni się od dat zapisanych w pliku — możesz je pokazać.",
+    "importDatesAsRecordedOffer_other": "{{count}} zadania różnią się od dat zapisanych w pliku — możesz je pokazać.",
     "xerExportLoss": "Eksport do {{format}} powoduje utratę informacji źródłowych XER.",
     "mppLegacy": "Ten plik .mpp używa starszego formatu (Project 2007 lub starszy). Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
     "mppEncrypted": "Ten plik .mpp jest zabezpieczony hasłem. Wyeksportuj go w MS Project jako XML (Plik → Zapisz jako → XML) i otwórz ten plik.",
@@ -112,6 +120,10 @@
     "mppSourceScheduleNotes_few": "Ten plik MS Project zawiera {{count}} zadania z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
     "mppSourceScheduleNotes_many": "Ten plik MS Project zawiera {{count}} zadań z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
     "mppSourceScheduleNotes_other": "Ten plik MS Project zawiera {{count}} zadania z podzielonym, wyrównanym lub zależnym od zasobów harmonogramem. Są one importowane i wyświetlane w takiej postaci.",
+    "exportSplitsLost_one": "{{count}} zadanie z przerwami zostało wyeksportowane bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
+    "exportSplitsLost_few": "{{count}} zadania z przerwami zostały wyeksportowane bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
+    "exportSplitsLost_many": "{{count}} zadań z przerwami zostało wyeksportowanych bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
+    "exportSplitsLost_other": "{{count}} zadania z przerwami zostało wyeksportowane bez przerw: MS Project/P6 znają je tylko jako rozkład pracy.",
     "projectStartAnchorsClamped_one": "Start projektu przesunięty: {{count}} kotwica zadania bez poprzednika lub ograniczenia została przesunięta na nową datę rozpoczęcia.",
     "projectStartAnchorsClamped_few": "Start projektu przesunięty: {{count}} kotwice zadań bez poprzednika lub ograniczenia zostały przesunięte na nową datę rozpoczęcia.",
     "projectStartAnchorsClamped_many": "Start projektu przesunięty: {{count}} kotwic zadań bez poprzednika lub ograniczenia zostało przesuniętych na nową datę rozpoczęcia.",
@@ -144,7 +156,16 @@
     "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
     "actions": {
       "openProjectInfo": "Otwórz profil obliczeń"
-    }
+    },
+    "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
+    "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",
+    "xerArchiveUnusableConsequence": "Harmonogram, profil obliczeń i wszystkie dane projektu z IFC są kompletne. Brakuje: dat w postaci zapisanej przez Primaverę oraz pochodzenia źródła dla AI i rozszerzeń. Zapis tworzy plik bez archiwum; zaimportuj ponownie oryginalny plik .xer, aby odzyskać archiwum.",
+    "xerArchiveReasonSchemaVersion": "Powód: archiwum ma nieznaną wersję schematu lub układ (nowszy lub inny program zapisujący).",
+    "xerArchiveReasonHashMismatch": "Powód: suma kontrolna nie pasuje do bajtów źródłowych — archiwum jest uszkodzone.",
+    "xerArchiveReasonTruncated": "Powód: archiwum jest obcięte — brakuje części bajtów źródłowych.",
+    "xerArchiveReasonBytesMissing": "Powód: brakuje samych bajtów źródłowych — prawdopodobnie inny program IFC przepisał plik.",
+    "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
+    "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana)."
   },
   "yes": "Tak",
   "no": "Nie",
@@ -190,6 +211,8 @@
     "priorityNormal": "Normalny",
     "priorityHigh": "Wysoki",
     "startRelationHere": "Rozpocznij relację stąd",
+    "removeSplitGap": "Usuń przerwę",
+    "removeAllSplitGaps": "Usuń wszystkie przerwy",
     "paste": "Wklej",
     "zoomReset": "Resetuj powiększenie",
     "fitToProject": "Dopasuj do projektu",
@@ -953,7 +976,9 @@
       "secondary": "Dodatkowy"
     },
     "dependencyModeHint": "Tryb połączeń: przeciągnij od jednego paska do drugiego na wykresie Gantta, aby utworzyć relację. Esc kończy.",
-    "dependencyModeStop": "Zakończ"
+    "dependencyModeStop": "Zakończ",
+    "splitModeHint": "Kliknij pasek w dniu, w którym zaczyna się przerwa, i przeciągnij w prawo, aby ustawić długość. Esc kończy.",
+    "splitModeStop": "Zakończ"
   },
   "dateInput": {
     "placeholder": "dd-mm-rrrr",
@@ -1266,7 +1291,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Zadanie w toku: wczesny początek = początek pozostałej pracy",
-      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Ustawiane dla każdego pliku przez Primavera P6. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
+      "help": "Wczesny i późny początek zadania w toku opisują, gdzie zaczyna się pozostała praca, a nie historyczny rzeczywisty początek. Przy obliczaniu wstecz przez relację rozpoczęcie-rozpoczęcie liczy się tylko pozostały czas trwania."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Dokładny moment ograniczenia na kamieniu milowym",
@@ -1318,7 +1343,7 @@
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Zakończone zadanie z postępem fizycznym na dacie stanu",
-      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach."
+      "help": "Zakończone zadanie z fizycznym procentem ukończenia jest pokazywane jako jeden punkt na dacie stanu lub później, jeśli wymaga tego poprzednik, zamiast na swoich rzeczywistych datach. Zmierzone tylko dla postępu fizycznego; dla innych typów postępu (domyślnie w P6: czas trwania) to zachowanie nie zostało zmierzone i pozostaje wyłączone."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Upłynięte opóźnienie SS od trwającego poprzednika się nie liczy",
@@ -1385,7 +1410,6 @@
     "on": "wł.",
     "off": "wył.",
     "resetToBase": "przywróć bazę",
-    "perFile": "z pliku",
     "showHelp": "Objaśnienie: „{{name}}”",
     "sourceOptions": {
       "title": "Ustawienia z pliku źródłowego",

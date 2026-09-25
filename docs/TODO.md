@@ -13,8 +13,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 - [ ] **Rekenprofielen / X12 (PR #169, stand 2026-09-24):** restant 76 zesassige afwijkingen op de
   P6-doorgerekende orakels — HarbourPointe-opvolgers van verouderde P6-uitvoer (nieuw P6-bewijs nodig),
-  mijlpaalvloer (n=1), Sample SF-lag-0-minuut (n=1). Eigenaarsvragen open: A19 in P6 aan en per-bestand
-  laten vallen? C5 smal/breed? Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
+  mijlpaalvloer (n=1), Sample SF-lag-0-minuut (n=1). Eigenaarsbesluiten 2026-09-24: A19 in P6 aan en
+  per-bestand vervallen ("a", branch `claude/x12-a19-basis`); C5 smal. Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
 - [ ] **P6-nivellering (motoretappe):** fundament (data) ligt; vijf eigenaarsbesluiten in
   `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §8.
 - [ ] **XER-lezer (PR #109) vervolg:** statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
@@ -308,9 +308,20 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
       contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
       `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
-- [ ] **Splitsen/handmatig plannen als bewerkfunctie (UI).** Deze etappe levert lezen, rekenen,
-      tekenen en round-trip; slepen om te splitsen, split-handles in de Gantt en split ongedaan maken
-      zijn een aparte etappe (plan §1.4/O2, orkestratorbesluit akkoord 2026-08-17).
+- [x] **Splitsen als bewerkfunctie (UI).** *(opgeleverd 2026-09, issue #146: splits-modus en
+      stukken/randen slepen in de Gantt, sectie Onderbrekingen in het eigenschappenpaneel,
+      `planner_set_task_splits`; spec `docs/superpowers/specs/2026-09-19-taken-splitsen-bewerken-design.md`,
+      gids `gids-taken-splitsen`.)* Handmatig plannen (`manuallyScheduled`) als bewerkfunctie blijft
+      buiten scope, net als het bewerken van niet-wélgevormde importsplits (alleen-lezen, alleen opheffen).
+- [ ] **Native MSPDI-/P6-schrijven van een split zonder urenverdeling.** Een onderbroken taak zonder
+      contour gaat nu zonder onderbrekingen naar MSPDI/P6 (de export meldt het aantal via
+      `exportSplitsLostNotice`). Vervolg: de pauzes als `<TimephasedData>`-/spreidingsvorm van de
+      toewijzingen schrijven, of — bij een taak zonder toewijzing — een verantwoorde alternatieve vorm
+      kiezen. CSV verliest onderbrekingen eveneens, en meldt dat nog niet.
+- [ ] **Nivelleerder blind over importsplits.** Een taak met een `'user'`-gat wordt niet meer
+      opgeknipt (issue #146), maar een IMPORTsplit (geen `source`) mag de scatter-as nog overstapelen
+      — vastgelegd als bestaand gedrag in `check-leveler-splitmode.ts` geval 4. Gaten-bewust opknippen
+      is een eigen etappe.
 - [ ] **Float-spiegel onvolledig bij deeldag-duren (Z13-hercheck R2).** `subDuration`s band-eind-
       float-spiegel klopt voor hele-dag-duren maar niet voor een deeldag-duur op een deeldag-kalender
       (12u-taak op een 8u-dag: gemeten `tf` 1,5 waar `LF−EF` 2,5 hoort — één werkdag te weinig).
@@ -892,14 +903,17 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
   blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
   enige bewaking — per as, niet per cel.
 - [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
-  zonder `plan_end_date`** (her-review 7a, 2026-09-07). Opgelost in X12-brok 1 (2026-09-23,
-  branch `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen
-  enkele `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit
-  (`hasUsableProjectEnd`, terugvalmelding, bron-`Y` blijft in `retainedSource`). `cases-import.xer`
-  zoals gelezen 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`). Blastradius
-  op het corpus: 16 van de 39 `Y`-rijen (13× cases-import, 3 taakloze OZB-projecten); X12 15.056
-  ongewijzigd, 0 cellen slechter. De 20 `Y`-rijen mét taakeinden houden het taak-afgeleide einde —
-  zie plan XER §9 voor de open vraag daarover.
+  zonder `plan_end_date`** — in twee stappen opgelost. (1) X12-brok 1 (2026-09-23, branch
+  `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen enkele
+  `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit (`hasUsableProjectEnd`,
+  terugvalmelding); `cases-import.xer` 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`).
+  (2) Eigenaarsbesluit 2026-09-24 "eigen PR" (Fable-critreview PR #109 bevinding 2), gemerged in de
+  rekenprofielen-etappe 2026-09-25: bij `Y` zonder `plan_end_date` laat de lezer `project.endDate` leeg in
+  plaats van het taak-afgeleide einde te verzinnen, de optie blijft aan, en `withEffectiveProjectEndAnchor`
+  (CPMSolver) laat de solver exact op het netwerkeinde rekenen; corpusloos bewaakt in `check-xer-reader.ts`
+  13c–13g. Meting: op de #169-kop 0 cellen verschil (76/0/0/0); op de oude #109-basis 149 cellen slechter
+  omdat het verzonnen anker daar een fout aan de vroege kant maskeerde — daarom niet los op #109 geland.
+  Oorspronkelijke registratie: her-review 7a, 2026-09-07.
 - [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
   etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
   die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
@@ -931,8 +945,10 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] **`lagCalendar` is sinds X5 effectief voor élk formaat** (eindreview bevinding 5): een
   bestaand document waarin ooit 'successor'/'24hour'/'projectDefault' is gekozen plant na de
   volgende release anders. Regel in de releasenotities van die versie; eventueel migratienoot.
-- [ ] **XER: `rem_target_link_flag=Y` maakt de vroege start van een bezig zijnde taak de reststart**
-  waar P6 de werkelijke start opneemt (casus 08 A, casus 10 B: ES én LS, vier cellen). Zie plan §9.
+- [ ] **XER: A19 (P6-basis) geeft de reststart waar de verified cases 08 A / 10 B de werkelijke
+  start tonen** ('A'-datum = Start-kolom; ES én LS, vier cellen). Nog te checken: welk veld de
+  vergelijking eigenlijk hoort te gebruiken (werkelijke start versus reststart) vóór er een oorzaak
+  wordt aangewezen. Zie plan §9.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde

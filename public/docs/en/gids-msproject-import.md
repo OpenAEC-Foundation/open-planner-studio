@@ -84,6 +84,9 @@ their own splits are drawn broken up on non-working days (calendar necking). The
 preview show the same broken bars. Scheduling is segment-aware: remaining work keeps counting past
 each gap, even for a task that's already partly done.
 
+You can usually edit such breaks yourself afterwards, and create new ones — in the Gantt, in the properties panel
+or through the AI assistant. See [Splitting tasks](docs://gids-taken-splitsen).
+
 ### Manually scheduled tasks
 
 A task that was set to **Manually Scheduled** in MS Project keeps its own stored start and finish
