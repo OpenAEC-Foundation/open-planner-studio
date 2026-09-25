@@ -1186,7 +1186,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "In-progress task: early start = start of remaining work",
-      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Set per file by Primavera P6. Calculating backward over a start-to-start relationship, only the remaining duration counts."
+      "help": "The early and late start of an in-progress task describe where the remaining work begins, not the historical actual start. Calculating backward over a start-to-start relationship, only the remaining duration counts."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Exact constraint moment on a milestone",
@@ -1305,7 +1305,6 @@
     "on": "on",
     "off": "off",
     "resetToBase": "back to base",
-    "perFile": "per file",
     "showHelp": "Explanation of “{{name}}”",
     "sourceOptions": {
       "title": "Settings from the source file",

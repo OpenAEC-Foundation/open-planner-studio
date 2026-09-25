@@ -151,7 +151,7 @@
       "tasks": 30,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
-      "xerDefaultsNegativeFloatTasks": 1,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 0,
@@ -289,7 +289,7 @@
       "tasks": 11,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 2,
-      "xerDefaultsNegativeFloatTasks": 1,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 1,
@@ -526,7 +526,7 @@
       "tasks": 120,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
-      "xerDefaultsNegativeFloatTasks": 19,
+      "xerDefaultsNegativeFloatTasks": 8,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 0,
@@ -618,7 +618,7 @@
       "tasks": 31,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 1,
-      "xerDefaultsNegativeFloatTasks": 1,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 1,
@@ -710,7 +710,7 @@
       "tasks": 120,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
-      "xerDefaultsNegativeFloatTasks": 24,
+      "xerDefaultsNegativeFloatTasks": 13,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 0,
@@ -986,7 +986,7 @@
       "tasks": 8,
       "oracleNegativeFloatTasks": 0,
       "houseNegativeFloatTasks": 0,
-      "xerDefaultsNegativeFloatTasks": 5,
+      "xerDefaultsNegativeFloatTasks": 0,
       "defaults": {
         "totalFloatFinish": {
           "chosenNegativeFloatTasks": 0,

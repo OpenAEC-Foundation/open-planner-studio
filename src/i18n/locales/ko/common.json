@@ -1151,7 +1151,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "진행 중 작업: 조기 시작 = 남은 작업의 시작",
-      "help": "진행 중 작업의 조기 및 지연 시작은 과거의 실적 시작이 아니라 남은 작업이 시작되는 지점을 나타냅니다. Primavera P6에서 파일별로 설정됩니다. 시작-시작 관계로 역산할 때는 잔여 기간만 계산합니다."
+      "help": "진행 중 작업의 조기 및 지연 시작은 과거의 실적 시작이 아니라 남은 작업이 시작되는 지점을 나타냅니다. 시작-시작 관계로 역산할 때는 잔여 기간만 계산합니다."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "마일스톤의 제약 시점을 정확히",
@@ -1270,7 +1270,6 @@
     "on": "켬",
     "off": "끔",
     "resetToBase": "기준으로 되돌리기",
-    "perFile": "파일별",
     "showHelp": "“{{name}}” 설명",
     "sourceOptions": {
       "title": "원본 파일의 설정",

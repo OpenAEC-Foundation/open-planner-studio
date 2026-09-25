@@ -277,9 +277,6 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
                         />
                         <span className={deviates ? 'font-semibold' : undefined} data-ops-convention-label>{name}</span>
                       </label>
-                      {c.perFile && (
-                        <span className="badge badge--blue shrink-0" data-ops-convention-per-file>{t('schedulingProfile.perFile')}</span>
-                      )}
                       <span className="shrink-0 whitespace-nowrap text-text-secondary" data-ops-convention-base>
                         {t('schedulingProfile.baseValue', { value: base[c.id] ? t('schedulingProfile.on') : t('schedulingProfile.off') })}
                       </span>

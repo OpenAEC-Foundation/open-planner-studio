@@ -5,7 +5,7 @@ import type {
   BuiltInProfileId, ConventionKey, ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
 import {
-  CONVENTIONS, CONVENTION_KEYS, builtInProfile, defaultOptionsFor, diffAgainstBase, isBuiltInProfileId,
+  CONVENTION_KEYS, builtInProfile, defaultOptionsFor, diffAgainstBase, isBuiltInProfileId,
   isDefaultProfile, resolveConventions, switchProfile,
 } from '@/engine/scheduler/conventions/registry';
 import { MAX_PROFILE_ID_LENGTH, MAX_PROFILE_NAME_LENGTH } from '@/services/ifc/schedulingOptionsRead';
@@ -20,14 +20,6 @@ export interface SchedulingSettingsDraft {
  *  van dit project dat (nog) geen sjabloon is. */
 export type ProfileChoice = `builtin:${BuiltInProfileId}` | `template:${string}` | 'current';
 
-/**
- * Conventies waarvan de waarde per BESTAND uit de bron komt, niet uit de school — afgeleid uit het
- * register (`ConventionDescriptor.perFile`, nu alleen A19 uit `rem_target_link_flag`). Het bewerkmodel
- * draagt ze bij ELKE profielwissel over (ingebouwd én sjabloon, ook vanaf een eigen profiel), want
- * `switchProfile` levert vanaf een eigen profiel de kale basis en een sjabloon kent het bestand niet.
- */
-export const PER_FILE_CONVENTION_KEYS: readonly ConventionKey[] = CONVENTIONS.filter(d => d.perFile).map(d => d.id);
-
 export function copyProfile(p: SchedulingProfile): SchedulingProfile {
   return { baseId: p.baseId, id: p.id, name: p.name, overrides: { ...p.overrides } };
 }
@@ -39,25 +31,18 @@ export function choiceOf(profile: SchedulingProfile | undefined, templates: read
   return 'current';
 }
 
-/** `target` met de per-bestand-waarden van `current` (afwijkingen minimaal tegen de basis van `target`). */
-function withPerFileFrom(target: SchedulingProfile, current: SchedulingProfile | undefined): SchedulingProfile {
-  const values = resolveConventions(target);
-  const fromCurrent = resolveConventions(current);
-  for (const key of PER_FILE_CONVENTION_KEYS) values[key] = fromCurrent[key];
-  return { baseId: target.baseId, id: target.id, name: target.name, overrides: diffAgainstBase(target.baseId, values) };
-}
-
 /**
- * Keuzelijst-wissel. De per-bestand-conventies (`PER_FILE_CONVENTION_KEYS`) van het huidige profiel
- * blijven bij ELKE wissel staan.
+ * Keuzelijst-wissel. Er bestaan geen per-bestand-conventies meer (A19 kwam tot 2026-09-24 uit
+ * `rem_target_link_flag`; eigenaarsbesluit "a": gewoon een P6-conventie), dus elke conventie volgt
+ * dezelfde regels:
  *  - Ingebouwd vanaf een INGEBOUWD id: `switchProfile` (spec v3.1 §3.2) — alle afwijkingen blijven
  *    letterlijk, ook als ze onder de nieuwe basis gelijk aan die basis zijn (P6 {A13: uit} → OPS → P6
  *    geeft het origineel). Zo'n profiel wordt dus nooit tot `undefined` genormaliseerd:
  *    `isDefaultProfile` is letterlijk "ops zonder enige afwijking".
- *  - Ingebouwd vanaf een EIGEN profiel: de basis plus alleen de per-bestand-waarden — de handmatige
- *    afwijkingen verlaat de gebruiker juist met deze keuze.
+ *  - Ingebouwd vanaf een EIGEN profiel: de kale basis — de handmatige afwijkingen verlaat de gebruiker
+ *    juist met deze keuze.
  *  - Sjabloon: een kopie van het sjabloon (het project draagt zijn eigen profiel; matching op id, nooit
- *    op naam), met de per-bestand-waarden van het huidige profiel.
+ *    op naam).
  *  - Alleen het kale standaardprofiel (ops zonder afwijking) wordt `undefined` (afwezig ≡ ops).
  */
 export function selectProfile(
@@ -67,12 +52,11 @@ export function selectProfile(
   if (choice.startsWith('builtin:')) {
     const baseId = choice.slice('builtin:'.length);
     if (!isBuiltInProfileId(baseId)) return current;
-    let next = switchProfile(current, baseId);
-    if (current && !isBuiltInProfileId(current.id)) next = withPerFileFrom(next, current);
+    const next = switchProfile(current, baseId);
     return isDefaultProfile(next) ? undefined : next;
   }
   const template = templates.find(t => t.id === choice.slice('template:'.length));
-  return template ? withPerFileFrom(copyProfile(template), current) : current;
+  return template ? copyProfile(template) : current;
 }
 
 /** Naam begrensd ZONDER de hele invoer te kopiëren: eerst de eerste niet-witruimte zoeken (geen
@@ -151,9 +135,6 @@ function sameConventions(a: SchedulingConventions, b: SchedulingConventions, key
   return keys.every(key => a[key] === b[key]);
 }
 
-/** Het sjabloon beschrijft de school, niet het bestand: per-bestand-conventies tellen niet mee. */
-const TEMPLATE_KEYS: readonly ConventionKey[] = CONVENTION_KEYS.filter(key => !PER_FILE_CONVENTION_KEYS.includes(key));
-
 export type TemplateRelation = 'none' | 'same' | 'deviates';
 /** Verhouding tot het sjabloon met hetzelfde id (spec v3.1 §3.2: matching op id). */
 export function templateRelation(profile: SchedulingProfile | undefined, templates: readonly SchedulingProfile[]): TemplateRelation {
@@ -161,7 +142,7 @@ export function templateRelation(profile: SchedulingProfile | undefined, templat
   const t = templates.find(x => x.id === profile.id);
   if (!t) return 'none';
   return t.baseId === profile.baseId && t.name === profile.name
-    && sameConventions(resolveConventions(t), resolveConventions(profile), TEMPLATE_KEYS) ? 'same' : 'deviates';
+    && sameConventions(resolveConventions(t), resolveConventions(profile), CONVENTION_KEYS) ? 'same' : 'deviates';
 }
 
 /** 'auto' bestaat alleen in de UI (spec v3.1 §3.1): in de state is het `undefined` (hybride formule). */

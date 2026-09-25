@@ -53,9 +53,9 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   // De MS Project-conventies staan onder hun eigen thema, en dat thema bevat niets anders.
   same('08c thema msproject == de MS Project-conventies', CONVENTIONS.filter(d => d.theme === 'msproject').map(d => d.id),
     CONVENTIONS.filter(d => d.builtIn.msproject).map(d => d.id));
-  // "Alleen voor eigen profielen" is afgeleid: in elk ingebouwd profiel uit en niet per bestand (A19 valt erbuiten).
+  // "Alleen voor eigen profielen" is afgeleid: in elk ingebouwd profiel uit.
   same('08d alleen-eigen-profielen afgeleid', CONVENTIONS.filter(isOffInEveryBuiltIn).map(d => d.id),
-    CONVENTIONS.filter(d => !d.perFile && BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id])).map(d => d.id));
+    CONVENTIONS.filter(d => BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id])).map(d => d.id));
   // Gepind (critreview UI-groepen 24-09: 08d alleen is een tautologie): dit zijn de vijf die vandaag in geen
   // enkel ingebouwd profiel aan staan — C1 en C4 (alleen P3-gedrag) en A17/B3/B4 (eigenaarsvraag 7).
   // Een conventie die hier bijkomt of afvalt is een bewust besluit, geen bijvangst van een profielwijziging.
@@ -63,7 +63,8 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
     'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
   ].sort());
-  ok('08e A19 niet bij alleen-eigen-profielen', !isOffInEveryBuiltIn(CONVENTIONS.find(d => d.id === 'p6UseRemainingStartForProgress')!));
+  // Sinds 2026-09-24 (eigenaarsbesluit "a") staat A19 gewoon aan in P6 — niet meer via een per-bestand-uitzondering.
+  ok('08e A19 niet bij alleen-eigen-profielen (aan in P6)', !isOffInEveryBuiltIn(CONVENTIONS.find(d => d.id === 'p6UseRemainingStartForProgress')!));
   // De ingebouwde waarden zoals besloten (modelwijziging punt 1).
   const P6 = builtInConventions('p6');
   const MSP = builtInConventions('msproject');
@@ -78,8 +79,8 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   ]);
   for (const key of CONVENTION_KEYS) {
     const mspOnly = key === 'resumeFromActualElapsed' || key === 'unstartedIgnoresStatusDate';
-    // A19 is per bestand: de P6-basis is uit, de XER-lezer zet hem als afwijking.
-    eq(`09 p6.${key}`, P6[key], !mspOnly && key !== 'p6UseRemainingStartForProgress' && !P6_OFF_GROUP_C.has(key));
+    // A19 staat sinds 2026-09-24 aan in P6 (eigenaarsbesluit "a"); daarvoor was de basis uit en kwam hij per bestand.
+    eq(`09 p6.${key}`, P6[key], !mspOnly && !P6_OFF_GROUP_C.has(key));
     eq(`10 msproject.${key}`, MSP[key], mspOnly);
     eq(`11 ops.${key}`, OPS[key], false);
   }
@@ -128,8 +129,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
     !isDefaultProfile({ ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: false } }));
   ok('34b onbekende/niet-boolean sleutels tellen niet als afwijking',
     isDefaultProfile({ ...builtInProfile('ops'), overrides: { onzin: true, clampNegativeFreeFloat: 'ja' } as never }));
-  // perFile is beschrijvend en het register is de bron; volgens spec v3.1 §3.1 komt alleen A19 per bestand.
-  same('34c per-bestand-conventies volgens de spec', CONVENTIONS.filter(d => d.perFile).map(d => d.id), ['p6UseRemainingStartForProgress']);
+  // Het per-bestand-mechanisme is op 2026-09-24 vervallen (eigenaarsbesluit "a"): geen descriptor draagt het veld nog.
+  ok('34c geen per-bestand-conventies meer', CONVENTIONS.every(d => !('perFile' in d)));
+  eq('34d A19 in de ingebouwde profielen: P6 aan, MS Project en OPS uit',
+    (['p6', 'msproject', 'ops'] as const).map(id => builtInConventions(id).p6UseRemainingStartForProgress), [true, false, false]);
 }
 
 // ── 3) Opties ⊥ conventies ──────────────────────────────────────────────────────────────────────
@@ -176,16 +179,21 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
   // C1, C4, B3 en B4 volgen hun P6-waarde, en die is sinds 2026-09-23 uit.
-  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16 + B1, B2, B5 + C2, C3, C5–C9, C11, C12 en C14 aan', on, [
+  // A19 sinds 2026-09-24 in LEGACY_XER_ALWAYS_ON (eigenaarsbesluit "a"): afwezig ⇒ P6-waarde (aan).
+  same('53 rij 2: gedeeltelijke blob ⇒ alleen A16, A19 + B1, B2, B5 + C2, C3, C5–C9, C11, C12 en C14 aan', on, [
     'p6AlapPositionedFromSuccessors', 'p6BackwardLagFinishBoundary',
     'p6CompletedPhysicalAtDataDate', 'p6CompletedRemainingLag',
     'p6FinishFinishStartMilestoneLateFinish', 'p6FinishNotBeforeFinishFinishBound', 'p6FreeFloatOnOwnCalendar',
     'p6InProgressStartLagElapsed', 'p6LateFinishOnOwnCalendar', 'p6OpenLoeTargetSpan', 'p6ProgressOverrideIgnoresStartedSuccessor',
-    'p6RelationFinishBoundary', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6UseTaskPlannedStartFloor',
+    'p6RelationFinishBoundary', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6UseRemainingStartForProgress', 'p6UseTaskPlannedStartFloor',
   ]);
   eq('54 rij 2: opties zonder p6Source/conventies', partial.options, undefined);
-  const a = legacyOptionsToProfile({ p6Source: 'XER', lagCalendar: 'successor', p6UseRemainingStartForProgress: true });
-  eq('55 rij 2: A19 uit het bestand wordt afwijking', a.profile.overrides.p6UseRemainingStartForProgress, true);
+  // Sinds A19 in de P6-basis aan staat (2026-09-24) is een A19 true uit het oude blok geen afwijking meer;
+  // een expliciete false wel.
+  const a = legacyOptionsToProfile({ p6Source: 'XER', lagCalendar: 'successor', p6UseRemainingStartForProgress: false });
+  eq('55 rij 2: A19 false uit het bestand wordt afwijking', a.profile.overrides.p6UseRemainingStartForProgress, false);
+  eq('55b rij 2: A19 true uit het bestand = de P6-basis, geen afwijking',
+    legacyOptionsToProfile({ p6Source: 'XER', p6UseRemainingStartForProgress: true }).profile.overrides.p6UseRemainingStartForProgress, undefined);
   eq('56 rij 2: projectopties blijven', a.options, { lagCalendar: 'successor' });
 
   // Rij 4 (geen p6Source): gepoorte A15–A20 (incl. A19) weg (risico 1), A12/A13/A22/A23 afwijkingen.
@@ -247,7 +255,7 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
   const fromFile: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
   const toMsp = switchProfile(fromFile, 'msproject');
   eq('90 wissel naar msproject: basis', toMsp.baseId, 'msproject');
-  eq('91 wissel naar msproject: A19 uit het bestand blijft', resolveConventions(toMsp).p6UseRemainingStartForProgress, true);
+  eq('91 wissel naar msproject: de letterlijke A19-afwijking blijft', resolveConventions(toMsp).p6UseRemainingStartForProgress, true);
   eq('92 wissel naar msproject: niet-overschreven conventies volgen msproject', resolveConventions(toMsp).resumeFromActualElapsed, true);
   same('93 P6 → msproject → P6 = origineel (opgelost)', resolveConventions(roundTrip(fromFile)), resolveConventions(fromFile));
   // Reviewer-proef 1: een gemigreerd legacy-profiel.
@@ -267,9 +275,10 @@ const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got
 // Eindreview I4 (b): "elke groep-B-conventie aan" zou een LATER toegevoegde groep-B-conventie stil
 // aanzetten op elk oud XER-project. De lijst is gepind op B1–B5 (spec bijlage A, met de hand).
 {
-  same('99 gepinde lijst = B1–B5', [...LEGACY_XER_ALWAYS_ON].sort(), [
+  // A19 sinds 2026-09-24 (eigenaarsbesluit "a"): oud XER-blok zonder A19-sleutel rekent als herimport.
+  same('99 gepinde lijst = A19 en B1–B5', [...LEGACY_XER_ALWAYS_ON].sort(), [
     'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
-    'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary',
+    'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary', 'p6UseRemainingStartForProgress',
   ]);
   const hypothetical = { ...CONVENTIONS.find(d => d.group === 'B')!, id: 'p6HypothetischeZesde' as never, since: '2027-01-01' };
   eq('99a een hypothetische zesde groep-B-conventie gaat NIET stil aan', legacyXerDefault(hypothetical), false);

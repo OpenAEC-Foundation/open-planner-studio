@@ -136,8 +136,8 @@ onder *State*) en de X12-meetlat, nooit `Task.time` als invoer. Bak 2 (`restart_
 …) mag de lezer nooit lezen. `tests/planning/check-xer-field-whitelist.ts` grept beide grenzen
 corpusloos over heel `src/`; de X12-non-interferentie in `check-xer-product-fidelity-x12.ts` bewijst
 het per mutatie. (3) **P6-gedrag loopt via het rekenprofiel, niet via het bronformaat.** De XER-lezer zet
-`project.schedulingProfile` op het ingebouwde profiel Primavera P6 (A19 per bestand als override uit
-`rem_target_link_flag`); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
+`project.schedulingProfile` op het ingebouwde profiel Primavera P6, zonder afwijkingen (`rem_target_link_flag`
+wordt alleen nog als diagnose gelezen, sinds 2026-09-24 stuurt hij A19 niet meer); elke P6-specifieke solvertak staat achter een eigen conventievlag (zie
 *Rekenprofielen* hieronder). `SchedulingOptions.p6Source` bestaat niet meer; oude IFC-bestanden met
 `p6Source` migreren per veld (`legacyOptionsToProfile`). `WorkCalendar.p6Source` blijft als diagnoseveld.
 Uitzondering: `lagCalendar` is sinds X5 een werkende instelling voor élk formaat.
@@ -166,11 +166,10 @@ Eén motor, drie scholen (Primavera P6, MS Project, OPS). Een **rekenprofiel** (
 basis `p6 | msproject | ops` + overrides) levert zevenentwintig **conventies** (`ConventionKey`, booleans);
 `project.schedulingOptions` draagt alleen de elf **projectopties** (`ProjectOptionKey`, per bestand) en
 `progressMode` blijft een eigen projectveld. De bron voor beide is `src/engine/scheduler/conventions/registry.ts`
-(`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue`, `gatedByP6Source` en het
-beschrijvende `perFile`); de migratie van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten
-de motor, in `src/services/ifc/schedulingProfileMigration.ts`. Per bestand komt alleen A19 (`perFile` in het
-register; het bewerkmodel leidt er `PER_FILE_CONVENTION_KEYS` uit af): die waarde blijft bij elke
-profielwissel staan, ook naar een eigen profiel of een sjabloon. Verder blijven afwijkingen op een
+(`CONVENTIONS` met per conventie drie ingebouwde waarden, `legacyValue` en `gatedByP6Source`); de migratie van oude optieblokken (`legacyOptionsToProfile`) staat bewust buiten
+de motor, in `src/services/ifc/schedulingProfileMigration.ts`. Geen conventie komt per bestand uit de
+bron (het vroegere per-bestand-mechanisme voor A19 is op 2026-09-24 vervallen: A19 staat gewoon aan in
+P6); wat per bestand verschilt is een projectoptie. Afwijkingen op een
 ingebouwd id bij een wissel letterlijk staan (`switchProfile`), en `isDefaultProfile` is letterlijk "ops
 zonder enige afwijking" — zo geeft P6 → OPS → P6 het origineel terug.
 De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/`solveInputFor`

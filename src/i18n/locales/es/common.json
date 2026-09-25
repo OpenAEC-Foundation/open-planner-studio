@@ -1221,7 +1221,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "Tarea en curso: inicio temprano = inicio del trabajo restante",
-      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. Lo define cada archivo de Primavera P6. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
+      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Momento de restricción exacto en un hito",
@@ -1340,7 +1340,6 @@
     "on": "sí",
     "off": "no",
     "resetToBase": "volver a la base",
-    "perFile": "por archivo",
     "showHelp": "Explicación de «{{name}}»",
     "sourceOptions": {
       "title": "Ajustes del archivo de origen",

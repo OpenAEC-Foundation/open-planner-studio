@@ -1151,7 +1151,7 @@
     },
     "p6UseRemainingStartForProgress": {
       "label": "进行中任务：最早开始 = 剩余工作的开始",
-      "help": "进行中任务的最早和最晚开始描述剩余工作从哪里开始，而不是历史实际开始。由 Primavera P6 按文件设置。沿开始-开始关系逆推时,只计算剩余工期。"
+      "help": "进行中任务的最早和最晚开始描述剩余工作从哪里开始，而不是历史实际开始。沿开始-开始关系逆推时,只计算剩余工期。"
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "里程碑上的精确约束时刻",
@@ -1270,7 +1270,6 @@
     "on": "开",
     "off": "关",
     "resetToBase": "恢复基准",
-    "perFile": "按文件",
     "showHelp": "“{{name}}”的说明",
     "sourceOptions": {
       "title": "源文件中的设置",

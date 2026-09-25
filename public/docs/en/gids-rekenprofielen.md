@@ -38,8 +38,6 @@ Choose another profile in **Project info** and click **Apply**. The schedule is 
 
 As long as you have changed something but not applied it yet, a coloured *Changes not applied* block stays in view at the bottom, with **Discard** next to **Apply**. If you then go to another section, click **Back**, or press Escape or F1, the app first asks whether you want to apply the changes, discard them or stay; switching to another project (Ctrl+1–9, Ctrl+N, Ctrl+O) only works once you have applied or discarded them. If the window is too narrow to show notifications next to that question, they stay dimmed behind the dialog and come back as soon as you have made a choice.
 
-Some values came from the file itself, such as the P6 setting for the start of remaining work. Those stay in place with every switch, also when you choose a custom profile or a template. That is why the list can show "Primavera P6 (modified)": that is not a custom profile, but the built-in profile with values from your file.
-
 When you switch between the built-in profiles, all deviations stay exactly as they are, including one that happens to equal the default of the new profile. So Primavera P6 → Open Planner Studio → Primavera P6 gives back exactly the profile you started with, and the schedule: the calculated dates are the same as before the switch, also after **Calculate** and after saving and reopening.
 
 The project's calculation options do not change when you switch. If you want the default options of the new profile, click **Apply this profile's default options**.
@@ -50,20 +48,20 @@ The columns *Scheduled start* and *Scheduled finish* are input, not a calculatio
 
 ## Making a custom profile
 
-Turn a convention on or off in the section. If the profile is built in, Open Planner Studio automatically makes a custom copy of it, for example "Copy of Primavera P6". You can change that name. When you choose a template for a project from a `.xer` file, the project keeps the value from the file for the start of remaining work; that does not count as a difference from the template.
+Turn a convention on or off in the section. If the profile is built in, Open Planner Studio automatically makes a custom copy of it, for example "Copy of Primavera P6". You can change that name.
 
 With **Save as template** you keep the custom profile in the app, so you can choose it in other projects. A project always keeps its own copy of its profile: changing a template later does not change any existing project. When a project's profile differs from its template, you see that in a coloured block, with the buttons **Update from template** and **Update template from this project**. **Delete template** removes the template from the app again; the project keeps its own copy.
 
 ## The twenty-seven conventions
 
-Under Open Planner Studio all twenty-seven are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation. The line marked **per file** comes from your `.xer` file and stays when you switch profiles.
+Under Open Planner Studio all twenty-seven are off. In Project info they are grouped by topic, as below. Behind each line, the value of the chosen base profile is shown in grey ("base: on" or "base: off"). If your project differs from it, the line is highlighted and **back to base** restores the profile's value. The arrow in front of a line expands its explanation.
 
-If the difference is on a built-in profile, for example the value from the file, the profile stays the built-in profile after **back to base**; no copy is made.
+If the difference is on a built-in profile, the profile stays the built-in profile after **back to base**; no copy is made.
 
 ### Progress and completed work
 
 - **Keep actual dates in the backward pass** (Primavera P6) — a started or completed task keeps its recorded dates on the late side too.
-- **In-progress task: early start = start of remaining work** (per file from Primavera P6) — the early start of an in-progress task is where the remaining work begins. Calculating backward over a start-to-start relationship, only its remaining duration counts: without remaining work, late start and late finish coincide.
+- **In-progress task: early start = start of remaining work** (Primavera P6) — the early start of an in-progress task is where the remaining work begins. Calculating backward over a start-to-start relationship, only its remaining duration counts: without remaining work, late start and late finish coincide. In every measured file calculated by Primavera P6, an in-progress task starts this way. Up to September 2026, Open Planner Studio took this rule per `.xer` file from a project setting (`rem_target_link_flag`); that link was never tested and is no longer read. Whether a P6 project with a different value of that setting calculates differently is not known.
 - **Completed physical-progress task sits at the data date** (Primavera P6) — a completed task with physical percent complete is not shown at its actual dates, but as a single point at the data date, or later if a predecessor that is still in progress or has not started requires it. Its successors calculate from that point, and the free float of a predecessor that is not finished counts up to that point. Caveat: measured only on physical percent complete; for completed tasks with duration (the P6 default) or units percent complete it has not been measured, so those keep their actual dates.
 - **Planned start is not a floor for a task in progress** (Primavera P6) — the remaining work of a started task begins at the data date and right after its predecessors, even if its planned start is later. Its successors move with it. For a task that has not started, the planned start remains a floor (*Planned start as an extra floor*).
 - **Progress Override ignores a started successor on the late side too** (Primavera P6) — only when the project uses the progress setting *Progress Override*. If a successor has already started while its predecessor is still in progress, the schedule already ignores that relationship when calculating forward. With this convention it also does not count in the predecessor's late dates and free float. Without it, the predecessor can get negative float, while Primavera P6 gives it float up to its other successors.
