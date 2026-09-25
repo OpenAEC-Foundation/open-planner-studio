@@ -25,6 +25,7 @@ import {
   type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
+import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
 import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeriodField';
@@ -1241,7 +1242,8 @@ export function ReportPanel() {
     startExport();
   }, [scheduleStale, startExport]);
 
-  const criticalCount = tasks.filter(t => t.time.isCritical && t.childIds.length === 0).length;
+  // Kritieke activiteiten (bladtaken): dezelfde teller als MCP get_project_info en de statusbalk.
+  const criticalCount = countCriticalActivities(tasks);
   const leafCount = tasks.filter(t => t.childIds.length === 0).length;
 
   return (
