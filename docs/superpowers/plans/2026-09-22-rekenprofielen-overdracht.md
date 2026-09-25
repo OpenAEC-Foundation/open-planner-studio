@@ -138,6 +138,19 @@ alleen voor deze etappe en op dit uitdrukkelijke verzoek); een push naar `main` 
 (`live.yml`), dus de keten is: mergen, CI afwachten, dan de volgende; (3) de eigenaar doet de visuele check
 op `main`. Nog steeds géén release/tag.
 
+**2026-09-25 ~18:10, letterlijk:** "je mag alle openstaande PRs mergen, allemaal. dus ook die niet door jou
+zijn gemaakt. vind de juiste volgorde. wanneer er echt tegengestelde visies en besluiten zijn gevonden, mag je
+het aan het eind vragen na dat je al het andere gedaan hebt. probere zoveel mogelijk zelf te beslissen, kies
+de elegantste oplossing" ⇒ 35 open PR's (stand 18:10): 14 op `main` (#172, #177, #180, #182, #189–#195, #199,
+#200, #204), de #172-stapel (`claude/busy-cerf-w6by88`: #178, #179, #181→#201, #183, #184, #185→#186→#197,
+#187, #188, #196, #198, #202, #203, #205), en de etappestapel #109 (nu CONFLICTING met main) → #167/#169 → #170.
+Volgorde: eerst alles wat dicht bij `main` staat via één integratiebranch (conflicten daar oplossen, één
+`verify`), dan per PR naar `main` in stapelvolgorde; daarna de etappestapel op de nieuwe `main` herbaseren
+(conflicten inhoudelijk oplossen, `verify` per laag) en mergen #109 → #167 → #169 → #170. Echt tegengestelde
+besluiten (o.a. #185/#184 gevolgregels vs. #170 `settleDurationAftermath`, #201 dialoog-undo vs. #170 G5,
+#200 "geen vandaag" vs. #167 `$`-slots, #194 lezerfixes vs. #167/#170) worden per geval beslist en in §1c
+vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
+
 ### 1b. Over het systeem tegen compromissen = rekenprofielen (brainstorm, middag)
 
 1. De compromissen die weg moeten: de conventiekeuzes in de gedeelde motor ("moeten we dit in de
