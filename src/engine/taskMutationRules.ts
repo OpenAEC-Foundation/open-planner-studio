@@ -65,6 +65,22 @@ export function applyCompletionEdit(time: TaskTime, completion: number, statusDa
   if (completion > 0) fillMissingActualStart(time, statusDate);
 }
 
+/** Een werkelijke start of einde zetten (`undefined` = wissen) en daarna de voortgangsinvarianten
+ *  draaien — de gedeelde kern van `setActualStart`/`setActualFinish` (paneel) en de velden in
+ *  "Taak bewerken". Het einde wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering
+ *  (anders zet de invariant meteen een nieuw einde en is wissen onmogelijk). Een datum ná de
+ *  statusdatum weigeren (`isActualPastStatusDate`) doet de aanroeper, vóór deze aanroep. */
+export function applyActualDateEdit(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  date: string | undefined,
+  statusDate: string | undefined,
+): void {
+  task.time[field] = date || undefined;
+  if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
+  applyProgressInvariants(task, statusDate);
+}
+
 /** Centrale voortgangsinvarianten, gedeeld door grid, store-setters en MCP-validatie. */
 export function applyProgressInvariants(task: Task, statusDate: string | undefined): void {
   const time = task.time;

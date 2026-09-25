@@ -19,6 +19,7 @@ import { generateId } from '@/utils/id';
 import { formatDate } from '@/utils/dateUtils';
 import { ancestorIds, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
+  applyActualDateEdit,
   applyCompletionEdit,
   applyProgressInvariants,
   isActualPastStatusDate,
@@ -304,11 +305,8 @@ function applyActualDate(
   if (!task) return true;
   if (date && s.project.statusDate && isActualPastStatusDate(date, s.project.statusDate)) return false;
   runtime.beginUndoable(s, opts); // `opts` = coalesceKey: per-toetsaanslag-commits van één datumveld = 1 undo-stap.
-  task.time[field] = date || undefined;
-  // Finish wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering (anders re-default de
-  // invariant meteen een nieuw actualFinish en is wissen onmogelijk).
-  if (field === 'actualFinish' && !date && task.time.completion >= 1) task.time.completion = 0;
-  applyProgressInvariants(task, s.project.statusDate);
+  // Zetten/wissen + invarianten; gedeeld met de velden in "Taak bewerken" (state/taskDialogSave.ts).
+  applyActualDateEdit(task, field, date, s.project.statusDate);
   clearLevelingGaps(task); // B7 — zie `setTaskProgress`.
   // H1 (Opus-review T15-iteratie-2) — elke voortgangsmutatie is datum-beïnvloedend, zie `setTaskProgress`.
   runtime.finishMutation(s, { stale: true });
@@ -638,8 +636,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Cykel-preventie (QA-fix P1, fase 2.10 onderdeel 2): newParentId mag niet id zelf zijn,
       // en niet een afstammeling van id — anders ontstaat een lus in de boom (oneindige loops in
       // flattenOrder/viewRows). Geweigerd ⇒ GEEN snapshot, GEEN mutatie: geen halftoegepaste
-      // state. Dit is de enige plek die parentId/childIds mag muteren (zie TaskDialog.handleSave —
-      // die haalt parentId daarom uit de kale `updateTask`-patch en roept in plaats daarvan dit aan).
+      // state. Dit is de enige plek die parentId/childIds mag muteren (zie state/taskDialogSave.ts —
+      // het Opslaan van "Taak bewerken" haalt parentId daarom uit de kale `updateTask`-patch en
+      // roept in plaats daarvan dit aan).
       // `position` verandert deze guards NIET: een geweigerde move blijft ook mét positie geweigerd.
       if (newParentId != null) {
         // Cyklusguard (review issue #21 pt. 1): de nieuwe ouder mag de taak zelf of een

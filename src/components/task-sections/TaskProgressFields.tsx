@@ -20,7 +20,8 @@ let progressSeq = 0;
  * `TaskPropertiesPanel`'s gedrag exact te behouden (harde eis, item 2) krijgt deze sectie daarom
  * drie EXPLICIETE setter-props i.p.v. de generieke `onChange`: het paneel geeft de echte
  * store-acties door (instant-apply, ongewijzigd); de dialoog geeft lokale equivalenten door die op
- * de eigen draft werken (zelfde §3.2-gedrag, maar pas gecommit op Save — zie `TaskDialog.tsx`).
+ * de eigen draft werken (dezelfde §3.2-functies, maar pas gecommit op Save — zie
+ * `state/taskDialogSave.ts`).
  */
 export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSetActualFinish }: {
   task: Task;
