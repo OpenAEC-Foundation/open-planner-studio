@@ -16,7 +16,7 @@ import {
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
 } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, parseDate } from '@/utils/dateUtils';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { deriveWbsCodes, applyWbsNumbering, flattenOrder } from '@/utils/wbs';
 import {
@@ -434,6 +434,20 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     set((s) => {
       const idx = s.tasks.findIndex(t => t.id === id);
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
+      // Start is verplicht (vangnet onder paneel, dialoog en extensie-API): een onleesbare
+      // `scheduleStart` (bv. `''` uit een leeggemaakt datumveld) maakt het HELE project onberekenbaar
+      // ("Ongeldige startdatum") en wordt bij heropenen stil "vandaag". Het raster weigert dit al met
+      // `required`; hier blijft het bestaande anker staan en gaat de rest van de patch gewoon door.
+      // Bleef er daarna niets te wijzigen over, dan ook geen snapshot (R3).
+      let time = updates.time;
+      if (time && 'scheduleStart' in time && isNaN(parseDate(time.scheduleStart ?? '').getTime())) {
+        const current = s.tasks[idx].time;
+        const kept = { ...time, scheduleStart: current.scheduleStart };
+        const onlyStart = Object.keys(updates).length === 1
+          && (Object.keys(kept) as (keyof typeof kept)[]).every(k => kept[k] === current[k]);
+        if (onlyStart) return;
+        time = kept;
+      }
       runtime.beginUndoable(s, opts); // snapshot pas ná de guard, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
       // T14b-vervolg (gebruikstestbevinding): `updates.time` (indien meegegeven) apart mergen tegen
       // de BESTAANDE tijd van de taak i.p.v. 'm via Object.assign in zijn geheel te laten vervangen —
@@ -441,7 +455,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // `ExtTaskTime`-volledigheid niet op runtime wordt afgedwongen) stil bestaande verplichte velden
       // (completion/floats/…) tot een lege plek diezelfde writeIFC-crash weer opende. Zie
       // `mergeTaskTime` in taskDefaults.ts voor de ADD-vs-UPDATE-basissemantiek.
-      const { time, ...rest } = updates;
+      const { time: _unguardedTime, ...rest } = updates; // `time` = de start-gecontroleerde variant hierboven.
       // Contour-engine (2026-09): de oude werkduur vóór de merge, voor de herschaling hieronder.
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);

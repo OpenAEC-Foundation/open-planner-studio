@@ -21,6 +21,7 @@ import { TaskDependenciesSection } from '@/components/task-sections/TaskDependen
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
+import { isActualPastStatusDate } from '@/engine/taskMutationRules';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
 
 /** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
@@ -140,7 +141,8 @@ export function TaskDialog() {
       // daadwerkelijk wijzigde — anders zou opslaan de berekende start als nieuw anker vastleggen
       // en de drift na herberekenen herintroduceren.
       const shownStart = editingTask.time.earlyStart || editingTask.time.scheduleStart;
-      if (startDate !== shownStart) time.scheduleStart = startDate;
+      // Start is verplicht: het veld weigert leeg al (`required`), dit is het vangnet.
+      if (startDate && startDate !== shownStart) time.scheduleStart = startDate;
       const milestoneTransition = taskMilestoneTransition(editingTask, draft.isMilestone);
       if (milestoneTransition.time) {
         Object.assign(time, milestoneTransition.time);
@@ -286,6 +288,7 @@ export function TaskDialog() {
             <Field label={t('dialog.startDate')}>
               <DateTextInput
                 value={startDate}
+                required
                 onCommit={setStartDate}
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('dialog.startDate')}
@@ -314,13 +317,15 @@ export function TaskDialog() {
               return { ...d, time };
             })}
             onSetActualStart={date => {
-              // Spiegelt taskSlice.setActualStart (§3.2): actuals nooit ná de statusdatum.
-              if (date && project.statusDate && date > project.statusDate) return false;
+              // Spiegelt taskSlice.setActualStart (§3.2): actuals nooit ná de statusdatum. Zelfde
+              // vergelijking als de store: het datumveld zet het tijddeel van een urentaak terug
+              // (`2027-05-14T07:00`), en een rauwe stringvergelijking met `2027-05-14` zou dat weigeren.
+              if (date && project.statusDate && isActualPastStatusDate(date, project.statusDate)) return false;
               setDraft(d => ({ ...d, time: { ...d.time, actualStart: date } }));
               return true;
             }}
             onSetActualFinish={date => {
-              if (date && project.statusDate && date > project.statusDate) return false;
+              if (date && project.statusDate && isActualPastStatusDate(date, project.statusDate)) return false;
               setDraft(d => {
                 const time = { ...d.time, actualFinish: date };
                 if (!date && time.completion >= 1) time.completion = 0;

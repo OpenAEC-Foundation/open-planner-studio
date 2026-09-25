@@ -55,7 +55,9 @@ export function TaskConstraintFields({ task, onChange }: {
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.constraintDate')}
             value={task.constraint.date ?? ''}
-            onCommit={v => onChange({ constraint: { ...task.constraint!, date: v } })}
+            // Elk type dat hier een datumveld toont, vraagt een datum (zoals het raster: `required`).
+            required
+            onCommit={v => { if (v) onChange({ constraint: { ...task.constraint!, date: v } }); }}
           />
         </Field>
       )}
@@ -124,7 +126,8 @@ export function TaskConstraintFields({ task, onChange }: {
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.constraint2Date')}
                 value={task.constraint2.date ?? ''}
-                onCommit={v => onChange({ constraint2: { ...task.constraint2!, date: v } })}
+                required
+                onCommit={v => { if (v) onChange({ constraint2: { ...task.constraint2!, date: v } }); }}
               />
             </Field>
           )}

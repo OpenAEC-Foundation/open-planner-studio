@@ -236,6 +236,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DICHECK="$DIR/.date-input-commit-check.mjs"
   if bundle_check "$DIR/check-date-input-commit.ts" "$DICHECK"; then node "$DICHECK" || STATUS=1; fi
 
+  # Verplichte startdatum in de store: `updateTask` legt een lege/onleesbare `scheduleStart` nooit
+  # vast (vangnet onder paneel, dialoog en extensie-API; het raster weigert al met `required`).
+  RSCHECK="$DIR/.required-task-start-check.mjs"
+  if bundle_check "$DIR/check-required-task-start.ts" "$RSCHECK"; then node "$RSCHECK" || STATUS=1; fi
+
   # "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts — pure functies, los van de CPM-cases).
   JUCHECK="$DIR/.just-updated-check.mjs"
   if bundle_check "$DIR/check-just-updated.ts" "$JUCHECK"; then node "$JUCHECK" || STATUS=1; fi
