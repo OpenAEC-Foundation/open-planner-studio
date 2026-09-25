@@ -63,6 +63,7 @@ function makeRenderer(opts: Partial<HistogramRenderOptions> & { canvasHeight: nu
     canvasWidth: 800,
     canvasHeight: opts.canvasHeight,
     pickerWidth: 160,
+    pickerSide: opts.pickerSide,
     labels: { unitsSuffix: 'u' },
     palette: FAKE_PALETTE,
     pickerScrollY: opts.pickerScrollY,
@@ -124,6 +125,20 @@ function makeRenderer(opts: Partial<HistogramRenderOptions> & { canvasHeight: nu
   // De gepinde somrij blijft op scroll 0 ongeacht pickerScrollY.
   const pinned = renderer.pickerAt(10, 9);
   ok('volle scroll: de gepinde somrij (index 0) blijft bereikbaar op zijn vaste positie', pinned?.id === undefined);
+}
+
+// ── 4b. G13: in ar/fa staat de kiezer rechts (onder de gespiegelde takenlijst) ─────────────
+// Zelfde rijgeometrie en scroll, alleen op x 640..800 van een 800 px breed canvas. Links daarvan
+// ligt de plot, waar de kiezer niets raakt.
+{
+  const list = picker(30);
+  const maxScroll = histogramPickerMaxScroll(list.length, 160);
+  const renderer = makeRenderer({ canvasHeight: 160, picker: list, pickerScrollY: maxScroll, pickerSide: 'right' });
+  eq('rtl, volle scroll: onderaan de kiezer de laatste resource', renderer.pickerAt(650, 159)?.id, 'r29');
+  ok('rtl: de gepinde somrij blijft bereikbaar', renderer.pickerAt(799, 9)?.id === undefined
+    && renderer.pickerAt(799, 9) !== null);
+  ok('rtl: links van de kiezer (de plot) geen kiezerhit', renderer.pickerAt(639, 159) === null);
+  ok('rtl: x = 10 (de oude kiezerplek) is plot, geen kiezerhit', renderer.pickerAt(10, 9) === null);
 }
 
 // ── 5. Kiezerlabels afkappen: dezelfde `ellipsize` als de Gantt ─────────────────────────────

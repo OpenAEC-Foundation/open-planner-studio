@@ -22,6 +22,7 @@ import {
 import { resolveWheelFunction } from '@/utils/ganttWheel';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { histogramPlotInsets } from '@/engine/renderer/HistogramRenderer';
 import {
   HISTOGRAM_MAX_HEIGHT,
   HISTOGRAM_MIN_HEIGHT,
@@ -76,16 +77,18 @@ export function useGanttViewportCoordinator(
     }),
     [input.calendar, input.compressNonWorkdays, effectiveView],
   );
+  // De histogramplot begint waar de kiezer ophoudt: na de kiezer in ltr, op 0 in ar/fa (kiezer rechts).
+  // Dezelfde indeling als de HistogramRenderer zelf tekent en hit-test (`histogramPlotInsets`).
   const histogramAxis = useMemo(
     () => buildSharedAxis({
       calendar: input.calendar,
       compressNonWorkdays: input.compressNonWorkdays,
       viewStartDate: effectiveView.viewStartDate,
-      chartOriginX: input.histogramPickerWidth,
+      chartOriginX: histogramPlotInsets(input.histogramPickerWidth, input.histogramPickerSide).left,
       zoom: effectiveView.zoom,
       scrollX: effectiveView.scrollX,
     }),
-    [input.calendar, input.compressNonWorkdays, effectiveView, input.histogramPickerWidth],
+    [input.calendar, input.compressNonWorkdays, effectiveView, input.histogramPickerWidth, input.histogramPickerSide],
   );
   const contentSpanDays = useMemo(
     () => computeContentSpanDays(

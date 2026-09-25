@@ -52,11 +52,18 @@ void i18n
     react: { useSuspense: false },
   });
 
+/** Schrijfrichting van de shell in taal `lng`: `rtl` voor ar/fa. Zet `<html dir>` hieronder, en is
+ *  de bron voor wie tijdens het renderen al moet weten dat de shell gespiegeld is (bv. aan welke kant
+ *  de takenlijst en dus de histogramkiezer staat) — een component die `useTranslation` gebruikt,
+ *  rendert bij een taalwissel opnieuw. */
+export function localeDirection(lng: string): 'ltr' | 'rtl' {
+  return RTL_LOCALES.includes(lng as Locale) ? 'rtl' : 'ltr';
+}
+
 // Set document direction + lang on language change (RTL support; <html lang> volgt de
 // taalkeuze i.p.v. de hardcoded "nl" uit index.html — TODO-quick-win)
 function updateDirection(lng: string) {
-  const locale = lng as Locale;
-  document.documentElement.dir = RTL_LOCALES.includes(locale) ? 'rtl' : 'ltr';
+  document.documentElement.dir = localeDirection(lng);
   document.documentElement.lang = lng;
 }
 updateDirection(i18n.language);

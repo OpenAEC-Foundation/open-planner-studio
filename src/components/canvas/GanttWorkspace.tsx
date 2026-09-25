@@ -18,9 +18,11 @@ import { GanttCanvas, type GanttGridRevealRequest } from './GanttCanvas';
 import { clampTaskGridWidth, effectiveTaskGridMax } from './ganttSplitter';
 import { GanttRowDragBridgeContext, type GanttRowDragBridge, type GanttRowDragStarter } from './ganttRowDragBridge';
 import { applySetting } from '@/components/settings/applySetting';
+import { localeDirection } from '@/i18n/config';
+import type { HistogramPickerSide } from '@/engine/renderer/HistogramRenderer';
 
 export function GanttWorkspace() {
-  const { t } = useTranslation('task');
+  const { t, i18n } = useTranslation('task');
   const workspaceRef = useRef<HTMLDivElement>(null);
   const leftPanelWidth = useAppStore(state => state.ui.leftPanelWidth);
   const setUI = useAppStore(state => state.setUI);
@@ -47,6 +49,9 @@ export function GanttWorkspace() {
   // De takenlijst staat aan de BEGINkant van de werkruimte: links in ltr, rechts in ar/fa (het
   // CSS-grid volgt de gespiegelde shell). Muis en pijltoetsen rekenen daarom via dezelfde gedeelde
   // regel in `useSplitter`: de grens gaat de kant op van de muis of de pijl.
+  // Het histogram eronder is één canvas over de volle breedte; zijn resourcekiezer staat onder de
+  // takenlijst, dus aan dezelfde kant. De tijdlijn zelf blijft ltr.
+  const histogramPickerSide: HistogramPickerSide = localeDirection(i18n.language) === 'rtl' ? 'right' : 'left';
   const splitter = useSplitter({
     min: TASK_TABLE_MIN_WIDTH,
     max: () => {
@@ -107,6 +112,7 @@ export function GanttWorkspace() {
           revealRequest={revealRequest}
           histogramHost={histogramHost}
           histogramPickerWidth={renderedLeftPanelWidth}
+          histogramPickerSide={histogramPickerSide}
           miniMapHost={miniMapHost}
         />
       </div>
