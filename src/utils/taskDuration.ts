@@ -2,7 +2,8 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { TFunction } from 'i18next';
 import { isHourCalendar, deriveHoursPerDay } from '@/services/subdayIo';
-import { formatDuration, type DurationUnit, type DurationSuffixes } from '@/utils/durationFormat';
+import { formatDuration, type DurationSuffixes } from '@/utils/durationFormat';
+import { formatReportNumber } from '@/utils/reportNumber';
 import type { DurationDisplay } from '@/types/view';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -51,14 +52,76 @@ export function taskDurationMinutes(task: Task, cal: WorkCalendar): number {
   return task.time.scheduleDuration * hpd * 60;
 }
 
-function unitFor(display: DurationDisplay): DurationUnit {
-  return display; // 'auto' | 'days' | 'hours' zijn identiek aan DurationUnit
+/** Hoe een duur- of werkdagtekst eruitziet: eenheid-instelling, vertaalde afkortingen, taal. */
+export interface DurationTextFormat {
+  /** Duurweergave (Automatisch/Dagen/Uren); ontbreekt ⇒ `'auto'` = de eigen taakeenheid. */
+  display?: DurationDisplay;
+  /** Vertaalde eenheid-afkortingen (`durationSuffixesFrom`); ontbreken ⇒ `d`/`h`/`m`. */
+  suffixes?: DurationSuffixes;
+  /** App-taal voor het decimaalteken ("0,5" in nl, "0.5" in en); ontbreekt ⇒ punt. */
+  locale?: string;
+}
+
+function suffixesOf(fmt: DurationTextFormat | undefined): DurationSuffixes {
+  return {
+    day: fmt?.suffixes?.day ?? 'd',
+    hour: fmt?.suffixes?.hour ?? 'h',
+    minute: fmt?.suffixes?.minute ?? 'm',
+  };
 }
 
 /**
- * Geformatteerde duur voor tabellen/panelen/tooltips (§6.5).
- * - `enableHourPlanning` UIT ⇒ byte-identiek: het naakte aantal werkdagen (huidig gedrag).
- * - AAN ⇒ de eigen eenheid per taak via `durationDisplay` (`auto`/`days`/`hours`).
+ * Een aantal WERKDAGEN als weergavetekst — speling, restduur van een dagtaak, baselineduur, en de
+ * dagvorm van een duur. Eén getalnotatie voor alle schermen: hoogstens twee decimalen, het
+ * decimaalteken van de app-taal en geen duizendtalscheiding (`formatReportNumber`, dezelfde als de
+ * rapporten), met de dag-afkorting erachter. Niet-eindig ⇒ "—". Zo staat er nooit meer
+ * "1.6666666666666667" in een Nederlands scherm (audit weergaven, bevinding 8).
+ */
+export function formatWorkDaysText(days: number, fmt?: DurationTextFormat): string {
+  const text = formatReportNumber(days, fmt?.locale);
+  return text ? `${text}${suffixesOf(fmt).day}` : '—';
+}
+
+/** Minuten als uren + minuten ("5h", "1h 30m", "45m"), op hele minuten. */
+function hoursText(minutes: number, hoursPerDay: number, suffixes: DurationSuffixes): string {
+  return formatDuration(Math.round(minutes), hoursPerDay, 'hours', suffixes);
+}
+
+/**
+ * DE duur-celtekst van een taak: taakraster, Gantt-afdruk/PDF, tooltip en balklabels lezen allemaal
+ * deze ene functie (audit weergaven, bevinding 7 — het raster negeerde Duurweergave en de afdruk
+ * toonde een urentaak van 5h als "0,56d").
+ * - `auto` ⇒ de door de gebruiker gekozen, blijvende taakeenheid ("5h", "2d");
+ * - `days`/`hours` ⇒ die eenheid, met de eigen eenheid erachter als ze verschilt ("18h(2d)").
+ * Een nulduur-mijlpaal is "0d". `hoursPerDay` is die van de effectieve taakkalender (de omrekening
+ * tussen dagen en uren); de EDIT-tekst van het raster blijft bewust de parsebare eigen vorm.
+ */
+export function formatTaskDurationText(task: Task, hoursPerDay: number, fmt?: DurationTextFormat): string {
+  const suffixes = suffixesOf(fmt);
+  if (isZeroDurationMilestone(task)) return `0${suffixes.day}`;
+  const nativeUnit = taskDurationUnit(task);
+  const minutes = nativeUnit === 'hours'
+    ? task.time.durationMinutes ?? 0
+    : task.time.scheduleDuration * hoursPerDay * 60;
+  const native = nativeUnit === 'days'
+    ? formatWorkDaysText(task.time.scheduleDuration, fmt)
+    : hoursText(minutes, hoursPerDay, suffixes);
+
+  // Automatisch betekent letterlijk de door de gebruiker gekozen, blijvende taakeenheid. Houd de
+  // exacte kalenderwandeling voor een bewuste eenheidswissel in TaskDurationField; de renderer mag
+  // niet bij iedere tekenronde duizenden werkdagen doorlopen om een presentatie-equivalent te zoeken.
+  const display = fmt?.display ?? 'auto';
+  if (display === 'auto' || display === nativeUnit) return native;
+  const converted = display === 'days'
+    ? formatWorkDaysText(hoursPerDay > 0 ? minutes / (hoursPerDay * 60) : NaN, fmt)
+    : hoursText(minutes, hoursPerDay, suffixes);
+  return `${converted}(${native})`;
+}
+
+/**
+ * Geformatteerde duur voor tabellen/panelen/tooltips (§6.5) op basis van de effectieve kalender:
+ * {@link formatTaskDurationText} met de uren per dag van `cal`. `enableHourPlanning` doet bewust
+ * niets meer — de blijvende taakeenheid blijft ook zichtbaar als de schakelaar uit staat.
  */
 export function formatTaskDurationDisplay(
   task: Task,
@@ -66,29 +129,10 @@ export function formatTaskDurationDisplay(
   display: DurationDisplay,
   enableHourPlanning: boolean,
   suffixes?: DurationSuffixes,
+  locale?: string,
 ): string {
   void enableHourPlanning;
-  if (isZeroDurationMilestone(task)) return '0';
-  const actualSuffixes: DurationSuffixes = {
-    day: suffixes?.day ?? 'd',
-    hour: suffixes?.hour ?? 'h',
-    minute: suffixes?.minute ?? 'm',
-  };
-  const nativeUnit = taskDurationUnit(task);
-  const minutes = taskDurationMinutes(task, cal);
-  const hpd = effHoursPerDay(cal);
-  const native = nativeUnit === 'days'
-    ? `${task.time.scheduleDuration}${actualSuffixes.day}`
-    : formatDuration(minutes, hpd, 'hours', actualSuffixes);
-
-  // Automatisch betekent letterlijk de door de gebruiker gekozen, blijvende taakeenheid. Houd de
-  // exacte kalenderwandeling voor een bewuste eenheidswissel in TaskDurationField; de renderer mag
-  // niet bij iedere tekenronde duizenden werkdagen doorlopen om een presentatie-equivalent te zoeken.
-  if (display === 'auto') return native;
-
-  const requested = unitFor(display);
-  if (requested === nativeUnit) return native;
-  return `${formatDuration(minutes, hpd, requested, actualSuffixes)}(${native})`;
+  return formatTaskDurationText(task, effHoursPerDay(cal), { display, suffixes, locale });
 }
 
 /**

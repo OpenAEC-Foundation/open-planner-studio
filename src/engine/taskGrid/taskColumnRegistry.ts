@@ -42,6 +42,7 @@ import {
   type ParsedTaskDuration,
 } from '@/utils/taskDurationInput';
 import { shownStart, shownFinish } from '@/utils/taskDates';
+import { formatTaskDurationText, type DurationTextFormat } from '@/utils/taskDuration';
 import { isStrictIsoDateTime } from '@/utils/dateUtils';
 import { isFiniteNumber } from '@/utils/guards';
 
@@ -312,11 +313,29 @@ const validateScheduledTaskDuration: Validator = value =>
     ? success(value)
     : failure('duration', value);
 
-function scheduledTaskDurationText(task: Task, ctx?: TaskColumnContext): string {
-  const suffixKey = task.time.durationUnit === 'hours' ? 'duration.suffixHour' : 'duration.suffixDay';
-  const fallback = task.time.durationUnit === 'hours' ? 'h' : 'd';
-  const suffix = ctx?.labelForText?.(suffixKey) ?? fallback;
-  return `${formatTaskDurationInput(task)}${suffix}`;
+/** Kopieertekst van de Duur-kolom: de eigen taakeenheid in parsebare vorm ("2d", "1.5h"), zodat
+ *  plakken terug hetzelfde oplevert. De WEERGAVE loopt via {@link durationCellText}. */
+function scheduledTaskDurationText(task: Task): string {
+  return `${formatTaskDurationInput(task)}${task.time.durationUnit === 'hours' ? 'h' : 'd'}`;
+}
+
+/** De vertaalde duur-afkortingen en weergave-instellingen van het raster, voor de gedeelde formatter. */
+function gridDurationFormat(ctx: TaskColumnContext): DurationTextFormat {
+  const label = (key: string, fallback: string) => ctx.labelForText?.(key) ?? fallback;
+  return {
+    display: ctx.durationDisplay,
+    suffixes: {
+      day: label('duration.suffixDay', 'd'),
+      hour: label('duration.suffixHour', 'h'),
+      minute: label('duration.suffixMinute', 'm'),
+    },
+    locale: ctx.numberLocale,
+  };
+}
+
+/** Weergavetekst van de Duur-kolom: dezelfde formatter als tooltip en Gantt-afdruk (audit weergaven 7). */
+function durationCellText(task: Task, ctx: TaskColumnContext): string {
+  return formatTaskDurationText(task, effectiveHoursPerDay(task, ctx), gridDurationFormat(ctx));
 }
 
 const TASK_TYPES: readonly TaskType[] = [
@@ -647,7 +666,7 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
   return [
     editableColumn({ id: 'task.time.durationType', labelKey: 'taskGrid.columns.durationType', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('durationType', ['WORKTIME', 'ELAPSEDTIME']), route: 'task-schedule', read: task => task.time.durationType, parse: enumParser(['WORKTIME', 'ELAPSEDTIME']), validate: enumValidator(['WORKTIME', 'ELAPSEDTIME']) }),
     editableColumn({ id: 'task.time.durationUnit', labelKey: 'duration.unit', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: [{ value: 'days', labelKey: 'duration.days' }, { value: 'hours', labelKey: 'duration.hours' }], route: 'task-schedule', read: task => task.time.durationUnit, readOnly: task => task.isHammock === true || task.childIds.length > 0 || task.isMilestone, parse: enumParser(['days', 'hours']), validate: enumValidator(['days', 'hours']) }),
-    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => scheduledTaskDurationText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
+    editableColumn({ id: 'task.time.scheduleDuration', labelKey: 'taskGrid.columns.duration', category: 'planning', valueKind: 'duration', editorKind: 'duration', route: 'task-schedule', read: task => task.time.durationUnit === 'hours' ? task.time.durationMinutes : task.time.scheduleDuration, readOnly: task => task.isHammock === true || task.childIds.length > 0 || (task.isMilestone && task.time.scheduleDuration === 0), format: (_value, task, ctx) => durationCellText(task, ctx), copy: task => scheduledTaskDurationText(task), editText: task => formatTaskDurationInput(task), parse: parseScheduledTaskDuration, validate: validateScheduledTaskDuration }),
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     editableColumn({ id: 'task.time.scheduleStart', labelKey: 'taskGrid.columns.scheduleStart', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleStart, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.scheduleFinish', labelKey: 'taskGrid.columns.scheduleFinish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', read: task => task.time.scheduleFinish, parse: parseDate, validate: validateDate }),

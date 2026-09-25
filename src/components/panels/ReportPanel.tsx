@@ -26,6 +26,7 @@ import {
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
+import { durationSuffixesFrom } from '@/utils/taskDuration';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import { TableReportView } from './reports/TableReportView';
 import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeriodField';
@@ -227,6 +228,11 @@ export function ReportPanel() {
   const fileBase = projectFileBase(project.name);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
+  // Duur-kolom van de Gantt-afdruk: dezelfde tekst als taakraster en tooltip — Duurweergave, de
+  // eigen taakeenheid en de uren per dag van de effectieve taakkalender (audit weergaven, bevinding 7).
+  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
+  const calendars = useAppStore(s => s.calendars);
+  const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [tCommon]);
   // Issue #56: de lijnstijl van de relaties in het rapport volgt de P6-conventie van het scherm
   // (doorgetrokken = bepalend, gestreept = niet-bepalend). Die informatie zit alleen in `cpmResult`,
   // dus een echte subscription — anders ververst de preview niet na een F5/Bereken.
@@ -570,12 +576,17 @@ export function ReportPanel() {
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
       setColumnWidths(measureTableColumnWidths(
         rows,
-        { showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders },
+        {
+          showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders,
+          // Precies wat de render in de Duur-cel tekent (zelfde velden als `options` hieronder).
+          durationDisplay, durationSuffixes, calendar, calendars,
+        },
         (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
       ));
     });
     return () => { cancelled = true; };
-  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders]);
+  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders,
+    durationDisplay, durationSuffixes, calendar, calendars]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -702,6 +713,9 @@ export function ReportPanel() {
     curveColumnWidth,
     columnWidths,
     numberLocale: i18n.language,
+    durationDisplay,
+    durationSuffixes,
+    calendars,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -712,7 +726,8 @@ export function ReportPanel() {
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
-    resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language]);
+    resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language,
+    durationDisplay, durationSuffixes, calendars]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.

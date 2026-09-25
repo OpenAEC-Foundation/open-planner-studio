@@ -31,7 +31,7 @@ export function TooltipRow({ label, value, valueClassName = 'tooltip-value', col
  * de positionering (`HoverTooltip`) blijft aan de aanroeper.
  */
 export function TaskTooltipContent({ task }: { task: Task }) {
-  const { t: tTask } = useTranslation('task');
+  const { t: tTask, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const projectCalendar = useAppStore((s) => s.calendar);
   const calendars = useAppStore((s) => s.calendars);
@@ -44,6 +44,7 @@ export function TaskTooltipContent({ task }: { task: Task }) {
     durationDisplay,
     enableHourPlanning,
     durationSuffixesFrom(tCommon),
+    i18n.language,
   );
   // Tooltip-datums volgen de datumnotatie-instelling (taak #53); leeg → '-'.
   const formatTooltipDate = (dateStr: string) => (dateStr ? dd.date(dateStr) : '-');

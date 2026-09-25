@@ -9,7 +9,7 @@ import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
-import type { DateNotation } from '@/types/view';
+import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { classifyTraceTask, taskGridTraceClass, type TaskTrace } from '@/engine/taskGrid/trace';
 import type {
@@ -118,6 +118,10 @@ export interface CreateTaskGridAdapterDomainInput {
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
+  /** Instelling Duurweergave (weergavetekst van de Duur-kolom); ontbreekt ⇒ `'auto'`. */
+  durationDisplay?: DurationDisplay;
+  /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
+  numberLocale?: string;
 }
 
 export interface CreateTaskGridAdapterProjectionInput {
@@ -229,6 +233,8 @@ export function createTaskGridAdapterDomain(
     wbsAutoNumber: input.wbsAutoNumber,
     effectiveHoursPerDay: input.effectiveHoursPerDay,
     signedWorkDaysBetween: input.signedWorkDaysBetween,
+    durationDisplay: input.durationDisplay,
+    numberLocale: input.numberLocale,
   };
   const descriptors = buildTaskColumnRegistry({
     projectId: input.projectId,

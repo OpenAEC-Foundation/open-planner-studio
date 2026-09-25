@@ -500,6 +500,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   SMFCHECK="$DIR/.summary-mixed-finish.mjs"
   if bundle_check "$DIR/check-summary-mixed-finish.ts" "$SMFCHECK"; then node "$SMFCHECK" || STATUS=1; fi
 
+  # Eén duur-celtekst (audit weergaven, bevinding 7): taakraster, Gantt-afdruk en tooltip toonden
+  # "Duur" elk anders (afdruk altijd dagen: 5h → "0,56d"; raster negeerde Duurweergave). Nu één
+  # formatter met taakeenheid, Duurweergave en decimaalteken; de afdrukkolom meet dezelfde tekst.
+  DCTCHECK="$DIR/.duration-cell-text.mjs"
+  if bundle_check "$DIR/check-duration-cell-text.ts" "$DCTCHECK"; then node "$DCTCHECK" || STATUS=1; fi
+
   # Gantt-renderopties (K-item 33): de pure afleidingen die BEPALEN wat er in `GanttRenderOptions`
   # komt (tijdas-oorsprong, contentspan, baseline-overlay, trace, histogramreeks). De andere
   # renderer-batterijen bouwen die opties met de hand op en staan dus stroomafwaarts van dit

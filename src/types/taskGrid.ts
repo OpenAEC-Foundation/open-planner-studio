@@ -1,6 +1,7 @@
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { DurationDisplay } from '@/types/view';
 import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 
 export type TaskGridSurfaceId = 'gantt-task-grid' | 'full-task-grid';
@@ -128,6 +129,11 @@ export interface TaskColumnContext {
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
+  /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
+   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. */
+  durationDisplay?: DurationDisplay;
+  /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
+  numberLocale?: string;
   /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
    *  Ontbreekt hij, dan blijft de afwijking leeg — er is bewust geen kalenderloze terugval. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
