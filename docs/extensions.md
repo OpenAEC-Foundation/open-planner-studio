@@ -112,6 +112,10 @@ klapt. Een onleesbare waarde (`"v1.0"`, `"1.x"`) wordt geweigerd in plaats van a
 
 De huidige contractversie leest je uit met `require('open-planner-studio').apiVersion`.
 
+Historie van de contractversie: `1.1.0` — read-only XER-bronroute (`data.getImportSource*`); `1.2.0` —
+rekenprofiel (#169, `ExtProject.schedulingProfile`) + `getImportSourceIssue()` (#109). Beide
+toevoegingen vallen onder dezelfde minor `1.2`.
+
 > **Migratie (audit P16):**
 > - De permissie `commands` is verwijderd — die had nooit een API-oppervlak. Manifesten die haar (of een andere onbekende waarde) noemen, blijven werken: onbekende permissies worden bij het activeren stil weggefilterd met een waarschuwing in de debug-terminal.
 > - `backstage` is nu de permissie voor `api.importers.*`. Bestaande importer-extensies die haar niet declareren blijven werken (warn-modus); **declareer `backstage` in nieuwe extensies met een importer** — in een toekomstige versie wordt dit hard.

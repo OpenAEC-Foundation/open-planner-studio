@@ -21,6 +21,11 @@
  * BIJ 1.0.0 BEGINNEN en niet bij de CalVer-versie is opzet: het contract bestond al lang zonder
  * versienummer, dus 1.0.0 betekent "de vorm zoals die op het moment van invoering was". Elke
  * volgende wijziging aan `extTypes.ts`/`types.ts` hoort hier een bump te krijgen.
+ *
+ * Historie: 1.1.0 — read-only XER-bronroute (`data.getImportSource*`); 1.2.0 — rekenprofiel (#169:
+ * `ExtProject.schedulingProfile`, het opgeloste rekenprofiel, alleen-lezen) + `getImportSourceIssue()`
+ * (#109: het signaal voor een weggevallen XER-bronarchief). Beide toevoegingen landen onder dezelfde
+ * minor; een extensie die op één van beide rekent declareert `"apiVersion": "1.2"`.
  */
 export const EXTENSION_API_VERSION = '1.2.0';
 

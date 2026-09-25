@@ -345,14 +345,24 @@ function readXerArchiveOrIssue(
     return { source, sourceProjectId, xer };
   } catch (error) {
     if (error instanceof IfcParseError) throw error;
-    if (error instanceof XerArchiveInvalid) return { issue: { code: error.code, detail: error.message } };
+    if (error instanceof XerArchiveInvalid) return { issue: { code: error.code, detail: capXerArchiveDetail(error.message) } };
     return {
       issue: {
         code: 'structure',
-        detail: `Ongeldig OPS_XerSourceArchive: onverwachte fout bij het lezen: ${error instanceof Error ? error.message : String(error)}`,
+        detail: capXerArchiveDetail(
+          `Ongeldig OPS_XerSourceArchive: onverwachte fout bij het lezen: ${error instanceof Error ? error.message : String(error)}`,
+        ),
       },
     };
   }
+}
+
+/** Bovengrens voor `XerArchiveIssue.detail` (critreview archief-fallback): de reden komt uit
+ *  validator- of reconstructiefouten en kan bronfragmenten meeslepen; het detail landt in meldingen
+ *  en logs, dus nooit onbegrensd. */
+const XER_ARCHIVE_DETAIL_MAX = 500;
+function capXerArchiveDetail(detail: string): string {
+  return detail.length <= XER_ARCHIVE_DETAIL_MAX ? detail : `${detail.slice(0, XER_ARCHIVE_DETAIL_MAX - 1)}…`;
 }
 
 function extractXerImportMetadata(

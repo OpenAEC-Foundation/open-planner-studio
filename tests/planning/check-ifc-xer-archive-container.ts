@@ -169,6 +169,25 @@ const withoutArchivePset = ifc.replace(`${archiveRelation}\n`, '').replace(`${ar
 expect('18a FOUTCODE bytes-missing: archief-pset weg, selector (OPS_XerDocument) bleef staan',
   !withoutArchivePset.includes("'OPS_XerSourceArchive'")
   && dropsArchiveWith(withoutArchivePset, 'zonder OPS_XerSourceArchive', 'bytes-missing'));
+// Critreview archief-fallback (a): de omgekeerde richting van 18a — de selector-pset
+// (OPS_XerDocument) is weg bij een verder geldig archief. Ook dan valt het archief weg mét signaal;
+// zonder de selectorregel in `extractXerSourceProjectId` zou het archief stil zonder project blijven.
+const selectorPsetLine = ifc.split('\n').find(line => line.startsWith(`#${selectorSetId}=`))!;
+const withoutSelectorPset = ifc.replace(`${selectorRelation}\n`, '').replace(`${selectorPsetLine}\n`, '');
+expect('18b FOUTCODE structure: selector (OPS_XerDocument) weg, archief-pset geldig',
+  !withoutSelectorPset.includes("'OPS_XerDocument'") && withoutSelectorPset.includes("'OPS_XerSourceArchive'")
+  && dropsArchiveWith(withoutSelectorPset, 'selector ontbreekt', 'structure'));
+{
+  // Critreview archief-fallback (b): het detail is begrensd, ook bij een reusachtige foutmelding.
+  const verdict = archiveDropped(
+    () => readIFCRaw(ifc, {}, { reconstructXerArchive: () => { throw new Error(`lang${'y'.repeat(20_000)}`); } }),
+    { code: 'metadata-invalid', fragment: 'lang' },
+  );
+  if (!verdict.ok) droppedFailures.push(verdict.why);
+  expect('19a detail afgekapt op 500 tekens',
+    verdict.ok && (verdict.result?.xerArchiveIssue?.detail.length ?? 0) <= 500
+    && (verdict.result?.xerArchiveIssue?.detail.length ?? 0) >= 400);
+}
 {
   // Metadata onparseerbaar: de bytes kloppen (hash ok), maar de afleiding eruit faalt. In productie is
   // dat de reconstructie (`readXER` over de geverifieerde bytes); hier geïnjecteerd, zodat de case
@@ -197,7 +216,7 @@ expect('16 geldige oudere IFC zonder XER-Psets blijft legacy-compatibel (en zond
   && legacyRead.xerArchiveIssue === undefined);
 
 for (const why of droppedFailures) failures.push(`   terugval: ${why}`);
-if (failures.length === 0) { console.log('OK  ifc-xer-archive-container: alle checks groen (28)'); process.exit(0); }
+if (failures.length === 0) { console.log('OK  ifc-xer-archive-container: alle checks groen (30)'); process.exit(0); }
 console.log(`XX  ifc-xer-archive-container: ${failures.length} afwijking(en)`);
 for (const failure of failures) console.log(`   - ${failure}`);
 process.exit(1);
