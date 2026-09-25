@@ -57,6 +57,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { formatDate } from '@/utils/dateUtils';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { markDocumentEdited } from '@/state/documentEdited';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
@@ -873,7 +874,7 @@ function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome
   if (toRemove.size > 0) {
     ctx.app.store.setState((s) => {
       s.sequences = s.sequences.filter((x) => !toRemove.has(x.id));
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
   return { data: { removed }, itemRejections: rejections };

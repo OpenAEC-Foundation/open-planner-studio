@@ -843,7 +843,14 @@ exportverliesmelding (ná het schrijven), een bovengrens op documenten per besta
   bestand draagt (ontbrekende assen "niet vastgelegd", nooit vulling), laadbeleid "automatisch aan
   bij afwijkingen" voor elk formaat incl. IFC uit een ander pakket, eigen IFC via optie B (kenmerk
   "ongewijzigd sinds import"), per formaat een planningscheck en een browsertest, gidsen nl+en.
-  Volgorde P6 XML → MSPDI → `.mpp` → CSV → IFC-optie B.
+  Volgorde P6 XML → MSPDI → `.mpp` → CSV → IFC-optie B. STAND: gebouwd op zijbranch
+  `claude/recorded-all-formats` (lezers P6 XML/MSPDI/`.mpp`/CSV → `recordedTimes` + herkomst;
+  `readIFC` 'ifc'/'ifc-own' + `OPS_ImportProvenance`; `importPristine` in het documentcontract,
+  gewist door `markDocumentEdited`; laadbeleid in `applyRecordedDatesOnLoad`; formaatneutrale
+  openingsmelding, 14 talen; `check-recorded-times-formats.ts`, `check-recorded-dates.ts` §16,
+  browserflows P6 XML/MSPDI; `.mpp`-veldkaart bewezen op 164 publieke MPXJ-bestanden: 2.225 taken
+  vastgelegd, 0 × vroege start ≠ geplande start bij niet-gestarte taken). Landing op de
+  PR-branch ná her-review.
   De eigenaar bevestigde tevens dat het nuldoel (§1) de lat blijft en dat deze PR een gemeten
   tussenstand is, geen eindpunt.
   UIT DE EINDREVIEW (2026-09-07), vier nieuwe: (a) onbegrensde bronretentie in projectbestand én

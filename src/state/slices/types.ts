@@ -230,6 +230,10 @@ export type NotificationMessageKey =
   // projecten — zie `xerImportNotice`/`applyOpenedImport`).
   | 'notifications.xerImportDatesAsRecorded'
   | 'notifications.xerImportDatesAsRecordedOffer'
+  // Eigenaarsbesluit 2026-09-09 ("elk formaat zoals XER"): dezelfde twee regels, formaatneutraal,
+  // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
+  | 'notifications.importDatesAsRecorded'
+  | 'notifications.importDatesAsRecordedOffer'
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'

@@ -148,6 +148,12 @@ en bijbehorende baselines blijven aan hun project gekoppeld. Zie
 [Primavera P6 (.xer) openen](docs://gids-xer-import) voor de projectselectie, tekencodering,
 P6-getalnotatie en de bewaarde brondata.
 
+Een bestand uit Primavera P6 of MS Project draagt de datums die dat pakket zelf had berekend, ook
+de late datums en de speling. Een CSV-bestand bevat alleen invoer en wordt gewoon doorgerekend. Wijkt de herberekening
+van Open Planner Studio daarvan af, dan opent het bestand in de weergave **datums zoals opgeslagen**:
+je ziet eerst wat het bronpakket zei, met een melding, en pas na herberekenen onze eigen uitkomst.
+Zie [Datums zoals opgeslagen](docs://datums-zoals-opgeslagen).
+
 Een `.mpp`-bestand (het native Microsoft Project-formaat, Project 2010 t/m 2021) is een aparte
 route: die import is **alleen-lezen** — er bestaat geen `.mpp`-export, dus terugexporteren naar
 MS Project loopt via MSPDI-XML. Zie de gids [MS Project (.mpp) openen](docs://gids-msproject-import)

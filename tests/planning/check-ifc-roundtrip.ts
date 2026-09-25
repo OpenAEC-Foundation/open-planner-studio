@@ -426,6 +426,10 @@ export const fixture: ImportResult = {
   project, calendar: projCal, tasks, sequences, resources, assignments,
   resourceCalendars: [projCal, libCal], // projCal-entry wordt door de writer eruit gefilterd (b)
   activityCodeTypes, customFieldDefs, baselines, activeBaselineId: 'bl-1',
+  // OPS_ImportProvenance (heropen-beleid optie B + eigenaarsbesluit 2026-09-24 "beperken"). Beide
+  // onderscheidend: de defaults zijn `false`/afwezig, en een writer die niets schrijft valt zo op.
+  importPristine: true,
+  recordedSourceFormat: 'mspdi',
 };
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -747,6 +751,9 @@ function canon(r: ImportResult): Any {
     baselines: [...(r.baselines ?? [])].map(b => canonize(BASELINE_CANON, b, k))
       .sort((a, b) => String(a.id).localeCompare(String(b.id))),
     activeBaselineId: r.activeBaselineId ?? null,
+    // Heropen-herkomst uit OPS_ImportProvenance; een eigen IFC zonder pset leest als false/afwezig.
+    importPristine: r.importPristine ?? false,
+    recordedSourceFormat: r.recordedSourceFormat ?? null,
   };
 }
 

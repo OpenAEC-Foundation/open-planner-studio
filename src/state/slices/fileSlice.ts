@@ -14,7 +14,7 @@ import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
-import { hydratePayload, payloadFromImport, type DocumentPayload } from '../documentContract';
+import { hydratePayload, isFreshImportOrigin, payloadFromImport, type DocumentPayload } from '../documentContract';
 import { applyRecordedDatesOnLoad, materializeLibraryBoundary, prepareLoadedPayload } from '../documentActivation';
 import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
@@ -66,6 +66,42 @@ export function isActivePristine(s: AppState): boolean {
 // De in-app gids achter de XER-meldingen woont sinds de archief-terugval (2026-09-24) in de
 // bladmodule `xerArchiveIssueNotice.ts`; hier her-exporteren voor bestaande importeurs.
 export { XER_IMPORT_HELP_ARTICLE_ID };
+/** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
+export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
+
+/**
+ * De formaatneutrale "datums zoals opgeslagen"-regel voor één geopend bestand, samengevoegd met de
+ * openingsmelding die er al is (critreview PR #167, bevinding 3 — de meldingspoort mag de datumregel
+ * NIET via `!notice` laten verdringen: zodra er een andere melding is, bv. de rekenprofielmelding van
+ * #169 bij een `.mpp`, zou de regel dan stil wegvallen).
+ *
+ *  - Geen verse verschillen (`freshShifted`/`freshOffer` beide 0, o.a. elke HEROPENING van een eigen
+ *    IFC) ⇒ `notice` ongewijzigd.
+ *  - De melding draagt al een eigen datumregel (de XER-openingsmelding, `xerImportDatesAsRecorded*`)
+ *    ⇒ ongewijzigd, anders stond het er twee keer.
+ *  - Er is een andere melding ⇒ de regel komt er als detailregel onder.
+ *  - Geen melding ⇒ de regel wordt zelf de melding, met de gids erachter.
+ *
+ * De modus gaat vóór het aanbod: staat hij in minstens één document aan, dan meldt de regel dat.
+ */
+export function withRecordedDatesNotice(
+  notice: NotifyInput | undefined,
+  freshShifted: number,
+  freshOffer: number,
+): NotifyInput | undefined {
+  if (freshShifted <= 0 && freshOffer <= 0) return notice;
+  const shifted = freshShifted > 0;
+  const line: NotificationDetailLine = {
+    messageKey: shifted ? 'notifications.importDatesAsRecorded' : 'notifications.importDatesAsRecordedOffer',
+    params: { count: shifted ? freshShifted : freshOffer },
+  };
+  if (!notice) {
+    return { severity: 'info', ...line, helpArticleId: RECORDED_DATES_HELP_ARTICLE_ID };
+  }
+  const lines = notice.detailLines ?? [];
+  if (lines.some(l => l.messageKey.startsWith('notifications.xerImportDatesAsRecorded'))) return notice;
+  return { ...notice, detailLines: [...lines, line] };
+}
 
 /**
  * Vorm één gebruikerszichtbaar verslag uit uitsluitend de feiten die de XER-lezer bestandsbreed
@@ -505,6 +541,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
       // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
       let datesAsRecordedOfferTotal = 0;
+      // Critreview op ded4d8c3, bevinding 6, en critreview PR #167, bevinding 2: de formaatneutrale
+      // melding hieronder telt uitsluitend VERSE imports — zowel het aanbod als de automatisch-aan-tak.
+      // Een heropend eigen IFC ('ifc-own'/'xer-archive') krijgt de strook (die zegt het al), maar geen
+      // openingsmelding — dat is het eigen projectbestand, geen import; ook niet als optie B de modus
+      // bij een ongewijzigd bestand automatisch weer aanzet.
+      let freshShiftedTotal = 0;
+      let freshOfferTotal = 0;
       for (const result of results) {
         // De eerste payload mag het lege starttabblad hergebruiken; elk volgend project krijgt
         // gegarandeerd een eigen tab. Dit leest de actuele state per iteratie, want de vorige load
@@ -517,18 +560,34 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // Lees DIRECT ná deze aanroep: `applyLoadedProject` maakt het zojuist geladen document
         // actief, dus `get().recordedDates` is op dit punt exact dát document z'n eigen vastlegging.
         const shifted = get().recordedDates?.shifted ?? 0;
-        if (get().datesAsRecorded) datesAsRecordedShiftedTotal += shifted;
-        else datesAsRecordedOfferTotal += shifted;
+        const fresh = isFreshImportOrigin(get().recordedDates?.origin);
+        if (get().datesAsRecorded) {
+          datesAsRecordedShiftedTotal += shifted;
+          if (fresh) freshShiftedTotal += shifted;
+        } else {
+          datesAsRecordedOfferTotal += shifted;
+          if (fresh) freshOfferTotal += shifted;
+        }
       }
 
       // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
       // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
+      // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt"): de andere
+      // formaten hebben geen eigen openingsmelding, maar wél dezelfde ene regel over "datums zoals
+      // opgeslagen" — formaatneutraal verwoord (de strook kiest zelf de Primavera-tekst voor P6 XML).
+      // `withRecordedDatesNotice` hangt die regel aan een al bestaande melding in plaats van hem via
+      // `!notice` te laten verdringen (zie de helper).
       // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is
       // weggelaten door `readIFC`; dat meldt zich als detailregels in de bestandsmelding als die er
-      // is, anders als eigen melding. Nooit stil — zie `withXerArchiveIssueNotice`.
+      // is, anders als eigen melding. Nooit stil — zie `withXerArchiveIssueNotice`. Die laag is de
+      // buitenste, zodat de archiefregels ook onder een datumregel-only-melding komen te staan.
       const notice = withXerArchiveIssueNotice(
-        xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+        withRecordedDatesNotice(
+          xerImportNotice(results, datesAsRecordedShiftedTotal, datesAsRecordedOfferTotal),
+          freshShiftedTotal,
+          freshOfferTotal,
+        ),
         results.map(result => result.xerArchiveIssue),
       );
       if (notice) get().notify(notice);

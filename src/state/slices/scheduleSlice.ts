@@ -143,7 +143,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       if (result.error) {
         s.cpmResult = result;
         s.resourceLoadResult = null;
-        if (openedHistory) runtime.finishUndoable(s);
+        if (openedHistory) runtime.finishUndoable(s, { nonEdit: true });
         else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
         // Een mislukte berekening laat de invoer niet actueel worden. Dit is ook belangrijk voor
         // automatisch berekenen: de statusbalk mag de waarschuwing alleen tijdelijk onderdrukken
@@ -159,7 +159,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       s.resourceLoadResult = computeReliableResourceLoad(
         s.cpmResult, s.resources, s.assignments, s.tasks, s.calendar, s.calendars,
       );
-      if (openedHistory) runtime.finishUndoable(s);
+      if (openedHistory) runtime.finishUndoable(s, { nonEdit: true });
       else if (refreshPreviousEventAfter) runtime.refreshLatestDocumentDataHistoryAfter(s);
     });
 
@@ -206,7 +206,8 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // De weergave is consistent met wat er getoond wordt — niet verouderd.
       s.scheduleStale = false;
       // Wel history sluiten, maar bewust niet dirty maken: er is niets gewijzigd t.o.v. het bestand.
-      runtime.finishUndoable(s);
+      // `nonEdit`: undo/redo van deze stap wist "ongewijzigd sinds import" niet (bevinding 3).
+      runtime.finishUndoable(s, { nonEdit: true });
     });
     get().recomputeViewRows();
   },

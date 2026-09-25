@@ -286,7 +286,12 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
 {
   const S = () => useAppStore.getState();
   S().newProject();
-  S().applyLoadedProject(readIFC(externIfc('mark')), { filePath: null, recompute: true });
+  // Sinds 2026-09-09 gaat een IFC uit een ander pakket automatisch de modus in; deze sectie test
+  // de markering vanuit de AANBOD-stand: een bewerkt, heropend eigen IFC dat zijn bron noemt (sinds
+  // 2026-09-24 het enige echte pad naar het aanbod — zonder bron is er geen aanbod meer).
+  S().applyLoadedProject({
+    ...readIFC(externIfc('mark')), recordedTimesOrigin: 'ifc-own', recordedSourceFormat: 'ifc', importPristine: false,
+  }, { filePath: null, recompute: true });
   ok('voorwaarde: de gewone IFC-fixture staat in de AANBOD-stand (aanbod gevuld, modus uit)',
     S().recordedDates !== null && S().datesAsRecorded === false);
 

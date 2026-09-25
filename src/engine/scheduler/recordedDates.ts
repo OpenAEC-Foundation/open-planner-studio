@@ -54,6 +54,60 @@ void _assertRecordedTimeCompleet;
  *  Wil een aanroeper capture + shifted-telling samen bewaren, dan bouwt hij zelf
  *  `{ ...captureRecordedDates(...), shifted: countShiftedTasks(...) }` — de twee bronwaarden bestaan
  *  dan pas ECHT allebei. */
+/**
+ * Eén vastlegging uit losse, elk OPTIONELE assen — de gedeelde bouwsteen voor de lezers van
+ * P6 XML, MSPDI, `.mpp` en CSV (eigenaarsbesluit 2026-09-09: elk formaat vergelijkt "wat er is").
+ * Zonder start én einde is er geen uitspraak (`undefined`, nooit een terugval); een ontbrekende
+ * andere as blijft weg uit het object ("niet vastgelegd"), nooit `0` of een gekopieerde datum —
+ * dezelfde regel als `readXerRecordedTimes` (`xerRecordedTimes.ts`).
+ */
+export function buildRecordedTime(input: {
+  start: string | undefined;
+  finish: string | undefined;
+  lateStart?: string;
+  lateFinish?: string;
+  totalFloat?: number;
+  freeFloat?: number;
+  isCritical?: boolean;
+}): RecordedTime | undefined {
+  if (!input.start || !input.finish) return undefined;
+  return {
+    start: input.start,
+    finish: input.finish,
+    ...(input.lateStart ? { lateStart: input.lateStart } : {}),
+    ...(input.lateFinish ? { lateFinish: input.lateFinish } : {}),
+    ...(input.totalFloat !== undefined ? { totalFloat: input.totalFloat } : {}),
+    ...(input.freeFloat !== undefined ? { freeFloat: input.freeFloat } : {}),
+    ...(input.isCritical !== undefined ? { isCritical: input.isCritical } : {}),
+  };
+}
+
+/**
+ * Alleen BLADTAKEN houden hun vastlegging (critreview PR #167, bevinding 6). MS Project schrijft
+ * EarlyStart ook op samenvattingen; zo'n eigen record liet "N taken" per formaat iets anders tellen
+ * dan bij XER (P6 heeft geen TASK-rij per WBS) en telde een verschoven kind vaak dubbel via de ouder.
+ * Een samenvatting zonder record rolt in de modus op uit haar vastgelegde kinderen
+ * (`applyRecordedTimesToTasks`). Bewust in de MSPDI-/`.mpp`-lezer aangeroepen en NIET in
+ * `captureRecordedDates`: de #63-IFC-route (R1) houdt samenvattingen met eigen vastlegging.
+ */
+export function leafRecordedTimes(
+  tasks: readonly Pick<Task, 'id' | 'childIds'>[],
+  times: Record<string, RecordedTime>,
+): Record<string, RecordedTime> {
+  const summaries = new Set(tasks.filter((t) => t.childIds.length > 0).map((t) => t.id));
+  const out: Record<string, RecordedTime> = {};
+  for (const [id, rec] of Object.entries(times)) if (!summaries.has(id)) out[id] = rec;
+  return out;
+}
+
+/** Werkminuten (speling zoals een bronpakket ze opslaat: uren × 60, of tienden van minuten ÷ 10)
+ *  → werkdagen op de taak-effectieve kalender. Geen positieve `minutesPerDay` ⇒ geen betrouwbare
+ *  dagconversie ⇒ de as ontbreekt (zelfde hardening als `hoursToDays` in `xerRecordedTimes.ts`). */
+export function recordedFloatDays(minutes: number | null | undefined, minutesPerDay: number): number | undefined {
+  if (minutes === null || minutes === undefined || !Number.isFinite(minutes) || !(minutesPerDay > 0)) return undefined;
+  return Math.round(minutes) / minutesPerDay;
+}
+
 export interface RecordedDates {
   /** Per taak-id wat het bestand vastlegde. */
   times: Record<string, RecordedTime>;
@@ -81,7 +135,13 @@ export interface RecordedDatesState extends RecordedDates {
    *  beslissing zelf ligt al vast in `datesAsRecorded` tegen de tijd dat dit veld gelezen wordt.
    *  `undefined` ⇒ de bestaande, formaatneutrale #63-route (IFC/CSV/MSPDI/MPP/P6XML zonder
    *  bron-orakel). */
-  origin?: 'xer' | 'xer-archive';
+  origin?: 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'mpp' | 'csv' | 'ifc' | 'ifc-own';
+  /** Eigenaarsbesluit 2026-09-24 ("beperken"): de OORSPRONKELIJKE bron die echte rekenuitvoer
+   *  droeg — ook na een heropening van het eigen IFC (dan komt hij uit `OPS_ImportProvenance`).
+   *  Reist bij opslaan mee als `SourceFormat`, zodat een eigen IFC dat van een MSPDI-import stamt de
+   *  modus kan heropenen en een eigen IFC zonder bron niet. `'ifc'` = een vreemd IFC met echte
+   *  early-slots (de #63-route). */
+  sourceFormat?: 'xer' | 'p6xml' | 'mspdi' | 'mpp' | 'ifc';
 }
 
 /**
@@ -131,6 +191,9 @@ export function captureRecordedDates(
   tasks: Task[],
   recordedFields: Record<string, readonly (keyof TaskTimeComputed | keyof TaskTimeInput)[]> | undefined,
   recordedTimes?: Record<string, RecordedTime>,
+  /** Eigenaarsbesluit 2026-09-24 ("beperken"): `false` ⇒ laag 2 (alleen ScheduleStart/-Finish) telt
+   *  niet als vastlegging — dat is invoer, geen rekenuitvoer. Standaard `true` (de pure #63-laag). */
+  opts: { scheduleLayer?: boolean } = {},
 ): RecordedDates {
   if (recordedTimes) {
     // Laag 0 — bron-orakel, MET VOORRANG boven `recordedFields`. Filteren op bestaande taken houdt
@@ -159,7 +222,7 @@ export function captureRecordedDates(
     if (has.has('earlyStart') && has.has('earlyFinish')) {
       start = t.earlyStart;
       finish = t.earlyFinish;
-    } else if (has.has('scheduleStart') && has.has('scheduleFinish')) {
+    } else if (opts.scheduleLayer !== false && has.has('scheduleStart') && has.has('scheduleFinish')) {
       start = t.scheduleStart;
       finish = t.scheduleFinish;
     } else {

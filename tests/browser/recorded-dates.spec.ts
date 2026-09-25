@@ -9,6 +9,7 @@
 // (⇒ laat-start/-einde en speling zijn "niet vastgelegd").
 import type { Locator, Page } from '@playwright/test';
 import { expect, state, test } from './fixtures/ops';
+import { MSPDI_FIXTURE, P6XML_FIXTURE } from '../fixtures/recordedTimesFormats';
 
 const FIXTURE_HEADER = [
   'task_id', 'proj_id', 'clndr_id', 'task_code', 'task_name', 'task_type', 'duration_type',
@@ -39,13 +40,17 @@ function taskCell(page: Page, taskId: string, columnId: string): Locator {
   );
 }
 
-async function openXerViaFileChooser(page: Page): Promise<void> {
+async function openViaFileChooser(page: Page, name: string, mimeType: string, content: string): Promise<void> {
   const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
   await expect(openButton).toHaveCount(1);
   const chooserPromise = page.waitForEvent('filechooser');
   await openButton.click();
   const chooser = await chooserPromise;
-  await chooser.setFiles({ name: 'laag3.xer', mimeType: 'application/octet-stream', buffer: Buffer.from(XER_FIXTURE) });
+  await chooser.setFiles({ name, mimeType, buffer: Buffer.from(content) });
+}
+
+async function openXerViaFileChooser(page: Page): Promise<void> {
+  await openViaFileChooser(page, 'laag3.xer', 'application/octet-stream', XER_FIXTURE);
 }
 
 test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, met "niet vastgelegd" in tabel en badge', async ({ page, ops: _ops }) => {
@@ -120,3 +125,58 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await expect.poll(() => state(page).then(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded))).toBe(false);
   await expect(taskCell(page, ids.earlyOnly, 'task.time.totalFloat')).not.toHaveText(/^(Niet vastgelegd|Not recorded)$/);
 });
+
+// Eigenaarsbesluit 2026-09-09: "het moet altijd gaan zoals het nu bij XER werkt". Dezelfde
+// gebruikersflow met een Primavera P6 XML en een MS Project XML uit `tests/fixtures/
+// recordedTimesFormats.ts` (gedeeld met de headless check): openen via de bestandskiezer, de modus
+// gaat vanzelf aan, de strook kiest per herkomst de Primavera- of de neutrale tekst, en de kolom
+// laatste start zegt "Niet vastgelegd" voor de taak zonder late datums in het bestand.
+for (const variant of [
+  { label: 'P6 XML', name: 'recorded.xml', content: P6XML_FIXTURE, primavera: true },
+  { label: 'MS Project XML', name: 'recorded-mspdi.xml', content: MSPDI_FIXTURE, primavera: false },
+] as const) {
+  test(`datums zoals opgeslagen: een ${variant.label} met restverschillen opent in de modus, zoals XER`, async ({ page, ops: _ops }) => {
+    await openViaFileChooser(page, variant.name, 'text/xml', variant.content);
+
+    const strip = page.locator('[data-ops-recorded-dates-active]');
+    await expect(strip).toBeVisible();
+    if (variant.primavera) await expect(strip).toContainText(/Primavera/);
+    else await expect(strip).not.toContainText(/Primavera/);
+    await expect.poll(() => state(page).then(snapshot => snapshot.tasks.length)).toBe(3);
+    const ids = await page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      return {
+        full: s.tasks.find(task => task.wbsCode === '1.1')!.id,
+        earlyOnly: s.tasks.find(task => task.wbsCode === '1.2')!.id,
+        datesAsRecorded: s.datesAsRecorded,
+        scheduleStale: s.scheduleStale,
+        importPristine: s.importPristine,
+        origin: s.recordedDates?.origin,
+      };
+    });
+    expect(ids.datesAsRecorded).toBe(true);
+    expect(ids.scheduleStale).toBe(false);
+    expect(ids.importPristine).toBe(true);
+    expect(ids.origin).toBe(variant.primavera ? 'p6xml' : 'mspdi');
+
+    await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+    await expect(page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]')).toBeVisible();
+    await page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      const columns = s.taskGridSurfaces['full-task-grid'].columns;
+      if (!columns.some(column => column.id === 'task.time.lateStart')) {
+        s.setTaskGridColumns('full-task-grid', [
+          ...columns,
+          { id: 'task.time.lateStart' as typeof columns[number]['id'], width: 140, pinned: false },
+        ]);
+      }
+    });
+    await expect(taskCell(page, ids.earlyOnly, 'task.time.lateStart')).toHaveText(/^(Niet vastgelegd|Not recorded)$/);
+    await expect(taskCell(page, ids.full, 'task.time.lateStart')).toHaveText(/09.03.2026|2026.03.09|03.09.2026/);
+
+    // Herberekenen verlaat de modus, zoals bij XER.
+    await page.locator('[data-ops-recorded-dates-recalculate]').click();
+    await expect(strip).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded)).toBe(false);
+  });
+}

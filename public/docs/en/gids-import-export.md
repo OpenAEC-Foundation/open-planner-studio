@@ -138,6 +138,12 @@ then shows exactly which items were dropped or simplified, and how many.
 the content. As described above: a CSV or Primavera P6 XML import produces a project **without baselines** (there
 weren't any in the source), while IFC and MSPDI bring baselines along.
 
+A file from Primavera P6 or MS Project carries the dates that package itself calculated, including
+the late dates and the float. A CSV file holds only input and is simply recalculated. If Open Planner
+Studio's recalculation differs from them, the file opens in the **dates as recorded** view: you first
+see what the source package said, with a notification, and only after recalculating our own result.
+See [Dates as recorded](docs://datums-zoals-opgeslagen).
+
 A `.xer` file is Primavera P6's own exchange format. The app reads it directly but does not write
 `.xer` back: after editing, save as IFC. One XER can contain several current projects and baseline
 projects; current projects open as separate documents and matching baselines remain attached to

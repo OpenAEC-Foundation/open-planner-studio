@@ -1486,6 +1486,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECMARKCHECK="$DIR/.check-recorded-dates-mark.mjs"
   if bundle_check "$DIR/check-recorded-dates-mark.ts" "$RECMARKCHECK"; then node "$RECMARKCHECK" || STATUS=1; fi
 
+  # Eigenaarsbesluit 2026-09-09 — "datums zoals opgeslagen" voor ÁLLE formaten: de lezers van
+  # P6 XML/MSPDI/CSV (en corpus-optioneel .mpp) leveren het bak-4-kanaal, en de IFC-herkomst
+  # ('ifc' vs 'ifc-own' + OPS_ImportProvenance) stuurt het heropen-beleid (optie B).
+  RECFORMATS="$DIR/.check-recorded-times-formats.mjs"
+  if bundle_check "$DIR/check-recorded-times-formats.ts" "$RECFORMATS"; then node "$RECFORMATS" || STATUS=1; fi
+  # Bak 4 differentieel (critreview ded4d8c3, bevinding 7): de vier lezers AAN vs vastlegging UIT
+  # (bronmatig uitgeschakeld, eigen esbuild-bundel) ⇒ importresultaat byte-identiek.
+  RECBAK4="$DIR/.check-recorded-bak4-differential.mjs"
+  if bundle_check "$DIR/check-recorded-bak4-differential.ts" "$RECBAK4"; then node "$RECBAK4" || STATUS=1; fi
   # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
   # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
   PICHECK="$DIR/.progress-import.mjs"

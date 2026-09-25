@@ -4,6 +4,7 @@ import {
   applyRecordedTimesToTasks,
   captureRecordedDates,
   countShiftedTasks,
+  type RecordedDatesState,
   type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
@@ -19,6 +20,7 @@ import {
 } from '@/services/library';
 import { markScheduleStale } from './transaction';
 import type { DocumentPayload } from './documentContract';
+import { isFreshImportOrigin } from './documentContract';
 import { promoteProjectCalendarToLibrary, syncProjectCalendar } from './syncProjectCalendar';
 
 export type LibraryBoundaryMode = 'silent-switch' | 'open-boundary';
@@ -239,6 +241,7 @@ export function prepareLoadedPayload(
  *     een bewerking verlaat de modus en zet `scheduleStale`, maar de herberekening staat pas op
  *     `setTimeout(0)`, dus een auto-save in dat gat schreef P6's datums weg zónder modus
  *     (critreview laag 3, bevinding 2).
+ *  (Vóór beide: de poort `recordedDatesSource` — geen bron met echte rekenuitvoer ⇒ niets.)
  *  2. Anders: alleen een VERSE XER-import (`recordedTimesOrigin === 'xer'`) mét restverschillen.
  *     Al het overige BIEDT de modus alleen aan — `recordedDates` gevuld, `datesAsRecorded` blijft
  *     `false`: IFC/CSV/MSPDI/MPP/P6XML zonder bron-orakel, én een HEROPENDE IFC met XER-archief
@@ -256,20 +259,75 @@ export function prepareLoadedPayload(
  * Muteert `prepared` in place, net als de rest van dit bestand (`prepareLoadedPayload`,
  * `materializeBehindOnlyRefresh`).
  */
+/** De bronvelden die de poort hieronder leest. */
+type RecordedSourceInput = Pick<ImportResult, 'recordedFields' | 'recordedTimes' | 'recordedTimesOrigin' | 'recordedSourceFormat'>;
+
+/**
+ * DE poort (eigenaarsbesluit 2026-09-24, letterlijk "beperken"; afbakening orkestratorbesluit
+ * dezelfde dag): "datums zoals opgeslagen" bestaat alleen voor een bron die echte REKENUITVOER
+ * draagt. Levert de oorspronkelijke bron plus of laag 2 (ScheduleStart/-Finish) mag meetellen, of
+ * `undefined` ⇒ geen vastlegging, geen modus, geen aanbod en geen melding.
+ *
+ *  - XER, P6 XML, MSPDI, `.mpp` (verse import) en het XER-archief in een eigen IFC ⇒ toegelaten.
+ *  - Een vreemd IFC ⇒ alleen de taken met echte early-slots (laag 1, de #63-route); een vreemd IFC
+ *    met uitsluitend ScheduleStart/ScheduleFinish vergelijkt invoer met invoer ⇒ niets.
+ *  - Een eigen IFC ⇒ alleen als het bestand zijn oorspronkelijke bron noemt
+ *    (`OPS_ImportProvenance.SourceFormat`); zonder bron vergelijkt het onze eigen oude solve met de
+ *    nieuwe ⇒ niets.
+ *  - CSV (de Start-kolom ís de invoer) en een importer zonder herkomst ⇒ niets.
+ *
+ * Poort op de oorspronkelijke bronherkomst, niet op de bestandsextensie van vandaag.
+ */
+export function recordedDatesSource(
+  parsed: Pick<ImportResult, 'recordedTimesOrigin' | 'recordedSourceFormat'>,
+): { sourceFormat: NonNullable<RecordedDatesState['sourceFormat']>; scheduleLayer: boolean } | undefined {
+  switch (parsed.recordedTimesOrigin) {
+    case 'xer': case 'p6xml': case 'mspdi': case 'mpp':
+      return { sourceFormat: parsed.recordedTimesOrigin, scheduleLayer: true };
+    case 'xer-archive':
+      return { sourceFormat: 'xer', scheduleLayer: true };
+    case 'ifc':
+      return { sourceFormat: 'ifc', scheduleLayer: false };
+    case 'ifc-own':
+      return parsed.recordedSourceFormat ? { sourceFormat: parsed.recordedSourceFormat, scheduleLayer: false } : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/** Vastlegging via de poort: `undefined` als de bron niet toegelaten is of niets vastlegde. */
+function captureAllowed(tasks: Task[], parsed: RecordedSourceInput) {
+  const source = recordedDatesSource(parsed);
+  if (!source) return undefined;
+  const recorded = captureRecordedDates(tasks, parsed.recordedFields, parsed.recordedTimes, { scheduleLayer: source.scheduleLayer });
+  return recorded.total > 0 ? { recorded, sourceFormat: source.sourceFormat } : undefined;
+}
+
 export function applyRecordedDatesOnLoad(
   rawTasks: Task[],
   prepared: DocumentPayload,
-  parsed: Pick<ImportResult, 'recordedFields' | 'recordedTimes' | 'recordedTimesOrigin'>,
+  parsed: RecordedSourceInput,
   restoredMode?: boolean,
 ): void {
-  const recorded = captureRecordedDates(rawTasks, parsed.recordedFields, parsed.recordedTimes);
-  if (recorded.total === 0) return;
+  const allowed = captureAllowed(rawTasks, parsed);
+  if (!allowed) return;
+  const { recorded, sourceFormat } = allowed;
   const shifted = countShiftedTasks(prepared.tasks, recorded.times);
-  const enterMode = restoredMode ?? (parsed.recordedTimesOrigin === 'xer' && shifted > 0);
+  // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt" + heropen-
+  // beleid optie B): een VERSE import van elk formaat gaat automatisch in de modus zodra er
+  // restverschillen zijn; een HEROPENING van een eigen IFC ('ifc-own'/'xer-archive') alleen
+  // zolang het document sinds de import niet is bewerkt (`importPristine`, uit het bestand zelf);
+  // zonder herkomst uitsluitend het aanbod.
+  const origin = parsed.recordedTimesOrigin;
+  const autoEnter = shifted > 0 && (
+    isFreshImportOrigin(origin)
+    || ((origin === 'ifc-own' || origin === 'xer-archive') && prepared.importPristine === true)
+  );
+  const enterMode = restoredMode ?? autoEnter;
   // Niets verschoven én geen modus om te herstellen ⇒ er valt niets te melden: de herberekening
   // kwam exact uit op wat het bestand zei.
   if (shifted === 0 && !enterMode) return;
-  prepared.recordedDates = { ...recorded, shifted, origin: parsed.recordedTimesOrigin };
+  prepared.recordedDates = { ...recorded, shifted, origin: parsed.recordedTimesOrigin, sourceFormat };
   if (enterMode) enterRecordedDatesMode(prepared, recorded.times);
 }
 
@@ -309,16 +367,31 @@ function enterRecordedDatesMode(payload: DocumentPayload, times: Record<string, 
  */
 export function applyRestoredRecordedMode(
   payload: DocumentPayload,
-  parsed: Pick<ImportResult, 'recordedFields' | 'recordedTimes' | 'recordedTimesOrigin'>,
+  parsed: RecordedSourceInput,
 ): void {
-  const recorded = captureRecordedDates(payload.tasks, parsed.recordedFields, parsed.recordedTimes);
-  if (recorded.total === 0) return;
+  const allowed = captureAllowed(payload.tasks, parsed);
+  if (!allowed) return;
+  const { recorded, sourceFormat } = allowed;
   // Her-check laag 3, bevinding 4: de vastlegging WEL zetten, alleen zonder `shifted` (optioneel
   // sinds die bevinding). Zonder `recordedDates` hingen de export-poort (`unrecordedExportGate`),
   // de "niet vastgelegd"-kolommen (`recordedGridBinding`) en de badge (`recordedTaskMark`) alle
   // drie in de lucht: het document stond in de modus, maar `lateStart ?? rec.start` en
   // `totalFloat ?? 0` reisden gewoon naar CSV en `planner_get_task`, afhankelijk van welk tabblad
   // bij de crash toevallig actief was. Nu betekent "in de modus" op beide herstelpaden hetzelfde.
-  payload.recordedDates = { ...recorded, origin: parsed.recordedTimesOrigin };
+  payload.recordedDates = { ...recorded, origin: parsed.recordedTimesOrigin, sourceFormat };
+  // Tweede critreview-ronde, bevinding 1: opslaan in de modus schrijft voor een taak ZONDER
+  // vastlegging `$` op de vroege/late slots (ze kwamen uit een verworpen solve). De lezer maakt van
+  // een `$`-datum "vandaag"; een slapend hersteld document wordt niet doorgerekend, dus zonder dit
+  // stond zo'n taak op vandaag. Terugval: het eigen anker (ScheduleStart/-Finish, invoer) — geen
+  // bewering over het bestand, alleen een plausibele plaats tot de eerste herberekening.
+  for (const task of payload.tasks) {
+    if (recorded.times[task.id]) continue;
+    const present = parsed.recordedFields?.[task.id];
+    if (!present || present.includes('earlyStart') || present.includes('earlyFinish')) continue;
+    task.time.earlyStart = task.time.scheduleStart;
+    task.time.earlyFinish = task.time.scheduleFinish;
+    task.time.lateStart = task.time.scheduleStart;
+    task.time.lateFinish = task.time.scheduleFinish;
+  }
   enterRecordedDatesMode(payload, recorded.times);
 }

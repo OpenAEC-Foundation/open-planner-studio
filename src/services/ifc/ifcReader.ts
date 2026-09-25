@@ -15,7 +15,7 @@ import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { ifcGuid } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
-import type { ImportLabels, ImportResult, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
+import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
@@ -188,6 +188,15 @@ export function readIFC(
   const recordedTimes = xerSourceProjectId
     ? xerSource?.recordedTimesByProject[xerSourceProjectId]
     : undefined;
+  // Eigenaarsbesluit 2026-09-09 ("elk formaat zoals XER" + heropen-beleid optie B): de herkomst
+  // van de vastlegging beslist het laadbeleid. Een IFC dat deze app ZELF schreef (IFCAPPLICATION
+  // met identifier 'OPS', of een `OPS_`-pset) is een HEROPENING ('ifc-own', of 'xer-archive' mét
+  // XER-archief) en gaat alleen automatisch in "datums zoals opgeslagen" zolang het document
+  // sinds de import ongewijzigd is (`OPS_ImportProvenance`); elk ander IFC is een verse import
+  // uit een ander pakket ('ifc') en gedraagt zich als XER: automatisch aan bij afwijkingen.
+  const ownAuthored = isOpsAuthoredIfc(entities);
+  const importPristine = ownAuthored ? extractImportPristine(entities, entityMap) : undefined;
+  const recordedSourceFormat = ownAuthored ? extractRecordedSourceFormat(entities, entityMap) : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
@@ -292,7 +301,10 @@ export function readIFC(
     // alleen automatisch aan bij 'xer'; 'xer-archive' krijgt uitsluitend het #63-AANBOD, want een
     // intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
     // tonen. Zie `importTypes.ts` (`recordedTimesOrigin`) voor het volledige onderscheid.
-    ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const } : {}),
+    ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const }
+      : { recordedTimesOrigin: ownAuthored ? 'ifc-own' as const : 'ifc' as const }),
+    ...(importPristine !== undefined ? { importPristine } : {}),
+    ...(recordedSourceFormat ? { recordedSourceFormat } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
     ...(xer ? { xer } : {}),
@@ -2889,6 +2901,62 @@ function extractTimephasedDurationWalksMeta(
       if (task) task.timephasedDurationWalks = walks;
     }
   }
+}
+
+/**
+ * Eigenaarsbesluit 2026-09-09 — is dit IFC door Open Planner Studio zelf geschreven? Twee
+ * onafhankelijke sporen, elk voldoende: de `IFCAPPLICATION` met ApplicationIdentifier `'OPS'` die
+ * `ifcWriter.ts` sinds het begin schrijft, of om het even welk `OPS_`-pset. Een IFC uit een ander
+ * pakket heeft geen van beide en is dus een verse import ('ifc'). Bewust GEEN heuristiek op de
+ * FILE_NAME-header: die is vrij tekstveld en werd tot v2026.7.12 rauw met projectnaam/auteur gevuld.
+ */
+function isOpsAuthoredIfc(entities: StepEntity[]): boolean {
+  for (const e of entities) {
+    if (e.type === 'IFCAPPLICATION' && stripQuotes(e.args[3] || '') === 'OPS') return true;
+    if (e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '').startsWith('OPS_')) return true;
+  }
+  return false;
+}
+
+/**
+ * Heropen-beleid optie B — `OPS_ImportProvenance.UnchangedSinceImport` (spiegel van
+ * `writeImportProvenanceMeta`). Afwezig of niet exact `.T.` ⇒ `false`: een heropening is pas
+ * "ongewijzigd sinds import" als het bestand dat zelf zegt.
+ */
+function extractImportPristine(entities: StepEntity[], entityMap: Map<string, StepEntity>): boolean {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.ImportProvenance) continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'UnchangedSinceImport') continue;
+      return (prop.args[2] || '').replace(/\s+/g, '').toUpperCase() === 'IFCBOOLEAN(.T.)';
+    }
+  }
+  return false;
+}
+
+/**
+ * Eigenaarsbesluit 2026-09-24 ("beperken") — `OPS_ImportProvenance.SourceFormat` (spiegel van
+ * `writeImportProvenanceMeta`). Alleen een bekende waarde telt; iets anders ⇒ `undefined` (geen
+ * bron ⇒ geen modus, nooit een gok).
+ */
+function extractRecordedSourceFormat(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): RecordedSourceFormat | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.ImportProvenance) continue;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (stripQuotes(prop.args[0] || '') !== 'SourceFormat') continue;
+      const m = /^IFCLABEL\('([a-z0-9]+)'\)$/i.exec((prop.args[2] || '').trim());
+      const v = m?.[1];
+      return v === 'xer' || v === 'p6xml' || v === 'mspdi' || v === 'mpp' || v === 'ifc' ? v : undefined;
+    }
+  }
+  return undefined;
 }
 
 /**
