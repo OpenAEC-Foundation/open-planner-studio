@@ -42,15 +42,21 @@ export function TaskWorkRuleField({ task, onChange }: {
           <option key={rule} value={rule}>{t(`workRule.${rule}`)}</option>
         ))}
       </select>
-      <span className="text-small text-text-secondary flex items-center gap-1" data-ops-work-rule-protects={effective}>
-        <Lock size={10} />
-        {t('workRule.protects', { what: t(`workRule.protects${effective}`) })}
-      </span>
-      {effortDriven !== undefined && (
-        <span className="text-small text-text-secondary italic">
-          {t(effortDriven ? 'workRule.mspEffortDriven' : 'workRule.mspNotEffortDriven')}
+      {/* Gebruikstest #170, E5: wat de regel beschermt (en het bewaarde MS Project-vinkje) als één
+          gekleurd blok in plaats van een losse regel plus een cursief bijschrift. */}
+      <div className="ops-note !mt-1" data-ops-work-rule-note>
+        <Lock size={11} aria-hidden />
+        <span className="ops-note-lines">
+          <span data-ops-work-rule-protects={effective}>
+            {t('workRule.protects', { what: t(`workRule.protects${effective}`) })}
+          </span>
+          {effortDriven !== undefined && (
+            <span data-ops-work-rule-msp>
+              {t(effortDriven ? 'workRule.mspEffortDriven' : 'workRule.mspNotEffortDriven')}
+            </span>
+          )}
         </span>
-      )}
+      </div>
     </Field>
   );
 }

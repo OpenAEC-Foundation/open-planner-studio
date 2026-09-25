@@ -240,3 +240,28 @@ test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één un
   const name = await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.name, taskId);
   expect([st.workRule, st.units, st.work, name]).toEqual([undefined, 1, undefined, 'Metselwerk']);
 });
+
+// Gebruikstest #170, E5/G6: de instelling heet "Toon werkregels en werk", staat onder Berekenen
+// (geen eigen sectiekop) en haar toelichting is één zin in een gekleurd blok (accentbalk), geen
+// los bijschrift; in het paneel staan "Beschermd: …" en het MS Project-vinkje in datzelfde blok.
+test('instelling en paneel: werkregel-toelichting in een gekleurd blok, instelling onder Berekenen', async ({ page, ops: _ops }) => {
+  await seedAssignedTask(page);
+  const note = page.locator('[data-ops-work-rule-note]');
+  await expect(note).toBeVisible();
+  await expect(note.locator('[data-ops-work-rule-protects]')).toBeVisible();
+  expect(await note.evaluate(el => getComputedStyle(el).boxShadow)).toContain('inset');
+
+  await page.getByTitle(/^(Settings|Instellingen)$/, { exact: true }).click();
+  const dlg = page.locator('.settings-dialog');
+  await dlg.locator('.settings-tab').filter({ hasText: /^Planning$/ }).click();
+  const box = dlg.locator('[data-ops-setting-show-task-types]');
+  const row = box.locator('xpath=ancestor::label[1]');
+  await expect(row).toHaveText(/^(Show work rules and work|Toon werkregels en werk)$/);
+  const section = row.locator('xpath=ancestor::div[contains(@class,"settings-section")][1]');
+  await expect(section.locator('> h3')).toHaveText(/^(Calculation|Berekenen)$/);
+  const settingNote = section.locator('[data-ops-setting-show-task-types-note]');
+  await expect(settingNote).toBeVisible();
+  expect(await settingNote.evaluate(el => getComputedStyle(el).boxShadow)).toContain('inset');
+  // Geen los grijs bijschrift direct onder het vinkje.
+  expect(await row.evaluate(el => el.nextElementSibling?.classList.contains('scrollzoom-hint') ?? false)).toBe(false);
+});

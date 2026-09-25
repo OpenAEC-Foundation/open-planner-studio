@@ -6,7 +6,7 @@ Een taak met resources heeft drie getallen die bij elkaar horen: de **restduur**
 
 Standaard houdt Open Planner Studio duur en inzet vast en volgt het werk — precies zoals de app altijd al plande. De werkregel en het resterende werk worden dan niet getoond.
 
-- **Instelling**: zet *Toon taaktypes (werkregels)* aan onder Instellingen (⚙, het tabblad Instellingen of Backstage → Instellingen). Dan verschijnen de werkregel in het eigenschappenpaneel en de taakdialoog, de kolom *Werk (rest)* in de toewijzingstabel en de kolommen *Werkregel* en *Resterend werk* in de kolomkiezer van het raster.
+- **Instelling**: zet *Toon werkregels en werk* aan onder Instellingen → Planning → Berekenen (⚙, het tabblad Instellingen of Backstage → Instellingen). Dan verschijnen de werkregel in het eigenschappenpaneel en de taakdialoog, de kolom *Werk (rest)* in de toewijzingstabel en de kolommen *Werkregel* en *Resterend werk* in de kolomkiezer van het raster.
 - **Automatisch**: opent u een bestand dat al taaktypes bevat (een `.mpp`, MSPDI-, P6- of XER-bestand met taaktypes, of een eerder in deze app gezette werkregel), dan zijn die bedieningselementen voor dát document zichtbaar, ongeacht de instelling. De app meldt dat één keer.
 
 ## De vier werkregels

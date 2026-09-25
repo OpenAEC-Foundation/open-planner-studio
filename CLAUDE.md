@@ -257,9 +257,11 @@ solver en rapportage één waarheid delen — eigenaarsbesluiten 2026-09-05/06, 
 `check-work-rule-store.ts` (store/raster/MCP). Via de MCP-bridge: `planner_update_tasks`/`planner_add_tasks`
 `fields.workRule`, `planner_manage_assignments` `update.remainingWorkMinutes` en `planner_update_project`
 `defaultWorkRule` (`tests/mcp/cases-work-rule.ts`). UI: zichtbaar wanneer de instelling **Toon
-taaktypes** (`ui.showTaskTypes`, `ops-showTaskTypes`, default uit) aan staat óf het document zelf
+werkregels en werk** (Planning → Berekenen; `ui.showTaskTypes`, `ops-showTaskTypes`, default uit) aan staat óf het document zelf
 taaktypedata draagt (`taskTypesVisible` in `DOCUMENT_FIELDS`, afgeleid bij laden via
-`hasTaskTypeData`, met één melding per document — `taskTypesNotice.ts`); selector `taskTypesUnlocked`
+`hasTaskTypeData`); gemeld wordt dat alleen bij opgeslagen werk, een projectstandaard of een eigen
+regel (`taskTypesNeedNotice`, E4 — een uit het importveld afgeleide regel ontsluit stil), één keer per
+document (`taskTypesNotice.ts`); selector `taskTypesUnlocked`
 (`src/state/taskTypesVisibility.ts`). Dan: `TaskWorkRuleField` in paneel en dialoog, de kolom
 **Werk (rest)** met slotjes in `TaskAssignmentsSection`, en de rasterkolommen `task.workRule` en
 `assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).

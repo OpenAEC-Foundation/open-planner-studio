@@ -8,6 +8,7 @@ import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, save
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
+import { Info } from 'lucide-react';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
@@ -425,17 +426,6 @@ export function SettingsPanelContent() {
                   <span>{t('settings.allowMixedDayHour')}</span>
                 </label>
               )}
-              {/* #101: taaktypes tonen — geen eigen sectiekop, hoort bij de uren-/eenhedenplanning. */}
-              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={showTaskTypes}
-                  onChange={e => applyShowTaskTypes(e.target.checked)}
-                  data-ops-setting-show-task-types
-                />
-                <span>{t('settings.showTaskTypes')}</span>
-              </label>
-              <p className="scrollzoom-hint">{t('settings.showTaskTypesHint')}</p>
             </div>
 
             <div className="settings-section">
@@ -471,6 +461,22 @@ export function SettingsPanelContent() {
                 <span>{t('settings.autoCalcCPM')}</span>
               </label>
               <p className="scrollzoom-hint">{t('settings.autoCalcCPMHint')}</p>
+              {/* #101 + gebruikstest #170 (G6/E5): werkregels en werk tonen — onder Berekenen (het
+                  werkt ook op dagtaken, niet alleen bij urenplanning), zonder eigen sectiekop; de
+                  toelichting is één zin in een gekleurd blok i.p.v. een los formulebijschrift. */}
+              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={showTaskTypes}
+                  onChange={e => applyShowTaskTypes(e.target.checked)}
+                  data-ops-setting-show-task-types
+                />
+                <span>{t('settings.showTaskTypes')}</span>
+              </label>
+              <div className="ops-note" data-ops-setting-show-task-types-note>
+                <Info size={12} aria-hidden />
+                <span>{t('settings.showTaskTypesHint')}</span>
+              </div>
             </div>
           </div>
         )}

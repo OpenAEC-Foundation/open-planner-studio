@@ -6,7 +6,7 @@ A task with resources has three numbers that belong together: the **remaining du
 
 By default Open Planner Studio keeps duration and units and lets the work follow — exactly how the app has always scheduled. The work rule and the remaining work are then hidden.
 
-- **Setting**: turn on *Show task types (work rules)* under Settings (⚙, the Settings tab or Backstage → Settings). The work rule then appears in the properties panel and the task dialog, the *Work (rem.)* column in the assignment table, and the *Work rule* and *Remaining work* columns in the grid's column picker.
+- **Setting**: turn on *Show work rules and work* under Settings → Planning → Calculation (⚙, the Settings tab or Backstage → Settings). The work rule then appears in the properties panel and the task dialog, the *Work (rem.)* column in the assignment table, and the *Work rule* and *Remaining work* columns in the grid's column picker.
 - **Automatic**: when you open a file that already contains task types (an `.mpp`, MSPDI, P6 or XER file with task types, or a work rule set earlier in this app), those controls are shown for that document regardless of the setting. The app tells you once.
 
 ## The four work rules
