@@ -405,6 +405,14 @@ Branchbescherming op `main` eist 1 review met code-owner en groene checks; de or
 `85812af8` — orkestrator bekeek screenshots: namen zichtbaar, waarschuwingsteken, instelling in blok — her-check
 `opus-laag-hercheck-pr170-ui` loopt).
 
+**25-09 ~22:20 — #169-sync tussenstand:** `claude/x12-sync-109b` c703724d (#109 389ddc06 erin; CLAUDE.md naar de
+rules-structuur van main: `.claude/rules/rekenprofielen.md` nieuw, `xer.md` uitgebreid; alle poorten groen incl.
+verify EXIT 0 (browser 184) en measure 76/0/0/0). **Orkestratorbesluit:** de datagate `manuallyScheduled` in
+`scripts/verify-conventions.datagates.json` gaat 7 → 8 door `canSplitTask` uit main #146 (`splitEdit.ts:216`,
+weigeringsreden voor de splits-UI/MCP, geen solvertak) — geaccepteerd als uitzondering met deze reden; nette
+oplossing later: die check uit `src/engine/` verhuizen (TODO). De agent merget nu ook `origin/main` (#167)
+erin vóór de eindpoorten.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
