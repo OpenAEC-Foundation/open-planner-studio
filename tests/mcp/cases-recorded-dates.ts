@@ -208,4 +208,21 @@ test('leestools in de modus: kritiek is onbekend, geen verzonnen false (bevindin
   assertEq(rowsOff.every((row) => row.crit === true || row.crit === undefined), true, 'buiten de modus: crit is true of afwezig, nooit null');
 });
 
+// --- Critreview op ded4d8c3, bevinding 4: een MISLUKTE transactie laat de importvlag staan ---------
+test('mislukte MCP-transactie herstelt "ongewijzigd sinds import" zoals het vóór de transactie was', () => {
+  S().newProject();
+  S().applyLoadedProject(readIFC(externIfc('m-pristine')), { filePath: null, recompute: true });
+  assertEq([S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false],
+    'voorwaarde: verse import in de modus, vlag aan, niet vuil');
+
+  const res = runInMcpTransaction(() => {
+    draft.addTask({ name: 'wordt teruggedraaid' });
+    throw new Error('opzettelijk mislukt');
+  });
+
+  assert(!res.ok, 'transactie hoort te falen');
+  assertEq([S().datesAsRecorded, S().importPristine, S().isDirty], [true, true, false],
+    'na de rollback: modus, vlag en dirty exact zoals vóór de transactie');
+});
+
 await run();

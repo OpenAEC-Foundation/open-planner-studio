@@ -99,6 +99,8 @@ export interface ProjectSlice {
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
+  /** Zie `DocumentPayload.importPristine` (heropen-beleid optie B). */
+  importPristine: boolean;
   /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
    *  DOCUMENT_FIELDS; nooit IFC). `null` = er was geen archief óf het was bruikbaar. */
   xerArchiveIssue: XerArchiveIssue | null;
@@ -191,6 +193,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   xerImportMetadata: null,
   xerSourceArchive: null,
   xerSourceProjectId: null,
+  importPristine: false,
   xerArchiveIssue: null,
 
   setProject: (updates) => {

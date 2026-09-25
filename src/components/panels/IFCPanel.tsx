@@ -24,6 +24,10 @@ export function IFCPanel() {
   // ONVOLLEDIGE IFC (baselines gingen verloren bij genereren/kopiëren vanuit de IFC-tab).
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
+  // Critreview PR #167, bevinding 1: in de modus "datums zoals opgeslagen" schrijft de writer `$` op
+  // de niet-vastgelegde assen — ook hier, anders toont/kopieert dit paneel de terugvallen als waarden.
+  const recordedDates = useAppStore(s => s.recordedDates);
+  const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   const loadState = useAppStore(s => s.loadState);
   const notify = useAppStore(s => s.notify);  // bevinding K8 — alert() vervangen door het meldingenkanaal
 
@@ -31,8 +35,9 @@ export function IFCPanel() {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
+      recordedDates, datesAsRecorded,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -41,10 +46,11 @@ export function IFCPanel() {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
       activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
+      recordedDates, datesAsRecorded,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded]);
 
   const handleApply = useCallback(() => {
     void (async () => {

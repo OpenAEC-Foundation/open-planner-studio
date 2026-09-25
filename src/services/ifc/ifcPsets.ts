@@ -90,6 +90,10 @@ export const PSET = {
   SchedulingOptions: 'OPS_SchedulingOptions',
   /** Rekenprofielen: `{ id, baseId, conventions, overrides, name? }` — alle zevenentwintig conventies opgelost plus de letterlijke afwijkingen. */
   SchedulingProfile: 'OPS_SchedulingProfile',
+  /** Heropen-beleid optie B (eigenaarsbesluit 2026-09-09): `UnchangedSinceImport` op de
+   *  IfcWorkSchedule — alleen geschreven als `true` (golden rule: afwezig ⇒ `false`, bestaande
+   *  bestanden blijven byte-identiek). Zie `ImportResult.importPristine`. */
+  ImportProvenance: 'OPS_ImportProvenance',
   /** X9: één projectcontainer met de exacte oorspronkelijke XER-bytes. */
   XerSourceArchive: 'OPS_XerSourceArchive',
   /** X9: selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
