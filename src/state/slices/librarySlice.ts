@@ -429,6 +429,15 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       c.name = name.trim() || c.name;
       // Gedenormaliseerde companyName in de pool meelopen.
       if (s.pools[id]) s.pools[id].companyName = c.name;
+      // …en in elk GEOPEND document dat aan deze bibliotheek gekoppeld is (actief én slapend), zoals
+      // `bindProjectToCompany` en `removeCompany` dat veld ook bijhouden. Anders schreef een opgeslagen
+      // IFC de oude bibliotheeknaam weg (audit resources-kalenders R10). Zelfde regime als
+      // `removeCompany`: bibliotheekbeheer is app-globaal, geen undo-stap en geen isDirty.
+      if (s.project.companyId === id) s.project.companyName = c.name;
+      for (const d of s.documents) {
+        if (d.payload?.project.companyId !== id) continue;
+        d.payload.project = { ...d.payload.project, companyName: c.name };
+      }
     });
     persist(get);
   },

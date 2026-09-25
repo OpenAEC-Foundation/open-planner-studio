@@ -1,7 +1,9 @@
 // Headless store-batterij voor de bedrijfsbibliotheek (spec B1). Draait de ECHTE Zustand-store op
 // Node (patroon tests/planning/check-move-assignment.ts). Persistentie (saveLibrary) valt in Node
 // stil terug (geen IndexedDB/Tauri) — we asserten alleen de in-memory state. Exitcode = poort.
-import { useAppStore } from '@/state/appStore';
+import { createAppStore, useAppStore } from '@/state/appStore';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { normalizeLoadedLibrary, persistLibrary } from '@/state/slices/librarySlice';
 import { computeCalendarHash, computeResourceHash, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
@@ -1458,6 +1460,37 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   useAppStore.getState().closeDocument(useAppStore.getState().activeDocumentId); // laatste-sluit-naar-leeg-tak
   assert(useAppStore.getState().ui.showLibraryLinkDialog === false, 'closeDocument() laatste-sluit-naar-leeg-tak reset showLibraryLinkDialog');
   assert(useAppStore.getState().ui.libraryRefreshNotice === null, 'closeDocument() laatste-sluit-naar-leeg-tak reset libraryRefreshNotice');
+}
+
+// --- Bibliotheek hernoemen werkt de naam in gekoppelde open documenten bij (audit resources-kalenders
+// R10). `project.companyName` is een gedenormaliseerde kopie die alleen naar de IFC-pset gaat;
+// `bindProjectToCompany` en `removeCompany` hielden hem al bij, `renameCompany` niet — een opgeslagen
+// IFC droeg dan de oude bibliotheeknaam. Eigen store: actief, slapend én een niet-gekoppeld document.
+{
+  const store = createAppStore();
+  const S = () => store.getState();
+  const cid = S().addCompany('Bouwbedrijf Oud');
+  const other = S().addCompany('Ander Bedrijf');
+  S().bindProjectToCompany(cid);
+  S().addTask({ name: 'x' });
+  const docA = S().activeDocumentId;
+  S().newDocument();
+  S().bindProjectToCompany(other);
+  const docOther = S().activeDocumentId;
+  S().newDocument();
+  S().bindProjectToCompany(cid);
+  const docB = S().activeDocumentId;
+  S().switchDocument(docA); // A actief; B (zelfde bibliotheek) en "ander" slapen.
+  const dirtyBefore = S().isDirty;
+  const undoBefore = S().historyEvents.length;
+
+  S().renameCompany(cid, 'Bouwbedrijf Nieuw');
+  const after = S();
+  assert(after.project.companyName === 'Bouwbedrijf Nieuw', 'R10: renameCompany werkt companyName van het actieve gekoppelde document bij');
+  assert(after.documents.find(d => d.id === docB)?.payload?.project.companyName === 'Bouwbedrijf Nieuw', 'R10: …en van een slapend gekoppeld document');
+  assert(after.documents.find(d => d.id === docOther)?.payload?.project.companyName === 'Ander Bedrijf', 'R10: een document van een andere bibliotheek blijft ongemoeid');
+  assert(/'CompanyName',\$,IFCTEXT\('Bouwbedrijf Nieuw'\)/.test(writeIFC(buildWriteIFCInput(after))), 'R10: opslaan schrijft de nieuwe bibliotheeknaam in de IFC');
+  assert(after.isDirty === dirtyBefore && after.historyEvents.length === undoBefore, 'R10: zoals removeCompany: geen undo-stap en geen isDirty');
 }
 
 // --- Bedrijf verwijderen ontkoppelt gekoppelde open documenten (spec §5) ---
