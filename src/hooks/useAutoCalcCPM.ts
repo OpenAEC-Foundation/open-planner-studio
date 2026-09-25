@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createFailedSolveGate } from '@/state/failedSolveGate';
 import { useAppStore } from '@/state/appStore';
 
 // Automatisch berekenen: als de instelling aanstaat, draai runCPM zodra de planning
@@ -10,12 +11,16 @@ import { useAppStore } from '@/state/appStore';
 export function useAutoCalcCPM(): void {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Na een rekenfout pas opnieuw bij een echte invoerwijziging — anders start de eigen melding de
+    // volgende run (herbereken-lus). De rem kijkt bij élke aanroep eerst mee, zie failedSolveGate.ts.
+    const failedSolve = createFailedSolveGate(useAppStore.getState());
     const maybeScheduleRun = () => {
       const state = useAppStore.getState();
-      if (!state.ui.autoCalcCPM || !state.scheduleStale) return;
+      if (failedSolve.blocks(state) || !state.ui.autoCalcCPM || !state.scheduleStale) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
+        if (failedSolve.blocks(useAppStore.getState())) return; // intussen elders mislukt (F5, MCP)
         const s = useAppStore.getState();
         if (s.ui.autoCalcCPM && s.scheduleStale) s.runCPM();
       }, 100);

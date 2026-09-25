@@ -1047,6 +1047,13 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   NOTIFCHECK="$DIR/.notifications.mjs"
   if bundle_check "$DIR/check-notifications.ts" "$NOTIFCHECK"; then node "$NOTIFCHECK" || STATUS=1; fi
 
+  # Automatisch berekenen + rekenfout (review taakmutaties, bijvangst A): een mislukte berekening
+  # mocht geen herbereken-lus starten via haar eigen melding (~10 solves/s, teller ×42 in 3 s).
+  # Echte rem (failedSolveGate) op een geïsoleerde storecontext; pas een echte invoerwijziging
+  # rekent opnieuw. De hook zelf met echte timers: tests/browser/auto-calc-stale.spec.ts.
+  AUTOCALCCHECK="$DIR/.auto-calc-cpm.mjs"
+  if bundle_check "$DIR/check-auto-calc-cpm.ts" "$AUTOCALCCHECK"; then node "$AUTOCALCCHECK" || STATUS=1; fi
+
   # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.
   T1DURCHECK="$DIR/.task-duration-unit.mjs"
