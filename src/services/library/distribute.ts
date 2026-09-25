@@ -177,6 +177,8 @@ const defaultLevelRun: DistributionLevelRun = (doc, options) => {
     dataDate: doc.levelInput.dataDate,
     progressMode: doc.levelInput.progressMode,
     schedulingOptions: doc.levelInput.schedulingOptions,
+    projectStartDate: doc.levelInput.projectStartDate,
+    projectEndDate: doc.levelInput.projectEndDate,
   });
   return levelResources(
     tasks, doc.levelInput.sequences, doc.resources, doc.assignments,
@@ -185,6 +187,8 @@ const defaultLevelRun: DistributionLevelRun = (doc, options) => {
       dataDate: doc.levelInput.dataDate,
       progressMode: doc.levelInput.progressMode,
       schedulingOptions: doc.levelInput.schedulingOptions,
+      projectStartDate: doc.levelInput.projectStartDate,
+      projectEndDate: doc.levelInput.projectEndDate,
     },
   );
 };
@@ -226,6 +230,8 @@ function currentProjectEndFor(doc: DistributionDocInput): string {
       dataDate: doc.levelInput.dataDate,
       progressMode: doc.levelInput.progressMode,
       schedulingOptions: doc.levelInput.schedulingOptions,
+      projectStartDate: doc.levelInput.projectStartDate,
+      projectEndDate: doc.levelInput.projectEndDate,
     });
     if (result.error) return currentProjectEnd(doc.levelInput.tasks);
     return currentProjectEnd(tasks);

@@ -13,7 +13,7 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
 // de app doet — precies het soort meting waar je beslissingen op baseert.
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 import { writeIFC } from '@/services/ifc/ifcWriter';
-import { readIFC } from '@/services/ifc/ifcReader';
+import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { GanttRenderer, type GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import { computeViewRows, type ViewRow } from '@/engine/view/visibleRows';
 import type { ViewContext } from '@/engine/view/filterEval';
@@ -21,6 +21,7 @@ import type { ViewState } from '@/types/view';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { generateBenchmarkProject, type GeneratedProject } from './generateProject';
 import { formatBytes } from '@/utils/formatBytes';
+import { isLeafTask } from '@/utils/taskHierarchy';
 
 export type PhaseId = 'generate' | 'cpm' | 'ifcWrite' | 'ifcRead' | 'render';
 export const PHASE_ORDER: PhaseId[] = ['generate', 'cpm', 'ifcWrite', 'ifcRead', 'render'];
@@ -134,7 +135,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   // Leaf-taken = taken zonder kinderen; dit is EXACT het criterium dat de generator ook voor
   // `data.leafCount` gebruikt (audit-punt 5), zodat het gerapporteerde aantal overeenkomt met
   // wat de CPM-fase daadwerkelijk verwerkt.
-  const leafTasks = data.tasks.filter((t) => t.childIds.length === 0);
+  const leafTasks = data.tasks.filter(isLeafTask);
   // Samenvattingsrelatie-propagatie (zie `scheduleSlice.runCPM`): de generator maakt vandaag alleen
   // bladtaak-naar-bladtaak relaties (`generateProject.ts`), dus dit is hier een no-op passthrough —
   // maar de benchmark-fase moet, net als elke andere CPMSolver-aanroeper, door dezelfde poort gaan
@@ -148,7 +149,18 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   let lastResult: CPMResult | null = null;
   for (let i = 0; i < cpmIters; i++) {
     report('cpm', 1, i + 1, cpmIters);
-    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [], {});
+    // Fable-critreview PR #109 bevinding 1: dezelfde projectinvoer als F5 (was: lege opties). De
+    // generator zet geen statusdatum of opties, dus de meting verandert naar verwachting niet.
+    // Kalenderregister: de benchmarkdata kent geen kalenderlijst, alleen `data.calendar`; die geven
+    // we als register mee (net als `applyCpmResult` hieronder) — voor dit ééncalenderproject is dat
+    // wat F5 met `s.calendars` doet.
+    const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [data.calendar], {
+      dataDate: data.project.statusDate,
+      progressMode: data.project.progressMode,
+      schedulingOptions: data.project.schedulingOptions,
+      projectStartDate: data.project.startDate,
+      projectEndDate: data.project.endDate,
+    });
     const t0 = performance.now();
     lastResult = solver.solve();
     cpmSamples.push(performance.now() - t0);
@@ -186,7 +198,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
     const t0 = performance.now();
     // Geen `labels`: dienstlaag zonder `t(...)` — de benchmark leest zijn eigen zojuist geschreven IFC. `readIFC` valt dan terug op de Engelse
     // default voor een bestand zonder IFCPROJECT (zie ImportLabels).
-    const parsed = readIFC(ifc);
+    const parsed = await readIFCWithXerReconstruction(ifc);
     readSamples.push(performance.now() - t0);
     parsedTasks = parsed.tasks.length;
     await yieldToUi();

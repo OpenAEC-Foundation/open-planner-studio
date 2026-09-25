@@ -54,14 +54,14 @@ function cleanProject(): void {
 }
 
 // =================================================================================================
-// Registratie: alle 10 tools aanwezig met planner_-prefix + readOnly-annotatie
+// Registratie: alle leestools aanwezig met planner_-prefix + readOnly-annotatie
 // =================================================================================================
-test('registratie: 10 leestools met planner_-prefix, description en readOnlyHint:true', () => {
+test('registratie: alle leestools met planner_-prefix, description en readOnlyHint:true', () => {
   const names = [
     'planner_get_project_info', 'planner_get_project_overview', 'planner_list_tasks',
     'planner_get_task', 'planner_get_critical_path', 'planner_list_resources',
     'planner_get_resource_histogram', 'planner_get_calendars', 'planner_compare_baseline',
-    'planner_analyze_delay',
+    'planner_analyze_delay', 'planner_inspect_xer_provenance',
   ];
   for (const n of names) {
     const t = getTool(n);

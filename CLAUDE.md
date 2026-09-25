@@ -25,6 +25,8 @@ npm run bump X.Y.Z   # CalVer-versie syncen (Cargo.toml blijft bewust 0.1.0)
 
 Losse suites: `npm run test:planning`, `npm run test:library`, `npm run test:mcp`, `npm run test:dev-server`,
 `npm run test:browser` (eenmalig: `npx playwright install --with-deps --only-shell chromium`).
+`npm run test:browser:x11` draait lokaal headed en vereist `OPS_XER_CORPUS` + een desktopdisplay; hij vervangt
+de corpusloze CI-poort niet.
 Één batterij: `bash tests/planning/run.sh cases-<x>.json` of `bash tests/planning/run.sh check-<x>.ts`.
 
 Losse poorten (de meeste zitten in `verify`): `npm run verify:examples` (voorbeelden laden/rekenen),
@@ -58,7 +60,7 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 - **Rust is dun.** Precies drie commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); elk nieuw
   command is publiek oppervlak. Bestands-I/O: breid `src/services/fileAccess/` uit, geen Rust-command.
 - **IFC 4.3 is het native formaat**, er is geen JSON-projectformaat. Nieuwe domeindata moet round-trippen via
-  `ifcWriter`/`ifcReader`, anders is hij weg na opslaan. CSV/MSPDI/P6/`.mpp` zijn adapters. Route:
+  `ifcWriter`/`ifcReader`, anders is hij weg na opslaan. CSV/MSPDI/P6/`.mpp`/`.xer` zijn adapters. Route:
   `docs/ifc-round-trip.md`.
 - **Documentcontract.** Nieuwe projectdata hoort in `DOCUMENT_FIELDS` (`src/state/documentContract.ts`),
   anders overleeft hij geen documentwissel, undo, crashherstel of opslaan.
@@ -86,7 +88,7 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
   `settings`, `extensions`, `library`, `help`.
 - Veertien locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa`), elk met vier namespaces;
   `ar`/`fa` zijn RTL. Een ontbrekende pluralvorm valt terug op Engels, niet op `_other`.
-- MCP: De 41 `planner_*`-tools staan in `src/services/mcp/tools/`. Nieuwe tool: `docs/recepten/mcp-tool.md`.
+- MCP: De 42 `planner_*`-tools staan in `src/services/mcp/tools/`. Nieuwe tool: `docs/recepten/mcp-tool.md`.
 
 ## Conventies
 
@@ -101,7 +103,7 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 
 ## Waar de diepgang staat
 
-`.claude/rules/` (laadt per pad): `state`, `tauri-ifc`, `mpp`, `contour`, `gantt-splits`, `reports`, `ui-shell`,
+`.claude/rules/` (laadt per pad): `state`, `tauri-ifc`, `mpp`, `xer`, `contour`, `gantt-splits`, `reports`, `ui-shell`,
 `text-roles`, `i18n`, `settings-autosave`, `extensions`, `mcp`, `library`, `docs-help`, `tests`, `dev-server`,
 `ci-release`, `docs-index`.
 

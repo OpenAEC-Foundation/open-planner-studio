@@ -5,6 +5,7 @@ import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { BarChart3, Trash2 } from 'lucide-react';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
 import { ContourDialog } from '@/components/dialogs/ContourDialog';
 
@@ -42,14 +43,14 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
   // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
   const contouredIds = contouredAssignmentIds(task, taskAssignments);
-  const assignmentsDisabled = task.isMilestone || task.childIds.length > 0;
+  const assignmentsDisabled = task.isMilestone || isSummaryTask(task);
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
   const availableResources = resources.filter(r => !assignedResourceIds.has(r.id));
 
   /** Kandidaat-doeltaken voor "verplaats naar…" (item 4): leaf-taken zonder deze resource, exclusief
    *  de huidige taak zelf. */
   const moveCandidates = (resourceId: string) => tasks.filter(t =>
-    t.id !== taskId && !t.isMilestone && t.childIds.length === 0
+    t.id !== taskId && !t.isMilestone && isLeafTask(t)
     && !assignments.some(a => a.taskId === t.id && a.resourceId === resourceId)
   );
 

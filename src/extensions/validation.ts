@@ -8,6 +8,7 @@ import type {
   ParseResult,
   ReadyStoredExtension,
 } from './types';
+import { KNOWN_PERMISSIONS } from './permissions';
 
 export type ManifestParseMode = 'fresh' | 'stored-legacy';
 
@@ -35,14 +36,12 @@ const EXTENSION_CATEGORIES: readonly ExtensionCategory[] = [
   'Other',
 ];
 
-const EXTENSION_PERMISSIONS: readonly ExtensionPermission[] = [
-  'ribbon',
-  'backstage',
-  'events',
-  'filesystem',
-  'network',
-  'pdf-fonts',
-];
+// GEEN eigen permissielijst hier: `permissions.ts` is de ene bron van waarheid (regressiebevinding
+// her-review 2 — een tweede, handgekopieerde lijst hier liet 'importSource' onbereikbaar voor élke
+// extensie, want elk installatiepad parseert met mode 'fresh' en `parsePermissions` weigert een
+// niet-erkende permissie). `permissions.ts` importeert alleen `./types` en `appLog`, dus dit vormt
+// geen cyclus.
+const EXTENSION_PERMISSIONS: readonly ExtensionPermission[] = KNOWN_PERMISSIONS;
 
 const VERSION_PATTERN = /^[0-9]+(?:\.[0-9]+){0,3}$/;
 const EXTENSION_ID_PATTERN = /^[a-z0-9](?:[a-z0-9._-]{0,127})$/;

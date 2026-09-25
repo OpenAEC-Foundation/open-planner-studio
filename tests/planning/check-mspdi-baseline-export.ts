@@ -15,6 +15,11 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { installDOMParser } from './xmldom-shim';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
+import {
+  createEmptyXerArchiveDiagnostics,
+  createEmptyXerArchiveReadModel,
+  createXerSourceArchive,
+} from '@/services/xerSourceArchive';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 
 // ── Headless browser-stubs ───────────────────────────────────────────────────────────────────
@@ -67,6 +72,29 @@ S().runCPM();
 const baselineId = S().saveBaseline('Nulmeting');
 eq('01 setup: één baseline in de store', S().baselines.length, 1);
 eq('02 setup: baseline is actief', S().activeBaselineId, baselineId);
+const savedBaseline = S().baselines[0];
+useAppStore.setState({
+  baselines: [{
+    ...savedBaseline,
+    sourceProjectId: 'P6-SOURCE-BASELINE',
+    name: 'Contractuele nulmeting',
+    createdAt: '2025-12-31T12:34:56.000Z',
+    projectEnd: '2035-12-31',
+    projectDuration: 987,
+    tasks: savedBaseline.tasks.map((task, index) => ({
+      ...task,
+      sourceTaskId: `P6-TASK-${index + 1}`,
+      sourceTaskCode: `SRC-${index + 1}`,
+    })),
+  }],
+  xerSourceArchive: createXerSourceArchive(new Uint8Array(), {
+    encoding: 'utf-8', bom: 'none', newline: 'none',
+    diagnostics: createEmptyXerArchiveDiagnostics(),
+    readModel: createEmptyXerArchiveReadModel(),
+  }),
+  xerSourceProjectId: 'P6-PROJECT',
+  scheduleStale: false,
+});
 const before = S().baselines[0];
 eq('03 setup: baseline dekt de drie leaf-taken', before.tasks.length, 3);
 
@@ -77,7 +105,9 @@ const wantByName = new Map(
 );
 
 // ── De productieroute: exportAs('mspdi'), exact zoals ribbon/backstage hem aanroepen ─────────
-await S().exportAs('mspdi');
+const exportResult = await S().exportAs('mspdi');
+eq('03a MSPDI meldt ondanks slot-0-projectie het resterende baselineobjectverlies',
+  exportResult.ok ? exportResult.warnings[0]?.categories : [], ['baselines']);
 
 // `captured` wordt vanuit de Blob-stub gezet; TS' controlestroom ziet die schrijfactie niet en
 // versmalt de variabele anders tot `never`. Via een losse lezing blijft het type intact.
@@ -98,6 +128,24 @@ truthy('09 import: baseline is actief', !!back.activeBaselineId && back.activeBa
 
 const backBaseline = backBaselines[0];
 eq('10 import: baseline dekt evenveel taken', backBaseline?.tasks.length, before.tasks.length);
+eq('10a round-trip bewijst dat OPS-baseline-identiteit en metadata niet terugkomen', {
+  sameId: backBaseline?.id === before.id,
+  sourceProjectId: backBaseline?.sourceProjectId,
+  sameName: backBaseline?.name === before.name,
+  sameCreatedAt: backBaseline?.createdAt === before.createdAt,
+  sameProjectEnd: backBaseline?.projectEnd === before.projectEnd,
+  sameProjectDuration: backBaseline?.projectDuration === before.projectDuration,
+  sourceTaskIdentityCount: backBaseline?.tasks.filter(task =>
+    task.sourceTaskId !== undefined || task.sourceTaskCode !== undefined).length,
+}, {
+  sameId: false,
+  sourceProjectId: undefined,
+  sameName: false,
+  sameCreatedAt: false,
+  sameProjectEnd: false,
+  sameProjectDuration: false,
+  sourceTaskIdentityCount: 0,
+});
 
 const backNameOf = new Map(back.tasks.map(t => [t.id, t.name]));
 for (const bt of backBaseline?.tasks ?? []) {

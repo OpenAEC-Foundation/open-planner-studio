@@ -20,8 +20,8 @@
 //  4. GEEN AI-BACKUP, GEEN TRANSACTIE. Spec regel 130: `import_schedule` triggert zelf géén backup
 //     (de per-document-teller start op het RESULTERENDE document, zodat de eerste echte mutatie
 //     precies de post-import-staat vastlegt) ⇒ `kind: 'other'`, en het laden loopt via de gedeelde
-//     open-actie `openAsDocument` (→ `applyLoadedProject`, net als Bestand → Openen), niet via
-//     `runInMcpTransaction`.
+//     open-actie `openAsDocument` (→ `applyOpenedImport` → `applyLoadedProject`, net als Bestand →
+//     Openen), niet via `runInMcpTransaction`.
 //  5. DRIFT-ANKER. `export_ifc` schrijft de inhoud van het ACTIEVE document weg ⇒ volle drift-check
 //     (het verkeerde document exporteren is stil fout). `import_schedule` verzet het anker naar het
 //     resulterende document (spec regel 111) — zonder dat zou de import zichzelf klemzetten.
@@ -35,7 +35,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { parseOpenedFile, readFormatInput, type FormatInput } from '@/services/formatRegistry';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { extensionOf } from '@/utils/filePath';
-import type { ImportResult } from '@/services/importTypes';
+import type { OpenedImport } from '@/services/importTypes';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, toolError } from './runtime';
 import { guardBridgeFlags } from './documentTools';
 import type { McpToolAnnotations, McpToolDef, McpToolResult } from '../contracts';
@@ -155,10 +155,11 @@ export function checkScope(home: string, input: string): ScopeCheck {
 /** Leesbaar formaatlabel op basis van de extensie (de XML-variant wordt op inhoud gesnifft).
  *  `MPP14` (T8): de enige binaire indeling die dit pad kent — `.mpp` (MS Project 2010-2021,
  *  alleen-lezen native lezer, zie `src/services/mpp/`). */
-function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' {
+function formatOf(path: string, content: string): 'IFC' | 'CSV' | 'P6-XML' | 'MSPDI-XML' | 'MPP14' | 'XER' {
   const ext = extensionOf(path);
   if (ext === 'csv') return 'CSV';
   if (ext === 'mpp') return 'MPP14';
+  if (ext === 'xer') return 'XER';
   if (ext === 'xml') {
     return content.includes('APIBusinessObjects') || content.includes('Primavera') ? 'P6-XML' : 'MSPDI-XML';
   }
@@ -282,7 +283,8 @@ export const fileTools: McpToolDef[] = [
     description:
       'Lees een planningsbestand van schijf en open het als DOCUMENT (tabblad). Ondersteund: .ifc ' +
       '(native, volledig), .xml (Primavera P6 of MS Project MSPDI — het formaat wordt op inhoud ' +
-      'herkend), .csv en .mpp (MS Project 2010-2021, MPP14, alleen-lezen — oudere formaten en ' +
+      'herkend), .csv, .xer (Primavera P6, alleen-lezen) en .mpp (MS Project 2010-2021, MPP14, ' +
+      'alleen-lezen — oudere formaten en ' +
       'wachtwoordbestanden geven een fout die vraagt om eerst als XML te exporteren). Er wordt NIET ' +
       'samengevoegd met het huidige plan: een leeg-en-ongewijzigd ' +
       'actief tabblad wordt hergebruikt, anders komt er een nieuw tabblad bij; het resultaat wordt ' +
@@ -293,7 +295,8 @@ export const fileTools: McpToolDef[] = [
       'fields; MSPDI is het rijkst na IFC. ' +
       'Na een CSV-/XML-/MPP-import heeft het document nog GEEN opslagdoel (opslaan schrijft altijd ' +
       'IFC, dus het bronbestand wordt nooit overschreven); alleen een IFC-import neemt het bronpad over. ' +
-      'Gebruik altijd het `documentId` UIT DE RESPONS voor vervolgstappen — of het bestand in het ' +
+      'Gebruik de `documents`-inventaris UIT DE RESPONS voor alle geopende documenten; `documentId` ' +
+      'blijft voor compatibiliteit het actieve document aanwijzen. Of het eerste project in het ' +
       'bestaande tabblad of in een nieuw tabblad landde hangt af van de staat van de app. ' +
       'Kalender-id\'s zijn per document: herbouw een kalender in het importdocument met ' +
       'update_calendar — geef een kalenderobject uit planner_get_calendars van het masterdocument ' +
@@ -309,7 +312,7 @@ export const fileTools: McpToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absoluut bronpad binnen de home-map (.ifc / .xml / .csv / .mpp; ~ mag)' },
+        path: { type: 'string', description: 'Absoluut bronpad binnen de home-map (.ifc / .xml / .csv / .mpp / .xer; ~ mag)' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -355,7 +358,7 @@ export const fileTools: McpToolDef[] = [
       }
       const content = input.text ?? '';
 
-      let parsed: ImportResult;
+      let parsed: OpenedImport;
       try {
         // Geen `labels`: dienstlaag zonder `t(...)` — de MCP-laag is AI-facing en kent geen UI-taal.
         // `readIFC` valt dan terug op de Engelse default voor een bestand zonder IFCPROJECT (zie
@@ -367,17 +370,18 @@ export const fileTools: McpToolDef[] = [
 
       const format = formatOf(path, content);
       // Exact het laadpatroon van Bestand → Openen, want het IS dezelfde store-actie
-      // (`openAsDocument`): pristine tabblad hergebruiken of een nieuw document (bewust geen merge),
-      // OPSLAGDOEL alleen bij een formaat dat `canBeSaveTarget` draagt, en GEKOPPELD laden
-      // (`linkedOpen`). Opslaan schrijft ALTIJD IFC; zou een geïmporteerd .csv-/.xml-/.mpp-pad het
-      // opslagdoel worden, dan overschrijft de eerstvolgende Ctrl+S van de user zijn eigen
-      // bronbestand met IFC-inhoud onder die naam. Omgekeerd: krijgt een .ifc het bronpad als
-      // opslagdoel, dan moet hij ook alles laden wat erin stond — vóór deze route via
-      // `openAsDocument` liep, gaf de tool een eigen opts-object zonder `linkedOpen` mee en wiste
-      // Ctrl+S de bibliotheekkoppeling + herkomststempels uit het bronbestand (import/export-audit,
-      // bevinding 2; `tests/mcp/cases-import-bibliotheek.ts`). `formatOf` blijft puur het AI-facing
-      // label (`format`, voor de respons en de notices).
-      const { reusedActiveTab } = ctx.app.store.getState().openAsDocument(parsed, {
+      // (`openAsDocument` → de centrale naad `applyOpenedImport`): pristine tabblad hergebruiken of
+      // een nieuw document (bewust geen merge), inclusief X4b's meervoudige XER-vorm, OPSLAGDOEL
+      // alleen bij een formaat dat `canBeSaveTarget` draagt, en GEKOPPELD laden (`linkedOpen`).
+      // Opslaan schrijft ALTIJD IFC; zou een geïmporteerd .csv-/.xml-/.mpp-/.xer-pad het opslagdoel
+      // worden, dan overschrijft de eerstvolgende Ctrl+S van de user zijn eigen bronbestand met
+      // IFC-inhoud onder die naam. Omgekeerd: krijgt een .ifc het bronpad als opslagdoel, dan moet
+      // hij ook alles laden wat erin stond — vóór deze route via `openAsDocument` liep, gaf de tool
+      // een eigen opts-object zonder `linkedOpen` mee en wiste Ctrl+S de bibliotheekkoppeling +
+      // herkomststempels uit het bronbestand (import/export-audit, bevinding 2;
+      // `tests/mcp/cases-import-bibliotheek.ts`). `formatOf` blijft puur het AI-facing label
+      // (`format`, voor de respons en de notices).
+      const opened = ctx.app.store.getState().openAsDocument(parsed, {
         name: path,
         ref: { kind: 'path', path },
       });
@@ -386,6 +390,23 @@ export const fileTools: McpToolDef[] = [
       bindExpectedDoc(ctx);
 
       const after = ctx.app.store.getState();
+      const payloadById = new Map(after.getOpenDocumentPayloads().map(document => [
+        document.id,
+        document.payload,
+      ]));
+      const documents = opened.documentIds.map(documentId => {
+        const payload = payloadById.get(documentId);
+        if (!payload) throw new Error(`Geopend document '${documentId}' ontbreekt na import`);
+        return {
+          documentId,
+          projectId: payload.project.id,
+          projectName: payload.project.name,
+          tasks: payload.tasks.length,
+          sequences: payload.sequences.length,
+          resources: payload.resources.length,
+          filePath: payload.filePath,
+        };
+      });
       const notices: string[] = [];
       if (format === 'CSV') {
         notices.push('CSV bevat geen kalender (het document draait nu op de STANDAARDkalender — datums kunnen afwijken) en geen resources/toewijzingen.');
@@ -393,6 +414,12 @@ export const fileTools: McpToolDef[] = [
         notices.push('P6-XML: Nonlabor-resources zijn als EQUIPMENT geïmporteerd.');
       } else if (format === 'MPP14') {
         notices.push('MPP-import is alleen-lezen (best effort; baselines en custom fields komen niet mee). Opslaan schrijft IFC; export naar MS Project = MSPDI-XML.');
+      } else if (format === 'XER') {
+        notices.push(
+          `XER-import is alleen-lezen; deze stap importeert ${documents.length} niet-lege ` +
+          `P6-project${documents.length === 1 ? '' : 'en'} als ${documents.length} ` +
+          `document${documents.length === 1 ? '' : 'en'}. Opslaan schrijft IFC.`,
+        );
       }
       if (format !== 'IFC') {
         notices.push('Het document heeft nog GEEN opslagdoel: opslaan schrijft IFC, dus het bronbestand wordt niet overschreven — de gebruiker kiest bij opslaan een pad.');
@@ -402,9 +429,11 @@ export const fileTools: McpToolDef[] = [
         envelope: buildEnvelope(ctx),
         data: {
           documentId: after.activeDocumentId,
+          documentsOpened: documents.length,
+          documents,
           path,
           format,
-          reusedActiveTab,
+          reusedActiveTab: opened.reusedActiveTab,
           /** Opslagdoel van het document: het bronpad bij IFC, anders null (zie hierboven). */
           filePath: after.filePath,
           tasks: after.tasks.length,
