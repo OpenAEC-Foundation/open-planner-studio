@@ -1,4 +1,4 @@
-# Resourcekalender
+# 资源日历
 
 **资源日历**窗口编辑单个资源的自有日历——例如每周工作四天的班组。该表单与[日历对话框](docs://ref-kalenderdialoog)相同；本文只描述其中的差异。
 
@@ -19,5 +19,5 @@
 
 ## 延伸阅读
 
-- [Kalenders & uren-planning](docs://gids-kalenders-uren) — 何时资源日历是正确的选择。
-- [Resources, histogram & nivellering](docs://gids-resources-histogram) — 日历如何影响负荷和平衡。
+- [日历与小时计划](docs://gids-kalenders-uren) — 何时资源日历是正确的选择。
+- [资源、直方图与平衡](docs://gids-resources-histogram) — 日历如何影响负荷和平衡。

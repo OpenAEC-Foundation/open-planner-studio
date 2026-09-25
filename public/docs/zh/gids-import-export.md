@@ -1,4 +1,4 @@
-# Im-/export
+# 导入/导出
 
 Open Planner Studio 默认将项目存储为 IFC——不会有单独的项目文件伴随其旁。但有时计划也需要存在于应用之外：在 Primavera P6 中、在 Microsoft Project 中，或作为供电子表格使用的扁平表格。本指南解释原生 IFC 格式究竟意味着什么、每种导出格式携带和不携带哪些内容，以及导入/导出在应用中的位置。
 
@@ -67,5 +67,5 @@ MSPDI 比 CSV 丰富得多：资源、分配（包括其负荷曲线）、日历
 
 ## 延伸阅读
 
-- 基线只通过 IFC 和 MS Project XML 随行，而不通过 CSV 或 P6——阅读指南 [Baselines & voortgang](docs://gids-baselines-voortgang) 了解如何记录基线。
-- 资源、分配和负荷曲线——阅读指南 [Resources, histogram & nivellering](docs://gids-resources-histogram) 了解导出之前这些内容是如何构建的。
+- 基线只通过 IFC 和 MS Project XML 随行，而不通过 CSV 或 P6——阅读指南 [基线与进度](docs://gids-baselines-voortgang) 了解如何记录基线。
+- 资源、分配和负荷曲线——阅读指南 [资源、直方图与平衡](docs://gids-resources-histogram) 了解导出之前这些内容是如何构建的。

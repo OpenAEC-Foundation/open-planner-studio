@@ -1,4 +1,4 @@
-# Kritiek pad & geavanceerde analyse
+# 关键路径与高级分析
 
 每个计划都有一条最长的任务链，共同决定项目何时完成：关键路径。其之外的一切都有浮动——可以滑移而不影响结束日期的余地。本指南超越“哪些任务条是红色的”这一层面：总浮动/自由浮动/干扰浮动、接近关键的工作、多条同等关键的路径、hammock、硬钉住及其上游影响，以及项目之间的外部链接。
 
@@ -81,6 +81,6 @@ Hammock 做的事情是：以一种概括性任务条的形式，展示一段工
 ## 继续阅读
 
 - 在一份计划中同时查看多条关键路径、接近关键的工作、一个 hammock、一个硬钉住和一个外部链接：[Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc)。
-- 关系、延时/提前量和限制（包括硬钉住）在指南 [Relaties & constraints](docs://gids-relaties-constraints) 中有更深入的解释。
-- 平衡可能会改变关键路径结构——阅读指南 [Resources, histogram & nivellering](docs://gids-resources-histogram)。
-- 进度和状态日期可能会在已固定的任务上产生负浮动——阅读指南 [Baselines & voortgang](docs://gids-baselines-voortgang)。
+- 关系、延时/提前量和限制（包括硬钉住）在指南 [关系与限制](docs://gids-relaties-constraints) 中有更深入的解释。
+- 平衡可能会改变关键路径结构——阅读指南 [资源、直方图与平衡](docs://gids-resources-histogram)。
+- 进度和状态日期可能会在已固定的任务上产生负浮动——阅读指南 [基线与进度](docs://gids-baselines-voortgang)。

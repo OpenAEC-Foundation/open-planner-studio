@@ -1,4 +1,4 @@
-# Resources, histogram & nivellering
+# 资源、直方图与平衡
 
 任务告诉您什么时候需要发生某件事；**资源**告诉您谁或什么将去做这件事——以及在某一天有多少可用量。一旦您为任务分配资源，某一天可能出现需求超过可用产能的情况：超额分配。本指南展示如何管理和分配资源，如何在直方图中解读负荷，以及平衡如何（以及何时*不能*）解决超额分配问题。
 
@@ -81,7 +81,7 @@
 
 ## 资源日历
 
-资源可以处于**项目日历**（默认）或自己的日历上——例如某个每周只有四天可用的分包商。通过资源面板中的**日历**列，或资源自身的**日历**字段进行设置。资源日历永远不会影响任务的 CPM 日期（那些仍按任务/项目日历运行）——它只影响**负荷**和**平衡**：如果某资源在任务所需的某一天不工作，这会在直方图中计为短缺，平衡器会警告移动无法解决这种日历不匹配问题。有关日历的完整说明，请参阅指南 [Kalenders & uren-planning](docs://gids-kalenders-uren)。
+资源可以处于**项目日历**（默认）或自己的日历上——例如某个每周只有四天可用的分包商。通过资源面板中的**日历**列，或资源自身的**日历**字段进行设置。资源日历永远不会影响任务的 CPM 日期（那些仍按任务/项目日历运行）——它只影响**负荷**和**平衡**：如果某资源在任务所需的某一天不工作，这会在直方图中计为短缺，平衡器会警告移动无法解决这种日历不匹配问题。有关日历的完整说明，请参阅指南 [日历与小时计划](docs://gids-kalenders-uren)。
 
 ## 解读直方图
 
@@ -142,6 +142,6 @@
 
 - 在 [Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc) 中自己重演抹灰工超额分配的平衡过程。
 - 在 [Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc) 中实际查看平衡的极限——以及全部五种资源类型、全部六种曲线和分时段的塔式起重机产能。
-- 资源在日历上运行——阅读指南 [Kalenders & uren-planning](docs://gids-kalenders-uren) 了解资源日历和小时计划。
-- 想在开始平衡之前设置一个基线，以便看出差异？阅读指南 [Baselines & voortgang](docs://gids-baselines-voortgang)。
-- 平衡可能会改变哪些任务是关键的——阅读指南 [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse) 了解如何发现这一点。
+- 资源在日历上运行——阅读指南 [日历与小时计划](docs://gids-kalenders-uren) 了解资源日历和小时计划。
+- 想在开始平衡之前设置一个基线，以便看出差异？阅读指南 [基线与进度](docs://gids-baselines-voortgang)。
+- 平衡可能会改变哪些任务是关键的——阅读指南 [关键路径与高级分析](docs://gids-kritiek-pad-analyse) 了解如何发现这一点。

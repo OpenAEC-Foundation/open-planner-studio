@@ -1,4 +1,4 @@
-# Baselines & voortgang
+# 基线与进度
 
 一份从不更新的计划只是一个预测。一旦工作开始，您希望同时看到两件事：最初约定的内容，以及现在实际发生的情况。**基线**冻结前者；**进度**和**状态日期**追踪后者。本指南展示如何保存和管理基线、如何使差异可见、如何录入进度，以及状态日期到底对您的计划做了什么。
 
@@ -68,5 +68,5 @@
 
 - 实际查看开工前的基线和项目进行到一半时的进度：[Nieuwbouw 6 Rijwoningen De Akkers](examples://showcase-rijwoningen-de-akkers.ifc)。
 - 实际查看两个基线（合同 → 变更单后重新设基线）：[Nieuwbouw Appartementencomplex De Vaart](examples://showcase-appartementencomplex.ifc)。
-- 资源及其负荷也会在每次按 F5 时重新计算——阅读指南 [Resources, histogram & nivellering](docs://gids-resources-histogram) 了解超额分配和平衡。
-- 进度和状态日期可能会在已固定的任务上产生负浮动——阅读指南 [Kritiek pad & geavanceerde analyse](docs://gids-kritiek-pad-analyse) 了解如何解读这一点。
+- 资源及其负荷也会在每次按 F5 时重新计算——阅读指南 [资源、直方图与平衡](docs://gids-resources-histogram) 了解超额分配和平衡。
+- 进度和状态日期可能会在已固定的任务上产生负浮动——阅读指南 [关键路径与高级分析](docs://gids-kritiek-pad-analyse) 了解如何解读这一点。
