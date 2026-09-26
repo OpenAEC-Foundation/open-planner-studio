@@ -13,19 +13,18 @@ import { isSummaryTask } from '@/utils/taskHierarchy';
 let progressSeq = 0;
 
 /**
- * Voortgang/completion + werkelijke start/finish + resterend (fase 2.6, §11.3) — sectie 7 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2).
+ * Voortgang/completion + werkelijke start/finish + resterend — sectie van
+ * `TaskPropertiesPanel`.
  *
- * AFWIJKING van het pure `{ task, onChange }`-CalendarForm-patroon: het paneel roept vandaag NIET
+ * AFWIJKING van het pure `{ task, onChange }`-CalendarForm-patroon: het paneel roept NIET
  * de generieke patch-actie aan, maar drie dedicated store-acties (`setTaskProgress`/
- * `setActualStart`/`setActualFinish`) die §3.2-invarianten afdwingen (auto-actualStart bij
+ * `setActualStart`/`setActualFinish`) die de voortgangsinvarianten afdwingen (auto-actualStart bij
  * completion>0, actualFinish laten vallen bij terugdraaien, en — belangrijkst — actuals ná de
  * statusdatum WEIGEREN met een boolean-retourwaarde). Die invariant-logica zit in de store
- * (taskSlice.ts, `applyProgressInvariants`) en mag niet gedupliceerd worden. Om
- * `TaskPropertiesPanel`'s gedrag exact te behouden (harde eis, item 2) krijgt deze sectie daarom
- * drie EXPLICIETE setter-props i.p.v. de generieke `onChange`: het paneel geeft de echte
- * store-acties door (instant-apply, ongewijzigd); de dialoog geeft lokale equivalenten door die op
- * de eigen draft werken (dezelfde §3.2-functies, maar pas gecommit op Save — zie
+ * (taskSlice.ts, `applyProgressInvariants`) en mag niet gedupliceerd worden. Deze sectie krijgt
+ * daarom drie EXPLICIETE setter-props i.p.v. de generieke `onChange`: het paneel geeft de echte
+ * store-acties door (instant-apply); de dialoog geeft lokale equivalenten door die op
+ * de eigen draft werken (dezelfde invariantfuncties, maar pas gecommit op Save — zie
  * `state/taskDialogSave.ts`).
  *
  * VERZAMELTAAK (fase): alles in deze sectie is alleen-lezen. Haar voortgang en status worden bij
@@ -34,8 +33,8 @@ let progressSeq = 0;
  * als MCP en de voortgangsimport. De sectie toont dan de afgeleide waarde plus een uitleg.
  *
  * Voortgang INVULLEN (`engine/progressEntry.ts`): elke setter geeft een `ProgressEntryResult` terug.
- * Een weigering toont deze sectie zelf; `needsActualStart` (Z1b: een taak die pas na de statusdatum
- * zou beginnen, nog zonder werkelijke start) beantwoordt ze met de ene vraagdialoog
+ * Een weigering toont deze sectie zelf; `needsActualStart` (een taak die pas na de statusdatum
+ * zou beginnen, nog zonder werkelijke start) beantwoordt ze met de startvraag
  * (`askActualStart`) en roept de setter opnieuw aan met het antwoord — annuleren verandert niets.
  * Tijdens een sleep met de schuif wordt pas bij het loslaten gevraagd; tot dan toont de schuif de
  * gesleepte waarde zonder iets toe te passen.
@@ -56,7 +55,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   const derived = isSummaryTask(task);
   const releaseHold = useRef<(() => void) | null>(null);
   useEffect(() => () => { releaseHold.current?.(); }, []);
-  // Z1b tijdens een sleep: de vraag wacht tot het loslaten; de schuif toont zolang de gesleepte waarde.
+  // Tijdens een sleep wacht de startvraag tot het loslaten; de schuif toont zolang de gesleepte waarde.
   const pendingQuestion = useRef<{ question: ActualStartQuestion; retry: (actualStart: string) => ProgressEntryResult } | null>(null);
   const [pendingPercent, setPendingPercent] = useState<number | null>(null);
 
@@ -153,7 +152,7 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
         </div>
       </Field>
 
-      {/* Werkelijke datums (fase 2.6, §11.3): mijlpaal ⇒ één "Werkelijke datum"; anders start+einde.
+      {/* Werkelijke datums: mijlpaal ⇒ één "Werkelijke datum"; anders start+einde.
           De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
       {task.isMilestone ? (
         <Field label={t('properties.progress.actualDate')}>

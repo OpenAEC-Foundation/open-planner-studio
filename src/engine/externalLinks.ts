@@ -5,7 +5,7 @@ import { shownStart, shownFinish } from '@/utils/taskDates';
 export { externalSourceSide };
 
 /**
- * Externe (cross-project) dependencies — verversen van het bevroren anker (fase 2.9, §4.5/§5.5).
+ * Externe (cross-project) dependencies — verversen van het bevroren anker.
  *
  * GEEN live multi-document-solve: een `ExternalLink` rekent altijd op zijn gecachte `anchorDate`
  * (P6 External Dates). Deze module levert de PURE herberekening van dat anker uit de ACTUELE datum
@@ -15,7 +15,7 @@ export { externalSourceSide };
 
 /** Read-only geparsede bron (via de bestaande readers): projectidentiteit + taken-met-datums. */
 export interface ExternalSourceDoc {
-  /** `Project.id` — het primaire match-anker (persistente IFC-project-GlobalId-seed, §3.3). */
+  /** `Project.id` — het primaire match-anker (persistente IFC-project-GlobalId-seed). */
   projectId: string;
   /** Bestandspad — secundair match-anker/label wanneer de projectId (nog) niet overeenkomt. */
   filePath?: string;
@@ -41,7 +41,7 @@ export interface RefreshResult {
  * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
 export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
 
-/** De actuele anker-datum die `link` uit `srcTask` leest (§4.5-mapping); leeg ⇒ geen bruikbare datum. */
+/** De actuele anker-datum die `link` uit `srcTask` leest; leeg ⇒ geen bruikbare datum. */
 export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
   const side = externalSourceSide(link.direction, link.relType);
   return side === 'finish'
@@ -66,7 +66,7 @@ export function linkMatchesSource(
 }
 
 /**
- * Ververst alle externe links die naar `source` verwijzen met de actuele brontaak-datums (§4.5).
+ * Ververst alle externe links die naar `source` verwijzen met de actuele brontaak-datums.
  * Puur: muteert niets in-place; ongewijzigde taken/links behouden hun referentie (goedkope re-render).
  * Links naar een ándere bron blijven onaangeroerd. Match: projectId (fallback filePath); brontaak-match
  * op `sourceRef.taskId`. Gevonden ⇒ anker bijgewerkt + `sourceMissing=false` + `sourceRef` gecanonicaliseerd;

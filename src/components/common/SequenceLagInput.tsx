@@ -30,8 +30,8 @@ export function SequenceLagInput({ seq, title, className, onCommit, onDraftChang
     setVal(formattedLagRef.current);
   }, [signature]);
   // Live-afgeleid (zoals `UnitsInput`): rood ZODRA de huidige tekst niet parseerbaar is — dus al
-  // tíjdens het typen, niet pas na een stille terugval bij blur (F1-bevinding: het veld sprong
-  // eerder terug zonder ENIGE indicatie dat de invoer geweigerd was).
+  // tíjdens het typen, niet pas na een stille terugval bij blur (die zonder indicatie zou
+  // verbergen dat de invoer geweigerd is).
   const invalid = val !== '' && parseLagInput(val) === null;
   const commit = () => {
     const parsed = parseLagInput(val);

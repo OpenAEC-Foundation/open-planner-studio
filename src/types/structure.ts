@@ -1,6 +1,5 @@
 /**
- * Fase 2.2 — structuurdefinities op projectniveau (zie
- * docs/superpowers/specs/2026-07-02-wbs-structuur-design.md).
+ * Structuurdefinities op projectniveau.
  *
  * Activity codes volgen het P6-model: een projectgebonden lijst code-TYPES
  * (dimensies zoals "Locatie", "Discipline"), elk met platte WAARDEN; een taak

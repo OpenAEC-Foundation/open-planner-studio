@@ -6,7 +6,7 @@ import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { findLongFreePeriods } from '@/engine/scheduler/freePeriods';
 
 /**
- * Waarschuwing "deze taak loopt over een lange vrije periode" — user-wens bij issue #21.
+ * Waarschuwing "deze taak loopt over een lange vrije periode".
  * RELATIONEEL/storeful (zelfde classificatie als `TaskCpmResultSection`): puur lezend, geen
  * `onChange`-contract, dus `taskId`-only i.p.v. het volledige `{ task, onChange }`-contract.
  *

@@ -5,14 +5,14 @@ import { DEFAULT_COMPANY_ID } from '@/types/library';
 import { DEMO_COMPANY_ID } from './demoLibrary';
 
 /**
- * Reserved companyId's die op ELKE installatie hetzelfde zijn (issue #19, critreview F1):
+ * Reserved companyId's die op ELKE installatie hetzelfde zijn:
  * `DEFAULT_COMPANY_ID` (de automatische standaardbibliotheek van een verse installatie) en
  * `DEMO_COMPANY_ID` (de idempotente demo-seed, `seedDemoLibrary`). Vrijwel elke gebruiker heeft
  * hooguit ÉÉN bibliotheek — dus vrijwel elk geëxporteerd bestand draagt zo'n reserved id. Zo'n id
  * is daarom GEEN identiteitsbewijs: het companyId uit een bestand alleen behandelen als "dezelfde
  * bibliotheek, andere versie" zodra het lokaal bestaat, zou voor deze twee ids de EIGEN bibliotheek
- * van de ontvanger als vervang-doel voorstellen — precies het scenario dat `importPoolAsNewCompany`
- * had moeten voorkomen. Eén gedeelde bron, gebruikt door zowel de dialoog-voorselectie
+ * van de ontvanger als vervang-doel voorstellen — precies wat `importPoolAsNewCompany` moet
+ * voorkomen. Eén gedeelde bron, gebruikt door zowel de dialoog-voorselectie
  * (`PoolImportDialog`) als de import-actie zelf (`importPoolAsNewCompany`).
  */
 export const RESERVED_COMPANY_IDS: ReadonlySet<string> = new Set([DEFAULT_COMPANY_ID, DEMO_COMPANY_ID]);
@@ -22,13 +22,11 @@ export function isReservedCompanyId(id: string): boolean {
 }
 
 /**
- * Is een companyId uit een GEÏMPORTEERD bestand veilig genoeg om als state-sleutel te behouden
- * (issue #19, critreview F2)? `readPoolIFC` laat elke niet-lege string door zonder validatie — een
- * vijandig bestand met bijv. `"__proto__"` of `"constructor"` als companyId zou anders `s.pools[id]
- * = …` bereiken, waar Immer een draft-prototype-mutatie probeert en ONGEVANGEN gooit (geen van de
- * aanroepers had een try/catch, en er is nergens een ErrorBoundary — de bevestigknop zou zichtbaar
- * niets meer doen). Whitelist-regex (een blacklist mist altijd een variant — bewust GEEN
- * opsomming van "gevaarlijke tekens") + een expliciete uitsluiting van de bekende
+ * Is een companyId uit een GEÏMPORTEERD bestand veilig genoeg om als state-sleutel te behouden?
+ * `readPoolIFC` laat elke niet-lege string door zonder validatie — een vijandig bestand met bijv.
+ * `"__proto__"` of `"constructor"` als companyId zou anders `s.pools[id] = …` bereiken, waar Immer
+ * een draft-prototype-mutatie probeert en ongevangen gooit. Whitelist-regex (een blacklist mist
+ * altijd een variant) + een expliciete uitsluiting van de bekende
  * prototype-sleutels, want die bestaan uitsluitend uit toegestane tekens (`_`) en zouden de regex
  * anders alsnog doorkomen.
  */
@@ -46,15 +44,14 @@ export type PoolImportPreselection =
   | { action: 'replace'; companyId: string };
 
 /**
- * Bepaal de voorselectie voor de pool-importdialoog (issue #19, critreview F1 — de kern van de
- * blokkerende bevinding): welke actie ("toevoegen als nieuwe resourcebibliotheek" vs "een bestaande
- * resourcebibliotheek vervangen") staat aan zodra een bestand gekozen is, en bij "vervangen" welke
- * bibliotheek al geselecteerd is. Puur — dus rechtstreeks testbaar zonder een gemount dialoog
- * (spiegelt de reviewer zijn eigen `writePoolIFC`→`readPoolIFC`→`pick()`-reproductie).
+ * Bepaal de voorselectie voor de pool-importdialoog: welke actie ("toevoegen als nieuwe
+ * resourcebibliotheek" vs "een bestaande resourcebibliotheek vervangen") staat aan zodra een bestand
+ * gekozen is, en bij "vervangen" welke bibliotheek al geselecteerd is. Puur — dus rechtstreeks
+ * testbaar zonder een gemount dialoog.
  *
  * Een bestand-companyId matcht een lokale bibliotheek ALLEEN als het (a) een veilige state-sleutel
- * is (`isSafeFileCompanyId` — critreview F2, een vijandig id als `"__proto__"` mag nooit als
- * "match" tellen) en (b) GEEN reserved id is (`isReservedCompanyId` — critreview F1:
+ * is (`isSafeFileCompanyId` — een vijandig id als `"__proto__"` mag nooit als "match" tellen) en
+ * (b) GEEN reserved id is (`isReservedCompanyId`:
  * `DEFAULT_COMPANY_ID`/`DEMO_COMPANY_ID` zijn géén identiteitsbewijs; vrijwel elke installatie heeft
  * er hooguit één bibliotheek, die dat id draagt — zonder deze uitsluiting zou de dialoog voor bijna
  * elke gebruiker "vervangen" voorstellen op de EIGEN bibliotheek van de ontvanger, en één klik op de
@@ -71,10 +68,9 @@ export function resolvePoolImportPreselection(
 }
 
 /**
- * Welke "toevoegen als nieuwe resourcebibliotheek"-hint hoort te verschijnen (issue #19,
- * critreview-herkeuring): `importPoolAsNewCompany` mint in TWEE situaties een VERS id, en die twee
- * verdienen elk hun EIGEN, feitelijk kloppende tekst — de dialoog gebruikte eerder één overkoepelende
- * hint ("deze bibliotheek is al lokaal bekend") die bij het tweede geval gewoon ONWAAR kon zijn:
+ * Welke "toevoegen als nieuwe resourcebibliotheek"-hint hoort te verschijnen: `importPoolAsNewCompany`
+ * mint in TWEE situaties een VERS id, en die twee verdienen elk hun eigen, feitelijk kloppende tekst
+ * ("deze bibliotheek is al lokaal bekend" is in het tweede geval niet gegarandeerd):
  * - `'collision'`: het bestand-id is een gewoon (niet-reserved, veilig) id dat lokaal AL bestaat —
  *   de bibliotheek is dan aantoonbaar al lokaal bekend, en wordt terecht "een aparte kopie ernaast".
  * - `'fresh-identity'`: het bestand-id is reserved (`isReservedCompanyId` —
@@ -100,16 +96,15 @@ export function bumpPool(pool: CompanyPool): CompanyPool {
 }
 
 /**
- * Normaliseer één pool defensief tegen vorm-invalide data (spec §4/§9, F2 vloot-fixpakket issue #19):
+ * Normaliseer één pool defensief tegen vorm-invalide data:
  * een handmatig bewerkt of door een derde tool geproduceerd `OPS_Library`-bestand zonder
  * `resources`/`calendars` (of met die velden als object i.p.v. array) mag nooit een TypeError geven
  * op een latere `.push`/`.find`. `calendars`/`resources` gegarandeerd array, `poolVersion` numeriek
  * (anders 1), `modifiedAt` string (anders nu), `companyName` een string (anders het bedrijf uit
  * `companies`, of anders `cid`). Puur — geschikt voor losse unit-tests, en gedeeld door zowel het
  * laden van de opgeslagen bibliotheek (`normalizeLoadedLibrary`) als het importeren van één pool
- * (`replacePool`) als het LEZEN van een pool-IFC (`readPoolIFC` — de importcrash-fix: vóór deze fix
- * kreeg de pool-import-preview elke truthy JSON blind doorgeschoven, ook `{}` of een object zonder
- * `calendars`, en crashte op `imported.calendars.length` vóór de gebruiker ook maar kon bevestigen).
+ * (`replacePool`) als het LEZEN van een pool-IFC (`readPoolIFC`, zodat de import-preview niet crasht
+ * op een `{}` of een object zonder `calendars`).
  */
 export function normalizePoolShape(cid: string, raw: Partial<CompanyPool> | null | undefined, companies: Company[]): CompanyPool {
   const p = raw ?? {};
@@ -118,10 +113,9 @@ export function normalizePoolShape(cid: string, raw: Partial<CompanyPool> | null
     companyName: typeof p.companyName === 'string'
       ? p.companyName
       : (companies.find((c) => c.id === cid)?.name ?? cid),
-    // Fix B5: een geheel getal ≥1, anders 1 — vangt zowel niet-numerieke waarden (string/ontbrekend)
-    // als een numerieke maar ongeldige waarde (float, 0, negatief) op. Vóór de fix accepteerde
-    // `typeof p.poolVersion === 'number'` ELKE numerieke waarde inclusief NaN-achtige randgevallen,
-    // floats en negatieve versies (bumpPool/isPoolNewer verwachten een oplopend geheel getal ≥1).
+    // Een geheel getal ≥1, anders 1 — vangt zowel niet-numerieke waarden (string/ontbrekend) als een
+    // numerieke maar ongeldige waarde (NaN, float, 0, negatief) op; bumpPool/isPoolNewer verwachten
+    // een oplopend geheel getal ≥1.
     poolVersion: (typeof p.poolVersion === 'number' && Number.isInteger(p.poolVersion))
       ? Math.max(1, p.poolVersion)
       : 1,
@@ -133,10 +127,9 @@ export function normalizePoolShape(cid: string, raw: Partial<CompanyPool> | null
     ...(typeof p.seedVersion === 'number' && Number.isInteger(p.seedVersion) && p.seedVersion >= 0
       ? { seedVersion: p.seedVersion }
       : {}),
-    // Fix B5: `Array.isArray` i.p.v. `??` — een object i.p.v. array (bijv. een hand-gemaakt of
-    // door een derde tool geproduceerd OPS_Library-bestand met `calendars: {...}`) is niet-nullish,
-    // dus `?? []` liet het ongewijzigd door; een latere `.push`/`.filter`/`.find` op zo'n object
-    // crasht dan alsnog (bewezen fuzz-pool b6, jachtlijn 1 "calendars/resources zijn geen array").
+    // `Array.isArray` i.p.v. `??`: een object i.p.v. array (bijv. `calendars: {...}` in een
+    // hand-gemaakt OPS_Library-bestand) is niet-nullish, en een latere `.push`/`.filter`/`.find` op
+    // zo'n object crasht.
     calendars: Array.isArray(p.calendars) ? p.calendars : [],
     resources: Array.isArray(p.resources) ? p.resources : [],
   };
@@ -150,7 +143,7 @@ function parseTime(iso: string): number {
 }
 
 /**
- * Demping-check (spec §4, bindend user-besluit): is de LOKALE pool nieuwer dan de te importeren
+ * Demping-check: is de LOKALE pool nieuwer dan de te importeren
  * pool? Nieuwer ⇔ een hogere `poolVersion` ÓF een recentere `modifiedAt` — de twee signalen tellen
  * onafhankelijk mee (geen precedentie-ladder waarbij versie de tijd overstemt bij een verschil).
  * Tijd wordt vergeleken op echte epoch-tijd (`Date.parse`, fallback 0 bij onparseerbaar), niet als
@@ -162,7 +155,7 @@ export function isPoolNewer(local: CompanyPool | undefined, imported: CompanyPoo
   return local.poolVersion > imported.poolVersion || parseTime(local.modifiedAt) > parseTime(imported.modifiedAt);
 }
 
-/** Bouw een herkomststempel voor een projectkopie van een poolitem. `syncedHash` (spec §2) wordt
+/** Bouw een herkomststempel voor een projectkopie van een poolitem. `syncedHash` wordt
  *  meegeschreven bij materialisatie/verversing van een PROJECTkopie; pool-items zelf dragen geen
  *  stempel, dus daar blijft hij afwezig. */
 export function makeOrigin(pool: CompanyPool, libraryItemId: string, syncedHash?: string): LibraryOrigin {
@@ -174,7 +167,6 @@ export function makeOrigin(pool: CompanyPool, libraryItemId: string, syncedHash?
   };
 }
 
-/** Zoek een bestaande projectkopie met dezelfde herkomst (dedup, spec §3). */
 /**
  * Strip de herkomststempels (`libraryOrigin`) van de resources en kalenders van een document — alle
  * stempels, of met `companyId` alleen die van dat bedrijf (ontkoppelen/omkoppelen/verwijderen van een
@@ -195,10 +187,11 @@ export function stripLibraryOrigins(
   target.calendars = target.calendars.map(strip);
 }
 
+/** Zoek een bestaande projectkopie met dezelfde herkomst (dedup). */
 export function findCopyByOrigin<T extends { libraryOrigin?: LibraryOrigin }>(
   items: T[], companyId: string, libraryItemId: string,
 ): T | undefined {
-  // A5-fix: guard tegen falsy sleutels. Zonder deze guard matcht een lege/ontbrekende `companyId`
+  // Guard tegen falsy sleutels. Zonder deze guard matcht een lege/ontbrekende `companyId`
   // of `libraryItemId` (uit een corrupt poolbestand) tegen een item zonder libraryOrigin via
   // `undefined === undefined` — een vals dedup-match dat een ander item stil zou "hergebruiken".
   if (!companyId || !libraryItemId) return undefined;
@@ -215,7 +208,7 @@ export interface CalendarCopyResult {
 }
 
 /**
- * Kopieer een pool-kalender naar het project met stempel (spec §3). Bestaat er al een kopie met
+ * Kopieer een pool-kalender naar het project met stempel. Bestaat er al een kopie met
  * dezelfde herkomst, dan wordt die hergebruikt (`reused: true`), nooit gedupliceerd. `genId` mint
  * een verse project-lokale id (injecteerbaar voor deterministische tests). `null` ⇒ de pool bevat
  * die kalender niet.
@@ -241,13 +234,13 @@ export function copyCalendarToProject(
 export interface ResourceCopyResult {
   resource: Resource;
   reused: boolean;
-  /** Meereizende kalender (spec §3): de eigen `calendarId` van de resource bracht deze kalender mee.
+  /** Meereizende kalender: de eigen `calendarId` van de resource bracht deze kalender mee.
    *  Afwezig ⇒ de resource had geen eigen kalender, of hij verwees niet naar een pool-kalender. */
   travelingCalendar?: CalendarCopyResult;
 }
 
 /**
- * Kopieer een pool-resource naar het project met stempel (spec §3). Afhankelijkheden reizen mee:
+ * Kopieer een pool-resource naar het project met stempel. Afhankelijkheden reizen mee:
  * heeft de resource een eigen `calendarId` die in de pool bestaat, dan wordt die kalender
  * mee-gekopieerd (met dedup) en `resource.calendarId` naar de project-lokale kopie herschreven.
  * Dedup op de resource zelf: bestaat er al een projectkopie met dezelfde herkomst ⇒ hergebruik.
@@ -286,7 +279,7 @@ export function copyResourceToProject(
   return { resource, reused: false, travelingCalendar };
 }
 
-/** Uitkomst van een diff tussen een projectkopie en zijn pool-origineel (spec §3). */
+/** Uitkomst van een diff tussen een projectkopie en zijn pool-origineel. */
 export type ItemDiff =
   | { status: 'removed' } // origineel bestaat niet meer in de bibliotheek
   | { status: 'up-to-date' }
@@ -309,10 +302,9 @@ const CALENDAR_HASH_V1_FIELDS: readonly (keyof WorkCalendar)[] = [
 ];
 
 /**
- * Later bijgekomen inhoudsvelden (audit resources-kalenders R2): het pauzepatroon en de werkende
- * uitzonderingen. Ze stonden niet in de lijst, dus verversen, afwijking bepalen en "bestandswaarde
- * naar de bibliotheek" lieten ze liggen — een pauzewijziging in de bibliotheek bereikte de kopieën
- * nooit, terwijl die "in sync" bleven heten. Alle drie optioneel; afwezig is de gewone stand.
+ * Later bijgekomen inhoudsvelden: het pauzepatroon en de werkende uitzonderingen. Ze vallen buiten
+ * de v1-hash (zie `computeCalendarHash`), maar tellen wél mee bij verversen, afwijking bepalen en
+ * "bestandswaarde naar de bibliotheek". Alle drie optioneel; afwezig is de gewone stand.
  */
 const CALENDAR_FIELDS_AFTER_V1: readonly (keyof WorkCalendar)[] = [
   'simpleBreakStartMinute', 'simpleBreakDurationMinutes', 'workingExceptions',
@@ -323,18 +315,16 @@ const CALENDAR_FIELDS_AFTER_V1: readonly (keyof WorkCalendar)[] = [
  *  `Record<keyof WorkCalendar, …>` (een nieuw kalenderveld is daar een compileerfout). */
 export const CALENDAR_DIFF_FIELDS: (keyof WorkCalendar)[] = [...CALENDAR_HASH_V1_FIELDS, ...CALENDAR_FIELDS_AFTER_V1];
 
-// F1 (critreview op 352bb94, issue #19): `maxUnits`/`availabilitySteps` zijn PROJECTINZET (hoeveel dit
-// project van de resource opeist, en op welk ritme), geen bibliotheekafspraak — ze zaten er eerder
-// wél in, waardoor het enige veld dat de Projectweergave uitnodigde te wijzigen (max.eenheden)
-// onmiddellijk 'deviated' opleverde en door `resolveDeviation('company')` teruggezet kon worden. De
-// bibliotheek vergelijkt nu uitsluitend de IDENTITEITSVELDEN: wat de resource IS (naam/type/
-// omschrijving) en de bibliotheekafspraken erover (tarief/uur, eenheid). `calendarId` stond hier nooit
-// in (project-lokale verwijzing, zie applyResourceUpdate) en blijft dat — zie F2.
+// Uitsluitend de IDENTITEITSVELDEN: wat de resource IS (naam/type/omschrijving) en de
+// bibliotheekafspraken erover (tarief/uur, eenheid). `maxUnits`/`availabilitySteps` zijn
+// PROJECTINZET (hoeveel dit project van de resource opeist, en op welk ritme) en horen er niet in:
+// anders levert max.eenheden wijzigen in de Projectweergave meteen 'deviated' op.
+// `calendarId` is een project-lokale verwijzing (zie applyResourceUpdate) en hoort er ook niet in.
 export const RESOURCE_DIFF_FIELDS: (keyof Resource)[] = [
   'name', 'type', 'description', 'costPerHour', 'unitOfMeasure',
 ];
 
-/** Stabiele vergelijkingssleutel voor een veldwaarde. A4-besluit: voor deze diff-velden is de
+/** Stabiele vergelijkingssleutel voor een veldwaarde. Voor deze diff-velden is de
  *  array-VOLGORDE bewust NIET betekenisvol (bv. dezelfde feestdagen in een andere volgorde is
  *  géén wijziging) — vergelijk array-velden daarom als multiset door een KOPIE van de elementen
  *  te sorteren op `JSON.stringify(element)`. Muteert de invoer niet; niet-arrays gaan ongewijzigd
@@ -370,15 +360,15 @@ function hashFields<T>(item: T, fields: readonly (keyof T)[]): string {
 }
 
 /**
- * syncedHash van een pool-/projectkalender (spec §2, plan-eis 8).
+ * syncedHash van een pool-/projectkalender.
  *
  * Twee vormen, zodat bestaande stempels geldig blijven (de stempel round-tript via IFC):
  *  - zolang de later bijgekomen velden (`CALENDAR_FIELDS_AFTER_V1`) afwezig zijn — verreweg de
- *    meeste kalenders — de v1-vorm, byte-identiek aan wat vóór de uitbreiding werd weggeschreven;
+ *    meeste kalenders — de v1-vorm;
  *  - anders over alle inhoudsvelden (een langere lijst, dus nooit gelijk aan een v1-hash).
- * Een eenvoudig langere lijst zou de hash van ELKE bestaande kopie veranderen: bij de eerstvolgende
- * poolwijziging werd een ongewijzigde kopie dan 'deviated' in plaats van 'behind' en stopte het
- * stille verversen overal. Voor een kopie mét pauzevelden en een v1-stempel: zie
+ * Eén langere lijst voor iedereen zou de hash van ELKE bestaande kopie veranderen: bij de
+ * eerstvolgende poolwijziging werd een ongewijzigde kopie dan 'deviated' in plaats van 'behind' en
+ * stopte het stille verversen overal. Voor een kopie mét pauzevelden en een v1-stempel: zie
  * `calendarMatchesStamp`.
  */
 export function computeCalendarHash(cal: WorkCalendar): string {
@@ -387,7 +377,7 @@ export function computeCalendarHash(cal: WorkCalendar): string {
 }
 
 /**
- * Is `projectCal` sinds zijn stempel niet lokaal bewerkt (spec §2: file == syncedHash)? Naast de
+ * Is `projectCal` sinds zijn stempel niet lokaal bewerkt (file == syncedHash)? Naast de
  * gewone vergelijking herkent dit een v1-stempel op een kopie die wél pauzevelden of werkende
  * uitzonderingen draagt: zo'n stempel dekt die velden niet, dus alleen de v1-velden zijn te toetsen.
  * De niet-gedekte velden tellen dan als onbewerkt zolang ze gelijk zijn aan de bibliotheek; wijken ze
@@ -401,21 +391,21 @@ function calendarMatchesStamp(projectCal: WorkCalendar, source: WorkCalendar | u
     && CALENDAR_FIELDS_AFTER_V1.every((f) => diffKey(projectCal[f]) === diffKey(source[f]));
 }
 
-/** syncedHash van een pool-/projectresource (spec §2, plan-eis 8). */
+/** syncedHash van een pool-/projectresource. */
 export function computeResourceHash(res: Resource): string {
   return hashFields(res, RESOURCE_DIFF_FIELDS);
 }
 
-/** Onzichtbare formatting-tekens die de matcher (F6, vloot-fixpakket issue #19) vóór de
+/** Onzichtbare formatting-tekens die de matcher vóór de
  *  witruimte-collapse strip: zero-width space/non-joiner/joiner (U+200B–U+200D), BOM (U+FEFF) en
  *  soft-hyphen (U+00AD). Deze tekens zijn onzichtbaar in de UI maar tellen anders mee in de
  *  string-vergelijking — een naam die via copy-paste zo'n teken meekreeg (bv. "Kraan​1") matchte
  *  daardoor niet met de zichtbaar identieke "Kraan1". */
 const INVISIBLE_FORMATTING_CHARS = /[\u200B-\u200D\uFEFF\u00AD]/g;
 
-/** Normaliseer een naam voor de herkennings-matcher (spec §5.1): Unicode-NFC, onzichtbare
+/** Normaliseer een naam voor de herkennings-matcher: Unicode-NFC, onzichtbare
  *  formatting-tekens strippen, trim, samengevouwen witruimte (elke witruimte-run → één spatie),
- *  hoofdletterongevoelig. F6 (vloot-fixpakket, issue #19): `toLowerCase()` i.p.v. `toLocaleLowerCase()`
+ *  hoofdletterongevoelig. `toLowerCase()` i.p.v. `toLocaleLowerCase()`
  *  — deterministisch onafhankelijk van de machine-locale (de Turkse dotless-İ-nuance van
  *  `toLocaleLowerCase` wordt bewust NIET toegepast, zie docs/library.md). `normalizeName` wordt NIET
  *  voor hashing gebruikt (dat loopt via `hashFields`/`diffKey` op de ruwe velden), alleen voor
@@ -424,9 +414,9 @@ export function normalizeName(name: string): string {
   return name.normalize('NFC').replace(INVISIBLE_FORMATTING_CHARS, '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** Zoek de UNIEKE kandidaat met dezelfde genormaliseerde naam (spec §5.1). Geen kandidaat óf
- *  meerdere kandidaten ⇒ `null` (geen voorstel — handmatige keuze). Geen fuzzy (spec §14). F6
- *  (vloot-fixpakket, issue #19): een LEGE genormaliseerde target (lege/pure-witruimte naam) matcht
+/** Zoek de UNIEKE kandidaat met dezelfde genormaliseerde naam. Geen kandidaat óf
+ *  meerdere kandidaten ⇒ `null` (geen voorstel — handmatige keuze). Bewust geen fuzzy match. Een
+ *  LEGE genormaliseerde target (lege/pure-witruimte naam) matcht
  *  nooit — anders zouden twee items die allebei een lege naam normaliseren elkaar ten onrechte als
  *  unieke kandidaat aanwijzen. */
 export function matchByName<T extends { name: string }>(name: string, candidates: T[]): T | null {
@@ -437,15 +427,14 @@ export function matchByName<T extends { name: string }>(name: string, candidates
 }
 
 /**
- * Los een naamsbotsing op voor een NIEUW bedrijf (issue #19, "Toevoegen als nieuwe
- * resourcebibliotheek" in `PoolImportDialog`): bestaat `rawName` al onder de gegeven bestaande namen
+ * Los een naamsbotsing op voor een NIEUW bedrijf ("Toevoegen als nieuwe resourcebibliotheek" in
+ * `PoolImportDialog`): bestaat `rawName` al onder de gegeven bestaande namen
  * (vergeleken via `normalizeName`, spiegelt `matchByName` — case/witruimte/onzichtbare-tekens-
  * ongevoelig), dan krijgt de nieuwe naam een oplopend onderscheidend achtervoegsel " (2)", " (3)", …
  * — net zo lang tot de naam vrij is. Een lege/pure-witruimte/uitsluitend-onzichtbare-tekens-naam valt
  * terug op een standaardlabel (spiegelt `addCompany`) — de leeg-CHECK gebruikt bewust `normalizeName`
- * (critreview F4: `rawName.trim()` alleen strip ASCII-witruimte, geen U+200B/U+FEFF e.d.; een bestand
- * met zo'n onzichtbare naam gaf vóór deze fix een bibliotheek met een ogenschijnlijk lege rij in
- * Backstage in plaats van het standaardlabel). Puur — geschikt voor losse unit-tests, en gedeeld door
+ * (`rawName.trim()` stript alleen ASCII-witruimte, geen U+200B/U+FEFF e.d.; zo'n naam gaf anders een
+ * ogenschijnlijk lege rij in Backstage). Puur — geschikt voor losse unit-tests, en gedeeld door
  * zowel de store-actie (`importPoolAsNewCompany`) als de dialoog-preview (geen dubbele/afwijkende logica).
  */
 export function resolveUniqueCompanyName(rawName: string, existingNames: string[]): string {
@@ -473,7 +462,7 @@ export function diffResourceVsPool(projectRes: Resource, pool: CompanyPool): Ite
   return fields.length === 0 ? { status: 'up-to-date' } : { status: 'changed', fields };
 }
 
-/** Uitkomst van de openings-classificatie (spec §3, grens 1/4). */
+/** Uitkomst van de openings-classificatie. */
 export type OnOpenStatus =
   | 'in-sync'   // project == pool
   | 'behind'    // pool bewoog, bestand is NIET lokaal bewerkt (file == syncedHash) ⇒ stil verversen
@@ -488,8 +477,8 @@ function classifyOnOpen(
 ): OnOpenStatus {
   if (diffStatus === 'removed') return 'removed';
   if (diffStatus === 'up-to-date') return 'in-sync';
-  // diffStatus === 'changed'. Ontbrekende syncedHash (B1-bestand) ⇒ veilige kant: behandel als
-  // extern bewerkt (spec §2/§12). Anders: file == syncedHash ⇒ niet-bewerkt ⇒ behind; ongelijk ⇒ deviated.
+  // diffStatus === 'changed'. Ontbrekende syncedHash (stempel zonder hash) ⇒ veilige kant: behandel
+  // als extern bewerkt. Anders: file == syncedHash ⇒ niet-bewerkt ⇒ behind; ongelijk ⇒ deviated.
   if (syncedHash === undefined) return 'deviated';
   return fileMatchesStamp(syncedHash) ? 'behind' : 'deviated';
 }
@@ -517,7 +506,7 @@ export function classifyResourceOnOpen(projectRes: Resource, pool: CompanyPool):
 
 /**
  * Bepaalt of de BIBLIOTHEEKAFSPRAAK-velden van een projectresource (naam/type/tarief/eenheid) in de
- * Resources-tab read-only moeten zijn (issue #19, punt 4). Puur, en gedeeld door `ResourcePanel`
+ * Resources-tab read-only moeten zijn. Puur, en gedeeld door `ResourcePanel`
  * (UI-gating) én de headless tests (`tests/library/check-library-slice.ts`) — zo kan de gatingregel
  * zelf getest worden zonder React te renderen.
  *
@@ -535,12 +524,9 @@ export function isResourceFieldLocked(status: OnOpenStatus | null): boolean {
 
 /**
  * Pas alleen de GEVOLGDE diff-velden van `source` toe op een kopie van `target`; elk ander veld van
- * `target` blijft ONGEWIJZIGD (F1, critreview issue #19: `applyResourceUpdate` deed eerder
- * `{...structuredClone(source), id, calendarId, parentId, libraryOrigin}` — dat kopieert het HELE
- * poolitem over het projectitem heen en negeert de bewuste versmalling van `RESOURCE_DIFF_FIELDS`;
- * `maxUnits`/`availabilitySteps` zijn PROJECTINZET, geen bibliotheekafspraak, en werden zo stilzwijgend
- * overschreven/gewist — gemeten in de showcases "6 Rijwoningen De Akkers" (Schilders-`maxUnits` 8→4)
- * en het appartementencomplex (torenkraan-`availabilitySteps` gewist)). `id`/`libraryOrigin` van
+ * `target` blijft ONGEWIJZIGD. Een volledige kloon van het poolitem zou de bewuste versmalling van
+ * `RESOURCE_DIFF_FIELDS` negeren en PROJECTINZET (`maxUnits`/`availabilitySteps`) stilzwijgend
+ * overschrijven of wissen. `id`/`libraryOrigin` van
  * `target` blijven expliciet buiten `fields` en worden dus altijd behouden door deze functie zelf —
  * de aanroeper zet `libraryOrigin` daarna zelf vers. Puur (nieuw object, muteert geen van beide
  * invoerobjecten).
@@ -553,18 +539,16 @@ function applyDiffFields<T>(target: T, source: T, fields: readonly (keyof T)[]):
   return patched;
 }
 
-/** Pas de pool-waarden toe op een projectkalender bij "bijwerken" (spec §3): overschrijf de
+/** Pas de pool-waarden toe op een projectkalender bij "bijwerken": overschrijf de
  *  vergeleken velden, behoud id + herkomst (met verse poolVersion). Puur (nieuw object).
  *  `CALENDAR_DIFF_FIELDS` dekt hier BEWUST alle inhoudelijke `WorkCalendar`-velden (er is geen
- *  "projectinzet"-veld zoals bij Resource) — `applyDiffFields` levert dus hetzelfde resultaat op als
- *  de vroegere volledige-kloon-aanpak, alleen nu door-constructie veilig tegen een toekomstig
- *  kalenderveld dat WEL projectinzet zou zijn (zie F1-verificatie, issue #19). Tot audit R2 misten
- *  het pauzepatroon en de werkende uitzonderingen in die lijst; de uitputtendheid staat nu onder
+ *  "projectinzet"-veld zoals bij Resource) — `applyDiffFields` is daarmee door-constructie veilig
+ *  tegen een toekomstig kalenderveld dat WEL projectinzet zou zijn. De uitputtendheid staat onder
  *  test (zie `CALENDAR_DIFF_FIELDS`). */
 export function applyCalendarUpdate(projectCal: WorkCalendar, pool: CompanyPool): WorkCalendar {
   const id = projectCal.libraryOrigin?.libraryItemId;
   const source = id ? pool.calendars.find((c) => c.id === id) : undefined;
-  // A3-fix: vangnet tegen stille corruptie. Ontbreekt het pool-origineel (of de herkomststempel),
+  // Vangnet tegen stille corruptie. Ontbreekt het pool-origineel (of de herkomststempel),
   // dan zou `structuredClone(undefined)` een leeg object opleveren (`{...undefined}`) en de kalender
   // op alleen id+herkomst terugbrengen — alle inhoud weg. Gooi in plaats daarvan expliciet. De enige
   // caller guardt al op status==='changed' (bron bestaat), dus dit pad hoort onbereikbaar te zijn.
@@ -576,16 +560,16 @@ export function applyCalendarUpdate(projectCal: WorkCalendar, pool: CompanyPool)
   return patched;
 }
 
-/** Pas de pool-waarden toe op een projectresource bij "bijwerken" (spec §3): overschrijf UITSLUITEND
+/** Pas de pool-waarden toe op een projectresource bij "bijwerken": overschrijf UITSLUITEND
  *  de `RESOURCE_DIFF_FIELDS` (identiteit/bibliotheekafspraak — naam/type/omschrijving/tarief/eenheid),
  *  behoud id + herkomst (met verse poolVersion). `maxUnits`, `availabilitySteps`, de gedeprecieerde
  *  `availability`, `calendarId` en `parentId` zijn PROJECTINZET en blijven daarom altijd van `target`
- *  (projectRes) — dat is de F1-fix (issue #19): eerder kopieerde deze functie het volledige poolitem
- *  en overschreef zo stilzwijgend de eigen inzet van het project. Puur (nieuw object). */
+ *  (projectRes); anders overschrijft "bijwerken" stilzwijgend de eigen inzet van het project. Puur
+ *  (nieuw object). */
 export function applyResourceUpdate(projectRes: Resource, pool: CompanyPool): Resource {
   const id = projectRes.libraryOrigin?.libraryItemId;
   const source = id ? pool.resources.find((r) => r.id === id) : undefined;
-  // A3-fix: zelfde vangnet als applyCalendarUpdate — geen stille reductie tot id+herkomst.
+  // Zelfde vangnet als applyCalendarUpdate — geen stille reductie tot id+herkomst.
   if (!source) {
     throw new Error(`applyResourceUpdate: pool-origineel niet gevonden voor resource "${projectRes.name}" (id=${projectRes.id}, libraryItemId=${id ?? 'ontbreekt'})`);
   }

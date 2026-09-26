@@ -1,4 +1,4 @@
-// MCP-bridge — de gedeelde SPLITS-VELDLAAG (issue #146): één implementatie van de notatie waarin de
+// MCP-bridge — de gedeelde SPLITS-VELDLAAG: één implementatie van de notatie waarin de
 // leestools onderbrekingen TONEN en `planner_set_task_splits` ze ACCEPTEERT. Zelfde precedent als
 // `sequenceFields.ts`: de schrijfkant spreekt de leeskant — wat `interruptionsOf` produceert, moet
 // `planTaskSplits` in dezelfde vorm terugnemen.
@@ -6,7 +6,7 @@
 // De agentvorm staat op de WERK-as (zonder pauzes, zie `splitEdit.ts`): `afterWorkDays` = hoeveel
 // werk er vóór de onderbreking ligt, gerekend vanaf de taakstart; `pauseDays` = de lengte van de
 // onderbreking in werkdagen. Een uur-taak spreekt `afterWorkHours`/`pauseHours`. Rauwe
-// `afterMinutes`/`gapMinutes` (de H1-as, waar elk gat meetelt in de positie van het volgende) krijgt
+// `afterMinutes`/`gapMinutes` (de opslag-as, waar elk gat meetelt in de positie van het volgende) krijgt
 // een agent nooit te zien als invoervorm — die rekenen al het rekenwerk hier via `splitEdit.ts` om.
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';

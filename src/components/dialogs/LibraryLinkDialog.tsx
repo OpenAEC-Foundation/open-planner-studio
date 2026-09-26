@@ -4,24 +4,21 @@ import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 
 /**
- * Het gedeelde koppel-/afwijkingenscherm (spec §5/§3, plan-eis 7). Vervangt AddFromLibraryDialog én
- * UpdateFromLibraryDialog. Twee secties met gedeelde vormtaal:
+ * Het gedeelde koppel-/afwijkingenscherm. Twee secties met gedeelde vormtaal:
  *  - Herkennen: niet-gestempelde projectitems met hun unieke naam-match; per stuk of "alle voorstellen".
  *  - Afwijkingen: gestempelde items die deviated/removed zijn; per item bedrijfs- óf bestandswaarden.
- * Anti-dialoog-clausule (§5): NOOIT poolitems één voor één een project in kopiëren — koppelen/optillen
+ * Anti-dialoog-clausule: NOOIT poolitems één voor één een project in kopiëren — koppelen/optillen
  * bij een koppelmoment. "Later beslissen" sluit het scherm; markeringen blijven; heropbaar via de
  * Projectweergave.
  *
- * NB (critreview taak 10, verplicht): ELKE uitgang (backdrop-klik, Escape, X, "Later beslissen") loopt
+ * NB (verplicht): ELKE uitgang (backdrop-klik, Escape, X, "Later beslissen") loopt
  * door dezelfde `close()` die `showLibraryLinkDialog` op false zet. Data komt live uit de store (geen
  * transient payload) — een openFile naar een ander document terwijl dit scherm openstaat laat dus geen
- * stale inhoud achter (grens 2/1 resetten de vlag zelf, zie librarySlice/documentSlice).
+ * stale inhoud achter (de document-/bibliotheekgrenzen resetten de vlag zelf, zie librarySlice/documentSlice).
  *
- * Stapel-gedrag (S2-fix, B1.1-vlootbevinding V1): "Escape sluit dit scherm" klopt nu ook écht wanneer
- * dit scherm gestapeld openstaat boven (of onder) een andere dialoog, bv. WelcomeDialog — `useDialogKeys`
- * houdt sinds die fix een module-globale dialoog-stapel bij en levert Escape/Enter alleen aan de
- * BOVENSTE dialoog. Vóór de fix kon een onderliggende WelcomeDialog de Escape onderscheppen terwijl dit
- * scherm zichtbaar bleef staan.
+ * Stapel-gedrag: "Escape sluit dit scherm" klopt ook wanneer dit scherm gestapeld openstaat boven
+ * (of onder) een andere dialoog, bv. WelcomeDialog — `useDialogKeys` houdt een module-globale
+ * dialoog-stapel bij en levert Escape/Enter alleen aan de BOVENSTE dialoog.
  */
 export function LibraryLinkDialog() {
   const { t } = useTranslation('common');
@@ -45,7 +42,7 @@ export function LibraryLinkDialog() {
   const candidates = companyId ? computeRecognition() : [];
   const withMatch = candidates.filter((c) => c.suggestedPoolId);
 
-  // Afwijkingen: gestempelde items die deviated/removed zijn (spec §2-scope via de getters).
+  // Afwijkingen: gestempelde items die deviated/removed zijn (scope via de getters).
   const deviatedResources = resources.filter((r) => {
     const st = onOpenStatusForResource(r.id); return st === 'deviated' || st === 'removed';
   }).map((r) => ({ id: r.id, name: r.name, status: onOpenStatusForResource(r.id)! }));

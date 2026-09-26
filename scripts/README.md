@@ -19,11 +19,15 @@ poort te pakken. Zie `.claude/rules/dev-server.md` en `tests/dev-server/` voor h
 |---|---|---|
 | `dev-server.mjs` | `npm run dev` | wijst de poort toe, claimt het guard-slot, stempelt `.claude/launch.json`, start dan pas Vite |
 | `tauri-dev.mjs` | `npm run tauri:dev` | idem, plus `tauri dev` met een matchende `--config`-devUrl en `OPS_DEV_*` in de env |
-| `dev-port.mjs` | de twee hierboven | poorttoewijzing verankerd aan de worktree-root (3007–3106) |
-| `dev-lock.mjs` | de drie hierboven | flock-gebaseerd guard-slot tegen dubbelstart |
+| `dev-port.mjs` | de twee hierboven, en `run-browser-tests.mjs`/`browser-test-server.mjs` (zie *Browsertests*) | poorttoewijzing verankerd aan de worktree-root (dev: 3007–3106; aparte browsertestbaan 3107–3206) |
+| `dev-lock.mjs` | de drie hierboven, en `browser-test-server.mjs` | flock-gebaseerd guard-slot tegen dubbelstart |
 | `dev-bootstrap.mjs` | een Claude Code SessionStart-hook (staat in `.claude/`, niet in de repo) | stempelt bij het openen van een sessie alvast de poort van dít worktree in `.claude/launch.json`. Zelf-scopend (no-op in een ander project), idempotent, faalt zacht |
 
-## Poorten (draaien mee in `npm run verify`)
+## Poorten (de `npm run verify`-keten) en hun hulpjes
+
+Niet alles in deze tabel is zelf een stap van `npm run verify`: `verify-parts.mjs` verdeelt die keten
+over de CI-jobs maar is er geen stap van, en `i18n-add.ts`/`i18n-resolve.ts` zijn schrijfhulpjes naast
+de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de keten.
 
 | script | npm-script | doet |
 |---|---|---|
@@ -397,13 +401,37 @@ Maak een baseline daarom nooit langs ze heen:
   manifest-SHA-256 is gepind in de v2- en cel-baselines. Het leest twee bak-2-kolommen, maar alleen
   hier in `scripts/`; in `src/` blijft dat verboden (`check-xer-field-whitelist.ts`).
 
+## Browsertests
+
+`npm run test:browser` (en dus `npm test` en `npm run verify`) loopt via deze twee; zie
+`tests/browser/README.md` voor de suite zelf.
+
+| script | aangeroepen door | doet |
+|---|---|---|
+| `run-browser-tests.mjs` | `npm run test:browser`; unit-test `tests/dev-server/browser-runner.test.mjs` | reserveert voor deze worktree een poort in de browsertestbaan (`allocateNamedPort(root, 'browser')`), controleert dat de Playwright-headless-shell start (anders een melding met het installatiecommando) en start `playwright test` met `OPS_BROWSER_TEST_PORT` en `OPS_DEV_INSTANCE`; extra argumenten gaan door naar Playwright (CI gebruikt zo `--shard=`) |
+| `browser-test-server.mjs` | `webServer.command` in `playwright.config.ts`; `tests/dev-server/integration.sh` | leest `OPS_BROWSER_TEST_PORT` (moet in de browserbaan liggen), claimt het guard-slot voor die poort en start Vite op `127.0.0.1` (Playwright pollt bewust IPv4); geeft het slot bij afsluiten weer vrij |
+
+## Handmatige hulpmiddelen (geen aanroeper)
+
+Deze vier worden door geen npm-script, workflow, ander script of test aangeroepen; ze zijn alleen met
+de hand te draaien (en worden genoemd in bewijsdocumenten onder `docs/superpowers/evidence/`, of in
+het geval van `ops-test-client.mjs` nergens). Daarmee wijken ze af van de regel bovenaan.
+
+| script | draaien | doet |
+|---|---|---|
+| `bench-task-grid.mjs` | `node scripts/bench-task-grid.mjs [--out PAD] [--compare VORIG.json]` | bundelt `tests/planning/taskGridPerformanceHarness.ts` met esbuild, draait de taakraster-benchmark op de synthetische fixture en schrijft een JSON-rapport (standaard `task-grid-benchmark.json` in de huidige map) met medianen, budgetoordelen en, met `--compare`, een vlag bij meer dan 25% regressie. De blokkerende variant is `tests/planning/check-task-grid-performance.ts` |
+| `bench-task-grid-product.mjs` | `node scripts/bench-task-grid-product.mjs --url URL --fixture PAD [--label NAAM] [--revision HASH] [--warmups 2] [--runs 9] [--tasks 10000] [--out PAD]` | productmeting van de klik op de linttab **Tabel** in een draaiende dev-build (hij heeft `window.__OPS__` nodig): serveert de IFC-fixture lokaal, start headless `/usr/bin/google-chrome` (hard pad) via CDP en rapporteert medianen als JSON. Zie `docs/superpowers/evidence/tabel-overhaul-performance.md` |
+| `verify-task-grid-spreadsheet.mjs` | `node scripts/verify-task-grid-spreadsheet.mjs <absoluut-soffice-pad>` | klembordcontract van het taakraster tegen een echte spreadsheet: bouwt TSV met de productie-serializer, laat LibreOffice Calc die naar XLSX en terug converteren en controleert met de productieparser dat alle cellen (incl. OPS-EXT/1-suffix) exact terugkomen. Vereist LibreOffice |
+| `ops-test-client.mjs` | `node scripts/ops-test-client.mjs <ops-test-map> '<json-opdracht met id>'` | stuurt één opdracht naar het dev-only Tauri-testkanaal van `src/utils/devBridge.ts` (`<appDataDir>/ops-test/cmd.json`, atomair geschreven) en wacht maximaal 15 s op een `res.json` met hetzelfde id; exit 0 bij `ok: true`. Werkt alleen tegen een draaiende `npm run tauri:dev` |
+
 ## Release en publicatie
 
 | script | aangeroepen door | doet |
 |---|---|---|
 | `bump-version.js` | `npm run bump X.Y.Z` | CalVer synchroon zetten in `package.json`, `tauri.conf.json` en de lockfile (`Cargo.toml` blijft bewust `0.1.0`) |
 | `release-notes.mjs` | `.github/workflows/release.yml` (twee plekken) | `docs/release-notes/v<versie>.md` → `--format=body` voor de GitHub-releasepagina, `--format=notes` (platte tekst) voor het `notes`-veld in `latest.json` |
-| `release-highlights.mjs` | `npm run verify:release-highlights` | start de getypeerde releasehighlight-verifier: eist één volledig versieblok met 14 locales, één primary en vier secondary-kaarten zonder gidslink, veilige pictogrammen en reproduceerbare Git-cijfers; docs, vertalingen, lock-, gegenereerde en vendorbestanden tellen niet mee |
+| `release-highlights.mjs` | `npm run verify:release-highlights` en `.github/workflows/release.yml` (met de tagversie) | start de getypeerde releasehighlight-verifier: eist één volledig versieblok met 14 locales, één primary en vier secondary-kaarten zonder gidslink, veilige pictogrammen en reproduceerbare Git-cijfers; docs, vertalingen, lock-, gegenereerde en vendorbestanden tellen niet mee |
+| `verify-release-highlights.ts` | `release-highlights.mjs` hierboven (via `run-ts.mjs`; argumenten gaan door) | de eigenlijke verifier: valideert de catalogus in `src/services/updater/releaseHighlights.ts` voor de versie (argument, anders `package.json`) en vergelijkt de bewaarde cijfers (dagen, commits, toegevoegde coderegels) met `git` tussen de vorige stabiele tag en de huidige tag of `HEAD` |
 | `build-release-highlights-json.ts` | `npm run gen:release-highlights-json` (schrijven) en `npm run verify:release-highlights-json` (poort, in de `verify`-keten); tijdens een release stap 4a van de `release`-skill | genereert `public/release-highlights.json` uit `src/services/updater/releaseHighlights.ts` — de webbuild serveert dat als `https://open-planner-studio.open-aec.com/release-highlights.json` voor de releasetijdlijn op open-aec.com; `--check` faalt (exit 1) zodra het bestand achterloopt op de catalogus (`generated` telt niet mee) |
 | `verify-package-docs.mjs` | `.github/workflows/snap.yml`, direct na de Snap-build | leest de executable uit de zojuist gebouwde Snap en eist dat het manifest plus de aanwezige Help-artikelen uit `public/docs/` als Tauri-assets zijn ingesloten, vóór upload of Store-publicatie |
 | `publish-wiki.mjs` | `npm run publish:wiki` | genereert de GitHub-wiki uit `public/docs/en`, `docs/wiki/*` en de changelog. De wiki is een build-artefact — nooit met de hand bewerken |

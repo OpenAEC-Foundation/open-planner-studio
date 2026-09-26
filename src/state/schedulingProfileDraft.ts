@@ -1,6 +1,6 @@
-// Het pure bewerkmodel achter het blok "Rekenprofiel en reken-opties" (rekenprofielen, spec v3.1
-// §3.2/§6; plan 2026-09-22 taak D2). Geen store, geen React: de UI (SchedulingProfileSection) en de
-// store-actie (applySchedulingSettings) delen deze regels. Geen modulestaat.
+// Het pure bewerkmodel achter het blok "Rekenprofiel en reken-opties". Geen store, geen React: de
+// UI (SchedulingProfileSection) en de store-actie (applySchedulingSettings) delen deze regels. Geen
+// modulestaat.
 import type {
   BuiltInProfileId, ConventionKey, ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
@@ -32,10 +32,9 @@ export function choiceOf(profile: SchedulingProfile | undefined, templates: read
 }
 
 /**
- * Keuzelijst-wissel. Er bestaan geen per-bestand-conventies meer (A19 kwam tot 2026-09-24 uit
- * `rem_target_link_flag`; eigenaarsbesluit "a": gewoon een P6-conventie), dus elke conventie volgt
- * dezelfde regels:
- *  - Ingebouwd vanaf een INGEBOUWD id: `switchProfile` (spec v3.1 §3.2) — alle afwijkingen blijven
+ * Keuzelijst-wissel. Er bestaan geen per-bestand-conventies, dus elke conventie volgt dezelfde
+ * regels:
+ *  - Ingebouwd vanaf een INGEBOUWD id: `switchProfile` — alle afwijkingen blijven
  *    letterlijk, ook als ze onder de nieuwe basis gelijk aan die basis zijn (P6 {A13: uit} → OPS → P6
  *    geeft het origineel). Zo'n profiel wordt dus nooit tot `undefined` genormaliseerd:
  *    `isDefaultProfile` is letterlijk "ops zonder enige afwijking".
@@ -60,7 +59,7 @@ export function selectProfile(
 }
 
 /** Naam begrensd ZONDER de hele invoer te kopiëren: eerst de eerste niet-witruimte zoeken (geen
- *  allocatie), dan hooguit `MAX_PROFILE_NAME_LENGTH` tekens nemen en achteraan trimmen (H1). */
+ *  allocatie), dan hooguit `MAX_PROFILE_NAME_LENGTH` tekens nemen en achteraan trimmen. */
 function clampName(name: string): string {
   const start = name.search(/\S/);
   if (start < 0) return '';
@@ -74,7 +73,7 @@ function validCustomId(id: string): boolean {
 }
 
 /** Handmatige conventiewijziging. Op een ingebouwd id maakt dat automatisch een eigen profiel
- *  ("Kopie van P6", spec v3.1 §6) met álle huidige waarden (ook die uit het bestand); op een eigen
+ *  ("Kopie van P6") met álle huidige waarden (ook die uit het bestand); op een eigen
  *  profiel blijft het id. Een ongewijzigde waarde, of een ongeldig kopie-id, geeft hetzelfde object terug. */
 export function editConvention(
   current: SchedulingProfile | undefined, key: ConventionKey, value: boolean, copy: { id: string; name: string },
@@ -136,7 +135,7 @@ function sameConventions(a: SchedulingConventions, b: SchedulingConventions, key
 }
 
 export type TemplateRelation = 'none' | 'same' | 'deviates';
-/** Verhouding tot het sjabloon met hetzelfde id (spec v3.1 §3.2: matching op id). */
+/** Verhouding tot het sjabloon met hetzelfde id (matching op id, nooit op naam). */
 export function templateRelation(profile: SchedulingProfile | undefined, templates: readonly SchedulingProfile[]): TemplateRelation {
   if (!profile || isBuiltInProfileId(profile.id)) return 'none';
   const t = templates.find(x => x.id === profile.id);
@@ -145,7 +144,7 @@ export function templateRelation(profile: SchedulingProfile | undefined, templat
     && sameConventions(resolveConventions(t), resolveConventions(profile), CONVENTION_KEYS) ? 'same' : 'deviates';
 }
 
-/** 'auto' bestaat alleen in de UI (spec v3.1 §3.1): in de state is het `undefined` (hybride formule). */
+/** 'auto' bestaat alleen in de UI: in de state is het `undefined` (hybride formule). */
 export type TotalFloatModeUi = 'auto' | 'start' | 'finish' | 'smallest';
 export function totalFloatModeToUi(value: ProjectSchedulingOptions['totalFloatMode']): TotalFloatModeUi {
   return value ?? 'auto';
@@ -154,7 +153,7 @@ export function totalFloatModeFromUi(value: TotalFloatModeUi): ProjectScheduling
   return value === 'auto' ? undefined : value;
 }
 
-/** Kritiekdefinitie per veld — `thresholdHours` valt nooit weg (spec v3.1 §6, A6). */
+/** Kritiekdefinitie per veld — `thresholdHours` valt nooit weg (A6). */
 export function withCriticalMode(
   options: ProjectSchedulingOptions | undefined, mode: 'totalFloat' | 'longestPath',
 ): ProjectSchedulingOptions {

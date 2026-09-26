@@ -1,5 +1,5 @@
 // Pure kleurengine voor scherm en rapport. De API ontvangt één app-globale selectie en
-// een BarColorContext; geen renderer leest het oude Task.color-veld nog.
+// een BarColorContext; geen renderer leest het legacy Task.color-veld.
 import { paletteColorForId, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
 import {
   effectiveBarColorSelection,
@@ -27,7 +27,7 @@ export type BarFill =
 export const SEGMENT_MIN_PX = 12;
 const DEFAULT_UNCATEGORIZED = '#94A3B8';
 
-/** Critical-kleuring negeert bewust het oude Task.color-veld. */
+/** Critical-kleuring negeert bewust het legacy Task.color-veld. */
 function criticalFill(task: Task, palette: BarPalette): string {
   if (task.isMilestone) return palette.milestone;
   if (task.time.isCritical) return palette.critical;

@@ -48,8 +48,7 @@ export type ExtensionCategory =
  *     Dat is wezenlijk breder dan de rest van `data.*` en dus expliciet GEEN kern-API — zie de
  *     privacyparagraaf in docs/extensions.md.
  *
- * NB: 'commands' bestond hiervoor maar had nooit een API-oppervlak en is per audit P16 verwijderd.
- * Manifesten die het (of een andere onbekende waarde) nog noemen, worden bij het activeren
+ * Manifesten die een onbekende waarde noemen (bv. het vervallen 'commands'), worden bij het activeren
  * gefilterd met een appLog-warn (`sanitizeManifestPermissions`) — installatie blijft slagen.
  */
 export type ExtensionPermission =
@@ -72,7 +71,7 @@ export interface ExtensionManifest {
   /**
    * Semver van het EXTENSIE-CONTRACT waartegen deze extensie gebouwd is (bv. `"1.0"`), los van
    * `minAppVersion`. Zie `apiVersion.ts` voor waarom die twee verschillende vragen beantwoorden.
-   * Optioneel: manifesten van vóór K-item 37 missen hem en blijven gewoon laden (met een warn).
+   * Optioneel: oudere manifesten missen hem en blijven gewoon laden (met een warn).
    */
   apiVersion?: string;
   /** Minimale APP-versie (CalVer) — een uitspraak over features, niet over het contract. */
@@ -313,7 +312,7 @@ export interface CatalogEntry {
   repository: string;
   downloadUrl: string;        // wijst naar een release-ZIP
   /**
-   * Hex-gecodeerde SHA-256 van de ZIP achter `downloadUrl` (K-item 38). Aanwezig ⇒ de installatie
+   * Hex-gecodeerde SHA-256 van de ZIP achter `downloadUrl`. Aanwezig ⇒ de installatie
    * VERIFIEERT de download en weigert bij een verschil; afwezig ⇒ installeren mag, met een
    * waarschuwing in de debug-terminal.
    *

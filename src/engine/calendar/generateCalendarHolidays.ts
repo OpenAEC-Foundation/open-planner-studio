@@ -5,7 +5,7 @@ import {
 } from './holidays';
 import { parseDate } from '@/utils/dateUtils';
 
-/** NL-bouwvak-keuze; `'geen'` (default, harde eis TODO.md r192-194) genereert geen bouwvak. */
+/** NL-bouwvak-keuze; `'geen'` (default, harde eis) genereert geen bouwvak. */
 export type BouwvakChoice = 'geen' | 'noord' | 'midden' | 'zuid';
 
 /** Land-keuze voor de generator, plus `'none'` ("Geen feestdagen" — geen enkele set toepassen). */
@@ -26,9 +26,9 @@ export const DEFAULT_GEN_PARAMS: HolidayGenParams = {
 };
 
 /**
- * Materialiseer generator-parameters naar concrete `Holiday[]` + `CalendarGeneration`-metadata
- * (ontwerp §2.1/§4.4). `country: 'none'` levert een lege lijst en GEEN generation-metadata terug
- * (equivalent aan een letterlijke/lege kalender — nooit stil hergenereren, §4.3).
+ * Materialiseer generator-parameters naar concrete `Holiday[]` + `CalendarGeneration`-metadata.
+ * `country: 'none'` levert een lege lijst en GEEN generation-metadata terug
+ * (equivalent aan een letterlijke/lege kalender — nooit stil hergenereren).
  */
 export function materializeHolidays(
   params: HolidayGenParams,
@@ -56,7 +56,7 @@ export function materializeHolidays(
 }
 
 /**
- * Standaard generatie-spanne (ontwerp §4.4): bij aanmaak (geen bekend projecteinde)
+ * Standaard generatie-spanne: bij aanmaak (geen bekend projecteinde)
  * `startjaar−1 t/m startjaar+3`; bij een bekend projecteinde `projectstart−1 t/m projecteinde+1`.
  */
 export function computeGenerateSpan(startDate: string, endDate: string | undefined): { from: number; to: number } {

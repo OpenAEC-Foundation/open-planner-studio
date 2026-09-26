@@ -1,4 +1,4 @@
-// UI-laag-helper (issue #27, punt D, besluit 2026-09-05): het slanke voortgangsblad
+// UI-laag-helper: het slanke voortgangsblad
 // (`writeProgressSheetCSV`) draagt per kolom een invulinstructie, in de ACTIEVE UI-taal. De
 // schrijver zelf blijft puur (geen i18n-afhankelijkheid in `services/`) — deze module bouwt de
 // vertaalde teksten op vanuit `menu:export.progressCsvNotes.*` en levert ze als
@@ -56,8 +56,8 @@ export function buildProgressHeaderNotes(
 }
 
 /**
- * Markeertekst voor de drie INVULcellen van een verzameltaak in het voortgangsblad (gebruikstest
- * 2026-09-11, fix 1). Begint bewust met een em-dash (U+2014): dat is het teken waarop
+ * Markeertekst voor de drie INVULcellen van een verzameltaak in het voortgangsblad. Begint bewust
+ * met een em-dash (U+2014): dat is het teken waarop
  * `finalizeProgressRows` de cel als afwezig telt, zodat een ongewijzigd teruggestuurd blad geen
  * enkele weigering oplevert. De vertalingen staan onder `menu:export.progressCsvNotes.summaryRow`
  * en beginnen alle veertien met diezelfde em-dash.
@@ -67,10 +67,10 @@ export function buildProgressSummaryNote(t: ImportLabelT): string {
 }
 
 /**
- * De vier teksten van de twee `dataValidation`-regels in het `.xlsx`-voortgangsblad (X5, T12):
- * titel + foutmelding voor de percentagekolom (0-100) en voor de twee datumkolommen. Q4: dezelfde
+ * De vier teksten van de twee `dataValidation`-regels in het `.xlsx`-voortgangsblad:
+ * titel + foutmelding voor de percentagekolom (0-100) en voor de twee datumkolommen. Dezelfde
  * teksten dienen ook als validatie-*prompt* (het gele tooltipje bij celselectie) - nul extra
- * sleutels voor precies de begeleiding die E8/E9 vragen.
+ * sleutels.
  *
  * Bewust een eigen, structureel gelijk returntype in plaats van `ProgressXlsxText['validation']`
  * te importeren: deze module hoort bij de i18n-laag en mag de (dynamisch geladen) xlsx-chunk niet

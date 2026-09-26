@@ -3,7 +3,7 @@ import type { ContourPhase } from '@/engine/contour/contourPhases';
 import { movePhaseBoundary, phaseStartDay, phasesTotalDays, setPhaseUnits } from '@/engine/contour/contourPhases';
 
 /**
- * Fasen-editor (2026-09) — de SLEEPBARE strook boven de fasentabel in `ContourDialog`: elke fase is
+ * Fasen-editor — de SLEEPBARE strook boven de fasentabel in `ContourDialog`: elke fase is
  * een blok over haar werkdagen, de hoogte is de inzet. Twee handvatten per blok, beide met echte
  * pointer-events en `setPointerCapture` (zoals `DataGridHeader`'s kolomresize):
  *  - de verticale GRENS tussen twee blokken: slepen verschuift de grens per hele werkdag

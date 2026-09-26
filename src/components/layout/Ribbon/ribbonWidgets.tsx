@@ -52,19 +52,18 @@ import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 
 /**
- * Ribbon-widgets (audit P18): de "component-escape-hatch" uit de config-registry — de
+ * Ribbon-widgets: de "component-escape-hatch" uit de config-registry — de
  * onderdelen die te complex zijn voor pure data (eigen state, popovers, inputs, dropdowns).
- * Elke widget haalt zijn eigen store-state op (geen props uit een god-functie meer), zodat de
- * registry ze zonder plumbing kan opnemen. Markup/CSS-klassen zijn ONgewijzigd t.o.v. de
- * inline-JSX die vroeger in Ribbon.tsx stond.
+ * Elke widget haalt zijn eigen store-state op (geen props uit een god-functie), zodat de
+ * registry ze zonder plumbing kan opnemen.
  */
 
 /**
- * Baselines & voortgang-groep (fase 2.6, §11.1): Save/Manage baseline-knoppen +
+ * Baselines & voortgang-groep: Save/Manage baseline-knoppen +
  * statusdatum + voortgangsmodus. In de normale lint-modus staan alle vier altijd
- * zichtbaar naast elkaar; in compacte modus (QA-bevinding 2.6a) is dat samen te
- * breed voor de Planning-tab (die met de bestaande groepen al bijna de volledige
- * 1280px in beslag neemt) — de vier controls overlapten buren en de inklap-pijl.
+ * zichtbaar naast elkaar; in compacte modus is dat samen te
+ * breed voor de Planning-tab (die met de andere groepen al bijna de volledige
+ * 1280px in beslag neemt) — de vier controls overlappen dan buren en de inklap-pijl.
  * Daarom gaat de hele groep in compacte modus achter één knop met popover (zelfde
  * patroon als MilestoneDropdown/TemplatesDropdown hieronder).
  */
@@ -179,10 +178,10 @@ export function BaselinesProgressGroupContent() {
 }
 
 /**
- * Mijlpaal-knop met keuzemenu (fase 2.4): startmijlpaal, eindmijlpaal of
+ * Mijlpaal-knop met keuzemenu: startmijlpaal, eindmijlpaal of
  * inspectiemoment (eindmijlpaal + taaktype Keuring/Inspectie + verplicht).
  *
- * Issue #49: plaatst de mijlpaal onder de selectie i.p.v. altijd achteraan — exact dezelfde regel
+ * Plaatst de mijlpaal onder de selectie i.p.v. altijd achteraan — exact dezelfde regel
  * en dezelfde gedeelde route als de lintknop "+ Taak" (`addTaskNearSelection`).
  */
 export function MilestoneDropdown() {
@@ -246,7 +245,7 @@ export function relationActionAvailability(
 
 /**
  * Relatie is bewust een keuzemenu met vier vaste betekenissen. De selectie bepaalt alleen of een
- * actie beschikbaar is; de hoofdknop verandert nooit meer stil van gedrag.
+ * actie beschikbaar is; de hoofdknop verandert nooit stil van gedrag.
  */
 export function RelationDropdown() {
   const { t: tMenu } = useTranslation('menu');
@@ -257,7 +256,7 @@ export function RelationDropdown() {
   const [refreshStatus, setRefreshStatus] = useState('');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
-  // Issue #174: tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
+  // Tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
   const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
   const externalRelationCount = useAppStore(s => s.tasks.reduce(
     (count, task) => count + (task.externalLinks?.length ?? 0),
@@ -375,7 +374,7 @@ export function RelationDropdown() {
   );
 }
 
-/** Sjablonen (fase 2.2): lijst uit localStorage; klik = invoegen onder de selectie (of root). */
+/** Sjablonen: lijst uit localStorage; klik = invoegen onder de selectie (of root). */
 export function TemplatesDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
@@ -442,7 +441,7 @@ export function RecentFilesDropdown() {
   const recentFiles = useAppStore(s => s.recentFiles);
   const openRecentFile = useAppStore(s => s.openRecentFile);
 
-  // Fallback-web (Firefox/Safari): geen herbruikbare refs → geen (dode) recents tonen (spec §6).
+  // Fallback-web (Firefox/Safari): geen herbruikbare refs → geen (dode) recents tonen.
   if (!supportsHandles()) return null;
 
   return (
@@ -516,10 +515,9 @@ export function ExportDropdown() {
           key={f.format}
           overflow="wrap"
           onClick={() => {
-            // K7: exportAs geeft sinds deze wijziging een resultaat terug. Op dit tabblad is
+            // exportAs geeft een resultaat terug. Op dit tabblad is
             // GanttCanvas gemonteerd, dus bij een cyclus (ok===false) vuurt daar al de
-            // cyclus-toast — bewust géén tweede meldmechanisme hier. Tussenstand: K8 trekt het
-            // foutkanaal samen tot één toast in uiSlice. Popover direct dicht, vóór de dialoog.
+            // cyclus-toast — bewust géén tweede meldmechanisme hier. Popover direct dicht, vóór de dialoog.
             void exportAs(f.format);
             setOpen(false);
           }}
@@ -557,7 +555,7 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
               <RibbonButton
                 key={`${b.extensionId}:${b.label}`}
                 label={b.label}
-                // K6a: ribbon-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
+                // Ribbon-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
                 // langs dezelfde sanitizer als de manifest-iconen.
                 icon={
                   <ExtensionIcon
@@ -577,7 +575,7 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
 }
 
 /**
- * Toewijs-popover (fase 2.5, §6.1): alleen actief bij precies één geselecteerde leaf-, niet-
+ * Toewijs-popover: alleen actief bij precies één geselecteerde leaf-, niet-
  * milestone-taak; toont de nog-niet-toegewezen resources en roept `assignResource` direct aan.
  */
 export function ResourceAssignDropdown() {
@@ -585,8 +583,8 @@ export function ResourceAssignDropdown() {
   const { t: tTask } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const [open, setOpen] = useState(false);
-  // Toewijzingsparameters in de popover (bevinding 2): eenheden/dag + verdeelcurve, zodat een
-  // toewijzing in één beweging compleet is (voorheen hardgecodeerd op 1 / UNIFORM).
+  // Toewijzingsparameters in de popover: eenheden/dag + verdeelcurve, zodat een
+  // toewijzing in één beweging compleet is.
   const [units, setUnits] = useState(1);
   const [curve, setCurve] = useState<ResourceCurve>('UNIFORM');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
@@ -658,14 +656,13 @@ export function ResourceAssignDropdown() {
 }
 
 /**
- * Groeperen-popover (fase 2.7, §7.4): tot 2 rijen {veld ▾, richting}. Vervangt de tijdelijke
- * één-niveau-groupdropdown uit golf 2. Live via `setGroup` (geen apart "toepassen").
+ * Groeperen-popover: tot 2 rijen {veld ▾, richting}. Live via `setGroup` (geen apart "toepassen").
  *
  * Let op de `!w-32` op de richting-select. `.input` staat in `globals.css` **buiten** elke
  * cascade-layer met `width: 100%`, terwijl Tailwind-utilities in `@layer utilities` zitten —
  * unlayered wint altijd van layered, dus een gewone `w-28` doet niets. Zonder die vaste breedte
- * eiste de richting-select 100% van de rij en hield het veld-dropdown (`flex-1`, dus
- * flex-basis 0) ~12px over: een sliver zonder leesbare tekst. Zelfde valkuil als issue #46.
+ * eist de richting-select 100% van de rij en houdt het veld-dropdown (`flex-1`, dus
+ * flex-basis 0) ~12px over: een sliver zonder leesbare tekst.
  */
 /**
  * Eén app-globale bediening voor scherm én rapport. Categorievelden komen rechtstreeks uit Group;
@@ -788,7 +785,7 @@ export function GroupPopoverButton() {
 }
 
 /**
- * Sorteren-popover (fase 2.7, §7.4): herhaalbare rijen {veld ▾, richting}, "+ niveau" onbeperkt.
+ * Sorteren-popover: herhaalbare rijen {veld ▾, richting}, "+ niveau" onbeperkt.
  * Live via `setSort`.
  */
 export function SortPopoverButton() {
@@ -834,10 +831,10 @@ export function SortPopoverButton() {
 }
 
 /**
- * Layout-groep (issue #144): elke layout is een eigen lintknop met icoon en naam — één klik zet hem
+ * Layout-groep: elke layout is een eigen lintknop met icoon en naam — één klik zet hem
  * aan, nogmaals klikken zet hem uit en brengt het beeld van vóór de klik terug (`toggleLayout`). De
  * plusknop opent de layoutdialoog. Knoppen die verschillende delen dragen kunnen samen aanstaan
- * (resourcediagram + een filterknop); een opgeslagen filter van vóór #144 is zo'n filterknop.
+ * (resourcediagram + een filterknop); een opgeslagen filter is zo'n filterknop.
  * Opslag app-globaal via `settingsStore`; meegeleverde layouts komen uit code (`builtinLayouts`).
  */
 export function LayoutGroupContent() {
@@ -940,7 +937,7 @@ export function LayoutGroupContent() {
   );
 }
 
-/** Presentatie-groep (fase 2.7, §9/§10/§11): presentation-toggle (F11), split view, mini-map. */
+/** Presentatie-groep: presentation-toggle (F11), split view, mini-map. */
 export function PresentationGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -985,8 +982,8 @@ export function PresentationGroupContent() {
 }
 
 /**
- * Tijdschaal-groep (beeld, §13): zoom +/-/reset + schaal-dropdown. De keuze mapt naar een
- * zoom-preset; de getoonde waarde wordt AFGELEID uit zoom via scaleFromZoom (§3.5) — kan dus
+ * Tijdschaal-groep (beeld): zoom +/-/reset + schaal-dropdown. De keuze mapt naar een
+ * zoom-preset; de getoonde waarde wordt AFGELEID uit zoom via scaleFromZoom — kan dus
  * nooit desyncen van de as.
  */
 export function TimeScaleGroupContent() {
@@ -1007,9 +1004,9 @@ export function TimeScaleGroupContent() {
   const resetFitButtons = (
     <>
       <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
-      {/* Issue #78: "Passend op project" was alleen bereikbaar via het canvas-contextmenu, dat
-          verdwijnt zodra de takentabel volledig gevuld is. `requestFitToProject` is dezelfde
-          pendingFit-route als na het openen van een bestand (issue #16) — GanttCanvas kent de
+      {/* "Passend op project" ook hier: het canvas-contextmenu is onbereikbaar zodra de
+          takentabel volledig gevuld is. `requestFitToProject` is dezelfde
+          pendingFit-route als na het openen van een bestand — GanttCanvas kent de
           viewport-breedte en voert de echte berekening uit. */}
       <RibbonSmallButton icon={<Maximize2 size={14} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
     </>
@@ -1023,15 +1020,15 @@ export function TimeScaleGroupContent() {
         { value: 'month', label: tMenu('ribbon.month') },
         { value: 'week', label: tMenu('ribbon.week') },
         { value: 'day', label: tMenu('ribbon.day') },
-        // Fase 2.8b (§6.2): de uur-schaal is alleen bereikbaar met Urenplanning aan.
+        // De uur-schaal is alleen bereikbaar met Urenplanning aan.
         ...(enableHourPlanning ? [{ value: 'hour' as TimeScale, label: tMenu('ribbon.hour') }] : []),
       ]}
       onChange={v => setTimeScale(v as TimeScale)}
     />
   );
 
-  // Compacte modus (A1-fix): alles op één platte rij i.p.v. een 2-regelige kolom die boven de
-  // 40px-strip uitstak. De afgeleide zoom-tekst valt weg (secundair); knoppen collapsen via CSS.
+  // Compacte modus: alles op één platte rij i.p.v. een 2-regelige kolom die boven de
+  // 40px-strip uitsteekt. De afgeleide zoom-tekst valt weg (secundair); knoppen collapsen via CSS.
   if (compact) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1060,7 +1057,7 @@ export function TimeScaleGroupContent() {
  * Kolommen-knop — gedeelde binding voor de Beeld-tab (kleine knop) en de Tabel-tab (grote knop).
  *
  * De Tabel-surface bezit de ene gedeelde `ColumnChooser`. Vanaf Beeld schakelt deze binding daarom
- * eerst naar Tabel en opent vervolgens diezelfde kiezer; er bestaat geen tweede kolomdefinitie meer.
+ * eerst naar Tabel en opent vervolgens diezelfde kiezer; er bestaat geen tweede kolomdefinitie.
  */
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
@@ -1074,7 +1071,7 @@ export function useColumnsButtonBinding() {
 }
 
 /**
- * Weergave-groep (beeld, §13/§5.5/§6/§7.4): kolommen-dialoog, filter-editor, groepeer-/
+ * Weergave-groep (beeld): kolommen-dialoog, filter-editor, groepeer-/
  * sorteer-popovers. Narrow "small"-knoppen zodat de groep smal blijft en in compacte modus
  * niet overlapt.
  */
@@ -1088,7 +1085,7 @@ function SavedFilterDropdown() {
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const [open, setOpen] = useState(false);
-  // Issue #144: opgeslagen filters zijn layouts die alleen een filter dragen — één opslag, en
+  // Opgeslagen filters zijn layouts die alleen een filter dragen — één opslag, en
   // toepassen loopt via `applyLayout` (dus mét undo-stap), net als in de layoutlijst.
   const [savedFilters, setSavedFilters] = useState<Layout[]>([]);
 
@@ -1166,7 +1163,7 @@ export function DisplayGroupContent() {
 }
 
 /**
- * Overallocatie-indicator (resources). Defensieve guard (bevinding 3): zonder resources kan er
+ * Overallocatie-indicator (resources). Defensieve guard: zonder resources kan er
  * geen overallocatie zijn — voorkomt een fantoomvlag als een oud resourceLoadResult nog in de
  * store staat na een document-swap/leegmaken.
  */

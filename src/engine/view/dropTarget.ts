@@ -1,8 +1,8 @@
-// Pure droptarget-resolver voor verticaal taak-verslepen (issue #21 punt 1, fase 1).
+// Pure droptarget-resolver voor verticaal taak-verslepen.
 // Bepaalt, gegeven een hover-rij + verticale zone, WAAR een gesleepte taak zou landen — los van
-// WIE er gesleept wordt (deze functie kent geen taskId; de drag-hook (fase 2, niet hier gebouwd)
-// is verantwoordelijk voor de cykel-check en voor de daadwerkelijke aanroep van
-// `taskSlice.moveTaskTo`). PUUR: geen store-/React-imports, alleen type-only op `ViewRow`.
+// WIE er gesleept wordt (deze functie kent geen taskId; de drag-hook is verantwoordelijk voor de
+// cykel-check en voor de daadwerkelijke aanroep van `taskSlice.moveTaskTo`). PUUR: geen
+// store-/React-imports, alleen type-only op `ViewRow`.
 
 import type { Task } from '@/types/task';
 import type { ViewRow } from './visibleRows';
@@ -18,8 +18,8 @@ export interface DropTarget {
  * - `'before'` — invoegen vóór de rij-taak, als sibling bij diens ouder.
  * - `'after'`  — invoegen ná de rij-taak, als sibling bij diens ouder. Dit blijft ALTIJD binnen
  *   dezelfde ouder als de rij-taak — ook wanneer de rij-taak het laatste kind van een summary is
- *   valt het doel dus niet naar root/grootouder uit (het bekende gat in ontwerp B §3.2 dat hiermee
- *   gedicht wordt), want `childIndex` wordt geklemd op de kindlijst-lengte van diezelfde ouder.
+ *   valt het doel dus niet naar root/grootouder uit, want `childIndex` wordt geklemd op de
+ *   kindlijst-lengte van diezelfde ouder.
  * - `'nest'`   — de rij-taak wordt de nieuwe ouder; het gesleepte item wordt diens LAATSTE kind.
  *   Alleen geldig als de rij-taak semantisch een summary is — mijlpalen en gewone
  *   leaves zijn geen nest-doel.
@@ -56,7 +56,7 @@ export function resolveDropTarget(
 
   let childIndex = zone === 'before' ? base : Math.min(base + 1, siblingIds.length);
 
-  // Review issue #21 pt. 1 fase 2 (bewezen off-by-one): `childIndex` is hierboven berekend tegen
+  // Off-by-one-valkuil: `childIndex` is hierboven berekend tegen
   // de siblinglijst MÉT het gesleepte item, maar `moveTaskTo` klemt/plaatst tegen de lijst
   // ZÓNDER dat item (remove-dan-insert). Staat het gesleepte item in dezelfde lijst vóór het
   // droppunt, dan verschuift zijn verwijdering het doel één plek — compenseer, anders landt elke

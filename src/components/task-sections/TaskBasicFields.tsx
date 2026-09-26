@@ -7,7 +7,7 @@ import { TaskTypeField } from './TaskTypeField';
 import { Field, Input } from './shared';
 
 /**
- * Naam / WBS-code / omschrijving / type / kalender (fase 2.10, item 2 — sectie 2 uit
+ * Naam / WBS-code / omschrijving / type / kalender (sectie van
  * `TaskPropertiesPanel`). `CalendarForm`-patroon: puur `{ task, onChange }`, geen store-schrijf
  * hier. `wbsAutoNumber` wordt — net als `CalendarForm` z'n `enableHourPlanning` — rechtstreeks
  * uit de store gelezen (read-only contextvlag, geen mutatie).
@@ -15,8 +15,8 @@ import { Field, Input } from './shared';
  * Kalender is een LICHTE UITZONDERING: in het paneel gaat een kalenderwissel via de dedicated
  * `setTaskCalendar`-actie (no-op-guard + `scheduleStale`-vlag + `recomputeViewRows`), niet via de
  * generieke patch — vandaar de aparte `onCalendarChange`-prop i.p.v. het door `onChange` te laten
- * lopen. De dialoog geeft hiervoor gewoon `onChange({ calendarId })` door (zijn bestaande
- * Save-tijd-gedrag: calendarId werd al gewoon met de andere velden gebundeld).
+ * lopen. De dialoog geeft hiervoor gewoon `onChange({ calendarId })` door (calendarId wordt bij
+ * Save met de andere velden gebundeld).
  *
  * `hideName` (dialoog-only): `TaskDialog` rendert het naam-veld zelf (het zet er een auto-focus/
  * select-all-ref op bij het openen) — deze sectie slaat het dan over zodat het niet dubbel

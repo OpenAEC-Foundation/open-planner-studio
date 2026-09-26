@@ -21,13 +21,12 @@ export interface UseClickOutsideOptions {
 }
 
 /**
- * Gedeelde click-outside-hook (audit UI-F3): vervangt de ~10 losse `useEffect`-implementaties die
- * allemaal `document`-listeners aanhingen en `ref.current.contains(e.target)` toetsten.
+ * Gedeelde click-outside-hook: één implementatie van `document`-listeners plus
+ * `ref.current.contains(e.target)`, i.p.v. losse `useEffect`s per component.
  *
  * De callback wordt via een ref actueel gehouden, zodat het effect NIET reset wanneer de parent bij
- * elke render een nieuwe closure doorgeeft (bijv. `() => setOpen(false)` of een verse `onClose`). Dat
- * is precies waarom `ContextMenu` voorheen een handmatige `onCloseRef` + lege deps nodig had: met
- * `[onClose]`-deps werd de `defer`-timer bij elke parent-render gereset en werkte klik-buiten nooit.
+ * elke render een nieuwe closure doorgeeft (bijv. `() => setOpen(false)` of een verse `onClose`). Met
+ * `[onClose]`-deps zou de `defer`-timer bij elke parent-render resetten en werkt klik-buiten nooit.
  *
  * @param ref        Element dat als "binnen" telt.
  * @param onOutside  Aangeroepen bij een klik/rechtsklik buiten `ref` (en bij Escape als `escape`).

@@ -9,14 +9,11 @@ import { latestFinish } from '@/utils/taskDates';
  * Voortgang, status en werkelijke datums van een VERZAMELTAAK (fase), afgeleid uit haar bladtaken
  * — één definitie.
  *
- * Waarom een eigen module. De formule stond alleen in het WBS-samenvattingsrapport
- * (`reports/wbsSummary.ts`), terwijl de verzameltaak-rollup (`applyCpmResult`) wel datums, speling
- * en duur oprolde maar geen voortgang. Tabel, Gantt-tooltip, PDF en MCP lazen daardoor de
- * OPGESLAGEN `completion`/`status` van een fase — 0% "Niet gestart", of een bevroren MSP-importwaarde
- * — terwijl het WBS-rapport op hetzelfde Rapport-tabblad 100% zei. Nu roepen de rollup én het rapport
- * deze module aan, dus kunnen ze niet meer uit elkaar lopen.
+ * De verzameltaak-rollup (`applyCpmResult`) én het WBS-samenvattingsrapport (`reports/wbsSummary.ts`)
+ * roepen deze module aan, zodat tabel, Gantt-tooltip, PDF, MCP en rapport dezelfde fasevoortgang
+ * tonen in plaats van de opgeslagen `completion`/`status` van de fase.
  *
- * De regels (die van het WBS-rapport, ongewijzigd):
+ * De regels:
  * - alleen BLADnakomelingen tellen (een tussenliggende subfase telt niet als eigen werk), zonder
  *   hammocks — een LOE-taak volgt anderen en is zelf geen werk (zelfde filter als de rapporten);
  * - voortgang = Σ(werkdagen × completion) / Σ(werkdagen), werkdagen op de eigen taakkalender;
@@ -91,7 +88,7 @@ export function descendantLeaves(
 }
 
 export interface SummaryProgress {
-  /** 0..1, afgerond op 0,1 procentpunt (zoals het WBS-rapport altijd deed). */
+  /** 0..1, afgerond op 0,1 procentpunt. */
   completion: number;
   status: TaskStatus;
   /** Vroegste werkelijke start van de bladen; afwezig zolang geen blad er een heeft. */
@@ -121,8 +118,8 @@ export function summaryProgressOf(leaves: readonly Task[], workDaysOf: (t: Task)
     // start klopt.
     const as = l.time.actualStart;
     if (as && (actualStart === undefined || as < actualStart)) actualStart = as;
-    // Het einde als tijdstip (`latestFinish`, #205): een dagwaarde telt als einde van die dag, zodat
-    // gemengde dag- en uurkalenders het juiste laatste einde geven (integratie groep C, #214).
+    // Het einde als tijdstip (`latestFinish`): een dagwaarde telt als einde van die dag, zodat
+    // gemengde dag- en uurkalenders het juiste laatste einde geven.
     const af = l.time.actualFinish;
     if (af) actualFinish = actualFinish === undefined ? af : latestFinish([actualFinish, af]);
   }
@@ -156,7 +153,7 @@ export function writeSummaryProgress(task: Task, progress: SummaryProgress): voi
  * Wordt de voortgang (en daarmee de status en de werkelijke datums) van deze verzameltaak afgeleid?
  * Nee voor een HANDMATIG geplande verzameltaak: die rolt in `applyCpmResult` ook haar datums niet op
  * maar houdt haar opgeslagen waarden (MS Project-conventie, `.mpp`-getrouwheid) — de voortgang volgt
- * exact dezelfde uitzondering. De tweede uitzondering, "datums zoals opgeslagen" (issue #63), is
+ * exact dezelfde uitzondering. De tweede uitzondering, "datums zoals opgeslagen", is
  * een documenttoestand en geen taakeigenschap; die regelen `showRecordedDates` (herstel) en het
  * WBS-rapport (`datesAsRecorded`).
  */

@@ -1,11 +1,11 @@
 /**
- * De generieke XLSX-lezer (issue #27, etappe 3 — taak T7).
+ * De generieke XLSX-lezer.
  *
  * Weet **niets** van voortgang: hij levert het eerste werkblad op als rijen met cellen, plus de
  * datum/percentage-opmaakvlaggen en het datumstelsel. De voortgangsbetekenis geeft
  * `progressImport/parseProgressXlsx.ts` eraan.
  *
- * Drie architectuurbesluiten die je moet kennen vóór je hier iets verandert (X7 van het plan):
+ * Drie architectuurbesluiten die je moet kennen vóór je hier iets verandert:
  *
  *  1. **Eigen XML-scanner, geen `DOMParser`.** De Node-shim waarmee de planningssuite draait kent
  *     geen attributen — en juist attributen (`r`, `t`, `s`, `numFmtId`, `date1904`) dragen hier alle
@@ -17,8 +17,8 @@
  *     het partpad van het eerste blad, en pass 2 pakt alleen dát part uit. Central directory scannen
  *     is goedkoop, inflaten niet. Nooit "pak alles uit en zoek daarna".
  *  3. **Het rijnummer komt uit het `r`-attribuut, niet uit een teller.** Rijen mogen in een xlsx
- *     ontbreken. Omdat `rowNumber` de sleutel van de handmatige koppelingen is (A11), zou een teller
- *     de overrides stil op de verkeerde rij laten landen.
+ *     ontbreken. Omdat `rowNumber` de sleutel van de handmatige koppelingen is, zou een teller de
+ *     overrides stil op de verkeerde rij laten landen.
  *
  * Zonder `sharedStrings` is deze lezer waardeloos: Excel schrijft élke tekstcel bij opslaan als
  * gedeelde string, dus een blad dat de gebruiker in Excel heeft geopend en bewaard zou anders
@@ -98,8 +98,8 @@ export const XLSX_LIMITS: XlsxLimits = {
 
 /**
  * De naad naar de ZIP-laag. Productie geeft `parseZipEntries` door; een test kan hem vervangen om
- * te zien wélke parts er daadwerkelijk uitgepakt zijn (hardening-checklist: geen module-level
- * singletons, alles injecteerbaar).
+ * te zien wélke parts er daadwerkelijk uitgepakt zijn (geen module-level singletons, alles
+ * injecteerbaar).
  */
 export type XlsxZipReader = (
   buffer: ArrayBuffer,
@@ -447,10 +447,10 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
         const attr = ev.attrs.r;
         const parsed = attr !== undefined ? Number(attr) : NaN;
         const rowNumber = Number.isInteger(parsed) && parsed > 0 ? parsed : nextRowNumber;
-        // `r` is de SLEUTEL van de handmatige koppelingen (A11) en van `buildPlan`'s rijmap. Een
-        // tweede `<row r="2">` zou de eerste daar stil overschrijven — de invuller ziet dan een
-        // toepassing op een taak die hij niet bewerkte, zonder één weigering. Rijnummers zijn in
-        // een geldige xlsx strikt oplopend; alles anders is een weigering, geen interpretatie.
+        // `r` is de SLEUTEL van de handmatige koppelingen en van `buildPlan`'s rijmap. Een tweede
+        // `<row r="2">` zou de eerste daar stil overschrijven — de invuller ziet dan een toepassing op
+        // een taak die hij niet bewerkte, zonder één weigering. Rijnummers zijn in een geldige xlsx
+        // strikt oplopend; alles anders is een weigering, geen interpretatie.
         if (rowNumber <= lastRowNumber) {
           throw new XlsxReadError(
             'malformed',
@@ -606,7 +606,7 @@ export async function readXlsxSheetWith(
   bytes: Uint8Array,
   limits: XlsxLimits = XLSX_LIMITS,
 ): Promise<XlsxSheet> {
-  // Grens vóór allocatie (hardening-checklist): geen kopie, geen view, niets — eerst de weegschaal.
+  // Grens vóór allocatie: geen kopie, geen view, niets — eerst de weegschaal.
   if (bytes.byteLength > limits.maxBytes) {
     throw new XlsxReadError('tooLarge', 'bestand boven de bytegrens');
   }

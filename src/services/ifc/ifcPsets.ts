@@ -6,20 +6,16 @@ import { WORK_RULES } from '@/types/workRule';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 
 /**
- * IFC-pset-registry (fase 3, tweede helft van P11 uit docs/superpowers/modulariteit-audit.md,
- * bevinding A2/F2). Vóór dit bestand leefde het OPS_*-round-trip-contract in ~15 losse
- * write/extract-paren die alleen gekoppeld waren door gedupliceerde pset-naam-string-literals plus
- * de conventie "reader = spiegel van writer". Eén typo in een naam of een divergentie tussen write
- * en read faalde STIL (de reader matchte gewoon niet). Hier is per pset één bron:
+ * IFC-pset-registry: het OPS_*-round-trip-contract met per pset één bron. Een typo in een naam of
+ * een divergentie tussen write en read faalt anders STIL (de reader matcht gewoon niet).
  *
  *  - `PSET`: elke pset-NAAM als gedeelde constante. Writer én reader importeren die; nergens staat
- *    nog een los `'OPS_...'`-literal in de code (alleen in prozacommentaar).
- *  - `PER_TASK_PSETS`: de per-taak-psets die exact hetzelfde stramien volgen
- *    (Constraints/ExternalLink/Hammock/Milestone/Leveling/TaskNotes/TaskAppearance/Analysis). Hun
+ *    een los `'OPS_...'`-literal in de code (alleen in prozacommentaar).
+ *  - `PER_TASK_PSETS`: de per-taak-psets die exact hetzelfde stramien volgen. Hun
  *    write- én read-kant zijn hier GECO-LOKEERD in één descriptor: `write(task)` levert de
  *    property-lijst (of `null`/`[]` = golden rule ⇒ niets schrijven), `apply(task, props)` zet de
  *    gelezen properties terug. De writer itereert over de lijst; de reader dispatcht per naam via
- *    `PER_TASK_PSET_BY_NAME`. Zo kunnen naam-koppeling én write/read-paring niet meer divergeren.
+ *    `PER_TASK_PSET_BY_NAME`. Zo kunnen naam-koppeling én write/read-paring niet divergeren.
  *
  * De niet-taak-psets (ProjectSettings/StructureMeta/CustomFields/ActivityCodes op project-niveau;
  * Resource/Assignments per resource/taak-in-eigen-vorm; Baselines/SchedulingOptions op de
@@ -43,36 +39,34 @@ export const PSET = {
   TaskNotes: 'OPS_TaskNotes',
   TaskAppearance: 'OPS_TaskAppearance',
   Analysis: 'OPS_Analysis',
-  // Z14 (etappe "nul afwijkingen") — vier NIEUWE per-taak-psets, zelfde registry-patroon.
   /** Werkonderbrekingen (`Task.splitGaps`) — één autoritatief JSON-veld, ExternalLink/TaskNotes-patroon. */
   Splits: 'OPS_TaskSplits',
   /** Handmatig-gepland-vlag (`Task.manuallyScheduled`) — losse getypte prop, Hammock/Milestone-patroon. */
   Manual: 'OPS_ManualScheduling',
-  /** MSP's eigen resume/stop-instanten (`TaskTime.resume`/`stop`, Z12) — losse getypte props. */
+  /** MSP's eigen resume/stop-instanten (`TaskTime.resume`/`stop`) — losse getypte props. */
   Resume: 'OPS_Resume',
-  // Z14b (eigenaarsbesluit/-principe 2026-08-18) — drie NIEUWE per-taak-psets, zelfde registry-patroon.
-  /** Het Z8-venster (`Task.timephasedFinishFloor`/`timephasedStartAnchor`/`timephasedDurationWalks`)
-   *  — AFGELEIDE sturing, wordt bij een inhoudelijke bewerking weer ontkoppeld (zie
-   *  `taskDefaults.ts`'s `clearTimephasedWindow`). NIET hetzelfde pset als `Timephased` hierboven
+  /** Het timephased-venster (`Task.timephasedFinishFloor`/`timephasedStartAnchor`) — AFGELEIDE sturing,
+   * wordt bij een inhoudelijke bewerking weer ontkoppeld (zie `taskDefaults.ts`'s
+   * `clearTimephasedWindow`). NIET hetzelfde pset als `Timephased` hierboven
    *  (dat draagt het PER-ASSIGNMENT `workWindowStart`/`Finish`-paar, een ander veld). */
   Window: 'OPS_TimephasedWindow',
-  /** `Task.timephasedDurationWalks` (LAAG 4) — AFWIJKENDE vorm (alleen naam gedeeld, geen
+  /** `Task.timephasedDurationWalks` — AFWIJKENDE vorm (alleen naam gedeeld, geen
    *  `PerTaskPset`-descriptor): `resourceCalendarId` is een kalender-verwijzing die bij inlezen een
    *  NIEUW id krijgt, dus write/read hebben allebei toegang tot de kalender-bibliotheek nodig — die
    *  heeft de generieke `PerTaskPset`-vorm niet. Zie `ifcWriter.writeTimephasedDurationWalksMeta`/
    *  `ifcReader.extractTimephasedDurationWalksMeta`. */
   DurationWalks: 'OPS_TimephasedDurationWalks',
   /** De RAUWE, gedecodeerde .mpp-contourperiodes (`Task.timephasedContours`) — de bron ONDER het
-   *  Z8-venster; wordt NOOIT door een bewerking gewist (eigenaarsprincipe). */
+   *  timephased-venster; wordt NOOIT door een bewerking gewist. */
   Contours: 'OPS_TimephasedContours',
   /** MSP's eigen Task Type + Effort-Driven-vlag (`Task.mspTaskType`/`effortDriven`) — puur data,
-   *  geen rekengedrag (eigenaarsbesluit 2026-08-18, punt 1). */
+   *  geen rekengedrag. */
   MspTaskType: 'OPS_MspTaskType',
-  /** Taaktypes-etappe (spec §4.4) — de neutrale werkregel van de taak (`Task.workRule`). Eigen
+  /** De neutrale werkregel van de taak (`Task.workRule`). Eigen
    *  pset naast `OPS_MspTaskType`: de importvelden blijven onaangeraakt, de regel is een afgeleide
    *  die de gebruiker later los kan wijzigen. */
   WorkRule: 'OPS_WorkRule',
-  /** X7: P6-bronidentiteit, voortgangsfamilie, verwacht einde en suspend/resume-firewall. */
+  /** P6-bronidentiteit, voortgangsfamilie, verwacht einde en suspend/resume-firewall. */
   P6Progress: 'OPS_P6Progress',
   /** Expliciete samenvattingsidentiteit voor een WBS-taak zonder kinderen. */
   Summary: 'OPS_Summary',
@@ -86,7 +80,7 @@ export const PSET = {
   // Per-resource / per-taak-assignment (afwijkende vorm — alleen naam gedeeld).
   Resource: 'OPS_Resource',
   Assignments: 'OPS_Assignments',
-  /** Z14 — per-assignment timephased-venster (`ResourceAssignment.workWindowStart`/`Finish`), eigen
+  /** Per-assignment timephased-venster (`ResourceAssignment.workWindowStart`/`Finish`), eigen
    *  JSON-blob-pset op de taak (zelfde `writeBaselineMeta`-vorm), NAAST (niet in) `OPS_Assignments`
    *  — dat pipe-formaat blijft ongewijzigd. */
   Timephased: 'OPS_Timephased',
@@ -95,13 +89,12 @@ export const PSET = {
   SchedulingOptions: 'OPS_SchedulingOptions',
   /** Rekenprofielen: `{ id, baseId, conventions, overrides, name? }` — alle zevenentwintig conventies opgelost plus de letterlijke afwijkingen. */
   SchedulingProfile: 'OPS_SchedulingProfile',
-  /** Heropen-beleid optie B (eigenaarsbesluit 2026-09-09): `UnchangedSinceImport` op de
-   *  IfcWorkSchedule — alleen geschreven als `true` (golden rule: afwezig ⇒ `false`, bestaande
-   *  bestanden blijven byte-identiek). Zie `ImportResult.importPristine`. */
+  /** Heropen-beleid: `UnchangedSinceImport` op de IfcWorkSchedule — alleen geschreven als `true`
+   *  (golden rule: afwezig ⇒ `false`). Zie `ImportResult.importPristine`. */
   ImportProvenance: 'OPS_ImportProvenance',
-  /** X9: één projectcontainer met de exacte oorspronkelijke XER-bytes. */
+  /** Eén projectcontainer met de exacte oorspronkelijke XER-bytes. */
   XerSourceArchive: 'OPS_XerSourceArchive',
-  /** X9: selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
+  /** Selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
   XerDocument: 'OPS_XerDocument',
   /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
    *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
@@ -109,14 +102,13 @@ export const PSET = {
   Sequences: 'OPS_Sequences',
   // Per kalender (afwijkende vorm — alleen naam gedeeld).
   Calendar: 'OPS_Calendar',
-  // Bedrijfsbibliotheek-pool als autoritatief JSON-blob op het IfcProject (spec B1, §4).
+  // Resourcebibliotheek-pool als autoritatief JSON-blob op het IfcProject.
   Library: 'OPS_Library',
 } as const;
 
 /**
- * Gedeelde STEP-waarde-formatters (verhuisd uit ifcWriter zodat de per-taak-descriptors hun eigen
- * getypte IFC-waarden kunnen opbouwen). De writer importeert ze nu HIERvandaan — één bron, geen
- * duplicaat dat kan divergeren. Byte-identiek aan de vroegere lokale ifcWriter-versies.
+ * Gedeelde STEP-waarde-formatters, hier zodat de per-taak-descriptors hun eigen getypte IFC-waarden
+ * kunnen opbouwen. De writer importeert ze HIERvandaan — één bron, geen duplicaat dat kan divergeren.
  */
 export function ifcStr(s: string): string {
   if (!s) return '$';
@@ -146,7 +138,7 @@ export interface PerTaskPset {
   psetSeed: string;
   /** ifcGuid-seed-prefix voor de IFCRELDEFINESBYPROPERTIES-GlobalId. */
   relSeed: string;
-  /** Golden rule: `null` of lege lijst ⇒ niets geschreven (bit-gelijk met bestaande bestanden). */
+  /** Golden rule: `null` of lege lijst ⇒ niets geschreven. */
   write(task: Task): PropSpec[] | null;
   /** Zet de gelezen (reeds naar {name,value} geparste) IFCPROPERTYSINGLEVALUE-props terug op de taak. */
   apply(task: Task, props: ReadProp[]): void;
@@ -156,9 +148,8 @@ export interface PerTaskPset {
 const CONSTRAINT_VALID: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 
 /**
- * De acht per-taak-psets. VOLGORDE IS BINDEND: de writer schrijft ze in deze volgorde (spiegelt de
- * vroegere aanroepvolgorde in `writeIFC`), wat de byte-identieke STEP-uitvoer bewaakt. De reader
- * dispatcht op naam en is volgorde-ongevoelig.
+ * De per-taak-psets. VOLGORDE IS BINDEND: de writer schrijft ze in deze volgorde, zodat de
+ * STEP-uitvoer stabiel blijft. De reader dispatcht op naam en is volgorde-ongevoelig.
  */
 export const PER_TASK_PSETS: PerTaskPset[] = [
   // 0. Stabiele taakidentiteit. De reader consumeert deze property al vóór `extractTasks`, omdat
@@ -173,7 +164,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       // Al toegepast door extractTaskIdentityByStepId vóór de taakobjecten worden gebouwd.
     },
   },
-  // 1. Fase 2.3/2.9 — datum-constraint (+ harde pin + secundaire, P6-native soft) + deadline. IfcTaskTime
+  // 1. Datum-constraint (+ harde pin + secundaire, P6-native soft) + deadline. IfcTaskTime
   //    heeft geen constraint-/deadline-slots. ASAP (default) wordt niet geschreven.
   {
     name: PSET.Constraints, psetSeed: 'pset_cst_', relSeed: 'rel_cst_',
@@ -219,7 +210,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 2. Fase 2.9 (§4.5/§6) — externe (cross-project) dependencies als één autoritatief JSON-veld.
+  // 2. Externe (cross-project) dependencies als één autoritatief JSON-veld.
   {
     name: PSET.ExternalLink, psetSeed: 'pset_extl_', relSeed: 'rel_extl_',
     write(task) {
@@ -237,7 +228,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 3. Fase 2.9 (§3.2/§6) — hammock/LOE-vlag (geen native IfcTaskTypeEnum-waarde).
+  // 3. Hammock/LOE-vlag (geen native IfcTaskTypeEnum-waarde).
   {
     name: PSET.Hammock, psetSeed: 'pset_hmk_', relSeed: 'rel_hmk_',
     write(task) {
@@ -247,7 +238,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) if (name === 'IsHammock' && value === true) task.isHammock = true;
     },
   },
-  // 4. Fase 2.4 — mijlpaalsoort + verplicht-vlag (IfcTaskTypeEnum kent geen start/finish-onderscheid).
+  // 4. Mijlpaalsoort + verplicht-vlag (IfcTaskTypeEnum kent geen start/finish-onderscheid).
   {
     name: PSET.Milestone, psetSeed: 'pset_ms_', relSeed: 'rel_ms_',
     write(task) {
@@ -266,11 +257,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 5. Fase 2.5 — nivelleer-vertraging (geen native per-taak-slot; §7.6/§7.7: undefined/0 schrijft niets).
-  //    Z14: uitgebreid met de Z0-subdag-precisie (`levelingDelayMinutes`/`levelingDelayElapsed`) —
-  //    zelfde pset, twee EXTRA optionele props. Golden rule blijft intact: een taak met alleen het
-  //    bestaande `levelingDelay` (hele werkdagen) schrijft byte-identiek dezelfde ÉÉN property als
-  //    vóór deze uitbreiding; de twee nieuwe props verschijnen alleen wanneer ze ook echt gezet zijn.
+  // 5. Nivelleer-vertraging (geen native per-taak-slot; undefined/0 schrijft niets), plus de
+  //    subdag-precisie (`levelingDelayMinutes`/`levelingDelayElapsed`) als twee optionele props die
+  //    alleen verschijnen wanneer ze gezet zijn. Een taak met alleen `levelingDelay` (hele werkdagen)
+  //    schrijft ÉÉN property.
   {
     name: PSET.Leveling, psetSeed: 'pset_lvl_', relSeed: 'rel_lvl_',
     write(task) {
@@ -296,7 +286,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 6. Fase 2.10 (item 1) — taak-aantekeningen (checklist) als één autoritatief JSON-veld.
+  // 6. Taak-aantekeningen (checklist) als één autoritatief JSON-veld.
   {
     name: PSET.TaskNotes, psetSeed: 'pset_notes_', relSeed: 'rel_notes_',
     write(task) {
@@ -314,7 +304,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 7. Fase 3 (H2) — taak-kleur (IfcTask heeft geen native kleur-attribuut).
+  // 7. Taak-kleur (IfcTask heeft geen native kleur-attribuut).
   {
     name: PSET.TaskAppearance, psetSeed: 'pset_appear_', relSeed: 'rel_appear_',
     write(task) {
@@ -324,7 +314,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) if (name === 'Color' && typeof value === 'string' && value) task.color = value;
     },
   },
-  // 8. Fase 3 (H2) — fase-2.9-analyse-uitvoer (interfererende float / bijna-kritiek / float-path).
+  // 8. Analyse-uitvoer (interfererende float / bijna-kritiek / float-path).
   {
     name: PSET.Analysis, psetSeed: 'pset_ana_', relSeed: 'rel_ana_',
     write(task) {
@@ -343,11 +333,9 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 9. Z14 (etappe "nul afwijkingen") — werkonderbrekingen (`Task.splitGaps`, Z4 leest dit uit .mpp
-  //    sinds de mpp-lezer de timephased-werksegmenten decodeert). Kopieert het ExternalLink/TaskNotes-
-  //    patroon: één autoritatief JSON-veld, golden rule (leeg/afwezig ⇒ niets geschreven), corrupte of
-  //    verkeerd-gevormde JSON wordt genegeerd i.p.v. de load te breken (conservatief, T5-precedent:
-  //    een extern-stijl bestand zonder deze pset-naam raakt `apply` hier sowieso nooit aan).
+  // 9. Werkonderbrekingen (`Task.splitGaps`, o.a. uit de timephased-werksegmenten van .mpp).
+  //    ExternalLink/TaskNotes-patroon: één autoritatief JSON-veld, golden rule (leeg/afwezig ⇒ niets
+  //    geschreven), corrupte of verkeerd-gevormde JSON wordt genegeerd i.p.v. de load te breken.
   {
     name: PSET.Splits, psetSeed: 'pset_splits_', relSeed: 'rel_splits_',
     write(task) {
@@ -365,7 +353,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
             && typeof (g as TaskSplitGap).afterMinutes === 'number'
             && typeof (g as TaskSplitGap).gapMinutes === 'number';
           if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isValidGap)) {
-            // B1c-plan-2 taak 7 + issue #146: `source` is een GESLOTEN verzameling (`'leveling'`
+            // `source` is een GESLOTEN verzameling (`'leveling'`
             // en `'user'`). Een onbekende waarde (handgemaakt/vijandig IFC) wordt WEGGELATEN — het
             // gat zelf blijft staan, zelfde conservatieve lat als de corrupte-JSON-catch hieronder:
             // liever een gat zonder herkomst dan een geweigerde load.
@@ -377,8 +365,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 10. Z14 — handmatig-gepland-vlag (`Task.manuallyScheduled`, O3-besluit: gewoon taakveld zoals
-  //     isHammock, altijd round-trippend). Kopieert het Hammock-stramien (één boolean, golden rule).
+  // 10. Handmatig-gepland-vlag (`Task.manuallyScheduled`, gewoon taakveld zoals isHammock, altijd
+  //     round-trippend). Kopieert het Hammock-stramien (één boolean, golden rule).
   {
     name: PSET.Manual, psetSeed: 'pset_man_', relSeed: 'rel_man_',
     write(task) {
@@ -393,7 +381,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 11. Z14 (Z12-herwerk-signaal) — MSP's eigen resume/stop-instanten (`TaskTime.resume`/`stop`).
+  // 11. MSP's eigen resume/stop-instanten (`TaskTime.resume`/`stop`).
   //     Losse getypte props, zelfde vorm als `Deadline` in PSET.Constraints (optionele ISO-datum(tijd)
   //     als IFCTEXT — geen aparte dag/uur-typering nodig, de string is al in de juiste vorm).
   {
@@ -412,8 +400,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 12. Z14b — het Z8-venster, ALLEEN `timephasedFinishFloor`/`timephasedStartAnchor` (twee platte
-  //     ISO-strings, geen cross-object-verwijzing). AFGELEIDE sturing (eigenaarsprincipe):
+  // 12. Het timephased-venster, ALLEEN `timephasedFinishFloor`/`timephasedStartAnchor` (twee platte
+  //     ISO-strings, geen cross-object-verwijzing). AFGELEIDE sturing:
   //     `taskDefaults.ts`'s `clearTimephasedWindow` wist ze bij een inhoudelijke bewerking, dus een
   //     bewerkt-en-opnieuw-opgeslagen taak schrijft dan geen (of minder) props hier — dat is het
   //     bedoelde gedrag, niet een gat. `timephasedDurationWalks` NIET hier: dat veld draagt
@@ -437,7 +425,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 13. Z14b (eigenaarsprincipe 2026-08-18) — de RAUWE, gedecodeerde contourperiodes
+  // 13. De RAUWE, gedecodeerde contourperiodes
   //     (`Task.timephasedContours`). Eén autoritatief JSON-veld, ExternalLink/TaskNotes/Splits-
   //     patroon — NOOIT gewist door een edit (dat is precies waarom dit een APART pset is van
   //     `Window` hierboven, dat wél kan leeglopen).
@@ -458,7 +446,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       const isValidContour = (c: unknown): c is TaskTimephasedContour =>
         !!c && typeof c === 'object'
         && (typeof (c as TaskTimephasedContour).resourceUid === 'number' || (c as TaskTimephasedContour).resourceUid === null)
-        // Contour-engine (2026-09): optioneel OPS-resource-id; afwezig blijft geldig (Z14b-bestanden).
+        // Optioneel OPS-resource-id; afwezig blijft geldig (oudere bestanden).
         && ((c as TaskTimephasedContour).resourceId === undefined || typeof (c as TaskTimephasedContour).resourceId === 'string')
         && Array.isArray((c as TaskTimephasedContour).periods)
         && (c as TaskTimephasedContour).periods.every(isValidPeriod);
@@ -473,7 +461,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 14. Z14b (eigenaarsbesluit 2026-08-18, punt 1) — MSP's Task Type + Effort-Driven-vlag. Losse
+  // 14. MSP's Task Type + Effort-Driven-vlag. Losse
   //     getypte props, zelfde vorm als PSET.Manual (boolean-guard vóór de string-guard, precedent:
   //     `Hard` in PSET.Constraints).
   {
@@ -494,9 +482,9 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 15. X7 — precies de vijf velden die P6-voortgang en de resume-firewall na save/reload
-  //     betekenisvast houden. Dit is een smalle per-taak-pset; de bredere X9 raw-archive-etappe
-  //     blijft buiten scope. Golden rule: een taak zonder één van deze velden schrijft geen pset.
+  // 15. Precies de vijf velden die P6-voortgang en de resume-firewall na save/reload
+  //     betekenisvast houden. Een smalle per-taak-pset; het ruwe XER-archief is `XerSourceArchive`.
+  //     Golden rule: een taak zonder één van deze velden schrijft geen pset.
   {
     name: PSET.P6Progress, psetSeed: 'pset_p6prog_', relSeed: 'rel_p6prog_',
     write(task) {
@@ -532,7 +520,7 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
     },
   },
   // 16. Expliciete WBS-identiteit — nodig om een lege PROJWBS-samenvatting door IFC te bewaren.
-  //     Alleen `true` schrijft iets; alle bestaande taken blijven byte-identiek.
+  //     Alleen `true` schrijft iets.
   {
     name: PSET.Summary, psetSeed: 'pset_sum_', relSeed: 'rel_sum_',
     write(task) {
@@ -546,9 +534,8 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       }
     },
   },
-  // 17. Taaktypes-etappe (ontwerp 2026-09-04 §4.4) — de neutrale werkregel. Zelfde vorm als 14;
-  //     `WORK_RULES` (satisfies-afgedwongen lijst) is de geldigheidscheck, een onbekende waarde
-  //     blijft stil weg (byte-identiek voor elk bestand zonder dit pset). Staat NAAST
+  // 17. De neutrale werkregel. Zelfde vorm als 14; `WORK_RULES` (satisfies-afgedwongen lijst) is de
+  //     geldigheidscheck, een onbekende waarde blijft stil weg. Staat NAAST
   //     `OPS_MspTaskType` en `OPS_P6Progress`: de importvelden blijven onaangeraakt, de regel is
   //     een afgeleide die de gebruiker later los kan wijzigen.
   {

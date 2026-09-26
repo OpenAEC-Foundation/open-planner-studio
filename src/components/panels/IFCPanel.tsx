@@ -20,16 +20,16 @@ export function IFCPanel() {
   const customFieldDefs = useAppStore(s => s.customFieldDefs);
   const customTaskTypes = useAppStore(s => s.customTaskTypes);
   const resourceCalendars = useAppStore(s => s.calendars);
-  // B4-fix (audit P2): baselines/activeBaselineId meesturen — voorheen schreef dit paneel stil
-  // ONVOLLEDIGE IFC (baselines gingen verloren bij genereren/kopiëren vanuit de IFC-tab).
+  // Baselines/activeBaselineId meesturen — anders schrijft dit paneel stil ONVOLLEDIGE IFC
+  // (baselines verloren bij genereren/kopiëren vanuit de IFC-tab).
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
-  // Critreview PR #167, bevinding 1: in de modus "datums zoals opgeslagen" schrijft de writer `$` op
+  // In de modus "datums zoals opgeslagen" schrijft de writer `$` op
   // de niet-vastgelegde assen — ook hier, anders toont/kopieert dit paneel de terugvallen als waarden.
   const recordedDates = useAppStore(s => s.recordedDates);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   const loadState = useAppStore(s => s.loadState);
-  const notify = useAppStore(s => s.notify);  // bevinding K8 — alert() vervangen door het meldingenkanaal
+  const notify = useAppStore(s => s.notify);  // het ene meldingenkanaal, geen alert()
 
   const generated = useMemo(() => {
     return writeIFC(buildWriteIFCInput({
@@ -59,11 +59,11 @@ export function IFCPanel() {
         // `loadState` rekent zelf door en publiceert de viewstart in dezelfde ene publicatie.
         loadState(data, { viewStartDate: data.project.startDate });
         setDirty(false);
-        // Eigenaarsbesluit 2026-09-24: een onbruikbaar XER-bronarchief is weggelaten — nooit stil.
+        // Een onbruikbaar XER-bronarchief is weggelaten — nooit stil.
         const archiveNotice = withXerArchiveIssueNotice(undefined, [data.xerArchiveIssue]);
         if (archiveNotice) notify(archiveNotice);
       } catch (err) {
-        // Bevinding K8: alert() (de énige in de hele repo) vervangen door het gecentraliseerde kanaal.
+        // Via het gecentraliseerde meldingenkanaal, geen alert().
         notify({
           severity: 'error',
           messageKey: 'notifications.ifcParseFailed',

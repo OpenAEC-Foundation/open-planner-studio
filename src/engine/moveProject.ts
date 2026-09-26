@@ -11,12 +11,11 @@ import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
 import { isSummaryProgressDerived } from '@/engine/scheduler/summaryProgress';
 
 /**
- * "Project verplaatsen" (pakket D1) — PURE domeintransformatie, geen store-import.
+ * "Project verplaatsen" — PURE domeintransformatie, geen store-import.
  * Precedent: `src/engine/externalLinks.ts`. Gedeeld door de preview (droogrun) én de commit, zodat
  * die twee per constructie niet kunnen divergeren.
  *
- * KERNMODEL (ontwerpbesluit 2 uit
- * `docs/superpowers/specs/2026-07-20-move-project-design.md`): de PLANNING schuift met Δ
+ * KERNMODEL: de PLANNING schuift met Δ
  * kalenderdagen, de KALENDERS schuiven NIET. Feestdagen/bouwvak/winterstop liggen op absolute
  * datums, dus na de verschuiving vallen ze op andere plekken in het netwerk en kan het projectEINDE
  * met een ánder aantal kalenderdagen opschuiven dan Δ. Dat is geen bug maar het hele punt; de
@@ -28,7 +27,7 @@ import { isSummaryProgressDerived } from '@/engine/scheduler/summaryProgress';
  */
 
 // ---------------------------------------------------------------------------
-// Veld-verdicten: de volledigheids-assertie (§1.11 van het ontwerp)
+// Veld-verdicten: de volledigheids-assertie
 // ---------------------------------------------------------------------------
 
 /**
@@ -68,13 +67,13 @@ const TASK_TIME_VERDICTS = {
   interferingFloat: 'derived',
   isNearCritical: 'derived',
   floatPath: 'derived',
-  actualStart: 'shift',           // R5 — schuift mee mét de statusdatum, zodat de voortgangs-vloer klopt
-  actualFinish: 'shift',          // R5
-  resume: 'shift',                // Z12-herwerk — MSP's eigen hervattingsinstant, zelfde aard als
+  actualStart: 'shift',           // schuift mee mét de statusdatum, zodat de voortgangs-vloer klopt
+  actualFinish: 'shift',          // idem
+  resume: 'shift',                // MSP's eigen hervattingsinstant, zelfde aard als
                                    // actualStart/actualFinish (absoluut, kalender-geankerd feit uit
                                    // het bestand); schuift mee, anders wijst een verplaatst project
                                    // naar een RESUME-datum uit het verleden.
-  stop: 'shift',                  // Z12-herwerk — spiegelt resume hierboven.
+  stop: 'shift',                  // spiegelt resume hierboven.
   actualDuration: 'n/a',          // duur
   remainingTime: 'n/a',           // duur
   remainingMinutes: 'n/a',        // duur
@@ -85,61 +84,60 @@ const TASK_VERDICTS = {
   id: 'n/a', name: 'n/a', description: 'n/a', wbsCode: 'n/a', taskType: 'n/a', customTaskTypeId: 'n/a', status: 'n/a',
   isMilestone: 'n/a', milestoneKind: 'n/a', mandatory: 'n/a', priority: 'n/a',
   levelingDelay: 'n/a',           // vertraging in werkdagen (relatief)
-  levelingDelayMinutes: 'n/a',    // Z0: subdag-precisie van levelingDelay, zelfde relatieve aard
-  levelingDelayElapsed: 'n/a',    // Z0: vlag bij levelingDelayMinutes, geen datum
-  splitGaps: 'n/a',                // Z0-fixronde (orkestratorbesluit BEVINDING 2): offset-gebaseerd
+  levelingDelayMinutes: 'n/a',    // subdag-precisie van levelingDelay, zelfde relatieve aard
+  levelingDelayElapsed: 'n/a',    // vlag bij levelingDelayMinutes, geen datum
+  splitGaps: 'n/a',                // offset-gebaseerd
                                     // (afterMinutes/gapMinutes) — geen datum erin, dus dezelfde
                                     // taxonomie als levelingDelay hierboven ('n/a', niet 'keep':
                                     // 'keep' is voor velden met een datum die je BEWUST niet
-                                    // verschuift, splitGaps heeft er nooit een gehad)
-  manuallyScheduled: 'n/a',        // Z0-fixronde (orkestratorbesluit BEVINDING 2): vlag, geen datum —
+                                    // verschuift, splitGaps heeft er geen)
+  manuallyScheduled: 'n/a',        // vlag, geen datum —
                                     // zelfde taxonomie als isHammock hierboven; de datums eronder
                                     // (time.*) schuiven al normaal mee via TASK_TIME_VERDICTS
-  timephasedFinishFloor: 'shift',  // Z8 (gemelde uitzondering op de bestandseigendom, zie het
-                                    // commitbericht): absoluut ISO-instant, zelfde aard als deadline
+  timephasedFinishFloor: 'shift',  // absoluut ISO-instant, zelfde aard als deadline
                                     // hieronder — een projectverschuiving moet de vensterondergrens
                                     // meeschuiven, anders klemt een verouderde floor de herberekende
                                     // finish vast op de OUDE datum
-  timephasedStartAnchor: 'shift',  // Z8, idem — het RAUWE startanker-tegenhanger
-  timephasedDurationWalks: 'shift', // Z8-herwerkronde: array met een `anchor`-datum per item —
+  timephasedStartAnchor: 'shift',  // idem — het RAUWE startanker-tegenhanger
+  timephasedDurationWalks: 'shift', // array met een `anchor`-datum per item —
                                     // zelfde motivering als `externalLinks` hieronder (array met een
                                     // shiftbaar subveld); `resourceCalendarId` is een verwijzing,
                                     // schuift niet mee
-  timephasedContours: 'n/a',       // Z14b: offset-gebaseerd (afterMinutes/minutes/workMinutes),
+  timephasedContours: 'n/a',       // offset-gebaseerd (afterMinutes/minutes/workMinutes),
                                     // geen datum erin — zelfde taxonomie als splitGaps hierboven
-  mspTaskType: 'n/a',              // Z14b: MSP-eigen enum, geen datum
-  effortDriven: 'n/a',             // Z14b: vlag, geen datum
-  workRule: 'n/a',                 // taaktypes-etappe: regel, geen datum
-  p6DurationType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
-  p6ActivityType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
+  mspTaskType: 'n/a',              // MSP-eigen enum, geen datum
+  effortDriven: 'n/a',             // vlag, geen datum
+  workRule: 'n/a',                 // regel, geen datum
+  p6DurationType: 'n/a',           // P6-eigen enum, geen datum
+  p6ActivityType: 'n/a',           // P6-eigen enum, geen datum
   p6ProjectId: 'n/a', p6TaskId: 'n/a', p6ExplicitTargetWindow: 'n/a', p6CompletePctType: 'n/a',
-  p6ExpectedFinish: 'shift',       // X7: opgeslagen absolute P6-brondatum verschuift mee
-  p6SuspendResume: 'n/a',          // X0 (XER-etappeplan): herkomstvlag, geen datum zelf — de
+  p6ExpectedFinish: 'shift',       // opgeslagen absolute P6-brondatum verschuift mee
+  p6SuspendResume: 'n/a',          // herkomstvlag, geen datum zelf — de
                                     // datums eronder (time.resume/stop) schuiven al mee via
                                     // TASK_TIME_VERDICTS
   parentId: 'n/a', childIds: 'n/a', isSummary: 'n/a',
   time: 'shift',                  // zie TASK_TIME_VERDICTS
   resourceIds: 'n/a', color: 'n/a', activityCodes: 'n/a',
-  customFields: 'keep',           // §1.7 — een 'date'-gebruikersveld heeft onbekende semantiek
-  constraint: 'shift',            // .date schuift; .type/.hard niet (R4)
-  constraint2: 'shift',           // fase 2.9 — VERGEET DEZE NIET
+  customFields: 'keep',           // een 'date'-gebruikersveld heeft onbekende semantiek
+  constraint: 'shift',            // .date schuift; .type/.hard niet
+  constraint2: 'shift',           // VERGEET DEZE NIET
   isHammock: 'n/a',               // duur wordt afgeleid uit de drivers; geen eigen datum die telt
-  externalLinks: 'shift',         // .anchorDate schuift (R6); lag/sourceRef/sourceMissing niet
+  externalLinks: 'shift',         // .anchorDate schuift; lag/sourceRef/sourceMissing niet
   deadline: 'shift',
-  calendarId: 'n/a',              // verwijzing; de kalender zelf schuift niet (§1.4)
+  calendarId: 'n/a',              // verwijzing; de kalender zelf schuift niet
   notes: 'n/a',                   // {id,text,done}
 } satisfies Record<keyof Task, MoveVerdict>;
 
 const TASK_CONSTRAINT_VERDICTS = {
   type: 'n/a',
   date: 'shift',
-  hard: 'n/a',                    // R4: de VLAG blijft, de DATUM eronder schuift mee
+  hard: 'n/a',                    // de VLAG blijft, de DATUM eronder schuift mee
 } satisfies Record<keyof TaskConstraint, MoveVerdict>;
 
 const EXTERNAL_LINK_VERDICTS = {
   id: 'n/a', direction: 'n/a', relType: 'n/a',
   lagDays: 'n/a', lagMinutes: 'n/a',
-  anchorDate: 'shift',            // R6
+  anchorDate: 'shift',
   sourceRef: 'n/a',
   sourceMissing: 'n/a',           // betekent "bron niet vindbaar", NIET "anker verouderd" — niet zetten
 } satisfies Record<keyof ExternalLink, MoveVerdict>;
@@ -152,11 +150,11 @@ const PROJECT_VERDICTS = {
   createdAt: 'keep',              // bestandshistorie, geen planningsdatum
   modifiedAt: 'keep',             // wél op `now` gezet door de store-actie, niet met Δ
   author: 'n/a', company: 'n/a', wbsAutoNumber: 'n/a',
-  statusDate: 'shift',            // P6 data date (R5)
+  statusDate: 'shift',            // P6 data date
   progressMode: 'n/a', schedulingOptions: 'n/a', schedulingProfile: 'n/a',
   defaultTaskDurationUnit: 'n/a',
-  defaultWorkRule: 'n/a',          // taaktypes-etappe: projectstandaard-regel, geen datum
-  companyId: 'n/a', companyName: 'n/a',  // B1: statische bibliotheekbinding, geen planningsdatum
+  defaultWorkRule: 'n/a',          // projectstandaard-regel, geen datum
+  companyId: 'n/a', companyName: 'n/a',  // statische bibliotheekbinding, geen planningsdatum
 } satisfies Record<keyof Project, MoveVerdict>;
 
 const RESOURCE_VERDICTS = {
@@ -164,8 +162,8 @@ const RESOURCE_VERDICTS = {
   availability: 'n/a', maxUnits: 'n/a', calendarId: 'n/a',
   availabilitySteps: 'shift',     // .from schuift: effective-dated capaciteit is PROJECT-planning
   unitOfMeasure: 'n/a', parentId: 'n/a',
-  color: 'n/a',                   // #21: weergavekleur — geen datum, verschuift niet mee
-  libraryOrigin: 'n/a',           // B1: herkomststempel-metadata, geen planningsdatum
+  color: 'n/a',                   // weergavekleur — geen datum, verschuift niet mee
+  libraryOrigin: 'n/a',           // herkomststempel-metadata, geen planningsdatum
 } satisfies Record<keyof Resource, MoveVerdict>;
 
 const AVAILABILITY_STEP_VERDICTS = {
@@ -198,13 +196,13 @@ void AVAILABILITY_STEP_VERDICTS; void BASELINE_VERDICTS; void BASELINE_TASK_VERD
 // ---------------------------------------------------------------------------
 
 export interface MoveProjectOptions {
-  /** Baselines mee verschuiven. Default false (§1.6): een baseline bestaat om AFWIJKING te meten,
+  /** Baselines mee verschuiven. Default false: een baseline bestaat om AFWIJKING te meten,
    *  dus hem stilzwijgend meeschuiven wist precies het signaal waarvoor hij is aangemaakt. */
   shiftBaselines?: boolean;
 }
 
 /**
- * VORMBEHOUDENDE shift van één ISO-waarde (§2). De modus wordt uit de STRING afgeleid, niet uit de
+ * VORMBEHOUDENDE shift van één ISO-waarde. De modus wordt uit de STRING afgeleid, niet uit de
  * kalender: `project.statusDate` mag datetime zijn óók op een dag-kalender, en een gemengd
  * dag/uur-document heeft per taak een andere vorm — afleiden uit de
  * effectieve kalender zou daar fout gaan, afleiden uit de string is per definitie correct.
@@ -229,7 +227,7 @@ export function shiftIso(iso: string | undefined, deltaDays: number): string | u
 }
 
 /** Δ in kalenderdagen tussen de huidige en de nieuwe projectstart.
- *  `NaN` bij een lege/onparseerbare datum aan een van beide kanten (R9). */
+ *  `NaN` bij een lege/onparseerbare datum aan een van beide kanten. */
 export function computeMoveDelta(currentStart: string | undefined, newStart: string | undefined): number {
   if (!currentStart || !newStart) return NaN;
   const d = diffDays(currentStart, newStart);
@@ -281,10 +279,8 @@ export function shiftTask(task: Task, delta: number): Task {
   if (task.p6ExpectedFinish !== undefined) {
     next.p6ExpectedFinish = shiftIso(task.p6ExpectedFinish, delta);
   }
-  // Z8 (gemelde uitzondering op de bestandseigendom): de verdicts hierboven markeren deze twee als
-  // 'shift' — dat is puur documentatie zonder DEZE regels, zie de moduleheader-waarschuwing bij
-  // TASK_VERDICTS ("'keep'-voorschrift... betekent dat je de shift ook echt met de hand moet
-  // implementeren").
+  // De verdicts hierboven markeren deze twee als 'shift' — dat is puur documentatie zonder DEZE
+  // regels: de shift-functies implementeren de tabellen met de hand (zie de kop van de veldtabellen).
   if (task.timephasedFinishFloor !== undefined) {
     next.timephasedFinishFloor = shiftIso(task.timephasedFinishFloor, delta);
   }
@@ -300,7 +296,7 @@ export function shiftTask(task: Task, delta: number): Task {
     next.externalLinks = task.externalLinks.map((l) => ({
       ...l,
       anchorDate: shiftIso(l.anchorDate, delta),
-      // sourceMissing BEWUST ongemoeid (R6): dat veld betekent "bron niet vindbaar", niet
+      // sourceMissing BEWUST ongemoeid: dat veld betekent "bron niet vindbaar", niet
       // "anker verouderd"; misbruiken zou de ghost-weergave vervuilen.
     }));
   }
@@ -344,7 +340,7 @@ export function shiftBaseline(baseline: Baseline, delta: number): Baseline {
 }
 
 // ---------------------------------------------------------------------------
-// Impact-telling voor de preview (§7.4) — puur, geen solve
+// Impact-telling voor de preview — puur, geen solve
 // ---------------------------------------------------------------------------
 
 export interface MoveImpact {
@@ -352,16 +348,16 @@ export interface MoveImpact {
   taskCount: number;
   /** Taken met een primaire en/of secundaire constraint-DATUM. */
   constraintCount: number;
-  /** Taken met een harde Mandatory-pin (R4) — hun pin verschuift mee. */
+  /** Taken met een harde Mandatory-pin — hun pin verschuift mee. */
   hardPinCount: number;
   deadlineCount: number;
-  /** Taken met een EIGEN actualStart en/of actualFinish (R5). Een fase telt niet: haar werkelijke
+  /** Taken met een EIGEN actualStart en/of actualFinish. Een fase telt niet: haar werkelijke
    *  datums zijn afgeleid uit de bladen (`isSummaryProgressDerived`) en schuiven via hen mee. */
   actualCount: number;
-  /** Aantal externe koppelingen (R6) — anker schuift mee, bronproject niet. */
+  /** Aantal externe koppelingen — anker schuift mee, bronproject niet. */
   externalLinkCount: number;
   availabilityStepCount: number;
-  /** Ingevulde gebruikersvelden van type 'date' — deze schuiven BEWUST NIET (§1.7). */
+  /** Ingevulde gebruikersvelden van type 'date' — deze schuiven BEWUST NIET. */
   dateCustomFieldCount: number;
   baselineCount: number;
 }
@@ -407,7 +403,7 @@ export function computeMoveImpact(
 }
 
 // ---------------------------------------------------------------------------
-// R7 — dekking van de GEGENEREERDE feestdagen
+// Dekking van de GEGENEREERDE feestdagen
 // ---------------------------------------------------------------------------
 
 export interface HolidayGapCalendar {
@@ -420,7 +416,7 @@ export interface HolidayGapCalendar {
 }
 
 /**
- * R7 (verplichte preview-waarschuwing): `CalendarGeneration.generatedFromYear/ToYear` begrenst de
+ * Verplichte preview-waarschuwing: `CalendarGeneration.generatedFromYear/ToYear` begrenst de
  * GEMATERIALISEERDE feestdagen (`computeGenerateSpan` geeft zonder einddatum `startjaar−1 …
  * startjaar+3`). Verplaats je een project een paar jaar vooruit, dan valt de nieuwe projectperiode
  * buiten die spanne en rekent de planning STIL zonder feestdagen. Dat moet zichtbaar zijn.

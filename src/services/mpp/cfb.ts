@@ -5,19 +5,15 @@
 // Structuurkennis is gebaseerd op de MS-CFB-specificatie (Microsoft) en, ter verificatie, op de
 // vergelijkbare sector/FAT/directory-afhandeling in MPXJ (Jon Iles e.a., LGPL-2.1, POI-achtig):
 // https://github.com/joniles/mpxj — met name `org.mpxj.mpp` (leest hetzelfde containerformaat).
-// Deze module kent geen MPP-specifieke semantiek; dat gebeurt in latere lagen
-// (`mppContainer.ts` e.v., fase 3.8 etappe 1, taak T4+). Dit bestand levert alleen de generieke
-// storage/stream-boom en ruwe streambytes.
+// Deze module kent geen MPP-specifieke semantiek (die zit in `mppContainer.ts` e.v.); ze levert
+// alleen de generieke storage/stream-boom en ruwe streambytes.
 //
-// Hardening (T3-kwaliteitsreview, twee rondes): elke lus die over bestandsinhoud loopt is
-// begrensd door een bovengrens die uitsluitend uit de ECHTE bestandsgrootte volgt
-// (`maxSectorSteps`/`maxMiniSteps` — apart per korrel, zie de toelichting bij die velden), nooit
-// door een ongevalideerde teller uit het bestand zelf (zoals `numDifatSectors` of `numFatSectors`)
-// — een geprepareerd bestand mag nooit meer CPU/geheugen claimen dan zijn eigen omvang
-// rechtvaardigt. Zie `tests/planning/check-mpp-import.ts` voor synthetische fixtures die dit ook
-// daadwerkelijk bewijzen (round-trip, FAT/mini-FAT-grens, en vijandige varianten — incl. een
-// zelf-lussende DIFAT-sector met een vijandig grote `numFatSectors`, en dubbele siblings die de
-// gedeelde visited-set in de boomopbouw beproeven).
+// Hardening: elke lus over bestandsinhoud is begrensd door een bovengrens die uitsluitend uit de
+// ECHTE bestandsgrootte volgt (`maxSectorSteps`/`maxMiniSteps`), nooit door een ongevalideerde
+// teller uit het bestand zelf (zoals `numDifatSectors` of `numFatSectors`) — een geprepareerd bestand
+// mag nooit meer CPU/geheugen claimen dan zijn eigen omvang rechtvaardigt. Synthetische fixtures in
+// `tests/planning/check-mpp-import.ts` bewijzen dit (o.a. een zelf-lussende DIFAT-sector met een
+// vijandig grote `numFatSectors`, en dubbele siblings voor de gedeelde visited-set).
 
 const MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
@@ -73,19 +69,16 @@ export class CfbFile {
   private readonly miniStreamSize: number;
   /** Bovengrens voor elke begrensde lus over GEWONE sectoren (DIFAT/FAT/directory/gewone-stream-
    *  ketens) — afgeleid van de ECHTE bestandsgrootte gedeeld door `sectorSize`, nooit van een
-   *  teller die het bestand zelf beweert (zie de moduleheader hierboven, C2). Bewust een apart
-   *  veld van `maxMiniSteps`: een grens op basis van de fijnere minisector-korrel zou hier te ruim
-   *  zijn (een geprepareerd bestand kan dan tot 8x zoveel gewone-sector-stappen claimen dan zijn
-   *  eigen sectortelling rechtvaardigt — gemeten: 20 MB invoer gaf zo 932 MB piekgeheugen vóórdat
-   *  de nette fout viel). */
+   *  teller die het bestand zelf beweert. Bewust apart van `maxMiniSteps`: de fijnere
+   *  minisector-korrel zou hier tot 8× te ruim zijn (20 MB invoer gaf zo 932 MB piekgeheugen). */
   private readonly maxSectorSteps: number;
   /** Zelfde soort bovengrens, maar voor MINI-sector-ketens (readMiniChain) — afgeleid van de
    *  bestandsgrootte gedeeld door `miniSectorSize` (64 bytes), de fijnste korrel. Een minisector-
    *  keten heeft per byte data tot 8x zoveel schakels nodig als een gewone sectorketen, dus deze
    *  grens moet ruimer zijn dan `maxSectorSteps` om legitieme mini-streams niet af te wijzen. */
   private readonly maxMiniSteps: number;
-  /** Mini-stream-inhoud (= de stream van de root-entry), lazy gelezen en hergebruikt (I1): zonder
-   *  cache zou elke kleine stream de hele mini-stream opnieuw via de gewone FAT moeten lezen. */
+  /** Mini-stream-inhoud (= de stream van de root-entry), lazy gelezen en hergebruikt: zonder cache
+   *  zou elke kleine stream de hele mini-stream opnieuw via de gewone FAT moeten lezen. */
   private miniStreamCache: Uint8Array | null = null;
 
   constructor(bytes: Uint8Array) {
@@ -107,9 +100,8 @@ export class CfbFile {
     if (majorVersion !== 3 && majorVersion !== 4) {
       throw new Error(`CFB: onbekende major version ${majorVersion} (verwacht 3 of 4)`);
     }
-    // I3: sectorShift/miniSectorShift/miniStreamCutoff zijn voor CFB in de praktijk vaste
-    // waarden per major version — expliciet valideren i.p.v. `1 << sectorShift` blind te
-    // vertrouwen (dat wrapt stilzwijgend modulo 32 bij een ongeldige shift, i.p.v. te falen).
+    // sectorShift/miniSectorShift/miniStreamCutoff zijn voor CFB vaste waarden per major version —
+    // expliciet valideren i.p.v. `1 << sectorShift` blind te vertrouwen (dat wrapt stil modulo 32).
     const sectorShift = this.view.getUint16(30, true);
     const miniSectorShift = this.view.getUint16(32, true);
     const expectedSectorShift = majorVersion === 3 ? 9 : 12;
@@ -136,10 +128,9 @@ export class CfbFile {
     const numDifatSectors = this.view.getUint32(72, true);
 
     // Sector n begint op byteoffset (n + 1) * sectorSize (geldt voor v3 én v4 — bij v4 is de
-    // header zelf met nullen opgevuld tot de volledige sectorgrootte). `maxSectors` — de echte,
-    // fysieke sectortelling van het bestand — is de ENIGE bron voor beide stapbudgetten hieronder
-    // (C2, tweede ronde): geen enkele lus mag zijn budget laten meegroeien met een teller die uit
-    // het bestand zelf komt (`numDifatSectors`, `numFatSectors`, …).
+    // header zelf met nullen opgevuld tot de volledige sectorgrootte). `maxSectors` — de fysieke
+    // sectortelling — is de ENIGE bron voor beide stapbudgetten: geen lus mag zijn budget laten
+    // meegroeien met een teller uit het bestand zelf.
     const maxSectors = Math.ceil(bytes.byteLength / this.sectorSize);
     this.maxSectorSteps = Math.max(16, maxSectors + 16);
     this.maxMiniSteps = Math.max(16, Math.ceil(bytes.byteLength / this.miniSectorSize) + 16);
@@ -169,13 +160,9 @@ export class CfbFile {
   // ── DIFAT/FAT ──────────────────────────────────────────────────────────────────────────────
 
   /** Sommeert de FAT-sectornummers: 109 header-entries + eventueel geketende DIFAT-sectoren.
-   *  C2 (tweede ronde): begrensd door `maxSectorSteps` (bestandsgrootte / sectorSize), NOOIT door
-   *  het ongevalideerde `numDifatSectors`/`numFatSectors` uit de header. `cap` is uitdrukkelijk
-   *  `Math.min(numFatSectors || maxSectors, maxSectors)` — niet zomaar `numFatSectors`: een
-   *  vijandig grote `numFatSectors` (bv. 0xFFFFFFFF) mag de verzamelde `difat`-array nooit laten
-   *  uitgroeien tot iets voorbij wat het bestand fysiek aan sectoren bevat (`maxSectors`) —
-   *  gemeten vóór deze fix: 20 MB geprepareerde invoer gaf 932 MB piekgeheugen vóór de nette fout
-   *  viel, doordat `cap` bij een grote `numFatSectors` feitelijk ongelimiteerd was. */
+   *  Begrensd door `maxSectorSteps`, NOOIT door het ongevalideerde `numDifatSectors`/`numFatSectors`.
+   *  `cap` is `Math.min(numFatSectors || maxSectors, maxSectors)`: een vijandig grote `numFatSectors`
+   *  (bv. 0xFFFFFFFF) mag de `difat`-array nooit voorbij het fysieke aantal sectoren laten groeien. */
   private readDifat(firstDifatSector: number, numDifatSectors: number, numFatSectors: number, maxSectors: number): number[] {
     const cap = Math.min(numFatSectors || maxSectors, maxSectors);
     const difat: number[] = [];
@@ -208,11 +195,8 @@ export class CfbFile {
     return difat;
   }
 
-  /** Bouwt de FAT: u32-array, per sector de volgende sector in zijn keten. C2: het aantal
-   *  entries wordt gekapt op `maxSectors` — het werkelijke aantal sectoren dat in het bestand
-   *  past. Meer entries zijn hoe dan ook zinloos (er bestaan niet meer sectoren om naar te
-   *  verwijzen), dus verder verzamelen is alleen maar onnodig werk/geheugen. `maxSectors` komt van
-   *  de aanroeper (de constructor) i.p.v. hier opnieuw berekend te worden, zodat deze en
+  /** Bouwt de FAT: u32-array, per sector de volgende sector in zijn keten. Gekapt op `maxSectors`
+   *  (meer entries zijn zinloos). `maxSectors` komt van de constructor, zodat deze functie en
    *  `readDifat` gegarandeerd dezelfde grens hanteren. */
   private readFat(difat: number[], maxSectors: number): Uint32Array {
     const entriesPerFatSector = this.sectorSize / 4;
@@ -290,13 +274,10 @@ export class CfbFile {
 
   // ── Boom ───────────────────────────────────────────────────────────────────────────────────
 
-  /** Bouwt de storage/stream-boom uit de platte directory-lijst. C1: volledig iteratief via een
-   *  expliciete worklist (géén recursie — een kunstmatig diepe ketting van geneste storages geeft
-   *  dus geen stack-overflow) en met ÉÉN gedeelde visited-set over de VOLLEDIGE boom, niet per
-   *  storage: een self-referencing of anderszins cyclische child/left/right-verwijzing wordt zo
-   *  hoe dan ook maar één keer verwerkt, ongeacht op welke diepte hij opduikt — een al bezocht
-   *  id wordt stilzwijgend overgeslagen (`continue`) i.p.v. opnieuw (of exponentieel vaak)
-   *  opgebouwd. */
+  /** Bouwt de storage/stream-boom uit de platte directory-lijst. Volledig iteratief via een
+   *  expliciete worklist (geen recursie, dus geen stack-overflow bij diep geneste storages) en met
+   *  ÉÉN gedeelde visited-set over de hele boom: een cyclische child/left/right-verwijzing wordt
+   *  hoe dan ook maar één keer verwerkt. */
   private buildTree(rawEntries: RawDirEntry[], rootRaw: RawDirEntry): CfbEntry {
     interface WorkItem {
       id: number;
@@ -351,11 +332,9 @@ export class CfbFile {
     return (sector + 1) * this.sectorSize;
   }
 
-  /** I4/Fix 3: elke `CFB:`-fout krijgt context mee — welk pad/welke interne structuur (`label`),
-   *  welke sector en welke byte-offset (indien van toepassing) en de totale bestandslengte. De
-   *  offset wordt bewust NIET hier berekend (dat gaf eerder een sectorSize-gebaseerde offset voor
-   *  minisector-fouten, wat een verkeerde/misleidende byte-positie opleverde) — de aanroeper geeft
-   *  de al-met-de-juiste-korrel berekende offset expliciet mee. */
+  /** Elke `CFB:`-fout krijgt context mee: welk pad/welke structuur (`label`), welke sector, welke
+   *  byte-offset en de totale bestandslengte. De offset wordt door de aanroeper berekend, met de
+   *  juiste korrel (gewone sector of minisector). */
   private fmtErr(detail: string, label: string, sector?: number, offset?: number): string {
     const bits = [`CFB: ${detail}`, `[${label}]`];
     if (sector !== undefined) bits.push(`sector=${sector}`);
@@ -404,9 +383,7 @@ export class CfbFile {
     return byteLimit !== undefined ? out.subarray(0, byteLimit) : out;
   }
 
-  /** I1: de mini-stream (= de stream van de root-entry) wordt één keer gelezen en daarna
-   *  hergebruikt — zonder cache zou elke kleine stream 'm opnieuw via de gewone FAT moeten
-   *  opbouwen. */
+  /** De mini-stream (= de stream van de root-entry) wordt één keer gelezen en daarna hergebruikt. */
   private getMiniStream(): Uint8Array {
     if (!this.miniStreamCache) {
       this.miniStreamCache = this.readChain(this.miniStreamStartSector, this.miniStreamSize, 'mini-stream');
@@ -434,10 +411,8 @@ export class CfbFile {
       if (sector < 0 || sector >= this.miniFat.length) {
         throw new Error(this.fmtErr(`ongeldig minisectornummer ${sector} in keten`, label, sector));
       }
-      // Offset relatief aan de mini-stream (niet aan het bestand — dat is wat "mini" hier
-      // betekent) en met de minisector-korrel (64 bytes), niet de gewone sectorgrootte (Fix 3:
-      // eerder gaf fmtErr's eigen `sectorOffset()`-berekening hier een sectorSize-gebaseerde, dus
-      // verkeerde, offset terug).
+      // Offset relatief aan de mini-stream (niet aan het bestand) en met de minisector-korrel
+      // (64 bytes), niet de gewone sectorgrootte.
       const off = sector * this.miniSectorSize;
       if (off + this.miniSectorSize > miniStreamBytes.length) {
         throw new Error(this.fmtErr('minisector buiten mini-stream-grenzen', label, sector, off));

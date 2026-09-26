@@ -100,7 +100,7 @@ export interface ColumnChooserProps {
 }
 
 /**
- * Screenshotbevinding: het paneel is uitsluitend rechts-verankerd aan de trigger (CSS `right`)
+ * Het paneel is uitsluitend rechts-verankerd aan de trigger (CSS `right`)
  * zonder linkerklem. Staat de trigger dicht genoeg bij de linkerkant van het venster — het plusje
  * in een smal Gantt-taakgridpaneel, vlak bij de splitter — dan steekt het (vaste
  * `min(310px, 100vw-16px)`-brede) paneel links voorbij x=0 en wordt het daar door de viewport
@@ -108,7 +108,7 @@ export interface ColumnChooserProps {
  *
  * Deze pure functie bepaalt of dat gebeurt: `naturalLeft` is waar het paneel zou landen bij pure
  * rechtsverankering (triggerRect.right - panelWidth). Past het (>= viewportMargin), dan geeft dit
- * `null` terug — de aanroeper laat de bestaande `right`-verankering dan met rust. Past het niet,
+ * `null` terug — de aanroeper laat de `right`-verankering dan met rust. Past het niet,
  * dan schuift dit de linkerrand naar rechts tot 'm binnen het venster valt (nooit voorbij de
  * rechterrand, voor het geval `naturalLeft` zelf al negatief genoeg is om ook rechts te missen).
  */

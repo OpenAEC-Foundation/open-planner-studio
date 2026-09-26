@@ -29,16 +29,13 @@ function sequenceTypeToAbbrev(type: SequenceType): string {
 }
 
 /**
- * Completion (%) — besluit 2026-09-05 (gebruikstest): terug naar HELE procenten, geen decimalen.
- * De tussentijdse fixronde (N-B) liet dit tot 4 decimalen schrijven om "100 op 99,5% is stil een
- * no-op" te voorkomen — maar een bestand met decimale procenten gaat door spreadsheetprogramma's
- * van willekeurige landinstelling: "8,38" (NL, komma als decimaalteken) wordt door een spreadsheet
+ * Completion (%) in HELE procenten, geen decimalen: een bestand met decimale procenten gaat door
+ * spreadsheetprogramma's met willekeurige landinstelling, en "8,38" (komma als decimaalteken) wordt
  * met de andere conventie (punt/komma als DUIZENDTALscheider) als 838 gelezen. Dat risico weegt
- * zwaarder dan de no-op-precisie, dus de export schrijft weer uitsluitend `Math.round(completion *
- * 100)`. `isCompletionUnchanged` (buildPlan.ts) vangt het gevolg op: "100" op een taak van ≥ 99,5%
- * is nu bewust een no-op (symmetrisch voor "0" op ≤ 0,5%) — het bestand kan die twee simpelweg niet
- * uit elkaar houden. Decimale INVOER (met de hand getypt, bv. "33,4") blijft wel op zijn eigen
- * precisie vergeleken en dus altijd een echte wijziging wanneer ze afwijkt.
+ * zwaarder dan de no-op-precisie. `isCompletionUnchanged` (buildPlan.ts) vangt het gevolg op: "100"
+ * op een taak van ≥ 99,5% is bewust een no-op (symmetrisch voor "0" op ≤ 0,5%) — het bestand kan die
+ * twee niet uit elkaar houden. Decimale INVOER (met de hand getypt, bv. "33,4") blijft op zijn eigen
+ * precisie vergeleken.
  */
 export function formatCompletionPercent(completion: number): string {
   return String(Math.round(completion * 100));
@@ -53,21 +50,20 @@ export function writeCSV(
   _assignments: ResourceAssignment[],
   customTaskTypes: readonly CustomTaskType[] = [],
   /**
-   * "Datums zoals opgeslagen" (critreview laag 3, bevinding 6): staat de modus aan, dan draagt
-   * `task.time` de vastlegging van het bronbestand — mét de bewuste terugvallen voor assen die het
-   * bestand NIET vastlegde (`totalFloat ?? 0`, `isCritical ?? false`). In de tabel toont die naad
-   * "Niet vastgelegd"; hier is het equivalent een LEGE cel, want een CSV-lezer kan een verzonnen
-   * `0` niet van een echte nulspeling onderscheiden. `undefined` (het gewone geval, en elk
-   * document buiten de modus) ⇒ byte-identieke export als voorheen.
-   * De aanroeper bouwt deze functie met `unrecordedExportGate` (`state/recordedDatesSelectors`);
-   * deze module blijft store-vrij en krijgt hem als parameter.
+   * "Datums zoals opgeslagen": staat de modus aan, dan draagt `task.time` de vastlegging van het
+   * bronbestand — mét de bewuste terugvallen voor assen die het bestand NIET vastlegde
+   * (`totalFloat ?? 0`, `isCritical ?? false`). In de tabel toont die naad "Niet vastgelegd"; hier
+   * is het equivalent een LEGE cel, want een CSV-lezer kan een verzonnen `0` niet van een echte
+   * nulspeling onderscheiden. `undefined` (het gewone geval, en elk document buiten de modus) ⇒
+   * gewone export. De aanroeper bouwt deze functie met `unrecordedExportGate`
+   * (`state/recordedDatesSelectors`); deze module blijft store-vrij en krijgt hem als parameter.
    */
   unrecordedExportFieldsOf?: (task: Task) => readonly UnrecordedExportField[],
 ): string {
-  // H5 (eindreview T16c): de "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de
-  // relatie-lag hierboven, die "ed"/"e%" al schrijft) — een taak met ELAPSEDTIME-duur (T8, 24/7-
-  // klokrekenen, bv. uit een `.mpp`-import) schrijft daarom stil als gewone werktijd-duur.
-  // Weggelaten-met-warn, zelfde patroon als de andere exporters (`mspdiWriter.ts`/`p6xmlWriter.ts`).
+  // De "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de relatie-lag, die "ed"/"e%"
+  // al schrijft) — een taak met ELAPSEDTIME-duur (24/7-klokrekenen, bv. uit een `.mpp`-import)
+  // schrijft daarom als gewone werktijdduur. Weggelaten-met-warn, zelfde patroon als de andere
+  // exporters (`mspdiWriter.ts`/`p6xmlWriter.ts`).
   const elapsedTaskCount = tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length;
   if (elapsedTaskCount > 0) {
     console.warn(`CSV-export: ${elapsedTaskCount} taak/taken met ELAPSEDTIME-duur (24/7-klokrekenen) geëxporteerd als gewone werktijd-duur — CSV kent geen elapsed-duurnotatie (§6).`);
@@ -80,7 +76,7 @@ export function writeCSV(
     taskByIdMap.set(t.id, t);
   }
 
-  // Critreview #159: de voorgangerkolom verwijst op WBS-code; met dubbele codes kan de lezer een
+  // De voorgangerkolom verwijst op WBS-code; met dubbele codes kan de lezer een
   // relatie niet meer eenduidig terugvinden. Weggelaten-met-warn (zelfde patroon als de andere
   // exporters) — de kolom zelf blijft leesbaar voor spreadsheetgebruikers.
   const codeCount = new Map<string, number>();
@@ -96,9 +92,8 @@ export function writeCSV(
     const abbrev = sequenceTypeToAbbrev(seq.type);
     // De korte lag-notatie van de app (MS Project-stijl, symmetrisch met `parseLagInput`, waarmee
     // `readCSV` hem terugleest): d = werkdagen, ed = kalenderdagen, u/eu = (elapsed) uren,
-    // % / e% = procent van de voorgangerduur. Audit import/export (bevinding 4): de eigen kopie
-    // hiervan kende geen `lagMinutes`, dus elke uur-lag — en in een uurproject óók elke dag-lag,
-    // die daar in minuten staat — verdween stil uit de export.
+    // % / e% = procent van de voorgangerduur. Via `lagMinutes`, anders verdwijnt elke uur-lag (en in
+    // een uurproject óók elke dag-lag, die daar in minuten staat) stil uit de export.
     const lag = formatLagShort(seq);
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
@@ -108,19 +103,18 @@ export function writeCSV(
   }
 
   const headers = [
-    // Issue #27 etappe 2 (E1/A1): stabiele taak-id, EERSTE kolom, in ELKE CSV-export — geen apart
-    // sjabloonformaat. Laat een rondgestuurd blad terugkoppelen naar de juiste taak (voortgangs-
-    // import). `readCSV` (csvReader.ts) kent deze kop bewust NIET — dat is een no-op door
-    // constructie (mapColumnIndex negeert onbekende koppen), niet iets om later "voor de
-    // volledigheid" alsnog te laten adopteren.
+    // Stabiele taak-id, EERSTE kolom, in ELKE CSV-export — geen apart sjabloonformaat. Laat een
+    // rondgestuurd blad terugkoppelen naar de juiste taak (voortgangsimport). `readCSV` (csvReader.ts)
+    // kent deze kop bewust NIET — een no-op door constructie (mapColumnIndex negeert onbekende
+    // koppen), niet iets om later "voor de volledigheid" alsnog te laten adopteren.
     'OPS Task ID',
-    // Issue #159: 'Outline Level' (1 = hoofdniveau) uit de echte ouderketen, in MS-Project-termen.
+    // 'Outline Level' (1 = hoofdniveau) uit de echte ouderketen, in MS-Project-termen.
     // Een WBS-code is vrije tekst (IFC-`Identification`) en zegt niets over de nesting; met deze
     // kolom kan MS Project's CSV-import (veld "Outline Level") én `readCSV` de boom exact herbouwen.
     // Rijvolgorde is daarom diepte-eerst (`flattenOrder`), zoals het taakraster hem toont.
     'WBS', 'Outline Level', 'Name', 'Duration (days)', 'Start', 'Finish',
     'Predecessors', 'Task Type', 'OPS Custom Task Type ID', 'Status', 'Completion (%)',
-    // Actuals (fase 2.6, §9.3): achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
+    // Actuals: achter Completion. Kolomkoppen altijd aanwezig (CSV-conventie);
     // een taak zonder actuals levert lege cellen. Geen baselines/statusdatum in CSV (bewust).
     'Actual Start', 'Actual Finish',
     'Critical', 'Total Float', 'Description',
@@ -160,7 +154,7 @@ export function writeCSV(
   return BOM + rows.join('\r\n') + '\r\n';
 }
 
-/** Sleutels van het slanke voortgangsblad, letterlijk — nooit vertaald (D, besluit 2026-09-05):
+/** Sleutels van het slanke voortgangsblad, letterlijk — nooit vertaald:
  *  de LEZER (`parseProgressCsv`) matcht hierop, dus de sleutel zelf blijft in elke UI-taal Engels.
  *  Alleen de instructie ÁCHTER de sleutel varieert per taal. */
 export type ProgressSheetColumnKey =
@@ -168,34 +162,27 @@ export type ProgressSheetColumnKey =
   | 'Completion (%)' | 'Actual Start' | 'Actual Finish';
 
 /**
- * Voortgangsblad-export (issue #27 etappe 2, eigenaarsbesluit E7, 2026-09-05): een SLANK CSV-blad
- * met uitsluitend de kolommen die een invuller voor de voortgangsimport nodig heeft — geen
- * predecessors/duration/type/status/critical/float/description zoals de volle `writeCSV`. Zelfde
- * conventies (BOM, `;`, CRLF, `escapeCSV`, `formatCompletionPercent`), letterlijk hergebruikt uit
- * `writeCSV` i.p.v. gekopieerd, zodat de twee schrijvers nooit uit elkaar kunnen lopen op precisie
- * (zie de N-B/N-C-fixrondes hierboven). Tweede SCHRIJVER op dezelfde helpers — geen tweede lezer:
- * `parseProgressCsv`/`finalizeProgressRows`/`buildProgressImportPlan` blijven ongewijzigd en lezen
- * dit blad net als elke andere CSV-export. Rijvolgorde = documentvolgorde, inclusief
- * verzameltaken — die kunnen geen voortgang uit een blad krijgen, maar de invuller ziet zo wél de
- * volledige structuur van het project.
+ * Voortgangsblad-export: een SLANK CSV-blad met uitsluitend de kolommen die een invuller voor de
+ * voortgangsimport nodig heeft — geen predecessors/duration/type/status/critical/float/description
+ * zoals de volle `writeCSV`. Zelfde conventies (BOM, `;`, CRLF, `escapeCSV`,
+ * `formatCompletionPercent`), letterlijk hergebruikt uit `writeCSV`, zodat de twee schrijvers nooit
+ * uit elkaar lopen op precisie. Tweede SCHRIJVER op dezelfde helpers — geen tweede lezer:
+ * `parseProgressCsv`/`finalizeProgressRows`/`buildProgressImportPlan` lezen dit blad net als elke
+ * andere CSV-export. Rijvolgorde = documentvolgorde, inclusief verzameltaken — die kunnen geen
+ * voortgang uit een blad krijgen, maar de invuller ziet zo wél de volledige structuur.
  *
- * `summaryNote` (gebruikstest 2026-09-11, fix 1 — letterlijke gebruikerswens: "hij zegt dat
- * summary tasks geen progress kunnen krijgen uit een spreadsheet, waarom staat dat ook niet gewoon
- * in dat veld in de spreadsheet?"). Staat hij aan, dan krijgen de drie INVULcellen (Completion,
- * Actual Start, Actual Finish) van een verzameltaak (`childIds.length > 0`) die al-vertaalde tekst
- * i.p.v. een waarde. De tekst MOET met een em-dash (U+2014) beginnen: dat is het teken waarop
- * `finalizeProgressRows` de cel als AFWEZIG telt, zodat een ongewijzigd teruggestuurd blad nul
- * weigeringen oplevert. Zonder de parameter schrijft het blad gewoon de echte waarden (bestaand
- * gedrag; alle bestaande tests geven hem niet mee).
+ * `summaryNote`: staat hij aan, dan krijgen de drie INVULcellen (Completion, Actual Start, Actual
+ * Finish) van een verzameltaak (`childIds.length > 0`) die al-vertaalde tekst i.p.v. een waarde, zodat
+ * de invuller ziet dat een verzameltaak geen voortgang uit het blad krijgt. De tekst MOET met een
+ * em-dash (U+2014) beginnen: daarop telt `finalizeProgressRows` de cel als AFWEZIG, zodat een
+ * ongewijzigd teruggestuurd blad nul weigeringen oplevert. Zonder de parameter schrijft het blad de
+ * echte waarden.
  *
- * `headerNotes` (D, besluit 2026-09-05 — letterlijke gebruikerswens: "er moet ook in de headers
- * van de kolommen komen te staan wat je in mag voeren en waar je af moet blijven", aanleiding: een
- * OnlyOffice-gebruiker met Nederlandse instellingen die "8,38" als 838 terugkreeg). Deze module
- * blijft PUUR — geen i18n-afhankelijkheid hier — dus de aanroeper (`fileSlice.exportAs`) geeft de
- * al-vertaalde instructietekst per kolomsleutel mee. Een kolom zonder instructie krijgt gewoon zijn
- * kale sleutel als kop (bestaand gedrag, o.a. voor bestaande tests die geen notes doorgeven).
- * Scheidingsteken ` — ` (spatie, em-dash, spatie); `parseProgressCsv`'s kolomherkenning snijdt
- * daar (of bij `(`/` - `) de instructie af en matcht het overblijvende PREFIX als vanouds.
+ * `headerNotes`: per kolomsleutel een al-vertaalde invulinstructie in de kop (wat je mag invoeren en
+ * waar je af moet blijven). Deze module blijft PUUR — geen i18n — dus de aanroeper
+ * (`fileSlice.exportAs`) geeft de tekst mee. Een kolom zonder instructie krijgt zijn kale sleutel als
+ * kop. Scheidingsteken ` — ` (spatie, em-dash, spatie); `parseProgressCsv`'s kolomherkenning snijdt
+ * daar (of bij `(`/` - `) de instructie af en matcht het overblijvende PREFIX.
  */
 export function writeProgressSheetCSV(
   tasks: Task[],

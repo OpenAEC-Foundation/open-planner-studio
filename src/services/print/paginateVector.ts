@@ -1,14 +1,16 @@
 /**
- * Vector-pagineerder (§4.3 ontwerpdoc): zet één keer-getekende Gantt-content (opgenomen door
+ * Vector-pagineerder: zet één keer-getekende Gantt-content (opgenomen door
  * {@link PdfVectorDraw2D}) om in een multi-page VECTOR-PDF. Zelfde tegel-/schaalwiskunde als de
  * raster-pagineerder (`paginate.ts` → `paginateCanvasToTile`), maar een "tegel" wordt een PDF-
  * pagina die een gedeeld **Form-XObject** onder een eigen `q … cm W n … Q`-wrapper `Do`'t
  * (transform + clip) i.p.v. een `drawImage`-crop.
  *
- * **G1 (kritisch):** de volledige Gantt-tekening wordt exact ÉÉN keer als Form-XObject vastgelegd;
- * elke pagina Do't dat XObject. De operator-set blijft O(taken×dagen) i.p.v. O(tegels×taken×dagen).
- * **G2 (bewust v1-besluit):** `clip` (`W n`) beperkt alleen de rendering, niet welke tekst in de
- * stream staat — de bevroren naam-kolom wordt op elke kolom k>0 herhaald als zelfstandige tekst.
+ * **Eén XObject (kritisch):** de volledige Gantt-tekening wordt exact ÉÉN keer als Form-XObject
+ * vastgelegd; elke pagina Do't dat XObject. De operator-set blijft O(taken×dagen) i.p.v.
+ * O(tegels×taken×dagen).
+ * **Zelfstandige tekst per pagina (bewuste keuze):** `clip` (`W n`) beperkt alleen de rendering, niet
+ * welke tekst in de stream staat — de bevroren naam-kolom wordt op elke kolom k>0 herhaald als
+ * zelfstandige tekst.
  *
  * Puur browser (pdf-lib/fontkit) — geen Tauri-imports; caller levert de rauwe Inter-TTF-bytes aan
  * (geen asset-loader-koppeling hier), zodat deze module ook headless bundelbaar is.
@@ -36,8 +38,8 @@ export interface VectorPaginateOptions {
   /** Paginamarge in punten (rondom). Default 24 (zelfde als de raster-pagineerder). */
   marginPt?: number;
   /**
-   * Herhaal de kopstrook (project-kop + tijdschaal) bovenaan ELKE pagina (issue #25 punt 1).
-   * Default false = oud gedrag (kop alleen op de eerste rij pagina's) — maar dat is puur de
+   * Herhaal de kopstrook (project-kop + tijdschaal) bovenaan ELKE pagina.
+   * Default false = kop alleen op de eerste rij pagina's — maar dat is puur de
    * gedragsneutrale ENGINE-default. Het rapportpaneel (`ReportPanel.tsx`) zet de knop bewust
    * standaard AAN en geeft hier dus normaal `true` door; een her-export van een bestaand project
    * krijgt daardoor op elke pagina een kop.
@@ -54,8 +56,8 @@ export interface VectorPaginateOptions {
    */
   repeatFooter?: boolean;
   /**
-   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt (issue #25 punt 5). Alleen in
-   * `'fit-width'`; default 1 = alles op één paginabreedte persen (oud gedrag).
+   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen in
+   * `'fit-width'`; default 1 = alles op één paginabreedte persen.
    */
   timelineColumns?: number;
   /**
@@ -129,8 +131,8 @@ export async function paginateVectorToPdfBytes(
   // levert een subset waarvan de glyphs in pdfium/Chrome NIET renderen (tekst wordt deels onzichtbaar),
   // hoewel de ToUnicode-extractie klopt — empirisch aangetoond (pdfium + Chromium-screenshots). Volledig
   // inbedden rendert correct in álle viewers. Inter-Regular+Bold ≈ 0,4 MB (Flate) in de PDF; voor een
-  // print-artefact (geen app-bundle) acceptabel. Subsetting terugbrengen vergt een pdf-lib/fontkit-fix
-  // en is een blokker vóór CJK (fase 4b, waar subsetten wél verplicht is wegens 5–16 MB fonts).
+  // print-artefact (geen app-bundle) acceptabel. CJK-fonts (5–16 MB) worden wél gesubset, maar via
+  // HarfBuzz (`subsetFont`), niet via pdf-lib.
   const regular = await doc.embedFont(fontBytes.regular, { subset: false });
   const bold = await doc.embedFont(fontBytes.bold, { subset: false });
 
@@ -161,12 +163,12 @@ export async function paginateVectorToPdfBytes(
     return { d2d: captured as PdfVectorDraw2D, dims };
   };
 
-  // ── CJK-providers: LAZY, per-document, per-provider (K-1/K-2) ──────────────────────────────────────
-  // Eerder werden ALLE geregistreerde providers eager geladen+geparset (`getRegularBytes()` +
-  // `fontkit.create()`, bv. 3 CJK-extensies ≈ 22 MB) bij ELKE vector-export — óók een puur-Latijnse — en
-  // brak één gooiende/`undefined`-leverende provider meteen de HELE export (→ raster voor alles).
+  // ── CJK-providers: LAZY, per-document, per-provider ──────────────────────────────────────────────
+  // Niet ALLE geregistreerde providers eager laden+parsen (`getRegularBytes()` + `fontkit.create()`,
+  // bv. 3 CJK-extensies ≈ 22 MB) bij ELKE vector-export, en niet één gooiende/`undefined`-leverende
+  // provider de HELE export laten breken (→ raster voor alles).
   //
-  // Nu: eerst een goedkope SCAN-render ZÓNDER enige CJK-font. Die levert de Inter/Noto-ONgedekte
+  // Daarom eerst een goedkope SCAN-render ZÓNDER enige CJK-font. Die levert de Inter/Noto-ONgedekte
   // codepoints (kandidaat-CJK) zonder één providerfont aan te raken, en is meteen een geldige pass 1 als
   // het document geen CJK bevat. Daarna laden we ALLEEN providers waarvan `covers()` zo'n codepoint matcht,
   // elk in try/catch: een kapotte/onbeschikbare provider wordt OVERGESLAGEN (z'n codepoints blijven ongedekt
@@ -224,7 +226,7 @@ export async function paginateVectorToPdfBytes(
     ({ d2d, dims } = runRender(cjkPreload.map((_, i) => makeCjkBase(i))));
   }
 
-  // Coverage-poort (fase 4): ongedekte codepoints (Hebreeuws, CJK zónder (werkende) provider, gemengd
+  // Coverage-poort: ongedekte codepoints (Hebreeuws, CJK zónder (werkende) provider, gemengd
   // Arabisch+CJK, …) → gooi vóór we de PDF verder opbouwen, zodat `handleExportPDF` op raster terugvalt
   // i.p.v. tofu te exporteren. Arabisch/Perzisch (Noto) én puur-CJK-met-provider vallen hier NIET uit.
   if (d2d.uncoveredCodepoints.size > 0) {
@@ -268,8 +270,7 @@ export async function paginateVectorToPdfBytes(
   }
 
   // ---- Tegel-/schaalwiskunde: gedeeld met de raster-pagineerder via `tileLayout.computeTileLayout` ----
-  // Stond hier vroeger als letterlijke kopie van de raster-pagineerder; nu één bron van waarheid,
-  // zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
+  // Eén bron van waarheid, zodat preview (raster) en export (vector) niet uit elkaar kunnen lopen.
   const tileInput = (d: RenderReportResult) => ({
     paperSize: opts.paperSize,
     orientation: opts.orientation,
@@ -291,12 +292,12 @@ export async function paginateVectorToPdfBytes(
   // meerdere kolommen het merk in kolom N en de legenda in kolom 2). De render kent die breedte pas
   // ná de tegelwiskunde, dus één extra pass met `footerLayoutWidth` — alleen wanneer die breedte
   // écht kleiner is dan het canvas. In fit-width met één kolom zijn beide analytisch gelijk
-  // (`col0Bodypx = printW/scale = cw`) maar als floats soms 1e-13 uit elkaar; zonder de marge draaide
-  // ~5 % van de exports een tweede volledige render voor niets (review #135 ronde 3, F1). De maten
+  // (`col0Bodypx = printW/scale = cw`) maar als floats soms 1e-13 uit elkaar; zonder de marge draait
+  // een deel van de exports een tweede volledige render voor niets. De maten
   // veranderen niet door de pass (de voet bepaalt de canvasbreedte niet); de layout wordt toch
   // herrekend. Een smallere voet kan alleen legenda-items wéglaten, dus nieuwe codepoints zijn
   // uitgesloten — de coverage-poort wordt hieronder tóch herhaald, zodat die invariant geen
-  // ongeschreven aanname blijft (F2).
+  // ongeschreven aanname blijft.
   const footerLayoutWidth = footerLayoutWidthFor(layout);
   if (footerLayoutWidth !== undefined && footerLayoutWidth < dims.width - 0.5) {
     ({ d2d, dims } = runRender(lastCjk, footerLayoutWidth));
@@ -306,9 +307,9 @@ export async function paginateVectorToPdfBytes(
     }
   }
 
-  // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (G1: de
+  // Eén Form-XObject met alle VORMEN (grid/staven/arcering) + eigen font/ExtGState-resources (de
   // tekening wordt exact één keer vastgelegd en per pagina ge-`Do`'d). De TEKST zit BEWUST niet in het
-  // XObject (fase 2.1): een gedeeld XObject `Do`'t z'n volledige tekstlaag op élke pagina, waardoor de
+  // XObject: een gedeeld XObject `Do`'t z'n volledige tekstlaag op élke pagina, waardoor de
   // tekst-extractie elke taaknaam N× oplevert. De tekst wordt daarom per tegel apart geëmit (zie onder).
   const resources = pool.buildResourcesDict();
   const xobj = doc.context.formXObject(d2d.operators, {
@@ -331,13 +332,12 @@ export async function paginateVectorToPdfBytes(
    * Eén tegel-blok: `q  re W n  cm  /X0 Do  Q`. Clip = het getekende venster op de pagina (punten,
    * y-omhoog); `cm` = px→pt-schaal + tegel-offset (géén y-flip; die zit al in het XObject).
    *
-   * `destTopYUp` is de BOVENrand van de tegel op de pagina in punten, y-omhoog. Vroeger was dat
-   * impliciet altijd de bovenkant van het printgebied (`pageH - marginPt`); sinds de kopstrook per
-   * pagina herhaald wordt, begint de body-tegel lager en moet de aanroeper het meegeven. De
+   * `destTopYUp` is de BOVENrand van de tegel op de pagina in punten, y-omhoog. Zonder kopherhaling
+   * is dat de bovenkant van het printgebied (`pageH - marginPt`); mét kopherhaling begint de
+   * body-tegel lager, dus de aanroeper geeft het mee. De
    * afleiding: een bronpunt (sx, sy) zit in het XObject op (sx, ch - sy) (de y-flip zit al in de
    * tekening) en belandt na `cm(scale,0,0,scale,e,f)` op (scale·sx + e, scale·(ch - sy) + f). Wil je
    * dat de bovenrand `sy = srcY` op `destTopYUp` uitkomt, dan volgt f = destTopYUp - (ch - srcY)·scale.
-   * Met destTopYUp = pageH - marginPt is dat letterlijk de oude formule.
    */
   const drawTile = (
     pageOps: PDFOperator[],
@@ -359,14 +359,14 @@ export async function paginateVectorToPdfBytes(
     // Emit — ONDER dezelfde clip+cm als het XObject — de tekst wiens bron-bbox dit tegel-bronvenster
     // [srcX..srcX+srcW]×[srcY..srcY+srcH] RAAKT. Zelfde tegel-toewijzing als de vorm-tegeling: de clip
     // trimt partiële glyphs aan de tegelrand identiek, en de `setTextMatrix` (absolute XObject-coörd.)
-    // + deze `cm` reproduceren exact de fase-2-plaatsing. Bevroren-kolomtekst (bron-x < frozenPx) valt
+    // + deze `cm` reproduceren exact de XObject-plaatsing. Bevroren-kolomtekst (bron-x < frozenPx) valt
     // vanzelf binnen zowel de kolom-0-tegel als de herhaalde frozen-strip-tegel (pageX=marginPt,
     // srcX=0) → één keer per horizontale kolom; body-tekst raakt alleen z'n eigen body-venster.
     //
-    // Met de herhaalde kopstrook (issue #25 punt 1) geldt hetzelfde voor de KOPTEKST: die valt in het
-    // bronvenster van elke kop-tegel en wordt dus BEWUST N× geëmit — precies zoals de bevroren
-    // naam-kolom dat al deed (G2). Dat is de prijs voor "elke pagina zelfstandig leesbaar": bij
-    // tekst-extractie verschijnt de projectnaam/tijdschaal per pagina één keer.
+    // Met de herhaalde kopstrook geldt hetzelfde voor de KOPTEKST: die valt in het bronvenster van
+    // elke kop-tegel en wordt dus BEWUST N× geëmit — precies zoals de bevroren naam-kolom. Dat is de
+    // prijs voor "elke pagina zelfstandig leesbaar": bij tekst-extractie verschijnt de
+    // projectnaam/tijdschaal per pagina één keer.
     const srcXEnd = srcX + srcW;
     const srcYEnd = srcY + srcH;
     for (const t of texts) {
@@ -389,7 +389,7 @@ export async function paginateVectorToPdfBytes(
       const page = doc.addPage([pageW, pageH]);
       const leaf = page.node;
       leaf.setXObject(PDFName.of('X0'), xobjRef);
-      // De tegel-tekst (fase 2.1) én de footer draaien nu op de PAGINA-content-stream i.p.v. in het
+      // De tegel-tekst én de footer draaien op de PAGINA-content-stream i.p.v. in het
       // XObject, dus de pagina heeft dezelfde font-resources nodig als het XObject. `resources.Font`
       // bevat precies de ingebedde fonts (F0/F1 Inter altijd; F2/F3 Noto alleen bij Arabisch; F4/F5…
       // alleen bij CJK) — geen dangling refs, want ongebruikte gewichten zitten er niet in.
@@ -403,7 +403,7 @@ export async function paginateVectorToPdfBytes(
       const pageOps: PDFOperator[] = [];
 
       // Per horizontaal venster van deze kolom (kolom 0 = één venster; verder: de herhaalde
-      // bevroren naam-strip + het aansluitende body-venster — G2: zelfstandige tekst per pagina).
+      // bevroren naam-strip + het aansluitende body-venster — zelfstandige tekst per pagina).
       for (const win of column.xWindows) {
         // Kopstrook bovenaan de pagina, met EXACT hetzelfde x-venster als de body eronder — anders
         // zou de tijdschaal niet boven de juiste dagen staan.

@@ -48,8 +48,8 @@ const CONVENTION_GROUPS: readonly { id: ConventionGroupId; items: readonly Conve
   { id: 'ownProfilesOnly' as const, items: CONVENTIONS.filter(isOffInEveryBuiltIn) },
 ].filter(g => g.items.length > 0);
 
-/** De drie projectopties die alleen uit een P6-bestand komen en in het blok niet te wijzigen zijn
- *  (gebruikstest B10): alleen-lezen getoond, zodat zichtbaar is waarom twee projecten met hetzelfde
+/** De drie projectopties die alleen uit een P6-bestand komen en in het blok niet te wijzigen zijn:
+ *  alleen-lezen getoond, zodat zichtbaar is waarom twee projecten met hetzelfde
  *  profiel anders rekenen. */
 const SOURCE_ONLY_OPTIONS = ['useExpectedFinishDates', 'useProjectEndDateForFloat', 'p6CompletedLateFromRemainingWindow'] as const;
 const sourceOptionKey = (key: typeof SOURCE_ONLY_OPTIONS[number]): ParseKeys<'common'> =>
@@ -57,16 +57,16 @@ const sourceOptionKey = (key: typeof SOURCE_ONLY_OPTIONS[number]): ParseKeys<'co
 const themeTitleKey = (id: ConventionGroupId): ParseKeys<'common'> => `schedulingProfile.themes.${id}`;
 
 /**
- * Rekenprofielen (spec v3.1 §6) — opvolger van `CalcOptionsSection`. Bovenaan het profiel (ingebouwd,
+ * Rekenprofielen. Bovenaan het profiel (ingebouwd,
  * eigen sjablonen, of het eigen profiel van dit project), daaronder de zevenentwintig conventies (per thema
  * uit het register, met de basiswaarde, "terug naar basis" en uitklapbare uitleg per regel) en zeven van de
  * elf projectopties (kritiek-definitie met drempel, speling-berekening, open-eind kritiek, bijna-
  * kritiek, meerdere speling-paden, lag-kalender, SS-lag-variant van C6). De andere vier — `useExpectedFinishDates`,
  * `useProjectEndDateForFloat`, `p6CompletedLateFromRemainingWindow` en het nivelleerblok `leveling`
- * (fundament, alleen data; de UI volgt met eigenaarsbeslissing 1) — zijn bewust NIET bewerkbaar:
+ * (alleen data) — zijn bewust NIET bewerkbaar:
  * het zijn P6-bronsignalen die de XER-lezer uit SCHEDOPTIONS zet (of die aan de P6-herkomstketen van
  * B3/B4 hangen), zonder betekenis voor een project dat niet uit P6 komt. Het blok toont ze onderaan alleen-lezen
- * (gebruikstest B10) en laat ze verder ongemoeid
+ * en laat ze verder ongemoeid
  * (elke optiewijziging spreidt de bestaande opties); alleen "Standaardopties van dit profiel
  * toepassen" vervangt alle opties door `defaultOptionsFor` (onder P6 zet dat de eerste en de laatste
  * aan; `useProjectEndDateForFloat` en `leveling` vallen dan weg, want die komen alleen uit het bestand). Commit gebeurt pas op Toepassen via `applySchedulingSettings` (één undo-stap,
@@ -158,8 +158,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
 
   if (mode === 'wizard') return profileSelect;
 
-  // Reken-opties (overgenomen uit CalcOptionsSection, met twee reparaties: 'auto' voor afwezig, en
-  // thresholdHours die bij een bewerking niet meer wegvalt — spec v3.1 §6, A6/A7).
+  // Reken-opties: 'auto' voor afwezig, en thresholdHours die bij een bewerking niet wegvalt.
   const hpd = effHoursPerDay(projectCal);
   const hourUnit = enableHourPlanning
     && (durationDisplay === 'hours' || (durationDisplay === 'auto' && isHourCalendar(projectCal)));
@@ -434,7 +433,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
         {/* P6 "Calculate Start-to-Start lag from": de variant van conventie C6, die in de motor alleen
             samen met A19 (`p6UseRemainingStartForProgress`) werkt. Staat een van beide uit, dan doet de
             optie niets: uitgeschakeld (de waarde blijft staan), met een zichtbaar blok dat de ontbrekende
-            conventie noemt (gebruikstest B8: niet alleen een tooltip). */}
+            conventie noemt (niet alleen een tooltip). */}
         <div className="flex flex-col gap-1">
           <label className={labelCls}>{tMenu('projectInfo.calc.ssLagFrom')}</label>
           <Select aria-label={tMenu('projectInfo.calc.ssLagFrom')} value={so.startToStartLagFrom ?? 'earlyStart'}

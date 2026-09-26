@@ -1,4 +1,4 @@
-// Gedeeld muteerlichaam voor gebruikerssplits (issue #146): `taskSlice.setTaskSplits` én de
+// Gedeeld muteerlichaam voor gebruikerssplits: `taskSlice.setTaskSplits` én de
 // MCP-draft (`runtime/createMcpTransactions.ts`).
 //
 // Zelfde verdeling als `assignmentMutations.ts`: het LICHAAM is gedeeld, wat per pad verschilt
@@ -30,7 +30,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import { captureTriangle, settleDurationEdit, type WorkRuleDeps } from '@/engine/work/workRuleApply';
 
 /** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. De
- *  werkregelvelden (`WorkRuleDeps` + `assignments`) zijn voor de werkdriehoek (taaktypes-etappe). */
+ *  werkregelvelden (`WorkRuleDeps` + `assignments`) zijn voor de werkdriehoek. */
 interface SplitState extends WorkRuleDeps {
   calendars: WorkCalendar[];
   calendar: WorkCalendar;
@@ -57,13 +57,13 @@ export function applyTaskSplits(
   // (3) De oude werkduur — nodig vóór de duur eronder verschuift.
   const oldWorkMinutes = taskWorkMinutesOf(task, hoursPerDay);
   const slotMinutes = Math.max(1, hoursPerDay * 60);
-  // Taaktypes-etappe (integratie #170 op #146): een splitbewerking die de werkduur verandert is
-  // een duurbewerking — de werkdriehoek volgt, net als in `updateTask`.
+  // Een splitbewerking die de werkduur verandert is een duurbewerking — de werkdriehoek volgt, net
+  // als in `updateTask`.
   const triangle = captureTriangle(task, s.assignments, s);
 
-  // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is stap 5 van spec §2
-  // (adoptieregel): wat de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan —
-  // "Nivellering wissen" haalt niets meer weg van een taak die hij zelf heeft ingedeeld.
+  // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is de adoptieregel: wat
+  // de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan — "Nivellering wissen"
+  // haalt niets meer weg van een taak die hij zelf heeft ingedeeld.
   const { gaps, totalWorkMinutes } = pieces === null
     ? { gaps: [] as TaskSplitGap[], totalWorkMinutes: oldWorkMinutes }
     : fromSplitPieces(adoptLevelingGaps(pieces), task.splitGaps);
@@ -71,7 +71,7 @@ export function applyTaskSplits(
     task.time.scheduleDuration = totalWorkMinutes / slotMinutes;
     if (taskDurationUnit(task) === 'hours') task.time.durationMinutes = totalWorkMinutes;
     // `keepGaps`: de gatenlijst hierboven is al op de NIEUWE werkduur gerekend — nog een keer
-    // laten schalen zou dubbel zijn (spec §2 stap 3).
+    // laten schalen zou dubbel zijn.
     rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, contourKeepsWork(task, s.project.defaultWorkRule), { keepGaps: true });
     settleDurationEdit(task, s.assignments, triangle);
   }
@@ -92,8 +92,8 @@ export function applyTaskSplits(
     }));
   }
 
-  // (6) Tijdbasis-gevolgen (bevinding 1): een splitbewerking IS een tijdbasis-bewerking, óók
-  // zonder duurwijziging — anders overschrijft het gelezen Z8-venster de nieuwe spanne gewoon en
+  // (6) Tijdbasis-gevolgen: een splitbewerking IS een tijdbasis-bewerking, óók zonder
+  // duurwijziging — anders overschrijft het gelezen MSP-timephased-venster de nieuwe spanne en
   // beweegt er geen datum. Zelfde vorm als `updateTask`/`setTaskCalendar`.
   const lostTimephasedGuidance = invalidateForTimeBaseChange(task);
 
@@ -104,7 +104,7 @@ export function applyTaskSplits(
     resolveCalendar(task.calendarId, s.calendars, s.calendar),
   ));
   task.time.scheduleFinish = splitScheduleFinish(task, engine);
-  // Issue #171: het balkeinde vanaf waar de balk staat, niet vanaf het anker.
+  // Het balkeinde vanaf waar de balk staat, niet vanaf het anker.
   task.time.earlyFinish = splitScheduleFinish(task, engine, task.time.earlyStart || task.time.scheduleStart);
 
   return lostTimephasedGuidance;

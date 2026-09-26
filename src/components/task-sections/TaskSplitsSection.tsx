@@ -17,8 +17,8 @@ import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 
-/** Eenheden met hooguit twee decimalen: een importgat van een kwartdag blijft zichtbaar (spec
- *  "Dag-modus-afronding") zonder dat een float-staart als `4.999999` in het veld belandt. */
+/** Eenheden met hooguit twee decimalen: een importgat van een kwartdag blijft zichtbaar
+ *  zonder dat een float-staart als `4.999999` in het veld belandt. */
 const formatUnits = (minutes: number, unit: number): string => String(Math.round((minutes / unit) * 100) / 100);
 
 const sourceOf = (p: SplitPiece): string | undefined => (p.kind === 'gap' ? p.source : undefined);
@@ -90,7 +90,7 @@ function segmentRanges(task: Task, cal: WorkCalendar): { from: string; to: strin
 }
 
 /**
- * Onderbrekingen (issue #146, etappe 4) — de exacte invoer naast het splitsgebaar in de Gantt, op
+ * Onderbrekingen — de exacte invoer naast het splitsgebaar in de Gantt, op
  * dezelfde data. Eén regel per pauze: *na n* (werk vóór de pauze op de WERK-as, dus zonder eerdere
  * pauzes) · *pauze n* · van–tot van het stuk erna · verwijderen. Eenheid = werkdagen, bij een
  * urentaak uren (`splitUnitMinutes`).
@@ -222,7 +222,7 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
                   dataAttr="pause"
                   label={`${t('properties.splits.pause')} (${unitLabel})`}
                   value={formatUnits(g.minutes, unit)}
-                  // 0 = de pauze opheffen (spec §1: samenvoegen met de buren); negatief is geen lengte.
+                  // 0 = de pauze opheffen (samenvoegen met de buren); negatief is geen lengte.
                   onCommit={units => (units >= 0 ? apply(setGapLength(pieces, g.index, units * unit, unit)) : false)}
                 />
                 <span className="truncate text-text-secondary">{unitLabel}</span>

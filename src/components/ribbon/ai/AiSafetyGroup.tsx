@@ -10,7 +10,7 @@ import { record as recordActivity } from '@/services/mcp/activityLog';
 import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 
 /**
- * AI-ribbontab — groep **Veiligheid** (T16, spec §UI "Veiligheid & activiteit"):
+ * AI-ribbontab — groep **Veiligheid**:
  *  - **pauze**: toggelt `ui.aiPaused` (bridge blijft live; muterende tools krijgen tijdelijk een
  *    nette "gepauzeerd"-fout, lezen mag door) — status op de knop, hint als tooltip;
  *  - **alleen-lezen**: toggelt `ui.aiReadOnly` (mutaties geweigerd zolang actief);

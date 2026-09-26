@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useTaskTypeLabels } from '@/i18n/taskTypes';
 import type { FieldCatalogCtx } from './fieldCatalog';
 
-/** Bouwt de gedeelde `FieldCatalogCtx` (§6.2/§7.4) uit de store + i18n — hergebruikt door de
+/** Bouwt de gedeelde `FieldCatalogCtx` uit de store + i18n — hergebruikt door de
  *  filter-editor, groepeer-/sorteer-popovers. */
 export function useFieldCatalogCtx(): FieldCatalogCtx {
   const { t: tTask } = useTranslation('task');
@@ -20,7 +20,7 @@ export function useFieldCatalogCtx(): FieldCatalogCtx {
       start: tTask('table.start'), finish: tTask('table.finish'), taskType: tTask('table.type'),
       isCritical: tTask('table.critical'), totalFloat: tTask('table.totalFloat'),
       completion: tTask('table.completion'), isMilestone: tTask('table.milestone'),
-      // Fase 2.9 (§3.5): additieve analyse-velden.
+      // Analysevelden.
       freeFloat: tTask('table.freeFloat'), interferingFloat: tTask('table.interferingFloat'),
       isNearCritical: tTask('table.isNearCritical'), floatPath: tTask('table.floatPath'),
       activeDuring: tTask('table.activeDuring'),

@@ -1,8 +1,8 @@
-// "(geen)"-bandlabel-doorgeefluik (fase 2.7, §4.1/§7.1). De view-engine blijft
+// "(geen)"-bandlabel-doorgeefluik. De view-engine blijft
 // i18n-onafhankelijk (ViewContext.noneLabel is een gewone string); de consument (App)
 // zet hier de vertaalde `t('task:structure.none')` neer en de store-recompute leest hem.
 // Dependency-vrij zodat de headless testharness geen i18n hoeft te bundelen.
-// Issue #173: de vertaalde resourcetype-labels (bandkop bij groeperen op Resourcetype) reizen mee.
+// Ook de vertaalde resourcetype-labels (bandkop bij groeperen op Resourcetype) reizen mee.
 import type { ResourceType } from '@/types/resource';
 
 let noneLabel = '(geen)';

@@ -82,7 +82,7 @@ export function createDefaultTaskGridPreferences(
     column('task.name', 240),
     column('task.time.scheduleDuration', 60),
     // De getoonde datums (zelfde bron als de Gantt-balk), niet de invoerankers "Geplande
-    // start/einde" — die blijven kiesbaar. Audit "weergaven" bevinding 2.
+    // start/einde" — die blijven kiesbaar.
     column('task.time.start', 100),
     column('task.time.finish', 100),
     column('task.taskType', 80),
@@ -385,7 +385,7 @@ export function fieldRefToTaskColumnId(
     return id ? taskColumnId(id) : null;
   }
   if (field.src === 'resource') return taskColumnId('assignment.resources');
-  // Issue #173: resourcetype is alleen een groepeer-/sorteerveld, er bestaat geen kolom voor.
+  // Resourcetype is alleen een groepeer-/sorteerveld, er bestaat geen kolom voor.
   if (field.src === 'resourceType') return null;
   if (!projectId) return null;
   return field.src === 'activityCode'

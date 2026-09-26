@@ -1,12 +1,9 @@
 // MCP-toolmodule — RESOURCEBEHEER (aanmaken / wijzigen / verwijderen).
 //
-// WAAROM DEZE MODULE BESTAAT. De bridge kon resources wél LEZEN (`planner_list_resources`,
-// `planner_get_resource_histogram`), wél TOEWIJZEN (`planner_manage_assignments`) en wél NIVELLEREN
-// (`planner_level_resources`) — maar er was geen enkele manier om een resource aan te maken, te
-// hernoemen, te verwijderen of zijn capaciteit/tarief/kalender/beschikbaarheid te wijzigen. Een
-// gebruiker die "zet er een tweede kraan bij" vroeg, liep dood: `manage_assignments`' `add` weigert
-// met `resource '<id>' bestaat niet` en er was binnen de bridge geen weg vooruit. Deze module dicht
-// dat gat.
+// Naast lezen (`planner_list_resources`, `planner_get_resource_histogram`), toewijzen
+// (`planner_manage_assignments`) en nivelleren (`planner_level_resources`) is dit de enige route om
+// een resource aan te maken, te hernoemen, te verwijderen of zijn capaciteit/tarief/kalender/
+// beschikbaarheid te wijzigen ("zet er een tweede kraan bij").
 //
 // ONTWERPKEUZE — ÉÉN BULK-TOOL MET ACTIES, niet drie losse tools:
 //   * hij spiegelt `planner_manage_assignments`, de zustertool voor exact hetzelfde domein — een AI
@@ -17,9 +14,8 @@
 //
 // SCHRIJFKANT SPREEKT DE LEESKANT (harde eis van dit oppervlak): elk veld heet hier exact zoals
 // `planner_list_resources` het teruggeeft — `name`, `type`, `maxUnits`, `costPerHour`,
-// `unitOfMeasure`, `calendarId`, `description`, `parentId`, `availabilitySteps`. De leeskant is
-// daarvoor uitgebreid met de laatste drie (die waren wél schrijfbaar in de UI maar onzichtbaar via
-// de bridge); zie de noot in `readTools.ts` bij `listResources`.
+// `unitOfMeasure`, `calendarId`, `description`, `parentId`, `availabilitySteps`; zie de noot in
+// `readTools.ts` bij `listResources`.
 //
 // Conventies (zie de kop van `taskTools.ts` en `calendarResourceTools.ts`):
 //   1. driedeling `parseX` (vormvalidatie) / `xCore` (synchrone, transactie-vrije kern ⇒
@@ -38,7 +34,7 @@ import {
   McpStepError,
   type MutationOutcome,
 } from './runtime';
-// Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
+// Alleen als TYPE: wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
 import {
   booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
@@ -61,8 +57,8 @@ const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCO
  * De SCHRIJFBARE velden. Bewust exact het oppervlak dat de mens in het resourcepaneel heeft
  * (`ResourcePanel.tsx`: naam, type, max. eenheden, kalender, uurtarief, meeteenheid, ploeg,
  * beschikbaarheidsstappen) plus `description` — dat veld zit in het `Resource`-type, round-trippt
- * door IFC (`IFCxxxRESOURCE` argument 4) en is nu ook aan de leeskant zichtbaar, maar heeft in het
- * paneel geen kolom. Het toevoegen kost niets en maakt de bridge niet gevaarlijker.
+ * door IFC (`IFCxxxRESOURCE` argument 4) en is aan de leeskant zichtbaar, maar heeft in het paneel
+ * geen kolom. Het toevoegen kost niets en maakt de bridge niet gevaarlijker.
  *
  * NIET schrijfbaar: `id` (de store genereert hem) en `availability` (deprecated, vervangen door
  * `maxUnits`; alleen nog gelezen bij migratie van oude bestanden).
@@ -217,18 +213,15 @@ type ResourcePlan =
  * volgende verwijzing ernaar correct wordt geweigerd.
  */
 /**
- * BIBLIOTHEEK-GATING (B1.1, issue #19). Een resource die uit een bedrijfsbibliotheek komt draagt een
+ * BIBLIOTHEEK-GATING. Een resource die uit een resourcebibliotheek komt draagt een
  * herkomststempel; de bibliotheek bepaalt dan WAT die resource is (naam/type/omschrijving/tarief/
  * eenheid — `RESOURCE_DIFF_FIELDS`) en het project bepaalt hoeveel en wanneer (`maxUnits`,
  * `availabilitySteps`, `calendarId`). Het resourcepaneel rendert die eerste groep daarom als platte
  * tekst: een mens KAN ze op zo'n rij niet wijzigen.
  *
- * Deze tool spiegelt dat slot in plaats van eromheen te lopen. Deed ze dat niet, dan schreef de
- * bridge velden die de gebruiker zelf niet kan schrijven — en de gemeten uitkomst daarvan is een
- * afwijkingsvraag bij de eerstvolgende verversgrens over een wijziging die de gebruiker niet zelf
- * maakte; kiest hij daar (begrijpelijk) "bibliotheekwaarden gebruiken", dan is de bewerking weg.
- * Een weigering die de twee echte routes noemt helpt de aanroeper verder dan een wijziging die later
- * stilzwijgend terugdraait.
+ * Deze tool spiegelt dat slot: anders schrijft de bridge velden die de gebruiker zelf niet kan
+ * schrijven, en volgt er bij de eerstvolgende verversgrens een afwijkingsvraag die de bewerking
+ * stilzwijgend kan terugdraaien. Een weigering die de twee echte routes noemt helpt meer.
  *
  * De gating leunt op EXACT dezelfde twee bronnen als de UI — `onOpenStatusForResource` +
  * `isResourceFieldLocked` voor de vraag "geldt hier een bibliotheekherkomst", en `RESOURCE_DIFF_FIELDS`
@@ -392,8 +385,8 @@ function classifyResources(
       }
       // Bibliotheek-gating vóór de verwijzingscontroles: raakt de update een veld dat de bibliotheek
       // bepaalt, dan wordt het HELE item geweigerd — niet half toegepast. Een gedeeltelijke toepassing
-      // ("maxUnits landde, costPerHour niet") zou precies de stille-no-op-klasse terugbrengen die dit
-      // oppervlak eerder heeft opgeruimd.
+      // ("maxUnits landde, costPerHour niet") is precies de stille-no-op-klasse die dit oppervlak
+      // uitsluit.
       const lockBad = libraryLockReason(s, item.id, fields);
       if (lockBad) { rejections.push({ id: item.id, reason: lockBad }); return; }
       const effectiveType = (fields.type as ResourceType) ?? cur.type;

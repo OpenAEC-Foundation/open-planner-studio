@@ -12,7 +12,7 @@ import { progressState, taskWorkDays, type ProgressState } from '@/engine/schedu
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
 /**
- * Gedeelde bouwstenen van de tabelrapporten (discussie #31, manuvarkey — de rapportuitbreiding).
+ * Gedeelde bouwstenen van de tabelrapporten.
  *
  * Alles hier is PUUR: geen store, geen React, geen i18n. Elk rapport in deze map krijgt één
  * `ReportContext` (een momentopname van het actieve document plus een injecteerbare "vandaag")
@@ -46,7 +46,7 @@ export interface ReportContext {
   statusDate?: string;
   /** "Vandaag" als ISO-dag — injecteerbaar zodat de tests deterministisch zijn. */
   today: string;
-  /** "Datums zoals opgeslagen" (issue #63) staat aan: verzameltaken tonen dan hun opgeslagen
+  /** "Datums zoals opgeslagen" staat aan: verzameltaken tonen dan hun opgeslagen
    *  voortgang, net als hun opgeslagen datums (zie `isSummaryProgressDerived`). */
   datesAsRecorded?: boolean;
 }
@@ -75,9 +75,9 @@ export function referenceDayOf(statusDate: string | undefined, today: string): {
 /** De getoonde datums (CPM, anders opgeslagen) onder de namen die de rapportmodules gebruiken. */
 export { shownStart as taskStart, shownFinish as taskFinish };
 
-/** Voortgangsstaat van een taak — sinds de verzameltaak-voortgangsrollup gedeeld met
- *  `applyCpmResult` en daarom in `engine/scheduler/summaryProgress.ts`; hier heruitgevoerd zodat de
- *  rapportmodules hun vaste importpad houden. */
+/** Voortgangsstaat van een taak — gedeeld met `applyCpmResult` en daarom in
+ *  `engine/scheduler/summaryProgress.ts`; hier heruitgevoerd zodat de rapportmodules hun vaste
+ *  importpad houden. */
 export { progressState, type ProgressState };
 
 /** Achterstand t.o.v. de referentiedag, op dagniveau: `finish` als een onvoltooide taak vóór `refDay`
@@ -141,7 +141,7 @@ export function projectSpan(tasks: readonly Task[]): ResolvedPeriod | undefined 
 }
 
 /**
- * De rapportageperiode (issue #120) opgelost tegen de referentiedag van dit rapport — één plek,
+ * De rapportageperiode opgelost tegen de referentiedag van dit rapport — één plek,
  * zodat look-ahead, voortgang, belasting en toewijzingen hetzelfde venster uit dezelfde keuze halen.
  */
 export function resolvePeriodFor(ctx: ReportContext, period: ReportingPeriod): ResolvedPeriod & { refDay: string; statusDateMissing: boolean } {

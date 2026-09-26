@@ -1,5 +1,5 @@
 /**
- * View-/render-contract-types (fase 1 modulariteits-sanering, thema E). Deze types beschrijven de
+ * View-/render-contract-types. Deze types beschrijven de
  * presentatie-/weergavelaag (Gantt-view, tijdschaal, filter/groep/sorteer/layout-model, datum- en
  * duurweergave) en worden gedeeld door engine (`GanttRenderer`, `HistogramRenderer`, `timelineTiers`,
  * `filterEval`), services (`printPreview`) én de state-laag. Ze wonen daarom in `src/types/` (met
@@ -10,33 +10,32 @@
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
 import type { BarColorSelection } from '@/types/barColor';
 
-// Fase 2.7 (§3): 'year' toegevoegd als directe keuze; 'quarter' aan de dropdown.
-// Fase 2.8b (§6.2): 'hour' toegevoegd — alleen bereikbaar/zichtbaar als de hoofdschakelaar
-// Urenplanning aan staat; `scaleFromZoom` levert 'hour' uitsluitend met die vlag.
+// 'hour' is alleen bereikbaar/zichtbaar als de hoofdschakelaar Urenplanning aan staat;
+// `scaleFromZoom` levert 'hour' uitsluitend met die vlag.
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'hour';
 
-// Datumnotatie (taak #53): bepaalt ALLEEN hoe datums aan de gebruiker getoond worden
+// Datumnotatie: bepaalt ALLEEN hoe datums aan de gebruiker getoond worden
 // (tabel, panelen, rapporten, print, tooltips) én de segmentvolgorde van het datumveld.
 // Interne opslag/serialisatie blijft ALTIJD ISO (YYYY-MM-DD) — deze waarde raakt bestanden,
 // engine of import/export nooit. Ontbrekende localStorage-sleutel ⇒ 'dmy' (dd-mm-jjjj).
 export type DateNotation = 'dmy' | 'mdy' | 'ymd';
 
-// Fase 2.8b (§6.8): Duurweergave — hoe duur in tabellen/tooltips getoond wordt.
+// Duurweergave — hoe duur in tabellen/tooltips getoond wordt.
 // 'auto' = eigen eenheid per taak ("3d"/"20u"); 'days'/'hours' = altijd forceren.
 export type DurationDisplay = 'auto' | 'days' | 'hours';
 
-// Fase 2.8b (§6.9): Taakbalken bij onderbrekingen — of uur-taakbalken in hun echte
+// Taakbalken bij onderbrekingen — of uur-taakbalken in hun echte
 // werkblokken (bar-necking) worden opgesplitst. 'never' = altijd doorlopend;
 // 'selection' = segmenten zichtbaar zodra de taak geselecteerd is; 'always' = altijd.
 export type BarSplitMode = 'never' | 'selection' | 'always';
 
-// --- Fase 2.7 weergaven: één veld-referentie voor filter, groep én sort (§2.1) ---
+// --- Eén veldreferentie voor filter, groep én sort ---
 export type BuiltinFieldKey =
   | 'name' | 'wbsCode' | 'duration' | 'start' | 'finish'
   | 'totalFloat' | 'isCritical' | 'completion' | 'taskType' | 'isMilestone'
-  // Fase 2.9 (§3.5): additieve analyse-velden — raken geen bestaand veld.
+  // Analysevelden.
   | 'freeFloat' | 'interferingFloat' | 'isNearCritical' | 'floatPath'
-  // Synthetisch filter-only veld (issue-discussie #32): "actief tussen" toetst start ÉN finish
+  // Synthetisch filter-only veld: "actief tussen" toetst start ÉN finish
   // tegelijk tegen een periode (interval-overlap), dus geen sorteer-/groepeerbaar scalar-veld —
   // zie FILTER_ONLY_BUILTIN_KEYS in fieldCatalog.ts.
   | 'activeDuring';
@@ -46,11 +45,11 @@ export type FieldRef =
   | { src: 'activityCode'; typeId: string }   // waarde = valueId (uit task.activityCodes)
   | { src: 'customField'; defId: string }      // waarde = task.customFields[defId]
   | { src: 'resource' }                          // afgeleide waarde = namen van toegewezen resources
-  // Issue #173: afgeleide waarde = de TYPES van de toegewezen resources (arbeid, materieel, …), zodat
+  // Afgeleide waarde = de TYPES van de toegewezen resources (arbeid, materieel, …), zodat
   // het scherm de tweelaagse indeling van het rapport Resourcediagram kan nabouwen.
   | { src: 'resourceType' };
 
-/** Kolomconfiguratie op de Tabel-weergave (FullTaskGrid, §2.2). Volgorde = arrayvolgorde. */
+/** Kolomconfiguratie op de Tabel-weergave (FullTaskGrid). Volgorde = arrayvolgorde. */
 export interface ColumnConfig {
   field: FieldRef;
   visible: boolean;
@@ -89,12 +88,11 @@ export interface SortLevel {
   dir: 'asc' | 'desc';
 }
 
-/** App-globale presentatie-preset (§2.5). Bewust GEEN scroll/zoom-positie of sessie-flags.
+/** App-globale presentatie-preset. Bewust GEEN scroll/zoom-positie of sessie-flags.
  *
- *  Een layout legt alleen vast wat hij DRAAGT (issue #144): een ontbrekende sleutel betekent "laat
- *  dat deel van het beeld met rust". Een opgeslagen filter is zo een layout met alleen `filter`, het
- *  meegeleverde resourcediagram een layout met alleen `group` + `sort`. Layouts van vóór #144 dragen
- *  alle vijf delen en gedragen zich dus ongewijzigd. Zie `src/engine/view/layoutPresets.ts`. */
+ *  Een layout legt alleen vast wat hij DRAAGT: een ontbrekende sleutel betekent "laat dat deel van het
+ *  beeld met rust". Een opgeslagen filter is zo een layout met alleen `filter`, het meegeleverde
+ *  resourcediagram een layout met alleen `group` + `sort`. Zie `src/engine/view/layoutPresets.ts`. */
 export interface Layout {
   id: string;
   name: string;
@@ -109,7 +107,7 @@ export interface Layout {
   /** Relatielijnen in de Gantt tonen. Het resourcediagram zet ze uit: een taak kan daar onder
    *  meerdere banden staan, waardoor de pijlen kriskras door het beeld lopen. */
   showRelations?: boolean;
-  /** De overige Gantt-overlays (issue #173). Anders dan de relatielijnen zijn dit app-brede
+  /** De overige Gantt-overlays. Anders dan de relatielijnen zijn dit app-brede
    *  schermopties (`ui.*`, bewaard in `localStorage`), geen documentdata. */
   overlays?: LayoutOverlays;
   /** Sleutel uit de vaste icoonset van de layoutknoppen (`layoutIcons.tsx`); geen layoutDEEL. */
@@ -117,9 +115,8 @@ export interface Layout {
 }
 
 /**
- * Het layoutdeel Overlay (issue #173): de schermopties uit Beeld → Basislijnen & voortgang, op de
- * relatielijnen na — die zijn al sinds #144 een eigen deel (`showRelations`, per document) en dat
- * blijft zo voor bestaande layouts. De dialoog toont beide onder één kop.
+ * Het layoutdeel Overlay: de schermopties uit Beeld → Basislijnen & voortgang, op de relatielijnen
+ * na — die zijn een eigen deel (`showRelations`, per document). De dialoog toont beide onder één kop.
  */
 export interface LayoutOverlays {
   baseline: boolean;
@@ -146,7 +143,7 @@ export interface LayoutViewParts {
 }
 
 /**
- * Een layoutknop is een SCHAKELAAR (eigenaarsbesluit 2026-09-19): aanzetten past de layout toe,
+ * Een layoutknop is een SCHAKELAAR: aanzetten past de layout toe,
  * nogmaals klikken zet hem uit en brengt zijn delen terug naar `restore` — het beeld van vóór de
  * eerste layoutklik. Knoppen die VERSCHILLENDE delen dragen kunnen tegelijk aanstaan (resourcediagram
  * + een filterknop); een knop die een deel van een andere draagt vervangt die andere.
@@ -157,7 +154,7 @@ export interface LayoutSession {
   restore: LayoutViewParts;
 }
 
-/** Split view binnen één document (§10) — undefined = uit. */
+/** Split view binnen één document — undefined = uit. */
 export interface SplitViewState {
   ratio: number;          // 0..1 breedteverdeling linker pane
   secondaryZoom: number;  // eigen zoom rechter pane
@@ -170,13 +167,13 @@ export interface ViewState {
   zoom: number; // pixels per day
   timeScale: TimeScale;
   viewStartDate: string; // leftmost visible date
-  /** Histogram-selectie (fase 2.5, §6.4): id van de resource die de histogramstrook toont;
+  /** Histogram-selectie: id van de resource die de histogramstrook toont;
    *  undefined = alle renewables samengeteld. Per-document (zit in ViewState → DocumentPayload). */
   histogramResourceId?: string;
-  // --- Fase 2.7 (§2.6) — per-document view-state ---
+  // --- Per-document view-state ---
   /** Geneste AND/OR-filter; null = geen filter (short-circuit). */
   filter: FilterNode | null;
-  /** Groepeer-niveaus; [] = WBS-boom (huidig gedrag). */
+  /** Groepeer-niveaus; [] = WBS-boom. */
   group: GroupLevel[];
   /** Sorteer-niveaus (multi-key, stabiel); [] = boom-/bandvolgorde. */
   sort: SortLevel[];
@@ -184,15 +181,15 @@ export interface ViewState {
   collapsedGroupKeys: string[];
   /** Split view binnen dit document; undefined = uit. */
   splitView?: SplitViewState;
-  /** Relatielijnen in de Gantt tonen (issue #144); undefined = aan. */
+  /** Relatielijnen in de Gantt tonen; undefined = aan. */
   showRelations?: boolean;
   /** De layoutknop die nu aanstaat, met het beeld om naar terug te keren; undefined = geen. */
   layoutSession?: LayoutSession;
-  /** Open-fit-signaal (issue #16): na het laden van een document zet fileSlice dit op `true`; de
+  /** Open-fit-signaal: na het laden van een document zet fileSlice dit op `true`; de
    *  GanttCanvas voert dan de fit-to-project uit (het kent de viewport-breedte, de store niet) en
    *  wist het meteen weer. Transient — bewust GEEN undo/redo (view zit niet in de snapshot). */
   pendingFit?: boolean;
-  /** "Spring naar taak"-signaal (issue #65): `focusOnTask` zet dit op de doel-taak-id; GanttCanvas
+  /** "Spring naar taak"-signaal: `focusOnTask` zet dit op de doel-taak-id; GanttCanvas
    *  voert de zoom-/scrollberekening uit (kent de canvas-afmetingen, de store niet) en wist het
    *  meteen weer. Transient — zelfde precedent als `pendingFit`. */
   pendingFocusTaskId?: string;

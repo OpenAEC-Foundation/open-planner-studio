@@ -5,15 +5,15 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ProjectInfoPanelContent, type ProjectInfoPanelContentHandle } from '@/components/settings/ProjectInfoPanelContent';
 
 /**
- * Dubbel-modus dialoog — nu een dunne chrome-wrapper rond het gedeelde `ProjectInfoPanelContent`
- * (issue #19, naar het model van `SettingsPanelContent`):
+ * Dubbel-modus dialoog — een dunne chrome-wrapper rond het gedeelde `ProjectInfoPanelContent`
+ * (naar het model van `SettingsPanelContent`):
  *  - Projectinfo bewerken (ui.showProjectInfoDialog) — wijzigt het actieve project (`mode="edit"`).
  *  - Nieuw-project-wizard (ui.showNewProjectDialog) — maakt een nieuw document met metadata, een
  *    kalender-preset en een fasering-template (`mode="wizard"`).
  * Wordt conditioneel gemount (één van beide vlaggen), dus de content-state initialiseert vers.
  *
  * De velden + commit-logica leven in `ProjectInfoPanelContent`; deze wrapper levert alleen de
- * Dialog-chrome (header/Esc/Enter/footer-knoppen; bewust géén backdrop-close — issue #158) en roept `submit()` aan via een `ref`,
+ * Dialog-chrome (header/Esc/Enter/footer-knoppen; bewust géén backdrop-close) en roept `submit()` aan via een `ref`,
  * omdat `Dialog`'s `onConfirm` (Enter-afhandeling) op het buitenste element zit, vóór het gedeelde
  * component gemount wordt.
  */
@@ -30,10 +30,10 @@ export function ProjectInfoDialog() {
   const submit = () => panelRef.current?.submit();
 
   return (
-    // Esc sluit (LAYOUTS.md §3.3), Enter = primaire actie (Aanmaken/Toepassen), met de standaard
+    // Esc sluit, Enter = primaire actie (Aanmaken/Toepassen), met de standaard
     // textarea/dropdown/IME-uitzonderingen (o.a. de omschrijving-textarea en de land/template-Selects).
-    // Een klik naast het paneel sluit NIET (issue #158): een gebruiker die per ongeluk buiten de
-    // wizard klikte verloor alles wat hij al had ingetypt. Alleen Annuleren/X/Esc sluiten.
+    // Een klik naast het paneel sluit NIET: een gebruiker die per ongeluk buiten de
+    // wizard klikt, verliest anders alles wat hij al had ingetypt. Alleen Annuleren/X/Esc sluiten.
     <Dialog
       onCancel={close}
       onConfirm={submit}

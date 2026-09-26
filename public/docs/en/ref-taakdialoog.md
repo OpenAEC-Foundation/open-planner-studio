@@ -12,7 +12,7 @@ The **Edit task** window shows all properties of one task — the same fields an
 
 - **Save** applies all field changes at once; the button is disabled while the name is empty. **Enter** does the same as Save (except inside a multi-line text box).
 - **Cancel**, **Esc**, the close cross or a click outside the window closes without applying the field changes.
-- Exception: the **Dependencies**, **Assignments** and **Codes & fields** sections work directly on the schedule (identical to the panel) — changes there take effect immediately, even if you cancel afterwards.
+- Exception: the **Dependencies**, **Assignments** and **Codes & fields** sections work directly on the schedule (identical to the panel) — changes there take effect immediately, even if you cancel afterwards. The same applies to the **Work rule** field on an existing task: that choice is applied at once, so work and units in the same dialog already calculate with the chosen rule. On a new task the work rule also waits for **Save**.
 
 ## Fields
 
@@ -37,6 +37,7 @@ A checklist per task: each row has a **done checkbox**, a text box and a remove 
 
 - **Start date** — shows the computed early start; a manual change anchors the new date as the planned start. If the task has a predecessor, **Save** also turns that date into a Start no earlier than (SNET) constraint, unless you pick a constraint yourself in the same dialog. If the task already has a different constraint (for example MSO), the new start is not applied and a notification names that constraint.
 - The dialog and properties panel use the same **Duration [value] [Days | Hours]** control. Type `2d`, `12h` or the input alias `12u`. A regular calendar with working days, start and end time, and hours per day automatically supplies effective working-time bands; use the per-weekday editor to refine them when needed. Only an empty or invalid calendar blocks hours. See [Calendars & hour planning](docs://gids-kalenders-uren).
+- **Work rule** — which number stays fixed when duration, units or work change: **Project default (…)**, **Fixed duration and units**, **Fixed duration and work**, **Fixed work** or **Fixed units**. Below it the dialog states what the effective rule protects (for example "Protected: duration and units (work follows)"), and for a task from MS Project its effort-driven flag. The field only appears when *Show work rules and work* is on (Settings → Planning → Calculation) or the document itself carries work rules, and only on a task without subtasks that is not a milestone, a hammock or a task with duration type *Elapsed time*. On an existing task the choice takes effect immediately (see above). See [Work rules and work](docs://gids-taaktypes).
 
 ## Hammock (derived duration)
 

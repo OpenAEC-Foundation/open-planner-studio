@@ -1,6 +1,6 @@
-// Fase 2.10, onderdeel 5 (golf 1): in-app help/documentatie-viewer. Backstage-sectie (net als
+// In-app help/documentatie-viewer. Backstage-sectie (net als
 // `ExamplesSection` in Backstage.tsx) — GEEN aparte `RibbonTab`/`isFullPanel`-tak in App.tsx
-// (architect-besluit 5: alleen Backstage-NavItem + F1, geen ribbon-knop). Manifest + artikelen
+// (alleen Backstage-NavItem + F1, geen ribbon-knop). Manifest + artikelen
 // worden at-runtime gefetcht via `BASE_URL`, exact hetzelfde patroon als
 // `public/examples/manifest.json` (zie `ExamplesSection` hierboven in Backstage.tsx).
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -52,11 +52,11 @@ export function HelpPanel() {
   const { t: tCommon, i18n } = useTranslation('common');
   const openExampleFromString = useAppStore(s => s.openExampleFromString);
   const setUI = useAppStore(s => s.setUI);
-  // mpp-nul-data-etappe — "lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
+  // "Lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
   // (`openHelpArticle` in uiSlice.ts). Eenmalig-verzoek-patroon: lezen + direct weer op `null`.
   const pendingHelpArticleId = useAppStore(s => s.ui.pendingHelpArticleId);
 
-  // Taal-koppeling (§3 ontwerp): standaard volgt de docs-taal de UI-taal (met EN-fallback per
+  // Taal-koppeling: standaard volgt de docs-taal de UI-taal (met EN-fallback per
   // artikel in de body-fetch). De gebruiker kan de docs-taal echter LOS van de UI overrulen —
   // handig omdat de niet-NL/EN-vertalingen maar sporadisch worden bijgewerkt (zie de waarschuwing
   // hieronder). De override is persistent in localStorage.
@@ -87,7 +87,7 @@ export function HelpPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  // mpp-nul-data-etappe — een "lees meer"-link zette `ui.pendingHelpArticleId`; selecteer dat
+  // Een "lees meer"-link zette `ui.pendingHelpArticleId`; selecteer dat
   // artikel en consumeer het verzoek meteen (net als `pendingNewResource` elders). Volgorde-veilig
   // t.o.v. de manifest-fetch hieronder: die zet `selectedId` alleen via `prev ?? …` (eerste artikel
   // als default), dus een al gezette `pendingHelpArticleId`-selectie overleeft een latere
@@ -116,10 +116,9 @@ export function HelpPanel() {
     return () => { cancelled = true; };
   }, []);
 
-  // Alle artikelbodies voor de huidige taal ophalen. Golf 1 heeft er 2 (klein genoeg om zonder
-  // apart index-bestand te gebruiken); dit dient tegelijk als de titel+koppen-zoekindex (§2.3
-  // MVP) — "bouw 'm client-side uit de gefetchte artikelen die al geladen zijn". Her-fetch bij
-  // elke taalwissel via de `lang`-dependency.
+  // Alle artikelbodies voor de huidige taal ophalen (zonder apart index-bestand); dit dient
+  // tegelijk als de titel+koppen-zoekindex, client-side opgebouwd uit de gefetchte artikelen.
+  // Her-fetch bij elke taalwissel via de `lang`-dependency.
   useEffect(() => {
     if (!manifest) return;
     let cancelled = false;
@@ -188,7 +187,7 @@ export function HelpPanel() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
       await openExampleFromString(content, file, buildImportLabels(tCommon));
-      // Showcase-voorbeelden delen één demo-resourcebibliotheek (issue #19, user-verzoek): zelfde
+      // Showcase-voorbeelden delen één demo-resourcebibliotheek: zelfde
       // volgorde als Backstage → Voorbeelden (`ExamplesSection.handleOpen`). Deze aanroeper kent
       // alleen de bestandsnaam (geen manifest-`category`) — de showcase-bestanden dragen allemaal het
       // `showcase-`-voorvoegsel (zie `public/examples/manifest.json`), de basisvoorbeelden niet.

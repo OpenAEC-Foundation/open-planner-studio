@@ -72,7 +72,7 @@ export interface PlannerStudioSdk {
 }
 
 /** Bouw een volledige (interne) Task met dezelfde defaults als de store-actie addTask. Bewust ZONDER
- *  `seedNewHourTaskFinish` (Fable-critreview PR #169, bevinding 10): dit is een DTO-bouwer zonder
+ *  `seedNewHourTaskFinish`: dit is een DTO-bouwer zonder
  *  document of kalender, dus er is niets om het einde van een urentaak op af te leiden. Een extensie
  *  die een urentaak aan het document toevoegt gebruikt `api.data.addTask` zonder `scheduleFinish` —
  *  daar leidt de store het einde af (`fromExtTaskAddInput`); in een importresultaat is het einde

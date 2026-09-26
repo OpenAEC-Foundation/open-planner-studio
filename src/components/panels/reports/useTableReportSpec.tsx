@@ -222,7 +222,7 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   ];
   return {
     title: t(`${p}.title`),
-    // Geen ondertitel: de statusdatum staat al als eerste regel van de samenvatting (issue #110 punt 4).
+    // Geen ondertitel: de statusdatum staat al als eerste regel van de samenvatting.
     notes: commonNotes(t, dd, ctx, stale, s.statusDateMissing),
     summary,
     sections: [
@@ -245,7 +245,7 @@ function healthDetailText(t: T, dd: DD, item: HealthItem): string {
   if (d.reason) parts.push(t(`tableReports.health.reason_${d.reason}`));
   if (d.constraintType) parts.push(d.constraintType);
   // De engine levert de lag taalneutraal ("+1.5d", `formatLagShort`); hier krijgt hij hetzelfde
-  // decimaalteken als `dd.num(d.float)` verderop in dezelfde cel (review #139, bevinding 5).
+  // decimaalteken als `dd.num(d.float)` verderop in dezelfde cel.
   if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: dd.lagText(d.lag) }));
   else if (d.days !== undefined) parts.push(t('tableReports.health.detail_days', { value: dd.num(d.days) }));
   if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: dd.num(d.float) }));
@@ -294,7 +294,7 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
 }
 
 /**
- * Groepering per resource (issue #119): de resourcenaam en het type alleen op de eerste rij van elke
+ * Groepering per resource: de resourcenaam en het type alleen op de eerste rij van elke
  * groep, vet — DOM én PDF. Vooraf bepaald op de rijenlijst: een teller in `text()` zou bij een
  * her-render (StrictMode, PDF ná DOM) met de vorige eindstand beginnen en de eerste groepsnaam
  * laten wegvallen.
@@ -355,7 +355,7 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
   const r = computeResourceAssignments(ctx, { period: o.resourceAssignmentPeriod, includeCompleted: o.resourceAssignmentIncludeCompleted });
   const p = 'tableReports.resourceAssignments';
   // Groepering per resource: naam en type alleen op de eerste rij van elke groep (DOM én PDF) —
-  // dezelfde stijl als het belastingsrapport (issue #119).
+  // dezelfde stijl als het belastingsrapport.
   const firstOfGroup = firstOfResourceGroup(r.rows, row => row.assignmentId);
   const columns: ReportColumn<ResourceAssignmentRow>[] = [
     { key: 'resource', header: t(`${p}.resource`), width: 170, align: 'left', text: row => (firstOfGroup.has(row.assignmentId) ? row.resourceName : ''), bold: () => true },
@@ -430,7 +430,7 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
     signed: n => formatSignedReportNumber(n, locale),
     lagText: lag => localizeDecimalPoint(lag, locale),
   }), [dates, locale]);
-  // "Datums zoals opgeslagen" (issue #63; eindreview XER-etappe bevinding 6): in de modus lezen de
+  // "Datums zoals opgeslagen": in de modus lezen de
   // rapporten `task.time` zoals de tabel, maar zónder de "niet vastgelegd"-poort van de kolommen —
   // een as die het bestand niet vastlegde staat er dan als leeg/0. Eén melding bovenaan elk rapport
   // (en dus ook in de PDF, die dezelfde spec tekent) zegt waar die nullen vandaan komen.

@@ -1,11 +1,11 @@
 // MCP-dispatcher — minimale streamable-HTTP-JSON-RPC-afhandeling zonder SDK-dependency.
 //
 // Ontvangt de RAUWE HTTP-body (JSON-RPC) en geeft de RAUWE respons-body terug; de Rust-shell
-// forwardt alleen bytes (spec §Architectuur: "TS weet niets van HTTP"). Tools-only subset:
+// forwardt alleen bytes ("TS weet niets van HTTP"). Tools-only subset:
 // initialize / notifications/initialized / tools/list / tools/call / ping.
 //
 // Guards (drift, pauze/alleen-lezen, AI-backup, transactie) zitten NIET hier — die draaien in een
-// hogere laag op de dispatch-grens (spec §Sessie-semantiek / §AI-backup). Deze laag routeert puur.
+// hogere laag op de dispatch-grens. Deze laag routeert puur.
 import type { McpContext, McpToolResult, McpToolDef } from './contracts';
 import { getTools, getTool } from './toolRegistry';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from './schemaValidate';
@@ -154,20 +154,19 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
       if (!def) {
         return errorMsg(id, -32602, `Onbekende tool: ${String(name)}`);
       }
-      // SCHEMA-POORT (audit-fix S): valideer de argumenten tegen `def.inputSchema` VÓÓR de handler.
-      // Zonder deze regel was elk `enum`/`type`/`required`/`minimum`/`additionalProperties` in de 33
-      // schema's puur decoratief — het ging mee in tools/list (waar de AI zich erop verlaat) maar
-      // werd nergens afgedwongen, dus alles wat een tool niet zélf hercontroleerde gleed erdoor.
+      // SCHEMA-POORT: valideer de argumenten tegen `def.inputSchema` VÓÓR de handler. Zonder deze
+      // regel is elk `enum`/`type`/`required`/`minimum`/`additionalProperties` puur decoratief — het
+      // gaat mee in tools/list (waar de AI zich erop verlaat) maar wordt nergens afgedwongen.
       // De schending komt terug als TOOL-resultaat (isError + structuredContent met code VALIDATION),
       // niet als JSON-RPC-fout: zo ziet de AI-client dezelfde foutvorm als bij elke andere
       // VALIDATION-weigering. Geen envelop: die hangt aan de store-laag en die raken we hier niet aan.
       //
       // DIEPTE — DE BULK-CONVENTIE BLIJFT LEIDEND. Deze poort mag een bulk-call NOOIT in zijn geheel
-      // afwijzen om één rot item: spec §batch (T19/T20) zegt dat één rotte regel de bulk niet
-      // terugrolt, en de handlers maken er een `itemRejections`-regel van. De poort is daarom STRIKT
-      // op het bovenste niveau (onbekende top-level sleutels, `required`, scalairen, en van arrays de
-      // buitenkant: array-zijn, `minItems`, elementtype) en laat de BINNENKANT van array-items aan de
-      // tool. Enige uitzondering: `ATOMIC_ITEM_TOOLS` (`planner_add_tasks`, `planner_set_task_splits`), wier
+      // afwijzen om één rot item: één rotte regel rolt de bulk niet terug, en de handlers maken er
+      // een `itemRejections`-regel van. De poort is daarom STRIKT op het bovenste niveau (onbekende
+      // top-level sleutels, `required`, scalairen, en van arrays de buitenkant: array-zijn,
+      // `minItems`, elementtype) en laat de BINNENKANT van array-items aan de tool. Enige
+      // uitzondering: `ATOMIC_ITEM_TOOLS` (`planner_add_tasks`, `planner_set_task_splits`), wier
       // contract per definitie alles-of-niets is. Zie de DIEPTE-REGEL in `schemaValidate.ts`.
       const schemaError = validateToolArgs(def.inputSchema, msg.params?.arguments, {
         deepArrayItems: ATOMIC_ITEM_TOOLS.has(def.name),

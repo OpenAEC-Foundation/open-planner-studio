@@ -1,4 +1,4 @@
-// De lint-kant van het commandoregister (K-item 34).
+// De lint-kant van het commandoregister.
 //
 // Zet een `Command` om in de `RibbonButtonBinding` die een lintknop verwacht. Dit is de enige plek
 // waar de imperatieve kant van een commando de reactieve kant van het lint raakt:

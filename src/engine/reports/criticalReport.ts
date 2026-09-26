@@ -1,13 +1,13 @@
 import { type ReportContext, isNearCritical, activityTasks, progressState, remainingDays, taskFinish, taskStart } from './reportCommon';
 
 /**
- * Kritiek-en-near-critical-rapport (discussie #31, rapport 3): welke activiteiten bepalen het
+ * Kritiek-en-near-critical-rapport: welke activiteiten bepalen het
  * projecteinde, en welke staan op het punt dat te gaan doen.
  *
  * Bron van de vlaggen is de laatste berekening: `isCritical` en `floatPath` komen rechtstreeks uit
- * de solver (fase 2.9), near-critical is `0 < TF ≤ drempel` (rapportdrempel) óf de markering uit
+ * de solver, near-critical is `0 < TF ≤ drempel` (rapportdrempel) óf de markering uit
  * de planningsopties. Voltooide taken doen niet mee — een afgeronde taak stuurt niets meer.
- * Sortering zoals het voorstel: float-pad (1 = meest kritiek; zonder pad achteraan), dan totale
+ * Sortering: float-pad (1 = meest kritiek; zonder pad achteraan), dan totale
  * speling, dan start.
  */
 export interface CriticalRow {

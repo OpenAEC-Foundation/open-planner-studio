@@ -79,7 +79,9 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   `hydratePayload`/`freshPayload` walk that single list, so capture and hydrate
   cannot diverge, and a `DocumentPayload` field missing from the list is a
   **compile error**. `snapshot.ts` derives the undo snapshot from it,
-  `transaction.ts` wraps the mutate ritual, `ifcSaveInput.ts` picks the
+  `src/state/runtime/storeRuntime.ts` owns the mutate ritual (`beginUndoable` →
+  mutation → `finishMutation`/`finishUndoable`; `transaction.ts` only re-exports
+  it), `ifcSaveInput.ts` picks the
   round-trip fields for an IFC save. Skip this and your field silently dies on
   document switch, undo, crash recovery and save.
 - **Scheduling is manual, not reactive.** The actual solve (leaf-filter →
@@ -88,11 +90,15 @@ npx playwright install --with-deps --only-shell chromium  # one-time setup for t
   implementation shared with the resource-occupancy overview. `runCPM`
   (`scheduleSlice.ts`) is a thin wrapper: it calls `solveProject` on the Immer
   draft, then sets `cpmResult`/`resourceLoadResult` and clears
-  `scheduleStale`. It does **not** re-run on edit — trigger it explicitly (F5,
-  ribbon Calculate, menu, after IFC load). Editing tasks without `runCPM`
-  leaves the schedule stale.
-- **Undo/redo is snapshot-based.** Mutating actions push a full `Snapshot`
-  before mutating.
+  `scheduleStale`. Store actions do **not** call it themselves — trigger it
+  explicitly (F5, ribbon Calculate, menu, after IFC load). Editing tasks without
+  `runCPM` leaves the schedule stale (set the flag via `markScheduleStale`, never
+  directly). Exception: the opt-in setting **Automatisch berekenen**
+  (`ui.autoCalcCPM`, default `false`) lets `src/hooks/useAutoCalcCPM.ts` call
+  `runCPM` shortly after `scheduleStale` turns true.
+- **Undo/redo is snapshot-based.** Mutating actions capture a before-`Snapshot`
+  (`beginUndoable`); the finished mutation lands as an event in
+  `historyEvents` — there is no separate redo stack.
 - **Multi-document is single-active.** Top-level state is one document;
   `documentSlice` keeps the rest as `DocumentPayload` snapshots and swaps on
   switch/new/close. App-global state (most of `ui`, `taskClipboard`) is not
@@ -109,7 +115,8 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
   break the web build (`dist/` is a real production deploy, not just dev).
   Since v2026.7.11 the browser build does its own file I/O (File System
   Access API on Chromium, download-fallback elsewhere) and auto-save
-  recovery (IndexedDB) — only the in-app updater is Tauri-only.
+  recovery (IndexedDB) — only the in-app updater and the MCP bridge
+  (`src/services/mcp/server.ts`) are Tauri-only.
 - **Rust backend is thin.** File I/O funnels through `src/services/fileAccess/`
   (runtime-dispatched: Tauri `plugin-fs`/`plugin-dialog` vs web File System
   Access API, unified via a `FileRef` model), not `invoke`. The
@@ -128,8 +135,8 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
 - **Working language is Dutch** for code comments, commit messages, and the
   canonical source translations. User-facing strings must go through `t(...)`
   (never hard-code) — 14 locales in `src/i18n/`; `ar` and `fa` are RTL.
-- **`immer` is pinned EXACTLY (`"11.1.4"`, no caret) — the only dependency of 37
-  that is.** Do not "restore consistency" by putting the `^` back. Immer sits
+- **`immer` is pinned EXACTLY (`"11.1.4"`, no caret)** — one of only two exactly
+  pinned dependencies (the other is `@playwright/test`). Do not "restore consistency" by putting the `^` back. Immer sits
   directly under undo/redo, snapshot sharing (`src/state/snapshot.ts` deliberately
   shares references instead of cloning) and auto-freeze, so a silent minor bump
   changes the semantics of the state layer. It also breaks the build: from
@@ -146,11 +153,12 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
 - Project auto-save runs in **both** Tauri and browser: **throttled to 10 s** in
   `src/hooks/useAutoSave.ts` (a throttle, not a debounce — a debounce would only
   write 10 s after the *last* edit and so widen the data-loss window during a long
-  editing session), one IFC snapshot per open document via
+  editing session), an immutable IFC snapshot generation per *changed* document via
   `src/services/recovery/recoveryStore.ts` (Tauri: `appDataDir`; web:
   IndexedDB), keyed by worktree instance slug.
-- **`public/docs/` is a documentation subsystem with its own CI gate** — 31
-  articles × 14 languages plus a manifest, feeding the in-app help viewer
+- **`public/docs/` is a documentation subsystem with its own CI gate** — 38
+  articles in `nl` + `en` (26 of them also in the other 12 languages, which
+  fall back to English) plus a manifest, feeding the in-app help viewer
   (Backstage → Help) and the generated GitHub wiki (`npm run publish:wiki`;
   never hand-edit the wiki). Articles render through a *limited* Markdown subset
   (`src/utils/miniMarkdown.tsx`): no tables, no blockquotes, no h4, no raw HTML,

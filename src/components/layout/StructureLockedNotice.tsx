@@ -6,9 +6,9 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { NoticeStrip } from './NoticeStrip';
 
 /**
- * Niet-blokkerende melding (issue #26): een structuurmutatie (in-/uitspringen, doorlopend invoeren)
+ * Niet-blokkerende melding: een structuurmutatie (in-/uitspringen, doorlopend invoeren)
  * is geweigerd omdat de weergave niet in pure boommodus staat — er wordt gefilterd, gegroepeerd of
- * gesorteerd. Voorheen gebeurde er in dat geval stil niets; deze strook vertelt waaróm en biedt aan
+ * gesorteerd. Deze strook vertelt waaróm (in plaats van stil niets te doen) en biedt aan
  * de drie view-standen te wissen. `ui.structureLockedNotice` is een TELLER: elke nieuwe poging hoogt
  * hem op, zodat de melding ook opnieuw verschijnt (en de verdwijn-timer herstart) als hij al stond.
  */

@@ -34,8 +34,8 @@ release note of the fix.
 ## Supported versions
 
 Only the latest release gets fixes. Versions are CalVer (`YYYY.M.patch`); the
-desktop version updates itself via the built-in updater, except on a Snap or
-AppImage installation — those are updated through their own channel. The browser
+desktop version updates itself via the built-in updater, except on a Snap
+installation — that is updated by snapd itself. The browser
 version at `open-planner-studio.open-aec.com` always runs the latest `main`.
 
 ## Where the risks are

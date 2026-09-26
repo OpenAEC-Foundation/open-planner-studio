@@ -10,42 +10,32 @@ import { markDocumentEdited, markDocumentUnsaved } from '@/state/documentEdited'
 import { sameValue } from '@/utils/sameValue';
 
 /**
- * De undo/redo-snapshot is een EXPLICIETE subset van het documentcontract (audit P10).
+ * De undo/redo-snapshot is een EXPLICIETE subset van het documentcontract.
  *
  * De velden komen 1-op-1 uit `DocumentPayload` (`Pick<>`), zodat een typewijziging aan een
- * documentveld automatisch doorwerkt. Welke velden meedoen wordt gestuurd door de `snapshot`-rol in
- * `DOCUMENT_FIELDS` ('clone'/'ref' = wél, 'none' = niet). De per-veld-keuzes en hun onderbouwing:
+ * documentveld automatisch doorwerkt. Welke velden meedoen, bepaalt de `snapshot`-rol in
+ * `DOCUMENT_FIELDS` ('data'/'derived' = wél, 'none' = niet):
  *
- *  IN (muteerbare projectdata, 'data'):
+ *  IN ('data', muteerbare projectdata):
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
- *    customFieldDefs, baselines, activeBaselineId (G5: door de gebruiker gekozen en in het bestand
- *    bewaard, dus projectdata — geen rekenresultaat; `documentDataChanged` moet hem zien)
- *  IN (afgeleid, 'derived'; runCPM vervangt ze als geheel, muteert nooit in-place, dus delen
- *      is veilig). cpmResult en scheduleStale moeten exact de handmatig berekende toestand kunnen
- *      herstellen. recordedDates/datesAsRecorded (issue #63) horen om dezelfde reden hier: samen
- *      met `tasks` ('data') draait één undo de datums én de modus terug:
+ *    customFieldDefs, customTaskTypes, baselines, activeBaselineId (door de gebruiker gekozen en in
+ *    het bestand bewaard, dus projectdata; `documentDataChanged` moet hem zien)
+ *  IN ('derived'; runCPM vervangt ze als geheel en muteert nooit in-place, dus delen is veilig).
+ *      Undo moet exact de handmatig berekende toestand kunnen herstellen; samen met `tasks` draait
+ *      één undo de opgeslagen datums én de modus terug:
  *    cpmResult, scheduleStale, recordedDates, datesAsRecorded
- *  UIT ('none' — undo mag deze bewust NIET aanraken):
+ *  UIT ('none', undo raakt deze bewust NIET aan):
  *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, filePath, fileHandle en isDirty
  *    (data-undo/redo zet isDirty altijd op true; `importPristine` wist alleen een undo/redo van een
- *    echte bewerking, niet van een `nonEdit`-event — zie `restoreSnapshot`). De sessiehistorie is app-globaal en hoort niet bij
- *    `DocumentPayload`. resourceLoadResult en viewRows worden door `materializeHistoryTarget` uit
- *    het herstelde target afgeleid.
+ *    echte bewerking, niet van een `nonEdit`-event — zie `restoreSnapshot`). De sessiehistorie is
+ *    app-globaal en hoort niet bij `DocumentPayload`. resourceLoadResult en viewRows worden door
+ *    `materializeHistoryTarget` uit het herstelde target afgeleid.
  *
- * PROJECT — de oude B3-uitzondering is VERVALLEN (pakket H). Historie: het hele `project`-object
- * stond hier NIET in, met één nauwe projectie (`wbsAutoNumber`). Reden was dat
- * `setProject`/`setStatusDate`/`setProgressMode`/`setProjectCalendar` het project BEWUST zonder
- * undo-snapshot muteerden; met heel `project` in de snapshot zou een undo van een ongerelateerde
- * taakbewerking een later-gezette statusdatum hebben teruggedraaid. `wbsAutoNumber` mocht er wél in
- * omdat zijn enige mutator (`setWbsAutoNumber`) zelf een snapshot pusht.
- *
- * Dat laatste is precies de INVARIANT van dit ontwerp: een projectveld mag in de snapshot staan dan
- * en slechts dan als élke mutator ervan een snapshot pusht. Pakket H herstelt die invariant door hem
- * te VERVULLEN in plaats van op te rekken — alle vijf de project-mutators in `projectSlice` roepen nu
- * `beginUndoable` aan (elk met een no-op-guard die `modifiedAt` buiten beschouwing laat, zodat een
- * "opslaan" met ongewijzigde waarden géén lege undo-stap pusht). Daarmee kan heel `project` mee en
- * worden projectdatums/statusdatum/voortgangsmodus normaal ongedaan te maken. Wie hier een nieuwe
- * project-mutator aan toevoegt zónder snapshot, breekt de invariant en brengt bug B3 terug.
+ * INVARIANT voor `project`: een projectveld mag in de snapshot staan dan en slechts dan als élke
+ * mutator ervan een snapshot pusht. Alle project-mutators in `projectSlice` roepen daarom
+ * `beginUndoable` aan (met een no-op-guard die `modifiedAt` negeert, zodat "opslaan" met ongewijzigde
+ * waarden géén lege undo-stap pusht). Een project-mutator zónder snapshot zou een undo van een
+ * ongerelateerde taakbewerking bv. een later gezette statusdatum laten terugdraaien.
  */
 export type Snapshot = Pick<
   DocumentPayload,
@@ -55,7 +45,7 @@ export type Snapshot = Pick<
 >;
 
 // Compile-time koppeling tussen de Pick hierboven en de `snapshot`-rollen in DOCUMENT_FIELDS
-// (beide richtingen). Wijzig je een rol naar 'clone'/'ref' zonder het veld in de Pick op te nemen
+// (beide richtingen). Wijzig je een rol naar 'data'/'derived' zonder het veld in de Pick op te nemen
 // (of andersom), dan faalt één van deze regels — en de object-literal in `migrateSnapshot` dwingt
 // vervolgens ook daar een bewuste default af. Zo kan de snapshot-keten niet stil divergeren.
 type SnapshotRoleKey = Extract<typeof DOCUMENT_FIELDS[number], { snapshot: 'data' | 'derived' }>['key'];
@@ -71,54 +61,35 @@ void _assertPickHasNoExtras;
  * Maak een snapshot van de huidige state: elk niet-'none'-veld PER REFERENTIE, key-gedreven over
  * `DOCUMENT_FIELDS`.
  *
- * WAAROM GEEN DIEPE KLOON MEER (2026-08-17, prestatiedoel "5000 taken"). Hier stond
- * `JSON.parse(JSON.stringify(v))` over álle 'data'-velden, bij élke mutatie. Dat was veruit de
- * duurste stap van de hele app. Gemeten op een project van 5.000 taken, één `addTask`: 132 ms zoals
- * het was, 59 ms met alleen deze wijziging, 18 ms samen met de goedkopere WBS-nummering
- * (`utils/wbs.ts`). Voor `updateTask` is het aandeel nog groter: 97 ms → 11 ms. In het CPU-profiel
- * ging ~26% op aan de kloon zelf en ~45% aan het DIEPVRIEZEN van de zojuist gekloonde objecten door
- * Immer — die tweede helft is makkelijk over het hoofd te zien maar hoort er even goed bij.
+ * WAAROM GEEN DIEPE KLOON. Een JSON-kloon van alle 'data'-velden bij élke mutatie was veruit de
+ * duurste stap van de app (kloon plus het diepvriezen van de kopie door Immer) en kostte per
+ * undo-stap een volledige projectkopie. Met delen kost een stap ongeveer de objecten die die ene
+ * bewerking aanraakte.
  *
- * Het kostte bovendien geheugen in dezelfde orde: 100 undo-stappen × een volledige projectkopie,
- * per geopend document. Met delen kost een stap nog ongeveer de objecten die die ene bewerking
- * aanraakte.
+ * WAAROM DELEN VEILIG IS. Een kloon beschermt tegen aliasing: muteert iets de live state in-place,
+ * dan verandert een gedeelde snapshot mee. Dat kan hier niet:
  *
- * WAAROM DAT VEILIG IS. De kloon beschermde tegen aliasing: als iets de live state in-place zou
- * muteren, zou een gedeelde snapshot mee veranderen en zou undo niets herstellen. Die aanval bestaat
- * hier niet, om twee elkaar overlappende redenen:
+ *  1. Immer MUTEERT NOOIT de basis. Elke mutatie loopt via een `set()`-producer (copy-on-write): een
+ *     gewijzigde taak levert een NIEUW taakobject en een nieuwe `tasks`-array op. De snapshot wijst
+ *     naar precies de versie van vóór de mutatie.
+ *  2. Immer's auto-freeze bevriest de state diep. Een in-place mutatie buiten een producer om is
+ *     daarmee een `TypeError`, geen stille corruptie. `check-mutation-cost.ts` toetst die
+ *     bevriezing na elke soort mutatie, plus een broncheck dat niemand `setAutoFreeze` uitzet.
  *
- *  1. Immer MUTEERT NOOIT de basis. Elke mutatie loopt via een `set()`-producer, en die werkt
- *     copy-on-write: een gewijzigde taak levert een NIEUW taakobject en een nieuwe `tasks`-array op.
- *     De arrays/objecten waar de snapshot naar wijst, zijn precies de versie van vóór de mutatie —
- *     dat is exact wat undo moet herstellen.
- *  2. Immer's auto-freeze maakt de state diep BEVROREN. Een in-place mutatie buiten een producer om
- *     is daarmee geen stille corruptie maar een `TypeError`. `check-undo-sharing.ts` toetst die
- *     bevriezing expliciet na elke soort mutatie, plus een broncheck dat niemand `setAutoFreeze`
- *     uitzet.
+ * DRAFT-NORMALISATIE. Delen mag alleen met PLAIN waarden: een Immer-draft wordt na zijn producer
+ * ingetrokken, dus een gedeelde draft gooit bij uitlezen. Krijgt deze functie een draft, dan leest
+ * hij via `originalAppState()` (Immers `original()`, de basisstaat van die producer; zie
+ * `immerDraft.ts` voor waarom die grens een eigen module heeft).
  *
- * DRAFT-NORMALISATIE. Delen mag alleen als de waarden PLAIN zijn: een Immer-draft wordt na afloop
- * van zijn producer ingetrokken, dus een gedeelde draft zou een snapshot opleveren die bij het
- * uitlezen gooit. Krijgt deze functie een draft, dan leest hij daarom via `originalAppState()` —
- * Immers `original()`, dus de basisstaat van die producer (zie `immerDraft.ts` voor waarom die
- * grens een eigen module heeft).
+ * Alleen `beginUndoable` (`runtime/storeRuntime.ts`) geeft een draft door: het legt middenin een
+ * `set()`-producer de voor-staat vast. Daar geldt de conventie *guards; snapshot; mutatie* — hij
+ * snapshot vóór hij muteert, dus de basisstaat ís de bedoelde voor-staat. Alle andere aanroepers
+ * geven al plain state door (`store.getState()`, `currentAppState()`, een `produce()`-resultaat of
+ * een ondiepe kopie).
  *
- * WIE GEEFT HIER EIGENLIJK EEN DRAFT DOOR? Van de acht aanroepers precies ÉÉN: `beginUndoable`
- * (`runtime/storeRuntime.ts`), dat middenin een `set()`-producer de voor-staat vastlegt. Alleen
- * dáár doet de conventie *guards; snapshot; mutatie* ertoe — hij snapshot vóór hij muteert, dus de
- * basisstaat ís de bedoelde voor-staat. De overige zeven raken het `original()`-pad niet eens,
- * want ze geven al plain state door:
- *   - `snapshotOfCurrentState` (storeRuntime) normaliseert zelf al via `currentAppState()`;
- *   - `withTransaction` (`runtime/createBatchTransactions`) en de MCP-transactie
- *     (`runtime/createMcpTransactions`) lezen `store.getState()` buiten elke producer;
- *   - undo/redo komen hier binnen via `materializeHistoryTarget` (`sessionHistory.ts`), op een
- *     ondiepe `{...state}`-kopie;
- *   - `gridTransaction.ts` roept drie keer aan: op zijn `Readonly<AppState>`-parameter, op het
- *     `produce()`-resultaat en op `get()`.
- *
- * Wie hier een aanroeper bij zet die BINNEN een producer snapshot NÁ het muteren, breekt de
- * conventie stil: de snapshot legt dan de na-staat vast en undo herstelt te weinig. Dat is geen
- * crash maar stil dataverlies, dus het wordt bewaakt — `check-mutation-cost.ts` toetst het gedrag
- * (25a/25b) en pint daarnaast de bron (27a–27c).
+ * Wie een aanroeper toevoegt die BINNEN een producer snapshot NÁ het muteren, breekt de conventie
+ * stil: de snapshot legt de na-staat vast en undo herstelt te weinig. `check-mutation-cost.ts`
+ * toetst het gedrag (25a/25b) en pint de bron (27a–27c).
  */
 export function createSnapshot(s: AppState): Snapshot {
   const base = originalAppState(s) ?? s;
@@ -132,19 +103,12 @@ export function createSnapshot(s: AppState): Snapshot {
 
 /**
  * Dezelfde snapshot, maar uit een SLAPENDE `DocumentPayload` in plaats van uit de live top-level
- * state (B1c-plan3 taak 6, aangepast na de merge met main — sessiehistorie, 2026-09-04).
- *
- * Waarom dit bestaat. Een history-event draagt per document een `before`/`after`-`Snapshot`. Voor
- * het actieve document levert `createSnapshot(state)` die; voor een slapend document staat dezelfde
- * data in zijn payload, en die hydrateren-in-een-context-om-te-snapshotten zou het documentcontract
- * twee keer doorlopen voor niets. Een payload is per definitie al plain (hij is ooit met
- * `capturePayload` uit een state gevist), dus er valt hier ook niets te normaliseren.
+ * state. Een history-event draagt per document een `before`/`after`-`Snapshot`; voor een slapend
+ * document staat die data al in zijn payload, dus hydrateren-om-te-snapshotten is overbodig. Een
+ * payload is al plain (ooit met `capturePayload` gevangen); er valt niets te normaliseren.
  *
  * ZELFDE ROLREGEL als `createSnapshot`: key-gedreven over `DOCUMENT_FIELDS`, elk niet-'none'-veld
- * PER REFERENTIE. Dat is geen kortere weg maar de voorwaarde — de compile-time-koppeling tussen de
- * `Snapshot`-Pick en de `snapshot`-rollen (zie hierboven) geldt dan ook voor deze bron, en een nieuw
- * documentveld rijdt automatisch mee. Delen mag om exact dezelfde reden: Immer muteert de payload
- * nooit in-place en heeft hem bevroren.
+ * PER REFERENTIE, zodat de compile-time-koppeling met de `Snapshot`-Pick ook voor deze bron geldt.
  */
 export function snapshotOfPayload(p: DocumentPayload): Snapshot {
   const flat = p as unknown as Record<string, unknown>;
@@ -158,7 +122,7 @@ export function snapshotOfPayload(p: DocumentPayload): Snapshot {
 
 /**
  * Normaliseer een (mogelijk oude) snapshot naar de huidige vorm: legacy-alias `resourceCalendars`
- * → `calendars`, en veilige defaults voor velden die pre-2.x-snapshots misten. Snapshots leven
+ * → `calendars`, en veilige defaults voor ontbrekende velden. Snapshots leven
  * alleen in-memory (nooit geserialiseerd), dus dit is defensief — maar houdt het herstelpad robuust
  * en op één plek i.p.v. verspreide `?? …`-guards in undo/redo.
  */
@@ -179,19 +143,16 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     // `null` ("geen actieve baseline") is een legitieme waarde die een undo moet kunnen terugzetten;
     // alleen een ontbrekend veld (undefined) valt terug op null.
     activeBaselineId: raw.activeBaselineId !== undefined ? raw.activeBaselineId : null,
-    // Issue #63 — zelfde `null`/`undefined`-onderscheid als activeBaselineId: `null` ("geen
-    // vastlegging (meer)") is legitiem, alleen een ontbrekend veld (pre-#63-snapshot) valt terug.
+    // Zelfde `null`/`undefined`-onderscheid als activeBaselineId: `null` ("geen vastlegging (meer)")
+    // is legitiem, alleen een ontbrekend veld valt terug.
     recordedDates: raw.recordedDates !== undefined ? raw.recordedDates : null,
     datesAsRecorded: raw.datesAsRecorded ?? false,
-    // Bewuste default voor snapshots zonder VOLLEDIG project (pakket H). Pre-H-snapshots droegen
-    // alleen de nauwe B3-projectie `{ wbsAutoNumber }`; die herken je aan het ontbreken van `id`.
-    // We vervangen zo'n halve projectie niet door een leeg project maar vullen hem AAN met een verse
-    // default — de aanwezige projectie (bv. de wbsAutoNumber-vlag) blijft daarbij leidend, inclusief
-    // een legitiem `undefined` ("vrije tekst"). Snapshots leven alleen in-memory, dus dit pad is
-    // puur defensief.
+    // Een project zonder `id` is een halve projectie (bv. alleen `{ wbsAutoNumber }`): vul die AAN
+    // met een verse default; de aanwezige velden blijven leidend, inclusief een legitiem `undefined`
+    // ("vrije tekst"). Puur defensief.
     project: raw.project?.id ? raw.project : { ...createDefaultProject(), ...raw.project },
     // De gedenormaliseerde projectkalender-cache; `restoreSnapshot` synct hem hierna alsnog uit
-    // `calendars` (§9.1), dus deze default is alleen het vangnet voor de orphan-fallback.
+    // `calendars`, dus deze default is alleen het vangnet voor de orphan-fallback.
     calendar: raw.calendar ?? createDefaultCalendar(),
   };
 }
@@ -204,7 +165,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
  *
  * Per WAARDE (`sameValue`; een gelijke referentie is het snelpad, dus ongewijzigde velden kosten
  * niets), niet alleen per referentie — dezelfde "per saldo"-regel als de no-op-guards van de
- * UI-routes (G5). Een nieuwe referentie is niet altijd een wijziging: een draftprimitief levert bij
+ * UI-routes. Een nieuwe referentie is niet altijd een wijziging: een draftprimitief levert bij
  * dezelfde duur of constraint toch een nieuw taakobject op, en een batch kan een naam wijzigen en weer
  * terugzetten. `project.modifiedAt` telt niet mee: elke projectmutator ververst dat veld, ook zonder
  * wijziging — dezelfde uitzondering als `projectChanges` in `projectSlice`.
@@ -222,7 +183,7 @@ export function documentDataChanged(before: Snapshot, after: Snapshot): boolean 
 }
 
 /** Herstel een snapshot in de live state (gedeeld door undo én redo). Zet de snapshot-velden terug
- *  (key-gedreven — inclusief het volledige `project`, pakket H), zet de kalender-cache gelijk en
+ *  (key-gedreven, inclusief het volledige `project`), zet de kalender-cache gelijk en
  *  markeert het document als gewijzigd.
  *
  *  De herstelde waarden zijn dezelfde objecten als in de snapshot (zie `createSnapshot`): de live
@@ -246,15 +207,14 @@ export function restoreSnapshot(
     if (f.snapshot === 'none') continue;
     (f.set as (s: AppState, v: unknown) => void)(s, flat[f.key]);
   }
-  // §9.1: cache gelijkzetten ná restore. `project.calendarId` én `calendars` komen allebei uit
+  // Cache gelijkzetten ná restore. `project.calendarId` én `calendars` komen allebei uit
   // DEZELFDE snapshot, dus de cache wordt consistent met het herstelde id afgeleid; de
   // orphan-fallback promoveert de meegeherstelde `calendar`-waarde (niet de nieuwere).
   syncProjectCalendar(s);
   // Twee aparte vragen. (1) Wijkt het geheugen af van de schijf? Na elke undo/redo wel — ook van F5:
   // na laden → F5 → opslaan → Ctrl+Z staat er iets anders in het geheugen dan in het bestand.
   // (2) Is het document sinds de import BEWERKT? Alleen als het event een bewerking was; undo/redo
-  // van een `nonEdit`-event (F5 of "toon opgeslagen datums" in de modus) laat de importvlag staan
-  // (critreview op ded4d8c3, bevinding 3, en de her-check daarop).
+  // van een `nonEdit`-event (F5 of "toon opgeslagen datums" in de modus) laat de importvlag staan.
   const clearPristine = opts?.clearImportPristine !== false;
   if (opts?.markDirty !== false && clearPristine) markDocumentEdited(s);
   else if (opts?.markDirty !== false) markDocumentUnsaved(s);

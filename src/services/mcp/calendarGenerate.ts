@@ -1,7 +1,7 @@
-// T13 — kalender-generator-pad + meng-semantiek (ontwerp §MCP WP5d, regel 58). Pure servicelaag die
-// de latere `update_calendar`-tool gaat voeden: géén store-mutaties, geen snapshot, geen recompute.
+// Kalender-generator-pad + meng-semantiek voor de kalendertools (`calendarResourceTools.ts`). Pure
+// servicelaag: géén store-mutaties, geen snapshot, geen recompute.
 //
-// Meng-semantiek (bindend, ontwerp WP5d):
+// Meng-semantiek (bindend):
 //   (a) alleen `generate`                    ⇒ holidays = materializeHolidays over de span uit
 //                                              computeGenerateSpan; generation-metadata gezet;
 //                                              becameLiteral=false.
@@ -15,7 +15,7 @@
 //
 // De divergentie t.o.v. de kalenderdialoog is bedoeld: de regenerate-knop daar vervangt de
 // holidays-lijst volledig, dus zou rauwe dagen wegvagen. Deze tool wist daarom `generation` zodra er
-// rauwe dagen bijkomen — dan is er geen regenerate meer die iets kan wegvagen (ontwerp WP5d).
+// rauwe dagen bijkomen — dan is er geen regenerate meer die iets kan wegvagen.
 
 import {
   materializeHolidays,

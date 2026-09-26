@@ -9,8 +9,8 @@ export function markScheduleStale(state: {
   state.scheduleStale = true;
 }
 
-/** Een datum-rakende mutatie: verlaat "datums zoals opgeslagen" (issue #63 — de invoer wijkt nu af
- *  van het bestand) en markeer de planning als verouderd. De stale-tak van `finishMutation`, en de
+/** Een datum-rakende mutatie: verlaat "datums zoals opgeslagen" (de invoer wijkt nu af van het
+ *  bestand) en markeer de planning als verouderd. De stale-tak van `finishMutation`, en de
  *  gridtransactie (die haar eigen history bijhoudt) gebruikt hem rechtstreeks. */
 export function markDateMutation(state: {
   scheduleStale: boolean;

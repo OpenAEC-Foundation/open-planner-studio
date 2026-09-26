@@ -4,7 +4,7 @@ import { useAppStore } from '@/state/appStore';
 import { NoticeStrip } from './NoticeStrip';
 
 /**
- * Modus-strook voor de splits-modus (issue #146, etappe 2).
+ * Modus-strook voor de splits-modus.
  *
  * Zelfde vorm en zelfde reden als `DependencyModeNotice`: het is een MODUS (hij verandert wat een
  * sleep vanaf een balk doet), dus hij mag niet onzichtbaar aan staan. Hier staat ook de ENIGE

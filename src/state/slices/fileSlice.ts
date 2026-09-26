@@ -39,7 +39,7 @@ import type { ScheduleErrorInfo } from '@/engine/scheduler/CPMSolver';
 
 /**
  * Voorgestelde bestandsnaambasis voor opslaan/exporteren: bij een XER-document "Projectnaam
- * (P6 Project-ID)", zodat tab en titelbalk na het opslaan dezelfde naam houden (vraag 17).
+ * (P6 Project-ID)", zodat tab en titelbalk na het opslaan dezelfde naam houden.
  */
 export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetadata'>): string {
   return documentFileBase(s.project.name, xerProjectCode(s.xerImportMetadata));
@@ -48,7 +48,7 @@ export function suggestedFileBase(s: Pick<AppState, 'project' | 'xerImportMetada
 /** Een vers, ongewijzigd, leeg document — dan mag de open-actie het hergebruiken
  *  i.p.v. een nieuw tabblad te openen (anders krijg je een leeg eerste tabblad).
  *  Eén definitie, geen tweede die kan afdrijven: élk echt open-pad (ook de MCP-tool
- *  `planner_import_schedule`, spec §Bestands-tools) gebruikt hem via `openAsDocument`. */
+ *  `planner_import_schedule`) gebruikt hem via `openAsDocument`. */
 export function isActivePristine(s: AppState): boolean {
   return (
     s.tasks.length === 0 &&
@@ -59,17 +59,17 @@ export function isActivePristine(s: AppState): boolean {
   );
 }
 
-// De in-app gids achter de XER-meldingen woont sinds de archief-terugval (2026-09-24) in de
-// bladmodule `xerArchiveIssueNotice.ts`; hier her-exporteren voor bestaande importeurs.
+// De in-app gids achter de XER-meldingen woont in de bladmodule `xerArchiveIssueNotice.ts`; hier
+// her-exporteren voor bestaande importeurs.
 export { XER_IMPORT_HELP_ARTICLE_ID };
 /** Gids achter de formaatneutrale "datums zoals opgeslagen"-melding (zie `applyOpenedImport`). */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
 
 /**
  * De formaatneutrale "datums zoals opgeslagen"-regel voor één geopend bestand, samengevoegd met de
- * openingsmelding die er al is (critreview PR #167, bevinding 3 — de meldingspoort mag de datumregel
- * NIET via `!notice` laten verdringen: zodra er een andere melding is, bv. de rekenprofielmelding van
- * #169 bij een `.mpp`, zou de regel dan stil wegvallen).
+ * openingsmelding die er al is. De meldingspoort mag de datumregel NIET via `!notice` laten
+ * verdringen: zodra er een andere melding is, bv. de rekenprofielmelding bij een `.mpp`, zou de
+ * regel dan stil wegvallen.
  *
  *  - Geen verse verschillen (`freshShifted`/`freshOffer` beide 0, o.a. elke HEROPENING van een eigen
  *    IFC) ⇒ `notice` ongewijzigd.
@@ -106,22 +106,22 @@ export function withRecordedDatesNotice(
  */
 export function xerImportNotice(
   results: readonly ImportResult[],
-  /** XER-etappeplan §3.7 (taak T4): som van `recordedDates.shifted` over alle zojuist geopende
+  /** Som van `recordedDates.shifted` over alle zojuist geopende
    *  documenten van dit bestand, GESPLITST naar wat er werkelijk gebeurde. Bewust aparte
    *  parameters i.p.v. iets uit `results` zelf afgeleid: het aantal afwijkende taken bestaat pas
    *  ná de solve op elk document (`applyLoadedProject` → `applyRecordedDatesOnLoad`), en
    *  `ImportResult` draagt zelf geen `shifted`-veld (dat is documentstate, geen import-resultaat).
    *
-   *  De SPLITSING is critreview laag 3, bevinding 4: `xerImportDatesAsRecorded` zegt letterlijk
+   *  De SPLITSING: `xerImportDatesAsRecorded` zegt letterlijk
    *  "niet herberekend", en dat mag alleen staan wanneer de modus daadwerkelijk aanging. Een
    *  verse XER waarvan de modus niet aanging telt in `offerTotal` en krijgt een eigen, aanbiedende
-   *  regel. (Een heropende IFC met XER-archief meldt sinds B4 helemaal niets meer.) Beide `0` ⇒
+   *  regel. (Een heropende IFC met XER-archief meldt hier niets.) Beide `0` ⇒
    *  geen detailregel. */
   datesAsRecordedShiftedTotal = 0,
   /** Som van `recordedDates.shifted` over de documenten die de modus alléén AANBIEDEN. */
   datesAsRecordedOfferTotal = 0,
 ): NotifyInput | undefined {
-  // Gebruikstest rekenprofielen 24-09 (B4): alleen een VERSE XER-import meldt. Een heropende IFC
+  // Alleen een VERSE XER-import meldt. Een heropende IFC
   // draagt via het bronarchief óók `xer`-metadata, maar is geen import — het aanbod "datums zoals
   // opgeslagen" loopt daar via `RecordedDatesNotice`, niet via deze melding.
   results = results.filter(result => result.xerOrigin !== 'xer-archive');
@@ -129,10 +129,10 @@ export function xerImportNotice(
   const xer = xers[0];
   if (!xer) return undefined;
 
-  // X9 bewaart de file-wide diagnostics precies eenmaal in het immutable bronarchief. De
+  // Het onveranderlijke bronarchief bewaart de bestandsbrede diagnostiek precies eenmaal. De
   // documentviews bevatten daarnaast de werkelijk projectgebonden keuzes (enum- en
   // scheduling-terugvallen). Gebruik het archief zodra het er is, maar blijf ook bruikbaar voor
-  // een directe X4b-resultaatview vóórdat die in een archief is gebonden.
+  // een directe XER-resultaatview vóórdat die in een archief is gebonden.
   const archive = results.find(result => result.xerSourceArchive)?.xerSourceArchive;
   const fileDiagnostics = archive?.diagnostics.file;
   const report = fileDiagnostics?.importReport ?? xer.report;
@@ -179,7 +179,7 @@ export function xerImportNotice(
   addCount(numberIssues, 'notifications.xerImportNumberIssues');
   addCount(enumFallbacks, 'notifications.xerImportEnumFallbacks');
   addCount(unsupportedSemantics, 'notifications.xerImportUnsupportedSemantics');
-  // XER-etappeplan §3.7 (taak T4, X-O7 laag 3): "datums zoals opgeslagen" staat standaard aan zodra
+  // "Datums zoals opgeslagen" staat standaard aan zodra
   // er restverschillen zijn. Eén regel voor het HELE bestand, ook bij twaalf documenten — de teller
   // is de som over alle zojuist geopende documenten (zie `applyOpenedImport`), niet per document.
   addCount(datesAsRecordedShiftedTotal, 'notifications.xerImportDatesAsRecorded');
@@ -194,8 +194,8 @@ export function xerImportNotice(
   };
 }
 
-// `ExportFormat` woont nu in de formatRegistry (T1); hier her-exporteren zodat bestaande
-// importeurs (Backstage, via appStore) ongewijzigd blijven werken.
+// `ExportFormat` woont in de formatRegistry; hier her-exporteren voor bestaande importeurs
+// (Backstage, via appStore).
 export { type ExportFormat };
 
 /**
@@ -204,7 +204,7 @@ export { type ExportFormat };
  * Ja voor de formaten die de app zelf terug kan openen als PROJECT (`ifc`, `csv`, `mspdi`, `p6`):
  * daar is een recents-entry precies wat de gebruiker wil.
  *
- * Nee voor de twee voortgangsbladen (eindreview 2026-09-12, bevinding 5). Die zijn geen project
+ * Nee voor de twee voortgangsbladen. Die zijn geen project
  * maar een invulformulier met acht kolommen; ze komen terug via **Importeren → Voortgang**, niet
  * via Openen. Stonden ze in de recents, dan levert één klik op `<project>-voortgang.xlsx` daar de
  * openroute op — die het bestand als project probeert te lezen en met een foutmelding eindigt.
@@ -218,11 +218,12 @@ export function exportGoesToRecents(format: ExportFormat): boolean {
 }
 
 /**
- * Issue #146 (spec, verwerkte critreview bevinding 5): MS Project en P6 kennen een onderbreking
+ * MS Project en P6 kennen een onderbreking
  * alleen als urenverdeling van een toewijzing, dus een onderbroken taak ZONDER contour komt daar
  * zonder onderbreking aan. Dat mag niet alleen in de console staan: na een geslaagde MSPDI-/P6-export
- * meldt `exportAs` het aantal via het K8a-kanaal — als `info`, net als de andere verliesmeldingen
- * (`timephasedLossNotice.ts`): de export zelf is geslaagd, het kanaal kent geen aparte waarschuwing. De telling is dezelfde als die van de writers
+ * meldt `exportAs` het aantal via het meldingenkanaal — als `info`, net als de andere
+ * verliesmeldingen (`timephasedLossNotice.ts`): de export zelf is geslaagd, het kanaal kent geen
+ * aparte waarschuwing. De telling is dezelfde als die van de writers
  * (`countSplitTasksWithoutContour`). Los geëxporteerd, net als `exportGoesToRecents`, zodat
  * `tests/planning/check-export-guard.ts` de regel zonder bestandsdialoog kan toetsen.
  */
@@ -232,7 +233,7 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
   return count > 0 ? { severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count } } : null;
 }
 
-/** Resultaat van `exportAs` (K7): bij een cyclische planning wordt de export afgebroken vóór de
+/** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
  *  opslaan-dialoog en de CPM-fout (`cpmResult.error` + `errorInfo`) meegegeven, zodat de aanroeper
  *  die kan tonen i.p.v. stilletjes niets te doen — vertaald via `scheduleErrorText`. */
 export type ExportResult =
@@ -240,8 +241,8 @@ export type ExportResult =
   | { ok: false; error: string; errorInfo?: ScheduleErrorInfo };
 
 /** Opties voor `applyLoadedProject` — de één gedeelde "vul de actieve document-state met een
- *  geparsed project"-implementatie (audit P5/F6). Elke variant (de drie open-paden + `loadState`)
- *  dekt zijn historische gedrag af met deze vlaggen; defaults staan bewust op "niets doen". */
+ *  geparsed project"-implementatie. Elke variant (de drie open-paden + `loadState`) kiest zijn
+ *  gedrag met deze vlaggen; defaults staan bewust op "niets doen". */
 export interface ApplyLoadedProjectOpts {
   /** Nieuw bestandspad (string), `null` voor naamloos (voorbeeld/import), of weglaten
    *  (`undefined`) om `filePath` ongemoeid te laten — dat laatste is de loadState-semantiek
@@ -255,19 +256,19 @@ export interface ApplyLoadedProjectOpts {
   recompute?: boolean;
   /** Canvas op het hele project passen (requestFitToProject). Open-paden: true; loadState: false. */
   fit?: boolean;
-  /** Uur-data-melding (§6.8) berekenen en zetten. Open-paden: true; loadState: false. */
+  /** Uur-data-melding berekenen en zetten. Open-paden: true; loadState: false. */
   hourDataNotice?: boolean;
   /** True = een echt open-pad (`openAsDocument`: openFile/openRecentFile/MCP-import): behoud
    *  bedrijfsbinding + stempels en draai de grens-1-check. False (default) = een volledig-
-   *  vervangende load (loadState: IFCPanel/MenuBar/extensie-import): laad LOS — strip
-   *  companyId/companyName + alle libraryOrigin-stempels (spec §5).
+   *  vervangende load (loadState: IFCPanel/Backstage/extensie-import): laad LOS — strip
+   *  companyId/companyName + alle libraryOrigin-stempels.
    *  (Crash-herstel loopt NIET door applyLoadedProject maar via `restoreDocuments`, dat de opgeslagen —
-   *  dus gekoppelde — staat exact herstelt en de grens-1-check apart draait, Taak 11.) */
+   *  dus gekoppelde — staat exact herstelt en de grens-1-check apart draait.) */
   linkedOpen?: boolean;
   /** Optionele view-start die samen met de nieuwe brondata wordt gepubliceerd (IFC-tab). */
   viewStartDate?: string;
-  /** Integratie #101 op #169: `applyOpenedImport` meldt de taaktypes-ontsluiting zelf, samen met de
-   *  bestandsmelding ("één melding per geopend bestand", rekenprofielen spec v3.1 §6 / X10). */
+  /** `applyOpenedImport` meldt de taaktypes-ontsluiting zelf, samen met de bestandsmelding ("één
+   *  melding per geopend bestand"). */
   deferTaskTypesNotice?: boolean;
 }
 
@@ -296,20 +297,20 @@ export interface FileSlice {
   saveFileForDocument: (documentId: string) => Promise<boolean>;
   saveFileAs: () => Promise<void>;
   exportAs: (format: ExportFormat) => Promise<ExportResult>;
-  /** Exporteer het project + (spec §4) schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
+  /** Exporteer het project + schrijf de gebonden bedrijfs-pool als tweede, LOS bestand
    *  ernaast. Géén embed. No-op op de pool-kant als het project niet aan een bedrijf gebonden is.
-   *  Geeft hetzelfde `ExportResult` terug als `exportAs` — inclusief de K7-cyclusguard. */
+   *  Geeft hetzelfde `ExportResult` terug als `exportAs` — inclusief de cyclusguard. */
   exportProjectWithPool: () => Promise<ExportResult>;
-  /** App-globale MRU-lijst van recente bestanden (spec §6). Async gehydrateerd bij opstart. */
+  /** App-globale MRU-lijst van recente bestanden. Async gehydrateerd bij opstart. */
   recentFiles: RecentEntry[];
   /** Lees de recents uit IndexedDB (met eenmalige localStorage-migratie) in de store. */
   hydrateRecentFiles: () => Promise<void>;
   openRecentFile: (id: string, labels?: ImportLabels) => Promise<void>;
-  /** Read-only parse van een bronbestand voor externe koppelingen (fase 2.9, §5.5): geeft de
+  /** Read-only parse van een bronbestand voor externe koppelingen: geeft de
    *  projectidentiteit + taken terug ZONDER het als document te openen (hergebruikt de bestaande
    *  readers). null bij een leesfout/onbekend formaat/niet-Tauri. */
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<{ projectId: string; projectName: string; filePath: string; tasks: Task[] } | null>;
-  /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron (fase 2.9, §4.5/§5.5).
+  /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron.
    *  Parset de bron read-only, herberekent de ankers + `sourceMissing`, en herrekent de planning. */
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
   /** Projectbrede ververs-actie ("Ververs externe ankers"): ververs elke gerefereerde bron één keer. */
@@ -318,7 +319,7 @@ export interface FileSlice {
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
   openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<void>;
-  /** Eén gedeelde load-implementatie (audit P5/F6): vul de ACTIEVE document-state met een geparsed
+  /** Eén gedeelde load-implementatie: vul de ACTIEVE document-state met een geparsed
    *  project en voer de opt-afhankelijke nastappen uit (runCPM/fit/uur-melding/extensie-event).
    *  Neemt géén besluit over een nieuw tabblad — dat blijft bij de aanroeper vóór de load.
    *  `loadState` en de drie open-paden lopen hier allemaal doorheen. */
@@ -330,22 +331,21 @@ export interface FileSlice {
    */
   applyOpenedImport: (parsed: OpenedImport, opts: ApplyLoadedProjectOpts) => AppliedOpenedImport;
   /** DE open-semantiek van élk echt open-pad — Bestand → Openen, Recente bestanden en de AI-import
-   *  (`planner_import_schedule`) — op één plek, zodat geen aanroeper een deel kan vergeten
-   *  (import/export-audit, bevinding 2: de MCP-tool schreef zijn eigen opts-object en vergat
-   *  `linkedOpen`, waardoor Ctrl+S de bibliotheekkoppeling uit het bronbestand wiste). Leidt het
+   *  (`planner_import_schedule`) — op één plek, zodat geen aanroeper een deel kan vergeten (bv.
+   *  `linkedOpen`, anders wist Ctrl+S de bibliotheekkoppeling uit het bronbestand). Leidt het
    *  opslagdoel af (`saveTargetFor`: alleen een `canBeSaveTarget`-formaat krijgt er een) en laadt
    *  via `applyOpenedImport` (pristine tabblad hergebruiken of nieuwe documenten, ook de
    *  meervoudige XER-vorm) GEKOPPELD (`linkedOpen: true`: bibliotheekbinding + herkomststempels
    *  blijven, de open-grens draait), met doorrekenen, fitten en de uur-melding. Bewust NIET
    *  hierdoor: de losse loads (`loadState`: IFCPanel, extensie-import, devBridge) en
-   *  voorbeeldprojecten — die laden los (B1.1 Taak 20). */
+   *  voorbeeldprojecten — die laden los. */
   openAsDocument: (parsed: OpenedImport, source: OpenedFileSource) => AppliedOpenedImport;
 }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
   // Voeg een geopend/opgeslagen bestand toe aan de recents (elke herbruikbare ref).
   const pushRecent = async (ref: FileRef | null, name: string) => {
-    if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents (spec §6)
+    if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents
     const list = await addRecent(ref, name);
     set((s) => { s.recentFiles = list; });
   };
@@ -453,10 +453,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
       const prepared = prepareLoadedPayload(payload, { recompute: !!opts.recompute });
       if (opts.recompute) {
-        // XER-etappeplan §3.5 (taak T4), heropen-beleid (taak T5, 2026-09-05): alleen een VERSE
-        // XER-import (parsed.recordedTimesOrigin === 'xer') zet de modus meteen aan; een heropende
-        // IFC met XER-archief (recordedTimesOrigin === 'xer-archive') en overige formaten bieden
-        // hem alleen aan — ongewijzigd #63-gedrag. `payload.tasks` is hier bewust de PRE-solve
+        // Wanneer de modus automatisch aangaat en wanneer hij alleen wordt aangeboden, beslist
+        // `applyRecordedDatesOnLoad` (verse import vs. heropening met `importPristine`). `payload.tasks`
+        // is hier bewust de PRE-solve
         // array (zie de docstring van `applyRecordedDatesOnLoad`): `prepareLoadedPayload` muteert
         // zijn `input`-argument niet.
         applyRecordedDatesOnLoad(payload.tasks, prepared, parsed);
@@ -481,14 +480,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           s.ui.hourDataNotice = !s.ui.enableHourPlanning && fileHasHourData(s.tasks, [s.calendar, ...s.calendars]);
         }
       });
-      // H6: de open-grens ververste een achterlopende bibliotheekkalender en de werkregel paste taken
+      // De open-grens ververste een achterlopende bibliotheekkalender en de werkregel paste taken
       // aan — dezelfde melding als de kalenderdialoog.
       notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, activation.workRuleSettle);
-      // Taaktypes-etappe (spec §7): het bestand draagt taaktypedata terwijl de instelling uit staat
+      // Het bestand draagt taaktypedata terwijl de instelling uit staat
       // ⇒ de werkregel-UI is voor dit document ontsloten; meld dat één keer (met gids-link).
       {
         const st = get();
-        // E4: alleen een AFGELEIDE regel (uit mspTaskType/p6DurationType) ontsluit stil.
+        // Alleen een AFGELEIDE regel (uit mspTaskType/p6DurationType) ontsluit stil.
         if (!opts.deferTaskTypesNotice && st.taskTypesVisible && !st.ui.showTaskTypes
           && taskTypesNeedNotice(st.tasks, st.assignments, st.project)) {
           notifyTaskTypesUnlocked(st.notify, st.activeDocumentId);
@@ -504,18 +503,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           criticalTasks: activation.payload.tasks.filter(task => task.time.isCritical).length,
         });
       }
-      if (opts.fit) get().requestFitToProject(); // Issue #16: canvas op het HELE project passen.
-      // Relaties die de solver ECHT niet kon meerekenen (eigenaarsbesluit 2026-08-15): een
-      // verzameltaak-eindpunt op zich is sinds `expandSummaryRelations` GEEN reden meer om te
-      // melden — die relaties rekenen gewoon mee. Wat overblijft is de voorouder-guard (een taak
-      // gekoppeld aan zijn eigen (voor)ouder-samenvatting), een lege/kapotte tak, of de
-      // MAX_EXPANDED_RELATIONS-klem — stuk voor stuk gevallen waarin de relatie écht geen effect
-      // heeft. Rechtstreeks `expandSummaryRelations` aanroepen i.p.v. op `cpmResult.
-      // droppedSequenceIds` leunen: de pure expansiefunctie geeft hier hetzelfde antwoord zonder
-      // timing-afhankelijkheid van `cpmResult`. Bewust
-      // NIET gefilterd uit het document — dat zou logica uit het bronbestand vernietigen bij open +
-      // opslaan — maar wel één keer gemeld, want anders merkt niemand die een P6/MSP-plan importeert
-      // dat er logica stilvalt.
+      if (opts.fit) get().requestFitToProject(); // canvas op het HELE project passen.
+      // Relaties die de solver ECHT niet kon meerekenen: een verzameltaak-eindpunt op zich is
+      // (dankzij `expandSummaryRelations`) GEEN reden om te melden — die relaties rekenen gewoon
+      // mee. Wat overblijft is de voorouder-guard (een taak gekoppeld aan zijn eigen
+      // (voor)ouder-samenvatting), een lege/kapotte tak, of de MAX_EXPANDED_RELATIONS-klem — stuk
+      // voor stuk gevallen waarin de relatie écht geen effect heeft. Rechtstreeks
+      // `expandSummaryRelations` aanroepen i.p.v. op `cpmResult.droppedSequenceIds` leunen: de
+      // pure expansiefunctie geeft hier hetzelfde antwoord zonder timing-afhankelijkheid van
+      // `cpmResult`. Bewust NIET gefilterd uit het document — dat zou logica uit het bronbestand
+      // vernietigen bij open + opslaan — maar wel één keer gemeld, want anders merkt niemand die
+      // een P6/MSP-plan importeert dat er logica stilvalt.
       const dropped = expandSummaryRelations(parsed.tasks, parsed.sequences).droppedSequenceIds.length;
       if (dropped > 0) {
         get().notify({
@@ -525,15 +523,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           dedupeKey: 'summary-relations-dropped',
         });
       }
-      // T12 (§9/O1, mpp-datumgetrouwheid), HERSCHREVEN door Z16 (etappe "nul afwijkingen"): een
-      // `.mpp`-bestand met aantoonbaar onderbroken, genivelleerde of resource-gedreven
-      // (nivellering/splits/timephased-vensters) taken. VÓÓR Z16 was dit een excuus voor mogelijk
-      // afwijkende datums ("wij rekenen aaneengesloten door") — sinds Z1-Z15 rekent de motor die
-      // taken echt door zoals MS Project (zie `CPMSolver.ts`, `mppReader.ts`'s `countScheduleNotes`),
-      // dus de melding is nu uitsluitend INFORMATIEF: ze vertelt dát het bestand zulke taken bevat,
+      // Een `.mpp`-bestand met aantoonbaar onderbroken, genivelleerde of resource-gedreven
+      // (nivellering/splits/timephased-vensters) taken. De motor rekent die taken door zoals MS
+      // Project (zie `CPMSolver.ts`, `mppReader.ts`'s `countScheduleNotes`), dus de melding is
+      // uitsluitend INFORMATIEF: ze vertelt dát het bestand zulke taken bevat,
       // niet dat de datums onbetrouwbaar zouden zijn. Alleen `readMPP` vult `sourceScheduleNotes`
       // (ander formaat ⇒ `undefined` ⇒ geen melding). Zelfde patroon als `summaryRelationsDropped`
-      // hierboven: info, één keer per open, gededupliceerd op dedupeKey. Géén taakveld (§9/O3) —
+      // hierboven: info, één keer per open, gededupliceerd op dedupeKey. Géén taakveld —
       // puur een import-tijd-telling voor deze melding.
       const scheduleNotesTotal = parsed.sourceScheduleNotes?.total ?? 0;
       if (scheduleNotesTotal > 0) {
@@ -557,19 +553,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const reusedActiveTab = isActivePristine(get());
       const openedDocumentIds: string[] = [];
-      // XER-etappeplan §3.7 (taak T4): som van `recordedDates.shifted` over alle zojuist geopende
+      // Som van `recordedDates.shifted` over alle zojuist geopende
       // documenten — per document eigen vlag/eigen vastlegging (elk document leest zijn eigen
       // `recordedTimes` uit zijn eigen `ImportResult`), maar de MELDING blijft er één per bestand.
       let datesAsRecordedShiftedTotal = 0;
-      // Critreview bevinding 4: apart tellen, want de twee uitkomsten zijn verschillende
+      // Apart tellen, want de twee uitkomsten zijn verschillende
       // beweringen. Alleen een document waar de modus ECHT aanging is "niet herberekend".
       let datesAsRecordedOfferTotal = 0;
       let taskTypesUnlockedDocs = 0;
-      // Critreview op ded4d8c3, bevinding 6, en critreview PR #167, bevinding 2: de formaatneutrale
+      // De formaatneutrale
       // melding hieronder telt uitsluitend VERSE imports — zowel het aanbod als de automatisch-aan-tak.
       // Een heropend eigen IFC ('ifc-own'/'xer-archive') krijgt de strook (die zegt het al), maar geen
-      // openingsmelding — dat is het eigen projectbestand, geen import; ook niet als optie B de modus
-      // bij een ongewijzigd bestand automatisch weer aanzet.
+      // openingsmelding — dat is het eigen projectbestand, geen import; ook niet als `importPristine`
+      // de modus bij een ongewijzigd bestand automatisch weer aanzet.
       let freshShiftedTotal = 0;
       let freshOfferTotal = 0;
       for (const result of results) {
@@ -581,9 +577,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // `applyLoadedProject` draait de open-/bibliotheekgrens zelf (materializeLibraryBoundary),
         // dus elk document krijgt hem — geen aparte runOpenBoundary-aanroep meer nodig.
         get().applyLoadedProject(result, { ...opts, deferTaskTypesNotice: true });
-        // Taaktypes (#101): ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
+        // Taaktypes: ontsloten door de bestandsdata terwijl de instelling uit staat ⇒ één keer
         // per document geclaimd, maar gemeld in de ene bestandsmelding hieronder.
-        // E4 (orkestratorbesluit 25-09): alleen melden bij opgeslagen werk, een projectstandaard of
+        // Alleen melden bij opgeslagen werk, een projectstandaard of
         // een eigen regel; een regel die de lezer alleen uit het importveld afleidde ontsluit stil.
         const cur = get();
         if (cur.taskTypesVisible && !cur.ui.showTaskTypes
@@ -604,20 +600,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      // X10: de rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
+      // De XER-rapportage is bestandsbreed en identiek op iedere XER-resultaatview. Plaats deze
       // pas ná de volledige lus, anders ontstaat er één toast per nieuw document. Andere formats
       // leveren geen `xer`-metadata en houden hun bestaande, stille openpad.
-      // Eigenaarsbesluit 2026-09-09 ("het moet altijd gaan zoals het nu bij XER werkt"): de andere
-      // formaten hebben geen eigen openingsmelding, maar wél dezelfde ene regel over "datums zoals
-      // opgeslagen" — formaatneutraal verwoord. `withRecordedDatesNotice` hangt die regel aan een al
-      // bestaande melding (bv. de profielmelding van een `.mpp`) in plaats van hem via `!notice` te
-      // laten verdringen (zie de helper).
-      // Rekenprofielen (spec v3.1 §6): één melding per geopend bestand — bij XER samengevoegd met de
-      // openingsmelding, anders een eigen melding met de actie naar Bestand → Projectinfo.
-      // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar XER-bronarchief is
-      // weggelaten door `readIFC`; dat meldt zich als BUITENSTE laag, als detailregels in de
-      // bestandsmelding als die er is, anders als eigen melding. Nooit stil — zie
-      // `withXerArchiveIssueNotice`.
+      // De andere formaten hebben geen eigen openingsmelding, maar wél dezelfde ene regel over
+      // "datums zoals opgeslagen" — formaatneutraal verwoord. `withRecordedDatesNotice` hangt die
+      // regel aan een al bestaande melding (bv. de profielmelding van een `.mpp`) in plaats van hem
+      // via `!notice` te laten verdringen (zie de helper). Rekenprofielen: één melding per geopend
+      // bestand — bij XER samengevoegd met de openingsmelding, anders een eigen melding met de
+      // actie naar Bestand → Projectinfo. Een onbruikbaar XER-bronarchief is weggelaten door
+      // `readIFC`; dat meldt zich als BUITENSTE laag, als detailregels in de bestandsmelding als
+      // die er is, anders als eigen melding. Nooit stil — zie `withXerArchiveIssueNotice`.
       const notice = withXerArchiveIssueNotice(
         withRecordedDatesNotice(
           withSchedulingProfileNotice(
@@ -630,11 +623,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         ),
         results.map(result => result.xerArchiveIssue),
       );
-      // Integratie #101 op #169 + E4 (orkestratorbesluit 25-09): de taaktypes-melding is een
+      // De taaktypes-melding is een
       // detailregel in díe ene bestandsmelding — geen extra toast — met een EIGEN gidslink naar
-      // `gids-taaktypes` (`TASK_TYPES_DETAIL_LINE`; gebruikstest G3: de "Lees meer" van de melding
-      // zelf gaat naar het bestand/rekenprofiel). Zonder bestandsmelding (bv. MSPDI/IFC onder het
-      // ops-profiel) blijft het #101's eigen melding met gids-link.
+      // `gids-taaktypes` (`TASK_TYPES_DETAIL_LINE`; de "Lees meer" van de melding zelf gaat naar het
+      // bestand/rekenprofiel). Zonder bestandsmelding (bv. MSPDI/IFC onder het ops-profiel) blijft
+      // het een eigen melding met gids-link.
       if (notice && taskTypesUnlockedDocs > 0) {
         get().notify({ ...notice, detailLines: [...(notice.detailLines ?? []), TASK_TYPES_DETAIL_LINE] });
       } else if (notice) {
@@ -654,8 +647,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     openAsDocument: (parsed, source) => {
-      // Opslagdoel-guard (T8, stap 5a; verbreed T8-spec-review F4; T11: via `canBeSaveTarget` op
-      // de registry-entry i.p.v. een `id === 'ifc'`-vergelijking hier). Opslaan schrijft altijd
+      // Opslagdoel-guard (via `canBeSaveTarget` op de registry-entry). Opslaan schrijft altijd
       // IFC-TEKST, dus élk ANDER bronformaat (csv/xml/mpp/xer — niet uitsluitend binaire formaten)
       // zou bij een naïeve toewijzing zijn eigen bronbestand met IFC-inhoud laten overschrijven
       // door de eerstvolgende Ctrl+S. "Opslaan" wordt dan "opslaan-als".
@@ -701,11 +693,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     saveFileAs: async () => runProjectFileWrite(async () => {
       const state = get();
       const documentId = state.activeDocumentId;
-      // Gedeelde helper (pakket R1): één plek voor het state→IFC-options-object, zodat dit
-      // pad niet opnieuw velden kan laten vallen.
+      // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit
+      // pad geen velden kan laten vallen.
       const content = writeIFC(buildWriteIFCInput(state));
       // `state` = momentopname vóór de eerste await; zelfde reden als bij saveFile: isDirty pas
-      // wissen als er tijdens de opslaan-als-dialoog niets gewijzigd is (K8b).
+      // wissen als er tijdens de opslaan-als-dialoog niets gewijzigd is.
 
       try {
         const outcome = await saveFileDialog(
@@ -727,7 +719,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     }),
 
     exportAs: async (format: ExportFormat): Promise<ExportResult> => {
-      // K7 (docs/onderhoudbaarheid): alle vier exporters schrijven de CPM-uitvoer
+      // Alle vier exporters schrijven de CPM-uitvoer
       // (task.time.earlyStart en afgeleiden) weg naar derden die die datums contractueel lezen.
       // Een verouderde of cyclische planning mag dus niet stil worden uitgevoerd. Daarom: bij een
       // stale schema eerst runCPM, en dán expliciet op cpmResult.error controleren vóór de
@@ -754,17 +746,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         activeBaselineId: state.activeBaselineId,
       });
 
-      // X9: sinds het `.xlsx`-voortgangsblad draagt de export tekst ÓF bytes. De afsplitsing
+      // De export draagt tekst ÓF bytes (het `.xlsx`-voortgangsblad). De afsplitsing
       // staat één keer, ná de switch — niet per tak — zodat de recents-, download- en
       // meldingsafhandeling voor beide vormen letterlijk dezelfde regels zijn.
       let payload: string | Uint8Array;
       let ext: string;
       let filters: { name: string; extensions: string[] }[];
       let mime: string | undefined;
-      // E7 (2026-09-05): het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
+      // Het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
       // (`<projectnaam>-voortgang.csv`, i.p.v. `<projectnaam>.csv`) zodat het in de downloadmap
       // meteen te onderscheiden is van de volle CSV-export — en waar mogelijk landt het ook echt
-      // in de downloadmap (preferDownloads hieronder), precies wat de eigenaar vroeg.
+      // in de downloadmap (preferDownloads hieronder).
       let nameOverride: string | undefined;
 
       switch (format) {
@@ -779,7 +771,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             import('@/services/xlsx/writeProgressXlsx'),
           ]);
           const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
-          // Rijen in boomvolgorde (issue #159, vervolg): de store-volgorde is na een P6-/IFC-import
+          // Rijen in boomvolgorde: de store-volgorde is na een P6-/IFC-import
           // "samenvattingen eerst" — onleesbaar als rondgestuurd blad. Terugimport matcht op OPS Task ID.
           payload = await writeProgressSheetXLSX([...flattenOrder(state.tasks)], {
             // `'xlsx'`: alleen de voltooiingskolom krijgt een eigen instructie (decimalen mogen
@@ -796,12 +788,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
         }
         case 'progress-csv': {
-          // Dynamische import (D, besluit 2026-09-05): `@/i18n/config` initialiseert i18next en
+          // Dynamische import: `@/i18n/config` initialiseert i18next en
           // raakt DIRECT bij het laden al `document.documentElement.dir` aan (RTL-afhandeling) —
           // een top-level import hier zou dat in `fileSlice.ts` trekken, en daarmee in ELKE
-          // headless test die `appStore` importeert (64 van de 65 `check-*.ts`-batterijen die
-          // hem gebruiken hebben geen document-stub, want vóór dit punt kende `appStore` geen
-          // enkel transitief pad naar i18n). Zelfde patroon als de Tauri-imports elders in deze
+          // headless test die `appStore` importeert (vrijwel geen `check-*.ts`-batterij heeft een
+          // document-stub). Zelfde patroon als de Tauri-imports elders in deze
           // slice: puur data-laden blijft synchroon, alles met een randeffect gaat achter een
           // dynamic import.
           const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote }] = await Promise.all([
@@ -814,7 +805,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           payload = writeProgressSheetCSV(
             [...flattenOrder(state.tasks)],
             buildProgressHeaderNotes(menuT),
-            // Fix 1 (gebruikstest 2026-09-11): verzameltaken dragen hun "niet invullen" IN het
+            // Verzameltaken dragen hun "niet invullen" IN het
             // blad zelf, i.p.v. pas bij terugimport als weigering op te duiken.
             buildProgressSummaryNote(menuT),
           );
@@ -828,7 +819,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.customTaskTypes,
             // In "datums zoals opgeslagen" mag een niet-vastgelegde as niet als verzonnen 0/No
-            // het bestand in (critreview laag 3, bevinding 6). Buiten de modus: `undefined`.
+            // het bestand in. Buiten de modus: `undefined`.
             unrecordedExportGate(state.recordedDates, state.datesAsRecorded),
           );
           ext = 'csv';
@@ -838,9 +829,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           payload = writeMSPDI(
             state.project, state.calendar, state.tasks,
             state.sequences, state.resources, state.assignments, state.calendars,
-            // Baselines meegeven (fase 2.6, §9.1): de actieve baseline gaat naar MSPDI-slot 0.
-            // Zonder deze twee argumenten viel de writer terug op zijn defaults ([] / null) en
-            // ging de baseline stil verloren bij export, terwijl de reader hem wél inleest.
+            // Baselines meegeven: de actieve baseline gaat naar MSPDI-slot 0. Zonder deze twee
+            // argumenten valt de writer terug op zijn defaults ([] / null) en gaat de baseline stil
+            // verloren bij export, terwijl de reader hem wél inleest.
             state.baselines, state.activeBaselineId, state.customTaskTypes,
           );
           ext = 'xml';
@@ -863,7 +854,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
-      // E7: beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
+      // Beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
       const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
         ? { preferDownloads: true, mime }
         : undefined;
@@ -891,14 +882,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     exportProjectWithPool: async (): Promise<ExportResult> => {
-      // Zelfde K7-guard als `exportAs`: dit pad schrijft óók de CPM-uitvoer weg, dus een stale of
-      // cyclische planning mag hier evenmin stil worden geëxporteerd.
+      // Zelfde stale/cyclus-guard als `exportAs`: dit pad schrijft óók de CPM-uitvoer weg, dus een
+      // stale of cyclische planning mag hier evenmin stil worden geëxporteerd.
       if (get().scheduleStale) get().runCPM();
       const cpmFailure = get().cpmResult;
       if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
 
       const state = get();
-      // 1. Het project zelf (bevat altijd al alle gebruikte items — kernprincipe §1).
+      // 1. Het project zelf (bevat altijd al alle gebruikte items).
       const projectContent = writeIFC(buildWriteIFCInput(state));
       const base = suggestedFileBase(state);
       const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
@@ -952,12 +943,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         let applied = false;
         set((s) => {
           if (s.activeDocumentId !== targetDocumentId) return;
-          // Wél een snapshot (issue #63, review taak 6). Dit was de énige
-          // `finishMutation({ stale: true })` zónder `beginUndoable` — een bewuste asymmetrie
-          // ("externe-anker-verversing is niet undoable") die niet houdbaar is zodra de modus
-          // "datums zoals opgeslagen" bestaat: `finishMutation` verlaat die modus, en zonder
-          // snapshot is het aanbod dan onherstelbaar weg (laden → aanbod → ankers verversen →
-          // weg, zonder weg terug). Erger nog, het breekt de invariant van `snapshot.ts`: een
+          // Wél een snapshot: `finishMutation` verlaat de modus "datums zoals opgeslagen", en
+          // zonder snapshot is het aanbod dan onherstelbaar weg (laden → aanbod → ankers verversen
+          // → weg, zonder weg terug). Bovendien breekt het anders de snapshot-invariant: een
           // undo van een OUDERE bewerking zou `datesAsRecorded: true` terugzetten terwijl de
           // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
           // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
@@ -978,15 +966,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const targetDocumentId = get().activeDocumentId;
       // Verzamel de distinct bron-bestandspaden uit alle links (fallback: geen pad ⇒ niet verversbaar).
       const paths = new Map<string, string>();
-      // FIX 8c (eindreview, onderzoek): `normalizeExternalSourcePath` geeft null voor zowel "geen
+      // `normalizeExternalSourcePath` geeft null voor zowel "geen
       // pad" als "een pad dat niet lexicaal absoluut is" (relatief). Het tweede geval is BEREIKBAAR:
       // `OPS_ExternalLink` schrijft `task.externalLinks` ongefilterd als één JSON-blob weg
       // (ifcPsets.ts) en leest 'm bij het laden ook ongevalideerd terug — een van elders aangeleverd
       // of met de hand bewerkt IFC-bestand kan dus een relatief `sourceRef.filePath` bevatten. Zo'n
       // pad kan de app nooit betrouwbaar herlezen (er is geen vaste "relatief-ten-opzichte-van"-map),
-      // dus het blijft terecht overgeslagen als bron — maar voorheen verdween die link daardoor
-      // volledig onzichtbaar uit de hele bewerking (niet in `refreshed`, niet in `missing`). Hij telt
-      // nu mee in `missing`, zodat de bestaande toast ("N ververst, M ontbrekend") de gebruiker
+      // dus het blijft terecht overgeslagen als bron — maar hij mag niet onzichtbaar uit de hele
+      // bewerking verdwijnen (niet in `refreshed`, niet in `missing`). Hij telt mee in `missing`,
+      // zodat de bestaande toast ("N ververst, M ontbrekend") de gebruiker
       // tenminste laat weten dat er iets niet kon, in plaats van stilzwijgend niets te doen.
       let unusablePathCount = 0;
       for (const task of get().tasks) {
@@ -999,13 +987,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         }
       }
 
-      // ÉÉN GEBAAR = ÉÉN UNDO-STAP (review taak 6). Deze actie lustte eerder over
-      // `refreshExternalAnchorsFrom`, dat sinds issue #63 zelf een snapshot pusht — bij twee
-      // gewijzigde bronnen kostte de knop "Alles verversen" dan twee keer Ctrl+Z.
+      // ÉÉN GEBAAR = ÉÉN UNDO-STAP. Lussen over `refreshExternalAnchorsFrom` (dat zelf een snapshot
+      // pusht) zou bij twee gewijzigde bronnen twee keer Ctrl+Z kosten.
       //
       // De oplossing is NIET `withTransaction`/`enterBatch` om de lus heen: er zit een `await` in
-      // (bestanden inlezen), en de bulk-suppressie is module-state. Alles wat de gebruiker tijdens
-      // dat inlezen doet zou dan zijn eigen undo-stap verliezen en in deze stap opgaan.
+      // (bestanden inlezen), en de bulk-suppressie geldt voor de hele storecontext. Alles wat de
+      // gebruiker tijdens dat inlezen doet zou dan zijn eigen undo-stap verliezen en in deze stap
+      // opgaan.
       //
       // Daarom in twee fasen: eerst ALLE bronnen async inlezen zonder iets te muteren, dan de pure
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
@@ -1013,7 +1001,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const sourceDocs: ExternalSourceDoc[] = [];
       for (const p of paths.values()) {
         const src = await get().parseExternalSource(p, labels);
-        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee (ongewijzigd gedrag)
+        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push({
           projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
         });
@@ -1080,14 +1068,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     openRecentFile: async (id: string, labels) => {
       const entry = get().recentFiles.find((e) => e.id === id);
       if (!entry) return;
-      // `kind` bepaalt de lees-tak (bytes vs tekst); de opslagdoel-guard (T8-spec-review F4) zit
-      // sinds bevinding 2 van de import/export-audit in `openAsDocument`.
+      // `kind` bepaalt de lees-tak (bytes vs tekst); de opslagdoel-guard zit in `openAsDocument`.
       const isBinary = readFormatForFile(entry.name).kind === 'binary';
       const content = isBinary ? null : await readFromRef(entry.ref);
       const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
       // Bij een binair formaat is `content` altijd null (niet gelezen) — dan telt uitsluitend
       // `bytes`; bij een tekstformaat is `bytes` altijd null — dan telt uitsluitend `content`.
-      // Exact hetzelfde null-pad (geweigerd/verdwenen → entry stil verwijderen) als voorheen.
+      // Null-pad: geweigerd/verdwenen → entry stil verwijderen.
       if (isBinary ? bytes === null : content === null) {
         const list = await removeRecent(entry.id);
         set((s) => { s.recentFiles = list; });

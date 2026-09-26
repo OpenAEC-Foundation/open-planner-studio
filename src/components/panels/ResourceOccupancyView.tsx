@@ -18,10 +18,10 @@ import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
 import { StatusBanner } from './StatusBanner';
 
-/** Maximaal getoonde conflictdatums in de badge-tooltip/subregel (§5: "max. ~5, dan …"). */
+/** Maximaal getoonde conflictdatums in de badge-tooltip/subregel ("max. ~5, dan …"). */
 const MAX_CONFLICT_DATES_SHOWN = 5;
 
-/** De bibliotheek-relevante snit van één documentpayload (§7-cache, zie `librarySlice`). */
+/** De bibliotheek-relevante snit van één documentpayload (cache, zie `librarySlice`). */
 export interface LibrarySlice {
   resources: Resource[];
   assignments: ResourceAssignment[];
@@ -58,13 +58,13 @@ export interface LibrarySliceCache {
  * bibliotheek én een nog bestaand poolitem, alleen de toewijzingen op díé resources, en alleen de
  * taken waar die toewijzingen naar wijzen.
  *
- * Dit is de per-payload-cachebare helft van de §7-maatregel (critreview bevinding 4). De snit is
+ * Dit is de per-payload-cachebare helft van de prestatiemaatregel. De snit is
  * aantoonbaar betekenis-behoudend voor wat `computeLibraryOccupancy` uit het resultaat leest:
  * `computeResourceLoad` bouwt `load[resourceId]` per resource onafhankelijk op uit de toewijzingen
  * van díé resource, en de leaf-/mijlpaalfilter kijkt uitsluitend naar de taak van de toewijzing
  * zelf (`task.isMilestone`, `task.childIds`) — niet naar broers of ouders. De velden die wél over
  * álle resources gaan (`capacity`, `overallocatedDays`) leest de bezettingskern niet; hij gebruikt
- * de POOL-capaciteit via `maxUnitsOn` (§6). De kern filtert `resources` bovendien zelf op precies
+ * de POOL-capaciteit via `maxUnitsOn`. De kern filtert `resources` bovendien zelf op precies
  * dezelfde stempelvoorwaarde, dus vooraf snijden verandert zijn `stampedResources` niet.
  */
 function librarySlice(payload: OccupancyPayload, companyId: string, poolItemIds: Set<string>): LibrarySlice {
@@ -101,63 +101,48 @@ export function resolveLibrarySliceCache(
 }
 
 /**
- * B1b — bezettingsoverzicht per bibliotheek over álle open documenten (spec
- * 2026-08-14-b1b-bezettingsoverzicht-design.md §5/§5a, herzien na critreview). Derde stand van de
+ * Bezettingsoverzicht per bibliotheek over álle open documenten. Derde stand van de
  * Resources-schakelaar (`ui.resourcesView === 'occupancy'`, gerenderd vanuit `ResourcePanel` onder
  * dezelfde `linked`-conditie als de Bibliotheekweergave). Leesvenster: er valt hier niets te
  * muteren.
  *
- * Aanlevering (§4.4): het actieve document wordt uit expliciet geabonneerde top-level velden
+ * Aanlevering: het actieve document wordt uit expliciet geabonneerde top-level velden
  * opgebouwd; slapende documenten komen per referentie uit `documents`. De zware memo leest dus
  * geen verse storewaarde via een stabiele getter die onzichtbaar buiten zijn dependencylijst valt.
  *
- * Stale documenten (§4.3b): de kern rekent ze efemeer door op een kloon van hun taken — deze
- * weergave levert daarvoor `solveInput` aan (volledige taken/relaties + de projectopties) en zo'n
- * document telt gewoon mee (`counted: true`) met `scheduleStale: true` als INFORMATIEVE markering
- * (`staleComputedDoc`/`staleComputedBanner`, hint-stijl — geen fout): de cijfers verschijnen gewoon
- * en het document doet gewoon mee in de som, de chart en de legenda. Lukt de solve niet (cyclus,
- * solverfout), dan valt het document terug op het vangnet (§4.3): `counted: false`, geen cijfers —
- * die booking blijft de bestaande "—"-subregel met ⚠ en de staleDoc-uitleg. De banner kiest tussen
- * de twee: minstens één ONGETELDE booking ⇒ de bestaande waarschuwing (`staleBanner`); zijn er
- * alléén gételde stale boekingen ⇒ de informatieve variant (`staleComputedBanner`). Een rij met
+ * Stale documenten: de kern rekent ze efemeer door op een kloon van hun taken (deze weergave
+ * levert `solveInput`: volledige taken/relaties + de projectopties). Zo'n document telt mee
+ * (`counted: true`) met een INFORMATIEVE markering (`staleComputedDoc`/`staleComputedBanner`,
+ * hint-stijl — geen fout). Lukt de solve niet (cyclus, solverfout), dan het vangnet:
+ * `counted: false`, geen cijfers, de "—"-subregel met ⚠ en de staleDoc-uitleg. Minstens één
+ * ONGETELDE booking ⇒ de waarschuwing (`staleBanner`), anders de informatieve variant. Een rij met
  * uitsluitend ongetelde boekingen toont "—" voor periode/piek, krijgt nooit een conflictbadge en
  * bij selectie geen chart maar de stale-uitleg.
  *
- * Uitzondering op §4.3b — het ACTIEVE document (perf-poort, TODO na de critreview van v2026.8.0):
- * dat krijgt `skipEphemeralSolve` mee en wordt hier dus nooit doorgerekend. Reden: elke bewerking
- * daarin invalideert de zware memo, dus anders draait er per toetsaanslag een volledige CPM-solve
- * synchroon in de render. Het telt gewoon mee met zijn laatst berekende cijfers — dezelfde
- * staleness die de Gantt ernaast toont — en krijgt de derde markering
- * (`staleAsShownDoc`/`staleAsShownBanner`) in plaats van de "alvast doorgerekend"-variant. Staat
- * "Automatisch berekenen" aan, dan lopen die cijfers hooguit één debounce-tick achter.
+ * Uitzondering — het ACTIEVE document (perf-poort): dat krijgt `skipEphemeralSolve` mee, want elke
+ * bewerking invalideert de zware memo en zou anders per toetsaanslag een volledige CPM-solve
+ * synchroon in de render kosten. Het telt mee met zijn laatst berekende cijfers (dezelfde staleness
+ * als de Gantt ernaast) en krijgt de derde markering (`staleAsShownDoc`/`staleAsShownBanner`).
  *
- * Prestaties (§7): lazy — dit component mount alleen in de Bezettingsweergave — en één `useMemo`
+ * Prestaties: lazy — dit component mount alleen in de Bezettingsweergave — en één `useMemo`
  * rond `computeLibraryOccupancy`, met als afhankelijkheden de identiteiten van `s.documents`, de
  * pool en de top-level velden van het actieve document, PLUS `s.project` en `s.filePath` (de
  * titelafleiding leest die twee; zonder deze deps bevriezen de titels na hernoemen/Opslaan-als —
- * critreview bevinding 3, zelfde dep-lijst als `useDocumentCards`).
+ * zelfde dep-lijst als `useDocumentCards`).
  *
- * Per-payload-cache (§7, critreview bevinding 4) — met een BEWUSTE AFWIJKING van de letterlijke
- * ontwerptekst. Zolang de weergave openstaat is elke bewerking in het actieve document een
- * memo-invalidatie; zonder maatregel rekent dan de volledige load van álle N documenten opnieuw.
- * De `WeakMap` hier is gesleuteld op payload-referentie (slapende payloads zijn referentiestabiel,
- * het actieve document krijgt bij een relevante edit een nieuwe expliciete invoer) en cachet de bibliotheek-snit
- * van elk document (`librarySlice`). Wat het ontwerp beschrijft — de gecachte per-document-LOAD,
- * zodat alleen het actieve document nog rekent — kan hier niet: `computeLibraryOccupancy` rekent
- * die load intern en accepteert niets voorgerekends, en de kern openbreken valt buiten deze
- * wijziging (de aggregatie in de weergave nabouwen zou de conflictdefinitie van §6 een tweede bron
- * geven — precies wat §5a verbiedt). Het effect van de gekozen snit: de engine-pass per document
- * schaalt niet meer met de projectgrootte maar met het aantal bibliotheekboekingen erin, en de
- * snit zelf wordt per bewerking nog maar voor één document gedaan. Restkost per bewerking:
+ * Per-payload-cache: een `WeakMap` op payload-referentie (slapende payloads zijn referentiestabiel)
+ * cachet de bibliotheek-snit van elk document (`librarySlice`). De per-document-LOAD cachen kan
+ * niet: `computeLibraryOccupancy` rekent die intern en accepteert niets voorgerekends (nabouwen in
+ * de weergave zou de conflictdefinitie een tweede bron geven). Restkost per bewerking:
  * O(actief document) + O(N × bibliotheekboekingen), i.p.v. O(N × volledig document).
  *
- * De §5a-chart rendert alleen voor de geselecteerde rij en memoïseert zijn volledige geometrie
+ * De chart rendert alleen voor de geselecteerde rij en memoïseert zijn volledige geometrie
  * (segmentindeling, staven, capaciteitspaden, labels) op [row, poolItem].
  */
 export function ResourceOccupancyView({ companyId, pool }: { companyId: string; pool: CompanyPool }) {
   const { t, i18n } = useTranslation('common');
 
-  // §7-invoer. Elk actief documentveld dat de bezettingsberekening of titel leest, wordt
+  // Invoer. Elk actief documentveld dat de bezettingsberekening of titel leest, wordt
   // geabonneerd en verderop tot één OccupancyPayload samengevoegd. Geen hidden getter-read.
   const documents = useAppStore(s => s.documents);
   const activeProject = useAppStore(s => s.project);
@@ -171,7 +156,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const activeCalendars = useAppStore(s => s.calendars);
   const activeScheduleStale = useAppStore(s => s.scheduleStale);
 
-  // §4.3b terugschrijfbesluit: staat "Automatisch berekenen" aan, dan worden verouderde SLAPENDE
+  // Terugschrijven: staat "Automatisch berekenen" aan, dan worden verouderde SLAPENDE
   // documenten hier écht bijgewerkt in plaats van alleen efemeer doorgerekend (het actieve document
   // heeft zijn eigen pad, `useAutoCalcCPM`). Zie het effect verderop.
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
@@ -204,7 +189,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     [documents, activeDocumentId, activeOccupancyPayload],
   );
 
-  // §7-cache: de ref bewaart maximaal één expliciet benoemde company/pool-context. Een andere
+  // Cache: de ref bewaart maximaal één expliciet benoemde company/pool-context. Een andere
   // bibliotheek of een nieuwe Immer-poolreferentie vervangt het hele record.
   const sliceCacheRef = useRef<LibrarySliceCache | undefined>(undefined);
 
@@ -219,12 +204,12 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     [documents, activeDocumentId],
   );
 
-  // §4.3b, terugschrijven mét "Automatisch berekenen" (besluit eigenaar 2026-08-14, tweede ronde).
+  // Terugschrijven mét "Automatisch berekenen".
   // Staat de instelling AAN, dan is het onlogisch dat de gebruiker alsnog F5 moet drukken in een
   // document dat dit overzicht al heeft doorgerekend: de slapende stale documenten worden hier écht
   // bijgewerkt (taken/`cpmResult`/`scheduleStale: false`) en hun ⚠ verdwijnt. Staat hij UIT, dan
   // gebeurt er niets — dan blijft het overzicht een leesvenster dat efemeer rekent en nooit
-  // terugschrijft (issue #63, handmatige rekenaars).
+  // terugschrijft (handmatige rekenaars).
   //
   // Geen oneindige lus: de actie zet `scheduleStale` op false, dus `staleSleepingCount` daalt naar 0
   // en de conditie dooft. Blijft er een document over dat niet kan rekenen (relatiecyclus), dan
@@ -250,7 +235,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
       documentTitle(payload.filePath, payload.project.name, xerProjectCode(payload.xerImportMetadata)));
     const ordinals = untitledOrdinals(rawTitles);
     const inputs: OccupancyDocInput[] = payloads.map(({ id, payload }, i) => {
-      // Perf-poort (TODO na de critreview van v2026.8.0): het ACTIEVE document wordt hier NIET
+      // Perf-poort: het ACTIEVE document wordt hier NIET
       // efemeer doorgerekend. Elke bewerking daarin invalideert deze memo, dus anders draait er per
       // toetsaanslag een volledige CPM-solve over de complete takenlijst synchroon in de render
       // (gemeten 700 ms–2,6 s op 3000 taken/1500 relaties). Het actieve document heeft zijn eigen
@@ -274,7 +259,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         calendar: payload.calendar,
         calendars: payload.calendars,
         skipEphemeralSolve: isActive,
-        // §4.3b: invoer voor de efemere doorrekening van een stale document. Bewust de VOLLEDIGE
+        // Invoer voor de efemere doorrekening van een stale document. Bewust de VOLLEDIGE
         // takenlijst en relaties van de payload (niet de bibliotheek-snit): een gesnoeide graaf zou
         // een andere planning opleveren dan F5 in dat document. Referenties, geen kopieën — de
         // kosten vallen pas bij een daadwerkelijke solve, en die kloont zelf. Voor het actieve
@@ -285,12 +270,12 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
       };
     });
     const result = computeLibraryOccupancy(companyId, pool, inputs);
-    // Weergavesortering (§5): conflicten bovenaan (meeste conflictdagen eerst), daarna alfabetisch
+    // Weergavesortering: conflicten bovenaan (meeste conflictdagen eerst), daarna alfabetisch
     // op poolnaam — de kern levert bewust de neutrale poolvolgorde.
     const sorted = [...result.rows].sort((a, b) =>
       (b.conflictDays.length - a.conflictDays.length) || a.name.localeCompare(b.name, i18n.language));
-    // Twee stale-soorten (§4.3b) voor de banner-keuze: minstens één ONGETELDE booking (vangnet,
-    // §4.3) ⇒ de bestaande waarschuwing wint; zijn alle stale boekingen gewoon geteld (efemeer
+    // Twee stale-soorten voor de banner-keuze: minstens één ONGETELDE booking (vangnet)
+    // ⇒ de bestaande waarschuwing wint; zijn alle stale boekingen gewoon geteld (efemeer
     // doorgerekend) ⇒ de informatieve variant. `result.anyStale` dekt beide gevallen samen en is
     // hier niet fijnmazig genoeg voor die keuze.
     let anyUncountedStale = false;
@@ -324,11 +309,11 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   ]);
 
   // Uitklap (chevron) en histogram-selectie zijn twee losse assen: uitklappen toont de
-  // per-document-subregel (§5), selecteren voedt het histogram eronder (§5a).
+  // per-document-subregel, selecteren voedt het histogram eronder.
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
-  // Piek/capaciteit met één decimaal ("3,0 / 2,0", §5) — de "/" is opmaak, geen tekst.
+  // Piek/capaciteit met één decimaal ("3,0 / 2,0") — de "/" is opmaak, geen tekst.
   const unitsFmt = useMemo(
     () => new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
     [i18n.language],
@@ -338,8 +323,8 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const selectedPoolItem = selectedRow ? pool.resources.find(r => r.id === selectedRow.libraryItemId) : undefined;
   const selectedAllUncounted = selectedRow !== undefined && selectedRow.docs.every(d => !d.counted);
 
-  /** Totale periode van een rij: min `firstDay` … max `lastDay` over de GETELDE documenten (§5) —
-   *  ongetelde boekingen hebben geen datums (kern §4.3), dus die vallen er vanzelf uit. */
+  /** Totale periode van een rij: min `firstDay` … max `lastDay` over de GETELDE documenten —
+   *  ongetelde boekingen hebben geen datums, dus die vallen er vanzelf uit. */
   const rowPeriod = (row: OccupancyRow): string => {
     let first: string | null = null;
     let last: string | null = null;
@@ -350,7 +335,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
     return first !== null && last !== null ? `${first} – ${last}` : '—';
   };
 
-  /** De eerste ~5 conflictdatums, daarna "… en {{count}} meer" (§5). */
+  /** De eerste ~5 conflictdatums, daarna "… en {{count}} meer". */
   const conflictDatesLabel = (row: OccupancyRow): string => {
     const shown = row.conflictDays.slice(0, MAX_CONFLICT_DATES_SHOWN);
     const rest = row.conflictDays.length - shown.length;
@@ -362,7 +347,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   return (
     <div className="flex-1 overflow-auto" data-ops-occupancy-view>
       {anyUncountedStale ? (
-        // Vangnetpad (§4.3): minstens één booking telt niet mee — een echte waarschuwing, zelfde
+        // Vangnetpad: minstens één booking telt niet mee — een echte waarschuwing, zelfde
         // vorm als de Bibliotheekweergave-hint.
         <StatusBanner tone="warning" bannerProps={{ 'data-ops-occupancy-stale-banner': true }}>
           {t('resource.occupancy.staleBanner')}
@@ -374,7 +359,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
           {t('resource.occupancy.staleAsShownBanner')}
         </StatusBanner>
       ) : anyCountedStale && (
-        // §4.3b: alle stale documenten in dit overzicht zijn efemeer doorgerekend en tellen gewoon
+        // Alle stale documenten in dit overzicht zijn efemeer doorgerekend en tellen gewoon
         // mee — informatief, geen fout.
         <StatusBanner tone="dim" bannerProps={{ 'data-ops-occupancy-stale-computed-banner': true }}>
           {t('resource.occupancy.staleComputedBanner')}
@@ -400,7 +385,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
             {rows.map(row => {
               const open = expandedItem === row.libraryItemId;
               const isSelected = selectedItem === row.libraryItemId;
-              // §4.3/§5: uitsluitend ongetelde (stale) boekingen ⇒ "—" voor periode en piek, en
+              // Uitsluitend ongetelde (stale) boekingen ⇒ "—" voor periode en piek, en
               // NOOIT een conflictbadge. De kern levert zonder getelde belasting sowieso geen
               // conflictdagen; de `!allUncounted` maakt die eis hier alsnog hard op weergaveniveau.
               const allUncounted = row.docs.every(d => !d.counted);
@@ -466,7 +451,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                 aria-hidden
                               />
                               <span className="truncate font-medium">{doc.title || untitledLabel}</span>
-                              {/* §5 (herzien): ongetelde boekingen tonen "—" op de cijferplekken. */}
+                              {/* Ongetelde boekingen tonen "—" op de cijferplekken. */}
                               <span className="tabular-nums text-text-secondary">
                                 {doc.counted && doc.firstDay !== null && doc.lastDay !== null
                                   ? `${doc.firstDay} – ${doc.lastDay}` : '—'}
@@ -475,7 +460,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                 {t('resource.occupancy.peak')}: {doc.counted ? unitsFmt.format(doc.peak) : '—'}
                               </span>
                               {!doc.counted ? (
-                                // Vangnetpad (§4.3): geen cijfers, echte waarschuwing.
+                                // Vangnetpad: geen cijfers, echte waarschuwing.
                                 <span
                                   className="inline-flex items-center gap-1 flex-shrink-0"
                                   style={{ color: 'var(--theme-warning-text)' }}
@@ -487,7 +472,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                 </span>
                               ) : doc.scheduleStale && (
                                 // Twee informatieve varianten (dim-stijl, geen fout):
-                                // efemeer doorgerekend (§4.3b) ⇒ de cijfers hierboven zijn al de
+                                // efemeer doorgerekend ⇒ de cijfers hierboven zijn al de
                                 // actuele; niet doorgerekend (perf-poort, het actieve document) ⇒
                                 // het zijn de laatst berekende cijfers.
                                 <span
@@ -520,7 +505,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         </table>
       )}
 
-      {/* §5a: histogram voor het geselecteerde poolitem; zonder selectie de hint; een rij met
+      {/* Histogram voor het geselecteerde poolitem; zonder selectie de hint; een rij met
           uitsluitend ongetelde boekingen toont geen chart maar de stale-uitleg. */}
       {rows.length > 0 && (
         <div className="px-3 py-2 border-t border-border" data-ops-occupancy-histogram-section>
@@ -543,7 +528,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         </div>
       )}
 
-      {/* Permanente voetnoot (§5, scope-grens 2): zichtbaar in het product zelf, niet alleen docs. */}
+      {/* Permanente voetnoot: zichtbaar in het product zelf, niet alleen docs. */}
       <p className="px-3 py-2 !text-small" style={{ color: 'var(--theme-text-muted)' }} data-ops-occupancy-machine-only>
         {t('resource.occupancy.machineOnly')}
       </p>
@@ -551,7 +536,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   );
 }
 
-// --- §5a: SVG-histogram per geselecteerd poolitem ------------------------------------------------
+// --- SVG-histogram per geselecteerd poolitem -----------------------------------------------------
 
 /** Vaste tekenmaten van het histogram (viewBox-eenheden ≈ px; horizontaal scrollbaar). */
 const CHART = {
@@ -566,7 +551,7 @@ const CHART = {
   breakWidth: 14,   // breedte van de "⋯"-breukmarkering tussen segmenten
 };
 
-/** Gaten langer dan dit aantal kalenderdagen zonder enige boeking worden ingeklapt (§5a). */
+/** Gaten langer dan dit aantal kalenderdagen zonder enige boeking worden ingeklapt. */
 const GAP_COMPRESS_DAYS = 30;
 
 /** Minimale horizontale ruimte tussen twee datumlabels (viewBox-eenheden ≈ px bij fontSize 8). */
@@ -591,12 +576,12 @@ function expandDays(from: string, to: string): string[] {
 }
 
 /**
- * Gestapeld daghistogram voor één poolitem (§5a, herzien): per ISO-dag de bijdrage per GETELD
+ * Gestapeld daghistogram voor één poolitem: per ISO-dag de bijdrage per GETELD
  * document (vaste kleur per document + legenda), de capaciteitslijn van het poolitem via
  * `maxUnitsOn` per dag (availabilitySteps-knikken zichtbaar als trapjes) en de conflictdagen rood
  * gemarkeerd — letterlijk `row.conflictDays` uit de kern, geen tweede berekening.
  *
- * X-as-domein (critreview bevinding 5): de vereniging van de getelde geboekte dagen, met
+ * X-as-domein: de vereniging van de getelde geboekte dagen, met
  * GATCOMPRESSIE — een aaneengesloten gat van meer dan 30 kalenderdagen zonder boeking klapt in
  * tot één smalle "⋯"-breukmarkering, zodat ver uiteenliggende documenten geen duizenden lege
  * kolommen produceren. Binnen een segment blijft de granulariteit één dag; het geheel scrollt
@@ -610,7 +595,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
   row: OccupancyRow;
   poolItem: Resource;
   untitledLabel: string;
-  /** Unieke documentkleuren (§ zie boven) — dezelfde toewijzing als de tabel/legenda. */
+  /** Unieke documentkleuren (zie boven) — dezelfde toewijzing als de tabel/legenda. */
   docColors: Map<string, string>;
 }) {
   const { t } = useTranslation('common');
@@ -618,7 +603,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
   const chart = useMemo(() => {
     const countedDocs = row.docs.filter(d => d.counted);
 
-    // Domein: de vereniging van de GETELDE geboekte dagen (ongetelde boekingen hebben per §4.3
+    // Domein: de vereniging van de GETELDE geboekte dagen (ongetelde boekingen hebben
     // geen cijfers en dragen dus ook geen as-domein bij).
     const bookedDays = new Set<string>();
     for (const d of countedDocs) for (const iso of Object.keys(d.dailyLoad)) bookedDays.add(iso);
@@ -679,7 +664,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
     const maxY = maxVal * 1.1;
     const yOf = (units: number) => CHART.padTop + CHART.plotHeight * (1 - units / maxY);
 
-    // Geometrie volledig hier, niet in de render-body (§5a): staven, conflictbanden, het
+    // Geometrie volledig hier, niet in de render-body: staven, conflictbanden, het
     // capaciteitspad per segment en de datumlabels.
     const conflictSet = new Set(row.conflictDays);
     const bars: { key: string; x: number; y: number; w: number; h: number; fill: string }[] = [];
@@ -707,7 +692,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
       for (let i = 0; i < seg.days.length; i++) {
         const iso = seg.days[i];
         const x = seg.x0 + i * dayWidth;
-        // Conflictband (§6-definitie, letterlijk `row.conflictDays` — geen tweede berekening).
+        // Conflictband (letterlijk `row.conflictDays` — geen tweede berekening).
         if (conflictSet.has(iso)) conflictRects.push({ key: iso, x });
         // Gestapelde bijdrage per geteld document, in de vaste documentvolgorde van de rij.
         let acc = 0;
@@ -766,7 +751,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
   }, [row, poolItem, docColors]);
 
   if (chart === null) {
-    // Kan alleen bij een rij zonder getelde boekingen — de aanroeper vangt dat al af (§5a).
+    // Kan alleen bij een rij zonder getelde boekingen — de aanroeper vangt dat al af.
     return <p className="text-text-secondary">{t('resource.occupancy.empty')}</p>;
   }
 
@@ -775,7 +760,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
       <span className="!text-small uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>
         {row.name}
       </span>
-      {/* Geforceerd LTR (§5a): een tijdas spiegelt nergens in dit product, ook niet onder ar/fa. */}
+      {/* Geforceerd LTR: een tijdas spiegelt nergens in dit product, ook niet onder ar/fa. */}
       <div className="overflow-x-auto" dir="ltr" style={{ direction: 'ltr' }}>
         <svg
           width={chart.width}

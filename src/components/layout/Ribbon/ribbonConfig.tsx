@@ -34,8 +34,8 @@ import { AiSafetyGroup } from '@/components/ribbon/ai/AiSafetyGroup';
 import { AiActivityGroup } from '@/components/ribbon/ai/AiActivityGroup';
 
 /**
- * Declaratieve ribbon-config-registry (audit P18). Naar het model van ExtensionRibbonGroups:
- * elke tab is data (groepen → items) i.p.v. ~350 regels inline-JSX in één god-functie. Het
+ * Declaratieve ribbon-config-registry. Naar het model van ExtensionRibbonGroups:
+ * elke tab is data (groepen → items) i.p.v. inline-JSX. Het
  * generieke render-pad staat in RibbonTabContent.tsx.
  *
  * Drie item-soorten dekken de herhaalde structuur (knop, knop-stapel), plus een
@@ -48,7 +48,7 @@ import { AiActivityGroup } from '@/components/ribbon/ai/AiActivityGroup';
  * Vertaling: labels zijn i18n-SLEUTELS met namespace-prefix ('menu:ribbon.calculate'); de
  * vertaling gebeurt pas bij render. Dynamische props (onClick/active/disabled/icon/title) komen
  * uit een per-item `use`-hook die zélf zijn store-selectors ophaalt — zo loopt geen enkele
- * tab-wissel of knop-mutatie meer door één reuzenselector.
+ * tab-wissel of knop-mutatie door één reuzenselector.
  */
 
 /** Vertaal-sleutel met namespace-prefix. */
@@ -115,7 +115,7 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
   };
 }
 
-/** Bereken/CPM-knop — voorheen 4× letterlijk gekopieerd (start/planning/relations/table). */
+/** Bereken/CPM-knop (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
   kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
   use: () => {
@@ -132,10 +132,9 @@ const addTaskButton: RibbonButtonSpec = {
     const { t: tMenu } = useTranslation('menu');
     const hasSelection = useAppStore(s => s.selectedTaskIds.length > 0);
     const treeMode = useAppStore(s => isTreeMode(s.view));
-    // Issue #49: de knop zette de nieuwe taak altijd onderaan de lijst. Nu volgt hij de selectie
-    // (zie `addTaskNearSelection`). Net als bij de relatie-dropdown hangt het gedrag dus van
-    // de selectie af, en net als daar zegt de tooltip vooraf wélke van de twee er nu
-    // gebeurt — anders is "waarom staat mijn taak onderaan?" opnieuw een verrassing.
+    // De nieuwe taak volgt de selectie (zie `addTaskNearSelection`). Net als bij de
+    // relatie-dropdown hangt het gedrag dus van de selectie af, en net als daar zegt de tooltip
+    // vooraf wélke van de twee er nu gebeurt.
     return {
       title: hasSelection && treeMode ? tMenu('ribbon.taskHintBelow') : tMenu('ribbon.taskHintAppend'),
       onClick: () => addTaskNearSelection({ name: t('defaultTask') }),
@@ -148,7 +147,7 @@ const relationDropdownItem: RibbonComponentSpec = {
 };
 
 /**
- * Splits-knop (issue #146, etappe 2) — naast de relatie-tekenknop, want het is dezelfde soort
+ * Splits-knop — naast de relatie-tekenknop, want het is dezelfde soort
  * schakelaar: een MODUS die de sleep vanaf een balk kaapt. Eén gedeelde definitie voor start,
  * planning en tabel; de uitleg van het gebaar staat uitsluitend in `SplitModeNotice`.
  */
@@ -157,7 +156,7 @@ const splitTaskButton: RibbonButtonSpec = {
   use: () => {
     const { t } = useTranslation('menu');
     const splitMode = useAppStore(s => s.ui.showSplitMode);
-    // Issue #174: het gebaar vraagt een balk in de Gantt; op de Tabel-tab is die er niet.
+    // Het gebaar vraagt een balk in de Gantt; op de Tabel-tab is die er niet.
     const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
     const setUI = useAppStore(s => s.setUI);
     return {
@@ -183,12 +182,9 @@ const printPreviewButton: RibbonButtonSpec = {
 };
 
 /**
- * Taken-groep: Taak / Mijlpaal / Relatie — gedeeld door de Start- én de Tabel-tab.
- *
- * Issue #49, tweede punt van de melder: de Tabel-tab had alleen Bereken + Taak, terwijl de Tabel
- * net zo goed een takenweergave is ("not all task-related buttons are displayed under the Table
- * tab"). Bewust ÉÉN gedeelde groep-definitie in plaats van een tweede lijst met dezelfde items —
- * anders drijven de twee tabbladen bij de volgende taakknop opnieuw uit elkaar.
+ * Taken-groep: Taak / Mijlpaal / Relatie — gedeeld door de Start- én de Tabel-tab (de Tabel is
+ * net zo goed een takenweergave). Bewust ÉÉN gedeelde groep-definitie in plaats van een tweede
+ * lijst met dezelfde items — anders drijven de twee tabbladen bij de volgende taakknop uit elkaar.
  */
 const tasksGroup: RibbonGroupSpec = {
   id: 'tasks', labelKey: 'menu:ribbon.tasks',
@@ -266,8 +262,8 @@ const fileGroup: RibbonGroupSpec = {
       ],
     },
     {
-      // Save As + Recent + Export horen sámen in één verticale kolom (reviewbevinding pakket P:
-      // los geplaatst renderden ze horizontaal en werd de groep ~2× zo breed).
+      // Save As + Recent + Export horen sámen in één verticale kolom (los geplaatst renderen ze
+      // horizontaal en wordt de groep ~2× zo breed).
       kind: 'stack', id: 'fileStack2', items: [
         {
           kind: 'small', id: 'saveAs', icon: <SaveAll size={14} />, labelKey: 'menu:backstage.saveAs',
@@ -352,9 +348,9 @@ const startTab: RibbonTabConfig = [
   },
 ];
 
-/** "Project verplaatsen…" (pakket D1) — schema-BREDE operatie, dus in de `schedule`-groep naast
+/** "Project verplaatsen…" — schema-BREDE operatie, dus in de `schedule`-groep naast
  *  Bereken; geen structuur-, kalender- of baseline-actie. Uitgeschakeld zonder projectstartdatum
- *  (die is het referentiepunt van de verschuiving, R9). */
+ *  (die is het referentiepunt van de verschuiving). */
 const moveProjectButton: RibbonButtonSpec = {
   kind: 'button', id: 'moveProject', icon: <CalendarClock size={20} />, labelKey: 'menu:ribbon.moveProject',
   use: () => {
@@ -364,7 +360,7 @@ const moveProjectButton: RibbonButtonSpec = {
   },
 };
 
-/** E2 (issue #27 etappe 2): "Voortgang bijwerken uit een blad" — hetzelfde spec op Planning, Tabel
+/** "Voortgang bijwerken uit een blad" — hetzelfde spec op Planning, Tabel
  *  én Rapport (één bron, drie callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`).
  *  Uitgeschakeld zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
 const progressImportButton: RibbonButtonSpec = {
@@ -376,16 +372,13 @@ const progressImportButton: RibbonButtonSpec = {
   },
 };
 
-/** E7 (eigenaarsbesluit 2026-09-05): "gewoon op een knop klikken en dan krijg ik de juiste CSV in
- *  mijn downloads" — het slanke voortgangsblad via één knopdruk, vóór de importknop in dezelfde
+/** Het slanke voortgangsblad via één knopdruk, vóór de importknop in dezelfde
  *  gedeelde groep (Planning + Tabel + Rapport). `disabled` volgt hetzelfde patroon als
  *  `progressImportButton`: zonder taken is er niets te exporteren.
  *
- *  Sinds issue #27 etappe 3 (X10/Q1) levert deze knop `.xlsx` in plaats van `.csv`: één knop = het
- *  beste antwoord, en op elk punt dat E9 noemt (kolombreedte, vergrendeling, validatie,
- *  datumtrouw) is de werkmap simpelweg beter. CSV verdwijnt niet — het blijft een exportkaart in
- *  Backstage → Exporteren en onverkort een leesbaar importformaat. Het knoplabel
- *  (`menu:ribbon.progressExport`) noemt bewust geen formaat en hoefde dus niet te wijzigen. */
+ *  Levert `.xlsx` (kolombreedte, vergrendeling, validatie, datumtrouw). CSV blijft een
+ *  exportkaart in Backstage → Exporteren en een leesbaar importformaat. Het knoplabel
+ *  (`menu:ribbon.progressExport`) noemt bewust geen formaat. */
 const progressExportButton: RibbonButtonSpec = {
   kind: 'small', id: 'progressExport', icon: <FileDown size={14} />, labelKey: 'menu:ribbon.progressExport',
   use: () => {
@@ -395,21 +388,19 @@ const progressExportButton: RibbonButtonSpec = {
   },
 };
 
-/** Afwijking 2026-09-04 (gebruikstest): `progressImportButton` in zijn EIGEN groep, gedeeld door
- *  Planning, Tabel en Rapport — niet als losse knop náást een `kind: 'component'`-item (dat werkte op
- *  Planning eerst zo in de `baselines`-groep naast `BaselinesProgressGroupContent`). Een `RibbonButtonSpec`
- *  rendert zijn label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een
- *  component gemengd render je hem als kaal icoontje zonder label of knopvormgeving (bevestigd met
- *  screenshot). Vandaar een eigen groep op alle drie de tabs i.p.v. het item in een bestaande groep te hangen.
+/** `progressImportButton` in zijn EIGEN groep, gedeeld door Planning, Tabel en Rapport — niet als
+ *  losse knop náást een `kind: 'component'`-item: een `RibbonButtonSpec` rendert zijn
+ *  label/knopvormgeving alleen binnen de generieke knoppenlaag van een groep; naast een component
+ *  gemengd wordt hij een kaal icoontje zonder label of knopvormgeving.
  *  Mag NIET op Start belanden: de gedeelde `startTab`-constanten (`scheduleGroup` e.d.) blijven
  *  onaangeraakt, deze groep wordt alleen los aan `planningTab`/`tableTab`/`reportTab` toegevoegd.
- *  `progressExportButton` staat VÓÓR de importknop (E7): eerst het blad eraf, dan terug erin. */
+ *  `progressExportButton` staat VÓÓR de importknop: eerst het blad eraf, dan terug erin. */
 const progressGroup: RibbonGroupSpec = {
   id: 'progress', labelKey: 'menu:ribbon.progressGroup',
   items: [{ kind: 'stack', id: 'progressStack', items: [progressExportButton, progressImportButton] }],
 };
 
-/** Waarschuwingenpaneel aan/uit (issue #53) — Beeld → Panelen én Planning → Planning, naast Bereken. */
+/** Waarschuwingenpaneel aan/uit — Beeld → Panelen én Planning → Planning, naast Bereken. */
 const warningsPanelButton: RibbonButtonSpec = {
   kind: 'button', id: 'warningsPanel', icon: <AlertTriangle size={20} />, labelKey: 'menu:ribbon.warningsPanel',
   // Zelfde vorm als de Eigenschappen-knop: actief ⇔ je ziet het paneel nu (rail niet ingeklapt en
@@ -506,18 +497,16 @@ const planningTab: RibbonTabConfig = [
 ];
 
 /**
- * Gedeelde item-specs (issue #46c): "Resources", "Resourcedock" en "Histogram" staan zowel op de
- * Resources-tab als onder Beeld → Panelen. Bewust GEDUPLICEERD (niet verplaatst) — de melder vroeg
- * er expliciet om ze ook onder Beeld te zien, zonder ze bij Resources weg te halen. Eén definitie,
+ * Gedeelde item-specs: "Resources", "Resourcedock" en "Histogram" staan zowel op de
+ * Resources-tab als onder Beeld → Panelen (bewust op beide). Eén definitie,
  * twee callsites, in lijn met `calcButton`/`relationDropdownItem`/`calendarButton`/`printPreviewButton`
  * hierboven.
  *
- * Naamgeving (issue #46, slot): de twee resourceknoppen doen ECHT iets anders — `openResourcePanel`
+ * Naamgeving: de twee resourceknoppen doen ECHT iets anders — `openResourcePanel`
  * zet `resourcePanelDocked:false` (het volledige paneel, dat de werkruimte overneemt),
  * `dockResourcePanel` zet `resourcePanelDocked:true` (de compacte rail in de zijkolom). Ze heten
  * daarom verschillend ("Resources" vs "Resourcedock") en dragen een verschillend icoon — op béide
- * tabbladen hetzelfde. Een eerdere ronde noemde de dock onder Beeld óók "Resources" met hetzelfde
- * `Users`-icoon; dat verplaatste de verwarring alleen maar van binnen-één-tab naar over-tabs-heen.
+ * tabbladen hetzelfde.
  */
 
 /** Het volledige resourcepaneel — Resources-tab én Beeld → Panelen (dezelfde spec, twee callsites). */
@@ -554,10 +543,10 @@ const dockResourcePanelButton: RibbonButtonSpec = {
     const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
     const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
     const { t } = useTranslation('menu');
-    // Issue #46 (slot): exact dezelfde vorm als de Eigenschappen-knop hiernaast — actief ⇔
+    // Exact dezelfde vorm als de Eigenschappen-knop hiernaast — actief ⇔
     // zichtbaar, en klikken op een niet-actieve knop maakt het paneel gegarandeerd zichtbaar
-    // (`setUI`-invariant 1 klapt de rail zo nodig uit). Vóór deze ronde las `active` alleen de
-    // aan-vlag, waardoor de knop kon oplichten terwijl de kolom ingeklapt was.
+    // (`setUI`-invariant 1 klapt de rail zo nodig uit). Alleen de aan-vlag lezen zou de knop laten
+    // oplichten terwijl de kolom ingeklapt is.
     const visible = showResourcePanel && resourcePanelDocked && !rightPanelCollapsed;
     return {
       onClick: () => setUI(
@@ -606,10 +595,8 @@ const resourcesTab: RibbonTabConfig = [
       dockResourcePanelButton,
       {
         kind: 'button', id: 'newResource', icon: <Plus size={20} />, labelKey: 'menu:ribbon.newResource',
-        // Issue #48-1: deze knop persisteerde direct een NAAMLOZE resource (`addResource` ⇒ undo-stap
-        // + een lege rij die blijft staan als je niets typt), terwijl de "+ Nieuwe resource"-knop in
-        // het paneel al gesaneerd was tot een concept-rij (critreview-bevinding F10). Nu neemt de
-        // lintknop diezelfde route: alleen een verzoek-vlag zetten, `ResourcePanel` opent de draft en
+        // Zelfde route als de "+ Nieuwe resource"-knop in het paneel (concept-rij, geen naamloze
+        // resource + undo-stap): alleen een verzoek-vlag zetten, `ResourcePanel` opent de draft en
         // maakt pas bij een niet-lege naam écht een resource aan — in de bibliotheek of het project,
         // afhankelijk van de actieve weergave. Daarom ook expliciet `resourcePanelDocked: false`
         // (zoals `openResourcePanel` hierboven): in de gedockte rail bestaat het paneel niet en is de
@@ -651,12 +638,11 @@ const resourcesTab: RibbonTabConfig = [
         kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
-          // B1c-plan3 taak 2: houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
+          // Houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
           // `clearLeveling` (`scheduleSlice.ts`) — een knop die inschakelt terwijl de actie een
-          // no-op is, of andersom, is de bug die dit repareert. Vóór deze uitbreiding stond "Nivellering
-          // wissen" grijs op een `.mpp`-project met uitsluitend sub-dag-precisie (`levelingDelayMinutes`/
-          // `levelingDelayElapsed`) én op een project dat alleen ingevoegde pauzedagen draagt
-          // (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
+          // no-op is, of andersom, is een bug. Dus ook actief bij uitsluitend sub-dag-precisie
+          // (`levelingDelayMinutes`/`levelingDelayElapsed`, `.mpp`) en bij alleen ingevoegde
+          // pauzedagen (`splitGaps` met `source: 'leveling'`, geen enkele `levelingDelay`).
           const hasLeveling = useAppStore(s => s.tasks.some(hasLevelingOutput));
           return { onClick: () => clearLeveling(), disabled: !hasLeveling };
         },
@@ -670,7 +656,7 @@ const resourcesTab: RibbonTabConfig = [
 ];
 
 /**
- * Overzicht-groep (issue #35 punt 3): in- en uitklappen zijn APARTE knoppen, niet één toggle —
+ * Overzicht-groep: in- en uitklappen zijn APARTE knoppen, niet één toggle —
  * met een toggle kun je een gemengde selectie nooit in één keer dezelfde kant op zetten.
  *
  * De knoppen zijn MODUS-BEWUST en dus nooit uitgeschakeld:
@@ -720,7 +706,7 @@ const outlineGroup: RibbonGroupSpec = {
 const beeldTab: RibbonTabConfig = [
   { id: 'timeScale', labelKey: 'menu:ribbon.timeScale', items: [{ kind: 'component', id: 'timeScale', Component: TimeScaleGroupContent }] },
   {
-    // LEGACY (issue #144): de losse weergaveknoppen zijn vervangen door de layoutknoppen en de
+    // LEGACY: de losse weergaveknoppen zijn vervangen door de layoutknoppen en de
     // layoutdialoog. Alleen zichtbaar met Instellingen → Legacy-functies → Klassieke weergaveknoppen.
     id: 'display', labelKey: 'menu:ribbon.display',
     items: [{ kind: 'component', id: 'display', Component: DisplayGroupContent }],
@@ -734,20 +720,19 @@ const beeldTab: RibbonTabConfig = [
     items: [
       {
         kind: 'button', id: 'properties', icon: <Eye size={20} />, labelKey: 'menu:ribbon.properties',
-        // Issue #46c-nasleep: `!rightPanelCollapsed` is niet hetzelfde als "de rail staat er". Het
-        // VOLLEDIGE resource-paneel vervangt de hele werkruimte (App.tsx `isFullPanel`), dus dan
-        // lichtte deze knop actief op naast een rail die niet bestond, en deed een klik niets.
-        // De andere `isFullPanel`-termen (tabbladen table/relations/ifc/report) kunnen hier niet
-        // spelen: deze knop staat op de Beeld-tab.
+        // `!rightPanelCollapsed` is niet hetzelfde als "de rail staat er". Het
+        // VOLLEDIGE resource-paneel vervangt de hele werkruimte (App.tsx `isFullPanel`); dan
+        // bestaat de rail niet. De andere `isFullPanel`-termen (tabbladen
+        // table/relations/ifc/report) kunnen hier niet spelen: deze knop staat op de Beeld-tab.
         //
-        // Issue #46 (slot): de rail huisvest nu twee GELIJKWAARDIGE panelen, elk met een eigen
+        // De rail huisvest twee GELIJKWAARDIGE panelen, elk met een eigen
         // aan/uit. Deze knop is die schakelaar voor Eigenschappen — de tegenhanger van
         // "Resourcedock" ernaast, met exact dezelfde vorm:
         //
         //     actief  ⇔  je ziet dit paneel nu
         //     klik op een NIET-actieve knop  ⇒  je ziet het paneel daarna gegarandeerd
         //
-        // Die tweede regel is de #46c-belofte, en hij is hier niet met de hand ingebouwd maar
+        // Die tweede regel is hier niet met de hand ingebouwd maar
         // afgedwongen in `setUI` (invariant 1b): het paneel aanzetten klapt zo nodig de rail uit.
         // Het UITzetten laat `rightPanelCollapsed` bewust met rust — dat veld is de tijdelijke
         // "geef de Gantt de breedte"-stand, geen paneelkeuze.
@@ -766,7 +751,7 @@ const beeldTab: RibbonTabConfig = [
           };
         },
       },
-      // Issue #46c + slot: dezelfde paneelschakelaars als op de Resources-tab (gedeelde specs
+      // Dezelfde paneelschakelaars als op de Resources-tab (gedeelde specs
       // hierboven), inclusief het volledige resourcepaneel. Zo staat in deze ene groep het hele
       // aanbod aan panelen bij elkaar — Eigenschappen, Resources, Resourcedock, Histogram — en is
       // het verschil tussen de twee resourceknoppen zichtbaar in plaats van verstopt per tabblad.
@@ -821,7 +806,7 @@ const beeldTab: RibbonTabConfig = [
             },
           },
           {
-            // #130: de groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
+            // De groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
             // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
             kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
             use: () => {
@@ -836,7 +821,7 @@ const beeldTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'relationsStack', items: [
           {
-            // Issue #144: schermtegenhanger van de rapportoptie "Afhankelijkheden". Per document
+            // Schermtegenhanger van de rapportoptie "Afhankelijkheden". Per document
             // (view-state), en een layoutdeel: het resourcediagram zet de lijnen uit.
             kind: 'small', id: 'toggleRelations', icon: <Spline size={14} />, labelKey: 'menu:ribbon.toggleRelations',
             use: () => {
@@ -878,16 +863,14 @@ const instellingenTab: RibbonTabConfig = [
 /**
  * Tabel-tab: de Start-tab min de zoomknoppen, plus één tabel-eigen groep.
  *
- * Issue #49 bracht de Taken-groep hierheen; de vervolgvraag van de melder was "alles van Start
- * hoort ook op Tabel, behalve zoom". Dat klopt inhoudelijk: Bestand, Bewerken, Taken en Bereken
+ * Bestand, Bewerken, Taken en Bereken
  * werken allemaal op de store en op `selectedTaskIds` — die selectie deelt de tabel met de Gantt,
  * dus elke knop doet hier precies hetzelfde als op Start. **Zoom is de enige uitzondering**: dat
  * schaalt de tijdas van de Gantt (`view.zoom` → `GanttRenderer`) en heeft in een tabel geen
- * betekenis. Dezelfde redenering als bij de zes Gantt-schakelaars in `docs/TODO.md` — een knop
- * aanbieden in een weergave waar hij niets kan doen, is geen volledigheid maar een valstrik.
+ * betekenis — een knop aanbieden in een weergave waar hij niets kan doen, is een valstrik.
  *
  * De eerste vijf groepen zijn dezelfde module-scope constanten die `startTab` gebruikt (geen kopie),
- * zodat een volgende knop op Start hier automatisch meekomt. **Uitzondering (E2, issue #27 etappe 2):**
+ * zodat een volgende knop op Start hier automatisch meekomt. **Uitzondering:**
  * `progressGroup` (gedeeld met Planning en Rapport, zie daar) hangt hier ACHTERAAN als eigen groep — niet in de
  * gedeelde `scheduleGroup`, want een knop dáár zou automatisch ook op Start verschijnen, en de
  * voortgangsimport is bewust alleen op Backstage → Importeren, Planning, Tabel en Rapport te vinden.
@@ -911,9 +894,9 @@ const reportTab: RibbonTabConfig = [
   progressGroup,
 ];
 
-/** AI-tab (T14/T15/T16) — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
- *  groepen, alle component-escape-hatches (eigen state, inputs, popover/confirm). De veiligheidsgroep
- *  (pauze/alleen-lezen/backup) is T16; de activiteit-groep (T15) toggelt het activiteitenpaneel. */
+/** AI-tab — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
+ *  groepen, alle component-escape-hatches (eigen state, inputs, popover/confirm): verbinding,
+ *  server, veiligheid (pauze/alleen-lezen/backup) en activiteit (toggelt het activiteitenpaneel). */
 const aiTab: RibbonTabConfig = [
   { id: 'aiServer', labelKey: 'menu:ribbon.aiServer', items: [{ kind: 'component', id: 'aiServer', Component: AiServerGroup }] },
   { id: 'aiConnection', labelKey: 'menu:ribbon.aiConnection', items: [{ kind: 'component', id: 'aiConnection', Component: AiConnectionGroup }] },

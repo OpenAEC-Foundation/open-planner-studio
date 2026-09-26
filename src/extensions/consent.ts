@@ -1,5 +1,5 @@
 /**
- * Toestemming bij het INSTALLEREN van een extensie (K-item 38, laatste deel).
+ * Toestemming bij het INSTALLEREN van een extensie.
  *
  * WAAR TOESTEMMING VOOR GEGEVEN WORDT — en waarvoor NIET. Extensie-code draait in dezelfde realm
  * als de app: `new Function(...)`, geen worker, geen iframe. Er valt dus niets af te bakenen. De

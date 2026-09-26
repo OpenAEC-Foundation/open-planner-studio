@@ -32,7 +32,7 @@ export function StatusBar() {
   const leafCount = useMemo(() => tasks.filter(isLeafTask).length, [tasks]);
   const milestoneCount = useMemo(() => tasks.filter(t => t.isMilestone).length, [tasks]);
   const criticalCount = cpmResult?.criticalPath.length || 0;
-  // Issue #53: elke teller is een ingang naar het Waarschuwingenpaneel met de details.
+  // Elke teller is een ingang naar het Waarschuwingenpaneel met de details.
   const overallocatedCount = resourceLoadResult
     ? Object.values(resourceLoadResult.overallocatedDays).filter(days => days.length > 0).length
     : 0;
@@ -97,7 +97,7 @@ export function StatusBar() {
         <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
       )}
       <div className="flex-1" />
-      {/* Afgeleid uit zoom (fase 2.7, §3.5) — kan niet desyncen van de getekende as. */}
+      {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom, enableHourPlanning)}`)}</span>
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}

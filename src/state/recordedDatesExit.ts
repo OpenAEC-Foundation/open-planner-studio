@@ -1,10 +1,8 @@
 /**
- * Het BESLUIT achter `useExitRecordedDates` (issue #63), als pure functies.
+ * Het BESLUIT achter `useExitRecordedDates`, als pure functies.
  *
- * Bewust los van de hook: het predicaat zat eerst in de subscriber-closure en was daardoor niet
- * headless toetsbaar — precies de plek waar de twee subtiliteiten zitten die het gedrag bepalen
- * (documentwissel en bulk-transactie). Hier zijn ze wél te toetsen; de hook doet alleen nog
- * waarnemen en uitvoeren.
+ * Bewust los van de hook, zodat de twee subtiliteiten die het gedrag bepalen (documentwissel en
+ * bulk-transactie) headless toetsbaar zijn; de hook doet alleen waarnemen en uitvoeren.
  *
  * Bladmodule: importeert niets uit `slices/` of `appStore`, dus geen cyclus-risico.
  */

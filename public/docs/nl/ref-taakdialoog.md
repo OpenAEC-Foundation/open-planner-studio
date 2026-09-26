@@ -12,7 +12,7 @@ Het venster **Taak bewerken** toont alle eigenschappen van één taak — dezelf
 
 - **Opslaan** past alle veld-wijzigingen in één keer toe; de knop is uitgeschakeld zolang de naam leeg is. **Enter** doet hetzelfde als Opslaan (behalve in een tekstvak met meerdere regels).
 - **Annuleren**, **Esc**, het kruisje of een klik buiten het venster sluit zonder de veld-wijzigingen toe te passen.
-- Uitzondering: de secties **Afhankelijkheden**, **Toewijzingen** en **Codes & velden** werken rechtstreeks op de planning (identiek aan het paneel) — wijzigingen daar zijn direct van kracht, ook als je daarna annuleert.
+- Uitzondering: de secties **Afhankelijkheden**, **Toewijzingen** en **Codes & velden** werken rechtstreeks op de planning (identiek aan het paneel) — wijzigingen daar zijn direct van kracht, ook als je daarna annuleert. Hetzelfde geldt bij een bestaande taak voor het veld **Werkregel**: die keuze wordt meteen doorgevoerd, zodat werk en inzet in dezelfde dialoog al met de gekozen regel rekenen. Bij een nieuwe taak wacht ook de werkregel op **Opslaan**.
 
 ## Velden
 
@@ -37,6 +37,7 @@ Een checklist per taak: per regel een **afvink-hokje**, een tekstvak en een verw
 
 - **Startdatum** — toont de berekende vroegste start; een handmatige wijziging verankert de nieuwe datum als gepland startpunt. Heeft de taak een voorganger, dan wordt die datum bij **Opslaan** ook een constraint Start niet eerder dan (SNET), tenzij je in dezelfde dialoog zelf een constraint kiest. Heeft de taak al een andere constraint (bijvoorbeeld MSO), dan wordt de nieuwe start niet toegepast en noemt een melding die constraint.
 - Dialoog en eigenschappenpaneel gebruiken dezelfde bediening **Duur [waarde] [Dagen | Uren]**. Typ bijvoorbeeld `2d`, `12h` of de invoeralias `12u`. Een gewone kalender met werkdagen, begin- en eindtijd en uren per dag levert automatisch effectieve werktijdblokken; de per-weekdag-editor verfijnt die wanneer nodig. Alleen een lege of ongeldige kalender blokkeert uren. Zie [Kalenders & uren-planning](docs://gids-kalenders-uren).
+- **Werkregel** — welk getal vast blijft als duur, inzet of werk verandert: **Projectstandaard (…)**, **Vaste duur en inzet**, **Vaste duur en werk**, **Vast werk** of **Vaste inzet**. Eronder staat wat de geldende regel beschermt (bijvoorbeeld "Beschermd: duur en inzet (werk volgt)"), en bij een taak uit MS Project of de vlag effort-driven. Het veld verschijnt alleen als *Toon werkregels en werk* aan staat (Instellingen → Planning → Berekenen) of het document zelf werkregels bevat, en alleen op een taak zonder subtaken die geen mijlpaal, hammock of taak met duurtype *Verstreken tijd* is. Bij een bestaande taak is de keuze direct van kracht (zie hierboven). Zie [Werkregels en werk](docs://gids-taaktypes).
 
 ## Hammock (afgeleide duur)
 

@@ -1,15 +1,15 @@
 /**
- * `PdfVectorDraw2D` — de pdf-lib-VECTOR-backend voor {@link Draw2D} (§4.2 ontwerpdoc). Waar de
+ * `PdfVectorDraw2D` — de pdf-lib-VECTOR-backend voor {@link Draw2D}. Waar de
  * canvas-backend rechtstreeks tekent, néémt deze backend elke teken-primitief op als een lijst
  * pdf-lib-`PDFOperator`s. Die operatoren worden door de vector-pagineerder (`paginateVector.ts`)
- * exact één keer in een Form-XObject gebakken (G1: O(taken×dagen), niet O(tegels×taken×dagen)) en
+ * exact één keer in een Form-XObject gebakken (O(taken×dagen), niet O(tegels×taken×dagen)) en
  * per pagina onder een eigen `q cm W n … Q` ge-`Do`'d.
  *
  * Coördinatenstelsel: de renderer werkt in LOGISCHE px met y-omlaag (canvas-conventie). PDF is
  * y-omhoog. Deze backend klapt elke y om via `y' = H - y` (H = logische hoogte); tekst blijft
  * daardoor rechtop (de baseline zit op `H - baselineY`, glyphs groeien omhoog = omhoog op scherm).
  * Het XObject krijgt dus BBox `[0,0,W,H]` en identiteits-Matrix; de per-pagina `cm` doet alleen
- * schaal + tegel-offset (géén flip meer).
+ * schaal + tegel-offset (géén flip).
  *
  * Puur browser (pdf-lib/fontkit) — geen Tauri-imports; lazy geladen in de export-tak.
  */
@@ -50,13 +50,14 @@ export interface PdfResourcePool {
 }
 
 /**
- * Eén geplaatst tekst-blok, uit het gedeelde Form-XObject gehaald (fase 2.1). De {@link PdfVectorDraw2D}
- * bakt tekst NIET meer mee in het XObject (dat zou z'n hele tekstlaag op elke tegel dupliceren bij
+ * Eén geplaatst tekst-blok, buiten het gedeelde Form-XObject. De {@link PdfVectorDraw2D}
+ * bakt tekst NIET mee in het XObject (dat zou z'n hele tekstlaag op elke tegel dupliceren bij
  * extractie); i.p.v. dat levert hij per `fillText` een placement met (a) de kant-en-klare low-level
  * tekst-operatoren (kleur/alpha + `BT…ET`, met een `setTextMatrix` in absolute XObject-coördinaten) en
  * (b) de bron-bounding-box in ONgeflipte report-px (canvas, y-omlaag). De pagineerder emit elke
  * placement onder EXACT dezelfde `cm`+clip als het XObject `Do`, maar alleen op de tegel(s) wiens
- * bron-venster de bbox raakt — zo landt de tekst pixel-identiek als in fase 2, maar zonder duplicatie.
+ * bron-venster de bbox raakt — zo landt de tekst pixel-identiek als in het XObject, maar zonder
+ * duplicatie.
  */
 export interface PdfTextPlacement {
   /** Bron-bbox in report-px (canvas, y-omlaag): [x0,x1]×[y0,y1]. Bepaalt op welke tegel de tekst hoort. */
@@ -141,9 +142,9 @@ function readMetrics(fk: FontkitFont): FontMetrics {
 }
 
 /**
- * RTL-codepoint? (Arabisch + Hebreeuws, incl. presentatievormen). Puur vooruit-vlag: in v1 dekt Inter
- * deze scripts tóch niet, dus ze vallen sowieso al onder `uncoveredCodepoints`; de aparte `hasRtl`-vlag
- * laat een latere bidi/shaping-laag (fase na v1) onderscheiden "ongedekt Latijns rariteitje" van "RTL".
+ * RTL-codepoint? (Arabisch + Hebreeuws, incl. presentatievormen). Inter dekt deze scripts niet, dus
+ * op het snelpad vallen ze onder `uncoveredCodepoints`; de aparte `hasRtl`-vlag onderscheidt
+ * "ongedekt Latijns rariteitje" van "RTL".
  */
 function isRtlCodepoint(cp: number): boolean {
   return (
@@ -211,7 +212,7 @@ export class PdfVectorDraw2D implements Draw2D {
    * Wordt tijdens `fillText` gevuld en dekt zo ALLE getekende tekst (Gantt én tabellen).
    */
   readonly uncoveredCodepoints = new Set<number>();
-  /** True zodra een RTL-codepoint (Arabisch/Hebreeuws) getekend is — vooruit-vlag voor een latere bidi-laag. */
+  /** True zodra een RTL-codepoint (Arabisch/Hebreeuws) getekend is. */
   hasRtl = false;
   /**
    * True zodra er via het complexe pad daadwerkelijk een Arabische/Perzische glyph (font-key F2/F3)
@@ -317,7 +318,7 @@ export class PdfVectorDraw2D implements Draw2D {
   }
 
   /**
-   * Coverage-check voor het RTL/COMPLEXE pad (G-1). Cruciaal verschil met {@link checkCoverage}: het
+   * Coverage-check voor het RTL/COMPLEXE pad. Cruciaal verschil met {@link checkCoverage}: het
    * complexe pad ({@link fillTextComplex} → {@link shapeAndPlace}) tekent ELKE codepoint via één van de
    * twee shaping-fonts — Inter (font-klasse `latin`) of Noto-Arabic (`arabic`) — en NOOIT via een
    * CJK-provider. `bidiShape.fontClassFor` klasseert een niet-Arabisch, niet-neutraal teken (dus óók
@@ -371,7 +372,7 @@ export class PdfVectorDraw2D implements Draw2D {
 
   /**
    * True als `text` minstens één teken bevat dat Inter NIET dekt maar een CJK-provider WÉL. Zo blijft
-   * puur-Latijnse tekst op het onveranderde snelpad (byte-identiek aan vóór CJK) en gaat alleen echte
+   * puur-Latijnse tekst op het snelpad en gaat alleen echte
    * gemengd/CJK-tekst door het (LTR, niet-bidi) run-splitsende CJK-pad.
    */
   private textHasCjk(text: string): boolean {
@@ -485,7 +486,7 @@ export class PdfVectorDraw2D implements Draw2D {
     // gaat de tekst door de bidi/shaping-kern en wordt PER GLYPH geplaatst (het `/W`-tabel-contract:
     // rauwe geshapte GID's zonder per-glyph-matrix vallen op `/DW` → losgekoppelde letters). Zonder
     // shaping-fonts (of geen RTL) valt hij door naar het onveranderde Latijnse snelpad hieronder.
-    // Coverage MOET hier via {@link checkCoverageComplex} (G-1): dit pad tekent nooit via een CJK-
+    // Coverage MOET hier via {@link checkCoverageComplex}: dit pad tekent nooit via een CJK-
     // provider, dus een codepoint die enkel een provider dekt (Han in een Arabisch+CJK-label) is hier
     // ongedekt → coverage-poort → raster, i.p.v. Inter 'm als tofu te laten shapen.
     if (this.shapingFonts && this.hasRtlText(text)) {

@@ -2,10 +2,9 @@ import { useState, useId } from 'react';
 import { Popover } from '@/components/common/Popover';
 
 /**
- * Gedeelde ribbon-primitives (audit P18). Vroeger stonden deze onderdelen als lokale
- * helpers boven in Ribbon.tsx; ze zijn hierheen verplaatst zodat zowel het declaratieve
- * render-pad (RibbonTabContent) als de complexe widget-escape-hatches (ribbonWidgets)
- * dezelfde bouwstenen delen. Markup/CSS-klassen zijn ONgewijzigd — Ribbon.css blijft kloppen.
+ * Gedeelde ribbon-primitives: zowel het declaratieve render-pad (RibbonTabContent) als de
+ * complexe widget-escape-hatches (ribbonWidgets) delen deze bouwstenen. De markup/CSS-klassen
+ * horen bij Ribbon.css.
  */
 
 export { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
@@ -108,8 +107,8 @@ interface RibbonButtonProps {
   disabled?: boolean;
   primary?: boolean;
   danger?: boolean;
-  /** Tooltip — bestond alleen op de kleine knop; issue #40 heeft hem ook op de grote nodig, waar
-   *  de Relatie-knop afhankelijk van de selectie iets anders doet. Puur een `title`-attribuut:
+  /** Tooltip — ook op de grote knop, waar de Relatie-knop afhankelijk van de selectie iets anders
+   *  doet. Puur een `title`-attribuut:
    *  geen enkel effect op de vormgeving van het lint. */
   title?: string;
   /** Spec-id van het lintitem als `data-ops-ribbon-item`. Stabiel aanknopingspunt voor de
@@ -130,7 +129,7 @@ function ribbonButton(
   if (danger) cls.push('danger');
   // Zonder eigen tooltip valt het label terug als tooltip: in de icoon-only-standen (handmatig
   // ingeklapt, of automatisch gedegradeerd) is het label verborgen en zou de knop anders volstrekt
-  // naamloos zijn. Een expliciete `title` (bv. de Relatie-knop, issue #40) wint.
+  // naamloos zijn. Een expliciete `title` (bv. de Relatie-knop) wint.
   const tip = title ?? label;
   return (
     <button

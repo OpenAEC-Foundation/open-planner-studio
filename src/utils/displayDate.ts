@@ -31,7 +31,7 @@ export function parsePersonalDate(raw: string, notation: DateNotation): string |
 }
 
 /**
- * Weergave-formatter voor datums (taak #53). Zet een INTERNE ISO-datum om naar de door de
+ * Weergave-formatter voor datums. Zet een INTERNE ISO-datum om naar de door de
  * gebruiker gekozen notatie. De opslag/serialisatie blijft altijd ISO — deze module raakt
  * uitsluitend wat op het scherm/print verschijnt.
  *

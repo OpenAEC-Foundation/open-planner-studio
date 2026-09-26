@@ -8,7 +8,7 @@ import {
 } from './ribbonConfig';
 
 /**
- * Generiek render-pad voor de declaratieve ribbon-config (audit P18) — één component rendert
+ * Generiek render-pad voor de declaratieve ribbon-config — één component rendert
  * elke tab uit `RIBBON_TABS`, net zoals ExtensionRibbonGroups extensieknoppen uit data rendert.
  *
  * Rules-of-hooks: elke knop met een `use`-binding wordt in zijn EIGEN component-instantie

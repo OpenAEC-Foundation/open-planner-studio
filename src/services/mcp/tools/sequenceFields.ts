@@ -5,9 +5,8 @@
 // `add_tasks` en `update_tasks` één allowlist moeten delen. Hier geldt hetzelfde voor
 // `add_dependencies` (taskTools.ts) en `update_dependencies` (dependencyTools.ts) — plus de LEESKANT
 // (`readTools.ts`), die de afkorting en het lag-label produceert waarop de schrijfkant zich richt.
-// Zonder deze module zouden er drie kopieën van dezelfde notatiekennis rondzwerven, en dat is precies
-// de klasse fouten die de eerlijkheidsronde heeft opgeruimd (`FS` accepteren maar `+2d` stil op 0
-// zetten was een variant daarvan).
+// Zonder deze module zouden er drie kopieën van dezelfde notatiekennis rondzwerven — een bron van
+// stille fouten zoals `FS` accepteren maar `+2d` stil op 0 zetten.
 //
 // DE KERNCONVENTIE: DE SCHRIJFKANT SPREEKT DE LEESKANT. Wat `lagLabel`/`seqAbbrev` hieronder
 // PRODUCEREN, moet `normalizeSeqType`/`parseLag` hieronder ACCEPTEREN — in dezelfde string. Voeg je
@@ -18,12 +17,11 @@ import type { Sequence, SequenceType } from '@/types/sequence';
 export const SEQ_TYPES: SequenceType[] = ['FINISH_START', 'FINISH_FINISH', 'START_START', 'START_FINISH'];
 
 /**
- * De SCHRIJFKANT MOET DE LEESKANT SPREKEN (audit-bevindingen H1/H2). `planner_get_task` en
- * `planner_get_project_overview` geven relatietypes terug als `FS`/`SS`/`FF`/`SF` en lag als STRING
- * (`"+2d"`, `"-1d"`, `"+50%"`), maar `add_dependencies` eiste de lange enum plus een `number`. Een
- * agent die de voorgangers van taak A leest en op taak B spiegelt, gaf dus letterlijk `type: 'FS',
- * lag: '+2d'` door — waarna het type zacht werd geweigerd en de lag STIL 0 werd. Daarom accepteert de
- * schrijfkant beide notaties en vertaalt ze; niets verdampt meer in stilte.
+ * De SCHRIJFKANT MOET DE LEESKANT SPREKEN. `planner_get_task` en `planner_get_project_overview`
+ * geven relatietypes terug als `FS`/`SS`/`FF`/`SF` en lag als STRING (`"+2d"`, `"-1d"`, `"+50%"`).
+ * Een agent die de voorgangers van taak A leest en op taak B spiegelt, geeft dus letterlijk
+ * `type: 'FS', lag: '+2d'` door. Daarom accepteert de schrijfkant beide notaties (lang/kort, getal/
+ * string) en vertaalt ze; niets verdampt in stilte.
  */
 const SEQ_TYPE_ALIASES: Record<string, SequenceType> = {
   FS: 'FINISH_START',
@@ -43,20 +41,20 @@ export function normalizeSeqType(v: unknown): SequenceType | null {
   return SEQ_TYPE_ALIASES[up] ?? null;
 }
 
-/** De reden-tekst bij een onbekend relatietype; noemt BEIDE notaties (H1). */
+/** De reden-tekst bij een onbekend relatietype; noemt BEIDE notaties. */
 export function unknownTypeReason(raw: unknown): string {
   return `onbekend relatietype '${String(raw)}'; toegestaan: ${SEQ_TYPES.join(' | ')} (of kort ${SEQ_TYPE_SHORT.join('/')})`;
 }
 
 /**
- * Weigeringstekst voor een voorouder-relatie (eigenaarsbesluit 2026-08-15). Dit is MCP-agent-tekst,
+ * Weigeringstekst voor een voorouder-relatie. Dit is MCP-agent-tekst,
  * geen regel — de regel zelf (`isAncestorRelation`) staat in de bladmodule `state/relationRules.ts`,
  * die geen Nederlandse volzinnen kent (alleen types en predicaten). De twee enige lezers zijn
  * `classifyDeps` (taskTools.ts, NIEUWE relaties) en `classifyDepUpdates` (dependencyTools.ts, het
  * VERHANGEN van een bestaand eindpunt) — exact de twee modules waarvoor deze gedeelde veldlaag al
  * bestaat.
  *
- * Een gewoon verzameltaak-eindpunt is GEEN weigergrond meer: `expandSummaryRelations` rekent zo'n
+ * Een gewoon verzameltaak-eindpunt is GEEN weigergrond: `expandSummaryRelations` rekent zo'n
  * relatie door naar de onderliggende bladtaken (MS Project-semantiek). Alleen een relatie tussen een
  * taak en zijn EIGEN (voor)ouder-samenvatting blijft zinloos — die zou de expansie een directe cyclus
  * laten genereren.
@@ -136,14 +134,12 @@ export function lagPatchOf(lag: ParsedLag): Pick<Sequence, 'lagDays' | 'lagPerce
 /**
  * Valideer/normaliseer `lag`. Afwezig ⇒ 0 (bestaande default).
  *
- * Was (audit-bevinding K4) `typeof c.lag === 'number' ? c.lag : 0` — een niet-numerieke lag werd
- * daarmee STIL 0 en de tool antwoordde gewoon `added: [...]`. LLM's sturen routinematig numerieke
- * strings; die vorm wordt geaccepteerd én omgezet, al het overige wordt bij naam geweigerd.
+ * Nooit stil 0 bij een niet-numerieke lag: LLM's sturen routinematig numerieke strings; die vorm
+ * wordt geaccepteerd én omgezet, al het overige wordt bij naam geweigerd.
  *
- * PROCENT-LAG is sinds `planner_update_dependencies` WÉL zetbaar (hij was de enige leesvorm die de
- * schrijfkant niet sprak). `"+50%"` ⇒ `lagPercent: 50`. Een procent van 0 levert bewust een gewone
- * dag-lag 0 op: `lagPercent: 0` zou door de leeskant als "" (géén lag) worden gerenderd, en dan kon
- * je hem niet meer terugschrijven — de asymmetrie die we juist opheffen.
+ * PROCENT-LAG is zetbaar: `"+50%"` ⇒ `lagPercent: 50`. Een procent van 0 levert bewust een gewone
+ * dag-lag 0 op: `lagPercent: 0` zou door de leeskant als "" (géén lag) worden gerenderd, en dan kun
+ * je hem niet meer terugschrijven.
  */
 export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: false; reason: string } {
   if (raw === undefined || raw === null) return { ok: true, value: { days: 0 } };

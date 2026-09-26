@@ -1,6 +1,6 @@
-// Gedeelde veld-catalogus voor de Beeld-UI (fase 2.7 golf 3): filter-editor (§6/§13.1),
-// groepeer-/sorteer-popovers (§7.4). DRY over de drie UI-stukken die allemaal een lijst van
-// beschikbare FieldRefs + labels + (voor filter) waarde-editor-soort nodig hebben. De
+// Gedeelde veld-catalogus voor de Beeld-UI: filter-editor,
+// groepeer-/sorteer-popovers. DRY over de drie UI-stukken die allemaal een lijst van
+// beschikbare FieldRefs + labels + (voor filter) waarde-editor-soort nodig hebben.
 // De kolommen-dialoog gebruikt deze builtinlijst alleen voor zijn tijdelijke legacyveldcatalogus.
 //
 // Geen store-/React-afhankelijkheid buiten types; ontvangt i18n-labels en context als argument
@@ -19,27 +19,27 @@ export interface FieldCatalogCtx {
   /** Vertaalde taskType-labels (uit task:taskType.*), voor het taskType-select-veld. */
   taskTypeLabels: Record<string, string>;
   resourceLabel: string; // t('column.resource')
-  /** Issue #173: label van het groepeer-/sorteerveld Resourcetype (t('column.resourceType')). */
+  /** Label van het groepeer-/sorteerveld Resourcetype (t('column.resourceType')). */
   resourceTypeLabel?: string;
-  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata (§6.2), bv. "activiteitcode". */
+  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata, bv. "activiteitcode". */
   activityCodeSuffix: string; // t('column.activityCodeSuffix')
-  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata (§6.2), bv. "eigen veld". */
+  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata, bv. "eigen veld". */
   customFieldSuffix: string; // t('column.customFieldSuffix')
 }
 
-/** Alle builtin-velden die in filter/sort zinvol zijn (§6.2 dekt ze allemaal). */
+/** Alle builtin-velden die in filter/sort zinvol zijn. */
 export const FILTER_SORT_BUILTIN_KEYS: BuiltinFieldKey[] = [
   'wbsCode', 'name', 'duration', 'start', 'finish',
   'taskType', 'isCritical', 'totalFloat', 'completion', 'isMilestone',
-  // Fase 2.9 (§3.5): additieve analyse-velden.
+  // Analysevelden.
   'freeFloat', 'interferingFloat', 'isNearCritical', 'floatPath',
 ];
 
-/** Groepeerbare builtin-velden (§7.4): alleen discrete velden, geen continue getallen/datums. */
+/** Groepeerbare builtin-velden: alleen discrete velden, geen continue getallen/datums. */
 export const GROUP_BUILTIN_KEYS: BuiltinFieldKey[] = ['wbsCode', 'taskType'];
 
 /**
- * Filter-only builtin-velden (issue-discussie #32): synthetische velden die alleen als
+ * Filter-only builtin-velden: synthetische velden die alleen als
  * filterregel zin hebben, niet als sorteer- of groepeersleutel — vandaar apart van
  * `FILTER_SORT_BUILTIN_KEYS`, dat `fullFieldList` ook aan de sorteer-popover levert
  * (`ribbonWidgets.tsx`). Gebruik `filterFieldList`, niet `fullFieldList`, in de filter-editor.
@@ -71,7 +71,7 @@ export function fullFieldList(ctx: FieldCatalogCtx): FieldRef[] {
 }
 
 /**
- * Sorteer-veldenlijst: `fullFieldList` plus Resourcetype (issue #173). Resourcetype staat bewust niet
+ * Sorteer-veldenlijst: `fullFieldList` plus Resourcetype. Resourcetype staat bewust niet
  * in de filterlijst: het is een afgeleide indeling voor groeperen en sorteren, geen filterwaarde.
  */
 export function sortFieldList(ctx: FieldCatalogCtx): FieldRef[] {
@@ -79,7 +79,7 @@ export function sortFieldList(ctx: FieldCatalogCtx): FieldRef[] {
 }
 
 /**
- * Filter-veldenlijst: `fullFieldList` plus de filter-only synthetische velden (§?). Gebruikt door
+ * Filter-veldenlijst: `fullFieldList` plus de filter-only synthetische velden. Gebruikt door
  * `FilterDialog` i.p.v. `fullFieldList` zelf, precies om `activeDuring` weg te houden bij de
  * sorteer-popover (die `fullFieldList` rechtstreeks gebruikt).
  */
@@ -90,9 +90,9 @@ export function filterFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   ];
 }
 
-/** Groepeerbare veldenlijst (§7.4): WBS, taskType, activity codes, custom fields, resource en
+/** Groepeerbare veldenlijst: WBS, taskType, activity codes, custom fields, resource en
  *  resourcetype. Twee niveaus Resourcetype → Resource geven de indeling van het rapport
- *  Resourcediagram (issue #173). */
+ *  Resourcediagram. */
 export function groupFieldList(
   ctx: {
     activityCodeTypes: ReadonlyArray<ActivityCodeType>;
@@ -119,8 +119,8 @@ export function fieldLabel(field: FieldRef, ctx: FieldCatalogCtx): string {
 }
 
 /**
- * Labelt een veldenlijst voor gebruik in een dropdown en disambigueert botsende labels
- * (§6.2/§7.4): builtin-velden hebben altijd al unieke label-keys, maar een activity-code-type
+ * Labelt een veldenlijst voor gebruik in een dropdown en disambigueert botsende labels:
+ * builtin-velden hebben altijd al unieke label-keys, maar een activity-code-type
  * of custom field kan door de gebruiker een naam krijgen die toevallig samenvalt met een ander
  * veld (builtin of user-defined). Alleen bij een daadwerkelijke botsing krijgt zo'n
  * gebruikersgedefinieerd veld een bron-suffix, bv. "Type (activiteitcode)".
@@ -144,7 +144,7 @@ export function fieldOptions(
 
 export type FieldKind = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'multiselect' | 'activePeriod';
 
-/** Bepaalt welke waarde-editor + operatorenset een veld krijgt in de filter-editor (§13.1). */
+/** Bepaalt welke waarde-editor + operatorenset een veld krijgt in de filter-editor. */
 export function fieldKind(field: FieldRef, ctx: FieldCatalogCtx): FieldKind {
   if (field.src === 'builtin') {
     switch (field.key) {
@@ -154,16 +154,16 @@ export function fieldKind(field: FieldRef, ctx: FieldCatalogCtx): FieldKind {
       case 'duration':
       case 'totalFloat':
       case 'completion':
-      case 'freeFloat':          // fase 2.9 (§3.5)
-      case 'interferingFloat':   // fase 2.9 (§3.5)
-      case 'floatPath':          // fase 2.9 (§3.5)
+      case 'freeFloat':
+      case 'interferingFloat':
+      case 'floatPath':
         return 'number';
       case 'start':
       case 'finish':
         return 'date';
       case 'isCritical':
       case 'isMilestone':
-      case 'isNearCritical':     // fase 2.9 (§3.5)
+      case 'isNearCritical':
         return 'boolean';
       case 'taskType':
         return 'select';
@@ -189,7 +189,7 @@ export function fieldKind(field: FieldRef, ctx: FieldCatalogCtx): FieldKind {
   return 'multiselect';
 }
 
-/** Toegestane operatoren per veldsoort (§6.2). */
+/** Toegestane operatoren per veldsoort. */
 export function operatorsForKind(kind: FieldKind): FilterOperator[] {
   switch (kind) {
     case 'text': return ['eq', 'neq', 'contains', 'startsWith', 'isEmpty'];
@@ -199,7 +199,7 @@ export function operatorsForKind(kind: FieldKind): FilterOperator[] {
     case 'boolean': return ['eq', 'neq'];
     case 'select': return ['eq', 'neq', 'in', 'isEmpty'];
     case 'multiselect': return ['in', 'isEmpty'];
-    // Interval-overlap heeft altijd beide grenzen nodig (§?, `evaluateActiveDuring`) — geen
+    // Interval-overlap heeft altijd beide grenzen nodig (`evaluateActiveDuring`) — geen
     // zinnige eq/lt/gt-variant zonder een tweede datum, dus maar één operator.
     case 'activePeriod': return ['between'];
   }

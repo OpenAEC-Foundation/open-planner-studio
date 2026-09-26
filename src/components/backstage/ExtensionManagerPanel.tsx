@@ -150,7 +150,7 @@ function InstalledExtensionCard({ ext }: { ext: ReadyExtension }) {
   return (
     <div data-testid="extension-ready-card" className={`ext-card ${isError ? 'ext-card-error' : ''}`}>
       <div className="ext-card-icon">
-        {/* K6a: manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
+        {/* Manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
             geregistreerd (ook met status `disabled`) — dus altijd via de sanitizer. */}
         <ExtensionIcon raw={ext.manifest.icon} fallback={<Puzzle size={24} />} />
       </div>
@@ -320,7 +320,7 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
     const uitkomst = await installFromCatalog(entry);
     setInstalling(false);
     // Alleen 'failed' is een fout. Een 'declined' is de gebruiker die de vertrouwensvraag met nee
-    // beantwoordde (K-item 38) — daar hoort geen "installatie mislukt" bij.
+    // beantwoordde — daar hoort geen "installatie mislukt" bij.
     if (uitkomst === 'failed') setFailed(true);
   }, [entry]);
 

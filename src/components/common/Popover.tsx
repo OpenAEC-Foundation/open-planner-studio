@@ -3,28 +3,27 @@ import { createPortal } from 'react-dom';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 /**
- * Gedeelde dropdown/popover-primitive (audit UI-F3): bundelt de container (`position: relative`),
- * de klik-buiten-afhandeling (via {@link useClickOutside}) en de paneel-basisstijl die de acht
- * ribbon-dropdowns letterlijk hadden gekopieerd (de `--theme-dropdown-bg`-achtergrond,
+ * Gedeelde dropdown/popover-primitive: bundelt de container (`position: relative`),
+ * de klik-buiten-afhandeling (via {@link useClickOutside}) en de paneel-basisstijl van de
+ * ribbon-dropdowns (de `--theme-dropdown-bg`-achtergrond,
  * `--theme-border`-rand, `--radius-md` en `--shadow-pop`).
  *
  * Het paneel wordt via `createPortal` naar `document.body` gerenderd i.p.v. `position: absolute`
  * binnen de container: de ribbon-groepen zitten in `.ribbon-content-scroll`, dat bewust
  * `overflow-y: hidden` heeft (voor de horizontale scroll bij te veel groepen) — een gewoon
- * absoluut-gepositioneerd paneel daarbinnen werd dus altijd afgesneden zodra het onder de rand van
- * die 90px-hoge strook uitstak, wat bij élk paneel met meer dan 1-2 items gebeurde (bug: klik op
- * Mijlpaal ▾ toonde alleen een 20px-sliver van het keuzemenu). De portal ontsnapt aan die clip; de
+ * absoluut-gepositioneerd paneel daarbinnen wordt afgesneden zodra het onder de rand van
+ * die 90px-hoge strook uitsteekt. De portal ontsnapt aan die clip; de
  * positie wordt na mount gemeten (`useLayoutEffect`, vóór de eerste schilderbeurt — geen zichtbare
  * sprong) i.p.v. relatief aan de trigger, en de aanroeper's `align` bepaalt links- of
  * rechts-verankering aan de trigger. `panelPos` zet ook een `minWidth` op de gemeten
- * trigger-breedte — dat vervangt `minWidth: '100%'` (kon vroeger relatief aan de container, nu een
- * losstaand `position: fixed`-element waarvoor '100%' de viewport zou zijn); sites met een eigen
+ * trigger-breedte (`minWidth: '100%'` zou voor een `position: fixed`-element de viewport
+ * zijn); sites met een eigen
  * vaste `minWidth` in `panelStyle` overschrijven 'm gewoon (die spreidt ná `panelPos`).
  *
  * Bewust *controlled*: de aanroeper houdt zijn eigen `open`-state (dropdowns gebruiken die soms ook
- * voor de trigger-`active`-klasse of om een lijst te verversen). De variatiepunten van de acht sites
+ * voor de trigger-`active`-klasse of om een lijst te verversen). De variatiepunten per site
  * — uitlijning links/rechts, `zIndex`, `minWidth`/`maxWidth`/`maxHeight`, `padding`, flex-layout —
- * blijven per site via `panelStyle` gezet, zodat het resultaat visueel identiek is aan vroeger.
+ * blijven per site via `panelStyle` gezet.
  */
 const BASE_PANEL_STYLE: CSSProperties = {
   position: 'fixed',

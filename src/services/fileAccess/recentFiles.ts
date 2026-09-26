@@ -3,7 +3,7 @@ import { idbGetAll, idbPut, idbDelete } from '@/utils/idb';
 import { generateId } from '@/utils/id';
 import { basename } from '@/utils/filePath';
 
-/** Recent-bestand-entry (spec §6). `ref` is herbruikbaar (Tauri-pad of Chromium-handle). */
+/** Recent-bestand-entry. `ref` is herbruikbaar (Tauri-pad of Chromium-handle). */
 export interface RecentEntry {
   id: string;
   name: string;

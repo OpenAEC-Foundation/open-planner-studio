@@ -15,7 +15,7 @@ interface GanttHistogramPickerScrollInput {
    *  hook moet opnieuw hechten zodra de node verschijnt of verandert. Een `RefObject` verandert bij
    *  zo'n mount/remount niet van IDENTITEIT (het is en blijft hetzelfde object, alleen `.current`
    *  wijzigt) — een effect met dat object in de deps merkt de wissel dus nooit en de wheel-listener
-   *  blijft voorgoed aan een verweesde of niet-bestaande node hangen (R2a-fixronde punt 1). De
+   *  blijft voorgoed aan een verweesde of niet-bestaande node hangen. De
    *  aanroeper geeft daarom de node zelf door, via een callback-ref naar React-state, zodat elke
    *  echte wissel een nieuwe waarde — en dus een effect-rerun — oplevert. */
   container: HTMLDivElement | null;
@@ -40,7 +40,7 @@ interface GanttHistogramPickerScrollOutput {
 }
 
 /**
- * Bezit de verticale scrollpositie van de histogram-resourcekiezer (R2a). De kiezerlijst deelt het
+ * Bezit de verticale scrollpositie van de histogram-resourcekiezer. De kiezerlijst deelt het
  * canvas met de dagplot ernaast (`histogramLayout`), dus "wielscroll boven de lijst" wordt hier
  * onderscheiden van de rest van de strook via de X-positie van het wielevent — niet via een apart
  * DOM-element, want de lijst zelf is getekend, niet een echte scrollbare lijstbox.
@@ -61,14 +61,13 @@ export function useGanttHistogramPickerScroll(
   }, [input.itemCount, input.canvasHeight, input.fontScale]);
 
   // Wielscroll boven de kiezerzone scrolt de lijst i.p.v. de Gantt erboven. De Gantt-viewport-
-  // coördinator bedient alleen de primaire/secundaire pane (`useGanttViewportCoordinator`) — deze
-  // strook had vóór R2a helemaal geen wheel-eigenaar, dus dit is puur additief: buiten de kiezerzone
-  // (boven de dagplot) gebeurt nog steeds niets, exact zoals voorheen.
+  // coördinator bedient alleen de primaire/secundaire pane (`useGanttViewportCoordinator`); buiten
+  // de kiezerzone (boven de dagplot) doet het wiel hier niets.
   useEffect(() => {
     const container = input.container;
     if (!container) return;
     const handleWheel = (event: WheelEvent) => {
-      // R2a-fixronde punt 5: browser-/OS-zoom (Ctrl+wiel) ongemoeid laten — die is geen
+      // Browser-/OS-zoom (Ctrl+wiel) ongemoeid laten — die is geen
       // lijstscroll en mag nooit door `preventDefault` geblokkeerd worden.
       if (event.ctrlKey) return;
       const current = latest.current;
@@ -94,7 +93,7 @@ export function useGanttHistogramPickerScroll(
     return () => container.removeEventListener('wheel', handleWheel);
   }, [input.container]);
 
-  // Punt 4: een van buiten (waarschuwingenpaneel, resourcepaneel) gekozen resource die buiten beeld
+  // Een van buiten (waarschuwingenpaneel, resourcepaneel) gekozen resource die buiten beeld
   // ligt, scrollt de lijst zodat hij zichtbaar wordt. Reageert uitsluitend op een ECHTE
   // selectiewissel — niet op elke render — zodat een handmatige scrollpositie van de gebruiker niet
   // steeds wordt teruggedrukt zolang de selectie ongewijzigd blijft.

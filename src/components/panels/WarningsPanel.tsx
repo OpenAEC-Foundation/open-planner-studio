@@ -16,7 +16,7 @@ import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import type { Task } from '@/types/task';
 
 /**
- * Waarschuwingenpaneel (issue #53) — de detailweergave achter de tellingen in de statusbalk.
+ * Waarschuwingenpaneel — de detailweergave achter de tellingen in de statusbalk.
  * Eén lijst met álle actieve waarschuwingen en rule-check-fouten uit de laatste berekening
  * (`cpmResult`) en de belasting (`resourceLoadResult`), elk met een navigeerbaar doel. Klik op een
  * rij = `revealScheduleWarning`: naar de taak springen, de relatie-taken selecteren, of de
@@ -94,8 +94,8 @@ export function WarningsPanel() {
         const nonWorking = f.nonWorkingDays ?? 0;
         const first = dd.date(f.firstDay);
         const last = dd.date(f.lastDay);
-        // R1: alle overbezette dagen zijn vrije dagen van de resourcekalender ⇒ eigen tekst; een
-        // mix van reden krijgt beide aantallen; puur over-capacity blijft de bestaande tekst.
+        // Alle overbezette dagen zijn vrije dagen van de resourcekalender ⇒ eigen tekst; een
+        // mix van reden krijgt beide aantallen; puur over-capacity de gewone tekst.
         if (nonWorking > 0 && nonWorking === count) {
           return t('warnings.kind.overallocationNonWorkingDay', { count, first, last });
         }
@@ -114,7 +114,7 @@ export function WarningsPanel() {
       case 'sequence': {
         const seq = seqById.get(tg.sequenceId);
         const type = seq ? (SEQUENCE_TYPE_OPTIONS.find(o => o.value === seq.type)?.label ?? seq.type) : '';
-        // Weergave-only: het decimaalteken van de app-taal, net als het gezondheidsrapport (review #139).
+        // Weergave-only: het decimaalteken van de app-taal, net als het gezondheidsrapport.
         const lag = seq ? localizeDecimalPoint(formatLagShort(seq), i18n.language) : '';
         const relation = t('warnings.target.relation', {
           predecessor: taskLabel(tg.predecessorId), successor: taskLabel(tg.successorId),

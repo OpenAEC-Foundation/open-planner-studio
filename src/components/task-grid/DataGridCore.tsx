@@ -80,10 +80,10 @@ export function dispatchDataGridKeyCommand(
   onCommand: (command: TaskGridCommand) => void,
 ): boolean {
   if (command.kind === 'unhandled') return false;
-  // Napunt 1 (onafhankelijke eindreview): 'exit-to-container' (Escape in selectiemodus) mag het
+  // 'exit-to-container' (Escape in selectiemodus) mag het
   // event NIET opsouperen. De globale `edit.deselect`-sneltoets (shortcutRegistry.ts, altijd actief
   // op kale Escape, `skipPreventDefault: true`) hoort ook binnen een gefocuste gridcel te blijven
-  // afvuren — deselectAll, traceMode/showDependencyMode uit, net als vóór FIX 1. De globale poort
+  // afvuren — deselectAll, traceMode/showDependencyMode uit. De globale poort
   // (`shouldHandleGlobalShortcutEvent`) toetst `!event.defaultPrevented`, dus zowel preventDefault
   // als stopPropagation moeten hier achterwege blijven, anders bereikt Escape de window-listener
   // nooit. De grid regelt uitsluitend zijn eigen focusverplaatsing; het globale deselect-gedrag komt
@@ -137,9 +137,9 @@ function focusBelongsOutside(container: HTMLElement | null): boolean {
  * Plan een celfocus voor het volgende frame. `ledger.current` is de nog openstaande focus en alleen
  * die mag nog focussen, één keer: een latere aanvraag vervangt hem, `ledger.current = null` (editor
  * opent, Escape naar de container) laat hem vervallen en `ledger.current?.()` voert hem meteen uit.
- * Zonder die vervaldatum won een celfocus die vóór een snelle Enter was gepland (pijltoets en Enter
+ * Zonder die vervaldatum wint een celfocus die vóór een snelle Enter was gepland (pijltoets en Enter
  * binnen één frame, of een traag frame op een belaste machine) het van het invoerveld dat de editor
- * intussen zelf had gefocust: de editor stond open, maar typen kwam er niet meer in.
+ * intussen zelf had gefocust: de editor staat open, maar typen komt er niet meer in.
  */
 function deferCellFocus(
   ledger: { current: (() => void) | null },

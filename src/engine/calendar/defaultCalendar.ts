@@ -3,13 +3,13 @@ import type { WorkCalendar } from '@/types/calendar';
 import { loadConstructionMode } from '@/utils/settingsStore';
 
 /**
- * Standaard bouwkalender (NL, ma-vr). Jaar-onafhankelijk (fase 2.8a, §3.4): de feestdagen worden
+ * Standaard bouwkalender (NL, ma-vr). Jaar-onafhankelijk: de feestdagen worden
  * regelgebaseerd gegenereerd voor `anchorYear-1 t/m anchorYear+2` — GEEN bouwvak (harde eis), MÉT
- * Kerst (die de oude hardgecodeerde 2026-lijst miste).
+ * Kerst.
  *
- * Bouwmodus (2026-07-13): in bouw-agnostische modus (bouwmodus UIT) levert de fabriek een NEUTRALE
+ * Bouwmodus: in bouw-agnostische modus (bouwmodus UIT) levert de fabriek een NEUTRALE
  * kalender op — naam "Standaardkalender", GEEN NL-feestdagen (equivalent aan `country: 'none'`, dus
- * `generation: undefined`). In bouwmodus (default AAN) exact ongewijzigd: "Bouwkalender NL" + NL-
+ * `generation: undefined`). In bouwmodus (default AAN): "Bouwkalender NL" + NL-
  * feestdagen. De vlag is app-niveau localStorage; deze synchrone fabriek leest 'm rechtstreeks
  * (`loadConstructionMode`). De kalendernamen blijven bewust hardcoded (geen t()).
  *
@@ -38,13 +38,13 @@ export function createDefaultCalendar(anchorYear: number = new Date().getFullYea
 /**
  * De ENE fabriek voor een nieuwe bibliotheekkalender (zonder id — de bibliotheek kent er een toe):
  * "+" in de kalenderdialoog, "+ Resourcekalender" in de resourcerij en MCP `update_calendar` met
- * `create: true`. Voorheen gaf de kalenderdialoog een kalender zonder feestdagen en de resourcerij
- * (en MCP) de app-standaard, waardoor dezelfde handeling 0 of 29 feestdagen opleverde.
+ * `create: true` — zodat dezelfde handeling niet op de ene plek 0 en op de andere 29 feestdagen
+ * oplevert.
  *
  * Gekozen standaard = de app-standaard (`createDefaultCalendar`): ma-vr 07:00-16:00, 8 u, en in
  * bouwmodus de NL-feestdagen met hun generatie-herkomst. Waarom deze en niet "leeg":
- *  - het is wat een nieuw project, MCP `create` (bewust, zie M7 in calendarResourceTools.ts) en de
- *    resourcerij al deden; alleen de "+" van de kalenderdialoog week af;
+ *  - het is wat een nieuw project, MCP `create` (bewust, zie calendarResourceTools.ts) en de
+ *    resourcerij doen;
  *  - of er standaard feestdagen in zitten is de keuze van de instelling Bouwmodus, niet van de knop
  *    waarmee je de kalender maakt (bouwmodus uit ⇒ ook hier geen feestdagen);
  *  - de fouten zijn niet symmetrisch: een vergeten feestdag plant stil werk op Kerst of Koningsdag,

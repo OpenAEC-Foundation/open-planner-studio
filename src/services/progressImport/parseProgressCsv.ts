@@ -1,8 +1,8 @@
-// Issue #27 etappe 2 (T4, A2/A9): DE ENIGE module van de voortgangsimport die van CSV weet — kop-
-// herkenning, delimiter, quoting, bestandsgrenzen. `sheetValues.ts`/`matchRows.ts`/`buildPlan.ts`
-// blijven bestandsformaat-agnostisch tegen het `ProgressSheet`-contract (types.ts); een latere
-// `parseProgressXlsx.ts` (A9) levert hetzelfde returntype en raakt hen niet. Komt er ook maar één
-// csv-woord, één delimiter of één `\r\n` voorbij de grens van dit bestand, dan is die naad kapot.
+// DE ENIGE module van de voortgangsimport die van CSV weet — kopherkenning, delimiter, quoting,
+// bestandsgrenzen. `sheetValues.ts`/`matchRows.ts`/`buildPlan.ts` blijven bestandsformaat-agnostisch
+// tegen het `ProgressSheet`-contract (types.ts); `parseProgressXlsx.ts` levert hetzelfde returntype.
+// Komt er ook maar één csv-woord, één delimiter of één `\r\n` voorbij de grens van dit bestand, dan
+// is die naad kapot.
 
 import { PROGRESS_IMPORT_LIMITS, type ProgressImportLimits, type ProgressSheet } from './types';
 import { collectProgressRows, mapColumnIndex, progressHeaderIssue, refuseSheet } from './sheetColumns';
@@ -10,12 +10,9 @@ import { collectProgressRows, mapColumnIndex, progressHeaderIssue, refuseSheet }
 export type { ProgressImportLimits } from './types';
 
 // Bewust een EIGEN kopie van csvReader.ts's detectDelimiter/parseCSVLine (zelfde vorm: simpele
-// ;-vs-,-heuristiek op de kopregel, RFC4180-achtige quote-/verdubbelde-quote-afhandeling) —
-// NIET geëxporteerd uit csvReader.ts en hierheen hergebruikt. De vervang-lezer (csvReader.ts,
-// buiten dit plan) mag niet stilzwijgend meebewegen met wat déze lezer later nodig heeft (bv. een
-// striktere quote-regel voor een latere XLSX-naad), en omgekeerd mag een wijziging aan de
-// vervang-lezer dit importpad niet raken. Twee kopieën die toevallig gelijk zijn, is de prijs voor
-// die ontkoppeling.
+// ;-vs-,-heuristiek op de kopregel, RFC4180-achtige quote-/verdubbelde-quote-afhandeling), niet
+// geëxporteerd en hergebruikt: de gewone CSV-lezer mag niet stil meebewegen met wat déze lezer nodig
+// heeft, en omgekeerd. Twee kopieën die toevallig gelijk zijn, is de prijs voor die ontkoppeling.
 function detectDelimiter(content: string): string {
   const firstLine = content.split(/\r?\n/)[0] || '';
   const semicolons = (firstLine.match(/;/g) || []).length;
@@ -25,9 +22,9 @@ function detectDelimiter(content: string): string {
 
 interface LogicalRecord {
   readonly text: string;
-  /** 1-gebaseerd FYSIEK regelnummer waarop dit record begint (fixronde-bevinding 9: lege regels
-   *  tellen mee in de telling, en een gequote meerregelig record telt als de regel waarop het
-   *  BEGINT — niet als een positie in een al-gefilterde lijst). */
+  /** 1-gebaseerd FYSIEK regelnummer waarop dit record begint: lege regels tellen mee, en een gequote
+   *  meerregelig record telt als de regel waarop het BEGINT — niet als een positie in een
+   *  al-gefilterde lijst. */
   readonly startLine: number;
 }
 
@@ -36,19 +33,16 @@ interface LogicalRecord {
  * hoort bij het veld en scheidt dus NOOIT een record. `writeCSV` quote't precies zo'n veld zodra
  * het een letterlijke regeleinde draagt (bv. een taaknaam of omschrijving met Alt+Enter) — RFC4180.
  *
- * Fixronde-bevinding 3: vóór deze fix scheurde een simpele `split(/\r?\n/)` zo'n gequote veld
- * middenin. De ECHTE rij verloor daardoor alles ná de scheuring (bv. de Completion-kolom, met
- * `refused`/`noProgressColumns` tot gevolg) en het afgescheurde restant werd een losse rommelrij
- * die als `unmatched` in de koppelsectie belandde — een import van onze EIGEN, geldige export kon
- * zo alsnog rijen verminken. `"` toggelt hier een simpele inQuotes-vlag per teken; dat is
- * bewijsbaar consistent met `parseCSVLine`s subtielere "verdubbeld-quote-is-géén-toggle"-regel,
- * want een verdubbeld quote-paar (`""`) bestaat altijd uit twee ONMIDDELLIJK opeenvolgende tekens
- * — nooit met een `\n` ertussen — dus twee toggles na elkaar (netto: geen wijziging) komt op
- * exact hetzelfde staat-op-elk-moment neer als parseCSVLine's "sla het paar over, toggle niet".
+ * Een simpele `split(/\r?\n/)` zou zo'n gequote veld middenin scheuren: de echte rij verliest alles
+ * ná de scheuring en het restant wordt een losse rommelrij — ook bij een import van onze eigen,
+ * geldige export. `"` toggelt hier een simpele inQuotes-vlag per teken; dat is consistent met
+ * `parseCSVLine`s "verdubbeld-quote-is-géén-toggle"-regel, want een verdubbeld quote-paar (`""`)
+ * bestaat altijd uit twee ONMIDDELLIJK opeenvolgende tekens — twee toggles na elkaar komen op
+ * dezelfde staat neer als "sla het paar over".
  *
- * Blijft een aanhalingsteken aan het eind van de tekst open staan, dan is het bestand structureel
- * onbetrouwbaar — GEEN kolomgrens erna is dan nog te vertrouwen. De aanroeper weigert dan het HELE
- * blad (`fileIssue: 'unreadable'`), nooit een halfgelezen resultaat (bevinding 3b).
+ * Blijft een aanhalingsteken aan het eind van de tekst open staan, dan is GEEN kolomgrens erna nog
+ * te vertrouwen. De aanroeper weigert dan het HELE blad (`fileIssue: 'unreadable'`), nooit een
+ * halfgelezen resultaat.
  */
 function splitLogicalRecords(text: string): LogicalRecord[] | undefined {
   const physicalLines = text.split('\n');
@@ -120,23 +114,22 @@ export function parseProgressCsv(
   text: string,
   limits: ProgressImportLimits = PROGRESS_IMPORT_LIMITS,
 ): ProgressSheet {
-  // Limieten VÓÓR allocaties (hardening-checklist): de bytegrens wordt getoetst vóórdat er ook
-  // maar één string bewerkt wordt.
+  // Limieten VÓÓR allocaties: de bytegrens wordt getoetst vóórdat er ook maar één string bewerkt
+  // wordt.
   if (text.length > limits.maxBytes) return refuseSheet('tooLarge');
 
   // Regeleinde normaliseren VÓÓR de quote-bewuste splitsing: CRLF/lone-CR worden allemaal LF, dus
-  // `splitLogicalRecords` hoeft maar één scheidingsteken te kennen. Dit raakt geen betekenis — het
-  // enige wat telt is "zit deze regelovergang in een open aanhalingsteken of niet" (bevinding 3).
+  // `splitLogicalRecords` hoeft maar één scheidingsteken te kennen. Het enige wat telt is "zit deze
+  // regelovergang in een open aanhalingsteken of niet".
   const clean = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const delimiter = detectDelimiter(clean);
   const records = splitLogicalRecords(clean);
-  // Bevinding 3b: een niet-gesloten aanhalingsteken maakt GEEN kolomgrens in het bestand nog
-  // betrouwbaar — weiger het complete blad, nooit een halfgelezen resultaat.
+  // Een niet-gesloten aanhalingsteken maakt GEEN kolomgrens in het bestand nog betrouwbaar — weiger
+  // het complete blad, nooit een halfgelezen resultaat.
   if (records === undefined) return refuseSheet('unreadable');
 
   // Lege regels tellen niet als kop/datarij, maar hun regelnummer is al vastgelegd in de
-  // ONGEFILTERDE `records`-lijst — filteren ná het splitsen behoudt dus de echte regelnummers
-  // (fixronde-bevinding 9), i.p.v. ze te herberekenen op een positie in een al-gefilterde lijst.
+  // ONGEFILTERDE `records`-lijst — filteren ná het splitsen behoudt dus de echte regelnummers.
   const nonBlankRecords = records.filter(record => record.text.trim().length > 0);
   if (nonBlankRecords.length === 0) return refuseSheet('noKeyColumn');
 
@@ -146,7 +139,7 @@ export function parseProgressCsv(
   if (headerIssue) return refuseSheet(headerIssue);
 
   // Het ECHTE fysieke regelnummer waarop elk record begint, inclusief overgeslagen lege regels
-  // en meegerekende vervolgregels van een gequote meerregelig veld (bevinding 3/9).
+  // en meegerekende vervolgregels van een gequote meerregelig veld.
   return collectProgressRows(
     dataRecords.map(record => ({ rowNumber: record.startLine, texts: parseCSVLine(record.text, delimiter) })),
     colMap,

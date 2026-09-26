@@ -68,7 +68,7 @@ export function UpdateDialog() {
     return () => { cancelled = true; };
   }, [showUpdateDialog]);
 
-  // Install-type ophalen (web/fout → 'native', dus de bestaande flow blijft).
+  // Install-type ophalen (web/fout → 'native', dus de gewone updater-flow).
   useEffect(() => {
     if (!showUpdateDialog) return;
     let cancelled = false;

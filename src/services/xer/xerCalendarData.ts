@@ -51,9 +51,9 @@ export type XerCalendarRecovery =
   | 'SURPLUS_CLOSE'
   | 'MULTIPLE_EXCEPTIONS'
   | 'DUPLICATE_EXCEPTION'
-  /** Weekend-klemherstel (7b-1): minstens één vrije weekenddag is gereconstrueerd die NIET als
-   *  record in het bestand staat. Eindreview bevinding 7: zonder deze code had de reconstructie
-   *  geen spoor naar de gebruiker, anders dan de holidaynaam. */
+  /** Weekend-klemherstel: minstens één vrije weekenddag is gereconstrueerd die NIET als record in
+   *  het bestand staat. Zonder deze code had de reconstructie geen spoor naar de gebruiker, anders
+   *  dan de holidaynaam. */
   | 'WEEKEND_CLAMP_RECONSTRUCTED';
 
 export type XerCalendarIssueCode =
@@ -240,8 +240,8 @@ function shiftIsoDate(date: string, offset: number): string {
 }
 
 /**
- * WEEKEND-KLEMHERSTEL (etappe 7b-1) — welke ECHTE vrije dag zit er achter een redundant
- * vrije-uitzonderingsrecord, en wanneer mag je dat concluderen?
+ * WEEKEND-KLEMHERSTEL — welke ECHTE vrije dag zit er achter een redundant vrije-uitzonderingsrecord,
+ * en wanneer mag je dat concluderen?
  *
  * HET VERSCHIJNSEL (corpus `crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer`, kalenderdata gedeeld
  * door 44 kalenders met `842` `R111 - 1` en 75 met `896` `B25 - Cal`: ma-do + za + zo werkend,
@@ -279,7 +279,7 @@ function shiftIsoDate(date: string, offset: number): string {
  * verschijnsel niet en leest de `Exceptions`-lijst letterlijk
  * (`TableContextReader.processCalendarExceptions`). De poort hieronder is daarom bewust
  * record-lokaal en conservatief; een tweede bestand moet de regel bevestigen of ontkrachten, niet
- * er stil op meeliften. Zie dossier 7b-4 in `docs/superpowers/plans/2026-08-20-plan-xer-p6-lezer.md`.
+ * er stil op meeliften.
  *
  * DE POORT IS PER RECORD, NIET PER KALENDER. Een klemherstel mag alleen volgen uit bewijs op het
  * record zelf, anders maakt één toevallig dubbel record ergens in de lijst stilzwijgend verre
@@ -743,9 +743,9 @@ export function decodeXerCalendarData(text: string): DecodedXerCalendarData {
   // Een werkende uitzondering wint ook voor de brongebonden P6-straf. De datum draagt dan echte
   // banden en is geen redundante vrije-dagrecord meer.
   for (const date of workingByDate.keys()) p6NonWorkPenaltyDates.delete(date);
-  // Weekend-klemherstel (7b-1), poort per RECORD. Zie `weekendClampTarget`/`hasWeekendClampEvidence`
-  // voor de twee lokale bewijsvormen en de brontoets. Zonder bewijs op het record zelf gebeurt er
-  // niets, dus 92 van de 93 corpusbestanden zijn hier byte-identiek.
+  // Weekend-klemherstel, poort per RECORD. Zie `weekendClampTarget`/`hasWeekendClampEvidence` voor de
+  // twee lokale bewijsvormen en de brontoets. Zonder bewijs op het record zelf gebeurt er niets (92
+  // van de 93 corpusbestanden).
   let weekendClampReconstructed = false;
   for (const date of [...p6NonWorkPenaltyDates]) {
     if (!hasWeekendClampEvidence(date, exceptionDates, adjacentDuplicateDates)) continue;
@@ -816,7 +816,7 @@ function linkBaseCalendar(calendar: XerCalendar, base: XerCalendar): void {
   });
 }
 
-/** Bouw XER-kalenders uitsluitend uit X2's reeds gedecodeerde `CALENDAR`-tabel. */
+/** Bouw XER-kalenders uitsluitend uit de reeds gedecodeerde `CALENDAR`-tabel. */
 export function readXerCalendars(tables: XerTables): XerCalendarReadResult {
   const rows = tables.tables.get('CALENDAR')?.rows ?? [];
   const calendars: XerCalendar[] = [];

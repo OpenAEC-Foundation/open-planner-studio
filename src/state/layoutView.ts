@@ -14,7 +14,7 @@ export interface LayoutViewInputs {
   taskGridSurfaces: Record<TaskGridSurfaceId, TaskGridSurfacePreferences>;
 }
 
-/** De layoutdelen zoals ze NU op het scherm staan (issue #144) — de ene bron voor store en lint. */
+/** De layoutdelen zoals ze NU op het scherm staan — de ene bron voor store en lint. */
 export function currentLayoutParts(state: LayoutViewInputs): LayoutViewParts {
   const surface = taskGridSurfaceForRibbonTab(state.ui.activeRibbonTab);
   return {
@@ -28,7 +28,7 @@ export function currentLayoutParts(state: LayoutViewInputs): LayoutViewParts {
   };
 }
 
-/** De overlay-schermopties zoals ze nu staan (issue #173), in de vorm van het layoutdeel. */
+/** De overlay-schermopties zoals ze nu staan, in de vorm van het layoutdeel. */
 export function currentOverlays(ui: LayoutViewInputs['ui']): LayoutOverlays {
   return {
     baseline: ui.showBaselineOverlay,

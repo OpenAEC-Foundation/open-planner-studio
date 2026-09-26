@@ -148,10 +148,9 @@ function targetRectangle(
   const sourceRows = source.length;
   const sourceColumns = source[0]?.length ?? 0;
   const selectedIsLarger = selected.rows.length > 1 || selected.columns.length > 1;
-  // Excel-semantiek (§8.6-besluit, FIX 6): een R×K-klembord vult een geselecteerde rechthoek
-  // waarvan de afmetingen een GEHEEL veelvoud zijn van R×K, door het bronblok te herhalen (tegels).
-  // Een 1×1-bron was hier altijd al een speciaal geval van dit patroon (elk formaat is een veelvoud
-  // van 1×1); die uitzonderingsregel is nu overbodig — de modulo-toets dekt hem vanzelf mee.
+  // Excel-semantiek: een R×K-klembord vult een geselecteerde rechthoek waarvan de afmetingen een
+  // GEHEEL veelvoud zijn van R×K, door het bronblok te herhalen (tegels). Een 1×1-bron is een
+  // speciaal geval van dit patroon (elk formaat is een veelvoud van 1×1).
   if (selectedIsLarger) {
     return sourceRows > 0 && sourceColumns > 0
       && selected.rows.length % sourceRows === 0 && selected.columns.length % sourceColumns === 0
@@ -177,14 +176,14 @@ function targetRectangle(
 
 export interface TaskGridPasteOptions {
   /**
-   * FIX 6-besluit (§8.6): een plak (Ctrl+V) die statisch berekende doelcellen raakt, weigert niet
-   * meer de hele transactie — die cellen worden overgeslagen en de rest gaat atomair door, met één
-   * geaggregeerde melding (zie `PreparedGridMutation.skippedReadOnlyCount` in gridTransaction.ts;
+   * Een plak (Ctrl+V) die statisch berekende doelcellen raakt, weigert niet de hele transactie —
+   * die cellen worden overgeslagen en de rest gaat atomair door, met één geaggregeerde melding (zie
+   * `PreparedGridMutation.skippedReadOnlyCount` in gridTransaction.ts;
    * de conditioneel-schrijfbare tegenhanger van deze skip zit daar, niet hier, want alleen de
    * gezamenlijke-eindtoestandcontrole weet of zo'n cel via een ANDERE write alsnog schrijfbaar
    * wordt). BEWUST `false` als default: `planTaskGridClear` (Delete/Backspace) hergebruikt deze
    * functie met een lege bron en behoudt zijn bestaande "één niet-leegbare cel ⇒ volledige
-   * rollback"-semantiek (zie de zevende review-evidence, FIX 1) — alleen de echte Ctrl+V-route in
+   * rollback"-semantiek — alleen de echte Ctrl+V-route in
    * FullTaskGrid.tsx zet dit expliciet aan.
    */
   skipReadOnlyCells?: boolean;
@@ -211,8 +210,8 @@ export function planTaskGridPaste(
     for (let columnOffset = 0; columnOffset < target.value.columns.length; columnOffset++) {
       const columnId = target.value.columns[columnOffset];
       const cell = { rowKey, columnId };
-      // Excel-tegelherhaling (§8.6-besluit, FIX 6): de bron wordt modulo zijn eigen afmetingen
-      // geïndexeerd. Voor een 1×1-bron (het oude "fill"-geval) is dat altijd `parsed.value[0][0]`;
+      // Excel-tegelherhaling: de bron wordt modulo zijn eigen afmetingen
+      // geïndexeerd. Voor een 1×1-bron (het "fill"-geval) is dat altijd `parsed.value[0][0]`;
       // voor een R×K-bron die de selectie een geheel aantal keer vult, herhaalt dit hetzelfde blok.
       const source = parsed.value[rowOffset % sourceRows][columnOffset % sourceColumns];
       const descriptor = environment.descriptors.get(columnId);

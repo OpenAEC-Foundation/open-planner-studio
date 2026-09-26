@@ -1,11 +1,9 @@
 // MCP-toolmodule — BASELINEBEHEER: opsommen, activeren, hernoemen, verwijderen.
 //
-// WAAROM DEZE MODULE BESTAAT (auditbevinding): `planner_save_baseline` (calendarResourceTools) kon er
-// één MAKEN, en `planner_compare_baseline`/`planner_analyze_delay` (readTools) weigerden zonder
-// ACTIEVE baseline met de tekst "activeer er een" — terwijl er geen enkele tool bestond om er één te
-// activeren, op te sommen, te hernoemen of te verwijderen. De agent kreeg dus een instructie die hij
-// niet kón opvolgen: het antwoord wees naar een weg die niet bestond. Dat is dezelfde klasse fout als
-// de stille no-ops die deze bridge net heeft uitgeroeid, alleen dan aan de kant van het ADVIES.
+// WAAROM DEZE MODULE BESTAAT: `planner_save_baseline` (calendarResourceTools) MAAKT een baseline, en
+// `planner_compare_baseline`/`planner_analyze_delay` (readTools) weigeren zonder ACTIEVE baseline met
+// "activeer er een". Die instructie moet een weg hebben: deze module levert opsommen, activeren,
+// hernoemen en verwijderen.
 //
 // GEEN TWEEDE MODEL. De store kán dit alles al: `baselineSlice` heeft `saveBaseline`,
 // `deleteBaseline`, `renameBaseline` en `setActiveBaseline`, en de BaselineDialog gebruikt precies
@@ -21,7 +19,7 @@
 //
 // NOOIT `ok` ZONDER EFFECT — en ook nooit een spurious undo-stap. Een activatie/hernoeming die
 // niets verandert (al actief, zelfde naam) gaat NIET door `runInMcpTransaction` (geen AI-backup
-// voor een no-op; de transactie zelf legt sinds G5 ook geen undo-stap vast zonder datawijziging).
+// voor een no-op; de transactie zelf legt ook geen undo-stap vast zonder datawijziging).
 // Zo'n call komt terug via `okDirect` met `changed: false` en een reden — geslaagd én eerlijk.
 //
 // VERSHEID SPEELT HIER GEEN ROL. Anders dan `save_baseline` (die een SNAPSHOT van de planning maakt
@@ -95,8 +93,7 @@ function listBaselinesCore(s: AppState) {
     projectDuration: b.projectDuration,
     isActive: b.id === active,
   }));
-  // De hint is het antwoord op "en nu?" — precies wat er ontbrak toen compare_baseline naar een
-  // niet-bestaande tool wees.
+  // De hint is het antwoord op "en nu?".
   let hint: string | undefined;
   if (baselines.length === 0) {
     hint = 'Er zijn nog geen baselines. Leg er een vast met planner_save_baseline; pas daarna kunnen planner_compare_baseline en planner_analyze_delay meten.';
@@ -335,8 +332,8 @@ const renameBaseline: BatchStepTool = {
 //      baseline. De slice laat `activeBaselineId` bij het verwijderen van de actieve terugvallen op
 //      de LAATST OVERGEBLEVEN baseline (en anders op null) — dat is bestaand, door de UI gedeeld
 //      gedrag, en het betekent dat compare_baseline/analyze_delay dáárna tegen een ANDERE meetlat
-//      meten. Dat stil laten gebeuren zou precies de onderrapportage zijn die bij `delete_tasks` is
-//      gefixt, dus het staat expliciet in `activeBaselineId`/`note`.
+//      meten. Dat stil laten gebeuren zou onderrapportage zijn (zie ook `delete_tasks`), dus het staat
+//      expliciet in `activeBaselineId`/`note`.
 // =================================================================================================
 
 interface DeleteArgs { baselineId: string }

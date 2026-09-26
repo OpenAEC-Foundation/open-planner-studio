@@ -1,6 +1,6 @@
 /**
- * Demo-resourcebibliotheek (issue #19, user-verzoek): de drie showcase-voorbeelden (`public/examples/`,
- * `category: 'showcase'`) delen voortaan één gedeelde pool, zodat een nieuwe gebruiker "dezelfde ploeg
+ * Demo-resourcebibliotheek: de drie showcase-voorbeelden (`public/examples/`,
+ * `category: 'showcase'`) delen één gedeelde pool, zodat een nieuwe gebruiker "dezelfde ploeg
  * in twee projecten" direct in actie ziet — Carpenters/MEP fitters/Plasterers/Painters komen
  * LETTERLIJK zo terug in zowel `showcase-rijwoningen-de-akkers.ifc` als
  * `showcase-appartementencomplex.ifc`, zodat de naam-herkenning (`matchByName`) ze automatisch koppelt.
@@ -15,22 +15,16 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceType } from '@/types/resource';
 import { generateId } from '@/utils/id';
 
-/** Vast, herkenbaar id — nooit dubbel aangemaakt (spec: idempotente seed). Net als
+/** Vast, herkenbaar id — nooit dubbel aangemaakt (idempotente seed). Net als
  *  `DEFAULT_COMPANY_ID` in `@/types/library` is dit géén i18n-string: de bibliotheeknaam is
  *  opgeslagen data, geen UI-tekst. */
 export const DEMO_COMPANY_ID = 'demo-resourcebibliotheek';
 
 /**
- * Inhoudsversie van de demo-seed. Waarom dit bestaat: `seedDemoLibrary` was idempotent op de
- * AANWEZIGHEID van het bedrijf — een installatie die de demo-bibliotheek ooit eens geseed had,
- * kreeg een latere inhoudscorrectie dus NOOIT te zien. Dat was geen theoretisch risico: het
- * bezettingsoverzicht stond bij zo'n installatie vol rode rijen (Carpenters 4, Tilers 3, Kitchen
- * fitters 2) omdat die oude capaciteiten kleiner waren dan wat de showcases zelf boeken.
- *
- * Versie 2 (B1c-demo-opschoning): capaciteiten opgehoogd tot boven de gemeten gelijktijdige vraag
- * van de drie showcases samen, ZODAT alleen de twee BEDOELDE knelpunten rood staan (Masonry crew
- * en Plasterers). `migrateDemoLibrarySeed()` brengt een oudere pool bij zonder item-id's te
- * veranderen, zodat herkomststempels in open projecten geldig blijven.
+ * Inhoudsversie van de demo-seed. `seedDemoLibrary` is idempotent op de AANWEZIGHEID van het
+ * bedrijf; zonder deze versie kreeg een installatie die de demo al eens geseed had een latere
+ * inhoudscorrectie nooit te zien. `migrateDemoLibrarySeed()` brengt een oudere pool bij zonder
+ * item-id's te veranderen, zodat herkomststempels in open projecten geldig blijven.
  */
 export const DEMO_LIBRARY_SEED_VERSION = 2;
 
@@ -80,7 +74,7 @@ interface DemoResourceSpec {
 }
 
 /**
- * CAPACITEITSVLOER (B1c): de bibliotheek IS het bedrijf, en het bedrijf moet de drie showcases
+ * CAPACITEITSVLOER: de bibliotheek IS het bedrijf, en het bedrijf moet de drie showcases
  * samen kunnen bemensen — anders is het bezettingsoverzicht bij de demo één rode muur en verdrinkt
  * het bedoelde verhaal. De capaciteiten hieronder liggen daarom boven de GEMETEN gelijktijdige
  * piekvraag van de drie showcases bij elkaar (gemeten met dezelfde `computeLibraryOccupancy` die
@@ -89,7 +83,7 @@ interface DemoResourceSpec {
  *  • **Masonry crew** (1) — dezelfde ploeg die in KLEIN én MIDDEL tegelijk gevraagd wordt. Dat is
  *    HET kruis-project-conflict waar "Verdeel automatisch" op gedemonstreerd wordt.
  *  • **Plasterers** (3) — één stukadoorsploeg die in alle drie de showcases meedoet. MIDDEL en
- *    GROOT hebben daarbij ook nog hun eigen, in hun spec gedocumenteerde interne
+ *    GROOT hebben daarbij ook nog hun eigen, bedoelde interne
  *    stukadoors-overallocatie; het overzicht laat zien hoe die drie samenkomen.
  *
  * Alle overige items horen GROEN te staan. `tests/library/check-showcase-occupancy.ts` bewaakt dat
@@ -137,7 +131,7 @@ function specToResource(spec: DemoResourceSpec, calendars: WorkCalendar[]): Reso
   return { id: generateId('res'), ...rest, ...(calendarId ? { calendarId } : {}) };
 }
 
-/** Bouw de vaste demo-bedrijf + -pool (spec: letterlijke inhoud uit de opdracht). */
+/** Bouw het vaste demo-bedrijf + de pool. */
 export function buildDemoLibrarySeed(): { company: Company; pool: CompanyPool } {
   const company: Company = { id: DEMO_COMPANY_ID, name: DEMO_COMPANY_NAME };
 

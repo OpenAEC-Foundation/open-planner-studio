@@ -1,8 +1,8 @@
 import type { LibraryOrigin } from '@/types/library';
 
-/** Geldige capaciteit/eenheden (fase 2.5 UX-fix, bevinding 1): strikt positief en eindig. 0 is
- *  nooit zinvol (een resource die 0 eenheden kan leveren, of een toewijzing van 0/dag). Fracties
- *  blijven toegestaan (materiaal-max.eenheden, halve-dag-toewijzingen). */
+/** Geldige capaciteit/eenheden: strikt positief en eindig. 0 is nooit zinvol (een resource die 0
+ *  eenheden kan leveren, of een toewijzing van 0/dag). Fracties zijn toegestaan
+ *  (materiaal-max.eenheden, halve-dag-toewijzingen). */
 export function isValidUnits(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n > 0;
 }
@@ -21,11 +21,10 @@ export interface Resource {
   type: ResourceType;
   description: string;
   costPerHour?: number;
-  /** @deprecated vervangen door `maxUnits`. Alleen gelezen bij migratie van oude bestanden/state
-   *  (zie fase 2.5-datamodel-ontwerp §2.4); nieuwe code schrijft dit veld niet meer. */
+  /** @deprecated vervangen door `maxUnits`. Alleen gelezen bij migratie van oude bestanden/state;
+   *  nieuwe code schrijft dit veld niet meer. */
   availability?: number;
-  /** Capaciteit per werkdag (P6/MSP "Max Units"): 1 = 100% (één persoon/stuk), 3 = drie eenheden.
-   *  Vervangt `availability`. */
+  /** Capaciteit per werkdag (P6/MSP "Max Units"): 1 = 100% (één persoon/stuk), 3 = drie eenheden. */
   maxUnits: number;
   /** Verwijst naar `resourceCalendars[].id`; undefined = projectkalender (`s.calendar`). Puur
    *  informatief: voedt alleen belasting/overallocatie, niet de CPM-datums. */
@@ -38,12 +37,12 @@ export interface Resource {
   /** Ploeg-lidmaatschap: verwijst naar een CREW-resource. Puur groepering/weergave — GEEN
    *  automatische rollup van capaciteit/belasting (P6-gedrag). */
   parentId?: string;
-  /** Weergavekleur (hex `#rrggbb`) voor de resource-kleurmodi in de rapportexport (#21). Puur
+  /** Weergavekleur (hex `#rrggbb`) voor de resource-kleurmodi in de rapportexport. Puur
    *  presentatie: zit bewust NIET in RESOURCE_DIFF_FIELDS — een andere kleur is nooit een
    *  bibliotheekafwijking — en heeft géén invloed op planning/berekening. */
   color?: string;
-  /** OPTIONEEL — herkomststempel wanneer deze resource een kopie uit een bedrijfsbibliotheek is
-   *  (spec B1, §2). Afwezig ⇒ handmatig aangemaakte resource. */
+  /** Herkomststempel wanneer deze resource een kopie uit een resourcebibliotheek is. Afwezig ⇒
+   *  handmatig aangemaakte resource. */
   libraryOrigin?: LibraryOrigin;
 }
 
@@ -64,39 +63,36 @@ export interface ResourceAssignment {
   taskId: string;
   resourceId: string;
   /** Eenheden per werkdag (P6 Units/Time, MSP Units): 1 = 100% (één persoon), 0.5 = halve dag.
-   *  Vervangt `units`. Werk = duur(werkdagen) × unitsPerDay — altijd afgeleid, nooit opgeslagen. */
+   *  Werk = duur × unitsPerDay, tenzij de `*WorkMinutes`-velden hieronder het vastleggen. */
   unitsPerDay: number;
   /** Verdeelcurve over de duur (P6 resource curves, vereenvoudigd). undefined = UNIFORM. */
   curve?: ResourceCurve;
-  /** OPTIONEEL (contour-engine, 2026-09) — de EXACTE 21-punts curve van deze toewijzing zoals P6
-   *  (`<ResourceCurve>`, `Value0`..`Value100`) of MSPDI (een `WorkContour`-vorm zonder OPS-`curve`-
-   *  lid, zoals Double Peak/Turtle) die aanlevert: index 0 is 0, indices 1..20 het percentage werk
-   *  in elke 5%-slice van de duur (`contourEngine.ts`'s `CONTOUR_SHAPE_VALUES`-vorm). AANWEZIG ⇒ de
-   *  lastlezers (`ResourceLoad.ts`'s `assignmentDayUnits`) verdelen hiermee, zonder de hele-
-   *  eenheden-afronding van de formule (bedoelde data); `curve` blijft daarnaast de UI-benadering
-   *  (bv. P6 "Front Loaded" ⇒ `curve: 'FRONT_LOADED'` én de P6-eigen waarden hier). Wordt gewist
-   *  zodra de gebruiker `curve` wijzigt (`resourceSlice.updateAssignment`). Round-tript via het
-   *  `OPS_Timephased`-pset (`ifcWriter.ts`'s `writeTimephasedMeta`) en native via P6. Afwezig ⇒
-   *  byte-identiek. */
+  /** De EXACTE 21-punts curve van deze toewijzing zoals P6 (`<ResourceCurve>`, `Value0`..`Value100`)
+   *  of MSPDI (een `WorkContour`-vorm zonder OPS-`curve`-lid, zoals Double Peak/Turtle) die aanlevert:
+   *  index 0 is 0, indices 1..20 het percentage werk in elke 5%-slice van de duur (de vorm van
+   *  `CONTOUR_SHAPE_VALUES`, `contourEngine.ts`). AANWEZIG ⇒ de lastberekening (`assignmentDayUnits`,
+   *  `ResourceLoad.ts`) verdeelt hiermee, zonder de hele-eenhedenafronding van de formule; `curve`
+   *  blijft de UI-benadering (bv. P6 "Front Loaded" ⇒ `curve: 'FRONT_LOADED'` én de P6-waarden hier).
+   *  Gewist zodra de gebruiker `curve` wijzigt (`resourceSlice.updateAssignment`). Round-tript via het
+   *  `OPS_Timephased`-pset (`writeTimephasedMeta`, `ifcWriter.ts`) en native via P6. */
   curveValues?: number[];
-  /** OPTIONEEL — timephased-venster van deze toewijzing (MS Project "contouring", etappe "nul
-   *  afwijkingen" Z0, voorlopig ONGEBRUIKT: geen lezer vult dit, geen solver-stap raadpleegt het).
-   *  ISO-datum(tijd); precedent voor "effective-dated venster op een resource-object":
-   *  `Resource.availabilitySteps`. Afwezig ⇒ geen venster (byte-identiek). */
+  /** Timephased-venster van deze toewijzing (MS Project "contouring"), ISO-datum(tijd). Puur
+   *  informatief; de solver leest het niet. De `.mpp`-lezer vult het best-effort met de taakbrede
+   *  `timephasedStartAnchor`/`timephasedFinishFloor` op elke toewijzing van zo'n taak; round-tript
+   *  door IFC. Afwezig ⇒ geen venster. */
   workWindowStart?: string;
-  /** OPTIONEEL — zie `workWindowStart`. Afwezig ⇒ geen venster (byte-identiek). */
+  /** Zie `workWindowStart`. Afwezig ⇒ geen venster. */
   workWindowFinish?: string;
-  /** OPTIONEEL (taaktypes-etappe, spec §4.3) — BEGROOT werk in werkminuten (MSP Work, P6 Planned
+  /** BEGROOT werk in werkminuten (MSP Work, P6 Planned
    *  Units, XER target_qty). Referentie; wordt door de werkdriehoek nooit herschreven. Afwezig ⇒
    *  afgeleid als verricht + resterend. Round-tript in het `OPS_Timephased`-JSON-blob. */
   plannedWorkMinutes?: number;
-  /** OPTIONEEL (spec §4.3) — VERRICHT werk in werkminuten (MSP Actual Work, P6 Actual Units, XER
+  /** VERRICHT werk in werkminuten (MSP Actual Work, P6 Actual Units, XER
    *  act_reg_qty + act_ot_qty). Een feit: geen planningsbewerking raakt het. Afwezig ⇒ de som van
    *  de `actual`-periodes van de contour, anders 0. */
   actualWorkMinutes?: number;
-  /** OPTIONEEL (spec §4.3) — RESTEREND werk in werkminuten (MSP Remaining Work, P6 Remaining
-   *  Units, XER remain_qty). Het getal waar de werkdriehoek op werkt. Afwezig ⇒ afgeleid als
-   *  restduur × `unitsPerDay` (het gedrag van vandaag, byte-identiek); een werkbeschermende regel
-   *  legt het vast zodra ze het nodig heeft (`workTriangle.ts`). */
+  /** RESTEREND werk in werkminuten (MSP Remaining Work, P6 Remaining Units, XER remain_qty). Het
+   *  getal waar de werkdriehoek op werkt. Afwezig ⇒ afgeleid als restduur × `unitsPerDay`; een
+   *  werkbeschermende regel legt het vast zodra ze het nodig heeft (`workTriangle.ts`). */
   remainingWorkMinutes?: number;
 }

@@ -45,11 +45,11 @@ export const OPS_DURATION_UNIT_FIELD_NAME = 'OPS_TaskDurationUnit';
 /**
  * Soort mijlpaal (START/FINISH/AUTO) — MSPDI kent alleen `<Milestone>`, geen start/eind-anker. Zelfde
  * patroon als de duureenheid hierboven: één namespaced custom task field, alleen geldig wanneer de
- * projectdefinitie exact deze OPS-naam draagt (import/export-audit 2026-09, bevinding 7: zonder deze
- * marker kwam een eindmijlpaal na OPS → MSPDI → OPS in dagmodus als "automatisch" terug en schoof
- * hij een werkdag op). Transportveld Text29 (0x0B400000 + 335, MPXJ `MPPTaskField`). `AUTO` wordt
- * expliciet geschreven zodat de lezer bij een OPS-bestand geen soort afleidt die de bron niet had;
- * een bestand zonder deze definitie (MS Project zelf) wordt gelezen zoals voorheen.
+ * projectdefinitie exact deze OPS-naam draagt (zonder marker kwam een eindmijlpaal na OPS → MSPDI →
+ * OPS in dagmodus als "automatisch" terug en schoof hij een werkdag op). Transportveld Text29
+ * (0x0B400000 + 335, MPXJ `MPPTaskField`). `AUTO` wordt expliciet geschreven zodat de lezer bij een
+ * OPS-bestand geen soort afleidt die de bron niet had; een bestand zonder deze definitie (MS Project
+ * zelf) volgt de gewone afleiding.
  */
 export const OPS_MILESTONE_KIND_FIELD_ID = '188744015';
 export const OPS_MILESTONE_KIND_FIELD_NAME = 'OPS_MilestoneKind';
@@ -57,11 +57,10 @@ export const OPS_MILESTONE_KIND_FIELD_NAME = 'OPS_MilestoneKind';
 /** MSPDI-transportveld (vrije ExtendedAttribute) voor de OPS-taaktypemarker; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 
-// WorkContour-enum (fase 2.5, §8.3 — geverifieerd tegen de MSPDI-schemadocumentatie/MPXJ):
-// 0=Flat, 1=BackLoaded, 2=FrontLoaded, 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle;
-// 8 (Contoured) is geen vorm maar het signaal dat er `<TimephasedData>` meegaat. Sinds de
-// contour-UI-etappe (2026-09) zijn alle acht vormen een OPS-curve. Geëxporteerd zodat de reader de
-// inverse gebruikt (MPXJ `WorkContour.getUniqueID() − 1`).
+// WorkContour-enum (MSPDI-schemadocumentatie/MPXJ): 0=Flat, 1=BackLoaded, 2=FrontLoaded,
+// 3=DoublePeak, 4=EarlyPeak, 5=LatePeak, 6=Bell, 7=Turtle; 8 (Contoured) is geen vorm maar het signaal
+// dat er `<TimephasedData>` meegaat. Alle acht vormen zijn een OPS-curve. Geëxporteerd zodat de reader
+// de inverse gebruikt (MPXJ `WorkContour.getUniqueID() − 1`).
 export const CURVE_TO_WORKCONTOUR: Record<ResourceCurve, number> = {
   UNIFORM: 0,
   BACK_LOADED: 1,
@@ -92,14 +91,14 @@ function durationToISO8601(days: number, hoursPerDay: number): string {
 }
 
 /**
- * Fase 2.9 (§6) — OPS-constraint → MSPDI `ConstraintType`-code (MS Learn: 0=ASAP, 1=ALAP,
- * 2=Must Start On, 3=Must Finish On, 4=SNET, 5=SNLT, 6=FNET, 7=FNLT). Retourneert `undefined`
- * voor ASAP (default ⇒ niets schrijven, byte-identiek).
+ * OPS-constraint → MSPDI `ConstraintType`-code (MS Learn: 0=ASAP, 1=ALAP, 2=Must Start On, 3=Must
+ * Finish On, 4=SNET, 5=SNLT, 6=FNET, 7=FNLT). Retourneert `undefined` voor ASAP (default ⇒ niets
+ * schrijven).
  *
- * DE SOFT↔HARD-VAL (§6, mapping-tabel): MSPDI 2/3 zijn **hard** (Must). OPS' `MSO`/`MFO` zijn
- * **soft** (P6 Start On/Finish On) — die mogen dus NIET naar 2/3. Best-effort: soft `MSO` → `SNET`(4),
- * soft `MFO` → `FNET`(6) — de forward-ondergrens blijft behouden, de backward-bovengrens gaat verloren
- * (`softLoss`, gedocumenteerd + console-warn). OPS-HARD `MSO`/`MFO` → 2/3 (semantiek exact, geen verlies).
+ * DE SOFT↔HARD-VAL: MSPDI 2/3 zijn **hard** (Must). OPS' `MSO`/`MFO` zijn **soft** (P6 Start On/
+ * Finish On) — die mogen dus NIET naar 2/3. Best-effort: soft `MSO` → `SNET`(4), soft `MFO` →
+ * `FNET`(6) — de forward-ondergrens blijft, de backward-bovengrens gaat verloren (`softLoss`,
+ * console-warn). OPS-HARD `MSO`/`MFO` → 2/3 (semantiek exact).
  */
 function mspConstraintCode(c: TaskConstraint): { code: number; softLoss?: boolean } | undefined {
   switch (c.type) {
@@ -127,11 +126,10 @@ function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFo
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     return { linkLag: Math.round(seq.lagPercent * 10), lagFormat: elapsed ? 20 : 19 };
   }
-  // Fase 2.8b (§7.3): uur-lag (`lagMinutes`, bron van waarheid) → tienden-van-minuten (`minuten × 10`,
-  // minuut-precies). Werktijd: LagFormat 7, dezelfde encoding als het dag-pad. Elapsed ("+3eu"):
-  // LagFormat 6 (elapsed uren) met klokminuten. Deze tak staat bewust VÓÓR de elapsed-dag-tak
-  // (import/export-audit 2026-09, bevinding 4): daar schreef een elapsed-uur-lag `lagDays × 24 × 60
-  // × 10` = 0, dus MS Project (en onze eigen lezer) kreeg lag 0.
+  // Uur-lag (`lagMinutes`, bron van waarheid) → tienden van minuten (minuut-precies). Werktijd:
+  // LagFormat 7, dezelfde encoding als het dag-pad. Elapsed ("+3eu"): LagFormat 6 (elapsed uren)
+  // met klokminuten. Deze tak staat bewust VÓÓR de elapsed-dag-tak: daar werd een elapsed-uur-lag
+  // `lagDays × 24 × 60 × 10` = 0.
   if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
     return { linkLag: Math.round(seq.lagMinutes * 10), lagFormat: elapsed ? 6 : 7 };
   }
@@ -143,7 +141,7 @@ function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFo
 }
 
 /** Schrijft één `<Calendar>`-blok (WeekDays + Exceptions) — hergebruikt voor de
- *  projectkalender (UID 1, `IsBaseCalendar`) én voor resource-kalenders (fase 2.5, §8.2). */
+ *  projectkalender (UID 1, `IsBaseCalendar`) én voor resourcekalenders. */
 function writeCalendarBlock(
   lines: string[],
   indent: (level: number) => string,
@@ -162,8 +160,8 @@ function writeCalendarBlock(
     const isWorkDay = cal.workDays.includes(day);
     const mspDay = day === 7 ? 1 : day + 1;
 
-    // Fase 2.8b (§7.3): UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkingTime>-blokken;
-    // een wrap-band emitteert het eind als tijd-van-de-dag (`end % 1440`).
+    // UUR-kalender ⇒ ALLE banden van deze weekdag als aparte <WorkingTime>-blokken; een wrap-band
+    // emitteert het eind als tijd-van-de-dag (`end % 1440`).
     const workTime = cal.workTime ?? (includeEffectiveScalarBands ? effectiveWorkTimeBands(cal) : undefined);
     const hourBands = workTime ? (workTime.byWeekday[day as 1] ?? []) : null;
     const dayWorking = hourBands ? hourBands.length > 0 : isWorkDay;
@@ -196,12 +194,9 @@ function writeCalendarBlock(
 
   lines.push(`${indent(3)}</WeekDays>`);
 
-  // T13 (§T2-afwijking, LAAG-7-afnemer): vóór deze taak schreef alleen `cal.holidays` naar
-  // `<Exceptions>` — `cal.workingExceptions` (T2/T3) verdween stil bij export, ook al kan
-  // `mspdiReader.ts` (T4) ze prima terug inlezen (`readRawMspdiExceptions`, `DayWorking=1` +
-  // `<WorkingTimes>`). Spiegelt die lezer exact: `DayWorking=1`, banden als `<WorkingTime>`-blokken
-  // wanneer aanwezig (afwezig/leeg ⇒ geen `<WorkingTimes>`-element — de lezer se banden-optioneel-
-  // fallback-keten (`types/calendar.ts`'s `WorkingException.bands`-doc) vangt dat dan zelf op).
+  // Werkende uitzonderingen spiegelen `readRawMspdiExceptions` in mspdiReader.ts: `DayWorking=1`,
+  // banden als `<WorkingTime>`-blokken wanneer aanwezig (afwezig/leeg ⇒ geen `<WorkingTimes>`; de
+  // fallbackketen van `WorkingException.bands` in `types/calendar.ts` vangt dat bij het lezen op).
   const workingExceptions = cal.workingExceptions ?? [];
   if (cal.holidays.length > 0 || workingExceptions.length > 0) {
     lines.push(`${indent(3)}<Exceptions>`);
@@ -260,24 +255,22 @@ export function writeMSPDI(
   const lines: string[] = [];
   const indent = (level: number) => '  '.repeat(level);
 
-  // Issue #159: MS Project reconstrueert de hiërarchie uit `<OutlineLevel>` + DOCUMENTVOLGORDE — het
-  // `<WBS>`-veld is daarbij alleen tekst. Beide moeten dus uit de echte boom komen: diepte-eerst
-  // geordend (ouders vóór hun kinderen, exact zoals het taakraster flattent) en het niveau uit de
-  // ouderketen. Voorheen kwam het niveau uit `wbsCode.split('.').length` en de volgorde uit de store:
-  // een IFC-import draagt de vrije `IfcTask.Identification` als code (hernummeren gebeurt niet bij
-  // laden) en kan "samenvattingen eerst, dan bladen" geordend zijn — dan belandden alle bladen onder
-  // de laatste samenvatting, of werd de boom vlak. De UID-toekenning hieronder volgt deze volgorde.
+  // MS Project reconstrueert de hiërarchie uit `<OutlineLevel>` + DOCUMENTVOLGORDE — het `<WBS>`-veld
+  // is daarbij alleen tekst. Beide komen dus uit de echte boom: diepte-eerst geordend (ouders vóór
+  // hun kinderen, zoals het taakraster flattent) en het niveau uit de ouderketen. Niet uit
+  // `wbsCode`: een IFC-import draagt de vrije `IfcTask.Identification` als code en kan "samenvattingen
+  // eerst, dan bladen" geordend zijn. De UID-toekenning hieronder volgt deze volgorde.
   tasks = [...flattenOrder(tasks)];
   const depthById = taskDepths(tasks);
 
-  // Fase 2.9 (§4.5/§6): externe (cross-project) dependencies zijn in MSPDI niet uitdrukbaar buiten de
+  // Externe (cross-project) dependencies zijn in MSPDI niet uitdrukbaar buiten de
   // master/subproject-context ⇒ weggelaten (ghost-weergave blijft in-app). Één warn.
   const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);
   if (extLinkCount > 0) {
     console.warn(`MSPDI-export: ${extLinkCount} externe (cross-project) dependency(s) weggelaten — niet uitdrukbaar in MSPDI (§6).`);
   }
 
-  // Fase 2.9 (§6): soft↔hard-val — soft MSO/MFO degradeert naar SNET/FNET (MSPDI 2/3 is hard).
+  // Soft↔hard-val — soft MSO/MFO degradeert naar SNET/FNET (MSPDI 2/3 is hard).
   const softLossCount = tasks.filter(t =>
     t.constraint && !t.constraint.hard && (t.constraint.type === 'MSO' || t.constraint.type === 'MFO')).length;
   if (softLossCount > 0) {
@@ -288,25 +281,22 @@ export function writeMSPDI(
   if (secondaryCount > 0) {
     console.warn(`MSPDI-export: ${secondaryCount} secundaire constraint(s) weggelaten — MSPDI kent maar één ConstraintType-element (§6).`);
   }
-  // Hammock/LOE: geen native MSPDI-representatie ⇒ als gewone taak met berekende datums + warn (§6).
+  // Hammock/LOE: geen native MSPDI-representatie ⇒ als gewone taak met berekende datums + warn.
   const hammockCount = tasks.filter(t => t.isHammock).length;
   if (hammockCount > 0) {
     console.warn(`MSPDI-export: ${hammockCount} hammock/LOE-taak/-taken geëxporteerd als gewone taak met berekende datums — MSPDI kent geen native LOE (§6).`);
   }
 
-  // Fase 2.10 (item 1): MSPDI kent een native <Notes>-element, maar dat is BEWUST niet gebruikt
-  // (lossy voor onze checklist-vorm met done-vlaggen + parse-complexiteit) — weggelaten-met-warn,
-  // exact het externalLinks/hammock-patroon. Native mapping is een latere interop-optie (TODO §3.8).
+  // MSPDI kent een native <Notes>-element, maar dat is BEWUST niet gebruikt (lossy voor onze
+  // checklist-vorm met done-vlaggen) — weggelaten-met-warn, zoals externalLinks/hammock.
   const noteCount = tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0);
   if (noteCount > 0) {
     console.warn(`MSPDI-export: ${noteCount} taak-aantekening(en) weggelaten — MSPDI's native <Notes>-element is bewust niet gebruikt (lossy voor de checklist-vorm, §6).`);
   }
 
-  // Z14 (etappe "nul afwijkingen"): MSPDI kent native <Manual>, <LevelingDelay>/<LevelingDelayFormat>
-  // en <TimephasedData>, maar onze LEZER leest geen van drieën. Exact hetzelfde ELAPSEDTIME/
-  // <DurationFormat>-precedent hierboven: native schrijven zonder terug te lezen is een stille
-  // semantiek-omklap en dus erger dan verlies — hier dus BEWUST alleen warnen, geen elementen
-  // schrijven. Native MSPDI-ondersteuning voor deze drie is een TODO voor een latere taak.
+  // MSPDI kent native <Manual> en <LevelingDelay>/<LevelingDelayFormat>, maar onze LEZER leest ze
+  // niet. Native schrijven zonder terug te lezen is een stille semantiek-omklap bij een round-trip
+  // (zie het ELAPSEDTIME/<DurationFormat>-geval hierboven) — daarom alleen warnen.
   const manualCount = tasks.filter(t => t.manuallyScheduled).length;
   if (manualCount > 0) {
     console.warn(`MSPDI-export: ${manualCount} handmatig geplande taak/taken geëxporteerd zonder native <Manual> — MSPDI-lezer kent dat element nog niet (§6).`);
@@ -315,25 +305,23 @@ export function writeMSPDI(
   if (levelingPrecisionCount > 0) {
     console.warn(`MSPDI-export: ${levelingPrecisionCount} taak/taken met sub-dag-nivelleervertraging (levelingDelayMinutes) geëxporteerd zonder native <LevelingDelay>/<LevelingDelayFormat> — MSPDI-lezer kent die elementen nog niet (§6).`);
   }
-  // Contour-engine (2026-09): gecontoureerde toewijzingen (`Task.timephasedContours`) gaan sinds
-  // deze etappe NATIEF mee als `<TimephasedData>` (zie de toewijzingensectie hieronder) en de lezer
-  // leest ze terug — de O4-warn van Z14 is daarmee voor contouren vervallen. Een gesplitste taak
-  // ZONDER contour (bv. een nivelleergat, `splitGaps` met `source: 'leveling'`) heeft geen
-  // per-toewijzing-verdeling om te schrijven; die blijft een warn (MSP kent een split alleen als
-  // timephased-vorm van een toewijzing).
+  // Gecontoureerde toewijzingen (`Task.timephasedContours`) gaan NATIEF mee als `<TimephasedData>`
+  // (zie de toewijzingensectie) en de lezer leest ze terug. Een gesplitste taak ZONDER contour (bv.
+  // een nivelleergat, `splitGaps` met `source: 'leveling'`) heeft geen per-toewijzingverdeling om te
+  // schrijven; die blijft een warn (MSP kent een split alleen als timephased-vorm van een toewijzing).
   const splitWithoutContour = countSplitTasksWithoutContour(tasks);
   if (splitWithoutContour > 0) {
     console.warn(`MSPDI-export: ${splitWithoutContour} onderbroken taak/taken zonder urenverdeling geëxporteerd ZONDER hun onderbrekingen (gebruikers-, nivelleer- of importsplits) — alleen een contour wordt als <TimephasedData> geschreven (§6; de gebruiker krijgt een melding via exportAs).`);
   }
-  // Z12-herwerk/Z14: MSP's eigen resume/stop-instanten (uit-volgorde-hervatting). MSPDI kent native
-  // <Resume>/<Stop>, maar onze lezer leest ze (nog) niet terug — zelfde conservatieve keuze.
+  // MSP's eigen resume/stop-instanten (uit-volgorde-hervatting). MSPDI kent native <Resume>/<Stop>,
+  // maar onze lezer leest ze niet terug — zelfde conservatieve keuze.
   const resumeStopCount = tasks.filter(t => t.time.resume || t.time.stop).length;
   if (resumeStopCount > 0) {
     console.warn(`MSPDI-export: ${resumeStopCount} taak/taken met resume/stop (uit-volgorde-hervatting) geëxporteerd zonder native <Resume>/<Stop> — MSPDI-lezer kent die elementen nog niet (§6).`);
   }
 
-  // Fase 2.6 (§9.1): alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0).
-  // De overige OPS-baselines verliezen we bewust (extra slots 1-10 = latere uitbreiding).
+  // Alleen de ACTIEVE baseline gaat naar MSPDI-slot 0 (Baseline Number 0); de overige
+  // OPS-baselines gaan bewust verloren.
   const activeBaseline = baselines.find(b => b.id === activeBaselineId) ?? null;
   const baselineByTask = new Map<string, BaselineTask>(
     (activeBaseline?.tasks ?? []).map(bt => [bt.taskId, bt]),
@@ -343,14 +331,10 @@ export function writeMSPDI(
   lines.push('<Project xmlns="http://schemas.microsoft.com/project">');
 
   // Project properties.
-  // Een naamloos project leverde hier een LEEG <Name>/<Title> op — MS Project importeert dan een
-  // project zonder naam, en de gebruiker ziet in Projectgegevens (en op elke afdruk met een
-  // projectnaamveld) een leeg vak. Beide elementen zijn in MSPDI weliswaar optioneel, maar
-  // weglaten lost het niet op: het project blijft naamloos. Vandaar dezelfde neutrale,
-  // TAALONAFHANKELIJKE terugval als de bestandsnaam en de STEP-header (`projectFileBase`), zodat
-  // één begrip ook één waarde houdt. Bewust géén vertaalde terugval: uitwisselingsdata gaat naar
-  // een ander systeem en een andere gebruiker; een Nederlandse of Japanse tekst in een MSPDI-veld
-  // is daar geen hulp.
+  // Een naamloos project krijgt dezelfde neutrale, TAALONAFHANKELIJKE terugval als de bestandsnaam en
+  // de STEP-header (`projectFileBase`): een leeg <Name>/<Title> geeft in MS Project een naamloos
+  // project, en weglaten lost dat niet op. Bewust geen vertaalde terugval: uitwisselingsdata gaat naar
+  // een ander systeem en een andere gebruiker.
   const exportName = projectFileBase(project.name);
   lines.push(`${indent(1)}<Name>${escapeXml(exportName)}</Name>`);
   lines.push(`${indent(1)}<Title>${escapeXml(exportName)}</Title>`);
@@ -361,7 +345,7 @@ export function writeMSPDI(
   if (project.endDate) {
     lines.push(`${indent(1)}<FinishDate>${toXmlDateTime(project.endDate)}</FinishDate>`);
   }
-  // Statusdatum (fase 2.6, §9.1) — P6 data date → MSPDI <StatusDate>. Alleen wanneer gezet.
+  // Statusdatum — P6 data date → MSPDI <StatusDate>. Alleen wanneer gezet.
   if (project.statusDate) {
     lines.push(`${indent(1)}<StatusDate>${toXmlDateTime(project.statusDate)}</StatusDate>`);
   }
@@ -370,8 +354,8 @@ export function writeMSPDI(
   lines.push(`${indent(1)}<MinutesPerWeek>${calendar.hoursPerDay * calendar.workDays.length * 60}</MinutesPerWeek>`);
   lines.push(`${indent(1)}<DaysPerMonth>20</DaysPerMonth>`);
 
-  // Expliciete OPS-taakeenheid voor een verliesvrije eigen MSPDI-round-trip. Buitenlandse/legacy-
-  // bestanden zonder deze definitie blijven aan de leeskant exact de oude kalenderregel volgen.
+  // Expliciete OPS-taakeenheid voor een verliesvrije eigen MSPDI-round-trip. Bestanden zonder deze
+  // definitie volgen aan de leeskant de kalenderregel.
   lines.push(`${indent(1)}<ExtendedAttributes>`);
   lines.push(`${indent(2)}<ExtendedAttribute>`);
   lines.push(`${indent(3)}<FieldID>${OPS_DURATION_UNIT_FIELD_ID}</FieldID>`);
@@ -385,11 +369,11 @@ export function writeMSPDI(
   lines.push(`${indent(2)}</ExtendedAttribute>`);
   lines.push(`${indent(1)}</ExtendedAttributes>`);
 
-  // Scheduling-options (fase 2.9, §6): alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt
-  // een triviale kritiek-drempel (`criticalDefinition.mode==='totalFloat'` met een niet-negatieve
-  // integer-drempel); al het overige (longest-path, fractionele/uur-drempel, lag-kalender, float-paths,
-  // near-critical, TF-modus) is niet native uitdrukbaar ⇒ weggelaten + warn. De VOLLE set round-trippt
-  // wél via IFC OPS_SchedulingOptions. Golden rule: geen schedulingOptions ⇒ geen element.
+  // Scheduling-options: alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt een triviale
+  // kritiek-drempel (`criticalDefinition.mode==='totalFloat'` met een niet-negatieve integer-drempel);
+  // al het overige (longest-path, fractionele/uur-drempel, lag-kalender, float-paths, near-critical,
+  // TF-modus) is niet native uitdrukbaar ⇒ weggelaten + warn. De volle set round-tript via IFC
+  // OPS_SchedulingOptions. Golden rule: geen schedulingOptions ⇒ geen element.
   const so = project.schedulingOptions;
   const lost: string[] = [];
   if (so) {
@@ -412,25 +396,19 @@ export function writeMSPDI(
     // melding over iets wat een ontvanger toch al aanneemt is ruis die de echte meldingen verdringt.
     if (so.leveling && !isP6DialogDefaultLeveling(so.leveling)) lost.push('leveling');
   }
-  // Rekenprofielen C3: de twee MPP-eigen conventies staan sinds de profielen in het rekenprofiel
-  // (MS Project-profiel), niet meer in `schedulingOptions` — zelfde waarschuwing, andere bron.
+  // De twee MPP-eigen conventies staan in het rekenprofiel (MS Project-profiel), niet in
+  // `schedulingOptions`. MSPDI heeft er geen equivalent voor; zonder warn zou .mpp → MSPDI-export →
+  // herimport ze stil laten vallen en datums laten verschuiven (hervatting van restwerk, resp. het
+  // naar de statusdatum klemmen van niet-gestarte taken).
   const conventions = resolveConventions(project.schedulingProfile);
-  // T9 (Opus-review N1): geen MSPDI-equivalent voor deze MPP-eigen hervattingsconventie (zie
-  // `SchedulingOptions.resumeFromActualElapsed`, `CPMSolver.ts`) — zonder deze warn zou
-  // .mpp → MSPDI-export → herimport het veld geruisloos laten vallen en de gefixte datums van T9
-  // stil weer laten verschuiven bij die herimport.
   if (conventions.resumeFromActualElapsed) lost.push('resumeFromActualElapsed');
-  // B1 (eindreview T16c, dossier (c)4-herdiagnose): idem — geen MSPDI-equivalent voor de
-  // niet-gestart-vloer-uitzondering (`SchedulingOptions.unstartedIgnoresStatusDate`); zonder deze
-  // warn zou dezelfde .mpp → MSPDI-export → herimport-route de niet-gestarte taken van een
-  // statusdatum-project weer stil ~jaren vooruit klemmen.
   if (conventions.unstartedIgnoresStatusDate) lost.push('unstartedIgnoresStatusDate');
   if (lost.length > 0) {
     console.warn(`MSPDI-export: scheduling-opties ${lost.join('/')} niet native uitdrukbaar — weggelaten, alleen via IFC OPS_SchedulingOptions (§6).`);
   }
 
-  // Calendars: UID 1 = projectkalender (basiskalender); overige bibliotheek-kalenders (fase 2.5,
-  // §8.2) krijgen UID 2, 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
+  // Calendars: UID 1 = projectkalender (basiskalender); overige bibliotheekkalenders krijgen UID 2,
+  // 3, ... — dezelfde `writeCalendarBlock` parametrisch hergebruikt.
   const {
     libraryCalendars, calendarNumber: calUidMap, effCalByTask, hourTaskCalendarIds,
   } = exportCalendarLayout(tasks, calendar, resourceCalendars);
@@ -465,17 +443,15 @@ export function writeMSPDI(
     const task = tasks[i];
     const uid = i + 1;
     const isSummary = isSummaryTask(task);
-    // Issue #159: een samenvattingstaak is nooit een mijlpaal, ook niet met duur 0 (een bestand van
-    // vóór #145, of een IFC met `$`-duur op de samenvatting). MS Project rekent haar duur uit de
-    // kinderen; `Milestone=1` maakte er anders een ruit van zonder duur.
+    // Een samenvattingstaak is nooit een mijlpaal, ook niet met duur 0 (bv. een IFC met `$`-duur op
+    // de samenvatting). MS Project rekent haar duur uit de kinderen; `Milestone=1` maakte er anders
+    // een ruit van zonder duur.
     const isMilestone = !isSummary && (task.isMilestone || task.time.scheduleDuration === 0);
 
-    // Fase 2.8b (§7.3): uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒
-    // `PT{dagen×hpd}H0M0S`. De hpd is die van de EFFECTIEVE (taak-)kalender, niet de projectkalender
-    // (issue #159): een OPS-dagduur is N werkdagen van de kalender waarin de taak rekent, en MS Project
-    // plant de uren op diezelfde taakkalender. `readMSPDI` deelt bij het teruglezen ook door `effHpd`
-    // — met de projectkalender kwam een 7-daagse taak op een 24/7-kalender (8u-project) als `PT56H`
-    // terug als 2,33 dagen, en plande MS Project haar op 56 klokuren in plaats van 7 etmalen.
+    // Uur-taak ⇒ Duration als `PT{h}H{m}M0S` uit de minuten; dag-taak ⇒ `PT{dagen×hpd}H0M0S`. De hpd
+    // is die van de EFFECTIEVE (taak-)kalender, niet de projectkalender: een OPS-dagduur is N werkdagen
+    // van de kalender waarin de taak rekent, en `readMSPDI` deelt bij het teruglezen ook door `effHpd`
+    // (met de projectkalender kwam een 7-daagse 24/7-taak als 2,33 dagen terug).
     const effCal = effCalByTask.get(task.id);
     const effHpd = effCal?.hoursPerDay ?? calendar.hoursPerDay;
     const isHourTask = taskDurationUnit(task) === 'hours';
@@ -490,10 +466,9 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
     lines.push(`${indent(3)}<Name>${escapeXml(task.name)}</Name>`);
-    // Taaktypes-etappe (spec §4.2/§4.4): <Type> (0/1/2) en <EffortDriven> uit de werkregel; een
-    // bewaard MSP-`effortDriven` wint (`mspFromWorkRule`). Zonder werkregel valt een taak met
-    // alleen bewaarde MSP-velden op die velden terug; zonder beide schrijft de export niets
-    // (golden rule) — MS Project neemt dan zijn eigen default (Fixed Units).
+    // <Type> (0/1/2) en <EffortDriven> uit de werkregel; een bewaard MSP-`effortDriven` wint
+    // (`mspFromWorkRule`). Zonder werkregel valt een taak met alleen bewaarde MSP-velden op die velden
+    // terug; zonder beide schrijft de export niets — MS Project neemt dan zijn default (Fixed Units).
     const mspType = task.workRule
       ? mspFromWorkRule(task.workRule, task.mspTaskType ? (task.effortDriven ?? false) : undefined)
       : task.mspTaskType ? { type: task.mspTaskType, effortDriven: task.effortDriven ?? false } : undefined;
@@ -511,12 +486,10 @@ export function writeMSPDI(
     lines.push(`${indent(3)}<OutlineLevel>${depthById.get(task.id) ?? 1}</OutlineLevel>`);
     lines.push(`${indent(3)}<Summary>${isSummary ? 1 : 0}</Summary>`);
     lines.push(`${indent(3)}<Milestone>${isMilestone ? 1 : 0}</Milestone>`);
-    // T14b-vervolg (spec-review-bevinding): `completion` ongeguard vermenigvuldigen gaf `NaN` in de
-    // export zodra een taak (buiten de TS-typechecker om, extensie-/MCP-rand) toch met een
-    // `undefined` completion binnenkwam — dezelfde diepteverdediging als de IFC-writer
-    // (`ifcTaskSlots.ts`, `(w.task.time.completion ?? 0).toFixed(1)`), hier voor MSPDI.
+    // `completion ?? 0`: een taak die buiten de typechecker om (extensie-/MCP-rand) zonder completion
+    // binnenkomt gaf anders `NaN`; zelfde verdediging als de IFC-writer (`ifcTaskSlots.ts`).
     lines.push(`${indent(3)}<PercentComplete>${Math.round((task.time.completion ?? 0) * 100)}</PercentComplete>`);
-    // Actuals (fase 2.6, §9.1) — alleen wanneer gezet (golden rule). RemainingDuration afgeleid.
+    // Actuals — alleen wanneer gezet (golden rule). RemainingDuration afgeleid.
     if (task.time.actualStart) {
       lines.push(`${indent(3)}<ActualStart>${toXmlDateTime(task.time.actualStart)}</ActualStart>`);
     }
@@ -536,9 +509,8 @@ export function writeMSPDI(
       const value = encodeCustomTaskType(task.customTaskTypeId, customTaskTypes);
       lines.push(`${indent(3)}<ExtendedAttribute><FieldID>${OPS_CUSTOM_TASK_TYPE_FIELD_ID}</FieldID><Value>${escapeXml(value)}</Value></ExtendedAttribute>`);
     }
-    // Datum-constraint (fase 2.9, §6): primair als MSPDI ConstraintType/ConstraintDate. ASAP ⇒ niets
-    // (golden rule). Secundair is niet uitdrukbaar (één element, gewaarschuwd hierboven). Soft MSO/MFO
-    // degradeert naar SNET/FNET (soft↔hard-val, gewaarschuwd hierboven).
+    // Datumconstraint: primair als MSPDI ConstraintType/ConstraintDate. ASAP ⇒ niets. Secundair is
+    // niet uitdrukbaar (één element, gewaarschuwd hierboven). Soft MSO/MFO degradeert naar SNET/FNET.
     if (task.constraint) {
       const mapped = mspConstraintCode(task.constraint);
       if (mapped) {
@@ -549,15 +521,13 @@ export function writeMSPDI(
         }
       }
     }
-    // Zachte deadline (fase 2.9, §6): MSPDI kent een native <Deadline> op de taak (verschuift balken
-    // niet — begrenst total slack). Golden rule: geen deadline ⇒ geen element.
+    // Zachte deadline: MSPDI kent een native <Deadline> op de taak (verschuift balken niet — begrenst
+    // total slack). Golden rule: geen deadline ⇒ geen element.
     if (task.deadline) {
       lines.push(`${indent(3)}<Deadline>${toXmlDateTime(task.deadline)}</Deadline>`);
     }
-    // Taak-kalender (fase 2.8a, §8.3): MSPDI ondersteunt taak-kalenders native via dit element —
-    // effectieve UID i.p.v. het oude hardcoded 1 (projectkalender). Onbekende/verwijderde
-    // calendarId valt terug op 1 (golden rule: geen eigen kalender ⇒ projectkalender-UID, zelfde
-    // patroon als de resource-CalendarUID hieronder).
+    // Taakkalender: MSPDI ondersteunt taakkalenders native via dit element. Onbekende/verwijderde
+    // calendarId valt terug op 1 (projectkalender), zelfde patroon als de resource-CalendarUID.
     const taskCalUid = (task.calendarId && calUidMap.get(task.calendarId)) || 1;
     lines.push(`${indent(3)}<CalendarUID>${taskCalUid}</CalendarUID>`);
     lines.push(`${indent(3)}<ExtendedAttribute>`);
@@ -576,15 +546,15 @@ export function writeMSPDI(
     if (task.description) {
       lines.push(`${indent(3)}<Notes>${escapeXml(task.description)}</Notes>`);
     }
-    // Baseline 0 (fase 2.6, §9.1) — Start/Finish/Duration uit de actieve OPS-baseline.
+    // Baseline 0 — Start/Finish/Duration uit de actieve OPS-baseline.
     const bt = baselineByTask.get(task.id);
     if (bt) {
       lines.push(`${indent(3)}<Baseline>`);
       lines.push(`${indent(4)}<Number>0</Number>`);
       lines.push(`${indent(4)}<Start>${toXmlDateTime(bt.start)}</Start>`);
       lines.push(`${indent(4)}<Finish>${toXmlDateTime(bt.finish)}</Finish>`);
-      // Critreview #159: dezelfde `effHpd` als <Duration> — anders staat naast een taakduur van 168 u een
-      // baseline van 56 u en verzint MS Project 112 u afwijking.
+      // Dezelfde `effHpd` als <Duration> — anders staat naast een taakduur van 168 u een baseline van
+      // 56 u en verzint MS Project 112 u afwijking.
       lines.push(`${indent(4)}<Duration>${durationToISO8601(bt.duration, effHpd)}</Duration>`);
       lines.push(`${indent(3)}</Baseline>`);
     }
@@ -610,7 +580,7 @@ export function writeMSPDI(
 
   lines.push(`${indent(1)}</Tasks>`);
 
-  // Resources (fase 2.5, §8.2)
+  // Resources
   const resUidMap = new Map<string, number>();
   let nextResUid = 1;
   for (const res of resources) {
@@ -638,12 +608,12 @@ export function writeMSPDI(
   }
   lines.push(`${indent(1)}</Resources>`);
 
-  // Assignments (fase 2.5, §8.2): Work = duur x unitsPerDay x hoursPerDay, PT-formaat
-  // (hergebruik van dezelfde durationToISO8601-helper als taakduur).
+  // Assignments: Work = duur x unitsPerDay x hoursPerDay, PT-formaat (dezelfde
+  // durationToISO8601-helper als taakduur).
   if (assignments.length > 0) {
     lines.push(`${indent(1)}<Assignments>`);
     let asgnUid = 1;
-    // Contour-engine (2026-09): contour-koppeling per taak + kalender-engine per taakkalender.
+    // Contourkoppeling per taak + kalender-engine per taakkalender.
     const assignmentsByTask = new Map<string, ResourceAssignment[]>();
     for (const a of assignments) {
       const list = assignmentsByTask.get(a.taskId) ?? [];
@@ -676,10 +646,10 @@ export function writeMSPDI(
       if (taskUid === undefined || resUid === undefined) continue;
       const task = tasks.find(t => t.id === a.taskId);
       const workDays = (task?.time.scheduleDuration ?? 0) * a.unitsPerDay;
-      // Critreview #159: werk in uren van de TAAK-kalender, consistent met <Duration> — anders leest MS
-      // Project Duration 168 u / Work 56 u / Units 100% en herrekent de eenheden naar 33%.
+      // Werk in uren van de TAAK-kalender, consistent met <Duration> — anders leest MS Project
+      // Duration 168 u / Work 56 u / Units 100% en herrekent de eenheden naar 33%.
       const workHpd = task ? (effCalByTask.get(task.id)?.hoursPerDay ?? calendar.hoursPerDay) : calendar.hoursPerDay;
-      // Contour-engine (2026-09): de contour van déze toewijzing (gekoppeld via `resourceId`).
+      // De contour van déze toewijzing (gekoppeld via `resourceId`).
       const taskContour = task ? contourOf(task, a) : undefined;
       const dayItems = task && taskContour && shownStart(task)
         ? contourPeriodsToDayItems(
@@ -693,8 +663,8 @@ export function writeMSPDI(
       lines.push(`${indent(3)}<UID>${uid}</UID>`);
       lines.push(`${indent(3)}<TaskUID>${taskUid}</TaskUID>`);
       lines.push(`${indent(3)}<ResourceUID>${resUid}</ResourceUID>`);
-      // Taaktypes-etappe (spec §4.3/§4.4): verricht en resterend werk alleen wanneer het veld er is
-      // (schemavolgorde: ActualWork en RemainingWork vóór Units, zie de MSPDI-Assignment-structuur).
+      // Verricht en resterend werk alleen wanneer het veld er is (schemavolgorde: ActualWork en
+      // RemainingWork vóór Units, zie de MSPDI-Assignment-structuur).
       if (a.actualWorkMinutes !== undefined) {
         lines.push(`${indent(3)}<ActualWork>${minutesToMspdiValue(a.actualWorkMinutes)}</ActualWork>`);
       }
@@ -705,9 +675,8 @@ export function writeMSPDI(
       // Werk: het opgeslagen begrote werk als dat er is; anders bij een contour de SOM van de
       // dagverdeling (de echte werkinhoud), anders duur × units.
       const contourWorkMinutes = dayItems.reduce((n, d) => n + d.workMinutes, 0);
-      // Zonder `remainingWorkMinutes` is het restant afgeleid (spec §4.3), dus dan ook het totaal:
-      // alléén verricht werk (E3: een import zonder afwijking bewaart alleen dat) mag `<Work>` niet
-      // tot het verrichte deel laten krimpen.
+      // Zonder `remainingWorkMinutes` is het restant afgeleid, dus dan ook het totaal: alléén
+      // verricht werk mag `<Work>` niet tot het verrichte deel laten krimpen.
       const plannedWork = a.plannedWorkMinutes
         ?? (a.remainingWorkMinutes !== undefined
           ? (a.actualWorkMinutes ?? 0) + a.remainingWorkMinutes

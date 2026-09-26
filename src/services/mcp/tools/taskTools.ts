@@ -1,16 +1,16 @@
-// MCP-toolmodule (taak T19, spec §Tool-set Muteren + §Overig): mutatietools voor taken en relaties,
-// plus undo/redo en run_cpm. Alle namen dragen de service-prefix `planner_` (spec §Naamgeving); elke
-// tool draagt een beschrijving (de AI kiest tools op beschrijving) en de standaard MCP-annotaties.
+// MCP-toolmodule: mutatietools voor taken en relaties, plus undo/redo en run_cpm. Alle namen dragen
+// de service-prefix `planner_`; elke tool draagt een beschrijving (de AI kiest tools op
+// beschrijving) en de standaard MCP-annotaties.
 //
 // Alle échte mutaties lopen via `runMutateTool` → `runInMcpTransaction`: één undo-stap, één
-// herberekening, géén bestands-/save-side-effects. Per-item-weigeringen zijn ZACHT (spec §batch: één
-// rotte regel rolt nooit alles terug) en komen als `itemRejections` terug; structurele fouten
+// herberekening, géén bestands-/save-side-effects. Per-item-weigeringen zijn ZACHT (één rotte regel
+// rolt nooit alles terug) en komen als `itemRejections` terug; structurele fouten
 // (kringverwijzing, taak-niet-gevonden bij een enkelvoudige tool) zijn HARD via `McpStepError`.
 //
 // `undo`/`redo`/`run_cpm` lopen NIET via de transactie (ze beheren hun eigen undo-stack, resp. zijn
 // een pure herberekening) maar wél via dezelfde guards (`guardNonTransactional`).
 import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from '../contracts';
-// Alleen als TYPE geïmporteerd (SYNC-2): `import type` wordt bij het compileren volledig weggestreept,
+// Alleen als TYPE geïmporteerd: `import type` wordt bij het compileren volledig weggestreept,
 // dus dit legt géén runtime-import naar `batchTool` (dat zelf via de leaf-module `toolIndex` opzoekt).
 import type { BatchStepTool } from './batchTool';
 import {
@@ -72,9 +72,9 @@ import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
 
 // De gedeelde post-transactie-helpers (okEnvelope/freshDates/projectEndInfo/enrichOk/okDirect) staan
-// sinds T20 in `./helpers.ts` — dezelfde conventie geldt voor de kalender-/resource-tools.
+// in `./helpers.ts` — dezelfde conventie geldt voor de kalender-/resource-tools.
 
-// --- batchStep-kernen (SYNC-2) -------------------------------------------------------------------
+// --- batchStep-kernen ----------------------------------------------------------------------------
 //
 // Elke bulk-mutatietool is opgesplitst in drie stukken, zodat hij zowel los (via `handler`) als als
 // batch-stap (via `batchStep`) bruikbaar is — met exact ÉÉN implementatie van de mutatie:
@@ -89,10 +89,10 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 //                        stap zouden daar liegen; `planner_batch` rapporteert de kale kern-`data` en
 //                        herberekent aan het eind.
 // `batchStep` gooit waar de handler een `McpToolErr` teruggeeft: binnen een batch is een vormfout een
-// STRUCTURELE stapfout die de hele batch hoort terug te rollen (spec §Compositie), geen zachte weigering.
+// STRUCTURELE stapfout die de hele batch hoort terug te rollen, geen zachte weigering.
 // Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
 
-/** "Wordt fase" (audit taakmutaties §6) — gedeeld door add_tasks en move_task. */
+/** "Wordt fase" — gedeeld door add_tasks en move_task. */
 const PHASE_TRANSITION_DOC =
   'Krijgt een bestaande taak met resource-toewijzingen hierdoor haar EERSTE subtaak (ze wordt een fase), dan ' +
   'verhuizen die toewijzingen naar de eerste nieuwe subtaak die ze mag dragen (geen mijlpaal of fase); een ' +
@@ -199,7 +199,7 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
       const nativeAmount = unit === 'hours'
         ? (tp.durationMinutes ?? 0) / 60
         : (tp.scheduleDuration ?? (top.isMilestone ? 0 : 5));
-      // B1-vervolg: een urentaak krijgt haar ingevoerde einde op de echte taakkalender (start + duur).
+      // Een urentaak krijgt haar ingevoerde einde op de echte taakkalender (start + duur).
       time = createDefaultTaskTime(anchor, nativeAmount, unit,
         resolveCalendar(typeof top.calendarId === 'string' ? top.calendarId : undefined, st.calendars, st.calendar));
       if (tp.scheduleDuration !== undefined) time.scheduleDuration = tp.scheduleDuration;
@@ -358,8 +358,8 @@ function parseUpdateTasks(args: unknown): { id: string; fields?: any; progress?:
   return a.updates as { id: string; fields?: any; progress?: any }[];
 }
 
-/** Een duurwijziging van een lopende taak paste het percentage en de restduur aan (besluit
- *  eigenaar, `runningDurationChange`): wat `update_tasks` daarover terugmeldt. */
+/** Een duurwijziging van een lopende taak past het percentage en de restduur aan
+ *  (`runningDurationChange`): wat `update_tasks` daarover terugmeldt. */
 interface ProgressAdjusted {
   id: string;
   /** Nieuw percentage voltooid (0–100, op twee decimalen; intern onafgerond). */
@@ -404,9 +404,9 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
           rejectedHere = true;
         } else {
           if (res.patch.customTaskType) ctx.transactions.draft.ensureCustomTaskType(res.patch.customTaskType);
-          // Taaktypes-etappe (bouwstap 7): de werkregel via de driehoek-bewuste draft-actie, ná de
-          // duurpatch (zodat een gelijktijdige `duration` onder de OUDE regel wordt verwerkt en de
-          // nieuwe regel het restwerk van dát moment vastlegt — spec §5 rij 6, besluit 2).
+          // De werkregel via de driehoek-bewuste draft-actie, ná de duurpatch (zodat een gelijktijdige
+          // `duration` onder de OUDE regel wordt verwerkt en de nieuwe regel het restwerk van dát moment
+          // vastlegt).
           if (res.patch.workRule !== undefined) ctx.transactions.draft.setTaskWorkRule(id, res.patch.workRule ?? undefined);
           if (outcome && 'progress' in outcome) {
             const hours = outcome.progress.remainingMinutes !== undefined;
@@ -422,10 +422,10 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
       }
     }
     if (u.progress !== undefined) {
-      // VORM eerst (audit-fix K3): `applyProgressUpdate` leest exact completion/actualStart/
-      // actualFinish en negeert al het overige — `progress: { percent: 50 }` kwam er dus als
-      // `{ applied: true }` uit terwijl er niets gebeurde. Een onbekende sleutel of een leeg blok is
-      // vanaf nu een ZACHTE weigering met naam en reden.
+      // VORM eerst: `applyProgressUpdate` leest exact completion/actualStart/actualFinish en negeert
+      // al het overige — `progress: { percent: 50 }` zou als `{ applied: true }` terugkomen terwijl er
+      // niets gebeurt. Een onbekende sleutel of een leeg blok is daarom een ZACHTE weigering met naam
+      // en reden.
       const shape = parseProgress(u.progress);
       if (!shape.ok) { rejections.push({ id, reason: shape.reason }); rejectedHere = true; }
       else {
@@ -519,7 +519,7 @@ const updateTasks: BatchStepTool = {
     const parsed = parseUpdateTasks(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const updates = parsed;
-    // Lege-batch-snelpad (reviewfix Issue 2): zijn er statisch nul uitvoerbare items (alle id's
+    // Lege-batch-snelpad: zijn er statisch nul uitvoerbare items (alle id's
     // onbekend / alleen verboden fields / niets opgegeven), return dan direct Ok mét de weigeringen —
     // zónder transactie/backup/snapshot/redo-wipe. RESTGEVAL: een item dat pas DYNAMISCH wordt
     // geweigerd (bv. progress buiten 0–100 op een bestaande taak) telt hier wél als uitvoerbaar en
@@ -565,14 +565,10 @@ function parseIdList(args: unknown, toolLabel: string): string[] | string {
 /**
  * Synchrone, transactie-vrije kern van `delete_tasks`.
  *
- * ONDERRAPPORTAGE-FIX (audit-bevinding M1). `draft.deleteTask` verwijdert de héle subboom plus de
- * relaties en toewijzingen daarvan; de kern zette alleen de GEVRAAGDE id's in `deleted`. Eén
- * verzameltaak wissen kon zo stil dertig taken meenemen terwijl de respons `deleted: ['t5']` zei.
- * En gaf je een ouder én haar kind in dezelfde `ids`-array, dan faalde het kind daarna op de
- * existentiecheck met "taak 'x' bestaat niet" — verwarrend voor een volstrekt redelijk verzoek.
- *
- * Vanaf nu: het volledige VOOR/NA-verschil wordt gerapporteerd (`deletedTaskIds`, `deletedTaskCount`,
- * `cascadedTaskIds` + de meegewiste relaties/toewijzingen), en een id dat al door een eerdere cascade
+ * `draft.deleteTask` verwijdert de héle subboom plus de relaties en toewijzingen daarvan. Eén
+ * verzameltaak wissen kan zo dertig taken meenemen; daarom wordt het volledige VOOR/NA-verschil
+ * gerapporteerd (`deletedTaskIds`, `deletedTaskCount`, `cascadedTaskIds` + de meegewiste
+ * relaties/toewijzingen), en een id dat al door een eerdere cascade
  * verdween telt als SUCCES (`deleted`), niet als weigering.
  */
 function deleteTasksCore(ctx: McpContext, ids: string[]): MutationOutcome {
@@ -639,7 +635,7 @@ const deleteTasks: BatchStepTool = {
     const parsed = parseIdList(args, 'delete_tasks');
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const ids = parsed;
-    // Lege-batch-snelpad (reviewfix Issue 2): bestaat geen enkel id, return dan direct Ok mét de
+    // Lege-batch-snelpad: bestaat geen enkel id, return dan direct Ok mét de
     // weigeringen — zónder transactie/backup/snapshot/redo-wipe.
     {
       const st = ctx.app.store.getState();
@@ -662,7 +658,7 @@ const deleteTasks: BatchStepTool = {
     }
     const res = await runMutateTool(ctx, 'mutate', (): MutationOutcome => deleteTasksCore(ctx, ids));
     return enrichOk(res, () => ({
-      // Het volledige cascade-rapport uit de kern doorgeven (M1) — niet alleen `deleted`.
+      // Het volledige cascade-rapport uit de kern doorgeven — niet alleen `deleted`.
       ...((res as McpToolOk).data as object),
       projectEnd: projectEndInfo(ctx.app.store.getState()).projectEnd,
     }));
@@ -671,8 +667,8 @@ const deleteTasks: BatchStepTool = {
 
 // =================================================================================================
 // planner_move_task — via `draft.moveTask`: dezelfde verhanging als de slice-actie `moveTask`
-// (`reparentTask`) plus de gedeelde "wordt fase"-regel, maar zonder UI-melding (audit taakmutaties
-// §6); een verhuisde toewijzing staat als `phaseTransitions` in het antwoord.
+// (`reparentTask`) plus de gedeelde "wordt fase"-regel, maar zonder UI-melding; een verhuisde
+// toewijzing staat als `phaseTransitions` in het antwoord.
 // =================================================================================================
 /** Vormvalidatie van `move_task`; string = foutboodschap. */
 function parseMoveTask(args: unknown): { id: string; newParentId: string | null; position?: number } | string {
@@ -681,9 +677,9 @@ function parseMoveTask(args: unknown): { id: string; newParentId: string | null;
   if (!(a.newParentId === null || typeof a.newParentId === 'string')) {
     return '`newParentId` moet een string of null zijn';
   }
-  // Audit-bevinding L3: een niet-numerieke `position` werd hier STIL WEGGEGOOID (de taak belandde dan
-  // achteraan) en gaf verderop `Math.min(NaN, …)` ⇒ `splice(NaN)` ⇒ gedrag als index 0. De stille klem
-  // naar [0, aantal siblings] is gedocumenteerd en blijft; niet-numerieke invoer is dat niet.
+  // Een niet-numerieke `position` hard weigeren: stil weggooien zou verderop `Math.min(NaN, …)` ⇒
+  // `splice(NaN)` ⇒ gedrag als index 0 geven. De stille klem naar [0, aantal siblings] is
+  // gedocumenteerd en blijft; niet-numerieke invoer is dat niet.
   if (a.position !== undefined && (typeof a.position !== 'number' || !Number.isInteger(a.position))) {
     return '`position` moet een geheel getal zijn (invoeg-index binnen de ouder)';
   }
@@ -712,9 +708,9 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
       || [...ancestorIds(newParentId, (tid) => parentById.get(tid))].includes(id);
     if (ownDescendant) throw new McpStepError('VALIDATION', 'kan een taak niet onder zichzelf of een eigen afstammeling plaatsen');
   }
-  // Zelfde voorafregel als de UI (audit taakmutaties, S4): een relatie op een fase geldt voor elke
-  // taak erin, dus verhangen kan een kring maken. Zonder deze toets ving pas de eindberekening dat,
-  // met de Engelse solvertekst en — in een batch — zonder te zeggen wélke stap het was.
+  // Zelfde voorafregel als de UI: een relatie op een fase geldt voor elke taak erin, dus verhangen
+  // kan een kring maken. Zonder deze toets vangt pas de eindberekening dat, met de Engelse
+  // solvertekst en — in een batch — zonder te zeggen wélke stap het was.
   const verdict = moveTaskVerdict(st, id, newParentId, position);
   if (!verdict.ok) {
     throw new McpStepError(
@@ -723,7 +719,7 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
       'gelden voor al haar subtaken, dus deze verplaatsing zou de planning laten vastlopen; de taak is niet verplaatst',
     );
   }
-  // Dezelfde relatiemelding als de store-`moveTask` (audit taakmutaties §3): een bestaande relatie die
+  // Dezelfde relatiemelding als de store-`moveTask`: een bestaande relatie die
   // hierdoor een voorouder-relatie wordt, telt niet meer mee. Rolt de transactie terug, dan gaat de
   // melding mee terug (de run herstelt de meldingen van vóór de call).
   const reportAncestorRelations = watchAncestorRelations(ctx.app.store.getState());
@@ -788,13 +784,13 @@ function classifyDeps(
   const lookup = (id: string) => byId.get(id);
   for (const d of deps) {
     const label = `${d.predecessorId}->${d.successorId}`;
-    // Type: lange én korte (leeskant-)notatie, hoofdletterongevoelig — zie `sequenceFields` (H1).
+    // Type: lange én korte (leeskant-)notatie, hoofdletterongevoelig — zie `sequenceFields`.
     const type = normalizeSeqType(d.type);
     if (!type) {
       rejections.push({ id: label, reason: unknownTypeReason(d.type) });
       continue;
     }
-    // Lag: nooit meer stil naar 0 terugvallen (K4/H2).
+    // Lag: nooit stil naar 0 terugvallen.
     const lag = parseLag(d.lag);
     if (!lag.ok) { rejections.push({ id: label, reason: lag.reason }); continue; }
     if (!byId.has(d.predecessorId)) { rejections.push({ id: label, reason: `voorganger '${d.predecessorId}' bestaat niet` }); continue; }
@@ -805,7 +801,7 @@ function classifyDeps(
       rejections.push({ id: label, reason: selfRelationReason(d.predecessorId) });
       continue;
     }
-    // Een verzameltaak-eindpunt is sinds 2026-08-15 legaal (expandSummaryRelations rekent zo'n
+    // Een verzameltaak-eindpunt is legaal (expandSummaryRelations rekent zo'n
     // relatie door naar de onderliggende bladtaken — MS Project-semantiek). Alleen een relatie
     // tussen een taak en zijn EIGEN (voor)ouder-samenvatting blijft zinloos (directe cyclus na
     // expansie). Mijlpalen zijn bladtaken en blijven dus sowieso gewoon toegestaan.
@@ -846,7 +842,7 @@ function addDependenciesCore(
   if (cyc) throw new McpStepError('CYCLE', `kringverwijzing gedetecteerd: ${cyc.join(' → ')}`);
   const added: string[] = [];
   for (const c of candidates) {
-    // `c.lag` is hier al door `parseLag` gegaan (K4): een niet-numerieke lag heeft de relatie
+    // `c.lag` is hier al door `parseLag` gegaan: een niet-numerieke lag heeft de relatie
     // hierboven geweigerd en komt nooit als stille 0 binnen. `lagPatchOf` kiest de representatie
     // (dagen óf procent) — één bron, gedeeld met `update_dependencies`. Op een NIEUWE relatie laten
     // we de lege sleutels weg (er valt niets te wissen); de update-kant zet ze bewust wél expliciet.
@@ -919,7 +915,7 @@ const addDependencies: BatchStepTool = {
     const parsed = parseAddDeps(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const deps = parsed;
-    // Lege-batch-snelpad (reviewfix Issue 2): levert de statische classificatie nul kandidaten (alle
+    // Lege-batch-snelpad: levert de statische classificatie nul kandidaten (alle
     // items onbekend/dubbel/verkeerd type), return dan direct Ok mét de weigeringen — zónder
     // transactie/backup/snapshot/redo-wipe.
     {
@@ -982,7 +978,7 @@ const removeDependencies: BatchStepTool = {
     const parsed = parseIdList(args, 'remove_dependencies');
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const ids = parsed;
-    // Lege-batch-snelpad (reviewfix Issue 2): bestaat geen enkele opgegeven relatie, return dan direct
+    // Lege-batch-snelpad: bestaat geen enkele opgegeven relatie, return dan direct
     // Ok mét de weigeringen — zónder transactie/backup/snapshot/redo-wipe.
     {
       const st = ctx.app.store.getState();
@@ -1001,16 +997,16 @@ const removeDependencies: BatchStepTool = {
 };
 
 // =================================================================================================
-// planner_undo / planner_redo — gedeelde undo-stack PER DOCUMENT (ook de user schrijft erin). Één
-// tool-mutatie = één stap. Niet-transactioneel: de store-acties beheren de stack zelf.
+// planner_undo / planner_redo — de gedeelde sessiegeschiedenis, toegepast op het ACTIEVE document
+// (ook de user schrijft erin). Één tool-mutatie = één stap. Niet-transactioneel: de store-acties
+// beheren de geschiedenis zelf.
 // =================================================================================================
 /**
- * Gedeelde kern van undo/redo (audit-fix K5).
+ * Gedeelde kern van undo/redo.
  *
- * `historySlice.undo/redo` doen `if (stack.length === 0) return;` — een STILLE no-op. Beide tools
- * gaven daarna onvoorwaardelijk `{ ok: true, data: { projectEnd } }` terug, dus een agent die drie
- * stappen terugdraaide kreeg drie identieke `ok`'s, of er nu één, geen of alle drie landden. Vanaf nu
- * meldt de respons of er daadwerkelijk iets is teruggedraaid én hoe diep beide stacks nog zijn.
+ * Zonder toepasbaar sessie-event is `undo`/`redo` in de store een STILLE no-op; een kale `ok` zou een
+ * agent dan laten geloven dat er iets is teruggedraaid. Daarom meldt de respons of er daadwerkelijk
+ * iets is teruggedraaid (diepte vóór > 0) én hoe diep beide nog zijn.
  */
 function historyStep(ctx: Parameters<McpToolDef['handler']>[1], dir: 'undo' | 'redo'): McpToolResult {
   const g = guardNonTransactional(ctx);
@@ -1070,7 +1066,7 @@ const redo: McpToolDef = {
 // =================================================================================================
 // planner_run_cpm — expliciete, geforceerde herberekening (CPM + kalender). Niet-transactioneel:
 // runCPM pusht geen undo-snapshot, dus geen eigen undo-stap — behalve wanneer hij "datums zoals
-// opgeslagen" verlaat (issue #63); dat overschrijft de opgeslagen datums en hoort ongedaan te kunnen.
+// opgeslagen" verlaat; dat overschrijft de opgeslagen datums en hoort ongedaan te kunnen.
 // =================================================================================================
 const runCpm: McpToolDef = {
   name: 'planner_run_cpm',
@@ -1105,9 +1101,9 @@ const runCpm: McpToolDef = {
   },
 };
 
-/** Alle T19-tools als vlakke module-array (registreer via één regel in toolRegistry.MODULES). */
+/** Alle tools van deze module als vlakke array (registreer via één regel in toolRegistry.MODULES). */
 // =================================================================================================
-// planner_set_task_splits (issue #146)
+// planner_set_task_splits
 // =================================================================================================
 /** Vormvalidatie van `set_task_splits`; string = foutboodschap. De inhoud van `interruptions` keurt
  *  `planTaskSplits` (die kent de taak, en dus de eenheid). */

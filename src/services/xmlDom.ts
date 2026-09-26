@@ -1,15 +1,13 @@
 /**
- * Gedeelde DOM-lees-primitieven voor de XML-readers (MSPDI, P6) — F5-b. De twee formaten
+ * Gedeelde DOM-lees-primitieven voor de XML-readers (MSPDI, P6). De twee formaten
  * verschillen BEWUST in scope-strategie, dus die staat hier als twee expliciete functies:
  *
  *   - `descendantText` (MSPDI): `getElementsByTagName(tag)[0]` — de eerste tag ergens ONDER `parent`.
  *   - `directChildText` (P6): alleen de DIRECTE kinderen van `parent`, zodat geneste elementen met
  *     dezelfde tag (bv. een Relationship-subboom) niet per ongeluk worden opgepikt.
  *
- * De numerieke wrappers (`toInt`/`toFloat`) delen de `parseInt/parseFloat`+`isNaN`-fallback-conventie
- * die eerder in beide readers identiek gekopieerd stond. Elke reader houdt een dunne lokale
- * `getElement*`-wrapper die de juiste text-strategie inprikt — zo veranderen de ~60 aanroepen niet en
- * blijft het per-formaat-gedrag exact hetzelfde.
+ * De numerieke wrappers (`toInt`/`toFloat`) delen de `parseInt/parseFloat`+`isNaN`-fallback-conventie.
+ * Elke reader houdt een dunne lokale `getElement*`-wrapper die de juiste text-strategie inprikt.
  */
 
 /** MSPDI-scope: eerste voorkomen van `tagName` ergens onder `parent` (descendant-search). */

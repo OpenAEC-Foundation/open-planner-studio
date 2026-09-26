@@ -1,4 +1,4 @@
-// Gedeelde bron van waarheid voor de interface-lettertypefamilie (issue #25 punt 4).
+// Gedeelde bron van waarheid voor de interface-lettertypefamilie.
 //
 // WAAROM een aparte module: de keuze `ui.uiFontFamily` wordt op TWEE fundamenteel verschillende
 // manieren toegepast. De DOM krijgt hem via de CSS-variabelen --font-heading/--font-body (App.tsx),

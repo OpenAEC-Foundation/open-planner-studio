@@ -1,15 +1,15 @@
 // =================================================================================================
-// MCP-bridge — validatielaag (taak T4, spec §Werkpakket 7 "Guards & validaties" + §Werkpakket 3
-// "Relatie-validatie").
+// MCP-bridge — validatielaag (guards, validaties en relatie-validatie).
 //
 // Deze module levert PURE helpers (behalve `progress.applyProgressUpdate`, dat op een Immer-DRAFT
-// werkt) die de tool-laag combineert met de draft-primitieven uit `mcpTransaction.ts` binnen een
-// `runInMcpTransaction`. Ze muteren de LIVE store niet: `validate.*` leest alleen, en
-// `progress.applyProgressUpdate` schrijft uitsluitend naar de meegegeven draft — en dan nog alleen
-// bij `applied:true` (een geweigerd item laat de draft ONGEMOEID, zodat een zachte per-item-weigering
-// binnen een bulk nooit een halve mutatie achterlaat; spec §"Stap-fouten vs item-weigeringen").
+// werkt) die de tool-laag combineert met de draft-primitieven uit
+// `runtime/createMcpTransactions.ts` binnen een `runInMcpTransaction`. Ze muteren de LIVE store
+// niet: `validate.*` leest alleen, en `progress.applyProgressUpdate` schrijft uitsluitend naar de
+// meegegeven draft — en dan nog alleen bij `applied:true` (een geweigerd item laat de draft
+// ONGEMOEID, zodat een zachte per-item-weigering binnen een bulk nooit een halve mutatie
+// achterlaat).
 //
-// ROLVERDELING t.o.v. de draft-primitieven: de drafts (T2/T3) GOOIEN op een structurele fout
+// ROLVERDELING t.o.v. de draft-primitieven: de drafts GOOIEN op een structurele fout
 // (onbekende parentId, kring via de eind-runCPM) — dat is de laatste vangrail die de hele transactie
 // terugrolt. Deze validatielaag doet de RIJKERE, ZACHTE pre-checks vóór de mutatie, met per-item-
 // rapportage: onbekende task-id's, cyclus-detectie in een voorgestelde batch, en de vijf assignment-/
@@ -42,7 +42,7 @@ export interface ItemError {
 /** Uitkomst van een guard die niet aan een enkel id hangt (toestaan of weigeren-met-reden). */
 export type GuardResult = { ok: true } | { ok: false; reason: string };
 
-/** Uitkomst van één voortgangs-update (spec §Werkpakket 7 voortgangspad). Zacht per item: een
+/** Uitkomst van één voortgangs-update. Zacht per item: een
  *  geweigerd item rolt de transactie NIET terug — de tool-laag rapporteert het prominent. */
 export type ProgressResult = { applied: true } | { applied: false; reason: string };
 
@@ -86,12 +86,11 @@ export const validate = {
    *
    * Getoetst zoals de solver rekent en zoals de UI weigert (`introducedCycle`, dezelfde regel als
    * `relationAddVerdict` en het verhangen): over de bladgraaf na `expandSummaryRelations` — een
-   * relatie naar een samenvattingstaak kan via een van haar subtaken rondlopen (audit taakmutaties,
-   * S5) — en alleen een kring die de batch TOEVOEGT; een al bestaande kring noemt deze toets dus niet
-   * als schuld van de batch. De transactie-rollback (via `cpmResult.error` in de eind-runCPM) blijft
-   * het vangnet voor wat hier onverhoopt doorheen glipt, of voor een kring die er al was; deze
-   * pre-check maakt de fout goedkoop en de melding precies (noemt de betrokken taken, begint bij de
-   * nieuwe relatie).
+   * relatie naar een samenvattingstaak kan via een van haar subtaken rondlopen — en alleen een
+   * kring die de batch TOEVOEGT; een al bestaande kring noemt deze toets dus niet als schuld van de
+   * batch. De transactie-rollback (via `cpmResult.error` in de eind-runCPM) blijft het vangnet voor
+   * wat hier onverhoopt doorheen glipt, of voor een kring die er al was; deze pre-check maakt de
+   * fout goedkoop en de melding precies (noemt de betrokken taken, begint bij de nieuwe relatie).
    */
   noCycle(
     state: ReadableState,
@@ -108,7 +107,7 @@ export const validate = {
   },
 
   /**
-   * Assignment-invarianten (spec §Werkpakket 7): een toewijzing mag alleen op een BLAD-taak
+   * Assignment-invarianten: een toewijzing mag alleen op een BLAD-taak
    * (`childIds` leeg), niet op een mijlpaal of verzameltaak, met `units > 0`, en — de belangrijkste —
    * er mag nog GEEN toewijzing van DEZELFDE resource op DEZELFDE taak bestaan. Die laatste is de
    * dubbeltelling-guard: de tool-laag kan zo vóór de mutatie een bruikbare per-itemreden geven en
@@ -129,7 +128,7 @@ export const validate = {
 
 export const progress = {
   /**
-   * Het VOLLEDIGE voortgangspad uit spec §Werkpakket 7 (regel 60), in exact de voorgeschreven volgorde.
+   * Het VOLLEDIGE voortgangspad, in exact de voorgeschreven volgorde.
    * Past een voortgangs-update toe op een taak BINNEN de meegegeven Immer-draft — maar ALLEEN bij
    * `applied:true`; een geweigerd item laat de draft ongemoeid (zachte per-item-weigering). `statusDate`
    * wordt expliciet meegegeven (de tool-laag reikt `project.statusDate` aan), zodat de helper puur op
@@ -148,13 +147,13 @@ export const progress = {
    *      meteen een nieuw `actualFinish`);
    *   7. `actualFinish >= actualStart`-check;
    *   8. GEEN statusdatum maar wél actuals/voortgang ⇒ weigering met uitleg (MCP-specifieke guard:
-   *      voortgang registreren vereist een projectstatusdatum). Besluit eigenaar: de AI-koppeling
-   *      doet hier NIETS automatisch — anders dan de UI, die de statusdatum op vandaag zet (Z1,
-   *      `engine/progressEntry.ts`); de reden zegt wat de AI moet doen;
+   *      voortgang registreren vereist een projectstatusdatum). De AI-koppeling doet hier NIETS
+   *      automatisch — anders dan de UI, die de statusdatum op vandaag zet
+   *      (`engine/progressEntry.ts`); de reden zegt wat de AI moet doen;
    *   9. voortgang op een taak met kinderen (verzameltaak) ⇒ weigering;
    *  10. dán `applyProgressInvariants` (de invariant-functie alléén is een deelverzameling en zou een
    *      40%-taak als NOT_STARTED zonder gepinde `actualStart` achterlaten);
-   *  11. Z1b (besluit eigenaar): zou de update de werkelijke start AFLEIDEN uit een geplande start ná
+   *  11. zou de update de werkelijke start AFLEIDEN uit een geplande start ná
    *      de statusdatum (`actualStartQuestionFor`, hetzelfde criterium als de vraag in de UI) ⇒
    *      weigering met uitleg: de AI moet `actualStart` meegeven. Niets automatisch, zoals bij 8;
    *  12. COMMIT naar de draft.
@@ -168,7 +167,7 @@ export const progress = {
     const task = draftState.tasks.find((t) => t.id === taskId) as Task | undefined;
     if (!task) return { applied: false, reason: `taak '${taskId}' bestaat niet` };
 
-    // Scratch: alle stappen werken op een KOPIE; commit gebeurt pas bij succes (stap 10).
+    // Scratch: alle stappen werken op een KOPIE; commit gebeurt pas bij succes (stap 12).
     const time = { ...task.time };
     const scratch = { ...task, time, status: task.status } as Task;
 
@@ -240,7 +239,7 @@ export const progress = {
 
     // (10) invarianten.
     applyProgressInvariants(scratch, statusDate);
-    // (11) Z1b: geen verzonnen werkelijke start — de AI geeft hem zelf op.
+    // (11) Geen verzonnen werkelijke start — de AI geeft hem zelf op.
     const question = actualStartQuestionFor(task, scratch, statusDate, {
       actualStart: !!update.actualStart,
       actualFinish: !!update.actualFinish,
@@ -260,18 +259,17 @@ export const progress = {
     // nivelleergaten NIET wissen — dezelfde no-op-regel als taskSlice.ts's voortgangssetters
     // (`commitProgressEdit`). Het item is wél verwerkt: het staat al zoals gevraagd.
     if (sameValue(task, scratch)) return { applied: true };
-    // Fable-critreview #170, bevinding 1: de voortgang verplaatst opgeslagen werk van rest naar
-    // verricht — momentopname op de ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store).
-    // Integratie groep B (besluit 5): ná de no-op-check, zodat een no-op ook het werk niet raakt.
+    // De voortgang verplaatst opgeslagen werk van rest naar verricht — momentopname op de
+    // ONGEWIJZIGDE taak, settle ná de commit (zelfde als de store). Ná de no-op-check, zodat een
+    // no-op ook het werk niet raakt.
     const progressWork = captureProgressWork(task, draftState);
     Object.assign(task.time, scratch.time);
     task.status = scratch.status;
     settleProgressWork(task, draftState.assignments, progressWork);
-    // B1c-plan-2 spec §4 "Invalidatie", vierde klasse (voortgang) — bedraad in de fixronde op
-    // etappe 3, bevinding B7. Dit is het MCP-equivalent van `taskSlice`'s `setTaskProgress`/
-    // `setActualStart`/`setActualFinish`: voortgang verzet de werkminuten-as waarop een
-    // leveling-gat ligt, dus dat gat moet weg. Pas ná de commit (stap 10), zodat een geweigerd item
-    // de draft ONGEMOEID laat — dezelfde regel als de rest van deze functie.
+    // Invalidatie van nivelleergaten, klasse voortgang. Dit is het MCP-equivalent van `taskSlice`'s
+    // `setTaskProgress`/`setActualStart`/`setActualFinish`: voortgang verzet de werkminuten-as
+    // waarop een leveling-gat ligt, dus dat gat moet weg. Pas ná de commit (stap 12), zodat een
+    // geweigerd item de draft ONGEMOEID laat — dezelfde regel als de rest van deze functie.
     clearLevelingGaps(task);
     return { applied: true };
   },

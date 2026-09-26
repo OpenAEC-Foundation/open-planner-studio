@@ -8,26 +8,25 @@ import {
 import { optionKeysOnly, legacyOptionsToProfile } from '@/services/ifc/schedulingProfileMigration';
 
 /**
- * Eindreview XER-etappe, bevinding 4 — het `OPS_SchedulingOptions`-JSON uit een IFC is BUITEN-
- * invoer: een willekeurig IFC-bestand kon vóór deze poort `p6Source: 'XER'`, alle p6-vlaggen en een
- * onzin-`criticalDefinition` (niet-bestaande `mode`, een string als `thresholdHours`) ongefilterd
- * in `project.schedulingOptions` zetten (`JSON.parse` + cast, probe gedraaid). Deze functie is de
- * saaie whitelist-/typevalidator: bekende sleutels, bekende enum-waarden, eindige getallen voor de
+ * Het `OPS_SchedulingOptions`-JSON uit een IFC is BUITENinvoer: zonder poort zet een willekeurig
+ * bestand `p6Source: 'XER'`, alle p6-vlaggen en een onzin-`criticalDefinition` (niet-bestaande
+ * `mode`, een string als `thresholdHours`) ongefilterd in `project.schedulingOptions`. Deze functie
+ * is de saaie whitelist-/typevalidator: bekende sleutels, bekende enum-waarden, eindige getallen voor de
  * getallen, booleans voor de vlaggen. Alles wat daar niet aan voldoet wordt WEGGELATEN (het veld
  * blijft op zijn solver-default), nooit "gerepareerd" — een half geldig object mag geen ander
  * gedrag activeren dan het bestand letterlijk beschrijft.
  *
- * `p6Source: 'XER'` blijft doorgelaten, maar is sinds de rekenprofielen geen poort meer: niets in de
- * motor leest hem (`npm run verify:conventions`). Hij bestaat alleen nog in OUDE bestanden, en de
+ * `p6Source: 'XER'` blijft doorgelaten, maar is geen poort: niets in de motor leest hem
+ * (`npm run verify:conventions`). Hij bestaat alleen in OUDE bestanden, en de
  * enige afnemer is de migratie `legacyOptionsToProfile` (bestand zonder `OPS_SchedulingProfile` ⇒
  * profiel Primavera P6); `sanitizeProjectOptions` stript hem, dus hij komt nooit op het project. Het
- * P6-gedrag hangt aan de conventies van het profiel. De `CPMSolver`-hardening op de sequences (X12,
- * `p6StartAtPredecessorFinishBoundary` wordt gestript zonder conventie B1 `p6RelationFinishBoundary`)
+ * P6-gedrag hangt aan de conventies van het profiel. De `CPMSolver`-hardening op de sequences
+ * (`p6StartAtPredecessorFinishBoundary` wordt gestript zonder conventie B1 `p6RelationFinishBoundary`)
  * beschermt tegen een LOSSE relatievlag; niet tegen een vervalst projectbestand, en dat beweert hij
  * ook niet.
  *
- * Leesmigratie-vrij: sleutels die de app niet (meer) kent verdwijnen stil; dat is hetzelfde
- * gedrag als voorheen voor onbekende psets. Headless getest in `check-ifc-roundtrip.ts`.
+ * Leesmigratie-vrij: sleutels die de app niet (meer) kent verdwijnen stil, net als onbekende
+ * psets. Headless getest in `check-ifc-roundtrip.ts`.
  */
 const BOOLEAN_KEYS = [
   'makeOpenEndedCritical', 'useExpectedFinishDates', 'preserveActualDatesInBackwardPass',
@@ -35,8 +34,8 @@ const BOOLEAN_KEYS = [
   'p6FinishMilestoneBoundaryWindow', 'p6PreserveActualInstants', 'p6UseRemainingStartForProgress',
   'p6PreserveZeroDurationConstraintInstants', 'useProjectEndDateForFloat', 'resumeFromActualElapsed',
   'unstartedIgnoresStatusDate', 'p6CompletedLateFromRemainingWindow',
-  // Rekenprofielen, groep B (bijlage A): conventiesleutels. In de overgang (tot de integratie met
-  // baan B) mogen ze nog in dit blok staan; `sanitizeProjectOptions` hieronder stript ze wel.
+  // Conventiesleutels (groep B/C) uit oude blokken, nodig voor `legacyOptionsToProfile`;
+  // `sanitizeProjectOptions` hieronder stript ze.
   'p6RelationFinishBoundary', 'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow',
   'p6CompletedLoeActualFinish', 'p6OpenLoeTargetSpan',
   'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
@@ -68,10 +67,10 @@ const LEVELING_FIELD_RE = /^[A-Za-z0-9_]{1,64}$/;
 const LEVELING_DIRECTIONS = ['ASC', 'DESC'] as const;
 
 /**
- * Het nivelleerblok (`SchedulingOptions.leveling`, etappe P6-nivellering fundament). Zelfde regels
- * als de rest: onbekend of verkeerd getypeerd valt weg, niets wordt gerepareerd; ongeldige lijstelementen
- * vallen los weg. Er is geen verplicht veld (geen `enabled`: eigenaarsbeslissing 1 open, een onbekende
- * sleutel zoals een oude `enabled` valt gewoon weg); blijft er niets geldigs over, dan vervalt het blok. Vaste
+ * Het nivelleerblok (`SchedulingOptions.leveling`). Zelfde regels als de rest: onbekend of verkeerd
+ * getypeerd valt weg, niets wordt gerepareerd; ongeldige lijstelementen vallen los weg. Er is geen
+ * verplicht veld (een onbekende sleutel zoals `enabled` valt gewoon weg); blijft er niets geldigs
+ * over, dan vervalt het blok. Vaste
  * sleutelvolgorde = de volgorde van de XER-lezer, zodat lezen → schrijven byte-identiek blijft.
  */
 function sanitizeLeveling(value: unknown): LevelingSettings | undefined {
@@ -159,7 +158,7 @@ export function sanitizeSchedulingOptions(input: unknown): LegacySchedulingOptio
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-// ── Rekenprofielen (spec 2026-09-22, tweelagenmodel) ─────────────────────────────────────────────
+// ── Rekenprofielen (tweelagenmodel: profiel + projectopties) ─────────────────────────────────────
 
 /** Eindmodel-sanitizer voor `project.schedulingOptions`: zoals `sanitizeSchedulingOptions`, maar
  *  conventiesleutels en `p6Source` worden gestript (die horen in het profiel). */
@@ -193,7 +192,7 @@ export function literalOverrides(overrides: unknown): Partial<SchedulingConventi
 }
 
 /** Moet dit profiel als pset worden weggeschreven / na lezen op het project blijven staan? Alleen
- *  het ops-profiel zónder enige (ook letterlijke) afwijking is "afwezig" (byte-identiek aan vroeger). */
+ *  het ops-profiel zónder enige (ook letterlijke) afwijking is "afwezig". */
 export function carriesProfile(profile: SchedulingProfile | undefined): profile is SchedulingProfile {
   return profile !== undefined
     && (!isDefaultProfile(profile) || Object.keys(literalOverrides(profile.overrides)).length > 0);
@@ -207,7 +206,7 @@ export function carriesProfile(profile: SchedulingProfile | undefined): profile 
  *    vóór die conventie) of ongeldig getypeerde waarde ⇒ `legacyValue`, nooit de basiswaarde;
  *    onbekende sleutels ⇒ genegeerd. `overrides` = verschil met de basis, dus de
  *    bestandswaarden winnen en de state blijft compact;
- *  - `overrides` (sinds de C2-aanvulling, letterlijk weggeschreven): elke letterlijke afwijking die
+ *  - `overrides` (letterlijk weggeschreven): elke letterlijke afwijking die
  *    met de opgeloste `conventions` klopt, blijft óók staan als ze gelijk is aan de basis (herkomst
  *    bij een profielwissel). Een letterlijke afwijking die de `conventions` tegenspreekt, wordt
  *    genegeerd: de opgeloste set is waarmee het bestand rekende. Afwezig (oudere bestanden) ⇒
@@ -232,10 +231,9 @@ export function sanitizeSchedulingProfile(input: unknown): SchedulingProfile | u
   for (const d of CONVENTIONS) {
     const value = literal[d.id];
     if (value === undefined || value !== resolved[d.id]) continue;
-    // A19-achterdeur (critreview x12-a19-basis): de oude XER-lezer schreef A19 per bestand als
-    // letterlijke override `true` onder p6 weg. Sinds A19 in de p6-basis aan staat is dat géén
-    // afwijking en geen herkomst — anders zet een wissel P6 → OPS A19 onder OPS aan. Alleen het
-    // ingebouwde p6-id: de oude lezer schreef nooit een eigen profiel.
+    // A19-achterdeur: oude bestanden dragen A19 als letterlijke override `true` onder p6. A19 staat
+    // in de p6-basis aan, dus dat is géén afwijking en geen herkomst — anders zet een wissel P6 → OPS
+    // A19 onder OPS aan. Alleen het ingebouwde p6-id: die oude bestanden hebben nooit een eigen profiel.
     if (d.id === 'p6UseRemainingStartForProgress' && id === 'p6' && value === builtInConventions('p6')[d.id]) continue;
     overrides[d.id] = value;
   }
@@ -254,7 +252,7 @@ export function schedulingProfileToJson(profile: SchedulingProfile): {
     id: profile.id,
     baseId: profile.baseId,
     conventions: resolveConventions(profile),
-    // C2-aanvulling: de afwijkingen letterlijk, zodat ze een opslag overleven (zie `literalOverrides`).
+    // De afwijkingen letterlijk, zodat ze een opslag overleven (zie `literalOverrides`).
     overrides: literalOverrides(profile.overrides),
     ...(!isBuiltInProfileId(profile.id) && profile.name ? { name: profile.name } : {}),
   };
@@ -284,8 +282,7 @@ export function sanitizeStoredSchedulingProfile(input: unknown): SchedulingProfi
 /**
  * Het profiel dat een project na het lezen krijgt: de `OPS_SchedulingProfile`-pset wint; zonder
  * (bruikbare) pset migreert het legacy `OPS_SchedulingOptions`-blok (`legacyOptionsToProfile`).
- * Het standaardprofiel (`ops` zonder afwijkingen) levert `undefined` — afwezig ≡ ops, zodat een
- * bestaand bestand na lezen dezelfde state oplevert als vóór de rekenprofielen.
+ * Het standaardprofiel (`ops` zonder afwijkingen) levert `undefined` — afwezig ≡ ops.
  */
 export function profileAfterRead(
   psetProfile: SchedulingProfile | undefined, legacyBlob: LegacySchedulingOptions | undefined,

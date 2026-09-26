@@ -1,5 +1,5 @@
 /**
- * Semantische XER-project-/taaklezer voor de begrensde X4a-scope.
+ * Semantische XER-project-/taaklezer.
  *
  * Voor begrip van P6's tokenvocabulaire en de betekenis van PROJECT/PROJWBS/TASK/TASKPRED is
  * MPXJ geraadpleegd: https://github.com/joniles/mpxj (Primavera-reader, LGPL-2.1, Jon Iles e.a.).
@@ -71,7 +71,7 @@ export interface XerReadResult extends ImportResult {
   xer: XerImportMetadata;
 }
 
-/** X4b: één XER kan nu één payload óf een geordende verzameling documentpayloads opleveren. */
+/** Eén XER kan één payload óf een geordende verzameling documentpayloads opleveren. */
 export type XerOpenResult = XerReadResult | XerMultiProjectImport;
 
 /** Eén bestandsbrede partitionering vóór per-projectmaterialisatie. */
@@ -311,7 +311,7 @@ function inferBlankCalendarBands(
   return true;
 }
 
-/** X7-broninstant: de vorm hoort bij dit ene veld, niet bij de kalender die een buurveld promoveert. */
+/** Broninstant: de vorm hoort bij dit ene veld, niet bij de kalender die een buurveld promoveert. */
 function sourceX7Instant(raw: string): string | undefined {
   return sourceInstant(raw, hasClock(raw));
 }
@@ -429,8 +429,8 @@ function relationTypeOf(
     PR_SS: { sequence: 'START_START', source: 'SS' },
     PR_FF: { sequence: 'FINISH_FINISH', source: 'FF' },
     PR_SF: { sequence: 'START_FINISH', source: 'SF' },
-    // Kale dialecttokens (pseudo-XER-exporteurs): alle vier, niet alleen FS/SS (Fable-critreview
-    // PR #109 bevinding 9 — een kaal `FF` viel eerder op de FS-terugval).
+    // Kale dialecttokens (pseudo-XER-exporteurs): alle vier, niet alleen FS/SS (een kaal `FF` mag
+    // niet op de FS-terugval vallen).
     FS: { sequence: 'FINISH_START', source: 'FS' },
     SS: { sequence: 'START_START', source: 'SS' },
     FF: { sequence: 'FINISH_FINISH', source: 'FF' },
@@ -458,10 +458,10 @@ function compareCodePoints(left: string, right: string): number {
 }
 
 /**
- * Projectnaam (eigenaarsbesluit 2026-09-24): `PROJECT.proj_name` als het bestand die kolom heeft,
- * anders de naam van de WBS-wortel van dit project — de PROJWBS-rij waarvan de ouder niet tot het
- * project behoort (P6's projectknoop). Alleen bij precies één wortel; anders '' (dan blijft het ID).
- * Leest uitsluitend al gewhiteliste kolommen (PROJECT.proj_name, PROJWBS.wbs_id/parent_wbs_id/wbs_name).
+ * Projectnaam: `PROJECT.proj_name` als het bestand die kolom heeft, anders de naam van de WBS-wortel
+ * van dit project — de PROJWBS-rij waarvan de ouder niet tot het project behoort (P6's
+ * projectknoop). Alleen bij precies één wortel; anders '' (dan blijft het ID). Leest uitsluitend al
+ * gewhiteliste kolommen (PROJECT.proj_name, PROJWBS.wbs_id/parent_wbs_id/wbs_name).
  */
 export function xerProjectName(projectRow: XerRow, wbsRows: readonly XerRow[]): string {
   const direct = (projectRow.cells.proj_name ?? '').trim();
@@ -507,8 +507,8 @@ function assertUniqueId(
   }
 }
 
-/** Map precies één reeds getokenized, niet-leeg P6-project. X4b roept deze kern één keer per
- * PROJECT-rij aan; zo blijft de X4a-mapping zelf één implementatie. */
+/** Map precies één reeds getokenized, niet-leeg P6-project. De meerprojectenroute roept deze kern één
+ * keer per PROJECT-rij aan; zo blijft de mapping zelf één implementatie. */
 function readXerProject(
   tables: XerTables,
   scheduleOptionsIndex: XerScheduleOptionsIndex,
@@ -562,7 +562,7 @@ function readXerProject(
   const calendars = readXerCalendars(tables);
   const calendarList: WorkCalendar[] = [...calendars.calendars];
   // P6 kan een geldige project-/taakexport zonder CALENDAR-tabel leveren. De projectverwijzing
-  // blijft dan bruikbaar als id en krijgt de smalle X3-default ma-vr 08:00-16:00; geen lokale
+  // blijft dan bruikbaar als id en krijgt de smalle default ma-vr 08:00-16:00; geen lokale
   // appinstelling of feestdagenbron mag zo'n import machine-afhankelijk maken.
   if (calendarList.length === 0) {
     calendarList.push({
@@ -811,11 +811,10 @@ function readXerProject(
     progressMode,
     schedulingOptions,
   } = derivedSchedule;
-  // BAK 4 (XER-etappeplan §4.1-bijstelling 2026-09-04, X-O7 laag 3) — uitsluitend weergave/meetlat,
-  // nooit solverinvoer. Onafhankelijk van de taakmapping hierboven: leest dezelfde `activityRows`,
-  // maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts` voor de laagkeuze.
+  // Vastgelegde P6-rekenuitvoer (bak 4) — uitsluitend weergave/meetlat, nooit solverinvoer. Leest
+  // dezelfde `activityRows`, maar schrijft nergens in `Task`/`Task.time`. Zie `xerRecordedTimes.ts`.
   // Staat ná `deriveXerScheduleOptions` omdat de kritiekafleiding dezelfde `criticalDefinition`
-  // gebruikt als de solver krijgt (her-check laag 3, bevinding 7).
+  // gebruikt als de solver krijgt.
   const recordedTimes = readXerRecordedTimes(activityRows, {
     numberOf: (row, field) => numberOf(tables, row, field),
     effectiveCalendarOf: (row) => {
@@ -847,12 +846,11 @@ function readXerProject(
   const projectStart = starts[0];
   const taskDerivedProjectEnd = finishes[finishes.length - 1] ?? projectStart;
   // PROJECT.plan_end_date is allowed project input, but changes the late pass only when P6's
-  // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the historical
-  // task-derived project range remains byte-identical for XER and every other format.
-  // Y zonder plan_end_date (eigenaarsbesluit 2026-09-24, Fable-critreview PR #109 bevinding 2):
-  // de optie blijft aan — dat is wat het bestand zegt — maar de lezer verzint geen anker meer uit
-  // het maximum van de geplande taakeinden. Het projecteinde blijft leeg en de solver rekent de late
-  // pass vanaf het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By" doet
+  // corresponding SCHEDOPTIONS switch is explicitly Y. Without that switch, the task-derived project
+  // range remains unchanged for XER and every other format.
+  // Y zonder plan_end_date: de optie blijft aan — dat is wat het bestand zegt — maar de lezer
+  // verzint geen anker uit het maximum van de geplande taakeinden. Het projecteinde blijft leeg en de
+  // solver rekent de late pass vanaf het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By" doet
   // (`withEffectiveProjectEndAnchor` in CPMSolver).
   const projectEnd = schedulingOptions.useProjectEndDateForFloat
     ? sourceProjectEnd ?? ''
@@ -882,7 +880,7 @@ function readXerProject(
     };
   });
   const allTasks = [...wbsTasks, ...mappedActivities];
-  deriveImportedWorkRules(mappedActivities); // taaktypes-etappe: werkregel uit duration_type
+  deriveImportedWorkRules(mappedActivities); // werkregel uit duration_type
   const taskById = new Map(allTasks.map(task => [task.id, task]));
   for (const task of allTasks) {
     if (!task.parentId) continue;
@@ -890,9 +888,9 @@ function readXerProject(
     if (parent && !parent.childIds.includes(task.id)) parent.childIds.push(task.id);
   }
 
-  // X8 projecteert uitsluitend na de bestandsbrede mapping. Daardoor kunnen identieke task_id's
-  // uit verschillende PROJECT-rijen nooit metadata naar elkaar lekken; de catalogus zelf blijft
-  // als readonly bronreferentie voor X9 gedeeld.
+  // Metadata wordt pas ná de bestandsbrede mapping geprojecteerd. Daardoor kunnen identieke task_id's
+  // uit verschillende PROJECT-rijen nooit metadata naar elkaar lekken; de catalogus zelf blijft als
+  // readonly bronreferentie gedeeld.
   const metadata = materializeXerMetadata(metadataCatalog, projectId);
   for (const [taskId, taskMetadata] of metadata.taskMetadata) {
     const task = taskById.get(taskId);
@@ -902,8 +900,8 @@ function readXerProject(
     if (taskMetadata.notes) task.notes = taskMetadata.notes;
   }
 
-  // X6: projectresources zijn bewust mutable kopieën; de raw catalogus en TASKRSRC-cellen blijven
-  // één maal geparseerde, bevroren bestandsdata. Dit voorkomt P×52.640 structuredClone-kopieën.
+  // Projectresources zijn bewust mutable kopieën; de raw catalogus en TASKRSRC-cellen blijven één maal
+  // geparseerde, bevroren bestandsdata. Dit voorkomt P×52.640 structuredClone-kopieën.
   const resourceResult = materializeXerResources(resourceCatalog, tables, {
     projectId,
     projectCalendarId: projectCalendar.id,
@@ -911,7 +909,7 @@ function readXerProject(
     availableCalendarIds: new Set(calendarList.map(calendar => calendar.id)),
     calendarHoursPerDay: new Map(calendarList.map(calendar => [calendar.id, calendar.hoursPerDay])),
     taskIds: new Set(mappedActivities.map(task => task.id)),
-    // Taaktypes-etappe: geplande werkminuten per activiteit voor de werkveld-afleiding.
+    // Geplande werkminuten per activiteit voor de werkveld-afleiding.
     taskWorkMinutes: new Map(mappedActivities.map(task => [
       task.id,
       activityWorkMinutes(task, calendarById.get(task.calendarId ?? '')?.hoursPerDay ?? projectCalendar.hoursPerDay),
@@ -999,8 +997,8 @@ function readXerProject(
       ...(statusDate ? { statusDate } : {}),
       progressMode,
       schedulingOptions,
-      // Rekenprofielen (spec v3.1 §6): XER ⇒ P6 zonder afwijkingen. A19 staat sinds 2026-09-24 in de
-      // P6-basis; PROJECT.rem_target_link_flag stuurt geen conventie meer (eigenaarsbesluit "a").
+      // Rekenprofielen: XER ⇒ P6 zonder afwijkingen. A19 staat in de P6-basis;
+      // PROJECT.rem_target_link_flag stuurt geen conventie.
       schedulingProfile: builtInProfile('p6'),
     },
     calendar: projectCalendar,
@@ -1024,8 +1022,8 @@ function readXerProject(
       externalRelations,
       externalLinks: [],
       // `assembleXerMultiProjectImport` vervangt dit vóór de reader retourneert door het echte,
-      // bestandsbrede verslag. De verplichte vorm voorkomt dat een XER-document zonder X10-data
-      // door een nieuwe codeweg kan ontsnappen.
+      // bestandsbrede verslag. De verplichte vorm voorkomt dat een XER-document zonder rapport door
+      // een nieuwe codeweg kan ontsnappen.
       report: {
         projectsSeen: 1,
         documentsOpened: 1,
@@ -1047,17 +1045,17 @@ function readXerProject(
   };
 }
 
-/**
- * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de enkelvoudige X4a-returnvorm, maar
- * krijgt hetzelfde X4b-rapportcontract; meerdere PROJECT-rijen waaieren uit naar losse payloads.
- * De baselinebeslissing zit vóór de openroute: die krijgt dus uitsluitend documenten die echt als
- * tab geopend mogen worden.
- */
 /** Geplande werkminuten van een activiteit (uurmodus: de bronminuten; dagmodus: dagen × uren/dag). */
 function activityWorkMinutes(task: Task, hoursPerDay: number): number {
   return activityWorkMinutesOf(task.time, hoursPerDay);
 }
 
+/**
+ * Lees de oorspronkelijke XER-bytes. Eén PROJECT behoudt de enkelvoudige returnvorm, maar krijgt
+ * hetzelfde rapportcontract; meerdere PROJECT-rijen waaieren uit naar losse payloads. De
+ * baselinebeslissing zit vóór de openroute: die krijgt dus uitsluitend documenten die echt als tab
+ * geopend mogen worden.
+ */
 export function readXER(bytes: Uint8Array): XerOpenResult {
   const tables = parseXerTables(bytes);
   const scheduleOptionsIndex = indexXerScheduleOptions(tables);
@@ -1138,8 +1136,8 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     document.result.xer = bindXerImportMetadataToArchive(archive, document.projectId);
   }
   if (assembled.results.length > 0) {
-    // De openvorm blijft compatibel: één PROJECT levert nog altijd één ImportResult. Alleen de
-    // rapportberekening loopt uniform door dezelfde X4b-kern als een meervoudig bestand.
+    // De openvorm blijft compatibel: één PROJECT levert één ImportResult. Alleen de
+    // rapportberekening loopt uniform door dezelfde kern als een meervoudig bestand.
     return projectRows.length === 1 ? assembled.documents[0].result : assembled;
   }
   throw new XerImportError(
@@ -1150,16 +1148,16 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
 }
 
 /**
- * Herbouw de volledige X9-runtimegrafiek uit uitsluitend de canonieke XER-bronbytes.
+ * Herbouw de volledige runtimegrafiek uit uitsluitend de canonieke XER-bronbytes.
  *
- * T5 (laag 3, §3.8): levert naast het archief óók de bak-4-vastlegging per project. Dat is GRATIS —
- * deze functie draaide al een volledige `readXER` en gooide `recordedTimes` alleen weg — en het is
- * de enige vorm die per constructie identiek is aan het oorspronkelijke openen (zelfde bytes,
- * zelfde code). Er wordt hier NIETS opnieuw afgeleid; zie `XerSourceReconstruction`.
+ * Levert naast het archief óók de vastgelegde P6-rekenuitvoer per project. Die komt gratis mee —
+ * deze functie draait een volledige `readXER` — en is per constructie identiek aan het oorspronkelijke
+ * openen (zelfde bytes, zelfde code). Er wordt hier NIETS opnieuw afgeleid; zie
+ * `XerSourceReconstruction`.
  *
  * Bij een meerprojectenbestand krijgt élk project zijn eigen entry (de IFC-lezer kiest daaruit met
- * `OPS_XerDocument`'s selector). Het archief zelf is bestandsbreed en per definitie voor alle
- * resultaten dezelfde referentie.
+ * `OPS_XerDocument`'s selector). Het archief zelf is bestandsbreed en voor alle resultaten dezelfde
+ * referentie.
  */
 export function reconstructXerSourceFromBytes(bytes: Uint8Array): XerSourceReconstruction {
   const opened = readXER(bytes);

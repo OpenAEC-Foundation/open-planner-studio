@@ -6,9 +6,8 @@ import { parseDate } from '@/utils/dateUtils';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /**
- * Variance-berekening (fase 2.6): vergelijkt de huidige (CPM-)datums met een actieve baseline.
- * Puur (geen store/React) zodat de headless testharnas en de latere React-hook (golf 3) dezelfde
- * bron delen.
+ * Variance-berekening: vergelijkt de huidige (CPM-)datums met een actieve baseline.
+ * Puur (geen store/React) zodat de headless testharnas en de UI dezelfde bron delen.
  */
 export type VarianceStatus = 'onSchedule' | 'late' | 'early' | 'new' | 'dropped';
 

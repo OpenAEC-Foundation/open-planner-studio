@@ -33,7 +33,7 @@ let dragSeq = 0;
 // Idem voor een stuk-/stukrandsleep op een gesplitste balk (`splitdrag:<taskId>:<n>`).
 let splitDragSeq = 0;
 
-/** Issue #146 etappe 3: wat bij de START van een stuk-/stukrandsleep bevroren wordt. Elke mousemove
+/** Wat bij de START van een stuk-/stukrandsleep bevroren wordt. Elke mousemove
  *  rekent vanaf `pieces0`, niet vanaf de vorige move — anders maakt terugslepen niets ongedaan. */
 export interface SplitDragContext {
   /** `gap` = de body van stuk i>0 verslepen (de pauze ervóór), `work` = de rechterrand van stuk i. */
@@ -52,7 +52,7 @@ export interface SplitDragContext {
 }
 
 /**
- * W2-vervolg (besluit eigenaar: "Gantt-slepen = dezelfde regel als typen"): wat bij de START van een
+ * Gantt-slepen volgt dezelfde startregel als typen: wat bij de START van een
  * gebaar dat de start verzet (body verschuiven, linkerrand) over de startregel vastligt. Elke
  * muisbeweging rekent vanaf `original`, zodat terugslepen de oorspronkelijke constraint herstelt en
  * de melding na loslaten over het netto-resultaat gaat.
@@ -82,7 +82,7 @@ export interface SplitDragLabel {
 /**
  * De stukkenlijst waarop een stuk-sleep mag rekenen, of `null` wanneer de gesplitste balk als ÉÉN
  * balk moet slepen: de taak is niet splitsbaar (`canSplitTask`, o.a. een niet-wélgevormde
- * importsplit — alleen-lezen, spec §1), of de renderer tekende een ander aantal stukken dan de
+ * importsplit — alleen-lezen), of de renderer tekende een ander aantal stukken dan de
  * stukkenlijst telt (een pauze korter dan een halve werkdag is in dag-modus onzichtbaar; een
  * stuk-index zou dan naar het verkeerde werkstuk wijzen). Eén bron voor coördinator en sleep.
  */
@@ -104,16 +104,16 @@ export interface DragState {
   originalStart: string;
   originalFinish: string;
   originalDuration: number;
-  /** Fase 2.8b (§6.3): originele `durationMinutes` bij drag-start (uur-taken); undefined = dag-taak. */
+  /** Originele `durationMinutes` bij drag-start (uur-taken); undefined = dag-taak. */
   originalDurationMinutes?: number;
   /** Gantt-aspositie bij pointer-down; de volgende muisbewegingen worden hiertegen afgezet. */
   pointerStart?: Date;
-  /** Issue #146 etappe 3: op welk stuk van een gesplitste balk het gebaar begon (0 van 1 = een
+  /** Op welk stuk van een gesplitste balk het gebaar begon (0 van 1 = een
    *  ongesplitste balk, of een gesplitste die als geheel sleept). */
   segmentIndex?: number;
   segmentCount?: number;
   /** Gezet door `startBarDrag` wanneer dit een stuk- of stukrandsleep is; anders ongedefinieerd en
-   *  loopt het gebaar byte-identiek over de bestaande body/rand-takken. */
+   *  loopt het gebaar over de gewone body/rand-takken. */
   split?: SplitDragContext;
 }
 
@@ -123,7 +123,7 @@ interface UseBarDragOptions {
   enableHourPlanning: boolean;
   calendar: WorkCalendar;
   effectiveCalById: Map<string, WorkCalendar>;
-  /** Issue #21 punt 5 (review §10.3): dezelfde vlag als `GanttCanvas`/`resolveGanttAxis` — bepaalt
+  /** Dezelfde vlag als `GanttCanvas`/`resolveGanttAxis` — bepaalt
    *  of een getoonde kolom een KALENDERdag (uit) of een WERKDAG (aan) voorstelt tijdens het slepen.
    *  Effectieve compressie wordt, net als de as zelf, ook gegate op `hasWorkingDays()` van de
    *  PROJECTkalender (`calendar`, niet de per-taak-kalender) — zie `isCompressedEffective`. */
@@ -141,14 +141,14 @@ interface UseBarDragOptions {
   /** De exacte as waarmee de renderer de balk heeft getekend, inclusief werkdagencompressie. */
   axis: GanttAxis;
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  /** Issue #146 etappe 3: de ENE schrijfweg voor gebruikerssplits. Zonder deze naad (tests,
-   *  oudere aanroepers) sleept een gesplitste balk als geheel, zoals vóór etappe 3. */
+  /** De ENE schrijfweg voor gebruikerssplits. Zonder deze naad (tests) sleept een gesplitste
+   *  balk als geheel. */
   setTaskSplits?: (taskId: string, pieces: SplitPiece[] | null, opts?: { coalesceKey?: string }) => unknown;
   /** Bovenkant van de getekende balk in canvascoördinaten, voor het sleeplabel. */
   barTopOf?: (taskId: string) => number | null;
-  /** W2-vervolg: bepaalt een voorganger de start van deze taak (`predecessorDrivenTaskIds`)? Dan volgt
+  /** Bepaalt een voorganger de start van deze taak (`predecessorDrivenTaskIds`)? Dan volgt
    *  een gesleepte start dezelfde regel als een getypte (`constraintForDraggedStart`,
-   *  `constraintBlockingStart`). Afwezig ⇒ nooit (gedrag van vóór de regel). */
+   *  `constraintBlockingStart`). Afwezig ⇒ nooit. */
   isStartDrivenByPredecessor?: (taskId: string) => boolean;
   /** Het ene meldkanaal en de datumnotatie voor de startmelding na het loslaten. */
   notify?: (notification: NotifyInput) => void;
@@ -156,26 +156,25 @@ interface UseBarDragOptions {
 }
 
 // Balk-sleep (resize links/rechts + verplaatsen), dag- én uur-taken. Bezit zijn eigen `dragState`
-// en window-listeners; het centrale mousedown-hittest roept `startBarDrag(...)` aan. Bevat de drie
-// verse resize-fixes (commits fa0c73d + 5c9f178) ONGEWIJZIGD:
+// en window-listeners; het centrale mousedown-hittest roept `startBarDrag(...)` aan. Drie regels:
 //   1. duur = INCLUSIEVE werkdagen-telling via de taakkalender (workDaysBetween), zoals CPMSolver;
 //   2. de mousemove-guard skipt alleen als `daysDelta` ONgewijzigd is sinds de vorige commit
 //      (lastAppliedDelta, init 0) — niet zodra 'ie 0 is — zodat terug-naar-Δ0 de begin-duur herstelt;
 //   3. het balk-anker wordt gecanonaliseerd naar een werkdag (addWorkDays/subtractWorkDays) zodat
 //      earlyStart/earlyFinish nooit op een weekend landen en niet verschuiven bij de volgende runCPM.
-// Issue #21 punt 5 (review §10.3): onder werkdagen-as-compressie (`compressNonWorkdays`) stelt een
+// Onder werkdagen-as-compressie (`compressNonWorkdays`) stelt een
 // GETOONDE kolom een WERKDAG voor i.p.v. een kalenderdag — de dag-modus-branches (body/left/right,
 // hieronder) vertalen `daysDelta` daarom via `shiftByDisplayedColumns` (`addWorkingDaysSigned` i.p.v.
 // `addCalendarDays`). Toggle uit ⇒ ongewijzigd. De UUR-tak leest de gedeelde Gantt-as terug en laat
 // daarna CalendarEngine de werkminuten/werkbanden bepalen, dus een naad onder werkdagencompressie
 // volgt precies wat de gebruiker op de as zag.
 //
-// Issue #146 etappe 3: op een GESPLITSTE balk zijn er twee extra takken, vóór de bestaande. De body
+// Op een GESPLITSTE balk zijn er twee extra takken, vóór de gewone. De body
 // van stuk i>0 verslepen stelt de pauze ervóór bij (`setGapLength`; tegen het vorige stuk aan =
 // samenvoegen), de rechterrand van stuk i zet de lengte van dát stuk (`setWorkLength`, ook voor het
 // laatste stuk: de duur verandert mee). Beide rekenen via `splitEdit.ts` vanaf een bevroren
 // `pieces0` en committen per mousemove via `setTaskSplits` met één coalesce-key per gebaar. Stuk 0
-// (body en linkerrand) en elke ongesplitste balk lopen over de bestaande code hieronder.
+// (body en linkerrand) en elke ongesplitste balk lopen over de gewone code hieronder.
 export function useBarDrag({
   zoom, enableQuarterHourZoom, enableHourPlanning, calendar, effectiveCalById, compressNonWorkdays, getTask,
   updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor,
@@ -187,13 +186,12 @@ export function useBarDrag({
   // effect wordt dan terecht met actuele kalenderinvoer herstart, maar dat mag geen nieuw
   // coalesce-venster openen: één pointergesture blijft exact één undoable handeling.
   const undoKeyRef = useRef<string | null>(null);
-  // Deze twee horen bij het GEBAAR, niet bij de effect-instantie. Ze stonden eerder als `let` in de
-  // effect-body, en dat was fout om exact dezelfde reden als bij `undoKeyRef` hierboven: het effect
-  // herstart tijdens een lopende sleep (o.a. omdat `effectiveCalById` na elke gecommitte
-  // `updateTask` een nieuwe identiteit krijgt), waarna de closure-variabelen terugvielen op hun
-  // beginwaarde. Voor `direction` betekende dat een tweede richtingskeuze halverwege het gebaar: een
-  // diagonale sleep verzette dan éérst datums en dáárna de structuur — twee mutaties, twee
-  // undo-stappen, precies wat de drempelkeuze moest uitsluiten (review 2026-09-15).
+  // Deze twee horen bij het GEBAAR, niet bij de effect-instantie (dus refs, geen `let` in de
+  // effect-body), om dezelfde reden als `undoKeyRef` hierboven: het effect herstart tijdens een
+  // lopende sleep (o.a. omdat `effectiveCalById` na elke gecommitte `updateTask` een nieuwe
+  // identiteit krijgt). Een closure-variabele zou dan terugvallen op zijn beginwaarde; voor
+  // `direction` betekent dat een tweede richtingskeuze halverwege het gebaar — een diagonale sleep
+  // verzet dan éérst datums en dáárna de structuur, twee mutaties en twee undo-stappen.
   const directionRef = useRef<'undecided' | 'horizontal'>('undecided');
   // Laatst toegepaste dag-verschuiving. Init op 0 = de begintoestand (geen no-op-update bij het
   // grijpen), maar terugkeren naar Δ0 ná een beweging herstelt de originele duur weer (zie de guard
@@ -256,7 +254,7 @@ export function useBarDrag({
   }, [axis, canvasRef, prepareSplitDrag, getTask, isStartDrivenByPredecessor]);
 
   // Automatisch berekenen wacht tot de sleep af is: elke mousemove commit, en een CPM-run midden in
-  // het gebaar liet de balk onder de muis verspringen. Het effect laat ook los bij een afgebroken
+  // het gebaar laat de balk onder de muis verspringen. Het effect laat ook los bij een afgebroken
   // gebaar of unmount.
   const dragging = dragState !== null;
   useEffect(() => (dragging ? holdAutoCalc() : undefined), [dragging]);
@@ -271,22 +269,21 @@ export function useBarDrag({
     if (!undoKey) return;
 
     // Een UUR-taak (datumstring met tijdcomponent) behoudt zijn minutenbron. Dag-taken houden het
-    // bestaande dag-pad hieronder letterlijk gescheiden.
+    // dag-pad hieronder letterlijk gescheiden.
     const isHourDrag = dragState.originalStart.includes('T');
 
     // Dag-resize: de nieuwe duur is de INCLUSIEVE werkdagen-telling via de taakkalender — exact
     // zoals CPM zelf rekent (CPMSolver: `scheduleDuration = cal.workDaysBetween(es, ef)`). Zo blijft
     // een resize-sleep staan ná de eerstvolgende runCPM en tellen weekend/feestdagen niet als duur
-    // mee. (De vorige `diffCalendarDays` was exclusief én kalender-gebaseerd → één werkdag te weinig,
-    // en bij slepen over een weekend werden za/zo ten onrechte meegeteld.)
+    // mee (een exclusieve kalenderdagtelling geeft één werkdag te weinig en telt za/zo mee).
     const resizeCalEngine = new CalendarEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
-    // Issue #21 punt 5 (review §10.3): de kolom→datum-vertaling voor het SLEEP-gebaar zelf moet de
+    // De kolom→datum-vertaling voor het SLEEP-gebaar zelf moet de
     // PROJECTkalender volgen — dat is dezelfde kalender waarmee `GanttCanvas` de gedeelde
     // (mogelijk gecomprimeerde) as bouwt (`resolveGanttAxis({ calendar, ... })`), dus 1 getoonde
     // kolom = 1 werkdag van DIE kalender, ongeacht of deze taak een eigen kalender heeft. Duur-
     // berekening (workDaysBetween/addWorkDays/subtractWorkDays hieronder) blijft op de
     // taak-specifieke `resizeCalEngine` leunen — dat is een apart vraagstuk (hoeveel werkdagen
-    // past de taak-kalender in het gesleepte bereik) en verandert hier niet.
+    // past de taak-kalender in het gesleepte bereik).
     const axisCalEngine = new CalendarEngine(calendar);
     const compressed = isCompressedEffective(axisCalEngine, compressNonWorkdays);
     // Snap-quantum: zie `hourSnapMinutesFor`. Met urenplanning uit blijft de as voor nieuwe gebaren
@@ -295,8 +292,8 @@ export function useBarDrag({
     const quantumMin = hourSnapMinutesFor(zoom, enableQuarterHourZoom, enableHourPlanning);
 
     // De constraint bij een gesleepte start `start` (dezelfde regel als typen): een SNET, of — terug
-    // op de oorspronkelijke start — weer de oorspronkelijke constraint. Leeg zonder startregel, zodat
-    // de sleep voor alle andere taken byte-identiek blijft.
+    // op de oorspronkelijke start — weer de oorspronkelijke constraint. Leeg zonder startregel: dan
+    // raakt de sleep de constraint niet.
     const constraintForStart = (start: string): Partial<Task> => {
       const rule = startRuleRef.current;
       if (!rule) return {};
@@ -326,7 +323,7 @@ export function useBarDrag({
       const origFinish = parseInstant(dragState.originalFinish);
       const baseTime = getTask(dragState.taskId)?.time;
       if (!baseTime) return;
-      // Volg dezelfde K2-fabriek als de scheduler en resourceberekeningen: expliciete banden
+      // Volg dezelfde kalenderfabriek (`calendarForEngine`) als de scheduler en resourceberekeningen: expliciete banden
       // (inclusief pauzes) winnen, maar een oudere/zuiver dag-granulaire kalender blijft bruikbaar.
       const effectiveHourCalendar = calendarForEngine(effectiveCalById.get(dragState.taskId) ?? calendar);
       const origMinutes = dragState.originalDurationMinutes
@@ -359,7 +356,7 @@ export function useBarDrag({
       }, { coalesceKey: undoKey });
     };
 
-    /** Stuk- of stukrandsleep (issue #146 etappe 3). Geen richtingskeuze: alleen stuk 0 draagt de
+    /** Stuk- of stukrandsleep. Geen richtingskeuze: alleen stuk 0 draagt de
      *  verticale rijsleep, zoals een ongesplitste balk. */
     const handleSplitDrag = (e: MouseEvent, split: SplitDragContext) => {
       const canvas = canvasRef.current;
@@ -421,7 +418,7 @@ export function useBarDrag({
           return;
         }
         // Zonder ontvanger (geen ingebedde taakgrid) bestaat het verticale gebaar niet en blijft de
-        // body een gewone datumsleep, zoals vóór 2026-08-27. Het gebaar hier afbreken zou de balk
+        // body een gewone datumsleep. Het gebaar hier afbreken zou de balk
         // stil doodleggen tot mouseup.
         directionRef.current = 'horizontal';
       }
@@ -432,10 +429,9 @@ export function useBarDrag({
       }
       const daysDelta = Math.round(pixelDelta / zoom);
       // Skip alleen als de dag-verschuiving NIET veranderd is sinds de vorige commit — niet zodra ze
-      // toevallig 0 is. De oude `=== 0`-guard maakte de START-duur onbereikbaar: na een beweging
-      // terug naar Δ0 werd niets gecommit, dus de balk bleef op de buur-waarde hangen en "flipte"
-      // tussen de duren links/rechts van de begin-duur (bug: "ik kan 'm niet op 4 krijgen, hij
-      // springt tussen 3 en 5"). Nu herstelt Δ0 netjes de originele duur.
+      // toevallig 0 is: een `=== 0`-guard maakt de START-duur onbereikbaar (na een beweging terug
+      // naar Δ0 wordt niets gecommit en blijft de balk op de buur-waarde hangen). Zo herstelt Δ0 de
+      // originele duur.
       if (daysDelta === lastAppliedDeltaRef.current) return;
       lastAppliedDeltaRef.current = daysDelta;
 
@@ -447,10 +443,10 @@ export function useBarDrag({
       if (dragState.edge !== 'right' && startBlocked(daysDelta !== 0)) return;
 
       if (dragState.edge === 'body') {
-        // Move entire task. Issue #21 punt 5 (review §10.3): onder compressie stelt `daysDelta`
+        // Move entire task. Onder compressie stelt `daysDelta`
         // GETOONDE kolommen = WERKdagen voor, niet kalenderdagen — `shiftByDisplayedColumns` schuift
         // dan via `addWorkingDaysSigned` (dezelfde werkdag-telling voor start én finish behoudt de
-        // duur exact). Toggle uit ⇒ ONGEWIJZIGD `addCalendarDays`-pad (byte-identiek).
+        // duur exact). Toggle uit ⇒ `addCalendarDays`.
         const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
         const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
         updateTask(dragState.taskId, {
@@ -468,11 +464,10 @@ export function useBarDrag({
         // maar schrijf een WERKDAG-anker weg (addWorkDays) i.p.v. de rauwe kalenderdag. Zo is de
         // balk tijdens het slepen al identiek aan wat runCPM produceert; earlyFinish belandt nooit
         // op een weekend/feestdag (een niet-canoniek anker verschuift bij de eerstvolgende runCPM —
-        // o.a. bij bestand openen — waardoor dezelfde sleep vóór/ná een ander resultaat gaf, plus
-        // een "plateau" rond een weekend-anker). Het weekend-DUURgedrag verandert niet: newDuration
-        // komt nog steeds uit workDaysBetween. Issue #21 punt 5 (review §10.3): onder compressie is
+        // o.a. bij bestand openen — en geeft een "plateau" rond een weekend-anker). newDuration
+        // komt uit workDaysBetween. Onder compressie is
         // `daysDelta` een WERKDAG-aantal getoonde kolommen — `shiftByDisplayedColumns` schuift dan
-        // via `addWorkingDaysSigned` i.p.v. de rauwe kalenderdag-optelling (toggle uit: ongewijzigd).
+        // via `addWorkingDaysSigned` i.p.v. de rauwe kalenderdag-optelling (toggle uit: kalenderdagen).
         const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(origStart, newFinish));
         const canonFinish = resizeCalEngine.addWorkDays(origStart, newDuration);
@@ -487,9 +482,9 @@ export function useBarDrag({
       } else if (dragState.edge === 'left') {
         // Resize from left (change start/duration). Idem als de rechterrand: schrijf een WERKDAG-
         // start weg (subtractWorkDays vanaf de vaste finish) i.p.v. de rauwe kalenderdag, zodat het
-        // anker canoniek blijft (geen weekend-start, geen verschuiving bij runCPM). Issue #21 punt 5
-        // (review §10.3): onder compressie is `daysDelta` een WERKDAG-aantal getoonde kolommen —
-        // `shiftByDisplayedColumns` schuift dan via `addWorkingDaysSigned` (toggle uit: ongewijzigd).
+        // anker canoniek blijft (geen weekend-start, geen verschuiving bij runCPM). Onder compressie
+        // is `daysDelta` een WERKDAG-aantal getoonde kolommen — `shiftByDisplayedColumns` schuift dan
+        // via `addWorkingDaysSigned` (toggle uit: kalenderdagen).
         const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(newStart, origFinish));
         const canonStart = resizeCalEngine.subtractWorkDays(origFinish, newDuration);

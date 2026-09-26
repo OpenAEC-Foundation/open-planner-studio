@@ -1,5 +1,5 @@
 /**
- * Rekenprofielen — opslag van EIGEN profielen (spec §3.2/§6). App-globaal, niet per document: een
+ * Rekenprofielen — opslag van EIGEN profielen. App-globaal, niet per document: een
  * eigen profiel is een sjabloon. Een project draagt zijn eigen kopie in het IFC; wijzigen of
  * verwijderen van een sjabloon hier werkt dus NIET door naar projecten, en koppelen gebeurt op `id`,
  * nooit op naam.

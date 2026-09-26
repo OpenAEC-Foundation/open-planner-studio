@@ -1,7 +1,6 @@
-// Eén registry voor de extensie→reader-dispatch, die tot nu toe 5× gedupliceerd was
-// (fileSlice.openFile/openRecentFile/parseExternalSource, fileTools.parseByExtension,
-// devBridge.openFromPath) plus de bijbehorende exportlijst (Backstage). Pure refactor —
-// gedrag ongewijzigd (fase 3.8 etappe 1, taak T1).
+// Eén registry voor de extensie→reader-dispatch (fileSlice.openFile/openRecentFile/
+// parseExternalSource, fileTools.parseByExtension, devBridge.openFromPath) plus de bijbehorende
+// exportlijst (Backstage).
 
 import { readIFC } from '@/services/ifc/ifcReader';
 import { XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT } from '@/services/xerSourceArchive';
@@ -22,12 +21,11 @@ export interface ReadFormat {
   /** Dialoogfilterlabel — bewust hard-coded Engels (bestaande conventie: 'IFC Files'). */
   filterName: string;
   /** Mag een geopend bestand van dit formaat het OPSLAGDOEL (filePath/fileHandle) van het document
-   *  worden? (T11, T8-kwaliteitsreview-agenda, stap 0-ter b.) Opslaan schrijft ALTIJD IFC-tekst
+   *  worden? Opslaan schrijft ALTIJD IFC-tekst
    *  terug — dat is alleen correct als de bron zelf ook IFC was; élk ander bronformaat zou de
    *  eerstvolgende Ctrl+S zijn eigen bronbestand met IFC-inhoud laten overschrijven. Ontbreekt
    *  (`undefined`) ⇒ `false`, dus alleen de IFC-entry hoeft 'm expliciet op `true` te zetten.
-   *  Vervangt de eerdere `id === 'ifc'`/`format === 'IFC' && !isBinary`-vergelijkingen in
-   *  `fileSlice.ts` en `fileTools.ts` — één vlag, één plek. */
+   *  Eén vlag voor `fileSlice.ts` en `fileTools.ts`. */
   canBeSaveTarget?: boolean;
   read(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport>;
 }
@@ -76,12 +74,11 @@ function xmlRootElement(content: string): { localName: string; namespace: string
 }
 
 /** Welke XML-planning dit is, op basis van het ROOT-ELEMENT en zijn namespace — nooit op vrije
- *  tekst (import/export-audit 2026-09, bevinding 3: `content.includes('Primavera')` stuurde een
- *  MS Project-XML met "Primavera" in een project- of taaknaam naar de P6-lezer, die er zonder fout
- *  een leeg project "P6 Import" van maakte). Primavera P6-XML heeft altijd de root
+ *  tekst (`content.includes('Primavera')` zou een MS Project-XML met "Primavera" in een project- of
+ *  taaknaam naar de P6-lezer sturen, die er zonder fout een leeg project "P6 Import" van maakt). Primavera P6-XML heeft altijd de root
  *  `APIBusinessObjects` (namespace `http://xmlns.oracle.com/Primavera/…`); MSPDI heeft de root
  *  `Project` in de MS Project-namespace (`http://schemas.microsoft.com/project`) — een `Project`
- *  zonder namespace blijft MSPDI, zoals voorheen. Eén beslissing voor de registry (lezerkeuze) en
+ *  zonder namespace blijft MSPDI. Eén beslissing voor de registry (lezerkeuze) en
  *  de MCP-import (`formatOf`-label), zodat die twee nooit uit elkaar kunnen lopen. */
 export function detectXmlFlavor(content: string): 'p6' | 'mspdi' | null {
   const root = xmlRootElement(content);
@@ -93,7 +90,7 @@ export function detectXmlFlavor(content: string): 'p6' | 'mspdi' | null {
 
 /** Interne subdispatch voor de xml-entry van `READ_FORMATS`: kies de juiste XML-reader op basis
  *  van het root-element (`detectXmlFlavor`). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
- *  te parsen. Niet geëxporteerd (T1-restpunt): geen afnemer buiten deze module — de enige
+ *  te parsen. Niet geëxporteerd: geen afnemer buiten deze module — de enige
  *  aanroeper is de xml-entry hieronder. */
 function parseProjectXml(content: string): OpenedImport {
   const flavor = detectXmlFlavor(content);
@@ -117,8 +114,7 @@ export async function readIFCWithXerReconstruction(
   return readIFC(content, labels);
 }
 
-/** Default-formaat bij een onbekende extensie (bestaand gedrag: de else-tak van alle vijf
- *  kopieën). Een APARTE, benoemde const-entry (T1-restpunt) i.p.v. `READ_FORMATS.find(...)!` —
+/** Default-formaat bij een onbekende extensie. Een APARTE, benoemde const-entry i.p.v. `READ_FORMATS.find(...)!` —
  *  zo kan de default nooit "zoek 'm op en forceer met `!`" zijn (een niet-gevonden id zou dat stil
  *  tot een runtime-crash maken); de entry staat bovendien nog steeds gewoon IN `READ_FORMATS`,
  *  dus herordenen wisselt 'm nooit stilzwijgend. */
@@ -167,7 +163,7 @@ export function binaryExtensions(): string[] {
   return READ_FORMATS.filter((f) => f.kind === 'binary').flatMap((f) => f.extensions);
 }
 
-/** Alle geregistreerde leesformaten (T11) — puur voor tests: `check-mpp-open-guard.ts` bewijst
+/** Alle geregistreerde leesformaten — puur voor tests: `check-mpp-open-guard.ts` bewijst
  *  hiermee dat exact één formaat `canBeSaveTarget` draagt, zonder de private `READ_FORMATS`-array
  *  zelf te moeten exporteren. Geen productie-afnemer; introduceer er geen. */
 export function allReadFormats(): readonly ReadFormat[] {
@@ -187,23 +183,21 @@ export interface FormatIO {
   readFile(path: string): Promise<Uint8Array>;
 }
 
-/** Leest `name` als tekst óf bytes — welke van de twee hangt af van het geregistreerde formaat
- *  (T11, T2-kwaliteitsreview-agenda stap 0 a): de "isBinary ? readFile : readTextFile"-tak stond
- *  tot deze refactor 3x los (fileSlice.parseExternalSource, devBridge.openFromPath, en in
- *  aangepaste vorm fileTools.ts's `import_schedule`-handler). Eén plek voor de beslissing; de
+/** Leest `name` als tekst óf bytes — welke van de twee hangt af van het geregistreerde formaat.
+ *  Eén plek voor de "isBinary ? readFile : readTextFile"-beslissing (fileSlice.parseExternalSource,
+ *  devBridge.openFromPath, fileTools.ts's `import_schedule`-handler); de
  *  aanroeper blijft verantwoordelijk voor foutafhandeling rond de I/O zelf. */
 export async function readFormatInput(name: string, io: FormatIO): Promise<FormatInput> {
   const isBinary = readFormatForFile(name).kind === 'binary';
   return isBinary ? { name, bytes: await io.readFile(name) } : { name, text: await io.readTextFile(name) };
 }
 
-/** Opslagdoel-beslissing (T11, T8-kwaliteitsreview-agenda stap 0-ter b): één plek voor de
- *  filePath/fileHandle-afleiding die `fileSlice.openFile` en `openRecentFile` allebei nodig
- *  hebben — vóór deze helper stond die logica tweemaal, geformuleerd als `id === 'ifc'`. Een
+/** Opslagdoel-beslissing: één plek voor de filePath/fileHandle-afleiding die `fileSlice.openFile`
+ *  en `openRecentFile` allebei nodig hebben. Een
  *  bestand van een niet-`canBeSaveTarget`-formaat krijgt GEEN opslagdoel (opslaan wordt dan
  *  opslaan-als); `ref` is de herbruikbare handle/pad van de open-actie (`null` bij de download-
  *  terugval of een niet-herbruikbare bron), `name` de bestandsnaam als terugvalwaarde voor
- *  `filePath` wanneer er geen pad-ref is (spiegelt het bestaande gedrag: Tauri levert een pad,
+ *  `filePath` wanneer er geen pad-ref is (Tauri levert een pad,
  *  web-FSA een handle, de input-terugval geen van beide — dan blijft alleen de naam over). */
 export function saveTargetFor(
   readFormat: ReadFormat,
@@ -219,7 +213,7 @@ export function saveTargetFor(
 
 /** Vertaalsleutel voor een mislukte open-actie. Duck-typed op `mppCode` zodat deze module de
  *  (lazy geladen) mpp-chunk niet statisch hoeft te importeren. Returntype is de letterlijke
- *  union die de enige geplande afnemer (T8: `notify({ messageKey: … })`) verwacht — bewust
+ *  union die de afnemer (`notify({ messageKey: … })`) verwacht — bewust
  *  hier als losse literals herhaald i.p.v. `NotificationMessageKey` te importeren, zodat deze
  *  laag (services/) niet van state/ afhangt. */
 export function importErrorMessageKey(
@@ -281,7 +275,7 @@ export interface ExportFormatMeta {
   shortLabelKey?: string;
 }
 
-/** Volgorde = bestaande Backstage-volgorde (en, sinds de review-fix, ook ExportDropdown). */
+/** Volgorde = de Backstage-volgorde (en die van ExportDropdown). */
 export const EXPORT_FORMATS = [
   { format: 'progress-xlsx', icon: 'XLSX', labelKey: 'export.progressXlsxLabel', descKey: 'export.progressXlsxDesc', shortLabelKey: 'export.progressXlsxShort' },
   { format: 'progress-csv', icon: 'CSV', labelKey: 'export.progressCsvLabel', descKey: 'export.progressCsvDesc', shortLabelKey: 'export.progressCsvShort' },

@@ -2,7 +2,7 @@
  * FeedbackDialog — feedback-knop → GitHub issue.
  *
  * Patroon: vergelijkbaar met UpdateDialog.tsx / SettingsDialog.tsx.
- * - Overlay + paneel, sluiten via setUI en Escape-handler. Bewust GEEN backdrop-close (issue #158):
+ * - Overlay + paneel, sluiten via setUI en Escape-handler. Bewust GEEN backdrop-close:
  *   de dialoog bevat een tekstveld, en een klik naast het paneel mag getypte tekst niet weggooien.
  * - Alle tekst via t('feedback.xxx') (common-namespace).
  * - @tauri-apps/* UITSLUITEND dynamisch geïmporteerd binnen isTauri()-branches.

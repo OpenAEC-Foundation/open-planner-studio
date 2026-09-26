@@ -391,13 +391,13 @@ function structuralGraphErrors(graph: RelationGraph): Map<string, RelationTokenE
  * enkel-celplanner als éénmaal na alle relationele writes van een atomaire paste gebruikt.
  *
  * Alleen fouten die de bewerking zelf TOEVOEGT tellen: de eindgraaf wordt gelegd naast `before`,
- * de graaf van vóór de bewerking (audit taakmutaties, bevinding 3). Een bewust bewaarde relatie
+ * de graaf van vóór de bewerking. Een bewust bewaarde relatie
  * tussen een taak en zijn eigen fase (uit een import, of doordat verhangen haar zo maakte) of een
- * al bestaande kring blokkeerde anders ELKE relatiecel in het document — ook tussen taken die er
+ * al bestaande kring zou anders ELKE relatiecel in het document blokkeren — ook tussen taken die er
  * niets mee te maken hebben, met een melding over "de eigen samenvattende taak". Herstellen (een
  * bestaande kring of voorouder-relatie wegnemen) blijft vanzelf toegestaan: dat voegt niets toe.
  *
- * Kosten: zonder fouten in de eindgraaf is dit exact de oude controle; de graaf van vóór wordt
+ * Kosten: zonder fouten in de eindgraaf is dit één controle; de graaf van vóór wordt
  * alleen doorgerekend als de eindgraaf een fout bevat.
  */
 export function validateFinalRelationGraph(input: RelationGraph & {

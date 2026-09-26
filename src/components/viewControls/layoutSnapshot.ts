@@ -4,7 +4,7 @@ import type { Layout, ViewState } from '@/state/slices/types';
 import type { LayoutOverlays } from '@/types/view';
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
 
-/** Bouwt een `Layout`-snapshot van de huidige `view` (§8.3). Hergebruikt door de layouts-dialoog
+/** Bouwt een `Layout`-snapshot van de huidige `view`. Hergebruikt door de layouts-dialoog
  *  én de ribbon-layoutcontrole zodat "opslaan als" en "bijwerken" exact hetzelfde snapshotten. */
 export function snapshotLayout(
   view: ViewState,

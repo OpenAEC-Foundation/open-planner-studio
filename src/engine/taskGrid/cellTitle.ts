@@ -1,5 +1,5 @@
 /**
- * Welke native `title` een gridcel toont (issue #89). Drie bronnen, met verschillende regels:
+ * Welke native `title` een gridcel toont. Drie bronnen, met verschillende regels:
  *
  *  - `tooltip`: een uitleg die de kolom zelf meegeeft (bv. "geen baseline voor deze taak" bij een
  *    lege baselinecel). Die zegt iets wat de cel NIET laat zien en verschijnt daarom altijd.
@@ -7,7 +7,7 @@
  *    achter een datum in persoonlijke notatie, of de technische JSON achter "3 toewijzingen". Ook
  *    die verschijnt altijd; zonder hem is die informatie nergens anders bereikbaar.
  *  - `title` = `text`: dezelfde tekst nog eens is alleen zinvol wanneer de cel hem afknipt met een
- *    ellipsis; staat de waarde al volledig in beeld, dan is de tooltip enkel ruis (en botste hij
+ *    ellipsis; staat de waarde al volledig in beeld, dan is de tooltip enkel ruis (en botst hij
  *    met de taakkaart en de relatietooltips).
  */
 export interface GridCellTitleInput {

@@ -1,12 +1,12 @@
-// Regelgebaseerde, jaar-onafhankelijke feestdagen-engine (fase 2.8a, ontwerp §3).
+// Regelgebaseerde, jaar-onafhankelijke feestdagen-engine.
 //
 // Bron van waarheid voor gegenereerde kalenders: `generateHolidays` materialiseert een
 // `HolidaySet` naar concrete `Holiday[]`-exception-ranges (dezelfde vorm die CalendarEngine/IFC
-// al lezen — géén wijziging aan het datamodel of de round-trip nodig). De solver/renderer/IFC
+// lezen). De solver/renderer/IFC
 // lezen alleen `holidays`; deze module is puur en side-effect-vrij (keep-Rust-thin, web-safe).
 //
-// `easterSunday` (Meeus/Jones/Butcher) verhuisde hierheen uit `scripts/gen-core.ts`; die importeert
-// hem nu vandaan zodat app én voorbeeld-generator één bron delen.
+// `easterSunday` (Meeus/Jones/Butcher) wordt ook door `scripts/gen-core.ts` geïmporteerd, zodat app
+// én voorbeeld-generator één bron delen.
 import type { Holiday } from '@/types/calendar';
 import { addCalendarDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 
@@ -147,7 +147,7 @@ export function generateHolidays(
   return out;
 }
 
-// ── Landensets (regels, geen datums) — ontwerp §3.2 ──────────────────────────────────────────
+// ── Landensets (regels, geen datums) ──────────────────────────────────────────────────────────
 
 export const NL_SET: HolidaySet = {
   country: 'NL',
@@ -298,12 +298,12 @@ export const HOLIDAY_SETS: Record<HolidayCountry, HolidaySet> = {
   NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET,
 };
 
-// ── Bouwvak-datatabel (opt-in, default GEEN — harde eis TODO.md r192-194) ─────────────────────
+// ── Bouwvak-datatabel (opt-in, default GEEN) ──────────────────────────────────────────────────
 //
 // ADVIESDATUMS (Bouwend Nederland), gekoppeld aan de OCW-zomerschoolvakantie-regio's
 // (Noord/Midden/Zuid). LET OP: de volgorde van de regio's ROTEERT elk jaar — er is GEEN vaste
 // "Noord eerst, dan Midden, dan Zuid"-stagger. Elk jaar hieronder is Mon-Fri, 3 kalenderweken
-// (18 dagen), geverifieerd tegen minstens 2 onafhankelijke bronnen (7-7-2026):
+// (18 dagen), geverifieerd tegen minstens 2 onafhankelijke bronnen:
 //   2025: Zuid 21/7-8/8, Midden 28/7-15/8, Noord 4/8-22/8 (volgorde Z-M-N)
 //     bronnen: businessgids.nl/nieuws/bouwvak-2025-data-en-uitleg (alle 3 regio's, zelfconsistent),
 //     hello-office.nl/verlofregistratie/bouwvak-2025-zuid (Zuid), shiftbase.com/nl/woordenboek/bouwvak

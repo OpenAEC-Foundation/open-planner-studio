@@ -4,17 +4,16 @@
  * nullen, geen duizendtalscheiding (het zijn dagen en eenheden, geen bedragen), en het
  * decimaalteken van de app-taal ("0,5" in nl/de/fr, "0.5" in en). Zonder `locale` (headless
  * tests, oude aanroepen) de neutrale punt-notatie. Eén functie, zodat twee rapporten in hetzelfde
- * paneel niet met een verschillende precisie of een verschillend decimaalteken kunnen uitkomen
- * (review #138).
+ * paneel niet met een verschillende precisie of een verschillend decimaalteken kunnen uitkomen.
  *
  * Bewust altijd **Latijnse cijfers** (`-u-nu-latn`): datums, tellingen en percentages in dezelfde
  * rapporten zijn Latijns, en een tabel met "۱٫۵" naast "3" en "75%" is geen lokalisatie maar een
- * gemengd cijfersysteem (review #139, bevinding 5 — `fa` kiest anders `arabext`). De bidi-markering
+ * gemengd cijfersysteem (`fa` kiest anders `arabext`). De bidi-markering
  * U+200E die `Intl` in `ar`/`fa` vóór een teken zet blijft bewust STAAN: in een RTL-alinea is hij
  * de enige reden dat het minteken links van zijn cijfer blijft ("-2" wordt anders "2-", gemeten in
  * Chromium én in de `bidi-js`-levels van de vector-PDF). Dat Inter er in de PDF een tofu van maakte
  * is een emissieprobleem en is dáár opgelost (`bidiShape.stripBidiControls`), niet hier. Een waarde
- * die op twee decimalen tot nul afrondt heet "0", niet "-0" (bevinding 7). De `Intl`-formatters
+ * die op twee decimalen tot nul afrondt heet "0", niet "-0". De `Intl`-formatters
  * zijn duur om te bouwen (~35 µs tegen ~0,7 µs hergebruik) en worden per taal gecachet.
  */
 const NEGATIVE_ZERO = /^\u200E?[-\u2212]0$/;

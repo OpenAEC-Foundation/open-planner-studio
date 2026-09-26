@@ -11,7 +11,7 @@ import { planProgressEntry } from '@/engine/progressEntry';
 import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
 /**
- * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
+ * Reikwijdte en uitvoering van de taak-contextmenu-acties.
  *
  * DOM-vrij en JSX-vrij met opzet: `GanttCanvas.tsx` is een canvas-component die zich headless niet
  * laat draaien, terwijl juist déze laag — welke taken raakt een menuklik, en hoeveel undo-stappen
@@ -21,8 +21,8 @@ import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQues
 /**
  * De AANGEKLIKTE taak is de handgreep, de SELECTIE is de reikwijdte: zit de aangeklikte taak in de
  * huidige selectie, dan geldt de actie voor de hele selectie; zit hij er niet in, dan alleen voor
- * die ene taak. Dat is precies de conventie die dit project al hanteert bij verticaal slepen
- * ("slepen verplaatst de hele selectie", issue #26) — draai hem niet om.
+ * die ene taak. Dat is precies de conventie die dit project hanteert bij verticaal slepen
+ * ("slepen verplaatst de hele selectie") — draai hem niet om.
  *
  * De selectie wordt LIVE uit de store gelezen en niet uit een render-closure, zodat de
  * selectiecorrectie die `handleContextMenu` bij het openen doet (rechtsklik buiten de selectie ⇒
@@ -34,15 +34,15 @@ export function contextMenuOutlineScope(taskId: string): string[] {
 }
 
 /**
- * De ankerregel voor "Invoegen boven/onder" en de weergave-poort eromheen wonen sinds issue #49 in
- * `src/state/taskInsertActions.ts` — de lintknoppen en de Mijlpaal-dropdown gebruiken ze nu ook, en
+ * De ankerregel voor "Invoegen boven/onder" en de weergave-poort eromheen wonen in
+ * `src/state/taskInsertActions.ts` — de lintknoppen en de Mijlpaal-dropdown gebruiken ze ook, en
  * die horen niet uit `components/canvas/` te importeren.
  */
 
 /**
- * De één-handeling-is-één-undo-stap-machinerie (`appTaskBulkActions`) woont sinds de gelijktrekking
- * van lintknop/Delete/Backspace in `src/state/taskBulkActions.ts` — de lint en de sneltoetsen
- * horen niet uit `components/canvas/` te importeren (zelfde afweging als bij issue #49 hierboven).
+ * De één-handeling-is-één-undo-stap-machinerie (`appTaskBulkActions`) woont in
+ * `src/state/taskBulkActions.ts`, gedeeld met lintknop/Delete/Backspace — de lint en de sneltoetsen
+ * horen niet uit `components/canvas/` te importeren (zelfde afweging als hierboven).
  */
 
 /**
@@ -66,14 +66,14 @@ export const contextMenuBulk = {
    * `insertAnchorForScope`); `addTask` regelt daarna zelf de ouder, de `childIds`-volgorde en de
    * ene undo-stap. Rechtsklik buiten de selectie ⇒ alleen die taak, net als bij de rest van het
    * menu (`contextMenuOutlineScope`). Buiten pure boommodus geweigerd met de structuurmelding
-   * (issue #49) — zie `insertTaskRelativeToScope`.
+   * — zie `insertTaskRelativeToScope`.
    */
   insert(taskId: string, where: 'above' | 'below', name: string): void {
     insertTaskRelativeToScope(contextMenuOutlineScope(taskId), where, { name });
   },
 
   /**
-   * Contextmenu-item "Taak toevoegen" (issue #49): dezelfde regel als de lintknop **+ Taak** —
+   * Contextmenu-item "Taak toevoegen": dezelfde regel als de lintknop **+ Taak** —
    * onder de selectie, of achteraan zonder selectie. BEWUST selectie-gestuurd en niet
    * anker-gestuurd: dit item verschijnt óók bij een rechtsklik op lege ruimte, waar er geen
    * aangeklikte taak is. Wie wél op een taak richt heeft "Invoegen boven/onder" ernaast staan.
@@ -86,11 +86,11 @@ export const contextMenuBulk = {
    * Mijlpaal aan/uit met de AANGEKLIKTE taak als anker: de nieuwe waarde wordt uit die ene taak
    * afgeleid en op de hele reikwijdte gezet. Een per-taak-toggle zou bij een gemengde selectie
    * nooit een voorspelbare uitkomst geven — dezelfde afweging waarom het contextmenu bewust
-   * aparte Inklappen/Uitklappen-items heeft in plaats van één toggle (issue #42).
+   * aparte Inklappen/Uitklappen-items heeft in plaats van één toggle.
    */
   toggleMilestone(task: Task): void {
     const isMilestone = !task.isMilestone;
-    // Wordt mijlpaal (audit §6): taken die de gedeelde regel weigert (fase, of toewijzingen) doen
+    // Wordt mijlpaal: taken die de gedeelde regel weigert (fase, of toewijzingen) doen
     // niet mee; de rest van de reikwijdte wel, in één undo-stap. Eén melding per reden.
     const { tasks, assignments } = useAppStore.getState();
     const refused: { name: string; refusal: MilestoneRefusal }[] = [];
@@ -132,10 +132,10 @@ export const contextMenuBulk = {
    * percentage op alle bladen geeft na F5 precies dat percentage op de fase. Dubbelingen (fase én kind
    * geselecteerd) vallen weg.
    *
-   * Een UI-route, dus via `enterTaskProgress` (`engine/progressEntry.ts`): zonder statusdatum gaat die
-   * op vandaag — bij de eerste taak die voortgang krijgt, in dezelfde undo-stap, met één melding (Z1).
+   * Een UI-route, dus via `enterTaskProgress` (`engine/progressEntry.ts`): statusdatum op vandaag
+   * (zonder statusdatum) — bij de eerste taak die voortgang krijgt, in dezelfde undo-stap, met één melding.
    * Taken die pas na de statusdatum zouden beginnen en nog geen werkelijke start hebben, krijgen eerst
-   * samen één vraag naar hun werkelijke start (Z1b); annuleren verandert niets, ook niet aan de andere
+   * samen één startvraag; annuleren verandert niets, ook niet aan de andere
    * taken. Zonder vraag loopt alles synchroon (de functie bereikt dan geen `await`).
    */
   async setProgress(taskId: string, completion: number): Promise<void> {
@@ -179,7 +179,7 @@ export const contextMenuBulk = {
    * Verwijderen doet mee met de reikwijdte: wie vijf taken selecteert en Verwijderen kiest, verwacht
    * dat er vijf verdwijnen — er één weghalen is misleidend. Er is geen bevestigingsdialoog (die
    * bestaat nergens in de app voor taken; ook de lintknop en Delete verwijderen de hele selectie
-   * ongevraagd); de terugweg is Ctrl+Z, en dat is nu precies één stap voor de hele bulk.
+   * ongevraagd); de terugweg is Ctrl+Z, en dat is precies één stap voor de hele bulk.
    *
    * De uitvoering zelf (`appTaskBulkActions.deleteTasksBulk`) is de GEDEELDE route met de lintknop
    * Verwijderen en Delete/Backspace — zie `src/state/taskBulkActions.ts` voor de subboom- en

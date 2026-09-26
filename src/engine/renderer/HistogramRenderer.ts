@@ -1,4 +1,4 @@
-// Histogram-renderer (fase 2.5, §6.4). Tekent één resource-belastingsstrook onder de Gantt met
+// Histogram-renderer. Tekent één resource-belastingsstrook onder de Gantt met
 // dezelfde primaire tijdsinstellingen als GanttRenderer (plotbegin + dagen*zoom - scrollX),
 // zodat de dagkolommen 1-op-1 onder de taakbalken staan. Eigen verticale schaal (eenheden i.p.v.
 // rijen). Onder de takenlijst: een resourcekiezer-lijst; onder de tijdlijn: staafjes per dag met
@@ -36,47 +36,44 @@ export interface HistogramRenderOptions {
   /** Breedte van uitsluitend de resourcekiezer (= de takenlijst erboven). */
   pickerWidth: number;
   /** Aan welke kant van het canvas de kiezer staat: aan de kant van de takenlijst erboven, dus links
-   *  in ltr en rechts in ar/fa. Afwezig ⇒ `'left'` (byte-identiek aan vóór G13). Zie
+   *  in ltr en rechts in ar/fa. Afwezig ⇒ `'left'`. Zie
    *  `histogramLayout`. */
   pickerSide?: HistogramPickerSide;
-  /** R2a: verticale scrollpositie (px) van de kiezerlijst — de gepinde "alle resources"-somrij zelf
+  /** Verticale scrollpositie (px) van de kiezerlijst — de gepinde "alle resources"-somrij zelf
    *  scrollt nooit mee, dit geldt alleen voor de resourcerijen eronder. Sessiestate; eigendom van de
    *  aanroepende hook, niet van deze renderer — die klemt hier alleen af op `[0, maxScroll]` (zie
-   *  `histogramPickerMaxScroll`). Afwezig ⇒ 0 (byte-identiek aan vóór R2a zolang de lijst toch al
-   *  past). */
+   *  `histogramPickerMaxScroll`). Afwezig ⇒ 0. */
   pickerScrollY?: number;
   labels: { unitsSuffix: string };
   emptyHint?: string;            // getoond wanneer er geen (herberekende) data is
-  /** Geïnjecteerd histogram-palet (audit C5/P17). Afwezig ⇒ zelf gelezen via
-   *  `readHistogramPalette()` (identiek resultaat); meegeven maakt de renderer headless-testbaar. */
+  /** Geïnjecteerd histogram-palet. Afwezig ⇒ zelf gelezen via
+   *  `readHistogramPalette()`; meegeven maakt de renderer headless-testbaar. */
   palette?: HistogramPalette;
-  /** Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): de HistogramRenderer deelt bewust EXACT
+  /** De HistogramRenderer deelt bewust EXACT
    *  dezelfde X-as als de Gantt, dus krijgt hier de LETTERLIJK ZELFDE `GanttAxis`-instantie als
    *  `GanttRenderer` (door `GanttCanvas` gebouwd en aan beide renderers doorgegeven) — anders
    *  schuiven de resource-staafjes onder de verkeerde kolommen zodra de as gecomprimeerd is.
-   *  Afwezig ⇒ terugvallen op de oude rechtstreekse `timeAxis.dateToX`-aanroep (byte-identiek). */
+   *  Afwezig ⇒ terugvallen op de rechtstreekse `timeAxis.dateToX`-aanroep (kalender-as). */
   axis?: GanttAxis;
-  /** Issue #25 punt 4: de CSS font-stack van de gekozen interface-lettertypefamilie
+  /** De CSS font-stack van de gekozen interface-lettertypefamilie
    *  (`resolveUIFontStack(ui.uiFontFamily)`). Een canvas leest géén CSS-variabelen, dus de stack
-   *  moet als string mee — anders blijft de resourcestrook in het oude lettertype staan terwijl de
-   *  Gantt erboven en de chrome eromheen wél omschakelen. Afwezig ⇒ `FALLBACK_FONT_STACK`. */
+   *  moet als string mee. Afwezig ⇒ `FALLBACK_FONT_STACK`. */
   fontFamily?: string;
-  /** Issue #60 (nazit): schaalfactor van `ui.uiFontScale` (bv. 1.25), zelfde contract als
+  /** Schaalfactor van `ui.uiFontScale` (bv. 1.25), zelfde contract als
    *  `GanttRenderOptions.fontScale`. Schaalt de labelfonts én de kiezerrij-hoogte mee, zodat de
    *  strook niet zichtbaar uit de pas loopt met de wél geschaalde Gantt erboven.
-   *  Afwezig ⇒ factor 1 (byte-identiek aan voorheen). */
+   *  Afwezig ⇒ factor 1. */
   fontScale?: number;
 }
 
-/** De historische, hardgecodeerde stack van deze renderer; fallback wanneer een aanroeper
- *  `fontFamily` niet meegeeft (byte-identiek aan vóór issue #25 punt 4). */
+/** Fallback-stack wanneer een aanroeper `fontFamily` niet meegeeft. */
 const FALLBACK_FONT_STACK = 'system-ui, sans-serif';
 
 const ROW_H = 18;          // hoogte van een resourcekiezer-rij
 const TOP_PAD = 8;         // ruimte boven de hoogste staaf
 const BOTTOM_PAD = 4;      // ruimte onder de nullijn
 const LEFT_PAD = 8;        // padding binnen de kiezerzone
-const PICKER_SCROLLBAR_W = 2; // breedte van de smalle, niet-sleepbare scroll-positie-indicator (R2a)
+const PICKER_SCROLLBAR_W = 2; // breedte van de smalle, niet-sleepbare scroll-positie-indicator
 const PICKER_SCROLLBAR_ALPHA = 0.45; // dekking van de indicator — subtiel, geen interactief element
 
 // ── Horizontale indeling: kiezer en tijdplot ──────────────────────────────────────────────────
@@ -86,7 +83,7 @@ const PICKER_SCROLLBAR_ALPHA = 0.45; // dekking van de indicator — subtiel, ge
 // wordt dus niet gespiegeld; kiezer en plot wisselen alleen van plek, elk met hun eigen inhoud
 // ongewijzigd. Tekenen, hit-test, wielscroll en de gedeelde as (`chartOriginX`) lezen allemaal deze
 // indeling — wie los `x >= pickerWidth` of `chartOriginX = pickerWidth` schrijft, neemt stil aan
-// dat de kiezer links staat (zo begon de dagas in ar een kiezerbreedte na die van de tijdlijn).
+// dat de kiezer links staat (in ar begint de dagas dan een kiezerbreedte na die van de tijdlijn).
 
 /** Kant van het canvas waar de resourcekiezer staat. */
 export type HistogramPickerSide = 'left' | 'right';
@@ -136,7 +133,7 @@ export function histogramPickerRowHeight(fontScale = 1): number {
 
 /** Hoogte in PIXELS van de scrollbare zone ONDER de gepinde "alle resources"-rij. Puur — geen
  *  renderer-instantie nodig — zodat de scroll-eigenaar exact dezelfde maat als `drawPicker`/
- *  `pickerAt` gebruikt. Rekent in pixels i.p.v. hele rijen (R2a-fixronde punt 3): een rijhoogte-
+ *  `pickerAt` gebruikt. Rekent in pixels i.p.v. hele rijen: een rijhoogte-
  *  restje onderaan de strook (tot 22px bij fontScale 1.25) hoort bij het scrollbare bereik, anders
  *  blijft daar altijd een leeg gat staan dat nooit met scrollen te vullen is. */
 export function histogramPickerTrackHeight(canvasHeight: number, fontScale = 1): number {
@@ -163,15 +160,15 @@ export class HistogramRenderer {
   private layout: HistogramLayout;
   /** Lokale oorsprong van de tijdplot: het begin van de plotzone. */
   private chartOriginX: number;
-  /** Kiezerrij-hoogte, geschaald met `fontScale` (issue #60-nazit) — één instance-waarde voor
+  /** Kiezerrij-hoogte, geschaald met `fontScale` — één instance-waarde voor
    *  tekenen én hit-test, zodat die twee nooit uit elkaar kunnen lopen. */
   private rowH: number;
-  /** R2a: verticale scrollpositie van de kiezerlijst, afgeklemd op `[0, maxScroll]` zodat een
+  /** Verticale scrollpositie van de kiezerlijst, afgeklemd op `[0, maxScroll]` zodat een
    *  verouderde waarde (bv. na een gewijzigde resourcelijst) nooit voorbij het einde tekent of
    *  hit-test. De klem gebeurt hier — niet bij de aanroeper — zodat tekenen en hit-testen altijd
    *  dezelfde afgeklemde waarde delen. */
   private pickerScrollY: number;
-  /** R2a-fixronde punt 6: één keer berekend in de constructor, hergebruikt door `drawPicker` — geen
+  /** Eén keer berekend in de constructor, hergebruikt door `drawPicker` — geen
    *  tweede, mogelijk uit de pas lopende berekening bij het tekenen van de scroll-indicator. */
   private maxScroll: number;
 
@@ -188,17 +185,17 @@ export class HistogramRenderer {
     this.pickerScrollY = Math.min(this.maxScroll, Math.max(0, opts.pickerScrollY ?? 0));
   }
 
-  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie (issue #25 punt 4),
-   *  met de grootte geschaald via `fontScale` (issue #60-nazit) — zelfde helper (en zelfde
+  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie,
+   *  met de grootte geschaald via `fontScale` — zelfde helper (en zelfde
    *  afweging) als in `GanttRenderer.font()`. De kiezerrij-hoogte (`rowH`) schaalt mee; de
    *  plotzone zelf rekent met de door de gebruiker instelbare canvashoogte en blijft dus goed. */
   private font(sizePx: number, bold = false): string {
     return `${bold ? 'bold ' : ''}${Math.round(sizePx * this.fontScale)}px ${this.opts.fontFamily ?? FALLBACK_FONT_STACK}`;
   }
 
-  /** Gedeelde X-as met GanttRenderer (issue #21 punt 5, fase 2 — ontwerp §10.1): `opts.axis`
-   *  (meegegeven door `GanttCanvas`, de letterlijk gedeelde instantie) wint; afwezig ⇒ het oude
-   *  rechtstreekse `timeAxis.dateToX`-pad (bit-identiek), zodat de dagkolommen 1-op-1 boven de
+  /** Gedeelde X-as met GanttRenderer: `opts.axis` (meegegeven door `GanttCanvas`, de letterlijk
+   *  gedeelde instantie) wint; afwezig ⇒ het rechtstreekse `timeAxis.dateToX`-pad, zodat de
+   *  dagkolommen 1-op-1 boven de
    *  taakbalken staan zowel bij de kalender- als de werkdagen-as. */
   private dateToX(date: Date): number {
     if (this.opts.axis) return this.opts.axis.dateToX(date);
@@ -206,7 +203,7 @@ export class HistogramRenderer {
   }
 
   /** Inverse: kolom-iso onder een X-positie in de plotzone. Gaat via `opts.axis.xToDate` zodra die
-   *  gedeelde as gecomprimeerd is (§10.1) — anders (as afwezig) het oude kalenderdag-pad. */
+   *  gedeelde as gecomprimeerd is — anders (as afwezig) het kalenderdag-pad. */
   dateAtX(x: number): string {
     if (this.opts.axis) return formatDate(this.opts.axis.xToDate(x));
     const daysFromStart = (x - this.chartOriginX + this.opts.view.scrollX) / this.opts.view.zoom;
@@ -215,7 +212,7 @@ export class HistogramRenderer {
   }
 
   /** Hit-test op de kiezerzone: geeft { id } terug (id undefined = "alle resources"), of null.
-   *  R2a: index 0 (de gepinde somrij) staat altijd op `TOP_PAD..TOP_PAD+rowH`, ongeacht scroll; de
+   *  Index 0 (de gepinde somrij) staat altijd op `TOP_PAD..TOP_PAD+rowH`, ongeacht scroll; de
    *  rijen erna liggen in het scrollbare deel eronder, verschoven met `pickerScrollY` — exact de
    *  geometrie die `drawPicker` ook tekent. */
   pickerAt(x: number, y: number): { id?: string } | null {
@@ -309,13 +306,13 @@ export class HistogramRenderer {
     }
     ctx.fillStyle = selected ? c.text : c.textDim;
     const textOffset = LEFT_PAD + 12;
-    // R2a-fixronde punt 7: label niet onder de scroll-indicator laten doorlopen zodra die getekend
+    // Label niet onder de scroll-indicator laten doorlopen zodra die getekend
     // wordt — de gepinde somrij (nooit `reserveScrollbar`) blijft de volle breedte gebruiken.
     const maxW = pickerWidth - textOffset - 4 - (reserveScrollbar ? PICKER_SCROLLBAR_W + 2 : 0);
     ctx.fillText(ellipsize(ctx, item.label, maxW), x0 + textOffset, y + this.rowH / 2);
   }
 
-  /** R2a: de gepinde "alle resources"-rij (index 0) blijft altijd op `TOP_PAD` staan; de overige
+  /** De gepinde "alle resources"-rij (index 0) blijft altijd op `TOP_PAD` staan; de overige
    *  resourcerijen scrollen daaronder binnen een geclipte zone, verschoven met `pickerScrollY`. Een
    *  smalle schuifbalk verschijnt alleen als de lijst niet past (`maxScroll > 0`) — dezelfde
    *  drempel als de scroll-eigenaar gebruikt om te klemmen. */
@@ -355,11 +352,10 @@ export class HistogramRenderer {
     ctx.restore();
 
     if (!showScrollbar) return;
-    // R2a-fixronde punt 3/8: dezelfde `trackHeight` als `histogramPickerTrackHeight`/de scroll-hook
-    // (pixels, geen hele rijen) — anders lopen tekenen en scrollgrenzen weer uiteen. Blijft bewust
-    // een NIET-sleepbare positie-indicator (punt 8): dun en alleen zichtbaar zolang de lijst niet
-    // past; slepen zou eigen pointer-down/-move/-up-afhandeling in de canvas-hit-test vergen die
-    // hier niet in verhouding staat tot de rest van deze fixronde.
+    // Dezelfde `trackHeight` als `histogramPickerTrackHeight`/de scroll-hook (pixels, geen hele
+    // rijen) — anders lopen tekenen en scrollgrenzen uiteen. Bewust een NIET-sleepbare
+    // positie-indicator: dun en alleen zichtbaar zolang de lijst niet past; slepen zou eigen
+    // pointer-afhandeling in de canvas-hit-test vergen.
     const trackHeight = histogramPickerTrackHeight(canvasHeight, this.fontScale);
     const contentHeight = scrollableItems.length * this.rowH;
     const thumbHeight = Math.max(12, trackHeight * Math.min(1, trackHeight / contentHeight));
@@ -383,7 +379,7 @@ export class HistogramRenderer {
     const dayW = Math.max(1, view.zoom);
     const barInset = dayW > 6 ? 1 : 0;
 
-    // Y-schaal op wat ZICHTBAAR is (ontwerp §6.4, bevinding 4): top = max(load, capacity) binnen
+    // Y-schaal op wat ZICHTBAAR is: top = max(load, capacity) binnen
     // het huidige datumbereik, zodat een enkele projectpiek elders normale periodes niet
     // platdrukt. +5% marge zodat de hoogste staaf niet tegen de bovenrand plakt. Minimaal 1 om
     // deling door 0 te vermijden. Overallocatie-staven blijven boven de capaciteitslijn zichtbaar.

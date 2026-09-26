@@ -1,15 +1,12 @@
 // MCP-bridge — RUNTIME-validatie van tool-argumenten tegen de `inputSchema` van de tool.
 //
-// WAAROM DIT BESTAAT (systemische root-cause uit de 33-tool-audit): de dispatcher riep
-// `def.handler(args, ctx)` aan ZONDER het schema ooit te raadplegen. Elke `enum`, `type`, `required`,
-// `minimum`, `pattern` en `additionalProperties` in de 33 schema's was daarmee puur decoratief: het
-// ging mee in `tools/list` (waar de AI hem leest en zich er dus naar richt) en verder nergens heen.
-// Alles wat een tool niet zélf nogmaals controleerde, gleed er ongezien doorheen — de bron van de
-// hele klasse "tool antwoordt `ok`, maar deed niets".
+// WAAROM: zonder deze poort is elke `enum`, `type`, `required`, `minimum`, `pattern` en
+// `additionalProperties` in de schema's puur decoratief — het gaat mee in `tools/list` (waar de AI
+// hem leest en zich er dus naar richt) en verder nergens heen. Alles wat een tool niet zélf nogmaals
+// controleert, glijdt er ongezien doorheen ("tool antwoordt `ok`, maar deed niets").
 //
-// SCOPE — bewust GEEN volledige JSON-Schema-implementatie en bewust GEEN dependency. De 33 schema's
-// gebruiken samen precies twaalf trefwoorden (geïnventariseerd, zie `SUPPORTED_KEYWORDS`); dit is een
-// klein, gesloten probleem. Wat we dekken:
+// SCOPE — bewust GEEN volledige JSON-Schema-implementatie en bewust GEEN dependency. De schema's
+// gebruiken samen een klein, gesloten stel trefwoorden (zie `SUPPORTED_KEYWORDS`). Wat we dekken:
 //   type (incl. de array-vorm `['string','null']`), enum, required, properties,
 //   additionalProperties (alleen `false`), items, minItems, maxItems,
 //   minimum, maximum, exclusiveMinimum, pattern.
@@ -29,9 +26,9 @@
 // `updates[0].fields.duration: verwacht number, kreeg string "10"`. Nooit een kale TypeError.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// DIEPTE-REGEL — NIET OMDRAAIEN ZONDER DE SPEC TE WIJZIGEN.
+// DIEPTE-REGEL — NIET OMDRAAIEN.
 //
-// De bulk-conventie van de bridge (spec §batch, T19/T20) is: ÉÉN ROTTE REGEL ROLT DE BULK NOOIT
+// De bulk-conventie van de bridge is: ÉÉN ROTTE REGEL ROLT DE BULK NOOIT
 // TERUG. Vijf kalenders waarvan er één een fout `generate.country` heeft, horen vier verwerkte
 // kalenders + één `itemRejections`-regel op te leveren — niet vijf mislukkingen. Zou deze poort de
 // BINNENKANT van array-items hard afkeuren, dan zou hij die conventie stilzwijgend omdraaien voor

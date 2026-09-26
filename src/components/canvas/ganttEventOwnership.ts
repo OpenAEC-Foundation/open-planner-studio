@@ -1,8 +1,6 @@
 /**
- * Tijdelijk maar blijvend ownership-contract voor de Gantt-overgang naar een DOM-grid.
- *
- * Task 0 legt de huidige canvas-eigenaar vast. Task 15 verhuist de acties links van de
- * tijdlijn naar `DOM-grid/workspace` en behoudt de tijdlijngebaren in `timelinecanvas`.
+ * Ownership-contract van de Gantt-acties: de acties links van de tijdlijn horen bij
+ * `DOM-grid/workspace`, de tijdlijngebaren bij `timelinecanvas`.
  */
 export type GanttAction =
   | 'rowselect'

@@ -1,11 +1,10 @@
 /**
- * De `.xlsx`-schrijver voor het voortgangsblad (issue #27, etappe 3 — taak T6).
+ * De `.xlsx`-schrijver voor het voortgangsblad.
  *
- * Waarom dit bestaat (eigenaarsbesluit E9, 2026-09-11): de letterlijke wens was *"de kolommen in de
- * csv moeten net zo breed zijn als de tekst die erin staat"*. Een CSV kán dat niet — geen breedte,
- * geen opmaak, geen celtype. Dit blad doet wat E9 werkelijk vraagt: kolommen op maat, alleen de
- * invulcellen bewerkbaar, een percentage dat buiten 0–100 geweigerd wordt, en datums die als
- * **datum** in de cel staan zodat de terugimport nooit de dag/maand-vraag hoeft te stellen.
+ * Waarom dit bestaat: de kolommen moeten zo breed zijn als de tekst erin, en een CSV kán dat niet —
+ * geen breedte, geen opmaak, geen celtype. Dit blad heeft kolommen op maat, alleen de invulcellen
+ * bewerkbaar, een percentage dat buiten 0–100 geweigerd wordt, en datums die als **datum** in de cel
+ * staan zodat de terugimport nooit de dag/maand-vraag hoeft te stellen.
  *
  * De schrijver blijft **puur**: geen store, geen React, geen `@tauri-apps/*`, geen i18n. Alle
  * gebruikerszichtbare tekst komt van buiten via `ProgressXlsxText`, precies zoals
@@ -18,32 +17,29 @@
  *
  * 1. **OOXML-schema's zijn `xsd:sequence`, geen `xsd:all`.** Een element op de verkeerde plek geeft
  *    geen nette foutmelding maar "Excel heeft onleesbare inhoud gevonden". `CT_Worksheet` eist
- *    `dimension → sheetViews → sheetFormatPr → cols → sheetData → sheetProtection → dataValidations`
- *    (X4); `CT_Stylesheet` eist `numFmts → fonts → fills → borders → cellStyleXfs → cellXfs →
+ *    `dimension → sheetViews → sheetFormatPr → cols → sheetData → sheetProtection → dataValidations`;
+ *    `CT_Stylesheet` eist `numFmts → fonts → fills → borders → cellStyleXfs → cellXfs →
  *    cellStyles → dxfs → tableStyles`. `buildProgressXlsxParts` is daarom geëxporteerd: de
  *    structurele test asserteert die volgordes zónder een ZIP te hoeven uitpakken.
  * 2. **Twee fills, en de tweede MOET `gray125` zijn.** Een historische Excel-quirk. Laat je hem weg,
- *    dan schuiven alle fill-indexen op en kleurt het blad verkeerd. Dat is meteen de reden dat de
- *    grijze verzamelrij-markering diezelfde `gray125` hergebruikt in plaats van een derde fill toe te
- *    voegen: één fill minder om verkeerd te indexeren.
+ *    dan schuiven alle fill-indexen op en kleurt het blad verkeerd. Daarom hergebruikt de grijze
+ *    verzamelrij-markering diezelfde `gray125` in plaats van een derde fill toe te voegen.
  * 3. **De polariteit van `sheetProtection` is omgekeerd aan wat je verwacht: `1` betekent VERBODEN.**
  *    `selectLockedCells="0"` betekent dus "vergrendelde cellen mág je selecteren" (nodig om te lezen
  *    en te kopiëren) en `formatColumns="0"` betekent "kolombreedte aanpassen mág". Een omgedraaide
- *    boolean levert een blad op dat precies het omgekeerde doet van wat de eigenaar vroeg, zónder dat
- *    er iets stukgaat — daarom staat hier een test op, en daarom is dit de enige plek in etappe 3 met
- *    een verplichte handmatige controle in een echte spreadsheet.
- * 4. **De instructietekst telt NIET mee in de kolombreedte.** Zou hij dat wel doen, dan werd elke
- *    kolom 70+ tekens breed en zag de invuller nog vier kolommen op zijn scherm — het tegenovergestelde
- *    van E9. De breedte volgt de data plus de kále kolomsleutel; de kopcel krijgt `wrapText` en de
- *    kopregel een vaste hoogte, zodat de instructie zichtbaar blijft zonder de kolom op te blazen.
- * 5. **Percentages gaan hier WÉL met decimalen** (X6/Q2). Besluit A1 (hele procenten in de CSV)
- *    bestond om precies één reden: "8,38" werd door een programma met een andere landinstelling als
- *    838 gelezen. In een `.xlsx`-cel staat een getal, geen tekst — die valstrik bestaat daar domweg
- *    niet. Gevolg: een taak op 1/3 komt exact als no-op terug waar de CSV-round-trip een
- *    afrondingsverlies heeft.
- * 6. **Geen `sharedStrings`-part** (bewust buiten scope): `t="inlineStr"` scheelt een part en een
- *    indirectie. De LEZER moet `sharedStrings` wél aankunnen, want Excel herschrijft het bestand bij
- *    opslaan en gebruikt dan vrijwel altijd wél zo'n part.
+ *    boolean levert een blad op dat precies het omgekeerde doet, zónder dat er iets stukgaat — daarom
+ *    staat hier een test op, en hoort bij een wijziging een handmatige controle in een echte
+ *    spreadsheet.
+ * 4. **De instructietekst telt NIET mee in de kolombreedte.** Anders werd elke kolom 70+ tekens breed.
+ *    De breedte volgt de data plus de kále kolomsleutel; de kopcel krijgt `wrapText` en de kopregel
+ *    een vaste hoogte, zodat de instructie zichtbaar blijft zonder de kolom op te blazen.
+ * 5. **Percentages gaan hier WÉL met decimalen.** De CSV gebruikt hele procenten omdat "8,38" door
+ *    een programma met een andere landinstelling als 838 gelezen werd. In een `.xlsx`-cel staat een
+ *    getal, geen tekst — die valstrik bestaat daar niet. Gevolg: een taak op 1/3 komt exact als no-op
+ *    terug waar de CSV-round-trip een afrondingsverlies heeft.
+ * 6. **Geen `sharedStrings`-part**: `t="inlineStr"` scheelt een part en een indirectie. De LEZER moet
+ *    `sharedStrings` wél aankunnen, want Excel herschrijft het bestand bij opslaan en gebruikt dan
+ *    vrijwel altijd wél zo'n part.
  */
 import type { Task } from '@/types/task';
 import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
@@ -54,7 +50,7 @@ import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /** Alle gebruikerszichtbare tekst komt van BUITEN; de schrijver blijft puur (geen i18n in `services/`). */
 export interface ProgressXlsxText {
-  /** Instructie per kolomsleutel, ` — ` achter de kale sleutel geplakt (E8) — zelfde bron als de CSV. */
+  /** Instructie per kolomsleutel, ` — ` achter de kale sleutel geplakt — zelfde bron als de CSV. */
   headerNotes?: Partial<Record<ProgressSheetColumnKey, string>>;
   /** Markeertekst voor de drie invulcellen van een verzameltaak; MOET met een em-dash beginnen. */
   summaryNote?: string;
@@ -101,7 +97,7 @@ function columnLetter(index: number): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stijlen (X5 — bewust geteld: tien `cellXfs`, waarvan vier ontgrendeld)
+// Stijlen (bewust geteld: tien `cellXfs`, waarvan vier ontgrendeld)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STYLE = {
@@ -135,7 +131,7 @@ function columnStyle(col: ColumnSpec): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Percentage met vier decimalen (X6). `completion` is 0..1; de cel draagt 0..100 als GETAL, dus de
+ * Percentage met vier decimalen. `completion` is 0..1; de cel draagt 0..100 als GETAL, dus de
  * landinstellingen-valstrik van de CSV bestaat hier niet. Buiten bereik wordt geklemd in plaats van
  * geweigerd: dit is een export van eigen state, geen invoer.
  */
@@ -176,8 +172,8 @@ function numberCell(ref: string, style: number, value: string): string {
  * de bedoeling is (ontgrendeld en als datum opgemaakt voor de invulkolommen).
  *
  * Een datumwaarde die `isoToSerial` niet kan lezen valt terug op een tekstcel — nooit op een geraden
- * datum. Dat kan alleen bij state die zelf al kapot is; stil een getal verzinnen zou precies de
- * onzichtbare verkeerde datum opleveren die besluit E5 verbiedt.
+ * datum. Dat kan alleen bij state die zelf al kapot is; stil een getal verzinnen zou een onzichtbare
+ * verkeerde datum opleveren.
  */
 function dataCell(ref: string, col: ColumnSpec, raw: string, marked: boolean): string {
   if (marked) return raw ? inlineStringCell(ref, STYLE.summary, raw) : '';
@@ -293,14 +289,13 @@ function buildStyles(): string {
   const cellStyleXfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>'];
 
   /**
-   * `locked` is expliciet, niet impliciet (eindreview 2026-09-12, punt a). `locked="1"` is
-   * weliswaar de default van `CT_CellProtection`, maar die default erft via `cellStyleXfs[0]` —
-   * en dat is precies de keten die een latere bewerking (een extra `cellStyleXfs`-entry, een
-   * `xfId`-wijziging, of een programma dat het blad herschrijft) stilzwijgend kan doorsnijden.
-   * Een blad dat dán zijn vergrendeling verliest gaat niet stuk: het accepteert gewoon
+   * `locked` is expliciet, niet impliciet. `locked="1"` is weliswaar de default van
+   * `CT_CellProtection`, maar die default erft via `cellStyleXfs[0]` — en die keten kan een latere
+   * bewerking (een extra `cellStyleXfs`-entry, een `xfId`-wijziging, of een programma dat het blad
+   * herschrijft) stil doorsnijden. Een blad dat dán zijn vergrendeling verliest accepteert gewoon
    * bewerkingen in de alleen-lezen kolommen, en dat merk je pas bij de terugimport. Vandaar
    * `applyProtection="1"` + een uitgeschreven `<protection locked="1"/>` op elke stijl waarvan de
-   * vergrendeling ertoe doet — de vier ontgrendelde stijlen dragen hun `locked="0"` al net zo hard.
+   * vergrendeling ertoe doet — de vier ontgrendelde stijlen dragen hun `locked="0"` net zo expliciet.
    */
   const xf = (opts: {
     numFmtId?: number; fontId?: number; fillId?: number;
@@ -363,8 +358,8 @@ function validationXml(opts: {
   const attrs = [
     `type="${opts.type}"`,
     'operator="between"',
-    // BINDEND: leeg betekent "geen wijziging" (Q1 van etappe 2). Een lege cel mag nooit een
-    // foutmelding geven, anders zou een blad met één ingevulde rij onbruikbaar zijn.
+    // BINDEND: leeg betekent "geen wijziging". Een lege cel mag nooit een foutmelding geven, anders
+    // zou een blad met één ingevulde rij onbruikbaar zijn.
     'allowBlank="1"',
     `showInputMessage="${opts.prompt ? '1' : '0'}"`,
     'showErrorMessage="1"',
@@ -383,14 +378,12 @@ function validationXml(opts: {
 /**
  * De `sqref` van één invulkolom: rij 2 t/m `lastRow`, MÍNUS de rijen van verzameltaken.
  *
- * Waarom die uitzondering (eindreview 2026-09-12, punt b): de drie invulcellen van een verzamelrij
- * dragen géén getal of datum maar de em-dash-MEDEDELING "niet invullen" — een tekstcel. Een
- * `date`- of `decimal`-validatie over zo'n cel is een tegenstrijdigheid: Excel toont er de
- * invulhint van een kolom die daar juist niet ingevuld mag worden, en zodra de invuller de cel
- * aanraakt (kopiëren-plakken over het blad, of het blad met een ander programma bewerken dat de
- * bladbeveiliging negeert) krijgt hij een foutmelding over een datum, niet de uitleg dat een
- * verzameltaak zijn voortgang uit zijn kinderen krijgt. De bladbeveiliging houdt de cel al
- * vergrendeld; de validatie hoort er dan ook niet overheen te lopen.
+ * Waarom die uitzondering: de drie invulcellen van een verzamelrij dragen géén getal of datum maar
+ * de em-dash-MEDEDELING "niet invullen" — een tekstcel. Een `date`- of `decimal`-validatie daarover is
+ * tegenstrijdig: Excel toont de invulhint van een kolom die daar juist niet ingevuld mag worden, en
+ * wie de cel toch aanraakt (kopiëren-plakken, of een programma dat de bladbeveiliging negeert) krijgt
+ * een foutmelding over een datum i.p.v. de uitleg dat een verzameltaak zijn voortgang uit zijn
+ * kinderen krijgt. De bladbeveiliging houdt de cel al vergrendeld.
  *
  * Aaneengesloten rijen worden tot één bereik samengevouwen (`G3:G7 G9`), zoals Excel zelf ook
  * schrijft; een enkele rij wordt een kale celverwijzing. Zonder taken blijft er `X2` staan —
@@ -421,17 +414,16 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
   });
 
   // ── breedtes ───────────────────────────────────────────────────────────────
-  // De KALE sleutel telt mee, de instructie niet (X5). Zie de moduledoc, valstrik 4.
+  // De KALE sleutel telt mee, de instructie niet. Zie de moduledoc, valstrik 4.
   const maxChars = COLUMNS.map(col => col.key.length);
   for (const task of tasks) {
     const marked = summaryNote !== undefined && task.childIds.length > 0;
     const values = rowValues(task, marked, summaryNote ?? '');
     COLUMNS.forEach((col, i) => {
       // De verzamelrij-markering telt om dezelfde reden NIET mee als de kopinstructie: het is een
-      // mededeling van tientallen tekens, geen data. Zou hij meetellen, dan liepen de drie
-      // invulkolommen meteen tegen de klem van 46 aan en was E9 juist in de kolommen waar het om
-      // gaat ongedaan gemaakt. De cel zelf blijft de volle tekst dragen (Excel laat hem overlopen
-      // in de lege buurcel), alleen de BREEDTE volgt de echte waarden.
+      // mededeling van tientallen tekens, geen data. Anders liepen de drie invulkolommen meteen tegen
+      // de klem van 46 aan. De cel zelf draagt de volle tekst (Excel laat hem overlopen in de lege
+      // buurcel), alleen de BREEDTE volgt de echte waarden.
       if (marked && col.editable) return;
       const shown = displayText(col.kind, values[i] ?? '');
       if (shown.length > (maxChars[i] ?? 0)) maxChars[i] = shown.length;
@@ -467,8 +459,8 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
   const lastRow = Math.max(2, tasks.length + 1);
   // DRIE blokken, één per invulkolom — niet twee met `G2:H…` samengevoegd. Een `dataValidation`
   // draagt precies één `prompt`, dus een gedeeld G/H-blok gaf de kolom *Actual Finish* de tooltip
-  // van *Actual Start* ("werkelijke startdatum") — eindreview 2026-09-12, bevinding 3. De REGEL
-  // (type/bereik/foutmelding) is voor beide datumkolommen identiek; alleen de invulhint verschilt.
+  // van *Actual Start*. De REGEL (type/bereik/foutmelding) is voor beide datumkolommen identiek;
+  // alleen de invulhint verschilt.
   const dateRule = {
     // 1 = 1900-01-01, 2958465 = 9999-12-31: de volle datumruimte van Excel.
     type: 'date' as const, f1: '1', f2: '2958465',

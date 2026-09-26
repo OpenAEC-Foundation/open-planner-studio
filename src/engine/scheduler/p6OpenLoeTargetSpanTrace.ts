@@ -57,7 +57,7 @@ export function explainOpenXerLoeTargetSpanEligibilityResolved(
   targetWindowWorkMinutes: number,
   targetWindowToleranceMinutes: number,
 ): OpenXerLoeTargetSpanDecision {
-  // Conventie B5 `p6OpenLoeTargetSpan` — exact op de plek van de vroegere bron-check.
+  // Conventie B5 `p6OpenLoeTargetSpan`.
   if (schedulingOptions?.p6OpenLoeTargetSpan !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }

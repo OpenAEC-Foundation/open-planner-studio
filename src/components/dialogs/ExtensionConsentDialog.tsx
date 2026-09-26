@@ -6,7 +6,7 @@ import type { ExtensionConsentRequest } from '@/extensions';
 import { resolveExtensionConsent } from '@/extensions/consentBridge';
 
 /**
- * De vertrouwensvraag bij het INSTALLEREN van een extensie (K-item 38).
+ * De vertrouwensvraag bij het INSTALLEREN van een extensie.
  *
  * WAT HIER BEWUST NIET STAAT: een afvinklijst van permissies. Extensie-code draait in dezelfde
  * realm als de app, dus `ribbon`/`events`/`backstage`/`pdf-fonts` zijn poorten op de ONDERSTEUNDE
@@ -14,7 +14,7 @@ import { resolveExtensionConsent } from '@/extensions/consentBridge';
  * extensie is hiertoe beperkt" en daarmee een garantie suggereren die er niet is — erger dan geen
  * dialoog. De declaratie staat er wél, expliciet gelabeld als *voorgenomen* gebruik.
  *
- * Eén nuance sinds de XER-etappe (eindreview bevinding 9): `importSource` is de enige permissie met
+ * Eén nuance: `importSource` is de enige permissie met
  * een echte privacybetekenis — hij geeft de rauwe bronbytes van elk geïmporteerd bestand vrij en is
  * op de ondersteunde API wél hard afgedwongen (default-deny, `permissions.ts`). Dat maakt hem geen
  * sandbox-grens (dezelfde realm blijft), maar het is wel het enige chipje dat een gebruiker moet

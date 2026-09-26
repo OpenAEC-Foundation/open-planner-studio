@@ -1,4 +1,4 @@
-// Verhangen dat een kring maakt, vooraf weigeren (audit taakmutaties, rapport S4).
+// Verhangen dat een kring maakt, vooraf weigeren.
 //
 // Een relatie op een fase geldt voor elke taak in die fase (`expandSummaryRelations`). Verhangen
 // verandert dus niet alleen de boom maar ook welke relaties er in de berekening gelden:
@@ -7,17 +7,17 @@
 //     een kring.
 //   - Een relatie tussen een taak en haar eigen fase telt niet mee (`hierarchyRelationNotice.ts`).
 //     Spring je die taak uit, dan telt zo'n relatie weer, en ook dat kan een kring sluiten.
-// Voorheen voerde elke verhangroute dat stil uit; pas F5 liep vast op "Circular dependency" en de
-// hele planning bleef bevroren.
+// Zonder weigering loopt pas F5 vast op "Circular dependency" en blijft de hele planning bevroren.
 //
 // DE REGEL, één keer: `hierarchyChangeVerdict` voert de boomwijziging van een route eerst uit op een
 // proefkopie van de taken en toetst de uitkomst met `introducedCycle` — dezelfde uitvouwing als de
-// solver, en alleen een kring die er vóór de handeling nog niet was (zoals de relatieregel van #207;
-// een geïmporteerde kring blokkeert dus geen onschuldige verhanging). Alle routes delen hem: de
-// store-acties (`indentTasks`, `outdentTasks`, `moveTaskTo`, `moveTasksTo`, `moveTask` — samen
-// inspringen/uitspringen via sneltoets, lint en contextmenu, rij slepen in raster en Gantt, en het
-// ouderveld van "Taak bewerken"), de dialoog zelf (die vóór het opslaan toetst, zodat een geweigerde
-// ouder niet de rest van de bewerking half laat doorgaan) en MCP `planner_move_task`.
+// solver, en alleen een kring die er vóór de handeling nog niet was (zoals de relatieregel in
+// `relationAddVerdict`; een geïmporteerde kring blokkeert dus geen onschuldige verhanging). Alle
+// routes delen hem: de store-acties (`indentTasks`, `outdentTasks`, `moveTaskTo`, `moveTasksTo`,
+// `moveTask` — samen inspringen/uitspringen via sneltoets, lint en contextmenu, rij slepen in
+// raster en Gantt, en het ouderveld van "Taak bewerken"), de dialoog zelf (die vóór het opslaan
+// toetst, zodat een geweigerde ouder niet de rest van de bewerking half laat doorgaan) en MCP
+// `planner_move_task`.
 //
 // De proef draait DEZELFDE boomwijziging als de echte actie (een `HierarchyEdit`, gedefinieerd naast
 // de actie in `taskSlice.ts`), niet een nagebouwde versie: zo kan de toets niet uit de pas lopen met

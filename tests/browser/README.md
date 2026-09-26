@@ -1,11 +1,64 @@
-# X11/XWayland-browserharnas voor XER
+# `tests/browser/`
+
+Twee dingen wonen in deze map: de Playwright-suite die `npm run test:browser` draait (en daarmee
+`npm test` en `npm run verify`), en het losse, corpusgebonden X11-harnas voor XER (verderop).
+
+## De browsersuite (`npm run test:browser`)
+
+Eenmalig de browser en de Linux-systeemafhankelijkheden installeren:
+
+```bash
+npx playwright install --with-deps --only-shell chromium
+```
+
+Daarna:
+
+```bash
+npm run test:browser                                  # hele suite
+npm run test:browser -- tests/browser/smoke.spec.ts   # extra argumenten gaan door naar playwright test
+```
+
+Hoe het in elkaar zit:
+
+- **`scripts/run-browser-tests.mjs`** (het npm-script) reserveert voor deze worktree een vaste poort in
+  een eigen browsertestbaan (3107–3206, `scripts/dev-port.mjs`), dus los van de dev-server-poort.
+  Het start eerst bij wijze van proef de headless shell; ontbreekt die, dan stopt het met het installatiecommando
+  in de melding. Daarna start het `playwright test` met `OPS_BROWSER_TEST_PORT` en `OPS_DEV_INSTANCE`
+  in de omgeving. Rechtstreeks `npx playwright test` werkt niet: `playwright.config.ts` weigert te
+  starten zonder `OPS_BROWSER_TEST_PORT`.
+- **`playwright.config.ts`**: `testDir` is deze map, alleen het project `chromium` (Desktop Chrome),
+  `workers: 1`, `fullyParallel: false`, `retries: 0`, testtimeout 30 s, `expect`-timeout 5 s. Traces
+  blijven bewaard bij falen, screenshots alleen bij falen, geen video. Reporters: `line` plus een
+  HTML-rapport in `playwright-report/`; screenshots en traces landen in `test-results/`.
+- **`scripts/browser-test-server.mjs`** is het `webServer`-commando van de config: het claimt het
+  guard-slot voor die poort en start Vite op `127.0.0.1` (Playwright pollt bewust IPv4). Er wordt
+  nooit een al draaiende server hergebruikt (`reuseExistingServer: false`); Playwright start en stopt
+  hem zelf.
+- **`*.spec.ts`**: de tests zelf, één bestand per onderwerp (Gantt, tabel, dialogen, rapporten,
+  instellingen, …).
+- **`fixtures/ops.ts`**: de gedeelde `test`-fixture `ops`. Die opent de app, wacht op de dev-only brug
+  `window.__OPS__` en de welkomstdialoog, begint een leeg project en faalt de test bij elke
+  onverwachte `pageerror` of `console.error` (een test kan een verwachte fout toestaan met
+  `ops.acceptError(…)`). Daarnaast helpers als `state`, `seedProject` en `barPoint`.
+- **`fixtures/locale.ts`**: de taalwissel via de echte Instellingen-knoppen, met de ltr/rtl-gevallen
+  (`ar`, `fa`, `nl`, `en`).
+- **`helpers/ops-state.mjs`** hoort bij het X11-harnas hieronder, niet bij de spec-suite.
+
+Tests lopen via echte browser-events. De brug mag deterministische fixtures zetten en state of
+Canvasgeometrie lezen, maar de geteste gebruikershandeling nooit vervangen.
+
+In CI draait de suite als apart deel van `scripts/verify-parts.mjs` (`test:browser`), verdeeld over
+drie shards (`--shard=1/3` … `3/3`), elk met een eigen bewaakte Vite-server; de CI-, live- en release-workflows uploaden bij falen `playwright-report/`
+en `test-results/` als `playwright-*`-artefact (zeven dagen).
+
+## X11/XWayland-browserharnas voor XER (`npm run test:browser:x11`)
 
 Dit harnas voert de fase-1-gebruikstest en de afgebakende fase-2A-proef voor multi-document +
 Help uit tegen de browser-dev-build van precies deze worktree. Het opent een echt zichtbaar
 Chromium-venster, kiest via de zichtbare Engelse knop `Open` een XER-bestand met de echte
 browser-filechooser en controleert daarna zowel de DOM als `window.__OPS__`.
 
-## Voorwaarden
+### Voorwaarden
 
 - Node 22 en npm moeten beschikbaar zijn.
 - `OPS_XER_CORPUS` moet naar de corpusroot wijzen. De standaardrun gebruikt daaruit
@@ -23,7 +76,7 @@ browser-filechooser en controleert daarna zowel de DOM als `window.__OPS__`.
 Een lokale run zonder corpus, Chromium of bruikbaar display eindigt rood met exitcode 1. Een
 expliciete CI-run mag overslaan met `OPS_XER_X11_CI=1`; dat is geen browserbewijs.
 
-## Uitvoeren
+### Uitvoeren
 
 ```bash
 OPS_XER_CORPUS="/pad/naar/testdata-crawl" \
@@ -92,7 +145,7 @@ Playwright `filechooser`-event en gebruikt `chooser.setFiles(...)`. Vóór de Op
 Iedere directe of computed aanroep wordt geteld, gooit meteen een fout en maakt de run rood;
 na de import moet de teller nul zijn. De store wordt alleen gelezen voor state-inspectie.
 
-## SMALL-A-asserties
+### SMALL-A-asserties
 
 De import moet opleveren:
 
@@ -106,7 +159,7 @@ De import moet opleveren:
 
 Daarnaast moeten `window.alert`, `window.confirm` en `window.prompt` nul keer zijn aangeroepen.
 
-## Fase-2A-asserties
+### Fase-2A-asserties
 
 De multi-documentproef pint het echte XER-importreport op 15 gevonden projecten, 12 geopende
 documenten, 3 overgeslagen lege projecten, 0 uitgesloten baselineprojecten, 0 gematerialiseerde
@@ -125,7 +178,7 @@ over meerdere documenten, lege projecten en baselines. De openlatency en alle tw
 switchlatencies worden als eindige meetwaarden vastgelegd; er geldt geen zelfverzonnen harde
 performancegrens.
 
-## Evidence en beperking
+### Evidence en beperking
 
 Elke geslaagde run schrijft buiten de repo naar een unieke submap onder
 `/tmp/xer-x11-evidence/`. Daarin staan metadata, de privacy-geredigeerde overzichtsscreenshot,

@@ -1,4 +1,4 @@
-// MCP-bridge — AI-activiteitenlog (T15, spec §UI "AI-activiteitenpaneel").
+// MCP-bridge — AI-activiteitenlog (voedt het AI-activiteitenpaneel).
 //
 // Een eigen ring-buffer (cap 500) van `ActivityEntry`, met exact het subscribe-patroon van de
 // bestaande log-bus (`src/services/debug/appLog`) — maar volledig los ervan: de debug-terminal blijft

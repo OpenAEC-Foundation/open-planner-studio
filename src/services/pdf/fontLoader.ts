@@ -6,15 +6,15 @@ import notoArabicBoldUrl from './fonts/NotoSansArabic-Bold.ttf?url';
 /**
  * Font-loader voor het gevendorde Inter (statische glyf-TTF, wght 400/700). Doel: de print-renderer
  * meet en tekent op één deterministisch, inbedbaar font (family `'InterPDF'`) i.p.v. de per-platform
- * verschillende systeem-font-stack. Dat maakt `measureText` in de preview identiek aan de latere
- * pdf-lib-vector-export, die dezelfde TTF-bytes inbedt (§5.1/§5.2 ontwerpdoc).
+ * verschillende systeem-font-stack. Dat maakt `measureText` in de preview identiek aan de
+ * pdf-lib-vector-export, die dezelfde TTF-bytes inbedt.
  *
  * Alles is browser-only (FontFace, fetch) — geen Tauri-imports; werkt in de web- én de desktop-build.
  */
 
 const FAMILY = 'InterPDF';
 
-/** Cache van de rauwe TTF-bytes per gewicht (voor fase 2-embedding én de FontFace-registratie). */
+/** Cache van de rauwe TTF-bytes per gewicht (voor de PDF-embedding én de FontFace-registratie). */
 const byteCache: Partial<Record<400 | 700, Uint8Array>> = {};
 
 async function fetchBytes(url: string): Promise<Uint8Array> {
@@ -25,8 +25,8 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
 
 /**
  * Rauwe TTF-bytes van het gevendorde Inter voor een gewicht (400 = Regular, 700 = Bold). Bedoeld voor
- * de fase-2 pdf-lib-embedding (`embedFont(bytes, { subset: true })`); nu al gebouwd zodat het contract
- * stabiel is. Cachet per gewicht.
+ * de pdf-lib-embedding in `paginateVector.ts` (`embedFont(bytes, { subset: false })`). Cachet per
+ * gewicht.
  */
 export async function getInterFontBytes(weight: 400 | 700): Promise<Uint8Array> {
   if (byteCache[weight]) return byteCache[weight]!;
@@ -45,8 +45,7 @@ const arabicByteCache: Partial<Record<400 | 700, Uint8Array>> = {};
  * ({@link file://./bidiShape.ts}) geshapt en als apart CID-font (naast Inter) ingebed. Statische glyf-TTF's
  * met GSUB/GPOS (zie `fonts/README.md`); cachet per gewicht, net als {@link getInterFontBytes}.
  *
- * De canvas-preview-`FontFace`-registratie (screen-metrics) is een aparte zorg voor de integratie-fase;
- * deze functie levert alléén de bytes voor de PDF-embedding.
+ * Deze functie levert alléén de bytes voor de PDF-embedding; ze registreert geen canvas-`FontFace`.
  */
 export async function getArabicFontBytes(weight: 400 | 700): Promise<Uint8Array> {
   if (arabicByteCache[weight]) return arabicByteCache[weight]!;
@@ -62,7 +61,7 @@ let loadPromise: Promise<void> | null = null;
  * Zorgt dat family `'InterPDF'` (weight 400 en 700) als `FontFace` geregistreerd én geladen is, zodat
  * `ctx.measureText`/`ctx.fillText` op `'InterPDF'` de juiste glyf-metrics gebruiken. Idempotent: laadt
  * één keer, cachet de Promise. Wacht op `document.fonts.load(...)` voor beide gewichten én op
- * `document.fonts.ready` — anders meet/tekent de eerste render op fallback-metrics (§5.2).
+ * `document.fonts.ready` — anders meet/tekent de eerste render op fallback-metrics.
  */
 export function ensureInterLoaded(): Promise<void> {
   if (loadPromise) return loadPromise;

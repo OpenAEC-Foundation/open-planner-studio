@@ -4,8 +4,8 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import { formatWorkDaysText } from '@/utils/taskDuration';
 
 /**
- * CPM-resultaat (readonly: ES/EF/LS/LF/TF/FF/interfering float/kritiek) — sectie 8 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2). RELATIONEEL/storeful (spec-classificatie): puur
+ * CPM-resultaat (readonly: ES/EF/LS/LF/TF/FF/interfering float/kritiek) — sectie van
+ * `TaskPropertiesPanel`. RELATIONEEL/storeful: puur
  * lezend, geen `onChange`-contract nodig — identiek in paneel én dialoog.
  */
 export function TaskCpmResultSection({ taskId }: { taskId: string }) {

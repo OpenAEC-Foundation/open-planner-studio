@@ -1,7 +1,6 @@
-// Issue #27 etappe 3 (T2): de kolomherkenning van het voortgangsblad, formaat-AGNOSTISCH gelift uit
-// `parseProgressCsv.ts`. Zowel de CSV- als de XLSX-lezer gebruikt deze ene tabel en deze ene
-// matchregel; zou de xlsx-lezer ze kopiëren, dan loopt hij stil uit de pas zodra er een alias
-// bijkomt. Niets in dit bestand weet van CSV, delimiters, ZIP of XML.
+// De kolomherkenning van het voortgangsblad, formaat-AGNOSTISCH. Zowel de CSV- als de XLSX-lezer
+// gebruikt deze ene tabel en deze ene matchregel; een kopie zou stil uit de pas lopen zodra er een
+// alias bijkomt. Niets in dit bestand weet van CSV, delimiters, ZIP of XML.
 
 import type {
   ProgressFileIssue,
@@ -13,8 +12,8 @@ import type {
 
 // Detectie-only kolommen (start/finish) staan bewust in dezelfde tabel: ze worden hieronder
 // herkend als elke andere kolom, maar landen NOOIT in `RawProgressRow` — alleen in
-// `detectionCells` (A5.4). Dat is een structurele garantie: er bestaat geen veld in het
-// rij-contract dat een Start/Finish-waarde zou kunnen dragen.
+// `detectionCells`. Dat is een structurele garantie: er bestaat geen veld in het rij-contract dat een
+// Start/Finish-waarde zou kunnen dragen.
 export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   taskId: ['ops task id', 'ops taskid', 'task id'],
   wbs: ['wbs', 'wbs code', 'wbscode'],
@@ -26,20 +25,17 @@ export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
 };
 
-// Besluit 2026-09-05 (punt D, gebruikstest — letterlijke wens: "er moet ook in de headers van de
-// kolommen komen te staan wat je in mag voeren en waar je af moet blijven"): het geëxporteerde
-// voortgangsblad (`writeProgressSheetCSV`) draagt per kolom een invulinstructie NA de sleutel,
-// gescheiden door ` — ` (`<sleutel> — <instructie>`). De vroegste van deze drie markers snijdt
-// dus de instructie van de sleutel af: `HEADER_INSTRUCTION_MARKERS`.
+// Het geëxporteerde voortgangsblad (`writeProgressSheetCSV`) draagt per kolom een invulinstructie NA
+// de sleutel, gescheiden door ` — ` (`<sleutel> — <instructie>`). De vroegste van deze drie markers
+// snijdt de instructie van de sleutel af.
 export const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
 
 /**
- * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `PROGRESS_COLUMN_ALIASES` (bestaand gedrag,
- * dekt zowel oude bladen als de volledige CSV-export). Lukt dat niet, dan is de terugval het
- * PREFIX vóór de vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
- * `Completion (%) — invullen: …` — het haakje van "(%)" zelf ligt vóór de "—", dus de afgesneden
- * prefix wordt "completion", een bestaande alias (E6/A5.6-notitie: geen aparte "haakjes"-uitzondering
- * nodig, de bestaande exacte alias "completion" vangt dat al op). Geen van beide treft ⇒ geen kolom.
+ * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `PROGRESS_COLUMN_ALIASES` (dekt zowel
+ * oude bladen als de volledige CSV-export). Lukt dat niet, dan is de terugval het PREFIX vóór de
+ * vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
+ * `Completion (%) — invullen: …` — het haakje van "(%)" ligt vóór de "—", dus de afgesneden prefix
+ * wordt "completion", een bestaande alias. Geen van beide treft ⇒ geen kolom.
  */
 export function matchColumnKey(header: string): string | undefined {
   const h = header.toLowerCase().trim();
@@ -70,7 +66,7 @@ export function mapColumnIndex(headers: readonly string[]): Record<string, numbe
 
 /** Trimt en begrenst een rauwe celwaarde. Overschrijding is een WEIGERING (het veld wordt
  *  afwezig — "telt als leeg"), NOOIT een stille afkapping: een afgekapt id/waarde kan per ongeluk
- *  een andere taak matchen dan de gebruiker bedoelde (hardening-checklist). */
+ *  een andere taak matchen dan de gebruiker bedoelde. */
 export function boundedCell(raw: string | undefined, maxChars: number): string | undefined {
   if (raw === undefined) return undefined;
   const trimmed = raw.trim();
@@ -127,7 +123,7 @@ export interface SheetRow {
  * Datarijen → het `ProgressSheet`-contract: begrensde, getrimde celwaarden per herkende kolom, nog
  * ONGEPARSED. `start`/`finish` landen UITSLUITEND in `detectionCells` — er bestaat geen veld in
  * `RawProgressRow` dat ze zou kunnen dragen, en dat is de structurele garantie dat ze nooit
- * geschreven worden (A5.4).
+ * geschreven worden.
  */
 export function collectProgressRows(
   rows: Iterable<SheetRow>,
@@ -162,8 +158,8 @@ export function collectProgressRows(
       ...(rawActualFinish !== undefined ? { rawActualFinish } : {}),
     });
 
-    // A5.2/A5.4: `taskId` op een detectiecel alleen gezet bij een harde id-treffer VAN DEZE RIJ —
-    // de ijkpuntregel (kalibratie) gebruikt niets zwakkers dan dat.
+    // `taskId` op een detectiecel alleen bij een harde id-treffer VAN DEZE RIJ — de ijkpuntregel
+    // (kalibratie) gebruikt niets zwakkers.
     const detectionTaskId = taskId !== undefined ? { taskId } : {};
     if (rawActualStart !== undefined) {
       detectionCells.push({ rowNumber, field: 'actualStart', raw: rawActualStart, ...detectionTaskId });

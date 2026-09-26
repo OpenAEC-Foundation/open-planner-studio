@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Strikt-positief eenheden-invoerveld (fase 2.5 UX-fix, bevinding 1). Houdt een lokale draft-string
+ * Strikt-positief eenheden-invoerveld. Houdt een lokale draft-string
  * bij zodat de gebruiker vrij kan typen, wijst 0/negatieve/lege waarden visueel af (rode rand) en
  * commit ALLEEN geldige (> 0, eindig) waarden naar de store — nooit een clamp naar 0. Bij blur op
  * een ongeldige waarde valt het veld terug op de laatst geldige (opgeslagen) waarde. Fracties zijn
@@ -15,7 +15,7 @@ export function UnitsInput({
   className?: string;
   title?: string;
   ariaLabel?: string;
-  /** Issue #48: rasternavigatie (Enter/Shift+Enter) — het veld is een cel in een live tabel. */
+  /** Rasternavigatie (Enter/Shift+Enter) — het veld is een cel in een live tabel. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   /** `data-ops-grid-cell`-adres van deze cel; `useLiveGridNav` focust hierop. */
   gridCell?: string;

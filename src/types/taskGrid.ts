@@ -8,7 +8,7 @@ export type TaskGridSurfaceId = 'gantt-task-grid' | 'full-task-grid';
 export type TaskColumnId = string & { readonly __taskColumnId: unique symbol };
 
 /**
- * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3 §3.6). Gedragslogica en de exacte
+ * "Datums zoals opgeslagen". Gedragslogica en de exacte
  * regels staan in `src/state/recordedDatesSelectors.ts` — deze twee unietypes wonen hier (leaf-
  * laag) omdat `TaskColumnContext` hieronder ze nodig heeft en niets in `src/types/*.ts` van
  * `@/state/*` afhangt; `recordedDatesSelectors.ts` importeert ze hier weer type-only vandaan.
@@ -100,7 +100,7 @@ export interface TaskAssignmentToken {
   assignmentId?: string;
   unitsPerDay: number;
   curve?: ResourceCurve;
-  /** Taaktypes-etappe (spec §7): resterend werk in werkminuten — alleen de kolom
+  /** Resterend werk in werkminuten — alleen de kolom
    *  `assignment.remainingWork` zet 'm; `gridTransaction.ts` voert hem via de werkdriehoek uit. */
   remainingWorkMinutes?: number;
 }
@@ -111,7 +111,7 @@ export type GridWriteIntent = CellEditIntent | RelationSetIntent | AssignmentSet
 export interface PasteIntent {
   kind: 'paste';
   writes: readonly GridWriteIntent[];
-  /** FIX 6 (§8.6): gezet naar `TaskGridPasteOptions.skipReadOnlyCells` (clipboard.ts). Alleen een
+  /** Gezet naar `TaskGridPasteOptions.skipReadOnlyCells` (clipboard.ts). Alleen een
    *  echte Ctrl+V-paste zet dit aan; `planTaskGridClear` (Delete/Backspace) laat het weg en behoudt
    *  zijn bestaande "één niet-leegbare cel ⇒ volledige rollback"-semantiek. gridTransaction.ts leest
    *  dit om te bepalen of conditioneel read-only cellen tijdens de transactie mogen worden
@@ -149,16 +149,16 @@ export interface TaskColumnContext {
   /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
    *  Ontbreekt hij, dan blijft de afwijking leeg — er is bewust geen kalenderloze terugval. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
-  /** "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — badge voor de kolom `recorded.source`.
+  /** "Datums zoals opgeslagen" — badge voor de kolom `recorded.source`.
    *  `undefined` op documenten zonder vastlegging (`recordedDates === null`), dus de kolom bestaat
    *  dan niet: `available(ctx) => ctx.recordedMark !== undefined`. */
   recordedMark?: (task: Task) => RecordedTaskMark;
   /** Welke late-/floatassen het BESTAND niet vastlegde voor deze taak — de bestaande late-/float-
    *  kolommen gebruiken dit om "niet vastgelegd" te tonen in plaats van de bestaande `?? 0`-
-   *  terugval (die als VELDWAARDE blijft staan, zie `recordedDates.ts` §3.4) als een echt getal te
+   *  terugval (die als VELDWAARDE blijft staan, zie `recordedDates.ts`) als een echt getal te
    *  presenteren. Zelfde aanwezigheid als `recordedMark` (beide `undefined` zonder vastlegging). */
   recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
-  /** Taaktypes-etappe (spec §7): de werkregel-kolommen bestaan alleen wanneer de weergave
+  /** De werkregelkolommen bestaan alleen wanneer de weergave
    *  ontsloten is (instelling of documentontsluiting, `taskTypesUnlocked`). */
   taskTypesUnlocked?: boolean;
 }
@@ -166,8 +166,8 @@ export interface TaskColumnContext {
 /**
  * Waar de kop van een kolom vandaan komt. `labelKey` is een vertaalsleutel (task-namespace).
  * `labelText` is een naam die de gebruiker zelf gaf (activity code, eigen veld, baseline): gewone
- * tekst, GEEN vertaalsleutel, en hij gaat dus nooit door `t()`. Daar werd een punt als sleutelscheiding
- * gelezen: "Fase 1.2" werd "2", "Blok v.o." leeg. Met beide wordt de kop "<labelText> — <vertaalde
+ * tekst, GEEN vertaalsleutel, en hij gaat dus nooit door `t()`: die leest een punt als
+ * sleutelscheiding ("Fase 1.2" wordt "2", "Blok v.o." leeg). Met beide wordt de kop "<labelText> — <vertaalde
  * labelKey>" (baselinekolommen). Lees een kop via `taskColumnLabel` (taskColumnRegistry).
  */
 export type TaskColumnLabelSource =

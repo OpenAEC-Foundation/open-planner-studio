@@ -13,11 +13,10 @@ export type TaskType =
   | 'USERDEFINED';
 
 /**
- * Alle geldige `TaskType`-waarden als runtime-lijst voor de import-readers (IFC/CSV) — F5-g.
- * `satisfies Record<TaskType, true>` dwingt af dat de tabel EXACT de union dekt: een nieuw
- * TaskType-lid zonder sleutel geeft een compileerfout, een sleutel die geen lid is ook. Zo kan de
- * lijst niet stil verouderen. De readers houden hun eigen normalisatie (IFC strip punten, CSV
- * uppercase) en gebruiken alleen deze verzameling voor de geldigheidscheck.
+ * Alle geldige `TaskType`-waarden als runtime-lijst voor de import-readers (IFC/CSV).
+ * `satisfies Record<TaskType, true>` dwingt af dat de tabel EXACT de union dekt, zodat de lijst niet
+ * stil kan verouderen. De readers houden hun eigen normalisatie (IFC strip punten, CSV uppercase) en
+ * gebruiken alleen deze verzameling voor de geldigheidscheck.
  */
 const TASK_TYPE_TABLE = {
   CONSTRUCTION: true,
@@ -36,13 +35,12 @@ export const TASK_TYPES = Object.keys(TASK_TYPE_TABLE) as TaskType[];
 export type TaskStatus = 'NOT_STARTED' | 'STARTED' | 'COMPLETED';
 
 /**
- * Datum-constraints (fase 2.3), P6-soft-semantiek: een constraint breekt nooit de
- * netwerklogica — vroege-zijde types (SNET/FNET) zijn ondergrenzen in de forward pass,
- * late-zijde types (SNLT/FNLT) bovengrenzen in de backward pass; overtreding uit zich
- * als negatieve float, niet als verschoven balken. MSO/MFO werken als P6's "Start On"/
- * "Finish On": onder- én bovengrens tegelijk (de logica-brekende harde pin is bewust
- * niet geïmplementeerd; zie docs/superpowers/specs/2026-07-02-constraints-deadlines-design.md).
- * ALAP schuift de vroege datums op tot de vrije speling 0 is (P6-model).
+ * Datum-constraints, P6-soft-semantiek: een constraint breekt de netwerklogica niet — vroege-zijde
+ * types (SNET/FNET) zijn ondergrenzen in de forward pass, late-zijde types (SNLT/FNLT) bovengrenzen in
+ * de backward pass; overtreding uit zich als negatieve float, niet als verschoven balken. MSO/MFO
+ * werken als P6's "Start On"/"Finish On": onder- én bovengrens tegelijk. De logica-brekende harde pin
+ * is opt-in via `TaskConstraint.hard`. ALAP schuift de vroege datums op tot de vrije speling 0 is
+ * (onder conventie C14 anders, zie `SchedulingOptions.p6AlapPositionedFromSuccessors`).
  */
 export type ConstraintType = 'ASAP' | 'ALAP' | 'SNET' | 'SNLT' | 'FNET' | 'FNLT' | 'MSO' | 'MFO';
 
@@ -50,28 +48,27 @@ export interface TaskConstraint {
   type: ConstraintType;
   /** Vereist voor alle types behalve ASAP/ALAP; wordt bij toepassing op een werkdag gesnapt. */
   date?: string;
-  /** OPTIONEEL — logica-brekende Mandatory-pin (fase 2.9). Alleen zinvol voor MSO/MFO.
-   *  Afwezig/false ⇒ P6-soft "Start On"/"Finish On" (het huidige gedrag, byte-identiek).
-   *  true ⇒ P6 Mandatory Start/Finish: pint ES én LF (MSO) resp. EF én LS (MFO) op de datum,
-   *  overschrijft de logica, houdt TF=0 op de pin en drijft negatieve float upstream (§4.2). */
+  /** Logica-brekende Mandatory-pin; alleen zinvol voor MSO/MFO. Afwezig/false ⇒ P6-soft "Start On"/
+   *  "Finish On". true ⇒ P6 Mandatory Start/Finish: pint ES én LF (MSO) resp. EF én LS (MFO) op de
+   *  datum, overschrijft de logica, houdt TF=0 op de pin en drijft negatieve float upstream. */
   hard?: boolean;
 }
 
 /**
- * Externe (cross-project) dependency (fase 2.9, §3.3). GEEN live multi-document-solve: de link
- * rekent altijd op de bevroren `anchorDate` (P6 External Dates). `sourceMissing` is puur een
- * UI-/versheids-signaal (§4.5/§5.5) — het gedrag hangt er niet van af.
+ * Externe (cross-project) dependency. GEEN live multi-document-solve: de link rekent altijd op de
+ * bevroren `anchorDate` (P6 External Dates). `sourceMissing` is puur een UI-/versheidssignaal; het
+ * rekengedrag hangt er niet van af.
  */
 export interface ExternalLink {
   id: string;
   direction: 'predecessor' | 'successor';   // is de externe taak mijn voorganger of opvolger?
   relType: 'FS' | 'SS' | 'FF' | 'SF';
   lagDays?: number;
-  lagMinutes?: number;                       // zelfde eenheid-conventie als Sequence (2.8b §3.3)
-  /** Bevroren driving-datum van de andere kant (P6 External Dates, Rapport B §3.1). */
+  lagMinutes?: number;                       // zelfde eenheid-conventie als Sequence
+  /** Bevroren driving-datum van de andere kant (P6 External Dates). */
   anchorDate: string;                        // date-only (dag) of datetime (uur)
   sourceRef: { projectId: string; projectName?: string; taskId: string; taskName?: string; filePath?: string };
-  /** true ⇒ bronproject niet beschikbaar; de link rekent op de gecachte anchorDate (ghost, §5.5). */
+  /** true ⇒ bronproject niet beschikbaar; de link rekent op de gecachte anchorDate (ghost). */
   sourceMissing: boolean;
 }
 
@@ -87,61 +84,43 @@ export type DurationType = 'WORKTIME' | 'ELAPSEDTIME';
 export type TaskDurationUnit = 'days' | 'hours';
 
 /**
- * Eén werkonderbreking in een gesplitste taak (MS Project: "split") — etappe "nul afwijkingen"
- * (Z0/Z4 leidden dit af, Z7 consumeert het in de CPM: `CPMSolver.ts`/`duration.ts`'s
- * `splitTotalSpanMinutes`).
+ * Eén werkonderbreking in een gesplitste taak (MS Project: "split"). De CPM wandelt de gaten via
+ * `splitTotalSpanMinutes` (`duration.ts`); elk gat is een periode waarin niet gewerkt wordt, daarna
+ * hervat het restwerk.
  *
- * OFFSET-GEBASEERD, niet absoluut, in MINUTEN — MAAR (Z7-fixronde-H1, WORTELFIX: as-verwarring
- * gecorrigeerd) NIET op de "zuivere werkduur"-as (`TaskTime.durationMinutes`s eenheid, die per
- * definitie GEEN gaten telt). `afterMinutes`/`gapMinutes` staan op MPXJ/MSP's eigen cumulatieve
- * `elapsedWorkMinutes`-as (zie `mppTimephased.ts`'s `TimephasedWorkPeriod`, de bron van deze
- * afleiding, `Z4`-paragraaf in de moduleheader): die as loopt CUMULATIEF door de tijdgefaseerde
- * periodes en telt daarbij ELKE periode mee — óók een periode met `workMinutes===0` (een gat telt
- * dus zelf ook mee in hoeveel de as voor een VOLGEND gat al is opgeschoven). Voor een taak met twee
- * of meer gaten is `afterMinutes` van het TWEEDE (en latere) gat dus NIET gelijk aan "zuivere
- * werktijd sinds taakstart" — het incorporeert de voorgaande gaten al. Consumenten mogen `afterMinutes`
- * daarom NOOIT rechtstreeks tegen een zuivere-werkduur-getal (`durationMinutesOf`/`scheduleDuration`)
- * vergelijken of tegen een vast venster klemmen — dat trunceerde eerder legitieme gaten (reviewer-
- * bewijs: `mpxj/junit/data/mpp14timephased.mpp`s "Task 5 - 24 Hour", `afterMinutes:1440`/
- * `gapMinutes:5760`, MSP's eigen finish reproduceert alleen via de ONGEKLEMDE as-wandeling
- * `splitTotalSpanMinutes` in `duration.ts`, niet via een `[0, duur)`-venster). "Het restwerk hervat
- * daarna" blijft de betekenis: elk gat is een periode waarin niet gewerkt wordt, op de eigen positie
- * langs deze as — zie `duration.ts`'s moduleheader voor het volledige as-wandelalgoritme.
+ * OFFSET-GEBASEERD, in MINUTEN, maar NIET op de "zuivere werkduur"-as van `TaskTime.durationMinutes`
+ * (die telt geen gaten). `afterMinutes`/`gapMinutes` staan op MPXJ/MSP's cumulatieve
+ * `elapsedWorkMinutes`-as (`mppTimephased.ts`'s `TimephasedWorkPeriod`), die ELKE periode meetelt,
+ * ook een gat (`workMinutes===0`). Vanaf het tweede gat incorporeert `afterMinutes` dus de voorgaande
+ * gaten. VALKUIL: vergelijk `afterMinutes` nooit met een zuivere-werkduurgetal
+ * (`durationMinutesOf`/`scheduleDuration`) en klem het niet op een `[0, duur)`-venster — dat
+ * trunceert legitieme gaten. Het as-wandelalgoritme staat in de moduleheader van `duration.ts`.
  *
- * Offsets in plaats van absolute datumparen om drie redenen: shift-invariant (een herberekening/
- * verplaatsing van de taak verschuift de gaten automatisch mee, absolute segmenten zouden bij elke
- * herberekening verouderen), geen INPUT/COMPUTED-dubbelrol (de gaten zijn brondata; de absolute
- * segmenten die de renderer/print tekenen zijn AFGELEID uit `earlyStart` + een kalenderwandeling),
- * en een triviaal `moveProject.ts`-verdict (er staat geen datum in, dus "n/a" is aantoonbaar
- * correct — zelfde taxonomie als `levelingDelay` — in plaats van een handgeschreven shift).
+ * Offsets in plaats van absolute datumparen: shift-invariant (verplaatsen of herberekenen neemt de
+ * gaten vanzelf mee), geen invoer/uitvoer-dubbelrol (de absolute segmenten die renderer en print
+ * tekenen zijn AFGELEID uit `earlyStart` + een kalenderwandeling), en `moveProject.ts` kan ze als
+ * "n/a" markeren (net als `levelingDelay`).
  */
 export interface TaskSplitGap {
   afterMinutes: number;
   gapMinutes: number;
-  /** OPTIONEEL — waar dit gat vandaan komt (B1c-plan-2 taak 7, spec §4 "Herkomst"). AFWEZIG =
-   *  brondata: een split die uit een `.mpp`-import komt (`deriveSplitGapsForTasks`) of die de
-   *  gebruiker zelf via een importbestand meebracht — die wordt NOOIT door de nivelleerder
-   *  aangeraakt. `'leveling'` = door de verdeler ingevoegde pauzedag: idempotent herschreven bij een
-   *  nieuwe nivellering, gewist door "nivellering wissen"/"alles terugdraaien"
-   *  (`clearLevelingGaps`, `taskDefaults.ts`), en gewist zodra de tijdbasis van de taak wijzigt (een
-   *  gat op een verouderde as is geen planning maar ruis — de WIRING van die laatste invalidatie is
-   *  etappe 3). Afwezig ⇒ byte-identiek voor elk bestaand bestand. `'user'` = door de gebruiker
-   *  gemaakt of bewerkt (eigenschappenpaneel/Gantt/MCP, issue #146): wordt NOOIT door de
-   *  nivelleerder of "nivellering wissen" aangeraakt, en `rescaleSplitGaps` snapt zo'n gat bij een
-   *  duurwijziging op de eenheid van de taak (hele werkdag, of een uur bij een urentaak). */
+  /** Herkomst van het gat. AFWEZIG = brondata: een split uit een import (`.mpp`:
+   *  `deriveSplitGapsForTasks`); de nivelleerder raakt die NOOIT aan. `'leveling'` = door de verdeler
+   *  ingevoegde pauzedag: idempotent herschreven bij een nieuwe nivellering, gewist door "nivellering
+   *  wissen"/"alles terugdraaien" (`clearLevelingGaps`, `taskDefaults.ts`) en zodra de tijdbasis van de
+   *  taak wijzigt (een gat op een verouderde as is ruis). `'user'` = door de gebruiker gemaakt of
+   *  bewerkt (eigenschappenpaneel/Gantt/MCP): nooit aangeraakt door de nivelleerder of "nivellering
+   *  wissen"; `rescaleSplitGaps` snapt zo'n gat bij een duurwijziging op de eenheid van de taak (hele
+   *  werkdag, of een uur bij een urentaak). */
   source?: 'leveling' | 'user';
 }
 
 /**
- * Eén rauwe periode uit een gedecodeerd .mpp-timephased-blok (Z14b — zie `Task.timephasedContours`
- * se docblok voor de volledige rol/eigenaarsprincipe-toelichting). `afterMinutes`/`minutes` liggen
- * op DEZELFDE cumulatieve-werkminuten-as als `TaskSplitGap.afterMinutes`/`gapMinutes` (taak-as, niet
- * toewijzings-as — zie die interface se docblok); `minutes` is de periodelengte op die as
- * (`elapsedWorkMinutesEnd − elapsedWorkMinutesStart` in `mppTimephased.ts`'s `TimephasedWorkPeriod`).
- * `workMinutes` kan 0 zijn (een periode met verstreken werkminuten maar zonder werk — het gat dat
- * `deriveSplitGapsFromPeriods` als split herkent). `kind` onderscheidt reeds-verricht werk
- * (`'actual'`, MPXJ `getCompleteWork`) van resterend/gepland werk (`'remaining'`, MPXJ
- * `getPlannedWork`) — dezelfde twee tracks die `deriveSplitGapsForTasks` al combineert.
+ * Eén rauwe periode uit een timephased-contour (zie `Task.timephasedContours`). `afterMinutes`/`minutes`
+ * liggen op DEZELFDE cumulatieve-werkminuten-as als `TaskSplitGap` (taak-as, niet toewijzings-as);
+ * `minutes` is de periodelengte op die as. `workMinutes` kan 0 zijn: een periode zonder werk, het gat
+ * dat `deriveSplitGapsFromPeriods` als split herkent. `kind`: verricht werk (`'actual'`, MPXJ
+ * `getCompleteWork`) of resterend/gepland werk (`'remaining'`, MPXJ `getPlannedWork`).
  */
 export interface TimephasedContourPeriod {
   afterMinutes: number;
@@ -152,44 +131,36 @@ export interface TimephasedContourPeriod {
 
 /** Alle rauwe contourperiodes van ÉÉN toewijzing van de taak (zie `Task.timephasedContours`). */
 export interface TaskTimephasedContour {
-  /** MSP's eigen resource-uniqueId (`AssignmentField.RESOURCE_UNIQUE_ID`) — PUUR herkomst/
-   *  traceability, geen live-resource-referentie (deze toewijzing is mogelijk allang gewijzigd of
-   *  verdwenen in het app-model; de rauwe periode blijft desondanks staan, eigenaarsprincipe).
-   *  `null` wanneer de toewijzing geen (vindbare) resource droeg. */
+  /** MSP's resource-uniqueId (`AssignmentField.RESOURCE_UNIQUE_ID`): puur herkomst, geen live
+   *  resourceverwijzing (de toewijzing kan in het app-model allang gewijzigd of weg zijn; de rauwe
+   *  periode blijft staan). `null` wanneer de toewijzing geen (vindbare) resource droeg. */
   resourceUid: number | null;
-  /** OPTIONEEL (contour-engine, 2026-09) — het OPS-`Resource.id` van de toewijzing waar deze
-   *  contour bij hoort: de sleutel waarmee `contourEngine.ts`'s `matchContoursToAssignments` een
-   *  contour aan een `ResourceAssignment` koppelt (zelfde resource, in volgorde, elke contour
-   *  hooguit één keer). Gezet door elke lezer sinds deze etappe (.mpp via `resourceIdByUniqueId`,
-   *  MSPDI/P6 rechtstreeks). Afwezig (Z14b-bestanden van vóór deze etappe) ⇒ de terugval "precies
-   *  één contour én één toewijzing op de taak" geldt, anders blijft de contour puur data. */
+  /** Het OPS-`Resource.id` van de toewijzing waar deze contour bij hoort: de sleutel waarmee
+   *  `matchContoursToAssignments` (`contourEngine.ts`) een contour aan een `ResourceAssignment`
+   *  koppelt (zelfde resource, in volgorde, elke contour hooguit één keer). Elke lezer zet het.
+   *  Afwezig (oudere bestanden) ⇒ alleen bij precies één contour én één toewijzing op de taak
+   *  gekoppeld; anders blijft de contour puur data. */
   resourceId?: string;
   periods: TimephasedContourPeriod[];
 }
 
 /**
- * MSP's eigen "Task Type" (Fixed Units/Fixed Duration/Fixed Work — `TaskField.TYPE`, `DataType.
- * TASK_TYPE`). NIET te verwarren met `Task.taskType` hierboven (dat is een OPS-eigen domeinclassi-
- * ficatie — CONSTRUCTION/INSTALLATION/…, een ander concept met toevallig een gelijkende naam).
- * Eigenaarsbesluit 2026-08-18 (plan §10, punt 1): puur data, bewaard zodat een .mpp-import 'm niet
- * weggooit — GEEN rekengedrag; geen enkele solverstap leest `Task.mspTaskType`. Task type als
- * projecteigenschap-met-per-taak-keuze (en het bijbehorende bewerkgedrag) is een latere, aparte
- * etappe (zelfde besluit, punt 2).
+ * MSP's eigen "Task Type" (Fixed Units/Fixed Duration/Fixed Work — `TaskField.TYPE`). NIET te
+ * verwarren met `Task.taskType` (de OPS-domeinclassificatie CONSTRUCTION/INSTALLATION/…). Bewaard
+ * zodat een .mpp-import hem niet weggooit; de CPM leest het niet. Het bewerkgedrag loopt via
+ * `Task.workRule`, dat bij import uit dit veld (+ `effortDriven`) wordt afgeleid.
  */
 export type MspTaskType = 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
 
-/** Taaktypes-etappe (ontwerp 2026-09-04 §4.1): de neutrale werkregel, zie `@/types/workRule`. */
+/** De neutrale werkregel, zie `@/types/workRule`. */
 export type { WorkRule } from '@/types/workRule';
 
 /**
- * P6's eigen "Duration Type" (XER `TASK.duration_type` — Primavera "Duration Type" op de
- * activiteit: stuurt hoe P6 zelf duur/eenheden/snelheid aan elkaar koppelt bij een bewerking).
- * VIER canonieke P6-tokens (Oracle P6-schema): Fixed Duration & Units, Fixed Duration & Units/Time,
- * Fixed Units/Time, Fixed Units. Deze unie draagt de canonieke schrijfwijze; de XER-etappe se
- * generieke enum-tokenregel (§4.7 van het XER-etappeplan, geïmplementeerd in X4a/X5) matcht
- * corpusvarianten case-insensitief tegen deze lijst en rapporteert — nooit stil — een token dat ook
- * ná case-fold onbekend blijft. NIET te verwarren met `MspTaskType` hierboven: twee bronformaten,
- * twee taaktypeconcepten met een andere waardenverzameling.
+ * P6's eigen "Duration Type" (XER `TASK.duration_type`: hoe P6 duur/eenheden/snelheid aan elkaar
+ * koppelt bij een bewerking). Vier canonieke tokens: Fixed Duration & Units, Fixed Duration &
+ * Units/Time, Fixed Units/Time, Fixed Units. De XER-lezer matcht corpusvarianten case-insensitief
+ * tegen deze lijst en meldt — nooit stil — een token dat ook ná case-fold onbekend blijft. NIET te
+ * verwarren met `MspTaskType`: een ander bronformaat met een andere waardenverzameling.
  */
 export type P6DurationType = 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
 
@@ -198,16 +169,15 @@ export type P6CompletePctType = 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
 
 /**
  * P6's eigen "Activity Type" (XER `TASK.task_type`): Task Dependent, Resource Dependent, Level of
- * Effort, Start Milestone, Finish Milestone, WBS Summary. ZES canonieke P6-tokens; zie
- * `P6DurationType` voor de case-insensitieve-matchafspraak (§4.7).
+ * Effort, Start Milestone, Finish Milestone, WBS Summary. Zelfde case-insensitieve matching als
+ * `P6DurationType`.
  */
 export type P6ActivityType = 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
 
 /**
- * Soort mijlpaal (fase 2.4, P6 Start/Finish Milestone). Dag-granulair grens-model:
- * START ankert op een dagbegin, FINISH op een dageinde (einde werkdag F = begin
- * eerstvolgende werkdag). undefined = automatisch: het anker volgt de bindende
- * relatiezijde (FS/SS → start, FF/SF → finish) — het gedrag van vóór fase 2.4.
+ * Soort mijlpaal (P6 Start/Finish Milestone). Dag-granulair grensmodel: START ankert op een dagbegin,
+ * FINISH op een dageinde (einde werkdag F = begin eerstvolgende werkdag). undefined = automatisch:
+ * het anker volgt de bindende relatiezijde (FS/SS → start, FF/SF → finish).
  */
 export type MilestoneKind = 'START' | 'FINISH';
 
@@ -222,24 +192,19 @@ export interface TaskTime {
   durationMinutes?: number;
   scheduleStart: string;    // ISO 8601 — date-only in dag-modus, datetime in uur-modus
   /** ISO 8601 — date-only in dag-modus, datetime in uur-modus. INVOER ("Gepland einde"): de solve schrijft
-   *  hem nooit terug (B1). Bij een niet-gestarte urentaak houdt de invoerkant hem gelijk aan start + duur
+   *  hem nooit terug. Bij een niet-gestarte urentaak houdt de invoerkant hem gelijk aan start + duur
    *  op de taakkalender (`reconcileHourInputFinish`, utils/taskDefaults.ts); lezers zetten de bronwaarde. */
   scheduleFinish: string;
-  /** OPTIONEEL — MSP's EIGEN opgeslagen hervattingsinstant voor een IN-PROGRESS-taak (`.mpp`-
-   *  veld-id 99, `TaskField.RESUME`, `DataType.DATE`; Z12-herwerk, dossier out-of-sequence-
-   *  actuals). Geen afgeleide/herberekende waarde — de invoer staat letterlijk in het bestand,
-   *  net als `scheduleStart`/`scheduleFinish` hierboven (vandaar dezelfde rol, `TaskTimeInput`,
-   *  i.p.v. `TaskTimeTracking` waar `actualStart`/`actualFinish` in zitten). `CPMSolver.ts` leest
-   *  dit veld voor een aantoonbaar out-of-sequence FINISH_START-opvolger (`isOutOfSequenceFsPredecessor`):
-   *  `finish = addWork(resume, remaining)` op de taak-EIGEN kalender — corpusmeting (fase 1):
-   *  17/17 exact op alle out-of-sequence-in-progress-bladtaken, 4/4 op de gemeten OzBuild-
-   *  snapshots minuut-exact. Afwezig (niet-`.mpp`-bronnen, of een `.mpp`-bestand waarvan de field
-   *  map veld 99 mist) ⇒ het bestaande RETAINED_LOGIC/`resumeFromActualElapsed`-pad, ongewijzigd. */
+  /** MSP's opgeslagen hervattingsinstant van een lopende taak (`.mpp`-veld-id 99, `TaskField.RESUME`).
+   *  Brondata zoals `scheduleStart`/`scheduleFinish`, geen afgeleide waarde (vandaar de rol
+   *  `TaskTimeInput`). `CPMSolver.ts` gebruikt het voor een aantoonbaar out-of-sequence
+   *  FINISH_START-opvolger (`isOutOfSequenceFsPredecessor`): `finish = addWork(resume, remaining)` op
+   *  de eigen taakkalender. Bij een P6-taak alleen via `p6SuspendResume`. Afwezig ⇒ het
+   *  RETAINED_LOGIC/`resumeFromActualElapsed`-pad. */
   resume?: string;
-  /** OPTIONEEL — spiegelt `resume` hierboven (`.mpp`-veld-id 100, `TaskField.STOP`): MSP's eigen
-   *  grens van het reeds-afgewerkte deel. Door GEEN enkele solverberekening gelezen (de
-   *  `finish = addWork(resume, remaining)`-formule haalde 17/17 zonder `stop`) — hier alleen
-   *  meegenomen als rauw, ongebruikt feit voor een latere taak (splits-/actual-grens-rendering). */
+  /** Tegenhanger van `resume` (`.mpp`-veld-id 100, `TaskField.STOP`; P6 suspend): de grens van het
+   *  reeds afgewerkte deel. De solver rekent niet met de waarde; `hasValidP6SuspendResume` gebruikt
+   *  hem alleen om de P6-suspend/resume-route te poorten. */
   stop?: string;
 
   // CPM-computed
@@ -247,16 +212,15 @@ export interface TaskTime {
   earlyFinish: string;
   lateStart: string;
   lateFinish: string;
-  freeFloat: number;   // work days (fractioneel in uur-modus, §5.5)
-  totalFloat: number;  // work days (fractioneel in uur-modus, §5.5)
+  freeFloat: number;   // work days (fractioneel in uur-modus)
+  totalFloat: number;  // work days (fractioneel in uur-modus)
   isCritical: boolean;
-  /** OPTIONEEL — interfererende speling = totalFloat − freeFloat (getekend, fractioneel in
-   *  uur-modus; fase 2.9, §4.6). Alleen geschreven wanneer de analyse-laag draait; afwezig ⇒
-   *  byte-identiek default-document. */
+  /** Interfererende speling = totalFloat − freeFloat (getekend, fractioneel in uur-modus). Afwezig
+   *  zolang er niet is doorgerekend. */
   interferingFloat?: number;
-  /** OPTIONEEL — near-critical-markering (fase 2.9, §4.6). Alleen geschreven bij ingestelde drempel. */
+  /** Near-critical-markering. Alleen geschreven bij een ingestelde drempel. */
   isNearCritical?: boolean;
-  /** OPTIONEEL — float-path-nummer (1 = meest kritiek; fase 2.9, §4.6). Alleen geschreven bij floatPaths. */
+  /** Float-path-nummer (1 = meest kritiek). Alleen geschreven bij floatPaths. */
   floatPath?: number;
 
   // Tracking
@@ -266,29 +230,26 @@ export interface TaskTime {
   /** Restduur in werkdagen, in de vorm van `scheduleDuration`: hele dagen bij een dagtaak, een
    *  onafgeronde fractie (afgeleid van `remainingMinutes`) bij een urentaak (`applyRemainingDuration`). */
   remainingTime?: number;
-  /** OPTIONEEL — resterend werk in integer MINUTEN (uur-modus voortgang, fase 2.8b §5.3): de
-   *  restduur van een urentaak, in de vorm van `durationMinutes`. */
+  /** Resterend werk in integer MINUTEN: de restduur van een urentaak, in de vorm van
+   *  `durationMinutes`. */
   remainingMinutes?: number;
   completion: number; // 0.0 - 1.0
 }
 
 /**
- * TYPE-ONLY rol-splitsing van `TaskTime` (Bevinding A7). `TaskTime` mengt vier rollen in één plat
- * type; een consument kan niet zien welke velden hij mag SCHRIJVEN en welke `runCPM` OVERSCHRIJFT.
- * De vier `Pick<>`-aliassen hieronder maken die rollen expliciet — puur documentair/afdwingend,
- * ZONDER runtime-verandering en ZONDER `TaskTime` zelf te herstructureren. `Task.time` blijft de
- * volledige `TaskTime`; alle bestaande lezers/schrijvers blijven ongewijzigd. Elk `TaskTime`-veld
- * hoort in PRECIES één rol; de compile-assert onderaan dwingt volledige + disjuncte dekking af,
- * zodat een nieuw veld gedwongen wordt gecategoriseerd.
+ * TYPE-ONLY rolsplitsing van `TaskTime`: welke velden een consument mag SCHRIJVEN en welke `runCPM`
+ * OVERSCHRIJFT. `Task.time` blijft de volledige `TaskTime`. Elk veld hoort in PRECIES één rol; de
+ * compile-assert onderaan dwingt volledige en disjuncte dekking af, zodat een nieuw veld
+ * gecategoriseerd moet worden.
  */
 
 /** INVOER — door de gebruiker/importers geschreven. `runCPM` raakt deze normaliter niet aan, MAAR
  *  normaliseert in UUR-modus de VORM van `scheduleStart` (datetime, zelfde instant — `applyCpmResult`)
  *  en overschrijft de passende afgeleide duurbron (`scheduleDuration` of `durationMinutes`) voor
  *  HAMMOCK-taken (afgeleide span, `CPMSolver`). `durationType` blijft puur invoer, en `scheduleFinish`
- *  ook: de solve schrijft hem nooit terug (gebruikstest 24-09, B1 — anders leest de volgende berekening
- *  onder een P6-conventie de uitvoer van de vorige als gepland bronvenster). Bij een urentaak houdt de
- *  INVOERKANT hem coherent met start + duur (`reconcileHourInputFinish` in utils/taskDefaults.ts). */
+ *  ook: de solve schrijft hem nooit terug (anders leest de volgende berekening onder een P6-conventie
+ *  de uitvoer van de vorige als gepland bronvenster). Bij een urentaak houdt de INVOERKANT hem
+ *  coherent met start + duur (`reconcileHourInputFinish` in utils/taskDefaults.ts). */
 export type TaskTimeInput = Pick<
   TaskTime,
   'durationType' | 'durationUnit' | 'scheduleDuration' | 'durationMinutes' | 'scheduleStart' | 'scheduleFinish'
@@ -302,7 +263,7 @@ export type TaskTimeComputed = Pick<
   'earlyStart' | 'earlyFinish' | 'lateStart' | 'lateFinish' | 'freeFloat' | 'totalFloat' | 'isCritical'
 >;
 
-/** ANALYSE (fase 2.9, §4.6) — afgeleiden bovenop de CPM-output. `interferingFloat` (= tf − ff) wordt
+/** ANALYSE — afgeleiden bovenop de CPM-output. `interferingFloat` (= tf − ff) wordt
  *  ALTIJD elke `runCPM` (her)berekend en teruggeschreven; `isNearCritical`/`floatPath` alleen wanneer
  *  de bijbehorende optie/drempel draait (anders gewist, om stale markering te voorkomen). */
 export type TaskTimeAnalysis = Pick<
@@ -317,14 +278,9 @@ export type TaskTimeTracking = Pick<
 >;
 
 // --- Compile-assert: de vier rollen vormen een EXACTE partitie van `keyof TaskTime` ---------------
-// Puur type-niveau (verdwijnt bij compilatie). Dwingt twee dingen af, zodat de rol-splitsing niet
-// stil kan verouderen:
-//   1) VOLLEDIGHEID — elk TaskTime-veld zit in minstens één rol (een nieuw, niet-gecategoriseerd
-//      veld laat `_UncategorizedTaskTimeField` iets anders dan `never` worden → tsc-fout).
-//   2) DISJUNCTHEID — geen veld zit in twee rollen (een dubbel geplaatst veld laat `_OverlappingRole`
-//      iets anders dan `never` worden → tsc-fout).
-// (Elke Pick is per definitie al een subset van `keyof TaskTime`, dus een getypte sleutel die niet
-//  bestaat geeft al bij de Pick zelf een fout — een aparte "extra keys"-check is overbodig.)
+// VOLLEDIGHEID: een niet-gecategoriseerd veld maakt `_UncategorizedTaskTimeField` ≠ `never` → tsc-fout.
+// DISJUNCTHEID: een veld in twee rollen maakt `_OverlappingRole` ≠ `never` → tsc-fout.
+// Een niet-bestaande sleutel faalt al in de Pick zelf.
 type _TaskTimeRoleKeys =
   | keyof TaskTimeInput
   | keyof TaskTimeComputed
@@ -344,9 +300,7 @@ type _OverlappingRole =
 // `[T] extends [never]` is de robuuste "is exact never"-check (geen distributie over unies).
 type _Expect<T extends true> = T;
 type _IsNever<T> = [T] extends [never] ? true : false;
-// Deze twee asserts compileren alleen wanneer beide condities `never` zijn. Waarde-vorm + `void`
-// (zoals snapshot.ts/documentContract.ts) zodat `noUnusedLocals` ze niet als dood markeert; de
-// twee const-declaraties minificeren weg (inert).
+// Waarde-vorm + `void` zodat `noUnusedLocals` ze niet als dood markeert; ze minificeren weg.
 const _assertTaskTimeComplete: _Expect<_IsNever<_UncategorizedTaskTimeField>> = true;
 const _assertTaskTimeDisjoint: _Expect<_IsNever<_OverlappingRole>> = true;
 void _assertTaskTimeComplete;
@@ -366,171 +320,102 @@ export interface Task {
   /** Alleen relevant bij isMilestone; undefined = automatisch (zie MilestoneKind). */
   milestoneKind?: MilestoneKind;
   /** Verplichte (contractuele) mijlpaal — inspectie-/keurings-/opleverpunt. Markering
-   *  voor rapportage & Gantt; datumbewaking loopt via constraint/deadline (fase 2.3). */
+   *  voor rapportage & Gantt; datumbewaking loopt via constraint/deadline. */
   mandatory?: boolean;
-  /** Leveling-prioriteit (MSP-conventie, P6 "Activity Priority" analoog): 0–1000, default 500.
-   *  1000 = "Do Not Level" (vastgepind, wordt door de nivelleerder nooit verschoven). Ongebruikt
-   *  vóór fase 2.5 (was hardcoded 0 overal); vanaf 2.5 stuurt dit de nivelleervolgorde. */
+  /** Nivelleerprioriteit (MSP-conventie, analoog aan P6 "Activity Priority"): 0–1000, default 500;
+   *  stuurt de nivelleervolgorde. 1000 = "Do Not Level" (vastgepind, de nivelleerder verschuift de
+   *  taak nooit). */
   priority: number;
   /** Vertraging in werkdagen t.o.v. de precedence-feasible early start (de ES die de forward
    *  pass berekent nadat óók de voorgangers hun levelingDelay hebben gekregen — NIET t.o.v. de
    *  oorspronkelijke CPM-ES, dat zou voorgangersverschuivingen dubbel tellen). Gezet door de
-   *  nivelleerder (fase 2.5, nog niet gebouwd). undefined = geen nivellering toegepast.
+   *  nivelleerder (`ResourceLeveler.ts`). undefined = geen nivellering toegepast.
    *  "Nivellering wissen" zet dit overal terug naar undefined. */
   levelingDelay?: number;
-  /** OPTIONEEL — subdag-precisie voor `levelingDelay` (etappe "nul afwijkingen", Z0, voorlopig
-   *  ONGEBRUIKT). MSP levert de nivelleervertraging in tienden-van-een-minuut; `levelingDelay`
-   *  (hele werkdagen) kan dat niet exact dragen. Zelfde precedent als `durationMinutes` naast
-   *  `scheduleDuration`: AANWEZIG ⇒ bron van waarheid, AFWEZIG ⇒ `levelingDelay` (werkdagen) blijft
-   *  de bron (byte-identiek). Nog door geen enkele solver-stap gelezen. */
+  /** Subdag-precisie voor `levelingDelay`: MSP levert de nivelleervertraging in tienden van een
+   *  minuut, wat hele werkdagen niet exact dragen. Zoals `durationMinutes` naast `scheduleDuration`:
+   *  AANWEZIG ⇒ bron van waarheid (`CPMSolver`), AFWEZIG ⇒ `levelingDelay` (werkdagen). */
   levelingDelayMinutes?: number;
-  /** OPTIONEEL — begeleidt `levelingDelayMinutes` (Z0, voorlopig ONGEBRUIKT). MSP's
-   *  `LevelingDelayFormat` kent een ELAPSED-variant (kloktijd i.p.v. werktijd), net als
-   *  `durationType`/MSPDI's elapsed-vlag op een duur. Afwezig ⇒ WORKTIME (byte-identiek). Alleen
-   *  betekenisvol wanneer `levelingDelayMinutes` ook gezet is. */
+  /** MSP's `LevelingDelayFormat` ELAPSED (kloktijd i.p.v. werktijd) voor `levelingDelayMinutes`.
+   *  Afwezig ⇒ WORKTIME. Alleen betekenisvol wanneer `levelingDelayMinutes` ook gezet is. */
   levelingDelayElapsed?: boolean;
-  /** OPTIONEEL — werkonderbrekingen (MS Project "split"), zie `TaskSplitGap` (die interface se
-   *  eigen docblok draagt de as-definitie — lees die vóórdat je dit veld raadpleegt). Sinds Z4 ECHT
-   *  gevuld: `mppReader.ts` leidt dit af uit de timephased-werksegmenten van een `.mpp`-import
-   *  (`deriveSplitGapsForTasks`, `mppTimephased.ts`), en round-trippt sinds Z14 door IFC
-   *  (`OPS_TaskSplits`-pset, `ifcPsets.ts`). Sinds Z7 ECHT geconsumeerd door de CPM: `CPMSolver.ts`'s
-   *  vier aangrijpingspunten (`addDurationChecked`/`subDuration`/`finishFromStart`/`startFromFinish`
-   *  + de IN-PROGRESS-restwerktak) wandelen dit via `duration.ts`'s `splitTotalSpanMinutes`. De
-   *  renderer tekent sinds Z15 al een onderbroken balk in Gantt/print/PDF. Afwezig ⇒ geen splits
-   *  (byte-identiek). */
+  /** Werkonderbrekingen (MS Project "split"); lees de as-definitie in `TaskSplitGap` vóór gebruik.
+   *  `.mpp`: afgeleid uit de timephased-werksegmenten (`deriveSplitGapsForTasks`). Round-tript via
+   *  `OPS_TaskSplits` (`ifcPsets.ts`). De CPM wandelt ze in `addDurationChecked`/`subDuration`/
+   *  `finishFromStart`/`startFromFinish` en de restwerktak (`splitTotalSpanMinutes`); de renderer
+   *  tekent een onderbroken balk. Afwezig ⇒ geen splits. */
   splitGaps?: TaskSplitGap[];
-  /** OPTIONEEL — GELAAGDE BESLISKOLOM (Z8-herwerkronde, etappe "nul afwijkingen"). Drie van de vijf
-   *  lagen raken taakvelden; deze eerste, `timephasedFinishFloor`, is LAAG 3: het MAXIMUM van
-   *  `AssignmentField.FINISH` over de toewijzingen van deze taak die ≥1 ÉCHTE gedecodeerde
-   *  timephased-periode droegen (Format A/B, `mppTimephased.ts` — NIET het kale "een `TBkndAssn`-
-   *  record bestaat"-signaal, dat bleek een vrijwel volledige cirkelmeting, zie de Z8-herwerkronde-
-   *  rapportage). Alleen gezet op taken met `time.completion === 0` (lagen 1/2 — voltooid resp.
-   *  in-progress — plannen op hun bestaande actuals-/resume-paden, GEEN venster, zie
-   *  `CPMSolver.ts`). MSP's EIGEN al berekende antwoord — geen eigen kalenderwandeling nodig.
-   *  `CPMSolver.ts`'s `forwardPass` past 'm toe op dezelfde plek als `sfFinishFloor` (die blijft een
-   *  onbreekbare `Math.max`-ondergrens; het venster zelf overschrijft de kale duur-gebaseerde
-   *  berekening volledig), nooit bij een harde MFO/MSO-pin, alleen in uur-modus. ISO-instant,
-   *  minuutprecisie (`formatInstant(d,'hour')`). Mutueel exclusief met `timephasedDurationWalks`
-   *  (LAAG 4, zie die docstring) — `mppReader.ts` zet nooit beide op dezelfde taak. Afwezig ⇒ geen
-   *  echte periode-data op deze taak, byte-identiek. Round-tript sinds Z14b via `OPS_TimephasedWindow`
-   *  (`ifcPsets.ts`). EIGENAARSPRINCIPE (2026-08-18) — dit veld is AFGELEIDE sturing: een
-   *  inhoudelijke bewerking (duur/datums/kalender/toewijzingen) wist dit veld weer (zie
-   *  `taskDefaults.ts`'s `clearTimephasedWindow`, aangeroepen vanuit `taskSlice.ts`/
-   *  `mcpTransaction.ts`/`resourceSlice.ts`) — de RAUWE bron blijft dan in `timephasedContours`
-   *  staan, dat wordt nooit gewist door een edit. */
+  /** Laag 3 van de timephased-beslistabel (`.mpp`): het MAXIMUM van `AssignmentField.FINISH` over de
+   *  toewijzingen die ≥1 echte gedecodeerde timephased-periode droegen — MSP's eigen berekende
+   *  antwoord. Alleen op niet-gestarte taken (`time.completion === 0`); voltooide en lopende taken
+   *  plannen op hun actuals-/resume-paden. `CPMSolver.forwardPass` past het toe op dezelfde plek als
+   *  `sfFinishFloor` en overschrijft de duurgebaseerde finish; nooit bij een harde MFO/MSO-pin, alleen
+   *  in uur-modus. ISO-instant, minuutprecisie. Nooit samen met `timephasedDurationWalks` (laag 4).
+   *  Round-tript via `OPS_TimephasedWindow` (`ifcPsets.ts`). AFGELEIDE sturing: een inhoudelijke
+   *  bewerking (duur/datums/kalender/toewijzingen) wist het (`clearTimephasedWindow`,
+   *  `taskDefaults.ts`); de rauwe bron in `timephasedContours` blijft staan. */
   timephasedFinishFloor?: string;
-  /** OPTIONEEL — RAUW startanker (Z8-herwerkronde), gebruikt door zowel LAAG 3 als LAAG 4: het
-   *  MINIMUM van `AssignmentField.START` over de LAAG-3-toewijzingen (bij `timephasedFinishFloor`)
-   *  resp. de eerste/vroegste ankerdatum van de LAAG-4-toewijzingen (bij `timephasedDurationWalks`
-   *  — daar puur het startpunt van de wandeling, de LAAG-4-finish zelf komt uit die wandeling, niet
-   *  uit dit veld). Uitsluitend gebruikt voor een taak ZONDER voorganger (`CPMSolver.ts`'s
-   *  `forwardPass`, `preds.length===0`-tak) wier eigen `time.scheduleStart` buiten de taak-
-   *  kalender-band ligt maar de toewijzing wél binnen haar EIGEN resourcekalender (corpusvoorbeeld:
-   *  een "Night Shift"-resource op 23:00, buiten de taak se "Standard"-band) — MSP snapt zo'n
-   *  anker niet, de gewone `ownAnchor`-snap deed dat vóór Z8 wél. Afwezig ⇒ byte-identiek. Zelfde
-   *  IFC-round-trip/eigenaarsprincipe-kanttekening als `timephasedFinishFloor`. */
+  /** Rauw startanker voor laag 3 en 4: het MINIMUM van `AssignmentField.START` over de
+   *  laag-3-toewijzingen, resp. het vroegste `anchor` van `timephasedDurationWalks`. Alleen gebruikt
+   *  voor een taak ZONDER voorganger (`CPMSolver.forwardPass`) wier `time.scheduleStart` buiten de
+   *  taakkalenderband ligt maar binnen de eigen resourcekalender van de toewijzing (bv. een
+   *  nachtploeg om 23:00): MSP snapt zo'n anker niet. Zelfde round-trip en wissen als
+   *  `timephasedFinishFloor`. */
   timephasedStartAnchor?: string;
-  /** OPTIONEEL — LAAG 4 van de Z8-herwerkronde-beslistabel: taken met een VLAK timephased-record
-   *  (`blockCount===0`, GEEN echte periode — dus `timephasedFinishFloor` blijft hier afwezig) MAAR
-   *  wier toewijzing(en) een NIET-STANDAARD resourcekalender dragen (corpusbewijs: de "Night Shift"/
-   *  "24 Hours"-families in `mpp14timephased.mpp`, en `mpp14resource.mpp`'s "Task A" — een gemengde
-   *  toewijzingsset waar één van de drie resources een sterk afwijkende kalender draagt). Anders dan
-   *  `timephasedFinishFloor` (een GELEZEN, bevroren MSP-antwoord) is dit een VERSE HERBEREKENING:
-   *  `CPMSolver.ts` wandelt per item DOOR de toewijzing se EIGEN resourcekalender vanaf haar
-   *  `anchor`, en neemt het MAXIMUM over de lijst (dezelfde "langste toewijzing bepaalt de finish"-
-   *  regel als laag 3, hier alleen zonder gelezen eindantwoord). N2-CORRECTIE (Opus-her-check,
-   *  tweede ronde): dit "GEEN invalidatie nodig, stroomt vanzelf mee" gold zo alleen voor een item
-   *  ZONDER `workMinutes` (het wandelt dan `task.time.durationMinutes`, edit-live). Een item MET
-   *  `workMinutes` (zie hieronder) wandelt die BEVROREN waarde in plaats daarvan — die volgt een
-   *  latere duur-/datum-/kalenderwijziging dus NIET vanzelf. Vandaar dat `updateTask`/
-   *  `updateTaskFields`/`patchTaskFields` deze lijst sinds N2 wél wissen zodra ze zo'n item bevat
-   *  (`taskDefaults.ts`'s `timephasedDurationWalksHaveFrozenWork`/`clearTimephasedDurationWalks`),
-   *  precies zoals bij `timephasedFinishFloor`/`timephasedStartAnchor` — de taak valt dan terug op
-   *  laag 5 tot een volgende .mpp-import de lijst opnieuw vult.
-   *  `resourceCalendarId` verwijst in de gedeelde kalenderbibliotheek (`CPMSolver`'s `registry`,
-   *  `resolveCalendar`); een taak zonder voorganger gebruikt bovendien het VROEGSTE `anchor` uit
-   *  deze lijst als `timephasedStartAnchor` (zie hierboven). Mutueel exclusief met
-   *  `timephasedFinishFloor`.
+  /** Laag 4 van de timephased-beslistabel (`.mpp`): taken met een VLAK timephased-record (geen echte
+   *  periode) waarvan een toewijzing een niet-standaard resourcekalender draagt. Anders dan laag 3 een
+   *  VERSE herberekening: `CPMSolver.ts` wandelt per item door `resourceCalendarId` (gedeelde
+   *  kalenderbibliotheek, `resolveCalendar`) vanaf `anchor` en neemt het MAXIMUM ("de langste toewijzing
+   *  bepaalt de finish"). Nooit samen met `timephasedFinishFloor`.
    *
-   *  `workMinutes` (Z19, residu-iteratie "nul afwijkingen") — optioneel per item; ONTBREEKT het,
-   *  dan wandelt `CPMSolver.ts` `task.time.durationMinutes` (de volle taakduur, edit-live). De
-   *  garantie zit op de PRODUCERENDE tak in `mppReader.ts`, NIET op de array-lengte: 19 corpustaken
-   *  dragen een lijst van lengte 1 mét `workMinutes` (de MATERIAL-gefilterde >1-tak).
-   *  Corpusbewijs: 9/9 (mpp14timephased2.mpp) en 20/20 (mpp14timephasedsegments.mpp) op de volledige
-   *  populatie, en de 0%-populatie van mpp14timephased.mpp (zie de Z8-herwerkronde-rapportage). AANWEZIG
-   *  bij >1 item — bij meerdere GELIJKTIJDIGE toewijzingen wandelt geen enkele toewijzing de volle
-   *  taakduur; elke toewijzing wandelt alleen haar EIGEN, per-toewijzing gedecodeerde werk-aandeel
-   *  (`decodeAssignmentWorkMinutes`, `mppReader.ts`), en de LANGSTE wandeling bepaalt de finish
-   *  (die volle-duur-aanname is BEWEZEN onjuist bij >1 toewijzing —
-   *  `mpp14resource.mpp`'s "Task A", drie toewijzingen, gaf zonder apportionering een ~2× te late
-   *  datum). Afwezig ⇒ byte-identiek. Round-tript sinds Z14b via `OPS_TimephasedWindow`
-   *  (`ifcPsets.ts`). Wordt NOOIT door `clearTimephasedWindow` gewist (dat blijft `timephasedFinishFloor`/
-   *  `timephasedStartAnchor`-only) — maar sinds N2 wél door de aparte `clearTimephasedDurationWalks`,
-   *  onder de voorwaarde hierboven (`workMinutes` gezet op minstens één item). Zie
-   *  `taskDefaults.ts`'s hoofddocblok voor de volledige triggerset-toelichting. */
+   *  `workMinutes` per item: ontbreekt het, dan wandelt het item `task.time.durationMinutes` (volgt
+   *  bewerkingen vanzelf). Bij meerdere gelijktijdige toewijzingen draagt elk item zijn eigen
+   *  werkaandeel (`decodeAssignmentWorkMinutes`, `mppReader.ts`) — de volle taakduur per toewijzing gaf
+   *  een ~2× te late finish. De garantie zit op de producerende tak in `mppReader.ts`, niet op de
+   *  lengte: ook een lijst van lengte 1 kan `workMinutes` dragen. Zo'n BEVROREN waarde volgt een latere
+   *  duur-/datum-/kalenderwijziging niet, dus wist `clearTimephasedDurationWalks` (`taskDefaults.ts`) de
+   *  lijst zodra een item `workMinutes` draagt; de taak valt dan terug op laag 5. `clearTimephasedWindow`
+   *  raakt deze lijst niet. Round-tript via `OPS_TimephasedWindow` (`ifcPsets.ts`). */
   timephasedDurationWalks?: { anchor: string; resourceCalendarId: string; workMinutes?: number }[];
-  /** OPTIONEEL — RAUWE, gedecodeerde .mpp-timephased-contourperiodes (Z14b, eigenaarsprincipe
-   *  2026-08-18: "er gaat nooit stilzwijgend broninformatie verloren, ook niet ná bewerken"). Dit is
-   *  de bron ONDER `splitGaps`/`timephasedFinishFloor`/`timephasedStartAnchor` — die drie zijn
-   *  AFGELEIDE sturing (splitGaps voedt de CPM rechtstreeks, de twee venstervelden worden bij een
-   *  inhoudelijke bewerking ontkoppeld, zie `clearTimephasedWindow` in `taskDefaults.ts`) — dit veld
-   *  blijft ALTIJD staan, ook ná zo'n bewerking: geen enkele actie in deze etappe wist het. Eén
-   *  entry per toewijzing van deze taak die daadwerkelijk een ECHTE dagverdeling droeg (vlakke
-   *  samenvattingsrecords — MPXJ's `blockCount===0`-speciale geval — tellen niet mee, zelfde filter
-   *  als `mppReader.ts`'s `deriveSplitGapsForTasks` al toepast op `splitGaps`). Periodes liggen op
-   *  DEZELFDE as als `TaskSplitGap` (cumulatieve werkminuten sinds taakstart — zie die interface se
-   *  eigen "TAAK-AS, NIET TOEWIJZINGS-AS"-docblok voor de volledige as-definitie). Puur data: geen
-   *  enkele solverstap leest dit veld (de CPM-datums blijven bij laag 3/4 en `splitGaps`), maar
-   *  sinds de contour-engine-etappe (2026-09) is dit WÉL de bron van de dagverdeling van de
-   *  lastlezers: `ResourceLoad.ts`'s `assignmentDayUnits` leest per toewijzing haar contour
-   *  (`contourEngine.ts`'s `matchContoursToAssignments` op `resourceId`) en levert werkminuten per
-   *  dagslot aan histogram, overallocatie, nivelleerder en bezettingsoverzicht — de curve-formule
-   *  is daar nu de terugval. Een duurwijziging herschaalt dit veld proportioneel
-   *  (`rescaleContourForDuration`, aangeroepen uit `taskSlice.ts`/`mcpTransaction.ts`) in plaats
-   *  van het te laten verouderen. Round-tript via `OPS_TimephasedContours` (`ifcPsets.ts`), en
-   *  native via MSPDI `<TimephasedData>` en P6 `<PlannedCurve>`/`<RemainingCurve>`/`<ActualCurve>`.
-   *  Afwezig ⇒ geen echte periode-data op deze taak (byte-identiek). */
+  /** RAUWE timephased-contourperiodes per toewijzing: er gaat nooit stilzwijgend broninformatie
+   *  verloren, ook niet ná bewerken. De bron onder de afgeleide sturing `splitGaps`/
+   *  `timephasedFinishFloor`/`timephasedStartAnchor`; dit veld wordt door geen bewerking gewist. Eén
+   *  entry per toewijzing met een echte dagverdeling (vlakke records tellen niet, zelfde filter als
+   *  `deriveSplitGapsForTasks`). Periodes liggen op de as van `TaskSplitGap`. De CPM leest dit niet;
+   *  wél de lastberekening: `assignmentDayUnits` (`ResourceLoad.ts`) verdeelt per toewijzing volgens
+   *  haar contour (`matchContoursToAssignments` op `resourceId`) voor histogram, overallocatie,
+   *  nivelleerder en bezettingsoverzicht; de curve-formule is de terugval. Een duurwijziging herschaalt
+   *  het proportioneel (`rescaleContourForDuration`). Round-tript via `OPS_TimephasedContours`
+   *  (`ifcPsets.ts`), en native via MSPDI `<TimephasedData>` en P6
+   *  `<PlannedCurve>`/`<RemainingCurve>`/`<ActualCurve>`. */
   timephasedContours?: TaskTimephasedContour[];
-  /** OPTIONEEL — handmatig geplande taak (MS Project "Manually Scheduled", Z0, voorlopig
-   *  ONGEBRUIKT). De datums zelf blijven `time.scheduleStart`/`scheduleFinish` — dit is puur het
-   *  SIGNAAL dat de solver ze straks RAUW moet respecteren (geen kalendersnap, geen relatiedruk,
-   *  geen constraint-afdwinging) in plaats van te herrekenen; nog door geen enkele solver-stap
-   *  gelezen. Afwezig/false ⇒ normale (auto-geplande) taak, byte-identiek. */
+  /** Handmatig geplande taak (MS Project "Manually Scheduled"): de solver neemt
+   *  `time.scheduleStart`/`scheduleFinish` RAUW over — geen kalendersnap, geen relatiedruk, geen
+   *  constraint-afdwinging (ook niet bij een harde pin); opvolgers rekenen gewoon door
+   *  (`CPMSolver.forwardPass`). Afwezig/false ⇒ normale, automatisch geplande taak. */
   manuallyScheduled?: boolean;
-  /** OPTIONEEL — MSP's eigen Task Type bij .mpp-import (zie `MspTaskType`). Puur data (eigenaars-
-   *  besluit 2026-08-18): geen enkele solverstap leest dit veld. Afwezig ⇒ veld niet gelezen/niet
-   *  van toepassing (byte-identiek), NIET hetzelfde als "FIXED_UNITS" (MSP's eigen stille default
-   *  voor een nieuwe taak) — een afwezig veld is hier "onbekend", geen aanname. Round-tript via
+  /** MSP's Task Type bij .mpp-import (zie `MspTaskType`); de CPM leest het niet. Afwezig ⇒ onbekend,
+   *  NIET hetzelfde als "FIXED_UNITS" (MSP's stille default voor een nieuwe taak). Round-tript via
    *  `OPS_MspTaskType` (`ifcPsets.ts`). */
   mspTaskType?: MspTaskType;
-  /** OPTIONEEL — MSP's "Effort Driven"-vlag bij .mpp-import (`TaskField.EFFORT_DRIVEN`). Puur data,
-   *  zelfde eigenaarsbesluit als `mspTaskType` hierboven — geen enkele solverstap leest dit veld.
-   *  Afwezig/false ⇒ byte-identiek. Round-tript via `OPS_MspTaskType` (`ifcPsets.ts`, zelfde pset
-   *  als `mspTaskType` — het is hetzelfde MSP-taaktypeconcept-paar). */
+  /** MSP's "Effort Driven"-vlag bij .mpp-import (`TaskField.EFFORT_DRIVEN`); de CPM leest het niet.
+   *  Round-tript via `OPS_MspTaskType` (`ifcPsets.ts`), samen met `mspTaskType`. */
   effortDriven?: boolean;
-  /** OPTIONEEL — de WERKREGEL van deze taak (taaktypes-etappe, ontwerp 2026-09-04 §4.1): welke
-   *  hoeken van werk = duur × inzet beschermd zijn bij een bewerking (`WorkRule`, neutraal tussen
-   *  MSP en P6). Afwezig ⇒ `Project.defaultWorkRule`, en als die ook ontbreekt FIXED_DURATION_RATE
-   *  (het gedrag van vandaag, byte-identiek). Bij import AFGELEID uit `mspTaskType`+`effortDriven`
-   *  resp. het P6-duurtype (spec §4.2) en apart bewaard, zodat een latere typewissel de herkomst
-   *  niet vernietigt. Geen enkele solverstap leest dit; alleen de bewerkingslaag
-   *  (`src/engine/work/workTriangle.ts`). Round-tript via `OPS_WorkRule` (`ifcPsets.ts`). */
+  /** De WERKREGEL van deze taak: welke hoeken van werk = duur × inzet beschermd zijn bij een
+   *  bewerking (`WorkRule`, neutraal tussen MSP en P6). Afwezig ⇒ `Project.defaultWorkRule`, en als
+   *  die ook ontbreekt FIXED_DURATION_RATE. Bij import AFGELEID uit `mspTaskType`+`effortDriven` resp.
+   *  het P6-duurtype en apart bewaard, zodat een latere typewissel de herkomst niet vernietigt. De CPM
+   *  leest dit niet; alleen de bewerkingslaag (o.a. `src/engine/work/`). Round-tript via `OPS_WorkRule`
+   *  (`ifcPsets.ts`). */
   workRule?: import('@/types/workRule').WorkRule;
-  /** OPTIONEEL — P6's eigen Duration Type bij .xer-import (zie `P6DurationType`). VELD-ALS-SIGNAAL,
-   *  eigen opgeslagen veld NAAST `mspTaskType` — géén hergebruik: de twee bronformaten kennen elk
-   *  hun eigen taaktypeconcept met een andere waardenverzameling en een andere reken-relatie (MSP:
-   *  Fixed Units/Duration/Work; P6: Fixed Duration&Units/Duration&Units-per-Time/Units-per-Time/
-   *  Units). Puur data — eigenaarsbesluit XER-etappeplan §1/X0 (2026-08-20): GEEN enkele solverstap
-   *  leest dit veld deze etappe. VASTGELEGDE AFSPRAAK (§1 van het plan): de latere taaktypes/effort-
-   *  driven-motor-etappe (`2026-08-18-spec-taaktypes-effort-driven.md`) mapt zowel `mspTaskType` als
-   *  `p6DurationType` naar ÉÉN interne superset-rekenmodel — twee opslagvelden nu, één rekenmodel
-   *  straks, geen twee eilanden. Afwezig ⇒ geen .xer-herkomst of onbekend token (byte-identiek). */
+  /** P6's Duration Type bij .xer-import (zie `P6DurationType`), een eigen veld naast `mspTaskType`:
+   *  de formaten kennen elk een ander taaktypeconcept. Herkomst-datagate: de motor leest het alleen in
+   *  de P6-conventiepoorten (bv. `p6CompletedTargetWindow.ts`; gepind door `verify:conventions`). Afwezig ⇒
+   *  geen .xer-herkomst of onbekend token. */
   p6DurationType?: P6DurationType;
-  /** OPTIONEEL — P6's eigen Activity Type bij .xer-import (zie `P6ActivityType`). Zelfde
-   *  eigenaarsbesluit/superset-afspraak als `p6DurationType` hierboven — puur data, geen solverstap
-   *  leest dit veld deze etappe (de XER-lezer leidt `isMilestone`/`isHammock` er later wél
-   *  OPERATIONEEL uit af — TT_Mile/TT_FinMile resp. TT_LOE, zie X4a — maar dat zijn AFGELEIDEN, niet
-   *  dit veld zelf, dat blijft de rauwe herkomst). Afwezig ⇒ geen .xer-herkomst (byte-identiek). */
+  /** P6's Activity Type bij .xer-import (zie `P6ActivityType`): de rauwe herkomst. De XER-lezer leidt
+   *  `isMilestone`/`isHammock` eruit af (TT_Mile/TT_FinMile resp. TT_LOE). Herkomst-datagate zoals
+   *  `p6DurationType`. Afwezig ⇒ geen .xer-herkomst. */
   p6ActivityType?: P6ActivityType;
   /** `task_id` is slechts uniek binnen dit P6-project; beide bronidentiteiten blijven bewaard. */
   p6ProjectId?: string;
@@ -544,7 +429,7 @@ export interface Task {
   p6ExplicitTargetWindow?: boolean;
   /** CP_Phys/CP_Units gebruiken hun bronrestduur en nooit percentage-afleiding in de solver. */
   p6CompletePctType?: P6CompletePctType;
-  /** XER `expect_end_date`, pas actief met de expliciete projectscope-vlag uit X5. */
+  /** XER `expect_end_date`; alleen actief met `SchedulingOptions.useExpectedFinishDates`. */
   p6ExpectedFinish?: string;
   /** P6-specifieke opt-in voor `time.resume`/`time.stop`. De XER-lezer zet dit
    *  uitsluitend bij een volledig, chronologisch suspend/resume-paar; losse of
@@ -565,35 +450,31 @@ export interface Task {
   activityCodes?: Record<string, string>;
   /** Custom-field-waarden: velddefinitie-id → waarde (getypeerd volgens CustomFieldDef.type). */
   customFields?: Record<string, CustomFieldValue>;
-  /** Datum-constraint (fase 2.3); afwezig = ASAP. PRIMAIR. */
+  /** Datum-constraint; afwezig = ASAP. PRIMAIR. */
   constraint?: TaskConstraint;
-  /** OPTIONEEL — SECUNDAIRE constraint (fase 2.9, P6). Altijd soft (hard verboden op secundair).
-   *  Combinatie-regel (P6, Rapport B §1.3): secundair NIET toegestaan als primair Start On/Finish On/
-   *  Mandatory is; verder één forward-type + één backward-type die elkaar niet tegenspreken.
-   *  Afwezig ⇒ geen tweede grens (byte-identiek). */
+  /** SECUNDAIRE constraint (P6). Altijd soft (hard is verboden op secundair). Combinatieregel (P6):
+   *  niet toegestaan als de primaire Start On/Finish On/Mandatory is; verder één forward-type + één
+   *  backward-type die elkaar niet tegenspreken. Afwezig ⇒ geen tweede grens. */
   constraint2?: TaskConstraint;
-  /** OPTIONEEL — hammock/LOE (fase 2.9, §3.2/§4.4). Afwezig/false ⇒ gewone taak (byte-identiek).
-   *  true ⇒ duur wordt AFGELEID (span tussen start-driver en finish-driver);
-   *  scheduleDuration/durationMinutes worden genegeerd als invoer en overschreven met de span.
-   *  Uitgesloten van het kritieke pad (isCritical altijd false). */
+  /** Hammock/LOE. Afwezig/false ⇒ gewone taak. true ⇒ de duur wordt AFGELEID (span tussen
+   *  start-driver en finish-driver); scheduleDuration/durationMinutes worden als invoer genegeerd en
+   *  overschreven met de span. Nooit kritiek (isCritical altijd false). */
   isHammock?: boolean;
-  /** OPTIONEEL — externe (cross-project) dependencies (fase 2.9, §3.3). Afwezig ⇒ geen (byte-identiek). */
+  /** Externe (cross-project) dependencies. Afwezig ⇒ geen. */
   externalLinks?: ExternalLink[];
   /** Zachte deadline (MSP-model): begrenst alleen de late finish — balken bewegen nooit;
    *  overschrijding (earlyFinish > deadline) geeft negatieve float + waarschuwing. */
   deadline?: string;
-  /** OPTIONEEL — id in de kalender-bibliotheek (fase 2.8a, §4). undefined = projectkalender
-   *  (project.calendarId). Symmetrisch met Resource.calendarId. Bepaalt de kalender waarin de DUUR
-   *  en de constraints van deze taak rekenen (§5). */
+  /** Id in de kalenderbibliotheek; undefined = projectkalender (project.calendarId). Symmetrisch met
+   *  Resource.calendarId. Bepaalt de kalender waarin de DUUR en de constraints van deze taak rekenen. */
   calendarId?: string;
-  /** OPTIONEEL — vrije aantekeningen/checklist per taak (fase 2.10, item 1). Afwezig ⇒ geen
-   *  aantekeningen (byte-identiek). Puur een array-veld, geen dedicated store-acties nodig
-   *  (mutaties via `updateTask(taskId, { notes })`). */
+  /** Vrije aantekeningen/checklist per taak. Afwezig ⇒ geen. Mutaties via
+   *  `updateTask(taskId, { notes })`; er zijn geen eigen store-acties. */
   notes?: { id: string; text: string; done: boolean }[];
 }
 
-/** Itemtypes van de drie historisch inline arrays/objecten. De aliases veranderen de opgeslagen
- * vorm niet, maar maken compile-time velddekking buiten dit bestand mogelijk. */
+/** Itemtypes van de inline arrays/objecten op `Task`. De aliassen veranderen de opgeslagen vorm
+ * niet, maar maken compile-time velddekking buiten dit bestand mogelijk. */
 export type TaskNote = NonNullable<Task['notes']>[number];
 export type TimephasedDurationWalk = NonNullable<Task['timephasedDurationWalks']>[number];
 export type ExternalSourceRef = ExternalLink['sourceRef'];

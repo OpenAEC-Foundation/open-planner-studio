@@ -9,7 +9,7 @@ import { displayDate } from '@/utils/displayDate';
 import type { ActualStartQuestionItem, ActualStartQuestionRequest } from '@/state/slices/types';
 
 /**
- * De vraag naar de werkelijke start (Z1b, besluit eigenaar — `engine/progressEntry.ts`). Voortgang op
+ * De startvraag (`engine/progressEntry.ts`). Voortgang op
  * een taak die volgens de planning pas NA de statusdatum begint, maar nog geen werkelijke start heeft:
  * de app verzint die datum niet, ze vraagt ernaar vóór de voortgang wordt toegepast.
  *
@@ -18,7 +18,7 @@ import type { ActualStartQuestionItem, ActualStartQuestionRequest } from '@/stat
  *  - Een datum ná de statusdatum of ná het werkelijke einde bestaat niet: de regel toont waarom en
  *    Toepassen blijft uit (melden, niet raden). Dezelfde toets als de store (`actualStartAnswerIssue`).
  *  - Annuleren (knop, Escape) = er verandert niets. Een klik naast het paneel doet niets: de dialoog
- *    heeft invoervelden (regel uit issue #158).
+ *    heeft invoervelden (backdrop-regel in `Dialog.tsx`).
  *
  * Stapelt boven "Taak bewerken" (`z-[60]`), daarom eigen Escape/Enter-afhandeling in de capture-fase
  * (zoals `ConfirmDialog`): anders zou Enter hier óók het Opslaan van de dialoog eronder triggeren.

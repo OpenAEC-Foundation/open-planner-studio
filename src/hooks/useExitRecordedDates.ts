@@ -7,7 +7,7 @@ import {
 } from '@/state/recordedDatesExit';
 
 /**
- * Rekent één keer door zodra "datums zoals opgeslagen" via een BEWERKING is verlaten (issue #63).
+ * Rekent één keer door zodra "datums zoals opgeslagen" via een BEWERKING is verlaten.
  *
  * `finishMutation` zet de modus uit en `scheduleStale` aan, maar rekent zelf niet — dat mag het ook
  * niet, want het draait binnen een Immer-producer. Zonder deze hook zou de gebruiker met "Automatisch

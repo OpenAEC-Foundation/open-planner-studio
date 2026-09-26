@@ -4,9 +4,8 @@ import type { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { DateTextInput } from '@/components/common/DateTextInput';
 
 /**
- * Gedeelde primitieven voor de taak-sectie-componenten (fase 2.10, golf D — extractie uit
- * `TaskPropertiesPanel.tsx`). Verhuisd naar een neutrale plek (i.p.v. in het paneel-bestand te
- * blijven staan) omdat zowel `TaskPropertiesPanel` als `TaskDialog` als `Ribbon.tsx`
+ * Gedeelde primitieven voor de taak-sectie-componenten. Op een neutrale plek (niet in het
+ * paneel-bestand) omdat zowel `TaskPropertiesPanel` als `TaskDialog` als `Ribbon.tsx`
  * (curve-labels in de rapportage-UI) ernaar verwijzen — een import vanuit het paneel zou een
  * cirkelvormige afhankelijkheid geven zodra het paneel zelf secties uit deze map importeert.
  */

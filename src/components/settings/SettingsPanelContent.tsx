@@ -14,9 +14,8 @@ import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 
-// U1: drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
-// planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie).
-// De oude vierde tab "Toepassing" en de losse "Taal"-tab zijn opgegaan in de andere twee;
+// Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
+// planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
 // zie docs/recepten/instelling.md en public/docs/{nl,en}/ref-instellingen.md.
 type SettingsTab = 'appearance' | 'planning' | 'advanced';
 
@@ -27,7 +26,7 @@ const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
 };
 
-// i18n-sleutels voor de lettertype-familie-opties (issue #25.4) — zelfde patroon als THEME_LABEL_KEYS.
+// i18n-sleutels voor de lettertype-familie-opties — zelfde patroon als THEME_LABEL_KEYS.
 // `as const satisfies` i.p.v. een `Record<UIFontFamily, string>`-annotatie: die annotatie zou de
 // waarden verbreden naar `string`, en dan accepteert de getypeerde `t(...)` ze niet meer (i18next
 // valideert de sleutel tegen een union van bestaande keys). `satisfies` houdt de
@@ -170,7 +169,7 @@ export function SettingsPanelContent() {
               <p className="scrollzoom-hint">{t('settings.languageHint')}</p>
             </div>
 
-            {/* Lettertype interface (issue #25.4): familie + grootte. Web-apps volgen — anders dan
+            {/* Lettertype interface: familie + grootte. Web-apps volgen — anders dan
                 native apps — niet automatisch de systeemlettertype-instelling, wat leesbaarheid/
                 toegankelijkheid kan beïnvloeden; hier kiest de gebruiker beide. Familie overschrijft
                 via App.tsx de --font-heading/--font-body-variabelen (of herstelt ze bij 'default');
@@ -205,8 +204,7 @@ export function SettingsPanelContent() {
                 value={dateNotation}
                 onChange={v => applySetting('dateNotation', v as DateNotation, saveDateNotation)}
                 // De patroonletters zijn taalgebonden (nl jjjj, en yyyy, de JJJJ, fr aaaa, …),
-                // dus door t() en niet hardgecodeerd — ze stonden hier in het Nederlands en
-                // bleven daardoor in alle 14 locales onvertaald.
+                // dus door t() en niet hardgecodeerd.
                 options={[
                   { value: 'dmy', label: t('settings.dateNotationDmy') },
                   { value: 'mdy', label: t('settings.dateNotationMdy') },
@@ -246,14 +244,14 @@ export function SettingsPanelContent() {
               <p className="scrollzoom-hint">{t('settings.documentChromeHint')}</p>
             </div>
 
-            {/* U1: subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een
+            {/* Subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een
                 herkenbare knip binnen Weergave. Werkdagen-as, kwartierzoom, taakbalksplitsing en
                 scroll/zoom-gedrag horen allemaal bij hoe de tijdlijn zich gedraagt. */}
             <h3 className="settings-subhead">{t('settings.ganttSection')}</h3>
 
             <div className="settings-section">
               <h3>{t('settings.compressNonWorkdaysSection')}</h3>
-              {/* Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen». */}
+              {/* «Alleen werkbare dagen tonen». */}
               <SettingToggle
                 label={t('settings.compressNonWorkdays')}
                 hint={t('settings.compressNonWorkdaysHint')}
@@ -293,7 +291,7 @@ export function SettingsPanelContent() {
 
         {activeTab === 'planning' && (
           <div className="settings-section-list">
-            {/* Bouwmodus (2026-07-13): app-brede schakelaar. AAN = bouwgerichte defaults/framing
+            {/* Bouwmodus: app-brede schakelaar. AAN = bouwgerichte defaults/framing
                 (default). UIT = bouw-agnostisch. Verschijnt via deze gedeelde component op alle 3
                 de ingangen (gear/ribbontab/backstage). */}
             <div className="settings-section">
@@ -309,7 +307,7 @@ export function SettingsPanelContent() {
               />
             </div>
 
-            {/* Fase 2.8b (§6.8): Urenplanning — hoofdschakelaar + 3 sub-instellingen. Alle vier
+            {/* Urenplanning — hoofdschakelaar + 3 sub-instellingen. Alle vier
                 verschijnen op de drie ingangen tegelijk (gedeelde component). De sub-instelling
                 "Gemengd toestaan" is alleen actief als de hoofdschakelaar aan staat. */}
             <div className="settings-section">
@@ -352,7 +350,7 @@ export function SettingsPanelContent() {
                 checked={autoCalcCPM}
                 onChange={applyAutoCalcCPM}
               />
-              {/* #101 + gebruikstest #170 (G6/E5): werkregels en werk tonen — onder Berekenen (het
+              {/* Werkregels en werk tonen — onder Berekenen (het
                   werkt ook op dagtaken, niet alleen bij urenplanning), zonder eigen sectiekop; de
                   toelichting is één zin in een gekleurd blok i.p.v. een los formulebijschrift. */}
               <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
@@ -374,7 +372,7 @@ export function SettingsPanelContent() {
 
         {activeTab === 'advanced' && (
           <div className="settings-section-list">
-            {/* AI-modus (T14) + automatisch starten: de enige twee AI-instellingen hier — de rest van
+            {/* AI-modus + automatisch starten: de enige twee AI-instellingen hier — de rest van
                 de bediening leeft op het AI-tabblad. AAN ⇒ tabblad verschijnt; UIT ⇒ tabblad weg +
                 bridge geforceerd gestopt (`applyAiModeLive` → `stopMcpServer` + status off). Via deze
                 gedeelde component op alle 3 de ingangen (gear/Instellingen-ribbontab/Backstage).
@@ -408,7 +406,7 @@ export function SettingsPanelContent() {
               />
             </div>
 
-            {/* Benchmark-tool (pakket S): via deze gedeelde component zichtbaar op alle 3 de
+            {/* Benchmark-tool: via deze gedeelde component zichtbaar op alle 3 de
                 ingangen (gear/Instellingen-ribbontab/Backstage). */}
             <div className="settings-section">
               <h3>{t('benchmark.section')}</h3>
@@ -429,8 +427,7 @@ export function SettingsPanelContent() {
               </button>
             </div>
 
-            {/* [Rondleiding] (fase 2.10, bugfix — user-melding: de herstart-ingang ontbrak in de
-                Instellingen). Derde ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
+            {/* [Rondleiding]: derde herstart-ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
                 Via openFromSettings start de tour altijd vanaf een schone body (zoals Backstage's
                 eigen closeBackstage()), ongeacht welke van de 3 ingangen. */}
@@ -467,7 +464,7 @@ export function SettingsPanelContent() {
                 {t('updates.justUpdated.whatsNewButton')}
               </button>
             </div>
-            {/* Legacy-functies (issue #144): vervangen functies, duidelijk als zodanig gemarkeerd. */}
+            {/* Legacy-functies: vervangen functies, duidelijk als zodanig gemarkeerd. */}
             <div className="settings-section" data-ops-legacy-settings="true">
               <h3>{t('settings.legacySection')}</h3>
               <SettingToggle

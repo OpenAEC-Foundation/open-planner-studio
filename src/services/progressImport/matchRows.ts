@@ -14,8 +14,7 @@ export interface ProgressMatchResult {
 }
 
 /**
- * Matcht voortgangsrijen aan taken volgens de bindende resolutievolgorde uit A11 (het
- * implementatieplan, issue #27 etappe 2):
+ * Matcht voortgangsrijen aan taken volgens de bindende resolutievolgorde:
  *
  * 1. Overrides eerst, in rijvolgorde (de volgorde van `rows`, niet gesorteerd). Een override naar
  *    een bestaande taak claimt die taak (`match: 'manual'`) en wint dus altijd van een latere

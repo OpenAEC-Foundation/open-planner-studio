@@ -1,4 +1,4 @@
-// taskTypesVisibility.ts — taaktypes-etappe (spec 2026-09-04 §3.1-3/§7): wanneer zijn de
+// taskTypesVisibility.ts — wanneer zijn de
 // werkregel-bedieningselementen zichtbaar? Twee bronnen, één antwoord:
 //   1. de app-instelling "Toon taaktypes" (`ui.showTaskTypes`, `ops-showTaskTypes`, standaard uit);
 //   2. het DOCUMENT zelf: draagt het al taaktypedata (een taak met `workRule`, `mspTaskType` of
@@ -25,7 +25,7 @@ export function hasTaskTypeData(
 }
 
 /**
- * E4 (orkestratorbesluit 25-09, gebruikstest #170 G3): moet het ontsluiten GEMELD worden? Alleen
+ * Moet het ontsluiten GEMELD worden? Alleen
  * wanneer het bestand iets draagt dat de gebruiker moet weten — opgeslagen werk op een toewijzing,
  * een projectstandaard, of een eigen werkregel (een regel die níét uit het importveld van de taak
  * volgt, zoals een in OPS gekozen regel in een IFC). Een regel die `deriveImportedWorkRules` alleen

@@ -7,7 +7,7 @@ import { useDisplayDate } from '@/hooks/displayDate';
 import { formatSignedReportNumber } from '@/utils/reportNumber';
 
 /**
- * Variance-rapport (fase 2.6, §7): vergelijkt de huidige (CPM-)datums met de actieve baseline.
+ * Variance-rapport: vergelijkt de huidige (CPM-)datums met de actieve baseline.
  * Deelt de pure `computeVariance` met de headless testharnas; de hook levert de rijen + de
  * projecteinde-delta voor de samenvatting. Zonder actieve baseline: lege uitkomst (lege-staat).
  */
@@ -29,7 +29,7 @@ export function useVarianceResult(): VarianceResult {
   }, [tasks, cpmResult, baselines, activeBaselineId, calendar]);
 }
 
-/** Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
+/** Geëxporteerd zodat de vector-PDF-tabel-export exact dezelfde statuskleuren gebruikt. */
 export const STATUS_COLOR: Record<VarianceStatus, string> = {
   onSchedule: '#10B981',
   late: '#DC2626',
@@ -41,9 +41,9 @@ export const STATUS_COLOR: Record<VarianceStatus, string> = {
 const COLUMNS = ['wbs', 'name', 'baselineStart', 'baselineFinish', 'currentStart', 'currentFinish', 'deltaStart', 'deltaFinish', 'status'] as const;
 
 /**
- * Geëxporteerd (fase 3) zodat de vector-PDF-tabel-export exact dezelfde delta-formattering gebruikt.
+ * Geëxporteerd zodat de vector-PDF-tabel-export exact dezelfde delta-formattering gebruikt.
  * Zelfde notatie als de andere rapporten (`formatSignedReportNumber`: plus bij positief, het
- * decimaalteken van de app-taal — review #139 bevinding 5); de delta's zijn hele werkdagen, dus in
+ * decimaalteken van de app-taal); de delta's zijn hele werkdagen, dus in
  * de praktijk verandert alleen het teken mee.
  */
 export function fmtDelta(v: number | undefined, locale?: string): string {

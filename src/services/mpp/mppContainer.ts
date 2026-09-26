@@ -6,8 +6,8 @@
  *
  * MPP-containerlaag boven de generieke CFB-lezer (`cfb.ts`): formaatdetectie via het
  * `\x01CompObj`-blok, de generieke `Props`-blokparser (Props.java/Props14.java) en de
- * leesbaarheids-poort (`assertReadable`) die legacy- en versleutelde bestanden er met een
- * herkenbare fout uitfiltert vóórdat T5–T7 ook maar één taak/resource/kalender proberen te lezen.
+ * leesbaarheidspoort (`assertReadable`) die legacy- en versleutelde bestanden er met een
+ * herkenbare fout uitfiltert vóórdat er ook maar één taak/resource/kalender gelezen wordt.
  *
  * Poort-bronnen: CompObj.java, MPPReader.java (FILE_CLASS_MAP r. 445–455), Props.java,
  * Props14.java, PropsKey.java, MPP14Reader.java (wachtwoordvlag-logica r. ~150–165).
@@ -40,25 +40,12 @@ const FILE_FORMAT_TO_VARIANT: Record<string, MppVariant> = {
 /** Leest de CompObj-blokinhoud (CompObj.java): 28 bytes overslaan, dan drie optioneel-aanwezige
  *  lengte-geprefixte ASCII-strings (applicationName, fileFormat, applicationID) — elke string
  *  telt zijn eigen null-terminator mee in de opgegeven lengte, dus we nemen `length - 1` bytes.
- *  `applicationID` wordt niet gelezen (niets in deze lezer heeft 'm nodig; we stoppen zodra
- *  `fileFormat` binnen is). Grenscontroles: elke read gooit een duidelijke fout zodra de buffer
- *  te kort is (nooit een rauwe RangeError).
+ *  `applicationID` wordt niet gelezen. Elke read gooit een duidelijke fout zodra de buffer te kort
+ *  is (nooit een rauwe RangeError).
  *
- *  T5-uitbreiding: naast `fileFormat` (T4, formaatdetectie) geeft dit nu ook `applicationName`
- *  terug — `detectApplicationVersion` hieronder heeft 'm nodig om de MS-Project-versie te bepalen
- *  (bit-vlag-tabellen voor milestone e.d. verschillen tussen Project ≤2010 en 2013+, zie
- *  `MPP14Reader.java` r. ~1029). Binnen DEZE functie is dat één parse-doorgang (`applicationName`
- *  én `fileFormat` komen uit hetzelfde stuk cursor-voortschrijdende code, i.p.v. twee keer los
- *  door de bytes te lopen).
- *
- *  T5-spec-review-minor (precisering, geen bug): dat is een uitspraak over ÉÉN aanroep van déze
- *  functie, niet over het hele `readMPP`-traject — `assertReadable` (via `detectMppVariant`) en
- *  `detectApplicationVersion` zijn twee LOSSE call-sites die elk hun eigen keer `readCompObjInfo`
- *  aanroepen op dezelfde `\x01CompObj`-bytes, dus het CompObj-blok wordt binnen `readMPP` in de
- *  praktijk tweemaal geparst. Bewust niet samengevoegd tot één gedeelde aanroep: het blok is
- *  triviaal klein (tientallen bytes), de her-parse kost microseconden, en het zou de bestaande,
- *  al-geteste T4-containerlaag-API (`detectMppVariant`/`assertReadable`) moeten laten aanschuiven
- *  voor een puur cosmetische besparing. */
+ *  `applicationName` is nodig voor `detectApplicationVersion` (bit-vlag-tabellen verschillen tussen
+ *  Project ≤2010 en 2013+, `MPP14Reader.java` r. ~1029). `assertReadable` en
+ *  `detectApplicationVersion` parsen het blok elk apart; bewust, het is tientallen bytes groot. */
 function readCompObjInfo(bytes: Uint8Array): { applicationName: string; fileFormat: string | null } {
   let pos = 28;
   const readInt32 = (): number => {
@@ -106,12 +93,9 @@ export function detectMppVariant(cfb: CfbFile): MppVariant {
   try {
     fileFormat = readCompObjInfo(compObjBytes).fileFormat;
   } catch (err) {
-    // M3 (kwaliteitsreview): de onderliggende oorzaak (bv. een afgekapt CompObj-blok) blijft
-    // beschikbaar via `cause` — handig bij het diagnosticeren van een vreemd-maar-"herkend"
-    // bestand, zonder de simpele, gebruikersgerichte boodschap hierboven te verliezen. De
-    // 2-argument-`Error`-constructor (`ErrorOptions`) zit in de ES2022-lib; dit project mikt op
-    // ES2020 (`tsconfig.json`), dus `cause` wordt hier expliciet ná constructie gezet i.p.v. via
-    // de constructor-optie — functioneel identiek, geen lib-bump nodig voor één plek.
+    // De onderliggende oorzaak (bv. een afgekapt CompObj-blok) blijft beschikbaar via `cause`.
+    // `ErrorOptions` zit in de ES2022-lib en dit project mikt op ES2020, dus `cause` wordt ná
+    // constructie gezet.
     const wrapped = new Error('Not a recognised MS Project MPP file') as Error & { cause?: unknown };
     wrapped.cause = err;
     throw wrapped;
@@ -128,13 +112,10 @@ export function detectMppVariant(cfb: CfbFile): MppVariant {
  *  "Microsoft.Project 16.0", corpus-geverifieerd op alle drie ground-truth-bestanden). */
 const APPLICATION_VERSION_PATTERN = /Microsoft.Project.(\d+).0/;
 
-/** T5-toevoeging: de MS-Project-versie (`CompObj.getApplicationVersion`) — MPP14Reader gebruikt
- *  'm om te kiezen tussen de Project-≤2010- en de 2013+-bit-vlag-tabellen voor o.a. de
- *  milestone-vlag (r. ~1029 e.v.). `null` als het patroon niet matcht (onbekende/geen versie in
- *  `applicationName`) — de aanroeper (`mppReader.ts`'s `milestoneBitFlag`) behandelt `null` dan
- *  als `0` en valt zo terug op de 2010-TABEL, niet de moderne (T5-spec-review, minor — deze regel
- *  zei eerder "modernste tabel", wat niet meer klopte na de 4a-correctie: MPXJ's eigen
- *  `NumberHelper.getInt(null) === 0`, en `0 ≤ PROJECT_2010`). */
+/** De MS-Project-versie (`CompObj.getApplicationVersion`) — MPP14Reader kiest daarmee tussen de
+ *  Project-≤2010- en de 2013+-bit-vlag-tabellen (r. ~1029 e.v.). `null` als het patroon niet matcht;
+ *  de aanroepers behandelen `null` als `0` en vallen zo terug op de 2010-tabel, zoals MPXJ
+ *  (`NumberHelper.getInt(null) === 0`, en `0 ≤ PROJECT_2010`). */
 export function detectApplicationVersion(cfb: CfbFile): number | null {
   const compObjBytes = cfb.getStream(['\x01CompObj']);
   if (!compObjBytes) return null;
@@ -173,9 +154,7 @@ function parsePropsBytes(bytes: Uint8Array, label: string): Map<number, Uint8Arr
   let pos = PROPS14_HEADER_SIZE;
   let found = 0;
 
-  // M4 (kwaliteitsreview): geen losse `availableBytes`-teller meer die parallel aan `pos`
-  // wordt bijgehouden (en dus uit de pas kon lopen) — `bytes.length - pos` is altijd de
-  // brontelling en kan niet divergeren.
+  // `bytes.length - pos` is de enige brontelling (geen parallelle teller die uit de pas kan lopen).
   while (found < headerCount) {
     if (bytes.length - pos < 12) break;
     const length = getInt(bytes, pos, ctx);
@@ -196,8 +175,8 @@ function parsePropsBytes(bytes: Uint8Array, label: string): Map<number, Uint8Arr
 }
 
 /** Poort van Props.java/Props14.java: sleutel/waarde-toegang tot een Props-blok. De sleutel is
- *  een plain `number` (PropsKey-waarde) i.p.v. een gesloten enum — T5–T7 kunnen zo vrij nieuwe
- *  PropsKey-constanten gebruiken zonder deze module te hoeven wijzigen. */
+ *  een plain `number` (PropsKey-waarde) i.p.v. een gesloten enum, zodat lezers vrij nieuwe
+ *  PropsKey-constanten kunnen gebruiken. */
 export class Props {
   private readonly map: Map<number, Uint8Array>;
   private readonly label: string;
@@ -240,42 +219,26 @@ export class Props {
  *  NIET voldoende om te weigeren — zie `readPasswordProtection` hieronder voor de volledige
  *  conditie (vlag ÉN hash). */
 const PASSWORD_FLAG = 893386752;
-// PropsKey.java r. 59 — ENCRYPTION_CODE = 893386759 — ter documentatie/volledigheid (net als de
-// Java-bron 'm naast PASSWORD_FLAG vermeldt). Bewust GEEN const-declaratie (T5-restpunt c,
-// kwaliteitsreview: een `void`-no-op op een ongebruikte const is een omweg — de waarde staat hier
-// puur in de commentaartekst): geen enkele afnemer heeft 'm nodig, want de bijbehorende
-// XOR-decodering (`DocumentInputStreamFactory`) is bewust niet geport — versleutelde streams
-// worden nooit ontcijferd, alleen herkend en geweigerd via `PASSWORD_FLAG`.
+// PropsKey.java r. 59 — ENCRYPTION_CODE = 893386759, alleen ter documentatie: de bijbehorende
+// XOR-decodering (`DocumentInputStreamFactory`) is bewust niet geport — versleutelde streams worden
+// alleen herkend en geweigerd, nooit ontcijferd.
 /** PropsKey.java r. 77 (`PROTECTION_PASSWORD_HASH`). Samen met `PASSWORD_FLAG` de volledige
  *  afwijscondities hieronder — zie de toelichting bij `readPasswordProtection`. */
 const PROTECTION_PASSWORD_HASH = 893386756;
 
 /**
- * Twee poortbevindingen samengevoegd (M1, kwaliteitsreview — tooling toont bij een dubbel
- * docblok alleen het laatste, dus de eerste ging onzichtbaar verloren):
+ * 1. WELKE Props-stream: MPP14Reader.java leest de wachtwoordvlag NIET uit `"   114"/Props` (de
+ *    ~88 kB projectproperties-stream, `m_projectProps`), maar uit de kleine ROOT-stream `Props14`
+ *    (~0,7–0,8 kB). In de corpusbestanden komt `PASSWORD_FLAG` alleen in de root-stream voor; in
+ *    `"   114"/Props` ontbreekt de sleutel, dus daar lezen zou versleutelde bestanden nooit herkennen.
  *
- * 1. WELKE Props-stream (T4, corpus-geverifieerd tegen de drie ground-truth-bestanden):
- *    MPP14Reader.java leest de wachtwoordvlag NIET uit `"   114"/Props` (de ~88 kB
- *    projectproperties-stream — dat is `m_projectProps`, gebruikt voor project-brede
- *    instellingen zoals werkuren/startdatum), maar uit de kleine, aparte ROOT-stream `Props14`
- *    (~0,7–0,8 kB in het corpus). Beide streams bestaan naast elkaar; `PASSWORD_FLAG` komt in de
- *    drie corpusbestanden UITSLUITEND voor in de root-`Props14`-stream (geverifieerd: 21
- *    sleutels, PASSWORD_FLAG aanwezig, waarde 0) — in `"   114"/Props` (261–262 sleutels)
- *    ontbreekt de sleutel volledig, dus `getByte` zou daar altijd stil 0 teruggeven en
- *    versleutelde bestanden nooit herkennen. Deze functie leest daarom bewust de root-stream,
- *    niet de "   114"-stream — een afwijking van de letterlijke planformulering ("de Props-stream
- *    uit storage '   114'"), gemotiveerd door dit corpusonderzoek.
- *
- * 2. VOLLEDIGE afwijsconditie (review-ronde ná T4): MPXJ weigert een MPP14-bestand NIET op de
- *    vlag alleen. MPP14Reader.java's `populateMemberData` (r. ~150-165) test EXPLICIET twee
- *    condities en gooit pas als BEIDE waar zijn:
+ * 2. VOLLEDIGE afwijsconditie: MPP14Reader.java's `populateMemberData` (r. ~150-165) gooit pas als
+ *    BEIDE waar zijn:
  *      passwordRequiredToRead = (passwordProtectionFlag & 0x1) != 0
  *      encryptionXmlPresent   = props.getByteArray(PropsKey.PROTECTION_PASSWORD_HASH) != null
- *    De Java-bron documenteert dit met een expliciet voorbeeld: "I've come across an example
- *    where the password flag was set, but the encryption XML was missing. In this case the file
- *    is unencrypted and MS Project opens it without prompting for a password." Een kale
- *    vlag-check zou zulke — reëel voorkomende — bestanden dus onterecht als versleuteld weigeren.
- *    Deze functie spiegelt daarom beide condities.
+ *    De Java-bron: "I've come across an example where the password flag was set, but the encryption
+ *    XML was missing. In this case the file is unencrypted and MS Project opens it without prompting
+ *    for a password." Een kale vlag-check zou zulke bestanden onterecht weigeren.
  */
 function readPasswordProtection(cfb: CfbFile): { flagSet: boolean; hashPresent: boolean } {
   const rootProps14Bytes = cfb.getStream(['Props14']);

@@ -45,8 +45,8 @@ export function computePreviewRasterLimits(
   devicePixelRatio = 1,
   quality: PreviewQuality = 2,
 ): PreviewRasterLimits {
-  // De parameters blijven deel van het pure publieke contract: de oude broncanvasroute gebruikte
-  // ze voor zijn totale oppervlak. De page-local route rekent bewust niet meer op rapporthoogte.
+  // De parameters blijven deel van het pure publieke contract; de page-local route rekent bewust
+  // niet op rapportafmetingen.
   void logicalWidth;
   void logicalHeight;
   const dpr = Math.max(1, devicePixelRatio);
@@ -68,7 +68,7 @@ export function computePreviewRasterLimits(
   const wantedPagePixels = wantedRasterWidth * wantedRasterHeight;
   const pagePixelLimit = Math.min(PREVIEW_MAX_PAGE_PIXELS, budget / 2);
   // Alleen een extreem grote zichtbare pagina (bv. DPR 3 + A1 portret) wordt geklemd. Een lang
-  // rapport heeft hier geen invloed meer op: dat is precies het verschil met de oude broncanvasroute.
+  // rapport heeft hier geen invloed op.
   const budgetScale = Math.min(1, Math.sqrt(pagePixelLimit / wantedPagePixels));
   const pageRasterWidth = Math.max(1, Math.round(wantedRasterWidth * budgetScale));
   const pageRasterHeight = Math.max(1, Math.round(wantedRasterHeight * budgetScale));

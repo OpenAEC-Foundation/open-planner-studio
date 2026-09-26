@@ -5,7 +5,7 @@ The complete, always up-to-date shortcut list lives in the app itself: the **Key
 ## Opening
 
 - **Ctrl+/** (macOS: **Cmd+/**).
-- **View** → ribbon group **Keyboard Shortcuts** → **Keyboard Shortcuts**.
+- Ribbon tab **Settings** → group **Keyboard Shortcuts** → **Keyboard Shortcuts**.
 
 ## What you see
 

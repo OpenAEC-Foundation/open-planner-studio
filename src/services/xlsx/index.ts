@@ -1,4 +1,4 @@
-/** Barrel voor de XLSX-laag (issue #27, etappe 3). Puur en injecteerbaar, net als `services/zip`:
+/** Barrel voor de XLSX-laag. Puur en injecteerbaar, net als `services/zip`:
  *  geen store, geen React, geen `@tauri-apps/*`, geen module-level muteerbare state — en geen i18n,
  *  want alle gebruikerszichtbare tekst komt bij de schrijver van BUITEN binnen (`ProgressXlsxText`).
  *

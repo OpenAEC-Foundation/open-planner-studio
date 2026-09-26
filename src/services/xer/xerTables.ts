@@ -8,9 +8,8 @@
 
 export type XerEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
 /**
- * XER is inhoudelijk tekst, maar encodingdetectie vereist de oorspronkelijke bytes. X4a moet de
- * registry daarom onder het huidige tweewaardige contract als `binary` bedraden en mag een reeds
- * gedecodeerde string nooit opnieuw encoderen.
+ * XER is inhoudelijk tekst, maar encodingdetectie vereist de oorspronkelijke bytes. De registry
+ * bedraadt XER daarom als `binary` en mag een reeds gedecodeerde string nooit opnieuw encoderen.
  */
 export const XER_TRANSPORT_KIND = 'binary' as const;
 export type XerByteInput = Uint8Array;
@@ -527,7 +526,7 @@ const XER_DECIMAL_FIELDS = new Set([
   'target_equip_qty', 'target_lag_drtn_hr_cnt', 'target_qty', 'target_qty_per_hr',
   'target_work_qty', 'total_float_hr_cnt', 'udf_number', 'week_hr_cnt', 'year_hr_cnt',
 
-  // Aanvullende P6-velden die de bestaande X2-catalogus al als decimaaldragend behandelde.
+  // Aanvullende P6-velden die als decimaaldragend worden behandeld.
   'act_drtn_hr_cnt', 'act_this_per_equip_qty', 'act_this_per_work_qty', 'actual_value',
   'cost_load_value', 'cost_value', 'last_recalc_priority', 'old_remain_drtn_hr_cnt', 'ot_factor',
   'plan_cost', 'remain_lag_drtn_hr_cnt', 'remain_value', 'target_rate',

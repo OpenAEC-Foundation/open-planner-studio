@@ -21,8 +21,9 @@ Download the latest installer for your platform from the
 
 ## Automatic updates
 
-The desktop app checks for updates on startup and can install them in place. Snap and AppImage builds
-are updated outside the app, so the in-app updater steps aside for those.
+The desktop app checks for updates on startup and can install them in place. Only Snap builds
+are updated outside the app (snapd handles them), so the in-app updater steps aside for those; AppImage
+and `.deb` installations are updated in place by the in-app updater.
 
 ## Build from source
 

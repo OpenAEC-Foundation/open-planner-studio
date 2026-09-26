@@ -1,10 +1,9 @@
-// MCP-bridge — de VIER DOCUMENT-TOOLS (taak T21, spec §Tool-set Documenten regel 90, §Sessie-
-// semantiek/drift-anker regel 116, WP4 regel 57).
+// MCP-bridge — de VIER DOCUMENT-TOOLS.
 //
 // `list_documents` / `new_document` / `duplicate_document` / `switch_document`. De AI sluit bewust
-// GEEN documenten en beslist niet over opslaan (spec regel 90) — die tools bestaan hier dus niet.
+// GEEN documenten en beslist niet over opslaan — die tools bestaan hier dus niet.
 //
-// Drie ontwerpbesluiten die de spec-regels vertalen:
+// Drie ontwerpbesluiten:
 //
 //  1. DRIFT-ANKER. `new_document`, `duplicate_document` en `switch_document` verzetten het anker
 //     (`bindExpectedDoc`) ná hun documentwissel, zodat de eerstvolgende mutatie tegen het nieuwe
@@ -13,19 +12,19 @@
 //       - `duplicate_document` doet dat (hij kopieert het actieve document) ⇒ volle
 //         `guardNonTransactional` incl. drift-check: dupliceren van het verkeerde document zou een
 //         onopgemerkt verkeerde variant opleveren.
-//       - `switch_document` is per spec (regel 116) juist de BEVESTIGING die drift oplost en mag dus
+//       - `switch_document` is juist de BEVESTIGING die drift oplost en mag dus
 //         nooit zelf op drift falen.
 //       - `new_document` maakt een leeg document; de inhoud van het actieve document doet er niet
 //         toe en het anker gaat sowieso mee. Geen drift-check.
 //  2. GEEN TRANSACTIE. Documentwissels zijn geen planningsmutaties: ze pushen geen undo-snapshot en
 //     horen niet in `runInMcpTransaction` (dat zou een snapshot van het VERKEERDE document nemen).
 //     Daarom de veiligheidsvlag-guards los, via `guardBridgeFlags` hieronder.
-//  3. GEEN AI-BACKUP. Spec regel 130: document-tools triggeren zelf géén auto-backup; hun `kind` is
-//     `'document'` (alleen `'mutate'`/`'batch'` triggeren). Wel MOET `duplicate_document` het nieuwe
-//     document als "duplicate-born" registreren (T16-contract) — via dezelfde contextbinding die
+//  3. GEEN AI-BACKUP. Document-tools triggeren zelf géén auto-backup; hun `kind` is `'document'`
+//     (alleen `'mutate'`/`'batch'` triggeren). Wel MOET `duplicate_document` het nieuwe document als
+//     "duplicate-born" registreren (backup-contract) — via dezelfde contextbinding die
 //     ook de volgende backupbeslissing neemt.
 //
-// Batch-uitsluiting: spec regel 100 sluit document-tools uit van `batch` ⇒ `batchable: false` op alle
+// Batch-uitsluiting: document-tools horen niet in `batch` ⇒ `batchable: false` op alle
 // vier (ook op de leestool `list_documents`, die als document-tool meeloopt).
 
 import type { AppState } from '@/state/appStore';
@@ -37,19 +36,19 @@ import { READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
 
 /**
  * Pauze → alleen-lezen → dialoog: EXACT dezelfde guards en volgorde als
- * `runMutateTool`/`guardNonTransactional` (spec §UI/veiligheid 128-132), maar ZONDER de drift-check
+ * `runMutateTool`/`guardNonTransactional`, maar ZONDER de drift-check
  * en zonder transactie/backup — die is hier per tool verschillend (zie de kopcomment).
  *
  * Bewust een dunne doorgeefpost naar de ÉNE guard-implementatie in `runtime.ts`
  * (`preBackupGuards`, daarvoor geëxporteerd) in plaats van een tweede kopie. Een kopie zou (a) de
- * guard-volgorde kunnen laten afdrijven en (b) — zoals de review terecht ving — de spec-eis missen
- * dat de DIALOG_OPEN-fout BENOEMT wélke dialoog blokkeert; die naamgeving zit in de runtime-versie.
+ * guard-volgorde kunnen laten afdrijven en (b) de eis missen dat de DIALOG_OPEN-fout BENOEMT wélke
+ * dialoog blokkeert; die naamgeving zit in de runtime-versie.
  *
  * Waarom óók `readOnly` op tools die de planning niet wijzigen: fail-closed. Een document aanmaken/
  * wisselen of een bestand wegschrijven zijn zichtbare neveneffecten op de werkomgeving van de user;
  * "alleen-lezen" hoort dan te betekenen dat de AI niets doet behalve lezen.
  *
- * Gedeeld met `fileTools.ts` (zelfde T21-baan).
+ * Gedeeld met `fileTools.ts`.
  */
 export function guardBridgeFlags(ctx: McpContext): McpToolErr | null {
   return preBackupGuards(ctx);
@@ -76,18 +75,15 @@ interface DocumentRow {
 }
 
 /**
- * Alle open documenten met hun verrijkte kop-gegevens (spec regel 90).
+ * Alle open documenten met hun verrijkte kop-gegevens.
  *
  * Het "niet doorgerekend"-signaal komt uit `cpmResult == null` en NADRUKKELIJK niet uit
  * `scheduleStale`. De twee vlaggen beantwoorden verschillende vragen: `scheduleStale` zegt of de
  * uitkomst nog kán kloppen, `cpmResult == null` of er überhaupt een uitkomst ís. Een document dat
  * verouderd is maar wél een `cpmResult` draagt, is doorgerekend — alleen niet meer actueel — en
  * hoort dus géén "niet doorgerekend" te melden; er is immers een (verouderde) einddatum te tonen.
- * Op `scheduleStale` sturen zou dat verwarren, in beide richtingen.
- *
- * (Sinds `5e4b85a` markeert `restoreDocuments` een via crash-herstel teruggekomen document bewust
- * ALS verouderd; daarvóór was dat `scheduleStale === false` mét `cpmResult === null`. Die
- * gedragswijziging raakt deze afleiding niet — juist omdat ze niet op `scheduleStale` leunt.)
+ * Op `scheduleStale` sturen zou dat verwarren, in beide richtingen (een via crash-herstel
+ * teruggekomen document is bijvoorbeeld verouderd gemarkeerd).
  *
  * Titels komen uit `getOpenDocuments()` — dezelfde afleiding als de tabbladen (bestandsnaam zonder
  * extensie, anders de projectnaam), zodat er één bron voor de titel blijft. Een NAAMLOOS document
@@ -146,7 +142,7 @@ export const documentTools: McpToolDef[] = [
       'is gezet, lees dan `project.name` via get_project_info. Gebruik deze tool om varianten te vergelijken ' +
       '(einddatums naast elkaar) en om document-id\'s te vinden voor switch_document.',
     kind: 'document',
-    batchable: false, // spec regel 100: document-tools zijn uitgesloten van batch
+    batchable: false, // document-tools zijn uitgesloten van batch
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ_ANNOTATIONS,
     handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s)),
@@ -214,7 +210,7 @@ export const documentTools: McpToolDef[] = [
       }
       const name = typeof raw.name === 'string' && raw.name.trim() !== '' ? raw.name.trim() : undefined;
       const documentId = ctx.app.store.getState().duplicateDocument(name);
-      // T16-contract (spec regel 130): dit document is deze sessie "geboren" uit een duplicaat en
+      // Backup-contract: dit document is deze sessie "geboren" uit een duplicaat en
       // slaat daarom de automatische backup over.
       ctx.markDuplicateBorn(documentId);
       bindExpectedDoc(ctx);
@@ -254,10 +250,10 @@ export const documentTools: McpToolDef[] = [
       required: ['documentId'],
       additionalProperties: false,
     },
-    // spec regel 65: idempotentHint op o.a. switch_document
+    // idempotentHint op o.a. switch_document
     annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
     handler: (args, ctx): McpToolResult => {
-      // BEWUST geen drift-check: deze tool ÍS de drift-bevestiging (spec regel 116).
+      // BEWUST geen drift-check: deze tool ÍS de drift-bevestiging.
       const blocked = guardBridgeFlags(ctx);
       if (blocked) return blocked;
       const raw = (args ?? {}) as { documentId?: unknown };

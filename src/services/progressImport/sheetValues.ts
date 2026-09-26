@@ -1,8 +1,7 @@
-// Issue #27 etappe 2 (T4, A2/A5): bestandsformaat-AGNOSTISCHE waarde-/detectielaag. Geen CSV-kennis
-// hier — dat hoort exclusief in `parseProgressCsv.ts` (A9: een latere XLSX-lezer levert hetzelfde
-// `ProgressSheet` en gebruikt deze module ongewijzigd). `csvDateOrToday` (importDates.ts) wordt hier
-// BEWUST niet gebruikt: die geeft bij onherkenbare invoer stil "vandaag" terug, en dat is precies
-// wat E5 ("datums worden altijd juist gelezen; stil raden is verboden") verbiedt.
+// Bestandsformaat-AGNOSTISCHE waarde-/detectielaag. Geen CSV-kennis hier — die hoort exclusief in
+// `parseProgressCsv.ts`; de XLSX-lezer levert hetzelfde `ProgressSheet`. `csvDateOrToday`
+// (importDates.ts) wordt hier BEWUST niet gebruikt: die geeft bij onherkenbare invoer stil "vandaag"
+// terug, en datums moeten altijd juist gelezen worden — stil raden is verboden.
 
 import type { Task } from '@/types/task';
 import {
@@ -33,7 +32,7 @@ function buildIso(year: number, month: number, day: number, hour?: number, minut
   return `${datePart}T${timePart}`;
 }
 
-/** Bestaande kalenderdatum? (A5.1: `2026-02-30`/`2026-13-01` bestaan niet; jaar < 1000 is onzin.) */
+/** Bestaande kalenderdatum? (`2026-02-30`/`2026-13-01` bestaan niet; jaar < 1000 is onzin.) */
 function isValidCalendarDate(year: number, month: number, day: number): boolean {
   if (year < 1000) return false;
   if (month < 1 || month > 12) return false;
@@ -55,23 +54,23 @@ const ISO_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 // Excel herschrijft bij opslaan ALLE datumcellen naar zijn locale-formaat, meestal zonder
 // voorloopnullen (`9-6-2026`) en met de locale-scheider (`-`/`/`/`.`) — vandaar `\d{1,2}` i.p.v.
-// een vaste breedte (A5.1). Besluit 2026-09-05 (gebruikstest): ook een TWEECIJFERIG jaar
-// (`03-01-27`) hoort hierbij — hetzelfde gedrag als Excel se eigen "korte datum"-notatie; het
-// jaardeel accepteert dus zowel `\d{4}` als `\d{2}` (`toFullYear` hieronder maakt er `20YY` van).
+// een vaste breedte. Ook een TWEECIJFERIG jaar (`03-01-27`) hoort hierbij, net als Excel's eigen
+// "korte datum"-notatie; het jaardeel accepteert dus zowel `\d{4}` als `\d{2}` (`toFullYear` maakt
+// er `20YY` van).
 const NUMERIC_DATE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
 
-/** `YY` ⇒ `20YY` (besluit 2026-09-05); `YYYY` blijft ongemoeid. */
+/** `YY` ⇒ `20YY`; `YYYY` blijft ongemoeid. */
 function toFullYear(raw: string): number {
   return raw.length === 2 ? 2000 + Number(raw) : Number(raw);
 }
 
 /**
- * Ruim herkennend, streng valideert, NOOIT radend (A5.1/E5). `order` beslist alleen de
- * niet-ISO-tak (`d-m-yyyy` vs. `m-d-yyyy`); ISO-invoer is altijd `YYYY-MM-DD`, ongeacht `order`.
+ * Ruim herkennend, streng valideert, NOOIT radend. `order` beslist alleen de niet-ISO-tak
+ * (`d-m-yyyy` vs. `m-d-yyyy`); ISO-invoer is altijd `YYYY-MM-DD`, ongeacht `order`.
  */
 export function parseSheetDate(raw: string, order: DateOrder = 'dmy'): DateValue | undefined {
   const trimmed = raw.trim();
-  if (trimmed.length === 0) return undefined; // Q1: leeg = geen wijziging, geen fout.
+  if (trimmed.length === 0) return undefined; // leeg = geen wijziging, geen fout.
 
   const isoDateTime = ISO_DATETIME.exec(trimmed);
   if (isoDateTime) {
@@ -117,17 +116,16 @@ export function parseSheetDate(raw: string, order: DateOrder = 'dmy'): DateValue
 const PERCENT = /^\s*-?\d+(?:[.,]\d+)?\s*%?\s*$/;
 
 /**
- * E6/A5.6: de kolom is ALTIJD een percentage. `100` = 100 %, `1` = 1 %; de fractie-interpretatie
- * ("waarde in [0,1] is al een fractie") bestaat in deze lezer niet.
+ * De kolom is ALTIJD een percentage. `100` = 100 %, `1` = 1 %; de fractie-interpretatie ("waarde in
+ * [0,1] is al een fractie") bestaat in deze lezer niet.
  *
- * Besluit 2026-09-05 (gebruikstest): een numeriek LEESBARE waarde buiten [0, 100] (bv. "838",
- * "-5") krijgt zijn EIGEN uitkomst (`outOfRange`), apart van `unreadable` (tekst/geen match). De
- * valkuil is anders: "838" is typisch een decimaalteken dat door een spreadsheet met de andere
- * landinstelling als duizendtalscheider is gelezen ("8,38" ⇒ 838) — de dialoog kan dat alleen
- * benoemen als het weet dat het getal wél geparsed kon worden.
+ * Een numeriek LEESBARE waarde buiten [0, 100] (bv. "838", "-5") krijgt zijn EIGEN uitkomst
+ * (`outOfRange`), apart van `unreadable` (tekst/geen match). "838" is typisch een decimaalteken dat
+ * een spreadsheet met een andere landinstelling als duizendtalscheider las ("8,38" ⇒ 838) — de
+ * dialoog kan dat alleen benoemen als hij weet dat het getal wél geparsed kon worden.
  */
 export function parseSheetPercent(raw: string): PercentValue | undefined {
-  if (raw.trim().length === 0) return undefined; // Q1: leeg = geen wijziging.
+  if (raw.trim().length === 0) return undefined; // leeg = geen wijziging.
   if (!PERCENT.test(raw)) return { kind: 'unreadable', raw };
   const numeric = raw.replace(/%/g, '').replace(',', '.').trim();
   const value = Number(numeric);
@@ -155,8 +153,8 @@ function extractNumericTriple(raw: string): NumericTriple | null {
 /** Bouwt de `ambiguous`-uitkomst uit een cel waarvan BEIDE lezingen al gevalideerd zijn (zie
  *  `findGenuineAmbiguousSample`) — hier wordt niets meer gevalideerd, alleen samengesteld. */
 function formatAmbiguous(cell: RawDateCell, triple: NumericTriple): DateOrderDetection {
-  // dmy-lezing: dag=a, maand=b. mdy-lezing: maand=a, dag=b (A5.2/A5.3). ISO-strings, geen
-  // geformatteerde tekst (fixronde-bevinding 5) — baan C formatteert locale-bewust.
+  // dmy-lezing: dag=a, maand=b. mdy-lezing: maand=a, dag=b. ISO-strings, geen geformatteerde tekst —
+  // de dialoog formatteert locale-bewust.
   return {
     order: 'ambiguous',
     sample: cell.raw,
@@ -165,13 +163,11 @@ function formatAmbiguous(cell: RawDateCell, triple: NumericTriple): DateOrderDet
 }
 
 /**
- * Fixronde-bevinding 4b: een cel is alleen een EERLIJK voorbeeld van dubbelzinnigheid als BEIDE
- * lezingen bestaande, VERSCHILLENDE kalenderdatums opleveren — zonder `Date.UTC`-rollover (bv.
- * `25-6-2026` levert als mdy-lezing maand 25, wat vroeger stil doorrolde naar januari 2028: een
- * onmogelijke "keuze"). Cellen die maar onder één orde geldig zijn, horen niet als sample: die zijn
- * al door de bereikregel (regel 2) afgehandeld, of zijn gewoon geen echte tweesprong.
- * Bestaat er geen enkele zo'n cel, dan is het bestand niet dubbelzinnig — de aanroeper valt dan
- * terug op `noAmbiguity` in plaats van de gebruiker een kapotte vraag te stellen.
+ * Een cel is alleen een EERLIJK voorbeeld van dubbelzinnigheid als BEIDE lezingen bestaande,
+ * VERSCHILLENDE kalenderdatums opleveren — zonder `Date.UTC`-rollover (`25-6-2026` als mdy is maand
+ * 25, wat zou doorrollen naar januari 2028: een onmogelijke "keuze"). Cellen die maar onder één orde
+ * geldig zijn, zijn al door de bereikregel (regel 2) afgehandeld. Bestaat er geen enkele zo'n cel,
+ * dan valt de aanroeper terug op `noAmbiguity` in plaats van een kapotte vraag te stellen.
  */
 function findGenuineAmbiguousSample(
   candidates: readonly { cell: RawDateCell; triple: NumericTriple }[],
@@ -185,18 +181,17 @@ function findGenuineAmbiguousSample(
 
 /**
  * Dag/maand-volgorde is een BESTANDSEIGENSCHAP (Excel is consequent binnen één bestand), geen
- * celeigenschap (A5.2). Beslisregels in vaste volgorde: (1) geen dubbelzinnigheid, (2) een
- * component > 12 beslist — tegenstrijdig bewijs stopt meteen bij `ambiguous`, nooit stil half
- * doorlezen, (3) ijkpuntkalibratie tegen geplande taakdatums (alleen id-matches), (4) anders
- * `ambiguous` — de gebruiker beslist.
+ * celeigenschap. Beslisregels in vaste volgorde: (1) geen dubbelzinnigheid, (2) een component > 12
+ * beslist — tegenstrijdig bewijs stopt meteen bij `ambiguous`, nooit stil half doorlezen,
+ * (3) ijkpuntkalibratie tegen geplande taakdatums (alleen id-matches), (4) anders `ambiguous` — de
+ * gebruiker beslist.
  */
 export function detectDateOrder(
   cells: readonly RawDateCell[],
   tasks: readonly Task[],
 ): DateOrderDetection {
-  // Fixronde-bevinding 4a: een cel met a === b (bv. `12-12-2026`) levert onder ÉÉN van de twee
-  // ordes gelezen dezelfde datum op als onder de andere — die draagt dus GEEN dubbelzinnigheid en
-  // hoort al hier weggefilterd, niet pas bij de kalibratie (regel 3 deed dit al; nu consistent).
+  // Een cel met a === b (bv. `12-12-2026`) levert onder beide ordes dezelfde datum op — die draagt
+  // GEEN dubbelzinnigheid en wordt al hier weggefilterd.
   const ambiguous: { cell: RawDateCell; triple: NumericTriple }[] = [];
   for (const cell of cells) {
     const triple = extractNumericTriple(cell.raw);
@@ -221,16 +216,13 @@ export function detectDateOrder(
     if (bOver) votesMdy = true;
   }
   if (votesDmy && votesMdy) {
-    // Tegenstrijdig bewijs binnen hetzelfde bestand: geen enkele orde verklaart alles. Meteen
-    // een uitkomst — NIET doorgaan naar de ijkpuntregel (die zou één van de twee tegenstrijdige
-    // signalen negeren en zo alsnog stil een kant kiezen). De cellen die zelf stemden (a>12 of
-    // b>12) zijn per definitie maar onder ÉÉN orde geldig, dus GEEN eerlijk voorbeeld (bevinding
-    // 4b) — zoek een cel die dat wél is en toon die als `ambiguous`-vraag. Bestaat die niet, dan
-    // is er geen tónbaar bewijs, maar het bestand IS wel degelijk tegenstrijdig gebleken —
-    // `noAmbiguity` zou dat verzwijgen (fixronde N-D/N-E: bij een écht mdy-bestand met één
-    // dmy-vormige typefout kreeg de gebruiker dan een muur van `unreadableDate`-weigeringen zonder
-    // enige diagnose). `contradictoryNoSample` benoemt het eerlijk; de orde blijft `dmy` (een kant
-    // moet gekozen worden om verder te kunnen).
+    // Tegenstrijdig bewijs binnen hetzelfde bestand: geen enkele orde verklaart alles. Meteen een
+    // uitkomst — NIET doorgaan naar de ijkpuntregel (die zou één van de twee signalen negeren en zo
+    // alsnog stil een kant kiezen). De cellen die zelf stemden (a>12 of b>12) zijn maar onder ÉÉN orde
+    // geldig, dus GEEN eerlijk voorbeeld — zoek een cel die dat wél is en toon die als
+    // `ambiguous`-vraag. Bestaat die niet, dan benoemt `contradictoryNoSample` eerlijk dat het bestand
+    // tegenstrijdig is (anders kreeg de gebruiker een muur van `unreadableDate`-weigeringen zonder
+    // diagnose); de orde blijft `dmy` (een kant moet gekozen worden om verder te kunnen).
     const genuine = findGenuineAmbiguousSample(ambiguous);
     return genuine ? formatAmbiguous(genuine.cell, genuine.triple) : { order: 'dmy', evidence: 'contradictoryNoSample' };
   }
@@ -238,9 +230,8 @@ export function detectDateOrder(
   if (votesMdy) return { order: 'mdy', evidence: 'outOfRange' };
 
   // Regel 3: ijkpuntkalibratie. Alleen rijen met een HARDE id-treffer (WBS is te zwak bewijs voor
-  // een bestandsbrede beslissing), alleen Start/Finish-cellen (die dienen uitsluitend als
-  // ijkpunt, A5.4). `a === b` (`12-12-2026`, twee keer dezelfde lezing) zit al niet meer in
-  // `ambiguous` (regel 1 filtert dat nu vooraf, fixronde-bevinding 4a).
+  // een bestandsbrede beslissing), alleen Start/Finish-cellen (die dienen uitsluitend als ijkpunt).
+  // `a === b` zit al niet meer in `ambiguous` (hierboven weggefilterd).
   const taskById = new Map(tasks.map(t => [t.id, t] as const));
   let dmyHits = 0;
   let mdyHits = 0;
@@ -271,21 +262,21 @@ export function detectDateOrder(
     return { order: winner.order, evidence: 'calibration' };
   }
 
-  // Regel 4: onbeslisbaar ⇒ de dialoog vraagt het (A5.3). Nooit een stille default. Net als bij
-  // regel 2 moet de sample zelf een eerlijk voorbeeld zijn (bevinding 4b); is er geen enkele
-  // geldige-onder-beide-lezingen cel, dan is er niets dubbelzinnigs om te tonen.
+  // Regel 4: onbeslisbaar ⇒ de dialoog vraagt het. Nooit een stille default. Net als bij regel 2
+  // moet de sample zelf een eerlijk voorbeeld zijn; is er geen enkele geldige-onder-beide-lezingen
+  // cel, dan is er niets dubbelzinnigs om te tonen.
   const genuine = findGenuineAmbiguousSample(ambiguous);
   return genuine ? formatAmbiguous(genuine.cell, genuine.triple) : { order: 'dmy', evidence: 'noAmbiguity' };
 }
 
 /**
- * Markeercel (gebruikstest 2026-09-11, fix 1): het geëxporteerde voortgangsblad zet in de drie
- * invulcellen van een VERZAMELtaak een gelokaliseerde tekst die met een em-dash (U+2014) begint —
- * `writeProgressSheetCSV(tasks, headerNotes, summaryNote)`. Een cel die daarmee begint telt als
- * AFWEZIG (leeg), niet als onleesbaar: het is geen invoer maar een instructie, en een ongewijzigd
- * teruggestuurd blad mag daar geen enkele weigering aan overhouden. De em-dash is bewust gekozen
- * omdat geen enkele geldige datum- of percentage-invoer ermee begint (een minteken is `-`, U+002D)
- * en de markering daardoor bestandsformaat-agnostisch blijft (A9: XLSX levert dezelfde strings).
+ * Markeercel: het geëxporteerde voortgangsblad zet in de drie invulcellen van een VERZAMELtaak een
+ * gelokaliseerde tekst die met een em-dash (U+2014) begint — `writeProgressSheetCSV(tasks,
+ * headerNotes, summaryNote)`. Een cel die daarmee begint telt als AFWEZIG (leeg), niet als
+ * onleesbaar: het is geen invoer maar een instructie, en een ongewijzigd teruggestuurd blad mag daar
+ * geen enkele weigering aan overhouden. De em-dash is gekozen omdat geen geldige datum- of
+ * percentage-invoer ermee begint (een minteken is `-`, U+002D) en de markering zo
+ * bestandsformaat-agnostisch blijft (XLSX levert dezelfde strings).
  */
 function isMarkerCell(raw: string): boolean {
   return raw.trimStart().startsWith('\u2014');
@@ -293,8 +284,8 @@ function isMarkerCell(raw: string): boolean {
 
 /**
  * Finaliseert een rauw blad onder de vastgestelde datumvolgorde. `Start`/`Finish` (`detectionCells`)
- * worden hier bewust NIET gelezen — die zijn uitsluitend detectiemateriaal (A5.4): er bestaat geen
- * veld in `ProgressRow` dat ze zou kunnen dragen.
+ * worden hier bewust NIET gelezen — die zijn uitsluitend detectiemateriaal: er bestaat geen veld in
+ * `ProgressRow` dat ze zou kunnen dragen.
  */
 export function finalizeProgressRows(sheet: ProgressSheet, order: DateOrder): readonly ProgressRow[] {
   return sheet.rawRows.map((row): ProgressRow => {

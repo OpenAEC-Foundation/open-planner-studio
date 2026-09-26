@@ -1,5 +1,5 @@
-// De ENIGE plek in de app waar een extensie-geleverd icoon in de DOM belandt
-// (onderhoudbaarheidsbevinding K6a). Alle drie de aanroepplekken — de extensiekaart in
+// De ENIGE plek in de app waar een extensie-geleverd icoon in de DOM belandt.
+// Alle drie de aanroepplekken — de extensiekaart in
 // Backstage → Extensies, de importer-kaart in Backstage → Importeren en de extensie-ribbonknop —
 // lopen hierlangs, zodat het `dangerouslySetInnerHTML` op precies één regel staat en die regel
 // aantoonbaar alleen door `sanitizeSvgIcon` herbouwde markup krijgt.

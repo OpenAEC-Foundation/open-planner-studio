@@ -1,5 +1,4 @@
-// Saniteren van extensie-geleverde iconen (onderhoudbaarheidsbevinding K6a,
-// docs/onderhoudbaarheid/README.md §2 item 3).
+// Saniteren van extensie-geleverde iconen.
 //
 // WAAROM DIT BESTAAT. Drie plekken renderden een icoon uit extensiedata als rauwe HTML met
 // `dangerouslySetInnerHTML`: de extensiekaart in Backstage → Extensies, de importer-kaart in
@@ -110,7 +109,7 @@ export function isAllowedElement(tag: string): boolean {
 /**
  * Puur: mag dit attribuut blijven staan? De harde verwijderingen gaan vóór de allowlist:
  *  - alles wat met `on` begint — event-handlers (`onload`, `onerror`, ...); dit is de vector die
- *    K6a écht laat vuren, en hij mag nooit van een allowlist-uitbreiding afhangen.
+ *    een script écht laat vuren, en hij mag nooit van een allowlist-uitbreiding afhangen.
  *  - `href` en `xlink:href` — verwijzingen naar buiten (`javascript:`-URL's, externe resources);
  *    een icoon heeft ze niet nodig.
  *  - `style` — voert `url()`-verwijzingen en andere externe referenties aan de CSS-parser, en is
@@ -266,7 +265,7 @@ function computeSanitizedIcon(raw: string): SanitizedIcon | null {
 }
 
 /**
- * Maak een extensie-geleverd icoon veilig renderbaar (K6a). Geeft `null` als er niets veiligs
+ * Maak een extensie-geleverd icoon veilig renderbaar. Geeft `null` als er niets veiligs
  * overblijft; de aanroeper toont dan zijn eigen fallback-icoon.
  */
 export function sanitizeSvgIcon(raw: string | null | undefined): SanitizedIcon | null {

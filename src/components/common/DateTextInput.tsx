@@ -17,8 +17,7 @@ import type { DateNotation } from '@/state/slices/types';
  * `abc`). Lege invoer valt buiten deze functie (die geeft ook `null`); de component behandelt
  * "leeg" apart als "geen datum".
  *
- * Bewust pure functie zonder tijd-component. Fase 2.8b introduceert straks tijd-van-de-dag; die
- * uitbreiding kan hierlangs (bv. een aparte `parseFlexibleDateTime`) zonder deze parser te breken.
+ * Bewust pure functie zonder tijd-component; een tijddeel splitst `splitDateValue` vooraf af.
  */
 export function parseFlexibleDate(raw: string): string | null {
   return parsePersonalDate(raw, 'dmy');
@@ -26,9 +25,8 @@ export function parseFlexibleDate(raw: string): string | null {
 
 // ── Segment-model ────────────────────────────────────────────────────────────
 // Het veld bestaat visueel uit drie sub-vakjes. De VOLGORDE is bewust data (een array), niet
-// hard bedraad: taak #53 (Datumnotatie-instelling) gaat mm-dd-jjjj / jjjj-mm-dd toestaan door
-// alleen deze `order` te wisselen. De PARSE blijft semantisch (dag/maand/jaar per soort, niet per
-// positie), zodat een andere weergavevolgorde de parser niet raakt.
+// hard bedraad: de Datumnotatie-instelling wisselt alleen deze `order`. De PARSE blijft semantisch
+// (dag/maand/jaar per soort, niet per positie), zodat een andere weergavevolgorde de parser niet raakt.
 
 export type SegKind = 'day' | 'month' | 'year';
 
@@ -50,7 +48,7 @@ interface DateFormat {
 
 const SEG_BY_KIND: Record<SegKind, SegmentDef> = { day: DAY_SEG, month: MONTH_SEG, year: YEAR_SEG };
 
-// Segmentvolgorde per notatie-instelling (taak #53). De PARSE blijft semantisch (dag/maand/jaar per
+// Segmentvolgorde per notatie-instelling. De PARSE blijft semantisch (dag/maand/jaar per
 // soort, niet per positie), dus alleen de weergave-/invoervolgorde draait mee met de instelling.
 const ORDER_BY_NOTATION: Record<DateNotation, SegKind[]> = {
   dmy: ['day', 'month', 'year'],
@@ -183,7 +181,7 @@ export function nextSegmentState(
 export const DMY_ORDER: SegmentDef[] = [DAY_SEG, MONTH_SEG, YEAR_SEG];
 
 // Focus-/foutrand identiek aan het design-system (`.input:focus` en `.input--error:focus`), zodat
-// de gesegmenteerde groep exact als de oude enkele `.input` oogt. Bewust puur `border`-shorthand
+// de gesegmenteerde groep exact als een enkele `.input` oogt. Bewust puur `border`-shorthand
 // (geen losse `borderColor`-longhand) zodat het niet botst met een `border`-shorthand die een
 // aanroeper via `style` meegeeft (React zou anders waarschuwen over gemengde shorthand/longhand).
 const FOCUS_STYLE: React.CSSProperties = {
@@ -218,7 +216,7 @@ interface DateTextInputProps {
    * {@link dateCommitValue}), of `''` bij een door de gebruiker leeggemaakt veld. Wordt alleen
    * aangeroepen bij een echte wijziging van de datum. Geeft de aanroeper `false` terug, dan past hij de
    * waarde bewust niet toe (en meldt hij zelf waarom): het veld valt dan terug op `value`, zodat de
-   * geweigerde invoer niet blijft staan en bij het verlaten niet nog eens gecommit wordt (#231).
+   * geweigerde invoer niet blijft staan en bij het verlaten niet nog eens gecommit wordt.
    */
   onCommit: (iso: string) => void | false;
   /**
@@ -239,21 +237,21 @@ interface DateTextInputProps {
    *  - `'blur'` (standaard) → pas bij afronden: blur van de héle groep, Enter of plakken. Verplicht
    *    voor elke plek die naar de store schrijft (undo-plichtig), want live committen levert per
    *    ingetypte datum meerdere snapshots op.
-   *  - `'live'` → per toetsaanslag, zoals vroeger. Alleen voor puur lokale draftstate mét live
+   *  - `'live'` → per toetsaanslag. Alleen voor puur lokale draftstate mét live
    *    afgeleide feedback.
    */
   commitMode?: DateCommitMode;
 }
 
 /**
- * Gedeeld datum-invoerveld (fase 2.8b) — vervangt overal de native datumprikker (`input[type=date]`).
- * De gebruiker heeft expliciet géén eigen kalender-widget gevraagd.
+ * Gedeeld datum-invoerveld — vervangt overal de native datumprikker (`input[type=date]`).
+ * Bewust géén eigen kalender-widget.
  *
  * GESEGMENTEERDE INVOER — het veld is één omrande groep (`role=group`) met drie sub-vakjes
  * `dd | mm | jjjj`, gescheiden door streepjes. De opgeslagen/gecommitte waarde (`value`/`onCommit`)
  * blijft intern altijd ISO `YYYY-MM-DD`; de segmenten zijn puur weergave/invoer. De groep gedraagt
- * zich qua layout als het oude enkele veld: `className`/`style` worden op de groep toegepast (die
- * de rand/achtergrond/breedte levert), dus alle 9 gebruiksplekken houden hun breedte-gedrag.
+ * zich qua layout als één enkel veld: `className`/`style` worden op de groep toegepast (die
+ * de rand/achtergrond/breedte levert), dus elke gebruiksplek bepaalt zelf de breedte.
  *
  * NAVIGATIE:
  *  - 2 cijfers in dag/maand → focus springt naar het volgende segment; jaar accepteert 4 cijfers.
@@ -271,17 +269,14 @@ interface DateTextInputProps {
  * groep of (b) Enter:
  *  - Blur, leeg          → commit `''` (geen datum); bij `required` stille terugval (geen commit).
  *  - Blur, geldig        → normaliseer segmenten + commit ISO.
- *  - Blur, incompleet    → stille terugval op de laatst geldige waarde (bestaand gedrag).
+ *  - Blur, incompleet    → stille terugval op de laatst geldige waarde.
  *  - Blur, compleet-maar-ongeldig (bv. 31-02-2026) → foutindicatie (`aria-invalid` + `role=alert`);
  *    de gecommitte waarde valt terug op de laatst geldige (de foute datum wordt NIET gecommit),
  *    de invoer blijft zichtbaar zodat de gebruiker hem kan corrigeren.
  *
  * COMMITMOMENT (`commitMode`, standaard `'blur'`): de gecommitte waarde gaat pas naar buiten bij het
- * afronden — blur van de héle groep, Enter, of het plakken van een volledige datum. Dat is geen
- * cosmetiek: het veld is gesegmenteerd en een jaar is al bij 2 cijfers parsebaar, dus live committen
- * maakt van "01062030" drie geldige commits (2020-06-01 → 0203-06-01 → 2030-06-01) en dus drie
- * undo-stappen bij elke store-schrijvende aanroeper. `'live'` is er nog voor plekken met puur lokale
- * draftstate die daar live afgeleide feedback op tonen.
+ * afronden — blur van de héle groep, Enter, of het plakken van een volledige datum (waarom: zie
+ * "Commitmodel" hierboven).
  *
  * ESCAPE: herstelt de laatst gecommitte waarde (en wist de foutindicatie). Stond er niets open, dan
  * loopt Escape gewoon door naar de dialoog.
@@ -290,8 +285,8 @@ interface DateTextInputProps {
  * toets dan gewoon doorbubbelen — ÉÉN Enter commit én bevestigt de dialoog, met de zojuist
  * gecommitte waarde. Dat werkt omdat keydown een discrete event is: React flusht de setState uit
  * deze handler nog synchroon af (render + commit + layout-effects) vóór het native event
- * `document` bereikt, en `useDialogKeys` leest zijn `onConfirm` sinds die fix via een ref — dus
- * geen stale draft-closure meer. Zie de uitgebreide toelichting in `useDialogKeys.ts`.
+ * `document` bereikt, en `useDialogKeys` leest zijn `onConfirm` via een ref — dus
+ * geen stale draft-closure. Zie de uitgebreide toelichting in `useDialogKeys.ts`.
  * Alleen bij ONGELDIGE of INCOMPLETE invoer eet het veld de toets op (`preventDefault` +
  * `stopPropagation`) en toont het de foutindicatie; de focus blijft in de groep.
  *
@@ -368,7 +363,7 @@ export function DateTextInput({
     const res = resolveDateCommit(phase, commitMode, s, required);
     if (res.kind === 'write') {
       const next = dateCommitValue(res.iso, value);
-      // Geweigerd door de aanroeper (#231): net als incomplete invoer terug naar de laatst gecommitte waarde.
+      // Geweigerd door de aanroeper: net als incomplete invoer terug naar de laatst gecommitte waarde.
       if (next !== null && onCommit(next) === false) return { kind: 'revert' };
     }
     return res;
@@ -402,7 +397,7 @@ export function DateTextInput({
     setShowError(false); // typen wist elke eerder getoonde fout
     commitFrom(next, 'typing');
     // Auto-doorspringen: land op het volgende segment. Is dat al GEVULD, selecteer dan de inhoud (typen
-    // vervangt) i.p.v. een lege cursor die door `maxLength` niets meer accepteert (QA-fix).
+    // vervangt) i.p.v. een lege cursor die door `maxLength` niets meer accepteert.
     if (advanceTo !== null) focusSeg(advanceTo, next[order[advanceTo].kind] ? 'all' : 'start');
   };
 
@@ -522,7 +517,7 @@ export function DateTextInput({
               onFocus={() => setActiveKind(def.kind)}
               onMouseUp={e => {
                 // Klik in een GEVULD segment (geen sleep-selectie) ⇒ selecteer de volledige inhoud, zodat
-                // typen vervangt i.p.v. door `maxLength` geblokkeerd te worden (QA-fix). Leeg segment: laat
+                // typen vervangt i.p.v. door `maxLength` geblokkeerd te worden. Leeg segment: laat
                 // de cursor met rust (aan het begin). Een echte sleep-selectie (start≠end) blijft behouden.
                 const el = e.currentTarget;
                 if (el.value.length > 0 && el.selectionStart === el.selectionEnd) el.select();

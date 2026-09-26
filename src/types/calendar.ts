@@ -16,29 +16,27 @@ export interface WorkCalendar {
   /**
    * Optioneel eenvoudig pauzepatroon voor scalaire kalenders. De begintijd is minuten vanaf
    * middernacht en de duur is minuten. Alleen wanneer er géén expliciete `workTime`-banden zijn,
-   * leidt `effectiveWorkTime` hieruit de netto werkbanden af. Afwezig houdt het historische
-   * gedrag intact: het verschil tussen klokspanne en `hoursPerDay` wordt rond 12:00 gelegd.
+   * leidt `effectiveWorkTime` hieruit de netto werkbanden af. Afwezig ⇒ het verschil tussen
+   * klokspanne en `hoursPerDay` wordt rond 12:00 gelegd.
    */
   simpleBreakStartMinute?: number;
   simpleBreakDurationMinutes?: number;
   holidays: Holiday[];   // GEMATERIALISEERDE exception-ranges (bron van waarheid voor de engine)
-  /** OPTIONEEL — generatie-herkomst (fase 2.8a). Aanwezig ⇒ de feestdagen in `holidays` zijn door de
-   *  engine gegenereerd en kunnen opnieuw worden gematerialiseerd bij projectperiode-wijziging.
-   *  Afwezig ⇒ letterlijke/handmatige kalender (bestaande bestanden); nooit stil hergenereren. */
+  /** Generatieherkomst. Aanwezig ⇒ de feestdagen in `holidays` zijn door de engine gegenereerd en
+   *  kunnen opnieuw worden gematerialiseerd bij een wijziging van de projectperiode. Afwezig ⇒
+   *  letterlijke/handmatige kalender; nooit stil hergenereren. */
   generation?: CalendarGeneration;
-  /** OPTIONEEL — per-weekdag werktijd-banden (fase 2.8b, §3.2). Aanwezig ⇒ UUR-kalender
-   *  (minuut-native scheduling). Afwezig ⇒ DAG-kalender (bevroren dag-lussen, byte-identiek). */
+  /** Werktijdbanden per weekdag. Aanwezig ⇒ UUR-kalender (minuut-native scheduling). Afwezig ⇒
+   *  DAG-kalender. */
   workTime?: WorkTimeBands;
-  /** OPTIONEEL — ploeg-classificatie voor IFC-`PredefinedType` (fase 2.8b, §7.1). Afwezig ⇒
-   *  `.FIRSTSHIFT.` (byte-identiek met bestaande bestanden). */
+  /** Ploegclassificatie voor IFC-`PredefinedType`. Afwezig ⇒ `.FIRSTSHIFT.`. */
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
-  /** OPTIONEEL — herkomststempel wanneer deze kalender een kopie uit een bedrijfsbibliotheek is
-   *  (spec B1, §2). Afwezig ⇒ handmatige/gegenereerde kalender. */
+  /** Herkomststempel wanneer deze kalender een kopie uit een resourcebibliotheek is. Afwezig ⇒
+   *  handmatige/gegenereerde kalender. */
   libraryOrigin?: LibraryOrigin;
-  /** OPTIONEEL — dag-uitzonderingen die een dag WERKEND maken (fase 3.8, MSP-pariteit T2; MS Project:
-   *  "werkende uitzondering"). Afwezig ⇒ byte-identiek gedrag met vóór deze taak: geen enkele bestaande
-   *  dag- of uur-lus raakt dit veld. INVARIANT (afgedwongen door de parser, T3/T4, niet hier): een datum
-   *  komt nooit tegelijk in `holidays` én in `workingExceptions` voor. */
+  /** Dag-uitzonderingen die een dag WERKEND maken (MS Project: "werkende uitzondering"). INVARIANT
+   *  (afgedwongen door de parser, niet hier): een datum staat nooit tegelijk in `holidays` én in
+   *  `workingExceptions`. */
   workingExceptions?: WorkingException[];
   /**
    * Expliciete herkomst van de P6-projectielaag. Alleen de XER-reader zet `XER`; IFC mag dit
@@ -47,32 +45,28 @@ export interface WorkCalendar {
    */
   p6Source?: 'XER';
   /**
-   * BRONDIAGNOSE, GEEN REKENINVOER (sinds etappe 7b-2). De XER-lezer noteert hier de redundante
-   * vrije-dagrecords die hij NIET heeft kunnen verklaren: een vrije uitzondering op een al
-   * niet-werkende weekdag, of een direct aangrenzende herhaling van dezelfde vrije datum.
-   *
-   * Tot 7b-2 liet `CalendarEngine` zo'n record als één extra niet-werkdag meewegen in uurduur- en
-   * floatwandelingen. Die projectie is verwijderd: gemeten over alle zes penaltydragende
-   * corpusprojecten verklaarde ze nul cellen op alle zes de fidelity-assen, en waar ze wél iets
-   * deed (kalender 842/896 in `rehab-2.xer`) is de werkelijk bedoelde vrije dag inmiddels
-   * gereconstrueerd (`weekendClampTarget` in `xerCalendarData.ts`). Geen enkele solverpad leest dit
-   * veld nog; het round-trippt uitsluitend door het IFC zodat de brondiagnose bewaard blijft.
+   * BRONDIAGNOSE, GEEN REKENINVOER. De XER-lezer noteert hier de redundante vrije-dagrecords die hij
+   * NIET heeft kunnen verklaren: een vrije uitzondering op een al niet-werkende weekdag, of een direct
+   * aangrenzende herhaling van dezelfde vrije datum. Geen solverpad leest dit: meewegen als extra
+   * niet-werkdag verklaarde in het corpus geen enkele cel (waar het wél iets deed, reconstrueert
+   * `weekendClampTarget` in `xerCalendarData.ts` de bedoelde vrije dag). Round-tript door IFC zodat de
+   * diagnose bewaard blijft.
    */
   p6NonWorkPenaltyDates?: string[];
   /** IFC-round-tripdiagnose voor de complete penaltylijst. Afwezig = geen P6-penaltypset gezien. */
   p6NonWorkPenaltyDatesState?: P6NonWorkPenaltyDatesState;
 }
 
-/** Dag-uitzondering die werktijd TOEVOEGT/AANPAST op een anders niet-werkende dag (fase 3.8, T2;
- *  MS Project: "werkende uitzondering"). Precedentie t.o.v. `holidays` wordt door de parser opgelost
- *  (T3/T4) — de engine leest deze lijst alleen en gaat uit van een reeds per-datum-unieke invoer. */
+/** Dag-uitzondering die werktijd TOEVOEGT/AANPAST op een anders niet-werkende dag (MS Project:
+ *  "werkende uitzondering"). De parser lost de precedentie t.o.v. `holidays` op; de engine leest deze
+ *  lijst alleen en gaat uit van per datum unieke invoer. */
 export interface WorkingException {
   name: string;
   startDate: string; // ISO 8601 date
   endDate: string;   // ISO 8601 date
-  /** Banden in minuten-vanaf-middernacht, zelfde canonieke vorm als `WorkTimeBands` (§3.2: `end > start`,
-   *  een wrap-band mag `end ∈ (1440, 2880]`). Leeg/afwezig ⇒ FALLBACK-KETEN (fase 3.8, T2-review
-   *  MIDDEN-2 — orkestratorbesluit, raakt alleen ons eigen model: MPXJ produceert nooit band-loos):
+  /** Banden in minuten-vanaf-middernacht, zelfde canonieke vorm als `WorkTimeBands` (`end > start`,
+   *  een wrap-band mag `end ∈ (1440, 2880]`). Leeg/afwezig ⇒ FALLBACK-KETEN (MPXJ levert nooit
+   *  band-loos; dit geldt voor ons eigen model):
    *  (1) de eigen weekdag-banden van de kalender op díé weekdag (`workTime.byWeekday[dow]`), als die
    *  niet leeg zijn; anders (2) de STANDAARD-werkdagbanden van de kalender — de banden van de eerste
    *  `workDays`-weekdag die wél banden heeft (`CalendarEngine.computeStandardWorkdayBands`). Zónder deze
@@ -84,10 +78,10 @@ export interface WorkingException {
 }
 
 /**
- * Werktijd-banden per ISO-weekdag (1=ma..7=zo), fase 2.8b §3.2. Een weekdag zonder banden =
- * niet-werkend. Een band is `[start, end)` in MINUTEN-VANAF-MIDDERNACHT van de STARTdag.
+ * Werktijd-banden per ISO-weekdag (1=ma..7=zo). Een weekdag zonder banden = niet-werkend. Een band
+ * is `[start, end)` in MINUTEN-VANAF-MIDDERNACHT van de STARTdag.
  *
- * CANONIEK: `end > start` (Bevinding 7). Een wrap-band (over middernacht) heeft
+ * CANONIEK: `end > start`. Een wrap-band (over middernacht) heeft
  * `end ∈ (1440, 2880]` en telt bij de STARTdag (P6/Asta-conventie: een shift begint op zijn
  * weekdag en mag 24u overspannen). De alternatieve encoding met een niet-oplopende grens is
  * ONGELDIG en wordt bij inlezen genormaliseerd (`end += 1440`), zodat er precies één
@@ -97,8 +91,8 @@ export interface WorkTimeBands {
   byWeekday: Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>;
 }
 
-/** Herkomst-metadata van een gegenereerde kalender (§2.1). Puur informatief — solver/renderer/IFC
- *  lezen alleen `holidays`. */
+/** Herkomst-metadata van een gegenereerde kalender. Puur informatief: solver en renderer lezen
+ *  alleen `holidays`; IFC bewaart dit als metadata in het `OPS_Calendar`-pset. */
 export interface CalendarGeneration {
   ruleSetId: HolidayCountry;                 // welke landenset de datums voortbracht
   region?: string;                           // Bundesland/landsdeel/kanton; undefined = landelijk

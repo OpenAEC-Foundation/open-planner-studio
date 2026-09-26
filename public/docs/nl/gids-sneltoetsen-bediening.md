@@ -12,13 +12,13 @@ zijn om apart te snappen.
 - Hoe slepen werkt: een balk verplaatsen versus een relatie leggen.
 - Wanneer een sleepbeweging op leeg canvas pant en wanneer hij box-selecteert.
 - Met de pijltjestoetsen door zichtbare taken of histogramresources lopen.
-- Zoomen, documenttabs en presentatiemodus.
+- Zoomen, documenttabs, presentatiemodus, split view en mini-map.
 - Hoe je de rondleiding opnieuw start.
 
 ## Het altijd-actuele overzicht
 
 Druk op **Ctrl+/** (of **Cmd+/** op macOS) om het sneltoetsenoverzicht te openen — hetzelfde venster
-is ook bereikbaar via de knop **Sneltoetsen** op het lint-tabblad **Beeld**. Dit venster is
+is ook bereikbaar via de knop **Sneltoetsen** op het lint-tabblad **Instellingen** (groep **Sneltoetsen**). Dit venster is
 alleen-lezen en wordt rechtstreeks opgebouwd uit de broncode van de app: een nieuwe sneltoets
 verschijnt hier automatisch, zonder dat iemand een aparte lijst hoeft bij te werken. Dat is ook
 precies waarom deze gids de lijst niet dupliceert — een tweede, met de hand bijgehouden lijst zou
@@ -123,12 +123,20 @@ Heb je meerdere projecten tegelijk open (elk in zijn eigen documenttabblad), dan
 bedoeld om de planning te tonen zonder de bewerk-chrome eromheen. **Esc** sluit presentatiemodus weer
 af (en doet daarna, bij een volgende druk, het gebruikelijke "selectie opheffen").
 
+## Split view en mini-map
+
+Naast de knop **Presentatie** (presentatiemodus) staan in de lintgroep **Presentatie** op het tabblad **Beeld** nog twee schakelaars:
+
+- **Split view** — zet naast de Gantt-tijdlijn een tweede tijdlijn met een eigen tijdvenster. Beide delen tonen dezelfde rijen en scrollen verticaal samen, maar elk heeft een eigen zoom en horizontale positie; zo houd je bijvoorbeeld het begin van het project in beeld terwijl je verderop werkt. De tweede tijdlijn begint op dezelfde zoom en positie als de eerste, met de verdeling half-half; sleep de scheidingsbalk ertussen om de verdeling aan te passen. Nog een klik op **Split view** sluit de tweede tijdlijn.
+- **Mini-map** — toont onder de Gantt een smalle strook met een miniatuur van de hele projectperiode en een kader rond het deel dat je nu ziet. Sleep het kader of klik in de strook om naar dat deel van het project te gaan. Met split view aan krijgt elke tijdlijn een eigen strook. De app onthoudt of de mini-map aan staat.
+
 ## De rondleiding opnieuw starten
 
 Wil je de introductie-rondleiding nog eens doorlopen (bijvoorbeeld om iemand anders de app te laten
-zien), dan kan dat op twee plekken: de knop **Rondleiding** op het lint-tabblad **Beeld**, of
-**Rondleiding starten** in de Backstage-navigatie (het rijtje net boven Instellingen). Beide starten
-de rondleiding direct, zonder eerst de welkomstdialoog te tonen.
+zien), dan kan dat op twee plekken: **Rondleiding starten** in de Backstage-navigatie (het rijtje
+net boven Instellingen), of **Instellingen** → tab **Geavanceerd** → **Rondleiding starten**. Beide
+starten de rondleiding direct, zonder eerst de welkomstdialoog te tonen. Bij de allereerste start van
+de app biedt de welkomstdialoog zelf de rondleiding aan, met de knop **Rondleiding starten**.
 
 ## Verder lezen
 

@@ -4,7 +4,7 @@ import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
 
 /**
- * WBS-templates (fase 2.2, Asta "task pools"-model): een herbruikbare tak —
+ * WBS-templates (Asta "task pools"-model): een herbruikbare tak —
  * taken (naam/duur/mijlpaal/taaktype/omschrijving, met template-lokale ids)
  * plus de interne relaties (incl. lag-velden). Bewust ZONDER datums/voortgang
  * (die zijn projectspecifiek) en zonder activity-codes/custom-field-waarden
@@ -73,11 +73,9 @@ export function saveBranchAsWbsTemplate(
   allSequences: Sequence[],
 ): WbsTemplate {
   const byId = new Map(allTasks.map(t => [t.id, t]));
-  // K-item 35: gedeelde verzamelaar i.p.v. een eigen recursie. Die eigen versie had GEEN
-  // bezocht-set en liep dus de stack over op een cyclische `childIds` — bereikbaar via een IFC
-  // waarin `extractNesting` de nesting zonder cyklusguard zet. Dit bestand werd bij de eerste
-  // ronde van item 35 over het hoofd gezien terwijl de modulekop van `taskTree.ts` het wél als
-  // vindplaats noemde; een review ving dat.
+  // Gedeelde verzamelaar i.p.v. een eigen recursie: die heeft een bezocht-set, anders loopt de
+  // stack over op een cyclische `childIds` — bereikbaar via een IFC waarin `extractNesting` de
+  // nesting zonder cyklusguard zet.
   const branchIds = collectSubtreeIds(allTasks, rootId).filter(id => byId.has(id));
   const branchSet = new Set(branchIds);
 

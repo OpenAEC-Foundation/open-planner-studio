@@ -4,11 +4,9 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
  * Welke tekst hoort bij de MODUS-ACTIEF-stand van `RecordedDatesNotice`?
  *
  * De strook is GEDEELD: dezelfde state (`recordedDates`/`datesAsRecorded`) draagt zowel de
- * XER-route (Primavera legde zijn eigen rekenuitkomst vast) als de bestaande #63-route voor elk
+ * XER-route (Primavera legde zijn eigen rekenuitkomst vast) als de algemene route voor elk
  * ander formaat (IFC/CSV/MSPDI/MPP/P6XML), waar het bestand alleen datums draagt en niemand weet
- * uit welk pakket ze komen. "Zoals Primavera ze opsloeg" is daar dus een verkeerde bewering — en
- * juist bij #63 is de kans groot dat de gebruiker een IFC uit een héél ander pakket voor zich
- * heeft.
+ * uit welk pakket ze komen. "Zoals Primavera ze opsloeg" is daar dus een verkeerde bewering.
  *
  * Bewust een aparte, React-vrije module en geen inline ternary in de component: zo is de keuze
  * headless te testen (`check-recorded-dates.ts` sectie 14) in plaats van alleen met het oog te
@@ -31,8 +29,8 @@ export function recordedDatesActiveKey(origin: RecordedDatesState['origin']): Re
 }
 
 /** Dezelfde vraag voor de per-taak-badge in het eigenschappenpaneel (`TaskRecordedDatesNotice.tsx`,
- *  namespace `task`). Her-check laag 3, bevinding 5: de badge zei "Primavera" op élk #63-document —
- *  precies de fout die de strook één commit eerder had gerepareerd. Eén beslisregel, twee sleutels. */
+ *  namespace `task`): ook die mag niet op élk document "Primavera" zeggen. Eén beslisregel, twee
+ *  sleutels. */
 export type RecordedDatesTaskActiveKey = 'properties.recordedDatesActive' | 'properties.recordedDatesActiveNeutral';
 
 export function recordedDatesTaskActiveKey(origin: RecordedDatesState['origin']): RecordedDatesTaskActiveKey {

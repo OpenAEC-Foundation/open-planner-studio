@@ -6,7 +6,7 @@ import type { ActivityEntry } from '@/services/mcp/contracts';
 import { useAppStore } from '@/state/appStore';
 import { createSnapshotStore, DashboardIconButton, DashboardPanel, formatClockTime } from './DashboardPanel';
 
-// AI-activiteitenpaneel (T15, spec §UI). Rechterpaneel in dezelfde rail als de DebugTerminal, maar
+// AI-activiteitenpaneel. Rechterpaneel in dezelfde rail als de DebugTerminal, maar
 // gevoed door de eigen `activityLog`-ring-buffer i.p.v. de log-bus. Nieuwste aanroep boven; klik op
 // een regel klapt de volledige args/respons uit (monospace, scrollbaar). "Wissen" leegt de buffer.
 

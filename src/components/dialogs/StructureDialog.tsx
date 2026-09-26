@@ -10,7 +10,7 @@ const inputCls = 'input !text-small !leading-4 !px-2 !py-1 w-full';
 const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'integer', 'cost', 'date', 'boolean'];
 
 /**
- * Beheerdialoog voor projectstructuur (fase 2.2): activity-code-types met waarden
+ * Beheerdialoog voor projectstructuur: activity-code-types met waarden
  * (code + omschrijving + kleur) en getypeerde custom fields. Wijzigingen gaan zonder concept-kopie
  * de store in, maar per VOLTOOIDE bewerking (`CommitTextInput`/`CommitColorInput`): tekst bij het
  * verlaten van het veld of Enter, kleur bij het kiezen — één undo-stap per bewerking, niet één per

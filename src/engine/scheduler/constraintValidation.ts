@@ -1,11 +1,11 @@
 import type { ConstraintType, TaskConstraint } from '@/types/task';
 
 /**
- * Pure validatie van een PRIMAIR + SECUNDAIR constraint-paar (fase 2.9, §4.3, P6 Rapport B §1.3).
+ * Pure validatie van een PRIMAIR + SECUNDAIR constraint-paar (P6-regels).
  *
  * BELANGRIJK: de SOLVER rekent gewoon met wat er staat (twee bounds stapelen als max/min, een
  * verboden `constraint2.hard` wordt genegeerd/altijd-soft behandeld). Deze helper is puur voor de
- * AUTHORING-laag (UI + import, golf 7) om nonsensicale paren te weigeren — hij muteert niets en
+ * AUTHORING-laag (eigenschappenpaneel, taakraster, MCP) om nonsensicale paren te weigeren — hij muteert niets en
  * heeft geen effect op de berekening.
  *
  * P6-regels:
@@ -15,7 +15,7 @@ import type { ConstraintType, TaskConstraint } from '@/types/task';
  *  - géén secundaire constraint bij ASAP/ALAP (die dragen geen datum-grens);
  *  - het secundaire type moet een pure grens zijn (SNET/FNET/SNLT/FNLT), geen MSO/MFO/ASAP/ALAP;
  *  - het paar moet één FORWARD-grens (SNET/FNET, onder­grens) en één BACKWARD-grens (SNLT/FNLT,
- *    bovengrens) zijn — twee gelijksoortige grenzen zijn niet toegestaan (§9 S9 = SNET+FNLT).
+ *    bovengrens) zijn — twee gelijksoortige grenzen zijn niet toegestaan (bv. SNET+FNLT mag wel).
  */
 export type ConstraintPairIssue =
   | 'secondary-hard-forbidden'
@@ -31,7 +31,7 @@ export interface ConstraintPairValidation {
 
 type BoundSide = 'forward' | 'backward' | 'both' | 'none';
 
-/** Grens-categorie van een constraint-type (§4.3): forward = start/finish-ONDERgrens (max),
+/** Grens-categorie van een constraint-type: forward = start/finish-ONDERgrens (max),
  *  backward = start/finish-BOVENgrens (min), both = MSO/MFO (onder- én bovengrens), none = ASAP/ALAP. */
 export function constraintSide(type: ConstraintType): BoundSide {
   switch (type) {

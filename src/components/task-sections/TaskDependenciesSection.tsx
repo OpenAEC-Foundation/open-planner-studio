@@ -41,19 +41,18 @@ const EMPTY_DRAFT: RelationDraft = {
 };
 
 /**
- * Afhankelijkheden (relatietabel: type + lag + driving-badge + verwijderen) — sectie 9 uit
- * `TaskPropertiesPanel` (fase 2.10, item 2). RELATIONEEL/storeful: roept `updateSequence`/
+ * Afhankelijkheden (relatietabel: type + lag + driving-badge + verwijderen) — sectie van
+ * `TaskPropertiesPanel`. RELATIONEEL/storeful: roept `updateSequence`/
  * `removeSequence` rechtstreeks aan, identiek in paneel én dialoog (dialoog heeft altijd een
- * bestaand `task.id` — zie ontwerp-doc-vondst).
+ * bestaand `task.id`).
  *
- * Issue #65: het WBS-nummer van de gekoppelde taak is een knop — de eerdere richtingspijl (→/←)
- * ervoor is weg (eigenaarsbesluit 2026-08-18: alleen het nummer, geen pijltje).
+ * Het WBS-nummer van de gekoppelde taak is een knop (alleen het nummer, geen richtingspijl).
  * Hover toont dezelfde `TaskTooltipContent` als het canvas (via de gedeelde, portal-gebaseerde
  * `HoverTooltip`); klik roept `focusOnTask` aan — selecteert de taak, klapt een ingeklapte
  * oudersketen uit, en laat GanttCanvas ernaartoe zoomen/scrollen. Dat laatste heeft een gemonte
  * `GanttCanvas` nodig om het `pendingFocusTaskId`-signaal ooit op te pikken en te wissen — die
  * garantie geldt alleen in het eigenschappenpaneel (`!isFullPanel`, App.tsx), niet in `TaskDialog`
- * (opent op elk tabblad via F2). `interactive=false` (hyperkritische review issue #65) valt daarom
+ * (opent op elk tabblad via F2). `interactive=false` valt daarom
  * terug op platte tekst (taaknaam), zonder knop/hover/klik.
  */
 export function TaskDependenciesSection({ taskId, interactive = true }: { taskId: string; interactive?: boolean }) {
@@ -66,16 +65,15 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   const focusOnTask = useAppStore(s => s.focusOnTask);
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  // Spooktooltip (hyperkritische review issue #65): de hover werd voorheen alleen gewist door
-  // onMouseLeave/onClick op de knop zelf. Wisselt de selectie (of verandert de sequence-lijst)
-  // zonder dat de muis de knop verlaat — bv. Ctrl+Z, een pijltoets, of de AI-assistent die de
-  // selectie verzet — dan bleef de tooltip van de vorige taak zweven, ook over dialogen heen (hij
+  // Spooktooltip: onMouseLeave/onClick op de knop zelf zijn niet genoeg. Wisselt de selectie (of
+  // verandert de sequence-lijst) zonder dat de muis de knop verlaat — bv. Ctrl+Z, een pijltoets, of
+  // de AI-assistent die de selectie verzet — dan blijft de tooltip van de vorige taak zweven, ook over dialogen heen (hij
   // rendert via een portal met een hoge z-index). Elke wissel van context wist 'm daarom expliciet.
   useEffect(() => {
     setHover(null);
   }, [taskId, sequences]);
 
-  // Conceptrelatie (2026-09): de sectie kan zelf relaties aanmaken. Het concept blijft LOKAAL tot
+  // Conceptrelatie: de sectie kan zelf relaties aanmaken. Het concept blijft LOKAAL tot
   // de bevestiging — dezelfde vorm als `RelationTypePopover` op het canvas — zodat type en lag als
   // één undoable mutatie landen en Escape niets hoeft terug te draaien.
   const [draft, setDraft] = useState<RelationDraft | null>(null);

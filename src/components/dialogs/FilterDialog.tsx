@@ -21,7 +21,7 @@ type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
 const defaultRule = (): RuleNode => ({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: '' });
 export const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
 
-/** Waarde-editor die zich aanpast aan het veldtype/de operator (§13.1). */
+/** Waarde-editor die zich aanpast aan het veldtype/de operator. */
 function RuleValueEditor({
   rule, ctx, onChange,
 }: {
@@ -185,7 +185,7 @@ function RuleEditor({
   );
 }
 
-/** De filterboom-editor; controlled, ook gebruikt door de layoutdialoog (issue #144). */
+/** De filterboom-editor; controlled, ook gebruikt door de layoutdialoog. */
 export function GroupEditor({
   node, depth, ctx, fields, onChange, onRemove,
 }: {
@@ -276,7 +276,7 @@ export function GroupEditor({
 }
 
 /**
- * Filter-editor (fase 2.7, §6/§13.1), P6-achtig: All/Any-groepen (in de UI max 2 diep, datastructuur
+ * Filter-editor, P6-achtig: All/Any-groepen (in de UI max 2 diep, datastructuur
  * onbeperkt), rijen {veld ▾, operator ▾, waarde}. Waarde-invoer past zich aan het veldtype aan.
  * "Toepassen" schrijft naar `view.filter` (lege root ⇒ `null`, kanoniek "geen filter"); "Wissen" zet
  * direct `filter: null`.
@@ -292,7 +292,7 @@ export function FilterDialog() {
   const [root, setRoot] = useState<GroupNode>(
     () => (viewFilter && viewFilter.kind === 'group' ? viewFilter : defaultGroup()),
   );
-  // Issue #144: een opgeslagen filter is een layout die alleen een filter draagt. Deze dialoog
+  // Een opgeslagen filter is een layout die alleen een filter draagt. Deze dialoog
   // beheert dus een DEEL van de layoutlijst; de overige layouts reizen ongewijzigd mee bij opslaan.
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const savedFilters = useMemo(() => layouts.filter(isFilterOnlyLayout), [layouts]);

@@ -13,8 +13,7 @@ import { maxOf, minOf } from '@/utils/collections';
  * Puur — geen store-afhankelijkheid; de hook `useDocumentCards` voedt deze
  * met de juiste payload per document.
  *
- * Kleuren zijn bewust afgeleid van een stabiele seed (de project-id) i.p.v.
- * letterlijk uit het prototype overgenomen — zie docs handoff-README.
+ * Kleuren zijn bewust afgeleid van een stabiele seed (de project-id).
  */
 
 // Onderling goed onderscheidbare identiteitskleuren (amber/blauw/groen/paars/…).
@@ -63,7 +62,7 @@ export function documentTitle(
  * `طرح جدید.ifc` is geen verbetering — het maakt het bestand juist lastiger uitwisselbaar, terwijl
  * de gebruiker in de opslaan-dialoog toch zelf een naam kiest. Eén helper zodat opslaan (fileSlice),
  * rapport-export (ReportPanel), de STEP-header en de uitwisselingsformaten dezelfde terugval
- * gebruiken — die liepen uit elkaar (`'project'` versus de vertaalde weergavenaam).
+ * gebruiken.
  *
  * Trimt bewust: een naam van alleen spaties leverde anders `   .ifc`.
  */

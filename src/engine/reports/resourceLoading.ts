@@ -7,7 +7,7 @@ import { type ReportContext, resolvePeriodFor, round1 } from './reportCommon';
 import type { ReportingPeriod } from './reportingPeriod';
 
 /**
- * Resourcebelasting per week of maand (discussie #31, rapport 8, tabelvorm; issue #119/#120): per
+ * Resourcebelasting per week of maand (tabelvorm): per
  * resource per periode de gevraagde inzet tegenover de beschikbare capaciteit, met het verschil en
  * een overbelastingsvlag.
  *
@@ -39,9 +39,9 @@ export interface ResourceLoadingRow {
 }
 
 export interface ResourceLoadingOptions {
-  /** Rapportageperiode (issue #120); `project` = de hele projectspanne. */
+  /** Rapportageperiode; `project` = de hele projectspanne. */
   period: ReportingPeriod;
-  /** Aggregatie per kalenderweek of per kalendermaand (issue #119). */
+  /** Aggregatie per kalenderweek of per kalendermaand. */
   bucket: ResourceLoadingBucket;
   onlyOverloaded: boolean;
 }
@@ -105,7 +105,7 @@ export function computeResourceLoading(ctx: ReportContext, opts: ResourceLoading
     statusDateMissing: relative && statusDateMissing,
     rows,
     counts: {
-      // Resources in de tabel — dezelfde telling als het toewijzingenrapport (#119).
+      // Resources in de tabel — dezelfde telling als het toewijzingenrapport.
       resources: new Set(rows.map(r => r.resourceId)).size,
       buckets,
       overloadedBuckets: rows.filter(r => r.overloaded).length,

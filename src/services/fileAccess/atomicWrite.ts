@@ -1,5 +1,5 @@
 /**
- * Schrijf-en-vervang voor bestanden die de app zelf in `appDataDir` beheert (bevinding K4), en —
+ * Schrijf-en-vervang voor bestanden die de app zelf in `appDataDir` beheert, en —
  * onderaan — voor de projectbestanden van de gebruiker.
  * `writeTextFile` truncate't het doelbestand vóórdat het schrijft, dus een crash midden in de
  * schrijfactie laat een AFGEKAPT bestand achter. Daarom eerst naar `<naam><tmpSuffix>`, dan
@@ -52,7 +52,7 @@ export async function writeTextFileAtomic(dir: string, name: string, text: strin
 // extra randen die in appDataDir niet spelen:
 //  - scope: de capability geeft schrijfrecht onder `$HOME`; buiten `$HOME` geeft de bestandskiezer
 //    alleen het gekozen bestand zelf vrij, dus een halffabricaat ernaast wordt geweigerd
-//    ("forbidden path"). Dan blijft alleen het oude directe schrijven over.
+//    ("forbidden path"). Dan blijft alleen direct schrijven over.
 //  - links: een rename zet een gewoon bestand op de plek van een symlink (het doel van de link
 //    blijft dan oud), en bij een harde link houdt de andere naam de oude inhoud. Een gelinkt bestand
 //    wordt daarom direct beschreven.

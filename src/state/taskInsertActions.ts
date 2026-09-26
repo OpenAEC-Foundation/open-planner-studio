@@ -3,13 +3,11 @@ import { firstRowIndexByTask, isTreeMode } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
 
 /**
- * Waar landt een NIEUWE taak? (issue #45-nasleep en issue #49)
+ * Waar landt een NIEUWE taak?
  *
  * Eén module voor álle invoegroutes — lintknop "+ Taak", de Mijlpaal-dropdown, het contextmenu
- * ("Taak toevoegen" én "Invoegen boven/onder"), de Insert- en Ctrl+I-sneltoets. Ze deelden eerder
- * niets: de knoppen riepen kaal `addTask({name})` aan (dus altijd achteraan, de klacht uit issue
- * #49), het contextmenu ankerde op de aangeklikte taak en de sneltoets op `selectedTaskIds[0]`.
- * Drie routes, drie uitkomsten voor dezelfde handeling.
+ * ("Taak toevoegen" én "Invoegen boven/onder"), de Insert- en Ctrl+I-sneltoets — zodat dezelfde
+ * handeling via elke route dezelfde uitkomst heeft.
  *
  * Bewust in `src/state/` en niet in de component-boom (naar het model van `relationActions.ts`):
  * lint, canvas, tabel én de headless regressiebatterij draaien zo letterlijk dezelfde functies.
@@ -34,7 +32,7 @@ function finishNewTask(id: string): string {
 }
 
 /**
- * Het ANKER voor "Invoegen boven/onder" over een reikwijdte (issue #45, nasleep): de BOVENSTE
+ * Het ANKER voor "Invoegen boven/onder" over een reikwijdte: de BOVENSTE
  * (`above`) respectievelijk ONDERSTE (`below`) taak van de reikwijdte, in de volgorde ZOALS DE
  * GEBRUIKER ZE OP HET SCHERM ZIET (`viewRows`).
  *
@@ -42,12 +40,11 @@ function finishNewTask(id: string): string {
  * kandidaat-volgordes, en twee daarvan zijn onvoorspelbaar voor de gebruiker:
  *  - de KLIKVOLGORDE (`selectedTaskIds`) — Ctrl+klik duwt achteraan aan (`selectTask`), dus wie
  *    van onder naar boven selecteert krijgt een ander anker dan wie van boven naar beneden
- *    selecteert. Precies het gedrag dat de eigenaar als "werkt niet zoals je zou verwachten"
- *    meldde: de nieuwe taak landde midden IN de selectie.
+ *    selecteert, en de nieuwe taak landt dan midden IN de selectie.
  *  - de RAUWE `tasks`-array — dat is de documentvolgorde, die na indent/outdent en boomopbouw niet
  *    één-op-één met het scherm loopt.
  * Alleen "bovenste/onderste zoals getoond" is voorspelbaar, en het is dezelfde volgorde die de
- * Gantt en de tabel renderen (§4.1 van de weergave-pijplijn).
+ * Gantt en de tabel renderen.
  *
  * Randgevallen, bewust zo:
  *  - NIET-AANEENGESLOTEN selectie (taak 1, 3 en 5): dezelfde regel, geen uitzondering — `above`
@@ -95,14 +92,13 @@ export function insertAnchorForScope(ids: string[], where: InsertWhere): string 
 }
 
 /**
- * Mag er, gegeven de HUIDIGE weergave, ten opzichte van een anker ingevoegd worden? (issue #49)
+ * Mag er, gegeven de HUIDIGE weergave, ten opzichte van een anker ingevoegd worden?
  *
  * Alleen in pure boommodus (geen filter, geen groepering, geen sortering) is de getoonde volgorde
  * ook de documentvolgorde. Wordt er gegroepeerd of gesorteerd, dan verschuift een structureel
  * "boven taak X" ingevoegde taak naar de band/positie die de weergave hem toewijst — de gebruiker
- * ziet hem dus ergens ánders verschijnen dan waar hij hem neerzette. Gemeten vóór deze fix: met
- * groepering op taaktype en een selectie in de band LOGISTIC landde Insert de nieuwe taak zichtbaar
- * in de band CONSTRUCTION.
+ * ziet hem dus ergens ánders verschijnen dan waar hij hem neerzette (bv. bij groepering op taaktype
+ * een selectie in band LOGISTIC, nieuwe taak in band CONSTRUCTION).
  *
  * Dit is exact dezelfde poort (`isTreeMode`) die in-/uitspringen (`COMMANDS.indent`/`outdent` in
  * `state/commands.ts`, gedeeld door sneltoets en lint) en de rijsleep in het taakraster
@@ -117,8 +113,8 @@ export function canInsertRelative(): boolean {
 /**
  * Meld dat de weergave positioneel invoegen tegenhoudt.
  *
- * BEWUST `notifyStructureLocked()` en niet het generieke `notify()`: dit is precies de melding die
- * issue #26 voor geweigerde structuurmutaties introduceerde (`StructureLockedNotice`), inclusief de
+ * BEWUST `notifyStructureLocked()` en niet het generieke `notify()`: dit is de melding voor
+ * geweigerde structuurmutaties (`StructureLockedNotice`), inclusief de
  * knop die filter/groepering/sortering in één klik wist. Een tweede kanaal ernaast zou dezelfde
  * situatie op twee manieren verwoorden.
  */
@@ -128,7 +124,7 @@ function meldGeblokkeerd(): void {
 
 /**
  * Route 1 — "voeg een taak toe" (lintknop **+ Taak**, de **Mijlpaal**-dropdown, contextmenu-item
- * "Taak toevoegen"). Issue #49, letterlijk de door de melder gevraagde regel:
+ * "Taak toevoegen"):
  *
  *   1. is er een taak geselecteerd ⇒ de nieuwe taak komt direct ONDER de selectie;
  *   2. is er niets geselecteerd ⇒ achteraan, zoals altijd.
@@ -139,8 +135,8 @@ function meldGeblokkeerd(): void {
  * Buiten pure boommodus valt hij terug op regel 2 (achteraan) plus de structuurmelding. Bewust géén
  * volledige weigering zoals bij route 2 hieronder: "+ Taak" is een TOEVOEG-actie met een
  * positie-voorkeur, niet een positie-commando. Weigeren zou betekenen dat je in een gegroepeerde
- * weergave helemaal geen taak meer kunt aanmaken — een regressie t.o.v. vandaag, en het tegendeel
- * van wat issue #49 vraagt. Wat er wegvalt is alleen de plaatsing, en dát is wat de melding uitlegt.
+ * weergave helemaal geen taak meer kunt aanmaken. Wat er wegvalt is alleen de plaatsing, en dát is
+ * wat de melding uitlegt.
  */
 export function addTaskNearSelection(partial: NewTaskInput): string {
   const store = useAppStore.getState();

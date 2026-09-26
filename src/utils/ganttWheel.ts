@@ -1,10 +1,8 @@
 // Wat doet een wiel-event boven de Gantt? — ÉÉN bron van waarheid.
 //
-// Waarom apart: sinds issue #35 heeft het secundaire split-view-pane eigen navigatie, en die had
-// zijn eigen hardgecodeerde wiel-regels (Ctrl = zoom, Shift = horizontaal, plat = verticaal). Die
-// negeerden de gebruikersinstelling `ui.scrollMode`, dus in de STANDAARDmodus ('drag') zoomde het
-// gewone wiel links wél en scrollde het rechts verticaal — twee navigatiemethoden in één venster.
-// De beslissing zit daarom nu hier, puur en headless testbaar; `useGanttZoom` (primair pane) en de
+// Waarom apart: het secundaire split-view-pane heeft eigen navigatie; met eigen hardgecodeerde
+// wiel-regels zou het de gebruikersinstelling `ui.scrollMode` negeren en gedroeg het wiel zich links
+// en rechts anders — twee navigatiemethoden in één venster. De beslissing zit daarom hier, puur en headless testbaar; `useGanttZoom` (primair pane) en de
 // wiel-handler in `GanttCanvas` (secundair pane) roepen allebei deze functie aan. Zo KÁN de
 // semantiek niet meer uiteenlopen — precies de bug die dit repareert.
 //
@@ -48,12 +46,11 @@ export function resolveWheelFunction({
   if (mode === 'drag') {
     // Drag mode: the wheel zooms (cursor-anchored), no modifier needed.
     // Panning is done by dragging the canvas (see GanttCanvas).
-    // Shift+wiel scrolt wél de rijen: sinds issue #22 is dit de STANDAARDmodus, en zonder
+    // Shift+wiel scrolt wél de rijen: dit is de STANDAARDmodus, en zonder
     // deze uitzondering is verticaal scrollen alleen bereikbaar door de chart-achtergrond te
     // slepen — wat niet werkt vanuit de takentabel (die gaat naar rij-slepen/box-select).
-    // Sinds issue #35 is er ook een echte verticale scrollbalk naast de panes, dus dit is niet
-    // langer de ENIGE uitweg; de sneltoets blijft staan omdat hij sneller is dan naar de balk
-    // grijpen (en dat was precies de klacht in #35: verticaal navigeren was te omslachtig).
+    // Er is ook een echte verticale scrollbalk naast de panes, maar deze sneltoets is sneller dan
+    // naar de balk grijpen.
     return shift ? 'vertical' : 'zoom';
   }
   if (mode === 'modifier') {

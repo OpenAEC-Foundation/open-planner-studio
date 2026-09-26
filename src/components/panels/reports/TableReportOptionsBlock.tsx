@@ -10,7 +10,7 @@ import { ReportingPeriodField } from './ReportingPeriodField';
 import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reportFormPrimitives';
 
 /**
- * Optieblok van de tabelrapporten (discussie #31): per rapporttype alleen de knoppen die dat
+ * Optieblok van de tabelrapporten: per rapporttype alleen de knoppen die dat
  * rapport gebruikt. Zelfde rij-opmaak als het Gantt-instellingenblok in `ReportPanel`. De waarden
  * worden via `onChange` als patch teruggegeven; het paneel bewaart ze samen met de overige
  * rapportinstellingen (`reportSettings.tableReports`).
@@ -82,7 +82,7 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     </ReportFieldRow>
   );
 
-  // Het gedeelde rapportageperiode-control (issue #120) — per rapport een eigen opgeslagen keuze.
+  // Het gedeelde rapportageperiode-control — per rapport een eigen opgeslagen keuze.
   const periodRow = (key: TableReportPeriodKey) => (
     <ReportingPeriodField id={`report-opt-${key}`} value={options[key]} onChange={next => onChange({ [key]: next })} dataKey={key} />
   );
@@ -168,8 +168,8 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     <ReportOptionsCard title={t('tableReports.options.sectionTitle')} cardProps={{ 'data-ops-report-options': true }}>
       <div className="flex flex-col gap-2 text-small leading-4">
         {/* Papier en oriëntatie elk op een eigen rij met het label erboven: naast een `w-32`-label
-            (en ook in twee kolommen) bleef bij de standaardkolom ~53 px over en las "Landscape"
-            als "Landsc…" (dezelfde meting als bij de rapportageperiode, reviewronde 3). */}
+            (en ook in twee kolommen) blijft bij de standaardkolom ~53 px over en leest "Landscape"
+            als "Landsc…" (dezelfde meting als bij de rapportageperiode). */}
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex flex-col gap-1 min-w-0">
             <label className="text-text-secondary" htmlFor="report-opt-paper">{t('paper')}</label>

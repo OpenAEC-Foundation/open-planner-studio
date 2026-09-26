@@ -17,13 +17,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
   per-bestand vervallen ("a", branch `claude/x12-a19-basis`); C5 smal. Zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md` §1d.
 - [ ] **P6-nivellering (motoretappe):** fundament (data) ligt; vijf eigenaarsbesluiten in
   `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §8.
-- [ ] **XER-lezer (PR #109) vervolg:** statisch anker bij `sched_use_project_end_date_for_float=Y` zonder
-  `plan_end_date` (37 corpusprojecten; eigen PR met herpin); corrupt bronarchief openen zónder archief met
-  melding (eigenaarsvraag); documentnaam = Project-ID i.p.v. projectnaam.
 - [ ] **Datums zoals opgeslagen (PR #167) vervolg:** een taak zonder enige vastlegging telt na opslaan-in-modus
   bij heropenen als vastgelegd (geen vals aanbod, wel in de telling).
-- [ ] **Taaktypes (PR #101) overname:** dossier `docs/superpowers/plans/2026-09-24-verkenning-pr101-taaktypes.md`;
-  integratie op de #169-kop pas als #169 stabiel is; eigenaarsvragen E1–E5.
 
 ### Rapporten (tabelrapporten uit discussie #31, review 2026-09-08)
 - [ ] **Twaalf vertaalde gidsen beschrijven een niet-bestaande knop "Afdrukken…".** In
@@ -40,11 +35,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
   browser; wel een bekende divergentie tussen de twee weergaven.
 
 ### Bedrijfsbibliotheken (B1.1) — vervolgen (2026-07-24)
-- [ ] **B1b — bezettingsoverzicht** over open documenten (binnen één bedrijf/pool; bouwt op de
-  herkomststempels + Resources-tab Bedrijfsweergave uit B1.1). Zie docs/library.md
-  "Bekende beperkingen". In uitvoering — ontwerpdoc:
-  docs/superpowers/specs/2026-08-14-b1b-bezettingsoverzicht-design.md (incl. §5a-histogram
-  per poolitem, besluit eigenaar 2026-08-14).
 - [ ] **B1b-vervolg: "alle resources"-histogram verkennen** (wens eigenaar 2026-08-14). De
   per-dag-data ligt er na B1b al (`dailyLoad` per booking). Drie kandidaatvormen, kiezen ná
   praktijkervaring met v1: (a) totaalsom over alle poolitems zoals "All resources" in het
@@ -52,11 +42,16 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
   (b) mini-histogram/sparkline per tabelrij, elk op eigen schaal met eigen capaciteitslijn;
   (c) heatmap resources × dagen met bezetting-t.o.v.-capaciteit als celkleur (de klassieke
   "resource usage"-weergave, schaalt het best bij grote pools).
-- [ ] **B1c — nivelleren tegen restcapaciteit** (besluit eigenaar 2026-08-14): vanuit een
-  conflictregel het veroorzakende document activeren en dáár nivelleren tegen
-  bedrijfscapaciteit mín de boekingen van de andere open documenten. Eigen ontwerpdoc ná
-  oplevering B1b; zie het B1b-ontwerpdoc §12 voor de open ontwerpvragen. Echt simultaan
-  cross-document nivelleren blijft aan onderhoudbaarheidsitem 41 (`createAppStore()`) hangen.
+- [ ] **B1c — bediening van "Verdelen over projecten" (UI).** Rekenkern (`computeDistribution`,
+  `src/services/library/distribute.ts`, B1c-etappe 2) en schrijfpad (`applyDistribution`/
+  `undoDistribution` in `librarySlice`, via de headless scratch-instantie; B1c-etappe 3) zijn
+  gebouwd, maar op `main` is er nog geen dialoog die ze aanroept (geen `applyDistribution` in
+  `src/components/`). De dialoog (`DistributionDialog`, plan 3 taken 8 e.v. + plan 4) is gebouwd op de
+  branch `origin/t3code/b1c-etappe3` en niet gemerged (`ee882777` nam bewust alleen de kern mee).
+  Rest: die verdeeldialoog met pins, plafonds en de onderbrekingsschakelaar landen — ontwerp in
+  `docs/superpowers/specs/2026-09-12-b1c-verdeeldialoog-herontwerp-design.md` en
+  `docs/superpowers/plans/2026-09-12-b1c-plan4-verdeeldialoog-herontwerp.md`; zie ook
+  `docs/library.md` punt 5.
 - [ ] **Gedeelde opslag/sync** tussen machines (wortel van alle drie de B1.1-beperkingen: pool-
   divergentie tussen planners, bezettingsoverzicht dat alleen de eigen machine ziet, en
   stilzwijgend overschrijven tussen twee tabbladen/vensters op dezelfde machine).
@@ -108,63 +103,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
   herkenning ook voor eenpitters. Vergt een migratie voor bestaande installaties (opgeslagen
   bibliotheken én de `libraryOrigin`-stempels die al naar `DEFAULT_COMPANY_ID` wijzen) — daarom nu
   niet gedaan; `DEMO_COMPANY_ID` blijft sowieso bewust vast (idempotente seed, spec-eis).
-- [x] **Niemand heeft gemeten of de MCP-tools de bibliotheekstempels bijwerken.** *(gemeten
-  2026-07-27, geen defect)* Het stempelbeheer blijkt correct: `planner_manage_resources` en
-  `planner_update_calendar` laten `libraryOrigin` met rust en werken `syncedHash` niet bij, op alle
-  drie de routes (direct, via `planner_batch`, en bij aanmaken/verwijderen). Een MCP-wijziging op een
-  gevolgd veld levert dus netjes `deviated` op, een wijziging op `maxUnits` blijft `in-sync` (die zit
-  bewust niet in `RESOURCE_DIFF_FIELDS`), en een resource die de AI in een gekoppeld project aanmaakt
-  wordt projecteigen zonder stempel. Vastgepind in `tests/mcp/cases-bibliotheek.ts` (9 tests,
-  mutatie-getest tegen beide faalvormen). Bijvangst uit die meting: het blind meeschrijven van de
-  hash zou érger zijn dan gedacht — `fileHash === syncedHash` leest als `behind`, en `behind` wordt
-  door `runOpenBoundary` stil ververst naar de poolwaarden, waarmee de AI-bewerking geruisloos zou
-  verdwijnen in plaats van alleen onbevraagd te blijven.
-- [x] **De MCP-bridge mag schrijven waar de gebruiker niet mag — ontwerpbeslissing, geen defect.**
-  *(besloten én gebouwd 2026-07-27: spiegelen)* Volgde uit de meting hierboven. `ResourcePanel`
-  rendert naam, type, tarief/uur en eenheid als platte tekst zodra er een herkomststempel op zit
-  (`isResourceFieldLocked`), en `description` heeft in de projectweergave niet eens een kolom —
-  precies de vijf `RESOURCE_DIFF_FIELDS` die `planner_manage_resources` wél gewoon schreef. De
-  mechaniek klopte, maar de gemeten uitkomst was een afwijkingsdialoog over een wijziging die de
-  gebruiker niet met eigen handen had kúnnen maken; koos hij daar "bibliotheekwaarden gebruiken", dan
-  draaide de AI-bewerking terug. De tool weigert die velden nu op een gestempeld item en noemt de
-  twee routes die wél werken (in de bibliotheek wijzigen, of eerst losmaken); een gemengde update
-  sneuvelt in zijn geheel, zodat er geen half toegepaste stille no-op ontstaat. Gating en UI-slot
-  delen één bron (`onOpenStatusForResource` + `isResourceFieldLocked` + `RESOURCE_DIFF_FIELDS`), en
-  `planner_list_resources` geeft per geërfde rij een `library`-blok (company/status/lockedFields)
-  zodat een assistent het slot ziet in plaats van erin te lopen. De pool zelf is bewust NIET via MCP
-  muteerbaar gemaakt: app-globale data, raakt projecten die niet openstaan, valt buiten de
-  projecthistorie. Kalenders houden hun bestaande gedrag — daar kent de UI geen slot, dus is
-  'deviated' juist de gespiegelde uitkomst.
-- [ ] **"Losmaken van de bibliotheek" als MCP-actie.** Directe vervolgstap op het punt hierboven: de
+- [ ] **"Losmaken van de bibliotheek" als MCP-actie.** `planner_manage_resources` weigert de
+  bibliotheekvelden op een gestempeld item (gespiegeld aan het UI-slot, 2026-07-27); die
   weigering verwijst naar losmaken als de begaanbare route, maar de bridge kan die route alleen
   bénoemen, niet lopen — de assistent moet de gebruiker vragen het handmatig te doen.
   `unlinkResourceFromLibrary` bestaat al als store-actie, is projectlokaal en ongedaan te maken.
   Overwegen: dezelfde actie voor kalenders, en of het een eigen tool wordt of een `action` op
   `planner_manage_resources`.
-- [ ] **Crash-herstel reset de bibliotheek-UI-vlaggen niet.** `newDocument()`, `closeDocument()`,
-  `newProject()` en `createNewProject()` zetten `ui.showLibraryLinkDialog`/`ui.libraryRefreshNotice`
-  inmiddels alle vier terug (zie de asserts in `tests/library/check-library-slice.ts`), maar
-  `restoreDocuments()` doet dat niet expliciet. Dat pad draait bij het opstarten van de app, vóór
-  enige gebruikersinteractie, dus het risico dat er een vlag uit een vorige sessie overleeft is klein
-  — maar het is niet gemeten en de dialoog rendert onvoorwaardelijk zodra de vlag waar is, dus een
-  blijven-staande vlag toont een leeg koppel-/afwijkingsscherm. Vervolgstap: nagaan of de vlaggen het
-  herstelpad überhaupt kunnen bereiken, en zo ja dezelfde twee regels toevoegen plus een assert.
-- [x] **GROOT-showcase "Nieuwbouw Appartementencomplex De Vaart" overalloceert 10 van zijn 12
-  resources, terwijl het ontwerpdocument expliciet maar 1 belooft.** *(gefixt 2026-07-27)*
-  Oorzaak was inderdaad de generator: `scripts/showcase-groot.ts` dimensioneerde de pools op ÉÉN
-  toren terwijl de drie torens per ontwerp parallel lopen (en de niet-uniforme curves het tempo
-  bovendien op enkele dagen concentreren). Elke pool is nu op de gemeten worst case gezet —
-  3 × de piek van één toren, per toren afzonderlijk gemeten met de echte `computeResourceLoad`:
-  Betonvlechters 4→6, Timmerlieden 4→12, Gevelbouwer 2→6, Liftleverancier 1→3, Tegelzetters 3→15,
-  Keukenmonteurs 2→9, Installateurs 4→18, Schilders 3→15. Torenkraan (1, met capaciteitsstap naar
-  2) en Stukadoors (3) houden bewust hun krappe capaciteit: dat zijn de twee bedoelde knelpunten.
-  Resultaat: 261 → 80 overgealloceerde resource-dagen, 10 → 2 pools; beide resterende knelpunten
-  zijn met de echte nivelleerder volledig oplosbaar (80 → 0 dagen, 0 onopgeloste taken) — vóór de
-  fix bleven er 4 pools zélfs ná nivellering staan. `maxUnits` raakt de CPM-datums niet
-  (resources-design §3), empirisch bevestigd: alle 260 taken houden identieke ES/EF/LS/LF/TF/
-  kritiek-vlaggen en `criticalPaths` blijft 2. De ontbrekende bovengrens is ook gedicht:
-  `scripts/verify-examples.ts` assert nu naast `overalloc.length > 0` óók `<= 2` voor GROOT, met
-  de namen in de foutboodschap; die assert is aantoonbaar rood gezien tegen de oude data.
 
 ### MCP-bridge — robuustheid van de server zelf (2026-07-27)
 
@@ -173,27 +118,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > beantwoordt, zonder dat iemand dat merkt. Dat is dezelfde faalklasse als de stille no-ops die deze
 > ronde zijn opgeruimd — alleen een laag dieper.
 
-- [x] **Snap: werkt de MCP-bridge onder confinement?** *(gemeten 2026-07-30 op de geïnstalleerde
-  snap 2026.7.13 rev 1 — JA, volledig)* De vraag kwam op omdat `snap/snapcraft.yaml` alleen
-  `network` plugde (client-only) terwijl de storebeschrijving de MCP-server aanprijst. Gemeten
-  uitkomst: binden lukt tóch. Een TCP-listener op 127.0.0.1 slaagt binnen `snap run --shell`, en de
-  geïnstalleerde app luisterde daadwerkelijk op 3877 met een werkende bridge. De hele keten is
-  end-to-end gedraaid tegen die snap (dit was T24, dat nooit echt gelopen had): geen token ⇒ 401,
-  fout token ⇒ 401, `Origin`-header ⇒ 403, `initialize` ⇒ serverInfo 2026.7.13, `tools/list` ⇒ 39
-  tools met uitsluitend de `planner_`-prefix, en een echte `tools/call` op het geopende document met
-  correcte envelope. Alle antwoorden kwamen direct — geen spoor van het 120s-timeout-beeld.
-  Oorzaak dat het zonder `network-bind` werkt: `browser-support` staat in het seccomp-profiel
-  bind/listen/accept toe "for anonymous sockets", en er zijn geen AppArmor-inet-regels die het
-  alsnog mediëren. `network-bind` is alsnog toegevoegd — niet als reparatie, maar om die
-  afhankelijkheid vast te leggen: nu hangt het luisteren aan een plug die er voor WebKit zit.
-  Ook gemeten in dezelfde ronde: **"Backup-map openen" werkt onder confinement.** `openBackupFolder`
-  (`src/services/mcp/backup.ts`) maakt de map aan en roept `open()` uit `plugin-shell` aan, wat op
-  Linux op xdg-open uitkomt. Binnen `snap run --shell` gaf `xdg-open` op de ai-backups-map exitcode 0
-  én startte er daadwerkelijk een bestandsbeheerder (nautilus). Kanttekening: getest is het
-  MECHANISME (xdg-open door de portal), niet de knop zelf in de AI-tab. De geopende map bevatte
-  bovendien echte backups — twee documentmappen, waarvan één het `activeDocumentId` uit de
-  bridge-envelope — dus ook het backup-schrijfpad werkt onder confinement (appDataDir valt binnen
-  `~/snap/open-planner-studio/`, dus zonder `home`-plug-afhankelijkheid).
 - [ ] **De bridge merkt niet dat het venster erachter weg is.** Gemeten: het venster dat poort 3877
       bezat had een hot-reload gehad, waardoor de frontend-listeners uit `createBridgeController`
       verdwenen waren. De Rust-kant bleef luisteren; élke aanvraag liep vast tot de 120s-timeout.
@@ -235,64 +159,16 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ### IFC-kalenderbibliotheek — resterende punten (2026-07-27)
 
-> Gevonden tijdens het overzetbaar maken van uurkalenders via de MCP-bridge. Alle drie zijn
-> **beschreven** in de tool-descriptions en met tests vastgepind, dus niets gebeurt stil. De
-> eerste bleek bij nadere inspectie al opgelost (zie hieronder); de resterende twee staan nog open.
+> Gevonden tijdens het overzetbaar maken van uurkalenders via de MCP-bridge. Beide punten zijn
+> **beschreven** in de tool-descriptions en met tests vastgepind, dus niets gebeurt stil.
 
-- [x] **Een kalender zonder taak of resource verdwijnt bij opslaan+herladen.** *(achterhaald,
-      opgelost door de A2-fix, geverifieerd 2026-07-27)* Dit was voorafbestaand gedrag (`ifcReader.
-      extractCalendarLibrary` bouwde de bibliotheek uitsluitend uit `IFCRELASSIGNSTOCONTROL`-
-      relaties), maar B1.1 heeft de beperking al opgeheven: de A2-fix in `extractCalendarLibrary`
-      vangt nu ook alle overige `IFCWORKCALENDAR`-entiteiten op (behalve de projectkalender) die
-      geen relatie hebben — nodig omdat een naar de bibliotheek gepromote kalender anders zijn
-      `libraryOrigin`-stempel verloor. Empirisch bevestigd met een write→read round-trip van een
-      project met een kalender zonder enige taak/resource-koppeling: de kalender komt terug met
-      naam en uren intact.
 - [ ] **Per weekdag verschillende uurbanden overleven een round-trip niet.** IFC draagt één
       werkweek-patroon, dus alle werkdagen krijgen bij herladen de banden van de eerste werkdag —
-      een korte vrijdag komt terug als kopie van maandag. Zelfde route als hierboven zou dit ook
-      oplossen.
+      een korte vrijdag komt terug als kopie van maandag (`ifcWriter.ts` schrijft nog alleen
+      `workTime.byWeekday[firstDay]`; H7/#239 loste de scalar-werktijd op, niet dit).
 - [ ] **Wélke kalender de projectdefault is, kan de bridge niet wisselen** (de inhoud ervan wel, via
       het id uit `projectDefaultId`). `update_project.calendarId` weigert nu met die uitleg. Beoordeel
       of dat een echte beperking moet blijven of gewoon nog gebouwd moet worden.
-
-### MPP/MSP-import (fase 3.8, MSP-pariteit) — bekende beperkingen (2026-08-17)
-
-> Verzameld tijdens de MPP-datumgetrouwheidsetappe (T13-T16, zie
-> `docs/superpowers/plans/2026-08-15-plan-mpp-datumgetrouwheid.md`). Twee van de drie
-> (contouring-detectiegrens, TASK_MODE-hypothese) zijn sinds de etappe "nul afwijkingen" (Z9a/Z16,
-> 2026-08-18) daadwerkelijk opgelost — hieronder afgevinkt met verwijzing. Het P6-item blijft een
-> echte, blijvende schemabeperking (niet stilzwijgend: console.warn, code-toelichting en de gids
-> dekken 'm) en stond eerder onder "IFC-kalenderbibliotheek" — hierheen verhuisd, het gaat over een
-> export-schemabeperking, niet over de IFC-kalenderbibliotheek (B1.1).
-
-- [x] **P6-XML-export laat werkende kalenderuitzonderingen weg — schemabeperking, geen bug (fase
-      3.8 T13, 2026-08-17).** `WorkingException` (T2/T3: een dag-uitzondering die een dag WERKEND
-      maakt) is niet uit te drukken in P6-XML: `<HolidayOrException>` kent geen `DayWorking`-achtig
-      veld (alleen `Name`/`Date`/`FinishDate` — `p6xmlReader.ts`'s `parseP6HolidayOrExceptions` leest
-      elk element onvoorwaardelijk als NIET-werkend). P6 zelf modelleert een ingeroosterde extra
-      werkdag alleen via `<StandardWorkWeek>` (project-breed weekpatroon, geen per-datum-uitzondering)
-      — geen veilige automatische vertaling. `p6xmlWriter.ts`'s `writeHolidayOrExceptions` laat werkende
-      uitzonderingen daarom bewust weg, met `console.warn('P6-export: … werkende kalenderuitzondering(en)
-      weggelaten — niet uitdrukbaar in P6-XML …')`. **T16: gidsvermelding toegevoegd**
-      (`gids-import-export.md`, nl+en) — de console.warn blijft de enige gebruikersvoorlichting bij
-      het exportmoment zelf.
-- [x] **Zuivere resource-contouring is niet betrouwbaar detecteerbaar — de contouring-detectiegrens
-      opgelost (Z16, fase 3.8 etappe "nul afwijkingen", 2026-08-18).** De oude `spanGt`-proxy (venster
-      > duur, een schatting) is vervangen door `countScheduleNotes`, dat drie ECHTE signalen telt
-      (`Task.levelingDelayMinutes`/`.splitGaps`/`.timephasedFinishFloor`|`.timephasedDurationWalks`).
-      Bijvangst: MPXJ's eigen referentiebestand voor resource-contouring (`mpp14resource.mpp`,
-      "Contoured Task") wordt daarmee nu wél herkend — de oude WORK_CONTOUR-FixedMeta-bit-aanpak bleef
-      ongebruikt (0 treffers op datzelfde bestand), maar de echte timephased-telling raakt dezelfde
-      taak via een ander pad. Zie `mppReader.ts` (`countScheduleNotes`) en `gids-msproject-import.md`.
-- [x] **TASK_MODE (Manually Scheduled vs. Automatically Scheduled) — hypothese bevestigd en
-      geïmplementeerd (Z9a, fase 3.8 etappe "nul afwijkingen", 2026-08-18).** De bit is daadwerkelijk
-      uitgelezen (`Fixed2Meta`-bit-flag, offset 8, masker 0x08/0x80 al naar applicationVersion) en
-      bevestigd: een MANUALLY_SCHEDULED taak gebruikt inderdaad zijn eigen `START`/`FINISH`-veldpaar
-      (1283/1284, `Fixed2Data` blok 1) i.p.v. `SCHEDULED_START`/`SCHEDULED_FINISH` (35/36). Reader
-      (`mppReader.ts`/`mppGroundTruth.ts`, byte-gelijk gespiegeld tussen lezer en grondwaarheid) en
-      solver (rauw anker, geen snap, backward-early-return, manual wint van constraints) beide
-      geland. Corpusbreed effect gemeten: 14 bestanden naar 0/0/0/0, startDiff 211→5, finishDiff 225→19.
 
 ### MPP/MSP-import (fase 3.8, etappe "nul afwijkingen") — bewust laten liggen (2026-08-19)
 - [ ] `CPMSolver.ts` leveling-takvolgorde: een taak met zowel `levelingDelay` (dagen) als `levelingDelayMinutes` zou aan de ankerregel ontsnappen (vandaag onmogelijk — lezer zet alleen minuten, nivelleerder alleen dagen); precedentie-commentaar benoemt dat geval niet (Z6-veeglijst).
@@ -308,11 +184,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       daarom bewust in plaats van deze elementen te schrijven. `<TimephasedData>` is sinds de
       contour-engine-etappe (2026-09) WÉL native lezen+schrijven (`mspdiReader.ts`/`mspdiWriter.ts`,
       `contourIo.ts`); de andere twee blijven een eigen, kleine vervolg-etappe.
-- [x] **Splitsen als bewerkfunctie (UI).** *(opgeleverd 2026-09, issue #146: splits-modus en
-      stukken/randen slepen in de Gantt, sectie Onderbrekingen in het eigenschappenpaneel,
-      `planner_set_task_splits`; spec `docs/superpowers/specs/2026-09-19-taken-splitsen-bewerken-design.md`,
-      gids `gids-taken-splitsen`.)* Handmatig plannen (`manuallyScheduled`) als bewerkfunctie blijft
-      buiten scope, net als het bewerken van niet-wélgevormde importsplits (alleen-lezen, alleen opheffen).
 - [ ] **Native MSPDI-/P6-schrijven van een split zonder urenverdeling.** Een onderbroken taak zonder
       contour gaat nu zonder onderbrekingen naar MSPDI/P6 (de export meldt het aantal via
       `exportSplitsLostNotice`). Vervolg: de pauzes als `<TimephasedData>`-/spreidingsvorm van de
@@ -347,26 +218,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > duurwijziging herschaalt de contour proportioneel; MSPDI `<TimephasedData>` en P6
 > `<ResourceCurve>`/`<ResourceCurveObjectId>`/spreidingsstrings zijn native. Zie CLAUDE.md.
 
-- [x] **P6-export schreef de curveNAAM in `<PlannedCurve>` — een verkeerde lezing van het PMXML-schema**
-      (gevonden 2026-09-03 tegen MPXJ `XmlProjectReader`/`TimephasedHelper`: `PlannedCurve` is een
-      spreidingsstring `"werkuren:periodeuren;…"`, de curve zit in `ResourceCurveObjectId` →
-      `<ResourceCurve>`). Gecorrigeerd in `p6xmlWriter.ts`/`p6xmlReader.ts`; de lezer accepteert
-      de oude naamvorm nog als compat (een `<PlannedCurve>` zonder `:`).
-- [x] **DOUBLE_PEAK/TURTLE als OPS-curve** (contour-UI, 2026-09-04): `ResourceCurve` telt nu de
-      acht MS Project-vormen; de zes oudere curves houden hun controlepunten in `distributeUnits`
-      (byte-identiek), de twee nieuwe bemonsteren rechtstreeks de exacte 21-punts tabel. Alle
-      gedupliceerde lijsten (dropdowns, rasterkolom, MCP-schema, IFC-validator, ext-contract,
-      MSPDI-codes 3/7, P6-namen) zijn meegenomen. Nog steeds acht plekken — een centrale
-      `RESOURCE_CURVES`-export is een losse opruimklus.
-- [x] **Contour bewerken in de UI** (etappe contour-UI, 2026-09-04): `ContourDialog.tsx` achter de
-      knop **Urenverdeling…** per toewijzing (eigenschappenpaneel én taakdialoog) — sinds de
-      fasen-editor (dezelfde dag) in FASEN: sleepbare strook (`ContourPhaseStrip.tsx`: grens per
-      werkdag, bovenrand = inzet, dubbelklik = splitsen) + fasentabel (van/tot/dagen/inzet/uren,
-      splitsen/samenvoegen), vorm-als-data als vertrekpunt (alle acht vormen), toepassen en
-      **loslaten**; verricht werk alleen-lezen. Fasenmodel puur in `contourPhases.ts` (run-length
-      over de werkdagslots), bewerkmodel in `contourEdit.ts`; opslagvorm blijft één periode per
-      werkdag. Store-actie `setAssignmentContour` (undo, geen datumwijziging). Regressie:
-      `check-contour-engine.ts` (f)/(g)/(i) en `tests/browser/contour-dialog.spec.ts` (mét muissleep).
 - [ ] **Fasen als opslagvorm.** `TimephasedContourPeriod` kan een fase van tien dagen als één
       periode dragen, maar de editor slaat bewust één periode per werkdag op (byte-identieke
       round-trips). Een fase-periode zou het IFC compacter maken; vergt een controle dat
@@ -397,23 +248,13 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       FIXED_WORK houdt werk) volgt MSP's gedocumenteerde gedrag maar is niet tegen MSP zelf
       gemeten — de taaktypes-spec noemt die meetlat als de duurste post van de vervolgetappe.
 
-### Taaktypes / opgeslagen werk — in aanbouw (spec 2026-09-04, bouw 2026-09-05)
+### Taaktypes / opgeslagen werk — vervolgpunten (gemerged via PR #170, 2026-09-26)
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
-> spec van 2026-08-18). Bouwt op de branch `claude/contour-engine-planner-mnrsy3` (PR #101), die
-> gestapeld is op de XER-branch en pas ná die PR merget. Stappen 1–7 staan erin; 8 (afronding docs)
-> volgt — zie spec §10 voor de stand per stap. De gids `gids-taaktypes` bestaat in nl+en; de
-> twaalf vertalingen volgen in de maandelijkse ronde.
-> Eigenaarsbesluiten 1–7 (2026-09-04) en 8–10 (2026-09-05) staan daar in §3.
+> spec van 2026-08-18). Gebouwd op PR #101 en als PR #170 (overname op de rekenprofielen-kop)
+> naar `main` gemerged. De gids `gids-taaktypes` bestaat in nl+en; de twaalf vertalingen volgen in
+> de maandelijkse ronde. Eigenaarsbesluiten 1–10 staan in spec §3.
 
-- [x] **Duurbewerking op een taak met expliciete `remainingTime`/`remainingMinutes` — besloten
-      2026-09-05:** de rest schuift mee met Δ, geklemd op 0; `completion` volgt daaruit (besluit
-      2026-09-06, optie a — `syncCompletionToRemaining`; `carryRemainingThroughDurationEdit`,
-      store/raster/MCP). Bron: Microsoft [M5].
-- [x] **Kalenderwissel op een taak met vastgelegd werk (K2) — besloten 2026-09-05:** een kalenderwissel
-      verandert de slotgrootte en daarna beslist de werkregel (Vast werk/Vaste inzet ⇒ duur; Vaste
-      duur en werk ⇒ inzet; standaard ⇒ werk volgt, byte-identiek). Gebouwd (spec §6.4, meetlat
-      32–34, `settleCalendarChange`); melding bij een project-/kalenderwijziging die duren verandert.
 - [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
       en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen
       op een taak met ingevoerde resterende duur" en noteert de uren.
@@ -425,10 +266,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       krijgt; tot dan volgt de werkregel daar niet. Daarnaast (G10): `updateCalendar`/
       `setProjectCalendar` wissen het Z8-venster alleen wanneer de regel de duur wijzigt, terwijl
       `setTaskCalendar` dat bij elke kalenderwissel doet — zelfde trigger, ander gedrag.
-- [x] **`completion` ↔ expliciete rest (review F4) — besloten 2026-09-06, optie a:** zodra de brug de
-      rest expliciet schrijft (Δ-regel én kalenderwissel) wordt `completion` herrekend als
-      1 − rest ÷ duur, dezelfde formule als een restbewerking in het raster; Gantt-balk, solver en
-      rapportage delen daarmee één waarheid (spec §6.5, laatste punt; `syncCompletionToRemaining`).
 - [ ] **Crashherstel ontsluit zonder melding (review K2, 2026-09-05).** `restoreDocuments` leidt
       `taskTypesVisible` correct af (`payloadFromImport`) maar loopt niet langs `applyLoadedProject`,
       waar de eenmalige melding zit — na herstel verschijnen de bedieningselementen zonder uitleg.
@@ -436,17 +273,6 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       `restoreDocuments` andere laadmeldingen krijgt.
 - [ ] **Werkinvoer ≤ 0 in het paneel weigert stil** (review K6a): rode rand via `aria-invalid`, geen
       melding — zelfde conventie als de inzetinvoer (`isValidUnits`).
-- [x] **B1c-koppelpunt — gedaan 2026-09-24 (baan 2 van de overname van PR #101).** Een duur uit de
-      werkdriehoek (inzet/werk/resource erbij-eraf onder Vast werk/Vaste inzet — store, raster, MCP)
-      loopt door `workRuleApply.ts`'s `settleDurationAftermath`, en die wist nu ook de nivelleergaten
-      (`clearLevelingGaps`) en herleidt daarna het ingevoerde einde van een niet-gestarte urentaak
-      (`reconcileHourInputFinish`, B1) — met de basis van vóór de bewerking als verplichte parameter.
-      Regressie: `check-hour-input-finish.ts` §17 en `check-work-rule-store.ts` (s).
-
-- [x] **Beslispunten 8–10 genomen (2026-09-05)**, vastgelegd in spec §3.3: 8 = optie B (vier types in
-      het menu, bewaard `effortDriven` stuurt alleen de twee MSP-afwijkende cellen); 9 = drie optionele
-      werkvelden per toewijzing; 10 = de vereenvoudiging "elke toewijzing loopt over de hele restduur"
-      is voor deze etappe geaccepteerd — zie het vervolgpunt hieronder.
 - [ ] **Per-toewijzing-spanne (vervolg op beslispunt 10).** MS Project en P6 laten de ene resource op
       een taak eerder klaar zijn dan de andere; OPS laat elke toewijzing over de hele restduur lopen
       (spec §6.2: verhoog je op een vast-werk-taak de inzet van één resource, dan wordt de taak korter
@@ -473,24 +299,16 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 - [ ] **Uur-modus-dagslot is een benadering.** De engine deelt de as in slots van `hoursPerDay × 60`;
       een werkdag met afwijkende bandlengte (korte vrijdag) telt daardoor als een deel-slot — dezelfde
       benadering als `enumerateTaskWorkDays`, dus consistent, maar geen echte per-dag-bandtelling.
-- [ ] **XER-opgeslagen werk (`target_qty`/`remain_qty`/`act_reg_qty`) blijft bewust in het
-      bronarchief.** Geen nieuw modelveld vanuit XER deze etappe — de taaktypes-etappe definieert het
-      eersteklasveld op `ResourceAssignment`; XER zet het pas dán over, en uitsluitend wanneer
-      `target_qty` afwijkt van `target_drtn_hr_cnt × target_qty_per_hr` (anders blijft het veld
-      afwezig, byte-identiek). Meetlatbestanden: `HarbourPointe_AssistedLiving` (98 afwijkende rijen,
-      factor 3), `Harbour Point DCP-03` (factor 4; `remain_qty` zonder resttarief), `p6_torture_test_v1`
-      (duur 0 met werk); resttarief wijkt in `rehab-2` in 27,5% van de rijen af.
 
 ### Resourcekalender-semantiek — taak volgt resourcekalender als keuze (besluit eigenaar 2026-09-04)
-- [ ] **Overallocatie op een vrije dag van de resource is bewust gedrag, geen bug** (`ResourceLoad.ts`
-  §4: capaciteit 0 op niet-werkdagen van de resourcekalender). Dat is de P6-"Task Dependent"-semantiek;
-  MS Project en P6-"Resource Dependent" plannen de taak juist op de kalender van de toegewezen resource,
-  zodat het conflict nooit ontstaat. Besluit 2026-09-04: (1) nú alleen uitleggen — histogram en
-  waarschuwingenpaneel zeggen erbij dat de resource die dag volgens zijn kalender niet werkt
-  (werkblok R1); (2) láter een echt ontwerp voor "taak volgt resourcekalender" als opt-in per taak of
-  per project, in lijn met de opt-in-richting voor taaktypen/effort-driven. Raakt de CPM-motor en moet
-  tegen de `.mpp`-fidelity-poort gemeten worden (MSP-bestanden hebben die semantiek al in hun
-  opgeslagen datums). Bewust NIET gekozen: nivelleren als oplossing — dat is een pleister op een
+- [ ] **"Taak volgt resourcekalender" als opt-in** (besluit eigenaar 2026-09-04, deel 2). Overallocatie
+  op een vrije dag van de resource is bewust gedrag (`ResourceLoad.ts` §4: capaciteit 0 op niet-werkdagen
+  van de resourcekalender; P6-"Task Dependent"-semantiek). Deel 1 (uitleggen) is gebouwd: het
+  waarschuwingenpaneel (`warnings.kind.overallocationNonWorkingDay`) en de histogram-tooltip
+  (`describeNonWorkingDay`) zeggen dat de resource die dag volgens zijn kalender niet werkt. Rest: een
+  echt ontwerp voor MS Project-/P6-"Resource Dependent"-gedrag als opt-in per taak of per project, in
+  lijn met de opt-in-richting voor taaktypen. Raakt de CPM-motor en moet tegen de `.mpp`-fidelity-poort
+  gemeten worden. Bewust NIET gekozen: nivelleren als oplossing — dat is een pleister op een
   kalendermismatch, geen capaciteitsconflict.
 
 ### Solver/presentatie — resterende punten (2026-07-20)
@@ -509,16 +327,14 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 > forward-uitdrukking leveren dezelfde instant en er valt niets te spiegelen. Empirisch bevestigd:
 > alle varianten met vlaggen geven niet-negatieve float. **Niet opnieuw onderzoeken.**
 
-- [ ] **Anker versus berekend: `scheduleStart` als datamodel-vraag.** Het paneelveld is op
-      2026-07-20 gelijkgetrokken met de vier andere oppervlakken (toont `earlyStart || scheduleStart`,
-      schrijft bij wijziging naar het anker), maar de onderliggende modellering blijft verwarrend: in
-      de tabel typ je een datum die naar `scheduleStart` gaat terwijl de cel daarna de berekende
-      datum toont — je invoer *lijkt* genegeerd. Nette oplossing = het anker alleen bewaren bij taken
-      zonder voorgangers, óf het als apart "Plan"-veld benoemen en overal consistent labelen
-      ("Anker" vs "Berekend"). Raakt store, IFC-round-trip, taakraster (`FullTaskGrid`), `TaskDialog`,
-      paneel, `check-ifc-roundtrip.ts` en i18n — eigen golf. Let op het regressierisico dat in
-      `src/state/slices/scheduleSlice.ts:96-100` beschreven staat (taak blijft op zijn gedrifte
-      datum hangen na het verwijderen van een relatie).
+- [ ] **Anker versus berekend: `scheduleStart` als datamodel-vraag.** Het symptoom "je getypte start
+      lijkt genegeerd" is voor taken mét voorganger opgelost in #231 (een getypte of gesleepte start
+      wordt "Start niet eerder dan", `src/engine/startEditConstraint.ts`). Wat blijft is de
+      modellering: het anker `scheduleStart` naast de berekende start, zonder consistente labels
+      ("Anker" vs "Berekend") over tabel, `TaskDialog` en paneel. Nette oplossing = het anker alleen
+      bewaren bij taken zonder voorgangers, óf het als apart "Plan"-veld benoemen. Raakt store,
+      IFC-round-trip, taakraster (`FullTaskGrid`), `TaskDialog`, paneel, `check-ifc-roundtrip.ts` en
+      i18n — eigen golf.
 
 ### Samenvattingsrelatie-propagatie — resterende punten (CPM-review, 2026-08-15)
 
@@ -545,14 +361,11 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       sterk uiteenlopende duren geeft dat per gegenereerde bladrelatie een andere absolute lag.
       Corpusincidentie (Bijlage 13): 0 (geen van de samenvatting-relaties heeft `lagPercent`). Zou
       dezelfde "samenvatting als solver-knoop"-golf als het vorige punt vergen om goed op te lossen.
-- [ ] **`droppedSequenceIds` heeft nul consumenten** (I4). `CPMResult.droppedSequenceIds` (489a9ef2
-      + de expansie-drops uit C1/de MAX_EXPANDED_RELATIONS-klem) wordt nergens in de UI of MCP
-      getoond — een gebruiker met een gedropte relatie (kapotte tak, vooroudersrelatie, klem) ziet
-      dat nergens terug. Kandidaat-aansluitpunten: een badge naast de bestaande out-of-sequence-
-      teller in `StatusBar.tsx` (zelfde `⚠`-patroon, `cpmResult.outOfSequenceSequenceIds`), en/of
-      opname in `get_project_overview`/vergelijkbare MCP-leestools (`src/services/mcp/tools/
-      readTools.ts`) zodat een AI-assistent het kan zien en melden. Geen UI-werk nu — bewust
-      doorgeschoven, dit is puur zichtbaarheid, geen correctheidsgat.
+- [ ] **`droppedSequenceIds` is niet zichtbaar via MCP** (I4). In de UI wel: het waarschuwingenpaneel
+      (`collectScheduleWarnings`, soort `droppedSequence`) en het Relaties-paneel (`relationIndex.ts`)
+      tonen gedropte relaties. De MCP-leestools (`src/services/mcp/tools/readTools.ts`, bv.
+      `planner_get_project_overview`) noemen ze niet, dus een AI-assistent ziet een gedropte relatie
+      (kapotte tak, vooroudersrelatie, `MAX_EXPANDED_RELATIONS`-klem) niet en kan hem niet melden.
 
 ### Verticaal slepen aan de Gantt-balk — resterende punten (hyperkritische review 2026-09-15)
 
@@ -603,52 +416,16 @@ importgrens). Deze drie zijn bewust blijven liggen.
       praktijk zeldzaam — het is een gratis extra drempel bovenop `ROW_DRAG_THRESHOLD`.
 
 ### Klein
-- [x] **`project.endDate` overleeft opslaan + herladen niet.** *(gefixt 2026-07-20)* `ifcWriter` schrijft
-      `planEnd = max(scheduleFinish)` en gebruikt `project.endDate` alleen als fallback bij nul
-      taken; de reader leest dat terug ín `project.endDate`. Elke ingevulde contractuele einddatum
-      gaat dus verloren bij een round-trip — los van Move Project, dat het veld correct meeschuift.
-      Het huidige gedrag is met toelichting vastgelegd in `check-move-project.ts` (check 151), zodat
-      een fix die check rood maakt.
-      **Aanpak (besloten 2026-07-20):** contractuele datums krijgen eigen persistentie in het
-      `OPS_ProjectSettings`-pset (precedent: `wbsAutoNumber` en de statusdatum zitten daar al, met een
-      gedocumenteerde reden in `ifcWriter.ts` ~regel 308). `IFCWORKPLAN.StartTime/FinishTime` blijven
-      ongewijzigd de *afgeleide* plan-omvang dragen — dat is semantisch juist en andere IFC-tools
-      lezen die slots. Lezer: pset wint, anders terugvallen op het WORKPLAN-slot, zodat bestaande
-      bestanden zich exact als vandaag gedragen.
-      **Twee valkuilen die de fix moet afdekken:**
-      (1) Een lege `endDate` moet léég terugkomen. De golden rule van dat pset (alleen schrijven wat
-      gezet is) zou bij `''` niets wegschrijven, waarna de lezer terugvalt op het WORKPLAN-slot en de
-      afgeleide datum alsnog invult — dezelfde bug, verplaatst naar het lege geval. De lezer moet
-      "veld aanwezig maar leeg" van "veld afwezig" kunnen onderscheiden.
-      (2) **`check-ifc-roundtrip.ts` geeft hier valse zekerheid.** Regel ~377 vergelijkt
-      `project.startDate`/`endDate` wél, maar de fixture heeft `endDate: '2026-07-24'` (regel ~257)
-      terwijl de laatste taak op diezelfde datum eindigt (regel ~184) — afgeleid en contractueel
-      vallen samen, dus het verlies is per constructie onzichtbaar en de check passeert zonder iets
-      te bewijzen. De fixture moet contractuele datums krijgen die expliciet afwijken van de
-      taak-span, anders bewijst ook de fix niets.
-      **Uitgevoerd 2026-07-20** volgens bovenstaande aanpak. Beide valkuilen afgedekt: de lege
-      einddatum wordt als NominalValue `$` geschreven ("aanwezig maar leeg") zodat de lezer hem van
-      een afwezig veld kan onderscheiden, en de round-trip-fixture heeft nu contractuele datums los
-      van de taak-span. De gap is uit KNOWN_GAPS naar de echte vergelijking verhuisd en check 151
-      legt het juiste gedrag vast. Rood/groen bewezen; live in de devbuild bevestigd.
-      Restpunt: `public/examples/*.ifc` zijn niet geregenereerd en bevatten de nieuwe
-      pset-properties dus nog niet — onschadelijk (ze lezen via de WORKPLAN-terugval), maar bij een
-      volgende `gen:examples`-run komen ze er vanzelf bij.
 - [ ] **Mijlpaal horizontaal verslepen om de datum te wijzigen.** Nu geblokkeerd door dezelfde
       `getTaskBarBounds`-null die het relatie-tekenen blokkeerde (opgelost in spec 2026-08-14). Raakt
       `barDrag`: bij een 0-duurtaak mag alleen een body-sleep armen, nooit een resize-greep, en
       snapping/undo/uur-modus moeten kloppen.
-- [ ] **`useDependencyDraw.ts` toetst de drop-x tegen `ui.leftPanelWidth`, terwijl de overige
-      canvas-hittests `taskTableWidth` gebruiken.** Uitzoeken of dat een bug is.
-- [ ] **Het taakbewerkvenster met de uren-velden (`Duur (uren)`/`Totaal uren`) is alleen via
-      dubbelklik op de canvas-Gantt-balk bereikbaar** en dupliceert daarbij het rechter
-      eigenschappenpaneel met net andere labels. Gemeten tijdens een browsergebruikstest van de
-      urenplanning (2026-08-15): het paneel toont `Duur (dagen)`, de dialoog (`TaskDialog`, via de
-      gedeelde `task-sections`) toont `Duur (werkdagen)` voor hetzelfde veld — twee ingangen naar
-      dezelfde taakvelden met net iets andere bewoording, en de dialoog is niet vanuit het paneel
-      of het lint te openen. Op te lossen: óf één consistente labelset over beide oppervlakken,
-      óf de dialoog ook vanuit een expliciete actie (contextmenu/lint) bereikbaar maken i.p.v.
-      alleen via dubbelklik op de balk.
+- [ ] **Taakbewerkvenster en eigenschappenpaneel labelen hetzelfde duurveld verschillend:** het paneel
+      toont `Duur (dagen)` (`task:properties.duration`), de dialoog (`TaskDialog`, via de gedeelde
+      `task-sections`) `Duur (werkdagen)` (`task:dialog.duration`). Gemeten in een browsergebruikstest
+      van de urenplanning (2026-08-15). De dialoog is inmiddels ook via het contextmenu en F2
+      (`edit.editTask`) bereikbaar; wat rest is één consistente labelset over beide oppervlakken.
+
 ### Klein — bulk-mutaties: tweede kwadratische factor (2026-07-29)
 - [ ] **`applyWbsNumbering` + `recomputeViewRows` draaien per mutatie.** `withTransaction`
       (K-item 32) haalde de snapshot-kant eruit: bij 600 `addTask`-aanroepen ging het van
@@ -809,27 +586,6 @@ daar is de bron-assert de enige bewaking. Dat staat ook zo in de kop van die bat
       invoegen) daar echt binnen trekken.
 - [ ] De grens van 5000 publiceren zodra de bulk-paden ook goed zijn.
 
-### Store-factory: wat er ná K-item 41 nog tussen twee instanties gedeeld is (2026-08-17)
-
-`createAppStore()` bestaat, de singleton wordt eruit gebouwd, en twee instanties hebben elk hun eigen
-project, taken, resources, selectie en undo/redo-stacks. Wat er nog aan de singleton of aan
-module-state hangt — en dus GEDEELD is — staat vastgepind in `tests/planning/check-store-factory.ts`
-deel 4. In volgorde van hoe hard het split-view blokkeert:
-
-- [ ] **`withTransaction` importeert `useAppStore` rechtstreeks** (`batchTransaction.ts`). Een bulk op
-      instantie B neemt zijn snapshot op de SINGLETON. Zelfde verhaal voor `runInMcpTransaction`
-      (`mcpTransaction.ts`, tien aanroepen). Beide moeten de store als parameter krijgen.
-- [ ] **De batch-diepte, de undo-coalescing en de MCP-suppressie zijn module-variabelen**
-      (`transaction.ts`: `batchDepth`, `coalesce`, `undoSeq`, `mcpTransactionActive`). Twee
-      instanties delen die teller, dus een bulk op A onderdrukt de per-mutatie-snapshots van B. De
-      kop van die module beargumenteert waarom ze niet in het DOCUMENTCONTRACT horen — dat argument
-      staat nog, maar het sluit niet uit dat ze per STORE moeten leven.
-- [ ] **De app-globale registers** (extensies, MCP-server, SDK, bibliotheek-persistentie) kennen maar
-      één store. Deels bewust — een extensie hoort niet per venster te bestaan — maar er is niet
-      uitgezocht welk deel wél per instantie moet.
-- [ ] Pas als die drie opgelost zijn kan split-view met twee documenten hierop leunen. Haal dan de
-      vastpinningen in deel 4 van de batterij weg en werk de kop van `createAppStore` bij.
-
 ### Klein — de tijdlijn-kopstrook van de afdruk is niet dezelfde als die van het scherm (2026-08-17)
 - [ ] **De afdruk tekent een vaste maand/week/dag-kopstrook; het scherm kiest zijn niveaus met
       `pickTiers`/`TIER_CONFIG` uit `engine/renderer/timelineTiers.ts`.** K-item 39 noemt dat
@@ -840,23 +596,6 @@ deel 4. In volgorde van hoe hard het split-view blokkeert:
       dagen vrij zijn — zijn in K-item 39 rechtgezet en met `check-print-screen-parity.ts` afgedekt.
       *Eerst beslissen:* moet de afdruk meeschalen met de zoom zoals het scherm, of blijft de vaste
       maand/week/dag-strook de bedoeling? Pas daarna bouwen.
-
-### Klein — de indirecte route naar een spookrelatie is volledig stil (2026-08-14)
-- [ ] **Structuurmutaties kunnen een bladtaak-met-relaties tot verzameltaak maken zonder enig
-      signaal.** De mijlpaal-relaties-tak (`docs/superpowers/specs/2026-08-14-mijlpaal-relaties-
-      design.md`, §5a) blokkeert alleen het *directe* pad — een relatie rechtstreeks naar een
-      verzameltaak leggen — met een leesbare weigering. Het *indirecte* pad via `indentTasks`,
-      `moveTaskTo`, `addTask({ parentId })` en `insertWbsTemplate` is stil: een project met A→B
-      waar de gebruiker C onder B inspringt, maakt A→B met terugwerkende kracht tot spookrelatie.
-      De Gantt tekent de pijl identiek, er komt geen melding, en F5 verschuift de planning zonder
-      uitleg. De enige aanwijzing is het waarschuwingsdriehoekje in het Relaties-paneel (niet
-      standaard open, visueel niet te onderscheiden van de bestaande lead-waarschuwingen daar).
-      MCP meldt hier ook niets: `planner_add_tasks` met een `parentId` maakt de spookrelaties
-      zonder een woord, en de leestools melden per relatie nergens "zonder effect".
-      *Kandidaat-aanpak:* dezelfde samenvattende melding als na het laden (`notifications.
-      summaryRelationsIgnored`) afvuren wanneer een structuurmutatie relaties zonder effect maakt,
-      óf de spookpijl in de Gantt gestippeld/gedimd tekenen zodra `hasSummaryEndpoint` waar is.
-      Gevonden bij de eindreview op die tak.
 
 ### Distributie & Release
 
@@ -883,37 +622,8 @@ leiden. Zolang ze leeg zijn is dat document een inventarisatie en géén herstel
 Het migratiepad voor de sleutel staat al uitgeschreven in `docs/release-secrets.md` §2 —
 met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog is.
 
-#### Snap-packaging — follow-ups
-Snap-packaging is werkend en zit op `main` (zie changelog +
-[ontwerp](superpowers/specs/2026-06-26-snap-packaging-design.md)): `snap/snapcraft.yaml`
-(core22, strict, gnome-extensie) herverpakt de release-deb, en `snap.yml` bouwt op
-tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-run tegen
-`v2026.6.0` (groene build, geldig `.snap`, WebKitGTK uit de gnome-runtime). Wat rest:
-
-### Distributie & Release — release notes in de in-app updater
-
 ### Kwaliteit & verificatie
 
-- [x] **De per-cel-poort `cellTransitions.previouslyExact` meet sinds de X12-v2-meetlat niets meer**
-  — HERSTELD 2026-09-07 (etappe X12, herpin): v1 heeft zijn eigen bestand terug
-  (`xer-product-fidelity-baseline.json`, twee openbare corpusbestanden), de harness geeft
-  `progressMode`/`schedulingOptions` weer door en de overgangshistorie is herstart vanaf de huidige
-  exacte set (44+16 cellen, 0 verbeteringen; zie de `reason`-velden). De poort meet weer: een cel
-  die exact was en fout wordt, is op die twee bestanden mechanisch rood. Voor de overige 32 entries
-  blijft de v2-karakterisering (`check-xer-corpusless-fidelity-gate.ts`, in-bron pin per as) de
-  enige bewaking — per as, niet per cel.
-- [x] **XER: projecteinde valt terug op de projectSTART bij `sched_use_project_end_date_for_float=Y`
-  zonder `plan_end_date`** — in twee stappen opgelost. (1) X12-brok 1 (2026-09-23, branch
-  `claude/x12-brok1-projecteinde`): zonder bruikbaar einde (`plan_end_date` leeg én geen enkele
-  `target_end_date`) zet `deriveXerScheduleOptions` de optie gerapporteerd uit (`hasUsableProjectEnd`,
-  terugvalmelding); `cases-import.xer` 77/160 → 156/160 (sectie 7 van `check-p6-verified-cases-engine.ts`).
-  (2) Eigenaarsbesluit 2026-09-24 "eigen PR" (Fable-critreview PR #109 bevinding 2), gemerged in de
-  rekenprofielen-etappe 2026-09-25: bij `Y` zonder `plan_end_date` laat de lezer `project.endDate` leeg in
-  plaats van het taak-afgeleide einde te verzinnen, de optie blijft aan, en `withEffectiveProjectEndAnchor`
-  (CPMSolver) laat de solver exact op het netwerkeinde rekenen; corpusloos bewaakt in `check-xer-reader.ts`
-  13c–13g. Meting: op de #169-kop 0 cellen verschil (76/0/0/0); op de oude #109-basis 149 cellen slechter
-  omdat het verzonnen anker daar een fout aan de vroege kant maskeerde — daarom niet los op #109 geland.
-  Oorspronkelijke registratie: her-review 7a, 2026-09-07.
 - [ ] **Meetlat per formaat (nul afwijkingen zoals XER §1), als aparte etappe ná de
   etappe "datums zoals opgeslagen voor alle formaten"** (eigenaarsbesluit 2026-09-09, optie 3;
   die etappe zelf wordt gebouwd en staat daarom niet hier maar in plan §10.f). Nu: alleen XER (93 bestanden,
@@ -1123,8 +833,7 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > lag-kalender-optie (P6's "Calendar for scheduling Relationship Lag") is fase 2.9; sub-dag
 > resource-nivellering (per-uur/per-shift capaciteits-emmers) blijft dag-emmer-gebaseerd;
 > tijdzone/DST-bewuste scheduling; per-rij Gantt-arcering op afwijkende taak-kalenders.
-> **Status: gemerged op main (golven 0-6, sinds 2026-07-06); visuele QA en fix-golf lopen nog.
-> CHANGELOG-note staat onder `Ongepubliceerd` in afwachting van het versionslag.**
+> **Status: uitgebracht in v2026.7.7** (zie `docs/CHANGELOG.md`).
 
 #### 2.9 Geavanceerde CPM
 
@@ -1151,8 +860,7 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > solve (vergt store-singleton-refactor); Expected-Finish-constraint; independent float; de
 > spec-conforme `IfcRelAssociatesConstraint`-graf; sub-shift-nivellering van hammocks; native
 > P6/MSPDI LOE/external round-trip waar de veldcodes UNVERIFIED zijn.
-> **Status: gemerged op main (fase-2.9-branch, merge f79ae82 — 9 golven + QA + fix-golven);
-> CHANGELOG-note staat onder `Ongepubliceerd` in afwachting van het versionslag.**
+> **Status: uitgebracht in v2026.7.8** (zie `docs/CHANGELOG.md`).
 
 #### 2.10 Gebruikersdocumentatie & showcase-voorbeelden (afsluiter van fase 2)
 
@@ -1163,7 +871,7 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 > 3 woningbouw-showcases klein/middel/groot (generator-schema uitgebreid; `verify:examples` als levend
 > contract), en volledige in-app-documentatie NL+EN (25 artikelen, F1/Backstage-viewer, `verify:docs`).
 > Zie changelog, de specs in `superpowers/specs/2026-07-07-2.10-*` en de git-historie van `fase-2.10`.
-> Bewust doorgeschoven: drag-and-drop toewijzing-verplaatsen; sneltoets-herbinden; 12 extra doc-talen.
+> Bewust doorgeschoven: drag-and-drop toewijzing-verplaatsen; sneltoets-herbinden.
 
 ### Fase 3 — Bouwsector & Nederlandse Features (v1.0)
 
@@ -1233,7 +941,6 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 #### 3.7 Bouwspecifieke features
 - [ ] Weercondities per taak (buitenwerk/binnenwerk markering)
 - [ ] Inspectiemomenten als verplichte mijlpalen met checklijst
-- [ ] Fasering-templates (fundering, ruwbouw, afbouw, installatie, oplevering)
 - [ ] Seizoensgebonden restricties (geen buitenwerk in winter)
 - [ ] Kraanplanning (beschikbaarheid, capaciteit)
 - [ ] Bouwplaatsinrichting-milestones
@@ -1241,28 +948,9 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 #### 3.8 Import/export
 > Zie ook GitHub-issue #17 (DutchSailor, 2026-07-06): onderbouwd formaten-voorstel met NL-marktanalyse
 > ("6+2"-lijst). Kern klopt met onze richting; prioriteiten hieronder daarop aangescherpt.
-- [ ] **Primavera XER import/export** — tekstformaat, native in TS haalbaar (geen JVM); samen met ons
-  bestaande PMXML dekt dit de P6-wereld. Hoogste interop-prioriteit na fase 2 (issue #17).
+- [ ] **Primavera XER export** — de XER-import bestaat (PR #109, `src/services/xer/`); een XER-schrijver
+  niet (export naar P6 loopt via P6-XML, met verliesmelding `xerExportLoss.ts`). Issue #17.
 - [ ] **iCalendar (.ics) export** — mijlpalen/deadlines naar agenda-apps; goedkoop, hoge waarde (issue #17).
-- [x] **MS Project MPP import (alleen-lezen)** — sinds fase 3.8 etappe 1 native in TS (MPP14 =
-  Project 2010 t/m 2021; `src/services/mpp/`, afgeleid van de MPXJ-bronnen, LGPL). **Besluit
-  herzien 2026-08-14:** de triage van 2026-07-07 ("realistisch alleen via MPXJ/JVM") rustte op de
-  premisse dat een native lezer onhaalbaar was; corpusonderzoek (2026-08-14, 52 bestanden uit
-  Project 2010–2021) toonde één stabiel, onversleuteld MPP14-containerformaat — native in de kern
-  is dus de lichtste route en de JVM-sidecar vervalt voor dit doel. Wachtwoord-versleutelde
-  bestanden en MPP8/9/12 geven een nette "exporteer als XML"-fout. Er bestaat geen .mpp-EXPORT
-  (ook MPXJ schrijft het niet): de export-tegenhanger blijft MSPDI-XML.
-- [x] **MPP-resourcetype "afwijking" bij Bijlage 13 — vindbaarheids-item, GEEN bug (T11-eindreview).**
-  6 van de 8 niet-plaatshouderresources in 'Bijlage 13 Productieplanning.mpp' lezen als MATERIAL
-  waar de MSPDI-ground-truth ze als Work (LABOR) toont; gepind als budget
-  (`RESOURCE_TYPE_MISMATCH_BUDGET` in `tests/planning/check-mpp-relations.ts`, rond r. 799). Matcht
-  MPXJ's eigen bit-voor-bit-uitkomst exact (dus geen leesfout van de poort) en volgt hetzelfde
-  documentversieverschil-patroon als de taak-/kalendervergelijkingen elders in de mpp-checks (zie
-  de moduleheader van `check-mpp-import.ts`: de drie `.mpp.xml`-ground-truths zijn een ANDERE
-  documentrevisie dan de bijbehorende `.mpp`'s). Een onafhankelijke probe bevestigde bovendien dat
-  de `.mpp`-lezing hier de semantisch plausibele indeling geeft en de XML-revisie de uitzondering
-  is. Geen actie nodig aan de lezer — genoteerd zodat een toekomstige lezer dit niet als regressie
-  herontdekt.
 - [ ] **MPP-vervolgetappes (user-wens 2026-08-15: de bewuste beperkingen van etappe 1 zijn geen
   eindstation — "als we hier een keer genoeg tokens tegenaan gooien dan lukt het wel").** In
   oplopende moeilijkheidsgraad:
@@ -1270,14 +958,6 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
     `FieldMap14.java`; onze data-gedreven veldmap-parser (`fieldMap14.ts`) hoeft alleen extra
     veld-ids te leren. Meest haalbare uitbreiding; ground truth voor baselines ligt klaar in
     `mpxj/junit/data/generated/task-baselines/`.
-  - [x] **Recurrente kalenderuitzonderingen materialiseren** *(afgerond fase 3.8, MSP-pariteit T3/T4,
-    2026-08-17)* (jaarlijks Kerst e.d. mét herhaalregel) — alle vier recurrentietypes (WEEKLY/
-    MONTHLY/YEARLY/DAILY × absoluut/relatief) worden nu geëxpandeerd naar concrete datums binnen de
-    projecthorizon, in zowel `.mpp` (`mppCalendars.ts`) als MSPDI (`mspdiReader.ts`) — inclusief
-    werkende uitzonderingen en de precedentieregels tussen overlappende recurrente reeksen. Werkweken
-    (`processWorkWeeks`, alternatieve weekpatronen per datumbereik) blijven een apart, bewust
-    ongebouwd gat (O5-orkestratorbesluit: de probe verklaarde geen afwijkingen) — gedocumenteerd als
-    bekende beperking in `gids-msproject-import.md` (nl+en), geen los TODO-item.
   - [ ] **MPP9/12 native lezen** (Project 2000-2007) — zelfde containerformaat, andere veldmaps:
     `MPP9Reader.java`/`MPP12Reader.java` + `FieldMap9/12` porten op de bestaande
     CFB/primitieven-laag; de XOR-decodering uit `DocumentInputStreamFactory.java` (simpel:
@@ -1298,7 +978,6 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Primavera XML (PMXML) import/export — bestaat sinds fase 2 (P6 XML round-trip, sinds v2026.7.7
   minuut-precies); dit punt is de restcontrole dat we P6's PMXML-dialectvarianten breed genoeg dekken.
 - [ ] SVG-export van Gantt (PNG bestaat al)
-- [ ] Clipboard-ondersteuning (kopieer taken naar Excel)
 - [ ] MSPDI native `<Notes>`-mapping voor taak-aantekeningen (fase 2.10, item 1) — momenteel
   bewust weggelaten-met-warn (lossy voor onze checklist-vorm met done-vlaggen + parse-
   complexiteit); IFC blijft de verliesloze route (`OPS_TaskNotes`-pset).
@@ -1306,11 +985,8 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 #### 3.9 Rapportage
 - [ ] Afdrukken naar printer (multi-page)
 - [ ] Rapport-wizard (kies inhoud, layout, filters)
-- [ ] Standaard rapporten: taaklijst, kritiek pad, resources, voortgang
 - [ ] Custom rapporten (kies velden, groepering, filters)
 - [ ] Grafische rapporten (histogrammen, pie charts)
-- [ ] Look-ahead rapport (komende 3/6/8 weken)
-- [ ] Voortgangsrapport (per periode)
 - [ ] Executive dashboard (samenvatting op 1 pagina)
 - [ ] Opleverpuntenlijst
 - [ ] Kostenrapport
@@ -1368,8 +1044,8 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 ### Fase 5 — AI, Automatisering & Integratie (v3.0)
 
 #### 5.1 MCP-server (AI-integratie)
-- [ ] MCP-server voor Claude en andere AI-assistenten
-- [ ] Alle planning-operaties als MCP tools (zie PLAN.md §5.2 tool-lijst)
+- [ ] MCP-tools voor de nog niet gebouwde functies uit PLAN.md §5.2 (`get_ppc`, `run_monte_carlo`,
+  `suggest_optimization`); de rest van die lijst bestaat als de 42 `planner_*`-tools in `src/services/mcp/tools/`
 - [ ] Natural language planning ("maak fundering in week 10, 3 dagen, 2 timmerlieden")
 - [ ] AI-gestuurde planning suggesties
 - [ ] AI risico-analyse
@@ -1393,7 +1069,6 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 - [ ] Batch-updates (bulk wijzigingen)
 - [ ] Automatische resource-toewijzing (AI-gestuurd)
 - [ ] Templates met parametrisering (bijv. "woning, 3 verdiepingen, met kelder")
-- [ ] Planning-validatie regels (check op ontbrekende dependencies)
 
 #### 5.5 Externe integraties
 - [ ] BIM Collaboration Format (BCF) import/export
@@ -1434,9 +1109,8 @@ tag-push de `.snap` als release-asset. Geverifieerd via een `workflow_dispatch`-
 #### 6.4 Enterprise features
 - [ ] Single Sign-On (SSO) / SAML / OAuth2
 - [ ] LDAP/Active Directory integratie
-- [ ] Multi-project resource pool
 - [ ] Portfolio-management (overzicht alle projecten)
-- [ ] Cross-project dependencies
+- [ ] Live cross-project dependencies (bevroren externe ankers bestaan sinds §2.9)
 - [ ] Organisatie-breed dashboard
 - [ ] Capaciteitsplanning (organisatie-niveau)
 - [ ] Compliance-rapportage (BRL, Wkb, VOB/B)

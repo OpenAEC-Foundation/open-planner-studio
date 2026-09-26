@@ -1,6 +1,6 @@
 /**
  * CRC-32 (IEEE 802.3), de checksum die elke ZIP-entry in zijn local header én in de central
- * directory draagt. Er stond nog geen CRC-32 in `src/`.
+ * directory draagt.
  *
  * Puur en zonder state: de tabel hieronder is een eenmalig afgeleide lookup-tabel (een constante,
  * geen cache — er wordt nooit iets in bijgewerkt), zodat `crc32` zelf een gewone functie blijft.

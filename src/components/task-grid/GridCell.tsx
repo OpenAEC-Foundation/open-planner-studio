@@ -39,7 +39,7 @@ export function GridCell({
     registerCell(cell, node);
   }, [cell, registerCell]);
   const pinned = column.pinned && stickyEnabled && pinnedLeft !== undefined;
-  // Issue #89: een celwaarde die de zichtbare tekst alleen maar herhaalt is pas een tooltip
+  // Een celwaarde die de zichtbare tekst alleen maar herhaalt is pas een tooltip
   // wanneer de cel hem afknipt. Dat is uitsluitend bij de muis te meten (scrollWidth vs.
   // clientWidth), dus de native title wordt bij binnenkomst van de muis bepaald — ruim vóór de
   // hover-vertraging waarmee de browser hem toont. Kolomuitleg en een waarde die méér zegt dan de

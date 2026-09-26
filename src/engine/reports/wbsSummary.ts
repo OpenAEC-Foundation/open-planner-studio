@@ -9,11 +9,11 @@ import {
 } from './reportCommon';
 
 /**
- * WBS-/projectsamenvatting (discussie #31, rapport 10): de planning opgerold per WBS-element tot
+ * WBS-/projectsamenvatting: de planning opgerold per WBS-element tot
  * een instelbaar niveau — het managementoverzicht.
  *
- * Aggregatieregels (zoals het voorstel, met de duurgewogen voortgang als enige methode — de
- * alternatieven daar (resource-/kostgewogen) vragen data die dit project niet per taak heeft):
+ * Aggregatieregels (met de duurgewogen voortgang als enige methode — resource-/kostgewogen vraagt
+ * data die dit project niet per taak heeft):
  * - start/einde van een verzameltaak: de rollup uit de laatste berekening (min/max over de
  *   kinderen, `applyCpmResult`), dus identiek aan wat de Gantt toont;
  * - baseline-start/-einde: min/max over de nakomelingen in de actieve baseline;

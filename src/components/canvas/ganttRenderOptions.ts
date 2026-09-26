@@ -1,22 +1,17 @@
-// Pure afleidingen achter de Gantt-weergave (K-item 33).
-//
-// Waarom dit bestand bestaat: alles hieronder woonde als `useMemo`-body in `GanttCanvas.tsx`. Dat
-// zijn gewone berekeningen — geen DOM, geen React, geen store — maar zolang ze in een component
-// zitten waarvan de enige uitvoer een beschilderd `<canvas>` is, zijn ze alleen te controleren door
-// de app te starten en te kijken. De bestaande renderer-tests helpen daar niet: die bouwen hun
-// `GanttRenderOptions` MET DE HAND op en draaien `GanttRenderer` rechtstreeks, dus ze staan
-// stroomafwaarts van precies het rekenwerk dat hier stond. Een fout in `effectiveViewStart` of
-// `contentSpanDays` bleef daardoor onzichtbaar tot een gebruiker een scheve tijdas zag.
+// Pure afleidingen achter de Gantt-weergave: de `useMemo`-bodies van `GanttCanvas.tsx`. Het zijn
+// gewone berekeningen — geen DOM, geen React, geen store — die in een component met alleen een
+// beschilderd `<canvas>` als uitvoer niet te controleren zijn. De renderer-tests bouwen hun
+// `GanttRenderOptions` MET DE HAND op, dus ze staan stroomafwaarts van dit rekenwerk; een fout in
+// `effectiveViewStart` of `contentSpanDays` zie je alleen hier.
 //
 // De regel voor dit bestand: **puur en bladvormig**. Geen React-imports, geen `useAppStore`, geen
 // `document`/`window`. Alles komt via argumenten binnen. Zo draait `tests/planning/check-gantt-
 // render-options.ts` het headless tegen dezelfde functies die de app gebruikt.
 //
 // Wat hier BEWUST niet in zit: de `useMemo`-aanroepen zelf. Die blijven in het component staan, mét
-// hun dep-arrays. Dat is geen halfheid maar de vangrail — twee teken-callbacks zetten state tijdens
+// hun dep-arrays. Dat is de vangrail — twee teken-callbacks zetten state tijdens
 // het tekenen (achter een >1px-drempel, zie `drawPrimary`/`drawSecondary`), dus een verschoven
-// memo-grens kan een renderlus opleveren. Die faalmodus ziet geen enkele headless test. Door alleen
-// de INHOUD te verplaatsen is de hook-graaf per constructie ongewijzigd.
+// memo-grens kan een renderlus opleveren. Die faalmodus ziet geen enkele headless test.
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
@@ -46,13 +41,13 @@ export interface SharedAxisInput {
 }
 
 /**
- * Issue #21 punt 5 (fase 2, ontwerp §10.1 — BINDEND): ÉÉN gedeelde `GanttAxis`-instantie voor de
+ * BINDEND: ÉÉN gedeelde `GanttAxis`-instantie voor de
  * primaire Gantt-pane ÉN de Histogram (zelfde `chartOriginX`/`effectiveView`, dus zelfde
  * kolomindeling) — anders schuiven de resource-staafjes onder de verkeerde kolommen zodra de as
  * gecomprimeerd is.
  *
  * LET OP: deze functie moet per render VERS aangeroepen worden (in het component via de dep-array
- * van de `useMemo`), zonder cross-render cache (§2.5). Bouw hier dus geen memoïsatie in: een as die
+ * van de `useMemo`), zonder cross-render cache. Bouw hier dus geen memoïsatie in: een as die
  * een kalenderwijziging overleeft, tekent stil op de oude werkdagen.
  */
 export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
@@ -70,12 +65,12 @@ export function buildSharedAxis(input: SharedAxisInput): GanttAxis {
 /**
  * Content-span in dagen vanaf de effectieve oorsprong — bewust ZONDER zoom, zodat
  * dezelfde span ook voor het secundaire split-view-venster (eigen zoom, geen taaktabel) gebruikt
- * kan worden zonder de compressie-logica te dupliceren (issue #35 punt 1). `null` = leeg project.
+ * kan worden zonder de compressie-logica te dupliceren. `null` = leeg project.
  *
  * Finish-keten via {@link resolveTaskFinish} (`ganttViewport.ts`) — dezelfde functie als
- * `computeFitToProject`, inclusief de terugval op de start. Zonder die terugval kon een taak met
- * alleen een start wél meetellen voor de Ctrl+0-fit maar niet voor deze contentbreedte, waardoor de
- * fit naar een positie buiten `maxScrollX` kon zoomen.
+ * `computeFitToProject`, inclusief de terugval op de start. Zonder die terugval telt een taak met
+ * alleen een start wél mee voor de Ctrl+0-fit maar niet voor deze contentbreedte, en kan de
+ * fit naar een positie buiten `maxScrollX` zoomen.
  */
 export function computeContentSpanDays(
   tasks: Task[],
@@ -89,7 +84,7 @@ export function computeContentSpanDays(
   for (const task of tasks) {
     const end = resolveTaskFinish(task.time);
     if (end) {
-      // Issue #21 punt 5 (fase 2, §10.2 eenheden-consistentie): bij compressie telt de
+      // Eenheden-consistentie: bij compressie telt de
       // contentbreedte in WERKDAG-eenheden (`axis.daySpan`) i.p.v. kalenderdagen — anders is de
       // scrollbar te breed (kalenderdagen) of te smal t.o.v. wat er daadwerkelijk getekend wordt.
       const days = compressNonWorkdays
@@ -121,7 +116,7 @@ export function computeContentWidth(
 
 /**
  * Resourcekiezer-lijst onder het histogram: de "alle resources"-somrij plus één rij per resource,
- * elk met de vlag of er overbelaste dagen zijn. Materiaal telt niet mee in de somrij (§6.4).
+ * elk met de vlag of er overbelaste dagen zijn. Materiaal telt niet mee in de somrij.
  */
 export function buildHistogramPicker(
   resources: Resource[],
@@ -143,7 +138,7 @@ export function buildHistogramPicker(
 
 /**
  * Belasting/capaciteit-reeks voor het histogram: één resource, of de som over alle renewables
- * wanneer er geen resource gekozen is (materiaal telt niet mee, §6.4).
+ * wanneer er geen resource gekozen is (materiaal telt niet mee).
  */
 export function buildHistogramSeries(
   resourceLoadResult: ResourceLoadResult | null | undefined,
@@ -191,12 +186,11 @@ type ExplicitlyRequired<T> = { [K in keyof Required<T>]: T[K] };
  * Invoer voor `buildGanttRenderOptions` — AFGELEID uit `GanttRenderOptions`, niet er los naast
  * geschreven.
  *
- * Dat afleiden is de hele truc. De twee panes (primair en de split-view-pane) waren vóór K-item 33
- * twee met de hand bijgehouden objectliteralen; een veld dat aan één kant vergeten werd viel nergens
- * om. Een handgeschreven invoertype zou dat maar half oplossen: het breekt dan wél op een nieuw veld
+ * Dat afleiden is de hele truc. Een handgeschreven invoertype breekt wél op een nieuw veld
  * in dit bestand, maar niet op een nieuw veld in `GanttRenderOptions` — en dat is nu juist de
  * realistische route (iemand bouwt een renderer-feature en de bouwer geeft de optie nooit door).
- * Door hem af te leiden breekt élke toevoeging aan de renderer-opties BEIDE aanroepplekken op
+ * Door hem af te leiden breekt élke toevoeging aan de renderer-opties BEIDE aanroepplekken (primair
+ * en de split-view-pane) op
  * compileertijd, ook een optionele. Dat is dezelfde eigenschap als `DOCUMENT_FIELDS` bij het
  * documentcontract: de compilefout valt op de BRON, niet op een kopie ervan.
  *
@@ -229,9 +223,7 @@ export function buildGanttRenderOptions(input: GanttRenderOptionsInput): GanttRe
   // luiheid maar het hele punt. Met een handmatige lijst geldt: `GanttRenderOptions` heeft
   // optionele velden, dus een veld dat je hier vergeet is GEEN compilefout. Het invoertype dwingt
   // dan wel af dat je het op de aanroepplek opschrijft, maar de waarde verdampt vervolgens stil in
-  // deze functie. Dat is erger dan de situatie vóór deze extractie, waar de twee objectliteralen
-  // rechtstreeks naar de renderer gingen: "vergeten door te geven" was daar luidruchtig, hier zou
-  // het onhoorbaar worden. Met de spread is doorgeven totaal per constructie.
+  // deze functie. Met de spread is doorgeven totaal per constructie.
   //
   // `cpmResult` is het enige veld dat NIET doorgaat: het wordt hier uitgepakt in de drie lijsten
   // eronder. Een resultaat MET fout telt als "nog niets berekend" — dan gaan die lijsten op

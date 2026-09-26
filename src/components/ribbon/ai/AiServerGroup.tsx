@@ -8,14 +8,14 @@ import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 
 /**
- * AI-ribbontab — groep **Server** (T14, spec §UI). Start/stop-knop + statusindicator, gevoed door
+ * AI-ribbontab — groep **Server**. Start/stop-knop + statusindicator, gevoed door
  * `ui.aiServerStatus` (uit / live op poort / poort-bezet mét melding / error). De bridge is
  * Tauri-only: in de web-build is de start-knop uitgeschakeld met een "alleen desktop"-tooltip
  * (`isTauri()`-gate). De statuskleur wordt ook als klein dotje in de statusbalk getoond (StatusBar).
  *
- * Compacte dichtheid (issue #38 punt 4): de statuskolom (circel + tot 3 tekstregels, elk met eigen
+ * Compacte dichtheid: de statuskolom (circel + tot 3 tekstregels, elk met eigen
  * `.ribbon-info`-padding) is samen makkelijk 30-45 px hoog — te veel voor de 40px-strip zodra de
- * start/stop-knop zelf al 28px inneemt. De toggle-knop zelf collapt al via de bestaande
+ * start/stop-knop zelf al 28px inneemt. De toggle-knop zelf collapt al via de
  * `.ribbon-container.compact .ribbon-btn`-regels (net als elke gewone RibbonButton), dus alleen de
  * secundaire statuskolom valt weg — net zoals de afgeleide zoom-tekst in `TimeScaleGroupContent`.
  * De volledige statusinformatie blijft beschikbaar als tooltip op de knop.
@@ -46,7 +46,7 @@ export function AiServerGroup() {
   })();
 
   // Alle statusregels samen — dient als tooltip in compacte modus, waar de aparte statuskolom
-  // wegvalt (issue #38 punt 4, zie klasse-uitleg boven).
+  // wegvalt (zie klasse-uitleg boven).
   const statusHint = [
     statusText,
     !tauri ? t('ai.desktopOnly') : null,

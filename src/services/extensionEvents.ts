@@ -3,8 +3,8 @@
  *
  * Bewust een leaf-module in `src/services/` (niet in `src/extensions/`): zowel de scoped
  * extensie-API (`src/extensions/extensionApi`) als de store-slices (die host-events uitzenden)
- * putten hieruit. Zo ontstaat er GEEN waarde-import `state → extensions` (audit "Overig":
- * de tweerichtingskoppeling wordt hiermee doorgeknipt). `src/extensions/eventBus.ts` re-exporteert
+ * putten hieruit. Zo ontstaat er GEEN waarde-import `state → extensions` (geen
+ * tweerichtingskoppeling). `src/extensions/eventBus.ts` re-exporteert
  * deze module zodat bestaande extensie-imports (`@/extensions/eventBus`) ongewijzigd blijven werken.
  */
 

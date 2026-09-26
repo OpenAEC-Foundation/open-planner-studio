@@ -9,11 +9,11 @@ export interface TourStep {
   titleKey: ParseKeys<'common'>;
   bodyKey: ParseKeys<'common'>;
   /** Voorbereiding vóór het meten van het anker: dezelfde `setUI(...)`-aanroepen die de Ribbon-
-   *  knoppen/Backstage-navigatie zelf al gebruiken (zie ontwerpdocument §4/§6). */
+   *  knoppen/Backstage-navigatie zelf al gebruiken. */
   prepare: () => void;
 }
 
-// Stappenlijst + ankers bewust in ÉÉN bestand (risico §7.4 uit het ontwerpdocument): een
+// Stappenlijst + ankers bewust in ÉÉN bestand: een
 // toekomstige ribbon-/layout-refactor die een `data-tour-anchor` verplaatst of hernoemt moet
 // hier meegroeien. `TourOverlay` slaat een stap over (nooit een crash) als het anker ontbreekt.
 export const TOUR_STEPS: TourStep[] = [
@@ -34,8 +34,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     // Stap 3 — eigenschappenpaneel. Zet het paneel aan én klapt de rechterkolom uit (indien
-    // dichtgeklapt). Issue #46 (slot): sinds het paneel een eigen aan/uit heeft is
-    // `rightPanelCollapsed: false` alléén niet meer genoeg — dan staat de kolom er wel, maar met
+    // dichtgeklapt). Het paneel heeft een eigen aan/uit, dus
+    // `rightPanelCollapsed: false` alléén is niet genoeg — dan staat de kolom er wel, maar met
     // hooguit de resourcelijst erin en zonder het anker van deze stap.
     anchor: 'properties-panel',
     titleKey: 'tour.step3Title',
@@ -62,8 +62,8 @@ export const TOUR_STEPS: TourStep[] = [
     prepare: () => { useAppStore.getState().setUI({ activeRibbonTab: 'report' }); },
   },
   {
-    // Stap 6 — voorbeelden. Springt naar Backstage → Voorbeelden (vervangt de hele body, zie
-    // ontwerpdocument §4 randgeval) — het anker zit op de Backstage-NavItem zelf.
+    // Stap 6 — voorbeelden. Springt naar Backstage → Voorbeelden (vervangt de hele body) — het
+    // anker zit op de Backstage-NavItem zelf.
     anchor: 'backstage-examples',
     titleKey: 'tour.step6Title',
     bodyKey: 'tour.step6Body',

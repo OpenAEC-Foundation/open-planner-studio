@@ -1,5 +1,5 @@
 /**
- * Seriële datums van Excel ↔ ISO-strings (issue #27, etappe 3).
+ * Seriële datums van Excel ↔ ISO-strings.
  *
  * Bladmodule: geen imports, geen state.
  *

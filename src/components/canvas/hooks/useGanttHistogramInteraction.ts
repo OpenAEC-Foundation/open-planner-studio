@@ -19,12 +19,11 @@ export interface GanttHistogramTooltip {
 const HOVER_DELAY_MS = 300;
 
 /** Absoluut vangnet: sluit een getoonde tooltip sowieso na dit aantal ms, ook zonder `mouseLeave`.
- *  Reden (herreview R1-mits): `onMouseLeave` is de enige normale sluitroute, maar twee gevallen
+ *  Reden: `onMouseLeave` is de enige normale sluitroute, maar twee gevallen
  *  geven dat event nooit — een touch-/pen-tap stuurt een compat-`mousemove` + `click` zonder
  *  opvolgende `mouseleave`, en een muis die het canvas verlaat via een ander venster/overlay kan de
  *  browser evengoed missen. Zonder vangnet blijft de tooltipstate dan voor onbepaalde tijd hangen
- *  (zie ook de `active`-effect hieronder voor het lint-uit/-aan-gat). Was vóór deze hook al aanwezig
- *  als 6-seconden-timer op het klikresultaat; hier hetzelfde principe op de hover-tooltip. */
+ *  (zie ook de `active`-effect hieronder voor het lint-uit/-aan-gat). */
 const TOOLTIP_SAFETY_NET_MS = 6000;
 
 interface GanttHistogramInteractionInput {
@@ -40,7 +39,7 @@ interface GanttHistogramInteractionInput {
    *  staat, dan sluit de hook 'm meteen — anders overleeft de tooltipstate het portal-unmount van
    *  het canvas en verschijnt hij spontaan weer zodra het histogram terugkomt, zonder nieuwe hover. */
   active: boolean;
-  /** R1: extra tooltipregel als deze dag voor `selectedResourceId` overbezet is met reden
+  /** Extra tooltipregel als deze dag voor `selectedResourceId` overbezet is met reden
    *  `non-working-day` (de resourcekalender kent die dag geen werkdag). `null` als niet van
    *  toepassing. Alleen aangeroepen met een gekozen resource — bij "alle resources" kan een dag
    *  meerdere resources met eventueel verschillende redenen optellen, dus daar blijft de tooltip
@@ -61,15 +60,14 @@ interface GanttHistogramInteraction {
  * Bezit de interactie rond het bestaande histogramcanvas. Coördinaten worden uitsluitend aan de
  * levende HistogramRenderer voorgelegd; deze hook bouwt geen tijdas, picker of serie opnieuw op.
  *
- * Tooltipgedrag (eigenaarscorrectie op R1): een ECHTE hover-tooltip, niet een klikresultaat.
+ * Tooltipgedrag: een ECHTE hover-tooltip, niet een klikresultaat.
  * `onMouseMove` toont de bijdragende-takenlijst na `HOVER_DELAY_MS` boven een dagkolom, ververst
  * zodra de muis naar een andere dag gaat (meteen verbergen + opnieuw vertragen — hetzelfde patroon
  * als `TooltipHost`s `dismiss()` gevolgd door een nieuwe timer) en verdwijnt bij het verlaten van de
- * strook (`onMouseLeave`). Een klik selecteert alleen nog de resource via `pickerAt` — de tooltip zelf
- * opent niet meer bij klik, maar `onKeyDown`s bestaande picker-navigatie (↑/↓) blijft ongewijzigd en
- * mag de tooltip laten staan/wissen zoals voorheen.
+ * strook (`onMouseLeave`). Een klik selecteert alleen de resource via `pickerAt` — de tooltip zelf
+ * opent niet bij klik; `onKeyDown`s picker-navigatie (↑/↓) mag de tooltip laten staan/wissen.
  *
- * Sluitroutes buiten `onMouseLeave` (herreview R1-mits): deze hook zelf wordt NIET ge-unmount
+ * Sluitroutes buiten `onMouseLeave`: deze hook zelf wordt NIET ge-unmount
  * wanneer het histogram via het lint wordt uitgezet — alleen het canvas/portal in `GanttCanvas`
  * verdwijnt dan. Zonder ingrijpen blijft de tooltipstate dus gewoon bestaan en verschijnt hij
  * spontaan weer zodra het histogram terugkomt, zonder dat er een nieuwe hover was. Vandaar het
@@ -116,7 +114,7 @@ export function useGanttHistogramInteraction(
   // één plek die de ref zet).
   useEffect(() => clearHoverTimer, [clearHoverTimer]);
 
-  // Gat (a) uit de R1-herreview: het histogram uitzetten unmount alleen het portal-canvas, niet deze
+  // Het histogram uitzetten unmount alleen het portal-canvas, niet deze
   // hook. Zonder deze sluiting overleeft de tooltipstate dat en verschijnt hij zonder nieuwe hover
   // weer zodra het histogram teruggezet wordt.
   useEffect(() => {
@@ -167,7 +165,7 @@ export function useGanttHistogramInteraction(
     const y = event.clientY - rect.top;
     const pickerItem = renderer.pickerAt(x, y);
     if (pickerItem) selectResource(pickerItem.id);
-    // Geen tooltip meer bij klik (eigenaarscorrectie): dat is nu uitsluitend hover (`onMouseMove`).
+    // Geen tooltip bij klik: dat is uitsluitend hover (`onMouseMove`).
   }, [canvasRef, rendererRef, selectResource]);
 
   const onMouseMove = useCallback((event: ReactMouseEvent<HTMLCanvasElement>) => {

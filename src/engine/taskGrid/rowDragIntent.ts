@@ -1,13 +1,11 @@
 /**
- * Browserreview, observatie 2: `useTableRowDrag`s kandidaatfase promoveerde tot nu toe zuiver op
- * |dy| >= ROW_DRAG_THRESHOLD — prima voor de canvas-Gantt (waar een sleep in de rijgutter begint,
- * niet op selecteerbare tekst), maar in de DOM-tabel begint de mousedown middenin een celwaarde.
- * Een gebruiker die een stukje van een taaknaam wil selecteren (mousedown + horizontaal slepen)
- * haalt al snel een paar pixels verticale ruis mee, en promoveerde dan ONTERECHT tot een rijsleep
- * — de tekstselectie kwam nooit tot stand, precies zoals de vertical-only-drag in de Gantt zelf
- * geen last heeft van horizontale muisruis omdat daar niets valt te selecteren.
+ * Asintentie voor `useTableRowDrag`s kandidaatfase. Alleen |dy| >= ROW_DRAG_THRESHOLD volstaat
+ * voor de canvas-Gantt (waar een sleep in de rijgutter begint, niet op selecteerbare tekst), maar
+ * in de DOM-tabel begint de mousedown middenin een celwaarde: wie een stukje van een taaknaam
+ * selecteert (mousedown + horizontaal slepen) haalt al snel een paar pixels verticale ruis mee en
+ * zou dan ONTERECHT een rijsleep starten.
  *
- * Deze functie voegt een asintentie toe die in `useTableRowDrag` ontbrak: de rijsleep promoveert
+ * Daarom promoveert de rijsleep
  * alleen als de beweging OVERWEGEND verticaal is (|dy| >= |dx|), naast de bestaande drempel op |dy|
  * zelf. Een zuiver horizontale of licht diagonale sleep (tekstselectie, een klik met wat trilling)
  * blijft dus candidate totdat de muis loslaat, ongeacht hoe ver dx gaat — pas zodra de verticale

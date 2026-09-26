@@ -1,6 +1,6 @@
-// De gedeelde, headless zichtbare-rijen-selector (fase 2.7 weergaven, KERN §4).
+// De gedeelde, headless zichtbare-rijen-selector.
 // Pijplijn: filter → groepeer → sorteer → flatten(collapse). PUUR: geen React-/store-imports
-// (alleen type-only). Tabel én Gantt consumeren exact dezelfde ViewRow[] (§4.1), zodat divergentie
+// (alleen type-only). Tabel én Gantt consumeren exact dezelfde ViewRow[], zodat divergentie
 // structureel onmogelijk is.
 
 import type { Task } from '@/types/task';
@@ -39,7 +39,7 @@ export interface ViewRowOpts {
 /** Rauwe sleutel voor de "(geen)"-band (taak zonder waarde op dit groepniveau). */
 export const NONE_RAWKEY = '\u0000__none__';
 
-/** Pad-gecodeerde bandsleutel (§7.1): JSON van de rauwe waardes t/m dit niveau. Uniek & escaping-vrij. */
+/** Pad-gecodeerde bandsleutel: JSON van de rauwe waardes t/m dit niveau. Uniek & escaping-vrij. */
 export function encodeBandKey(rawKeys: string[]): string {
   return JSON.stringify(rawKeys);
 }
@@ -50,7 +50,7 @@ export function encodeGroupedTaskRowKey(groupPath: readonly string[], taskId: st
 }
 
 /**
- * Pure boommodus (§4.5): structuur-mutaties (indent/outdent/row-move) zijn alleen dan zinvol.
+ * Pure boommodus: structuur-mutaties (indent/outdent/row-move) zijn alleen dan zinvol.
  * Eén gedeelde selector zodat tabel, Gantt én ribbon dezelfde regel afdwingen.
  */
 export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): boolean {
@@ -87,7 +87,7 @@ function sortValue(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   return resolveField(field, task, ctx);
 }
 
-/** Stabiele multi-key sort (§7.2). `sort: []` ⇒ oorspronkelijke volgorde behouden. */
+/** Stabiele multi-key sort. `sort: []` ⇒ oorspronkelijke volgorde behouden. */
 function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
   if (sort.length === 0) return tasks;
   return tasks
@@ -112,7 +112,7 @@ interface BandBucket {
 }
 
 /**
- * Het bereik van een geneste band (issue #173). Resource en resourcetype zijn twee kanten van
+ * Het bereik van een geneste band. Resource en resourcetype zijn twee kanten van
  * dezelfde toewijzingen: onder de typeband Arbeid hoort alleen de ARBEIDSresource van een taak,
  * niet ook het beton dat op dezelfde taak staat. Zo geeft Resourcetype → Resource dezelfde indeling
  * als het rapport Resourcediagram, en Resource → Resourcetype alleen het type van die resource.
@@ -122,7 +122,7 @@ interface BandScope {
   resourceName?: string;
 }
 
-/** De band(en) waarin een taak op dit groepniveau valt. Resource kan er MEERDERE zijn (§7.1). */
+/** De band(en) waarin een taak op dit groepniveau valt. Resource kan er MEERDERE zijn. */
 function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext, scope: BandScope): BandBucket[] {
   if (field.src === 'resource') {
     const names = scope.resourceType === undefined
@@ -195,7 +195,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   const { filter, group, sort, collapsedTaskIds, collapsedGroupKeys } = opts;
   const byId = new Map(tasks.map(t => [t.id, t]));
 
-  // Stap 1 — filter (§4.2/§6): matchende bladeren + hun gedimde ouderketen (P6 "show summaries").
+  // Stap 1 — filter: matchende bladeren + hun gedimde ouderketen (P6 "show summaries").
   const visible = new Set<string>();
   const dimmed = new Map<string, boolean>();
   if (filter === null) {
@@ -216,7 +216,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     }
   }
 
-  // Stap 2 — gegroepeerde modus (§4.2/§7): platte banden op zichtbare bladeren.
+  // Stap 2 — gegroepeerde modus: platte banden op zichtbare bladeren.
   if (group.length > 0) {
     const rows: ViewRow[] = [];
     const visibleLeaves = tasks.filter(t => isLeafTask(t) && visible.has(t.id));
@@ -252,7 +252,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     return rows;
   }
 
-  // Stap 2' — boommodus (§4.2 stap 2, else-tak): behoud de WBS-boom. Ingeklapte nakomelingen tellen
+  // Stap 2' — boommodus: behoud de WBS-boom. Ingeklapte nakomelingen tellen
   // als "gezien" (recursie gaat door, maar emit niet: de `hidden`-vlag), zodat het wees-vangnet ze
   // niet oppikt.
   const rows: ViewRow[] = [];
@@ -269,7 +269,7 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   };
   const roots = tasks.filter(t => !t.parentId);
   for (const r of sortTasks(roots, sort, ctx)) emit(r, 0, false);
-  // Wees-vangnet (§4.2): taken met een onbekende ouder alsnog tonen.
+  // Wees-vangnet: taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {
       rows.push({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: dimmed.get(t.id) ?? false });
@@ -280,12 +280,12 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
 
 /**
  * Alle bandsleutels van de huidige groepering — óók die van banden die op dit moment ingeklapt
- * zijn. Voor "alle groepen inklappen" (issue #35).
+ * zijn. Voor "alle groepen inklappen".
  *
  * Bewust NIET afgeleid uit de bestaande `viewRows`: `walk()` hierboven daalt niet af in een
  * ingeklapte band, dus zodra er ook maar één band dicht staat ontbreken de sleutels van al zijn
  * subbanden in `viewRows`. "Alles inklappen" zou dan precies de takken overslaan die de gebruiker
- * al eerder had dichtgeklapt — en na één keer uitklappen stonden die weer open. Daarom draaien we
+ * al eerder had dichtgeklapt — en na één keer uitklappen zouden die weer open staan. Daarom draaien we
  * de pijplijn hier één keer met een LEGE collapse-set: dan emit elk niveau al zijn banden.
  * Zonder groepering zijn er per definitie geen banden ⇒ lege lijst.
  */
@@ -299,7 +299,7 @@ export function allBandKeys(tasks: Task[], opts: ViewRowOpts, ctx: ViewContext):
 }
 
 /**
- * taskId → eerste rij-index in `viewRows` (§7.1): bij multi-band-duplicaten wint de laagste index,
+ * taskId → eerste rij-index in `viewRows`: bij multi-band-duplicaten wint de laagste index,
  * zodat de pijl-renderer één keer verbindt i.p.v. pijl-spaghetti.
  */
 export function firstRowIndexByTask(rows: ViewRow[]): Map<string, number> {

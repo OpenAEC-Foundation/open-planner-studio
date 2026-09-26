@@ -5,8 +5,7 @@ import type { CPMResult, ScheduleErrorInfo } from './CPMSolver';
 import type { ResourceLoadResult } from './ResourceLoad';
 
 /**
- * Waarschuwingenlijst (issue #53). De statusbalk telde al gemiste deadlines, geschonden constraints
- * en out-of-sequence-relaties, maar zonder detail. Deze module maakt van de bestaande
+ * Waarschuwingenlijst. Deze module maakt van de bestaande
  * solver-uitvoer (`cpmResult`) en de belastingsuitvoer (`resourceLoadResult`) één platte, gesorteerde
  * lijst met per item een navigeerbaar DOEL (taak / relatie / resource / project).
  *
@@ -54,7 +53,7 @@ export interface ScheduleWarningFacts {
   days?: number;
   firstDay?: string;
   lastDay?: string;
-  /** R1: van `days`, het aantal met reden `non-working-day` (resourcekalender kent die dag geen
+  /** Van `days`, het aantal met reden `non-working-day` (resourcekalender kent die dag geen
    *  werkdag). 0 betekent niet "geen reden bekend" maar "alle overbezette dagen zijn over-capacity". */
   nonWorkingDays?: number;
 }

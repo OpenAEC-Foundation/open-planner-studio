@@ -6,21 +6,21 @@ import { isManuallyScheduled } from '@/utils/manualScheduling';
 
 /**
  * Een getypte startdatum op een taak MET voorganger wordt een beperking "Start niet eerder dan"
- * (SNET) — het MS Project-gedrag (besluit eigenaar, audit "weergaven" W2-vervolg). De solver leest
- * het startanker `scheduleStart` alleen voor een taak zónder voorganger (`CPMSolver.forwardPass`,
- * de `noPreds`-tak); bij een taak mét voorganger sprong een getypte start na F5 stil terug achter die
- * voorganger. Een SNET is een ondergrens in de forward pass: een datum ná wat de voorganger toelaat
- * verschuift de taak, een datum ervóór doet niets — de voorganger wint vanzelf.
+ * (SNET) — het MS Project-gedrag. De solver leest het startanker `scheduleStart` alleen voor een
+ * taak zónder voorganger (`CPMSolver.forwardPass`, de `noPreds`-tak); bij een taak mét voorganger
+ * zou een getypte start anders stil terugspringen achter die voorganger. Een SNET is een ondergrens
+ * in de forward pass: een datum ná wat de voorganger toelaat verschuift de taak, een datum ervóór
+ * doet niets — de voorganger wint vanzelf.
  *
  * Heeft de taak een ANDERE constraint (ALAP, SNLT, FNET, FNLT, MSO, MFO, ook hard), dan heeft een
  * nieuwe start geen enkel effect: het anker telt bij een voorganger niet, en die constraint bepaalt
- * samen met de voorganger de start (per type gemeten in `check-start-snet.ts`). Besluit eigenaar:
+ * samen met de voorganger de start (per type gemeten in `check-start-snet.ts`). Regel:
  * "melden, beperking laten staan" — de start wordt dan niet toegepast (`constraintBlockingStart`).
  *
  * Eén regel voor elke UI-route waar je een start zet: de Tabel-kolommen Start en Geplande start
  * (`taskEditPlan.ts`), het eigenschappenpaneel (`TaskTimeFields`), Taak bewerken (`TaskDialog`) en
  * de Gantt-balk (body verschuiven, linkerrand slepen; `useBarDrag`). De meldingen bouwt
- * `state/startConstraintNotice.ts`. Bewust NIET: de MCP-tools (daarover beslist de eigenaar apart).
+ * `state/startConstraintNotice.ts`. Bewust NIET: de MCP-tools.
  */
 
 /**
@@ -89,10 +89,10 @@ export function startConstraintAfterEdit(
 
 /**
  * De constraint die een nieuwe start tegenhoudt, of `undefined`. Waar de startregel geldt en de
- * primaire constraint iets anders is dan ASAP of SNET, verandert een ander anker na F5 niets (het
+ * primaire constraint iets anders is dan ASAP of SNET, verandert een ander anker niets (het
  * anker telt bij een voorganger niet; per type gemeten in `check-start-snet.ts`). De aanroeper past
- * de start dan NIET toe — ook niet als dood anker — en meldt deze constraint (besluit eigenaar:
- * "melden, beperking laten staan").
+ * de start dan NIET toe — ook niet als dood anker — en meldt deze constraint ("melden, beperking
+ * laten staan").
  */
 export function constraintBlockingStart(task: Task, drivenByPredecessor: boolean): TaskConstraint | undefined {
   if (!startRuleApplies(task, drivenByPredecessor)) return undefined;

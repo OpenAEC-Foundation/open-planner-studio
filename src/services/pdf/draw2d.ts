@@ -1,12 +1,12 @@
 /**
  * `Draw2D` — de gesloten teken-abstractie waar de print-renderer (`printPreview.ts`) tegenaan
  * tekent i.p.v. rechtstreeks tegen een `CanvasRenderingContext2D`. Twee backends implementeren 'm:
- * de canvas-backend (`CanvasDraw2D`, preview/raster) en — in fase 2 — de pdf-lib-vector-backend.
- * Eén renderer, twee backends houdt preview en export gegarandeerd in sync (§4.1 ontwerpdoc).
+ * de canvas-backend (`CanvasDraw2D`, preview/raster) en de pdf-lib-vector-backend (`PdfVectorDraw2D`).
+ * Eén renderer, twee backends houdt preview en export gegarandeerd in sync.
  *
  * De vorm is bewust minimaal en vast: exact de primitieven die `printPreview.ts` gebruikt. Style-
- * property-setters (font/fillStyle/…) houden de diff met de bestaande `ctx.xxx = …`-aanroepen zo
- * klein mogelijk. Coördinaten zijn LOGISCHE/CSS-px (de canvas-backend zet de dpr-scale intern).
+ * property-setters (font/fillStyle/…) spiegelen de canvas-API (`ctx.xxx = …`). Coördinaten zijn
+ * LOGISCHE/CSS-px (de canvas-backend zet de dpr-scale intern).
  */
 
 export type TextAlign = 'left' | 'right' | 'center';

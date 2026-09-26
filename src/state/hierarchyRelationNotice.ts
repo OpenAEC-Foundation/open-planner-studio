@@ -4,12 +4,12 @@
 // haar eigen fase. Zo'n relatie telt in de berekening niet mee (`expandSummaryRelations` laat haar
 // vallen) maar blijft bewaard, net als bij een import (gids relaties & constraints).
 //
-// Weigeren is te streng — het is een gewone herstructurering (review audit taakmutaties, bevinding
-// 3) — maar stil laten gebeuren ook: bij de volgende berekening verschuift de opvolger zonder
-// aanwijsbare reden. Deze module legt de toestand vóór de verhanging vast en meldt na afloop via het
-// meldingenkanaal hoeveel relaties er NIEUW niet meer meetellen.
+// Weigeren is te streng — het is een gewone herstructurering — maar stil laten gebeuren ook: bij de
+// volgende berekening verschuift de opvolger zonder aanwijsbare reden. Deze module legt de toestand
+// vóór de verhanging vast en meldt na afloop via het meldingenkanaal hoeveel relaties er NIEUW niet
+// meer meetellen.
 //
-// Anders ligt het als verhangen een KRING maakt (rapport S4): dan rekent de hele planning niet meer,
+// Anders ligt het als verhangen een KRING maakt: dan rekent de hele planning niet meer,
 // en wordt de verhanging vooraf geweigerd (`hierarchyChange.ts`). Die weigering meldt zich ook hier
 // (`notifyHierarchyCycle`), zodat de twee meldingen over verhangen en relaties op één plek staan.
 //

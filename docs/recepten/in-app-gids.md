@@ -81,8 +81,9 @@ als platte, niet-klikbare tekst — bewust geen externe netwerkaanroepen vanuit 
 
 **Wat het NIET blokkeert:** een ontbrekend artikel in een taal buiten `nl`/`en` (dat artikel bestaat
 dan simpelweg niet — de viewer valt terug op Engels), en inhoudelijke juistheid/leesbaarheid — dat
-blijft mensenwerk. Zonder manifest-entry blokkeert `verify:docs` evenmin, maar dan is het artikel voor
-gebruikers onvindbaar (zie *In-app documentatie & wiki* in `CLAUDE.md`).
+blijft mensenwerk. Een ontbrekende manifest-entry blokkeert wél: een `.md`-bestand in
+`public/docs/<taal>/` zonder entry is een wees-bestand en laat `verify:docs` falen (punt 1) — en zonder
+entry zou het artikel voor gebruikers ook onvindbaar zijn.
 
 ## Twee afnemers, één bron
 

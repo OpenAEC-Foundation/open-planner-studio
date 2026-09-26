@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Module-globale dialoog-stapel (S2, B1.1-vlootbevindingen V1/V3): elke `Dialog`-instantie roept
- * `useDialogKeys` aan, en zonder stapelbesef verwerkte de ONDERSTE (eerst-gemonteerde) dialoog een
- * Escape/Enter net zo goed als de bovenste — bij bv. WelcomeDialog+LibraryLinkDialog tegelijk open
- * sloot de eerste Escape zo het onzichtbare Welcome-scherm terwijl LibraryLinkDialog open bleef.
+ * Module-globale dialoog-stapel: elke `Dialog`-instantie roept `useDialogKeys` aan, en zonder
+ * stapelbesef verwerkt de ONDERSTE (eerst-gemonteerde) dialoog een Escape/Enter net zo goed als de
+ * bovenste — bij bv. WelcomeDialog+LibraryLinkDialog tegelijk open sluit de eerste Escape dan het
+ * onzichtbare Welcome-scherm terwijl LibraryLinkDialog open blijft.
  * Elke `useDialogKeys`-instantie meldt zich aan (push bij mount, pop bij unmount) en de keydown-
  * handler verwerkt de toets alleen als zijn eigen id BOVENAAN de stapel staat. `ConfirmDialog` heeft
  * hiernaast nog zijn eigen capture+`stopImmediatePropagation`-workaround (zie de toelichting daar)
@@ -17,7 +17,7 @@ function notifyStackChange(): void {
   for (const listener of stackListeners) listener();
 }
 
-/** Luistert naar push/pop op de dialoogstapel (bv. de meldingenplaatsing, B5). Geeft een opzegfunctie. */
+/** Luistert naar push/pop op de dialoogstapel (bv. de meldingenplaatsing). Geeft een opzegfunctie. */
 export function subscribeDialogStack(listener: () => void): () => void {
   stackListeners.add(listener);
   return () => { stackListeners.delete(listener); };
@@ -30,7 +30,7 @@ export function isAnyDialogOpen(): boolean {
 }
 
 /**
- * Standaard dialoog-sneltoetsen (fase 2.8b): Esc = annuleren/sluiten, Enter = primaire actie
+ * Standaard dialoog-sneltoetsen: Esc = annuleren/sluiten, Enter = primaire actie
  * (Toepassen/Aanmaken) — hetzelfde als de primaire knop, zoals `RecoveryDialog` het al deed.
  *
  * Enter wordt NIET afgevuurd wanneer de focus in een element staat waar Enter een eigen betekenis

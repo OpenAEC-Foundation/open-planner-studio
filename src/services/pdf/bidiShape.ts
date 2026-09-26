@@ -1,5 +1,5 @@
 /**
- * `bidiShape` — de bidi + shaping-kern voor de RTL-vector-PDF-uitbreiding (§ RTL-ontwerp).
+ * `bidiShape` — de bidi + shaping-kern voor RTL-tekst in de vector-PDF.
  *
  * Doel: een logische (opslag-volgorde) tekststring met GEMENGDE scripts (Latijn/cijfers + Arabisch/
  * Perzisch) omzetten naar een reeks {@link ShapedRun}s in VISUELE volgorde, elk met (a) de geshapte
@@ -60,7 +60,7 @@ export interface ShapeFontkitFont {
    * Optioneel: True als het font een echte glyph heeft voor deze codepoint. Gebruikt om neutrale
    * interpunctie (bv. em-dash) die in een RTL-run valt maar door Noto NIET gedekt wordt, alsnog aan
    * het Latijnse font toe te wijzen i.p.v. een `.notdef`-tofu te tekenen. Ontbreekt hij (minimale
-   * test-fonts), dan geldt het oude gedrag (neutraal in RTL → Arabisch).
+   * test-fonts), dan gaat neutraal in RTL naar het Arabische font.
    */
   hasGlyphForCodePoint?(codePoint: number): boolean;
 }
@@ -164,7 +164,7 @@ export function isArabicScriptCp(cp: number): boolean {
 /**
  * Bidi-stuurtekens (UAX #9, "default ignorable"): LRM/RLM, ALM, de embedding/override-tekens en de
  * isolaten. Ze sturen de UBA-levelberekening en hebben geen glyph — een shaper laat ze weg. Inter
- * heeft er geen glyph voor en zou ze als `.notdef` van 0,66 em tekenen (review #139, bevinding 1/6),
+ * heeft er geen glyph voor en zou ze als `.notdef` van 0,66 em tekenen,
  * terwijl `Intl.NumberFormat` in `ar`/`fa` een U+200E vóór een minteken zet en de DOM die nodig heeft.
  * Vandaar: de tekens BLIJVEN in de tekst voor {@link segmentRuns} (levels) en verdwijnen pas bij het
  * shapen van elke run ({@link layoutRuns}) en op het Latijnse/CJK-snelpad vóór het encoden.

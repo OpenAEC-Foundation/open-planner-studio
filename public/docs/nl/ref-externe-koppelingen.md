@@ -4,7 +4,7 @@ Het venster **Externe (cross-project) koppeling** legt een afhankelijkheid vast 
 
 ## Openen
 
-**Relaties**-tab → knop **Externe koppeling…**. Er moet precies één taak geselecteerd zijn; anders verschijnt "Selecteer eerst één taak om een externe koppeling toe te voegen."
+Keuzemenu **Relatie** in het lint → **Externe relatie toevoegen…**. Het keuzemenu staat op het tabblad **Planning** (groep **Relaties**) en op de tabbladen **Start** en **Tabel** (groep **Taken**). Het item is alleen beschikbaar als precies één taak geselecteerd is; anders is het uitgeschakeld met de tooltip "Selecteer precies één taak".
 
 ## Het bevroren anker
 
@@ -29,7 +29,7 @@ Bestaande koppelingen staan als tokens in de taakgridkolommen **Voorgangers** en
 
 - Per koppeling: de brontaak, het type, het anker, en een **verouderd**-badge zodra de bron niet (meer) geladen kon worden — met de toelichting "bron niet geladen — her-importeer om te verversen".
 - Rechtsklik een token voor **Externe relatie bewerken**, **Bron vernieuwen** of **Relatie verwijderen**.
-- **Relatie → Alle externe relaties vernieuwen** in het lint herleest alle beschikbare bronbestanden en werkt hun ankers bij.
+- Keuzemenu **Relatie** → **Alle externe relaties vernieuwen** in het lint herleest alle beschikbare bronbestanden en werkt hun ankers bij.
 - Verversen leest bestanden en kan dus alleen in de desktop-app; de browser-versie meldt "Bronbestanden lezen kan alleen in de desktop-app; gebruik de handmatige fallback."
 
 ## Verder lezen

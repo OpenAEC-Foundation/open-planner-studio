@@ -1,6 +1,5 @@
-// UI-laag-helper (review taakmutaties, bijvangst B): solverfouten verschenen ongeacht de UI-taal als
-// vaste tekst — "Ongeldige startdatum voor taak …" in het Nederlands, "Circular dependency detected"
-// in het Engels. De solver levert nu een code + parameters (`CPMResult.errorInfo`); deze module maakt
+// UI-laag-helper: solverfouten in de UI-taal. De solver levert een code + parameters
+// (`CPMResult.errorInfo`); deze module maakt
 // daar de sleutel + interpolatie van, en de UI vertaalt. `CPMResult.error` blijft de vaste tekst voor
 // MCP-tools, extensies en logs.
 //

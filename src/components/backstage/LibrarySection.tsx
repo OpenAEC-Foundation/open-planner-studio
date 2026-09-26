@@ -8,11 +8,10 @@ import type { WorkCalendar } from '@/types/calendar';
 import './LibrarySection.css';
 
 /**
- * Backstage → Bibliotheek (spec §7): krimpt tot BEDRIJVENBEHEER (aanmaken/hernoemen/verwijderen,
+ * Backstage → Bibliotheek: BEDRIJVENBEHEER (aanmaken/hernoemen/verwijderen,
  * standaardbedrijf) + pool-export/-import. Rechtstreeks resource-poolbeheer en de resource-
- * promoveerknop leven voortaan in de Resources-tab Bedrijfsweergave (Taak 16). De kalender-
- * promoveerknop blijft hier als fase-1-interim (spec §6/§9) tot die ook naar de Resources-tab
- * verhuist. Export is tevens het backupmechanisme (spec §5).
+ * promoveerknop leven in de Resources-tab Bibliotheekweergave. De kalender-
+ * promoveerknop staat (nog) hier. Export is tevens het backupmechanisme.
  */
 export function LibrarySection() {
   const { t } = useTranslation();
@@ -29,14 +28,14 @@ export function LibrarySection() {
   const promoteCalendarToPool = useAppStore(s => s.promoteCalendarToPool);
   const exportPoolIFC = useAppStore(s => s.exportPoolIFC);
   const setUI = useAppStore(s => s.setUI);
-  // Actieve document: bron voor "+ Uit project" (kalender-promoveren, fase-1-interim spec §6/§9).
+  // Actieve document: bron voor "+ Uit project" (kalender-promoveren).
   const projectCalendars = useAppStore(s => s.calendars);
 
   const [selectedId, setSelectedId] = useState(defaultCompanyId);
   const selected = companies.find(c => c.id === selectedId) ?? companies[0];
   const pool = pools[selected.id];
 
-  // Bedrijfsnaam als lokale draft (critreview taak 11): commit pas op blur/Enter i.p.v. een
+  // Bedrijfsnaam als lokale draft: commit pas op blur/Enter i.p.v. een
   // store-write (en dus een undo-stap + persist) per toetsaanslag. Wisselt de gebruiker van
   // bedrijf, dan volgt de draft de nieuw geselecteerde naam.
   const [nameDraft, setNameDraft] = useState(selected.name);
@@ -46,7 +45,7 @@ export function LibrarySection() {
     else setNameDraft(selected.name);
   };
 
-  // Promote-keuzelijstje (eindreview-fix; getaakt tot kalenders na Taak 17): staat het
+  // Promote-keuzelijstje (alleen kalenders): staat het
   // promoveerpaneel open, plus een korte succes-melding. Sluiten/wisselen van bedrijf reset beide —
   // geen stale UI-state.
   const [promotePanel, setPromotePanel] = useState<'calendar' | null>(null);
@@ -58,7 +57,7 @@ export function LibrarySection() {
     if (id) setNotice(t('companyLibrary.added'));
   };
 
-  // Pool-item bewerken (eindreview-fix): inline draft, gecommit pas op "Opslaan" (zelfde
+  // Pool-item bewerken: inline draft, gecommit pas op "Opslaan" (zelfde
   // niet-per-toetsaanslag-patroon als `nameDraft` hierboven).
   const [editingCalendarId, setEditingCalendarId] = useState<string | null>(null);
   const [calDraft, setCalDraft] = useState('');
@@ -87,13 +86,12 @@ export function LibrarySection() {
     }
   };
 
-  // mpp-nul-data-etappe, DEEL 3 (native-dialog-audit): lokale bevestigings-state i.p.v.
-  // `window.confirm()` — zelfde patroon als `LayoutsDialog.tsx`/`BaselineDialog.tsx` (fase 2.10,
-  // item 5/architect-besluit 4). Geen globale singleton; `onConfirm` draagt de vervolg-logica die
-  // voorheen ná de synchrone `window.confirm()`-return-waarde stond.
+  // Lokale bevestigings-state i.p.v. `window.confirm()` — zelfde patroon als
+  // `LayoutsDialog.tsx`/`BaselineDialog.tsx`. Geen globale singleton; `onConfirm` draagt de
+  // vervolg-logica.
   const [pendingRemoveCompany, setPendingRemoveCompany] = useState(false);
 
-  // Bedrijf verwijderen (spec §5): meld hoeveel GEOPENDE documenten (actief + slapend) aan dit
+  // Bedrijf verwijderen: meld hoeveel GEOPENDE documenten (actief + slapend) aan dit
   // bedrijf gekoppeld zijn — `removeCompany` ontkoppelt die expliciet (stempels strippen).
   const onRemoveCompany = () => setPendingRemoveCompany(true);
 
@@ -101,9 +99,9 @@ export function LibrarySection() {
     <div className="backstage-panel library-section">
       <h2>{t('companyLibrary.title')}</h2>
       <p className="library-intro">{t('companyLibrary.intro')}</p>
-      {/* Issue #19, punt 5: resource-CRUD verhuisde naar de Resources-tab Bibliotheekweergave (dat
-          IS de bron nu, met de volledige inline-editor) — deze pagina beheert nog uitsluitend
-          bedrijven + kalenders + import/export. Kalenders blijven bewust hier staan (apart TODO). */}
+      {/* Resource-CRUD leeft in de Resources-tab Bibliotheekweergave (dat IS de bron, met de
+          volledige inline-editor) — deze pagina beheert uitsluitend bedrijven + kalenders +
+          import/export. */}
       <p className="library-intro" data-ops-library-resource-hint>{t('companyLibrary.resourceManagementHint')}</p>
 
       <div className="library-layout">
@@ -140,7 +138,7 @@ export function LibrarySection() {
                 <Star size={13} /> {t('companyLibrary.setDefault')}
               </button>
               <button onClick={() => { void onExport(); }}><Download size={13} /> {t('companyLibrary.export')}</button>
-              {/* Fix B1: importdoel = het GEOPENDE bedrijf (`selected.id`), niet stilzwijgend het
+              {/* Importdoel = het GEOPENDE bedrijf (`selected.id`), niet stilzwijgend het
                   standaardbedrijf — anders overschrijft "Bibliotheek → Importeren" vanuit een ander
                   bedrijf dan het standaardbedrijf per ongeluk de verkeerde pool. */}
               <button onClick={() => setUI({ showPoolImportDialog: true, poolImportCompanyId: selected.id })}><Upload size={13} /> {t('companyLibrary.import')}</button>
@@ -231,7 +229,7 @@ export function LibrarySection() {
       </div>
 
       {pendingRemoveCompany && (
-        // mpp-nul-data-etappe, DEEL 3 — vervangt `window.confirm()`, zie `onRemoveCompany` hierboven.
+        // In-app bevestiging i.p.v. `window.confirm()`, zie `onRemoveCompany` hierboven.
         <ConfirmDialog
           message={
             countDocumentsLinkedTo(selected.id) > 0

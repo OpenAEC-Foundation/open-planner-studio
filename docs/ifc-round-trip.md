@@ -56,11 +56,11 @@ de taak zelf afleiden). Dat is een keuze die je opschrijft, geen omissie.
 ### 2. Een `OPS_`-pset per taak
 
 Voor domeindata waar IFC geen slot voor heeft — constraints en deadlines, externe links, hammock,
-mijlpaal-soort, leveling, notities, kleur — gebruiken we een eigen property set met het
-`OPS_`-voorvoegsel.
+mijlpaal-soort, leveling, notities, kleur, werkonderbrekingen, werkregel en meer — gebruiken we een
+eigen property set met het `OPS_`-voorvoegsel.
 
-Die acht staan in **`ifcPsets.ts`**, in `PER_TASK_PSETS`, en ook hier draagt één descriptor beide
-kanten:
+Die descriptors staan in **`ifcPsets.ts`**, in de array `PER_TASK_PSETS` (tel ze daar, niet hier), en
+ook hier draagt één descriptor beide kanten:
 
 ```ts
 {
@@ -83,8 +83,8 @@ Twee dingen om te weten:
 - **De volgorde in de lijst is bindend.** De writer schrijft de psets in array-volgorde; dat is wat de
   byte-identieke STEP-uitvoer bewaakt. De reader dispatcht op naam en is volgorde-ongevoelig.
 - **De gouden regel:** `write` geeft `null` of een lege lijst terug wanneer er niets te schrijven valt,
-  en dán wordt er ook niets geschreven. Een taak zonder deadline levert geen leeg `OPS_Deadline`-pset
-  op. Dat houdt bestaande bestanden bit-gelijk en voorkomt dat elk project met lege psets volloopt.
+  en dán wordt er ook niets geschreven. Een taak zonder constraint en zonder deadline levert geen
+  leeg `OPS_Constraints`-pset op (de deadline is daar een property van, geen eigen pset). Dat houdt bestaande bestanden bit-gelijk en voorkomt dat elk project met lege psets volloopt.
 
 ### 3. Eén autoritatief JSON-blob
 
@@ -140,17 +140,27 @@ De test doet daarnaast twee dingen die makkelijk te vergeten zijn:
 
 ## Als een veld bewust níét round-trippt
 
-Dat mag, maar dan expliciet: zet het in `KNOWN_GAPS` met een classificatie en een reden.
+Dat mag, maar dan expliciet. `KNOWN_GAPS` is daarbij geen constante die je aanvult, maar de naam van
+een werkwijze in `tests/planning/check-ifc-roundtrip.ts`, in drie delen:
+
+1. **Een `skip`-cel in de canon-tabel** van het type — `{ skip: '<classificatie + reden>' }`; de reden
+   is verplicht. Zo doet het veld niet mee in de round-trip-vergelijking.
+2. **Een assertie in blok (3)** (`// (3) KNOWN_GAPS — getest-als-bekend`) die bewijst dat het verlies er
+   echt is: de fixture draagt een waarde, het ingelezen resultaat niet.
+3. **Een regel in het `KNOWN_GAPS`-commentaar** bovenaan het bestand, met de classificatie: (a) echt
+   verlies, (b) bewuste normalisatie.
 
 Het mechanisme is scherper dan een lijst met uitzonderingen. Elke gap-assertie bewijst dat het verlies
 er **nog steeds** is. Dicht iemand later de writer of de reader, dan **faalt** die assertie — en dat is
-de bedoeling: het herinnert eraan de gap uit de lijst te halen in plaats van hem eeuwig te laten staan
-als een halve waarheid.
+de bedoeling: het herinnert eraan de `skip`-cel weer een echte vergelijking te maken en de assertie te
+schrappen, in plaats van de gap eeuwig te laten staan als een halve waarheid.
 
-Bestaande gaps zijn bijvoorbeeld `resource.availability` (een `@deprecated` migratie-alleen veld dat
-de writer bewust overslaat) en de uur-modus-velden `durationMinutes`/`remainingMinutes`, die in deze
-dag-modus-fixture niet van toepassing zijn en hun eigen dekking hebben in
-`tests/planning/check-adapters-hours.ts`.
+Actuele gaps zijn bijvoorbeeld de afgeleide analysevelden `time.interferingFloat`/`isNearCritical`/
+`floatPath` (a): de writer schrijft `OPS_Analysis` bewust niet meer, omdat `runCPM` ze bij elk laadpad
+opnieuw berekent (`WRITTEN_PER_TASK_PSETS` in `ifcWriter.ts`); en `resource.availability` (b), een
+`@deprecated` migratie-alleen veld dat de writer bewust overslaat. De uur-modus-velden
+`durationMinutes`/`remainingMinutes` zijn géén gap meer: ze doen gewoon mee in de vergelijking, en
+blok (3) bevestigt nog los dat ze exact terugkomen.
 
 ## Wat dit niet dekt
 
@@ -171,6 +181,6 @@ dag-modus-fixture niet van toepassing zijn en hun eigen dekking hebben in
 | per-taak-psets (write + apply per descriptor) | `src/services/ifc/ifcPsets.ts` |
 | schrijven | `src/services/ifc/ifcWriter.ts` |
 | lezen | `src/services/ifc/ifcReader.ts` |
-| de poort, de fixture, de canon-tabellen en `KNOWN_GAPS` | `tests/planning/check-ifc-roundtrip.ts` |
+| de poort, de fixture, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
 | welke velden een save meeschrijft | `src/state/ifcSaveInput.ts` |
 | wat een "document" ís (breder dan IFC) | `src/state/documentContract.ts` |

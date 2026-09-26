@@ -10,35 +10,34 @@ import type { CompanyPool } from '@/types/library';
 const TARGET_COMPANY_SELECT_ID = 'pool-import-target-company';
 
 /**
- * Pool-import (spec §4, issue #19-fix): kies bestand → kies expliciet een actie → bevestig.
+ * Pool-import: kies bestand → kies expliciet een actie → bevestig.
  *
- * "Een bibliotheek importeren" voelde aan als "een bibliotheek openen" maar was in werkelijkheid de
- * gekozen bibliotheek onvoorwaardelijk overschrijven (`replacePool`) — met als extra gevolg dat de
- * herkomst uit het bestand (companyId/companyName) werd weggegooid en vervangen door het DOEL-bedrijf,
- * wat het deel-scenario brak (een meegestuurd project met stempels naar het BRON-companyId herkende
- * zijn bibliotheek dan niet meer na import). Twee expliciete opties lossen dat op:
+ * "Een bibliotheek importeren" voelt aan als "een bibliotheek openen", terwijl `replacePool` de
+ * gekozen bibliotheek onvoorwaardelijk overschrijft en de herkomst uit het bestand
+ * (companyId/companyName) vervangt door het DOEL-bedrijf — dan herkent een meegestuurd project
+ * met stempels naar het BRON-companyId zijn bibliotheek niet meer. Daarom twee expliciete opties:
  *
  * 1. "Toevoegen als nieuwe resourcebibliotheek" (`importPoolAsNewCompany`) — maakt een NIEUW bedrijf
  *    van het bestand; behoudt het companyId uit het bestand als dat lokaal nog vrij is (zodat een
  *    meegestuurd project zijn bibliotheek herkent), met naams-/id-botsing afgehandeld door de actie
  *    zelf. Bindt het actieve project NIET automatisch.
- * 2. "Een bestaande resourcebibliotheek vervangen" (`replacePool`) — het oude gedrag, inclusief de
- *    demping-waarschuwing (`isLocalPoolNewer`) — nu ALLEEN zichtbaar bij deze optie.
+ * 2. "Een bestaande resourcebibliotheek vervangen" (`replacePool`), inclusief de
+ *    demping-waarschuwing (`isLocalPoolNewer`) — ALLEEN zichtbaar bij deze optie.
  *
- * Voorselectie (de kern van de fix): bevat het bestand een companyId dat lokaal NIET bestaat, dan
+ * Voorselectie: bevat het bestand een companyId dat lokaal NIET bestaat, dan
  * staat "toevoegen" voorgeselecteerd (de standaardklik kan dan nooit onherstelbaar iets overschrijven).
  * Bestaat het id wél lokaal, dan staat "vervangen" voorgeselecteerd met precies díe bibliotheek gekozen
  * — dat is aantoonbaar dezelfde bibliotheek in een andere versie.
  *
- * Uitzondering (critreview F1): `DEFAULT_COMPANY_ID`/`DEMO_COMPANY_ID` (`isReservedCompanyId`) zijn
+ * Uitzondering: `DEFAULT_COMPANY_ID`/`DEMO_COMPANY_ID` (`isReservedCompanyId`) zijn
  * GEEN identiteitsbewijs — vrijwel elke installatie heeft er hooguit één, dus vrijwel elk geëxporteerd
  * bestand draagt zo'n reserved id. Zulke ids selecteren ALTIJD "toevoegen" voor, ongeacht of ze lokaal
  * bestaan (anders zou de dialoog voor bijna elke gebruiker "vervangen" op de EIGEN bibliotheek
- * voorstellen). Een vijandig/onveilig bestand-id (critreview F2, `isSafeFileCompanyId`) telt hier ook
+ * voorstellen). Een vijandig/onveilig bestand-id (`isSafeFileCompanyId`) telt hier ook
  * nooit als match.
  *
- * `syncNote` (uitleg over het ontbreken van synchronisatie) blijft altijd zichtbaar — bindend
- * user-besluit, niet gekoppeld aan een van beide opties.
+ * `syncNote` (uitleg over het ontbreken van synchronisatie) blijft altijd zichtbaar — bewust,
+ * niet gekoppeld aan een van beide opties.
  */
 export function PoolImportDialog() {
   const { t } = useTranslation();
@@ -58,13 +57,13 @@ export function PoolImportDialog() {
   const openDefaultsRef = useRef({ companies, defaultCompanyId, poolImportCompanyId });
   openDefaultsRef.current = { companies, defaultCompanyId, poolImportCompanyId };
 
-  // Clamp bij openen naar het GEOPENDE bedrijf (fix B1: `poolImportCompanyId`, gezet door de opener
+  // Clamp bij openen naar het GEOPENDE bedrijf (`poolImportCompanyId`, gezet door de opener
   // in Backstage) — anders het standaardbedrijf, anders het eerste geldige bedrijf. Voorkomt zowel
-  // een stille no-op-import als de voorselectie een verwijderd bedrijf betrof (critreview taak 11)
+  // een stille no-op-import als de voorselectie een verwijderd bedrijf betrof
   // ALS het stil overschrijven van het verkeerde bedrijf wanneer je vanuit een ander bedrijf dan het
-  // standaardbedrijf importeert (bewezen V1). Dit is slechts een BASIS-default voor de "vervangen"-
+  // standaardbedrijf importeert. Dit is slechts een BASIS-default voor de "vervangen"-
   // select — `pick()` hieronder herberekent de echte voorselectie (actie + bedrijf) zodra een bestand
-  // gekozen is (issue #19).
+  // gekozen is.
   useEffect(() => {
     if (!open) return;
     const { companies: currentCompanies, defaultCompanyId: currentDefaultCompanyId,
@@ -94,9 +93,8 @@ export function PoolImportDialog() {
     try {
       const pool = await readPoolIFC(res.content);
       setImported(pool);
-      // Voorselectie (issue #19, kern van de fix): gedelegeerd aan de PURE `resolvePoolImportPreselection`
-      // (critreview F1 — direct headless testbaar, spiegelt de reviewer zijn eigen
-      // writePoolIFC→readPoolIFC→pick()-reproductie, i.p.v. de logica inline in de component te houden).
+      // Voorselectie: gedelegeerd aan de PURE `resolvePoolImportPreselection` (headless testbaar
+      // via writePoolIFC→readPoolIFC→pick(), i.p.v. de logica inline in de component te houden).
       const preselection = resolvePoolImportPreselection(pool.companyId, companies);
       if (preselection.action === 'replace') {
         setAction('replace');
@@ -114,8 +112,8 @@ export function PoolImportDialog() {
   const newer = imported && action === 'replace' ? isLocalPoolNewer(companyId, imported) : false;
   const newCompanyName = imported ? resolveUniqueCompanyName(imported.companyName, companies.map(c => c.name)) : '';
   // Twee verschillende redenen waarom "toevoegen" een VERS id mint — met elk hun EIGEN, feitelijk
-  // kloppende hint (critreview-herkeuring, issue #19: de vorige, ene `idCollision` overkoepelde beide
-  // gevallen en beweerde dan bij het tweede geval iets dat niet klopt). Gedelegeerd aan de PURE,
+  // kloppende hint (één overkoepelende hint zou bij het tweede geval iets beweren dat niet klopt).
+  // Gedelegeerd aan de PURE,
   // headless-testbare `classifyPoolImportIdentityHint` (spiegelt `resolvePoolImportPreselection`):
   // 'collision' = een ECHTE botsing (gewoon, niet-reserved/veilig id, lokaal al bekend) ⇒ "deze
   // bibliotheek is al lokaal bekend, wordt een aparte kopie"; 'fresh-identity' = een RESERVED of
@@ -155,7 +153,7 @@ export function PoolImportDialog() {
             <p>{t('companyLibrary.importPreview', { calendars: imported.calendars.length, resources: imported.resources.length, version: imported.poolVersion })}</p>
 
             <div className="flex flex-col gap-3 border border-border rounded-[10px] p-2.5">
-              {/* Optie 1: toevoegen als nieuwe bibliotheek (issue #19: de veilige standaard). */}
+              {/* Optie 1: toevoegen als nieuwe bibliotheek (de veilige standaard). */}
               <label className="flex items-start gap-2 cursor-pointer">
                 <input
                   type="radio"
@@ -172,7 +170,7 @@ export function PoolImportDialog() {
                 </span>
               </label>
 
-              {/* Optie 2: bestaande bibliotheek vervangen (oud gedrag, ongewijzigd). */}
+              {/* Optie 2: bestaande bibliotheek vervangen. */}
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
@@ -183,11 +181,10 @@ export function PoolImportDialog() {
                 />
                 <span className="font-medium">{t('companyLibrary.importActionReplace')}</span>
               </label>
-              {/* Critreview F5: de select stond eerder GENEST in het radio-<label> hierboven — ongeldig
-                  contentmodel (een <select> is zelf labelbaar) en zonder toegankelijke naam sinds
-                  `importInto` niet meer gerenderd werd. Nu een sibling met een eigen <label htmlFor>. */}
+              {/* De select staat NIET genest in het radio-<label> hierboven (ongeldig contentmodel:
+                  een <select> is zelf labelbaar), maar als sibling met een eigen <label htmlFor>. */}
               <div className="flex flex-col gap-1.5 pl-6">
-                {/* Bedrijfsselector alleen bij ≥2 bedrijven (spec §2) — eenpitters zien het
+                {/* Bedrijfsselector alleen bij ≥2 bedrijven — eenpitters zien het
                     bedrijvenconcept niet; met 1 bedrijf vervangt de dialoog stilzwijgend dat ene bedrijf. */}
                 {companies.length >= 2 && (
                   <div className="flex flex-col gap-1">

@@ -4,7 +4,7 @@ import { useAppStore } from '@/state/appStore';
 import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 
 /**
- * AI-ribbontab — groep **Activiteit** (T15, spec §UI). Eén toggle-knop die het AI-activiteitenpaneel
+ * AI-ribbontab — groep **Activiteit**. Eén toggle-knop die het AI-activiteitenpaneel
  * toont/verbergt (`ui.aiActivityOpen`, hetzelfde ui-state-patroon als de debug-terminal-knop). Het
  * paneel zelf (`AIActivityPanel`) mount conditioneel in de rechter-rail (App.tsx).
  */

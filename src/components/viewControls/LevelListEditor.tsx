@@ -4,9 +4,9 @@ import type { FieldRef, GroupLevel } from '@/types/view';
 import { decodeFieldRef, encodeFieldRef } from './fieldRefCodec';
 
 /**
- * Herhaalbare rijen {veld ▾, richting} voor groeperen en sorteren (fase 2.7, §7). Controlled, zodat
+ * Herhaalbare rijen {veld ▾, richting} voor groeperen en sorteren. Controlled, zodat
  * dezelfde editor zowel live op de view werkt (de klassieke lintpopovers) als op het concept van de
- * layoutdialoog (issue #144). `GroupLevel` en `SortLevel` hebben dezelfde vorm.
+ * layoutdialoog. `GroupLevel` en `SortLevel` hebben dezelfde vorm.
  */
 export function LevelListEditor({
   levels, onChange, options, maxLevels, emptyLabel, addLabel,

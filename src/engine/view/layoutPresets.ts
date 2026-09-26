@@ -1,7 +1,6 @@
-// Layouts als weergavepresets (issue #144) — de pure kern. Een layout legt alleen vast wat hij
+// Layouts als weergavepresets — de pure kern. Een layout legt alleen vast wat hij
 // DRAAGT: een ontbrekende sleutel laat dat deel van het beeld met rust. Geen store, geen opslag;
 // headless getest in `tests/planning/check-layout-presets.ts`.
-// Ontwerp: docs/superpowers/specs/2026-09-19-layouts-als-weergavepresets-design.md
 
 import { LAYOUT_PARTS } from '@/types/view';
 import type { Layout, LayoutOverlays, LayoutPart, LayoutSession, LayoutViewParts, SavedFilter } from '@/types/view';
@@ -111,15 +110,15 @@ export function layoutMatchesView(layout: Layout, current: LayoutViewParts): boo
 }
 
 /**
- * Ruim de layouts van de sessie op die niet meer op het scherm staan (issue #173). Een handmatige
- * wijziging aan een gedragen deel zet de knop uit; zonder meer bleven zijn overige delen dan staan —
+ * Ruim de layouts van de sessie op die niet meer op het scherm staan. Een handmatige
+ * wijziging aan een gedragen deel zet de knop uit; zonder meer blijven zijn overige delen dan staan —
  * een beeld dat niet meer de layout is en ook niet het beeld van ervoor. Hier gaan de delen die nog
  * de WAARDE VAN DE LAYOUT tonen terug naar het herstelpunt, precies zoals bij uitzetten; een deel dat
  * afwijkt (wat de gebruiker zelf wijzigde) blijft staan, net als delen van nog levende layouts.
  *
  * Bewust zonder "beeld van ervoor": dezelfde regel ruimt ook een sessie op die ELDERS verouderde —
  * de overlays zijn app-breed, dus een overlay omzetten in document B laat een layout in document A
- * vallen. Zonder deze opruiming werd dat halve beeld bij de volgende klik het nieuwe herstelpunt.
+ * vallen. Zonder deze opruiming wordt dat halve beeld bij de volgende klik het nieuwe herstelpunt.
  *
  * `null` = er valt niets op te ruimen.
  */
@@ -150,8 +149,9 @@ export function pickLayoutParts(full: Layout, parts: readonly LayoutPart[]): Lay
 }
 
 /**
- * Neem de losse opgeslagen filters van vóór #144 op als layouts met alleen een filter. Idempotent op
- * id: een filter dat al als layout bestaat wordt niet opnieuw toegevoegd, ook niet als de gebruiker
+ * Neem losse opgeslagen filters (legacy, uit de tijd vóór layouts) op als layouts met alleen een
+ * filter. Idempotent op id: een filter dat al als layout bestaat wordt niet opnieuw toegevoegd, ook
+ * niet als de gebruiker
  * die layout intussen heeft hernoemd of uitgebreid.
  */
 export function migrateSavedFilters(layouts: readonly Layout[], savedFilters: readonly SavedFilter[]): Layout[] {

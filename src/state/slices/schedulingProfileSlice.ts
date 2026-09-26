@@ -1,4 +1,4 @@
-// Store-actie van het rekenprofiel (rekenprofielen, spec v3.1 §6; plan taak D3). Het profiel en de
+// Store-actie van het rekenprofiel. Het profiel en de
 // projectopties zijn documentdata (`project`, rijdt mee in DOCUMENT_FIELDS/snapshot). Eigen sjablonen
 // zijn app-globaal en leven buiten de store (`services/schedulingProfiles/profileStore.ts`).
 import type { AppSliceFactory } from './types';
@@ -17,12 +17,12 @@ export interface SchedulingProfileSlice {
   /** Eén undo-stap: `finishMutation({ stale: true })` (verlaat ook "datums zoals opgeslagen"), daarna
    *  `runCPM()` zoals Toepassen in Projectinfo altijd deed (ook met Automatisch berekenen uit; runCPM
    *  ververst het `after` van datzelfde undo-event), daarna één melding "N taken verschoven" (vóór/ná-
-   *  telling van de bladtaken, dezelfde als de #63-strook). Geen kloon-solve vooraf, geen dialoog.
-   *  Inhoudelijk gelijke instellingen (`sameSettings`) ⇒ niets, geen undo-stap. Een eigen profiel
-   *  zonder naam (`hasValidProfileName`) wordt geweigerd (`changed: false`); een geldige naam wordt
-   *  getrimd. = `applyProjectInfo({}, next)`. */
+   *  telling van de bladtaken, dezelfde als de strook "datums zoals opgeslagen"). Geen kloon-solve
+   *  vooraf, geen dialoog. Inhoudelijk gelijke instellingen (`sameSettings`) ⇒ niets, geen
+   *  undo-stap. Een eigen profiel zonder naam (`hasValidProfileName`) wordt geweigerd
+   *  (`changed: false`); een geldige naam wordt getrimd. = `applyProjectInfo({}, next)`. */
   applySchedulingSettings: (next: SchedulingSettings) => ApplyResult;
-  /** Toepassen in Projectinfo (gebruikstest I5): `metadata` = alleen de ÉCHT gewijzigde velden
+  /** Toepassen in Projectinfo: `metadata` = alleen de ÉCHT gewijzigde velden
    *  (`projectInfoPatch`). Wijzigt het profiel niet, dan gaat de metadata via `setProject` (met zijn
    *  eigen no-op-guard en projectstart-klem). Wijzigt het profiel wél, dan landen metadata én profiel
    *  in ÉÉN producer met één undo-stap "Projectinfo" (of "Rekenprofiel" zonder metadata) — zodat één
@@ -58,7 +58,7 @@ export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlic
       runtime.beginUndoable(s, { label: hasMetadata ? 'Projectinfo' : 'Rekenprofiel' });
       const prevStartDate = s.project.startDate;
       if (hasMetadata) Object.assign(s.project, metadata);
-      // Zelfde projectstart-klem als `setProject` (T7b): alleen bij een echte startdatumwijziging.
+      // Zelfde projectstart-klem als `setProject`: alleen bij een echte startdatumwijziging.
       if (typeof metadata.startDate === 'string' && metadata.startDate !== prevStartDate) {
         clampedAnchors = clampProjectStartAnchors({
           tasks: s.tasks, sequences: s.sequences, calendar: s.calendar, calendars: s.calendars,

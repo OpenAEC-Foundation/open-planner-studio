@@ -29,7 +29,7 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       && value.id === other.id
       && value.filePath === other.filePath
       && value.isDirty === other.isDirty
-      // De modusvlag hoort bij de manifestmetadata (critreview laag 3): een documentwissel in of
+      // De modusvlag hoort bij de manifestmetadata: een documentwissel in of
       // uit "datums zoals opgeslagen" moet ook zónder inhoudswijziging een manifestschrijf geven.
       && value.datesAsRecorded === other.datesAsRecorded;
   });

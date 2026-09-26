@@ -32,15 +32,11 @@ function isNotAllowedRefusal(err: unknown): boolean {
 }
 
 /**
- * `SecurityError`: "geen geldige gebruikersactivatie" — het schrijfmoment zelf mist een geldige
- * (verse) gebruikersgebaar, niet de omgeving die blijvend weigert. Dat is een eigenschap van DEZE
- * ene aanroep, niet van de omgeving: de `actualAutosave`-timer (`saveToRefWithoutPromptWeb`,
- * `src/hooks/useAutoSave.ts`) draait op een 10s-throttle zonder gebruikersgebaar en is dus de
- * kandidaat die dit het vaakst raakt (nog niet bevestigd in een echte browser — wél de enige
- * schrijfaanroep in dit bestand zonder omringende klik/toetsaanslag). Een handmatige Ctrl+S/
- * "Opslaan"-klik heeft juist wél een vers gebaar, dus die mag dit zelden of nooit zien. In beide
- * gevallen: NIET onthouden als omgevingseigenschap — de eerstvolgende aanroep (met of zonder
- * gebaar) verdient een eigen, verse poging.
+ * `SecurityError`: "geen geldige gebruikersactivatie" — een eigenschap van DEZE ene aanroep (het
+ * schrijfmoment mist een vers gebruikersgebaar), niet van de omgeving. Vooral de
+ * `actualAutosave`-timer (`saveToRefWithoutPromptWeb`, 10s-throttle zonder gebaar) raakt dit; een
+ * handmatige Ctrl+S heeft wél een vers gebaar. NIET onthouden als omgevingseigenschap — de
+ * eerstvolgende aanroep verdient een eigen, verse poging.
  */
 function isSecurityRefusal(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'SecurityError';
@@ -75,7 +71,7 @@ function featurePolicyBlocksFSA(): boolean {
 }
 
 /**
- * Gemeten 2026-07-30: in de embedded webview van de Claude-desktopapp (Electron 42 / Chrome 148)
+ * Gemeten: in de embedded webview van de Claude-desktopapp (Electron 42 / Chrome 148)
  * bestáát de File System Access API volledig — `showSaveFilePicker`, `FileSystemWritableFileStream`
  * en `createWritable` zijn alle drie aanwezig, en OPFS-handles (die geen grant nodig hebben)
  * schrijven gewoon — maar een handle uit de bestandskiezer krijgt nooit een readwrite-grant, dus
@@ -179,18 +175,18 @@ export async function openFileDialogWeb(filters: FileFilter[], opts?: OpenDialog
 }
 
 /**
- * De web-opslaanroute voor tekst én bytes (X8). `FileSystemWritableFileStream.write` accepteert
+ * De web-opslaanroute voor tekst én bytes. `FileSystemWritableFileStream.write` accepteert
  * beide vormen, dus het enige verschil tussen de twee publieke varianten is het MIME-type van de
  * download-terugval; de picker, de weigeringsafhandeling en het latchen blijven één plek. Zou dit
  * twee kopieën zijn, dan drift de foutafhandeling van het byte-pad onvermijdelijk weg van die van
- * het tekstpad — precies de duplicatie waar K6 over gaat.
+ * het tekstpad.
  */
 async function saveDataDialogWeb(
   defaultName: string, data: string | Uint8Array, filters: FileFilter[], opts?: SaveDialogOpts,
 ): Promise<SaveOutcome | null> {
   // Zelfde policy-blokkade kan hier ook optreden (`showSaveFilePicker` bestaat, `createWritable`
-  // weigert) — de catch hieronder ving dat al af via `platformRefusesWrites`/de download-route,
-  // maar de featurePolicy-precheck bespaart ook hier de nutteloze picker-flits.
+  // weigert) — de catch hieronder vangt dat op via `platformRefusesWrites`/de download-route; de
+  // featurePolicy-precheck bespaart de nutteloze picker-flits.
   if (hasFSA() && !platformRefusesWrites && !featurePolicyBlocksFSA()) {
     try {
       // `startIn: 'downloads'` is een Chromium-uitbreiding op de FSA-spec (well-known directory) —
@@ -242,7 +238,7 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
   if (platformRefusesWrites) return false;
   const { handle } = ref;
   const opts: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' };
-  // In-place opslaan vereist readwrite; showOpenFilePicker geeft alleen read (spec §3.2).
+  // In-place opslaan vereist readwrite; showOpenFilePicker geeft alleen read.
   try {
     if ((await handle.queryPermission?.(opts)) !== 'granted') {
       if ((await handle.requestPermission?.(opts)) !== 'granted') return false;
@@ -257,8 +253,8 @@ export async function saveToRefWeb(ref: FileRef, content: string): Promise<boole
     // bestandskiezer, om vervolgens alsnog in de download-terugval te landen. `SecurityError` (geen
     // gebruikersactivatie op dít moment) latcht bewust NIET — de eerstvolgende handmatige Ctrl+S
     // heeft weer een vers gebaar en verdient een eigen, verse in-place poging in plaats van meteen
-    // gedegradeerd te worden. Andere fouten blijven `false` geven — net als voorheen valt de
-    // aanroeper dan terug op "opslaan als", wat bij een verdwenen of vergrendeld bestand precies de
+    // gedegradeerd te worden. Andere fouten blijven `false` geven — de aanroeper valt dan terug
+    // op "opslaan als", wat bij een verdwenen of vergrendeld bestand precies de
     // juiste uitweg is.
     if (isNotAllowedRefusal(err)) platformRefusesWrites = true;
     return false;
@@ -299,10 +295,9 @@ export async function saveToRefWithoutPromptWeb(ref: FileRef, content: string): 
 }
 
 /**
- * Gedeelde permissie-dans voor een leesactie op een handle (T11, T2-kwaliteitsreview-agenda
- * stap 0 b): `readFromRefWeb`/`readBytesFromRefWeb` waren tot deze refactor twee bijna-identieke
- * kopieën van dezelfde read-grant-aanvraag, alleen verschillend in hoe ze de uiteindelijke `File`
- * naar het resultaat vertalen (`.text()` vs. `new Uint8Array(await .arrayBuffer())`). `extract`
+ * Gedeelde permissie-dans voor een leesactie op een handle, voor `readFromRefWeb`/
+ * `readBytesFromRefWeb`. Die verschillen alleen in hoe ze de uiteindelijke `File` naar het
+ * resultaat vertalen (`.text()` vs. `new Uint8Array(await .arrayBuffer())`). `extract`
  * draagt dat verschil; de rest (kind-guard, queryPermission/requestPermission, try/catch → `null`)
  * blijft één plek.
  *

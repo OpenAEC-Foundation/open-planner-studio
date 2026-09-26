@@ -17,7 +17,7 @@ export function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** Synthetisch tijdstip dat de DAG-schrijvers op een date-only datum plakken (§7.3); de lezers
+/** Synthetisch tijdstip dat de DAG-schrijvers op een date-only datum plakken; de lezers
  *  herkennen het als "geen echte tijd" (`hasNonAnchorTime`). */
 export const DAY_TIME_ANCHOR = '08:00:00';
 

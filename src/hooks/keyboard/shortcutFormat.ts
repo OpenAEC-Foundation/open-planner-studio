@@ -1,4 +1,4 @@
-// Platform-bewuste sneltoets-formattering (fase 2.10, golf 3) — puur presentatielaag voor de
+// Platform-bewuste sneltoets-formattering — puur presentatielaag voor de
 // Ctrl/Cmd+/-overzichtsdialoog. Geen enkele afhandel-logica hier; alleen `ShortcutCombo` -> tekst.
 import type { ShortcutCombo } from './shortcutRegistry';
 

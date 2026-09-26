@@ -123,14 +123,14 @@ function useElementSize() {
 const SUMMARY_ADD_BUTTON_WIDTH = 22;
 
 /** Het taakraster is een UI-route voor voortgang: de invoerregels van `engine/progressEntry.ts`
- *  gelden (Z1: zonder statusdatum gaat die op vandaag; Z1b: eerst de werkelijke start vragen). Per
+ *  gelden (statusdatum op vandaag zonder statusdatum; zo nodig eerst de startvraag). Per
  *  handeling vers, zodat een sessie die over middernacht heen openstaat de juiste dag gebruikt. */
 function progressEntryOptions(): GridMutationOptions {
   return { progressEntry: { today: localTodayIso() } };
 }
 
 /**
- * Z1b in het taakraster: weigerde de transactie alleen omdat er eerst een werkelijke start nodig is
+ * De startvraag in het taakraster: weigerde de transactie alleen omdat er eerst een werkelijke start nodig is
  * (`actualStartRequired`, één fout per taak), dan stelt dit de vraag en herhaalt het DEZELFDE
  * handeling mét een `task.time.actualStart`-write per taak — samen één undo-stap. Annuleren verandert
  * niets. `true` = de vraag is gesteld; de aanroeper behandelt de handeling dan als afgehandeld.
@@ -281,7 +281,7 @@ export function TaskGridSurface({
   const calendar = useAppStore(state => state.calendar);
   const calendars = useAppStore(state => state.calendars);
   const scheduleStale = useAppStore(state => state.scheduleStale);
-  // Taaktypes-etappe (spec §7): werkregel-kolommen alleen wanneer ontsloten.
+  // Werkregel-kolommen alleen wanneer ontsloten.
   const showTaskTypes = useAppStore(state => state.ui.showTaskTypes);
   const taskTypesVisible = useAppStore(state => state.taskTypesVisible);
   const cpmResult = useAppStore(state => state.cpmResult);
@@ -394,7 +394,7 @@ export function TaskGridSurface({
     numberLocale: taskI18n.language,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
-    // "Datums zoals opgeslagen" (XER-etappeplan laag 3, T6) — `undefined` op documenten zonder
+    // "Datums zoals opgeslagen" — `undefined` op documenten zonder
     // vastlegging, dus de kolom `recorded.source` en de "niet vastgelegd"-tak op late/float
     // bestaan dan niet (`available`-gates in taskColumnRegistry.ts). De poort per naad staat in
     // `recordedGridBinding` (gedeeld met `gridTransaction.ts`, headless getest): de "niet
@@ -501,9 +501,9 @@ export function TaskGridSurface({
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
       if (samePublishedSelection && samePublishedActiveTask) return reconciled;
 
-      // Browserreview, observatie 1: syncActiveCellToPublishedTask trekt de celcursor
+      // syncActiveCellToPublishedTask trekt de celcursor
       // (data-grid-active) gelijk met de gepubliceerde actieve taak (data-grid-row-selected) — zie
-      // die functie voor waarom dat zonder deze aanroep uit elkaar liep tussen een gantt-klik en
+      // die functie voor waarom dat zonder deze aanroep uit elkaar loopt tussen een gantt-klik en
       // pijltjesnavigatie.
       return syncActiveCellToPublishedTask(reconciled, publishedActiveTaskId, selectedTaskIds, rowIndex, visibleColumnIds);
     });
@@ -587,10 +587,10 @@ export function TaskGridSurface({
     setSurfaceError(null);
   }, [activeDocumentId, adapter, readOnlyMessage]);
 
-  // Issue #89: elke validatiecode heeft een vertaling in `taskGrid.validation.*`; ontbreekt hij
+  // Elke validatiecode heeft een vertaling in `taskGrid.validation.*`; ontbreekt hij
   // toch (nieuwe code zonder tekst), dan valt de melding terug op een VERTAALDE algemene tekst in
-  // plaats van op een Nederlandse `defaultValue` — de gebruiker zag anders Nederlands in een
-  // Engelse interface. `check-task-grid-i18n.ts` bewaakt dat elke code in de bron een tekst heeft.
+  // plaats van op een Nederlandse `defaultValue`.
+  // `check-task-grid-i18n.ts` bewaakt dat elke code in de bron een tekst heeft.
   const validationMessage = useCallback((
     error: { messageKey: string } | undefined,
     fallbackKey: 'taskGrid.validation.clearNotPossible' | 'taskGrid.validation.clearFailed'
@@ -784,14 +784,14 @@ export function TaskGridSurface({
     const meta = adapter.rowMetaByKey.get(row.rowKey);
     const task = meta?.kind === 'task' ? tasksById.get(meta.taskId) : undefined;
     const isName = column.id === 'task.name';
-    // Issue #89: de naamrij draagt de hiërarchie. Elke rij reserveert één inspringeenheid voor het
+    // De naamrij draagt de hiërarchie. Elke rij reserveert één inspringeenheid voor het
     // triehoekje (`taskNameIndent`), zodat een blad zijn naam op dezelfde kolom begint als een
     // samenvattende taak op hetzelfde niveau; de subtaak-plus staat rechts uitgelijnd, achter de
     // tekst. Dezelfde rij omhult ook de naameditor, zodat die de inspringing respecteert en de
     // resterende kolombreedte volledig benut.
     const renderNameRow = (summary: Task, body: ReactNode, editingName: boolean): ReactNode => {
       const hasDisclosure = summary.childIds.length > 0;
-      // Discussion #97: samenvattingen en mijlpalen krijgen een licht typografisch accent in de
+      // Samenvattingen en mijlpalen krijgen een licht typografisch accent in de
       // naamkolom, gestuurd via dit attribuut — CSS doet de rest (vet, tint, mijlpaalkleur).
       // Tijdens het bewerken van de naam blijft het editorveld ongemoeid (geen attribuut daarop).
       const taskKind = summary.isMilestone ? 'milestone' : hasDisclosure ? 'summary' : undefined;

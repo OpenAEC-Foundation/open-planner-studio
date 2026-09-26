@@ -72,7 +72,7 @@ interface UseSplitGestureOptions {
 }
 
 /**
- * Het splitsgebaar (issue #146, etappe 2): in de splits-modus klikken op de dag waar de
+ * Het splitsgebaar: in de splits-modus klikken op de dag waar de
  * onderbreking begint en naar rechts slepen voor de lengte.
  *
  * Naar het model van `useBarDrag`: eigen state, eigen window-listeners, en uitsluitend gestart door
@@ -158,13 +158,13 @@ export function useSplitGesture({
     if (!bar) return false;
     const { eng, hourMode, hoursPerDay, workMinutes, unitMinutes } = contextFor(task);
     const pieces0 = toSplitPieces(task.splitGaps, workMinutes);
-    if (!pieces0) return false; // niet-wélgevormde importsplit: alleen-lezen (spec §2)
+    if (!pieces0) return false; // niet-wélgevormde importsplit: alleen-lezen
     const x = input.startClientX - canvas.getBoundingClientRect().left;
     const at = snapAt(x, hourMode);
     if (!at) return false;
     // De balk staat op `earlyStart || scheduleStart` (`GanttRenderer.barGeometry`): een taak die
     // door een voorganger is opgeschoven houdt haar `scheduleStart`-anker op de projectstart. Vanaf
-    // dat anker meten schoof de split precies die opschuiving op (issue #171).
+    // dat anker meten schuift de split precies die opschuiving op.
     const startIso = task.time.earlyStart || task.time.scheduleStart;
     const taskStart = startIso.includes('T') ? parseInstant(startIso) : parseDate(startIso);
     const { workMinutes: offsetMinutes, inGap } = workOffsetAtDate(pieces0, taskStart, at, eng, hourMode);
@@ -225,7 +225,7 @@ export function useSplitGesture({
 
     const handleMouseUp = () => {
       const g = frozenRef.current;
-      // Losse klik zonder beweging: één commit met de kleinste pauze (spec §3 — klikken is
+      // Losse klik zonder beweging: één commit met de kleinste pauze (klikken is
       // "onderbreek hier", slepen is "zo lang").
       if (g && !g.committed) commit(g.unitMinutes);
       stop();

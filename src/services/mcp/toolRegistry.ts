@@ -3,9 +3,9 @@
 // Toelichting bij een nieuwe tool (stappen, context-aandachtspunten, het mechanische vangnet):
 // docs/recepten/mcp-tool.md. Dat vangnet zelf is `tests/mcp/cases-toolregistry.ts`.
 //
-// STRUCTUUR (parallellisatie-eis, spec §componenten): elke `tools/*.ts`-module exporteert zijn eigen
-// `McpToolDef[]`; deze registry importeert die arrays en slaat ze plat. Een baan voegt dus precies
-// twee dingen toe: zijn eigen module én één regel in `MODULES` hieronder.
+// STRUCTUUR: elke `tools/*.ts`-module exporteert zijn eigen `McpToolDef[]`; deze registry importeert
+// die arrays en slaat ze plat. Een nieuwe module voegt dus precies twee dingen toe: zichzelf én één
+// regel in `MODULES` hieronder.
 //
 // De registratie-STAAT zelf (`registerToolModules`/`getTool`/`getTools`/`TOOL_PREFIX`) leeft in de
 // leaf-module `toolIndex.ts` en wordt hier ongewijzigd doorgegeven. Reden: `tools/batchTool.ts` moet
@@ -55,7 +55,7 @@ const MODULES: McpToolDef[][] = [
  * (Her)registreer de COMPLETE productie-toolset. Idempotent: `registerToolModules` bouwt de staat
  * elke keer vers op, dus twee aanroepen leveren exact dezelfde registratie.
  *
- * Waarom naast de zelf-registratie hieronder (SYNC-2): die zelf-registratie is een side-effect van het
+ * Waarom naast de zelf-registratie hieronder: die zelf-registratie is een side-effect van het
  * IMPORTEREN van dit bestand. Dat werkt (de dispatcher importeert hem), maar het is een stille,
  * onopzettelijke afhankelijkheid — en een test die zijn eigen deelverzameling registreert laat de
  * globale staat afgeknot achter. `initMcpRuntime()` in `server.ts` roept deze functie expliciet aan bij

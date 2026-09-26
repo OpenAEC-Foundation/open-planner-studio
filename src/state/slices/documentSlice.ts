@@ -41,8 +41,8 @@ import {
   mergeCalendarLibrarySettle, notifyCalendarLibrarySettle, NO_CALENDAR_LIBRARY_SETTLE, type CalendarLibrarySettle,
 } from '../calendarTasks';
 
-// Het documentcontract (payload-vorm + capture/hydrate/fresh) woont nu in `../documentContract`
-// (audit P10). Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
+// Het documentcontract (payload-vorm + capture/hydrate/fresh) woont in `../documentContract`.
+// Hier blijft alleen de multi-document back-end (registry, switchen, sluiten,
 // recovery). Re-export voor bestaande importers (bv. App.tsx importeert RecoveryDocInput hier).
 export type { DocumentPayload, RecoveryDocInput } from '../documentContract';
 
@@ -64,7 +64,7 @@ export interface DocumentEntry {
   id: string;
   /** null wanneer dit het actieve document is — zijn data leeft dan op top-level. */
   payload: DocumentPayload | null;
-  /** H6: een bibliotheekverversing heeft in dit SLAPENDE document taken via hun werkregel aangepast
+  /** Een bibliotheekverversing heeft in dit SLAPENDE document taken via hun werkregel aangepast
    *  (`refreshAllDocumentsFromPool`). De melding ("N taken aangepast", zoals de kalenderdialoog)
    *  volgt bij activering, bij het document waar ze over gaat. Sessie-UI, geen documentdata: hoort
    *  daarom niet in de payload/het documentcontract en verdwijnt met het document. */
@@ -92,7 +92,7 @@ function resetDocumentScopedUI(s: AppState): void {
   // twee alléén AAN, dus zonder reset toont een volgend document het scherm van zijn voorganger.
   s.ui.showLibraryLinkDialog = false;
   s.ui.libraryRefreshNotice = null;
-  // Issue #27/E4: vangnet, geen normale route — een documentwissel is al onmogelijk zolang deze
+  // Vangnet, geen normale route — een documentwissel is al onmogelijk zolang deze
   // dialoog openstaat (zie hasBlockingDialogOpen/BLOCKING_UI_FLAGS + de when-guards op Ctrl/⌘1-9 en
   // Ctrl+O). Gaat dit wél af, dan is er een wisselroute gemist; dat is een bug, geen normaal gedrag.
   s.ui.showProgressImportDialog = false;
@@ -107,7 +107,7 @@ function publishActivation(s: AppState, activation: DocumentActivationMaterializ
 }
 
 /**
- * H6: meld na de publicatie wat de werkregel deed — de settle van deze activatiegrens
+ * Meld na de publicatie wat de werkregel deed — de settle van deze activatiegrens
  * (`materializeBehindOnlyRefresh`) plus wat een bibliotheekverversing eerder in dit document deed terwijl
  * het sliep (`DocumentEntry.pendingWorkRuleSettle`). Eén melding per document, een taak één keer
  * geteld; dezelfde melding als de kalenderdialoog.
@@ -165,16 +165,15 @@ export interface DocumentSlice {
    *  documenten herstellen gewoon. Geeft de id's van overgeslagen documenten terug zodat de
    *  aanroeper hun snapshots kan laten staan in plaats van ze te wissen.
    *
-   *  Bewuste grens: alleen het ACTIEVE document wordt hier doorgerekend (net als vóór deze fix —
-   *  slapende documenten krijgen geen solve, dat is de hele reden dat ze slapend zijn). Een
-   *  corrupte snapshot die niet als actief document wordt gekozen komt dus gewoon als payload
-   *  binnen en valt pas om bij een latere `switchDocument`. Die lacune is pre-existent en niet wat
-   *  dit TODO-item ("het opstarten klapt") adresseert; alle documenten preventief solven zou het
-   *  herstel juist verzwaren met precies de solve die we hier proberen te overleven. */
+   *  Bewuste grens: alleen het ACTIEVE document wordt hier doorgerekend — slapende documenten
+   *  krijgen geen solve, dat is de hele reden dat ze slapend zijn. Een corrupte snapshot die niet
+   *  als actief document wordt gekozen komt dus gewoon als payload binnen en valt pas om bij een
+   *  latere `switchDocument`. Alle documenten preventief solven zou het herstel juist verzwaren met
+   *  precies de solve die we hier proberen te overleven. */
   restoreDocuments: (docs: RecoveryDocInput[], activeId: string | null) => { skippedIds: string[] };
   /** Reken elk NIET-ACTIEF geopend document met een verouderde planning (`payload.scheduleStale`)
-   *  écht door en schrijf de uitkomst in zijn payload terug — het terugschrijfbesluit van B1b
-   *  §4.3b. Geeft het aantal bijgewerkte documenten terug (0 ⇒ er is niets gemuteerd).
+   *  écht door en schrijf de uitkomst in zijn payload terug. Geeft het aantal bijgewerkte
+   *  documenten terug (0 ⇒ er is niets gemuteerd).
    *
    *  Wordt uitsluitend aangeroepen wanneer de gebruiker "Automatisch berekenen"
    *  (`ui.autoCalcCPM`) aan heeft staan: dan mag een leesvenster zijn documenten bijwerken. In de
@@ -193,23 +192,23 @@ export interface DocumentSlice {
 
 /**
  * Titel-afleiding voor `getOpenDocuments()`. Dezelfde regel als de tabbladen — daarom letterlijk
- * dezelfde pure helper uit `@/utils/documents` (er stond hier een tweede, licht afwijkende kopie).
+ * dezelfde pure helper uit `@/utils/documents`.
  *
- * Een naamloos project levert bewust een LEGE titel: de store is een datalaag, geen weergavelaag,
- * en hier stond eerder een hardgecodeerd Nederlands 'Naamloos'. De weergaveplekken vullen de
+ * Een naamloos project levert bewust een LEGE titel: de store is een datalaag, geen weergavelaag
+ * (geen hardgecodeerde tekst). De weergaveplekken vullen de
  * vertaalde `common:project.untitled` in.
  */
 function docTitle(filePath: string | null, project: Project, xerCode?: string | null): string {
   return documentTitle(filePath, project.name, xerCode);
 }
 
-/** Diepe JSON-kloon — zelfde precedent als `snapshot.ts` (de projectdata is JSON-veilig). */
+/** Diepe JSON-kloon (de projectdata is JSON-veilig). */
 function deepClone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
 /**
- * X6 bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
+ * De XER-lezer bewaart een bestandsbrede, immutable resourcecatalogus met de oorspronkelijke TASKRSRC-
  * rijen. Een documentkopie krijgt een nieuwe, mutable projectview, maar mag die catalogus nooit
  * JSON-klonen: rehab-2 alleen al bevat 52.640 retained rijen.
  */
@@ -237,8 +236,9 @@ function cloneXerImportMetadata(
   }
   const { resources, metadata, ...withoutCatalogs } = source;
   const clone = deepClone(withoutCatalogs);
-  // X6/X8-catalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat krijgt zijn eigen
-  // mutable projectmetadata maar nooit een tweede kopie van grote TASKRSRC/TASKACTV-catalogi.
+  // De resource-/metadatacatalogi zijn bestandsbreed, readonly brondata. Een documentduplicaat
+  // krijgt zijn eigen mutable projectmetadata maar nooit een tweede kopie van grote
+  // TASKRSRC/TASKACTV-catalogi.
   return {
     ...clone,
     ...(resources ? { resources: cloneXerResourceMetadata(resources) } : {}),
@@ -335,15 +335,14 @@ function openProjectNames(s: AppState): string[] {
 /**
  * Het id van het EERSTE document van een contextinstantie — PER CONTEXT vers gegenereerd.
  *
- * Dit stond hiervoor als `const INITIAL_DOC_ID = generateId('doc')` op MODULE-niveau, en dat is
- * precies één id voor het hele proces: élke `createAppStoreContext()` (dus ook elke wegwerpbare
- * scratch-context uit `state/runtime/scratchDocument.ts`) begon met hetzélfde `activeDocumentId` als
- * document 1 van de gemounte app. Sessie-permanente registraties die op een document-id sleutelen —
- * `state/timephasedLossNotice.ts`'s `notifiedDocIds`/`notifiedLevelingDelayDocIds` — zijn app-globale
- * module-state en kijken dus dwars door contextgrenzen heen: een `applyLeveling` in een scratch-run
- * claimde de M10-melding voor het ECHTE document 1, dat 'm daarna deze sessie nooit meer kreeg.
- * Één functieaanroep per slice-instantie in plaats van één per module lost dat structureel op; de
- * scratch-context zet daar bovenop nog het ECHTE docId van de payload (zie `runInScratchDocument`).
+ * Niet één id op MODULE-niveau: dan zou élke `createAppStoreContext()` (dus ook elke wegwerpbare
+ * scratch-context uit `state/runtime/scratchDocument.ts`) met hetzélfde `activeDocumentId` beginnen
+ * als document 1 van de gemounte app. Sessie-permanente registraties die op een document-id
+ * sleutelen — `state/timephasedLossNotice.ts`'s `notifiedDocIds`/`notifiedLevelingDelayDocIds` —
+ * zijn app-globale module-state en kijken dwars door contextgrenzen heen: een `applyLeveling` in een
+ * scratch-run zou de afrondingsmelding voor het ECHTE document 1 claimen. Eén functieaanroep per
+ * slice-instantie voorkomt dat; de scratch-context zet daar bovenop nog het ECHTE docId van de
+ * payload (zie `runInScratchDocument`).
  */
 function initialDocumentRegistry(): Pick<DocumentSlice, 'documents' | 'activeDocumentId'> {
   const id = generateId('doc');
@@ -409,7 +408,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       cpmResult: src.cpmResult,
       resourceLoadResult: src.resourceLoadResult,
       scheduleStale: src.scheduleStale,
-      // Issue #63 — 'ref' net als cpmResult/scheduleStale hierboven: een kopie deelt de bron-
+      // 'derived' net als cpmResult/scheduleStale hierboven: een kopie deelt de bron-
       // vastlegging/modus tot de kopie zelf een bewerking of berekening krijgt.
       recordedDates: src.recordedDates,
       datesAsRecorded: src.datesAsRecorded,
@@ -429,7 +428,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
       taskTypesVisible: src.taskTypesVisible,
-      // Een kopie is per definitie geen ongewijzigde import meer (heropen-beleid optie B).
+      // Een kopie is per definitie geen ongewijzigde import meer.
       importPristine: false,
       // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —
       // de reden reist dus mee, anders zegt MCP/de extensie-API voor de kopie "nooit een XER-bron".
@@ -448,7 +447,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       publishActivation(s, activation);
     });
     announceWorkRuleSettle(get().notify, newId, null, activation);
-    // Issue #173: de overlays zijn app-breed; in het andere document kan een layout van dit document
+    // De overlays zijn app-breed; in het andere document kan een layout van dit document
     // daardoor zijn gevallen. Ruim die nu op, niet pas bij de volgende klik.
     get().settleLayoutSession();
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
@@ -462,7 +461,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
   switchDocument: (id) => {
     const state = get();
     if (id === state.activeDocumentId) return;
-    // Een documentwissel breekt een lopende coalesce-reeks af (pakket H): terugswitchen mag niet
+    // Een documentwissel breekt een lopende coalesce-reeks af: terugswitchen mag niet
     // stilzwijgend verdergaan op de undo-stap van vóór de wissel.
     runtime.resetUndoCoalescing();
     const target = state.documents.find((d) => d.id === id);
@@ -599,7 +598,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
 
   restoreDocuments: (docs, activeId) => {
     if (docs.length === 0) return { skippedIds: [] };
-    // X6/X8-herstel leest per document een ZELFSTANDIG IFC; identieke gevalideerde XER-bron-
+    // Herstel leest per document een ZELFSTANDIG IFC; identieke gevalideerde XER-bron-
     // archieven worden hier weer één gedeelde referentie vóór er payloads van gemaakt worden
     // (rehab-2 alleen al draagt 52.640 retained TASKRSRC-rijen). Deze stap GOOIT bewust bij een
     // ongeldig archief (`XerSourceArchiveValidationError`) en wordt NIET afgevangen: een
@@ -618,7 +617,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     //    de CPM-solver zelf (die geeft `result.error` terug, geen throw). De kandidaat die daarop
     //    stukloopt wordt overgeslagen; de volgende in de lijst wordt geprobeerd, zodat één corrupt
     //    document niet de rest van het herstel blokkeert. De oorspronkelijk actieve kandidaat gaat
-    //    als eerste, zodat een geslaagd herstel dezelfde `activeDocumentId` behoudt als voorheen.
+    //    als eerste, zodat een geslaagd herstel dezelfde `activeDocumentId` behoudt als vóór de crash.
     const tryOrder = [
       ...sharedDocs.filter((d) => d.id === activeId),
       ...sharedDocs.filter((d) => d.id !== activeId),
@@ -630,9 +629,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       try {
         const rawPayload = payloadFromInput(candidate);
         const p = prepareLoadedPayload(rawPayload, { recompute: true });
-        // XER-etappeplan §3.5/§4-T4, risico §5.4, heropen-beleid (T8) + critreview laag 3
-        // (bevinding 2): crashherstel herstelt het bestaande #63-aanbod (`recordedFields`, elk
-        // formaat) dat het tot nu toe stilzwijgend wegliet, EN de modusvlag van vóór de crash —
+        // Crashherstel herstelt het aanbod "datums zoals opgeslagen" (`recordedFields`, elk
+        // formaat) EN de modusvlag van vóór de crash —
         // uit de recovery-metadata (`candidate.datesAsRecorded`), dus een OPGESCHREVEN feit en
         // geen heuristiek: crashherstel is het hervatten van een sessie, geen heropening, en mag
         // dus niet opnieuw beslissen. `rawPayload.tasks` is bewust de PRE-solve array —
@@ -660,9 +658,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       if (skippedIds.includes(d.id)) continue;
       try {
         const sleeping = payloadFromInput(d);
-        // Critreview laag 3, bevinding 3: ook een SLAPEND document moet zijn weergavestand
-        // terugkrijgen. Zonder dit kwam het terug met P6's datums in `task.time`, zonder modus en
-        // mét `scheduleStale` — waarna automatisch berekenen (of de eerste F5) ze stil wegrekende.
+        // Ook een SLAPEND document moet zijn weergavestand terugkrijgen. Anders komt het terug met
+        // de brondatums in `task.time`, zonder modus en mét `scheduleStale` — waarna automatisch
+        // berekenen (of de eerste F5) ze stil wegrekent.
         // Geen solve hier (dat is de hele reden dat slapende documenten stale zijn), dus ook geen
         // `shifted`-teller; zie `applyRestoredRecordedMode`.
         if (d.datesAsRecorded) applyRestoredRecordedMode(sleeping, d);
@@ -696,7 +694,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     set((s) => {
       replaceSessionHistoryState(s, [], 1);
       // `castDraft`: een payload kan een readonly XER-bronarchief/-catalogus dragen, die Immer's
-      // `Draft<>` anders afwijst (X6).
+      // `Draft<>` anders afwijst.
       s.documents = castDraft(sharedDocs
         .filter((d) => !skippedIds.includes(d.id))
         .map((d) => ({
@@ -714,7 +712,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
     const cpm = activePayload.cpmResult;
     const failed = scheduleFailedNotice(cpm);
     if (failed) get().notify(failed);
-    // Eigenaarsbesluit 2026-09-24 ("openen met melding"): ook een herstelsnapshot waarvan het
+    // Ook een herstelsnapshot waarvan het
     // XER-bronarchief onbruikbaar was, komt terug zónder archief — met één melding voor de hele
     // herstelbatch (alleen de daadwerkelijk herstelde documenten).
     const archiveNotice = withXerArchiveIssueNotice(undefined, sharedDocs
@@ -751,11 +749,12 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       try {
         const tasks = cloneTasksForSolve(payload.tasks);
         // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
-        // draait — pariteit by construction, geen tweede implementatie (A3/M3).
+        // draait — pariteit by construction, geen tweede implementatie.
         const result = solveProject(
           solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
-        // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
-        // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
+        // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van het
+        // bezettingsoverzicht blijft dan gelden — het overzicht toont zijn boeking ongeteld met de
+        // ⚠) en doorgaan met de rest.
         if (result.error) continue;
         // Spread over het volledige contract: elk (ook toekomstig) payload-veld rijdt automatisch
         // mee, alleen de vier doorrekenvelden worden vervangen. `resourceLoadResult: null` omdat
@@ -764,7 +763,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         // `isDirty` blijft letterlijk staan. De app-globale sessiehistorie wordt hier niet geraakt:
         // dit is geen gebruikersbewerking maar alleen een afleiding voor een slapend document.
         //
-        // `datesAsRecorded`/`recordedDates` MOETEN hier mee gewist worden (issue #63): de spread
+        // `datesAsRecorded`/`recordedDates` MOETEN hier mee gewist worden: de spread
         // draagt ze anders ongewijzigd mee, waarna dit document belooft "dit zijn de datums zoals
         // opgeslagen" terwijl de zojuist berekende datums op het scherm staan zodra je het
         // activeert — precies de mengvorm die de modus moet voorkomen. Dat er geen undo-stap

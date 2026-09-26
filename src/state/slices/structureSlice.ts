@@ -6,7 +6,7 @@ import { generateId } from '@/utils/id';
 import type { AppSliceFactory } from './types';
 
 /**
- * Structuurdefinities (fase 2.2): activity-code-types en custom fields, per document
+ * Structuurdefinities: activity-code-types en custom fields, per document
  * (round-trippen door IFC; zitten in undo-snapshots en de document-payloads).
  * Taak-toewijzingen leven op de taken zelf (task.activityCodes / task.customFields)
  * en liften daardoor vanzelf mee met snapshot/klembord/IFC-taken.
@@ -84,7 +84,7 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       for (const task of s.tasks) {
         if (task.activityCodes && id in task.activityCodes) delete task.activityCodes[id];
       }
-      // Groep-/sort-niveaus die naar dit type verwezen laten vallen (§4.3, code-mutatie).
+      // Groep-/sort-niveaus die naar dit type verwezen laten vallen.
       s.view.group = s.view.group.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       runtime.finishMutation(s);

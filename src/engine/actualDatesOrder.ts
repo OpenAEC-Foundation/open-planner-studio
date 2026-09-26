@@ -5,9 +5,9 @@ import { parseInstant } from '@/utils/dateUtils';
  * Volgorde van de werkelijke datums direct nadat het werkelijke einde is AFGELEID (100 % zonder
  * `actualFinish`: statusdatum, anders de eigen geplande finish). De werkelijke start is dan vaak zelf
  * afgeleid — de geplande start — en die ligt ná de statusdatum bij een taak die volgens de planning
- * nog moest beginnen of bij een verouderde berekening (mijlpaal op 100 % vóór F5: AS 06-17, AF 06-10).
+ * nog moest beginnen of bij een verouderde berekening (bv. mijlpaal op 100 %: AS 06-17, AF 06-10).
  * Ligt het einde vóór de start (instantprecisie, zoals `isActualFinishBeforeStart`):
- *  - mét statusdatum is het einde die datum, en een werkelijke datum erna bestaat niet (§3.2): de
+ *  - mét statusdatum is het einde die datum, en een werkelijke datum erna bestaat niet: de
  *    start schuift terug naar het einde;
  *  - zonder statusdatum is het einde een (mogelijk verouderde) geplande finish: een vastgelegde start
  *    blijft staan en het afgeleide einde schuift mee.

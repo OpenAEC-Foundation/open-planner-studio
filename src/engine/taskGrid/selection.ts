@@ -201,10 +201,10 @@ export function reconcileGridSelection(
 }
 
 /**
- * FIX 8a (eindreview): `reconcileGridSelection` bouwde altijd een NIEUW object, ook wanneer de
- * inhoud byte-voor-byte gelijk bleef aan `state` — elke selectieklik kostte daardoor een volledige
- * gridrender, ook zonder werkelijke wijziging. Structurele gelijkheid (niet referentiegelijkheid)
- * over alle vijf velden bepaalt hier of de OUDE referentie teruggegeven mag worden.
+ * Voorkomt dat `reconcileGridSelection` een NIEUW object bouwt wanneer de inhoud gelijk blijft aan
+ * `state` — elke selectieklik zou anders een volledige gridrender kosten. Structurele gelijkheid
+ * (niet referentiegelijkheid) over alle vijf velden bepaalt hier of de OUDE referentie teruggegeven
+ * mag worden.
  */
 function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<GridSelectionState>): boolean {
   return left.activeTaskId === right.activeTaskId
@@ -217,14 +217,14 @@ function sameGridSelection(left: Readonly<GridSelectionState>, right: Readonly<G
 }
 
 /**
- * Browserreview, observatie 1: een gantt-klik (of elke andere aanroeper van `selectTask`) publiceert
+ * Een gantt-klik (of elke andere aanroeper van `selectTask`) publiceert
  * alleen `state.activeTaskId`/`state.selectedTaskIds` — de bron van de RIJmarkering
  * (`data-grid-row-selected`, een 3px accentbalk). De CELcursor (`selection.active`, de bron van
  * `data-grid-active`, een 2px accentrand) is een apart, gridintern begrip dat zonder deze functie
- * op de OUDE cel bleef staan. Een gantt-klik en pijltjesnavigatie naar dezelfde taak zagen er
- * daardoor met TWEE verschillende stijlen uit (spec §14 legt nu vast dat beide routes hetzelfde
- * opleveren). Deze functie trekt ze gelijk: zodra de gepubliceerde actieve taak niet meer
- * overeenkomt met de rij van de huidige celcursor, springt de cursor mee naar die rij — in
+ * op de OUDE cel blijft staan, zodat een gantt-klik en pijltjesnavigatie naar dezelfde taak er met
+ * TWEE verschillende stijlen uitzien. Deze functie trekt ze gelijk: zodra de gepubliceerde actieve
+ * taak niet meer overeenkomt met de rij van de huidige celcursor, springt de cursor mee naar die rij
+ * — in
  * dezelfde kolom als daarvoor, zodat het overzicht niet van kolom verspringt bij een gantt-klik.
  * Blijft de celcursor al op de juiste rij staan (de gewone gridklik-route, die zelf al
  * `selectTask` aanroept ná het zetten van `active`), dan is dit een no-op op de celcursor.

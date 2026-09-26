@@ -1,12 +1,10 @@
-// Fase 2.10, onderdeel 5, golf 1: eigen minimale markdown-subset-parser voor de in-app
-// help-viewer (architect-besluit 2, route A — bindend ontwerp
-// docs/superpowers/specs/2026-07-07-2.10-onderdeel5-docs-design.md §1.2). Geen dependency, geen
+// Eigen minimale markdown-subset-parser voor de in-app help-viewer. Geen dependency, geen
 // build-stap: runtime-parser die rechtstreeks veilige React-elementen teruggeeft (GEEN
 // `dangerouslySetInnerHTML`) — alle tekst die niet als herkende syntax matcht komt terecht als
 // gewone React-tekst-node, die React zelf al escaped. Er is dus geen apart escape-mechanisme
 // nodig: het ontbreken van `dangerouslySetInnerHTML` IS de veiligheidsgarantie.
 //
-// Ondersteunde subset (exact wat de docs nodig hebben, zie het ontwerpdocument §1.2):
+// Ondersteunde subset (exact wat de docs nodig hebben; `scripts/verify-docs.ts` bewaakt de gidsen):
 //   - koppen #, ##, ###
 //   - paragrafen (regels gescheiden door een lege regel)
 //   - **vet**, *cursief*, inline `code`
@@ -14,10 +12,10 @@
 //   - ongeordende (- / *) en geordende (1.) lijsten
 //   - links: alléén `docs://<article-id>` (interne viewer-navigatie) en
 //     `examples://<file>` (opent hetzelfde voorbeeld-openpad als Backstage → Voorbeelden) —
-//     dit zijn per architect-besluit de ENIGE toegestane linkvormen; alles anders wordt als
+//     dit zijn bewust de ENIGE toegestane linkvormen; alles anders wordt als
 //     platte tekst getoond (geen externe netwerkaanroepen vanuit help-content).
 //   - afbeeldingen ![alt](pad) — pad wordt opgelost tegen `${BASE_URL}docs/<pad>`; ontbreekt het
-//     bestand (golf 1 heeft nog geen echte screenshots), dan valt de afbeelding terug op een
+//     bestand, dan valt de afbeelding terug op een
 //     zichtbare placeholder-box met de alt-tekst.
 
 import { useState } from 'react';
@@ -33,7 +31,7 @@ const UL_RE = /^[-*]\s+(.*)$/;
 const OL_RE = /^\d+\.\s+(.*)$/;
 const FENCE_RE = /^```/;
 
-/** Licht, regex-gebaseerd: alleen koppen extraheren voor de titel+koppen-zoekindex (§2.3 MVP).
+/** Licht, regex-gebaseerd: alleen koppen extraheren voor de titel+koppen-zoekindex.
  *  Geen volledige parse nodig — de index heeft alleen de kop-tekst nodig, niet de opmaak erin. */
 export function extractHeadings(source: string): string[] {
   const headings: string[] = [];
@@ -77,7 +75,7 @@ function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandle
     );
   }
   // Onbekend linkschema: bewust geen <a href>/navigatie — alleen docs:// en examples:// zijn
-  // toegestane linkvormen in help-content (architect-besluit, ontwerpdocument §"Aanvullende eisen").
+  // toegestane linkvormen in help-content.
   return (
     <span key={key} className="help-link help-link-unknown" title={href}>
       {label}

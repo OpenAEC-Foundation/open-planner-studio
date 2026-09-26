@@ -42,7 +42,7 @@ const fmtNum = (n: number) => String(round2(n));
 const fmtHours = (minutes: number) => fmtNum(minutes / 60);
 
 /**
- * Fasen-editor (2026-09) — het venster waarmee de gebruiker de urenverdeling van ÉÉN toewijzing
+ * Fasen-editor — het venster waarmee de gebruiker de urenverdeling van ÉÉN toewijzing
  * bewerkt, in FASEN: aaneengesloten reeksen werkdagen met één vaste inzet (`contourPhases.ts`).
  * Boven een sleepbare strook (`ContourPhaseStrip`), eronder dezelfde fasen als tabel (van/tot,
  * dagen, inzet, uren) met splitsen en samenvoegen; beide bewerken dezelfde `phases`-state.
@@ -52,7 +52,7 @@ const fmtHours = (minutes: number) => fmtNum(minutes / 60);
  * Model: de werkdagen van de taak zijn dezelfde dagenlijst als het histogram (`taskWorkDayIsos`);
  * het VERRICHTE werk (actual-periodes) staat alleen-lezen onder de blokken, het RESTERENDE werk is
  * wat de fasen beschrijven. Zonder opgeslagen contour is het vertrekpunt precies wat de lastlezers
- * nu al boeken (`assignmentDayUnits`: de curve-formule of de exacte P6-/MSPDI-curve), zodat
+ * boeken (`assignmentDayUnits`: de curve-formule of de exacte P6-/MSPDI-curve), zodat
  * "Toepassen" zonder wijziging de huidige verdeling als data vastlegt en niets anders. Opslaan blijft
  * één periode per werkdag (`slotsFromPhases` → `buildEditedContourPeriods`): de fasen zijn een
  * weergavelaag, de opslagvorm en alle round-trips blijven ongewijzigd. Toepassen ⇒
@@ -60,7 +60,7 @@ const fmtHours = (minutes: number) => fmtNum(minutes / 60);
  * een onderbreking (zie `contourEdit.ts`).
  *
  * De fasentabel is een LIVE raster (elke cel is een echt invoerveld) en volgt daarom dezelfde
- * toetsenbordregels als de resourcetabel (issue #48, `useLiveGridNav` + `@/utils/gridNavigation`):
+ * toetsenbordregels als de resourcetabel (`useLiveGridNav` + `@/utils/gridNavigation`):
  * Enter/Shift+Enter omlaag/omhoog op elke cel, ↑/↓ alleen in een tekstveld (de dagen-spinner houdt
  * zijn native stappen), cellen zonder bruikbaar element (de afgeleide dagen van de laatste fase)
  * worden overgeslagen, en wie met het toetsenbord op een tekstcel landt, vervangt de waarde bij het

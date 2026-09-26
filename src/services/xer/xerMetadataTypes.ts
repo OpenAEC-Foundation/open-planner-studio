@@ -47,9 +47,8 @@ export interface XerMetadataTaskProjection extends XerTaskMetadata {
 }
 
 /**
- * Eén immutable, bestandsbreed X8-catalogusobject. De raw tabellen zijn rechtstreeks de reeds
- * bevroren X2-rijarrays: geen tweede celkopie, ook niet voor rehab-2's TASKACTV-massa. X9 wordt
- * eigenaar van de uiteindelijke byte-archivering; X8 bewaart hier de huidige broninformatie.
+ * Eén immutable, bestandsbreed catalogusobject. De raw tabellen zijn rechtstreeks de reeds bevroren
+ * parser-rijarrays: geen tweede celkopie, ook niet voor rehab-2's TASKACTV-massa.
  */
 interface XerMetadataCatalogShape {
   activityCodeTypes: ActivityCodeType[];
@@ -74,7 +73,7 @@ interface XerMetadataCatalogShape {
   };
 }
 
-/** X6's ene canonieke recursieve readonly-grens, nu over de volledige X8-catalogusgrafiek. */
+/** De canonieke recursieve readonly-grens, over de volledige catalogusgrafiek. */
 export type XerMetadataCatalog = XerReadonly<XerMetadataCatalogShape>;
 
 export interface XerMetadataProjectView {

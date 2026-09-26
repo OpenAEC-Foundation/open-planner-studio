@@ -5,7 +5,7 @@ import { NoticeStrip } from './NoticeStrip';
 import { recordedDatesActiveKey } from './recordedDatesNoticeText';
 
 /**
- * Strook voor "datums zoals opgeslagen" (issue #63). Naar het model van `DependencyModeNotice`
+ * Strook voor "datums zoals opgeslagen". Naar het model van `DependencyModeNotice`
  * (modus zonder kruisje) én `HourDataNotice` (aanbod mét kruisje) — dit component combineert beide
  * standen omdat ze dezelfde onderliggende state delen (`recordedDates`/`datesAsRecorded`):
  *
@@ -29,15 +29,15 @@ export function RecordedDatesNotice() {
   const runCPM = useAppStore((s) => s.runCPM);
 
   if (datesAsRecorded) {
-    // XER-etappeplan §3.7 punt 2 (taak T4): de MODUS-ACTIEF-stand noemt nu het aantal, ongeacht
-    // bronformaat — zowel de bron-orakel-route (XER, die zelf al ín de modus opent) als de
-    // bestaande #63-route (elk formaat, via de "Toon"-knop) delen dezelfde state. `runCPM` wist
+    // De MODUS-ACTIEF-stand noemt het aantal, ongeacht bronformaat — zowel de bron-orakel-route
+    // (XER, die zelf al ín de modus opent) als de algemene route (elk formaat, via de "Toon"-knop)
+    // delen dezelfde state. `runCPM` wist
     // `recordedDates` pas bij het VERLATEN van de modus (zelfde producer als `datesAsRecorded`),
     // dus `recordedDates` is hier altijd gevuld. De tellerloze `recordedDates.active` is de tak
     // voor een SLAPEND hersteld document (`applyRestoredRecordedMode`): dat staat in de modus
     // zonder ooit gesolved te zijn, dus `shifted` bestaat daar niet — en wordt niet verzonnen.
     //
-    // Tekstcorrectie (T8, 2026-09-05): de strook is GEDEELD met de #63-route voor elk ander formaat
+    // De strook is GEDEELD met de algemene route voor elk ander formaat
     // (IFC/CSV/MSPDI/MPP/P6XML), waar "Primavera" een verkeerde bewering zou zijn. De keuze zelf
     // staat in de React-vrije `recordedDatesActiveKey` zodat ze headless getest kan worden.
     return (

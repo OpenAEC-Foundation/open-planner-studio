@@ -1,11 +1,11 @@
 // workRuleMapping.ts — de vertaling tussen de neutrale werkregel (`WorkRule`) en de menukaarten van
-// MS Project en Primavera P6 (taaktypes-ontwerp 2026-09-04, §2.3 en §4.2). Puur, geen store.
+// MS Project en Primavera P6. Puur, geen store.
 //
-// De tabel (cel voor cel geverifieerd tegen [M1] en [P3] uit de spec):
+// De tabel (cel voor cel geverifieerd tegen de MSP- en P6-documentatie):
 //   MSP Fixed Units   + effort-driven  ⇔ P6 Fixed Units/Time              ⇔ FIXED_RATE
-//   MSP Fixed Units   − effort-driven  ⇒ FIXED_RATE  + bewaard effortDriven=false (beslispunt 8-B)
+//   MSP Fixed Units   − effort-driven  ⇒ FIXED_RATE  + bewaard effortDriven=false
 //   MSP Fixed Duration − effort-driven ⇔ P6 Fixed Duration & Units/Time   ⇔ FIXED_DURATION_RATE
-//   MSP Fixed Duration + effort-driven ⇒ FIXED_DURATION_WORK + bewaard effortDriven=true (8-B)
+//   MSP Fixed Duration + effort-driven ⇒ FIXED_DURATION_WORK + bewaard effortDriven=true
 //   MSP Fixed Work (altijd effort-driven) ⇔ P6 Fixed Units               ⇔ FIXED_WORK
 // De twee MSP-gevallen die niet exact in een P6-type passen worden dus op het dichtstbijzijnde
 // P6-type gelegd, en het bewaarde `Task.effortDriven` stuurt de twee afwijkende cellen in de
@@ -14,7 +14,7 @@
 // Bronnen voor de codes en namen: MSPDI `<Type>` 0/1/2 = Fixed units / Fixed duration / Fixed work
 // (Microsoft Learn, "Type Element (Multiple Parents)", ZEKER); P6 `DurationType`-namen uit de
 // P6 EPPM REST-documentatie van het Activity-object (ZEKER; dezelfde enum als PMXML); de XER-tokens
-// komen van de XER-sessie (`DT_FixedDrtn`/`DT_FixedDUR2`/`DT_FixedQty`/`DT_FixedRate`).
+// zijn `DT_FixedDrtn`/`DT_FixedDUR2`/`DT_FixedQty`/`DT_FixedRate`.
 import type { MspTaskType } from '@/types/task';
 import type { WorkRule } from '@/types/workRule';
 
@@ -90,7 +90,7 @@ export function workRuleFromP6DurationType(name: string | null | undefined): Wor
 
 // ── Primavera P6 (XER) ──────────────────────────────────────────────────────────────────────────
 
-/** XER `TASK.duration_type`-tokens (spec §4.2). `DT_FixedDUR` (niet-standaard, in p6difftool-
+/** XER `TASK.duration_type`-tokens. `DT_FixedDUR` (niet-standaard, in p6difftool-
  *  fixtures gezien) staat er bewust NIET in: niet raden, het token blijft rauw bewaard. */
 export const XER_DURATION_TYPE_TOKEN: Record<WorkRule, string> = {
   FIXED_DURATION_RATE: 'DT_FixedDrtn',
@@ -114,21 +114,19 @@ export function workRuleFromXerDurationType(token: string | null | undefined): W
 const WORK_EPS_MINUTES = 1;
 
 /**
- * "Afwezig ⇒ afgeleid" bij import (spec §4.3 "De regel afwezig ⇒ afgeleid zoals nu", kolom
- * "wanneer geschreven", geval (c): "bij import wanneer de bron een waarde levert die van de afleiding
- * afwijkt"; spec §4.4 XER-rij: "alleen wanneer `target_qty` afwijkt van duur × `target_qty_per_hr`").
+ * "Afwezig ⇒ afgeleid" bij import: werkvelden worden alleen geschreven wanneer de bron een waarde
+ * levert die van de afleiding afwijkt (XER: alleen wanneer `target_qty` afwijkt van duur ×
+ * `target_qty_per_hr`).
  *
  * - Wijkt het begrote werk af van `duur × inzet`, of het resterende werk van `begroot − verricht`,
  *   dan gaan alle aanwezige bronwaarden mee (één consistent drietal) — het werk ÍS dan anders dan de
  *   afleiding, en de belasting hoort dat te tonen (`assignmentDayUnits` laag 3).
- * - Alleen verricht werk > 0 zonder zo'n afwijking (E3, critreview PR #101 baan 1): dan wordt
+ * - Alleen verricht werk > 0 zonder zo'n afwijking: dan wordt
  *   uitsluitend `actualWorkMinutes` bewaard — verricht werk is een feit dat de afleiding niet kent —
  *   maar `plannedWorkMinutes`/`remainingWorkMinutes` blijven afwezig, want ze zeggen niets dat
- *   `duur × inzet` niet al zegt. Zo blijft `assignmentDayUnits` op laag 4 (de formule) en is het
- *   histogram/overallocatie/nivelleerder byte-identiek aan vóór de taaktypes-etappe. (Vóór deze fix
- *   ging bij élk verricht werk het hele drietal mee: Roads 110/3575 en HarbourPointe 119/417
- *   toewijzingen op laag 3.)
- * - Niets van dat alles ⇒ alles afwezig; byte-identiek aan vandaag.
+ *   `duur × inzet` niet al zegt. Zo blijft `assignmentDayUnits` op laag 4 (de formule) voor
+ *   histogram/overallocatie/nivelleerder.
+ * - Niets van dat alles ⇒ alles afwezig.
  * Niet-eindige of negatieve bronwaarden gelden als afwezig.
  */
 export function importedWorkFields(

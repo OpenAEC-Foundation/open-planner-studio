@@ -3,11 +3,10 @@ import { CalendarEngine } from './CalendarEngine';
 import { parseDate, addCalendarDays, diffCalendarDays, formatDate, utcDayIndex } from '@/utils/dateUtils';
 
 /**
- * Lange-vrije-periode-detectie voor het eigenschappenpaneel (issue #21, user-wens): waarschuw
- * wanneer een taak over een aaneengesloten periode van niet-werkbare dagen heen loopt die te lang
- * is om "gewoon een weekend" te zijn (bv. een bouwvak of kerstsluiting). Puur/stateloos —
- * geen store-afhankelijkheid, zodat dit headless getest kan worden (zie tests/planning-achtig
- * scratchpad-patroon).
+ * Lange-vrije-periode-detectie voor het eigenschappenpaneel: waarschuw wanneer een taak over een
+ * aaneengesloten periode van niet-werkbare dagen heen loopt die te lang is om "gewoon een weekend"
+ * te zijn (bv. een bouwvak of kerstsluiting). Puur/stateloos — geen store-afhankelijkheid, zodat
+ * dit headless getest kan worden.
  */
 
 /** Eén gevonden lange vrije periode die overlapt met de taakperiode. */
@@ -39,7 +38,7 @@ const MAX_EXPAND_SCAN = 400;
  *   (b) overlappen met het bereik `[startIso, finishIso]` van de taak, ÉN
  *   (c) minstens één ECHTE kalender-uitzondering bevatten (een dag uit `calendar.holidays` —
  *       feestdag/vakantie), NIET uitsluitend het wekelijkse vrije-dagen-patroon (`workDays`).
- *       Dit is een BINDENDE aanscherping (issue #21): een periode die louter bestaat uit
+ *       Dit is een BINDENDE aanscherping: een periode die louter bestaat uit
  *       weekpatroon-dagen — hoe lang ook, bv. bij een exotische kalender met 1 werkdag/week —
  *       triggert NOOIT. De weekpatroon-dagen tellen wél mee voor de GETOONDE lengte van de
  *       periode (bv. de weekenden rond een bouwvak), maar zonder minstens één holiday-dag in de

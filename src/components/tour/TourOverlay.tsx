@@ -13,15 +13,11 @@ const CARD_HEIGHT_ESTIMATE = 160;
 
 /**
  * Bepaalt een kaartpositie die GEGARANDEERD volledig binnen de viewport valt (geklemd op
- * `margin`), voor elke ankergrootte. Root-cause van de QA-bug (item 2): de oude logica koos
- * enkel boven/onder o.b.v. de bovenkant van het anker en klemde alleen de LINKER kant van de
- * kaart — de top/bottom-waarde zelf werd nooit tegen de kaart-HOOGTE geklemd. Bij een anker dat
- * bijna de volle viewport beslaat (het Gantt-paneel, tourstap 2) is `spaceBelow` klein maar
- * `rect.top` ook (net onder het lint), dus `placeBelow` werd `true` terwijl er in werkelijkheid
- * geen ruimte was: de kaart kreeg een `top` vlak boven de viewport-bodem en liep er met zijn
- * volledige hoogte overheen — de Volgende-knop viel letterlijk buiten het venster.
+ * `margin`), voor elke ankergrootte — ook een anker dat bijna de volle viewport beslaat (het
+ * Gantt-paneel, tourstap 2), waar een simpele boven/onder-keuze de kaart (en de Volgende-knop)
+ * buiten het venster laat vallen.
  *
- * Fix: probeer kandidaat-posities in volgorde (onder → boven → rechts → links van het anker) en
+ * Probeer kandidaat-posities in volgorde (onder → boven → rechts → links van het anker) en
  * accepteer alleen een kandidaat die met de ECHTE kaartafmetingen past; lukt geen enkele (het
  * anker is te groot t.o.v. de viewport), overlap dan bewust met het anker (onderin gecentreerd)
  * — nog steeds volledig geklemd op de viewport. Werkt identiek in RTL: alle berekeningen zijn in
@@ -63,22 +59,21 @@ function computeCardPosition(
 }
 
 /**
- * Rondleiding-overlay (fase 2.10, onderdeel 3, §4/§6): stappenlijst-gedreven dim-laag +
+ * Rondleiding-overlay: stappenlijst-gedreven dim-laag +
  * highlight-ring rond het ankerelement + tooltip-kaart met Vorige/Volgende/Overslaan.
- * Geen externe library (zie ontwerpdocument §4 — geen bestaande portal-/popover-infra).
+ * Geen externe library.
  *
- * Fix-golf (QA-bevinding, item 1): de highlight-ring is één klein element ter grootte van het
+ * De highlight-ring is één klein element ter grootte van het
  * anker met een `box-shadow`-truc (`0 0 0 9999px …`) om de rest van het scherm visueel te dimmen.
- * GEVERIFIEERD: box-shadow dat buiten de elementgrenzen valt, telt NIET mee voor hit-testing/
+ * Box-shadow dat buiten de elementgrenzen valt, telt NIET mee voor hit-testing/
  * pointer-events — een `pointer-events: auto` op alléén dat kleine element blokkeert dus enkel
- * klikken vlak bij het anker, niet de rest van de pagina (dat was de oorzaak van de
- * doorklik-corruptie: een klik op bv. de Report-ribbontab tijdens stap 2 bereikte de onderliggende
- * knop gewoon). De echte fix is een APARTE, onzichtbare volledige-pagina-laag (`pointerEvents:
- * 'auto'`, geen achtergrond) die WEL de volle viewport als hit-test-gebied heeft — inclusief het
+ * klikken vlak bij het anker, niet de rest van de pagina (een klik op bv. de Report-ribbontab
+ * zou de onderliggende knop gewoon bereiken). Daarom een APARTE, onzichtbare
+ * volledige-pagina-laag (`pointerEvents: 'auto'`, geen achtergrond) die WEL de volle viewport als hit-test-gebied heeft — inclusief het
  * "gat" boven het anker zelf (alleen de tooltip-kaart, met een hogere z-index, blijft klikbaar).
  * Een klik op die laag doet bewust niets (geen `onClick` — geen sluiten-per-ongeluk).
  *
- * Anker-guard (architect-eis): als `[data-tour-anchor="…"]` niet gevonden wordt (na de
+ * Anker-guard: als `[data-tour-anchor="…"]` niet gevonden wordt (na de
  * `prepare()`-voorbereiding + een layout-pass), slaat de tour de stap automatisch over in de
  * richting waarin genavigeerd werd — nooit een crash, nooit een oneindige lus (begrensd door de
  * lengte van `TOUR_STEPS`).
@@ -90,8 +85,8 @@ export function TourOverlay() {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const directionRef = useRef<'forward' | 'backward'>('forward');
   const [cardNode, setCardNode] = useState<HTMLDivElement | null>(null);
-  // Werkelijke kaartafmetingen (fix-golf, QA-item 2 — zie `computeCardPosition` hierboven voor de
-  // root-cause). De breedte staat vast op CARD_WIDTH; de hoogte is contentafhankelijk (varieert per
+  // Werkelijke kaartafmetingen (zie `computeCardPosition` hierboven). De breedte staat vast op
+  // CARD_WIDTH; de hoogte is contentafhankelijk (varieert per
   // stap én per taal/RTL) en wordt dus na elke render echt gemeten i.p.v. geraden.
   const [cardSize, setCardSize] = useState<{ width: number; height: number }>({
     width: CARD_WIDTH,
@@ -99,7 +94,7 @@ export function TourOverlay() {
   });
   // Losse viewport-tracking (i.p.v. alleen `window.innerWidth/Height` in de render-body lezen):
   // garandeert een herbereking bij een pure window-resize, ook als die toevallig het ankerelement
-  // zelf niet van grootte doet veranderen (de bestaande `rect`-resize-listener hieronder dekt het
+  // zelf niet van grootte doet veranderen (de `rect`-resize-listener hieronder dekt het
   // gangbare geval al, dit is de expliciete achtervang).
   const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
 
@@ -107,7 +102,7 @@ export function TourOverlay() {
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === TOUR_STEPS.length - 1;
 
-  // Snapshot bij tour-START (fix-golf, item 6): vastgelegd in de STORE (niet in component-state/
+  // Snapshot bij tour-START: vastgelegd in de STORE (niet in component-state/
   // een ref) omdat `TourOverlay` unmount/remount tijdens een F11-presentatiemodus-cyclus (App.tsx
   // rendert in presentatiemodus een compleet andere boom zonder TourOverlay) — component-state zou
   // dat niet overleven, `ui.tourSnapshot` in de store wel. De guard (`=== null`) zorgt dat zo'n
@@ -123,7 +118,7 @@ export function TourOverlay() {
         backstageSection: ui.backstageSection,
         showHistogram: ui.showHistogram,
         rightPanelCollapsed: ui.rightPanelCollapsed,
-        // Issue #46 (slot): tourstap 3 zet het eigenschappenpaneel áán om zijn anker te kunnen
+        // Tourstap 3 zet het eigenschappenpaneel áán om zijn anker te kunnen
         // aanwijzen. Zonder dit veld in het snapshot zou de tour een bewust uitgezet paneel
         // stilzwijgend aan laten staan.
         showPropertiesPanel: ui.showPropertiesPanel,
@@ -131,7 +126,7 @@ export function TourOverlay() {
     });
   }, [setUI]);
 
-  // Opruiming (spec §6, fix-golf item 6): elke sluitroute (Overslaan/Sluiten/Escape/auto-skip)
+  // Opruiming: elke sluitroute (Overslaan/Sluiten/Escape/auto-skip)
   // zet de door de tour aangeraakte UI-velden terug naar de stand van vóór tour-start (het
   // snapshot hierboven) i.p.v. altijd een vaste default — voorkomt dat de gebruiker een expliciet
   // ingeklapt paneel of uitgeschakeld histogram na de tour "aan" terugkrijgt.
@@ -232,7 +227,7 @@ export function TourOverlay() {
 
   return (
     <>
-      {/* Volledige-pagina klik-onderscheppende laag (fix-golf, item 1) — écht modaal: onzichtbaar
+      {/* Volledige-pagina klik-onderscheppende laag — écht modaal: onzichtbaar
           (geen achtergrond, de visuele dim komt van de highlight-ring hieronder), maar beslaat de
           volle viewport zodat GEEN klik de onderliggende UI bereikt, ook niet boven het anker zelf.
           Geen `onClick` — een klik hier doet bewust niets (geen sluiten-per-ongeluk). */}
@@ -262,8 +257,8 @@ export function TourOverlay() {
 
       {/* Tooltip-kaart — enige interactieve deel van de overlay. Positie volledig geklemd op de
           viewport door `computeCardPosition` (zie bestandskop) — top/left zijn hier altijd al
-          een geldige, volledig-zichtbare plek, dus geen aparte `placeBelow`-tak/`bottom`-CSS meer
-          nodig zoals in de oude (bugfixte) versie. */}
+          een geldige, volledig-zichtbare plek, dus geen aparte `placeBelow`-tak/`bottom`-CSS
+          nodig. */}
       <div
         ref={setCardNode}
         data-ops-tour-card

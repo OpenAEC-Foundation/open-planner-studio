@@ -1,5 +1,5 @@
 /**
- * Minimale ZIP-**schrijver** (issue #27, etappe 3, X3). Puur en injecteerbaar: geen store, geen
+ * Minimale ZIP-**schrijver**. Puur en injecteerbaar: geen store, geen
  * React, geen `@tauri-apps/*`, geen module-level muteerbare state.
  *
  * De keuzes die dit bestand dragen:

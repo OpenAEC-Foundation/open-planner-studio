@@ -1,9 +1,8 @@
 import type { LevelingReason } from '@/engine/scheduler/ResourceLeveler';
 
 /**
- * `LevelingReason` → i18n-sleutel. Eén mapping voor de nivelleerdialoog; vóór B1c-etappe-3 stond dit
- * als een if/else-keten in `LevelingDialog.tsx` die drie van de zeven codes kende en de rest ZONDER
- * uitleg liet — een horizon-uitputting las daar als "onvoldoende capaciteit".
+ * `LevelingReason` → i18n-sleutel. Eén mapping voor de nivelleerdialoog, zodat elke code een eigen
+ * uitleg krijgt (een horizon-uitputting is geen "onvoldoende capaciteit").
  *
  * `INTRINSIC_OVERRUN` wijst bewust naar de BESTAANDE sleutel `resource.leveling.intrinsicOverrun`
  * (niet naar een nieuwe `reason.intrinsicOverrun`) — die sleutel bestaat al in alle veertien locales

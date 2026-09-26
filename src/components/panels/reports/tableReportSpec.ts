@@ -3,8 +3,8 @@ import type { PdfTableColumn, PdfSectionedReportSpec } from '@/services/pdf/pdfT
 /**
  * Contract tussen de rapportbouwers (`useTableReportSpec`), de DOM-weergave (`TableReportView`)
  * en de vector-PDF-export (`makeSectionedRenderReport`): ÉÉN kolomspec per sectie, die zowel de
- * `<table>` als de PDF tekent. Het mijlpalen- en variance-rapport houden nog hun eigen dubbele
- * kolomspec (DOM-component + `build*Columns`); de zeven rapporten uit discussie #31 delen deze.
+ * `<table>` als de PDF tekent. Het mijlpalen- en variance-rapport houden hun eigen dubbele
+ * kolomspec (DOM-component + `build*Columns`); de zeven tabelrapporten delen deze.
  */
 export interface ReportColumn<Row> extends PdfTableColumn<Row> {
   key: string;
