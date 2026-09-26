@@ -91,6 +91,10 @@ const FIELD_ROLE: Record<keyof WorkCalendar, 'id' | 'content' | 'ignored'> = {
   shift: 'content',
   libraryOrigin: 'ignored',
   workingExceptions: 'content',
+  // P6-herkomst (rekenprofielen-etappe): alleen de XER-reader zet hem; MCP accepteert en meldt.
+  p6Source: 'ignored',
+  p6NonWorkPenaltyDates: 'ignored',
+  p6NonWorkPenaltyDatesState: 'ignored',
 };
 const CONTENT_FIELDS = (Object.keys(FIELD_ROLE) as (keyof WorkCalendar)[]).filter((k) => FIELD_ROLE[k] === 'content');
 

@@ -147,8 +147,16 @@ const CAL_ITEM_KEYS: string[] = ['id', 'create', ...(CAL_FIELD_KEYS as string[])
  * BRONdocument (welk bibliotheekitem, welke versie, welke hash). Letterlijk overschrijven zou in een
  * ander document een koppeling vervalsen die de bibliotheek nooit gemaakt heeft; koppelen loopt via de
  * bibliotheek zelf. Dus: mag mee, doet niets, wordt gemeld.
+ *
+ * De P6-herkomstvelden (`p6Source`, `p6NonWorkPenaltyDates`, `p6NonWorkPenaltyDatesState`,
+ * rekenprofielen-etappe) horen om dezelfde reden in deze groep: alleen de XER-reader mag de stempel
+ * zetten (`types/calendar.ts`). `get_calendars` geeft ze letterlijk mee, dus ze moeten mee terug
+ * kunnen, maar een MCP-schrijfactie mag in een ander document geen XER-herkomst vervalsen.
  */
-const CAL_READONLY_KEYS: string[] = ['isProjectDefault', 'usedByTasks', 'usedByResources', 'libraryOrigin'];
+const CAL_READONLY_KEYS: string[] = [
+  'isProjectDefault', 'usedByTasks', 'usedByResources', 'libraryOrigin',
+  'p6Source', 'p6NonWorkPenaltyDates', 'p6NonWorkPenaltyDatesState',
+];
 
 // ── Invoervalidatie (auditbevindingen K6 + H7) ───────────────────────────────────────────────────
 //
