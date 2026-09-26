@@ -45,13 +45,55 @@ function detectDelimiter(content: string): string {
   return semicolons >= commas ? ';' : ',';
 }
 
+/**
+ * Splits de CSV-tekst in RECORDS in plaats van in fysieke regels: een regeleinde BINNEN een
+ * aanhalingsteken-veld hoort bij de cel (RFC 4180 — `escapeCSV` in `csvWriter.ts` zet zo'n cel juist
+ * tussen aanhalingstekens). Een kale `split(/\r?\n/)` knipte zo'n meerregelige omschrijving in
+ * losse "taken" en schoof de rest van de rij over de kolommen. Een `"` opent alleen AAN HET BEGIN
+ * van een veld een quote-veld, zodat een losse inch-quote midden in een ongequote cel (`Pijp 5"`) niet
+ * de rest van het bestand tot één record maakt; binnen een quote-veld is `""` een letterlijke `"`.
+ * Lege records vallen weg, zoals voorheen de lege regels.
+ */
+function splitCSVRecords(content: string, delimiter: string): string[] {
+  const records: string[] = [];
+  let inQuotes = false;
+  let fieldStart = true;
+  let start = 0;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (content[i + 1] === '"') i++;
+        else inQuotes = false;
+      }
+    } else if (ch === '"' && fieldStart) {
+      inQuotes = true;
+      fieldStart = false;
+    } else if (ch === '\n' || ch === '\r') {
+      records.push(content.slice(start, i));
+      if (ch === '\r' && content[i + 1] === '\n') i++;
+      start = i + 1;
+      fieldStart = true;
+    } else {
+      fieldStart = ch === delimiter;
+    }
+  }
+  records.push(content.slice(start));
+  return records.filter(r => r.trim());
+}
+
 function parseCSVLine(line: string, delimiter: string): string[] {
   const fields: string[] = [];
   let current = '';
   let inQuotes = false;
+  // Zelfde regel als `splitCSVRecords`: alleen een `"` aan het begin van een veld opent een
+  // quote-veld; een losse `"` elders (`Pijp 5"`) is gewone tekst en slokt het scheidingsteken niet op.
+  let fieldStart = true;
 
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
+    const atFieldStart = fieldStart;
+    fieldStart = false;
     if (inQuotes) {
       if (ch === '"') {
         if (i + 1 < line.length && line[i + 1] === '"') {
@@ -64,11 +106,12 @@ function parseCSVLine(line: string, delimiter: string): string[] {
         current += ch;
       }
     } else {
-      if (ch === '"') {
+      if (ch === '"' && atFieldStart) {
         inQuotes = true;
       } else if (ch === delimiter) {
         fields.push(current);
         current = '';
+        fieldStart = true;
       } else {
         current += ch;
       }
@@ -216,7 +259,7 @@ export function readCSV(content: string): ImportResult {
   // Strip BOM
   const clean = content.replace(/^\uFEFF/, '');
   const delimiter = detectDelimiter(clean);
-  const lines = clean.split(/\r?\n/).filter(l => l.trim());
+  const lines = splitCSVRecords(clean, delimiter);
 
   if (lines.length < 2) {
     throw new Error('CSV file must have at least a header and one data row');
@@ -262,7 +305,7 @@ export function readCSV(content: string): ImportResult {
     const recordedFinishRaw = colMap.finish !== undefined ? get('finish').trim() : '';
     const recordedFloatRaw = colMap.totalFloat !== undefined ? get('totalFloat').trim() : '';
     const recordedCriticalRaw = colMap.critical !== undefined ? get('critical').trim().toLowerCase() : '';
-    const recordedFloat = recordedFloatRaw ? Number.parseFloat(recordedFloatRaw) : Number.NaN;
+    const recordedFloat = recordedFloatRaw ? readCsvNumber(recordedFloatRaw, delimiter) : Number.NaN;
 
     const outlineLevelRaw = get('outlineLevel').trim();
     rows.push({
