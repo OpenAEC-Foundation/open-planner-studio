@@ -50,6 +50,9 @@ export function useGanttPointerCoordinator(
     openTask,
     clearHistogramTooltip,
     startVerticalRowDrag,
+    isStartDrivenByPredecessor,
+    notify,
+    dateNotation,
   } = input;
   const canvasRef = host.primaryCanvasRef;
   const rendererRef = host.primaryRendererRef;
@@ -110,6 +113,9 @@ export function useGanttPointerCoordinator(
     canvasRef,
     setTaskSplits,
     barTopOf,
+    isStartDrivenByPredecessor,
+    notify,
+    dateNotation,
   });
   // Issue #146: het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
   // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-

@@ -928,6 +928,10 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # bewerken verzet alleen iets bij een echte wijziging; "Gepland einde" is geen dode invoer meer.
   TGSHOWNDATESCHECK="$DIR/.table-shown-dates.mjs"
   if bundle_check "$DIR/check-table-shown-dates.ts" "$TGSHOWNDATESCHECK"; then node "$TGSHOWNDATESCHECK" || STATUS=1; fi
+  # W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte start op een taak mét voorganger
+  # wordt een beperking "Start niet eerder dan"; anders sprong de taak na F5 stil terug.
+  STARTSNETCHECK="$DIR/.start-snet.mjs"
+  if bundle_check "$DIR/check-start-snet.ts" "$STARTSNETCHECK"; then node "$STARTSNETCHECK" || STATUS=1; fi
   # Backdrop-klik op dialogen met invoer (issue #158): de nieuw-project-wizard sloot bij een klik
   # naast het paneel en gooide getypte tekst weg — en vijftien andere dialogen deden hetzelfde.
   # Broncodepoort met allowlist: `onBackdropClick` alleen op dialogen zonder invoerelement.

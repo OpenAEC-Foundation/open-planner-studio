@@ -21,6 +21,8 @@ import { recordedGridBinding } from './recordedDatesSelectors';
 import { createSnapshot, restoreSnapshot, type Snapshot } from './snapshot';
 import { recordDocumentDataHistoryDelta } from './sessionHistory';
 import { notifyTimephasedLoss } from './timephasedLossNotice';
+import { startEditNotifications, type StartEditNotice } from './startConstraintNotice';
+import { predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
 import { markDateMutation, snapshotsEqual } from './transaction';
 import {
   captureCalendarChange, captureTriangle, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
@@ -504,6 +506,9 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
   };
 }
 
+/** De kolommen waarin je een start typt; alleen daarvoor is de voorgangervraag nodig. */
+const TYPED_START_COLUMN_IDS: ReadonlySet<string> = new Set(['task.time.start', 'task.time.scheduleStart']);
+
 function applyCellEdits(
   state: AppState,
   edits: readonly CellEditIntent[],
@@ -518,10 +523,17 @@ function applyCellEdits(
   // clipboard.ts en `pasteIntentPresent` in prepareGridMutation hieronder). Een enkele celedit of
   // Delete/Backspace (via `planTaskGridClear`) behoudt de bestaande harde weigering.
   skipReadOnlyCells: boolean,
+  // W2-vervolg: bepaalt een voorganger de start van deze taak? Lui en per transactie gedeeld (zie
+  // `prepareGridMutation`), want alleen een getypte start heeft het nodig.
+  startDrivenByPredecessor: (taskId: string) => boolean,
   // Taaktypes-etappe (2026-09): de toewijzingen van deze taak (uit de callerindex, O(1)), voor de
   // werkdriehoek bij een duurbewerking.
   assignmentsForTask: readonly AppState['assignments'][number][] = [],
-): GridResult<{ timephasedGuidanceLost: boolean; skippedReadOnlyCount: number }, readonly CellValidationError[]> {
+): GridResult<{
+  timephasedGuidanceLost: boolean;
+  skippedReadOnlyCount: number;
+  startNotice?: StartEditNotice;
+}, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
   const taskIndex = taskIndexById.get(first.taskId) ?? -1;
@@ -558,7 +570,12 @@ function applyCellEdits(
   const taskForCalendar = calendarEdit
     ? { ...task, calendarId: calendarEdit.value as string | undefined }
     : task;
-  const environment: TaskEditPlanEnvironment = buildTaskEditPlanEnvironment(state, taskForCalendar);
+  const environment: TaskEditPlanEnvironment = {
+    ...buildTaskEditPlanEnvironment(state, taskForCalendar),
+    ...(validatedEdits.some(edit => TYPED_START_COLUMN_IDS.has(String(edit.columnId)))
+      ? { startDrivenByPredecessor: startDrivenByPredecessor(task.id) }
+      : {}),
+  };
 
   // Algemene gezamenlijke-eindtoestandvalidatie voor conditioneel schrijfbare cellen. Een cel mag
   // worden geschreven wanneer zij in de beginstaat al schrijfbaar is, of wanneer de OVERIGE
@@ -755,9 +772,17 @@ function applyCellEdits(
     }
   }
   if (changed && scheduleStale) markDateMutation(state);
+  // Meldbaar: een SNET die er echt kwam (dus alleen bij een wijziging), of een start die een andere
+  // constraint tegenhield — die laat de taak juist ongemoeid, dus daar geldt `changed` niet.
+  const snet = planned.value.task.constraint;
+  const startNotice: StartEditNotice | undefined = planned.value.startBlocked
+    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked }
+    : planned.value.changed && planned.value.startConstraint && snet?.date
+      ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint }
+      : undefined;
   return {
     ok: true,
-    value: { timephasedGuidanceLost, skippedReadOnlyCount },
+    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice },
   };
 }
 
@@ -792,7 +817,20 @@ export function prepareGridMutation(
   const assignmentValidationTaskIds = new Set<string>();
   const appliedRelationWrites: RelationSetIntent[] = [];
   let skippedReadOnlyFromTransaction = 0;
+  const startNotices: StartEditNotice[] = [];
   const isolated = produce(state as AppState, draft => {
+    // Welke taken hebben een voorganger (W2-vervolg, getypte start ⇒ SNET)? Lui: alleen een getypte
+    // start vraagt ernaar, en dan één keer per transactie. Cellen verzetten geen relaties of
+    // hiërarchie, dus de beginstaat volstaat — tot een relatiewrite in deze transactie de relaties
+    // verandert; daarna rekent hij op de draft.
+    let predecessorDriven: ReadonlySet<string> | null = null;
+    let relationsChanged = false;
+    const startDrivenByPredecessor = (taskId: string): boolean => {
+      predecessorDriven ??= relationsChanged
+        ? predecessorDrivenTaskIds(draft.tasks, draft.sequences)
+        : predecessorDrivenTaskIds(state.tasks, state.sequences);
+      return predecessorDriven.has(taskId);
+    };
     const draftTasksById = new Map(draft.tasks.map(task => [task.id, task] as const));
     const draftTaskIndexById = new Map(draft.tasks.map((task, index) => [task.id, index] as const));
     const draftAssignmentsByTaskId = new Map<string, AppState['assignments']>();
@@ -821,7 +859,7 @@ export function prepareGridMutation(
         appliedCellTaskIds.add(write.taskId);
         const taskWrites = cellWritesByTaskId.get(write.taskId) ?? [write];
         const applied = applyCellEdits(
-          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells,
+          draft, taskWrites, runtime, draftTaskIndexById, skipReadOnlyCells, startDrivenByPredecessor,
           draftAssignmentsByTaskId.get(write.taskId) ?? [],
         );
         if (!applied.ok) errors.push(...applied.errors);
@@ -832,6 +870,7 @@ export function prepareGridMutation(
           }
           if (applied.value.timephasedGuidanceLost) timephasedLossTaskIds.add(write.taskId);
           skippedReadOnlyFromTransaction += applied.value.skippedReadOnlyCount;
+          if (applied.value.startNotice) startNotices.push(applied.value.startNotice);
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
@@ -858,7 +897,11 @@ export function prepareGridMutation(
           relationWriteCount === 1 ? runtime.context.relationIndex : undefined,
         );
         if (!applied.ok) errors.push(...applied.errors);
-        else appliedRelationWrites.push(write);
+        else {
+          appliedRelationWrites.push(write);
+          predecessorDriven = null;
+          relationsChanged = true;
+        }
       }
     }
     if (errors.length === 0 && appliedRelationWrites.length > 0) {
@@ -936,7 +979,7 @@ export function prepareGridMutation(
       before,
       after,
       derivedAfter: { viewRows, resourceLoadResult },
-      notifications: [],
+      notifications: startEditNotifications(startNotices, state.ui.dateNotation),
       timephasedLossCount: timephasedLossTaskIds.size,
       skippedReadOnlyCount: skippedReadOnlyFromPlanning + skippedReadOnlyFromTransaction,
       label: normalized.value.length === 1 ? 'Cel bewerken' : 'Cellen bewerken',

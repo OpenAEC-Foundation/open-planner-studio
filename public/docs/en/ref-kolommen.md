@@ -34,9 +34,9 @@ Under **Calculated** you find, among others, the analysis fields **Free float**,
 
 ## Start, Finish and the scheduled dates
 
-**Start** and **Finish** (in the default layout of the Table) show the same dates as the bar in the Gantt: the calculated schedule, and before the first calculation the entered dates. Type a different date in Start and it becomes the scheduled start. A different Finish changes the duration of an automatically scheduled task; for a manually scheduled task it becomes the scheduled finish. Then press **F5** to recalculate. Typing the same date back changes nothing.
+**Start** and **Finish** (in the default layout of the Table) show the same dates as the bar in the Gantt: the calculated schedule, and before the first calculation the entered dates. Type a different date in Start and it becomes the scheduled start. If the task has a predecessor, that date also becomes a **Start no earlier than (SNET)** constraint, as in MS Project; otherwise the predecessor would simply move the task back when you recalculate. An existing SNET gets the new date. If the task has a different constraint (for example MSO), the date is not applied: that constraint and the predecessor determine the start, it stays in place and a notification names it. A notification always tells you what happened. A different Finish changes the duration of an automatically scheduled task; for a manually scheduled task it becomes the scheduled finish. Then press **F5** to recalculate. Typing the same date back changes nothing.
 
-The fields **Scheduled start** and **Scheduled finish** show the entered dates themselves, even when the calculation moves the task. Scheduled finish can only be edited for a manually scheduled task: for other tasks the start and duration determine the finish. Start and Finish of an automatically scheduled summary task follow from its subtasks and cannot be edited.
+The fields **Scheduled start** and **Scheduled finish** show the entered dates themselves, even when the calculation moves the task. A typed Scheduled start follows the same SNET rule as Start. Scheduled finish can only be edited for a manually scheduled task: for other tasks the start and duration determine the finish. Start and Finish of an automatically scheduled summary task follow from its subtasks and cannot be edited.
 
 ## Reset to default
 

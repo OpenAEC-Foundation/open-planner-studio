@@ -17,6 +17,7 @@ import type {
   ConstraintType,
   MilestoneKind,
   Task,
+  TaskConstraint,
   TaskDurationUnit,
   TaskStatus,
   TaskType,
@@ -51,6 +52,11 @@ import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/du
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFiniteNumber } from '@/utils/guards';
 import { isManuallyScheduled } from '@/utils/manualScheduling';
+import {
+  constraintBlockingStart,
+  startConstraintAfterEdit,
+  type StartConstraintChange,
+} from '@/engine/startEditConstraint';
 
 const TASK_TYPES: readonly TaskType[] = [
   'CONSTRUCTION', 'INSTALLATION', 'DEMOLITION', 'LOGISTIC', 'ATTENDANCE',
@@ -80,6 +86,10 @@ export interface TaskEditPlanEnvironment {
    *  effectieve werkregel (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
    *  MSP-afleiding in `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
+  /** Wordt de start van DEZE taak door een voorganger bepaald (`predecessorDrivenTaskIds`)? Alleen
+   *  nodig voor een getypte start (kolommen Start/Geplande start); afwezig ⇒ nee. Een getypte start
+   *  wordt dan een beperking "Start niet eerder dan" (`startConstraintAfterEdit`). */
+  startDrivenByPredecessor?: boolean;
 }
 
 export interface PlannedTaskEdit {
@@ -87,6 +97,20 @@ export interface PlannedTaskEdit {
   changed: boolean;
   timephasedGuidanceLost: boolean;
   scheduleStale: boolean;
+  /** Zette of verzette een getypte start de beperking "Start niet eerder dan"? Afwezig ⇒ nee. De
+   *  transactie meldt het (`startEditNotifications`). */
+  startConstraint?: StartConstraintChange;
+  /** Hield een andere constraint een getypte start tegen (`constraintBlockingStart`)? Dan is de start
+   *  niet toegepast en meldt de transactie deze constraint. */
+  startBlocked?: TaskConstraint;
+}
+
+/** Bijeffecten van één celwrite die de aanroeper moet kunnen melden. */
+interface CellEditEffects {
+  /** De getypte start zette of verzette de beperking "Start niet eerder dan". */
+  startConstraint: boolean;
+  /** Deze constraint hield de getypte start tegen; de start is niet toegepast. */
+  startBlocked?: TaskConstraint;
 }
 
 function failure(
@@ -316,10 +340,44 @@ function durationForShownFinish(
   return { ok: true, value: { unit: 'days', scheduleDuration: Math.max(1, days), explicitUnit: true } };
 }
 
+/**
+ * Een getypte start (Tabel-kolom Start of Geplande start): het nieuwe anker, en op een taak waarvan
+ * een voorganger de start bepaalt de beperking "Start niet eerder dan" (`startConstraintAfterEdit`,
+ * dezelfde regel als paneel, Taak bewerken en Gantt-sleep). Zonder die beperking sprong de taak na F5
+ * stil terug achter haar voorganger: de solver leest het anker alleen voor een taak zónder voorganger.
+ * Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan verandert er niets —
+ * ook geen dood anker — en meldt de transactie die constraint.
+ */
+function applyTypedStart(
+  task: Task,
+  start: string,
+  environment: TaskEditPlanEnvironment,
+  effects: CellEditEffects,
+): boolean {
+  const driven = environment.startDrivenByPredecessor === true;
+  const blocking = constraintBlockingStart(task, driven);
+  if (blocking) {
+    effects.startBlocked = blocking;
+    return false;
+  }
+  let lost = false;
+  if (task.time.scheduleStart !== start) {
+    task.time.scheduleStart = start;
+    lost = clearScheduleGuidance(task, true);
+  }
+  const snet = startConstraintAfterEdit(task, start, driven);
+  if (snet) {
+    task.constraint = snet.constraint;
+    effects.startConstraint = true;
+  }
+  return lost;
+}
+
 function applyScheduleEdit(
   task: Task,
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
+  effects: CellEditEffects,
 ): GridResult<boolean, readonly CellValidationError[]> {
   const id = String(edit.columnId);
   let lost = false;
@@ -370,15 +428,13 @@ function applyScheduleEdit(
       lost = finishDurationEdit(task, oldWorkMinutes, environment);
     }
   } else if (id === 'task.time.start') {
-    // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — het anker
-    // verschuift alleen bij een echte wijziging (`startAnchorAfterEdit`).
+    // De GETOONDE start (Tabel-kolom Start): dezelfde regel als paneel en Taak bewerken — er
+    // verandert alleen iets bij een echte wijziging (`startAnchorAfterEdit`). Ook als het anker al op
+    // die datum stond: de beperking kan dan nog ontbreken.
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value === undefined) return failure('required', edit);
     const anchor = startAnchorAfterEdit(task, edit.value);
-    if (anchor !== undefined && task.time.scheduleStart !== anchor) {
-      task.time.scheduleStart = anchor;
-      lost = clearScheduleGuidance(task, true);
-    }
+    if (anchor !== undefined) lost = applyTypedStart(task, anchor, environment, effects);
   } else if (id === 'task.time.finish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value === undefined) return failure('required', edit);
@@ -408,8 +464,12 @@ function applyScheduleEdit(
     const key = id === 'task.time.scheduleStart' ? 'scheduleStart' : 'scheduleFinish';
     if (edit.value === undefined) return failure('required', edit);
     if (task.time[key] !== edit.value) {
-      task.time[key] = edit.value;
-      lost = clearScheduleGuidance(task, true);
+      // Geplande start is óók een getypte start: dezelfde regel als de kolom Start.
+      if (key === 'scheduleStart') lost = applyTypedStart(task, edit.value, environment, effects);
+      else {
+        task.time[key] = edit.value;
+        lost = clearScheduleGuidance(task, true);
+      }
     }
   } else if (id === 'task.calendarId') {
     if (!optionalString(edit.value)) return failure('calendar', edit);
@@ -821,7 +881,10 @@ function applyOneCellEdit(
   environment: TaskEditPlanEnvironment,
   /** `false` in `planTaskCellEdits`: die houdt het einde één keer voor de hele groep coherent. */
   reconcileFinish = true,
-): GridResult<Omit<PlannedTaskEdit, 'changed'>, readonly CellValidationError[]> {
+): GridResult<
+  Omit<PlannedTaskEdit, 'changed' | 'startConstraint'> & { startConstraintTouched: boolean },
+  readonly CellValidationError[]
+> {
   if (task.id !== edit.taskId) return failure('taskMismatch', edit);
   const id = String(edit.columnId);
   const expected = expectedRoute(id);
@@ -831,9 +894,10 @@ function applyOneCellEdit(
   const next = cloneTaskForEdit(task);
   let result: GridResult<unknown, readonly CellValidationError[]>;
   let timephasedGuidanceLost = false;
+  const effects: CellEditEffects = { startConstraint: false };
   if (edit.route === 'task-field') result = applyTaskField(next, edit, environment);
   else if (edit.route === 'task-schedule') {
-    const scheduleResult = applyScheduleEdit(next, edit, environment);
+    const scheduleResult = applyScheduleEdit(next, edit, environment, effects);
     result = scheduleResult;
     if (scheduleResult.ok) timephasedGuidanceLost = scheduleResult.value;
   } else if (edit.route === 'task-milestone') {
@@ -864,7 +928,20 @@ function applyOneCellEdit(
     || edit.route === 'task-constraint'
     || edit.route === 'task-hammock'
     || String(edit.columnId) === 'task.priority';
-  return { ok: true, value: { task: next, timephasedGuidanceLost, scheduleStale } };
+  return {
+    ok: true,
+    value: {
+      task: next, timephasedGuidanceLost, scheduleStale,
+      startConstraintTouched: effects.startConstraint, startBlocked: effects.startBlocked,
+    },
+  };
+}
+
+/** `created` of `updated`, gezien vanaf de taak VÓÓR de hele bewerking: ook als twee startkolommen in
+ *  één rij de beperking eerst zetten en dan verzetten, telt voor de gebruiker alleen het netto. */
+function startConstraintChangeOf(before: Task, touched: boolean): StartConstraintChange | undefined {
+  if (!touched) return undefined;
+  return before.constraint?.type === 'SNET' ? 'updated' : 'created';
 }
 
 export function planTaskCellEdit(
@@ -874,11 +951,13 @@ export function planTaskCellEdit(
 ): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
   const applied = applyOneCellEdit(task, edit, environment);
   if (!applied.ok) return applied;
+  const { startConstraintTouched, ...planned } = applied.value;
   return {
     ok: true,
     value: {
-      ...applied.value,
-      changed: JSON.stringify(task) !== JSON.stringify(applied.value.task),
+      ...planned,
+      changed: JSON.stringify(task) !== JSON.stringify(planned.task),
+      startConstraint: startConstraintChangeOf(task, startConstraintTouched),
     },
   };
 }
@@ -910,17 +989,27 @@ export function planTaskCellEdits(
   let next = cloneTaskForEdit(task);
   let timephasedGuidanceLost = false;
   let scheduleStale = false;
+  let startConstraintTouched = false;
+  let startBlocked: TaskConstraint | undefined;
   const constraintEdits = edits.filter(edit => edit.route === 'task-constraint');
   const progressEdits = edits.filter(edit => edit.route === 'task-progress');
+  // Zet dezelfde rij de beperking zelf (bv. een geplakte rij met een Constraint-kolom), dan wint die
+  // expliciete keuze: een getypte start maakt er dan geen "Start niet eerder dan" van.
+  const loopEnvironment = environment.startDrivenByPredecessor === true
+    && constraintEdits.some(edit => String(edit.columnId).startsWith('task.constraint'))
+    ? { ...environment, startDrivenByPredecessor: false }
+    : environment;
   for (const edit of edits) {
     if (edit.route === 'task-constraint' || edit.route === 'task-progress') continue;
     // applyOneCellEdit, niet planTaskCellEdit: deze lus keek nooit naar `.changed` van een
     // tussenstap, dus de dure JSON.stringify-vergelijking hierboven was hier pure verspilling.
-    const planned = applyOneCellEdit(next, edit, environment, false);
+    const planned = applyOneCellEdit(next, edit, loopEnvironment, false);
     if (!planned.ok) return planned;
     next = planned.value.task;
     timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
     scheduleStale ||= planned.value.scheduleStale;
+    startConstraintTouched ||= planned.value.startConstraintTouched;
+    startBlocked ??= planned.value.startBlocked;
   }
   if (constraintEdits.length > 0) {
     // Voor de nivelleergat-poort hieronder: de taak vóór deze groep (die muteert `next` in-place).
@@ -974,6 +1063,8 @@ export function planTaskCellEdits(
       changed: JSON.stringify(task) !== JSON.stringify(next),
       timephasedGuidanceLost,
       scheduleStale,
+      startConstraint: startConstraintChangeOf(task, startConstraintTouched),
+      startBlocked,
     },
   };
 }

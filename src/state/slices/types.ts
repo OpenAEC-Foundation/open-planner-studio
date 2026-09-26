@@ -294,7 +294,19 @@ export type NotificationMessageKey =
   | 'notifications.xerArchiveReasonTruncated'
   | 'notifications.xerArchiveReasonBytesMissing'
   | 'notifications.xerArchiveReasonMetadataInvalid'
-  | 'notifications.xerArchiveReasonStructure';
+  | 'notifications.xerArchiveReasonStructure'
+  // W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte start op een taak mét voorganger
+  // werd een beperking "Start niet eerder dan", of verzette de datum van een bestaande — zie
+  // `src/state/startConstraintNotice.ts`. `Many` is het meervoud (`count`) voor plakken/vullen.
+  | 'notifications.startSnetCreated'
+  | 'notifications.startSnetUpdated'
+  | 'notifications.startSnetMany'
+  // Idem, besluit eigenaar "melden, beperking laten staan": een andere constraint (MSO, FNLT, …) houdt
+  // de nieuwe start tegen. Het type staat er in gebruikerstaal in (i18next-nesting op
+  // `task:constraintType`); `NoDate` voor ALAP, `Many` het meervoud (`count`).
+  | 'notifications.startBlockedByConstraint'
+  | 'notifications.startBlockedByConstraintNoDate'
+  | 'notifications.startBlockedByConstraintMany';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
