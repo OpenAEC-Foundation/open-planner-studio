@@ -9,17 +9,17 @@ import { isActualPastStatusDate } from '@/engine/taskMutationRules';
 import { type ReportContext, durationDays, isNearCritical, activityTasks, progressState } from './reportCommon';
 
 /**
- * Planningsgezondheid (discussie #31, rapport 7): de geautomatiseerde planningsreview, in de
+ * Planningsgezondheid: de geautomatiseerde planningsreview, in de
  * geest van de DCMA 14-punts-controle. Elke check levert een telling plus de betrokken taken of
  * relaties, met een ernst: `error` (de planning klopt niet), `warning` (verdient aandacht),
  * `info` (goed om te weten).
  *
  * De drempels zijn instelbaar; de defaults volgen DCMA (hoge speling en lange duur: 44 werkdagen,
- * ≈ twee maanden) in plaats van de losse voorbeeldgetallen uit het voorstel — die zijn wél
- * onderbouwd en breed bekend. Leads (negatieve lag) worden apart van lags gemeld: DCMA staat
- * leads helemaal niet toe, terwijl een gewone lag boven de drempel alleen ter informatie is.
+ * ≈ twee maanden) — die zijn onderbouwd en breed bekend. Leads (negatieve lag) worden apart van
+ * lags gemeld: DCMA staat leads helemaal niet toe, terwijl een gewone lag boven de drempel alleen ter
+ * informatie is.
  *
- * WAT HIER BEWUST NIET STAAT: de dubbele meldingen die het waarschuwingenpaneel (issue #53) al
+ * WAT HIER BEWUST NIET STAAT: de dubbele meldingen die het waarschuwingenpaneel al
  * geeft over solverfouten (cyclus, afgekapte leads, hammocks); dit rapport gaat over de KWALITEIT
  * van een rekenbare planning. Geschonden constraints en gemiste deadlines staan er wél in, want
  * die zijn de gebruikelijke oorzaak van negatieve speling en horen in één review bij elkaar.
@@ -130,7 +130,7 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
 
   // Dezelfde relatieset als de solver: relaties op verzameltaken worden eerst naar bladtaakrelaties
   // uitgevouwen (`expandSummaryRelations`, zoals `runCPM` doet — op een MS Project-import is dat
-  // de normale vorm, review-bevinding 2). Alleen relaties tussen bladtaken blijven over.
+  // de normale vorm). Alleen relaties tussen bladtaken blijven over.
   const hasPred = new Set<string>();
   const hasSucc = new Set<string>();
   const { sequences: expanded } = expandSummaryRelations(ctx.tasks, ctx.sequences);
@@ -189,7 +189,7 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
     return { sequenceId: shown.id, wbs: `${p?.wbsCode ?? '?'} → ${q?.wbsCode ?? '?'}`, name: `${p?.name ?? '?'} → ${q?.name ?? '?'}`, detail };
   };
   // Eén lag-definitie met de solver (`resolveEffectiveLagDays`): procent-lag uit de voorgangerduur,
-  // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender (review-bevinding 3).
+  // `lagDays` leidend, minuut-lag via de uren/dag van de voorgangerkalender.
   const reportedLag = new Set<string>();
   for (const s of relations) {
     const orig = originalSequenceId(s.id);

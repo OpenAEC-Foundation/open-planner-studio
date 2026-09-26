@@ -7,20 +7,18 @@ import { overlapsWindow, taskFinish, taskStart } from './reportCommon';
 import type { ResolvedPeriod } from './reportingPeriod';
 
 /**
- * Resourcediagram (issue #113, gfayat): "wie doet wat, en wanneer" als GRAFISCH rapport — de
- * Gantt-afdruk met per resource een band en daaronder de bladtaken die aan die resource hangen, op
- * volgorde van start. De melder wilde dit als eigen rapporttype in plaats van "groepeer het scherm
- * op resource en zet Volg weergave aan": dat zijn meerdere handelingen die bovendien de
- * schermweergave zelf verbouwen, terwijl je alleen een afdruk wilt.
+ * Resourcediagram: "wie doet wat, en wanneer" als GRAFISCH rapport — de Gantt-afdruk met per
+ * resource een band en daaronder de bladtaken die aan die resource hangen, op volgorde van start.
+ * Een eigen rapporttype, zodat een afdruk de schermweergave niet hoeft te verbouwen.
  *
  * WAAROM een eigen rijenbouwer en niet `computeViewRows` met een resourcegroepering: de
  * schermgroepering bandt op resourceNAAM (`filterEval.resourceNames`), en dit rapport heet
  * letterlijk "een blad per persoon" — twee medewerkers die allebei "Jan" heten zouden dan één vel
- * krijgen, met hun gedeelde taak twee keer onder dezelfde band (hyperkritische review op #132,
- * bevinding 1). Hier bandt alles op resource-IDENTITEIT: de naam is alleen het label, gelijknamige
- * resources — gelijk volgens dezelfde collator als de sortering, dus ook `Jan`/`jan`/` Jan ` —
+ * krijgen, met hun gedeelde taak twee keer onder dezelfde band. Hier bandt alles op
+ * resource-IDENTITEIT: de naam is alleen het label, gelijknamige resources — gelijk volgens dezelfde
+ * collator als de sortering, dus ook `Jan`/`jan`/` Jan ` —
  * krijgen een volgnummer (`Jan #1`, `jan #2`), en een naamloze resource een surrogaat (`#3`, zijn
- * positie in de projectlijst) in plaats van stil in de "(geen)"-band te verdwijnen (bevinding 4).
+ * positie in de projectlijst) in plaats van stil in de "(geen)"-band te verdwijnen.
  * De `ViewRow`-sleutels zijn daardoor per definitie uniek. De bandvolgorde volgt de meegegeven
  * `locale` (de app-taal) en nooit de OS-taal van de afdrukker: een uitgedeeld vel moet op elke
  * machine dezelfde bladnummering krijgen.
@@ -31,22 +29,22 @@ import type { ResolvedPeriod } from './reportingPeriod';
  * worden getekend).
  * Relaties horen hier niet: een taak kan onder meerdere banden staan, dus een pijl heeft geen
  * eenduidig anker en zou op een blad per persoon de bladrand af lopen — het paneel zet `showDeps`
- * voor dit type uit (bevinding 2).
+ * voor dit type uit.
  *
- * Optioneel in TWEE LAGEN (manuvarkey op #113, punt 2): eerst een band per resourceTYPE (mensen
+ * Optioneel in TWEE LAGEN: eerst een band per resourceTYPE (mensen
  * eerst — arbeid, ploeg, onderaannemer — dan materieel, dan materiaal; een vaste volgorde, niet
  * de vertaalde labelvolgorde, zodat een uitgedeeld vel in elke taal dezelfde blokvolgorde heeft),
  * daarbinnen de resourcebanden zoals hierboven, en de taken op diepte 2. De "(geen)"-band blijft
  * op diepte 0 als laatste: taken zonder resource hebben geen type.
  *
- * Optioneel binnen een TIJDVENSTER (punt 3): met `window` (de opgeloste rapportageperiode, issue
- * #120) doen alleen bladtaken mee die het venster raken — start ≤ tot én einde ≥ van, op dagniveau,
- * dezelfde overlapregel als de tabelrapporten; een taak zonder datums valt erbuiten. Alle
+ * Optioneel binnen een TIJDVENSTER: met `window` (de opgeloste rapportageperiode) doen alleen
+ * bladtaken mee die het venster raken — start ≤ tot én einde ≥ van, op dagniveau, dezelfde
+ * overlapregel als de tabelrapporten; een taak zonder datums valt erbuiten. Alle
  * tellingen volgen die gefilterde set; `counts.outsidePeriod` telt wat er is weggelaten, zodat de
  * UI een lege uitkomst kan verklaren. De render krijgt hetzelfde venster als `timeWindow`.
  *
  * Per taakrij onder een resourceband levert `assignmentByRowKey` de TOEWIJZING van die band op
- * die taak (punt 1): eenheden per dag en de verdeelcurve — de rij is een taak, maar wat de lezer
+ * die taak: eenheden per dag en de verdeelcurve — de rij is een taak, maar wat de lezer
  * wil weten is "hoe zwaar staat déze resource erop". De curveTOESTAND komt uit de gedeelde
  * weergaveregel `assignmentCurveState` (`src/engine/contour/curveState.ts`) — dezelfde als het
  * eigenschappenpaneel, zodat rapport en paneel nooit twee antwoorden geven; het verschil met de
@@ -115,7 +113,7 @@ export interface RowAssignment {
 /** Bandsleutel van de "(geen)"-band — dezelfde codering als de schermgroepering. */
 const NONE_BAND_KEY = encodeBandKey([NONE_RAWKEY]);
 
-// De vaste typevolgorde woont in de view-engine: de schermgroepering op Resourcetype (issue #173)
+// De vaste typevolgorde woont in de view-engine: de schermgroepering op Resourcetype
 // moet exact dezelfde blokvolgorde geven als dit rapport.
 export { RESOURCE_TYPE_BAND_ORDER };
 
@@ -192,8 +190,7 @@ export function computeResourceGanttRows(
   // Contourkoppeling op de VOLLEDIGE recordlijst per taak — ook records naar een onbekende
   // resource (die filtert de rij-opbouw hieronder pas weg) — precies zoals `ResourceLoad.ts`'s
   // `contourLookup` en het eigenschappenpaneel de lijst aanbieden; anders kan de legacy-terugval
-  // in `matchContoursToAssignments` (`assignments.length === 1`) hier anders uitvallen dan daar
-  // (review ronde 2, bevinding 3).
+  // in `matchContoursToAssignments` (`assignments.length === 1`) hier anders uitvallen dan daar.
   const recordsByTask = new Map<string, ResourceAssignment[]>();
   for (const a of ctx.assignments) {
     if (!leafById.has(a.taskId)) continue;

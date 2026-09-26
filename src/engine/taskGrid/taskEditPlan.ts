@@ -83,9 +83,9 @@ export interface TaskEditPlanEnvironment {
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
-  /** Taaktypes-etappe (2026-09): werkbehoud bij het herschalen van een contour, afgeleid van de
-   *  effectieve werkregel (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
-   *  MSP-afleiding in `rescaleTaskContours`. */
+  /** Werkbehoud bij het herschalen van een contour, afgeleid van de effectieve werkregel
+   *  (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de MSP-afleiding in
+   *  `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
   /** Wordt de start van DEZE taak door een voorganger bepaald (`predecessorDrivenTaskIds`)? Alleen
    *  nodig voor een getypte start (kolommen Start/Geplande start); afwezig ⇒ nee. Een getypte start
@@ -180,8 +180,8 @@ function expectedRoute(columnId: string): CellEditIntent['route'] | null {
  *  de aanroeper vóór de mutatie vastlegde; gemeten met dezelfde uren-per-dag. Het raster meet met
  *  `environment.effectiveHoursPerDay` (bij een urenkalender de afgeleide bandsom); het ingevoerde
  *  einde van een urentaak herleidt `applyOneCellEdit` aan het eind (`reconcileGridInputFinish`).
- *  Een lopende taak houdt haar gedane werk (`carryRemainingThroughDurationEdit`, eigenaarsbesluit
- *  2026-09-26); een nieuwe duur korter dan dat werk is een celfout (`durationBelowDoneWork`). */
+ *  Een lopende taak houdt haar gedane werk (`carryRemainingThroughDurationEdit`); een nieuwe duur
+ *  korter dan dat werk is een celfout (`durationBelowDoneWork`). */
 function finishDurationEdit(
   task: Task,
   before: TaskTime,
@@ -191,7 +191,7 @@ function finishDurationEdit(
   const hoursPerDay = environment.effectiveHoursPerDay;
   const usableHours = Number.isFinite(hoursPerDay) && hoursPerDay > 0;
   const oldWorkMinutes = taskWorkMinutes(before, hoursPerDay);
-  // Eigenaarsbesluiten 2026-09-05/26: de rest schuift mee met de duurwijziging, het percentage volgt;
+  // De rest schuift mee met de duurwijziging, het percentage volgt;
   // korter dan het gedane werk wordt geweigerd.
   if (usableHours && carryRemainingThroughDurationEdit(task, before, hoursPerDay, environment.statusDate)?.refused) {
     return failure('durationBelowDoneWork', edit);
@@ -208,7 +208,7 @@ function finishDurationEdit(
 }
 
 /**
- * B1c-plan-2 spec §4 "Invalidatie", bedraad in de fixronde op etappe 3 (bevinding B7). De ROUTES
+ * Invalidatie van nivelleergaten. De ROUTES
  * waarvan een celwrite de tijdbasis van de taak verzet — en dus een door de nivelleerder ingevoegde
  * pauzedag ongeldig maakt. Dit is de gridtegenhanger van `taskTriggerChanges(...).levelingGaps`
  * (taskDefaults.ts); het grid schrijft niet via `updateTask`, dus het heeft een eigen poort nodig.
@@ -222,7 +222,7 @@ const LEVELING_GAP_ROUTES: ReadonlySet<CellEditIntent['route']> = new Set([
   'task-schedule', 'task-progress', 'task-milestone', 'task-constraint', 'task-hammock',
 ]);
 
-/** B1-vervolg (critreview 24-09): de solve schrijft `scheduleFinish` niet meer terug, dus de
+/** De solve schrijft `scheduleFinish` niet terug, dus de
  *  gridbewerking houdt het ingevoerde einde van een niet-gestarte urentaak zelf coherent — dezelfde
  *  regel als `taskSlice.updateTask`, zie `reconcileHourInputFinish` (taskDefaults.ts). `calendarFor`
  *  levert de kalender NA de bewerking (een kalenderkolom-edit verandert die); zonder valt hij terug op
@@ -278,7 +278,7 @@ function applyTaskField(
     if (!optionalString(edit.value)) return failure('color', edit);
     task.color = edit.value;
   } else if (id === 'task.workRule') {
-    // Taaktypes-etappe (spec §7): het VELD; de driehoekstap (restwerk vastleggen onder een
+    // Werkregel: het VELD; de driehoekstap (restwerk vastleggen onder een
     // werkbeschermende regel) doet `gridTransaction.ts` ná het plan, met de toewijzingen erbij.
     if (edit.value === undefined || edit.value === '') delete task.workRule;
     else if (typeof edit.value === 'string' && (WORK_RULES as readonly string[]).includes(edit.value)) task.workRule = edit.value as WorkRule;
@@ -306,7 +306,7 @@ function applyParsedDuration(
   timeBefore: TaskTime,
 ): GridResult<boolean, readonly CellValidationError[]> {
   // Deze functie schrijft de drie duurvelden altijd; of dat een duurWIJZIGING is, beslist dezelfde
-  // waardevergelijking als store en MCP (`taskTriggerChanges`, #186).
+  // waardevergelijking als store en MCP (`taskTriggerChanges`).
   const before: TaskTriggerFields = { ...task, time: { ...task.time } };
   if (parsed.unit === 'hours') {
     if (environment.enableHourPlanning !== true) return failure('hourPlanningDisabled', edit);
@@ -358,8 +358,9 @@ function durationForShownFinish(
 /**
  * Een getypte start (Tabel-kolom Start of Geplande start): het nieuwe anker, en op een taak waarvan
  * een voorganger de start bepaalt de beperking "Start niet eerder dan" (`startConstraintAfterEdit`,
- * dezelfde regel als paneel, Taak bewerken en Gantt-sleep). Zonder die beperking sprong de taak na F5
- * stil terug achter haar voorganger: de solver leest het anker alleen voor een taak zónder voorganger.
+ * dezelfde regel als paneel, Taak bewerken en Gantt-sleep). Zonder die beperking springt de taak na
+ * herberekenen stil terug achter haar voorganger: de solver leest het anker alleen voor een taak
+ * zónder voorganger.
  * Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan verandert er niets —
  * ook geen dood anker — en meldt de transactie die constraint.
  */
@@ -516,7 +517,7 @@ function applyMilestoneEdit(
   if (id === 'task.isMilestone') {
     if (typeof edit.value !== 'boolean') return failure('boolean', edit);
     if (task.isMilestone !== edit.value) {
-      // Gedeelde "wordt mijlpaal"-regel (audit §6): een fase wordt geen ruit. Toewijzingen toetst
+      // Gedeelde "wordt mijlpaal"-regel: een fase wordt geen ruit. Toewijzingen toetst
       // het raster na afloop over de hele transactie (`planTaskAssignmentSet`), daarom hier `false`.
       if (edit.value && milestoneRefusal({ hasChildren: task.childIds.length > 0, hasAssignments: false })) {
         return failure('milestoneUnavailable', edit);
@@ -887,10 +888,9 @@ function validCustomFieldValue(def: CustomFieldDef, value: unknown): boolean {
 /** Alles wat één celwrite oplevert, BEHALVE `changed` — die vergelijking is een volledige
  * `JSON.stringify(task)` van beide kanten en dus verreweg de duurste stap hier. Losgetrokken van
  * `planTaskCellEdit` omdat `planTaskCellEdits` (meervoud) deze functie per deelwrite in een lus
- * aanroept zonder ooit naar `changed` te kijken (zie daar) — die tussentijdse `changed`-berekening
- * was dus zuiver verspilde rekentijd, gemeten als de dominante kost achter de bulk-plak-bevriezing
- * uit de eindreview (2.000 taken × 27 kolommen). `planTaskCellEdit` blijft voor externe aanroepers
- * de volledige, ongewijzigde vorm — inclusief `changed` — leveren. */
+ * aanroept zonder ooit naar `changed` te kijken (zie daar) — een tussentijdse `changed`-berekening
+ * is daar de dominante kost bij een bulk-plak (2.000 taken × 27 kolommen). `planTaskCellEdit` blijft
+ * voor externe aanroepers de volledige vorm — inclusief `changed` — leveren. */
 function applyOneCellEdit(
   task: Task,
   edit: CellEditIntent,
@@ -932,7 +932,8 @@ function applyOneCellEdit(
     }
   } else result = applyDynamicEdit(next, edit, environment);
   if (!result.ok) return result;
-  // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg. De ROUTE
+  // Nivelleergaten — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next`
+  // weg. De ROUTE
   // bepaalt welke velden meetellen (ongewijzigd); WANNEER is een echte waardewijziging, met dezelfde
   // structurele vergelijking als store en MCP (`sameValue`): een celwrite die de taak niet veranderde
   // — dezelfde waarde teruggeschreven — laat een nivelleergat staan.
@@ -1051,7 +1052,8 @@ export function planTaskCellEdits(
     if (!pair.ok) {
       return failure(`constraintPair.${pair.issues[0]}`, ordered[ordered.length - 1], pair.issues);
     }
-    // B7 — deze twee groepen omzeilen `applyOneCellEdit` (ze worden pas ná de volledige groep
+    // Nivelleergaten — deze twee groepen omzeilen `applyOneCellEdit` (ze worden pas ná de volledige
+    // groep
     // gecanonicaliseerd), dus de poort staat hier apart. Pas ná de validatie: een geweigerde groep
     // laat de taak ongemoeid. En net als daar alleen bij een echte waardewijziging (`sameValue`).
     if (!sameValue(beforeGroup, next)) clearLevelingGaps(next);
@@ -1065,10 +1067,11 @@ export function planTaskCellEdits(
     const beforeGroup = cloneTaskForEdit(next);
     const applied = applyProgressEdits(next, progressEdits, environment);
     if (!applied.ok) return applied;
-    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
+    if (!sameValue(beforeGroup, next)) clearLevelingGaps(next); // zie de constraintgroep hierboven.
     scheduleStale = true;
   }
-  // B1-vervolg — één keer voor de hele groep, tegen de taak van vóór de groep: zo wint een in dezelfde
+  // Ingevoerd uur-einde — één keer voor de hele groep, tegen de taak van vóór de groep: zo wint een
+  // in dezelfde
   // plak meegegeven "Gepland einde" ongeacht de kolomvolgorde, en telt voortgang (gestart ⇒ niet meer
   // meebewegen) mee.
   reconcileGridInputFinish(task, next, environment);

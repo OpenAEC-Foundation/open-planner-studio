@@ -172,14 +172,14 @@ function copyScalar(value: unknown): string {
 }
 
 /**
- * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — `format`-tak voor de vier
+ * "Datums zoals opgeslagen" — `format`-tak voor de vier
  * optionele late-/floatkolommen (`task.time.lateStart`/`lateFinish`/`totalFloat`/`freeFloat`).
- * `applyRecordedTimesToTasks` (`recordedDates.ts` §3.4) laat de bestaande `?? rec.start`/`?? 0`-
+ * `applyRecordedTimesToTasks` (`recordedDates.ts`) laat de bestaande `?? rec.start`/`?? 0`-
  * terugvallen bewust als VELDWAARDE staan — "niet vastgelegd" leeft uitsluitend in
  * `recordedDates.times[id]` en wordt hier, als WEERGAVE, afgedwongen: zonder deze tak zou een as
  * die het bestand nooit gaf gewoon als een echt getal (vaak een verzonnen `0`) op het scherm staan.
  * `ctx.recordedUnrecordedAxes` is `undefined` zonder vastlegging (niet-XER-documenten, of geen
- * restverschillen) — dan valt dit terug op de gewone `formatScalar`, byte-identiek aan vóór T6.
+ * restverschillen) — dan valt dit terug op de gewone `formatScalar`.
  */
 function recordedAxisFormat(axis: RecordedTaskAxis, inner?: Formatter): Formatter {
   return (value, task, ctx) => ctx.recordedUnrecordedAxes?.(task).includes(axis)
@@ -188,20 +188,20 @@ function recordedAxisFormat(axis: RecordedTaskAxis, inner?: Formatter): Formatte
 }
 
 /**
- * Her-check laag 3, bevindingen 1 en 2: de `format`-tak alleen was NIET genoeg. `taskGridAdapter.
- * getCell` slaat `descriptor.format` over zodra `domain.dateNotation` gezet is (dat is in het
- * product ALTIJD zo — `UIState.dateNotation` heeft een default) en de waarde een datumstring is:
- * dan gaat de cel via `copyGridEditorValue` en toonde `task.time.lateStart` — de `?? rec.start`-
- * terugval — als een echte, verzonnen late datum. En `copyScalar(read(...))` zette diezelfde
- * terugval (of een verzonnen `0` speling) in het klembord terwijl de cel "Niet vastgelegd" toonde.
+ * De `format`-tak alleen is NIET genoeg. `taskGridAdapter.getCell` slaat `descriptor.format` over
+ * zodra `domain.dateNotation` gezet is (dat is in het product ALTIJD zo — `UIState.dateNotation`
+ * heeft een default) en de waarde een datumstring is: dan gaat de cel via `copyGridEditorValue` en
+ * zou `task.time.lateStart` — de `?? rec.start`-terugval — als een echte, verzonnen late datum tonen.
+ * En `copyScalar(read(...))` zou diezelfde terugval (of een verzonnen `0` speling) in het klembord
+ * zetten terwijl de cel "Niet vastgelegd" toont.
  *
- * Daarom is "niet vastgelegd" nu een eigenschap van de LEESWAARDE zelf: `read` levert `undefined`
+ * Daarom is "niet vastgelegd" een eigenschap van de LEESWAARDE zelf: `read` levert `undefined`
  * voor een as die het bestand niet gaf, zodat élke afnemer van de descriptor (celtekst, klembord,
  * titel, sortering) hetzelfde ziet — er bestaat dan geen string meer die de adapter per ongeluk als
  * datum kan opmaken. `format` blijft de tekst "Niet vastgelegd" leveren en `copy` een lege
  * klembordcel (zelfde regel als `recorded.source` hieronder: klembord = wat de cel zegt, en een
  * spreadsheet-plakactie verwacht leeg, geen em-dash). Buiten de modus (`recordedUnrecordedAxes`
- * ontbreekt) is dit byte-identiek aan de kale `read`.
+ * ontbreekt) is dit gelijk aan de kale `read`.
  */
 function recordedAxisRead<T>(
   axis: RecordedTaskAxis,
@@ -345,7 +345,7 @@ function enumValidator(values: readonly string[], optional = false): Validator {
   };
 }
 
-/** Strikt en engine-onafhankelijk: `Date.parse` accepteerde in V8 ook 2026-02-31 en T24:00. */
+/** Strikt en engine-onafhankelijk: `Date.parse` accepteert in V8 ook 2026-02-31 en T24:00. */
 function isValidIso(value: string): boolean {
   return isStrictIsoDateTime(value, { maxFractionDigits: 3, offsetColonOptional: true });
 }
@@ -442,13 +442,13 @@ function gridDurationFormat(ctx: TaskColumnContext): DurationTextFormat {
   };
 }
 
-/** Weergavetekst van de Duur-kolom: dezelfde formatter als tooltip en Gantt-afdruk (audit weergaven 7). */
+/** Weergavetekst van de Duur-kolom: dezelfde formatter als tooltip en Gantt-afdruk. */
 function durationCellText(task: Task, ctx: TaskColumnContext): string {
   return formatTaskDurationText(task, effectiveHoursPerDay(task, ctx), gridDurationFormat(ctx));
 }
 
 /** Een aantal werkdagen (speling, baselineduur): dezelfde opmaak als paneel en tooltip — twee
- *  decimalen, het decimaalteken van de taal en de dag-eenheid (audit weergaven, bevinding 8). */
+ *  decimalen, het decimaalteken van de taal en de dag-eenheid. */
 function workDaysCellText(value: unknown, ctx: TaskColumnContext): string {
   return isFiniteNumber(value) ? formatWorkDaysText(value, gridDurationFormat(ctx)) : '—';
 }
@@ -506,7 +506,7 @@ function assignmentWindowText(
 
 type AssignmentWorkField = 'plannedWorkMinutes' | 'actualWorkMinutes' | 'remainingWorkMinutes';
 
-/** Taaktypes-etappe (spec §4.3): de drie werkvelden zijn minuten in de state, uren in beeld
+/** De drie werkvelden zijn minuten in de state, uren in beeld
  *  (twee decimalen, zoals de contour-dialoog). Afwezig veld ⇒ niet getoond (afgeleid). */
 function assignmentWorkText(task: Task, ctx: TaskColumnContext, field: AssignmentWorkField): string {
   const values = assignments(task, ctx).flatMap(assignment => assignment[field] !== undefined
@@ -626,7 +626,7 @@ function validateAssignmentTokens(
       resourceId: token.resourceId,
       unitsPerDay: token.unitsPerDay,
       ...(token.curve ? { curve: token.curve } : {}),
-      // Taaktypes-etappe (review B1): het werk reist mee bij plakken naar een andere taak.
+      // Het werk reist mee bij plakken naar een andere taak.
       ...(token.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: token.remainingWorkMinutes } : {}),
     });
   }
@@ -683,7 +683,7 @@ const parseAssignmentUnits: Parser = (text, task, ctx) => {
   return success(result);
 };
 
-/** Taaktypes-etappe: tokens mét resterend werk (opgeslagen, anders afgeleid als restduur × inzet). */
+/** Tokens mét resterend werk (opgeslagen, anders afgeleid als restduur × inzet). */
 function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentToken[] {
   const hoursPerDay = ctx.effectiveHoursPerDay?.(task) ?? 8;
   const remaining = remainingMinutesOf(task, { hoursPerDay });
@@ -815,17 +815,16 @@ function fixedTaskColumns(input: TaskColumnRegistryInput): TaskColumnDescriptor[
     readonlyColumn({ id: 'task.manuallyScheduled', labelKey: 'taskGrid.columns.manuallyScheduled', category: 'technical', valueKind: 'boolean', read: task => task.manuallyScheduled }),
     readonlyColumn({ id: 'task.mspTaskType', labelKey: 'taskGrid.columns.mspTaskType', category: 'technical', valueKind: 'enum', read: task => task.mspTaskType }),
     readonlyColumn({ id: 'task.effortDriven', labelKey: 'taskGrid.columns.effortDriven', category: 'technical', valueKind: 'boolean', read: task => task.effortDriven }),
-    // Taaktypes-etappe (ontwerp 2026-09-04 §7): alleen-lezen tot de UI-stap 'm bewerkbaar maakt.
-    // Taaktypes-etappe (spec §7): bewerkbare werkregel — alleen zichtbaar wanneer ontsloten; `''` = terug
+    // Bewerkbare werkregel — alleen zichtbaar wanneer ontsloten; `''` = terug
     // naar de projectstandaard. De driehoekstap zit in `gridTransaction.ts` (na het plan). `readOnly`
     // leest UITSLUITEND de gecertificeerde controllers (isMilestone/isHammock) + childIds — zie
     // `check-grid-transaction.ts` "Aanbeveling 4"; een ELAPSEDTIME-taak mag de regel dragen, de
-    // driehoek negeert 'm daar (`workRuleApplies`). Gebruikstest #170 (G8): op mijlpaal/verzameltaak/
+    // driehoek negeert 'm daar (`workRuleApplies`). Op mijlpaal/verzameltaak/
     // hangmat blijft de cel LEEG — een import (deriveImportedWorkRules) zet daar wel een regel, maar
     // die werkt er niet (gids: "hebben geen werkregel").
     editableColumn({ id: 'task.workRule', labelKey: 'taskGrid.columns.workRule', category: 'planning', valueKind: 'enum', editorKind: 'enum', editorOptions: enumOptions('workRule', WORK_RULES, true), route: 'task-field', available: ctx => ctx.taskTypesUnlocked === true, read: task => (task.isMilestone || task.childIds.length > 0 || task.isHammock === true ? undefined : task.workRule), readOnly: task => task.isMilestone || task.childIds.length > 0 || task.isHammock === true, parse: enumParser(WORK_RULES, true), validate: enumValidator(WORK_RULES, true) }),
     // XER/Primavera-herkomst: acht bronvelden die de XER-lezer op de taak zet en die door IFC
-    // round-trippen. Ze zijn puur provenance (geen solverinvoer deze etappe), dus één readonly
+    // round-trippen. Ze zijn puur provenance (geen solverinvoer), dus één readonly
     // technische kolom bundelt ze — zoals `task.activityCodes.technical` dat voor codes doet.
     readonlyColumn({
       id: 'task.p6Provenance', labelKey: 'taskGrid.columns.p6Provenance', category: 'technical', valueKind: 'technical',
@@ -891,9 +890,9 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.durationMinutes', labelKey: 'taskGrid.columns.durationMinutes', category: 'technical', valueKind: 'number', read: task => task.time.durationMinutes }),
     // Start/Einde: de GETOONDE datums, dezelfde bron als Gantt-balk, tooltip, paneel, afdruk en MCP
     // (`shownStart`/`shownFinish`). Het zijn berekende waarden (`scheduleDerived`: verouderd-
-    // markering tot F5); bewerken verzet alleen iets bij een echte wijziging, zie
+    // markering tot herberekenen); bewerken verzet alleen iets bij een echte wijziging, zie
     // `applyScheduleEdit`. De datums van een automatisch geplande verzameltaak of hangmat volgen uit
-    // andere taken — een invoer daar zou na F5 niets doen, dus alleen-lezen.
+    // andere taken — een invoer daar zou na herberekenen niets doen, dus alleen-lezen.
     editableColumn({ id: 'task.time.start', labelKey: 'taskGrid.columns.start', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownStart(task), readOnly: derivedDatesTask, parse: parseDate, validate: validateDate }),
     editableColumn({ id: 'task.time.finish', labelKey: 'taskGrid.columns.finish', category: 'planning', valueKind: 'datetime', editorKind: 'datetime', route: 'task-schedule', scheduleDerived: true, read: task => shownFinish(task), readOnly: derivedDatesTask, parse: parseDate, validate: validateDate }),
     // Geplande start/einde: de invoerankers zelf, kiesbaar voor wie ze wil zien. De solver leest
@@ -913,18 +912,18 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
-    // "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — badge die toont of DEZE
+    // "Datums zoals opgeslagen" — badge die toont of DEZE
     // taak een vastlegging heeft die afwijkt van de herberekening, of onvolledig is. Bestaat
     // uitsluitend op documenten met een vastlegging (`ctx.recordedMark !== undefined` ⇒
     // `recordedDates !== null`, zie `FullTaskGrid.tsx`) — op elk ander document is deze kolom
-    // onzichtbaar, dus geen ruis op IFC/CSV/MSPDI/MPP-documenten zonder issue-#63-vastlegging.
+    // onzichtbaar, dus geen ruis op IFC/CSV/MSPDI/MPP-documenten zonder vastlegging.
     readonlyColumn({
       id: 'recorded.source', labelKey: 'taskGrid.columns.recordedSource', category: 'computed', valueKind: 'text',
       available: ctx => ctx.recordedMark !== undefined,
       read: (task, ctx) => ctx.recordedMark?.(task),
       format: (value, _task, ctx) => recordedSourceText(value, ctx),
       // Zonder eigen `copy` levert `copyScalar` het RAUWE token (`deviates`) in het klembord
-      // terwijl de cel "Wijkt af" toont (critreview laag 3, bevinding 11). Dezelfde tekst als de
+      // terwijl de cel "Wijkt af" toont. Dezelfde tekst als de
       // cel dus — en de lege markering blijft een lege klembordcel in plaats van een em-dash, want
       // dat is wat een plakactie in een spreadsheet verwacht.
       copy: (task, ctx) => {
@@ -1088,17 +1087,17 @@ function fixedAssignmentColumns(): TaskColumnDescriptor[] {
       }]),
     }),
     readonlyColumn({ id: 'assignment.workWindowStart', labelKey: 'taskGrid.columns.workWindowStart', category: 'resources', valueKind: 'technical', read: (task, ctx) => assignments(task, ctx).map(item => ({ assignmentId: item.id, value: item.workWindowStart })), format: (_value, task, ctx) => assignmentWindowText(task, ctx, 'workWindowStart'), copy: (task, ctx) => canonicalGridJson(assignments(task, ctx).map(item => ({ assignmentId: item.id, workWindowStart: item.workWindowStart }))) }),
-    // Taaktypes-etappe (spec §4.3/§7): alleen-lezen tot de UI-stap; minuten in de state, uren in beeld.
+    // Alleen-lezen; minuten in de state, uren in beeld.
     assignmentWorkColumn('assignment.plannedWork', 'taskGrid.columns.assignmentPlannedWork', 'plannedWorkMinutes'),
     assignmentWorkColumn('assignment.actualWork', 'taskGrid.columns.assignmentActualWork', 'actualWorkMinutes'),
-    // Taaktypes-etappe (spec §7): resterend werk per toewijzing, bewerkbaar als "naam: uren; …" met
+    // Resterend werk per toewijzing, bewerkbaar als "naam: uren; …" met
     // dezelfde assignment-set-transactie als de inzet; alleen zichtbaar wanneer ontsloten. Getoond
     // wordt het opgeslagen werk, anders het afgeleide (restduur × inzet).
     editableColumn({
       id: 'assignment.remainingWork', labelKey: 'taskGrid.columns.assignmentRemainingWork', category: 'resources', valueKind: 'tokens', editorKind: 'custom', defaultWidth: 200,
       available: ctx => ctx.taskTypesUnlocked === true,
       read: assignmentWorkTokens,
-      // Review K4: alleen waar de regel werkt (geen hangmat/ELAPSEDTIME) — anders weigert de kern stil.
+      // Alleen waar de regel werkt (geen hangmat/ELAPSEDTIME) — anders weigert de kern stil.
       readOnly: (task, ctx) => !workRuleApplies(task) || assignments(task, ctx).length === 0,
       format: (value, _task, ctx) => Array.isArray(value) && value.length ? value.map(raw => {
         const item = raw as { resourceId: string; remainingWorkMinutes?: number };

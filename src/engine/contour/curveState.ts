@@ -5,8 +5,7 @@ import { matchContoursToAssignments } from './contourEngine';
 /**
  * De WEERGAVE-toestand van de curve van één toewijzing — de ene regel die het eigenschappenpaneel
  * (`TaskAssignmentsSection`) en het resourcediagram (`computeResourceGanttRows`) delen, zodat een
- * uitgedeeld vel nooit iets anders zegt dan het paneel (hyperkritische review op #138, ronde 2,
- * bevinding 1):
+ * uitgedeeld vel nooit iets anders zegt dan het paneel:
  *
  * 1. een aan de toewijzing gekoppelde CONTOUR op de taak (`Task.timephasedContours` via
  *    `matchContoursToAssignments`) ⇒ `'contoured'` — de urenverdeling is dan data, de curve doet

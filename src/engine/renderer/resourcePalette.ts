@@ -1,12 +1,12 @@
-// Resource-/taakkleurpalet (#21 punt 1-nieuw, ontwerpdoc 2026-08-14 §3). Eén vast, printvriendelijk
-// palet voor twee doelen: (a) automatische kleurtoewijzing aan resources (B1/B7), (b) de automatische
-// per-taak-regenboog (B6, modus 'auto'). PUUR: geen store-/React-imports — headless testbaar.
+// Resource-/taakkleurpalet. Eén vast, printvriendelijk palet voor twee doelen: (a) automatische
+// kleurtoewijzing aan resources, (b) de automatische per-taak-regenboog (modus 'auto'). PUUR: geen
+// store-/React-imports — headless testbaar.
 //
 // Ontwerpeisen (vastgelegd in tests/planning/check-bar-colors.ts):
 //  1. 12 kleuren, onderling onderscheidbaar ÓÓK in grijswaarden (elke kleur een eigen lichtheidsband
 //     — zwart-wit laserprinters en grijswaarden-PDF-viewers bestaan echt op bouwplaatsen);
 //  2. géén van de kleuren is de kritiek-roodtint ('#DC2626', zowel BRAND.critical als het printpalet)
-//     — rood is gereserveerd voor de rode rand om kritieke taken in de niet-critical kleurmodi (B5);
+//     — rood is gereserveerd voor de rode rand om kritieke taken in de niet-critical kleurmodi;
 //  3. voldoende verzadiging om op een lichte printachtergrond te staan.
 //
 // De lichtheden lopen bewust sterk uiteen: band 1/12 breed per kleur.
@@ -19,8 +19,8 @@ import type { Resource } from '@/types/resource';
 // anders van tint dan critical-rood (#DC2626) — op de LICHTE kaart, waar hij ongewijzigd wordt
 // getekend (RGB-afstand 38). LET OP in het donkere thema: daar haalt `ensureThemeVisible` (zie
 // onderaan dit bestand) de "donkerder" er juist uit — #B91C1C wordt #e03232, RGB-afstand nog maar
-// 17 tot #DC2626. Dat is de pre-U2-toestand (U2's #DA5252 gaf 46), maar het betekent dat een
-// resource met paletkleur 1 op een donkere kaart nauwelijks van kritiek-rood te onderscheiden is.
+// 17 tot #DC2626. Dat betekent dat een resource met paletkleur 1 op een donkere kaart nauwelijks van
+// kritiek-rood te onderscheiden is.
 // Ontwerpeis 2 hieronder test op letterlijke gelijkheid en vangt dit NIET af.
 export const RESOURCE_PALETTE: readonly string[] = [
   '#1E293B', // 0  slate-800   (l ≈ 0.16)
@@ -38,7 +38,7 @@ export const RESOURCE_PALETTE: readonly string[] = [
 ];
 
 /** Kleine, deterministische string-hash (FNV-1a, 32-bit) — geen cryptografie, wel stabiel op
- *  elke machine/run (B7): hetzelfde id krijgt altijd dezelfde kleur, ongeacht volgorde. */
+ *  elke machine/run: hetzelfde id krijgt altijd dezelfde kleur, ongeacht volgorde. */
 function hashId(id: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < id.length; i++) {
@@ -55,7 +55,7 @@ export function paletteColorForId(id: string): string {
 
 /**
  * De kleur waarin een resource getekend wordt: haar eigen, expliciet gekozen kleur als die er is,
- * anders de deterministische hash-fallback (B7). Muteert NOOIT de resource — kleurloze resources
+ * anders de deterministische hash-fallback. Muteert NOOIT de resource — kleurloze resources
  * blijven kleurloos in de data; de fallback is puur weergave. Zo werkt resource-kleuring direct
  * voor elk bestaand project zonder migratie of dirty-vlag.
  */
@@ -64,7 +64,7 @@ export function resourceDisplayColor(res: Pick<Resource, 'id' | 'color'>): strin
 }
 
 /**
- * Eerste paletkleur die nog niet door een andere resource in gebruik is (B7, auto-toewijzing bij
+ * Eerste paletkleur die nog niet door een andere resource in gebruik is (auto-toewijzing bij
  * aanmaak). Alles bezet → hergebruik cyclisch vanaf index 0 (palet is eindig; bij >12 resources
  * is een dubbel onvermijdbaar en is "voorspelbaar" belangrijker dan "uniek"). Vergelijkt de
  * DISPLAYkleur (eigen kleur òf hash), niet alleen het `color`-veld — twee resources waarvan de

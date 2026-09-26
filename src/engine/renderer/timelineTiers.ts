@@ -2,10 +2,10 @@ import { addCalendarDays, getMonthStart, getWeekStartFor, utcDayStart } from '@/
 import type { TimeScale } from '@/types/view';
 
 /**
- * Tijdschaal-presets (fase 2.7, §3.3): een dropdown-keuze mapt naar een zoom (px/dag). De presets
+ * Tijdschaal-presets: een dropdown-keuze mapt naar een zoom (px/dag). De presets
  * landen midden in de bijbehorende `pickTiers`-band, zodat `scaleFromZoom` round-trip-stabiel de
- * gekozen schaal teruggeeft. `view.timeScale` is GEEN bron van waarheid meer — `pickTiers`/`zoom`
- * blijven dat; de getoonde schaal wordt afgeleid via `scaleFromZoom`.
+ * gekozen schaal teruggeeft. `view.timeScale` is GEEN bron van waarheid — `pickTiers`/`zoom`
+ * zijn dat; de getoonde schaal wordt afgeleid via `scaleFromZoom`.
  */
 export const TIMESCALE_ZOOM: Record<TimeScale, number> = {
   year: 3,
@@ -13,9 +13,9 @@ export const TIMESCALE_ZOOM: Record<TimeScale, number> = {
   month: 18,
   week: 45,
   day: 100,
-  // Een uurcel is `zoom / 24` pixels breed. Met de oude 350px/dag kreeg een label als “08:00”
-  // slechts 14,6px ruimte en de overlapbeveiliging moest hem altijd onderdrukken. 1000px/dag
-  // geeft elke uurcel genoeg plaats voor een werkelijk leesbaar label.
+  // Een uurcel is `zoom / 24` pixels breed. Bij 350px/dag krijgt een label als “08:00” slechts
+  // 14,6px ruimte en onderdrukt de overlapbeveiliging hem altijd. 1000px/dag geeft elke uurcel
+  // genoeg plaats voor een werkelijk leesbaar label.
   hour: 1000,
 };
 
@@ -35,9 +35,9 @@ export function maxGanttZoom(enableQuarterHourZoom: boolean, enableHourPlanning 
 }
 
 /**
- * Leidt de getoonde tijdschaal af uit de zoom (§3.2). Leest dezelfde banden als `pickTiers`.
- * Fase 2.8b (§6.2): de 'hour'-schaal verschijnt ALLEEN als `hourPlanningEnabled` (de hoofdschakelaar
- * Urenplanning) aan staat; anders blijft de reeks dag-granulair zoals vóór 2.8b (label 'day' bij
+ * Leidt de getoonde tijdschaal af uit de zoom. Leest dezelfde banden als `pickTiers`.
+ * De 'hour'-schaal verschijnt ALLEEN als `hourPlanningEnabled` (de hoofdschakelaar
+ * Urenplanning) aan staat; anders blijft de reeks dag-granulair (label 'day' bij
  * ver inzoomen). De uur/kwartier-tiers zelf worden nog steeds door `pickTiers` getekend — dit raakt
  * alleen het schaal-LABEL (dropdown + statusbalk).
  */
@@ -84,9 +84,9 @@ export const TIER_CONFIG: Record<TimelineTier, TierConfig> = {
 /**
  * Kiest de tier-combinatie voor de gegeven zoom (px/dag). De QH-tier wordt alleen gebruikt
  * als enableQuarterHour aan staat.
- * issue #21 punt 2: in de dagweergave-band (25≤zoom<80) wordt optioneel een `mid`-tier
- * ('week') meegegeven, zodat weeknummers als extra middenrij tussen maand en dag getekend
- * worden. Alle andere banden blijven zonder `mid` (byte-identiek ten opzichte van vóór #21).
+ * In de dagweergave-band (25≤zoom<80) wordt een `mid`-tier ('week') meegegeven, zodat
+ * weeknummers als extra middenrij tussen maand en dag getekend worden. De andere banden hebben
+ * geen `mid`, behalve de dag-granulaire band ≥80 zonder urenplanning (zie daar).
  */
 export function pickTiers(
   zoom: number,
@@ -94,20 +94,20 @@ export function pickTiers(
   enableHourTiers = false
 ): { major: TimelineTier; mid?: TimelineTier; minor: TimelineTier } {
   if (zoom < 4) return { major: 'year', minor: 'quarter' };
-  // issue #21 pt. 2: was year/month — het maandlabel bevat het jaartal al ('Jul 2026'), dus de
-  // jaar-rij was grotendeels leeg en bij uitzoomen versprong het maandfont van major (bold) naar
-  // minor. Met month als major blijft de maand de bold rij én blijven weeknummers zichtbaar tot
+  // Geen year/month: het maandlabel bevat het jaartal al ('Jul 2026'), dus een jaar-rij is
+  // grotendeels leeg en bij uitzoomen verspringt het maandfont van major (bold) naar minor.
+  // Met month als major blijft de maand de bold rij én blijven weeknummers zichtbaar tot
   // zoom 4 (7·4=28px = precies minLabelWidth van de week-tier; drawTierLabels vangt de krapste af).
   if (zoom < 10) return { major: 'month', minor: 'week' };
   if (zoom < 25) return { major: 'month', minor: 'week' };
-  // issue #21 punt 2: dagweergave — voeg de weeknummer-middenrij toe (mid:'week').
+  // Dagweergave — voeg de weeknummer-middenrij toe (mid:'week').
   if (zoom < 80) return { major: 'month', mid: 'week', minor: 'day' };
-  // issue #21 punt 2 (vervolg: geen fontsprong naar uurband zonder urenplanning). Zonder de
-  // hoofdschakelaar Urenplanning blijft de band ≥80 dag-granulair: dezelfde 3-rijen-opbouw als
-  // 25–80 (month/week/day), zodat de daglabels klein onderaan blijven i.p.v. bold naar de major-rij
+  // Geen fontsprong naar de uurband zonder urenplanning: zonder de hoofdschakelaar Urenplanning
+  // blijft de band ≥80 dag-granulair: dezelfde 3-rijen-opbouw als 25–80 (month/week/day), zodat de
+  // daglabels klein onderaan blijven i.p.v. bold naar de major-rij
   // te verspringen — én er geen lege uur-rij ontstaat (uurlabels passen fysiek niet: een uurcel is
   // zoom/24 px, pas bij extreme zoom breed genoeg voor minLabelWidth 28). Pas met urenplanning aan
-  // geldt het oorspronkelijke uur-gedrag: day/hour, resp. hour/quarterHour bij kwartier-zoom.
+  // geldt het uur-gedrag: day/hour, resp. hour/quarterHour bij kwartier-zoom.
   if (!enableHourTiers) return { major: 'month', mid: 'week', minor: 'day' };
   if (zoom < 400 || !enableQuarterHour) return { major: 'day', minor: 'hour' };
   return { major: 'hour', minor: 'quarterHour' };

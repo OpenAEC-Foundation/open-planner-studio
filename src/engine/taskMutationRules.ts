@@ -17,14 +17,14 @@ export function isActualPastStatusDate(dateIso: string, statusDateIso: string): 
 
 /**
  * Werkelijk einde voor een taak op 100 % zonder `actualFinish`: de statusdatum, anders de EIGEN
- * geplande finish (berekend, anders gepland); de regel valt nooit terug op "vandaag" (H1,
- * `check-task-slice.ts`). Eén regel voor de store (`applyProgressInvariants`: grid, store-setters,
- * MCP-validatie) én voor elke lezer (`normalizeImportedProgress`: IFC/CSV/MSPDI/P6/MPP). Die tweede
- * kopie viel nog terug op vandaag, waardoor een bestand met 100 % zonder werkelijk einde bij elke
- * opening op de leesdatum voltooid werd en zijn opvolgers mee opschoof (import/export-audit,
- * bevinding 6; `tests/planning/check-import-progress-default.ts`). Bewust alleen de AF-default
- * gedeeld, niet de hele invariant: de import houdt zijn eigen STARTED-regel voor completion > 0
- * zonder actualStart (solver-vangnet §4.2 tak 2b).
+ * geplande finish (berekend, anders gepland); de regel valt nooit terug op "vandaag"
+ * (`check-task-slice.ts`). Eén regel voor de store (`applyProgressInvariants`: grid, store-setters,
+ * MCP-validatie) én voor elke lezer (`normalizeImportedProgress`: IFC/CSV/MSPDI/P6/MPP). Een
+ * terugval op vandaag zou een bestand met 100 % zonder werkelijk einde bij elke opening op de
+ * leesdatum voltooien en zijn opvolgers mee laten opschuiven
+ * (`tests/planning/check-import-progress-default.ts`). Bewust alleen de AF-default gedeeld, niet de
+ * hele invariant: de import houdt zijn eigen STARTED-regel voor completion > 0 zonder actualStart
+ * (het solver-vangnet).
  */
 export function defaultActualFinish(
   time: Pick<TaskTime, 'earlyFinish' | 'scheduleFinish'>,
@@ -34,13 +34,12 @@ export function defaultActualFinish(
 }
 
 /**
- * Impliciete werkelijke start (§3.2, MSP-conventie "% invullen ⇒ gestart"): de eigen geplande start
+ * Impliciete werkelijke start (MSP-conventie "% invullen ⇒ gestart"): de eigen geplande start
  * (berekend, anders gepland). Eén regel voor de store-paden die voortgang zonder `actualStart` zetten
  * (`setTaskProgress`, de Tabel, MCP-validatie) én voor de lezers bij een VOLTOOIDE taak zonder
- * werkelijke start (`normalizeImportedProgress`). Zonder die gedeelde regel kreeg een ingelezen taak op
- * 100 % zonder actuals AS = AF en kromp de voltooide balk tot zijn laatste dag (import/export-audit,
- * vervolg op bevinding 6). Een LOPENDE taak zonder actualStart krijgt bij import bewust géén start
- * (solver-vangnet §4.2 tak 2b).
+ * werkelijke start (`normalizeImportedProgress`). Zonder die gedeelde regel krijgt een ingelezen taak op
+ * 100 % zonder actuals AS = AF en krimpt de voltooide balk tot zijn laatste dag. Een LOPENDE taak
+ * zonder actualStart krijgt bij import bewust géén start (het solver-vangnet).
  */
 export function defaultActualStart(time: Pick<TaskTime, 'earlyStart' | 'scheduleStart'>): string {
   return time.earlyStart || time.scheduleStart;
@@ -58,7 +57,7 @@ export function isActualFinishBeforeStart(time: Pick<TaskTime, 'actualStart' | '
  * `scheduleStart` — dezelfde keuze als `shownStart`), maar nooit later dan het werkelijke einde:
  * ligt die start ná het einde, dan wordt de werkelijke start gelijk aan het einde. Dat is dezelfde
  * uitkomst als `applyProgressInvariants` bij een opgegeven einde zonder start (het enkele-celpad in
- * de tabel). Zonder deze klem gaf bv. 100% zetten met een statusdatum vóór de geplande start een
+ * de tabel). Zonder deze klem geeft bv. 100% zetten met een statusdatum vóór de geplande start een
  * werkelijke start ná het werkelijke einde (= de statusdatum).
  *
  * "Het einde" is het al gezette `actualFinish`, of — staat de taak op 100% zonder einde — het einde
@@ -132,12 +131,11 @@ export function applyProgressInvariants(task: Task, statusDate: string | undefin
  * Restduur afgeleid uit `completion`, in dezelfde eenheid en vorm als de duur van de taak:
  *  - dagtaak: `remainingTime` in hele werkdagen, zoals `scheduleDuration`;
  *  - urentaak: `remainingMinutes` in hele minuten, zoals `durationMinutes`, met `remainingTime` als
- *    ONafgeronde werkdagfractie, zoals `scheduleDuration` ({@link hourRemainingDays}). Vroeger kreeg
- *    ook een urentaak `Math.round` op hele dagen: 5 u op 40 % gaf restduur 0, zonder minuten, en
- *    MSPDI/P6 exporteerden die 0.
+ *    ONafgeronde werkdagfractie, zoals `scheduleDuration` ({@link hourRemainingDays}). Nooit
+ *    `Math.round` op hele dagen voor een urentaak: 5 u op 40 % zou dan restduur 0 geven.
  * Eén regel voor de store (`applyProgressInvariants`) en de lezers (`normalizeImportedProgress`).
  * `keepRecordedMinutes` (alleen de lezers): een uit het bestand gelezen `remainingMinutes` blijft
- * staan — MSP's eigen exacte restduur bij een afgeronde voortgang (T9); de werkdagfractie volgt dan
+ * staan — MSP's eigen exacte restduur bij een afgeronde voortgang; de werkdagfractie volgt dan
  * die minuten.
  */
 export function applyRemainingDuration(task: Task, keepRecordedMinutes = false): void {

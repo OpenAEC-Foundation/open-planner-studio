@@ -77,7 +77,7 @@ export interface TaskGridAdapterCell {
   readOnlyReason?: string;
   stale?: boolean;
   statusText?: string;
-  /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt (issue #89). */
+  /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt. */
   title?: string;
   /** Kolomeigen uitleg die altijd als tooltip verschijnt, ongeacht afknippen. */
   tooltip?: string;
@@ -130,7 +130,7 @@ export interface CreateTaskGridAdapterDomainInput {
   durationDisplay?: DurationDisplay;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
-  /** Taaktypes-etappe (spec §7): zie `TaskColumnContext.taskTypesUnlocked`. */
+  /** Zie `TaskColumnContext.taskTypesUnlocked`. */
   taskTypesUnlocked?: boolean;
 }
 

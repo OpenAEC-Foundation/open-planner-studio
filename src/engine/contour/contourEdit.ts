@@ -1,5 +1,4 @@
-// contourEdit.ts — het bewerkmodel van de contour-engine (etappe "contour-UI", 2026-09; het
-// vervolg dat docs/TODO.md §"Contour-engine" als "Contour bewerken in de UI" openliet).
+// contourEdit.ts — het bewerkmodel van de contour-engine (contour bewerken in de UI).
 //
 // WAT DIT IS. De pure vertaling tussen wat de gebruiker in het dialoogvenster ziet — een rij per
 // WERKdag van de taak met werkminuten per dag — en wat de engine opslaat: `TimephasedContourPeriod`s
@@ -13,7 +12,7 @@
 //
 // WAT DIT NIET IS. Geen datumlogica: een dag op 0 uur zetten maakt GEEN onderbreking (`splitGaps`)
 // en verschuift geen taakdatum — de contour verdeelt uren binnen de duur die de planner al had, de
-// CPM-datums blijven bij laag 3/4 en `splitGaps` (harde ontwerpvoorwaarde, zie `contourEngine.ts`).
+// CPM-datums blijven bij laag 3/4 en `splitGaps` (harde voorwaarde, zie `contourEngine.ts`).
 // Wie een onderbreking wil, bewerkt de taak, niet de contour. Een 0-dag reist wél mee naar buiten:
 // de MSPDI-schrijver schrijft 'm als dag zonder werk, en MS Project (en onze eigen MSPDI-lezer,
 // `splitGapsFromContours`) lezen een dag waarop GEEN ENKELE toewijzing werkt als split — dat is

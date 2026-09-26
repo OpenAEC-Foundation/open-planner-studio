@@ -1,5 +1,5 @@
 /**
- * Inspringing van de taaknaamcel (issue #89). De hiërarchie moet leesbaar zijn uit de linkerrand
+ * Inspringing van de taaknaamcel. De hiërarchie moet leesbaar zijn uit de linkerrand
  * van de naam: het in-/uitklaptriehoekje van een samenvattende taak staat precies op de plek waar
  * de naam van zijn ouder begint, en de naam van een blad zonder triehoekje begint op dezelfde
  * kolom als de naam van een samenvattende taak op hetzelfde niveau. Daarvoor krijgt élke rij een
