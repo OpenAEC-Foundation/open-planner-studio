@@ -1,4 +1,5 @@
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
+import { setConvention } from './p6SemanticsOff';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { XerImportError } from '@/services/xer/xerTables';
 import { solveProject } from '@/engine/scheduler/solveProject';
@@ -7,6 +8,8 @@ import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
+import { legacyCpmOptions, opsSolveInput } from './legacySolveOptions';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { xerDocumentName, xerProjectCode } from '@/utils/xerDocumentName';
 import { documentTitle, documentFileBase } from '@/utils/documents';
 import { readFileSync } from 'node:fs';
@@ -140,6 +143,9 @@ const p6Lunch = read([
   '%R\tR7\t8010\t8000\tP1\tP1\tPR_FS\t0',
   '%E',
 ]);
+// A17 staat sinds 2026-09-23 (§1d-7) in elk ingebouwd profiel uit (0 cellen op de P6-doorgerekende
+// populatie); 3g toetst de regel zelf, dus als afwijking aan.
+setConvention(p6Lunch, 'p6FinishMilestoneBoundaryWindow', true);
 solveProject({
   tasks: p6Lunch.tasks,
   sequences: p6Lunch.sequences,
@@ -147,7 +153,7 @@ solveProject({
   calendars: p6Lunch.resourceCalendars ?? [],
   dataDate: p6Lunch.project.statusDate,
   progressMode: p6Lunch.project.progressMode,
-  schedulingOptions: p6Lunch.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6Lunch.project).schedulingOptions,
   projectStartDate: p6Lunch.project.startDate,
 });
 eq('3a lege P6-5x8-kalender leidt lunchbanden af uit geplande start/eind/duur', {
@@ -223,7 +229,7 @@ solveProject({
   calendars: p6DurationProgressWithoutPct.resourceCalendars ?? [],
   dataDate: p6DurationProgressWithoutPct.project.statusDate,
   progressMode: p6DurationProgressWithoutPct.project.progressMode,
-  schedulingOptions: p6DurationProgressWithoutPct.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6DurationProgressWithoutPct.project).schedulingOptions,
   projectStartDate: p6DurationProgressWithoutPct.project.startDate,
 });
 eq('3j CP_Drtn zonder complete_pct leidt voortgang en restwerk af uit expliciete bronduur', {
@@ -252,16 +258,26 @@ const p6MidnightActual = read([
   '%R\tT1\tP1\tC1\tA100\tVoltooid om middernacht\tTT_Task\tDT_FixedDUR\tTK_Complete\tCP_Phys\t100\t40\t0\t2026-05-04 08:00\t2026-05-08 17:00\t2026-05-03 00:00\t2026-05-10 00:00',
   '%E',
 ]);
-solveProject({
-  tasks: p6MidnightActual.tasks,
-  sequences: p6MidnightActual.sequences,
-  calendar: p6MidnightActual.calendar,
-  calendars: p6MidnightActual.resourceCalendars ?? [],
-  dataDate: p6MidnightActual.project.statusDate,
-  progressMode: p6MidnightActual.project.progressMode,
-  schedulingOptions: p6MidnightActual.project.schedulingOptions,
-  projectStartDate: p6MidnightActual.project.startDate,
+// Sinds 2026-09-24 (eigenaarsbesluit "a") staat A19 in de P6-basis aan; daarmee werkt C5
+// (`p6CompletedPhysicalAtDataDate`, alleen samen met A19) ook op deze voltooide CP_Phys-taak en zet haar
+// als één punt op de statusdatum ma 1 jun 08:00 (3k-b). 3k toetst de minuutexacte actuals (A18), dus
+// daar staat C5 uit — zoals deze fixture tot dan (zonder rem_target_link_flag, A19 uit) rekende.
+const p6MidnightActualC5 = structuredClone(p6MidnightActual);
+setConvention(p6MidnightActual, 'p6CompletedPhysicalAtDataDate', false);
+for (const input of [p6MidnightActual, p6MidnightActualC5]) solveProject({
+  tasks: input.tasks,
+  sequences: input.sequences,
+  calendar: input.calendar,
+  calendars: input.resourceCalendars ?? [],
+  dataDate: input.project.statusDate,
+  progressMode: input.project.progressMode,
+  schedulingOptions: solveOptionsFor(input.project).schedulingOptions,
+  projectStartDate: input.project.startDate,
 });
+eq('3k-b XER/P6 (basis, A19 + C5): voltooide CP_Phys-taak als punt op de statusdatum', {
+  earlyStart: p6MidnightActualC5.tasks[0]?.time.earlyStart,
+  earlyFinish: p6MidnightActualC5.tasks[0]?.time.earlyFinish,
+}, { earlyStart: '2026-06-01T08:00', earlyFinish: '2026-06-01T08:00' });
 eq('3k XER/P6 behoudt voltooide actual start/finish als minuutexacte broninstants', {
   earlyStart: p6MidnightActual.tasks[0]?.time.earlyStart,
   earlyFinish: p6MidnightActual.tasks[0]?.time.earlyFinish,
@@ -408,7 +424,7 @@ const p6ProjectEndSolveInput = {
   sequences: p6ProjectEndForFloat.sequences,
   calendar: p6ProjectEndForFloat.calendar,
   calendars: p6ProjectEndForFloat.resourceCalendars ?? [],
-  schedulingOptions: p6ProjectEndForFloat.project.schedulingOptions,
+  schedulingOptions: solveOptionsFor(p6ProjectEndForFloat.project).schedulingOptions,
   projectStartDate: p6ProjectEndForFloat.project.startDate,
   projectEndDate: p6ProjectEndForFloat.project.endDate,
 };
@@ -435,6 +451,107 @@ eq('13b P6 SNLT op de exacte startband houdt een nulduurmijlpaal op die broninst
   lateStart: '2012-05-01T08:00',
   lateFinish: '2012-05-01T08:00',
 });
+
+// 13c–13g: `sched_use_project_end_date_for_float = Y` ZONDER `PROJECT.plan_end_date`
+// (eigenaarsbesluit 2026-09-24 "eigen PR", Fable-critreview PR #109 bevinding 2). De optie blijft
+// aan — dat is wat het bestand zegt — maar de lezer verzint geen anker meer uit het maximum van de
+// geplande `target_end_date`s: `project.endDate` blijft leeg en de solver rekent de late pass vanaf
+// het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By". De fixture is 13a met een leeg
+// `plan_end_date` en een verouderd plan: WORK staat gepland tot 2 mei maar heeft nog 40 uur werk
+// (eindmijlpaal END op 5 mei), en de zijtak SIDE heeft nog 80 uur, dus het netwerk eindigt op
+// 10 mei. Het oude, verzonnen anker (max geplande taakeinde = 2 mei) gaf daardoor de hele keten
+// negatieve speling — het symptoom uit de review. Omdat END níét het netwerkeinde bepaalt, raken
+// ook de twee andere optietakken (P6-finishmijlpaalgrens en de FF=0-klem) deze fixture.
+const p6NoProjectEndLines = [
+  'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
+  '%T\tCALENDAR',
+  '%F\tclndr_id\tclndr_name\tproj_id\tclndr_type\tday_hr_cnt\tweek_hr_cnt\tclndr_data',
+  '%R\tC-END\tZeven dagen\tP-END\tCA_Project\t8\t56\t(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||2()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||3()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||4()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||5()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||6()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||7()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))))    (0||Exceptions()())))',
+  '%T\tPROJECT',
+  '%F\tproj_id\tproj_short_name\tclndr_id\tplan_start_date\tplan_end_date',
+  '%R\tP-END\tProjecteinde zonder einde\tC-END\t2012-05-01 08:00\t',
+  '%T\tSCHEDOPTIONS',
+  '%F\tproj_id\tsched_use_project_end_date_for_float',
+  '%R\tP-END\tY',
+  '%T\tTASK',
+  '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tcstr_type\tcstr_date',
+  '%R\tT-START\tP-END\tC-END\tSTART\tProjectstart\tTT_Mile\tDT_FixedDrtn\tTK_NotStart\t0\t0\t2012-05-01 08:00\t2012-05-01 08:00\tCS_MSOB\t2012-05-01 08:00',
+  '%R\tT-WORK\tP-END\tC-END\tWORK\tWerk\tTT_Task\tDT_FixedDrtn\tTK_NotStart\t40\t40\t2012-05-01 08:00\t2012-05-02 17:00\t\t',
+  '%R\tT-SIDE\tP-END\tC-END\tSIDE\tZijtak\tTT_Task\tDT_FixedDrtn\tTK_NotStart\t80\t80\t2012-05-01 08:00\t2012-05-01 17:00\t\t',
+  '%R\tT-END\tP-END\tC-END\tEND\tProjecteinde\tTT_FinMile\tDT_FixedDrtn\tTK_NotStart\t0\t0\t2012-05-02 17:00\t2012-05-02 17:00\t\t',
+  '%T\tTASKPRED',
+  '%F\ttask_pred_id\ttask_id\tpred_task_id\tproj_id\tpred_proj_id\tpred_type\tlag_hr_cnt',
+  '%R\tR-1\tT-WORK\tT-START\tP-END\tP-END\tPR_FS\t0',
+  '%R\tR-2\tT-SIDE\tT-START\tP-END\tP-END\tPR_FS\t0',
+  '%R\tR-3\tT-END\tT-WORK\tP-END\tP-END\tPR_FS\t0',
+  '%E',
+];
+const p6NoProjectEnd = read(p6NoProjectEndLines);
+type SolvedAxes = Record<string, { es?: string; ef?: string; ls?: string; lf?: string; tf?: number; ff?: number; crit?: boolean }>;
+function solveNoProjectEnd(
+  imported: XerReadResult,
+  overrides: { useProjectEndDateForFloat?: boolean; projectEndDate?: string } = {},
+): SolvedAxes {
+  const tasks = imported.tasks.map(task => ({ ...task, time: { ...task.time } }));
+  // Rekenprofielen: de solver krijgt uitsluitend EffectiveSchedulingOptions via solveOptionsFor.
+  const effective = solveOptionsFor(imported.project).schedulingOptions;
+  const schedulingOptions = overrides.useProjectEndDateForFloat === undefined
+    ? effective
+    : { ...effective, useProjectEndDateForFloat: overrides.useProjectEndDateForFloat };
+  const result = solveProject({
+    tasks, sequences: imported.sequences, calendar: imported.calendar,
+    calendars: imported.resourceCalendars ?? [], schedulingOptions,
+    projectStartDate: imported.project.startDate,
+    projectEndDate: overrides.projectEndDate ?? imported.project.endDate,
+  });
+  if (result.error) throw new Error(`13c solve: ${result.error}`);
+  const out: SolvedAxes = {};
+  for (const task of tasks) {
+    if (task.isSummary) continue;
+    const time = task.time;
+    out[task.id] = {
+      es: time.earlyStart, ef: time.earlyFinish, ls: time.lateStart, lf: time.lateFinish,
+      tf: time.totalFloat, ff: time.freeFloat, crit: time.isCritical,
+    };
+  }
+  return out;
+}
+eq('13c Y zonder plan_end_date: optie blijft aan, projecteinde blijft leeg (geen verzonnen anker)', {
+  useProjectEndDateForFloat: p6NoProjectEnd.project.schedulingOptions?.useProjectEndDateForFloat,
+  endDate: p6NoProjectEnd.project.endDate,
+}, { useProjectEndDateForFloat: true, endDate: '' });
+const noEndAsRead = solveNoProjectEnd(p6NoProjectEnd);
+const noEndOptionOff = solveNoProjectEnd(p6NoProjectEnd, { useProjectEndDateForFloat: false });
+// Alle zes assen plus kritiek, voor élke taak — ook de open eindmijlpaal, waar de optie naast het
+// anker nog twee takken stuurt (finishmijlpaalgrens en de FF=0-klem). "Netwerkeinde" betekent:
+// precies hetzelfde als de optie uit.
+eq('13d Y zonder datum rekent byte-gelijk aan de optie uit (netwerkeinde, alle assen, alle taken)',
+  noEndAsRead, noEndOptionOff);
+// Bewust zonder END's eigen late datum: die hangt af van de P6-finishmijlpaalgrens (op de
+// rekenprofielenbranch een conventie), niet van het projecteinde. Wat hier telt: het late einde
+// ligt op het netwerkeinde (SIDE) en END's vrije speling reikt tot precies dat einde.
+eq('13e netwerkeinde = max(EF) van SIDE (10 mei); END heeft vrije speling tot precies dat einde', {
+  sideLf: noEndAsRead['T-SIDE']?.lf, sideTf: noEndAsRead['T-SIDE']?.tf,
+  endEf: noEndAsRead['T-END']?.ef, endFf: noEndAsRead['T-END']?.ff,
+  endLfNotAfterNetworkEnd: (noEndAsRead['T-END']?.lf ?? '') <= '2012-05-10T17:00',
+}, { sideLf: '2012-05-10T17:00', sideTf: 0, endEf: '2012-05-05T17:00', endFf: 5, endLfNotAfterNetworkEnd: true });
+// Tegenproef (mutant "oud anker terug"): het vroegere taak-afgeleide einde — exact de oude
+// lezerformule, max(scheduleFinish) — als projecteinde verankert de solver op 2 mei en geeft de
+// eindmijlpaal negatieve speling. Was die tegenproef gelijk aan 13d, dan mat de fixture niets.
+const oldAnchor = p6NoProjectEnd.tasks.map(task => task.time.scheduleFinish).filter(Boolean).sort().at(-1);
+const oldInventedAnchor = solveNoProjectEnd(p6NoProjectEnd, { projectEndDate: oldAnchor });
+eq('13f tegenproef: het oude verzonnen anker (max geplande taakeinde) gaf negatieve speling', {
+  oldAnchor, lf: oldInventedAnchor['T-END']?.lf, negativeFloat: (oldInventedAnchor['T-END']?.tf ?? 0) < 0,
+  differsFromNetwork: JSON.stringify(oldInventedAnchor) !== JSON.stringify(noEndAsRead),
+}, { oldAnchor: '2012-05-02T17:00', lf: '2012-05-02T17:00', negativeFloat: true, differsFromNetwork: true });
+// Y mét geldige datum blijft ongewijzigd verankerd (13a is de bronfixture; hier ook via dezelfde
+// helper, zodat de normalisatie in de solver aantoonbaar alleen de lege/ongeldige datum raakt).
+const withValidEnd = solveNoProjectEnd(p6NoProjectEnd, { projectEndDate: '2012-05-12T17:00' });
+const withInvalidEnd = solveNoProjectEnd(p6NoProjectEnd, { projectEndDate: 'geen-datum' });
+eq('13g Y mét geldige datum verankert daarop; een onparseerbare datum valt terug op het netwerkeinde', {
+  validLf: withValidEnd['T-END']?.lf, validTf: withValidEnd['T-END']?.tf, validFf: withValidEnd['T-END']?.ff,
+  invalidEqualsNetwork: JSON.stringify(withInvalidEnd) === JSON.stringify(noEndOptionOff),
+}, { validLf: '2012-05-12T17:00', validTf: 7, validFf: 0, invalidEqualsNetwork: true });
 
 function typedError(label: string, lines: readonly string[], code: string): void {
   let got = 'NO_ERROR';
@@ -533,12 +650,12 @@ const emptyWbsId = 'xer-wbs:P1:W-EMPTY';
 const emptyWbs = emptyWbsResult.tasks.find(task => task.id === emptyWbsId);
 eq('17 lege PROJWBS heeft expliciete samenvattingsidentiteit',
   (emptyWbs as typeof emptyWbs & { isSummary?: boolean })?.isSummary, true);
-const emptyWbsSolve = solveProject({
+const emptyWbsSolve = solveProject(opsSolveInput({
   tasks: emptyWbsResult.tasks.map(task => ({ ...task, time: { ...task.time } })),
   sequences: [],
   calendar: emptyWbsResult.calendar,
   calendars: emptyWbsResult.resourceCalendars ?? [],
-});
+}));
 eq('18 echte solveProject-route neemt lege PROJWBS niet als CPM-knoop op',
   emptyWbsSolve.tasks.has(emptyWbsId), false);
 eq('19 samenvattingsrelatie vanaf lege PROJWBS wordt zichtbaar gedropt',
@@ -568,7 +685,7 @@ const emptyWbsLeveling = levelResources(
   emptyWbsResult.calendar,
   emptyWbsResult.resourceCalendars ?? [],
   emptyWbsSolve,
-  { constrainToFloat: false },
+  { constrainToFloat: false }, legacyCpmOptions(),
 );
 eq('20b nivelleerder laat lege PROJWBS ook bij directe aanroep buiten CPM en vraag', {
   delays: emptyWbsLeveling.delays,

@@ -1965,7 +1965,7 @@ body {
   font-size: var(--text-large);
   line-height: 1.4;
   box-shadow: var(--shadow-lg);
-  max-width: 500px;
+  max-width: min(500px, 100%);
   animation: toast-in 0.3s ease-out;
 }
 

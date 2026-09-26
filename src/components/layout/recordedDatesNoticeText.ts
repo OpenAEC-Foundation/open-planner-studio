@@ -42,5 +42,5 @@ export function recordedDatesTaskActiveKey(origin: RecordedDatesState['origin'])
 }
 
 export function isPrimaveraRecordedOrigin(origin: RecordedDatesState['origin']): boolean {
-  return origin === 'xer' || origin === 'xer-archive';
+  return origin === 'xer' || origin === 'xer-archive' || origin === 'p6xml';
 }

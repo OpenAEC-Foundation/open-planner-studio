@@ -70,6 +70,12 @@
     "xerImportDatesAsRecordedOffer_one": "{{count}} tarea difiere de las fechas registradas en el archivo — puedes mostrarlas.",
     "xerImportDatesAsRecordedOffer_many": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
     "xerImportDatesAsRecordedOffer_other": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
+    "importDatesAsRecorded_one": "{{count}} tarea muestra las fechas tal como están registradas en el archivo (sin recalcular).",
+    "importDatesAsRecorded_many": "{{count}} tareas muestran las fechas tal como están registradas en el archivo (sin recalcular).",
+    "importDatesAsRecorded_other": "{{count}} tareas muestran las fechas tal como están registradas en el archivo (sin recalcular).",
+    "importDatesAsRecordedOffer_one": "{{count}} tarea difiere de las fechas registradas en el archivo — puedes mostrarlas.",
+    "importDatesAsRecordedOffer_many": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
+    "importDatesAsRecordedOffer_other": "{{count}} tareas difieren de las fechas registradas en el archivo — puedes mostrarlas.",
     "xerExportLoss": "Al exportar a {{format}} se pierde información de origen XER.",
     "mppLegacy": "Este archivo .mpp usa un formato antiguo (Project 2007 o anterior). Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
     "mppEncrypted": "Este archivo .mpp está protegido con contraseña. Expórtalo en MS Project como XML (Archivo → Guardar como → XML) y abre ese archivo.",
@@ -111,9 +117,16 @@
     "levelingDelayRoundedToWorkdays_one": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tarea a días laborables completos.",
     "levelingDelayRoundedToWorkdays_many": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
     "levelingDelayRoundedToWorkdays_other": "La nivelación redondea el retraso de nivelación de MS Project, preciso al minuto, de {{count}} tareas a días laborables completos.",
+    "schedulingProfileApplied": "Este proyecto calcula como {{profile}}. Cámbialo en Archivo → Info del proyecto → Perfil de cálculo y opciones.",
+    "schedulingProfileShifted_one": "Tras aplicar, se movió {{count}} tarea.",
+    "schedulingProfileShifted_many": "Tras aplicar, se movieron {{count}} tareas.",
+    "schedulingProfileShifted_other": "Tras aplicar, se movieron {{count}} tareas.",
+    "actions": {
+      "openProjectInfo": "Abrir perfil de cálculo"
+    },
     "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
     "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",
-    "xerArchiveUnusableConsequence": "La planificación y todos los datos del proyecto del IFC están completos. Lo que falta: las fechas tal como las guardó Primavera y la procedencia de origen para la IA y las extensiones. Al guardar, el fichero se escribe sin el archivo; vuelva a importar el .xer original para recuperarlo.",
+    "xerArchiveUnusableConsequence": "La planificación, el perfil de cálculo y todos los datos del proyecto del IFC están completos. Lo que falta: las fechas tal como las guardó Primavera y la procedencia de origen para la IA y las extensiones. Al guardar, el fichero se escribe sin el archivo; vuelva a importar el .xer original para recuperarlo.",
     "xerArchiveReasonSchemaVersion": "Motivo: el archivo tiene una versión de esquema o un formato desconocidos (un escritor más reciente o distinto).",
     "xerArchiveReasonHashMismatch": "Motivo: la suma de comprobación no coincide con los bytes de origen: el archivo está dañado.",
     "xerArchiveReasonTruncated": "Motivo: el archivo está truncado: falta parte de los bytes de origen.",
@@ -1209,6 +1222,162 @@
       "completion": "Finalización",
       "actualStart": "Inicio real",
       "actualFinish": "Fin real"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "Conservar las fechas reales en el cálculo hacia atrás",
+      "help": "Una tarea iniciada o completada conserva sus fechas registradas también en el lado tardío; un sucesor completado no arrastra a un predecesor abierto al pasado."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "Holgura libre nunca negativa",
+      "help": "Con una restricción tardía inalcanzable, la holgura total sigue siendo negativa, pero la holgura libre pasa a ser cero."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "El hito sigue el límite de calendario planificado",
+      "help": "Un hito sin duración permanece en el límite de calendario que planificó el archivo: un inicio de día sigue siendo un hito de inicio, un fin de franja puede coincidir con el fin del predecesor."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "Inicio planificado como límite inferior adicional",
+      "help": "El inicio planificado del archivo actúa como límite inferior cuando el inicio y el fin quedan más de un día natural más tarde de lo que permite la red."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "Hito final como ventana de límite",
+      "help": "Un hito final puede situarse en dos límites de calendario adyacentes: inicio temprano al principio de una franja, fin temprano al final de la franja anterior."
+    },
+    "p6PreserveActualInstants": {
+      "label": "Mantener exactas las fechas reales",
+      "help": "Las fechas reales de inicio y fin registradas no se desplazan a una franja de trabajo."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "Tarea en curso: inicio temprano = inicio del trabajo restante",
+      "help": "El inicio temprano y tardío de una tarea en curso describen dónde empieza el trabajo restante, no el inicio real histórico. En el cálculo hacia atrás por una relación comienzo-comienzo, solo cuenta la duración restante."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "Momento de restricción exacto en un hito",
+      "help": "Una restricción de fecha y hora en un hito sin duración es un punto exacto, también al inicio de una franja de trabajo."
+    },
+    "resumeFromActualElapsed": {
+      "label": "El trabajo restante se reanuda tras la duración transcurrida",
+      "help": "Una tarea en curso reanuda su trabajo restante en el inicio real más la duración transcurrida, no en la fecha de estado."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "No mover las tareas no iniciadas a la fecha de estado",
+      "help": "Una tarea que aún no ha comenzado no se desplaza automáticamente a la fecha de estado o después."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "El sucesor empieza en el límite de fin",
+      "help": "En una relación fin-inicio sin desfase sobre un límite de franja compartido, el sucesor empieza en el fin del predecesor (solo las relaciones que el archivo marca así). En el cálculo hacia atrás, el sucesor muestra su comienzo tardío simplemente como el inicio de una franja de trabajo."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "Desfase hacia atrás desde un límite de fin",
+      "help": "Cuando el cálculo hacia atrás resta un desfase en tiempo de trabajo desde un límite de fin y cae justo en un inicio de franja, cae en el límite de fin anterior. En una relación fin-fin sin posposición, un fin tardío en el final de una franja también se queda en ese límite de fin."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "Tarea completada en la ventana de la fecha de estado",
+      "help": "Una tarea completada recibe fechas tempranas en la ventana de la fecha de estado, y su fin cuenta para el fin del proyecto (solo tareas con origen P6)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "LOE completada mediante su fin real",
+      "help": "Una actividad de nivel de esfuerzo completada con solo una entrada inicio-inicio sigue la ruta por su fin real (solo tareas con origen P6)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "LOE no iniciada toma la ventana objetivo",
+      "help": "Una actividad de nivel de esfuerzo que aún no ha comenzado toma su ventana objetivo como duración (solo tareas con origen P6)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "Un predecesor completado no retiene más allá de la fecha de estado",
+      "help": "Si el fin real de un predecesor completado cae después de la fecha de estado, sus sucesores pueden empezar igualmente en la fecha de estado."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "Holgura libre en el calendario propio",
+      "help": "La holgura libre de una tarea no iniciada se cuenta, por relación, en el calendario de la propia tarea y no en el del sucesor: para fin-inicio, inicio-inicio y fin-fin, también con una demora en tiempo laborable en el calendario del predecesor. Una tarea iniciada solo para fin-inicio sin demora."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "La demora transcurrida de un predecesor completado no cuenta",
+      "help": "En el lado tardío solo cuenta la parte de la demora tras un predecesor completado que aún no ha transcurrido en la fecha de estado."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "Una tarea completada fuera de secuencia espera a sus predecesoras",
+      "help": "Una tarea completada cuya predecesora aún no ha terminado recibe su ventana nula después de esa predecesora en lugar de en la fecha de estado (lógica retenida)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "Tarea completada con avance físico en la fecha de estado",
+      "help": "Una tarea completada con porcentaje de avance físico se muestra como un único punto en la fecha de estado, o más tarde si un predecesor lo exige, en lugar de en sus fechas reales. Solo medido para el avance físico; para otros tipos de avance (predeterminado en P6: duración) este comportamiento no se ha medido y permanece desactivado."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "El retraso CC transcurrido de un predecesor en curso no cuenta",
+      "help": "En una relación comienzo-comienzo desde una tarea ya iniciada, solo cuenta la parte del retraso que aún no ha transcurrido desde su comienzo real en la fecha de estado."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "Una relación fin-fin hacia un hito de inicio se vincula al propio hito",
+      "help": "Una relación fin-fin hacia un hito de inicio cuenta hasta el propio hito, no hasta el comienzo de su día: el fin tardío de la predecesora puede llegar hasta el fin tardío del hito."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "El inicio planificado no es un mínimo para una tarea en curso",
+      "help": "El trabajo restante de una tarea iniciada comienza en la fecha de estado y justo después de sus predecesoras, aunque su inicio planificado sea posterior."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "Fin tardío en el calendario propio",
+      "help": "Si el fin tardío que impone un sucesor cae fuera del horario laboral de la actividad, pasa a ser el final del período de trabajo anterior en el calendario propio."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override ignora también hacia atrás un sucesor iniciado",
+      "help": "Con Progress Override, la relación con un sucesor ya iniciado no cuenta en las fechas tardías ni en la holgura libre de un predecesor que no ha terminado."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "Fin temprano nunca antes de un límite fin-fin",
+      "help": "En una relación fin-fin, el fin temprano del sucesor nunca queda, en hora de reloj, antes del límite que fija el predecesor. Si ese límite cae en tiempo no laborable del sucesor, el fin pasa a ser el inicio del siguiente periodo de trabajo."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "Tareas ALAP tan tarde como permitan las sucesoras",
+      "help": "Una tarea no iniciada con la restricción «lo más tarde posible» termina en el minuto en que sus sucesoras la necesitan, primero las sucesoras, para que una cadena quede unida. Su propio inicio planificado no cuenta; una tarea sin predecesora no empieza entonces antes de la fecha de estado. Solo se aplica con un calendario por horas."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (modificado)",
+    "copyOf": "Copia de {{name}}"
+  },
+  "schedulingProfile": {
+    "title": "Perfil de cálculo y opciones",
+    "profile": "Perfil de cálculo",
+    "conventionsTitle": "Convenciones de este perfil",
+    "optionsTitle": "Opciones de cálculo de este proyecto",
+    "customName": "Nombre de este perfil propio",
+    "saveAsTemplate": "Guardar como plantilla",
+    "updateTemplate": "Actualizar la plantilla desde este proyecto",
+    "applyTemplate": "Actualizar desde la plantilla",
+    "deleteTemplate": "Eliminar plantilla",
+    "templateDeviates": "Este perfil difiere de la plantilla «{{name}}».",
+    "applyDefaultOptions": "Aplicar las opciones predeterminadas de este perfil",
+    "themes": {
+      "completedWork": "Avance y trabajo completado",
+      "relationsLag": "Relaciones y desfase",
+      "milestones": "Hitos y actividades LOE",
+      "float": "Holgura y fechas tardías",
+      "instants": "Fechas e instantes del archivo",
+      "msproject": "Avance como en Microsoft Project",
+      "ownProfilesOnly": "Solo para perfiles propios"
+    },
+    "ownProfilesOnlyNote": "Estas convenciones están desactivadas en todos los perfiles integrados, también en Primavera P6. Si activa una, se convierte en un perfil propio.",
+    "deviatingCount": "modificadas: {{n}}",
+    "baseValue": "base: {{value}}",
+    "on": "sí",
+    "off": "no",
+    "resetToBase": "volver a la base",
+    "showHelp": "Explicación de «{{name}}»",
+    "sourceOptions": {
+      "title": "Ajustes del archivo de origen",
+      "intro": "Estas opciones de cálculo proceden de un archivo de Primavera P6 (.xer). Se usan en el cálculo, pero no se pueden cambiar aquí.",
+      "useExpectedFinishDates": "Usar fechas de fin previstas (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "Calcular la holgura hasta la fecha de fin del proyecto",
+      "p6CompletedLateFromRemainingWindow": "Tarea completada: fechas tardías desde la fecha de estado",
+      "needsConvention": "Solo funciona junto con la convención «{{convention}}», que ahora está desactivada."
     }
   }
 }

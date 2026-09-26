@@ -236,6 +236,10 @@
       "lagSuccessor": "Successore",
       "lag24hour": "24 ore",
       "lagProjectDefault": "Calendario di progetto",
+      "ssLagFrom": "Calcola il ritardo II di un predecessore in corso da",
+      "ssLagEarlyStart": "Inizio al più presto (inizio del lavoro residuo)",
+      "ssLagActualStart": "Inizio effettivo (data di stato)",
+      "ssLagNeedsConvention": "Si applica solo se la convenzione «{{convention}}» è attiva.",
       "criticalDefinition": "Definizione di critico",
       "critTotalFloat": "Margine totale ≤ soglia",
       "critLongestPath": "Percorso più lungo",
@@ -253,7 +257,9 @@
       "floatPathsMethod": "Metodo",
       "methodFree": "Margine libero (peeling)",
       "methodTotal": "Margine totale (classifica)",
-      "maxPaths": "Percorsi max."
+      "maxPaths": "Percorsi max.",
+      "tfAuto": "Automatico (predefinito)",
+      "critThresholdHours": "Soglia (ore, per calendario attività)"
     }
   },
   "newProject": {
@@ -320,6 +326,13 @@
       "quickstart": "Avvio rapido",
       "gidsen": "Guide per argomento",
       "referentie": "Riferimento"
+    },
+    "unapplied": {
+      "title": "Modifiche non applicate",
+      "body": "Hai modificato le informazioni del progetto ma non le hai ancora applicate. Cosa vuoi fare con queste modifiche?",
+      "marker": "Modifiche non applicate: fai clic su {{apply}} per conservarle.",
+      "discard": "Scarta",
+      "invalid": "Il profilo di calcolo personalizzato non ha ancora un nome. Assegnagli un nome o scarta le modifiche."
     }
   },
   "export": {

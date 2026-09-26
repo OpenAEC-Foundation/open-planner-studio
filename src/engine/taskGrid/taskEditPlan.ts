@@ -34,6 +34,8 @@ import {
   clearLevelingGaps,
   timephasedDurationWalksHaveFrozenWork,
   rescaleTaskContours,
+  hourInputFinishBasis,
+  reconcileHourInputFinish,
 } from '@/utils/taskDefaults';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 
@@ -55,6 +57,8 @@ export interface TaskEditPlanEnvironment {
   effectiveHoursPerDay: number;
   hourMode: boolean;
   effectiveCalendar?: WorkCalendar;
+  /** De kalender waarin een taak met dit `calendarId` rekent (leeg ⇒ projectkalender). */
+  calendarFor?: (calendarId: string | undefined) => WorkCalendar;
   enableHourPlanning?: boolean;
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
@@ -152,6 +156,16 @@ function finishDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: num
 const LEVELING_GAP_ROUTES: ReadonlySet<CellEditIntent['route']> = new Set([
   'task-schedule', 'task-progress', 'task-milestone', 'task-constraint', 'task-hammock',
 ]);
+
+/** B1-vervolg (critreview 24-09): de solve schrijft `scheduleFinish` niet meer terug, dus de
+ *  gridbewerking houdt het ingevoerde einde van een niet-gestarte urentaak zelf coherent — dezelfde
+ *  regel als `taskSlice.updateTask`, zie `reconcileHourInputFinish` (taskDefaults.ts). `calendarFor`
+ *  levert de kalender NA de bewerking (een kalenderkolom-edit verandert die); zonder valt hij terug op
+ *  de effectieve kalender van vóór de bewerking. */
+function reconcileGridInputFinish(before: Task, next: Task, environment: TaskEditPlanEnvironment): void {
+  const calendar = environment.calendarFor?.(next.calendarId) ?? environment.effectiveCalendar;
+  if (calendar) reconcileHourInputFinish(next, hourInputFinishBasis(before), calendar);
+}
 
 function clearScheduleGuidance(task: Task, clearFrozenWalks: boolean): boolean {
   const clearedWindow = clearTimephasedWindow(task);
@@ -694,6 +708,8 @@ function applyOneCellEdit(
   task: Task,
   edit: CellEditIntent,
   environment: TaskEditPlanEnvironment,
+  /** `false` in `planTaskCellEdits`: die houdt het einde één keer voor de hele groep coherent. */
+  reconcileFinish = true,
 ): GridResult<Omit<PlannedTaskEdit, 'changed'>, readonly CellValidationError[]> {
   if (task.id !== edit.taskId) return failure('taskMismatch', edit);
   const id = String(edit.columnId);
@@ -726,6 +742,7 @@ function applyOneCellEdit(
   if (!result.ok) return result;
   // B7 — zie `LEVELING_GAP_ROUTES`. Ná de faalpoort: een geweigerde write laat `next` weg.
   if (LEVELING_GAP_ROUTES.has(edit.route)) clearLevelingGaps(next);
+  if (reconcileFinish) reconcileGridInputFinish(task, next, environment);
   const scheduleStale = edit.route === 'task-schedule'
     || edit.route === 'task-progress'
     || edit.route === 'task-milestone'
@@ -784,7 +801,7 @@ export function planTaskCellEdits(
     if (edit.route === 'task-constraint' || edit.route === 'task-progress') continue;
     // applyOneCellEdit, niet planTaskCellEdit: deze lus keek nooit naar `.changed` van een
     // tussenstap, dus de dure JSON.stringify-vergelijking hierboven was hier pure verspilling.
-    const planned = applyOneCellEdit(next, edit, environment);
+    const planned = applyOneCellEdit(next, edit, environment, false);
     if (!planned.ok) return planned;
     next = planned.value.task;
     timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
@@ -824,6 +841,10 @@ export function planTaskCellEdits(
     clearLevelingGaps(next); // B7 — zie de constraintgroep hierboven.
     scheduleStale = true;
   }
+  // B1-vervolg — één keer voor de hele groep, tegen de taak van vóór de groep: zo wint een in dezelfde
+  // plak meegegeven "Gepland einde" ongeacht de kolomvolgorde, en telt voortgang (gestart ⇒ niet meer
+  // meebewegen) mee.
+  reconcileGridInputFinish(task, next, environment);
   return {
     ok: true,
     value: {

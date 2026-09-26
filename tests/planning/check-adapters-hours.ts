@@ -26,6 +26,7 @@ import type { Project } from '@/types/project';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { installDOMParser } from './xmldom-shim';
+import { opsSolveInput } from './legacySolveOptions';
 
 installDOMParser();
 
@@ -132,7 +133,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI zonder CriticalSlackLimit introduceert geen schedulingOptions',
     p.project.schedulingOptions, undefined);
   eq('MSPDI introduceert geen XER-project- of kalenderprovenance',
-    [p.project.schedulingOptions?.p6Source, p.calendar.p6Source], [undefined, undefined]);
+    [p.project.schedulingProfile, p.calendar.p6Source], [undefined, undefined]);
 }
 
 // Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
@@ -262,12 +263,12 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   assert([p6.calendar, ...(p6.resourceCalendars ?? [])].every(c => !c.workTime), 'P6-example: geen workTime-lek');
   assert(p6.tasks.every(t => t.time.durationUnit === 'days' && t.time.durationMinutes == null),
     'P6-example: dagprecisie blijft een expliciete dagtaak zonder durationMinutes-lek');
-  const p6Solved = solveProject({
+  const p6Solved = solveProject(opsSolveInput({
     tasks: p6.tasks,
     sequences: p6.sequences,
     calendar: p6.calendar,
     calendars: p6.resourceCalendars ?? [],
-  });
+  }));
   assert(!p6Solved.error, `P6-example: geïmporteerde dagtaken blijven planbaar (${p6Solved.error ?? 'geen fout'})`);
   assert([msp.calendar, ...(msp.resourceCalendars ?? [])].every(c => !c.workTime), 'MSPDI-example: geen workTime-lek');
   assert(msp.tasks.every(t => t.time.durationMinutes == null), 'MSPDI-example: geen durationMinutes-lek');

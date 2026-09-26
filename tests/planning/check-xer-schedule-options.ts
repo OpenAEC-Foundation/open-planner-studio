@@ -9,10 +9,17 @@ import {
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { parseXerTables } from '@/services/xer/xerTables';
+import { expectedXerScheduleOptions, scanRawXerScheduleOptions } from './xerScheduleOptionsGroundTruth';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { legacyCpmOptions, legacyEffective } from './legacySolveOptions';
+import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
+import type { LegacySchedulingOptions } from '@/types/project';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { builtInProfile, resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -27,9 +34,19 @@ function eq(label: string, got: unknown, want: unknown): void {
 function deriveXerScheduleOptions(
   tables: ReturnType<typeof parseXerTables>,
   projectId: string,
-  context: { hoursPerDay?: number; taskCount?: number } = {},
+  context: { hoursPerDay?: number; taskCount?: number; hasUsableProjectEnd?: boolean } = {},
 ) {
   return deriveIndexedXerScheduleOptions(indexXerScheduleOptions(tables), projectId, context);
+}
+
+/** Rekenprofielen C4: een afgeleid XER-resultaat draagt alleen projectopties. Zo rekent een
+ *  XER-project: het kale P6-profiel — exact wat `xerReader` zet (sinds 2026-09-24 geen A19-override
+ *  meer uit `rem_target_link_flag`, eigenaarsbesluit "a"). */
+function xerProfileOf(_result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
+  return builtInProfile('p6');
+}
+function xerEffective(result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
+  return effectiveSchedulingOptions({ schedulingProfile: xerProfileOf(result), schedulingOptions: result.schedulingOptions });
 }
 
 function legacyResult(result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
@@ -132,7 +149,7 @@ const successorLag = new CPMSolver(
   sequences,
   predecessorCalendar,
   [successorCalendar],
-  { schedulingOptions: { lagCalendar: 'successor' } },
+  { schedulingOptions: legacyEffective({ lagCalendar: 'successor' }) },
 ).solve();
 
 eq(
@@ -175,7 +192,7 @@ function solveLag(lagCalendar: 'predecessor' | 'successor' | 'projectDefault' | 
     lagSequences,
     projectLagCalendar,
     [predLagCalendar, succLagCalendar],
-    { schedulingOptions: { lagCalendar } },
+    { schedulingOptions: legacyEffective({ lagCalendar }) },
   ).solve().tasks.get('LS')?.earlyStart;
 }
 eq('vier lagkalenders kiezen ieder hun eigen bron', {
@@ -203,7 +220,7 @@ function solveElapsedLag(lagCalendar: 'predecessor' | 'successor' | 'projectDefa
     elapsedSequence,
     projectLagCalendar,
     [predLagCalendar, succLagCalendar],
-    { schedulingOptions: { lagCalendar } },
+    { schedulingOptions: legacyEffective({ lagCalendar }) },
   ).solve();
   return axes(result, 'LP');
 }
@@ -254,7 +271,7 @@ function solveCrossModeLag(
     crossModeSequences,
     crossModeProjectCalendar,
     [crossModePredCalendar, crossModeSuccCalendar],
-    { schedulingOptions: { lagCalendar } },
+    { schedulingOptions: legacyEffective({ lagCalendar }) },
   ).solve();
   return {
     predecessor: axes(result, 'CROSS-P'),
@@ -303,20 +320,17 @@ const sixDayCalendar: WorkCalendar = {
   workDays: [1, 2, 3, 4, 5, 6],
 };
 const endTasks = [task('LONG', 6, 'six-day'), task('SHORT', 1, 'end-project')];
-const ordinaryEnd = new CPMSolver(endTasks, [], endProjectCalendar, [sixDayCalendar]).solve();
+const ordinaryEnd = new CPMSolver(endTasks, [], endProjectCalendar, [sixDayCalendar], legacyCpmOptions()).solve();
 eq('één project gebruikt één gemeenschappelijk projecteinde zonder taakkalender-snap',
   ordinaryEnd.tasks.get('SHORT')?.lateFinish, '2026-06-06');
 
-function sourceWithoutXerFloatValue(options?: {
-  resumeFromActualElapsed?: boolean;
-  unstartedIgnoresStatusDate?: boolean;
-}): unknown {
+function sourceWithoutXerFloatValue(options?: LegacySchedulingOptions): unknown {
   return [...new CPMSolver(
     endTasks,
     [],
     endProjectCalendar,
     [sixDayCalendar],
-    { schedulingOptions: options },
+    { schedulingOptions: legacyEffective(options) },
   ).solve().tasks];
 }
 eq('afwezige XER-floatbron houdt verse/MPP/MSPDI/P6XML-uitvoer byte-identiek', {
@@ -340,11 +354,11 @@ const explicitInertEnd = new CPMSolver(
   endProjectCalendar,
   [sixDayCalendar],
   {
-    schedulingOptions: {
+    schedulingOptions: legacyEffective({
       useExpectedFinishDates: false,
       preserveActualDatesInBackwardPass: false,
       clampNegativeFreeFloat: false,
-    },
+    }),
   },
 ).solve();
 eq('expliciet uitgeschakelde XER-bronvlaggen laten niet-XER-solvergedrag byte-identiek',
@@ -364,7 +378,7 @@ const p6MultiCalendar = new CPMSolver(
   [],
   p6MonFri,
   [p6SixDay],
-  { schedulingOptions: { totalFloatMode: 'finish' } },
+  { schedulingOptions: legacyEffective({ totalFloatMode: 'finish' }) },
 ).solve();
 eq('P6-geval 06: meerdere kalenders, alle zes datum-/floatassen', {
   A: axes(p6MultiCalendar, 'A'),
@@ -386,7 +400,7 @@ const p6Retained = new CPMSolver(
   {
     dataDate: '2026-01-12',
     progressMode: 'RETAINED_LOGIC',
-    schedulingOptions: { totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true },
+    schedulingOptions: legacyEffective({ totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true }),
   },
 ).solve();
 eq('P6-geval 08: retained logic plant restwerk vanaf de statusdatum', {
@@ -410,7 +424,7 @@ const p6CompletedSuccessor = new CPMSolver(
     dataDate: '2026-01-05',
     progressMode: 'RETAINED_LOGIC',
     projectStartDate: '2025-12-01',
-    schedulingOptions: { totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true },
+    schedulingOptions: legacyEffective({ totalFloatMode: 'finish', preserveActualDatesInBackwardPass: true }),
   },
 ).solve();
 eq('P6-geval 09: voltooide opvolger trekt de voorganger niet historisch terug', {
@@ -433,7 +447,7 @@ const p6NegativeFloat = new CPMSolver(
     dataDate: '2026-01-05T08:00',
     progressMode: 'RETAINED_LOGIC',
     projectStartDate: '2026-01-05T08:00',
-    schedulingOptions: { totalFloatMode: 'finish', clampNegativeFreeFloat: true },
+    schedulingOptions: legacyEffective({ totalFloatMode: 'finish', clampNegativeFreeFloat: true }),
   },
 ).solve();
 eq('P6-geval 05: finish-float bewaart de negatieve float op beide ketentaken', {
@@ -460,7 +474,7 @@ const completedFloat = new CPMSolver(
   {
     dataDate: '2026-06-01',
     progressMode: 'RETAINED_LOGIC',
-    schedulingOptions: { preserveActualDatesInBackwardPass: true },
+    schedulingOptions: legacyEffective({ preserveActualDatesInBackwardPass: true }),
   },
 ).solve().tasks.get('CP');
 eq('P6-voltooide activiteit rapporteert geen float, ook niet bij out-of-sequence-actuals', {
@@ -482,7 +496,7 @@ function solveRunningFloat(mode: 'start' | 'finish' | 'smallest'): unknown {
     {
       dataDate: '2026-07-08',
       progressMode: 'RETAINED_LOGIC',
-      schedulingOptions: { totalFloatMode: mode, preserveActualDatesInBackwardPass: true },
+      schedulingOptions: legacyEffective({ totalFloatMode: mode, preserveActualDatesInBackwardPass: true }),
     },
   ).solve().tasks.get('RUNNING');
   return solved && {
@@ -574,14 +588,14 @@ const projectEndTrueSolve = new CPMSolver(
   [],
   endProjectCalendar,
   [sixDayCalendar],
-  { schedulingOptions: projectEndTrue.schedulingOptions },
+  { schedulingOptions: xerEffective(projectEndTrue) },
 ).solve();
 const projectEndFalseSolve = new CPMSolver(
   endTasks,
   [],
   endProjectCalendar,
   [sixDayCalendar],
-  { schedulingOptions: projectEndFalse.schedulingOptions },
+  { schedulingOptions: xerEffective(projectEndFalse) },
 ).solve();
 eq('projecteindevlag true/false verandert binnen één project geen enkele taakdatum', {
   trueResult: [...projectEndTrueSolve.tasks],
@@ -590,6 +604,48 @@ eq('projecteindevlag true/false verandert binnen één project geen enkele taakd
   trueResult: [...ordinaryEnd.tasks],
   falseResult: [...ordinaryEnd.tasks],
 });
+
+// X12-brok 1 (plan XER §9, her-review 7a): `Y` zonder bruikbaar einde — geen PROJECT.plan_end_date
+// en geen TASK.target_end_date — valt zichtbaar terug op N; de bronwaarde blijft `Y` in retainedSource.
+// Mét een bruikbaar einde, of zonder dat de lezer het weet (`undefined`), blijft `Y` staan.
+{
+  const withUsable = (hasUsableProjectEnd: boolean | undefined) => deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'],
+    ['P1'],
+    { fields: ['proj_id', 'sched_use_project_end_date_for_float'], values: ['P1', 'Y'] },
+  )), 'P1', { hasUsableProjectEnd });
+  const without = withUsable(false);
+  const noEndFallbacks = without.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float');
+  eq('Y zonder bruikbaar projecteinde ⇒ optie uit, als terugval gerapporteerd, bron Y bewaard', {
+    option: without.schedulingOptions.useProjectEndDateForFloat,
+    retained: without.retainedSource,
+    fallbacks: noEndFallbacks.map(({ field, token, fallback }) => ({ field, token, fallback })),
+  }, {
+    option: false,
+    retained: { sched_use_project_end_date_for_float: true },
+    fallbacks: [{
+      field: 'sched_use_project_end_date_for_float',
+      token: 'Y',
+      fallback: 'N (geen projecteinddatum en geen taakeinddatum in de bron: projecteinde = max(EF))',
+    }],
+  });
+  eq('Y mét bruikbaar projecteinde (of onbekend) ⇒ optie blijft aan, geen terugval', [true, undefined].map(usable => {
+    const result = withUsable(usable);
+    return {
+      option: result.schedulingOptions.useProjectEndDateForFloat,
+      fallbacks: result.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float').length,
+    };
+  }), [{ option: true, fallbacks: 0 }, { option: true, fallbacks: 0 }]);
+  const explicitNo = deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'],
+    ['P1'],
+    { fields: ['proj_id', 'sched_use_project_end_date_for_float'], values: ['P1', 'N'] },
+  )), 'P1', { hasUsableProjectEnd: false });
+  eq('N zonder bruikbaar projecteinde blijft N zonder terugvalmelding', {
+    option: explicitNo.schedulingOptions.useProjectEndDateForFloat,
+    fallbacks: explicitNo.fallbacks.length,
+  }, { option: false, fallbacks: 0 });
+}
 
 const withoutTable = deriveXerScheduleOptions(parseXerTables(xer(
   ['proj_id', 'critical_path_type', 'critical_drtn_hr_cnt'],
@@ -636,21 +692,13 @@ eq('hostile bronarchief bewaart iedere raw rij eenmaal en diagnosticeert duplica
   }],
   duplicateSource: 'xer-defaults',
   duplicateOptions: {
-    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition: { mode: 'totalFloat', thresholdHours: 8 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: false,
-    p6PreserveZeroDurationConstraintInstants: true,
     p6CompletedLateFromRemainingWindow: true,
+    startToStartLagFrom: 'earlyStart',
   },
   duplicateDiagnostics: [{
     code: 'XER_DUPLICATE_SCHEDOPTIONS_PROJ_ID',
@@ -708,21 +756,13 @@ eq('expliciete XER-defaultset is brongebonden en compleet', legacyResult(without
   source: 'xer-defaults',
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
-    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition: { mode: 'totalFloat', thresholdHours: 16 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: false,
-    p6PreserveZeroDurationConstraintInstants: true,
     p6CompletedLateFromRemainingWindow: true,
+    startToStartLagFrom: 'earlyStart',
   },
   retainedSource: {},
   fallbacks: [],
@@ -739,21 +779,13 @@ eq('expliciete XER-defaultset is brongebonden en compleet', legacyResult(without
 eq('geexporteerde defaults blijven de ongewijzigde nul-drempel leveren', XER_SCHEDULING_DEFAULTS, {
   progressMode: 'RETAINED_LOGIC',
   schedulingOptions: {
-    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition: { mode: 'totalFloat', thresholdHours: 0 },
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: false,
-    p6PreserveZeroDurationConstraintInstants: true,
     p6CompletedLateFromRemainingWindow: true,
+    startToStartLagFrom: 'earlyStart',
   },
 });
 eq('default 1/8: finish-float', XER_SCHEDULING_DEFAULTS.schedulingOptions.totalFloatMode, 'finish');
@@ -767,20 +799,35 @@ eq('default 5/8: relatielag op de voorgangerskalender',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.lagCalendar, 'predecessor');
 eq('default 6/8: verwachte einddatums als bewaard bronbeleid (solverconsumptie volgt in X7)',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.useExpectedFinishDates, true);
-eq('default 7/8: P6-actuals blijven feiten in de backward-pass',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.preserveActualDatesInBackwardPass, true);
-eq('default 8/8: P6-vrije-float wordt niet negatief',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.clampNegativeFreeFloat, true);
-eq('X12-default: geplande nulduurmijlpaalgrens is XER-brongebonden',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.p6ZeroDurationUsesPlannedBoundary, true);
-eq('X12-default: geplande taakstartvloer is XER-brongebonden',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.p6UseTaskPlannedStartFloor, true);
-eq('X12-default: finishmijlpaalvenster is XER-brongebonden',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.p6FinishMilestoneBoundaryWindow, true);
-eq('X12-default: P6-actualinstants blijven minuutexact',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.p6PreserveActualInstants, true);
-eq('X12-default: nulduurmijlpaal-constraints blijven exacte broninstants',
-  XER_SCHEDULING_DEFAULTS.schedulingOptions.p6PreserveZeroDurationConstraintInstants, true);
+// Rekenprofielen C4: de conventies staan sinds C3 in het P6-profiel dat de XER-lezer zet; de pin
+// hieronder is een hand-lijst (spec v3.1 bijlage A), niet uit het register afgeleid.
+const P6_PROFILE = resolveConventions(builtInProfile('p6'));
+const byKey = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
+eq('P6-profiel ≡ hand-lijst (A19 aan sinds 2026-09-24)', byKey(P6_PROFILE), byKey({
+  preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
+  p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
+  p6FinishMilestoneBoundaryWindow: false, p6PreserveActualInstants: true,
+  p6PreserveZeroDurationConstraintInstants: true, p6UseRemainingStartForProgress: true,
+  resumeFromActualElapsed: false, unstartedIgnoresStatusDate: false,
+  p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true,
+  // A17/B3/B4 sinds 2026-09-23 uit (§1d-7: 0 cellen op de P6-doorgerekende populatie; gebouwd op rehab-2 = P3).
+  p6CompletedDataDateWindow: false, p6CompletedLoeActualFinish: false, p6OpenLoeTargetSpan: true,
+  // C1/C4 sinds 2026-09-23 uit (populatie = P6-doorgerekende orakels; alleen rehab-2 = P3 droeg ze).
+  p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
+  p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
+  p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
+  p6LateFinishOnOwnCalendar: true,
+  p6ProgressOverrideIgnoresStartedSuccessor: true,
+  p6FinishNotBeforeFinishFinishBound: true,
+  p6AlapPositionedFromSuccessors: true,
+}));
+eq('default 7/8: P6-actuals blijven feiten in de backward-pass', P6_PROFILE.preserveActualDatesInBackwardPass, true);
+eq('default 8/8: P6-vrije-float wordt niet negatief', P6_PROFILE.clampNegativeFreeFloat, true);
+eq('X12-default: geplande nulduurmijlpaalgrens is XER-brongebonden', P6_PROFILE.p6ZeroDurationUsesPlannedBoundary, true);
+eq('X12-default: geplande taakstartvloer is XER-brongebonden', P6_PROFILE.p6UseTaskPlannedStartFloor, true);
+eq('X12-default: finishmijlpaalvenster staat sinds 2026-09-23 in het P6-profiel uit', P6_PROFILE.p6FinishMilestoneBoundaryWindow, false);
+eq('X12-default: P6-actualinstants blijven minuutexact', P6_PROFILE.p6PreserveActualInstants, true);
+eq('X12-default: nulduurmijlpaal-constraints blijven exacte broninstants', P6_PROFILE.p6PreserveZeroDurationConstraintInstants, true);
 
 const fourHourBands = [{ start: 480, end: 720 }];
 const fourHourCalendar: WorkCalendar = {
@@ -811,7 +858,7 @@ const thresholdSolve = new CPMSolver(
   [],
   p6MonFri,
   [fourHourCalendar],
-  { schedulingOptions: thresholdSource.schedulingOptions },
+  { schedulingOptions: xerEffective(thresholdSource) },
 ).solve().tasks.get(thresholdTask.id);
 eq('P6-drempeluren vergelijken tegen floaturen van de effectieve 4h-taakkalender', {
   mapped: thresholdSource.schedulingOptions.criticalDefinition,
@@ -832,7 +879,7 @@ const defaultLagSolve = new CPMSolver(
   [predLagCalendar, succLagCalendar],
   {
     progressMode: withoutTable.progressMode,
-    schedulingOptions: withoutTable.schedulingOptions,
+    schedulingOptions: xerEffective(withoutTable),
   },
 ).solve();
 eq('XER-default gebruikt aantoonbaar de voorgangerskalender in een multi-kalendernet',
@@ -855,8 +902,9 @@ const mapped = deriveXerScheduleOptions(parseXerTables(xer(
       'use_total_float',
       'limit_multiple_longest_path_calc',
       'max_multiple_longest_path',
+      'sched_lag_early_start_flag',
     ],
-    values: ['P1', 'RCAL_SUCCESSOR', 'ft_ss', 'N', 'y', 'Y', 'n', 'N', 'Y', 'Y', 'Y', '3'],
+    values: ['P1', 'RCAL_SUCCESSOR', 'ft_ss', 'N', 'y', 'Y', 'n', 'N', 'Y', 'Y', 'Y', '3', 'n'],
   },
 )), 'P1', { hoursPerDay: 8, taskCount: 9 });
 
@@ -864,21 +912,14 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
   source: 'schedoptions',
   progressMode: 'PROGRESS_OVERRIDE',
   schedulingOptions: {
-    p6Source: 'XER',
     lagCalendar: 'successor',
     criticalDefinition: { mode: 'longestPath' },
     totalFloatMode: 'start',
     makeOpenEndedCritical: true,
     useExpectedFinishDates: false,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    p6UseRemainingStartForProgress: false,
-    p6PreserveZeroDurationConstraintInstants: true,
     p6CompletedLateFromRemainingWindow: false,
+    // `n` (case-insensitief) ⇒ P6 "Calculate Start-to-Start lag from: Actual Start".
+    startToStartLagFrom: 'actualStart',
     useProjectEndDateForFloat: false,
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 3 },
   },
@@ -910,6 +951,7 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
         use_total_float: 'Y',
         limit_multiple_longest_path_calc: 'Y',
         max_multiple_longest_path: '3',
+        sched_lag_early_start_flag: 'n',
       },
     },
   ],
@@ -1022,6 +1064,7 @@ const ifcProject = {
   ...createDefaultProject(),
   id: 'P6-IFC',
   schedulingOptions: withoutTable.schedulingOptions,
+  schedulingProfile: xerProfileOf(withoutTable),
 };
 const ifcRoundTrip = readIFC(writeIFC({
   project: ifcProject,
@@ -1031,8 +1074,128 @@ const ifcRoundTrip = readIFC(writeIFC({
   resources: [],
   assignments: [],
 }));
-eq('X5-bronvlaggen round-trippen verliesloos via OPS_SchedulingOptions in IFC',
-  ifcRoundTrip.project.schedulingOptions, withoutTable.schedulingOptions);
+// Rekenprofielen C2: het IFC splitst de blob in projectopties (OPS_SchedulingOptions) en profiel
+// (OPS_SchedulingProfile); verliesloos = dezelfde OPGELOSTE set als vóór het opslaan.
+const sortedKeys = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
+eq('X5-bronvlaggen round-trippen verliesloos via IFC (opties + profiel ⇒ dezelfde opgeloste set)',
+  sortedKeys(solveOptionsFor(ifcRoundTrip.project).schedulingOptions), sortedKeys(xerEffective(withoutTable)));
+eq('X5: het optieblok na lezen draagt alleen projectopties',
+  optionKeysOnly(ifcRoundTrip.project.schedulingOptions), ifcRoundTrip.project.schedulingOptions);
+
+// Projectoptie `startToStartLagFrom` uit `sched_lag_early_start_flag` (P6 "Calculate Start-to-Start lag
+// from", plan XER §9 vervolgpunt X12 brok 3): Y ⇒ earlyStart, N ⇒ actualStart, leeg ⇒ de P6-standaard
+// earlyStart, een onbekend token ⇒ zichtbare terugval op earlyStart. Mutant "N ook op earlyStart" ⇒ rood
+// (N-regel en de `mapped`-fixture hierboven); mutant "leeg ⇒ actualStart" ⇒ rood (leeg-regel).
+{
+  const ssLag = (token: string) => deriveXerScheduleOptions(parseXerTables(xer(
+    ['proj_id'], ['P1'], { fields: ['proj_id', 'sched_lag_early_start_flag'], values: ['P1', token] },
+  )), 'P1');
+  eq('sched_lag_early_start_flag Y ⇒ earlyStart', ssLag('Y').schedulingOptions.startToStartLagFrom, 'earlyStart');
+  eq('sched_lag_early_start_flag N ⇒ actualStart', ssLag('N').schedulingOptions.startToStartLagFrom, 'actualStart');
+  eq('sched_lag_early_start_flag leeg ⇒ earlyStart (P6-standaard)',
+    ssLag('').schedulingOptions.startToStartLagFrom, 'earlyStart');
+  const unknown = ssLag('X');
+  eq('sched_lag_early_start_flag onbekend ⇒ zichtbare terugval op earlyStart', {
+    value: unknown.schedulingOptions.startToStartLagFrom,
+    fallbacks: unknown.fallbacks.map(item => [item.field, item.token, item.fallback]),
+  }, { value: 'earlyStart', fallbacks: [['sched_lag_early_start_flag', 'X', 'true']] });
+  eq('sched_lag_early_start_flag is een gemapte kolom (X5-status niet meer todo)',
+    XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === 'sched_lag_early_start_flag'),
+    { field: 'sched_lag_early_start_flag', status: 'mapped', target: 'schedulingOptions.startToStartLagFrom' });
+}
+
+// Nivelleerfundament (`SchedulingOptions.leveling`, onderzoek 2026-09-24 §7 stap 1): de instellingen als
+// DATA, nooit rekeninvoer. Mutanten: een `enabled`-veld terugzetten ⇒ rood ("geen aan/uit-veld");
+// DEL-DEL niet splitsen ⇒ rood (twee sleutels); verweesde RSRCLEVELLIST-rij stil overslaan ⇒ rood; RSRCLEVELLIST op proj_id i.p.v. schedoptions_id ⇒ rood
+// (resourcelijst); ongelijke tariefrijen toch een waarde ⇒ rood (maxUnitsPerHour afwezig).
+{
+  const DEL = '\u007f\u007f';
+  const levelXer = (schedule: Record<string, string>, extra: { list?: string[][]; rates?: string[][] } = {}) => {
+    const fields = Object.keys(schedule);
+    const lines = [
+      'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
+      '%T\tPROJECT', '%F\tproj_id', '%R\tP1', '%R\tP2',
+      '%T\tSCHEDOPTIONS', `%F\tschedoptions_id\tproj_id\t${fields.join('\t')}`,
+      `%R\t8\tP1\t${fields.map(field => schedule[field]).join('\t')}`,
+      `%R\t9\tP2\t${fields.map(field => schedule[field]).join('\t')}`,
+      '%T\tRSRC', '%F\trsrc_id\trsrc_name', '%R\tR1\tPM', '%R\tR2\tUitvoerder', '%R\tR3\tKraan',
+      '%T\tRSRCRATE', '%F\trsrc_rate_id\trsrc_id\tstart_date\tmax_qty_per_hr',
+      ...(extra.rates ?? []).map(row => `%R\t${row.join('\t')}`),
+      '%T\tRSRCLEVELLIST', '%F\trsrc_level_list_id\tschedoptions_id\trsrc_id',
+      ...(extra.list ?? []).map(row => `%R\t${row.join('\t')}`),
+      '%E',
+    ];
+    return new TextEncoder().encode(lines.join('\n'));
+  };
+  const leveling = (bytes: Uint8Array, projectId = 'P1') => {
+    const derived = deriveXerScheduleOptions(parseXerTables(bytes), projectId);
+    const expected = expectedXerScheduleOptions(scanRawXerScheduleOptions(bytes), projectId);
+    eq(`nivellering ${projectId}: productlezer = onafhankelijke grondwaarheid (opties + terugvallen)`,
+      { options: derived.schedulingOptions, fallbacks: derived.fallbacks },
+      { options: expected.schedulingOptions, fallbacks: expected.fallbacks });
+    return derived;
+  };
+  const ozb = levelXer(
+    { level_keep_sched_date_flag: 'N', level_all_rsrc_flag: 'N', levelprioritylist: `early_start_date,/ASC${DEL}` },
+    { list: [['1', '8', 'R1'], ['2', '9', 'R2'], ['3', '8', 'R9'], ['4', '8', 'R1'], ['5', '8', 'R3']],
+      rates: [['10', 'R1', '2024-01-01 00:00', '1'], ['11', 'R3', '2024-01-01 00:00', '2'], ['12', 'R3', '2025-01-01 00:00', '3']] },
+  );
+  const p1 = leveling(ozb, 'P1');
+  eq('nivellering: OZB-9033-vorm ⇒ keep/all uit, ES-prioriteit, eigen resourcelijst via schedoptions_id', p1.schedulingOptions.leveling, {
+    preserveScheduledDates: false, levelAllResources: false,
+    priority: [{ field: 'early_start_date', direction: 'ASC' }],
+    resources: [{ resourceId: 'xer-resource:R1', maxUnitsPerHour: 1 }, { resourceId: 'xer-resource:R3' }],
+  });
+  eq('nivellering: onbekende rsrc_id in RSRCLEVELLIST valt zichtbaar weg; een dubbele stil (zelfde resource)',
+    p1.fallbacks.map(item => [item.field, item.token, item.fallback]),
+    [['RSRCLEVELLIST.rsrc_id', 'R9', 'weggelaten (geen RSRC-rij)']]);
+  const orphan = leveling(levelXer(
+    { level_all_rsrc_flag: 'Y' },
+    { list: [['1', '8', 'R1'], ['2', '', 'R2'], ['3', '77', 'R3']] },
+  ));
+  eq('nivellering: RSRCLEVELLIST-rij met lege of onbekende schedoptions_id valt zichtbaar weg (nooit stil)',
+    orphan.fallbacks.map(item => [item.field, item.token, item.fallback]),
+    [['RSRCLEVELLIST.schedoptions_id', '(leeg)', 'weggelaten (geen SCHEDOPTIONS-rij)'],
+      ['RSRCLEVELLIST.schedoptions_id', '77', 'weggelaten (geen SCHEDOPTIONS-rij)']]);
+  eq('nivellering: de verweesde rijen komen niet in de lijst van P1',
+    orphan.schedulingOptions.leveling?.resources, [{ resourceId: 'xer-resource:R1' }]);
+  eq('nivellering: elk project krijgt alleen de lijst van zijn eigen SCHEDOPTIONS-rij',
+    leveling(ozb, 'P2').schedulingOptions.leveling?.resources, [{ resourceId: 'xer-resource:R2' }]);
+
+  const many = leveling(levelXer({
+    level_keep_sched_date_flag: 'Y', level_all_rsrc_flag: 'Y',
+    levelprioritylist: `priority_type,ASC_BY_FIELD/ASC${DEL}total_float_hr_cnt,/desc${DEL}task_code,DESC${DEL}kapot${DEL},/ASC${DEL}`,
+  }));
+  eq('nivellering: meerdere sleutels in bronvolgorde, met en zonder tussenstuk, richting hoofdletterongevoelig',
+    many.schedulingOptions.leveling, {
+      preserveScheduledDates: true, levelAllResources: true,
+      priority: [
+        { field: 'priority_type', direction: 'ASC' }, { field: 'total_float_hr_cnt', direction: 'DESC' },
+        { field: 'task_code', direction: 'DESC' },
+      ],
+    });
+  eq('nivellering: een sleutel buiten de vorm valt zichtbaar weg (nooit stil)',
+    many.fallbacks.map(item => [item.field, item.token]), [['levelprioritylist', 'kapot'], ['levelprioritylist', ',/ASC']]);
+
+  const empty = leveling(levelXer({ level_keep_sched_date_flag: '', level_all_rsrc_flag: 'X', levelprioritylist: '' }));
+  eq('nivellering: lege lijstkolom ⇒ priority [] (P6 sorteert dan op Activity ID); lege vlag afwezig; onbekende vlag terugval',
+    { leveling: empty.schedulingOptions.leveling, fallbacks: empty.fallbacks.map(item => [item.field, item.token, item.fallback]) },
+    { leveling: { priority: [] }, fallbacks: [['level_all_rsrc_flag', 'X', 'niet bewaard']] });
+
+  const none = leveling(levelXer({ sched_float_type: 'FT_FF' }));
+  eq('nivellering: geen enkele level_*-kolom en geen lijst ⇒ geen blok (byte-identiek aan vóór het fundament)',
+    'leveling' in none.schedulingOptions, false);
+  eq('nivellering: geen aan/uit-veld in het blok — ook niet bij de OZB-9033-vorm (eigenaarsbeslissing 1 open)',
+    [p1, many, empty].some(result => 'enabled' in (result.schedulingOptions.leveling ?? {})), false);
+  eq('nivellering: de drie gelezen level_*-kolommen staan als mapped in de kolomtabel',
+    ['level_keep_sched_date_flag', 'level_all_rsrc_flag', 'levelprioritylist']
+      .map(field => XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === field)?.status),
+    ['mapped', 'mapped', 'mapped']);
+  eq('nivellering: de vijf niet-gelezen level_*-kolommen blijven gemotiveerd genegeerd',
+    ['level_float_thrs_cnt', 'level_outer_assign_flag', 'level_outer_assign_priority', 'level_over_alloc_pct', 'level_within_float_flag']
+      .map(field => XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.find(item => item.field === field)?.status),
+    ['ignored', 'ignored', 'ignored', 'ignored', 'ignored']);
+}
 
 const expectedColumns = [
   'enable_multiple_longest_path_calc',

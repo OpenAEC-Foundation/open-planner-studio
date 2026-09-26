@@ -236,6 +236,10 @@
       "lagSuccessor": "Sucesora",
       "lag24hour": "24 horas",
       "lagProjectDefault": "Calendario del proyecto",
+      "ssLagFrom": "Calcular el desfase CC de un predecesor en curso desde",
+      "ssLagEarlyStart": "Comienzo temprano (inicio del trabajo restante)",
+      "ssLagActualStart": "Comienzo real (fecha de estado)",
+      "ssLagNeedsConvention": "Solo se aplica si la convención «{{convention}}» está activada.",
       "criticalDefinition": "Definición de crítico",
       "critTotalFloat": "Holgura total ≤ umbral",
       "critLongestPath": "Ruta más larga",
@@ -253,7 +257,9 @@
       "floatPathsMethod": "Método",
       "methodFree": "Holgura libre (peeling)",
       "methodTotal": "Holgura total (clasificación)",
-      "maxPaths": "Rutas máx."
+      "maxPaths": "Rutas máx.",
+      "tfAuto": "Automático (predeterminado)",
+      "critThresholdHours": "Umbral (horas, por calendario de tarea)"
     }
   },
   "newProject": {
@@ -320,6 +326,13 @@
       "quickstart": "Inicio rápido",
       "gidsen": "Guías por tema",
       "referentie": "Referencia"
+    },
+    "unapplied": {
+      "title": "Cambios no aplicados",
+      "body": "Ha modificado la información del proyecto pero aún no la ha aplicado. ¿Qué desea hacer con estos cambios?",
+      "marker": "Cambios no aplicados: haga clic en {{apply}} para conservarlos.",
+      "discard": "Descartar",
+      "invalid": "El perfil de cálculo personalizado aún no tiene nombre. Póngale un nombre o descarte los cambios."
     }
   },
   "export": {

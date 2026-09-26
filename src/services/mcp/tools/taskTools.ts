@@ -54,9 +54,11 @@ import {
   type ParsedLag,
 } from './sequenceFields';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { formatDate } from '@/utils/dateUtils';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { deriveHoursPerDay, hasConcreteWorkBlocks } from '@/services/subdayIo';
+import { markDocumentEdited } from '@/state/documentEdited';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
@@ -186,7 +188,9 @@ function addTasksCore(ctx: McpContext, items: ParsedAddItem[]): MutationOutcome 
       const nativeAmount = unit === 'hours'
         ? (tp.durationMinutes ?? 0) / 60
         : (tp.scheduleDuration ?? (top.isMilestone ? 0 : 5));
-      time = createDefaultTaskTime(anchor, nativeAmount, unit);
+      // B1-vervolg: een urentaak krijgt haar ingevoerde einde op de echte taakkalender (start + duur).
+      time = createDefaultTaskTime(anchor, nativeAmount, unit,
+        resolveCalendar(typeof top.calendarId === 'string' ? top.calendarId : undefined, st.calendars, st.calendar));
       if (tp.scheduleDuration !== undefined) time.scheduleDuration = tp.scheduleDuration;
       if (tp.durationMinutes !== undefined) time.durationMinutes = tp.durationMinutes;
       if (tp.durationType !== undefined) time.durationType = tp.durationType;
@@ -873,7 +877,7 @@ function removeDependenciesCore(ctx: McpContext, ids: string[]): MutationOutcome
   if (toRemove.size > 0) {
     ctx.app.store.setState((s) => {
       s.sequences = s.sequences.filter((x) => !toRemove.has(x.id));
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
   return { data: { removed }, itemRejections: rejections };

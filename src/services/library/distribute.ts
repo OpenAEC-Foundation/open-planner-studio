@@ -83,7 +83,8 @@ export interface DistributionDocInput extends OccupancyDocInput {
   ceilingWorkdays: number | null;
   /** Planningsinvoer voor de motor-run van dít document: de VOLLEDIGE takenlijst, relaties en
    *  CPM-opties — zelfde eis en zelfde reden als `OccupancySolveInput` (een gesnoeide lijst geeft
-   *  een andere planning dan `runCPM`). */
+   *  een andere planning dan `runCPM`). Een productiebouwer (straks de verdeeldialoog) bouwt hem met
+   *  `occupancySolveInputFor(payload)`, zodat de opties die van F5 zijn. */
   levelInput: OccupancySolveInput;
 }
 
@@ -170,26 +171,13 @@ export type DistributionLevelRun = (doc: DistributionDocInput, options: Leveling
 const defaultLevelRun: DistributionLevelRun = (doc, options) => {
   const tasks = cloneTasksForSolve(doc.levelInput.tasks);
   const cpmResult = solveProject({
-    tasks,
-    sequences: doc.levelInput.sequences,
-    calendar: doc.calendar,
-    calendars: doc.calendars,
-    dataDate: doc.levelInput.dataDate,
-    progressMode: doc.levelInput.progressMode,
-    schedulingOptions: doc.levelInput.schedulingOptions,
-    projectStartDate: doc.levelInput.projectStartDate,
-    projectEndDate: doc.levelInput.projectEndDate,
+    tasks, sequences: doc.levelInput.sequences, calendar: doc.calendar, calendars: doc.calendars,
+    ...doc.levelInput.options,
   });
   return levelResources(
     tasks, doc.levelInput.sequences, doc.resources, doc.assignments,
     doc.calendar, doc.calendars, cpmResult, options,
-    {
-      dataDate: doc.levelInput.dataDate,
-      progressMode: doc.levelInput.progressMode,
-      schedulingOptions: doc.levelInput.schedulingOptions,
-      projectStartDate: doc.levelInput.projectStartDate,
-      projectEndDate: doc.levelInput.projectEndDate,
-    },
+    doc.levelInput.options,
   );
 };
 
@@ -223,15 +211,8 @@ function currentProjectEndFor(doc: DistributionDocInput): string {
   try {
     const tasks = cloneTasksForSolve(doc.levelInput.tasks);
     const result = solveProject({
-      tasks,
-      sequences: doc.levelInput.sequences,
-      calendar: doc.calendar,
-      calendars: doc.calendars,
-      dataDate: doc.levelInput.dataDate,
-      progressMode: doc.levelInput.progressMode,
-      schedulingOptions: doc.levelInput.schedulingOptions,
-      projectStartDate: doc.levelInput.projectStartDate,
-      projectEndDate: doc.levelInput.projectEndDate,
+      tasks, sequences: doc.levelInput.sequences, calendar: doc.calendar, calendars: doc.calendars,
+      ...doc.levelInput.options,
     });
     if (result.error) return currentProjectEnd(doc.levelInput.tasks);
     return currentProjectEnd(tasks);

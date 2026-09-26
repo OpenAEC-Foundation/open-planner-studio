@@ -5,7 +5,7 @@ import { parseInstant } from '@/utils/dateUtils';
 
 export type OpenXerLoeTargetSpanReason =
   | 'eligible'
-  | 'notXerSource'
+  | 'conventionOff'
   | 'missingProjectProvenance'
   | 'missingTaskProvenance'
   | 'wrongActivityType'
@@ -48,7 +48,7 @@ function hasOnlyZeroLag(sequences: readonly Sequence[]): boolean {
  * FF-uitgang. De relationele startdruk wordt als al-berekende productinvoer meegegeven; zo mag
  * target_start_date hem nooit overschrijven. P6 early/late/float/driving-uitvoer wordt niet gelezen.
  */
-export function explainOpenXerLoeTargetSpanEligibility(
+export function explainOpenXerLoeTargetSpanEligibilityResolved(
   task: Task,
   schedulingOptions: SchedulingOptions | undefined,
   incoming: readonly Sequence[],
@@ -57,7 +57,10 @@ export function explainOpenXerLoeTargetSpanEligibility(
   targetWindowWorkMinutes: number,
   targetWindowToleranceMinutes: number,
 ): OpenXerLoeTargetSpanDecision {
-  if (schedulingOptions?.p6Source !== 'XER') return { eligible: false, reason: 'notXerSource' };
+  // Conventie B5 `p6OpenLoeTargetSpan` — exact op de plek van de vroegere bron-check.
+  if (schedulingOptions?.p6OpenLoeTargetSpan !== true) {
+    return { eligible: false, reason: 'conventionOff' };
+  }
   if (task.p6ProjectId === undefined || task.p6ProjectId === '') {
     return { eligible: false, reason: 'missingProjectProvenance' };
   }

@@ -369,6 +369,40 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # Regel A (rekenprofielen-spec §5): corpusloos mutatiebewijs van de cel-poortlogica plus de
+  # geldigheid van de gecommitte xer-product-fidelity-cells.json en haar pas (per entry/as/emmer)
+  # met xer-product-fidelity-baseline-v2.json. De corpusgebonden cel-poort zelf draait in
+  # check-xer-product-fidelity-x12.ts. Leest alleen JSON en pure logica: tijdzone-onafhankelijk.
+  FIDCELLSGATE="$DIR/.fidelity-cells-gate.mjs"
+  if bundle_check "$DIR/check-fidelity-cells-gate.ts" "$FIDCELLSGATE"; then
+    node "$FIDCELLSGATE" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # Manifestuitsluiting per project/taak (eigenaarsbesluit, xerManifestExclusions.ts): corpusloze
+  # fixtures en mutanten — lezer (decision verplicht), telling in X12 en X1, digest-pin, cel-poort.
+  XERMANIFESTEXCL="$DIR/.xer-manifest-exclusions.mjs"
+  if bundle_check "$DIR/check-xer-manifest-exclusions.ts" "$XERMANIFESTEXCL"; then
+    node "$XERMANIFESTEXCL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  # Manifestveld leveledProjects (nivelleerfundament, xerManifestLeveling.ts): mechanisme zonder data,
+  # corpusloos — lezer (besluit per regel verplicht), geen invloed op de X1-telling, stand van het manifest.
+  # Harde voorwaarden voor de nivelleer-motoretappe (levelingInput.ts, onderzoek §8): hangende
+  # resource-ids gemeld, gesloten mapping P6-kolomnaam ⇒ eigen grootheid (elke bak-2/4-naam als sleutel).
+  LEVELINGINPUT="$DIR/.leveling-input.mjs"
+  if bundle_check "$DIR/check-leveling-input.ts" "$LEVELINGINPUT"; then
+    node "$LEVELINGINPUT" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
+  XERMANIFESTLVL="$DIR/.xer-manifest-leveling.mjs"
+  if bundle_check "$DIR/check-xer-manifest-leveling.ts" "$XERMANIFESTLVL"; then
+    node "$XERMANIFESTLVL" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # Onafhankelijke XER-fidelitymeetlat (X1): eigen TASK-%T/%F/%R-scan, per-projectmeting,
   # zes poortassen + driving-path-rapportage en byte-/schema-dedup. Zonder publiek corpus draait
   # de synthetische kerncheck en slaat alleen de corpuspin expliciet over.
@@ -435,6 +469,11 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # mag het expliciete targetvenster gebruiken; de corpusloze mutatiematrix houdt alle andere vormen dicht.
   XEROPENLOETARGETSPANCHECK="$DIR/.xer-open-loe-target-span.mjs"
   if bundle_check "$DIR/check-xer-open-loe-target-span.ts" "$XEROPENLOETARGETSPANCHECK"; then node "$XEROPENLOETARGETSPANCHECK" || STATUS=1; fi
+
+  # Rekenprofielen baan B: de vijf groep-B-conventies (B1–B5) zijn eigen vlaggen; per vlag een
+  # aan/uit-fixture, en `p6Source` wordt nergens in de motor meer gelezen.
+  CONVENTIONSP6FLAGSCHECK="$DIR/.conventions-p6-flags.mjs"
+  if bundle_check "$DIR/check-conventions-p6-flags.ts" "$CONVENTIONSP6FLAGSCHECK"; then node "$CONVENTIONSP6FLAGSCHECK" || STATUS=1; fi
 
   # X7 reviewfix 2: suspend/resume/expected-finish kunnen zélf de XER-uurmodus activeren.
   XERX7HOURMODECHECK="$DIR/.xer-x7-hour-mode.mjs"
@@ -1510,6 +1549,36 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RTCHECK="$DIR/.ifc-roundtrip-check.mjs"
   if bundle_check "$DIR/check-ifc-roundtrip.ts" "$RTCHECK"; then node "$RTCHECK" || STATUS=1; fi
 
+  # Rekenprofielen: het conventieregister (resolve/diff, legacy-migratie, XER-defaults-pin,
+  # profielwissel) en de IFC-round-trip van OPS_SchedulingProfile.
+  CONVREGCHECK="$DIR/.conventions-registry.mjs"
+  if bundle_check "$DIR/check-conventions-registry.ts" "$CONVREGCHECK"; then node "$CONVREGCHECK" || STATUS=1; fi
+  SCHEDPROFRTCHECK="$DIR/.scheduling-profile-roundtrip.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-roundtrip.ts" "$SCHEDPROFRTCHECK"; then node "$SCHEDPROFRTCHECK" || STATUS=1; fi
+  # Rekenprofielen (plan 2026-09-22): solver-invoer, lezerprofielen, melding, afnemers, bewerkmodel,
+  # store-acties en de conventiegrens van de motor. Vooraf bedraad in M1 zodat banen C en D run.sh
+  # niet hoeven aan te raken.
+  SOLVEINPUTCHECK="$DIR/.solve-input.mjs"
+  if bundle_check "$DIR/check-solve-input.ts" "$SOLVEINPUTCHECK"; then node "$SOLVEINPUTCHECK" || STATUS=1; fi
+  IMPORTPROFILECHECK="$DIR/.import-profile.mjs"
+  if bundle_check "$DIR/check-import-profile.ts" "$IMPORTPROFILECHECK"; then node "$IMPORTPROFILECHECK" || STATUS=1; fi
+  PROFILENOTICECHECK="$DIR/.scheduling-profile-notice.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-notice.ts" "$PROFILENOTICECHECK"; then node "$PROFILENOTICECHECK" || STATUS=1; fi
+  PROFILEDRAFTCHECK="$DIR/.scheduling-profile-draft.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-draft.ts" "$PROFILEDRAFTCHECK"; then node "$PROFILEDRAFTCHECK" || STATUS=1; fi
+  PROFILEACTIONSCHECK="$DIR/.scheduling-profile-actions.mjs"
+  if bundle_check "$DIR/check-scheduling-profile-actions.ts" "$PROFILEACTIONSCHECK"; then node "$PROFILEACTIONSCHECK" || STATUS=1; fi
+  # Gebruikstest 24-09, B1: P6 → ander profiel → P6 geeft byte-gelijke datums (de solve schrijft
+  # scheduleFinish niet meer terug), ook na opslaan als IFC en heropenen.
+  PROFILESWITCHDATESCHECK="$DIR/.profile-switch-dates.mjs"
+  if bundle_check "$DIR/check-profile-switch-dates.ts" "$PROFILESWITCHDATESCHECK"; then node "$PROFILESWITCHDATESCHECK" || STATUS=1; fi
+  # B1-vervolg (critreview 24-09): het ingevoerde einde van een urentaak blijft coherent met start + duur
+  # aan de invoerkant (nieuwe taak, updateTask, grid, MCP), nu de solve het niet meer terugschrijft.
+  HOURINPUTFINISHCHECK="$DIR/.hour-input-finish.mjs"
+  if bundle_check "$DIR/check-hour-input-finish.ts" "$HOURINPUTFINISHCHECK"; then node "$HOURINPUTFINISHCHECK" || STATUS=1; fi
+  CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
+  if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
+
   # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
   # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
   SUMDUR="$DIR/.summary-duration.mjs"
@@ -1531,6 +1600,15 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   RECMARKCHECK="$DIR/.check-recorded-dates-mark.mjs"
   if bundle_check "$DIR/check-recorded-dates-mark.ts" "$RECMARKCHECK"; then node "$RECMARKCHECK" || STATUS=1; fi
 
+  # Eigenaarsbesluit 2026-09-09 — "datums zoals opgeslagen" voor ÁLLE formaten: de lezers van
+  # P6 XML/MSPDI/CSV (en corpus-optioneel .mpp) leveren het bak-4-kanaal, en de IFC-herkomst
+  # ('ifc' vs 'ifc-own' + OPS_ImportProvenance) stuurt het heropen-beleid (optie B).
+  RECFORMATS="$DIR/.check-recorded-times-formats.mjs"
+  if bundle_check "$DIR/check-recorded-times-formats.ts" "$RECFORMATS"; then node "$RECFORMATS" || STATUS=1; fi
+  # Bak 4 differentieel (critreview ded4d8c3, bevinding 7): de vier lezers AAN vs vastlegging UIT
+  # (bronmatig uitgeschakeld, eigen esbuild-bundel) ⇒ importresultaat byte-identiek.
+  RECBAK4="$DIR/.check-recorded-bak4-differential.mjs"
+  if bundle_check "$DIR/check-recorded-bak4-differential.ts" "$RECBAK4"; then node "$RECBAK4" || STATUS=1; fi
   # Issue #27 etappe 2: de voortgangsimport — matching (overrides → id → WBS-terugval), handmatige
   # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
   PICHECK="$DIR/.progress-import.mjs"

@@ -14,8 +14,8 @@
  * verslechtering mechanisch opvalt. Gemeten stand (brongetrouwe transcriptie, 2026-09-07): elf van
  * de dertien casussen kloppen volledig, 156 van de 160 door P6 vastgelegde cellen; de vier
  * verschillen (casus 08 en 10, bezig zijnde taken rond de statusdatum) staan cel voor cel gepind
- * onder punt 5. De ECHTE bytes (sectie 7) geven 77/160 zoals gelezen en 156/160 zonder de
- * geregistreerde projecteinde-fout — dus exact deze transcriptie.
+ * onder punt 5. De ECHTE bytes (sectie 7) gaven 77/160 zoals gelezen door de projecteinde-fout;
+ * sinds X12-brok 1 (2026-09-23) 156/160 zoals gelezen — exact deze transcriptie.
  *
  * BRONGETROUWHEID (her-review 2026-09-07, bevinding 1). De transcriptie volgt de ÉCHTE P6-export
  * van precies deze dertien casussen — `cpp-cpm-engine/validation/p6-comparison/cases-import.xer`,
@@ -26,10 +26,10 @@
  * `rem_target_link_flag` weg — twee elkaar opheffende afwijkingen die de poort op de verkeerde
  * reden dicht lieten staan. Wat hier bewust WEL wordt weggelaten is de SCHEDOPTIONS-tabel van de
  * bron: die zet `sched_use_project_end_date_for_float = Y` terwijl geen enkele taak een
- * `target_end_date` heeft, en dat raakt een geregistreerde productfout (het taak-afgeleide
- * projecteinde valt dan terug op de projectSTART, waarna de late zijde daarop verankert —
- * `docs/TODO.md`). Sectie 7 draait daarom de ECHTE bytes, corpusgebonden, en pint die fout
- * zichtbaar, in plaats van hem in de transcriptie te verstoppen.
+ * `target_end_date` heeft. Dat raakte een productfout (het taak-afgeleide projecteinde viel terug op
+ * de projectSTART, waarna de late zijde daarop verankerde); sinds X12-brok 1 zet de lezer de optie
+ * dan gerapporteerd uit (`deriveXerScheduleOptions`, `hasUsableProjectEnd`). Sectie 7 draait de
+ * ECHTE bytes, corpusgebonden, en pint dat zichtbaar.
  *
  * Gevolg voor casus 09: `explainP6CompletedDataDateWindow` blijft daar GESLOTEN — maar op
  * `wrongDurationType`/`missingExplicitTargetWindow`, een toevallige nauwte van de poort en géén
@@ -38,16 +38,19 @@
  * opnam. Dat is onverklaard tegenbewijs tegen de completed-late-regel en staat als zodanig in plan
  * §5 (X-O7 laag 1) en in het docblok van `p6CompletedLateFromRemainingWindow`.
  */
+import { setConvention } from './p6SemanticsOff';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { readXER } from '@/services/xer/xerReader';
 import { activeImportResult, isMultiDocumentImport } from '@/services/importTypes';
-import type { SchedulingOptions } from '@/types/project';
+import type { ProjectSchedulingOptions } from '@/types/project';
 import { parseInstant } from '@/utils/dateUtils';
-import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
-import { explainP6CompletedLateRemainingWindowEligibility } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
+import { explainP6CompletedLateRemainingWindowEligibilityResolved } from '@/engine/scheduler/p6CompletedRouteTrace';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const diffs: string[] = [];
@@ -319,9 +322,10 @@ const AXES: readonly Axis[] = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'];
 // Gepinde poortredenen (sectie 1/2b) — gemeten op de brongetrouwe transcriptie.
 const GATE_REASONS_PIN = ['missingExplicitTargetWindow'];
 const GATE_REASON_CASE_09_B = 'missingExplicitTargetWindow';
-const REAL_AS_READ_PIN = { cellen: 160, eens: 77 };
+// X12-brok 1 (2026-09-23): 77 → 156 zoals gelezen (+79) — het gat met 7b is dicht.
+const REAL_AS_READ_PIN = { cellen: 160, eens: 156 };
 const REAL_WITHOUT_PROJECT_END_PIN = { cellen: 160, eens: 156 };
-const REAL_PROJECT_RANGE_PIN = { start: '2026-01-05T08:00', end: '2026-01-05T08:00', flag: true };
+const REAL_PROJECT_RANGE_PIN = { start: '2026-01-05T08:00', end: '2026-01-05T08:00', flag: false };
 const DEVIATING_CELLS_PIN: Record<string, Record<string, string[]>> = {
   '08-in-progress-retained-logic': { A: ['es', 'ls'] },
   '10-out-of-sequence-progress': { B: ['es', 'ls'] },
@@ -336,6 +340,10 @@ interface Measured { es?: string; ef?: string; ls?: string; lf?: string; tf: num
 
 function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: Record<string, string> } {
   const imported = activeImportResult(readXER(caseBytes(item)));
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(imported, 'p6CompletedDataDateWindow', true);
+  setConvention(imported, 'p6CompletedLoeActualFinish', true);
   const result = solveProject({
     tasks: imported.tasks,
     sequences: imported.sequences,
@@ -343,7 +351,7 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -362,7 +370,7 @@ function solveCase(item: EngineCase): { measured: Map<string, Measured>; gate: R
   const gate: Record<string, string> = {};
   for (const task of imported.tasks) {
     gate[task.id] = explainP6CompletedDataDateWindow(
-      task, dataDate, imported.project.schedulingOptions,
+      task, dataDate, solveOptionsFor(imported.project).schedulingOptions,
     ).reason;
   }
   return { measured, gate };
@@ -459,12 +467,16 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
     '%E',
   ].join('\n'));
   const imported = activeImportResult(readXER(bytes));
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(imported, 'p6CompletedDataDateWindow', true);
+  setConvention(imported, 'p6CompletedLoeActualFinish', true);
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
   const b = imported.tasks.find(task => task.id === 'B')!;
   eq('3 dezelfde topologie MET targetvenster opent de poort wél', {
-    window: explainP6CompletedDataDateWindow(b, dataDate, imported.project.schedulingOptions).reason,
-    shared: explainP6CompletedLateRemainingWindowEligibility(
-      b, dataDate, imported.project.schedulingOptions,
+    window: explainP6CompletedDataDateWindow(b, dataDate, solveOptionsFor(imported.project).schedulingOptions).reason,
+    shared: explainP6CompletedLateRemainingWindowEligibilityResolved(
+      b, dataDate, solveOptionsFor(imported.project).schedulingOptions,
     ).eligible,
   }, { window: 'eligible', shared: true });
   const result = solveProject({
@@ -474,7 +486,7 @@ eq('1 completed-statusdatumvenster blijft in alle dertien casussen gesloten — 
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -528,7 +540,8 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
   '06-multiple-calendars': { cellen: 12, eens: 12 },
   '07-ontario-holidays': { cellen: 6, eens: 6 },
   // Brongetrouw (her-review bevinding 1): 156 van 160 — exact gelijk aan de echte bytes zónder de
-  // projecteinde-fout (sectie 7b). De vier afwijkende cellen staan in sectie 5 gepind.
+  // projecteinde-fout (sectie 7b) en, sinds X12-brok 1, aan de echte bytes zoals gelezen (7a). De vier
+  // afwijkende cellen staan in sectie 5 gepind.
   '08-in-progress-retained-logic': { cellen: 12, eens: 10 },
   '09-completed-successor': { cellen: 10, eens: 10 },
   '10-out-of-sequence-progress': { cellen: 12, eens: 10 },
@@ -645,11 +658,12 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
 // ── 7. De ÉCHTE bytes: `cases-import.xer` door dezelfde lezer + solver (alleen mét corpus) ──────
 // Her-review bevinding 2: "157/160 eens met P6" was een uitspraak over de transcriptie, niet over
 // het bestand dat P6 werkelijk kreeg. Dit pint de echte export — dertien projecten in één XER —
-// zoals gelezen, én met `useProjectEndDateForFloat` uitgezet. Het gat ertussen is de geregistreerde
-// productfout (`docs/TODO.md`): `sched_use_project_end_date_for_float = Y` + geen enkele
-// `target_end_date`/`plan_end_date` ⇒ het taak-afgeleide projecteinde valt terug op de projectSTART
-// en de hele late zijde verankert daarop. Karakterisering, geen doel: beide tellers zijn gepind
-// zodat een fix het gat zichtbaar dichttrekt en een regressie het zichtbaar opent.
+// zoals gelezen, én met `useProjectEndDateForFloat` uitgezet. Het gat ertussen WAS de productfout
+// (`docs/TODO.md`, afgevinkt): `sched_use_project_end_date_for_float = Y` + geen enkele
+// `target_end_date`/`plan_end_date` ⇒ het taak-afgeleide projecteinde viel terug op de projectSTART
+// en de hele late zijde verankerde daarop (77/160). X12-brok 1 zet de optie dan gerapporteerd uit
+// (P6 rekent zonder Must Finish By terug vanaf max(EF)); beide tellers staan nu op 156/160 en blijven
+// gepind zodat een regressie het gat zichtbaar heropent.
 {
   const corpus = process.env.OPS_XER_CORPUS;
   const real = corpus ? join(corpus, 'cpp-cpm-engine', 'validation', 'p6-comparison', 'cases-import.xer') : undefined;
@@ -659,13 +673,17 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
     const opened = readXER(new Uint8Array(readFileSync(real)));
     const results = isMultiDocumentImport(opened) ? opened.results : [opened];
     eq('7 de echte export draagt dertien projecten', results.length, 13);
-    const agreeReal = (overrides?: Partial<SchedulingOptions>) => {
+    const agreeReal = (overrides?: Partial<ProjectSchedulingOptions>) => {
       let cells = 0; let eens = 0;
       const perCase: Record<string, string> = {};
       for (const [index, item] of CASES.entries()) {
         const imported = results.find(candidate => candidate.project.name === `XV${String(index + 1).padStart(2, '0')}`)
           ?? results[index]!;
-        const schedulingOptions = { ...imported.project.schedulingOptions, ...overrides };
+        // Rekenprofielen C4: de conventies komen uit het profiel van de import, de overrides zijn projectopties.
+        const schedulingOptions = effectiveSchedulingOptions({
+          schedulingProfile: imported.project.schedulingProfile,
+          schedulingOptions: { ...imported.project.schedulingOptions, ...overrides },
+        });
         const result = solveProject({
           tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
           calendars: imported.resourceCalendars ?? [], dataDate: imported.project.statusDate,
@@ -698,14 +716,14 @@ eq('4 agreement met P6 23.12 per casus (karakterisering, geen doel)', summary, {
     };
     const asRead = agreeReal();
     const withoutProjectEndFloat = agreeReal({ useProjectEndDateForFloat: false });
-    eq('7a echte bytes, zoals gelezen (de geregistreerde projecteinde-fout inbegrepen)',
+    eq('7a echte bytes, zoals gelezen (projecteinde-fout dicht sinds X12-brok 1)',
       { cellen: asRead.cells, eens: asRead.eens }, REAL_AS_READ_PIN);
     eq('7b echte bytes, met useProjectEndDateForFloat uit (het gat is precies die fout)',
       { cellen: withoutProjectEndFloat.cells, eens: withoutProjectEndFloat.eens }, REAL_WITHOUT_PROJECT_END_PIN);
     console.log(`.   p6-verified-cases-engine: echte bytes per casus zoals gelezen ${JSON.stringify(asRead.perCase)}`);
     console.log(`.   p6-verified-cases-engine: echte bytes per casus zonder projecteinde-float ${JSON.stringify(withoutProjectEndFloat.perCase)}`);
     const projectEnd = results[0]!.project.endDate;
-    eq('7c de bron heeft geen enkel einde (plan_end_date en target_end_date leeg) ⇒ projecteinde = projectstart — de fout zelf, gepind',
+    eq('7c de bron heeft geen enkel einde (plan_end_date en target_end_date leeg) ⇒ de optie staat uit (het projecteinde-veld stuurt de late pass niet meer)',
       { start: results[0]!.project.startDate, end: projectEnd, flag: results[0]!.project.schedulingOptions?.useProjectEndDateForFloat },
       REAL_PROJECT_RANGE_PIN);
   }

@@ -10,6 +10,7 @@ import {
 } from './xerTaskReplay';
 import {
   dropFinishMilestoneBoundaryCandidate,
+  dropRelationFinishBoundaryCandidate,
   replayXerProductBeforeOracle,
   syntheticZeroRegressionCandidate,
   type XerTaskReplayCandidate,
@@ -60,7 +61,49 @@ if (!corpusRoot) {
   // maken (corpusbreed ls 4791 → 3901 en lf 4781 → 3891 afwijkingen, zie
   // `xer-schedoptions-blast-radius.json`). `synthetic-zero-regression` blijft ongewijzigd op 0
   // regressies — de nulmeting is dus niet meeverschoven.
-  for (const candidate of [syntheticZeroRegressionCandidate, dropFinishMilestoneBoundaryCandidate]) {
+  // Herpin 2026-09-23 (X12 brok 2, C1–C3): dezelfde richting. C3 maakt 122 ls-, 122 lf- en 107
+  // tf-cellen exact (rehab-2); de mutant maakt er daardoor ls 1559 → 1671, lf 1570 → 1682, tf 1487 →
+  // 1591 en overall 1570 → 1682 kapot. Som regressed+unchanged per as ongewijzigd; es/ef/ff gelijk.
+  // Dit pin was bij de brok-2-herpin (7c37b212/d6db800c) vergeten en ving de fixronde op.
+  // Herpin 2026-09-23 (X12 brok 3, C4 + C5 + C6, na de merge van de brok-2-fixronde): alleen tf beweegt,
+  // regressed 1591 → 1666 en unchanged 12086 → 12011 (som gelijk). C4 maakt 298 tf-cellen exact in
+  // rehab-2; de mutant breekt er daardoor meer. es/ef/ls/lf/ff en overall ongewijzigd.
+  // Herpin 2026-09-23 (populatiebesluit: alleen aantoonbaar door P6 doorgerekende orakels): de
+  // selectie gaat 34 → 9 entries. Op die populatie is `drop-p6-finish-milestone-boundary` (A17) inert
+  // — 0 regressies op alle assen, gemeten — en dus geen negatieve controle meer. Die rol gaat naar
+  // `drop-p6-relation-finish-boundary` (B1), die op dezelfde populatie duidelijk regressies geeft.
+  // Herpin 2026-09-23 (X12 brok 6, C9 `p6LateFinishOnOwnCalendar`): de B1-mutant "verbeterde" 18
+  // lf-cellen in Hotel (overall 17 taken); precies die maakt C9 in het product zelf exact, dus de mutant
+  // verbetert ze niet meer: lf improved 18 → 0, unchanged 5943 → 5961; overall improved 17 → 0,
+  // unchanged 4861 → 4878. Detectievermogen gelijk: regressed op elke as ongewijzigd (es/ef 942,
+  // tf 926, ff 309, overall 1083); de som regressed + unchanged wordt nergens kleiner.
+  // Herpin 2026-09-23 (X12 brok 6, B1 late kant): de B1-mutant "verbeterde" ook 9 ls-cellen in Hotel (de
+  // LS-weergave die het product nu zelf goed doet): ls improved 9 → 0, unchanged 5952 → 5961; regressed op
+  // elke as gelijk, overall ongewijzigd (1083 / 4878).
+  // Herpin 2026-09-23 (populatie, tweede toepassing van het besluit van 2026-09-23: DCP-03 Baseline is
+  // generatoruitvoer → reader-only): selectie 9 → 8, projecten 21 → 20, taken 5983 → 5923. Alleen
+  // `unchanged` daalt met 60 (tf/ff met 60 op 5772 → 5712); regressed op elke as gelijk (es/ef 942,
+  // tf 926, ff 309, overall 1083) — de mutant brak niets in DCP-03, detectievermogen onveranderd.
+  // Herpin 2026-09-23 (X12 brok 8, C12 `p6FinishNotBeforeFinishFinishBound`, na de DCP-03-merge): zonder B1
+  // verschuiven 8 FF-opvolgers zodanig dat C12's kloktijdgrens hun EF verplaatst; de mutant breekt daardoor 8
+  // ef-cellen meer: ef regressed 942 → 950, unchanged 4959 → 4951; overall regressed 1083 → 1091, unchanged
+  // 4818 → 4810. Som regressed + unchanged per as gelijk (5901); de andere assen ongewijzigd.
+  // Herpin 2026-09-23 (X12 brok 9, C2 `p6FreeFloatOnOwnCalendar` verbreed naar alle relatietypes en
+  // WORKTIME-lags): het product maakt 3 Hotel-ff-cellen exact (HCSWB4Z4240, HCSWB2Z2240, HEPSS00020); de
+  // B1-mutant breekt daardoor die 3 plus een vierde, mutant-only: Hotel 2666/144046 HCSWB2Z4240 (orakel 960,
+  // product 960 vóór én na brok 9; de B1-mutant gaat van 960 naar 900). ff regressed 309 → 313, unchanged
+  // 5403 → 5399; de andere assen en overall (1091 / 4810) ongewijzigd. Criterium voor zo'n herpin is NIET
+  // "som gelijk" maar: improved blijft 0 en regressed daalt niet.
+  // Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12: manifestuitsluiting HarbourPointe 8 taken, OZB
+  // project 9033, Hotel project CR 2665): projecten 20 → 18, taken 5923 → 5882; alleen `unchanged` daalt
+  // met 22 op elke zesassige as (5901 → 5879, tf/ff 5712 → 5690; overall 4810 → 4788). regressed en
+  // improved op elke as gelijk (es 942, ef 950, tf 926, ff 313, overall 1091) — de mutant brak niets op de
+  // uitgesloten taken, detectievermogen onveranderd.
+  // Herpin 2026-09-24 (eigenaarsbesluit vraag 13 "Vraag 13, ja uitsluiten": HarbourPointe EC1420 erbij, samen
+  // met C14 `p6AlapPositionedFromSuccessors`): taken 5882 → 5881; alleen `unchanged` daalt met 1 op elke
+  // zesassige as (5879 → 5878, tf/ff 5690 → 5689; overall 4788 → 4787). regressed en improved op elke as
+  // gelijk (es 942, ef 950, tf 926, ff 313, overall 1091) — detectievermogen onveranderd.
+  for (const candidate of [syntheticZeroRegressionCandidate, dropRelationFinishBoundaryCandidate]) {
     const summary = runXerTaskReplayCorpus({ corpusRoot, manifest, candidate });
     eq(`task replay: openbare pin voor ${candidate.id}`, {
       manifestEntries: summary.manifestEntries,
@@ -275,13 +318,14 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-04T08:00',
       earlyFinish: '2026-06-04T17:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-02T17:00',
         plannedFloorTraceTargetStart: '2026-06-04T08:00',
         plannedFloorTraceTargetFinish: '2026-06-04T17:00',
         plannedFloorTracePlannedWindowIsLater: true,
+        plannedFloorTraceFloorApplied: true,
         plannedFloorTraceBoundarySource: 'relationship',
         plannedFloorTraceBoundarySequenceId: 'R-FB',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'FB-PRED',
@@ -291,13 +335,14 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-02T08:00',
       earlyFinish: '2026-06-02T17:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-02T17:00',
         plannedFloorTraceTargetStart: '2026-06-03T08:00',
         plannedFloorTraceTargetFinish: '2026-06-03T17:00',
         plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceFloorApplied: false,
         plannedFloorTraceBoundarySource: 'relationship',
         plannedFloorTraceBoundarySequenceId: 'R-OD',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'OD-PRED',
@@ -307,13 +352,14 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-02T08:00',
       earlyFinish: '2026-06-04T17:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T08:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-04T17:00',
         plannedFloorTraceTargetStart: '2026-06-04T08:00',
         plannedFloorTraceTargetFinish: '2026-06-04T17:00',
         plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceFloorApplied: false,
         plannedFloorTraceBoundarySource: 'relationship',
         plannedFloorTraceBoundarySequenceId: 'R-FN',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'FN-PRED',
@@ -323,13 +369,14 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       earlyStart: '2026-06-02T15:00',
       earlyFinish: '2026-06-03T15:00',
       source: {
-        p6Source: 'XER',
+        profileId: 'p6',
         activityType: 'TT_Task',
         plannedFloorTracePreFloorEarlyStart: '2026-06-02T15:00',
         plannedFloorTracePreFloorEarlyFinish: '2026-06-03T15:00',
         plannedFloorTraceTargetStart: '2026-06-02T15:00',
         plannedFloorTraceTargetFinish: '2026-06-03T15:00',
         plannedFloorTracePlannedWindowIsLater: false,
+        plannedFloorTraceFloorApplied: false,
         plannedFloorTraceBoundarySource: 'relationship:p6-predecessor-finish-boundary',
         plannedFloorTraceBoundarySequenceId: 'R-BC',
         plannedFloorTraceBoundaryPredecessorTaskCode: 'BC-PRED',
@@ -443,7 +490,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   );
   eq('task replay: geldige fallbackdatums zonder p6ExplicitTargetWindow leveren fail-closed geen trace',
     predicateBySourceId(noExplicitTargetWindowReplay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 {
@@ -469,7 +516,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const replay = replayXerProductBeforeOracle(multipleEqualDriversFixture, syntheticZeroRegressionCandidate);
   eq('task replay: meerdere gelijke relatiedrivers leveren fail-closed geen willekeurige trace',
     predicateBySourceId(replay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 {
@@ -494,7 +541,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const projectStartSource = predicateBySourceId(replay.predicate).get('S')?.source;
   eq('task replay: aantoonbare projectstartgrens krijgt trace zonder verzonnen relatiedriver',
     {
-      p6Source: projectStartSource?.p6Source,
+      profileId: projectStartSource?.profileId,
       activityType: projectStartSource?.activityType,
       plannedFloorTracePreFloorEarlyStart: projectStartSource?.plannedFloorTracePreFloorEarlyStart,
       plannedFloorTracePreFloorEarlyFinish: projectStartSource?.plannedFloorTracePreFloorEarlyFinish,
@@ -503,7 +550,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
       plannedFloorTraceBoundarySource: projectStartSource?.plannedFloorTraceBoundarySource,
     },
     {
-      p6Source: 'XER',
+      profileId: 'p6',
       activityType: 'TT_Task',
       plannedFloorTracePreFloorEarlyStart: '2026-08-03T08:00',
       plannedFloorTracePreFloorEarlyFinish: '2026-08-03T17:00',
@@ -530,7 +577,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const replay = replayXerProductBeforeOracle(constraintOnlyFixture, syntheticZeroRegressionCandidate);
   eq('task replay: constraint-only zonder netwerk- of projectstartdriver levert geen trace',
     predicateBySourceId(replay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 {
@@ -554,7 +601,7 @@ function predicateBySourceId(predicateLogs: readonly XerReplayPredicateLog[]): M
   const replay = replayXerProductBeforeOracle(invalidTargetFinishFixture, syntheticZeroRegressionCandidate);
   eq('task replay: ongeldig expliciet targeteinde levert fail-closed geen trace',
     predicateBySourceId(replay.predicate).get('S')?.source,
-    { p6Source: 'XER', activityType: 'TT_Task' });
+    { profileId: 'p6', activityType: 'TT_Task' });
 }
 
 function solved(projectId = 'P1', taskCode = 'A100', overrides: Partial<XerSolvedTask> = {}): XerSolvedProject {

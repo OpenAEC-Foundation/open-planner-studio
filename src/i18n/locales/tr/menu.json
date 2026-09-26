@@ -235,6 +235,10 @@
       "lagSuccessor": "Ardıl",
       "lag24hour": "24 saat",
       "lagProjectDefault": "Proje takvimi",
+      "ssLagFrom": "Devam eden öncülün BB gecikmesini şuradan hesapla",
+      "ssLagEarlyStart": "Erken başlangıç (kalan iş başlangıcı)",
+      "ssLagActualStart": "Gerçek başlangıç (durum tarihi)",
+      "ssLagNeedsConvention": "Yalnızca “{{convention}}” kuralı açıkken geçerlidir.",
       "criticalDefinition": "Kritik tanımı",
       "critTotalFloat": "Toplam bolluk ≤ eşik",
       "critLongestPath": "En uzun yol",
@@ -252,7 +256,9 @@
       "floatPathsMethod": "Yöntem",
       "methodFree": "Serbest bolluk (peeling)",
       "methodTotal": "Toplam bolluk (sıralama)",
-      "maxPaths": "Maks. yol"
+      "maxPaths": "Maks. yol",
+      "tfAuto": "Otomatik (varsayılan)",
+      "critThresholdHours": "Eşik (saat, görev takvimine göre)"
     }
   },
   "newProject": {
@@ -318,6 +324,13 @@
       "quickstart": "Hızlı başlangıç",
       "gidsen": "Konuya göre kılavuzlar",
       "referentie": "Referans"
+    },
+    "unapplied": {
+      "title": "Değişiklikler uygulanmadı",
+      "body": "Proje bilgilerini değiştirdiniz ancak henüz uygulamadınız. Bu değişikliklerle ne yapmak istiyorsunuz?",
+      "marker": "Değişiklikler uygulanmadı — korumak için {{apply}}'ya tıklayın.",
+      "discard": "Vazgeç",
+      "invalid": "Özel hesaplama profilinin henüz bir adı yok. Ona bir ad verin veya değişikliklerden vazgeçin."
     }
   },
   "export": {

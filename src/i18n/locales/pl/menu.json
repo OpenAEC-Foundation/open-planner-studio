@@ -237,6 +237,10 @@
       "lagSuccessor": "Następnik",
       "lag24hour": "24-godzinny",
       "lagProjectDefault": "Kalendarz projektu",
+      "ssLagFrom": "Licz opóźnienie SS od trwającego poprzednika od",
+      "ssLagEarlyStart": "Najwcześniejszy start (start pozostałej pracy)",
+      "ssLagActualStart": "Rzeczywisty start (data stanu)",
+      "ssLagNeedsConvention": "Działa tylko, gdy konwencja „{{convention}}” jest włączona.",
       "criticalDefinition": "Definicja krytyczności",
       "critTotalFloat": "Zapas całkowity ≤ próg",
       "critLongestPath": "Najdłuższa ścieżka",
@@ -254,7 +258,9 @@
       "floatPathsMethod": "Metoda",
       "methodFree": "Zapas swobodny (peeling)",
       "methodTotal": "Zapas całkowity (ranking)",
-      "maxPaths": "Maks. ścieżek"
+      "maxPaths": "Maks. ścieżek",
+      "tfAuto": "Automatycznie (domyślnie)",
+      "critThresholdHours": "Próg (godziny, wg kalendarza zadania)"
     }
   },
   "newProject": {
@@ -322,6 +328,13 @@
       "quickstart": "Szybki start",
       "gidsen": "Przewodniki tematyczne",
       "referentie": "Materiały referencyjne"
+    },
+    "unapplied": {
+      "title": "Zmiany nie zostały zastosowane",
+      "body": "Zmieniono informacje o projekcie, ale ich jeszcze nie zastosowano. Co zrobić z tymi zmianami?",
+      "marker": "Zmiany nie zostały zastosowane — kliknij {{apply}}, aby je zachować.",
+      "discard": "Odrzuć",
+      "invalid": "Własny profil obliczeń nie ma jeszcze nazwy. Nadaj mu nazwę lub odrzuć zmiany."
     }
   },
   "export": {

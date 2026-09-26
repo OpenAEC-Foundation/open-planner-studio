@@ -24,6 +24,7 @@ import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { detectXmlFlavor, parseOpenedFile } from '@/services/formatRegistry';
 import { solveProject } from '@/engine/scheduler/solveProject';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { Task, MilestoneKind } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
@@ -99,9 +100,12 @@ const lagInto = (r: { tasks: Task[]; sequences: Sequence[] }, succName: string):
 const lagFields = (s: Sequence | undefined) => s && ({
   lagDays: s.lagDays, lagMinutes: s.lagMinutes, lagUnit: s.lagUnit, lagPercent: s.lagPercent,
 });
-/** Plan een ingelezen (of eigen) project door met de echte solver-keten; muteert `tasks`. */
+/** Plan een ingelezen (of eigen) project door met de echte solver-keten; muteert `tasks`. Bewust
+ *  zonder projectprofiel (OPS-standaardconventies) voor zowel origineel als rondreis: de check vergelijkt
+ *  de adapter-uitvoer, niet het rekenprofiel dat het bestand voorstelt. */
 function solve(r: { tasks: Task[]; sequences: Sequence[]; calendar: WorkCalendar; resourceCalendars?: WorkCalendar[] }): void {
-  const res = solveProject({ tasks: r.tasks, sequences: r.sequences, calendar: r.calendar, calendars: r.resourceCalendars ?? [] });
+  const res = solveProject({ tasks: r.tasks, sequences: r.sequences, calendar: r.calendar, calendars: r.resourceCalendars ?? [],
+    schedulingOptions: effectiveSchedulingOptions({}) });
   assert(!res.error, `solveProject gaf een fout: ${res.error ?? ''}`);
 }
 

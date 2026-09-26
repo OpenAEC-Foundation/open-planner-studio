@@ -499,6 +499,18 @@ function astFieldHits(fileName: string, text: string, fields: readonly string[])
         waarom: 'bak 4, getalformaatclassificatie over alle tabellen, geen celtoegang' },
       { file: 'services/xer/xerTables.ts', field: 'free_float_hr_cnt', context: 'catalog:XER_DECIMAL_FIELDS', count: 1,
         waarom: 'bak 4, getalformaatclassificatie over alle tabellen, geen celtoegang' },
+      { file: 'services/leveling/levelingInput.ts', field: 'early_start_date', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
+        waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
+      { file: 'services/leveling/levelingInput.ts', field: 'early_end_date', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
+        waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
+      { file: 'services/leveling/levelingInput.ts', field: 'late_start_date', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
+        waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
+      { file: 'services/leveling/levelingInput.ts', field: 'late_end_date', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
+        waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
+      { file: 'services/leveling/levelingInput.ts', field: 'total_float_hr_cnt', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
+        waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
+      { file: 'services/leveling/levelingInput.ts', field: 'free_float_hr_cnt', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
+        waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
     ];
     const bak4Eigenaar = 'services/xer/xerRecordedTimes.ts';
     const gezien = new Map<Uitzondering, number>();

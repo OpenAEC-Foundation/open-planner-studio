@@ -36,10 +36,12 @@ Nieuwe `cases-*.json`: vul `EXPECTED_BATTERIES` aan — lees run.sh (~1,7k regel
 Losse poorten (de meeste zitten in `verify`): `npm run verify:examples` (voorbeelden laden/rekenen),
 `npm run verify:docs` (in-app gidsen), `npm run verify:i18n` (sleutels + CLDR-pluralvormen + geen cast op een sleutel + vaste opmaak),
 `npm run verify:store-boundaries` en `npm run verify:gantt-boundaries` (AST-poorten: store-, renderer-,
-viewport-, pointer- en tabelgrenzen), `npm run verify:cycles` (circulaire imports ná type-erasure),
+viewport-, pointer- en tabelgrenzen), `npm run verify:conventions` (AST-poort: `src/engine/` leest geen
+bronformaat, opties-sleutels alleen uit het conventieregister, herkomst-datagates gepind), `npm run verify:cycles` (circulaire imports ná type-erasure),
 `npm run verify:text-roles` (alleen de zes tekstrollen), `npm run verify:release-highlights-json` (in de keten)
 en `npm run verify:release-highlights` (los: lokale updatehoogtepunten en statistieken vóór een getagde release). `npm run verify:audit` zit bewust NIET in `verify`
-(Dependabot is het meldkanaal; een advisory krijgt een eigen commit).
+(Dependabot is het meldkanaal; een advisory krijgt een eigen commit). `npm run measure:profiles` (los) meet de
+cel-baseline per rekenprofiel (regel A: geen exacte cel mag inexact worden); het P6-deel vereist `OPS_XER_CORPUS`.
 
 Vertalingen: `npm run i18n:add` zet één tekst in alle 14 locales tegelijk (recept `docs/recepten/i18n-sleutel.md`),
 `npm run i18n:fmt` zet de locale-bestanden in de vaste opmaak (één sleutel per regel, volgorde van `nl`),
@@ -80,8 +82,12 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
   `src/utils/settingsRegistry.ts`.
 - **Plannen is handmatig, niet reactief.** `runCPM` → `solveProject()`; roep het aan na het muteren van taken,
   relaties of kalender. Zet `scheduleStale` altijd via `markScheduleStale` (`state/transaction.ts`), nooit direct.
-  `CPMSolver.ts` (~2,7k regels): grep de methode, niet heel lezen. Terugschrijven: `applyCpmResult.ts`;
+  `CPMSolver.ts` (~4k regels): grep de methode, niet heel lezen. Terugschrijven: `applyCpmResult.ts`;
   relaties/lag: `relationMath.ts`.
+- **Rekenprofielen, geen formaatvlag.** P6-/MSP-/OPS-gedrag loopt via benoemde conventies in
+  `src/engine/scheduler/conventions/registry.ts`; de solver krijgt alleen `EffectiveSchedulingOptions` via
+  `solveOptionsFor`/`solveInputFor`. Nooit een `if` op het bronformaat in de motor (`verify:conventions`);
+  motorwerk landt alleen als geen exacte cel inexact wordt (`measure:profiles`). Diepgang: `rekenprofielen`-rule.
 - **Gantt-tijdlijn = Canvas 2D** (`src/engine/renderer/`), het taakraster = DOM (`FullTaskGrid`).
   Geometrie: rij↔y `GanttRenderer.getRowAtY/getTaskAtY`, datum↔x `dateToX` in `timeAxis.ts` (werkdagen-as:
   `workdayAxis.ts`); interactie in `src/components/canvas/hooks/`.
@@ -120,10 +126,11 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 
 ## Waar de diepgang staat
 
-`.claude/rules/` (laadt per pad): `state`, `tauri-ifc`, `mpp`, `xer`, `contour`, `gantt-splits`, `reports`, `ui-shell`,
+`.claude/rules/` (laadt per pad): `state`, `tauri-ifc`, `mpp`, `xer`, `rekenprofielen`, `contour`, `gantt-splits`, `reports`, `ui-shell`,
 `text-roles`, `i18n`, `settings-autosave`, `extensions`, `mcp`, `library`, `docs-help`, `tests`, `dev-server`,
 `ci-release`, `docs-index`.
 
-Recepten: `docs/recepten/` (MCP-tool, instelling, vertaalsleutel, ribbontabblad, tekstgrootte, in-app gids) en
+Recepten: `docs/recepten/` (MCP-tool, instelling, vertaalsleutel, ribbontabblad, tekstgrootte, in-app gids,
+rekenconventie) en
 `docs/ifc-round-trip.md`. Zelftest: `docs/self-test-harness.md`. Roadmap: `PLAN.md` (§4 vervallen).
 Ontwerpdocs: begin bij `docs/superpowers/README.md` — lees ze als *waarom*, niet als *wat er is*.

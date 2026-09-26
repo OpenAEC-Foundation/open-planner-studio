@@ -235,6 +235,10 @@
       "lagSuccessor": "Successor",
       "lag24hour": "24-hour",
       "lagProjectDefault": "Project calendar",
+      "ssLagFrom": "Calculate SS lag from an in-progress predecessor from",
+      "ssLagEarlyStart": "Early start (remaining start)",
+      "ssLagActualStart": "Actual start (data date)",
+      "ssLagNeedsConvention": "Only applies when the convention “{{convention}}” is on.",
       "criticalDefinition": "Critical definition",
       "critTotalFloat": "Total float ≤ threshold",
       "critLongestPath": "Longest path",
@@ -252,7 +256,9 @@
       "floatPathsMethod": "Method",
       "methodFree": "Free float (peeling)",
       "methodTotal": "Total float (ranking)",
-      "maxPaths": "Max. paths"
+      "maxPaths": "Max. paths",
+      "tfAuto": "Automatic (default)",
+      "critThresholdHours": "Threshold (hours, per task calendar)"
     }
   },
   "newProject": {
@@ -318,6 +324,13 @@
       "quickstart": "Quick start",
       "gidsen": "Guides by topic",
       "referentie": "Reference"
+    },
+    "unapplied": {
+      "title": "Changes not applied",
+      "body": "You changed the project info but have not applied it yet. What do you want to do with these changes?",
+      "marker": "Changes not applied — click {{apply}} to keep them.",
+      "discard": "Discard",
+      "invalid": "The custom scheduling profile has no name yet. Give it a name or discard the changes."
     }
   },
   "export": {

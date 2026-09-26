@@ -4,12 +4,13 @@ import { Project } from '@/types/project';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
 import { normalizeImportedProgress, rebuildImportedHierarchy } from '@/services/importNormalize';
-import { csvDate, csvDateOrToday, emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
+import { csvDate, csvDateOrToday, csvDateOrUndefined, emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { DEFAULT_PRIORITY } from '@/services/ifc/ifcConstants';
 import { parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { LAG_UNIT_SUFFIXES, parseLagInput } from '@/utils/lagFormat';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
+import { buildRecordedTime, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
 interface ParsedRow {
   wbs: string;
@@ -32,6 +33,8 @@ interface ParsedRow {
   actualFinish?: string;
   critical: boolean;
   totalFloat: number;
+  /** Zie de toelichting bij `rows.push` in `readCSV`. */
+  recorded?: RecordedTime;
   description: string;
 }
 
@@ -260,8 +263,26 @@ export function readCSV(content: string): ImportResult {
     const actualStartRaw = get('actualStart').trim();
     const actualFinishRaw = get('actualFinish').trim();
 
+    // "Datums zoals opgeslagen" voor CSV (eigenaarsbesluit 2026-09-09, "vergelijk wat er is"):
+    // alleen kolommen die het bestand ÉCHT heeft en die voor deze rij gevuld zijn tellen als
+    // vastlegging — een ontbrekende kolom is "niet vastgelegd", nooit de `vandaag`-/`0`-terugval
+    // die `task.time` hieronder wél krijgt. Late datums kent een CSV niet.
+    const recordedStartRaw = colMap.start !== undefined ? get('start').trim() : '';
+    const recordedFinishRaw = colMap.finish !== undefined ? get('finish').trim() : '';
+    const recordedFloatRaw = colMap.totalFloat !== undefined ? get('totalFloat').trim() : '';
+    const recordedCriticalRaw = colMap.critical !== undefined ? get('critical').trim().toLowerCase() : '';
+    const recordedFloat = recordedFloatRaw ? Number.parseFloat(recordedFloatRaw) : Number.NaN;
+
     const outlineLevelRaw = get('outlineLevel').trim();
     rows.push({
+      recorded: buildRecordedTime({
+        start: recordedStartRaw ? csvDateOrUndefined(recordedStartRaw) : undefined,
+        finish: recordedFinishRaw ? csvDateOrUndefined(recordedFinishRaw) : undefined,
+        totalFloat: Number.isFinite(recordedFloat) ? recordedFloat : undefined,
+        isCritical: recordedCriticalRaw === 'yes' || recordedCriticalRaw === 'ja' || recordedCriticalRaw === 'true' || recordedCriticalRaw === '1' ? true
+          : recordedCriticalRaw === 'no' || recordedCriticalRaw === 'nee' || recordedCriticalRaw === 'false' || recordedCriticalRaw === '0' ? false
+            : undefined,
+      }),
       wbs: get('wbs'),
       ...(outlineLevelRaw ? { outlineLevel: parseInt(outlineLevelRaw, 10) } : {}),
       name: get('name', 'Task'),
@@ -292,6 +313,7 @@ export function readCSV(content: string): ImportResult {
   // Create tasks and map WBS -> task id
   const tasks: Task[] = [];
   const wbsToId = new Map<string, string>();
+  const recordedTimes: Record<string, RecordedTime> = {};
   // Een niet-IFC-classificatie uit CSV is geen reden om gegevens naar CONSTRUCTION te degraderen.
   // Hij wordt uitsluitend in dit geïmporteerde project een USERDEFINED-type, nooit automatisch
   // onderdeel van de persoonlijke app-brede lijst.
@@ -318,6 +340,7 @@ export function readCSV(content: string): ImportResult {
     if (row.finishMissing) missing.finish.add(id);
     if (wbsToId.has(row.wbs)) duplicateWbs.add(row.wbs);
     wbsToId.set(row.wbs, id);
+    if (row.recorded) recordedTimes[id] = row.recorded;
 
     const rawType = row.taskType.trim();
     const parsedType = parseTaskType(rawType);
@@ -460,5 +483,8 @@ export function readCSV(content: string): ImportResult {
     resources: [],
     assignments: [],
     customTaskTypes: [...customById.values()],
+    // Rekenprofielen (spec v3.1 §6): CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
+    suggestedProfileId: 'ops',
+    ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),
   };
 }

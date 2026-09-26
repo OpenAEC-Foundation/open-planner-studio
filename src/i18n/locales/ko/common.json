@@ -42,6 +42,8 @@
     "xerImportUnsupportedSemantics_other": "안전한 대체를 사용한 P6 일정 설정: {{count}}",
     "xerImportDatesAsRecorded_other": "Primavera에 기록된 날짜를 그대로 표시하는 작업: {{count}}개(다시 계산하지 않음)",
     "xerImportDatesAsRecordedOffer_other": "파일에 기록된 날짜와 다른 작업: {{count}}개(표시할 수 있습니다)",
+    "importDatesAsRecorded_other": "파일에 기록된 날짜를 그대로 표시하는 작업: {{count}}개(다시 계산하지 않음)",
+    "importDatesAsRecordedOffer_other": "파일에 기록된 날짜와 다른 작업: {{count}}개(표시할 수 있습니다)",
     "xerExportLoss": "{{format}} 형식으로 내보내면 XER 원본 정보가 손실됩니다.",
     "mppLegacy": "이 .mpp 파일은 이전 형식(Project 2007 이하)을 사용합니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
     "mppEncrypted": "이 .mpp 파일은 암호로 보호되어 있습니다. MS Project에서 XML로 내보낸 후(파일 → 다른 이름으로 저장 → XML) 해당 파일을 여세요.",
@@ -67,9 +69,14 @@
     "pasteSkippedReadOnly_other": "읽기 전용 셀 {{count}}개를 건너뛰었습니다(예: 자동 번호가 매겨진 WBS 코드 또는 계산된 열).",
     "librarySaveFailed": "라이브러리를 저장하지 못했습니다",
     "levelingDelayRoundedToWorkdays_other": "평준화는 MS Project의 분 단위로 정확한 평준화 지연({{count}}개 작업)을 전체 근무일로 반올림합니다.",
+    "schedulingProfileApplied": "이 프로젝트는 {{profile}}(으)로 계산됩니다. 파일 → 프로젝트 정보 → 계산 프로필 및 옵션에서 변경하세요.",
+    "schedulingProfileShifted_other": "적용 후 작업 {{count}}개가 이동했습니다.",
+    "actions": {
+      "openProjectInfo": "계산 프로필 열기"
+    },
     "xerArchiveUnusable": "이 파일의 XER 원본 아카이브는 사용할 수 없어 제외했습니다. 프로젝트 자체는 모두 열렸습니다.",
     "xerArchiveUnusableLine": "이 파일의 XER 원본 아카이브는 사용할 수 없어 제외했습니다.",
-    "xerArchiveUnusableConsequence": "IFC의 일정과 모든 프로젝트 데이터는 완전합니다. 빠진 것은 Primavera가 저장한 그대로의 날짜와 AI 및 확장 기능용 원본 출처입니다. 저장하면 아카이브 없이 파일이 기록됩니다. 아카이브를 되찾으려면 원본 .xer를 다시 가져오세요.",
+    "xerArchiveUnusableConsequence": "IFC의 일정, 계산 프로필 및 모든 프로젝트 데이터는 완전합니다. 빠진 것은 Primavera가 저장한 그대로의 날짜와 AI 및 확장 기능용 원본 출처입니다. 저장하면 아카이브 없이 파일이 기록됩니다. 아카이브를 되찾으려면 원본 .xer를 다시 가져오세요.",
     "xerArchiveReasonSchemaVersion": "이유: 아카이브의 스키마 버전 또는 형식을 알 수 없습니다(더 새로운 또는 다른 작성 프로그램).",
     "xerArchiveReasonHashMismatch": "이유: 체크섬이 원본 바이트와 일치하지 않습니다. 아카이브가 손상되었습니다.",
     "xerArchiveReasonTruncated": "이유: 아카이브가 잘렸습니다. 원본 바이트 일부가 없습니다.",
@@ -1135,6 +1142,162 @@
       "completion": "완료율",
       "actualStart": "실제 시작일",
       "actualFinish": "실제 종료일"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "역방향 계산에서 실적 날짜 유지",
+      "help": "시작되었거나 완료된 작업은 늦은 쪽에서도 기록된 날짜를 유지합니다. 완료된 후속 작업이 열린 선행 작업을 과거로 끌어당기지 않습니다."
+    },
+    "clampNegativeFreeFloat": {
+      "label": "자유 여유 시간은 음수가 되지 않음",
+      "help": "달성할 수 없는 늦은 제약이 있으면 총 여유 시간은 음수로 남지만 자유 여유 시간은 0이 됩니다."
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "마일스톤은 계획된 달력 경계를 따름",
+      "help": "기간이 0인 마일스톤은 파일이 계획한 달력 경계에 머뭅니다. 하루의 시작은 시작 마일스톤으로 남고, 구간 끝은 선행 작업의 완료에 놓일 수 있습니다."
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "계획 시작을 추가 하한으로 사용",
+      "help": "시작과 완료가 모두 네트워크가 허용하는 것보다 하루 이상 늦으면 파일의 계획 시작이 하한으로 적용됩니다."
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "완료 마일스톤을 경계 창으로 처리",
+      "help": "완료 마일스톤은 인접한 두 달력 경계에 놓일 수 있습니다. 조기 시작은 구간의 시작, 조기 완료는 이전 구간의 끝입니다."
+    },
+    "p6PreserveActualInstants": {
+      "label": "실적 날짜를 정확히 유지",
+      "help": "기록된 실적 시작 및 완료 날짜는 작업 시간 구간으로 이동되지 않습니다."
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "진행 중 작업: 조기 시작 = 남은 작업의 시작",
+      "help": "진행 중 작업의 조기 및 지연 시작은 과거의 실적 시작이 아니라 남은 작업이 시작되는 지점을 나타냅니다. 시작-시작 관계로 역산할 때는 잔여 기간만 계산합니다."
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "마일스톤의 제약 시점을 정확히",
+      "help": "기간이 0인 마일스톤의 날짜·시간 제약은 작업 구간의 시작에서도 정확한 시점입니다."
+    },
+    "resumeFromActualElapsed": {
+      "label": "남은 작업은 경과 기간 후에 재개",
+      "help": "진행 중 작업은 상태 날짜가 아니라 실적 시작에 경과 기간을 더한 시점에 남은 작업을 재개합니다."
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "시작되지 않은 작업을 상태 날짜로 옮기지 않음",
+      "help": "아직 시작되지 않은 작업은 자동으로 상태 날짜 또는 그 이후로 이동되지 않습니다."
+    },
+    "p6RelationFinishBoundary": {
+      "label": "후속 작업은 완료 경계에서 시작",
+      "help": "공유 구간 경계에서 지연 없는 완료-시작 관계의 경우 후속 작업은 선행 작업의 완료 시점에 시작합니다(파일이 그렇게 표시한 관계만). 역산 시 후속 작업은 최종 시작을 단순히 작업 구간의 시작으로 표시합니다."
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "완료 경계에서 역방향 지연",
+      "help": "역방향 계산이 완료 경계에서 작업 시간 지연을 빼서 정확히 구간 시작에 닿으면 이전 완료 경계에 놓입니다. 지연 없는 완료-완료 관계에서도 구간 끝에 있는 최종 완료는 그 완료 경계에 머뭅니다."
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "상태 날짜 창 안의 완료 작업",
+      "help": "완료된 작업은 상태 날짜 창 안에서 조기 날짜를 받으며, 그 완료는 프로젝트 완료에 포함됩니다(P6 출처 작업만)."
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "실적 완료를 통한 완료 LOE",
+      "help": "시작-시작 입력만 있는 완료된 LOE(level-of-effort) 활동은 실적 완료를 거치는 경로를 따릅니다(P6 출처 작업만)."
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "시작되지 않은 LOE는 목표 창을 사용",
+      "help": "아직 시작되지 않은 LOE(level-of-effort) 활동은 목표 창을 기간으로 사용합니다(P6 출처 작업만)."
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "완료된 선행 작업은 상태 날짜 이후로 붙잡지 않음",
+      "help": "완료된 선행 작업의 실제 완료가 상태 날짜 이후이더라도 후속 작업은 상태 날짜에 시작할 수 있습니다."
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "자유 여유 시간을 작업 자체 달력으로 계산",
+      "help": "시작되지 않은 작업의 자유 여유 시간은 관계마다 후속 작업이 아니라 작업 자체의 달력으로 계산합니다. 완료-시작, 시작-시작, 완료-완료에 적용되며, 선행 작업 달력의 작업 시간 지연도 포함합니다. 시작된 작업은 지연 없는 완료-시작에만 적용됩니다."
+    },
+    "p6CompletedRemainingLag": {
+      "label": "완료된 선행 작업의 경과한 지연은 계산하지 않음",
+      "help": "늦은 날짜 쪽에서는 완료된 선행 작업 뒤의 지연 중 상태 날짜에 아직 경과하지 않은 부분만 계산합니다."
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "순서 밖에서 완료된 작업은 선행 작업을 기다림",
+      "help": "선행 작업이 아직 끝나지 않은 완료 작업은 영(0) 구간을 상태 날짜가 아니라 그 선행 작업 뒤에 둡니다(Retained Logic)."
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "물리적 진척 완료 작업은 데이터 날짜에 놓임",
+      "help": "물리적 완료율을 가진 완료된 작업은 실제 날짜 대신 데이터 날짜(선행 작업이 요구하면 그 이후)의 한 지점으로 표시됩니다. 물리적 진행률에 대해서만 측정되었습니다. 다른 진행률 유형(P6 기본값: 기간)에서는 이 동작이 측정되지 않았으며 꺼진 상태로 유지됩니다."
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "진행 중인 선행 작업에서 경과한 SS 지연은 계산하지 않음",
+      "help": "이미 시작된 작업에서 오는 시작-시작 관계에서는 실제 시작부터 데이터 날짜까지 아직 경과하지 않은 지연 부분만 계산됩니다."
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "시작 마일스톤으로의 완료-완료 관계는 마일스톤 자체에 묶임",
+      "help": "시작 마일스톤으로의 완료-완료 관계는 그날의 시작이 아니라 마일스톤 자체까지 계산됩니다. 선행 작업의 최대 완료는 마일스톤의 최대 완료까지 늦출 수 있습니다."
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "계획 시작은 진행 중인 작업의 하한이 아님",
+      "help": "시작된 작업의 남은 작업은 계획 시작이 더 늦더라도 상태 날짜에, 선행 작업 바로 뒤에 시작됩니다."
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "자체 캘린더 기준 최종 완료",
+      "help": "후속 작업이 정한 최종 완료가 작업의 근무 시간 밖에 있으면, 작업 자체 캘린더의 이전 근무 기간 종료 시점이 됩니다."
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "Progress Override는 시작된 후행 작업을 역방향 계산에서도 무시",
+      "help": "Progress Override에서는 이미 시작된 후행 작업과의 관계가 아직 끝나지 않은 선행 작업의 최늦 날짜와 자유 여유에 반영되지 않습니다."
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "가장 이른 종료는 종료-종료 경계보다 앞서지 않음",
+      "help": "종료-종료 관계에서 후행 작업의 가장 이른 종료는 시계 시간으로 선행 작업이 정한 경계보다 앞서지 않습니다. 그 경계가 후행 작업의 비작업 시간에 해당하면, 종료는 다음 작업 시간대의 시작이 됩니다."
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP 작업을 후속 작업이 허용하는 만큼 늦게",
+      "help": "'가능한 한 늦게' 제약이 있는 시작되지 않은 작업은 후속 작업이 필요로 하는 분 단위 시점에 끝납니다. 후속 작업을 먼저 계산하므로 체인이 빈틈없이 이어집니다. 자체 계획 시작은 고려하지 않으며, 선행 작업이 없는 작업은 상태 날짜보다 먼저 시작하지 않습니다. 시간 단위 달력에만 적용됩니다."
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}} (수정됨)",
+    "copyOf": "{{name}} 사본"
+  },
+  "schedulingProfile": {
+    "title": "계산 프로필 및 옵션",
+    "profile": "계산 프로필",
+    "conventionsTitle": "이 프로필의 규칙",
+    "optionsTitle": "이 프로젝트의 계산 옵션",
+    "customName": "이 사용자 지정 프로필의 이름",
+    "saveAsTemplate": "템플릿으로 저장",
+    "updateTemplate": "이 프로젝트로 템플릿 업데이트",
+    "applyTemplate": "템플릿에서 업데이트",
+    "deleteTemplate": "템플릿 삭제",
+    "templateDeviates": "이 프로필은 템플릿 “{{name}}”과(와) 다릅니다.",
+    "applyDefaultOptions": "이 프로필의 기본 옵션 적용",
+    "themes": {
+      "completedWork": "진행 및 완료된 작업",
+      "relationsLag": "관계 및 지연",
+      "milestones": "마일스톤 및 LOE 작업",
+      "float": "여유 및 늦은 날짜",
+      "instants": "파일의 날짜와 시각",
+      "msproject": "Microsoft Project 방식의 진행",
+      "ownProfilesOnly": "사용자 프로필 전용"
+    },
+    "ownProfilesOnlyNote": "이 규칙은 Primavera P6를 포함한 모든 기본 제공 프로필에서 꺼져 있습니다. 하나를 켜면 사용자 프로필이 됩니다.",
+    "deviatingCount": "변경됨: {{n}}",
+    "baseValue": "기준: {{value}}",
+    "on": "켬",
+    "off": "끔",
+    "resetToBase": "기준으로 되돌리기",
+    "showHelp": "“{{name}}” 설명",
+    "sourceOptions": {
+      "title": "원본 파일의 설정",
+      "intro": "이 계산 옵션은 Primavera P6 파일(.xer)에서 가져온 것입니다. 계산에 사용되지만 여기에서는 변경할 수 없습니다.",
+      "useExpectedFinishDates": "예상 완료일 사용 (P6: Use Expected Finish Dates)",
+      "useProjectEndDateForFloat": "프로젝트 완료일까지 여유 계산",
+      "p6CompletedLateFromRemainingWindow": "완료된 작업: 데이터 날짜부터 늦은 날짜",
+      "needsConvention": "현재 꺼져 있는 규칙 “{{convention}}”과 함께일 때만 작동합니다."
     }
   }
 }

@@ -2,7 +2,9 @@ import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { Resource } from '@/types/resource';
 import { ResourceAssignment } from '@/types/resource';
-import { Project, SchedulingOptions } from '@/types/project';
+import { Project, SchedulingOptions, SchedulingProfile } from '@/types/project';
+import { carriesProfile, schedulingProfileToJson } from '@/services/ifc/schedulingOptionsRead';
+import { legacyOptionsBlobFor } from '@/services/ifc/schedulingProfileMigration';
 import { holidayEndDate, WorkCalendar } from '@/types/calendar';
 import { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { Baseline } from '@/types/baseline';
@@ -11,7 +13,7 @@ import {
   effectiveCalendarByTask, minutesToClock, minutesToIsoDuration, taskDurationUnitForIo, taskMinutesForWrite,
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
-import type { ImportResult } from '@/services/importTypes';
+import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
@@ -23,7 +25,7 @@ import {
   XER_SOURCE_ARCHIVE_COMPACT_STORAGE_SCHEMA_VERSION, type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
-  IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx,
+  IFC_TASK_SLOTS, IFC_TASKTIME_SLOTS, type TaskTimeWriteCtx, type TaskWriteCtx, type WithheldTaskTimeField,
 } from './ifcTaskSlots';
 
 /** Generate a 22-character IFC GlobalId (simplified). Geëxporteerd zodat de reader (fase 2.6,
@@ -94,7 +96,7 @@ function ifcDurationHour(minutes: number): string {
   return `'${minutesToIsoDuration(minutes)}'`;
 }
 
-interface WriteContext {
+export interface WriteContext {
   lines: string[];
   nextId: number;
   idMap: Map<string, number>; // our ID -> STEP #id
@@ -151,7 +153,15 @@ function addLine(ctx: WriteContext, key: string, line: string): number {
  * geen dubbele typedefinitie. De kernvelden zijn verplicht; de optionele vullen we hier met de
  * bestaande defaults (`[]` / `null`).
  */
-export type WriteIFCInput = ImportResult;
+export type WriteIFCInput = ImportResult & {
+  /**
+   * "Datums zoals opgeslagen" (critreview PR #167, bevinding 1): per taak-id de rekenslots die de
+   * writer als `$` moet schrijven, omdat `task.time` daar in de modus een weergave-terugval draagt
+   * en geen vastlegging uit het bronbestand. Alleen gevuld door `buildWriteIFCInput` wanneer de modus
+   * aanstaat; afwezig ⇒ byte-identiek aan vóór deze parameter.
+   */
+  withheldTaskTimeFields?: Readonly<Record<string, readonly WithheldTaskTimeField[]>>;
+};
 
 export function writeIFC(input: WriteIFCInput): string {
   const {
@@ -166,6 +176,9 @@ export function writeIFC(input: WriteIFCInput): string {
     xerSourceArchive = undefined,
     xer = undefined,
     xerSourceProjectId = undefined,
+    importPristine = undefined,
+    withheldTaskTimeFields = undefined,
+    recordedSourceFormat = undefined,
   } = input;
   const ctx: WriteContext = { lines: [], nextId: 1, idMap: new Map(), guids: new Map(), usedGuids: new Set() };
   const now = new Date().toISOString().split('.')[0];
@@ -279,6 +292,7 @@ export function writeIFC(input: WriteIFCInput): string {
       ctx, task, ownerHistId, project.statusDate, taskDurationUnitForIo(task) === 'hours',
       effCal?.hoursPerDay ?? calendar.hoursPerDay,
       customTaskTypes.find(type => type.id === task.customTaskTypeId)?.name,
+      withheldTaskTimeFields?.[task.id],
     );
   }
 
@@ -347,7 +361,13 @@ export function writeIFC(input: WriteIFCInput): string {
   // Baselines (fase 2.6): OPS_Baselines-pset (JSON autoritair) op de IfcWorkSchedule
   writeBaselineMeta(ctx, workSchedId, baselines, activeBaselineId, ownerHistId);
   // Scheduling-options (fase 2.9, §3.4/§6): OPS_SchedulingOptions-pset (JSON autoritair) op de IfcWorkSchedule
-  writeSchedulingOptionsMeta(ctx, workSchedId, project.schedulingOptions, ownerHistId);
+  // Rekenprofielen (spec v3.1 §3.3): OPS_SchedulingOptions = projectopties + A22/A23 alleen als ze
+  // opgelost true zijn (compat met uitgebrachte versies); het profiel staat in OPS_SchedulingProfile,
+  // alleen als het ≠ het standaardprofiel (OPS-bestanden blijven byte-identiek).
+  writeSchedulingOptionsMeta(ctx, workSchedId, legacyOptionsBlobFor(project), ownerHistId);
+  writeSchedulingProfileMeta(ctx, workSchedId, project.schedulingProfile, ownerHistId);
+  // Heropen-beleid optie B: OPS_ImportProvenance-pset, alleen bij `importPristine === true`.
+  writeImportProvenanceMeta(ctx, workSchedId, importPristine === true, recordedSourceFormat, ownerHistId);
 
   // Footer
   const footer = '\nENDSEC;\nEND-ISO-10303-21;\n';
@@ -733,6 +753,60 @@ function writeSchedulingOptionsMeta(
     `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedopts'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
 }
 
+/**
+ * Rekenprofielen — het profiel als één `OPS_SchedulingProfile`-pset op de `IfcWorkSchedule`
+ * (exact het `writeSchedulingOptionsMeta`-patroon). De JSON draagt alle zevenentwintig conventies
+ * OPGELOST (`schedulingProfileToJson`), plus de afwijkingen letterlijk. Golden rule: afwezig profiel
+ * of het standaardprofiel (`ops` zonder enige afwijking, `carriesProfile`) ⇒ geen pset, zodat
+ * bestaande bestanden byte-identiek blijven.
+ */
+export function writeSchedulingProfileMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  profile: SchedulingProfile | undefined,
+  ownerHistId: number,
+): void {
+  if (!carriesProfile(profile)) return;
+  const json = JSON.stringify(schedulingProfileToJson(profile));
+  const propId = addLine(ctx, '_ps_schedprofile',
+    `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT(${ifcStr(json)}),$)`);
+  const setId = addLine(ctx, '_pset_schedprofile',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_schedprofile'))},#${ownerHistId},${ifcStr(PSET.SchedulingProfile)},$,(#${propId}))`);
+  addLine(ctx, '_rel_schedprofile',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_schedprofile'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
+/**
+ * Heropen-beleid optie B (eigenaarsbesluit 2026-09-09) — "ongewijzigd sinds import" als één
+ * `OPS_ImportProvenance`-pset op de `IfcWorkSchedule`. Golden rule: alleen geschreven als de vlag
+ * `true` is; `false`/afwezig ⇒ geen pset, dus elk bestand van vóór deze vlag blijft byte-identiek
+ * en leest terug als `false` (nooit een gok richting "automatisch aan").
+ */
+function writeImportProvenanceMeta(
+  ctx: WriteContext,
+  workSchedId: number,
+  importPristine: boolean,
+  sourceFormat: RecordedSourceFormat | undefined,
+  ownerHistId: number,
+): void {
+  if (!importPristine && !sourceFormat) return;
+  const propIds: number[] = [];
+  if (importPristine) {
+    propIds.push(addLine(ctx, '_ps_importprov',
+      `IFCPROPERTYSINGLEVALUE('UnchangedSinceImport',$,IFCBOOLEAN(.T.),$)`));
+  }
+  // Eigenaarsbesluit 2026-09-24 ("beperken"): de oorspronkelijke bron met echte rekenuitvoer, zodat
+  // een heropening de modus alleen kent voor XER/P6 XML/MSPDI/.mpp/vreemd-IFC-met-early-slots.
+  if (sourceFormat) {
+    propIds.push(addLine(ctx, '_ps_importprov_source',
+      `IFCPROPERTYSINGLEVALUE('SourceFormat',$,IFCLABEL(${ifcStr(sourceFormat)}),$)`));
+  }
+  const setId = addLine(ctx, '_pset_importprov',
+    `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'pset_importprov'))},#${ownerHistId},${ifcStr(PSET.ImportProvenance)},$,(${propIds.map(id => `#${id}`).join(',')}))`);
+  addLine(ctx, '_rel_importprov',
+    `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'rel_importprov'))},#${ownerHistId},$,$,(#${workSchedId}),#${setId})`);
+}
+
 /** Fase 2.8b (§7.1) — `IfcWorkCalendar.PredefinedType` uit `calendar.shift`. CONVENTIE: buildingSMART
  *  definieert de dag/avond/nacht-semantiek van `.FIRSTSHIFT./.SECONDSHIFT./.THIRDSHIFT.` NIET
  *  (Rapport B §4.5, UNVERIFIED) — OPS gebruikt ze als ploeg-classificatie. Afwezig/FIRST ⇒
@@ -996,6 +1070,7 @@ function writeCalendarLibrary(
 function writeTask(
   ctx: WriteContext, task: Task, ownerHistId: number, statusDate: string | undefined,
   isHour: boolean, effHoursPerDay: number, customTaskTypeLabel?: string,
+  withheld?: readonly WithheldTaskTimeField[],
 ): void {
   const t = task.time;
   // Fase 2.8b (§7.1): in UUR-modus dragen de datetimes de echte tijd-van-de-dag en is de duur
@@ -1032,6 +1107,7 @@ function writeTask(
   const ttCtx: TaskTimeWriteCtx = {
     task, dt, ifcDuration, schedDurArg, statusTimeArg,
     actualDurationArg, actualStartArg, actualFinishArg, remainingArg,
+    ...(withheld && withheld.length > 0 ? { withheld: new Set(withheld) } : {}),
   };
   const taskTimeId = addLine(ctx, `tasktime_${task.id}`,
     `IFCTASKTIME(${IFC_TASKTIME_SLOTS.map(s => s.write(ttCtx)).join(',')})`);

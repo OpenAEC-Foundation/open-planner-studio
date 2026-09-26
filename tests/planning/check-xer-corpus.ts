@@ -294,7 +294,10 @@ if (!root) {
   eq('C1 volledige manifestcrawl heeft concrete parser-/rapporttellingen', aggregate, {
     files: 93,
     ok: 71,
-    oracleOk: 45,
+    // 13 sinds het populatiebesluit van 2026-09-23 (alleen P6-doorgerekende orakels; de 32 andere
+    // voormalige orakels zijn `reader-only` en worden hier nog steeds zonder fout geparseerd: ok 71).
+    // 9 sinds 2026-09-23 (tweede toepassing: de vier DCP-03-Baseline-kopieën zijn generatoruitvoer).
+    oracleOk: 9,
     oracleErrors: 0,
     referenceOk: 1,
     referenceErrors: 0,
@@ -309,8 +312,9 @@ if (!root) {
     },
     // TASKNOTE is sinds X8 een retained bron-tabel: precies twee dossier-tabellen met samen
     // 132 rijen verdwijnen daarom uit de onbekende X2-rapportage.
-    unknownTables: 58,
-    unknownRows: 782,
+    // Nivelleerfundament (2026-09-24): RSRCLEVELLIST is een bekende tabel (OZB, 4 rijen) ⇒ 58 → 57 / 782 → 778.
+    unknownTables: 57,
+    unknownRows: 778,
   });
 }
 

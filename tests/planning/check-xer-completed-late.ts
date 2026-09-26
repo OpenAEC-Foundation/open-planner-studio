@@ -29,12 +29,14 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
 import { readXER } from '@/services/xer/xerReader';
 import { parseInstant } from '@/utils/dateUtils';
-import { explainP6CompletedDataDateWindow } from '@/utils/p6CompletedTargetWindow';
+import { explainP6CompletedDataDateWindow } from '@/engine/scheduler/p6CompletedTargetWindow';
 import {
   explainBackwardActualPinEligibility,
-  explainP6CompletedLateRemainingWindowEligibility,
+  explainP6CompletedLateRemainingWindowEligibilityResolved,
 } from '@/engine/scheduler/p6CompletedRouteTrace';
 import type { SchedulingOptions } from '@/types/project';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
+import { setConvention } from './p6SemanticsOff';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -142,14 +144,23 @@ function fixtureBytes(): Uint8Array {
 function importFixture(): ImportResult {
   const opened = readXER(fixtureBytes());
   if (isMultiDocumentImport(opened)) throw new Error('completed-late fixture moet precies één project openen');
+  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
+  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
+  setConvention(opened, 'p6CompletedDataDateWindow', true);
+  setConvention(opened, 'p6CompletedLoeActualFinish', true);
   return opened;
 }
 
-function solveWith(overrides?: Partial<SchedulingOptions>) {
+// Conventie C3 `p6CompletedRemainingLag` (X12 brok 2): alle voltooide taken hier eindigen in augustus,
+// ruim vóór de statusdatum (10 sep) — elke lag uit een voltooide voorganger is dus volledig verstreken
+// en valt onder C3 weg. Deze batterij pint de LAGREKENKUNDE van de restvensterroute (SS/SF/FF,
+// procentlag); daarom rekent ze standaard met C3 UIT. Wat C3 doet staat in het eigen blok onderaan.
+function solveWith(overrides?: Partial<SchedulingOptions>, remainingLag = false) {
   const imported = structuredClone(importFixture());
   if (overrides) {
     imported.project.schedulingOptions = { ...imported.project.schedulingOptions, ...overrides };
   }
+  setConvention(imported, 'p6CompletedRemainingLag', remainingLag);
   // Procentlag bestaat niet in XER (TASKPRED kent alleen `lag_hr_cnt`); een gebruiker/MCP/IFC kan
   // hem op een XER-project wél zetten. Hier ná de import op de SSP/FSP-relaties: 50% van 16 u.
   for (const seq of imported.sequences) {
@@ -166,7 +177,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
     progressMode: imported.project.progressMode,
-    schedulingOptions: imported.project.schedulingOptions,
+    schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
     projectEndDate: imported.project.endDate,
   });
@@ -182,7 +193,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
   for (const id of ['A', 'B', 'G']) {
     const task = imported.tasks.find(t => t.id === id);
     if (!task) throw new Error(`fixture mist taak ${id}`);
-    const decision = explainP6CompletedDataDateWindow(task, dataDate, imported.project.schedulingOptions);
+    const decision = explainP6CompletedDataDateWindow(task, dataDate, solveOptionsFor(imported.project).schedulingOptions);
     eq(`completed-late fixture: taak ${id} zit in de completedWindow-poort`, decision, { eligible: true, reason: 'eligible' });
   }
 }
@@ -305,12 +316,12 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
 // completed-actual-pin niet — precies de spleet waarin de weergavelaag vóór deze fix wél meebewoog
 // (ls/lf verschoven naar het statusdatumvenster en de float ging tegen dat venster meten) terwijl
 // `CPMSolver.backwardPass` zijn nieuwe tak oversloeg. De gedeelde poort
-// `explainP6CompletedLateRemainingWindowEligibility` sluit beide kanten tegelijk; het bewijs is dat
+// `explainP6CompletedLateRemainingWindowEligibilityResolved` sluit beide kanten tegelijk; het bewijs is dat
 // NX met vlag AAN byte-identiek is aan NX met vlag UIT.
 {
   const { imported } = solveWith();
   const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
-  const so = imported.project.schedulingOptions;
+  const so = solveOptionsFor(imported.project).schedulingOptions;
   const nx = imported.tasks.find(t => t.id === 'NX');
   if (!nx) throw new Error('fixture mist taak NX');
   eq('poortpariteit: NX heeft completion 1 maar géén actualFinish', {
@@ -322,7 +333,7 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
     explainBackwardActualPinEligibility(nx, dataDate, so),
     { eligible: false, reason: 'missingActualFinish' });
   eq('poortpariteit: de gedeelde poort weigert NX om diezelfde reden',
-    explainP6CompletedLateRemainingWindowEligibility(nx, dataDate, so),
+    explainP6CompletedLateRemainingWindowEligibilityResolved(nx, dataDate, so),
     { eligible: false, reason: 'missingActualFinish' });
 
   const on = solveWith().result.tasks.get('NX')!;
@@ -369,6 +380,27 @@ function solveWith(overrides?: Partial<SchedulingOptions>) {
     sfa: { lateStart: '2026-08-03T07:00', lateFinish: '2026-08-04T15:00', totalFloat: 0 },
     ffa: { lateStart: '2026-08-03T07:00', lateFinish: '2026-08-04T15:00', totalFloat: 0 },
   });
+}
+
+// ── C3 `p6CompletedRemainingLag` AAN (het P6-profiel zoals gelezen). ────────────────────────────
+// De lag is op de statusdatum volledig verstreken (werkelijk einde 4 aug, statusdatum 10 sep), dus
+// elke relatie mét lag rekent als haar tegenhanger zonder lag; de lag-0-relaties zelf veranderen niet.
+{
+  const off = solveWith().result.tasks;
+  const on = solveWith(undefined, true).result.tasks;
+  const w = (tasks: typeof on, id: string) => [tasks.get(id)!.lateStart, tasks.get(id)!.lateFinish];
+  eq('completed-late C3 AAN: verstreken lag telt niet — SS/FS/SF/FF+8u en SS/FS+50% = hun lag-0-tegenhanger', {
+    ssl: w(on, 'SSL'), fsl: w(on, 'FSL'), sfl: w(on, 'SFL'), ffl: w(on, 'FFL'), ssp: w(on, 'SSP'), fsp: w(on, 'FSP'),
+  }, {
+    ssl: w(on, 'SSA'), fsl: w(on, 'FSA'), sfl: w(on, 'SFA'), ffl: w(on, 'FFA'), ssp: w(on, 'SSA'), fsp: w(on, 'FSA'),
+  });
+  eq('completed-late C3 AAN: de lag-0-relaties zelf zijn ongewijzigd', {
+    ssa: w(on, 'SSA'), fsa: w(on, 'FSA'), sfa: w(on, 'SFA'), ffa: w(on, 'FFA'),
+  }, {
+    ssa: w(off, 'SSA'), fsa: w(off, 'FSA'), sfa: w(off, 'SFA'), ffa: w(off, 'FFA'),
+  });
+  eq('completed-late C3 AAN: de mét-lag-relaties verschuiven echt (fixture is onderscheidend)',
+    w(on, 'FSL')[0] !== w(off, 'FSL')[0], true);
 }
 
 if (diffs.length > 0) {

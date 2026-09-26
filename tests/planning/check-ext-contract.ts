@@ -62,6 +62,7 @@ import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';
 import { ExtImportSourceDriftError } from '@/extensions/extImportSource';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -85,6 +86,7 @@ function keys<T>() {
 const EXT_PROJECT_KEYS = keys<ExtProject>()([
   'id', 'name', 'description', 'startDate', 'endDate', 'calendarId', 'createdAt', 'modifiedAt',
   'author', 'company', 'wbsAutoNumber', 'statusDate', 'progressMode', 'defaultTaskDurationUnit', 'schedulingOptions',
+  'schedulingProfile',
 ] as const);
 
 const EXT_CALENDAR_KEYS = keys<ExtCalendar>()([
@@ -151,7 +153,9 @@ const NIET_PUBLIEK = {
 // `NIET_PUBLIEK`: `toExt*` geeft ze bewust door, maar `fromExt*` accepteert ze niet als generieke
 // solverinvoer. Alleen de native XER-reader mag de relationele P6-bronvlag afleiden.
 const LEES_ALLEEN_EXT = {
-  project: [] as readonly string[],
+  // Rekenprofielen C8 (apiVersion 1.2.0): het opgeloste profiel is zichtbaar, maar een extensie-import
+  // rekent altijd als OPS — `fromExtProject` neemt het nooit over (spec v3.1 §7).
+  project: ['schedulingProfile'] as readonly string[],
   calendar: ['p6Source', 'p6NonWorkPenaltyDates'] as readonly string[],
   resource: [] as readonly string[],
   task: [
@@ -266,6 +270,7 @@ const VOL_PROJECT = {
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 5 },
   },
   companyId: 'bedrijf-1', companyName: 'Bibliotheek BV',
+  schedulingProfile: { baseId: 'msproject', id: 'eigen-1', name: 'Eigen', overrides: { clampNegativeFreeFloat: true } },
 } satisfies Required<Project>;
 
 const VOL_CALENDAR = {
@@ -302,7 +307,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
 {
   const hostileOptions = {
     ...VOL_PROJECT.schedulingOptions,
-    p6Source: 'XER' as const,
+    p6Source: 'XER' as const, // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
@@ -325,6 +330,21 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   eq('X12 toExtProject toont evenmin interne runtime-opties uit een intern project',
     Object.keys(toExtProject({ ...VOL_PROJECT, schedulingOptions: hostileOptions }).schedulingOptions ?? {}).sort(),
     [...PUBLIC_SCHEDULING_OPTION_KEYS].sort());
+}
+
+// ── C8 (rekenprofielen): ExtProject.schedulingProfile, alleen-lezen ──────────
+// Mutatiebewijs: fromExtProject het profiel laten kopiëren ⇒ C8-03 rood.
+{
+  const exposed = toExtProject({ ...VOL_PROJECT, schedulingProfile: builtInProfile('p6') });
+  eq('C8-01 toExtProject toont het opgeloste profiel',
+    [exposed.schedulingProfile?.id, exposed.schedulingProfile?.conventions.p6RelationFinishBoundary], ['p6', true]);
+  eq('C8-02 OPS-project toont het ops-profiel', toExtProject({ ...VOL_PROJECT, schedulingProfile: undefined }).schedulingProfile?.id, 'ops');
+  eq('C8-03 fromExtProject neemt NOOIT een profiel over (extensie-import ⇒ OPS)', fromExtProject(exposed).schedulingProfile, undefined);
+  eq('C8-04 contractversie 1.2.0', EXTENSION_API_VERSION, '1.2.0');
+  const custom = toExtProject(VOL_PROJECT).schedulingProfile;
+  eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
+    [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],
+    ['eigen-1', 'msproject', 'Eigen', 27, true]);
 }
 
 {
@@ -453,6 +473,8 @@ for (const [naam, ext, bron, sleutels] of [
   ['assignment', toExtAssignment(VOL_ASSIGNMENT), VOL_ASSIGNMENT, EXT_ASSIGNMENT_KEYS],
 ] as [string, object, object, readonly (string | number | symbol)[]][]) {
   for (const k of sleutels) {
+    // Het rekenprofiel wordt OPGELOST blootgesteld (andere vorm dan intern) — gedekt door C8-01…05.
+    if (naam === 'project' && k === 'schedulingProfile') continue;
     eq(`10 ${naam}: "${String(k)}" komt over`,
       (ext as Record<string, unknown>)[k as string],
       (bron as Record<string, unknown>)[k as string]);

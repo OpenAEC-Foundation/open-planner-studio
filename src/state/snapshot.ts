@@ -6,6 +6,7 @@ import { originalAppState } from './immerDraft';
 import { syncProjectCalendar } from './syncProjectCalendar';
 import { createDefaultProject } from './defaults';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
+import { markDocumentEdited, markDocumentUnsaved } from '@/state/documentEdited';
 
 /**
  * De undo/redo-snapshot is een EXPLICIETE subset van het documentcontract (audit P10).
@@ -24,7 +25,8 @@ import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
  *    cpmResult, scheduleStale, activeBaselineId, recordedDates, datesAsRecorded
  *  UIT ('none' — undo mag deze bewust NIET aanraken):
  *    selectedTaskIds, resourceLoadResult, view, collapsedTaskIds, filePath, fileHandle en isDirty
- *    (data-undo/redo zet isDirty altijd op true). De sessiehistorie is app-globaal en hoort niet bij
+ *    (data-undo/redo zet isDirty altijd op true; `importPristine` wist alleen een undo/redo van een
+ *    echte bewerking, niet van een `nonEdit`-event — zie `restoreSnapshot`). De sessiehistorie is app-globaal en hoort niet bij
  *    `DocumentPayload`. resourceLoadResult en viewRows worden door `materializeHistoryTarget` uit
  *    het herstelde target afgeleid.
  *
@@ -199,7 +201,18 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
  *  De herstelde waarden zijn dezelfde objecten als in de snapshot (zie `createSnapshot`): de live
  *  state en de snapshot aliassen dus na een undo. Dat is veilig om exact dezelfde reden — de
  *  eerstvolgende mutatie is een producer en die kopieert. */
-export function restoreSnapshot(s: AppState, raw: Snapshot): void {
+export function restoreSnapshot(
+  s: AppState,
+  raw: Snapshot,
+  opts?: {
+    /** Default `true`: het geheugen wijkt na herstel af van de schijf. `false` alleen voor een
+     *  aanroeper die `isDirty` zelf terugzet (de MCP-rollback). */
+    markDirty?: boolean;
+    /** Default `true`: wis "ongewijzigd sinds import". `false` voor een `nonEdit`-event en de
+     *  MCP-rollback. */
+    clearImportPristine?: boolean;
+  },
+): void {
   const snap = migrateSnapshot(raw);
   const flat = snap as unknown as Record<string, unknown>;
   for (const f of DOCUMENT_FIELDS) {
@@ -210,5 +223,13 @@ export function restoreSnapshot(s: AppState, raw: Snapshot): void {
   // DEZELFDE snapshot, dus de cache wordt consistent met het herstelde id afgeleid; de
   // orphan-fallback promoveert de meegeherstelde `calendar`-waarde (niet de nieuwere).
   syncProjectCalendar(s);
-  s.isDirty = true;
+  // Twee aparte vragen. (1) Wijkt het geheugen af van de schijf? Na elke undo/redo wel — ook van F5:
+  // na laden → F5 → opslaan → Ctrl+Z staat er iets anders in het geheugen dan in het bestand.
+  // (2) Is het document sinds de import BEWERKT? Alleen als het event een bewerking was; undo/redo
+  // van een `nonEdit`-event (F5 of "toon opgeslagen datums" in de modus) laat de importvlag staan
+  // (critreview op ded4d8c3, bevinding 3, en de her-check daarop).
+  const clearPristine = opts?.clearImportPristine !== false;
+  if (opts?.markDirty !== false && clearPristine) markDocumentEdited(s);
+  else if (opts?.markDirty !== false) markDocumentUnsaved(s);
+  else if (clearPristine) s.importPristine = false;
 }

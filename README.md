@@ -73,7 +73,7 @@ src/
   extensions/        # Extensiesysteem (types, api, loader, service)
   i18n/              # Vertalingen, 14 talen × 4 namespaces
   hooks/  types/  utils/  styles/
-public/docs/         # In-app handleiding: 36 artikelen in nl+en, de meeste ook in 12 andere talen (voedt ook de wiki)
+public/docs/         # In-app handleiding: 37 artikelen in nl+en, de meeste ook in 12 andere talen (voedt ook de wiki)
 examples/            # Voorbeeldplanningen in IFC
 tests/               # planning · library · mcp · dev-server · browser
 src-tauri/           # De Rust-schil (dun: precies één native command)

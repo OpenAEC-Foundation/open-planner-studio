@@ -23,6 +23,7 @@ import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProjec
 import type { CellEditIntent, TaskColumnContext } from '@/types/taskGrid';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
+import { opsSolveInput } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -239,10 +240,10 @@ function parentWithChild(days: number): { parent: string; child: string } {
   reset();
   const { parent } = parentWithChild(10);
   const clone = cloneTasksForSolve(S().tasks);
-  solveProject({
+  solveProject(opsSolveInput({
     tasks: clone, sequences: S().sequences, calendar: S().calendar, calendars: S().calendars,
     projectStartDate: S().project.startDate,
-  });
+  }));
   eq('Efemere solve leidt af op de kloon en laat het origineel met rust',
     [clone.find(t => t.id === parent)!.time.scheduleDuration, task(parent).time.scheduleDuration],
     [10, 5]);

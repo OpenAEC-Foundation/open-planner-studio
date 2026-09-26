@@ -52,6 +52,9 @@ You open a `.mpp` file the exact same way as any other project file:
 The file lands in a **new document** — like any import — unless the active tab is still empty and
 unchanged.
 
+An `.mpp` file opens with the calculation profile **Microsoft Project**; MS Project XML opens as
+**Open Planner Studio** in this version. See [Calculation profiles](docs://gids-rekenprofielen).
+
 ## Date accuracy
 
 Open Planner Studio schedules an opened `.mpp` file using the same calendar logic as MS Project
@@ -167,8 +170,9 @@ Primavera P6 or another format) based on the status date or the pressure from pr
 usually won't notice this — the two approaches land on the same result for most tasks — but it's
 why a `.mpp`-imported task can sometimes show a slightly different resumption point than an
 otherwise identical task sourced from P6 or MS Project XML. This setting is a permanent property of
-the project: it stays intact across **Save** (as IFC) and a later **Open**, with no toggle anywhere
-to see or change it.
+the project: it stays intact across **Save** (as IFC) and a later **Open**. In Project info this
+convention is called *Remaining work resumes after the elapsed duration* and belongs to the
+Microsoft Project profile.
 
 ## Calendar exceptions and work weeks
 
@@ -219,5 +223,6 @@ Planner Studio itself is open source under LGPL-3.0.
 ## Further reading
 
 - What each export and import format does and doesn't carry: [Import/export](docs://gids-import-export).
+- Which calculation profile a project gets and how to switch: [Calculation profiles](docs://gids-rekenprofielen).
 - Checking working days, hours and holidays after opening:
   [Calendars & hour planning](docs://gids-kalenders-uren).

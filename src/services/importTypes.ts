@@ -1,4 +1,4 @@
-import type { Project } from '@/types/project';
+import type { BuiltInProfileId, Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -8,7 +8,7 @@ import type { CustomTaskType } from '@/types/taskType';
 import type { Baseline } from '@/types/baseline';
 import type { CompanyPool } from '@/types/library';
 import type { RecordedFieldKey } from '@/services/ifc/ifcTaskSlots';
-import type { RecordedTime } from '@/engine/scheduler/recordedDates';
+import type { RecordedDatesState, RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
@@ -213,6 +213,11 @@ export interface ImportLabels {
   unassignedResource?: string;
 }
 
+/** Zie `ImportResult.recordedTimesOrigin`. */
+export type RecordedTimesOrigin = 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'mpp' | 'csv' | 'ifc' | 'ifc-own';
+/** Zie `ImportResult.recordedSourceFormat` en `RecordedDatesState.sourceFormat`. */
+export type RecordedSourceFormat = NonNullable<RecordedDatesState['sourceFormat']>;
+
 export interface ImportResult {
   // Kernvelden — door elk formaat geleverd.
   project: Project;
@@ -278,18 +283,49 @@ export interface ImportResult {
    *  twee kanalen worden nooit gemengd (een XER-import heeft geen `recordedFields`, een
    *  IFC-import geen `recordedTimes`). */
   recordedTimes?: Record<string, RecordedTime>;
-  /** Herkomst van `recordedTimes` — stuurt het standaard-aan-beleid voor "datums zoals opgeslagen"
-   *  (O6-patroon: alleen de XER-route zet dit; andere formaten blijven byte-identiek doordat dit
-   *  veld afwezig blijft).
-   *  - `'xer'`: verse XER-import (`readXER`). Standaard AAN zodra er restverschillen zijn.
-   *  - `'xer-archive'`: heropende IFC met XER-bronarchief (`readIFC`'s T5-archiefreconstructie).
-   *    Alleen AANBOD, nooit automatisch AAN — een intussen bewerkte en opgeslagen planning mag bij
-   *    heropenen niet stilzwijgend P6's oude datums tonen (orkestratorbesluit, XER-etappe laag 3,
-   *    heropen-beleid 2026-09-05). `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`)
-   *    is de enige plek die op dit onderscheid let. */
-  recordedTimesOrigin?: 'xer' | 'xer-archive';
+  /** Herkomst van de VASTLEGGING (`recordedTimes`, of voor IFC `recordedFields`) — stuurt het
+   *  standaard-aan-beleid voor "datums zoals opgeslagen" (eigenaarsbesluit 2026-09-09: "het moet
+   *  altijd gaan zoals het nu bij XER werkt", plus heropen-beleid optie B).
+   *  - VERSE IMPORT — `'xer'`, `'p6xml'`, `'mspdi'`, `'mpp'`, `'csv'` en `'ifc'` (een IFC dat
+   *    NIET door deze app is geschreven): standaard AAN zodra er restverschillen zijn.
+   *  - HEROPENING — `'xer-archive'` (eigen IFC mét XER-bronarchief) en `'ifc-own'` (eigen IFC
+   *    zonder archief): automatisch AAN alleen zolang het document sinds de import niet is
+   *    bewerkt (`importPristine`, hieronder); anders uitsluitend het AANBOD — een intussen
+   *    bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend de oude brondatums
+   *    tonen.
+   *  - `undefined`: geen herkomst (bv. een extensie-importer).
+   *  BEPERKT door het eigenaarsbesluit 2026-09-24 ("beperken"): alleen een bron met echte
+   *  rekenuitvoer krijgt de modus, het aanbod of de melding — zie de ene poort
+   *  `recordedDatesSource` (`src/state/documentActivation.ts`). 'csv', `undefined`, een 'ifc' met
+   *  alleen ScheduleStart/-Finish en een 'ifc-own' zonder `recordedSourceFormat` vallen erbuiten.
+   *  `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`) is de enige plek die op dit
+   *  onderscheid let; `recordedDatesNoticeText.ts` kiest er alleen de WOORDKEUZE op. */
+  recordedTimesOrigin?: RecordedTimesOrigin;
+  /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). Alleen
+   *  gevuld door `readIFC` uit het `OPS_ImportProvenance`-pset van een EIGEN IFC; `true` betekent
+   *  dat het document tussen de oorspronkelijke import en dit opslaan geen enkele bewerking heeft
+   *  gehad (opslaan zelf telt niet als bewerking). Afwezig ⇒ `false` voor een heropening (nooit
+   *  een gok), en irrelevant voor een verse import (die is per definitie ongewijzigd — zie
+   *  `payloadFromImport`). Elke mutator wist de vlag via `markDocumentEdited`. */
+  importPristine?: boolean;
+  /** Eigenaarsbesluit 2026-09-24 ("beperken"): de OORSPRONKELIJKE bron van de vastlegging in een
+   *  EIGEN IFC — alleen gevuld door `readIFC` uit `OPS_ImportProvenance.SourceFormat`. Een eigen IFC
+   *  zonder deze uitspraak vergelijkt onze eigen oude solve met de nieuwe en krijgt geen modus. */
+  recordedSourceFormat?: RecordedSourceFormat;
+  /** Rekenprofielen (spec v3.1 §6): welk ingebouwd profiel deze LEZER voorstelt. Gezet door de
+   *  formaatlezers (XER ⇒ 'p6', `.mpp` ⇒ 'msproject', MSPDI/P6-XML/CSV ⇒ 'ops'); afwezig bij IFC
+   *  (het bestand draagt zijn eigen profiel) en bij extensie-importers. `applyOpenedImport` meldt
+   *  alleen bij een voorstel ≠ 'ops' (C6). Het profiel zelf staat al op `project.schedulingProfile`. */
+  suggestedProfileId?: BuiltInProfileId;
   /** Alleen XER: bronmetadata en solverloze cross-projectrelaties voor het geladen document. */
   xer?: XerImportMetadata;
+  /** Herkomst van `xer`: `'xer-archive'` wanneer `readIFC` de metadata uit het meegereisde
+   *  bronarchief van een HEROPENDE IFC reconstrueert; afwezig bij een verse `readXER`. De
+   *  XER-openingsmelding (`xerImportNotice`) vuurt alleen bij een verse XER-import — heropenen uit
+   *  eigen IFC meldt niets (gebruikstest rekenprofielen 24-09, B4). Afwezig wanneer `readIFC` een
+   *  onbruikbaar archief weggelaten heeft (`xerArchiveIssue`): dan is er geen `xer` en dus ook
+   *  geen archiefherkomst. */
+  xerOrigin?: 'xer-archive';
   /** Alleen XER: exact, gedeeld en immutable bronarchief; nooit solverinvoer. */
   xerSourceArchive?: XerSourceArchive;
   /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */

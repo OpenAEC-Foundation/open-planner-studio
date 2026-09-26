@@ -235,6 +235,10 @@
       "lagSuccessor": "Opvolger",
       "lag24hour": "24-uurs",
       "lagProjectDefault": "Projectkalender",
+      "ssLagFrom": "SS-lag van een lopende voorganger rekenen vanaf",
+      "ssLagEarlyStart": "Vroege start (restwerkstart)",
+      "ssLagActualStart": "Werkelijke start (statusdatum)",
+      "ssLagNeedsConvention": "Werkt alleen als de conventie „{{convention}}” aanstaat.",
       "criticalDefinition": "Kritiek-definitie",
       "critTotalFloat": "Totale speling ≤ drempel",
       "critLongestPath": "Langste pad",
@@ -252,7 +256,9 @@
       "floatPathsMethod": "Methode",
       "methodFree": "Vrije speling (peeling)",
       "methodTotal": "Totale speling (rangschikking)",
-      "maxPaths": "Max. paden"
+      "maxPaths": "Max. paden",
+      "tfAuto": "Automatisch (standaard)",
+      "critThresholdHours": "Drempel (uren, per taakkalender)"
     }
   },
   "newProject": {
@@ -318,6 +324,13 @@
       "quickstart": "Snel starten",
       "gidsen": "Gidsen per onderwerp",
       "referentie": "Referentie"
+    },
+    "unapplied": {
+      "title": "Wijzigingen niet toegepast",
+      "body": "Je hebt de projectinfo gewijzigd maar nog niet toegepast. Wat wil je met deze wijzigingen doen?",
+      "marker": "Wijzigingen niet toegepast — klik op {{apply}} om ze te bewaren.",
+      "discard": "Verwerpen",
+      "invalid": "Het eigen rekenprofiel heeft nog geen naam. Geef het een naam of verwerp de wijzigingen."
     }
   },
   "export": {

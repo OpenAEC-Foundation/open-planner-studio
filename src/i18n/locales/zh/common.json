@@ -42,6 +42,8 @@
     "xerImportUnsupportedSemantics_other": "使用安全回退的 P6 排程设置：{{count}}",
     "xerImportDatesAsRecorded_other": "显示 Primavera 记录日期（未重新计算）的任务：{{count}} 个",
     "xerImportDatesAsRecordedOffer_other": "与文件中记录的日期不同的任务：{{count}} 个（可以显示）",
+    "importDatesAsRecorded_other": "显示文件中记录日期（未重新计算）的任务：{{count}} 个",
+    "importDatesAsRecordedOffer_other": "与文件中记录的日期不同的任务：{{count}} 个（可以显示）",
     "xerExportLoss": "导出为 {{format}} 会丢失 XER 源信息。",
     "mppLegacy": "此 .mpp 文件使用较旧的格式（Project 2007 或更早版本）。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
     "mppEncrypted": "此 .mpp 文件受密码保护。请在 MS Project 中将其导出为 XML（文件 → 另存为 → XML），然后打开该文件。",
@@ -67,9 +69,14 @@
     "pasteSkippedReadOnly_other": "已跳过 {{count}} 个只读单元格（例如自动编号的 WBS 代码或计算列）。",
     "librarySaveFailed": "无法保存库",
     "levelingDelayRoundedToWorkdays_other": "资源平衡会将 MS Project 精确到分钟的平衡延迟（{{count}} 项任务）四舍五入为整个工作日。",
+    "schedulingProfileApplied": "此项目按 {{profile}} 计算。可通过 文件 → 项目信息 → 计算配置文件和选项 更改。",
+    "schedulingProfileShifted_other": "应用后移动了 {{count}} 个任务。",
+    "actions": {
+      "openProjectInfo": "打开计算配置文件"
+    },
     "xerArchiveUnusable": "此文件中的 XER 源存档不可用，已被略去；项目本身已完整打开。",
     "xerArchiveUnusableLine": "此文件中的 XER 源存档不可用，已被略去。",
-    "xerArchiveUnusableConsequence": "IFC 中的进度计划和所有项目数据均完整。缺少的是：Primavera 保存时的日期，以及供 AI 和扩展使用的源出处。保存时将不带存档写入文件；重新导入原始 .xer 即可找回存档。",
+    "xerArchiveUnusableConsequence": "IFC 中的进度计划、计算配置文件和所有项目数据均完整。缺少的是：Primavera 保存时的日期，以及供 AI 和扩展使用的源出处。保存时将不带存档写入文件；重新导入原始 .xer 即可找回存档。",
     "xerArchiveReasonSchemaVersion": "原因：存档的架构版本或格式未知（较新或不同的写入程序）。",
     "xerArchiveReasonHashMismatch": "原因：校验和与源字节不符——存档已损坏。",
     "xerArchiveReasonTruncated": "原因：存档被截断——部分源字节缺失。",
@@ -1135,6 +1142,162 @@
       "completion": "完成度",
       "actualStart": "实际开始",
       "actualFinish": "实际完成"
+    }
+  },
+  "conventions": {
+    "preserveActualDatesInBackwardPass": {
+      "label": "在逆推计算中保留实际日期",
+      "help": "已开始或已完成的任务在晚期一侧也保留其记录的日期；已完成的后续任务不会把未完成的前置任务拉回过去。"
+    },
+    "clampNegativeFreeFloat": {
+      "label": "自由浮动时间永不为负",
+      "help": "在无法满足的晚期约束下，总浮动时间保持为负，但自由浮动时间为零。"
+    },
+    "p6ZeroDurationUsesPlannedBoundary": {
+      "label": "里程碑遵循计划的日历边界",
+      "help": "零工期里程碑保持在文件计划的日历边界上：一天的开始仍是开始里程碑，时段结束可以落在前置任务的完成时间上。"
+    },
+    "p6UseTaskPlannedStartFloor": {
+      "label": "计划开始作为额外下限",
+      "help": "当开始和完成都比网络允许的时间晚一个日历日以上时，文件中的计划开始作为下限。"
+    },
+    "p6FinishMilestoneBoundaryWindow": {
+      "label": "完成里程碑作为边界窗口",
+      "help": "完成里程碑可以位于两个相邻的日历边界上：最早开始在一个时段的开头，最早完成在前一个时段的末尾。"
+    },
+    "p6PreserveActualInstants": {
+      "label": "精确保留实际日期",
+      "help": "记录的实际开始和完成日期不会被移到工作时段上。"
+    },
+    "p6UseRemainingStartForProgress": {
+      "label": "进行中任务：最早开始 = 剩余工作的开始",
+      "help": "进行中任务的最早和最晚开始描述剩余工作从哪里开始，而不是历史实际开始。沿开始-开始关系逆推时,只计算剩余工期。"
+    },
+    "p6PreserveZeroDurationConstraintInstants": {
+      "label": "里程碑上的精确约束时刻",
+      "help": "零工期里程碑上的日期时间约束是一个精确的点，即使在工作时段的开头也是如此。"
+    },
+    "resumeFromActualElapsed": {
+      "label": "剩余工作在已用工期之后恢复",
+      "help": "进行中任务在实际开始加上已用工期处恢复剩余工作，而不是在状态日期。"
+    },
+    "unstartedIgnoresStatusDate": {
+      "label": "不将未开始的任务移到状态日期",
+      "help": "尚未开始的任务不会自动移到状态日期或之后。"
+    },
+    "p6RelationFinishBoundary": {
+      "label": "后续任务在完成边界开始",
+      "help": "对于共享时段边界上无延隔时间的完成-开始关系，后续任务在前置任务完成时开始（仅限文件如此标记的关系）。逆推时,后续任务的最晚开始直接显示为工作时段的开始。"
+    },
+    "p6BackwardLagFinishBoundary": {
+      "label": "从完成边界逆推延隔时间",
+      "help": "当逆推计算从完成边界减去工作时间延隔并恰好落在时段开始时，它会落在前一个完成边界上。对于无延隔的完成-完成关系,落在时段结束处的最晚完成同样保持在该完成边界上。"
+    },
+    "p6CompletedDataDateWindow": {
+      "label": "状态日期窗口中的已完成任务",
+      "help": "已完成任务在状态日期窗口中获得最早日期，其完成计入项目完成（仅限来自 P6 的任务）。"
+    },
+    "p6CompletedLoeActualFinish": {
+      "label": "通过实际完成的已完成 LOE",
+      "help": "仅有开始-开始输入的已完成投入水平作业沿其实际完成的路径推算（仅限来自 P6 的任务）。"
+    },
+    "p6OpenLoeTargetSpan": {
+      "label": "未开始的 LOE 采用目标窗口",
+      "help": "尚未开始的投入水平作业以其目标窗口作为工期（仅限来自 P6 的任务）。"
+    },
+    "p6CompletedPredecessorAtDataDate": {
+      "label": "已完成的紧前任务不在状态日期之后约束",
+      "help": "如果已完成的紧前任务的实际完成时间晚于状态日期，其后续任务仍可在状态日期开始。"
+    },
+    "p6FreeFloatOnOwnCalendar": {
+      "label": "按任务自身日历计算自由浮动",
+      "help": "未开始任务的自由浮动时间按每个关系在任务自身的日历中计算，而不是按后续任务的日历：适用于完成-开始、开始-开始和完成-完成，也包括在紧前任务日历上按工作时间计的延隔。已开始的任务仅适用于无延隔的完成-开始。"
+    },
+    "p6CompletedRemainingLag": {
+      "label": "已完成紧前任务的已流逝延隔不计入",
+      "help": "在最迟日期一侧，已完成紧前任务之后的延隔只计入在状态日期尚未流逝的部分。"
+    },
+    "p6CompletedOutOfSequenceWindow": {
+      "label": "顺序外完成的任务等待其紧前任务",
+      "help": "若已完成任务的某个紧前任务尚未完成，其零时段排在该紧前任务之后，而不是状态日期（保留逻辑）。"
+    },
+    "p6CompletedPhysicalAtDataDate": {
+      "label": "按实物进度完成的任务位于数据日期",
+      "help": "采用实物完成百分比的已完成任务显示为数据日期上的单一时间点（若前置任务要求则更晚），而不是其实际日期。 仅针对实际完成百分比进行过测量；对于其他完成百分比类型（P6 默认：工期），此行为未经测量，保持关闭。"
+    },
+    "p6InProgressStartLagElapsed": {
+      "label": "进行中前置任务已经过的开始-开始延隔不计",
+      "help": "对于来自已开始任务的开始-开始关系，只计算自其实际开始至数据日期尚未经过的那部分延隔。"
+    },
+    "p6FinishFinishStartMilestoneLateFinish": {
+      "label": "指向开始里程碑的完成-完成关系绑定到里程碑本身",
+      "help": "指向开始里程碑的完成-完成关系计到里程碑本身，而不是其当天的开始：紧前任务的最迟完成可以延伸到里程碑的最迟完成。"
+    },
+    "p6StartedTaskIgnoresPlannedStartFloor": {
+      "label": "计划开始不是进行中任务的下限",
+      "help": "已开始任务的剩余工作从状态日期、紧接其紧前任务之后开始，即使其计划开始更晚。"
+    },
+    "p6LateFinishOnOwnCalendar": {
+      "label": "最晚完成落在自身日历上",
+      "help": "如果后续工作所施加的最晚完成时间落在本作业的工作时间之外，则取本作业日历上前一个工作时段的结束时间。"
+    },
+    "p6ProgressOverrideIgnoresStartedSuccessor": {
+      "label": "进度覆盖在逆推时也忽略已开始的紧后作业",
+      "help": "在进度覆盖（Progress Override）下，与已开始的紧后作业之间的关系不计入尚未完成的紧前作业的最迟日期和自由浮时。"
+    },
+    "p6FinishNotBeforeFinishFinishBound": {
+      "label": "最早完成不早于完成-完成界限",
+      "help": "在完成-完成关系中，紧后作业的最早完成时间按时钟时间绝不早于紧前作业设定的界限。如果该界限落在紧后作业的非工作时间，完成时间取下一个工作时段的开始。"
+    },
+    "p6AlapPositionedFromSuccessors": {
+      "label": "ALAP 任务尽可能晚，以后续任务允许为限",
+      "help": "带有“越晚越好”限制的未开始任务，精确到分钟地在其后续任务需要它的时刻完成；先计算后续任务，使链条首尾相接。其自身计划开始不计；没有前置任务的任务不会早于状态日期开始。仅适用于按小时的日历。"
+    }
+  },
+  "profiles": {
+    "builtIn": {
+      "p6": "Primavera P6",
+      "msproject": "Microsoft Project",
+      "ops": "Open Planner Studio"
+    },
+    "modified": "{{name}}（已修改）",
+    "copyOf": "{{name}} 的副本"
+  },
+  "schedulingProfile": {
+    "title": "计算配置文件和选项",
+    "profile": "计算配置文件",
+    "conventionsTitle": "此配置文件的约定",
+    "optionsTitle": "此项目的计算选项",
+    "customName": "此自定义配置文件的名称",
+    "saveAsTemplate": "另存为模板",
+    "updateTemplate": "从此项目更新模板",
+    "applyTemplate": "从模板更新",
+    "deleteTemplate": "删除模板",
+    "templateDeviates": "此配置文件与模板“{{name}}”不同。",
+    "applyDefaultOptions": "应用此配置文件的默认选项",
+    "themes": {
+      "completedWork": "进度与已完成工作",
+      "relationsLag": "关系与延隔",
+      "milestones": "里程碑与 LOE 作业",
+      "float": "浮时与最晚日期",
+      "instants": "文件中的日期与时刻",
+      "msproject": "按 Microsoft Project 的进度",
+      "ownProfilesOnly": "仅用于自定义配置"
+    },
+    "ownProfilesOnlyNote": "这些规则在每个内置配置中都是关闭的，包括 Primavera P6。启用其中任何一项即成为自定义配置。",
+    "deviatingCount": "已更改：{{n}}",
+    "baseValue": "基准：{{value}}",
+    "on": "开",
+    "off": "关",
+    "resetToBase": "恢复基准",
+    "showHelp": "“{{name}}”的说明",
+    "sourceOptions": {
+      "title": "源文件中的设置",
+      "intro": "这些计算选项来自 Primavera P6 文件（.xer）。它们参与计算，但无法在此更改。",
+      "useExpectedFinishDates": "使用预期完成日期（P6：Use Expected Finish Dates）",
+      "useProjectEndDateForFloat": "计算浮时至项目完成日期",
+      "p6CompletedLateFromRemainingWindow": "已完成任务：最晚日期从数据日期起算",
+      "needsConvention": "仅与规则“{{convention}}”一起生效，该规则当前已关闭。"
     }
   }
 }

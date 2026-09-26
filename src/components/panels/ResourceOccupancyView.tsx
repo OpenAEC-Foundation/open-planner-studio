@@ -8,6 +8,7 @@ import type { Task } from '@/types/task';
 import type { DocumentPayload } from '@/state/documentContract';
 import {
   computeLibraryOccupancy,
+  occupancySolveInputFor,
   type OccupancyDocInput,
   type OccupancyRow,
 } from '@/services/library/occupancy';
@@ -278,15 +279,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
         // kosten vallen pas bij een daadwerkelijke solve, en die kloont zelf. Voor het actieve
         // document laten we hem bewust weg: daar wordt nooit gesolved (zie hierboven).
         ...(isActive ? {} : {
-          solveInput: {
-            tasks: payload.tasks,
-            sequences: payload.sequences,
-            dataDate: payload.project.statusDate,
-            progressMode: payload.project.progressMode,
-            schedulingOptions: payload.project.schedulingOptions,
-            projectStartDate: payload.project.startDate,
-            projectEndDate: payload.project.endDate,
-          },
+          solveInput: occupancySolveInputFor(payload),
         }),
       };
     });

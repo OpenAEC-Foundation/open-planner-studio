@@ -15,6 +15,7 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { documentTitle, untitledOrdinals } from '@/utils/documents';
 import { xerProjectCode } from '@/utils/xerDocumentName';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
 import type { XerImportMetadata, XerResourceMetadata } from '@/services/importTypes';
 import {
   bindXerImportMetadataToArchive,
@@ -121,7 +122,7 @@ export interface DocumentSlice {
   newDocument: () => string;
   /** Dupliceer het actieve document naar een nieuwe, actieve kopie (wat-als/variant, MCP-WP4). De
    *  kopie krijgt genulde `filePath`/`fileHandle` (zodat Ctrl+S het bronbestand niet overschrijft),
-   *  `isDirty = true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
+   *  `isDirty: true`, lege selectie en diep gekloonde muteerbare payloadvelden. De sessiehistorie
    *  blijft app-globaal en wordt niet met de documentpayload gekopieerd.
    *  worden diep gekloond (geen enkele array/object gedeeld met de bron). Naam: `name` indien
    *  meegegeven, anders `"<projectnaam> (variant N)"`. Geeft het nieuwe document-id terug. */
@@ -408,6 +409,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
+      // Een kopie is per definitie geen ongewijzigde import meer (heropen-beleid optie B).
+      importPristine: false,
       // Een variant van een document waarvan het archief onbruikbaar was, mist het archief óók —
       // de reden reist dus mee, anders zegt MCP/de extensie-API voor de kopie "nooit een XER-bron".
       xerArchiveIssue: src.xerArchiveIssue,
@@ -725,17 +728,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         const tasks = cloneTasksForSolve(payload.tasks);
         // Exact dezelfde reken-kern (en dezelfde opties) die `runCPM` op het actieve document
         // draait — pariteit by construction, geen tweede implementatie (A3/M3).
-        const result = solveProject({
-          tasks,
-          sequences: payload.sequences,
-          calendar: payload.calendar,
-          calendars: payload.calendars,
-          dataDate: payload.project.statusDate,
-          progressMode: payload.project.progressMode,
-          schedulingOptions: payload.project.schedulingOptions,
-          projectStartDate: payload.project.startDate,
-          projectEndDate: payload.project.endDate,
-        });
+        const result = solveProject(
+          solveInputFor(payload.project, tasks, payload.sequences, payload.calendar, payload.calendars));
         // Cyclus/solverfout: dit document volledig ONAANGERAAKT laten (het vangnet van §4.3 blijft
         // dan gelden — het overzicht toont zijn boeking ongeteld met de ⚠) en doorgaan met de rest.
         if (result.error) continue;

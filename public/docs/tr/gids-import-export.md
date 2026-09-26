@@ -27,6 +27,8 @@ Dört biçim için **Backstage → Dışa aktar**'ı açın:
 
 Her biçimin kendi sınırlamaları vardır: hedef biçim ne kadar zenginse, o kadar çok şey gelir, ama üç dış biçimden hiçbiri IFC'nin tam bir aynası değildir.
 
+Hesaplama profili CSV, MS Project XML veya P6 XML’e aktarılmaz; bkz. [Hesaplama profilleri](docs://gids-rekenprofielen).
+
 ### CSV
 
 CSV dışa aktarımı **yalnızca görev tablosunu** içerir: WBS kodu, ad, süre (gün), başlangıç, bitiş, öncüller (bir metin kodu olarak, örn. `2.1FS+3d`), görev türü, durum, tamamlanma (%), gerçek başlangıç/bitiş, kritik (evet/hayır), toplam bolluk ve açıklama. **Kaynaklar, atamalar, takvimler ve baseline'lar kasıtlı olarak dışarıda bırakılmıştır** — CSV, planı bir hesap tablosunda görüntülemek veya düzenlemek isteyen herkes için tamamen bir görev tablosudur, tam sadakatli bir proje alışverişi değil. Bir CSV dosyasını geri **içe aktardığınızda**, baseline'lar bu nedenle boş kalır (bunları okuyacak hiçbir şey yoktu).
@@ -61,6 +63,8 @@ Bu uyarılar özensizlik değildir — kasıtlı, açık bir seçimdir: düşür
 
 Bir `.mpp` dosyası (Microsoft Project'in yerel biçimi, Project 2010–2021) ayrı bir yol izler: bu içe aktarma **salt okunurdur** — bir `.mpp` dışa aktarımı yoktur, bu yüzden MS Project'e yeniden dışa aktarma MSPDI XML üzerinden yapılır. Neyin geldiğini ve sınırlamaların neler olduğunu görmek için [MS Project (.mpp) dosyasını açma](docs://gids-msproject-import) kılavuzuna bakın.
 
+Primavera veya MS Project'ten gelen bir dosya, o programın kendi hesapladığı tarihleri en geç tarihler ve bolluklar dahil taşır. Bir CSV dosyası yalnızca girdi içerir ve doğrudan yeniden hesaplanır. Open Planner Studio'nun yeniden hesaplaması bunlardan farklıysa dosya **kaydedildiği gibi tarihler** görünümünde açılır: önce kaynak programın söylediğini bir bildirimle görürsünüz, kendi sonucumuzu ise ancak yeniden hesapladıktan sonra. Bkz. [Kaydedildiği gibi tarihler](docs://datums-zoals-opgeslagen).
+
 `.xer` dosyası Primavera P6'nın değişim biçimidir. Doğrudan içe aktarılır ve düzenlemeden sonra IFC olarak kaydedilir; bkz. [Primavera P6 (.xer) dosyasını açma](docs://gids-xer-import).
 
 ## Uzantı içe aktarıcıları
@@ -71,3 +75,4 @@ Yukarıdaki sabit biçimlerin ötesinde, yüklü uzantılar kendi içe aktarıc�
 
 - Baseline'lar yalnızca IFC ve MS Project XML üzerinden gelir, CSV veya P6 üzerinden değil — bir baseline'ın nasıl kaydedileceği için [Baseline'lar & ilerleme](docs://gids-baselines-voortgang) kılavuzunu okuyun.
 - Kaynaklar, atamalar ve yükleme eğrileri — bunların dışa aktarmadan önce nasıl kurulduğu için [Kaynaklar, histogram & nivelleme](docs://gids-resources-histogram) kılavuzunu okuyun.
+- Açılan bir dosyanın hangi hesaplama profilini aldığı ve IFC’nin bundan neyi sakladığı — [Hesaplama profilleri](docs://gids-rekenprofielen) kılavuzunu okuyun.

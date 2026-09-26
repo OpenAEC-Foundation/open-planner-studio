@@ -230,6 +230,10 @@ export type NotificationMessageKey =
   // projecten — zie `xerImportNotice`/`applyOpenedImport`).
   | 'notifications.xerImportDatesAsRecorded'
   | 'notifications.xerImportDatesAsRecordedOffer'
+  // Eigenaarsbesluit 2026-09-09 ("elk formaat zoals XER"): dezelfde twee regels, formaatneutraal,
+  // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
+  | 'notifications.importDatesAsRecorded'
+  | 'notifications.importDatesAsRecordedOffer'
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
@@ -239,6 +243,10 @@ export type NotificationMessageKey =
   // `.mpp`-eigen sub-dag-nivelleervertraging (`levelingDelayMinutes`/`levelingDelayElapsed`) met
   // hele werkdagen — zie `src/state/timephasedLossNotice.ts`s `notifyLevelingDelayRounded`.
   | 'notifications.levelingDelayRoundedToWorkdays'
+  // Rekenprofielen (spec v3.1 §6): "dit project rekent als …" bij openen (param `profile`, een
+  // merknaam) en — voor baan D — de telling "N taken verschoven" na een profielwissel (`count`).
+  | 'notifications.schedulingProfileApplied'
+  | 'notifications.schedulingProfileShifted'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
   | 'notifications.exportSplitsLost'
@@ -255,6 +263,17 @@ export type NotificationMessageKey =
   | 'notifications.xerArchiveReasonBytesMissing'
   | 'notifications.xerArchiveReasonMetadataInvalid'
   | 'notifications.xerArchiveReasonStructure';
+
+/** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
+export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
+
+/** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
+ *  voert hem uit; nieuwe soorten krijgen een eigen `kind`. */
+export interface NotificationAction {
+  kind: 'openBackstageSection';
+  section: BackstageSection;
+  labelKey: NotificationActionLabelKey;
+}
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
@@ -285,6 +304,8 @@ export interface AppNotification {
    *  artikel). Geen manifest-validatie hier — zelfde vrijheid als een `docs://`-link in een
    *  gids-artikel zelf (`miniMarkdown.tsx`); `verify:docs` bewaakt dat het artikel-id bestaat. */
   helpArticleId?: string;
+  /** Optionele vervolgknop; zie `NotificationAction` (serialiseerbaar, nooit een functie). */
+  action?: NotificationAction;
 }
 
 /** Wat een aanroeper meegeeft; `id` en `count` vult de store. */

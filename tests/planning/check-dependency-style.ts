@@ -35,6 +35,7 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 
 import nl from '@/i18n/locales/nl/report.json';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
@@ -91,7 +92,7 @@ function buildFixture() {
     seqOf('s6', 't3', 't6', 'FINISH_FINISH'),  // FF, bepalend              ⇒ GRIJS DOORGETROKKEN
     seqOf('s7', 't1', 't4', 'FINISH_START'),   // BEIDE KRITIEK maar niet-bepalend ⇒ GRIJS GESTREEPT
   ];
-  const cpm = new CPMSolver(tasks, sequences, calendar, [], {}).solve();
+  const cpm = new CPMSolver(tasks, sequences, calendar, [], legacyCpmOptions()).solve();
   if (cpm.error) throw new Error('fixture: CPM-fout ' + cpm.error);
   applyCpmResult(tasks, cpm, { projectCalendar: calendar, calendars: [] });
   return { tasks, sequences, cpm };

@@ -236,6 +236,10 @@
       "lagSuccessor": "Successeur",
       "lag24hour": "24 heures",
       "lagProjectDefault": "Calendrier du projet",
+      "ssLagFrom": "Calculer le décalage DD d'un prédécesseur en cours à partir du",
+      "ssLagEarlyStart": "Début au plus tôt (début du reste à faire)",
+      "ssLagActualStart": "Début réel (date d'état)",
+      "ssLagNeedsConvention": "S'applique uniquement si la convention « {{convention}} » est activée.",
       "criticalDefinition": "Définition du critique",
       "critTotalFloat": "Marge totale ≤ seuil",
       "critLongestPath": "Chemin le plus long",
@@ -253,7 +257,9 @@
       "floatPathsMethod": "Méthode",
       "methodFree": "Marge libre (peeling)",
       "methodTotal": "Marge totale (classement)",
-      "maxPaths": "Chemins max."
+      "maxPaths": "Chemins max.",
+      "tfAuto": "Automatique (par défaut)",
+      "critThresholdHours": "Seuil (heures, par calendrier de tâche)"
     }
   },
   "newProject": {
@@ -320,6 +326,13 @@
       "quickstart": "Démarrage rapide",
       "gidsen": "Guides par thème",
       "referentie": "Référence"
+    },
+    "unapplied": {
+      "title": "Modifications non appliquées",
+      "body": "Vous avez modifié les informations du projet sans les appliquer. Que voulez-vous faire de ces modifications ?",
+      "marker": "Modifications non appliquées — cliquez sur {{apply}} pour les conserver.",
+      "discard": "Abandonner",
+      "invalid": "Le profil de calcul personnalisé n'a pas encore de nom. Donnez-lui un nom ou abandonnez les modifications."
     }
   },
   "export": {

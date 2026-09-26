@@ -41,6 +41,7 @@ import type { ResourceCurve } from '@/types/resource';
 import type { Project } from '@/types/project';
 import type { LevelingOptions, LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -723,7 +724,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
           // `draft.updateCalendar` synct zelf, maar deze extra producer maakt een nieuw
           // entry-object en zou de cache anders op het oude object laten wijzen.
           syncProjectCalendar(s);
-          s.isDirty = true;
+          markDocumentEdited(s);
         });
       }
 
@@ -1518,13 +1519,22 @@ const PROJECT_KEYS = [
  *  oneindig veel bruikbaarder dan de stilte van vroeger. */
 const PROJECT_REFUSED: Record<string, string> = {
   schedulingOptions:
-    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`) ' +
-    'zijn NIET via de bridge instelbaar: het is een samenhangend blok dat de solver-semantiek van het ' +
-    'hele document verandert, en half blootstellen zou stille gedragsverschillen opleveren. Zet ze in ' +
-    'de app onder Planning → opties; `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    'de reken-opties (`schedulingOptions`, waaronder `floatPaths`, `criticalDefinition`, `lagCalendar`, `startToStartLagFrom`) ' +
+    'zijn NIET via de bridge instelbaar: samen met het rekenprofiel bepalen ze de solver-semantiek van het ' +
+    'hele document. Zet ze in de app onder Bestand → Projectinfo → Rekenprofiel en reken-opties; ' +
+    '`planner_get_project_info` toont het actieve profiel en de projectopties, `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+  schedulingProfile:
+    'het rekenprofiel (P6 / MS Project / OPS / eigen) is NIET via de bridge instelbaar: een wissel verschuift ' +
+    'datums van het hele document. Kies het in de app onder Bestand → Projectinfo → Rekenprofiel; ' +
+    '`planner_get_project_info` toont het actieve profiel met zijn zevenentwintig opgeloste conventies.',
+  leveling:
+    '`leveling` hoort in `project.schedulingOptions`: de nivelleerinstellingen uit het bronbestand (P6 ' +
+    'SCHEDOPTIONS/RSRCLEVELLIST) worden gelezen en bewaard, maar nog NIET toegepast en zijn niet via de ' +
+    'bridge instelbaar. `planner_get_project_info` toont ze alleen-lezen; handmatig nivelleren gaat met ' +
+    '`planner_level_resources`.',
   floatPaths:
-    '`floatPaths` hoort in `project.schedulingOptions` en is NIET via de bridge instelbaar (zie de ' +
-    'app onder Planning → opties). `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
+    '`floatPaths` hoort in `project.schedulingOptions` en is NIET via de bridge instelbaar (zie de app onder ' +
+    'Bestand → Projectinfo → Rekenprofiel en reken-opties). `planner_get_critical_path` meldt met `pathsMode` welke stand geldt.',
   calendarId:
     'WELKE kalender de projectdefault is, kan de bridge niet wisselen — dat doe je in de app ' +
     '(kalenderbibliotheek → als projectkalender instellen). Wil je de INHOUD van de projectkalender ' +
@@ -1641,7 +1651,7 @@ function updateProjectCore(
       if (p.clearStatusDate) delete s.project.statusDate;
       if (p.clearProgressMode) delete s.project.progressMode;
       s.project.modifiedAt = new Date().toISOString();
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   }
   return {

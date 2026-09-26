@@ -10,7 +10,9 @@ import {
   rescaleTaskContours, taskCalendarHoursPerDay, taskWorkMinutesOf,
   clearTimephasedDurationWalks, timephasedDurationWalksHaveFrozenWork, clearLevelingGaps,
   taskUpdateInvalidatesLevelingGaps,
+  hourInputFinishBasis, reconcileHourInputFinish, seedNewHourTaskFinish,
 } from '@/utils/taskDefaults';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { deriveWbsCodes, applyWbsNumbering } from '@/utils/wbs';
 import { syncProjectCalendar } from '../syncProjectCalendar';
 import { notifyTimephasedLoss, notifyLevelingDelayRounded } from '../timephasedLossNotice';
@@ -26,6 +28,7 @@ import type { LevelingResult } from '@/engine/scheduler/ResourceLeveler';
 import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { reconcileP6SuspendResume } from '@/utils/p6SuspendResume';
+import { markDocumentEdited } from '@/state/documentEdited';
 
 export type McpTransactionResult<T> =
   | { ok: true; value: T; timephasedGuidanceLost: number }
@@ -163,6 +166,8 @@ function createMcpDraft(
         levelingDelayMinutes: partial.levelingDelayMinutes,
         levelingDelayElapsed: partial.levelingDelayElapsed,
       };
+      // B1-vervolg — tweeling van taskSlice.ts addTask: het ingevoerde einde van een nieuwe urentaak.
+      seedNewHourTaskFinish(task, partial.time, resolveCalendar(task.calendarId, s.calendars, s.calendar));
 
       s.tasks.push(task);
       if (parentId) attachToParent(s.tasks, id, parentId);
@@ -175,7 +180,7 @@ function createMcpDraft(
         task.wbsCode = deriveWbsCodes(s.tasks).get(id) ?? '';
       }
 
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -315,7 +320,7 @@ function createMcpDraft(
         }
         // WBS-auto-nummering herafleiden nu de volgorde definitief is (spiegelt draft.addTask).
         if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-        s.isDirty = true;
+        markDocumentEdited(s);
       });
     }
 
@@ -337,7 +342,7 @@ function createMcpDraft(
       const lookup = (tid: string) => s.tasks.find((t) => t.id === tid);
       if (!relationVerdict(lookup, s.sequences, seq).ok) return; // result blijft null
       s.sequences.push({ ...seq, id });
-      s.isDirty = true;
+      markDocumentEdited(s);
       result = id;
     });
     return result;
@@ -363,6 +368,7 @@ function createMcpDraft(
       const { time, ...rest } = updates;
       const contourHpd = taskCalendarHoursPerDay(s.tasks[idx], s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(s.tasks[idx], contourHpd);
+      const finishBasis = hourInputFinishBasis(s.tasks[idx]);
       Object.assign(s.tasks[idx], rest);
       if (time) s.tasks[idx].time = mergeTaskTime(s.tasks[idx].time, time);
       // Contour-engine (2026-09) — tweeling van taskSlice.ts's `updateTask`: herschaal de contour.
@@ -387,7 +393,11 @@ function createMcpDraft(
       // EIGEN, BREDERE poort sinds de fixronde op etappe 3 (bevinding B7) — gedocumenteerde tweeling
       // van taskSlice.ts's `updateTask`; zie `taskUpdateInvalidatesLevelingGaps` in taskDefaults.ts.
       if (taskUpdateInvalidatesLevelingGaps(rest, time)) clearLevelingGaps(s.tasks[idx]);
-      s.isDirty = true;
+      // B1-vervolg — tweeling van taskSlice.ts's `updateTask`: het ingevoerde einde beweegt mee,
+      // bewust NA `clearLevelingGaps` (anders telt het einde gewiste nivelleergaten mee).
+      reconcileHourInputFinish(s.tasks[idx], finishBasis,
+        resolveCalendar(s.tasks[idx].calendarId, s.calendars, s.calendar));
+      markDocumentEdited(s);
     });
   },
 
@@ -415,6 +425,7 @@ function createMcpDraft(
       const task = s.tasks[idx];
       const contourHpd = taskCalendarHoursPerDay(task, s.calendars, s.calendar);
       const oldWorkMinutes = taskWorkMinutesOf(task, contourHpd);
+      const finishBasis = hourInputFinishBasis(task);
       Object.assign(task, top);
       let timeTouched = false;
       if (timePatch) {
@@ -443,7 +454,9 @@ function createMcpDraft(
       // geen voortgangsvelden, dus voor de `time`-kant volstaat `timeTouched`; de top-level triggers
       // (`calendarId`, `constraint`, `constraint2`) lopen wél via de gedeelde poort (B7).
       if (taskUpdateInvalidatesLevelingGaps(top) || timeTouched) clearLevelingGaps(task);
-      s.isDirty = true;
+      // B1-vervolg — zie `updateTaskFields` hierboven (ná `clearLevelingGaps`).
+      reconcileHourInputFinish(task, finishBasis, resolveCalendar(task.calendarId, s.calendars, s.calendar));
+      markDocumentEdited(s);
     });
   },
 
@@ -462,7 +475,7 @@ function createMcpDraft(
       ) === 0);
       if (sameName) throw new Error(`draft.ensureCustomTaskType: naam '${normalized.name}' heeft al id '${sameName.id}'`);
       s.customTaskTypes.push(normalized);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -487,7 +500,7 @@ function createMcpDraft(
       s.assignments = s.assignments.filter((a) => !removeIds.has(a.taskId));
       s.selectedTaskIds = s.selectedTaskIds.filter((sid) => !removeIds.has(sid));
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -501,7 +514,7 @@ function createMcpDraft(
     store.setState((s) => {
       s.calendars.push({ ...cal, id });
       syncProjectCalendar(s);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -517,7 +530,7 @@ function createMcpDraft(
       if (idx < 0) throw new Error(`draft.updateCalendar: onbekende kalender-id '${id}'`);
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -533,7 +546,7 @@ function createMcpDraft(
         throw new Error(`draft.addResource: ongeldige maxUnits ${String(res.maxUnits)} (strikt positief vereist)`);
       }
       s.resources.push({ ...res, id });
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -563,7 +576,7 @@ function createMcpDraft(
         if (value === undefined) delete target[key];
         else target[key] = value;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -603,7 +616,7 @@ function createMcpDraft(
       for (const r of s.resources) {
         if (r.parentId === id) delete r.parentId;
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return report;
   },
@@ -637,7 +650,7 @@ function createMcpDraft(
       // B1c-plan3 taak 3 (spec §4, "Invalidatie") — zie `updateTaskFields` hierboven voor de
       // motivering (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
       clearLevelingGaps(task);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return id;
   },
@@ -659,7 +672,7 @@ function createMcpDraft(
       if (Object.keys(patch).length === 0) return;
       Object.assign(s.assignments[idx], patch);
       if ('curve' in patch) delete s.assignments[idx].curveValues; // contour-engine: spiegelt resourceSlice
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -682,7 +695,7 @@ function createMcpDraft(
       else if (idx >= 0) list[idx] = { ...list[idx], resourceId: a.resourceId, periods };
       else list.push({ resourceUid: null, resourceId: a.resourceId, periods });
       task.timephasedContours = list.length > 0 ? list : undefined;
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -738,7 +751,7 @@ function createMcpDraft(
       if (clearedNewWindow || clearedNewWalks) recordTimephasedLoss(newTaskId);
       // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
       clearLevelingGaps(newTask);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -770,7 +783,7 @@ function createMcpDraft(
         // B1c-plan3 taak 3 — zie `updateTaskFields` hierboven.
         clearLevelingGaps(removedTask);
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
   },
 
@@ -809,7 +822,7 @@ function createMcpDraft(
         if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
         else clearLevelingGaps(task);
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     if (roundedCount > 0) {
       const state = store.getState();
@@ -834,7 +847,7 @@ function createMcpDraft(
         task.levelingDelayElapsed = undefined;
         clearLevelingGaps(task);
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     if (roundedCount > 0) {
       const state = store.getState();
@@ -870,7 +883,7 @@ function createMcpDraft(
           prevStartDate, nextStartDate: updates.startDate,
         });
       }
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return clampedAnchors;
   },
@@ -932,6 +945,9 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       const previousViewRows = initial.viewRows;
       const previousResourceLoad = initial.resourceLoadResult;
       const previousDirty = initial.isDirty;
+      // Critreview op ded4d8c3, bevinding 4: ook "ongewijzigd sinds import" hoort bij de poging —
+      // een geweigerde AI-actie is geen bewerking en mag het heropen-beleid (optie B) niet raken.
+      const previousPristine = initial.importPristine;
       // `runCPM` publiceert een gebruikersmelding zodra de tijdelijke solve een cyclus/fout ziet.
       // Als die solve de omvattende MCP-transactie vervolgens laat falen, hoort ook die melding bij
       // de teruggedraaide poging. Notifications zijn bewust appglobaal en zitten daarom niet in de
@@ -941,10 +957,11 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
 
       const rollback = (error: string): { ok: false; error: string } => {
         store.setState((state) => {
-          restoreSnapshot(state, snapshot);
+          restoreSnapshot(state, snapshot, { markDirty: false, clearImportPristine: false });
           state.viewRows = previousViewRows;
           state.resourceLoadResult = previousResourceLoad;
           state.isDirty = previousDirty;
+          state.importPristine = previousPristine;
           replaceSessionHistoryState(state, previousHistory, previousSequence);
           state.ui.notifications = prevNotifications;
         });

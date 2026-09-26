@@ -16,6 +16,7 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { legacyCpmOptions } from './legacySolveOptions';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -285,7 +286,7 @@ function sortedPairs(seqs: Sequence[]): string[] {
     let threw: unknown = null;
     let cpm: CPMResult | null = null;
     try {
-      cpm = new CPMSolver(leafTasks, sequences, CAL, [], {}).solve();
+      cpm = new CPMSolver(leafTasks, sequences, CAL, [], legacyCpmOptions()).solve();
     } catch (err) {
       threw = err;
     }

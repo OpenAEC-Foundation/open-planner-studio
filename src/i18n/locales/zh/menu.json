@@ -234,6 +234,10 @@
       "lagSuccessor": "后续任务",
       "lag24hour": "24 小时制",
       "lagProjectDefault": "项目日历",
+      "ssLagFrom": "进行中紧前任务的开始-开始延迟计算起点",
+      "ssLagEarlyStart": "最早开始（剩余工作开始）",
+      "ssLagActualStart": "实际开始（数据日期）",
+      "ssLagNeedsConvention": "仅在惯例“{{convention}}”开启时生效。",
       "criticalDefinition": "关键定义",
       "critTotalFloat": "总浮动 ≤ 阈值",
       "critLongestPath": "最长路径",
@@ -251,7 +255,9 @@
       "floatPathsMethod": "方法",
       "methodFree": "自由浮动（剥离法）",
       "methodTotal": "总浮动（排序法）",
-      "maxPaths": "最大路径数"
+      "maxPaths": "最大路径数",
+      "tfAuto": "自动（默认）",
+      "critThresholdHours": "阈值（小时，按任务日历）"
     }
   },
   "newProject": {
@@ -316,6 +322,13 @@
       "quickstart": "快速入门",
       "gidsen": "主题指南",
       "referentie": "参考"
+    },
+    "unapplied": {
+      "title": "更改尚未应用",
+      "body": "您已修改项目信息，但尚未应用。要如何处理这些更改？",
+      "marker": "更改尚未应用——点击“{{apply}}”以保留。",
+      "discard": "放弃",
+      "invalid": "自定义计算配置文件尚无名称。请为其命名或放弃更改。"
     }
   },
   "export": {

@@ -1,7 +1,8 @@
 import type { ExportFormat } from './formatRegistry';
 import type { XerImportMetadata } from './importTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
-import type { Project, SchedulingOptions } from '@/types/project';
+import type { BuiltInProfileId, Project, ProjectSchedulingOptions } from '@/types/project';
+import { CONVENTION_KEYS, builtInConventions, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
@@ -35,7 +36,7 @@ export interface XerExportLossWarning {
 export interface XerExportLossInput {
   readonly sourceArchive: XerSourceArchive | null;
   readonly importMetadata: XerImportMetadata | null;
-  readonly project: Pick<Project, 'progressMode' | 'schedulingOptions'>;
+  readonly project: Pick<Project, 'progressMode' | 'schedulingOptions' | 'schedulingProfile'>;
   readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks'>[];
   readonly sequences: readonly Pick<Sequence, 'lagPercent' | 'lagUnit'>[];
   readonly assignments: readonly Pick<ResourceAssignment, 'curve' | 'unitsPerDay'>[];
@@ -53,6 +54,9 @@ interface ExportCapabilities {
   readonly percentLag: boolean;
   readonly elapsedLag: boolean;
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
+  /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
+   *  Deze etappe heropenen CSV, MSPDI en P6-XML alle drie als OPS (spec v3.1 §6). */
+  readonly reopenProfile: BuiltInProfileId;
 }
 
 /**
@@ -75,6 +79,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: true,
     elapsedLag: true,
     schedulingOptions: 'none',
+    reopenProfile: 'ops',
   },
   mspdi: {
     baselineProjection: 'active-task-values',
@@ -82,6 +87,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: true,
     elapsedLag: true,
     schedulingOptions: 'critical-slack-limit',
+    reopenProfile: 'ops',
   },
   p6: {
     baselineProjection: 'none',
@@ -89,6 +95,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: false,
     elapsedLag: false,
     schedulingOptions: 'none',
+    reopenProfile: 'ops',
   },
 };
 
@@ -183,7 +190,7 @@ function hasAssignmentLoss(
   return !capabilities.projectedAssignments && input.assignments.length > 0;
 }
 
-function isMspdiCriticalSlackLimit(options: SchedulingOptions): boolean {
+function isMspdiCriticalSlackLimit(options: ProjectSchedulingOptions): boolean {
   const definition = options.criticalDefinition;
   if (!definition
     || definition.mode !== 'totalFloat'
@@ -213,6 +220,11 @@ function hasScheduleProvenance(input: XerExportLossInput): boolean {
 
 function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossInput): boolean {
   if (hasScheduleProvenance(input) || input.project.progressMode !== undefined) return true;
+  // Rekenprofielen (spec v3.1 §7): een profiel dat niet overleeft wat de lezer van het doelformaat
+  // voorstelt, is verlies — niet "er is iets gedefinieerd".
+  const kept = resolveConventions(input.project.schedulingProfile);
+  const reopened = builtInConventions(capabilities.reopenProfile);
+  if (CONVENTION_KEYS.some(key => kept[key] !== reopened[key])) return true;
   const options = input.project.schedulingOptions;
   if (!options || Object.values(options).every(value => value === undefined)) return false;
   return capabilities.schedulingOptions === 'none' || !isMspdiCriticalSlackLimit(options);

@@ -85,6 +85,22 @@ eq('13 drie identieke meldingen vouwen samen tot één regel', N().length, 1);
 eq('14 de teller staat op 3', N()[0]?.count, 3);
 eq('15 het detail is dat van de LAATSTE poging', N()[0]?.detail, 'poging 3');
 
+// Rekenprofielen (eindreview I4 g): de dedupe-tak ververst ook de serialiseerbare actie, net als
+// detailLines/helpArticleId — en alleen wanneer de nieuwe melding er een meebrengt.
+{
+  clearAll();
+  const action = { kind: 'openBackstageSection' as const, section: 'project-info' as const, labelKey: 'notifications.actions.openProjectInfo' as const };
+  S().notify({ severity: 'info', messageKey: 'notifications.schedulingProfileApplied', params: { profile: 'x' }, dedupeKey: 'profiel' });
+  S().notify({ severity: 'info', messageKey: 'notifications.schedulingProfileApplied', params: { profile: 'y' }, dedupeKey: 'profiel', action });
+  eq('15a dedupe neemt de actie van de nieuwe melding over', N()[0]?.action, action);
+  S().notify({ severity: 'info', messageKey: 'notifications.schedulingProfileApplied', params: { profile: 'z' }, dedupeKey: 'profiel' });
+  eq('15b een herhaling zonder actie laat de bestaande actie staan', N()[0]?.action, action);
+  clearAll();
+  S().notify({ severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: 'poging 1', dedupeKey: 'autosave' });
+  S().notify({ severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: 'poging 2', dedupeKey: 'autosave' });
+  S().notify({ severity: 'error', messageKey: 'notifications.autoSaveFailed', detail: 'poging 3', dedupeKey: 'autosave' });
+}
+
 // Een andere dedupeKey is een andere melding.
 S().notify({ severity: 'error', messageKey: 'notifications.saveFailed', dedupeKey: 'save' });
 eq('16 een andere dedupeKey stapelt wél', N().length, 2);
@@ -639,6 +655,13 @@ S().applyOpenedImport(x10Import(), {
 });
 eq('117 twee afzonderlijke XER-imports tonen twee afzonderlijke meldingen', N().length, 2);
 eq('118 ook de tweede melding is de samengestelde XER-melding', N()[1]?.messageKey, 'notifications.xerImportOpened');
+
+// B4 (gebruikstest rekenprofielen 24-09): heropenen uit eigen IFC — `readIFC` zet `xerOrigin:
+// 'xer-archive'` naast de archief-`xer` — meldt niets. MUTATIEBEWIJS: filter uit `xerImportNotice` ⇒ rood.
+S().applyOpenedImport({ ...x10Result(0), xerOrigin: 'xer-archive' }, {
+  filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+});
+eq('118c heropende IFC met XER-archief geeft geen extra melding', N().length, 2);
 
 // De host roept deze pure helper rechtstreeks in zijn React-renderlus aan. Dit bewijst dat een
 // detailregel nooit via `detail` of een eigen formatter ontsnapt, maar met sleutel én params door

@@ -49,7 +49,22 @@ export interface TaskTimeWriteCtx {
   actualStartArg: string;
   actualFinishArg: string;
   remainingArg: string;
+  /** "Datums zoals opgeslagen" (critreview PR #167, bevinding 1): de rekenslots die voor deze taak
+   *  NIET uit het bronbestand komen maar een weergave-terugval zijn (`applyRecordedTimesToTasks`:
+   *  `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). De writer schrijft daar `$`,
+   *  zodat een heropening ze niet als vastgelegd leest. Leeg/afwezig ⇒ alles gewoon geschreven. */
+  withheld?: ReadonlySet<WithheldTaskTimeField>;
 }
+
+/** De zeven rekenslots die in de modus "datums zoals opgeslagen" geen vastlegging kunnen dragen: de
+ *  vijf optionele assen van `RecordedTime` (terugval op een vastgelegde taak) en, voor een taak
+ *  zónder vastlegging, ook de vroege datums (die komen dan uit een verworpen solve). */
+export type WithheldTaskTimeField =
+  | 'earlyStart' | 'earlyFinish' | 'lateStart' | 'lateFinish' | 'totalFloat' | 'freeFloat' | 'isCritical';
+
+/** `$` voor een achtergehouden slot, anders de gewone formattering. */
+const unlessWithheld = (w: TaskTimeWriteCtx, key: WithheldTaskTimeField, value: () => string): string =>
+  w.withheld?.has(key) ? '$' : value();
 
 /** STEP-parse-helpers die de reader aan de IFCTASKTIME-read-descriptors doorgeeft. Ze wonen in
  *  ifcReader (STEP-specifieke `$`/quote-semantiek); injectie houdt dit bestand cyclusvrij. */
@@ -108,37 +123,37 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
   },
   {
     key: 'earlyStart',
-    write: (w) => w.dt(w.task.time.earlyStart),
+    write: (w) => unlessWithheld(w, 'earlyStart', () => w.dt(w.task.time.earlyStart)),
     read: (t, arg, p) => { t.earlyStart = p.parseDate(arg); },
   },
   {
     key: 'earlyFinish',
-    write: (w) => w.dt(w.task.time.earlyFinish),
+    write: (w) => unlessWithheld(w, 'earlyFinish', () => w.dt(w.task.time.earlyFinish)),
     read: (t, arg, p) => { t.earlyFinish = p.parseDate(arg); },
   },
   {
     key: 'lateStart',
-    write: (w) => w.dt(w.task.time.lateStart),
+    write: (w) => unlessWithheld(w, 'lateStart', () => w.dt(w.task.time.lateStart)),
     read: (t, arg, p) => { t.lateStart = p.parseDate(arg); },
   },
   {
     key: 'lateFinish',
-    write: (w) => w.dt(w.task.time.lateFinish),
+    write: (w) => unlessWithheld(w, 'lateFinish', () => w.dt(w.task.time.lateFinish)),
     read: (t, arg, p) => { t.lateFinish = p.parseDate(arg); },
   },
   {
     key: 'freeFloat',
-    write: (w) => w.ifcDuration(w.task.time.freeFloat),
+    write: (w) => unlessWithheld(w, 'freeFloat', () => w.ifcDuration(w.task.time.freeFloat)),
     read: (t, arg, p) => { t.freeFloat = p.parseDur(arg); },
   },
   {
     key: 'totalFloat',
-    write: (w) => w.ifcDuration(w.task.time.totalFloat),
+    write: (w) => unlessWithheld(w, 'totalFloat', () => w.ifcDuration(w.task.time.totalFloat)),
     read: (t, arg, p) => { t.totalFloat = p.parseDur(arg); },
   },
   {
     key: 'isCritical',
-    write: (w) => ifcBool(w.task.time.isCritical),
+    write: (w) => unlessWithheld(w, 'isCritical', () => ifcBool(w.task.time.isCritical)),
     read: (t, arg) => { t.isCritical = arg?.includes('T') || false; },
   },
   // StatusTime (14): geschreven als peildatum bij actuals, maar bij het lezen genegeerd — de
@@ -196,9 +211,11 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
  * Gebruikt door de "datums zoals opgeslagen"-functie: alleen voor deze slots is het relevant of het
  * bestand ze daadwerkelijk vulde. `scheduleStart`/`scheduleFinish` staan er bewust NIET in — die zijn
  * invoer (het anker waarop de forward pass snapt) en worden apart behandeld. Let op: de writer schrijft
- * `freeFloat`/`totalFloat`/`isCritical` ALTIJD een waarde (`ifcDuration`/`ifcBool` geven nooit `$`),
+ * `freeFloat`/`totalFloat`/`isCritical` een waarde (`ifcDuration`/`ifcBool` geven nooit `$`),
  * dus die drie melden ook "aanwezig" in een bestand waarin nooit gerekend is (0/0/false) — alleen de
- * vier datumslots kennen een echte lege stand (`ifcDateTime('') → '$'`).
+ * vier datumslots kennen een echte lege stand (`ifcDateTime('') → '$'`). Eén uitzondering: opslaan
+ * ín de modus "datums zoals opgeslagen" schrijft `$` op de assen die het bronbestand niet vastlegde
+ * (`TaskTimeWriteCtx.withheld`), zodat een heropening geen terugval als vastlegging leest.
  *
  * `satisfies readonly (keyof TaskTimeComputed)[]` koppelt deze lijst compile-time aan de CPM-rol-
  * partitie in `@/types/task` — dezelfde zeven sleutels als `TaskTimeComputed`, niet toevallig gelijk.

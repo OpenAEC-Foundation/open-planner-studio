@@ -212,8 +212,15 @@ export function forwardConstraint(
   predEng: CalendarEngine,
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
+  finishFinishAtStartMilestoneLateFinish = false,
 ): Date {
-  const flags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
+  const boundaryFlags = relationBoundaryFlags(predTask, successor, p6ZeroDurationSuccessorAtFinish);
+  // Conventie C7 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): spiegel
+  // van `backwardConstraint` — de FF-grens naar een startmijlpaal is de voorgangerfinish zelf, zonder
+  // de sprong naar de werkgrens ná een dagbegin-anker.
+  const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'
+    ? { ...boundaryFlags, succIsStartMs: false }
+    : boundaryFlags;
   if (predEng.isHourMode || succEng.isHourMode) {
     return forwardHour(deps, predResult, predTask, seq, successor, predEng, succEng, flags);
   }
@@ -311,8 +318,15 @@ export function backwardConstraint(
   predEng: CalendarEngine,
   succEng: CalendarEngine,
   p6ZeroDurationSuccessorAtFinish = false,
+  finishFinishAtStartMilestoneLateFinish = false,
 ): Date {
-  const flags = relationBoundaryFlags(predTask, succTask, p6ZeroDurationSuccessorAtFinish);
+  const boundaryFlags = relationBoundaryFlags(predTask, succTask, p6ZeroDurationSuccessorAtFinish);
+  // Conventie C7 (`p6FinishFinishStartMilestoneLateFinish`, docblok in `types/project.ts`): de
+  // aanroeper beslist; hier alleen het effect — een FF-relatie naar een startmijlpaal bindt aan
+  // diens LATE FINISH zelf, zonder de dagbegin-sprong naar de vorige werkgrens.
+  const flags = finishFinishAtStartMilestoneLateFinish && seq.type === 'FINISH_FINISH'
+    ? { ...boundaryFlags, succIsStartMs: false }
+    : boundaryFlags;
   if (predEng.isHourMode || succEng.isHourMode) {
     return backwardHour(deps, succResult, seq, predTask, predEng, succEng, flags);
   }
@@ -884,9 +898,11 @@ function backwardHour(
         // Klok-minuten terug vanaf succ.LS, dan achteruit-snap in de voorganger.
         return deps.snapOnOrBefore(pe, new Date(succResult.ls.getTime() - elapsedMin()));
       }
-      // Spiegel van de XER/P6-forwardgrens hierboven: de late finish van de voorganger mag exact
-      // op de late start van de opvolger liggen; een `prevWorkInstant` zou één band terugtrekken.
-      if (seq.p6StartAtPredecessorFinishBoundary) return succResult.ls;
+      // B1 (`p6StartAtPredecessorFinishBoundary`) heeft backward GEEN eigen tak (X12 brok 6, critreview
+      // landing 3–5): de gewone FS-backward hieronder legt de late finish van de voorganger al op de
+      // finishgrens op of vóór de LS van de opvolger (`prevWorkInstant` op de voorgangerkalender). De
+      // vroegere tak (`prevWorkInstant(succ.LS)`) was daaraan gelijk — mutant `if (false && …)`: 0 cellen
+      // verschil — en is weggehaald; de nog oudere vorm (`return succ.LS`, rauw) is fout (fixture-mutant).
       const succDayStart = () => deps.startOfDay(succResult.ls);
       if (pe.isHourMode && se.isHourMode) {
         // hour-hour: pred.LF = prevWorkInstant( succ.LS ⊖ lag ) (scenario 1-6 backward).

@@ -4,7 +4,9 @@ import type {
   XerScheduleOptionsSourceArchive,
   XerScheduleOptionsSourceRow,
 } from '@/services/importTypes';
-import type { ProgressMode, SchedulingOptions } from '@/types/project';
+import type {
+  ConventionKey, LevelingPriorityKey, LevelingResourceSetting, LevelingSettings, ProgressMode, ProjectSchedulingOptions,
+} from '@/types/project';
 
 export interface RawXerScheduleRow {
   line: number;
@@ -21,7 +23,12 @@ export interface RawXerScheduleScan {
 
 export interface IndependentXerScheduleExpected {
   progressMode: ProgressMode;
-  schedulingOptions: SchedulingOptions;
+  /** Alleen projectopties (rekenprofielen C4): de lezer zet geen conventies meer in de opties. */
+  schedulingOptions: ProjectSchedulingOptions;
+  /** De OPGELOSTE conventieset die een XER-project moet dragen (P6-profiel + A19 uit het bestand).
+   *  Een hand-lijst hier, bewust zonder import uit het register (spec v3.1 §7): een registerwijziging
+   *  mag deze verwachting niet meeschuiven. Vergelijk met `resolveConventions(project.schedulingProfile)`. */
+  conventions: Record<ConventionKey, boolean>;
   source: 'schedoptions' | 'xer-defaults';
   retainedSource: { sched_use_project_end_date_for_float?: boolean };
   fallbacks: XerScheduleOptionFallback[];
@@ -173,7 +180,7 @@ export function expectedXerScheduleOptions(
   const diagnostics = scan.sourceArchive.diagnostics.filter(item => item.projectId === projectId);
   const fallbacks: XerScheduleOptionFallback[] = [];
   const criticalToken = projectRow?.cells.critical_path_type?.trim() ?? '';
-  let criticalDefinition: SchedulingOptions['criticalDefinition'];
+  let criticalDefinition: ProjectSchedulingOptions['criticalDefinition'];
   if (criticalToken.toUpperCase() === 'CT_DRIVPATH') {
     criticalDefinition = { mode: 'longestPath' };
   } else {
@@ -185,35 +192,58 @@ export function expectedXerScheduleOptions(
       thresholdHours: rawNumber(projectRow?.cells.critical_drtn_hr_cnt ?? '') ?? 0,
     };
   }
-  const schedulingOptions: SchedulingOptions = {
+  const schedulingOptions: ProjectSchedulingOptions = {
     // Onafhankelijk testorakel: deze XER-eigen switches zijn letterlijk uit de toegestane
     // PROJECT/SCHEDOPTIONS-bronvorm afgeleid als vaste, brongebonden defaults — geen import van
     // `xerScheduleOptions.ts`, zodat een productwijziging de verwachting niet kan meeschuiven.
-    p6Source: 'XER',
     lagCalendar: 'predecessor',
     criticalDefinition,
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
-    preserveActualDatesInBackwardPass: true,
-    clampNegativeFreeFloat: true,
-    p6ZeroDurationUsesPlannedBoundary: true,
-    p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: true,
-    p6PreserveActualInstants: true,
-    // PROJECT is de bron van deze keuze, óók als een project geen SCHEDOPTIONS-rij heeft.
-    // Dit blijft een onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
-    p6UseRemainingStartForProgress:
-      projectRow?.cells.rem_target_link_flag?.trim().toUpperCase() === 'Y',
-    p6PreserveZeroDurationConstraintInstants: true,
     // X-O7 laag 1, klasse (i): de bewijsbasis is uitsluitend RETAINED_LOGIC-corpus, dus deze
     // onafhankelijke afleiding zet 'm net als de productie-afleiding standaard aan en weer uit
     // zodra `sched_progress_override=Y` blijkt (hieronder, ná de progressMode-afleiding).
     p6CompletedLateFromRemainingWindow: true,
+    // P6-standaard "Calculate Start-to-Start lag from: Early Start"; SCHEDOPTIONS N ⇒ actualStart (hieronder).
+    startToStartLagFrom: 'earlyStart',
+  };
+  // De opgeloste P6-conventies (hand-lijst, spec v3.1 bijlage A): alles aan behalve de twee
+  // MS Project-conventies en C1/C4/A17/B3/B4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 sinds
+  // 2026-09-24 gewoon aan (eigenaarsbesluit "a"; PROJECT.rem_target_link_flag stuurt niets meer). Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
+  const conventions: Record<ConventionKey, boolean> = {
+    preserveActualDatesInBackwardPass: true,
+    clampNegativeFreeFloat: true,
+    p6ZeroDurationUsesPlannedBoundary: true,
+    p6UseTaskPlannedStartFloor: true,
+    p6FinishMilestoneBoundaryWindow: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
+    p6PreserveActualInstants: true,
+    p6UseRemainingStartForProgress: true,
+    p6PreserveZeroDurationConstraintInstants: true,
+    resumeFromActualElapsed: false,
+    unstartedIgnoresStatusDate: false,
+    p6RelationFinishBoundary: true,
+    p6BackwardLagFinishBoundary: true,
+    p6CompletedDataDateWindow: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
+    p6CompletedLoeActualFinish: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
+    p6OpenLoeTargetSpan: true,
+    p6CompletedPredecessorAtDataDate: false,
+    p6FreeFloatOnOwnCalendar: true,
+    p6CompletedRemainingLag: true,
+    p6CompletedOutOfSequenceWindow: false,
+    p6CompletedPhysicalAtDataDate: true,
+    p6InProgressStartLagElapsed: true,
+    p6FinishFinishStartMilestoneLateFinish: true,
+    p6StartedTaskIgnoresPlannedStartFloor: true,
+    p6LateFinishOnOwnCalendar: true,
+    p6ProgressOverrideIgnoresStartedSuccessor: true,
+  p6FinishNotBeforeFinishFinishBound: true,
+    p6AlapPositionedFromSuccessors: true,
   };
   if (!scheduleRow) {
+    expectedOrphanLevelRows(scan, fallbacks);
     return {
-      progressMode: 'RETAINED_LOGIC', schedulingOptions, source: 'xer-defaults',
+      progressMode: 'RETAINED_LOGIC', schedulingOptions, conventions, source: 'xer-defaults',
       retainedSource: {}, fallbacks, diagnostics, sourceRowIndexes, sourceRows,
     };
   }
@@ -231,6 +261,9 @@ export function expectedXerScheduleOptions(
   schedulingOptions.useExpectedFinishDates = bool(
     scheduleRow, 'sched_use_expect_end_flag', true, fallbacks,
   );
+  schedulingOptions.startToStartLagFrom = bool(
+    scheduleRow, 'sched_lag_early_start_flag', true, fallbacks,
+  ) ? 'earlyStart' : 'actualStart';
   const retainedToken = scheduleRow.cells.sched_use_project_end_date_for_float?.trim() ?? '';
   let retainedSource: IndependentXerScheduleExpected['retainedSource'] = {};
   if (retainedToken.toUpperCase() === 'Y') {
@@ -243,6 +276,19 @@ export function expectedXerScheduleOptions(
   else if (retainedToken) fallback(
     fallbacks, scheduleRow, 'sched_use_project_end_date_for_float', retainedToken, 'niet bewaard',
   );
+  // X12-brok 1 (plan XER §9): `Y` zonder enig einde in de bron — geen PROJECT.plan_end_date en geen
+  // enkele TASK.target_end_date van dit project — valt terug op N (P6 rekent dan terug vanaf max(EF)).
+  // Onafhankelijk afgeleid uit de rauwe rijen: alleen "niet leeg", geen datumparser.
+  if (schedulingOptions.useProjectEndDateForFloat === true
+    && (projectRow?.cells.plan_end_date?.trim() ?? '') === ''
+    && !(scan.tables.get('TASK')?.rows ?? []).some(row =>
+      (row.cells.proj_id?.trim() ?? '') === projectId && (row.cells.target_end_date?.trim() ?? '') !== '')) {
+    schedulingOptions.useProjectEndDateForFloat = false;
+    fallback(
+      fallbacks, scheduleRow, 'sched_use_project_end_date_for_float', retainedToken,
+      'N (geen projecteinddatum en geen taakeinddatum in de bron: projecteinde = max(EF))',
+    );
+  }
 
   const retainedTokenRaw = scheduleRow.cells.sched_retained_logic?.trim() ?? '';
   const overrideTokenRaw = scheduleRow.cells.sched_progress_override?.trim() ?? '';
@@ -283,9 +329,87 @@ export function expectedXerScheduleOptions(
         : Math.max(1, Math.floor(context.taskCount ?? Number.MAX_SAFE_INTEGER)),
     };
   }
+  const leveling = expectedLeveling(scan, scheduleRow, fallbacks);
+  if (leveling) schedulingOptions.leveling = leveling;
+  expectedOrphanLevelRows(scan, fallbacks);
   return {
-    progressMode, schedulingOptions, source: 'schedoptions', retainedSource,
+    progressMode, schedulingOptions, conventions, source: 'schedoptions', retainedSource,
     fallbacks, diagnostics, sourceRowIndexes, sourceRows,
+  };
+}
+
+/** RSRCLEVELLIST-rijen zonder bijbehorende SCHEDOPTIONS-rij (lege of onbekende `schedoptions_id`):
+ *  zichtbare terugval bij elk project, nooit stil. */
+function expectedOrphanLevelRows(scan: RawXerScheduleScan, fallbacks: XerScheduleOptionFallback[]): void {
+  const known = new Set((scan.tables.get('SCHEDOPTIONS')?.rows ?? []).map(row => row.cells.schedoptions_id?.trim() ?? ''));
+  for (const listRow of scan.tables.get('RSRCLEVELLIST')?.rows ?? []) {
+    const id = listRow.cells.schedoptions_id?.trim() ?? '';
+    if (id !== '' && known.has(id)) continue;
+    fallbacks.push({ field: 'RSRCLEVELLIST.schedoptions_id', token: id || '(leeg)', fallback: 'weggelaten (geen SCHEDOPTIONS-rij)', line: listRow.line });
+  }
+}
+
+/** Y/N ⇒ boolean, leeg ⇒ afwezig, iets anders ⇒ zichtbare terugval "niet bewaard" (zelfde contract als
+ *  `sched_use_project_end_date_for_float`). */
+function optionalFlag(
+  row: XerScheduleOptionsSourceRow, field: string, fallbacks: XerScheduleOptionFallback[],
+): boolean | undefined {
+  const token = row.cells[field]?.trim() ?? '';
+  if (!token) return undefined;
+  if (token.toUpperCase() === 'Y') return true;
+  if (token.toUpperCase() === 'N') return false;
+  fallback(fallbacks, row, field, token, 'niet bewaard');
+  return undefined;
+}
+
+/**
+ * Nivelleerfundament (`SchedulingOptions.leveling`), onafhankelijk uit de rauwe tabellen: de drie
+ * `level_*`-instellingen, `LevelPriorityList` (sleutels gescheiden door DEL-DEL, vorm
+ * `veld,[tussenstuk/]richting`), RSRCLEVELLIST via `schedoptions_id` en `RSRCRATE.max_qty_per_hr` als
+ * alle tariefrijen van de resource één waarde dragen. Geen aan/uit-veld (eigenaarsbeslissing 1 open).
+ */
+function expectedLeveling(
+  scan: RawXerScheduleScan, row: XerScheduleOptionsSourceRow, fallbacks: XerScheduleOptionFallback[],
+): LevelingSettings | undefined {
+  const preserveScheduledDates = optionalFlag(row, 'level_keep_sched_date_flag', fallbacks);
+  const levelAllResources = optionalFlag(row, 'level_all_rsrc_flag', fallbacks);
+  let priority: LevelingPriorityKey[] | undefined;
+  if (Object.prototype.hasOwnProperty.call(row.cells, 'levelprioritylist')) {
+    priority = [];
+    for (const piece of row.cells.levelprioritylist!.split('\x7f\x7f')) {
+      const entry = piece.trim();
+      if (entry === '') continue;
+      const match = /^([A-Za-z0-9_]{1,64}),(?:[^/]*\/)*\s*(ASC|DESC)\s*$/i.exec(entry);
+      if (match) priority.push({ field: match[1]!, direction: match[2]!.toUpperCase() as 'ASC' | 'DESC' });
+      else fallback(fallbacks, row, 'levelprioritylist', entry, 'sleutel weggelaten');
+    }
+  }
+  const scheduleOptionsId = row.cells.schedoptions_id?.trim() ?? '';
+  const listRows = scheduleOptionsId === '' ? [] : (scan.tables.get('RSRCLEVELLIST')?.rows ?? [])
+    .filter(listRow => (listRow.cells.schedoptions_id?.trim() ?? '') === scheduleOptionsId);
+  const knownResources = new Set((scan.tables.get('RSRC')?.rows ?? []).map(resource => resource.cells.rsrc_id?.trim() ?? ''));
+  const resources: LevelingResourceSetting[] = [];
+  for (const listRow of listRows) {
+    const id = listRow.cells.rsrc_id?.trim() ?? '';
+    if (id === '' || !knownResources.has(id)) {
+      fallbacks.push({ field: 'RSRCLEVELLIST.rsrc_id', token: id, fallback: 'weggelaten (geen RSRC-rij)', line: listRow.line });
+      continue;
+    }
+    if (resources.some(entry => entry.resourceId === `xer-resource:${id}`)) continue;
+    const rates = (scan.tables.get('RSRCRATE')?.rows ?? [])
+      .filter(rate => (rate.cells.rsrc_id?.trim() ?? '') === id)
+      .map(rate => rawNumber(rate.cells.max_qty_per_hr ?? ''));
+    const single = rates.length > 0 && rates[0] !== null && rates[0]! >= 0 && rates.every(rate => rate === rates[0])
+      ? rates[0]! : undefined;
+    resources.push({ resourceId: `xer-resource:${id}`, ...(single !== undefined ? { maxUnitsPerHour: single } : {}) });
+  }
+  if (preserveScheduledDates === undefined && levelAllResources === undefined && priority === undefined
+    && listRows.length === 0) return undefined;
+  return {
+    ...(preserveScheduledDates !== undefined ? { preserveScheduledDates } : {}),
+    ...(levelAllResources !== undefined ? { levelAllResources } : {}),
+    ...(priority !== undefined ? { priority } : {}),
+    ...(listRows.length > 0 ? { resources } : {}),
   };
 }
 
