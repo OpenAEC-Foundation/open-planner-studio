@@ -1621,6 +1621,19 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   DEVBRIDGEPOLLERCHECK="$DIR/.dev-bridge-poller.mjs"
   if bundle_check "$DIR/check-dev-bridge-poller.ts" "$DEVBRIDGEPOLLERCHECK"; then node "$DEVBRIDGEPOLLERCHECK" || STATUS=1; fi
 
+  # Automatisch berekenen + rekenfout (review taakmutaties, bijvangst A): een mislukte berekening
+  # mocht geen herbereken-lus starten via haar eigen melding (~10 solves/s, teller ×42 in 3 s).
+  # Echte rem (failedSolveGate) op een geïsoleerde storecontext; pas een echte invoerwijziging
+  # rekent opnieuw. De hook zelf met echte timers: tests/browser/auto-calc-stale.spec.ts.
+  AUTOCALCCHECK="$DIR/.auto-calc-cpm.mjs"
+  if bundle_check "$DIR/check-auto-calc-cpm.ts" "$AUTOCALCCHECK"; then node "$AUTOCALCCHECK" || STATUS=1; fi
+
+  # Solverfouten in de UI-taal (review taakmutaties, bijvangst B): elke guard levert een code +
+  # parameters naast de ongewijzigde vaste tekst (MCP/extensies), en elke code heeft in alle
+  # veertien talen een tekst met de juiste placeholder.
+  SCHEDERRCHECK="$DIR/.schedule-errors.mjs"
+  if bundle_check "$DIR/check-schedule-errors.ts" "$SCHEDERRCHECK"; then node "$SCHEDERRCHECK" || STATUS=1; fi
+
   # T1: de duur-eenheid hoort bij de taak, inclusief kalenderplaatsing, legacy-migratie,
   # compacte presentatie en IFC-roundtrip. Deze check draait ook in de tijdzone-matrix.
   T1DURCHECK="$DIR/.task-duration-unit.mjs"

@@ -119,6 +119,14 @@
     "xerArchiveReasonMetadataInvalid": "دلیل: بایت‌های منبع سالم‌اند، اما داده‌های مشتق‌شده از آن‌ها قابل استفاده نیستند.",
     "xerArchiveReasonStructure": "دلیل: ساختار آرشیو در IFC نادرست است (تکراری، جابه‌جاشده یا با پیوند نادرست)."
   },
+  "scheduleErrors": {
+    "cycle": "وابستگی چرخشی بین وظایف: {{path}}",
+    "noWorkingDays": "در تقویم هیچ روز کاری تعیین نشده است",
+    "invalidDayDuration": "مدت بر حسب روز برای وظیفهٔ ‘{{task}}’ نامعتبر است",
+    "invalidHourDuration": "مدت بر حسب ساعت برای وظیفهٔ ‘{{task}}’ نامعتبر است",
+    "hourTaskWithoutWorkHours": "وظیفهٔ ساعتی ‘{{task}}’ در تقویم خود ساعات کاری معتبری ندارد",
+    "invalidStartDate": "تاریخ شروع وظیفهٔ ‘{{task}}’ نامعتبر است"
+  },
   "yes": "بله",
   "no": "خیر",
   "days": "ر",

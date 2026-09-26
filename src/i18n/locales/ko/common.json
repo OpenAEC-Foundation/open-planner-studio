@@ -92,6 +92,14 @@
     "xerArchiveReasonMetadataInvalid": "이유: 원본 바이트는 온전하지만 그로부터 파생된 데이터를 사용할 수 없습니다.",
     "xerArchiveReasonStructure": "이유: IFC 안의 아카이브 구조가 올바르지 않습니다(중복, 순서 변경 또는 잘못된 연결)."
   },
+  "scheduleErrors": {
+    "cycle": "작업 간 순환 종속성: {{path}}",
+    "noWorkingDays": "달력에 근무일이 설정되어 있지 않습니다",
+    "invalidDayDuration": "작업 '{{task}}'의 일 단위 기간이 올바르지 않습니다",
+    "invalidHourDuration": "작업 '{{task}}'의 시간 단위 기간이 올바르지 않습니다",
+    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다",
+    "invalidStartDate": "작업 '{{task}}'의 시작일이 올바르지 않습니다"
+  },
   "yes": "예",
   "no": "아니오",
   "days": "일",

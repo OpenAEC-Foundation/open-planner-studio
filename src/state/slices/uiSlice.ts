@@ -334,6 +334,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           if (n.helpArticleId !== undefined) existing.helpArticleId = n.helpArticleId;
           // Rekenprofielen: de serialiseerbare vervolgactie volgt dezelfde regel.
           if (n.action !== undefined) existing.action = { ...n.action };
+          existing.detailKey = n.detailKey;
+          existing.detailParams = n.detailParams;
           return;
         }
       }

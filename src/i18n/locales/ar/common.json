@@ -227,6 +227,14 @@
     "xerArchiveReasonMetadataInvalid": "السبب: بايتات المصدر سليمة، لكن البيانات المشتقة منها غير صالحة للاستخدام.",
     "xerArchiveReasonStructure": "السبب: بنية الأرشيف داخل IFC غير صحيحة (مكررة أو معاد ترتيبها أو مرتبطة بشكل خاطئ)."
   },
+  "scheduleErrors": {
+    "cycle": "تبعية دائرية بين المهام: {{path}}",
+    "noWorkingDays": "لم تُحدَّد أيام عمل في التقويم",
+    "invalidDayDuration": "مدة بالأيام غير صالحة للمهمة ‘{{task}}’",
+    "invalidHourDuration": "مدة بالساعات غير صالحة للمهمة ‘{{task}}’",
+    "hourTaskWithoutWorkHours": "المهمة الساعية ‘{{task}}’ ليس لها ساعات عمل صالحة في تقويمها",
+    "invalidStartDate": "تاريخ بداية غير صالح للمهمة ‘{{task}}’"
+  },
   "yes": "نعم",
   "no": "لا",
   "days": "ي",

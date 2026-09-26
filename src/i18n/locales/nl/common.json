@@ -119,6 +119,14 @@
     "xerArchiveReasonMetadataInvalid": "Reden: de bronbytes kloppen, maar de daaruit afgeleide gegevens zijn onbruikbaar.",
     "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld)."
   },
+  "scheduleErrors": {
+    "cycle": "Kringverwijzing tussen taken: {{path}}",
+    "noWorkingDays": "De kalender heeft geen werkdagen ingesteld",
+    "invalidDayDuration": "Ongeldige duur in dagen voor taak '{{task}}'",
+    "invalidHourDuration": "Ongeldige duur in uren voor taak '{{task}}'",
+    "hourTaskWithoutWorkHours": "Urentaak '{{task}}' heeft geen geldige werktijden in zijn kalender",
+    "invalidStartDate": "Ongeldige startdatum voor taak '{{task}}'"
+  },
   "yes": "Ja",
   "no": "Nee",
   "days": "d",

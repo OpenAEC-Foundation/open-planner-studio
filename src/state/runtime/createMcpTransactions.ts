@@ -1,6 +1,6 @@
 import type { AppStoreContext } from '../appStore';
 import { attachToParent, removeTaskSubtrees } from '@/state/taskTree';
-import { createSnapshot, restoreSnapshot, type Snapshot } from '../snapshot';
+import { createSnapshot, documentDataChanged, restoreSnapshot, type Snapshot } from '../snapshot';
 import { replaceSessionHistoryState } from '../sessionHistory';
 import { relationVerdict } from '../relationRules';
 import { generateId } from '@/utils/id';
@@ -978,11 +978,18 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       };
 
       let value: T;
+      let dataChanged = false;
       try {
         value = fn() as T;
         if (isThenable(value)) {
           throw new Error('MCP-transactiecallback moet strikt synchroon zijn en mag geen Promise/thenable retourneren');
         }
+        // Wijzigde de callback projectdata? Gemeten VÓÓR de eindherberekening: `runCPM` alléén maakt
+        // een document nooit dirty. Dit is de ene plek waar elke MCP-schrijfactie langskomt — ook de
+        // toollaag-producers die geen draft-primitief gebruiken (het voortgangspad van
+        // `update_tasks` zette zo nooit `isDirty`, dus sluiten vroeg niet om op te slaan en de
+        // crashherstel-auto-save sloeg de wijziging over).
+        dataChanged = documentDataChanged(snapshot, createSnapshot(store.getState()));
 
         // De volledige eindherberekening blijft binnen dezelfde lease. Dat onderdrukt ook de
         // modus-verlaat-snapshot van "datums zoals opgeslagen".
@@ -999,6 +1006,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       runtime.resetUndoCoalescing();
       store.setState((state) => {
         runtime.recordDocumentDataHistory(state, snapshot, documentId, 'MCP-bewerking');
+        if (dataChanged) state.isDirty = true;
       });
       const lostCount = runtime.countMcpTimephasedLoss(lease);
       if (lostCount > 0) {

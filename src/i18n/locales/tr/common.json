@@ -119,6 +119,14 @@
     "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
     "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış)."
   },
+  "scheduleErrors": {
+    "cycle": "Görevler arasında döngüsel bağımlılık: {{path}}",
+    "noWorkingDays": "Takvimde tanımlı iş günü yok",
+    "invalidDayDuration": "'{{task}}' görevi için geçersiz gün cinsinden süre",
+    "invalidHourDuration": "'{{task}}' görevi için geçersiz saat cinsinden süre",
+    "hourTaskWithoutWorkHours": "'{{task}}' saat görevinin takviminde geçerli çalışma saatleri yok",
+    "invalidStartDate": "'{{task}}' görevi için geçersiz başlangıç tarihi"
+  },
   "yes": "Evet",
   "no": "Hayır",
   "days": "g",

@@ -92,6 +92,14 @@
     "xerArchiveReasonMetadataInvalid": "理由: ソースバイトは無傷ですが、そこから導出したデータが使用できません。",
     "xerArchiveReasonStructure": "理由: IFC 内のアーカイブ構造が正しくありません（重複、並べ替え、または誤った関連付け）。"
   },
+  "scheduleErrors": {
+    "cycle": "タスク間に循環依存があります: {{path}}",
+    "noWorkingDays": "カレンダーに稼働日が設定されていません",
+    "invalidDayDuration": "タスク「{{task}}」の日単位の期間が無効です",
+    "invalidHourDuration": "タスク「{{task}}」の時間単位の期間が無効です",
+    "hourTaskWithoutWorkHours": "時間タスク「{{task}}」のカレンダーに有効な稼働時間がありません",
+    "invalidStartDate": "タスク「{{task}}」の開始日が無効です"
+  },
   "yes": "はい",
   "no": "いいえ",
   "days": "日",

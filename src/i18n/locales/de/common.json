@@ -119,6 +119,14 @@
     "xerArchiveReasonMetadataInvalid": "Grund: Die Quellbytes sind intakt, aber die daraus abgeleiteten Daten sind unbrauchbar.",
     "xerArchiveReasonStructure": "Grund: Der Aufbau des Archivs in der IFC stimmt nicht (doppelt, umsortiert oder falsch verknüpft)."
   },
+  "scheduleErrors": {
+    "cycle": "Zirkelbezug zwischen Aufgaben: {{path}}",
+    "noWorkingDays": "Im Kalender sind keine Arbeitstage festgelegt",
+    "invalidDayDuration": "Ungültige Dauer in Tagen für Aufgabe '{{task}}'",
+    "invalidHourDuration": "Ungültige Dauer in Stunden für Aufgabe '{{task}}'",
+    "hourTaskWithoutWorkHours": "Stundenaufgabe '{{task}}' hat in ihrem Kalender keine gültigen Arbeitszeiten",
+    "invalidStartDate": "Ungültiges Startdatum für Aufgabe '{{task}}'"
+  },
   "yes": "Ja",
   "no": "Nein",
   "days": "T",

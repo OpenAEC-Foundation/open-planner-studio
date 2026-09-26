@@ -146,6 +146,14 @@
     "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
     "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato)."
   },
+  "scheduleErrors": {
+    "cycle": "Dipendenza circolare tra attività: {{path}}",
+    "noWorkingDays": "Nel calendario non sono impostati giorni lavorativi",
+    "invalidDayDuration": "Durata in giorni non valida per l'attività '{{task}}'",
+    "invalidHourDuration": "Durata in ore non valida per l'attività '{{task}}'",
+    "hourTaskWithoutWorkHours": "L'attività in ore '{{task}}' non ha orari di lavoro validi nel suo calendario",
+    "invalidStartDate": "Data di inizio non valida per l'attività '{{task}}'"
+  },
   "yes": "Sì",
   "no": "No",
   "days": "g",

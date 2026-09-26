@@ -92,6 +92,14 @@
     "xerArchiveReasonMetadataInvalid": "原因：源字节完好，但由此派生的数据不可用。",
     "xerArchiveReasonStructure": "原因：存档在 IFC 中的结构不正确（重复、重新排序或关联错误）。"
   },
+  "scheduleErrors": {
+    "cycle": "任务之间存在循环依赖：{{path}}",
+    "noWorkingDays": "日历中未设置工作日",
+    "invalidDayDuration": "任务“{{task}}”的天数工期无效",
+    "invalidHourDuration": "任务“{{task}}”的小时工期无效",
+    "hourTaskWithoutWorkHours": "小时任务“{{task}}”的日历中没有有效的工作时间",
+    "invalidStartDate": "任务“{{task}}”的开始日期无效"
+  },
   "yes": "是",
   "no": "否",
   "days": "天",

@@ -146,6 +146,14 @@
     "xerArchiveReasonMetadataInvalid": "Motivo: os bytes de origem estão intactos, mas os dados derivados deles são inutilizáveis.",
     "xerArchiveReasonStructure": "Motivo: a estrutura do arquivo no IFC está incorreta (duplicada, reordenada ou mal associada)."
   },
+  "scheduleErrors": {
+    "cycle": "Dependência circular entre tarefas: {{path}}",
+    "noWorkingDays": "O calendário não tem dias úteis definidos",
+    "invalidDayDuration": "Duração em dias inválida para a tarefa '{{task}}'",
+    "invalidHourDuration": "Duração em horas inválida para a tarefa '{{task}}'",
+    "hourTaskWithoutWorkHours": "A tarefa horária '{{task}}' não tem horário de trabalho válido no seu calendário",
+    "invalidStartDate": "Data de início inválida para a tarefa '{{task}}'"
+  },
   "yes": "Sim",
   "no": "Não",
   "days": "d",
