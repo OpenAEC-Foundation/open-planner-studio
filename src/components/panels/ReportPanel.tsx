@@ -17,7 +17,7 @@ import {
   effectiveBarColorControl,
 } from '@/components/viewControls/barColorFieldOptions';
 import { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
-import { useSplitter } from '@/hooks/useSplitter';
+import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/useSplitter';
 import { saveBytesDialog } from '@/services/fileAccess';
 import {
   DEFAULT_REPORT_SETTINGS, isGanttReportType, loadReportSettings, reportTypeDrawsRelations, reportTypeShowsCriticalToggle, saveReportSettings,
@@ -367,10 +367,17 @@ export function ReportPanel() {
   const settingsSplitter = useSplitter({
     min: SETTINGS_PANEL_MIN_WIDTH,
     max: () => Math.round((containerRef.current?.getBoundingClientRect().width ?? 800) * 0.5),
+    // De instellingenkolom is het eerste flexkind: links in ltr, rechts in ar/fa. Eerst rekende dit
+    // `clientX − rect.left` en sprong de kolom in ar/fa bij de eerste beweging naar de bovengrens.
     computeSize: e => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return NaN;
-      return Math.round(e.clientX - rect.left);
+      const container = containerRef.current;
+      if (!container) return NaN;
+      return Math.round(panelWidthAtPointer(
+        e.clientX,
+        container.getBoundingClientRect(),
+        'inline-start',
+        inlineDirectionOf(container),
+      ));
     },
     onResize: w => { if (!Number.isNaN(w)) setSettingsWidth(w); },
   });
@@ -1302,12 +1309,15 @@ export function ReportPanel() {
           cursor: 'col-resize',
           zIndex: 10,
         }}
+        data-ops-report-settings-resize
       />
       {/* Left: Settings panel — breedte sleepbaar (issue #38 punt 3). `min-w-0` op de kolom zelf
-          voorkomt dat ZIJN eigen rijen de kolom breder duwen dan `settingsWidth`. */}
+          voorkomt dat ZIJN eigen rijen de kolom breder duwen dan `settingsWidth`. De scheidingslijn
+          is `borderInlineEnd`, zodat hij ook in ar/fa (kolom rechts) op de grens met de preview
+          staat en niet aan de buitenkant. */}
       <div
         className="flex-shrink-0 min-w-0 overflow-y-auto p-3 flex flex-col gap-3"
-        style={{ width: settingsWidth, borderRight: '1px solid var(--theme-border)' }}
+        style={{ width: settingsWidth, borderInlineEnd: '1px solid var(--theme-border)' }}
       >
         <span
           className="text-small leading-4 font-bold uppercase"

@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { DataGridCore } from '@/components/task-grid/DataGridCore';
 import { GridEditorHost } from '@/components/task-grid/GridEditorHost';
 import {
+  columnHeaderZIndex,
   computePinnedColumnLayout,
   keyboardResizeWidth,
 } from '@/components/task-grid/DataGridHeader';
@@ -208,6 +209,19 @@ const pinnedOverflow = computePinnedColumnLayout([
 ], 300);
 eq('Te breed pinned blok schakelt sticky voor het hele blok uit', pinnedOverflow.stickyEnabled, false);
 eq('Overflowfallback publiceert geen sticky offsets', pinnedOverflow.leftByColumnId.size, 0);
+
+// Kopslagen: alleen vastgezette koppen krijgen een eigen laag, aflopend naar rechts, zodat de
+// breedtegreep (die 2 px over de rechterbuur hangt) overal over zijn volle 4 px pakbaar is.
+const twoPinned = computePinnedColumnLayout([
+  columns[0],
+  { ...columns[1], pinned: true },
+  columns[2],
+], 500);
+eq('Gewone kop krijgt geen eigen laag', columnHeaderZIndex(twoPinned, columns[2].id), undefined);
+eq('Vastgezette kop ligt boven zijn vastgezette rechterbuur',
+  [columnHeaderZIndex(twoPinned, columns[0].id), columnHeaderZIndex(twoPinned, columns[1].id)], [7, 6]);
+eq('Zonder sticky (overflow) krijgt ook een vastgezette kop geen laag',
+  columnHeaderZIndex(pinnedOverflow, columns[1].id), undefined);
 
 eq('Keyboardresize gebruikt 8 px per gewone stap', keyboardResizeWidth(100, 'ArrowRight', false), 108);
 eq('Keyboardresize gebruikt 32 px met Shift', keyboardResizeWidth(100, 'ArrowLeft', true), 68);

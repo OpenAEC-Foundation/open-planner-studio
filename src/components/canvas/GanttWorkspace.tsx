@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
-import { useSplitter } from '@/hooks/useSplitter';
+import {
+  inlineDirectionOf,
+  panelWidthAtPointer,
+  panelWidthStepForArrow,
+  useSplitter,
+} from '@/hooks/useSplitter';
 import {
   saveLeftPanelWidth,
   TASK_TABLE_MAX_WIDTH,
@@ -39,6 +44,9 @@ export function GanttWorkspace() {
     return () => observer.disconnect();
   }, []);
 
+  // De takenlijst staat aan de BEGINkant van de werkruimte: links in ltr, rechts in ar/fa (het
+  // CSS-grid volgt de gespiegelde shell). Muis en pijltoetsen rekenen daarom via dezelfde gedeelde
+  // regel in `useSplitter`: de grens gaat de kant op van de muis of de pijl.
   const splitter = useSplitter({
     min: TASK_TABLE_MIN_WIDTH,
     max: () => {
@@ -46,8 +54,14 @@ export function GanttWorkspace() {
       return effectiveTaskGridMax(width);
     },
     computeSize: event => {
-      const rect = workspaceRef.current?.getBoundingClientRect();
-      return rect ? Math.round(event.clientX - rect.left) : Number.NaN;
+      const workspace = workspaceRef.current;
+      if (!workspace) return Number.NaN;
+      return Math.round(panelWidthAtPointer(
+        event.clientX,
+        workspace.getBoundingClientRect(),
+        'inline-start',
+        inlineDirectionOf(workspace),
+      ));
     },
     onResize: width => {
       if (!Number.isNaN(width)) setUI({ leftPanelWidth: width });
@@ -80,9 +94,9 @@ export function GanttWorkspace() {
         onKeyDown={event => {
           if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
           event.preventDefault();
-          const direction = event.key === 'ArrowLeft' ? -1 : 1;
+          const step = panelWidthStepForArrow(event.key, 'inline-start', inlineDirectionOf(workspaceRef.current));
           const next = clampTaskGridWidth(
-            renderedLeftPanelWidth + direction * (event.shiftKey ? 40 : 10),
+            renderedLeftPanelWidth + step * (event.shiftKey ? 40 : 10),
             workspaceWidth,
           );
           applySetting('leftPanelWidth', next, saveLeftPanelWidth);

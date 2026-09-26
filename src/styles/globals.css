@@ -337,8 +337,13 @@
   justify-self: end;
   position: relative;
   /* De volledige 5px-grijpzone ligt aan de Gantt-kant. Gecentreerd op de paneelgrens bedekte deze
-   * anders 2,5px van de 8px brede verticale tabelscrollbar. */
-  transform: translateX(100%);
+   * anders 2,5px van de 8px brede verticale tabelscrollbar.
+   * Logisch, niet fysiek: in ar/fa spiegelt de werkruimte (de takenlijst staat dan RECHTS van de
+   * Gantt) en valt het einde van kolom 1 op de LINKERrand van de lijst. Een negatieve
+   * `margin-inline-end` ter breedte van de zone schuift hem in beide richtingen voorbij dat einde,
+   * de Gantt in. De eerdere `transform: translateX(100%)` duwde altijd naar rechts en legde de zone
+   * in ar/fa 5px BINNEN de lijst, over de WBS-kolom. In ltr is de box identiek. Spec: splitter.spec.ts. */
+  margin-inline-end: -5px;
   z-index: 6;
   width: 5px;
   min-width: 5px;
@@ -551,6 +556,13 @@
  * buur. Smaller gemaakt (4px totaal i.p.v. 8px) zodat er meer ruimte overblijft voor herordenen; de
  * greep blijft een gangbare resize-hitbox (vergelijkbaar met Excel/Sheets, die ook een paar pixels
  * breed zijn, geen 8).
+ *
+ * Die 4 px zijn ook echt pakbaar, ook het deel dat over de volgende kop hangt. Daarvoor krijgt een
+ * gewone kolomkop GEEN eigen laag (`columnHeaderZIndex` in DataGridHeader): met `z-index: 5` op
+ * elke kop lag de volgende kop (later in de DOM, zelfde laag) over dat deel en was de greep
+ * feitelijk 3 px (ltr) of 2 px (rtl, waar de kolomlijn aan de andere kant van de kop zit). Nu ligt
+ * de greep (z 2) in de laag van de kopregel, boven alle gewone koppen; vastgezette koppen houden
+ * een eigen laag boven de wegscrollende koppen, aflopend naar rechts.
  *
  * RTL (ar/fa): de kolomkop-bediening volgt het RASTER, niet de tekst. Het raster is in elke taal ltr
  * (`DataGridCore` pint `direction: ltr`: WBS links, pijl-rechts gaat een kolom naar rechts, de strook
