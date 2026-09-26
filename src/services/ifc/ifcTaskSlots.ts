@@ -3,25 +3,18 @@ import { ifcStr, ifcBool } from './ifcPsets';
 import { DEFAULT_PRIORITY } from './ifcConstants';
 
 /**
- * IFCTASK/IFCTASKTIME-slot-registry (modulariteit-audit, bevinding A2 — "IFCTASK-layout dubbel;
- * IFCTASKTIME-slots op 3 plekken"). Vóór dit bestand leefde de POSITIONELE slot-layout van de twee
- * IFC-kern-entiteiten als hardcoded argument-indices op minstens drie plekken die alleen via
- * commentaar aan elkaar gekoppeld waren:
- *   - `ifcWriter.writeTask` (de IFCTASKTIME- en IFCTASK-template-literals, ~20 resp. ~13 posities);
- *   - `ifcReader.parseTaskTime` (leest de IFCTASKTIME-slots op index);
- *   - `ifcReader.applyHourModeIFC` (uur-post-pass, herleest dezelfde IFCTASKTIME-slots op index);
- *   - `ifcReader.extractTasks` (leest de IFCTASK-slots, mét arg-count-detectie voor de legacy-lay-out).
- * Eén verschoven index tussen writer en reader faalde STIL: de reader las simpelweg de verkeerde
- * kolom → dataverlies bij opslaan/herladen.
+ * IFCTASK/IFCTASKTIME-slot-registry: de POSITIONELE slot-layout van de twee IFC-kern-entiteiten op
+ * één plek. Een verschoven index tussen writer en reader faalt STIL (de reader leest de verkeerde
+ * kolom → dataverlies bij opslaan/herladen).
  *
- * Hier is de VOLGORDE van de slots de enige bron. `IFC_TASKTIME_SLOTS`/`IFC_TASK_SLOTS` zijn geordende
- * descriptor-lijsten (array-positie = STEP-argument-index). De writer ITEREERT de lijst en `.join(',')`t
- * de per-slot geformatteerde waarden ⇒ byte-identieke STEP-uitvoer (zelfde volgorde, zelfde
- * `$`/lege-waarde-conventies). De reader leest via de afgeleide naam→index-maps `TASKTIME_SLOT`/
- * `TASK_SLOT`, zodat writer-positie en reader-index niet meer kunnen divergeren.
+ * De VOLGORDE van de slots is de enige bron. `IFC_TASKTIME_SLOTS`/`IFC_TASK_SLOTS` zijn geordende
+ * descriptor-lijsten (array-positie = STEP-argument-index). De writer (`ifcWriter.writeTask`)
+ * ITEREERT de lijst en `.join(',')`t de per-slot geformatteerde waarden. De reader leest via de
+ * afgeleide naam→index-maps `TASKTIME_SLOT`/`TASK_SLOT`, zodat writer-positie en reader-index niet
+ * kunnen divergeren.
  *
  * WEL in descriptors gevangen: de volledige IFCTASKTIME write+read (per-slot, zoals ifcPsets), en de
- * IFCTASK write. BEWUST NIET (audit-richting — "verweven arg-count-detectie buiten de refactor houden"):
+ * IFCTASK write. BEWUST NIET (verweven arg-count-detectie):
  *   - `extractTasks` blijft in ifcReader met zijn taak-time-ref-resolutie, mijlpaal-neveneffect en
  *     priority-parse; de legacy-12-detectie wordt daar één OFFSET die de gedeelde `TASK_SLOT`-indices
  *     verschuift (i.p.v. losse ternary's per slot).
@@ -49,7 +42,7 @@ export interface TaskTimeWriteCtx {
   actualStartArg: string;
   actualFinishArg: string;
   remainingArg: string;
-  /** "Datums zoals opgeslagen" (critreview PR #167, bevinding 1): de rekenslots die voor deze taak
+  /** "Datums zoals opgeslagen": de rekenslots die voor deze taak
    *  NIET uit het bronbestand komen maar een weergave-terugval zijn (`applyRecordedTimesToTasks`:
    *  `lateStart ?? start`, `totalFloat ?? 0`, `isCritical ?? false`). De writer schrijft daar `$`,
    *  zodat een heropening ze niet als vastgelegd leest. Leeg/afwezig ⇒ alles gewoon geschreven. */
@@ -69,7 +62,7 @@ const unlessWithheld = (w: TaskTimeWriteCtx, key: WithheldTaskTimeField, value: 
 /** STEP-parse-helpers die de reader aan de IFCTASKTIME-read-descriptors doorgeeft. Ze wonen in
  *  ifcReader (STEP-specifieke `$`/quote-semantiek); injectie houdt dit bestand cyclusvrij. */
 export interface TaskTimeReadHelpers {
-  /** parseDateFromIFC(arg || '') — `$`/leeg/afwezig ⇒ vandaag (bestaande semantiek); lege
+  /** parseDateFromIFC(arg || '') — `$`/leeg/afwezig ⇒ vandaag; lege
    *  rekenslots (Early/Late) krijgen daarna in ifcReader `fillEmptyComputedDateSlots` de eigen
    *  geplande datum. */
   parseDate: (arg: string | undefined) => string;
@@ -83,7 +76,7 @@ export interface TaskTimeReadHelpers {
 
 export interface TaskTimeSlot {
   key: string;
-  /** Geformatteerde STEP-waarde voor deze positie (byte-identiek aan de vroegere template-literal). */
+  /** Geformatteerde STEP-waarde voor deze positie. */
   write(w: TaskTimeWriteCtx): string;
   /** Zet de gelezen rauwe arg-string terug op het TaskTime-veld. Afwezig ⇒ slot wordt bij het lezen
    *  genegeerd (Name/DataOrigin/UserDefinedDataOrigin, en StatusTime — dat lezen we uit
@@ -92,10 +85,9 @@ export interface TaskTimeSlot {
 }
 
 /**
- * De 20 IFCTASKTIME-argumenten in STEP-volgorde (0-based). Spiegelt exact de vroegere
- * `writeTask`-template + `parseTaskTime`-indexlezing. Voortgang-slots (14 StatusTime, 15
+ * De 20 IFCTASKTIME-argumenten in STEP-volgorde (0-based). Voortgang-slots (14 StatusTime, 15
  * ActualDuration, 16 ActualStart, 17 ActualFinish, 18 RemainingTime) blijven `$` bij een taak zonder
- * actuals ⇒ byte-identieke round-trip van bestaande bestanden.
+ * actuals.
  */
 export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
   { key: 'name', write: (w) => ifcStr(w.task.name + ' Time') },
@@ -157,7 +149,7 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
     read: (t, arg) => { t.isCritical = arg?.includes('T') || false; },
   },
   // StatusTime (14): geschreven als peildatum bij actuals, maar bij het lezen genegeerd — de
-  // projectbrede statusdatum komt uit OPS_ProjectSettings (§15.3). Geen `read`.
+  // projectbrede statusdatum komt uit OPS_ProjectSettings. Geen `read`.
   { key: 'statusTime', write: (w) => w.statusTimeArg },
   {
     key: 'actualDuration',
@@ -181,35 +173,21 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
   },
   {
     key: 'completion',
-    // T14b (gebruikstestbevinding, ernst hoog): vangnet — een writer mag nooit de HELE opslag laten
-    // crashen op één optioneel-in-de-praktijk veld. `completion` is verplicht op `TaskTime`, maar
-    // vóór deze fix kon een taak die buiten de TS-typechecker om is aangemaakt (extensie-sandbox,
-    // MCP-payload) hier alsnog `undefined` dragen — `undefined.toFixed(1)` gooide een TypeError die
-    // élke `writeIFC` liet crashen (auto-save, Opslaan/Opslaan-als, `planner_export_ifc`). De bronlaag
-    // (`taskSlice`/`mcpTransaction`/`extMappers`) is inmiddels gedicht; deze `?? 0` is de onafhankelijke
-    // derde verdedigingslinie voor elk pad dat die twee lagen zou weten te omzeilen.
-    // M3 (eindreview T16c): `.toFixed(1)` rondde AF op tientallen procenten (10%-stappen) — een
-    // taak op 38% (MSP se eigen PercentComplete is een integer 0-100, dus completion is standaard
-    // een veelvoud van 0.01) werd bij elke IFC-save stil "0.4" (40%); ≥0,955 rondde zelfs tot "1.0"
-    // (100%) en schakelde de taak stilzwijgend om naar de VOLTOOID-tak van de solver (andere
-    // ES/EF-berekening, zie CPMSolver.ts's completion>=1-gate) — een gedragswisseling door pure
-    // afrondruis, niet door een echte voortgangswijziging. `.toFixed(2)` behoudt de volle
-    // integer-procent-granulariteit (0.01-stappen) zonder de bestandsgrootte noemenswaardig te
-    // raken. Backward-compatibel: `parseFloat` bij het lezen is formaat-onafhankelijk (elk aantal
-    // decimalen), dus bestaande IFC-bestanden met 1-decimaal-completion blijven exact zo inlezen
-    // als voorheen — alleen NIEUW geschreven bestanden winnen de extra precisie.
-    // Restduurregel (besluit eigenaar, `runningDurationChange`): een duurwijziging van een lopende
-    // taak houdt het gedane werk gelijk en maakt het percentage bv. 4/12. Met twee decimalen kwam dat
-    // als 0,33 terug en verschoof het gedane werk na opslaan + openen. Daarom verliesvrij, zie
-    // `ifcCompletionReal`; hele procenten blijven byte-identiek.
+    // Vangnet: een writer mag nooit de HELE opslag laten crashen op één veld. `completion` is
+    // verplicht op `TaskTime`, maar een taak die buiten de typechecker om is aangemaakt
+    // (extensie-sandbox, MCP-payload) kan hier `undefined` dragen; de bronlaag
+    // (`taskSlice`/`mcpTransaction`/`extMappers`) dicht dat al, dit `?? 0` is de laatste linie.
+    // Afronden is geen optie: ≥0,955 als "1.0" schakelt de taak om naar de VOLTOOID-tak van de
+    // solver, en de restduurregel (`runningDurationChange`) levert percentages als 4/12 die na
+    // opslaan + openen exact moeten terugkomen. Daarom verliesvrij, zie `ifcCompletionReal`.
     write: (w) => ifcCompletionReal(w.task.time.completion ?? 0),
     read: (t, arg) => { t.completion = parseFloat(arg || '0') || 0; },
   },
 ];
 
 /**
- * `completion` als IFC-REAL: twee decimalen zoals altijd — byte-identiek voor elke waarde die daarmee
- * exact terugleest (hele procenten, alle bestaande bestanden) — en anders de kortste decimale vorm
+ * `completion` als IFC-REAL: twee decimalen voor elke waarde die daarmee exact terugleest (hele
+ * procenten), en anders de kortste decimale vorm
  * die exact terugleest (`String`), zodat opslaan + openen het percentage niet afrondt. Een STEP-REAL
  * vraagt een decimale punt zonder exponent; voor de (theoretische) waarden waar `String` een exponent
  * geeft, volstaat een vaste notatie met 20 decimalen.
@@ -247,7 +225,7 @@ export const RECORDED_SLOT_KEYS = [
 
 export type RecordedSlotKey = typeof RECORDED_SLOT_KEYS[number];
 
-// Compile-assert (huisstijl src/types/task.ts): een NIEUW CPM-veld moet ook hier landen, anders valt
+// Compile-assert: een NIEUW CPM-veld moet ook hier landen, anders valt
 // het stil buiten de aanwezigheidsregistratie — geen buildfout, alleen een slot dat nooit meer meldt.
 type _Expect<T extends true> = T;
 type _IsNever<T> = [T] extends [never] ? true : false;
@@ -255,14 +233,14 @@ const _assertAlleRekenslots: _Expect<_IsNever<Exclude<keyof TaskTimeComputed, Re
 void _assertAlleRekenslots;
 
 /**
- * De TWEE invoerslots die "datums zoals opgeslagen" (issue #63, taak 2) nodig heeft als terugval
+ * De TWEE invoerslots die "datums zoals opgeslagen" nodig heeft als terugval
  * wanneer de rekenslots leeg zijn: `scheduleStart`/`scheduleFinish` zijn INVOER (het anker waarop de
  * forward pass snapt), geen rekenresultaat — vandaar terecht niet in `RECORDED_SLOT_KEYS` hierboven.
  *
- * Zonder aanwezigheidsregistratie voor DEZE twee kon de terugvallaag niet onderscheiden of een taak
+ * Zonder aanwezigheidsregistratie voor DEZE twee kan de terugvallaag niet onderscheiden of een taak
  * écht een geëxporteerde ScheduleStart/-Finish droeg, dan wel de "vandaag"-fallback van
  * `createDefaultTaskTime`/`parseDateFromIFC` (een IFCTASK zonder IfcTaskTime, of een IfcTaskTime met
- * `$` op ScheduleStart) — precies het gat dat de kritieke bevinding van de kwaliteitsreview blootlegde.
+ * `$` op ScheduleStart).
  *
  * Bewust een SUBSET van `TaskTimeInput` (niet alle vijf velden): `durationType`/`scheduleDuration`/
  * `durationMinutes` zijn geen datum-aanwezigheidsvraag — de writer schrijft duur altijd een waarde,
@@ -304,10 +282,10 @@ export interface TaskSlot {
 /**
  * De 13 IFCTASK-argumenten in de spec-conforme IFC 4.3-volgorde (0-based; geverifieerd tegen
  * ifc43-docs.standards.buildingsmart.org, IfcTask-attribuuttabel). ObjectType/LongDescription/Status/
- * WorkMethod blijven `$` (pragmatische subset); Priority alleen bij afwijking van de default (golden
- * rule §7.7). Oudere OPS-bestanden schreven 12 args (zonder WorkMethod op index 8, waardoor de vier
- * slots erná één positie eerder zaten) — de reader (`extractTasks`) verschuift de gedeelde
- * `TASK_SLOT`-indices met één OFFSET voor die legacy-lay-out.
+ * WorkMethod blijven `$` (pragmatische subset); Priority alleen bij afwijking van de default. Oudere
+ * OPS-bestanden schreven 12 args (zonder WorkMethod op index 8, waardoor de vier slots erná één positie
+ * eerder zaten) — de reader (`extractTasks`) verschuift de gedeelde `TASK_SLOT`-indices met één OFFSET
+ * voor die legacy-lay-out.
  */
 export const IFC_TASK_SLOTS: TaskSlot[] = [
   { key: 'globalId', write: (w) => w.guidArg },

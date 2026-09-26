@@ -2,7 +2,7 @@
  * `hbSubset` — een dunne, eigen wrapper om HarfBuzz' `hb-subset.wasm` (uit de `harfbuzzjs`-dep), die een
  * glyf-TTF pre-subset op een set Unicode-codepoints. Bedoeld als pre-subsetter vóór pdf-lib's
  * `embedFont(bytes, { subset:false })`: pdf-lib's eigen `subset:true` (via `@pdf-lib/fontkit`) schrijft
- * corrupte glyf-coördinaten waardoor glyphs in pdfium/Chrome onzichtbaar worden (spike 2026-07-22); de
+ * corrupte glyf-coördinaten waardoor glyphs in pdfium/Chrome onzichtbaar worden; de
  * HarfBuzz-subset is bewezen correct in pdfium/MuPDF/Chrome. Zo kunnen grote CJK-fonts (5–16 MB) tot
  * enkele tientallen KB per export teruggebracht worden zonder het render-defect.
  *

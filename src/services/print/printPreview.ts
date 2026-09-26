@@ -7,14 +7,13 @@ import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
 import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
-// Print-vriendelijk kleurschema — nu uit het centrale themapalet (audit C5/P17). De naam
-// `PRINT_COLORS` blijft behouden zodat de teken-aanroepen ongewijzigd zijn; waarden zijn identiek.
+// Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS } from '@/engine/renderer/themePalette';
 import { isCompressedEffective, resolveGanttAxis } from '@/engine/renderer/workdayAxis';
 import { computeSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import { snapToChoice } from '@/utils/numberChoice';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
-// Balkkleurmodi (#21 punt 1-nieuw): pure adviesmodule — de printlaag vertaalt alleen naar
+// Balkkleurmodi: pure adviesmodule — de printlaag vertaalt alleen naar
 // fill/segmenten/outline-aanroepen en houdt zelf geen kleurlogica.
 import {
   barCategoryDisplayColor,
@@ -45,13 +44,12 @@ import type { DurationSuffixes } from '@/utils/durationFormat';
 const ROW_HEIGHT = 24;
 const PROJECT_HEADER_HEIGHT = 64;
 const TIMELINE_HEADER_HEIGHT = 44;
-// Issue #93: de tabelbreedte is geen constante meer maar de som van de kolommen (zie `COL` en
-// `tableWidthFor`). Met de standaard naamkolom van 130 px en Volt. aan is dat 380 px — de oude 450
-// minus de verdwenen #-kolom (30) en minus 40 px uit de te ruime WBS-/Start-/Einde-kolommen.
+// De tabelbreedte is geen constante maar de som van de kolommen (zie `COL` en `tableWidthFor`).
+// Met de standaard naamkolom van 130 px en Volt. aan is dat 380 px.
 const FOOTER_HEIGHT = 50;
 // Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
-// en de latere vector-export identieke measureText geven; systeem-stack als fallback zolang de
-// FontFace nog niet geladen is (§5.1/K2 ontwerpdoc). De swap reflowt bewust bestaande exports.
+// en de vector-export identieke measureText geven; systeem-stack als fallback zolang de
+// FontFace nog niet geladen is.
 const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 /**
@@ -72,7 +70,7 @@ export const REPORT_MAX_ZOOM = 40;
 // x-positie van de VERTICALE knik, gerekend vanaf de rechterrand van de voorganger-balk.
 const DEP_STUB = 6;
 // Linkerpad van een taaklabel RECHTS van de balk. Bewust groter dan `DEP_STUB`: het label begint
-// pas voorbij de verticale knik van de relatie die uit DEZE balk vertrekt (issue #25 punt 2).
+// pas voorbij de verticale knik van de relatie die uit DEZE balk vertrekt.
 // De koppeling is expliciet — verandert de stub, dan schuift het label mee. Let op: dit dekt alleen
 // de EIGEN knik; dat willekeurige andere relatielijnen niet over het label lopen komt doordat de
 // labels als laatste getekend worden (zie de tekenvolgorde bij `drawDependencies`).
@@ -81,22 +79,14 @@ const BAR_LABEL_GAP = DEP_STUB + 8;
 // daar is de grote gap niet nodig.
 const BAR_LABEL_PAD_LEFT = 4;
 
-// Column definitions for the task table. Issue #93: de vroegere `#`-rijnummerkolom is bewust
-// verdwenen — de automatisch genummerde WBS-kolom zegt al waar een rij staat, en op papier is
-// elke millimeter voor de tijdlijn.
+// Column definitions for the task table. Bewust geen `#`-rijnummerkolom — de automatisch
+// genummerde WBS-kolom zegt al waar een rij staat, en op papier is elke millimeter voor de tijdlijn.
 //
-// `w` is de TERUGVAL-breedte (wat de kolom was toen ze nog vast was, en wat ze blijft zolang er
-// geen meting is); `max` de bovengrens waarboven de kolom niet mag groeien. De getallen zijn
-// gemeten met het gevendorde Inter (waarden 8 px, koppen 9 px vet, celpadding 4 px per zijde),
-// niet geschat: een datum `31-12-2026` meet 43,5 px (⇒ 51,5 met padding), een WBS-code
-// `1.10.12.3` 31,5 px, `1000d` 23 px en `100%` 21 px.
-//
-// Die vaste breedtes hielden echter niet ALLE inhoud: de Poolse duur-kop "Czas trwania" meet
-// 57,3 px in een kolom van 45 (en liep dus over de Start-kolom heen — `Draw2D` kent geen clip),
-// de Arabische/Perzische "Eenh./d"-kop 44,8 px in 45, en een WBS-code van vijf niveaus
-// (`10.11.12.13.14`) 48,8 px terwijl er 42 beschikbaar was. Daarom meet het rapportpaneel deze
-// zes kolommen nu op de inhoud die dít rapport toont ({@link measureTableColumnWidths}) —
-// dezelfde route als de naam- en de curvekolom al liepen — en is `w` alleen nog de terugval.
+// `w` is de TERUGVAL-breedte, gemeten met het gevendorde Inter (waarden 8 px, koppen 9 px vet,
+// celpadding 4 px per zijde; bv. `31-12-2026` = 43,5 px). Vaste breedtes houden niet alle inhoud
+// (de Poolse duur-kop "Czas trwania" meet 57,3 px in 45, en `Draw2D` kent geen clip), dus het
+// rapportpaneel meet deze zes kolommen op de inhoud die dít rapport toont
+// ({@link measureTableColumnWidths}), net als de naam- en curvekolom.
 // `max` = tweemaal de terugval: genoeg voor elke vertaalde kop en een diepe WBS-code, en nog
 // steeds een harde grens zodat één absurde waarde de tijdlijn niet opeet (daar kapt `ellipsize` af).
 // De naamkolom staat hier bewust NIET: die breedte is instelbaar (zie `PrintOptions.taskNameColumnWidth`).
@@ -106,7 +96,7 @@ const COL = {
   start:     { w: 55, max: 110 },
   end:       { w: 55, max: 110 },
   complete:  { w: 45, max: 90 },
-  // Toewijzingskolommen van het resourcediagram (manuvarkey punt 1): eenheden per dag en de
+  // Toewijzingskolommen van het resourcediagram: eenheden per dag en de
   // verdeelcurve van de resource van de band op die taak. Alleen bij `assignmentColumns`.
   units:     { w: 45, max: 90 },
   curve:     { w: 98 },
@@ -117,8 +107,8 @@ export type AutoColumnKey = 'wbs' | 'duration' | 'start' | 'end' | 'complete' | 
 
 /**
  * Gemeten, ONGESCHAALDE breedtes per kolom (zie {@link measureTableColumnWidths}). Een ontbrekende
- * of onbruikbare sleutel valt terug op `COL[key].w` — precies de vaste breedte van vóór deze
- * meting, zodat elk pad zonder canvas (tests, headless render) byte-identiek blijft.
+ * of onbruikbare sleutel valt terug op `COL[key].w`, zodat elk pad zonder canvas (tests, headless
+ * render) deterministisch blijft.
  */
 export type TableColumnWidths = Partial<Record<AutoColumnKey, number>>;
 
@@ -135,11 +125,11 @@ function resolveAutoColumnWidth(key: AutoColumnKey, raw: number | undefined): nu
 
 /**
  * De curvekolom is niet vast maar zo breed als de langste curvenaam die het rapport écht toont
- * (manuvarkey op #113: een tabel vol "Uniform" verdient geen 98 px kolom). `COL.curve.w` is het
+ * (een tabel vol "Uniform" verdient geen 98 px kolom). `COL.curve.w` is het
  * maximum — de breedte waarop álle veertien talen hun langste curvenaam kwijt kunnen — en dit de
  * vloer, zodat de kop "Curve" en een streepje altijd passen. De meting gebeurt in het paneel op het
  * geladen Inter-font ({@link measureCurveColumnWidth}), om dezelfde reden als de naamkolom:
- * `measurePrintReport` heeft geen canvas. Zonder meting geldt het maximum, byte-identiek aan vóór.
+ * `measurePrintReport` heeft geen canvas. Zonder meting geldt het maximum.
  */
 export const CURVE_COLUMN_WIDTH_MIN = 40;
 
@@ -167,12 +157,11 @@ function resolveCurveColumnWidth(raw: number | undefined): number {
  * schaalt mee, deze grens niet) of klein/staand papier — dan vallen de twee kolommen en meldt de
  * render dat via `RenderReportResult.assignmentColumnsDropped`. De regel is bewust MONOTOON in de
  * tabelbreedte: elke bredere tabel laat de kolommen óók vallen. Een tussenvariant "alleen weglaten
- * als de tabel zónder de kolommen wél past" liet een dode zone open waarin een tabel die de pagina
- * al niet paste zijn optionele kolommen hield en de tijdas op 1 px klemde, zonder melding; en een
- * bredere naamkolom bracht de kolommen dan terug (review #139, ronde 2, bevinding 3). Weglaten maakt
- * de tijdas nooit smaller — helpt het niet genoeg, dan zegt de melding wat wél ruimte geeft. Review
- * #138 ronde 2 bevinding 5; de vaste 240 px van de eerste versie gooide op A4 staand de kolommen al
- * bij verse instellingen weg (review #139, ronde 1, bevindingen 1 en 2).
+ * als de tabel zónder de kolommen wél past" laat een dode zone open waarin een tabel die de pagina
+ * al niet past zijn optionele kolommen houdt en de tijdas op 1 px klemt, zonder melding; en een
+ * bredere naamkolom brengt de kolommen dan terug. Weglaten maakt de tijdas nooit smaller — helpt
+ * het niet genoeg, dan zegt de melding wat wél ruimte geeft. Een vaste grens (bv. 240 px) gooit op
+ * A4 staand de kolommen al bij verse instellingen weg.
  */
 const MIN_CHART_WIDTH_FRACTION = 0.2;
 const MIN_CHART_WIDTH_FLOOR_PX = 160;
@@ -181,8 +170,7 @@ function minChartWidthPx(printableWidth: number): number {
 }
 
 /**
- * Grenzen van de instelbare naamkolom (ongeschaalde px). `DEFAULT` is exact de breedte die de
- * kolom vóór deze instelling altijd had, zodat een verse installatie byte-identiek rendert.
+ * Grenzen van de instelbare naamkolom (ongeschaalde px). `DEFAULT` geldt voor een verse installatie.
  * `MIN`/`MAX` begrenzen de slider in het rapportpaneel; `AUTO_MAX` is de bovengrens wanneer de
  * kolom zich aan de langste naam aanpast (afkappen uit) — een absurd lange naam mag de pagina
  * niet opeten, dus dáár kapt hij alsnog af.
@@ -206,7 +194,7 @@ function resolveNameColumnWidth(raw: number | undefined): number {
 
 /**
  * De (ongeschaalde) tabelbreedte voor één render: de som van de zichtbare kolommen. Met
- * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel (issue #93) — niet alleen
+ * **Voltooiing tonen** uit verdwijnt de hele Volt.-kolom uit de tabel — niet alleen
  * de waarden — dus krimpt de tabel met precies die kolombreedte en krijgt de tijdlijn die ruimte.
  */
 function tableWidthFor(showCompletion: boolean, w: ResolvedColumnWidths, assignmentColumns = false): number {
@@ -308,7 +296,7 @@ const AUTO_COLUMN_HEADER: Record<AutoColumnKey, keyof TableHeaderLabels> = {
   wbs: 'wbs', duration: 'duration', start: 'start', end: 'end', complete: 'completion', units: 'unitsPerDay',
 };
 
-/** Eén rij van de taaktabel: een taak met diepte, of een groepsband (#54 volg-weergave). */
+/** Eén rij van de taaktabel: een taak met diepte, of een groepsband (volg-weergave). */
 export interface PrintRow {
   kind: 'task' | 'group';
   task?: Task;
@@ -320,9 +308,9 @@ export interface PrintRow {
 }
 
 /**
- * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (#54 volg-weergave) tekent het rapport
+ * Normaliseer de rijen-bron van het rapport. Gegeven `rows` (volg-weergave) tekent het rapport
  * precies die rijen — filter/groepering/sortering/inklapstatus van het scherm (WYSIWYG). Anders:
- * de volledige takenboom (oud gedrag, self-flatten), met wezen zonder gevonden ouder achteraan.
+ * de volledige takenboom (self-flatten), met wezen zonder gevonden ouder achteraan.
  * Geëxporteerd omdat het rapportpaneel dezelfde rijen nodig heeft om de naamkolom te meten.
  */
 export function buildPrintRows(
@@ -379,7 +367,7 @@ export function measureTaskNameColumnWidth(
 
 /**
  * De tekst van elke datacel van één tabelrij. Dit is de ENIGE plek waar die teksten gemaakt worden:
- * {@link drawTaskTable} tekent ze en {@link measureTableColumnWidths} meet ze. Stonden ze twee keer,
+ * {@link drawTaskTable} tekent ze en {@link measureTableColumnWidths} meet ze. Staan ze twee keer,
  * dan meet het paneel vroeg of laat iets anders dan de render tekent en kapt een kolom af die net
  * gemeten was als "past precies". Een groepsband heeft geen taak — die krijgt overal lege tekst,
  * precies zoals de render hem tekent (een band groepeert, hij heeft geen duur of datums).
@@ -393,7 +381,7 @@ type CellTextOptions = Pick<PrintOptions,
   /** De projectkalender: terugval voor de effectieve taakkalender van de Duur-kolom. Afwezig ⇒ 8 u/dag
    *  (dan zijn alleen de omrekeningen tussen dagen en uren een schatting; de eigen eenheid niet). */
   calendar?: WorkCalendar;
-  /** `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop (main, #190); de Duur-cel
+  /** `labels.daySuffix` is dezelfde dag-afkorting als in de projectkop; de Duur-cel
    *  gebruikt zelf `durationSuffixes` (groep B), de kolommeting geeft dit ene label door. */
   labels?: Pick<NonNullable<PrintOptions['labels']>, 'daySuffix'>;
 };
@@ -405,7 +393,7 @@ function durationCellText(task: Task, options: CellTextOptions): string {
     : 8;
   return formatTaskDurationText(task, hoursPerDay, {
     display: options.durationDisplay,
-    // Groep B's volledige suffixset wint; anders de dag-afkorting van de projectkop (main, #190).
+    // De volledige suffixset (`durationSuffixes`) wint; anders de dag-afkorting van de projectkop.
     suffixes: options.durationSuffixes
       ?? (options.labels?.daySuffix ? { day: options.labels.daySuffix, hour: 'h', minute: 'm' } : undefined),
     locale: options.numberLocale,
@@ -420,7 +408,7 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
   return {
     wbs: task?.wbsCode || '',
     duration: task ? durationCellText(task, options) : '',
-    // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj (ongewijzigd oud gedrag).
+    // Ontbreekt de datumnotatie ⇒ dd-mm-jjjj.
     start: displayDate(startStr, options.dateNotation ?? 'dmy'),
     end: displayDate(endStr, options.dateNotation ?? 'dmy'),
     complete: task ? formatCompletion(task.time.completion) : '',
@@ -477,10 +465,10 @@ export function measureTableColumnWidths(
 type ColPositions = ReturnType<typeof getColPositions>;
 
 /**
- * De maatvoering van één rapport-render, geschaald met de instelbare rapport-lettergrootte
- * (issue #25 punt 4, rapport-helft). Alle tekenhelpers rekenen met dit object in plaats van met de
- * module-constanten hierboven — er mag geen pad overblijven waar nog een ONgeschaalde constante
- * gebruikt wordt, anders scheurt de layout bij een andere schaal.
+ * De maatvoering van één rapport-render, geschaald met de instelbare rapport-lettergrootte. Alle
+ * tekenhelpers rekenen met dit object in plaats van met de module-constanten hierboven — er mag geen
+ * pad overblijven waar nog een ONgeschaalde constante gebruikt wordt, anders scheurt de layout bij een
+ * andere schaal.
  *
  * ==== WAAROM RELATIEF EN NIET UNIFORM (lees dit vóór je dit "vereenvoudigt") ====
  * Het hele rapport uniform opschalen is onder de fit-width-pagineerder een perfecte NO-OP. De
@@ -504,7 +492,7 @@ type ColPositions = ReturnType<typeof getColPositions>;
  * horen bij de ongeschaalde tijdlijn-geometrie.
  */
 interface ReportMetrics {
-  /** De schaalfactor zelf. 1 = 100% = byte-identiek aan het gedrag van vóór deze instelling. */
+  /** De schaalfactor zelf. 1 = 100% = ongeschaald. */
   k: number;
   /** Schaal een losse lengte/offset in de tekst-zones mee (paddings, baseline-correcties). */
   s(v: number): number;
@@ -528,7 +516,7 @@ export const REPORT_FONT_SCALES = [90, 100, 110, 125] as const;
 
 /**
  * Bouw de {@link ReportMetrics} voor een render. `reportFontScale` is een PERCENTAGE; ontbreekt hij
- * (of is hij onbruikbaar) dan geldt 100 ⇒ factor exact 1 ⇒ identieke output als voorheen.
+ * (of is hij onbruikbaar) dan geldt 100 ⇒ factor exact 1.
  *
  * Een waarde buiten {@link REPORT_FONT_SCALES} wordt naar de dichtstbijzijnde toegestane waarde
  * GESNAPT, niet op het bereik geklemd. Klemmen zou een 108 gewoon op 108% renderen — een grootte die
@@ -582,7 +570,7 @@ export interface PrintOptions {
   taskNameColumnWidth?: number;
   /** Dezelfde tijdas-instelling als de scherm-Gantt: niet-werkdagen krijgen geen rapportkolom. */
   compressNonWorkdays?: boolean;
-  /** De actieve baseline als grijze onderbalk, gelijk aan de hoofd-Gantt (#81). */
+  /** De actieve baseline als grijze onderbalk, gelijk aan de hoofd-Gantt. */
   showBaselineOverlay?: boolean;
   autoFit: boolean;
   customZoom: number;
@@ -602,7 +590,7 @@ export interface PrintOptions {
     tableHeaders: TableHeaderLabels;
     /** Label boven de gestippelde "vandaag"-lijn in het Gantt-gebied. */
     today: string;
-    /** Label boven de statusdatum-/voortgangslijn in de exportkop (#54). */
+    /** Label boven de statusdatum-/voortgangslijn in de exportkop. */
     statusDate: string;
     /** Eigen label voor de voortgangslijn; dezelfde datum krijgt daarmee geen onjuiste statusnaam. */
     progressDate?: string;
@@ -620,28 +608,24 @@ export interface PrintOptions {
   projectStartDate?: string;
   projectEndDate?: string;
   projectAuthor?: string;
-  /** Datumnotatie (taak #53) voor de header- en tabel-datums; ontbreekt ⇒ dd-mm-jjjj. */
+  /** Datumnotatie voor de header- en tabel-datums; ontbreekt ⇒ dd-mm-jjjj. */
   dateNotation?: DateNotation;
   /**
-   * Eerste dag van de week (K-item 39). Bepaalt drie dingen die het scherm al zo doet: het
-   * WEEKNUMMER (`getWeekNumberFor`), op welke dag het weeklabel in de kopstrook staat, en op welke
-   * dag de zwaardere verticale rasterlijn valt. Ontbreekt ⇒ `'monday'`, exact het oude gedrag.
-   *
-   * Hier stond dit veld NIET, terwijl `ui.weekStartDay` een gewone instelling is die de Gantt op het
-   * scherm wél volgt. Een gebruiker met "week begint op zondag" kreeg dus ISO-weeknummers op maandag
-   * in de afdruk en Amerikaanse weeknummers op zondag op het scherm — hetzelfde project, twee
-   * antwoorden.
+   * Eerste dag van de week (`ui.weekStartDay`, net als de scherm-Gantt). Bepaalt het WEEKNUMMER
+   * (`getWeekNumberFor`), op welke dag het weeklabel in de kopstrook staat, en op welke dag de
+   * zwaardere verticale rasterlijn valt — anders geven afdruk en scherm voor hetzelfde project
+   * verschillende weeknummers. Ontbreekt ⇒ `'monday'`.
    */
   weekStartDay?: 'monday' | 'sunday';
   /**
-   * Aantal paginabreedtes waarover de tijdlijn in de export uitgesmeerd wordt (issue #25 punt 5).
+   * Aantal paginabreedtes waarover de tijdlijn in de export uitgesmeerd wordt.
    * Beïnvloedt alleen de auto-fit-zoom hieronder (bij een handmatige zoom bepaalt de gebruiker de
    * breedte al zelf); de feitelijke tegeling gebeurt in de pagineerder, die hetzelfde getal als
-   * `timelineColumns` moet krijgen. Default 1 = oud gedrag (alles op één paginabreedte).
+   * `timelineColumns` moet krijgen. Default 1 = alles op één paginabreedte.
    */
   timelineColumns?: number;
   /**
-   * OPTIONEEL — rapportageperiode als TIJDVENSTER (manuvarkey op #113, punt 3; resourcediagram): de
+   * OPTIONEEL — rapportageperiode als TIJDVENSTER (resourcediagram): de
    * tijdas loopt exact van `from` t/m `to` (ISO-dagen, inclusief) zonder de gebruikelijke marge van
    * 7/14 dagen, en balken, mijlpalen, speling, voortgang en baseline worden op de chartrand
    * afgekapt — `Draw2D` kent geen clip, dus de geometrie zelf wordt geklemd (ook de 3 px-
@@ -649,16 +633,16 @@ export interface PrintOptions {
    * venster helemaal niet getekend). Welke rijen in het
    * venster horen beslist de rijenbron (`computeResourceGanttRows`), niet de render; een rij die
    * er toch buiten valt tekent gewoon geen balk. Relatiepijlen worden niet geklemd: het venster
-   * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ byte-identiek.
+   * wordt alleen aangeboden op het resourcediagram, dat er geen tekent. Afwezig ⇒ geen venster.
    */
   timeWindow?: { from: string; to: string };
   /**
-   * OPTIONEEL — TOEWIJZINGSKOLOMMEN (manuvarkey op #113, punt 1; resourcediagram): twee extra
+   * OPTIONEEL — TOEWIJZINGSKOLOMMEN (resourcediagram): twee extra
    * tabelkolommen direct achter de naam — eenheden per dag en verdeelcurve van de resource van de
    * band op die taak — gevuld uit `rowAssignments` (per `ViewRow.rowKey`, uit
    * `computeResourceGanttRows().assignmentByRowKey`). Een rij zonder entry (bandrij, "(geen)")
-   * laat de cellen leeg. De tabel wordt precies de twee kolombreedtes breder; afwezig ⇒
-   * byte-identiek.
+   * laat de cellen leeg. De tabel wordt precies de twee kolombreedtes breder; afwezig ⇒ geen
+   * extra kolommen.
    */
   assignmentColumns?: boolean;
   rowAssignments?: ReadonlyMap<string, RowAssignment>;
@@ -674,15 +658,15 @@ export interface PrintOptions {
    * Ongeschaalde breedtes van de zes datakolommen (WBS, Duur, Start, Einde, Volt., Eenh./d),
    * gemeten door het paneel op de koppen én de cellen die dít rapport toont
    * ({@link measureTableColumnWidths}). Elke ontbrekende sleutel valt terug op de vaste breedte
-   * van vóór die meting, dus een render zonder canvas (tests, headless) blijft byte-identiek.
+   * (`COL[key].w`), dus een render zonder canvas (tests, headless) blijft deterministisch.
    */
   columnWidths?: TableColumnWidths;
   /** BCP-47-taal voor getallen in de tabel (decimaalteken van de eenheden per dag); afwezig ⇒ punt. */
   numberLocale?: string;
   /**
    * De instelling Duurweergave voor de Duur-kolom — dezelfde tekst als taakraster en tooltip
-   * (`formatTaskDurationText`, audit weergaven 7). Afwezig ⇒ `'auto'`: de eigen taakeenheid, dus een
-   * urentaak van 5h staat als "5h" en niet meer als "0,56d".
+   * (`formatTaskDurationText`). Afwezig ⇒ `'auto'`: de eigen taakeenheid, dus een urentaak van 5h
+   * staat als "5h" en niet als "0,56d".
    */
   durationDisplay?: DurationDisplay;
   /** Vertaalde duur-afkortingen (`durationSuffixesFrom`) — print heeft geen `t()`; afwezig ⇒ d/h/m. */
@@ -690,16 +674,15 @@ export interface PrintOptions {
   /** De kalenderbibliotheek, voor de uren per dag van de effectieve taakkalender in de Duur-kolom. */
   calendars?: WorkCalendar[];
   /**
-   * Lettergrootte van het GEGENEREERDE RAPPORT als percentage (issue #25 punt 4). 100 (of
-   * ontbrekend) = het oude gedrag, byte-identiek. Werkt bewust RELATIEF: tekst, rijhoogtes,
+   * Lettergrootte van het GEGENEREERDE RAPPORT als percentage. 100 (of ontbrekend) = ongeschaald.
+   * Werkt bewust RELATIEF: tekst, rijhoogtes,
    * kopstroken en tabelbreedte schalen mee, de tijdlijn-zoom niet — zie de uitgebreide afleiding
    * bij {@link ReportMetrics}, want uniform schalen zou onder de fit-width-pagineerder niets doen.
    */
   reportFontScale?: number;
   /**
-   * Ids van de BEPALENDE (driving) relaties uit de laatste CPM-run (issue #56). Zonder dit veld
-   * tekent het rapport élke relatie neutraal doorgetrokken — exact het gedrag van vóór de fix, en
-   * de eerlijke weergave zolang er niet gerekend is.
+   * Ids van de BEPALENDE (driving) relaties uit de laatste CPM-run. Zonder dit veld tekent het
+   * rapport élke relatie neutraal doorgetrokken — de eerlijke weergave zolang er niet gerekend is.
    *
    * WAAROM DIT DOOR MOET WORDEN GEGEVEN en niet uit de taken af te leiden is: "bepalend" is een
    * eigenschap van de RELATIE (relationship free float = 0), geen eigenschap van de twee taken.
@@ -714,7 +697,7 @@ export interface PrintOptions {
   customFieldDefs?: CustomFieldDef[];
   taskTypeLabels?: Record<string, string>;
   barColorNoneLabel?: string;
-  /** Statuslijn in de export (#54): 'none' (default) | 'statusDate' (stippellijn) | 'progress' (zigzag). */
+  /** Statuslijn in de export: 'none' (default) | 'statusDate' (stippellijn) | 'progress' (zigzag). */
   statusLine?: 'none' | 'statusDate' | 'progress';
   /** Statusdatum (ISO) — bron voor beide lijnvarianten; ontbreekt ⇒ geen van beide tekent iets. */
   statusDate?: string;
@@ -724,14 +707,14 @@ export interface PrintOptions {
   /** Afleiding uit de actieve baseline; dezelfde taak-id-index als de hoofd-Gantt. */
   baselineOverlay?: BaselineOverlay;
   /**
-   * WYSIWYG-rijen (#54): gegeven ⇒ de export tekent precies deze rijen (filter, groepering,
+   * WYSIWYG-rijen: gegeven ⇒ de export tekent precies deze rijen (filter, groepering,
    * sortering én inklapstatus van het scherm) i.p.v. de volledige takenboom. Groepsband-rijen
    * (`kind: 'group'`) tekenen als samenvattings-strook. Bewust een afgeleide, geen configuratie:
    * de printlaag bouwt géén eigen view-pijplijn (één bron van waarheid: `computeViewRows`).
    */
   rows?: ViewRow[];
   /**
-   * Resourcediagram (issue #113, "een blad per persoon"): vóór elke groepsband-rij (behalve de
+   * Resourcediagram ("een blad per persoon"): vóór elke groepsband-rij (behalve de
    * eerste) een GEDWONGEN paginaovergang. De render tekent er niets anders door; hij levert de
    * posities alleen als {@link RenderReportResult.forcedBreakOffsets} aan de pagineerders. Zonder
    * `rows` met bandrijen is er niets te breken en is dit een no-op.
@@ -781,14 +764,11 @@ function formatCompletion(completion: number): string {
 /**
  * Teken een taaklabel. Dunne wrapper rond `fillText` die de uitlijning en kleur zet.
  *
- * Hier stond eerder een halo/knockout: een rechthoek in de papierkleur achter de tekst, zodat een
- * relatielijn die over een label loopt de tekst niet onleesbaar maakte. Die is er bewust weer uit
- * (review-ronde 2). Twee redenen. Ten eerste is hij overbodig geworden: de labels worden nu ná
- * `drawDependencies` getekend en liggen dus sowieso boven de lijnen — en in de vector-PDF stond
- * tekst altijd al boven alle vormen, want vormen gaan in het gedeelde Form-XObject en tekst wordt
- * daarná per tegel geëmit. Ten tweede kostte hij zichtbaar meer dan hij opleverde: per label werd
- * een strak wit blokje uit de weekend- en feestdagarcering en door de dag-rasterlijnen heen
- * gestanst, en dat waren er net zoveel als er taken zijn.
+ * Bewust GEEN halo/knockout (een rechthoek in de papierkleur achter de tekst). Die is overbodig: de
+ * labels worden ná `drawDependencies` getekend en liggen dus boven de lijnen — en in de vector-PDF
+ * staat tekst altijd boven alle vormen, want vormen gaan in het gedeelde Form-XObject en tekst wordt
+ * daarná per tegel geëmit. En hij kost zichtbaar meer dan hij oplevert: per label een strak wit
+ * blokje uit de weekend- en feestdagarcering en door de dag-rasterlijnen heen gestanst.
  */
 function fillLabelText(
   d2d: Draw2D,
@@ -805,7 +785,7 @@ function fillLabelText(
 }
 
 /**
- * Teken een taaknaam-label bij een staaf (klachten 4b + 7). Probeert rechts van de staaf; loopt het
+ * Teken een taaknaam-label bij een staaf. Probeert rechts van de staaf; loopt het
  * daar voorbij de canvasrand, dan wordt het links van de staaf getekend (rechts-uitgelijnd,
  * eindigend net vóór de staaf). Past het ook links niet, dan wordt het afgekort met '…' aan de kant
  * met de meeste ruimte. Zo valt een label nooit voorbij `canvasWidth` en overlapt het minder met
@@ -836,14 +816,14 @@ function drawBarLabel(
   d2d.fillStyle = color;
   d2d.textBaseline = 'alphabetic';
   // Rechts: voorbij de verticale knik van de EIGEN uitgaande relatie beginnen (`BAR_LABEL_GAP` >
-  // `DEP_STUB`), links de kleine pad — daar vertrekt geen eigen relatie-knik (issue #25 punt 2).
+  // `DEP_STUB`), links de kleine pad — daar vertrekt geen eigen relatie-knik.
   // Dat houdt het label vrij van z'n eigen lijn; lijnen van ANDERE relaties kunnen er nog steeds
   // overheen lopen, maar die verdwijnen achter de tekst omdat de labels als laatste getekend worden.
   //
   // `BAR_LABEL_GAP`/`BAR_LABEL_PAD_LEFT` schalen bewust NIET mee met de rapport-lettergrootte: de
   // gap bestaat alleen om vrij te blijven van de verticale relatie-knik, en die knik (`DEP_STUB`)
-  // zit in de ongeschaalde chart-geometrie. Zou de gap wél meeschalen, dan verbrak dat de expliciete
-  // koppeling `BAR_LABEL_GAP = DEP_STUB + 8` en schoof het label bij 125% nodeloos van z'n staaf af.
+  // zit in de ongeschaalde chart-geometrie. Zou de gap wél meeschalen, dan verbreekt dat de expliciete
+  // koppeling `BAR_LABEL_GAP = DEP_STUB + 8` en schuift het label bij 125% nodeloos van z'n staaf af.
   const rightStart = barRightX + BAR_LABEL_GAP;
   const rightAvail = canvasWidth - rightMargin - rightStart;
   const leftEnd = barLeftX - BAR_LABEL_PAD_LEFT;
@@ -871,7 +851,7 @@ export interface RenderReportResult {
    * Breedte van de linker taaktabel-zone (de "frozen" naam-/info-kolommen links van het
    * Gantt-gebied), in LOGISCHE/CSS-px — dezelfde eenheid als `width`/`height` hierboven en als de
    * maat die de pagineerlaag naar punten omrekent (`tileLayout.ts`, `LOGICAL_PX_TO_PT`). Bewust
-   * NIET in raster/device-px (`canvas.width` = logisch × devicePixelRatio): een andere golf gebruikt
+   * NIET in raster/device-px (`canvas.width` = logisch × devicePixelRatio): de pagineerlaag gebruikt
    * dit om de tabelkolom per pagina te herhalen en werkt daarbij in hetzelfde logische coördinaten-
    * stelsel als de rest van het return-object; de raster-schaal komt daar apart bij.
    */
@@ -879,7 +859,7 @@ export interface RenderReportResult {
   /**
    * Hoogte (LOGISCHE/CSS-px, gemeten vanaf y = 0) van de kopstrook bovenaan de render: project-kop
    * + tijdschaal-kop. De pagineerders herhalen precies deze strook op elke pagina wanneer daarom
-   * gevraagd wordt (issue #25 punt 1). Staat hier zodat de aanroeper de interne constanten van deze
+   * gevraagd wordt. Staat hier zodat de aanroeper de interne constanten van deze
    * module niet hoeft te kennen. 0 = geen herhaalbare kop (bv. de lege-project-render).
    */
   headerHeight: number;
@@ -894,14 +874,14 @@ export interface RenderReportResult {
   /**
    * OPTIONEEL — toegestane paginabreekposities (logische px vanaf de bovenkant), bv. de onderrand
    * van elke tabelrij (`pdfTable.ts`). De pagineerders eindigen een pagina dan op de laatste
-   * positie die past, zodat een rij nooit over twee pagina's wordt gesneden (issue #110 punt 3).
+   * positie die past, zodat een rij nooit over twee pagina's wordt gesneden.
    * Afwezig ⇒ vaste tegeling (de Gantt-render).
    */
   breakOffsets?: number[];
   /**
    * OPTIONEEL — GEDWONGEN paginabreekposities (logische px vanaf de bovenkant): daar eindigt een
    * pagina altijd, ook als er nog ruimte over is. Gevuld bij `PrintOptions.pageBreakBeforeGroups`
-   * (resourcediagram, issue #113: elke resource op een eigen vel). Elke positie hier is ook een
+   * (resourcediagram: elke resource op een eigen vel). Elke positie hier is ook een
    * toegestane positie uit `breakOffsets` (een bandrij begint waar de vorige rij eindigt).
    */
   forcedBreakOffsets?: number[];
@@ -930,7 +910,7 @@ export function renderReport(
   projectName: string,
   options: PrintOptions,
 ): RenderReportResult {
-  // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet meer
+  // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
   // Bronbreedte van één papierbreedte (zie de uitleg bij `availableChartWidth` verderop); hier al
   // nodig om te beslissen of de toewijzingskolommen erbij passen.
@@ -947,7 +927,7 @@ export function renderReport(
     m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false, undefined, options.columnWidths);
   }
 
-  // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen (#54) die
+  // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen die
   // als samenvattings-strook tekenen.
   const printRows = buildPrintRows(tasks, options.rows, assignmentColumns ? options.rowAssignments : undefined);
   const flatTasks: PrintTask[] = printRows
@@ -962,7 +942,7 @@ export function renderReport(
     d2d.font = m.font(14);
     d2d.textAlign = 'center';
     // Woord-wrap binnen de 600 px brede doos: een instructie ("kies een andere periode …") mag
-    // niet halverwege afkappen (review ronde 2, bevinding 4). Verticaal is er ruimte zat.
+    // niet halverwege afkappen. Verticaal is er ruimte zat.
     const emptyLines = wrapWords(d2d, options.labels?.noTasks ?? 'No tasks to display', 560);
     const emptyLineH = m.s(18);
     const emptyTop = 100 - ((emptyLines.length - 1) * emptyLineH) / 2;
@@ -1028,19 +1008,18 @@ export function renderReport(
     : calendarDays;
 
   // Calculate zoom: auto-fit or custom
-  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden (issue #25 punt 5).
+  // Aantal paginabreedtes waarover de tijdlijn uitgesmeerd mag worden.
   const timelineColumns = Math.max(1, Math.floor(options.timelineColumns ?? 1));
   // Beschikbare chart-breedte over N papierbreedtes.
   //
-  //
-  // #74 — `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
+  // `printableWidthLogicalPx` is niet een cosmetische papierbreedte maar de precieze
   // bronbreedte die de gedeelde pagineerder met zijn vaste 96dpi→72pt-verhouding (0,75) op papier
   // zet. Daardoor geldt voor N kolommen:
   //     tableWidth + chartWidth + (N - 1)·tableWidth = N·printableWidth
   //  ⇒  chartWidth = N·(printableWidth - tableWidth)
   // De tabel behoudt zo op A4, A3, A2 én A1 dezelfde fysieke tekengrootte; uitsluitend de tijdas krijgt
-  // meer of minder pixels per dag. De oude ondergrens van 5 px/dag maakte een meerjarenplanning
-  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleinde.
+  // meer of minder pixels per dag. Een vaste ondergrens (bv. 5 px/dag) maakt een meerjarenplanning
+  // alsnog veel te breed, waarna de pagineerder juist de héle tabel mee verkleint.
   const availableChartWidth = Math.max(1, printableWidth - m.tableWidth) * timelineColumns;
 
   let zoom: number;
@@ -1053,7 +1032,7 @@ export function renderReport(
   const chartWidth = timelineDays * zoom;
   const canvasWidth = m.tableWidth + chartWidth;
   // Tijdvenster: chart-x klemmen op het chartgebied (zie `PrintOptions.timeWindow`). Zonder venster
-  // is dit de identiteit, zodat de oude render byte-identiek blijft.
+  // is dit de identiteit.
   const windowed = !!options.timeWindow;
   const clampX = (x: number) => (windowed ? Math.min(canvasWidth, Math.max(m.tableWidth, x)) : x);
   // Rij-aantal voor de hoogte: ALLE printrijen (taken + groepsbanden) — de banden zijn volle rijen.
@@ -1095,7 +1074,7 @@ export function renderReport(
   // ---- GANTT CHART AREA ----
 
   // Op de gecomprimeerde as vervangen weekbanden de niet-bestaande weekendkolommen als visueel
-  // weekritme. Op de gewone kalender-as blijft de bestaande weekend-/feestdagarcering bytegelijk.
+  // weekritme. Op de gewone kalender-as blijft de weekend-/feestdagarcering.
   if (compressed) {
     const weekStartDay = options.weekStartDay ?? 'monday';
     for (const date of timelineDates) {
@@ -1147,7 +1126,7 @@ export function renderReport(
     const dow = isoDayOfWeek(date);
 
     d2d.strokeStyle = PRINT_COLORS.grid;
-    // K-item 39: de zwaardere weeklijn valt op de INGESTELDE eerste dag van de week, net als op het
+    // De zwaardere weeklijn valt op de INGESTELDE eerste dag van de week, net als op het
     // scherm (`GanttRenderer`: `dayOfWeek === (weekStartDay === 'sunday' ? 7 : 1)`).
     const weekStartDay = options.weekStartDay ?? 'monday';
     const startsWeek = compressed
@@ -1174,12 +1153,11 @@ export function renderReport(
   // Today line
   //
   // Alleen de LIJN wordt hier getekend; het bijbehorende label hoort in de kopstrook en wordt
-  // daarom door `drawTimelineHeader` gezet (zie de uitleg daar). Dat is geen cosmetische
-  // herschikking maar een bugfix: dit blok loopt vóór `drawTimelineHeader`, en die schildert als
-  // eerste zijn hele kopstrook-band over — een label op `chartTop - …` werd in de RASTER-preview
-  // dus gewoon weggepoetst. In de VECTOR-PDF gebeurde dat níét (tekst staat daar altijd boven alle
-  // vormen, zie `PdfVectorDraw2D.operators` vs `.texts`), zodat preview en export uit elkaar liepen
-  // en het label in de PDF bovendien pal op het dagcijfer van vandaag landde.
+  // daarom door `drawTimelineHeader` gezet (zie de uitleg daar): dit blok loopt vóór
+  // `drawTimelineHeader`, en die schildert als eerste zijn hele kopstrook-band over — een label op
+  // `chartTop - …` zou in de RASTER-preview weggepoetst worden, maar in de VECTOR-PDF niet (tekst
+  // staat daar altijd boven alle vormen, zie `PdfVectorDraw2D.operators` vs `.texts`), zodat preview
+  // en export uiteenlopen.
   const today = new Date();
   const todayX = dateToX(today);
   const todayVisible = todayX > m.tableWidth && todayX < canvasWidth;
@@ -1194,7 +1172,7 @@ export function renderReport(
     d2d.setLineDash([]);
   }
 
-  // Statuslijn (#54): 'statusDate' = verticale stippellijn op project.statusDate; 'progress' =
+  // Statuslijn: 'statusDate' = verticale stippellijn op project.statusDate; 'progress' =
   // voortgangszigzag (zelfde definitie als GanttRenderer.drawProgressLine: leaf-rijen stulpen uit
   // naar de voortgangspositie, summary/mijlpaal/band-rijen volgen de lijn recht). Beide alléén bij
   // een gezette statusDate; buiten het chart-gebied tekent niets (zelfde visible-regel als today).
@@ -1270,7 +1248,7 @@ export function renderReport(
   }
   const barLabelJobs: BarLabelJob[] = [];
 
-  // Kleurmodi-context (#21): resources + toewijzingen komen binnen via options; de printlaag
+  // Kleurmodi-context: resources + toewijzingen komen binnen via options; de printlaag
   // houdt zelf geen state. Eén palet-object voor alle balken van deze render.
   const resources = options.resources ?? [];
   const assignments = options.assignments ?? [];
@@ -1300,7 +1278,7 @@ export function renderReport(
     const y = rowToY(i) + barOffset;
 
     if (row.kind === 'group') {
-      // Groepsband (#54 volg-weergave): lichte strook over de chart-rij + vet label. Een band is
+      // Groepsband (volg-weergave): lichte strook over de chart-rij + vet label. Een band is
       // géén taak — geen datums, geen mijlpaal, geen dependencies; hij structureert de gegroepeerde
       // rijen eronder. In de tabelzone tekent drawTaskTable hetzelfde label mee (zelfde bron).
       d2d.fillStyle = PRINT_COLORS.gridWeekend;
@@ -1324,9 +1302,9 @@ export function renderReport(
       const size = barHeight * 0.45;
       // Tijdvenster: een ruit die het chartgebied helemaal mist wordt niet getekend; een ruit op de
       // rand wordt met zijn middelpunt naar binnen geklemd, zodat hij nooit half over de tabel of
-      // over de rechterrand hangt (hyperkritische review, bevinding 2).
+      // over de rechterrand hangt.
       // Middelpunt buiten het chartgebied ⇒ niet tekenen (een naar binnen geklemde ruit zou
-      // een dag suggereren waarop de mijlpaal niet valt — review ronde 2, bevinding 6).
+      // een dag suggereren waarop de mijlpaal niet valt).
       const inWindow = !windowed || (x >= m.tableWidth && x <= canvasWidth);
       const cx = windowed ? Math.min(canvasWidth - size, Math.max(m.tableWidth + size, x)) : x;
 
@@ -1408,7 +1386,7 @@ export function renderReport(
       const x2 = clampX(rawX2);
       if (windowed && x2 <= x1) continue;
 
-      // Kleurmodi (#21) en onderbroken balken (Z15) zijn onafhankelijke dimensies: dezelfde
+      // Kleurmodi en onderbroken balken zijn onafhankelijke dimensies: dezelfde
       // kleurverhouding komt terug in elk werkblok van één taak.
       const advies = colorAdvice(task, width);
       const baseColor = advies.kind === 'segments' ? advies.segments[0].color : advies.fill;
@@ -1436,10 +1414,10 @@ export function renderReport(
         // chartrand geklemd zodat dat minimum er niet overheen steekt.
         const minW = split ? 2 : 3;
         const rawSw = Math.max(s.rx2 - s.rx1, minW);
-        // Zichtbare breedte: zonder venster de oude `max(breedte, minimum)` op x1; bij een venster
+        // Zichtbare breedte: zonder venster `max(breedte, minimum)` op x1; bij een venster
         // de geklemde breedte, en is die smaller dan het minimum, dan schuift het minimum naar
         // binnen (zoals de ruit) in plaats van te worden afgeknepen, zodat een eendagstaak op de
-        // laatste vensterdag zichtbaar blijft (review ronde 2, bevinding 7).
+        // laatste vensterdag zichtbaar blijft.
         let sx1 = s.x1;
         let sw = windowed ? s.x2 - s.x1 : rawSw;
         if (windowed && sw < minW) {
@@ -1448,7 +1426,7 @@ export function renderReport(
         }
         if (advies.kind === 'segments') {
           // Kleurvakken op de ruwe tijdas verdeeld en daarna per vak op het chartgebied geknipt: een
-          // afgekapte balk toont zo de kleuren die bij het zichtbare stuk horen (review, bevinding 8).
+          // afgekapte balk toont zo de kleuren die bij het zichtbare stuk horen.
           let sx = s.rx1;
           advies.segments.forEach((seg, si) => {
             const isLast = si === advies.segments.length - 1;
@@ -1509,7 +1487,7 @@ export function renderReport(
       }
     }
 
-    // Issue #81: dezelfde grijze baseline-onderbalk (of mijlpaalruit) als in de hoofd-Gantt.
+    // Dezelfde grijze baseline-onderbalk (of mijlpaalruit) als in de hoofd-Gantt.
     // Hij ligt boven de huidige balk maar vóór relaties/labels, zodat beide uitvoerpaden dezelfde
     // leesbare laagvolgorde hebben. Samenvattingstaken krijgen alleen iets als de actieve baseline
     // daar expliciet een entry voor bevat.
@@ -1545,28 +1523,22 @@ export function renderReport(
 
   // ---- TEKENVOLGORDE IN HET CHART-GEBIED: staven → relatiepijlen → taaklabels ----
   //
-  // 1. Relatiepijlen ná de staven (issue #25 punt 3). Stonden ze ervóór, dan schilderde elke balk
-  //    die een lijn kruist die lijn gewoon weg; nu liggen de lijnen bovenop en zijn ze altijd
-  //    zichtbaar.
-  // 2. Maar de taaklabels moeten wéér boven de lijnen. Hier stond eerder de redenering dat dat niet
-  //    hoefde omdat een label dankzij `BAR_LABEL_GAP` pas voorbij de verticale knik begint — dat
-  //    argument gaat alleen op voor de knik van de EIGEN voorganger. Een relatie tussen twee heel
-  //    andere taken (t1 → t3) knikt verticaal dwars door de rij van t2 heen en streepte het label
-  //    van t2 zo doormidden. Daarom worden de labels nu als LAATSTE getekend: de tekst wint van de
-  //    lijn, de lijn blijft zichtbaar overal waar geen tekst staat.
+  // 1. Relatiepijlen ná de staven: anders schildert elke balk die een lijn kruist die lijn weg.
+  // 2. Maar de taaklabels moeten wéér boven de lijnen. `BAR_LABEL_GAP` houdt een label alleen vrij
+  //    van de knik van de EIGEN voorganger; een relatie tussen twee heel andere taken (t1 → t3)
+  //    knikt verticaal dwars door de rij van t2 heen en zou het label van t2 doorstrepen. Daarom de
+  //    labels als LAATSTE: de tekst wint van de lijn, de lijn blijft zichtbaar waar geen tekst staat.
   //
-  // Let op wat dit per backend betekent. In de vector-PDF — het primaire exportpad — stond tekst
-  // altijd al boven alle vormen (vormen gaan in het gedeelde Form-XObject, tekst wordt daarná per
-  // tegel geëmit), dus daar was dit nooit stuk. De omkering repareert dus feitelijk de RASTER-preview
-  // en brengt die in lijn met wat de export altijd al deed — wat precies de bedoeling is, want die
-  // twee horen WYSIWYG te zijn.
+  // In de vector-PDF staat tekst sowieso boven alle vormen (vormen gaan in het gedeelde
+  // Form-XObject, tekst wordt daarná per tegel geëmit); deze volgorde brengt de RASTER-preview
+  // daarmee in lijn, want die twee horen WYSIWYG te zijn.
   // Bij een tijdvenster worden relaties nooit getekend: `drawDependencies` klemt niet, en het
   // venster wordt alleen op het resourcediagram aangeboden, dat sowieso geen relaties tekent.
   if (options.showDeps && !windowed) {
-    // #54 volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
+    // Volg-weergave: alleen relaties waarvan béide endpoints een zichtbare rij zijn (zelfde
     // regel als het scherm). rowIndexOf indexeert printRows (groepsbanden meegerekend) en is
-    // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus (= alle taken
-    // zichtbaar) is dit exact het oude findIndex-gedrag.
+    // daarmee tegelijk het zichtbaarheids- én het y-positie-bron; in boom-modus zijn alle taken
+    // zichtbaar.
     const rowIndexOf = new Map<string, number>();
     const tasksById = new Map<string, Task>();
     printRows.forEach((r, idx) => {
@@ -1597,13 +1569,13 @@ export function renderReport(
 
   // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
   // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
-  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen (issue #110, Manu's nabespreking:
-  // ook de Gantt-afdruk sneed rijen). De voet (legenda) is één blok; die volgt de laatste rijgrens.
+  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen. De voet (legenda) is één blok; die
+  // volgt de laatste rijgrens.
   const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
-  // Resourcediagram (issue #113): een gedwongen overgang vóór elke bandrij ná de eerste — de
+  // Resourcediagram: een gedwongen overgang vóór elke bandrij ná de eerste — de
   // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
   const forcedBreakOffsets = options.pageBreakBeforeGroups
-    // Een band direct ónder een band (typelaag, punt 2) blijft bij zijn ouder: anders zou de typekop
+    // Een band direct ónder een band (typelaag) blijft bij zijn ouder: anders zou de typekop
     // alleen op een verder leeg vel staan.
     ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
     : undefined;
@@ -1622,10 +1594,10 @@ export function renderReport(
  * backend gekozen. Geeft de logische (CSS) afmetingen terug.
  *
  * `renderScale` overschrijft de raster-vs-logisch-multiplier (`canvas.width = logicalWidth *
- * renderScale`); default `window.devicePixelRatio || 2` zodat de on-screen preview z'n bestaande
- * gedrag houdt. De PDF-raster-export geeft een hogere vaste schaal door (zie `computeHighResScale`
- * in `@/utils/miniPdf`) zodat de geëxporteerde rasterresolutie niet afhangt van de schermdichtheid
- * van de exporterende gebruiker — een 1x/headless browser zou anders een wazig 96-DPI-beeld inbedden.
+ * renderScale`); default `window.devicePixelRatio || 2` voor de on-screen preview. De
+ * PDF-raster-export geeft een hogere vaste schaal door (zie `computeHighResScale` in `@/utils/miniPdf`)
+ * zodat de geëxporteerde rasterresolutie niet afhangt van de schermdichtheid van de exporterende
+ * gebruiker — een 1x/headless browser zou anders een wazig 96-DPI-beeld inbedden.
  */
 export function renderPrintCanvas(
   canvas: HTMLCanvasElement,
@@ -1660,9 +1632,8 @@ export interface PrintReportWindow {
  *
  * Dit is uitsluitend voor de live preview: de volledige rapportlay-out wordt nog steeds door
  * {@link renderReport} berekend en {@link TileLayout} blijft de bron van waarheid voor vensters,
- * marges en kopherhaling. Anders dan de oude route ontstaat er alleen geen tijdelijk canvas voor
- * alle rapportpagina's samen. Export blijft via {@link renderPrintCanvas} en de bestaande
- * pagineerder lopen.
+ * marges en kopherhaling. Er ontstaat alleen geen tijdelijk canvas voor alle rapportpagina's samen.
+ * Export blijft via {@link renderPrintCanvas} en de bestaande pagineerder lopen.
  */
 export function renderPrintReportWindow(
   canvas: HTMLCanvasElement,
@@ -1849,7 +1820,7 @@ function drawProjectHeader(
   d2d.strokeRect(0.5, 0.5, canvasWidth - 1, hh - 1);
 
   // Right-aligned branding — eerst tekenen + meten, zodat we de projectnaam ernaast kunnen inkorten
-  // en overlap voorkomen (klacht 7).
+  // en overlap voorkomen.
   const brandText = 'Open Planner Studio';
   d2d.fillStyle = PRINT_COLORS.textSecondary;
   d2d.font = m.font(8);
@@ -1870,7 +1841,7 @@ function drawProjectHeader(
   d2d.font = m.font(9);
   d2d.fillStyle = PRINT_COLORS.textSecondary;
   const row2Y = m.s(34);
-  const rowMaxW = canvasWidth - 2 * pad; // binnen de paginabreedte houden (klacht 7)
+  const rowMaxW = canvasWidth - 2 * pad; // binnen de paginabreedte houden
 
   const companyLabel = options.companyName || '';
   const authorLabel = options.projectAuthor || '';
@@ -1949,7 +1920,7 @@ function reserveTodayLabel(
 }
 
 /**
- * Reserveer een kopstrook-label op een willekeurige verticale lijn (#54 statusdatum) — gegeneraliseerd
+ * Reserveer een kopstrook-label op een willekeurige verticale lijn (bv. de statusdatum) — gegeneraliseerd
  * broertje van {@link reserveTodayLabel}: zelfde letter/band/klemp-regels, andere tekst + x.
  */
 function reserveHeaderLineLabel(
@@ -1988,7 +1959,7 @@ function drawTimelineHeader(
   todayX: number | null,
   statusLineX: number | null = null,
   /** Tijdvenster dat op de kalender-as is teruggevallen (geen werkdag erin): dan óók de
-   *  weekenddagen nummeren, anders staat er geen enkel dagcijfer (review #138, bevinding 8). */
+   *  weekenddagen nummeren, anders staat er geen enkel dagcijfer. */
   showWeekendDayNumbers = false,
 ) {
   const top = m.projectHeaderHeight;
@@ -2004,10 +1975,10 @@ function drawTimelineHeader(
   // principieel niet kan: vormen gaan in het gedeelde Form-XObject en ALLE tekst wordt daarná
   // geëmit (`PdfVectorDraw2D.operators` vs `.texts`), dus een rechthoek belandt altijd ONDER de
   // dagcijfers. Alleen een geometrische oplossing landt identiek in beide backends — en het is
-  // bovendien hetzelfde idioom dat de maand-/weeklabels hieronder al hanteren (klacht 7): liever
+  // bovendien hetzelfde idioom dat de maand-/weeklabels hieronder hanteren: liever
   // een gat dan tekst over tekst.
   const todayLabel = reserveTodayLabel(d2d, m, canvasWidth, options, todayX);
-  // Statusdatum-label (#54): zelfde idioom als het vandaag-label, op de statusdatum-lijn. Alleen
+  // Statusdatum-label: zelfde idioom als het vandaag-label, op de statusdatum-lijn. Alleen
   // bij een zichtbare statuslijn; de reservering maakt dagcijfers vrij die eronder vallen.
   const statusLabel = statusLineX === null
     ? null
@@ -2038,12 +2009,12 @@ function drawTimelineHeader(
 
   const months = options.localizedMonths ?? ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
 
-  // K-item 39: dezelfde weekdefinitie als het scherm. `weekStartDay` bepaalt zowel het NUMMER
+  // Dezelfde weekdefinitie als het scherm. `weekStartDay` bepaalt zowel het NUMMER
   // (ISO wanneer maandag, Amerikaans wanneer zondag) als de dag waarop het label begint.
   const wsd = options.weekStartDay ?? 'monday';
   const weekStartDow = wsd === 'sunday' ? 7 : 1;
 
-  // Rechterrand (x) van het laatst getekende maand-/weeklabel, om overlap te vermijden (klacht 7).
+  // Rechterrand (x) van het laatst getekende maand-/weeklabel, om overlap te vermijden.
   let lastMonthLabelRight = -Infinity;
   let lastWeekLabelRight = -Infinity;
   const endExclusive = addCalendarDays(minDate, calendarDays);
@@ -2159,7 +2130,7 @@ function drawTimelineHeader(
     d2d.textBaseline = 'bottom';
     d2d.fillText(todayLabel.text, todayLabel.cx, top + h - m.s(1));
   }
-  // Statusdatum-label (#54): zelfde plek/stijl als het vandaag-label. Valt het met het vandaag-
+  // Statusdatum-label: zelfde plek/stijl als het vandaag-label. Valt het met het vandaag-
   // label op dezelfde plek (statusdatum ≈ vandaag), dan wint het vandaag-label — de reservering
   // hieronder tekent het statuslabel alléén als de banden niet overlappen; anders staat er één
   // duidelijk label i.p.v. twee door elkaar.
@@ -2276,7 +2247,7 @@ function drawTaskTable(
     d2d.lineTo(m.tableWidth, y + m.rowHeight);
     d2d.stroke();
 
-    // Groepsband-rij (#54 volg-weergave): vet label met inspringing, geen datacellen — een band
+    // Groepsband-rij (volg-weergave): vet label met inspringing, geen datacellen — een band
     // groepeert, hij is géén taak met datums/duur.
     if (row.kind === 'group') {
       const indent = row.depth * m.s(NAME_INDENT_PER_LEVEL);
@@ -2296,10 +2267,10 @@ function drawTaskTable(
     const task = row.task!;
     const cells = taskTableCellTexts(row, options);
     // Elke datacel krijgt de kolombreedte minus de marge aan beide zijden; wat daar niet in past
-    // wordt afgekapt in plaats van over de buurkolom te lopen (de naam- en curvecel deden dat al).
+    // wordt afgekapt in plaats van over de buurkolom te lopen (net als de naam- en curvecel).
     const cellText = (text: string, col: { w: number }) => ellipsize(d2d, text, col.w - 2 * cellPad);
     const depth = row.depth;
-    // Inspringing per hiërarchieniveau schaalt mee: de naamkolom is breder geworden, dus een vaste
+    // Inspringing per hiërarchieniveau schaalt mee: de naamkolom groeit mee, dus een vaste
     // 12 px zou de boomstructuur bij een grote letter optisch platslaan.
     const indent = depth * m.s(NAME_INDENT_PER_LEVEL);
     const isSummary = isSummaryTask(task);
@@ -2311,7 +2282,7 @@ function drawTaskTable(
     d2d.textBaseline = 'middle';
     d2d.fillText(cellText(cells.wbs, cols.wbs), cols.wbs.x + cellPad, textY);
 
-    // Name with indentation — afkorten met ellipsis i.p.v. hard clippen (klacht 4a)
+    // Name with indentation — afkorten met ellipsis i.p.v. hard clippen
     d2d.fillStyle = isSummary ? PRINT_COLORS.summary : PRINT_COLORS.text;
     d2d.font = m.font(9, isSummary);
     d2d.textAlign = 'left';
@@ -2343,7 +2314,7 @@ function drawTaskTable(
     // End date
     d2d.fillText(cellText(cells.end, cols.end), cols.end.x + cols.end.w - cellPad, textY);
 
-    // Completion — de kolom bestaat alleen als `showCompletion` aanstaat (issue #93).
+    // Completion — de kolom bestaat alleen als `showCompletion` aanstaat.
     if (cols.complete) {
       d2d.fillText(cellText(cells.complete, cols.complete), cols.complete.x + cols.complete.w - cellPad, textY);
     }
@@ -2384,33 +2355,29 @@ function drawTaskTable(
 /**
  * Teken de relatielijnen met pijlpunt.
  *
- * ==== KLEUR EN LIJNSTIJL (issue #56) ====
- * Het rapport zette hier één vaste grijze kleur BUITEN de lus en riep `setLineDash` nooit aan,
- * terwijl het scherm (`GanttRenderer.drawDependencyArrows`) de P6-conventie hanteert die elke
- * planner direct leest: doorgetrokken = bepalend (driving, bindt de opvolger), gestreept =
- * niet-bepalend, en rood wanneer een BEPALENDE relatie twee kritieke taken verbindt. Een export
- * waarin die betekenis wegvalt is geen cosmetisch verschil maar informatieverlies — precies de
- * klacht. Deze functie spiegelt de schermbeslissing nu regel voor regel.
+ * ==== KLEUR EN LIJNSTIJL ====
+ * Het scherm (`GanttRenderer.drawDependencyArrows`) hanteert de P6-conventie die elke planner
+ * direct leest: doorgetrokken = bepalend (driving, bindt de opvolger), gestreept = niet-bepalend,
+ * en rood wanneer een BEPALENDE relatie twee kritieke taken verbindt. Een export waarin die
+ * betekenis wegvalt is informatieverlies, dus deze functie spiegelt de schermbeslissing regel voor
+ * regel.
  *
  * Drie bewuste afwijkingen van het scherm, elk met een reden:
  *  1. GRIJSTINT. Papier vraagt een lichtere neutrale lijn dan een beeldscherm; `PRINT_PALETTE`
  *     houdt daarom bewust `#9CA3AF` waar het schermpalet `#6B7280` gebruikt (zie de waarschuwing
  *     bovenin themePalette.ts). Alleen het KRITIEK-rood is in beide paletten dezelfde merk-hex.
  *  2. `options.showCritical` stuurt hier alléén de lijnkleur (en de legendaregel). De balken
- *     volgen sinds de balkkleurkeuze `computeBarColors` (barColors.ts: `criticalFill` in de modus
+ *     volgen de balkkleurkeuze `computeBarColors` (barColors.ts: `criticalFill` in de modus
  *     *Kritiek pad*, een rode rand daarbuiten) en kijken niet naar het vinkje — een rapporttype
  *     zonder lijnen verbergt het vinkje daarom (`reportTypeShowsCriticalToggle`).
  *  3. TRACE-DIMMING wordt NIET overgenomen: dat is interactieve state (het gedimd tonen van alles
  *     buiten een aangeklikt pad) waar een statisch papieren rapport niets aan heeft.
  *
  * ==== RELATIETYPE ====
- * De lus las `seq.type` helemaal niet en tekende élke relatie als FS (vanaf de VOORGANGER-FINISH).
- * Een SS-relatie kwam daardoor uit de verkeerde balkrand — een feitelijk onjuiste export, geen
- * cosmetiek. De ankerpunten volgen nu dezelfde logica als het scherm, inclusief de uitloop-
- * RICHTING: bij SS ankert de lijn op de LINKERrand van de voorganger en moet de stub dus naar
- * LINKS weglopen, anders begint de lijn ín de balk. Issue #59 breidt dat uit naar FF/SF: die
- * ankerten vroeger op de opvolger-START (de `default`-tak kende alleen FS/SS); nu landt de pijl
- * op de opvolger-FINISH (rechterrand) en wijst de kop naar links, met een gespiegelde inlooproute.
+ * De ankerpunten volgen dezelfde logica als het scherm, inclusief de uitloop-RICHTING: bij SS
+ * ankert de lijn op de LINKERrand van de voorganger en moet de stub dus naar LINKS weglopen, anders
+ * begint de lijn ín de balk. Bij FF/SF landt de pijl op de opvolger-FINISH (rechterrand) en wijst
+ * de kop naar links, met een gespiegelde inlooproute.
  *
  * De obstakel-routering van het scherm (kolomvrij-detectie, goot-trap om tussenliggende balken
  * heen) is bewust NIET overgenomen: het scherm tekent zijn pijlen ÓNDER de balken en heeft die
@@ -2426,13 +2393,13 @@ function drawDependencies(
   rowToY: (i: number) => number,
   zoom: number,
   options: PrintOptions,
-  /** #54 volg-weergave: alleen paren met béide endpoints zichtbaar; óók de rij-index-bron. */
+  /** Volg-weergave: alleen paren met béide endpoints zichtbaar; óók de rij-index-bron. */
   rowIndexOf: Map<string, number>,
 ) {
   d2d.lineWidth = 1.2;
 
   // `null` = er is niet gerekend (of de aanroeper geeft het niet door) ⇒ alles neutraal
-  // doorgetrokken, exact het gedrag van vóór issue #56. Zelfde semantiek als op het scherm.
+  // doorgetrokken. Zelfde semantiek als op het scherm.
   const drivingSet = options.drivingSequenceIds ? new Set(options.drivingSequenceIds) : null;
 
   for (const seq of sequences) {
@@ -2444,7 +2411,7 @@ function drawDependencies(
     const predY = rowToY(predIdx) + m.rowHeight / 2;
     const succY = rowToY(succIdx) + m.rowHeight / 2;
 
-    // Kleur + lijnstijl per relatie (issue #56) — zie de blokuitleg boven deze functie.
+    // Kleur + lijnstijl per relatie — zie de blokuitleg boven deze functie.
     const isDriving = drivingSet ? drivingSet.has(seq.id) : true;
     const isCriticalLink = drivingSet !== null && isDriving
       && options.showCritical && pred.time.isCritical && succ.time.isCritical;
@@ -2462,8 +2429,7 @@ function drawDependencies(
     // regressiebatterij `check-dependency-style.ts`).
     d2d.setLineDash(isDriving ? [] : [m.s(4), m.s(3)]);
 
-    // Ankerpunten + looprichtingen per relatietype (issue #59: FF/SF landden vroeger op de
-    // opvolger-START doordat de `default`-tak ze als FS behandelde — spiegel van het scherm).
+    // Ankerpunten + looprichtingen per relatietype (spiegel van het scherm).
     //   predStart  (voorganger-anker = start/linkerrand): SS, SF
     //   succFinish (opvolger-anker  = finish/rechterrand): FF, SF
     let fromX: number;
@@ -2490,10 +2456,10 @@ function drawDependencies(
     // naast de OPVOLGER aan de aankomstkant — onafhankelijk van het relatietype.
     const outX = fromX + dirOut * DEP_STUB;
 
-    // Twee routes (issue #25 punt 3):
+    // Twee routes:
     //  - VOORWAARTS (`toX >= outX + DEP_STUB`): de opvolger begint ruim rechts van de knik, dus de
     //    klassieke route volstaat — stukje rechtdoor, verticale knik, dan rechtdoor de opvolger-balk
-    //    in. Bij FS/FF/SF is deze voorwaarde exact de oude `toX >= fromX + 2*DEP_STUB`.
+    //    in. Bij FS/FF/SF is deze voorwaarde gelijk aan `toX >= fromX + 2*DEP_STUB`.
     //  - TERUGWAARTS: de opvolger begint links van waar de lijn uitkomt. Het horizontale segment zou
     //    dan op `succY` achteruit dwars DOOR de opvolger-balk lopen. In plaats daarvan gaan we
     //    "omheen" via de rijgoot: de horizontale scheiding tussen twee rijen (bovenrand van de
@@ -2587,9 +2553,8 @@ function drawFooter(
   d2d.fillText(dateText, pad, midY + m.s(8));
   const leftBlockRight = pad + Math.max(leftNameW, d2d.measureText(dateText).width);
 
-  // Right: branding. Hier stond ook een vast "Pagina 1 van 1": de render kent het paginatotaal
-  // niet, en nu de voet op elke pagina terugkomt zou dat op pagina 3 van 5 letterlijk zo staan.
-  // Het echte "n / totaal" drukken de pagineerders zelf in de ondermarge.
+  // Right: branding. Bewust geen paginanummer: de render kent het paginatotaal niet en de voet komt
+  // op elke pagina terug. Het echte "n / totaal" drukken de pagineerders zelf in de ondermarge.
   const brandText = 'Open Planner Studio';
   d2d.font = m.font(8);
   const brandW = d2d.measureText(brandText).width;
@@ -2602,7 +2567,7 @@ function drawFooter(
   d2d.fillText(brandText, layoutWidth - pad, midY + m.s(8));
 
   // Center: Legend — dynamisch tussen het linker- en rechterblok, items weglaten bij te weinig
-  // ruimte i.p.v. over de blokken heen tekenen (klacht 7).
+  // ruimte i.p.v. over de blokken heen tekenen.
   if (options.showLegend) {
     const availLeft = leftBlockRight + m.s(16);
     const availRight = rightBlockLeft - m.s(16);
@@ -2617,13 +2582,12 @@ function drawFooter(
       type LegendItem = { label: string; draw: (x: number) => void };
       const items: LegendItem[] = [];
 
-      // Kleurmodus-legenda (#21): in de niet-critical-modi vervallen de critical/normal-swatches —
-      // ze beloven dan juist de verkeerde betekenis. In plaats daarvan: rode-rand-verklaring
-      // (kritiek pad) en in resource-modus de resourcekleuren zelf. De legenda laat bij te weinig
-      // ruimte de laatste items weg (zie hieronder); de resource-items staan daarom vóór de rand-
-      // verklaring zodat die essentiële regel het langst overleeft… nee: de rand-regel is de
-      // minst essentiële (het kritiek pad blijft zonder legenda ook zichtbaar als rode rand), dus
-      // die staat laATSTE — zelfde bewuste positie als de relatiestijl-regel hieronder.
+      // Kleurmodus-legenda: in de niet-critical-modi vervallen de critical/normal-swatches — ze
+      // beloven dan juist de verkeerde betekenis. In plaats daarvan: rode-rand-verklaring (kritiek
+      // pad) en in resource-modus de resourcekleuren zelf. De legenda laat bij te weinig ruimte de
+      // laatste items weg (zie hieronder); de rand-regel is de minst essentiële (het kritiek pad
+      // blijft zonder legenda zichtbaar als rode rand), dus die staat LAATST — zelfde bewuste
+      // positie als de relatiestijl-regel hieronder.
       const legendPalette: BarPalette = {
         critical: PRINT_COLORS.critical,
         normal: PRINT_COLORS.normal,
@@ -2733,7 +2697,7 @@ function drawFooter(
           d2d.fill();
         } });
       }
-      // Lijnstijl-uitleg (issue #56): ÉÉN legenda-regel die beide stijlen tegelijk toont — boven een
+      // Lijnstijl-uitleg: ÉÉN legenda-regel die beide stijlen tegelijk toont — boven een
       // doorgetrokken, eronder een gestreept lijntje — zodat de conventie "doorgetrokken = bepalend,
       // gestreept = niet-bepalend" in het rapport zelf staat en niet als stilzwijgende kennis. Alleen
       // zinvol als er überhaupt relaties getekend worden ÉN de bindend-informatie er is: zonder

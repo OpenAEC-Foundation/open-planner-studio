@@ -1,12 +1,12 @@
 /**
- * `PdfTable` — generieke, data-gedreven tabel-render voor het `renderReport`-patroon (§ fase 3
- * vector-PDF-export). Tekent tegen `Draw2D` (net als `printPreview.renderReport` voor de Gantt),
+ * `PdfTable` — generieke, data-gedreven tabel-render voor het `renderReport`-patroon van de
+ * vector-PDF-export. Tekent tegen `Draw2D` (net als `printPreview.renderReport` voor de Gantt),
  * zodat `paginateVectorToPdfBytes` 'm kan pagineren zonder aparte code-paden: dit bestand levert
  * alleen een `(makeDraw2D) => RenderReportResult`-functie, precies het contract dat de vector-
- * pagineerder al van de Gantt-render kent.
+ * pagineerder van de Gantt-render kent.
  *
- * Vervangt de DOM-screenshot (`modern-screenshot`) voor de mijlpalen-/afwijkingenrapporten door
- * échte vector-tekst — de renderer hieronder is puur data → tekening, dus deterministisch en
+ * Levert voor de tabelrapporten (mijlpalen, afwijkingen, …) échte vector-tekst i.p.v. een
+ * DOM-screenshot — de renderer hieronder is puur data → tekening, dus deterministisch en
  * onafhankelijk van het geladen thema (bewust altijd wit/donker-op-wit: een PDF is een papieren
  * artefact, geen thema-weergave).
  */
@@ -52,7 +52,7 @@ export interface PdfReportSection<Row = unknown> {
 }
 
 /**
- * Gesectioneerd tabelrapport (de rapportuitbreiding uit discussie #31): titel, een blok
+ * Gesectioneerd tabelrapport: titel, een blok
  * samenvattingsregels ("label: waarde", met optionele nadrukkleur) en nul of meer secties met
  * elk een kop en een tabel. Spiegelt `TableReportView.tsx` — DOM en PDF delen de kolomspec.
  */
@@ -68,7 +68,7 @@ export interface PdfSectionedReportSpec {
 }
 
 // Zelfde gevendorde Inter-familie als de Gantt-render (printPreview.ts) — deterministisch en
-// inbedbaar, zodat measureText/vector-embedding identiek zijn (§5.1/§5.2 ontwerpdoc).
+// inbedbaar, zodat measureText/vector-embedding identiek zijn.
 const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 /** Print-kleurenschema — puur wit-op-papier, GEEN thema-afhankelijkheid (dit is het hele punt: de
@@ -107,16 +107,16 @@ const COLUMN_HEADER_FONT = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
 /**
  * Verbreed elke kolom die haar eigen KOP niet kwijt kan. De kolombreedtes in een spec zijn een
  * ontwerpkeuze die voor de Nederlandse/Engelse brontekst gemeten is; vertaalde koppen zijn langer
- * en werden door `drawTable` met een beletselteken afgekapt — in het Engels al "Duration (wd)"
+ * en zouden door `drawTable` met een beletselteken afgekapt worden — in het Engels al "Duration (wd)"
  * (73 px in een kolom van 70, dus 54 px beschikbaar), in het Pools "Czas trwania (dr)" (92 px) en
  * in het Arabisch bijna elke speling-/duurkop. Een kop is kort, vast en informatiedragend; die
  * hoort niet af te kappen. De DOM-weergave (`TableReportView`) heeft dit probleem niet — een
- * `<table>` meet zichzelf — dus dit brengt de PDF terug bij wat het scherm al toont.
+ * `<table>` meet zichzelf — dus dit brengt de PDF in lijn met wat het scherm toont.
  *
  * Bewust ALLEEN verbreden, nooit versmallen: de pagineerder perst de tabel op papierbreedte
  * (`mode: 'fit-width'`, schaal = printbreedte / tabelbreedte, zonder bovengrens), dus een smallere
  * tabel zou de tekst niet netter maken maar groter — en een kolom die met de inhoud meekrimpt zou
- * de lettergrootte per rapport laten verspringen. Celinhoud kapt dus af zoals voorheen (dat is bij
+ * de lettergrootte per rapport laten verspringen. Celinhoud kapt dus gewoon af (dat is bij
  * een vrije-tekstkolom als "Naam" of "Resources" ook de bedoeling); alleen de kop krijgt de ruimte
  * die hij nodig heeft.
  */
@@ -205,7 +205,7 @@ function drawTable<Row>(
       d2d.lineTo(tableWidth, y + ROW_HEIGHT);
       d2d.stroke();
       y += ROW_HEIGHT;
-      // Onder elke rij mag een pagina eindigen — nooit erdoorheen (issue #110 punt 3).
+      // Onder elke rij mag een pagina eindigen — nooit erdoorheen.
       breaks?.push(y);
     }
   }
@@ -214,11 +214,12 @@ function drawTable<Row>(
 
 /**
  * Bouw een `renderReport`-compatibele render-functie uit een generieke tabel-spec. Roept
- * `makeDraw2D` exact één keer aan (G1-conventie van de vector-pagineerder) zodra de totale
+ * `makeDraw2D` exact één keer aan (conventie van de vector-pagineerder: één XObject) zodra de totale
  * (kolom-som) breedte + hoogte (titel + header + rijen×rijhoogte) bekend zijn.
  *
  * Retourneert `tableWidth: 0` — tabellen hebben geen bevroren-kolom (ze tegelen fit-width, 1 kolom
- * breed; de vector-pagineerder herhaalt de bevroren-strip alleen in `'actual'`-modus).
+ * breed; de vector-pagineerder herhaalt de bevroren-strip alleen in `'actual'`-modus of bij
+ * `timelineColumns > 1`).
  */
 export function makeTableRenderReport<Row>(
   spec: PdfTableSpec<Row>,

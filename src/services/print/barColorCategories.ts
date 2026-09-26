@@ -54,7 +54,7 @@ function noneValue(field: FieldRef, noneLabel: string): BarCategoryValue {
 }
 
 /**
- * Een groepeerveld dat (nog) geen balkkleur kan dragen: Resourcetype (issue #173) is een indeling,
+ * Een groepeerveld dat (nog) geen balkkleur kan dragen: Resourcetype is een indeling,
  * geen kleurbron — resources hebben een eigen kleur, typen niet.
  */
 export function isBarColorCandidate(field: FieldRef): boolean {

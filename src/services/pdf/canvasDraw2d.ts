@@ -15,9 +15,9 @@ export interface CanvasDrawWindow {
 
 /**
  * Canvas-backend voor `Draw2D` (preview/raster). Wrapt een `CanvasRenderingContext2D` en forwardt
- * elke primitief 1:1. De constructor neemt de high-DPI-canvas-setup over die voorheen los in
- * `renderPrintCanvas` stond: hij zet de raster- én CSS-maat van het canvas en schaalt de context
- * met `renderScale`, zodat alle teken-aanroepen in LOGISCHE/CSS-px werken (zoals de renderer al deed).
+ * elke primitief 1:1. De constructor doet de high-DPI-canvas-setup: hij zet de raster- én CSS-maat
+ * van het canvas en schaalt de context met `renderScale`, zodat alle teken-aanroepen in
+ * LOGISCHE/CSS-px werken.
  */
 export class CanvasDraw2D implements Draw2D {
   private ctx: CanvasRenderingContext2D;
@@ -68,8 +68,8 @@ export class CanvasDraw2D implements Draw2D {
     } else {
       ctx.scale(renderScale, renderScale);
     }
-    // Fase-0-learning: schakel kerning uit zodat canvas-`measureText`/rendering pixel-WYSIWYG is
-    // t.o.v. de latere pdf-lib-vector-export, die advances telt zónder kerning (§7-fase-0, learning 1).
+    // Kerning uit zodat canvas-`measureText`/rendering pixel-WYSIWYG is t.o.v. de pdf-lib-vector-export,
+    // die advances telt zónder kerning.
     ctx.fontKerning = 'none';
     this.ctx = ctx;
   }
@@ -111,9 +111,9 @@ export class CanvasDraw2D implements Draw2D {
   stroke(): void { this.ctx.stroke(); }
 
   /**
-   * Afgeronde rechthoek — exacte kopie van de oude losse `roundRect`-helper uit `printPreview.ts`
-   * (arcTo-variant). Guard `if (w < 0) return`, `r = min(r, w/2, h/2)`. Geen ctx.roundRect gebruiken
-   * (dat is nieuwer + geeft iets ander gedrag); deze helper blijft de bron van waarheid.
+   * Afgeronde rechthoek (arcTo-variant). Guard `if (w < 0) return`, `r = min(r, w/2, h/2)`. Geen
+   * ctx.roundRect gebruiken (dat is nieuwer + geeft iets ander gedrag); deze helper blijft de bron van
+   * waarheid.
    */
   roundRect(x: number, y: number, w: number, h: number, r: number): void {
     if (w < 0) return;
