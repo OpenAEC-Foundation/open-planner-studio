@@ -476,11 +476,15 @@ export function computeReliableResourceLoad(
 export function maxUnitsOn(resource: Resource, iso: string): number {
   const steps = resource.availabilitySteps;
   if (!steps || steps.length === 0) return resource.maxUnits;
-  let applicable = resource.maxUnits;
-  for (const step of [...steps].sort((a, b) => a.from.localeCompare(b.from))) {
-    if (step.from <= iso) applicable = step.maxUnits;
+  // Wat de gesorteerde doorloop gaf (laatste stap in `localeCompare`-volgorde, stabiel, met
+  // `from <= iso`) zonder per aanroep te kopiëren en te sorteren: dit draait per resource per dag.
+  // Gelijke `from` ⇒ de latere in de lijst wint, net als na een stabiele sortering.
+  let best: (typeof steps)[number] | undefined;
+  for (const step of steps) {
+    if (!(step.from <= iso)) continue;
+    if (!best || step.from.localeCompare(best.from) >= 0) best = step;
   }
-  return applicable;
+  return best ? best.maxUnits : resource.maxUnits;
 }
 
 // ── Histogram-rapport (taak T6, MCP-tool `get_resource_histogram`) ───────────────────────────────
@@ -590,6 +594,92 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     for (const [iso, u] of pa.daily) m.set(iso, (m.get(iso) ?? 0) + u);
   }
 
+  // 2./3. Vensterspanne en bucketvensters (gedeeld met de MCP-begrenzing).
+  const windows = histogramWindows(tasks, from, to, bucket);
+
+  // 4. Rapport per (gescopete) resource.
+  const idSet = resourceIds && resourceIds.length > 0 ? new Set(resourceIds) : null;
+  const reported = idSet ? resources.filter(r => idSet.has(r.id)) : resources;
+
+  const report: HistogramReport = { resources: [] };
+  for (const resource of reported) {
+    const dailyLoad = loadByResource.get(resource.id) ?? new Map<string, number>();
+    const engine = new CalendarEngine(calendarForEngine(
+      resolveCalendar(resource.calendarId, calendars, calendar),
+    ));
+
+    // Dag-granulaire overbelaste dagen: load > capaciteit (resource-kalender), over de belaste dagen.
+    const overDays = new Set<string>();
+    for (const [iso, l] of dailyLoad) {
+      const cap = engine.isWorkDay(parseDate(iso)) ? maxUnitsOn(resource, iso) : 0;
+      if (l > cap) overDays.add(iso);
+    }
+    const resAssignments = perAssignment.filter(pa => pa.resourceId === resource.id);
+
+    // Elke belaste dag één keer naar zijn venster (de vensters tegelen [from,to] oplopend en zonder
+    // overlap), in de invoegvolgorde van `dailyLoad` — per venster dus exact dezelfde optelvolgorde
+    // als de oude doorloop van álle dagen per venster (vensters × dagen per resource; een dag-
+    // histogram over vijf jaar was zo miljoenen stappen per resource).
+    const winLoad = new Array<number>(windows.length).fill(0);
+    const winPeak = new Array<number>(windows.length).fill(0);
+    for (const [iso, l] of dailyLoad) {
+      const wi = windowIndexOf(windows, iso);
+      if (wi < 0) continue;
+      winLoad[wi] += l;
+      if (l > winPeak[wi]) winPeak[wi] = l;
+    }
+    const winOver: string[][] = windows.map(() => []);
+    for (const iso of overDays) {
+      const wi = windowIndexOf(windows, iso);
+      if (wi >= 0) winOver[wi].push(iso);
+    }
+
+    const buckets: HistogramBucket[] = [];
+    for (let wi = 0; wi < windows.length; wi++) {
+      const w = windows[wi];
+      const load = winLoad[wi];
+      const peak = winPeak[wi];
+      // Venster-capaciteit: EIGEN enumeratie over álle werkdagen van het venster (ook onbelaste).
+      let capacity = 0;
+      for (const iso of enumerateWorkDays(engine, w.start, w.end)) capacity += maxUnitsOn(resource, iso);
+
+      const overInWin = winOver[wi].sort();
+      const b: HistogramBucket = {
+        start: w.start,
+        end: w.end,
+        load,
+        peakDayLoad: peak,
+        capacity,
+        overallocatedDays: overInWin,
+      };
+      if (overInWin.length > 0) {
+        const causes: HistogramCause[] = [];
+        for (const pa of resAssignments) {
+          let contribution = 0;
+          for (const iso of overInWin) contribution += pa.daily.get(iso) ?? 0;
+          if (contribution > 0) causes.push({ assignmentId: pa.assignmentId, taskId: pa.taskId, contribution });
+        }
+        if (causes.length > 0) b.causes = causes;
+      }
+      buckets.push(b);
+    }
+    report.resources.push({ resourceId: resource.id, buckets });
+  }
+
+  return report;
+}
+
+/**
+ * De bucketvensters van een histogram: de spanne `[from,to]` (default uit de taakdatums, min
+ * earlyStart .. max earlyFinish) dicht getegeld per dag, ISO-week (ma..zo) of kalendermaand, oplopend
+ * en zonder overlap. Geëxporteerd zodat een aanroeper (MCP) de omvang kan begrenzen vóór het rekenen.
+ */
+export function histogramWindows(
+  tasks: readonly Task[],
+  from: string | undefined,
+  to: string | undefined,
+  bucket: HistogramInput['bucket'],
+): Array<{ start: string; end: string }> {
   // 2. Vensterspanne — default uit de taakdatums (min earlyStart .. max earlyFinish).
   let fromIso = from;
   let toIso = to;
@@ -638,63 +728,21 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     }
   }
 
-  // 4. Rapport per (gescopete) resource.
-  const idSet = resourceIds && resourceIds.length > 0 ? new Set(resourceIds) : null;
-  const reported = idSet ? resources.filter(r => idSet.has(r.id)) : resources;
+  return windows;
+}
 
-  const report: HistogramReport = { resources: [] };
-  for (const resource of reported) {
-    const dailyLoad = loadByResource.get(resource.id) ?? new Map<string, number>();
-    const engine = new CalendarEngine(calendarForEngine(
-      resolveCalendar(resource.calendarId, calendars, calendar),
-    ));
-
-    // Dag-granulaire overbelaste dagen: load > capaciteit (resource-kalender), over de belaste dagen.
-    const overDays = new Set<string>();
-    for (const [iso, l] of dailyLoad) {
-      const cap = engine.isWorkDay(parseDate(iso)) ? maxUnitsOn(resource, iso) : 0;
-      if (l > cap) overDays.add(iso);
-    }
-    const resAssignments = perAssignment.filter(pa => pa.resourceId === resource.id);
-
-    const buckets: HistogramBucket[] = [];
-    for (const w of windows) {
-      let load = 0;
-      let peak = 0;
-      for (const [iso, l] of dailyLoad) {
-        if (iso >= w.start && iso <= w.end) {
-          load += l;
-          if (l > peak) peak = l;
-        }
-      }
-      // Venster-capaciteit: EIGEN enumeratie over álle werkdagen van het venster (ook onbelaste).
-      let capacity = 0;
-      for (const iso of enumerateWorkDays(engine, w.start, w.end)) capacity += maxUnitsOn(resource, iso);
-
-      const overInWin = [...overDays].filter(iso => iso >= w.start && iso <= w.end).sort();
-      const b: HistogramBucket = {
-        start: w.start,
-        end: w.end,
-        load,
-        peakDayLoad: peak,
-        capacity,
-        overallocatedDays: overInWin,
-      };
-      if (overInWin.length > 0) {
-        const causes: HistogramCause[] = [];
-        for (const pa of resAssignments) {
-          let contribution = 0;
-          for (const iso of overInWin) contribution += pa.daily.get(iso) ?? 0;
-          if (contribution > 0) causes.push({ assignmentId: pa.assignmentId, taskId: pa.taskId, contribution });
-        }
-        if (causes.length > 0) b.causes = causes;
-      }
-      buckets.push(b);
-    }
-    report.resources.push({ resourceId: resource.id, buckets });
+/** Het venster (index) waar `iso` binnen valt (`start <= iso <= end`, stringvergelijking zoals de
+ *  vensterfilter), of −1. `windows` is oplopend en overlapt niet (de tegeling hierboven). */
+function windowIndexOf(windows: ReadonlyArray<{ start: string; end: string }>, iso: string): number {
+  let lo = 0;
+  let hi = windows.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (windows[mid].end < iso) lo = mid + 1;
+    else if (windows[mid].start > iso) hi = mid - 1;
+    else return mid;
   }
-
-  return report;
+  return -1;
 }
 
 /** Alle werkdagen (volgens `engine`) tussen `startIso` en `finishIso`, inclusief. Geëxporteerd

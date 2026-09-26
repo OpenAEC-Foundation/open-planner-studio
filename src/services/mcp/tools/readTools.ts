@@ -41,7 +41,7 @@ function nativeDuration(task: Task): number {
 import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
-import { computeHistogramReport } from '@/engine/scheduler/ResourceLoad';
+import { computeHistogramReport, histogramWindows } from '@/engine/scheduler/ResourceLoad';
 import { computeVariance, type VarianceRow } from '@/engine/variance';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
@@ -735,6 +735,10 @@ function listResources(s: AppState, args: PageArgs) {
 
 // ── 7. planner_get_resource_histogram ────────────────────────────────────────────────────────────
 
+/** Bovengrens voor het gescopte detail (buckets × resources): ruim genoeg voor 25 resources × een
+ *  jaar in dagbuckets of 190 resources × een jaar in weken, klein genoeg voor een bruikbare respons. */
+const MAX_HISTOGRAM_BUCKETS = 10_000;
+
 interface HistogramArgs {
   resourceIds?: unknown;
   van?: unknown;
@@ -852,6 +856,16 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs) {
   }
 
   // ── Gescopt (venster en/of resourceIds) ⇒ VOLLEDIG bucket-detail (bestaand gedrag) ─────────────
+  // Omvang begrenzen vóór het rekenen: een ruim venster in dagbuckets over alle resources (bv.
+  // `van` 1900 … `tot` 2100) leverde tienduizenden buckets per resource op — megabytes JSON die geen
+  // client kan gebruiken. Boven de grens een VALIDATION-fout met de uitweg.
+  const bucketCount = histogramWindows(s.tasks, from, to, bucket).length
+    * (resourceIds && resourceIds.length > 0 ? resourceIds.length : s.resources.length);
+  if (bucketCount > MAX_HISTOGRAM_BUCKETS) {
+    throw new McpStepError('VALIDATION',
+      `dit histogram zou ${bucketCount} buckets opleveren (grens ${MAX_HISTOGRAM_BUCKETS}); kies een kleiner venster ` +
+      "(`van`/`tot`), minder `resourceIds` of een grovere `bucket` ('week'/'maand'), of laat alles weg voor het aggregaat.");
+  }
   const report = computeHistogramReport({
     tasks: s.tasks,
     sequences: s.sequences,
@@ -1182,7 +1196,8 @@ export const readTools: McpToolDef[] = [
       '`overallocatedDays` en per overbelaste bucket de veroorzakende toewijzingen (`causes`). ' +
       'LET OP — WEEKMODUS-OVERHANG: weekvensters snappen naar hele ISO-weken (ma..zo), dus een venster ' +
       'kan aan de randen dagen buiten [van,tot] meenemen; de capaciteit telt álle werkdagen van het ' +
-      '(gesnapte) weekvenster.',
+      '(gesnapte) weekvenster. Detail is begrensd op 10000 buckets (vensters × resources); daarboven ' +
+      'een VALIDATION-fout met de uitweg.',
     kind: 'read',
     batchable: true,
     inputSchema: {

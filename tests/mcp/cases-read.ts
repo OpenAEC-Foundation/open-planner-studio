@@ -455,6 +455,22 @@ test('get_resource_histogram: gescopt op resourceIds ⇒ volledig detail met buc
   assert(Array.isArray(data.resources[0].buckets) && data.resources[0].buckets.length > 0, 'bucket-arrays aanwezig');
 });
 
+test('get_resource_histogram: detail boven 10000 buckets ⇒ VALIDATION met uitweg, vóór het rekenen', () => {
+  loadBenchmark(500);
+  const rId = S().resources[0].id;
+  // 1900–2100 in dagbuckets over alle (8) resources ≈ 73k × 8 buckets: geweigerd.
+  const res = callErr('planner_get_resource_histogram', { bucket: 'dag', van: '1900-01-01', tot: '2100-12-31' });
+  assert(!res.ok, 'te groot detail geeft een fout');
+  if (!res.ok) {
+    assertEq(res.code, 'VALIDATION', 'VALIDATION-code');
+    assert(/grens 10000/.test(res.error) && /'week'\/'maand'/.test(res.error), `foutmelding noemt grens en uitweg (${res.error})`);
+  }
+  // Net eronder blijft gewoon detail: één resource, één jaar in dagen.
+  const ok = callOk('planner_get_resource_histogram', { bucket: 'dag', van: '2026-01-01', tot: '2026-12-31', resourceIds: [rId] });
+  assertEq(ok.mode, 'detail', 'binnen de grens ⇒ detail');
+  assertEq(ok.resources[0].buckets.length, 365, 'één bucket per dag');
+});
+
 // =================================================================================================
 // 8) planner_get_calendars — volledige definitie + gebruikt-door + isProjectDefault
 // =================================================================================================
