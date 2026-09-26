@@ -73,6 +73,14 @@ export interface StoreRuntime {
   isBatchActive(): boolean;
   enterBatch(): void;
   exitBatch(): void;
+  /**
+   * Binnen een batch wordt `recomputeViewRows` uitgesteld tot het einde (`withTransaction`): per
+   * bewerkte taak de hele rijenlijst afleiden maakte een bulkbewerking O(taken × selectie) — gemeten
+   * 7,5 s voor 500 taken in een project van 8000. `true` = uitgesteld (de aanroeper rekent niet).
+   */
+  deferViewRows(): boolean;
+  /** Was er in deze batch een uitgestelde rijenberekening? Leest en wist de vlag. */
+  takeDeferredViewRows(): boolean;
   enterMcpTransaction(): McpTransactionLease;
   recordMcpTimephasedLoss(lease: McpTransactionLease, taskId: string): void;
   countMcpTimephasedLoss(lease: McpTransactionLease): number;
@@ -126,6 +134,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
   const pendingByDraft = new WeakMap<object, PendingDocumentMutation>();
   let coalesce: CoalesceMarker | null = null;
   let batchDepth = 0;
+  let viewRowsDeferred = false;
   let activeMcpLease: ActiveMcpLease | null = null;
   let activeHistorySession: string | null = null;
   let historySessionCounter = 0;
@@ -289,6 +298,18 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
 
     exitBatch() {
       if (batchDepth > 0) batchDepth--;
+    },
+
+    deferViewRows() {
+      if (batchDepth === 0) return false;
+      viewRowsDeferred = true;
+      return true;
+    },
+
+    takeDeferredViewRows() {
+      const deferred = viewRowsDeferred;
+      viewRowsDeferred = false;
+      return deferred;
     },
 
     enterMcpTransaction() {

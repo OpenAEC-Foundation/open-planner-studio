@@ -1,4 +1,5 @@
 import { Task, type ExternalLink } from '@/types/task';
+import { taskAssignmentDrafts, taskIndexById } from '@/state/immerDraft';
 import { type SplitPiece, type SplitRefusal } from '@/engine/scheduler/splitEdit';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { applyTaskSplits, taskSplitRefusal } from '@/state/splitMutations';
@@ -743,7 +744,7 @@ function commitProgressEdit(
   ctx: Omit<ProgressEntryContext, 'statusDate'>,
   opts: { coalesceKey?: string } | undefined,
 ): ProgressEntryResult & { statusDateToday?: string } {
-  const task = s.tasks.find((t) => t.id === taskId);
+  const task = s.tasks[taskIndexById(s, taskId)] as Task | undefined; // aan het begin van elke producer
   if (!task) return { ok: true }; // onbekende taak: stille no-op, zoals voorheen
   // Voortgang op een verzameltaak is alleen-lezen: de rollup in `applyCpmResult` leidt haar af uit
   // de bladen. Weigeren vóór elke mutatie, dus zonder snapshot (transaction.ts-patroon).
@@ -766,7 +767,7 @@ function commitProgressEdit(
   }
   task.time = plan.change.task.time;
   task.status = plan.change.task.status;
-  settleProgressWork(task, s.assignments, progressWork);
+  settleProgressWork(task, taskAssignmentDrafts(s, task.id), progressWork); // eigen toewijzingen, zonder proxy per stuk
   // B1c-plan-2 spec §4 "Invalidatie", vierde klasse — bedraad in de fixronde op etappe 3
   // (bevinding B7). Voortgang loopt buiten `updateTask` om, dus deze setters hebben hun eigen
   // aanroep; zie `LEVELING_GAP_TIME_TRIGGERS` in taskDefaults.ts voor het waarom.
@@ -913,7 +914,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     let lostTimephasedGuidance = false;
     let refusedNotices: NotifyInput[] = [];
     set((s) => {
-      const idx = s.tasks.findIndex(t => t.id === id);
+      const idx = taskIndexById(s, id); // basis-zoektocht: geen proxy per taak (zie de helper)
       if (idx < 0) return; // onbekend id: geen snapshot, geen loze undo-stap (R3).
       const task = s.tasks[idx];
       // Start is verplicht (vangnet onder paneel, dialoog en extensie-API, #200): een onleesbare
@@ -1099,7 +1100,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     // mpp-nul-data-etappe, DEEL 1 — zie `updateTask` hierboven.
     let lostTimephasedGuidance = false;
     set((s) => {
-      const task = s.tasks.find((t) => t.id === taskId);
+      const task = s.tasks[taskIndexById(s, taskId)] as Task | undefined;
       if (!task) return;
       if (task.calendarId === calendarId) return; // no-op: geen snapshot, geen stale
       runtime.beginUndoable(s);
@@ -1107,9 +1108,11 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // kalenderwissel niet in de sleutel en blijft het ingevoerde einde oud).
       const finishBasis = hourInputFinishBasis(task);
       // K2 (eigenaarsbesluit 2026-09-05): momentopname vóór de wissel; daarna beslist de werkregel.
-      const before = captureCalendarChange(task, s.assignments, s);
+      // Alleen de eigen toewijzingen, gezocht zonder proxy per toewijzing (bulk: zie de helper).
+      const own = taskAssignmentDrafts(s, taskId);
+      const before = captureCalendarChange(task, own, s);
       task.calendarId = calendarId; // undefined = projectkalender
-      const settled = settleCalendarChange(task, s.assignments, before, s);
+      const settled = settleCalendarChange(task, own, before, s);
       // Z14b — kalenderwissel is een trigger, zie taskDefaults.ts. De nazorg van de regel kan het
       // venster al gewist hebben (dan is die tweede aanroep een no-op): beide tellen als verlies.
       lostTimephasedGuidance = settled.timephasedLost || clearTimephasedWindow(task);
@@ -1193,7 +1196,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     }
 
     set((s) => {
-      const roots = frozen.filter((id) => s.tasks.some((task) => task.id === id));
+      const existing = new Set(s.tasks.map((task) => task.id)); // één keer, niet per wortel
+      const roots = frozen.filter((id) => existing.has(id));
       if (roots.length === 0) return;
       runtime.beginUndoable(s);
       removeTaskSubtrees(s, roots);
