@@ -8,16 +8,46 @@
 //
 // Een losse bladmodule (net als `editHold.ts`) zodat de hook zelf alleen de aanroep krijgt.
 import type { AppState } from './appStore';
-import { solveInputOf, type SolveProjectInput } from '@/engine/scheduler/solveProject';
+import type { SolveProjectFields } from '@/engine/scheduler/solveInput';
 
 type GateState = Pick<AppState, 'cpmResult' | 'tasks' | 'sequences' | 'calendar' | 'calendars' | 'project'>;
 
-/** De plannings-invoer: precies wat `runCPM` aan `solveProject` geeft. */
-const planningInputOf = (s: GateState): SolveProjectInput => solveInputOf(s, s.tasks);
+/**
+ * De plannings-invoer: de RUWE store-referenties waaruit `runCPM` via `solveInputFor` de solve-invoer
+ * bouwt — de vier lijsten plus de projectvelden van `SolveProjectFields`. Niet de afgeleide
+ * `SolveProjectInput` zelf: `solveOptionsFor` bouwt `schedulingOptions` (profiel + projectopties) bij
+ * elke aanroep als NIEUW object, dus een referentievergelijking daarop zou altijd "gewijzigd" zeggen
+ * en de rem nooit laten grijpen (integratie groep C: #209 × rekenprofielen).
+ */
+interface PlanningInput {
+  tasks: GateState['tasks'];
+  sequences: GateState['sequences'];
+  calendar: GateState['calendar'];
+  calendars: GateState['calendars'];
+  statusDate: SolveProjectFields['statusDate'];
+  progressMode: SolveProjectFields['progressMode'];
+  schedulingOptions: SolveProjectFields['schedulingOptions'];
+  schedulingProfile: SolveProjectFields['schedulingProfile'];
+  startDate: SolveProjectFields['startDate'];
+  endDate: SolveProjectFields['endDate'];
+}
+
+const planningInputOf = (s: GateState): PlanningInput => ({
+  tasks: s.tasks,
+  sequences: s.sequences,
+  calendar: s.calendar,
+  calendars: s.calendars,
+  statusDate: s.project.statusDate,
+  progressMode: s.project.progressMode,
+  schedulingOptions: s.project.schedulingOptions,
+  schedulingProfile: s.project.schedulingProfile,
+  startDate: s.project.startDate,
+  endDate: s.project.endDate,
+});
 
 /** Zelfde invoer per referentie (Immer levert bij elke echte wijziging een nieuw object op). */
-function samePlanningInput(a: SolveProjectInput, b: SolveProjectInput): boolean {
-  const keys = Object.keys(a) as (keyof SolveProjectInput)[];
+function samePlanningInput(a: PlanningInput, b: PlanningInput): boolean {
+  const keys = Object.keys(a) as (keyof PlanningInput)[];
   return keys.length === Object.keys(b).length && keys.every((k) => Object.is(a[k], b[k]));
 }
 

@@ -26,6 +26,7 @@ import tr from '@/i18n/locales/tr/common.json';
 import zh from '@/i18n/locales/zh/common.json';
 import { createAppStoreContext } from '@/state/appStore';
 import { solveProject } from '@/engine/scheduler/solveProject';
+import { opsSolveInput } from './legacySolveOptions';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { collectScheduleWarnings } from '@/engine/scheduler/scheduleWarnings';
@@ -52,7 +53,7 @@ function task(id: string, name: string, time: Partial<Task['time']> = {}): Task 
   } as unknown as Task;
 }
 function solve(tasks: Task[], sequences: Sequence[] = [], calendar: WorkCalendar = createDefaultCalendar()): CPMResult {
-  return solveProject({ tasks, sequences, calendar, calendars: [calendar] });
+  return solveProject(opsSolveInput({ tasks, sequences, calendar, calendars: [calendar] }));
 }
 const fs = (id: string, p: string, s: string): Sequence => ({ id, predecessorId: p, successorId: s, type: 'FINISH_START', lagDays: 0 });
 
