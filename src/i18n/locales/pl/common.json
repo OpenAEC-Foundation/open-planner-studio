@@ -469,7 +469,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Rzeczywiste daty nie mogą wypadać po dacie statusu"
+    "actualsAfterStatusDate": "Rzeczywiste daty nie mogą wypadać po dacie statusu",
+    "actualStartAfterFinish": "Rzeczywiste rozpoczęcie jest późniejsze niż rzeczywiste zakończenie."
+  },
+  "actualStartQuestion": {
+    "title": "Podaj rzeczywiste rozpoczęcie",
+    "introOne": "„{{name}}” miało się zacząć po dacie statusu ({{statusDate}}), a teraz otrzymuje postęp. Kiedy faktycznie się rozpoczęło?",
+    "introMany": "Te zadania miały się zacząć po dacie statusu ({{statusDate}}), a teraz otrzymują postęp. Kiedy faktycznie się rozpoczęły?",
+    "fieldLabel": "Rzeczywiste rozpoczęcie: {{name}}",
+    "latest": "Najpóźniej {{date}}.",
+    "required": "Wprowadź datę.",
+    "afterStatusDate": "Ta data jest późniejsza niż data statusu ({{date}}).",
+    "afterActualFinish": "Ta data jest późniejsza niż rzeczywiste zakończenie ({{date}}).",
+    "confirm": "Zastosuj postęp"
   },
   "companyLibrary": {
     "title": "Biblioteka zasobów",

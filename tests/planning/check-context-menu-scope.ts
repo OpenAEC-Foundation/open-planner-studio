@@ -72,6 +72,11 @@ eq('00c externe relatieacties staan in het rechtsklikmenu en niet als celknoppen
 /** Verse projectstate met vier root-taken; B/C/D worden de selectie, A blijft de controle. */
 function verseVier(): { a: string; b: string; c: string; d: string } {
   S().newProject();
+  // Vaste projectstart in het verleden. De standaardstart van een nieuw project is de UTC-dag van
+  // vandaag; in een zone ver achter UTC (Pacific/Midway in de tijdzone-matrix) is dat MORGEN, en
+  // voortgang op een taak die pas na vandaag begint vraagt sinds Z1b eerst de werkelijke start
+  // (`engine/progressEntry.ts`). Deze batterij toetst reikwijdte en undo-kosten, niet die vraag.
+  S().setProject({ startDate: '2026-06-01' });
   const [a, b, c, d] = ['A', 'B', 'C', 'D'].map(n => S().addTask({ name: `Taak ${n}` }));
   S().selectTasks([b, c, d], false);
   return { a, b, c, d };

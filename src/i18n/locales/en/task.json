@@ -166,6 +166,7 @@
       "milestoneRequired": "This field only applies to milestones.",
       "actualAfterStatusDate": "The actual date lies after the status date.",
       "actualFinishBeforeStart": "The actual finish lies before the actual start.",
+      "actualStartRequired": "This task would only start after the status date: enter the actual start first.",
       "conflictingProgressInputs": "These progress values contradict each other.",
       "constraintDateUnavailable": "Set a constraint type before entering a constraint date.",
       "constraintHardUnavailable": "A hard constraint requires a constraint type with a date.",

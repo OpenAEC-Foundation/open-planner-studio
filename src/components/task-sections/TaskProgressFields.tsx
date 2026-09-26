@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
 import { DateTextInput } from '@/components/common/DateTextInput';
+import type { ActualStartQuestion, ProgressEntryResult } from '@/engine/progressEntry';
+import { askActualStart } from '@/state/actualStartQuestion';
 import { Field } from './shared';
 
 // Uniek per slider-gebaar: coalesceKey per pointer-sleep ⇒ één undo-stap i.p.v. één per stap.
@@ -22,17 +24,74 @@ let progressSeq = 0;
  * store-acties door (instant-apply, ongewijzigd); de dialoog geeft lokale equivalenten door die op
  * de eigen draft werken (dezelfde §3.2-functies, maar pas gecommit op Save — zie
  * `state/taskDialogSave.ts`).
+ *
+ * Voortgang INVULLEN (`engine/progressEntry.ts`): elke setter geeft een `ProgressEntryResult` terug.
+ * Een weigering toont deze sectie zelf; `needsActualStart` (Z1b: een taak die pas na de statusdatum
+ * zou beginnen, nog zonder werkelijke start) beantwoordt ze met de ene vraagdialoog
+ * (`askActualStart`) en roept de setter opnieuw aan met het antwoord — annuleren verandert niets.
+ * Tijdens een sleep met de schuif wordt pas bij het loslaten gevraagd; tot dan toont de schuif de
+ * gesleepte waarde zonder iets toe te passen.
  */
+type EntryOpts = { coalesceKey?: string; actualStart?: string };
+type EntryRefusal = 'afterStatusDate' | 'actualFinishBeforeStart';
+
 export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSetActualFinish }: {
   task: Task;
-  onSetProgress: (completion: number, opts?: { coalesceKey?: string }) => void;
-  onSetActualStart: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
-  onSetActualFinish: (date: string | undefined, opts?: { coalesceKey?: string }) => boolean;
+  onSetProgress: (completion: number, opts?: EntryOpts) => ProgressEntryResult;
+  onSetActualStart: (date: string | undefined, opts?: EntryOpts) => ProgressEntryResult;
+  onSetActualFinish: (date: string | undefined, opts?: EntryOpts) => ProgressEntryResult;
 }) {
   const { t } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
-  const [actualError, setActualError] = useState(false);
+  const [actualError, setActualError] = useState<EntryRefusal | null>(null);
   const dragKey = useRef<string | undefined>(undefined);
+  // Z1b tijdens een sleep: de vraag wacht tot het loslaten; de schuif toont zolang de gesleepte waarde.
+  const pendingQuestion = useRef<{ question: ActualStartQuestion; retry: (actualStart: string) => ProgressEntryResult } | null>(null);
+  const [pendingPercent, setPendingPercent] = useState<number | null>(null);
+
+  const clearPending = () => {
+    pendingQuestion.current = null;
+    setPendingPercent(null);
+  };
+
+  const ask = async (question: ActualStartQuestion, retry: (actualStart: string) => ProgressEntryResult) => {
+    const answers = await askActualStart([{ ...question, taskName: task.name }]);
+    const answer = answers?.[question.taskId];
+    if (!answer) return; // Annuleren: er verandert niets.
+    const result = retry(answer);
+    setActualError(result.ok || result.reason === 'needsActualStart' ? null : result.reason);
+  };
+
+  /** Verwerk de uitkomst van een setter. `slidePercent`: de aanroep kwam van de schuif. */
+  const handle = (
+    result: ProgressEntryResult,
+    retry: (actualStart: string) => ProgressEntryResult,
+    slidePercent?: number,
+  ) => {
+    if (result.ok) {
+      setActualError(null);
+      if (slidePercent !== undefined) clearPending();
+      return;
+    }
+    if (result.reason !== 'needsActualStart') {
+      setActualError(result.reason);
+      return;
+    }
+    setActualError(null);
+    if (slidePercent !== undefined && dragKey.current) {
+      pendingQuestion.current = { question: result.question, retry };
+      setPendingPercent(slidePercent);
+      return;
+    }
+    void ask(result.question, retry);
+  };
+
+  const endDrag = () => {
+    dragKey.current = undefined;
+    const pending = pendingQuestion.current;
+    clearPending();
+    if (pending) void ask(pending.question, pending.retry);
+  };
 
   return (
     <>
@@ -42,14 +101,23 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             type="range"
             min={0}
             max={100}
-            value={Math.round(task.time.completion * 100)}
+            value={pendingPercent ?? Math.round(task.time.completion * 100)}
             onPointerDown={() => { dragKey.current = `progress:${task.id}:${++progressSeq}`; }}
-            onPointerUp={() => { dragKey.current = undefined; }}
-            onChange={e => onSetProgress(parseInt(e.target.value) / 100, dragKey.current ? { coalesceKey: dragKey.current } : undefined)}
+            onPointerUp={endDrag}
+            onPointerCancel={() => { dragKey.current = undefined; clearPending(); }}
+            onChange={e => {
+              const percent = parseInt(e.target.value);
+              const completion = percent / 100;
+              handle(
+                onSetProgress(completion, dragKey.current ? { coalesceKey: dragKey.current } : undefined),
+                actualStart => onSetProgress(completion, { actualStart }),
+                percent,
+              );
+            }}
             data-ops-progress-slider
             className="flex-1 accent-accent"
           />
-          <span className="w-8 text-right">{Math.round(task.time.completion * 100)}%</span>
+          <span className="w-8 text-right">{pendingPercent ?? Math.round(task.time.completion * 100)}%</span>
         </div>
       </Field>
 
@@ -61,7 +129,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             className="input !text-small !leading-4 !px-2.5 !py-1.5"
             ariaLabel={t('properties.progress.actualDate')}
             value={task.time.actualFinish ?? ''}
-            onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
+            onCommit={v => handle(
+              onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` }),
+              actualStart => onSetActualFinish(v || undefined, { actualStart }),
+            )}
           />
         </Field>
       ) : (
@@ -72,7 +143,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualStart')}
                 value={task.time.actualStart ?? ''}
-                onCommit={v => { setActualError(!onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` })); }}
+                onCommit={v => handle(
+                  onSetActualStart(v || undefined, { coalesceKey: `actualStart:${task.id}` }),
+                  () => onSetActualStart(v || undefined),
+                )}
               />
             </Field>
             <Field label={t('properties.progress.actualFinish')}>
@@ -80,7 +154,10 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
                 className="input !text-small !leading-4 !px-2.5 !py-1.5"
                 ariaLabel={t('properties.progress.actualFinish')}
                 value={task.time.actualFinish ?? ''}
-                onCommit={v => { setActualError(!onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` })); }}
+                onCommit={v => handle(
+                  onSetActualFinish(v || undefined, { coalesceKey: `actualFinish:${task.id}` }),
+                  actualStart => onSetActualFinish(v || undefined, { actualStart }),
+                )}
               />
             </Field>
           </div>
@@ -95,7 +172,9 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
       )}
       {actualError && (
         <div className="!text-body" style={{ color: 'var(--error)' }}>
-          {tCommon('progress.actualsAfterStatusDate')}
+          {actualError === 'afterStatusDate'
+            ? tCommon('progress.actualsAfterStatusDate')
+            : tCommon('progress.actualStartAfterFinish')}
         </div>
       )}
     </>

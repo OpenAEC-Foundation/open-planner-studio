@@ -55,6 +55,7 @@ const StructureDialog = lazy(() => import('@/components/dialogs/StructureDialog'
 const UpdateDialog = lazy(() => import('@/components/dialogs/UpdateDialog').then(m => ({ default: m.UpdateDialog })));
 const JustUpdatedDialog = lazy(() => import('@/components/dialogs/JustUpdatedDialog').then(m => ({ default: m.JustUpdatedDialog })));
 const ExtensionConsentDialog = lazy(() => import('@/components/dialogs/ExtensionConsentDialog').then(m => ({ default: m.ExtensionConsentDialog })));
+const ActualStartDialog = lazy(() => import('@/components/dialogs/ActualStartDialog').then(m => ({ default: m.ActualStartDialog })));
 const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').then(m => ({ default: m.FeedbackDialog })));
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
@@ -368,6 +369,10 @@ function AppContent() {
             blokkade (A12) blijft ongewijzigd werken. */}
         {showProgressImportDialog && <ProgressImportDialog />}
         <ExtensionConsentDialog />
+        {/* Z1b: de vraag naar de werkelijke start (voortgang op een taak die pas na de statusdatum
+            zou beginnen). Rendert alleen bij `ui.pendingActualStartQuestion`; stapelt boven
+            "Taak bewerken". */}
+        <ActualStartDialog />
         <LibraryLinkDialog />
         {recovery && (
           <RecoveryDialog

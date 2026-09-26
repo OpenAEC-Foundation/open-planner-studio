@@ -166,6 +166,7 @@
       "milestoneRequired": "Dit veld geldt alleen voor mijlpalen.",
       "actualAfterStatusDate": "De werkelijke datum ligt na de statusdatum.",
       "actualFinishBeforeStart": "Het werkelijke einde ligt vóór de werkelijke start.",
+      "actualStartRequired": "Deze taak zou pas na de statusdatum beginnen: vul eerst de werkelijke start in.",
       "conflictingProgressInputs": "Deze voortgangswaarden spreken elkaar tegen.",
       "constraintDateUnavailable": "Stel eerst een beperkingstype in voordat je een beperkingsdatum invoert.",
       "constraintHardUnavailable": "Een harde beperking vereist een beperkingstype met een datum.",

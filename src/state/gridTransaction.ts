@@ -22,7 +22,7 @@ import { notifyTimephasedLoss } from './timephasedLossNotice';
 import { markDateMutation, snapshotsEqual } from './transaction';
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
-import { hasRecordedProgress } from '@/engine/progressEntry';
+import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
 import { statusDateSetTodayNotice } from './progressEntryNotice';
 import {
   applyRelationMutationPlan,
@@ -73,9 +73,13 @@ export interface GridMutationError {
 /**
  * Opties van een gridtransactie. `progressEntry` zet de invoerregels voor voortgang aan
  * (`engine/progressEntry.ts`): het taakraster geeft hem mee, headless aanroepers niet (zij houden
- * het vangnet van de oude regels). Z1: staat er geen statusdatum en houdt een voortgangscel een taak
- * met voortgang over, dan gaat de statusdatum in DEZELFDE transactie (één undo-stap) op `today`, met
- * een melding na de commit.
+ * het vangnet van de oude regels).
+ *  - Z1: staat er geen statusdatum en houdt een voortgangscel een taak met voortgang over, dan gaat
+ *    de statusdatum in DEZELFDE transactie (één undo-stap) op `today`, met een melding na de commit.
+ *  - Z1b: zou een voortgangscel de werkelijke start afleiden uit een geplande start ná de
+ *    (effectieve) statusdatum, dan wordt de HELE transactie geweigerd met per taak de fout
+ *    `actualStartRequired` (waarde: `{ statusDate, latest }`). Het raster stelt dan de vraag en
+ *    herhaalt dezelfde handeling mét een `task.time.actualStart`-write per taak.
  */
 export interface GridMutationOptions {
   progressEntry?: { today: string };
@@ -677,6 +681,7 @@ export function prepareGridMutation(
   }
   const today = options?.progressEntry?.today;
   const plansStatusDateToday = !!today && !state.project.statusDate && progressTaskIds.size > 0;
+  const entryStatusDate = today ? state.project.statusDate || today : undefined;
   const notifications: DeferredNotification[] = [];
 
   // FIX 6 (§8.6): alleen aanwezig op een PasteIntent die daar expliciet om vroeg (zie
@@ -795,8 +800,29 @@ export function prepareGridMutation(
         }
       }
     }
-    if (errors.length === 0 && plansStatusDateToday) {
-      const beforeTasksById = new Map(state.tasks.map(task => [task.id, task] as const));
+    const beforeTasksById = today && errors.length === 0
+      ? new Map(state.tasks.map(task => [task.id, task] as const))
+      : null;
+    if (beforeTasksById) {
+      // Z1b: geen verzonnen werkelijke start — het criterium dat alle routes delen.
+      for (const taskId of progressTaskIds) {
+        const before = beforeTasksById.get(taskId);
+        const after = draftTasksById.get(taskId);
+        if (!before || !after) continue;
+        const writes = cellWritesByTaskId.get(taskId) ?? [];
+        const wrote = (columnId: string) => writes.some(write => String(write.columnId) === columnId && !!write.value);
+        const question = actualStartQuestionFor(before, after, entryStatusDate, {
+          actualStart: wrote('task.time.actualStart'),
+          actualFinish: wrote('task.time.actualFinish'),
+        });
+        if (question) {
+          errors.push(validationError('actualStartRequired', { taskId }, {
+            statusDate: question.statusDate, latest: question.latest,
+          }));
+        }
+      }
+    }
+    if (errors.length === 0 && plansStatusDateToday && beforeTasksById) {
       const keepsProgress = [...progressTaskIds].some(taskId => {
         const before = beforeTasksById.get(taskId);
         const after = draftTasksById.get(taskId);

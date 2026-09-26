@@ -461,7 +461,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Le date effettive non possono essere successive alla data di stato"
+    "actualsAfterStatusDate": "Le date effettive non possono essere successive alla data di stato",
+    "actualStartAfterFinish": "L’inizio effettivo è successivo alla fine effettiva."
+  },
+  "actualStartQuestion": {
+    "title": "Indica l’inizio effettivo",
+    "introOne": "«{{name}}» doveva iniziare dopo la data di stato ({{statusDate}}), ma ora riceve avanzamento. Quando è iniziata davvero?",
+    "introMany": "Queste attività dovevano iniziare dopo la data di stato ({{statusDate}}), ma ora ricevono avanzamento. Quando sono iniziate davvero?",
+    "fieldLabel": "Inizio effettivo di {{name}}",
+    "latest": "Al più tardi il {{date}}.",
+    "required": "Inserisci una data.",
+    "afterStatusDate": "Questa data è successiva alla data di stato ({{date}}).",
+    "afterActualFinish": "Questa data è successiva alla fine effettiva ({{date}}).",
+    "confirm": "Applica avanzamento"
   },
   "companyLibrary": {
     "title": "Libreria di risorse",

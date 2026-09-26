@@ -4,6 +4,8 @@ import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskIns
 import type { Task } from '@/types/task';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { localTodayIso } from '@/utils/dateUtils';
+import { planProgressEntry } from '@/engine/progressEntry';
+import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -104,15 +106,34 @@ export const contextMenuBulk = {
     appTaskBulkActions.applyToTaskIds(ids, (state, id) => state.setTaskCalendar(id, calendarId));
   },
 
-  /** Voortgang op de hele reikwijdte, als één undo-stap. Een UI-route, dus via `enterTaskProgress`
-   *  (`engine/progressEntry.ts`): zonder statusdatum gaat die op vandaag — bij de eerste taak die
-   *  voortgang krijgt, in dezelfde undo-stap, met één melding. */
-  setProgress(taskId: string, completion: number): void {
+  /**
+   * Voortgang op de hele reikwijdte, als één undo-stap. Een UI-route, dus via `enterTaskProgress`
+   * (`engine/progressEntry.ts`): zonder statusdatum gaat die op vandaag — bij de eerste taak die
+   * voortgang krijgt, in dezelfde undo-stap, met één melding (Z1). Taken die pas na de statusdatum
+   * zouden beginnen en nog geen werkelijke start hebben, krijgen eerst samen één vraag naar hun
+   * werkelijke start (Z1b); annuleren verandert niets, ook niet aan de andere taken. Zonder vraag
+   * loopt alles synchroon (de functie bereikt dan geen `await`).
+   */
+  async setProgress(taskId: string, completion: number): Promise<void> {
     const today = localTodayIso();
-    appTaskBulkActions.applyToTaskIds(
-      contextMenuOutlineScope(taskId),
-      (state, id) => { state.enterTaskProgress(id, { field: 'completion', value: completion }, { today }); },
-    );
+    const ids = contextMenuOutlineScope(taskId);
+    const edit = { field: 'completion', value: completion } as const;
+    const state = useAppStore.getState();
+    const questions = ids.flatMap((id) => {
+      const task = state.tasks.find(candidate => candidate.id === id);
+      if (!task) return [];
+      const plan = planProgressEntry(task, edit, { statusDate: state.project.statusDate, today });
+      return !plan.ok && plan.reason === 'needsActualStart' ? [{ ...plan.question, taskName: task.name }] : [];
+    });
+    let answers: ActualStartAnswers = {};
+    if (questions.length > 0) {
+      const given = await askActualStart(questions);
+      if (!given) return;
+      answers = given;
+    }
+    appTaskBulkActions.applyToTaskIds(ids, (current, id) => {
+      current.enterTaskProgress(id, edit, { today, actualStart: answers[id] });
+    });
   },
 
   setPriority(taskId: string, priority: number): void {

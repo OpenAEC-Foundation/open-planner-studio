@@ -141,7 +141,12 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
     check("e de default-commitmodus van DateTextInput is 'blur'", /commitMode = 'blur'/.test(component));
 
     // Puur lokale draftstate (projectwizard) — geen store-schrijver, mét live afgeleide feedback.
-    const liveToegestaan = [joinPath(srcRoot, 'components', 'settings', 'ProjectInfoPanelContent.tsx')];
+    // Idem de vraag naar de werkelijke start (Z1b): lokale antwoordstaat met live foutmelding; pas
+    // "Voortgang toepassen" schrijft, via de voortgangssetter met het antwoord (één undo-stap).
+    const liveToegestaan = [
+      joinPath(srcRoot, 'components', 'settings', 'ProjectInfoPanelContent.tsx'),
+      joinPath(srcRoot, 'components', 'dialogs', 'ActualStartDialog.tsx'),
+    ];
     // Bewust ruim: vangt zowel `commitMode="live"` als `commitMode={'live'}`/`{"live"}`.
     const liveGebruikers = bestanden.filter(f =>
       f !== joinPath(srcRoot, 'components', 'common', 'DateTextInput.tsx')

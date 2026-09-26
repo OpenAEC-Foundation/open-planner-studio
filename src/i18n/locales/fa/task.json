@@ -87,6 +87,7 @@
       "milestoneRequired": "این فیلد فقط برای نقاط عطف کاربرد دارد.",
       "actualAfterStatusDate": "تاریخ واقعی بعد از تاریخ وضعیت است.",
       "actualFinishBeforeStart": "پایان واقعی قبل از شروع واقعی است.",
+      "actualStartRequired": "این وظیفه تنها بعد از تاریخ وضعیت شروع می‌شد: ابتدا شروع واقعی را وارد کنید.",
       "conflictingProgressInputs": "این مقادیر پیشرفت با هم تناقض دارند.",
       "constraintDateUnavailable": "پیش از وارد کردن تاریخ محدودیت، نوع محدودیت را تعیین کنید.",
       "constraintHardUnavailable": "محدودیت سخت به نوع محدودیتی با تاریخ نیاز دارد.",

@@ -445,7 +445,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "实际日期不能晚于状态日期"
+    "actualsAfterStatusDate": "实际日期不能晚于状态日期",
+    "actualStartAfterFinish": "实际开始日期晚于实际完成日期。"
+  },
+  "actualStartQuestion": {
+    "title": "填写实际开始日期",
+    "introOne": "“{{name}}”原计划在状态日期（{{statusDate}}）之后开始，但现在录入了进度。它实际是何时开始的？",
+    "introMany": "这些任务原计划在状态日期（{{statusDate}}）之后开始，但现在录入了进度。它们实际是何时开始的？",
+    "fieldLabel": "{{name}} 的实际开始日期",
+    "latest": "不晚于 {{date}}。",
+    "required": "请输入日期。",
+    "afterStatusDate": "此日期晚于状态日期（{{date}}）。",
+    "afterActualFinish": "此日期晚于实际完成日期（{{date}}）。",
+    "confirm": "应用进度"
   },
   "companyLibrary": {
     "title": "资源库",

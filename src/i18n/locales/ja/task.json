@@ -87,6 +87,7 @@
       "milestoneRequired": "この項目はマイルストーンにのみ適用されます。",
       "actualAfterStatusDate": "実績日がステータス日より後です。",
       "actualFinishBeforeStart": "実績終了が実績開始より前です。",
+      "actualStartRequired": "このタスクは状態日より後に開始する予定です。先に実績開始日を入力してください。",
       "conflictingProgressInputs": "これらの進捗値は互いに矛盾しています。",
       "constraintDateUnavailable": "制約日を入力する前に制約の種類を設定してください。",
       "constraintHardUnavailable": "ハード制約には日付付きの制約の種類が必要です。",
