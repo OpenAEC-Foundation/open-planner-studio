@@ -184,6 +184,13 @@ const EPS = 1e-9;
 // `scanLimit` (L4) duwen. Zelfde orde als `CalendarEngine`s eigen `MAX_DAYS`-veiligheidsgrens.
 const HARD_SCAN_CAP = 200_000;
 
+/**
+ * Alleen voor tests (`check-leveler-differential.ts`): `incremental: false` schakelt terug naar de
+ * oude route (volledige solve per plaatsing + lineaire keuze), zodat de toets beide uitkomsten naast
+ * elkaar kan leggen. Productiecode zet dit nooit om.
+ */
+export const LEVELER_TEST_HOOKS = { incremental: true };
+
 export function levelResources(
   tasks: Task[],
   sequences: Sequence[],
@@ -638,15 +645,116 @@ export function levelResources(
 
   const allPredsPlaced = (id: string) => predsOf.get(id)!.every(p => placed.has(p));
 
+  // ── Performance (audit 2026-09-26) ──────────────────────────────────────────────────────────────
+  // (1) Keuze: vroeger `sortedActive.find(...)` per plaatsing — O(A²). Nu een heap met de
+  //     sorteerrang van de GEREEDSTAANDE taken (alle voorgangers geplaatst): het minimum is exact de
+  //     taak die `find` zou kiezen.
+  // (2) PF: vroeger een volledige CPM-solve per plaatsing (~97% van de looptijd; 4000 taken/800
+  //     toegewezen = 68 s). De PF van `pick` verandert alleen als een taak STROOMOPWAARTS van `pick`
+  //     sinds de vorige solve een vertraging of nieuwe gaten kreeg. We houden de vroege starts van de
+  //     laatste solve vast en rekenen alleen opnieuw als `pick` stroomafwaarts ligt van zo'n wijziging.
+  //     Twee dingen laten een vroege start ook van NIET-voorgangers afhangen: ALAP (schuift met de
+  //     vrije speling, die van de late datums en het projecteinde afhangt) en hammock/LOE (de finish
+  //     volgt de opvolgers). Staat er zo'n taak in het netwerk, dan geldt elke wijziging als globaal.
+  //     Uitkomst identiek aan de oude route (`check-leveler-differential.ts`).
+  const rankOf = new Map(sortedActive.map((id, i) => [id, i]));
+  const succsOf = new Map<string, string[]>();
+  const pending = new Map<string, number>();
+  for (const [succ, preds] of predsOf) {
+    for (const pred of preds) (succsOf.get(pred) ?? succsOf.set(pred, []).get(pred)!).push(succ);
+  }
+  const readyHeap: number[] = [];
+  const heapPush = (rank: number) => {
+    readyHeap.push(rank);
+    let i = readyHeap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (readyHeap[parent] <= readyHeap[i]) break;
+      [readyHeap[parent], readyHeap[i]] = [readyHeap[i], readyHeap[parent]];
+      i = parent;
+    }
+  };
+  const heapPop = (): number | undefined => {
+    if (readyHeap.length === 0) return undefined;
+    const top = readyHeap[0];
+    const last = readyHeap.pop()!;
+    if (readyHeap.length > 0) {
+      readyHeap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l < readyHeap.length && readyHeap[l] < readyHeap[m]) m = l;
+        if (r < readyHeap.length && readyHeap[r] < readyHeap[m]) m = r;
+        if (m === i) break;
+        [readyHeap[m], readyHeap[i]] = [readyHeap[i], readyHeap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  for (const id of sortedActive) {
+    const count = predsOf.get(id)!.filter(p => !placed.has(p)).length;
+    pending.set(id, count);
+    if (count === 0) heapPush(rankOf.get(id)!);
+  }
+  const markPlaced = (id: string) => {
+    for (const succ of succsOf.get(id) ?? []) {
+      const left = pending.get(succ);
+      if (left === undefined) continue;          // niet-actieve opvolger
+      pending.set(succ, left - 1);
+      if (left - 1 === 0 && !placed.has(succ)) heapPush(rankOf.get(succ)!);
+    }
+  };
+
+  const globalDeps = workTasks.some(t => t.isHammock
+    || t.constraint?.type === 'ALAP' || t.constraint2?.type === 'ALAP');
+  let pfEarlyStart: Map<string, string> | null = LEVELER_TEST_HOOKS.incremental
+    ? new Map([...baseline.tasks].map(([id, r]) => [id, r.earlyStart]))
+    : null;
+  const stale = new Set<string>();
+  let globallyStale = false;
+  const markChanged = (id: string) => {
+    if (globalDeps) { globallyStale = true; return; }
+    const stack = [id];
+    while (stack.length > 0) {
+      const x = stack.pop()!;
+      if (stale.has(x)) continue;
+      stale.add(x);
+      for (const succ of succsOf.get(x) ?? []) stack.push(succ);
+    }
+  };
+  const pfFor = (id: string): Date => {
+    if (!LEVELER_TEST_HOOKS.incremental) {
+      return computePF(id, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
+    }
+    if (!pfEarlyStart || globallyStale || stale.has(id)) {
+      const res = new CPMSolver(workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions).solve();
+      pfEarlyStart = new Map([...res.tasks].map(([taskId, r]) => [taskId, r.earlyStart]));
+      stale.clear();
+      globallyStale = false;
+    }
+    const es = pfEarlyStart.get(id);
+    return es ? parseDate(es) : parseDate(workById.get(id)!.time.earlyStart);
+  };
+
   let remaining = sortedActive.length;
   let safety = remaining + 1;
   while (remaining > 0 && safety-- > 0) {
     // Kies de hoogst gesorteerde nog-niet-geplaatste taak waarvan alle voorgangers geplaatst zijn.
-    const pick = sortedActive.find(id => !placed.has(id) && allPredsPlaced(id));
+    let pick: string | undefined;
+    if (LEVELER_TEST_HOOKS.incremental) {
+      for (let rank = heapPop(); rank !== undefined; rank = heapPop()) {
+        const id = sortedActive[rank];
+        if (!placed.has(id)) { pick = id; break; }
+      }
+    } else {
+      pick = sortedActive.find(id => !placed.has(id) && allPredsPlaced(id));
+    }
     if (!pick) break; // zou niet mogen (CPM is acyclisch); voorkom oneindige lus
 
-    // PF: draai de CPMSolver op de werkkopie (geplaatste taken hebben hun delay; `pick` niet).
-    const pf = computePF(pick, workTasks, sequences, projectCalendar, resourceCalendars, cpmOptions);
+    // PF: de vroege start op de werkkopie (geplaatste taken hebben hun delay; `pick` niet).
+    const pf = pfFor(pick);
     const pickedTask = taskById.get(pick)!;
 
     let startDate: Date;
@@ -689,6 +797,7 @@ export function levelResources(
         ];
         workById.get(pick)!.splitGaps = newGaps; // ⇒ de proef-solve (A1) ziet de opgerekte spanne
         gapsOut[pick] = newGaps;                 // ⇒ komt in LevelingResult.gaps
+        markChanged(pick);                       // opgerekte spanne ⇒ opvolgers mogelijk later
         // L3-memo (taak 2): deze taak kreeg een NIEUWE dagenset tijdens de run — wis haar cache-
         // entries, anders valt een latere aanroep op de oude (voor-scatter) dagenset.
         for (const key of [...occCache.keys()]) if (key.startsWith(`${pick}|`)) occCache.delete(key);
@@ -728,9 +837,12 @@ export function levelResources(
       unresolved[pick] = slotUnresolved;
       if (slotReason) unresolvedReasons[pick] = slotReason;
     }
-    workById.get(pick)!.levelingDelay = delay > 0 ? delay : undefined;
+    const newDelay = delay > 0 ? delay : undefined;
+    if (workById.get(pick)!.levelingDelay !== newDelay) markChanged(pick);
+    workById.get(pick)!.levelingDelay = newDelay;
 
     placed.add(pick);
+    markPlaced(pick);
     remaining--;
   }
 
