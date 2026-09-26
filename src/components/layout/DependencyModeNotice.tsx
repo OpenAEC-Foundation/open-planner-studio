@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
+import { NoticeStrip } from './NoticeStrip';
 
 /**
  * Modus-strook voor de relatiemodus (issue #40).
@@ -22,20 +23,13 @@ export function DependencyModeNotice() {
   if (!active) return null;
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-2 text-small leading-4 border-b border-border"
-      style={{ background: 'var(--theme-accent-soft, rgba(217,119,6,0.12))', color: 'var(--theme-text)' }}
-      data-ops-dependency-mode
-    >
-      <Link size={14} className="shrink-0 text-accent" />
-      <span className="flex-1">{t('view.dependencyModeHint')}</span>
-      <button
-        onClick={() => setUI({ showDependencyMode: false })}
-        className="btn btn--sm btn--primary"
-        data-ops-dependency-mode-stop
-      >
-        {t('view.dependencyModeStop')}
-      </button>
-    </div>
+    <NoticeStrip
+      icon={Link}
+      text={t('view.dependencyModeHint')}
+      actionLabel={t('view.dependencyModeStop')}
+      onAction={() => setUI({ showDependencyMode: false })}
+      stripProps={{ 'data-ops-dependency-mode': true }}
+      actionProps={{ 'data-ops-dependency-mode-stop': true }}
+    />
   );
 }

@@ -12,8 +12,7 @@ import {
 import { markScheduleStale } from '../transaction';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
-import { clearLevelingGaps } from '@/utils/taskDefaults';
-import type { Task } from '@/types/task';
+import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
@@ -238,7 +237,8 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     // Fase 2.10 (P1-verwante correctie): dezelfde CPMOptions als `runCPM` hierboven meegeven —
     // zonder `dataDate`/`progressMode` rekende de nivelleerder intern op een pure-ASAP-realiteit
     // die van de echte (actual-gepinde) planning kan afwijken zodra er voortgang+statusdatum is
-    // (zie de parameter-toelichting in `ResourceLeveler.ts:levelResources`).
+    // (zie de parameter-toelichting in `ResourceLeveler.ts:levelResources`); zonder de
+    // projectstart-vloer kon hij een wortel-taak vóór het projectbegin laten staan.
     return computeLeveling(
       leafTasks, expandedSequences, s.resources, s.assignments, s.calendar, s.calendars, cpm, options,
       // Zelfde invoer als runCPM hierboven (incl. projectstart-vloer, gebruikstest-bevinding 2026-08) —
@@ -254,36 +254,12 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     let roundedCount = 0;
     set((s) => {
       runtime.beginUndoable(s);
-      // Scope-behoudend toepassen (spec §5, derde plek — B1c-plan3 taak 2). Zonder scope blijft dit
-      // byte-identiek aan het gedrag van vóór B1c-plan3: alle taken worden gereset. MET scope raken
-      // we uitsluitend de gescopete taken — de verdeler nivelleert per POOLITEM, dus een delay op een
-      // taak die niets met dat poolitem te maken heeft is VASTE LAST waarop het voorstel gerekend
-      // heeft; die hier wissen zou het document herschikken en het voorstel ongeldig maken.
-      const scope = opts?.scopeTaskIds ? new Set(opts.scopeTaskIds) : null;
-      for (const task of s.tasks) {
-        if (scope && !scope.has(task.id)) continue;
-        const d = write.delays[task.id];
-        task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
-        // M10: `CPMSolver.shiftByLevelingDelay` leest `levelingDelayMinutes` VÓÓR `levelingDelay`.
-        // Een achtergebleven sub-dag-waarde (uit een `.mpp`-import) zou de zojuist berekende delay
-        // stil overrulen — nivelleren zou dan zichtbaar niets doen. De nivelleerder rekent in hele
-        // werkdagen, dus de sub-dag-precisie van de VORIGE nivellering vervalt hier bewust — dat is
-        // zichtbaar gebruikersverlies (eigenaarsbesluit 2026-08-31), geteld voor de melding hieronder.
-        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
-          roundedCount++;
-        }
-        task.levelingDelayMinutes = undefined;
-        task.levelingDelayElapsed = undefined;
-        // De onderbreek-modus (spec §4, "Herkomst"). `write.gaps[id]` is de VOLLEDIGE te schrijven
-        // waarde — importsplits inbegrepen — dus hij mag rechtstreeks. Staat de taak NIET in
-        // `write.gaps`, dan levert dit voorstel voor haar geen onderbreking: wis dan haar eventuele
-        // leveling-gaten van een VORIGE nivellering en laat importsplits staan. Dat is precies wat
-        // "idempotent herschrijven" betekent, en het is ook wat er gebeurt zodra de gebruiker
-        // "Onderbrekingen toestaan" uitzet en opnieuw toepast (`gaps` is dan `{}`).
-        const g = write.gaps[task.id];
-        if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
-        else clearLevelingGaps(task);
-      }
+      // Scope-behoudend toepassen (spec §5, derde plek — B1c-plan3 taak 2): de verdeler nivelleert
+      // per POOLITEM, dus een delay op een taak buiten de scope is VASTE LAST waarop het voorstel
+      // gerekend heeft. M10: de nivelleerder rekent in hele werkdagen, dus de sub-dag-precisie van de
+      // VORIGE nivellering vervalt hier bewust — zichtbaar gebruikersverlies (eigenaarsbesluit
+      // 2026-08-31), geteld voor de melding hieronder. Zie `writeLevelingResult` in taskDefaults.ts.
+      roundedCount = writeLevelingResult(s.tasks, write, opts?.scopeTaskIds);
       // Wél de stale-vlag (issue #63): dit is een datum-rakende mutatie, en `stale` is het signaal
       // waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat — in dezelfde producer
       // die de snapshot hierboven al nam, dus in één undo-stap i.p.v. twee (zie moveProject).
@@ -305,22 +281,12 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       // Fixronde B1c-plan-2-etappe-2 (bevinding 6): `levelingDelayElapsed` ontbrak hier terwijl de
       // teller vlak eronder 'm wél meetelt — een taak met UITSLUITEND `levelingDelayElapsed` werd zo
       // stil overgeslagen (geen snapshot, geen melding), ook al zou de lus 'm wél gewist hebben.
-      // B1c-plan3 taak 2: de guard telt sinds nu ook leveling-GATEN mee — dezelfde conditie als de
-      // ribbon-enable-check in `ribbonConfig.tsx` (letterlijk gelijk houden: een knop die inschakelt
-      // terwijl de actie een no-op is, of andersom, is precies de bug die dit repareert).
-      const hasLevelingGap = (t: Task) => (t.splitGaps ?? []).some(g => g.source === 'leveling');
-      if (!s.tasks.some((t) =>
-        t.levelingDelay !== undefined || t.levelingDelayMinutes !== undefined
-        || t.levelingDelayElapsed !== undefined || hasLevelingGap(t))) return; // niets te wissen, geen snapshot
+      // B1c-plan3 taak 2: de guard telt sinds nu ook leveling-GATEN mee — dezelfde `hasLevelingOutput`
+      // als de ribbon-enable-check in `ribbonConfig.tsx` en `planner_clear_leveling`.
+      if (!s.tasks.some(hasLevelingOutput)) return; // niets te wissen, geen snapshot
       runtime.beginUndoable(s);
       for (const task of s.tasks) {
-        if (task.levelingDelayMinutes !== undefined || task.levelingDelayElapsed !== undefined) {
-          roundedCount++;
-        }
-        task.levelingDelay = undefined;
-        task.levelingDelayMinutes = undefined;
-        task.levelingDelayElapsed = undefined;
-        clearLevelingGaps(task); // uitsluitend `source: 'leveling'`; importsplits zijn brondata
+        if (clearLevelingOutput(task)) roundedCount++;
       }
       runtime.finishMutation(s, { stale: true }); // zie applyLeveling; de aansluitende runCPM wist de vlag.
       changed = true;

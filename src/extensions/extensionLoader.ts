@@ -18,6 +18,7 @@ import { checkApiCompatibility, EXTENSION_API_VERSION } from './apiVersion';
 import { appStoreContext, useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { parseStoredExtension } from './validation';
+import { openDb } from '@/utils/idb';
 
 const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
 
@@ -48,34 +49,7 @@ const activePlugins = new Map<string, { plugin: ExtensionPlugin; api: ReturnType
 // Voorkomt dubbele activatie terwijl onLoad nog loopt (race bij dubbelklik/parallel laden)
 const enablingExtensions = new Set<string>();
 
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function openExtensionDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open('ops-extensions', 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('extensions')) {
-        db.createObjectStore('extensions', { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      // Sluit de verbinding als een andere instantie een versie-upgrade wil doen.
-      db.onversionchange = () => {
-        db.close();
-        dbPromise = null;
-      };
-      resolve(db);
-    };
-    req.onerror = () => {
-      dbPromise = null;
-      reject(req.error);
-    };
-  });
-  return dbPromise;
-}
+const openExtensionDb = (): Promise<IDBDatabase> => openDb('ops-extensions', 'extensions');
 
 export interface StoredExtension {
   id: string;

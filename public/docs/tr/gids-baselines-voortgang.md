@@ -41,6 +41,14 @@ Bindirmeyi **Görünüm → Baseline ve ilerleme şerit grubu → Baseline bindi
 
 Gerçek tarihler asla durum tarihinden daha geç olamaz — daha geç bir tarih girmeyi deneyin ve uygulama bunu bir hatayla reddeder. Bu kasıtlı bir sınırdır: bir "gerçek" (gerçekten olan bir şey), tanım gereği, ilerlemeyi kaydettiğiniz ana göre gelecekte yer alamaz.
 
+### Bir aşamanın ilerlemesi
+
+Bir aşama — altında görevler bulunan bir görev — kendi ilerlemesine sahip değildir. **İlerleme (%)** değeri ve **durumu** her hesaplamada (**F5** veya **Hesapla**) altındaki görevlerden türetilir. Yüzde süreye göre ağırlıklandırılır: on iş günlük bir görev, beş günlük bir görevin iki katı sayılır. Bu, **Rapor** sekmesindeki **İKY özeti**nin gösterdiği sayının ta kendisidir; Tablo, araç ipucu, PDF ve yapay zekâ asistanı da bunu görür. Durum da buna uyar: altındaki tüm görevler bittiğinde **Tamamlandı**, biri başladığı anda **Devam ediyor**, aksi halde **Başlamadı**.
+
+Bu yüzden bir aşamanın ilerlemesini kendiniz giremezsiniz. Özellikler panelinde ve görev iletişim penceresinde bir aşamanın kaydırıcısı ve gerçek tarihleri devre dışıdır; **Tablo**'da ise bir aşama satırının ilerleme sütunları salt okunurdur. Bir aşamada bağlam menüsünden **İlerleme**'yi seçerseniz altındaki tüm görevler o yüzdeyi alır; bir sonraki hesaplamadan sonra aşama kendiliğinden uyar.
+
+İki istisna, bir aşamanın tarihleriyle aynı kuralı izler. Bir MS Project dosyasından (`.mpp`) gelen, elle planlanmış bir aşama dosyada kayıtlı ilerlemeyi korur. Ve [kaydedildiği gibi tarihleri](docs://datums-zoals-opgeslagen) görüntülediğiniz sürece bir aşama dosyadaki ilerlemeyi gösterir; yeniden hesapladığınız anda tekrar türetilir.
+
 ## Durum tarihi
 
 **Durum tarihi** (Planlama sekmesindeki **Baseline ve ilerleme** şerit grubu, **Durum tarihi** alanı), plan içinde "bugün"ü işaretler — ilerlemeyi kaydettiğiniz an. Ayarlandıktan sonra, aynı anda iki şey yapar:

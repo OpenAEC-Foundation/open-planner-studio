@@ -11,6 +11,8 @@ import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import type { McpContext } from '@/services/mcp/contracts';
 import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
+import type { TaskTimephasedContour } from '@/types/task';
+import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 
 const store = useAppStore;
 const S = () => store.getState();
@@ -198,6 +200,230 @@ test('fields.splitGaps via update_tasks wijst de weg naar de nieuwe tool', async
   const res = await rpc('planner_update_tasks', { updates: [{ id, fields: { splitGaps: [] } }] });
   const reason = JSON.stringify(res.itemRejections ?? res.error ?? '');
   assert(reason.includes('planner_set_task_splits'), `de weigering verwijst naar de tool: ${reason}`);
+});
+
+// =================================================================================================
+// Issue #146-vervolg — een duurwijziging via `planner_update_tasks` volgt dezelfde gevolgregels als
+// het eigenschappenpaneel (`updateTask`): `applyDurationChangeRules` in taskDefaults.ts. Vóór de fix
+// liet een duurKRIMP hier een gebruikersgat op of voorbij het nieuwe werktotaal liggen; de taak werd
+// voor splits alleen-lezen, en de weigering zei ten onrechte dat de onderbrekingen "uit een import"
+// kwamen. Referentie per geval: dezelfde fixture, met de duur via `updateTask` zoals
+// `TaskDurationField` hem schrijft. Het taakraster staat in tests/planning/check-duration-change-routes.ts.
+// =================================================================================================
+
+interface DurationCase {
+  label: string;
+  hour: boolean;
+  /** Werkduur vóór/na, in de eenheid van de taak (dagen of uren). */
+  from: number;
+  to: number;
+  interruptions: Record<string, number>[];
+  contour?: TaskTimephasedContour[];
+  /** Verwachte `splitGaps` na de bewerking (`null` = geen) — onafhankelijk van de store vastgelegd. */
+  expected: unknown;
+}
+
+const DAY_MIN = 480;
+const HOUR_MIN = 60;
+
+function contourOf(periods: { afterMinutes: number; minutes: number }[]): TaskTimephasedContour[] {
+  return [{ resourceUid: null, periods: periods.map(p => ({ ...p, workMinutes: p.minutes, kind: 'remaining' as const })) }];
+}
+
+async function durationFixture(c: DurationCase): Promise<string> {
+  const id = await freshTask(c.hour ? { duration: c.from, durationUnit: 'hours' } : { duration: c.from }, c.hour ? HOUR_CAL : undefined);
+  okData(await rpc('planner_set_task_splits', { taskId: id, interruptions: c.interruptions }));
+  if (c.contour) {
+    const contour = c.contour;
+    store.setState((s) => { s.tasks.find(t => t.id === id)!.timephasedContours = contour; });
+  }
+  return id;
+}
+
+function durationOutcome(id: string): unknown {
+  const t = S().tasks.find(x => x.id === id)!;
+  return {
+    splitGaps: t.splitGaps ?? null,
+    scheduleDuration: t.time.scheduleDuration,
+    durationUnit: t.time.durationUnit,
+    durationMinutes: t.time.durationMinutes ?? null,
+    contours: t.timephasedContours ?? null,
+  };
+}
+
+async function viaStore(c: DurationCase): Promise<unknown> {
+  const id = await durationFixture(c);
+  const task = S().tasks.find(t => t.id === id)!;
+  S().updateTask(id, {
+    time: c.hour
+      ? { ...task.time, durationUnit: 'hours', durationMinutes: c.to * HOUR_MIN, scheduleDuration: c.to / 8 }
+      : { ...task.time, durationUnit: 'days', scheduleDuration: c.to, durationMinutes: undefined },
+  });
+  S().runCPM(); // de MCP-transactie rekent aan het eind ook door
+  return durationOutcome(id);
+}
+
+function durationTest(c: DurationCase): void {
+  test(`duur via planner_update_tasks = updateTask: ${c.label}`, async () => {
+    const reference = await viaStore(c);
+    const id = await durationFixture(c);
+    const data = okData(await rpc('planner_update_tasks', {
+      updates: [{ id, fields: c.hour ? { duration: c.to, durationUnit: 'hours' } : { duration: c.to } }],
+    }));
+    assertEq(data.updated, [id], 'de update is toegepast');
+    const outcome = durationOutcome(id);
+    assertEq((outcome as { splitGaps: unknown }).splitGaps, c.expected, 'splitGaps na de duurwijziging');
+    assertEq(outcome, reference, 'zelfde uitkomst als updateTask (gaten, duur, contour)');
+    const detail = okData(await rpc('planner_get_task', { taskId: id }));
+    assert(detail.splitsEditable !== false, `de onderbrekingen blijven bewerkbaar: ${JSON.stringify(detail.splitsEditable)}`);
+    okData(await rpc('planner_set_task_splits', {
+      taskId: id,
+      interruptions: [c.hour ? { afterWorkHours: 1, pauseHours: 1 } : { afterWorkDays: 1, pauseDays: 1 }],
+    }));
+  });
+}
+
+durationTest({
+  label: 'dag, krimp 10 → 5: gat na 7 werkdagen vervalt',
+  hour: false, from: 10, to: 5, interruptions: [{ afterWorkDays: 7, pauseDays: 2 }],
+  expected: null,
+});
+durationTest({
+  label: 'dag, krimp 10 → 5: gat na 2 werkdagen blijft, gat na 7 vervalt',
+  hour: false, from: 10, to: 5, interruptions: [{ afterWorkDays: 2, pauseDays: 1 }, { afterWorkDays: 7, pauseDays: 2 }],
+  expected: [{ afterMinutes: 2 * DAY_MIN, gapMinutes: DAY_MIN, source: 'user' }],
+});
+durationTest({
+  label: 'dag, verlenging 10 → 12: gat ongemoeid',
+  hour: false, from: 10, to: 12, interruptions: [{ afterWorkDays: 7, pauseDays: 2 }],
+  expected: [{ afterMinutes: 7 * DAY_MIN, gapMinutes: 2 * DAY_MIN, source: 'user' }],
+});
+durationTest({
+  // Mét contour schaalt `rescaleTaskContours` het gat mee (factor ½, gesnapt op hele werkdagen).
+  label: 'dag, krimp 10 → 5 met contour: gat schaalt mee i.p.v. af te knippen',
+  hour: false, from: 10, to: 5, interruptions: [{ afterWorkDays: 7, pauseDays: 2 }],
+  contour: contourOf([0, 1, 2, 3, 4, 5, 6, 9, 10, 11].map(d => ({ afterMinutes: d * DAY_MIN, minutes: DAY_MIN }))),
+  expected: [{ afterMinutes: 4 * DAY_MIN, gapMinutes: DAY_MIN, source: 'user' }],
+});
+durationTest({
+  label: 'uur, krimp 16 → 10 u: gat na 12 u vervalt',
+  hour: true, from: 16, to: 10, interruptions: [{ afterWorkHours: 12, pauseHours: 2 }],
+  expected: null,
+});
+durationTest({
+  label: 'uur, krimp 16 → 10 u: gat na 4 u blijft, gat na 12 u vervalt',
+  hour: true, from: 16, to: 10, interruptions: [{ afterWorkHours: 4, pauseHours: 1 }, { afterWorkHours: 12, pauseHours: 2 }],
+  expected: [{ afterMinutes: 4 * HOUR_MIN, gapMinutes: HOUR_MIN, source: 'user' }],
+});
+durationTest({
+  label: 'uur, verlenging 16 → 20 u: gat ongemoeid',
+  hour: true, from: 16, to: 20, interruptions: [{ afterWorkHours: 12, pauseHours: 2 }],
+  expected: [{ afterMinutes: 12 * HOUR_MIN, gapMinutes: 2 * HOUR_MIN, source: 'user' }],
+});
+durationTest({
+  // Factor 10/16: na 12 u ⇒ 7,5 → 8 u, pauze 2 u ⇒ 1,25 → 1 u (gesnapt op hele uren).
+  label: 'uur, krimp 16 → 10 u met contour: gat schaalt mee i.p.v. af te knippen',
+  hour: true, from: 16, to: 10, interruptions: [{ afterWorkHours: 12, pauseHours: 2 }],
+  contour: contourOf([
+    { afterMinutes: 0, minutes: DAY_MIN }, { afterMinutes: DAY_MIN, minutes: 4 * HOUR_MIN }, { afterMinutes: 14 * HOUR_MIN, minutes: 4 * HOUR_MIN },
+  ]),
+  expected: [{ afterMinutes: 8 * HOUR_MIN, gapMinutes: HOUR_MIN, source: 'user' }],
+});
+
+test('mijlpaal aanzetten via planner_update_tasks (duur 0) laat, net als updateTask, geen gebruikersgat achter', async () => {
+  const c: DurationCase = { label: 'mijlpaal', hour: false, from: 10, to: 0, interruptions: [{ afterWorkDays: 7, pauseDays: 2 }], expected: null };
+  const refId = await durationFixture(c);
+  S().updateTask(refId, taskMilestoneTransition(S().tasks.find(t => t.id === refId)!, true));
+  const reference = S().tasks.find(t => t.id === refId)!.splitGaps ?? null;
+  const id = await durationFixture(c);
+  okData(await rpc('planner_update_tasks', { updates: [{ id, fields: { isMilestone: true } }] }));
+  const task = S().tasks.find(t => t.id === id)!;
+  assert(task.isMilestone && task.time.scheduleDuration === 0, 'de taak is een mijlpaal met duur 0');
+  assertEq(task.splitGaps ?? null, null, 'geen gebruikersgat meer');
+  assertEq(task.splitGaps ?? null, reference, 'zelfde uitkomst als updateTask');
+});
+
+// -------------------------------------------------------------------------------------------------
+// Verloren MS Project-sturing in de envelop (`timephasedGuidanceLost`). Een split is een tijdbasis-
+// bewerking (`invalidateForTimeBaseChange`): laag 3/4 gaat eraf. Dat hoort — net als bij een
+// duurwijziging via `planner_update_tasks` (cases-taskfields.ts, sectie D) — op de MCP-lease te
+// landen, zodat de envelop het meldt, los én binnen `planner_batch`. De in-app melding blijft één.
+// -------------------------------------------------------------------------------------------------
+
+/** Laag-3-sturing (het gelezen Z8-venster) rechtstreeks zetten; via de tools is dat read-only. */
+function seedTimephasedWindow(id: string): void {
+  store.setState((s) => {
+    const t = s.tasks.find((x) => x.id === id)!;
+    t.timephasedFinishFloor = '2026-06-12T17:00';
+    t.timephasedStartAnchor = '2026-06-01T08:00';
+  });
+}
+
+const lostOf = (res: any) => (res && res.ok ? res.envelope.timephasedGuidanceLost : 'n/a');
+const noticeKeys = () => S().ui.notifications.map(n => n.messageKey);
+
+/** `freshTask` + schone meldingenlijst (`newProject` wist al de eenmalige-per-document-gate). */
+async function freshTaskWithoutNotices(item: Record<string, unknown>): Promise<string> {
+  const id = await freshTask(item);
+  store.setState((s) => { s.ui.notifications = []; });
+  return id;
+}
+
+test('sturing: split op een taak met laag-3-sturing ⇒ envelope.timephasedGuidanceLost = 1, één melding', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  seedTimephasedWindow(id);
+  const res = await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] });
+  okData(res);
+  assertEq(S().tasks.find(t => t.id === id)?.timephasedFinishFloor, undefined, 'opzet: laag 3 is écht gewist');
+  assertEq(lostOf(res), 1, 'envelope.timephasedGuidanceLost');
+  assertEq(noticeKeys(), ['notifications.mppTimephasedSteeringLost'], 'precies één K8a-melding, geen dubbele');
+});
+
+test('sturing: split op een taak ZONDER sturing ⇒ het envelopveld is afwezig, geen melding', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  const res = await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] });
+  okData(res);
+  assert(res.ok && !('timephasedGuidanceLost' in res.envelope), `veld afwezig (kreeg: ${JSON.stringify(res.envelope)})`);
+  assertEq(noticeKeys(), [], 'geen melding zonder een écht verlies');
+});
+
+test('sturing: planner_batch met een split-stap op een taak met laag-3-sturing ⇒ timephasedGuidanceLost = 1', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  seedTimephasedWindow(id);
+  const res = await rpc('planner_batch', {
+    steps: [{ tool: 'planner_set_task_splits', args: { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] } }],
+  });
+  const data = okData(res);
+  assertEq(data.steps.map((s: any) => s.status), ['uitgevoerd'], 'de stap liep');
+  assertEq(lostOf(res), 1, 'envelope.timephasedGuidanceLost via planner_batch');
+  assertEq(noticeKeys(), ['notifications.mppTimephasedSteeringLost'], 'precies één K8a-melding, geen dubbele');
+});
+
+test('sturing: planner_batch met een split-stap ZONDER sturing ⇒ het envelopveld is afwezig', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  const res = await rpc('planner_batch', {
+    steps: [{ tool: 'planner_set_task_splits', args: { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] } }],
+  });
+  okData(res);
+  assert(res.ok && !('timephasedGuidanceLost' in res.envelope), `veld afwezig (kreeg: ${JSON.stringify(res.envelope)})`);
+  assertEq(noticeKeys(), [], 'geen melding');
+});
+
+test('sturing: een teruggerolde batch meldt niets en verbruikt de eenmalige melding niet', async () => {
+  const id = await freshTaskWithoutNotices({ duration: 10 });
+  seedTimephasedWindow(id);
+  const failed = await rpc('planner_batch', {
+    steps: [
+      { tool: 'planner_set_task_splits', args: { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] } },
+      { tool: 'planner_set_task_splits', args: { taskId: 'bestaat-niet', interruptions: [] } },
+    ],
+  });
+  assert(failed.ok === false, 'de tweede stap laat de batch falen');
+  assertEq(S().tasks.find(t => t.id === id)?.timephasedFinishFloor, '2026-06-12T17:00', 'laag 3 is teruggezet');
+  assertEq(noticeKeys(), [], 'geen melding van de teruggedraaide poging');
+  const res = await rpc('planner_set_task_splits', { taskId: id, interruptions: [{ afterWorkDays: 5, pauseDays: 1 }] });
+  assertEq(lostOf(res), 1, 'envelope.timephasedGuidanceLost bij de geslaagde poging');
+  assertEq(noticeKeys(), ['notifications.mppTimephasedSteeringLost'], 'de melding komt alsnog, precies één keer');
 });
 
 await run();

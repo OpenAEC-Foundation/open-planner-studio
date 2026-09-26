@@ -4,6 +4,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Task, TaskDurationUnit } from '@/types/task';
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
+import { shownStart } from '@/utils/taskDates';
 
 export interface ParsedTaskDuration {
   unit: TaskDurationUnit;
@@ -82,7 +83,7 @@ export function proposeTaskDurationConversion(
   const effectiveCalendar = calendarWithEffectiveWorkTime(calendar);
   if (!effectiveCalendar) return null;
   const engine = new CalendarEngine(effectiveCalendar);
-  let day = nextWorkDay(engine, parseDate(task.time.earlyStart || task.time.scheduleStart));
+  let day = nextWorkDay(engine, parseDate(shownStart(task)));
 
   if (target === 'hours') {
     let minutes = 0;

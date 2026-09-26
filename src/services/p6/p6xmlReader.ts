@@ -7,10 +7,10 @@ import { Project } from '@/types/project';
 import { WorkCalendar, Holiday } from '@/types/calendar';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { generateId } from '@/utils/id';
-import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
-import { normalizeImportedProgress, deriveImportedWorkRules } from '@/services/importNormalize';
+import { formatDate, parseInstant } from '@/utils/dateUtils';
+import { normalizeImportedProgress, deriveImportedWorkRules, reconstructResourceIds } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { emptyMissingScheduleDates, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
+import { emptyMissingScheduleDates, importDateTime, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
@@ -19,25 +19,24 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
-import { axisOffsetMinutes, p6SpreadToContourPeriods, splitGapsFromContours } from '@/services/contourIo';
+import { attachContours, axisOffsetMinutes, collectContour, p6SpreadToContourPeriods } from '@/services/contourIo';
 import { importedWorkFields } from '@/engine/work/workRuleMapping';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { buildRecordedTime, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import {
-  OPS_P6_DURATION_UNIT_UDF_TITLE,
+  OPS_CUSTOM_TASK_TYPE_UDF_TITLE,
   P6_DAY_NAMES,
+  P6_LINK_TYPE,
   P6_NAME_TO_CURVE,
 } from './p6xmlWriter';
+import { invertRecord } from '@/utils/collections';
 import {
-  canonicalizeBands, clockToMinutes, getCalendarBands, hasNonAnchorTime, isSubDayMinutes,
-  promoteHourCalendar, registerCalendarBands,
+  DAY_TIME_ANCHOR, decodeCustomTaskType, isTaskDurationUnit, OPS_DURATION_UNIT_NAME,
+} from '@/services/xmlInterchange';
+import {
+  canonicalizeBands, clockToMinutes, hasNonAnchorTime, isSubDayMinutes,
+  promoteHourCalendars, registerCalendarBands,
 } from '@/services/subdayIo';
-
-const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
-const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
-
-/** Synthetisch anker dat de DAG-schrijver op date-only datetimes plakt (§7.3). */
-const P6_TIME_ANCHOR = '08:00:00';
 
 // De rauwe-banden-registry (voorheen een lokale WeakMap) en `synth*BandsFromScalar` wonen nu gedeeld
 // in subdayIo (F5-c/d/e). P6_NAME_TO_CURVE (P6-curvenaam → OPS-curve) komt uit p6xmlWriter, waar beide
@@ -66,34 +65,12 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
   return toFloat(getElementText(parent, tagName), fallback);
 }
 
-function parseOpsCustomTaskType(rawText: string): { id: string; name?: string } | undefined {
-  try {
-    const raw: unknown = JSON.parse(rawText);
-    if (!raw || typeof raw !== 'object'
-      || (raw as { ops?: unknown }).ops !== OPS_CUSTOM_TASK_TYPE_MARKER
-      || typeof (raw as { id?: unknown }).id !== 'string') return undefined;
-    const id = (raw as { id: string }).id.trim();
-    const name = typeof (raw as { name?: unknown }).name === 'string'
-      ? (raw as { name: string }).name.trim()
-      : '';
-    return id ? { id, ...(name ? { name } : {}) } : undefined;
-  } catch { return undefined; }
-}
-
 /** P6-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met MSPDI (F5-a). */
 function parseP6Date(s: string): string {
   return isoDatePrefixOrToday(s);
 }
 
-function p6TypeToSequenceType(type: string): SequenceType {
-  switch (type) {
-    case 'PR_FS': return 'FINISH_START';
-    case 'PR_FF': return 'FINISH_FINISH';
-    case 'PR_SS': return 'START_START';
-    case 'PR_SF': return 'START_FINISH';
-    default: return 'FINISH_START';
-  }
-}
+const SEQUENCE_TYPE_BY_P6: Partial<Record<string, SequenceType>> = invertRecord(P6_LINK_TYPE);
 
 function p6HoursToDays(hours: number, hoursPerDay: number): number {
   if (hoursPerDay <= 0) hoursPerDay = 8;
@@ -253,21 +230,8 @@ export function readP6XML(content: string): ImportResult {
     if (getElementText(calEl, 'Type') !== 'Resource') continue;
     const objId = getElementInt(calEl, 'ObjectId', -1);
     if (objId < 0) continue;
-    const cal = createDefaultCalendar();
-    // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;
-    // een uit P6 gelezen kalender is dat niet.
-    delete cal.generation;
+    const cal = readP6Calendar(calEl);
     cal.id = generateId('rescal');
-    cal.name = getElementText(calEl, 'Name') || cal.name;
-    const hpd = getElementFloat(calEl, 'HoursPerDay');
-    if (hpd > 0) cal.hoursPerDay = hpd; // authoritatief — StandardWorkWeek-uren overschrijven dit niet
-    const ww = parseP6StandardWorkWeek(calEl);
-    if (ww.workDays.length > 0) cal.workDays = ww.workDays.sort((a, b) => a - b);
-    if (ww.workStartHour !== undefined) cal.workStartHour = ww.workStartHour;
-    if (ww.workEndHour !== undefined) cal.workEndHour = ww.workEndHour;
-    registerP6Bands(cal, ww.rawByWeekday);
-    const holidays = parseP6HolidayOrExceptions(calEl);
-    if (holidays.length > 0) cal.holidays = holidays;
     calObjIdToId.set(objId, cal.id);
     resourceCalendars.push(cal);
   }
@@ -438,7 +402,7 @@ export function readP6XML(content: string): ImportResult {
     const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
     // Oracle noemt het tekstveld `Text`. `TextValue` blijft als tolerante leeskant bestaan voor
     // tijdelijke OPS-builds die vóór deze contractcorrectie zijn gemaakt.
-    const parsed = parseOpsCustomTaskType(
+    const parsed = decodeCustomTaskType(
       getElementText(udfValue, 'Text') || getElementText(udfValue, 'TextValue'),
     );
     if (foreignObjectId >= 0 && parsed && !customTaskTypeByActivityObjectId.has(foreignObjectId)) {
@@ -454,7 +418,7 @@ export function readP6XML(content: string): ImportResult {
   for (const udfType of getAllByLocalName(doc, 'UDFType')) {
     if (getElementText(udfType, 'SubjectArea') !== 'Activity') continue;
     if (getElementText(udfType, 'DataType') !== 'Text') continue;
-    if (getElementText(udfType, 'Title') !== OPS_P6_DURATION_UNIT_UDF_TITLE) continue;
+    if (getElementText(udfType, 'Title') !== OPS_DURATION_UNIT_NAME) continue;
     const objectId = getElementInt(udfType, 'ObjectId', -1);
     if (objectId >= 0) durationUnitUdfIds.add(objectId);
   }
@@ -464,7 +428,7 @@ export function readP6XML(content: string): ImportResult {
       if (!durationUnitUdfIds.has(getElementInt(udfValue, 'UDFTypeObjectId', -1))) continue;
       const foreignObjectId = getElementInt(udfValue, 'ForeignObjectId', -1);
       const value = getElementText(udfValue, 'Text');
-      if (foreignObjectId >= 0 && (value === 'days' || value === 'hours')) {
+      if (foreignObjectId >= 0 && isTaskDurationUnit(value)) {
         explicitUnitByActivityObjectId.set(foreignObjectId, value);
       }
     }
@@ -473,9 +437,7 @@ export function readP6XML(content: string): ImportResult {
   // Fase 2.8b (§7.2): uur-modus-beslissing per kalender (discriminator a/b/c) vóór het bouwen van de
   // taken. `calById` mapt zowel de projectkalender als de bibliotheek-kalenders; `effCalIdOf` geeft
   // per activity de effectieve kalender-id (CalendarObjectId 1/ontbrekend = projectkalender).
-  const calById = new Map<string, WorkCalendar>();
-  calById.set(calendar.id, calendar);
-  for (const c of resourceCalendars) calById.set(c.id, c);
+  const calById = new Map<string, WorkCalendar>([calendar, ...resourceCalendars].map(c => [c.id, c]));
   const effCalIdOf = (calObjId: number): string => (calObjId > 1 && calObjIdToId.get(calObjId)) || calendar.id;
 
   const cSignalCalIds = new Set<string>();
@@ -485,18 +447,13 @@ export function readP6XML(content: string): ImportResult {
     if (!cal) continue;
     const durHours = getElementFloat(actEl, 'PlannedDuration');
     const durSignal = durHours > 0 && isSubDayMinutes(Math.round(durHours * 60), cal.hoursPerDay);
-    const dateSignal = hasNonAnchorTime(getElementText(actEl, 'PlannedStartDate'), P6_TIME_ANCHOR)
-      || hasNonAnchorTime(getElementText(actEl, 'PlannedFinishDate'), P6_TIME_ANCHOR);
+    const dateSignal = hasNonAnchorTime(getElementText(actEl, 'PlannedStartDate'), DAY_TIME_ANCHOR)
+      || hasNonAnchorTime(getElementText(actEl, 'PlannedFinishDate'), DAY_TIME_ANCHOR);
     if (durSignal || dateSignal) cSignalCalIds.add(calId);
   }
   // P6 valt terug op de scalar-synth zodra de geregistreerde canonical geen werkdag draagt
   // (preferCanonicalWhenEmpty = false) — zie de F5-noot bij `promoteHourCalendar`.
-  const hourModeCalIds = new Set<string>();
-  for (const [id, cal] of calById) {
-    if (promoteHourCalendar(cal, getCalendarBands(cal), cSignalCalIds.has(id), false)) {
-      hourModeCalIds.add(id);
-    }
-  }
+  const hourModeCalIds = promoteHourCalendars(calById, id => cSignalCalIds.has(id), false);
 
   // "Datums zoals opgeslagen" voor P6 XML (eigenaarsbesluit 2026-09-09): P6's EIGEN rekenuitvoer
   // per activiteit — `EarlyStartDate`/`EarlyFinishDate` (terugval `StartDate`/`FinishDate`),
@@ -516,7 +473,6 @@ export function readP6XML(content: string): ImportResult {
     const actId = getElementText(actEl, 'Id');
     const name = getElementText(actEl, 'Name') || 'Activity';
     const p6Type = getElementText(actEl, 'Type');
-    const p6Status = getElementText(actEl, 'Status');
     const p6DurationType = p6DurationTypeFromXml(getElementText(actEl, 'DurationType'));
     const plannedDuration = getElementFloat(actEl, 'PlannedDuration');
     const plannedStartRaw = getElementText(actEl, 'PlannedStartDate');
@@ -544,15 +500,14 @@ export function readP6XML(content: string): ImportResult {
     const hourDates = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
-    const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
-    const plannedStart = hourDates ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
-    const plannedFinish = hourDates ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+    const plannedStart = importDateTime(plannedStartRaw, hourDates);
+    const plannedFinish = importDateTime(plannedFinishRaw, hourDates);
     if (!plannedStartRaw) missingDates.start.add(id);
     if (!plannedFinishRaw) missingDates.finish.add(id);
 
     {
       const recordedDate = (raw: string): string | undefined =>
-        raw ? (isHour ? parseP6Instant(raw) : parseP6Date(raw)) : undefined;
+        raw ? importDateTime(raw, isHour) : undefined;
       const floatDays = (raw: string): number | undefined => {
         if (!raw) return undefined;
         const hours = Number.parseFloat(raw);
@@ -576,8 +531,8 @@ export function readP6XML(content: string): ImportResult {
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
     const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
-    const actualStart = actualStartRaw ? (hourDates ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
-    const actualFinish = actualFinishRaw ? (hourDates ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
+    const actualStart = actualStartRaw ? importDateTime(actualStartRaw, hourDates) : undefined;
+    const actualFinish = actualFinishRaw ? importDateTime(actualFinishRaw, hourDates) : undefined;
     // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
     // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
@@ -592,15 +547,11 @@ export function readP6XML(content: string): ImportResult {
       : p6Type.includes('Finish') ? 'FINISH' as const
       : 'START' as const;
 
-    let status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED' = 'NOT_STARTED';
-    if (p6Status === 'Completed' || percentComplete >= 100) status = 'COMPLETED';
-    else if (p6Status === 'In Progress' || percentComplete > 0) status = 'STARTED';
-
     const parentId = wbsObjId >= 0 ? wbsObjIdToId.get(wbsObjId) || null : null;
 
     // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
     // soft (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
-    const parseCstrDate = (raw: string): string => hourDates ? parseP6Instant(raw) : parseP6Date(raw);
+    const parseCstrDate = (raw: string): string => importDateTime(raw, hourDates);
     let constraint: TaskConstraint | undefined;
     const primCode = getElementText(actEl, 'PrimaryConstraintType');
     if (primCode) {
@@ -635,7 +586,7 @@ export function readP6XML(content: string): ImportResult {
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
       ...(p6DurationType ? { p6DurationType } : {}),
-      status,
+      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
       priority: 500,
@@ -717,7 +668,7 @@ export function readP6XML(content: string): ImportResult {
       id: generateId('seq'),
       predecessorId: predId,
       successorId: succId,
-      type: p6TypeToSequenceType(p6Type),
+      type: SEQUENCE_TYPE_BY_P6[p6Type] ?? 'FINISH_START',
       lagDays: lagHourMode ? 0 : p6HoursToDays(lagHours, hoursPerDay),
     };
     if (lagHourMode) seq.lagMinutes = Math.round(lagHours * 60);
@@ -837,22 +788,13 @@ export function readP6XML(content: string): ImportResult {
         periods = p6SpreadToContourPeriods(plannedCurveRaw, anchorOffset('PlannedStartDate'), 'remaining');
       }
       if (periods.length > 1 && periods.some(p => p.workMinutes > 0)) {
-        const list = contoursByTaskId.get(taskId) ?? [];
-        list.push({ resourceUid: null, resourceId, periods });
-        contoursByTaskId.set(taskId, list);
+        collectContour(contoursByTaskId, taskId, { resourceUid: null, resourceId, periods });
       }
     }
   }
   // Contouren + afgeleide werkonderbrekingen op de taken (zelfde afleiding als de .mpp-/MSPDI-lezer).
-  for (const [taskId, contours] of contoursByTaskId) {
-    const task = taskById.get(taskId);
-    if (!task) continue;
-    task.timephasedContours = contours;
-    if (!task.splitGaps || task.splitGaps.length === 0) {
-      const gaps = splitGapsFromContours(contours.map(c => c.periods));
-      if (gaps.length > 0) task.splitGaps = gaps;
-    }
-  }
+  attachContours(taskById, contoursByTaskId);
+  reconstructResourceIds(tasks, assignments);
 
   return {
     project,
@@ -889,12 +831,15 @@ function parseProject(doc: Document): Project {
     };
   }
 
+  // MustFinishByDate is in P6 een optionele eis, geen berekend einde: ontbreekt hij, dan blijft de
+  // einddatum leeg (zoals de writer hem voor een project zonder einddatum weglaat).
+  const mustFinishRaw = getElementText(projEl, 'MustFinishByDate');
   const project: Project = {
     id: generateId('proj'),
     name: getElementText(projEl, 'Name') || 'P6 Import',
     description: getElementText(projEl, 'Description'),
     startDate: parseP6Date(getElementText(projEl, 'PlannedStartDate')),
-    endDate: parseP6Date(getElementText(projEl, 'MustFinishByDate')),
+    endDate: mustFinishRaw ? parseP6Date(mustFinishRaw) : '',
     calendarId: 'cal-default',
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),
@@ -907,11 +852,14 @@ function parseProject(doc: Document): Project {
   return project;
 }
 
+/** De projectkalender is altijd de eerste <Calendar> van het bestand. */
 function parseCalendar(doc: Document): WorkCalendar {
   const calElements = getAllByLocalName(doc, 'Calendar');
-  if (calElements.length === 0) return createDefaultCalendar();
+  return calElements.length === 0 ? createDefaultCalendar() : readP6Calendar(calElements[0]);
+}
 
-  const calEl = calElements[0];
+/** Eén P6-<Calendar> → WorkCalendar (project- of resourcekalender; de id kiest de aanroeper). */
+function readP6Calendar(calEl: Element): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = getElementText(calEl, 'Name') || calendar.name;
   // P6 kent geen regelset-herkomst (verliesmatrix §8.4) — createDefaultCalendar() zet 'm altijd;

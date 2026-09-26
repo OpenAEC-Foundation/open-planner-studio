@@ -1,6 +1,7 @@
 import type { FileRef } from './index';
 import { idbGetAll, idbPut, idbDelete } from '@/utils/idb';
 import { generateId } from '@/utils/id';
+import { basename } from '@/utils/filePath';
 
 /** Recent-bestand-entry (spec §6). `ref` is herbruikbaar (Tauri-pad of Chromium-handle). */
 export interface RecentEntry {
@@ -14,8 +15,6 @@ const DB = 'ops-recent-files';
 const STORE = 'recents';
 const MAX = 10;
 const LEGACY_KEY = 'open-planner-studio-recent-files';
-
-const basename = (p: string): string => p.split(/[\\/]/).pop() || p;
 
 /** Ref-identiteit voor dedupe: paden op string, handles op isSameEntry. */
 async function sameRef(a: FileRef, b: FileRef): Promise<boolean> {

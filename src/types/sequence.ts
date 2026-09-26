@@ -35,13 +35,6 @@ export interface Sequence {
   lagPercent?: number;
 }
 
-export const SEQUENCE_LABELS: Record<SequenceType, string> = {
-  FINISH_START: 'ES (Eind-Start)',
-  FINISH_FINISH: 'EE (Eind-Eind)',
-  START_START: 'SS (Start-Start)',
-  START_FINISH: 'SE (Start-Eind)',
-};
-
 /** Korte internationale afkortingen (FS/SS/FF/SF) voor dropdowns in relatie-editors. */
 export const SEQUENCE_TYPE_OPTIONS: { value: SequenceType; label: string }[] = [
   { value: 'FINISH_START', label: 'FS' },

@@ -1,14 +1,15 @@
-import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
+import { buildTaskColumnRegistry, readOnlyValidationCode } from '@/engine/taskGrid/taskColumnRegistry';
 import { buildTaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 import { copyGridEditorValue, parseGridEditorText, type TaskGridBooleanLabels } from '@/engine/taskGrid/editors';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Baseline } from '@/types/baseline';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { groupBy } from '@/utils/collections';
 import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Task } from '@/types/task';
 import type { CustomTaskType } from '@/types/taskType';
-import type { DateNotation } from '@/types/view';
+import type { DateNotation, DurationDisplay } from '@/types/view';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { classifyTraceTask, taskGridTraceClass, type TaskTrace } from '@/engine/taskGrid/trace';
 import type {
@@ -71,6 +72,9 @@ export interface TaskGridAdapterCell {
   copyText: string;
   editText: string;
   readOnly: boolean;
+  /** Vertaalsleutel die uitlegt waarom de cel alleen-lezen is (`taskGrid.validation.<code>`), alleen
+   *  wanneer de kolom een eigen reden heeft; anders valt de UI terug op "berekende kolom". */
+  readOnlyReason?: string;
   stale?: boolean;
   statusText?: string;
   /** Volledige celwaarde; de cel toont hem alleen als de weergave is afgeknipt (issue #89). */
@@ -121,6 +125,10 @@ export interface CreateTaskGridAdapterDomainInput {
   recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
   dateNotation?: DateNotation;
   calendarOptions?: readonly { value: string; label: string }[];
+  /** Instelling Duurweergave (weergavetekst van de Duur-kolom); ontbreekt ⇒ `'auto'`. */
+  durationDisplay?: DurationDisplay;
+  /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
+  numberLocale?: string;
   /** Taaktypes-etappe (spec §7): zie `TaskColumnContext.taskTypesUnlocked`. */
   taskTypesUnlocked?: boolean;
 }
@@ -217,18 +225,6 @@ function alignForDescriptor(descriptor: TaskColumnDescriptor): TaskGridAdapterCo
   return undefined;
 }
 
-function buildAssignmentsByTaskId(
-  assignments: readonly ResourceAssignment[],
-): ReadonlyMap<string, readonly ResourceAssignment[]> {
-  const result = new Map<string, ResourceAssignment[]>();
-  for (const assignment of assignments) {
-    const current = result.get(assignment.taskId);
-    if (current) current.push(assignment);
-    else result.set(assignment.taskId, [assignment]);
-  }
-  return result;
-}
-
 /** Bouwt uitsluitend het dure, selectie-onafhankelijke domeindeel van de gridadapter. */
 export function createTaskGridAdapterDomain(
   input: CreateTaskGridAdapterDomainInput,
@@ -237,7 +233,7 @@ export function createTaskGridAdapterDomain(
     projectId: input.projectId,
     tasksById: new Map(input.tasks.map(task => [task.id, task] as const)),
     relationIndex: buildTaskRelationIndex(input.tasks, input.sequences, input.cpmResult),
-    assignmentsByTaskId: buildAssignmentsByTaskId(input.assignments),
+    assignmentsByTaskId: groupBy(input.assignments, assignment => assignment.taskId),
     resourcesById: new Map(input.resources.map(resource => [resource.id, resource] as const)),
     baselinesById: new Map(input.baselines.map(baseline => [baseline.id, baseline] as const)),
     scheduleStale: input.scheduleStale,
@@ -246,6 +242,8 @@ export function createTaskGridAdapterDomain(
     wbsAutoNumber: input.wbsAutoNumber,
     effectiveHoursPerDay: input.effectiveHoursPerDay,
     signedWorkDaysBetween: input.signedWorkDaysBetween,
+    durationDisplay: input.durationDisplay,
+    numberLocale: input.numberLocale,
     recordedMark: input.recordedMark,
     recordedUnrecordedAxes: input.recordedUnrecordedAxes,
     taskTypesUnlocked: input.taskTypesUnlocked,
@@ -375,6 +373,10 @@ export function createTaskGridAdapter(
     const readOnly = typeof descriptor.readOnly === 'function'
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
+    // Dezelfde weigering die `planEdit` zou geven, maar alleen als de kolom een eigen reden heeft.
+    const readOnlyRefusal = readOnly && descriptor.readOnlyReason
+      ? failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id)
+      : undefined;
     const stale = context.scheduleStale
       && (descriptor.category === 'computed' || descriptor.scheduleDerived === true);
     const enumOption = descriptor.valueKind === 'enum'
@@ -412,6 +414,7 @@ export function createTaskGridAdapter(
             ? copyGridEditorValue(descriptor, task, context, domain.dateNotation, booleanLabels)
             : descriptor.copy(task, context)),
       readOnly,
+      readOnlyReason: readOnlyRefusal && !readOnlyRefusal.ok ? readOnlyRefusal.errors[0]?.messageKey : undefined,
       stale: stale || undefined,
       statusText: stale ? 'taskGrid.status.stale' : undefined,
       title: title && title !== '—' ? title : undefined,
@@ -437,7 +440,7 @@ export function createTaskGridAdapter(
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
     if (readOnly || !descriptor.parse || !descriptor.planWrite) {
-      return failure('readOnly', rowKey, columnId, task.id, text);
+      return failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id, text);
     }
     const booleanLabels = domain.booleanLabels;
     const parsed = domain.dateNotation || booleanLabels
@@ -463,7 +466,7 @@ export function createTaskGridAdapter(
       ? descriptor.readOnly(task, context)
       : descriptor.readOnly;
     if (readOnly || !descriptor.planWrite) {
-      return failure('readOnly', rowKey, columnId, task.id, inputValue);
+      return failure(readOnlyValidationCode(descriptor, task, context), rowKey, columnId, task.id, inputValue);
     }
     let value = inputValue;
     if (descriptor.validate) {

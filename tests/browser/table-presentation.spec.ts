@@ -129,7 +129,8 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   // zichtbare tekst en blijft dus altijd bereikbaar, zonder taakkaart ernaast. (Met de
   // jaar-maand-dag-notatie zou weergave en waarde samenvallen en verdwijnt de tooltip terecht.)
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ dateNotation: 'dmy' }));
-  const startCell = taskCell(page, shortId, 'task.time.scheduleStart');
+  // Standaardkolom Start (de getoonde datum; voor deze handmatig geplande taak gelijk aan het anker).
+  const startCell = taskCell(page, shortId, 'task.time.start');
   await expect(startCell).toHaveText('07-09-2026');
   await startCell.hover();
   await expect(bubble).toHaveText('2026-09-07');

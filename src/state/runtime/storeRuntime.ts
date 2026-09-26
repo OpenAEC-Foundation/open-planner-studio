@@ -2,11 +2,12 @@ import { createSnapshot, type Snapshot } from '../snapshot';
 import { currentAppState } from '../immerDraft';
 import {
   MAX_SESSION_HISTORY_EVENTS_PER_SCOPE,
+  recordDocumentDataHistoryDelta,
   recordSessionHistoryDeltas,
   type SessionHistoryEvent,
 } from '../sessionHistory';
 import type { AppState } from '../appStore';
-import { markScheduleStale } from '../scheduleStale';
+import { markDateMutation } from '../scheduleStale';
 import { markDocumentEdited } from '@/state/documentEdited';
 import { emitExtensionEvent, type HostEventName } from '@/services/extensionEvents';
 
@@ -221,11 +222,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
       const pending = pendingByDraft.get(state as object);
       if (pending) pending.edited = true;
       markDocumentEdited(state);
-      if (opts?.stale && state.datesAsRecorded) {
-        state.datesAsRecorded = false;
-        state.recordedDates = null;
-      }
-      if (opts?.stale) markScheduleStale(state);
+      if (opts?.stale) markDateMutation(state);
       runtime.finishUndoable(state);
     },
 
@@ -256,9 +253,7 @@ export function createStoreRuntime(opts?: StoreRuntimeOptions): StoreRuntime {
     recordDocumentDataHistory(state, before, documentId, label = 'Wijziging') {
       const after = snapshotOfCurrentState(state);
       if (snapshotsEqual(before, after)) return null;
-      return recordSessionHistoryDeltas(state, label, [{
-        kind: 'document-data', documentId, before, after,
-      }]);
+      return recordDocumentDataHistoryDelta(state, label, documentId, before, after);
     },
 
     resetUndoCoalescing() {

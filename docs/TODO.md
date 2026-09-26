@@ -515,8 +515,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
       de tabel typ je een datum die naar `scheduleStart` gaat terwijl de cel daarna de berekende
       datum toont — je invoer *lijkt* genegeerd. Nette oplossing = het anker alleen bewaren bij taken
       zonder voorgangers, óf het als apart "Plan"-veld benoemen en overal consistent labelen
-      ("Anker" vs "Berekend"). Raakt store, IFC-round-trip, `TableEditor`, `TaskDialog`, paneel,
-      `check-ifc-roundtrip.ts` en i18n — eigen golf. Let op het regressierisico dat in
+      ("Anker" vs "Berekend"). Raakt store, IFC-round-trip, taakraster (`FullTaskGrid`), `TaskDialog`,
+      paneel, `check-ifc-roundtrip.ts` en i18n — eigen golf. Let op het regressierisico dat in
       `src/state/slices/scheduleSlice.ts:96-100` beschreven staat (taak blijft op zijn gedrifte
       datum hangen na het verwijderen van een relatie).
 

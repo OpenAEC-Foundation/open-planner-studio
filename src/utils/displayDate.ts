@@ -1,9 +1,9 @@
 import type { DateNotation } from '@/types/view';
+import { isExistingYmd } from '@/utils/dateUtils';
 
+/** Jaren onder 100 vallen af: `parseDate` (via `Date.UTC`) leest die als 1900–1999. */
 function existingIsoDate(year: number, month: number, day: number): string | null {
-  if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  if (year < 100 || year > 9999 || !isExistingYmd(year, month, day)) return null;
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 

@@ -33,7 +33,6 @@
 //      worden geweigerd met een boodschap die de sleutel én het alternatief noemt.
 import type { McpContext, McpToolOk } from '../contracts';
 import {
-  guardNonTransactional,
   runMutateTool,
   toolError,
   McpStepError,
@@ -41,14 +40,16 @@ import {
 } from './runtime';
 // Alleen als TYPE (SYNC-2): wordt weggestreept bij compileren, dus géén runtime-import naar batchTool.
 import type { BatchStepTool } from './batchTool';
-import { enrichOk, okDirect, projectEndInfo } from './helpers';
+import {
+  booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
+} from './helpers';
 import type { AppState } from '@/state/appStore';
 import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
-
-const STD_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+import { isFiniteNumber } from '@/utils/guards';
+import { hasLevelingOutput } from '@/utils/taskDefaults';
 
 type Rejection = { id: string; reason: string };
 type StoreState = AppState;
@@ -79,11 +80,7 @@ const ALLOWED_KEYS: Record<string, string[]> = {
   delete: ['action', 'id', 'cascade'],
 };
 
-/** Gereserveerde batch-syntax voor `tempId` (spiegelt `TEMP_ID_PATTERN` in batchTool.ts). */
-const TEMP_ID_PATTERN = /^tmp[-_]/;
-
 const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /**
  * Een geparste veldpatch. Een sleutel MET waarde `undefined` betekent WISSEN (de aanroeper gaf
@@ -415,7 +412,7 @@ function classifyResources(
       return;
     }
     if (item.cascade !== undefined && typeof item.cascade !== 'boolean') {
-      rejections.push({ id: item.id, reason: `\`cascade\` moet een boolean zijn (true/false), kreeg ${typeof item.cascade} '${String(item.cascade)}'` });
+      rejections.push({ id: item.id, reason: booleanArgReason(item.cascade, 'cascade') });
       return;
     }
     const target = sim.find((r) => r.id === item.id);
@@ -590,7 +587,7 @@ const manageResources: BatchStepTool = {
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
-  annotations: { ...STD_ANNOT, destructiveHint: true },
+  annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {
@@ -668,11 +665,7 @@ const manageResources: BatchStepTool = {
   },
   // Zie de batchStep-noot in taskTools.ts: het lege-batch-snelpad is puur transactie-vermijding en
   // dus overbodig binnen een batch (die bezit de transactie al).
-  batchStep(args, ctx) {
-    const parsed = parseManageResources(args);
-    if (typeof parsed === 'string') throw new McpStepError('VALIDATION', parsed);
-    return manageResourcesCore(ctx, parsed);
-  },
+  batchStep: parsedBatchStep(parseManageResources, manageResourcesCore),
   async handler(args, ctx) {
     const parsed = parseManageResources(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
@@ -684,9 +677,7 @@ const manageResources: BatchStepTool = {
       const state = ctx.app.store.getState();
       const pre = classifyResources(state, actions);
       if (pre.plans.length === 0) {
-        const g = guardNonTransactional(ctx);
-        if (g) return g;
-        return okDirect(ctx, { ...EMPTY_DATA, warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
+        return okDirectGuarded(ctx, { ...EMPTY_DATA, warnings: [], projectEnd: projectEndInfo(state).projectEnd }, pre.rejections);
       }
     }
 
@@ -714,26 +705,23 @@ const manageResources: BatchStepTool = {
           `(${orphaned.join(', ')}); hun \`parentId\` staat nu leeg.`,
         );
       }
-      // Nivellering: `levelingDelay` staat op de TAKEN en blijft na een capaciteits-/kalender-/
-      // toewijzingswijziging gewoon staan — de eind-`runCPM` rekent die oude vertraging dus door op
-      // een gewijzigde capaciteit. Dat is geen fout, maar het mag niet stil blijven.
+      // Nivellering: de nivelleeruitvoer (vertraging, ook sub-dag-precisie uit een `.mpp`, en
+      // ingevoegde pauzedagen) staat op de TAKEN en blijft na een capaciteits-/kalender-/
+      // toewijzingswijziging gewoon staan — de eind-`runCPM` rekent die oude nivellering dus door op
+      // een gewijzigde capaciteit. Dat is geen fout, maar het mag niet stil blijven. "Staat er
+      // nivellering op?" is de ENE gedeelde definitie `hasLevelingOutput` (`utils/taskDefaults.ts`),
+      // dezelfde als achter "Nivellering wissen" — geen eigen, smallere controle hier.
       const capacityTouched =
         totalRemoved > 0 ||
         data.updated.some((u) => u.changedFields.some((f) => f === 'maxUnits' || f === 'availabilitySteps' || f === 'calendarId'));
       const state = ctx.app.store.getState();
-      if (capacityTouched && state.tasks.some((t) => t.levelingDelay !== undefined)) {
+      if (capacityTouched && state.tasks.some(hasLevelingOutput)) {
         warnings.push(
           'Er staat een TOEGEPASTE nivellering op deze planning; die is berekend op de OUDE capaciteit en ' +
           'is nu verouderd. Draai planner_level_resources opnieuw of wis hem met planner_clear_leveling.',
         );
       }
-      const { projectEnd, cappedTaskIds } = projectEndInfo(state);
-      return {
-        ...((res as McpToolOk).data as object),
-        warnings,
-        projectEnd,
-        ...(cappedTaskIds ? { cappedTaskIds } : {}),
-      };
+      return { ...((res as McpToolOk).data as object), warnings, ...projectEndInfo(state) };
     });
   },
 };

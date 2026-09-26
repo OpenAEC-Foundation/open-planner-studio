@@ -41,6 +41,14 @@ Define o progresso em três locais, todos com o mesmo efeito:
 
 As datas reais nunca podem ser posteriores à data de estado; tente introduzir uma mais tarde e a aplicação rejeita-a com um erro. Esse é um limite deliberado: um "facto" (algo que realmente aconteceu) não pode, por definição, situar-se no futuro em relação ao momento em que está a registar o progresso.
 
+### Progresso de uma fase
+
+Uma fase — uma tarefa com tarefas por baixo — não tem progresso próprio. A sua **percentagem concluída** e o seu **estado** são derivados das tarefas por baixo em cada cálculo (**F5** ou **Calcular**). A percentagem é ponderada pela duração: uma tarefa de dez dias úteis conta o dobro de uma de cinco. É exatamente o número que o **Resumo EAP** mostra no separador **Relatório**, e o que a Tabela, a dica, o PDF e o assistente de IA veem. O estado acompanha: **Concluída** assim que todas as tarefas por baixo terminaram, **Em andamento** assim que uma começou, caso contrário **Não iniciada**.
+
+Por isso não pode introduzir o progresso de uma fase. No painel de propriedades e no diálogo de tarefa, o controlo deslizante e as datas reais de uma fase estão desativados, e na **Tabela** as colunas de progresso de uma linha de fase são só de leitura. Escolha **Progresso** no menu de contexto numa fase e todas as tarefas por baixo recebem essa percentagem; após o cálculo seguinte, a fase acompanha por si só.
+
+Duas exceções seguem a mesma regra que as datas de uma fase. Uma fase agendada manualmente de um ficheiro MS Project (`.mpp`) mantém o progresso guardado no ficheiro. E enquanto estiver a ver as [datas tal como guardadas](docs://datums-zoals-opgeslagen), uma fase mostra o progresso do ficheiro; assim que recalcular, volta a ser derivado.
+
 ## A data de estado
 
 A **data de estado** (grupo do friso **Baselines e progresso** no separador Planeamento, campo **Data de estado**) marca "hoje" dentro do cronograma — o momento a partir do qual registou o progresso. Uma vez definida, faz duas coisas ao mesmo tempo:

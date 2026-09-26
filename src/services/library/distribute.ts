@@ -62,8 +62,7 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
-import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
-import { computeLibraryOccupancy, type OccupancyDocInput, type OccupancySolveInput } from './occupancy';
+import { computeLibraryOccupancy, solveClone, type OccupancyDocInput, type OccupancySolveInput } from './occupancy';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
 /** Eén deelnemend document. Erft de bezettings-invoer (zodat aanroeper en bezettingsoverzicht
@@ -169,11 +168,7 @@ export interface DistributionProposal {
 export type DistributionLevelRun = (doc: DistributionDocInput, options: LevelingOptions) => LevelingResult;
 
 const defaultLevelRun: DistributionLevelRun = (doc, options) => {
-  const tasks = cloneTasksForSolve(doc.levelInput.tasks);
-  const cpmResult = solveProject({
-    tasks, sequences: doc.levelInput.sequences, calendar: doc.calendar, calendars: doc.calendars,
-    ...doc.levelInput.options,
-  });
+  const { tasks, result: cpmResult } = solveClone(doc.levelInput, doc.calendar, doc.calendars);
   return levelResources(
     tasks, doc.levelInput.sequences, doc.resources, doc.assignments,
     doc.calendar, doc.calendars, cpmResult, options,
@@ -209,11 +204,7 @@ function currentProjectEnd(tasks: Task[]): string {
 function currentProjectEndFor(doc: DistributionDocInput): string {
   if (!doc.scheduleStale) return currentProjectEnd(doc.levelInput.tasks);
   try {
-    const tasks = cloneTasksForSolve(doc.levelInput.tasks);
-    const result = solveProject({
-      tasks, sequences: doc.levelInput.sequences, calendar: doc.calendar, calendars: doc.calendars,
-      ...doc.levelInput.options,
-    });
+    const { tasks, result } = solveClone(doc.levelInput, doc.calendar, doc.calendars);
     if (result.error) return currentProjectEnd(doc.levelInput.tasks);
     return currentProjectEnd(tasks);
   } catch {

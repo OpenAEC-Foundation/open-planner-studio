@@ -932,6 +932,13 @@ function observed(state: AppState): unknown {
   eq('Kritieke commit bevat exact één storeproducer', (commitSource.match(/\bset\s*\(/g) ?? []).length, 1);
   eq('Kritieke commit controleert document vóór de producer',
     commitSource.indexOf('activeDocumentId') < commitSource.indexOf('set(state =>'), true);
+
+  // De kolomcontext van de transactie krijgt dezelfde projectkalenderroute als het UI-raster. Zonder
+  // die route viel de registry vroeger terug op een kale ma–vr-telling (zie check-task-column-registry).
+  const runtimeStart = source.indexOf('function buildGridColumnRuntime(');
+  const runtimeSource = source.slice(runtimeStart, source.indexOf('\n}\n', runtimeStart));
+  eq('Transactiekolomcontext levert de echte werkdagdelta mee',
+    runtimeStart >= 0 && /signedWorkDaysBetween: \(fromIso, toIso\) => signedWorkDaysBetween\(/.test(runtimeSource), true);
 }
 
 // Aanbeveling 4 (onafhankelijke eindreview): CONTROLLER_COLUMN_IDS in gridTransaction.ts is een
@@ -972,17 +979,28 @@ function observed(state: AppState): unknown {
     [
       'task.constraint.hard', 'task.isHammock', 'task.mandatory', 'task.milestoneKind',
       'task.notes', 'task.time.durationUnit', 'task.time.scheduleDuration', 'task.wbsCode',
+      // Audit "weergaven" bevinding 2: Start/Einde lezen `manuallyScheduled`, `childIds` en
+      // `isHammock` (controller); Gepland einde leest alleen `manuallyScheduled`. Geen nieuwe
+      // controller nodig: `manuallyScheduled` is nooit via een cel-edit schrijfbaar (pin hieronder).
+      'task.time.finish', 'task.time.scheduleFinish', 'task.time.start',
+      // Voortgang op een verzameltaak is alleen-lezen (`SUMMARY_PROGRESS_READ_ONLY`). Gecertificeerd:
+      // die zes lezen uitsluitend `task.childIds` — aanname 1 hieronder — dus geen nieuw controllerveld.
+      'task.status', 'task.time.actualStart', 'task.time.actualFinish', 'task.time.actualDuration',
+      'task.time.remainingTime', 'task.time.completion',
       // Taaktypes-etappe (2026-09-05): `task.workRule` leest alleen isMilestone/isHammock (controllers)
       // en childIds (nooit cel-schrijfbaar) — gecertificeerd, zelfde klasse als scheduleDuration.
       'task.workRule',
     ].sort());
+  const manuallyScheduledDescriptor = byId.get('task.manuallyScheduled');
+  ok('task.manuallyScheduled is nooit los via een paste schrijfbaar (geen parse-functie)',
+    manuallyScheduledDescriptor !== undefined && typeof manuallyScheduledDescriptor.parse !== 'function');
   for (const controllerId of controllerIdsInSource) {
     ok(`Controllerveld ${controllerId} bestaat als echte, via cell-edit schrijfbare kolom`,
       byId.has(controllerId) && typeof byId.get(controllerId)?.parse === 'function');
   }
 
-  // Stilzwijgende aanname 1 (task.childIds): de conditionele readOnly-functies van isHammock e.a.
-  // lezen task.childIds.length, maar childIds staat NOOIT in CONTROLLER_COLUMN_IDS. Dat is veilig
+  // Stilzwijgende aanname 1 (task.childIds): de conditionele readOnly-functies van isHammock, de
+  // duurkolommen en de zes voortgangskolommen lezen task.childIds.length, maar childIds staat NOOIT in CONTROLLER_COLUMN_IDS. Dat is veilig
   // omdat childIds nooit los via een cel-paste schrijfbaar is (readonlyColumn, geen parse/
   // planWrite) — er bestaat structureel geen CellEditIntent-route die childIds binnen dezelfde
   // transactie kan veranderen, dus de aanname "childIds blijft constant tijdens één paste" hoeft

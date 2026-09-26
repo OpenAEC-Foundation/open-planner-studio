@@ -7,9 +7,9 @@
  */
 import type { InstallKind } from './updaterService';
 import { isTauri } from '@/utils/platform';
+import { GITHUB_REPO } from '@/services/githubRepo';
 
-const REPO = 'OpenAEC-Foundation/open-planner-studio';
-const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=30`;
+const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`;
 
 /** Minimale vorm van een GitHub-release-asset die we gebruiken. */
 export interface GhAsset {

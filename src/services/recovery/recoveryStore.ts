@@ -1,9 +1,10 @@
 import { isTauri } from '@/utils/platform';
-import { idbGetAll, openIdb } from '@/utils/idb';
+import { idbGetAll, openDb } from '@/utils/idb';
 import {
   ownRecoveryNames, recoveryTmpSuffix,
   type RecoveryNames, type RecoveryManifest, type RecoveryManifestDoc,
 } from '@/hooks/recoveryPaths';
+import { writeTextFileAtomic } from '@/services/fileAccess/atomicWrite';
 
 /** Eén recovery-document (IFC-CONTENT, niet de bestandsnaam). */
 export interface RecoveryDocContent {
@@ -254,6 +255,27 @@ export function planRecoveryClear(
   return [...out];
 }
 
+/** Tekst plus wijzigingstijd van één snapshot; faalt `stat`, dan blijft de mtime `null`. */
+async function readSnapshotTauri(path: string): Promise<{ ifc: string; mtime: Date | null }> {
+  const { readTextFile, stat } = await import('@tauri-apps/plugin-fs');
+  const ifc = await readTextFile(path);
+  let mtime: Date | null = null;
+  try { mtime = (await stat(path)).mtime; } catch { /* geen mtime — laat null */ }
+  return { ifc, mtime };
+}
+
+/** De bestandsnamen in de appDataDir; een mislukte scan logt en geeft een lege lijst — het opruimen
+ *  valt dan terug op wat het manifest noemt. */
+async function listAppDataTauri(dir: string): Promise<string[]> {
+  const { readDir } = await import('@tauri-apps/plugin-fs');
+  try {
+    return (await readDir(dir)).map((e) => e.name).filter((n): n is string => !!n);
+  } catch (err) {
+    console.error('Recovery: kon de appDataDir niet doorlopen bij het opruimen:', err);
+    return [];
+  }
+}
+
 function checkedUpserts(input: RecoverySaveInput): Map<string, RecoveryDocContent> {
   const documentIds = new Set<string>();
   for (const document of input.documents) {
@@ -330,37 +352,15 @@ function nextRecoveryGeneration(): string {
 }
 
 async function saveTauri(input: RecoverySaveInput): Promise<void> {
-  const { writeTextFile, readDir, readTextFile, exists, remove, rename, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { readTextFile, exists, remove, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   await mkdir(dir, { recursive: true }); // op een verse installatie bestaat de map nog niet (issue #72)
 
-  /**
-   * Schrijf-en-vervang in twee stappen (bevinding K4). `writeTextFile` truncate't het doelbestand
-   * vóórdat het schrijft, dus een crash midden in de schrijfactie liet precies datgene achter
-   * waarvoor recovery bestaat: een AFGEKAPTE snapshot — en die kwam er ongemerkt doorheen, want
-   * `readIFC` gooide nooit.
-   *
-   * Een atomaire schrijf-primitief kent `plugin-fs` niet; `rename` is het beste wat er is. Die
-   * mapt op `std::fs::rename`, en binnen dezelfde map (dus gegarandeerd hetzelfde volume) is dat
-   * een atomaire vervanging op zowel POSIX als Windows. Na een crash staat er dus óf het complete
-   * oude, óf het complete nieuwe bestand — nooit een halve.
-   *
-   * Wat dit NIET afdekt: er is geen `fsync`/flush in `plugin-fs`, dus bij stroomuitval of een
-   * kernel-panic kan de rename op sommige bestandssystemen vóór de data landen. Tegen een
-   * app-crash — het scenario van deze bevinding — dekt het wel volledig.
-   */
-  const writeAtomic = async (name: string, text: string): Promise<void> => {
-    const target = await join(dir, name);
-    const tmp = await join(dir, `${name}${TMP_SUFFIX}`);
-    await writeTextFile(tmp, text);
-    try {
-      await rename(tmp, target);
-    } catch (err) {
-      try { await remove(tmp); } catch { /* al weg */ }
-      throw err;
-    }
-  };
+  // Schrijf-en-vervang (bevinding K4): een gewone `writeTextFile` liet bij een crash precies
+  // datgene achter waarvoor recovery bestaat — een AFGEKAPTE snapshot, en die kwam er ongemerkt
+  // doorheen, want `readIFC` gooide nooit. Zie `writeTextFileAtomic` voor wat dit wel/niet dekt.
+  const writeAtomic = (name: string, text: string) => writeTextFileAtomic(dir, name, text, TMP_SUFFIX);
 
   // Het manifest zoals het er NU staat, vóór we het overschrijven: dat is de enige bron waaruit
   // we weten welke snapshots van ons zijn (en of er inmiddels een andere instantie schrijft).
@@ -382,13 +382,7 @@ async function saveTauri(input: RecoverySaveInput): Promise<void> {
   }
   const keep = snapshotPlan.documents.map((document) => document.ifc);
 
-  let listing: string[] = [];
-  try {
-    listing = (await readDir(dir)).map((e) => e.name).filter((n): n is string => !!n);
-  } catch (err) {
-    console.error('Recovery: kon de appDataDir niet doorlopen bij het opruimen:', err);
-  }
-
+  const listing = await listAppDataTauri(dir);
   const plan = planRecoveryCleanup({
     listing, prev, self: instanceId, keep,
     ownWritten: [...ownWritten], adopted: [...adoptedIfc], names,
@@ -453,7 +447,7 @@ export function parseRecoveryManifest(raw: string): RecoveryManifest | null {
  * niet meer; `isDirty` staat op `true`, wat voor een crashsnapshot per definitie klopt.
  */
 async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
-  const { readDir, readTextFile, stat } = await import('@tauri-apps/plugin-fs');
+  const { readDir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   const docs: LoadedRecoveryDoc[] = [];
@@ -469,10 +463,7 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
     const id = name ? names.stableSnapshotDocId(name) : null;
     if (!name || !id) continue;
     try {
-      const path = await join(dir, name);
-      const ifc = await readTextFile(path);
-      let mtime: Date | null = null;
-      try { mtime = (await stat(path)).mtime; } catch { /* geen mtime — laat null */ }
+      const { ifc, mtime } = await readSnapshotTauri(await join(dir, name));
       // Manifestloze scan: geen metadata, dus geen modus — het bestaande #63-aanbod blijft over.
       docs.push({ id, ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime });
     } catch (err) {
@@ -483,7 +474,7 @@ async function scanTauriSnapshots(): Promise<LoadedRecoveryDoc[]> {
 }
 
 async function loadTauri(): Promise<LoadedRecovery> {
-  const { readTextFile, exists, stat } = await import('@tauri-apps/plugin-fs');
+  const { readTextFile, exists } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
   const manifestPath = await join(dir, manifestName);
@@ -499,10 +490,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
       const docs: LoadedRecoveryDoc[] = [];
       for (const d of manifest.documents) {
         try {
-          const ifcPath = await join(dir, d.ifc);
-          const ifc = await readTextFile(ifcPath);
-          let mtime: Date | null = null;
-          try { mtime = (await stat(ifcPath)).mtime; } catch { /* geen mtime — laat null */ }
+          const { ifc, mtime } = await readSnapshotTauri(await join(dir, d.ifc));
           docs.push({
             id: d.id, ifc, filePath: d.filePath ?? null, isDirty: d.isDirty ?? true,
             // v1–v3-manifest kent het veld niet ⇒ `false` (aanbod, geen modus).
@@ -528,9 +516,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
   // Terugval: oude losse <base>.ifc (één document).
   const legacyPath = await join(dir, legacyFile);
   if (await exists(legacyPath)) {
-    const ifc = await readTextFile(legacyPath);
-    let mtime: Date | null = null;
-    try { mtime = (await stat(legacyPath)).mtime; } catch { /* geen mtime */ }
+    const { ifc, mtime } = await readSnapshotTauri(legacyPath);
     return {
       activeDocumentId: 'legacy',
       docs: [{ id: 'legacy', ifc, filePath: null, isDirty: true, datesAsRecorded: false, mtime }],
@@ -541,7 +527,7 @@ async function loadTauri(): Promise<LoadedRecovery> {
 }
 
 async function clearTauri(): Promise<void> {
-  const { exists, readTextFile, remove, readDir } = await import('@tauri-apps/plugin-fs');
+  const { exists, readTextFile, remove } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
   const dir = await appDataDir();
 
@@ -552,14 +538,7 @@ async function clearTauri(): Promise<void> {
     catch { /* onleesbaar manifest — de directory-scan hieronder ruimt alsnog op */ }
   }
 
-  let listing: string[] = [];
-  try {
-    listing = (await readDir(dir)).map((e) => e.name).filter((n): n is string => !!n);
-  } catch (err) {
-    console.error('Recovery: kon de appDataDir niet doorlopen bij het opruimen:', err);
-  }
-
-  for (const name of planRecoveryClear(listing, manifest, names)) {
+  for (const name of planRecoveryClear(await listAppDataTauri(dir), manifest, names)) {
     try { await remove(await join(dir, name)); } catch { /* al weg */ }
     ownWritten.delete(name);
     adoptedIfc.delete(name);
@@ -697,7 +676,7 @@ const manifestKey = (sid: string): string => `${sid}::manifest`;
 async function saveWeb(input: RecoverySaveInput): Promise<void> {
   const sid = await sessionId();
   const now = Date.now();
-  const db = await openIdb(WEB_DB, WEB_STORE);
+  const db = await openDb(WEB_DB, WEB_STORE);
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(WEB_STORE, 'readwrite');
     const store = tx.objectStore(WEB_STORE);
@@ -802,7 +781,7 @@ async function loadWeb(): Promise<LoadedRecovery> {
 
 async function clearWeb(): Promise<void> {
   const sid = await sessionId();
-  const db = await openIdb(WEB_DB, WEB_STORE);
+  const db = await openDb(WEB_DB, WEB_STORE);
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(WEB_STORE, 'readwrite');
     const store = tx.objectStore(WEB_STORE);

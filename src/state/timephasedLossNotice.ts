@@ -24,9 +24,29 @@ const notifiedDocIds = new Set<string>();
  *  Elke volgende aanroep met hetzelfde document-id geeft `false`, ongeacht of de eerdere toast
  *  intussen is weggeklikt of vanzelf verlopen. */
 export function claimTimephasedLossNotice(docId: string): boolean {
-  if (notifiedDocIds.has(docId)) return false;
-  notifiedDocIds.add(docId);
+  return claimOnce(notifiedDocIds, docId);
+}
+
+/** De gedeelde gate achter beide `claim…Notice`-functies: `true` de eerste keer per document-id. */
+function claimOnce(registry: Set<string>, docId: string): boolean {
+  if (registry.has(docId)) return false;
+  registry.add(docId);
   return true;
+}
+
+/** De gedeelde vorm van beide `notify…`-functies: niets bij `count <= 0` of een al gebruikte gate,
+ *  anders één info-melding met een doorlink naar de gids. */
+function notifyOncePerDocument(
+  claim: (docId: string) => boolean,
+  notify: (n: NotifyInput) => void,
+  docId: string,
+  count: number,
+  messageKey: NotifyInput['messageKey'],
+  dedupeKey: string,
+): void {
+  if (count <= 0) return;
+  if (!claim(docId)) return;
+  notify({ severity: 'info', messageKey, params: { count }, dedupeKey, helpArticleId: MPP_TIMEPHASED_HELP_ARTICLE_ID });
 }
 
 /** Test-only: wist de registratie. Headless tests draaien allemaal in hetzelfde Node-proces
@@ -78,15 +98,10 @@ export function notifyTimephasedLoss(
   docId: string,
   count: number,
 ): void {
-  if (count <= 0) return;
-  if (!claimTimephasedLossNotice(docId)) return;
-  notify({
-    severity: 'info',
-    messageKey: 'notifications.mppTimephasedSteeringLost',
-    params: { count },
-    dedupeKey: `mpp-timephased-lost-${docId}`,
-    helpArticleId: MPP_TIMEPHASED_HELP_ARTICLE_ID,
-  });
+  notifyOncePerDocument(
+    claimTimephasedLossNotice, notify, docId, count,
+    'notifications.mppTimephasedSteeringLost', `mpp-timephased-lost-${docId}`,
+  );
 }
 
 /**
@@ -102,9 +117,7 @@ const notifiedLevelingDelayDocIds = new Set<string>();
  *  MSP-precisieverlies zijn onafhankelijk van elkaar en horen elk hun eigen eenmalige melding te
  *  krijgen. */
 export function claimLevelingDelayRoundedNotice(docId: string): boolean {
-  if (notifiedLevelingDelayDocIds.has(docId)) return false;
-  notifiedLevelingDelayDocIds.add(docId);
-  return true;
+  return claimOnce(notifiedLevelingDelayDocIds, docId);
 }
 
 /**
@@ -119,13 +132,9 @@ export function notifyLevelingDelayRounded(
   docId: string,
   count: number,
 ): void {
-  if (count <= 0) return;
-  if (!claimLevelingDelayRoundedNotice(docId)) return;
-  notify({
-    severity: 'info',
-    messageKey: 'notifications.levelingDelayRoundedToWorkdays',
-    params: { count },
-    dedupeKey: `leveling-delay-rounded-${docId}`,
-    helpArticleId: MPP_TIMEPHASED_HELP_ARTICLE_ID, // zelfde gids, sectie "Nivellering"
-  });
+  // Zelfde gids als de urensturing, sectie "Nivellering".
+  notifyOncePerDocument(
+    claimLevelingDelayRoundedNotice, notify, docId, count,
+    'notifications.levelingDelayRoundedToWorkdays', `leveling-delay-rounded-${docId}`,
+  );
 }

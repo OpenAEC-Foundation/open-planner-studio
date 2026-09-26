@@ -1,4 +1,7 @@
 import type { ExternalLink, ExternalSourceRef } from '@/types/task';
+import { hasOwn, isRecord, isFiniteNumber } from '@/utils/guards';
+import { trimNumber } from '@/utils/durationFormat';
+import { isStrictIsoDateTime } from '@/utils/dateUtils';
 
 export type ExternalDirection = ExternalLink['direction'];
 export type ExternalRelationType = ExternalLink['relType'];
@@ -181,10 +184,6 @@ export function sourceProjectKeyFor(sourceRef: ExternalSourceRef, origin: Extern
   return externalSourcePathKey(sourceRef.filePath) ?? `id-only:${origin.ownerTaskId}:${origin.linkId}`;
 }
 
-function trimNumber(value: number): string {
-  return String(Number(value.toFixed(2)));
-}
-
 export function parseExternalLagInput(input: string): ExternalLag | null {
   const normalized = input.trim().toLowerCase().replace(/\s+/g, '');
   if (!normalized) return { lagDays: 0 };
@@ -198,11 +197,18 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
   return suffix === 'u' || suffix === 'h' ? { lagMinutes: storedValue } : { lagDays: storedValue };
 }
 
+/** De lag van een externe relatie is óf minuten óf dagen, nooit beide: minuten winnen zodra ze
+ *  gezet zijn (ook 0), anders de dagen (standaard 0). Let op: `canonicalLag` hieronder, voor de
+ *  WEERGAVE, behandelt 0 minuten juist als afwezig en rondt af. */
+export function exclusiveExternalLag(lag: ExternalLagFields): ExternalLag {
+  return lag.lagMinutes !== undefined ? { lagMinutes: lag.lagMinutes } : { lagDays: lag.lagDays ?? 0 };
+}
+
 function canonicalLag(lag: ExternalLagFields): ExternalLag {
-  if (typeof lag.lagMinutes === 'number' && Number.isFinite(lag.lagMinutes) && lag.lagMinutes !== 0) {
+  if (isFiniteNumber(lag.lagMinutes) && lag.lagMinutes !== 0) {
     return { lagMinutes: Math.round(lag.lagMinutes) };
   }
-  if (typeof lag.lagDays === 'number' && Number.isFinite(lag.lagDays)) {
+  if (isFiniteNumber(lag.lagDays)) {
     return { lagDays: Math.round(lag.lagDays) };
   }
   return { lagDays: 0 };
@@ -212,7 +218,7 @@ export function formatExternalLagShort(lag: ExternalLagFields): string {
   const canonical = canonicalLag(lag);
   if (canonical.lagMinutes !== undefined) {
     const hours = canonical.lagMinutes / 60;
-    return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours)}u`;
+    return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours, 2)}u`;
   }
   const days = canonical.lagDays ?? 0;
   return days === 0 ? '' : `${days > 0 ? '+' : ''}${days}d`;
@@ -295,9 +301,7 @@ function orderedPayload(payload: ExternalRelationClipboardV1): ExternalRelationC
     sourceProjectKey: payload.sourceProjectKey,
     sourceRef: orderedSourceRef(payload.sourceRef),
     relType: payload.relType,
-    ...(payload.lagMinutes !== undefined
-      ? { lagMinutes: payload.lagMinutes }
-      : { lagDays: payload.lagDays ?? 0 }),
+    ...exclusiveExternalLag(payload),
     anchorDate: payload.anchorDate,
     sourceMissing: payload.sourceMissing,
   };
@@ -329,14 +333,6 @@ export function formatExternalRelationVisible(link: ExternalLink): string {
   return `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(canonicalLag(link))}`;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function hasOwn(record: Record<string, unknown>, key: string): boolean {
-  return Object.prototype.hasOwnProperty.call(record, key);
-}
-
 function validString(value: unknown, maxLength: number, allowEmpty = false): value is string {
   return typeof value === 'string'
     && value.length <= maxLength
@@ -348,29 +344,7 @@ function validString(value: unknown, maxLength: number, allowEmpty = false): val
 }
 
 function validIsoAnchor(value: string): boolean {
-  if (value.length > MAX_DATE_LENGTH) return false;
-  const match = value.match(
-    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(?:Z|([+-])(\d{2}):(\d{2}))?)?$/,
-  );
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (month < 1 || month > 12) return false;
-  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
-  if (day < 1 || day > daysInMonth) return false;
-  if (match[4] === undefined) return true;
-  const hour = Number(match[4]);
-  const minute = Number(match[5]);
-  const second = match[6] === undefined ? 0 : Number(match[6]);
-  if (hour > 23 || minute > 59 || second > 59) return false;
-  if (match[8] !== undefined) {
-    const offsetHour = Number(match[9]);
-    const offsetMinute = Number(match[10]);
-    if (offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return false;
-  }
-  return true;
+  return value.length <= MAX_DATE_LENGTH && isStrictIsoDateTime(value, { maxFractionDigits: 9 });
 }
 
 function hasExactKeys(record: Record<string, unknown>, expected: readonly string[]): boolean {
@@ -381,12 +355,12 @@ function hasExactKeys(record: Record<string, unknown>, expected: readonly string
 function parsePayload(json: string): ExternalRelationClipboardV1 | null {
   let value: unknown;
   try { value = JSON.parse(json); } catch { return null; }
-  if (!isPlainRecord(value)) return null;
+  if (!isRecord(value)) return null;
   const lagKey = hasOwn(value, 'lagMinutes') ? 'lagMinutes' : 'lagDays';
   if (!hasExactKeys(value, [
     'v', 'origin', 'sourceProjectKey', 'sourceRef', 'relType', lagKey, 'anchorDate', 'sourceMissing',
   ])) return null;
-  if (value.v !== 1 || !isPlainRecord(value.origin) || !isPlainRecord(value.sourceRef)) return null;
+  if (value.v !== 1 || !isRecord(value.origin) || !isRecord(value.sourceRef)) return null;
   if (!hasExactKeys(value.origin, ['ownerTaskId', 'direction', 'linkId'])) return null;
   if (!validString(value.origin.ownerTaskId, MAX_ID_LENGTH)
     || (value.origin.direction !== 'predecessor' && value.origin.direction !== 'successor')
@@ -461,9 +435,7 @@ export function parseExternalRelationClipboard(
   if (!externalAnchorSideIsCompatible(payload.origin.direction, payload.relType, target.direction, relType)) {
     return failure('externalAnchorSideChanged', 'Deze type- of richtingwijziging vereist een nieuw bronanker.');
   }
-  const copiedLag = payload.lagMinutes !== undefined
-    ? { lagMinutes: payload.lagMinutes }
-    : { lagDays: payload.lagDays ?? 0 };
+  const copiedLag = exclusiveExternalLag(payload);
   return {
     ok: true,
     value: {

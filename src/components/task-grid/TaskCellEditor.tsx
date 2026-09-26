@@ -19,7 +19,7 @@ import {
   type GridEditorCommitResult,
   type GridEditorInputProps,
 } from './GridEditorHost';
-import { RelationCellEditor } from './RelationCellEditor';
+import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -182,6 +182,13 @@ export function TaskCellEditor({
   const editsAssignmentCurve = assignmentColumnId === 'assignment.curve';
   const resourceOptions = descriptor?.editorOptions ?? [];
   const resourceOptionById = new Map(resourceOptions.map(option => [option.value, option] as const));
+  // Nog niet toegewezen resources die bij de zoekterm passen — voor de lijst én voor Enter.
+  const resourceQueryKey = resourceQuery.trim().toLocaleLowerCase();
+  const resourceCandidates = resourceQueryKey === '' ? [] : resourceOptions.filter(option => (
+    !assignmentTokens.some(token => token.resourceId === option.value)
+    && (option.value.toLocaleLowerCase().includes(resourceQueryKey)
+      || option.label?.toLocaleLowerCase().includes(resourceQueryKey))
+  ));
   const curves: readonly ResourceCurve[] = [
     'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
   ];
@@ -326,9 +333,7 @@ export function TaskCellEditor({
                     {editsAssignmentMembership && <button
                       type="button"
                       aria-label={`${labelForOption('properties.assignments.remove', 'remove')} ${resourceLabel}`}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-                      }}
+                      onKeyDown={controlKeyDown}
                       onClick={() => setAssignmentTokens(current => (
                         current.filter((_, itemIndex) => itemIndex !== index)
                       ))}
@@ -352,38 +357,25 @@ export function TaskCellEditor({
               onChange={event => setResourceQuery(event.currentTarget.value)}
               onKeyDown={event => {
                 if (event.key !== 'Enter' || resourceQuery.trim() === '') return;
-                const query = resourceQuery.trim().toLocaleLowerCase();
-                const candidates = resourceOptions.filter(option => (
-                  !assignmentTokens.some(token => token.resourceId === option.value)
-                  && (option.value.toLocaleLowerCase().includes(query)
-                    || option.label?.toLocaleLowerCase().includes(query))
-                ));
-                if (candidates.length !== 1) return;
+                if (resourceCandidates.length !== 1) return;
                 event.preventDefault();
                 event.stopPropagation();
                 setAssignmentTokens(current => [...current, {
-                  resourceId: candidates[0].value, unitsPerDay: 1,
+                  resourceId: resourceCandidates[0].value, unitsPerDay: 1,
                 }]);
                 setResourceQuery('');
               }}
             />}
             {editsAssignmentMembership && resourceQuery.trim() && (
               <div className="task-grid-assignment-options" role="listbox">
-                {resourceOptions.filter(option => {
-                  const query = resourceQuery.trim().toLocaleLowerCase();
-                  return !assignmentTokens.some(token => token.resourceId === option.value)
-                    && (option.value.toLocaleLowerCase().includes(query)
-                      || option.label?.toLocaleLowerCase().includes(query));
-                }).map(option => (
+                {resourceCandidates.map(option => (
                   <button
                     type="button"
                     role="option"
                     aria-selected="false"
                     key={option.value}
                     onMouseDown={event => event.preventDefault()}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
-                    }}
+                    onKeyDown={controlKeyDown}
                     onClick={() => {
                       setAssignmentTokens(current => [...current, {
                         resourceId: option.value, unitsPerDay: 1,

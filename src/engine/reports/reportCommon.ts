@@ -4,12 +4,11 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
-import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
-import { calendarForEngine } from '@/utils/effectiveWorkTime';
-import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
+import { createTaskEngineCache, type TaskEngineCache } from '@/engine/scheduler/taskEngineCache';
+import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
-import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
+import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
+import { progressState, taskWorkDays, type ProgressState } from '@/engine/scheduler/summaryProgress';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
 /**
@@ -47,17 +46,14 @@ export interface ReportContext {
   statusDate?: string;
   /** "Vandaag" als ISO-dag — injecteerbaar zodat de tests deterministisch zijn. */
   today: string;
+  /** "Datums zoals opgeslagen" (issue #63) staat aan: verzameltaken tonen dan hun opgeslagen
+   *  voortgang, net als hun opgeslagen datums (zie `isSummaryProgressDerived`). */
+  datesAsRecorded?: boolean;
 }
-
-export type ProgressState = 'notStarted' | 'inProgress' | 'complete';
 
 /** Alleen de dag-component van een ISO-datum(tijd): vergelijkbaar als string. */
 export function dayOf(iso: string): string {
   return iso.slice(0, 10);
-}
-
-export function leafTasks(tasks: readonly Task[]): Task[] {
-  return tasks.filter(t => t.childIds.length === 0);
 }
 
 /** Activiteiten: bladtaken zonder hammocks (een LOE-taak volgt anderen en is zelf geen werk). */
@@ -76,32 +72,28 @@ export function referenceDayOf(statusDate: string | undefined, today: string): {
   return { day: dayOf(today), statusDateMissing: true };
 }
 
-export function taskStart(t: Task): string {
-  return t.time.earlyStart || t.time.scheduleStart;
+/** De getoonde datums (CPM, anders opgeslagen) onder de namen die de rapportmodules gebruiken. */
+export { shownStart as taskStart, shownFinish as taskFinish };
+
+/** Voortgangsstaat van een taak — sinds de verzameltaak-voortgangsrollup gedeeld met
+ *  `applyCpmResult` en daarom in `engine/scheduler/summaryProgress.ts`; hier heruitgevoerd zodat de
+ *  rapportmodules hun vaste importpad houden. */
+export { progressState, type ProgressState };
+
+/** Achterstand t.o.v. de referentiedag, op dagniveau: `finish` als een onvoltooide taak vóór `refDay`
+ *  had moeten eindigen, anders `start` als een niet-gestarte taak vóór `refDay` had moeten beginnen.
+ *  Eén definitie voor look-ahead, voortgang en resourcetoewijzingen. */
+export function scheduleSlip(t: Task, state: ProgressState, refDay: string): 'finish' | 'start' | undefined {
+  if (state === 'complete') return undefined;
+  if (dayOf(shownFinish(t)) < refDay) return 'finish';
+  if (state === 'notStarted' && dayOf(shownStart(t)) < refDay) return 'start';
+  return undefined;
 }
 
-export function taskFinish(t: Task): string {
-  return t.time.earlyFinish || t.time.scheduleFinish;
-}
-
-/**
- * Voortgangsstaat van een taak. Voltooid zodra completion 1, status COMPLETED of een werkelijk
- * einde; gestart zodra completion > 0, status STARTED of een werkelijke start. De volgorde is
- * bewust "meest afgeronde wint": een taak met actualFinish maar completion 0.9 (importruis) telt
- * als voltooid — het gezondheidsrapport meldt zo'n inconsistentie apart.
- */
-export function progressState(t: Task): ProgressState {
-  if (t.time.completion >= 1 || t.status === 'COMPLETED' || !!t.time.actualFinish) return 'complete';
-  if (t.time.completion > 0 || t.status === 'STARTED' || !!t.time.actualStart) return 'inProgress';
-  return 'notStarted';
-}
-
-/** Duur van een taak in werkdagen op haar eigen kalender (uur-taken: minuten ÷ uren per dag). */
+/** Duur van een taak in werkdagen op haar eigen kalender (uur-taken: minuten ÷ uren per dag). Eén
+ *  definitie met het gewicht van de verzameltaak-voortgang (`taskWorkDays`, summaryProgress.ts). */
 export function durationDays(ctx: ReportContext, t: Task): number {
-  const cal = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
-  const minPerDay = effHoursPerDay(cal) * 60;
-  if (minPerDay <= 0) return t.time.scheduleDuration;
-  return round1(taskDurationMinutes(t, cal) / minPerDay);
+  return taskWorkDays(t, ctx.calendar, ctx.calendars);
 }
 
 /**
@@ -126,35 +118,9 @@ export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** Kalender-engine per taak, gecachet per kalender-id (zelfde resolutie als de CPM). */
-export function makeEngineCache(ctx: ReportContext): (t: Task) => CalendarEngine {
-  const cache = new Map<string, CalendarEngine>();
-  return (t: Task) => {
-    const key = t.calendarId ?? '';
-    let eng = cache.get(key);
-    if (!eng) {
-      eng = new CalendarEngine(calendarForEngine(resolveCalendar(t.calendarId, ctx.calendars as WorkCalendar[], ctx.calendar)));
-      cache.set(key, eng);
-    }
-    return eng;
-  };
-}
-
-/** Getekend werkdag-verschil a→b (a≤b ⇒ ≥0), zelfde conventie als `variance.ts`. */
-export function signedWorkDays(eng: CalendarEngine, aIso: string, bIso: string): number {
-  const a = parseDate(aIso);
-  const b = parseDate(bIso);
-  return a <= b ? eng.workDaysBetween(a, b) - 1 : -(eng.workDaysBetween(b, a) - 1);
-}
-
-/** Vensterrand: `days − 1` kalenderdagen ná `fromDay` (inclusief venster van precies `days` dagen). */
-export function windowEnd(fromDay: string, days: number): string {
-  return formatDate(addCalendarDays(parseDate(fromDay), Math.max(0, days - 1)));
-}
-
-/** Vensterstart: `days − 1` kalenderdagen vóór `toDay` (inclusief). */
-export function windowStart(toDay: string, days: number): string {
-  return formatDate(addCalendarDays(parseDate(toDay), -Math.max(0, days - 1)));
+/** Kalender-engines per taak, gecachet per kalender-id (zelfde resolutie als de CPM). */
+export function makeEngineCache(ctx: ReportContext): TaskEngineCache {
+  return createTaskEngineCache(ctx.calendars as WorkCalendar[], ctx.calendar);
 }
 
 /**
@@ -165,8 +131,8 @@ export function projectSpan(tasks: readonly Task[]): ResolvedPeriod | undefined 
   let from: string | undefined;
   let to: string | undefined;
   for (const t of tasks) {
-    const s = dayOf(taskStart(t));
-    const f = dayOf(taskFinish(t));
+    const s = dayOf(shownStart(t));
+    const f = dayOf(shownFinish(t));
     if (!s || !f) continue;
     if (!from || s < from) from = s;
     if (!to || f > to) to = f;
@@ -185,9 +151,7 @@ export function resolvePeriodFor(ctx: ReportContext, period: ReportingPeriod): R
 }
 
 /** Interval-overlap op dagniveau (inclusieve grenzen) — dezelfde test als het "Actief tussen"-filter. */
-export function overlapsWindow(t: Task, fromDay: string, toDay: string): boolean {
-  return dayOf(taskStart(t)) <= toDay && dayOf(taskFinish(t)) >= fromDay;
-}
+export { shownSpanOverlapsDays as overlapsWindow };
 
 /**
  * Namen van de toegewezen resources per taak, in toewijzingsvolgorde en ontdubbeld — één index

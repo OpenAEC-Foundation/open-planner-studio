@@ -106,10 +106,12 @@
       "priority": "Leveling priority",
       "recordedSource": "Recorded-dates source",
       "remainingMinutes": "Remaining (minutes)",
-      "remainingTime": "Remaining (work days)",
+      "remainingTime": "Remaining",
       "resourceIds": "Resource IDs",
       "resume": "Resume date",
       "scheduleFinish": "Scheduled finish",
+      "start": "Start",
+      "finish": "Finish",
       "scheduleStart": "Scheduled start",
       "splitGaps": "Split gaps",
       "status": "Status",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "This calculated column cannot be edited.",
+      "scheduleFinishNotManual": "Scheduled finish only applies to a manually scheduled task. Change the finish through the Finish column or the duration.",
+      "finishFromDuration": "For this task the finish follows from the start and the duration. Change the start or the duration.",
+      "finishBeforeStart": "The finish lies before the start.",
+      "finishIsActual": "This task is complete; its finish is the actual finish. Change it through the progress.",
       "invalid": "The entered value is not valid.",
       "relationToken": "Use a value such as 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Add an external task through Relation → Add external relation…",
@@ -237,7 +243,8 @@
       "unknownTask": "The referenced task does not exist.",
       "unrepresentableSummaryRelation": "A relationship with a summary task cannot be edited here.",
       "self": "A task cannot depend on itself.",
-      "ancestor": "A task cannot have a relationship with its own summary task."
+      "ancestor": "A task cannot have a relationship with its own summary task.",
+      "summaryProgress": "The progress of a summary task is derived from its subtasks and cannot be changed here."
     },
     "controls": {
       "collapse": "Collapse",
@@ -411,7 +418,8 @@
       "actualStart": "Actual start",
       "actualFinish": "Actual finish",
       "actualDate": "Actual date",
-      "remaining": "Remaining (work days)"
+      "remaining": "Remaining",
+      "summaryDerived": "Derived from the subtasks: change progress there. The summary task follows after calculating (F5)."
     },
     "cpmResult": "CPM Result",
     "earlyStart": "Early start:",

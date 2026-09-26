@@ -90,7 +90,7 @@ export function formatDuration(
 
   if (unit === 'days') {
     const days = minPerDay > 0 ? minutes / minPerDay : 0;
-    return `${trimNumber(days)}${suffixes.day}`;
+    return `${trimNumber(days, 4)}${suffixes.day}`;
   }
 
   if (unit === 'hours') {
@@ -108,7 +108,8 @@ export function formatDuration(
   return formatDuration(minutes, effHoursPerDay, 'hours', suffixes);
 }
 
-/** Compacte getal-weergave: tot 4 decimalen, trailing nullen weg (3 → "3", 0.8 → "0.8"). */
-function trimNumber(n: number): string {
-  return String(Number(n.toFixed(4)));
+/** Compacte getal-weergave: tot `maxDecimals` decimalen, trailing nullen weg (3 → "3", 0.8 → "0.8").
+ *  Neutrale punt-notatie — voor invoervelden en tokens, niet voor rapporten (zie `reportNumber.ts`). */
+export function trimNumber(n: number, maxDecimals: number): string {
+  return String(Number(n.toFixed(maxDecimals)));
 }

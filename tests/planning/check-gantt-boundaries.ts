@@ -56,7 +56,7 @@ const cleanRoot = fixture({
     'export function GanttCanvas() { return <div>{misleading}</div>; }',
   ].join('\n'),
   'src/engine/renderer/GanttRenderer.ts': "import { barGeometry } from './barGeometry';\nexport class GanttRenderer {}\n",
-  'src/components/panels/TableEditor.tsx': 'export function TableEditor() { return <table />; }\n',
+  'src/components/task-grid/FullTaskGrid.tsx': 'export function FullTaskGrid() { return <table />; }\n',
   // De brug is de ENE canvaszijdige plek die de rijsleep mag kennen; hier moet de import dus mogen.
   'src/components/canvas/ganttRowDragBridge.ts': [
     "import type { TableRowDragCandidate } from '@/components/panels/hooks/useTableRowDrag';",
@@ -93,9 +93,9 @@ const brokenRoot = fixture({
     '}',
   ].join('\n'),
   'src/engine/renderer/GanttRenderer.ts': "import { useState } from 'react';\nexport class GanttRenderer { state = useState; }\n",
-  'src/components/panels/TableEditor.tsx': [
+  'src/components/task-grid/FullTaskGrid.tsx': [
     "import { useGanttPointerCoordinator } from '../canvas/hooks/useGanttPointerCoordinator';",
-    'export const TableEditor = useGanttPointerCoordinator;',
+    'export const FullTaskGrid = useGanttPointerCoordinator;',
   ].join('\n'),
   'src/components/canvas/RogueRowDrag.tsx': [
     "import { useTableRowDrag } from '@/components/panels/hooks/useTableRowDrag';",
@@ -117,7 +117,7 @@ try {
   ok('3e pointerdispatch in de shell wordt gemeld', output.includes('startBarDrag'), output.trim());
   ok('3f rendererafhankelijkheid op React wordt gemeld', output.includes('GanttRenderer.ts')
     && output.includes('react'), output.trim());
-  ok('3g TableEditor-import van een coordinator wordt gemeld', output.includes('TableEditor.tsx')
+  ok('3g Tabel-weergave-import van een coordinator wordt gemeld', output.includes('FullTaskGrid.tsx')
     && output.includes('useGanttPointerCoordinator'), output.trim());
   ok('3h rijsleep-import in het canvas buiten de brug wordt gemeld', output.includes('RogueRowDrag.tsx')
     && output.includes('ganttRowDragBridge'), output.trim());

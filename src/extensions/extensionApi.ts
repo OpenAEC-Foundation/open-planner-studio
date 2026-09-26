@@ -14,6 +14,7 @@ import type {
 import type { ExtImportResult, ExtFontProvider } from './extTypes';
 import type { AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
+import { isSelfOrDescendant } from '@/state/taskTree';
 import { registerCjkFontProvider } from '@/services/pdf/fontRegistry';
 import {
   subscribeExtensionEvent,
@@ -93,6 +94,28 @@ export function createExtensionApi(
     return { id, name };
   };
 
+  /**
+   * WBS-ouder vanuit `data.addTask`/`data.updateTask` toetsen VÓÓR er iets gemuteerd wordt.
+   * Voorheen ging `parentId` rauw via `fromExtTaskUpdates` + `updateTask` (Object.assign) de store
+   * in: `kind.parentId` wees dan naar de ouder terwijl diens `childIds` van niets wist — na `runCPM`
+   * werd de ouder zo géén samenvattingstaak — en een onbekende ouder werd gewoon aangenomen. De
+   * guards zijn die van de store-route (`moveTaskTo`/`planTaskPlacement`: onbekende ouder, taak
+   * onder zichzelf of een eigen afstammeling), maar de store weigert stil; een extensie krijgt hier
+   * een fout, in dezelfde vorm als de `customTaskType`-weigeringen hierboven. `taskId` ontbreekt
+   * bij `addTask`: een nieuwe taak heeft nog geen afstammelingen, dus een kring kan daar niet.
+   */
+  const assertParentAllowed = (taskId: string | undefined, parentId: string): void => {
+    const tasks = document.store.getState().tasks;
+    if (!tasks.some(task => task.id === parentId)) {
+      throw new Error(`Extensie "${extensionId}": onbekende ouder '${parentId}'`);
+    }
+    if (taskId !== undefined && isSelfOrDescendant(tasks, parentId, taskId)) {
+      throw new Error(
+        `Extensie "${extensionId}": taak '${taskId}' kan niet onder zichzelf of een eigen afstammeling ('${parentId}') worden geplaatst`,
+      );
+    }
+  };
+
   const settingsPrefix = `ops-ext:${extensionId}:`;
 
   const api: ExtensionApi = {
@@ -163,6 +186,10 @@ export function createExtensionApi(
       // Die route stempelt tijdens een open bewerksessie (taakdialoog) de `sessionKey`, en dan zou
       // Annuleren in de dialoog extensiewerk stil terugdraaien (docblok `SessionHistoryEvent.sessionKey`).
       addTask: (task) => {
+        // Een bestaande ouder hangt de store-`addTask` zelf aan beide kanten op; alleen een
+        // onbekende ouder liet hij als bungelende `parentId` staan. `''` ⇒ wortel, net als daar
+        // (`partial.parentId || null`).
+        if (task.parentId) assertParentAllowed(undefined, task.parentId);
         const materialize = customTaskTypeToMaterialize(task.customTaskType);
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
@@ -173,11 +200,32 @@ export function createExtensionApi(
       updateTask: (id, updates) => {
         // Bestaand API-gedrag voor een onbekend taak-id is een stille no-op; materialiseer in dat
         // geval ook geen los catalogusitem waar uiteindelijk geen taaktoewijzing tegenover staat.
-        const known = document.store.getState().tasks.some(task => task.id === id);
-        const materialize = known ? customTaskTypeToMaterialize(updates.customTaskType) : undefined;
+        const current = document.store.getState().tasks.find(task => task.id === id);
+        if (!current) {
+          batch.withTransaction(() => document.store.getState().updateTask(id, fromExtTaskUpdates(updates)));
+          return;
+        }
+        // Een ouderwijziging is een VERPLAATSING, geen veld: ze loopt via dezelfde store-actie als
+        // rij-slepen (`moveTaskTo`), die `parentId`, beide `childIds` en de rauwe takenvolgorde
+        // samen bijwerkt. Daarom nooit mee in de kale veldpatch. Dezelfde ouder (ook een
+        // `getTasks()`-object dat ongewijzigd terugkomt) is geen verplaatsing; `''` ⇒ wortel.
+        const { parentId: requestedParentId, ...fieldUpdates } = updates;
+        const move = requestedParentId !== undefined
+          && (requestedParentId || null) !== (current.parentId || null)
+          ? { parentId: requestedParentId || null }
+          : null;
+        if (move?.parentId) assertParentAllowed(id, move.parentId);
+        const materialize = customTaskTypeToMaterialize(updates.customTaskType);
+        const patch = fromExtTaskUpdates(fieldUpdates);
+        // Catalogus, verplaatsing en veldwijziging vormen voor de gebruiker één wijziging en dus
+        // één undo-stap. Eerst verplaatsen: met WBS-autonummering hernummert `moveTaskTo`, en een
+        // `wbsCode` uit dezelfde aanroep blijft dan net als voorheen staan.
         batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
-          document.store.getState().updateTask(id, fromExtTaskUpdates(updates));
+          // Index voorbij het einde wordt in de store geklemd ⇒ achteraan bij de nieuwe ouder, zoals
+          // het wijzigen van de ouder in het taakvenster (`moveTask` zonder positie).
+          if (move) document.store.getState().moveTaskTo(id, { parentId: move.parentId, childIndex: Number.MAX_SAFE_INTEGER });
+          if (!move || Object.keys(patch).length > 0) document.store.getState().updateTask(id, patch);
         });
       },
       addSequence: (seq) => batch.withTransaction(

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { RotateCcw, FileText, X } from 'lucide-react';
-import { Dialog } from '@/components/common/Dialog';
+import { RotateCcw, FileText } from 'lucide-react';
+import { Dialog, DialogHeader } from '@/components/common/Dialog';
 
 /**
  * Eén te herstellen document, zoals de {@link RecoveryDialog} het toont.
@@ -61,18 +61,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose }: Recov
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
     >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface">
-          <span className="text-body leading-5 font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-            {t('recovery.dialogTitle')}
-          </span>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-surface-hover rounded-[8px]"
-            title={t('close')}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <DialogHeader title={t('recovery.dialogTitle')} onClose={onClose} />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">

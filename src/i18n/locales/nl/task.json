@@ -106,10 +106,12 @@
       "priority": "Nivelleerprioriteit",
       "recordedSource": "Herkomst (opgeslagen datums)",
       "remainingMinutes": "Resterend (minuten)",
-      "remainingTime": "Resterend (werkdagen)",
+      "remainingTime": "Resterend",
       "resourceIds": "Resource-id’s",
       "resume": "Hervattingsdatum",
       "scheduleFinish": "Gepland einde",
+      "start": "Start",
+      "finish": "Einde",
       "scheduleStart": "Geplande start",
       "splitGaps": "Onderbrekingen",
       "status": "Status",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "Deze berekende kolom kan niet worden bewerkt.",
+      "scheduleFinishNotManual": "Gepland einde telt alleen bij een handmatig geplande taak. Wijzig het einde via de kolom Einde of via de duur.",
+      "finishFromDuration": "Bij deze taak volgt het einde uit de start en de duur. Wijzig de start of de duur.",
+      "finishBeforeStart": "Het einde ligt vóór de start.",
+      "finishIsActual": "Deze taak is gereed; het einde is het werkelijke einde. Wijzig dat via de voortgang.",
       "invalid": "De ingevoerde waarde is niet geldig.",
       "relationToken": "Gebruik bijvoorbeeld 1.2 FS+2d.",
       "externalRelationRequiresDialog": "Voeg een externe taak toe via Relatie → Externe relatie toevoegen…",
@@ -237,7 +243,8 @@
       "unknownTask": "De verwezen taak bestaat niet.",
       "unrepresentableSummaryRelation": "Een relatie met een samenvattende taak kan hier niet worden bewerkt.",
       "self": "Een taak kan niet van zichzelf afhangen.",
-      "ancestor": "Een taak kan geen relatie hebben met zijn eigen samenvattende taak."
+      "ancestor": "Een taak kan geen relatie hebben met zijn eigen samenvattende taak.",
+      "summaryProgress": "De voortgang van een samenvattende taak wordt afgeleid uit de onderliggende taken en kan hier niet worden gewijzigd."
     },
     "controls": {
       "collapse": "Inklappen",
@@ -411,7 +418,8 @@
       "actualStart": "Werkelijke start",
       "actualFinish": "Werkelijke einde",
       "actualDate": "Werkelijke datum",
-      "remaining": "Resterend (werkdagen)"
+      "remaining": "Resterend",
+      "summaryDerived": "Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5)."
     },
     "cpmResult": "CPM Resultaat",
     "earlyStart": "Vroegste start:",

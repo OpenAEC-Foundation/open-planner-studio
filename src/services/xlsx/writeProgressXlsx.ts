@@ -50,6 +50,7 @@ import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
 import { escapeXmlText, escapeXmlAttr } from '@/services/xlsx/xmlText';
 import { isoToSerial } from '@/services/xlsx/serialDate';
 import { writeZip } from '@/services/zip/zipWriter';
+import { shownStart, shownFinish } from '@/utils/taskDates';
 
 /** Alle gebruikerszichtbare tekst komt van BUITEN; de schrijver blijft puur (geen i18n in `services/`). */
 export interface ProgressXlsxText {
@@ -201,8 +202,8 @@ function rowValues(task: Task, marked: boolean, summaryNote: string): readonly s
     task.id,
     task.wbsCode,
     task.name,
-    task.time.earlyStart || task.time.scheduleStart,
-    task.time.earlyFinish || task.time.scheduleFinish,
+    shownStart(task),
+    shownFinish(task),
     marked ? summaryNote : String(percentValue(task.time.completion)),
     marked ? summaryNote : (task.time.actualStart ?? ''),
     marked ? summaryNote : (task.time.actualFinish ?? ''),

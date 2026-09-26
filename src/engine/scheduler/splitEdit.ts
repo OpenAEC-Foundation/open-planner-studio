@@ -7,7 +7,7 @@
 // model niet dragen zonder data te vernietigen; `toSplitPieces` geeft dan `null` en de aanroeper
 // behandelt de taak als alleen-lezen. Er wordt NOOIT stil genormaliseerd.
 import type { Task, TaskSplitGap } from '@/types/task';
-import { formatDate, formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
+import { formatDate, formatInstant, parseDate, parseInstant, utcDayStart } from '@/utils/dateUtils';
 import {
   durationMinutesOf, splitTotalSpanDays, splitTotalSpanMinutes, taskDurationUnit,
   type DurationCalendar,
@@ -119,8 +119,8 @@ export function splitAt(pieces: readonly SplitPiece[], workOffsetMinutes: number
 export function workAxisMinutesBetween(from: Date, to: Date, eng: CalendarEngine, hourMode: boolean): number {
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
   if (hourMode) return to.getTime() <= from.getTime() ? 0 : eng.workMinutesBetween(from, to);
-  const a = parseDate(formatDate(from));
-  const b = parseDate(formatDate(to));
+  const a = utcDayStart(from);
+  const b = utcDayStart(to);
   if (b.getTime() <= a.getTime()) return 0;
   const days = Math.max(0, eng.workDaysBetween(a, b) - (eng.isWorkDay(b) ? 1 : 0));
   return days * Math.max(1, eng.hoursPerDay * 60);
@@ -255,7 +255,7 @@ export function splitScheduleFinish(task: Task, eng: CalendarEngine, startStr = 
     return formatInstant(eng.addWorkMinutes(start, minutes), 'hour');
   }
   const totalDays = splitTotalSpanDays(task, eng);
-  const lastDay = eng.addWorkDays(parseDate(formatDate(start)), totalDays);
+  const lastDay = eng.addWorkDays(utcDayStart(start), totalDays);
   if (!hasTime) return formatDate(lastDay);
   const bands = eng.effectiveBandsOn(lastDay);
   const finish = new Date(lastDay.getTime());

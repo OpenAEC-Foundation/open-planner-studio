@@ -98,6 +98,17 @@ for (const id of [idBinnen, idOverspant, idEindigtErin, idBeginErin, idVoor, idN
   eq(`12.${id} synthetisch veld ⇔ handmatige AND-groep`, evaluate(PERIODE, task(id), ctx), evaluate(equivalentAnd, task(id), ctx));
 }
 
+// Uurtaken vergelijken op DAGniveau: "2027-06-20T08:00" is als tekst groter dan de tot-dag
+// "2027-06-20", maar de taak begint wél op die dag en hoort dus mee te tellen (vóór de fix niet).
+const idUurOpTotDag = withSpan('2027-06-20T08:00', '2027-06-20T16:00');
+eq('13 uurtaak die op de laatste dag van de periode begint telt mee',
+  evaluate(PERIODE, task(idUurOpTotDag), ctx), true);
+const idUurOpVanDag = withSpan('2027-06-09T08:00', '2027-06-10T09:00');
+eq('14 uurtaak die op de eerste dag van de periode eindigt telt mee',
+  evaluate(PERIODE, task(idUurOpVanDag), ctx), true);
+const idUurErna = withSpan('2027-06-21T08:00', '2027-06-21T16:00');
+eq('15 uurtaak op de dag na de periode telt niet mee', evaluate(PERIODE, task(idUurErna), ctx), false);
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  active-during-filter: alle checks groen (${checks})`);

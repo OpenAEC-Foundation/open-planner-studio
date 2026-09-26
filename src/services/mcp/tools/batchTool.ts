@@ -25,7 +25,7 @@
 // batch-stap moet dus een SYNCHRONE, transactie-vrije kern aanroepen. Die kern is `batchStep` op de
 // tooldefinitie (zie `BatchStepTool`): dezelfde `() => MutationOutcome`-closure die de handler binnen
 // zijn `runMutateTool` draait, maar dan los benoemd. Leestools hebben géén `batchStep` nodig — hun
-// handler IS synchroon (de `readTool`-wikkel) en wordt direct aangeroepen.
+// handler IS synchroon (`runReadTool`) en wordt direct aangeroepen.
 // Een tool die batchable heet maar geen synchrone kern aanbiedt, wordt vóór enige mutatie geweigerd
 // met een expliciete melding — nooit stil overgeslagen.
 //
@@ -51,10 +51,12 @@
 // (incl. deze) en zou een import-cyclus opleveren — zie de kop van toolIndex.ts.
 import { getTool } from '../toolIndex';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from '../schemaValidate';
-import { runMutateTool, toolError, McpStepError, type MutationOutcome } from './runtime';
+import { mapTransactionError, runMutateTool, toolError, McpStepError, type MutationOutcome } from './runtime';
 import type {
-  ActivityEntry, McpContext, McpToolDef, McpToolResult, McpErrorCode,
+  ActivityEntry, McpContext, McpToolDef, McpToolResult,
 } from '../contracts';
+import { isRecord, isThenable } from '@/utils/guards';
+import { TEMP_ID_PATTERN } from './helpers';
 
 /** Harde bovengrens op het aantal stappen (spec §Compositie). */
 export const MAX_BATCH_STEPS = 100;
@@ -141,14 +143,6 @@ const LEVEL_TOOL = 'planner_level_resources';
 
 // ── Hulpjes ──────────────────────────────────────────────────────────────────────────────────────
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function isThenable(v: unknown): v is Promise<unknown> {
-  return typeof (v as { then?: unknown } | null)?.then === 'function';
-}
-
 /** Compacte JSON voor het activiteitenlog; onserialiseerbare of enorme payloads worden afgekapt. */
 function compactJson(value: unknown): string {
   let s: string;
@@ -159,21 +153,6 @@ function compactJson(value: unknown): string {
   }
   return s.length > MAX_JSON_CHARS ? `${s.slice(0, MAX_JSON_CHARS)}…(afgekapt)` : s;
 }
-
-/** Classificeer een kale foutstring (spiegelt `mapTransactionError` in runtime.ts). */
-function classify(message: string): McpErrorCode {
-  return /circular dependency|kringverwijzing|\bkring\b|cyclus|\bcycle\b/i.test(message) ? 'CYCLE' : 'VALIDATION';
-}
-
-/**
- * GERESERVEERDE TEMP-ID-SYNTAX. Binnen een batch moet elke tempId met `tmp-` of `tmp_` beginnen.
- * Alleen strings die aan dit patroon voldoen ÉN als tempId geregistreerd zijn, worden in de args van
- * latere stappen vervangen. Zonder zo'n gereserveerd naamruimtetje is elke vrije tekst een potentieel
- * doelwit: een `add_tasks` met `tempId:'Fundering'` maakte van een latere `name:'Fundering'` stil het
- * interne taak-id (reviewbevinding I1, met probe bewezen). Een `created`-map met een tempId die niet
- * aan het patroon voldoet, laat de batch LUID falen — nooit stil half toepassen.
- */
-const TEMP_ID_PATTERN = /^tmp[-_]/;
 
 /**
  * Sleutels waaronder NOOIT herschreven wordt: vrije tekst van de gebruiker. De uitsluiting geldt voor
@@ -203,7 +182,7 @@ function resolveTempIds(value: unknown, map: Map<string, string>, deniedBranch =
     return map.get(value) ?? value;
   }
   if (Array.isArray(value)) return value.map((v) => resolveTempIds(v, map, deniedBranch));
-  if (isPlainObject(value)) {
+  if (isRecord(value)) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
       out[k] = resolveTempIds(v, map, deniedBranch || NO_REWRITE_KEYS.has(k));
@@ -220,8 +199,8 @@ function resolveTempIds(value: unknown, map: Map<string, string>, deniedBranch =
  * tekst kunnen raken. Dus: luide `VALIDATION` ⇒ de hele batch rolt terug.
  */
 function collectCreated(data: unknown, map: Map<string, string>, stepNr: number): void {
-  const created = isPlainObject(data) ? data.created : undefined;
-  if (!isPlainObject(created)) return;
+  const created = isRecord(data) ? data.created : undefined;
+  if (!isRecord(created)) return;
   for (const [tempId, realId] of Object.entries(created)) {
     if (typeof realId !== 'string') continue;
     if (!TEMP_ID_PATTERN.test(tempId)) {
@@ -265,7 +244,7 @@ export function recomputeMidBatch(ctx: McpContext): void {
   ctx.app.store.getState().recomputeViewRows();
   ctx.app.store.getState().recomputeResourceLoad();
   const err = ctx.app.store.getState().cpmResult?.error;
-  if (err) throw new McpStepError(classify(err), `tussentijdse herberekening faalde: ${err}`);
+  if (err) throw new McpStepError(mapTransactionError(err), `tussentijdse herberekening faalde: ${err}`);
 }
 
 // ── Stap-dispatch ────────────────────────────────────────────────────────────────────────────────
@@ -273,7 +252,7 @@ export function recomputeMidBatch(ctx: McpContext): void {
 /**
  * Voer één stap SYNCHROON uit en geef zijn uitkomst terug.
  *   - Muterende tools: via de synchrone `batchStep`-kern (transactie-vrij; de batch bezit de transactie).
- *   - Leestools: via de handler, die bij een leestool synchroon is (`readTool`-wikkel). Levert die tóch
+ *   - Leestools: via de handler, die bij een leestool synchroon is (`runReadTool`). Levert die tóch
  *     een thenable, dan is dat een ontwikkelfout — weigeren i.p.v. een halve stap laten lopen (de
  *     belofte wordt afgevangen zodat er geen losse afwijzing ontsnapt).
  * Een NIET-ok resultaat van een leestool is een structurele stapfout (onbekend id, ongeldige args) en
@@ -396,7 +375,7 @@ export function executeSteps(
 
 /** Valideer de args-vorm. Retourneert de stappen, of een foutboodschap (string). */
 function parseSteps(args: unknown): ParsedStep[] | string {
-  const raw = isPlainObject(args) ? args.steps : undefined;
+  const raw = isRecord(args) ? args.steps : undefined;
   if (!Array.isArray(raw)) return 'planner_batch vereist een `steps`-array met minstens één stap';
   if (raw.length === 0) return 'planner_batch vereist een niet-lege `steps`-array';
   if (raw.length > MAX_BATCH_STEPS) {
@@ -405,10 +384,10 @@ function parseSteps(args: unknown): ParsedStep[] | string {
   const steps: ParsedStep[] = [];
   for (let i = 0; i < raw.length; i++) {
     const s: unknown = raw[i];
-    if (!isPlainObject(s) || typeof s.tool !== 'string' || s.tool === '') {
+    if (!isRecord(s) || typeof s.tool !== 'string' || s.tool === '') {
       return `stap ${i + 1}: elke stap vereist een string-veld \`tool\``;
     }
-    if (s.args !== undefined && !isPlainObject(s.args)) {
+    if (s.args !== undefined && !isRecord(s.args)) {
       return `stap ${i + 1}: \`args\` moet een object zijn (of weggelaten worden)`;
     }
     steps.push({ tool: s.tool, args: s.args });

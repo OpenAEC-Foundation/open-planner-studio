@@ -106,10 +106,12 @@
       "priority": "평준화 우선순위",
       "recordedSource": "출처(기록된 날짜)",
       "remainingMinutes": "남음(분)",
-      "remainingTime": "남음(근무일)",
+      "remainingTime": "남음",
       "resourceIds": "리소스 ID",
       "resume": "재개 날짜",
       "scheduleFinish": "예정 완료",
+      "start": "시작",
+      "finish": "종료",
       "scheduleStart": "예정 시작",
       "splitGaps": "중단 구간",
       "status": "상태",
@@ -146,6 +148,10 @@
     },
     "validation": {
       "readOnly": "이 계산 열은 편집할 수 없습니다.",
+      "scheduleFinishNotManual": "예정 완료는 수동으로 예약된 작업에만 적용됩니다. 종료 열이나 기간으로 종료를 변경하세요.",
+      "finishFromDuration": "이 작업의 종료는 시작과 기간에서 결정됩니다. 시작 또는 기간을 변경하세요.",
+      "finishBeforeStart": "종료가 시작보다 앞섭니다.",
+      "finishIsActual": "이 작업은 완료되었습니다. 종료는 실제 종료입니다. 진행률에서 변경하세요.",
       "invalid": "입력한 값이 올바르지 않습니다.",
       "relationToken": "예: 1.2 FS+2d 형식으로 입력하세요.",
       "externalRelationRequiresDialog": "관계 → 외부 관계 추가…에서 외부 작업을 추가하세요.",
@@ -237,7 +243,8 @@
       "unknownTask": "참조된 작업이 존재하지 않습니다.",
       "unrepresentableSummaryRelation": "요약 작업과의 관계는 여기서 편집할 수 없습니다.",
       "self": "작업은 자기 자신에 의존할 수 없습니다.",
-      "ancestor": "작업은 자신의 요약 작업과 관계를 가질 수 없습니다."
+      "ancestor": "작업은 자신의 요약 작업과 관계를 가질 수 없습니다.",
+      "summaryProgress": "요약 작업의 진행률은 하위 작업에서 산출되므로 여기에서 변경할 수 없습니다."
     },
     "controls": {
       "collapse": "접기",
@@ -407,7 +414,8 @@
       "actualStart": "실제 시작",
       "actualFinish": "실제 종료",
       "actualDate": "실제 날짜",
-      "remaining": "남은 기간 (근무일)"
+      "remaining": "남은 기간",
+      "summaryDerived": "하위 작업에서 산출됩니다. 진행률은 하위 작업에서 변경하세요. 계산(F5) 후 요약 작업에 반영됩니다."
     },
     "cpmResult": "CPM 결과",
     "earlyStart": "빠른 시작:",

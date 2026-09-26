@@ -23,10 +23,9 @@ import {
   type XerSourceArchive,
 } from '@/services/xerSourceArchive';
 import {
-  invalidateUndoneHistoryForScopes,
+  invalidateDocumentRedo,
   removeSessionHistoryForDocumentFromState,
   replaceSessionHistoryState,
-  type HistoryScopeKey,
 } from '../sessionHistory';
 import {
   applyRecordedDatesOnLoad,
@@ -120,11 +119,6 @@ function announceWorkRuleSettle(
 ): void {
   const pending = entry?.pendingWorkRuleSettle ?? NO_CALENDAR_LIBRARY_SETTLE;
   notifyCalendarLibrarySettle(notify, documentId, mergeCalendarLibrarySettle(pending, activation.workRuleSettle));
-}
-
-function invalidateActivationRedo(s: AppState, documentId: string): void {
-  const scope: HistoryScopeKey = `document:${documentId}`;
-  s.historyEvents = invalidateUndoneHistoryForScopes(s.historyEvents, new Set([scope]));
 }
 
 /** Lichtgewicht weergave voor consumenten (bv. een toekomstige FileTabBar). */
@@ -487,7 +481,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       }
       s.activeDocumentId = id;
       resetDocumentScopedUI(s);
-      if (activation.invalidateRedoScope) invalidateActivationRedo(s, id);
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, id);
       publishActivation(s, activation);
     });
     announceWorkRuleSettle(get().notify, id, target, activation);
@@ -546,7 +540,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       }
       s.activeDocumentId = neighbor.id;
       resetDocumentScopedUI(s);
-      if (activation.invalidateRedoScope) invalidateActivationRedo(s, neighbor.id);
+      if (activation.invalidateRedoScope) invalidateDocumentRedo(s, neighbor.id);
       publishActivation(s, activation);
     });
     announceWorkRuleSettle(get().notify, neighbor.id, neighbor, activation);
@@ -710,7 +704,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
         })));
       s.activeDocumentId = activeDoc.id;
       resetDocumentScopedUI(s);
-      if (activation2.invalidateRedoScope) invalidateActivationRedo(s, activeDoc.id);
+      if (activation2.invalidateRedoScope) invalidateDocumentRedo(s, activeDoc.id);
       publishActivation(s, activation2);
     });
     announceWorkRuleSettle(get().notify, activeDoc.id, null, activation2);

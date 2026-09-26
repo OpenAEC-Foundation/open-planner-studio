@@ -16,7 +16,7 @@
 //   9. level_resources dryRun ⇒ store byte-identiek + volledig LevelingResult
 //  10. level_resources apply ⇒ delays + ÉÉN undo-stap + before/after
 //  11. stale vóór level_resources ⇒ eerst herrekend (WP8-guardpatroon)
-//  12. clear_leveling ⇒ delays weg, één undo-stap
+//  12. clear_leveling ⇒ delays weg, één undo-stap; ook uitsluitend sub-dag-delay/nivelleergaten
 //  13. update_project statusdatum + anker-semantiek (startDate verschuift NIETS)
 //  14. move_project ⇒ verschuift de bestaande planning in één undo-stap
 //  15. save_baseline: stale ⇒ eerst herrekenen, baseline op verse datums + batchable:false in de def
@@ -471,6 +471,31 @@ test('clear_leveling: wist alle levelingDelays in één undo-stap', async () => 
   assert(data.cleared >= 1, 'het aantal gewiste delays wordt gemeld');
   assertEq(store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length, 0, 'alle delays weg');
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
+});
+
+test('clear_leveling: ziet dezelfde nivelleeruitvoer als de store (sub-dag-delay, nivelleergaten)', async () => {
+  reset();
+  const subDay = addTask('alleen sub-dag-delay', 5);
+  const gapOnly = addTask('alleen nivelleergat', 5);
+  const importSplit = { afterMinutes: 480, gapMinutes: 480 };
+  // Rechtstreeks gezet: dit is wat een `.mpp`-import resp. een eerdere onderbreek-nivellering achterlaat.
+  store.setState((s) => {
+    const a = s.tasks.find((t) => t.id === subDay)!;
+    a.levelingDelayMinutes = 90;
+    const b = s.tasks.find((t) => t.id === gapOnly)!;
+    b.splitGaps = [importSplit, { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' }];
+  });
+  assertEq(store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length, 0,
+    'voorwaarde: geen enkele hele-dag-levelingDelay');
+  const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
+
+  const data = okData(await call('planner_clear_leveling', {}, makeCtx()));
+  assertEq(data.cleared, 2, 'beide taken tellen mee (vóór de fix: 0, en er gebeurde niets)');
+  const after = store.getState().tasks;
+  assertEq(after.find((t) => t.id === subDay)!.levelingDelayMinutes, undefined, 'sub-dag-delay gewist');
+  assertEq(after.find((t) => t.id === gapOnly)!.splitGaps, [importSplit], 'nivelleergat weg, importsplit blijft');
+  assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1,
+    'precies één undo-stap');
 });
 
 // =================================================================================================
