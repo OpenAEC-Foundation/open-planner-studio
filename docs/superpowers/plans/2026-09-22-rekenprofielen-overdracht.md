@@ -535,6 +535,17 @@ in `taskDialogSave.ts`; raster pakt de focus niet meer terug als je elders klikt
 (2) Nieuwe PR #236 (andere sessie, 12:36 UTC, bibliotheek-kalenderverversing volgt de werkregel, R1 uit de #170-audit) is
 CONFLICTING met main ⇒ **groep D** (`opus-midden-groep-d-236`, `claude/integratie-groep-d` vanaf main) op dezelfde manier.
 
+**26-09 15:25 — #237 (herbouw van #232) GEMERGED naar `main` (`da8a9e68`, `--admin` na groene PR-CI + lokale verify EXIT 0
+(346 browsertests), measure 76/0/0/0, mpp 216/0/0 op aa4901c3).** Opus 5.5 bouwde de vier regels van #232 opnieuw op groep C:
+één mechanisme in `src/engine/work/workRuleApply.ts` (`durationEditProgress` = zuivere kern, `durationEditRefusal` vóór elke
+wijziging, `carryRemainingThroughDurationEdit` zonder klem-op-0; aanroepen in `taskSlice.updateTask` vóór de undo-snapshot,
+raster `finishDurationEdit` → celfout `durationBelowDoneWork`, MCP `McpDurationProgressOutcome`, `taskDialogSave` houdt de
+dialoog open); `applyRunningDurationChange` uit #232 niet overgenomen. Extra: voortgangsblad krijgt regel 1 zoals de UI en
+regel 2 als weigering per rij (`actualStartRequired`) i.p.v. dialoog — **orkestratorkeuze §1c, omkeerbaar**. Review-punten:
+`check-work-rule-store` q1/q2/q2b/q6 pinden de oude regels (nu volgens besluit); randgeval kalender + duur in één wijziging
+ongetest; geen schermafbeeldingen. `.claude/rules/taaktypes.md` beschrijft de regel. #232 gesloten met verwijzing. Main-CI loopt.
+Nog open: alleen #236 (groep D, agent loopt; na-merge van da8a9e68 opgedragen).
+
 18. *(beantwoord 26-09: "optie 2" = weigeren, zie §1a)* **#232 (voortgangsregels 26-09) — restduur bij een duurwijziging op een lopende taak: klemmen of weigeren?**
     De taaktypes-etappe (#170, besluiten 05/06-09) laat de rest meeschuiven en klemt op 0
     (`carryRemainingThroughDurationEdit`, `src/engine/work/workRuleApply.ts`). #232 (besluit 26-09, andere sessie)
