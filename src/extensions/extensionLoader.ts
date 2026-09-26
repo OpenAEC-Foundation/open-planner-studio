@@ -48,6 +48,34 @@ const activePlugins = new Map<string, { plugin: ExtensionPlugin; api: ReturnType
 
 // Voorkomt dubbele activatie terwijl onLoad nog loopt (race bij dubbelklik/parallel laden)
 const enablingExtensions = new Set<string>();
+/**
+ * Extensies die verwijderd zijn terwijl hun `onLoad` nog liep (audit 2026-09-26). De verwijderknop
+ * staat tijdens "laden" gewoon aan; zonder deze vlag zette `enableExtension` na de lopende `onLoad`
+ * alsnog `activePlugins`, status `enabled` én schreef hij het record terug naar IndexedDB — de
+ * extensie draaide door zonder kaart om haar uit te zetten en kwam bij de volgende start terug.
+ */
+const cancelledEnables = new Set<string>();
+
+/** Markeer een lopende activatie als geannuleerd (verwijderen tijdens laden). */
+export function cancelPendingEnable(id: string): boolean {
+  if (!enablingExtensions.has(id)) return false;
+  cancelledEnables.add(id);
+  return true;
+}
+
+/** Hoe lang een `onLoad` mag duren. Eén hangende extensie hield anders elke volgende tegen
+ *  (`loadAllExtensions` activeert ze na elkaar) en bleef zelf eeuwig op "laden" staan. */
+export const EXTENSION_ONLOAD_TIMEOUT_MS = 15_000;
+
+function withOnLoadTimeout(work: Promise<void> | void, id: string, timeoutMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`onLoad van "${id}" reageerde niet binnen ${Math.ceil(timeoutMs / 1000)} s`));
+    }, timeoutMs);
+  });
+  return Promise.race([Promise.resolve(work), timeout]).finally(() => clearTimeout(timer));
+}
 
 const openExtensionDb = (): Promise<IDBDatabase> => openDb('ops-extensions', 'extensions');
 
@@ -266,12 +294,14 @@ export function executeExtensionCode(mainCode: string): ExtensionPlugin {
 export async function enableExtension(
   id: string,
   storage: ExtensionStorage = indexedDbExtensionStorage,
+  onLoadTimeoutMs: number = EXTENSION_ONLOAD_TIMEOUT_MS,
 ): Promise<void> {
   const store = useAppStore.getState();
 
   if (activePlugins.has(id)) return;
   if (enablingExtensions.has(id)) return;
   enablingExtensions.add(id);
+  cancelledEnables.delete(id);
 
   let api: ReturnType<typeof createExtensionApi> | undefined;
 
@@ -326,7 +356,16 @@ export async function enableExtension(
       appExtensionHost,
     );
 
-    await plugin.onLoad(api);
+    await withOnLoadTimeout(plugin.onLoad(api), id, onLoadTimeoutMs);
+
+    if (cancelledEnables.has(id)) {
+      // Verwijderd tijdens het laden: alles terugdraaien, niets activeren, niets terugschrijven.
+      try { await plugin.onUnload?.(); } catch (unloadErr) {
+        console.error(`[Extensies] Fout in onUnload van "${id}" na verwijderen tijdens laden:`, unloadErr);
+      }
+      api._cleanup();
+      return;
+    }
 
     activePlugins.set(id, { plugin, api });
     store.setExtensionStatus(id, 'enabled');
@@ -338,6 +377,10 @@ export async function enableExtension(
       reportStorageWriteFailure(id, persistErr);
     }
   } catch (err) {
+    if (cancelledEnables.has(id)) {
+      try { api?._cleanup(); } catch { /* al opgeruimd */ }
+      return;
+    }
     // Draai eventuele al-gedane registraties terug (onLoad kan halverwege gefaald zijn).
     try {
       api?._cleanup();
@@ -349,6 +392,7 @@ export async function enableExtension(
     console.error(`[Extensies] Activeren van "${id}" mislukt:`, err);
   } finally {
     enablingExtensions.delete(id);
+    cancelledEnables.delete(id);
   }
 }
 

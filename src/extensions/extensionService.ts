@@ -11,6 +11,7 @@ import {
   enableExtension,
   disableExtension,
   getActivePlugins,
+  cancelPendingEnable,
   indexedDbExtensionStorage,
   type ExtensionStorage,
 } from './extensionLoader';
@@ -404,6 +405,9 @@ export async function removeExtension(
   if (getActivePlugins().has(id)) {
     await disableExtension(id, storage);
   }
+  // Loopt de activatie nog (status "laden"), dan annuleren: anders activeert en bewaart
+  // `enableExtension` haar na de lopende `onLoad` alsnog (audit 2026-09-26).
+  cancelPendingEnable(id);
 
   await storage.remove(id);
   useAppStore.getState().unregisterExtension(id);
