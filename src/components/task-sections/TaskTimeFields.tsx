@@ -15,18 +15,17 @@ import { Field } from './shared';
 import { TaskDurationField } from './TaskDurationField';
 
 /**
- * Start + gedeelde taakduur — sectie 4 uit `TaskPropertiesPanel`. Dialoog en paneel monteren
+ * Start + gedeelde taakduur — sectie van `TaskPropertiesPanel`. Dialoog en paneel monteren
  * allebei `TaskDurationField`, zodat parser, validatie, omzetvoorstel en toegankelijkheid identiek
- * blijven. Pakket G (bugfix) wijzigde het Start-veld nadien: het toonde vroeger het rauwe
- * `scheduleStart`-anker, terwijl Gantt, tooltip en TaskDialog de getoonde start (`shownStart`,
- * `utils/taskDates.ts`) tonen — nu gelijkgetrokken. De Tabel-kolom **Start** toont en schrijft via
+ * blijven. Het Start-veld toont, net als Gantt, tooltip en TaskDialog, de getoonde start
+ * (`shownStart`, `utils/taskDates.ts`), niet het rauwe `scheduleStart`-anker. De Tabel-kolom **Start** toont en schrijft via
  * dezelfde twee helpers; de kiesbare kolom **Geplande start** toont bewust het rauwe anker.
  * Op een taak met voorganger wordt een getypte start bovendien een beperking "Start niet eerder dan"
  * (`startConstraintAfterEdit`, dezelfde regel als Tabel, Taak bewerken en Gantt-sleep), in dezelfde
  * undo-stap. Houdt een andere constraint de start tegen (`constraintBlockingStart`), dan wordt er
  * niets toegepast: een melding noemt die constraint en het veld valt terug.
  *
- * Het startveld blijft paneel-instant-apply; `TaskDialog` bewaart zijn bestaande Save-commitgrens.
+ * Het startveld is paneel-instant-apply; `TaskDialog` houdt zijn Save-commitgrens.
  * Alleen de duurbediening is gedeeld. Hammock-toggle/-info staat apart in `TaskHammockFields`.
  */
 export function TaskTimeFields({ task, onChange }: {

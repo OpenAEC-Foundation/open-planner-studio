@@ -32,13 +32,12 @@ export function readAccentColor(): string {
   return getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#F59E0B';
 }
 
-// De 3× identieke dpr/resize/render-loop-boilerplate uit GanttCanvas (audit P20/B1): drie
-// canvas-lagen (primaire Gantt, secundair split-pane, histogram) deden elk exact dezelfde
-// dance — dpr-schaling, canvas-pixel/CSS-maat synchroniseren, een teken-callback, plus een
-// rAF-render-op-wijziging én een ResizeObserver. Dit hookt dat samen.
+// De gedeelde dpr/resize/render-loop van de drie canvas-lagen (primaire Gantt, secundair
+// split-pane, histogram): dpr-schaling, canvas-pixel/CSS-maat synchroniseren, een teken-callback,
+// plus een rAF-render-op-wijziging én een ResizeObserver.
 //
 // De consument levert alleen een gememoiseerde `draw(ctx, width, height)` (de CSS-maten, ná
-// dpr-schaling — teken dus in CSS-pixels, net als voorheen). De hook bezit:
+// dpr-schaling — teken dus in CSS-pixels). De hook bezit:
 //   - de dpr-schaling + canvas.width/height/style-synchronisatie;
 //   - de requestAnimationFrame-render zodra `draw` (of een expliciete primitive revision) verandert;
 //   - de ResizeObserver op de container die opnieuw tekent bij een maat-wijziging.

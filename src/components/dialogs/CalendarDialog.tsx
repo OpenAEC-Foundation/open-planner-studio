@@ -17,16 +17,15 @@ const calendarInvalid = (calendar: WorkCalendar): boolean =>
   calendarScalarBreakIssue(calendar) !== undefined || calendarHasHolidayIssue(calendar);
 
 /**
- * Kalender-bibliotheek-dialoog (fase 2.8a, §7.1; buffer-herziening fase 2.8b): links een lijst van
+ * Kalender-bibliotheek-dialoog: links een lijst van
  * alle bibliotheek-kalenders met de projectdefault gemarkeerd, rechts `CalendarForm` voor de
  * geselecteerde kalender.
  *
- * BUFFER-MODEL (fase 2.8b-bugfix): álle bewerkingen — nieuw/dupliceren/verwijderen/projectdefault
+ * BUFFER-MODEL: álle bewerkingen — nieuw/dupliceren/verwijderen/projectdefault
  * én de veld-edits in het formulier — muteren UITSLUITEND een lokale kopie van de bibliotheek. De
  * store wordt pas op "Toepassen" in één keer bijgewerkt (`commitCalendarLibrary`). Zo draaien
  * "Annuleren"/Esc/kruisje/klik-buiten de in de dialoog gemaakte wijzigingen terug door simpelweg
- * te sluiten. Dit vervangt het oude live-commit-gedrag, waarin "Annuleren" niets deed omdat de
- * wijzigingen al in de store zaten. Uitzondering, bewust: Enter in een tekstveld commit de buffer
+ * te sluiten. Uitzondering, bewust: Enter in een tekstveld commit de buffer
  * tussentijds zonder te sluiten (`commitOnInputEnter`); Annuleren gooit daarna alleen weg wat sinds
  * die Enter is gewijzigd. Een commit zonder wijziging is in de store een no-op.
  */
@@ -48,7 +47,7 @@ export function CalendarDialog() {
   // toetsaanslag (zie `commitOnInputEnter` en het layout-effect hieronder).
   const [enterCommitRequested, setEnterCommitRequested] = useState(false);
 
-  // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente §4.3-
+  // Init vóór de eerste paint (useLayoutEffect, geen flash): promoveer (lazy, idempotente
   // normalisatie — geen gebruikerswijziging) de gedenormaliseerde projectkalender naar de zichtbare
   // bibliotheek en vul dáárna de lokale buffer met een diepe kopie van de store-bibliotheek.
   useLayoutEffect(() => {
@@ -74,7 +73,7 @@ export function CalendarDialog() {
   // dag als de startdatum. Zo blijft het domeinmodel en alle bestaande readers/schrijvers eenduidig.
   // Is er per saldo niets veranderd, dan commit de store niets (geen undo-stap, document blijft
   // ongewijzigd) en slaan we ook de herberekening over — anders zou "even kijken en Toepassen" een
-  // document in de modus "datums zoals opgeslagen" (#63) alsnog herberekenen.
+  // document in de modus "datums zoals opgeslagen" alsnog herberekenen.
   const commit = useCallback(() => {
     if (commitCalendarLibrary(localCalendars.map(withCanonicalHolidayEnds), localProjectId)) runCPM();
   }, [commitCalendarLibrary, localCalendars, localProjectId, runCPM]);
@@ -88,7 +87,7 @@ export function CalendarDialog() {
 
   // Alleen gewone enkelregelige invoervelden in déze dialoog gebruiken Enter als "opslaan en
   // open blijven". Knoppen, selects, checkboxen en invoervelden die de toets al zelf afhandelen
-  // houden hun eigen native betekenis; andere dialogs gebruiken nog steeds hun bestaande contract.
+  // houden hun eigen native betekenis; andere dialogs gebruiken hun eigen contract.
   //
   // Deze handler commit NIET zelf. Een datumveld (`DateTextInput`) rondt bij Enter eerst zichzelf af
   // (`onCommit` ⇒ setState in deze buffer) en laat de toets dan doorbubbelen naar hier — binnen
@@ -164,7 +163,7 @@ export function CalendarDialog() {
   };
 
   return (
-    // Esc = Annuleren (LAYOUTS.md §3.3), Enter = Toepassen (primaire actie), met de standaard
+    // Esc = Annuleren, Enter = Toepassen (primaire actie), met de standaard
     // textarea/dropdown/IME-uitzonderingen.
     <Dialog
       onCancel={cancel}

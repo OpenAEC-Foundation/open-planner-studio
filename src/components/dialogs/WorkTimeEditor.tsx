@@ -11,10 +11,10 @@ function toHM(min: number): string {
 }
 
 /**
- * Volledige banden-editor (fase 2.8b, §6.6c) — achter "Per weekdag instellen…". Per ISO-weekdag een
+ * Volledige banden-editor — achter "Per weekdag instellen…". Per ISO-weekdag een
  * lijst `{start,end}`-banden (tijd-pickers), een nachtploeg-toggle ("volgende dag" = band die
  * middernacht kruist, `end += 1440`), meerdere banden per dag (pauze), "kopieer naar alle
- * werkdagen" en de per-weekdag-som + afgeleide `hoursPerDay` als controlegetal (Bevinding 8).
+ * werkdagen" en de per-weekdag-som + afgeleide `hoursPerDay` als controlegetal.
  *
  * Zuiver presentational: muteert alleen via `onChange` (buffer-model van de kalenderdialoog).
  */
@@ -59,7 +59,7 @@ export function WorkTimeEditor({
   const dayMinutes = (wd: WD) => (bands.byWeekday[wd] ?? []).reduce((s, b) => s + (b.end - b.start), 0);
   const derivedHpd = deriveHoursPerDay(bands, 0);
   // Toont de pauze-hint zodra een werkdag meer dan één band heeft (een gat = pauze). Dekt de
-  // afgeleide pauze uit de scalar-seed (QA-fix §2.3) én handmatig toegevoegde pauzes.
+  // afgeleide pauze uit de scalar-seed én handmatig toegevoegde pauzes.
   const hasBreak = ISO_WEEK_DAYS.some((wd) => (bands.byWeekday[wd] ?? []).length > 1);
   const visibleWeekDays = orderedWeekDays(weekStartDay);
 

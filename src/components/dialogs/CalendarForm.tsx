@@ -126,11 +126,11 @@ function minutesFromText(value: string): number | undefined {
 
 /**
  * Presentational kalenderformulier (naam, werkdagen, uren, feestdagen) — kent geen store.
- * Hergebruikt door `CalendarDialog` (projectkalender) én `ResourceCalendarDialog`
- * (fase 2.5, §3.4); de aanroeper beslist wat er met `onChange`-patches gebeurt en wanneer
+ * Hergebruikt door `CalendarDialog` (projectkalender) én `ResourceCalendarDialog`;
+ * de aanroeper beslist wat er met `onChange`-patches gebeurt en wanneer
  * er gecommit wordt (Apply-knop leeft in de aanroeper, niet hier).
  *
- * `projectYearSpan` (fase 2.8a, §4.4/§7.1): optionele projectperiode (in jaren) van de aanroeper.
+ * `projectYearSpan`: optionele projectperiode (in jaren) van de aanroeper.
  * Stuurt de default generatie-spanne én de hergeneratie-hint wanneer de kalender al
  * `generation`-metadata draagt die de projectperiode niet meer dekt.
  */
@@ -152,7 +152,7 @@ export function CalendarForm({
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
 
   const [showGenerator, setShowGenerator] = useState(false);
-  // Werktijden-UI (§6.6): eigen presets (app-niveau localStorage), banden-editor achter een knop,
+  // Werktijden-UI: eigen presets (app-niveau localStorage), banden-editor achter een knop,
   // en een inline naam-invoer voor "Bewaar als preset…".
   const [ownPresets, setOwnPresets] = useState<WorkTimePreset[]>([]);
   // In uur-modus staat de banden-editor standaard OPEN (elke uur-preset toont meteen bewerkbare
@@ -226,7 +226,7 @@ export function CalendarForm({
   useEffect(() => { void loadWorkTimePresets().then(setOwnPresets); }, []);
 
   // Preset toepassen ⇒ workTime + shift + scalar-fallback in één patch (buffer-model). Optionele
-  // `description`-override (B3, zie `applyBuiltinPreset` hieronder) — alleen meegegeven wanneer de
+  // `description`-override (zie `applyBuiltinPreset` hieronder) — alleen meegegeven wanneer de
   // aanroeper al bepaald heeft dat het veilig is om 'm te overschrijven.
   const applyPreset = (patch: ReturnType<typeof shiftPresetPatch>, description?: string) => {
     onChange({
@@ -245,9 +245,9 @@ export function CalendarForm({
   };
 
   // Eén van de vijf INGEBOUWDE presets (CALENDAR_PRESETS) — in tegenstelling tot een eigen preset
-  // (`patchFromPreset`, hieronder ongewijzigd) kennen we hier de preset-`key` en dus een accurate
-  // omschrijving (B3, gebruikstest-bevinding 2026-08-15). `description` wordt ALLEEN meegepatcht
-  // als de HUIDIGE tekst nog aantoonbaar machine-gegenereerd is — golden-rule-conventie: een
+  // (`patchFromPreset`) kennen we hier de preset-`key` en dus een accurate
+  // omschrijving. `description` wordt ALLEEN meegepatcht
+  // als de HUIDIGE tekst nog aantoonbaar machine-gegenereerd is: een
   // handmatig ingevulde omschrijving ("Vaste onderaannemerskalender, zie contract §4") mag nooit
   // stilzwijgend verdwijnen achter een preset-klik.
   const applyBuiltinPreset = (key: ShiftPresetKey) => {
@@ -271,7 +271,7 @@ export function CalendarForm({
   const deleteOwnPreset = (id: string) => persistOwnPresets(ownPresets.filter(p => p.id !== id));
 
   // Banden-editor openen ⇒ ontbreekt workTime, seed dan uit de scalar zodat een dag-kalender via de
-  // editor een uur-kalender kan worden. KRITISCH (QA-fix, §2.3): de band-som moet EXACT `hoursPerDay ×
+  // editor een uur-kalender kan worden. KRITISCH: de band-som moet EXACT `hoursPerDay ×
   // 60` zijn — de default 07:00-16:00/8u is 9 klokuren, 8 netto; `seedScalarWorkTime` materialiseert dat
   // verschil als pauze-gat rond het middaguur, zodat `deriveHoursPerDay` de oorspronkelijke 8 teruggeeft
   // en ongewijzigd openen+toepassen `hoursPerDay` niet corrumpeert.
@@ -506,10 +506,8 @@ export function CalendarForm({
     patchSimpleBreak(patch);
   };
 
-  // Presets (fase 2.8a, §13/out-of-scope — "24/7"-kalender was al gedefinieerd in het ontwerp als
-  // workDays [1..7]-preset, maar had geen knop; alleen handmatig 7 dagen aanvinken). Echte
-  // dag/nacht-PLOEGEN (twee elkaar afwisselende kalenders) blijven fase 2.8b — dit is uitsluitend
-  // de ene-doorlopende-kalender-preset. "Ma-vr" ernaast herstelt symmetrisch de standaard.
+  // Presets: "24/7" = workDays [1..7]. Dit is uitsluitend de ene-doorlopende-kalender-preset, geen
+  // dag/nacht-PLOEGEN. "Ma-vr" ernaast herstelt symmetrisch de standaard.
   const applyContinuousPreset = () => {
     onChange({
       workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24,
@@ -561,7 +559,7 @@ export function CalendarForm({
           <label className="text-text-secondary font-medium">
             {tMenu('ribbon.calendarDialog.workDays')}
           </label>
-          {/* Presets (fase 2.8a §13): "Continu (24/7)" zet workDays [1..7] + 0-24u ineens;
+          {/* Presets: "Continu (24/7)" zet workDays [1..7] + 0-24u ineens;
               "Ma-vr" herstelt symmetrisch de standaard ma-vr/07-16. */}
           <div className="flex gap-1.5">
             <button
@@ -715,7 +713,7 @@ export function CalendarForm({
         </>
       )}
 
-      {/* Werktijden / ploegen (§6.6) — alleen met Urenplanning aan; anders exact de 2.8a scalar-UI. */}
+      {/* Werktijden / ploegen — alleen met Urenplanning aan; anders de scalar-UI. */}
       {enableHourPlanning && (
         <div className="flex flex-col gap-2" data-ops-worktime-section>
           <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.section')}</label>
@@ -785,7 +783,7 @@ export function CalendarForm({
         </div>
       )}
 
-      {/* Feestdagen genereren (fase 2.8a, §7.1) — regelgebaseerd, óók voor bestaande kalenders. */}
+      {/* Feestdagen genereren — regelgebaseerd, óók voor bestaande kalenders. */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <button
@@ -817,7 +815,7 @@ export function CalendarForm({
               onChange={patch => setGenParams(p => ({ ...p, ...patch }))}
               fromYear={defaultSpan.from}
               toYear={defaultSpan.to}
-              // "Geen feestdagen" hoort er hier óók bij (fase 2.8a QA, fix 6) — pariteit met de
+              // "Geen feestdagen" hoort er hier óók bij — pariteit met de
               // wizard: leegt de gegenereerde holidays + generation-metadata via
               // materializeHolidays(country:'none'). "Aangepast…" (extraCountryOptions, alleen de
               // wizard) is hier bewust NIET toegevoegd: je bewerkt al een bestaande kalender in de

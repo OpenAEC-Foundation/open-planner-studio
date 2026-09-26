@@ -18,7 +18,7 @@ function fmt(iso: string): string {
 }
 
 /**
- * Nivelleer-dialoog (fase 2.5, §5.8). Opties → Berekenen (roept `levelResources` aan, GEEN
+ * Nivelleer-dialoog. Opties → Berekenen (roept `levelResources` aan, GEEN
  * mutatie) → preview-diff (taak, oude start, nieuwe start, dagen verschoven) + einddatum-regel +
  * resterende-conflicten-sectie → Toepassen (`applyLeveling`) / Annuleren.
  */
@@ -62,7 +62,7 @@ export function LevelingDialog() {
     close();
   };
 
-  // Preview-rijen uit `result.shifts` (A1): ELKE taak wiens start wijzigt — ook niet-geresourcete
+  // Preview-rijen uit `result.shifts`: ELKE taak wiens start wijzigt — ook niet-geresourcete
   // FS-opvolgers die alleen via de forward pass meeschuiven (die zaten niet in `delays`).
   const rows = useMemo(() => {
     if (!result) return [];
@@ -80,7 +80,7 @@ export function LevelingDialog() {
     [i18n.language],
   );
 
-  // Intrinsieke overvraag (bevinding 5): een taak waarvan één toewijzing op zijn curve-piek méér
+  // Intrinsieke overvraag: een taak waarvan één toewijzing op zijn curve-piek méér
   // eenheden/dag vraagt dan de resource-capaciteit kan nooit door schuiven opgelost worden — de
   // dag zelf is al overbelast. Detecteer per onopgeloste taak de zwaarst overvragende toewijzing.
   const intrinsicByTask = useMemo(() => {
@@ -210,7 +210,7 @@ export function LevelingDialog() {
                     const task = tasks.find(t => t.id === taskId);
                     const reason = result?.unresolvedReasons[taskId];
                     const intrinsic = intrinsicByTask[taskId];
-                    // Reden-specifieke uitleg (A3, uitgebreid B1c-plan3 taak 7), gededupliceerd met
+                    // Reden-specifieke uitleg, gededupliceerd met
                     // de leveler-classificatie via `LEVELING_REASON_KEY`: de leveler kiest de reden,
                     // de dialoog vult alleen de weergavedetails in. `INTRINSIC_OVERRUN` draagt
                     // interpolatie (resource/peak/capacity) en krijgt daarom zijn eigen tak; de

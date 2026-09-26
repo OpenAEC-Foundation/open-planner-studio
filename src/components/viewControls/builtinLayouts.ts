@@ -3,7 +3,7 @@ import { BUILTIN_LAYOUT_PREFIX } from '@/engine/view/layoutPresets';
 import type { Layout } from '@/types/view';
 
 /**
- * Meegeleverde layouts (issue #144). Ze staan in code en NIET in de opslag: de naam komt uit een
+ * Meegeleverde layouts. Ze staan in code en NIET in de opslag: de naam komt uit een
  * vertaalsleutel en schakelt dus mee met de taal, en ze zijn niet te bewerken of te verwijderen.
  *
  * Een layoutknop is een schakelaar: uitzetten brengt het beeld van vóór de klik terug. Er is daarom

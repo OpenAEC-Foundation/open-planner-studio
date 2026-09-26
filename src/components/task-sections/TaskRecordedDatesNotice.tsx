@@ -3,11 +3,11 @@ import { useAppStore } from '@/state/appStore';
 import { recordedNoticeState } from '@/state/recordedDatesSelectors';
 import { recordedDatesTaskActiveKey } from '@/components/layout/recordedDatesNoticeText';
 
-/** Manifest-entry bestaat al (XER-etappeplan laag 3, T7) — `public/docs/{nl,en}/datums-zoals-opgeslagen.md`. */
+/** Gidsartikel: `public/docs/{nl,en}/datums-zoals-opgeslagen.md`. */
 const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
 
 /**
- * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — herkomstmarkering op het
+ * "Datums zoals opgeslagen" — herkomstmarkering op het
  * eigenschappenpaneel. 1-op-1 gemodelleerd naar `TaskTimephasedNotice.tsx`: puur afgeleid van
  * bestaande documentstate (`recordedDates`/`datesAsRecorded`) via `recordedTaskMark`
  * (`src/state/recordedDatesSelectors.ts`) — geen eigen `Task`-veld, geen `DOCUMENT_FIELDS`-impact.
@@ -24,8 +24,8 @@ const RECORDED_DATES_HELP_ARTICLE_ID = 'datums-zoals-opgeslagen';
  *    laat-start/-einde/totale/vrije speling ontbreekt in het bestand. Geldt in en buiten de modus;
  *    de late-/floatkolommen in de taaktabel tonen dit al per as ("niet vastgelegd" —
  *    `taskColumnRegistry.ts`'s `recordedAxisFormat`), deze badge signaleert het ook hier.
- * Geen vastlegging voor deze taak (`recordedDates?.times[task.id]` ontbreekt) ⇒ niets renderen,
- * byte-identiek stil — zoals `TaskTimephasedNotice` voor een taak zonder MSP-herkomst.
+ * Geen vastlegging voor deze taak (`recordedDates?.times[task.id]` ontbreekt) ⇒ niets renderen
+ * — zoals `TaskTimephasedNotice` voor een taak zonder MSP-herkomst.
  *
  * Stijlprecedent: dezelfde `badge`-klasse en dezelfde drie kleuren als de bibliotheek-
  * afwijkingsbadges (`ResourcePanel.tsx`) en `TaskTimephasedNotice.tsx`. Geen nieuwe CSS.
@@ -47,12 +47,12 @@ export function TaskRecordedDatesNotice({ taskId }: { taskId: string }) {
 
   // De keuze zelf staat in `recordedNoticeState` (pure selector, headless getest): in de modus
   // wint "deels niet vastgelegd" van "actief", zodat deze badge en de kolom `recorded.source`
-  // over dezelfde taak niet uit elkaar kunnen lopen (critreview laag 3, bevinding 1).
+  // over dezelfde taak niet uit elkaar kunnen lopen.
   const state = recordedNoticeState(recordedDates, datesAsRecorded, task);
   if (!state) return null;
 
-  // Bronafhankelijke woordkeuze (her-check laag 3, bevinding 5): "Primavera" alleen wanneer de
-  // vastlegging echt van P6 komt (`origin` 'xer'/'xer-archive'); de #63-route van elk ander formaat
+  // Bronafhankelijke woordkeuze: "Primavera" alleen wanneer de
+  // vastlegging echt van P6 komt (`origin` 'xer'/'xer-archive'); de algemene route van elk ander formaat
   // krijgt de neutrale tekst. Zelfde beslisregel als de strook (`recordedDatesActiveKey`).
   const label = state === 'active'
     ? t(recordedDatesTaskActiveKey(recordedDates?.origin))

@@ -5,16 +5,13 @@ import { createPortal } from 'react-dom';
  * De zwevende hover-tooltip (`.gantt-tooltip`), gerenderd via een portal naar `document.body`
  * met `position: fixed` — naar hetzelfde patroon als `Popover`/`Tooltip` elders in de app.
  *
- * Voorheen (issue #58) was dit een `position: absolute`-element binnen de dichtstbijzijnde
- * gepositioneerde voorouder, met een clip-berekening tegen die voorouders `overflow: hidden`
- * (de Gantt-pane). Issue #65 hergebruikt deze tooltip vanuit het eigenschappenpaneel — dat zelf
- * scrolt (`overflow-y-auto`) — waar diezelfde clip-aanname niet opgaat. De portal ontsnapt aan
- * ELKE omringende overflow-clip, dus de klem-logica hieronder hoeft alleen nog tegen het venster
+ * De tooltip wordt ook vanuit het (scrollende) eigenschappenpaneel gebruikt; de portal ontsnapt
+ * aan ELKE omringende overflow-clip, dus de klem-logica hieronder hoeft alleen tegen het venster
  * te klemmen, niet tegen een positionerende ouder.
  *
  * `left`/`top` zijn VIEWPORT-coördinaten (dezelfde schaal als `MouseEvent.clientX/clientY`) —
  * de aanroeper geeft dus rechtstreeks `event.clientX ± offset` door, geen container-relatieve
- * berekening meer nodig.
+ * berekening.
  */
 
 /** Marge tot de rand waarbinnen de tooltip moet blijven. */

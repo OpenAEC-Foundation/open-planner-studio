@@ -117,7 +117,7 @@ export function useGanttPointerCoordinator(
     notify,
     dateNotation,
   });
-  // Issue #146: het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
+  // Het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
   // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-
   // effectlaag is die van het gebaar dat werkelijk aan kan staan.
   const splitGesture = useSplitGesture({
@@ -145,7 +145,7 @@ export function useGanttPointerCoordinator(
   }, [effectiveCalendarByTaskId, calendar]);
 
   /**
-   * Issue #146 etappe 3: de hit van `getTaskBarBounds` zoals de BALKSLEEP hem moet lezen. Een
+   * De hit van `getTaskBarBounds` zoals de BALKSLEEP hem moet lezen. Een
    * gesplitste balk waarvan de stukken niet bewerkbaar zijn (alleen-lezen importsplit, niet
    * splitsbaar, of een onzichtbare pauze — zie `editableSplitPieces`) sleept als ÉÉN balk: de
    * rechterrand van een tussenstuk is dan gewoon body, alleen het laatste stuk houdt de duurgreep.
@@ -228,7 +228,7 @@ export function useGanttPointerCoordinator(
     const task = renderer.getRelationSourceAt(x, y);
     if (!task) return;
     if (task && !selectedTaskIds.includes(task.id)) selectTask(task.id, false);
-    // Issue #146 etappe 3: welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
+    // Welke pauze "Onderbreking opheffen" bedoelt — de pauze onder de cursor,
     // anders die vóór het aangeklikte stuk. Alleen op een bewerkbare split met evenveel getekende
     // stukken als werkstukken; anders wijst de index naar de verkeerde pauze.
     let splitGapIndex: number | null = null;
@@ -265,7 +265,7 @@ export function useGanttPointerCoordinator(
   /*
    * De karakteriseringsmatrix bewaakt deze ene volgorde:
    * 1 actief gebaar weigert een tweede; 2 middelklik pant overal; 3 header stopt; 4 relatie wint
-   * van balkdrag; 4b splits-modus kaapt de balk (issue #146) en valt nooit door naar de balkdrag;
+   * van balkdrag; 4b splits-modus kaapt de balk en valt nooit door naar de balkdrag;
    * 5 Ctrl/Cmd-balk blijft selectie; 6 balkbody/rand sleept; 7 drag-achtergrond pant;
    * 8 iedere overige achtergrondroute start kaderselectie.
    */
@@ -310,7 +310,7 @@ export function useGanttPointerCoordinator(
 
     const hit = renderer.getTaskBarBounds(x, y);
 
-    // 4b. Splits-modus kaapt de balk vóór elk sleepgebaar (issue #146). Is de taak niet splitsbaar
+    // 4b. Splits-modus kaapt de balk vóór elk sleepgebaar. Is de taak niet splitsbaar
     // (mijlpaal, verzameltaak, te kort, …) of valt de klik in een bestaande pauze, dan gebeurt er
     // niets: de verbodscursor heeft dat al gezegd. Nooit doorvallen naar de balksleep — in deze
     // modus mag een klik op een balk geen datum verzetten.
@@ -323,16 +323,16 @@ export function useGanttPointerCoordinator(
       }
       return;
     }
-    // Een pauze is sinds etappe 3 geen grijpvlak meer (`getTaskBarBounds` geeft er `null`), maar
-    // hoort in de splits-modus nog steeds bij de balk: een klik erin doet niets, net als vóórheen,
+    // Een pauze is geen grijpvlak (`getTaskBarBounds` geeft er `null`), maar
+    // hoort in de splits-modus nog steeds bij de balk: een klik erin doet niets,
     // in plaats van een kaderselectie te starten.
     if (splitMode && renderer.getSplitGapAt(x, y)) {
       event.preventDefault();
       return;
     }
     // Ook buiten de modus is een pauze van de balk en niet van de achtergrond: een klik erin
-    // selecteert de taak en start géén pan of kaderselectie (eigenaarsbevinding kijkmoment 2:
-    // "in de pauze zit de grijphand maar hij doet niets" — dat was de pan-cursor van stap 7).
+    // selecteert de taak en start géén pan of kaderselectie (anders toont de pauze de pan-cursor
+    // van stap 7 zonder dat er iets gebeurt).
     const gapHit = hit ? null : renderer.getSplitGapAt(x, y);
     if (gapHit) {
       event.preventDefault();
@@ -347,7 +347,7 @@ export function useGanttPointerCoordinator(
         return;
       }
       // 6. Gewone balkbody/rand start precies één tijdlijngebaar. Op een gesplitste balk zegt het
-      // stuk welke (issue #146 etappe 3, zie `useBarDrag`).
+      // stuk welke (zie `useBarDrag`).
       event.preventDefault();
       const grip = dragHit(hit);
       barDrag.startBarDrag({

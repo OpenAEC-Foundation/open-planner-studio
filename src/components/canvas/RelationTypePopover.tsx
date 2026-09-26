@@ -18,7 +18,7 @@ export interface RelationTypePopoverProps {
 }
 
 /**
- * Fase 2.10 (item 3): kleine zwevende popover die verschijnt direct na het slepen van een
+ * Kleine zwevende popover die verschijnt direct na het slepen van een
  * afhankelijkheid, zodat het relatietype (FS/SS/FF/SF) en de lag meteen te corrigeren zijn zonder
  * eerst het eigenschappenpaneel te openen. De relatie is hier nog een lokaal concept: Enter of
  * klik-buiten bewaart de default of correctie als één mutatie, Escape gooit het concept volledig weg.
@@ -64,8 +64,8 @@ export function RelationTypePopover({
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      // Enter = klaar (eigenaar 2026-09-24: "je moet ook gewoon op enter kunnen drukken" in plaats
-      // van ernaast te moeten klikken). Op documentniveau, net als Escape: na het slepen staat de
+      // Enter = klaar (in plaats van ernaast te moeten klikken). Op documentniveau, net als
+      // Escape: na het slepen staat de
       // focus niet altijd in de popover. Bewust zonder stopPropagation: het lagveld zet bij Enter zijn
       // waarde nog in het concept, en `commit` leest dat pas na de render (zie hierboven).
       if (event.key === 'Enter' && !event.isComposing) {
@@ -96,14 +96,14 @@ export function RelationTypePopover({
         {t('properties.relationPopoverTitle')}
       </span>
       <div className="flex items-center gap-2">
-        {/* QA-fix (fase 2.10, onderdeel 2, bevinding 2): GEEN `flex-1` op een native `<select>` in
+        {/* GEEN `flex-1` op een native `<select>` in
             een flex-rij — dat zet flex-basis op 0%, dus het vakje krimpt tot ~11.75px (tekst
             onzichtbaar). Zelfde patroon als `TaskDependenciesSection` (properties.dependencies-
             rij): het select-vakje krijgt zijn natuurlijke content-breedte, de lag-input ernaast
             blijft de vaste breedte. Die breedte moet `!w-16` zijn en niet `w-16`: `.input` staat
             in `globals.css` buiten elke cascade-layer met `width: 100%`, en unlayered CSS wint van
-            de Tailwind-utilities in `@layer utilities` — zonder `!` deed de breedte niets en
-            vochten beide vakjes om dezelfde 100%. */}
+            de Tailwind-utilities in `@layer utilities` — zonder `!` doet de breedte niets en
+            vechten beide vakjes om dezelfde 100%. */}
         <select
           autoFocus
           value={sequence.type}

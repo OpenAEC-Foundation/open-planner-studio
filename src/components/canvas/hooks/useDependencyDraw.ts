@@ -22,7 +22,7 @@ interface UseDependencyDrawOptions {
 }
 
 // Dependency-draw (drag van balk A naar balk B → FS-relatie + correctie-popover). Gearmd door
-// shift ingedrukt te houden ÓF door de relatiemodus (`ui.showDependencyMode`, issue #40 — de
+// shift ingedrukt te houden ÓF door de relatiemodus (`ui.showDependencyMode` — de
 // lint-knop als "plakkende Shift"); die keuze zit in het centrale mousedown-hittest van de
 // pointercoordinator, die `startDepDraw(...)` aanroept. Deze hook bezit `depDragState`, de
 // window-listeners voor de sleep, én het tekenen van de tijdelijke pijl op het overlay-canvas.

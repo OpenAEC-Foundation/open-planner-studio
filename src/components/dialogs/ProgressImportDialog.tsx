@@ -8,8 +8,8 @@ import { localTodayIso, parseDate } from '@/utils/dateUtils';
 import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
-// A9: `parseProgressCsv` is de ENIGE module die van CSV weet; `sheetValues` is bestandsformaat-
-// agnostisch. Beide rechtstreeks uit hun eigen bestand — NIET via de barrel (die is van baan A/T1-T3).
+// `parseProgressCsv` is de ENIGE module die van CSV weet; `sheetValues` is bestandsformaat-
+// agnostisch. Beide rechtstreeks uit hun eigen bestand — NIET via de barrel (`index.ts`).
 import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type {
@@ -26,20 +26,19 @@ import type {
 
 type Stage = 'pick' | 'dateOrder' | 'preview' | 'result';
 
-/** T5-signaturen (plan): `previewProgressImport` muteert niets, `applyProgressImport` herberekent
- *  hetzelfde plan tegen de live taken en past het in één undo-stap toe (A4/A8). Expliciet getypeerd
- *  zodat het ONTBREKEN van deze store-acties (baan A, T5 nog te leveren) hier één keer een fout geeft
- *  in plaats van via `any` door te lekken naar elk gebruik van `plan` verderop. */
+/** Signatuur van de store-acties (`taskSlice`): `previewProgressImport` muteert niets,
+ *  `applyProgressImport` herberekent hetzelfde plan tegen de live taken en past het in één
+ *  undo-stap toe. */
 type ProgressImportPlanFn = (
   rows: readonly ProgressRow[],
   overrides?: ProgressOverrides,
   opts?: { today?: string },
 ) => ProgressImportPlan;
 
-/** Fixronde bevinding 1: een blad van een ANDER project maakt alle rijen unmatched — tot
+/** Een blad van een ANDER project maakt alle rijen unmatched — tot
  *  `PROGRESS_IMPORT_LIMITS.maxRows` (50.000). Zonder grens rendert elke sectie evenveel DOM-knopen
  *  (en "wacht op koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s), wat de dialoog
- *  bevriest. Cap per sectie, met een tellerregel voor de rest — nieuwe sleutel `moreRows`. */
+ *  bevriest. Cap per sectie, met een tellerregel voor de rest (sleutel `moreRows`). */
 const MAX_RENDERED_ROWS = 200;
 
 function capRows<T>(rows: readonly T[]): { shown: readonly T[]; hiddenCount: number } {
@@ -47,9 +46,9 @@ function capRows<T>(rows: readonly T[]): { shown: readonly T[]; hiddenCount: num
   return { shown: rows.slice(0, MAX_RENDERED_ROWS), hiddenCount: rows.length - MAX_RENDERED_ROWS };
 }
 
-/** Datumveld → weergavewaarde (A5.5): ALTIJD voluit via `formatDisplayDate`, nooit de rauwe ISO-string
+/** Datumveld → weergavewaarde: ALTIJD voluit via `formatDisplayDate`, nooit de rauwe ISO-string
  *  als enige weergave. Draagt de waarde een tijddeel, dan komt dat erachter. Ook gebruikt voor de
- *  datumvolgorde-vraag (fixronde bevinding 2): `DateOrderDetection.sampleAlternatives` draagt twee
+ *  datumvolgorde-vraag: `DateOrderDetection.sampleAlternatives` draagt twee
  *  ISO-datums, geen kant-en-klare weergavetekst — die formatteren we hier locale-bewust. */
 function formatIsoForDisplay(iso: string, locale: string): string {
   const datePart = iso.slice(0, 10);
@@ -58,7 +57,7 @@ function formatIsoForDisplay(iso: string, locale: string): string {
   return timePart ? `${dateLabel} ${timePart}` : dateLabel;
 }
 
-/** Fixronde bevinding 6: hele procenten blijven "33%", maar een significant verschil (33,4% vs 33%)
+/** Hele procenten blijven "33%", maar een significant verschil (33,4% vs 33%)
  *  mag niet tot dezelfde tekst afronden — één decimaal, met het decimaalteken van de locale
  *  (`Intl.NumberFormat` laat een overbodige ",0"/".0" vanzelf weg via het `0`-minimum). */
 function formatPercent(value: number, locale: string): string {
@@ -83,15 +82,15 @@ function findSheetRow(rows: readonly ProgressRow[] | null, rowNumber: number): P
 }
 
 /**
- * Issue #27 etappe 2: de voortgangsimportdialoog. Naar het model van `PoolImportDialog` — kies
- * bestand → (indien nodig) datumvolgorde-vraag (E5) → verplichte preview met handmatige koppelkiezer
- * (E3/A11) → expliciete bevestiging → resultaatweergave. Vier toestanden, strikt na elkaar; geen
+ * De voortgangsimportdialoog. Naar het model van `PoolImportDialog` — kies
+ * bestand → (indien nodig) datumvolgorde-vraag → verplichte preview met handmatige koppelkiezer
+ * → expliciete bevestiging → resultaatweergave. Vier toestanden, strikt na elkaar; geen
  * sneltoets eromheen, de preview is niet overslaanbaar.
  *
- * A7: de dialoog draagt zijn eigen resultaat — geen nieuwe `NotificationMessageKey`, geen `notify()`.
- * A8: bewaart het sheet, de gekozen datumvolgorde en de overrides, NIET het plan — `applyProgressImport`
+ * De dialoog draagt zijn eigen resultaat — geen `NotificationMessageKey`, geen `notify()`.
+ * Bewaart het sheet, de gekozen datumvolgorde en de overrides, NIET het plan — `applyProgressImport`
  * herberekent tegen de live taken binnen dezelfde `set()` (drift-bestendig).
- * A12/E4: `showProgressImportDialog` blokkeert een documentwissel volledig (zie shortcutRegistry.ts,
+ * `showProgressImportDialog` blokkeert een documentwissel volledig (zie shortcutRegistry.ts,
  * useKeyboardShortcuts.ts, runtime.ts, documentSlice.ts) — dit scherm hoeft dus geen state over een
  * documentwissel heen te bewaren; die wissel kan simpelweg niet gebeuren zolang hij openstaat.
  */
@@ -100,7 +99,7 @@ export function ProgressImportDialog() {
   const open = useAppStore(s => s.ui.showProgressImportDialog);
   const setUI = useAppStore(s => s.setUI);
   const tasks = useAppStore(s => s.tasks);
-  // T5 (baan A): nog te leveren store-acties — zie `ProgressImportPlanFn` hierboven.
+  // Store-acties — zie `ProgressImportPlanFn` hierboven.
   const previewProgressImport = useAppStore(s => s.previewProgressImport) as ProgressImportPlanFn;
   const applyProgressImport = useAppStore(s => s.applyProgressImport) as ProgressImportPlanFn;
 
@@ -112,26 +111,21 @@ export function ProgressImportDialog() {
   const [overrides, setOverrides] = useState<Map<number, string>>(new Map());
   const [result, setResult] = useState<ProgressImportPlan | null>(null);
   // Puur UI-comfort (niet in de kern, niet in de store): welke "Koppeling betwijfeld"-rijen de
-  // kiezer opengeklapt tonen na een klik op "Wijzigen" (T7). Los van `overrides` — "Wijzigen" mag de
+  // kiezer opengeklapt tonen na een klik op "Wijzigen". Los van `overrides` — "Wijzigen" mag de
   // bestaande koppeling nog niet wissen, alleen de kiezer tonen zodat een andere taak gekozen kan worden.
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
 
-  // Fixronde bevinding 1: NIET meer in de render-body — dat riep `previewProgressImport` (tot 50.000
-  // rijen) bij ELKE render van deze component opnieuw aan, ook voor wijzigingen die het plan niet
-  // raken (bv. de tekst in een koppelkiezer typen elders — dat is child-state van
-  // `ProgressImportLinkPicker`, dus dit kost geen extra herberekening).
+  // Gememoïseerd, NIET in de render-body: `previewProgressImport` (tot 50.000 rijen) hoort niet bij
+  // elke render opnieuw te lopen (typen in een koppelkiezer is child-state van
+  // `ProgressImportLinkPicker` en kost zo geen herberekening).
   //
-  // Fixronde N-A (regressie): `tasks` staat WEL in de deps. Eerdere aanname dat A12 dit overbodig
-  // maakte klopte niet — A12 blokkeert alleen documentWISSELS; `edit.undo`/`edit.redo` hebben geen
-  // `when`-guard en muteren `s.tasks` gewoon terwijl deze dialoog open staat. Zonder `tasks` in de
-  // deps bleef het gememoïseerde plan na een Ctrl+Z/Ctrl+Y op de oude taken staan (bv. "Toegepast: 5"
-  // terwijl er na de undo nog maar 3 rijen kunnen landen).
-  // `tasks` wordt niet TEKSTUEEL gebruikt in de closure hieronder (dat gebeurt binnen
-  // `previewProgressImport` zelf, via de store), maar moet WEL een herberekening triggeren — zie de
-  // toelichting hierboven (Ctrl+Z/Ctrl+Y muteren `s.tasks` terwijl deze dialoog open staat). De
-  // linter kan die indirecte afhankelijkheid niet zien, vandaar de gerichte suppressie hieronder.
+  // `tasks` staat WEL in de deps: de documentwisselblokkade geldt niet voor `edit.undo`/`edit.redo`
+  // (geen `when`-guard), die `s.tasks` muteren terwijl deze dialoog open staat. Zonder `tasks` blijft
+  // het plan na Ctrl+Z/Ctrl+Y op de oude taken staan. `tasks` wordt niet TEKSTUEEL gebruikt in de
+  // closure hieronder (dat gebeurt binnen `previewProgressImport` zelf, via de store); de linter
+  // kan die indirecte afhankelijkheid niet zien, vandaar de gerichte suppressie hieronder.
   const plan = useMemo(
-    // UI-route (besluiten eigenaar 26-09): `today` zet dezelfde voortgangsregels aan als paneel en
+    // UI-route: `today` zet dezelfde voortgangsregels aan als paneel en
     // raster — zonder statusdatum op vandaag, geen verzonnen werkelijke start (`ProgressImportEntryOptions`).
     () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides, { today: localTodayIso() }) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,11 +158,11 @@ export function ProgressImportDialog() {
 
   const pick = async () => {
     setFileIssue(null);
-    // Fixronde bevinding 5: geen rood pad — een throw uit `openFileDialog`/de lezer (bv.
+    // Geen stil rood pad — een throw uit `openFileDialog`/de lezer (bv.
     // een geweigerde bestandspermissie, of onverwachte inhoud die de parser zelf niet als `fileIssue`
-    // afvangt) verdween voorheen als onafgehandelde promise-rejection, zonder enige melding.
+    // afvangt) zou anders een onafgehandelde promise-rejection zijn, zonder enige melding.
     try {
-      // X11: de dialoog accepteert beide voortgangsformaten. `binaryExtensions` zorgt dat een
+      // De dialoog accepteert beide voortgangsformaten. `binaryExtensions` zorgt dat een
       // `.xlsx` als bytes binnenkomt; de dispatch gaat op de EXTENSIE en niet op
       // `res.bytes !== undefined` — `bytes` is een gevolg van die optie, niet een eigenschap van
       // het bestand, dus duck-typen zou een vergeten optie stil de CSV-lezer op binaire rommel
@@ -248,7 +242,7 @@ export function ProgressImportDialog() {
     setStage('result');
   };
 
-  // Fixronde bevinding 1: per sectie hooguit `MAX_RENDERED_ROWS` DOM-rijen (en bij "wacht op
+  // Per sectie hooguit `MAX_RENDERED_ROWS` DOM-rijen (en bij "wacht op
   // koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s) — plain data-afleidingen, geen
   // hooks nodig; `needsLinkRows`/`doubtfulRows`/`generalRows` zijn zelf al gememoïseerd hierboven.
   const cappedNeedsLink = capRows(needsLinkRows);
@@ -277,7 +271,7 @@ export function ProgressImportDialog() {
     if (row.outcome === 'refused' && row.reason) {
       return <span style={{ color: 'var(--error)' }}>{t(`progressImport.reason.${row.reason}`)}</span>;
     }
-    // outcome === 'noop': een gekoppelde/betwijfelde rij zonder daadwerkelijke wijziging (A6) — niets
+    // outcome === 'noop': een gekoppelde/betwijfelde rij zonder daadwerkelijke wijziging — niets
     // te tonen, de taakregel zelf (WBS + naam) staat er al boven.
     return null;
   };
@@ -327,9 +321,9 @@ export function ProgressImportDialog() {
               <span>{t('progressImport.summaryRefused', { refused: plan.refusedCount })}</span>
             </div>
 
-            {/* Fixronde N-D/N-E: baan B levert `evidence: 'contradictoryNoSample'` wanneer het
+            {/* `detectDateOrder` levert `evidence: 'contradictoryNoSample'` wanneer het
                 bestand tegenstrijdig datumbewijs bevat maar er geen enkele cel is om de gebruiker
-                over te vragen (A5.2 regel 2) — de app neemt dan dag-maand aan en informeert hier
+                over te vragen — de app neemt dan dag-maand aan en informeert hier
                 achteraf; afwijkende datums zijn hieronder al als onleesbaar geweigerd. Alleen
                 aanwezig op de niet-ambiguous tak van `DateOrderDetection`, vandaar de guard. */}
             {detection && detection.order !== 'ambiguous' && detection.evidence === 'contradictoryNoSample' && (
@@ -359,7 +353,7 @@ export function ProgressImportDialog() {
                       data-ops-progress-row={row.rowNumber}
                       className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
                     >
-                      {/* Fix 3 (gebruikstest 2026-09-11): de rijkop is WBS + naam in de primaire
+                      {/* De rijkop is WBS + naam in de primaire
                           tekstkleur; het BLADrijnummer verschijnt alleen hier — bij een rij die nog
                           geen taak heeft is dat het enige aanknopingspunt met het bestand. */}
                       <span className="font-medium text-text-primary">

@@ -10,7 +10,7 @@ import {
 } from './toastPlacement';
 
 /**
- * B5 (gebruikstest rekenprofielen 24-09): houdt de stapel weg van de knoppen van een open dialoog
+ * Houdt de stapel weg van de knoppen van een open dialoog
  * en van plakkende actiebalken — zie `toastPlacement.ts` voor de regel. Meet alleen zolang er
  * meldingen zijn, en alleen op signalen — geen poll, geen store-brede subscribe:
  *  - synchroon bij het verschijnen van de stapel (vóór de eerste paint);
@@ -84,13 +84,13 @@ function placementStyle(p: ToastPlacement): CSSProperties | undefined {
 }
 
 /**
- * NotificationHost — de gecentraliseerde gebruikersmeldingen (bevinding K8).
+ * NotificationHost — de gecentraliseerde gebruikersmeldingen.
  *
  * Leest `ui.notifications` uit de store en rendert één vaste toast-stapel onderaan het scherm,
  * onafhankelijk van welk ribbontabblad/Backstage-weergave actief is: de host staat buiten de
  * `activeTab === 'file'`-vertakking in App.tsx en wordt óók in de presentatiemodus gemount. Een
- * stille opslaafout is daarmee altijd zichtbaar — ook daar waar de canvas-component (die vroeger
- * de énige toast bezat) niet gemonteerd is: Backstage, tabelweergave en rapport.
+ * stille opslaafout is daarmee altijd zichtbaar — ook daar waar de canvas-component niet
+ * gemonteerd is: Backstage, tabelweergave en rapport.
  *
  * Kernkeuze: een `error` plakt tot de gebruiker hem wegklikt (klik = dismissen); een `info`
  * verdwijnt na 5 s automatisch. Een fout die na 5 s zélf weggaat is nauwelijks beter dan géén
@@ -146,7 +146,7 @@ export function NotificationHost() {
             <div className="ops-toast-detail" key={`${line.messageKey}-${index}`} data-ops-toast-detail={line.messageKey}>
               {notificationDetailText(t, line)}
               {line.helpArticleId && (
-                // Gebruikstest #170, G3: een regel met een eigen onderwerp krijgt een eigen gidslink.
+                // Een regel met een eigen onderwerp krijgt een eigen gidslink.
                 <button
                   type="button"
                   className="ops-textlink ops-toast-readmore"
@@ -163,7 +163,7 @@ export function NotificationHost() {
             </div>
           ))}
           {n.helpArticleId && (
-            // mpp-nul-data-etappe, "lees meer"-eigenaarseis: hergebruikt de bestaande Backstage →
+            // "Lees meer": hergebruikt de Backstage →
             // Help-navigatie (`openHelpArticle`), geen nieuw linkmechanisme. `stopPropagation` zodat
             // de klik niet OOK de toast se eigen wegklik-handler (op de omringende div) triggert.
             <button
@@ -171,7 +171,7 @@ export function NotificationHost() {
               className="ops-textlink ops-toast-readmore"
               onClick={(e) => {
                 e.stopPropagation();
-                // B2: wegnavigeren uit Backstage → Projectinfo loopt via de bewaker (keuzedialoog
+                // Wegnavigeren uit Backstage → Projectinfo loopt via de bewaker (keuzedialoog
                 // bij een niet-toegepaste draft), net als de zijbalk en het lint.
                 const articleId = n.helpArticleId!;
                 leaveBackstageGuarded(() => openHelpArticle(articleId));
@@ -181,7 +181,7 @@ export function NotificationHost() {
             </button>
           )}
           {n.action && (
-            // Rekenprofielen (spec v3.1 §6): de serialiseerbare actie uit de store. `stopPropagation`
+            // De serialiseerbare actie uit de store (o.a. rekenprofielen). `stopPropagation`
             // zodat de klik niet ook de wegklik-handler van de toast triggert (zelfde als "Lees meer").
             <button
               type="button"
@@ -194,7 +194,7 @@ export function NotificationHost() {
                   setUI({ activeRibbonTab: 'file', backstageSection: action.section });
                   dismissNotification(n.id);
                 };
-                // B2: ook deze actie verlaat de huidige Backstage-sectie — via de bewaker; staat de
+                // Ook deze actie verlaat de huidige Backstage-sectie — via de bewaker; staat de
                 // gebruiker al op de doelsectie, dan valt er niets te verlaten.
                 const { ui } = useAppStore.getState();
                 if (ui.activeRibbonTab === 'file' && ui.backstageSection === action.section) go();

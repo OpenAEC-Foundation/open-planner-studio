@@ -5,14 +5,14 @@ import { generateId } from '@/utils/id';
 import { Plus, Trash2 } from 'lucide-react';
 
 /**
- * Aantekeningen/checklist per taak (fase 2.10, item 1) — nieuwe gedeelde sectie, direct na de
+ * Aantekeningen/checklist per taak — gedeelde sectie, direct na de
  * omschrijving/basisvelden. `CalendarForm`-patroon (`{ task, onChange }`): geen dedicated
- * store-actie nodig, mutaties zijn gewoon `notes`-array-patches (zie spec-voorstel). Instant-apply
+ * store-actie nodig, mutaties zijn gewoon `notes`-array-patches. Instant-apply
  * in het paneel, draft in de dialoog (onChange bepaalt wanneer er gecommit wordt) — identiek gedrag,
  * de sectie zelf weet niet welke van de twee het is.
  *
- * Tekstveld is een auto-groeiende `<textarea>` (fase 2.10, bugfix): groeit verticaal mee met de
- * inhoud i.p.v. horizontaal te overflowen zoals een `<input>` deed. `useDialogKeys` negeert Enter
+ * Tekstveld is een auto-groeiende `<textarea>`: groeit verticaal mee met de
+ * inhoud i.p.v. horizontaal te overflowen zoals een `<input>`. `useDialogKeys` negeert Enter
  * al op een `TEXTAREA` (regeleinde blijft regeleinde, geen dialoog-submit) — zie de doc-comment
  * daar.
  */
@@ -62,7 +62,7 @@ export function TaskNotesFields({ task, onChange }: {
   const addNote = () => {
     const id = generateId('note');
     onChange({ notes: [...notes, { id, text: '', done: false }] });
-    // Focus het nieuwe tekstveld zodra het gerenderd is (spec: "aantekening toevoegen" ⇒ focus).
+    // Focus het nieuwe tekstveld zodra het gerenderd is ("aantekening toevoegen" ⇒ focus).
     setTimeout(() => lastAddedRef.current?.focus(), 0);
   };
   const updateNote = (id: string, patch: Partial<{ text: string; done: boolean }>) => {

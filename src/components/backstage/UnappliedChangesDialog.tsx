@@ -10,8 +10,8 @@ interface UnappliedChangesDialogProps {
 }
 
 /**
- * Keuzedialoog bij wegnavigeren uit Backstage → Projectinfo met een niet-toegepaste draft (B2,
- * gebruikstest rekenprofielen 24-09). Zelfde driekeuzepatroon en knopvolgorde als de
+ * Keuzedialoog bij wegnavigeren uit Backstage → Projectinfo met een niet-toegepaste draft.
+ * Zelfde driekeuzepatroon en knopvolgorde als de
  * sluitbevestiging van een document (`CloseDocumentDialogControl`): Annuleren (blijft staan, krijgt
  * de beginfocus), Verwerpen (gooit de draft weg en gaat door), Toepassen (committeert en gaat door).
  * Op de gedeelde `Dialog` (focus-trap, Escape = Annuleren); bewust geen backdrop-klik en geen

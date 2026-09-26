@@ -5,7 +5,7 @@ import { saveEnableHourPlanning } from '@/utils/settingsStore';
 import { NoticeStrip } from './NoticeStrip';
 
 /**
- * Niet-blokkerende melding (fase 2.8b, §6.8): een geladen bestand bevat urenplanning-data
+ * Niet-blokkerende melding: een geladen bestand bevat urenplanning-data
  * (`workTime`/`durationMinutes`) terwijl de hoofdschakelaar Urenplanning uit staat. De engine
  * rekent sowieso correct; deze strook biedt alleen aan de UI-schakelaar aan te zetten. Nooit stil
  * wegronden — de gebruiker sluit de melding zelf (kruisje) of zet de instelling aan.

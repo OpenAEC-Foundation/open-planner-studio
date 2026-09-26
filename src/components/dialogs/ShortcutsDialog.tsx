@@ -6,7 +6,7 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo, type ShortcutDef } from '@/hooks/keyboard/shortcutRegistry';
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 
-/** Volgorde uit het ontwerpdocument (§"Overzichtsdialoog"); `grid` staat achteraan als eigen
+/** Vaste categorievolgorde; `grid` staat achteraan als eigen
  *  sectie voor de taakgridtoetsen (zie shortcutRegistry.ts). */
 const CATEGORY_ORDER: ShortcutCategory[] = ['file', 'edit', 'structure', 'view', 'nav', 'grid'];
 
@@ -41,11 +41,10 @@ function buildRows(): Record<ShortcutCategory, ShortcutRow[]> {
 }
 
 /**
- * Sneltoetsen-overzichtsdialoog (fase 2.10, golf 3) — Ctrl/Cmd+/ en het "Sneltoetsen"-knopje in de
+ * Sneltoetsen-overzichtsdialoog — Ctrl/Cmd+/ en het "Sneltoetsen"-knopje in de
  * Weergave-ribbontab. Rendert VOLLEDIG uit `SHORTCUTS` (het register is de enige bron van
  * waarheid, zie shortcutRegistry.ts): een nieuwe toets daar verschijnt hier automatisch, zonder
- * een aparte lijst bij te houden. Alleen-lezen — geen instellingen, geen herbind-UI (bewust
- * uitgesteld, zie het ontwerpdocument).
+ * een aparte lijst bij te houden. Alleen-lezen — geen instellingen, geen herbind-UI.
  */
 export function ShortcutsDialog() {
   const { t } = useTranslation(['common', 'menu']);

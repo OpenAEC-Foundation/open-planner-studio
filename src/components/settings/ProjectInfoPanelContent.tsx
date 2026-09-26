@@ -16,15 +16,15 @@ import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetK
 import { hasConcreteWorkBlocks } from '@/services/subdayIo';
 
 /** Wizard-generatorstatus: `HolidayGenParams` uitgebreid met de wizard-only pseudo-keuze
- *  `'custom'` ("Aangepast…", ontwerp §7.2) — die opent na aanmaken de kalenderdialoog i.p.v.
+ *  `'custom'` ("Aangepast…") — die opent na aanmaken de kalenderdialoog i.p.v.
  *  een land-set te genereren. */
 type WizardCalendarState = Omit<HolidayGenParams, 'country'> & { country: HolidayCountry | 'none' | 'custom' };
 
 const DEFAULT_WIZARD_CALENDAR: WizardCalendarState = {
-  country: 'NL', region: undefined, bouwvak: 'geen', // default GEEN bouwvak (harde eis)
+  country: 'NL', region: undefined, bouwvak: 'geen', // default GEEN bouwvak (bewust)
 };
 
-/** Pseudo-waarde voor de "+ Nieuwe resourcebibliotheek…"-optie in de bibliotheek-select (issue #19). */
+/** Pseudo-waarde voor de "+ Nieuwe resourcebibliotheek…"-optie in de bibliotheek-select. */
 const NEW_COMPANY_OPTION = '__new__';
 
 export interface ProjectInfoPanelContentHandle {
@@ -32,8 +32,8 @@ export interface ProjectInfoPanelContentHandle {
    *  setProject + bibliotheek-(ont)koppeling (+ applySchedulingSettings als het blok Rekenprofiel en
    *  reken-opties werd aangeraakt: één undo-stap, herberekenen, melding "N taken verschoven"). */
   submit: (options?: ProjectInfoSubmitOptions) => boolean;
-  /** Gooit de draft weg en zet alle velden terug op het huidige project (B2, gebruikstest 24-09:
-   *  "Verwerpen" in de plakkende voetbalk en in de niet-toegepast-dialoog van Backstage). */
+  /** Gooit de draft weg en zet alle velden terug op het huidige project ("Verwerpen" in de
+   *  plakkende voetbalk en in de niet-toegepast-dialoog van Backstage). */
   discard: () => void;
 }
 
@@ -52,23 +52,23 @@ export interface ProjectInfoPanelContentProps {
   /** Aangeroepen NA een geslaagde submit(); de wrapper bepaalt wat "klaar" betekent (dialoog sluiten,
    *  Backstage terug naar Start-tab). */
   onDone: () => void;
-  /** Autofocus op het Naam-veld — ALLEEN de modale dialoog/wizard mag dit aanzetten (GO-NA-fix 4):
+  /** Autofocus op het Naam-veld — ALLEEN de modale dialoog/wizard mag dit aanzetten:
    *  in de niet-modale Backstage-pagina zou autoFocus bij elk bezoek de focus grijpen. Default: uit. */
   autoFocusName?: boolean;
   /** Meldt of de draft nu toe te passen is (rekenprofielen: een eigen profiel zonder naam is dat niet).
    *  De wrapper zet daarmee zijn Toepassen/Aanmaken-knop uit; `submit()` weigert zelf ook. */
   onValidityChange?: (valid: boolean) => void;
-  /** Meldt of de draft afwijkt van het project (B2, gebruikstest 24-09): Backstage toont dan de
+  /** Meldt of de draft afwijkt van het project: Backstage toont dan de
    *  gekleurde markering "niet toegepast" en vraagt bij wegnavigeren Toepassen/Verwerpen/Annuleren.
    *  Zelfde maatstaf als `submit()`: alleen wat Toepassen echt zou wijzigen telt. */
   onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
- * Eén gedeelde projectinfo-velden-UI (issue #19), naar het model van `SettingsPanelContent`: dezelfde
+ * Eén gedeelde projectinfo-velden-UI, naar het model van `SettingsPanelContent`: dezelfde
  * veld-rendering + commit-logica draait achter twee chrome's — `ProjectInfoDialog` (tevens de
  * nieuw-project-wizard) en de Backstage → Projectinfo-sectie (`ProjectInfoSection` in Backstage.tsx).
- * Beide worden dunne wrappers die alleen hun eigen container/knoppen + de Dialog-chrome (Esc/backdrop/
+ * Beide zijn dunne wrappers die alleen hun eigen container/knoppen + de Dialog-chrome (Esc/backdrop/
  * Enter) leveren.
  *
  * Anders dan Settings (live-apply, geen pending state) werkt projectinfo met een LOKALE DRAFT +
@@ -76,15 +76,14 @@ export interface ProjectInfoPanelContentProps {
  * (`ProjectInfoPanelContentHandle`) — nodig omdat `Dialog`'s Enter-afhandeling (`onConfirm`) op het
  * BUITENSTE element zit, vóór dit component gemount wordt.
  *
- * Commit-semantiek (KRITISCH, ongewijzigd t.o.v. de oude losse implementaties in ProjectInfoDialog en
- * Backstage's ProjectInfoSection):
+ * Commit-semantiek (KRITISCH):
  *  - `mode="wizard"`: `createNewProject(...)` + bibliotheek-koppeling (`bindProjectToCompany`) +
  *    herkenning (`computeRecognition` → evt. `showLibraryLinkDialog`).
  *  - `mode="edit"`: `setProject(...)` + bibliotheek-(ont)koppeling (`bindProjectToCompany`/
  *    `unbindProject`) + (bij een aangeraakt rekenprofielblok) `applySchedulingSettings` (no-op bij
  *    inhoudelijk gelijke instellingen; anders één undo-stap + `runCPM()` + telling).
  *
- * STALE-DRAFT-GUARD (GO-NA-fix 1, code review op bf1c851): `ProjectInfoSection` in Backstage blijft
+ * STALE-DRAFT-GUARD: `ProjectInfoSection` in Backstage blijft
  * gemount zolang de gebruiker op die pagina staat. `nav.switchDocumentN` (Ctrl+1..9) en `edit.undo`/
  * `edit.redo` (Ctrl+Z/Y) hebben GEEN `when`-guard tegen open dialogen/Backstage (zie
  * `shortcutRegistry.ts`) en negeren alleen invoervelden-met-focus (`isTypingTarget`) — dus een klik
@@ -94,16 +93,12 @@ export interface ProjectInfoPanelContentProps {
  *      het bewezen identiteitssignaal; zie hieronder waarom NIET op undo).
  *  (b) `companyTouched`/`calcTouched`: de bibliotheek-(ont)koppeling en de rekenprofiel-tak
  *      committeren ALLEEN als de gebruiker die specifieke control in DEZE mount daadwerkelijk heeft
- *      aangeraakt — dus zelfs als (a) een scenario zou missen, kan een stale draft nooit meer stilletjes
+ *      aangeraakt — dus zelfs als (a) een scenario zou missen, kan een stale draft nooit stilletjes
  *      een bibliotheek los- of vastkoppelen (het destructieve pad: `unbindProject()` strip ALLE
  *      `libraryOrigin`-stempels).
- *  Over undo specifiek: nagetrokken in `src/state/snapshot.ts` (B3-uitzondering) — het hele
- *  `project`-object (op `wbsAutoNumber` na) staat BEWUST NIET in de undo/redo-snapshot, dus Ctrl+Z/Y
- *  kan `name`/`description`/`author`/`company`/`startDate`/`endDate`/`companyId`/`schedulingOptions`
- *  hier niet veranderen — er is dus niets om voor te re-initialiseren. (a) is daarom bewust gekoppeld
- *  aan `activeDocumentId` (het bewezen vector), en (b) is de generieke vangrail die verder los staat
- *  van WELK mechanisme de staleness veroorzaakt (dus ook toekomstbestendig tegen undo-gedrag dat
- *  later wél projectvelden zou gaan raken).
+ *  Undo is geen vector: het `project`-object (op `wbsAutoNumber` na) staat BEWUST NIET in de
+ *  undo/redo-snapshot (`src/state/snapshot.ts`). (b) is de generieke vangrail, los van WELK
+ *  mechanisme de staleness veroorzaakt.
  */
 export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle, ProjectInfoPanelContentProps>(
   function ProjectInfoPanelContent({ mode, onDone, autoFocusName, onValidityChange, onDirtyChange }, ref) {
@@ -128,14 +123,14 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [defaultTaskDurationUnit, setDefaultTaskDurationUnit] = useState<'days' | 'hours'>(
       isNew ? 'days' : (project.defaultTaskDurationUnit ?? 'days'),
     );
-    // Rekenprofiel + reken-opties als DRAFT (spec v3.1 §6): net als Naam/Omschrijving een lokale kopie;
+    // Rekenprofiel + reken-opties als DRAFT: net als Naam/Omschrijving een lokale kopie;
     // de store wijzigt pas op submit() (consistent Annuleren-gedrag). Vers gemount ⇒ initialiseert uit
     // het huidige project; de wizard start op het standaardprofiel.
     const [scheduling, setSchedulingRaw] = useState<SchedulingSettingsDraft>(
       isNew ? { profile: undefined, options: undefined }
         : { profile: project.schedulingProfile, options: project.schedulingOptions },
     );
-    // Bouwmodus (2026-07-13): in bouw-agnostische modus (bouwmodus UIT) start de kalender-generator op
+    // Bouwmodus: in bouw-agnostische modus (bouwmodus UIT) start de kalender-generator op
     // `country: 'none'` (geen NL-feestdagen) i.p.v. NL. Het component wordt vers gemount, dus de
     // useState-initializer leest de vlag eenmalig — geen re-init nodig.
     const constructionMode = useAppStore(s => s.ui.constructionMode);
@@ -150,13 +145,13 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const bindProjectToCompany = useAppStore(s => s.bindProjectToCompany);
     const unbindProject = useAppStore(s => s.unbindProject);
     const addCompany = useAppStore(s => s.addCompany);
-    // Voorselectie: het gekoppelde bedrijf, anders het standaardbedrijf (spec §2 — gekoppeld is de norm).
+    // Voorselectie: het gekoppelde bedrijf, anders het standaardbedrijf (gekoppeld is de norm).
     const [linkedCompanyId, setLinkedCompanyId] = useState<string>(isNew ? defaultCompanyId : (project.companyId ?? ''));
-    // GO-NA-fix 1b: alleen ná een daadwerkelijke gebruikersactie op de bibliotheek-select committeert
+    // Alleen ná een daadwerkelijke gebruikersactie op de bibliotheek-select committeert
     // submit() de bind/unbind-tak (mode="edit"; de wizard-tak heeft geen "vorige koppeling" om per
     // ongeluk te overschrijven en blijft dus ongated).
     const [companyTouched, setCompanyTouched] = useState(false);
-    // GO-NA-fix 2: "+ Nieuwe resourcebibliotheek…" toont een inline naamveld i.p.v. meteen te
+    // "+ Nieuwe resourcebibliotheek…" toont een inline naamveld i.p.v. meteen te
     // persisteren — de bibliotheek wordt pas in handleSubmit() aangemaakt (zie daar), zodat annuleren
     // van de dialoog/sectie NIETS achterlaat. Twee aparte vlaggen, bewust niet samengevoegd:
     // `creatingCompany` is puur UI (staat het invoervakje open?), `pendingNewCompany` is de
@@ -165,12 +160,12 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [creatingCompany, setCreatingCompany] = useState(false);
     const [pendingNewCompany, setPendingNewCompany] = useState(false);
     const [newCompanyName, setNewCompanyName] = useState('');
-    // Ploeg-preset (§6.7): default 'day' = dag-kalender (byte-identiek). Alleen zichtbaar met
+    // Ploeg-preset: default 'day' = dag-kalender. Alleen zichtbaar met
     // Urenplanning aan; een niet-default preset materialiseert workTime + shift op de nieuwe kalender.
     const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
     const [shiftPreset, setShiftPreset] = useState<ShiftPresetKey>('day');
     const canDefaultToHours = isNew ? shiftPreset !== 'day' : hasConcreteWorkBlocks(projectCalendar);
-    // GO-NA-fix 1b: net als companyTouched — de rekenprofiel-tak committeert ALLEEN als de gebruiker
+    // Net als companyTouched — de rekenprofiel-tak committeert ALLEEN als de gebruiker
     // het blok in deze mount daadwerkelijk bewerkte.
     const [calcTouched, setCalcTouched] = useState(false);
     const setScheduling = (next: SchedulingSettingsDraft) => {
@@ -179,7 +174,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     };
 
     // Zet de hele draft terug op het (verse) actieve project: gedeeld door de documentwissel
-    // hieronder en `discard()` ("Verwerpen", B2). Leest de store op het moment zelf.
+    // hieronder en `discard()` ("Verwerpen"). Leest de store op het moment zelf.
     const resetDraftFromProject = useCallback(() => {
       const p = useAppStore.getState().project;
       setName(p.name);
@@ -198,13 +193,13 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       setNewCompanyName('');
     }, []);
 
-    // GO-NA-fix 1a: her-initialiseer de VOLLEDIGE draft zodra het ACTIEVE document verandert
+    // Her-initialiseer de VOLLEDIGE draft zodra het ACTIEVE document verandert
     // (Ctrl+1..9 kan vuren terwijl deze component gemount blijft — zie de JSDoc hierboven). Alléén
     // relevant in edit-modus (de wizard heeft geen "vorig document" om stale te worden). Bewust
     // GEEN afhankelijkheid op losse `project`-velden: elke store-mutatie die toevallig een nieuwe
     // `project`-referentie oplevert zou anders de tekst die de gebruiker nog aan het intypen is
-    // wegvegen; `activeDocumentId` is het bewezen, precieze identiteitssignaal (zie snapshot.ts-analyse
-    // hierboven — undo raakt geen projectvelden, dus er is daar niets te herinitialiseren).
+    // wegvegen; `activeDocumentId` is het precieze identiteitssignaal (zie de JSDoc hierboven —
+    // undo raakt geen projectvelden, dus er is daar niets te herinitialiseren).
     const draftDocIdRef = useRef(activeDocumentId);
     useLayoutEffect(() => {
       if (isNew) return;
@@ -214,16 +209,16 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     }, [isNew, activeDocumentId, resetDraftFromProject]);
 
 
-    // Generatie-spanne bij aanmaak (§4.4): nog geen projecteinde bekend ⇒ startjaar−1..+3.
+    // Generatie-spanne bij aanmaak: nog geen projecteinde bekend ⇒ startjaar−1..+3.
     const calSpan = useMemo(() => computeGenerateSpan(startDate, endDate || undefined), [startDate, endDate]);
 
-    // Her-check eindreview: een eigen profiel zonder naam is "nog niet geldig". Dan committeert
+    // Een eigen profiel zonder naam is "nog niet geldig". Dan committeert
     // submit() NIETS — ook de metadata niet — en blijft de dialoog/sectie open met het gekleurde blok
     // "verplicht" in beeld; anders zou Toepassen de conventiewijzigingen stil weggooien.
     const draftValid = hasValidProfileName(scheduling.profile);
     useEffect(() => { onValidityChange?.(draftValid); }, [draftValid, onValidityChange]);
 
-    // B2 (gebruikstest 24-09): wijkt de draft af van het project? Zelfde maatstaven als de commit
+    // Wijkt de draft af van het project? Zelfde maatstaven als de commit
     // hieronder — metadata via `projectInfoPatch`, het rekenprofiel alleen na aanraken én inhoudelijk
     // anders (`sameSettings`, zoals `applyProjectInfo`), de bibliotheek alleen na aanraken. De wizard
     // maakt een nieuw project en kent dus geen "niet toegepast".
@@ -239,7 +234,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
 
     const handleSubmit = (options?: ProjectInfoSubmitOptions): boolean => {
       if (!draftValid) return false;
-      // "+ Nieuwe resourcebibliotheek…" materialiseert pas HIER (GO-NA-fix 2) — vóór dit punt bestaat
+      // "+ Nieuwe resourcebibliotheek…" materialiseert pas HIER — vóór dit punt bestaat
       // er geen store-mutatie, dus Annuleren van de dialoog/sectie laat niets achter. `pendingNewCompany`
       // (niet `creatingCompany`, dat sluit al bij "bevestigen" — zie confirmNewCompany) blijft de
       // commit-intentie tot hier, dus een bevestigd-maar-niet-meer-open naamveld materialiseert nog
@@ -261,7 +256,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         const calendar = isCustom
           ? buildGeneratedCalendar({ country: 'none', bouwvak: 'geen' }, calSpan)
           : buildGeneratedCalendar(calState as HolidayGenParams, calSpan);
-        // Ploeg-preset materialiseren (§6.7): default 'day' laat de kalender een dag-kalender (geen
+        // Ploeg-preset materialiseren: default 'day' laat de kalender een dag-kalender (geen
         // workTime); een niet-default preset zet workTime + shift + scalar-fallback op nieuwe entries.
         if (enableHourPlanning && shiftPreset !== 'day') {
           const patch = shiftPresetPatch(shiftPreset);
@@ -281,7 +276,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           schedulingProfile: scheduling.profile,
           schedulingOptions: scheduling.options,
         });
-        // Spec §2/§5: koppel aan het gekozen bedrijf (default = standaardbedrijf). Herkenning start
+        // Koppel aan het gekozen bedrijf (default = standaardbedrijf). Herkenning start
         // pas als het project al inhoud heeft — bij een vers, leeg project is dat een no-op. Geen
         // touched-gate nodig: een vers project heeft geen "vorige koppeling" om per ongeluk te
         // overschrijven.
@@ -292,7 +287,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           }
         }
         // Verlaat de Backstage zodat het nieuwe project meteen zichtbaar is; "Aangepast…" opent
-        // meteen de kalenderdialoog zodat de gebruiker de kalender handmatig kan samenstellen (§7.2).
+        // meteen de kalenderdialoog zodat de gebruiker de kalender handmatig kan samenstellen.
         setUI({
           showNewProjectDialog: false,
           ...(isCustom ? { showCalendarDialog: true } : {}),
@@ -300,9 +295,9 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         });
       } else {
         // Committeer de metadata altijd; het rekenprofielblok ALLEEN als de gebruiker het aanraakte
-        // (GO-NA-fix 1b — anders geen spurious dirty / geen onnodige herberekening op een stale of
+        // (anders spurious dirty / onnodige herberekening op een stale of
         // nooit-bekeken draft). De store-actie normaliseert zelf (leeg ⇒ `undefined`).
-        // Gebruikstest I5: alleen de ÉCHT gewijzigde metadata (afwezige eenheid ≡ 'days', geen
+        // Alleen de ÉCHT gewijzigde metadata (afwezige eenheid ≡ 'days', geen
         // modifiedAt), en samen met het rekenprofiel in ÉÉN undo-stap ("Projectinfo"). Toepassen
         // zonder wijziging doet dan niets: geen undo-stap, niet vuil, "datums zoals opgeslagen" blijft.
         // Een tijdelijk verborgen of momenteel onbruikbare uurdefault blijft documentdata: nieuwe
@@ -312,7 +307,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit }),
           calcTouched ? scheduling : undefined,
         );
-        // GO-NA-fix 1b: bind/unbind ALLEEN als de gebruiker de select in DEZE mount aanraakte — dit is
+        // Bind/unbind ALLEEN als de gebruiker de select in DEZE mount aanraakte — dit is
         // de vangrail tegen de stale-draft-unbind (zie JSDoc hierboven).
         if (effectiveCompanyTouched) {
           const prevCompany = project.companyId ?? '';
@@ -346,12 +341,12 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       utiliteit: tMenu('newProject.tmplUtiliteit'),
     };
     // Bouwmodus UIT (bouw-agnostisch): alleen "Leeg" aanbieden — de bouwsjablonen (woningbouw/
-    // utiliteit) zijn bouwjargon en vervallen uit de keuzelijst. Default stond al op 'empty'.
+    // utiliteit) zijn bouwjargon en vervallen uit de keuzelijst. Default is 'empty'.
     const templateOptions = PROJECT_TEMPLATES
       .filter(t => constructionMode || t.key === 'empty')
       .map(t => ({ value: t.key, label: templateLabel[t.key] }));
 
-    // "+ Nieuwe resourcebibliotheek…" (GO-NA-fix 2): toont het inline naamveld; de bibliotheek zelf
+    // "+ Nieuwe resourcebibliotheek…": toont het inline naamveld; de bibliotheek zelf
     // materialiseert pas in handleSubmit(). Kiezen van een BESTAANDE bibliotheek (of "geen") annuleert
     // een eventuele nieuw-aanmaak-intentie stilzwijgend (er is nog niets aangemaakt).
     const handleCompanySelectChange = (value: string) => {
@@ -517,7 +512,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                 onChange={v => setTemplate(v as TemplateKey)} options={templateOptions} />
             </div>
 
-            {/* Ploeg-preset (§6.7) — alleen met Urenplanning aan; default 'Dagdienst' = dag-kalender. */}
+            {/* Ploeg-preset — alleen met Urenplanning aan; default 'Dagdienst' = dag-kalender. */}
             {enableHourPlanning && (
               <div className="flex flex-col gap-1">
                 <label className="text-text-secondary font-medium">{tCommon('calendar.worktime.shiftPreset')}</label>
@@ -527,8 +522,8 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
               </div>
             )}
 
-            {/* Feestdagen-generator (fase 2.8a, §7.2): land/regio, bouwvak (default GEEN — harde
-                eis) + compacte preview. "Aangepast…" (extra optie in de land-select) verbergt de
+            {/* Feestdagen-generator: land/regio, bouwvak (default GEEN — bewust)
+                + compacte preview. "Aangepast…" (extra optie in de land-select) verbergt de
                 rest van de generator (leeg gestart; de kalenderdialoog opent na aanmaken om
                 handmatig te bewerken, zie `handleSubmit`). */}
             <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
@@ -544,7 +539,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
           </>
         )}
 
-        {/* Rekenprofiel en reken-opties (spec v3.1 §6): in de wizard alleen de keuzelijst (die de
+        {/* Rekenprofiel en reken-opties: in de wizard alleen de keuzelijst (die de
             standaardopties van het profiel toepast), bij bewerken het volledige blok — identiek op
             beide edit-oppervlakken (dialoog én Backstage). onChange markeert calcTouched. */}
         <SchedulingProfileSection mode={isNew ? 'wizard' : 'edit'} value={scheduling} onChange={setScheduling} />

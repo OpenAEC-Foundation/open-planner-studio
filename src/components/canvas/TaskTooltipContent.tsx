@@ -25,8 +25,8 @@ export function TooltipRow({ label, value, valueClassName = 'tooltip-value', col
 
 /**
  * Inhoud van de taak-hovertooltip (naam, WBS, duur, start/finish, status, kritiek, total float) —
- * geëxtraheerd uit `GanttCanvas` (issue #58) zodat issue #65 'm kan hergebruiken vanuit het
- * eigenschappenpaneel: hover op de WBS-sprongknop bij een afhankelijkheid moet exact dezelfde
+ * gedeeld tussen `GanttCanvas` en het eigenschappenpaneel: hover op de WBS-sprongknop bij een
+ * afhankelijkheid moet exact dezelfde
  * details tonen als hover over de taakbalk op het canvas. Puur een `{ task }`-in, JSX-uit —
  * de positionering (`HoverTooltip`) blijft aan de aanroeper.
  */
@@ -47,7 +47,7 @@ export function TaskTooltipContent({ task }: { task: Task }) {
     suffixes,
     i18n.language,
   );
-  // Tooltip-datums volgen de datumnotatie-instelling (taak #53); leeg → '-'.
+  // Tooltip-datums volgen de datumnotatie-instelling; leeg → '-'.
   const formatTooltipDate = (dateStr: string) => (dateStr ? dd.date(dateStr) : '-');
 
   return (

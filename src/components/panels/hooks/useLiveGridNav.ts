@@ -5,7 +5,7 @@ import {
 
 /**
  * Toetsenbordnavigatie voor een **live raster**: een `<table>` waarin elke cel al een echt
- * invoerveld/`<select>` is (de resourcetabel, issue #48). De cursor is daar de DOM-focus, niet
+ * invoerveld/`<select>` is (de resourcetabel). De cursor is daar de DOM-focus, niet
  * React-state — verzetten betekent dus `focus()` op het besturingselement van de buurcel.
  *
  * Waarom niet de navigatie van het taakraster hergebruiken: dat kent maar één editor tegelijk,

@@ -31,11 +31,11 @@ import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField'
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
 
-/** Lege draft voor de (in de praktijk onbereikbare — zie ontwerp-doc item 2) "nieuwe taak"-tak:
+/** Lege draft voor de (in de praktijk onbereikbare) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
 function blankDraft(startDate: string, constructionMode: boolean, durationUnit: 'days' | 'hours' = 'days'): Task {
   return {
-    // Bouwmodus (2026-07-13): neutraal taaktype-default (USERDEFINED) in bouw-agnostische modus.
+    // Bouwmodus: neutraal taaktype-default (USERDEFINED) in bouw-agnostische modus.
     id: '', name: '', description: '', wbsCode: '',
     taskType: constructionMode ? 'CONSTRUCTION' : 'USERDEFINED', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [],
@@ -58,11 +58,11 @@ export function TaskDialog() {
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
-  // Lokale draft (fase 2.10, item 2): alle "veld-secties" (naam/omschrijving/type/kalender,
+  // Lokale draft: alle "veld-secties" (naam/omschrijving/type/kalender,
   // mijlpaal, hammock, constraint, deadline, voortgang, aantekeningen) muteren deze draft via
   // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
   // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
-  // paneel, spec-akkoord) en raken de draft niet.
+  // paneel) en raken de draft niet.
   const newTaskUnit = enableHourPlanning ? (project.defaultTaskDurationUnit ?? 'days') : 'days';
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
@@ -81,7 +81,7 @@ export function TaskDialog() {
   // (zoals resourcetoewijzingen). Een storemutatie mag de nog niet opgeslagen draft nooit opnieuw
   // initialiseren; alleen openen of naar een andere taak wisselen begint een nieuwe sessie.
   const initializedSessionRef = useRef<string | null>(null);
-  // G5 (gebruikstest #170): begin van deze bewerksessie in de sessiehistorie.
+  // Begin van deze bewerksessie in de sessiehistorie.
   const historyMarkRef = useRef<HistorySessionMark | null>(null);
   const historyMark = useAppStore(s => s.historyMark);
   const endHistorySession = useAppStore(s => s.endHistorySession);
@@ -134,8 +134,8 @@ export function TaskDialog() {
 
   // Voortgang invullen is een UI-route (`engine/progressEntry.ts`): dezelfde beslissing als het
   // paneel (`planProgressEntry`), maar op de concepttaak en pas vastgelegd bij Opslaan. Zonder
-  // statusdatum rekent de concepttaak met vandaag en zet Opslaan de statusdatum op vandaag (Z1);
-  // een taak die pas na de statusdatum zou beginnen vraagt eerst de werkelijke start (Z1b, via
+  // statusdatum rekent de concepttaak met vandaag en zet Opslaan de statusdatum op vandaag;
+  // een taak die pas na de statusdatum zou beginnen krijgt eerst de startvraag (via
   // `TaskProgressFields`). Via een ref, omdat het antwoord op die vraag asynchroon terugkomt.
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -154,7 +154,7 @@ export function TaskDialog() {
   const handleSave = () => {
     if (!draft.name.trim()) return;
     // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
-    // (audit taakmutaties, S4): weigeren VÓÓR er iets wordt opgeslagen. `moveTask` weigert zelf ook,
+    // moet VÓÓR er iets wordt opgeslagen geweigerd worden. `moveTask` weigert zelf ook,
     // maar dan zou de rest van de bewerking al zijn doorgevoerd en de dialoog sluiten; zo blijft hij
     // open met de melding, zoals de conceptrelatie in het paneel, en kan de gebruiker corrigeren.
     if (editingTask && draft.parentId !== editingTask.parentId) {
@@ -165,7 +165,7 @@ export function TaskDialog() {
         return;
       }
     }
-    // Wordt mijlpaal (audit §6): het vinkje weigert al in het concept (`TaskMilestoneFields`); dit
+    // Wordt mijlpaal: het vinkje weigert al in het concept (`TaskMilestoneFields`); dit
     // vangt de toewijzing die intussen via de relationele sectie van deze dialoog is toegevoegd.
     // Weigeren houdt de dialoog open met de rest van het concept intact.
     if (editingTask && draft.isMilestone && !editingTask.isMilestone) {
@@ -181,7 +181,7 @@ export function TaskDialog() {
     }
     // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
     // store vs uit de draft, het scheduleStart-anker, `moveTask` voor de ouder, de duur alleen bij
-    // een echte duurbewerking) staan in state/taskDialogSave.ts. G5 (#170): met een open
+    // een echte duurbewerking) staan in state/taskDialogSave.ts. Met een open
     // bewerksessie maakt die van alles wat deze sessie op de store deed (werkregel, toewijzingen,
     // werk, relaties) plus het Opslaan zelf één undo-stap (`squashHistorySince`).
     // Geweigerd (een duur korter dan het gedane werk van een lopende taak, met een melding): er is
@@ -199,7 +199,7 @@ export function TaskDialog() {
   };
 
   const handleClose = () => {
-    // Gebruikstest #170, G5: de relationele secties (werkregel, toewijzingen, werk, relaties)
+    // De relationele secties (werkregel, toewijzingen, werk, relaties)
     // committen direct zodat ze in de dialoog met elkaar rekenen; Annuleren draait ze terug.
     if (historyMarkRef.current !== null) revertHistorySince(historyMarkRef.current);
     setUI({ showTaskDialog: false, editingTaskId: null });
@@ -211,9 +211,9 @@ export function TaskDialog() {
     'px-2 py-1.5 bg-surface border-[1.5px] border-[var(--theme-control-border)] rounded-[8px] text-text-primary focus:outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(217,119,6,0.2)] transition-[border-color,box-shadow]';
 
   return (
-    // Esc = Annuleren, Enter = Opslaan (primaire actie) — huisconventie (QA-fix P3, fase 2.10
-    // onderdeel 2): dezelfde guards (textarea/open-dropdown/IME) als CalendarDialog/
-    // ProjectInfoDialog, nu via de standaard-toetsafhandeling van `Dialog`. `Dialog` rendert pas
+    // Esc = Annuleren, Enter = Opslaan (primaire actie) — huisconventie: dezelfde guards
+    // (textarea/open-dropdown/IME) als CalendarDialog/ProjectInfoDialog, via de
+    // standaard-toetsafhandeling van `Dialog`. `Dialog` rendert pas
     // ná de `showTaskDialog`-gate hierboven, dus de toetsen zijn alleen actief bij een open dialoog.
     // Let op: overlaytint is hier bg-black/50 (historisch iets lichter dan de andere dialogs).
     <Dialog
@@ -304,12 +304,12 @@ export function TaskDialog() {
               <TaskDurationField task={draft} calendar={effCal} onChange={onChange} />
             </Field>
           </div>
-          {/* Taaktypes-etappe (spec §7): zelfde veld als het paneel; commit op Opslaan via `workRule`
-              in de updateTask-/addTask-patch (de store legt het werk vast, K1). */}
+          {/* Werkregel: zelfde veld als het paneel; commit op Opslaan via `workRule`
+              in de updateTask-/addTask-patch (de store legt het werk vast). */}
           <TaskWorkRuleField
             task={draft}
             onChange={patch => {
-              // Review B4: op een bestaande taak direct committen (zoals de toewijzingssectie, die óók
+              // Op een bestaande taak direct committen (zoals de toewijzingssectie, die óók
               // rechtstreeks op de store werkt) zodat werk/inzet in dezelfde dialoog met de gekozen
               // regel rekenen; de draft spiegelt. Een nieuwe taak houdt 'm in de draft tot Opslaan.
               onChange(patch);
@@ -325,8 +325,8 @@ export function TaskDialog() {
 
           <TaskProgressFields
             task={draft}
-            // Dezelfde regels als het paneel (§3.2 + invoerregels), maar op de draft — commit pas op
-            // Opslaan. Een weigering of de vraag naar de werkelijke start komt terug als resultaat.
+            // Dezelfde regels als het paneel (voortgangs- en invoerregels), maar op de draft — commit pas op
+            // Opslaan. Een weigering of de startvraag komt terug als resultaat.
             onSetProgress={(raw, opts) => enterDraftProgress({ field: 'completion', value: raw }, opts)}
             onSetActualStart={(date, opts) => enterDraftProgress({ field: 'actualStart', value: date }, opts)}
             onSetActualFinish={(date, opts) => enterDraftProgress({ field: 'actualFinish', value: date }, opts)}
@@ -335,8 +335,8 @@ export function TaskDialog() {
           {editingTask && (
             <>
               <TaskCpmResultSection taskId={editingTask.id} />
-              {/* interactive=false (hyperkritische review issue #65): de dialoog kan op elk
-                  tabblad open staan (F2), dus zonder gegarandeerd gemonte GanttCanvas kan het
+              {/* interactive=false: de dialoog kan op elk
+                  tabblad open staan, dus zonder gegarandeerd gemonte GanttCanvas kan het
                   "spring naar taak"-signaal nooit worden opgepikt — de sprongknop hoort daarom
                   alleen in het eigenschappenpaneel. */}
               <TaskDependenciesSection taskId={editingTask.id} interactive={false} />

@@ -9,14 +9,14 @@ import { taskTypesUnlocked } from '@/state/taskTypesVisibility';
 import { Field } from './shared';
 
 /**
- * Taaktypes-etappe (spec 2026-09-04 §7): de WERKREGEL (taaktype) van een taak — welke hoek van
+ * De WERKREGEL (taaktype) van een taak — welke hoek van
  * werk = restduur × inzet vast staat wanneer een andere verandert. Eén veld voor het instant-apply
  * paneel én de TaskDialog-draft (`onChange({ workRule })`; de store legt via `settleRuleChange`
- * onder een werkbeschermende regel het restwerk vast — besluit 2: geen getal verandert).
+ * onder een werkbeschermende regel het restwerk vast — geen getal verandert).
  * Zichtbaar wanneer de instelling "Toon taaktypes" aan staat of het document zelf taaktypedata
  * draagt (`taskTypesUnlocked`), en alleen op taken waarop de regel werkt (`workRuleApplies`).
  * Onder de keuzelijst staat in gewone woorden wat de EFFECTIEVE regel beschermt; een bewaard
- * MS Project-vinkje (beslispunt 8-B) staat als bijschrift, geen vinkje.
+ * MS Project-vinkje staat als bijschrift, geen vinkje.
  */
 export function TaskWorkRuleField({ task, onChange }: {
   task: Task;
@@ -42,7 +42,7 @@ export function TaskWorkRuleField({ task, onChange }: {
           <option key={rule} value={rule}>{t(`workRule.${rule}`)}</option>
         ))}
       </select>
-      {/* Gebruikstest #170, E5: wat de regel beschermt (en het bewaarde MS Project-vinkje) als één
+      {/* Wat de regel beschermt (en het bewaarde MS Project-vinkje) als één
           gekleurd blok in plaats van een losse regel plus een cursief bijschrift. */}
       <div className="ops-note !mt-1" data-ops-work-rule-note>
         <Lock size={11} aria-hidden />

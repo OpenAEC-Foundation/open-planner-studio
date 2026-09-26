@@ -7,7 +7,7 @@ import { effectiveBarColorSelection, isBarColorCandidate } from '@/services/prin
 import type { BarColorSelection } from '@/types/barColor';
 
 /** Dezelfde veldlijst, volgorde, labels en disambiguatie als de Group-bediening, minus de velden
- *  die geen kleur kunnen dragen (Resourcetype, issue #173). */
+ *  die geen kleur kunnen dragen (Resourcetype). */
 export function barColorFieldOptions(ctx: FieldCatalogCtx) {
   return fieldOptions(groupFieldList(ctx).filter(isBarColorCandidate), ctx);
 }

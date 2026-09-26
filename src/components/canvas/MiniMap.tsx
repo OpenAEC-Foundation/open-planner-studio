@@ -1,8 +1,8 @@
-// Mini-map-strip onder de Gantt (fase 2.7, §11): thumbnail van de hele projectperiode
+// Mini-map-strip onder de Gantt: thumbnail van de hele projectperiode
 // (MiniMapRenderer, 1 fillRect per taakrij) + sleepbaar viewport-kader gekoppeld aan
-// view.scrollX. Klik centreert het bestuurde venster; standaard is dat het primaire pane (§10.3).
+// view.scrollX. Klik centreert het bestuurde venster; standaard is dat het primaire pane.
 // Bij split view mount GanttCanvas een tweede strook die via de props het secundaire tijdvenster
-// bestuurt (issue #35 punt 1) — één component, twee bestuurde vensters.
+// bestuurt — één component, twee bestuurde vensters.
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
@@ -18,8 +18,8 @@ interface MiniMapProps {
   originDate: string;
   /** Werkelijk gemeten breedte van het bestuurde tijdlijnpaneel (px). */
   timelineWidth: number;
-  /** Issue #35 punt 1 — bestuurde tijdvenster. Alle drie afwezig ⇒ het PRIMAIRE pane: de strip
-   *  leest `view.scrollX`/`view.zoom` en schrijft via `setScroll` (ongewijzigd gedrag). Meegegeven
+  /** Bestuurde tijdvenster. Alle drie afwezig ⇒ het PRIMAIRE pane: de strip
+   *  leest `view.scrollX`/`view.zoom` en schrijft via `setScroll`. Meegegeven
    *  ⇒ een tweede strip die het secundaire split-view-venster bestuurt
    *  (`splitView.secondaryScrollX`/`secondaryZoom`) zonder de gedeelde `view` aan te raken. De
    *  store-selectors hieronder blijven onvoorwaardelijk draaien (hooks-regel); pas ná het lezen
@@ -27,7 +27,7 @@ interface MiniMapProps {
   scrollX?: number;
   zoom?: number;
   onScrollXChange?: (scrollX: number) => void;
-  /** Onderscheidt de twee stroken in self-tests; default is de bestaande 'minimap'. */
+  /** Onderscheidt de twee stroken in self-tests; default is 'minimap'. */
   testId?: string;
 }
 
@@ -113,7 +113,7 @@ export function MiniMap({
       const leftDay = scrollX / zoom;
       setDragOffsetDays(day - leftDay);
     } else {
-      // Klik buiten het kader: centreer het hoofdvenster op het aangeklikte punt (§11.2)
+      // Klik buiten het kader: centreer het hoofdvenster op het aangeklikte punt
       // en sleep daarna vanuit het midden verder.
       const halfDays = timelineWidth > 0 ? timelineWidth / 2 / zoom : 0;
       applyScrollX((day - halfDays) * zoom);
@@ -145,7 +145,7 @@ export function MiniMap({
       <canvas
         ref={canvasRef}
         className="absolute inset-0"
-        // maxWidth/maxHeight (issue #30): <canvas> is een replaced element — vóór de eerste
+        // maxWidth/maxHeight: <canvas> is een replaced element — vóór de eerste
         // rAF-render (of wanneer die om wat voor reden dan ook uitblijft) valt `width`/`height`
         // zonder eigen stijl terug op het browser-intrinsieke 300×150 i.p.v. mee te stretchen met
         // `inset-0`. Deze twee regels zorgen dat de canvas nooit méér ruimte claimt dan de

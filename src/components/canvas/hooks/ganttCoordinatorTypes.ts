@@ -1,9 +1,9 @@
-// Expliciete naden rond de drie verantwoordelijkheden die uit GanttCanvas worden gehaald.
+// Expliciete naden rond de drie verantwoordelijkheden buiten GanttCanvas (rendererhost,
+// viewport- en pointercoördinator).
 //
 // Dit bestand bevat uitsluitend types. Het koppelt geen store, mount geen DOM en voert geen
-// domeinmutatie uit. Daardoor kunnen de volgende extractiestappen hun invoer eerst tegen een smal
-// contract leggen en pas daarna bestaande code verplaatsen, zonder ongemerkt de hele applicatiestaat
-// als gemaksargument door te geven.
+// domeinmutatie uit. Zo krijgt elke coördinator een smal contract in plaats van de hele
+// applicatiestaat als gemaksargument.
 import type {
   MouseEvent as ReactMouseEvent,
   RefObject,
@@ -145,9 +145,9 @@ export interface GanttContextMenuState {
   task: Task | null;
   barHit: boolean;
   group: { key: string; collapsed: boolean } | null;
-  /** Issue #146 etappe 3: de pauze die "Onderbreking opheffen" opheft — die onder de cursor, of die
+  /** De pauze die "Onderbreking opheffen" opheft — die onder de cursor, of die
    *  VÓÓR het aangeklikte stuk. `null` op stuk 0, zonder splits, of op een split die niet bewerkbaar
-   *  is (dan blijft alleen "Alle onderbrekingen opheffen" over, spec §1). */
+   *  is (dan blijft alleen "Alle onderbrekingen opheffen" over). */
   splitGapIndex: number | null;
 }
 
@@ -167,13 +167,13 @@ export interface GanttRelationPopoverState {
 /** De vijf tijdlijngebaren blijven eigenaar van hun eigen state en windowlisteners. */
 export interface GanttGestureOverlays {
   barDrag: DragState | null;
-  /** Issue #146 etappe 3: het label bij een stuk- of stukrandsleep op een gesplitste balk. */
+  /** Het label bij een stuk- of stukrandsleep op een gesplitste balk. */
   barSplitDrag: SplitDragLabel | null;
   pan: PanState | null;
   boxSelectCandidate: BoxSelectCandidate | null;
   boxSelect: BoxSelectState | null;
   dependency: DependencyDragState | null;
-  /** Issue #146: de geleidelijn van de splits-modus — ook bij hover, dus zonder lopend gebaar. */
+  /** De geleidelijn van de splits-modus — ook bij hover, dus zonder lopend gebaar. */
   split: SplitGestureState | null;
 }
 
@@ -196,7 +196,7 @@ export interface GanttPointerCoordinatorInput {
   selectedTaskIds: string[];
   headerHeight: number;
   dependencyMode: boolean;
-  /** Issue #146: splits-modus (`ui.showSplitMode`). Sluit `dependencyMode` uit — `setUI` bewaakt dat. */
+  /** Splits-modus (`ui.showSplitMode`). Sluit `dependencyMode` uit — `setUI` bewaakt dat. */
   splitMode: boolean;
   scrollMode: ScrollMode;
   enableQuarterHourZoom: boolean;
@@ -206,7 +206,7 @@ export interface GanttPointerCoordinatorInput {
   selectTasks: (ids: string[], additive: boolean) => void;
   deselectAll: () => void;
   updateTask: (id: string, updates: Partial<Task>, options?: { coalesceKey?: string }) => void;
-  /** Issue #146: de ENE schrijfweg voor gebruikerssplits (`taskSlice.setTaskSplits`). */
+  /** De ENE schrijfweg voor gebruikerssplits (`taskSlice.setTaskSplits`). */
   setTaskSplits: (taskId: string, pieces: SplitPiece[] | null, options?: { coalesceKey?: string }) => unknown;
   /** Esc midden in een splitsgebaar draait de lopende coalesce-stap terug. */
   undo: () => void;
@@ -215,7 +215,7 @@ export interface GanttPointerCoordinatorInput {
   clearHistogramTooltip: () => void;
   /** Een overwegend verticale sleep op een balkBODY wordt hieraan overgedragen (de rijsleep van de
    *  DOM-grid, via `ganttRowDragBridge`). Ontbreekt hij, dus is er geen ingebedde taakgrid, dan
-   *  blijft de body een horizontale datumsleep zoals vóór 2026-08-27. Of de structuur bewerkbaar is
+   *  blijft de body een horizontale datumsleep. Of de structuur bewerkbaar is
    *  beslist de ONTVANGER (`useTableRowDrag`'s `enabled`/`onBlocked`), niet deze poort: buiten de
    *  boomweergave krijgt de gebruiker daar dezelfde uitleg als bij een rijsleep. Randen slepen
    *  altijd duur. */
@@ -224,7 +224,7 @@ export interface GanttPointerCoordinatorInput {
     startClientX: number;
     startClientY: number;
   }) => void;
-  /** W2-vervolg: bepaalt een voorganger de start van deze taak? Een gesleepte start (body, linkerrand)
+  /** Bepaalt een voorganger de start van deze taak? Een gesleepte start (body, linkerrand)
    *  volgt dan dezelfde regel als een getypte: SNET, of — bij een andere constraint — niets toepassen
    *  en melden (`src/engine/startEditConstraint.ts`). */
   isStartDrivenByPredecessor: (taskId: string) => boolean;

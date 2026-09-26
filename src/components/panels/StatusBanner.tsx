@@ -13,7 +13,7 @@ const TONES = {
     },
     role: 'alert',
   },
-  // Informatief, geen fout: de bestaande "dim"-stijl.
+  // Informatief, geen fout: de "dim"-stijl.
   dim: {
     className: 'flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium text-text-secondary',
     style: {

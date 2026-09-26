@@ -193,7 +193,7 @@ export function TaskCellEditor({
     'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
   ];
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
-  // Browserreview, observatie 5: `commit()` leest hieruit i.p.v. rechtstreeks uit de `text`-state.
+  // `commit()` leest hieruit i.p.v. rechtstreeks uit de `text`-state.
   // De enum/boolean-editor commit meteen bij het kiezen (klik of Enter — zie de onChange hieronder),
   // in DEZELFDE synchrone afhandeling als de `setText`-aanroep die de keuze vastlegt. Zonder deze
   // ref zou `commit` (via zijn `useCallback`-closure) nog de VORIGE render se `text` zien, want React
@@ -234,7 +234,7 @@ export function TaskCellEditor({
     return () => onCommitReady(null);
   }, [commit, onCommitReady]);
 
-  // Browserreview, observatie 5: gedeeld door de enum- en boolean-editor. Een klik op een optie
+  // Gedeeld door de enum- en boolean-editor. Een klik op een optie
   // heeft geen keydown om op te bubbelen, dus commit hier ZELF, meteen na het bijwerken van
   // `textRef`/`text` — niet via `commit()`s closure (die pas ná de eerstvolgende render de nieuwe
   // waarde ziet), maar via de synthetische Enter naar `inputProps.onKeyDown`, die `commit()` intern
@@ -390,9 +390,9 @@ export function TaskCellEditor({
             )}
           </div>
         ) : descriptor?.editorKind === 'enum' && descriptor.editorOptions ? (
-          // Browserreview, observatie 5: een kaal native <select> toont bij het starten van
+          // Een kaal native <select> toont bij het starten van
           // bewerken geen uitgeklapte lijst — pijltjes cyclen alleen de waarde, zonder overzicht van
-          // alle opties. `Select` (src/components/common/Select.tsx) is het bestaande, volwaardige
+          // alle opties. `Select` (src/components/common/Select.tsx) is het volwaardige
           // component (open/highlight/typeahead/Enter-commit/Escape-annuleer) — hier met `autoOpen`
           // zodat de volledige lijst er meteen staat. `onKeyDown={inputProps.onKeyDown}` op de
           // WRAPPER (niet op Select zelf, dat kent die prop niet) vangt Escape door: Select's eigen

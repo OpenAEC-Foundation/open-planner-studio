@@ -22,16 +22,13 @@ import { TaskSplitsSection } from '@/components/task-sections/TaskSplitsSection'
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 
-// RESOURCE_CURVES/CURVE_KEY verhuisd naar `@/components/task-sections/shared` (fase 2.10, golf D) —
-// Ribbon.tsx en de nieuwe Toewijzingen-sectie importeren vanaf daar. Re-export hier zou een
-// cirkelvormige afhankelijkheid met task-sections/shared kunnen introduceren; bestaande imports zijn
-// bijgewerkt naar de nieuwe plek.
+// RESOURCE_CURVES/CURVE_KEY wonen in `@/components/task-sections/shared` — importeer ze vanaf daar.
+// Re-export hier zou een cirkelvormige afhankelijkheid met task-sections/shared kunnen introduceren.
 
 /**
- * Eigenschappenpaneel voor de geselecteerde taak (fase 2.10, golf D: geëxtraheerd in gedeelde
- * `task-sections/*`-componenten, hergebruikt door `TaskDialog`). Dit paneel blijft INSTANT-APPLY
- * (`update(patch) => updateTask(task.id, patch)`) — exact het gedrag van vóór de extractie, puur
- * JSX/compositie verplaatst naar losse bestanden.
+ * Eigenschappenpaneel voor de geselecteerde taak, opgebouwd uit de gedeelde
+ * `task-sections/*`-componenten (ook gebruikt door `TaskDialog`). Dit paneel is INSTANT-APPLY
+ * (`update(patch) => updateTask(task.id, patch)`).
  */
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
@@ -43,10 +40,10 @@ export function TaskPropertiesPanel() {
   const deleteTask = useAppStore(s => s.deleteTask);
   const runCPM = useAppStore(s => s.runCPM);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
-  // Voortgang (fase 2.6): de actie dwingt de §3.2-invarianten af — zie TaskProgressFields-docstring
+  // Voortgang: de actie dwingt de voortgangsinvarianten af — zie TaskProgressFields-docstring
   // voor waarom dit dedicated setters zijn (i.p.v. de generieke patch). `enterTaskProgress` is de
-  // UI-variant: dezelfde bewerking plus de invoerregels van `engine/progressEntry.ts` (Z1: zonder
-  // statusdatum gaat die op vandaag, met een melding).
+  // UI-variant: dezelfde bewerking plus de invoerregels van `engine/progressEntry.ts` (statusdatum
+  // op vandaag, met een melding, als er nog geen is).
   const enterTaskProgress = useAppStore(s => s.enterTaskProgress);
   // Automatisch berekenen pas als een veld af is, niet halverwege het typen.
   const textEntryHold = useTextEntryAutoCalcHold();
@@ -108,7 +105,7 @@ export function TaskPropertiesPanel() {
 
       <TaskTimeFields task={task} onChange={update} />
 
-      {/* Taaktypes-etappe (review B3): een typewissel rekent niets en gaat daarom via `setTaskWorkRule`
+      {/* Een werkregelwissel rekent niets en gaat daarom via `setTaskWorkRule`
           (geen `scheduleStale`, "datums zoals opgeslagen" blijft staan), niet via de generieke update. */}
       <TaskWorkRuleField task={task} onChange={patch => setTaskWorkRule(task.id, patch.workRule)} />
 
