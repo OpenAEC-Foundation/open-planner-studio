@@ -1,6 +1,6 @@
-// Filter-evaluator + gedeelde veld-resolver (fase 2.7 weergaven, §6).
+// Filter-evaluator + gedeelde veld-resolver.
 // PUUR & HEADLESS: geen React-, geen store-imports (alleen type-only imports, compile-time erased),
-// zodat de tests deze functies rechtstreeks kunnen aanroepen (§14.1).
+// zodat de tests deze functies rechtstreeks kunnen aanroepen.
 
 import type { Task } from '@/types/task';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
@@ -9,15 +9,15 @@ import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 
-/** Gedeelde context voor filter/groep/sort/kolom-resolutie (§4.1). */
+/** Gedeelde context voor filter/groep/sort/kolom-resolutie. */
 export interface ViewContext {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   resources: Resource[];
   assignments: ResourceAssignment[];
-  /** = t('structure.none') — de bestaande i18n-key, hergebruikt (§4.1). */
+  /** = t('structure.none'). */
   noneLabel: string;
-  /** Vertaalde bandlabels voor groeperen op resourcetype (issue #173); ontbreekt ⇒ de enum-naam. */
+  /** Vertaalde bandlabels voor groeperen op resourcetype; ontbreekt ⇒ de enum-naam. */
   resourceTypeLabels?: Partial<Record<ResourceType, string>>;
 }
 
@@ -25,14 +25,14 @@ export interface ViewContext {
 export type FieldValue = string | number | boolean | string[] | undefined;
 
 /**
- * Indexen op een `ViewContext`, lui gebouwd en gecachet op de context-INSTANTIE (K-item 36).
+ * Indexen op een `ViewContext`, lui gebouwd en gecachet op de context-INSTANTIE.
  *
  * Waarom een WeakMap en geen extra velden op `ViewContext`: de context wordt in `src/` op drie
  * plekken opgebouwd (`viewRowInputs` in `state/viewRows.ts`, `derivePayloadViewRows` in
  * `state/documentActivation.ts`, de benchmark-runner; daarnaast in testfixtures) en die zouden alle
- * drie de indexen moeten vullen — precies het soort met-de-hand-bijhouden dat elders in dit
- * traject is opgeruimd. De cache is veilig omdat élke bouwplek per aanroep een VERS objectliteraal
- * maakt en niemand een context over een mutatie heen vasthoudt (de UI bouwt er zelf geen: taakraster
+ * drie de indexen moeten vullen — foutgevoelig met-de-hand-bijhouden. De cache is veilig omdat
+ * élke bouwplek per aanroep een VERS objectliteraal maakt en niemand een context over een mutatie
+ * heen vasthoudt (de UI bouwt er zelf geen: taakraster
  * en Gantt lezen de kant-en-klare `viewRows` uit de store). Een gewijzigde `assignments` betekent
  * dus altijd een nieuwe context en daarmee een nieuwe index. Een WeakMap laat de oude bovendien
  * vanzelf vallen.
@@ -59,12 +59,11 @@ function indexesFor(ctx: ViewContext): ViewIndexes {
 }
 
 /**
- * Namen van de aan de taak toegewezen resources (join via assignments, §5.3).
+ * Namen van de aan de taak toegewezen resources (join via assignments).
  *
- * Draaide hiervóór twee volledige scans PER TAAK — `assignments.filter(...)` plus een
- * `resources.find(...)` per treffer — terwijl `visibleRows` deze functie voor élke taak aanroept.
- * Dat is O(taken × toewijzingen × resources) op het pad dat na iedere mutatie opnieuw loopt
- * (`recomputeViewRows`). Met de index erboven is het O(toewijzingen van deze taak).
+ * `visibleRows` roept deze functie voor élke taak aan, op het pad dat na iedere mutatie opnieuw
+ * loopt (`recomputeViewRows`). Met de index erboven is het O(toewijzingen van deze taak), niet
+ * O(taken × toewijzingen × resources).
  */
 export function resourceNames(task: Task, ctx: ViewContext): string[] {
   const { assignmentsByTask, resourceById } = indexesFor(ctx);
@@ -81,7 +80,7 @@ export function resourceNames(task: Task, ctx: ViewContext): string[] {
 /**
  * Bandvolgorde van de resourcetypen: wie het werk doet eerst, dan waarmee, dan waarvan. Bewust vast
  * en niet op vertaald label gesorteerd, zodat een uitgedeeld vel in elke taal dezelfde blokvolgorde
- * heeft. Gedeeld door de schermgroepering (issue #173) en het rapport Resourcediagram. Een type dat
+ * heeft. Gedeeld door de schermgroepering en het rapport Resourcediagram. Een type dat
  * hier zou ontbreken (kan niet met het huidige enum) komt achteraan.
  */
 export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL'];
@@ -115,15 +114,15 @@ export function resourceTypes(task: Task, ctx: ViewContext): ResourceType[] {
   return [...types].sort((a, b) => resourceTypeRank(a) - resourceTypeRank(b));
 }
 
-/** Komma-gescheiden resource-namen voor de resource-kolom (§5.3). */
+/** Komma-gescheiden resource-namen voor de resource-kolom. */
 export function resourceCellValue(task: Task, ctx: ViewContext): string {
   return resourceNames(task, ctx).join(', ');
 }
 
 /**
- * De gedeelde resolver (ook door groep/sort gebruikt, §6.2). Kiest per builtin-key het JUISTE pad:
+ * De gedeelde resolver (ook door groep/sort gebruikt). Kiest per builtin-key het JUISTE pad:
  * totalFloat/isCritical/completion staan onder `task.time`, NIET direct op `Task`. Onbekende
- * refs (layout uit een ander document) → `undefined`, nooit een throw (§8.4).
+ * refs (layout uit een ander document) → `undefined`, nooit een throw.
  */
 export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   switch (field.src) {
@@ -139,8 +138,8 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
         case 'completion': return task.time.completion;
         case 'taskType': return task.taskType;
         case 'isMilestone': return task.isMilestone;
-        // Fase 2.9 (§3.5): additieve analyse-velden. freeFloat is altijd aanwezig; de andere drie
-        // zijn optioneel (undefined tot de bijbehorende analyse-golf draait) — undefined-tolerant.
+        // Analysevelden. freeFloat is altijd aanwezig; de andere drie zijn optioneel (undefined tot
+        // de bijbehorende analyse draait) — undefined-tolerant.
         case 'freeFloat': return task.time.freeFloat;
         case 'interferingFloat': return task.time.interferingFloat;
         case 'isNearCritical': return task.time.isNearCritical;
@@ -189,7 +188,7 @@ function cmp(v: FieldValue, value: unknown): number {
   return sa < sb ? -1 : sa > sb ? 1 : 0;
 }
 
-/** Past één operator toe (§6.2). Undefined-tolerant: geen throw, ontbrekende waarde matcht niet. */
+/** Past één operator toe. Undefined-tolerant: geen throw, ontbrekende waarde matcht niet. */
 export function applyOperator(
   operator: FilterOperator,
   v: FieldValue,
@@ -226,7 +225,7 @@ export function applyOperator(
 }
 
 /**
- * "Actief tussen"-synthetisch filterveld (issue-discussie #32): een taak is actief in [van, tot]
+ * "Actief tussen"-synthetisch filterveld: een taak is actief in [van, tot]
  * wanneer haar eigen interval [start, finish] dát overlapt — de klassieke interval-overlaptest
  * (start ≤ tot ÉN finish ≥ van). Dit past niet in de generieke resolver: die levert per veld één
  * scalar die de operator tegen `value`/`value2` legt, terwijl deze check start ÉN finish
@@ -241,7 +240,7 @@ function evaluateActiveDuring(task: Task, value?: string | number | boolean | st
 }
 
 /**
- * Evalueer een filterknoop op één taak (§6.2). Een lege groep matcht alles (neutraal element).
+ * Evalueer een filterknoop op één taak. Een lege groep matcht alles (neutraal element).
  */
 export function evaluate(node: FilterNode, task: Task, ctx: ViewContext): boolean {
   if (node.kind === 'group') {

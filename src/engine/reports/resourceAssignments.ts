@@ -6,9 +6,9 @@ import {
 import type { ReportingPeriod } from './reportingPeriod';
 
 /**
- * Resourcetoewijzingen (discussie #31, rapport 9): per resource welke activiteiten eraan hangen —
- * "wat doet deze ploeg/kraan/onderaannemer?". Met een rapportageperiode (issue #120; standaard de
- * hele projectspanne) wordt het meteen de "Resource Look-Ahead"-variant uit het voorstel. Rijen
+ * Resourcetoewijzingen: per resource welke activiteiten eraan hangen —
+ * "wat doet deze ploeg/kraan/onderaannemer?". Met een rapportageperiode (standaard de
+ * hele projectspanne) wordt het meteen een "Resource Look-Ahead". Rijen
  * zijn gesorteerd op resource en dan op start; de UI groepeert per resource.
  */
 export interface ResourceAssignmentRow {

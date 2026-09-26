@@ -1,25 +1,19 @@
-// Centraal themapalet voor de tekenlaag (fase 2.7/2.9, audit C5/P17). Vroeger las ELKE renderer
-// (GanttRenderer/HistogramRenderer/MiniMapRenderer) zélf de CSS-thema-variabelen via
-// getComputedStyle én droeg elk zijn eigen kopie van de merk-hex-tabel — half DOM-read, half
-// hardcoded hex, met "gelijk aan GanttRenderer"-commentaar als enige koppeling. Dat staat nu op één
-// plek:
+// Centraal themapalet voor de tekenlaag (GanttRenderer/HistogramRenderer/MiniMapRenderer):
 //   - de merk-hex-constanten (kritiek-rood, normaal-blauw, …) staan één keer in `BRAND`;
 //   - readGanttPalette/readHistogramPalette/readMiniMapPalette lezen de CSS-vars (met per-renderer
-//     fallback, EXACT zoals voorheen) en stellen het palet samen;
-//   - PRINT_PALETTE is de parallelle, DOM-loze print-tabel. Die loopt sinds de U2-fixronde NIET
-//     met `BRAND` mee, maar houdt eigen literalen: papier is wit en stelt andere eisen dan een
-//     scherm met twee thema's (zie de toelichting bij PRINT_PALETTE zelf).
+//     fallback) en stellen het palet samen;
+//   - PRINT_PALETTE is de parallelle, DOM-loze print-tabel. Die loopt NIET met `BRAND` mee, maar
+//     houdt eigen literalen: papier is wit en stelt andere eisen dan een scherm met twee thema's
+//     (zie de toelichting bij PRINT_PALETTE zelf).
 // De renderers krijgen hun palet via de constructor-opts geïnjecteerd; ontbreekt dat, dan roepen ze
-// zelf de bijbehorende read*-functie aan (identiek lees-moment/-resultaat als vroeger). Zo wordt de
-// renderer puur/headless-testbaar terwijl de GETEKENDE kleuren byte-identiek blijven.
+// zelf de bijbehorende read*-functie aan. Zo is de renderer puur/headless-testbaar.
 //
 // LET OP: de exacte casing van elke hex is load-bearing — de teken-aanroepen geven de string
-// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden die vroeger in verschillende casing stonden
-// (bv. Gantt `#991B1B` vs print `#991b1b`) blijven daarom apart en worden NIET samengevoegd.
+// letterlijk aan `fillStyle`/`strokeStyle` door. Waarden in verschillende casing (bv. Gantt
+// `#991B1B` vs print `#991b1b`) blijven daarom apart en worden NIET samengevoegd.
 
-/** Leest een CSS-custom-property van het document-element, met fallback als de var leeg is.
- *  Exact het `getComputedStyle(...).getPropertyValue(...).trim() || fallback`-patroon dat elke
- *  renderer eerder inline had. */
+/** Leest een CSS-custom-property van het document-element, met fallback als de var leeg is
+ *  (`getComputedStyle(...).getPropertyValue(...).trim() || fallback`). */
 function cssVarReader(): (name: string, fallback: string) => string {
   const s = getComputedStyle(document.documentElement);
   return (name: string, fallback: string) => s.getPropertyValue(name).trim() || fallback;
@@ -33,23 +27,21 @@ export const GANTT_TRACE_COLORS = {
   successorDriving: '#7C3AED',   // path tracing: driving opvolger (donkerder paars)
 } as const;
 
-// De BALKKLEUREN zijn de verzadigde merktinten, en dat is een bewuste keuze van de eigenaar.
-// Tussenstand: werkblok U2 (12-09-2026) heeft ze één stap ontzadigd (#DA5252/#648BE0/#5778D6/
-// #986DE2/#808694) om met ÉÉN set >=3:1 te halen tegen zowel de lichte kaart (#FAFAFA) als de
-// donkere (#2E3239). Dat kostte het merkkarakter: de balken lazen als mat pastel. Besluit
-// 18-09-2026: het contrasteisenpaar wordt losgelaten voor de balken; de verzadigde set komt terug.
+// De BALKKLEUREN zijn de verzadigde merktinten, en dat is een bewuste keuze. Een ontzadigde set
+// die met ÉÉN set >=3:1 haalt tegen zowel de lichte kaart (#FAFAFA) als de donkere (#2E3239) kost
+// het merkkarakter (de balken lezen als mat pastel); die contrasteis is voor de balken losgelaten.
 // Gemeten (WCAG 2.x), lichte kaart #FAFAFA / donkere kaart #2E3239 / hoog-contrastkaart #0a0a0a:
 //   critical  #DC2626  4,63 / 2,67 / 4,10
 //   normal    #2563EB  4,95 / 2,49 / 3,83
 //   complete  #1D4ED8  6,42 / 1,92 / 2,95
 //   milestone #7C3AED  5,46 / 2,26 / 3,47
 //   baseline  #6B7280  4,63 / 2,66 / 4,10
-// Onder U2 haalden alle vijf op ELKE kaart >=3:1; die eis is dus bewust opgegeven. Noem het bij de
-// naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar 1,92-2,67 en in het
-// HOOG-CONTRASTTHEMA zakt `complete` naar 2,95 — dat is formeel non-conform met WCAG 1.4.11 (die
+// Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
+// 1,92-2,67 en in het HOOG-CONTRASTTHEMA zakt `complete` naar 2,95 — dat is formeel non-conform met
+// WCAG 1.4.11 (die
 // kent geen grootte-uitzondering voor grafische objecten), en in `mode: 'critical'` is de balkkleur
-// de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. De eigenaar heeft die afwijking
-// aanvaard voor licht en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
+// de enige drager van "kritiek ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht
+// en donker. Wat de afruil dráágt is niet de vlakgrootte — de balk is
 // `rowHeight * 0,5`, bij de standaard ROW_HEIGHT 28 dus ~14 px, en in `mode: 'critical'` tekent
 // GanttRenderer er GEEN rand omheen (`modeAdvies` is daar `null`) — maar het LABEL: dat haalt via
 // `barLabelColor` (hieronder) 4,83-6,70 op elke balktint, en dat is wel gemeten.
@@ -61,25 +53,24 @@ export const GANTT_TRACE_COLORS = {
 // LET OP 2: `--color-critical` is niet alléén een balkkleur. Tailwind v4 leidt er de utility
 // `text-critical` uit af, die als ECHTE TEKST wordt gebruikt in ExtensionConsentDialog,
 // BenchmarkDialog en TaskCpmResultSection. Op #DC2626 haalt die tekst 4,83 op wit, maar 2,67 op de
-// donkere kaart en 2,33 op een elevated donker vlak — geen AA. Dat is de pre-U2-toestand (U2 gaf er
-// per ongeluk 3,25/2,85 van); wie dat wil oplossen verplaatst die zes gebruiken naar
-// `--theme-critical-text`, dat per thema bestaat en precies hiervoor bedoeld is.
-// LET OP 3: enkele tinten vallen samen, allemaal net als vóór U2 (dat had ze toevallig uit elkaar
-// getrokken): `baseline` == `dependency` (#6B7280), en `milestone` == GANTT_TRACE_COLORS
-// .successorDriving (#7C3AED), wat ook DOC_PALETTE[3] in utils/documents.ts is — bij 1 op de 8
+// donkere kaart en 2,33 op een elevated donker vlak — geen AA. Wie dat wil oplossen verplaatst die
+// zes gebruiken naar `--theme-critical-text`, dat per thema bestaat en precies hiervoor bedoeld is.
+// LET OP 3: enkele tinten vallen samen: `baseline` == `dependency` (#6B7280), en `milestone` ==
+// GANTT_TRACE_COLORS.successorDriving (#7C3AED), wat ook DOC_PALETTE[3] in utils/documents.ts is —
+// bij 1 op de 8
 // documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
 const BRAND = {
   critical: '#DC2626',          // kritiek (rood)
   criticalLight: '#991B1B',     // voortgangsvulling kritiek
-  nearCritical: '#F59E0B',      // bijna-kritiek (amber, fase 2.9 §5.4)
-  hammock: '#0E7490',           // hammock/LOE-balk (teal, fase 2.9 §5.3)
+  nearCritical: '#F59E0B',      // bijna-kritiek (amber)
+  hammock: '#0E7490',           // hammock/LOE-balk (teal)
   normal: '#2563EB',            // normale taak (blauw)
   normalLight: '#1D4ED8',       // voortgangsvulling / voltooid (blauw)
   milestone: '#7C3AED',         // mijlpaal (paars, ruit)
   baseline: '#6B7280',          // baseline-onderbalk (grijs)
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
   summary: '#475569',           // samenvattingsbalk (slate)
-  ghost: '#94A3B8',             // externe (cross-project) ghost-balk (grijs, fase 2.9 §5.5)
+  ghost: '#94A3B8',             // externe (cross-project) ghost-balk (grijs)
   constraintEarly: '#3B82F6',   // vroege-zijde constraint (SNET/FNET): blauw
   constraintLate: '#8B5CF6',    // late-zijde/pinnende constraint (SNLT/FNLT/MSO/MFO): violet
   deadlineOk: '#10B981',        // deadline-marker (groen; rood bij overschrijding)
@@ -89,20 +80,19 @@ const BRAND = {
   traceSuccDriving: GANTT_TRACE_COLORS.successorDriving,
 };
 
-// Optionele tint per float-pad (fase 2.9 §5.4): pad 1 = kritiek (rood, elders), paden ≥2 elk een
-// eigen tint. [0]/[1] hergebruiken de merk-blauw/-violet — byte-identiek aan de vroegere literalen.
+// Optionele tint per float-pad: pad 1 = kritiek (rood, elders), paden ≥2 elk een
+// eigen tint. [0]/[1] hergebruiken de merk-blauw/-violet.
 const FLOAT_PATH_TINTS: string[] = [
   BRAND.normal, BRAND.milestone, '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#0D9488', '#9333EA',
 ];
 
-// ── Labelkleur op een gekleurd vlak (U2-fixronde) ────────────────────────────
-// Het balklabel was ooit hardgecodeerd wit. Dat is niet houdbaar zodra de balkkleur niet vaststaat:
+// ── Labelkleur op een gekleurd vlak ──────────────────────────────────────────
+// Een vast wit balklabel is niet houdbaar zodra de balkkleur niet vaststaat:
 // in de kleurmodi (`auto`, resource-, categorie-kleuring) tekent de gebruiker zijn eigen tinten op
 // de balk, en op een lichte eigen kleur is wit onleesbaar. `barLabelColor` kiest daarom per vlak de
 // beste van twee: bijna-zwart (#111827, hetzelfde als PRINT_PALETTE.text) of wit.
 //
-// Met het HERSTELDE verzadigde balkpalet (zie BRAND hierboven) wint wit op de VIJF STANDAARD-
-// balktinten — daar komt het oude beeld dus vanzelf terug, nu gemeten in plaats van aangenomen.
+// Met het verzadigde balkpalet (zie BRAND hierboven) wint wit op de VIJF STANDAARD-balktinten.
 // Gemeten (WCAG 2.x), zwart-label / wit-label:
 //   critical   #DC2626  3,67 / 4,83  ⇒ wit
 //   normal     #2563EB  3,43 / 5,17  ⇒ wit

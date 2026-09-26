@@ -1,6 +1,6 @@
-// De gedeelde, headless zichtbare-rijen-selector (fase 2.7 weergaven, KERN §4).
+// De gedeelde, headless zichtbare-rijen-selector.
 // Pijplijn: filter → groepeer → sorteer → flatten(collapse). PUUR: geen React-/store-imports
-// (alleen type-only). Tabel én Gantt consumeren exact dezelfde ViewRow[] (§4.1), zodat divergentie
+// (alleen type-only). Tabel én Gantt consumeren exact dezelfde ViewRow[], zodat divergentie
 // structureel onmogelijk is.
 
 import type { Task } from '@/types/task';
@@ -39,7 +39,7 @@ export interface ViewRowOpts {
 /** Rauwe sleutel voor de "(geen)"-band (taak zonder waarde op dit groepniveau). */
 export const NONE_RAWKEY = '\u0000__none__';
 
-/** Pad-gecodeerde bandsleutel (§7.1): JSON van de rauwe waardes t/m dit niveau. Uniek & escaping-vrij. */
+/** Pad-gecodeerde bandsleutel: JSON van de rauwe waardes t/m dit niveau. Uniek & escaping-vrij. */
 export function encodeBandKey(rawKeys: string[]): string {
   return JSON.stringify(rawKeys);
 }
@@ -50,7 +50,7 @@ export function encodeGroupedTaskRowKey(groupPath: readonly string[], taskId: st
 }
 
 /**
- * Pure boommodus (§4.5): structuur-mutaties (indent/outdent/row-move) zijn alleen dan zinvol.
+ * Pure boommodus: structuur-mutaties (indent/outdent/row-move) zijn alleen dan zinvol.
  * Eén gedeelde selector zodat tabel, Gantt én ribbon dezelfde regel afdwingen.
  */
 export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): boolean {
@@ -87,7 +87,7 @@ function sortValue(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   return resolveField(field, task, ctx);
 }
 
-/** Stabiele multi-key sort (§7.2). `sort: []` ⇒ oorspronkelijke volgorde behouden. */
+/** Stabiele multi-key sort. `sort: []` ⇒ oorspronkelijke volgorde behouden. */
 function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
   if (sort.length === 0) return tasks;
   return tasks
@@ -112,7 +112,7 @@ interface BandBucket {
 }
 
 /**
- * Het bereik van een geneste band (issue #173). Resource en resourcetype zijn twee kanten van
+ * Het bereik van een geneste band. Resource en resourcetype zijn twee kanten van
  * dezelfde toewijzingen: onder de typeband Arbeid hoort alleen de ARBEIDSresource van een taak,
  * niet ook het beton dat op dezelfde taak staat. Zo geeft Resourcetype → Resource dezelfde indeling
  * als het rapport Resourcediagram, en Resource → Resourcetype alleen het type van die resource.
@@ -122,7 +122,7 @@ interface BandScope {
   resourceName?: string;
 }
 
-/** De band(en) waarin een taak op dit groepniveau valt. Resource kan er MEERDERE zijn (§7.1). */
+/** De band(en) waarin een taak op dit groepniveau valt. Resource kan er MEERDERE zijn. */
 function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext, scope: BandScope): BandBucket[] {
   if (field.src === 'resource') {
     const names = scope.resourceType === undefined

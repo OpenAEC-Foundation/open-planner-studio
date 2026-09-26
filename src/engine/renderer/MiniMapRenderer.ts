@@ -1,7 +1,7 @@
-// Mini-map-thumbnail-renderer (fase 2.7, §11). BEWUST niet de volle GanttRenderer:
+// Mini-map-thumbnail-renderer. BEWUST niet de volle GanttRenderer:
 // één fillRect per taakrij, geen labels/pijlen/culling — de hele projectperiode wordt
 // op de strip gemapt, dus de complete planning is altijd zichtbaar ongeacht de hoofd-zoom.
-// Herbruikt de gedeelde `viewRows` (§4), dus filter/groep werken automatisch door.
+// Herbruikt de gedeelde `viewRows`, dus filter/groep werken automatisch door.
 
 import { parseDate, diffCalendarDays } from '@/utils/dateUtils';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -15,13 +15,13 @@ export interface MiniMapOptions {
   canvasHeight: number;
   /** Datum die in het hoofdvenster op scrollX = 0 ligt (effectiveViewStart van GanttCanvas). */
   originDate: string;
-  /** Hoofdvenster-state voor het viewport-kader (primaire pane bij split view, §10.3). */
+  /** Hoofdvenster-state voor het viewport-kader (primaire pane bij split view). */
   scrollX: number;
   zoom: number;
   /** Breedte van het zichtbare chart-gedeelte van het hoofdvenster (px). */
   chartWidth: number;
-  /** Geïnjecteerd mini-map-palet (audit C5/P17). Afwezig ⇒ zelf gelezen via `readMiniMapPalette()`
-   *  op render-moment (identiek resultaat); meegeven maakt de renderer headless-testbaar. */
+  /** Geïnjecteerd mini-map-palet. Afwezig ⇒ zelf gelezen via `readMiniMapPalette()`
+   *  op render-moment; meegeven maakt de renderer headless-testbaar. */
   palette?: MiniMapPalette;
 }
 
@@ -86,7 +86,7 @@ export class MiniMapRenderer {
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     if (this.span) {
-      // Alle rijen gecomprimeerd op de striphoogte; 1 fillRect per taakrij (§11.1).
+      // Alle rijen gecomprimeerd op de striphoogte; 1 fillRect per taakrij.
       const taskRowCount = rows.length;
       const miniRowH = taskRowCount > 0 ? canvasHeight / taskRowCount : canvasHeight;
       const origin = parseDate(this.opts.originDate);
@@ -123,8 +123,8 @@ export class MiniMapRenderer {
   }
 
   /** Grenzen van het viewport-kader op de strip — getekend door render() en gebruikt voor de
-   *  sleep-hit-testing. Geklemd op de strip zelf (issue #30): buiten-project scrollen of verder
-   *  uitzoomen dan de projectperiode gaf anders een kader dat buiten canvasWidth viel — onzichtbaar
+   *  sleep-hit-testing. Geklemd op de strip zelf: buiten-project scrollen of verder
+   *  uitzoomen dan de projectperiode geeft anders een kader dat buiten canvasWidth valt — onzichtbaar
    *  (de canvas clipt aan zijn eigen randen), maar nooit netjes tegen de rechterrand zodra de
    *  zichtbare dagen de projectperiode overtreffen. */
   frameBounds(): { x: number; w: number } | null {

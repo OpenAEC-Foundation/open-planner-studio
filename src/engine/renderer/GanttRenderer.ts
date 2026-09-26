@@ -10,7 +10,7 @@ import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { firstRowIndexByTask, uniqueTaskIds, type ViewRow } from '@/engine/view/visibleRows';
-// #21: resource-accent — dezelfde pure toewijzings-module als de printlaag (één definitie van
+// Resource-accent: dezelfde pure toewijzings-module als de printlaag (één definitie van
 // "welke resources kleuren welke taak"), geen tweede implementatie in de renderer.
 import { assignmentsFor, computeBarColors, type BarPalette } from '@/services/print/barColors';
 import type { BarColorContext } from '@/services/print/barColorCategories';
@@ -28,38 +28,36 @@ import { ellipsize } from './textFit';
 import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
 
 export interface GanttRenderOptions {
-  /** DE gedeelde zichtbare-rijenlijst (fase 2.7, §4): de renderer flattent NIET meer zelf —
-   *  tabel en Gantt consumeren exact dezelfde `viewRows` uit de store, zodat rij i in beide
-   *  hetzelfde is (bandkoppen incluis). */
+  /** DE gedeelde zichtbare-rijenlijst: de renderer flattent NIET zelf — tabel en Gantt consumeren
+   *  exact dezelfde `viewRows` uit de store, zodat rij i in beide hetzelfde is (bandkoppen incluis). */
   rows: ViewRow[];
   sequences: Sequence[];
   calendar: WorkCalendar;
   view: ViewState;
   selectedTaskIds: string[];
   /** Ids van driving relaties uit de laatste CPM-berekening; undefined = nog niet berekend
-   *  (dan tekenen alle pijlen in de neutrale stijl, zoals voorheen). */
+   *  (dan tekenen alle pijlen in de neutrale stijl). */
   drivingSequenceIds?: string[];
   /** Path tracing (MSP Task Path-stijl): focus-taak + de te markeren voorgangers/opvolgers.
    *  Actief ⇒ niet-betrokken taken dimmen; driving-ketens in een sterkere tint. */
   trace?: TaskTrace | null;
-  /** Fase 2.3: taken met geschonden late-zijde-constraint resp. gemiste deadline
+  /** Taken met geschonden late-zijde-constraint resp. gemiste deadline
    *  (uit cpmResult) — kleurt de markers rood. */
   violatedConstraintTaskIds?: string[];
   missedDeadlineTaskIds?: string[];
-  /** Voortgang & baselines (fase 2.6, §6). Alle optioneel ⇒ zonder statusdatum/baseline
-   *  tekent de renderer exact als voorheen (backwards-compat). */
+  /** Voortgang & baselines. Alle optioneel ⇒ zonder statusdatum/baseline geen overlays. */
   statusDate?: string;                                   // project.statusDate (ISO)
   showStatusDateLine?: boolean;                          // UI-toggle
   showProgressLine?: boolean;                            // UI-toggle
   showBaselineOverlay?: boolean;                         // UI-toggle
-  /** #21: dun streepje resourcekleur ónder elke bladbalk (gesegmenteerd bij meerdere resources).
+  /** Dun streepje resourcekleur ónder elke bladbalk (gesegmenteerd bij meerdere resources).
    *  Supplement, geen vervanging: de balkvulling blijft kritiek-pad-gekleurd. */
   showResourceAccent?: boolean;                          // UI-toggle
-  /** #130: de groene speling-band ná een niet-kritieke balk. Ontbreekt of `true` ⇒ tekenen (het
-   *  gedrag van vóór de toggle); `false` ⇒ de band bestaat niet, ook niet in de cull-test. */
+  /** De groene speling-band ná een niet-kritieke balk. Ontbreekt of `true` ⇒ tekenen; `false` ⇒ de
+   *  band bestaat niet, ook niet in de cull-test. */
   showFloatBand?: boolean;                               // UI-toggle
   /** Donker schermthema: het resource-accent verlicht te donkere kleuren naar een minimale
-   *  zichtbaarheid (#21 — gemeten: slate-achtige tinten vielen weg op de donkere werkruimte).
+   *  zichtbaarheid (slate-achtige tinten vallen anders weg op de donkere werkruimte).
    *  De EXPORT past dit NIET toe: papier is licht, daar staat de exacte kleur. */
   darkTheme?: boolean;
   /** Eén app-globale kleurkeuze voor zowel scherm als rapport. Ontbreekt = kritiek-padbeeld. */
@@ -79,71 +77,67 @@ export interface GanttRenderOptions {
   rowHeight: number;
   headerHeight: number;
   localizedMonths?: string[];
-  /** issue #21 punt 2 (vervolg: dagnamen): 7 weekdag-afkortingen, geïndexeerd op
-   *  d.getUTCDay() (0=zondag … 6=zaterdag). Alleen gebruikt in de 'day'-tier bij zoom≥40;
-   *  afwezig ⇒ de dag-tier toont alleen het dagnummer (backwards-compat). */
+  /** 7 weekdag-afkortingen, geïndexeerd op d.getUTCDay() (0=zondag … 6=zaterdag). Alleen gebruikt
+   *  in de 'day'-tier bij zoom≥40; afwezig ⇒ de dag-tier toont alleen het dagnummer. */
   localizedWeekdays?: string[];
   weekStartDay?: 'monday' | 'sunday';        // default 'monday'
   enableQuarterHourZoom?: boolean;            // default false
-  /** Fase 2.8b (§6.1/§6.9): effectieve kalender per taak-id (`task.calendarId` → bibliotheek, anders
+  /** Effectieve kalender per taak-id (`task.calendarId` → bibliotheek, anders
    *  projectkalender). Bepaalt per taak of hij uur-modus is (sub-dag-balkpositie) en levert de
    *  banden voor de balk-opsplitsing. Afwezig ⇒ alle taken vallen terug op de projectkalender. */
   effectiveCalById?: Map<string, WorkCalendar>;
-  /** Fase 2.8b (§6.9): stand van "Taakbalken bij onderbrekingen". Default 'selection'. */
+  /** Stand van "Taakbalken bij onderbrekingen". Default 'selection'. */
   barSplitMode?: BarSplitMode;
-  /** Fase 2.8b (§6.5): hoofdschakelaar Urenplanning. UIT ⇒ duurkolom byte-identiek (`Nd`). */
+  /** Hoofdschakelaar Urenplanning. UIT ⇒ duurkolom in dagen (`Nd`). */
   enableHourPlanning?: boolean;
-  /** Fase 2.8b (§6.5): Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
+  /** Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
   durationDisplay?: DurationDisplay;
-  /** Fase 2.8b (§6.4/§11): vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
+  /** Vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
   durationSuffixes?: DurationSuffixes;
-  /** Fase 2.9 (§5.5): vertaald "verouderd"-badgelabel voor een externe ghost-balk met sourceMissing.
+  /** Vertaald "verouderd"-badgelabel voor een externe ghost-balk met sourceMissing.
    *  Afwezig ⇒ NL 'verouderd'. */
   externalStaleLabel?: string;
-  /** Issue #51 — de taak die op DIT moment aan een RAND gerekt wordt, plus welke rand. Aanwezig ⇒
+  /** De taak die op DIT moment aan een RAND gerekt wordt, plus welke rand. Aanwezig ⇒
    *  de renderer zet een compact duur-pilletje tegen die balkrand (`drawDragDurationBadge`).
-   *  Afwezig ⇒ er wordt niets extra's getekend (byte-identiek aan vóór #51). Een `body`-sleep
+   *  Afwezig ⇒ er wordt niets extra's getekend. Een `body`-sleep
    *  (verplaatsen) hoort hier BEWUST niet in: de duur verandert dan niet, dus een meelopend
    *  duurcijfer zou suggereren dat het gebaar hem beïnvloedt. */
   durationDrag?: { taskId: string; edge: 'left' | 'right' };
-  /** Fase 2.9 (§5.4): high-contrast-thema actief. BINDEND user-besluit — in HC is kleur alléén
+  /** High-contrast-thema actief. In HC is kleur alléén
    *  onvoldoende, dus near-critical-balken krijgen een geblokt/gearceerd vulpatroon (kritiek=massief,
    *  near-critical=geblokt, normaal=omlijnd). Afwezig/false ⇒ licht/donker (amber-kleur als signaal). */
   highContrast?: boolean;
-  /** Geïnjecteerd themapalet (audit C5/P17). Afwezig ⇒ de renderer leest het zelf via
-   *  `readGanttPalette()` (identiek lees-moment/-resultaat als vroeger). Meegeven maakt de renderer
+  /** Geïnjecteerd themapalet. Afwezig ⇒ de renderer leest het zelf via
+   *  `readGanttPalette()`. Meegeven maakt de renderer
    *  puur/headless-testbaar (geen DOM-afhankelijkheid). */
   palette?: GanttPalette;
-  /** Issue #21 punt 5 (fase 2): «alleen werkbare dagen tonen». Afwezig/false ⇒ de bestaande
-   *  kalender-as (byte-identiek). Zie `axis` hieronder voor de gedeelde-instantie-variant. */
+  /** «Alleen werkbare dagen tonen». Afwezig/false ⇒ de kalender-as. Zie `axis` hieronder voor de
+   *  gedeelde-instantie-variant. */
   compressNonWorkdays?: boolean;
-  /** Issue #21 punt 5 (fase 2, ontwerp §10.1): een VAN BUITEN meegegeven `GanttAxis` — gebruikt
+  /** Een VAN BUITEN meegegeven `GanttAxis` — gebruikt
    *  door `GanttCanvas` om de PRIMAIRE Gantt-pane en de `HistogramRenderer` LETTERLIJK dezelfde
    *  as-instantie te geven (anders schuiven de resource-staafjes onder de verkeerde kolommen).
    *  Afwezig ⇒ de renderer bouwt zelf een as uit `calendar`+`compressNonWorkdays`+`view`
    *  (bv. de secundaire split-view-pane, of headless tests die geen axis meegeven). */
   axis?: GanttAxis;
-  /** Issue #25 punt 4: de CSS font-stack van de gekozen interface-lettertypefamilie
+  /** De CSS font-stack van de gekozen interface-lettertypefamilie
    *  (`resolveUIFontStack(ui.uiFontFamily)`). Een canvas leest géén CSS-variabelen, dus de stack
-   *  moet als string mee — zonder dit blijft de Gantt (taaknamen + tijdschaal, het grootste
-   *  leesoppervlak van de app) in het oude hardgecodeerde lettertype staan terwijl de hele chrome
-   *  eromheen wél omschakelt. Afwezig ⇒ `FALLBACK_FONT_STACK`, exact het oude gedrag. */
+   *  moet als string mee. Afwezig ⇒ `FALLBACK_FONT_STACK`. */
   fontFamily?: string;
-  /** Issue #60: de Tekengrootte-instelling (`ui.uiFontScale`) als factor (1 = 100%). Zelfde reden
+  /** De Tekengrootte-instelling (`ui.uiFontScale`) als factor (1 = 100%). Zelfde reden
    *  als `fontFamily`: een canvas leest geen CSS-variabelen, dus de schaal moet expliciet mee.
    *  De aanroeper (GanttCanvas) schaalt `rowHeight`/`headerHeight` met DEZELFDE factor, zodat de
    *  grotere tekst ook de verticale ruimte krijgt (balkhoogtes/headerbanden zijn daar weer fracties
-   *  van). Afwezig ⇒ 1 — headless tests en print-/exportpaden renderen byte-identiek als voorheen. */
+   *  van). Afwezig ⇒ 1 (headless tests en print-/exportpaden). */
   fontScale?: number;
 }
 
-/** De historische, hardgecodeerde stack van deze renderer. Blijft de fallback zodra een aanroeper
- *  `fontFamily` niet meegeeft (headless tests, print-/exportpaden), zodat die byte-identiek blijven
- *  renderen als vóór issue #25 punt 4. */
+/** Fallback-stack zodra een aanroeper `fontFamily` niet meegeeft (headless tests,
+ *  print-/exportpaden). */
 const FALLBACK_FONT_STACK = '-apple-system, BlinkMacSystemFont, sans-serif';
 
 /**
- * Issue #41 — obstakel-index voor de relatie-routing: per ZICHTBARE rij het x-interval dat de balk
+ * Obstakel-index voor de relatie-routing: per ZICHTBARE rij het x-interval dat de balk
  * van die rij bedekt (incl. marge). Alleen zichtbare rijen: een balk buiten beeld kan niets
  * verbergen, en zo blijft de index O(zichtbare rijen) i.p.v. O(taken) — ook bij duizenden taken.
  *
@@ -161,7 +155,7 @@ interface RowObstacles {
 
 const EMPTY_SPANS = new Float64Array(0);
 
-// Near-critical "geblokt"-vulpatroon voor het high-contrast-thema (fase 2.9 §5.4, BINDEND besluit).
+// Near-critical "geblokt"-vulpatroon voor het high-contrast-thema.
 // GEMEMOIZED op moduleniveau: de bitmap wordt één keer getekend en de `CanvasPattern` één keer
 // gemunt — nooit per frame (elke render maakt een nieuwe GanttRenderer, dus instance-caching zou
 // per-frame zijn). Diagonale zwarte blokjes (8×8-tegel, twee kwadranten gevuld) lezen als "geblokt"
@@ -182,13 +176,11 @@ function getNearCriticalHatch(ctx: CanvasRenderingContext2D): CanvasPattern | nu
   return nearCriticalHatch;
 }
 
-/** U2 — hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
+/** Hoeveel verticale rasterlijnen het canvas op dit zoomniveau nog verdraagt.
  *
- * Waarom: de dagraster-lus tekende op ELK zoomniveau een lijn per kalenderdag. Op jaarzoom
- * (~1-2 px/dag) staan die lijnen zo dicht opeen dat het canvas een egaal streeppatroon wordt en
- * de balken erin verdwijnen — op de lichte kaart het meest storend, maar dezelfde code draait in
- * het donkere thema. De grenzen:
- *   - `>= 8` px/dag ⇒ 'day'   — elke dag een lijn, dikke weekgrens. ONGEWIJZIGD gedrag.
+ * Waarom: een lijn per kalenderdag op jaarzoom (~1-2 px/dag) maakt van het canvas een egaal
+ * streeppatroon waarin de balken verdwijnen. De grenzen:
+ *   - `>= 8` px/dag ⇒ 'day'   — elke dag een lijn, dikke weekgrens.
  *   - `>= 2` px/dag ⇒ 'week'  — alleen de (bestaande, dikkere) weekgrens.
  *   - `<  2` px/dag ⇒ 'month' — alleen maandgrenzen.
  * De weekend-/niet-werkdagarcering en de om-en-om weekband blijven op elk niveau ongemoeid: die
@@ -208,36 +200,36 @@ export class GanttRenderer {
 
   // Computed
   private viewStart: Date;
-  // Rijmodel (fase 2.7, §4): de meegegeven gedeelde `viewRows`. Een rij is een taak-rij
+  // Rijmodel: de meegegeven gedeelde `viewRows`. Een rij is een taak-rij
   // (met depth/dimmed) of een bandkop-rij (`kind:'group'`). Alle hit-tests lopen via
   // getTaskAtY/getRowAtY en geven op een bandrij null/de bandrij terug, zodat
   // canvas-interacties vanzelf degraderen.
   private rows: ViewRow[];
-  private rowIndexByTask: Map<string, number>; // task id -> EERSTE rij-index (§7.1, pijlen)
+  private rowIndexByTask: Map<string, number>; // task id -> EERSTE rij-index (pijlen)
   /** Engine op de PROJECTkalender — enige bron voor de niet-werkdag-arcering van de grid
-   *  (weekpatroon + feestdagen, B2): geen hardcoded za/zo en geen eigen holiday-expansie meer. */
+   *  (weekpatroon + feestdagen): geen hardcoded za/zo en geen eigen holiday-expansie. */
   private projectEngine: CalendarEngine;
   private violatedSet: Set<string>;
   private missedDeadlineSet: Set<string>;
   private highContrast: boolean;
-  /** Issue #21 punt 5 (fase 2): de gekozen tijd-as (kalender- of werkdagen-, §2.1). Fresh per
-   *  render — zie `workdayAxis.ts` §2.2/§2.5 (geen cross-render cache). */
+  /** De gekozen tijd-as (kalender- of werkdagen-). Fresh per render — zie `workdayAxis.ts`
+   *  (geen cross-render cache). */
   private axis: GanttAxis;
-  /** Is de as DAADWERKELIJK gecomprimeerd (vlag AAN én de kalender heeft werkdagen, §9.4-guard)?
-   *  Stuurt de grid-/arceringkeuze in `drawGridBackground` (§4.2: geen niet-werkdagen ⇒ geen
+  /** Is de as DAADWERKELIJK gecomprimeerd (vlag AAN én de kalender heeft werkdagen)?
+   *  Stuurt de grid-/arceringkeuze in `drawGridBackground` (geen niet-werkdagen ⇒ geen
    *  arcering, geen dubbele rasterlijnen op de samengevallen naad-x). */
   private compressed: boolean;
   private barColorContext: BarColorContext;
 
-  /** Alpha voor gedimde rijen (filter-ouderketen, §4.2). */
+  /** Alpha voor gedimde rijen (filter-ouderketen). */
   private static readonly DIM_ALPHA = 0.45;
 
-  /** Fase 2.8b: per-kalender-id gecachete `CalendarEngine` voor de balk-opsplitsing (§6.9). De
+  /** Per-kalender-id gecachete `CalendarEngine` voor de balk-opsplitsing. De
    *  band-materialisatie zelf is gememoized op het kalender-OBJECT (WeakMap), dus deze cache
    *  voorkomt alleen herhaalde engine-constructie binnen één render. */
   private engineCache = new Map<string, CalendarEngine>();
 
-  /** Issue #146 etappe 3: per getekende GESPLITSTE balk (`Task.splitGaps`) de x-grenzen van de
+  /** Per getekende GESPLITSTE balk (`Task.splitGaps`) de x-grenzen van de
    *  stukken, precies zoals ze deze render getekend zijn. De hit-test leest ze terug, zodat een
    *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
@@ -250,7 +242,7 @@ export class GanttRenderer {
 
     this.viewStart = parseDate(opts.view.viewStartDate);
     this.rows = opts.rows;
-    // "Eerste index wint" (§7.1): bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
+    // "Eerste index wint": bij multi-band-duplicaten verbinden pijlen de eerste occurrence.
     this.rowIndexByTask = firstRowIndexByTask(opts.rows);
     // Eén engine per render voor de grid-arcering; ook in de engineCache gezet zodat een
     // uur-modus-projectkalender in `engineFor` dezelfde instantie hergebruikt (geen dubbele
@@ -268,11 +260,10 @@ export class GanttRenderer {
       taskTypeLabels: opts.taskTypeLabels,
       noneLabel: opts.barColorNoneLabel ?? '(geen)',
     };
-    // Issue #21 punt 5 (fase 2): `opts.axis` (indien meegegeven door GanttCanvas — de gedeelde
-    // instantie met HistogramRenderer, §10.1) wint; anders bouwt de renderer zelf een as uit de
-    // eigen opts (secundaire split-view-pane, headless tests zonder axis-prop). Toggle
-    // UIT/afwezig ⇒ `resolveGanttAxis` levert `buildCalendarAxis(...)` = byte-identiek aan vóór
-    // fase 2 (het bestaande `dateToX`-pad hieronder).
+    // `opts.axis` (indien meegegeven door GanttCanvas — de gedeelde instantie met
+    // HistogramRenderer) wint; anders bouwt de renderer zelf een as uit de eigen opts (secundaire
+    // split-view-pane, headless tests zonder axis-prop). Toggle UIT/afwezig ⇒ `resolveGanttAxis`
+    // levert `buildCalendarAxis(...)`.
     this.axis = opts.axis ?? resolveGanttAxis({
       calendar: this.projectEngine,
       compressNonWorkdays: !!opts.compressNonWorkdays,
@@ -284,11 +275,9 @@ export class GanttRenderer {
     this.compressed = isCompressedEffective(this.projectEngine, !!opts.compressNonWorkdays);
   }
 
-  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie (issue #25 punt 4) én
-   *  -grootte (issue #60): `fontScale` (= `ui.uiFontScale`/100) schaalt elke fontgrootte mee.
-   *  Enige plek waar deze renderer een font-stack samenstelt — vroeger stonden er 17 letterlijke
-   *  `ctx.font`-strings verspreid door het bestand, die per definitie uit de pas liepen zodra de
-   *  familie instelbaar werd.
+  /** Bouwt een `ctx.font`-string in de gekozen interface-lettertypefamilie én -grootte:
+   *  `fontScale` (= `ui.uiFontScale`/100) schaalt elke fontgrootte mee. Enige plek waar deze
+   *  renderer een font-stack samenstelt.
    *
    *  De GEOMETRIE schaalt bij de aanroeper mee: GanttCanvas leidt `rowHeight`/`headerHeight` van
    *  dezelfde factor af, zodat grotere tekst niet clipt maar ruimte krijgt. Schaal hier dus nooit
@@ -907,15 +896,15 @@ export class GanttRenderer {
     // gerapporteerde "zwarte" headergedeelte (bevestigd headless: bij scrollX=3000, zoom=26 gaf
     // de oude formule 0 dag-labels i.p.v. de volle breedte — zie `tests/planning/
     // check-header-compress.ts` voor de blijvende regressiebewaking).
-    // Byte-identiek op de niet-gecomprimeerde as: `CalendarAxis.dayIndexOf(viewStart)`===0, dus
-    // dit reduceert algebraïsch tot exact de oude `addCalendarDays(...)`-formule.
+    // Op de niet-gecomprimeerde as is `CalendarAxis.dayIndexOf(viewStart)`===0, dus dit reduceert
+    // algebraïsch tot de kalenderdag-formule met `addCalendarDays(...)`.
     const axisViewStartIdx = this.axis.dayIndexOf(this.viewStart);
     const startDate = this.axis.dateAtIndex(axisViewStartIdx + Math.floor(view.scrollX / view.zoom) - 1);
     const endDate = this.axis.dateAtIndex(axisViewStartIdx + Math.ceil((view.scrollX + canvasWidth) / view.zoom) + 1);
 
-    // issue #21 punt 2: bij een `mid`-tier (dagweergave, 25≤zoom<80) komt er een weeknummer-rij
-    // bij en worden de drie rijen gelijkmatig verdeeld (h/6, h/2, 5h/6). Zonder `mid` valt dit
-    // blok weg en blijft de oorspronkelijke 2-rijen-layout hieronder byte-identiek staan.
+    // Bij een `mid`-tier (dagweergave, 25≤zoom<80) komt er een weeknummer-rij bij en worden de
+    // drie rijen gelijkmatig verdeeld (h/6, h/2, 5h/6). Zonder `mid` geldt de 2-rijen-layout
+    // hieronder.
     if (mid) {
       // --- Bovenste rij: major tier (maand) ---
       ctx.font = this.font(11, true);
@@ -959,14 +948,12 @@ export class GanttRenderer {
     const wsd = weekStartDay ?? 'monday';
     const cfg = TIER_CONFIG[tier];
 
-    // Issue #21 punt 5 (header-bugfix, vervolg fase 3 van werkdagen-as-ontwerp.md §4.1): onder
-    // compressie stapt de DAG-tier over werkdag-AS-INDICES i.p.v. kalenderdagen. Reden: met
+    // Onder compressie stapt de DAG-tier over werkdag-AS-INDICES i.p.v. kalenderdagen. Reden: met
     // `nextTickBoundary('day')` (+1 kalenderdag) vallen aaneengesloten niet-werkdagen (weekend,
     // feestdagblok) allemaal op dezelfde kleef-rechts-naad-x (`workdayAxis.ts`) — elke zo'n tick
     // krijgt toevallig `slotWidth===0` en wordt door de defensieve skip hieronder overgeslagen,
     // dus zichtbare dubbele labels ontstaan hier NIET. Week-/maand-tiers werken wél al
-    // automatisch mee via `dateToX` (§4.1: "vrijwel automatisch") — alleen de dag-tier verandert
-    // van stapmethode.
+    // automatisch mee via `dateToX` — alleen de dag-tier verandert van stapmethode.
     if (tier === 'day' && this.compressed) {
       this.drawWorkdayTierLabels(startDate, endDate, yCenter, cfg, wsd, localizedWeekdays);
       return;
@@ -996,9 +983,9 @@ export class GanttRenderer {
   }
 
   /**
-   * Issue #21 punt 5 (header-bugfix): dag-tier onder compressie, itererend over
+   * Dag-tier onder compressie, itererend over
    * WERKDAG-as-indices (`this.axis.dayIndexOf`/`dateAtIndex`) i.p.v. kalenderdagen. Elke
-   * opeenvolgende index is per constructie een ANDERE echte werkdag (§2.2 prefix-som) — er
+   * opeenvolgende index is per constructie een ANDERE echte werkdag (prefix-som) — er
    * bestaat dus geen niet-werkdag-tick om over te slaan, en twee ticks kunnen nooit op dezelfde
    * x landen. Bijkomend voordeel t.o.v. "per kalenderdag + 0-breedte-skip": het aantal
    * iteraties is O(zichtbare kolommen), niet O(zichtbare kalenderdagen incl. gecomprimeerde
@@ -1038,11 +1025,11 @@ export class GanttRenderer {
 
   /**
    * Tijdschaalkop `labelText` in de tick [x1, x2), gedeeld door beide tier-lussen. Defensief
-   * overslaan als de tick te smal is of het label over het vorige heen zou vallen. Issue #21
-   * (tier-labels-overlap-fix): daarnaast pas TEKENEN als de GEMETEN tekstbreedte ook echt vóór het
+   * overslaan als de tick te smal is of het label over het vorige heen zou vallen. Daarnaast pas
+   * TEKENEN als de GEMETEN tekstbreedte ook echt vóór het
    * einde van deze tick past (x2-2) — anders overslaan (nooit knijpen/afkappen via een
    * fillText-maxWidth), zodat twee labels (bv. maandnamen) nooit door elkaar heen lopen.
-   * U2-fixronde, bewuste afwijking van de balklabels: de tijdschaal-koppen krijgen GEEN
+   * Bewuste afwijking van de balklabels: de tijdschaal-koppen krijgen GEEN
    * `ellipsize`. Een tijdschaalkop is een datum-aanduiding — "ok…" of "20…" zegt niets en kost de
    * lezer alsnog een blik; een OVERGESLAGEN kop laat de eerstvolgende passende tick (bv. de
    * volgende maand) het bereik dragen, wat wél leesbaar is. Een taaknaam daarentegen is uniek en

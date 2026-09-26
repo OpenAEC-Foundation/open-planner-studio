@@ -1,14 +1,9 @@
-// contourEngine.ts — de contour-engine (etappe "contour-engine", 2026-09; de vervolgetappe die
-// de nul-afwijkingen-etappe en de taaktypes-spec allebei aankondigden — zie
-// `docs/superpowers/specs/2026-08-18-spec-taaktypes-effort-driven.md` §"Wat er onder de motorkap
-// nodig is", punt 3, en `docs/superpowers/plans/2026-08-17-plan-mpp-nul-afwijkingen.md` §10).
+// contourEngine.ts — de contour-engine.
 //
 // WAT DIT IS. Eén pure rekenmodule die de werkverdeling-per-dag van een toewijzing als DATA
-// behandelt in plaats van als formule. Tot deze etappe was de dagbelasting van een resource
-// uitsluitend een formule (`ResourceLoad.ts`'s `distributeUnits`: load × duur, uitgesmeerd volgens
-// een curvevorm) — de rauwe contourperiodes die de `.mpp`-lezer sinds Z14b bewaart
-// (`Task.timephasedContours`) werden nergens gelezen, en een P6-resourcecurve werd tot een van
-// zes vaste vormen versimpeld. Deze module leest die data wél en levert er drie dingen op:
+// behandelt in plaats van als formule (`ResourceLoad.ts`'s `distributeUnits`: load × duur,
+// uitgesmeerd volgens een curvevorm). Ze leest de rauwe contourperiodes van de `.mpp`-lezer
+// (`Task.timephasedContours`) en P6-resourcecurves, en levert er drie dingen op:
 //   1. `periodsToSlotWork` — een contourprofiel (periodes op de cumulatieve taak-as) → werkminuten
 //      per dagslot. Dat is de voeding voor het histogram, de overallocatie-detectie, de
 //      nivelleerder en het bezettingsoverzicht (via `ResourceLoad.ts`'s `assignmentDayUnits`).
@@ -17,8 +12,7 @@
 //      P6-curve die géén OPS-vorm is (`ResourceAssignment.curveValues`) toch precies wordt
 //      uitgerekend in plaats van tot "uniform" te vervallen.
 //   3. `rescaleContourForDuration` — de herschalingsregel bij een duurwijziging: een bewerking op
-//      een gecontourde taak neemt de verdeling mee (spec-eis: "de etappe is pas af als een bewerking
-//      op een gecontourde taak de verdeling meeneemt").
+//      een gecontourde taak neemt de verdeling mee.
 //
 // DE AS. Alle periodes leven op DEZELFDE cumulatieve werkminuten-as als `TaskSplitGap`
 // (`task.ts`'s docblok bij `TaskSplitGap`/`TimephasedContourPeriod` — lees die eerst): 0 = taakstart,
@@ -30,15 +24,14 @@
 // exact de dagen zijn waarop de lastlezers boeken. Eén as, één slotdefinitie, geen tweede.
 //
 // WAT DIT NIET IS. Geen solverstap: de CPM-datums van een geïmporteerde contourtaak komen uit
-// laag 3/4 van de Z8-beslistabel (`CPMSolver.ts`'s `timephasedFinish`) en uit `splitGaps`; deze
-// module raakt geen enkele taakdatum. Dat is een harde ontwerpvoorwaarde uit de taaktypes-spec
-// ("taaktype-semantiek werkt op bewerkingen, nooit op het herberekenen van een vers geopend
-// bestand, anders verschuiven de gepinde importdatums") — de fidelity-poort (`check-mpp-fidelity.ts`)
-// bewaakt dat mechanisch.
+// laag 3/4 van de timephased-beslistabel (`CPMSolver.ts`'s `timephasedFinish`) en uit `splitGaps`;
+// deze module raakt geen enkele taakdatum. Taaktype-semantiek werkt op bewerkingen, nooit op het
+// herberekenen van een vers geopend bestand, anders verschuiven de gepinde importdatums — de
+// fidelity-poort (`check-mpp-fidelity.ts`) bewaakt dat mechanisch.
 //
 // AFRONDING. `distributeUnits` rondt bij een geheel tempo af op hele eenheden per dag om een
-// FORMULE-artefact te onderdrukken (issue #21 punt 7). Opgeslagen dagwaarden uit een contour zijn
-// bedoelde data, geen rekenresidu, en worden hier NOOIT afgerond (spec, "Eén grensregel").
+// FORMULE-artefact te onderdrukken. Opgeslagen dagwaarden uit een contour zijn bedoelde data, geen
+// rekenresidu, en worden hier NOOIT afgerond.
 //
 // Pure module: geen store, geen kalender-engine-import (de aanroeper levert `mpd`), geen I/O.
 import type { TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod, MspTaskType } from '@/types/task';
@@ -53,9 +46,9 @@ import { isFiniteNumber } from '@/utils/guards';
 // totale werk dat in de k-de 5%-slice van de duur valt (de som van 1..20 is ~100). P6 schrijft zijn
 // `<ResourceCurve>`-objecten in exact dezelfde vorm (`Value0`..`Value100`, MPXJ
 // `XmlContextReader.processWorkContour`), dus deze ene tabelvorm dekt beide pakketten.
-// Sinds de contour-UI-etappe (2026-09) zijn álle acht vormen ook een OPS-`ResourceCurve`
-// (DOUBLE_PEAK/TURTLE kwamen er als laatste bij); `ResourceLoad.ts`'s `distributeUnits` bemonstert
-// die twee rechtstreeks uit deze tabel, de zes oudere curves houden hun controlepunten daar.
+// Álle acht vormen zijn ook een OPS-`ResourceCurve`; `ResourceLoad.ts`'s `distributeUnits`
+// bemonstert DOUBLE_PEAK/TURTLE rechtstreeks uit deze tabel, de zes andere curves houden hun
+// controlepunten daar.
 export type ContourShape =
   | 'FLAT' | 'BACK_LOADED' | 'FRONT_LOADED' | 'DOUBLE_PEAK' | 'EARLY_PEAK' | 'LATE_PEAK' | 'BELL' | 'TURTLE';
 
@@ -80,7 +73,7 @@ export const CURVE_TO_SHAPE: Record<ResourceCurve, ContourShape> = {
   EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK', DOUBLE_PEAK: 'DOUBLE_PEAK', TURTLE: 'TURTLE',
 };
 
-/** Tabelvorm → OPS-curve (inverse van `CURVE_TO_SHAPE`; bijectief sinds de contour-UI-etappe). */
+/** Tabelvorm → OPS-curve (inverse van `CURVE_TO_SHAPE`; bijectief). */
 export const SHAPE_TO_CURVE: Record<ContourShape, ResourceCurve> = {
   FLAT: 'UNIFORM', FRONT_LOADED: 'FRONT_LOADED', BACK_LOADED: 'BACK_LOADED', BELL: 'BELL',
   EARLY_PEAK: 'EARLY_PEAK', LATE_PEAK: 'LATE_PEAK', DOUBLE_PEAK: 'DOUBLE_PEAK', TURTLE: 'TURTLE',
@@ -150,8 +143,8 @@ export function matchContourShape(values: readonly number[]): ContourShape | und
  * tabel: de tabel is een stuksgewijs constante dichtheid over 20 slices van 5% van de duur; slot k
  * dekt `[k/N, (k+1)/N)` van de duur en krijgt de geïntegreerde dichtheid over dat interval. Zo
  * behoudt een korte taak (N < 20) de asymmetrie van de vorm (een FRONT_LOADED 2-daagse taak krijgt
- * 65/35, niet 50/50 — `distributeUnits`' lineaire interpolatie vervlakt daar juist, zie het
- * A7-commentaar aldaar; dat bestaande gedrag blijft ongewijzigd, dit is de DATA-route).
+ * 65/35, niet 50/50 — `distributeUnits`' lineaire interpolatie vervlakt daar juist, zie de
+ * curve-vervlakkingsnoot aldaar; dit is de DATA-route).
  */
 export function slotWeightsFromValues(values: readonly number[], slotCount: number): number[] {
   if (!(slotCount > 0)) return [];
@@ -292,10 +285,10 @@ export function periodsFromSlotWork(
 
 /**
  * Welke contour hoort bij welke toewijzing van de taak. Regel: `contour.resourceId` (het
- * OPS-resource-id, gezet door elke lezer sinds deze etappe) matcht `assignment.resourceId`, in
+ * OPS-resource-id, gezet door elke lezer) matcht `assignment.resourceId`, in
  * volgorde en elke contour hooguit één keer (twee toewijzingen van dezelfde resource op één taak
- * krijgen zo elk hun eigen contour). Terugval voor oudere documenten zonder `resourceId` (Z14b-
- * bestanden dragen alleen MSP's `resourceUid`): precies één contour én precies één toewijzing op
+ * krijgen zo elk hun eigen contour). Terugval voor oudere documenten zonder `resourceId` (die
+ * dragen alleen MSP's `resourceUid`): precies één contour én precies één toewijzing op
  * de taak ⇒ die horen bij elkaar. Anders `undefined` — de toewijzing valt terug op de formule.
  */
 export function matchContoursToAssignments(
@@ -339,8 +332,8 @@ export function contourIndexForAssignment(
  * `newWorkMinutes` gaat (de duur zoals de solver hem rekent: zuivere werkminuten, zonder gaten).
  *
  * REGEL (MS Project-gedrag bij een duurwijziging op een "Contoured" toewijzing — MSP rekt of
- * krimpt de contour proportioneel mee met de nieuwe duur; hier overgenomen als ontwerpregel, er is
- * nog geen bewerken-meetlat tegen MSP zelf, zie de taaktypes-spec §"bewerken-meetlat"):
+ * krimpt de contour proportioneel mee met de nieuwe duur; hier overgenomen als ontwerpregel, niet
+ * tegen MSP zelf nagemeten):
  *  - de as wordt proportioneel gerekt/gekrompen: elke `afterMinutes`/`minutes` × factor, dus ook de
  *    gaten schuiven en groeien mee (ze zijn onderdeel van dezelfde as — `rescaleSplitGaps` doet
  *    hetzelfde met `Task.splitGaps` zodat CPM en lastlezers dezelfde vorm zien);
@@ -383,13 +376,13 @@ export function rescaleContourForDuration(
  *  CPM-gaten en lastlezer-gaten niet uit elkaar lopen. Zonder profiel (geen contour) blijft de
  *  lijst onaangeraakt.
  *
- *  `unitMinutes` (issue #146, spec §2 slotalinea): een `source: 'user'`-gat is door de gebruiker
+ *  `unitMinutes`: een `source: 'user'`-gat is door de gebruiker
  *  zélf op een hele eenheid gezet (dag-modus: een werkdag). Fractioneel herschalen zou het naar een
  *  ándere dag of — bij een forse krimp — naar 0 laten ronden in `splitWalk`s dag-afronding, waarmee
  *  zijn eigen onderbreking stil verdwijnt. Daarom wordt zo'n gat ná de herschaling teruggesnapt op
  *  een veelvoud van `unitMinutes` (absoluut op de as, dezelfde grid als `splitDayPattern`), met
  *  minimaal één eenheid pauze. Importgaten blijven bewust fractioneel: die zijn brondata en mogen
- *  hun sub-dag-precisie niet verliezen. Geen `unitMinutes` ⇒ byte-identiek aan vóór #146. */
+ *  hun sub-dag-precisie niet verliezen. Geen `unitMinutes` ⇒ geen terugsnappen. */
 export function rescaleSplitGaps(
   gaps: readonly TaskSplitGap[] | undefined,
   periods: readonly TimephasedContourPeriod[],

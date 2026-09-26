@@ -1,4 +1,4 @@
-// contourPhases.ts — het FASENmodel van de contour-editor (etappe "fasen-editor", 2026-09).
+// contourPhases.ts — het FASENmodel van de contour-editor.
 //
 // WAT DIT IS. Een planner denkt niet in "maandag 1,6 uur, dinsdag 9,2 uur" maar in fasen: "de
 // eerste twee weken een halve ploeg, daarna de volle ploeg". Een fase is een aaneengesloten reeks
@@ -7,7 +7,7 @@
 // tussen die fasen en de werkdagslots van `contourEdit.ts` (werkminuten per werkdag):
 //   - `phasesFromSlots`: run-length-codering — opeenvolgende dagen met (nagenoeg) dezelfde inzet
 //     vormen één fase. Een uniforme verdeling is dus één fase; een per dag variërende import
-//     wordt in het slechtste geval één fase per dag (nooit méér dan het oude dagenmodel).
+//     wordt in het slechtste geval één fase per dag.
 //   - `slotsFromPhases`: de inverse — elke fase levert `days` slots van `unitsPerDay × mpd`.
 //   - bewerkingen: splitsen, samenvoegen, een grens verschuiven (de buur neemt de dagen op, het
 //     totaal aantal dagen blijft gelijk) en de inzet zetten.
@@ -16,9 +16,9 @@
 //
 // WAAROM GEEN NIEUW DATAMODEL. `TimephasedContourPeriod` heeft al een eigen lengte per periode, en
 // `periodsToSlotWork` verdeelt een periode over meerdere dagslots. Een fase van tien dagen KAN dus
-// als één periode worden opgeslagen. Deze etappe doet dat bewust nog niet: de opslagvorm blijft
-// één periode per werkdag (`workDaySlotsToPeriods`), zodat de MSPDI-/P6-/IFC-round-trips en de
-// lastlezers byte-identiek blijven en de fasen een zuivere WEERGAVE-laag zijn. Terug lezen gaat
+// als één periode worden opgeslagen. Dat gebeurt bewust niet: de opslagvorm blijft één periode per
+// werkdag (`workDaySlotsToPeriods`), zodat de MSPDI-/P6-/IFC-round-trips en de lastlezers
+// onveranderd blijven en de fasen een zuivere WEERGAVE-laag zijn. Terug lezen gaat
 // via run-length, dus een opgeslagen contour komt als dezelfde fasen terug.
 export interface ContourPhase {
   /** Aantal WERKdagen van deze fase (geheel, ≥ 1). */

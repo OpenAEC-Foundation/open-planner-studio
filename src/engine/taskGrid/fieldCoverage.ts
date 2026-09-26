@@ -162,7 +162,7 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   workWindowStart: field('technical', 'assignment.workWindowStart'),
   workWindowFinish: field('technical', 'assignment.workWindowFinish'),
   curveValues: field('technical', 'assignment.curve'),
-  // taaktypes-etappe (spec §4.3): alleen-lezen technische kolommen tot de bedradingsstap ze bewerkbaar maakt
+  // Werkvelden van de werkregels: technische kolommen
   plannedWorkMinutes: field('technical', 'assignment.plannedWork'),
   actualWorkMinutes: field('technical', 'assignment.actualWork'),
   remainingWorkMinutes: field('technical', 'assignment.remainingWork'),

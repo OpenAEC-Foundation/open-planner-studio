@@ -1,16 +1,16 @@
 import { addCalendarDays, addCalendarMonths, diffDays, formatDate, parseDate } from '@/utils/dateUtils';
 
 /**
- * De rapportageperiode (issue #120, manuvarkey): één gedeeld periodemodel voor alle rapporten die
+ * De rapportageperiode: één gedeeld periodemodel voor alle rapporten die
  * op een tijdvenster werken — look-ahead, voortgang, resourcebelasting en resourcetoewijzingen.
  *
  * Een periode is een PRESET (relatief aan de referentiedag: statusdatum, anders vandaag) of een
  * vaste keuze: `project` (de hele projectspanne) of `custom` (twee ISO-dagen). Alleen `custom`
  * draagt eigen datums; een preset wordt bij elke berekening opnieuw opgelost, zodat een gewijzigde
- * statusdatum het venster automatisch mee verschuift (aanbeveling uit het issue).
+ * statusdatum het venster automatisch mee verschuift.
  *
- * Vensterconventie — inclusief aan beide kanten, en byte-identiek aan de oude "N weken"-opties:
- * - `nextNWeeks`  = [ref, ref + 7N − 1]   (4 weken vanaf do 10 sep ⇒ t/m wo 7 okt, zoals het issue)
+ * Vensterconventie — inclusief aan beide kanten, gelijk aan de legacy "N weken"-opties:
+ * - `nextNWeeks`  = [ref, ref + 7N − 1]   (4 weken vanaf do 10 sep ⇒ t/m wo 7 okt)
  * - `lastNWeeks`  = [ref − 7N + 1, ref]
  * - `nextMonth`   = [ref, ref + 1 maand − 1 dag]; `lastMonth` = [ref − 1 maand + 1 dag, ref]
  *   (maandrekenen klemt op de maandlengte: 31 jan → 28 feb, zie `addCalendarMonths`)

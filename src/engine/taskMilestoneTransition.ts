@@ -30,7 +30,7 @@ export function taskMilestoneTransition(task: Task, isMilestone: boolean): Parti
 export type MilestoneRefusal = 'summary' | 'assignments';
 
 /**
- * De ene regel voor "wordt mijlpaal" (audit taakmutaties §6), gedeeld door eigenschappenpaneel,
+ * De ene regel voor "wordt mijlpaal", gedeeld door eigenschappenpaneel,
  * dialoog, contextmenu, store-`updateTask`, raster en MCP. Alleen toetsen bij de overgang UIT → AAN.
  *  - Een fase met kinderen kan geen mijlpaal worden: de Gantt tekent haar anders als ruit.
  *  - Een taak met resource-toewijzingen ook niet: een mijlpaal draagt geen toewijzingen, dus die

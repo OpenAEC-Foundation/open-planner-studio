@@ -83,9 +83,9 @@ export interface TaskEditPlanEnvironment {
   customTaskTypeIds?: ReadonlySet<string>;
   activityCodeTypes: readonly ActivityCodeType[];
   customFieldDefs: readonly CustomFieldDef[];
-  /** Taaktypes-etappe (2026-09): werkbehoud bij het herschalen van een contour, afgeleid van de
-   *  effectieve werkregel (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de oude
-   *  MSP-afleiding in `rescaleTaskContours`. */
+  /** Werkbehoud bij het herschalen van een contour, afgeleid van de effectieve werkregel
+   *  (`utils/taskDefaults.ts`'s `contourKeepsWork`). Afwezig ⇒ de MSP-afleiding in
+   *  `rescaleTaskContours`. */
   contourKeepsWork?: boolean;
   /** Wordt de start van DEZE taak door een voorganger bepaald (`predecessorDrivenTaskIds`)? Alleen
    *  nodig voor een getypte start (kolommen Start/Geplande start); afwezig ⇒ nee. Een getypte start
