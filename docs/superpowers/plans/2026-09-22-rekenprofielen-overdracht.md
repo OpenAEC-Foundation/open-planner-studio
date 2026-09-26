@@ -458,6 +458,9 @@ dekt nu ook `node_modules`; #170 had hem al zelf verwijderd; `main` en groep A/B
 Open restpunt uit de her-check: `data.recalculate` in de modus "datums zoals opgeslagen" kan tijdens een open
 dialoog nog de sessiestempel krijgen (bewust niet in een batch gezet).
 
+**26-09 08:30 — #169 GEMERGED naar `main` (`6160b477`, `--admin` na groene CI op 6f38d1d7).** #170: `main`
+erin gemerged en gepusht om de PR-CI te starten; daarna merge. Volgende: groep A en B.
+
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
 
 | wat | branch | stand |
