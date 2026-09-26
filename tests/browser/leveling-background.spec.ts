@@ -41,16 +41,12 @@ test('nivelleer-dialoog: berekenen via de worker levert een voorstel; toepassen 
 
 test('nivelleer-dialoog: tijdens een lange berekening blijft de dialoog bedienbaar en stopt "Stoppen" hem', async ({ page, ops: _ops }) => {
   await seedProject(page, [{ name: 'Start', start: '2026-09-07', finish: '2026-09-07', durationDays: 1 }]);
-  await page.evaluate(() => {
+  // Fixture in één stap: het ingebouwde benchmarkproject (8000 taken, resources, toewijzingen) — groot
+  // genoeg dat nivelleren seconden duurt, zodat de achtergrond en het stoppen waarneembaar zijn.
+  await page.evaluate(async () => {
+    const { generateBenchmarkProject } = await import('/src/services/benchmark/generateProject.ts' as string);
     const s = window.__OPS__!.store.getState();
-    const resourceId = s.addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
-    // Een groot, overbelast project: 2500 losse taken van 2 dagen op dezelfde ploeg.
-    for (let i = 0; i < 2500; i++) {
-      const id = s.addTask({ name: `T${i}` });
-      s.updateTask(id, { manuallyScheduled: false });
-      s.assignResource(id, resourceId, 1);
-    }
-    s.runCPM();
+    s.applyLoadedProject(generateBenchmarkProject(8000), { filePath: null, recompute: true });
   });
 
   await page.locator('[data-ops-ribbon-tab="resources"]').click();
