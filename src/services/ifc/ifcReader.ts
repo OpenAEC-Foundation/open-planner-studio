@@ -876,8 +876,10 @@ function parseSTEP(content: string): StepEntity[] {
     );
   }
 
-  // 2. Commentaar strippen (buiten strings) + regeleindes normaliseren — zelfde volgorde als voorheen.
-  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length)).replace(/\r\n/g, '\n');
+  // 2. Commentaar strippen (buiten strings). Regeleindes NIET normaliseren: de tokenizer behandelt \r al
+  //    als witruimte, en een globale \r\n → \n-vervanging veranderde ook de tekst BINNEN strings (een
+  //    notitie of naam met Windows-regeleinden kwam na opslaan en openen anders terug).
+  const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length));
 
   // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`). Het afsluitende `ENDSEC;`
   //    van de datasectie wordt hier op CODE-niveau herkend — dezelfde grens als de oude split, maar
