@@ -10,7 +10,7 @@ import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, parseInstant } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules } from '@/services/importNormalize';
 import { flattenOrder } from '@/utils/wbs';
-import { isoDatePrefixOrToday } from '@/services/importDates';
+import { emptyMissingScheduleDates, isoDatePrefixOrToday, resolveMissingScheduleDates } from '@/services/importDates';
 import { directChildText, toInt, toFloat } from '@/services/xmlDom';
 import type { ImportResult } from '@/services/importTypes';
 import type { CustomTaskType } from '@/types/taskType';
@@ -338,6 +338,12 @@ export function readP6XML(content: string): ImportResult {
 
   // Parse project
   const project = parseProject(doc);
+  // Ontbrekende geplande datums (gedeelde regel `resolveMissingScheduleDates`, vóór de voortgang-
+  // invarianten). Zonder <PlannedStartDate> op het project dragen ook de WBS-samenvattingen (die op
+  // de projectstart worden aangemaakt) de vandaag-plaatshouder — die tellen dan mee als ontbrekend.
+  const projEl = getAllByLocalName(doc, 'Project')[0];
+  const projectStartRaw = projEl ? getElementText(projEl, 'PlannedStartDate') : '';
+  const missingDates = emptyMissingScheduleDates();
 
   // Parse WBS elements
   const wbsElements = getAllByLocalName(doc, 'WBS');
@@ -368,6 +374,7 @@ export function readP6XML(content: string): ImportResult {
       time: createDefaultTaskTime(project.startDate, 0),
       resourceIds: [],
     });
+    if (!projectStartRaw) { missingDates.start.add(id); missingDates.finish.add(id); }
   }
 
   // Broer/zus-volgorde uit `SequenceNumber` (issue #159, vervolg — critreview PR #162: de writer
@@ -530,11 +537,18 @@ export function readP6XML(content: string): ImportResult {
     const effCalId = effCalIdOf(calObjId);
     const explicitUnit = explicitUnitByActivityObjectId.get(objId);
     const isHour = explicitUnit ? explicitUnit === 'hours' : hourModeCalIds.has(effCalId);
+    // Datumprecisie volgt de KALENDER, niet de duureenheid — zoals mspdiReader en de IFC-lezer: een
+    // dagtaak op een urenkalender blijft een dagtaak (eenheid uit de OPS-marker), maar haar datums
+    // houden hun echte tijd. Import/export-audit 2026-09, bevinding 8: met `isHour` hier verloor zo'n
+    // taak de tijd van al haar datums, ook de actuals (AF 16:00 werd de dag zonder tijd).
+    const hourDates = hourModeCalIds.has(effCalId);
     const effHpd = calById.get(effCalId)?.hoursPerDay ?? hoursPerDay;
     // Datum-parser: uur ⇒ echte tijd (`parseInstant`+`formatInstant`), dag ⇒ tijd-strippen.
     const parseP6Instant = (raw: string): string => raw ? formatInstant(parseInstant(raw), 'hour') : parseP6Date(raw);
-    const plannedStart = isHour ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
-    const plannedFinish = isHour ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+    const plannedStart = hourDates ? parseP6Instant(plannedStartRaw) : parseP6Date(plannedStartRaw);
+    const plannedFinish = hourDates ? parseP6Instant(plannedFinishRaw) : parseP6Date(plannedFinishRaw);
+    if (!plannedStartRaw) missingDates.start.add(id);
+    if (!plannedFinishRaw) missingDates.finish.add(id);
 
     {
       const recordedDate = (raw: string): string | undefined =>
@@ -562,8 +576,8 @@ export function readP6XML(content: string): ImportResult {
     const actualStartRaw = getElementText(actEl, 'ActualStartDate');
     const actualFinishRaw = getElementText(actEl, 'ActualFinishDate');
     const remainingRaw = getElementText(actEl, 'RemainingDuration');
-    const actualStart = actualStartRaw ? (isHour ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
-    const actualFinish = actualFinishRaw ? (isHour ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
+    const actualStart = actualStartRaw ? (hourDates ? parseP6Instant(actualStartRaw) : parseP6Date(actualStartRaw)) : undefined;
+    const actualFinish = actualFinishRaw ? (hourDates ? parseP6Instant(actualFinishRaw) : parseP6Date(actualFinishRaw)) : undefined;
     // RemainingDuration: uur ⇒ minuten (`uren × 60`, geen afronding, §7.2); dag ⇒ het bestaande pad.
     const remainingMinutes = isHour && remainingRaw ? Math.round(parseFloat(remainingRaw) * 60) : undefined;
     // Zelfde `effHpd` als de duur hieronder (issue #159, vervolg) — symmetrisch met de writer.
@@ -586,7 +600,7 @@ export function readP6XML(content: string): ImportResult {
 
     // Datum-constraints (fase 2.9, §6): primair + secundair uit de `CS_*`-codes. Secundair is altijd
     // soft (P6-invariant) ⇒ `hard` wordt gedropt. Datum: uur ⇒ echte tijd, dag ⇒ tijd-strippen.
-    const parseCstrDate = (raw: string): string => isHour ? parseP6Instant(raw) : parseP6Date(raw);
+    const parseCstrDate = (raw: string): string => hourDates ? parseP6Instant(raw) : parseP6Date(raw);
     let constraint: TaskConstraint | undefined;
     const primCode = getElementText(actEl, 'PrimaryConstraintType');
     if (primCode) {
@@ -669,6 +683,12 @@ export function readP6XML(content: string): ImportResult {
   // ruwe "samenvattingen eerst, dan bladen"-volgorde was precies de store-volgorde waar de MSPDI-
   // export op stukliep; de andere lezers leveren documentvolgorde (= diepte-eerst), deze nu ook.
   const tasks = [...flattenOrder([...wbsTasks, ...leafTasks])];
+
+  // Anker = projectstart uit het bestand, anders de vroegste aanwezige activiteitstart; finish uit
+  // start + duur op de effectieve kalender (P6 levert elke kalender mee, dus eenduidig voor hele
+  // werkdagen).
+  project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
+    (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
   // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6).
   normalizeImportedProgress(tasks, project.statusDate);

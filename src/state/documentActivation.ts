@@ -9,7 +9,7 @@ import {
   type RecordedTime,
 } from '@/engine/scheduler/recordedDates';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
-import { getNoneLabelValue } from '@/utils/noneLabel';
+import { getNoneLabelValue, getResourceTypeLabelsValue } from '@/utils/noneLabel';
 import type { Company, CompanyPool } from '@/types/library';
 import type { ImportResult } from '@/services/importTypes';
 import type { Task } from '@/types/task';
@@ -162,6 +162,7 @@ function derivePayloadViewRows(payload: Readonly<DocumentPayload>): ViewRow[] {
     resources: payload.resources,
     assignments: payload.assignments,
     noneLabel: getNoneLabelValue(),
+    resourceTypeLabels: getResourceTypeLabelsValue(),
   };
   return computeViewRows(payload.tasks, opts, ctx);
 }

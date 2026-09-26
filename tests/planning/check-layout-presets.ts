@@ -5,12 +5,12 @@
 
 import {
   applyLayoutParts, isBuiltinLayoutId, isFilterOnlyLayout, layoutMatchesView, layoutParts,
-  liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
+  dropBrokenLayouts, liveSessionLayouts, migrateSavedFilters, pickLayoutParts, switchLayoutOff, switchLayoutOn,
   type LayoutViewParts,
 } from '@/engine/view/layoutPresets';
 import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { generateId } from '@/utils/id';
-import type { FilterNode, Layout, SavedFilter } from '@/types/view';
+import type { FilterNode, Layout, LayoutOverlays, SavedFilter } from '@/types/view';
 
 const storage = new Map<string, string>();
 Object.defineProperty(globalThis, 'localStorage', {
@@ -43,6 +43,10 @@ const current: LayoutViewParts = {
   sort: [{ field: { src: 'builtin', key: 'start' }, dir: 'asc' }],
   timeScale: 'week',
   showRelations: true,
+  overlays: {
+    baseline: false, progressLine: false, statusDateLine: true, resourceAccent: true, floatBand: true,
+    barColors: { mode: 'critical' },
+  },
 };
 const resourceDiagram: Layout = {
   id: 'builtin:resource-diagram', name: 'Resourcediagram',
@@ -114,6 +118,49 @@ ok(liveSessionLayouts(onN.session, screenN).map(l => l.id).join() === 'f-geen,l-
 ok(JSON.stringify(screenN.group) === '[]' && screenN.showRelations === true, 'de overige delen van de vervangen knop keren terug naar het herstelpunt');
 ok(screenN.sort[0]?.field.src === 'builtin' && screenN.filter === null, 'het gedeelde deel komt van de nieuwe knop, de filterknop blijft gelden');
 
+// --- Overlay als layoutdeel (issue #173) ---
+const presentation: Layout = {
+  id: 'l-presentatie', name: 'Presentatie',
+  overlays: { ...current.overlays, baseline: true, floatBand: false },
+};
+const withOverlays = applyLayoutParts(current, presentation);
+ok(withOverlays.overlays.baseline && !withOverlays.overlays.floatBand, 'het overlaydeel zet de overlays');
+ok(layoutParts(presentation).join(',') === 'overlays', 'overlays is een eigen deel, achteraan in de UI-volgorde');
+// Zelfde waarden, andere sleutelvolgorde (bv. uit de opslag): de knop mag daar niet op uitvallen.
+const reordered = Object.fromEntries(Object.entries(presentation.overlays!).reverse()) as unknown as LayoutOverlays;
+ok(layoutMatchesView({ ...presentation, overlays: reordered }, withOverlays), 'de overlay-match hangt niet aan de sleutelvolgorde');
+ok(!layoutMatchesView(presentation, { ...withOverlays, overlays: { ...withOverlays.overlays, progressLine: true } }), 'één overlay met de hand omgezet ⇒ geen match');
+
+// --- Handmatige wijziging zet de knop uit én ruimt zijn overige delen op (issue #173) ---
+// Manu's scenario: resourcediagram aan, dan met de hand de relatielijnen omzetten.
+const relationsFlipped: LayoutViewParts = { ...screenA, showRelations: true };
+const dropA = dropBrokenLayouts(onA.session, relationsFlipped);
+ok(dropA !== null && dropA.session === undefined, 'de afgevallen knop verdwijnt uit de sessie');
+const screenDropA = screenAfter(relationsFlipped, dropA!.write);
+ok(JSON.stringify(screenDropA.group) === '[]' && screenDropA.sort.length === 1, 'groepering en sortering keren terug naar het herstelpunt');
+ok(screenDropA.showRelations === true && dropA!.write.showRelations === undefined, 'het met de hand gewijzigde deel houdt de nieuwe waarde');
+ok(dropBrokenLayouts(onA.session, { ...screenA, timeScale: 'day' }) === null, 'een wijziging aan een ongedragen deel laat de knop staan');
+ok(dropBrokenLayouts(undefined, relationsFlipped) === null, 'zonder sessie valt er niets op te ruimen');
+// Twee knoppen aan; alleen die waarvan een deel wijzigt valt af, de andere blijft staan.
+const groupChanged: LayoutViewParts = { ...screenAF, group: [{ field: { src: 'builtin', key: 'taskType' }, dir: 'asc' }] };
+const dropAF = dropBrokenLayouts(onF.session, groupChanged);
+ok(dropAF?.session?.layouts.map(l => l.id).join() === 'f-geen', 'de niet-geraakte knop blijft aan');
+const screenDropAF = screenAfter(groupChanged, dropAF!.write);
+ok(screenDropAF.group[0]?.field.src === 'builtin' && screenDropAF.showRelations === true && screenDropAF.sort.length === 1,
+  'de nieuwe groepering blijft; sortering en relatielijnen van het resourcediagram keren terug');
+ok(dropAF!.write.filter === undefined && screenDropAF.filter === null, 'het deel van de knop die aan blijft wordt niet aangeraakt');
+
+// Een sessie die ELDERS verouderde (overlays zijn app-breed: omgezet in een ander document) wordt
+// net zo opgeruimd — anders werd dat halve beeld bij de volgende klik het nieuwe herstelpunt.
+const withOverlaysOn = switchLayoutOn(undefined, current, { ...presentation, group: resourceDiagram.group });
+const screenOverlaysOn = screenAfter(current, withOverlaysOn.write);
+const elsewhere: LayoutViewParts = { ...screenOverlaysOn, overlays: { ...screenOverlaysOn.overlays, baseline: false } };
+const staleDrop = dropBrokenLayouts(withOverlaysOn.session, elsewhere);
+ok(staleDrop?.session === undefined && JSON.stringify(screenAfter(elsewhere, staleDrop!.write).group) === '[]',
+  'een elders verouderde layout: zijn groepering gaat terug, zijn sessie verdwijnt');
+const retoggle = switchLayoutOn(staleDrop!.session, screenAfter(elsewhere, staleDrop!.write), withOverlaysOn.session!.layouts[0]!);
+ok(JSON.stringify(retoggle.session!.restore.group) === '[]', 'na opruimen is het herstelpunt weer het beeld van vóór de layout');
+
 // --- Migratie (puur) ---
 const saved: SavedFilter[] = [
   { id: 'critical-only', name: 'Alleen kritiek', filter: criticalFilter },
@@ -143,10 +190,15 @@ ok(layoutParts(roundTrip[0]!).join(',') === 'group,sort,showRelations', 'een ged
 ok(roundTrip[0]?.icon === 'users' && roundTrip[0]?.showRelations === false, 'icoon en relatielijnen overleven de opslag');
 ok(roundTrip[2]?.filter === null && layoutParts(roundTrip[2]!).join(',') === 'filter', 'filter: null overleeft de opslag als gedragen deel');
 
+await saveLayouts([presentation]);
+const overlayTrip = await loadLayouts();
+ok(JSON.stringify(overlayTrip[0]?.overlays) === JSON.stringify(presentation.overlays), 'het overlaydeel overleeft de opslag');
+
 storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [
   resourceDiagram,
   { id: 'kapot', name: 'Kapot', group: 'geen array' },
   { id: 'kapot2', name: 'Kapot 2', columns: [{ onzin: true }] },
+  { id: 'kapot3', name: 'Kapot 3', overlays: { baseline: 'ja' } },
 ] }));
 const guarded = await loadLayouts();
 ok(guarded.length === 1 && guarded[0]?.id === 'builtin:resource-diagram', 'een aanwezig maar misvormd deel laat de hele layout vervallen');

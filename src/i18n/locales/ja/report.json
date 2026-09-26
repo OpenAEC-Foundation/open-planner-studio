@@ -23,7 +23,12 @@
   "showBaselineOverlay": "ベースライン オーバーレイを表示",
   "autoFit": "用紙に自動調整",
   "zoom": "ズーム：",
-  "previewQuality": { "label": "プレビュー品質", "standard": "標準", "high": "高", "maximum": "最大" },
+  "previewQuality": {
+    "label": "プレビュー品質",
+    "standard": "標準",
+    "high": "高",
+    "maximum": "最大"
+  },
   "repeatHeader": "各ページにヘッダーを繰り返す",
   "repeatFooter": "各ページにフッターを繰り返す",
   "reportFontScaleLabel": "文字サイズ：",
@@ -37,6 +42,9 @@
   "exportPDF": "PDF エクスポート",
   "noTasks": "表示するタスクがありません",
   "printed": "印刷日：",
+  "projectStart": "開始：",
+  "projectEnd": "終了：",
+  "projectDuration": "期間：",
   "today": "今日",
   "previewPageLimit_other": "… 他 {{count}} ページ — 完全な文書はエクスポートしてください",
   "legend": {

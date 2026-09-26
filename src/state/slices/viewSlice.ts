@@ -11,8 +11,10 @@ import type {
   ViewState, TimeScale, AppSlice, FilterNode, GroupLevel, SortLevel,
   SplitViewState, Layout, LayoutSession,
 } from './types';
-import { liveSessionLayouts, switchLayoutOff, switchLayoutOn } from '@/engine/view/layoutPresets';
-import { currentLayoutParts } from '../layoutView';
+import { dropBrokenLayouts, liveSessionLayouts, switchLayoutOff, switchLayoutOn } from '@/engine/view/layoutPresets';
+import { currentLayoutParts, currentOverlays, overlaysToUi } from '../layoutView';
+import type { LayoutOverlays } from '@/types/view';
+import { persistOverlays } from '../overlaySettings';
 import { taskGridSurfaceForRibbonTab } from '@/engine/taskGrid/preferences';
 import {
   captureViewLayoutHistoryState,
@@ -97,16 +99,24 @@ export interface ViewSlice {
   toggleLayout: (layout: Layout) => void;
   /** Relatielijnen in de Gantt tonen of verbergen (schermtegenhanger van de rapportoptie). */
   setShowRelations: (show: boolean) => void;
+  /** De overige Gantt-overlays (issue #173): zet de app-brede schermopties en bewaart ze. */
+  setOverlays: (overlays: Partial<LayoutOverlays>) => void;
+  /** Ruim layoutknoppen op die niet meer op het scherm staan (issue #173) — ook na een
+   *  documentwissel, want de overlays zijn app-breed. Geen undo-stap. */
+  settleLayoutSession: () => void;
 }
 
 
 export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   /** Schrijf de gedragen delen van `parts` naar het scherm als ÉÉN undo-stap, met de nieuwe sessie. */
-  const writeLayoutParts = (parts: Layout, session: LayoutSession | undefined, label: string): void => {
+  const writeLayoutParts = (
+    parts: Layout, session: LayoutSession | undefined, label: string, opts: { record?: boolean } = {},
+  ): void => {
     const beforeState = get();
     const documentId = beforeState.activeDocumentId;
     const surface = taskGridSurfaceForRibbonTab(beforeState.ui.activeRibbonTab);
     const viewBefore = captureViewLayoutHistoryState(beforeState.view);
+    const overlaysBefore = currentOverlays(beforeState.ui);
     const gridBefore = {
       columns: beforeState.taskGridSurfaces[surface].columns.map(column => ({ ...column })),
       scrollX: beforeState.taskGridSurfaces[surface].scrollX,
@@ -120,7 +130,13 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
     });
     if (parts.columns !== undefined) get().applyTaskGridLayoutColumns(parts.columns);
     if (parts.timeScale !== undefined) get().setTimeScale(parts.timeScale);
+    // De overlays zijn app-brede schermopties buiten de view-undo: net als hun lintknoppen.
+    if (parts.overlays !== undefined) {
+      get().setUI(overlaysToUi(parts.overlays));
+      persistOverlays(parts.overlays);
+    }
     get().recomputeViewRows();
+    if (opts.record === false) return;
     const afterState = get();
     const viewAfter = captureViewLayoutHistoryState(afterState.view);
     const gridAfter = {
@@ -128,13 +144,35 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
       scrollX: afterState.taskGridSurfaces[surface].scrollX,
     };
     const deltas: SessionHistoryDelta[] = [];
-    if (documentId && JSON.stringify(viewBefore) !== JSON.stringify(viewAfter)) {
-      deltas.push({ kind: 'document-view', documentId, before: viewBefore, after: viewAfter });
+    // De overlays zijn app-brede `ui`-velden, maar een layoutklik is één stap: ze reizen mee in de
+    // view-delta van het actieve document, zodat Ctrl+Z ook hen terugzet (issue #173).
+    const overlaysAfter = currentOverlays(afterState.ui);
+    const overlaysChanged = JSON.stringify(overlaysBefore) !== JSON.stringify(overlaysAfter);
+    if (documentId && (overlaysChanged || JSON.stringify(viewBefore) !== JSON.stringify(viewAfter))) {
+      deltas.push({
+        kind: 'document-view', documentId, before: viewBefore, after: viewAfter,
+        ...(overlaysChanged ? { overlays: { before: overlaysBefore, after: overlaysAfter } } : {}),
+      });
     }
     if (JSON.stringify(gridBefore) !== JSON.stringify(gridAfter)) {
       deltas.push({ kind: 'grid-preference', surface, before: gridBefore, after: gridAfter });
     }
     if (deltas.length > 0) afterState.recordSessionHistoryEvent(label, deltas);
+  };
+
+  /**
+   * Issue #173: na een HANDMATIGE wijziging de layoutknoppen opruimen die daardoor afvielen — hun
+   * overige delen terug naar het herstelpunt (`dropBrokenLayouts`). Bewust alleen voor
+   * de weloverwogen delen (filter, groeperen, sorteren, relatielijnen, overlays): zoomen of een
+   * kolombreedte slepen zet een knop wel uit, maar wist niet ongevraagd je filter.
+   *
+   * Geen eigen undo-stap: de handmatige wijziging is er zelf ook geen. Ctrl+Z valt daardoor terug
+   * op de layoutklik, en die brengt het complete beeld van vóór de layout terug.
+   */
+  const settleManualChange = (): void => {
+    const state = get();
+    const dropped = dropBrokenLayouts(state.view.layoutSession, currentLayoutParts(state));
+    if (dropped) writeLayoutParts(dropped.write, dropped.session, '', { record: false });
   };
 
   return {
@@ -233,6 +271,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   setFilter: (filter) => {
     set((s) => { s.view.filter = filter; });
     get().recomputeViewRows();
+    settleManualChange();
   },
 
   setGroup: (group) => {
@@ -240,11 +279,13 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
       s.view.group = group;
     });
     get().recomputeViewRows();
+    settleManualChange();
   },
 
   setSort: (sort) => {
     set((s) => { s.view.sort = sort; });
     get().recomputeViewRows();
+    settleManualChange();
   },
 
   setCollapsedGroupKey: (key, collapsed) => {
@@ -282,7 +323,9 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
 
   applyLayout: (layout) => {
     // Issue #144: een layout zet alleen de delen die hij draagt; zie `switchLayoutOn` voor wat er
-    // met de al aanstaande layoutknoppen gebeurt.
+    // met de al aanstaande layoutknoppen gebeurt. Eerst een verouderde sessie opruimen: anders wordt
+    // een half beeld het herstelpunt (issue #173).
+    settleManualChange();
     const state = get();
     const { session, write } = switchLayoutOn(state.view.layoutSession, currentLayoutParts(state), layout);
     writeLayoutParts(write, session, `Layout ${layout.name} toepassen`);
@@ -295,6 +338,7 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
   },
 
   toggleLayout: (layout) => {
+    settleManualChange();
     const state = get();
     const current = currentLayoutParts(state);
     const session = state.view.layoutSession;
@@ -309,6 +353,15 @@ export const createViewSlice: AppSlice<ViewSlice> = (set, get) => {
 
   setShowRelations: (show) => {
     set((s) => { s.view.showRelations = show; });
+    settleManualChange();
+  },
+
+  settleLayoutSession: () => settleManualChange(),
+
+  setOverlays: (overlays) => {
+    get().setUI(overlaysToUi(overlays));
+    persistOverlays(overlays);
+    settleManualChange();
   },
 };
 };

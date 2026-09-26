@@ -53,6 +53,13 @@ export function taskBarPoint(
   return { x: bounds.left + canvasX, y: bounds.top + canvasY };
 }
 
+/** Observer-only: aantal balkstukken dat de laatste paint voor een taak tekende (zie
+ *  `GanttRenderer.getDrawnSegmentCount`). Start zelf geen paint. */
+export function taskSegmentCount(taskId: string, surface: GanttTestSurface = 'primary'): number | null {
+  const renderer = surfaces.get(surface)?.renderer.current;
+  return renderer ? renderer.getDrawnSegmentCount(taskId) : null;
+}
+
 /** Observer-only: wordt na een bestaande draw aangeroepen en kan zelf geen paint starten. */
 export function recordGanttPaint(surface: GanttPaintSurface, width: number, height: number): void {
   const paint = paints[surface];

@@ -14,6 +14,7 @@ import {
   recordGanttPaint,
   registerGanttTestSurface,
   taskBarPoint,
+  taskSegmentCount,
 } from '@/utils/ganttTestDriver';
 import type { Task } from '@/types/task';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -147,8 +148,12 @@ if (rect) {
   const point = taskBarPoint(healthy.id, 'body', 'primary');
   ok('bodypunt wordt van canvas-CSS naar client-X omgerekend', point?.x === 100 + centerX);
   ok('bodypunt wordt van canvas-CSS naar client-Y omgerekend', point?.y === 200 + centerY);
+  // Stukkenteller (wachtpunt voor browsertests die splits via de store zetten, PR #177).
+  ok('ongesplitste getekende balk telt één stuk', taskSegmentCount(healthy.id, 'primary') === 1);
+  ok('taak zonder getekende balk telt geen stukken', taskSegmentCount(dateless.id, 'primary') === null);
   unregister();
   ok('opgeruimd oppervlak is niet meer lokaliseerbaar', taskBarPoint(healthy.id, 'body', 'primary') === null);
+  ok('opgeruimd oppervlak telt geen stukken meer', taskSegmentCount(healthy.id, 'primary') === null);
 }
 
 const storeBeforePaint = useAppStore.getState();

@@ -53,6 +53,7 @@ import { signedWorkDaysBetween } from '@/engine/variance';
 import { insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useAppStore } from '@/state/appStore';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
 import { buildImportLabels } from '@/i18n/importLabels';
 import type { DataGridCellModel, DataGridDataRowModel } from './taskGridContext';
@@ -222,6 +223,7 @@ export function TaskGridSurface({
 }: TaskGridSurfaceProps) {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
+  const { t: tMenu } = useTranslation('menu');
   const calculatedReadOnlyFallback = tTask('table.calculatedReadOnly');
   const textDirection = taskI18n.dir() === 'rtl' ? 'rtl' : 'ltr';
   const activeDocumentId = useAppStore(state => state.activeDocumentId);
@@ -263,6 +265,7 @@ export function TaskGridSurface({
   const pasteTasks = useAppStore(state => state.pasteTasks);
   const taskClipboard = useAppStore(state => state.taskClipboard);
   const setUI = useAppStore(state => state.setUI);
+  const ganttVisible = useAppStore(state => isGanttWorkspaceVisible(state.ui));
   const setScroll = useAppStore(state => state.setScroll);
   const setCollapsedGroupKey = useAppStore(state => state.setCollapsedGroupKey);
   const toggleCollapse = useAppStore(state => state.toggleCollapse);
@@ -1072,6 +1075,7 @@ export function TaskGridSurface({
             taskType: 'ATTENDANCE',
             parentId: contextMenu.task?.id ?? null,
           })}
+          addRelationDisabledReason={ganttVisible ? undefined : tMenu('ribbon.ganttOnlyHint')}
           onAddRelation={() => {
             if (!contextMenu.task) return;
             selectTask(contextMenu.task.id, false);

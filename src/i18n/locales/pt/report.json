@@ -23,7 +23,12 @@
   "showBaselineOverlay": "Mostrar sobreposição da linha de base",
   "autoFit": "Ajustar ao papel automaticamente",
   "zoom": "Zoom:",
-  "previewQuality": { "label": "Qualidade da pré-visualização", "standard": "Padrão", "high": "Alta", "maximum": "Máxima" },
+  "previewQuality": {
+    "label": "Qualidade da pré-visualização",
+    "standard": "Padrão",
+    "high": "Alta",
+    "maximum": "Máxima"
+  },
   "repeatHeader": "Repetir cabeçalho em cada página",
   "repeatFooter": "Repetir rodapé em cada página",
   "reportFontScaleLabel": "Tamanho da fonte:",
@@ -39,6 +44,9 @@
   "exportPDF": "Exportar PDF",
   "noTasks": "Não há tarefas para apresentar",
   "printed": "Impresso:",
+  "projectStart": "Início:",
+  "projectEnd": "Fim:",
+  "projectDuration": "Duração:",
   "today": "Hoje",
   "previewPageLimit_one": "… e mais {{count}} página — exporte para o documento completo",
   "previewPageLimit_many": "… e mais {{count}} páginas — exporte para o documento completo",

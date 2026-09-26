@@ -12,7 +12,10 @@ import { fileToolDeps, type McpFileFs } from '@/services/mcp/tools/fileTools';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { writeCSV } from '@/services/csv/csvWriter';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { installDOMParser } from '../planning/xmldom-shim';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
 // builders uit tests/planning/mppFixtures.ts (M6-fixturebouwers, ook door check-mpp-import.ts's
@@ -715,6 +718,31 @@ test('import_schedule: meerproject-XER fan-out antwoordt met exact aantal en inv
   assertEq(S().activeDocumentId, docs[1].id, 'het grootste project is werkelijk actief');
   assert(String(data.notice).includes('2'), 'de XER-notice noemt het werkelijke aantal projecten/documenten');
   assert(!String(data.notice).includes('één niet-leeg P6-project'), 'de oude onware enkelvoudsclaim is verdwenen');
+});
+
+// Import/export-audit 2026-09 (bevinding 3): de XML-variant werd op VRIJE TEKST gekozen
+// (`content.includes('Primavera')`), in de registry én in dit label. Een MS Project-XML met
+// "Primavera" in de projectnaam ging zo naar de P6-lezer: leeg document "P6 Import", label P6-XML.
+// Nu beslist het root-element/de namespace (`detectXmlFlavor`, gedeeld met formatRegistry).
+test('import_schedule: MS Project-XML met "Primavera" in de naam blijft MSPDI; een echte P6-export blijft P6', async () => {
+  installDOMParser();
+  installFakeFs();
+  resetToSingleEmptyDocument();
+  const taskCount = loadSmallProject('Residencial Primavera');
+  const s = S();
+  const mspPath = `${HOME}/residencial.xml`;
+  files.set(mspPath, writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars));
+  const p6Path = `${HOME}/residencial-p6.xml`;
+  files.set(p6Path, writeP6XML(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars));
+
+  const msp = await callOk('planner_import_schedule', { path: mspPath });
+  assertEq(msp.format, 'MSPDI-XML', 'de MS Project-XML wordt als MSPDI-XML gelabeld, ondanks "Primavera" in de naam');
+  assertEq(msp.tasks, taskCount, 'alle taken komen binnen (geen leeg P6-project)');
+  assertEq(S().project.name, 'Residencial Primavera', 'de projectnaam komt uit het bestand (geen "P6 Import")');
+
+  const p6 = await callOk('planner_import_schedule', { path: p6Path });
+  assertEq(p6.format, 'P6-XML', 'een echte P6-export (root APIBusinessObjects) blijft P6-XML');
+  assert(p6.tasks >= taskCount, 'de P6-export komt met al zijn activiteiten binnen');
 });
 
 test('import_schedule: onbekend pad ⇒ NOT_FOUND, buiten de scope ⇒ SCOPE', async () => {

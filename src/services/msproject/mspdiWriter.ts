@@ -27,9 +27,28 @@ import { MSPDI_TASK_TYPE_CODE, mspFromWorkRule } from '@/engine/work/workRuleMap
  * één namespaced custom task field als expliciete round-tripmarker. Text30 is bewust gekozen als
  * transportveld; de reader accepteert de waarde uitsluitend wanneer de projectdefinitie exact deze
  * OPS-naam draagt, zodat een vreemd bestand dat Text30 zelf gebruikt nooit per ongeluk matcht.
+ *
+ * Text30 = 0x0B400000 + 336 = 188744016 (MPXJ `MPPTaskField`: FIELD_ARRAY[336] = TEXT30; MSPDI-
+ * FieldID = TASK_FIELD_BASE | index, `FieldTypeHelper.getFieldID`). Eerdere OPS-versies schreven
+ * 188743760 = index 80 = Flag9 — een ja/nee-veld met tekst "days"/"hours" erin. Nieuw schrijven gaat
+ * naar Text30; de lezer accepteert het oude ID nog (`OPS_DURATION_UNIT_LEGACY_FIELD_ID`) zodat
+ * eerder geëxporteerde bestanden hun duureenheid houden.
  */
-export const OPS_DURATION_UNIT_FIELD_ID = '188743760';
+export const OPS_DURATION_UNIT_FIELD_ID = '188744016';
+export const OPS_DURATION_UNIT_LEGACY_FIELD_ID = '188743760';
 export const OPS_DURATION_UNIT_FIELD_NAME = 'OPS_TaskDurationUnit';
+
+/**
+ * Soort mijlpaal (START/FINISH/AUTO) — MSPDI kent alleen `<Milestone>`, geen start/eind-anker. Zelfde
+ * patroon als de duureenheid hierboven: één namespaced custom task field, alleen geldig wanneer de
+ * projectdefinitie exact deze OPS-naam draagt (import/export-audit 2026-09, bevinding 7: zonder deze
+ * marker kwam een eindmijlpaal na OPS → MSPDI → OPS in dagmodus als "automatisch" terug en schoof
+ * hij een werkdag op). Transportveld Text29 (0x0B400000 + 335, MPXJ `MPPTaskField`). `AUTO` wordt
+ * expliciet geschreven zodat de lezer bij een OPS-bestand geen soort afleidt die de bron niet had;
+ * een bestand zonder deze definitie (MS Project zelf) wordt gelezen zoals voorheen.
+ */
+export const OPS_MILESTONE_KIND_FIELD_ID = '188744015';
+export const OPS_MILESTONE_KIND_FIELD_NAME = 'OPS_MilestoneKind';
 
 const OPS_CUSTOM_TASK_TYPE_FIELD_ID = '188743731';
 const OPS_CUSTOM_TASK_TYPE_MARKER = 'OpenPlannerStudio.CustomTaskType.v1';
@@ -121,21 +140,25 @@ function lagToTenthsOfMinutes(lagDays: number, hoursPerDay: number): number {
   return lagDays * hoursPerDay * 60 * 10;
 }
 
-// MSPDI LagFormat (subset van DurationFormat): 7 = dagen, 8 = elapsed dagen (24/7),
-// 19 = procent, 20 = elapsed procent. Bij procent staat LinkLag in tienden van een procent.
+// MSPDI LagFormat (subset van DurationFormat): 6 = elapsed uren, 7 = dagen, 8 = elapsed dagen
+// (24/7), 19 = procent, 20 = elapsed procent. Bij procent staat LinkLag in tienden van een procent,
+// anders altijd in tienden van (werk- of klok)minuten — LagFormat is alleen de weergave-eenheid.
 function lagFields(seq: Sequence, hoursPerDay: number): { linkLag: number; lagFormat: number } {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     return { linkLag: Math.round(seq.lagPercent * 10), lagFormat: elapsed ? 20 : 19 };
   }
+  // Fase 2.8b (§7.3): uur-lag (`lagMinutes`, bron van waarheid) → tienden-van-minuten (`minuten × 10`,
+  // minuut-precies). Werktijd: LagFormat 7, dezelfde encoding als het dag-pad. Elapsed ("+3eu"):
+  // LagFormat 6 (elapsed uren) met klokminuten. Deze tak staat bewust VÓÓR de elapsed-dag-tak
+  // (import/export-audit 2026-09, bevinding 4): daar schreef een elapsed-uur-lag `lagDays × 24 × 60
+  // × 10` = 0, dus MS Project (en onze eigen lezer) kreeg lag 0.
+  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
+    return { linkLag: Math.round(seq.lagMinutes * 10), lagFormat: elapsed ? 6 : 7 };
+  }
   if (elapsed) {
     // Elapsed dagen tellen 24 uur, onafhankelijk van de werkkalender.
     return { linkLag: seq.lagDays * 24 * 60 * 10, lagFormat: 8 };
-  }
-  // Fase 2.8b (§7.3): uur-lag (`lagMinutes`, bron van waarheid) → tienden-van-minuten (`minuten × 10`,
-  // minuut-precies); LagFormat 7 (werktijd-minuten), dezelfde encoding als het dag-pad.
-  if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
-    return { linkLag: Math.round(seq.lagMinutes * 10), lagFormat: 7 };
   }
   return { linkLag: lagToTenthsOfMinutes(seq.lagDays, hoursPerDay), lagFormat: 7 };
 }
@@ -376,6 +399,11 @@ export function writeMSPDI(
   lines.push(`${indent(3)}<FieldName>${OPS_DURATION_UNIT_FIELD_NAME}</FieldName>`);
   lines.push(`${indent(3)}<Alias>${OPS_DURATION_UNIT_FIELD_NAME}</Alias>`);
   lines.push(`${indent(2)}</ExtendedAttribute>`);
+  lines.push(`${indent(2)}<ExtendedAttribute>`);
+  lines.push(`${indent(3)}<FieldID>${OPS_MILESTONE_KIND_FIELD_ID}</FieldID>`);
+  lines.push(`${indent(3)}<FieldName>${OPS_MILESTONE_KIND_FIELD_NAME}</FieldName>`);
+  lines.push(`${indent(3)}<Alias>${OPS_MILESTONE_KIND_FIELD_NAME}</Alias>`);
+  lines.push(`${indent(2)}</ExtendedAttribute>`);
   lines.push(`${indent(1)}</ExtendedAttributes>`);
 
   // Scheduling-options (fase 2.9, §6): alleen wat MSPDI native kan. `CriticalSlackLimit` (dagen) draagt
@@ -571,6 +599,15 @@ export function writeMSPDI(
     lines.push(`${indent(4)}<FieldID>${OPS_DURATION_UNIT_FIELD_ID}</FieldID>`);
     lines.push(`${indent(4)}<Value>${isHourTask ? 'hours' : 'days'}</Value>`);
     lines.push(`${indent(3)}</ExtendedAttribute>`);
+    if (isMilestone) {
+      // Zelfde regel als de IFC-pset `OPS_Milestone`: alleen een echte mijlpaal draagt een soort.
+      const kind = task.isMilestone && (task.milestoneKind === 'START' || task.milestoneKind === 'FINISH')
+        ? task.milestoneKind : 'AUTO';
+      lines.push(`${indent(3)}<ExtendedAttribute>`);
+      lines.push(`${indent(4)}<FieldID>${OPS_MILESTONE_KIND_FIELD_ID}</FieldID>`);
+      lines.push(`${indent(4)}<Value>${kind}</Value>`);
+      lines.push(`${indent(3)}</ExtendedAttribute>`);
+    }
     if (task.description) {
       lines.push(`${indent(3)}<Notes>${escapeXML(task.description)}</Notes>`);
     }

@@ -18,9 +18,7 @@ import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { isTreeMode } from '@/engine/view/visibleRows';
-import {
-  saveShowBaselineOverlay, saveShowFloatBand, saveShowProgressLine, saveShowResourceAccent, saveShowStatusDateLine,
-} from '@/utils/settingsStore';
+import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab } from '@/state/slices/types';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
@@ -146,10 +144,14 @@ const splitTaskButton: RibbonButtonSpec = {
   use: () => {
     const { t } = useTranslation('menu');
     const splitMode = useAppStore(s => s.ui.showSplitMode);
+    // Issue #174: het gebaar vraagt een balk in de Gantt; op de Tabel-tab is die er niet.
+    const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
     const setUI = useAppStore(s => s.setUI);
     return {
       active: splitMode,
-      title: t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
+      disabled: !ganttVisible,
+      title: !ganttVisible ? t('ribbon.ganttOnlyHint')
+        : t(splitMode ? 'ribbon.splitTaskOffHint' : 'ribbon.splitTaskOnHint'),
       onClick: () => setUI({ showSplitMode: !splitMode }),
     };
   },
@@ -791,24 +793,24 @@ const beeldTab: RibbonTabConfig = [
             kind: 'small', id: 'toggleBaselineOverlay', icon: <LayoutGrid size={14} />, labelKey: 'menu:ribbon.toggleBaselineOverlay',
             use: () => {
               const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showBaselineOverlay, onClick: () => { const next = !showBaselineOverlay; setUI({ showBaselineOverlay: next }); void saveShowBaselineOverlay(next); } };
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showBaselineOverlay, onClick: () => setOverlays({ baseline: !showBaselineOverlay }) };
             },
           },
           {
             kind: 'small', id: 'toggleProgressLine', icon: <TrendingUp size={14} />, labelKey: 'menu:ribbon.toggleProgressLine',
             use: () => {
               const showProgressLine = useAppStore(s => s.ui.showProgressLine);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showProgressLine, onClick: () => { const next = !showProgressLine; setUI({ showProgressLine: next }); void saveShowProgressLine(next); } };
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showProgressLine, onClick: () => setOverlays({ progressLine: !showProgressLine }) };
             },
           },
           {
             kind: 'small', id: 'toggleStatusDateLine', icon: <CalendarDays size={14} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
             use: () => {
               const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showStatusDateLine, onClick: () => { const next = !showStatusDateLine; setUI({ showStatusDateLine: next }); void saveShowStatusDateLine(next); } };
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showStatusDateLine, onClick: () => setOverlays({ statusDateLine: !showStatusDateLine }) };
             },
           },
         ],
@@ -822,8 +824,8 @@ const beeldTab: RibbonTabConfig = [
             kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
             use: () => {
               const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showResourceAccent, onClick: () => { const next = !showResourceAccent; setUI({ showResourceAccent: next }); void saveShowResourceAccent(next); } };
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showResourceAccent, onClick: () => setOverlays({ resourceAccent: !showResourceAccent }) };
             },
           },
           {
@@ -832,8 +834,8 @@ const beeldTab: RibbonTabConfig = [
             kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
             use: () => {
               const showFloatBand = useAppStore(s => s.ui.showFloatBand);
-              const setUI = useAppStore(s => s.setUI);
-              return { active: showFloatBand, onClick: () => { const next = !showFloatBand; setUI({ showFloatBand: next }); void saveShowFloatBand(next); } };
+              const setOverlays = useAppStore(s => s.setOverlays);
+              return { active: showFloatBand, onClick: () => setOverlays({ floatBand: !showFloatBand }) };
             },
           },
         ],

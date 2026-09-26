@@ -22,7 +22,7 @@ A break doesn't change the amount of work. A 10-workday task with a 3-workday br
 
 ## Creating a break in the Gantt
 
-1. Click **Split task** on the ribbon (Home, Planning or Table tab). Split mode is now on, and a short explanation with a **Stop** button appears.
+1. Click **Split task** on the ribbon (Home or Planning tab). Split mode is now on, and a short explanation with a **Stop** button appears. On the Table tab the button is off, because there is no Gantt chart to click on; switching to the Table while the mode is on turns it off.
 2. Point at the day on the bar where the pause should start. A vertical line marks the day.
 3. Click and drag to the right for the length of the pause. A label shows how many workdays the break will be. Releasing without dragging creates a one-workday break (or one hour for an hour-based task).
 4. The mode stays on so you can add another break straight away. Press **Esc** or click **Split task** again to stop.

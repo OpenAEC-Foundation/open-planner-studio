@@ -40,8 +40,15 @@ const ctx: FieldCatalogCtx = {
 };
 
 const actual = barColorFieldOptions(ctx).map(option => encodeFieldRef(option.field));
-const expected = groupFieldList(ctx).map(encodeFieldRef);
-ok(JSON.stringify(actual) === JSON.stringify(expected), 'Balkkleuren gebruikt exact dezelfde velden en volgorde als Group');
+// Issue #173: Resourcetype is een groepeerveld maar geen kleurbron (typen hebben geen kleur).
+const resourceType = encodeFieldRef({ src: 'resourceType' });
+const expected = groupFieldList(ctx).map(encodeFieldRef).filter(value => value !== resourceType);
+ok(JSON.stringify(actual) === JSON.stringify(expected), 'Balkkleuren gebruikt dezelfde velden en volgorde als Group, zonder Resourcetype');
+ok(groupFieldList(ctx).map(encodeFieldRef).includes(resourceType) && !actual.includes(resourceType),
+  'Resourcetype staat wel bij Group, niet bij Balkkleuren');
+const stale = effectiveBarColorControl({ mode: 'category', field: { src: 'resourceType' } }, ctx);
+ok(stale.effective.mode === 'category' && stale.effective.field.src === 'builtin',
+  'een (handmatig) opgeslagen Resourcetype-kleurkeuze valt terug op Taaktype');
 
 const original = { mode: 'category', field: { src: 'activityCode', typeId: 'verwijderd' } } as const;
 const control = effectiveBarColorControl(original, ctx);

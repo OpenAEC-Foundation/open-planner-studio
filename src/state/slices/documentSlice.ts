@@ -453,6 +453,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       publishActivation(s, activation);
     });
     announceWorkRuleSettle(get().notify, newId, null, activation);
+    // Issue #173: de overlays zijn app-breed; in het andere document kan een layout van dit document
+    // daardoor zijn gevallen. Ruim die nu op, niet pas bij de volgende klik.
+    get().settleLayoutSession();
     runtime.emitHostEvent(HOST_EVENTS.projectLoaded, {
       tasks: copy.tasks.length,
       sequences: copy.sequences.length,
