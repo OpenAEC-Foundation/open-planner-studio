@@ -467,7 +467,7 @@ afgebroken ⇒ om 09:00 opnieuw gestart, wéér 'cancelled' na exact 20 min: **o
 
 **26-09 10:48 — #170 GEMERGED naar `main` (`90271f55`, `--admin` na groene CI met de 45-min-timeout). Daarmee
 staat de hele etappestapel op `main`: #109 (1d8f2df6), #167 (e9631cfe), #169 (6160b477), #229 (7ab930f3), #170
-(90271f55). Main-CI/deploy loopt.** Nu: groep A stap 2 (`opus-midden-groep-a-main`: main met #170 in #226) en
+(90271f55). Main-CI én Deploy site groen (11:05).** Groep A stap 2 klaar: `claude/integratie-groep-a` 099de67e (main met #170/#229 erin; `updateTask`-volgorde van #170 + startdatum-bescherming #199; ci.yml = #180's parallelle matrix met 45 min per deel; README 38; verify EXIT 0 browser 214, measure 76/0/0/0); PR #226 CI loopt ⇒ merge `--admin` zodra groen. Nu ook: groep A stap 2 (`opus-midden-groep-a-main`: main met #170 in #226) en
 groep B (`opus-midden-groep-b-main`: main in `claude/integratie-groep-b` met de zes overlap-besluiten, groeps-PR).
 
 ## 2. Waar het werk staat (bijwerken bij elke mijlpaal)
