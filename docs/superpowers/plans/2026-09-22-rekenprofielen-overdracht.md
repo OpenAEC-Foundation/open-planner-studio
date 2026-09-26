@@ -127,6 +127,13 @@ volgens het recept, alleen landen als geen cel slechter wordt.
 wordt de projectnaam uit het XER, met het P6 Project-ID erachter tussen haakjes wanneer dat afwijkt van de
 naam (bv. "HarbourPointe Assisted Living (4408)"); kleine UX-fix op de #109-lijn.
 
+**2026-09-26 ~13:55, vraag 18 (#232: restduur bij een duur onder het gedane werk — klemmen of weigeren?), letterlijk:
+"optie 2"** = weigeren. De app weigert een duur kleiner dan het gedane werk (melding / celfout / niets opslaan in de
+dialoog / zachte MCP-weigering); precies gelijk aan het gedane werk maakt de taak 100 %; bij elke andere verkorting of
+verlenging schuift de rest mee. Wordt als één mechanisme herbouwd op `main` (bovenop `carryRemainingThroughDurationEdit`
+uit de taaktypes-etappe) in een eigen PR, samen met de drie andere regels uit #232 (statusdatum vandaag, vraag naar
+werkelijke start, AI-koppeling zonder stille actie); #232 zelf wordt daarna gesloten met verwijzing.
+
 **2026-09-25 ~17:30 (na de maandlimiet-onderbreking van 24-09 ~20:30), letterlijk:** "doe alles wat je nog
 nodig is om het af te maken, wanneer deze hele etappe af is ga jij alle openstaasnde PRS mergen. wanneer
 alles in main zit zal ik een visuele check van je werk doen." ⇒ (1) de orkestrator maakt de etappe af
@@ -507,7 +514,7 @@ een duur onder het gedane werk weigert en andere eenheidswissel-regels heeft); 3
 drie merge-bases; én #232 noemt zichzelf onaf ("volgt nog: voortgangsblad"). Voorstel: na het eigenaarsbesluit
 klemmen/weigeren één mechanisme herbouwen op main.
 
-18. **#232 (voortgangsregels 26-09) — restduur bij een duurwijziging op een lopende taak: klemmen of weigeren?**
+18. *(beantwoord 26-09: "optie 2" = weigeren, zie §1a)* **#232 (voortgangsregels 26-09) — restduur bij een duurwijziging op een lopende taak: klemmen of weigeren?**
     De taaktypes-etappe (#170, besluiten 05/06-09) laat de rest meeschuiven en klemt op 0
     (`carryRemainingThroughDurationEdit`, `src/engine/work/workRuleApply.ts`). #232 (besluit 26-09, andere sessie)
     laat de rest ook meeschuiven maar **weigert** een duur kleiner dan het gedane werk (melding/celfout/zachte
