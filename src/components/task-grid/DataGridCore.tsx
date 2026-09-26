@@ -126,6 +126,13 @@ function selectedCell(
     && column >= Math.min(fromColumn, toColumn) && column <= Math.max(fromColumn, toColumn);
 }
 
+/** Staat de focus op een verbonden element buiten `container` (niet op `<body>`)? */
+function focusBelongsOutside(container: HTMLElement | null): boolean {
+  if (typeof document === 'undefined' || !container) return false;
+  const focused = document.activeElement;
+  return Boolean(focused && focused !== document.body && focused.isConnected && !container.contains(focused));
+}
+
 /**
  * Plan een celfocus voor het volgende frame. `ledger.current` is de nog openstaande focus en alleen
  * die mag nog focussen, één keer: een latere aanvraag vervangt hem, `ledger.current = null` (editor
@@ -134,10 +141,20 @@ function selectedCell(
  * binnen één frame, of een traag frame op een belaste machine) het van het invoerveld dat de editor
  * intussen zelf had gefocust: de editor stond open, maar typen kwam er niet meer in.
  */
-function deferCellFocus(ledger: { current: (() => void) | null }, focus: () => void): void {
+function deferCellFocus(
+  ledger: { current: (() => void) | null },
+  container: { current: HTMLElement | null },
+  focus: () => void,
+): void {
   const run = () => {
     if (ledger.current !== run) return;
     ledger.current = null;
+    // Is de focus intussen bewust naar een ander onderdeel gegaan (klik op een Gantt-balk, een
+    // lintknop, een paneelveld), dan vervalt de celfocus: anders pakte het late frame de focus
+    // terug naar het raster en belandde de volgende toets daar — Ctrl+C na een balkklik kopieerde
+    // dan de celtekst in plaats van de taak. Dezelfde regel als `focusBelongsElsewhere` bij het
+    // aanvragen, maar nu op het moment van uitvoeren.
+    if (focusBelongsOutside(container.current)) return;
     focus();
   };
   ledger.current = run;
@@ -246,7 +263,7 @@ export function DataGridCore({
     const mounted = cellsRef.current.get(key);
     if (mounted) {
       pendingFocusKeyRef.current = null;
-      deferCellFocus(pendingCellFocusRef, () => cellsRef.current.get(key)?.focus());
+      deferCellFocus(pendingCellFocusRef, containerRef, () => cellsRef.current.get(key)?.focus());
       return;
     }
     pendingFocusKeyRef.current = key;
@@ -258,7 +275,7 @@ export function DataGridCore({
       if (containerRef.current) containerRef.current.scrollTop = nextScrollTop;
       onScrollTopChange?.(nextScrollTop);
     }
-    deferCellFocus(pendingCellFocusRef, () => {
+    deferCellFocus(pendingCellFocusRef, containerRef, () => {
       const node = cellsRef.current.get(key);
       if (!node) return;
       pendingFocusKeyRef.current = null;
@@ -291,15 +308,7 @@ export function DataGridCore({
       lastRequestedActiveKey: lastRequestedActiveKeyRef.current,
     });
     lastRequestedActiveKeyRef.current = activeKey;
-    const container = containerRef.current;
-    const focused = typeof document === 'undefined' ? null : document.activeElement;
-    const focusBelongsElsewhere = Boolean(
-      container
-      && focused
-      && focused !== document.body
-      && focused.isConnected
-      && !container.contains(focused),
-    );
+    const focusBelongsElsewhere = focusBelongsOutside(containerRef.current);
     if (!shouldRequestFocus || !selection.active || focusBelongsElsewhere) {
       pendingFocusKeyRef.current = null;
       return;
@@ -317,7 +326,7 @@ export function DataGridCore({
     const node = cellsRef.current.get(key);
     if (!node) return;
     pendingFocusKeyRef.current = null;
-    deferCellFocus(pendingCellFocusRef, () => node.focus());
+    deferCellFocus(pendingCellFocusRef, containerRef, () => node.focus());
   }, [virtual.startIndex, virtual.endIndexExclusive]);
 
   useEffect(() => {

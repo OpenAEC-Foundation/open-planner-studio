@@ -18,15 +18,17 @@ async function observe(page: Page) {
   });
 }
 
-/** Fixture: een IFC-document waarvan de opgeslagen datums niet uit de logica volgen (issue #63),
- *  daarna de echte knop "datums zoals opgeslagen tonen". */
+/** Fixture: een vreemd IFC-document waarvan de opgeslagen datums niet uit de logica volgen (issue #63).
+ *  Sinds #167 (heropen-beleid optie B) gaat een VERSE import van elk toegelaten formaat — ook een
+ *  vreemd IFC met early-slots — bij restverschillen zelf in "datums zoals opgeslagen"; er is dan geen
+ *  aanbod en dus geen knop "tonen" meer. De test wacht daarom op de actieve strook zelf. */
 async function loadRecordedDatesDocument(page: Page): Promise<void> {
   await page.evaluate(async (text) => {
     const modulePath = '/src/services/ifc/ifcReader.ts';
     const { readIFC } = await import(/* @vite-ignore */ modulePath) as typeof import('@/services/ifc/ifcReader');
     window.__OPS__!.store.getState().applyLoadedProject(readIFC(text), { filePath: null, recompute: true });
   }, externIfc('2'));
-  await page.locator('[data-ops-recorded-dates-show]').click();
+  await expect(page.locator('[data-ops-recorded-dates-active]')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded)).toBe(true);
 }
 

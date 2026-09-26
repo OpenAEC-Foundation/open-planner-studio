@@ -19,7 +19,11 @@ test('solverfouten verschijnen in de gekozen UI-taal, in de melding en in het wa
   await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Deutsch/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await page.getByRole('dialog').getByRole('button', { name: /^(Close|Sluiten|Schließen)$/ }).click();
+  // Sinds #233 heeft het sluitkruisje zelf de naam "Sluiten" (naast de voetknop met dezelfde
+  // tekst); kies daarom expliciet het kruisje, en bewijs meteen dat ook zijn naam meevertaalt.
+  const closeX = page.getByRole('dialog').locator('.modal-close-btn');
+  await expect(closeX).toHaveAccessibleName('Schließen');
+  await closeX.click();
 
   await page.locator('.ribbon-tab').filter({ hasText: /^Planung$/ }).click();
   const ribbon = page.locator('.ribbon-content');
