@@ -184,6 +184,7 @@
       "actualAfterStatusDate": "La date réelle est postérieure à la date d'état.",
       "actualFinishBeforeStart": "La fin réelle est antérieure au début réel.",
       "actualStartRequired": "Cette tâche ne commencerait qu’après la date de statut : saisissez d’abord le début réel.",
+      "durationBelowDoneWork": "Cette durée est plus courte que le travail déjà effectué.",
       "conflictingProgressInputs": "Ces valeurs d'avancement se contredisent.",
       "constraintDateUnavailable": "Définissez un type de contrainte avant de saisir une date de contrainte.",
       "constraintHardUnavailable": "Une contrainte forte nécessite un type de contrainte avec une date.",

@@ -140,7 +140,8 @@
     "xerArchiveReasonBytesMissing": "Reden: de bronbytes zelf ontbreken — waarschijnlijk heeft een ander IFC-programma het bestand herschreven.",
     "xerArchiveReasonMetadataInvalid": "Reden: de bronbytes kloppen, maar de daaruit afgeleide gegevens zijn onbruikbaar.",
     "xerArchiveReasonStructure": "Reden: de opbouw van het archief in het IFC klopt niet (dubbel, herordend of verkeerd gekoppeld).",
-    "statusDateSetToday": "Er stond nog geen statusdatum: die staat nu op vandaag ({{date}}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum."
+    "statusDateSetToday": "Er stond nog geen statusdatum: die staat nu op vandaag ({{date}}), want voortgang wordt tot de statusdatum gemeten. Aanpassen kan via Planning → Statusdatum.",
+    "durationBelowDoneWork": "‘{{name}}’ is al voor {{percent}}% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",

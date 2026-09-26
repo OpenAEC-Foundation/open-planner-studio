@@ -140,7 +140,8 @@
     "xerArchiveReasonBytesMissing": "Neden: kaynak baytlarının kendisi eksik — dosyayı muhtemelen başka bir IFC programı yeniden yazdı.",
     "xerArchiveReasonMetadataInvalid": "Neden: kaynak baytları sağlam, ancak bunlardan türetilen veriler kullanılamaz.",
     "xerArchiveReasonStructure": "Neden: arşivin IFC içindeki yapısı hatalı (yinelenmiş, yeniden sıralanmış veya yanlış bağlanmış).",
-    "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz."
+    "statusDateSetToday": "Henüz durum tarihi yoktu: ilerleme durum tarihine kadar ölçüldüğü için bugüne ({{date}}) ayarlandı. Planlama → Durum tarihi altından değiştirebilirsiniz.",
+    "durationBelowDoneWork": "“{{name}}” zaten %{{percent}} tamamlandı: yapılmış işten kısa bir süre olamaz. Süre değiştirilmedi."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel bağımlılık: {{path}}",

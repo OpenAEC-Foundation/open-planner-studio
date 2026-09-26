@@ -105,7 +105,8 @@
     "xerArchiveReasonBytesMissing": "이유: 원본 바이트 자체가 없습니다. 다른 IFC 프로그램이 파일을 다시 쓴 것으로 보입니다.",
     "xerArchiveReasonMetadataInvalid": "이유: 원본 바이트는 온전하지만 그로부터 파생된 데이터를 사용할 수 없습니다.",
     "xerArchiveReasonStructure": "이유: IFC 안의 아카이브 구조가 올바르지 않습니다(중복, 순서 변경 또는 잘못된 연결).",
-    "statusDateSetToday": "상태 날짜가 아직 없었습니다. 진행률은 상태 날짜까지 측정되므로 오늘({{date}})로 설정했습니다. 계획 → 상태 날짜에서 바꿀 수 있습니다."
+    "statusDateSetToday": "상태 날짜가 아직 없었습니다. 진행률은 상태 날짜까지 측정되므로 오늘({{date}})로 설정했습니다. 계획 → 상태 날짜에서 바꿀 수 있습니다.",
+    "durationBelowDoneWork": "‘{{name}}’은(는) 이미 {{percent}}% 완료되었습니다. 이미 수행한 작업보다 짧은 기간은 불가능합니다. 기간을 변경하지 않았습니다."
   },
   "scheduleErrors": {
     "cycle": "작업 간 순환 종속성: {{path}}",

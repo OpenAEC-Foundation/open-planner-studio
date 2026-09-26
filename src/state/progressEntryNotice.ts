@@ -18,3 +18,19 @@ export function statusDateSetTodayNotice(date: string, notation: DateNotation): 
     helpArticleId: 'gids-baselines-voortgang',
   };
 }
+
+/**
+ * De melding bij een geweigerde duurwijziging (besluit eigenaar, restduur): de nieuwe duur van een
+ * lopende taak is korter dan het werk dat al gedaan is (`runningDurationChange`). Eén vorm voor het
+ * eigenschappenpaneel, de Gantt en de extensies (via `updateTask`) en "Taak bewerken"; het raster
+ * toont hem als celfout, de AI-koppeling als weigering per item.
+ */
+export function durationBelowDoneWorkNotice(task: { id: string; name: string; time: { completion: number } }): NotifyInput {
+  return {
+    severity: 'info',
+    messageKey: 'notifications.durationBelowDoneWork',
+    params: { name: task.name, percent: Math.round(task.time.completion * 100) },
+    dedupeKey: `duration-below-done-work:${task.id}`,
+    helpArticleId: 'gids-baselines-voortgang',
+  };
+}

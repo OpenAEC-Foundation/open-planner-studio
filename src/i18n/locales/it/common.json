@@ -175,7 +175,8 @@
     "xerArchiveReasonBytesMissing": "Motivo: mancano i byte sorgente stessi; probabilmente un altro programma IFC ha riscritto il file.",
     "xerArchiveReasonMetadataInvalid": "Motivo: i byte sorgente sono intatti, ma i dati derivati sono inutilizzabili.",
     "xerArchiveReasonStructure": "Motivo: la struttura dell'archivio nell'IFC non è corretta (duplicata, riordinata o collegata in modo errato).",
-    "statusDateSetToday": "Non c’era ancora una data di stato: ora è impostata a oggi ({{date}}), perché l’avanzamento si misura fino alla data di stato. Puoi modificarla in Pianificazione → Data di stato."
+    "statusDateSetToday": "Non c’era ancora una data di stato: ora è impostata a oggi ({{date}}), perché l’avanzamento si misura fino alla data di stato. Puoi modificarla in Pianificazione → Data di stato.",
+    "durationBelowDoneWork": "«{{name}}» è già completata al {{percent}}%: una durata inferiore al lavoro già svolto non è possibile. La durata non è stata modificata."
   },
   "scheduleErrors": {
     "cycle": "Dipendenza circolare tra attività: {{path}}",

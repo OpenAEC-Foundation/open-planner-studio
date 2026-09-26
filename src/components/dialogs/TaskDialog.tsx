@@ -184,7 +184,9 @@ export function TaskDialog() {
     // een echte duurbewerking) staan in state/taskDialogSave.ts. G5 (#170): met een open
     // bewerksessie maakt die van alles wat deze sessie op de store deed (werkregel, toewijzingen,
     // werk, relaties) plus het Opslaan zelf één undo-stap (`squashHistorySince`).
-    saveTaskDialog({
+    // Geweigerd (een duur korter dan het gedane werk van een lopende taak, met een melding): er is
+    // niets opgeslagen en de dialoog blijft open, zodat de gebruiker de duur kan corrigeren.
+    const saved = saveTaskDialog({
       editingTaskId: editingTask ? editingTask.id : null,
       draft,
       startDate,
@@ -192,6 +194,7 @@ export function TaskDialog() {
       session: historyMarkRef.current,
       today: localTodayIso(),
     });
+    if (!saved) return;
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 

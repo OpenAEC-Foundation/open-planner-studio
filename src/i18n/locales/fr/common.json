@@ -175,7 +175,8 @@
     "xerArchiveReasonBytesMissing": "Raison : les octets source eux-mêmes manquent — un autre logiciel IFC a probablement réécrit le fichier.",
     "xerArchiveReasonMetadataInvalid": "Raison : les octets source sont intacts, mais les données qui en sont dérivées sont inutilisables.",
     "xerArchiveReasonStructure": "Raison : la structure de l'archive dans l'IFC est incorrecte (dupliquée, réordonnée ou mal rattachée).",
-    "statusDateSetToday": "Il n’y avait pas encore de date de statut : elle est maintenant fixée à aujourd’hui ({{date}}), car l’avancement est mesuré jusqu’à la date de statut. Vous pouvez la modifier sous Planification → Date de statut."
+    "statusDateSetToday": "Il n’y avait pas encore de date de statut : elle est maintenant fixée à aujourd’hui ({{date}}), car l’avancement est mesuré jusqu’à la date de statut. Vous pouvez la modifier sous Planification → Date de statut.",
+    "durationBelowDoneWork": "« {{name}} » est déjà réalisée à {{percent}} % : une durée plus courte que le travail déjà effectué est impossible. La durée n’a pas été modifiée."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",

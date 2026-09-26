@@ -184,6 +184,7 @@
       "actualAfterStatusDate": "La fecha real es posterior a la fecha de estado.",
       "actualFinishBeforeStart": "El fin real es anterior al inicio real.",
       "actualStartRequired": "Esta tarea solo empezaría después de la fecha de estado: introduzca primero el inicio real.",
+      "durationBelowDoneWork": "Esta duración es menor que el trabajo ya realizado.",
       "conflictingProgressInputs": "Estos valores de progreso se contradicen.",
       "constraintDateUnavailable": "Defina un tipo de restricción antes de introducir una fecha de restricción.",
       "constraintHardUnavailable": "Una restricción rígida requiere un tipo de restricción con fecha.",

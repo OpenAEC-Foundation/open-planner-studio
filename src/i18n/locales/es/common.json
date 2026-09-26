@@ -175,7 +175,8 @@
     "xerArchiveReasonBytesMissing": "Motivo: faltan los propios bytes de origen; probablemente otro programa IFC reescribió el fichero.",
     "xerArchiveReasonMetadataInvalid": "Motivo: los bytes de origen están intactos, pero los datos derivados de ellos no se pueden usar.",
     "xerArchiveReasonStructure": "Motivo: la estructura del archivo en el IFC no es correcta (duplicada, reordenada o mal vinculada).",
-    "statusDateSetToday": "Aún no había fecha de estado: ahora es hoy ({{date}}), porque el avance se mide hasta la fecha de estado. Puede cambiarla en Planificación → Fecha de estado."
+    "statusDateSetToday": "Aún no había fecha de estado: ahora es hoy ({{date}}), porque el avance se mide hasta la fecha de estado. Puede cambiarla en Planificación → Fecha de estado.",
+    "durationBelowDoneWork": "«{{name}}» ya está hecha en un {{percent}} %: una duración menor que el trabajo ya realizado no es posible. La duración no se ha cambiado."
   },
   "scheduleErrors": {
     "cycle": "Dependencia circular entre tareas: {{path}}",

@@ -17,10 +17,12 @@
 import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
 import type { Resource, ResourceAssignment } from '@/types/resource';
-import type { Task } from '@/types/task';
+import type { Task, TaskTime } from '@/types/task';
+import { applyProgressInvariants, hourRemainingDays } from '@/engine/taskMutationRules';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { contourIndexForAssignment, taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 // E6 (PR #101 baan 1, orkestratorbesluit onder regel B): `contourKeepsWork` en `effectiveEffortDriven`
 // lezen per-taak-herkomst (`mspTaskType`) van bewaarde data — bewerksemantiek, geen solverinvoer en
@@ -545,39 +547,141 @@ export function settleCalendarChange(
 }
 
 /**
- * Duurbewerking op een taak met EXPLICIETE restduur (eigenaarsbesluit 2026-09-05, spec §6.5): het
- * verrichte deel is een feit, dus wat de gebruiker aan de duur toevoegt of afhaalt landt in de rest
- * (Microsoft: Remaining Duration = Duration − Actual Duration). Rest = max(0, rest + Δ), in dagen
- * (dagmodus, `remainingTime`) of minuten (uurmodus, `remainingMinutes`); `completion` volgt daaruit
- * (`syncCompletionToRemaining`, eigenaarsbesluit 2026-09-06). Aanroepen NÁDAT de nieuwe duur is
- * gezet, met de oude werkminuten (`taskWorkMinutes` vóór
- * de bewerking). Zonder expliciet restveld gebeurt niets (de rest wordt dan afgeleid en schuift
- * vanzelf mee).
+ * Duurbewerking op een LOPENDE taak — eigenaarsbesluiten 2026-09-05 (spec §6.5) en 2026-09-26
+ * ("optie 2", herbouw van #232): het verrichte deel is een feit, dus wat de gebruiker aan de duur
+ * toevoegt of afhaalt landt in de rest (Microsoft: Remaining Duration = Duration − Actual Duration).
  *
- * Reikwijdte (reviewbevinding F7, AFGELEID uit het eigenaarsbesluit): dit is een duur-identiteit,
- * geen driehoeksregel, dus hij geldt óók buiten `workRuleApplies` — met name op een ELAPSEDTIME-
- * taak, waar "Remaining = Duration − Actual" net zo goed opgaat. Uitgesloten zijn alleen taken
- * zonder eigen bewerkbare duur: verzameltaken, hangmatten en mijlpalen (Δ is daar 0 of afgeleid).
+ * - LOPEND: gestart (werkelijke start of voortgang > 0 %) en nog niet voltooid. Ook een gestarte taak
+ *   op 0 % telt mee: haar gedane werk is 0, dus haar restduur volgt de nieuwe duur. Uitgesloten zijn
+ *   taken zonder eigen bewerkbare duur: verzameltaken en hangmatten (reviewbevinding F7: wél elk
+ *   duurtype, ook ELAPSEDTIME — dit is een duur-identiteit, geen driehoeksregel).
+ * - Alleen als de bewerking de voortgang zelf NIET wijzigt: geeft dezelfde bewerking ook een nieuw
+ *   percentage, een nieuwe restduur of een nieuwe werkelijke datum op ("Taak bewerken" met duur én
+ *   voortgang, een geplakte rij), dan wint die opgave.
+ * - EXACT, zonder afrondingsdrift: de restduur schuift in de eigen eenheid van de taak met precies het
+ *   duurverschil (dagtaak: `remainingTime` in werkdagen; urentaak: `remainingMinutes` in minuten met
+ *   de werkdagfractie van `hourRemainingDays`). Ontbreekt een expliciet restveld, dan is de rest vóór
+ *   de bewerking de gewone afleiding uit het percentage (`applyRemainingDuration`) — die wordt nu
+ *   geschreven, anders zou de solver hem opnieuw als `nieuwe duur × (1 − %)` afleiden en schoof het
+ *   gedane werk mee. Het percentage wordt NIET afgerond: oud % × oude duur ÷ nieuwe duur, zodat
+ *   % × duur (het gedane werk) gelijk blijft; de weergave rondt pas af (IFC schrijft verliesvrij, zie
+ *   `ifcCompletionReal`).
+ * - Een eenheidswissel (dagen ↔ uren) rekent via de werkminuten: het gedane werk blijft gelijk en de
+ *   restduur volgt de gewone regel in de nieuwe eenheid.
+ * - Nieuwe duur KORTER dan het gedane werk: geweigerd (`refused`), niets geraden. Dit vervangt de
+ *   klem op 0 van 2026-09-05. Precies gelijk ⇒ 100 %: de voortgangsinvarianten leiden dan het
+ *   werkelijke einde af.
+ *
+ * `null` = de regel is niet van toepassing. Pure functie op de tijd van VÓÓR en NÁ de bewerking;
+ * `hoursPerDay` zoals de aanroeper de werkduur meet (`taskWorkMinutes`).
  */
-export function carryRemainingThroughDurationEdit(task: Task, oldWorkMinutes: number, hoursPerDay: number): boolean {
-  if (task.childIds.length > 0 || task.isMilestone || task.isHammock === true) return false;
-  const t = task.time;
-  const slot = slotMinutesOf({ hoursPerDay });
-  if (isHourTask(t)) {
-    if (t.remainingMinutes === undefined) return false;
-    const delta = t.durationMinutes - oldWorkMinutes;
-    if (Math.abs(delta) < 1e-6) return false;
-    t.remainingMinutes = Math.max(0, Math.round(t.remainingMinutes + delta));
-    syncCompletionToRemaining(task);
-    return true;
+export type DurationEditProgress =
+  | { refused: true; done: number; unit: 'days' | 'hours' }
+  | { refused: false; completion: number; remainingTime: number; remainingMinutes?: number };
+
+export function durationEditProgress(
+  task: Pick<Task, 'childIds' | 'isHammock'>,
+  before: TaskTime,
+  after: TaskTime,
+  hoursPerDay: number,
+): DurationEditProgress | null {
+  if (task.childIds.length > 0 || task.isHammock === true) return null;
+  if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) return null;
+  const running = (before.completion > 0 || !!before.actualStart) && before.completion < 1 && !before.actualFinish;
+  if (!running) return null;
+  const progressTouched = after.completion !== before.completion
+    || after.remainingTime !== before.remainingTime || after.remainingMinutes !== before.remainingMinutes
+    || after.actualStart !== before.actualStart || after.actualFinish !== before.actualFinish;
+  if (progressTouched) return null;
+  const unitBefore = timeUnit(before);
+  const unitAfter = timeUnit(after);
+  const oldWork = taskWorkMinutes(before, hoursPerDay);
+  const newWork = taskWorkMinutes(after, hoursPerDay);
+  if (unitBefore === unitAfter && Math.abs(newWork - oldWork) < 1e-9) return null;
+  const c = before.completion;
+  const doneDays = c * before.scheduleDuration;
+  const doneMinutes = c * (before.durationMinutes ?? 0);
+  const refusal: DurationEditProgress = unitBefore === 'hours'
+    ? { refused: true, done: doneMinutes / 60, unit: 'hours' }
+    : { refused: true, done: doneDays, unit: 'days' };
+  if (newWork < c * oldWork - 1e-6) return refusal;
+  const cap = (value: number) => (value >= 1 - 1e-12 ? 1 : value);
+
+  if (unitBefore === 'days' && unitAfter === 'days') {
+    const remaining = (before.remainingTime ?? Math.round(before.scheduleDuration * (1 - c)))
+      + (after.scheduleDuration - before.scheduleDuration);
+    if (remaining < -1e-9) return refusal;
+    const completion = after.scheduleDuration > 0 ? cap(doneDays / after.scheduleDuration) : c;
+    return { refused: false, completion, remainingTime: Math.max(0, remaining) };
   }
-  if (t.remainingTime === undefined) return false;
-  const oldDays = Math.round(oldWorkMinutes / slot);
-  const delta = t.scheduleDuration - oldDays;
-  if (Math.abs(delta) < 1e-6) return false;
-  t.remainingTime = Math.max(0, Math.round(t.remainingTime + delta));
-  syncCompletionToRemaining(task);
-  return true;
+  if (unitBefore === 'hours' && unitAfter === 'hours') {
+    const oldMinutes = before.durationMinutes ?? 0;
+    const newMinutes = after.durationMinutes ?? 0;
+    const remainingMinutes = (before.remainingMinutes ?? Math.round(oldMinutes * (1 - c))) + (newMinutes - oldMinutes);
+    if (remainingMinutes < -1e-9) return refusal;
+    const completion = newMinutes > 0 ? cap(doneMinutes / newMinutes) : c;
+    const minutes = Math.max(0, remainingMinutes);
+    return { refused: false, completion, remainingMinutes: minutes, remainingTime: hourRemainingDays(after, minutes) };
+  }
+  // Eenheidswissel: via de werkminuten; de restduur volgt de gewone regel in de nieuwe eenheid.
+  const completion = newWork > 0 ? cap((c * oldWork) / newWork) : c;
+  if (unitAfter === 'hours') {
+    const remainingMinutes = Math.round((after.durationMinutes ?? 0) * (1 - completion));
+    return { refused: false, completion, remainingMinutes, remainingTime: hourRemainingDays(after, remainingMinutes) };
+  }
+  return { refused: false, completion, remainingTime: Math.round(after.scheduleDuration * (1 - completion)) };
+}
+
+function timeUnit(time: TaskTime): 'days' | 'hours' {
+  return taskDurationUnit({ time } as Task);
+}
+
+/**
+ * De weigering vooraf (eigenaarsbesluit 2026-09-26, optie 2): zou deze duurbewerking de duur van een
+ * lopende taak korter maken dan het gedane werk? Store (`updateTask`, met melding), "Taak bewerken"
+ * (niets opgeslagen), MCP-draft (zachte weigering per item) en extensie-API (via `updateTask`)
+ * vragen dit VÓÓR de mutatie — dus zonder snapshot; het raster krijgt dezelfde uitkomst uit
+ * {@link carryRemainingThroughDurationEdit} als celfout `durationBelowDoneWork`.
+ */
+export function durationEditRefusal(
+  task: Pick<Task, 'childIds' | 'isHammock' | 'time'>,
+  after: TaskTime,
+  hoursPerDay: number,
+): Extract<DurationEditProgress, { refused: true }> | null {
+  const change = durationEditProgress(task, task.time, after, hoursPerDay);
+  return change?.refused ? change : null;
+}
+
+/**
+ * Past {@link durationEditProgress} toe op `task` (muteert), NÁDAT de nieuwe duur is gezet, met een
+ * kopie van de tijd van VÓÓR de bewerking. Eén definitie voor store (`updateTask`), raster
+ * (`finishDurationEdit`) en MCP-draft (`updateTaskFields`/`patchTaskFields`); vóór de driehoekstap
+ * (`settleDurationEdit` leest de rest) en vóór `applyDurationChangeRules`.
+ *
+ * Retourneert de uitkomst: `refused` ⇒ er is NIETS gemuteerd (het raster maakt er een celfout van;
+ * store en MCP hebben al vooraf geweigerd via {@link durationEditRefusal}), anders het nieuwe
+ * percentage en de nieuwe rest (de AI-koppeling meldt die als `progressAdjusted`). Bereikt het gedane
+ * werk precies de nieuwe duur, dan is de taak voltooid en leiden de voortgangsinvarianten het
+ * werkelijke einde af (`statusDate`).
+ */
+export function carryRemainingThroughDurationEdit(
+  task: Task,
+  before: TaskTime,
+  hoursPerDay: number,
+  statusDate: string | undefined,
+): DurationEditProgress | null {
+  const change = durationEditProgress(task, before, task.time, hoursPerDay);
+  if (!change || change.refused) return change;
+  // Mijlpaal aan op een gestarte taak zonder gedaan werk: niets mee te schuiven (duur 0; zoals vóór
+  // 2026-09-26 blijft een mijlpaal zonder restveld). Met gedaan werk weigerde de regel hierboven al.
+  if (task.isMilestone) return null;
+  const t = task.time;
+  t.completion = change.completion;
+  t.remainingTime = change.remainingTime;
+  if (change.remainingMinutes !== undefined) t.remainingMinutes = change.remainingMinutes;
+  else delete t.remainingMinutes;
+  if (change.completion >= 1) applyProgressInvariants(task, statusDate);
+  return change;
 }
 
 /**

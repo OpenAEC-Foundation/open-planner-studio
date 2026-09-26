@@ -18,7 +18,7 @@ import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import {
   planProgressEntry, type ProgressEdit, type ProgressEntryContext, type ProgressEntryResult,
 } from '@/engine/progressEntry';
-import { statusDateSetTodayNotice } from '@/state/progressEntryNotice';
+import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/progressEntryNotice';
 import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
@@ -36,7 +36,7 @@ import {
 import type { RelationTree } from '@/engine/scheduler/relationRules';
 import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import {
-  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, settleCalendarChange,
+  captureCalendarChange, captureTriangle, carryRemainingThroughDurationEdit, durationEditRefusal, settleCalendarChange,
   settleDurationEdit, settleRuleChange, captureProgressWork, settleProgressWork,
 } from '@/engine/work/workRuleApply';
 import type { WorkRule } from '@/types/workRule';
@@ -902,6 +902,17 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // (TaskDialog.handleSave) — ⇒ net als een onbekend id: geen snapshot, geen isDirty, geen
       // gevolgregel en dus ook geen melding (#186).
       if (sameValue(task, next)) return;
+      // Eigenaarsbesluit 2026-09-26 (optie 2): een nieuwe duur korter dan het gedane werk van een
+      // lopende taak wordt geweigerd — vóór de snapshot, dus niets veranderd, met een melding
+      // (paneel, Gantt, extensie-API). Dezelfde regel die hieronder de rest laat meeschuiven, zie
+      // `durationEditRefusal`/`carryRemainingThroughDurationEdit` in engine/work/workRuleApply.ts.
+      if (taskTriggerChanges(task, next).timeBase) {
+        const refusal = durationEditRefusal(task, next.time, taskCalendarHoursPerDay(next, s.calendars, s.calendar));
+        if (refusal) {
+          refusedNotices = [durationBelowDoneWorkNotice(task)];
+          return;
+        }
+      }
       runtime.beginUndoable(s, opts); // snapshot pas ná de guards, vóór de mutatie; `opts` = coalesceKey (bv. balk-sleep = 1 stap).
       // Taaktypes-etappe (reviewbevinding K1): `workRule` loopt niet via de kale merge maar via
       // `settleRuleChange` (legt onder een werkbeschermende regel het restwerk vast — besluit 2),
@@ -939,16 +950,16 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       // Fable-critreview #170, bevinding 1: een voortgangspatch (completion/rest) verplaatst opgeslagen
       // werk van rest naar verricht — `settleProgressWork` hieronder; een duurpatch laat hij liggen.
       const progressWork = time ? captureProgressWork(task, s) : null;
-      const restBefore = [task.time.remainingTime, task.time.remainingMinutes];
+      // De tijd van vóór de merge (kopie): de restregel meet daaraan het gedane werk.
+      const timeBefore = { ...task.time };
       Object.assign(task, rest);
       if (time) task.time = afterRest.time;
       if (changes.timeBase) {
-        // Eigenaarsbesluit 2026-09-05: een duurbewerking schuift een EXPLICIETE restduur mee (Δ,
-        // geklemd op 0) — het verrichte deel is een feit. Vóór de driehoekstap, die de rest leest.
-        // Alleen wanneer de patch de rest niet ZELF zette (een gespreide `time`-tak met dezelfde
-        // waarde telt als "niet gezet").
-        const restUntouched = task.time.remainingTime === restBefore[0] && task.time.remainingMinutes === restBefore[1];
-        if (restUntouched) carryRemainingThroughDurationEdit(task, oldWorkMinutes, contourHpd);
+        // Eigenaarsbesluiten 2026-09-05/26: een lopende taak houdt haar gedane werk — de rest schuift
+        // mee met het duurverschil, het percentage volgt (`carryRemainingThroughDurationEdit`; de
+        // weigering stond hierboven al). Vóór de driehoekstap, die de rest leest. Niet als de patch
+        // zelf voortgang opgaf: die wint.
+        carryRemainingThroughDurationEdit(task, timeBefore, contourHpd, s.project.statusDate);
         // Duur-/datumwijziging: contour meeschalen (werkbehoud volgens de werkregel), gebruikersgaten
         // afknippen (issue #146), laag 3/4 ontkoppelen en nivelleergaten wissen — de gevolgregels die
         // dit pad deelt met het taakraster en de MCP-draft, zie `applyDurationChangeRules` in

@@ -23,6 +23,7 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { parseTaskDurationInput } from '@/utils/taskDurationInput';
 import { canSplitTask, type SplitPiece } from '@/engine/scheduler/splitEdit';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
+import { createTaskDialogSave } from '@/state/taskDialogSave';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -242,6 +243,157 @@ console.log('-- duration-change-routes: mijlpaal aanzetten laat geen gebruikersg
   }
   eq('mijlpaal: raster = store', outcomes[1], outcomes[0]);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Restduur bij een duurwijziging van een LOPENDE taak (besluit eigenaar, "zoals MS Project"): het
+// gedane werk blijft gelijk, restduur = nieuwe duur − gedane werk, het percentage past zich aan.
+// Korter dan het gedane werk ⇒ geweigerd; precies het gedane werk ⇒ voltooid. Dezelfde uitkomst
+// langs het paneel/de Gantt (`updateTask`), het raster (beide invoervormen) en "Taak bewerken"
+// (`createTaskDialogSave`). De AI-route staat in tests/mcp/cases-duration-progress.ts.
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('-- duration-change-routes: een lopende taak houdt haar gedane werk --');
+type ProgressRoute = Route | 'dialog';
+const PROGRESS_ROUTES: readonly ProgressRoute[] = [...ROUTES, 'dialog'];
+interface ProgressCase {
+  label: string;
+  kind: Kind;
+  /** Duur vóór de bewerking, in de eenheid van de taak. */
+  from: number;
+  /** Voortgang vóór de bewerking; `started` = werkelijke start zonder percentage. */
+  completion: number | 'started';
+  to: number;
+  expect: { completion: number; remainingTime: number; remainingMinutes?: number; status: string } | 'refused';
+}
+const PROGRESS_STATUS_DATE = '2026-06-03';
+
+function setupRunning(pc: ProgressCase): { ctx: ReturnType<typeof createAppStoreContext>; S: () => AppState; id: string } {
+  const ctx = createAppStoreContext();
+  const S = () => ctx.store.getState();
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  if (pc.kind === 'hour') {
+    S().setCalendar(HOUR_CAL);
+    ctx.store.setState((s) => { s.ui.enableHourPlanning = true; });
+  }
+  const id = pc.kind === 'day'
+    ? S().addTask({ name: pc.label, time: createDefaultTaskTime('2026-06-01', pc.from) })
+    : S().addTask({
+      name: pc.label,
+      time: { ...createDefaultTaskTime('2026-06-01T08:00', pc.from / 8, 'hours'), durationUnit: 'hours', durationMinutes: pc.from * HOUR },
+    });
+  S().setStatusDate(PROGRESS_STATUS_DATE);
+  S().runCPM();
+  if (pc.completion === 'started') S().setActualStart(id, '2026-06-01');
+  else S().setTaskProgress(id, pc.completion);
+  S().runCPM();
+  return { ctx, S, id };
+}
+
+function changeDuration(ctx: ReturnType<typeof createAppStoreContext>, S: () => AppState, id: string, pc: ProgressCase, route: ProgressRoute): unknown {
+  const task = S().tasks.find(t => t.id === id)!;
+  const time = pc.kind === 'day'
+    ? { ...task.time, durationUnit: 'days' as const, scheduleDuration: pc.to, durationMinutes: undefined }
+    : { ...task.time, durationUnit: 'hours' as const, durationMinutes: pc.to * HOUR, scheduleDuration: pc.to / 8 };
+  if (route === 'store') { S().updateTask(id, { time }); return null; }
+  if (route === 'dialog') {
+    return createTaskDialogSave(ctx)({
+      editingTaskId: id, draft: { ...task, time }, startDate: task.time.earlyStart || task.time.scheduleStart,
+    });
+  }
+  const value = route === 'grid-unit'
+    ? parseTaskDurationInput(pc.kind === 'day' ? `${pc.to}d` : `${pc.to}h`, pc.kind === 'day' ? 'days' : 'hours')
+    : pc.to * (pc.kind === 'day' ? DAY : HOUR);
+  const res = S().runGridMutation([cell(id, 'task.time.scheduleDuration', 'task-schedule', value)]);
+  return res.ok ? null : res.errors.map(e => e.code);
+}
+
+function runProgressCase(pc: ProgressCase): void {
+  const results = new Map<ProgressRoute, unknown>();
+  for (const route of PROGRESS_ROUTES) {
+    const { ctx, S, id } = setupRunning(pc);
+    const before = S().tasks.find(t => t.id === id)!;
+    const beforeDone = before.time.completion * (pc.kind === 'day' ? before.time.scheduleDuration : before.time.durationMinutes!);
+    const response = changeDuration(ctx, S, id, pc, route);
+    const after = S().tasks.find(t => t.id === id)!;
+    if (pc.expect === 'refused') {
+      eq(`${pc.label} [${route}]: geweigerd, taak ongewijzigd`, JSON.stringify(after), JSON.stringify(before));
+      if (route === 'store' || route === 'dialog') {
+        eq(`${pc.label} [${route}]: met een melding`,
+          S().ui.notifications.filter(n => n.messageKey === 'notifications.durationBelowDoneWork').length, 1);
+      }
+      if (route === 'dialog') eq(`${pc.label} [dialog]: Opslaan meldt geweigerd (dialoog blijft open)`, response, false);
+      if (route === 'grid-unit' || route === 'grid-minutes') {
+        eq(`${pc.label} [${route}]: celfout`, response, ['durationBelowDoneWork']);
+      }
+      continue;
+    }
+    const outcome = {
+      completion: after.time.completion,
+      remainingTime: after.time.remainingTime,
+      remainingMinutes: after.time.remainingMinutes,
+      status: after.status,
+    };
+    results.set(route, outcome);
+    const e = pc.expect;
+    eq(`${pc.label} [${route}]: percentage en restduur`, outcome,
+      { completion: e.completion, remainingTime: e.remainingTime, remainingMinutes: e.remainingMinutes, status: e.status });
+    const afterDone = after.time.completion * (pc.kind === 'day' ? after.time.scheduleDuration : after.time.durationMinutes!);
+    ok(`${pc.label} [${route}]: gedane werk exact gelijk (${beforeDone} → ${afterDone})`, Math.abs(afterDone - beforeDone) < 1e-9);
+    if (pc.expect.status === 'COMPLETED') {
+      eq(`${pc.label} [${route}]: voltooid, werkelijk einde = statusdatum`, after.time.actualFinish, PROGRESS_STATUS_DATE);
+    }
+  }
+  if (pc.expect !== 'refused') {
+    for (const route of PROGRESS_ROUTES) {
+      if (route !== 'store') eq(`${pc.label} [${route}]: zelfde uitkomst als updateTask`, results.get(route), results.get('store'));
+    }
+  }
+}
+
+runProgressCase({
+  label: 'lopend dag: 10 d op 40 % → 12 d ⇒ nog 8 d, 33 %',
+  kind: 'day', from: 10, completion: 0.4, to: 12,
+  expect: { completion: 0.4 * 10 / 12, remainingTime: 8, status: 'STARTED' },
+});
+runProgressCase({
+  // Gedaan 3,5 d; de restduur blijft in hele werkdagen (4 → 5, precies +1), het percentage exact 3,5/8.
+  label: 'lopend dag: 7 d op 50 % → 8 d',
+  kind: 'day', from: 7, completion: 0.5, to: 8,
+  expect: { completion: 3.5 / 8, remainingTime: 5, status: 'STARTED' },
+});
+runProgressCase({
+  label: 'lopend dag: 10 d op 40 % → 6 d (krimp) ⇒ nog 2 d',
+  kind: 'day', from: 10, completion: 0.4, to: 6,
+  expect: { completion: 4 / 6, remainingTime: 2, status: 'STARTED' },
+});
+runProgressCase({
+  label: 'lopend uur: 10 u op 40 % → 12 u ⇒ nog 8 u (480 min)',
+  kind: 'hour', from: 10, completion: 0.4, to: 12,
+  expect: { completion: 240 / 720, remainingMinutes: 480, remainingTime: 1, status: 'STARTED' },
+});
+runProgressCase({
+  label: 'lopend uur: 10 u op 40 % → 6 u ⇒ nog 2 u',
+  kind: 'hour', from: 10, completion: 0.4, to: 6,
+  expect: { completion: 240 / 360, remainingMinutes: 120, remainingTime: 0.25, status: 'STARTED' },
+});
+runProgressCase({
+  label: 'gestart op 0 %: 10 d → 12 d ⇒ restduur volgt de nieuwe duur',
+  kind: 'day', from: 10, completion: 'started', to: 12,
+  expect: { completion: 0, remainingTime: 12, status: 'STARTED' },
+});
+runProgressCase({
+  label: 'lopend dag: 10 d op 40 % → 3 d is korter dan het gedane werk',
+  kind: 'day', from: 10, completion: 0.4, to: 3, expect: 'refused',
+});
+runProgressCase({
+  label: 'lopend uur: 10 u op 40 % → 3 u is korter dan het gedane werk',
+  kind: 'hour', from: 10, completion: 0.4, to: 3, expect: 'refused',
+});
+runProgressCase({
+  label: 'lopend dag: 10 d op 40 % → 4 d = het gedane werk ⇒ voltooid',
+  kind: 'day', from: 10, completion: 0.4, to: 4,
+  expect: { completion: 1, remainingTime: 0, status: 'COMPLETED' },
+});
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  duration-change-routes: alle checks groen (${checks})`); process.exit(0); }

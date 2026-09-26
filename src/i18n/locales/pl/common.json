@@ -210,7 +210,8 @@
     "xerArchiveReasonBytesMissing": "Powód: brakuje samych bajtów źródłowych — prawdopodobnie inny program IFC przepisał plik.",
     "xerArchiveReasonMetadataInvalid": "Powód: bajty źródłowe są nienaruszone, ale dane z nich wyprowadzone są bezużyteczne.",
     "xerArchiveReasonStructure": "Powód: struktura archiwum w IFC jest nieprawidłowa (zdublowana, przestawiona lub błędnie powiązana).",
-    "statusDateSetToday": "Nie było jeszcze daty statusu: ustawiono ją na dziś ({{date}}), ponieważ postęp jest mierzony do daty statusu. Możesz ją zmienić w Planowanie → Data statusu."
+    "statusDateSetToday": "Nie było jeszcze daty statusu: ustawiono ją na dziś ({{date}}), ponieważ postęp jest mierzony do daty statusu. Możesz ją zmienić w Planowanie → Data statusu.",
+    "durationBelowDoneWork": "„{{name}}” jest już wykonane w {{percent}}%: czas trwania krótszy niż wykonana praca jest niemożliwy. Czas trwania nie został zmieniony."
   },
   "scheduleErrors": {
     "cycle": "Zależność cykliczna między zadaniami: {{path}}",

@@ -309,7 +309,10 @@ export type NotificationMessageKey =
   | 'notifications.startBlockedByConstraintMany'
   // Z1 (besluit eigenaar): voortgang ingevuld zonder statusdatum ⇒ de app zette hem op vandaag —
   // zie `engine/progressEntry.ts` en `state/progressEntryNotice.ts`. Parameter `date`.
-  | 'notifications.statusDateSetToday';
+  | 'notifications.statusDateSetToday'
+  // Besluit eigenaar (restduur): een nieuwe duur korter dan het gedane werk van een lopende taak is
+  // geweigerd — zie `runningDurationChange` in engine/taskMutationRules.ts. Parameters `name`, `percent`.
+  | 'notifications.durationBelowDoneWork';
 
 /** Rekenprofielen (spec v3.1 §6): het actielabel is een i18n-sleutel in `common`. */
 export type NotificationActionLabelKey = 'notifications.actions.openProjectInfo';
