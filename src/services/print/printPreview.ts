@@ -338,13 +338,29 @@ export function buildPrintRows(
     }
     return printRows;
   }
+  // Eén keer indexeren i.p.v. per taak `tasks.filter` + per taak `printRows.some`: dat was O(n²) en
+  // draait per render-venster (1–3 per pagina) plus bij meten — seconden per pagina bij 10k taken.
+  // Kindvolgorde = arrayvolgorde, dus dezelfde rijen als voorheen.
+  const childrenOf = new Map<string, Task[]>();
+  for (const t of tasks) {
+    if (!t.parentId) continue;
+    const list = childrenOf.get(t.parentId);
+    if (list) list.push(t);
+    else childrenOf.set(t.parentId, [t]);
+  }
+  const placed = new Set<string>();
   const addRecursive = (task: Task, depth: number) => {
+    if (placed.has(task.id)) return;
+    placed.add(task.id);
     printRows.push({ kind: 'task', task, depth });
-    for (const child of tasks.filter(t => t.parentId === task.id)) addRecursive(child, depth + 1);
+    for (const child of childrenOf.get(task.id) ?? []) addRecursive(child, depth + 1);
   };
-  for (const root of tasks.filter(t => !t.parentId)) addRecursive(root, 0);
+  for (const root of tasks) if (!root.parentId) addRecursive(root, 0);
   for (const task of tasks) {
-    if (!printRows.some(r => r.kind === 'task' && r.task!.id === task.id)) printRows.push({ kind: 'task', task, depth: 0 });
+    if (!placed.has(task.id)) {
+      placed.add(task.id);
+      printRows.push({ kind: 'task', task, depth: 0 });
+    }
   }
   return printRows;
 }
