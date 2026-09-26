@@ -1,14 +1,13 @@
 /**
  * `fontRegistry` — een minimale, **richting-agnostische** registry van CJK-font-providers voor de
- * vector-PDF-export (§4.5 ontwerpdoc). De kern levert alléén de haak: providers registreren rauwe
+ * vector-PDF-export. De kern levert alléén de haak: providers registreren rauwe
  * glyf-TTF-bytes + een dekkings-predicaat; de vector-pagineerder subset per export het providerfont met
  * HarfBuzz ({@link file://./hbSubset.ts}) en bedt het conditioneel in (F4/F5-resources). Zonder enige
  * geregistreerde provider die de CJK-codepoints dekt, valt de export terug op raster — CJK is opt-in.
  *
- * Deze module kent GEEN extensie-API en GEEN concreet font: de provider-vuller (de officiële
- * CJK-extensie via `api.pdfFonts.register`) is een latere fase (4b). Nu wordt hij door een test-provider
- * gevuld om het rendermechanisme te bewijzen. Bewust richting-agnostisch (alleen bytes + coverage, geen
- * shaping/richting) zodat een latere RTL-laag er bovenop kan zitten zonder deze registry te herzien.
+ * Deze module kent GEEN extensie-API en GEEN concreet font: providers komen binnen via
+ * `api.pdfFonts.register` (`src/extensions/extensionApi.ts`). Bewust richting-agnostisch (alleen bytes
+ * + coverage, geen shaping/richting) zodat de RTL-laag (`bidiShape.ts`) er los van blijft.
  *
  * Puur data/plumbing — geen Tauri-, pdf-lib- of DOM-imports; headless bundelbaar.
  */

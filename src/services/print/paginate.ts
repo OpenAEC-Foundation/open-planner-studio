@@ -10,9 +10,9 @@
  *   - `fit-width`: schaal de bron zó dat de volledige breedte op één papierbreedte past; alleen
  *     verticaal tegelen (1 kolom). Met `timelineColumns: N` wordt de bron bewust over N
  *     paginabreedtes uitgesmeerd; dán wordt de bevroren naam-strip óók hier herhaald.
- *   - `actual`: 1 pt = 1 px (honoreert de on-screen zoom 1:1); zowel horizontaal als verticaal
- *     tegelen. De linker naam-strip (`frozenColumnWidthPx`) wordt op elke volgende horizontale
- *     tegel herhaald zodat elke pagina zelfstandig leesbaar blijft.
+ *   - `actual`: vaste CSS→papierverhouding (0,75 pt per logische px, zie `LOGICAL_PX_TO_PT`);
+ *     zowel horizontaal als verticaal tegelen. De linker naam-strip (`frozenColumnWidthPx`) wordt
+ *     op elke volgende horizontale tegel herhaald zodat elke pagina zelfstandig leesbaar blijft.
  *
  * De tegel-/schaalwiskunde zelf staat NIET hier maar in `tileLayout.ts` — gedeeld met de
  * vector-pagineerder en met de preview (`printPreview.renderPrintPreviewPage`), zodat preview en
@@ -39,37 +39,37 @@ export interface PaginateOptions {
   frozenColumnWidthPx?: number;
   /**
    * Hoogte (LOGISCHE px, vanaf de bovenkant van de bron) van de kopstrook — project-kop +
-   * tijdschaal — die op ELKE pagina bovenaan herhaald moet worden (issue #25 punt 1). Vul hier
+   * tijdschaal — die op ELKE pagina bovenaan herhaald moet worden. Vul hier
    * `renderPrintCanvas().headerHeight` in.
    *
-   * De ENGINE-default is 0 = niet herhalen, exact het gedrag van vóór issue #25. Let op: dat is
-   * niet meer wat de gebruiker ziet — het rapportpaneel (`ReportPanel.tsx`) zet de knop
-   * "kop herhalen" bewust standaard AAN en geeft hier dus standaard een hoogte > 0 door. De
-   * default hier houdt alleen deze module gedragsneutraal voor andere/toekomstige aanroepers.
+   * De ENGINE-default is 0 = niet herhalen. Let op: dat is niet wat de gebruiker ziet — het
+   * rapportpaneel (`ReportPanel.tsx`) zet de knop "kop herhalen" bewust standaard AAN en geeft hier dus
+   * standaard een hoogte > 0 door. De default hier houdt alleen deze module gedragsneutraal voor
+   * andere/toekomstige aanroepers.
    */
   repeatHeaderHeightPx?: number;
   /**
    * Hoogte (LOGISCHE px, vanaf de ONDERkant van de bron) van de voetstrook — projectnaam,
    * afdrukdatum, legenda — die op ELKE pagina onderaan herhaald wordt. Vul hier
-   * `renderPrintCanvas().footerHeight` in; 0/afwezig = alleen op de laatste pagina (oud gedrag).
+   * `renderPrintCanvas().footerHeight` in; 0/afwezig = alleen op de laatste pagina.
    */
   repeatFooterHeightPx?: number;
   /**
-   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt (issue #25 punt 5). Alleen in
-   * `'fit-width'`; default 1 = alles op één paginabreedte persen (oud gedrag).
+   * Aantal paginabreedtes waarover de tijdlijn uitgesmeerd wordt. Alleen in
+   * `'fit-width'`; default 1 = alles op één paginabreedte persen.
    */
   timelineColumns?: number;
   /** Paginamarge in punten (rondom). Default 24. */
   marginPt?: number;
   /**
    * Toegestane paginabreekposities (logische px; `renderPrintCanvas().breakOffsets`): een pagina
-   * eindigt dan op de laatste rijgrens die past i.p.v. dwars door een rij (issue #110 punt 3).
+   * eindigt dan op de laatste rijgrens die past i.p.v. dwars door een rij.
    * Afwezig ⇒ vaste tegeling op paginahoogte.
    */
   breakOffsetsPx?: readonly number[];
   /**
    * Gedwongen paginabreekposities (logische px; `renderPrintCanvas().forcedBreakOffsets`): daar
-   * eindigt een pagina altijd (resourcediagram, issue #113). Afwezig ⇒ alleen de toegestane posities.
+   * eindigt een pagina altijd (resourcediagram). Afwezig ⇒ alleen de toegestane posities.
    */
   forcedBreakOffsetsPx?: readonly number[];
   /** JPEG-kwaliteit voor elke pagina (0..1). Default 0.9. */
@@ -157,10 +157,10 @@ const SUPERSAMPLE = 2;
  * WAAROM DIT ZO MOET. Deze functie is de raster-TERUGVAL van de vector-export in `ReportPanel.tsx`,
  * dus ze slaat precies aan op het moment dat de vector-tak net gefaald is. Een paginalimiet is hier
  * géén optie — een export die pagina's weglaat is stil dataverlies — dus de begrenzing moet uit het
- * geheugengedrag komen. Een vorige versie bouwde eerst het VOLLEDIGE array pagina-canvassen op vóór
- * er ook maar één naar JPEG omgezet werd: op `SUPERSAMPLE = 2` is één A3-pagina-canvas ~16 MB, en
- * een A3-rapport met kopherhaling, 300 taken en `timelineColumns: 8` (20 rijen × 8 kolommen = 160
- * pagina's) hield zo ~2,5 GB tegelijk vast, synchroon op de UI-thread.
+ * geheugengedrag komen. Eerst het VOLLEDIGE array pagina-canvassen opbouwen vóór er één naar JPEG
+ * gaat, kost te veel: op `SUPERSAMPLE = 2` is één A3-pagina-canvas ~16 MB, en een A3-rapport met
+ * kopherhaling, 300 taken en `timelineColumns: 8` (20 rijen × 8 kolommen = 160 pagina's) zou zo
+ * ~2,5 GB tegelijk vasthouden, synchroon op de UI-thread.
  *
  * WAT ER WÉL met het paginatotaal meegroeit zijn de JPEG-BYTES in `pdfPages` — die moeten allemaal
  * in de PDF terecht komen, dus dat is onvermijdelijk. Maar dat is een andere grootteorde: een

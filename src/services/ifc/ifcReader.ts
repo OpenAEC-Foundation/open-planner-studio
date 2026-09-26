@@ -50,41 +50,33 @@ import {
   isSubDayMinutes, promoteHourCalendar, promoteHourCalendars, registerCalendarBands, scalarHourFromClock,
 } from '@/services/subdayIo';
 
-// IFC_TIME_ANCHOR (§7.1, discriminator c) en DEFAULT_PRIORITY (fase 2.5) wonen nu in ./ifcConstants
-// zodat reader en writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-
-// registry (voorheen een lokale WeakMap) en `synthBandsFromScalar` wonen nu gedeeld in subdayIo (F5).
+// IFC_TIME_ANCHOR (discriminator c) en DEFAULT_PRIORITY wonen in ./ifcConstants zodat reader en
+// writer gegarandeerd hetzelfde anker/dezelfde default gebruiken. De rauwe-banden-registry en
+// `synthBandsFromScalar` wonen gedeeld in subdayIo.
 
 /**
  * Expliciete injectienaad: de compacte schema-2-envelope bewaart alleen bronbytes; de zware,
  * lazy XER-reader levert de afleiding daarvan uitsluitend via de officiële async ingang.
  *
- * ONTWERPKEUZE T5 — "datums zoals opgeslagen" (issue #63, XER-laag 3) overleeft een IFC-opslag en
- * -heropening via DEZE naad, niet via een eigen `OPS_`-pset; het etappeplan §3.8 hield beide routes
- * open. Afweging:
+ * ONTWERPKEUZE — "datums zoals opgeslagen" overleeft een IFC-opslag en -heropening via DEZE naad,
+ * niet via een eigen `OPS_`-pset. Afweging:
  *
- *  - *Geen tweede afleiding.* De reconstructie draait al een volledige `readXER` over bytes die
- *    hieronder op sha256 zijn geverifieerd. De bak-4-vastlegging die daaruit komt is per
- *    constructie identiek aan die van het oorspronkelijke openen — zelfde kalenderpromotie
- *    (`promoteHourCalendar`), zelfde dag/uur-representatie (`sourceInstant`), zelfde getalnotatie
- *    (`parseXerNumber`). Zelf herrekenen uit `readModel.taskSourceRowsByProject` zou die drie in de
- *    IFC-laag moeten NABOOTSEN op gereconstrueerde kalenders — precies de stille faalmodus die plan
- *    §5.2 aanwijst (één representatieverschil ⇒ élke taak telt als "verschoven").
- *  - *De chunkgrens blijft heel.* `parseXerNumber` woont in de tokenizer (`xerTables.ts`); die
- *    hier statisch importeren trekt de hele XER-parser de hoofdbundel in.
+ *  - *Geen tweede afleiding.* De reconstructie draait een volledige `readXER` over sha256-geverifieerde
+ *    bytes, dus de vastlegging (bak 4) is per constructie identiek aan die van het oorspronkelijke
+ *    openen (kalenderpromotie, dag/uur-representatie, getalnotatie). Zelf herrekenen in de IFC-laag
+ *    zou dat moeten NABOOTSEN — één representatieverschil ⇒ élke taak telt als "verschoven".
+ *  - *De chunkgrens blijft heel.* `parseXerNumber` statisch importeren trekt de hele XER-parser de
+ *    hoofdbundel in.
  *  - *Id-matching is al opgelost.* XER-taak-id's ZIJN de rauwe `task_id`-cellen, en
  *    `OPS_TaskIdentity` draagt exact die id's door de opslag heen (zie `stableIfcTaskId`).
- *    Baselinetaken hangen aan een `.BASELINE.`-IfcWorkSchedule en worden in `extractTasks`
- *    overgeslagen, dus hun eigen GUID-remap (`extractBaselines`) raakt deze koppeling niet.
- *  - *Werkt óók bij opslaan buiten de modus.* Een pset had `recordedDates` moeten meeschrijven —
- *    maar `runCPM` WIST dat veld bij het verlaten van de modus, dus opslaan ná een herberekening zou
- *    de vastlegging verliezen. De bronroute is herkomstgedreven en daarmee modus-onafhankelijk.
- *  - *Kosten:* geen contractwijziging (`DOCUMENT_FIELDS`, `IFC_SAVE_KEYS` en daarmee
- *    `sameIFCSource`/`isDirty` blijven ongemoeid) en geen extra parse — die `readXER` liep al.
+ *  - *Werkt óók bij opslaan buiten de modus.* `runCPM` wist `recordedDates` bij het verlaten van de
+ *    modus; een pset zou de vastlegging dan verliezen. De bronroute is modus-onafhankelijk.
+ *  - *Geen contractwijziging* (`DOCUMENT_FIELDS`, `IFC_SAVE_KEYS`, `sameIFCSource`/`isDirty`) en
+ *    geen extra parse.
  *
- * BEKENDE GRENS: historische schema-1-archieven (niet-compact) krijgen géén `recordedTimes` terug.
- * `readIFCWithXerReconstruction` geeft voor die vorm bewust geen reconstructor mee (dat pad blijft
- * synchroon, zonder XER-chunk) en het schema-1-leesmodel draagt de vastlegging niet zelf. Alleen
- * pre-schema-2-builds schreven die vorm; de huidige writer schrijft uitsluitend schema 2.
+ * BEKENDE GRENS: historische schema-1-archieven (niet-compact) krijgen géén `recordedTimes` terug:
+ * `readIFCWithXerReconstruction` geeft daar bewust geen reconstructor mee (synchroon pad, zonder
+ * XER-chunk). De huidige writer schrijft uitsluitend schema 2.
  */
 export type XerArchiveReconstructor = (bytes: Uint8Array) => XerSourceReconstruction;
 
@@ -101,15 +93,15 @@ interface StepEntity {
   raw: string;
 }
 
-// ── Integriteitscontract (bevinding K4) ────────────────────────────────────────────────────────
-// `readIFC` had geen enkel contract: alles wat er niet uit te halen viel werd stil een leeg
-// project. Precies dát maakte een afgekapte auto-save-snapshot onzichtbaar. De minimale,
-// formaat-eigen controle: een STEP-uitwisselingsbestand BEGINT met `ISO-10303-21;` en EINDIGT met
-// `END-ISO-10303-21;` (ISO 10303-21 §5). Ontbreekt de kop, dan is het geen STEP-bestand; ontbreekt
-// de sluitmarkering, dan is de tekst afgekapt — het enige signaal dat een half weggeschreven
-// bestand überhaupt afgeeft. Bewust GEEN inhoudelijke drempel (zoals "minstens één taak"): een
-// leeg-maar-echt project — verse wizard met kalender en resources — is legitiem, en zou anders bij
-// crashherstel als onbruikbaar worden weggegooid.
+// ── Integriteitscontract ───────────────────────────────────────────────────────────────────────
+// Zonder contract wordt alles wat er niet uit te halen valt stil een leeg project, en is een
+// afgekapte auto-save-snapshot onzichtbaar. De minimale, formaat-eigen controle: een
+// STEP-uitwisselingsbestand BEGINT met `ISO-10303-21;` en EINDIGT met `END-ISO-10303-21;` (ISO 10303-21
+// §5). Ontbreekt de kop, dan is het geen STEP-bestand; ontbreekt de sluitmarkering, dan is de tekst
+// afgekapt — het enige signaal dat een half weggeschreven bestand überhaupt afgeeft. Bewust GEEN
+// inhoudelijke drempel (zoals "minstens één taak"): een leeg-maar-echt project — verse wizard met
+// kalender en resources — is legitiem, en zou anders bij crashherstel als onbruikbaar worden
+// weggegooid.
 const STEP_HEADER = 'ISO-10303-21;';
 const STEP_TERMINATOR = 'END-ISO-10303-21;';
 /** Hoeveel tekens vanaf het EIND we afzoeken naar de sluitmarkering (die staat er per definitie). */
@@ -158,7 +150,7 @@ export function readIFC(
   labels: ImportLabels = {},
   options: IfcReadOptions = {},
 ): ImportResult {
-  // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project (K4).
+  // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
   const entities = parseSTEP(content);
   const entityMap = new Map<string, StepEntity>();
@@ -167,15 +159,15 @@ export function readIFC(
   }
 
   // Taakidentiteit moet vóór `extractTasks` bekend zijn. Externe links bewaren het taak-id van een
-  // geparseerde bron; een nieuw willekeurig id bij iedere parse maakte een echte Tauri-refresh van
-  // hetzelfde IFC-bestand daardoor altijd `sourceMissing`. Nieuwe OPS-bestanden dragen het
+  // geparseerde bron; een nieuw willekeurig id bij iedere parse zou een echte Tauri-refresh van
+  // hetzelfde IFC-bestand altijd `sourceMissing` maken. OPS-bestanden dragen het
   // oorspronkelijke id in OPS_TaskIdentity; oudere/andere IFC-bestanden vallen stabiel terug op
   // hun IFCTASK.GlobalId.
   const taskIdentityByStepId = extractTaskIdentityByStepId(entities, entityMap);
 
   // Extract project
   const project = extractProject(entities, entityMap, labels);
-  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): het XER-bronarchief is een sidecar, geen
+  // "Openen met melding": het XER-bronarchief is een sidecar, geen
   // fundament. Is het onbruikbaar, dan vallen archief, selector, XER-metadata en de daaruit
   // gereconstrueerde `recordedTimes` SAMEN weg en opent het project gewoon — met een verplicht
   // `xerArchiveIssue`-signaal, zodat het verlies nooit stil is. Zie `readXerArchiveOrIssue`.
@@ -185,27 +177,26 @@ export function readIFC(
   const xerSourceProjectId = archiveRead.sourceProjectId;
   const xer = archiveRead.xer;
   const xerArchiveIssue = archiveRead.issue;
-  // T5 — "datums zoals opgeslagen" over een IFC-opslag/heropening heen. GEEN eigen pset en geen
+  // "Datums zoals opgeslagen" over een IFC-opslag/heropening heen. GEEN eigen pset en geen
   // eigen afleiding: dit is letterlijk de map die `readXER` over dezelfde, sha256-geverifieerde
   // bronbytes maakte (zie `XerArchiveReconstructor` hierboven voor de volledige afweging). De
   // selector `OPS_XerDocument` kiest het project; een bestand zonder XER-archief, met een onbekende
-  // selector of uit een historische schema-1-envelope houdt `recordedTimes` afwezig en gedraagt
-  // zich daarmee byte-identiek aan vóór T5.
+  // selector of uit een historische schema-1-envelope houdt `recordedTimes` afwezig.
   const recordedTimes = xerSourceProjectId
     ? xerSource?.recordedTimesByProject[xerSourceProjectId]
     : undefined;
-  // Eigenaarsbesluit 2026-09-09 ("elk formaat zoals XER" + heropen-beleid optie B): de herkomst
-  // van de vastlegging beslist het laadbeleid. Een IFC dat deze app ZELF schreef (IFCAPPLICATION
-  // met identifier 'OPS', of een `OPS_`-pset) is een HEROPENING ('ifc-own', of 'xer-archive' mét
-  // XER-archief) en gaat alleen automatisch in "datums zoals opgeslagen" zolang het document
-  // sinds de import ongewijzigd is (`OPS_ImportProvenance`); elk ander IFC is een verse import
-  // uit een ander pakket ('ifc') en gedraagt zich als XER: automatisch aan bij afwijkingen.
+  // Heropen-beleid ("elk formaat zoals XER"): de herkomst van de vastlegging beslist het laadbeleid.
+  // Een IFC dat deze app ZELF schreef (IFCAPPLICATION met identifier 'OPS', of een `OPS_`-pset) is een
+  // HEROPENING ('ifc-own', of 'xer-archive' mét XER-archief) en gaat alleen automatisch in "datums
+  // zoals opgeslagen" zolang het document sinds de import ongewijzigd is (`OPS_ImportProvenance`); elk
+  // ander IFC is een verse import uit een ander pakket ('ifc') en gedraagt zich als XER: automatisch
+  // aan bij afwijkingen.
   const ownAuthored = isOpsAuthoredIfc(entities);
   const importPristine = ownAuthored ? extractImportPristine(entities, entityMap) : undefined;
   const recordedSourceFormat = ownAuthored ? extractRecordedSourceFormat(entities, entityMap) : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
-  // taken (fase 2.6, §8.3) — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
+  // taken — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
   const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
@@ -217,32 +208,32 @@ export function readIFC(
     entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
-  // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen (critreview PR #162): de app
-  // zelf laat een mijlpaal kinderen krijgen (`indentTasks`, `updateTask`, de checkbox) en de writer
-  // schrijft die vlag rauw — een lezer-reset maakte schrijven≠lezen en liet de vlag stil verdwijnen
-  // bij opslaan/openen én crashherstel. De (c)-guard "samenvatting is nooit mijlpaal" hoort bij de
-  // EXPORTgrenzen (MSPDI-writer, PR #161), niet in het native formaat.
+  // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
+  // kinderen krijgen (`indentTasks`, `updateTask`, de checkbox) en de writer schrijft die vlag rauw —
+  // een lezer-reset maakt schrijven≠lezen en laat de vlag stil verdwijnen bij opslaan/openen én
+  // crashherstel. De guard "samenvatting is nooit mijlpaal" hoort bij de EXPORTgrenzen
+  // (MSPDI-writer), niet in het native formaat.
   const { resources, resourceStepIdMap, resourceGuidMap } = extractResources(entities, entityMap);
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
   const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
     entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap,
   );
-  // Z14b (F1) — de PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
+  // De PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
   // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
   // in het bestand"-conventie als `extractCalendar`/`extractCalendarLibrary` zelf hanteren.
   const projectCalendarEntityForGuid = entities.find(e => e.type === 'IFCWORKCALENDAR');
   if (projectCalendarEntityForGuid) {
     calendarIdByGuid.set(stripQuotes(projectCalendarEntityForGuid.args[0] || ''), calendar.id);
   }
-  // Fase 2.8b (§7.1, golf 4): uur-modus-post-pass. Ná extractCalendarLibrary zodat elke
+  // Uur-modus-post-pass. Ná extractCalendarLibrary zodat elke
   // `task.calendarId` (en dus de effectieve kalender) is geresolved. Zet `workTime` op kalenders
   // die afwijken van het dag-patroon (discriminator a/b/c) en herinterpreteert de duren/datetimes
-  // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid (byte-identiek).
+  // van uur-taken minuut-precies. Dag-bestanden leveren geen signaal ⇒ ongemoeid.
   applyHourModeIFC(tasks, calendar, resourceCalendars, taskTimeEntities);
   fillEmptyComputedDateSlots(tasks, taskTimeEntities, recordedFields);
   const assignments = extractAssignments(entities, entityMap, taskStepIdMap, resourceStepIdMap);
-  // Fase 3 (H2): task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
+  // task.resourceIds herbouwen uit de assignments. De assignments zijn de ENIGE bron
   // van waarheid voor de taak↔resource-koppeling in het bestand (geen dubbele opslag) — de reader
   // projecteert ze terug op elke taak. Deterministische, gede-dupliceerde volgorde (eerste-zien in
   // de assignments-volgorde, die op zijn beurt uit de STEP-volgorde komt).
@@ -254,11 +245,11 @@ export function readIFC(
   );
   for (const task of tasks) reconcileP6SuspendResume(task);
   const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
-  // Z14b (Z8-nataak, F1-fixronde) — LAAG-4-kalenderwandelingen, eigen pset (zie de functie se
-  // moduleheader voor waarom dit niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
+  // Kalenderwandelingen (`timephasedDurationWalks`), eigen pset (zie de functie zelf voor waarom dit
+  // niet via de PER_TASK_PSETS-registry loopt): GUID→id-vertaling, dus
   // pas NA extractCalendarLibrary hierboven (die tabel levert `calendarIdByGuid`).
   extractTimephasedDurationWalksMeta(entities, entityMap, tasks, taskStepIdMap, calendarIdByGuid);
-  // Contour-engine (2026-09): `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
+  // `TaskTimephasedContour.resourceId` verwijst naar een resource-id uit
   // het SCHRIJVENDE document; deze lezer regenereert resource-ids (`extractResources`), dus de
   // verwijzing moet mee — via dezelfde deterministische GUID-hash (`ifcGuid(oudeId)` = de GlobalId
   // die de writer voor die resource gebruikte, zie `extractBaselines`' taak-remap-precedent). Ná
@@ -266,13 +257,11 @@ export function readIFC(
   // verwijzing die niet terug te vinden is (GUID-botsing met `#dup`-suffix, of een extern bestand)
   // blijft ongewijzigd staan — de koppeling valt dan terug op de 1-op-1-regel van de engine.
   remapContourResourceIds(tasks, resourceGuidMap);
-  // Fase 3 (P11): OPS_Leveling wordt nu binnen extractStructure via de per-taak-registry gedispatcht
-  // (samen met de andere zeven per-taak-psets) — geen losse extractLevelingMeta-aanroep meer.
 
-  // Baselines (fase 2.6, §8.3): autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
+  // Baselines: autoritatieve OPS_Baselines-JSON, met taskId-remap via GlobalId.
   const { baselines, activeBaselineId } = extractBaselines(entities, entityMap, taskStepIdMap);
 
-  // Scheduling-options (fase 2.9, §3.4/§6) en rekenprofiel (spec v3.1 §3.3): eerst het profiel —
+  // Scheduling-options en rekenprofiel: eerst het profiel —
   // de OPS_SchedulingProfile-pset wint, anders `legacyOptionsToProfile` over het gelezen blok —, dán
   // conventiesleutels en de XER-bronmarkering strippen: het project draagt alleen projectopties.
   const schedulingOptions = extractSchedulingOptions(entities, entityMap);
@@ -297,9 +286,9 @@ export function readIFC(
   // Projectstart niet in het bestand (geen gevuld IFCWORKPLAN-slot en geen OPS_ProjectSettings,
   // zie de ''-sentinel bij de projectbouw) ⇒ het anker = de vroegste AANWEZIGE taak-scheduleStart in
   // plaats van "vandaag" te verzinnen: een verzonnen datum is geen invoer en mag dus ook niet via de
-  // T7-projectstart-vloer (`CPMSolver.rootFloor`) taken mét voorgangers naar de leesdatum tillen.
+  // projectstart-vloer (`CPMSolver.rootFloor`) taken mét voorgangers naar de leesdatum tillen.
   // Pas als het bestand ook geen enkele taakstart draagt, valt hij terug op vandaag (leeg project).
-  // MAAR (critreview-bevinding 1): heeft het OPS-pset het veld GEZEGD — óók als "bewust leeg" —
+  // MAAR: heeft het OPS-pset het veld GEZEGD — óók als "bewust leeg" —
   // dan is leeg een uitspraak van de gebruiker en blijft hij leeg; afleiden zou de round-trip van
   // een leeggemaakte startdatum corrumperen (writer codeert dat als NominalValue $). Taken zonder
   // start krijgen dan wel het afgeleide anker.
@@ -307,7 +296,7 @@ export function readIFC(
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
   if (!project.startDate && !projectStartRecorded.value) project.startDate = startAnchor;
 
-  // Voortgang-invarianten op de rauw ingelezen actuals (§3.2/§15.6) — ná extractStructure zodat
+  // Voortgang-invarianten op de rauw ingelezen actuals — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   normalizeImportedProgress(tasks, project.statusDate);
 
@@ -317,9 +306,9 @@ export function readIFC(
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
     recordedFields,
-    // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05): 'xer-archive', NIET 'xer'
-    // — deze route is een HEROPENING, geen verse import. `applyRecordedDatesOnLoad` zet de modus
-    // alleen automatisch aan bij 'xer'; 'xer-archive' krijgt uitsluitend het #63-AANBOD, want een
+    // Heropen-beleid: 'xer-archive', NIET 'xer' — deze route is een HEROPENING, geen verse import.
+    // `applyRecordedDatesOnLoad` zet de modus alleen automatisch aan bij 'xer'; 'xer-archive' krijgt
+    // uitsluitend het AANBOD, want een
     // intussen bewerkte en opgeslagen planning mag bij heropenen niet stilzwijgend P6's oude datums
     // tonen. Zie `importTypes.ts` (`recordedTimesOrigin`) voor het volledige onderscheid.
     ...(recordedTimes ? { recordedTimes, recordedTimesOrigin: 'xer-archive' as const }
@@ -393,7 +382,7 @@ function readXerArchiveOrIssue(
   }
 }
 
-/** Bovengrens voor `XerArchiveIssue.detail` (critreview archief-fallback): de reden komt uit
+/** Bovengrens voor `XerArchiveIssue.detail`: de reden komt uit
  *  validator- of reconstructiefouten en kan bronfragmenten meeslepen; het detail landt in meldingen
  *  en logs, dus nooit onbegrensd. */
 const XER_ARCHIVE_DETAIL_MAX = 500;
@@ -553,8 +542,8 @@ function concatArchiveChunks(props: Map<string, unknown>, prefix: string, count:
   return output;
 }
 
-/** Lees en valideer vóór allocatie de self-contained X9-container; afwezig blijft legacy-compatibel.
- *  Levert sinds T5 de volledige `XerSourceReconstruction`; de schema-1-tak draagt geen vastlegging
+/** Lees en valideer vóór allocatie de self-contained XER-bronarchiefcontainer; afwezig blijft
+ *  legacy-compatibel. Levert de volledige `XerSourceReconstruction`; de schema-1-tak draagt geen vastlegging
  *  (zie de bekende grens bij `XerArchiveReconstructor`) en geeft daar een lege map bij. */
 function extractXerSourceArchive(
   entities: StepEntity[],
@@ -603,7 +592,7 @@ function extractXerSourceArchive(
   if (!(['none', 'utf-8', 'utf-16le', 'utf-16be'] as readonly string[]).includes(bom)) xerArchiveError('Bom is onbekend', 'metadata-invalid');
   if (!(['lf', 'crlf', 'cr', 'mixed', 'none'] as readonly string[]).includes(newline)) xerArchiveError('Newline is onbekend', 'metadata-invalid');
   try {
-    // Schema 1 draagt geen bak-4-vastlegging: het leesmodel bewaart de TASK-bronrijen wél, maar de
+    // Schema 1 draagt geen vastlegging (bak 4): het leesmodel bewaart de TASK-bronrijen wél, maar de
     // omrekening ervan vraagt de XER-kalender-/getallaag, en dit pad loopt bewust ZONDER die chunk.
     return {
       archive: createXerSourceArchiveFromOwnedMetadata(sourceBytes, {
@@ -621,7 +610,7 @@ function extractXerSourceArchive(
   }
 }
 
-/** Schema 2 bevat alleen de bronbytes. Alle afleidbare X9-caches herleven uit die bron. */
+/** Schema 2 bevat alleen de bronbytes. Alle afleidbare caches herleven uit die bron. */
 function extractCompactXerSourceArchive(
   props: Map<string, unknown>,
   reconstructXerArchive: XerArchiveReconstructor | undefined,
@@ -669,17 +658,13 @@ function extractCompactXerSourceArchive(
   return reconstruction;
 }
 
-// ── STEP-tekstscan: één quote-bewuste toestandsmachine voor álle lagen (bevinding K2) ───────────
-// De parser was string-ONVEILIG in drie lagen, elk met een eigen quote-BLINDE truc:
-//   1. sectie-split      `content.split('DATA;')[1]?.split('ENDSEC;')[0]`
-//   2. commentaar-strip  een globale `/*…*/`-regex
-//   3. entity-regex      non-greedy tot de EERSTE `);`
-// `);`, `(…)`, `/* */` en zelfs `ENDSEC;` zijn normale Nederlandse plantekst ("Fase 1 (ruwbouw);
-// fase 2"), dus alle drie kapten stil planningsdata af — het ergst bij (3): een afgekapte IFCTASK
-// verliest zijn TaskTime-ref en valt terug op de DEFAULT-duur, waardoor de planning bij opslaan en
-// heropenen zonder enig signaal verandert. `splitArgs` kende `inString` wél, maar draaide pas ná de
-// truncatie en kon het niet meer redden. Alle lagen draaien nu op `skipQuotedOrComment` hieronder.
-// De scan blijft lineair: één pas over de tekst, geen index of terugsprongen.
+// ── STEP-tekstscan: één quote-bewuste toestandsmachine voor álle lagen ──────────────────────────
+// Sectiegrens, commentaar-strip en entiteitsgrens moeten allemaal quote-bewust zijn: `);`, `(…)`,
+// `/* */` en zelfs `ENDSEC;` zijn normale Nederlandse plantekst ("Fase 1 (ruwbouw); fase 2"). Een
+// quote-blinde laag kapt stil planningsdata af — een afgekapte IFCTASK verliest zijn TaskTime-ref en
+// valt terug op de DEFAULT-duur, zodat de planning bij opslaan en heropenen zonder signaal verandert.
+// Alle lagen draaien daarom op `skipQuotedOrComment` hieronder. De scan blijft lineair: één pas
+// over de tekst, geen index of terugsprongen.
 
 const CH_QUOTE = 39;   // '
 const CH_STAR = 42;    // *
@@ -691,7 +676,7 @@ const CH_SEMI = 59;    // ;
 const CH_EQ = 61;      // =
 const CH_E = 69;       // E
 
-/** Woordteken (`\w` van de oude entity-regex): letters, cijfers, `_`. */
+/** Woordteken (`\w`): letters, cijfers, `_`. */
 function isWordCode(c: number): boolean {
   return (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95;
 }
@@ -704,8 +689,7 @@ function isSpaceCode(c: number): boolean {
  * DÉ plek waar de STEP-quoteregels worden geïnterpreteerd. Staat `i` op het begin van een
  * stringliteral (`'…'`, met `''` als ontsnapte apostrof — precies wat `splitArgs` en `stripQuotes`
  * al aanhouden) of van een `/* … *\/`-commentaar, geef dan de index DIRECT ERNA; anders `-1`.
- * Een niet-afgesloten string/commentaar loopt door tot het einde van de tekst (tolerant, net als de
- * oude regex, die zulke invoer simpelweg niet matchte).
+ * Een niet-afgesloten string/commentaar loopt door tot het einde van de tekst (tolerant).
  */
 function skipQuotedOrComment(text: string, i: number): number {
   const c = text.charCodeAt(i);
@@ -777,10 +761,9 @@ function stripStepComments(text: string): string {
 
 /**
  * Lees één `#id=TYPE(args);` vanaf `at` en zet 'm in `out`. Geeft de index NÁ de puntkomma terug,
- * of `-1` als het geen complete entiteit is — dan schuift de scan één teken op, precies zoals de
- * oude regex over onbegrepen tekst heen liep. De sluithaak wordt op HAAKDIEPTE gezocht met
- * `skipQuotedOrComment` erlangs, zodat een `);` binnen een taaknaam of notitie de entiteit niet
- * meer afkapt.
+ * of `-1` als het geen complete entiteit is — dan schuift de scan één teken op over onbegrepen
+ * tekst. De sluithaak wordt op HAAKDIEPTE gezocht met `skipQuotedOrComment` erlangs, zodat een `);`
+ * binnen een taaknaam of notitie de entiteit niet afkapt.
  */
 function readEntity(text: string, at: number, out: StepEntity[]): number {
   const n = text.length;
@@ -837,23 +820,20 @@ function readEntity(text: string, at: number, out: StepEntity[]): number {
 /**
  * Begin van de datasectie: de offset van het `DATA;`-token dat de sectiegrens vormt, of −1.
  *
- * TWEE POGINGEN, in deze volgorde — de volgorde ís de bevinding.
+ * TWEE POGINGEN, in deze volgorde — de volgorde is essentieel.
  *
- *  1. **Quote- en commentaar-bewust** (`indexOfCode`). Dit is de juiste scan voor élk syntactisch
- *     geldig STEP-bestand: hij slaat `DATA;` binnen een header-string of binnen een `/* … *\/`
- *     over, en hij is ongevoelig voor opmaak — een bestand zónder één regeleinde (volkomen legaal;
- *     regeleindes zijn witruimte, geen syntaxis), `ENDSEC;DATA;` op één regel, of witruimte als
- *     form feed / vertical tab / NBSP vóór het token.
- *  2. **Regel-verankerd**, alleen als (1) niets vond. Dat gebeurt bij LEGACY-bestanden: onze writer
- *     schreef t/m v2026.7.12 naam/auteur/bedrijf rauw in `FILE_NAME(...)`, dus een project
- *     "Van 't Hof Toren" levert daar een ONGEBALANCEERDE apostrof op. De quote-bewuste scan loopt
- *     daarop de rest van het bestand uit de pas en vindt niets ⇒ zonder deze terugval stil een
- *     leeg project op een bestand dat deze app zélf geschreven heeft.
+ *  1. **Quote- en commentaar-bewust** (`indexOfCode`): juist voor élk syntactisch geldig
+ *     STEP-bestand — slaat `DATA;` in een header-string of `/* … *\/` over en is ongevoelig voor
+ *     opmaak (geen regeleindes, `ENDSEC;DATA;` op één regel, form feed/NBSP vóór het token).
+ *  2. **Regel-verankerd**, alleen als (1) niets vond: LEGACY-bestanden waarin oudere versies van onze
+ *     writer naam/auteur/bedrijf rauw in `FILE_NAME(...)` zetten ("Van 't Hof Toren" ⇒
+ *     ONGEBALANCEERDE apostrof). De quote-bewuste scan loopt daar uit de pas ⇒ zonder terugval stil
+ *     een leeg project.
  *
- * Niet andersom: regelverankering als PRIMAIRE scan weigert de geldige bestanden uit (1) en pikt
- * bovendien een `DATA;` op dat aan het begin van een regel binnen een commentaar of binnen een
- * header-string met een echt regeleinde staat — dat laatste levert nul entiteiten zónder fout, en
- * verzonnen entiteiten uit commentaar. Beide gevallen zijn getest in `check-step-strings` (9f–9k).
+ * Niet andersom: regelverankering als PRIMAIRE scan weigert geldige bestanden uit (1) en pikt een
+ * `DATA;` op aan het begin van een regel binnen een commentaar of een header-string met een echt
+ * regeleinde (nul entiteiten zónder fout, of verzonnen entiteiten uit commentaar). Beide gevallen zijn
+ * getest in `check-step-strings` (9f–9k).
  */
 function indexOfDataSection(content: string): number {
   const strict = indexOfCode(content, 'DATA;', 0);
@@ -876,12 +856,12 @@ function parseSTEP(content: string): StepEntity[] {
     );
   }
 
-  // 2. Commentaar strippen (buiten strings) + regeleindes normaliseren — zelfde volgorde als voorheen.
+  // 2. Commentaar strippen (buiten strings) + regeleindes normaliseren.
   const clean = stripStepComments(content.slice(dataAt + 'DATA;'.length)).replace(/\r\n/g, '\n');
 
   // 3. Entiteiten (`#123=IFCTYPE(...);`, ook `#300T=IFCTASKTIME(...);`). Het afsluitende `ENDSEC;`
-  //    van de datasectie wordt hier op CODE-niveau herkend — dezelfde grens als de oude split, maar
-  //    nu ongevoelig voor `ENDSEC;` in een taaknaam. Één pas, geen aparte zoek-pas over de sectie.
+  //    van de datasectie wordt hier op CODE-niveau herkend — ongevoelig voor `ENDSEC;` in een
+  //    taaknaam. Één pas, geen aparte zoek-pas over de sectie.
   for (let i = 0; i < clean.length;) {
     const c = clean.charCodeAt(i);
     if (c === CH_QUOTE) { i = skipQuotedOrComment(clean, i); continue; }
@@ -943,7 +923,7 @@ function stripQuotes(s: string): string {
   return s;
 }
 
-/** Optionele tekst uit een IFC-slot: `$`/leeg/afwezig ⇒ '' (geen letterlijke '$' meer teruggeven).
+/** Optionele tekst uit een IFC-slot: `$`/leeg/afwezig ⇒ '' (nooit een letterlijke '$').
  *  Gebruikt voor slots waar de writer bewust `$` schrijft als het veld leeg is (bv. project-
  *  omschrijving, IFCPERSON.FamilyName). */
 function ifcSlotText(s: string | undefined): string {
@@ -965,7 +945,7 @@ function parseRefs(s: string): string[] {
   return refs;
 }
 
-// Datum-parse: BEWUST niet gedeeld met MSPDI/P6/CSV (F5-a). Deze variant handelt eerst de
+// Datum-parse: BEWUST niet gedeeld met MSPDI/P6/CSV. Deze variant handelt eerst de
 // STEP-quoting (`stripQuotes`) en de `$`-null-conventie af en houdt de exacte lege-tail-semantiek
 // (een quoted-lege slot geeft '' terug, niet vandaag) — dat is STEP-specifiek en mag niet verschuiven.
 function parseDateFromIFC(s: string): string {
@@ -982,9 +962,9 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
   // standaardconform met voorloopteken vóór de P ('-P2D', zo schrijven wij een lead) of als
   // app-interne legacy-notatie met het teken bij het getal ('P0Y0M-2D'). Beide lezen.
   // Het getal mag een decimale fractie hebben (ISO 8601 staat die toe op de kleinste component, en
-  // onze writer schrijft een fractionele dag als `P0Y0M2.5D`). Het oude `(-?\d+)` + parseInt pakte
-  // bij `2.5D` alleen de cijfers ná de punt: 2,5 → 5, 1,25 → 25 (audit import/export nr. 1). De
-  // exponent is er alleen voor bestanden van vóór de writer-afronding (`1e-7` werd −7); een getal
+  // onze writer schrijft een fractionele dag als `P0Y0M2.5D`); een kaal `(\d+)` pakt bij `2.5D`
+  // alleen de cijfers ná de punt. De exponent is er alleen voor oudere bestanden zonder
+  // writer-afronding (`1e-7` mag geen −7 worden); een getal
   // dat daardoor niet eindig is (`1e999`) telt als 0. Decimaalkomma bewust niet: `isoDurationToMinutes`
   // leest die ook niet, en een van beide laten afwijken zou `PT4,5H` per pad anders lezen.
   const leadingNeg = clean.startsWith('-');
@@ -999,35 +979,25 @@ function parseDurationDays(s: string, hoursPerDay: number): number {
     const h = parseFloat(hourMatch[1]);
     if (!Number.isFinite(h)) return 0;
     // Kale `PT{n}H` (andermans bestand) ⇒ werkdagen van de meegegeven kalender, niet van een vaste 8
-    // (issue #159, vervolg — de MSPDI-lezer had dezelfde `/8` al in fase 2.8b vervangen).
+    // (zoals de MSPDI-lezer).
     return applySign(h < 0 ? -Math.ceil(-h / hoursPerDay) : Math.ceil(h / hoursPerDay));
   }
   return 0;
 }
 
 /**
- * Review-follow-up (2026-08, op bugfix B1) — het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een
- * ISO-8601-duur, in minuten. Bewust LOKAAL hier (niet in `subdayIo.ts`'s `isoDurationToMinutes`,
- * die drie andere aanroepers heeft — schedule-/remaining-duur in de uur-modus-post-pass — die
- * ongetest zouden meeveranderen): deze functie bestaat uitsluitend voor de lag-leestak hierboven,
- * die zelf ook alleen een VERDEDIGENDE tak is voor bestanden van andere tools (onze eigen schrijver,
- * `minutesToIsoDuration`, emitteert nooit een dag-component vóór `T`, dus dit raakt nooit de eigen
- * round-trip).
+ * Het dag-deel (`P{d}D`, VÓÓR een eventuele `T`) van een ISO-8601-duur, in minuten. Bewust LOKAAL
+ * (niet in `subdayIo.ts`'s `isoDurationToMinutes`, die andere aanroepers heeft): alleen voor de
+ * verdedigende lag-leestak hierboven, voor bestanden van andere tools — onze eigen schrijver
+ * (`minutesToIsoDuration`) emitteert nooit een dag-component vóór `T`.
  *
- * KEUZE + ONDERBOUWING: geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag ×
- * hoursPerDay. Twee redenen: (1) ISO 8601 zelf is kalendertijd — de WORKTIME/ELAPSEDTIME-duiding
- * (`IfcLagTime.DurationType`) stuurt pas LATER hoe de resulterende hoeveelheid tegen een kalender
- * wordt afgezet (`CPMSolver.resolveElapsedMinutes` rekent een dag-lag bij ELAPSEDTIME ook al ×24×60,
- * exact deze conventie); (2) een werkdag-interpretatie zou de kalender van de VOORGANGER-taak nodig
- * hebben (`hoursPerDay`), die op dit punt in de reader niet beschikbaar is (sequences worden vóór de
- * kalenderbibliotheek/taak-kalender-toewijzing geëxtraheerd) — gokken met een impliciete 8u-default
- * zou een tweede, ONGEDOCUMENTEERDE aanname toevoegen. Bij een WORKTIME-lag blijft de resulterende
- * `lagMinutes` dus licht ruw (kalenderminuten i.p.v. werkminuten) voor dit randgeval — een bewuste,
- * gedocumenteerde afweging, geen stille correctheidsclaim; het alternatief (het dag-deel laten
- * verdwijnen, zoals vóór deze fix) is strikt slechter.
+ * Geïnterpreteerd als KALENDERTIJD (1D = 1440 minuten), niet als werkdag × hoursPerDay: ISO 8601 is
+ * kalendertijd (`CPMSolver.resolveElapsedMinutes` rekent een ELAPSEDTIME-dag-lag ook ×24×60), en de
+ * kalender van de voorganger is hier nog niet bekend (sequences worden vóór de kalendertoewijzing
+ * geëxtraheerd). Bij een WORKTIME-lag is `lagMinutes` in dit randgeval dus licht ruw — bewust, want
+ * het dag-deel laten verdwijnen is strikt slechter.
  *
- * Geen dag-component vóór `T` (het normale eigen-schrijver-pad) ⇒ 0, dus geen gedragswijziging voor
- * bestaande bestanden of de andere twee ondersteunde lag-lay-outs.
+ * Geen dag-component vóór `T` ⇒ 0.
  */
 function isoDurationLeadingDaysMinutes(iso: string): number {
   const MIN_PER_CALENDAR_DAY = 1440;
@@ -1035,8 +1005,8 @@ function isoDurationLeadingDaysMinutes(iso: string): number {
   const neg = clean.startsWith('-');
   const tIdx = clean.indexOf('T');
   const datePart = tIdx >= 0 ? clean.slice(0, tIdx) : '';
-  // Zelfde getalvorm als `parseDurationDays`: een decimale fractie mag (ISO 8601; `(\d+)` las bij
-  // `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen — audit import/export nr. 1). Het resultaat
+  // Zelfde getalvorm als `parseDurationDays`: een decimale fractie mag (ISO 8601; een kaal `(\d+)`
+  // leest bij `P1.5DT2H` alleen de cijfers ná de punt, 5 dagen). Het resultaat
   // blijft een hele minuut, zoals `isoDurationToMinutes` levert.
   const dayMatch = datePart.match(/(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)D/);
   if (!dayMatch) return 0;
@@ -1075,7 +1045,7 @@ function extractProject(
   // IFCPERSON.FamilyName / IFCORGANIZATION.Name; spiegel van wat de writer schrijft). Via de keten
   // i.p.v. `entities.find('IFCPERSON')` zodat we de PROJECT-persoon/organisatie pakken en niet de
   // applicatie-organisatie ('OpenAEC Foundation'). Ontbreekt de keten (bestand van een ander tool)
-  // of is een slot leeg (`$`) ⇒ '' (de bestaande default; oude bestanden laden identiek).
+  // of is een slot leeg (`$`) ⇒ ''.
   let author = '';
   let company = '';
   const owner = entities.find(e => e.type === 'IFCOWNERHISTORY');
@@ -1097,7 +1067,7 @@ function extractProject(
     //
     //  1. Er ís een IFCPROJECT. Dan telt zijn naamslot — óók als die leeg is. `ifcSlotText`, niet
     //     `stripQuotes`: een naamloos project schrijft de writer als `$` (`ifcStr('')`), en
-    //     `stripQuotes` gaf daar letterlijk '$' op terug — dan stond er na opslaan+heropenen een
+    //     `stripQuotes` geeft daar letterlijk '$' op terug — dan staat er na opslaan+heropenen een
     //     dollarteken als projectnaam. Leeg blijft leeg, zodat de weergave-fallback
     //     (`common:project.untitled`) ook ná het openen werkt.
     //  2. Er is GEEN IFCPROJECT (kapot/vreemd bestand). Dan stempelen we wél een naam in de data:
@@ -1106,17 +1076,16 @@ function extractProject(
     //     aanroeper (`ImportLabels`), want deze dienstlaag heeft geen `t(...)`.
     name: proj ? ifcSlotText(proj.args[2]) : (labels.importedProject || DEFAULT_IMPORTED_PROJECT_NAME),
     // Omschrijving uit de IFCWORKPLAN.Description-slot (waar de writer 'm schrijft), met terugval op
-    // de IFCPROJECT.Description-slot; `$`/leeg ⇒ '' (voorheen kwam letterlijk '$' terug — een bug).
+    // de IFCPROJECT.Description-slot; `$`/leeg ⇒ ''.
     description: ifcSlotText(wp?.args[3]) || ifcSlotText(proj?.args[3]),
     // Geen IFCWORKPLAN, of een IFCWORKPLAN met een LEEG StartTime-slot ($) ⇒ startdatum hier LEEG
     // laten; `readIFC` leidt hem dan af uit de vroegste taakstart (en pas als óók die ontbreekt:
-    // vandaag). Voorheen stond hier direct "vandaag" — verzonnen data die via de T7-projectstart-
-    // vloer taken mét voorgangers naar de leesdatum tilde (main-merge vóór v2026.8.1,
-    // check-recorded-dates 9A/9B; het lege-slot-geval: critreview-bevinding 4). `parseDateFromIFC`
+    // vandaag). Direct "vandaag" zou verzonnen data zijn die via de projectstart-vloer taken mét
+    // voorgangers naar de leesdatum tilt (check-recorded-dates 9A/9B). `parseDateFromIFC`
     // wordt bewust alleen op een niet-lege slottekst losgelaten — op '' levert hij zelf "vandaag".
     startDate: wp && ifcSlotText(wp.args[12]) ? parseDateFromIFC(wp.args[12]) : '',
-    // Zelfde regel voor FinishTime: een leeg slot is "geen einde", niet vandaag (import/export-audit,
-    // vervolg op bevinding 6). Het OPS_ProjectSettings-pset wint hierna nog steeds als het er is.
+    // Zelfde regel voor FinishTime: een leeg slot is "geen einde", niet vandaag. Het
+    // OPS_ProjectSettings-pset wint hierna nog steeds als het er is.
     endDate: wp && ifcSlotText(wp.args[13]) ? parseDateFromIFC(wp.args[13]) : '',
     calendarId: 'cal-default',
     // createdAt/modifiedAt: default = nu; overschreven door het OPS_ProjectSettings-pset in
@@ -1135,13 +1104,13 @@ function extractCalendar(entities: StepEntity[], entityMap: Map<string, StepEnti
 }
 
 /**
- * Fase 2.8b (§7.1, golf 4) — uur-modus-post-pass. Draait ná het resolven van elke `task.calendarId`.
+ * Uur-modus-post-pass. Draait ná het resolven van elke `task.calendarId`.
  * Beslist per kalender (project + bibliotheek) of hij uur-modus is volgens de normatieve
- * discriminator (7-intro): (a)/(b) uit de eigen banden, of (c) sub-dag-informatie van een taak die
+ * discriminator: (a)/(b) uit de eigen banden, of (c) sub-dag-informatie van een taak die
  * hem gebruikt (een duur met tijdcomponent die niet op hele dagen valt, of een datetime met een
  * echte tijd-van-de-dag ≠ `T07:00`). Uur-kalenders krijgen `workTime` + afgeleide `hoursPerDay`;
  * hun taken krijgen minuut-precieze `durationMinutes` en echte tijden. Geen signaal ⇒ alles blijft
- * dag-modus (byte-identiek).
+ * dag-modus.
  */
 function applyHourModeIFC(
   tasks: Task[],
@@ -1174,8 +1143,8 @@ function applyHourModeIFC(
 
   // 2. Promoveer kalenders die afwijken (a/b uit de banden) of een (c)-signaal droegen. IFC kiest
   //    altijd de geregistreerde canonical zodra er info is (preferCanonicalWhenEmpty = true) — zie
-  //    de F5-noot bij `promoteHourCalendar`.
-  //    H7: een door OPS als scalair gemarkeerde kalender (`IsHourCalendar = .F.`) doet niet mee — hij
+  //    de noot bij `promoteHourCalendar`.
+  //    Een door OPS als scalair gemarkeerde kalender (`IsHourCalendar = .F.`) doet niet mee — hij
   //    blijft scalair, ook met meer banden of urentaken erop.
   promoteHourCalendars(
     [projectCal, ...resourceCalendars].filter(cal => !declaredScalarCalendars.has(cal)).map(cal => [cal, cal] as const),
@@ -1187,14 +1156,14 @@ function applyHourModeIFC(
   //    las bepaalt onafhankelijk daarvan de taakidentiteit (P…D = dagen, PT… = uren).
   for (const t of tasks) {
     const effCal = effCalOf(t);
-    // H7: een urentaak op een gemarkeerd-scalaire kalender draagt in het geheugen óók echte tijden en
+    // Een urentaak op een gemarkeerd-scalaire kalender draagt in het geheugen óók echte tijden en
     // minuten — lees hem dus zoals op een uurkalender. Dagtaken daarop blijven dag-precies.
     const minutePrecise = !!effCal.workTime
       || (declaredScalarCalendars.has(effCal) && t.time.durationUnit === 'hours');
     if (!minutePrecise) {
       // Dag-kalender, uur-taak (kale `PT{n}H` uit andermans bestand): de compatibiliteitsafgeleide
-      // `scheduleDuration` kwam uit `parseDurationDays`' vaste `/8`. Zelfde afleiding als de
-      // uurkalender-tak hieronder, met de hpd van de EFFECTIEVE kalender (issue #159, vervolg).
+      // `scheduleDuration` komt uit `parseDurationDays`' vaste `/8`. Zelfde afleiding als de
+      // uurkalender-tak hieronder, met de hpd van de EFFECTIEVE kalender.
       if (t.time.durationUnit === 'hours' && t.time.durationMinutes != null && effCal.hoursPerDay > 0) {
         t.time.scheduleDuration = t.time.durationMinutes / (effCal.hoursPerDay * 60);
       }
@@ -1233,7 +1202,7 @@ function applyHourModeIFC(
  * Restduur-minuten uit een `PT…`-RemainingTime-slot. Bij een urentaak krijgt `remainingTime` dezelfde
  * werkdagfractie als de store haar geeft (`hourRemainingDays`, de vorm van `scheduleDuration`): de
  * `parseDurationDays`-lezing van `PT5H` is `ceil(5 / uren per dag)` hele dagen, en een taak zonder
- * voortgang komt niet langs `normalizeImportedProgress`, dus die waarde bleef anders staan (G4).
+ * voortgang komt niet langs `normalizeImportedProgress`, dus die waarde bleef anders staan.
  */
 function readRemainingMinutes(t: Task, e: StepEntity | undefined): void {
   const remMin = e ? isoDurationToMinutes(stripQuotes(e.args[TASKTIME_SLOT.remainingTime] || '')) : null;
@@ -1246,8 +1215,8 @@ function readRemainingMinutes(t: Task, e: StepEntity | undefined): void {
  * Welke slots vulde dit IfcTaskTime écht? `$`, leeg en afwezig tellen NIET mee. Rekenslots
  * (`RECORDED_SLOT_KEYS`) én de twee invoerslots ScheduleStart/ScheduleFinish
  * (`RECORDED_INPUT_SLOT_KEYS`) tellen allebei mee — de tweelagenkeuze in "datums zoals opgeslagen"
- * heeft de aanwezigheid van BEIDE nodig (kwaliteitsreview MOET 1): zonder de invoerslots hier kon de
- * terugvallaag een `$`-ScheduleStart niet onderscheiden van een écht geëxporteerde datum.
+ * heeft de aanwezigheid van BEIDE nodig: zonder de invoerslots hier kan de terugvallaag een
+ * `$`-ScheduleStart niet onderscheiden van een écht geëxporteerde datum.
  *
  * Bewust hier en niet in de slot-`read`-descriptors: `read` krijgt de rauwe arg al binnen, maar zijn
  * contract (`read?(t, arg, p)`) zou voor alle twintig slots moeten wijzigen om deze ene uitkomst
@@ -1327,7 +1296,7 @@ function extractTasks(
   const taskEntities = entities.filter(e => e.type === 'IFCTASK' && !baselineTaskStepIds.has(e.id));
   const tasks: Task[] = [];
   const taskStepIdMap = new Map<string, string>(); // STEP #id -> our task id
-  // Fase 2.8b (§7.1): onze taak-id → IFCTASKTIME-entiteit, zodat de uur-modus-post-pass de rauwe
+  // Onze taak-id → IFCTASKTIME-entiteit, zodat de uur-modus-post-pass de rauwe
   // duur-/datetime-strings kan herlezen zodra de effectieve kalender bekend is.
   const taskTimeEntities = new Map<string, StepEntity>();
   // Aanwezigheidsregistratie voor "datums zoals opgeslagen": per taak-id de rekenslots die het
@@ -1340,9 +1309,9 @@ function extractTasks(
     const id = stableIfcTaskId(te, persistedIds, usedIds);
     taskStepIdMap.set(te.id, id);
 
-    // Twee IFCTASK-lay-outs (L1-fix, zie writeTask): spec-conform IFC 4.3 telt 13 args
+    // Twee IFCTASK-lay-outs (zie writeTask): spec-conform IFC 4.3 telt 13 args
     // (WorkMethod op index 8; IsMilestone/Priority/TaskTime/PredefinedType op 9/10/11/12) —
-    // dat schrijven wij nu zelf en dat schrijven ook bestanden van derden. Oudere
+    // dat schrijven wij zelf en dat schrijven ook bestanden van derden. Oudere
     // OPS-bestanden tellen 12 args (WorkMethod ontbrak; dezelfde vier attributen één
     // positie eerder op 8/9/10/11). Detectie op arg-count: exact 12 = legacy-OPS-lay-out,
     // al het andere = spec-lay-out. De legacy-lay-out mist WorkMethod (spec-index 8), dus alle
@@ -1366,7 +1335,7 @@ function extractTasks(
     if (isMilestone) time.scheduleDuration = 0;
 
     // IfcTask.Priority (zie writeTask voor de index-verificatie). Veilige parse
-    // zonder `||`-valkuil (§7.6): `0 || 500` zou een legitieme prioriteit 0 corrumperen.
+    // zonder `||`-valkuil: `0 || 500` zou een legitieme prioriteit 0 corrumperen.
     const priorityRaw = (te.args[priorityIdx] || '').trim();
     let priority = DEFAULT_PRIORITY;
     if (priorityRaw && priorityRaw !== '$') {
@@ -1377,7 +1346,7 @@ function extractTasks(
     tasks.push({
       id,
       name: stripQuotes(te.args[TASK_SLOT.name] || '') || 'Naamloze taak',
-      // `$`/leeg/afwezig ⇒ '' (niet de letterlijke '$' — zelfde bug/fix als IFCPROJECT.Description
+      // `$`/leeg/afwezig ⇒ '' (niet de letterlijke '$' — zelfde regel als IFCPROJECT.Description
       // hierboven; de writer schrijft description/identification bewust als bare `$` via `ifcStr`
       // wanneer leeg, zie ifcTaskSlots.ts).
       description: ifcSlotText(te.args[TASK_SLOT.description]),
@@ -1461,13 +1430,12 @@ function workTimeDateRange(wt: StepEntity): { startDate: string; endDate: string
 
 /**
  * Lege rekenslots (Early/Late Start/Finish = `$`) krijgen de EIGEN geplande datum van de taak in
- * plaats van de "vandaag"-terugval van `parseDateFromIFC` (import/export-audit, vervolg op
- * bevinding 6). Het laden rekent ze toch opnieuw uit en "datums zoals opgeslagen" leest hun
- * aanwezigheid uit `recordedFields`, maar vóór die solve lezen o.a. `normalizeImportedProgress`
- * (AS/AF-default van een voltooide taak) en slapende herstelde documenten deze waarden — die zagen
- * dan de leesdatum. Zelfde keuze als de CSV-lezer (early/late = start/finish). Ná
- * `applyHourModeIFC`, zodat een uurtaak de uur-precieze Schedule-datum overneemt. Een IFCTASK zonder
- * IfcTaskTime blijft ongemoeid (daar komt alles uit `createDefaultTaskTime`).
+ * plaats van de "vandaag"-terugval van `parseDateFromIFC`. Het laden rekent ze toch opnieuw uit en
+ * "datums zoals opgeslagen" leest hun aanwezigheid uit `recordedFields`, maar vóór die solve lezen o.a.
+ * `normalizeImportedProgress` (AS/AF-default van een voltooide taak) en slapende herstelde documenten
+ * deze waarden — die zouden anders de leesdatum zien. Zelfde keuze als de CSV-lezer (early/late =
+ * start/finish). Ná `applyHourModeIFC`, zodat een uurtaak de uur-precieze Schedule-datum overneemt. Een
+ * IFCTASK zonder IfcTaskTime blijft ongemoeid (daar komt alles uit `createDefaultTaskTime`).
  */
 function fillEmptyComputedDateSlots(
   tasks: Task[],
@@ -1491,8 +1459,8 @@ function optDate(s: string | undefined): string | undefined {
 }
 /** STEP-parse-helpers die aan de IFCTASKTIME-read-descriptors (./ifcTaskSlots) worden doorgegeven —
  *  ze wonen hier (STEP-specifieke `$`/quote-semantiek) en worden geïnjecteerd zodat de slot-registry
- *  cyclusvrij blijft. `parseDate`/`parseDur` reproduceren de vroegere `... (e.args[N] || '')`-vorm.
- *  Fabriek per kalender-hpd (critreview PR #162): een kale `PT{n}H` in duur, speling of actuals
+ *  cyclusvrij blijft. `parseDate`/`parseDur` behandelen een afwezige arg als ''.
+ *  Fabriek per kalender-hpd: een kale `PT{n}H` in duur, speling of actuals
  *  wordt met de PROJECTkalender naar dagen vertaald — niet met een vaste 8; de effectieve
  *  taakkalender kent de lezer op dit punt nog niet, `applyHourModeIFC` corrigeert de duur later. */
 function taskTimeReadHelpers(hoursPerDay: number): TaskTimeReadHelpers {
@@ -1507,10 +1475,9 @@ function taskTimeReadHelpers(hoursPerDay: number): TaskTimeReadHelpers {
 /**
  * IFCTASKTIME → TaskTime via de gedeelde slot-registry (./ifcTaskSlots.IFC_TASKTIME_SLOTS): per slot
  * dispatcht de descriptor zijn eigen `read` (spiegel van de `write` die de writer emitteerde), zodat
- * arg-index en veld niet meer op drie plekken los kunnen divergeren (bevinding A2). Slots zonder
- * `read` (Name/DataOrigin/UserDefinedDataOrigin en StatusTime slot 14 — die statusdatum komt uit
- * OPS_ProjectSettings, §15.3) laten hun veld ongemoeid ⇒ `$`/afwezige actuals blijven undefined en
- * legacy-bestanden laden ongewijzigd. Veld-voor-veld resultaat-identiek aan de vroegere object-literal.
+ * arg-index en veld niet los kunnen divergeren. Slots zonder `read` (Name/DataOrigin/
+ * UserDefinedDataOrigin en StatusTime slot 14 — die statusdatum komt uit OPS_ProjectSettings) laten
+ * hun veld ongemoeid ⇒ `$`/afwezige actuals blijven undefined.
  */
 function parseTaskTime(e: StepEntity, hoursPerDay: number): TaskTime {
   const time = {} as TaskTime;
@@ -1554,7 +1521,7 @@ function extractSequences(
     let lagDays = 0;
     let lagUnit: Sequence['lagUnit'];
     let lagPercent: number | undefined;
-    // Fase 2.8b (§7.1): uur-lag heeft een tijdcomponent (`IFCDURATION('PT..')`) ⇒ `lagMinutes` als
+    // Uur-lag heeft een tijdcomponent (`IFCDURATION('PT..')`) ⇒ `lagMinutes` als
     // bron van waarheid. Alleen de uur-schrijver emitteert die vorm; dag-bestanden (`P{d}D`) leveren
     // `null` en houden `lagDays`.
     let lagMinutes: number | undefined;
@@ -1570,19 +1537,16 @@ function extractSequences(
           // Ratio → procent; afronden tegen floating-point-ruis (0.33*100 = 33.000000000000004).
           lagPercent = Math.round(parseFloat(ratioMatch[1]) * 100 * 1e6) / 1e6;
         } else if (durMatch) {
-          // Bugfix B1 (gebruikstest 2026-08): EERST `lagMinutes` proberen (discriminator (c),
-          // subdayIo/mspdiReader-conventie "geen dag-afronding"). Een duur MET tijdcomponent
-          // (`PT2H0M0S`) is minuut-precies ⇒ `lagDays` blijft 0, nooit de grove uur→dag-ceil van
-          // `parseDurationDays` (die was bedoeld voor kale `PT8H`-duren van vóór fase 2.8b, zónder
-          // `lagMinutes`-veld — nu overbodig én fout: elke duur met een H/M/S-component parseert ook
-          // via `isoDurationToMinutes`, dus de ceil-tak werd altijd samen met een correcte
-          // `lagMinutes` geraakt en overschreef die stilzwijgend met een afgeronde dag (2u → +1d).
+          // EERST `lagMinutes` proberen (discriminator (c), subdayIo/mspdiReader-conventie "geen
+          // dag-afronding"). Een duur MET tijdcomponent (`PT2H0M0S`) is minuut-precies ⇒ `lagDays`
+          // blijft 0, nooit de grove uur→dag-ceil van `parseDurationDays` (die zou een correcte
+          // `lagMinutes` stilzwijgend overschrijven met een afgeronde dag, 2u → +1d).
           // Alleen een PUUR dag-duur (`P{d}D`, geen `T`) levert `isoDurationToMinutes === null` en
           // valt terug op `parseDurationDays`.
           const raw = stripQuotes(durMatch[1]);
           const timeMinutes = isoDurationToMinutes(raw);
           if (timeMinutes != null) {
-            // Review-follow-up (2026-08): GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
+            // GEMENGDE vorm (`P1DT2H0M0S`) uit een vreemd bestand — onze
             // eigen schrijver emitteert nooit een dag-component vóór de `T` (zie `minutesToIsoDuration`),
             // maar deze soepel-lezen-tak bestaat juist voor andermans bestanden. Zonder dit zou het
             // dag-deel stil verdwijnen (`isoDurationLeadingDaysMinutes` hieronder). Samen optellen i.p.v.
@@ -1632,7 +1596,7 @@ function extractSequences(
 }
 
 /**
- * X12: lees de relationele P6-grensmetadata. De pset hangt schema-geldig op de IfcWorkSchedule;
+ * Lees de relationele P6-grensmetadata. De pset hangt schema-geldig op de IfcWorkSchedule;
  * de payload bevat daarom IfcRelSequence-GlobalIds in plaats van vluchtige OPS-relatie-id's.
  * Corrupt/ongeldig metadata blijft inert: alleen een volledige string-array activeert een vlag.
  */
@@ -1702,11 +1666,11 @@ function parseTypedValue(s: string): CustomFieldValue | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-// MEASURE_TO_FIELD (IFC-measure → custom-field-type) is verhuisd naar ./ifcConstants, waar het
-// programmatisch uit de writer-map FIELD_MEASURE wordt afgeleid (kan niet meer divergeren).
+// MEASURE_TO_FIELD (IFC-measure → custom-field-type) staat in ./ifcConstants, waar het
+// programmatisch uit de writer-map FIELD_MEASURE wordt afgeleid (kan niet divergeren).
 
 /**
- * Fase 2.2 — structuurdefinities en taakwaarden teruglezen (spiegel van writeStructure):
+ * Structuurdefinities en taakwaarden teruglezen (spiegel van writeStructure):
  * de OPS_StructureMeta-JSON is autoritair (verliesloos, behoudt ids/kleuren); ontbreekt die
  * (bestand van een andere tool), dan reconstrueren we de definities uit de conformante
  * IFCPROPERTYSETTEMPLATE-declaraties met verse ids. Taakwaarden (OPS_CustomFields /
@@ -1720,7 +1684,7 @@ function extractStructure(
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
   libraryPoolOut: { value: import('@/types/library').CompanyPool | undefined },
-  // Critreview-bevinding 1 (v2026.8.1): het OPS-pset kan "bewust leeg" zeggen — de aanroeper mag
+  // Het OPS-pset kan "bewust leeg" zeggen — de aanroeper mag
   // de startdatum dan NIET alsnog afleiden. Presentie is een aparte uitspraak naast de waarde.
   projectStartRecorded: { value: boolean },
 ): { activityCodeTypes: ActivityCodeType[]; customFieldDefs: CustomFieldDef[] } {
@@ -1785,9 +1749,8 @@ function extractStructure(
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p);
 
-    // Fase 3 (P11) — de acht per-taak-psets via de gedeelde registry: één dispatch op naam vervangt
-    // de vroegere zeven losse `if (psetName === 'OPS_X')`-blokken + de losse extractLevelingMeta. De
-    // read-logica leeft naast de write-logica in ifcPsets.PER_TASK_PSETS (kan niet meer divergeren).
+    // De per-taak-psets via de gedeelde registry: één dispatch op naam. De read-logica leeft naast de
+    // write-logica in ifcPsets.PER_TASK_PSETS (kan niet divergeren).
     const perTask = PER_TASK_PSET_BY_NAME.get(psetName);
     if (perTask) {
       const singleValueProps = props
@@ -1827,29 +1790,29 @@ function extractStructure(
         } else if (name === 'DefaultTaskDurationUnit') {
           if (v === 'days' || v === 'hours') project.defaultTaskDurationUnit = v;
         } else if (name === 'DefaultWorkRule') {
-          // Taaktypes-etappe (spec §4.1): onbekende waarde ⇒ stil weg (byte-identiek default).
+          // Onbekende waarde ⇒ stil weg (default blijft staan).
           if (typeof v === 'string' && (WORK_RULES as readonly string[]).includes(v)) project.defaultWorkRule = v as WorkRule;
         } else if (name === 'StatusDate') {
-          // Fase 2.6 (§8.2): P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft
-          // behouden: IFCDATETIME, én bestanden van vóór die writer-keuze die de tijd in IFCDATE zetten
-          // (spiegel van writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`, zoals altijd. Zelfde
+          // P6 data date → project.statusDate. Een tijd-van-de-dag (uur-modus) blijft behouden:
+          // IFCDATETIME, én oudere bestanden die de tijd in IFCDATE zetten (spiegel van
+          // writeStructure). Datum zonder tijd ⇒ `YYYY-MM-DD`. Zelfde
           // regel als MSPDI en P6 (`statusDateFromXml`).
           if (typeof v === 'string' && v) project.statusDate = importStatusDate(v);
         } else if (name === 'ProgressMode') {
-          // Fase 2.6 (§8.2): alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
+          // Alleen PROGRESS_OVERRIDE wordt geschreven; RETAINED_LOGIC is de default.
           if (v === 'PROGRESS_OVERRIDE' || v === 'RETAINED_LOGIC') project.progressMode = v;
         } else if (name === 'ProjectStartDate' || name === 'ProjectEndDate') {
           // Contractuele projectdatums (spiegel van writeStructure). Het PSET WINT wanneer het veld
           // aanwezig is — óók als het leeg is: de writer codeert "bewust leeg" als NominalValue `$`
           // (parseTypedValue ⇒ undefined) en dat moet leeg terugkomen, niet terugvallen op de
           // AFGELEIDE datum uit IFCWORKPLAN.StartTime/FinishTime die extractProject al invulde.
-          // Ontbreekt het veld helemaal (bestand van vóór deze versie of van een ander tool), dan
-          // komen we hier niet en blijft die WORKPLAN-terugval staan — gedrag exact als voorheen.
+          // Ontbreekt het veld helemaal (ouder bestand of ander tool), dan komen we hier niet en
+          // blijft die WORKPLAN-terugval staan.
           const date = typeof v === 'string' ? v.substring(0, 10) : '';
           if (name === 'ProjectStartDate') { project.startDate = date; projectStartRecorded.value = true; }
           else project.endDate = date;
         } else if (name === 'CreatedAt') {
-          // Fase 3 (H2): project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
+          // Project-aanmaakdatum als verbatim ISO-instant (spiegel van writeStructure).
           if (typeof v === 'string' && v) project.createdAt = v;
         } else if (name === 'ModifiedAt') {
           if (typeof v === 'string' && v) project.modifiedAt = v;
@@ -1899,8 +1862,8 @@ function extractNesting(
   taskStepIdMap: Map<string, string>,
 ): void {
   const nestEntities = entities.filter(e => e.type === 'IFCRELNESTS');
-  // Index tasks by id once. Voorheen werd elke parent/child via tasks.find()
-  // in de lus opgezocht, waardoor nesting O(nestings × children × tasks) was.
+  // Index tasks by id once: een tasks.find() per parent/child in de lus maakt nesting
+  // O(nestings × children × tasks).
   const taskById = new Map<string, Task>(tasks.map(t => [t.id, t]));
 
   for (const ne of nestEntities) {
@@ -1935,7 +1898,7 @@ function extractResources(
 
   for (const e of entities) {
     // IFC-entiteit → resource-type via de gedeelde inverse-map (incl. de inkomende-alleen
-    // IFCCONSTRUCTIONPRODUCTRESOURCE→EQUIPMENT-alias, §8.A).
+    // IFCCONSTRUCTIONPRODUCTRESOURCE→EQUIPMENT-alias).
     const resType = IFC_TO_RESOURCE_TYPE[e.type];
     if (!resType) continue;
 
@@ -1947,7 +1910,7 @@ function extractResources(
       id,
       name: stripQuotes(e.args[2] || '') || 'Resource',
       type: resType,
-      // `$`/leeg/afwezig ⇒ '' (zelfde bug/fix als IfcTask.Description hierboven).
+      // `$`/leeg/afwezig ⇒ '' (zelfde regel als IfcTask.Description hierboven).
       description: ifcSlotText(e.args[3]),
       maxUnits: 1,
     });
@@ -1957,9 +1920,9 @@ function extractResources(
 }
 
 /**
- * Fase 2.5 — `OPS_Resource`-pset teruglezen (§7.2, spiegel van `writeResourceMeta`):
+ * `OPS_Resource`-pset teruglezen (spiegel van `writeResourceMeta`):
  * MaxUnits/CostPerHour/UnitOfMeasure/AvailabilitySteps + de `ParentGuid`-vangnetproperty
- * (§7.3) — die laatste wordt alleen toegepast als `extractCrewNesting` de relatie nog niet
+ * — die laatste wordt alleen toegepast als `extractCrewNesting` de relatie nog niet
  * had gelegd (IFCRELNESTS is de primaire bron, ParentGuid is het vangnet voor bestanden van
  * andere tools die de nest-relatie anders lezen).
  */
@@ -1997,7 +1960,7 @@ function extractResourceMeta(
         } else if (name === 'UnitOfMeasure' && typeof value === 'string') {
           res.unitOfMeasure = value;
         } else if (name === 'Color' && typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
-          // #21: weergavekleur — alleen een geldige #rrggbb-hex accepteren (hostiele/mistorde
+          // Weergavekleur — alleen een geldige #rrggbb-hex accepteren (hostiele/mistorde
           // invoer valt stil terug op "geen kleur" i.p.v. rommel in de kleurmodi te krijgen).
           res.color = value;
         } else if (name === 'AvailabilitySteps' && typeof value === 'string') {
@@ -2013,15 +1976,14 @@ function extractResourceMeta(
           const parentId = resourceGuidMap.get(value);
           if (parentId) res.parentId = parentId;
         } else if (name === 'LibraryOrigin' && typeof value === 'string' && value && !res.libraryOrigin) {
-          // A6-fix: EERSTE geldige LibraryOrigin wint (gezet-is-gezet-guard), gelijk aan het
-          // kalenderpad (extractCalendarLibraryOrigin returnt op de eerste treffer). Zonder de
-          // `!res.libraryOrigin`-guard koos dit pad de LAATSTE bij dubbele props in één pset —
-          // een stille inconsistentie tussen de twee paden.
+          // EERSTE geldige LibraryOrigin wint (gezet-is-gezet-guard), gelijk aan het kalenderpad
+          // (extractCalendarLibraryOrigin returnt op de eerste treffer). Zonder de
+          // `!res.libraryOrigin`-guard kiest dit pad de LAATSTE bij dubbele props in één pset.
           try {
             const parsed = JSON.parse(value);
             if (parsed && typeof parsed.companyId === 'string' && typeof parsed.libraryItemId === 'string'
                 && typeof parsed.poolVersion === 'number') {
-              // F2 (vloot-fixpakket, issue #19): `syncedHash` is optioneel, maar als het veld AANWEZIG
+              // `syncedHash` is optioneel, maar als het veld AANWEZIG
               // is moet het een string zijn — een corrupte/vervalste waarde (bv. een getal) mag niet
               // als "syncedHash" doorschieten naar de classificatielogica (`classifyOnOpen` doet
               // `fileHash === syncedHash`, een non-string zou daar altijd `false` geven, wat toevallig
@@ -2038,7 +2000,7 @@ function extractResourceMeta(
 }
 
 /**
- * Fase 2.5 — ploeg-hiërarchie teruglezen (§7.3, spiegel van `writeCrewNesting`): dezelfde
+ * Ploeg-hiërarchie teruglezen (spiegel van `writeCrewNesting`): dezelfde
  * `IFCRELNESTS`-entiteiten als de WBS-taakhiërarchie (`extractNesting`), maar dan met
  * `RelatingObject`/`RelatedObjects` die via `resourceStepIdMap` resolven i.p.v.
  * `taskStepIdMap` — relaties voor taken resolven hier simpelweg niet (`continue`).
@@ -2096,9 +2058,9 @@ function* opsCalendarPsetProps(
 }
 
 /**
- * Fase 2.8a (§8.2) — `calendar.generation`-herkomst teruglezen uit het `OPS_Calendar`-pset
+ * `calendar.generation`-herkomst teruglezen uit het `OPS_Calendar`-pset
  * (spiegel van `writeCalendarGenerationMeta`): zoekt de `IFCRELDEFINESBYPROPERTIES` die het
- * `IFCWORKCALENDAR` met STEP-id `calStepId` target. Golden rule/legacy (§4.3/§8.2): geen pset
+ * `IFCWORKCALENDAR` met STEP-id `calStepId` target. Golden rule/legacy: geen pset
  * gevonden, of een onvolledige/corrupte set (ontbrekende RuleSetId/jaren) ⇒ `undefined` — NOOIT
  * een kalender laten hergenereren op basis van een gok.
  */
@@ -2119,7 +2081,7 @@ function extractCalendarGeneration(
       if (name === 'RuleSetId' && typeof value === 'string') ruleSetId = value as HolidayCountry;
       else if (name === 'Region' && typeof value === 'string') region = value;
       else if (name === 'BreakChoice' && typeof value === 'string') breakChoice = value as CalendarGeneration['breakChoice'];
-      // 'WinterStop' (verwijderde feature, fase 2.8b) wordt in oude bestanden genegeerd; de
+      // 'WinterStop' (verwijderde feature) wordt in oude bestanden genegeerd; de
       // gematerialiseerde feestdagen zelf staan los in de kalender en blijven behouden.
       else if (name === 'GeneratedFromYear' && typeof value === 'number') generatedFromYear = value;
       else if (name === 'GeneratedToYear' && typeof value === 'number') generatedToYear = value;
@@ -2138,7 +2100,7 @@ function extractCalendarGeneration(
 }
 
 /**
- * Fase B1 (§6) — `LibraryOrigin`-herkomststempel teruglezen uit het `OPS_Calendar`-pset (spiegel van
+ * `LibraryOrigin`-herkomststempel teruglezen uit het `OPS_Calendar`-pset (spiegel van
  * de writer, die 'm naast de generation-props schrijft). BEWUST losstaand van
  * `extractCalendarGeneration`: die `continue`t bij een onvolledige generation, waardoor een kalender
  * met ALLEEN een LibraryOrigin (gepromoveerd, niet gegenereerd) er verloren zou gaan. Geen/corrupte
@@ -2158,7 +2120,7 @@ function extractCalendarLibraryOrigin(
         const parsed = JSON.parse(value);
         if (parsed && typeof parsed.companyId === 'string' && typeof parsed.libraryItemId === 'string'
             && typeof parsed.poolVersion === 'number') {
-          // F2 (vloot-fixpakket, issue #19): zie de identieke toelichting bij het resourcepad
+          // Zie de identieke toelichting bij het resourcepad
           // hierboven — aanwezig-maar-niet-string `syncedHash` wordt weggelaten, rest van de stempel
           // blijft staan (veilige/deviated-kant).
           if ('syncedHash' in parsed && typeof parsed.syncedHash !== 'string') delete parsed.syncedHash;
@@ -2171,7 +2133,7 @@ function extractCalendarLibraryOrigin(
 }
 
 /**
- * Bugfix B2 (gebruikstest 2026-08) — expliciete `HoursPerDay` teruglezen uit het `OPS_Calendar`-
+ * Expliciete `HoursPerDay` teruglezen uit het `OPS_Calendar`-
  * pset (spiegel van `writeCalendarGenerationMeta`'s `needsHoursPerDayOverride`-tak). BEWUST
  * losstaand van `extractCalendarGeneration`/`extractCalendarLibraryOrigin` — zelfde reden: een
  * kalender met ALLEEN een `HoursPerDay`-afwijking (geen generation, geen libraryOrigin) mag 'm
@@ -2214,9 +2176,9 @@ function extractCalendarSimpleBreak(
 /** OPS-eigen aanvulling op IFC's ambigue standaardwerkweek (`OPS_Calendar`, spiegel van
  * `writeCalendarGenerationMeta`):
  *  - `IsHourCalendar = .T.` bewaart dat een kalender met precies één gewone band toch uur-modus was;
- *  - `IsHourCalendar = .F.` (H7) zegt dat de `IFCTIMEPERIOD`s de effectieve banden van een SCALAIRE
+ *  - `IsHourCalendar = .F.` zegt dat de `IFCTIMEPERIOD`s de effectieve banden van een SCALAIRE
  *    kalender zijn (een urentaak gebruikte hem) — die mag dan niet naar uur-modus promoveren;
- *  - `WorkStartHour`/`WorkEndHour` (H7) dragen de scalar werktijd waar de eerste periode hem niet geeft.
+ *  - `WorkStartHour`/`WorkEndHour` dragen de scalar werktijd waar de eerste periode hem niet geeft.
  * Zonder markering blijft de conservatieve externe fallback (de discriminator a/b/c) staan; alleen
  * bestanden die OPS zelf schreef krijgen dit expliciete vertrouwen. */
 function extractCalendarHourMeta(
@@ -2241,17 +2203,17 @@ function extractCalendarHourMeta(
 }
 
 /**
- * H7-vervolg — herkent een SCALAIRE dagkalender in een bestand dat OPS schreef vóór de
+ * Herkent een SCALAIRE dagkalender in een bestand van een oudere OPS-versie zonder de
  * `IsHourCalendar = .F.`-markering. Die writer materialiseerde voor een scalaire kalender met urentaak
  * de effectieve banden (07–12 + 13–16) zonder te zeggen dat de kalender scalair was, waardoor hij als
  * uurkalender 07:00–12:00 terugkwam. Alle drie de voorwaarden zijn vereist:
  *  1. een OPS-scalarkenmerk in `OPS_Calendar`: `HoursPerDay` of `SimpleBreakStart`/`SimpleBreakDuration`.
- *     De writer schrijft die sinds hun invoering uitsluitend bij `!cal.workTime` — een uurkalender
+ *     De writer schrijft die uitsluitend bij `!cal.workTime` — een uurkalender
  *     draagt ze nooit (bewaakt in `check-ifc-calendar-identity.ts` §10);
  *  2. precies twee `IFCTIMEPERIOD`s — meer levert de effectieve-bandafleiding (`seedScalarBands`) niet;
  *  3. zelfcontrole: de scalar die we reconstrueren (begin eerste band – eind laatste band, hpd en pauze
  *     uit de pset) levert via `seedScalarBands` exact dezelfde banden op als in het bestand staan.
- * Faalt één voorwaarde, dan `undefined`: het oude pad (discriminator a/b/c) blijft staan, niets geraden.
+ * Faalt één voorwaarde, dan `undefined`: het gewone pad (discriminator a/b/c) blijft staan, niets geraden.
  * Bestanden van andere pakketten dragen geen `OPS_Calendar` en komen hier dus nooit door.
  */
 function legacyScalarFromEffectiveBands(
@@ -2276,23 +2238,22 @@ function legacyScalarFromEffectiveBands(
   return { workStartHour: start / 60, workEndHour: end / 60, hoursPerDay };
 }
 
-/** H7 — kalenders die het bestand expliciet als SCALAIR markeert (`IsHourCalendar = .F.`). Per parse
+/** Kalenders die het bestand expliciet als SCALAIR markeert (`IsHourCalendar = .F.`). Per parse
  * aangemaakte objecten als sleutel (zelfde patroon als het bandregister in `subdayIo`), dus niets lekt
  * tussen twee `readIFC`-aanroepen. `applyHourModeIFC` promoveert deze kalenders nooit, en leest de
  * urentaken erop toch minuut-precies. */
 const declaredScalarCalendars = new WeakSet<WorkCalendar>();
 
 /**
- * T5-HERZIENING (2026-08-15, spec-reviewbevinding: zie het plandocument §T5) — het STEP-id-signaal
+ * Het STEP-id-signaal
  * dat een `IFCWORKTIME` in `ExceptionTimes` een WERKENDE UITZONDERING is, i.p.v. een feestdag.
  * Spiegel van `writeCalendarGenerationMeta`'s `WorkingExceptionIds`-property in hetzelfde
  * `OPS_Calendar`-pset als generation/libraryOrigin/hoursPerDay. BEWUST geen discriminator op
  * `IfcWorkTime.RecurrencePattern` (args[3]): IFC 4.3 reserveert die ref niet voor werkende
  * uitzonderingen — een spec-conforme externe tool kan een RECURRENTE FEESTDAG ("elke 25 december")
  * met exact zo'n gevulde ref schrijven, en die zou dan zonder deze pset-check als werkdag
- * ingelezen worden (bewezen met een geconstrueerd fragment in de spec-review). Geen/corrupte
- * property ⇒ `undefined` — de aanroeper valt dan terug op "alles in ExceptionTimes is een
- * feestdag", het conservatieve pre-T5-gedrag voor bestanden zonder deze markering.
+ * ingelezen worden. Geen/corrupte property ⇒ `undefined` — de aanroeper valt dan terug op "alles
+ * in ExceptionTimes is een feestdag", het conservatieve gedrag voor bestanden zonder deze markering.
  */
 function extractCalendarExceptionMetadata(
   calStepId: string,
@@ -2367,13 +2328,12 @@ function extractCalendarExceptionMetadata(
   return {};
 }
 
-/** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit: naam/omschrijving/feestdagen
- *  (bestaand), plus (fase 2.8a, §8.1) werkdagen/uren teruggelezen uit de
- *  `WorkingTimes`-keten (args[5] → IFCWORKTIME → RecurrencePattern-ref → IFCRECURRENCEPATTERN
- *  DayComponent (args[2]) + TimePeriods (args[7]) → IFCTIMEPERIOD start/eind-uur) — de writer
- *  schreef dit al spec-conform (`ifcWriter.ts` `writeCalendar`), alleen de reader las het nog
- *  niet terug. Golden rule: ontbreekt de keten (bestand van een ander tool, of geen worktime),
- *  dan blijven de `createDefaultCalendar()`-defaults (ma-vr 07-16) staan. Tot slot (§8.2) de
+/** Bouwt een `WorkCalendar` uit een `IFCWORKCALENDAR`-entiteit: naam/omschrijving/feestdagen,
+ *  plus werkdagen/uren teruggelezen uit de `WorkingTimes`-keten (args[5] → IFCWORKTIME →
+ *  RecurrencePattern-ref → IFCRECURRENCEPATTERN DayComponent (args[2]) + TimePeriods (args[7]) →
+ *  IFCTIMEPERIOD start/eind-uur), spiegel van `ifcWriter.ts` `writeCalendar`. Golden rule:
+ *  ontbreekt de keten (bestand van een ander tool, of geen worktime), dan blijven de
+ *  `createDefaultCalendar()`-defaults (ma-vr 07-16) staan. Tot slot de
  *  `OPS_Calendar`-pset → `generation` (legacy/onvolledig ⇒ `undefined`, nooit gegokt). */
 function buildCalendarFromEntity(
   cal: StepEntity,
@@ -2382,23 +2342,23 @@ function buildCalendarFromEntity(
 ): WorkCalendar {
   const calendar = createDefaultCalendar();
   calendar.name = stripQuotes(cal.args[2] || '') || calendar.name;
-  // Fix B7: `ifcSlotText` i.p.v. kale `stripQuotes` — een lege omschrijving schrijft de writer als
+  // `ifcSlotText` i.p.v. kale `stripQuotes` — een lege omschrijving schrijft de writer als
   // STEP-null (`$`), en `stripQuotes('$')` geeft het letterlijke tweetekentje `'$'` terug (het start/
   // eindigt niet met een quote, dus de functie laat de string ongewijzigd) i.p.v. '' — dezelfde
-  // `$`-conventie die elders al via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
+  // `$`-conventie die elders via `ifcSlotText` wordt toegepast (bv. project-omschrijving).
   // Bewust GEEN terugval op de omschrijving van `createDefaultCalendar()`: `$` is een lege
-  // omschrijving (zoals bij project, taak en resource), geen "onbekend". Die terugval maakte van een
-  // bewust lege omschrijving na heropenen de standaardtekst van déze machine (Bouwmodus-afhankelijk),
-  // zodat een bibliotheekkopie onterecht "wijkt af" werd.
+  // omschrijving (zoals bij project, taak en resource), geen "onbekend". Die terugval zou van een
+  // bewust lege omschrijving na heropenen de standaardtekst van déze machine maken
+  // (Bouwmodus-afhankelijk), zodat een bibliotheekkopie onterecht "wijkt af" wordt.
   calendar.description = ifcSlotText(cal.args[3]);
   Object.assign(calendar, extractCalendarSimpleBreak(cal.id, entities, entityMap));
   const hourMeta = extractCalendarHourMeta(cal.id, entities, entityMap);
 
-  // Werkweek + uren (§8.1). WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
+  // Werkweek + uren. WorkingTimes (args[5]) is een lijst met precies één ref (zo schrijft
   // de writer 'm) naar het "hoofd"-IFCWORKTIME; de holiday-IFCWORKTIME's zitten in ExceptionTimes
   // (args[6]) en hebben geen RecurrencePattern-ref (args[3] blijft `$` daar).
   const workTimeRefs = parseRefs(cal.args[5] || '');
-  let periods: { start: number; end: number }[] = []; // ALLE banden (minuten), fase 2.8b §7.1
+  let periods: { start: number; end: number }[] = []; // ALLE banden (minuten)
   let calWorkDays: number[] = [];
   for (const wtRef of workTimeRefs) {
     const wt = entityMap.get(wtRef);
@@ -2412,7 +2372,7 @@ function buildCalendarFromEntity(
     if (workDays.length > 0) { calendar.workDays = workDays; calWorkDays = workDays; }
 
     const timePeriodRefs = parseRefs(rec.args[7] || '');
-    // ALLE TimePeriods lezen (fase 2.8b §7.1: `TimePeriods` is native een lijst — pauze/split-shift).
+    // ALLE TimePeriods lezen (`TimePeriods` is native een lijst — pauze/split-shift).
     for (const tpRef of timePeriodRefs) {
       const tp = entityMap.get(tpRef);
       if (!tp || tp.type !== 'IFCTIMEPERIOD') continue;
@@ -2420,7 +2380,7 @@ function buildCalendarFromEntity(
       const e = clockToMinutes(stripQuotes(tp.args[1] || ''));
       if (s != null && e != null) periods.push({ start: s, end: e });
     }
-    // Scalar uit de EERSTE periode — houdt de dag-kalender byte-identiek (de post-pass promoveert
+    // Scalar uit de EERSTE periode — houdt de dag-kalender scalair (de post-pass promoveert
     // pas naar uur-modus bij een echte afwijking, discriminator a/b/c).
     if (timePeriodRefs.length > 0) {
       const tp = entityMap.get(timePeriodRefs[0]);
@@ -2436,7 +2396,7 @@ function buildCalendarFromEntity(
     }
     break; // writer schrijft precies één werktijdslot in WorkingTimes
   }
-  // H7: expliciete scalar werktijd (alleen geschreven waar de eerste periode hem niet teruggeeft). De
+  // Expliciete scalar werktijd (alleen geschreven waar de eerste periode hem niet teruggeeft). De
   // afgeleide hpd volgt dan de echte scalar — precies de `workEndHour − workStartHour` waartegen de
   // writer `needsHoursPerDayOverride` toetst; een expliciete `HoursPerDay` wint hieronder nog steeds.
   if (hourMeta.workStartHour !== undefined || hourMeta.workEndHour !== undefined) {
@@ -2455,20 +2415,19 @@ function buildCalendarFromEntity(
   const { bands, deviates } = canonicalizeBands(rawByWeekday);
   registerCalendarBands(calendar, { canonical: bands, deviates });
 
-  // Ploeg-classificatie uit `PredefinedType` (arg 7) → `shift` (§7.1). `.FIRSTSHIFT.`/afwezig ⇒
-  // undefined (byte-identiek — de schrijver emitteert `.FIRSTSHIFT.` voor undefined).
+  // Ploeg-classificatie uit `PredefinedType` (arg 7) → `shift`. `.FIRSTSHIFT.`/afwezig ⇒
+  // undefined (de schrijver emitteert `.FIRSTSHIFT.` voor undefined).
   const predef = (cal.args[7] || '').toUpperCase();
   if (predef.includes('SECONDSHIFT')) calendar.shift = 'SECOND';
   else if (predef.includes('THIRDSHIFT')) calendar.shift = 'THIRD';
   else if (predef.includes('USERDEFINED')) calendar.shift = 'USERDEFINED';
 
-  // ExceptionTimes (args[6]) draagt zowel feestdagen als werkende uitzonderingen (fase 3.8, T5,
-  // HERZIEN 2026-08-15 na spec-reviewbevinding — zie het plandocument §T5). Het onderscheid is de
+  // ExceptionTimes (args[6]) draagt zowel feestdagen als werkende uitzonderingen. Het onderscheid is de
   // OPS-pset-markering (`extractWorkingExceptionStepIds`), NIET de aanwezigheid van een gevulde
   // RecurrencePattern-ref (args[3]): een spec-conforme externe tool kan een RECURRENTE FEESTDAG
   // ("elke 25 december") met precies zo'n gevulde ref schrijven, en die zou dan zonder deze
-  // pset-check als WERKDAG worden ingelezen — een regressie t.o.v. het conservatieve pre-T5-gedrag.
-  // Geen markering (eigen bestand van vóór deze herziening, of extern) ⇒ alles in ExceptionTimes
+  // pset-check als WERKDAG worden ingelezen. Geen markering (ouder eigen bestand, of extern) ⇒
+  // alles in ExceptionTimes
   // is een feestdag, óók met een gevulde recurrence-ref.
   const calendarExceptionMetadata = extractCalendarExceptionMetadata(cal.id, entities, entityMap);
   const workingExceptionIds = calendarExceptionMetadata.workingExceptionIds;
@@ -2479,7 +2438,7 @@ function buildCalendarFromEntity(
     const wt = entityMap.get(ref);
     if (!wt || wt.type !== 'IFCWORKTIME') continue;
     // Start-/FinishDate zijn OPTIONEEL in IfcWorkTime. Een leeg slot mag geen "vandaag" worden (dat
-    // verzon een feestdag op de leesdatum): één datum ⇒ die ene dag, geen datum ⇒ geen uitzondering.
+    // verzint een feestdag op de leesdatum): één datum ⇒ die ene dag, geen datum ⇒ geen uitzondering.
     const range = workTimeDateRange(wt);
     if (!range) continue;
     if (!workingExceptionIds?.has(ref)) {
@@ -2491,7 +2450,7 @@ function buildCalendarFromEntity(
     }
     // OPS-gemarkeerd als werkende uitzondering. De banden zitten — indien geschreven — nog steeds
     // in de RecurrencePattern-ref (args[3] → TimePeriods, args[7]); DayComponent is hier altijd
-    // leeg. Canoniseren naar `end > start` (§3.2-conventie, `WorkingException.bands`): een
+    // leeg. Canoniseren naar `end > start` (`WorkingException.bands`): een
     // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
     // zoals de hoofd-werktijdlus hierboven het aan `canonicalizeBands` overlaat.
     const bands: { start: number; end: number }[] = [];
@@ -2517,19 +2476,12 @@ function buildCalendarFromEntity(
       ...(bands.length > 0 ? { bands } : {}),
     });
   }
-  // Bugfix B2 (eindreview T16c, gemeten: 204/213 crawl + 3/3 bedrijfsbestanden geraakt, ook
-  // auto-save): `calendar.holidays` is een VERPLICHT veld (`WorkCalendar.holidays: Holiday[]`,
-  // geen `?`) — een lege lijst is een geldige, betekenisvolle waarde ("deze kalender heeft geen
-  // feestdagen"), geen "veld ontbrak". Omdat deze functie uitsluitend wordt aangeroepen wanneer de
-  // `IFCWORKCALENDAR`-ENTITEIT zelf bestaat (`extractCalendar`/`extractCalendarLibrary` vallen pas
-  // op `createDefaultCalendar()` terug als de entiteit zelf ontbreekt), is de hierboven uit
-  // `ExceptionTimes` gelezen `holidays`-lijst de volledige waarheid voor dít bestand — ook als hij
-  // leeg is. De oude `if (holidays.length > 0)`-guard liet een lege lijst stil de
-  // `createDefaultCalendar()`-bouwmodus-defaults (29 NL-feestdagen) laten staan: een `.mpp` met 0
-  // feestdagen kreeg ze er bij de eerste IFC-save alsnog bij. `workingExceptions` blijft WEL
-  // conditioneel: dat veld is optioneel (`?:`) en elke lezer in de codebase (`mspdiReader.ts`,
-  // `mppCalendars.ts`, `extMappers.ts`) houdt "geen uitzonderingen" bewust op `undefined` i.p.v.
-  // een expliciete lege array — beide zijn overal `?? []`-equivalent, dus geen gedragsverschil.
+  // `calendar.holidays` is VERPLICHT; een lege lijst betekent "geen feestdagen", niet "veld
+  // ontbrak". Deze functie draait alleen als de `IFCWORKCALENDAR` zelf bestaat, dus de gelezen lijst
+  // is de volledige waarheid — ook leeg. Een `length > 0`-guard zou de
+  // `createDefaultCalendar()`-defaults (NL-feestdagen) laten staan: een `.mpp` met 0 feestdagen
+  // kreeg ze dan bij de eerste IFC-save alsnog. `workingExceptions` blijft WEL conditioneel: dat
+  // veld is optioneel en alle lezers houden "geen uitzonderingen" op `undefined`.
   calendar.holidays = holidays;
   if (workingExceptions.length > 0) calendar.workingExceptions = workingExceptions;
   if (calendarExceptionMetadata.p6Source === 'XER') {
@@ -2540,14 +2492,14 @@ function buildCalendarFromEntity(
     calendar.p6NonWorkPenaltyDatesState = calendarExceptionMetadata.p6NonWorkPenaltyDatesState;
   }
 
-  // §4.3/§8.2 golden rule: createDefaultCalendar() zet altijd `generation` (nieuwe projecten zijn
+  // Golden rule: createDefaultCalendar() zet altijd `generation` (nieuwe projecten zijn
   // per definitie gegenereerd) — een uit IFC gelezen kalender is dat NIET tenzij de OPS_Calendar-
   // pset het expliciet zegt. Eerst wissen, dan (evt.) invullen uit de pset.
   delete calendar.generation;
   calendar.generation = extractCalendarGeneration(cal.id, entities, entityMap);
   calendar.libraryOrigin = extractCalendarLibraryOrigin(cal.id, entities, entityMap);
 
-  // Bugfix B2 (gebruikstest 2026-08): expliciete `HoursPerDay` uit het `OPS_Calendar`-pset heeft
+  // Expliciete `HoursPerDay` uit het `OPS_Calendar`-pset heeft
   // voorrang boven de hierboven afgeleide `workEndHour − workStartHour` (die alleen een fallback
   // is voor bestanden zonder deze pset-waarde — legacy/andere tools). Golden rule: ontbreekt de
   // property, dan blijft de derivatie hierboven ongewijzigd staan. Voor uur-kalenders overschrijft
@@ -2560,8 +2512,8 @@ function buildCalendarFromEntity(
   } else if (hourMeta.hourMode === false) {
     declaredScalarCalendars.add(calendar);
   } else if (hourMeta.workStartHour === undefined && hourMeta.workEndHour === undefined) {
-    // Geen H7-markering: herken een scalaire kalender die OPS vóór die markering schreef
-    // (eigenaarsbesluit: herkennen en herstellen, zonder melding).
+    // Geen `IsHourCalendar`-markering: herken een scalaire kalender die een oudere OPS-versie
+    // schreef (herkennen en herstellen, zonder melding).
     const legacy = legacyScalarFromEffectiveBands(periods, calendar, hpdOverride);
     if (legacy) {
       Object.assign(calendar, legacy);
@@ -2573,11 +2525,9 @@ function buildCalendarFromEntity(
 }
 
 /**
- * Fase 2.8a (§8.2) — kalender-bibliotheek teruglezen (generalisatie van de oude "resource-
- * kalenders"-route, fase 2.5 §7.5): alle `IFCWORKCALENDAR`-entiteiten behalve degene die
- * `extractCalendar` al als projectkalender heeft gepakt (de eerste in het bestand — zelfde,
- * bewust ongewijzigde regel als `extractCalendar` zelf hanteert, en de schrijf-conventie die
- * `writeIFC` aanhoudt: de projectkalender staat altijd als eerste in het bestand).
+ * Kalender-bibliotheek teruglezen: alle `IFCWORKCALENDAR`-entiteiten behalve degene die
+ * `extractCalendar` al als projectkalender heeft gepakt (de eerste in het bestand, conform
+ * `writeIFC`).
  *
  * Onderscheid taken-vs-resources via `IFCRELASSIGNSTOCONTROL.RelatedObjects`: de writer schrijft
  * per bibliotheek-kalender twee LOSSE rel-entiteiten (één met resource-refs, één met taak-refs),
@@ -2585,12 +2535,9 @@ function buildCalendarFromEntity(
  * resource- als een taak-rel worden aangewezen — de STEP-id van het `IFCWORKCALENDAR` dedupt de
  * kalender zelf (`calByStepId`) zodat hij maar één keer in de bibliotheek terechtkomt.
  *
- * Z14b-fixronde (F1) — retourneert sinds deze fix ook `idByGuid` (`IFCWORKCALENDAR.GlobalId` →
- * onze verse `WorkCalendar.id`): de STABIELE, per-constructie-unieke sleutel die
- * `extractTimephasedDurationWalksMeta` nodig heeft om `resourceCalendarId` te vertalen. GEEN
- * naam-gebaseerde vertaling (zie de F1-toelichting bij `extractTimephasedDurationWalksMeta`): twee
- * kalenders met dezelfde naam zijn een geldige, niet-afgedwongen toestand (de app kent geen
- * naam-uniciteitseis) en zouden op naam stilzwijgend naar elkaars kalender resolven.
+ * Retourneert ook `idByGuid` (`IFCWORKCALENDAR.GlobalId` → onze verse `WorkCalendar.id`): de
+ * stabiele, unieke sleutel waarmee `extractTimephasedDurationWalksMeta` `resourceCalendarId`
+ * vertaalt (kalendernamen zijn niet uniek).
  */
 function extractCalendarLibrary(
   entities: StepEntity[],
@@ -2605,7 +2552,7 @@ function extractCalendarLibrary(
   const taskById = new Map(tasks.map(t => [t.id, t]));
   const calendars: WorkCalendar[] = [];
   const calByStepId = new Map<string, WorkCalendar>(); // IFCWORKCALENDAR STEP-id -> onze kalender
-  const idByGuid = new Map<string, string>(); // Z14b (F1) — IFCWORKCALENDAR.GlobalId -> onze kalender-id
+  const idByGuid = new Map<string, string>(); // IFCWORKCALENDAR.GlobalId -> onze kalender-id
 
   for (const ce of entities) {
     if (ce.type !== 'IFCRELASSIGNSTOCONTROL') continue;
@@ -2621,7 +2568,7 @@ function extractCalendarLibrary(
       cal.id = generateId('rescal');
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
-      idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id); // Z14b (F1)
+      idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
     }
 
     const relatedRefs = parseRefs(ce.args[4] || '');
@@ -2640,13 +2587,13 @@ function extractCalendarLibrary(
     }
   }
 
-  // A2-fix: bibliotheekkalenders ZONDER gebruiker. De lus hierboven vindt kalenders uitsluitend via
+  // Bibliotheekkalenders ZONDER gebruiker. De lus hierboven vindt kalenders uitsluitend via
   // IFCRELASSIGNSTOCONTROL (wie 'm gebruikt). Een gepromote/toegevoegde kalender die nog geen
-  // resource-/taak-toewijzing heeft — het normale "voeg toe vóór toewijzing"-patroon — werd wel door
-  // writeIFC geschreven maar hier nooit teruggevonden: stil verlies incl. libraryOrigin-stempel. Vang
-  // daarom álle overige IFCWORKCALENDAR-entiteiten (behalve de projectkalender) op, gededupliceerd
-  // tegen wat de rel-route al vond (calByStepId), met behoud van bestandsvolgorde (rel-gevonden eerst,
-  // ongebruikte daarna) zodat bestaande round-trip-gedragingen onveranderd blijven.
+  // resource-/taak-toewijzing heeft — het normale "voeg toe vóór toewijzing"-patroon — wordt wel door
+  // writeIFC geschreven maar zou hier niet teruggevonden worden (stil verlies incl.
+  // libraryOrigin-stempel). Vang daarom álle overige IFCWORKCALENDAR-entiteiten (behalve de
+  // projectkalender) op, gededupliceerd tegen wat de rel-route al vond (calByStepId), met behoud van
+  // bestandsvolgorde (rel-gevonden eerst, ongebruikte daarna).
   for (const ce of entities) {
     if (ce.type !== 'IFCWORKCALENDAR') continue;
     if (projectCalendarEntity && ce.id === projectCalendarEntity.id) continue;
@@ -2655,7 +2602,7 @@ function extractCalendarLibrary(
     cal.id = generateId('rescal');
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
-    idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id); // Z14b (F1)
+    idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
   }
 
   return { calendars, idByGuid };
@@ -2666,13 +2613,13 @@ interface AssignmentMeta {
   curve?: ResourceCurve;
 }
 
-/** Z14 — één gelezen timephased-venster (`OPS_Timephased`, spiegel van `writeTimephasedMeta`). */
+/** Eén gelezen timephased-venster (`OPS_Timephased`, spiegel van `writeTimephasedMeta`). */
 interface WindowMeta {
   workWindowStart?: string;
   workWindowFinish?: string;
-  /** Contour-engine (2026-09) — exacte 21-punts curve, zie `ResourceAssignment.curveValues`. */
+  /** Exacte 21-punts curve, zie `ResourceAssignment.curveValues`. */
   curveValues?: number[];
-  /** Taaktypes-etappe (spec §4.3) — de drie optionele werkvelden in minuten, zelfde blob. */
+  /** De drie optionele werkvelden in minuten, zelfde blob. */
   plannedWorkMinutes?: number;
   actualWorkMinutes?: number;
   remainingWorkMinutes?: number;
@@ -2686,26 +2633,26 @@ function workMinutesOf(v: unknown): number | undefined {
 /** Per-taak verzamelde OPS_Assignments-meta: nieuw formaat (`GUID#N`-propnamen) als
  *  geordende wachtrij per resource-GUID, oud formaat (kale GUID) als één meta per GUID. */
 interface TaskAssignmentMeta {
-  /** Nieuw formaat (M3): resource-GUID -> metas gesorteerd op `#N`-volgnummer. Meerdere
+  /** Nieuw formaat: resource-GUID -> metas gesorteerd op `#N`-volgnummer. Meerdere
    *  assignments van dezelfde resource op één taak consumeren de wachtrij in volgorde —
    *  de `IFCRELASSIGNSTOPROCESS.RelatedObjects`-volgorde en de `#N`-volgorde komen uit
    *  dezelfde bron (de assignments-array, zie writeAssignments/writeAssignmentMeta), dus
    *  ze lopen per resource synchroon. */
   queues: Map<string, AssignmentMeta[]>;
-  /** Legacy formaat (pre-M3-bestanden): kale resource-GUID als propnaam, max één meta
+  /** Legacy formaat (oudere bestanden): kale resource-GUID als propnaam, max één meta
    *  per GUID (het oude last-wins-gedrag — meer valt uit zo'n bestand niet te herstellen). */
   legacy: Map<string, AssignmentMeta>;
 }
 
 /**
- * Fase 2.5 — `OPS_Assignments`-pset teruglezen (§7.4, spiegel van `writeAssignmentMeta`):
- * property-naam = `"<resource-GUID>#<volgnummer>"` (nieuw formaat, M3-fix: uniek per
- * assignment, zodat dubbele assignments van dezelfde resource op één taak niet meer
- * last-wins-dedupen) óf de kale resource-GUID (legacy, pre-M3-bestanden); waarde =
+ * `OPS_Assignments`-pset teruglezen (spiegel van `writeAssignmentMeta`):
+ * property-naam = `"<resource-GUID>#<volgnummer>"` (nieuw formaat: uniek per assignment, zodat
+ * dubbele assignments van dezelfde resource op één taak niet last-wins-dedupen) óf de kale
+ * resource-GUID (legacy, oudere bestanden); waarde =
  * `"unitsPerDay|curve"`. Ontbreekt de pset-entry (legacy bestand) dan geldt de bestaande
  * fallback `unitsPerDay: 1, curve: undefined`.
  *
- * Z14 (etappe "nul afwijkingen"): leest in dezelfde sweep ook `OPS_Timephased` — het
+ * Leest in dezelfde sweep ook `OPS_Timephased` — het
  * timephased-venster (`workWindowStart`/`workWindowFinish`) per assignment, spiegel van
  * `writeTimephasedMeta`. Aparte pset, zelfde `GUID#N`-sleutelconventie, geen wijziging aan het
  * `OPS_Assignments`-pipe-formaat hierboven.
@@ -2718,7 +2665,7 @@ function extractAssignments(
 ): ResourceAssignment[] {
   // 1. OPS_Assignments-psets per taak verzamelen: taskStepRef -> TaskAssignmentMeta.
   const metaByTask = new Map<string, TaskAssignmentMeta>();
-  // Z14 — OPS_Timephased-psets per taak verzamelen: taskStepRef -> resource-GUID -> wachtrij
+  // OPS_Timephased-psets per taak verzamelen: taskStepRef -> resource-GUID -> wachtrij
   // van WindowMeta (zelfde `GUID#N`-volgnummer-conventie als de queues hierboven, maar dan uit
   // één JSON-blob-property ('Windows') i.p.v. losse IFCPROPERTYSINGLEVALUE's per assignment).
   const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
@@ -2833,10 +2780,10 @@ function extractAssignments(
       const resGuid = resEntity ? stripQuotes(resEntity.args[0] || '') : '';
       // Nieuw formaat: consumeer de volgende meta uit de wachtrij voor deze resource
       // (elke herhaling van dezelfde resource in RelatedObjects is een eigen assignment);
-      // val terug op de legacy kale-GUID-meta voor pre-M3-bestanden.
+      // val terug op de legacy kale-GUID-meta voor oudere bestanden.
       const meta = taskMeta?.queues.get(resGuid)?.shift() ?? taskMeta?.legacy.get(resGuid);
-      // Z14 — timephased-venster, zelfde wachtrij-consumptie als `meta` hierboven (geen legacy-tak:
-      // OPS_Timephased is nieuw, er bestaan geen pre-Z14-bestanden die het al schreven).
+      // Timephased-venster, zelfde wachtrij-consumptie als `meta` hierboven (geen legacy-tak:
+      // OPS_Timephased heeft altijd de `GUID#N`-sleutels gebruikt).
       const window = windowsByTask.get(taskRef)?.get(resGuid)?.shift();
 
       // 'UNIFORM' is de writer-default (a.curve ?? 'UNIFORM') — canonicaliseer terug naar
@@ -2861,7 +2808,7 @@ function extractAssignments(
   return assignments;
 }
 
-/** Contour-engine (2026-09) — zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
+/** Zie de aanroepplek in `readIFC`. Muteert de contouren in-place. */
 function remapContourResourceIds(tasks: Task[], resourceGuidMap: Map<string, string>): void {
   for (const task of tasks) {
     if (!task.timephasedContours) continue;
@@ -2886,13 +2833,10 @@ function remapLevelingResourceIds(options: ProjectSchedulingOptions, resourceGui
   }
 }
 
-// Fase 3 (P11) — `OPS_Leveling` (§7.6) wordt nu, net als de andere zeven per-taak-psets, teruggelezen
-// via de gedeelde registry-dispatch in `extractStructure` (ifcPsets.PER_TASK_PSETS). De losse
-// extractLevelingMeta is daardoor vervallen.
 
 /**
- * Fase 2.6 — verzamel de STEP-#id's van taken die onder een `.BASELINE.`-IfcWorkSchedule hangen
- * (§8.3). OPS zelf hangt géén taken onder baseline-schema's (de datums leven in de OPS_Baselines-
+ * Verzamel de STEP-#id's van taken die onder een `.BASELINE.`-IfcWorkSchedule hangen
+ * OPS zelf hangt géén taken onder baseline-schema's (de datums leven in de OPS_Baselines-
  * JSON), maar externe tools kunnen dat wél doen; die taken zijn baseline-snapshots, geen live
  * taken, en mogen niet als echte taak worden ingeladen. Koppeling via IFCRELNESTS (RelatingObject
  * = het schema) of IFCRELASSIGNSTOCONTROL (control = het schema). PredefinedType `.BASELINE.` staat
@@ -2923,10 +2867,11 @@ function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
 }
 
 /**
- * Fase 2.6 — baselines teruglezen uit het autoritatieve `OPS_Baselines`-JSON (§8.3, spiegel van
+ * Baselines teruglezen uit het autoritatieve `OPS_Baselines`-JSON (spiegel van
  * `writeBaselineMeta`). De JSON bewaart per baseline-taak de INTERNE `taskId` van t.t.v. opslaan;
  * bij het inlezen zijn de taak-id's her-gegenereerd, dus we mappen elke `taskId` deterministisch
- * terug via `ifcGuid(taskId)` → de IFCTASK-GlobalId → de nieuwe id. Baseline-taken zonder match
+ * terug via de meegeschreven `TaskGuids`-map (oudere bestanden: `ifcGuid(taskId)`) → de
+ * IFCTASK-GlobalId → de nieuwe id. Baseline-taken zonder match
  * (taak sindsdien verwijderd) behouden hun oude id en tonen later als "vervallen" in de variance.
  */
 function extractBaselines(
@@ -2945,7 +2890,7 @@ function extractBaselines(
 
   let baselines: Baseline[] = [];
   let activeBaselineId: string | null = null;
-  /** Expliciete interne-taakId → GlobalId-map uit het bestand (B8); leeg bij oudere bestanden. */
+  /** Expliciete interne-taakId → GlobalId-map uit het bestand; leeg bij oudere bestanden. */
   let taskGuids: Record<string, string> | null = null;
 
   for (const e of entities) {
@@ -2964,9 +2909,9 @@ function extractBaselines(
       } else if (name === 'ActiveBaselineId') {
         activeBaselineId = raw;
       } else if (name === 'TaskGuids') {
-        // Bevinding B8: de writer schrijft sinds deze versie expliciet weg wélk GlobalId hij per
-        // baseline-taak gebruikte, zodat wij de hash niet meer hoeven na te rekenen. Ontbreekt de
-        // map (bestanden van vóór die wijziging), dan valt de remap hieronder terug op de oude weg.
+        // De writer schrijft expliciet weg wélk GlobalId hij per baseline-taak gebruikte, zodat wij
+        // de hash niet hoeven na te rekenen. Ontbreekt de map (oudere bestanden), dan valt de remap
+        // hieronder terug op het herberekenen van de hash.
         try {
           const parsed: unknown = JSON.parse(raw);
           if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
@@ -2981,8 +2926,8 @@ function extractBaselines(
   for (const b of baselines) {
     if (!Array.isArray(b.tasks)) { b.tasks = []; continue; }
     for (const bt of b.tasks as BaselineTask[]) {
-      // B8: gebruik het GlobalId dat de writer daadwerkelijk uitgaf. Alleen bij bestanden van
-      // vóór de `TaskGuids`-map vallen we terug op het herberekenen van de hash.
+      // Gebruik het GlobalId dat de writer daadwerkelijk uitgaf. Alleen bij oudere bestanden zonder
+      // `TaskGuids`-map vallen we terug op het herberekenen van de hash.
       const guid = taskGuids?.[bt.taskId] ?? ifcGuid(bt.taskId);
       const remapped = guidToTaskId.get(guid);
       if (remapped) bt.taskId = remapped;
@@ -2998,25 +2943,17 @@ function extractBaselines(
 }
 
 /**
- * Z14b (Z8-nataak, eigenaarsbesluit 2026-08-18) — `OPS_TimephasedDurationWalks` teruglezen (spiegel
- * van `ifcWriter.writeTimephasedDurationWalksMeta`): PER TAAK via `IFCRELDEFINESBYPROPERTIES` (niet
- * globaal zoals `extractBaselines` — dit is taak-eigen data, geen projectbrede lijst).
+ * `OPS_TimephasedDurationWalks` teruglezen (spiegel van
+ * `ifcWriter.writeTimephasedDurationWalksMeta`), PER TAAK via `IFCRELDEFINESBYPROPERTIES`.
  *
- * F1-FIXRONDE (spec-review op 526af9f9): de EERSTE versie vertaalde `resourceCalendarId` via de
- * kalenderNAAM. De reviewer bewees empirisch dat dat stille datacorruptie geeft — de app dwingt
- * kalendernaam-uniciteit NERGENS af, dus twee kalenders met dezelfde naam dedupliceerden op de
- * naam→id-Map en beide taken resolven na round-trip naar dezelfde, voor minstens één van de twee
- * VERKEERDE kalender, zonder waarschuwing. Fix: `resourceCalendarGuid` (de `IFCWORKCALENDAR.
- * GlobalId`, per-constructie uniek — `guidOf`'s eigen botsingsdetectie garandeert dat, zie
- * ifcWriter.ts) i.p.v. de naam, vertaald via `calendarIdByGuid` (`extractCalendarLibrary`'s nieuwe
- * `idByGuid`-uitvoer + de projectkalender-toevoeging in `readIFC` — vandaar dat deze functie NA
- * `extractCalendarLibrary` draait). Spiegelt zo `OPS_Baselines`' taskId-GUID-remap-precedent
- * exact, alleen voor kalenders i.p.v. taken.
+ * `resourceCalendarGuid` (de `IFCWORKCALENDAR.GlobalId`, uniek) wordt vertaald via
+ * `calendarIdByGuid` (`extractCalendarLibrary`'s `idByGuid` + de projectkalender uit `readIFC`),
+ * dus deze functie draait NA `extractCalendarLibrary`. Niet via de kalenderNAAM: die is niet uniek,
+ * en twee gelijknamige kalenders zouden stil naar dezelfde (verkeerde) kalender resolven.
  *
- * Een GUID die niet in `calendarIdByGuid` voorkomt (dangling: de kalender bestaat niet meer, of een
- * extern-geschreven bestand droeg een andere GUID-vorm) laat die ENE walk-entry VALLEN — spiegelt
- * het eigenaarsprincipe (liever geen afgeleide sturing dan een onbetrouwbare) i.p.v. een rauwe GUID
- * als kalender-id te laten doorsijpelen naar `resolveCalendar`.
+ * Een GUID die niet in `calendarIdByGuid` voorkomt (kalender weg, of een extern bestand) laat die
+ * ENE walk-entry VALLEN — liever geen afgeleide sturing dan een onbetrouwbare — i.p.v. een rauwe
+ * GUID als kalender-id door te laten naar `resolveCalendar`.
  */
 function extractTimephasedDurationWalksMeta(
   entities: StepEntity[],
@@ -3040,8 +2977,8 @@ function extractTimephasedDurationWalksMeta(
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { continue; }
     if (!Array.isArray(parsed)) continue;
-    // Z19 — `workMinutes` (apportionering bij >1 toewijzing) is OPTIONEEL: een oudere IFC (vóór
-    // Z19) of een PRECIES-1-toewijzing-walk draagt 'm niet, spiegelt `ifcWriter.ts`'s conditionele
+    // `workMinutes` (apportionering bij >1 toewijzing) is OPTIONEEL: een oudere IFC of een
+    // PRECIES-1-toewijzing-walk draagt 'm niet, spiegelt `ifcWriter.ts`'s conditionele
     // spread. `typeof ... === 'number'` (niet `!== undefined`) sluit ook een corrupt non-number-veld
     // uit i.p.v. het rauw door te laten.
     const isValidWalk = (w: unknown): w is { anchor: string; resourceCalendarGuid: string; workMinutes?: number } =>
@@ -3104,11 +3041,11 @@ function extractSchedulingProfile(
 }
 
 /**
- * Eigenaarsbesluit 2026-09-09 — is dit IFC door Open Planner Studio zelf geschreven? Twee
+ * Is dit IFC door Open Planner Studio zelf geschreven? Twee
  * onafhankelijke sporen, elk voldoende: de `IFCAPPLICATION` met ApplicationIdentifier `'OPS'` die
  * `ifcWriter.ts` sinds het begin schrijft, of om het even welk `OPS_`-pset. Een IFC uit een ander
  * pakket heeft geen van beide en is dus een verse import ('ifc'). Bewust GEEN heuristiek op de
- * FILE_NAME-header: die is vrij tekstveld en werd tot v2026.7.12 rauw met projectnaam/auteur gevuld.
+ * FILE_NAME-header: die is vrij tekstveld (en oudere versies vulden hem rauw met projectnaam/auteur).
  */
 function isOpsAuthoredIfc(entities: StepEntity[]): boolean {
   for (const e of entities) {
@@ -3119,7 +3056,7 @@ function isOpsAuthoredIfc(entities: StepEntity[]): boolean {
 }
 
 /**
- * Heropen-beleid optie B — `OPS_ImportProvenance.UnchangedSinceImport` (spiegel van
+ * Heropen-beleid — `OPS_ImportProvenance.UnchangedSinceImport` (spiegel van
  * `writeImportProvenanceMeta`). Afwezig of niet exact `.T.` ⇒ `false`: een heropening is pas
  * "ongewijzigd sinds import" als het bestand dat zelf zegt.
  */
@@ -3137,7 +3074,7 @@ function extractImportPristine(entities: StepEntity[], entityMap: Map<string, St
 }
 
 /**
- * Eigenaarsbesluit 2026-09-24 ("beperken") — `OPS_ImportProvenance.SourceFormat` (spiegel van
+ * `OPS_ImportProvenance.SourceFormat` (spiegel van
  * `writeImportProvenanceMeta`). Alleen een bekende waarde telt; iets anders ⇒ `undefined` (geen
  * bron ⇒ geen modus, nooit een gok).
  */
@@ -3160,10 +3097,10 @@ function extractRecordedSourceFormat(
 }
 
 /**
- * Fase 2.9 (§3.4/§6) — scheduling-options teruglezen uit het autoritatieve `OPS_SchedulingOptions`-
+ * Scheduling-options teruglezen uit het autoritatieve `OPS_SchedulingOptions`-
  * JSON op de `IfcWorkSchedule` (spiegel van `writeSchedulingOptionsMeta`, exact het extractBaselines-
  * patroon). Afwezig/corrupt ⇒ `undefined` (default-inert; alle solver-defaults blijven staan).
- * Het geparste object gaat door `sanitizeSchedulingOptions` (eindreview bevinding 4): onbekende
+ * Het geparste object gaat door `sanitizeSchedulingOptions`: onbekende
  * sleutels en verkeerd getypeerde waarden vallen weg in plaats van ongefilterd de solver in te gaan.
  */
 function extractSchedulingOptions(

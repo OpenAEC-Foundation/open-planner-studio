@@ -1,16 +1,11 @@
 /**
- * Getypeerde leesfout voor het IFC/STEP-pad (bevinding K4).
+ * Getypeerde leesfout voor het IFC/STEP-pad.
  *
- * `readIFC` bevatte NUL `throw`-statements en had dus geen validatiecontract: een lege string,
- * willekeurige tekst, een JSON-bestand én een halverwege afgekapte snapshot leverden alle vier
- * gewoon een `ImportResult` op — nul taken, project "Geïmporteerd Project", startdatum vandaag.
- * Bij een op 80 % afgekapt bestand kwamen zelfs alle 10 taken terug en 0 van de 9 relaties: een
- * compleet ogende planning zónder logicanetwerk, zonder crash en zonder melding.
- *
- * Daardoor vuurde de per-document `try/catch` in `useRecoveryRestore` nooit en werd zo'n snapshot
- * na het "herstellen" ook nog eens gewist. Elke aanroeper van `readIFC` moet deze fout dus kunnen
- * zien; hij is bewust een eigen klasse zodat een `catch` het onderscheid kan maken tussen "dit is
- * geen bruikbaar IFC-bestand" en een onverwachte programmeerfout.
+ * Zonder validatie leveren een lege string, willekeurige tekst of een afgekapt bestand stil een
+ * `ImportResult` op (nul taken, of wel taken maar geen relaties): een compleet ogende planning
+ * zonder melding, en de per-document `try/catch` in `useRecoveryRestore` vuurt dan nooit. Een
+ * eigen klasse laat een `catch` onderscheiden tussen "geen bruikbaar IFC-bestand" en een
+ * onverwachte programmeerfout.
  */
 export type IfcParseErrorReason =
   /** Geen STEP-uitwisselingsbestand: de verplichte `ISO-10303-21;`-kop ontbreekt. */
@@ -23,9 +18,8 @@ export type IfcParseErrorReason =
   | 'no-data-section'
   /** UITSLUITEND een aanroepercontractfout: een compact (schema-2) XER-bronarchief via de lage
    *  synchrone `readIFC`-ingang, die de lazy XER-reader bewust niet laadt. Een corrupt of door andere
-   *  software herschreven archief is sinds het eigenaarsbesluit van 2026-09-24 ("openen met
-   *  melding") GEEN leesfout meer: het project opent zonder archief en `ImportResult.xerArchiveIssue`
-   *  draagt de reden (zie `readXerArchiveOrIssue` in `ifcReader.ts`). */
+   *  software herschreven archief is GEEN leesfout: het project opent zonder archief en
+   *  `ImportResult.xerArchiveIssue` draagt de reden (zie `readXerArchiveOrIssue` in `ifcReader.ts`). */
   | 'xer-source-archive';
 
 export class IfcParseError extends Error {

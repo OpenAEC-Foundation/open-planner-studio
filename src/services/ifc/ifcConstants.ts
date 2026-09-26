@@ -3,18 +3,18 @@ import type { ResourceType } from '@/types/resource';
 import { invertRecord } from '@/utils/collections';
 
 /**
- * Gedeelde IFC-constanten (audit-thema "reader↔writer-consts"). Deze paren waren voorheen aan
- * beide kanten los gedefinieerd en konden stil divergeren. Hier is telkens één kant autoritair;
- * de andere richting leiden we programmatisch af (of houden we expliciet waar dat echt niet kan).
+ * Gedeelde IFC-constanten voor reader en writer, zodat ze niet stil kunnen divergeren. Telkens is
+ * één kant autoritair; de andere richting leiden we programmatisch af (of houden we expliciet waar
+ * dat echt niet kan).
  * Dit bestand importeert alleen uit `@/types` en de bladmodule `@/utils/collections` ⇒ geen
  * import-cyclus met reader/writer.
  */
 
-/** Fase 2.5-default voor `Task.priority` (0-1000, default 500). Reader leest 'm terug, writer
+/** Default voor `Task.priority` (0-1000, default 500). Reader leest 'm terug, writer
  *  schrijft alleen bij afwijking (golden-rule-guards). */
 export const DEFAULT_PRIORITY = 500;
 
-/** Synthetisch anker (tijd-van-de-dag) dat de DAG-schrijver op date-only datetimes plakt (§7.1).
+/** Synthetisch anker (tijd-van-de-dag) dat de DAG-schrijver op date-only datetimes plakt.
  *  De reader herkent een afwijkende tijd-van-de-dag als sub-dag-signaal (discriminator c). */
 export const IFC_TIME_ANCHOR = '07:00:00';
 
@@ -51,7 +51,7 @@ export const RESOURCE_TYPE_TO_IFC: Record<ResourceType, string> = {
 
 /** Inverse van `RESOURCE_TYPE_TO_IFC` voor de reader (IFC-entiteitnaam → resource-type),
  *  programmatisch afgeleid. Asymmetrie: `IFCCONSTRUCTIONPRODUCTRESOURCE` is een inkomende-alleen
- *  alias (herbruikbaar bekisting e.d., domeinrapport §8.A) — OPS schrijft die entiteit nooit
+ *  alias (herbruikbaar bekisting e.d.) — OPS schrijft die entiteit nooit
  *  zelf, maar accepteert 'm als `EQUIPMENT`. */
 export const IFC_TO_RESOURCE_TYPE: Partial<Record<string, ResourceType>> = Object.assign(
   invertRecord(RESOURCE_TYPE_TO_IFC),
