@@ -97,6 +97,11 @@ export function normalizeImportedProgress(tasks: Task[], statusDate?: string): v
 export function rebuildWbsHierarchy(tasks: Task[]): void {
   const wbsToId = new Map<string, string>();
   for (const task of tasks) wbsToId.set(task.wbsCode, task.id);
+  // Eerste taak per id (= `tasks.find`) en per ouder een set van zijn kinderen, zodat een platte WBS
+  // van duizenden taken niet O(n²) wordt; volgorde en "nooit dubbel" blijven als voorheen.
+  const byId = new Map<string, Task>();
+  for (const task of tasks) if (!byId.has(task.id)) byId.set(task.id, task);
+  const childSets = new Map<Task, Set<string>>();
 
   for (const task of tasks) {
     if (!task.wbsCode || !task.wbsCode.includes('.')) continue;
@@ -106,9 +111,13 @@ export function rebuildWbsHierarchy(tasks: Task[]): void {
     const parentId = wbsToId.get(parentWbs);
     if (parentId) {
       task.parentId = parentId;
-      const parent = tasks.find(t => t.id === parentId);
-      if (parent && !parent.childIds.includes(task.id)) {
+      const parent = byId.get(parentId);
+      if (!parent) continue;
+      let children = childSets.get(parent);
+      if (!children) { children = new Set(parent.childIds); childSets.set(parent, children); }
+      if (!children.has(task.id)) {
         parent.childIds.push(task.id);
+        children.add(task.id);
       }
     }
   }

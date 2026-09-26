@@ -899,8 +899,10 @@ function parseSTEP(content: string): StepEntity[] {
 
 /** Split IFC arguments respecting nested parentheses and quotes */
 function splitArgs(argsStr: string): string[] {
+  // Elk argument is een aaneengesloten deel van `argsStr` (tekens worden nooit omgezet, ook `''` niet),
+  // dus snijden i.p.v. teken voor teken een string opbouwen.
   const args: string[] = [];
-  let current = '';
+  let segStart = 0;
   let depth = 0;
   let inString = false;
 
@@ -908,31 +910,22 @@ function splitArgs(argsStr: string): string[] {
     const ch = argsStr[i];
     if (ch === "'" && !inString) {
       inString = true;
-      current += ch;
     } else if (ch === "'" && inString) {
-      if (i + 1 < argsStr.length && argsStr[i + 1] === "'") {
-        current += "''";
-        i++;
-      } else {
-        inString = false;
-        current += ch;
-      }
+      if (i + 1 < argsStr.length && argsStr[i + 1] === "'") i++;
+      else inString = false;
     } else if (inString) {
-      current += ch;
+      // teken binnen een string
     } else if (ch === '(') {
       depth++;
-      current += ch;
     } else if (ch === ')') {
       depth--;
-      current += ch;
     } else if (ch === ',' && depth === 0) {
-      args.push(current.trim());
-      current = '';
-    } else {
-      current += ch;
+      args.push(argsStr.slice(segStart, i).trim());
+      segStart = i + 1;
     }
   }
-  if (current.trim()) args.push(current.trim());
+  const tail = argsStr.slice(segStart).trim();
+  if (tail) args.push(tail);
   return args;
 }
 
@@ -2074,6 +2067,30 @@ function parseIntList(s: string): number[] {
 }
 
 /**
+ * `IFCRELDEFINESBYPROPERTIES` per doel-STEP-id, in bestandsvolgorde; één keer per entiteitenlijst
+ * opgebouwd. De kalender-psetlezers liepen per kalender (en per lezer, zes keer) álle entiteiten door
+ * en parseerden daarbij elke relatie opnieuw: O(kalenders × entiteiten × 6) — met 13 kalenders op een
+ * project van 8000 taken een derde van de leestijd. Een relatie die hetzelfde doel twee keer noemt,
+ * staat er één keer in (zoals de oude `includes`-toets).
+ */
+const relDefinesIndex = new WeakMap<StepEntity[], Map<string, StepEntity[]>>();
+function relDefinesByTarget(entities: StepEntity[]): Map<string, StepEntity[]> {
+  let index = relDefinesIndex.get(entities);
+  if (index) return index;
+  index = new Map();
+  for (const rel of entities) {
+    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+    for (const target of new Set(parseRefs(rel.args[4] || ''))) {
+      let list = index.get(target);
+      if (!list) { list = []; index.set(target, list); }
+      list.push(rel);
+    }
+  }
+  relDefinesIndex.set(entities, index);
+  return index;
+}
+
+/**
  * De `IFCPROPERTYSINGLEVALUE`s van elk `OPS_Calendar`-pset dat de kalender met STEP-id `calStepId`
  * target (`IFCRELDEFINESBYPROPERTIES` → `IFCPROPERTYSET`), één lijst per pset in bestandsvolgorde.
  * Gedeeld door de kalender-psetlezers hieronder; elk leest zijn eigen property's en houdt zijn eigen
@@ -2084,9 +2101,7 @@ function* opsCalendarPsetProps(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): Generator<StepEntity[]> {
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    if (!parseRefs(rel.args[4] || '').includes(calStepId)) continue;
+  for (const rel of relDefinesByTarget(entities).get(calStepId) ?? []) {
     const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
     if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
     yield parseRefs(pset.args[4] || '')
