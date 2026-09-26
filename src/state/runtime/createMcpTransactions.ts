@@ -346,7 +346,7 @@ function createMcpDraft(
       if (s.project.wbsAutoNumber) applyWbsNumbering(s.tasks);
       for (const lostId of applyPhaseTransitions(s, plan.transitions)) recordTimephasedLoss(lostId);
       reports = describePhaseTransitions(s, plan.transitions);
-      s.isDirty = true;
+      markDocumentEdited(s);
     });
     return reports;
   },
@@ -1079,7 +1079,7 @@ export function createMcpTransactions(context: AppStoreContext): McpTransactions
       runtime.resetUndoCoalescing();
       store.setState((state) => {
         runtime.recordDocumentDataHistory(state, snapshot, documentId, 'MCP-bewerking');
-        state.isDirty = true;
+        markDocumentEdited(state);
       });
       const lostCount = runtime.countMcpTimephasedLoss(lease);
       if (lostCount > 0) {
