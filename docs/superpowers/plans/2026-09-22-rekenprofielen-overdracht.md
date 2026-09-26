@@ -20,6 +20,20 @@ afwijkingen hebben met XER".)
 (eigenaarsbesluit 23-09; was 15.056 over 34 bestanden), grootte-ratchet actief met 14 schuldcellen,
 `npm run verify` groen op `9eed2903`. Volgende brok (6) loopt: schuldcellen + C5-late-kant + restant.
 
+**EINDSTAND 2026-09-26 ~16:10 — alles staat op `main`, nul open PR's.** Mergeketen (elk `--admin` na groene PR-CI én
+lokale `verify` zonder corpus + `measure:profiles` mét corpus op precies die kop): etappestapel #109 (1d8f2df6) → #167
+(e9631cfe) → #169 (6160b477) → #229 (7ab930f3) → #170 (90271f55); groep A #226 (ac945cd6, 13 PR's); groep B #233 (531940ac,
+17 PR's); groep C #235 (a84b42df, 25 PR's); #237 herbouw van #232 (da8a9e68, eigenaarsbesluit "optie 2"); groep D #238
+(4af2d547, #236). In totaal 62 PR's in main gebracht; alle sub-PR's gesloten met verwijzing, branches blijven staan. Op de
+eindkop 4af2d547: verify EXIT 0 (348 browsertests), X12 **76** zesassig (18 P6-doorgerekende projecten, 42 taken uitgesloten
+onder eigenaarsbesluiten, 0 nieuw/verslechterd/groter, schuld 0), .mpp-fidelity 216/0/0. Het nuldoel is niet gehaald: de 76
+restcellen vragen nieuw P6-bewijs (drie kleine P6-runs, zie `2026-09-24-x12-sample-sf-lag0.md` en het restant-onderzoek);
+regel A (geen exacte cel wordt inexact) is de hele keten door gehouden. Geen release/tag. Eigenaar doet nu de visuele check
+op `main`; omkeerbare orkestratorkeuzes staan in §1c (o.a. relatielijnen als layout-instelling #189↔#144 = vraag 19,
+voortgangsblad-regel 2 als weigering i.p.v. dialoog, de zes groep-B-overlapbesluiten, de groep-C-combinaties "wordt fase" ×
+verhangproef en kringtoets vóór `draft.moveTask`). Agent-worktrees onder `.claude/worktrees/agent-*` kunnen weg
+(`git worktree remove`), de branches zijn gepusht.
+
 ## 1. Besluiten van de eigenaar, 2026-09-22 — letterlijk
 
 ### 1a. Over PR #109 / X12 (ochtend, per vraag uit de PR-tekst)
@@ -292,6 +306,12 @@ vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
   `captureProgressWork`/`settleProgressWork` erbinnen ná de no-op-check; (6) `taskEditPlan`: groep B's
   functies houden, #170's aanroepen erin, ook voor #202's Einde-pad via `finishDurationEdit`. Geen van deze
   zes is een visiebotsing; het zijn plek-keuzes.
+
+- **26-09, #237 (herbouw #232), voortgangsblad:** regel 1 (statusdatum vandaag) zoals in de UI; regel 2 (werkelijke start
+  vóór de statusdatum nodig) als **weigering per rij** met reden `actualStartRequired` in plaats van een vraagdialoog halverwege
+  een blad. Omkeerbaar: een dialoog per rij is een vervolg-PR.
+- **26-09, groep C, focus:** het raster pakt de uitgestelde celfocus niet meer terug als de gebruiker intussen elders klikte
+  (`focusBelongsOutside`, fix voor een echte race uit de samenvoeging #200/#228 × #210).
 
 ### 1d. Open vragen voor de eigenaar (ontstaan tijdens het autonome werk; niet zelf beslist)
 
