@@ -29,7 +29,11 @@ let xml = '';
 try { xml = writeP6XML(project, calendar, [task], [], [], []); } finally { console.warn = originalWarn; }
 const roundTripped = readP6XML(xml).tasks.find(candidate => candidate.name === task.name);
 expect('1 P6XML schrijft reguliere planningdata', xml.includes('<Activity>') && roundTripped !== undefined);
-expect('2 P6XML claimt geen XER/P6-veldpariteit', roundTripped?.p6DurationType === undefined
+// Taaktypes-etappe (2026-09-05, bouwstap 2): <DurationType> is sindsdien de ENE uitzondering op de
+// asymmetrie — de writer schrijft het label uit de werkregel of het bewaarde token, de lezer leest
+// het terug (spec §4.4). De overige P6-velden blijven éénrichting.
+expect('2 P6XML claimt geen XER/P6-veldpariteit (behalve DurationType, taaktypes-etappe)',
+  roundTripped?.p6DurationType === 'DT_FixedRate'
   && roundTripped?.p6ActivityType === undefined
   && roundTripped?.p6ProjectId === undefined
   && roundTripped?.p6TaskId === undefined);
@@ -44,8 +48,11 @@ expect('3 de asymmetrie is als TODO in de writer vastgelegd',
 // writer-uitvoer (dezelfde truc als de rest van dit bestand voor "een echt P6-bestand zou dit
 // dragen") om de vier canonieke PMXML-labels en de gerapporteerde terugval te bewijzen.
 function withDurationType(baseXml: string, label: string | null): string {
-  if (label === null) return baseXml;
-  return baseXml.replace(/(<Activity>[\s\S]*?<Type>[^<]*<\/Type>)/, `$1<DurationType>${label}</DurationType>`);
+  // Sinds bouwstap 2 van de taaktypes-etappe schrijft de writer het element zelf; strip het eerst,
+  // zodat elke case hieronder precies één (of géén) <DurationType> ziet.
+  const stripped = baseXml.replace(/\s*<DurationType>[^<]*<\/DurationType>/, '');
+  if (label === null) return stripped;
+  return stripped.replace(/(<Activity>[\s\S]*?<Type>[^<]*<\/Type>)/, `$1<DurationType>${label}</DurationType>`);
 }
 function readDurationType(label: string | null): { value: string | undefined; warnings: string[] } {
   const warned: string[] = [];
@@ -60,9 +67,12 @@ function readDurationType(label: string | null): { value: string | undefined; wa
   return { value, warnings: warned };
 }
 
+// Taaktypes-etappe (2026-09-05): paren volgens Oracle's XER Import/Export Data Map Guide
+// (TASK.duration_type): DT_FixedDrtn = "Fixed Duration and Units/Time", DT_FixedDUR2 = "Fixed
+// Duration and Units". De vorige versie van deze tabel had de twee Fixed-Duration-labels verwisseld.
 const knownDurationTypeLabels: Readonly<Record<string, string>> = {
-  'Fixed Duration and Units': 'DT_FixedDrtn',
-  'Fixed Duration and Units/Time': 'DT_FixedDUR2',
+  'Fixed Duration and Units': 'DT_FixedDUR2',
+  'Fixed Duration and Units/Time': 'DT_FixedDrtn',
   'Fixed Units/Time': 'DT_FixedRate',
   'Fixed Units': 'DT_FixedQty',
 };

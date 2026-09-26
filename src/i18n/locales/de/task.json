@@ -96,7 +96,7 @@
       "manuallyScheduled": "Manuell geplant",
       "milestone": "Meilenstein",
       "milestoneKind": "Meilensteintyp",
-      "mspTaskType": "Microsoft-Project-Aufgabentyp",
+      "mspTaskType": "MS-Project-Vorgangsart (Import)",
       "name": "Aufgabenname",
       "nearCritical": "Nahezu kritisch",
       "noteData": "Notizdaten",
@@ -123,7 +123,11 @@
       "totalFloat": "Gesamtpuffer",
       "wbs": "Projektstrukturplan (PSP)",
       "workWindowFinish": "Ende des Arbeitsfensters",
-      "workWindowStart": "Anfang des Arbeitsfensters"
+      "workWindowStart": "Anfang des Arbeitsfensters",
+      "workRule": "Arbeitsregel",
+      "assignmentPlannedWork": "Geplante Arbeit (Stunden)",
+      "assignmentActualWork": "Ist-Arbeit (Stunden)",
+      "assignmentRemainingWork": "Verbleibende Arbeit (Stunden)"
     },
     "category": {
       "task": "Aufgabe",
@@ -189,6 +193,7 @@
       "assignmentDuplicateId": "Diese Zuweisung kommt mehrfach vor.",
       "assignmentIdentity": "Diese Zuweisung gehört zu einer anderen Ressource.",
       "assignmentUnits": "Geben Sie Einheiten pro Tag als Zahl größer als 0 ein.",
+      "assignmentWork": "Geben Sie die Restarbeit in Stunden als Zahl größer als 0 ein (Name: Stunden; …).",
       "assignmentCurve": "Wählen Sie eine bekannte Belastungskurve.",
       "assignmentTaskNotFound": "Der Vorgang dieser Zuweisung existiert nicht mehr.",
       "assignmentTaskUnavailable": "Zuweisungen können bei diesem Vorgang nicht bearbeitet werden.",
@@ -335,6 +340,22 @@
     "durationTotalHours": "Stunden gesamt",
     "hourCalendarHint": "Die Stundeneingabe erfordert einen Stundenkalender (Arbeitszeiten)."
   },
+  "workRule": {
+    "FIXED_DURATION_RATE": "Feste Dauer und Einheiten",
+    "FIXED_DURATION_WORK": "Feste Dauer und Arbeit",
+    "FIXED_WORK": "Feste Arbeit",
+    "FIXED_RATE": "Feste Einheiten",
+    "label": "Arbeitsregel",
+    "projectDefault": "Projektstandard ({{rule}})",
+    "protects": "Geschützt: {{what}}",
+    "protectsFIXED_DURATION_RATE": "Dauer und Einheiten (Arbeit folgt)",
+    "protectsFIXED_DURATION_WORK": "Dauer und Arbeit (Einheiten folgen)",
+    "protectsFIXED_WORK": "Arbeit (Dauer folgt den Einheiten)",
+    "protectsFIXED_RATE": "Einheiten (Dauer folgt der Arbeit)",
+    "mspEffortDriven": "Aus MS Project: leistungsgesteuert",
+    "mspNotEffortDriven": "Aus MS Project: nicht leistungsgesteuert",
+    "none": "Projektstandard"
+  },
   "properties": {
     "task": "Aufgabe",
     "deleteTask": "Aufgabe löschen",
@@ -428,7 +449,12 @@
       "contour": "Stundenverteilung…",
       "contoured": "Kontur",
       "contouredHint": "Diese Zuweisung hat eine eigene Stundenverteilung; bearbeiten oder aufheben über die Schaltfläche Stundenverteilung.",
-      "importedCurve": "Importierte Kurve"
+      "importedCurve": "Importierte Kurve",
+      "work": "Arbeit (Rest)",
+      "workHint": "Restarbeit in Stunden; die Arbeitsregel bestimmt, ob Dauer oder Einheiten sich bewegen.",
+      "workDeviates": "Weicht von Einheiten × Dauer ab",
+      "workDeviatesHint": "Gespeicherte Arbeit {{stored}} h weicht von Einheiten × Restdauer ({{derived}} h) ab. Das Histogramm folgt der gespeicherten Arbeit über die gesamte Vorgangsdauer; die Einheiten bleiben wie in der Datei.",
+      "locked": "Durch die Arbeitsregel {{rule}} geschützt"
     },
     "notes": {
       "title": "Notizen",

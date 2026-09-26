@@ -26,8 +26,10 @@
  * `ExtProject.schedulingProfile`, het opgeloste rekenprofiel, alleen-lezen) + `getImportSourceIssue()`
  * (#109: het signaal voor een weggevallen XER-bronarchief). Beide toevoegingen landen onder dezelfde
  * minor; een extensie die op één van beide rekent declareert `"apiVersion": "1.2"`.
+ * 1.3.0 — taaktypes (#170): `ExtTask.workRule`, `ExtProject.defaultWorkRule` en de drie optionele
+ * werkvelden op de toewijzing (`plannedWorkMinutes`/`actualWorkMinutes`/`remainingWorkMinutes`).
  */
-export const EXTENSION_API_VERSION = '1.2.0';
+export const EXTENSION_API_VERSION = '1.3.0';
 
 export interface ApiCompatibility {
   ok: boolean;

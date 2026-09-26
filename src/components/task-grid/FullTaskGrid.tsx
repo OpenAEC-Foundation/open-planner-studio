@@ -239,6 +239,9 @@ export function TaskGridSurface({
   const calendar = useAppStore(state => state.calendar);
   const calendars = useAppStore(state => state.calendars);
   const scheduleStale = useAppStore(state => state.scheduleStale);
+  // Taaktypes-etappe (spec §7): werkregel-kolommen alleen wanneer ontsloten.
+  const showTaskTypes = useAppStore(state => state.ui.showTaskTypes);
+  const taskTypesVisible = useAppStore(state => state.taskTypesVisible);
   const cpmResult = useAppStore(state => state.cpmResult);
   const recordedDates = useAppStore(state => state.recordedDates);
   const datesAsRecorded = useAppStore(state => state.datesAsRecorded);
@@ -351,6 +354,7 @@ export function TaskGridSurface({
     // `recordedGridBinding` (gedeeld met `gridTransaction.ts`, headless getest): de "niet
     // vastgelegd"-tak hangt aan `datesAsRecorded`, niet aan het loutere bestaan van een aanbod.
     ...recordedGridBinding(recordedDates, datesAsRecorded),
+    taskTypesUnlocked: showTaskTypes || taskTypesVisible,
     labelForColumn: labelKey => resolveColumnLabel(
       labelKey,
       key => tTask(key, { defaultValue: key }),
@@ -367,8 +371,8 @@ export function TaskGridSurface({
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
     cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, project.id,
-    project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, tCommon, tTask, tasks,
-    textDirection,
+    project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, showTaskTypes,
+    taskTypesVisible, tCommon, tTask, tasks, textDirection,
   ]);
   const adapter = useMemo(() => createTaskGridAdapter({
     surfaceId,

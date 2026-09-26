@@ -24,6 +24,10 @@ import { syncProjectCalendar, promoteProjectCalendarToLibrary } from '../syncPro
 import { freshPayload, hydratePayload } from '../documentContract';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { clearTimephasedLossNoticeForDoc } from '../timephasedLossNotice';
+import { clearTaskTypesNoticeForDoc, notifyWorkRuleDurationsChanged } from '../taskTypesNotice';
+import { captureCalendarChange, settleCalendarChange } from '@/engine/work/workRuleApply';
+import { tasksFollowingProjectCalendar } from '../calendarTasks';
+import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { deriveHoursPerDay } from '@/services/subdayIo';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -99,6 +103,8 @@ export interface ProjectSlice {
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
+  /** Taaktypes-etappe (spec §7): werkregel-UI ontsloten voor dit document; zie DOCUMENT_FIELDS. */
+  taskTypesVisible: boolean;
   /** Zie `DocumentPayload.importPristine` (heropen-beleid optie B). */
   importPristine: boolean;
   /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
@@ -193,6 +199,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   xerImportMetadata: null,
   xerSourceArchive: null,
   xerSourceProjectId: null,
+  taskTypesVisible: false,
   importPristine: false,
   xerArchiveIssue: null,
 
@@ -275,15 +282,29 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.finishMutation(s, { stale: true }); // projectkalender-wijziging (A6): planning verouderd tot F5.
     }),
 
-  setProjectCalendar: (id) =>
+  setProjectCalendar: (id) => {
+    let changed = 0;
+    let lost = 0;
     set((s) => {
       if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
       if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
       runtime.beginUndoable(s);
+      // K2 (eigenaarsbesluit 2026-09-05): alle taken die de projectkalender VOLGEN (geen eigen
+      // kalender, of een bungelende verwijzing — reviewbevinding F9) gaan mee; momentopnamen vóór
+      // de wissel, daarna beslist de werkregel per taak.
+      const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, s.assignments, s) }));
       s.project.calendarId = id;
+      syncProjectCalendar(s); // §9.1: cache gelijkzetten (vóór de settle: die leest `s.calendar`).
+      for (const { task, before } of affected) {
+        const settled = settleCalendarChange(task, s.assignments, before, s);
+        if (settled.durationChanged) changed++;
+        if (settled.timephasedLost) lost++; // reviewronde G4
+      }
       runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend (§5.4).
-      syncProjectCalendar(s); // §9.1: cache gelijkzetten.
-    }),
+    });
+    if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
+    if (lost > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lost);
+  },
 
   ensureProjectCalendarInLibrary: () =>
     set((s) => {
@@ -481,6 +502,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // `clearTimephasedLossNoticeForDoc` voor de volledige toelichting (incl. waarom dit NIET ook
       // vanuit `newDocument()`/een echte bestandsopen hoort te gebeuren).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
+      clearTaskTypesNoticeForDoc(s.activeDocumentId); // taaktypes-etappe, review K1
     });
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },
@@ -554,6 +576,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       // "al gemeld"-registratie van het vorige (lege) tabblad-verleden. Onvoorwaardelijk zetten is
       // een no-op op het niet-pristine pad (newDocument() gaf daar al een vers, ongeregistreerd docId).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
+      clearTaskTypesNoticeForDoc(s.activeDocumentId); // taaktypes-etappe, review K1
     });
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },

@@ -136,7 +136,7 @@ import type { Resource, ResourceType } from '@/types/resource';
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { generateId } from '@/utils/id';
 import { formatDate, formatInstant, isoDayOfWeek, parseInstant } from '@/utils/dateUtils';
-import { normalizeImportedProgress } from '@/services/importNormalize';
+import { normalizeImportedProgress, deriveImportedWorkRules } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { mspCodeToConstraint } from '@/services/msproject/mspdiReader';
@@ -1401,6 +1401,7 @@ export function readTasks(ctx: ReadTasksContext): ReadTasksResult {
   const startAnchor = resolveMissingScheduleDates(tasks, missingDates, ctx.projectStart ?? '',
     (task) => taskCalendar(task, calResult));
   normalizeImportedProgress(tasks, statusDate);
+  deriveImportedWorkRules(tasks); // taaktypes-etappe: werkregel uit mspTaskType/effortDriven
   return {
     tasks, taskIdByUniqueId, taskHourById, startAnchor, recordedTimes,
     rawScans: raws, // Z2 — zie ReadTasksResult se toelichting; readMPP hieronder geeft dit NIET door

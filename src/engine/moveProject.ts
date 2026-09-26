@@ -108,6 +108,7 @@ const TASK_VERDICTS = {
                                     // geen datum erin — zelfde taxonomie als splitGaps hierboven
   mspTaskType: 'n/a',              // Z14b: MSP-eigen enum, geen datum
   effortDriven: 'n/a',             // Z14b: vlag, geen datum
+  workRule: 'n/a',                 // taaktypes-etappe: regel, geen datum
   p6DurationType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
   p6ActivityType: 'n/a',           // X0 (XER-etappeplan): P6-eigen enum, geen datum
   p6ProjectId: 'n/a', p6TaskId: 'n/a', p6ExplicitTargetWindow: 'n/a', p6CompletePctType: 'n/a',
@@ -153,6 +154,7 @@ const PROJECT_VERDICTS = {
   statusDate: 'shift',            // P6 data date (R5)
   progressMode: 'n/a', schedulingOptions: 'n/a', schedulingProfile: 'n/a',
   defaultTaskDurationUnit: 'n/a',
+  defaultWorkRule: 'n/a',          // taaktypes-etappe: projectstandaard-regel, geen datum
   companyId: 'n/a', companyName: 'n/a',  // B1: statische bibliotheekbinding, geen planningsdatum
 } satisfies Record<keyof Project, MoveVerdict>;
 

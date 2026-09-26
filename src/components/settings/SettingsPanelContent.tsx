@@ -4,10 +4,11 @@ import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { Locale, LANGUAGE_LABELS, supportedLanguages, setLocale } from '@/i18n/config';
 import { UITheme, ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES } from '@/state/slices/types';
-import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
+import { saveLocale, saveTheme, saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveAutoCalcCPM, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveEnableHourPlanning, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart } from '@/utils/settingsStore';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
+import { Info } from 'lucide-react';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
@@ -68,6 +69,7 @@ export function SettingsPanelContent() {
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+  const showTaskTypes = useAppStore(s => s.ui.showTaskTypes);
   const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
@@ -142,6 +144,11 @@ export function SettingsPanelContent() {
   const applyEnableHourPlanning = (value: boolean) => {
     setUI({ enableHourPlanning: value });
     void saveEnableHourPlanning(value);
+  };
+  // Taaktypes-etappe (spec §7): "Toon taaktypes" — zichtbaarheid van werkregel en resterend werk.
+  const applyShowTaskTypes = (value: boolean) => {
+    setUI({ showTaskTypes: value });
+    void saveShowTaskTypes(value);
   };
 
   const applyAllowMixedDayHour = (value: boolean) => {
@@ -454,6 +461,22 @@ export function SettingsPanelContent() {
                 <span>{t('settings.autoCalcCPM')}</span>
               </label>
               <p className="scrollzoom-hint">{t('settings.autoCalcCPMHint')}</p>
+              {/* #101 + gebruikstest #170 (G6/E5): werkregels en werk tonen — onder Berekenen (het
+                  werkt ook op dagtaken, niet alleen bij urenplanning), zonder eigen sectiekop; de
+                  toelichting is één zin in een gekleurd blok i.p.v. een los formulebijschrift. */}
+              <label className="settings-checkbox-row" style={{ marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={showTaskTypes}
+                  onChange={e => applyShowTaskTypes(e.target.checked)}
+                  data-ops-setting-show-task-types
+                />
+                <span>{t('settings.showTaskTypes')}</span>
+              </label>
+              <div className="ops-note" data-ops-setting-show-task-types-note>
+                <Info size={12} aria-hidden />
+                <span>{t('settings.showTaskTypesHint')}</span>
+              </div>
             </div>
           </div>
         )}

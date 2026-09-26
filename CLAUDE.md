@@ -88,6 +88,9 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
   `src/engine/scheduler/conventions/registry.ts`; de solver krijgt alleen `EffectiveSchedulingOptions` via
   `solveOptionsFor`/`solveInputFor`. Nooit een `if` op het bronformaat in de motor (`verify:conventions`);
   motorwerk landt alleen als geen exacte cel inexact wordt (`measure:profiles`). Diepgang: `rekenprofielen`-rule.
+- **Werkregels (taaktypes).** Een wijziging aan duur, inzet, werk of kalender van een taak loopt via de
+  werkregelbrug (`src/engine/work/workRuleApply.ts`: `captureTriangle` → mutatie → `settle…`), nooit
+  eromheen. Diepgang: `taaktypes`-rule.
 - **Gantt-tijdlijn = Canvas 2D** (`src/engine/renderer/`), het taakraster = DOM (`FullTaskGrid`).
   Geometrie: rij↔y `GanttRenderer.getRowAtY/getTaskAtY`, datum↔x `dateToX` in `timeAxis.ts` (werkdagen-as:
   `workdayAxis.ts`); interactie in `src/components/canvas/hooks/`.
@@ -126,7 +129,7 @@ GitHub Releases-API; de workflow publiceert de JSON wekelijks naar de `stats`-da
 
 ## Waar de diepgang staat
 
-`.claude/rules/` (laadt per pad): `state`, `tauri-ifc`, `mpp`, `xer`, `rekenprofielen`, `contour`, `gantt-splits`, `reports`, `ui-shell`,
+`.claude/rules/` (laadt per pad): `state`, `tauri-ifc`, `mpp`, `xer`, `rekenprofielen`, `contour`, `taaktypes`, `gantt-splits`, `reports`, `ui-shell`,
 `text-roles`, `i18n`, `settings-autosave`, `extensions`, `mcp`, `library`, `docs-help`, `tests`, `dev-server`,
 `ci-release`, `docs-index`.
 

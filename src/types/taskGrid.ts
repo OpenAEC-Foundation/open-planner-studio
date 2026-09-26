@@ -99,6 +99,9 @@ export interface TaskAssignmentToken {
   assignmentId?: string;
   unitsPerDay: number;
   curve?: ResourceCurve;
+  /** Taaktypes-etappe (spec §7): resterend werk in werkminuten — alleen de kolom
+   *  `assignment.remainingWork` zet 'm; `gridTransaction.ts` voert hem via de werkdriehoek uit. */
+  remainingWorkMinutes?: number;
 }
 
 /** Eén al geparseerde domeinwrite. Paste groepeert deze writes, maar mag zichzelf niet nesten. */
@@ -148,6 +151,9 @@ export interface TaskColumnContext {
    *  terugval (die als VELDWAARDE blijft staan, zie `recordedDates.ts` §3.4) als een echt getal te
    *  presenteren. Zelfde aanwezigheid als `recordedMark` (beide `undefined` zonder vastlegging). */
   recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
+  /** Taaktypes-etappe (spec §7): de werkregel-kolommen bestaan alleen wanneer de weergave
+   *  ontsloten is (instelling of documentontsluiting, `taskTypesUnlocked`). */
+  taskTypesUnlocked?: boolean;
 }
 
 export interface TaskColumnDescriptor {

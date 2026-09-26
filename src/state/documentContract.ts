@@ -1,3 +1,4 @@
+import { hasTaskTypeData } from '@/state/taskTypesVisibility';
 import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
@@ -88,6 +89,10 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
+  /** Taaktypes-etappe (spec §7): de werkregel-UI is voor dit document ontsloten omdat het al
+   *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
+   *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
+  taskTypesVisible: boolean;
   /** "Ongewijzigd sinds import" (heropen-beleid optie B, eigenaarsbesluit 2026-09-09). `true`
    *  vanaf een verse import tot de eerste bewerking (`markDocumentEdited`); opslaan wist hem niet.
    *  Round-tript via `OPS_ImportProvenance` (alleen als `true`), zodat een heropend eigen IFC
@@ -262,6 +267,8 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
+  // Taaktypes-etappe (spec §7): sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
+  field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
   field({ key: 'xerArchiveIssue', get: (s) => s.xerArchiveIssue, set: (s, v) => { s.xerArchiveIssue = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerArchiveIssue ?? null }),
 ];
@@ -445,6 +452,8 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
+    // Taaktypes-etappe (spec §7): het geladen bestand ontsluit de werkregel-UI voor zichzelf.
+    taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
     // Heropen-beleid optie B: een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is
     // per definitie ongewijzigd; een HEROPENING (eigen IFC: 'ifc-own'/'xer-archive') draagt de
     // vlag alleen als het bestand haar zelf zegt (`OPS_ImportProvenance`), anders `false`. Zonder

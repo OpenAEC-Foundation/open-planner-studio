@@ -237,6 +237,7 @@ export type NotificationMessageKey =
   | 'notifications.xerExportLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
+  | 'notifications.taskEditRevertBlocked'
   | 'notifications.mppTimephasedSteeringLost'
   | 'notifications.pasteSkippedReadOnly'
   // B1c-plan-2 taak 1 (M10, eigenaarsbesluit 2026-08-31): nivelleren/wissen overschrijft de
@@ -247,6 +248,14 @@ export type NotificationMessageKey =
   // merknaam) en — voor baan D — de telling "N taken verschoven" na een profielwissel (`count`).
   | 'notifications.schedulingProfileApplied'
   | 'notifications.schedulingProfileShifted'
+  // Taaktypes-etappe (spec §7): het geladen bestand draagt taaktypedata terwijl "Toon taaktypes"
+  // uit staat — de werkregel-UI is voor dit document ontsloten; zie `src/state/taskTypesNotice.ts`.
+  | 'notifications.taskTypesUnlocked'
+  | 'notifications.taskTypesUnlockedDetail'
+  | 'notifications.workRulesReadMore'
+  // Eigenaarsbesluit 2026-09-05 (K2): een kalenderwissel loopt door de werkregel; wanneer dat de
+  // duur van taken verandert (Vast werk/Vaste inzet), meldt de app hoeveel — zie `taskTypesNotice.ts`.
+  | 'notifications.workRuleDurationsChanged'
   // Issue #146: onderbroken taken zonder urenverdeling verliezen hun onderbrekingen bij een
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
   | 'notifications.exportSplitsLost'
@@ -280,6 +289,12 @@ export interface NotificationAction {
 export interface NotificationDetailLine {
   messageKey: NotificationMessageKey;
   params?: Record<string, string | number>;
+  /** Optioneel een EIGEN gidslink voor deze regel (gebruikstest #170, G3): de melding zelf linkt
+   *  naar het artikel van het bestand/profiel; een samengevoegde regel over een ander onderwerp
+   *  (werkregels) krijgt zo een eigen, aanklikbare link in plaats van een gidsnaam in de tekst.
+   *  Label = `linkKey` (standaard `notifications.readMore`). */
+  helpArticleId?: string;
+  linkKey?: NotificationMessageKey;
 }
 
 export interface AppNotification {
@@ -438,6 +453,10 @@ export interface UIState {
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums (taak #53); opslag blijft ISO
   // --- Fase 2.8b: urenplanning-instellingen (§6.8); ontbrekende sleutel ⇒ default (geen reset) ---
   enableHourPlanning: boolean;               // persisted — hoofdschakelaar Urenplanning (default UIT)
+  /** persisted (`ops-showTaskTypes`, taaktypes-etappe spec §7) — toon de werkregel (taaktype) en het
+   *  resterende werk per toewijzing in paneel, dialoog en raster. Default UIT; een document dat al
+   *  taaktypedata draagt ontsluit de weergave voor zichzelf (`taskTypesVisible`, DOCUMENT_FIELDS). */
+  showTaskTypes: boolean;
   allowMixedDayHour: boolean;                // persisted — Gemengde dag/uur-planning toestaan (default AAN); UI-poort
   durationDisplay: DurationDisplay;          // persisted — Duurweergave (default 'auto')
   barSplitMode: BarSplitMode;                // persisted — Taakbalken bij onderbrekingen (default 'selection')

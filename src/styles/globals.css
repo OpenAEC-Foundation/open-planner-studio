@@ -2128,6 +2128,37 @@ body {
 }
 
 /* Inputs (DESIGN-SYSTEM.md §3.2) */
+/* Gekleurd mededelingsblok (eigenaarsvoorkeur "info in gekleurde blokken", gebruikstest #170 E5).
+   OPS-vormtaal: het vlak blijft neutraal; kleur zit in een smalle accentbalk en het icoon. Tint
+   per variant via `--ops-note-accent` (standaard de accentkleur; `--warning` = amber tekstkleur). */
+.ops-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--theme-surface-alt);
+  box-shadow: inset 3px 0 0 var(--ops-note-accent, var(--theme-accent));
+  color: var(--theme-text-dim);
+  font-size: var(--text-small);
+  line-height: 1.4;
+}
+.ops-note > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--ops-note-accent, var(--theme-accent));
+}
+.ops-note--warning {
+  --ops-note-accent: var(--theme-warning-text);
+}
+.ops-note-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
 .input {
   font-family: var(--font-body);
   font-size: var(--text-body);
