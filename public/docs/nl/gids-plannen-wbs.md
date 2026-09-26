@@ -7,9 +7,11 @@ Een planning begint met een taakstructuur: welke taken zijn er, hoe zijn ze onde
 - Een taakstructuur (WBS) opbouwen met inspringen en samenvattende taken.
 - Taken verplaatsen binnen dezelfde structuur, zonder opnieuw in te springen — met het toetsenbord,
   door te slepen, of op het spreadsheet-achtige tabblad **Tabel**.
+- WBS-codes hernummeren, en een tak bewaren en hergebruiken als WBS-sjabloon.
 - De drie mijlpaal-soorten en het aparte verplicht-vlag voor contractuele momenten.
 - Activity codes en gebruikersvelden beheren via het venster **Codes & velden**, en erop groeperen.
 - Aantekeningen (een checklist per taak) gebruiken om openstaand werk bij te houden.
+- Het hele project in één keer naar een andere startdatum verplaatsen.
 
 Volg je liever mee met een compleet voorbeeld? Open [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) via **Bestand → Voorbeelden** — de fasering "1. Voorbereiding" / "2. Fundering & ruwbouw" / "3. Afbouw" / "4. Oplevering" met hun subtaken is precies de structuur die hieronder wordt uitgelegd.
 
@@ -124,6 +126,22 @@ cel en loopt door naar de volgende/vorige taakrij. Inspringen en uitspringen bli
 **↓** stopt daar (geen nieuwe rij). Een nieuwe taak invoegen — boven de actieve rij, met de cursor
 meteen in de naamcel — gaat met **Insert**.
 
+## WBS-codes hernummeren
+
+Op het tabblad **Planning**, groep **Structuur**, staan twee knoppen voor de WBS-codes:
+
+- **WBS auto** — een schakelaar. Staat hij aan, dan houdt de app de codes zelf bij (1, 1.1, 1.2 …) en is het veld **WBS Code** in de taakdialoog vergrendeld.
+- **Hernummer WBS** — nummert alle taken eenmalig opnieuw volgens hun plek in de boom: de n-de hoofdtaak krijgt `n`, het n-de kind van een taak met code P krijgt `P.n`. Handig na herschikken of na een import met eigen codes. Met **Ctrl+Z** zet je de oude codes terug. De knop is uitgeschakeld zolang **WBS auto** aan staat — dan is hernummeren niet nodig.
+
+## WBS-sjablonen: een tak hergebruiken
+
+Een fase die je vaker nodig hebt (bijvoorbeeld een standaard-afbouwreeks) bewaar je als sjabloon:
+
+1. Rechtsklik op een samenvattende taak — in de Gantt of in de taaktabel — en kies **Bewaar tak als sjabloon**. Het sjabloon krijgt de naam van die taak; een melding bevestigt het.
+2. Selecteer later, in dit of een ander project, de taak waaronder de tak moet komen (of selecteer niets voor het hoofdniveau) en kies op het tabblad **Planning**, groep **Structuur**, de keuzelijst **Sjablonen** → het sjabloon. Per sjabloon staat erbij hoeveel taken en relaties het bevat; met het prullenbakje (**Sjabloon verwijderen**) haal je het weg.
+
+Een sjabloon bewaart per taak de naam, omschrijving, het taaktype, de mijlpaalvlag en de duur, plus de relaties die binnen de tak blijven (met hun lag). Relaties naar taken buiten de tak, datums, voortgang, resources en codes gaan niet mee. De ingevoegde taken beginnen op de projectstart en de planning wordt verouderd: druk op **F5** om de tak in te rekenen. Sjablonen worden in de app op dit apparaat bewaard, niet in het projectbestand.
+
 ## Mijlpaal-soorten
 
 Een mijlpaal markeert een moment — een start, een oplevering, een keuring — en heeft normaal gesproken duur 0; heeft een mijlpaal zelf een duur groter dan 0 gekregen (bijvoorbeeld via een import), dan plant Open Planner Studio 'm gewoon als een taak met die duur, met het vinkje **Mijlpaal** nog aan. Een samenvattende taak of een taak met resource-toewijzingen kan geen mijlpaal worden: het vinkje **Mijlpaal** (eigenschappenpaneel, **Taak bewerken**, het contextmenu en het tabblad **Tabel**) weigert dat met een melding — haal eerst de toewijzingen weg. Open Planner Studio kent drie manieren om een mijlpaal toe te voegen, allemaal via de lintgroep **Taken** op het pijltje naast de knop **Mijlpaal**:
@@ -161,6 +179,17 @@ Elke taak heeft een sectie **Aantekeningen** in het eigenschappenpaneel — in f
 4. Gebruik het prullenbak-icoon om een aantekening definitief te verwijderen.
 
 Aantekeningen zijn puur informatief: ze doen niets met de planning of de berekening, en zijn dus het aangewezen middel voor kanttekeningen die niet in een datum of duur zijn uit te drukken. Zie een mix van open en afgevinkte aantekeningen in de praktijk in de middelgrote showcase "Nieuwbouw 6 Rijwoningen De Akkers" (tag *aantekeningen* in **Bestand → Voorbeelden**).
+
+## Het hele project verplaatsen
+
+Schuift de start van het hele project op (bijvoorbeeld omdat de vergunning later komt), gebruik dan **Planning** → groep **Planning** → **Project verplaatsen…**. De knop is uitgeschakeld zolang het project geen startdatum heeft.
+
+1. Vul de **Nieuwe projectstart** in (onder de **Huidige projectstart**). Ligt die datum in het verleden, dan waarschuwt het venster.
+2. Zijn er baselines, dan kun je **Baselines mee verschuiven** aanvinken. Standaard staat dat uit, zodat de verschuiving als afwijking ten opzichte van de baseline zichtbaar blijft.
+3. Klik **Voorbeeld berekenen**. Het voorbeeld toont de oude en nieuwe projectstart en -einde, hoeveel taken verschuiven en wat er meeschuift (constraint-datums, deadlines, werkelijke datums, externe ankers, capaciteitsstappen), met waarschuwingen waar nodig.
+4. **Verplaatsen** voert het uit, in één undo-stap; daarna wordt de planning opnieuw berekend en in beeld gebracht.
+
+Alles schuift hetzelfde aantal kalenderdagen op, ook de statusdatum. De kalenders schuiven bewust níét mee: feestdagen, bouwvak en winterstop liggen op vaste datums. Daardoor kan het projecteinde een ander aantal dagen verspringen en de projectduur veranderen; het voorbeeld meldt dat vooraf. Ingevulde datum-gebruikersvelden blijven op hun datum staan. Dit is iets anders dan de startdatum wijzigen in de projectinformatie: daar schuiven alleen losstaande taken mee die anders vóór de nieuwe start zouden liggen.
 
 ## Verder lezen
 

@@ -56,20 +56,43 @@ ná de finish, lag in werkdagen, lead = negatieve lag, FF = finishes uitlijnen, 
 
 ## Batterijen
 
+De JSON-batterijen staan hieronder op alfabet. `run.sh` globt ze, maar vergelijkt de glob met de
+expliciete lijst `EXPECTED_BATTERIES` bovenin het script (bevinding K10b): een verdwenen bestand is
+rood, en een **nieuw `cases-*.json` dat niet in `EXPECTED_BATTERIES` staat óók** (`XX  batterij-inventaris:
+… niet in EXPECTED_BATTERIES`). Zet bij een nieuwe batterij dus de naam (zonder `cases-` en `.json`) in
+die lijst, en vul deze tabel aan.
+
 | Bestand | Dekt |
 |---|---|
-| `cases-calibration.json` | basisconventies (ijking) |
-| `cases-probes.json` | minimale gevallen per (voorheen) bug — regressiebewaking |
-| `cases-relations.json` | FS/SS/FF/SF + lag/lead, meerdere voorgangers, ladder (SS+FF) |
-| `cases-float.json` | totale vs. vrije speling, kritiek pad, diamanten/ladders |
-| `cases-milestones.json` | mijlpalen (duur 0): start/eind/tussen/fork/join |
+| `cases-advanced-cpm.json` | geavanceerde constraints (Mandatory-pin, secundaire constraint, uur-modus-constraints) en de analyselaag (interfering float, near-critical, kritiek-definitie-opties), plus hammocks, externe relaties, float-paden en werkonderbrekingen (splits) (fase 2.9 e.v.) |
+| `cases-baselines.json` | baselinevariantie: op schema/te laat/te vroeg, projecteinde-delta, nieuwe en verwijderde taken |
+| `cases-boundary.json` | randgevallen: SF/FF-lead als ondergrens, kalender zonder werkdagen (fout), losse deelnetten, feestdag op de FS-overgang, afwijkende werkweek |
 | `cases-calendar.json` | weekenden, feestdagen, afwijkende werkweek |
-| `cases-edge.json` | cyclus, leeg, lange keten, WBS-/fase-oprol |
-| `cases-lag-advanced.json` | lag-eenheid (werkdagen vs. kalenderdagen/elapsed) + procent-lag (fase 2.1) |
-| `cases-driving.json` | driving/non-driving relaties + afgekapte leads (fase 2.1) |
+| `cases-calibration.json` | basisconventies (ijking) |
 | `cases-constraints.json` | datum-constraints, deadlines, negatieve float (fase 2.3) |
-| `cases-resource-load.json` | resources/toewijzingen/curves/kalenders/availabilitySteps → `resourceLoadResult` (belasting/capaciteit/overallocatie, fase 2.5) |
+| `cases-driving.json` | driving/non-driving relaties + afgekapte leads (fase 2.1) |
+| `cases-edge.json` | cyclus, leeg, lange keten, WBS-/fase-oprol |
+| `cases-float.json` | totale vs. vrije speling, kritiek pad, diamanten/ladders |
+| `cases-hours.json` | uur-modus met de referentiekalenders: binnen-dag-FS, float in minuten, lunchpauze, nachtploeg over middernacht, 24/7, WORKTIME vs. ELAPSED (fase 2.8b) |
+| `cases-hours-relations.json` | SS/FF/SF met lag > 0, = 0 en < 0 in uur-modus, vooruit én terug, plus pauze-, nacht-, weekend-, elapsed-, kruiskalender- en mijlpaalvarianten (vangnet voor de relatiewiskunde, P15) |
+| `cases-kalenders.json` | taakkalenders: lag in de voorgangerkalender, merges en SS/FF/SF over verschillende kalenders, geen-taakkalender-no-op, leveler, werkende uitzonderingen, undo |
+| `cases-lag-advanced.json` | lag-eenheid (werkdagen vs. kalenderdagen/elapsed) + procent-lag (fase 2.1) |
+| `cases-milestone-kinds.json` | start- vs. eindmijlpaal: waar een FS naar of vanaf een mijlpaal landt, en de invariant dat een eindmijlpaal in een keten niets verschuift |
+| `cases-milestones.json` | mijlpalen (duur 0): start/eind/tussen/fork/join |
 | `cases-move-project.json` | "Project verplaatsen" (pakket D1): verschuiving vooruit/terug, shift-dan-snap, kalender die NIET meeschuift (jaargrens/bouwvak), constraints/deadlines/harde pins/externe ankers/actuals die wél meeschuiven, uur-modus, undo, Δ=0-no-op |
+| `cases-msp-pariteit.json` | MS Project-pariteit: de mijlpaal-instantconventie (eindmijlpaal op de rauwe voorganger-finish) met controlecases, en verder o.a. negatieve lag, elapsed, kruiskalender-bandgrenzen, ankerregels en handmatig geplande taken |
+| `cases-probes.json` | minimale gevallen per (voorheen) bug — regressiebewaking |
+| `cases-progress.json` | voortgang: drie voortgangsstaten, data-date-vloer, out-of-sequence (retained logic vs. progress override), voltooide pins, hervatten van restwerk |
+| `cases-relations.json` | FS/SS/FF/SF + lag/lead, meerdere voorgangers, ladder (SS+FF) |
+| `cases-resource-leveling.json` | resource leveling en smoothing: conflictoplossing, prioriteit en pin (1000), deterministische tiebreak, eerlijk herrekende float |
+| `cases-resource-load.json` | resources/toewijzingen/curves/kalenders/availabilitySteps → `resourceLoadResult` (belasting/capaciteit/overallocatie, fase 2.5) |
+| `cases-view.json` | de headless view-engine (fase 2.7): filters, sorteren, groeperen, inklappen, boommodus, de volledige pijplijn, ontbrekende verwijzingen, tijdschaal-round-trip en tabel-/Gantt-pariteit |
+
+`cases-p6-verified.json` draagt de verplichte naam maar is **geen** batterij in dit schema: het is
+meetlatdata uit een P6-capture (gegenereerd door `scripts/generate-p6-verified-cases.mjs`), die
+`run.sh` via `is_auxiliary_case_data` overslaat en die door eigen checks wordt gelezen
+(`check-p6-verified-cases.ts`, `check-p6-verified-cases-engine.ts`). Hij staat dus niet in
+`EXPECTED_BATTERIES`.
 
 De losse check-batterijen (geen JSON-cases, eigen scripts die `run.sh` bij een volledige run meestart,
 en die je sinds de paragraaf *Gerichte runs* hierboven ook los met hun bestandsnaam kunt aanroepen)

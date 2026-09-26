@@ -4,10 +4,22 @@ Ontwerp- en implementatiedocumenten: waaróm iets gebouwd is zoals het gebouwd i
 overzicht en geen regel, waardoor niet te zien was wat er nog liep en wat allang opgeleverd was
 (K-item 40).
 
-## Actief programma (2026-08-24)
+## Onderhoudbaarheidsprogramma (2026-08-24) — uitgevoerd
 
-Het actuele onderhoudbaarheidsprogramma is nog **niet uitgevoerd**. Lees de documenten in deze
-volgorde; de sprong naar alleen taak 1 van Plan 2 is een bewuste contextvoorwaarde voor Plan 1:
+Het onderhoudbaarheidsprogramma van 2026-08-24 is **uitgevoerd** (nagekeken 2026-09-26 tegen de code).
+Per plan het spoor dat alleen bestaat als het werk gedaan is: Plan 0 (bewijspoorten) —
+`scripts/browser-test-server.mjs`, `scripts/run-browser-tests.mjs`, `src/utils/ganttTestDriver.ts`,
+`tests/browser/hook-synchronization.spec.ts`; Plan 1 (extensiecontract) — `src/extensions/validation.ts`,
+`tests/planning/check-ext-contract.ts`/`check-ext-integrity.ts`/`check-ext-consent.ts`; Plan 2
+(store-runtime-isolatie) — `src/state/runtime/storeRuntime.ts`, `createBatchTransactions.ts`,
+`createMcpTransactions.ts`, `scripts/verify-store-boundaries.mjs`, `tests/planning/check-store-factory.ts`;
+Plan 3 (Gantt-grenzen) — `useGanttPointerCoordinator.ts`, `useGanttRendererHost.ts`,
+`useGanttViewportCoordinator.ts`, `ganttRenderOptions.ts`, `scripts/verify-gantt-boundaries.mjs`
+(commits `de12b386`…`1819a92f`). Twee doelen uit Plan 0/3 bestaan niet meer omdat de code daarna
+verdween: `TableEditor.tsx` en `useRowDrag.ts` zijn met de tabel-overhaul vervangen door
+`FullTaskGrid`/`useTableRowDrag` (de TableEditor-freeze uit Plan 3 taak 8 is daarmee vervallen).
+De afvinkvakjes in de plannen zijn, zoals overal hier, niet bijgehouden. Oorspronkelijke leesvolgorde
+(historisch; de sprong naar alleen taak 1 van Plan 2 was een bewuste contextvoorwaarde voor Plan 1):
 
 1. [`specs/2026-08-24-onderhoudbaarheidsprogramma-design.md`](specs/2026-08-24-onderhoudbaarheidsprogramma-design.md)
 2. [`plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md`](plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md)
@@ -39,7 +51,8 @@ maar de conclusie "dus verplaatsen" niet zomaar:
 1. **De toenmalige 44 documenten in `specs/` en `plans/` beschreven functionaliteit die aantoonbaar
    in de code zat.** Per document is een distinctief spoor gecontroleerd (een bestand of een symbool
    dat alleen bestaat als de functie er is): 44 van de 44. Dit was de stand op 2026-08-17; het
-   actieve programma hierboven is later toegevoegd en valt nadrukkelijk niet onder die conclusie.
+   onderhoudbaarheidsprogramma hierboven is later toegevoegd en viel toen niet onder die conclusie
+   (inmiddels wel uitgevoerd).
 2. **De afvinkvakjes in de plannen zijn waardeloos als signaal.** Alle negen plannen hebben nul
    afgevinkte en tientallen open vakjes, terwijl de functies wél bestaan. Ze zijn nooit bijgehouden.
    Gebruik ze niet om te bepalen wat af is; de code is het bewijs.
@@ -66,17 +79,17 @@ Wél verplaatst, omdat ze nergens meer bij horen:
 
 | document | status |
 |---|---|
-| `HANDOFF-2026-08-14-roadmap.md` | **actief** — wat er nog op de roadmap staat, met peildatum en afhankelijkheden |
-| `specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` | **gebouwd (stappen 1–7, 2026-09-05; stap 8 = afronding docs)** — taaktypes/werkregels, opgeslagen werk per toewijzing en effort-driven bewerken; opvolger van `specs/2026-08-18-spec-taaktypes-effort-driven.md`. Bevat de MSP/P6-documentatievergelijking, de regeltabel, de meetlat (31 bewerkingen), alle eigenaarsbesluiten (1–10) en per stap de status en de verwerkte reviewbevindingen (§10). Code: `src/engine/work/` (kern, brug, zichtbaarheid), bedrading in de slices/het raster/de MCP-tweeling, UI in `TaskWorkRuleField`/`TaskAssignmentsSection`, gids `gids-taaktypes`. Open punten staan in `docs/TODO.md`. |
+| `HANDOFF-2026-08-14-roadmap.md` | **verouderd (stand 2026-08-14)** — roadmapoverzicht met peildatum `3cec89b`; sindsdien zijn o.a. B1b, XER, rekenprofielen, taaktypes en splitsen geland. Voor openstaand werk: `docs/TODO.md` |
+| `specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` | **opgeleverd (gemerged via PR #170, 2026-09-26; overname van PR #101)** — taaktypes/werkregels, opgeslagen werk per toewijzing en effort-driven bewerken; opvolger van `specs/2026-08-18-spec-taaktypes-effort-driven.md`. Bevat de MSP/P6-documentatievergelijking, de regeltabel, de meetlat (31 bewerkingen), alle eigenaarsbesluiten (1–10) en per stap de status en de verwerkte reviewbevindingen (§10). Code: `src/engine/work/` (kern, brug, zichtbaarheid), bedrading in de slices/het raster/de MCP-tweeling, UI in `TaskWorkRuleField`/`TaskAssignmentsSection`, gids `gids-taaktypes`. Open punten staan in `docs/TODO.md`. |
 | `werkdagen-as-ontwerp.md` | naslag; aangehaald vanuit `timeAxis.ts`, `workdayAxis.ts` en `check-workday-axis.ts` |
-| `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | ontwerp; balk-slepen op het canvas is vervallen, rij-slepen bestaat — twee varianten van hetzelfde ontwerp |
+| `verticale-drag-ontwerp.md`, `verticale-drag-ontwerp-B.md` | naslag — twee varianten van hetzelfde ontwerp. Rij-slepen bestaat; verticaal slepen aan de balk is hersteld in `70e6596c` (PR #143) in een andere vorm dan ontworpen: `useBarDrag.onVerticalBodyDrag` draagt de sleep over aan de rijsleep van de DOM-taakgrid (`ganttRowDragBridge.ts`). Restpunten in `docs/TODO.md` |
 | `modulariteit-audit.md`, `prestatie-modulariteit-audit.md` | de audits waar de P-bevindingen uit komen; aangehaald vanuit testkoppen |
 | `lagen-en-federatie-conceptplan.md` | conceptplan, niet uitgevoerd |
 | `workflows/triple-verify.js` | hulpscript, aangehaald vanuit `docs/TODO.md` |
 
 **`specs/` en `plans/`** — per feature het ontwerp respectievelijk het uitvoerplan. De bestandsnaam
 begint met de datum, dus chronologisch bladeren werkt. Documenten van vóór het actieve programma
-zijn vooral naslag; de vijf hierboven genoemde bestanden zijn uitvoerwerk. **Bij twijfel wint de
+zijn vooral naslag; ook de vijf programmabestanden hierboven zijn inmiddels uitgevoerd. **Bij twijfel wint de
 actuele code, behalve wanneer een nog uit te voeren plan juist expliciet een gewenste grens
 definieert.**
 
@@ -119,12 +132,12 @@ Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde st
 | `specs/2026-08-14-rapport-export-opties-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-08-14-rapport-formaat-specs.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-08-14-task-type-inheritance-parent-design.md` | verhuisd naar archief (2026-09-14) | 0 |
-| `specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md` | naslag (opgeleverd) | 2 |
+| `specs/2026-08-17-b1c-nivelleren-restcapaciteit-design.md` | deels uitgevoerd (kern `distribute.ts` en schrijfpad `applyDistribution` op `main` via `ee882777`; de verdeeldialoog niet — die staat ongemerged op `origin/t3code/b1c-etappe3`) | 2 |
 | `specs/2026-08-17-datums-zoals-opgeslagen-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-08-18-issue-65-dependency-jump-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-08-18-spec-taaktypes-effort-driven.md` | naslag (opgeleverd) | 1 |
 | `specs/2026-08-24-hooksite-ledger.md` | naslag (opgeleverd) | 1 |
-| `specs/2026-08-24-onderhoudbaarheidsprogramma-design.md` | actief | 4 |
+| `specs/2026-08-24-onderhoudbaarheidsprogramma-design.md` | naslag (opgeleverd, zie boven) | 4 |
 | `specs/2026-08-24-tabel-overhaul-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `plans/2026-06-24-auto-update-cross-platform.md` | naslag (opgeleverd) | 3 |
 | `plans/2026-07-13-browser-bestandstoegang.md` | naslag (opgeleverd) | 2 |
@@ -132,17 +145,17 @@ Volgorde: eerst de levende stukken (specs, plannen, los), daarna de verhuisde st
 | `plans/2026-08-14-f0-brief-definitief.md` | verhuisd naar archief (2026-09-15) | 0 |
 | `plans/2026-08-15-plan-mpp-datumgetrouwheid.md` | naslag (opgeleverd) | 3 |
 | `plans/2026-08-17-plan-mpp-nul-afwijkingen.md` | naslag (opgeleverd) | 2 |
-| `plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md` | actief | 0 |
-| `plans/2026-08-24-onderhoudbaarheid-1-extensiecontract.md` | actief | 0 |
-| `plans/2026-08-24-onderhoudbaarheid-2-store-runtime-isolatie.md` | actief | 0 |
-| `plans/2026-08-24-onderhoudbaarheid-3-gantt-grenzen.md` | actief | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-0-bewijspoorten.md` | naslag (opgeleverd, zie boven) | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-1-extensiecontract.md` | naslag (opgeleverd, zie boven) | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-2-store-runtime-isolatie.md` | naslag (opgeleverd, zie boven) | 0 |
+| `plans/2026-08-24-onderhoudbaarheid-3-gantt-grenzen.md` | naslag (opgeleverd, zie boven) | 0 |
 | `plans/2026-09-01-plan-issue27-voortgangsimport.md` | verhuisd naar archief (2026-09-14) | 0 |
-| `HANDOFF-2026-08-14-roadmap.md` | actief | 0 |
+| `HANDOFF-2026-08-14-roadmap.md` | verouderd (stand 2026-08-14) | 0 |
 | `lagen-en-federatie-conceptplan.md` | concept, niet uitgevoerd | 1 |
 | `modulariteit-audit.md` | naslag (opgeleverd) | 8 |
 | `prestatie-modulariteit-audit.md` | naslag (opgeleverd) | 5 |
-| `verticale-drag-ontwerp-B.md` | deels uitgevoerd (rij-slepen wel, balk-slepen op canvas niet) | 0 |
-| `verticale-drag-ontwerp.md` | deels uitgevoerd (rij-slepen wel, balk-slepen op canvas niet) | 0 |
+| `verticale-drag-ontwerp-B.md` | naslag (opgeleverd in afwijkende vorm: balksleep via de rijsleep van de taakgrid, `70e6596c`) | 0 |
+| `verticale-drag-ontwerp.md` | naslag (opgeleverd in afwijkende vorm: balksleep via de rijsleep van de taakgrid, `70e6596c`) | 0 |
 | `werkdagen-as-ontwerp.md` | naslag (opgeleverd) | 8 |
 | `specs/2026-06-19-ui-modern-overhaul-design.md` | verhuisd naar archief (2026-09-14) | 0 |
 | `specs/2026-07-07-2.10-onderdeel2-ux-design.md` | verhuisd naar archief (2026-09-14) | 0 |
@@ -193,15 +206,40 @@ bestandsnaam noemt (zelfde uitsluitingen als hierboven).
 | `plans/2026-09-24-fable-critreview-pr109.md` | onafhankelijke Fable-critreview #109 — LANDEN-MET-FIXES; fixes op `claude/xer-etappe3-fixes` | 0 |
 | `plans/2026-09-24-fable-critreview-pr167.md` | onafhankelijke Fable-critreview #167 — LANDEN-MET-FIXES; fixes op `claude/recorded-all-formats-fixes` | 0 |
 | `plans/2026-09-24-fable-critreview-pr169.md` | onafhankelijke Fable-critreview #169 — LANDEN-MET-FIXES; eigenaarsvragen A19-basis en C5 open | 0 |
-| `plans/2026-09-24-verkenning-pr101-taaktypes.md` | verkenningsdossier voor de overname van PR #101 (taaktypes/werkregels): banen, 29 conflicten, regel-A-risico's, eigenaarsvragen E1–E5 | 0 |
+| `plans/2026-09-24-verkenning-pr101-taaktypes.md` | naslag — verkenningsdossier voor de overname van PR #101 (taaktypes/werkregels): banen, 29 conflicten, regel-A-risico's, eigenaarsvragen E1–E5; de overname is als PR #170 gemerged (2026-09-26) | 0 |
 | `plans/2026-09-24-x12-restant-onderzoek-284.md` | invoer voor lopend X12-werk (o.a. DCP-03 Baseline = generatoruitvoer) | 3 |
 | `plans/patches/` | geparkeerde, niet gelande motorpatches (B15, zie plan XER §9) | — |
+
+**Nog niet in dit overzicht opgenomen stukken (toegevoegd 2026-09-26).** Stand bepaald uit code en
+git, niet uit het document zelf. Verwijzingen hier gemeten op 2026-09-26 (zelfde telwijze; `docs/TODO.md`
+telt mee).
+
+| stuk | stand | verwijzingen |
+|---|---|---|
+| `specs/2026-07-07-2.10-sneltoetsen-inventory.json` | naslag (opgeleverd) — inventaris uit fase 2.10; het register is `src/hooks/keyboard/shortcutRegistry.ts` | 1 |
+| `plans/2026-08-31-b1c-plan3-schrijfpad-paneel.md` | deels uitgevoerd — schrijfpad (`applyDistribution`/`undoDistribution`, scratch-instantie) op `main` via `ee882777`; de verdeeldialoog (taken 8 e.v.) alleen op de ongemergde branch `origin/t3code/b1c-etappe3` | 3 |
+| `specs/2026-09-12-b1c-verdeeldialoog-herontwerp-design.md` | niet op `main` — gebouwd op `origin/t3code/b1c-etappe3` (o.a. `3efe4e59`), niet gemerged; op `main` bestaat geen `DistributionDialog` | 2 |
+| `plans/2026-09-12-b1c-plan4-verdeeldialoog-herontwerp.md` | niet op `main` — idem, uitgevoerd op `origin/t3code/b1c-etappe3` | 1 |
+| `specs/2026-09-19-layouts-als-weergavepresets-design.md` | naslag (opgeleverd, issue #144: layoutknoppen, `src/components/viewControls/builtinLayouts.ts`); deel B (werkdagen in de bandkop) bewust niet gebouwd, zoals het stuk zelf zegt | 1 |
+| `specs/2026-09-19-taken-splitsen-bewerken-design.md` | naslag (opgeleverd, issue #146: splits-modus, stukken slepen, sectie Onderbrekingen, `planner_set_task_splits`, gids `gids-taken-splitsen`) | 5 |
+| `plans/2026-09-21-taken-splitsen-etappe1-kern.md` | naslag (opgeleverd) — `src/state/splitMutations.ts` | 0 |
+| `plans/2026-09-21-taken-splitsen-etappe2-splitsmodus.md` | naslag (opgeleverd) — `useSplitGesture.ts`, `SplitModeNotice.tsx` | 1 |
+| `plans/2026-09-22-taken-splitsen-etappe3-slepen.md` | naslag (opgeleverd) — stukken slepen in `useBarDrag.ts`/`getTaskBarBounds` | 0 |
+| `plans/2026-09-22-taken-splitsen-etappe4-paneel.md` | naslag (opgeleverd) — sectie Onderbrekingen in `TaskPropertiesPanel.tsx` | 0 |
+| `plans/2026-09-22-taken-splitsen-etappe5-afronding.md` | naslag (opgeleverd) — `planner_set_task_splits`, `exportSplitsLostNotice` | 0 |
+| `plans/2026-09-24-taaktypes-integratie-baan1.md` | naslag — integratieverslag van #101 op de rekenprofielen-kop; gemerged als PR #170 (2026-09-26) | 1 |
+| `plans/2026-09-24-e2-p6xml-durationtype.md` | naslag — afgesloten onderzoek (E2): de `<DurationType>`-mapping in `p6xmlReader.ts` klopt, geen fix nodig | 1 |
+| `plans/2026-09-24-gebruikstest-taaktypes-170.md` | naslag — gebruikstest #170; de bevindingen zijn in de UI-fixronde van 25-09 verwerkt en met #170 gemerged | 0 |
+| `plans/2026-09-24-fable-critreview-pr170.md` | naslag — Fable-critreview #170, LANDEN-MET-FIXES; #170 is daarna gemerged | 0 |
+| `evidence/` | naslag/bewijs van de tabel-overhaul (baseline, eindmeting, benchmarks, Tauri-refresh-IFC's); aangehaald door `tests/planning/check-tauri-refresh-evidence.ts`, `check-relations-panel-parity.ts`, `taskGridPerformanceHarness.ts` en `run.sh` — dus niet verplaatsen zonder die mee te nemen | 5 |
 
 Betekenis van de standen: **actief** = er wordt nu aan gewerkt of het is het geldende programma;
 **naslag** = het werk is gedaan, het stuk blijft als uitleg bij de code;
 **deels uitgevoerd** = een deel van het ontwerp bestaat, een deel niet (welk deel staat erbij);
 **invoer voor lopend werk** = het stuk zelf is geen actief werk, maar voedt een nog lopende etappe;
 **concept** = idee dat niet is uitgevoerd;
+**verouderd** = een momentopname (peildatum erbij) die niet meer klopt en niet wordt bijgewerkt;
+**niet op `main`** = uitgevoerd op een branch die (nog) niet gemerged is;
 **verhuisd naar archief** = op de genoemde datum verplaatst naar
 `docs/archive/superpowers/`, omdat het werk erop afgerond was én er nergens meer naar
 verwezen werd. Als regel gaat een stuk naar het archief zodra het werk erop afgerond is en

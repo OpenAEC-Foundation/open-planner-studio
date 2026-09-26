@@ -1,5 +1,14 @@
 # Open Planner Studio — Projectplan
 
+> **Let op: dit is het ontwerpfase-document, niet de actuele stand van de code.** De architectuur in
+> §3.1/§3.3 en §10 is niet bijgehouden en klopt op meerdere punten niet meer: er is geen Rust-backend
+> voor IFC of CPM (Rust is een dunne schil met drie commands; IFC-lezer/-schrijver en solver zijn
+> TypeScript), geen Python-MCP-server (de MCP-laag zit in TypeScript, `src/services/mcp/`), geen
+> web-ifc, geen Vitest, geen pnpm (npm), en undo/redo werkt met snapshots, niet met Immer patches.
+> De afvinkvakjes in de roadmap (§6) zijn evenmin bijgehouden. Voor de actuele structuur:
+> [`AGENTS.md`](AGENTS.md) en [`CLAUDE.md`](CLAUDE.md); voor openstaand werk:
+> [`docs/TODO.md`](docs/TODO.md). §4 draagt daarnaast zijn eigen vervalmelding.
+
 ## 1. Visie & Doelstelling
 
 **Open Planner Studio** is een open-source bouwplanningapplicatie gericht op de **bouwsector**. Het combineert Critical Path Method (CPM) scheduling, Gantt-diagrammen, Work Breakdown Structure (WBS) en 4D BIM-koppeling in een desktopapplicatie. Het native bestandsformaat is **IFC (Industry Foundation Classes)**, conform de IFC 4.3-standaard van buildingSMART.

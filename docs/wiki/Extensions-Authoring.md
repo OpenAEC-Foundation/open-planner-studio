@@ -22,6 +22,13 @@ block. Extensions are entirely frontend; there is no Rust involved.
 
 Categories: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other`.
 
+The optional `apiVersion` field names the extension contract version the extension was built against
+(current: `1.3.0`, readable via `require('open-planner-studio').apiVersion`). History: `1.1.0` —
+read-only XER source route (`data.getImportSource*`); `1.2.0` — calculation profile
+(`ExtProject.schedulingProfile`) + `getImportSourceIssue()`; `1.3.0` — task types (`ExtTask.workRule`,
+`ExtProject.defaultWorkRule` and the optional work fields `plannedWorkMinutes`/`actualWorkMinutes`/
+`remainingWorkMinutes` on an assignment).
+
 ### Permissions
 
 | Permission | Enforcement | Meaning |
@@ -37,8 +44,9 @@ Categories: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other
 `data.*` is otherwise **core API** — except for the four `getImportSource*` methods above — same
 as `settings.*`, `assets.*` and `ui.showNotification`: always available, no permission required.
 Enforcement is centralized in `src/extensions/permissions.ts`. `minAppVersion` is also enforced: on
-an older app the extension refuses to activate. Unknown permissions are filtered out with a warning
-in the debug terminal.
+an older app the extension refuses to activate. A fresh install whose manifest lists an unknown
+permission is rejected; only already-stored legacy installs have unknown permissions filtered out
+with a warning.
 
 ## main.js
 

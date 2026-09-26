@@ -5,7 +5,7 @@ De volledige, altijd actuele sneltoetsenlijst zit in de app zelf: het venster **
 ## Openen
 
 - **Ctrl+/** (macOS: **Cmd+/**).
-- **Beeld** → lintgroep **Sneltoetsen** → **Sneltoetsen**.
+- Lint-tabblad **Instellingen** → groep **Sneltoetsen** → **Sneltoetsen**.
 
 ## Wat je ziet
 

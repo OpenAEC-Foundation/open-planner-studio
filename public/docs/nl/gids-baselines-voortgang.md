@@ -8,6 +8,7 @@ Een planning die je nooit bijwerkt, is een voorspelling. Zodra het werk begint, 
 - Variantie zien: de baseline-overlay in de Gantt en het variantierapport.
 - Voortgang invoeren — percentage, werkelijke datums — via het paneel, de taakdialoog en het contextmenu.
 - De statusdatum: wat hij doet met niet-gestarte taken en met niet-afgemelde mijlpalen.
+- De voortgangsmodus: Retained Logic of Progress Override.
 - Out-of-sequence-meldingen: wat ze betekenen en hoe je ze oplost.
 - De voortgangslijn lezen.
 
@@ -69,6 +70,15 @@ Dit is precies zichtbaar in de middelgrote showcase: met de statusdatum op 20 me
 ### Waarom een niet-afgemelde mijlpaal "naar rechts schuift"
 
 Een mijlpaal is in de berekening niets anders dan een taak zonder duur, dus dezelfde regel geldt: is hij nog niet afgemeld (geen 100%, geen werkelijke datum), dan kan zijn berekende datum niet vóór de statusdatum liggen. Zet je de statusdatum steeds verder op zonder de mijlpaal af te melden, dan schuift zijn getoonde datum in de Gantt steeds mee naar rechts, ook al is er aan de onderliggende taken niets veranderd — de planning zegt in feite: "dit moment kan niet in het verleden liggen als je het nog niet hebt afgevinkt". Zodra je de mijlpaal wél afmeldt met een werkelijke datum, valt hij weer terug op die vaste datum en stopt hij met meeschuiven. (Ook hier geldt de `.mpp`-uitzondering hierboven: in een uit MS Project geïmporteerd project schuift een niet-afgemelde mijlpaal niet mee met de statusdatum.)
+
+## De voortgangsmodus
+
+Naast de statusdatum staat in dezelfde lintgroep de keuzelijst **Voortgangsmodus**, met twee waarden. Hij bepaalt waar het resterende deel van een *lopende* taak (gestart, nog niet voltooid) begint:
+
+- **Retained Logic** (standaard) — het restant begint op de statusdatum (zonder statusdatum: op de eigen werkelijke start van de taak), maar niet vóór het moment dat de voorgangers toelaten. De relaties blijven dus gelden voor het werk dat nog moet gebeuren.
+- **Progress Override** — het restant begint op de statusdatum zonder te wachten op de voorgangers: de werkelijke voortgang gaat vóór de relatielogica. In het rekenprofiel Primavera P6 negeert de berekening de relatie van een nog niet voltooide voorganger naar zo'n lopende taak bovendien ook voor de speling.
+
+Het verschil zie je alleen bij taken die al gestart zijn terwijl een voorganger nog niet klaar is — precies de gevallen die als out-of-sequence gemeld worden (zie hieronder). Een andere modus kiezen maakt de planning verouderd; druk op **F5** (of laat *Automatisch berekenen* het doen) om het effect te zien. De keuze hoort bij het project, gaat mee in het IFC-bestand en is met Ctrl+Z ongedaan te maken; een `.xer`-import neemt de instelling van het P6-project over.
 
 ## Out-of-sequence-meldingen
 

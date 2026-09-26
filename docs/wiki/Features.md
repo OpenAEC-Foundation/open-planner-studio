@@ -10,8 +10,10 @@ bridge and automatic updates.
 - **Critical Path Method (CPM)** — automatic calculation of early/late start and finish dates, total and free float, and the critical path.
 - **Work Breakdown Structure (WBS)** — a hierarchical task structure with collapsible summary tasks.
 - **Relations** — Finish-Start, Start-Start, Finish-Finish and Start-Finish dependencies, each with a
-  lag or lead in work days; relations can attach to milestones as well as ordinary tasks (not to
-  summary tasks, which are flagged as *no effect* if a loaded file already has one).
+  lag or lead in work days; relations can attach to milestones, ordinary tasks and summary tasks. A
+  relation on a summary task is applied to each of its leaf tasks. A task cannot be linked to itself
+  or to its own summary (ancestor); a relation on a summary without any leaf tasks is flagged as
+  *no effect*.
 - **Constraints** — start/finish constraints (such as Start No Earlier Than) for permits, deliveries and fixed dates.
 - **Milestones** — start, finish and mandatory inspection milestones.
 - **Baselines & progress** — capture baselines and track progress against them.

@@ -13,7 +13,9 @@ The **Project Information** window holds the project's metadata plus the **Calcu
 
 - **Project Name** — the name in the title bar and the document tab.
 - **Description** — free text.
-- **Engineer** and **Company** — free text; stored in the IFC file.
+- **Author** — free text; stored in the IFC file.
+- **Resource library** — a drop-down: **none (standalone project)**, one of your existing resource libraries, or **+ New resource library…** (you type the name; the library is only created on **Apply**). If you link a library, Open Planner Studio may then offer to link same-named resources and calendars to it. See the guide [Resource libraries](docs://gids-resourcebibliotheken).
+- **Client/organization** — free text; stored in the IFC file.
 - **Start Date** — the point the calculation counts from. A task with predecessors is never scheduled before this date; a task without predecessors simply keeps its own, imported date, even if that's earlier than the project start — needed so an imported file (from MS Project, for example) shows exactly what the source program shows. A hard Must-Start-On/Must-Finish-On constraint overrides both rules: such a task always starts on its constrained date, with or without predecessors, even if that's earlier than the project start. If you move the start date here to a later date, Open Planner Studio automatically shifts such too-early, stand-alone tasks forward to the new start date — with a notification, and undoable with Ctrl+Z. That only happens when you deliberately change the start date, via Project Info or the AI assistant — never when opening a file.
 - **End Date** — informative end of the project.
 

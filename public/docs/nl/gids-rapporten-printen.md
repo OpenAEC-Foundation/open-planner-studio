@@ -81,7 +81,8 @@ instellingenblok:
 - **Statuslijn** — *Geen* (standaard), *Statusdatumlijn* (een verticale stippellijn op de
   statusdatum van het project) of *Voortgangslijn* (dezelfde zigzaglijn als op het scherm: per taak
   een uitstulping naar de voortgangspositie). Zonder statusdatum in het project tekent niets —
-  stel er eerst één in via de projectgegevens; het paneel wijst u daarop.
+  stel er eerst één in via **Planning** → **Baselines & voortgang** → **Statusdatum**; het paneel
+  wijst u daarop.
 - **Volg weergave** — staat dit aan, dan print de export precies wat u op het scherm ziet: het
   actieve filter, de groepering, de sortering én ingeklapte groepen blijven ingeklapt. Uit
   (standaard) print de export de volledige takenboom.
@@ -179,8 +180,8 @@ delen een paar afspraken:
   Hammock-taken (LOE) doen in de activiteitenrapporten niet mee; in de twee resourcerapporten
   wél, want ook toezicht boekt inzet — dezelfde set als het histogram.
 - De **referentiedag** is de statusdatum van het project. Is er geen statusdatum, dan rekent het
-  rapport met vandaag en zegt dat er bij. Stel dus eerst een statusdatum in via de projectgegevens
-  als je een rapport voor een vaste peildatum wilt.
+  rapport met vandaag en zegt dat er bij. Stel dus eerst een statusdatum in via **Planning** →
+  **Baselines & voortgang** → **Statusdatum** als je een rapport voor een vaste peildatum wilt.
 - Datums en speling komen uit de laatste **berekening**. Is de planning gewijzigd sinds de laatste
   keer dat je op *Bereken* (F5) drukte, dan staat er een melding boven het rapport; de PDF-export
   rekent altijd eerst door.
