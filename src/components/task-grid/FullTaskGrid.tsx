@@ -63,7 +63,11 @@ import type { GridEditorCommitResult } from './GridEditorHost';
 import type { Task } from '@/types/task';
 import type { GridMutationOptions } from '@/state/gridTransaction';
 import { localTodayIso } from '@/utils/dateUtils';
-import type { TaskColumnCategory, TaskColumnId, TaskGridSurfaceId } from '@/types/taskGrid';
+import type {
+  CellEditIntent, CellValidationError, GridIntent, GridResult, TaskColumnCategory, TaskColumnId,
+  TaskGridSurfaceId,
+} from '@/types/taskGrid';
+import { askActualStart } from '@/state/actualStartQuestion';
 
 interface EditingCell {
   documentId: string;
@@ -119,10 +123,44 @@ function useElementSize() {
 const SUMMARY_ADD_BUTTON_WIDTH = 22;
 
 /** Het taakraster is een UI-route voor voortgang: de invoerregels van `engine/progressEntry.ts`
- *  gelden (Z1: zonder statusdatum gaat die op vandaag). Per handeling vers, zodat een sessie die
- *  over middernacht heen openstaat de juiste dag gebruikt. */
+ *  gelden (Z1: zonder statusdatum gaat die op vandaag; Z1b: eerst de werkelijke start vragen). Per
+ *  handeling vers, zodat een sessie die over middernacht heen openstaat de juiste dag gebruikt. */
 function progressEntryOptions(): GridMutationOptions {
   return { progressEntry: { today: localTodayIso() } };
+}
+
+/**
+ * Z1b in het taakraster: weigerde de transactie alleen omdat er eerst een werkelijke start nodig is
+ * (`actualStartRequired`, één fout per taak), dan stelt dit de vraag en herhaalt het DEZELFDE
+ * handeling mét een `task.time.actualStart`-write per taak — samen één undo-stap. Annuleren verandert
+ * niets. `true` = de vraag is gesteld; de aanroeper behandelt de handeling dan als afgehandeld.
+ */
+function askActualStartAndRetry(
+  intents: readonly GridIntent[],
+  errors: readonly CellValidationError[],
+  run: (intents: readonly GridIntent[]) => GridResult<void, readonly CellValidationError[]>,
+  onRetryError: (error: CellValidationError) => void,
+): boolean {
+  if (errors.length === 0 || errors.some(error => error.code !== 'actualStartRequired')) return false;
+  const tasks = useAppStore.getState().tasks;
+  const items = errors.flatMap((error) => {
+    const task = tasks.find(candidate => candidate.id === error.taskId);
+    const value = error.value as { statusDate: string; latest: string };
+    return task ? [{ taskId: task.id, taskName: task.name, statusDate: value.statusDate, latest: value.latest }] : [];
+  });
+  void askActualStart(items).then((answers) => {
+    if (!answers) return;
+    const withStarts: GridIntent[] = [...intents, ...items.map((item): CellEditIntent => ({
+      kind: 'cell-edit',
+      taskId: item.taskId,
+      columnId: 'task.time.actualStart' as TaskColumnId,
+      route: 'task-progress',
+      value: answers[item.taskId],
+    }))];
+    const retry = run(withStarts);
+    if (!retry.ok && retry.errors[0]) onRetryError(retry.errors[0]);
+  });
+  return true;
 }
 
 function categoryFallback(category: TaskColumnCategory): string {
@@ -397,15 +435,21 @@ export function TaskGridSurface({
           };
         }
         const result = runGridMutation(intents, progressEntryOptions());
-        if (result.ok) {
+        const asked = !result.ok && askActualStartAndRetry(
+          intents, result.errors,
+          retryIntents => runGridMutation(retryIntents, progressEntryOptions()),
+          error => setSurfaceError(tTask(error.messageKey, { defaultValue: tTask('taskGrid.validation.invalid') })),
+        );
+        if (result.ok || asked) {
           setEditing(null);
           setSurfaceError(null);
+          return { ok: true, value: undefined };
         }
         return result;
       },
     },
   }, adapterDomain), [
-    activeDocumentId, adapterDomain, runGridMutation, selectedTaskIds, surfaceId, trace, viewRows,
+    activeDocumentId, adapterDomain, runGridMutation, selectedTaskIds, surfaceId, tTask, trace, viewRows,
   ]);
   const rowIndex = useMemo(() => createTaskGridRowIndex(viewRows), [viewRows]);
   const tasksById = useMemo(() => new Map(tasks.map(task => [task.id, task] as const)), [tasks]);
@@ -601,7 +645,11 @@ export function TaskGridSurface({
         return;
       }
       const result = runGridMutation([planned.value], progressEntryOptions());
-      if (!result.ok) {
+      if (!result.ok && !askActualStartAndRetry(
+        [planned.value], result.errors,
+        retryIntents => runGridMutation(retryIntents, progressEntryOptions()),
+        error => setSurfaceError(validationMessage(error, 'taskGrid.validation.clearFailed')),
+      )) {
         setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.clearFailed'));
       }
       return;
@@ -989,7 +1037,13 @@ export function TaskGridSurface({
           }
           event.preventDefault();
           const result = runGridMutation([planned.value], progressEntryOptions());
-          if (!result.ok) setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.pasteFailed'));
+          if (!result.ok && !askActualStartAndRetry(
+            [planned.value], result.errors,
+            retryIntents => runGridMutation(retryIntents, progressEntryOptions()),
+            error => setSurfaceError(validationMessage(error, 'taskGrid.validation.pasteFailed')),
+          )) {
+            setSurfaceError(validationMessage(result.errors[0], 'taskGrid.validation.pasteFailed'));
+          }
         }}
         onDataRowMouseDown={(row, _absoluteIndex, event) => {
           if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey
@@ -1162,7 +1216,7 @@ export function TaskGridSurface({
             if (contextMenu.task) contextMenuBulk.setCalendar(contextMenu.task.id, calendarId);
           }}
           onSetProgress={completion => {
-            if (contextMenu.task) contextMenuBulk.setProgress(contextMenu.task.id, completion);
+            if (contextMenu.task) void contextMenuBulk.setProgress(contextMenu.task.id, completion);
           }}
           onSetPriority={priority => {
             if (contextMenu.task) contextMenuBulk.setPriority(contextMenu.task.id, priority);

@@ -7,6 +7,8 @@ import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { localTodayIso } from '@/utils/dateUtils';
+import { planProgressEntry } from '@/engine/progressEntry';
+import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 
 /**
  * Reikwijdte en uitvoering van de taak-contextmenu-acties (issue #42, issue #45).
@@ -123,30 +125,47 @@ export const contextMenuBulk = {
   },
 
   /**
-   * "Voortgang" over de reikwijdte. Een verzameltaak draagt geen eigen voortgang (de rollup in
-   * `applyCpmResult` leidt die af, `setTaskProgress` weigert haar), dus staat er een fase in de
-   * reikwijdte, dan krijgen haar BLADtaken het percentage — precies de bladen waaruit de fase haar
-   * voortgang afleidt (`descendantLeaves`) — en de fase zelf wordt overgeslagen. Eén vast percentage
-   * op alle bladen geeft na F5 precies dat percentage op de fase. Dubbelingen (fase én kind
-   * geselecteerd) vallen weg; het geheel blijft één undo-stap.
+   * "Voortgang" over de reikwijdte, als één undo-stap. Een verzameltaak draagt geen eigen voortgang
+   * (de rollup in `applyCpmResult` leidt die af, `setTaskProgress` weigert haar), dus staat er een fase
+   * in de reikwijdte, dan krijgen haar BLADtaken het percentage — precies de bladen waaruit de fase
+   * haar voortgang afleidt (`descendantLeaves`) — en de fase zelf wordt overgeslagen. Eén vast
+   * percentage op alle bladen geeft na F5 precies dat percentage op de fase. Dubbelingen (fase én kind
+   * geselecteerd) vallen weg.
+   *
+   * Een UI-route, dus via `enterTaskProgress` (`engine/progressEntry.ts`): zonder statusdatum gaat die
+   * op vandaag — bij de eerste taak die voortgang krijgt, in dezelfde undo-stap, met één melding (Z1).
+   * Taken die pas na de statusdatum zouden beginnen en nog geen werkelijke start hebben, krijgen eerst
+   * samen één vraag naar hun werkelijke start (Z1b); annuleren verandert niets, ook niet aan de andere
+   * taken. Zonder vraag loopt alles synchroon (de functie bereikt dan geen `await`).
    */
-  setProgress(taskId: string, completion: number): void {
-    const { tasks } = useAppStore.getState();
-    const byId = new Map(tasks.map((t) => [t.id, t]));
-    const ids = new Set<string>();
+  async setProgress(taskId: string, completion: number): Promise<void> {
+    const today = localTodayIso();
+    const state = useAppStore.getState();
+    const byId = new Map(state.tasks.map((t) => [t.id, t]));
+    const leafIds = new Set<string>();
     for (const id of contextMenuOutlineScope(taskId)) {
       const task = byId.get(id);
       if (!task) continue;
-      if (isLeafTask(task)) ids.add(task.id);
-      else for (const leaf of descendantLeaves(task, byId)) ids.add(leaf.id);
+      if (isLeafTask(task)) leafIds.add(task.id);
+      else for (const leaf of descendantLeaves(task, byId)) leafIds.add(leaf.id);
     }
-    // UI-route: via `enterTaskProgress` (`engine/progressEntry.ts`) — zonder statusdatum gaat die op
-    // vandaag, bij de eerste taak die voortgang krijgt, in dezelfde undo-stap, met één melding.
-    const today = localTodayIso();
-    appTaskBulkActions.applyToTaskIds(
-      [...ids],
-      (state, id) => { state.enterTaskProgress(id, { field: 'completion', value: completion }, { today }); },
-    );
+    const ids = [...leafIds];
+    const edit = { field: 'completion', value: completion } as const;
+    const questions = ids.flatMap((id) => {
+      const task = byId.get(id);
+      if (!task) return [];
+      const plan = planProgressEntry(task, edit, { statusDate: state.project.statusDate, today });
+      return !plan.ok && plan.reason === 'needsActualStart' ? [{ ...plan.question, taskName: task.name }] : [];
+    });
+    let answers: ActualStartAnswers = {};
+    if (questions.length > 0) {
+      const given = await askActualStart(questions);
+      if (!given) return;
+      answers = given;
+    }
+    appTaskBulkActions.applyToTaskIds(ids, (current, id) => {
+      current.enterTaskProgress(id, edit, { today, actualStart: answers[id] });
+    });
   },
 
   setPriority(taskId: string, priority: number): void {

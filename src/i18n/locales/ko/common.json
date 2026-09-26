@@ -525,7 +525,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "실제 날짜는 상태 날짜 이후일 수 없습니다"
+    "actualsAfterStatusDate": "실제 날짜는 상태 날짜 이후일 수 없습니다",
+    "actualStartAfterFinish": "실제 시작이 실제 완료보다 늦습니다."
+  },
+  "actualStartQuestion": {
+    "title": "실제 시작 입력",
+    "introOne": "‘{{name}}’은(는) 상태 날짜({{statusDate}}) 이후에 시작하도록 계획되었지만 지금 진행률이 입력되었습니다. 실제로 언제 시작했습니까?",
+    "introMany": "이 작업들은 상태 날짜({{statusDate}}) 이후에 시작하도록 계획되었지만 지금 진행률이 입력되었습니다. 실제로 언제 시작했습니까?",
+    "fieldLabel": "{{name}}의 실제 시작",
+    "latest": "늦어도 {{date}}.",
+    "required": "날짜를 입력하세요.",
+    "afterStatusDate": "이 날짜는 상태 날짜({{date}}) 이후입니다.",
+    "afterActualFinish": "이 날짜는 실제 완료({{date}}) 이후입니다.",
+    "confirm": "진행률 적용"
   },
   "companyLibrary": {
     "title": "리소스 라이브러리",

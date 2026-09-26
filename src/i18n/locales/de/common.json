@@ -561,7 +561,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Ist-Werte dürfen nicht nach dem Statusdatum liegen"
+    "actualsAfterStatusDate": "Ist-Werte dürfen nicht nach dem Statusdatum liegen",
+    "actualStartAfterFinish": "Der tatsächliche Anfang liegt nach dem tatsächlichen Ende."
+  },
+  "actualStartQuestion": {
+    "title": "Tatsächlichen Anfang angeben",
+    "introOne": "„{{name}}“ sollte laut Plan nach dem Statusdatum ({{statusDate}}) beginnen, erhält jetzt aber Fortschritt. Wann hat der Vorgang tatsächlich begonnen?",
+    "introMany": "Diese Vorgänge sollten laut Plan nach dem Statusdatum ({{statusDate}}) beginnen, erhalten jetzt aber Fortschritt. Wann haben sie tatsächlich begonnen?",
+    "fieldLabel": "Tatsächlicher Anfang von {{name}}",
+    "latest": "Spätestens {{date}}.",
+    "required": "Geben Sie ein Datum ein.",
+    "afterStatusDate": "Dieses Datum liegt nach dem Statusdatum ({{date}}).",
+    "afterActualFinish": "Dieses Datum liegt nach dem tatsächlichen Ende ({{date}}).",
+    "confirm": "Fortschritt übernehmen"
   },
   "companyLibrary": {
     "title": "Ressourcenbibliothek",

@@ -147,13 +147,16 @@ export interface TaskSlice {
    * drie setters hierboven, plus de invoerregels van `engine/progressEntry.ts`. Z1: staat er geen
    * statusdatum en houdt de taak na de bewerking voortgang over, dan gaat de statusdatum in DEZELFDE
    * undo-stap op `opts.today` (wat het statusdatumveld voor vandaag oplevert, `localTodayIso`) en volgt
-   * één melding. Een werkelijke datum ná die (effectieve) statusdatum wordt geweigerd. De setters
-   * zelf blijven het vangnet voor headless aanroepers, zonder deze regels.
+   * één melding. Een werkelijke datum ná die (effectieve) statusdatum wordt geweigerd. Z1b: zou de
+   * bewerking de werkelijke start afleiden uit een geplande start ná de statusdatum, dan verandert er
+   * niets en komt `needsActualStart` terug met de vraag; de UI stelt die en roept opnieuw aan met
+   * het antwoord in `opts.actualStart` (samen één undo-stap). De setters zelf blijven het vangnet
+   * voor headless aanroepers, zonder deze regels.
    */
   enterTaskProgress: (
     taskId: string,
     edit: ProgressEdit,
-    opts: { today: string; coalesceKey?: string },
+    opts: { today: string; actualStart?: string; coalesceKey?: string },
   ) => ProgressEntryResult;
   /**
    * Issue #146 — de ENIGE schrijver van gebruikerssplits. Bewust een EIGEN, smalle mutatie en géén
@@ -1340,7 +1343,9 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
   enterTaskProgress: (taskId, edit, opts) => {
     let result: ReturnType<typeof commitProgressEdit> = { ok: true };
     set((s) => {
-      result = commitProgressEdit(runtime, s, taskId, edit, { today: opts.today }, { coalesceKey: opts.coalesceKey });
+      result = commitProgressEdit(
+        runtime, s, taskId, edit, { today: opts.today, actualStart: opts.actualStart }, { coalesceKey: opts.coalesceKey },
+      );
     });
     get().recomputeViewRows();
     // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.

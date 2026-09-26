@@ -525,7 +525,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "実績日は状態日より後にできません"
+    "actualsAfterStatusDate": "実績日は状態日より後にできません",
+    "actualStartAfterFinish": "実績開始日が実績終了日より後です。"
+  },
+  "actualStartQuestion": {
+    "title": "実績開始日を入力",
+    "introOne": "「{{name}}」は状態日（{{statusDate}}）より後に開始する計画でしたが、進捗が入力されました。実際にはいつ開始しましたか？",
+    "introMany": "これらのタスクは状態日（{{statusDate}}）より後に開始する計画でしたが、進捗が入力されました。実際にはいつ開始しましたか？",
+    "fieldLabel": "{{name}} の実績開始日",
+    "latest": "{{date}} まで。",
+    "required": "日付を入力してください。",
+    "afterStatusDate": "この日付は状態日（{{date}}）より後です。",
+    "afterActualFinish": "この日付は実績終了日（{{date}}）より後です。",
+    "confirm": "進捗を適用"
   },
   "companyLibrary": {
     "title": "リソースライブラリ",

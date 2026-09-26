@@ -561,7 +561,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Gerçekleşen tarihler durum tarihinden sonra olamaz"
+    "actualsAfterStatusDate": "Gerçekleşen tarihler durum tarihinden sonra olamaz",
+    "actualStartAfterFinish": "Gerçekleşen başlangıç, gerçekleşen bitişten sonra."
+  },
+  "actualStartQuestion": {
+    "title": "Gerçekleşen başlangıcı girin",
+    "introOne": "“{{name}}” durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlanmıştı, ancak şimdi ilerleme giriliyor. Gerçekte ne zaman başladı?",
+    "introMany": "Bu görevler durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlanmıştı, ancak şimdi ilerleme giriliyor. Gerçekte ne zaman başladılar?",
+    "fieldLabel": "{{name}} için gerçekleşen başlangıç",
+    "latest": "En geç {{date}}.",
+    "required": "Bir tarih girin.",
+    "afterStatusDate": "Bu tarih durum tarihinden ({{date}}) sonra.",
+    "afterActualFinish": "Bu tarih gerçekleşen bitişten ({{date}}) sonra.",
+    "confirm": "İlerlemeyi uygula"
   },
   "companyLibrary": {
     "title": "Kaynak kitaplığı",

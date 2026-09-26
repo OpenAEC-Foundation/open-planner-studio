@@ -561,7 +561,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Actuals cannot be after the status date"
+    "actualsAfterStatusDate": "Actuals cannot be after the status date",
+    "actualStartAfterFinish": "The actual start is after the actual finish."
+  },
+  "actualStartQuestion": {
+    "title": "Enter the actual start",
+    "introOne": "‘{{name}}’ was planned to start after the status date ({{statusDate}}), but is now getting progress. When did it actually start?",
+    "introMany": "These tasks were planned to start after the status date ({{statusDate}}), but are now getting progress. When did they actually start?",
+    "fieldLabel": "Actual start of {{name}}",
+    "latest": "No later than {{date}}.",
+    "required": "Enter a date.",
+    "afterStatusDate": "This date is after the status date ({{date}}).",
+    "afterActualFinish": "This date is after the actual finish ({{date}}).",
+    "confirm": "Apply progress"
   },
   "companyLibrary": {
     "title": "Resource library",

@@ -597,7 +597,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Les dates réelles ne peuvent pas être postérieures à la date de statut"
+    "actualsAfterStatusDate": "Les dates réelles ne peuvent pas être postérieures à la date de statut",
+    "actualStartAfterFinish": "Le début réel est postérieur à la fin réelle."
+  },
+  "actualStartQuestion": {
+    "title": "Indiquer le début réel",
+    "introOne": "« {{name}} » devait commencer après la date de statut ({{statusDate}}), mais reçoit maintenant un avancement. Quand a-t-elle réellement commencé ?",
+    "introMany": "Ces tâches devaient commencer après la date de statut ({{statusDate}}), mais reçoivent maintenant un avancement. Quand ont-elles réellement commencé ?",
+    "fieldLabel": "Début réel de {{name}}",
+    "latest": "Au plus tard le {{date}}.",
+    "required": "Saisissez une date.",
+    "afterStatusDate": "Cette date est postérieure à la date de statut ({{date}}).",
+    "afterActualFinish": "Cette date est postérieure à la fin réelle ({{date}}).",
+    "confirm": "Appliquer l’avancement"
   },
   "companyLibrary": {
     "title": "Bibliothèque de ressources",

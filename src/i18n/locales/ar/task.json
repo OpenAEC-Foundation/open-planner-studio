@@ -183,6 +183,7 @@
       "milestoneUnavailable": "لا يمكن لمهمة موجزة لها مهام فرعية أن تصبح معلمًا.",
       "actualAfterStatusDate": "التاريخ الفعلي يقع بعد تاريخ الحالة.",
       "actualFinishBeforeStart": "النهاية الفعلية تقع قبل البداية الفعلية.",
+      "actualStartRequired": "لن تبدأ هذه المهمة إلا بعد تاريخ الحالة: أدخل البداية الفعلية أولًا.",
       "conflictingProgressInputs": "قيم التقدم هذه تتعارض مع بعضها.",
       "constraintDateUnavailable": "حدّد نوع القيد قبل إدخال تاريخ القيد.",
       "constraintHardUnavailable": "القيد الصارم يتطلب نوع قيد مع تاريخ.",

@@ -126,13 +126,12 @@ export function TaskPropertiesPanel() {
 
       <TaskProgressFields
         task={task}
-        onSetProgress={(v, opts) => {
-          enterTaskProgress(task.id, { field: 'completion', value: v }, { ...opts, today: localTodayIso() });
-        }}
+        onSetProgress={(v, opts) =>
+          enterTaskProgress(task.id, { field: 'completion', value: v }, { ...opts, today: localTodayIso() })}
         onSetActualStart={(d, opts) =>
-          enterTaskProgress(task.id, { field: 'actualStart', value: d }, { ...opts, today: localTodayIso() }).ok}
+          enterTaskProgress(task.id, { field: 'actualStart', value: d }, { ...opts, today: localTodayIso() })}
         onSetActualFinish={(d, opts) =>
-          enterTaskProgress(task.id, { field: 'actualFinish', value: d }, { ...opts, today: localTodayIso() }).ok}
+          enterTaskProgress(task.id, { field: 'actualFinish', value: d }, { ...opts, today: localTodayIso() })}
       />
 
       <TaskCpmResultSection taskId={task.id} />

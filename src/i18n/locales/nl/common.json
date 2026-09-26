@@ -561,7 +561,19 @@
     }
   },
   "progress": {
-    "actualsAfterStatusDate": "Actuals kunnen niet ná de statusdatum liggen"
+    "actualsAfterStatusDate": "Actuals kunnen niet ná de statusdatum liggen",
+    "actualStartAfterFinish": "De werkelijke start ligt ná het werkelijke einde."
+  },
+  "actualStartQuestion": {
+    "title": "Werkelijke start opgeven",
+    "introOne": "‘{{name}}’ stond gepland om na de statusdatum ({{statusDate}}) te beginnen, maar krijgt nu voortgang. Wanneer is hij werkelijk begonnen?",
+    "introMany": "Deze taken stonden gepland om na de statusdatum ({{statusDate}}) te beginnen, maar krijgen nu voortgang. Wanneer zijn ze werkelijk begonnen?",
+    "fieldLabel": "Werkelijke start van {{name}}",
+    "latest": "Uiterlijk {{date}}.",
+    "required": "Vul een datum in.",
+    "afterStatusDate": "Deze datum ligt na de statusdatum ({{date}}).",
+    "afterActualFinish": "Deze datum ligt na het werkelijke einde ({{date}}).",
+    "confirm": "Voortgang toepassen"
   },
   "companyLibrary": {
     "title": "Resourcebibliotheek",
