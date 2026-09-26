@@ -7,7 +7,7 @@ maakt er geen nieuwe van.
 
 ## Wat je hier leert
 
-- Waarom je eerst een peildatum zet, vóór je een blad terugleest.
+- Waarom je eerst een peildatum zet, en wat de import doet als die er nog niet is.
 - Hoe je het blad exporteert en wat de kolom `OPS Task ID` doet.
 - Wat er in het Excel-blad vastzit, en waarom.
 - Waar je de functie vindt.
@@ -23,11 +23,17 @@ maakt er geen nieuwe van.
 
 ## Zet eerst een peildatum
 
-Voordat je een teruggestuurd blad inleest, zet je op het Planning-tabblad een **statusdatum** (de
-peildatum van je project). Zonder peildatum kan de app niet beoordelen of een gemelde werkelijke datum
-in de toekomst ligt — en die controle is nou juist de bescherming tegen een typefout in een
-teruggestuurd blad (bijvoorbeeld een werkelijke start die per ongeluk volgende maand is ingevuld). Hoe
-je de statusdatum zet en wat hij verder betekent, lees je in de gids
+Voortgang wordt gemeten tot de **statusdatum** (de peildatum van je project), die je op het
+Planning-tabblad zet. Zet hem het liefst zelf, vóór je een teruggestuurd blad inleest, op de dag
+waarop het blad is ingevuld. Met die datum beoordeelt de app of een gemelde werkelijke datum in de
+toekomst ligt — en die controle is nou juist de bescherming tegen een typefout in een teruggestuurd
+blad (bijvoorbeeld een werkelijke start die per ongeluk volgende maand is ingevuld).
+
+Staat er nog geen statusdatum, dan doet de import hetzelfde als voortgang invullen in de app zelf: hij
+rekent met **vandaag**. De preview meldt dat al vóór je bevestigt, een werkelijke datum ná vandaag
+wordt geweigerd, en bij het toepassen gaat de statusdatum op vandaag — met een melding onderin het
+scherm. Zet hem daarna gerust op je echte peildatum. Eén druk op Ctrl+Z draait het blad en de
+statusdatum samen terug. Hoe je de statusdatum zet en wat hij verder betekent, lees je in de gids
 [Baselines & voortgang](docs://gids-baselines-voortgang).
 
 ## Het blad exporteren
@@ -130,8 +136,15 @@ daarbij gewoon staan.
 
 Een teruggestuurd blad komt vaak deels ingevuld terug. Laat een uitvoerder een kolom leeg, dan blijft
 de bestaande waarde van die taak gewoon staan — een leeg veld **wist niets**. Eén neveneffect hoort
-hierbij: vul je wel een percentage boven 0 in voor een taak die nog geen werkelijke start had, dan
-leidt de app die werkelijke start zelf af — een leeg startveld blijft dan dus niet leeg.
+hierbij: vul je wel een percentage boven 0 (of alleen een werkelijk einde) in voor een taak die nog
+geen werkelijke start had, dan leidt de app die werkelijke start zelf af uit de geplande start — een
+leeg startveld blijft dan dus niet leeg.
+
+Behalve als die taak volgens de planning pas ná de statusdatum begint: zo'n startdatum verzint de app
+niet. De preview zet bij zo'n rij dat de app ernaar vraagt, en na **Toepassen** vraagt hij de
+werkelijke start van al die taken tegelijk, met de statusdatum (of het ingevulde werkelijke einde) als
+voorstel. Annuleer je die vraag, dan wordt er niets toegepast en sta je weer in de preview. Vul de
+werkelijke start in het blad in, dan komt de vraag niet.
 
 ## Koppelen: automatisch, en met de hand
 
@@ -156,7 +169,7 @@ je nieuwe taken toevoegen, doe dat in de app zelf.
 
 Een rij wordt geweigerd, met een reden die de preview toont, in onder meer deze gevallen:
 
-- De werkelijke datum ligt na de peildatum (vandaar: zet die peildatum eerst).
+- De werkelijke datum ligt na de peildatum (zonder statusdatum: na vandaag).
 - Werkelijk einde ligt vóór werkelijke start.
 - De rij verwijst naar een verzameltaak — die kan geen eigen voortgang dragen; in het blad dat de app
   zelf exporteert staat dat er meteen bij: de invulcellen van een verzameltaak dragen de tekst
@@ -172,7 +185,8 @@ waarom een rij geweigerd wordt), met datums voluit geschreven zodat een dag/maan
 opvalt. Er is geen manier om de preview over te slaan. Zolang dit scherm openstaat, kun je **niet naar
 een ander document wisselen** — dat voorkomt dat koppelwerk dat je net met de hand deed, verloren gaat
 door een toevallige documentwissel. Bevestig je de import, dan gebeurt dat in **één stap**: één druk op
-Ctrl+Z draait het hele blad in één keer terug, nooit rij voor rij.
+Ctrl+Z draait het hele blad in één keer terug — ook de statusdatum, als de import die op vandaag zette
+— nooit rij voor rij.
 
 ## Na afloop: opnieuw berekenen
 

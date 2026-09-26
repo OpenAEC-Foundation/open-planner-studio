@@ -81,6 +81,10 @@ export type ProgressRowReason =
   // scheider las ("8,38" ⇒ 838). De dialoog mag dat verschil expliciet benoemen.
   | 'percentOutOfRange'
   | 'actualAfterStatusDate' | 'actualFinishBeforeStart' | 'conflictingProgressInputs'
+  // Z1b (`engine/progressEntry.ts`): de geplande start ligt na de statusdatum, de taak heeft nog
+  // geen werkelijke start en het blad geeft er ook geen — de app verzint hem niet. Alleen bij het
+  // toepassen vanuit de dialoog zonder antwoord op de vraag (bv. drift tussen preview en toepassen).
+  | 'actualStartRequired'
   | 'rejected';          // overige plannerfout; `plannerCode` draagt de originele code
 
 export interface ProgressFieldChange {
@@ -103,6 +107,12 @@ export interface ProgressPlanRow {
   changes: readonly ProgressFieldChange[];
   /** Alleen bij `apply`: de volledig gecanonicaliseerde taak zoals hij geschreven wordt. */
   plannedTask?: Task;
+  /** Z1b (alleen vanuit de dialoog, `ProgressImportEntry`): de geplande start ligt na de
+   *  statusdatum en de rij geeft geen werkelijke start. In de preview een `apply`-rij waarvoor de app
+   *  bij bevestigen de werkelijke start vraagt (`ActualStartDialog`); bij toepassen zonder antwoord
+   *  een weigering (`actualStartRequired`). `latest` = het opgegeven werkelijke einde, anders de
+   *  statusdatum — ook het voorstel in de vraag. */
+  actualStartQuestion?: { statusDate: string; latest: string };
 }
 
 export interface ProgressImportPlan {
@@ -118,6 +128,22 @@ export interface ProgressImportPlan {
   ignoredOverrideRows: readonly number[];
   /** Taken zonder enige rij die ze claimde (informatief, niet fout). */
   untouchedTaskCount: number;
+  /** Z1 (alleen vanuit de dialoog): het project heeft geen statusdatum en het blad laat voortgang
+   *  achter ⇒ de statusdatum gaat bij toepassen op deze datum (vandaag), in dezelfde undo-stap. */
+  statusDateToday?: string;
+}
+
+/**
+ * Voortgang invullen vanuit de importdialoog: dezelfde regels als elke andere UI-route
+ * (`engine/progressEntry.ts`, besluit eigenaar "automatisch vandaag, net als in de app"). Alleen de
+ * dialoog geeft dit mee; zonder (headless code, tests) gelden de oude regels, onveranderd.
+ */
+export interface ProgressImportEntry {
+  /** Vandaag (`localTodayIso`). Z1: zonder statusdatum rekent het blad met vandaag en gaat de
+   *  statusdatum bij toepassen op vandaag. */
+  today: string;
+  /** Z1b: de werkelijke starts die de gebruiker op de vraag opgaf, per taak-id. */
+  actualStarts?: Readonly<Record<string, string>>;
 }
 
 /** Harde grenzen op ONGEVALIDEERDE bestandsinvoer (hardening — zie de checklist). */

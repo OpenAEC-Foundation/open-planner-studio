@@ -1146,6 +1146,8 @@
     "summaryNoop": "دون تغيير: {{noop}}",
     "summaryNeedsLink": "بانتظار الربط: {{needsLink}}",
     "summaryRefused": "مرفوض: {{refused}}",
+    "statusDateToday": "لا يوجد تاريخ حالة بعد: عند التطبيق سيُضبط على اليوم، {{date}}.",
+    "actualStartQuestionRow": "مخطط أن تبدأ بعد تاريخ الحالة ({{statusDate}}): عند التطبيق يسأل التطبيق عن البداية الفعلية.",
     "sectionNeedsLink": "بانتظار الربط",
     "sectionDoubtful": "الربط غير مؤكد",
     "confirmLink": "تأكيد",
@@ -1187,6 +1189,7 @@
       "actualAfterStatusDate": "التاريخ الفعلي بعد تاريخ الحالة.",
       "actualFinishBeforeStart": "النهاية الفعلية قبل البداية الفعلية.",
       "conflictingProgressInputs": "القيم المُدخلة متناقضة.",
+      "actualStartRequired": "مخطط أن تبدأ بعد تاريخ الحالة، ولم تُحدَّد بداية فعلية.",
       "rejected": "مرفوض من قِبل المخطِّط."
     },
     "field": {

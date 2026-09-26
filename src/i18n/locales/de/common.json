@@ -1070,6 +1070,8 @@
     "summaryNoop": "Unverändert: {{noop}}",
     "summaryNeedsLink": "Wartet auf Verknüpfung: {{needsLink}}",
     "summaryRefused": "Abgelehnt: {{refused}}",
+    "statusDateToday": "Es gibt noch kein Statusdatum: Beim Übernehmen wird es auf heute gesetzt, {{date}}.",
+    "actualStartQuestionRow": "Geplanter Anfang nach dem Statusdatum ({{statusDate}}): Beim Übernehmen fragt die App nach dem tatsächlichen Anfang.",
     "sectionNeedsLink": "Wartet auf Verknüpfung",
     "sectionDoubtful": "Verknüpfung unsicher",
     "confirmLink": "Bestätigen",
@@ -1111,6 +1113,7 @@
       "actualAfterStatusDate": "Das tatsächliche Datum liegt nach dem Stichtag.",
       "actualFinishBeforeStart": "Tatsächliches Ende liegt vor tatsächlichem Start.",
       "conflictingProgressInputs": "Die eingegebenen Werte widersprechen sich.",
+      "actualStartRequired": "Geplanter Anfang nach dem Statusdatum, und es wurde kein tatsächlicher Anfang angegeben.",
       "rejected": "Vom Planer abgelehnt."
     },
     "field": {

@@ -1089,6 +1089,8 @@
     "summaryNoop": "Sin cambios: {{noop}}",
     "summaryNeedsLink": "Esperando vínculo: {{needsLink}}",
     "summaryRefused": "Rechazado: {{refused}}",
+    "statusDateToday": "Todavía no hay fecha de estado: al aplicar se fija en hoy, {{date}}.",
+    "actualStartQuestionRow": "Planificada para empezar después de la fecha de estado ({{statusDate}}): al aplicar, la aplicación pide el inicio real.",
     "sectionNeedsLink": "Esperando vínculo",
     "sectionDoubtful": "Vínculo dudoso",
     "confirmLink": "Confirmar",
@@ -1130,6 +1132,7 @@
       "actualAfterStatusDate": "La fecha real es posterior a la fecha de estado.",
       "actualFinishBeforeStart": "El fin real es anterior al inicio real.",
       "conflictingProgressInputs": "Los valores introducidos se contradicen.",
+      "actualStartRequired": "Planificada para empezar después de la fecha de estado, y no se indicó un inicio real.",
       "rejected": "Rechazado por el planificador."
     },
     "field": {

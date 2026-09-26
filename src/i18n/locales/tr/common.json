@@ -1070,6 +1070,8 @@
     "summaryNoop": "Değişmedi: {{noop}}",
     "summaryNeedsLink": "Eşleştirme bekliyor: {{needsLink}}",
     "summaryRefused": "Reddedildi: {{refused}}",
+    "statusDateToday": "Henüz durum tarihi yok: uygulandığında bugüne ayarlanır, {{date}}.",
+    "actualStartQuestionRow": "Durum tarihinden ({{statusDate}}) sonra başlayacak şekilde planlandı: uyguladığınızda uygulama gerçekleşen başlangıcı sorar.",
     "sectionNeedsLink": "Eşleştirme bekliyor",
     "sectionDoubtful": "Eşleştirme şüpheli",
     "confirmLink": "Onayla",
@@ -1111,6 +1113,7 @@
       "actualAfterStatusDate": "Gerçek tarih, durum tarihinden sonra.",
       "actualFinishBeforeStart": "Gerçek bitiş, gerçek başlangıçtan önce.",
       "conflictingProgressInputs": "Girilen değerler birbiriyle çelişiyor.",
+      "actualStartRequired": "Durum tarihinden sonra başlayacak şekilde planlandı ve gerçekleşen başlangıç girilmedi.",
       "rejected": "Planlayıcı tarafından reddedildi."
     },
     "field": {

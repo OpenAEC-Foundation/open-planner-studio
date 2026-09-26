@@ -3,6 +3,7 @@ export type {
   DateOrderDetection,
   ProgressFieldChange,
   ProgressFileIssue,
+  ProgressImportEntry,
   ProgressImportPlan,
   ProgressMatchKind,
   ProgressOverrides,
@@ -23,5 +24,5 @@ export {
 export type { ProgressMatchResult, ProgressRowMatch } from './matchRows';
 export { matchProgressRows } from './matchRows';
 
-export type { ProgressPlanDeps } from './buildPlan';
+export type { ProgressPlanDeps, ProgressPlanEntry } from './buildPlan';
 export { buildProgressImportPlan } from './buildPlan';

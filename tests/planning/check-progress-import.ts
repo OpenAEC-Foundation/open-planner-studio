@@ -9,13 +9,19 @@
 //            bevindingen 1+2, daarna Opus-hercheck N-B): `isCompletionUnchanged` (buildPlan.ts) +
 //            `formatCompletionPercent` (csvWriter.ts), via een ECHTE writeCSV→parseProgressCsv→
 //            finalizeProgressRows-round-trip en echte handmatige bladen, niet handgemaakte rijen.
+//   Deel 6 — voortgang invullen via het blad volgt de regels van de rest van de app (besluit
+//            eigenaar "automatisch vandaag, net als in de app"; `engine/progressEntry.ts`), met
+//            `entry` zoals de dialoog hem meegeeft: Z1 (statusdatum wordt vandaag, in de preview
+//            zichtbaar, één undo-stap, één melding) en Z1b (werkelijke start vragen, niet verzinnen).
 // Draait via run.sh (registratie: T11). Exit 0 = alles groen; de suite print "alles groen" ook bij
 // exit 1 wanneer het bundelen faalt — de exitcode is het enige geldige oordeel.
 
 import { matchProgressRows } from '@/services/progressImport/matchRows';
 import { buildProgressImportPlan, type ProgressPlanDeps } from '@/services/progressImport/buildPlan';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { useAppStore } from '@/state/appStore';
+import { createAppStoreContext, useAppStore, type AppState } from '@/state/appStore';
+import { historyDepthsForActiveScope } from '@/state/sessionHistory';
+import { displayDate } from '@/utils/displayDate';
 import { buildTaskEditPlanEnvironment } from '@/state/gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import { writeCSV } from '@/services/csv/csvWriter';
@@ -23,6 +29,7 @@ import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type { ProgressOverrides, ProgressRow } from '@/services/progressImport/types';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
 import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
 
@@ -555,6 +562,187 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   ok('…rij R leverde een plannedTask op', rowR?.plannedTask !== undefined);
   eq('…en plant 100% completion', rowR?.plannedTask?.time.completion, 1);
   eq('…en de status is COMPLETED via de invarianten', rowR?.plannedTask?.status, 'COMPLETED');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Deel 6 — de importroute volgt de voortgangsregels van de app (Z1/Z1b, `engine/progressEntry.ts`).
+// De dialoog geeft `{ today }` mee (vandaag, `localTodayIso`); hier een vaste datum, zodat de check
+// niet van de kalenderdag of de tijdzone afhangt. Zonder `entry` (headless) blijft alles zoals het was.
+//
+// Opzet: projectstart ma 5 jan 2026, werkdagen ma–vr. A (5 wd) → B (3 wd) FS, C (2 wd) los.
+// Geplande starts: A en C 5 jan, B 12 jan. "Vandaag" = vr 9 jan: B begint volgens de planning dus
+// NA vandaag (Z1b), A en C ervoor.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+{
+  const TODAY6 = '2026-01-09';
+  const fresh6 = () => {
+    const ctx = createAppStoreContext();
+    const S = () => ctx.store.getState();
+    S().newProject();
+    S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
+    S().setProject({ startDate: '2026-01-05', name: 'Import Z1' });
+    const A = S().addTask({ name: 'A', time: { scheduleDuration: 5 } as Task['time'] });
+    const B = S().addTask({ name: 'B', time: { scheduleDuration: 3 } as Task['time'] });
+    const C = S().addTask({ name: 'C', time: { scheduleDuration: 2 } as Task['time'] });
+    S().addSequence({ predecessorId: A, successorId: B, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    return { S, A, B, C };
+  };
+  const depth = (S: () => AppState) => historyDepthsForActiveScope(S()).undoDepth;
+  const notices = (S: () => AppState) => S().ui.notifications
+    .filter(n => n.messageKey === 'notifications.statusDateSetToday')
+    .map(n => ({ count: n.count, date: n.params?.date }));
+  const timeOf = (S: () => AppState, id: string) => {
+    const t = S().tasks.find(x => x.id === id)!;
+    return { completion: t.time.completion, actualStart: t.time.actualStart ?? null };
+  };
+  const rowOf = (plan: { rows: readonly { taskId?: string }[] }, id: string) => plan.rows.find(r => r.taskId === id) as
+    ReturnType<AppState['previewProgressImport']>['rows'][number] | undefined;
+
+  {
+    const { S, A, B, C } = fresh6();
+    eq('6 opzet: geplande starts A/B/C',
+      [A, B, C].map(id => S().tasks.find(t => t.id === id)!.time.earlyStart), ['2026-01-05', '2026-01-12', '2026-01-05']);
+    eq('6 opzet: geen statusdatum', S().project.statusDate, undefined);
+  }
+
+  // ── 6a. Z1 in de preview: zonder statusdatum rekent het blad met vandaag, en zegt dat vooraf. ──
+  {
+    const { S, A, C } = fresh6();
+    const rows6a: ProgressRow[] = [
+      makeRow(2, { taskId: A, completion: pct(0.4) }),
+      makeRow(3, { taskId: C, actualStart: dateVal('2026-01-12') }), // ná vandaag
+    ];
+    const d0 = depth(S);
+    const preview = S().previewProgressImport(rows6a, undefined, { today: TODAY6 });
+    eq('6a preview: de statusdatum wordt vandaag', preview.statusDateToday, TODAY6);
+    eq('6a preview: A wordt toegepast', rowOf(preview, A)?.outcome, 'apply');
+    eq('6a preview: een werkelijke datum ná vandaag telt als ná de statusdatum',
+      rowOf(preview, C)?.reason, 'actualAfterStatusDate');
+    eq('6a preview muteert niets: geen statusdatum, geen undo-stap, geen melding',
+      { sd: S().project.statusDate ?? null, steps: depth(S) - d0, notices: notices(S).length },
+      { sd: null, steps: 0, notices: 0 });
+
+    // Headless (geen `entry`): de oude regels — geen statusdatum, dus ook geen weigering.
+    const headless = S().previewProgressImport(rows6a);
+    eq('6a headless: geen statusdatum in het plan', headless.statusDateToday, undefined);
+    eq('6a headless: dezelfde datum wordt gewoon toegepast', rowOf(headless, C)?.outcome, 'apply');
+  }
+
+  // ── 6b. Z1 bij toepassen: statusdatum + blad in één undo-stap, met de ene melding. ──
+  {
+    const { S, A } = fresh6();
+    const d0 = depth(S);
+    const applied = S().applyProgressImport([makeRow(2, { taskId: A, completion: pct(0.4) })], undefined, { today: TODAY6 });
+    eq('6b toepassen: het plan noemt de datum', applied.statusDateToday, TODAY6);
+    eq('6b toepassen: statusdatum = vandaag', S().project.statusDate, TODAY6);
+    eq('6b toepassen: de voortgang staat', timeOf(S, A).completion, 0.4);
+    eq('6b toepassen: één undo-stap voor statusdatum én blad', depth(S) - d0, 1);
+    eq('6b toepassen: één melding, met de datum in de notatie van de gebruiker',
+      notices(S), [{ count: 1, date: displayDate(TODAY6, S().ui.dateNotation) }]);
+    S().undo();
+    eq('6b Ctrl+Z draait statusdatum én blad samen terug',
+      { sd: S().project.statusDate ?? null, completion: timeOf(S, A).completion }, { sd: null, completion: 0 });
+  }
+
+  // ── 6c. Headless toepassen (geen `entry`): het vangnet, onveranderd. ──
+  {
+    const { S, A } = fresh6();
+    S().applyProgressImport([makeRow(2, { taskId: A, completion: pct(0.4) })]);
+    eq('6c headless: voortgang staat, statusdatum blijft leeg, geen melding',
+      { completion: timeOf(S, A).completion, sd: S().project.statusDate ?? null, notices: notices(S).length },
+      { completion: 0.4, sd: null, notices: 0 });
+  }
+
+  // ── 6d. Er staat al een statusdatum: die geldt (ook voor de controle), er wordt niets op vandaag gezet. ──
+  {
+    const { S, B, C } = fresh6();
+    S().setStatusDate('2026-01-07');
+    const preview = S().previewProgressImport([
+      makeRow(2, { taskId: B, completion: pct(0.5) }),
+      makeRow(3, { taskId: C, actualStart: dateVal('2026-01-08') }), // ná de statusdatum, vóór vandaag
+    ], undefined, { today: TODAY6 });
+    eq('6d: geen statusdatum-op-vandaag', preview.statusDateToday, undefined);
+    eq('6d: de vraag rekent met de ingestelde statusdatum',
+      rowOf(preview, B)?.actualStartQuestion, { statusDate: '2026-01-07', latest: '2026-01-07' });
+    eq('6d: de controle ook', rowOf(preview, C)?.reason, 'actualAfterStatusDate');
+  }
+
+  // ── 6e. Z1b in de preview: de vraag staat op de rij, de rij blijft "toe te passen". ──
+  {
+    const { S, A, B } = fresh6();
+    const preview = S().previewProgressImport([
+      makeRow(2, { taskId: A, completion: pct(0.4) }),
+      makeRow(3, { taskId: B, completion: pct(0.5) }),
+    ], undefined, { today: TODAY6 });
+    eq('6e preview: B vraagt de werkelijke start, met vandaag als voorstel',
+      rowOf(preview, B)?.actualStartQuestion, { statusDate: TODAY6, latest: TODAY6 });
+    eq('6e preview: …en telt als toe te passen', { outcome: rowOf(preview, B)?.outcome, applied: preview.appliedCount },
+      { outcome: 'apply', applied: 2 });
+    eq('6e preview: A (geplande start vóór vandaag) vraagt niets', rowOf(preview, A)?.actualStartQuestion, undefined);
+    eq('6e headless: geen vraag', rowOf(S().previewProgressImport([makeRow(3, { taskId: B, completion: pct(0.5) })]), B)
+      ?.actualStartQuestion, undefined);
+  }
+
+  // ── 6f. Z1b toepassen ZONDER antwoord: de rij wordt geweigerd, nooit met een verzonnen start. ──
+  {
+    const { S, A, B } = fresh6();
+    const d0 = depth(S);
+    const applied = S().applyProgressImport([
+      makeRow(2, { taskId: A, completion: pct(0.4) }),
+      makeRow(3, { taskId: B, completion: pct(0.5) }),
+    ], undefined, { today: TODAY6 });
+    eq('6f: B geweigerd met actualStartRequired', rowOf(applied, B)?.reason, 'actualStartRequired');
+    eq('6f: B onaangeroerd', timeOf(S, B), { completion: 0, actualStart: null });
+    eq('6f: A wel toegepast, statusdatum vandaag, één undo-stap',
+      { completion: timeOf(S, A).completion, sd: S().project.statusDate, steps: depth(S) - d0 },
+      { completion: 0.4, sd: TODAY6, steps: 1 });
+  }
+
+  // ── 6g. Z1b toepassen MET antwoord: de opgegeven start, alles in één undo-stap. ──
+  {
+    const { S, A, B } = fresh6();
+    const d0 = depth(S);
+    const rows6g: ProgressRow[] = [
+      makeRow(2, { taskId: A, completion: pct(0.4) }),
+      makeRow(3, { taskId: B, completion: pct(0.5) }),
+    ];
+    const applied = S().applyProgressImport(rows6g, undefined, { today: TODAY6, actualStarts: { [B]: '2026-01-08' } });
+    eq('6g: niets geweigerd', applied.refusedCount, 0);
+    eq('6g: B met de opgegeven werkelijke start', timeOf(S, B), { completion: 0.5, actualStart: '2026-01-08' });
+    eq('6g: statusdatum vandaag, één undo-stap', { sd: S().project.statusDate, steps: depth(S) - d0 }, { sd: TODAY6, steps: 1 });
+    S().undo();
+    eq('6g: Ctrl+Z draait alles samen terug',
+      { sd: S().project.statusDate ?? null, a: timeOf(S, A).completion, b: timeOf(S, B) },
+      { sd: null, a: 0, b: { completion: 0, actualStart: null } });
+  }
+
+  // ── 6h. Het blad geeft zelf een Actual Start: niets te vragen. ──
+  {
+    const { S, B } = fresh6();
+    const rowsH = [makeRow(3, { taskId: B, completion: pct(0.5), actualStart: dateVal('2026-01-07') })];
+    eq('6h preview: geen vraag', rowOf(S().previewProgressImport(rowsH, undefined, { today: TODAY6 }), B)?.actualStartQuestion, undefined);
+    S().applyProgressImport(rowsH, undefined, { today: TODAY6 });
+    eq('6h toepassen: de start uit het blad', timeOf(S, B), { completion: 0.5, actualStart: '2026-01-07' });
+  }
+
+  // ── 6i. Alleen een Actual Finish in het blad: de vraag stelt het werkelijke einde als uiterste datum. ──
+  {
+    const { S, B } = fresh6();
+    const preview = S().previewProgressImport([makeRow(3, { taskId: B, actualFinish: dateVal('2026-01-08') })], undefined, { today: TODAY6 });
+    eq('6i: latest = het werkelijke einde', rowOf(preview, B)?.actualStartQuestion, { statusDate: TODAY6, latest: '2026-01-08' });
+  }
+
+  // ── 6j. Drift: het antwoord overschrijft nooit een start die de taak intussen kreeg. ──
+  {
+    const { S, B } = fresh6();
+    const rowsJ = [makeRow(3, { taskId: B, completion: pct(0.5) })];
+    eq('6j sanity: de preview vraagt', !!rowOf(S().previewProgressImport(rowsJ, undefined, { today: TODAY6 }), B)?.actualStartQuestion, true);
+    S().setStatusDate('2026-01-07');
+    S().setActualStart(B, '2026-01-06'); // tussen preview en toepassen (bv. het paneel)
+    S().applyProgressImport(rowsJ, undefined, { today: TODAY6, actualStarts: { [B]: '2026-01-07' } });
+    eq('6j: de intussen vastgelegde start blijft staan', timeOf(S, B), { completion: 0.5, actualStart: '2026-01-06' });
+  }
 }
 
 if (diffs.length > 0) {

@@ -1108,6 +1108,8 @@
     "summaryNoop": "Bez zmian: {{noop}}",
     "summaryNeedsLink": "Czeka na powiązanie: {{needsLink}}",
     "summaryRefused": "Odrzucono: {{refused}}",
+    "statusDateToday": "Nie ma jeszcze daty statusu: zastosowanie ustawi ją na dziś, {{date}}.",
+    "actualStartQuestionRow": "Zaplanowane rozpoczęcie po dacie statusu ({{statusDate}}): przy zastosowaniu aplikacja zapyta o rzeczywiste rozpoczęcie.",
     "sectionNeedsLink": "Czeka na powiązanie",
     "sectionDoubtful": "Powiązanie niepewne",
     "confirmLink": "Potwierdź",
@@ -1149,6 +1151,7 @@
       "actualAfterStatusDate": "Rzeczywista data przypada po dacie statusu.",
       "actualFinishBeforeStart": "Rzeczywiste zakończenie przypada przed rzeczywistym startem.",
       "conflictingProgressInputs": "Wprowadzone wartości są ze sobą sprzeczne.",
+      "actualStartRequired": "Zaplanowane rozpoczęcie po dacie statusu, a nie podano rzeczywistego rozpoczęcia.",
       "rejected": "Odrzucone przez planistę."
     },
     "field": {

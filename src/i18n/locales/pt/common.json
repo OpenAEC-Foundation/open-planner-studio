@@ -1089,6 +1089,8 @@
     "summaryNoop": "Inalterado: {{noop}}",
     "summaryNeedsLink": "Aguardando ligação: {{needsLink}}",
     "summaryRefused": "Recusado: {{refused}}",
+    "statusDateToday": "Ainda não há data de estado: ao aplicar, fica definida para hoje, {{date}}.",
+    "actualStartQuestionRow": "Planeada para começar depois da data de estado ({{statusDate}}): ao aplicar, a aplicação pede o início real.",
     "sectionNeedsLink": "Aguardando ligação",
     "sectionDoubtful": "Ligação duvidosa",
     "confirmLink": "Confirmar",
@@ -1130,6 +1132,7 @@
       "actualAfterStatusDate": "A data real é posterior à data de estado.",
       "actualFinishBeforeStart": "O fim real é anterior ao início real.",
       "conflictingProgressInputs": "Os valores inseridos contradizem-se.",
+      "actualStartRequired": "Planeada para começar depois da data de estado, e não foi indicado um início real.",
       "rejected": "Recusado pelo planeador."
     },
     "field": {

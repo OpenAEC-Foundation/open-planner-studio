@@ -6,7 +6,7 @@ project. That's what this feature does: it **updates existing tasks**, it never 
 
 ## What you'll learn here
 
-- Why you set a status date first, before reading a sheet back in.
+- Why you set a status date first, and what the import does when there isn't one yet.
 - How to export the sheet, and what the `OPS Task ID` column does.
 - What is locked down in the Excel sheet, and why.
 - Where to find the feature.
@@ -22,11 +22,18 @@ project. That's what this feature does: it **updates existing tasks**, it never 
 
 ## Set a status date first
 
-Before reading a returned sheet, set a **status date** on the Planning tab (your project's reference
-date). Without a status date the app cannot judge whether a reported actual date lies in the future —
-and that check is exactly the protection against a typo in a returned sheet (for example an actual
-start accidentally entered as next month). How to set the status date, and what else it does, is
-covered in the [Baselines & progress](docs://gids-baselines-voortgang) guide.
+Progress is measured up to the **status date** (your project's reference date), which you set on the
+Planning tab. Preferably set it yourself before reading a returned sheet, to the day the sheet was
+filled in. With that date the app judges whether a reported actual date lies in the future — and that
+check is exactly the protection against a typo in a returned sheet (for example an actual start
+accidentally entered as next month).
+
+If there is no status date yet, the import does the same as entering progress in the app itself: it
+works with **today**. The preview says so before you confirm, an actual date after today is refused,
+and applying sets the status date to today — with a notification at the bottom of the screen. Feel
+free to move it to your real reference date afterwards. A single Ctrl+Z undoes the sheet and the
+status date together. How to set the status date, and what else it does, is covered in the
+[Baselines & progress](docs://gids-baselines-voortgang) guide.
 
 ## Exporting the sheet
 
@@ -128,8 +135,15 @@ back to that same question from the preview — any links you made by hand stay 
 
 A returned sheet often comes back partially filled in. If a foreman leaves a column empty, the task's
 existing value simply stays as it is — an empty field **clears nothing**. One side effect comes with
-that: if you do fill in a percentage above 0 for a task that had no actual start yet, the app derives
-that actual start itself — so an empty start field does not stay empty in that case.
+that: if you do fill in a percentage above 0 (or only an actual finish) for a task that had no actual
+start yet, the app derives that actual start itself from the planned start — so an empty start field
+does not stay empty in that case.
+
+Except when that task, according to the plan, only starts after the status date: the app does not
+make up such a start date. The preview notes on such a row that the app will ask, and after **Apply**
+it asks for the actual start of all those tasks at once, suggesting the status date (or the actual
+finish that was filled in). If you cancel that question, nothing is applied and you are back in the
+preview. Fill in the actual start in the sheet and the question doesn't come up.
 
 ## Linking: automatic, and by hand
 
@@ -153,7 +167,7 @@ itself.
 
 A row is refused, with a reason shown in the preview, in cases including:
 
-- The actual date is after the status date (hence: set that status date first).
+- The actual date is after the status date (without a status date: after today).
 - Actual finish is before actual start.
 - The row refers to a summary task — those can't carry their own progress; the sheet the app exports
   says so in the cells themselves: a summary task's fill-in cells read "— summary task: do not fill
@@ -168,8 +182,8 @@ Before anything in your project changes, you always see a preview first: per row
 why a row is refused), with dates written out in full so a day/month mix-up stands out. There is no
 way to skip the preview. While this screen is open, you **cannot switch to another document** — that
 prevents any linking work you just did by hand from being lost to an accidental document switch.
-Confirming the import happens in **one step**: a single Ctrl+Z undoes the whole sheet at once, never
-row by row.
+Confirming the import happens in **one step**: a single Ctrl+Z undoes the whole sheet at once — the
+status date too, if the import set it to today — never row by row.
 
 ## Afterwards: recalculate
 

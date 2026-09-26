@@ -1070,6 +1070,8 @@
     "summaryNoop": "بدون تغییر: {{noop}}",
     "summaryNeedsLink": "در انتظار پیوند: {{needsLink}}",
     "summaryRefused": "رد شده: {{refused}}",
+    "statusDateToday": "هنوز تاریخ وضعیت تعیین نشده است: با اعمال، روی امروز تنظیم می‌شود، {{date}}.",
+    "actualStartQuestionRow": "برنامه‌ریزی شده که بعد از تاریخ وضعیت ({{statusDate}}) شروع شود: هنگام اعمال، برنامه شروع واقعی را می‌پرسد.",
     "sectionNeedsLink": "در انتظار پیوند",
     "sectionDoubtful": "پیوند نامطمئن",
     "confirmLink": "تأیید",
@@ -1111,6 +1113,7 @@
       "actualAfterStatusDate": "تاریخ واقعی بعد از تاریخ وضعیت است.",
       "actualFinishBeforeStart": "پایان واقعی قبل از شروع واقعی است.",
       "conflictingProgressInputs": "مقادیر واردشده با یکدیگر تناقض دارند.",
+      "actualStartRequired": "برنامه‌ریزی شده که بعد از تاریخ وضعیت شروع شود و شروع واقعی وارد نشده است.",
       "rejected": "توسط برنامه‌ریز رد شد."
     },
     "field": {

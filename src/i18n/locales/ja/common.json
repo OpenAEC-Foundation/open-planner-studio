@@ -1051,6 +1051,8 @@
     "summaryNoop": "変更なし: {{noop}}",
     "summaryNeedsLink": "紐付け待ち: {{needsLink}}",
     "summaryRefused": "拒否: {{refused}}",
+    "statusDateToday": "状態日がまだ設定されていません。適用すると今日（{{date}}）に設定されます。",
+    "actualStartQuestionRow": "状態日（{{statusDate}}）より後に開始する計画です。適用時に実績開始日を確認します。",
     "sectionNeedsLink": "紐付け待ち",
     "sectionDoubtful": "紐付けが不確実",
     "confirmLink": "確定",
@@ -1092,6 +1094,7 @@
       "actualAfterStatusDate": "実際の日付がステータス日より後です。",
       "actualFinishBeforeStart": "実終了が実開始より前です。",
       "conflictingProgressInputs": "入力された値が矛盾しています。",
+      "actualStartRequired": "状態日より後に開始する計画で、実績開始日が入力されていません。",
       "rejected": "プランナーに拒否されました。"
     },
     "field": {

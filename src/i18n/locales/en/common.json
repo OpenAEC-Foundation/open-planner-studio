@@ -1070,6 +1070,8 @@
     "summaryNoop": "Unchanged: {{noop}}",
     "summaryNeedsLink": "Waiting for a link: {{needsLink}}",
     "summaryRefused": "Refused: {{refused}}",
+    "statusDateToday": "There is no status date yet: applying sets it to today, {{date}}.",
+    "actualStartQuestionRow": "Planned to start after the status date ({{statusDate}}): when you apply, the app asks for the actual start.",
     "sectionNeedsLink": "Waiting for a link",
     "sectionDoubtful": "Link is uncertain",
     "confirmLink": "Confirm",
@@ -1111,6 +1113,7 @@
       "actualAfterStatusDate": "The actual date is after the status date.",
       "actualFinishBeforeStart": "Actual finish is before actual start.",
       "conflictingProgressInputs": "The entered values contradict each other.",
+      "actualStartRequired": "Planned to start after the status date, and no actual start was given.",
       "rejected": "Refused by the planner."
     },
     "field": {

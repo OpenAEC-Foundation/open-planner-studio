@@ -4,7 +4,8 @@ import { AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { openFileDialog } from '@/services/fileAccess';
-import { parseDate } from '@/utils/dateUtils';
+import { localTodayIso, parseDate } from '@/utils/dateUtils';
+import { askActualStart, type ActualStartAnswers } from '@/state/actualStartQuestion';
 import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
@@ -17,6 +18,7 @@ import type {
   DateOrderDetection,
   ProgressFieldChange,
   ProgressFileIssue,
+  ProgressImportEntry,
   ProgressImportPlan,
   ProgressOverrides,
   ProgressPlanRow,
@@ -30,7 +32,11 @@ type Stage = 'pick' | 'dateOrder' | 'preview' | 'result';
  *  hetzelfde plan tegen de live taken en past het in één undo-stap toe (A4/A8). Expliciet getypeerd
  *  zodat het ONTBREKEN van deze store-acties (baan A, T5 nog te leveren) hier één keer een fout geeft
  *  in plaats van via `any` door te lekken naar elk gebruik van `plan` verderop. */
-type ProgressImportPlanFn = (rows: readonly ProgressRow[], overrides?: ProgressOverrides) => ProgressImportPlan;
+type ProgressImportPlanFn = (
+  rows: readonly ProgressRow[],
+  overrides?: ProgressOverrides,
+  entry?: ProgressImportEntry,
+) => ProgressImportPlan;
 
 /** Fixronde bevinding 1: een blad van een ANDER project maakt alle rijen unmatched — tot
  *  `PROGRESS_IMPORT_LIMITS.maxRows` (50.000). Zonder grens rendert elke sectie evenveel DOM-knopen
@@ -84,7 +90,20 @@ function findSheetRow(rows: readonly ProgressRow[] | null, rowNumber: number): P
  * (E3/A11) → expliciete bevestiging → resultaatweergave. Vier toestanden, strikt na elkaar; geen
  * sneltoets eromheen, de preview is niet overslaanbaar.
  *
- * A7: de dialoog draagt zijn eigen resultaat — geen nieuwe `NotificationMessageKey`, geen `notify()`.
+ * A7: de dialoog draagt zijn eigen resultaat — geen nieuwe `NotificationMessageKey`, geen eigen
+ * `notify()`. Eén uitzondering, bewust: zet het toepassen de statusdatum op vandaag (Z1), dan meldt
+ * de STORE dat met dezelfde melding als elke andere UI-route (`applyProgressImport`).
+ *
+ * Voortgang invullen via een blad volgt dezelfde regels als de rest van de app (besluit eigenaar
+ * "automatisch vandaag, net als in de app"; `engine/progressEntry.ts`) — daarom geeft deze dialoog
+ * `{ today }` mee aan preview en toepassen:
+ *  - Z1: zonder statusdatum rekent het blad met vandaag (ook de controle "werkelijke datum na de
+ *    statusdatum") en zet toepassen de statusdatum op vandaag, in dezelfde undo-stap. De preview
+ *    toont dat vooraf.
+ *  - Z1b: rijen voor een taak die volgens de planning pas NA de statusdatum begint, zonder werkelijke
+ *    start en zonder Actual Start in het blad, laten de werkelijke start niet verzinnen: na
+ *    "Toepassen" vraagt `ActualStartDialog` ernaar, voor al die taken samen. Annuleren = er wordt
+ *    niets toegepast en de preview staat er weer.
  * A8: bewaart het sheet, de gekozen datumvolgorde en de overrides, NIET het plan — `applyProgressImport`
  * herberekent tegen de live taken binnen dezelfde `set()` (drift-bestendig).
  * A12/E4: `showProgressImportDialog` blokkeert een documentwissel volledig (zie shortcutRegistry.ts,
@@ -111,6 +130,8 @@ export function ProgressImportDialog() {
   // kiezer opengeklapt tonen na een klik op "Wijzigen" (T7). Los van `overrides` — "Wijzigen" mag de
   // bestaande koppeling nog niet wissen, alleen de kiezer tonen zodat een andere taak gekozen kan worden.
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
+  // Z1b: de vraag naar de werkelijke start staat open (zie `confirm`) — Toepassen niet nog eens.
+  const [asking, setAsking] = useState(false);
 
   // Fixronde bevinding 1: NIET meer in de render-body — dat riep `previewProgressImport` (tot 50.000
   // rijen) bij ELKE render van deze component opnieuw aan, ook voor wijzigingen die het plan niet
@@ -127,7 +148,7 @@ export function ProgressImportDialog() {
   // toelichting hierboven (Ctrl+Z/Ctrl+Y muteren `s.tasks` terwijl deze dialoog open staat). De
   // linter kan die indirecte afhankelijkheid niet zien, vandaar de gerichte suppressie hieronder.
   const plan = useMemo(
-    () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides) : null),
+    () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides, { today: localTodayIso() }) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stage, rows, overrides, tasks, previewProgressImport],
   );
@@ -236,9 +257,29 @@ export function ProgressImportDialog() {
     });
   };
 
-  const confirm = () => {
-    if (!rows) return;
-    setResult(applyProgressImport(rows, overrides));
+  // Z1b: eerst de vraag naar de werkelijke start, voor alle betrokken taken samen — pas daarna
+  // toepassen. Annuleren ⇒ niets toegepast, de preview blijft staan. Toepassen herbouwt het plan tegen
+  // de live taken (A8); een rij die dan tóch nog een onbeantwoorde vraag heeft, wordt geweigerd
+  // (`actualStartRequired`), nooit met een verzonnen datum geschreven. `today`: de datum die de
+  // preview toonde, zodat de statusdatum wordt wat de gebruiker vooraf zag.
+  const confirm = async () => {
+    if (!rows || !plan || asking) return;
+    const today = plan.statusDateToday ?? localTodayIso();
+    const questions = plan.rows.filter(row => row.outcome === 'apply' && row.taskId && row.actualStartQuestion);
+    let actualStarts: ActualStartAnswers | undefined;
+    if (questions.length > 0) {
+      setAsking(true);
+      const answers = await askActualStart(questions.map(row => ({
+        taskId: row.taskId!,
+        taskName: tasks.find(task => task.id === row.taskId)?.name ?? row.taskLabel ?? '',
+        statusDate: row.actualStartQuestion!.statusDate,
+        latest: row.actualStartQuestion!.latest,
+      })));
+      setAsking(false);
+      if (!answers) return;
+      actualStarts = answers;
+    }
+    setResult(applyProgressImport(rows, overrides, { today, actualStarts }));
     setStage('result');
   };
 
@@ -267,6 +308,18 @@ export function ProgressImportDialog() {
   );
 
   const renderRowOutcome = (row: ProgressPlanRow) => {
+    if (row.outcome === 'apply' && row.actualStartQuestion) {
+      return (
+        <>
+          {renderChanges(row)}
+          <span className="text-text-secondary" data-ops-progress-actual-start-question>
+            {t('progressImport.actualStartQuestionRow', {
+              statusDate: formatIsoForDisplay(row.actualStartQuestion.statusDate, i18n.language),
+            })}
+          </span>
+        </>
+      );
+    }
     if (row.outcome === 'apply') return renderChanges(row);
     if (row.outcome === 'refused' && row.reason) {
       return <span style={{ color: 'var(--error)' }}>{t(`progressImport.reason.${row.reason}`)}</span>;
@@ -320,6 +373,13 @@ export function ProgressImportDialog() {
               <span>{t('progressImport.summaryNeedsLink', { needsLink: plan.needsLinkCount })}</span>
               <span>{t('progressImport.summaryRefused', { refused: plan.refusedCount })}</span>
             </div>
+
+            {/* Z1: zonder statusdatum zet toepassen hem op vandaag — vooraf zichtbaar, niet pas achteraf. */}
+            {plan.statusDateToday && (
+              <div className="alert alert--info" data-ops-progress-status-date-today={plan.statusDateToday}>
+                {t('progressImport.statusDateToday', { date: formatIsoForDisplay(plan.statusDateToday, i18n.language) })}
+              </div>
+            )}
 
             {/* Fixronde N-D/N-E: baan B levert `evidence: 'contradictoryNoSample'` wanneer het
                 bestand tegenstrijdig datumbewijs bevat maar er geen enkele cel is om de gebruiker
@@ -490,7 +550,11 @@ export function ProgressImportDialog() {
           <>
             <button onClick={close} className="btn btn--sm btn--secondary">{t('cancel')}</button>
             {stage === 'preview' && (
-              <button onClick={confirm} disabled={!plan || plan.appliedCount === 0} className="btn btn--sm btn--primary">
+              <button
+                onClick={() => { void confirm(); }}
+                disabled={!plan || plan.appliedCount === 0 || asking}
+                className="btn btn--sm btn--primary"
+              >
                 {t('progressImport.confirm')}
               </button>
             )}

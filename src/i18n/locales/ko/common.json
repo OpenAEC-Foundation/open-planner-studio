@@ -1051,6 +1051,8 @@
     "summaryNoop": "변경 없음: {{noop}}",
     "summaryNeedsLink": "연결 대기 중: {{needsLink}}",
     "summaryRefused": "거부됨: {{refused}}",
+    "statusDateToday": "아직 상태 날짜가 없습니다. 적용하면 오늘({{date}})로 설정됩니다.",
+    "actualStartQuestionRow": "상태 날짜({{statusDate}}) 이후에 시작하도록 계획되었습니다. 적용할 때 실제 시작을 묻습니다.",
     "sectionNeedsLink": "연결 대기 중",
     "sectionDoubtful": "연결이 불확실함",
     "confirmLink": "확인",
@@ -1092,6 +1094,7 @@
       "actualAfterStatusDate": "실제 날짜가 기준일 이후입니다.",
       "actualFinishBeforeStart": "실제 종료일이 실제 시작일보다 앞섭니다.",
       "conflictingProgressInputs": "입력된 값들이 서로 모순됩니다.",
+      "actualStartRequired": "상태 날짜 이후에 시작하도록 계획되었고 실제 시작이 입력되지 않았습니다.",
       "rejected": "플래너가 거부했습니다."
     },
     "field": {

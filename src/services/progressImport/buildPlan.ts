@@ -1,5 +1,6 @@
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
+import { actualStartQuestionFor, hasRecordedProgress } from '@/engine/progressEntry';
 import type { Task } from '@/types/task';
 import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
 import { matchProgressRows } from './matchRows';
@@ -18,6 +19,26 @@ export interface ProgressPlanDeps {
     task: Task,
     edits: readonly CellEditIntent[],
   ) => GridResult<PlannedTaskEdit, readonly CellValidationError[]>;
+}
+
+/**
+ * Voortgang invullen vanuit de importdialoog (`ProgressImportEntry`, `engine/progressEntry.ts`),
+ * zoals `previewProgressImport`/`applyProgressImport` (`taskSlice.ts`) hem afleiden. Afwezig =
+ * headless: de oude regels, onveranderd.
+ */
+export interface ProgressPlanEntry {
+  /** De statusdatum waartegen gepland en gevraagd wordt: de ingestelde, anders vandaag (Z1).
+   *  `deps.planEdits` plant met DEZELFDE datum — ook de controle `actualAfterStatusDate`. */
+  statusDate: string;
+  /** Z1: gezet ⇔ het project had geen statusdatum; hij gaat op deze datum als het blad voortgang
+   *  achterlaat (`ProgressImportPlan.statusDateToday`). */
+  statusDateToday?: string;
+  /** Z1b: de werkelijke starts die de gebruiker op de vraag opgaf, per taak-id. */
+  actualStarts?: Readonly<Record<string, string>>;
+  /** Toepassen: een rij die de vraag stelt en geen antwoord heeft, wordt geweigerd
+   *  (`actualStartRequired`) — nooit met een verzonnen werkelijke start geschreven. Preview: de rij
+   *  blijft `apply` en draagt de vraag (`actualStartQuestion`), zodat de dialoog hem bij bevestigen stelt. */
+  refuseOpenQuestions: boolean;
 }
 
 /** Plannerfoutcodes die de preview als hun EIGEN reden toont; alle andere plannerfouten vallen op
@@ -86,6 +107,9 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
  *   5. no-op-filter (A6, `isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
  *      velden worden een `CellEditIntent`; niets over ⇒ noop.
  *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`.
+ *      6b. alleen met `entry` (de dialoog): Z1b — zou de rij een werkelijke start afleiden uit een
+ *      geplande start ná de statusdatum, dan het antwoord op de vraag meeplannen, of (zonder
+ *      antwoord) bij toepassen weigeren met `actualStartRequired` en in de preview de vraag markeren.
  *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst — alleen de velden
  *      die de RIJ ZELF aanleverde (fix 2), before uit de HUIDIGE taak, after uit de GEPLANDE taak.
  * `needsConfirmation` (⇔ `match === 'wbs'`) wordt op ELKE rij gezet die een taak trof, ongeacht de
@@ -96,6 +120,7 @@ export function buildProgressImportPlan(
   tasks: readonly Task[],
   deps: ProgressPlanDeps,
   overrides?: ProgressOverrides,
+  entry?: ProgressPlanEntry,
 ): ProgressImportPlan {
   const { matches, ignoredOverrideRows } = matchProgressRows(rows, tasks, overrides);
   const tasksById = new Map(tasks.map(task => [task.id, task] as const));
@@ -213,7 +238,36 @@ export function buildProgressImportPlan(
     }
 
     // 6. De echte (of gestubde) planner.
-    const planned = deps.planEdits(task, edits);
+    let planned = deps.planEdits(task, edits);
+    // 6b. Z1b (alleen vanuit de dialoog, `entry`): zou de rij de werkelijke start AFLEIDEN uit een
+    // geplande start ná de statusdatum, dan verzint de import hem niet — hetzelfde criterium als elke
+    // andere UI-route (`actualStartQuestionFor`). Opgegeven = het blad draagt een Actual Start. Een
+    // antwoord op de vraag wordt alleen gebruikt als de vraag ook nu (tegen de live taak) ontstaat:
+    // dan gaat hij als werkelijke start mee de planner in, anders blijft hij buiten beeld — een
+    // antwoord overschrijft nooit een werkelijke start die de taak intussen al kreeg.
+    let actualStartQuestion: ProgressPlanRow['actualStartQuestion'];
+    if (planned.ok && entry) {
+      const question = actualStartQuestionFor(task, planned.value.task, entry.statusDate, {
+        actualStart: row.actualStart?.kind === 'value',
+        actualFinish: row.actualFinish?.kind === 'value',
+      });
+      const answer = question ? entry.actualStarts?.[taskId] : undefined;
+      if (question && answer) {
+        planned = deps.planEdits(task, [...edits, {
+          kind: 'cell-edit', taskId, columnId: taskColumnId('task.time.actualStart'),
+          route: 'task-progress', value: answer,
+        }]);
+      } else if (question && entry.refuseOpenQuestions) {
+        refusedCount++;
+        return {
+          rowNumber: row.rowNumber, outcome: 'refused', reason: 'actualStartRequired',
+          match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [],
+          actualStartQuestion: { statusDate: question.statusDate, latest: question.latest },
+        };
+      } else if (question) {
+        actualStartQuestion = { statusDate: question.statusDate, latest: question.latest };
+      }
+    }
     if (!planned.ok) {
       const plannerCode = planned.errors[0]?.code;
       const reason: ProgressRowReason = plannerCode && KNOWN_PLANNER_REASONS.has(plannerCode)
@@ -253,12 +307,20 @@ export function buildProgressImportPlan(
       rowNumber: row.rowNumber, outcome: 'apply',
       match: match.match, needsConfirmation, taskId, taskLabel: label,
       changes, plannedTask: planned.value.task,
+      ...(actualStartQuestion ? { actualStartQuestion } : {}),
     };
   });
 
   const untouchedTaskCount = tasks.reduce(
     (count, task) => count + (claimedTaskIds.has(task.id) ? 0 : 1), 0,
   );
+  // Z1: zonder statusdatum gaat hij op vandaag zodra het blad voortgang achterlaat — dezelfde toets
+  // als het raster (`prepareGridMutation`): een toegepaste rij waarvan de taak daarna voortgang heeft.
+  // Laat het blad nergens voortgang achter (alleen 0 % of gewiste datums), dan blijft het project
+  // onaangeroerd: de statusdatum doet bij zo'n uitkomst niets.
+  const statusDateToday = entry?.statusDateToday && planRows.some(
+    row => row.outcome === 'apply' && !!row.plannedTask && hasRecordedProgress(row.plannedTask.time),
+  ) ? entry.statusDateToday : undefined;
 
   return {
     rows: planRows,
@@ -269,5 +331,6 @@ export function buildProgressImportPlan(
     needsConfirmationCount,
     ignoredOverrideRows,
     untouchedTaskCount,
+    ...(statusDateToday ? { statusDateToday } : {}),
   };
 }

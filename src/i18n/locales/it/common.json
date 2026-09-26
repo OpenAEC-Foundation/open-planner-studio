@@ -1089,6 +1089,8 @@
     "summaryNoop": "Invariato: {{noop}}",
     "summaryNeedsLink": "In attesa di collegamento: {{needsLink}}",
     "summaryRefused": "Rifiutato: {{refused}}",
+    "statusDateToday": "Non c’è ancora una data di stato: applicando viene impostata a oggi, {{date}}.",
+    "actualStartQuestionRow": "Pianificata per iniziare dopo la data di stato ({{statusDate}}): applicando, l’app chiede l’inizio effettivo.",
     "sectionNeedsLink": "In attesa di collegamento",
     "sectionDoubtful": "Collegamento incerto",
     "confirmLink": "Conferma",
@@ -1130,6 +1132,7 @@
       "actualAfterStatusDate": "La data effettiva è successiva alla data di stato.",
       "actualFinishBeforeStart": "La fine effettiva precede l'inizio effettivo.",
       "conflictingProgressInputs": "I valori inseriti si contraddicono.",
+      "actualStartRequired": "Pianificata per iniziare dopo la data di stato, e non è stato indicato un inizio effettivo.",
       "rejected": "Rifiutato dal pianificatore."
     },
     "field": {

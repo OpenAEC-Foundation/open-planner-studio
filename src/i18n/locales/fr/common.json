@@ -1089,6 +1089,8 @@
     "summaryNoop": "Inchangé : {{noop}}",
     "summaryNeedsLink": "En attente de liaison : {{needsLink}}",
     "summaryRefused": "Refusé : {{refused}}",
+    "statusDateToday": "Il n’y a pas encore de date de statut : appliquer la fixe à aujourd’hui, le {{date}}.",
+    "actualStartQuestionRow": "Prévue pour commencer après la date de statut ({{statusDate}}) : en appliquant, l’application demande le début réel.",
     "sectionNeedsLink": "En attente de liaison",
     "sectionDoubtful": "Liaison incertaine",
     "confirmLink": "Confirmer",
@@ -1130,6 +1132,7 @@
       "actualAfterStatusDate": "La date réelle est postérieure à la date de statut.",
       "actualFinishBeforeStart": "La fin réelle précède le début réel.",
       "conflictingProgressInputs": "Les valeurs saisies se contredisent.",
+      "actualStartRequired": "Prévue pour commencer après la date de statut, et aucun début réel n’a été indiqué.",
       "rejected": "Refusé par le planificateur."
     },
     "field": {

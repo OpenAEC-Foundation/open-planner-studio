@@ -1070,6 +1070,8 @@
     "summaryNoop": "Ongewijzigd: {{noop}}",
     "summaryNeedsLink": "Wacht op koppeling: {{needsLink}}",
     "summaryRefused": "Geweigerd: {{refused}}",
+    "statusDateToday": "Er staat nog geen statusdatum: toepassen zet hem op vandaag, {{date}}.",
+    "actualStartQuestionRow": "Gepland om na de statusdatum ({{statusDate}}) te beginnen: bij toepassen vraagt de app naar de werkelijke start.",
     "sectionNeedsLink": "Wacht op koppeling",
     "sectionDoubtful": "Koppeling betwijfeld",
     "confirmLink": "Bevestigen",
@@ -1111,6 +1113,7 @@
       "actualAfterStatusDate": "De werkelijke datum ligt na de peildatum.",
       "actualFinishBeforeStart": "Werkelijk einde ligt vóór werkelijke start.",
       "conflictingProgressInputs": "De ingevulde waarden spreken elkaar tegen.",
+      "actualStartRequired": "Gepland om na de statusdatum te beginnen, en er is geen werkelijke start opgegeven.",
       "rejected": "Geweigerd door de planner."
     },
     "field": {

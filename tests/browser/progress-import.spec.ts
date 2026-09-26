@@ -509,3 +509,152 @@ test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', as
   const after = await taskTime(page, idA);
   expect(after.completion).toBeCloseTo(0.65, 5);
 });
+
+// ── Voortgang via het blad volgt de regels van de rest van de app (besluit eigenaar "automatisch
+// vandaag, net als in de app"; `engine/progressEntry.ts`). Z1: zonder statusdatum rekent het blad met
+// vandaag, de preview zegt dat vooraf, toepassen zet de statusdatum op vandaag met de ene melding, en
+// één Ctrl+Z draait beide terug. Z1b: een taak die volgens de planning pas NA de statusdatum begint,
+// krijgt geen verzonnen werkelijke start — na "Toepassen" vraagt `ActualStartDialog` ernaar, voor
+// alle betrokken taken samen; annuleren past niets toe en laat de preview staan. Headless
+// tegenhanger: tests/planning/check-progress-import.ts, Deel 6.
+
+/** Vandaag in de browser, zoals de gebruiker hem in het statusdatumveld typt (lokale kalenderdag). */
+function browserToday(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
+}
+
+function shiftDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** De datum zoals de melding hem toont (standaardnotatie dd-mm-jjjj). */
+function shown(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+
+async function projectStatusDate(page: Page): Promise<string | null> {
+  return page.evaluate(() => window.__OPS__!.store.getState().project.statusDate ?? null);
+}
+
+const QUESTION = '[data-ops-actual-start-dialog]';
+
+/** Vul een datum in het gesegmenteerde datumveld van de vraag (standaardnotatie dd-mm-jjjj). */
+async function fillQuestionDate(page: Page, taskName: string, iso: string): Promise<void> {
+  const [y, m, d] = iso.split('-');
+  const segments = page.locator(QUESTION)
+    .getByRole('group', { name: new RegExp(taskName) })
+    .getByRole('textbox');
+  await segments.nth(0).fill(d);
+  await segments.nth(1).fill(m);
+  await segments.nth(2).fill(y);
+}
+
+test('zonder statusdatum: de preview zegt vooraf dat hij vandaag wordt, toepassen zet hem en één Ctrl+Z draait beide terug', async ({ page, ops: _ops }) => {
+  const [idA] = await seedProject(page, [
+    { name: 'Statusdatum-taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  const today = await browserToday(page);
+  expect(await projectStatusDate(page)).toBeNull();
+
+  await openViaBackstage(page);
+  await chooseCsv(page, ['OPS Task ID;Completion (%)', `${idA};40`, ''].join('\r\n'));
+
+  // Vóór bevestigen: de preview noemt de datum, en er is nog niets veranderd.
+  const notice = dialog(page).locator('[data-ops-progress-status-date-today]');
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveAttribute('data-ops-progress-status-date-today', today);
+  expect(await projectStatusDate(page)).toBeNull();
+  const before = await state(page);
+
+  await dialog(page).getByRole('button', { name: APPLY }).click();
+  await expect(footerCloseButton(page)).toBeVisible();
+  expect(await projectStatusDate(page)).toBe(today);
+  expect((await taskTime(page, idA)).completion).toBe(0.4);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
+  // Dezelfde melding als elke andere UI-route, via het ene meldkanaal.
+  await expect(page.locator('.ops-toast', { hasText: shown(today) })).toBeVisible();
+
+  await footerCloseButton(page).click();
+  await expect(dialog(page)).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => projectStatusDate(page)).toBeNull();
+  expect((await taskTime(page, idA)).completion).toBe(0);
+});
+
+test('een taak die pas na de statusdatum begint: de import vraagt de werkelijke start, annuleren past niets toe', async ({ page, ops: _ops }) => {
+  const today = await browserToday(page);
+  const [idNow, idLater1, idLater2] = await seedProject(page, [
+    { name: 'Loopt-al', start: shiftDays(today, -10), finish: shiftDays(today, 3), durationDays: 10 },
+    { name: 'Later-een', start: shiftDays(today, 7), finish: shiftDays(today, 11), durationDays: 5 },
+    { name: 'Later-twee', start: shiftDays(today, 9), finish: shiftDays(today, 13), durationDays: 5 },
+  ], 'Voortgangsblad-vraag');
+
+  await openViaBackstage(page);
+  await chooseCsv(page, [
+    'OPS Task ID;Completion (%)',
+    `${idNow};40`,
+    `${idLater1};50`,
+    `${idLater2};30`,
+    '',
+  ].join('\r\n'));
+
+  // De preview zegt het al bij de twee betrokken rijen — niet bij de taak die al loopt.
+  await expect(rowByNumber(page, 3).locator('[data-ops-progress-actual-start-question]')).toBeVisible();
+  await expect(rowByNumber(page, 4).locator('[data-ops-progress-actual-start-question]')).toBeVisible();
+  await expect(rowByNumber(page, 2).locator('[data-ops-progress-actual-start-question]')).toHaveCount(0);
+  const before = await state(page);
+
+  // Toepassen ⇒ één vraag voor beide taken, met vandaag (de nieuwe statusdatum) als voorstel.
+  await dialog(page).getByRole('button', { name: APPLY }).click();
+  const question = page.locator(QUESTION);
+  await expect(question).toBeVisible();
+  await expect(question.locator('[data-ops-actual-start-row]')).toHaveCount(2);
+  const [y, m, d] = today.split('-');
+  const proposal = question.getByRole('group', { name: /Later-een/ }).getByRole('textbox');
+  await expect(proposal.nth(0)).toHaveValue(d);
+  await expect(proposal.nth(1)).toHaveValue(m);
+  await expect(proposal.nth(2)).toHaveValue(y);
+
+  // Annuleren (Escape): de vraag gaat dicht, de import-preview blijft staan en er is niets toegepast.
+  await page.keyboard.press('Escape');
+  await expect(question).toBeHidden();
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toBeEnabled();
+  expect(await projectStatusDate(page)).toBeNull();
+  for (const id of [idNow, idLater1, idLater2]) {
+    expect(await taskTime(page, id)).toEqual({ completion: 0, actualStart: undefined, actualFinish: undefined });
+  }
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
+
+  // Opnieuw toepassen, beide starts opgeven en bevestigen: het hele blad in één stap.
+  await dialog(page).getByRole('button', { name: APPLY }).click();
+  await expect(question).toBeVisible();
+  const start1 = shiftDays(today, -2);
+  const start2 = shiftDays(today, -1);
+  await fillQuestionDate(page, 'Later-een', start1);
+  await fillQuestionDate(page, 'Later-twee', start2);
+  await expect(question.getByRole('alert')).toHaveCount(0);
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect(question).toBeHidden();
+  await expect(footerCloseButton(page)).toBeVisible();
+
+  expect(await taskTime(page, idLater1)).toMatchObject({ completion: 0.5, actualStart: start1 });
+  expect(await taskTime(page, idLater2)).toMatchObject({ completion: 0.3, actualStart: start2 });
+  expect((await taskTime(page, idNow)).completion).toBe(0.4);
+  expect(await projectStatusDate(page)).toBe(today);
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
+
+  await footerCloseButton(page).click();
+  await expect(dialog(page)).toBeHidden();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => projectStatusDate(page)).toBeNull();
+  expect(await taskTime(page, idLater1)).toEqual({ completion: 0, actualStart: undefined, actualFinish: undefined });
+  expect((await taskTime(page, idNow)).completion).toBe(0);
+});

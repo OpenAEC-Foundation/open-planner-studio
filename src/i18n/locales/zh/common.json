@@ -1051,6 +1051,8 @@
     "summaryNoop": "未变化：{{noop}}",
     "summaryNeedsLink": "等待关联：{{needsLink}}",
     "summaryRefused": "已拒绝：{{refused}}",
+    "statusDateToday": "尚未设置状态日期：应用时将设为今天，{{date}}。",
+    "actualStartQuestionRow": "计划在状态日期（{{statusDate}}）之后开始：应用时，程序会询问实际开始日期。",
     "sectionNeedsLink": "等待关联",
     "sectionDoubtful": "关联存疑",
     "confirmLink": "确认",
@@ -1092,6 +1094,7 @@
       "actualAfterStatusDate": "实际日期晚于状态日期。",
       "actualFinishBeforeStart": "实际完成早于实际开始。",
       "conflictingProgressInputs": "填写的值互相矛盾。",
+      "actualStartRequired": "计划在状态日期之后开始，且未提供实际开始日期。",
       "rejected": "被计划引擎拒绝。"
     },
     "field": {
