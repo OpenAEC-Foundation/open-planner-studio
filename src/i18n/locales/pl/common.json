@@ -344,7 +344,7 @@
     "aiAutostartHint": "Uruchamia most MCP od razu po starcie aplikacji, dzięki czemu klient AI może się połączyć bez otwierania karty AI. Tylko w aplikacji desktopowej.",
     "legacySection": "Funkcje starszego typu",
     "classicViewControls": "Pokaż klasyczne przyciski widoku",
-    "classicViewControlsHint": "Przywraca osobne przyciski Kolumny, Filtr, Grupuj i Sortuj na karcie Widok. Ich funkcja znajduje się teraz w przyciskach układu i w oknie układów."
+    "classicViewControlsHint": "Przywraca osobne przyciski Kolumny, Filtr, Grupuj i Sortuj na karcie Widok. Kolumny wybiera się teraz plusem w nagłówku tabeli lub przez Tabela → Kolumny…; filtrowanie, grupowanie i sortowanie znajdują się w przyciskach układu i w oknie układów."
   },
   "ai": {
     "start": "Uruchom mostek",

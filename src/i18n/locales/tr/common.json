@@ -292,7 +292,7 @@
     "aiAutostartHint": "MCP köprüsünü uygulama açılır açılmaz devreye alır; böylece bir yapay zekâ istemcisi, siz önce AI sekmesini açmadan bağlanabilir. Yalnızca masaüstü uygulamasında.",
     "legacySection": "Eski özellikler",
     "classicViewControls": "Klasik görünüm düğmelerini göster",
-    "classicViewControlsHint": "Ayrı Sütunlar, Filtre, Grupla ve Sırala düğmelerini Görünüm sekmesine geri getirir. İşlevleri artık düzen düğmelerinde ve düzen iletişim kutusundadır."
+    "classicViewControlsHint": "Ayrı Sütunlar, Filtre, Grupla ve Sırala düğmelerini Görünüm sekmesine geri getirir. Sütunlar artık tablo başlığındaki artı ile veya Tablo → Sütunlar… üzerinden seçilir; filtreleme, gruplama ve sıralama düzen düğmelerinde ve düzen iletişim kutusundadır."
   },
   "ai": {
     "start": "Köprüyü başlat",

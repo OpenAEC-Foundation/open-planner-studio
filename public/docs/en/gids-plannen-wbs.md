@@ -134,7 +134,9 @@ Once created, you assign an activity code or fill in a custom field via the colu
 
 ### Grouping by codes and fields
 
-Activity codes and custom fields really pay off once you group by them: go to the ribbon tab **View**, open **Group** and pick the activity code or custom field to cluster by under **Field**. The task table then shows group headers instead of the WBS tree — handy for seeing, for example, all tasks per unit or per discipline together, across the phasing. You can set up to two grouping levels at once (for example first by unit, then by discipline).
+Activity codes and custom fields really pay off once you group by them. The task table then shows group headers instead of the WBS tree — handy for seeing, for example, all tasks per unit or per discipline together, across the phasing. You can set up to two grouping levels at once (for example first by unit, then by discipline).
+
+You set up a grouping with a layout. Go to the ribbon tab **View**, ribbon group **Layout**, and click **New layout**. In the window, under **Group**, click **+ level** and pick the activity code or custom field in the list. **Save** turns it into a layout button: one click switches the grouping on, another click switches it off again. **Apply without saving** puts the grouping on screen right away, without a button. What else a layout button stores is explained in [Saving and loading layouts](docs://ref-layouts).
 
 ## Notes: a checklist per task
 

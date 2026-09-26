@@ -87,7 +87,9 @@ Oluşturulduktan sonra, bir aktivite kodunu görev tablosundaki sütunlar veya g
 
 ### Kodlara ve alanlara göre gruplama
 
-Aktivite kodları ve kullanıcı alanları, onlara göre gruplandığınızda gerçekten karşılığını verir: **Görünüm** şerit sekmesine gidin, **Grupla**'yı açın ve **Alan** altında hangi aktivite koduna veya kullanıcı alanına göre kümeleneceğini seçin. Görev tablosu daha sonra WBS ağacı yerine grup başlıkları gösterir — örneğin tüm görevleri birim başına veya disiplin başına, fazlama boyunca bir arada görmek için kullanışlıdır. Aynı anda en fazla iki gruplama düzeyi ayarlayabilirsiniz (örneğin önce birime, ardından disipline göre).
+Aktivite kodları ve kullanıcı alanları, onlara göre gruplandığınızda gerçekten karşılığını verir. Görev tablosu bu durumda WBS ağacı yerine grup başlıkları gösterir — örneğin tüm görevleri birim başına veya disiplin başına, fazlama boyunca bir arada görmek için kullanışlıdır. Aynı anda en fazla iki gruplama düzeyi ayarlayabilirsiniz (örneğin önce birime, ardından disipline göre).
+
+Gruplamayı bir düzenle ayarlarsınız. **Görünüm** şerit sekmesinde **Layout** şerit grubuna gidin ve **Yeni düzen**'e tıklayın. Pencerede **Grupla** altında **+ düzey**'e tıklayın ve listeden aktivite kodunu veya kullanıcı alanını seçin. **Kaydet** bundan bir düzen düğmesi yapar: bir tıklama gruplamayı açar, bir tıklama daha kapatır. **Kaydetmeden uygula** gruplamayı düğme oluşturmadan hemen ekrana getirir. Bir düzen düğmesinin başka neleri kaydettiği [Layout kaydetme & yükleme](docs://ref-layouts) bölümünde açıklanır.
 
 ## Notlar: görev başına bir kontrol listesi
 

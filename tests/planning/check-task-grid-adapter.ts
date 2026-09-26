@@ -204,6 +204,39 @@ eq('Read-only descriptor weigert editplanning vóór een storemutatie',
 eq('Onbekende occurrence wordt gericht geweigerd',
   gantt.planEdit('verdwenen', taskColumnId('task.name'), 'x').ok, false);
 
+// Namen die de gebruiker zelf gaf (G10): een activity code, eigen veld of baseline heet in de
+// kolomkiezer en de kolomkop precies zoals hij is ingetikt. Deze `labelForColumn` doet wat de oude
+// terugval met een onbekende sleutel deed (alleen het stuk na de laatste punt houden). Een naam mag
+// er dus niet in terechtkomen: dan werd "Fase 1.2" "2" en "Blok v.o." leeg.
+const userNames = ['Locatie 2.1', 'Fase 1.2', 'Blok v.o.', 'Basis 1.2'];
+const translatedKeys: string[] = [];
+const userNamed = createTaskGridAdapter({
+  ...baseInput,
+  surfaceId: 'full-task-grid',
+  activityCodeTypes: [{ id: 'code-1', name: 'Locatie 2.1', values: [] }],
+  customFieldDefs: [
+    { id: 'veld-1', name: 'Fase 1.2', type: 'text' },
+    { id: 'veld-2', name: 'Blok v.o.', type: 'text' },
+  ],
+  baselines: [{
+    id: 'bl-1', name: 'Basis 1.2', createdAt: '2026-01-01T00:00:00Z', tasks: [],
+    projectEnd: '2026-01-07', projectDuration: 5,
+  }],
+  labelForColumn: key => {
+    translatedKeys.push(key);
+    return key.split('.').pop() ?? key;
+  },
+});
+const labelsOf = (prefix: string) => userNamed.availableColumns
+  .filter(column => String(column.id).startsWith(prefix))
+  .map(column => column.label);
+eq('Activity code: de kop is de naam zoals gegeven', labelsOf('activity-code:'), ['Locatie 2.1']);
+eq('Eigen velden: de kop is de naam zoals gegeven', labelsOf('custom-field:'), ['Fase 1.2', 'Blok v.o.']);
+eq('Baseline: de naam letterlijk, alleen het veld-deel vertaald',
+  labelsOf('baseline:')[0], 'Basis 1.2 — scheduleStart');
+ok('labelForColumn krijgt alleen vertaalsleutels, nooit een naam van de gebruiker',
+  translatedKeys.length > 0 && translatedKeys.every(key => !userNames.some(name => key.includes(name))));
+
 const engineSources = readdirSync('src/engine/taskGrid').filter(name => name.endsWith('.ts'));
 for (const source of engineSources) {
   ok(`${source}: engine importeert appStore niet`,

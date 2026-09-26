@@ -139,7 +139,9 @@ Eenmaal aangemaakt, wijs je een activity code of vul je een gebruikersveld in vi
 
 ### Groeperen op codes en velden
 
-Activity codes en gebruikersvelden worden pas echt nuttig zodra je erop groepeert: ga naar het lint-tabblad **Beeld**, open **Groeperen** en kies bij **Veld** de activity code of het gebruikersveld waarop je wilt clusteren. De taaktabel toont dan groepskoppen in plaats van de WBS-boom — handig om bijvoorbeeld alle taken per woning of per discipline bij elkaar te zien, dwars door de fasering heen. Je kunt tot twee groepeerniveaus tegelijk instellen (bijvoorbeeld eerst op woning, dan op discipline).
+Activity codes en gebruikersvelden worden pas echt nuttig zodra je erop groepeert. De taaktabel toont dan groepskoppen in plaats van de WBS-boom — handig om bijvoorbeeld alle taken per woning of per discipline bij elkaar te zien, dwars door de fasering heen. Je kunt tot twee groepeerniveaus tegelijk instellen (bijvoorbeeld eerst op woning, dan op discipline).
+
+Een groepering stel je in met een layout. Ga naar het lint-tabblad **Beeld**, lintgroep **Layout**, en klik op **Nieuwe layout**. Klik in het venster onder **Groeperen** op **+ niveau** en kies in de keuzelijst de activity code of het gebruikersveld. **Opslaan** maakt er een layoutknop van: één klik zet de groepering aan, nog een klik zet hem weer uit. **Toepassen zonder opslaan** zet de groepering meteen op het scherm, zonder knop. Wat een layoutknop verder nog vastlegt, lees je in [Layouts opslaan/laden](docs://ref-layouts).
 
 ## Aantekeningen: een checklist per taak
 

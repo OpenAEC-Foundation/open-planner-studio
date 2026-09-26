@@ -88,7 +88,9 @@ Una volta creati, assegni un codice attività o compili un campo personalizzato 
 
 ### Raggruppare per codici e campi
 
-I codici attività e i campi personalizzati si ripagano davvero una volta che raggruppi per essi: vai alla scheda della barra multifunzione **Vista**, apri **Raggruppa** e scegli il codice attività o il campo personalizzato da usare per raggruppare sotto **Campo**. La tabella delle attività mostra allora intestazioni di gruppo invece dell'albero WBS — comodo per vedere, ad esempio, tutte le attività per unità o per disciplina insieme, attraverso la suddivisione in fasi. Puoi impostare fino a due livelli di raggruppamento contemporaneamente (ad esempio prima per unità, poi per disciplina).
+I codici attività e i campi personalizzati si ripagano davvero una volta che raggruppi per essi. La tabella delle attività mostra allora intestazioni di gruppo invece dell'albero WBS — comodo per vedere, ad esempio, tutte le attività per unità o per disciplina insieme, attraverso la suddivisione in fasi. Puoi impostare fino a due livelli di raggruppamento contemporaneamente (ad esempio prima per unità, poi per disciplina).
+
+Un raggruppamento si imposta con un layout. Vai alla scheda della barra multifunzione **Vista**, gruppo **Layout**, e fai clic su **Nuovo layout**. Nella finestra, sotto **Raggruppa**, fai clic su **+ livello** e scegli nell'elenco il codice attività o il campo personalizzato. **Salva** ne fa un pulsante di layout: un clic attiva il raggruppamento, un altro clic lo disattiva. **Applica senza salvare** mostra subito il raggruppamento, senza pulsante. Cos'altro memorizza un pulsante di layout è spiegato in [Salvare e caricare i layout](docs://ref-layouts).
 
 ## Note: una checklist per attività
 

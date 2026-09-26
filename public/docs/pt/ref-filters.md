@@ -4,7 +4,7 @@ A janela **Filtro** controla quais tarefas estão visíveis — no Gantt e no se
 
 ## Abrir
 
-**Visualização** → grupo do friso **Apresentação** → **Filtro…**. O botão mantém-se destacado enquanto um filtro está ativo. **Esc**, a cruz de fecho ou um clique fora da janela fecha sem aplicar.
+Um filtro define-se na janela de layouts: **Visualização** → grupo do friso **Layout** → **Novo layout**, marque **Filtro** e construa as regras por baixo. **Guardar** transforma-o num botão de layout, **Aplicar sem guardar** apenas mostra o filtro no ecrã por agora. A janela Filtro separada descrita abaixo pertence aos botões de vista clássicos: **Visualização** → grupo do friso **Apresentação** → **Filtro…**, visível apenas se ativar esses botões em **Definições** → **Avançado** → **Funcionalidades legadas**. As regras funcionam da mesma forma nos dois sítios. O botão mantém-se destacado enquanto um filtro está ativo. Se ainda não tiver filtros guardados, abre diretamente a janela Filtro. Caso contrário, a sua seta abre também os seus filtros guardados: escolher um aplica-o de imediato; **Limpar** desliga o filtro ativo. **Esc**, a cruz de fecho ou um clique fora da janela fecha sem aplicar.
 
 ## Grupos: todas ou qualquer uma
 

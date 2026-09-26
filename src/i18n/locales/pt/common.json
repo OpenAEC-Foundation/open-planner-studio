@@ -318,7 +318,7 @@
     "aiAutostartHint": "Ativa a ponte MCP assim que a aplicação arranca, para que um cliente de IA se possa ligar sem abrires primeiro o separador IA. Apenas na aplicação de ambiente de trabalho.",
     "legacySection": "Funcionalidades legadas",
     "classicViewControls": "Mostrar os botões de vista clássicos",
-    "classicViewControlsHint": "Repõe os botões separados Colunas, Filtro, Agrupar e Ordenar no separador Vista. A sua função está agora nos botões de layout e na caixa de diálogo de layouts."
+    "classicViewControlsHint": "Repõe os botões separados Colunas, Filtro, Agrupar e Ordenar no separador Vista. As colunas escolhem-se agora com o sinal de mais no cabeçalho da tabela ou em Tabela → Colunas…; filtrar, agrupar e ordenar estão nos botões de layout e na caixa de diálogo de layouts."
   },
   "ai": {
     "start": "Iniciar ponte",

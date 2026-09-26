@@ -318,7 +318,7 @@
     "aiAutostartHint": "Attiva il bridge MCP all'avvio dell'applicazione, così un client IA può collegarsi senza che tu apra prima la scheda IA. Solo nell'app desktop.",
     "legacySection": "Funzioni legacy",
     "classicViewControls": "Mostra i pulsanti di vista classici",
-    "classicViewControlsHint": "Riporta i pulsanti separati Colonne, Filtro, Raggruppa e Ordina nella scheda Vista. La loro funzione ora si trova nei pulsanti di layout e nella finestra dei layout."
+    "classicViewControlsHint": "Riporta i pulsanti separati Colonne, Filtro, Raggruppa e Ordina nella scheda Vista. Le colonne ora si scelgono con il più nell'intestazione della tabella o da Tabella → Colonne…; filtro, raggruppamento e ordinamento si trovano nei pulsanti di layout e nella finestra dei layout."
   },
   "ai": {
     "start": "Avvia bridge",

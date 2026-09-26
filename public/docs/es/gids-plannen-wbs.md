@@ -104,7 +104,9 @@ Una vez creados, asigna un código de actividad o rellena un campo personalizado
 
 ### Agrupar por códigos y campos
 
-Los códigos de actividad y los campos personalizados realmente dan sus frutos en cuanto agrupa por ellos: vaya a la pestaña de la cinta **Vista**, abra **Agrupar** y elija el código de actividad o el campo personalizado por el que agrupar en **Campo**. La tabla de tareas muestra entonces encabezados de grupo en lugar del árbol WBS — útil para ver, por ejemplo, todas las tareas por unidad o por disciplina juntas, a través de todo el fraseado. Puede configurar hasta dos niveles de agrupación a la vez (por ejemplo primero por unidad, luego por disciplina).
+Los códigos de actividad y los campos personalizados realmente dan sus frutos en cuanto agrupa por ellos. La tabla de tareas muestra entonces encabezados de grupo en lugar del árbol WBS — útil para ver, por ejemplo, todas las tareas por unidad o por disciplina juntas, a través de todo el faseado. Puede configurar hasta dos niveles de agrupación a la vez (por ejemplo primero por unidad, luego por disciplina).
+
+Una agrupación se configura con un diseño. Vaya a la pestaña de la cinta **Vista**, grupo de la cinta **Layout**, y haga clic en **Nuevo diseño**. En la ventana, bajo **Agrupar**, haga clic en **+ nivel** y elija en la lista el código de actividad o el campo personalizado. **Guardar** lo convierte en un botón de diseño: un clic activa la agrupación y otro clic la desactiva. **Aplicar sin guardar** muestra la agrupación de inmediato, sin botón. Qué más guarda un botón de diseño se explica en [Guardar y cargar layouts](docs://ref-layouts).
 
 ## Notas: una lista de comprobación por tarea
 

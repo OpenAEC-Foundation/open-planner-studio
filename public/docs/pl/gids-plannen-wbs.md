@@ -87,7 +87,9 @@ Po utworzeniu przypisujesz kod zadania lub wypełniasz pole użytkownika przez k
 
 ### Grupowanie według kodów i pól
 
-Kody zadań i pola użytkownika naprawdę się opłacają, gdy grupujesz według nich: przejdź na kartę wstążki **Widok**, otwórz **Grupuj** i wybierz kod zadania lub pole użytkownika, według którego ma nastąpić grupowanie, w polu **Pole**. Tabela zadań pokazuje wtedy nagłówki grup zamiast drzewa WBS — przydatne, aby zobaczyć na przykład wszystkie zadania na jednostkę lub na branżę razem, niezależnie od fazowania. Można ustawić jednocześnie do dwóch poziomów grupowania (na przykład najpierw według jednostki, potem według branży).
+Kody zadań i pola użytkownika naprawdę się opłacają, gdy grupujesz według nich. Tabela zadań pokazuje wtedy nagłówki grup zamiast drzewa WBS — przydatne, aby zobaczyć na przykład wszystkie zadania na jednostkę lub na branżę razem, niezależnie od fazowania. Można ustawić jednocześnie do dwóch poziomów grupowania (na przykład najpierw według jednostki, potem według branży).
+
+Grupowanie ustawiasz za pomocą układu. Przejdź na kartę wstążki **Widok**, grupa wstążki **Layout**, i kliknij **Nowy układ**. W oknie, pod **Grupuj**, kliknij **+ poziom** i wybierz z listy kod zadania lub pole użytkownika. **Zapisz** tworzy z tego przycisk układu: jedno kliknięcie włącza grupowanie, kolejne je wyłącza. **Zastosuj bez zapisywania** od razu pokazuje grupowanie na ekranie, bez przycisku. Co jeszcze zapamiętuje przycisk układu, opisuje [Zapisywanie i wczytywanie layoutów](docs://ref-layouts).
 
 ## Notatki: lista kontrolna dla każdego zadania
 
