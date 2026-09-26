@@ -219,28 +219,59 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
   useEffect(() => {
     if (!dragActive) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    // Eén hoverberekening per animatieframe, met de LAATSTE muispositie: per mousemove (60–120 Hz)
+    // mat hij het DOM, zocht de siblings in alle rijen en zette hij state, waardoor het hele raster
+    // bij elke muisbeweging opnieuw renderde. Een ongewijzigde hover zet geen nieuwe state.
+    let frame = 0;
+    let pending: { x: number; y: number } | null = null;
+    const hoverFor = (point: { x: number; y: number }, taskId: string) => computeHover(point.x, point.y, taskId);
+    const applyPending = () => {
+      frame = 0;
+      const point = pending;
+      pending = null;
       const current = dragStateRef.current;
-      if (!current) return;
-      const hover = computeHover(e.clientX, e.clientY, current.taskId);
-      setDragState(prev => prev ? {
-        ...prev,
+      if (!point || !current) return;
+      const hover = hoverFor(point, current.taskId);
+      const next = {
         hoverRowIndex: hover?.rowIndex ?? null,
         hoverZone: hover?.zone ?? null,
         dropTarget: hover?.target ?? null,
-      } : null);
+      };
+      setDragState(prev => {
+        if (!prev) return null;
+        const same = prev.hoverRowIndex === next.hoverRowIndex && prev.hoverZone === next.hoverZone
+          && (prev.dropTarget === next.dropTarget || (prev.dropTarget !== null && next.dropTarget !== null
+            && prev.dropTarget.parentId === next.dropTarget.parentId
+            && prev.dropTarget.childIndex === next.dropTarget.childIndex));
+        return same ? prev : { ...prev, ...next };
+      });
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStateRef.current) return;
+      pending = { x: e.clientX, y: e.clientY };
+      if (!frame) frame = requestAnimationFrame(applyPending);
     };
 
     const handleMouseUp = () => {
       const current = dragStateRef.current;
       const options = optionsRef.current;
-      if (current?.dropTarget) {
+      // Staat er nog een beweging in de wachtrij, dan telt die: het doel van de laatste
+      // muispositie, precies wat de onvertraagde versie op dit moment had.
+      let dropTarget = current?.dropTarget ?? null;
+      if (current && pending) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+        dropTarget = hoverFor(pending, current.taskId)?.target ?? null;
+        pending = null;
+      }
+      if (current && dropTarget) {
         // Onderdeel van een meervoudige selectie ⇒ de hele groep mee (issue #26-vervolgmelding);
         // anders exact het oude pad. `moveTasksTo` doet de groep in één undo-stap.
         const groepssleep = options.selectedTaskIds.length > 1
           && options.selectedTaskIds.includes(current.taskId);
-        if (groepssleep) options.moveTasksTo(options.selectedTaskIds, current.dropTarget);
-        else options.moveTaskTo(current.taskId, current.dropTarget);
+        if (groepssleep) options.moveTasksTo(options.selectedTaskIds, dropTarget);
+        else options.moveTaskTo(current.taskId, dropTarget);
       }
       // Geen geldig doel ⇒ stille no-op; de store-actie guardt cykels zelf ook nog eens.
       options.justDraggedRef.current = true;
@@ -258,7 +289,11 @@ export function useTableRowDrag({ rows, tasksById, moveTaskTo, selectedTaskIds, 
       setDragState(null);
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    const stopListening = listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      stopListening();
+    };
   }, [dragActive, dragStateRef, optionsRef, computeHover, armJustDraggedClear]);
 
   return {
