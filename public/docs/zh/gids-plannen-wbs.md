@@ -1,6 +1,6 @@
-# Plannen & WBS
+# 计划与 WBS
 
-一份计划始于任务结构：存在哪些任务，它们如何拆分为各个阶段，哪些时刻重要到需要设置里程碑？本指南在 [Snel starten](docs://quick-start) 指南的基础上更深入地探讨这一基础——在这里您不仅会学到*如何*缩进，还会学到摘要任务究竟做了什么、三种里程碑类型有何不同、如何为任务设置自己的代码和字段，以及如何按任务记录备注。
+一份计划始于任务结构：存在哪些任务，它们如何拆分为各个阶段，哪些时刻重要到需要设置里程碑？本指南在 [快速入门](docs://quick-start) 指南的基础上更深入地探讨这一基础——在这里您不仅会学到*如何*缩进，还会学到摘要任务究竟做了什么、三种里程碑类型有何不同、如何为任务设置自己的代码和字段，以及如何按任务记录备注。
 
 ## 您将在此学到什么
 
@@ -105,5 +105,5 @@
 ## 继续阅读
 
 - 在 [Verbouwing & Aanbouw Eengezinswoning](examples://showcase-verbouwing-eengezinswoning.ifc) 中查看这一结构——分阶段、摘要任务、里程碑——的实际应用。
-- 结构搭建完成后，下一步是把任务相互连接起来：阅读指南 [Relaties & constraints](docs://gids-relaties-constraints)。
-- 还不熟悉 Open Planner Studio？从 [Snel starten](docs://quick-start) 指南开始，进行一次从空项目到计算完成的计划的连续练习。
+- 结构搭建完成后，下一步是把任务相互连接起来：阅读指南 [关系与限制](docs://gids-relaties-constraints)。
+- 还不熟悉 Open Planner Studio？从 [快速入门](docs://quick-start) 指南开始，进行一次从空项目到计算完成的计划的连续练习。

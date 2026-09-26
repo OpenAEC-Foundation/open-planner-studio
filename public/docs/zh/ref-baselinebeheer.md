@@ -1,4 +1,4 @@
-# Baselinebeheer
+# 基线管理
 
 **基线**窗口管理已保存的计划快照：保存、重命名、选择活动基线和删除。
 
@@ -25,4 +25,4 @@
 
 ## 延伸阅读
 
-- [Baselines & voortgang](docs://gids-baselines-voortgang) — 基线叠加、差异报告、进度和状态日期。
+- [基线与进度](docs://gids-baselines-voortgang) — 基线叠加、差异报告、进度和状态日期。

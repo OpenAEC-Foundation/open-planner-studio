@@ -1,4 +1,4 @@
-# Nivelleringsopties
+# 平衡选项
 
 **资源平衡**窗口通过移动任务来解决超额分配问题。它分两步进行：**计算**生成方案（尚未发生任何改变），**应用**执行该方案。
 
@@ -35,4 +35,4 @@
 
 ## 延伸阅读
 
-- [Resources, histogram & nivellering](docs://gids-resources-histogram) — 在直方图中发现超额分配，以及完整的平衡工作流程。
+- [资源、直方图与平衡](docs://gids-resources-histogram) — 在直方图中发现超额分配，以及完整的平衡工作流程。

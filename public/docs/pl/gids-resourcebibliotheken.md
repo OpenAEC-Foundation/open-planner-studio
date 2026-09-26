@@ -62,7 +62,7 @@ To jest część warta zapamiętania: niektóre pola to ustalenie obowiązujące
 - Zdolność rozłożona w czasie
 - **Wybór**, który kalendarz jest przypisany do zasobu
 
-Przydziel zasób biblioteczny, a jego kalendarz podąża za nim jako połączona kopia, która sama nadal podąża za biblioteką — dlatego *zawartość* tego kalendarza znajduje się na liście po lewej powyżej. Ale *wybór*, który kalendarz jest przypisany do zasobu, znajduje się na liście po prawej: ta sama brygada może przy pilnym zleceniu działać na innym kalendarzu niż zwykle, bez naruszania biblioteki. To rozróżnienie jest subtelne, ale ważne: zmień w zasobie bibliotecznym stawkę albo nazwę, a kopia odbiega od biblioteki; zmień wybór kalendarza albo maks. jednostki, a robisz dokładnie to, do czego to pole służy.
+Przydziel zasób biblioteczny, a jego kalendarz podąża za nim jako połączona kopia, która sama nadal podąża za biblioteką — dlatego *zawartość* tego kalendarza znajduje się powyżej, pod nagłówkiem **Podąża za biblioteką**. Ale *wybór*, który kalendarz jest przypisany do zasobu, znajduje się pod nagłówkiem **Decydujesz per projekt**: ta sama brygada może przy pilnym zleceniu działać na innym kalendarzu niż zwykle, bez naruszania biblioteki. To rozróżnienie jest subtelne, ale ważne: zmień w zasobie bibliotecznym stawkę albo nazwę, a kopia odbiega od biblioteki; zmień wybór kalendarza albo maks. jednostki, a robisz dokładnie to, do czego to pole służy.
 
 ## Trzy akcje łączące oba światy
 

@@ -62,7 +62,7 @@ Questa è la parte da ricordare: alcuni campi sono un accordo a livello aziendal
 - La disponibilità scaglionata nel tempo
 - La **scelta** di quale calendario è collegato alla risorsa
 
-Assegni una risorsa di libreria, e il suo calendario viaggia insieme come copia collegata che a sua volta continua a seguire la libreria — per questo il *contenuto* di quel calendario si trova nell'elenco a sinistra qui sopra. Ma la *scelta* di quale calendario è collegato a una risorsa si trova nell'elenco a destra: la stessa squadra può benissimo usare un calendario diverso per un lavoro urgente rispetto al solito, senza che ciò sia uno scostamento dalla libreria. Questa distinzione è sottile ma importante: cambi la tariffa o il nome di una risorsa di libreria, e la copia si discosta dalla libreria; cambi la scelta del calendario o le unità max., e stai facendo esattamente ciò per cui quel campo esiste.
+Assegni una risorsa di libreria, e il suo calendario viaggia insieme come copia collegata che a sua volta continua a seguire la libreria — per questo il *contenuto* di quel calendario si trova qui sopra sotto **Segue la libreria**. Ma la *scelta* di quale calendario è collegato a una risorsa si trova sotto **Decidi per progetto**: la stessa squadra può benissimo usare un calendario diverso per un lavoro urgente rispetto al solito, senza che ciò sia uno scostamento dalla libreria. Questa distinzione è sottile ma importante: cambi la tariffa o il nome di una risorsa di libreria, e la copia si discosta dalla libreria; cambi la scelta del calendario o le unità max., e stai facendo esattamente ciò per cui quel campo esiste.
 
 ## Tre azioni che collegano i due mondi
 
