@@ -102,6 +102,8 @@ const NONE: string[] = [];
 export function expandSummaryRelations(
   tasks: readonly Task[],
   sequences: readonly Sequence[],
+  /** Alleen voor tests: een lager plafond om de snoei-tak onder controle te toetsen. */
+  maxExpanded: number = MAX_EXPANDED_RELATIONS,
 ): ExpandSummaryRelationsResult {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const leafDescCache = new Map<string, string[]>();
@@ -153,8 +155,24 @@ export function expandSummaryRelations(
 
   const outSeqs: Sequence[] = [];
   const dropped: string[] = [];
-  let budget = MAX_EXPANDED_RELATIONS;
+  let budget = maxExpanded;
   let budgetExhausted = false;
+  // Lui opgebouwd, alleen als een relatie het budget overschrijdt (zie `pruneDominated`).
+  let leafEdges: { out: Map<string, Sequence[]>; inc: Map<string, Sequence[]> } | null = null;
+  const edges = () => {
+    if (leafEdges) return leafEdges;
+    const out = new Map<string, Sequence[]>();
+    const inc = new Map<string, Sequence[]>();
+    for (const e of sequences) {
+      const a = byId.get(e.predecessorId);
+      const b = byId.get(e.successorId);
+      if (!a || !b || !isLeafTask(a) || !isLeafTask(b)) continue;
+      (out.get(a.id) ?? out.set(a.id, []).get(a.id)!).push(e);
+      (inc.get(b.id) ?? inc.set(b.id, []).get(b.id)!).push(e);
+    }
+    leafEdges = { out, inc };
+    return leafEdges;
+  };
 
   for (const seq of sequences) {
     const predTask = byId.get(seq.predecessorId);
@@ -172,8 +190,8 @@ export function expandSummaryRelations(
       continue;
     }
 
-    const predIds = predIsLeaf ? [predTask.id] : leafDescendantsOf(predTask.id);
-    const succIds = succIsLeaf ? [succTask.id] : leafDescendantsOf(succTask.id);
+    const predIds = predIsLeaf ? [predTask.id] : [...leafDescendantsOf(predTask.id)];
+    const succIds = succIsLeaf ? [succTask.id] : [...leafDescendantsOf(succTask.id)];
     if (predIds.length === 0 || succIds.length === 0) {
       // Samenvatting zonder bladafstammelingen (lege of kapotte tak) — niets om te representeren.
       dropped.push(seq.id);
@@ -208,7 +226,23 @@ export function expandSummaryRelations(
 
     // Exact aantal — de voorouder-/zelfrelatie-guard hierboven garandeert dat predIds/succIds nu
     // DISJUNCT zijn, dus elk (p,s)-paar hieronder is een écht andere bladtaak aan beide kanten.
-    const size = predIds.length * succIds.length;
+    let size = predIds.length * succIds.length;
+    if (size > budget) {
+      // Audit 2026-09-26: vóór het atomair droppen eerst exact snoeien. Een bladtaak die via een
+      // interne relatie (lag ≥ 0) ALTIJD vóór (of tegelijk met) een andere bladtaak van dezelfde tak
+      // klaar is, voegt aan het kruisproduct niets toe: de solver neemt toch het maximum. Zo passen
+      // twee fasen van honderden bladen (een lineaire keten erin) vaak ruim in het budget, terwijl ze
+      // vroeger in hun geheel wegvielen en de planning de fase-logica negeerde.
+      const pruned = pruneDominated(seq, predIds, succIds, byId, edges());
+      if (pruned) {
+        const prunedSize = pruned.predIds.length * pruned.succIds.length;
+        if (prunedSize <= budget) {
+          predIds.splice(0, predIds.length, ...pruned.predIds);
+          succIds.splice(0, succIds.length, ...pruned.succIds);
+          size = prunedSize;
+        }
+      }
+    }
     if (size > budget) {
       // M6: welke relatie hier precies sneuvelt is AFHANKELIJK VAN DE INVOERVOLGORDE (de eerste
       // die het resterende budget niet meer past) — geen her-proberen verderop in de lijst op een
@@ -255,6 +289,69 @@ export function expandSummaryRelations(
   }
 
   return { sequences: outSeqs, droppedSequenceIds: dropped };
+}
+
+
+// ── Exacte dominantie-snoei (audit 2026-09-26) ───────────────────────────────────────────────────
+
+/** Een taak waarvan de datums de relatie-ongelijkheden altijd volgen: geen handmatige planning,
+ *  geen voortgang/werkelijke datums, geen harde constraint die haar vóór een voorganger kan trekken,
+ *  geen hammock/LOE, en een echte duur (een nulduurmijlpaal heeft eigen dag-grenssemantiek). */
+function followsLogic(t: Task): boolean {
+  if (t.manuallyScheduled || t.isHammock || t.isMilestone) return false;
+  if (t.time.actualStart || t.time.actualFinish || (t.time.completion ?? 0) > 0) return false;
+  if (!(t.time.scheduleDuration > 0)) return false;
+  const c = t.constraint?.type;
+  return c !== 'MSO' && c !== 'MFO';
+}
+
+function nonNegativeLag(e: Sequence): boolean {
+  return e.lagDays >= 0 && (e.lagMinutes ?? 0) >= 0 && (e.lagPercent ?? 0) >= 0;
+}
+
+/**
+ * Snoei bladen die het maximum aan hun kant nooit kunnen bepalen. Alleen een interne
+ * EIND-START-relatie (lag ≥ 0) telt als dominantie: `p → p2` betekent p2.start ≥ p.finish, dus zowel
+ * de start als de finish van p2 liggen ná die van p.
+ *  - Voorgangerkant: blad `p` valt weg als een ander blad `p2` van dezelfde tak via FS op `p` volgt.
+ *    De relatie `p2 → q` is dan minstens zo streng als `p → q` — voorwaarts én achterwaarts (p's late
+ *    finish blijft via p2 begrensd) en voor de vrije speling (die van p via p2 is nooit groter).
+ *  - Opvolgerkant: blad `q` valt weg als het via FS op een ander blad `q2` van dezelfde tak volgt:
+ *    q erft de grens van R dan via q2.
+ * Waarom alleen FS: met SS/FF als dominantie waren de uitkomsten in uur-modus op dezelfde
+ * werktijdpositie wel gelijk, maar kozen ze bij een bandgrens een andere weergave (16:00 van de ene
+ * werkdag i.p.v. 08:00 van de volgende) — zichtbaar anders. FS-dominantie is in de toets
+ * (`check-summary-relation-prune.ts`) byte-identiek met de volledige uitklapping, dag- én uur-modus.
+ * Alleen tussen taken op dezelfde kalender die de logica volgen (`followsLogic`), en niet als R een
+ * procentuele lag heeft (die rekent per voorgangerblad, M5). `null` = niet snoeibaar.
+ */
+function pruneDominated(
+  rel: Sequence,
+  predIds: readonly string[],
+  succIds: readonly string[],
+  byId: ReadonlyMap<string, Task>,
+  edges: { out: ReadonlyMap<string, Sequence[]>; inc: ReadonlyMap<string, Sequence[]> },
+): { predIds: string[]; succIds: string[] } | null {
+  if (rel.lagPercent !== undefined && rel.lagPercent !== 0) return null;
+  const eligible = (a: Task, b: Task) => followsLogic(a) && followsLogic(b) && (a.calendarId ?? '') === (b.calendarId ?? '');
+
+  const predSet = new Set(predIds);
+  const keepPred = predIds.filter((id) => {
+    const p = byId.get(id)!;
+    return !(edges.out.get(id) ?? []).some((e) => {
+      if (!predSet.has(e.successorId) || !nonNegativeLag(e)) return false;
+      return e.type === 'FINISH_START' && eligible(p, byId.get(e.successorId)!);
+    });
+  });
+  const succSet = new Set(succIds);
+  const keepSucc = succIds.filter((id) => {
+    const q = byId.get(id)!;
+    return !(edges.inc.get(id) ?? []).some((e) => {
+      if (!succSet.has(e.predecessorId) || !nonNegativeLag(e)) return false;
+      return e.type === 'FINISH_START' && eligible(byId.get(e.predecessorId)!, q);
+    });
+  });
+  return { predIds: keepPred, succIds: keepSucc };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
