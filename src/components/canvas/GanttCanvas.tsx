@@ -48,6 +48,7 @@ import { saveHistogramHeight } from '@/utils/settingsStore';
 // bewust in dit component staan (zie de kop van dat bestand voor waarom).
 import {
   buildBaselineOverlay,
+  buildSharedAxis,
   buildHistogramPicker, buildHistogramSeries,
   type GanttRenderOptionsSourceInput,
 } from './ganttRenderOptions';
@@ -302,11 +303,16 @@ export function GanttCanvas({
   const histogramAxis = viewport.histogramAxis;
   // Minimap op dezelfde as als de Gantt: op de werkdagen-as telt `scrollX / zoom` in werkdagen,
   // dus de strip moet de balken ook zo plaatsen (anders lopen kader en balken uiteen).
+  // Eigen as zonder zoom/scroll (`dayIndexOf` hangt daar niet van af): zo blijft de functie over
+  // scrollframes heen dezelfde en kan de strip zijn dagindeling cachen.
   const minimapAxisDayOf = useMemo(() => {
     if (!compressNonWorkdays) return undefined;
-    const originIndex = sharedAxis.dayIndexOf(parseDate(effectiveViewStart));
-    return (date: Date) => sharedAxis.dayIndexOf(date) - originIndex;
-  }, [compressNonWorkdays, sharedAxis, effectiveViewStart]);
+    const axis = buildSharedAxis({
+      calendar, compressNonWorkdays, viewStartDate: effectiveViewStart, chartOriginX: 0, zoom: 1, scrollX: 0,
+    });
+    const originIndex = axis.dayIndexOf(parseDate(effectiveViewStart));
+    return (date: Date) => axis.dayIndexOf(date) - originIndex;
+  }, [calendar, compressNonWorkdays, effectiveViewStart]);
   const totalContentWidth = viewport.primary.contentWidth;
   const secondaryContentWidth = viewport.secondary?.contentWidth ?? 0;
   const primaryChartWidth = viewport.primary.chartWidth;

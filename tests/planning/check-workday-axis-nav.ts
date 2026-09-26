@@ -89,6 +89,27 @@ if (bars.length === 2 && frame) {
 const day = mini.miniXToDay(bars[1]?.x ?? 0);
 ok('minimap werkdagen-as: klik op balkstart t2 ⇒ as-dag van t2', day !== null && Math.abs(day * zoom - scrollX) < 1e-6, String(day));
 
+// Gecachte dagindeling (bevroren rijen, zoals uit de store): zelfde balken als het verse pad, en een
+// andere oorsprong of as-functie geeft géén verouderde indeling.
+{
+  const frozen = Object.freeze([...rows]) as ViewRow[];
+  const barsOf = (opts: { originDate: string; axisDayOf?: (d: Date) => number }) => {
+    recorded.length = 0;
+    new MiniMapRenderer(ctx, { rows: frozen, canvasWidth: 400, canvasHeight: 40, scrollX, zoom, chartWidth: 100, palette, ...opts }).render();
+    return JSON.stringify(recorded.filter((r) => r.fill === palette.bar));
+  };
+  const fresh = (opts: { originDate: string; axisDayOf?: (d: Date) => number }) => {
+    recorded.length = 0;
+    new MiniMapRenderer(ctx, { rows: [...rows], canvasWidth: 400, canvasHeight: 40, scrollX, zoom, chartWidth: 100, palette, ...opts }).render();
+    return JSON.stringify(recorded.filter((r) => r.fill === palette.bar));
+  };
+  const a1 = barsOf({ originDate: origin, axisDayOf });
+  const a2 = barsOf({ originDate: origin, axisDayOf });
+  ok('minimap-cache: tweede render gelijk aan de eerste en aan het verse pad', a1 === a2 && a1 === fresh({ originDate: origin, axisDayOf }));
+  ok('minimap-cache: kalender-as na werkdagen-as niet verouderd', barsOf({ originDate: origin }) === fresh({ originDate: origin }));
+  ok('minimap-cache: andere oorsprong niet verouderd', barsOf({ originDate: '2026-02-23' }) === fresh({ originDate: '2026-02-23' }));
+}
+
 if (fails.length) {
   for (const f of fails) console.log(`XX ${f}`);
   console.log(`check-workday-axis-nav: ${fails.length}/${checks} ROOD`);

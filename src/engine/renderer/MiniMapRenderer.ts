@@ -60,18 +60,40 @@ function projectSpan(rows: ViewRow[], dayOf: DayOf): Span | null {
   return { startDay: min, endDay: max, span: max - min };
 }
 
+/**
+ * Dagindeling per rij + projectspanne, per (rijenlijst, oorsprong, as) één keer berekend. De strip
+ * wordt bij élke scroll opnieuw getekend en parseerde dan voor alle rijen twee keer beide datums
+ * (8000 taken: de helft van een scrollframe). Alleen voor een bevroren (store-)lijst; de as-functie
+ * telt mee als sleutel (identiteit), de kalender-as via de oorsprong.
+ */
+interface Layout { days: Array<{ startDay: number; endDay: number } | null>; span: Span | null }
+const layoutCache = new WeakMap<ViewRow[], { originDate: string; axisDayOf: DayOf | undefined; layout: Layout }>();
+function layoutFor(rows: ViewRow[], originDate: string, axisDayOf: DayOf | undefined): Layout {
+  const cacheable = Object.isFrozen(rows);
+  const hit = cacheable ? layoutCache.get(rows) : undefined;
+  if (hit && hit.originDate === originDate && hit.axisDayOf === axisDayOf) return hit.layout;
+  const origin = parseDate(originDate);
+  const dayOf: DayOf = axisDayOf ?? ((date) => diffCalendarDays(origin, date));
+  const layout: Layout = {
+    days: rows.map((row) => (row.kind === 'task' ? taskDays(row.task, dayOf) : null)),
+    span: projectSpan(rows, dayOf),
+  };
+  if (cacheable) layoutCache.set(rows, { originDate, axisDayOf, layout });
+  return layout;
+}
+
 export class MiniMapRenderer {
   private ctx: CanvasRenderingContext2D;
   private opts: MiniMapOptions;
   private span: Span | null;
-  private dayOf: DayOf;
+  private days: Layout['days'];
 
   constructor(ctx: CanvasRenderingContext2D, opts: MiniMapOptions) {
     this.ctx = ctx;
     this.opts = opts;
-    const origin = parseDate(opts.originDate);
-    this.dayOf = opts.axisDayOf ?? ((date) => diffCalendarDays(origin, date));
-    this.span = projectSpan(opts.rows, this.dayOf);
+    const layout = layoutFor(opts.rows, opts.originDate, opts.axisDayOf);
+    this.span = layout.span;
+    this.days = layout.days;
   }
 
   /** Dag (t.o.v. originDate) → x op de strip. */
@@ -101,7 +123,7 @@ export class MiniMapRenderer {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         if (row.kind !== 'task') continue;
-        const days = taskDays(row.task, this.dayOf);
+        const days = this.days[i];
         if (!days) continue;
         const x0 = this.dayToMiniX(days.startDay);
         const x1 = this.dayToMiniX(days.endDay);
