@@ -77,6 +77,9 @@ import { MAX_VAR_TEXT_BYTES, MAX_MANUAL_DURATION_TENTHS } from '@/services/mpp/l
 import { tenthsOfMinutesToDays } from '@/services/importDurations';
 import { formatInstant } from '@/utils/dateUtils';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
+import { readIFC } from '@/services/ifc/ifcReader';
 import { installDOMParser } from './xmldom-shim';
 import type { Task, TaskSplitGap } from '@/types/task';
 import type { Resource } from '@/types/resource';
@@ -1237,6 +1240,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
   const PROJECT_FINISH_DATE_KEY = 37748739;
   const TITLE_KEY = 37748744;
   const DEFAULT_CALENDAR_NAME_KEY = 37748750;
+  const STATUS_DATE_KEY = 37748805; // mppReader.ts `PROPS_KEY_STATUS_DATE` (H4)
 
   function encodeUnicodeStringAscii(s: string): Uint8Array {
     const out = new Uint8Array(s.length * 2);
@@ -1310,6 +1314,9 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
     calendarName?: string;
     /** T10: zie `buildHourTaskFixedDataRecord` — standaard 0 (WORKTIME). */
     durationUnits?: number;
+    /** H4: statusdatum in Props (tijd in tienden van minuten, MPP-dag). Afwezig ⇒ geen entry,
+     *  zodat de andere fixtures byte-identiek blijven. */
+    statusDate?: { time: number; days: number };
   }): Uint8Array {
     const dummy = buildTaskFixedMetaRecord(0);
     // offsetIntoFixedData === 3*130 (390): matcht de BYTE-offset waarop `dataTask` hieronder in
@@ -1355,6 +1362,7 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
       { key: PROJECT_FINISH_DATE_KEY, data: timestampBytes(0, 15010) },
       { key: TITLE_KEY, data: encodeUnicodeStringAscii('Uurmodus-fixture') },
       { key: DEFAULT_CALENDAR_NAME_KEY, data: encodeUnicodeStringAscii(calendarName) },
+      ...(opts.statusDate ? [{ key: STATUS_DATE_KEY, data: timestampBytes(opts.statusDate.time, opts.statusDate.days) }] : []),
     ]);
 
     const tree: Record<string, CfbTreeNode> = {
@@ -1609,6 +1617,88 @@ const PROPSKEY_ASSIGNMENT_FIELD_MAP = 131095;
         task?.time.scheduleDuration === 2,
       );
     }
+  }
+
+  // ── Fixture 6 (H4): statusdatum mét tijd via het echte open-pad (`readMPP`), en die tijd overleeft
+  // opslaan (IFC, het native formaat) + openen én een MSPDI-export + openen. MS Project bewaart de
+  // statusdatum op de standaard eindtijd (17:00); zie de H4-sectie hieronder voor de regel en de
+  // pariteit met de MSPDI-lezer. ──────────────────────────────────────────────────────────────────
+  {
+    const bytes = buildFixture({
+      taskName: 'HourTask', durationRaw: 1200, startTime: 4800, startDays: 15000, finishTime: 6000, finishDays: 15000,
+      statusDate: { time: 10200, days: 15000 }, // 17:00 op MPP-dag 15000 = vr 24-01-2025
+    });
+    const result = readMPP(bytes);
+    const want = '2025-01-24T17:00';
+    truthy(`H4 readMPP: statusdatum mét tijd (kreeg ${result.project.statusDate})`, result.project.statusDate === want);
+    const ifcBack = readIFC(writeIFC(result as WriteIFCInput)).project.statusDate;
+    truthy(`H4 readMPP → opslaan (IFC) → openen: tijd blijft (kreeg ${ifcBack})`, ifcBack === want);
+    installDOMParser();
+    const mspdiBack = readMSPDI(writeMSPDI(
+      result.project, result.calendar, result.tasks, result.sequences, result.resources, result.assignments,
+      result.resourceCalendars ?? [],
+    )).project.statusDate;
+    truthy(`H4 readMPP → MSPDI-export → openen: tijd blijft (kreeg ${mspdiBack})`, mspdiBack === want);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// H4 (vervolg G7) — statusdatum mét tijd, gelijk aan de MSPDI-lezer. MS Project bewaart de
+// statusdatum met de standaard eindtijd van het project (17:00; `mpp14header.mpp` 17:35, zijn eigen
+// eindtijd). Besluit eigenaar: tijd overnemen (17:00 = einde van die dag). De MSPDI-lezer doet dat
+// sinds `statusDateFromXml`; voor hetzelfde project moet `.mpp` exact hetzelfde opleveren. MS
+// Project schrijft de waarde in MSPDI als `<StatusDate>` in xsd:dateTime-vorm (wandklok, zonder
+// zone) — die string is hier de referentie. Het dag-anker 08:00 betekent in MSPDI "geen tijd"; voor
+// pariteit geldt dat ook hier (een statusdatum op 08:00 komt exact als `YYYY-MM-DD` terug).
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+{
+  installDOMParser();
+  const STATUS_DATE_KEY = 37748805; // mppReader.ts `PROPS_KEY_STATUS_DATE`
+  const DAYS_2026_07_06 = 15528; // MPP-dag (epoch 1983-12-31) van ma 6 juli 2026
+  const fromMpp = (time: number, days: number) => parseProjectProperties(
+    new Props(encodePropsEntries([{ key: STATUS_DATE_KEY, data: timestampBytes(time, days) }]), 'H4-statusdatum'),
+    undefined,
+  ).project.statusDate;
+  const fromMspdi = (xsd: string) => readMSPDI(
+    `<?xml version="1.0"?>\n<Project xmlns="http://schemas.microsoft.com/project"><Name>H4</Name>`
+    + `<StatusDate>${xsd}</StatusDate><Tasks/></Project>`,
+  ).project.statusDate;
+
+  // [omschrijving, tijd in tienden van minuten, MSPDI-vorm van dezelfde waarde, verwacht]
+  const cases: [string, number, string, string][] = [
+    ['17:00 (standaard eindtijd MS Project)', 10200, '2026-07-06T17:00:00', '2026-07-06T17:00'],
+    ['17:35 (eigen eindtijd, zoals mpp14header.mpp)', 10550, '2026-07-06T17:35:00', '2026-07-06T17:35'],
+    ['12:30', 7500, '2026-07-06T12:30:00', '2026-07-06T12:30'],
+    ['23:59 (de datum schuift niet)', 14390, '2026-07-06T23:59:00', '2026-07-06T23:59'],
+    ['00:00', 0, '2026-07-06T00:00:00', '2026-07-06T00:00'],
+    ['08:00 (dag-anker: geen tijd, exact de datum)', 4800, '2026-07-06T08:00:00', '2026-07-06'],
+  ];
+  for (const [label, time, xsd, want] of cases) {
+    const got = fromMpp(time, DAYS_2026_07_06);
+    truthy(`H4 .mpp statusdatum ${label}: ${want} (kreeg ${got})`, got === want);
+    const mspdi = fromMspdi(xsd);
+    truthy(`H4 pariteit .mpp ↔ MSPDI ${label}: .mpp ${got}, MSPDI ${mspdi}`, got === mspdi);
+  }
+  // Ongewijzigd: geen statusdatum (veld afwezig of NA) ⇒ geen `project.statusDate`.
+  truthy('H4 .mpp statusdatum NA (days=65535) ⇒ geen statusDate', fromMpp(10200, 65535) === undefined);
+  truthy(
+    'H4 .mpp zonder statusdatum-veld ⇒ geen statusDate',
+    parseProjectProperties(new Props(encodePropsEntries([]), 'H4-geen-statusdatum'), undefined).project.statusDate === undefined,
+  );
+
+  // Corpus (optioneel, publiek MPXJ-materiaal onder OPS_MPP_CRAWL — zelfde padconventie als Z4):
+  // de enige twee van de 164 MPXJ-.mpp-bestanden met een statusdatum.
+  const DATA = `${process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl'}/mpxj/junit/data`;
+  for (const [file, want] of [['calendar-exception-precedence.mpp', '2023-05-01T17:00'], ['mpp14header.mpp', '2006-08-01T17:35']]) {
+    const path = `${DATA}/${file}`;
+    if (!existsSync(path)) {
+      console.log(`OK  mpp-import: H4 ${file} niet aanwezig (${path}) — overgeslagen`);
+      continue;
+    }
+    const result = readMPP(new Uint8Array(readFileSync(path)));
+    truthy(`[H4 corpus] ${file}: statusdatum ${want} (kreeg ${result.project.statusDate})`, result.project.statusDate === want);
+    const ifcBack = readIFC(writeIFC(result as WriteIFCInput)).project.statusDate;
+    truthy(`[H4 corpus] ${file}: opslaan (IFC) + openen houdt ${want} (kreeg ${ifcBack})`, ifcBack === want);
   }
 }
 

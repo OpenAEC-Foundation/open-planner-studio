@@ -25,7 +25,8 @@ export function importDateTime(s: string, hour: boolean): string {
   return hour ? formatInstant(parseInstant(s), 'hour') : s.substring(0, 10);
 }
 
-/** Statusdatum uit een bestand → `project.statusDate`, voor élke lezer die hem kent (IFC, MSPDI, P6).
+/** Statusdatum uit een bestand → `project.statusDate`, voor élke lezer die hem kent (IFC, MSPDI, P6,
+ *  `.mpp` via `statusDateFromXml`).
  *  Zonder tijd ⇒ `YYYY-MM-DD`; mét tijd ⇒ de store-vorm van een uur-instant (`YYYY-MM-DDTHH:mm`),
  *  ongeacht de modus van de taken: de tijd staat in het bestand en de engine gebruikt hem op een
  *  uur-projectkalender. Een onleesbare tijd ⇒ de datum. Het XML-dag-anker (een datum zonder tijd die
